@@ -1,0 +1,9 @@
+mysql:
+  image: mysql:5.7.13
+  environment:
+    MYSQL_ROOT_PASSWORD: toor
+    MYSQL_DATABASE: kolide
+    MYSQL_USER: kolide
+    MYSQL_PASSWORD: kolide
+  ports:
+    - "3306:3306"
