@@ -8,6 +8,14 @@ To build the code, run the following from the root of the repository:
 go build
 ```
 
+## Testing
+
+To run the application's tests, run the following from the root of the repository:
+
+```
+go test
+```
+
 ## Development Environment
 
 To set up the development environment via docker, run the following frmo the root of the repository:

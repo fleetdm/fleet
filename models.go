@@ -1,28 +1,54 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/jinzhu/gorm"
+
+	"github.com/gin-gonic/gin"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
+	_ "github.com/jinzhu/gorm/dialects/sqlite"
 )
+
+type DBEnvironment int
+
+const (
+	ProductionDB DBEnvironment = iota
+	TestingDB    DBEnvironment = iota
+)
+
+var injectedTestDB *gorm.DB
+
+func GetDB(c *gin.Context) (*gorm.DB, error) {
+	f, ok := c.Get("DB")
+	if !ok {
+		return nil, errors.New("DB was not set on the supplied *gin.Context. Use a middleware to set it.")
+	}
+	switch f.(DBEnvironment) {
+	case ProductionDB:
+		return openDB(config.MySQL.Username, config.MySQL.Password, config.MySQL.Address, config.MySQL.Database)
+	case TestingDB:
+		if injectedTestDB != nil {
+			return injectedTestDB, nil
+		}
+		db, err := openTestDB()
+		if err != nil {
+			return nil, errors.New("Could not open a test database")
+		}
+		injectedTestDB = db
+		return injectedTestDB, nil
+	default:
+		return nil, errors.New("GetDB not implemented for DBEnvironment object")
+	}
+}
 
 type BaseModel struct {
 	ID        uint `gorm:"primary_key"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt *time.Time `sql:"index"`
-}
-
-type User struct {
-	BaseModel
-	Username string `gorm:"not null;unique_index:idx_user_unique_username"`
-	Password string `gorm:"not null"`
-	Salt     string `gorm:"not null"`
-	Name     string
-	Email    string `gorm:"unique_index:idx_user_unique_email"`
-	Admin    bool   `gorm:"not null"`
 }
 
 type ScheduledQuery struct {
@@ -160,6 +186,26 @@ var tables = [...]interface{}{
 func openDB(user, password, address, dbName string) (*gorm.DB, error) {
 	connectionString := fmt.Sprintf("%s:%s@(%s)/%s?charset=utf8&parseTime=True&loc=Local", user, password, address, dbName)
 	return gorm.Open("mysql", connectionString)
+}
+
+func openTestDB() (*gorm.DB, error) {
+	db, err := gorm.Open("sqlite3", ":memory:")
+	if err != nil {
+		return nil, err
+	}
+
+	createTables(db)
+	return db, db.Error
+}
+
+func ProductionDatabaseMiddleware(c *gin.Context) {
+	c.Set("DB", ProductionDB)
+	c.Next()
+}
+
+func TestingDatabaseMiddleware(c *gin.Context) {
+	c.Set("DB", TestingDB)
+	c.Next()
 }
 
 func dropTables(db *gorm.DB) {
