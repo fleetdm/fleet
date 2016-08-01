@@ -1,5 +1,7 @@
 # Kolide
 
+[![Build Status](https://drone.io/github.com/kolide/kolide-ose/status.png)](https://drone.io/github.com/kolide/kolide-ose/latest)
+
 ## Building
 
 To build the code, run the following from the root of the repository:
