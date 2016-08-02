@@ -261,31 +261,14 @@ func Logout(c *gin.Context) {
 	c.JSON(200, nil)
 }
 
-const (
-	letters         = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	letterIndex     = 6                  // 6 bits to represent a letter index
-	letterIndexMask = 1<<letterIndex - 1 // All 1-bits, as many as letterIndex
-	letterIndexMax  = 63 / letterIndex   // # of letter indices fitting in 63 bits
-)
-
-var psrngSource = rand.NewSource(time.Now().UnixNano())
-
 func generateRandomText(length int) string {
-
-	text := make([]byte, length)
-	for i, cache, remain := length-1, psrngSource.Int63(), letterIndexMax; i >= 0; {
-		if remain == 0 {
-			cache, remain = psrngSource.Int63(), letterIndexMax
-		}
-		if idx := int(cache & letterIndexMask); idx < len(letters) {
-			text[i] = letters[idx]
-			i--
-		}
-		cache >>= letterIndex
-		remain--
+	rand.Seed(time.Now().UTC().UnixNano())
+	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	result := make([]byte, length)
+	for i := 0; i < length; i++ {
+		result[i] = chars[rand.Intn(len(chars))]
 	}
-
-	return string(text)
+	return string(result)
 }
 
 func HashPassword(salt, password string) ([]byte, error) {
