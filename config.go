@@ -42,7 +42,7 @@ var defaultMysqlConfigData = mysqlConfigData{
 }
 
 var defaultServerConfigData = serverConfigData{
-	Address: ":8080",
+	Address: "127.0.0.1:8080",
 	Cert:    "./tools/kolide.crt",
 	Key:     "./tools/kolide.key",
 }
