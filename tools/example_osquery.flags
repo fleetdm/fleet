@@ -1,0 +1,7 @@
+--force=true
+--config_path=/etc/osquery/osquery.conf
+--enroll_secret_env=ENROLL_SECRET
+--enroll_tls_endpoint=/api/v1/osquery/enroll
+--tls_hostname=dockerhost:8080
+--tls_server_certs=/etc/osquery/kolide.crt
+--verbose=true

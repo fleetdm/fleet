@@ -1,0 +1,26 @@
+version: '2'
+
+services:
+  ubuntu14-osquery:
+    image: kolide/osquery
+    volumes:
+      - ./kolide.crt:/etc/osquery/kolide.crt
+      - ./example_osquery.flags:/etc/osquery/osquery.flags
+      - ./example_osquery.conf:/etc/osquery/osquery.conf
+    extra_hosts:
+      - "dockerhost:${LOCALHOST}"
+    environment:
+      ENROLL_SECRET: 'super secure'
+    command: osqueryd --flagfile=/etc/osquery/osquery.flags
+
+  centos7-osquery:
+    image: kolide/centos7-osquery
+    volumes:
+      - ./kolide.crt:/etc/osquery/kolide.crt
+      - ./example_osquery.flags:/etc/osquery/osquery.flags
+      - ./example_osquery.conf:/etc/osquery/osquery.conf
+    extra_hosts:
+      - "dockerhost:${LOCALHOST}"
+    environment:
+      ENROLL_SECRET: 'super secure'
+    command: osqueryd --flagfile=/etc/osquery/osquery.flags
