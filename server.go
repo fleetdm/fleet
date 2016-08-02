@@ -25,6 +25,13 @@ func UnauthorizedError(c *gin.Context) {
 	c.JSON(401, ServerError("Unauthorized"))
 }
 
+// MalformedRequestError emits a response that is appropriate in the event that
+// a request is received by a user which does not have required fields or is in
+// some way malformed
+func MalformedRequestError(c *gin.Context) {
+	c.JSON(400, ServerError("Malformed request"))
+}
+
 func createTestServer() *gin.Engine {
 	server := gin.New()
 	server.Use(TestingDatabaseMiddleware)
@@ -52,7 +59,7 @@ func CreateServer() *gin.Engine {
 	kolide.PATCH("/user", ModifyUser)
 	kolide.DELETE("/user", DeleteUser)
 
-	kolide.PATCH("/user/password", ResetUserPassword)
+	kolide.PATCH("/user/password", ChangeUserPassword)
 	kolide.PATCH("/user/admin", SetUserAdminState)
 	kolide.PATCH("/user/enabled", SetUserEnabledState)
 

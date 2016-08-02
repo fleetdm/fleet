@@ -81,7 +81,18 @@ func (u *User) MakeAdmin(db *gorm.DB) error {
 }
 
 type GetUserRequestBody struct {
-	ID uint `json:"id" binding:"required"`
+	ID       uint   `json:"id"`
+	Username string `json:"username"`
+}
+
+type GetUserResponseBody struct {
+	ID                 uint   `json:"id"`
+	Username           string `json:"username"`
+	Email              string `json:"email"`
+	Name               string `json:"name"`
+	Admin              bool   `json:"admin"`
+	Enabled            bool   `json:"enabled"`
+	NeedsPasswordReset bool   `json:"needs_password_reset"`
 }
 
 func GetUser(c *gin.Context) {
@@ -107,26 +118,27 @@ func GetUser(c *gin.Context) {
 	}
 
 	var user User
-	err = db.Where("id = ?", body.ID).First(&user).Error
+	user.ID = body.ID
+	user.Username = body.Username
+	err = db.Where(&user).First(&user).Error
 	if err != nil {
-		logrus.Errorf("Error finding user in database: %s", err.Error())
 		DatabaseError(c)
 		return
 	}
 
-	if !vc.CanPerformReadActionOnUser(db, &user) {
+	if !vc.CanPerformReadActionOnUser(&user) {
 		UnauthorizedError(c)
 		return
 	}
 
-	c.JSON(200, map[string]interface{}{
-		"id":                   user.ID,
-		"username":             user.Username,
-		"name":                 user.Name,
-		"email":                user.Email,
-		"admin":                user.Admin,
-		"enabled":              user.Enabled,
-		"needs_password_reset": user.NeedsPasswordReset,
+	c.JSON(200, GetUserResponseBody{
+		ID:                 user.ID,
+		Username:           user.Username,
+		Name:               user.Name,
+		Email:              user.Email,
+		Admin:              user.Admin,
+		Enabled:            user.Enabled,
+		NeedsPasswordReset: user.NeedsPasswordReset,
 	})
 }
 
@@ -165,18 +177,26 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	_, err = NewUser(db, body.Username, body.Password, body.Email, body.Admin, body.NeedsPasswordReset)
+	user, err := NewUser(db, body.Username, body.Password, body.Email, body.Admin, body.NeedsPasswordReset)
 	if err != nil {
 		logrus.Errorf("Error creating new user: %s", err.Error())
 		DatabaseError(c)
 		return
 	}
 
-	c.JSON(200, nil)
+	c.JSON(200, GetUserResponseBody{
+		ID:                 user.ID,
+		Username:           user.Username,
+		Name:               user.Name,
+		Email:              user.Email,
+		Admin:              user.Admin,
+		Enabled:            user.Enabled,
+		NeedsPasswordReset: user.NeedsPasswordReset,
+	})
 }
 
 type ModifyUserRequestBody struct {
-	ID       uint   `json:"id" binding:"required"`
+	ID       uint   `json:"id"`
 	Username string `json:"username"`
 	Name     string `json:"name"`
 	Email    string `json:"email"`
@@ -205,29 +225,46 @@ func ModifyUser(c *gin.Context) {
 	}
 
 	var user User
-	err = db.Where("id = ?", body.ID).First(&user).Error
+	user.ID = body.ID
+	user.Username = body.Username
+
+	err = db.Where(&user).First(&user).Error
 	if err != nil {
-		logrus.Errorf("Error finding user in database: %s", err.Error())
 		DatabaseError(c)
 		return
 	}
 
-	if !vc.CanPerformWriteActionOnUser(db, &user) {
+	if !vc.CanPerformWriteActionOnUser(&user) {
 		UnauthorizedError(c)
 		return
 	}
 
+	if body.Name != "" {
+		user.Name = body.Name
+	}
+	if body.Email != "" {
+		user.Email = body.Email
+	}
 	err = db.Save(&user).Error
 	if err != nil {
 		logrus.Errorf("Error updating user in database: %s", err.Error())
 		DatabaseError(c)
 		return
 	}
-	c.JSON(200, nil)
+	c.JSON(200, GetUserResponseBody{
+		ID:                 user.ID,
+		Username:           user.Username,
+		Name:               user.Name,
+		Email:              user.Email,
+		Admin:              user.Admin,
+		Enabled:            user.Enabled,
+		NeedsPasswordReset: user.NeedsPasswordReset,
+	})
 }
 
 type DeleteUserRequestBody struct {
-	ID uint `json:"id" binding:"required"`
+	ID       uint   `json:"id"`
+	Username string `json:"username"`
 }
 
 func DeleteUser(c *gin.Context) {
@@ -258,9 +295,10 @@ func DeleteUser(c *gin.Context) {
 	}
 
 	var user User
-	err = db.Where("id = ?", body.ID).First(&user).Error
+	user.ID = body.ID
+	user.Username = body.Username
+	err = db.Where(&user).First(&user).Error
 	if err != nil {
-		logrus.Errorf("Error finding user in database: %s", err.Error())
 		DatabaseError(c)
 		return
 	}
@@ -275,20 +313,29 @@ func DeleteUser(c *gin.Context) {
 }
 
 type ResetPasswordRequestBody struct {
-	ID             uint   `json:"id" binding:"required"`
+	ID             uint   `json:"id"`
+	Username       string `json:"username"`
 	Password       string `json:"password" binding:"required"`
 	PasswordConfim string `json:"password_confirm" binding:"required"`
 }
 
-func ResetUserPassword(c *gin.Context) {
-	var body ResetPasswordRequestBody
+type ChangePasswordRequestBody struct {
+	ID                uint   `json:"id"`
+	Username          string `json:"username"`
+	CurrentPassword   string `json:"current_password"`
+	NewPassword       string `json:"new_password" binding:"required"`
+	NewPasswordConfim string `json:"new_password_confirm" binding:"required"`
+}
+
+func ChangeUserPassword(c *gin.Context) {
+	var body ChangePasswordRequestBody
 	err := c.BindJSON(&body)
 	if err != nil {
 		logrus.Errorf("Error parsing ResetPassword post body: %s", err.Error())
 		return
 	}
 
-	if body.Password != body.PasswordConfim {
+	if body.NewPassword != body.NewPasswordConfim {
 		c.JSON(406, map[string]interface{}{"error": "Passwords do not match"})
 		return
 	}
@@ -300,26 +347,34 @@ func ResetUserPassword(c *gin.Context) {
 		return
 	}
 
+	var user User
+	user.ID = body.ID
+	user.Username = body.Username
+	err = db.Where(&user).First(&user).Error
+	if err != nil {
+		DatabaseError(c)
+		return
+	}
+
 	vc, err := VC(c, db)
 	if err != nil {
 		logrus.Errorf("Could not create VC: %s", err.Error())
 		DatabaseError(c)
 		return
 	}
-	var user User
-	err = db.Where("id = ?", body.ID).First(&user).Error
-	if err != nil {
-		logrus.Errorf("Error finding user in database: %s", err.Error())
-		DatabaseError(c)
-		return
+
+	if !vc.IsAdmin() {
+		if !vc.IsUserID(user.ID) {
+			UnauthorizedError(c)
+			return
+		}
+		if user.ValidatePassword(body.CurrentPassword) != nil {
+			UnauthorizedError(c)
+			return
+		}
 	}
 
-	if !vc.CanPerformWriteActionOnUser(db, &user) {
-		UnauthorizedError(c)
-		return
-	}
-
-	err = user.SetPassword(db, body.Password)
+	err = user.SetPassword(db, body.NewPassword)
 	if err != nil {
 		logrus.Errorf("Error setting user password: %s", err.Error())
 		// xxx don't try to write to the db?
@@ -331,12 +386,21 @@ func ResetUserPassword(c *gin.Context) {
 		DatabaseError(c)
 		return
 	}
-	c.JSON(200, nil)
+	c.JSON(200, GetUserResponseBody{
+		ID:                 user.ID,
+		Username:           user.Username,
+		Name:               user.Name,
+		Email:              user.Email,
+		Admin:              user.Admin,
+		Enabled:            user.Enabled,
+		NeedsPasswordReset: user.NeedsPasswordReset,
+	})
 }
 
 type SetUserAdminStateRequestBody struct {
-	ID    uint `json:"id" binding:"required"`
-	Admin bool `json:"admin" binding:"required"`
+	ID       uint   `json:"id"`
+	Username string `json:"username"`
+	Admin    bool   `json:"admin"`
 }
 
 func SetUserAdminState(c *gin.Context) {
@@ -367,9 +431,10 @@ func SetUserAdminState(c *gin.Context) {
 	}
 
 	var user User
-	err = db.Where("id = ?", body.ID).First(&user).Error
+	user.ID = body.ID
+	user.Username = body.Username
+	err = db.Where(&user).First(&user).Error
 	if err != nil {
-		logrus.Errorf("Error finding user in database: %s", err.Error())
 		DatabaseError(c)
 		return
 	}
@@ -381,12 +446,21 @@ func SetUserAdminState(c *gin.Context) {
 		DatabaseError(c)
 		return
 	}
-	c.JSON(200, nil)
+	c.JSON(200, GetUserResponseBody{
+		ID:                 user.ID,
+		Username:           user.Username,
+		Name:               user.Name,
+		Email:              user.Email,
+		Admin:              user.Admin,
+		Enabled:            user.Enabled,
+		NeedsPasswordReset: user.NeedsPasswordReset,
+	})
 }
 
 type SetUserEnabledStateRequestBody struct {
-	ID      uint `json:"id" binding:"required"`
-	Enabled bool `json:"enabled" binding:"required"`
+	ID       uint   `json:"id"`
+	Username string `json:"username"`
+	Enabled  bool   `json:"enabled"`
 }
 
 func SetUserEnabledState(c *gin.Context) {
@@ -417,9 +491,10 @@ func SetUserEnabledState(c *gin.Context) {
 	}
 
 	var user User
-	err = db.Where("id = ?", body.ID).First(&user).Error
+	user.ID = body.ID
+	user.Username = body.Username
+	err = db.Where(&user).First(&user).Error
 	if err != nil {
-		logrus.Errorf("Error finding user in database: %s", err.Error())
 		DatabaseError(c)
 		return
 	}
@@ -431,5 +506,13 @@ func SetUserEnabledState(c *gin.Context) {
 		DatabaseError(c)
 		return
 	}
-	c.JSON(200, nil)
+	c.JSON(200, GetUserResponseBody{
+		ID:                 user.ID,
+		Username:           user.Username,
+		Name:               user.Name,
+		Email:              user.Email,
+		Admin:              user.Admin,
+		Enabled:            user.Enabled,
+		NeedsPasswordReset: user.NeedsPasswordReset,
+	})
 }

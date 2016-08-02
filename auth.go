@@ -47,7 +47,7 @@ func (vc *ViewerContext) UserID() (uint, error) {
 	return 0, errors.New("No user set")
 }
 
-func (vc *ViewerContext) CanPerformActions(db *gorm.DB) bool {
+func (vc *ViewerContext) CanPerformActions() bool {
 	if vc.user == nil {
 		return false
 	}
@@ -70,12 +70,12 @@ func (vc *ViewerContext) IsUserID(id uint) bool {
 	return false
 }
 
-func (vc *ViewerContext) CanPerformWriteActionOnUser(db *gorm.DB, u *User) bool {
-	return vc.CanPerformActions(db) && (vc.IsUserID(u.ID) || vc.IsAdmin())
+func (vc *ViewerContext) CanPerformWriteActionOnUser(u *User) bool {
+	return vc.CanPerformActions() && (vc.IsUserID(u.ID) || vc.IsAdmin())
 }
 
-func (vc *ViewerContext) CanPerformReadActionOnUser(db *gorm.DB, u *User) bool {
-	return vc.CanPerformActions(db) && (vc.IsUserID(u.ID) || vc.IsAdmin())
+func (vc *ViewerContext) CanPerformReadActionOnUser(u *User) bool {
+	return vc.CanPerformActions()
 }
 
 // GenerateJWT generates a JWT token in serialized string form given a
@@ -147,6 +147,7 @@ func JWTRenewalMiddleware(c *gin.Context) {
 	}
 
 	session.Set("jwt", jwt)
+	session.Save()
 
 	c.Next()
 }
@@ -246,12 +247,14 @@ func Login(c *gin.Context) {
 	session.Set("jwt", token)
 	session.Save()
 
-	c.JSON(200, map[string]interface{}{
-		"id":       user.ID,
-		"username": user.Username,
-		"email":    user.Email,
-		"name":     user.Name,
-		"admin":    user.Admin,
+	c.JSON(200, GetUserResponseBody{
+		ID:                 user.ID,
+		Username:           user.Username,
+		Name:               user.Name,
+		Email:              user.Email,
+		Admin:              user.Admin,
+		Enabled:            user.Enabled,
+		NeedsPasswordReset: user.NeedsPasswordReset,
 	})
 }
 

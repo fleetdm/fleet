@@ -179,19 +179,19 @@ func TestCanPerformActionsOnUser(t *testing.T) {
 	adminVC := GenerateVC(admin)
 	user1VC := GenerateVC(user1)
 
-	if !adminVC.CanPerformWriteActionOnUser(db, user1) || !adminVC.CanPerformWriteActionOnUser(db, user2) {
+	if !adminVC.CanPerformWriteActionOnUser(user1) || !adminVC.CanPerformWriteActionOnUser(user2) {
 		t.Fatal("Admin should be able to perform writes on users")
 	}
 
-	if !adminVC.CanPerformReadActionOnUser(db, user1) || !adminVC.CanPerformReadActionOnUser(db, user2) {
+	if !adminVC.CanPerformReadActionOnUser(user1) || !adminVC.CanPerformReadActionOnUser(user2) {
 		t.Fatal("Admin should be able to perform reads on users")
 	}
 
-	if user1VC.CanPerformWriteActionOnUser(db, user2) {
+	if user1VC.CanPerformWriteActionOnUser(user2) {
 		t.Fatal("user1 shouldn't be able to perform writes on user2")
 	}
 
-	if user1VC.CanPerformReadActionOnUser(db, user2) {
+	if !user1VC.CanPerformReadActionOnUser(user2) {
 		t.Fatal("user1 should be able to perform reads on user2")
 	}
 
