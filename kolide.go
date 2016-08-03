@@ -67,9 +67,8 @@ func (hook logContextHook) Fire(entry *logrus.Entry) error {
 	if pc, file, line, ok := runtime.Caller(8); ok {
 		funcName := runtime.FuncForPC(pc).Name()
 
-		entry.Data["file"] = path.Base(file)
 		entry.Data["func"] = path.Base(funcName)
-		entry.Data["line"] = line
+		entry.Data["location"] = fmt.Sprintf("%s:%d", path.Base(file), line)
 	}
 
 	return nil
@@ -87,6 +86,8 @@ func main() {
 	// configure the application based on the flags that have been set
 	if *debug {
 		logrus.SetLevel(logrus.DebugLevel)
+	} else {
+		logrus.SetLevel(logrus.WarnLevel)
 	}
 
 	if *logJson {
@@ -100,6 +101,7 @@ func main() {
 		if _, err = os.Stat("./tools/example_config.json"); err == nil {
 			*configPath = "./tools/example_config.json"
 		}
+		logrus.Warn("Using example config. These settings should be used for development only!")
 	}
 
 	// if the user has defined a config path OR the example config is found

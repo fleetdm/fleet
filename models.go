@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/jinzhu/gorm"
 
 	"github.com/gin-gonic/gin"
@@ -183,9 +184,35 @@ var tables = [...]interface{}{
 	&DistributedQueryExecution{},
 }
 
+func setDBSettings(db *gorm.DB) {
+	// Tell gorm to use the logrus logger
+	db.SetLogger(logrus.StandardLogger())
+
+	// If debug mode is enabled, tell gorm to turn on logmode (log each
+	// query as it is executed)
+	if debug != nil && *debug {
+		db.LogMode(true)
+	}
+}
+
 func openDB(user, password, address, dbName string) (*gorm.DB, error) {
 	connectionString := fmt.Sprintf("%s:%s@(%s)/%s?charset=utf8&parseTime=True&loc=Local", user, password, address, dbName)
 	return gorm.Open("mysql", connectionString)
+	db, err := gorm.Open("mysql", connectionString)
+	if err != nil {
+		return nil, err
+	}
+	setDBSettings(db)
+	return db, nil
+}
+
+/// Open a database connection, or panic
+func mustOpenDB(user, password, address, dbName string) *gorm.DB {
+	db, err := openDB(user, password, address, dbName)
+	if err != nil {
+		panic(fmt.Sprintf("Could not connect to DB: %s", err.Error()))
+	}
+	return db
 }
 
 func openTestDB() (*gorm.DB, error) {
@@ -194,6 +221,7 @@ func openTestDB() (*gorm.DB, error) {
 		return nil, err
 	}
 
+	setDBSettings(db)
 	createTables(db)
 	return db, db.Error
 }

@@ -1,6 +1,10 @@
 package main
 
 import (
+	"time"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/gin-gonic/contrib/ginrus"
 	"github.com/gin-gonic/gin"
 )
 
@@ -43,6 +47,22 @@ func createTestServer() *gin.Engine {
 func CreateServer() *gin.Engine {
 	server := gin.New()
 	server.Use(ProductionDatabaseMiddleware)
+
+	// TODO: The following loggers are not synchronized with each other or
+	// logrus.StandardLogger() used through the rest of the codebase. As
+	// such, their output may become intermingled.
+	// See https://github.com/Sirupsen/logrus/issues/391
+
+	// Ginrus middleware logs details about incoming requests using the
+	// logrus WithFields
+	requestLogger := logrus.New()
+	server.Use(ginrus.Ginrus(requestLogger, time.RFC3339, false))
+
+	// Recovery middleware recovers from panic(), returning a 500 response
+	// code and printing the panic information to the log
+	recoveryLogger := logrus.New()
+	recoveryLogger.WriterLevel(logrus.ErrorLevel)
+	server.Use(gin.RecoveryWithWriter(recoveryLogger.Writer()))
 
 	v1 := server.Group("/api/v1")
 
