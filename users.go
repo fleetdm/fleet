@@ -103,12 +103,7 @@ func GetUser(c *gin.Context) {
 		return
 	}
 
-	db, err := GetDB(c)
-	if err != nil {
-		logrus.Errorf("Could not open database: %s", err.Error())
-		DatabaseError(c)
-		return
-	}
+	db := GetDB(c)
 
 	vc, err := VC(c, db)
 	if err != nil {
@@ -158,12 +153,7 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	db, err := GetDB(c)
-	if err != nil {
-		logrus.Errorf("Could not open database: %s", err.Error())
-		DatabaseError(c)
-		return
-	}
+	db := GetDB(c)
 
 	vc, err := VC(c, db)
 	if err != nil {
@@ -210,12 +200,7 @@ func ModifyUser(c *gin.Context) {
 		return
 	}
 
-	db, err := GetDB(c)
-	if err != nil {
-		logrus.Errorf("Could not open database: %s", err.Error())
-		DatabaseError(c)
-		return
-	}
+	db := GetDB(c)
 
 	vc, err := VC(c, db)
 	if err != nil {
@@ -275,12 +260,7 @@ func DeleteUser(c *gin.Context) {
 		return
 	}
 
-	db, err := GetDB(c)
-	if err != nil {
-		logrus.Errorf("Could not open database: %s", err.Error())
-		DatabaseError(c)
-		return
-	}
+	db := GetDB(c)
 
 	vc, err := VC(c, db)
 	if err != nil {
@@ -340,12 +320,7 @@ func ChangeUserPassword(c *gin.Context) {
 		return
 	}
 
-	db, err := GetDB(c)
-	if err != nil {
-		logrus.Errorf("Could not open database: %s", err.Error())
-		DatabaseError(c)
-		return
-	}
+	db := GetDB(c)
 
 	var user User
 	user.ID = body.ID
@@ -411,12 +386,7 @@ func SetUserAdminState(c *gin.Context) {
 		return
 	}
 
-	db, err := GetDB(c)
-	if err != nil {
-		logrus.Errorf("Could not open database: %s", err.Error())
-		DatabaseError(c)
-		return
-	}
+	db := GetDB(c)
 
 	vc, err := VC(c, db)
 	if err != nil {
@@ -471,12 +441,7 @@ func SetUserEnabledState(c *gin.Context) {
 		return
 	}
 
-	db, err := GetDB(c)
-	if err != nil {
-		logrus.Errorf("Could not open database: %s", err.Error())
-		DatabaseError(c)
-		return
-	}
+	db := GetDB(c)
 
 	vc, err := VC(c, db)
 	if err != nil {

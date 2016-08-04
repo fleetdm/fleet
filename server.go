@@ -6,6 +6,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/contrib/ginrus"
 	"github.com/gin-gonic/gin"
+	"github.com/jinzhu/gorm"
 )
 
 // ServerError is a helper which accepts a string error and returns a map in
@@ -36,17 +37,25 @@ func MalformedRequestError(c *gin.Context) {
 	c.JSON(400, ServerError("Malformed request"))
 }
 
-func createTestServer() *gin.Engine {
+func createEmptyTestServer(db *gorm.DB) *gin.Engine {
 	server := gin.New()
-	server.Use(TestingDatabaseMiddleware)
+	server.Use(DatabaseMiddleware(db))
 	return server
+}
+
+// Adapted from https://goo.gl/03Qxiy
+func DatabaseMiddleware(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Set("DB", db)
+		c.Next()
+	}
 }
 
 // CreateServer creates a gin.Engine HTTP server and configures it to be in a
 // state such that it is ready to serve HTTP requests for the kolide application
-func CreateServer() *gin.Engine {
+func CreateServer(db *gorm.DB) *gin.Engine {
 	server := gin.New()
-	server.Use(ProductionDatabaseMiddleware)
+	server.Use(DatabaseMiddleware(db))
 
 	// TODO: The following loggers are not synchronized with each other or
 	// logrus.StandardLogger() used through the rest of the codebase. As
@@ -74,7 +83,7 @@ func CreateServer() *gin.Engine {
 	kolide.POST("/login", Login)
 	kolide.GET("/logout", Logout)
 
-	kolide.GET("/user", GetUser)
+	kolide.POST("/user", GetUser)
 	kolide.PUT("/user", CreateUser)
 	kolide.PATCH("/user", ModifyUser)
 	kolide.DELETE("/user", DeleteUser)

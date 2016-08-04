@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -13,36 +12,9 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 )
 
-type DBEnvironment int
-
-const (
-	ProductionDB DBEnvironment = iota
-	TestingDB    DBEnvironment = iota
-)
-
-var injectedTestDB *gorm.DB
-
-func GetDB(c *gin.Context) (*gorm.DB, error) {
-	f, ok := c.Get("DB")
-	if !ok {
-		return nil, errors.New("DB was not set on the supplied *gin.Context. Use a middleware to set it.")
-	}
-	switch f.(DBEnvironment) {
-	case ProductionDB:
-		return openDB(config.MySQL.Username, config.MySQL.Password, config.MySQL.Address, config.MySQL.Database)
-	case TestingDB:
-		if injectedTestDB != nil {
-			return injectedTestDB, nil
-		}
-		db, err := openTestDB()
-		if err != nil {
-			return nil, errors.New("Could not open a test database")
-		}
-		injectedTestDB = db
-		return injectedTestDB, nil
-	default:
-		return nil, errors.New("GetDB not implemented for DBEnvironment object")
-	}
+// Get the database connection from the context, or panic
+func GetDB(c *gin.Context) *gorm.DB {
+	return c.MustGet("DB").(*gorm.DB)
 }
 
 type BaseModel struct {
@@ -197,43 +169,27 @@ func setDBSettings(db *gorm.DB) {
 
 func openDB(user, password, address, dbName string) (*gorm.DB, error) {
 	connectionString := fmt.Sprintf("%s:%s@(%s)/%s?charset=utf8&parseTime=True&loc=Local", user, password, address, dbName)
-	return gorm.Open("mysql", connectionString)
 	db, err := gorm.Open("mysql", connectionString)
 	if err != nil {
 		return nil, err
 	}
+
 	setDBSettings(db)
 	return db, nil
 }
 
-/// Open a database connection, or panic
-func mustOpenDB(user, password, address, dbName string) *gorm.DB {
-	db, err := openDB(user, password, address, dbName)
-	if err != nil {
-		panic(fmt.Sprintf("Could not connect to DB: %s", err.Error()))
-	}
-	return db
-}
-
-func openTestDB() (*gorm.DB, error) {
+func openTestDB() *gorm.DB {
 	db, err := gorm.Open("sqlite3", ":memory:")
 	if err != nil {
-		return nil, err
+		panic(fmt.Sprintf("Error opening test DB: %s", err.Error()))
 	}
 
 	setDBSettings(db)
 	createTables(db)
-	return db, db.Error
-}
-
-func ProductionDatabaseMiddleware(c *gin.Context) {
-	c.Set("DB", ProductionDB)
-	c.Next()
-}
-
-func TestingDatabaseMiddleware(c *gin.Context) {
-	c.Set("DB", TestingDB)
-	c.Next()
+	if db.Error != nil {
+		panic(fmt.Sprintf("Error creating test DB tables: %s", db.Error.Error()))
+	}
+	return db
 }
 
 func dropTables(db *gorm.DB) {

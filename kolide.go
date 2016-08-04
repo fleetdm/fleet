@@ -51,6 +51,8 @@ func init() {
 
 	// populate the global config data structure with sane defaults
 	setDefaultConfigValues()
+
+	rand.Seed(time.Now().UnixNano())
 }
 
 // logContextHook is a logrus hook which is used to contextualize application
@@ -72,10 +74,6 @@ func (hook logContextHook) Fire(entry *logrus.Entry) error {
 	}
 
 	return nil
-}
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
 }
 
 func main() {
@@ -124,10 +122,16 @@ func main() {
 		dropTables(db)
 		createTables(db)
 	case serve.FullCommand():
+		db, err := openDB(config.MySQL.Username, config.MySQL.Password, config.MySQL.Address, config.MySQL.Database)
+		if err != nil {
+			logrus.Fatalf("Error opening database: %s", err.Error())
+		}
+
 		fmt.Printf("=> %s %s application starting on https://%s\n", app.Name, version, config.Server.Address)
 		fmt.Println("=> Run `kolide help serve` for more startup options")
 		fmt.Println("Use Ctrl-C to stop\n\n")
-		CreateServer().RunTLS(
+
+		CreateServer(db).RunTLS(
 			config.Server.Address,
 			config.Server.Cert,
 			config.Server.Key)

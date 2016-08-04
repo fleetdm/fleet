@@ -18,10 +18,7 @@ func TestGenerateRandomText(t *testing.T) {
 }
 
 func TestGenerateVC(t *testing.T) {
-	db, err := openTestDB()
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := openTestDB()
 
 	user, err := NewUser(db, "marpaia", "foobar", "mike@kolide.co", true, false)
 	if err != nil {
@@ -50,14 +47,11 @@ func TestGenerateVC(t *testing.T) {
 }
 
 func TestVC(t *testing.T) {
-	r := createTestServer()
+	db := openTestDB()
+	r := createEmptyTestServer(db)
+
 	r.Use(testSessionMiddleware)
 	r.Use(JWTRenewalMiddleware)
-
-	db, err := openTestDB()
-	if err != nil {
-		t.Fatal(err.Error())
-	}
 
 	user, err := NewUser(db, "marpaia", "foobar", "mike@kolide.co", false, false)
 	if err != nil {
@@ -134,10 +128,7 @@ func TestVC(t *testing.T) {
 }
 
 func TestIsUserID(t *testing.T) {
-	db, err := openTestDB()
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := openTestDB()
 
 	user1, err := NewUser(db, "marpaia", "foobar", "mike@kolide.co", false, false)
 	if err != nil {
@@ -156,10 +147,7 @@ func TestIsUserID(t *testing.T) {
 }
 
 func TestCanPerformActionsOnUser(t *testing.T) {
-	db, err := openTestDB()
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := openTestDB()
 
 	user1, err := NewUser(db, "marpaia", "foobar", "mike@kolide.co", false, false)
 	if err != nil {

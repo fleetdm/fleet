@@ -215,12 +215,7 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	db, err := GetDB(c)
-	if err != nil {
-		logrus.Errorf("Could not open database: %s", err.Error())
-		DatabaseError(c)
-		return
-	}
+	db := GetDB(c)
 
 	var user User
 	err = db.Where("username = ?", body.Username).First(&user).Error
