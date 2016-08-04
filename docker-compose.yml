@@ -3,8 +3,8 @@ app:
   ports:
     - 8080:8080
   volumes:
-    - './:/app'
-  command: /app/kolide serve
+    - './:/go/src/app'
+  command: ./kolide serve
   links:
     - mysql
 

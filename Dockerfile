@@ -1,12 +1,13 @@
 FROM golang:1.6.3-wheezy
 MAINTAINER engineering@kolide.co
 
-RUN mkdir -p /app
-WORKDIR /app
-COPY . /app
+RUN mkdir -p /go/src/app
+WORKDIR /go/src/app
+COPY . /go/src/app
 
 # Download and install any required third party dependencies into the container.
-RUN go-wrapper download
-RUN go build -o kolide
+RUN go get github.com/tools/godep
+RUN godep restore
+RUN go build -o /go/src/app/kolide
 
-CMD /app/kolide serve
+CMD ./kolide serve
