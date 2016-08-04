@@ -35,7 +35,7 @@ var (
 )
 
 var defaultMysqlConfigData = mysqlConfigData{
-	Address:  "127.0.0.1:3306",
+	Address:  "mysql:3306",
 	Username: "kolide",
 	Password: "kolide",
 	Database: "kolide",

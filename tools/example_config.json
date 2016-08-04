@@ -1,21 +1,21 @@
 {
-	"mysql": {
-		"address": "127.0.0.1:3306",
-		"username": "kolide",
-		"password": "kolide",
-		"database": "kolide"
-	},
-	"server": {
-		"address": ":8080",
-		"cert": "./tools/kolide.crt",
-		"key": "./tools/kolide.key"
-	},
-	"app": {
-		"bcrypt_cost": 12,
-		"salt_length": 32,
-		"jwt_key": "very secure"
-	},
-        "osquery": {
-                "enroll_secret": "super secure"
-        }
+  "mysql": {
+    "address": "mysql:3306",
+    "username": "kolide",
+    "password": "kolide",
+    "database": "kolide"
+  },
+  "server": {
+    "address": ":8080",
+    "cert": "./tools/kolide.crt",
+    "key": "./tools/kolide.key"
+  },
+  "app": {
+    "bcrypt_cost": 12,
+    "salt_length": 32,
+    "jwt_key": "very secure"
+  },
+  "osquery": {
+    "enroll_secret": "super secure"
+  }
 }
