@@ -8,166 +8,110 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func TestSessionGetSet(t *testing.T) {
-	db := openTestDB()
-	r := createEmptyTestServer(db)
-	r.Use(testSessionMiddleware)
-	r.Use(JWTRenewalMiddleware)
-
-	r.GET("/set", func(c *gin.Context) {
-		session := GetSession(c)
-		session.Set("key", "foobar")
-		session.Save()
-		c.JSON(200, nil)
-	})
-
-	r.GET("/get", func(c *gin.Context) {
-		session := GetSession(c)
-		if session.Get("key") != "foobar" {
-			t.Fatal("Session writing failed")
-		}
-		c.String(200, "OK")
-	})
-
-	res1 := httptest.NewRecorder()
-	req1, _ := http.NewRequest("GET", "/set", nil)
-	r.ServeHTTP(res1, req1)
-
-	res2 := httptest.NewRecorder()
-	req2, _ := http.NewRequest("GET", "/get", nil)
-	req2.Header.Set("Cookie", res1.Header().Get("Set-Cookie"))
-	r.ServeHTTP(res2, req2)
+type MockResponseWriter struct {
 }
 
-func TestSessionDeleteKey(t *testing.T) {
-	db := openTestDB()
-	r := createEmptyTestServer(db)
-	r.Use(testSessionMiddleware)
-	r.Use(JWTRenewalMiddleware)
-
-	r.GET("/set", func(c *gin.Context) {
-		session := GetSession(c)
-		session.Set("key", "foobar")
-		session.Save()
-		c.JSON(200, nil)
-	})
-
-	r.GET("/delete", func(c *gin.Context) {
-		session := GetSession(c)
-		session.Delete("key")
-		session.Save()
-		c.JSON(200, nil)
-	})
-
-	r.GET("/get", func(c *gin.Context) {
-		session := GetSession(c)
-		if session.Get("key") != nil {
-			t.Fatal("Session deleting failed")
-		}
-		c.JSON(200, nil)
-	})
-
-	res1 := httptest.NewRecorder()
-	req1, _ := http.NewRequest("GET", "/set", nil)
-	r.ServeHTTP(res1, req1)
-
-	res2 := httptest.NewRecorder()
-	req2, _ := http.NewRequest("GET", "/delete", nil)
-	req2.Header.Set("Cookie", res1.Header().Get("Set-Cookie"))
-	r.ServeHTTP(res2, req2)
-
-	res3 := httptest.NewRecorder()
-	req3, _ := http.NewRequest("GET", "/get", nil)
-	req3.Header.Set("Cookie", res2.Header().Get("Set-Cookie"))
-	r.ServeHTTP(res3, req3)
+func (w *MockResponseWriter) Header() http.Header {
+	return map[string][]string{}
 }
 
-func TestSessionFlashes(t *testing.T) {
-	db := openTestDB()
-	r := createEmptyTestServer(db)
-	r.Use(testSessionMiddleware)
-	r.Use(JWTRenewalMiddleware)
-
-	r.GET("/set", func(c *gin.Context) {
-		session := GetSession(c)
-		session.Session().AddFlash("foobar")
-		session.Save()
-		c.JSON(200, nil)
-	})
-
-	r.GET("/flash", func(c *gin.Context) {
-		session := GetSession(c)
-		l := len(session.Session().Flashes())
-		if l != 1 {
-			t.Fatal("Flashes count does not equal 1. Equals ", l)
-		}
-		session.Save()
-		c.JSON(200, nil)
-	})
-
-	r.GET("/check", func(c *gin.Context) {
-		session := GetSession(c)
-		l := len(session.Session().Flashes())
-		if l != 0 {
-			t.Fatal("flashes count is not 0 after reading. Equals ", l)
-		}
-		session.Save()
-		c.JSON(200, nil)
-	})
-
-	res1 := httptest.NewRecorder()
-	req1, _ := http.NewRequest("GET", "/set", nil)
-	r.ServeHTTP(res1, req1)
-
-	res2 := httptest.NewRecorder()
-	req2, _ := http.NewRequest("GET", "/flash", nil)
-	req2.Header.Set("Cookie", res1.Header().Get("Set-Cookie"))
-	r.ServeHTTP(res2, req2)
-
-	res3 := httptest.NewRecorder()
-	req3, _ := http.NewRequest("GET", "/check", nil)
-	req3.Header.Set("Cookie", res2.Header().Get("Set-Cookie"))
-	r.ServeHTTP(res3, req3)
+func (w *MockResponseWriter) Write([]byte) (int, error) {
+	return 0, nil
 }
 
-func TestSessionClear(t *testing.T) {
-	db := openTestDB()
-	r := createEmptyTestServer(db)
+func (w *MockResponseWriter) WriteHeader(int) {
+}
 
-	data := map[string]string{
-		"key": "val",
-		"foo": "bar",
+func TestSessionManagerVC(t *testing.T) {
+	db := openTestDB()
+
+	admin, err := NewUser(db, "admin", "foobar", "admin@kolide.co", true, false)
+	if err != nil {
+		t.Fatal(err.Error())
 	}
-	store := getTestStore()
-	r.Use(CreateSession(testSessionName, store))
-	r.Use(JWTRenewalMiddleware)
 
-	r.GET("/set", func(c *gin.Context) {
-		session := GetSession(c)
-		for k, v := range data {
-			session.Set(k, v)
+	backend := &GormSessionBackend{db}
+	session, err := backend.Create(admin.ID)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	if session.UserID != admin.ID {
+		t.Fatal("IDs do not match")
+	}
+
+	token, err := GenerateJWT(session.Key)
+
+	cookie := &http.Cookie{
+		Name:  CookieName,
+		Value: token,
+	}
+
+	req, err := http.NewRequest("GET", "/", nil)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	req.AddCookie(cookie)
+
+	writer := &MockResponseWriter{}
+
+	sm := &SessionManager{
+		request: req,
+		writer:  writer,
+		backend: backend,
+		db:      db,
+	}
+	vc := sm.VC()
+
+	if !vc.IsAdmin() {
+		t.Fatal("User should be admin")
+	}
+
+	vcID, _ := vc.UserID()
+	if vcID != admin.ID {
+		t.Fatal("IDs don't match")
+	}
+}
+
+func TestSessionCreation(t *testing.T) {
+	db := openTestDB()
+	r := createEmptyTestServer(db)
+	admin, _ := NewUser(db, "admin", "foobar", "admin@kolide.co", true, false)
+
+	r.GET("/login", func(c *gin.Context) {
+		sm := NewSessionManager(c)
+		sm.MakeSessionForUser(admin)
+		err := sm.Save()
+		if err != nil {
+			t.Fatal(err.Error())
 		}
-		session.Clear()
-		session.Save()
 		c.JSON(200, nil)
 	})
 
-	r.GET("/check", func(c *gin.Context) {
-		session := GetSession(c)
-		for k, v := range data {
-			if session.Get(k) == v {
-				t.Fatal("Session clear failed")
-			}
+	r.GET("/resource", func(c *gin.Context) {
+		sm := NewSessionManager(c)
+		vc := sm.VC()
+		if !vc.IsAdmin() {
+			t.Fatal("Request is not admin")
+		}
+		c.JSON(200, nil)
+	})
+
+	r.GET("/nope", func(c *gin.Context) {
+		sm := NewSessionManager(c)
+		vc := sm.VC()
+		if !vc.IsAdmin() {
+			t.Fatal("Request is not admin")
 		}
 		c.JSON(200, nil)
 	})
 
 	res1 := httptest.NewRecorder()
-	req1, _ := http.NewRequest("GET", "/set", nil)
+	req1, _ := http.NewRequest("GET", "/login", nil)
 	r.ServeHTTP(res1, req1)
 
 	res2 := httptest.NewRecorder()
-	req2, _ := http.NewRequest("GET", "/check", nil)
+	req2, _ := http.NewRequest("GET", "/resource", nil)
 	req2.Header.Set("Cookie", res1.Header().Get("Set-Cookie"))
 	r.ServeHTTP(res2, req2)
 }

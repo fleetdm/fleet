@@ -129,8 +129,8 @@ func main() {
 
 		fmt.Printf("=> %s %s application starting on https://%s\n", app.Name, version, config.Server.Address)
 		fmt.Println("=> Run `kolide help serve` for more startup options")
-		fmt.Println("Use Ctrl-C to stop\n\n")
-
+		fmt.Println("Use Ctrl-C to stop")
+		fmt.Print("\n\n")
 		CreateServer(db).RunTLS(
 			config.Server.Address,
 			config.Server.Cert,

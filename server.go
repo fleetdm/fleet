@@ -40,6 +40,7 @@ func MalformedRequestError(c *gin.Context) {
 func createEmptyTestServer(db *gorm.DB) *gin.Engine {
 	server := gin.New()
 	server.Use(DatabaseMiddleware(db))
+	server.Use(SessionBackendMiddleware)
 	return server
 }
 
@@ -56,6 +57,7 @@ func DatabaseMiddleware(db *gorm.DB) gin.HandlerFunc {
 func CreateServer(db *gorm.DB) *gin.Engine {
 	server := gin.New()
 	server.Use(DatabaseMiddleware(db))
+	server.Use(SessionBackendMiddleware)
 
 	// TODO: The following loggers are not synchronized with each other or
 	// logrus.StandardLogger() used through the rest of the codebase. As
@@ -77,8 +79,6 @@ func CreateServer(db *gorm.DB) *gin.Engine {
 
 	// Kolide application API endpoints
 	kolide := v1.Group("/kolide")
-	kolide.Use(SessionMiddleware)
-	kolide.Use(JWTRenewalMiddleware)
 
 	kolide.POST("/login", Login)
 	kolide.GET("/logout", Logout)
@@ -91,6 +91,12 @@ func CreateServer(db *gorm.DB) *gin.Engine {
 	kolide.PATCH("/user/password", ChangeUserPassword)
 	kolide.PATCH("/user/admin", SetUserAdminState)
 	kolide.PATCH("/user/enabled", SetUserEnabledState)
+
+	kolide.POST("/user/sessions", GetInfoAboutSessionsForUser)
+	kolide.DELETE("/user/sessions", DeleteSessionsForUser)
+
+	kolide.DELETE("/session", DeleteSession)
+	kolide.POST("/session", GetInfoAboutSession)
 
 	// osquery API endpoints
 	osquery := v1.Group("/osquery")

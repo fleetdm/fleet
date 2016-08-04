@@ -8,19 +8,8 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/sessions"
 	"github.com/jinzhu/gorm"
 )
-
-const testSessionName = "TestSession"
-
-func getTestStore() sessions.Store {
-	return sessions.NewCookieStore([]byte("test"))
-}
-
-func testSessionMiddleware(c *gin.Context) {
-	CreateSession(testSessionName, getTestStore())(c)
-}
 
 type IntegrationRequests struct {
 	r  *gin.Engine
@@ -70,7 +59,7 @@ func (req *IntegrationRequests) Login(username, password string, sessionOut *str
 	return
 }
 
-func (req *IntegrationRequests) CreateUser(username, password, email string, admin, reset bool, session *string) *GetUserResponseBody {
+func (req *IntegrationRequests) CreateUser(username, password, email string, admin, reset bool, session string) *GetUserResponseBody {
 	response := httptest.NewRecorder()
 	body, err := json.Marshal(CreateUserRequestBody{
 		Username:           username,
@@ -88,14 +77,13 @@ func (req *IntegrationRequests) CreateUser(username, password, email string, adm
 	buff.Write(body)
 	request, _ := http.NewRequest("PUT", "/api/v1/kolide/user", buff)
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Cookie", *session)
+	request.Header.Set("Cookie", session)
 	req.r.ServeHTTP(response, request)
 
 	if response.Code != 200 {
 		req.t.Fatalf("Response code: %d", response.Code)
 		return nil
 	}
-	*session = response.Header().Get("Set-Cookie")
 
 	var responseBody GetUserResponseBody
 	err = json.Unmarshal(response.Body.Bytes(), &responseBody)
@@ -107,7 +95,7 @@ func (req *IntegrationRequests) CreateUser(username, password, email string, adm
 	return &responseBody
 }
 
-func (req *IntegrationRequests) GetUser(username string, session *string) *GetUserResponseBody {
+func (req *IntegrationRequests) GetUser(username, session string) *GetUserResponseBody {
 	response := httptest.NewRecorder()
 	body, err := json.Marshal(GetUserRequestBody{
 		Username: username,
@@ -121,14 +109,13 @@ func (req *IntegrationRequests) GetUser(username string, session *string) *GetUs
 	buff.Write(body)
 	request, _ := http.NewRequest("POST", "/api/v1/kolide/user", buff)
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Cookie", *session)
+	request.Header.Set("Cookie", session)
 	req.r.ServeHTTP(response, request)
 
 	if response.Code != 200 {
 		req.t.Fatalf("Response code: %d", response.Code)
 		return nil
 	}
-	*session = response.Header().Get("Set-Cookie")
 
 	var responseBody GetUserResponseBody
 	err = json.Unmarshal(response.Body.Bytes(), &responseBody)
@@ -140,7 +127,7 @@ func (req *IntegrationRequests) GetUser(username string, session *string) *GetUs
 	return &responseBody
 }
 
-func (req *IntegrationRequests) ModifyUser(username, name, email string, session *string) *GetUserResponseBody {
+func (req *IntegrationRequests) ModifyUser(username, name, email, session string) *GetUserResponseBody {
 	response := httptest.NewRecorder()
 	body, err := json.Marshal(ModifyUserRequestBody{
 		Username: username,
@@ -156,14 +143,13 @@ func (req *IntegrationRequests) ModifyUser(username, name, email string, session
 	buff.Write(body)
 	request, _ := http.NewRequest("PATCH", "/api/v1/kolide/user", buff)
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Cookie", *session)
+	request.Header.Set("Cookie", session)
 	req.r.ServeHTTP(response, request)
 
 	if response.Code != 200 {
 		req.t.Fatalf("Response code: %d", response.Code)
 		return nil
 	}
-	*session = response.Header().Get("Set-Cookie")
 
 	var responseBody GetUserResponseBody
 	err = json.Unmarshal(response.Body.Bytes(), &responseBody)
@@ -175,7 +161,7 @@ func (req *IntegrationRequests) ModifyUser(username, name, email string, session
 	return &responseBody
 }
 
-func (req *IntegrationRequests) DeleteUser(username string, session *string) {
+func (req *IntegrationRequests) DeleteUser(username, session string) {
 	response := httptest.NewRecorder()
 	body, err := json.Marshal(DeleteUserRequestBody{
 		Username: username,
@@ -189,19 +175,18 @@ func (req *IntegrationRequests) DeleteUser(username string, session *string) {
 	buff.Write(body)
 	request, _ := http.NewRequest("DELETE", "/api/v1/kolide/user", buff)
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Cookie", *session)
+	request.Header.Set("Cookie", session)
 	req.r.ServeHTTP(response, request)
 
 	if response.Code != 200 {
 		req.t.Fatalf("Response code: %d", response.Code)
 		return
 	}
-	*session = response.Header().Get("Set-Cookie")
 
 	return
 }
 
-func (req *IntegrationRequests) ChangePassword(username, currentPassword, newPassword string, session *string) *GetUserResponseBody {
+func (req *IntegrationRequests) ChangePassword(username, currentPassword, newPassword, session string) *GetUserResponseBody {
 	response := httptest.NewRecorder()
 	body, err := json.Marshal(ChangePasswordRequestBody{
 		Username:          username,
@@ -218,14 +203,13 @@ func (req *IntegrationRequests) ChangePassword(username, currentPassword, newPas
 	buff.Write(body)
 	request, _ := http.NewRequest("PATCH", "/api/v1/kolide/user/password", buff)
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Cookie", *session)
+	request.Header.Set("Cookie", session)
 	req.r.ServeHTTP(response, request)
 
 	if response.Code != 200 {
 		req.t.Fatalf("Response code: %d", response.Code)
 		return nil
 	}
-	*session = response.Header().Get("Set-Cookie")
 
 	var responseBody GetUserResponseBody
 	err = json.Unmarshal(response.Body.Bytes(), &responseBody)
@@ -236,7 +220,121 @@ func (req *IntegrationRequests) ChangePassword(username, currentPassword, newPas
 	return &responseBody
 }
 
-func (req *IntegrationRequests) SetAdminState(username string, admin bool, session *string) *GetUserResponseBody {
+func (req *IntegrationRequests) GetUserSessionInfo(username, session string) *GetInfoAboutSessionsForUserResponseBody {
+	response := httptest.NewRecorder()
+	body, err := json.Marshal(GetInfoAboutSessionsForUserRequestBody{
+		Username: username,
+	})
+	if err != nil {
+		req.t.Fatal(err.Error())
+		return nil
+	}
+
+	buff := new(bytes.Buffer)
+	buff.Write(body)
+	request, _ := http.NewRequest("POST", "/api/v1/kolide/user/sessions", buff)
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Cookie", session)
+	req.r.ServeHTTP(response, request)
+
+	if response.Code != 200 {
+		req.t.Fatalf("Response code: %d", response.Code)
+		return nil
+	}
+
+	var responseBody GetInfoAboutSessionsForUserResponseBody
+	err = json.Unmarshal(response.Body.Bytes(), &responseBody)
+	if err != nil {
+		req.t.Fatal(err.Error())
+		return nil
+	}
+
+	return &responseBody
+}
+
+func (req *IntegrationRequests) DeleteUserSessions(username, session string) {
+	response := httptest.NewRecorder()
+	body, err := json.Marshal(GetInfoAboutSessionsForUserRequestBody{
+		Username: username,
+	})
+	if err != nil {
+		req.t.Fatal(err.Error())
+		return
+	}
+
+	buff := new(bytes.Buffer)
+	buff.Write(body)
+	request, _ := http.NewRequest("DELETE", "/api/v1/kolide/user/sessions", buff)
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Cookie", session)
+	req.r.ServeHTTP(response, request)
+
+	if response.Code != 200 {
+		req.t.Fatalf("Response code: %d", response.Code)
+		return
+	}
+
+	return
+}
+
+func (req *IntegrationRequests) GetSessionInfo(sessionKey, session string) *SessionInfoResponseBody {
+	response := httptest.NewRecorder()
+	body, err := json.Marshal(GetInfoAboutSessionRequestBody{
+		SessionKey: sessionKey,
+	})
+	if err != nil {
+		req.t.Fatal(err.Error())
+		return nil
+	}
+
+	buff := new(bytes.Buffer)
+	buff.Write(body)
+	request, _ := http.NewRequest("POST", "/api/v1/kolide/session", buff)
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Cookie", session)
+	req.r.ServeHTTP(response, request)
+
+	if response.Code != 200 {
+		req.t.Fatalf("Response code: %d", response.Code)
+		return nil
+	}
+
+	var responseBody SessionInfoResponseBody
+	err = json.Unmarshal(response.Body.Bytes(), &responseBody)
+	if err != nil {
+		req.t.Fatal(err.Error())
+		return nil
+	}
+
+	return &responseBody
+}
+
+func (req *IntegrationRequests) DeleteSession(sessionID uint, session string) {
+	response := httptest.NewRecorder()
+	body, err := json.Marshal(DeleteSessionRequestBody{
+		SessionID: sessionID,
+	})
+	if err != nil {
+		req.t.Fatal(err.Error())
+		return
+	}
+
+	buff := new(bytes.Buffer)
+	buff.Write(body)
+	request, _ := http.NewRequest("DELETE", "/api/v1/kolide/session", buff)
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Cookie", session)
+	req.r.ServeHTTP(response, request)
+
+	if response.Code != 200 {
+		req.t.Fatalf("Response code: %d", response.Code)
+		return
+	}
+
+	return
+}
+
+func (req *IntegrationRequests) SetAdminState(username string, admin bool, session string) *GetUserResponseBody {
 	response := httptest.NewRecorder()
 	body, err := json.Marshal(SetUserAdminStateRequestBody{
 		Username: username,
@@ -251,14 +349,13 @@ func (req *IntegrationRequests) SetAdminState(username string, admin bool, sessi
 	buff.Write(body)
 	request, _ := http.NewRequest("PATCH", "/api/v1/kolide/user/admin", buff)
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Cookie", *session)
+	request.Header.Set("Cookie", session)
 	req.r.ServeHTTP(response, request)
 
 	if response.Code != 200 {
 		req.t.Fatalf("Response code: %d", response.Code)
 		return nil
 	}
-	*session = response.Header().Get("Set-Cookie")
 
 	var responseBody GetUserResponseBody
 	err = json.Unmarshal(response.Body.Bytes(), &responseBody)
@@ -269,7 +366,7 @@ func (req *IntegrationRequests) SetAdminState(username string, admin bool, sessi
 	return &responseBody
 }
 
-func (req *IntegrationRequests) SetEnabledState(username string, enabled bool, session *string) *GetUserResponseBody {
+func (req *IntegrationRequests) SetEnabledState(username string, enabled bool, session string) *GetUserResponseBody {
 	response := httptest.NewRecorder()
 	body, err := json.Marshal(SetUserEnabledStateRequestBody{
 		Username: username,
@@ -284,14 +381,13 @@ func (req *IntegrationRequests) SetEnabledState(username string, enabled bool, s
 	buff.Write(body)
 	request, _ := http.NewRequest("PATCH", "/api/v1/kolide/user/enabled", buff)
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Cookie", *session)
+	request.Header.Set("Cookie", session)
 	req.r.ServeHTTP(response, request)
 
 	if response.Code != 200 {
 		req.t.Fatalf("Response code: %d", response.Code)
 		return nil
 	}
-	*session = response.Header().Get("Set-Cookie")
 
 	var responseBody GetUserResponseBody
 	err = json.Unmarshal(response.Body.Bytes(), &responseBody)
@@ -328,22 +424,22 @@ func (req *IntegrationRequests) CheckUser(username, email, name string, admin, r
 	return
 }
 
-func (req *IntegrationRequests) GetAndCheckUser(username string, session *string) {
+func (req *IntegrationRequests) GetAndCheckUser(username, session string) {
 	resp := req.GetUser(username, session)
 	req.CheckUser(username, resp.Email, resp.Name, resp.Admin, resp.NeedsPasswordReset, resp.Enabled)
 }
 
-func (req *IntegrationRequests) CreateAndCheckUser(username, password, email, name string, admin, reset bool, session *string) {
+func (req *IntegrationRequests) CreateAndCheckUser(username, password, email, name string, admin, reset bool, session string) {
 	resp := req.CreateUser(username, password, email, admin, reset, session)
 	req.CheckUser(username, email, name, admin, reset, resp.Enabled)
 }
 
-func (req *IntegrationRequests) ModifyAndCheckUser(username, email, name string, admin, reset bool, session *string) {
+func (req *IntegrationRequests) ModifyAndCheckUser(username, email, name string, admin, reset bool, session string) {
 	resp := req.ModifyUser(username, name, email, session)
 	req.CheckUser(username, email, name, admin, reset, resp.Enabled)
 }
 
-func (req *IntegrationRequests) DeleteAndCheckUser(username string, session *string) {
+func (req *IntegrationRequests) DeleteAndCheckUser(username, session string) {
 	req.DeleteUser(username, session)
 
 	var user User
@@ -353,12 +449,12 @@ func (req *IntegrationRequests) DeleteAndCheckUser(username string, session *str
 	}
 }
 
-func (req *IntegrationRequests) SetEnabledStateAndCheckUser(username string, enabled bool, session *string) {
+func (req *IntegrationRequests) SetEnabledStateAndCheckUser(username string, enabled bool, session string) {
 	resp := req.SetEnabledState(username, enabled, session)
 	req.CheckUser(username, resp.Email, resp.Name, resp.Admin, resp.NeedsPasswordReset, enabled)
 }
 
-func (req *IntegrationRequests) SetAdminStateAndCheckUser(username string, admin bool, session *string) {
+func (req *IntegrationRequests) SetAdminStateAndCheckUser(username string, admin bool, session string) {
 	resp := req.SetAdminState(username, admin, session)
 	req.CheckUser(username, resp.Email, resp.Name, admin, resp.NeedsPasswordReset, resp.Enabled)
 }

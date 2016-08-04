@@ -19,9 +19,11 @@ type serverConfigData struct {
 }
 
 type appConfigData struct {
-	BcryptCost int    `json:"bcrypt_cost"`
-	SaltLength int    `json:"salt_length"`
-	JWTKey     string `json:"jwt_key"`
+	BcryptCost               int     `json:"bcrypt_cost"`
+	JWTKey                   string  `json:"jwt_key"`
+	SaltKeySize              int     `json:"salt_key_size"`
+	SessionKeySize           int     `json:"session_key_size"`
+	SessionExpirationSeconds float64 `json:"session_expiration_seconds"`
 }
 
 type configData struct {
@@ -48,9 +50,11 @@ var defaultServerConfigData = serverConfigData{
 }
 
 var defaultAppConfigData = appConfigData{
-	BcryptCost: 12,
-	SaltLength: 32,
-	JWTKey:     "very secure",
+	BcryptCost:               12,
+	JWTKey:                   "very secure",
+	SessionKeySize:           64,
+	SaltKeySize:              24,
+	SessionExpirationSeconds: 60 * 60 * 24 * 90,
 }
 
 var defaultConfigData = configData{

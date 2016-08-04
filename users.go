@@ -52,7 +52,8 @@ func NewUser(db *gorm.DB, username, password, email string, admin, needsPassword
 // to validate it against the hash stored in the database after joining the
 // supplied password with the stored password salt
 func (u *User) ValidatePassword(password string) error {
-	saltAndPass := []byte(fmt.Sprintf("%s%s", u.Salt, password))
+	saltAndPass := []byte(fmt.Sprintf("%s%s", password, u.Salt))
+	logrus.Info(string(saltAndPass))
 	return bcrypt.CompareHashAndPassword(u.Password, saltAndPass)
 }
 
@@ -80,6 +81,10 @@ func (u *User) MakeAdmin(db *gorm.DB) error {
 	return nil
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// User management web endpoints
+////////////////////////////////////////////////////////////////////////////////
+
 type GetUserRequestBody struct {
 	ID       uint   `json:"id"`
 	Username string `json:"username"`
@@ -103,15 +108,13 @@ func GetUser(c *gin.Context) {
 		return
 	}
 
-	db := GetDB(c)
-
-	vc, err := VC(c, db)
-	if err != nil {
-		logrus.Errorf("Could not create VC: %s", err.Error())
-		DatabaseError(c) // TODO tampered?
+	vc := VC(c)
+	if !vc.CanPerformActions() {
+		UnauthorizedError(c)
 		return
 	}
 
+	db := GetDB(c)
 	var user User
 	user.ID = body.ID
 	user.Username = body.Username
@@ -153,20 +156,13 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	db := GetDB(c)
-
-	vc, err := VC(c, db)
-	if err != nil {
-		logrus.Errorf("Could not create VC: %s", err.Error())
-		DatabaseError(c)
-		return
-	}
-
+	vc := VC(c)
 	if !vc.IsAdmin() {
 		UnauthorizedError(c)
 		return
 	}
 
+	db := GetDB(c)
 	user, err := NewUser(db, body.Username, body.Password, body.Email, body.Admin, body.NeedsPasswordReset)
 	if err != nil {
 		logrus.Errorf("Error creating new user: %s", err.Error())
@@ -200,12 +196,9 @@ func ModifyUser(c *gin.Context) {
 		return
 	}
 
-	db := GetDB(c)
-
-	vc, err := VC(c, db)
-	if err != nil {
-		logrus.Errorf("Could not create VC: %s", err.Error())
-		DatabaseError(c)
+	vc := VC(c)
+	if !vc.CanPerformActions() {
+		UnauthorizedError(c)
 		return
 	}
 
@@ -213,6 +206,7 @@ func ModifyUser(c *gin.Context) {
 	user.ID = body.ID
 	user.Username = body.Username
 
+	db := GetDB(c)
 	err = db.Where(&user).First(&user).Error
 	if err != nil {
 		DatabaseError(c)
@@ -260,20 +254,13 @@ func DeleteUser(c *gin.Context) {
 		return
 	}
 
-	db := GetDB(c)
-
-	vc, err := VC(c, db)
-	if err != nil {
-		logrus.Errorf("Could not create VC: %s", err.Error())
-		DatabaseError(c)
-		return
-	}
-
+	vc := VC(c)
 	if !vc.IsAdmin() {
 		UnauthorizedError(c)
 		return
 	}
 
+	db := GetDB(c)
 	var user User
 	user.ID = body.ID
 	user.Username = body.Username
@@ -320,20 +307,18 @@ func ChangeUserPassword(c *gin.Context) {
 		return
 	}
 
-	db := GetDB(c)
+	vc := VC(c)
+	if !vc.CanPerformActions() {
+		UnauthorizedError(c)
+		return
+	}
 
+	db := GetDB(c)
 	var user User
 	user.ID = body.ID
 	user.Username = body.Username
 	err = db.Where(&user).First(&user).Error
 	if err != nil {
-		DatabaseError(c)
-		return
-	}
-
-	vc, err := VC(c, db)
-	if err != nil {
-		logrus.Errorf("Could not create VC: %s", err.Error())
 		DatabaseError(c)
 		return
 	}
@@ -352,7 +337,8 @@ func ChangeUserPassword(c *gin.Context) {
 	err = user.SetPassword(db, body.NewPassword)
 	if err != nil {
 		logrus.Errorf("Error setting user password: %s", err.Error())
-		// xxx don't try to write to the db?
+		DatabaseError(c) // probably not this
+		return
 	}
 
 	err = db.Save(&user).Error
@@ -386,20 +372,13 @@ func SetUserAdminState(c *gin.Context) {
 		return
 	}
 
-	db := GetDB(c)
-
-	vc, err := VC(c, db)
-	if err != nil {
-		logrus.Errorf("Could not create VC: %s", err.Error())
-		DatabaseError(c)
-		return
-	}
-
+	vc := VC(c)
 	if !vc.IsAdmin() {
 		UnauthorizedError(c)
 		return
 	}
 
+	db := GetDB(c)
 	var user User
 	user.ID = body.ID
 	user.Username = body.Username
@@ -441,20 +420,13 @@ func SetUserEnabledState(c *gin.Context) {
 		return
 	}
 
-	db := GetDB(c)
-
-	vc, err := VC(c, db)
-	if err != nil {
-		logrus.Errorf("Could not create VC: %s", err.Error())
-		DatabaseError(c)
-		return
-	}
-
+	vc := VC(c)
 	if !vc.IsAdmin() {
 		UnauthorizedError(c)
 		return
 	}
 
+	db := GetDB(c)
 	var user User
 	user.ID = body.ID
 	user.Username = body.Username

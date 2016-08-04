@@ -4,18 +4,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"unicode/utf8"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 )
-
-func TestGenerateRandomText(t *testing.T) {
-	text := generateRandomText(12)
-	if utf8.RuneCountInString(text) != 12 {
-		t.Fatal("generateRandomText generated the wrong length string")
-	}
-}
 
 func TestGenerateVC(t *testing.T) {
 	db := openTestDB()
@@ -25,33 +17,33 @@ func TestGenerateVC(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	tokenString, err := GenerateVC(user).JWT()
-	if err != nil {
-		t.Fatal(err.Error())
+	vc := GenerateVC(user)
+	if !vc.IsAdmin() {
+		t.Fatal("User is not an admin")
 	}
 
+}
+
+func TestGenerateJWT(t *testing.T) {
+	tokenString, err := GenerateJWT("4")
 	token, err := ParseJWT(tokenString)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok || !token.Valid {
 		t.Fatal("Token is invalid")
 	}
 
-	userID := uint(claims["user_id"].(float64))
-	if userID != user.ID {
-		t.Fatal("Claims are incorrect. userID is %d", userID)
+	sessionKey := claims["session_key"].(string)
+	if sessionKey != "4" {
+		t.Fatalf("Claims are incorrect. session key is %s", sessionKey)
 	}
 }
 
 func TestVC(t *testing.T) {
 	db := openTestDB()
 	r := createEmptyTestServer(db)
-
-	r.Use(testSessionMiddleware)
-	r.Use(JWTRenewalMiddleware)
 
 	user, err := NewUser(db, "marpaia", "foobar", "mike@kolide.co", false, false)
 	if err != nil {
@@ -64,32 +56,27 @@ func TestVC(t *testing.T) {
 	}
 
 	r.GET("/admin_login", func(c *gin.Context) {
-		token, err := GenerateVC(admin).JWT()
+		sm := NewSessionManager(c)
+		sm.MakeSessionForUser(admin)
+		err := sm.Save()
 		if err != nil {
 			t.Fatal(err.Error())
 		}
-		session := GetSession(c)
-		session.Set("jwt", token)
-		session.Save()
 		c.JSON(200, nil)
 	})
 
 	r.GET("/user_login", func(c *gin.Context) {
-		token, err := GenerateVC(user).JWT()
+		sm := NewSessionManager(c)
+		sm.MakeSessionForUser(user)
+		err := sm.Save()
 		if err != nil {
 			t.Fatal(err.Error())
 		}
-		session := GetSession(c)
-		session.Set("jwt", token)
-		session.Save()
 		c.JSON(200, nil)
 	})
 
 	r.GET("/admin", func(c *gin.Context) {
-		vc, err := VC(c, db)
-		if err != nil {
-			t.Fatal(err.Error())
-		}
+		vc := VC(c)
 		if !vc.IsAdmin() {
 			t.Fatal("Not admin")
 		}
@@ -97,10 +84,7 @@ func TestVC(t *testing.T) {
 	})
 
 	r.GET("/user", func(c *gin.Context) {
-		vc, err := VC(c, db)
-		if err != nil {
-			t.Fatal(err.Error())
-		}
+		vc := VC(c)
 		if vc.IsAdmin() {
 			t.Fatal("Not user")
 		}

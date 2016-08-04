@@ -41,14 +41,18 @@ func TestValidatePassword(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	err = user.ValidatePassword("foobar")
-	if err != nil {
-		t.Fatal("Password validation failed")
+	{
+		err := user.ValidatePassword("foobar")
+		if err != nil {
+			t.Error("Password validation failed")
+		}
 	}
 
-	err = user.ValidatePassword("not correct")
-	if err == nil {
-		t.Fatal("Incorrect password worked")
+	{
+		err := user.ValidatePassword("different")
+		if err == nil {
+			t.Error("Incorrect password worked")
+		}
 	}
 }
 
