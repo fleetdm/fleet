@@ -1,10 +1,10 @@
 package main
 
 import (
+	"crypto/rand"
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"math/rand"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/dgrijalva/jwt-go"
