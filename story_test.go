@@ -6,6 +6,7 @@ import (
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/jinzhu/gorm"
+	"github.com/kolide/kolide-ose/sessions"
 )
 
 func TestUserAndAccountManagement(t *testing.T) {
@@ -59,7 +60,7 @@ func TestUserAndAccountManagement(t *testing.T) {
 	}
 
 	// Pull the token out of the JWT token and get the session info via that
-	token, err := ParseJWT(strings.Split(adminSession, "=")[1])
+	token, err := sessions.ParseJWT(strings.Split(adminSession, "=")[1])
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -75,7 +76,7 @@ func TestUserAndAccountManagement(t *testing.T) {
 	req.DeleteSession(adminSessionInfo.Sessions[0].SessionID, adminSession)
 
 	// Verify the session was deleted
-	sessionVerify := &Session{
+	sessionVerify := &sessions.Session{
 		Key: sessionKey,
 	}
 	err = req.db.Where(sessionVerify).First(sessionVerify).Error

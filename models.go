@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	"github.com/kolide/kolide-ose/sessions"
 )
 
 // Get the database connection from the context, or panic
@@ -143,7 +144,7 @@ type Decorator struct {
 
 var tables = [...]interface{}{
 	&User{},
-	&Session{},
+	&sessions.Session{},
 	&ScheduledQuery{},
 	&Pack{},
 	&DiscoveryQuery{},

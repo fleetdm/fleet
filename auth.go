@@ -7,8 +7,8 @@ import (
 	"fmt"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"github.com/jinzhu/gorm"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -99,32 +99,23 @@ func EmptyVC() *ViewerContext {
 // and generate an appropriate ViewerContext given the data in the session.
 func VC(c *gin.Context) *ViewerContext {
 	sm := NewSessionManager(c)
-	return sm.VC()
+	session, err := sm.Session()
+	if err != nil {
+		return EmptyVC()
+	}
+	return VCForID(GetDB(c), session.UserID)
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// JSON Web Tokens
-////////////////////////////////////////////////////////////////////////////////
+func VCForID(db *gorm.DB, id uint) *ViewerContext {
+	// Generating a VC requires a user struct. Attempt to populate one using
+	// the user id of the current session holder
+	user := &User{BaseModel: BaseModel{ID: id}}
+	err := db.Where(user).First(user).Error
+	if err != nil {
+		return EmptyVC()
+	}
 
-// Given a session key create a JWT to be delivered to the client
-func GenerateJWT(sessionKey string) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"session_key": sessionKey,
-	})
-
-	return token.SignedString([]byte(config.App.JWTKey))
-}
-
-// ParseJWT attempts to parse a JWT token in serialized string form into a
-// JWT token in a deserialized jwt.Token struct.
-func ParseJWT(token string) (*jwt.Token, error) {
-	return jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
-		method, ok := t.Method.(*jwt.SigningMethodHMAC)
-		if !ok || method != jwt.SigningMethodHS256 {
-			return nil, errors.New("Unexpected signing method")
-		}
-		return []byte(config.App.JWTKey), nil
-	})
+	return GenerateVC(user)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -194,7 +185,7 @@ func Login(c *gin.Context) {
 	}
 
 	sm := NewSessionManager(c)
-	sm.MakeSessionForUser(user)
+	sm.MakeSessionForUserID(user.ID)
 	err = sm.Save()
 	if err != nil {
 		DatabaseError(c)

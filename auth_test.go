@@ -5,7 +5,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 )
 
@@ -24,23 +23,6 @@ func TestGenerateVC(t *testing.T) {
 
 }
 
-func TestGenerateJWT(t *testing.T) {
-	tokenString, err := GenerateJWT("4")
-	token, err := ParseJWT(tokenString)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok || !token.Valid {
-		t.Fatal("Token is invalid")
-	}
-
-	sessionKey := claims["session_key"].(string)
-	if sessionKey != "4" {
-		t.Fatalf("Claims are incorrect. session key is %s", sessionKey)
-	}
-}
-
 func TestVC(t *testing.T) {
 	db := openTestDB(t)
 	r := createEmptyTestServer(db)
@@ -57,7 +39,7 @@ func TestVC(t *testing.T) {
 
 	r.GET("/admin_login", func(c *gin.Context) {
 		sm := NewSessionManager(c)
-		sm.MakeSessionForUser(admin)
+		sm.MakeSessionForUserID(admin.ID)
 		err := sm.Save()
 		if err != nil {
 			t.Fatal(err.Error())
@@ -67,7 +49,7 @@ func TestVC(t *testing.T) {
 
 	r.GET("/user_login", func(c *gin.Context) {
 		sm := NewSessionManager(c)
-		sm.MakeSessionForUser(user)
+		sm.MakeSessionForUserID(user.ID)
 		err := sm.Save()
 		if err != nil {
 			t.Fatal(err.Error())

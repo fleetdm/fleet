@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/contrib/ginrus"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
+	"github.com/kolide/kolide-ose/sessions"
 )
 
 // ServerError is a helper which accepts a string error and returns a map in
@@ -54,12 +55,30 @@ func DatabaseMiddleware(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// NewSessionManager allows you to get a SessionManager instance for a given
+// web request. Unless you're interacting with login, logout, or core auth
+// code, this should be abstracted by the ViewerContext pattern.
+func NewSessionManager(c *gin.Context) *sessions.SessionManager {
+	return &sessions.SessionManager{
+		Request: c.Request,
+		Backend: GetSessionBackend(c),
+		Writer:  c.Writer,
+	}
+}
+
 // CreateServer creates a gin.Engine HTTP server and configures it to be in a
 // state such that it is ready to serve HTTP requests for the kolide application
 func CreateServer(db *gorm.DB, w io.Writer) *gin.Engine {
 	server := gin.New()
 	server.Use(DatabaseMiddleware(db))
 	server.Use(SessionBackendMiddleware)
+
+	sessions.Configure(&sessions.SessionConfiguration{
+		CookieName:     "KolideSession",
+		JWTKey:         config.App.JWTKey,
+		SessionKeySize: config.App.SessionKeySize,
+		Lifespan:       config.App.SessionExpirationSeconds,
+	})
 
 	// TODO: The following loggers are not synchronized with each other or
 	// logrus.StandardLogger() used through the rest of the codebase. As

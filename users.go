@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
+	"github.com/kolide/kolide-ose/sessions"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -450,5 +452,234 @@ func SetUserEnabledState(c *gin.Context) {
 		Admin:              user.Admin,
 		Enabled:            user.Enabled,
 		NeedsPasswordReset: user.NeedsPasswordReset,
+	})
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Session management HTTP endpoints
+////////////////////////////////////////////////////////////////////////////////
+
+// Setting the session backend via a middleware
+func SessionBackendMiddleware(c *gin.Context) {
+	db := GetDB(c)
+	c.Set("SessionBackend", &sessions.GormSessionBackend{db})
+	c.Next()
+}
+
+// Get the database connection from the context, or panic
+func GetSessionBackend(c *gin.Context) sessions.SessionBackend {
+	return c.MustGet("SessionBackend").(sessions.SessionBackend)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Session management HTTP endpoints
+////////////////////////////////////////////////////////////////////////////////
+
+type DeleteSessionRequestBody struct {
+	SessionID uint `json:"session_id" binding:"required"`
+}
+
+func DeleteSession(c *gin.Context) {
+	var body DeleteSessionRequestBody
+	err := c.BindJSON(&body)
+	if err != nil {
+		logrus.Errorf(err.Error())
+		return
+	}
+
+	vc := VC(c)
+	if !vc.CanPerformActions() {
+		UnauthorizedError(c)
+		return
+	}
+
+	sb := GetSessionBackend(c)
+
+	session, err := sb.FindID(body.SessionID)
+	if err != nil {
+
+	}
+
+	db := GetDB(c)
+	user := &User{
+		BaseModel: BaseModel{
+			ID: session.UserID,
+		},
+	}
+	err = db.Where(user).First(user).Error
+	if err != nil {
+		DatabaseError(c)
+		return
+	}
+
+	if !vc.CanPerformWriteActionOnUser(user) {
+		UnauthorizedError(c)
+		return
+	}
+
+	err = sb.Destroy(session)
+	if err != nil {
+		DatabaseError(c)
+		return
+	}
+
+	c.JSON(200, nil)
+}
+
+type DeleteSessionsForUserRequestBody struct {
+	ID       uint   `json:"id"`
+	Username string `json:"username"`
+}
+
+func DeleteSessionsForUser(c *gin.Context) {
+	var body DeleteSessionsForUserRequestBody
+	err := c.BindJSON(&body)
+	if err != nil {
+		logrus.Errorf(err.Error())
+	}
+
+	vc := VC(c)
+	if !vc.CanPerformActions() {
+		UnauthorizedError(c)
+		return
+	}
+
+	db := GetDB(c)
+	var user User
+	user.ID = body.ID
+	user.Username = body.Username
+	err = db.Where(&user).First(&user).Error
+	if err != nil {
+		DatabaseError(c)
+		return
+	}
+
+	if !vc.CanPerformWriteActionOnUser(&user) {
+		UnauthorizedError(c)
+		return
+	}
+
+	sb := GetSessionBackend(c)
+	err = sb.DestroyAllForUser(user.ID)
+	if err != nil {
+		DatabaseError(c)
+		return
+	}
+
+	c.JSON(200, nil)
+
+}
+
+type GetInfoAboutSessionRequestBody struct {
+	SessionKey string `json:"session_key" binding:"required"`
+}
+
+type SessionInfoResponseBody struct {
+	SessionID  uint      `json:"session_id"`
+	UserID     uint      `json:"user_id"`
+	CreatedAt  time.Time `json:"created_at"`
+	AccessedAt time.Time `json:"created_at"`
+}
+
+func GetInfoAboutSession(c *gin.Context) {
+	var body GetInfoAboutSessionRequestBody
+	err := c.BindJSON(&body)
+	if err != nil {
+		logrus.Errorf(err.Error())
+		return
+	}
+
+	vc := VC(c)
+	if !vc.CanPerformActions() {
+		UnauthorizedError(c)
+		return
+	}
+
+	sb := GetSessionBackend(c)
+	session, err := sb.FindKey(body.SessionKey)
+	if err != nil {
+		DatabaseError(c)
+		return
+	}
+
+	db := GetDB(c)
+	var user User
+	user.ID = session.UserID
+	err = db.Where(&user).First(&user).Error
+	if err != nil {
+		DatabaseError(c)
+		return
+	}
+
+	if !vc.IsAdmin() && !vc.IsUserID(user.ID) {
+		UnauthorizedError(c)
+		return
+	}
+
+	c.JSON(200, &SessionInfoResponseBody{
+		SessionID:  session.ID,
+		UserID:     session.UserID,
+		CreatedAt:  session.CreatedAt,
+		AccessedAt: session.AccessedAt,
+	})
+}
+
+type GetInfoAboutSessionsForUserRequestBody struct {
+	ID       uint   `json:"id"`
+	Username string `json:"username"`
+}
+
+type GetInfoAboutSessionsForUserResponseBody struct {
+	Sessions []*SessionInfoResponseBody `json:"sessions"`
+}
+
+func GetInfoAboutSessionsForUser(c *gin.Context) {
+	var body GetInfoAboutSessionsForUserRequestBody
+	err := c.BindJSON(&body)
+	if err != nil {
+		logrus.Errorf(err.Error())
+		return
+	}
+
+	vc := VC(c)
+	if !vc.CanPerformActions() {
+		UnauthorizedError(c)
+		return
+	}
+
+	db := GetDB(c)
+	var user User
+	user.ID = body.ID
+	user.Username = body.Username
+	err = db.Where(&user).First(&user).Error
+	if err != nil {
+		DatabaseError(c)
+		return
+	}
+
+	if !vc.IsAdmin() && !vc.IsUserID(user.ID) {
+		UnauthorizedError(c)
+		return
+	}
+
+	sb := GetSessionBackend(c)
+	sessions, err := sb.FindAllForUser(user.ID)
+	if err != nil {
+		DatabaseError(c)
+		return
+	}
+
+	var response []*SessionInfoResponseBody
+	for _, session := range sessions {
+		response = append(response, &SessionInfoResponseBody{
+			SessionID:  session.ID,
+			UserID:     session.UserID,
+			CreatedAt:  session.CreatedAt,
+			AccessedAt: session.AccessedAt,
+		})
+	}
+
+	c.JSON(200, &GetInfoAboutSessionsForUserResponseBody{
+		Sessions: response,
 	})
 }
