@@ -7,7 +7,7 @@ import (
 )
 
 func TestNewUser(t *testing.T) {
-	db := openTestDB()
+	db := openTestDB(t)
 
 	user, err := NewUser(db, "marpaia", "foobar", "mike@kolide.co", true, false)
 	if err != nil {
@@ -34,7 +34,7 @@ func TestNewUser(t *testing.T) {
 }
 
 func TestValidatePassword(t *testing.T) {
-	db := openTestDB()
+	db := openTestDB(t)
 
 	user, err := NewUser(db, "marpaia", "foobar", "mike@kolide.co", true, false)
 	if err != nil {
@@ -57,7 +57,7 @@ func TestValidatePassword(t *testing.T) {
 }
 
 func TestMakeAdmin(t *testing.T) {
-	db := openTestDB()
+	db := openTestDB(t)
 
 	user, err := NewUser(db, "marpaia", "foobar", "mike@kolide.co", false, false)
 	if err != nil {
@@ -91,7 +91,7 @@ func TestMakeAdmin(t *testing.T) {
 }
 
 func TestUpdatingUser(t *testing.T) {
-	db := openTestDB()
+	db := openTestDB(t)
 
 	user, err := NewUser(db, "marpaia", "foobar", "mike@kolide.co", false, false)
 	if err != nil {
@@ -121,7 +121,7 @@ func TestUpdatingUser(t *testing.T) {
 }
 
 func TestDeletingUser(t *testing.T) {
-	db := openTestDB()
+	db := openTestDB(t)
 
 	user, err := NewUser(db, "marpaia", "foobar", "mike@kolide.co", false, false)
 	if err != nil {
@@ -150,7 +150,7 @@ func TestDeletingUser(t *testing.T) {
 }
 
 func TestSetPassword(t *testing.T) {
-	db := openTestDB()
+	db := openTestDB(t)
 
 	user, err := NewUser(db, "marpaia", "foobar", "mike@kolide.co", false, false)
 	if err != nil {

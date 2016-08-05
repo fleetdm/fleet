@@ -10,7 +10,7 @@ import (
 )
 
 func TestGenerateVC(t *testing.T) {
-	db := openTestDB()
+	db := openTestDB(t)
 
 	user, err := NewUser(db, "marpaia", "foobar", "mike@kolide.co", true, false)
 	if err != nil {
@@ -42,7 +42,7 @@ func TestGenerateJWT(t *testing.T) {
 }
 
 func TestVC(t *testing.T) {
-	db := openTestDB()
+	db := openTestDB(t)
 	r := createEmptyTestServer(db)
 
 	user, err := NewUser(db, "marpaia", "foobar", "mike@kolide.co", false, false)
@@ -112,7 +112,7 @@ func TestVC(t *testing.T) {
 }
 
 func TestIsUserID(t *testing.T) {
-	db := openTestDB()
+	db := openTestDB(t)
 
 	user1, err := NewUser(db, "marpaia", "foobar", "mike@kolide.co", false, false)
 	if err != nil {
@@ -131,7 +131,7 @@ func TestIsUserID(t *testing.T) {
 }
 
 func TestCanPerformActionsOnUser(t *testing.T) {
-	db := openTestDB()
+	db := openTestDB(t)
 
 	user1, err := NewUser(db, "marpaia", "foobar", "mike@kolide.co", false, false)
 	if err != nil {

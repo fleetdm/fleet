@@ -179,20 +179,6 @@ func openDB(user, password, address, dbName string) (*gorm.DB, error) {
 	return db, nil
 }
 
-func openTestDB() *gorm.DB {
-	db, err := gorm.Open("sqlite3", ":memory:")
-	if err != nil {
-		panic(fmt.Sprintf("Error opening test DB: %s", err.Error()))
-	}
-
-	setDBSettings(db)
-	createTables(db)
-	if db.Error != nil {
-		panic(fmt.Sprintf("Error creating test DB tables: %s", db.Error.Error()))
-	}
-	return db
-}
-
 func dropTables(db *gorm.DB) {
 	for _, table := range tables {
 		db.DropTableIfExists(table)

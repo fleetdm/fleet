@@ -1,6 +1,8 @@
 package main
 
 import (
+	"io"
+	_ "net/http/pprof"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -54,7 +56,7 @@ func DatabaseMiddleware(db *gorm.DB) gin.HandlerFunc {
 
 // CreateServer creates a gin.Engine HTTP server and configures it to be in a
 // state such that it is ready to serve HTTP requests for the kolide application
-func CreateServer(db *gorm.DB) *gin.Engine {
+func CreateServer(db *gorm.DB, w io.Writer) *gin.Engine {
 	server := gin.New()
 	server.Use(DatabaseMiddleware(db))
 	server.Use(SessionBackendMiddleware)
@@ -67,12 +69,14 @@ func CreateServer(db *gorm.DB) *gin.Engine {
 	// Ginrus middleware logs details about incoming requests using the
 	// logrus WithFields
 	requestLogger := logrus.New()
+	requestLogger.Out = w
 	server.Use(ginrus.Ginrus(requestLogger, time.RFC3339, false))
 
 	// Recovery middleware recovers from panic(), returning a 500 response
 	// code and printing the panic information to the log
 	recoveryLogger := logrus.New()
 	recoveryLogger.WriterLevel(logrus.ErrorLevel)
+	recoveryLogger.Out = w
 	server.Use(gin.RecoveryWithWriter(recoveryLogger.Writer()))
 
 	v1 := server.Group("/api/v1")

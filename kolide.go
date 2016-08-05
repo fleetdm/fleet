@@ -150,7 +150,8 @@ $7777777....$....$777$.....+DI..DDD..DDI...8D...D8......$D:..8D....8D...8D......
 		fmt.Println("=> Run `kolide help serve` for more startup options")
 		fmt.Println("Use Ctrl-C to stop")
 		fmt.Print("\n\n")
-		CreateServer(db).RunTLS(
+
+		CreateServer(db, os.Stderr).RunTLS(
 			config.Server.Address,
 			config.Server.Cert,
 			config.Server.Key)

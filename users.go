@@ -53,7 +53,6 @@ func NewUser(db *gorm.DB, username, password, email string, admin, needsPassword
 // supplied password with the stored password salt
 func (u *User) ValidatePassword(password string) error {
 	saltAndPass := []byte(fmt.Sprintf("%s%s", password, u.Salt))
-	logrus.Info(string(saltAndPass))
 	return bcrypt.CompareHashAndPassword(u.Password, saltAndPass)
 }
 

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,6 +11,37 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 )
+
+type testLogger struct {
+	t *testing.T
+}
+
+func (t *testLogger) Print(v ...interface{}) {
+	t.t.Log(v...)
+}
+
+func (t *testLogger) Write(p []byte) (n int, err error) {
+	t.t.Log(string(p))
+	return len(p), nil
+}
+
+func openTestDB(t *testing.T) *gorm.DB {
+	db, err := gorm.Open("sqlite3", ":memory:")
+	if err != nil {
+		panic(fmt.Sprintf("Error opening test DB: %s", err.Error()))
+	}
+
+	createTables(db)
+	if db.Error != nil {
+		panic(fmt.Sprintf("Error creating test DB tables: %s", db.Error.Error()))
+	}
+
+	// Log using t.Log so that output only shows up if the test fails
+	db.SetLogger(&testLogger{t: t})
+	db.LogMode(true)
+
+	return db
+}
 
 type IntegrationRequests struct {
 	r  *gin.Engine
@@ -20,8 +52,7 @@ type IntegrationRequests struct {
 func (req *IntegrationRequests) New(t *testing.T) {
 	req.t = t
 
-	*debug = false
-	req.db = openTestDB()
+	req.db = openTestDB(t)
 
 	// Until we have a better solution for first-user onboarding, manually
 	// create an admin
@@ -30,7 +61,7 @@ func (req *IntegrationRequests) New(t *testing.T) {
 		t.Fatalf("Error opening DB: %s", err.Error())
 	}
 
-	req.r = CreateServer(req.db)
+	req.r = CreateServer(req.db, &testLogger{t: t})
 }
 
 func (req *IntegrationRequests) Login(username, password string, sessionOut *string) {
