@@ -7,3 +7,6 @@ go:
 script:
  - go test -v ./...
  - go vet ./...
+
+ notifications:
+  slack: kolide:rCMkNneRwVmZH6XBfiUuITzt
