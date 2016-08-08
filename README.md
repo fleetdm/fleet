@@ -1,6 +1,6 @@
 # Kolide
 
-[![Build Status](https://drone.io/github.com/kolide/kolide-ose/status.png)](https://drone.io/github.com/kolide/kolide-ose/latest)
+[![Build Status](https://travis-ci.com/kolide/kolide-ose.svg?token=MvaZkzWisgsA98PZfNC7&branch=master)](https://travis-ci.com/kolide/kolide-ose)
 
 ## Building
 

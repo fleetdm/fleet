@@ -60,7 +60,7 @@ func TestSessionManager(t *testing.T) {
 	}
 
 	if session.UserID != 1 {
-		t.Fatal("User ID doesn't match. Got: %s", session.UserID)
+		t.Fatalf("User ID doesn't match. Got: %d", session.UserID)
 	}
 
 }

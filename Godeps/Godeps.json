@@ -22,8 +22,8 @@
 		},
 		{
 			"ImportPath": "github.com/dgrijalva/jwt-go",
-			"Comment": "v3.0.0-6-g63734ea",
-			"Rev": "63734eae1ef55eaac06fdc0f312615f2e321e273"
+			"Comment": "v3.0.0-4-g01aeca5",
+			"Rev": "01aeca54ebda6e0fbfafd0a524d234159c05ec20"
 		},
 		{
 			"ImportPath": "github.com/gin-gonic/contrib/ginrus",
@@ -46,26 +46,12 @@
 		},
 		{
 			"ImportPath": "github.com/go-sql-driver/mysql",
-			"Comment": "v1.2-198-g0b58b37",
-			"Rev": "0b58b37b664c21f3010e836f1b931e1d0b0b0685"
+			"Comment": "v1.2-196-g3654d25",
+			"Rev": "3654d25ec346ee8ce71a68431025458d52a38ac0"
 		},
 		{
 			"ImportPath": "github.com/golang/protobuf/proto",
-			"Rev": "c3cefd437628a0b7d31b34fe44b3a7a540e98527"
-		},
-		{
-			"ImportPath": "github.com/gorilla/context",
-			"Comment": "v1.1-4-gaed02d1",
-			"Rev": "aed02d124ae4a0e94fea4541c8effd05bf0c8296"
-		},
-		{
-			"ImportPath": "github.com/gorilla/securecookie",
-			"Comment": "v1.1-2-gff35634",
-			"Rev": "ff356348f74133a59d3e93aa24b5b4551b6fe90d"
-		},
-		{
-			"ImportPath": "github.com/gorilla/sessions",
-			"Rev": "56ba4b0a11da87516629a57408a5f7e4c8ea7b0b"
+			"Rev": "874264fbbb43f4d91e999fecb4b40143ed611400"
 		},
 		{
 			"ImportPath": "github.com/jinzhu/gorm",
@@ -105,7 +91,7 @@
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",
-			"Rev": "f6d211983832e1efcd77e80779fd5f1142741356"
+			"Rev": "4d38db76854b199960801a1734443fd02870d7e1"
 		},
 		{
 			"ImportPath": "golang.org/x/sys/unix",
@@ -113,8 +99,8 @@
 		},
 		{
 			"ImportPath": "gopkg.in/alecthomas/kingpin.v2",
-			"Comment": "v2.2.2",
-			"Rev": "e5900212cbf65b181d3d8e08308ef06a01d117cf"
+			"Comment": "v2.2.0",
+			"Rev": "92b2733684bc5f1971162349ce098fe0d070e2a9"
 		},
 		{
 			"ImportPath": "gopkg.in/go-playground/validator.v8",

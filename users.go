@@ -462,7 +462,7 @@ func SetUserEnabledState(c *gin.Context) {
 // Setting the session backend via a middleware
 func SessionBackendMiddleware(c *gin.Context) {
 	db := GetDB(c)
-	c.Set("SessionBackend", &sessions.GormSessionBackend{db})
+	c.Set("SessionBackend", &sessions.GormSessionBackend{DB: db})
 	c.Next()
 }
 
