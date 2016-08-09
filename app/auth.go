@@ -155,11 +155,34 @@ func SaltAndHashPassword(password string) (string, []byte, error) {
 // Authentication and authorization web endpoints
 ////////////////////////////////////////////////////////////////////////////////
 
+// swagger:parameters Login
 type LoginRequestBody struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
 
+// swagger:route POST /api/v1/kolide/login Login
+//
+// Login to the application
+//
+// This allows you to submit a set of credentials to the server and the
+// server will attempt to validate the credentials against the backing
+// database. If the credentials are valid, the response will issue the
+// browser a new session cookie.
+//
+//     Consumes:
+//     - application/json
+//
+//     Produces:
+//     - application/json
+//
+//     Schemes: https
+//
+//     Security:
+//       authenticated: no
+//
+//     Responses:
+//       200: GetUserResponseBody
 func Login(c *gin.Context) {
 	var body LoginRequestBody
 	err := c.BindJSON(&body)
@@ -204,6 +227,26 @@ func Login(c *gin.Context) {
 	})
 }
 
+// swagger:route GET /api/v1/kolide/logout Logout
+//
+// Logout of the application
+//
+// This endpoint will delete the current session from the backend database
+// and log the user out of the application
+//
+//     Consumes:
+//     - application/json
+//
+//     Produces:
+//     - application/json
+//
+//     Schemes: https
+//
+//     Security:
+//       authenticated: yes
+//
+//     Responses:
+//       200: GetUserResponseBody
 func Logout(c *gin.Context) {
 	sm := NewSessionManager(c)
 

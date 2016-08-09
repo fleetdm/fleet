@@ -88,11 +88,13 @@ func (u *User) MakeAdmin(db *gorm.DB) error {
 // User management web endpoints
 ////////////////////////////////////////////////////////////////////////////////
 
+// swagger:parameters GetUser
 type GetUserRequestBody struct {
 	ID       uint   `json:"id"`
 	Username string `json:"username"`
 }
 
+// swagger:response GetUserResponseBody
 type GetUserResponseBody struct {
 	ID                 uint   `json:"id"`
 	Username           string `json:"username"`
@@ -103,6 +105,26 @@ type GetUserResponseBody struct {
 	NeedsPasswordReset bool   `json:"needs_password_reset"`
 }
 
+// swagger:route POST /api/v1/kolide/user GetUser
+//
+// Get information on a user
+//
+// Using this API will allow the requester to inspect and get info on
+// other users in the application.
+//
+//     Consumes:
+//     - application/json
+//
+//     Produces:
+//     - application/json
+//
+//     Schemes: https
+//
+//     Security:
+//       authenticated: yes
+//
+//     Responses:
+//       200: GetUserResponseBody
 func GetUser(c *gin.Context) {
 	var body GetUserRequestBody
 	err := c.BindJSON(&body)
@@ -143,6 +165,7 @@ func GetUser(c *gin.Context) {
 	})
 }
 
+// swagger:parameters CreateUser
 type CreateUserRequestBody struct {
 	Username           string `json:"username" binding:"required"`
 	Password           string `json:"password" binding:"required"`
@@ -151,6 +174,26 @@ type CreateUserRequestBody struct {
 	NeedsPasswordReset bool   `json:"needs_password_reset"`
 }
 
+// swagger:route PUT /api/v1/kolide/user CreateUser
+//
+// Create a new user
+//
+// Using this API will allow the requester to create a new user with the ability
+// to control various user settings
+//
+//     Consumes:
+//     - application/json
+//
+//     Produces:
+//     - application/json
+//
+//     Schemes: https
+//
+//     Security:
+//       authenticated: yes
+//
+//     Responses:
+//       200: GetUserResponseBody
 func CreateUser(c *gin.Context) {
 	var body CreateUserRequestBody
 	err := c.BindJSON(&body)
@@ -184,6 +227,7 @@ func CreateUser(c *gin.Context) {
 	})
 }
 
+// swagger:parameters ModifyUser
 type ModifyUserRequestBody struct {
 	ID       uint   `json:"id"`
 	Username string `json:"username"`
@@ -191,6 +235,28 @@ type ModifyUserRequestBody struct {
 	Email    string `json:"email"`
 }
 
+// swagger:route PATCH /api/v1/kolide/user ModifyUser
+//
+// Update a user's basic information and settings
+//
+// Using this API will allow the requester to update a user's basic settings.
+// Note that updating administrative settings are not exposed via this endpoint
+// as this is primarily intended to be used by users to update their own
+// settings.
+//
+//     Consumes:
+//     - application/json
+//
+//     Produces:
+//     - application/json
+//
+//     Schemes: https
+//
+//     Security:
+//       authenticated: yes
+//
+//     Responses:
+//       200: GetUserResponseBody
 func ModifyUser(c *gin.Context) {
 	var body ModifyUserRequestBody
 	err := c.BindJSON(&body)
@@ -244,11 +310,32 @@ func ModifyUser(c *gin.Context) {
 	})
 }
 
+// swagger:parameters DeleteUser
 type DeleteUserRequestBody struct {
 	ID       uint   `json:"id"`
 	Username string `json:"username"`
 }
 
+// swagger:route DELETE /api/v1/kolide/user DeleteUser
+//
+// Delete a user account
+//
+// Using this API will allow the requester to permanently delete a user account.
+// This endpoint enforces that the requester is an admin.
+//
+//     Consumes:
+//     - application/json
+//
+//     Produces:
+//     - application/json
+//
+//     Schemes: https
+//
+//     Security:
+//       authenticated: yes
+//
+//     Responses:
+//       200: nil
 func DeleteUser(c *gin.Context) {
 	var body DeleteUserRequestBody
 	err := c.BindJSON(&body)
@@ -282,13 +369,7 @@ func DeleteUser(c *gin.Context) {
 	c.JSON(200, nil)
 }
 
-type ResetPasswordRequestBody struct {
-	ID             uint   `json:"id"`
-	Username       string `json:"username"`
-	Password       string `json:"password" binding:"required"`
-	PasswordConfim string `json:"password_confirm" binding:"required"`
-}
-
+// swagger:parameters ChangeUserPassword
 type ChangePasswordRequestBody struct {
 	ID                uint   `json:"id"`
 	Username          string `json:"username"`
@@ -297,6 +378,28 @@ type ChangePasswordRequestBody struct {
 	NewPasswordConfim string `json:"new_password_confirm" binding:"required"`
 }
 
+// swagger:route PATCH /api/v1/kolide/user/password ChangeUserPassword
+//
+// Change a user's password
+//
+// Using this API will allow the requester to change their password. Users
+// should include their own user id as the "id" paramater and/or their own
+// username as the "username" parameter. Admins can change the passords for
+// other users by defining their ID or username.
+//
+//     Consumes:
+//     - application/json
+//
+//     Produces:
+//     - application/json
+//
+//     Schemes: https
+//
+//     Security:
+//       authenticated: yes
+//
+//     Responses:
+//       200: GetUserResponseBody
 func ChangeUserPassword(c *gin.Context) {
 	var body ChangePasswordRequestBody
 	err := c.BindJSON(&body)
@@ -361,12 +464,33 @@ func ChangeUserPassword(c *gin.Context) {
 	})
 }
 
+// swagger:parameters SetUserAdminState
 type SetUserAdminStateRequestBody struct {
 	ID       uint   `json:"id"`
 	Username string `json:"username"`
 	Admin    bool   `json:"admin"`
 }
 
+// swagger:route PATCH /api/v1/kolide/user/admin SetUserAdminState
+//
+// Modify a user's admin settings
+//
+// This endpoint allows an existing admin to promote a non-admin to admin or
+// demote a current admin to non-admin.
+//
+//     Consumes:
+//     - application/json
+//
+//     Produces:
+//     - application/json
+//
+//     Schemes: https
+//
+//     Security:
+//       authenticated: yes
+//
+//     Responses:
+//       200: GetUserResponseBody
 func SetUserAdminState(c *gin.Context) {
 	var body SetUserAdminStateRequestBody
 	err := c.BindJSON(&body)
@@ -409,12 +533,33 @@ func SetUserAdminState(c *gin.Context) {
 	})
 }
 
+// swagger:parameters SetUserEnabledState
 type SetUserEnabledStateRequestBody struct {
 	ID       uint   `json:"id"`
 	Username string `json:"username"`
 	Enabled  bool   `json:"enabled"`
 }
 
+// swagger:route PATCH /api/v1/kolide/user/enabled SetUserEnabledState
+//
+// Enable or disable a user.
+//
+// This endpoint allows an existing admin to enable a disabled user or
+// disable an enabled user.
+//
+//     Consumes:
+//     - application/json
+//
+//     Produces:
+//     - application/json
+//
+//     Schemes: https
+//
+//     Security:
+//       authenticated: yes
+//
+//     Responses:
+//       200: GetUserResponseBody
 func SetUserEnabledState(c *gin.Context) {
 	var body SetUserEnabledStateRequestBody
 	err := c.BindJSON(&body)
@@ -477,10 +622,31 @@ func GetSessionBackend(c *gin.Context) sessions.SessionBackend {
 // Session management HTTP endpoints
 ////////////////////////////////////////////////////////////////////////////////
 
+// swagger:parameters DeleteSession
 type DeleteSessionRequestBody struct {
 	SessionID uint `json:"session_id" binding:"required"`
 }
 
+// swagger:route DELETE /api/v1/kolide/session DeleteSession
+//
+// Delete a specific session, as specified by the session's ID.
+//
+// This API allows for the requester to delete a specific session. Note that the
+// API expects the session ID as the parameter, not the session key.
+//
+//     Consumes:
+//     - application/json
+//
+//     Produces:
+//     - application/json
+//
+//     Schemes: https
+//
+//     Security:
+//       authenticated: yes
+//
+//     Responses:
+//       200: nil
 func DeleteSession(c *gin.Context) {
 	var body DeleteSessionRequestBody
 	err := c.BindJSON(&body)
@@ -524,11 +690,33 @@ func DeleteSession(c *gin.Context) {
 	c.JSON(200, nil)
 }
 
+// swagger:parameters DeleteSessionsForUser
 type DeleteSessionsForUserRequestBody struct {
 	ID       uint   `json:"id"`
 	Username string `json:"username"`
 }
 
+// swagger:route DELETE /api/v1/kolide/user/sessions DeleteSessionsForUser
+//
+// Delete all of a user's active sessions
+//
+// This API allows an admin to delete all active sessions that are known to
+// belong to a specific user. This effectively logs out the user on all
+// devices.
+//
+//     Consumes:
+//     - application/json
+//
+//     Produces:
+//     - application/json
+//
+//     Schemes: https
+//
+//     Security:
+//       authenticated: yes
+//
+//     Responses:
+//       200: nil
 func DeleteSessionsForUser(c *gin.Context) {
 	var body DeleteSessionsForUserRequestBody
 	err := c.BindJSON(&body)
@@ -568,10 +756,12 @@ func DeleteSessionsForUser(c *gin.Context) {
 
 }
 
+// swagger:parameters GetInfoAboutSession
 type GetInfoAboutSessionRequestBody struct {
 	SessionKey string `json:"session_key" binding:"required"`
 }
 
+// swagger:response SessionInfoResponseBody
 type SessionInfoResponseBody struct {
 	SessionID  uint      `json:"session_id"`
 	UserID     uint      `json:"user_id"`
@@ -579,6 +769,26 @@ type SessionInfoResponseBody struct {
 	AccessedAt time.Time `json:"created_at"`
 }
 
+// swagger:route POST /api/v1/kolide/session GetInfoAboutSession
+//
+// Get information on a session, given a session key.
+//
+// Using this API will allow the requester to inspect and get info on
+// an active session, given the session key.
+//
+//     Consumes:
+//     - application/json
+//
+//     Produces:
+//     - application/json
+//
+//     Schemes: https
+//
+//     Security:
+//       authenticated: yes
+//
+//     Responses:
+//       200: SessionInfoResponseBody
 func GetInfoAboutSession(c *gin.Context) {
 	var body GetInfoAboutSessionRequestBody
 	err := c.BindJSON(&body)
@@ -622,15 +832,37 @@ func GetInfoAboutSession(c *gin.Context) {
 	})
 }
 
+// swagger:parameters GetInfoAboutSessionsForUser
 type GetInfoAboutSessionsForUserRequestBody struct {
 	ID       uint   `json:"id"`
 	Username string `json:"username"`
 }
 
+// swagger:response GetInfoAboutSessionsForUserResponseBody
 type GetInfoAboutSessionsForUserResponseBody struct {
-	Sessions []*SessionInfoResponseBody `json:"sessions"`
+	Sessions []SessionInfoResponseBody `json:"sessions"`
 }
 
+// swagger:route POST /api/v1/kolide/user/sessions GetInfoAboutSessionsForUser
+//
+// Get information on a user's sessions
+//
+// Using this API will allow an admin to inspect and get info on all of a user's
+// active session.
+//
+//     Consumes:
+//     - application/json
+//
+//     Produces:
+//     - application/json
+//
+//     Schemes: https
+//
+//     Security:
+//       authenticated: yes
+//
+//     Responses:
+//       200: GetInfoAboutSessionsForUserResponseBody
 func GetInfoAboutSessionsForUser(c *gin.Context) {
 	var body GetInfoAboutSessionsForUserRequestBody
 	err := c.BindJSON(&body)
@@ -667,9 +899,9 @@ func GetInfoAboutSessionsForUser(c *gin.Context) {
 		return
 	}
 
-	var response []*SessionInfoResponseBody
+	var response []SessionInfoResponseBody
 	for _, session := range sessions {
-		response = append(response, &SessionInfoResponseBody{
+		response = append(response, SessionInfoResponseBody{
 			SessionID:  session.ID,
 			UserID:     session.UserID,
 			CreatedAt:  session.CreatedAt,
