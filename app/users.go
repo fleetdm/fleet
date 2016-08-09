@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"fmt"
@@ -13,7 +13,9 @@ import (
 
 // User is the model struct which represents a kolide user
 type User struct {
-	BaseModel
+	ID                 uint `gorm:"primary_key"`
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
 	Username           string `gorm:"not null;unique_index:idx_user_unique_username"`
 	Password           []byte `gorm:"not null"`
 	Salt               string `gorm:"not null"`
@@ -501,11 +503,7 @@ func DeleteSession(c *gin.Context) {
 	}
 
 	db := GetDB(c)
-	user := &User{
-		BaseModel: BaseModel{
-			ID: session.UserID,
-		},
-	}
+	user := &User{ID: session.UserID}
 	err = db.Where(user).First(user).Error
 	if err != nil {
 		DatabaseError(c)

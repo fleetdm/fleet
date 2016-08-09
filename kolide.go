@@ -10,6 +10,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
+	"github.com/kolide/kolide-ose/app"
+	"github.com/kolide/kolide-ose/config"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -23,23 +25,23 @@ var (
 )
 
 var (
-	app = kingpin.New(appName, appDescription)
+	cli = kingpin.New(appName, appDescription)
 
-	configPath = app.Flag("config", "configuration file").
+	configPath = cli.Flag("config", "configuration file").
 			Short('c').
 			OverrideDefaultFromEnvar("KOLIDE_CONFIG_PATH").
 			ExistingFile()
 
-	debug = app.Flag("debug", "Enable debug mode.").
+	debug = cli.Flag("debug", "Enable debug mode.").
 		OverrideDefaultFromEnvar("KOLIDE_DEBUG").
 		Bool()
 
-	logJson = app.Flag("log_format_json", "Log in JSON format.").
+	logJson = cli.Flag("log_format_json", "Log in JSON format.").
 		OverrideDefaultFromEnvar("KOLIDE_LOG_FORMAT_JSON").
 		Bool()
 
-	prepareDB = app.Command("prepare-db", "Create database tables")
-	serve     = app.Command("serve", "Run the Kolide server")
+	prepareDB = cli.Command("prepare-db", "Create database tables")
+	serve     = cli.Command("serve", "Run the Kolide server")
 )
 
 func init() {
@@ -48,9 +50,6 @@ func init() {
 
 	// configure logging
 	logrus.AddHook(logContextHook{})
-
-	// populate the global config data structure with sane defaults
-	setDefaultConfigValues()
 
 	rand.Seed(time.Now().UnixNano())
 }
@@ -78,11 +77,12 @@ func (hook logContextHook) Fire(entry *logrus.Entry) error {
 
 func main() {
 	// configure flag parsing and parse flags
-	app.Version(version)
-	args, err := app.Parse(os.Args[1:])
+	cli.Version(version)
+	args, err := cli.Parse(os.Args[1:])
 
 	// configure the application based on the flags that have been set
 	if *debug {
+		config.App.Debug = true
 		logrus.SetLevel(logrus.DebugLevel)
 	} else {
 		logrus.SetLevel(logrus.WarnLevel)
@@ -96,8 +96,8 @@ func main() {
 	// the binary, it's likely that the tool is being ran right after building
 	// from source so we auto-populate the example config path.
 	if *configPath == "" {
-		if _, err = os.Stat("./tools/example_config.json"); err == nil {
-			*configPath = "./tools/example_config.json"
+		if _, err = os.Stat("./tools/app/example_config.json"); err == nil {
+			*configPath = "./tools/app/example_config.json"
 		}
 		logrus.Warn("Using example config. These settings should be used for development only!")
 	}
@@ -106,7 +106,7 @@ func main() {
 	// relative to the binary, load config content from the file. any content
 	// in the config file will overwrite the default values
 	if *configPath != "" {
-		err = loadConfig(*configPath)
+		err = config.LoadConfig(*configPath)
 		if err != nil {
 			logrus.Fatalf("Error loading config: %s", err.Error())
 		}
@@ -115,14 +115,14 @@ func main() {
 	// route the executable based on the sub-command
 	switch kingpin.MustParse(args, err) {
 	case prepareDB.FullCommand():
-		db, err := openDB(config.MySQL.Username, config.MySQL.Password, config.MySQL.Address, config.MySQL.Database)
+		db, err := app.OpenDB(config.MySQL.Username, config.MySQL.Password, config.MySQL.Address, config.MySQL.Database)
 		if err != nil {
 			logrus.Fatalf("Error opening database: %s", err.Error())
 		}
-		dropTables(db)
-		createTables(db)
+		app.DropTables(db)
+		app.CreateTables(db)
 	case serve.FullCommand():
-		db, err := openDB(config.MySQL.Username, config.MySQL.Password, config.MySQL.Address, config.MySQL.Database)
+		db, err := app.OpenDB(config.MySQL.Username, config.MySQL.Password, config.MySQL.Address, config.MySQL.Database)
 		if err != nil {
 			logrus.Fatalf("Error opening database: %s", err.Error())
 		}
@@ -146,12 +146,12 @@ $7777777....$....$777$.....+DI..DDD..DDI...8D...D8......$D:..8D....8D...8D......
 ..... ...........I.................. .  .   . ..   .   .    .   . .. . .  . .
 
 `)
-		fmt.Printf("=> %s %s application starting on https://%s\n", app.Name, version, config.Server.Address)
+		fmt.Printf("=> %s %s application starting on https://%s\n", cli.Name, version, config.Server.Address)
 		fmt.Println("=> Run `kolide help serve` for more startup options")
 		fmt.Println("Use Ctrl-C to stop")
 		fmt.Print("\n\n")
 
-		CreateServer(db, os.Stderr).RunTLS(
+		app.CreateServer(db, os.Stderr).RunTLS(
 			config.Server.Address,
 			config.Server.Cert,
 			config.Server.Key)

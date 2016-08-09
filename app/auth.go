@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"crypto/rand"
@@ -9,6 +9,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
+	"github.com/kolide/kolide-ose/config"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -109,7 +110,7 @@ func VC(c *gin.Context) *ViewerContext {
 func VCForID(db *gorm.DB, id uint) *ViewerContext {
 	// Generating a VC requires a user struct. Attempt to populate one using
 	// the user id of the current session holder
-	user := &User{BaseModel: BaseModel{ID: id}}
+	user := &User{ID: id}
 	err := db.Where(user).First(user).Error
 	if err != nil {
 		return EmptyVC()

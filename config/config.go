@@ -1,25 +1,26 @@
-package main
+package config
 
 import (
 	"encoding/json"
 	"io/ioutil"
 )
 
-type mysqlConfigData struct {
+type MySQLConfigData struct {
 	Address  string `json:"address"`
 	Username string `json:"username"`
 	Password string `json:"password"`
 	Database string `json:"database"`
 }
 
-type serverConfigData struct {
+type ServerConfigData struct {
 	Address string `json:"address"`
 	Cert    string `json:"cert"`
 	Key     string `json:"key"`
 }
 
-type appConfigData struct {
+type AppConfigData struct {
 	BcryptCost               int     `json:"bcrypt_cost"`
+	Debug                    bool    `json:"debug"`
 	JWTKey                   string  `json:"jwt_key"`
 	SaltKeySize              int     `json:"salt_key_size"`
 	SessionKeySize           int     `json:"session_key_size"`
@@ -27,30 +28,27 @@ type appConfigData struct {
 }
 
 type configData struct {
-	MySQL  mysqlConfigData  `json:"mysql"`
-	Server serverConfigData `json:"server"`
-	App    appConfigData    `json:"app"`
+	MySQL  MySQLConfigData  `json:"mysql"`
+	Server ServerConfigData `json:"server"`
+	App    AppConfigData    `json:"app"`
 }
 
-var (
-	config configData
-)
-
-var defaultMysqlConfigData = mysqlConfigData{
+var defaultMySQLConfigData = MySQLConfigData{
 	Address:  "mysql:3306",
 	Username: "kolide",
 	Password: "kolide",
 	Database: "kolide",
 }
 
-var defaultServerConfigData = serverConfigData{
+var defaultServerConfigData = ServerConfigData{
 	Address: "127.0.0.1:8080",
 	Cert:    "./tools/kolide.crt",
 	Key:     "./tools/kolide.key",
 }
 
-var defaultAppConfigData = appConfigData{
+var defaultAppConfigData = AppConfigData{
 	BcryptCost:               12,
+	Debug:                    false,
 	JWTKey:                   "very secure",
 	SessionKeySize:           64,
 	SaltKeySize:              24,
@@ -58,20 +56,35 @@ var defaultAppConfigData = appConfigData{
 }
 
 var defaultConfigData = configData{
-	MySQL:  defaultMysqlConfigData,
+	MySQL:  defaultMySQLConfigData,
 	Server: defaultServerConfigData,
 	App:    defaultAppConfigData,
 }
 
-func setDefaultConfigValues() {
-	config = defaultConfigData
+var (
+	MySQL  MySQLConfigData
+	Server ServerConfigData
+	App    AppConfigData
+)
+
+func init() {
+	MySQL = defaultMySQLConfigData
+	Server = defaultServerConfigData
+	App = defaultAppConfigData
 }
 
-func loadConfig(path string) error {
+func LoadConfig(path string) error {
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
 	}
+	var config configData
 	err = json.Unmarshal(content, &config)
-	return err
+	if err != nil {
+		return err
+	}
+	MySQL = config.MySQL
+	App = config.App
+	Server = config.Server
+	return nil
 }

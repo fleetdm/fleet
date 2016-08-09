@@ -1,4 +1,4 @@
-package main
+package osquery
 
 import (
 	"net/http"

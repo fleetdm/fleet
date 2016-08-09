@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"io"
@@ -9,8 +9,15 @@ import (
 	"github.com/gin-gonic/contrib/ginrus"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
+	"github.com/kolide/kolide-ose/config"
+	"github.com/kolide/kolide-ose/osquery"
 	"github.com/kolide/kolide-ose/sessions"
 )
+
+// Get the database connection from the context, or panic
+func GetDB(c *gin.Context) *gorm.DB {
+	return c.MustGet("DB").(*gorm.DB)
+}
 
 // ServerError is a helper which accepts a string error and returns a map in
 // format that is required by gin.Context.JSON
@@ -122,12 +129,12 @@ func CreateServer(db *gorm.DB, w io.Writer) *gin.Engine {
 	kolide.POST("/session", GetInfoAboutSession)
 
 	// osquery API endpoints
-	osquery := v1.Group("/osquery")
-	osquery.POST("/enroll", OsqueryEnroll)
-	osquery.POST("/config", OsqueryConfig)
-	osquery.POST("/log", OsqueryLog)
-	osquery.POST("/distributed/read", OsqueryDistributedRead)
-	osquery.POST("/distributed/write", OsqueryDistributedWrite)
+	osq := v1.Group("/osquery")
+	osq.POST("/enroll", osquery.OsqueryEnroll)
+	osq.POST("/config", osquery.OsqueryConfig)
+	osq.POST("/log", osquery.OsqueryLog)
+	osq.POST("/distributed/read", osquery.OsqueryDistributedRead)
+	osq.POST("/distributed/write", osquery.OsqueryDistributedWrite)
 
 	return server
 }

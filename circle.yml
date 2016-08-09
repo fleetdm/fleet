@@ -1,12 +1,6 @@
-dependencies:
-  pre:
-    - go get -u github.com/tools/godep
-  override:
-    - godep restore
-
 test:
   pre:
     - go vet ./...
 
   override:
-    - godep go test ./...
+    - go test ./...

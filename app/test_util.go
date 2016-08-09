@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"bytes"
@@ -31,7 +31,7 @@ func openTestDB(t *testing.T) *gorm.DB {
 		panic(fmt.Sprintf("Error opening test DB: %s", err.Error()))
 	}
 
-	createTables(db)
+	CreateTables(db)
 	if db.Error != nil {
 		panic(fmt.Sprintf("Error creating test DB tables: %s", db.Error.Error()))
 	}
