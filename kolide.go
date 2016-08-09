@@ -151,10 +151,13 @@ $7777777....$....$777$.....+DI..DDD..DDI...8D...D8......$D:..8D....8D...8D......
 		fmt.Println("Use Ctrl-C to stop")
 		fmt.Print("\n\n")
 
-		app.CreateServer(db, os.Stderr).RunTLS(
+		err = app.CreateServer(db, os.Stderr).RunTLS(
 			config.Server.Address,
 			config.Server.Cert,
 			config.Server.Key)
+		if err != nil {
+			logrus.WithError(err).Fatal("Error running server")
+		}
 
 	}
 }

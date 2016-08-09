@@ -42,8 +42,8 @@ var defaultMySQLConfigData = MySQLConfigData{
 
 var defaultServerConfigData = ServerConfigData{
 	Address: "127.0.0.1:8080",
-	Cert:    "./tools/kolide.crt",
-	Key:     "./tools/kolide.key",
+	Cert:    "./tools/osquery/kolide.crt",
+	Key:     "./tools/osquery/kolide.key",
 }
 
 var defaultAppConfigData = AppConfigData{

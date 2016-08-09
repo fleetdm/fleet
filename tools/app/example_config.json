@@ -7,8 +7,8 @@
   },
   "server": {
     "address": ":8080",
-    "cert": "./tools/kolide.crt",
-    "key": "./tools/kolide.key"
+    "cert": "./tools/osquery/kolide.crt",
+    "key": "./tools/osquery/kolide.key"
   },
   "app": {
     "bcrypt_cost": 12,
