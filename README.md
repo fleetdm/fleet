@@ -1,6 +1,6 @@
 # Kolide
 
-[![Build Status](https://travis-ci.com/kolide/kolide-ose.svg?token=MvaZkzWisgsA98PZfNC7&branch=master)](https://travis-ci.com/kolide/kolide-ose)
+[![CircleCI](https://circleci.com/gh/kolide/kolide-ose.svg?style=svg&circle-token=2573c239b7f18967040d2dec95ca5f71cfc90693)](https://circleci.com/gh/kolide/kolide-ose)
 
 ## Building
 
