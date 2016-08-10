@@ -5,7 +5,11 @@
 To build the code, run the following from the root of the repository:
 
 ```
+# On Linux, OS X, etc:
 go build -o kolide
+
+# On Windows:
+go build -o kolide.exe
 ```
 
 ## Testing
@@ -14,13 +18,7 @@ To run the application's tests, run the following from the root of the
 repository:
 
 ```
-go test
-```
-
-Or if you using the Docker development environment run:
-
-```
-docker-compose app exec go test
+go vet ./... && go test -v ./...
 ```
 
 ## Development Environment
@@ -32,45 +30,29 @@ run the following from the root of the repository:
 docker-compose up
 ```
 
-Once completed, you can access the application at `https://<your-docker-ip>:8080`
-where `your-docker-ip` is localhost in most native docker installations.
-
 This requires that you have docker installed. At this point in time,
 automatic configuration tools are not included with this project.
+
+Once you `docker-compose up` and are running the databases, you can build
+the code and run the following command to create the database tables:
+
+```
+kolide prepare-db
+```
+
+Now you are prepared to run a Kolide development environment. Run the following:
+
+```
+kolide serve
+```
+
+You may have to edit the example configuration file to reflect `localhost` if
+you're using Docker via a native docker engine or the output of 
+`docker-machine ip` if you're using Docker via `docker-toolbox`.
 
 If you'd like to shut down the virtual infrastructure created by docker, run
 the following from the root of the repository:
 
 ```
 docker-compose down
-```
-
-Once you `docker-compose up` and are running the databases, you can re-build
-the code with:
-
-```
-docker-compose exec app go build -o kolide
-```
-
-and then run the following command to create the database tables:
-
-```
-docker-compose exec app ./kolide prepare-db
-```
-
-## Docker Deployment
-This repository comes with a simple Dockerfile. You can use this to easily
-deploy Kolide in any infrastructure context that can consume a docker image
-(heroku, kubernetes, rancher, etc).
-
-To build the image locally, run:
-
-```
-docker build --rm -t kolide .
-```
-
-To run the image locally, simply run:
-
-```
-docker run -t -p 8080:8080 kolide
 ```
