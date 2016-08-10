@@ -3,13 +3,13 @@ package app
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"errors"
 	"fmt"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 	"github.com/kolide/kolide-ose/config"
+	"github.com/kolide/kolide-ose/errors"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -38,7 +38,7 @@ func (vc *ViewerContext) UserID() (uint, error) {
 	if vc.user != nil {
 		return vc.user.ID, nil
 	}
-	return 0, errors.New("No user set")
+	return 0, errors.New("Unauthorized", "No user set")
 }
 
 // CanPerformActions returns a bool indicating the current user's ability to
@@ -157,8 +157,8 @@ func SaltAndHashPassword(password string) (string, []byte, error) {
 
 // swagger:parameters Login
 type LoginRequestBody struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Username string `json:"username" validate:"required"`
+	Password string `json:"password" validate:"required"`
 }
 
 // swagger:route POST /api/v1/kolide/login Login
@@ -185,9 +185,9 @@ type LoginRequestBody struct {
 //       200: GetUserResponseBody
 func Login(c *gin.Context) {
 	var body LoginRequestBody
-	err := c.BindJSON(&body)
+	err := ParseAndValidateJSON(c, &body)
 	if err != nil {
-		logrus.Errorf("Error parsing Login post body: %s", err.Error())
+		errors.ReturnError(c, err)
 		return
 	}
 
@@ -212,7 +212,7 @@ func Login(c *gin.Context) {
 	sm.MakeSessionForUserID(user.ID)
 	err = sm.Save()
 	if err != nil {
-		DatabaseError(c)
+		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 
@@ -252,13 +252,13 @@ func Logout(c *gin.Context) {
 
 	err := sm.Destroy()
 	if err != nil {
-		DatabaseError(c)
+		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 
 	err = sm.Save()
 	if err != nil {
-		DatabaseError(c)
+		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 

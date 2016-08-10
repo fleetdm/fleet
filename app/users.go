@@ -7,6 +7,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
+	"github.com/kolide/kolide-ose/errors"
 	"github.com/kolide/kolide-ose/sessions"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -127,9 +128,9 @@ type GetUserResponseBody struct {
 //       200: GetUserResponseBody
 func GetUser(c *gin.Context) {
 	var body GetUserRequestBody
-	err := c.BindJSON(&body)
+	err := ParseAndValidateJSON(c, &body)
 	if err != nil {
-		logrus.Errorf("Error parsing GetUser post body: %s", err.Error())
+		errors.ReturnError(c, err)
 		return
 	}
 
@@ -145,7 +146,7 @@ func GetUser(c *gin.Context) {
 	user.Username = body.Username
 	err = db.Where(&user).First(&user).Error
 	if err != nil {
-		DatabaseError(c)
+		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 
@@ -167,9 +168,9 @@ func GetUser(c *gin.Context) {
 
 // swagger:parameters CreateUser
 type CreateUserRequestBody struct {
-	Username           string `json:"username" binding:"required"`
-	Password           string `json:"password" binding:"required"`
-	Email              string `json:"email" binding:"required"`
+	Username           string `json:"username" validate:"required"`
+	Password           string `json:"password" validate:"required"`
+	Email              string `json:"email" validate:"required,email"`
 	Admin              bool   `json:"admin"`
 	NeedsPasswordReset bool   `json:"needs_password_reset"`
 }
@@ -196,9 +197,9 @@ type CreateUserRequestBody struct {
 //       200: GetUserResponseBody
 func CreateUser(c *gin.Context) {
 	var body CreateUserRequestBody
-	err := c.BindJSON(&body)
+	err := ParseAndValidateJSON(c, &body)
 	if err != nil {
-		logrus.Errorf("Error parsing CreateUser post body: %s", err.Error())
+		errors.ReturnError(c, err)
 		return
 	}
 
@@ -212,7 +213,7 @@ func CreateUser(c *gin.Context) {
 	user, err := NewUser(db, body.Username, body.Password, body.Email, body.Admin, body.NeedsPasswordReset)
 	if err != nil {
 		logrus.Errorf("Error creating new user: %s", err.Error())
-		DatabaseError(c)
+		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 
@@ -259,9 +260,9 @@ type ModifyUserRequestBody struct {
 //       200: GetUserResponseBody
 func ModifyUser(c *gin.Context) {
 	var body ModifyUserRequestBody
-	err := c.BindJSON(&body)
+	err := ParseAndValidateJSON(c, &body)
 	if err != nil {
-		logrus.Errorf("Error parsing ModifyUser post body: %s", err.Error())
+		errors.ReturnError(c, err)
 		return
 	}
 
@@ -278,7 +279,7 @@ func ModifyUser(c *gin.Context) {
 	db := GetDB(c)
 	err = db.Where(&user).First(&user).Error
 	if err != nil {
-		DatabaseError(c)
+		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 
@@ -296,7 +297,7 @@ func ModifyUser(c *gin.Context) {
 	err = db.Save(&user).Error
 	if err != nil {
 		logrus.Errorf("Error updating user in database: %s", err.Error())
-		DatabaseError(c)
+		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 	c.JSON(200, GetUserResponseBody{
@@ -338,9 +339,9 @@ type DeleteUserRequestBody struct {
 //       200: nil
 func DeleteUser(c *gin.Context) {
 	var body DeleteUserRequestBody
-	err := c.BindJSON(&body)
+	err := ParseAndValidateJSON(c, &body)
 	if err != nil {
-		logrus.Errorf("Error parsing DeleteUser post body: %s", err.Error())
+		errors.ReturnError(c, err)
 		return
 	}
 
@@ -356,14 +357,14 @@ func DeleteUser(c *gin.Context) {
 	user.Username = body.Username
 	err = db.Where(&user).First(&user).Error
 	if err != nil {
-		DatabaseError(c)
+		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 
 	err = db.Delete(&user).Error
 	if err != nil {
 		logrus.Errorf("Error deleting user from database: %s", err.Error())
-		DatabaseError(c)
+		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 	c.JSON(200, nil)
@@ -374,8 +375,8 @@ type ChangePasswordRequestBody struct {
 	ID                uint   `json:"id"`
 	Username          string `json:"username"`
 	CurrentPassword   string `json:"current_password"`
-	NewPassword       string `json:"new_password" binding:"required"`
-	NewPasswordConfim string `json:"new_password_confirm" binding:"required"`
+	NewPassword       string `json:"new_password" validate:"required"`
+	NewPasswordConfim string `json:"new_password_confirm" validate:"required"`
 }
 
 // swagger:route PATCH /api/v1/kolide/user/password ChangeUserPassword
@@ -402,9 +403,9 @@ type ChangePasswordRequestBody struct {
 //       200: GetUserResponseBody
 func ChangeUserPassword(c *gin.Context) {
 	var body ChangePasswordRequestBody
-	err := c.BindJSON(&body)
+	err := ParseAndValidateJSON(c, &body)
 	if err != nil {
-		logrus.Errorf("Error parsing ResetPassword post body: %s", err.Error())
+		errors.ReturnError(c, err)
 		return
 	}
 
@@ -425,7 +426,7 @@ func ChangeUserPassword(c *gin.Context) {
 	user.Username = body.Username
 	err = db.Where(&user).First(&user).Error
 	if err != nil {
-		DatabaseError(c)
+		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 
@@ -443,14 +444,14 @@ func ChangeUserPassword(c *gin.Context) {
 	err = user.SetPassword(db, body.NewPassword)
 	if err != nil {
 		logrus.Errorf("Error setting user password: %s", err.Error())
-		DatabaseError(c) // probably not this
+		errors.ReturnError(c, errors.DatabaseError(err)) // probably not this
 		return
 	}
 
 	err = db.Save(&user).Error
 	if err != nil {
 		logrus.Errorf("Error updating user in database: %s", err.Error())
-		DatabaseError(c)
+		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 	c.JSON(200, GetUserResponseBody{
@@ -493,9 +494,9 @@ type SetUserAdminStateRequestBody struct {
 //       200: GetUserResponseBody
 func SetUserAdminState(c *gin.Context) {
 	var body SetUserAdminStateRequestBody
-	err := c.BindJSON(&body)
+	err := ParseAndValidateJSON(c, &body)
 	if err != nil {
-		logrus.Errorf("Error parsing SetUserAdminState post body: %s", err.Error())
+		errors.ReturnError(c, err)
 		return
 	}
 
@@ -511,7 +512,7 @@ func SetUserAdminState(c *gin.Context) {
 	user.Username = body.Username
 	err = db.Where(&user).First(&user).Error
 	if err != nil {
-		DatabaseError(c)
+		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 
@@ -519,7 +520,7 @@ func SetUserAdminState(c *gin.Context) {
 	err = db.Save(&user).Error
 	if err != nil {
 		logrus.Errorf("Error updating user in database: %s", err.Error())
-		DatabaseError(c)
+		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 	c.JSON(200, GetUserResponseBody{
@@ -562,9 +563,9 @@ type SetUserEnabledStateRequestBody struct {
 //       200: GetUserResponseBody
 func SetUserEnabledState(c *gin.Context) {
 	var body SetUserEnabledStateRequestBody
-	err := c.BindJSON(&body)
+	err := ParseAndValidateJSON(c, &body)
 	if err != nil {
-		logrus.Errorf("Error parsing SetUserEnabledState post body: %s", err.Error())
+		errors.ReturnError(c, err)
 		return
 	}
 
@@ -580,7 +581,7 @@ func SetUserEnabledState(c *gin.Context) {
 	user.Username = body.Username
 	err = db.Where(&user).First(&user).Error
 	if err != nil {
-		DatabaseError(c)
+		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 
@@ -588,7 +589,7 @@ func SetUserEnabledState(c *gin.Context) {
 	err = db.Save(&user).Error
 	if err != nil {
 		logrus.Errorf("Error updating user in database: %s", err.Error())
-		DatabaseError(c)
+		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 	c.JSON(200, GetUserResponseBody{
@@ -624,7 +625,7 @@ func GetSessionBackend(c *gin.Context) sessions.SessionBackend {
 
 // swagger:parameters DeleteSession
 type DeleteSessionRequestBody struct {
-	SessionID uint `json:"session_id" binding:"required"`
+	SessionID uint `json:"session_id" validate:"required"`
 }
 
 // swagger:route DELETE /api/v1/kolide/session DeleteSession
@@ -649,9 +650,9 @@ type DeleteSessionRequestBody struct {
 //       200: nil
 func DeleteSession(c *gin.Context) {
 	var body DeleteSessionRequestBody
-	err := c.BindJSON(&body)
+	err := ParseAndValidateJSON(c, &body)
 	if err != nil {
-		logrus.Errorf(err.Error())
+		errors.ReturnError(c, err)
 		return
 	}
 
@@ -672,7 +673,7 @@ func DeleteSession(c *gin.Context) {
 	user := &User{ID: session.UserID}
 	err = db.Where(user).First(user).Error
 	if err != nil {
-		DatabaseError(c)
+		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 
@@ -683,7 +684,7 @@ func DeleteSession(c *gin.Context) {
 
 	err = sb.Destroy(session)
 	if err != nil {
-		DatabaseError(c)
+		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 
@@ -719,9 +720,10 @@ type DeleteSessionsForUserRequestBody struct {
 //       200: nil
 func DeleteSessionsForUser(c *gin.Context) {
 	var body DeleteSessionsForUserRequestBody
-	err := c.BindJSON(&body)
+	err := ParseAndValidateJSON(c, &body)
 	if err != nil {
-		logrus.Errorf(err.Error())
+		errors.ReturnError(c, err)
+		return
 	}
 
 	vc := VC(c)
@@ -736,7 +738,7 @@ func DeleteSessionsForUser(c *gin.Context) {
 	user.Username = body.Username
 	err = db.Where(&user).First(&user).Error
 	if err != nil {
-		DatabaseError(c)
+		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 
@@ -748,7 +750,7 @@ func DeleteSessionsForUser(c *gin.Context) {
 	sb := GetSessionBackend(c)
 	err = sb.DestroyAllForUser(user.ID)
 	if err != nil {
-		DatabaseError(c)
+		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 
@@ -758,7 +760,7 @@ func DeleteSessionsForUser(c *gin.Context) {
 
 // swagger:parameters GetInfoAboutSession
 type GetInfoAboutSessionRequestBody struct {
-	SessionKey string `json:"session_key" binding:"required"`
+	SessionKey string `json:"session_key" validate:"required"`
 }
 
 // swagger:response SessionInfoResponseBody
@@ -791,9 +793,9 @@ type SessionInfoResponseBody struct {
 //       200: SessionInfoResponseBody
 func GetInfoAboutSession(c *gin.Context) {
 	var body GetInfoAboutSessionRequestBody
-	err := c.BindJSON(&body)
+	err := ParseAndValidateJSON(c, &body)
 	if err != nil {
-		logrus.Errorf(err.Error())
+		errors.ReturnError(c, err)
 		return
 	}
 
@@ -806,7 +808,7 @@ func GetInfoAboutSession(c *gin.Context) {
 	sb := GetSessionBackend(c)
 	session, err := sb.FindKey(body.SessionKey)
 	if err != nil {
-		DatabaseError(c)
+		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 
@@ -815,7 +817,7 @@ func GetInfoAboutSession(c *gin.Context) {
 	user.ID = session.UserID
 	err = db.Where(&user).First(&user).Error
 	if err != nil {
-		DatabaseError(c)
+		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 
@@ -865,9 +867,9 @@ type GetInfoAboutSessionsForUserResponseBody struct {
 //       200: GetInfoAboutSessionsForUserResponseBody
 func GetInfoAboutSessionsForUser(c *gin.Context) {
 	var body GetInfoAboutSessionsForUserRequestBody
-	err := c.BindJSON(&body)
+	err := ParseAndValidateJSON(c, &body)
 	if err != nil {
-		logrus.Errorf(err.Error())
+		errors.ReturnError(c, err)
 		return
 	}
 
@@ -883,7 +885,7 @@ func GetInfoAboutSessionsForUser(c *gin.Context) {
 	user.Username = body.Username
 	err = db.Where(&user).First(&user).Error
 	if err != nil {
-		DatabaseError(c)
+		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 
@@ -895,7 +897,7 @@ func GetInfoAboutSessionsForUser(c *gin.Context) {
 	sb := GetSessionBackend(c)
 	sessions, err := sb.FindAllForUser(user.ID)
 	if err != nil {
-		DatabaseError(c)
+		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 

@@ -9,24 +9,23 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/kolide/kolide-ose/config"
-	"github.com/kolide/kolide-ose/osquery"
 	"github.com/kolide/kolide-ose/sessions"
 )
 
 var tables = [...]interface{}{
 	&User{},
 	&sessions.Session{},
-	&osquery.ScheduledQuery{},
-	&osquery.Pack{},
-	&osquery.DiscoveryQuery{},
-	&osquery.Host{},
-	&osquery.Label{},
-	&osquery.Option{},
-	&osquery.Decorator{},
-	&osquery.Target{},
-	&osquery.DistributedQuery{},
-	&osquery.Query{},
-	&osquery.DistributedQueryExecution{},
+	&ScheduledQuery{},
+	&Pack{},
+	&DiscoveryQuery{},
+	&Host{},
+	&Label{},
+	&Option{},
+	&Decorator{},
+	&Target{},
+	&DistributedQuery{},
+	&Query{},
+	&DistributedQueryExecution{},
 }
 
 func setDBSettings(db *gorm.DB) {

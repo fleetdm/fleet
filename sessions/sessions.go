@@ -1,30 +1,32 @@
 package sessions
 
 import (
-	"errors"
 	"net/http"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/kolide/kolide-ose/errors"
 )
+
+const publicErrorMessage string = "Session error"
 
 var (
 	// An error returned by SessionBackend.Get() if no session record was found
 	// in the database
-	ErrNoActiveSession = errors.New("Active session is not present in the database")
+	ErrNoActiveSession = errors.New(publicErrorMessage, "Active session is not present in the database")
 
 	// An error returned by SessionBackend methods when no session object has
 	// been created yet but the requested action requires one
-	ErrSessionNotCreated = errors.New("The session has not been created")
+	ErrSessionNotCreated = errors.New(publicErrorMessage, "The session has not been created")
 
 	// An error returned by SessionBackend.Get() when a session is requested but
 	// it has expired
-	ErrSessionExpired = errors.New("The session has expired")
+	ErrSessionExpired = errors.New(publicErrorMessage, "The session has expired")
 
 	// An error returned by SessionBackend which indicates that the token
 	// or it's content were malformed
-	ErrSessionMalformed = errors.New("The session token was malformed")
+	ErrSessionMalformed = errors.New(publicErrorMessage, "The session token was malformed")
 )
 
 var (
@@ -205,7 +207,7 @@ func ParseJWT(token string) (*jwt.Token, error) {
 	return jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
 		method, ok := t.Method.(*jwt.SigningMethodHMAC)
 		if !ok || method != jwt.SigningMethodHS256 {
-			return nil, errors.New("Unexpected signing method")
+			return nil, errors.New(publicErrorMessage, "Unexpected signing method")
 		}
 		return []byte(jwtKey), nil
 	})

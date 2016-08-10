@@ -1,7 +1,10 @@
 package app
 
 import (
+	"encoding/json"
+	"fmt"
 	"io"
+	"net/http"
 	_ "net/http/pprof"
 	"time"
 
@@ -10,43 +13,32 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 	"github.com/kolide/kolide-ose/config"
-	"github.com/kolide/kolide-ose/osquery"
+	"github.com/kolide/kolide-ose/errors"
 	"github.com/kolide/kolide-ose/sessions"
+	"gopkg.in/go-playground/validator.v8"
 )
+
+var validate *validator.Validate = validator.New(&validator.Config{TagName: "validate", FieldNameTag: "json"})
 
 // Get the database connection from the context, or panic
 func GetDB(c *gin.Context) *gorm.DB {
 	return c.MustGet("DB").(*gorm.DB)
 }
 
-// ServerError is a helper which accepts a string error and returns a map in
-// format that is required by gin.Context.JSON
-func ServerError(e string) *map[string]interface{} {
-	return &map[string]interface{}{
-		"error": e,
-	}
-}
-
-// DatabaseError emits a response that is appropriate in the event that a
-// database failure occurs, a record is not found in the database, etc
-func DatabaseError(c *gin.Context) {
-	c.JSON(500, ServerError("Database error"))
-}
-
 // UnauthorizedError emits a response that is appropriate in the event that a
 // request is received by a user which is not authorized to carry out the
 // requested action
 func UnauthorizedError(c *gin.Context) {
-	c.JSON(401, ServerError("Unauthorized"))
+	errors.ReturnError(
+		c,
+		errors.NewWithStatus(
+			http.StatusUnauthorized,
+			"Unauthorized",
+			"Unauthorized",
+		))
 }
 
-// MalformedRequestError emits a response that is appropriate in the event that
-// a request is received by a user which does not have required fields or is in
-// some way malformed
-func MalformedRequestError(c *gin.Context) {
-	c.JSON(400, ServerError("Malformed request"))
-}
-
+// Create a new server for testing purposes with no routes attached
 func createEmptyTestServer(db *gorm.DB) *gin.Engine {
 	server := gin.New()
 	server.Use(DatabaseMiddleware(db))
@@ -71,6 +63,35 @@ func NewSessionManager(c *gin.Context) *sessions.SessionManager {
 		Backend: GetSessionBackend(c),
 		Writer:  c.Writer,
 	}
+}
+
+// Unmarshal JSON from the gin context into a struct
+func parseJSON(c *gin.Context, obj interface{}) error {
+	decoder := json.NewDecoder(c.Request.Body)
+	if err := decoder.Decode(obj); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Parse JSON into a struct with json.Unmarshal, followed by validation with
+// the validator library.
+func ParseAndValidateJSON(c *gin.Context, obj interface{}) error {
+	if err := parseJSON(c, obj); err != nil {
+		return errors.NewFromError(err, http.StatusBadRequest, "JSON parse error")
+	}
+
+	return validate.Struct(obj)
+}
+
+func NotFound(c *gin.Context) {
+	errors.ReturnError(
+		c,
+		errors.NewWithStatus(
+			http.StatusNotFound,
+			"Not found",
+			fmt.Sprintf("Route not found for request: %+v", c.Request),
+		))
 }
 
 // CreateServer creates a gin.Engine HTTP server and configures it to be in a
@@ -105,6 +126,9 @@ func CreateServer(db *gorm.DB, w io.Writer) *gin.Engine {
 	recoveryLogger.Out = w
 	server.Use(gin.RecoveryWithWriter(recoveryLogger.Writer()))
 
+	// Set the 404 route
+	server.NoRoute(NotFound)
+
 	v1 := server.Group("/api/v1")
 
 	// Kolide application API endpoints
@@ -130,11 +154,11 @@ func CreateServer(db *gorm.DB, w io.Writer) *gin.Engine {
 
 	// osquery API endpoints
 	osq := v1.Group("/osquery")
-	osq.POST("/enroll", osquery.OsqueryEnroll)
-	osq.POST("/config", osquery.OsqueryConfig)
-	osq.POST("/log", osquery.OsqueryLog)
-	osq.POST("/distributed/read", osquery.OsqueryDistributedRead)
-	osq.POST("/distributed/write", osquery.OsqueryDistributedWrite)
+	osq.POST("/enroll", OsqueryEnroll)
+	osq.POST("/config", OsqueryConfig)
+	osq.POST("/log", OsqueryLog)
+	osq.POST("/distributed/read", OsqueryDistributedRead)
+	osq.POST("/distributed/write", OsqueryDistributedWrite)
 
 	return server
 }
