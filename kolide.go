@@ -1,5 +1,7 @@
 package main
 
+//go:generate make generate
+
 import (
 	"fmt"
 	"math/rand"

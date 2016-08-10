@@ -1,13 +1,4 @@
-NODE_BIN      = $(shell npm bin)
-PID_FILE      = build/kolide.pid
-GO_FILES      = $(filter-out ./bindata.go, $(shell find . -type f -name "*.go"))
-TEMPLATES     = $(wildcard frontend/templates/*)
-
-ifeq ($(OS), Windows_NT)
-OUTFILE       = kolide.exe
-else
-OUTFILE       = kolide
-endif
+WEBPACK = $(shell npm bin)/webpack --config=tools/app/webpack.config.js
 
 .prefix:
 ifeq ($(OS), Windows_NT)
@@ -16,38 +7,38 @@ else
 	mkdir -p build
 endif
 
-all: build
-
 generate: .prefix
 	go-bindata -pkg=app -o=app/bindata.go frontend/templates/ build/
-	$(NODE_BIN)/webpack --progress --colors --bail
-
-.PHONY: build
-build: generate .prefix
-	go build -o $(OUTFILE)
+	$(WEBPACK) --progress --colors --bail
 
 deps:
 	npm install
-	go get -u github.com/olebedev/on
-	go get -u github.com/jteeuwen/go-bindata/...
 	go get -u github.com/tools/godep
+	go get -u github.com/jteeuwen/go-bindata/...
+ifneq ($(OS), Windows_NT)
+	go get -u github.com/olebedev/on
+endif
 
-clean:
+distclean:
 	mkdir -p build
 	rm -rf build/*
 
-test:
-	go vet . ./app ./config ./errors ./sessions
-	go test -v . ./app ./config ./errors ./sessions
+ifneq ($(OS), Windows_NT)
+
+PID_FILE = build/kolide.pid
+GO_FILES = $(filter-out ./bindata.go, $(shell find . -type f -name "*.go"))
+TEMPLATES = $(wildcard frontend/templates/*)
 
 stop:
 	kill `cat $(PID_FILE)` || true
 
-serve: .prefix
-	BABEL_ENV=dev node hot.proxy &
-	$(NODE_BIN)/webpack --watch &
+watch: .prefix
+	BABEL_ENV=dev node tools/app/hot.proxy &
+	$(WEBPACK) --watch &
 	on -m 2 $(GO_FILES) $(TEMPLATES) | xargs -n1 -I{} make restart || make stop
 
 restart: stop
 	@echo restarting the app...
-	$(TARGET) serve & echo $$! > $(PID_FILE)
+	kolide serve & echo $$! > $(PID_FILE)
+
+endif

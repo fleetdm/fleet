@@ -34,12 +34,14 @@ if (process.env.NODE_ENV === 'production') {
   postCssLoader.splice(1, 1) // drop human readable names
 };
 
+var repo = path.join(__dirname, "../../")
+
 var config  = {
   entry: {
-    bundle: path.join(__dirname, 'frontend/index.js')
+    bundle: path.join(repo, 'frontend/index.js')
   },
   output: {
-    path: path.join(__dirname, 'build'),
+    path: path.join(repo, 'build'),
     publicPath: "/assets/",
     filename: '[name].js'
   },
@@ -53,7 +55,7 @@ var config  = {
       {test: /\.json$/, loader: 'json-loader'},
       {
         test: /\.jsx?$/,
-        include: path.join(__dirname, 'frontend'),
+        include: path.join(repo, 'frontend'),
         loaders: ['babel']
       }
     ]
@@ -61,9 +63,9 @@ var config  = {
   resolve: {
     extensions: ['', '.js', '.jsx', '.css'],
     alias: {
-      '#app': path.join(__dirname, 'frontend'),
-      '#c': path.join(__dirname, 'frontend/components'),
-      '#css': path.join(__dirname, 'frontend/css')
+      '#app': path.join(repo, 'frontend'),
+      '#c': path.join(repo, 'frontend/components'),
+      '#css': path.join(repo, 'frontend/css')
     }
   },
   svgo1: {
@@ -87,10 +89,10 @@ var config  = {
   postcss: function() {
     return [autoprefixer, precss({
       variables: {
-        variables: require('./frontend/css/vars')
+        variables: require(path.join(repo, 'frontend/css/vars'))
       }
     }), functions({
-      functions: require('./frontend/css/funcs')
+      functions: require(path.join(repo, 'frontend/css/funcs'))
     })]
   }
 };

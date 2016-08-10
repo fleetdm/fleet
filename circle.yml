@@ -1,8 +1,8 @@
 dependencies:
   pre:
     - make deps
-    - make generate
+    - go generate
 
 test:
   override:
-    - make test
+    - go test -v

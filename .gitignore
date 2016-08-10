@@ -1,8 +1,16 @@
+# binaries
 kolide
-kolide-ose*
+kolide-ose
 *.exe
-vendor
-app/bindata.go
-.DS_Store
-node_modules
+
+# output directories
 build
+vendor
+node_modules
+
+# generated artifacts
+app/bindata.go
+*.cover
+
+# operating system artifacts
+.DS_Store
