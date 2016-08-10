@@ -1,6 +1,8 @@
-test:
+dependencies:
   pre:
-    - go vet ./...
+    - make deps
+    - make generate
 
+test:
   override:
-    - go test ./...
+    - make test

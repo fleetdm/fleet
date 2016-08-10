@@ -1,6 +1,6 @@
 {
   "mysql": {
-    "address": "mysql:3306",
+    "address": "192.168.99.100:3306",
     "username": "kolide",
     "password": "kolide",
     "database": "kolide"

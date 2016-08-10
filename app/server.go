@@ -10,6 +10,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/contrib/ginrus"
+	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 	"github.com/kolide/kolide-ose/config"
@@ -128,6 +129,14 @@ func CreateServer(db *gorm.DB, w io.Writer) *gin.Engine {
 
 	// Set the 404 route
 	server.NoRoute(NotFound)
+
+	// Kolide react entrypoint
+	server.HTMLRender = loadTemplates("react.tmpl")
+	server.GET("/", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "react.tmpl", gin.H{})
+	})
+	// Kolide assets
+	server.Use(static.Serve("/assets", NewBinaryFileSystem("/build")))
 
 	v1 := server.Group("/api/v1")
 

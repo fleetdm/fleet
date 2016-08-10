@@ -21,7 +21,9 @@ var (
 	versionMajor   = 0
 	versionMinor   = 1
 	versionPatch   = 0
+	commitHash     = ""
 	version        = fmt.Sprintf("%d.%d.%d", versionMajor, versionMinor, versionPatch)
+	fullVersion    = fmt.Sprintf("%d.%d.%d (commit: %v)", versionMajor, versionMinor, versionPatch, commitHash)
 )
 
 var (

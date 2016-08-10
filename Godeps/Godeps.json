@@ -55,7 +55,7 @@
 		},
 		{
 			"ImportPath": "github.com/golang/protobuf/proto",
-			"Rev": "874264fbbb43f4d91e999fecb4b40143ed611400"
+			"Rev": "c3cefd437628a0b7d31b34fe44b3a7a540e98527"
 		},
 		{
 			"ImportPath": "github.com/jinzhu/gorm",
