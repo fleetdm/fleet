@@ -36,7 +36,7 @@ clean:
 	mkdir -p build
 	rm -rf build/*
 
-test: build
+test:
 	go vet . ./app ./config ./errors ./sessions
 	go test -v . ./app ./config ./errors ./sessions
 
