@@ -489,3 +489,23 @@ func (req *IntegrationRequests) SetAdminStateAndCheckUser(username string, admin
 	resp := req.SetAdminState(username, admin, session)
 	req.CheckUser(username, resp.Email, resp.Name, admin, resp.NeedsPasswordReset, resp.Enabled)
 }
+
+func (req *IntegrationRequests) EnrollHost(enrollSecret, hostIdentifier string) *httptest.ResponseRecorder {
+	response := httptest.NewRecorder()
+	body, err := json.Marshal(OsqueryEnrollPostBody{
+		EnrollSecret:   enrollSecret,
+		HostIdentifier: hostIdentifier,
+	})
+
+	if err != nil {
+		req.t.Fatal(err.Error())
+	}
+
+	buff := new(bytes.Buffer)
+	buff.Write(body)
+	request, _ := http.NewRequest("POST", "/api/v1/osquery/enroll", buff)
+	request.Header.Set("Content-Type", "application/json")
+	req.r.ServeHTTP(response, request)
+
+	return response
+}

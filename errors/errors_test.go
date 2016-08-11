@@ -149,8 +149,6 @@ func TestReturnErrorValidationError(t *testing.T) {
 		t.Errorf("Should respond with 422, got %d", resp.Code)
 	}
 
-	t.Log(resp.Body.String())
-
 	var bodyJson map[string]interface{}
 	if err := json.Unmarshal(resp.Body.Bytes(), &bodyJson); err != nil {
 		t.Errorf("Error unmarshaling JSON: %s", err.Error())

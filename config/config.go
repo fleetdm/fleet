@@ -27,10 +27,16 @@ type AppConfigData struct {
 	SessionExpirationSeconds float64 `json:"session_expiration_seconds"`
 }
 
+type OsqueryConfigData struct {
+	EnrollSecret string `json:"enroll_secret"`
+	NodeKeySize  int    `json:"node_key_size"`
+}
+
 type configData struct {
-	MySQL  MySQLConfigData  `json:"mysql"`
-	Server ServerConfigData `json:"server"`
-	App    AppConfigData    `json:"app"`
+	MySQL   MySQLConfigData   `json:"mysql"`
+	Server  ServerConfigData  `json:"server"`
+	App     AppConfigData     `json:"app"`
+	Osquery OsqueryConfigData `json:"osquery"`
 }
 
 var defaultMySQLConfigData = MySQLConfigData{
@@ -55,6 +61,11 @@ var defaultAppConfigData = AppConfigData{
 	SessionExpirationSeconds: 60 * 60 * 24 * 90,
 }
 
+var defaultOsqueryConfigData = OsqueryConfigData{
+	EnrollSecret: "bad secret",
+	NodeKeySize:  24,
+}
+
 var defaultConfigData = configData{
 	MySQL:  defaultMySQLConfigData,
 	Server: defaultServerConfigData,
@@ -62,15 +73,17 @@ var defaultConfigData = configData{
 }
 
 var (
-	MySQL  MySQLConfigData
-	Server ServerConfigData
-	App    AppConfigData
+	MySQL   MySQLConfigData
+	Server  ServerConfigData
+	App     AppConfigData
+	Osquery OsqueryConfigData
 )
 
 func init() {
 	MySQL = defaultMySQLConfigData
 	Server = defaultServerConfigData
 	App = defaultAppConfigData
+	Osquery = defaultOsqueryConfigData
 }
 
 func LoadConfig(path string) error {
@@ -86,5 +99,6 @@ func LoadConfig(path string) error {
 	MySQL = config.MySQL
 	App = config.App
 	Server = config.Server
+	Osquery = config.Osquery
 	return nil
 }

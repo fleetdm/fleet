@@ -17,6 +17,7 @@
     "session_key_size": 64
   },
   "osquery": {
-    "enroll_secret": "super secure"
+    "enroll_secret": "super secure",
+    "node_key_size": 24
   }
 }
