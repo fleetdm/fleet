@@ -64,7 +64,7 @@ var config  = {
     extensions: ['', '.js', '.jsx', '.css'],
     alias: {
       '#app': path.join(repo, 'frontend'),
-      '#c': path.join(repo, 'frontend/components'),
+      '#components': path.join(repo, 'frontend/components'),
       '#css': path.join(repo, 'frontend/css')
     }
   },

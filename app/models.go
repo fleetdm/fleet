@@ -14,6 +14,7 @@ import (
 
 var tables = [...]interface{}{
 	&User{},
+	&PasswordResetRequest{},
 	&sessions.Session{},
 	&ScheduledQuery{},
 	&Pack{},

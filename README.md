@@ -138,6 +138,25 @@ make watch
 
 This is only supported on OS X and Linux.
 
+### Testing Email
+
+To intercept sent emails while running a Kolide development environment, make
+sure that you've set the SMTP address to `<docker host ip>:1025` and leave the
+username and password blank. Then, visit `<docker host ip>:8025` in a web 
+browser to view the [MailHog](https://github.com/mailhog/MailHog) UI.
+
+For example, if docker is running natively on your `localhost`, then your mail
+settings should look something like:
+
+```json
+{
+  "mail": {
+    "address": "localhost:1025",
+    "pool_connections": 4
+  }
+}
+```
+
 ### Stopping the local development environment
 
 If you'd like to shut down the virtual infrastructure created by docker, run

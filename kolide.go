@@ -5,6 +5,8 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	"net"
+	"net/smtp"
 	"os"
 	"path"
 	"runtime"
@@ -13,6 +15,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
+	"github.com/jordan-wright/email"
 	"github.com/kolide/kolide-ose/app"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -59,6 +62,14 @@ Available Configurations:
       jwt_key            (string)  (KOLIDE_AUTH_JWT_KEY)
       salt_key_size      (int)     (KOLIDE_AUTH_SALT_KEY_SIZE)
       bcrypt_cost        (int)     (KOLIDE_AUTH_BCRYPT_COST)
+  app:
+      web_address        (string)  (KOLIDE_APP_WEB_ADDRESS)
+  smtp:
+      server             (string)  (KOLIDE_SMTP_SERVER)
+      username           (string)  (KOLIDE_SMTP_USERNAME)
+      password           (string)  (KOLIDE_SMTP_PASSWORD)
+      pool_connections   (int)     (KOLIDE_SMTP_POOL_CONNECTIONS)
+      token_key_size     (int)     (KOLIDE_SMTP_TOKEN_KEY_SIZE)
   session:
       key_size           (int)     (KOLIDE_SESSION_KEY_SIZE)
       expiration_seconds (float64) (KOLIDE_SESSION_EXPIRATION_SECONDS)
@@ -94,6 +105,15 @@ the way that the kolide server works.
 			logrus.Fatalf("Error opening database: %s", err.Error())
 		}
 
+		smtpHost, _, err := net.SplitHostPort(viper.GetString("smtp.address"))
+		if err != nil {
+			logrus.WithError(err).Fatal("Could not parse mail address string")
+		}
+		smtpConnectionPool := email.NewPool(
+			viper.GetString("smtp.address"),
+			viper.GetInt("smtp.pool_connections"),
+			smtp.PlainAuth("", viper.GetString("smtp.username"), viper.GetString("smtp.password"), smtpHost))
+
 		fmt.Println(`
 
  .........77777$7$....................... .   .  .  .. .... .. . .. . ..
@@ -118,7 +138,7 @@ $7777777....$....$777$.....+DI..DDD..DDI...8D...D8......$D:..8D....8D...8D......
 		fmt.Println("Use Ctrl-C to stop")
 		fmt.Print("\n\n")
 
-		err = app.CreateServer(db, os.Stderr).RunTLS(
+		err = app.CreateServer(db, smtpConnectionPool, os.Stderr).RunTLS(
 			viper.GetString("server.address"),
 			viper.GetString("server.cert"),
 			viper.GetString("server.key"),
@@ -210,8 +230,14 @@ func initConfig() {
 
 	setDefaultConfigValue("server.address", "localhost:8080")
 
+	setDefaultConfigValue("app.web_address", "localhost:8080")
+
 	setDefaultConfigValue("auth.bcrypt_cost", 12)
 	setDefaultConfigValue("auth.salt_key_size", 24)
+
+	setDefaultConfigValue("smtp.token_key_size", 24)
+	setDefaultConfigValue("smtp.address", "localhost:1025")
+	setDefaultConfigValue("smtp.pool_connections", 4)
 
 	setDefaultConfigValue("session.key_size", 64)
 	setDefaultConfigValue("session.expiration_seconds", 60*60*24*90)

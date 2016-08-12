@@ -28,7 +28,7 @@ func TestGenerateJWT(t *testing.T) {
 
 func TestSessionManager(t *testing.T) {
 	r, _ := http.NewRequest("GET", "/", nil)
-	w := newMocResponseWriter()
+	w := newMockResponseWriter()
 	sb := newMockSessionBackend()
 
 	sm := &SessionManager{

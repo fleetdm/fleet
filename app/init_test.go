@@ -16,4 +16,8 @@ func init() {
 
 	setDefaultConfigValue("osquery.node_key_size", 24)
 	setDefaultConfigValue("osquery.enroll_secret", "super secret")
+
+	setDefaultConfigValue("app.web_address", "localhost:8080")
+
+	setDefaultConfigValue("smtp.token_key_size", 24)
 }

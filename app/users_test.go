@@ -1,10 +1,6 @@
 package app
 
-import (
-	"testing"
-
-	"github.com/jinzhu/gorm"
-)
+import "testing"
 
 func TestNewUser(t *testing.T) {
 	db := openTestDB(t)
@@ -118,35 +114,6 @@ func TestUpdatingUser(t *testing.T) {
 		t.Fatalf("user's email was not updated in the DB: %s", verify.Email)
 	}
 
-}
-
-func TestDeletingUser(t *testing.T) {
-	db := openTestDB(t)
-
-	user, err := NewUser(db, "marpaia", "foobar", "mike@kolide.co", false, false)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-
-	var verify1 User
-	err = db.Where("username = ?", "marpaia").First(&verify1).Error
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-	if verify1.ID != user.ID {
-		t.Fatal("users are not the same")
-	}
-
-	err = db.Delete(&user).Error
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-
-	var verify2 User
-	err = db.Where("username = ?", "marpaia").First(&verify2).Error
-	if err != gorm.ErrRecordNotFound {
-		t.Fatal("Record was not deleted")
-	}
 }
 
 func TestSetPassword(t *testing.T) {

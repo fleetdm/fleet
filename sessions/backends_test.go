@@ -107,7 +107,7 @@ type mockResponseWriter struct {
 	headers map[string][]string
 }
 
-func newMocResponseWriter() *mockResponseWriter {
+func newMockResponseWriter() *mockResponseWriter {
 	return &mockResponseWriter{
 		headers: map[string][]string{},
 	}

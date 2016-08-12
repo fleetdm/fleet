@@ -44,15 +44,17 @@ func openTestDB(t *testing.T) *gorm.DB {
 }
 
 type IntegrationRequests struct {
-	r  *gin.Engine
-	db *gorm.DB
-	t  *testing.T
+	r    *gin.Engine
+	db   *gorm.DB
+	pool SMTPConnectionPool
+	t    *testing.T
 }
 
 func (req *IntegrationRequests) New(t *testing.T) {
 	req.t = t
 
 	req.db = openTestDB(t)
+	req.pool = newMockSMTPConnectionPool()
 
 	// Until we have a better solution for first-user onboarding, manually
 	// create an admin
@@ -61,7 +63,7 @@ func (req *IntegrationRequests) New(t *testing.T) {
 		t.Fatalf("Error opening DB: %s", err.Error())
 	}
 
-	req.r = CreateServer(req.db, &testLogger{t: t})
+	req.r = CreateServer(req.db, req.pool, &testLogger{t: t})
 }
 
 func (req *IntegrationRequests) Login(username, password string, sessionOut *string) {
@@ -190,31 +192,6 @@ func (req *IntegrationRequests) ModifyUser(username, name, email, session string
 	}
 
 	return &responseBody
-}
-
-func (req *IntegrationRequests) DeleteUser(username, session string) {
-	response := httptest.NewRecorder()
-	body, err := json.Marshal(DeleteUserRequestBody{
-		Username: username,
-	})
-	if err != nil {
-		req.t.Fatal(err.Error())
-		return
-	}
-
-	buff := new(bytes.Buffer)
-	buff.Write(body)
-	request, _ := http.NewRequest("DELETE", "/api/v1/kolide/user", buff)
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Cookie", session)
-	req.r.ServeHTTP(response, request)
-
-	if response.Code != 200 {
-		req.t.Fatalf("Response code: %d", response.Code)
-		return
-	}
-
-	return
 }
 
 func (req *IntegrationRequests) ChangePassword(username, currentPassword, newPassword, session string) *GetUserResponseBody {
@@ -468,16 +445,6 @@ func (req *IntegrationRequests) CreateAndCheckUser(username, password, email, na
 func (req *IntegrationRequests) ModifyAndCheckUser(username, email, name string, admin, reset bool, session string) {
 	resp := req.ModifyUser(username, name, email, session)
 	req.CheckUser(username, email, name, admin, reset, resp.Enabled)
-}
-
-func (req *IntegrationRequests) DeleteAndCheckUser(username, session string) {
-	req.DeleteUser(username, session)
-
-	var user User
-	err := req.db.Where("username = ?", username).First(&user).Error
-	if err == nil {
-		req.t.Fatal("User should have been deleted.")
-	}
 }
 
 func (req *IntegrationRequests) SetEnabledStateAndCheckUser(username string, enabled bool, session string) {

@@ -2,7 +2,7 @@ import React from 'react';
 import { render } from 'react-dom';
 import { Router, Route, IndexRoute, browserHistory } from 'react-router';
 import { Promise } from 'when';
-import App from '#app/components/app';
+import App from '#components/app';
 
 export function run() {
   window.Promise = window.Promise || Promise;

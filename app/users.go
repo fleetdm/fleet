@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -9,6 +10,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/kolide/kolide-ose/errors"
 	"github.com/kolide/kolide-ose/sessions"
+	"github.com/spf13/viper"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -36,7 +38,7 @@ func NewUser(db *gorm.DB, username, password, email string, admin, needsPassword
 	if err != nil {
 		return nil, err
 	}
-	user := &User{
+	user := User{
 		Username:           username,
 		Password:           hash,
 		Salt:               salt,
@@ -50,7 +52,36 @@ func NewUser(db *gorm.DB, username, password, email string, admin, needsPassword
 	if err != nil {
 		return nil, err
 	}
-	return user, nil
+	return &user, nil
+}
+
+type PasswordResetRequest struct {
+	ID        uint `gorm:"primary_key"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	ExpiresAt time.Time
+	UserID    uint
+	Token     string `gorm:"size:1024"`
+}
+
+func NewPasswordResetRequest(db *gorm.DB, userID uint, expires time.Time) (*PasswordResetRequest, error) {
+	campaign := PasswordResetRequest{
+		UserID:    userID,
+		ExpiresAt: expires,
+	}
+
+	token, err := generateRandomText(viper.GetInt("smtp.token_key_size"))
+	if err != nil {
+		return nil, err
+	}
+	campaign.Token = token
+
+	err = db.Create(&campaign).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &campaign, nil
 }
 
 // ValidatePassword accepts a potential password for a given user and attempts
@@ -135,15 +166,16 @@ func GetUser(c *gin.Context) {
 	}
 
 	vc := VC(c)
-	if !vc.CanPerformActions() {
+	if !vc.IsLoggedIn() {
 		UnauthorizedError(c)
 		return
 	}
 
 	db := GetDB(c)
-	var user User
-	user.ID = body.ID
-	user.Username = body.Username
+	user := User{
+		ID:       body.ID,
+		Username: body.Username,
+	}
 	err = db.Where(&user).First(&user).Error
 	if err != nil {
 		errors.ReturnError(c, errors.DatabaseError(err))
@@ -155,7 +187,7 @@ func GetUser(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, GetUserResponseBody{
+	c.JSON(http.StatusOK, GetUserResponseBody{
 		ID:                 user.ID,
 		Username:           user.Username,
 		Name:               user.Name,
@@ -217,7 +249,7 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, GetUserResponseBody{
+	c.JSON(http.StatusOK, GetUserResponseBody{
 		ID:                 user.ID,
 		Username:           user.Username,
 		Name:               user.Name,
@@ -272,9 +304,10 @@ func ModifyUser(c *gin.Context) {
 		return
 	}
 
-	var user User
-	user.ID = body.ID
-	user.Username = body.Username
+	user := User{
+		ID:       body.ID,
+		Username: body.Username,
+	}
 
 	db := GetDB(c)
 	err = db.Where(&user).First(&user).Error
@@ -300,7 +333,7 @@ func ModifyUser(c *gin.Context) {
 		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
-	c.JSON(200, GetUserResponseBody{
+	c.JSON(http.StatusOK, GetUserResponseBody{
 		ID:                 user.ID,
 		Username:           user.Username,
 		Name:               user.Name,
@@ -311,72 +344,14 @@ func ModifyUser(c *gin.Context) {
 	})
 }
 
-// swagger:parameters DeleteUser
-type DeleteUserRequestBody struct {
-	ID       uint   `json:"id"`
-	Username string `json:"username"`
-}
-
-// swagger:route DELETE /api/v1/kolide/user DeleteUser
-//
-// Delete a user account
-//
-// Using this API will allow the requester to permanently delete a user account.
-// This endpoint enforces that the requester is an admin.
-//
-//     Consumes:
-//     - application/json
-//
-//     Produces:
-//     - application/json
-//
-//     Schemes: https
-//
-//     Security:
-//       authenticated: yes
-//
-//     Responses:
-//       200: nil
-func DeleteUser(c *gin.Context) {
-	var body DeleteUserRequestBody
-	err := ParseAndValidateJSON(c, &body)
-	if err != nil {
-		errors.ReturnError(c, err)
-		return
-	}
-
-	vc := VC(c)
-	if !vc.IsAdmin() {
-		UnauthorizedError(c)
-		return
-	}
-
-	db := GetDB(c)
-	var user User
-	user.ID = body.ID
-	user.Username = body.Username
-	err = db.Where(&user).First(&user).Error
-	if err != nil {
-		errors.ReturnError(c, errors.DatabaseError(err))
-		return
-	}
-
-	err = db.Delete(&user).Error
-	if err != nil {
-		logrus.Errorf("Error deleting user from database: %s", err.Error())
-		errors.ReturnError(c, errors.DatabaseError(err))
-		return
-	}
-	c.JSON(200, nil)
-}
-
 // swagger:parameters ChangeUserPassword
 type ChangePasswordRequestBody struct {
-	ID                uint   `json:"id"`
-	Username          string `json:"username"`
-	CurrentPassword   string `json:"current_password"`
-	NewPassword       string `json:"new_password" validate:"required"`
-	NewPasswordConfim string `json:"new_password_confirm" validate:"required"`
+	ID                 uint   `json:"id"`
+	Username           string `json:"username"`
+	CurrentPassword    string `json:"current_password"`
+	PasswordResetToken string `json:"password_reset_token"`
+	NewPassword        string `json:"new_password" validate:"required"`
+	NewPasswordConfim  string `json:"new_password_confirm" validate:"required"`
 }
 
 // swagger:route PATCH /api/v1/kolide/user/password ChangeUserPassword
@@ -421,21 +396,52 @@ func ChangeUserPassword(c *gin.Context) {
 	}
 
 	db := GetDB(c)
-	var user User
-	user.ID = body.ID
-	user.Username = body.Username
+	user := User{
+		ID:       body.ID,
+		Username: body.Username,
+	}
 	err = db.Where(&user).First(&user).Error
 	if err != nil {
 		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 
-	if !vc.IsAdmin() {
-		if !vc.IsUserID(user.ID) {
+	if !vc.CanPerformWriteActionOnUser(&user) {
+		UnauthorizedError(c)
+		return
+	}
+
+	var reset PasswordResetRequest
+	deleteResetRequest := func() {
+		if err != nil {
+			err = db.Delete(&reset).Error
+			if err != nil {
+				errors.ReturnError(c, errors.DatabaseError(err))
+				return
+			}
+		}
+	}
+	if body.PasswordResetToken != "" {
+		reset.Token = body.PasswordResetToken
+		err = db.Find(&reset).First(&reset).Error
+		if err != nil {
 			UnauthorizedError(c)
 			return
 		}
-		if user.ValidatePassword(body.CurrentPassword) != nil {
+
+		if time.Now().After(reset.ExpiresAt) {
+			deleteResetRequest()
+			UnauthorizedError(c)
+			return
+		}
+		defer deleteResetRequest()
+	} else if !vc.IsAdmin() {
+		if body.CurrentPassword != "" {
+			if user.ValidatePassword(body.CurrentPassword) != nil {
+				UnauthorizedError(c)
+				return
+			}
+		} else {
 			UnauthorizedError(c)
 			return
 		}
@@ -454,7 +460,8 @@ func ChangeUserPassword(c *gin.Context) {
 		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
-	c.JSON(200, GetUserResponseBody{
+
+	c.JSON(http.StatusOK, GetUserResponseBody{
 		ID:                 user.ID,
 		Username:           user.Username,
 		Name:               user.Name,
@@ -507,9 +514,10 @@ func SetUserAdminState(c *gin.Context) {
 	}
 
 	db := GetDB(c)
-	var user User
-	user.ID = body.ID
-	user.Username = body.Username
+	user := User{
+		ID:       body.ID,
+		Username: body.Username,
+	}
 	err = db.Where(&user).First(&user).Error
 	if err != nil {
 		errors.ReturnError(c, errors.DatabaseError(err))
@@ -523,7 +531,7 @@ func SetUserAdminState(c *gin.Context) {
 		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
-	c.JSON(200, GetUserResponseBody{
+	c.JSON(http.StatusOK, GetUserResponseBody{
 		ID:                 user.ID,
 		Username:           user.Username,
 		Name:               user.Name,
@@ -536,9 +544,10 @@ func SetUserAdminState(c *gin.Context) {
 
 // swagger:parameters SetUserEnabledState
 type SetUserEnabledStateRequestBody struct {
-	ID       uint   `json:"id"`
-	Username string `json:"username"`
-	Enabled  bool   `json:"enabled"`
+	ID              uint   `json:"id"`
+	Username        string `json:"username"`
+	Enabled         bool   `json:"enabled"`
+	CurrentPassword string `json:"current_password"`
 }
 
 // swagger:route PATCH /api/v1/kolide/user/enabled SetUserEnabledState
@@ -546,7 +555,9 @@ type SetUserEnabledStateRequestBody struct {
 // Enable or disable a user.
 //
 // This endpoint allows an existing admin to enable a disabled user or
-// disable an enabled user.
+// disable an enabled user. If a user calls this endpoint, to disable,
+// their own account, they must also submit their current password, to
+// verify their request.
 //
 //     Consumes:
 //     - application/json
@@ -570,19 +581,32 @@ func SetUserEnabledState(c *gin.Context) {
 	}
 
 	vc := VC(c)
-	if !vc.IsAdmin() {
+	if !vc.CanPerformActions() {
 		UnauthorizedError(c)
 		return
 	}
 
 	db := GetDB(c)
-	var user User
-	user.ID = body.ID
-	user.Username = body.Username
+	user := User{
+		ID:       body.ID,
+		Username: body.Username,
+	}
 	err = db.Where(&user).First(&user).Error
 	if err != nil {
 		errors.ReturnError(c, errors.DatabaseError(err))
 		return
+	}
+
+	if !vc.CanPerformWriteActionOnUser(&user) {
+		UnauthorizedError(c)
+		return
+	}
+
+	if !vc.IsAdmin() {
+		if user.ValidatePassword(body.CurrentPassword) != nil {
+			UnauthorizedError(c)
+			return
+		}
 	}
 
 	user.Enabled = body.Enabled
@@ -592,7 +616,7 @@ func SetUserEnabledState(c *gin.Context) {
 		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
-	c.JSON(200, GetUserResponseBody{
+	c.JSON(http.StatusOK, GetUserResponseBody{
 		ID:                 user.ID,
 		Username:           user.Username,
 		Name:               user.Name,
@@ -670,14 +694,14 @@ func DeleteSession(c *gin.Context) {
 	}
 
 	db := GetDB(c)
-	user := &User{ID: session.UserID}
-	err = db.Where(user).First(user).Error
+	user := User{ID: session.UserID}
+	err = db.Where(&user).First(&user).Error
 	if err != nil {
 		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 
-	if !vc.CanPerformWriteActionOnUser(user) {
+	if !vc.CanPerformWriteActionOnUser(&user) {
 		UnauthorizedError(c)
 		return
 	}
@@ -688,7 +712,7 @@ func DeleteSession(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, nil)
+	c.JSON(http.StatusOK, nil)
 }
 
 // swagger:parameters DeleteSessionsForUser
@@ -733,9 +757,10 @@ func DeleteSessionsForUser(c *gin.Context) {
 	}
 
 	db := GetDB(c)
-	var user User
-	user.ID = body.ID
-	user.Username = body.Username
+	user := User{
+		ID:       body.ID,
+		Username: body.Username,
+	}
 	err = db.Where(&user).First(&user).Error
 	if err != nil {
 		errors.ReturnError(c, errors.DatabaseError(err))
@@ -754,7 +779,7 @@ func DeleteSessionsForUser(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, nil)
+	c.JSON(http.StatusOK, nil)
 
 }
 
@@ -813,8 +838,7 @@ func GetInfoAboutSession(c *gin.Context) {
 	}
 
 	db := GetDB(c)
-	var user User
-	user.ID = session.UserID
+	user := User{ID: session.UserID}
 	err = db.Where(&user).First(&user).Error
 	if err != nil {
 		errors.ReturnError(c, errors.DatabaseError(err))
@@ -826,7 +850,7 @@ func GetInfoAboutSession(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, &SessionInfoResponseBody{
+	c.JSON(http.StatusOK, &SessionInfoResponseBody{
 		SessionID:  session.ID,
 		UserID:     session.UserID,
 		CreatedAt:  session.CreatedAt,
@@ -880,16 +904,17 @@ func GetInfoAboutSessionsForUser(c *gin.Context) {
 	}
 
 	db := GetDB(c)
-	var user User
-	user.ID = body.ID
-	user.Username = body.Username
+	user := User{
+		ID:       body.ID,
+		Username: body.Username,
+	}
 	err = db.Where(&user).First(&user).Error
 	if err != nil {
 		errors.ReturnError(c, errors.DatabaseError(err))
 		return
 	}
 
-	if !vc.IsAdmin() && !vc.IsUserID(user.ID) {
+	if !vc.CanPerformWriteActionOnUser(&user) {
 		UnauthorizedError(c)
 		return
 	}
@@ -911,7 +936,292 @@ func GetInfoAboutSessionsForUser(c *gin.Context) {
 		})
 	}
 
-	c.JSON(200, &GetInfoAboutSessionsForUserResponseBody{
+	c.JSON(http.StatusOK, &GetInfoAboutSessionsForUserResponseBody{
 		Sessions: response,
 	})
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Password Reset HTTP endpoints
+////////////////////////////////////////////////////////////////////////////////
+
+// swagger:parameters ResetUserPassword
+type ResetPasswordRequestBody struct {
+	ID       uint   `json:"id"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+}
+
+// swagger:response ResetPasswordResponseBody
+type ResetPasswordResponseBody struct {
+	ID       uint   `json:"id"`
+	Username string `json:"username"`
+}
+
+// swagger:route POST /api/v1/kolide/user/password/reset ResetUserPassword
+//
+// Reset a user's password
+//
+// Using this API will allow the requester to reset their password. Users
+// should include their own user id as the "id" paramater and/or their own
+// username as the "username" parameter. Admins can change the passwords for
+// other users by defining their ID or username. Logged out users can reset
+// their own password by including their email in addition to either their
+// user id or their username.
+//
+//     Consumes:
+//     - application/json
+//
+//     Produces:
+//     - application/json
+//
+//     Schemes: https
+//
+//     Security:
+//       authenticated: yes
+//
+//     Responses:
+//       200: ResetPasswordResponseBody
+func ResetUserPassword(c *gin.Context) {
+	var body ResetPasswordRequestBody
+	err := ParseAndValidateJSON(c, &body)
+	if err != nil {
+		logrus.Errorf("Error parsing ResetPassword post body: %s", err.Error())
+		return
+	}
+
+	user := User{
+		ID:       body.ID,
+		Username: body.Username,
+	}
+
+	vc := VC(c)
+
+	if !vc.IsLoggedIn() {
+		if body.Email == "" {
+			UnauthorizedError(c)
+			return
+		}
+		user.Email = body.Email
+	}
+
+	err = GetDB(c).Where(&user).First(&user).Error
+	if err != nil {
+		switch err {
+		case gorm.ErrRecordNotFound:
+			NotFoundRequestError(c)
+			return
+		default:
+			errors.ReturnError(c, errors.DatabaseError(err))
+			return
+		}
+	}
+
+	if vc.IsAdmin() || vc.IsUserID(user.ID) || !vc.IsLoggedIn() {
+		// logged-in admin user resetting a password or logged-in user
+		// resetting their own password or logged-out user presumably resetting
+		// their own password
+
+		if vc.CanPerformWriteActionOnUser(&user) {
+			// if the user is logged out, don't perform the user state
+			// modifications
+			user.NeedsPasswordReset = true
+
+			err = GetDB(c).Save(user).Error
+			if err != nil {
+				errors.ReturnError(c, errors.DatabaseError(err))
+				return
+			}
+		}
+
+		request, err := NewPasswordResetRequest(GetDB(c), user.ID, time.Now().Add(time.Hour*24))
+		if err != nil {
+			errors.ReturnError(c, errors.NewFromError(err, http.StatusInternalServerError, "Database error"))
+			return
+		}
+
+		html, text, err := GetEmailBody(PasswordResetEmail, &PasswordResetRequestEmailParameters{
+			Name:  user.Name,
+			Token: request.Token,
+		})
+		if err != nil {
+			errors.ReturnError(c, errors.NewFromError(err, http.StatusInternalServerError, "Email error"))
+			return
+		}
+
+		subject, err := GetEmailSubject(PasswordResetEmail)
+		if err != nil {
+			errors.ReturnError(c, errors.NewFromError(err, http.StatusInternalServerError, "Email error"))
+			return
+		}
+
+		err = SendEmail(GetSMTPConnectionPool(c), user.Email, subject, html, text)
+		if err != nil {
+			errors.ReturnError(c, errors.NewFromError(err, http.StatusInternalServerError, "Email error"))
+			return
+		}
+	} else {
+		// Logged-in user trying to reset another user's password
+		UnauthorizedError(c)
+		return
+	}
+
+	c.JSON(http.StatusOK, ResetPasswordResponseBody{
+		ID:       user.ID,
+		Username: user.Username,
+	})
+}
+
+// swagger:parameters VerifyPasswordResetRequest
+type VerifyPasswordResetRequestRequestBody struct {
+	Username string `json:"username"`
+	UserID   uint   `json:"user_id"`
+	Token    string `json:"token"`
+}
+
+// swagger:parameters VerifyPasswordResetRequestResponseBody
+type VerifyPasswordResetRequestResponseBody struct {
+	Valid bool `json:"valid"`
+	ID    uint `json:"id"`
+}
+
+// swagger:route POST /api/v1/kolide/user/password/verify VerifyPasswordResetRequest
+//
+// Verify an email campaign before it is used.
+//
+//     Consumes:
+//     - application/json
+//
+//     Produces:
+//     - application/json
+//
+//     Schemes: https
+//
+//     Security:
+//       authenticated: yes
+//
+//     Responses:
+//       200: VerifyPasswordResetRequestResponseBody
+func VerifyPasswordResetRequest(c *gin.Context) {
+	var body VerifyPasswordResetRequestRequestBody
+	err := ParseAndValidateJSON(c, &body)
+	if err != nil {
+		logrus.Errorf("Error parsing request body: %s", err.Error())
+		return
+	}
+
+	db := GetDB(c)
+	user := User{
+		ID:       body.UserID,
+		Username: body.Username,
+	}
+	err = db.Where(&user).First(&user).Error
+	if err != nil {
+		switch err {
+		case gorm.ErrRecordNotFound:
+			c.JSON(http.StatusNotFound, &VerifyPasswordResetRequestResponseBody{
+				Valid: false,
+			})
+			return
+		default:
+			errors.ReturnError(c, errors.DatabaseError(err))
+			return
+		}
+	}
+
+	reset := PasswordResetRequest{
+		UserID: user.ID,
+		Token:  body.Token,
+	}
+	err = db.Where(&reset).First(&reset).Error
+	if err != nil {
+		switch err {
+		case gorm.ErrRecordNotFound:
+			c.JSON(http.StatusNotFound, VerifyPasswordResetRequestResponseBody{
+				Valid: false,
+			})
+			return
+		default:
+			errors.ReturnError(c, errors.DatabaseError(err))
+			return
+		}
+	}
+
+	if time.Now().After(reset.ExpiresAt) {
+		c.JSON(http.StatusNotFound, VerifyPasswordResetRequestResponseBody{
+			Valid: false,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, VerifyPasswordResetRequestResponseBody{
+		Valid: true,
+		ID:    reset.ID,
+	})
+}
+
+// swagger:parameters DeletePasswordResetRequest
+type DeletePasswordResetRequestRequestBody struct {
+	ID uint `json:"id" validate:"required"`
+}
+
+// swagger:route DELETE /api/v1/kolide/user/password/reset DeletePasswordResetRequest
+//
+// Delete an email campaign after it has been used.
+//
+//     Consumes:
+//     - application/json
+//
+//     Produces:
+//     - application/json
+//
+//     Schemes: https
+//
+//     Security:
+//       authenticated: yes
+//
+//     Responses:
+//       200: nil
+func DeletePasswordResetRequest(c *gin.Context) {
+	var body DeletePasswordResetRequestRequestBody
+	err := ParseAndValidateJSON(c, &body)
+	if err != nil {
+		logrus.Errorf("Error parsing request body: %s", err.Error())
+		return
+	}
+
+	db := GetDB(c)
+	campaign := PasswordResetRequest{ID: body.ID}
+	err = db.Where(&campaign).First(&campaign).Error
+	if err != nil {
+		switch err {
+		case gorm.ErrRecordNotFound:
+			NotFoundRequestError(c)
+			return
+		default:
+			errors.ReturnError(c, errors.DatabaseError(err))
+			return
+		}
+	}
+
+	user := User{ID: campaign.UserID}
+	err = db.Where(&user).First(&user).Error
+	if err != nil {
+		errors.ReturnError(c, errors.DatabaseError(err))
+		return
+	}
+
+	vc := VC(c)
+	if !vc.CanPerformWriteActionOnUser(&user) {
+		UnauthorizedError(c)
+		return
+	}
+
+	err = db.Delete(campaign).Error
+	if err != nil {
+		errors.ReturnError(c, errors.DatabaseError(err))
+		return
+	}
+
+	c.JSON(http.StatusOK, nil)
 }
