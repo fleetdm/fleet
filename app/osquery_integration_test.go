@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/kolide/kolide-ose/config"
 	"github.com/kolide/kolide-ose/errors"
 	"github.com/stretchr/testify/assert"
 )
@@ -13,8 +12,6 @@ import (
 func TestIntegrationEnrollHostBadSecret(t *testing.T) {
 	var req IntegrationRequests
 	req.New(t)
-
-	config.Osquery.EnrollSecret = "super secret"
 
 	// Check that a bad enroll secret causes the appropriate error code and
 	// error JSON to be returned
@@ -40,8 +37,6 @@ func TestIntegrationEnrollHostMissingIdentifier(t *testing.T) {
 	var req IntegrationRequests
 	req.New(t)
 
-	config.Osquery.EnrollSecret = "super secret"
-
 	// Check that an empty host identifier causes the appropriate error code and
 	// error JSON to be returned
 
@@ -63,8 +58,6 @@ func TestIntegrationEnrollHostMissingIdentifier(t *testing.T) {
 func TestIntegrationEnrollHostGood(t *testing.T) {
 	var req IntegrationRequests
 	req.New(t)
-
-	config.Osquery.EnrollSecret = "super secret"
 
 	// Make a good request and verify that a node key is returned. Also
 	// check that the DB recorded the information.
