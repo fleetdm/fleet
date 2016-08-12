@@ -5,10 +5,10 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/jinzhu/gorm"
+	"github.com/spf13/viper"
 
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
-	"github.com/kolide/kolide-ose/config"
 	"github.com/kolide/kolide-ose/sessions"
 )
 
@@ -34,7 +34,7 @@ func setDBSettings(db *gorm.DB) {
 
 	// If debug mode is enabled, tell gorm to turn on logmode (log each
 	// query as it is executed)
-	if config.App.Debug {
+	if viper.GetBool("debug") {
 		db.LogMode(true)
 	}
 }

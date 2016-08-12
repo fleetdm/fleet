@@ -1,0 +1,8 @@
+server:
+  cert: "./tools/osquery/kolide.crt"
+  key: "./tools/osquery/kolide.key"
+auth:
+  jwt_key: very secure
+osquery:
+  enroll_secret: super secure
+debug: true

@@ -105,7 +105,7 @@ Once you `docker-compose up` and are running the databases, you can build
 the code and run the following command to create the database tables:
 
 ```
-kolide prepare-db
+kolide prepare db
 ```
 
 ### Running Kolide

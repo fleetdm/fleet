@@ -8,8 +8,8 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
-	"github.com/kolide/kolide-ose/config"
 	"github.com/kolide/kolide-ose/errors"
+	"github.com/spf13/viper"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -138,12 +138,12 @@ func generateRandomText(keySize int) (string, error) {
 func HashPassword(salt, password string) ([]byte, error) {
 	return bcrypt.GenerateFromPassword(
 		[]byte(fmt.Sprintf("%s%s", password, salt)),
-		config.App.BcryptCost,
+		viper.GetInt("auth.bcrypt_cost"),
 	)
 }
 
 func SaltAndHashPassword(password string) (string, []byte, error) {
-	salt, err := generateRandomText(config.App.SaltKeySize)
+	salt, err := generateRandomText(viper.GetInt("auth.salt_key_size"))
 	if err != nil {
 		return "", []byte{}, err
 	}

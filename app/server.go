@@ -13,9 +13,9 @@ import (
 	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
-	"github.com/kolide/kolide-ose/config"
 	"github.com/kolide/kolide-ose/errors"
 	"github.com/kolide/kolide-ose/sessions"
+	"github.com/spf13/viper"
 	"gopkg.in/go-playground/validator.v8"
 )
 
@@ -104,9 +104,9 @@ func CreateServer(db *gorm.DB, w io.Writer) *gin.Engine {
 
 	sessions.Configure(&sessions.SessionConfiguration{
 		CookieName:     "KolideSession",
-		JWTKey:         config.App.JWTKey,
-		SessionKeySize: config.App.SessionKeySize,
-		Lifespan:       config.App.SessionExpirationSeconds,
+		JWTKey:         viper.GetString("auth.jwt_key"),
+		SessionKeySize: viper.GetInt("session.key_size"),
+		Lifespan:       viper.GetFloat64("session.expiration_seconds"),
 	})
 
 	// TODO: The following loggers are not synchronized with each other or

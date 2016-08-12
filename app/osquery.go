@@ -8,8 +8,8 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
-	"github.com/kolide/kolide-ose/config"
 	"github.com/kolide/kolide-ose/errors"
+	"github.com/spf13/viper"
 )
 
 type ScheduledQuery struct {
@@ -192,7 +192,7 @@ type OsqueryDistributedWritePostBody struct {
 
 // Generate a node key using NodeKeySize random bytes Base64 encoded
 func newNodeKey() (string, error) {
-	return generateRandomText(config.Osquery.NodeKeySize)
+	return generateRandomText(viper.GetInt("osquery.node_key_size"))
 }
 
 // Enroll a host. Even if this is an existing host, a new node key should be
@@ -248,7 +248,7 @@ func OsqueryEnroll(c *gin.Context) {
 		return
 	}
 
-	if body.EnrollSecret != config.Osquery.EnrollSecret {
+	if body.EnrollSecret != viper.GetString("osquery.enroll_secret") {
 		errors.ReturnError(
 			c,
 			errors.NewWithStatus(http.StatusUnauthorized,
