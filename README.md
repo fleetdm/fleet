@@ -12,6 +12,7 @@
   - [Running Kolide](#running-kolide)
   - [Automatic recompilation](#automatic-recompilation)
   - [Stopping the local development environment](#stopping-the-local-development-environment)
+  - [Managing Go dependencies with glide](#managing-go-dependencies-with-glide)
 
 ## Development Environment
 
@@ -165,3 +166,23 @@ the following from the root of the repository:
 ```
 docker-compose down
 ```
+
+### Managing Go Dependencies with Glide
+[Glide](https://github.com/Masterminds/glide#glide-vendor-package-management-for-golang) is a package manager for third party Go libraries. 
+
+See the [How it works](https://github.com/Masterminds/glide#how-it-works) section in the Glide readme for full details.
+
+Using glide: 
+
+- To install the correct versions of third package libraries, use `glide install`.  
+  `glide install` will  use the `glide.lock` file to pull vendored packages from remote vcs.  
+  `make deps` takes care of this step, as well as downloading the latest version of glide for you.
+
+- To add a new dependency, use [`glide get [package name]`](https://github.com/Masterminds/glide#glide-get-package-name)  
+- To update, use [`glide up`](https://github.com/Masterminds/glide#glide-update-aliased-to-up) which will use VCS and `glide.yaml` to figure out the correct updates.   
+- Finally, you can use [`go test $(glide novendor)`](https://github.com/Masterminds/glide#glide-novendor-aliased-to-nv) to skip tests in the vendor directory. 
+  This will run go test over all directories of your project except the vendor directory.
+
+
+
+

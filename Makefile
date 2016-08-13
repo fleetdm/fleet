@@ -13,15 +13,18 @@ generate: .prefix
 
 deps:
 	npm install
-	go get -u github.com/tools/godep
+	go get -u github.com/Masterminds/glide
 	go get -u github.com/jteeuwen/go-bindata/...
 ifneq ($(OS), Windows_NT)
 	go get -u github.com/olebedev/on
 endif
+	# install vendored deps
+	glide install
 
 distclean:
 	mkdir -p build
 	rm -rf build/*
+	rm -rf vendor/*
 
 ifneq ($(OS), Windows_NT)
 

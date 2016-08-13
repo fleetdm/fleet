@@ -1,0 +1,76 @@
+package: github.com/kolide/kolide-ose
+import:
+- package: github.com/Sirupsen/logrus
+  version: a283a10442df8dc09befd873fab202bf8a253d6a
+- package: github.com/alecthomas/template
+  version: a0175ee3bccc567396460bf5acd36800cb10c49c
+  subpackages:
+  - parse
+- package: github.com/alecthomas/units
+  version: 2efee857e7cfd4f3d0138cc3cbb1b4966962b93a
+- package: github.com/davecgh/go-spew
+  version: 5215b55f46b2b919f50a1df0eaa5886afe4e3b3d
+  subpackages:
+  - spew
+- package: github.com/dgrijalva/jwt-go
+  version: 01aeca54ebda6e0fbfafd0a524d234159c05ec20
+- package: github.com/gin-gonic/contrib
+  version: 547e518040cfb96576b507d2f26779ab9c6fc829
+  subpackages:
+  - ginrus
+  - renders/multitemplate
+  - static
+- package: github.com/gin-gonic/gin
+  version: f931d1ea80ae95a6fc739213cdd9399bd2967fb6
+  subpackages:
+  - binding
+  - render
+- package: github.com/go-sql-driver/mysql
+  version: 3654d25ec346ee8ce71a68431025458d52a38ac0
+- package: github.com/golang/protobuf
+  version: c3cefd437628a0b7d31b34fe44b3a7a540e98527
+  subpackages:
+  - proto
+- package: github.com/jinzhu/gorm
+  version: a646b13548ec0aa812fe805b2780f460dd2771b6
+  subpackages:
+  - dialects/mysql
+  - dialects/sqlite
+- package: github.com/jinzhu/inflection
+  version: 8f4d3a0d04ce0b7c0cf3126fb98524246d00d102
+- package: github.com/manucorporat/sse
+  version: ee05b128a739a0fb76c7ebd3ae4810c1de808d6d
+- package: github.com/mattn/go-sqlite3
+  version: e118d4451349065b8e7ce0f0af32e033995363f8
+- package: github.com/pmezard/go-difflib
+  version: ~1.0.0
+  subpackages:
+  - difflib
+- package: github.com/stretchr/testify
+  version: d77da356e56a7428ad25149ca77381849a6a5232
+  subpackages:
+  - assert
+- package: golang.org/x/crypto
+  version: bc89c496413265e715159bdc8478ee9a92fdc265
+  subpackages:
+  - bcrypt
+  - blowfish
+- package: golang.org/x/net
+  version: 4d38db76854b199960801a1734443fd02870d7e1
+  subpackages:
+  - context
+- package: golang.org/x/sys
+  version: a646d33e2ee3172a661fc09bca23bb4889a41bc8
+  subpackages:
+  - unix
+- package: gopkg.in/alecthomas/kingpin.v2
+  version: ~2.2.0
+- package: gopkg.in/go-playground/validator.v8
+  version: ~8.18.1
+- package: gopkg.in/yaml.v2
+  version: e4d366fc3c7938e2958e662b4258c7a89e1f0e3e
+- package: github.com/elazarl/go-bindata-assetfs
+- package: github.com/jordan-wright/email
+  version: fd703108daeb23d77c124d12978e9b6c4f28f034
+- package: github.com/spf13/cobra
+- package: github.com/spf13/viper

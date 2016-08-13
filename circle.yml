@@ -1,10 +1,16 @@
+machine:
+  environment:
+    IMPORT_PATH: "/home/ubuntu/.go_workspace/src/github.com/kolide"
+    APP_PATH: "$IMPORT_PATH/kolide-ose"
+    GO15VENDOREXPERIMENT: 1
 dependencies:
-  pre:
+  override:
     - make deps
     - go generate
-  override:
-    - go get -t -d -v ./...
-
 test:
+  pre:
+    - mkdir -p "$IMPORT_PATH"
+    - ln -sf "$(pwd)" "$APP_PATH"
+    - cd "$APP_PATH" && glide install
   override:
-    - go test -v
+    - cd "$APP_PATH" && go test -cover $(glide nv)
