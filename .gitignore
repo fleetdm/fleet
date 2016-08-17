@@ -12,6 +12,7 @@ node_modules
 app/bindata.go
 *.cover
 *.test
+*.log
 
 # operating system artifacts
 .DS_Store

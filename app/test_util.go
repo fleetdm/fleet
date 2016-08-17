@@ -43,11 +43,31 @@ func openTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
+type mockOsqueryStatusLogWriter struct {
+	Logs []OsqueryStatusLog
+}
+
+func (w *mockOsqueryStatusLogWriter) HandleStatusLog(log OsqueryStatusLog, nodeKey string) error {
+	w.Logs = append(w.Logs, log)
+	return nil
+}
+
+type mockOsqueryResultLogWriter struct {
+	Logs []OsqueryResultLog
+}
+
+func (w *mockOsqueryResultLogWriter) HandleResultLog(log OsqueryResultLog, nodeKey string) error {
+	w.Logs = append(w.Logs, log)
+	return nil
+}
+
 type IntegrationRequests struct {
-	r    *gin.Engine
-	db   *gorm.DB
-	pool SMTPConnectionPool
-	t    *testing.T
+	r             *gin.Engine
+	db            *gorm.DB
+	pool          SMTPConnectionPool
+	t             *testing.T
+	statusHandler *mockOsqueryStatusLogWriter
+	resultHandler *mockOsqueryResultLogWriter
 }
 
 func (req *IntegrationRequests) New(t *testing.T) {
@@ -56,6 +76,9 @@ func (req *IntegrationRequests) New(t *testing.T) {
 	req.db = openTestDB(t)
 	req.pool = newMockSMTPConnectionPool()
 
+	req.statusHandler = new(mockOsqueryStatusLogWriter)
+	req.resultHandler = new(mockOsqueryResultLogWriter)
+
 	// Until we have a better solution for first-user onboarding, manually
 	// create an admin
 	_, err := NewUser(req.db, "admin", "foobar", "admin@kolide.co", true, false)
@@ -63,7 +86,8 @@ func (req *IntegrationRequests) New(t *testing.T) {
 		t.Fatalf("Error opening DB: %s", err.Error())
 	}
 
-	req.r = CreateServer(req.db, req.pool, &testLogger{t: t})
+	gin.SetMode(gin.ReleaseMode)
+	req.r = CreateServer(req.db, req.pool, &testLogger{t: t}, req.resultHandler, req.statusHandler)
 }
 
 func (req *IntegrationRequests) Login(username, password string, sessionOut *string) {
@@ -471,6 +495,29 @@ func (req *IntegrationRequests) EnrollHost(enrollSecret, hostIdentifier string) 
 	buff := new(bytes.Buffer)
 	buff.Write(body)
 	request, _ := http.NewRequest("POST", "/api/v1/osquery/enroll", buff)
+	request.Header.Set("Content-Type", "application/json")
+	req.r.ServeHTTP(response, request)
+
+	return response
+}
+
+func (req *IntegrationRequests) OsqueryLog(nodeKey, logType string, data *json.RawMessage) *httptest.ResponseRecorder {
+	response := httptest.NewRecorder()
+	body, err := json.Marshal(OsqueryLogPostBody{
+		NodeKey: nodeKey,
+		LogType: logType,
+		Data:    data,
+	})
+
+	if err != nil {
+		req.t.Fatal(err.Error())
+	}
+
+	buff := new(bytes.Buffer)
+	buff.Write(body)
+	req.t.Log(buff.String())
+
+	request, _ := http.NewRequest("POST", "/api/v1/osquery/log", buff)
 	request.Header.Set("Content-Type", "application/json")
 	req.r.ServeHTTP(response, request)
 

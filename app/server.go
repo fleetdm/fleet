@@ -93,7 +93,7 @@ func NewSessionManager(c *gin.Context) *sessions.SessionManager {
 func parseJSON(c *gin.Context, obj interface{}) error {
 	decoder := json.NewDecoder(c.Request.Body)
 	if err := decoder.Decode(obj); err != nil {
-		return err
+		return errors.NewFromError(err, http.StatusBadRequest, "JSON parse error")
 	}
 	return nil
 }
@@ -102,7 +102,7 @@ func parseJSON(c *gin.Context, obj interface{}) error {
 // the validator library.
 func ParseAndValidateJSON(c *gin.Context, obj interface{}) error {
 	if err := parseJSON(c, obj); err != nil {
-		return errors.NewFromError(err, http.StatusBadRequest, "JSON parse error")
+		return err
 	}
 
 	return validate.Struct(obj)
@@ -120,7 +120,7 @@ func NotFound(c *gin.Context) {
 
 // CreateServer creates a gin.Engine HTTP server and configures it to be in a
 // state such that it is ready to serve HTTP requests for the kolide application
-func CreateServer(db *gorm.DB, pool SMTPConnectionPool, w io.Writer) *gin.Engine {
+func CreateServer(db *gorm.DB, pool SMTPConnectionPool, w io.Writer, resultHandler OsqueryResultHandler, statusHandler OsqueryStatusHandler) *gin.Engine {
 	server := gin.New()
 	server.Use(DatabaseMiddleware(db))
 	server.Use(SMTPConnectionPoolMiddleware(pool))
@@ -189,9 +189,15 @@ func CreateServer(db *gorm.DB, pool SMTPConnectionPool, w io.Writer) *gin.Engine
 
 	// osquery API endpoints
 	osq := v1.Group("/osquery")
+
+	osqueryHandler := OsqueryHandler{
+		ResultHandler: resultHandler,
+		StatusHandler: statusHandler,
+	}
+
 	osq.POST("/enroll", OsqueryEnroll)
 	osq.POST("/config", OsqueryConfig)
-	osq.POST("/log", OsqueryLog)
+	osq.POST("/log", osqueryHandler.OsqueryLog)
 	osq.POST("/distributed/read", OsqueryDistributedRead)
 	osq.POST("/distributed/write", OsqueryDistributedWrite)
 

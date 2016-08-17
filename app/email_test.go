@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"encoding/json"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -60,7 +61,7 @@ func (w *mockResponseWriter) WriteHeader(int) {
 func TestUnauthenticatedPasswordReset(t *testing.T) {
 	db := openTestDB(t)
 	pool := newMockSMTPConnectionPool()
-	r := CreateServer(db, pool, &testLogger{t: t})
+	r := CreateServer(db, pool, &testLogger{t: t}, &OsqueryLogWriter{Writer: ioutil.Discard}, &OsqueryLogWriter{Writer: ioutil.Discard})
 	admin, _ := NewUser(db, "admin", "foobar", "admin@kolide.co", true, false)
 
 	{
@@ -119,7 +120,7 @@ func TestUnauthenticatedPasswordReset(t *testing.T) {
 func TestAuthenticatedPasswordReset(t *testing.T) {
 	db := openTestDB(t)
 	pool := newMockSMTPConnectionPool()
-	r := CreateServer(db, pool, &testLogger{t: t})
+	r := CreateServer(db, pool, &testLogger{t: t}, &OsqueryLogWriter{Writer: ioutil.Discard}, &OsqueryLogWriter{Writer: ioutil.Discard})
 	admin, _ := NewUser(db, "admin", "foobar", "admin@kolide.co", true, false)
 	request, _ := http.NewRequest("GET", "/", nil)
 	writer := newMockResponseWriter()

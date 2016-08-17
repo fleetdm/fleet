@@ -1,7 +1,9 @@
 package app
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -11,6 +13,51 @@ import (
 	"github.com/kolide/kolide-ose/errors"
 	"github.com/spf13/viper"
 )
+
+// The "output plugin" interface for osquery result logs. The implementer of
+// this interface can do whatever processing they would like with the log,
+// returning the appropriate error status
+type OsqueryResultHandler interface {
+	HandleResultLog(log OsqueryResultLog, nodeKey string) error
+}
+
+// The "output plugin" interface for osquery status logs. The implementer of
+// this interface can do whatever processing they would like with the log,
+// returning the appropriate error status
+type OsqueryStatusHandler interface {
+	HandleStatusLog(log OsqueryStatusLog, nodeKey string) error
+}
+
+// This struct is used for injecting dependencies for osquery TLS processing.
+// It can be configured in a `main` function to bind the appropriate handlers
+// and it's methods can be attached to routes.
+type OsqueryHandler struct {
+	ResultHandler OsqueryResultHandler
+	StatusHandler OsqueryStatusHandler
+}
+
+// Basic implementation of the `OsqueryResultHandler` and
+// `OsqueryStatusHandler` interfaces. It will write the logs to the io.Writer
+// provided in Writer.
+type OsqueryLogWriter struct {
+	Writer io.Writer
+}
+
+func (w *OsqueryLogWriter) HandleStatusLog(log OsqueryStatusLog, nodeKey string) error {
+	err := json.NewEncoder(w.Writer).Encode(log)
+	if err != nil {
+		return errors.NewFromError(err, http.StatusInternalServerError, "error writing result log")
+	}
+	return nil
+}
+
+func (w *OsqueryLogWriter) HandleResultLog(log OsqueryResultLog, nodeKey string) error {
+	err := json.NewEncoder(w.Writer).Encode(log)
+	if err != nil {
+		return errors.NewFromError(err, http.StatusInternalServerError, "error writing status log")
+	}
+	return nil
+}
 
 type ScheduledQuery struct {
 	ID           uint `gorm:"primary_key"`
@@ -159,26 +206,27 @@ type OsqueryConfigPostBody struct {
 }
 
 type OsqueryLogPostBody struct {
-	NodeKey string                   `json:"node_key" validate:"required"`
-	LogType string                   `json:"log_type" validate:"required"`
-	Data    []map[string]interface{} `json:"data" validate:"required"`
+	NodeKey string           `json:"node_key" validate:"required"`
+	LogType string           `json:"log_type" validate:"required"`
+	Data    *json.RawMessage `json:"data" validate:"required"`
 }
 
 type OsqueryResultLog struct {
-	Name           string            `json:"name"`
-	HostIdentifier string            `json:"hostIdentifier"`
-	UnixTime       string            `json:"unixTime"`
-	CalendarTime   string            `json:"calendarTime"`
+	Name           string            `json:"name" validate:"required"`
+	HostIdentifier string            `json:"hostIdentifier" validate:"required"`
+	UnixTime       string            `json:"unixTime" validate:"required"`
+	CalendarTime   string            `json:"calendarTime" validate:"required"`
 	Columns        map[string]string `json:"columns"`
-	Action         string            `json:"action"`
+	Action         string            `json:"action" validate:"required"`
 }
 
 type OsqueryStatusLog struct {
-	Severity string `json:"severity"`
-	Filename string `json:"filename"`
-	Line     string `json:"line"`
-	Message  string `json:"message"`
-	Version  string `json:"version"`
+	Severity    string            `json:"severity" validate:"required"`
+	Filename    string            `json:"filename" validate:"required"`
+	Line        string            `json:"line" validate:"required"`
+	Message     string            `json:"message" validate:"required"`
+	Version     string            `json:"version" validate:"required"`
+	Decorations map[string]string `json:"decorations"`
 }
 
 type OsqueryDistributedReadPostBody struct {
@@ -244,12 +292,12 @@ func OsqueryEnroll(c *gin.Context) {
 	var body OsqueryEnrollPostBody
 	err := ParseAndValidateJSON(c, &body)
 	if err != nil {
-		errors.ReturnError(c, err)
+		errors.ReturnOsqueryError(c, err)
 		return
 	}
 
 	if body.EnrollSecret != viper.GetString("osquery.enroll_secret") {
-		errors.ReturnError(
+		errors.ReturnOsqueryError(
 			c,
 			errors.NewWithStatus(http.StatusUnauthorized,
 				"Node key invalid",
@@ -263,7 +311,7 @@ func OsqueryEnroll(c *gin.Context) {
 
 	host, err := EnrollHost(db, body.HostIdentifier, "", "", "")
 	if err != nil {
-		errors.ReturnError(c, errors.DatabaseError(err))
+		errors.ReturnOsqueryError(c, errors.DatabaseError(err))
 		return
 	}
 
@@ -280,7 +328,7 @@ func OsqueryConfig(c *gin.Context) {
 	var body OsqueryConfigPostBody
 	err := ParseAndValidateJSON(c, &body)
 	if err != nil {
-		errors.ReturnError(c, err)
+		errors.ReturnOsqueryError(c, err)
 		return
 	}
 	logrus.Debugf("OsqueryConfig: %s", body.NodeKey)
@@ -297,77 +345,130 @@ func OsqueryConfig(c *gin.Context) {
 		})
 }
 
-func OsqueryLog(c *gin.Context) {
+// Authenticate a (post-enrollment) TLS request from osqueryd. To do this we
+// verify that the provided node key is valid.
+func authenticateRequest(db *gorm.DB, nodeKey string) error {
+	host := Host{NodeKey: nodeKey}
+	err := db.Where(&host).First(&host).Error
+	if err != nil {
+		switch err {
+		case gorm.ErrRecordNotFound:
+			e := errors.NewFromError(
+				err,
+				http.StatusUnauthorized,
+				"Unauthorized",
+			)
+			// osqueryd expects the literal string "true" here
+			e.Extra = map[string]interface{}{"node_invalid": "true"}
+			return e
+		default:
+			return errors.DatabaseError(err)
+		}
+	}
+
+	return nil
+}
+
+// Unmarshal the status logs before sending them to the status log handler
+func (h *OsqueryHandler) handleStatusLogs(db *gorm.DB, data *json.RawMessage, nodeKey string) error {
+	var statuses []OsqueryStatusLog
+	if err := json.Unmarshal(*data, &statuses); err != nil {
+		return errors.NewFromError(err, http.StatusBadRequest, "JSON parse error")
+	}
+	// Perhaps we should validate the unmarshalled status log
+
+	for _, status := range statuses {
+		if err := h.StatusHandler.HandleStatusLog(status, nodeKey); err != nil {
+			return err
+		}
+		logrus.Debugf("Osquery status: %+v", status)
+	}
+
+	return nil
+}
+
+// Unmarshal the result logs before sending them to the result log handler
+func (h *OsqueryHandler) handleResultLogs(db *gorm.DB, data *json.RawMessage, nodeKey string) error {
+	var results []OsqueryResultLog
+	if err := json.Unmarshal(*data, &results); err != nil {
+		return errors.NewFromError(err, http.StatusBadRequest, "JSON parse error")
+	}
+	// Perhaps we should validate the unmarshalled result log
+
+	for _, result := range results {
+		if err := h.ResultHandler.HandleResultLog(result, nodeKey); err != nil {
+			return err
+		}
+		logrus.Debugf("Osquery result: %+v", result)
+	}
+
+	return nil
+}
+
+// Set the update time for the provided host to indicate that it has
+// successfully checked in.
+func updateLastSeen(db *gorm.DB, host *Host) error {
+	updateTime := time.Now()
+	err := db.Exec("UPDATE hosts SET updated_at=? WHERE node_key=?", updateTime, host.NodeKey).Error
+	if err != nil {
+		return errors.DatabaseError(err)
+	}
+	host.UpdatedAt = updateTime
+	return nil
+}
+
+// Endpoint used by the osqueryd TLS logger plugin
+func (h *OsqueryHandler) OsqueryLog(c *gin.Context) {
 	var body OsqueryLogPostBody
 	err := ParseAndValidateJSON(c, &body)
 	if err != nil {
-		errors.ReturnError(c, err)
+		errors.ReturnOsqueryError(c, err)
 		return
 	}
-	logrus.Debugf("OsqueryLog: %s", body.LogType)
 
-	if body.LogType == "status" {
-		for _, data := range body.Data {
-			var log OsqueryStatusLog
+	db := GetDB(c)
 
-			severity, ok := data["severity"].(string)
-			if ok {
-				log.Severity = severity
-			} else {
-				logrus.Error("Error asserting the type of status log severity")
-			}
-
-			filename, ok := data["filename"].(string)
-			if ok {
-				log.Filename = filename
-			} else {
-				logrus.Error("Error asserting the type of status log filename")
-			}
-
-			line, ok := data["line"].(string)
-			if ok {
-				log.Line = line
-			} else {
-				logrus.Error("Error asserting the type of status log line")
-			}
-
-			message, ok := data["message"].(string)
-			if ok {
-				log.Message = message
-			} else {
-				logrus.Error("Error asserting the type of status log message")
-			}
-
-			version, ok := data["version"].(string)
-			if ok {
-				log.Version = version
-			} else {
-				logrus.Error("Error asserting the type of status log version")
-			}
-
-			logrus.WithFields(logrus.Fields{
-				"node_key": body.NodeKey,
-				"severity": log.Severity,
-				"filename": log.Filename,
-				"line":     log.Line,
-				"version":  log.Version,
-			}).Info(log.Message)
-		}
-	} else if body.LogType == "result" {
-		// TODO: handle all of the different kinds of results logs
+	err = authenticateRequest(db, body.NodeKey)
+	if err != nil {
+		errors.ReturnOsqueryError(c, err)
+		return
 	}
 
-	c.JSON(http.StatusOK,
-		gin.H{
-			"node_invalid": false,
-		})
+	switch body.LogType {
+	case "status":
+		err = h.handleStatusLogs(db, body.Data, body.NodeKey)
+
+	case "result":
+		err = h.handleResultLogs(db, body.Data, body.NodeKey)
+
+	default:
+		err = errors.NewWithStatus(
+			errors.StatusUnprocessableEntity,
+			"Unknown result type",
+			fmt.Sprintf("Unknown result type: %s", body.LogType),
+		)
+	}
+
+	if err != nil {
+		errors.ReturnOsqueryError(c, err)
+		return
+	}
+
+	err = updateLastSeen(db, &Host{NodeKey: body.NodeKey})
+
+	if err != nil {
+		errors.ReturnOsqueryError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{})
 }
 
 func OsqueryDistributedRead(c *gin.Context) {
 	var body OsqueryDistributedReadPostBody
 	err := ParseAndValidateJSON(c, &body)
 	if err != nil {
-		errors.ReturnError(c, err)
+		errors.ReturnOsqueryError(c, err)
 		return
 	}
 	logrus.Debugf("OsqueryDistributedRead: %s", body.NodeKey)
@@ -385,7 +486,7 @@ func OsqueryDistributedWrite(c *gin.Context) {
 	var body OsqueryDistributedWritePostBody
 	err := ParseAndValidateJSON(c, &body)
 	if err != nil {
-		errors.ReturnError(c, err)
+		errors.ReturnOsqueryError(c, err)
 		return
 	}
 	logrus.Debugf("OsqueryDistributedWrite: %s", body.NodeKey)

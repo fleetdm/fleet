@@ -19,6 +19,7 @@ import (
 	"github.com/kolide/kolide-ose/app"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 var (
@@ -43,8 +44,8 @@ osquery management and orchestration
 
 Configurable Options:
 
-Options may be supplied in a yaml configuration file or via environment 
-variables. You only need to define the configuration values for which you 
+Options may be supplied in a yaml configuration file or via environment
+variables. You only need to define the configuration values for which you
 wish to override the default value.
 
 Available Configurations:
@@ -138,7 +139,33 @@ $7777777....$....$777$.....+DI..DDD..DDI...8D...D8......$D:..8D....8D...8D......
 		fmt.Println("Use Ctrl-C to stop")
 		fmt.Print("\n\n")
 
-		err = app.CreateServer(db, smtpConnectionPool, os.Stderr).RunTLS(
+		resultFile := viper.GetString("osquery.result_log_file")
+		resultHandler := &app.OsqueryLogWriter{
+			Writer: &lumberjack.Logger{
+				Filename:   resultFile,
+				MaxSize:    500, // megabytes
+				MaxBackups: 3,
+				MaxAge:     28, //days
+			},
+		}
+
+		statusFile := viper.GetString("osquery.status_log_file")
+		statusHandler := &app.OsqueryLogWriter{
+			Writer: &lumberjack.Logger{
+				Filename:   statusFile,
+				MaxSize:    500, // megabytes
+				MaxBackups: 3,
+				MaxAge:     28, //days
+			},
+		}
+
+		err = app.CreateServer(
+			db,
+			smtpConnectionPool,
+			os.Stderr,
+			resultHandler,
+			statusHandler,
+		).RunTLS(
 			viper.GetString("server.address"),
 			viper.GetString("server.cert"),
 			viper.GetString("server.key"),
@@ -154,7 +181,7 @@ var prepareCmd = &cobra.Command{
 	Short: "Subcommands for initializing kolide infrastructure",
 	Long: `
 Subcommands for initializing kolide infrastructure
-	
+
 To setup kolide infrastructure, use one of the available commands.
 `,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -228,9 +255,9 @@ func initConfig() {
 	setDefaultConfigValue("mysql.password", "kolide")
 	setDefaultConfigValue("mysql.database", "kolide")
 
-	setDefaultConfigValue("server.address", "localhost:8080")
+	setDefaultConfigValue("server.address", "0.0.0.0:8080")
 
-	setDefaultConfigValue("app.web_address", "localhost:8080")
+	setDefaultConfigValue("app.web_address", "0.0.0.0:8080")
 
 	setDefaultConfigValue("auth.bcrypt_cost", 12)
 	setDefaultConfigValue("auth.salt_key_size", 24)
@@ -243,6 +270,8 @@ func initConfig() {
 	setDefaultConfigValue("session.expiration_seconds", 60*60*24*90)
 
 	setDefaultConfigValue("osquery.node_key_size", 24)
+	setDefaultConfigValue("osquery.status_log_file", "/tmp/osquery_status")
+	setDefaultConfigValue("osquery.result_log_file", "/tmp/osquery_result")
 
 	if debug {
 		logrus.SetLevel(logrus.DebugLevel)

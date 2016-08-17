@@ -1,5 +1,5 @@
-hash: cbd4502309ad1575151e0f9734937a85056213c326389ecc350259e677f2bfb6
-updated: 2016-08-13T17:43:32.844377583-04:00
+hash: 4ffa52b45a47295720fcf4dfcc0cc85c9f47a35a3bd43bdc6e0c2355bdd76109
+updated: 2016-08-17T10:01:54.299187864-07:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -123,6 +123,8 @@ imports:
   version: e5900212cbf65b181d3d8e08308ef06a01d117cf
 - name: gopkg.in/go-playground/validator.v8
   version: 5f57d2222ad794d0dffb07e664ea05e2ee07d60c
+- name: gopkg.in/natefinch/lumberjack.v2
+  version: 514cbda263a734ae8caac038dadf05f8f3f9f738
 - name: gopkg.in/yaml.v2
   version: e4d366fc3c7938e2958e662b4258c7a89e1f0e3e
 testImports: []
