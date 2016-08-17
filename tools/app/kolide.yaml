@@ -7,5 +7,5 @@ osquery:
   enroll_secret: super secure
   result_log_file: /tmp/osquery_result
   status_log_file: /tmp/osquery_status
-
-debug: true
+logging:
+  debug: true

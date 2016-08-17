@@ -19,7 +19,7 @@ import (
 	"github.com/kolide/kolide-ose/app"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"gopkg.in/natefinch/lumberjack.v2"
+	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 
 var (
@@ -32,7 +32,6 @@ var (
 
 var (
 	configFile string
-	debug      bool
 )
 
 // RootCmd represents the base command when called without any subcommands
@@ -77,6 +76,9 @@ Available Configurations:
   osquery:
       enroll_secret      (string)  (KOLIDE_OSQUERY_ENROLL_SECRET)
       node_key_size      (int)     (KOLIDE_OSQUERY_NODE_KEY_SIZE)
+  logging:
+      debug              (bool)    (KOLIDE_LOGGING_DEBUG)
+      disable_banner     (bool)    (KOLIDE_LOGGING_DISABLE_BANNER)
 `,
 }
 
@@ -115,7 +117,8 @@ the way that the kolide server works.
 			viper.GetInt("smtp.pool_connections"),
 			smtp.PlainAuth("", viper.GetString("smtp.username"), viper.GetString("smtp.password"), smtpHost))
 
-		fmt.Println(`
+		if !viper.GetBool("logging.disable_banner") {
+			fmt.Println(`
 
  .........77777$7$....................... .   .  .  .. .... .. . .. . ..
 ........$7777777777................. . .... .. .. . . .. . .. .  ..  . .. ....
@@ -134,10 +137,11 @@ $7777777....$....$777$.....+DI..DDD..DDI...8D...D8......$D:..8D....8D...8D......
 ..... ...........I.................. .  .   . ..   .   .    .   . .. . .  . .
 
 `)
-		fmt.Printf("=> Server starting on https://%s\n", viper.GetString("server.address"))
-		fmt.Println("=> Run `kolide serve --help` for more startup options")
-		fmt.Println("Use Ctrl-C to stop")
-		fmt.Print("\n\n")
+			fmt.Printf("=> Server starting on https://%s\n", viper.GetString("server.address"))
+			fmt.Println("=> Run `kolide serve --help` for more startup options")
+			fmt.Println("Use Ctrl-C to stop")
+			fmt.Print("\n\n")
+		}
 
 		resultFile := viper.GetString("osquery.result_log_file")
 		resultHandler := &app.OsqueryLogWriter{
@@ -273,9 +277,11 @@ func initConfig() {
 	setDefaultConfigValue("osquery.status_log_file", "/tmp/osquery_status")
 	setDefaultConfigValue("osquery.result_log_file", "/tmp/osquery_result")
 
-	if debug {
+	setDefaultConfigValue("logging.debug", false)
+	setDefaultConfigValue("logging.disable_banner", false)
+
+	if viper.GetBool("logging.debug") {
 		logrus.SetLevel(logrus.DebugLevel)
-		viper.Set("debug", true)
 	} else {
 		logrus.SetLevel(logrus.WarnLevel)
 	}
@@ -316,7 +322,6 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.PersistentFlags().StringVar(&configFile, "config", "", "Path to a configuration file")
-	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug logging and behavior")
 
 	rootCmd.AddCommand(serveCmd)
 	rootCmd.AddCommand(prepareCmd)
