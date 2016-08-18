@@ -76,6 +76,8 @@ Available Configurations:
   osquery:
       enroll_secret      (string)  (KOLIDE_OSQUERY_ENROLL_SECRET)
       node_key_size      (int)     (KOLIDE_OSQUERY_NODE_KEY_SIZE)
+      status_log_file    (string)  (KOLIDE_OSQUERY_STATUS_LOG_FILE)
+      result_log_file    (string)  (KOLIDE_OSQUERY_RESULT_LOG_FILE)
   logging:
       debug              (bool)    (KOLIDE_LOGGING_DEBUG)
       disable_banner     (bool)    (KOLIDE_LOGGING_DISABLE_BANNER)
