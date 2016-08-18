@@ -3,20 +3,26 @@
 ### Contents
 
 - [Development Environment](#development-environment)
-  - [Installing dependencies](#installing-dependencies)
+  - [Installing build dependencies](#installing-build-dependencies)
   - [Building](#building)
+    - [Generating the packaged JavaScript](#generating-the-packaged-javascript)
+    - [Compiling the kolide binary](#compiling-the-kolide-binary)
+    - [Managing Go dependencies with glide](#managing-go-dependencies-with-glide)
+    - [Automatic recompilation](#automatic-recompilation)
   - [Testing](#testing)
+    - [Application tests](#application-tests)
     - [Viewing test coverage](#viewing-test-coverage)
-  - [Starting the local development environment](#starting-the-local-development-environment)
-  - [Setting up the database tables](#setting-up-the-database-tables)
+    - [Testing email](#testing-email)
+  - [Development Infrastructure](#development-infrastructure)
+    - [Starting the local development environment](#starting-the-local-development-environment)
+    - [Stopping the local development environment](#stopping-the-local-development-environment)
+    - [Setting up the database tables](#setting-up-the-database-tables)
   - [Running Kolide](#running-kolide)
-  - [Automatic recompilation](#automatic-recompilation)
-  - [Stopping the local development environment](#stopping-the-local-development-environment)
-  - [Managing Go dependencies with glide](#managing-go-dependencies-with-glide)
+
 
 ## Development Environment
 
-### Installing dependencies
+### Installing build dependencies
 
 To setup a working local development environment, you must install the following
 minimum toolset:
@@ -34,12 +40,16 @@ make deps
 
 ### Building
 
+#### Generating the packaged JavaScript
+
 To generate all necessary code (bundling JavaScript into Go, etc), run the
 following:
 
 ```
 go generate
 ```
+
+#### Compiling the kolide binary
 
 On UNIX (OS X, Linux, etc), run the following to compile the application:
 
@@ -53,7 +63,47 @@ On Windows, run the following to compile the application:
 go build -o kolide.exe
 ```
 
+#### Managing Go Dependencies with Glide
+
+[Glide](https://github.com/Masterminds/glide#glide-vendor-package-management-for-golang)
+is a package manager for third party Go libraries. See the ["How It Works"](https://github.com/Masterminds/glide#how-it-works)
+section in the Glide README for full details.
+
+##### Installing the correct versions of dependencies
+
+To install the correct versions of third package libraries, use `glide install`. 
+`glide install` will  use the `glide.lock` file to pull vendored packages from 
+remote vcs.  `make deps` takes care of this step, as well as downloading the
+latest version of glide for you.
+
+##### Adding new dependencies
+
+To add a new dependency, use [`glide get [package name]`](https://github.com/Masterminds/glide#glide-get-package-name)  
+
+##### Updating dependencies
+
+To update, use [`glide up`](https://github.com/Masterminds/glide#glide-update-aliased-to-up) which will use VCS and `glide.yaml` to figure out the correct updates.   
+
+##### Testing application code with glide
+
+Finally, you can use [`go test $(glide novendor)`](https://github.com/Masterminds/glide#glide-novendor-aliased-to-nv) to skip tests in the vendor directory. This will run go test over all directories of your project except the vendor directory.
+
+#### Automatic recompilation
+
+If you're editing mostly frontend JavaScript, you may want the Go binary to be
+automatically recompiled with a new JavaScript bundle and restarted whenever 
+you save a JavaScript file. To do this, instead of running `kolide serve`, run
+the following:
+
+```
+make watch
+```
+
+This is only supported on OS X and Linux.
+
 ### Testing
+
+#### Application tests
 
 To run the application's tests, run the following from the root of the
 repository:
@@ -88,7 +138,28 @@ To view test a test coverage report in a terminal, run the following:
 go tool cover -func=./sessions/sessions.cover
 ```
 
-### Starting the local development environment
+#### Testing Email
+
+To intercept sent emails while running a Kolide development environment, make
+sure that you've set the SMTP address to `<docker host ip>:1025` and leave the
+username and password blank. Then, visit `<docker host ip>:8025` in a web 
+browser to view the [MailHog](https://github.com/mailhog/MailHog) UI.
+
+For example, if docker is running natively on your `localhost`, then your mail
+settings should look something like:
+
+```json
+{
+  "mail": {
+    "address": "localhost:1025",
+    "pool_connections": 4
+  }
+}
+```
+
+### Development infrastructure
+
+#### Starting the local development environment
 
 To set up a canonical development environment via docker,
 run the following from the root of the repository:
@@ -100,7 +171,17 @@ docker-compose up
 This requires that you have docker installed. At this point in time,
 automatic configuration tools are not included with this project.
 
-### Setting up the database tables
+
+#### Stopping the local development environment
+
+If you'd like to shut down the virtual infrastructure created by docker, run
+the following from the root of the repository:
+
+```
+docker-compose down
+```
+
+#### Setting up the database tables
 
 Once you `docker-compose up` and are running the databases, you can build
 the code and run the following command to create the database tables:
@@ -125,64 +206,3 @@ configuration file, which assumes that you are running docker locally, on
 You may have to edit the example configuration file to use the output of 
 `docker-machine ip` instead of `localhost` if you're using Docker via 
 [Docker Toolbox](https://www.docker.com/products/docker-toolbox).
-
-### Automatic recompilation
-
-If you're editing mostly frontend JavaScript, you may want the Go binary to be
-automatically recompiled with a new JavaScript bundle and restarted whenever 
-you save a JavaScript file. To do this, instead of running `kolide serve`, run
-the following:
-
-```
-make watch
-```
-
-This is only supported on OS X and Linux.
-
-### Testing Email
-
-To intercept sent emails while running a Kolide development environment, make
-sure that you've set the SMTP address to `<docker host ip>:1025` and leave the
-username and password blank. Then, visit `<docker host ip>:8025` in a web 
-browser to view the [MailHog](https://github.com/mailhog/MailHog) UI.
-
-For example, if docker is running natively on your `localhost`, then your mail
-settings should look something like:
-
-```json
-{
-  "mail": {
-    "address": "localhost:1025",
-    "pool_connections": 4
-  }
-}
-```
-
-### Stopping the local development environment
-
-If you'd like to shut down the virtual infrastructure created by docker, run
-the following from the root of the repository:
-
-```
-docker-compose down
-```
-
-### Managing Go Dependencies with Glide
-[Glide](https://github.com/Masterminds/glide#glide-vendor-package-management-for-golang) is a package manager for third party Go libraries. 
-
-See the [How it works](https://github.com/Masterminds/glide#how-it-works) section in the Glide readme for full details.
-
-Using glide: 
-
-- To install the correct versions of third package libraries, use `glide install`.  
-  `glide install` will  use the `glide.lock` file to pull vendored packages from remote vcs.  
-  `make deps` takes care of this step, as well as downloading the latest version of glide for you.
-
-- To add a new dependency, use [`glide get [package name]`](https://github.com/Masterminds/glide#glide-get-package-name)  
-- To update, use [`glide up`](https://github.com/Masterminds/glide#glide-update-aliased-to-up) which will use VCS and `glide.yaml` to figure out the correct updates.   
-- Finally, you can use [`go test $(glide novendor)`](https://github.com/Masterminds/glide#glide-novendor-aliased-to-nv) to skip tests in the vendor directory. 
-  This will run go test over all directories of your project except the vendor directory.
-
-
-
-
