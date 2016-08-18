@@ -9,7 +9,9 @@ import (
 // goSourceDirectories declares all Go subpackages of this package
 var goSourceDirectories = []string{
 	"app",
+	"datastore",
 	"errors",
+	"kolide",
 	"sessions",
 }
 

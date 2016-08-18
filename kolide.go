@@ -15,8 +15,11 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
+	_ "github.com/jinzhu/gorm/dialects/mysql"
+	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/jordan-wright/email"
 	"github.com/kolide/kolide-ose/app"
+	"github.com/kolide/kolide-ose/datastore"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
@@ -100,16 +103,6 @@ the way that the kolide server works.
 			logrus.Fatal("TLS certificate and key were not found.")
 		}
 
-		db, err := app.OpenDB(
-			viper.GetString("mysql.username"),
-			viper.GetString("mysql.password"),
-			viper.GetString("mysql.address"),
-			viper.GetString("mysql.database"),
-		)
-		if err != nil {
-			logrus.Fatalf("Error opening database: %s", err.Error())
-		}
-
 		smtpHost, _, err := net.SplitHostPort(viper.GetString("smtp.address"))
 		if err != nil {
 			logrus.WithError(err).Fatal("Could not parse mail address string")
@@ -165,8 +158,22 @@ $7777777....$....$777$.....+DI..DDD..DDI...8D...D8......$D:..8D....8D...8D......
 			},
 		}
 
+		var ds datastore.Datastore
+		{
+			user := viper.GetString("mysql.username")
+			password := viper.GetString("mysql.password")
+			host := viper.GetString("mysql.address")
+			dbName := viper.GetString("mysql.database")
+			connString := fmt.Sprintf("%s:%s@(%s)/%s?charset=utf8&parseTime=True&loc=Local", user, password, host, dbName)
+			ds, err = datastore.New("gorm", connString)
+			if err != nil {
+				logrus.WithError(err).Fatal("error creating db conn")
+			}
+		}
+		sessionBackend := datastore.NewSessionBackend(ds)
 		err = app.CreateServer(
-			db,
+			sessionBackend,
+			ds,
 			smtpConnectionPool,
 			os.Stderr,
 			resultHandler,
@@ -176,6 +183,7 @@ $7777777....$....$777$.....+DI..DDD..DDI...8D...D8......$D:..8D....8D...8D......
 			viper.GetString("server.cert"),
 			viper.GetString("server.key"),
 		)
+
 		if err != nil {
 			logrus.WithError(err).Fatal("Error running server")
 		}
@@ -200,17 +208,26 @@ var dbCmd = &cobra.Command{
 	Short: "Given correct database configurations, prepare the databases for use",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		db, err := app.OpenDB(
-			viper.GetString("mysql.username"),
-			viper.GetString("mysql.password"),
-			viper.GetString("mysql.address"),
-			viper.GetString("mysql.database"),
-		)
-		if err != nil {
-			logrus.Fatalf("Error opening database: %s", err.Error())
+		var err error
+		var db datastore.Datastore // app datastore
+		{
+			user := viper.GetString("mysql.username")
+			password := viper.GetString("mysql.password")
+			host := viper.GetString("mysql.address")
+			dbName := viper.GetString("mysql.database")
+			connString := fmt.Sprintf("%s:%s@(%s)/%s?charset=utf8&parseTime=True&loc=Local", user, password, host, dbName)
+			db, err = datastore.New("gorm", connString)
+			if err != nil {
+				logrus.WithError(err).Fatal("error creating db conn")
+			}
 		}
-		app.DropTables(db)
-		app.CreateTables(db)
+		if err := db.Drop(); err != nil {
+			logrus.WithError(err).Fatal("error dropping db tables")
+		}
+
+		if err := db.Migrate(); err != nil {
+			logrus.WithError(err).Fatal("error setting up db schema")
+		}
 	},
 }
 

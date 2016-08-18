@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
-	"github.com/jinzhu/gorm"
 	"github.com/kolide/kolide-ose/errors"
+	"github.com/kolide/kolide-ose/kolide"
 	"github.com/spf13/viper"
 )
 
@@ -59,143 +58,6 @@ func (w *OsqueryLogWriter) HandleResultLog(log OsqueryResultLog, nodeKey string)
 	return nil
 }
 
-type ScheduledQuery struct {
-	ID           uint `gorm:"primary_key"`
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	Name         string `gorm:"not null"`
-	QueryID      int
-	Query        Query
-	Interval     uint `gorm:"not null"`
-	Snapshot     bool
-	Differential bool
-	Platform     string
-	PackID       uint
-}
-
-type Query struct {
-	ID        uint `gorm:"primary_key"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Query     string   `gorm:"not null"`
-	Targets   []Target `gorm:"many2many:query_targets"`
-}
-
-type TargetType int
-
-const (
-	TargetLabel TargetType = iota
-	TargetHost  TargetType = iota
-)
-
-type Target struct {
-	ID        uint `gorm:"primary_key"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Type      TargetType
-	QueryID   uint
-	TargetID  uint
-}
-
-type DistributedQueryStatus int
-
-const (
-	QueryRunning  DistributedQueryStatus = iota
-	QueryComplete DistributedQueryStatus = iota
-	QueryError    DistributedQueryStatus = iota
-)
-
-type DistributedQuery struct {
-	ID          uint `gorm:"primary_key"`
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	Query       Query
-	MaxDuration time.Duration
-	Status      DistributedQueryStatus
-	UserID      uint
-}
-
-type DistributedQueryExecutionStatus int
-
-const (
-	ExecutionWaiting   DistributedQueryExecutionStatus = iota
-	ExecutionRequested DistributedQueryExecutionStatus = iota
-	ExecutionSucceeded DistributedQueryExecutionStatus = iota
-	ExecutionFailed    DistributedQueryExecutionStatus = iota
-)
-
-type DistributedQueryExecution struct {
-	HostID             uint
-	DistributedQueryID uint
-	Status             DistributedQueryExecutionStatus
-	Error              string `gorm:"size:1024"`
-	ExecutionDuration  time.Duration
-}
-
-type Pack struct {
-	ID               uint `gorm:"primary_key"`
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
-	Name             string `gorm:"not null;unique_index:idx_pack_unique_name"`
-	Platform         string
-	Queries          []ScheduledQuery
-	DiscoveryQueries []DiscoveryQuery
-}
-
-type DiscoveryQuery struct {
-	ID        uint `gorm:"primary_key"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Query     string `gorm:"size:1024" gorm:"not null"`
-}
-
-type Host struct {
-	ID        uint `gorm:"primary_key"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	NodeKey   string `gorm:"unique_index:idx_host_unique_nodekey"`
-	HostName  string
-	UUID      string `gorm:"unique_index:idx_host_unique_uuid"`
-	IPAddress string
-	Platform  string
-	Labels    []*Label `gorm:"many2many:host_labels;"`
-}
-
-type Label struct {
-	ID        uint `gorm:"primary_key"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Name      string `gorm:"not null;unique_index:idx_label_unique_name"`
-	Query     string
-	Hosts     []Host
-}
-
-type Option struct {
-	ID        uint `gorm:"primary_key"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Key       string `gorm:"not null;unique_index:idx_option_unique_key"`
-	Value     string `gorm:"not null"`
-	Platform  string
-}
-
-type DecoratorType int
-
-const (
-	DecoratorLoad     DecoratorType = iota
-	DecoratorAlways   DecoratorType = iota
-	DecoratorInterval DecoratorType = iota
-)
-
-type Decorator struct {
-	ID        uint `gorm:"primary_key"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Type      DecoratorType `gorm:"not null"`
-	Interval  int
-	Query     string
-}
-
 type OsqueryEnrollPostBody struct {
 	EnrollSecret   string `json:"enroll_secret" validate:"required"`
 	HostIdentifier string `json:"host_identifier" validate:"required"`
@@ -238,56 +100,6 @@ type OsqueryDistributedWritePostBody struct {
 	Queries map[string][]map[string]string `json:"queries" validate:"required"`
 }
 
-// Generate a node key using NodeKeySize random bytes Base64 encoded
-func newNodeKey() (string, error) {
-	return generateRandomText(viper.GetInt("osquery.node_key_size"))
-}
-
-// Enroll a host. Even if this is an existing host, a new node key should be
-// generated and saved to the DB.
-func EnrollHost(db *gorm.DB, uuid, hostName, ipAddress, platform string) (*Host, error) {
-	host := Host{UUID: uuid}
-	err := db.Where(&host).First(&host).Error
-	if err != nil {
-		switch err {
-		case gorm.ErrRecordNotFound:
-			// Create new Host
-			host = Host{
-				UUID:      uuid,
-				HostName:  hostName,
-				IPAddress: ipAddress,
-				Platform:  platform,
-			}
-
-		default:
-			return nil, err
-		}
-	}
-
-	// Generate a new key each enrollment
-	host.NodeKey, err = newNodeKey()
-	if err != nil {
-		return nil, err
-	}
-
-	// Update these fields if provided
-	if hostName != "" {
-		host.HostName = hostName
-	}
-	if ipAddress != "" {
-		host.IPAddress = ipAddress
-	}
-	if platform != "" {
-		host.Platform = platform
-	}
-
-	if err := db.Save(&host).Error; err != nil {
-		return nil, err
-	}
-
-	return &host, nil
-}
-
 func OsqueryEnroll(c *gin.Context) {
 	var body OsqueryEnrollPostBody
 	err := ParseAndValidateJSON(c, &body)
@@ -296,6 +108,7 @@ func OsqueryEnroll(c *gin.Context) {
 		return
 	}
 
+	// TODO make config value explicit
 	if body.EnrollSecret != viper.GetString("osquery.enroll_secret") {
 		errors.ReturnOsqueryError(
 			c,
@@ -307,9 +120,12 @@ func OsqueryEnroll(c *gin.Context) {
 
 	}
 
+	// temporary, pass args explicitly as well
 	db := GetDB(c)
 
-	host, err := EnrollHost(db, body.HostIdentifier, "", "", "")
+	// TODO make config value explicit
+	nodeKeySize := viper.GetInt("osquery.node_key_size")
+	host, err := db.EnrollHost(body.HostIdentifier, "", "", "", nodeKeySize)
 	if err != nil {
 		errors.ReturnOsqueryError(c, errors.DatabaseError(err))
 		return
@@ -345,32 +161,8 @@ func OsqueryConfig(c *gin.Context) {
 		})
 }
 
-// Authenticate a (post-enrollment) TLS request from osqueryd. To do this we
-// verify that the provided node key is valid.
-func authenticateRequest(db *gorm.DB, nodeKey string) error {
-	host := Host{NodeKey: nodeKey}
-	err := db.Where(&host).First(&host).Error
-	if err != nil {
-		switch err {
-		case gorm.ErrRecordNotFound:
-			e := errors.NewFromError(
-				err,
-				http.StatusUnauthorized,
-				"Unauthorized",
-			)
-			// osqueryd expects the literal string "true" here
-			e.Extra = map[string]interface{}{"node_invalid": "true"}
-			return e
-		default:
-			return errors.DatabaseError(err)
-		}
-	}
-
-	return nil
-}
-
 // Unmarshal the status logs before sending them to the status log handler
-func (h *OsqueryHandler) handleStatusLogs(db *gorm.DB, data *json.RawMessage, nodeKey string) error {
+func (h *OsqueryHandler) handleStatusLogs(data *json.RawMessage, nodeKey string) error {
 	var statuses []OsqueryStatusLog
 	if err := json.Unmarshal(*data, &statuses); err != nil {
 		return errors.NewFromError(err, http.StatusBadRequest, "JSON parse error")
@@ -388,7 +180,7 @@ func (h *OsqueryHandler) handleStatusLogs(db *gorm.DB, data *json.RawMessage, no
 }
 
 // Unmarshal the result logs before sending them to the result log handler
-func (h *OsqueryHandler) handleResultLogs(db *gorm.DB, data *json.RawMessage, nodeKey string) error {
+func (h *OsqueryHandler) handleResultLogs(data *json.RawMessage, nodeKey string) error {
 	var results []OsqueryResultLog
 	if err := json.Unmarshal(*data, &results); err != nil {
 		return errors.NewFromError(err, http.StatusBadRequest, "JSON parse error")
@@ -405,18 +197,6 @@ func (h *OsqueryHandler) handleResultLogs(db *gorm.DB, data *json.RawMessage, no
 	return nil
 }
 
-// Set the update time for the provided host to indicate that it has
-// successfully checked in.
-func updateLastSeen(db *gorm.DB, host *Host) error {
-	updateTime := time.Now()
-	err := db.Exec("UPDATE hosts SET updated_at=? WHERE node_key=?", updateTime, host.NodeKey).Error
-	if err != nil {
-		return errors.DatabaseError(err)
-	}
-	host.UpdatedAt = updateTime
-	return nil
-}
-
 // Endpoint used by the osqueryd TLS logger plugin
 func (h *OsqueryHandler) OsqueryLog(c *gin.Context) {
 	var body OsqueryLogPostBody
@@ -428,7 +208,7 @@ func (h *OsqueryHandler) OsqueryLog(c *gin.Context) {
 
 	db := GetDB(c)
 
-	err = authenticateRequest(db, body.NodeKey)
+	_, err = db.AuthenticateHost(body.NodeKey)
 	if err != nil {
 		errors.ReturnOsqueryError(c, err)
 		return
@@ -436,10 +216,10 @@ func (h *OsqueryHandler) OsqueryLog(c *gin.Context) {
 
 	switch body.LogType {
 	case "status":
-		err = h.handleStatusLogs(db, body.Data, body.NodeKey)
+		err = h.handleStatusLogs(body.Data, body.NodeKey)
 
 	case "result":
-		err = h.handleResultLogs(db, body.Data, body.NodeKey)
+		err = h.handleResultLogs(body.Data, body.NodeKey)
 
 	default:
 		err = errors.NewWithStatus(
@@ -454,7 +234,7 @@ func (h *OsqueryHandler) OsqueryLog(c *gin.Context) {
 		return
 	}
 
-	err = updateLastSeen(db, &Host{NodeKey: body.NodeKey})
+	err = db.UpdateLastSeen(&kolide.Host{NodeKey: body.NodeKey})
 
 	if err != nil {
 		errors.ReturnOsqueryError(c, err)

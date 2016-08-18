@@ -1,15 +1,9 @@
 package app
 
 import (
-	"bytes"
-	"encoding/json"
-	"io/ioutil"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"github.com/kolide/kolide-ose/sessions"
 )
 
 func TestGetEmailSubject(t *testing.T) {
@@ -56,119 +50,6 @@ func (w *mockResponseWriter) Write([]byte) (int, error) {
 }
 
 func (w *mockResponseWriter) WriteHeader(int) {
-}
-
-func TestUnauthenticatedPasswordReset(t *testing.T) {
-	db := openTestDB(t)
-	pool := newMockSMTPConnectionPool()
-	r := CreateServer(db, pool, &testLogger{t: t}, &OsqueryLogWriter{Writer: ioutil.Discard}, &OsqueryLogWriter{Writer: ioutil.Discard})
-	admin, _ := NewUser(db, "admin", "foobar", "admin@kolide.co", true, false)
-
-	{
-		response := httptest.NewRecorder()
-		body, _ := json.Marshal(&ResetPasswordRequestBody{
-			ID: admin.ID,
-		})
-
-		buff := new(bytes.Buffer)
-		buff.Write(body)
-		req, _ := http.NewRequest("POST", "/api/v1/kolide/user/password/reset", buff)
-		req.Header.Set("Content-Type", "application/json")
-		r.ServeHTTP(response, req)
-	}
-
-	if len(pool.Emails) != 0 {
-		t.Fatal("Email was sent")
-	}
-
-	{
-		response := httptest.NewRecorder()
-		body, _ := json.Marshal(&ResetPasswordRequestBody{
-			ID:    admin.ID,
-			Email: admin.Email,
-		})
-
-		buff := new(bytes.Buffer)
-		buff.Write(body)
-		req, _ := http.NewRequest("POST", "/api/v1/kolide/user/password/reset", buff)
-		req.Header.Set("Content-Type", "application/json")
-		r.ServeHTTP(response, req)
-
-		if response.Code != 200 {
-			t.Fatalf("Response code: %d", response.Code)
-		}
-	}
-
-	if len(pool.Emails) != 1 {
-		t.Fatal("Email was not sent")
-	}
-
-	e := pool.Emails[0]
-	if e.To[0] != admin.Email {
-		t.Fatalf("Email is going to the wrong address: %s", e.To)
-	}
-
-	verify := User{
-		ID: admin.ID,
-	}
-	db.Find(&verify).First(&verify)
-	if verify.NeedsPasswordReset {
-		t.Fatal("User should not need password reset")
-	}
-}
-
-func TestAuthenticatedPasswordReset(t *testing.T) {
-	db := openTestDB(t)
-	pool := newMockSMTPConnectionPool()
-	r := CreateServer(db, pool, &testLogger{t: t}, &OsqueryLogWriter{Writer: ioutil.Discard}, &OsqueryLogWriter{Writer: ioutil.Discard})
-	admin, _ := NewUser(db, "admin", "foobar", "admin@kolide.co", true, false)
-	request, _ := http.NewRequest("GET", "/", nil)
-	writer := newMockResponseWriter()
-	sm := sessions.SessionManager{
-		Backend: &sessions.GormSessionBackend{DB: db},
-		Request: request,
-		Writer:  writer,
-	}
-	sm.MakeSessionForUserID(admin.ID)
-	sm.Save()
-
-	adminCookie := writer.Header()["Set-Cookie"][0]
-
-	response := httptest.NewRecorder()
-	body, err := json.Marshal(&ResetPasswordRequestBody{
-		Username: admin.Username,
-	})
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-
-	buff := new(bytes.Buffer)
-	buff.Write(body)
-	req, _ := http.NewRequest("POST", "/api/v1/kolide/user/password/reset", buff)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Cookie", adminCookie)
-	r.ServeHTTP(response, req)
-
-	if response.Code != 200 {
-		t.Fatalf("Response code: %d", response.Code)
-	}
-
-	if len(pool.Emails) != 1 {
-		t.Fatal("Email was not sent")
-	}
-
-	e := pool.Emails[0]
-	if e.To[0] != admin.Email {
-		t.Fatalf("Email is going to the wrong address: %s", e.To)
-	}
-
-	verify := User{
-		ID: admin.ID,
-	}
-	db.Find(&verify).First(&verify)
-	if !verify.NeedsPasswordReset {
-		t.Fatal("User should need password reset")
-	}
 }
 
 func TestSendEmail(t *testing.T) {
