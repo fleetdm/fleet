@@ -208,24 +208,22 @@ var dbCmd = &cobra.Command{
 	Short: "Given correct database configurations, prepare the databases for use",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		var err error
-		var db datastore.Datastore // app datastore
-		{
-			user := viper.GetString("mysql.username")
-			password := viper.GetString("mysql.password")
-			host := viper.GetString("mysql.address")
-			dbName := viper.GetString("mysql.database")
-			connString := fmt.Sprintf("%s:%s@(%s)/%s?charset=utf8&parseTime=True&loc=Local", user, password, host, dbName)
-			db, err = datastore.New("gorm", connString)
-			if err != nil {
-				logrus.WithError(err).Fatal("error creating db conn")
-			}
+		connString := fmt.Sprintf(
+			"%s:%s@(%s)/%s?charset=utf8&parseTime=True&loc=Local",
+			viper.GetString("mysql.username"),
+			viper.GetString("mysql.password"),
+			viper.GetString("mysql.address"),
+			viper.GetString("mysql.database"),
+		)
+		ds, err := datastore.New("gorm", connString)
+		if err != nil {
+			logrus.WithError(err).Fatal("error creating db connection")
 		}
-		if err := db.Drop(); err != nil {
+		if err := ds.Drop(); err != nil {
 			logrus.WithError(err).Fatal("error dropping db tables")
 		}
 
-		if err := db.Migrate(); err != nil {
+		if err := ds.Migrate(); err != nil {
 			logrus.WithError(err).Fatal("error setting up db schema")
 		}
 	},
