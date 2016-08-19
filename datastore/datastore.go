@@ -10,7 +10,7 @@ import (
 // Datastore combines all the interfaces in the Kolide DAL
 type Datastore interface {
 	kolide.UserStore
-	kolide.HostStore
+	kolide.OsqueryStore
 	kolide.EmailStore
 	kolide.SessionStore
 	Name() string

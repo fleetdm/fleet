@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
@@ -234,7 +235,7 @@ func (h *OsqueryHandler) OsqueryLog(c *gin.Context) {
 		return
 	}
 
-	err = db.UpdateLastSeen(&kolide.Host{NodeKey: body.NodeKey})
+	err = db.MarkHostSeen(&kolide.Host{NodeKey: body.NodeKey}, time.Now())
 
 	if err != nil {
 		errors.ReturnOsqueryError(c, err)

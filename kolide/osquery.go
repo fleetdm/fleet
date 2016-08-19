@@ -2,6 +2,51 @@ package kolide
 
 import "time"
 
+// HostStore enrolls hosts in the datastore
+type OsqueryStore interface {
+	// Host methods
+	EnrollHost(uuid, hostname, ip, platform string, nodeKeySize int) (*Host, error)
+	AuthenticateHost(nodeKey string) (*Host, error)
+	MarkHostSeen(host *Host, t time.Time) error
+	LabelQueriesForHost(host *Host, cutoff time.Time) (map[string]string, error)
+
+	// Query methods
+	NewQuery(query *Query) error
+
+	// Label methods
+	NewLabel(label *Label) error
+}
+
+type Host struct {
+	ID        uint `gorm:"primary_key"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	NodeKey   string `gorm:"unique_index:idx_host_unique_nodekey"`
+	HostName  string
+	UUID      string `gorm:"unique_index:idx_host_unique_uuid"`
+	IPAddress string
+	Platform  string
+	Labels    []*Label `gorm:"many2many:host_labels;"`
+}
+
+type Label struct {
+	ID        uint `gorm:"primary_key"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Name      string `gorm:"not null;unique_index:idx_label_unique_name"`
+	QueryID   uint
+	Hosts     []Host
+}
+
+type LabelQueryExecution struct {
+	ID        uint `gorm:"primary_key"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Matches   bool
+	LabelID   uint
+	HostID    uint
+}
+
 type ScheduledQuery struct {
 	ID           uint `gorm:"primary_key"`
 	CreatedAt    time.Time
@@ -12,7 +57,6 @@ type ScheduledQuery struct {
 	Interval     uint `gorm:"not null"`
 	Snapshot     bool
 	Differential bool
-	Platform     string
 	PackID       uint
 }
 
@@ -20,6 +64,7 @@ type Query struct {
 	ID        uint `gorm:"primary_key"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	Platform  string
 	Query     string   `gorm:"not null"`
 	Targets   []Target `gorm:"many2many:query_targets"`
 }
@@ -116,4 +161,12 @@ type Decorator struct {
 	Type      DecoratorType `gorm:"not null"`
 	Interval  int
 	Query     string
+}
+
+// GetLabelQueriesForHost calculates the appropriate update cutoff (given
+// interval) and uses the datastore to retrieve the label queries for the
+// provided host.
+func LabelQueriesForHost(store OsqueryStore, host *Host, interval time.Duration) (map[string]string, error) {
+	cutoff := time.Now().Add(-interval)
+	return store.LabelQueriesForHost(host, cutoff)
 }

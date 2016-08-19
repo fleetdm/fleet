@@ -25,6 +25,7 @@ var tables = [...]interface{}{
 	&kolide.DiscoveryQuery{},
 	&kolide.Host{},
 	&kolide.Label{},
+	&kolide.LabelQueryExecution{},
 	&kolide.Option{},
 	&kolide.Decorator{},
 	&kolide.Target{},
@@ -154,9 +155,9 @@ func (orm gormDB) AuthenticateHost(nodeKey string) (*kolide.Host, error) {
 	return &host, nil
 }
 
-func (orm gormDB) UpdateLastSeen(host *kolide.Host) error {
+func (orm gormDB) MarkHostSeen(host *kolide.Host, t time.Time) error {
 	updateTime := time.Now()
-	err := orm.DB.Exec("UPDATE hosts SET updated_at=? WHERE node_key=?", updateTime, host.NodeKey).Error
+	err := orm.DB.Exec("UPDATE hosts SET updated_at=? WHERE node_key=?", t, host.NodeKey).Error
 	if err != nil {
 		return errors.DatabaseError(err)
 	}
@@ -318,6 +319,61 @@ func (orm gormDB) DestroyAllSessionsForUser(id uint) error {
 func (orm gormDB) MarkSessionAccessed(session *kolide.Session) error {
 	session.AccessedAt = time.Now().UTC()
 	return orm.DB.Save(session).Error
+}
+
+func (orm gormDB) NewQuery(query *kolide.Query) error {
+	if query == nil {
+		return errors.New(
+			"error creating query",
+			"nil pointer passed to NewQuery",
+		)
+	}
+	return orm.DB.Create(query).Error
+}
+
+func (orm gormDB) NewLabel(label *kolide.Label) error {
+	if label == nil {
+		return errors.New(
+			"error creating label",
+			"nil pointer passed to NewLabel",
+		)
+	}
+	return orm.DB.Create(label).Error
+}
+
+func (orm gormDB) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (map[string]string, error) {
+	if host == nil {
+		return nil, errors.New(
+			"error finding host queries",
+			"nil pointer passed to GetLabelQueriesForHost",
+		)
+	}
+	rows, err := orm.DB.Raw(`
+SELECT q.id, q.query
+FROM labels l JOIN queries q
+ON l.query_id = q.id
+WHERE q.platform = ?
+AND q.id NOT IN /* subtract the set of executions that are recent enough */
+(
+  SELECT l.query_id
+  FROM labels l
+  JOIN label_query_executions lqe
+  ON lqe.label_id = l.id
+  WHERE lqe.host_id = ? AND lqe.updated_at > ?
+)`, host.Platform, host.ID, cutoff).Rows()
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, errors.DatabaseError(err)
+	}
+	defer rows.Close()
+
+	results := make(map[string]string)
+	for rows.Next() {
+		var id, query string
+		rows.Scan(&id, &query)
+		results[id] = query
+	}
+
+	return results, nil
 }
 
 func (orm gormDB) Migrate() error {
