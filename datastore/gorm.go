@@ -7,9 +7,10 @@ import (
 	"net/http"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql" // db driver
+	_ "github.com/mattn/go-sqlite3"    // db driver
+
 	"github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm/dialects/mysql"
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/kolide/kolide-ose/errors"
 	"github.com/kolide/kolide-ose/kolide"
 	"github.com/spf13/viper"
@@ -61,6 +62,7 @@ func (orm gormDB) User(username string) (*kolide.User, error) {
 	return user, nil
 }
 
+// UserByID returns a datastore user given a user ID
 func (orm gormDB) UserByID(id uint) (*kolide.User, error) {
 	user := &kolide.User{ID: id}
 	err := orm.DB.Where(user).First(user).Error
@@ -306,12 +308,7 @@ func (orm gormDB) CreateSessionForUserID(userID uint) (*kolide.Session, error) {
 }
 
 func (orm gormDB) DestroySession(session *kolide.Session) error {
-	err := orm.DB.Delete(session).Error
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return orm.DB.Delete(session).Error
 }
 
 func (orm gormDB) DestroyAllSessionsForUser(id uint) error {
@@ -324,11 +321,12 @@ func (orm gormDB) MarkSessionAccessed(session *kolide.Session) error {
 }
 
 func (orm gormDB) Migrate() error {
-	var err error
 	for _, table := range tables {
-		err = orm.DB.AutoMigrate(table).Error
+		if err := orm.DB.AutoMigrate(table).Error; err != nil {
+			return err
+		}
 	}
-	return err
+	return nil
 }
 
 func (orm gormDB) Drop() error {

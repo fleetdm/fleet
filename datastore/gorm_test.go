@@ -20,6 +20,28 @@ func TestEnrollHostMySQLGORM(t *testing.T) {
 	testEnrollHost(t, db)
 }
 
+func TestAuthenticateHostMySQLGORM(t *testing.T) {
+	address := os.Getenv("MYSQL_ADDR")
+	if address == "" {
+		t.SkipNow()
+	}
+	db := setup(t)
+	defer teardown(t, db)
+
+	testAuthenticateHost(t, db)
+}
+
+func TestUserByIDMySQLGORM(t *testing.T) {
+	address := os.Getenv("MYSQL_ADDR")
+	if address == "" {
+		t.SkipNow()
+	}
+	db := setup(t)
+	defer teardown(t, db)
+
+	testUserByID(t, db)
+}
+
 // TestCreateUser tests the UserStore interface
 // this test uses the MySQL GORM backend
 func TestCreateUserMySQLGORM(t *testing.T) {

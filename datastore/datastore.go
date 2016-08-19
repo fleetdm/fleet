@@ -7,6 +7,7 @@ import (
 	"github.com/kolide/kolide-ose/kolide"
 )
 
+// Datastore combines all the interfaces in the Kolide DAL
 type Datastore interface {
 	kolide.UserStore
 	kolide.HostStore
