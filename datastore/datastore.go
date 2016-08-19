@@ -77,9 +77,9 @@ func New(driver, conn string, opts ...DBOption) (Datastore, error) {
 		return opt.db, nil
 	}
 
-	var db Datastore
+	var ds Datastore
 	switch driver {
-	case "gorm":
+	case "gorm-mysql":
 		db, err := openGORM("mysql", conn, opt.maxAttempts)
 		if err != nil {
 			return nil, errors.DatabaseError(err)
@@ -94,6 +94,21 @@ func New(driver, conn string, opts ...DBOption) (Datastore, error) {
 			return nil, errors.DatabaseError(err)
 		}
 		return ds, nil
+	case "gorm-sqlite3":
+		db, err := openGORM("sqlite3", conn, opt.maxAttempts)
+		if err != nil {
+			return nil, errors.DatabaseError(err)
+		}
+		// configure logger
+		if opt.logger != nil {
+			db.SetLogger(opt.logger)
+			db.LogMode(opt.debug)
+		}
+		ds := gormDB{DB: db}
+		if err := ds.Migrate(); err != nil {
+			return nil, errors.DatabaseError(err)
+		}
+		return ds, nil
 	}
-	return db, nil
+	return ds, nil
 }

@@ -15,8 +15,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	_ "github.com/jinzhu/gorm/dialects/mysql"
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/jordan-wright/email"
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/server"
@@ -166,7 +164,7 @@ $7777777....$....$777$.....+DI..DDD..DDI...8D...D8......$D:..8D....8D...8D......
 			viper.GetString("mysql.address"),
 			viper.GetString("mysql.database"),
 		)
-		ds, err := datastore.New("gorm", connString)
+		ds, err := datastore.New("gorm-mysql", connString)
 		if err != nil {
 			logrus.WithError(err).Fatal("error creating db connection")
 		}
@@ -215,7 +213,7 @@ var dbCmd = &cobra.Command{
 			viper.GetString("mysql.address"),
 			viper.GetString("mysql.database"),
 		)
-		ds, err := datastore.New("gorm", connString)
+		ds, err := datastore.New("gorm-mysql", connString)
 		if err != nil {
 			logrus.WithError(err).Fatal("error creating db connection")
 		}

@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/mysql"
+	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/kolide/kolide-ose/errors"
 	"github.com/kolide/kolide-ose/kolide"
 	"github.com/spf13/viper"
