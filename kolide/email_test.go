@@ -1,7 +1,6 @@
-package app
+package kolide
 
 import (
-	"net/http"
 	"strings"
 	"testing"
 )
@@ -29,27 +28,6 @@ func TestGetEmailBody(t *testing.T) {
 			t.Errorf("Body didn't start with Hi Foo!: %s", body)
 		}
 	}
-}
-
-type mockResponseWriter struct {
-	headers map[string][]string
-}
-
-func newMockResponseWriter() *mockResponseWriter {
-	return &mockResponseWriter{
-		headers: map[string][]string{},
-	}
-}
-
-func (w *mockResponseWriter) Header() http.Header {
-	return w.headers
-}
-
-func (w *mockResponseWriter) Write([]byte) (int, error) {
-	return 0, nil
-}
-
-func (w *mockResponseWriter) WriteHeader(int) {
 }
 
 func TestSendEmail(t *testing.T) {

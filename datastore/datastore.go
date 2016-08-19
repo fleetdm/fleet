@@ -5,13 +5,14 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/kolide/kolide-ose/errors"
 	"github.com/kolide/kolide-ose/kolide"
-	"github.com/kolide/kolide-ose/sessions"
 )
 
 type Datastore interface {
 	kolide.UserStore
 	kolide.HostStore
-	kolide.CampaignStore
+	kolide.EmailStore
+	kolide.SessionStore
+	Name() string
 	Drop() error
 	Migrate() error
 }
@@ -95,11 +96,4 @@ func New(driver, conn string, opts ...DBOption) (Datastore, error) {
 		return ds, nil
 	}
 	return db, nil
-}
-
-// NewSessionBackend creates a new session from a datastore
-// this function nis temporary
-func NewSessionBackend(ds Datastore) sessions.SessionBackend {
-	db := ds.(gormDB)
-	return &sessions.GormSessionBackend{DB: db.DB}
 }

@@ -1,48 +1,61 @@
-package sessions
+package kolide
 
 import (
 	"net/http"
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/dgrijalva/jwt-go"
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/kolide/kolide-ose/errors"
+	"github.com/spf13/viper"
 )
 
 const publicErrorMessage string = "Session error"
 
 var (
-	// An error returned by SessionBackend.Get() if no session record was found
+	// An error returned by SessionStore.Get() if no session record was found
 	// in the database
 	ErrNoActiveSession = errors.New(publicErrorMessage, "Active session is not present in the database")
 
-	// An error returned by SessionBackend methods when no session object has
+	// An error returned by SessionStore methods when no session object has
 	// been created yet but the requested action requires one
 	ErrSessionNotCreated = errors.New(publicErrorMessage, "The session has not been created")
 
-	// An error returned by SessionBackend.Get() when a session is requested but
+	// An error returned by SessionStore.Get() when a session is requested but
 	// it has expired
 	ErrSessionExpired = errors.New(publicErrorMessage, "The session has expired")
 
-	// An error returned by SessionBackend which indicates that the token
+	// An error returned by SessionStore which indicates that the token
 	// or it's content were malformed
 	ErrSessionMalformed = errors.New(publicErrorMessage, "The session token was malformed")
 )
 
-var (
-	// The name of the session cookie
-	CookieName = "Session"
+// SessionStore is the abstract interface that all session backends must
+// conform to.
+type SessionStore interface {
+	// Given a session key, find and return a session object or an error if one
+	// could not be found for the given key
+	FindSessionByKey(key string) (*Session, error)
 
-	// The key to be used to sign and verify JWTs
-	jwtKey = ""
+	// Given a session id, find and return a session object or an error if one
+	// could not be found for the given id
+	FindSessionByID(id uint) (*Session, error)
 
-	// The amount of random data, in bytes, which will be used to create each
-	// session key
-	SessionKeySize = 64
+	// Find all of the active sessions for a given user
+	FindAllSessionsForUser(id uint) ([]*Session, error)
 
-	// The amount of seconds that will pass before an inactive user is logged out
-	Lifespan = float64(60 * 60 * 24 * 90)
-)
+	// Create a session object tied to the given user ID
+	CreateSessionForUserID(userID uint) (*Session, error)
+
+	// Destroy the currently tracked session
+	DestroySession(session *Session) error
+
+	// Destroy all of the sessions for a given user
+	DestroyAllSessionsForUser(id uint) error
+
+	// Mark the currently tracked session as access to extend expiration
+	MarkSessionAccessed(session *Session) error
+}
 
 // Session is the model object which represents what an active session is
 type Session struct {
@@ -54,36 +67,13 @@ type Session struct {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Configuring the library
-////////////////////////////////////////////////////////////////////////////////
-
-type SessionConfiguration struct {
-	CookieName     string
-	JWTKey         string
-	SessionKeySize int
-	Lifespan       float64
-}
-
-func Configure(s *SessionConfiguration) {
-	CookieName = s.CookieName
-	jwtKey = s.JWTKey
-	SessionKeySize = s.SessionKeySize
-	Lifespan = s.Lifespan
-}
-
-// Set the name of the cookie
-func SetCookieName(name string) {
-	CookieName = name
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Managing sessions
 ////////////////////////////////////////////////////////////////////////////////
 
 // SessionManager is a management object which helps with the administration of
 // sessions within the application. Use NewSessionManager to create an instance
 type SessionManager struct {
-	Backend SessionBackend
+	Store   SessionStore
 	Request *http.Request
 	Writer  http.ResponseWriter
 	session *Session
@@ -91,7 +81,7 @@ type SessionManager struct {
 
 func (sm *SessionManager) Session() (*Session, error) {
 	if sm.session == nil {
-		cookie, err := sm.Request.Cookie(CookieName)
+		cookie, err := sm.Request.Cookie(viper.GetString("session.cookie_name"))
 		if err != nil {
 			switch err {
 			case http.ErrNoCookie:
@@ -128,7 +118,7 @@ func (sm *SessionManager) Session() (*Session, error) {
 			return nil, ErrSessionMalformed
 		}
 
-		session, err := sm.Backend.FindKey(sessionKey)
+		session, err := sm.Store.FindSessionByKey(sessionKey)
 		if err != nil {
 			switch err {
 			case ErrNoActiveSession:
@@ -150,7 +140,7 @@ func (sm *SessionManager) Session() (*Session, error) {
 // MakeSessionForUserID creates a session in the database for a given user id.
 // You must call Save() after calling this.
 func (sm *SessionManager) MakeSessionForUserID(id uint) error {
-	session, err := sm.Backend.Create(id)
+	session, err := sm.Store.CreateSessionForUserID(id)
 	if err != nil {
 		return err
 	}
@@ -169,7 +159,7 @@ func (sm *SessionManager) Save() error {
 
 	// TODO: set proper flags on cookie for maximum security
 	http.SetCookie(sm.Writer, &http.Cookie{
-		Name:  CookieName,
+		Name:  viper.GetString("session.cookie_name"),
 		Value: token,
 	})
 
@@ -179,8 +169,8 @@ func (sm *SessionManager) Save() error {
 // Destroy deletes the active session from the database and erases the session
 // instance from this object's access. You must call Save() after calling this.
 func (sm *SessionManager) Destroy() error {
-	if sm.Backend != nil {
-		err := sm.Backend.Destroy(sm.session)
+	if sm.Store != nil {
+		err := sm.Store.DestroySession(sm.session)
 		if err != nil {
 			return err
 		}
@@ -198,7 +188,7 @@ func GenerateJWT(sessionKey string) (string, error) {
 		"session_key": sessionKey,
 	})
 
-	return token.SignedString([]byte(jwtKey))
+	return token.SignedString([]byte(viper.GetString("auth.jwt_key")))
 }
 
 // ParseJWT attempts to parse a JWT token in serialized string form into a
@@ -209,6 +199,6 @@ func ParseJWT(token string) (*jwt.Token, error) {
 		if !ok || method != jwt.SigningMethodHS256 {
 			return nil, errors.New(publicErrorMessage, "Unexpected signing method")
 		}
-		return []byte(jwtKey), nil
+		return []byte(viper.GetString("auth.jwt_key")), nil
 	})
 }

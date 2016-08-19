@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"net/http"
 	"net/smtp"
 	"os"
 	"path"
@@ -14,12 +15,11 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/gin-gonic/gin"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/jordan-wright/email"
-	"github.com/kolide/kolide-ose/app"
 	"github.com/kolide/kolide-ose/datastore"
+	"github.com/kolide/kolide-ose/server"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
@@ -76,6 +76,7 @@ Available Configurations:
   session:
       key_size           (int)     (KOLIDE_SESSION_KEY_SIZE)
       expiration_seconds (float64) (KOLIDE_SESSION_EXPIRATION_SECONDS)
+      cookie_name	     (string)  (KOLIDE_SESSION_COOKIE_NAME)
   osquery:
       enroll_secret      (string)  (KOLIDE_OSQUERY_ENROLL_SECRET)
       node_key_size      (int)     (KOLIDE_OSQUERY_NODE_KEY_SIZE)
@@ -139,7 +140,7 @@ $7777777....$....$777$.....+DI..DDD..DDI...8D...D8......$D:..8D....8D...8D......
 		}
 
 		resultFile := viper.GetString("osquery.result_log_file")
-		resultHandler := &app.OsqueryLogWriter{
+		resultHandler := &server.OsqueryLogWriter{
 			Writer: &lumberjack.Logger{
 				Filename:   resultFile,
 				MaxSize:    500, // megabytes
@@ -149,7 +150,7 @@ $7777777....$....$777$.....+DI..DDD..DDI...8D...D8......$D:..8D....8D...8D......
 		}
 
 		statusFile := viper.GetString("osquery.status_log_file")
-		statusHandler := &app.OsqueryLogWriter{
+		statusHandler := &server.OsqueryLogWriter{
 			Writer: &lumberjack.Logger{
 				Filename:   statusFile,
 				MaxSize:    500, // megabytes
@@ -158,32 +159,31 @@ $7777777....$....$777$.....+DI..DDD..DDI...8D...D8......$D:..8D....8D...8D......
 			},
 		}
 
-		var ds datastore.Datastore
-		{
-			user := viper.GetString("mysql.username")
-			password := viper.GetString("mysql.password")
-			host := viper.GetString("mysql.address")
-			dbName := viper.GetString("mysql.database")
-			connString := fmt.Sprintf("%s:%s@(%s)/%s?charset=utf8&parseTime=True&loc=Local", user, password, host, dbName)
-			ds, err = datastore.New("gorm", connString)
-			if err != nil {
-				logrus.WithError(err).Fatal("error creating db conn")
-			}
+		connString := fmt.Sprintf(
+			"%s:%s@(%s)/%s?charset=utf8&parseTime=True&loc=Local",
+			viper.GetString("mysql.username"),
+			viper.GetString("mysql.password"),
+			viper.GetString("mysql.address"),
+			viper.GetString("mysql.database"),
+		)
+		ds, err := datastore.New("gorm", connString)
+		if err != nil {
+			logrus.WithError(err).Fatal("error creating db connection")
 		}
-		sessionBackend := datastore.NewSessionBackend(ds)
-		err = app.CreateServer(
-			sessionBackend,
+
+		handler := server.CreateServer(
 			ds,
 			smtpConnectionPool,
 			os.Stderr,
 			resultHandler,
 			statusHandler,
-		).RunTLS(
+		)
+		err = http.ListenAndServeTLS(
 			viper.GetString("server.address"),
 			viper.GetString("server.cert"),
 			viper.GetString("server.key"),
+			handler,
 		)
-
 		if err != nil {
 			logrus.WithError(err).Fatal("Error running server")
 		}
@@ -282,6 +282,7 @@ func initConfig() {
 
 	setDefaultConfigValue("app.web_address", "0.0.0.0:8080")
 
+	setDefaultConfigValue("auth.jwt_key", "CHANGEME")
 	setDefaultConfigValue("auth.bcrypt_cost", 12)
 	setDefaultConfigValue("auth.salt_key_size", 24)
 
@@ -291,6 +292,7 @@ func initConfig() {
 
 	setDefaultConfigValue("session.key_size", 64)
 	setDefaultConfigValue("session.expiration_seconds", 60*60*24*90)
+	setDefaultConfigValue("session.cookie_name", "KolideSession")
 
 	setDefaultConfigValue("osquery.node_key_size", 24)
 	setDefaultConfigValue("osquery.status_log_file", "/tmp/osquery_status")
@@ -332,8 +334,6 @@ func (hook logContextHook) Fire(entry *logrus.Entry) error {
 }
 
 func init() {
-	gin.SetMode(gin.ReleaseMode)
-
 	logrus.AddHook(logContextHook{})
 
 	rand.Seed(time.Now().UnixNano())

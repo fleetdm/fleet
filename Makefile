@@ -8,7 +8,7 @@ else
 endif
 
 generate: .prefix
-	go-bindata -pkg=app -o=app/bindata.go frontend/templates/ build/
+	go-bindata -pkg=server -o=server/bindata.go frontend/templates/ build/
 	$(WEBPACK) --progress --colors --bail
 
 deps:
