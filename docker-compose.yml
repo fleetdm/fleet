@@ -13,3 +13,15 @@ mailhog:
   ports:
     - "8025:8025"
     - "1025:1025"
+
+test:
+    image: kolide/kolide-builder:1.6
+    environment:
+        MYSQL_ADDR: 127.0.0.1
+    links:
+        - mysql
+        - mailhog
+    command:
+        - -C
+    volumes:
+        - ./:/go/src/github.com/kolide/kolide-ose

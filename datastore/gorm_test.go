@@ -69,14 +69,19 @@ func TestSaveUserMySQLGORM(t *testing.T) {
 }
 
 func setupMySQLGORM(t *testing.T) Datastore {
-	// TODO use ENV vars from docker config
 	user := "kolide"
 	password := "kolide"
-	host := "127.0.0.1:3306"
 	dbName := "kolide"
 
+	// try container first
+	host := os.Getenv("MYSQL_PORT_3306_TCP_ADDR")
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	host = fmt.Sprintf("%s:3306", host)
+
 	conn := fmt.Sprintf("%s:%s@(%s)/%s?charset=utf8&parseTime=True&loc=Local", user, password, host, dbName)
-	db, err := New("gorm", conn, LimitAttempts(1))
+	db, err := New("gorm-mysql", conn, LimitAttempts(1))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -78,7 +78,6 @@ func New(driver, conn string, opts ...DBOption) (Datastore, error) {
 		return opt.db, nil
 	}
 
-	var ds Datastore
 	switch driver {
 	case "gorm-mysql":
 		db, err := openGORM("mysql", conn, opt.maxAttempts)
@@ -110,6 +109,7 @@ func New(driver, conn string, opts ...DBOption) (Datastore, error) {
 			return nil, errors.DatabaseError(err)
 		}
 		return ds, nil
+	default:
+		return nil, errors.New("unsupported datastore driver %s", driver)
 	}
-	return ds, nil
 }

@@ -1,16 +1,17 @@
 machine:
-  environment:
-    IMPORT_PATH: "/home/ubuntu/.go_workspace/src/github.com/kolide"
-    APP_PATH: "$IMPORT_PATH/kolide-ose"
-    GO15VENDOREXPERIMENT: 1
-dependencies:
-  override:
-    - make deps
-    - go generate
-test:
   pre:
-    - mkdir -p "$IMPORT_PATH"
-    - ln -sf "$(pwd)" "$APP_PATH"
-    - cd "$APP_PATH" && glide install
+    - sudo curl -L -o /usr/bin/docker 'https://s3-external-1.amazonaws.com/circle-downloads/docker-1.9.1-circleci'
+    - sudo chmod 0755 /usr/bin/docker
+  services:
+    - docker
+
+dependencies:
+  pre:
+    - docker info
+    - docker login -e $DOCKER_HUB_EMAIL -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
   override:
-    - cd "$APP_PATH" && go test -cover $(glide nv)
+    - docker pull kolide/kolide-builder:1.6
+
+test:
+  override:
+      - docker run -v $(pwd):/go/src/github.com/kolide/kolide-ose -v /home/ubuntu/.go_workspace/pkg:/go/pkg kolide/kolide-builder:1.6 -C
