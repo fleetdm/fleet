@@ -18,6 +18,8 @@ type EmailStore interface {
 
 	FindPassswordResetByID(id uint) (*PasswordResetRequest, error)
 
+	FindPassswordResetsByUserID(id uint) ([]*PasswordResetRequest, error)
+
 	FindPassswordResetByToken(token string) (*PasswordResetRequest, error)
 
 	FindPassswordResetByTokenAndUserID(token string, id uint) (*PasswordResetRequest, error)
@@ -43,20 +45,20 @@ type SMTPConnectionPool interface {
 	Close()
 }
 
-type mockSMTPConnectionPool struct {
+type MockSMTPConnectionPool struct {
 	Emails []*email.Email
 }
 
-func newMockSMTPConnectionPool() *mockSMTPConnectionPool {
-	return &mockSMTPConnectionPool{}
+func NewMockSMTPConnectionPool() *MockSMTPConnectionPool {
+	return &MockSMTPConnectionPool{}
 }
 
-func (pool *mockSMTPConnectionPool) Send(e *email.Email, timeout time.Duration) error {
+func (pool *MockSMTPConnectionPool) Send(e *email.Email, timeout time.Duration) error {
 	pool.Emails = append(pool.Emails, e)
 	return nil
 }
 
-func (pool *mockSMTPConnectionPool) Close() {}
+func (pool *MockSMTPConnectionPool) Close() {}
 
 func SendEmail(pool SMTPConnectionPool, to, subject string, html, text []byte) error {
 	e := email.Email{
@@ -78,7 +80,7 @@ func SendEmail(pool SMTPConnectionPool, to, subject string, html, text []byte) e
 func GetEmailBody(t EmailType, params interface{}) (html []byte, text []byte, err error) {
 	switch t {
 	case PasswordResetEmail:
-		resetParams, ok := params.(*PasswordResetRequestEmailParameters)
+		resetParams, ok := params.(PasswordResetRequestEmailParameters)
 		if !ok {
 			err = errors.New("Couldn't get email body", "Parameters were of incorrect type")
 			return
@@ -130,8 +132,11 @@ type PasswordResetRequest struct {
 
 // NewPasswordResetRequest creates a password reset email campaign
 func NewPasswordResetRequest(db EmailStore, userID uint, expires time.Time) (*PasswordResetRequest, error) {
-
-	token, err := generateRandomText(viper.GetInt("smtp.token_key_size"))
+	keySize := viper.GetInt("smtp.token_key_size")
+	if keySize == 0 {
+		keySize = 24
+	}
+	token, err := generateRandomText(keySize)
 	if err != nil {
 		return nil, err
 	}

@@ -142,7 +142,7 @@ func (sm *SessionManager) Session() (*Session, error) {
 func (sm *SessionManager) MakeSessionForUserID(id uint) error {
 	session, err := sm.Store.CreateSessionForUserID(id)
 	if err != nil {
-		return err
+		return errors.New("Session error", "Error creating session via the store")
 	}
 	sm.session = session
 	return nil
@@ -152,29 +152,47 @@ func (sm *SessionManager) MakeSessionForUserID(id uint) error {
 // to the user. Save must be called after every write action on this struct
 // (MakeSessionForUser, Destroy, etc.)
 func (sm *SessionManager) Save() error {
-	token, err := GenerateJWT(sm.session.Key)
-	if err != nil {
-		return err
+	var token string
+	var err error
+	if sm.session != nil {
+		token, err = GenerateJWT(sm.session.Key)
+		if err != nil {
+			return err
+		}
 	}
 
 	// TODO: set proper flags on cookie for maximum security
-	http.SetCookie(sm.Writer, &http.Cookie{
-		Name:  viper.GetString("session.cookie_name"),
-		Value: token,
-	})
+	cookieName := viper.GetString("session.cookie_name")
+	if cookieName == "" {
+		cookieName = "KolideSession"
+	}
 
-	return nil
+	cookie := &http.Cookie{
+		Name:  cookieName,
+		Value: token,
+	}
+	http.SetCookie(sm.Writer, cookie)
+
+	return err
 }
 
 // Destroy deletes the active session from the database and erases the session
 // instance from this object's access. You must call Save() after calling this.
 func (sm *SessionManager) Destroy() error {
-	if sm.Store != nil {
+	_, err := sm.Session()
+	if err != nil {
+		return err
+	}
+
+	if sm.Store != nil && sm.session != nil {
 		err := sm.Store.DestroySession(sm.session)
 		if err != nil {
 			return err
 		}
 	}
+
+	sm.session = nil
+
 	return nil
 }
 

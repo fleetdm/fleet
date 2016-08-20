@@ -16,7 +16,7 @@ func TestGetEmailSubject(t *testing.T) {
 }
 
 func TestGetEmailBody(t *testing.T) {
-	html, text, err := GetEmailBody(PasswordResetEmail, &PasswordResetRequestEmailParameters{
+	html, text, err := GetEmailBody(PasswordResetEmail, PasswordResetRequestEmailParameters{
 		Name:  "Foo",
 		Token: "1234",
 	})
@@ -31,7 +31,7 @@ func TestGetEmailBody(t *testing.T) {
 }
 
 func TestSendEmail(t *testing.T) {
-	pool := newMockSMTPConnectionPool()
+	pool := NewMockSMTPConnectionPool()
 	err := SendEmail(pool, "mike@kolide.co", "hi", []byte("<p>hey</p>"), []byte("hey"))
 	if err != nil {
 		t.Fatal(err.Error())

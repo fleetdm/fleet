@@ -258,7 +258,6 @@ func ModifyUser(c *gin.Context) {
 // swagger:parameters ChangeUserPassword
 type ChangePasswordRequestBody struct {
 	ID                 uint   `json:"id"`
-	Username           string `json:"username"`
 	CurrentPassword    string `json:"current_password"`
 	PasswordResetToken string `json:"password_reset_token"`
 	NewPassword        string `json:"new_password" validate:"required"`
@@ -296,7 +295,7 @@ func ChangeUserPassword(c *gin.Context) {
 	}
 
 	if body.NewPassword != body.NewPasswordConfim {
-		c.JSON(406, map[string]interface{}{"error": "Passwords do not match"})
+		errors.ReturnError(c, errors.NewWithStatus(http.StatusBadRequest, "Submitted passwords do not match", ""))
 		return
 	}
 
@@ -380,9 +379,8 @@ func ChangeUserPassword(c *gin.Context) {
 
 // swagger:parameters SetUserAdminState
 type SetUserAdminStateRequestBody struct {
-	ID       uint   `json:"id"`
-	Username string `json:"username"`
-	Admin    bool   `json:"admin"`
+	ID    uint `json:"id"`
+	Admin bool `json:"admin"`
 }
 
 // swagger:route PATCH /api/v1/kolide/user/admin SetUserAdminState
@@ -447,7 +445,6 @@ func SetUserAdminState(c *gin.Context) {
 // swagger:parameters SetUserEnabledState
 type SetUserEnabledStateRequestBody struct {
 	ID              uint   `json:"id"`
-	Username        string `json:"username"`
 	Enabled         bool   `json:"enabled"`
 	CurrentPassword string `json:"current_password"`
 }
@@ -526,291 +523,6 @@ func SetUserEnabledState(c *gin.Context) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Session management HTTP endpoints
-////////////////////////////////////////////////////////////////////////////////
-
-// swagger:parameters DeleteSession
-type DeleteSessionRequestBody struct {
-	SessionID uint `json:"session_id" validate:"required"`
-}
-
-// swagger:route DELETE /api/v1/kolide/session DeleteSession
-//
-// Delete a specific session, as specified by the session's ID.
-//
-// This API allows for the requester to delete a specific session. Note that the
-// API expects the session ID as the parameter, not the session key.
-//
-//     Consumes:
-//     - application/json
-//
-//     Produces:
-//     - application/json
-//
-//     Schemes: https
-//
-//     Security:
-//       authenticated: yes
-//
-//     Responses:
-//       200: nil
-func DeleteSession(c *gin.Context) {
-	var body DeleteSessionRequestBody
-	err := ParseAndValidateJSON(c, &body)
-	if err != nil {
-		errors.ReturnError(c, err)
-		return
-	}
-
-	vc := VC(c)
-	if !vc.CanPerformActions() {
-		UnauthorizedError(c)
-		return
-	}
-
-	db := GetDB(c)
-
-	session, err := db.FindSessionByID(body.SessionID)
-	if err != nil {
-		errors.ReturnError(c, errors.DatabaseError(err))
-		return
-	}
-
-	user, err := db.UserByID(session.UserID)
-	if err != nil {
-		errors.ReturnError(c, errors.DatabaseError(err))
-		return
-	}
-
-	if !vc.CanPerformWriteActionOnUser(user) {
-		UnauthorizedError(c)
-		return
-	}
-
-	err = db.DestroySession(session)
-	if err != nil {
-		errors.ReturnError(c, errors.DatabaseError(err))
-		return
-	}
-
-	c.JSON(http.StatusOK, nil)
-}
-
-// swagger:parameters DeleteSessionsForUser
-type DeleteSessionsForUserRequestBody struct {
-	ID       uint   `json:"id"`
-	Username string `json:"username"`
-}
-
-// swagger:route DELETE /api/v1/kolide/user/sessions DeleteSessionsForUser
-//
-// Delete all of a user's active sessions
-//
-// This API allows an admin to delete all active sessions that are known to
-// belong to a specific user. This effectively logs out the user on all
-// devices.
-//
-//     Consumes:
-//     - application/json
-//
-//     Produces:
-//     - application/json
-//
-//     Schemes: https
-//
-//     Security:
-//       authenticated: yes
-//
-//     Responses:
-//       200: nil
-func DeleteSessionsForUser(c *gin.Context) {
-	var body DeleteSessionsForUserRequestBody
-	err := ParseAndValidateJSON(c, &body)
-	if err != nil {
-		errors.ReturnError(c, err)
-		return
-	}
-
-	vc := VC(c)
-	if !vc.CanPerformActions() {
-		UnauthorizedError(c)
-		return
-	}
-
-	db := GetDB(c)
-	user, err := db.UserByID(body.ID)
-	if err != nil {
-		errors.ReturnError(c, errors.DatabaseError(err))
-		return
-	}
-
-	if !vc.CanPerformWriteActionOnUser(user) {
-		UnauthorizedError(c)
-		return
-	}
-
-	err = db.DestroyAllSessionsForUser(user.ID)
-	if err != nil {
-		errors.ReturnError(c, errors.DatabaseError(err))
-		return
-	}
-
-	c.JSON(http.StatusOK, nil)
-
-}
-
-// swagger:parameters GetInfoAboutSession
-type GetInfoAboutSessionRequestBody struct {
-	SessionKey string `json:"session_key" validate:"required"`
-}
-
-// swagger:response SessionInfoResponseBody
-type SessionInfoResponseBody struct {
-	SessionID  uint      `json:"session_id"`
-	UserID     uint      `json:"user_id"`
-	CreatedAt  time.Time `json:"created_at"`
-	AccessedAt time.Time `json:"created_at"`
-}
-
-// swagger:route POST /api/v1/kolide/session GetInfoAboutSession
-//
-// Get information on a session, given a session key.
-//
-// Using this API will allow the requester to inspect and get info on
-// an active session, given the session key.
-//
-//     Consumes:
-//     - application/json
-//
-//     Produces:
-//     - application/json
-//
-//     Schemes: https
-//
-//     Security:
-//       authenticated: yes
-//
-//     Responses:
-//       200: SessionInfoResponseBody
-func GetInfoAboutSession(c *gin.Context) {
-	var body GetInfoAboutSessionRequestBody
-	err := ParseAndValidateJSON(c, &body)
-	if err != nil {
-		errors.ReturnError(c, err)
-		return
-	}
-
-	vc := VC(c)
-	if !vc.CanPerformActions() {
-		UnauthorizedError(c)
-		return
-	}
-
-	db := GetDB(c)
-	session, err := db.FindSessionByKey(body.SessionKey)
-	if err != nil {
-		errors.ReturnError(c, errors.DatabaseError(err))
-		return
-	}
-
-	user, err := db.UserByID(session.UserID)
-	if err != nil {
-		errors.ReturnError(c, errors.DatabaseError(err))
-		return
-	}
-
-	if !vc.IsAdmin() && !vc.IsUserID(user.ID) {
-		UnauthorizedError(c)
-		return
-	}
-
-	c.JSON(http.StatusOK, &SessionInfoResponseBody{
-		SessionID:  session.ID,
-		UserID:     session.UserID,
-		CreatedAt:  session.CreatedAt,
-		AccessedAt: session.AccessedAt,
-	})
-}
-
-// swagger:parameters GetInfoAboutSessionsForUser
-type GetInfoAboutSessionsForUserRequestBody struct {
-	ID       uint   `json:"id"`
-	Username string `json:"username"`
-}
-
-// swagger:response GetInfoAboutSessionsForUserResponseBody
-type GetInfoAboutSessionsForUserResponseBody struct {
-	Sessions []SessionInfoResponseBody `json:"sessions"`
-}
-
-// swagger:route POST /api/v1/kolide/user/sessions GetInfoAboutSessionsForUser
-//
-// Get information on a user's sessions
-//
-// Using this API will allow an admin to inspect and get info on all of a user's
-// active session.
-//
-//     Consumes:
-//     - application/json
-//
-//     Produces:
-//     - application/json
-//
-//     Schemes: https
-//
-//     Security:
-//       authenticated: yes
-//
-//     Responses:
-//       200: GetInfoAboutSessionsForUserResponseBody
-func GetInfoAboutSessionsForUser(c *gin.Context) {
-	var body GetInfoAboutSessionsForUserRequestBody
-	err := ParseAndValidateJSON(c, &body)
-	if err != nil {
-		errors.ReturnError(c, err)
-		return
-	}
-
-	vc := VC(c)
-	if !vc.CanPerformActions() {
-		UnauthorizedError(c)
-		return
-	}
-
-	db := GetDB(c)
-	user, err := db.UserByID(body.ID)
-	if err != nil {
-		errors.ReturnError(c, errors.DatabaseError(err))
-		return
-	}
-
-	if !vc.CanPerformWriteActionOnUser(user) {
-		UnauthorizedError(c)
-		return
-	}
-
-	sessions, err := db.FindAllSessionsForUser(user.ID)
-	if err != nil {
-		errors.ReturnError(c, errors.DatabaseError(err))
-		return
-	}
-
-	var response []SessionInfoResponseBody
-	for _, session := range sessions {
-		response = append(response, SessionInfoResponseBody{
-			SessionID:  session.ID,
-			UserID:     session.UserID,
-			CreatedAt:  session.CreatedAt,
-			AccessedAt: session.AccessedAt,
-		})
-	}
-
-	c.JSON(http.StatusOK, &GetInfoAboutSessionsForUserResponseBody{
-		Sessions: response,
-	})
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Password Reset HTTP endpoints
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -862,25 +574,37 @@ func ResetUserPassword(c *gin.Context) {
 	db := GetDB(c)
 	vc := VC(c)
 
-	var userEmail string
 	if !vc.IsLoggedIn() {
-		if body.Email == "" {
+		if body.Email == "" || body.Username == "" {
 			UnauthorizedError(c)
+			errors.NewWithStatus(http.StatusBadRequest, "Must submit email and username", "Required parameters were not submitted")
 			return
 		}
-		userEmail = body.Email
 	}
 
-	// TODO: Should this find user by email if user isn't logged in?
-	// gorm makes this confusing...
-	_ = userEmail
-	user, err := db.UserByID(body.ID)
+	user, err := db.User(body.Username)
 	if err != nil {
 		switch err {
 		case gorm.ErrRecordNotFound:
-			NotFoundRequestError(c)
+			errors.NewWithStatus(http.StatusBadRequest, "Invalid username", "Username not found in the database")
 			return
 		default:
+			errors.ReturnError(c, errors.DatabaseError(err))
+			return
+		}
+	}
+	if user.Email != body.Email {
+		errors.NewWithStatus(http.StatusUnauthorized, "Invalid email", "Supplied email does not match user record")
+		return
+	}
+
+	// If an admin is requesting a password reset for a user, require that the
+	// user change their password to log in
+	if vc.IsAdmin() && !vc.IsUserID(user.ID) {
+		user.NeedsPasswordReset = true
+
+		err = db.SaveUser(user)
+		if err != nil {
 			errors.ReturnError(c, errors.DatabaseError(err))
 			return
 		}
@@ -891,28 +615,19 @@ func ResetUserPassword(c *gin.Context) {
 		// resetting their own password or logged-out user presumably resetting
 		// their own password
 
-		if vc.CanPerformWriteActionOnUser(user) {
-			// if the user is logged out, don't perform the user state
-			// modifications
-			user.NeedsPasswordReset = true
-
-			err = db.SaveUser(user)
-			if err != nil {
-				errors.ReturnError(c, errors.DatabaseError(err))
-				return
-			}
-		}
-
 		request, err := kolide.NewPasswordResetRequest(GetDB(c), user.ID, time.Now().Add(time.Hour*24))
 		if err != nil {
 			errors.ReturnError(c, errors.NewFromError(err, http.StatusInternalServerError, "Database error"))
 			return
 		}
 
-		html, text, err := kolide.GetEmailBody(kolide.PasswordResetEmail, kolide.PasswordResetRequestEmailParameters{
-			Name:  user.Name,
-			Token: request.Token,
-		})
+		html, text, err := kolide.GetEmailBody(
+			kolide.PasswordResetEmail,
+			kolide.PasswordResetRequestEmailParameters{
+				Name:  user.Name,
+				Token: request.Token,
+			},
+		)
 		if err != nil {
 			errors.ReturnError(c, errors.NewFromError(err, http.StatusInternalServerError, "Email error"))
 			return
@@ -943,15 +658,13 @@ func ResetUserPassword(c *gin.Context) {
 
 // swagger:parameters VerifyPasswordResetRequest
 type VerifyPasswordResetRequestRequestBody struct {
-	Username string `json:"username"`
-	UserID   uint   `json:"user_id"`
-	Token    string `json:"token"`
+	UserID uint   `json:"user_id"`
+	Token  string `json:"token"`
 }
 
 // swagger:parameters VerifyPasswordResetRequestResponseBody
 type VerifyPasswordResetRequestResponseBody struct {
 	Valid bool `json:"valid"`
-	ID    uint `json:"id"`
 }
 
 // swagger:route POST /api/v1/kolide/user/password/verify VerifyPasswordResetRequest
@@ -980,11 +693,11 @@ func VerifyPasswordResetRequest(c *gin.Context) {
 	}
 
 	db := GetDB(c)
-	user, err := db.UserByID(body.UserID)
+	_, err = db.UserByID(body.UserID)
 	if err != nil {
 		switch err {
 		case gorm.ErrRecordNotFound:
-			c.JSON(http.StatusNotFound, &VerifyPasswordResetRequestResponseBody{
+			c.JSON(http.StatusBadRequest, &VerifyPasswordResetRequestResponseBody{
 				Valid: false,
 			})
 			return
@@ -994,11 +707,11 @@ func VerifyPasswordResetRequest(c *gin.Context) {
 		}
 	}
 
-	reset, err := db.FindPassswordResetByTokenAndUserID(body.Token, user.ID)
+	reset, err := db.FindPassswordResetByTokenAndUserID(body.Token, body.UserID)
 	if err != nil {
 		switch err {
 		case gorm.ErrRecordNotFound:
-			c.JSON(http.StatusNotFound, VerifyPasswordResetRequestResponseBody{
+			c.JSON(http.StatusBadRequest, VerifyPasswordResetRequestResponseBody{
 				Valid: false,
 			})
 			return
@@ -1009,7 +722,7 @@ func VerifyPasswordResetRequest(c *gin.Context) {
 	}
 
 	if time.Now().After(reset.ExpiresAt) {
-		c.JSON(http.StatusNotFound, VerifyPasswordResetRequestResponseBody{
+		c.JSON(http.StatusBadRequest, VerifyPasswordResetRequestResponseBody{
 			Valid: false,
 		})
 		return
@@ -1017,7 +730,6 @@ func VerifyPasswordResetRequest(c *gin.Context) {
 
 	c.JSON(http.StatusOK, VerifyPasswordResetRequestResponseBody{
 		Valid: true,
-		ID:    reset.ID,
 	})
 }
 

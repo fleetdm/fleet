@@ -192,6 +192,15 @@ func (orm gormDB) FindPassswordResetByID(id uint) (*kolide.PasswordResetRequest,
 	return reset, err
 }
 
+func (orm gormDB) FindPassswordResetsByUserID(id uint) ([]*kolide.PasswordResetRequest, error) {
+	reset := &kolide.PasswordResetRequest{
+		UserID: id,
+	}
+	var resets []*kolide.PasswordResetRequest
+	err := orm.DB.Find(reset).First(&resets).Error
+	return resets, err
+}
+
 func (orm gormDB) FindPassswordResetByToken(token string) (*kolide.PasswordResetRequest, error) {
 	reset := &kolide.PasswordResetRequest{
 		Token: token,
@@ -202,8 +211,8 @@ func (orm gormDB) FindPassswordResetByToken(token string) (*kolide.PasswordReset
 
 func (orm gormDB) FindPassswordResetByTokenAndUserID(token string, userID uint) (*kolide.PasswordResetRequest, error) {
 	reset := &kolide.PasswordResetRequest{
-		Token: token,
-		ID:    userID,
+		Token:  token,
+		UserID: userID,
 	}
 	err := orm.DB.Find(reset).First(reset).Error
 	return reset, err
@@ -279,33 +288,37 @@ func (orm gormDB) FindSessionByKey(key string) (*kolide.Session, error) {
 
 func (orm gormDB) FindAllSessionsForUser(id uint) ([]*kolide.Session, error) {
 	var sessions []*kolide.Session
-	err := orm.DB.Where("user_id = ?", id).Find(sessions).Error
+	err := orm.DB.Where("user_id = ?", id).Find(&sessions).Error
 	return sessions, err
 }
 
 func (orm gormDB) CreateSessionForUserID(userID uint) (*kolide.Session, error) {
-	key := make([]byte, viper.GetInt("session.key_size"))
+	sessionKeySize := viper.GetInt("session.key_size")
+	if sessionKeySize == 0 {
+		sessionKeySize = 24
+	}
+	key := make([]byte, sessionKeySize)
 	_, err := rand.Read(key)
 	if err != nil {
 		return nil, err
 	}
 
-	session := &kolide.Session{
+	session := kolide.Session{
 		UserID: userID,
 		Key:    base64.StdEncoding.EncodeToString(key),
 	}
 
-	err = orm.DB.Create(session).Error
+	err = orm.DB.Create(&session).Error
 	if err != nil {
 		return nil, err
 	}
 
-	err = orm.MarkSessionAccessed(session)
+	err = orm.MarkSessionAccessed(&session)
 	if err != nil {
 		return nil, err
 	}
 
-	return session, nil
+	return &session, nil
 }
 
 func (orm gormDB) DestroySession(session *kolide.Session) error {
