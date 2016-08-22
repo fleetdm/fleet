@@ -9,6 +9,7 @@ type OsqueryStore interface {
 	AuthenticateHost(nodeKey string) (*Host, error)
 	MarkHostSeen(host *Host, t time.Time) error
 	LabelQueriesForHost(host *Host, cutoff time.Time) (map[string]string, error)
+	RecordLabelQueryExecutions(host *Host, results map[string]bool, t time.Time) error
 
 	// Query methods
 	NewQuery(query *Query) error
@@ -40,11 +41,10 @@ type Label struct {
 
 type LabelQueryExecution struct {
 	ID        uint `gorm:"primary_key"`
-	CreatedAt time.Time
 	UpdatedAt time.Time
 	Matches   bool
-	LabelID   uint
-	HostID    uint
+	LabelID   uint // Note we manually specify a unique index on these
+	HostID    uint // fields in gormDB.Migrate
 }
 
 type ScheduledQuery struct {
@@ -163,7 +163,7 @@ type Decorator struct {
 	Query     string
 }
 
-// GetLabelQueriesForHost calculates the appropriate update cutoff (given
+// LabelQueriesForHost calculates the appropriate update cutoff (given
 // interval) and uses the datastore to retrieve the label queries for the
 // provided host.
 func LabelQueriesForHost(store OsqueryStore, host *Host, interval time.Duration) (map[string]string, error) {

@@ -350,14 +350,14 @@ func testAdminAttribute(t *testing.T, db kolide.UserStore, users []*kolide.User)
 
 // TestUser tests the UserStore interface
 // this test uses the default testing backend
-func TestGetLabelQueriesForHost(t *testing.T) {
+func TestLabelQueries(t *testing.T) {
 	db := setup(t)
 	defer teardown(t, db)
 
-	testGetLabelQueriesForHost(t, db)
+	testLabelQueries(t, db)
 }
 
-func testGetLabelQueriesForHost(t *testing.T, db kolide.OsqueryStore) {
+func testLabelQueries(t *testing.T, db kolide.OsqueryStore) {
 	var host *kolide.Host
 	var err error
 	for i := 0; i < 10; i++ {
@@ -365,8 +365,10 @@ func testGetLabelQueriesForHost(t *testing.T, db kolide.OsqueryStore) {
 		assert.NoError(t, err, "enrollment should succeed")
 	}
 
+	baseTime := time.Now()
+
 	// No queries should be returned before labels or queries added
-	queries, err := db.LabelQueriesForHost(host, time.Now().Add(10*time.Minute))
+	queries, err := db.LabelQueriesForHost(host, baseTime)
 	assert.NoError(t, err)
 	assert.Empty(t, queries)
 
@@ -402,7 +404,7 @@ func testGetLabelQueriesForHost(t *testing.T, db kolide.OsqueryStore) {
 	}))
 
 	// No queries should be returned before labels added
-	queries, err = db.LabelQueriesForHost(host, time.Now().Add(10*time.Minute))
+	queries, err = db.LabelQueriesForHost(host, baseTime)
 	assert.NoError(t, err)
 	assert.Empty(t, queries)
 
@@ -432,9 +434,38 @@ func testGetLabelQueriesForHost(t *testing.T, db kolide.OsqueryStore) {
 	host.Platform = "darwin"
 
 	// Now queries should be returned
-	queries, err = db.LabelQueriesForHost(host, time.Now().Add(10*time.Minute))
+	queries, err = db.LabelQueriesForHost(host, baseTime)
 	assert.NoError(t, err)
 	assert.Equal(t, expectQueries, queries)
+
+	// Record a query execution
+	err = db.RecordLabelQueryExecutions(host, map[string]bool{"1": true}, baseTime)
+	assert.NoError(t, err)
+
+	// Use a 10 minute interval, so the query we just added should show up
+	queries, err = kolide.LabelQueriesForHost(db, host, 10*time.Minute)
+	assert.NoError(t, err)
+	delete(expectQueries, "1")
+	assert.Equal(t, expectQueries, queries)
+
+	// Record an old query execution -- Shouldn't change the return
+	err = db.RecordLabelQueryExecutions(host, map[string]bool{"2": true}, baseTime.Add(-1*time.Hour))
+	assert.NoError(t, err)
+	queries, err = kolide.LabelQueriesForHost(db, host, 10*time.Minute)
+	assert.NoError(t, err)
+	assert.Equal(t, expectQueries, queries)
+
+	// Record a newer execution for that query and another
+	err = db.RecordLabelQueryExecutions(host, map[string]bool{"2": true, "3": false}, baseTime)
+	assert.NoError(t, err)
+
+	// Now these should no longer show up in the necessary to run queries
+	delete(expectQueries, "2")
+	delete(expectQueries, "3")
+	queries, err = kolide.LabelQueriesForHost(db, host, 10*time.Minute)
+	assert.NoError(t, err)
+	assert.Equal(t, expectQueries, queries)
+
 }
 
 // setup creates a datastore for testing
@@ -443,13 +474,13 @@ func setup(t *testing.T) Datastore {
 	if err != nil {
 		t.Fatalf("error opening test db: %s", err)
 	}
-	ds := gormDB{DB: db}
+	ds := gormDB{DB: db, Driver: "sqlite3"}
 	if err := ds.Migrate(); err != nil {
 		t.Fatal(err)
 	}
 	// Log using t.Log so that output only shows up if the test fails
-	// db.SetLogger(&testLogger{t: t})
-	// db.LogMode(true)
+	//db.SetLogger(&testLogger{t: t})
+	//db.LogMode(true)
 	return ds
 }
 

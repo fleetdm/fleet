@@ -1,10 +1,12 @@
 package datastore
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql" // db driver
@@ -35,7 +37,8 @@ var tables = [...]interface{}{
 }
 
 type gormDB struct {
-	DB *gorm.DB
+	DB     *gorm.DB
+	Driver string
 }
 
 func (orm gormDB) Name() string {
@@ -358,7 +361,7 @@ func (orm gormDB) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (map[
 	if host == nil {
 		return nil, errors.New(
 			"error finding host queries",
-			"nil pointer passed to GetLabelQueriesForHost",
+			"nil pointer passed to LabelQueriesForHost",
 		)
 	}
 	rows, err := orm.DB.Raw(`
@@ -389,12 +392,67 @@ AND q.id NOT IN /* subtract the set of executions that are recent enough */
 	return results, nil
 }
 
+func (orm gormDB) RecordLabelQueryExecutions(host *kolide.Host, results map[string]bool, t time.Time) error {
+	if host == nil {
+		return errors.New(
+			"error recording host label query execution",
+			"nil pointer passed to RecordLabelQueryExecutions",
+		)
+	}
+
+	insert := new(bytes.Buffer)
+	switch orm.Driver {
+	case "mysql":
+		insert.WriteString("INSERT ")
+	case "sqlite3":
+		insert.WriteString("REPLACE ")
+	default:
+		return errors.New(
+			"Unknown DB driver",
+			"Tried to use unknown DB driver in RecordLabelQueryExecutions: "+orm.Driver,
+		)
+	}
+
+	insert.WriteString(
+		"INTO label_query_executions (updated_at, matches, label_id, host_id) VALUES",
+	)
+
+	// Build up all the values and the query string
+	vals := []interface{}{}
+	for labelId, res := range results {
+		insert.WriteString("(?,?,?,?),")
+		vals = append(vals, t, res, labelId, host.ID)
+	}
+
+	queryString := insert.String()
+	queryString = strings.TrimSuffix(queryString, ",")
+
+	switch orm.Driver {
+	case "mysql":
+		queryString += `
+ON DUPLICATE KEY UPDATE
+updated_at = VALUES(updated_at),
+matches = VALUES(matches)
+`
+	}
+
+	if err := orm.DB.Debug().Exec(queryString, vals...).Error; err != nil {
+		return errors.DatabaseError(err)
+	}
+
+	return nil
+}
+
 func (orm gormDB) Migrate() error {
 	for _, table := range tables {
 		if err := orm.DB.AutoMigrate(table).Error; err != nil {
 			return err
 		}
 	}
+
+	// Have to manually add indexes. Yuck!
+	orm.DB.Model(&kolide.LabelQueryExecution{}).AddUniqueIndex("idx_lqe_label_host", "label_id", "host_id")
+
 	return nil
 }
 

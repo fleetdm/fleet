@@ -89,7 +89,7 @@ func New(driver, conn string, opts ...DBOption) (Datastore, error) {
 			db.SetLogger(opt.logger)
 			db.LogMode(opt.debug)
 		}
-		ds := gormDB{DB: db}
+		ds := gormDB{DB: db, Driver: "mysql"}
 		if err := ds.Migrate(); err != nil {
 			return nil, errors.DatabaseError(err)
 		}
@@ -104,7 +104,7 @@ func New(driver, conn string, opts ...DBOption) (Datastore, error) {
 			db.SetLogger(opt.logger)
 			db.LogMode(opt.debug)
 		}
-		ds := gormDB{DB: db}
+		ds := gormDB{DB: db, Driver: "sqlite3"}
 		if err := ds.Migrate(); err != nil {
 			return nil, errors.DatabaseError(err)
 		}
