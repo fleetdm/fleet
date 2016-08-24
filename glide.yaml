@@ -76,3 +76,4 @@ import:
 - package: github.com/spf13/viper
 - package: gopkg.in/natefinch/lumberjack.v2
   version: v2.0
+- package: github.com/golang/mock

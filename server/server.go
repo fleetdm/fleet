@@ -100,6 +100,10 @@ func ParseAndValidateJSON(c *gin.Context, obj interface{}) error {
 		return err
 	}
 
+	return validateStruct(obj)
+}
+
+func validateStruct(obj interface{}) error {
 	return validate.Struct(obj)
 }
 
@@ -209,7 +213,7 @@ func CreateServer(ds datastore.Datastore, pool kolide.SMTPConnectionPool, w io.W
 	}
 
 	osq.POST("/enroll", OsqueryEnroll)
-	osq.POST("/config", OsqueryConfig)
+	osq.POST("/config", osqueryHandler.OsqueryConfig)
 	osq.POST("/log", osqueryHandler.OsqueryLog)
 	osq.POST("/distributed/read", OsqueryDistributedRead)
 	osq.POST("/distributed/write", OsqueryDistributedWrite)

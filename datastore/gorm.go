@@ -202,6 +202,13 @@ func (orm gormDB) AuthenticateHost(nodeKey string) (*kolide.Host, error) {
 	return &host, nil
 }
 
+func (orm gormDB) SaveHost(host *kolide.Host) error {
+	if err := orm.DB.Save(host).Error; err != nil {
+		return errors.DatabaseError(err)
+	}
+	return nil
+}
+
 func (orm gormDB) MarkHostSeen(host *kolide.Host, t time.Time) error {
 	updateTime := time.Now()
 	err := orm.DB.Exec("UPDATE hosts SET updated_at=? WHERE node_key=?", t, host.NodeKey).Error

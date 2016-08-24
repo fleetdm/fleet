@@ -7,6 +7,7 @@ type OsqueryStore interface {
 	// Host methods
 	EnrollHost(uuid, hostname, ip, platform string, nodeKeySize int) (*Host, error)
 	AuthenticateHost(nodeKey string) (*Host, error)
+	SaveHost(host *Host) error
 	MarkHostSeen(host *Host, t time.Time) error
 	LabelQueriesForHost(host *Host, cutoff time.Time) (map[string]string, error)
 	RecordLabelQueryExecutions(host *Host, results map[string]bool, t time.Time) error

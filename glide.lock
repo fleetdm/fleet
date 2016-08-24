@@ -1,5 +1,5 @@
-hash: 4ffa52b45a47295720fcf4dfcc0cc85c9f47a35a3bd43bdc6e0c2355bdd76109
-updated: 2016-08-17T10:01:54.299187864-07:00
+hash: 082be2432c000297d8d76bd1dc0f2be4e98954d0f49682603469e1b3056790f5
+updated: 2016-08-24T14:33:02.991120417-07:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -32,6 +32,10 @@ imports:
   - render
 - name: github.com/go-sql-driver/mysql
   version: 3654d25ec346ee8ce71a68431025458d52a38ac0
+- name: github.com/golang/mock
+  version: bd3c8e81be01eef76d4b503f5e687d2d1354d2d9
+  subpackages:
+  - gomock
 - name: github.com/golang/protobuf
   version: c3cefd437628a0b7d31b34fe44b3a7a540e98527
   subpackages:

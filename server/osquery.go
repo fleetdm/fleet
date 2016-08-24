@@ -32,8 +32,9 @@ type OsqueryStatusHandler interface {
 // It can be configured in a `main` function to bind the appropriate handlers
 // and it's methods can be attached to routes.
 type OsqueryHandler struct {
-	ResultHandler OsqueryResultHandler
-	StatusHandler OsqueryStatusHandler
+	LabelQueryInterval time.Duration
+	ResultHandler      OsqueryResultHandler
+	StatusHandler      OsqueryStatusHandler
 }
 
 // Basic implementation of the `OsqueryResultHandler` and
@@ -64,8 +65,27 @@ type OsqueryEnrollPostBody struct {
 	HostIdentifier string `json:"host_identifier" validate:"required"`
 }
 
+// OsqueryConfigPostBody is the generic osquery config endpoint request body
+// structure. Typically the node key and action will be parsed, and then the
+// Data JSON will be unmarshalled into one of the more specific OsqueryConfig*
+// structs.
 type OsqueryConfigPostBody struct {
-	NodeKey string `json:"node_key" validate:"required"`
+	NodeKey string           `json:"node_key" validate:"required"`
+	Action  string           `json:"action" validate:"required"`
+	Data    *json.RawMessage `json:"data" validate:"required"`
+}
+
+// OsqueryConfigDetail is the expected extra information provided with an
+// initial config request. This data will be used to determine which label
+// queries are supplied to the host.
+type OsqueryConfigDetail struct {
+	Platform string `json:"platform" validate:"required"`
+}
+
+// OsqueryConfigQueryResults contains the final information needed to generate a
+// config for the host. It containst the results of the label queries.
+type OsqueryConfigQueryResults struct {
+	Results map[string]bool `json:"results" validate:"required"`
 }
 
 type OsqueryLogPostBody struct {
@@ -141,31 +161,94 @@ func OsqueryEnroll(c *gin.Context) {
 		})
 }
 
-func OsqueryConfig(c *gin.Context) {
+func (h *OsqueryHandler) handleConfigDetail(db kolide.OsqueryStore, host *kolide.Host, data json.RawMessage) (map[string]string, error) {
+	var detail OsqueryConfigDetail
+	if err := json.Unmarshal(data, &detail); err != nil {
+		return nil, errors.NewFromError(err, http.StatusBadRequest, "JSON parse error")
+	}
+	if err := validateStruct(&detail); err != nil {
+		return nil, err
+	}
+
+	// Update fields from detail (only save if there are changes)
+	if host.Platform != detail.Platform {
+		host.Platform = detail.Platform
+		if err := db.SaveHost(host); err != nil {
+			return nil, err
+		}
+	}
+
+	return kolide.LabelQueriesForHost(db, host, h.LabelQueryInterval)
+}
+
+func (h *OsqueryHandler) handleConfigQueryResults(db kolide.OsqueryStore, host *kolide.Host, data json.RawMessage) error {
+	var results OsqueryConfigQueryResults
+	if err := json.Unmarshal(data, &results); err != nil {
+		return errors.NewFromError(err, http.StatusBadRequest, "JSON parse error")
+	}
+	if err := validateStruct(&results); err != nil {
+		return err
+	}
+
+	return db.RecordLabelQueryExecutions(host, results.Results, time.Now())
+}
+
+// Endpoint used by the osqueryd TLS logger plugin
+func (h *OsqueryHandler) OsqueryConfig(c *gin.Context) {
 	var body OsqueryConfigPostBody
 	err := ParseAndValidateJSON(c, &body)
 	if err != nil {
 		errors.ReturnOsqueryError(c, err)
 		return
 	}
-	logrus.Debugf("OsqueryConfig: %s", body.NodeKey)
 
-	c.JSON(http.StatusOK,
-		gin.H{
-			"schedule": map[string]map[string]interface{}{
-				"time": {
-					"query":    "select * from time;",
-					"interval": 1,
-				},
-			},
-			"node_invalid": false,
-		})
+	db := GetDB(c)
+
+	host, err := db.AuthenticateHost(body.NodeKey)
+	if err != nil {
+		errors.ReturnOsqueryError(c, err)
+		return
+	}
+
+	if body.Data == nil {
+		errors.ReturnOsqueryError(c,
+			errors.New("Missing body data", "Got nil pointer for data in config"),
+		)
+	}
+
+	var res map[string]string
+	switch body.Action {
+	case "request":
+		res, err = h.handleConfigDetail(db, host, *body.Data)
+		if err != nil {
+			c.JSON(http.StatusOK, res)
+			return
+		}
+
+	case "results":
+		err = h.handleConfigQueryResults(db, host, *body.Data)
+		// Now we should be able to calculate the appropriate config
+
+	default:
+		err = errors.NewWithStatus(
+			errors.StatusUnprocessableEntity,
+			"Unknown config request action",
+			fmt.Sprintf("Unknown config request action: %s", body.Action),
+		)
+	}
+
+	if err != nil {
+		errors.ReturnOsqueryError(c, err)
+		return
+	}
+
+	// TODO: Generate the config and return it here!
 }
 
 // Unmarshal the status logs before sending them to the status log handler
-func (h *OsqueryHandler) handleStatusLogs(data *json.RawMessage, nodeKey string) error {
+func (h *OsqueryHandler) handleStatusLogs(data json.RawMessage, nodeKey string) error {
 	var statuses []OsqueryStatusLog
-	if err := json.Unmarshal(*data, &statuses); err != nil {
+	if err := json.Unmarshal(data, &statuses); err != nil {
 		return errors.NewFromError(err, http.StatusBadRequest, "JSON parse error")
 	}
 	// Perhaps we should validate the unmarshalled status log
@@ -181,9 +264,9 @@ func (h *OsqueryHandler) handleStatusLogs(data *json.RawMessage, nodeKey string)
 }
 
 // Unmarshal the result logs before sending them to the result log handler
-func (h *OsqueryHandler) handleResultLogs(data *json.RawMessage, nodeKey string) error {
+func (h *OsqueryHandler) handleResultLogs(data json.RawMessage, nodeKey string) error {
 	var results []OsqueryResultLog
-	if err := json.Unmarshal(*data, &results); err != nil {
+	if err := json.Unmarshal(data, &results); err != nil {
 		return errors.NewFromError(err, http.StatusBadRequest, "JSON parse error")
 	}
 	// Perhaps we should validate the unmarshalled result log
@@ -215,12 +298,18 @@ func (h *OsqueryHandler) OsqueryLog(c *gin.Context) {
 		return
 	}
 
+	if body.Data == nil {
+		errors.ReturnOsqueryError(c,
+			errors.New("Missing body data", "Got nil pointer for data in log"),
+		)
+	}
+
 	switch body.LogType {
 	case "status":
-		err = h.handleStatusLogs(body.Data, body.NodeKey)
+		err = h.handleStatusLogs(*body.Data, body.NodeKey)
 
 	case "result":
-		err = h.handleResultLogs(body.Data, body.NodeKey)
+		err = h.handleResultLogs(*body.Data, body.NodeKey)
 
 	default:
 		err = errors.NewWithStatus(
