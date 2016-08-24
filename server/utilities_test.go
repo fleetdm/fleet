@@ -10,6 +10,7 @@ import (
 
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/kolide"
+	"github.com/stretchr/testify/assert"
 )
 
 func makeRequest(t *testing.T, server http.Handler, verb, endpoint string, body interface{}, cookie string) *httptest.ResponseRecorder {
@@ -51,6 +52,54 @@ func createTestDatastore(t *testing.T) datastore.Datastore {
 	if err != nil {
 		t.Fatal(err)
 	}
+	return ds
+}
+
+func createTestPacksAndQueries(t *testing.T, ds datastore.Datastore) datastore.Datastore {
+	var err error
+
+	pack1 := &kolide.Pack{
+		Name: "pack1",
+	}
+	err = ds.NewPack(pack1)
+	assert.Nil(t, err)
+
+	pack2 := &kolide.Pack{
+		Name: "pack2",
+	}
+	err = ds.NewPack(pack2)
+	assert.Nil(t, err)
+
+	query1 := &kolide.Query{
+		Name:  "query1",
+		Query: "select * from time;",
+	}
+	err = ds.NewQuery(query1)
+	assert.Nil(t, err)
+
+	query2 := &kolide.Query{
+		Name:  "query2",
+		Query: "select * from time;",
+	}
+	err = ds.NewQuery(query2)
+	assert.Nil(t, err)
+
+	query3 := &kolide.Query{
+		Name:  "query3",
+		Query: "select * from time;",
+	}
+	err = ds.NewQuery(query3)
+	assert.Nil(t, err)
+
+	err = ds.AddQueryToPack(query1, pack1)
+	assert.Nil(t, err)
+
+	err = ds.AddQueryToPack(query2, pack1)
+	assert.Nil(t, err)
+
+	err = ds.AddQueryToPack(query3, pack2)
+	assert.Nil(t, err)
+
 	return ds
 }
 

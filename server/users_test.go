@@ -665,7 +665,7 @@ func TestDeletePasswordResetRequest(t *testing.T) {
 		},
 		userCookie,
 	)
-	assert.Equal(t, http.StatusOK, response.Code)
+	assert.Equal(t, http.StatusNoContent, response.Code)
 
 	resets, err = ds.FindPassswordResetsByUserID(user.ID)
 	assert.NotNil(t, err)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -102,6 +103,15 @@ func ParseAndValidateJSON(c *gin.Context, obj interface{}) error {
 	return validate.Struct(obj)
 }
 
+func ParseAndValidateUrlID(c *gin.Context, name string) (uint, error) {
+	id, err := strconv.ParseUint(c.Param(name), 10, 64)
+	if err != nil {
+		// TODO change to http.StatusUnprocessableEntity when it's available
+		return 0, errors.NewWithStatus(422, "Invalid ID", "Query ID was not a uint")
+	}
+	return uint(id), nil
+}
+
 func NotFound(c *gin.Context) {
 	errors.ReturnError(
 		c,
@@ -170,8 +180,25 @@ func CreateServer(ds datastore.Datastore, pool kolide.SMTPConnectionPool, w io.W
 	kolide.POST("/user/sessions", GetInfoAboutSessionsForUser)
 	kolide.DELETE("/user/sessions", DeleteSessionsForUser)
 
-	kolide.DELETE("/session", DeleteSession)
 	kolide.POST("/session", GetInfoAboutSession)
+	kolide.DELETE("/session", DeleteSession)
+
+	kolide.GET("/queries", GetAllQueries)
+	kolide.GET("/queries/:id", GetQuery)
+	kolide.POST("/queries", CreateQuery)
+	kolide.PATCH("/queries/:id", ModifyQuery)
+	kolide.DELETE("/queries/:id", DeleteQuery)
+
+	kolide.GET("/packs", GetAllPacks)
+	kolide.GET("/packs/:id", GetPack)
+	kolide.POST("/packs", CreatePack)
+	kolide.PATCH("/packs/:id", ModifyPack)
+	kolide.DELETE("/packs/:id", DeletePack)
+
+	// TODO this should be changed to "/packs/:pid/queries/:qid"
+	kolide.PUT("/pack/:pid/query/:qid", AddQueryToPack)
+	// TODO this should be changed to "/packs/:pid/queries/:qid"
+	kolide.DELETE("/pack/:pid/query/:qid", DeleteQueryFromPack)
 
 	// osquery API endpoints
 	osq := v1.Group("/osquery")

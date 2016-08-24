@@ -374,20 +374,24 @@ func testLabelQueries(t *testing.T, db kolide.OsqueryStore) {
 
 	labelQueries := []*kolide.Query{
 		&kolide.Query{
-			Platform: "darwin",
+			Name:     "query1",
 			Query:    "query1",
+			Platform: "darwin",
 		},
 		&kolide.Query{
-			Platform: "darwin",
+			Name:     "query2",
 			Query:    "query2",
+			Platform: "darwin",
 		},
 		&kolide.Query{
-			Platform: "darwin",
+			Name:     "query3",
 			Query:    "query3",
+			Platform: "darwin",
 		},
 		&kolide.Query{
-			Platform: "darwin",
+			Name:     "query4",
 			Query:    "query4",
+			Platform: "darwin",
 		},
 	}
 
@@ -511,4 +515,95 @@ func randomString(strlen int) string {
 		result[i] = chars[rand.Intn(len(chars))]
 	}
 	return string(result)
+}
+
+func testSaveQuery(t *testing.T, ds Datastore) {
+	query := kolide.Query{
+		Name:  "foo",
+		Query: "bar",
+	}
+	err := ds.SaveQuery(&query)
+	assert.Nil(t, err)
+	assert.NotEqual(t, 0, query.ID)
+
+	query.Query = "baz"
+	err = ds.SaveQuery(&query)
+	assert.Nil(t, err)
+
+	queryVerify, err := ds.Query(query.ID)
+	assert.Nil(t, err)
+	assert.Equal(t, "baz", queryVerify.Query)
+}
+
+func testDeleteQuery(t *testing.T, ds Datastore) {
+	query := kolide.Query{
+		Name:  "foo",
+		Query: "bar",
+	}
+	err := ds.SaveQuery(&query)
+	assert.Nil(t, err)
+	assert.NotEqual(t, query.ID, 0)
+
+	err = ds.DeleteQuery(&query)
+	assert.Nil(t, err)
+
+	assert.NotEqual(t, query.ID, 0)
+	_, err = ds.Query(query.ID)
+	assert.NotNil(t, err)
+}
+
+func testDeletePack(t *testing.T, ds Datastore) {
+	pack := &kolide.Pack{
+		Name: "foo",
+	}
+	err := ds.NewPack(pack)
+	assert.Nil(t, err)
+	assert.NotEqual(t, pack.ID, 0)
+
+	pack, err = ds.Pack(pack.ID)
+	assert.Nil(t, err)
+
+	err = ds.DeletePack(pack)
+	assert.Nil(t, err)
+
+	assert.NotEqual(t, pack.ID, 0)
+	pack, err = ds.Pack(pack.ID)
+	assert.NotNil(t, err)
+}
+
+func testAddAndRemoveQueryFromPack(t *testing.T, ds Datastore) {
+	pack := &kolide.Pack{
+		Name: "foo",
+	}
+	err := ds.NewPack(pack)
+	assert.Nil(t, err)
+
+	q1 := &kolide.Query{
+		Name:  "bar",
+		Query: "bar",
+	}
+	err = ds.NewQuery(q1)
+	assert.Nil(t, err)
+	err = ds.AddQueryToPack(q1, pack)
+	assert.Nil(t, err)
+
+	q2 := &kolide.Query{
+		Name:  "baz",
+		Query: "baz",
+	}
+	err = ds.NewQuery(q2)
+	assert.Nil(t, err)
+	err = ds.AddQueryToPack(q2, pack)
+	assert.Nil(t, err)
+
+	queries, err := ds.GetQueriesInPack(pack)
+	assert.Nil(t, err)
+	assert.Len(t, queries, 2)
+
+	err = ds.RemoveQueryFromPack(q1, pack)
+	assert.Nil(t, err)
+
+	queries, err = ds.GetQueriesInPack(pack)
+	assert.Nil(t, err)
+	assert.Len(t, queries, 1)
 }

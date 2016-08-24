@@ -31,8 +31,7 @@ func generateRandomText(keySize int) (string, error) {
 
 // swagger:parameters GetUser
 type GetUserRequestBody struct {
-	ID       uint   `json:"id"`
-	Username string `json:"username"`
+	ID uint `json:"id"`
 }
 
 // swagger:response GetUserResponseBody
@@ -140,14 +139,12 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	// TODO move this to middleware
 	vc := VC(c)
 	if !vc.IsAdmin() {
 		UnauthorizedError(c)
 		return
 	}
 
-	// temporary, pass args explicitly as well
 	db := GetDB(c)
 
 	u, err := kolide.NewUser(body.Username, body.Password, body.Email, body.Admin, body.NeedsPasswordReset)
@@ -157,7 +154,6 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	// save user in db
 	user, err := db.NewUser(u)
 	if err != nil {
 		logrus.Errorf("error creating new user: %s", err)
@@ -794,5 +790,5 @@ func DeletePasswordResetRequest(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, nil)
+	c.JSON(http.StatusNoContent, nil)
 }

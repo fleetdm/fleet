@@ -13,9 +13,25 @@ type OsqueryStore interface {
 
 	// Query methods
 	NewQuery(query *Query) error
+	SaveQuery(query *Query) error
+	DeleteQuery(query *Query) error
+	Query(id uint) (*Query, error)
+	Queries() ([]*Query, error)
 
 	// Label methods
 	NewLabel(label *Label) error
+
+	// Pack methods
+	NewPack(pack *Pack) error
+	SavePack(pack *Pack) error
+	DeletePack(pack *Pack) error
+	Pack(id uint) (*Pack, error)
+	Packs() ([]*Pack, error)
+
+	// Modifying the queries in packs
+	AddQueryToPack(query *Query, pack *Pack) error
+	GetQueriesInPack(pack *Pack) ([]*Query, error)
+	RemoveQueryFromPack(query *Query, pack *Pack) error
 }
 
 type Host struct {
@@ -27,7 +43,19 @@ type Host struct {
 	UUID      string `gorm:"unique_index:idx_host_unique_uuid"`
 	IPAddress string
 	Platform  string
-	Labels    []*Label `gorm:"many2many:host_labels;"`
+}
+
+type Query struct {
+	ID           uint `gorm:"primary_key"`
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	Name         string `gorm:"not null;unique_index:idx_query_unique_name"`
+	Query        string `gorm:"not null"`
+	Interval     uint
+	Snapshot     bool
+	Differential bool
+	Platform     string
+	Version      string
 }
 
 type Label struct {
@@ -36,7 +64,6 @@ type Label struct {
 	UpdatedAt time.Time
 	Name      string `gorm:"not null;unique_index:idx_label_unique_name"`
 	QueryID   uint
-	Hosts     []Host
 }
 
 type LabelQueryExecution struct {
@@ -45,28 +72,6 @@ type LabelQueryExecution struct {
 	Matches   bool
 	LabelID   uint // Note we manually specify a unique index on these
 	HostID    uint // fields in gormDB.Migrate
-}
-
-type ScheduledQuery struct {
-	ID           uint `gorm:"primary_key"`
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	Name         string `gorm:"not null"`
-	QueryID      int
-	Query        Query
-	Interval     uint `gorm:"not null"`
-	Snapshot     bool
-	Differential bool
-	PackID       uint
-}
-
-type Query struct {
-	ID        uint `gorm:"primary_key"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Platform  string
-	Query     string   `gorm:"not null"`
-	Targets   []Target `gorm:"many2many:query_targets"`
 }
 
 type TargetType int
@@ -81,8 +86,30 @@ type Target struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	Type      TargetType
-	QueryID   uint
 	TargetID  uint
+	QueryID   uint
+}
+
+type Pack struct {
+	ID        uint `gorm:"primary_key"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Name      string `gorm:"not null;unique_index:idx_pack_unique_name"`
+	Platform  string
+}
+
+type PackQuery struct {
+	ID        uint `gorm:"primary_key"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	PackID    uint
+	QueryID   uint
+}
+
+type PackTarget struct {
+	ID       uint `gorm:"primary_key"`
+	PackID   uint
+	TargetID uint
 }
 
 type DistributedQueryStatus int
@@ -93,14 +120,20 @@ const (
 	QueryError    DistributedQueryStatus = iota
 )
 
-type DistributedQuery struct {
+type DistributedQueryCampaign struct {
 	ID          uint `gorm:"primary_key"`
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
-	Query       Query
+	QueryID     uint
 	MaxDuration time.Duration
 	Status      DistributedQueryStatus
 	UserID      uint
+}
+
+type DistributedQueryCampaignTarget struct {
+	ID                         uint `gorm:"primary_key"`
+	DistributedQueryCampaignID uint
+	TargetID                   uint
 }
 
 type DistributedQueryExecutionStatus int
@@ -118,23 +151,6 @@ type DistributedQueryExecution struct {
 	Status             DistributedQueryExecutionStatus
 	Error              string `gorm:"size:1024"`
 	ExecutionDuration  time.Duration
-}
-
-type Pack struct {
-	ID               uint `gorm:"primary_key"`
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
-	Name             string `gorm:"not null;unique_index:idx_pack_unique_name"`
-	Platform         string
-	Queries          []ScheduledQuery
-	DiscoveryQueries []DiscoveryQuery
-}
-
-type DiscoveryQuery struct {
-	ID        uint `gorm:"primary_key"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Query     string `gorm:"size:1024" gorm:"not null"`
 }
 
 type Option struct {

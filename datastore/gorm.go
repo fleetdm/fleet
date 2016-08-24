@@ -22,16 +22,16 @@ var tables = [...]interface{}{
 	&kolide.User{},
 	&kolide.PasswordResetRequest{},
 	&kolide.Session{},
-	&kolide.ScheduledQuery{},
 	&kolide.Pack{},
-	&kolide.DiscoveryQuery{},
+	&kolide.PackQuery{},
+	&kolide.PackTarget{},
 	&kolide.Host{},
 	&kolide.Label{},
 	&kolide.LabelQueryExecution{},
 	&kolide.Option{},
-	&kolide.Decorator{},
 	&kolide.Target{},
-	&kolide.DistributedQuery{},
+	&kolide.DistributedQueryCampaign{},
+	&kolide.DistributedQueryCampaignTarget{},
 	&kolide.Query{},
 	&kolide.DistributedQueryExecution{},
 }
@@ -43,6 +43,50 @@ type gormDB struct {
 
 func (orm gormDB) Name() string {
 	return "gorm"
+}
+
+func (orm gormDB) Migrate() error {
+	for _, table := range tables {
+		if err := orm.DB.AutoMigrate(table).Error; err != nil {
+			return err
+		}
+	}
+
+	// Have to manually add indexes. Yuck!
+	orm.DB.Model(&kolide.LabelQueryExecution{}).AddUniqueIndex("idx_lqe_label_host", "label_id", "host_id")
+
+	return nil
+}
+
+func (orm gormDB) Drop() error {
+	var err error
+	for _, table := range tables {
+		err = orm.DB.DropTableIfExists(table).Error
+	}
+	return err
+}
+
+// create connection with mysql backend, using a backoff timer and maxAttempts
+func openGORM(driver, conn string, maxAttempts int) (*gorm.DB, error) {
+	var db *gorm.DB
+	var err error
+	for attempts := 1; attempts <= maxAttempts; attempts++ {
+		db, err = gorm.Open(driver, conn)
+		if err == nil {
+			break
+		} else {
+			if err.Error() == "invalid database source" {
+				return nil, err
+			}
+			// TODO: use a logger
+			fmt.Printf("could not connect to mysql: %v\n", err)
+			time.Sleep(time.Duration(attempts) * time.Second)
+		}
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to mysql backend, err = %v", err)
+	}
+	return db, nil
 }
 
 // NewUser creates a new user in the gorm backend
@@ -347,6 +391,43 @@ func (orm gormDB) NewQuery(query *kolide.Query) error {
 	return orm.DB.Create(query).Error
 }
 
+func (orm gormDB) SaveQuery(query *kolide.Query) error {
+	if query == nil {
+		return errors.New(
+			"error saving query",
+			"nil pointer passed to SaveQuery",
+		)
+	}
+	return orm.DB.Save(query).Error
+}
+
+func (orm gormDB) DeleteQuery(query *kolide.Query) error {
+	if query == nil {
+		return errors.New(
+			"error deleting query",
+			"nil pointer passed to DeleteQuery",
+		)
+	}
+	return orm.DB.Delete(query).Error
+}
+
+func (orm gormDB) Query(id uint) (*kolide.Query, error) {
+	query := &kolide.Query{
+		ID: id,
+	}
+	err := orm.DB.Where(query).First(query).Error
+	if err != nil {
+		return nil, err
+	}
+	return query, nil
+}
+
+func (orm gormDB) Queries() ([]*kolide.Query, error) {
+	var queries []*kolide.Query
+	err := orm.DB.Find(&queries).Error
+	return queries, err
+}
+
 func (orm gormDB) NewLabel(label *kolide.Label) error {
 	if label == nil {
 		return errors.New(
@@ -385,7 +466,10 @@ AND q.id NOT IN /* subtract the set of executions that are recent enough */
 	results := make(map[string]string)
 	for rows.Next() {
 		var id, query string
-		rows.Scan(&id, &query)
+		err = rows.Scan(&id, &query)
+		if err != nil {
+			return results, nil
+		}
 		results[id] = query
 	}
 
@@ -443,46 +527,145 @@ matches = VALUES(matches)
 	return nil
 }
 
-func (orm gormDB) Migrate() error {
-	for _, table := range tables {
-		if err := orm.DB.AutoMigrate(table).Error; err != nil {
-			return err
-		}
+func (orm gormDB) NewPack(pack *kolide.Pack) error {
+	if pack == nil {
+		return errors.New(
+			"error creating pack",
+			"nil pointer passed to NewPack",
+		)
+	}
+	return orm.DB.Create(pack).Error
+}
+
+func (orm gormDB) SavePack(pack *kolide.Pack) error {
+	if pack == nil {
+		return errors.New(
+			"error saving pack",
+			"nil pointer passed to SavePack",
+		)
+	}
+	return orm.DB.Save(pack).Error
+}
+
+func (orm gormDB) DeletePack(pack *kolide.Pack) error {
+	if pack == nil {
+		return errors.New(
+			"error deleting pack",
+			"nil pointer passed to DeletePack",
+		)
+	}
+	err := orm.DB.Delete(pack).Error
+	if err != nil {
+		return err
 	}
 
-	// Have to manually add indexes. Yuck!
-	orm.DB.Model(&kolide.LabelQueryExecution{}).AddUniqueIndex("idx_lqe_label_host", "label_id", "host_id")
+	err = orm.DB.Where("pack_id = ?", pack.ID).Delete(&kolide.PackQuery{}).Error
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
-func (orm gormDB) Drop() error {
-	var err error
-	for _, table := range tables {
-		err = orm.DB.DropTableIfExists(table).Error
+func (orm gormDB) Pack(id uint) (*kolide.Pack, error) {
+	pack := &kolide.Pack{
+		ID: id,
 	}
-	return err
+	err := orm.DB.Where(pack).First(pack).Error
+	if err != nil {
+		return nil, err
+	}
+	return pack, nil
 }
 
-// create connection with mysql backend, using a backoff timer and maxAttempts
-func openGORM(driver, conn string, maxAttempts int) (*gorm.DB, error) {
-	var db *gorm.DB
-	var err error
-	for attempts := 1; attempts <= maxAttempts; attempts++ {
-		db, err = gorm.Open(driver, conn)
-		if err == nil {
-			break
-		} else {
-			if err.Error() == "invalid database source" {
-				return nil, err
-			}
-			// TODO: use a logger
-			fmt.Printf("could not connect to mysql: %v\n", err)
-			time.Sleep(time.Duration(attempts) * time.Second)
+func (orm gormDB) Packs() ([]*kolide.Pack, error) {
+	var packs []*kolide.Pack
+	err := orm.DB.Find(&packs).Error
+	return packs, err
+}
+
+func (orm gormDB) AddQueryToPack(query *kolide.Query, pack *kolide.Pack) error {
+	if query == nil || pack == nil {
+		return errors.New(
+			"error adding query from pack",
+			"nil pointer passed to AddQueryToPack",
+		)
+	}
+	pq := &kolide.PackQuery{
+		QueryID: query.ID,
+		PackID:  pack.ID,
+	}
+	return orm.DB.Create(pq).Error
+}
+
+func (orm gormDB) GetQueriesInPack(pack *kolide.Pack) ([]*kolide.Query, error) {
+	var queries []*kolide.Query
+	if pack == nil {
+		return nil, errors.New(
+			"error getting queries in pack",
+			"nil pointer passed to GetQueriesInPack",
+		)
+	}
+
+	rows, err := orm.DB.Raw(`
+SELECT
+  q.id,
+  q.created_at,
+  q.updated_at,
+  q.name,
+  q.query,
+  q.interval,
+  q.snapshot,
+  q.differential,
+  q.platform,
+  q.version
+FROM 
+  queries q 
+JOIN 
+  pack_queries pq 
+ON 
+  pq.query_id = q.id 
+AND 
+  pq.pack_id = ?;
+`, pack.ID).Rows()
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, errors.DatabaseError(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		query := new(kolide.Query)
+		err = rows.Scan(
+			&query.ID,
+			&query.CreatedAt,
+			&query.UpdatedAt,
+			&query.Name,
+			&query.Query,
+			&query.Interval,
+			&query.Snapshot,
+			&query.Differential,
+			&query.Platform,
+			&query.Version,
+		)
+		if err != nil {
+			return nil, err
 		}
+		queries = append(queries, query)
 	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to mysql backend, err = %v", err)
+
+	return queries, nil
+}
+
+func (orm gormDB) RemoveQueryFromPack(query *kolide.Query, pack *kolide.Pack) error {
+	if query == nil || pack == nil {
+		return errors.New(
+			"error removing query from pack",
+			"nil pointer passed to RemoveQueryFromPack",
+		)
 	}
-	return db, nil
+	pq := &kolide.PackQuery{
+		QueryID: query.ID,
+		PackID:  pack.ID,
+	}
+	return orm.DB.Where(pq).Delete(pq).Error
 }
