@@ -158,13 +158,22 @@ $7777777....$....$777$.....+DI..DDD..DDI...8D...D8......$D:..8D....8D...8D......
 			},
 		}
 
-		connString := fmt.Sprintf(
-			"%s:%s@(%s)/%s?charset=utf8&parseTime=True&loc=Local",
-			viper.GetString("mysql.username"),
-			viper.GetString("mysql.password"),
-			viper.GetString("mysql.address"),
-			viper.GetString("mysql.database"),
-		)
+		// get mysql connection from config or docker link
+		// temporary until config is redone
+		var connString string
+		if os.Getenv("MYSQL_PORT_3306_TCP_ADDR") != "" {
+			// try connection from docker link
+			connString = dockerMySQLconnString()
+		} else {
+			connString = fmt.Sprintf(
+				"%s:%s@(%s)/%s?charset=utf8&parseTime=True&loc=Local",
+				viper.GetString("mysql.username"),
+				viper.GetString("mysql.password"),
+				viper.GetString("mysql.address"),
+				viper.GetString("mysql.database"),
+			)
+		}
+
 		ds, err := datastore.New("gorm-mysql", connString)
 		if err != nil {
 			logrus.WithError(err).Fatal("error creating db connection")
@@ -226,6 +235,29 @@ var dbCmd = &cobra.Command{
 			logrus.WithError(err).Fatal("error setting up db schema")
 		}
 	},
+}
+
+// detect that docker --link to mysql container is up and use
+// the default env vars
+func dockerMySQLconnString() string {
+	var (
+		username = os.Getenv("MYSQL_ENV_MYSQL_USER")
+		password = os.Getenv("MYSQL_ENV_MYSQL_PASSWORD")
+		host     = os.Getenv("MYSQL_PORT_3306_TCP_ADDR")
+		port     = os.Getenv("MYSQL_PORT_3306_TCP_PORT")
+		dbName   = os.Getenv("MYSQL_ENV_MYSQL_DATABASE")
+	)
+
+	if host == "" {
+		return "" // no docker conn detected
+	}
+	logrus.Infoln("detected docker mysql link, using link environment vars")
+
+	connString := fmt.Sprintf(
+		"%s:%s@(%s:%s)/%s?charset=utf8&parseTime=True&loc=Local",
+		username, password, host, port, dbName,
+	)
+	return connString
 }
 
 // Due to a deficiency in viper (https://github.com/spf13/viper/issues/71), one
