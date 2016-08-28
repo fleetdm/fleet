@@ -34,6 +34,20 @@ type User struct {
 	NeedsPasswordReset bool
 }
 
+// UserPayload is used to modify an existing user
+type UserPayload struct {
+	Username           *string `json:"username"`
+	Name               *string `json:"name"`
+	Email              *string `json:"email"`
+	Admin              *bool   `json:"admin"`
+	Enabled            *bool   `json:"enabled"`
+	NeedsPasswordReset *bool   `json:"needs_password_reset"`
+	Password           *string `json:"password"`
+	// modify params
+	CurrentPassword *string `json:"current_password"`
+	NewPassword     *string `json:"new_password"`
+}
+
 // NewUser is a wrapper around the creation of a new user.
 // NewUser exists largely to allow the API to simply accept a string password
 // while using the applications password hashing mechanisms to salt and hash the

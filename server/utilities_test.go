@@ -33,11 +33,11 @@ func makeRequest(t *testing.T, server http.Handler, verb, endpoint string, body 
 	return response
 }
 
-func createTestServer(ds datastore.Datastore) http.Handler {
+func createTestServer(ds kolide.Datastore) http.Handler {
 	return createTestServerWithSMTP(ds, kolide.NewMockSMTPConnectionPool())
 }
 
-func createTestServerWithSMTP(ds datastore.Datastore, pool kolide.SMTPConnectionPool) http.Handler {
+func createTestServerWithSMTP(ds kolide.Datastore, pool kolide.SMTPConnectionPool) http.Handler {
 	return CreateServer(
 		ds,
 		pool,
@@ -47,7 +47,7 @@ func createTestServerWithSMTP(ds datastore.Datastore, pool kolide.SMTPConnection
 	)
 }
 
-func createTestDatastore(t *testing.T) datastore.Datastore {
+func createTestDatastore(t *testing.T) kolide.Datastore {
 	ds, err := datastore.New("gorm-sqlite3", ":memory:")
 	if err != nil {
 		t.Fatal(err)
@@ -55,7 +55,7 @@ func createTestDatastore(t *testing.T) datastore.Datastore {
 	return ds
 }
 
-func createTestPacksAndQueries(t *testing.T, ds datastore.Datastore) datastore.Datastore {
+func createTestPacksAndQueries(t *testing.T, ds kolide.Datastore) kolide.Datastore {
 	var err error
 
 	pack1 := &kolide.Pack{
@@ -103,7 +103,7 @@ func createTestPacksAndQueries(t *testing.T, ds datastore.Datastore) datastore.D
 	return ds
 }
 
-func createTestUsers(t *testing.T, ds datastore.Datastore) datastore.Datastore {
+func createTestUsers(t *testing.T, ds kolide.Datastore) kolide.Datastore {
 	type NewUserParams struct {
 		Username           string
 		Password           string
