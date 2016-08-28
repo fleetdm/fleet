@@ -30,7 +30,6 @@ func login(ds kolide.UserStore, logger kitlog.Logger) http.HandlerFunc {
 			logger.Log("err", err, "user", username)
 			return
 		}
-
 		// create session here
 
 		encodeResponse(ctx, w, getUserResponse{
@@ -156,6 +155,12 @@ func (vc *viewerContext) CanPerformActions() bool {
 // ability to perform read actions on the given user
 func (vc *viewerContext) CanPerformReadActionOnUser(u *kolide.User) bool {
 	return vc.CanPerformActions() || (vc.IsLoggedIn() && vc.IsUserID(u.ID))
+}
+
+// CanPerformWriteActionOnUser returns a bool indicating the current user's
+// ability to perform write actions on the given user
+func (vc *viewerContext) CanPerformWriteActionOnUser(u *kolide.User) bool {
+	return vc.CanPerformActions() && (vc.IsUserID(u.ID) || vc.IsAdmin())
 }
 
 // IsUserID returns true if the given user id the same as the user which is
