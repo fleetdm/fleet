@@ -84,7 +84,7 @@ func TestCreateUser(t *testing.T) {
 	}
 }
 
-func TestSetUserPassword(t *testing.T) {
+func TestChangeUserPassword(t *testing.T) {
 	ds, _ := datastore.New("mock", "")
 	svc, _ := NewService(ds)
 	createTestUsers(t, svc)
@@ -109,7 +109,7 @@ func TestSetUserPassword(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		err = svc.SetPassword(ctx, user.ID, tt.newPassword)
+		err = svc.ChangePassword(ctx, user.ID, tt.currentPassword, tt.newPassword)
 		if err != nil {
 			t.Fatal(err)
 		}

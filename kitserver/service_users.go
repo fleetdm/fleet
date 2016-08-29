@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/kolide"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/net/context"
@@ -23,20 +24,65 @@ func (s service) NewUser(ctx context.Context, p kolide.UserPayload) (*kolide.Use
 }
 
 func (s service) User(ctx context.Context, id uint) (*kolide.User, error) {
+	// TODO: @groob
+	// a user is loaded for almost every request...
+	// consider loading the user from an in memory cache for most read operations
+	// and possibly only query the DB if the user is being queried for a write operation
+	// could be a calling context
 	return s.ds.UserByID(id)
 }
 
-func (s service) SetPassword(ctx context.Context, userID uint, password string) error {
+func (s service) Authenticate(ctx context.Context, username, password string) (*kolide.User, error) {
+	user, err := s.ds.User(username)
+	switch err {
+	case nil:
+	case datastore.ErrNotFound:
+		return nil, authError{
+			message: fmt.Sprintf("user %s not found", username),
+		}
+	default:
+		return nil, err
+	}
+	if err := user.ValidatePassword(password); err != nil {
+		return nil, authError{
+			message: fmt.Sprintf("unauthorized: invalid password for user %s", username),
+		}
+	}
+	return user, nil
+}
+
+func (s service) ChangePassword(ctx context.Context, userID uint, old, new string) error {
 	user, err := s.User(ctx, userID)
 	if err != nil {
 		return err
 	}
-	hashed, salt, err := hashPassword(password, s.saltKeySize, s.bcryptCost)
+	if err := user.ValidatePassword(old); err != nil {
+		return fmt.Errorf("old password validation failed: %v", err)
+	}
+	hashed, salt, err := hashPassword(new, s.saltKeySize, s.bcryptCost)
 	if err != nil {
 		return err
 	}
 	user.Salt = salt
 	user.Password = hashed
+	return s.saveUser(user)
+}
+
+func (s service) UpdateAdminRole(ctx context.Context, userID uint, isAdmin bool) error {
+	user, err := s.User(ctx, userID)
+	if err != nil {
+		return err
+	}
+	user.Admin = isAdmin
+	return s.saveUser(user)
+}
+
+func (s service) UpdateStatus(ctx context.Context, userID uint, enabled bool) error {
+	user, err := s.User(ctx, userID)
+	if err != nil {
+		return err
+	}
+	user.Enabled = enabled
 	return s.saveUser(user)
 }
 

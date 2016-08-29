@@ -30,13 +30,12 @@ func MakeHandler(ctx context.Context, svc kolide.Service, logger kitlog.Logger) 
 		opts...,
 	)
 
-	var ds kolide.Datastore
 	api := mux.NewRouter()
 	api.Handle("/api/v1/kolide/users", createUserHandler).Methods("POST")
 	r := mux.NewRouter()
 
 	r.PathPrefix("/api/v1/kolide").Handler(authMiddleware(api))
-	r.Handle("/login", login(ds, logger)).Methods("POST")
-	r.Handle("/logout", logout(ds, logger)).Methods("GET")
+	r.Handle("/login", login(svc, logger)).Methods("POST")
+	r.Handle("/logout", logout(svc, logger)).Methods("GET")
 	return r
 }

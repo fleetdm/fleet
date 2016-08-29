@@ -22,8 +22,8 @@ func TestLogin(t *testing.T) {
 	createTestUsers(t, svc)
 
 	r := http.NewServeMux()
-	r.Handle("/logout", logout(ds, kitlog.NewNopLogger()))
-	r.Handle("/login", login(ds, kitlog.NewNopLogger()))
+	r.Handle("/logout", logout(svc, kitlog.NewNopLogger()))
+	r.Handle("/login", login(svc, kitlog.NewNopLogger()))
 	r.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "index")
 	}))

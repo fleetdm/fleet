@@ -29,6 +29,9 @@ func makeCreateUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createUserRequest)
 		user, err := svc.NewUser(ctx, req.payload)
+		if err != nil {
+			return createUserResponse{Err: err}, nil
+		}
 		return createUserResponse{
 			ID:                 user.ID,
 			Username:           user.Username,
@@ -36,7 +39,6 @@ func makeCreateUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 			Admin:              user.Admin,
 			Enabled:            user.Enabled,
 			NeedsPasswordReset: user.NeedsPasswordReset,
-			Err:                err,
 		}, nil
 	}
 }

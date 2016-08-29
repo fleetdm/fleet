@@ -9,11 +9,10 @@ import (
 
 	kitlog "github.com/go-kit/kit/log"
 
-	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/kolide"
 )
 
-func login(ds kolide.UserStore, logger kitlog.Logger) http.HandlerFunc {
+func login(svc kolide.UserService, logger kitlog.Logger) http.HandlerFunc {
 	ctx := context.Background()
 	logger = kitlog.NewContext(logger).With("method", "login")
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -25,8 +24,20 @@ func login(ds kolide.UserStore, logger kitlog.Logger) http.HandlerFunc {
 		}
 
 		// retrieve user or respond with error
-		user, err := getUser(ctx, ds, w, username, password)
-		if err != nil {
+		user, err := svc.Authenticate(ctx, username, password)
+		switch err.(type) {
+		case nil:
+			logger.Log("msg", "authenticated", "user", username, "id", user.ID)
+		case authError:
+			encodeResponse(ctx, w, getUserResponse{
+				Err: err,
+			})
+			logger.Log("err", err, "user", username)
+			return
+		default:
+			encodeResponse(ctx, w, getUserResponse{
+				Err: errors.New("unknown error, try again later"),
+			})
 			logger.Log("err", err, "user", username)
 			return
 		}
@@ -40,45 +51,14 @@ func login(ds kolide.UserStore, logger kitlog.Logger) http.HandlerFunc {
 			Enabled:            user.Enabled,
 			NeedsPasswordReset: user.NeedsPasswordReset,
 		})
-		logger.Log("msg", "authenticated", "user", username, "id", user.ID)
 
 	}
 
-}
-
-// gets user from datastore or responds with an authError
-func getUser(ctx context.Context, ds kolide.UserStore, w http.ResponseWriter, username, password string) (*kolide.User, error) {
-	user, err := ds.User(username)
-	switch err {
-	case nil:
-	case datastore.ErrNotFound:
-		encodeResponse(ctx, w, getUserResponse{
-			Err: authError{
-				message: fmt.Sprintf("user %s not found", username),
-			},
-		})
-		return nil, err
-	default:
-		encodeResponse(ctx, w, getUserResponse{
-			Err: errors.New("unknown error, try again later"),
-		})
-		return nil, err
-	}
-	err = user.ValidatePassword(password)
-	if err != nil {
-		encodeResponse(ctx, w, getUserResponse{
-			Err: authError{
-				message: fmt.Sprintf("unauthorized: invalid password for user %s", username),
-			},
-		})
-		return nil, err
-	}
-	return user, nil
 }
 
 const noAuthRedirect = "/"
 
-func logout(ds kolide.UserStore, logger kitlog.Logger) http.HandlerFunc {
+func logout(svc kolide.UserService, logger kitlog.Logger) http.HandlerFunc {
 	logger = kitlog.NewContext(logger).With("method", "logout")
 	return func(w http.ResponseWriter, r *http.Request) {
 		// delete session first
