@@ -1,5 +1,5 @@
 hash: 082be2432c000297d8d76bd1dc0f2be4e98954d0f49682603469e1b3056790f5
-updated: 2016-08-27T02:25:49.982710514-04:00
+updated: 2016-08-29T09:08:22.504560027-04:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -32,8 +32,14 @@ imports:
   version: dd9236608629b98d33d4c6681dc3740400c01243
   subpackages:
   - endpoint
+  - log
+  - transport/http
+- name: github.com/go-logfmt/logfmt
+  version: d4327190ff838312623b09bfeb50d7c93c8d9c1d
 - name: github.com/go-sql-driver/mysql
   version: 3654d25ec346ee8ce71a68431025458d52a38ac0
+- name: github.com/go-stack/stack
+  version: 100eb0c0a9c5b306ca2fb4f165df21d80ada4b82
 - name: github.com/golang/mock
   version: bd3c8e81be01eef76d4b503f5e687d2d1354d2d9
   subpackages:
@@ -42,6 +48,10 @@ imports:
   version: c3cefd437628a0b7d31b34fe44b3a7a540e98527
   subpackages:
   - proto
+- name: github.com/gorilla/context
+  version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
+- name: github.com/gorilla/mux
+  version: 0b13a922203ebdbfd236c818efcd5ed46097d690
 - name: github.com/hashicorp/hcl
   version: baeb59c710717b06aac1dbe2270e8192ec593244
   subpackages:
@@ -66,6 +76,8 @@ imports:
   version: fd703108daeb23d77c124d12978e9b6c4f28f034
 - name: github.com/kr/fs
   version: 2788f0dbd16903de03cb8186e5c7d97b69ad387b
+- name: github.com/kr/logfmt
+  version: b84e30acd515aadc4b783ad4ff83aff3299bdfe0
 - name: github.com/magiconair/properties
   version: 61b492c03cf472e0c6419be5899b8e0dc28b1b88
 - name: github.com/manucorporat/sse
@@ -120,6 +132,7 @@ imports:
   version: 4d38db76854b199960801a1734443fd02870d7e1
   subpackages:
   - context
+  - context/ctxhttp
 - name: golang.org/x/sys
   version: a646d33e2ee3172a661fc09bca23bb4889a41bc8
   subpackages:
@@ -130,7 +143,7 @@ imports:
   - transform
   - unicode/norm
 - name: gopkg.in/alecthomas/kingpin.v2
-  version: e5900212cbf65b181d3d8e08308ef06a01d117cf
+  version: e9044be3ab2a8e11d4e1f418d12f0790d57e8d70
 - name: gopkg.in/go-playground/validator.v8
   version: 5f57d2222ad794d0dffb07e664ea05e2ee07d60c
 - name: gopkg.in/natefinch/lumberjack.v2
