@@ -22,6 +22,31 @@ func (s service) NewUser(ctx context.Context, p kolide.UserPayload) (*kolide.Use
 	return user, nil
 }
 
+func (s service) User(ctx context.Context, id uint) (*kolide.User, error) {
+	return s.ds.UserByID(id)
+}
+
+func (s service) SetPassword(ctx context.Context, userID uint, password string) error {
+	user, err := s.User(ctx, userID)
+	if err != nil {
+		return err
+	}
+	hashed, salt, err := hashPassword(password, s.saltKeySize, s.bcryptCost)
+	if err != nil {
+		return err
+	}
+	user.Salt = salt
+	user.Password = hashed
+	return s.saveUser(user)
+}
+
+// saves user in datastore.
+// doesn't need to be exposed to the transport
+// the service should expose actions for modifying a user instead
+func (s service) saveUser(user *kolide.User) error {
+	return s.ds.SaveUser(user)
+}
+
 func userFromPayload(p kolide.UserPayload, keySize, cost int) (*kolide.User, error) {
 	hashed, salt, err := hashPassword(*p.Password, keySize, cost)
 	if err != nil {
@@ -62,7 +87,6 @@ func generateRandomText(keySize int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	return base64.StdEncoding.EncodeToString(key), nil
 }
 

@@ -84,6 +84,53 @@ func TestCreateUser(t *testing.T) {
 	}
 }
 
+func TestSetUserPassword(t *testing.T) {
+	ds, _ := datastore.New("mock", "")
+	svc, _ := NewService(ds)
+	createTestUsers(t, svc)
+
+	var passwordChangeTests = []struct {
+		username        string
+		currentPassword string
+		newPassword     string
+		err             error
+	}{
+		{
+			username:        "admin1",
+			currentPassword: *testUsers["admin1"].Password,
+			newPassword:     "123cat!",
+		},
+	}
+
+	ctx := context.Background()
+	for _, tt := range passwordChangeTests {
+		user, err := ds.User(tt.username)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = svc.SetPassword(ctx, user.ID, tt.newPassword)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+	}
+}
+
+var testUsers = map[string]kolide.UserPayload{
+	"admin1": {
+		Username: stringPtr("admin1"),
+		Password: stringPtr("foobar"),
+		Email:    stringPtr("admin1@example.com"),
+		Admin:    boolPtr(true),
+	},
+	"user1": {
+		Username: stringPtr("user1"),
+		Password: stringPtr("foobar"),
+		Email:    stringPtr("user1@example.com"),
+	},
+}
+
 func stringPtr(s string) *string {
 	return &s
 }

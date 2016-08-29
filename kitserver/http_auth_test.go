@@ -141,20 +141,6 @@ func TestLogin(t *testing.T) {
 	}
 }
 
-var testUsers = map[string]kolide.UserPayload{
-	"admin1": {
-		Username: stringPtr("admin1"),
-		Password: stringPtr("foobar"),
-		Email:    stringPtr("admin1@example.com"),
-		Admin:    boolPtr(true),
-	},
-	"user1": {
-		Username: stringPtr("user1"),
-		Password: stringPtr("foobar"),
-		Email:    stringPtr("user1@example.com"),
-	},
-}
-
 func createTestUsers(t *testing.T, svc kolide.UserService) {
 	ctx := context.Background()
 	for _, tt := range testUsers {
