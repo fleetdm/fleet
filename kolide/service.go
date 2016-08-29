@@ -9,4 +9,5 @@ type Service interface {
 
 type UserService interface {
 	NewUser(ctx context.Context, p UserPayload) (*User, error)
+	SetPassword(ctx context.Context, userID uint, password string) error
 }
