@@ -63,14 +63,10 @@ func (r getUserResponse) error() error { return r.Err }
 func makeGetUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(getUserRequest)
-
-		// TODO call Service
-		// user, err := svc.NewUser(user)
-
-		var user *kolide.User
-		var err error
-		_ = req
-
+		user, err := svc.User(ctx, req.ID)
+		if err != nil {
+			return getUserResponse{Err: err}, nil
+		}
 		return getUserResponse{
 			ID:                 user.ID,
 			Username:           user.Username,
@@ -78,8 +74,67 @@ func makeGetUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 			Admin:              user.Admin,
 			Enabled:            user.Enabled,
 			NeedsPasswordReset: user.NeedsPasswordReset,
-			Err:                err,
 		}, nil
+	}
+}
+
+type changePasswordRequest struct {
+	UserID             uint   `json:"user_id"`
+	CurrentPassword    string `json:"current_password"`
+	PasswordResetToken string `json:"password_reset_token"`
+	NewPassword        string `json:"new_password"`
+}
+
+type changePasswordResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r changePasswordResponse) error() error { return r.Err }
+
+func makeChangePasswordEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(changePasswordRequest)
+		err := svc.ChangePassword(ctx, req.UserID, req.CurrentPassword, req.NewPassword)
+		return changePasswordResponse{Err: err}, nil
+	}
+}
+
+type updateAdminRoleRequest struct {
+	UserID uint `json:"user_id"`
+	Admin  bool `json:"admin"`
+}
+
+type updateAdminRoleResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r updateAdminRoleResponse) error() error { return r.Err }
+
+func makeUpdateAdminRoleEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(updateAdminRoleRequest)
+		err := svc.UpdateAdminRole(ctx, req.UserID, req.Admin)
+		return updateAdminRoleResponse{Err: err}, nil
+	}
+}
+
+type updateUserStatusRequest struct {
+	UserID          uint   `json:"user_id"`
+	Enabled         bool   `json:"enabled"`
+	CurrentPassword string `json:"current_password"`
+}
+
+type updateUserStatusResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r updateUserStatusResponse) error() error { return r.Err }
+
+func makeUpdateUserStatusEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(updateUserStatusRequest)
+		err := svc.UpdateUserStatus(ctx, req.UserID, req.CurrentPassword, req.Enabled)
+		return updateUserStatusResponse{Err: err}, nil
 	}
 }
 

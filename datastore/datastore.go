@@ -81,6 +81,7 @@ func New(driver, conn string, opts ...DBOption) (kolide.Datastore, error) {
 			sessionKeySize:  opt.sessionKeySize,
 			sessionLifespan: opt.sessionLifespan,
 			users:           make(map[uint]*kolide.User),
+			sessions:        make(map[uint]*kolide.Session),
 		}
 		return ds, nil
 	default:

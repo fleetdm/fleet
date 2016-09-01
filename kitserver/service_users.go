@@ -5,92 +5,67 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/kolide"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/net/context"
 )
 
-func (s service) NewUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
-	user, err := userFromPayload(p, s.saltKeySize, s.bcryptCost)
+func (svc service) NewUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
+	user, err := userFromPayload(p, svc.saltKeySize, svc.bcryptCost)
 	if err != nil {
 		return nil, err
 	}
-	user, err = s.ds.NewUser(user)
+	user, err = svc.ds.NewUser(user)
 	if err != nil {
 		return nil, err
 	}
 	return user, nil
 }
 
-func (s service) User(ctx context.Context, id uint) (*kolide.User, error) {
-	// TODO: @groob
-	// a user is loaded for almost every request...
-	// consider loading the user from an in memory cache for most read operations
-	// and possibly only query the DB if the user is being queried for a write operation
-	// could be a calling context
-	return s.ds.UserByID(id)
+func (svc service) User(ctx context.Context, id uint) (*kolide.User, error) {
+	return svc.ds.UserByID(id)
 }
 
-func (s service) Authenticate(ctx context.Context, username, password string) (*kolide.User, error) {
-	user, err := s.ds.User(username)
-	switch err {
-	case nil:
-	case datastore.ErrNotFound:
-		return nil, authError{
-			message: fmt.Sprintf("user %s not found", username),
-		}
-	default:
-		return nil, err
-	}
-	if err := user.ValidatePassword(password); err != nil {
-		return nil, authError{
-			message: fmt.Sprintf("unauthorized: invalid password for user %s", username),
-		}
-	}
-	return user, nil
-}
-
-func (s service) ChangePassword(ctx context.Context, userID uint, old, new string) error {
-	user, err := s.User(ctx, userID)
+func (svc service) ChangePassword(ctx context.Context, userID uint, old, new string) error {
+	user, err := svc.User(ctx, userID)
 	if err != nil {
 		return err
 	}
 	if err := user.ValidatePassword(old); err != nil {
-		return fmt.Errorf("old password validation failed: %v", err)
+		return fmt.Errorf("current password validation failed: %v", err)
 	}
-	hashed, salt, err := hashPassword(new, s.saltKeySize, s.bcryptCost)
+	hashed, salt, err := hashPassword(new, svc.saltKeySize, svc.bcryptCost)
 	if err != nil {
 		return err
 	}
 	user.Salt = salt
 	user.Password = hashed
-	return s.saveUser(user)
+	return svc.saveUser(user)
 }
 
-func (s service) UpdateAdminRole(ctx context.Context, userID uint, isAdmin bool) error {
-	user, err := s.User(ctx, userID)
+func (svc service) UpdateAdminRole(ctx context.Context, userID uint, isAdmin bool) error {
+	user, err := svc.User(ctx, userID)
 	if err != nil {
 		return err
 	}
 	user.Admin = isAdmin
-	return s.saveUser(user)
+	return svc.saveUser(user)
 }
 
-func (s service) UpdateStatus(ctx context.Context, userID uint, enabled bool) error {
-	user, err := s.User(ctx, userID)
+func (svc service) UpdateUserStatus(ctx context.Context, userID uint, password string, enabled bool) error {
+	user, err := svc.User(ctx, userID)
 	if err != nil {
 		return err
 	}
 	user.Enabled = enabled
-	return s.saveUser(user)
+	return svc.saveUser(user)
 }
 
 // saves user in datastore.
 // doesn't need to be exposed to the transport
 // the service should expose actions for modifying a user instead
-func (s service) saveUser(user *kolide.User) error {
-	return s.ds.SaveUser(user)
+func (svc service) saveUser(user *kolide.User) error {
+	return svc.ds.SaveUser(user)
 }
 
 func userFromPayload(p kolide.UserPayload, keySize, cost int) (*kolide.User, error) {
@@ -105,6 +80,7 @@ func userFromPayload(p kolide.UserPayload, keySize, cost int) (*kolide.User, err
 		Admin:              falseIfNil(p.Admin),
 		NeedsPasswordReset: falseIfNil(p.NeedsPasswordReset),
 		Salt:               salt,
+		Enabled:            true,
 		Password:           hashed,
 	}, nil
 }

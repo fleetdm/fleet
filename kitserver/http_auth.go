@@ -1,6 +1,7 @@
 package kitserver
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,15 +13,29 @@ import (
 	"github.com/kolide/kolide-ose/kolide"
 )
 
-func login(svc kolide.UserService, logger kitlog.Logger) http.HandlerFunc {
+func login(svc kolide.Service, logger kitlog.Logger) http.HandlerFunc {
 	ctx := context.Background()
 	logger = kitlog.NewContext(logger).With("method", "login")
 	return func(w http.ResponseWriter, r *http.Request) {
-		username := r.FormValue("username")
-		password := r.FormValue("password")
-		if username == "" || password == "" {
-			http.Redirect(w, r, "/", http.StatusFound)
+		var loginRequest = struct {
+			Username *string
+			Password *string
+		}{}
+		if err := json.NewDecoder(r.Body).Decode(&loginRequest); err != nil {
+			encodeResponse(ctx, w, getUserResponse{
+				Err: err,
+			})
+			logger.Log("err", err)
 			return
+		}
+		var username, password string
+		{
+			if loginRequest.Username != nil {
+				username = *loginRequest.Username
+			}
+			if loginRequest.Password != nil {
+				password = *loginRequest.Password
+			}
 		}
 
 		// retrieve user or respond with error
@@ -41,7 +56,27 @@ func login(svc kolide.UserService, logger kitlog.Logger) http.HandlerFunc {
 			logger.Log("err", err, "user", username)
 			return
 		}
+
 		// create session here
+		sm := svc.NewSessionManager(ctx, w, r)
+
+		// TODO it feels awkward to create and then save the session in two steps.
+		// the session manager should just call Save on it's own?
+		if err := sm.MakeSessionForUserID(user.ID); err != nil {
+			encodeResponse(ctx, w, getUserResponse{
+				Err: errors.New("error creating new user session"),
+			})
+			logger.Log("err", err, "user", username)
+			return
+		}
+
+		if err := sm.Save(); err != nil {
+			encodeResponse(ctx, w, getUserResponse{
+				Err: errors.New("error saving new user session"),
+			})
+			logger.Log("err", err, "user", username)
+			return
+		}
 
 		encodeResponse(ctx, w, getUserResponse{
 			ID:                 user.ID,
@@ -53,33 +88,60 @@ func login(svc kolide.UserService, logger kitlog.Logger) http.HandlerFunc {
 		})
 
 	}
-
 }
 
 const noAuthRedirect = "/"
 
-func logout(svc kolide.UserService, logger kitlog.Logger) http.HandlerFunc {
+func logout(svc kolide.Service, logger kitlog.Logger) http.HandlerFunc {
 	logger = kitlog.NewContext(logger).With("method", "logout")
+	ctx := context.Background()
 	return func(w http.ResponseWriter, r *http.Request) {
-		// delete session first
-		var username string
-		var user kolide.User
-		// TODO
+		sm := svc.NewSessionManager(ctx, w, r)
+		if err := sm.Destroy(); err != nil {
+			encodeResponse(ctx, w, getUserResponse{
+				Err: errors.New("error deleting session"),
+			})
+			logger.Log("err", err)
+			return
+		}
 
 		// redirect
 		http.Redirect(w, r, noAuthRedirect, http.StatusFound)
-		logger.Log("msg", "loggedout", "user", username, "id", user.ID)
 	}
 }
 
-func authMiddleware(next http.Handler) http.Handler {
+func authMiddleware(svc kolide.Service, logger kitlog.Logger, next http.Handler) http.Handler {
+	logger = kitlog.NewContext(logger).With("method", "authMiddleware")
+	ctx := context.Background()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sm := svc.NewSessionManager(ctx, w, r)
+		session, err := sm.Session()
+		if err != nil {
+			http.Error(w,
+				"failed to retrieve user session. is there a user logged in?",
+				http.StatusUnauthorized)
+			logger.Log("err", err)
+			return
+		}
+
+		user, err := svc.User(ctx, session.UserID)
+		if err != nil {
+			http.Error(w,
+				"failed to get user from db", http.StatusUnauthorized)
+			logger.Log("err", err, "user", session.UserID)
+			return
+		}
+
+		if !user.Enabled {
+			http.Error(w, "user disabled", http.StatusUnauthorized)
+		}
 
 		// all good to pass
 		next.ServeHTTP(w, r)
 	})
 }
 
+// authentication error
 type authError struct {
 	message string
 }
@@ -91,7 +153,19 @@ func (e authError) Error() string {
 	return fmt.Sprintf("unauthorized: %s", e.message)
 }
 
-// viewerContext is a struct which represents the ability for an execution
+// forbidden, set when user is authenticated, but not allowd to perform action
+type forbiddenError struct {
+	message string
+}
+
+func (e forbiddenError) Error() string {
+	if e.message == "" {
+		return "unauthorized"
+	}
+	return fmt.Sprintf("unauthorized: %s", e.message)
+}
+
+// ViewerContext is a struct which represents the ability for an execution
 // context to participate in certain actions. Most often, a ViewerContext is
 // associated with an application user, but a ViewerContext can represent a
 // variety of other execution contexts as well (script, test, etc). The main
@@ -133,14 +207,14 @@ func (vc *viewerContext) CanPerformActions() bool {
 
 // CanPerformReadActionsOnUser returns a bool indicating the current user's
 // ability to perform read actions on the given user
-func (vc *viewerContext) CanPerformReadActionOnUser(u *kolide.User) bool {
-	return vc.CanPerformActions() || (vc.IsLoggedIn() && vc.IsUserID(u.ID))
+func (vc *viewerContext) CanPerformReadActionOnUser(uid uint) bool {
+	return vc.CanPerformActions() || (vc.IsLoggedIn() && vc.IsUserID(uid))
 }
 
 // CanPerformWriteActionOnUser returns a bool indicating the current user's
 // ability to perform write actions on the given user
-func (vc *viewerContext) CanPerformWriteActionOnUser(u *kolide.User) bool {
-	return vc.CanPerformActions() && (vc.IsUserID(u.ID) || vc.IsAdmin())
+func (vc *viewerContext) CanPerformWriteActionOnUser(uid uint) bool {
+	return vc.CanPerformActions() && (vc.IsUserID(uid) || vc.IsAdmin())
 }
 
 // IsUserID returns true if the given user id the same as the user which is

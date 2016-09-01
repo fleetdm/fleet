@@ -3,6 +3,7 @@ package kitserver
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/kolide/kolide-ose/datastore"
@@ -10,12 +11,23 @@ import (
 )
 
 var (
-	// errInvalidArgument is returned when one or more arguments are invalid.
-	errInvalidArgument = errors.New("invalid argument")
-
 	// errBadRoute is used for mux errors
 	errBadRoute = errors.New("bad route")
 )
+
+type invalidArgumentError struct {
+	field    string
+	required bool
+}
+
+// invalidArgumentError is returned when one or more arguments are invalid.
+func (e invalidArgumentError) Error() string {
+	req := "optional"
+	if e.required {
+		req = "required"
+	}
+	return fmt.Sprintf("%s argument invalid or missing: %s", req, e.field)
+}
 
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	if e, ok := response.(errorer); ok && e.error() != nil {
@@ -37,8 +49,6 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 		w.WriteHeader(http.StatusNotFound)
 	case datastore.ErrExists:
 		w.WriteHeader(http.StatusConflict)
-	case errInvalidArgument:
-		w.WriteHeader(http.StatusBadRequest)
 	default:
 		w.WriteHeader(typeErrsStatus(err))
 	}
@@ -47,10 +57,16 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 	})
 }
 
+const unprocessableEntity int = 422
+
 func typeErrsStatus(err error) int {
 	switch err.(type) {
+	case invalidArgumentError:
+		return unprocessableEntity
 	case authError:
 		return http.StatusUnauthorized
+	case forbiddenError:
+		return http.StatusForbidden
 	default:
 		return http.StatusInternalServerError
 	}

@@ -11,8 +11,9 @@ import (
 
 func TestCreateUser(t *testing.T) {
 	ds, _ := datastore.New("mock", "")
-	svc, _ := NewService(ds)
+	svc, _ := NewService(testConfig(ds))
 
+	ctx := context.Background()
 	var createUserTests = []struct {
 		Username           *string
 		Password           *string
@@ -24,7 +25,7 @@ func TestCreateUser(t *testing.T) {
 		{
 			Username: stringPtr("admin1"),
 			Password: stringPtr("foobar"),
-			Err:      errInvalidArgument,
+			Err:      invalidArgumentError{},
 		},
 		{
 			Username:           stringPtr("admin1"),
@@ -35,7 +36,6 @@ func TestCreateUser(t *testing.T) {
 		},
 	}
 
-	ctx := context.Background()
 	for _, tt := range createUserTests {
 		payload := kolide.UserPayload{
 			Username:           tt.Username,
@@ -45,11 +45,12 @@ func TestCreateUser(t *testing.T) {
 			NeedsPasswordReset: tt.NeedsPasswordReset,
 		}
 		user, err := svc.NewUser(ctx, payload)
-		if err != nil {
-			if err != tt.Err {
-				t.Fatalf("got %q, want %q", err, tt.Err)
-			}
+		switch err.(type) {
+		case nil:
+		case invalidArgumentError:
 			continue
+		default:
+			t.Fatalf("got %q, want %q", err, tt.Err)
 		}
 
 		if user.ID == 0 {
@@ -86,8 +87,8 @@ func TestCreateUser(t *testing.T) {
 
 func TestChangeUserPassword(t *testing.T) {
 	ds, _ := datastore.New("mock", "")
-	svc, _ := NewService(ds)
-	createTestUsers(t, svc)
+	svc, _ := NewService(testConfig(ds))
+	createTestUsers(t, ds)
 
 	var passwordChangeTests = []struct {
 		username        string
@@ -128,6 +129,11 @@ var testUsers = map[string]kolide.UserPayload{
 		Username: stringPtr("user1"),
 		Password: stringPtr("foobar"),
 		Email:    stringPtr("user1@example.com"),
+	},
+	"user2": {
+		Username: stringPtr("user2"),
+		Password: stringPtr("bazfoo"),
+		Email:    stringPtr("user2@example.com"),
 	},
 }
 

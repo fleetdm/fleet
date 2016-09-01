@@ -352,7 +352,7 @@ func TestGetInfoAboutSession(t *testing.T) {
 	// Get info about sessions for admin1
 	////////////////////////////////////////////////////////////////////////////
 
-	token, err := kolide.ParseJWT(strings.Split(cookie, "=")[1])
+	token, err := kolide.ParseJWT(strings.Split(cookie, "=")[1], "")
 	assert.Nil(t, err)
 
 	claims, ok := token.Claims.(jwt.MapClaims)

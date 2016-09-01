@@ -7,7 +7,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/kolide/kolide-ose/errors"
-	"github.com/spf13/viper"
 )
 
 const publicErrorMessage string = "Session error"
@@ -73,15 +72,17 @@ type Session struct {
 // SessionManager is a management object which helps with the administration of
 // sessions within the application. Use NewSessionManager to create an instance
 type SessionManager struct {
-	Store   SessionStore
-	Request *http.Request
-	Writer  http.ResponseWriter
-	session *Session
+	Store      SessionStore
+	Request    *http.Request
+	Writer     http.ResponseWriter
+	session    *Session
+	CookieName string
+	JWTKey     string
 }
 
 func (sm *SessionManager) Session() (*Session, error) {
 	if sm.session == nil {
-		cookie, err := sm.Request.Cookie(viper.GetString("session.cookie_name"))
+		cookie, err := sm.Request.Cookie(sm.CookieName)
 		if err != nil {
 			switch err {
 			case http.ErrNoCookie:
@@ -94,7 +95,7 @@ func (sm *SessionManager) Session() (*Session, error) {
 			}
 		}
 
-		token, err := ParseJWT(cookie.Value)
+		token, err := ParseJWT(cookie.Value, sm.JWTKey)
 		if err != nil {
 			logrus.Errorf("Couldn't parse JWT token string from cookie: %s", err.Error())
 			return nil, ErrSessionMalformed
@@ -155,14 +156,14 @@ func (sm *SessionManager) Save() error {
 	var token string
 	var err error
 	if sm.session != nil {
-		token, err = GenerateJWT(sm.session.Key)
+		token, err = GenerateJWT(sm.session.Key, sm.JWTKey)
 		if err != nil {
 			return err
 		}
 	}
 
 	// TODO: set proper flags on cookie for maximum security
-	cookieName := viper.GetString("session.cookie_name")
+	cookieName := sm.CookieName
 	if cookieName == "" {
 		cookieName = "KolideSession"
 	}
@@ -201,22 +202,22 @@ func (sm *SessionManager) Destroy() error {
 ////////////////////////////////////////////////////////////////////////////////
 
 // Given a session key create a JWT to be delivered to the client
-func GenerateJWT(sessionKey string) (string, error) {
+func GenerateJWT(sessionKey, jwtKey string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"session_key": sessionKey,
 	})
 
-	return token.SignedString([]byte(viper.GetString("auth.jwt_key")))
+	return token.SignedString([]byte(jwtKey))
 }
 
 // ParseJWT attempts to parse a JWT token in serialized string form into a
 // JWT token in a deserialized jwt.Token struct.
-func ParseJWT(token string) (*jwt.Token, error) {
+func ParseJWT(token, jwtKey string) (*jwt.Token, error) {
 	return jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
 		method, ok := t.Method.(*jwt.SigningMethodHMAC)
 		if !ok || method != jwt.SigningMethodHS256 {
 			return nil, errors.New(publicErrorMessage, "Unexpected signing method")
 		}
-		return []byte(viper.GetString("auth.jwt_key")), nil
+		return []byte(jwtKey), nil
 	})
 }

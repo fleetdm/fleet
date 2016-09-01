@@ -1,34 +1,6 @@
 package datastore
 
-import (
-	"sync"
-
-	"github.com/kolide/kolide-ose/kolide"
-)
-
-type mockDB struct {
-	kolide.Datastore
-	Driver          string
-	sessionKeySize  int
-	sessionLifespan float64
-	mtx             sync.RWMutex
-	users           map[uint]*kolide.User
-}
-
-func (orm *mockDB) Name() string {
-	return "mock"
-}
-
-func (orm *mockDB) Migrate() error {
-	return nil
-}
-
-func (orm *mockDB) Drop() error {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
-	orm.users = make(map[uint]*kolide.User)
-	return nil
-}
+import "github.com/kolide/kolide-ose/kolide"
 
 func (orm *mockDB) NewUser(user *kolide.User) (*kolide.User, error) {
 	orm.mtx.Lock()

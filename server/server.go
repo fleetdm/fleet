@@ -85,10 +85,19 @@ func NotFoundRequestError(c *gin.Context) {
 // }
 
 func NewSessionManager(c *gin.Context) *kolide.SessionManager {
+	var (
+		cookieName = viper.GetString("session.cookie_name")
+		jwtKey     = viper.GetString("auth.jwt_key")
+	)
+	if cookieName == "" {
+		cookieName = "KolideSession"
+	}
 	return &kolide.SessionManager{
-		Request: c.Request,
-		Store:   GetDB(c),
-		Writer:  c.Writer,
+		Request:    c.Request,
+		Store:      GetDB(c),
+		Writer:     c.Writer,
+		CookieName: cookieName,
+		JWTKey:     jwtKey,
 	}
 }
 
