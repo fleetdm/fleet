@@ -3,9 +3,8 @@ package kitserver
 import (
 	"time"
 
-	"golang.org/x/net/context"
-
 	"github.com/kolide/kolide-ose/kolide"
+	"golang.org/x/net/context"
 )
 
 func (mw loggingMiddleware) NewUser(ctx context.Context, p kolide.UserPayload) (user *kolide.User, err error) {

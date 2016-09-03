@@ -3,10 +3,9 @@ package kitserver
 import (
 	"testing"
 
-	"golang.org/x/net/context"
-
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/kolide"
+	"golang.org/x/net/context"
 )
 
 func TestCreateUser(t *testing.T) {

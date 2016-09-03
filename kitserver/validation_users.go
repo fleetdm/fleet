@@ -1,9 +1,8 @@
 package kitserver
 
 import (
-	"golang.org/x/net/context"
-
 	"github.com/kolide/kolide-ose/kolide"
+	"golang.org/x/net/context"
 )
 
 type validationMiddleware struct {

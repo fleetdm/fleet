@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"golang.org/x/net/context"
-
 	kitlog "github.com/go-kit/kit/log"
-
 	"github.com/kolide/kolide-ose/kolide"
+	"golang.org/x/net/context"
 )
 
 func login(svc kolide.Service, logger kitlog.Logger) http.HandlerFunc {

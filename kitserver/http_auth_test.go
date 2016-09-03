@@ -10,12 +10,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"golang.org/x/net/context"
-
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/kolide"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/net/context"
 )
 
 func TestLogin(t *testing.T) {

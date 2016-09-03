@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
-
 	"golang.org/x/net/context"
 )
 

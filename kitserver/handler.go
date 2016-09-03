@@ -4,13 +4,11 @@ import (
 	"net/http"
 	"strings"
 
-	"golang.org/x/net/context"
-
 	kitlog "github.com/go-kit/kit/log"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
-
 	"github.com/kolide/kolide-ose/kolide"
+	"golang.org/x/net/context"
 )
 
 // MakeHandler creates an http handler for the Kolide API

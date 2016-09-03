@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"golang.org/x/net/context"
-
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/kolide"
+	"golang.org/x/net/context"
 )
 
 func (svc service) Authenticate(ctx context.Context, username, password string) (*kolide.User, error) {
