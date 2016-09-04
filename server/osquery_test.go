@@ -10,6 +10,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/kolide/kolide-ose/errors"
 	"github.com/kolide/kolide-ose/kolide"
+	"github.com/kolide/kolide-ose/mock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -850,7 +851,7 @@ func TestHandleConfigDetail(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	db := kolide.NewMockOsqueryStore(ctrl)
+	db := mock.NewMockOsqueryStore(ctrl)
 
 	detail := OsqueryConfigDetail{Platform: "darwin"}
 
@@ -896,7 +897,7 @@ func TestHandleConfigDetailNoSave(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	db := kolide.NewMockOsqueryStore(ctrl)
+	db := mock.NewMockOsqueryStore(ctrl)
 
 	detail := OsqueryConfigDetail{Platform: "darwin"}
 
@@ -948,7 +949,7 @@ func TestHandleConfigDetailError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	db := kolide.NewMockOsqueryStore(ctrl)
+	db := mock.NewMockOsqueryStore(ctrl)
 
 	detail := OsqueryConfigDetail{Platform: "darwin"}
 
@@ -990,7 +991,7 @@ func TestHandleConfigQueryResults(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	db := kolide.NewMockOsqueryStore(ctrl)
+	db := mock.NewMockOsqueryStore(ctrl)
 
 	results := OsqueryConfigQueryResults{
 		Results: map[string]bool{
@@ -1026,7 +1027,7 @@ func TestHandleConfigQueryResultsError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	db := kolide.NewMockOsqueryStore(ctrl)
+	db := mock.NewMockOsqueryStore(ctrl)
 
 	results := OsqueryConfigQueryResults{
 		Results: map[string]bool{

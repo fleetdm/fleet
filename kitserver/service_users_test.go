@@ -11,8 +11,8 @@ import (
 func TestCreateUser(t *testing.T) {
 	ds, _ := datastore.New("mock", "")
 	svc, _ := NewService(testConfig(ds))
-
 	ctx := context.Background()
+
 	var createUserTests = []struct {
 		Username           *string
 		Password           *string

@@ -13,15 +13,10 @@ import (
 // CampaignStore manages email campaigns in the database
 type EmailStore interface {
 	CreatePassworResetRequest(userID uint, expires time.Time, token string) (*PasswordResetRequest, error)
-
 	DeletePasswordResetRequest(req *PasswordResetRequest) error
-
 	FindPassswordResetByID(id uint) (*PasswordResetRequest, error)
-
 	FindPassswordResetsByUserID(id uint) ([]*PasswordResetRequest, error)
-
 	FindPassswordResetByToken(token string) (*PasswordResetRequest, error)
-
 	FindPassswordResetByTokenAndUserID(token string, id uint) (*PasswordResetRequest, error)
 }
 

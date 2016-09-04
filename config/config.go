@@ -5,9 +5,13 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/kolide/kolide-ose/cli"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+)
+
+var (
+	// File may or may not contain the path to the config file
+	File string
 )
 
 func init() {
@@ -35,10 +39,9 @@ func setDefaultConfigValue(key string, value interface{}) {
 }
 
 func initConfig() {
-	if cli.ConfigFile != "" {
-		viper.SetConfigFile(cli.ConfigFile)
+	if File != "" {
+		viper.SetConfigFile(File)
 	}
-
 	viper.SetConfigName("kolide")
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("$HOME")

@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/spf13/viper"
-
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/net/context"
 )
 
 // UserStore contains methods for managing users in a datastore
@@ -17,6 +17,14 @@ type UserStore interface {
 	User(username string) (*User, error)
 	UserByID(id uint) (*User, error)
 	SaveUser(user *User) error
+}
+
+type UserService interface {
+	NewUser(ctx context.Context, p UserPayload) (*User, error)
+	User(ctx context.Context, id uint) (*User, error)
+	ChangePassword(ctx context.Context, userID uint, old, new string) error
+	UpdateAdminRole(ctx context.Context, userID uint, isAdmin bool) error
+	UpdateUserStatus(ctx context.Context, userID uint, password string, enabled bool) error
 }
 
 // User is the model struct which represents a kolide user

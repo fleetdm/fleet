@@ -7,6 +7,17 @@ else
 	mkdir -p build
 endif
 
+build:
+ifeq ($(OS), Windows_NT)
+	go build -o kolide.exe
+else
+	go build -o kolide
+endif
+
+test:
+	go vet $(shell glide nv)
+	go test -v $(shell glide nv)
+
 generate: .prefix
 	go-bindata -pkg=server -o=server/bindata.go frontend/templates/ build/
 	$(WEBPACK) --progress --colors --bail

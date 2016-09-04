@@ -231,7 +231,7 @@ func newViewerContext(user *kolide.User) *viewerContext {
 	}
 }
 
-// EmptyVC is a utility which generates an empty ViewerContext. This is often
+// emptyVC is a utility which generates an empty ViewerContext. This is often
 // used to represent users which are not logged in.
 func emptyVC() *viewerContext {
 	return &viewerContext{}

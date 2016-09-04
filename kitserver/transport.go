@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
+	"github.com/gorilla/mux"
 	"github.com/kolide/kolide-ose/datastore"
 	"golang.org/x/net/context"
 )
@@ -70,4 +72,21 @@ func typeErrsStatus(err error) int {
 	default:
 		return http.StatusInternalServerError
 	}
+}
+
+func idFromRequest(r *http.Request, name string) (uint, error) {
+	vars := mux.Vars(r)
+	id, ok := vars[name]
+	if !ok {
+		return 0, errBadRoute
+	}
+	uid, err := strconv.Atoi(id)
+	if err != nil {
+		return 0, err
+	}
+	return uint(uid), nil
+}
+
+func decodeNoParamsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	return nil, nil
 }

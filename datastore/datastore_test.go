@@ -79,13 +79,13 @@ var enrollTests = []struct {
 	2: {uuid: "008F0688-5311-4C59-86EE-00C2D6FC3EC2",
 		hostname:    "home.kolide.co",
 		ip:          "127.0.0.1",
-		platform:    "Mac OSX",
+		platform:    "darwin",
 		nodeKeySize: 25,
 	},
 	3: {uuid: "uuid123",
 		hostname:    "fakehostname",
 		ip:          "192.168.1.1",
-		platform:    "Mac OSX",
+		platform:    "darwin",
 		nodeKeySize: 1,
 	},
 }
@@ -357,7 +357,7 @@ func TestLabelQueries(t *testing.T) {
 	testLabelQueries(t, db)
 }
 
-func testLabelQueries(t *testing.T, db kolide.OsqueryStore) {
+func testLabelQueries(t *testing.T, db kolide.Datastore) {
 	var host *kolide.Host
 	var err error
 	for i := 0; i < 10; i++ {
