@@ -1,7 +1,5 @@
 package main
 
-//go:generate make generate
-
 import (
 	"math/rand"
 	"time"
