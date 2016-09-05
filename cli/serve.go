@@ -1,46 +1,23 @@
 package cli
 
 import (
+	"flag"
 	"fmt"
-	"net"
 	"net/http"
-	"net/smtp"
 	"os"
+	"os/signal"
+	"syscall"
 
-	"github.com/Sirupsen/logrus"
-	"github.com/jordan-wright/email"
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/kolide/kolide-ose/datastore"
+	"github.com/kolide/kolide-ose/kolide"
 	"github.com/kolide/kolide-ose/server"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	lumberjack "gopkg.in/natefinch/lumberjack.v2"
+	"golang.org/x/net/context"
 )
 
 func init() {
 	rootCmd.AddCommand(serveCmd)
-}
-
-// detect that docker --link to mysql container is up and use
-// the default env vars
-func dockerMySQLconnString() string {
-	var (
-		username = os.Getenv("MYSQL_ENV_MYSQL_USER")
-		password = os.Getenv("MYSQL_ENV_MYSQL_PASSWORD")
-		host     = os.Getenv("MYSQL_PORT_3306_TCP_ADDR")
-		port     = os.Getenv("MYSQL_PORT_3306_TCP_PORT")
-		dbName   = os.Getenv("MYSQL_ENV_MYSQL_DATABASE")
-	)
-
-	if host == "" {
-		return "" // no docker conn detected
-	}
-	logrus.Infoln("detected docker mysql link, using link environment vars")
-
-	connString := fmt.Sprintf(
-		"%s:%s@(%s:%s)/%s?charset=utf8&parseTime=True&loc=Local",
-		username, password, host, port, dbName,
-	)
-	return connString
 }
 
 var serveCmd = &cobra.Command{
@@ -55,101 +32,81 @@ binary (which you're executing right now). Use the options below to customize
 the way that the kolide server works.
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		if viper.Get("server.cert") == nil || viper.Get("server.key") == nil {
-			logrus.Fatal("TLS certificate and key were not found.")
+		var (
+			httpAddr = flag.String("http.addr", ":8080", "HTTP listen address")
+			ctx      = context.Background()
+			logger   kitlog.Logger
+		)
+		flag.Parse()
+		logger = kitlog.NewLogfmtLogger(os.Stderr)
+		logger = kitlog.NewContext(logger).With("ts", kitlog.DefaultTimestampUTC)
+
+		ds, _ := datastore.New("mock", "")
+		svcConfig := server.ServiceConfig{
+			Datastore:         ds,
+			SessionCookieName: "KolideSession",
+			BcryptCost:        12,
+			SaltKeySize:       24,
 		}
-
-		smtpHost, _, err := net.SplitHostPort(viper.GetString("smtp.address"))
-		if err != nil {
-			logrus.WithError(err).Fatal("Could not parse mail address string")
-		}
-		smtpConnectionPool := email.NewPool(
-			viper.GetString("smtp.address"),
-			viper.GetInt("smtp.pool_connections"),
-			smtp.PlainAuth("", viper.GetString("smtp.username"), viper.GetString("smtp.password"), smtpHost))
-
-		if !viper.GetBool("logging.disable_banner") {
-			fmt.Println(`
-
- .........77777$7$....................... .   .  .  .. .... .. . .. . ..
-........$7777777777................. . .... .. .. . . .. . .. .  ..  . .. ....
-......?7777777777777........................... . . . . . . ..... ..   .........
-.....777777777777777................  ....    .. ... .... .. . . .. .....    .
-...$77......77$....7$............... .. . .. ......... .. . .... ..  ....... .
-..$777$.....7$....$77......+DI....DD .DD8DDDN...D8... . $D:..8DDDDDD~...DD88DDDD
-$7777777....$....$777$.....+DI..DDD..DDI...8D...D8......$D:..8D....8D...8D......
-77777777........777777 ....+DD,DDO...DD... DD...D8......$D:..8D....D8. .D8.. ...
-77777777........777777.....+DDDDD....DD....DD...D8......$D:..8D....D8...DDDD....
-77777777....7....77777$....+DI..DDD..DD....DD...D8......$D:..8D....D8...DD......
-.7777777....7$....77777....+DI...OD8.~DD8DDDD...DDDDDD..$D:..8DDDDDD8...DDDDDD88
-.$777777....777....777$....................... ....................... .........
-.....=$77777777777777............................ ...... ....... ........ ......
-...........=7777777I................  ..  . . ..  ... .   .....   .  ....
-..... ...........I.................. .  .   . ..   .   .    .   . .. . .  . .
-
-`)
-			fmt.Printf("=> Server starting on https://%s\n", viper.GetString("server.address"))
-			fmt.Println("=> Run `kolide serve --help` for more startup options")
-			fmt.Println("Use Ctrl-C to stop")
-			fmt.Print("\n\n")
-		}
-
-		resultFile := viper.GetString("osquery.result_log_file")
-		resultHandler := &server.OsqueryLogWriter{
-			Writer: &lumberjack.Logger{
-				Filename:   resultFile,
-				MaxSize:    500, // megabytes
-				MaxBackups: 3,
-				MaxAge:     28, //days
-			},
-		}
-
-		statusFile := viper.GetString("osquery.status_log_file")
-		statusHandler := &server.OsqueryLogWriter{
-			Writer: &lumberjack.Logger{
-				Filename:   statusFile,
-				MaxSize:    500, // megabytes
-				MaxBackups: 3,
-				MaxAge:     28, //days
-			},
-		}
-
-		// get mysql connection from config or docker link
-		// temporary until config is redone
-		var connString string
-		if os.Getenv("MYSQL_PORT_3306_TCP_ADDR") != "" {
-			// try connection from docker link
-			connString = dockerMySQLconnString()
-		} else {
-			connString = fmt.Sprintf(
-				"%s:%s@(%s)/%s?charset=utf8&parseTime=True&loc=Local",
-				viper.GetString("mysql.username"),
-				viper.GetString("mysql.password"),
-				viper.GetString("mysql.address"),
-				viper.GetString("mysql.database"),
+		svcLogger := kitlog.NewContext(logger).With("component", "service")
+		var svc kolide.Service
+		{ // temp create an admin user
+			svc, _ = server.NewService(svcConfig)
+			var (
+				name     = "admin"
+				username = "admin"
+				password = "secret"
+				email    = "admin@kolide.co"
+				enabled  = true
+				isAdmin  = true
 			)
+			admin := kolide.UserPayload{
+				Name:     &name,
+				Username: &username,
+				Password: &password,
+				Email:    &email,
+				Enabled:  &enabled,
+				Admin:    &isAdmin,
+			}
+			_, err := svc.NewUser(ctx, admin)
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+			svc = server.NewLoggingService(svc, svcLogger)
 		}
 
-		ds, err := datastore.New("gorm-mysql", connString)
-		if err != nil {
-			logrus.WithError(err).Fatal("error creating db connection")
-		}
+		httpLogger := kitlog.NewContext(logger).With("component", "http")
 
-		handler := server.CreateServer(
-			ds,
-			smtpConnectionPool,
-			os.Stderr,
-			resultHandler,
-			statusHandler,
-		)
-		err = http.ListenAndServeTLS(
-			viper.GetString("server.address"),
-			viper.GetString("server.cert"),
-			viper.GetString("server.key"),
-			handler,
-		)
-		if err != nil {
-			logrus.WithError(err).Fatal("Error running server")
-		}
+		apiHandler := server.MakeHandler(ctx, svc, httpLogger)
+		http.Handle("/", accessControl(apiHandler))
+
+		errs := make(chan error, 2)
+		go func() {
+			logger.Log("transport", "http", "address", *httpAddr, "msg", "listening")
+			errs <- http.ListenAndServe(*httpAddr, nil)
+		}()
+		go func() {
+			c := make(chan os.Signal)
+			signal.Notify(c, syscall.SIGINT)
+			errs <- fmt.Errorf("%s", <-c)
+		}()
+
+		logger.Log("terminated", <-errs)
 	},
+}
+
+// cors headers
+func accessControl(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type")
+
+		if r.Method == "OPTIONS" {
+			return
+		}
+
+		h.ServeHTTP(w, r)
+	})
 }
