@@ -9,6 +9,7 @@ node_modules
 
 # generated artifacts
 server/bindata.go
+kitserver/bindata.go
 *.cover
 *.test
 *.log

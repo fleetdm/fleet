@@ -2,74 +2,31 @@
 package datastore
 
 import (
-	"github.com/Sirupsen/logrus"
-	"github.com/kolide/kolide-ose/errors"
+	"errors"
+	"fmt"
+
 	"github.com/kolide/kolide-ose/kolide"
 )
 
-// Datastore combines all the interfaces in the Kolide DAL
-type Datastore interface {
-	kolide.UserStore
-	kolide.OsqueryStore
-	kolide.EmailStore
-	kolide.SessionStore
-	Name() string
-	Drop() error
-	Migrate() error
-}
+var (
+	// ErrNotFound is returned when the datastore resource cannot be found
+	ErrNotFound = errors.New("resource not found")
 
-type dbOptions struct {
-	maxAttempts int
-	db          Datastore
-	debug       bool // gorm debug
-	logger      *logrus.Logger
-}
+	// ErrExists is returned when creating a datastore resource that already exists
+	ErrExists = errors.New("resource already created")
+)
 
-// DBOption is used to pass optional arguments to a database connection
-type DBOption func(o *dbOptions) error
-
-// Logger adds a logger to the datastore
-func Logger(l *logrus.Logger) DBOption {
-	return func(o *dbOptions) error {
-		o.logger = l
-		return nil
-	}
-}
-
-// LimitAttempts sets number of maximum connection attempts
-func LimitAttempts(attempts int) DBOption {
-	return func(o *dbOptions) error {
-		o.maxAttempts = attempts
-		return nil
-	}
-}
-
-// Debug sets the GORM debug level
-func Debug() DBOption {
-	return func(o *dbOptions) error {
-		o.debug = true
-		return nil
-	}
-}
-
-// datastore allows you to pass your own datastore
-// this option can be used to pass a specific testing implementation
-func datastore(db Datastore) DBOption {
-	return func(o *dbOptions) error {
-		o.db = db
-		return nil
-	}
-}
-
-// New creates a Datastore with a database connection
+// New creates a kolide.Datastore with a database connection
 // Use DBOption to pass optional arguments
-func New(driver, conn string, opts ...DBOption) (Datastore, error) {
+func New(driver, conn string, opts ...DBOption) (kolide.Datastore, error) {
 	opt := &dbOptions{
-		maxAttempts: 15, // default attempts
+		maxAttempts:     defaultMaxAttempts,
+		sessionLifespan: defaultSessionLifespan,
+		sessionKeySize:  defaultSessionKeySize,
 	}
 	for _, option := range opts {
 		if err := option(opt); err != nil {
-			return nil, errors.DatabaseError(err)
+			return nil, err
 		}
 	}
 
@@ -77,39 +34,57 @@ func New(driver, conn string, opts ...DBOption) (Datastore, error) {
 	if opt.db != nil {
 		return opt.db, nil
 	}
-
 	switch driver {
 	case "gorm-mysql":
 		db, err := openGORM("mysql", conn, opt.maxAttempts)
 		if err != nil {
-			return nil, errors.DatabaseError(err)
+			return nil, err
+		}
+		ds := gormDB{
+			DB:              db,
+			Driver:          "mysql",
+			sessionKeySize:  opt.sessionKeySize,
+			sessionLifespan: opt.sessionLifespan,
 		}
 		// configure logger
 		if opt.logger != nil {
 			db.SetLogger(opt.logger)
 			db.LogMode(opt.debug)
 		}
-		ds := gormDB{DB: db, Driver: "mysql"}
 		if err := ds.Migrate(); err != nil {
-			return nil, errors.DatabaseError(err)
+			return nil, err
 		}
 		return ds, nil
 	case "gorm-sqlite3":
 		db, err := openGORM("sqlite3", conn, opt.maxAttempts)
 		if err != nil {
-			return nil, errors.DatabaseError(err)
+			return nil, err
+		}
+		ds := gormDB{
+			DB:              db,
+			Driver:          "sqlite3",
+			sessionKeySize:  opt.sessionKeySize,
+			sessionLifespan: opt.sessionLifespan,
 		}
 		// configure logger
 		if opt.logger != nil {
 			db.SetLogger(opt.logger)
 			db.LogMode(opt.debug)
 		}
-		ds := gormDB{DB: db, Driver: "sqlite3"}
 		if err := ds.Migrate(); err != nil {
-			return nil, errors.DatabaseError(err)
+			return nil, err
+		}
+		return ds, nil
+	case "mock":
+		ds := &mockDB{
+			Driver:          "mock",
+			sessionKeySize:  opt.sessionKeySize,
+			sessionLifespan: opt.sessionLifespan,
+			users:           make(map[uint]*kolide.User),
+			sessions:        make(map[uint]*kolide.Session),
 		}
 		return ds, nil
 	default:
-		return nil, errors.New("unsupported datastore driver %s", driver)
+		return nil, fmt.Errorf("unsupported datastore driver %s", driver)
 	}
 }

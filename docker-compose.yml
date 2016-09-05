@@ -7,15 +7,3 @@ mysql:
     MYSQL_PASSWORD: kolide
   ports:
     - "3306:3306"
-
-kolide:
-  build: .
-  environment:
-    KOLIDE_SERVER_CERT: /osquery/kolide.crt
-    KOLIDE_SERVER_KEY: /osquery/kolide.key
-  ports: 
-    - "8080:8080"
-  links:
-    - mysql
-  volumes:
-    - ./tools/osquery:/osquery

@@ -1,5 +1,5 @@
 hash: 082be2432c000297d8d76bd1dc0f2be4e98954d0f49682603469e1b3056790f5
-updated: 2016-08-24T14:33:02.991120417-07:00
+updated: 2016-08-29T09:08:22.504560027-04:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -7,8 +7,6 @@ imports:
   - parse
 - name: github.com/alecthomas/units
   version: 2efee857e7cfd4f3d0138cc3cbb1b4966962b93a
-- name: github.com/BurntSushi/toml
-  version: 99064174e013895bbd9b025c31100bd1d9b590ca
 - name: github.com/davecgh/go-spew
   version: 5215b55f46b2b919f50a1df0eaa5886afe4e3b3d
   subpackages:
@@ -16,9 +14,9 @@ imports:
 - name: github.com/dgrijalva/jwt-go
   version: 01aeca54ebda6e0fbfafd0a524d234159c05ec20
 - name: github.com/elazarl/go-bindata-assetfs
-  version: e1a2a7ec64b07d04ac9ebb072404fe8b7b60de1b
+  version: 9a6736ed45b44bf3835afeebb3034b57ed329f3e
 - name: github.com/fsnotify/fsnotify
-  version: a8a77c9133d2d6fd8334f3260d06f60e8d80a5fb
+  version: f12c6236fe7b5cf6bcf30e5935d08cb079d78334
 - name: github.com/gin-gonic/contrib
   version: 547e518040cfb96576b507d2f26779ab9c6fc829
   subpackages:
@@ -30,8 +28,18 @@ imports:
   subpackages:
   - binding
   - render
+- name: github.com/go-kit/kit
+  version: dd9236608629b98d33d4c6681dc3740400c01243
+  subpackages:
+  - endpoint
+  - log
+  - transport/http
+- name: github.com/go-logfmt/logfmt
+  version: d4327190ff838312623b09bfeb50d7c93c8d9c1d
 - name: github.com/go-sql-driver/mysql
   version: 3654d25ec346ee8ce71a68431025458d52a38ac0
+- name: github.com/go-stack/stack
+  version: 100eb0c0a9c5b306ca2fb4f165df21d80ada4b82
 - name: github.com/golang/mock
   version: bd3c8e81be01eef76d4b503f5e687d2d1354d2d9
   subpackages:
@@ -40,8 +48,12 @@ imports:
   version: c3cefd437628a0b7d31b34fe44b3a7a540e98527
   subpackages:
   - proto
+- name: github.com/gorilla/context
+  version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
+- name: github.com/gorilla/mux
+  version: 0b13a922203ebdbfd236c818efcd5ed46097d690
 - name: github.com/hashicorp/hcl
-  version: d8c773c4cba11b11539e3d45f93daeaa5dcf1fa1
+  version: baeb59c710717b06aac1dbe2270e8192ec593244
   subpackages:
   - hcl/ast
   - hcl/parser
@@ -64,16 +76,22 @@ imports:
   version: fd703108daeb23d77c124d12978e9b6c4f28f034
 - name: github.com/kr/fs
   version: 2788f0dbd16903de03cb8186e5c7d97b69ad387b
+- name: github.com/kr/logfmt
+  version: b84e30acd515aadc4b783ad4ff83aff3299bdfe0
 - name: github.com/magiconair/properties
-  version: b3f6dd549956e8a61ea4a686a1c02a33d5bdda4b
+  version: 61b492c03cf472e0c6419be5899b8e0dc28b1b88
 - name: github.com/manucorporat/sse
   version: ee05b128a739a0fb76c7ebd3ae4810c1de808d6d
 - name: github.com/mattn/go-sqlite3
   version: e118d4451349065b8e7ce0f0af32e033995363f8
 - name: github.com/mitchellh/mapstructure
   version: ca63d7c062ee3c9f34db231e352b60012b4fd0c1
+- name: github.com/pelletier/go-buffruneio
+  version: df1e16fde7fc330a0ca68167c23bf7ed6ac31d6d
+- name: github.com/pelletier/go-toml
+  version: 5a62685873ef617233ab5f1b825a6e4a758e16cf
 - name: github.com/pkg/errors
-  version: a22138067af1c4942683050411a841ade67fe1eb
+  version: 17b591df37844cde689f4d5813e5cea0927d8dd2
 - name: github.com/pkg/sftp
   version: a71e8f580e3b622ebff585309160b1cc549ef4d2
 - name: github.com/pmezard/go-difflib
@@ -83,20 +101,20 @@ imports:
 - name: github.com/Sirupsen/logrus
   version: a283a10442df8dc09befd873fab202bf8a253d6a
 - name: github.com/spf13/afero
-  version: cc9c21814bb945440253108c4d3c65c85aac3c68
+  version: 20500e2abd0d1f4564a499e83d11d6c73cd58c27
   subpackages:
   - mem
   - sftp
 - name: github.com/spf13/cast
   version: e31f36ffc91a2ba9ddb72a4b6a607ff9b3d3cb63
 - name: github.com/spf13/cobra
-  version: 7c674d9e72017ed25f6d2b5e497a1368086b6a6f
+  version: 37c3f8060359192150945916cbc2d72bce804b4d
 - name: github.com/spf13/jwalterweatherman
   version: 33c24e77fb80341fe7130ee7c594256ff08ccc46
 - name: github.com/spf13/pflag
-  version: f676131e2660dc8cd88de99f7486d34aa8172635
+  version: 103ce5cd2042f2fe629c1957abb64ab3e7f50235
 - name: github.com/spf13/viper
-  version: 346299ea79e446ebdddb834371ceba2e5926b732
+  version: 7fb2782df3d83e0036cc89f461ed0422628776f4
 - name: github.com/stretchr/testify
   version: d77da356e56a7428ad25149ca77381849a6a5232
   subpackages:
@@ -114,17 +132,18 @@ imports:
   version: 4d38db76854b199960801a1734443fd02870d7e1
   subpackages:
   - context
+  - context/ctxhttp
 - name: golang.org/x/sys
   version: a646d33e2ee3172a661fc09bca23bb4889a41bc8
   subpackages:
   - unix
 - name: golang.org/x/text
-  version: 2910a502d2bf9e43193af9d68ca516529614eed3
+  version: d69c40b4be55797923cec7457fac7a244d91a9b6
   subpackages:
   - transform
   - unicode/norm
 - name: gopkg.in/alecthomas/kingpin.v2
-  version: e5900212cbf65b181d3d8e08308ef06a01d117cf
+  version: e9044be3ab2a8e11d4e1f418d12f0790d57e8d70
 - name: gopkg.in/go-playground/validator.v8
   version: 5f57d2222ad794d0dffb07e664ea05e2ee07d60c
 - name: gopkg.in/natefinch/lumberjack.v2

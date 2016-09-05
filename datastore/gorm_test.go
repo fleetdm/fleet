@@ -7,9 +7,10 @@ import (
 
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	"github.com/kolide/kolide-ose/kolide"
 )
 
-func setupMySQLGORM(t *testing.T) Datastore {
+func setupMySQLGORM(t *testing.T) kolide.Datastore {
 	user := "kolide"
 	password := "kolide"
 	dbName := "kolide"
@@ -35,7 +36,7 @@ func setupMySQLGORM(t *testing.T) Datastore {
 	return db
 }
 
-func teardownMySQLGORM(t *testing.T, db Datastore) {
+func teardownMySQLGORM(t *testing.T, db kolide.Datastore) {
 	if err := db.Drop(); err != nil {
 		t.Fatal(err)
 	}

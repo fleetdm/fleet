@@ -13,8 +13,8 @@ import (
 )
 
 func TestGenerateJWT(t *testing.T) {
-	tokenString, err := GenerateJWT("4")
-	token, err := ParseJWT(tokenString)
+	tokenString, err := GenerateJWT("4", "")
+	token, err := ParseJWT(tokenString, "")
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -77,7 +77,7 @@ func TestSessionManager(t *testing.T) {
 		t.Fatal("No cookie was set")
 	}
 	tokenString := strings.Split(header, "=")[1]
-	token, err := ParseJWT(tokenString)
+	token, err := ParseJWT(tokenString, "")
 	if err != nil {
 		t.Fatal(err.Error())
 	}
