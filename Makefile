@@ -20,6 +20,7 @@ test:
 
 generate: .prefix
 	go-bindata -pkg=server -o=server/bindata.go frontend/templates/ build/
+	go-bindata -pkg=kitserver -o=kitserver/bindata.go frontend/templates/ build/
 	$(WEBPACK) --progress --colors --bail
 
 deps:
