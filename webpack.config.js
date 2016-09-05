@@ -34,7 +34,7 @@ if (process.env.NODE_ENV === 'production') {
   postCssLoader.splice(1, 1) // drop human readable names
 };
 
-var repo = path.join(__dirname, "../../")
+var repo = __dirname
 
 var config  = {
   entry: {
