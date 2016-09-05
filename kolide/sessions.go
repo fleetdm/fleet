@@ -7,6 +7,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/kolide/kolide-ose/errors"
+	"golang.org/x/net/context"
 )
 
 const publicErrorMessage string = "Session error"
@@ -54,6 +55,15 @@ type SessionStore interface {
 
 	// Mark the currently tracked session as access to extend expiration
 	MarkSessionAccessed(session *Session) error
+}
+
+type SessionService interface {
+	Authenticate(ctx context.Context, username, password string) (*User, error)
+	NewSessionManager(ctx context.Context, w http.ResponseWriter, r *http.Request) *SessionManager
+	GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([]*Session, error)
+	DeleteSessionsForUser(ctx context.Context, id uint) error
+	GetInfoAboutSession(ctx context.Context, id uint) (*Session, error)
+	DeleteSession(ctx context.Context, id uint) error
 }
 
 // Session is the model object which represents what an active session is

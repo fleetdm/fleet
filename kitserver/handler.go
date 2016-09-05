@@ -62,6 +62,46 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 		),
 	).Methods("POST")
 
+	router.Handle("/api/v1/kolide/users/{id}/sessions",
+		kithttp.NewServer(
+			ctx,
+			canReadUser(makeGetInfoAboutSessionsForUserEndpoint(svc)),
+			decodeGetInfoAboutSessionsForUserRequest,
+			encodeResponse,
+			opts...,
+		),
+	).Methods("GET")
+
+	router.Handle("/api/v1/kolide/users/{id}/sessions",
+		kithttp.NewServer(
+			ctx,
+			canModifyUser(makeDeleteSessionsForUserEndpoint(svc)),
+			decodeDeleteSessionsForUserRequest,
+			encodeResponse,
+			opts...,
+		),
+	).Methods("DELETE")
+
+	router.Handle("/api/v1/kolide/sessions/{id}",
+		kithttp.NewServer(
+			ctx,
+			mustBeAdmin(makeGetInfoAboutSessionEndpoint(svc)),
+			decodeGetInfoAboutSessionRequest,
+			encodeResponse,
+			opts...,
+		),
+	).Methods("GET")
+
+	router.Handle("/api/v1/kolide/sessions/{id}",
+		kithttp.NewServer(
+			ctx,
+			mustBeAdmin(makeDeleteSessionEndpoint(svc)),
+			decodeDeleteSessionRequest,
+			encodeResponse,
+			opts...,
+		),
+	).Methods("DELETE")
+
 	router.Handle("/api/v1/kolide/queries/{id}",
 		kithttp.NewServer(
 			ctx,

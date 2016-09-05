@@ -42,3 +42,23 @@ func (svc service) NewSessionManager(ctx context.Context, w http.ResponseWriter,
 		CookieName: svc.cookieName,
 	}
 }
+
+func (svc service) GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([]*kolide.Session, error) {
+	return svc.ds.FindAllSessionsForUser(id)
+}
+
+func (svc service) DeleteSessionsForUser(ctx context.Context, id uint) error {
+	return svc.ds.DestroyAllSessionsForUser(id)
+}
+
+func (svc service) GetInfoAboutSession(ctx context.Context, id uint) (*kolide.Session, error) {
+	return svc.ds.FindSessionByID(id)
+}
+
+func (svc service) DeleteSession(ctx context.Context, id uint) error {
+	session, err := svc.ds.FindSessionByID(id)
+	if err != nil {
+		return err
+	}
+	return svc.ds.DestroySession(session)
+}
