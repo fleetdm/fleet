@@ -1,13 +1,13 @@
 package kitserver
 
 import (
-	"context"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/gorilla/mux"
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/net/context"
 )
 
 func TestAPIRoutes(t *testing.T) {
