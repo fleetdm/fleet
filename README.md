@@ -46,22 +46,21 @@ To generate all necessary code (bundling JavaScript into Go, etc), run the
 following:
 
 ```
-go generate
+make generate
 ```
 
 #### Compiling the kolide binary
 
-On UNIX (OS X, Linux, etc), run the following to compile the application:
+Use `go build` to build the application code. For your convenience, a make
+command is included which builds the code:
 
 ```
-go build -o kolide
+make build
 ```
 
-On Windows, run the following to compile the application:
-
-```
-go build -o kolide.exe
-```
+It's not necessary to use Make to build the code, but using Make allows us to
+account for cross-platform differences more effectively than the `go build` tool
+when writing automated tooling. Use whichever you prefer.
 
 #### Managing Go Dependencies with Glide
 
@@ -71,78 +70,64 @@ section in the Glide README for full details.
 
 ##### Installing the correct versions of dependencies
 
-To install the correct versions of third package libraries, use `glide install`. 
-`glide install` will  use the `glide.lock` file to pull vendored packages from 
+To install the correct versions of third package libraries, use `glide install`.
+`glide install` will  use the `glide.lock` file to pull vendored packages from
 remote vcs.  `make deps` takes care of this step, as well as downloading the
 latest version of glide for you.
 
 ##### Adding new dependencies
 
-To add a new dependency, use [`glide get [package name]`](https://github.com/Masterminds/glide#glide-get-package-name)  
+To add a new dependency, use [`glide get [package name]`](https://github.com/Masterminds/glide#glide-get-package-name)
 
 ##### Updating dependencies
 
-To update, use [`glide up`](https://github.com/Masterminds/glide#glide-update-aliased-to-up) which will use VCS and `glide.yaml` to figure out the correct updates.   
+To update, use [`glide up`](https://github.com/Masterminds/glide#glide-update-aliased-to-up) which will use VCS and `glide.yaml` to figure out the correct updates.
 
 ##### Testing application code with glide
 
-Finally, you can use [`go test $(glide novendor)`](https://github.com/Masterminds/glide#glide-novendor-aliased-to-nv) to skip tests in the vendor directory. This will run go test over all directories of your project except the vendor directory.
-
-#### Automatic recompilation
-
-If you're editing mostly frontend JavaScript, you may want the Go binary to be
-automatically recompiled with a new JavaScript bundle and restarted whenever 
-you save a JavaScript file. To do this, instead of running `kolide serve`, run
-the following:
-
-```
-make watch
-```
-
-This is only supported on OS X and Linux.
 
 ### Testing
 
 #### Application tests
 
-To run the application's tests, run the following from the root of the
-repository:
+You can use [`go test $(glide novendor)`](https://github.com/Masterminds/glide#glide-novendor-aliased-to-nv)
+to run the go unit tests and skip tests in the vendor directory. This will run
+go test over all directories of your project except the vendor directory.
+
+To execute all of the tests that CI will execute, run the following from the root
+of the repository:
 
 ```
-go test
+make test
 ```
 
-From the root, `go test` will run a test launcher that executes `go test` and 
-`go vet` in the appropriate subpackages, etc. If you're working in a specific
-subpackage, it's likely that you'll just want to iteratively run `go test` in
-that subpackage directly until you are ready to run the full test suite.
 
 #### Viewing test coverage
 
-When you run `go test` from the root of the repository, test coverage reports
+When you run `make test` from the root of the repository, test coverage reports
 are generated in every subpackage. For example, the `sessions` subpackage will
 have a coverage report generated in `./sessions/sessions.cover`
 
-To explore a test coverage report on a line-by-line basis in the browser, run 
+To explore a test coverage report on a line-by-line basis in the browser, run
 the following:
 
 ```bash
-# substitute ./errors/errors.cover, ./app/app.cover, etc
-go tool cover -html=./sessions/sessions.cover
+# substitute ./datastore/datastore.cover, etc
+go tool cover -html=./server/server.cover
 ```
 
 To view test a test coverage report in a terminal, run the following:
 
 ```bash
-# substitute ./errors/errors.cover, app/app.cover, etc
-go tool cover -func=./sessions/sessions.cover
+# substitute ./datastore/datastore.cover, etc
+go tool cover -func=./server/server.cover
 ```
 
 #### Testing Email
 
 To intercept sent emails while running a Kolide development environment, make
 sure that you've set the SMTP address to `<docker host ip>:1025` and leave the
-username and password blank. Then, visit `<docker host ip>:8025` in a web 
+username and password blank. Then, visit `<docker host ip>:8025` in a web
 browser to view the [MailHog](https://github.com/mailhog/MailHog) UI.
 
 For example, if docker is running natively on your `localhost`, then your mail
@@ -203,6 +188,6 @@ by default, then the binary will automatically use the provided example
 configuration file, which assumes that you are running docker locally, on
 `localhost` via a native engine.
 
-You may have to edit the example configuration file to use the output of 
-`docker-machine ip` instead of `localhost` if you're using Docker via 
+You may have to edit the example configuration file to use the output of
+`docker-machine ip` instead of `localhost` if you're using Docker via
 [Docker Toolbox](https://www.docker.com/products/docker-toolbox).

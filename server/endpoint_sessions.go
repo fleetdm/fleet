@@ -109,7 +109,7 @@ type deleteSessionsForUserRequest struct {
 }
 
 type deleteSessionsForUserResponse struct {
-	Err error `json:"error, omitempty`
+	Err error `json:"error, omitempty"`
 }
 
 func (r deleteSessionsForUserResponse) error() error { return r.Err }
