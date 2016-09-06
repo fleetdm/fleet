@@ -8,11 +8,6 @@ import (
 )
 
 type OsqueryStore interface {
-	EnrollHost(uuid, hostname, ip, platform string, nodeKeySize int) (*Host, error)
-	AuthenticateHost(nodeKey string) (*Host, error)
-	SaveHost(host *Host) error
-	MarkHostSeen(host *Host, t time.Time) error
-
 	LabelQueriesForHost(host *Host, cutoff time.Time) (map[string]string, error)
 	RecordLabelQueryExecutions(host *Host, results map[string]bool, t time.Time) error
 	NewLabel(label *Label) error
@@ -20,30 +15,39 @@ type OsqueryStore interface {
 
 type OsqueryService interface {
 	EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string) (string, error)
-	GetClientConfig(ctx context.Context, action string, data *json.RawMessage) (*OsqueryConfig, error)
-	Log(ctx context.Context, logType string, data *json.RawMessage) error
+	GetClientConfig(ctx context.Context, action string, data json.RawMessage) (OsqueryConfig, error)
 	GetDistributedQueries(ctx context.Context) (map[string]string, error)
-	LogDistributedQueryResults(ctx context.Context, queries map[string][]map[string]string) error
+	SubmitDistributedQueryResults(ctx context.Context, results OsqueryDistributedQueryResults) error
+	SubmitStatusLogs(ctx context.Context, logs []OsqueryResultLog) error
+	SubmitResultsLogs(ctx context.Context, logs []OsqueryStatusLog) error
 }
 
-type Host struct {
-	ID        uint `gorm:"primary_key"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	NodeKey   string `gorm:"unique_index:idx_host_unique_nodekey"`
-	HostName  string
-	UUID      string `gorm:"unique_index:idx_host_unique_uuid"`
-	IPAddress string
-	Platform  string
-}
+type OsqueryDistributedQueryResults map[string][]map[string]string
 
 type OsqueryConfig struct {
 	Packs    []Pack
 	Schedule []Query
-	Options  map[string]interface{}
 }
 
-// TODO: move this to just use OsqueryServerStore.LabelQueriesForHot
+type OsqueryResultLog struct {
+	Name           string            `json:"name"`
+	HostIdentifier string            `json:"hostIdentifier"`
+	UnixTime       string            `json:"unixTime"`
+	CalendarTime   string            `json:"calendarTime"`
+	Columns        map[string]string `json:"columns"`
+	Action         string            `json:"action"`
+}
+
+type OsqueryStatusLog struct {
+	Severity    string            `json:"severity"`
+	Filename    string            `json:"filename"`
+	Line        string            `json:"line"`
+	Message     string            `json:"message"`
+	Version     string            `json:"version"`
+	Decorations map[string]string `json:"decorations"`
+}
+
+// TODO: move this to just use LabelQueriesForHot
 // LabelQueriesForHost calculates the appropriate update cutoff (given
 // interval) and uses the datastore to retrieve the label queries for the
 // provided host.

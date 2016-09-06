@@ -90,7 +90,7 @@ var enrollTests = []struct {
 	},
 }
 
-func testEnrollHost(t *testing.T, db kolide.OsqueryStore) {
+func testEnrollHost(t *testing.T, db kolide.HostStore) {
 	var hosts []*kolide.Host
 	for i, tt := range enrollTests {
 		h, err := db.EnrollHost(tt.uuid, tt.hostname, tt.ip, tt.platform, tt.nodeKeySize)
@@ -145,7 +145,7 @@ func testEnrollHost(t *testing.T, db kolide.OsqueryStore) {
 
 }
 
-func testAuthenticateHost(t *testing.T, db kolide.OsqueryStore) {
+func testAuthenticateHost(t *testing.T, db kolide.HostStore) {
 	for i, tt := range enrollTests {
 		h, err := db.EnrollHost(tt.uuid, tt.hostname, tt.ip, tt.platform, tt.nodeKeySize)
 		if err != nil {

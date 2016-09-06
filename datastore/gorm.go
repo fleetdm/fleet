@@ -175,6 +175,44 @@ func (orm gormDB) SaveHost(host *kolide.Host) error {
 	return nil
 }
 
+func (orm gormDB) DeleteHost(host *kolide.Host) error {
+	return orm.DB.Delete(host).Error
+}
+
+func (orm gormDB) Host(id uint) (*kolide.Host, error) {
+	host := &kolide.Host{
+		ID: id,
+	}
+	err := orm.DB.Where(host).First(host).Error
+	if err != nil {
+		return nil, err
+	}
+	return host, nil
+}
+
+func (orm gormDB) Hosts() ([]*kolide.Host, error) {
+	var hosts []*kolide.Host
+	err := orm.DB.Find(&hosts).Error
+	if err != nil {
+		return nil, err
+	}
+	return hosts, nil
+}
+
+func (orm gormDB) NewHost(host *kolide.Host) (*kolide.Host, error) {
+	if host == nil {
+		return nil, errors.New(
+			"error creating host",
+			"nil pointer passed to NewHost",
+		)
+	}
+	err := orm.DB.Create(host).Error
+	if err != nil {
+		return nil, err
+	}
+	return host, err
+}
+
 func (orm gormDB) MarkHostSeen(host *kolide.Host, t time.Time) error {
 	updateTime := time.Now()
 	err := orm.DB.Exec("UPDATE hosts SET updated_at=? WHERE node_key=?", t, host.NodeKey).Error
@@ -476,13 +514,13 @@ SELECT
   q.differential,
   q.platform,
   q.version
-FROM 
-  queries q 
-JOIN 
-  pack_queries pq 
-ON 
-  pq.query_id = q.id 
-AND 
+FROM
+  queries q
+JOIN
+  pack_queries pq
+ON
+  pq.query_id = q.id
+AND
   pq.pack_id = ?;
 `, pack.ID).Rows()
 	if err != nil && err != gorm.ErrRecordNotFound {

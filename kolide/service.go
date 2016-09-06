@@ -7,4 +7,5 @@ type Service interface {
 	PackService
 	QueryService
 	OsqueryService
+	HostService
 }

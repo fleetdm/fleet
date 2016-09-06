@@ -6,6 +6,7 @@ type Datastore interface {
 	QueryStore
 	PackStore
 	OsqueryStore
+	HostStore
 	EmailStore
 	SessionStore
 	Name() string
