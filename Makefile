@@ -26,7 +26,7 @@ generate: .prefix
 
 generate-dev: .prefix
 	go-bindata -debug -pkg=server -o=server/bindata.go frontend/templates/ build/
-	$(shell npm bin)/webpack --progress --colors --bail
+	$(shell npm bin)/webpack --progress --colors --bail --watch
 
 deps:
 	npm install
