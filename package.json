@@ -61,41 +61,6 @@
       }
     }
   },
-  "eslintConfig": {
-    "rules": {
-      "indent": [
-        2,
-        2
-      ],
-      "quotes": [
-        2,
-        "single"
-      ],
-      "linebreak-style": [
-        2,
-        "unix"
-      ],
-      "semi": [
-        2,
-        "always"
-      ],
-      "react/jsx-uses-react": 2,
-      "react/jsx-uses-vars": 2,
-      "react/react-in-jsx-scope": 2
-    },
-    "env": {
-      "es6": true,
-      "browser": true,
-      "node": true
-    },
-    "ecmaFeatures": {
-      "jsx": true,
-      "modules": true
-    },
-    "plugins": [
-      "react"
-    ]
-  },
   "devDependencies": {
     "babel-eslint": "^6.1.2",
     "eslint": "^3.4.0",
