@@ -2,6 +2,6 @@
  * Global CSS Variables.
  * @module css/vars
  */
-module.exports = {
-  mainColor: '#333'
+export default {
+  mainColor: '#333',
 };

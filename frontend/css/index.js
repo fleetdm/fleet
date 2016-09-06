@@ -1,5 +1,5 @@
 require('normalize.css');
-require('#css/global');
+require('./global.css');
 
 /**
  * Components.
@@ -7,4 +7,4 @@ require('#css/global');
  * to hot reload it. And make sure that you
  * use `webpack.optimize.DedupePlugin`
  */
-require('#app/components/app/styles');
+require('../components/app/styles.css');

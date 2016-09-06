@@ -10,7 +10,7 @@ module.exports = {
   * // returns "height: 5px;"
     height: px(5);
   */
-  px: function(val) {
-    return val + 'px';
-  }
+  px: (val) => {
+    return `${val}px`;
+  },
 };

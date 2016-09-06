@@ -19,6 +19,7 @@ endif
 test:
 	go vet $(shell glide nv)
 	go test -v -cover $(shell glide nv)
+	npm run test
 
 generate: .prefix
 	go-bindata -pkg=server -o=server/bindata.go frontend/templates/ build/

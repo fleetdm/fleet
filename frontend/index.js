@@ -1,5 +1,5 @@
-const router = require('#app/router');
+import { run } from './router';
 
 if (typeof window !== 'undefined') {
-  router.run();
+  run();
 }

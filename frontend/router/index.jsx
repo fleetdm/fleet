@@ -1,32 +1,35 @@
 import React from 'react';
 import { render } from 'react-dom';
-import { Router, Route, IndexRoute, browserHistory } from 'react-router';
+import { Router, Route, browserHistory } from 'react-router';
 import { Promise } from 'when';
-import App from '#components/app';
+import App from '../components/app';
+
+const window = global.window || {};
+const document = global.document || {};
 
 export function run() {
   window.Promise = window.Promise || Promise;
   window.self = window;
-  require('whatwg-fetch');
 
-  render((
-  <Router history={browserHistory}>
-    <Route path="/" component={App}></Route>
-  </Router>
-), document.getElementById('app'))
+  const router = (
+    <Router history={browserHistory}>
+      <Route path="/" component={App} />
+    </Router>
+  );
 
+  render(router, document.getElementById('app'));
 }
 
-require('#css');
 // Style live reloading
 if (module.hot) {
   let c = 0;
   module.hot.accept('#css', () => {
-    require('#css');
     const a = document.createElement('a');
     const link = document.querySelector('link[rel="stylesheet"]');
     a.href = link.href;
-    a.search = '?' + c++;
+    a.search = `?${c++}`;
     link.href = a.href;
   });
 }
+
+export default { run };
