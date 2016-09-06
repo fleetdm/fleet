@@ -16,10 +16,21 @@ else
 	go build -o build/kolide
 endif
 
-test:
+lint-js:
+	$(shell npm bin)/eslint . --ext .js,.jsx
+
+lint-go:
 	go vet $(shell glide nv)
+
+lint: lint-go lint-js
+
+test-go:
 	go test -v -cover $(shell glide nv)
-	npm run test
+
+test-js:
+	$(shell npm bin)/_mocha --compilers js:babel-core/register --recursive 'frontend/**/*.tests.js*' --require testSetup.js
+
+test: lint test-go test-js
 
 generate: .prefix
 	go-bindata -pkg=server -o=server/bindata.go frontend/templates/ build/
@@ -30,7 +41,7 @@ generate-dev: .prefix
 	$(shell npm bin)/webpack --progress --colors --bail --watch
 
 deps:
-	npm install
+	npm install --dev
 	go get -u github.com/Masterminds/glide
 	go get -u github.com/jteeuwen/go-bindata/...
 	glide install

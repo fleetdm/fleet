@@ -5,9 +5,8 @@
   "author": "Kolide, Inc.",
   "private": "true",
   "scripts": {
-    "lint": "eslint . --ext .js,.jsx",
-    "mocha": "node_modules/mocha/bin/_mocha --compilers js:babel-core/register --recursive 'frontend/**/*.tests.js*' --require testSetup.js",
-    "test": "npm run lint && npm run mocha"
+    "lint": "make lint-js",
+    "test": "make test-js"
   },
   "dependencies": {
     "autoprefixer": "6.3.7",
