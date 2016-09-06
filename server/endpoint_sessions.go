@@ -20,7 +20,7 @@ type getInfoAboutSessionResponse struct {
 	SessionID uint      `json:"session_id"`
 	UserID    uint      `json:"user_id"`
 	CreatedAt time.Time `json:"created_at"`
-	Err       error     `json:"error, omitempty"`
+	Err       error     `json:"error,omitempty"`
 }
 
 func (r getInfoAboutSessionResponse) error() error { return r.Err }
@@ -51,7 +51,7 @@ type getInfoAboutSessionsForUserRequest struct {
 
 type getInfoAboutSessionsForUserResponse struct {
 	Sessions []getInfoAboutSessionResponse `json:"sessions"`
-	Err      error                         `json:"error, omitempty"`
+	Err      error                         `json:"error,omitempty"`
 }
 
 func (r getInfoAboutSessionsForUserResponse) error() error { return r.Err }
@@ -84,7 +84,7 @@ type deleteSessionRequest struct {
 }
 
 type deleteSessionResponse struct {
-	Err error `json:"error, omitempty"`
+	Err error `json:"error,omitempty"`
 }
 
 func (r deleteSessionResponse) error() error { return r.Err }
@@ -109,7 +109,7 @@ type deleteSessionsForUserRequest struct {
 }
 
 type deleteSessionsForUserResponse struct {
-	Err error `json:"error, omitempty"`
+	Err error `json:"error,omitempty"`
 }
 
 func (r deleteSessionsForUserResponse) error() error { return r.Err }
