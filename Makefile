@@ -28,7 +28,7 @@ test-go:
 	go test -v -cover $(shell glide nv)
 
 test-js:
-	$(shell npm bin)/_mocha --compilers js:babel-core/register --recursive 'frontend/**/*.tests.js*' --require testSetup.js
+	$(shell npm bin)/_mocha --compilers js:babel-core/register --recursive 'frontend/**/*.tests.js*' --require 'frontend/.test.setup.js'
 
 test: lint test-go test-js
 
