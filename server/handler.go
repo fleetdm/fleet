@@ -252,11 +252,6 @@ func MakeHandler(ctx context.Context, svc kolide.Service, logger kitlog.Logger) 
 	r.PathPrefix("/api/v1/kolide").Handler(authMiddleware(svc, logger, api))
 	r.Handle("/api/login", login(svc, logger)).Methods("POST")
 	r.Handle("/api/logout", logout(svc, logger)).Methods("GET")
-	r.PathPrefix("/assets").Handler(http.StripPrefix("/assets", http.FileServer(newBinaryFileSystem("/build"))))
-
-	for _, route := range frontendRoutes {
-		r.HandleFunc(route, serveReactApp)
-	}
 
 	return r
 }

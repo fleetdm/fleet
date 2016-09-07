@@ -1,16 +1,13 @@
 package server
 
 import (
+	"fmt"
 	"html/template"
 	"net/http"
 	"strings"
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 )
-
-var frontendRoutes = [...]string{
-	"/",
-}
 
 type binaryFileSystem struct {
 	fs *assetfs.AssetFS
@@ -41,11 +38,18 @@ func newBinaryFileSystem(root string) *binaryFileSystem {
 	}
 }
 
-func serveReactApp(w http.ResponseWriter, r *http.Request) {
-	t, err := template.ParseFiles("frontend/templates/react.tmpl")
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	t.Execute(w, nil)
+func ServeFrontend() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t, err := template.ParseFiles("frontend/templates/react.tmpl")
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		err = t.Execute(w, nil)
+		fmt.Println(err)
+	})
+}
+
+func ServeStaticAssets(path string) http.Handler {
+	return http.StripPrefix(path, http.FileServer(newBinaryFileSystem("/build")))
 }

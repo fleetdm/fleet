@@ -79,7 +79,9 @@ the way that the kolide server works.
 		httpLogger := kitlog.NewContext(logger).With("component", "http")
 
 		apiHandler := server.MakeHandler(ctx, svc, httpLogger)
-		http.Handle("/", accessControl(apiHandler))
+		http.Handle("/api", accessControl(apiHandler))
+		http.Handle("/assets/", server.ServeStaticAssets("/assets/"))
+		http.Handle("/", server.ServeFrontend())
 
 		errs := make(chan error, 2)
 		go func() {
