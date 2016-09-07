@@ -1,35 +1,15 @@
 import React from 'react';
-import { render } from 'react-dom';
 import { Router, Route, browserHistory } from 'react-router';
-import { Promise } from 'when';
+import { syncHistoryWithStore } from 'react-router-redux';
 import App from '../components/app';
+import store from '../redux/store';
 
-const window = global.window || {};
-const document = global.document || {};
+const history = syncHistoryWithStore(browserHistory, store);
 
-export function run() {
-  window.Promise = window.Promise || Promise;
-  window.self = window;
+const routes = (
+  <Router history={history}>
+    <Route path="/" component={App} />
+  </Router>
+);
 
-  const router = (
-    <Router history={browserHistory}>
-      <Route path="/" component={App} />
-    </Router>
-  );
-
-  render(router, document.getElementById('app'));
-}
-
-// Style live reloading
-if (module.hot) {
-  let c = 0;
-  module.hot.accept('#css', () => {
-    const a = document.createElement('a');
-    const link = document.querySelector('link[rel="stylesheet"]');
-    a.href = link.href;
-    a.search = `?${c++}`;
-    link.href = a.href;
-  });
-}
-
-export default { run };
+export default routes;

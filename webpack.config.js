@@ -38,7 +38,7 @@ var repo = __dirname
 
 var config  = {
   entry: {
-    bundle: path.join(repo, 'frontend/index.js')
+    bundle: path.join(repo, 'frontend/index.jsx')
   },
   output: {
     path: path.join(repo, 'build'),
