@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"html/template"
 	"net/http"
 	"strings"
@@ -45,8 +44,7 @@ func ServeFrontend() http.Handler {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		err = t.Execute(w, nil)
-		fmt.Println(err)
+		t.Execute(w, nil)
 	})
 }
 
