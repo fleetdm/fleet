@@ -36,6 +36,8 @@
     "postcss-loader": "^0.8.0",
     "precss": "^1.4.0",
     "proxy-middleware": "^0.15.0",
+    "radium": "^0.18.1",
+    "radium-normalize": "^2.0.4",
     "react": "^15.2.1",
     "react-dom": "^15.2.1",
     "react-redux": "^4.4.5",

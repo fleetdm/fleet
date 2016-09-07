@@ -3,21 +3,11 @@ require('es6-promise').polyfill();
 var path = require('path');
 var webpack = require('webpack');
 var autoprefixer = require('autoprefixer');
-var precss = require('precss');
-var functions = require('postcss-functions');
 var ExtractTextPlugin = require("extract-text-webpack-plugin");
-
-var postCssLoader = [
-  'css-loader?module',
-  '&localIdentName=[name]__[local]___[hash:base64:5]',
-  '&disableStructuralMinification',
-  '!postcss-loader'
-];
 
 var plugins = [
     new webpack.NoErrorsPlugin(),
     new webpack.optimize.DedupePlugin(),
-    new ExtractTextPlugin('bundle.css'),
 ];
 
 if (process.env.NODE_ENV === 'production') {
@@ -30,8 +20,6 @@ if (process.env.NODE_ENV === 'production') {
       'process.env': {NODE_ENV: JSON.stringify('production')}
     })
   ]);
-
-  postCssLoader.splice(1, 1) // drop human readable names
 };
 
 var repo = __dirname
@@ -48,7 +36,6 @@ var config  = {
   plugins: plugins,
   module: {
     loaders: [
-      {test: /\.css/, loader: ExtractTextPlugin.extract('style-loader', postCssLoader.join(''))},
       {test: /\.(png|gif)$/, loader: 'url-loader?name=[name]@[hash].[ext]&limit=5000'},
       {test: /\.svg$/, loader: 'url-loader?name=[name]@[hash].[ext]&limit=5000!svgo-loader?useConfig=svgo1'},
       {test: /\.(pdf|ico|jpg|eot|otf|woff|ttf|mp4|webm)$/, loader: 'file-loader?name=[name]@[hash].[ext]'},
@@ -61,11 +48,10 @@ var config  = {
     ]
   },
   resolve: {
-    extensions: ['', '.js', '.jsx', '.css'],
+    extensions: ['', '.js', '.jsx'],
     alias: {
       '#app': path.join(repo, 'frontend'),
       '#components': path.join(repo, 'frontend/components'),
-      '#css': path.join(repo, 'frontend/css')
     }
   },
   svgo1: {
@@ -85,15 +71,6 @@ var config  = {
       {removeTitle: true},
       {removeDesc: true}
     ]
-  },
-  postcss: function() {
-    return [autoprefixer, precss({
-      variables: {
-        variables: require(path.join(repo, 'frontend/css/vars'))
-      }
-    }), functions({
-      functions: require(path.join(repo, 'frontend/css/funcs'))
-    })]
   }
 };
 
