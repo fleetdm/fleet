@@ -41,7 +41,7 @@ generate-dev: .prefix
 	$(shell npm bin)/webpack --progress --colors --bail --watch
 
 deps:
-	npm install --dev
+	npm install
 	go get -u github.com/Masterminds/glide
 	go get -u github.com/jteeuwen/go-bindata/...
 	glide install
