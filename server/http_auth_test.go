@@ -158,11 +158,11 @@ func createTestUsers(t *testing.T, ds kolide.Datastore) {
 	ctx := context.Background()
 	for _, tt := range testUsers {
 		payload := kolide.UserPayload{
-			Username:           tt.Username,
-			Password:           tt.Password,
-			Email:              tt.Email,
-			Admin:              tt.Admin,
-			NeedsPasswordReset: tt.NeedsPasswordReset,
+			Username: tt.Username,
+			Password: tt.Password,
+			Email:    tt.Email,
+			Admin:    tt.Admin,
+			AdminForcedPasswordReset: tt.AdminForcedPasswordReset,
 		}
 		_, err := svc.NewUser(ctx, payload)
 		if err != nil {

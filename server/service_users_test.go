@@ -37,11 +37,11 @@ func TestCreateUser(t *testing.T) {
 
 	for _, tt := range createUserTests {
 		payload := kolide.UserPayload{
-			Username:           tt.Username,
-			Password:           tt.Password,
-			Email:              tt.Email,
-			Admin:              tt.Admin,
-			NeedsPasswordReset: tt.NeedsPasswordReset,
+			Username: tt.Username,
+			Password: tt.Password,
+			Email:    tt.Email,
+			Admin:    tt.Admin,
+			AdminForcedPasswordReset: tt.NeedsPasswordReset,
 		}
 		user, err := svc.NewUser(ctx, payload)
 		switch err.(type) {
@@ -64,11 +64,11 @@ func TestCreateUser(t *testing.T) {
 			t.Errorf("expected err, got nil")
 		}
 
-		if have, want := user.NeedsPasswordReset, *tt.NeedsPasswordReset; have != want {
+		if have, want := user.AdminForcedPasswordReset, *tt.NeedsPasswordReset; have != want {
 			t.Errorf("have %v want %v", have, want)
 		}
 
-		if have, want := user.NeedsPasswordReset, *tt.NeedsPasswordReset; have != want {
+		if have, want := user.AdminForcedPasswordReset, *tt.NeedsPasswordReset; have != want {
 			t.Errorf("have %v want %v", have, want)
 		}
 

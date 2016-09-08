@@ -29,31 +29,35 @@ type UserService interface {
 
 // User is the model struct which represents a kolide user
 type User struct {
-	ID                 uint `gorm:"primary_key"`
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
-	Username           string `gorm:"not null;unique_index:idx_user_unique_username"`
-	Password           []byte `gorm:"not null"`
-	Salt               string `gorm:"not null"`
-	Name               string
-	Email              string `gorm:"not null;unique_index:idx_user_unique_email"`
-	Admin              bool   `gorm:"not null"`
-	Enabled            bool   `gorm:"not null"`
-	NeedsPasswordReset bool
+	ID                       uint `gorm:"primary_key"`
+	CreatedAt                time.Time
+	UpdatedAt                time.Time
+	Username                 string `gorm:"not null;unique_index:idx_user_unique_username"`
+	Password                 []byte `gorm:"not null"`
+	Salt                     string `gorm:"not null"`
+	Name                     string
+	Email                    string `gorm:"not null;unique_index:idx_user_unique_email"`
+	Admin                    bool   `gorm:"not null"`
+	Enabled                  bool   `gorm:"not null"`
+	AdminForcedPasswordReset bool
+	GravatarURL              string
+	Position                 string // job role
 }
 
 // UserPayload is used to modify an existing user
 type UserPayload struct {
-	Username           *string `json:"username"`
-	Name               *string `json:"name"`
-	Email              *string `json:"email"`
-	Admin              *bool   `json:"admin"`
-	Enabled            *bool   `json:"enabled"`
-	NeedsPasswordReset *bool   `json:"needs_password_reset"`
-	Password           *string `json:"password"`
+	Username                 *string `json:"username"`
+	Name                     *string `json:"name"`
+	Email                    *string `json:"email"`
+	Admin                    *bool   `json:"admin"`
+	Enabled                  *bool   `json:"enabled"`
+	AdminForcedPasswordReset *bool   `json:"force_password_reset"`
+	Password                 *string `json:"password"`
 	// modify params
 	CurrentPassword *string `json:"current_password"`
 	NewPassword     *string `json:"new_password"`
+	GravatarURL     *string `json:"gravatar_url"`
+	Position        *string `json:"position"`
 }
 
 // NewUser is a wrapper around the creation of a new user.
@@ -66,13 +70,13 @@ func NewUser(username, password, email string, admin, needsPasswordReset bool) (
 		return nil, err
 	}
 	user := User{
-		Username:           username,
-		Password:           hash,
-		Salt:               salt,
-		Email:              email,
-		Admin:              admin,
-		Enabled:            true,
-		NeedsPasswordReset: needsPasswordReset,
+		Username:                 username,
+		Password:                 hash,
+		Salt:                     salt,
+		Email:                    email,
+		Admin:                    admin,
+		Enabled:                  true,
+		AdminForcedPasswordReset: needsPasswordReset,
 	}
 	return &user, nil
 }

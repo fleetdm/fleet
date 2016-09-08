@@ -15,14 +15,14 @@ type createUserRequest struct {
 }
 
 type createUserResponse struct {
-	ID                 uint   `json:"id"`
-	Username           string `json:"username"`
-	Email              string `json:"email"`
-	Name               string `json:"name"`
-	Admin              bool   `json:"admin"`
-	Enabled            bool   `json:"enabled"`
-	NeedsPasswordReset bool   `json:"needs_password_reset"`
-	Err                error  `json:"error,omitempty"`
+	ID                       uint   `json:"id"`
+	Username                 string `json:"username"`
+	Email                    string `json:"email"`
+	Name                     string `json:"name"`
+	Admin                    bool   `json:"admin"`
+	Enabled                  bool   `json:"enabled"`
+	AdminForcedPasswordReset bool   `json:"force_password_reset"`
+	Err                      error  `json:"error,omitempty"`
 }
 
 func (r createUserResponse) error() error { return r.Err }
@@ -35,12 +35,12 @@ func makeCreateUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return createUserResponse{Err: err}, nil
 		}
 		return createUserResponse{
-			ID:                 user.ID,
-			Username:           user.Username,
-			Email:              user.Email,
-			Admin:              user.Admin,
-			Enabled:            user.Enabled,
-			NeedsPasswordReset: user.NeedsPasswordReset,
+			ID:                       user.ID,
+			Username:                 user.Username,
+			Email:                    user.Email,
+			Admin:                    user.Admin,
+			Enabled:                  user.Enabled,
+			AdminForcedPasswordReset: user.AdminForcedPasswordReset,
 		}, nil
 	}
 }
@@ -54,14 +54,14 @@ type getUserRequest struct {
 }
 
 type getUserResponse struct {
-	ID                 uint   `json:"id"`
-	Username           string `json:"username"`
-	Email              string `json:"email"`
-	Name               string `json:"name"`
-	Admin              bool   `json:"admin"`
-	Enabled            bool   `json:"enabled"`
-	NeedsPasswordReset bool   `json:"needs_password_reset"`
-	Err                error  `json:"error,omitempty"`
+	ID                       uint   `json:"id"`
+	Username                 string `json:"username"`
+	Email                    string `json:"email"`
+	Name                     string `json:"name"`
+	Admin                    bool   `json:"admin"`
+	Enabled                  bool   `json:"enabled"`
+	AdminForcedPasswordReset bool   `json:"force_password_reset"`
+	Err                      error  `json:"error,omitempty"`
 }
 
 func (r getUserResponse) error() error { return r.Err }
@@ -74,12 +74,12 @@ func makeGetUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return getUserResponse{Err: err}, nil
 		}
 		return getUserResponse{
-			ID:                 user.ID,
-			Username:           user.Username,
-			Email:              user.Email,
-			Admin:              user.Admin,
-			Enabled:            user.Enabled,
-			NeedsPasswordReset: user.NeedsPasswordReset,
+			ID:                       user.ID,
+			Username:                 user.Username,
+			Email:                    user.Email,
+			Admin:                    user.Admin,
+			Enabled:                  user.Enabled,
+			AdminForcedPasswordReset: user.AdminForcedPasswordReset,
 		}, nil
 	}
 }
@@ -166,14 +166,14 @@ type modifyUserRequest struct {
 }
 
 type modifyUserResponse struct {
-	ID                 uint   `json:"id"`
-	Username           string `json:"username"`
-	Email              string `json:"email"`
-	Name               string `json:"name"`
-	Admin              bool   `json:"admin"`
-	Enabled            bool   `json:"enabled"`
-	NeedsPasswordReset bool   `json:"needs_password_reset"`
-	Err                error  `json:"error,omitempty"`
+	ID                       uint   `json:"id"`
+	Username                 string `json:"username"`
+	Email                    string `json:"email"`
+	Name                     string `json:"name"`
+	Admin                    bool   `json:"admin"`
+	Enabled                  bool   `json:"enabled"`
+	AdminForcedPasswordReset bool   `json:"force_password_reset"`
+	Err                      error  `json:"error,omitempty"`
 }
 
 func (r modifyUserResponse) error() error { return r.Err }
@@ -189,13 +189,13 @@ func makeModifyUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 		_ = req
 
 		return modifyUserResponse{
-			ID:                 user.ID,
-			Username:           user.Username,
-			Email:              user.Email,
-			Admin:              user.Admin,
-			Enabled:            user.Enabled,
-			NeedsPasswordReset: user.NeedsPasswordReset,
-			Err:                err,
+			ID:                       user.ID,
+			Username:                 user.Username,
+			Email:                    user.Email,
+			Admin:                    user.Admin,
+			Enabled:                  user.Enabled,
+			AdminForcedPasswordReset: user.AdminForcedPasswordReset,
+			Err: err,
 		}, nil
 	}
 }

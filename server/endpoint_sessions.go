@@ -45,7 +45,7 @@ func makeLoginEndpoint(svc kolide.Service) endpoint.Endpoint {
 			Email:              user.Email,
 			Admin:              user.Admin,
 			Enabled:            user.Enabled,
-			NeedsPasswordReset: user.NeedsPasswordReset,
+			NeedsPasswordReset: user.AdminForcedPasswordReset,
 		}, nil
 	}
 }

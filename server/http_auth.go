@@ -89,7 +89,7 @@ func (vc *viewerContext) IsLoggedIn() bool {
 // CanPerformActions returns a bool indicating the current user's ability to
 // perform the most basic actions on the site
 func (vc *viewerContext) CanPerformActions() bool {
-	return vc.IsLoggedIn() && !vc.user.NeedsPasswordReset
+	return vc.IsLoggedIn() && !vc.user.AdminForcedPasswordReset
 }
 
 // CanPerformReadActionsOnUser returns a bool indicating the current user's
