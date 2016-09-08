@@ -2,45 +2,73 @@ package server
 
 import (
 	"fmt"
-	"net/http"
 
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/kolide"
 	"golang.org/x/net/context"
 )
 
-func (svc service) Authenticate(ctx context.Context, username, password string) (*kolide.User, error) {
+func (svc service) Login(ctx context.Context, username, password string) (*kolide.User, string, error) {
 	user, err := svc.ds.User(username)
 	switch err {
 	case nil:
 	case datastore.ErrNotFound:
-		return nil, authError{
+		return nil, "", authError{
 			message: fmt.Sprintf("user %s not found", username),
 		}
 	default:
-		return nil, err
+		return nil, "", err
 	}
 	if !user.Enabled {
-		return nil, authError{
+		return nil, "", authError{
 			message: fmt.Sprintf("account disabled %s", username),
 		}
 	}
 	if err := user.ValidatePassword(password); err != nil {
-		return nil, authError{
+		return nil, "", authError{
 			message: fmt.Sprintf("invalid password for user %s", username),
 		}
 	}
-	return user, nil
+
+	token, err := svc.MakeSession(ctx, user.ID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return user, token, nil
 }
 
-func (svc service) NewSessionManager(ctx context.Context, w http.ResponseWriter, r *http.Request) *kolide.SessionManager {
-	return &kolide.SessionManager{
-		Request:    r,
-		Writer:     w,
-		Store:      svc.ds,
-		JWTKey:     svc.jwtKey,
-		CookieName: svc.cookieName,
+func (svc service) Logout(ctx context.Context) error {
+	// this should not return an error if the user wasn't logged in
+	return svc.DestroySession(ctx)
+}
+
+func (svc service) MakeSession(ctx context.Context, id uint) (string, error) {
+	session, err := svc.ds.CreateSessionForUserID(id)
+	if err != nil {
+		return "", err
 	}
+
+	tokenString, err := kolide.GenerateJWT(session.Key, svc.jwtKey)
+	if err != nil {
+		return "", err
+	}
+
+	return tokenString, nil
+}
+
+func (svc service) DestroySession(ctx context.Context) error {
+	vc, err := viewerContextFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	session, err := svc.ds.FindSessionByID(vc.SessionID())
+	if err != nil {
+		return err
+	}
+
+	return svc.ds.DestroySession(session)
 }
 
 func (svc service) GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([]*kolide.Session, error) {

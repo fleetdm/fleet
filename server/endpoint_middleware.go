@@ -9,6 +9,19 @@ import (
 
 var errNoContext = errors.New("no viewer context set")
 
+func authenticated(next endpoint.Endpoint) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		vc, err := viewerContextFromContext(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if !vc.IsLoggedIn() {
+			return nil, forbiddenError{message: "must be logged in"}
+		}
+		return next(ctx, request)
+	}
+}
+
 func mustBeAdmin(next endpoint.Endpoint) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		vc, err := viewerContextFromContext(ctx)
@@ -57,12 +70,4 @@ func requestUserIDFromContext(ctx context.Context) uint {
 		return 0
 	}
 	return userID
-}
-
-func viewerContextFromContext(ctx context.Context) (*viewerContext, error) {
-	vc, ok := ctx.Value("viewerContext").(*viewerContext)
-	if !ok {
-		return nil, errNoContext
-	}
-	return vc, nil
 }

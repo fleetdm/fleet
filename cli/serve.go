@@ -47,6 +47,7 @@ the way that the kolide server works.
 			SessionCookieName: "KolideSession",
 			BcryptCost:        12,
 			SaltKeySize:       24,
+			JWTKey:            "foobar",
 		}
 		svcLogger := kitlog.NewContext(logger).With("component", "service")
 		var svc kolide.Service
@@ -78,7 +79,7 @@ the way that the kolide server works.
 
 		httpLogger := kitlog.NewContext(logger).With("component", "http")
 
-		apiHandler := server.MakeHandler(ctx, svc, httpLogger)
+		apiHandler := server.MakeHandler(ctx, svc, svcConfig.JWTKey, ds, httpLogger)
 		http.Handle("/api/", accessControl(apiHandler))
 		http.Handle("/assets/", server.ServeStaticAssets("/assets/"))
 		http.Handle("/", server.ServeFrontend())

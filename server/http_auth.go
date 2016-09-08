@@ -1,139 +1,20 @@
 package server
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
+	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go/request"
 	kitlog "github.com/go-kit/kit/log"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/kolide/kolide-ose/kolide"
 	"golang.org/x/net/context"
 )
 
-func login(svc kolide.Service, logger kitlog.Logger) http.HandlerFunc {
-	ctx := context.Background()
-	logger = kitlog.NewContext(logger).With("method", "login")
-	return func(w http.ResponseWriter, r *http.Request) {
-		var loginRequest = struct {
-			Username *string
-			Password *string
-		}{}
-		if err := json.NewDecoder(r.Body).Decode(&loginRequest); err != nil {
-			encodeResponse(ctx, w, getUserResponse{
-				Err: err,
-			})
-			logger.Log("err", err)
-			return
-		}
-		var username, password string
-		{
-			if loginRequest.Username != nil {
-				username = *loginRequest.Username
-			}
-			if loginRequest.Password != nil {
-				password = *loginRequest.Password
-			}
-		}
-
-		// retrieve user or respond with error
-		user, err := svc.Authenticate(ctx, username, password)
-		switch err.(type) {
-		case nil:
-			logger.Log("msg", "authenticated", "user", username, "id", user.ID)
-		case authError:
-			encodeResponse(ctx, w, getUserResponse{
-				Err: err,
-			})
-			logger.Log("err", err, "user", username)
-			return
-		default:
-			encodeResponse(ctx, w, getUserResponse{
-				Err: errors.New("unknown error, try again later"),
-			})
-			logger.Log("err", err, "user", username)
-			return
-		}
-
-		// create session here
-		sm := svc.NewSessionManager(ctx, w, r)
-
-		// TODO it feels awkward to create and then save the session in two steps.
-		// the session manager should just call Save on it's own?
-		if err := sm.MakeSessionForUserID(user.ID); err != nil {
-			encodeResponse(ctx, w, getUserResponse{
-				Err: errors.New("error creating new user session"),
-			})
-			logger.Log("err", err, "user", username)
-			return
-		}
-
-		if err := sm.Save(); err != nil {
-			encodeResponse(ctx, w, getUserResponse{
-				Err: errors.New("error saving new user session"),
-			})
-			logger.Log("err", err, "user", username)
-			return
-		}
-
-		encodeResponse(ctx, w, getUserResponse{
-			ID:                 user.ID,
-			Username:           user.Username,
-			Name:               user.Name,
-			Admin:              user.Admin,
-			Enabled:            user.Enabled,
-			NeedsPasswordReset: user.NeedsPasswordReset,
-		})
-
-	}
-}
-
-const noAuthRedirect = "/"
-
-func logout(svc kolide.Service, logger kitlog.Logger) http.HandlerFunc {
-	logger = kitlog.NewContext(logger).With("method", "logout")
-	ctx := context.Background()
-	return func(w http.ResponseWriter, r *http.Request) {
-		sm := svc.NewSessionManager(ctx, w, r)
-		if err := sm.Destroy(); err != nil {
-			encodeResponse(ctx, w, getUserResponse{
-				Err: errors.New("error deleting session"),
-			})
-			logger.Log("err", err)
-			return
-		}
-
-		// redirect
-		http.Redirect(w, r, noAuthRedirect, http.StatusFound)
-	}
-}
-
 func authMiddleware(svc kolide.Service, logger kitlog.Logger, next http.Handler) http.Handler {
-	logger = kitlog.NewContext(logger).With("method", "authMiddleware")
-	ctx := context.Background()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		sm := svc.NewSessionManager(ctx, w, r)
-		session, err := sm.Session()
-		if err != nil {
-			http.Error(w,
-				"failed to retrieve user session. is there a user logged in?",
-				http.StatusUnauthorized)
-			logger.Log("err", err)
-			return
-		}
-
-		user, err := svc.User(ctx, session.UserID)
-		if err != nil {
-			http.Error(w,
-				"failed to get user from db", http.StatusUnauthorized)
-			logger.Log("err", err, "user", session.UserID)
-			return
-		}
-
-		if !user.Enabled {
-			http.Error(w, "user disabled", http.StatusUnauthorized)
-		}
-
 		// all good to pass
 		next.ServeHTTP(w, r)
 	})
@@ -170,7 +51,8 @@ func (e forbiddenError) Error() string {
 // purpose of a ViewerContext is to assist in the authorization of sensitive
 // actions.
 type viewerContext struct {
-	user *kolide.User
+	user    *kolide.User
+	session *kolide.Session
 }
 
 // IsAdmin indicates whether or not the current user can perform administrative
@@ -187,6 +69,13 @@ func (vc *viewerContext) IsAdmin() bool {
 func (vc *viewerContext) UserID() uint {
 	if vc.user != nil {
 		return vc.user.ID
+	}
+	return 0
+}
+
+func (vc *viewerContext) SessionID() uint {
+	if vc.session != nil {
+		return vc.session.ID
 	}
 	return 0
 }
@@ -224,10 +113,11 @@ func (vc *viewerContext) IsUserID(id uint) bool {
 	return false
 }
 
-// newViewerContext generates a ViewerContext given a user struct
-func newViewerContext(user *kolide.User) *viewerContext {
+// newViewerContext generates a ViewerContext given a session
+func newViewerContext(user *kolide.User, session *kolide.Session) *viewerContext {
 	return &viewerContext{
-		user: user,
+		user:    user,
+		session: session,
 	}
 }
 
@@ -237,10 +127,73 @@ func emptyVC() *viewerContext {
 	return &viewerContext{}
 }
 
-func vcFromID(ds kolide.UserStore, id uint) (*viewerContext, error) {
-	user, err := ds.UserByID(id)
-	if err != nil {
-		return nil, err
+func viewerContextFromContext(ctx context.Context) (*viewerContext, error) {
+	vc, ok := ctx.Value("viewerContext").(*viewerContext)
+	if !ok {
+		return nil, errNoContext
 	}
-	return &viewerContext{user: user}, nil
+	return vc, nil
+}
+
+// setViewerContext updates the context with a viewerContext,
+// which holds the currently logged in user
+func setViewerContext(svc kolide.Service, ds kolide.Datastore, jwtKey string, logger kitlog.Logger) kithttp.RequestFunc {
+	return func(ctx context.Context, r *http.Request) context.Context {
+		token, err := request.ParseFromRequest(r, request.AuthorizationHeaderExtractor, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			}
+			return jwtKey, nil
+		})
+		if err != nil {
+			return context.WithValue(ctx, "viewerContext", emptyVC())
+		}
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			return context.WithValue(ctx, "viewerContext", emptyVC())
+		}
+
+		sessionKeyClaim, ok := claims["session_key"]
+		if !ok {
+			return context.WithValue(ctx, "viewerContext", emptyVC())
+		}
+
+		sessionKey, ok := sessionKeyClaim.(string)
+		if !ok {
+			return context.WithValue(ctx, "viewerContext", emptyVC())
+		}
+
+		session, err := ds.FindSessionByKey(sessionKey)
+		if err != nil {
+			switch err {
+			case kolide.ErrNoActiveSession:
+				// If the code path got this far, it's likely that the user was logged
+				// in some time in the past, but their session has been expired since
+				// their last usage of the application
+				return context.WithValue(ctx, "viewerContext", emptyVC())
+			default:
+				return context.WithValue(ctx, "viewerContext", emptyVC())
+			}
+		}
+
+		user, err := svc.User(ctx, session.UserID)
+		if err != nil {
+			logger.Log("err", err, "error-source", "setViewerContext")
+			return context.WithValue(ctx, "viewerContext", emptyVC())
+		}
+
+		ctx = context.WithValue(ctx, "viewerContext", newViewerContext(user, session))
+		logger.Log("msg", "viewer context set", "user", user.ID)
+		// get the user-id for request
+		if strings.Contains(r.URL.Path, "users/") {
+			ctx = withUserIDFromRequest(r, ctx)
+		}
+		return ctx
+	}
+}
+
+func withUserIDFromRequest(r *http.Request, ctx context.Context) context.Context {
+	id, _ := idFromRequest(r, "id")
+	return context.WithValue(ctx, "request-id", id)
 }

@@ -24,7 +24,8 @@ func TestAuthenticate(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotZero(t, user.ID)
 
-	loggedIn, err := svc.Authenticate(ctx, "foo", "bar")
+	loggedIn, token, err := svc.Login(ctx, "foo", "bar")
 	assert.Nil(t, err)
 	assert.Equal(t, user.ID, loggedIn.ID)
+	assert.NotEmpty(t, token)
 }

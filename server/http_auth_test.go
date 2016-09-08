@@ -8,9 +8,12 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	kitlog "github.com/go-kit/kit/log"
+	kithttp "github.com/go-kit/kit/transport/http"
+	"github.com/gorilla/mux"
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/kolide"
 	"github.com/stretchr/testify/assert"
@@ -21,10 +24,19 @@ func TestLogin(t *testing.T) {
 	ds, _ := datastore.New("mock", "")
 	svc, _ := NewService(testConfig(ds))
 	createTestUsers(t, ds)
+	logger := kitlog.NewLogfmtLogger(os.Stdout)
 
-	r := http.NewServeMux()
-	r.Handle("/api/logout", logout(svc, kitlog.NewNopLogger()))
-	r.Handle("/api/login", login(svc, kitlog.NewNopLogger()))
+	opts := []kithttp.ServerOption{
+		kithttp.ServerBefore(
+			setViewerContext(svc, ds, "foobar", logger),
+		),
+		kithttp.ServerErrorLogger(logger),
+		kithttp.ServerAfter(
+			kithttp.SetContentType("application/json; charset=utf-8"),
+		),
+	}
+	r := mux.NewRouter()
+	attachAPIRoutes(r, context.Background(), svc, opts)
 	r.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "index")
 	}))
@@ -69,19 +81,16 @@ func TestLogin(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		var loginRequest = struct {
-			Username string `json:"username"`
-			Password string `json:"password"`
-		}{
+		params := loginRequest{
 			Username: tt.username,
 			Password: tt.password,
 		}
-		j, err := json.Marshal(&loginRequest)
+		j, err := json.Marshal(&params)
 		if err != nil {
 			t.Fatal(err)
 		}
 		requestBody := &nopCloser{bytes.NewBuffer(j)}
-		resp, err := http.Post(server.URL+"/api/login", "application/json", requestBody)
+		resp, err := http.Post(server.URL+"/api/v1/kolide/login", "application/json", requestBody)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -90,6 +99,7 @@ func TestLogin(t *testing.T) {
 		}
 
 		var jsn = struct {
+			Token              string `json:"token"`
 			ID                 uint   `json:"id"`
 			Username           string `json:"username"`
 			Email              string `json:"email"`
@@ -99,7 +109,6 @@ func TestLogin(t *testing.T) {
 			NeedsPasswordReset bool   `json:"needs_password_reset"`
 			Err                string `json:"error,omitempty"`
 		}{}
-
 		if err := json.NewDecoder(resp.Body).Decode(&jsn); err != nil {
 			t.Fatal(err)
 		}
@@ -115,10 +124,6 @@ func TestLogin(t *testing.T) {
 			t.Errorf("have %v, want %v", have, want)
 		}
 
-		// ensure that a non-empty cookie was in-fact set
-		cookie := resp.Header.Get("Set-Cookie")
-		assert.NotEmpty(t, cookie)
-
 		// ensure that a session was created for our test user and stored
 		sessions, err := ds.FindAllSessionsForUser(testUser.ID)
 		assert.Nil(t, err)
@@ -128,8 +133,8 @@ func TestLogin(t *testing.T) {
 		assert.NotEqual(t, "", sessions[0].Key)
 
 		// test logout
-		req, _ := http.NewRequest("GET", server.URL+"/api/logout", nil)
-		req.Header.Set("Cookie", cookie)
+		req, _ := http.NewRequest("GET", server.URL+"/api/v1/kolide/logout", nil)
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", jsn.Token))
 		client := &http.Client{}
 		resp, err = client.Do(req)
 		if err != nil {
@@ -138,53 +143,13 @@ func TestLogin(t *testing.T) {
 		if have, want := resp.StatusCode, http.StatusOK; have != want {
 			t.Errorf("have %d, want %d", have, want)
 		}
-		body, err := ioutil.ReadAll(resp.Body)
+		_, err = ioutil.ReadAll(resp.Body)
 		if err != nil {
 			t.Fatal(err)
-		}
-		if have, want := string(body), "index"; have != want {
-			t.Errorf("have %q, want %q", have, want)
 		}
 		// ensure that our user's session was deleted from the store
 		sessions, err = ds.FindAllSessionsForUser(testUser.ID)
 		assert.Len(t, sessions, 0)
-	}
-
-	var unauthenticated = []struct {
-		method   string
-		endpoint string
-		bodyType string
-	}{
-		{
-			method:   "POST",
-			endpoint: "/login",
-			bodyType: "application/x-www-form-urlencoded",
-		},
-		// @groob TODO need to test logout with a cookie set
-		// {
-		// 	method:   "GET",
-		// 	endpoint: "/logout",
-		// },
-	}
-
-	for _, tt := range unauthenticated {
-		req, _ := http.NewRequest(tt.method, server.URL+tt.endpoint, nil)
-		req.Header.Set("Content-Type", tt.bodyType)
-		client := &http.Client{}
-		resp, err := client.Do(req)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if have, want := resp.StatusCode, http.StatusOK; have != want {
-			t.Errorf("have %d, want %d", have, want)
-		}
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if have, want := string(body), "index"; have != want {
-			t.Errorf("have %q, want %q", have, want)
-		}
 	}
 }
 

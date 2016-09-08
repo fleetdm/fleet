@@ -1,10 +1,8 @@
 package kolide
 
 import (
-	"net/http"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/kolide/kolide-ose/errors"
 	"golang.org/x/net/context"
@@ -58,8 +56,10 @@ type SessionStore interface {
 }
 
 type SessionService interface {
-	Authenticate(ctx context.Context, username, password string) (*User, error)
-	NewSessionManager(ctx context.Context, w http.ResponseWriter, r *http.Request) *SessionManager
+	Login(ctx context.Context, username, password string) (*User, string, error)
+	Logout(ctx context.Context) error
+	MakeSession(ctx context.Context, id uint) (string, error)
+	DestroySession(ctx context.Context) error
 	GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([]*Session, error)
 	DeleteSessionsForUser(ctx context.Context, id uint) error
 	GetInfoAboutSession(ctx context.Context, id uint) (*Session, error)
@@ -73,138 +73,6 @@ type Session struct {
 	AccessedAt time.Time
 	UserID     uint   `gorm:"not null"`
 	Key        string `gorm:"not null;unique_index:idx_session_unique_key"`
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Managing sessions
-////////////////////////////////////////////////////////////////////////////////
-
-// SessionManager is a management object which helps with the administration of
-// sessions within the application. Use NewSessionManager to create an instance
-type SessionManager struct {
-	Store      SessionStore
-	Request    *http.Request
-	Writer     http.ResponseWriter
-	session    *Session
-	CookieName string
-	JWTKey     string
-}
-
-func (sm *SessionManager) Session() (*Session, error) {
-	if sm.session == nil {
-		cookie, err := sm.Request.Cookie(sm.CookieName)
-		if err != nil {
-			switch err {
-			case http.ErrNoCookie:
-				// No cookie was set
-				return nil, err
-			default:
-				// Something went wrong and the cookie may or may not be set
-				logrus.Errorf("Couldn't get cookie: %s", err.Error())
-				return nil, ErrSessionMalformed
-			}
-		}
-
-		token, err := ParseJWT(cookie.Value, sm.JWTKey)
-		if err != nil {
-			logrus.Errorf("Couldn't parse JWT token string from cookie: %s", err.Error())
-			return nil, ErrSessionMalformed
-		}
-
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			logrus.Error("Could not parse the claims from the JWT token")
-			return nil, ErrSessionMalformed
-		}
-
-		sessionKeyClaim, ok := claims["session_key"]
-		if !ok {
-			logrus.Warn("JWT did not have session_key claim")
-			return nil, ErrSessionMalformed
-		}
-
-		sessionKey, ok := sessionKeyClaim.(string)
-		if !ok {
-			logrus.Warn("JWT session_key claim was not a string")
-			return nil, ErrSessionMalformed
-		}
-
-		session, err := sm.Store.FindSessionByKey(sessionKey)
-		if err != nil {
-			switch err {
-			case ErrNoActiveSession:
-				// If the code path got this far, it's likely that the user was logged
-				// in some time in the past, but their session has been expired since
-				// their last usage of the application
-				return nil, err
-			default:
-				logrus.Errorf("Couldn't call Get on backend object: %s", err.Error())
-				return nil, err
-			}
-		}
-		sm.session = session
-	}
-	return sm.session, nil
-
-}
-
-// MakeSessionForUserID creates a session in the database for a given user id.
-// You must call Save() after calling this.
-func (sm *SessionManager) MakeSessionForUserID(id uint) error {
-	session, err := sm.Store.CreateSessionForUserID(id)
-	if err != nil {
-		return errors.New("Session error", "Error creating session via the store")
-	}
-	sm.session = session
-	return nil
-}
-
-// Save writes the current session to a token and delivers the token as a cookie
-// to the user. Save must be called after every write action on this struct
-// (MakeSessionForUser, Destroy, etc.)
-func (sm *SessionManager) Save() error {
-	var token string
-	var err error
-	if sm.session != nil {
-		token, err = GenerateJWT(sm.session.Key, sm.JWTKey)
-		if err != nil {
-			return err
-		}
-	}
-
-	// TODO: set proper flags on cookie for maximum security
-	cookieName := sm.CookieName
-	if cookieName == "" {
-		cookieName = "KolideSession"
-	}
-
-	cookie := &http.Cookie{
-		Name:  cookieName,
-		Value: token,
-	}
-	http.SetCookie(sm.Writer, cookie)
-
-	return err
-}
-
-// Destroy deletes the active session from the database and erases the session
-// instance from this object's access. You must call Save() after calling this.
-func (sm *SessionManager) Destroy() error {
-	_, err := sm.Session()
-	if err != nil {
-		return err
-	}
-
-	if sm.Store != nil && sm.session != nil {
-		err := sm.Store.DestroySession(sm.session)
-		if err != nil {
-			return err
-		}
-	}
-
-	sm.session = nil
-
-	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -2,7 +2,6 @@ package server
 
 import (
 	"net/http"
-	"strings"
 
 	kitlog "github.com/go-kit/kit/log"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -12,10 +11,30 @@ import (
 )
 
 func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service, opts []kithttp.ServerOption) {
+	router.Handle("/api/v1/kolide/login",
+		kithttp.NewServer(
+			ctx,
+			makeLoginEndpoint(svc),
+			decodeLoginRequest,
+			encodeResponse,
+			opts...,
+		),
+	).Methods("POST")
+
+	router.Handle("/api/v1/kolide/logout",
+		kithttp.NewServer(
+			ctx,
+			makeLogoutEndpoint(svc),
+			decodeNoParamsRequest,
+			encodeResponse,
+			opts...,
+		),
+	)
+
 	router.Handle("/api/v1/kolide/users",
 		kithttp.NewServer(
 			ctx,
-			mustBeAdmin(makeCreateUserEndpoint(svc)),
+			authenticated(mustBeAdmin(makeCreateUserEndpoint(svc))),
 			decodeCreateUserRequest,
 			encodeResponse,
 			opts...,
@@ -25,7 +44,7 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 	router.Handle("/api/v1/kolide/users/{id}",
 		kithttp.NewServer(
 			ctx,
-			canReadUser(makeGetUserEndpoint(svc)),
+			authenticated(canReadUser(makeGetUserEndpoint(svc))),
 			decodeGetUserRequest,
 			encodeResponse,
 			opts...,
@@ -35,7 +54,7 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 	router.Handle("/api/v1/kolide/users/{id}/password",
 		kithttp.NewServer(
 			ctx,
-			canModifyUser(makeChangePasswordEndpoint(svc)),
+			authenticated(canModifyUser(makeChangePasswordEndpoint(svc))),
 			decodeChangePasswordRequest,
 			encodeResponse,
 			opts...,
@@ -45,7 +64,7 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 	router.Handle("/api/v1/kolide/users/{id}/role",
 		kithttp.NewServer(
 			ctx,
-			mustBeAdmin(makeUpdateAdminRoleEndpoint(svc)),
+			authenticated(mustBeAdmin(makeUpdateAdminRoleEndpoint(svc))),
 			decodeUpdateAdminRoleRequest,
 			encodeResponse,
 			opts...,
@@ -55,7 +74,7 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 	router.Handle("/api/v1/kolide/users/{id}/status",
 		kithttp.NewServer(
 			ctx,
-			canModifyUser(makeUpdateUserStatusEndpoint(svc)),
+			authenticated(canModifyUser(makeUpdateUserStatusEndpoint(svc))),
 			decodeUpdateUserStatusRequest,
 			encodeResponse,
 			opts...,
@@ -65,7 +84,7 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 	router.Handle("/api/v1/kolide/users/{id}/sessions",
 		kithttp.NewServer(
 			ctx,
-			canReadUser(makeGetInfoAboutSessionsForUserEndpoint(svc)),
+			authenticated(canReadUser(makeGetInfoAboutSessionsForUserEndpoint(svc))),
 			decodeGetInfoAboutSessionsForUserRequest,
 			encodeResponse,
 			opts...,
@@ -75,7 +94,7 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 	router.Handle("/api/v1/kolide/users/{id}/sessions",
 		kithttp.NewServer(
 			ctx,
-			canModifyUser(makeDeleteSessionsForUserEndpoint(svc)),
+			authenticated(canModifyUser(makeDeleteSessionsForUserEndpoint(svc))),
 			decodeDeleteSessionsForUserRequest,
 			encodeResponse,
 			opts...,
@@ -85,7 +104,7 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 	router.Handle("/api/v1/kolide/sessions/{id}",
 		kithttp.NewServer(
 			ctx,
-			mustBeAdmin(makeGetInfoAboutSessionEndpoint(svc)),
+			authenticated(mustBeAdmin(makeGetInfoAboutSessionEndpoint(svc))),
 			decodeGetInfoAboutSessionRequest,
 			encodeResponse,
 			opts...,
@@ -95,7 +114,7 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 	router.Handle("/api/v1/kolide/sessions/{id}",
 		kithttp.NewServer(
 			ctx,
-			mustBeAdmin(makeDeleteSessionEndpoint(svc)),
+			authenticated(mustBeAdmin(makeDeleteSessionEndpoint(svc))),
 			decodeDeleteSessionRequest,
 			encodeResponse,
 			opts...,
@@ -105,7 +124,7 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 	router.Handle("/api/v1/kolide/queries/{id}",
 		kithttp.NewServer(
 			ctx,
-			makeGetQueryEndpoint(svc),
+			authenticated(makeGetQueryEndpoint(svc)),
 			decodeGetQueryRequest,
 			encodeResponse,
 			opts...,
@@ -115,7 +134,7 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 	router.Handle("/api/v1/kolide/queries",
 		kithttp.NewServer(
 			ctx,
-			makeGetAllQueriesEndpoint(svc),
+			authenticated(makeGetAllQueriesEndpoint(svc)),
 			decodeNoParamsRequest,
 			encodeResponse,
 			opts...,
@@ -125,7 +144,7 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 	router.Handle("/api/v1/kolide/queries",
 		kithttp.NewServer(
 			ctx,
-			makeCreateQueryEndpoint(svc),
+			authenticated(makeCreateQueryEndpoint(svc)),
 			decodeCreateQueryRequest,
 			encodeResponse,
 			opts...,
@@ -135,7 +154,7 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 	router.Handle("/api/v1/kolide/queries/{id}",
 		kithttp.NewServer(
 			ctx,
-			makeModifyQueryEndpoint(svc),
+			authenticated(makeModifyQueryEndpoint(svc)),
 			decodeModifyQueryRequest,
 			encodeResponse,
 			opts...,
@@ -145,7 +164,7 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 	router.Handle("/api/v1/kolide/queries/{id}",
 		kithttp.NewServer(
 			ctx,
-			makeDeleteQueryEndpoint(svc),
+			authenticated(makeDeleteQueryEndpoint(svc)),
 			decodeDeleteQueryRequest,
 			encodeResponse,
 			opts...,
@@ -155,7 +174,7 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 	router.Handle("/api/v1/kolide/packs/{id}",
 		kithttp.NewServer(
 			ctx,
-			makeGetPackEndpoint(svc),
+			authenticated(makeGetPackEndpoint(svc)),
 			decodeGetPackRequest,
 			encodeResponse,
 			opts...,
@@ -165,7 +184,7 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 	router.Handle("/api/v1/kolide/packs",
 		kithttp.NewServer(
 			ctx,
-			makeGetAllPacksEndpoint(svc),
+			authenticated(makeGetAllPacksEndpoint(svc)),
 			decodeNoParamsRequest,
 			encodeResponse,
 			opts...,
@@ -175,7 +194,7 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 	router.Handle("/api/v1/kolide/packs",
 		kithttp.NewServer(
 			ctx,
-			makeCreatePackEndpoint(svc),
+			authenticated(makeCreatePackEndpoint(svc)),
 			decodeCreatePackRequest,
 			encodeResponse,
 			opts...,
@@ -185,7 +204,7 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 	router.Handle("/api/v1/kolide/packs/{id}",
 		kithttp.NewServer(
 			ctx,
-			makeModifyPackEndpoint(svc),
+			authenticated(makeModifyPackEndpoint(svc)),
 			decodeModifyPackRequest,
 			encodeResponse,
 			opts...,
@@ -195,7 +214,7 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 	router.Handle("/api/v1/kolide/packs/{id}",
 		kithttp.NewServer(
 			ctx,
-			makeDeletePackEndpoint(svc),
+			authenticated(makeDeletePackEndpoint(svc)),
 			decodeDeletePackRequest,
 			encodeResponse,
 			opts...,
@@ -205,7 +224,7 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 	router.Handle("/api/v1/kolide/packs/{pid}/queries/{qid}",
 		kithttp.NewServer(
 			ctx,
-			makeAddQueryToPackEndpoint(svc),
+			authenticated(makeAddQueryToPackEndpoint(svc)),
 			decodeAddQueryToPackRequest,
 			encodeResponse,
 			opts...,
@@ -215,7 +234,7 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 	router.Handle("/api/v1/kolide/packs/{id}/queries",
 		kithttp.NewServer(
 			ctx,
-			makeGetQueriesInPackEndpoint(svc),
+			authenticated(makeGetQueriesInPackEndpoint(svc)),
 			decodeGetQueriesInPackRequest,
 			encodeResponse,
 			opts...,
@@ -225,7 +244,7 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 	router.Handle("/api/v1/kolide/packs/{pid}/queries/{qid}",
 		kithttp.NewServer(
 			ctx,
-			makeDeleteQueryFromPackEndpoint(svc),
+			authenticated(makeDeleteQueryFromPackEndpoint(svc)),
 			decodeDeleteQueryFromPackRequest,
 			encodeResponse,
 			opts...,
@@ -234,10 +253,10 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 }
 
 // MakeHandler creates an http handler for the Kolide API
-func MakeHandler(ctx context.Context, svc kolide.Service, logger kitlog.Logger) http.Handler {
+func MakeHandler(ctx context.Context, svc kolide.Service, jwtKey string, ds kolide.Datastore, logger kitlog.Logger) http.Handler {
 	opts := []kithttp.ServerOption{
 		kithttp.ServerBefore(
-			setViewerContext(svc, logger),
+			setViewerContext(svc, ds, jwtKey, logger),
 		),
 		kithttp.ServerErrorLogger(logger),
 		kithttp.ServerAfter(
@@ -245,47 +264,8 @@ func MakeHandler(ctx context.Context, svc kolide.Service, logger kitlog.Logger) 
 		),
 	}
 
-	api := mux.NewRouter()
-	attachAPIRoutes(api, ctx, svc, opts)
-
 	r := mux.NewRouter()
-	r.PathPrefix("/api/v1/kolide").Handler(authMiddleware(svc, logger, api))
-	r.Handle("/api/login", login(svc, logger)).Methods("POST")
-	r.Handle("/api/logout", logout(svc, logger)).Methods("GET")
+	attachAPIRoutes(r, ctx, svc, opts)
 
 	return r
-}
-
-// setViewerContext updates the context with a viewerContext,
-// which holds the currently logged in user
-func setViewerContext(svc kolide.Service, logger kitlog.Logger) kithttp.RequestFunc {
-	return func(ctx context.Context, r *http.Request) context.Context {
-		sm := svc.NewSessionManager(ctx, nil, r)
-		session, err := sm.Session()
-		if err != nil {
-			logger.Log("err", err, "error-source", "setViewerContext")
-			return ctx
-		}
-
-		user, err := svc.User(ctx, session.UserID)
-		if err != nil {
-			logger.Log("err", err, "error-source", "setViewerContext")
-			return ctx
-		}
-
-		ctx = context.WithValue(ctx, "viewerContext", &viewerContext{
-			user: user,
-		})
-		logger.Log("msg", "viewer context set", "user", user.ID)
-		// get the user-id for request
-		if strings.Contains(r.URL.Path, "users/") {
-			ctx = withUserIDFromRequest(r, ctx)
-		}
-		return ctx
-	}
-}
-
-func withUserIDFromRequest(r *http.Request, ctx context.Context) context.Context {
-	id, _ := idFromRequest(r, "id")
-	return context.WithValue(ctx, "request-id", id)
 }

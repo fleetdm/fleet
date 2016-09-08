@@ -9,6 +9,68 @@ import (
 )
 
 ////////////////////////////////////////////////////////////////////////////////
+// Login
+////////////////////////////////////////////////////////////////////////////////
+
+type loginRequest struct {
+	Username string
+	Password string
+}
+
+type loginResponse struct {
+	Token              string `json:"token"`
+	ID                 uint   `json:"id"`
+	Username           string `json:"username"`
+	Email              string `json:"email"`
+	Name               string `json:"name"`
+	Admin              bool   `json:"admin"`
+	Enabled            bool   `json:"enabled"`
+	NeedsPasswordReset bool   `json:"needs_password_reset"`
+	Err                error  `json:"error,omitempty"`
+}
+
+func (r loginResponse) error() error { return r.Err }
+
+func makeLoginEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(loginRequest)
+		user, token, err := svc.Login(ctx, req.Username, req.Password)
+		if err != nil {
+			return loginResponse{Err: err}, nil
+		}
+		return loginResponse{
+			Token:              token,
+			ID:                 user.ID,
+			Username:           user.Username,
+			Email:              user.Email,
+			Admin:              user.Admin,
+			Enabled:            user.Enabled,
+			NeedsPasswordReset: user.NeedsPasswordReset,
+		}, nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Logout
+////////////////////////////////////////////////////////////////////////////////
+
+type logoutResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r logoutResponse) error() error { return r.Err }
+
+func makeLogoutEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		err := svc.Logout(ctx)
+		if err != nil {
+			return logoutResponse{Err: err}, nil
+		}
+		return logoutResponse{}, nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Get Info About Session
 ////////////////////////////////////////////////////////////////////////////////
 
