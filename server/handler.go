@@ -29,7 +29,7 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 			encodeResponse,
 			opts...,
 		),
-	)
+	).Methods("POST")
 
 	router.Handle("/api/v1/kolide/users",
 		kithttp.NewServer(

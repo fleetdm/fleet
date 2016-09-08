@@ -133,7 +133,7 @@ func TestLogin(t *testing.T) {
 		assert.NotEqual(t, "", sessions[0].Key)
 
 		// test logout
-		req, _ := http.NewRequest("GET", server.URL+"/api/v1/kolide/logout", nil)
+		req, _ := http.NewRequest("POST", server.URL+"/api/v1/kolide/logout", nil)
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", jsn.Token))
 		client := &http.Client{}
 		resp, err = client.Do(req)
