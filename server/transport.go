@@ -36,7 +36,9 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 		encodeError(ctx, e.error(), w)
 		return nil
 	}
-	return json.NewEncoder(w).Encode(response)
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(response)
 }
 
 // erroer interface is implemented by response structs to encode business logic errors
@@ -54,7 +56,9 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 	default:
 		w.WriteHeader(typeErrsStatus(err))
 	}
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	enc.Encode(map[string]interface{}{
 		"error": err.Error(),
 	})
 }
