@@ -21,7 +21,7 @@ import (
 )
 
 func TestLogin(t *testing.T) {
-	ds, _ := datastore.New("mock", "")
+	ds, _ := datastore.New("inmem", "")
 	svc, _ := NewService(testConfig(ds))
 	createTestUsers(t, ds)
 	logger := kitlog.NewLogfmtLogger(os.Stdout)

@@ -75,9 +75,9 @@ func New(driver, conn string, opts ...DBOption) (kolide.Datastore, error) {
 			return nil, err
 		}
 		return ds, nil
-	case "mock":
-		ds := &mockDB{
-			Driver:          "mock",
+	case "inmem":
+		ds := &inmem{
+			Driver:          "inmem",
 			sessionKeySize:  opt.sessionKeySize,
 			sessionLifespan: opt.sessionLifespan,
 			users:           make(map[uint]*kolide.User),

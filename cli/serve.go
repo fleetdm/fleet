@@ -41,7 +41,7 @@ the way that the kolide server works.
 		logger = kitlog.NewLogfmtLogger(os.Stderr)
 		logger = kitlog.NewContext(logger).With("ts", kitlog.DefaultTimestampUTC)
 
-		ds, _ := datastore.New("mock", "")
+		ds, _ := datastore.New("inmem", "")
 		svcConfig := server.ServiceConfig{
 			Datastore:         ds,
 			SessionCookieName: "KolideSession",

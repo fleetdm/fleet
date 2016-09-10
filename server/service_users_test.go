@@ -9,7 +9,7 @@ import (
 )
 
 func TestCreateUser(t *testing.T) {
-	ds, _ := datastore.New("mock", "")
+	ds, _ := datastore.New("inmem", "")
 	svc, _ := NewService(testConfig(ds))
 	ctx := context.Background()
 
@@ -85,7 +85,7 @@ func TestCreateUser(t *testing.T) {
 }
 
 func TestChangeUserPassword(t *testing.T) {
-	ds, _ := datastore.New("mock", "")
+	ds, _ := datastore.New("inmem", "")
 	svc, _ := NewService(testConfig(ds))
 	createTestUsers(t, ds)
 

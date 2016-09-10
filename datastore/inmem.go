@@ -6,7 +6,7 @@ import (
 	"github.com/kolide/kolide-ose/kolide"
 )
 
-type mockDB struct {
+type inmem struct {
 	kolide.Datastore
 	Driver          string
 	sessionKeySize  int
@@ -16,15 +16,15 @@ type mockDB struct {
 	sessions        map[uint]*kolide.Session
 }
 
-func (orm *mockDB) Name() string {
+func (orm *inmem) Name() string {
 	return "mock"
 }
 
-func (orm *mockDB) Migrate() error {
+func (orm *inmem) Migrate() error {
 	return nil
 }
 
-func (orm *mockDB) Drop() error {
+func (orm *inmem) Drop() error {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 	orm.users = make(map[uint]*kolide.User)

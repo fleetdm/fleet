@@ -14,7 +14,7 @@ import (
 func TestEndpointPermissions(t *testing.T) {
 	ctx := context.Background()
 	req := struct{}{}
-	ds, _ := datastore.New("mock", "")
+	ds, _ := datastore.New("inmem", "")
 	createTestUsers(t, ds)
 	admin1, _ := ds.User("admin1")
 	user1, _ := ds.User("user1")

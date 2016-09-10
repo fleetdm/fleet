@@ -2,7 +2,7 @@ package datastore
 
 import "github.com/kolide/kolide-ose/kolide"
 
-func (orm *mockDB) NewUser(user *kolide.User) (*kolide.User, error) {
+func (orm *inmem) NewUser(user *kolide.User) (*kolide.User, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
@@ -18,7 +18,7 @@ func (orm *mockDB) NewUser(user *kolide.User) (*kolide.User, error) {
 	return user, nil
 }
 
-func (orm *mockDB) User(username string) (*kolide.User, error) {
+func (orm *inmem) User(username string) (*kolide.User, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
@@ -31,7 +31,7 @@ func (orm *mockDB) User(username string) (*kolide.User, error) {
 	return nil, ErrNotFound
 }
 
-func (orm *mockDB) UserByID(id uint) (*kolide.User, error) {
+func (orm *inmem) UserByID(id uint) (*kolide.User, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
@@ -42,7 +42,7 @@ func (orm *mockDB) UserByID(id uint) (*kolide.User, error) {
 	return nil, ErrNotFound
 }
 
-func (orm *mockDB) SaveUser(user *kolide.User) error {
+func (orm *inmem) SaveUser(user *kolide.User) error {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 

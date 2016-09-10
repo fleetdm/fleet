@@ -8,7 +8,7 @@ import (
 	"github.com/kolide/kolide-ose/kolide"
 )
 
-func (orm *mockDB) FindSessionByKey(key string) (*kolide.Session, error) {
+func (orm *inmem) FindSessionByKey(key string) (*kolide.Session, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
@@ -20,7 +20,7 @@ func (orm *mockDB) FindSessionByKey(key string) (*kolide.Session, error) {
 	return nil, ErrNotFound
 }
 
-func (orm *mockDB) FindSessionByID(id uint) (*kolide.Session, error) {
+func (orm *inmem) FindSessionByID(id uint) (*kolide.Session, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
@@ -30,7 +30,7 @@ func (orm *mockDB) FindSessionByID(id uint) (*kolide.Session, error) {
 	return nil, ErrNotFound
 }
 
-func (orm *mockDB) FindAllSessionsForUser(id uint) ([]*kolide.Session, error) {
+func (orm *inmem) FindAllSessionsForUser(id uint) ([]*kolide.Session, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
@@ -46,7 +46,7 @@ func (orm *mockDB) FindAllSessionsForUser(id uint) ([]*kolide.Session, error) {
 	return sessions, nil
 }
 
-func (orm *mockDB) CreateSessionForUserID(userID uint) (*kolide.Session, error) {
+func (orm *inmem) CreateSessionForUserID(userID uint) (*kolide.Session, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 	key := make([]byte, orm.sessionKeySize)
@@ -69,7 +69,7 @@ func (orm *mockDB) CreateSessionForUserID(userID uint) (*kolide.Session, error) 
 
 }
 
-func (orm *mockDB) DestroySession(session *kolide.Session) error {
+func (orm *inmem) DestroySession(session *kolide.Session) error {
 	if _, ok := orm.sessions[session.ID]; !ok {
 		return ErrNotFound
 	}
@@ -77,7 +77,7 @@ func (orm *mockDB) DestroySession(session *kolide.Session) error {
 	return nil
 }
 
-func (orm *mockDB) DestroyAllSessionsForUser(id uint) error {
+func (orm *inmem) DestroyAllSessionsForUser(id uint) error {
 	for _, session := range orm.sessions {
 		if session.UserID == id {
 			delete(orm.sessions, session.ID)
@@ -86,7 +86,7 @@ func (orm *mockDB) DestroyAllSessionsForUser(id uint) error {
 	return nil
 }
 
-func (orm *mockDB) MarkSessionAccessed(session *kolide.Session) error {
+func (orm *inmem) MarkSessionAccessed(session *kolide.Session) error {
 	session.AccessedAt = time.Now().UTC()
 	if _, ok := orm.sessions[session.ID]; !ok {
 		return ErrNotFound
