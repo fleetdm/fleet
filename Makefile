@@ -33,11 +33,11 @@ test-js:
 test: lint test-go test-js
 
 generate: .prefix
-	go-bindata -pkg=server -o=server/bindata.go frontend/templates/ build/
+	go-bindata -pkg=server -o=server/bindata.go frontend/templates/ assets/ assets/images/
 	$(shell npm bin)/webpack --progress --colors --bail
 
 generate-dev: .prefix
-	go-bindata -debug -pkg=server -o=server/bindata.go frontend/templates/ build/
+	go-bindata -debug -pkg=server -o=server/bindata.go frontend/templates/ assets/ assets/images/
 	$(shell npm bin)/webpack --progress --colors --bail --watch
 
 deps:
@@ -48,6 +48,7 @@ deps:
 
 distclean:
 	rm -rf build/*
+	rm -rf assets/bundle.js
 	rm -rf vendor/*
 
 docker:

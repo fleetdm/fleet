@@ -8,6 +8,7 @@ vendor
 node_modules
 
 # generated artifacts
+assets/bundle.js
 server/bindata.go
 kitserver/bindata.go
 *.cover

@@ -1,5 +1,6 @@
 .vscode
 build
+assets
 cli
 config
 datastore

@@ -49,5 +49,5 @@ func ServeFrontend() http.Handler {
 }
 
 func ServeStaticAssets(path string) http.Handler {
-	return http.StripPrefix(path, http.FileServer(newBinaryFileSystem("/build")))
+	return http.StripPrefix(path, http.FileServer(newBinaryFileSystem("/assets")))
 }
