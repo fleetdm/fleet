@@ -143,9 +143,10 @@ func setViewerContext(svc kolide.Service, ds kolide.Datastore, jwtKey string, lo
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 			}
-			return jwtKey, nil
+			return []byte(jwtKey), nil
 		})
 		if err != nil {
+			logger.Log("err", err, "error-source", "setViewerContext")
 			return context.WithValue(ctx, "viewerContext", emptyVC())
 		}
 
