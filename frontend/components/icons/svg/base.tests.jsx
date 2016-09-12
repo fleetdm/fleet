@@ -17,6 +17,7 @@ describe('base - svg HOC', () => {
   it('filters out unwanted props', () => {
     expect(mountedComponent.find(KolideLoginBackground).props()).toEqual({
       alt: 'image alt',
+      name: 'component name',
       variant: 'default',
     });
   });

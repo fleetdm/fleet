@@ -4,6 +4,7 @@ import radium from 'radium';
 
 export const basePropTypes = {
   alt: PropTypes.string,
+  name: PropTypes.string,
   style: PropTypes.object,
   variant: PropTypes.string,
 };

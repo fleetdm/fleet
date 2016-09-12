@@ -13,4 +13,8 @@ describe('App - component', () => {
   it('renders the Style component', () => {
     expect(component.find('Style').length).toEqual(1);
   });
+
+  it('renders the Footer component', () => {
+    expect(component.find('Footer').length).toEqual(1);
+  });
 });

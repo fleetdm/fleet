@@ -4,27 +4,30 @@ import color from './color';
 import font from './font';
 import padding from './padding';
 
-const { auto, half, none, most } = padding;
-
-const defaultTopAndBottomMargin = marginLonghand(most, ['Bottom', 'Top']);
-const defaultLeftAndRightMargin = marginLonghand(auto, ['Left', 'Right']);
-const defaultTopAndBottomPadding = paddingLonghand(none, ['Bottom', 'Top']);
-const defaultLeftAndRightPadding = paddingLonghand(half, ['Left', 'Right']);
-const MAX_WIDTH = '650px';
+const { none } = padding;
+const defaultMargin = marginLonghand(none);
+const defaultPadding = paddingLonghand(none);
 
 export default {
   ...normalize,
   body: {
     color: color.primary,
-    ...defaultTopAndBottomMargin,
-    ...defaultLeftAndRightMargin,
-    ...defaultTopAndBottomPadding,
-    ...defaultLeftAndRightPadding,
+    ...defaultMargin,
+    ...defaultPadding,
+    display: 'flex',
+    flexDirection: 'column',
     fontSize: font.base,
     lineHeight: 1.6,
-    maxWidth: MAX_WIDTH,
+    minHeight: '100vh',
   },
   'h1, h2, h3': {
     lineHeight: 1.2,
+  },
+  '#app': {
+    minHeight: '100vh',
+  },
+  '#bg': {
+    position: 'absolute',
+    zIndex: '-1',
   },
 };
