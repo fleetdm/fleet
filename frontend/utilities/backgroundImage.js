@@ -54,7 +54,7 @@ export const loadBackground = () => {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   const appElement = document.querySelector('#bg');
   const { innerWidth } = window;
-  const innerHeight = window.innerHeight - 20;
+  const innerHeight = window.innerHeight;
   const unitSize = (innerWidth + innerHeight) / SHAPE_DENSITY;
   svg.setAttribute('width', innerWidth);
   svg.setAttribute('height', innerHeight);
@@ -142,9 +142,14 @@ export const loadBackground = () => {
   refresh();
 };
 
-export const resizeBackground = () => {
-  document.querySelector('#bg svg').remove();
-  clearTimeout(refreshTimeout);
-  loadBackground();
+export const removeBackground = () => {
+  if (document.querySelector('#bg svg')) {
+    document.querySelector('#bg svg').remove();
+    clearTimeout(refreshTimeout);
+  }
 };
 
+export const resizeBackground = () => {
+  removeBackground();
+  loadBackground();
+};

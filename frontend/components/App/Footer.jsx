@@ -1,31 +1,15 @@
 import React from 'react';
 import radium from 'radium';
-import Icon from '../icons/Icon';
-import styles from '../../styles';
+import componentStyles from './styles';
+import footerLogo from './footer-logo.svg';
 
-const { color, padding } = styles;
+const { footerStyles } = componentStyles;
 
 const Footer = () => {
-  const style = {
-    container: {
-      alignItems: 'center',
-      backgroundColor: color.darkGrey,
-      display: 'flex',
-      justifyContent: 'center',
-      height: '74px',
-    },
-    textLogo: {
-      height: '20px',
-      marginLeft: padding.base,
-      width: '104px',
-    },
-  };
-
   return (
-    <div style={style.container}>
-      <Icon name="kolideLogo" />
-      <Icon name="kolideText" style={style.textLogo} variant="lightGrey" />
-    </div>
+    <footer style={footerStyles}>
+      <img alt="Kolide logo" src={footerLogo} />
+    </footer>
   );
 };
 

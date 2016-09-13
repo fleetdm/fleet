@@ -10,24 +10,31 @@ const defaultPadding = paddingLonghand(none);
 
 export default {
   ...normalize,
+  html: {
+    position: 'relative',
+    minHeight: '100%',
+  },
   body: {
     color: color.primary,
     ...defaultMargin,
     ...defaultPadding,
-    display: 'flex',
-    flexDirection: 'column',
+    fontFamily: 'Oxygen, sans-serif',
     fontSize: font.base,
     lineHeight: 1.6,
-    minHeight: '100vh',
+    margin: '0 0 94px',
   },
   'h1, h2, h3': {
     lineHeight: 1.2,
   },
   '#app': {
-    minHeight: '100vh',
   },
   '#bg': {
-    position: 'absolute',
+    position: 'fixed',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
     zIndex: '-1',
+    opacity: '0.4',
   },
 };

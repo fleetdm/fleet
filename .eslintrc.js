@@ -28,7 +28,8 @@ module.exports = {
     'new-cap': 0,
     'import/no-unresolved': 'error',
     'linebreak-style': 0,
-    'import/no-named-as-default': 'off'
+    'import/no-named-as-default': 'off',
+    'import/no-named-as-default-member': 'off'
   },
   settings: {
     'import/resolver': {

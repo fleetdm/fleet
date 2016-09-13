@@ -3,7 +3,7 @@ import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 import LoginForm from './LoginForm';
-import { fillInFormInput } from '../../../utilities/testHelpers.js';
+import { fillInFormInput } from '../../../test/helpers';
 
 describe('LoginForm - component', () => {
   afterEach(restoreSpies);
@@ -14,16 +14,15 @@ describe('LoginForm - component', () => {
     expect(form.find('InputFieldWithIcon').length).toEqual(2);
   });
 
-  it('updates component state when the email field is changed', () => {
+  it('updates component state when the username field is changed', () => {
     const form = mount(<LoginForm onSubmit={noop} />);
+    const username = 'hi@thegnar.co';
 
-    const emailField = form.find({ name: 'email' });
-    fillInFormInput(emailField, 'hello');
+    const usernameField = form.find({ name: 'username' });
+    fillInFormInput(usernameField, username);
 
     const { formData } = form.state();
-    expect(formData).toContain({
-      email: 'hello',
-    });
+    expect(formData).toContain({ username });
   });
 
   it('updates component state when the password field is changed', () => {
@@ -45,23 +44,25 @@ describe('LoginForm - component', () => {
 
     submitBtn.simulate('click');
 
-    expect(submitBtn.prop('disabled')).toEqual(true);
+    expect(submitBtn.prop('style')).toInclude({
+      cursor: 'not-allowed',
+    });
     expect(submitSpy).toNotHaveBeenCalled();
   });
 
-  it('submits the form data when the submit button is clicked', () => {
+  it('submits the form data when form is submitted', () => {
     const submitSpy = createSpy();
     const form = mount(<LoginForm onSubmit={submitSpy} />);
-    const emailField = form.find({ name: 'email' });
+    const usernameField = form.find({ name: 'username' });
     const passwordField = form.find({ name: 'password' });
     const submitBtn = form.find('button');
 
-    fillInFormInput(emailField, 'my@email.com');
+    fillInFormInput(usernameField, 'my@email.com');
     fillInFormInput(passwordField, 'p@ssw0rd');
-    submitBtn.simulate('click');
+    submitBtn.simulate('submit');
 
     expect(submitSpy).toHaveBeenCalledWith({
-      email: 'my@email.com',
+      username: 'my@email.com',
       password: 'p@ssw0rd',
     });
   });

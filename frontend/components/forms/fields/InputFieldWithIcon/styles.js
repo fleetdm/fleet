@@ -20,7 +20,7 @@ export default {
       borderBottomWidth: '1px',
       borderBottomStyle: 'solid',
       borderBottomColor: color.brightPurple,
-      color: color.purple,
+      color: '#A2A1C8',
       width: '378px',
       ':focus': {
         outline: 'none',

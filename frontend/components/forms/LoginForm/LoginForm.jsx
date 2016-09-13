@@ -1,7 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import radium from 'radium';
 import componentStyles from './styles';
-import Icon from '../../icons/Icon';
+import avatar from './avatar.svg';
 import InputFieldWithIcon from '../fields/InputFieldWithIcon';
 
 class LoginForm extends Component {
@@ -14,7 +14,7 @@ class LoginForm extends Component {
 
     this.state = {
       formData: {
-        email: null,
+        username: null,
         password: null,
       },
     };
@@ -34,27 +34,38 @@ class LoginForm extends Component {
     };
   }
 
-  onFormSubmit = () => {
-    const { formData } = this.state;
-    const { onSubmit } = this.props;
+  onFormSubmit = (evt) => {
+    evt.preventDefault();
 
-    return onSubmit(formData);
+    if (this.canSubmit()) {
+      const { formData } = this.state;
+      const { onSubmit } = this.props;
+
+      return onSubmit(formData);
+    }
+
+    return false;
+  }
+
+  canSubmit = () => {
+    const { formData: { username, password } } = this.state;
+
+    return username && password;
   }
 
   render () {
-    const { containerStyles, submitButtonStyles, userIconStyles } = componentStyles;
+    const { containerStyles, submitButtonStyles, formStyles } = componentStyles;
     const { onInputChange, onFormSubmit } = this;
-    const { formData } = this.state;
-    const canSubmit = formData.email && formData.password;
+    const canSubmit = this.canSubmit();
 
     return (
-      <div>
+      <form onSubmit={onFormSubmit} style={formStyles}>
         <div style={containerStyles}>
-          <Icon name="user" variant="circle" style={userIconStyles} />
+          <img alt="Avatar" src={avatar} />
           <InputFieldWithIcon
             iconName="user"
-            name="email"
-            onChange={onInputChange('email')}
+            name="username"
+            onChange={onInputChange('username')}
             placeholder="Username or Email"
           />
           <InputFieldWithIcon
@@ -66,13 +77,12 @@ class LoginForm extends Component {
           />
         </div>
         <button
-          disabled={!canSubmit}
-          onClick={onFormSubmit}
           style={submitButtonStyles(canSubmit)}
+          type="submit"
         >
           Login
         </button>
-      </div>
+      </form>
     );
   }
 }

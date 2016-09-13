@@ -1,0 +1,29 @@
+@font-face {
+	font-family: 'Oxygen';
+	src: url('/assets/fonts/oxygen/Oxygen-Light.eot');
+	src: url('/assets/fonts/oxygen/Oxygen-Light.eot?#iefix') format('embedded-opentype'),
+		url('/assets/fonts/oxygen/Oxygen-Light.woff') format('woff'),
+		url('/assets/fonts/oxygen/Oxygen-Light.ttf') format('truetype');
+	font-weight: 300;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: 'Oxygen';
+	src: url('/assets/fonts/oxygen/Oxygen-Bold.eot');
+	src: url('/assets/fonts/oxygen/Oxygen-Bold.eot?#iefix') format('embedded-opentype'),
+		url('/assets/fonts/oxygen/Oxygen-Bold.woff') format('woff'),
+		url('/assets/fonts/oxygen/Oxygen-Bold.ttf') format('truetype');
+	font-weight: bold;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: 'Oxygen';
+	src: url('/assets/fonts/oxygen/Oxygen-Regular.eot');
+	src: url('/assets/fonts/oxygen/Oxygen-Regular.eot?#iefix') format('embedded-opentype'),
+		url('/assets/fonts/oxygen/Oxygen-Regular.woff') format('woff'),
+		url('/assets/fonts/oxygen/Oxygen-Regular.ttf') format('truetype');
+	font-weight: normal;
+	font-style: normal;
+}

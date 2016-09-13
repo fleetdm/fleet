@@ -7,7 +7,7 @@ export default {
     alignItems: 'center',
     display: 'flex',
     flexDirection: 'column',
-    paddingTop: '10%',
+    paddingTop: '80px',
   },
   formWrapperStyles: {
     alignItems: 'center',
@@ -17,8 +17,11 @@ export default {
   },
   whiteTabStyles: {
     backgroundColor: color.white,
-    height: '20px',
+    height: '30px',
     marginTop: padding.base,
-    width: '384px',
+    borderTopLeftRadius: '4px',
+    borderTopRightRadius: '4px',
+    boxShadow: '0 5px 30px 0 rgba(0,0,0,0.3)',
+    width: '400px',
   },
 };
