@@ -1,6 +1,10 @@
 package kolide
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestValidatePassword(t *testing.T) {
 
@@ -16,22 +20,12 @@ func TestValidatePassword(t *testing.T) {
 
 	for _, tt := range passwordTests {
 		user, err := NewUser(tt.Username, tt.Password, tt.Email, tt.Admin, tt.PasswordReset, bcryptCost)
-		if err != nil {
-			t.Fatalf("error creating new user: %s", err)
-		}
+		assert.Nil(t, err)
 
-		{
-			err := user.ValidatePassword(tt.Password)
-			if err != nil {
-				t.Errorf("Password validation failed for user %s", user.Username)
-			}
-		}
+		err = user.ValidatePassword(tt.Password)
+		assert.Nil(t, err)
 
-		{
-			err := user.ValidatePassword("different")
-			if err == nil {
-				t.Errorf("Incorrect password worked for user %s", user.Username)
-			}
-		}
+		err = user.ValidatePassword("different")
+		assert.NotNil(t, err)
 	}
 }

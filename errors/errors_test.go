@@ -78,10 +78,7 @@ func TestReturnErrorUnspecified(t *testing.T) {
 	resp := httptest.NewRecorder()
 
 	r.ServeHTTP(resp, req)
-
-	if resp.Code != http.StatusInternalServerError {
-		t.Errorf("Should respond with 500, got %d", resp.Code)
-	}
+	assert.Equal(t, http.StatusInternalServerError, resp.Code)
 
 	expect := `{"message": "Unspecified error"}`
 	assert.JSONEq(t, expect, resp.Body.String())
@@ -100,10 +97,7 @@ func TestReturnErrorKolideError(t *testing.T) {
 	resp := httptest.NewRecorder()
 
 	r.ServeHTTP(resp, req)
-
-	if resp.Code != http.StatusUnauthorized {
-		t.Errorf("Should respond with 403, got %d", resp.Code)
-	}
+	assert.Equal(t, http.StatusUnauthorized, resp.Code)
 
 	expect := `{"message": "Some error"}`
 	assert.JSONEq(t, expect, resp.Body.String())
@@ -146,22 +140,15 @@ func TestReturnErrorValidationError(t *testing.T) {
 	resp := httptest.NewRecorder()
 
 	r.ServeHTTP(resp, req)
-
-	if resp.Code != StatusUnprocessableEntity {
-		t.Errorf("Should respond with 422, got %d", resp.Code)
-	}
+	assert.Equal(t, StatusUnprocessableEntity, resp.Code)
 
 	var bodyJson map[string]interface{}
-	if err := json.Unmarshal(resp.Body.Bytes(), &bodyJson); err != nil {
-		t.Errorf("Error unmarshaling JSON: %s", err.Error())
-	}
-
+	err := json.Unmarshal(resp.Body.Bytes(), &bodyJson)
+	assert.Nil(t, err)
 	assert.Equal(t, "Validation error", bodyJson["message"])
 
 	fields, ok := bodyJson["errors"].([]interface{})
-	if !ok {
-		t.Errorf("Unexpected type for errors")
-	}
+	assert.True(t, ok)
 
 	// The error fields must be copied from []interface{} to
 	// []map[string][string] before we can sort
@@ -202,10 +189,7 @@ func TestReturnErrorGormError(t *testing.T) {
 	resp := httptest.NewRecorder()
 
 	r.ServeHTTP(resp, req)
-
-	if resp.Code != http.StatusInternalServerError {
-		t.Errorf("Should respond with 500, got %d", resp.Code)
-	}
+	assert.Equal(t, http.StatusInternalServerError, resp.Code)
 
 	assert.JSONEq(t, `{"message": "Database error"}`, resp.Body.String())
 }

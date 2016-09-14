@@ -7,6 +7,7 @@ import (
 	"github.com/kolide/kolide-ose/config"
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/kolide"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
@@ -54,35 +55,20 @@ func TestCreateUser(t *testing.T) {
 			t.Fatalf("got %q, want %q", err, tt.Err)
 		}
 
-		if user.ID == 0 {
-			t.Errorf("expected a user ID, got 0")
-		}
+		assert.NotZero(t, user.ID)
 
-		if err := user.ValidatePassword(*tt.Password); err != nil {
-			t.Errorf("expected nil, got %q", err)
-		}
+		err = user.ValidatePassword(*tt.Password)
+		assert.Nil(t, err)
 
-		if err := user.ValidatePassword("different_password!"); err == nil {
-			t.Errorf("expected err, got nil")
-		}
+		err = user.ValidatePassword("different_password")
+		assert.NotNil(t, err)
 
-		if have, want := user.AdminForcedPasswordReset, *tt.NeedsPasswordReset; have != want {
-			t.Errorf("have %v want %v", have, want)
-		}
-
-		if have, want := user.AdminForcedPasswordReset, *tt.NeedsPasswordReset; have != want {
-			t.Errorf("have %v want %v", have, want)
-		}
-
-		if have, want := user.Admin, *tt.Admin; have != want {
-			t.Errorf("have %v want %v", have, want)
-		}
+		assert.Equal(t, user.AdminForcedPasswordReset, *tt.NeedsPasswordReset)
+		assert.Equal(t, user.Admin, *tt.Admin)
 
 		// check duplicate creation
 		_, err = svc.NewUser(ctx, payload)
-		if err != datastore.ErrExists {
-			t.Errorf("have %q, want %q", err, datastore.ErrExists)
-		}
+		assert.Equal(t, datastore.ErrExists, err)
 	}
 }
 
@@ -107,15 +93,10 @@ func TestChangeUserPassword(t *testing.T) {
 	ctx := context.Background()
 	for _, tt := range passwordChangeTests {
 		user, err := ds.User(tt.username)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Nil(t, err)
 
 		err = svc.ChangePassword(ctx, user.ID, tt.currentPassword, tt.newPassword)
-		if err != nil {
-			t.Fatal(err)
-		}
-
+		assert.Nil(t, err)
 	}
 }
 

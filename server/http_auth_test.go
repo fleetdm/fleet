@@ -78,8 +78,8 @@ func TestLogin(t *testing.T) {
 
 		// test sessions
 		testUser, err := ds.User(tt.username)
-		if err != nil && err != datastore.ErrNotFound {
-			t.Fatal(err)
+		if err != nil {
+			assert.Equal(t, datastore.ErrNotFound, err)
 		}
 
 		params := loginRequest{
@@ -87,17 +87,12 @@ func TestLogin(t *testing.T) {
 			Password: tt.password,
 		}
 		j, err := json.Marshal(&params)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Nil(t, err)
+
 		requestBody := &nopCloser{bytes.NewBuffer(j)}
 		resp, err := http.Post(server.URL+"/api/v1/kolide/login", "application/json", requestBody)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if have, want := resp.StatusCode, tt.status; have != want {
-			t.Errorf("have %d, want %d", have, want)
-		}
+		assert.Nil(t, err)
+		assert.Equal(t, tt.status, resp.StatusCode)
 
 		var jsn = struct {
 			Token              string `json:"token"`
@@ -110,20 +105,15 @@ func TestLogin(t *testing.T) {
 			NeedsPasswordReset bool   `json:"needs_password_reset"`
 			Err                string `json:"error,omitempty"`
 		}{}
-		if err := json.NewDecoder(resp.Body).Decode(&jsn); err != nil {
-			t.Fatal(err)
-		}
+		err = json.NewDecoder(resp.Body).Decode(&jsn)
+		assert.Nil(t, err)
 
 		if tt.status != http.StatusOK {
-			if jsn.Err == "" {
-				t.Errorf("expected json error, got empty result")
-			}
+			assert.NotEqual(t, "", jsn.Err)
 			continue // skip remaining tests
 		}
 
-		if have, want := jsn.Admin, falseIfNil(p.Admin); have != want {
-			t.Errorf("have %v, want %v", have, want)
-		}
+		assert.Equal(t, falseIfNil(p.Admin), jsn.Admin)
 
 		// ensure that a session was created for our test user and stored
 		sessions, err := ds.FindAllSessionsForUser(testUser.ID)
@@ -138,16 +128,12 @@ func TestLogin(t *testing.T) {
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", jsn.Token))
 		client := &http.Client{}
 		resp, err = client.Do(req)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if have, want := resp.StatusCode, http.StatusOK; have != want {
-			t.Errorf("have %d, want %d", have, want)
-		}
+		assert.Nil(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
 		_, err = ioutil.ReadAll(resp.Body)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Nil(t, err)
+
 		// ensure that our user's session was deleted from the store
 		sessions, err = ds.FindAllSessionsForUser(testUser.ID)
 		assert.Len(t, sessions, 0)
@@ -166,9 +152,7 @@ func createTestUsers(t *testing.T, ds kolide.Datastore) {
 			AdminForcedPasswordReset: tt.AdminForcedPasswordReset,
 		}
 		_, err := svc.NewUser(ctx, payload)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Nil(t, err)
 	}
 }
 

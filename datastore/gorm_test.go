@@ -8,6 +8,7 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/kolide/kolide-ose/kolide"
+	"github.com/stretchr/testify/assert"
 )
 
 func setupMySQLGORM(t *testing.T) kolide.Datastore {
@@ -24,22 +25,18 @@ func setupMySQLGORM(t *testing.T) kolide.Datastore {
 
 	conn := fmt.Sprintf("%s:%s@(%s)/%s?charset=utf8&parseTime=True&loc=Local", user, password, host, dbName)
 	db, err := New("gorm-mysql", conn, LimitAttempts(1))
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(t, err)
 
 	backend := db.(gormDB)
-	if err := backend.Migrate(); err != nil {
-		t.Fatal(err)
-	}
+	err = backend.Migrate()
+	assert.Nil(t, err)
 
 	return db
 }
 
 func teardownMySQLGORM(t *testing.T, db kolide.Datastore) {
-	if err := db.Drop(); err != nil {
-		t.Fatal(err)
-	}
+	err := db.Drop()
+	assert.Nil(t, err)
 }
 
 func TestEnrollHostMySQLGORM(t *testing.T) {

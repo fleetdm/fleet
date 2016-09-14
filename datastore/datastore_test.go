@@ -1,7 +1,6 @@
 package datastore
 
 import (
-	"bytes"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -35,14 +34,8 @@ func testPasswordResetRequests(t *testing.T, db kolide.Datastore) {
 
 	for _, tt := range passwordResetTests {
 		req, err := db.CreatePassworResetRequest(tt.userID, tt.expires, tt.token)
-		if err != nil {
-			t.Fatalf("failed to create PasswordResetRequest campaign in datastore")
-		}
-
-		if req.UserID != tt.userID {
-			t.Fatalf("expected %v, got %v", tt.userID, req.UserID)
-		}
-
+		assert.Nil(t, err)
+		assert.Equal(t, tt.userID, req.UserID)
 	}
 }
 
@@ -94,79 +87,43 @@ var enrollTests = []struct {
 
 func testEnrollHost(t *testing.T, db kolide.HostStore) {
 	var hosts []*kolide.Host
-	for i, tt := range enrollTests {
+	for _, tt := range enrollTests {
 		h, err := db.EnrollHost(tt.uuid, tt.hostname, tt.ip, tt.platform, tt.nodeKeySize)
-		if err != nil {
-			t.Fatalf("failed to enroll host. test # %v, err=%v", i, err)
-		}
+		assert.Nil(t, err)
 
 		hosts = append(hosts, h)
-
-		if h.UUID != tt.uuid {
-			t.Errorf("expected %s, got %s, test # %v", tt.uuid, h.UUID, i)
-		}
-
-		if h.HostName != tt.hostname {
-			t.Errorf("expected %s, got %s", tt.hostname, h.HostName)
-		}
-
-		if h.IPAddress != tt.ip {
-			t.Errorf("expected %s, got %s", tt.ip, h.IPAddress)
-		}
-
-		if h.Platform != tt.platform {
-			t.Errorf("expected %s, got %s", tt.platform, h.Platform)
-		}
-
-		if h.NodeKey == "" {
-			t.Errorf("node key was not set, test # %v", i)
-		}
+		assert.Equal(t, tt.uuid, h.UUID)
+		assert.Equal(t, tt.hostname, h.HostName)
+		assert.Equal(t, tt.ip, h.IPAddress)
+		assert.Equal(t, tt.platform, h.Platform)
+		assert.NotEmpty(t, h.NodeKey)
 	}
 
-	for i, enrolled := range hosts {
+	for _, enrolled := range hosts {
 		oldNodeKey := enrolled.NodeKey
 		newhostname := fmt.Sprintf("changed.%s", enrolled.HostName)
 
 		h, err := db.EnrollHost(enrolled.UUID, newhostname, enrolled.IPAddress, enrolled.Platform, 15)
-		if err != nil {
-			t.Fatalf("failed to re-enroll host. test # %v, err=%v", i, err)
-		}
-		if h.UUID != enrolled.UUID {
-			t.Errorf("expected %s, got %s, test # %v", enrolled.UUID, h.UUID, i)
-		}
-
-		if h.NodeKey == "" {
-			t.Errorf("node key was not set, test # %v", i)
-		}
-
-		if h.NodeKey == oldNodeKey {
-			t.Errorf("node key should have changed, test # %v", i)
-		}
-
+		assert.Nil(t, err)
+		assert.Equal(t, enrolled.UUID, h.UUID)
+		assert.NotEmpty(t, h.NodeKey)
+		assert.NotEqual(t, oldNodeKey, h.NodeKey)
 	}
 
 }
 
 func testAuthenticateHost(t *testing.T, db kolide.HostStore) {
-	for i, tt := range enrollTests {
+	for _, tt := range enrollTests {
 		h, err := db.EnrollHost(tt.uuid, tt.hostname, tt.ip, tt.platform, tt.nodeKeySize)
-		if err != nil {
-			t.Fatalf("failed to enroll host. test # %v, err=%v", i, err)
-		}
+		assert.Nil(t, err)
 
 		returned, err := db.AuthenticateHost(h.NodeKey)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if returned.NodeKey != h.NodeKey {
-			t.Errorf("expected nodekey: %v, got %v", h.NodeKey, returned.NodeKey)
-		}
+		assert.Nil(t, err)
+		assert.Equal(t, h.NodeKey, returned.NodeKey)
 	}
 
 	_, err := db.AuthenticateHost("7B1A9DC9-B042-489F-8D5A-EEC2412C95AA")
-	if err == nil {
-		t.Errorf("expected an error for missing host, but got nil")
-	}
+	assert.NotNil(t, err)
 }
 
 // TestUser tests the UserStore interface
@@ -196,35 +153,18 @@ func testCreateUser(t *testing.T, db kolide.UserStore) {
 
 	for _, tt := range createTests {
 		u, err := kolide.NewUser(tt.username, tt.password, tt.email, tt.isAdmin, tt.passwordReset, bcryptCost)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Nil(t, err)
 
 		user, err := db.NewUser(u)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Nil(t, err)
 
 		verify, err := db.User(tt.username)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Nil(t, err)
 
-		if verify.ID != user.ID {
-			t.Fatalf("expected %q, got %q", user.ID, verify.ID)
-		}
-
-		if verify.Username != tt.username {
-			t.Errorf("expected username: %s, got %s", tt.username, verify.Username)
-		}
-
-		if verify.Email != tt.email {
-			t.Errorf("expected email: %s, got %s", tt.email, verify.Email)
-		}
-
-		if verify.Admin != tt.isAdmin {
-			t.Errorf("expected email: %s, got %s", tt.email, verify.Email)
-		}
+		assert.Equal(t, user.ID, verify.ID)
+		assert.Equal(t, tt.username, verify.Username)
+		assert.Equal(t, tt.email, verify.Email)
+		assert.Equal(t, tt.email, verify.Email)
 	}
 }
 
@@ -239,21 +179,13 @@ func testUserByID(t *testing.T, db kolide.UserStore) {
 	users := createTestUsers(t, db)
 	for _, tt := range users {
 		returned, err := db.UserByID(tt.ID)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if returned.ID != tt.ID {
-			t.Errorf("expected ID %v, got %v", tt.ID, returned.ID)
-		}
+		assert.Nil(t, err)
+		assert.Equal(t, tt.ID, returned.ID)
 	}
 
 	// test missing user
 	_, err := db.UserByID(10000000000)
-	if err == nil {
-		t.Errorf("expected error for missing user, got nil")
-	}
-
+	assert.NotNil(t, err)
 }
 
 func createTestUsers(t *testing.T, db kolide.UserStore) []*kolide.User {
@@ -268,20 +200,14 @@ func createTestUsers(t *testing.T, db kolide.UserStore) []*kolide.User {
 	var users []*kolide.User
 	for _, tt := range createTests {
 		u, err := kolide.NewUser(tt.username, tt.password, tt.email, tt.isAdmin, tt.passwordReset, bcryptCost)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Nil(t, err)
 
 		user, err := db.NewUser(u)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Nil(t, err)
 
 		users = append(users, user)
 	}
-	if len(users) == 0 {
-		t.Fatal("expected a list of users, got 0")
-	}
+	assert.NotEmpty(t, users)
 	return users
 }
 
@@ -296,19 +222,11 @@ func testPasswordAttribute(t *testing.T, db kolide.UserStore, users []*kolide.Us
 	for _, user := range users {
 		user.Password = []byte(randomString(8))
 		err := db.SaveUser(user)
-		if err != nil {
-			t.Fatalf("failed to save user %s", user.Name)
-		}
+		assert.Nil(t, err)
 
 		verify, err := db.User(user.Username)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if !bytes.Equal(verify.Password, user.Password) {
-			t.Errorf("expected password attribute to be %v, got %v", user.Password, verify.Password)
-		}
-
+		assert.Nil(t, err)
+		assert.Equal(t, user.Password, verify.Password)
 	}
 }
 
@@ -316,18 +234,11 @@ func testEmailAttribute(t *testing.T, db kolide.UserStore, users []*kolide.User)
 	for _, user := range users {
 		user.Email = fmt.Sprintf("test.%s", user.Email)
 		err := db.SaveUser(user)
-		if err != nil {
-			t.Fatalf("failed to save user %s", user.Name)
-		}
+		assert.Nil(t, err)
 
 		verify, err := db.User(user.Username)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if verify.Email != user.Email {
-			t.Errorf("expected admin attribute to be %v, got %v", user.Email, verify.Email)
-		}
+		assert.Nil(t, err)
+		assert.Equal(t, user.Email, verify.Email)
 	}
 }
 
@@ -335,18 +246,11 @@ func testAdminAttribute(t *testing.T, db kolide.UserStore, users []*kolide.User)
 	for _, user := range users {
 		user.Admin = false
 		err := db.SaveUser(user)
-		if err != nil {
-			t.Fatalf("failed to save user %s", user.Name)
-		}
+		assert.Nil(t, err)
 
 		verify, err := db.User(user.Username)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if verify.Admin != user.Admin {
-			t.Errorf("expected admin attribute to be %v, got %v", user.Admin, verify.Admin)
-		}
+		assert.Nil(t, err)
+		assert.Equal(t, user.Admin, verify.Admin)
 	}
 }
 
@@ -477,13 +381,11 @@ func testLabelQueries(t *testing.T, db kolide.Datastore) {
 // setup creates a datastore for testing
 func setup(t *testing.T) kolide.Datastore {
 	db, err := gorm.Open("sqlite3", ":memory:")
-	if err != nil {
-		t.Fatalf("error opening test db: %s", err)
-	}
+	assert.Nil(t, err)
+
 	ds := gormDB{DB: db, Driver: "sqlite3"}
-	if err := ds.Migrate(); err != nil {
-		t.Fatal(err)
-	}
+	err = ds.Migrate()
+	assert.Nil(t, err)
 	// Log using t.Log so that output only shows up if the test fails
 	//db.SetLogger(&testLogger{t: t})
 	//db.LogMode(true)
@@ -491,9 +393,8 @@ func setup(t *testing.T) kolide.Datastore {
 }
 
 func teardown(t *testing.T, ds kolide.Datastore) {
-	if err := ds.Drop(); err != nil {
-		t.Fatal(err)
-	}
+	err := ds.Drop()
+	assert.Nil(t, err)
 }
 
 type testLogger struct {

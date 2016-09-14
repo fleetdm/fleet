@@ -4,21 +4,20 @@ import (
 	"testing"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGenerateJWT(t *testing.T) {
 	tokenString, err := GenerateJWT("4", "")
+	assert.Nil(t, err)
+
 	token, err := ParseJWT(tokenString, "")
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+	assert.Nil(t, err)
+
 	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok || !token.Valid {
-		t.Fatal("Token is invalid")
-	}
+	assert.True(t, ok)
+	assert.True(t, token.Valid)
 
 	sessionKey := claims["session_key"].(string)
-	if sessionKey != "4" {
-		t.Fatalf("Claims are incorrect. session key is %s", sessionKey)
-	}
+	assert.Equal(t, "4", sessionKey)
 }

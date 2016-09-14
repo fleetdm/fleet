@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/kolide/kolide-ose/datastore"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
@@ -50,7 +51,7 @@ func TestEndpointPermissions(t *testing.T) {
 		{
 			endpoint: mustBeAdmin(e),
 			vc:       &viewerContext{user: user1},
-			wantErr:  "must be an admin",
+			wantErr:  forbiddenError{"must be an admin"},
 		},
 		{
 			endpoint: canModifyUser(e),
@@ -59,13 +60,13 @@ func TestEndpointPermissions(t *testing.T) {
 		{
 			endpoint: canModifyUser(e),
 			vc:       &viewerContext{user: user1},
-			wantErr:  "no write permissions",
+			wantErr:  forbiddenError{message: "no write permissions on user"},
 		},
 		{
 			endpoint:  canModifyUser(e),
 			vc:        &viewerContext{user: user1},
 			requestID: admin1.ID,
-			wantErr:   "no write permissions",
+			wantErr:   forbiddenError{message: "no write permissions on user"},
 		},
 		{
 			endpoint:  canReadUser(e),
@@ -76,11 +77,11 @@ func TestEndpointPermissions(t *testing.T) {
 			endpoint:  canReadUser(e),
 			vc:        &viewerContext{user: user2},
 			requestID: admin1.ID,
-			wantErr:   "no read permissions",
+			wantErr:   forbiddenError{message: "no read permissions on user"},
 		},
 	}
 
-	for i, tt := range endpointTests {
+	for _, tt := range endpointTests {
 		if tt.vc != nil {
 			ctx = context.WithValue(ctx, "viewerContext", tt.vc)
 		}
@@ -88,8 +89,9 @@ func TestEndpointPermissions(t *testing.T) {
 			ctx = context.WithValue(ctx, "request-id", tt.requestID)
 		}
 		_, eerr := tt.endpoint(ctx, req)
-		if err := matchErr(eerr, tt.wantErr); err != nil {
-			t.Errorf("test id %d failed with %v", i, err)
+		assert.IsType(t, tt.wantErr, eerr)
+		if ferr, ok := eerr.(forbiddenError); ok {
+			assert.Equal(t, tt.wantErr.(forbiddenError).message, ferr.message)
 		}
 	}
 }

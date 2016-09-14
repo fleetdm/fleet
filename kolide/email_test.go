@@ -3,16 +3,14 @@ package kolide
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetEmailSubject(t *testing.T) {
 	subject, err := GetEmailSubject(PasswordResetEmail)
-	if err != nil {
-		t.Error(err.Error())
-	}
-	if subject != "Your Kolide Password Reset Request" {
-		t.Errorf("Subject is not as expected: %s", subject)
-	}
+	assert.Nil(t, err)
+	assert.Equal(t, "Your Kolide Password Reset Request", subject)
 }
 
 func TestGetEmailBody(t *testing.T) {
@@ -20,28 +18,17 @@ func TestGetEmailBody(t *testing.T) {
 		Name:  "Foo",
 		Token: "1234",
 	})
-	if err != nil {
-		t.Error(err.Error())
-	}
+	assert.Nil(t, err)
 	for _, body := range [][]byte{html, text} {
-		if trimmed := strings.TrimLeft("Hi Foo!", string(body)); trimmed == string(body) {
-			t.Errorf("Body didn't start with Hi Foo!: %s", body)
-		}
+		assert.NotEqual(t, string(body), strings.TrimLeft("Hi Foo!", string(body)))
 	}
 }
 
 func TestSendEmail(t *testing.T) {
 	pool := NewMockSMTPConnectionPool()
 	err := SendEmail(pool, "mike@kolide.co", "hi", []byte("<p>hey</p>"), []byte("hey"))
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+	assert.Nil(t, err)
 
-	if len(pool.Emails) != 1 {
-		t.Fatalf("Email not sent. %d emails in pool.", len(pool.Emails))
-	}
-
-	if string(pool.Emails[0].Text) != "hey" {
-		t.Fatalf("Text didn't match. Wanted \"hey\". Got \"%s\"", pool.Emails[0].Text)
-	}
+	assert.NotEqual(t, 1, pool.Emails)
+	assert.Equal(t, []byte("hey"), pool.Emails[0].Text)
 }
