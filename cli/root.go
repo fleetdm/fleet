@@ -17,6 +17,7 @@ func Launch() {
 	rootCmd.AddCommand(createPrepareCmd(configManager))
 	rootCmd.AddCommand(createServeCmd(configManager))
 	rootCmd.AddCommand(createConfigDumpCmd(configManager))
+	rootCmd.AddCommand(createVersionCmd(configManager))
 
 	if err := rootCmd.Execute(); err != nil {
 		initFatal(err, "running root command")

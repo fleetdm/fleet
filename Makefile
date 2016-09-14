@@ -9,12 +9,27 @@ else
 	mkdir -p build
 endif
 
-build: .prefix
 ifeq ($(OS), Windows_NT)
-	go build -o build/kolide.exe
+OUTPUT 			= build/kolide.exe
 else
-	go build -o build/kolide
+OUTPUT 			= build/kolide
 endif
+
+VERSION			= 0.0.0-development
+BRANCH			= $(shell git rev-parse --abbrev-ref HEAD)
+REVISION		= $(shell git rev-parse HEAD)
+GOVERSION		= $(shell go version | awk '{print $$3}')
+NOW				= $(shell date +"%Y%m%d-%T")
+USER			= $(shell whoami)
+
+build: .prefix
+	go build -o ${OUTPUT} -ldflags "\
+-X github.com/kolide/kolide-ose/version.version=${VERSION} \
+-X github.com/kolide/kolide-ose/version.branch=${BRANCH} \
+-X github.com/kolide/kolide-ose/version.revision=${REVISION} \
+-X github.com/kolide/kolide-ose/version.buildDate=${NOW} \
+-X github.com/kolide/kolide-ose/version.buildUser=${USER} \
+-X github.com/kolide/kolide-ose/version.goVersion=${GOVERSION}"
 
 lint-js:
 	$(shell npm bin)/eslint . --ext .js,.jsx

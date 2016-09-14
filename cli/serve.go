@@ -13,6 +13,7 @@ import (
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/kolide"
 	"github.com/kolide/kolide-ose/server"
+	"github.com/kolide/kolide-ose/version"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -78,6 +79,7 @@ the way that the kolide server works.
 
 			apiHandler := server.MakeHandler(ctx, svc, config.Auth.JwtKey, ds, httpLogger)
 			http.Handle("/api/", accessControl(apiHandler))
+			http.Handle("/version", version.Handler())
 			http.Handle("/assets/", server.ServeStaticAssets("/assets/"))
 			http.Handle("/", server.ServeFrontend())
 
