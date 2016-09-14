@@ -19,13 +19,18 @@ func Launch() {
 	rootCmd.AddCommand(createConfigDumpCmd(configManager))
 
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(-1)
+		initFatal(err, "running root command")
 	}
 }
 
+// initFatal prints an error message and exits with a non-zero status.
+func initFatal(err error, message string) {
+	fmt.Printf("Error %s: %v\n", message, err)
+	os.Exit(1)
+}
+
 func createRootCmd() *cobra.Command {
-	// RootCmd represents the base command when called without any subcommands
+	// rootCmd represents the base command when called without any subcommands
 	var rootCmd = &cobra.Command{
 		Use:   "kolide",
 		Short: "osquery management and orchestration",

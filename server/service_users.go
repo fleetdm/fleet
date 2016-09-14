@@ -11,7 +11,7 @@ import (
 )
 
 func (svc service) NewUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
-	user, err := userFromPayload(p, svc.saltKeySize, svc.bcryptCost)
+	user, err := userFromPayload(p, svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost)
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +34,7 @@ func (svc service) ChangePassword(ctx context.Context, userID uint, old, new str
 	if err := user.ValidatePassword(old); err != nil {
 		return fmt.Errorf("current password validation failed: %v", err)
 	}
-	hashed, salt, err := hashPassword(new, svc.saltKeySize, svc.bcryptCost)
+	hashed, salt, err := hashPassword(new, svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost)
 	if err != nil {
 		return err
 	}

@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
@@ -51,9 +52,8 @@ type SMTPConfig struct {
 
 // SessionConfig defines configs related to user sessions
 type SessionConfig struct {
-	KeySize           int
-	ExpirationSeconds int
-	CookieName        string
+	KeySize  int
+	Duration time.Duration
 }
 
 // OsqueryConfig defines configs related to osquery
@@ -116,8 +116,7 @@ func (man Manager) addConfigs() {
 
 	// Session
 	man.addConfigInt("session.key_size", 64)
-	man.addConfigInt("session.expiration_seconds", 60*60*24*90)
-	man.addConfigString("session.cookie_name", "KolideSession")
+	man.addConfigDuration("session.duration", 24*90*time.Hour)
 
 	// Osquery
 	man.addConfigString("osquery.enroll_secret", "")
@@ -163,9 +162,8 @@ func (man Manager) LoadConfig() KolideConfig {
 			TokenKeySize:    man.getConfigInt("smtp.token_key_size"),
 		},
 		Session: SessionConfig{
-			KeySize:           man.getConfigInt("session.key_size"),
-			ExpirationSeconds: man.getConfigInt("session.expiration_seconds"),
-			CookieName:        man.getConfigString("session.cookie_name"),
+			KeySize:  man.getConfigInt("session.key_size"),
+			Duration: man.getConfigDuration("session.duration"),
 		},
 		Osquery: OsqueryConfig{
 			EnrollSecret:  man.getConfigString("osquery.enroll_secret"),
@@ -302,6 +300,27 @@ func (man Manager) getConfigBool(key string) bool {
 	return boolVal
 }
 
+// addConfigDuration adds a duration config to the config options
+func (man Manager) addConfigDuration(key string, defVal time.Duration) {
+	man.command.PersistentFlags().Duration(flagNameFromConfigKey(key), defVal, "Env: "+envNameFromConfigKey(key))
+	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key)))
+	man.viper.BindEnv(key, envNameFromConfigKey(key))
+
+	// Add default
+	man.addDefault(key, defVal)
+}
+
+// getConfigDuration retrieves a duration from the loaded config
+func (man Manager) getConfigDuration(key string) time.Duration {
+	interfaceVal := man.getInterfaceVal(key)
+	durationVal, err := cast.ToDurationE(interfaceVal)
+	if err != nil {
+		panic("Unable to cast to duration for key " + key + ": " + err.Error())
+	}
+
+	return durationVal
+}
+
 // loadConfigFile handles the loading of the config file.
 func (man Manager) loadConfigFile() {
 	configFile := man.command.PersistentFlags().Lookup("config").Value.String()
@@ -325,4 +344,30 @@ func (man Manager) loadConfigFile() {
 		panic("Error reading config: " + err.Error())
 	}
 
+}
+
+// TestConfig returns a barebones configuration suitable for use in tests.
+// Individual tests may want to override some of the values provided.
+func TestConfig() KolideConfig {
+	return KolideConfig{
+		Auth: AuthConfig{
+			JwtKey:      "CHANGEME",
+			BcryptCost:  6, // Low cost keeps tests fast
+			SaltKeySize: 24,
+		},
+		Session: SessionConfig{
+			KeySize:  64,
+			Duration: 24 * 90 * time.Hour,
+		},
+		Osquery: OsqueryConfig{
+			EnrollSecret:  "",
+			NodeKeySize:   24,
+			StatusLogFile: "",
+			ResultLogFile: "",
+		},
+		Logging: LoggingConfig{
+			Debug:         true,
+			DisableBanner: true,
+		},
+	}
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/kolide/kolide-ose/config"
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/stretchr/testify/assert"
 )
@@ -13,16 +14,9 @@ func TestEnrollAgent(t *testing.T) {
 	ds, err := datastore.New("gorm-sqlite3", ":memory:")
 	assert.Nil(t, err)
 
-	config := ServiceConfig{
-		Datastore:           ds,
-		Logger:              kitlog.NewNopLogger(),
-		BcryptCost:          12,
-		SaltKeySize:         24,
-		SessionCookieName:   "KolideSession",
-		OsqueryNodeKeySize:  12,
-		OsqueryEnrollSecret: "foobar",
-	}
-	svc, err := NewService(config)
+	conf := config.TestConfig()
+	conf.Osquery.EnrollSecret = "foobar"
+	svc, err := NewService(ds, kitlog.NewNopLogger(), conf)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -44,16 +38,9 @@ func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
 	ds, err := datastore.New("gorm-sqlite3", ":memory:")
 	assert.Nil(t, err)
 
-	config := ServiceConfig{
-		Datastore:           ds,
-		Logger:              kitlog.NewNopLogger(),
-		BcryptCost:          12,
-		SaltKeySize:         24,
-		SessionCookieName:   "KolideSession",
-		OsqueryNodeKeySize:  12,
-		OsqueryEnrollSecret: "foobar",
-	}
-	svc, err := NewService(config)
+	conf := config.TestConfig()
+	conf.Osquery.EnrollSecret = "foobar"
+	svc, err := NewService(ds, kitlog.NewNopLogger(), conf)
 	assert.Nil(t, err)
 
 	ctx := context.Background()

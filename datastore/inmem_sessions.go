@@ -1,8 +1,6 @@
 package datastore
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"time"
 
 	"github.com/kolide/kolide-ose/kolide"
@@ -46,22 +44,13 @@ func (orm *inmem) FindAllSessionsForUser(id uint) ([]*kolide.Session, error) {
 	return sessions, nil
 }
 
-func (orm *inmem) CreateSessionForUserID(userID uint) (*kolide.Session, error) {
+func (orm *inmem) NewSession(session *kolide.Session) (*kolide.Session, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
-	key := make([]byte, orm.sessionKeySize)
-	_, err := rand.Read(key)
-	if err != nil {
-		return nil, err
-	}
-	session := &kolide.Session{
-		UserID: userID,
-		Key:    base64.StdEncoding.EncodeToString(key),
-	}
 
 	session.ID = uint(len(orm.sessions))
 	orm.sessions[session.ID] = session
-	if err = orm.MarkSessionAccessed(session); err != nil {
+	if err := orm.MarkSessionAccessed(session); err != nil {
 		return nil, err
 	}
 

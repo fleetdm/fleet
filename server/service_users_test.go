@@ -3,6 +3,8 @@ package server
 import (
 	"testing"
 
+	kitlog "github.com/go-kit/kit/log"
+	"github.com/kolide/kolide-ose/config"
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/kolide"
 	"golang.org/x/net/context"
@@ -10,7 +12,7 @@ import (
 
 func TestCreateUser(t *testing.T) {
 	ds, _ := datastore.New("inmem", "")
-	svc, _ := NewService(testConfig(ds))
+	svc, _ := NewService(ds, kitlog.NewNopLogger(), config.TestConfig())
 	ctx := context.Background()
 
 	var createUserTests = []struct {
@@ -86,7 +88,7 @@ func TestCreateUser(t *testing.T) {
 
 func TestChangeUserPassword(t *testing.T) {
 	ds, _ := datastore.New("inmem", "")
-	svc, _ := NewService(testConfig(ds))
+	svc, _ := NewService(ds, kitlog.NewNopLogger(), config.TestConfig())
 	createTestUsers(t, ds)
 
 	var passwordChangeTests = []struct {

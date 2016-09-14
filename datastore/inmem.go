@@ -8,12 +8,10 @@ import (
 
 type inmem struct {
 	kolide.Datastore
-	Driver          string
-	sessionKeySize  int
-	sessionLifespan float64
-	mtx             sync.RWMutex
-	users           map[uint]*kolide.User
-	sessions        map[uint]*kolide.Session
+	Driver   string
+	mtx      sync.RWMutex
+	users    map[uint]*kolide.User
+	sessions map[uint]*kolide.Session
 }
 
 func (orm *inmem) Name() string {

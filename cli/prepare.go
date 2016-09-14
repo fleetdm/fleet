@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/kolide/kolide-ose/config"
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/kolide"
@@ -40,14 +39,14 @@ To setup kolide infrastructure, use one of the available commands.
 			)
 			ds, err := datastore.New("gorm-mysql", connString)
 			if err != nil {
-				logrus.WithError(err).Fatal("error creating db connection")
+				initFatal(err, "creating db connection")
 			}
 			if err := ds.Drop(); err != nil {
-				logrus.WithError(err).Fatal("error dropping db tables")
+				initFatal(err, "dropping db tables")
 			}
 
 			if err := ds.Migrate(); err != nil {
-				logrus.WithError(err).Fatal("error setting up db schema")
+				initFatal(err, "migrating db schema")
 			}
 		},
 	}
@@ -69,16 +68,16 @@ To setup kolide infrastructure, use one of the available commands.
 			)
 			ds, err := datastore.New("gorm-mysql", connString)
 			if err != nil {
-				logrus.WithError(err).Fatal("error creating db connection")
+				initFatal(err, "creating db connection")
 			}
 
-			admin, err := kolide.NewUser("admin", "admin", "admin@kolide.co", true, false)
+			admin, err := kolide.NewUser("admin", "admin", "admin@kolide.co", true, false, config.Auth.BcryptCost)
 			if err != nil {
-				logrus.WithError(err).Fatal("Could not create new user object")
+				initFatal(err, "creating new user")
 			}
 			_, err = ds.NewUser(admin)
 			if err != nil {
-				logrus.WithError(err).Fatal("Could not create new user in the database")
+				initFatal(err, "saving new user")
 			}
 		},
 	}

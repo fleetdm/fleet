@@ -11,14 +11,14 @@ import (
 )
 
 func (svc service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string) (string, error) {
-	if enrollSecret != svc.osqueryEnrollSecret {
+	if enrollSecret != svc.config.Osquery.EnrollSecret {
 		return "", errors.New(
 			"Node key invalid",
 			fmt.Sprintf("Invalid node key provided: %s", enrollSecret),
 		)
 	}
 
-	host, err := svc.ds.EnrollHost(hostIdentifier, "", "", "", svc.osqueryNodeKeySize)
+	host, err := svc.ds.EnrollHost(hostIdentifier, "", "", "", svc.config.Osquery.NodeKeySize)
 	if err != nil {
 		return "", err
 	}

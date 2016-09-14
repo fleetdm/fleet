@@ -6,6 +6,7 @@ import (
 	"io"
 
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/kolide/kolide-ose/config"
 	"github.com/kolide/kolide-ose/kolide"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
@@ -21,7 +22,7 @@ const (
 )
 
 // NewService creates a new service from the config struct
-func NewService(config ServiceConfig) (kolide.Service, error) {
+func NewService(ds kolide.Datastore, logger kitlog.Logger, kolideConfig config.KolideConfig) (kolide.Service, error) {
 	var svc kolide.Service
 
 	logFile := func(path string) io.Writer {
@@ -34,16 +35,12 @@ func NewService(config ServiceConfig) (kolide.Service, error) {
 	}
 
 	svc = service{
-		ds:                      config.Datastore,
-		logger:                  config.Logger,
-		saltKeySize:             config.SaltKeySize,
-		bcryptCost:              config.BcryptCost,
-		jwtKey:                  config.JWTKey,
-		cookieName:              config.SessionCookieName,
-		osqueryEnrollSecret:     config.OsqueryEnrollSecret,
-		osqueryNodeKeySize:      config.OsqueryNodeKeySize,
-		osqueryStatusLogWriter:  logFile(config.OsqueryStatusLogPath),
-		osqueryResultsLogWriter: logFile(config.OsqueryResultsLogPath),
+		ds:     ds,
+		logger: logger,
+		config: kolideConfig,
+
+		osqueryStatusLogWriter:  logFile(kolideConfig.Osquery.StatusLogFile),
+		osqueryResultsLogWriter: logFile(kolideConfig.Osquery.ResultLogFile),
 	}
 	svc = validationMiddleware{svc}
 	return svc, nil
@@ -52,35 +49,8 @@ func NewService(config ServiceConfig) (kolide.Service, error) {
 type service struct {
 	ds     kolide.Datastore
 	logger kitlog.Logger
+	config config.KolideConfig
 
-	saltKeySize int
-	bcryptCost  int
-
-	jwtKey     string
-	cookieName string
-
-	osqueryEnrollSecret     string
-	osqueryNodeKeySize      int
 	osqueryStatusLogWriter  io.Writer
 	osqueryResultsLogWriter io.Writer
-}
-
-// ServiceConfig holds the parameters for creating a Service
-type ServiceConfig struct {
-	Datastore kolide.Datastore
-	Logger    kitlog.Logger
-
-	// password config
-	SaltKeySize int
-	BcryptCost  int
-
-	// session config
-	JWTKey            string
-	SessionCookieName string
-
-	// osquery config
-	OsqueryEnrollSecret   string
-	OsqueryNodeKeySize    int
-	OsqueryStatusLogPath  string
-	OsqueryResultsLogPath string
 }

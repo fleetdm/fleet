@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const bcryptCost = 6
+
 func TestPasswordResetRequests(t *testing.T) {
 	db := setup(t)
 	defer teardown(t, db)
@@ -193,7 +195,7 @@ func testCreateUser(t *testing.T, db kolide.UserStore) {
 	}
 
 	for _, tt := range createTests {
-		u, err := kolide.NewUser(tt.username, tt.password, tt.email, tt.isAdmin, tt.passwordReset)
+		u, err := kolide.NewUser(tt.username, tt.password, tt.email, tt.isAdmin, tt.passwordReset, bcryptCost)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -265,7 +267,7 @@ func createTestUsers(t *testing.T, db kolide.UserStore) []*kolide.User {
 
 	var users []*kolide.User
 	for _, tt := range createTests {
-		u, err := kolide.NewUser(tt.username, tt.password, tt.email, tt.isAdmin, tt.passwordReset)
+		u, err := kolide.NewUser(tt.username, tt.password, tt.email, tt.isAdmin, tt.passwordReset, bcryptCost)
 		if err != nil {
 			t.Fatal(err)
 		}

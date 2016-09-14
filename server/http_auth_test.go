@@ -14,6 +14,7 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
+	"github.com/kolide/kolide-ose/config"
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/kolide"
 	"github.com/stretchr/testify/assert"
@@ -22,7 +23,7 @@ import (
 
 func TestLogin(t *testing.T) {
 	ds, _ := datastore.New("inmem", "")
-	svc, _ := NewService(testConfig(ds))
+	svc, _ := NewService(ds, kitlog.NewNopLogger(), config.TestConfig())
 	createTestUsers(t, ds)
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 
@@ -154,7 +155,7 @@ func TestLogin(t *testing.T) {
 }
 
 func createTestUsers(t *testing.T, ds kolide.Datastore) {
-	svc := svcWithNoValidation(testConfig(ds))
+	svc := svcWithNoValidation(ds, kitlog.NewNopLogger())
 	ctx := context.Background()
 	for _, tt := range testUsers {
 		payload := kolide.UserPayload{
@@ -171,28 +172,15 @@ func createTestUsers(t *testing.T, ds kolide.Datastore) {
 	}
 }
 
-func svcWithNoValidation(config ServiceConfig) kolide.Service {
+func svcWithNoValidation(ds kolide.Datastore, logger kitlog.Logger) kolide.Service {
 	var svc kolide.Service
 	svc = service{
-		ds:          config.Datastore,
-		logger:      config.Logger,
-		saltKeySize: config.SaltKeySize,
-		bcryptCost:  config.BcryptCost,
-		jwtKey:      config.JWTKey,
-		cookieName:  config.SessionCookieName,
+		ds:     ds,
+		logger: logger,
+		config: config.TestConfig(),
 	}
 
 	return svc
-}
-
-func testConfig(ds kolide.Datastore) ServiceConfig {
-	return ServiceConfig{
-		Datastore:         ds,
-		Logger:            kitlog.NewNopLogger(),
-		BcryptCost:        12,
-		SaltKeySize:       24,
-		SessionCookieName: "KolideSession",
-	}
 }
 
 // an io.ReadCloser for new request body

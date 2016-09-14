@@ -12,8 +12,10 @@ func TestValidatePassword(t *testing.T) {
 		{"jason", "bar0baz!?", "jason@kolide.co", true, false},
 	}
 
+	const bcryptCost = 6
+
 	for _, tt := range passwordTests {
-		user, err := NewUser(tt.Username, tt.Password, tt.Email, tt.Admin, tt.PasswordReset)
+		user, err := NewUser(tt.Username, tt.Password, tt.Email, tt.Admin, tt.PasswordReset, bcryptCost)
 		if err != nil {
 			t.Fatalf("error creating new user: %s", err)
 		}

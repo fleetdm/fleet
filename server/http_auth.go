@@ -165,7 +165,7 @@ func setViewerContext(svc kolide.Service, ds kolide.Datastore, jwtKey string, lo
 			return context.WithValue(ctx, "viewerContext", emptyVC())
 		}
 
-		session, err := ds.FindSessionByKey(sessionKey)
+		session, err := svc.GetSessionByKey(ctx, sessionKey)
 		if err != nil {
 			switch err {
 			case kolide.ErrNoActiveSession:

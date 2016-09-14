@@ -64,8 +64,8 @@ type UserPayload struct {
 // NewUser exists largely to allow the API to simply accept a string password
 // while using the applications password hashing mechanisms to salt and hash the
 // password.
-func NewUser(username, password, email string, admin, needsPasswordReset bool) (*User, error) {
-	salt, hash, err := saltAndHashPassword(password)
+func NewUser(username, password, email string, admin, needsPasswordReset bool, bcryptCost int) (*User, error) {
+	salt, hash, err := saltAndHashPassword(password, bcryptCost)
 	if err != nil {
 		return nil, err
 	}
@@ -92,8 +92,8 @@ func (u *User) ValidatePassword(password string) error {
 // SetPassword accepts a new password for a user object and updates the salt
 // and hash for that user in the database. This function assumes that the
 // appropriate authorization checks have already occurred by the caller.
-func (u *User) SetPassword(password string) error {
-	salt, hash, err := saltAndHashPassword(password)
+func (u *User) SetPassword(password string, bcryptCost int) error {
+	salt, hash, err := saltAndHashPassword(password, bcryptCost)
 	if err != nil {
 		return err
 	}
@@ -102,21 +102,19 @@ func (u *User) SetPassword(password string) error {
 	return nil
 }
 
-// TODO make viper config specific
-func hashPassword(salt, password string) ([]byte, error) {
+func hashPassword(salt, password string, bcryptCost int) ([]byte, error) {
 	return bcrypt.GenerateFromPassword(
 		[]byte(fmt.Sprintf("%s%s", password, salt)),
-		viper.GetInt("auth.bcrypt_cost"),
+		bcryptCost,
 	)
 }
 
-// TODO make viper config specific
-func saltAndHashPassword(password string) (string, []byte, error) {
+func saltAndHashPassword(password string, bcryptCost int) (string, []byte, error) {
 	salt, err := generateRandomText(viper.GetInt("auth.salt_key_size"))
 	if err != nil {
 		return "", []byte{}, err
 	}
-	hashed, err := hashPassword(salt, password)
+	hashed, err := hashPassword(salt, password, bcryptCost)
 	return salt, hashed, err
 }
 

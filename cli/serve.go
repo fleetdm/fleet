@@ -36,22 +36,21 @@ the way that the kolide server works.
 				logger   kitlog.Logger
 			)
 			flag.Parse()
+
+			config := configManager.LoadConfig()
+
 			logger = kitlog.NewLogfmtLogger(os.Stderr)
 			logger = kitlog.NewContext(logger).With("ts", kitlog.DefaultTimestampUTC)
 
-			ds, _ := datastore.New("inmem", "")
-			svcConfig := server.ServiceConfig{
-				Datastore:         ds,
-				SessionCookieName: "KolideSession",
-				BcryptCost:        12,
-				SaltKeySize:       24,
-				JWTKey:            "foobar",
+			ds, err := datastore.New("inmem", "")
+			if err != nil {
+				initFatal(err, "initializing datastore")
 			}
+
 			svcLogger := kitlog.NewContext(logger).With("component", "service")
 			var svc kolide.Service
 			{ // temp create an admin user
-				svc, _ = server.NewService(svcConfig)
-				svc, _ = server.NewService(svcConfig)
+				svc, _ = server.NewService(ds, logger, config)
 				var (
 					name     = "admin"
 					username = "admin"
@@ -70,15 +69,14 @@ the way that the kolide server works.
 				}
 				_, err := svc.NewUser(ctx, admin)
 				if err != nil {
-					logger.Log("err", err)
-					os.Exit(1)
+					initFatal(err, "creating bootstrap user")
 				}
 				svc = server.NewLoggingService(svc, svcLogger)
 			}
 
 			httpLogger := kitlog.NewContext(logger).With("component", "http")
 
-			apiHandler := server.MakeHandler(ctx, svc, svcConfig.JWTKey, ds, httpLogger)
+			apiHandler := server.MakeHandler(ctx, svc, config.Auth.JwtKey, ds, httpLogger)
 			http.Handle("/api/", accessControl(apiHandler))
 			http.Handle("/assets/", server.ServeStaticAssets("/assets/"))
 			http.Handle("/", server.ServeFrontend())

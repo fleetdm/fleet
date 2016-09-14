@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/kolide/kolide-ose/config"
 
 	"github.com/spf13/cobra"
@@ -29,7 +28,7 @@ The following precedence is used when reading configs:
 		Run: func(cmd *cobra.Command, args []string) {
 			buf, err := yaml.Marshal(configManager.LoadConfig())
 			if err != nil {
-				logrus.Fatal("Error marshalling config to yaml")
+				initFatal(err, "marshalling config to yaml")
 			}
 			fmt.Println(string(buf))
 		}}
