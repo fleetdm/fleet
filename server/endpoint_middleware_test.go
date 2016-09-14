@@ -89,9 +89,6 @@ func TestEndpointPermissions(t *testing.T) {
 			ctx = context.WithValue(ctx, "request-id", tt.requestID)
 		}
 		_, eerr := tt.endpoint(ctx, req)
-		assert.IsType(t, tt.wantErr, eerr)
-		if ferr, ok := eerr.(forbiddenError); ok {
-			assert.Equal(t, tt.wantErr.(forbiddenError).message, ferr.message)
-		}
+		assert.Equal(t, tt.wantErr, eerr)
 	}
 }
