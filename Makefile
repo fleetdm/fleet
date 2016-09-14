@@ -48,7 +48,7 @@ test-js:
 test: lint test-go test-js
 
 generate: .prefix
-	go-bindata -pkg=server -o=server/bindata.go frontend/templates/ assets/ assets/images/
+	go-bindata -pkg=server -o=server/bindata.go frontend/templates/ assets/...
 	$(shell npm bin)/webpack --progress --colors --bail
 
 generate-dev: .prefix

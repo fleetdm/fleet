@@ -7,10 +7,24 @@ export default {
     marginTop: padding.base,
     position: 'relative',
   },
+  errorStyles: {
+    color: color.red,
+    fontSize: font.small,
+    textTransform: 'lowercase',
+  },
   iconStyles: {
     position: 'absolute',
     right: '6px',
     top: '29px',
+  },
+  inputErrorStyles: (error) => {
+    if (error) {
+      return {
+        borderBottomColor: color.red,
+      };
+    }
+
+    return {};
   },
   inputStyles: (value) => {
     const baseStyles = {

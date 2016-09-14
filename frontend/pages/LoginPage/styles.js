@@ -3,12 +3,6 @@ import styles from '../../styles';
 const { color, padding } = styles;
 
 export default {
-  containerStyles: {
-    alignItems: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    paddingTop: '80px',
-  },
   formWrapperStyles: {
     alignItems: 'center',
     display: 'flex',

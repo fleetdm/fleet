@@ -1,6 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import radium from 'radium';
 import Check from './svg/Check';
+import Envelope from './svg/Envelope';
 import KolideLoginBackground from './svg/KolideLoginBackground';
 import Lock from './svg/Lock';
 import User from './svg/User';
@@ -15,6 +16,7 @@ class Icon extends Component {
 
   static iconNames = {
     check: Check,
+    envelope: Envelope,
     kolideLoginBackground: KolideLoginBackground,
     lock: Lock,
     user: User,

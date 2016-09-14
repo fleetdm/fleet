@@ -38,16 +38,13 @@ export class LoginPage extends Component {
   }
 
   render () {
-    const { containerStyles, formWrapperStyles, whiteTabStyles } = componentStyles;
+    const { formWrapperStyles, whiteTabStyles } = componentStyles;
     const { onSubmit } = this;
 
     return (
-      <div style={containerStyles}>
-        <div style={formWrapperStyles}>
-          <img alt="Kolide text logo" src="/assets/images/kolide-logo-text.svg" />
-          <div style={whiteTabStyles} />
-          <LoginForm onSubmit={onSubmit} />
-        </div>
+      <div style={formWrapperStyles}>
+        <div style={whiteTabStyles} />
+        <LoginForm onSubmit={onSubmit} />
       </div>
     );
   }
