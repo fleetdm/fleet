@@ -1,11 +1,14 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/kolide/kolide-ose/config"
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/kolide"
+	"github.com/kolide/kolide-ose/server"
 	"github.com/spf13/cobra"
 )
 
@@ -70,12 +73,27 @@ To setup kolide infrastructure, use one of the available commands.
 			if err != nil {
 				initFatal(err, "creating db connection")
 			}
-
-			admin, err := kolide.NewUser("admin", "admin", "admin@kolide.co", true, false, config.Auth.BcryptCost)
 			if err != nil {
-				initFatal(err, "creating new user")
+				initFatal(err, "creating new service")
 			}
-			_, err = ds.NewUser(admin)
+			var (
+				name     = "admin"
+				username = "admin"
+				password = "secret"
+				email    = "admin@kolide.co"
+				enabled  = true
+				isAdmin  = true
+			)
+			admin := kolide.UserPayload{
+				Name:     &name,
+				Username: &username,
+				Password: &password,
+				Email:    &email,
+				Enabled:  &enabled,
+				Admin:    &isAdmin,
+			}
+			svc, _ := server.NewService(ds, kitlog.NewNopLogger(), config, nil)
+			_, err = svc.NewUser(context.Background(), admin)
 			if err != nil {
 				initFatal(err, "saving new user")
 			}

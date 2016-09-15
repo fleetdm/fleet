@@ -8,14 +8,15 @@ import (
 
 type inmem struct {
 	kolide.Datastore
-	Driver   string
-	mtx      sync.RWMutex
-	users    map[uint]*kolide.User
-	sessions map[uint]*kolide.Session
+	Driver         string
+	mtx            sync.RWMutex
+	users          map[uint]*kolide.User
+	sessions       map[uint]*kolide.Session
+	passwordResets map[uint]*kolide.PasswordResetRequest
 }
 
 func (orm *inmem) Name() string {
-	return "mock"
+	return "inmem"
 }
 
 func (orm *inmem) Migrate() error {
@@ -27,5 +28,6 @@ func (orm *inmem) Drop() error {
 	defer orm.mtx.Unlock()
 	orm.users = make(map[uint]*kolide.User)
 	orm.sessions = make(map[uint]*kolide.Session)
+	orm.passwordResets = make(map[uint]*kolide.PasswordResetRequest)
 	return nil
 }

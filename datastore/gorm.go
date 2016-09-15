@@ -223,59 +223,6 @@ func (orm gormDB) MarkHostSeen(host *kolide.Host, t time.Time) error {
 	return nil
 }
 
-func (orm gormDB) CreatePassworResetRequest(userID uint, expires time.Time, token string) (*kolide.PasswordResetRequest, error) {
-	campaign := &kolide.PasswordResetRequest{
-		UserID:    userID,
-		ExpiresAt: expires,
-		Token:     token,
-	}
-	err := orm.DB.Create(campaign).Error
-	if err != nil {
-		return nil, err
-	}
-
-	return campaign, nil
-}
-
-func (orm gormDB) DeletePasswordResetRequest(req *kolide.PasswordResetRequest) error {
-	err := orm.DB.Delete(req).Error
-	return err
-}
-
-func (orm gormDB) FindPassswordResetByID(id uint) (*kolide.PasswordResetRequest, error) {
-	reset := &kolide.PasswordResetRequest{
-		ID: id,
-	}
-	err := orm.DB.Find(reset).First(reset).Error
-	return reset, err
-}
-
-func (orm gormDB) FindPassswordResetsByUserID(id uint) ([]*kolide.PasswordResetRequest, error) {
-	reset := &kolide.PasswordResetRequest{
-		UserID: id,
-	}
-	var resets []*kolide.PasswordResetRequest
-	err := orm.DB.Find(reset).First(&resets).Error
-	return resets, err
-}
-
-func (orm gormDB) FindPassswordResetByToken(token string) (*kolide.PasswordResetRequest, error) {
-	reset := &kolide.PasswordResetRequest{
-		Token: token,
-	}
-	err := orm.DB.Find(reset).First(reset).Error
-	return reset, err
-}
-
-func (orm gormDB) FindPassswordResetByTokenAndUserID(token string, userID uint) (*kolide.PasswordResetRequest, error) {
-	reset := &kolide.PasswordResetRequest{
-		Token:  token,
-		UserID: userID,
-	}
-	err := orm.DB.Find(reset).First(reset).Error
-	return reset, err
-}
-
 func (orm gormDB) NewQuery(query *kolide.Query) error {
 	if query == nil {
 		return errors.New(

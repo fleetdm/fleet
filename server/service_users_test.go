@@ -1,7 +1,10 @@
 package server
 
 import (
+	"errors"
+	"strconv"
 	"testing"
+	"time"
 
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/kolide/kolide-ose/config"
@@ -11,9 +14,90 @@ import (
 	"golang.org/x/net/context"
 )
 
+func TestRequestPasswordReset(t *testing.T) {
+	ds, err := datastore.New("inmem", "")
+	assert.Nil(t, err)
+	createTestUsers(t, ds)
+	admin1, err := ds.User("admin1")
+	assert.Nil(t, err)
+	user1, err := ds.User("user1")
+	assert.Nil(t, err)
+	var defaultEmailFn = func(e kolide.Email) error {
+		return nil
+	}
+	var errEmailFn = func(e kolide.Email) error {
+		return errors.New("test err")
+	}
+	svc := service{
+		ds:     ds,
+		config: config.TestConfig(),
+	}
+
+	var requestPasswordResetTests = []struct {
+		email   string
+		emailFn func(e kolide.Email) error
+		wantErr interface{}
+		user    *kolide.User
+		vc      *viewerContext
+	}{
+		{
+			email:   admin1.Email,
+			emailFn: defaultEmailFn,
+			user:    admin1,
+			vc:      &viewerContext{user: admin1},
+		},
+		{
+			email:   admin1.Email,
+			emailFn: defaultEmailFn,
+			user:    admin1,
+			vc:      emptyVC(),
+		},
+		{
+			email:   user1.Email,
+			emailFn: defaultEmailFn,
+			user:    user1,
+			vc:      &viewerContext{user: admin1},
+		},
+		{
+			email:   admin1.Email,
+			emailFn: errEmailFn,
+			user:    user1,
+			vc:      emptyVC(),
+			wantErr: errors.New("test err"),
+		},
+	}
+
+	for _, tt := range requestPasswordResetTests {
+		tt := tt
+		t.Run("", func(st *testing.T) {
+			st.Parallel()
+			ctx := context.Background()
+			if tt.vc != nil {
+				ctx = context.WithValue(ctx, "viewerContext", tt.vc)
+			}
+			mailer := &mockMailService{SendEmailFn: tt.emailFn}
+			svc.mailService = mailer
+
+			serviceErr := svc.RequestPasswordReset(ctx, tt.email)
+			assert.Equal(t, tt.wantErr, serviceErr)
+			if tt.vc.IsAdmin() {
+				assert.False(st, mailer.Invoked, "email should not be sent if reset requested by admin")
+				assert.True(st, tt.user.AdminForcedPasswordReset, "AdminForcedPasswordReset should be true if reset requested by admin")
+			} else {
+				assert.True(st, mailer.Invoked, "email should be sent if vc is not admin")
+				if serviceErr == nil {
+					req, err := ds.FindPassswordResetsByUserID(tt.user.ID)
+					assert.Nil(st, err)
+					assert.NotEmpty(st, req, "user should have at least one password reset request")
+				}
+			}
+		})
+	}
+}
+
 func TestCreateUser(t *testing.T) {
 	ds, _ := datastore.New("inmem", "")
-	svc, _ := NewService(ds, kitlog.NewNopLogger(), config.TestConfig())
+	svc, _ := NewService(ds, kitlog.NewNopLogger(), config.TestConfig(), nil)
 	ctx := context.Background()
 
 	var createUserTests = []struct {
@@ -74,30 +158,57 @@ func TestCreateUser(t *testing.T) {
 
 func TestChangeUserPassword(t *testing.T) {
 	ds, _ := datastore.New("inmem", "")
-	svc, _ := NewService(ds, kitlog.NewNopLogger(), config.TestConfig())
+	svc, _ := NewService(ds, kitlog.NewNopLogger(), config.TestConfig(), nil)
 	createTestUsers(t, ds)
-
 	var passwordChangeTests = []struct {
-		username        string
-		currentPassword string
-		newPassword     string
-		err             error
+		token       string
+		newPassword string
+		wantErr     interface{}
 	}{
-		{
-			username:        "admin1",
-			currentPassword: *testUsers["admin1"].Password,
-			newPassword:     "123cat!",
+		{ // all good
+			token:       "abcd",
+			newPassword: "123cat!",
+		},
+		{ // bad token
+			token:       "dcbaz",
+			newPassword: "123cat!",
+			wantErr:     datastore.ErrNotFound,
+		},
+		{ // missing token
+			newPassword: "123cat!",
+			wantErr:     invalidArgumentError{field: "token", required: true},
+		},
+		{ // missing password
+			token:   "abcd",
+			wantErr: invalidArgumentError{field: "password", required: true},
 		},
 	}
 
-	ctx := context.Background()
-	for _, tt := range passwordChangeTests {
-		user, err := ds.User(tt.username)
+	for i, tt := range passwordChangeTests {
+		ctx := context.Background()
+		request := &kolide.PasswordResetRequest{
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			ExpiresAt: time.Now().Add(time.Hour * 24),
+			UserID:    1,
+			Token:     "abcd",
+		}
+		_, err := ds.NewPasswordResetRequest(request)
 		assert.Nil(t, err)
 
-		err = svc.ChangePassword(ctx, user.ID, tt.currentPassword, tt.newPassword)
-		assert.Nil(t, err)
+		serr := svc.ResetPassword(ctx, tt.token, tt.newPassword)
+		assert.Equal(t, tt.wantErr, serr, strconv.Itoa(i))
 	}
+}
+
+type mockMailService struct {
+	SendEmailFn func(e kolide.Email) error
+	Invoked     bool
+}
+
+func (svc *mockMailService) SendEmail(e kolide.Email) error {
+	svc.Invoked = true
+	return svc.SendEmailFn(e)
 }
 
 var testUsers = map[string]kolide.UserPayload{

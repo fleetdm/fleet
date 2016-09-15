@@ -10,7 +10,6 @@ type validationMiddleware struct {
 }
 
 func (mw validationMiddleware) NewUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
-	// check required params
 	if p.Username == nil {
 		return nil, invalidArgumentError{field: "username", required: true}
 	}
@@ -26,23 +25,13 @@ func (mw validationMiddleware) NewUser(ctx context.Context, p kolide.UserPayload
 	return mw.Service.NewUser(ctx, p)
 }
 
-func (mw validationMiddleware) ChangePassword(ctx context.Context, userID uint, old, new string) error {
-	if old == "" || new == "" {
+func (mw validationMiddleware) ResetPassword(ctx context.Context, token, password string) error {
+	if token == "" {
+		return invalidArgumentError{field: "token", required: true}
+	}
+
+	if password == "" {
 		return invalidArgumentError{field: "password", required: true}
 	}
-	return mw.Service.ChangePassword(ctx, userID, old, new)
-}
-
-func (mw validationMiddleware) UpdateUserStatus(ctx context.Context, userID uint, password string, enabled bool) error {
-	// validate password if user is disabling self
-	vc, err := viewerContextFromContext(ctx)
-	if err != nil {
-		return err
-	}
-	if vc.IsUserID(userID) {
-		if err := vc.user.ValidatePassword(password); err != nil {
-			return err
-		}
-	}
-	return mw.Service.UpdateUserStatus(ctx, userID, password, enabled)
+	return mw.Service.ResetPassword(ctx, token, password)
 }

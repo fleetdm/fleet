@@ -12,6 +12,7 @@ import (
 	"github.com/kolide/kolide-ose/config"
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/kolide"
+	"github.com/kolide/kolide-ose/mail"
 	"github.com/kolide/kolide-ose/server"
 	"github.com/kolide/kolide-ose/version"
 	"github.com/spf13/cobra"
@@ -43,6 +44,7 @@ the way that the kolide server works.
 			logger = kitlog.NewLogfmtLogger(os.Stderr)
 			logger = kitlog.NewContext(logger).With("ts", kitlog.DefaultTimestampUTC)
 
+			mailSvc := mail.NewService(config.SMTP)
 			ds, err := datastore.New("inmem", "")
 			if err != nil {
 				initFatal(err, "initializing datastore")
@@ -51,7 +53,7 @@ the way that the kolide server works.
 			svcLogger := kitlog.NewContext(logger).With("component", "service")
 			var svc kolide.Service
 			{ // temp create an admin user
-				svc, _ = server.NewService(ds, logger, config)
+				svc, _ = server.NewService(ds, logger, config, mailSvc)
 				var (
 					name     = "admin"
 					username = "admin"

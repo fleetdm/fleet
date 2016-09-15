@@ -71,9 +71,10 @@ func New(driver, conn string, opts ...DBOption) (kolide.Datastore, error) {
 		return ds, nil
 	case "inmem":
 		ds := &inmem{
-			Driver:   "inmem",
-			users:    make(map[uint]*kolide.User),
-			sessions: make(map[uint]*kolide.Session),
+			Driver:         "inmem",
+			users:          make(map[uint]*kolide.User),
+			sessions:       make(map[uint]*kolide.Session),
+			passwordResets: make(map[uint]*kolide.PasswordResetRequest),
 		}
 		return ds, nil
 	default:

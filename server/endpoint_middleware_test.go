@@ -1,19 +1,19 @@
 package server
 
 import (
+	"context"
 	"testing"
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/kolide/kolide-ose/datastore"
+	"github.com/kolide/kolide-ose/kolide"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/net/context"
 )
 
 // TestEndpointPermissions tests that
 // the endpoint.Middleware correctly grants or denies
 // permissions to access or modify resources
 func TestEndpointPermissions(t *testing.T) {
-	ctx := context.Background()
 	req := struct{}{}
 	ds, _ := datastore.New("inmem", "")
 	createTestUsers(t, ds)
@@ -31,6 +31,8 @@ func TestEndpointPermissions(t *testing.T) {
 		requestID uint
 		// what error to expect
 		wantErr interface{}
+		// custom request struct
+		request interface{}
 	}{
 		{
 			endpoint: mustBeAdmin(e),
@@ -51,7 +53,7 @@ func TestEndpointPermissions(t *testing.T) {
 		{
 			endpoint: mustBeAdmin(e),
 			vc:       &viewerContext{user: user1},
-			wantErr:  forbiddenError{"must be an admin"},
+			wantErr:  forbiddenError{message: "must be an admin"},
 		},
 		{
 			endpoint: canModifyUser(e),
@@ -79,16 +81,41 @@ func TestEndpointPermissions(t *testing.T) {
 			requestID: admin1.ID,
 			wantErr:   forbiddenError{message: "no read permissions on user"},
 		},
+		{
+			endpoint: validateModifyUserRequest(e),
+			request:  modifyUserRequest{},
+			wantErr:  errNoContext,
+		},
+		{
+			endpoint: validateModifyUserRequest(e),
+			request:  modifyUserRequest{payload: kolide.UserPayload{Enabled: boolPtr(true)}},
+			vc:       &viewerContext{user: user1},
+			wantErr:  forbiddenError{message: "must be an admin"},
+		},
 	}
 
 	for _, tt := range endpointTests {
-		if tt.vc != nil {
-			ctx = context.WithValue(ctx, "viewerContext", tt.vc)
-		}
-		if tt.requestID != 0 {
-			ctx = context.WithValue(ctx, "request-id", tt.requestID)
-		}
-		_, eerr := tt.endpoint(ctx, req)
-		assert.Equal(t, tt.wantErr, eerr)
+		tt := tt
+		t.Run("", func(st *testing.T) {
+			st.Parallel()
+			ctx := context.Background()
+			if tt.vc != nil {
+				ctx = context.WithValue(ctx, "viewerContext", tt.vc)
+			}
+			if tt.requestID != 0 {
+				ctx = context.WithValue(ctx, "request-id", tt.requestID)
+			}
+			var request interface{}
+			if tt.request != nil {
+				request = tt.request
+			} else {
+				request = req
+			}
+			_, eerr := tt.endpoint(ctx, request)
+			assert.IsType(t, tt.wantErr, eerr)
+			if ferr, ok := eerr.(forbiddenError); ok {
+				assert.Equal(t, tt.wantErr.(forbiddenError).message, ferr.message)
+			}
+		})
 	}
 }

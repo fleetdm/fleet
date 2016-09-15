@@ -31,6 +31,36 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 		),
 	).Methods("POST")
 
+	router.Handle("/api/v1/kolide/forgot_password",
+		kithttp.NewServer(
+			ctx,
+			makeForgotPasswordEndpoint(svc),
+			decodeForgotPasswordRequest,
+			encodeResponse,
+			opts...,
+		),
+	).Methods("POST")
+
+	router.Handle("/api/v1/kolide/reset_password",
+		kithttp.NewServer(
+			ctx,
+			makeResetPasswordEndpoint(svc),
+			decodeResetPasswordRequest,
+			encodeResponse,
+			opts...,
+		),
+	).Methods("POST")
+
+	router.Handle("/api/v1/kolide/users",
+		kithttp.NewServer(
+			ctx,
+			authenticated(canPerformActions(makeListUsersEndpoint(svc))),
+			decodeNoParamsRequest,
+			encodeResponse,
+			opts...,
+		),
+	).Methods("GET")
+
 	router.Handle("/api/v1/kolide/users",
 		kithttp.NewServer(
 			ctx,
@@ -51,35 +81,15 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 		),
 	).Methods("GET")
 
-	router.Handle("/api/v1/kolide/users/{id}/password",
+	router.Handle("/api/v1/kolide/users/{id}",
 		kithttp.NewServer(
 			ctx,
-			authenticated(canModifyUser(makeChangePasswordEndpoint(svc))),
-			decodeChangePasswordRequest,
+			authenticated(validateModifyUserRequest(makeModifyUserEndpoint(svc))),
+			decodeModifyUserRequest,
 			encodeResponse,
 			opts...,
 		),
-	).Methods("POST")
-
-	router.Handle("/api/v1/kolide/users/{id}/role",
-		kithttp.NewServer(
-			ctx,
-			authenticated(mustBeAdmin(makeUpdateAdminRoleEndpoint(svc))),
-			decodeUpdateAdminRoleRequest,
-			encodeResponse,
-			opts...,
-		),
-	).Methods("POST")
-
-	router.Handle("/api/v1/kolide/users/{id}/status",
-		kithttp.NewServer(
-			ctx,
-			authenticated(canModifyUser(makeUpdateUserStatusEndpoint(svc))),
-			decodeUpdateUserStatusRequest,
-			encodeResponse,
-			opts...,
-		),
-	).Methods("POST")
+	).Methods("PATCH")
 
 	router.Handle("/api/v1/kolide/users/{id}/sessions",
 		kithttp.NewServer(

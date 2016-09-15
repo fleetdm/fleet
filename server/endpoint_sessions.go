@@ -18,15 +18,15 @@ type loginRequest struct {
 }
 
 type loginResponse struct {
-	Token              string `json:"token"`
-	ID                 uint   `json:"id"`
-	Username           string `json:"username"`
-	Email              string `json:"email"`
-	Name               string `json:"name"`
-	Admin              bool   `json:"admin"`
-	Enabled            bool   `json:"enabled"`
-	NeedsPasswordReset bool   `json:"needs_password_reset"`
-	Err                error  `json:"error,omitempty"`
+	Token                    string `json:"token"`
+	ID                       uint   `json:"id"`
+	Username                 string `json:"username"`
+	Email                    string `json:"email"`
+	Name                     string `json:"name"`
+	Admin                    bool   `json:"admin"`
+	Enabled                  bool   `json:"enabled"`
+	AdminForcedPasswordReset bool   `json:"force_password_reset"`
+	Err                      error  `json:"error,omitempty"`
 }
 
 func (r loginResponse) error() error { return r.Err }
@@ -39,13 +39,13 @@ func makeLoginEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return loginResponse{Err: err}, nil
 		}
 		return loginResponse{
-			Token:              token,
-			ID:                 user.ID,
-			Username:           user.Username,
-			Email:              user.Email,
-			Admin:              user.Admin,
-			Enabled:            user.Enabled,
-			NeedsPasswordReset: user.AdminForcedPasswordReset,
+			Token:                    token,
+			ID:                       user.ID,
+			Username:                 user.Username,
+			Email:                    user.Email,
+			Admin:                    user.Admin,
+			Enabled:                  user.Enabled,
+			AdminForcedPasswordReset: user.AdminForcedPasswordReset,
 		}, nil
 	}
 }

@@ -35,6 +35,7 @@ func (e authError) Error() string {
 // forbidden, set when user is authenticated, but not allowd to perform action
 type forbiddenError struct {
 	message string
+	fields  []string
 }
 
 func (e forbiddenError) Error() string {
@@ -146,7 +147,11 @@ func setViewerContext(svc kolide.Service, ds kolide.Datastore, jwtKey string, lo
 			return []byte(jwtKey), nil
 		})
 		if err != nil {
-			logger.Log("err", err, "error-source", "setViewerContext")
+			if err != request.ErrNoTokenInRequest {
+				// all unauthenticated requests (login,logout,passwordreset) result in the
+				// request.ErrNoTokenInRequest error. we can ignore logging it
+				logger.Log("err", err, "error-source", "setViewerContext")
+			}
 			return context.WithValue(ctx, "viewerContext", emptyVC())
 		}
 

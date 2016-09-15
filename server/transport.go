@@ -36,6 +36,14 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 		encodeError(ctx, e.error(), w)
 		return nil
 	}
+
+	if e, ok := response.(statuser); ok {
+		w.WriteHeader(e.status())
+		if e.status() == http.StatusNoContent {
+			return nil
+		}
+	}
+
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	return enc.Encode(response)
@@ -44,6 +52,12 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 // erroer interface is implemented by response structs to encode business logic errors
 type errorer interface {
 	error() error
+}
+
+// statuser allows response types to implement a custom
+// http success status - default is 200 OK
+type statuser interface {
+	status() int
 }
 
 // encode errors from business-logic
@@ -63,12 +77,10 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 	})
 }
 
-const unprocessableEntity int = 422
-
 func typeErrsStatus(err error) int {
 	switch err.(type) {
 	case invalidArgumentError:
-		return unprocessableEntity
+		return http.StatusUnprocessableEntity
 	case authError:
 		return http.StatusUnauthorized
 	case forbiddenError:

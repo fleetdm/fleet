@@ -16,7 +16,7 @@ func TestAPIRoutes(t *testing.T) {
 	ds, err := datastore.New("gorm-sqlite3", ":memory:")
 	assert.Nil(t, err)
 
-	svc, err := NewService(ds, kitlog.NewNopLogger(), config.TestConfig())
+	svc, err := NewService(ds, kitlog.NewNopLogger(), config.TestConfig(), nil)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -36,19 +36,27 @@ func TestAPIRoutes(t *testing.T) {
 		},
 		{
 			verb: "GET",
+			uri:  "/api/v1/kolide/users",
+		},
+		{
+			verb: "GET",
+			uri:  "/api/v1/kolide/users/1",
+		},
+		{
+			verb: "PATCH",
 			uri:  "/api/v1/kolide/users/1",
 		},
 		{
 			verb: "POST",
-			uri:  "/api/v1/kolide/users/1/password",
+			uri:  "/api/v1/kolide/login",
 		},
 		{
 			verb: "POST",
-			uri:  "/api/v1/kolide/users/1/role",
+			uri:  "/api/v1/kolide/forgot_password",
 		},
 		{
 			verb: "POST",
-			uri:  "/api/v1/kolide/users/1/status",
+			uri:  "/api/v1/kolide/reset_password",
 		},
 		{
 			verb: "GET",

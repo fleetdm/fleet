@@ -33,7 +33,12 @@ func testPasswordResetRequests(t *testing.T, db kolide.Datastore) {
 	}
 
 	for _, tt := range passwordResetTests {
-		req, err := db.CreatePassworResetRequest(tt.userID, tt.expires, tt.token)
+		r := &kolide.PasswordResetRequest{
+			UserID:    tt.userID,
+			ExpiresAt: tt.expires,
+			Token:     tt.token,
+		}
+		req, err := db.NewPasswordResetRequest(r)
 		assert.Nil(t, err)
 		assert.Equal(t, tt.userID, req.UserID)
 	}
@@ -152,9 +157,13 @@ func testCreateUser(t *testing.T, db kolide.UserStore) {
 	}
 
 	for _, tt := range createTests {
-		u, err := kolide.NewUser(tt.username, tt.password, tt.email, tt.isAdmin, tt.passwordReset, bcryptCost)
-		assert.Nil(t, err)
-
+		u := &kolide.User{
+			Username: tt.username,
+			Password: []byte(tt.password),
+			Admin:    tt.isAdmin,
+			AdminForcedPasswordReset: tt.passwordReset,
+			Email: tt.email,
+		}
 		user, err := db.NewUser(u)
 		assert.Nil(t, err)
 
@@ -199,8 +208,13 @@ func createTestUsers(t *testing.T, db kolide.UserStore) []*kolide.User {
 
 	var users []*kolide.User
 	for _, tt := range createTests {
-		u, err := kolide.NewUser(tt.username, tt.password, tt.email, tt.isAdmin, tt.passwordReset, bcryptCost)
-		assert.Nil(t, err)
+		u := &kolide.User{
+			Username: tt.username,
+			Password: []byte(tt.password),
+			Admin:    tt.isAdmin,
+			AdminForcedPasswordReset: tt.passwordReset,
+			Email: tt.email,
+		}
 
 		user, err := db.NewUser(u)
 		assert.Nil(t, err)

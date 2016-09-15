@@ -7,7 +7,7 @@ type Datastore interface {
 	PackStore
 	OsqueryStore
 	HostStore
-	EmailStore
+	PasswordResetStore
 	SessionStore
 	Name() string
 	Drop() error

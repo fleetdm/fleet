@@ -1,117 +1,38 @@
 package kolide
 
 import (
-	"fmt"
-	"net/http"
+	"bytes"
+	"html/template"
 	"time"
-
-	"github.com/jordan-wright/email"
-	"github.com/kolide/kolide-ose/errors"
-	"github.com/spf13/viper"
 )
 
-// CampaignStore manages email campaigns in the database
-type EmailStore interface {
-	CreatePassworResetRequest(userID uint, expires time.Time, token string) (*PasswordResetRequest, error)
+// PasswordResetStore manages password resets in the Datastore
+type PasswordResetStore interface {
+	NewPasswordResetRequest(req *PasswordResetRequest) (*PasswordResetRequest, error)
+	SavePasswordResetRequest(req *PasswordResetRequest) error
 	DeletePasswordResetRequest(req *PasswordResetRequest) error
+	DeletePasswordResetRequestsForUser(userID uint) error
 	FindPassswordResetByID(id uint) (*PasswordResetRequest, error)
 	FindPassswordResetsByUserID(id uint) ([]*PasswordResetRequest, error)
 	FindPassswordResetByToken(token string) (*PasswordResetRequest, error)
 	FindPassswordResetByTokenAndUserID(token string, id uint) (*PasswordResetRequest, error)
 }
 
-type EmailType int
-
-const (
-	PasswordResetEmail EmailType = iota
-)
-
-type PasswordResetRequestEmailParameters struct {
-	Name  string
-	Token string
+// Mailer is an email campaign
+// Types which implement the Campaign interface
+// can be marshalled into an email body
+type Mailer interface {
+	Message() ([]byte, error)
 }
 
-const (
-	NoReplyEmailAddress = "no-reply@kolide.co"
-)
-
-type SMTPConnectionPool interface {
-	Send(e *email.Email, timeout time.Duration) error
-	Close()
+type Email struct {
+	To   []string
+	From string
+	Msg  Mailer
 }
 
-type MockSMTPConnectionPool struct {
-	Emails []*email.Email
-}
-
-func NewMockSMTPConnectionPool() *MockSMTPConnectionPool {
-	return &MockSMTPConnectionPool{}
-}
-
-func (pool *MockSMTPConnectionPool) Send(e *email.Email, timeout time.Duration) error {
-	pool.Emails = append(pool.Emails, e)
-	return nil
-}
-
-func (pool *MockSMTPConnectionPool) Close() {}
-
-func SendEmail(pool SMTPConnectionPool, to, subject string, html, text []byte) error {
-	e := email.Email{
-		From:    fmt.Sprintf("Kolide <%s>", NoReplyEmailAddress),
-		To:      []string{to},
-		Subject: subject,
-		HTML:    html,
-		Text:    text,
-	}
-
-	err := pool.Send(&e, time.Second*10)
-	if err != nil {
-		return errors.NewFromError(err, http.StatusInternalServerError, "Email error")
-	}
-
-	return nil
-}
-
-func GetEmailBody(t EmailType, params interface{}) (html []byte, text []byte, err error) {
-	switch t {
-	case PasswordResetEmail:
-		resetParams, ok := params.(PasswordResetRequestEmailParameters)
-		if !ok {
-			err = errors.New("Couldn't get email body", "Parameters were of incorrect type")
-			return
-		}
-
-		html = []byte(fmt.Sprintf(
-			"Hi %s! <a href=\"%s/password/reset?token=%s\">Reset your password!</a>",
-			resetParams.Name,
-			viper.GetString("app.web_address"),
-			resetParams.Token,
-		))
-		text = []byte(fmt.Sprintf(
-			"Hi %s! Reset your password: %s/password/reset?token=%s",
-			resetParams.Name,
-			viper.GetString("app.web_address"),
-			resetParams.Token,
-		))
-	default:
-		err = errors.New(
-			"Couldn't get email body",
-			fmt.Sprintf("Email type unknown: %d", t),
-		)
-	}
-	return
-}
-
-func GetEmailSubject(t EmailType) (string, error) {
-	switch t {
-	case PasswordResetEmail:
-		return "Your Kolide Password Reset Request", nil
-	default:
-		return "", errors.New(
-			"Couldn't get email subject",
-			fmt.Sprintf("Email type unknown: %d", t),
-		)
-	}
+type MailService interface {
+	SendEmail(e Email) error
 }
 
 // PasswordResetRequest represents a database table for
@@ -125,21 +46,21 @@ type PasswordResetRequest struct {
 	Token     string `gorm:"size:1024"`
 }
 
-// NewPasswordResetRequest creates a password reset email campaign
-func NewPasswordResetRequest(db EmailStore, userID uint, expires time.Time) (*PasswordResetRequest, error) {
-	keySize := viper.GetInt("smtp.token_key_size")
-	if keySize == 0 {
-		keySize = 24
-	}
-	token, err := generateRandomText(keySize)
-	if err != nil {
+const passwordResetTemplate = `
+Your requested a password reset, 
+Follow the link below to reset your password:
+http://localhost:8080/reset_password?token={{.Token}}
+`
+
+func (r PasswordResetRequest) Message() ([]byte, error) {
+	var msg bytes.Buffer
+	var err error
+	t := template.New(passwordResetTemplate)
+	if t, err = t.Parse(passwordResetTemplate); err != nil {
 		return nil, err
 	}
-
-	request, err := db.CreatePassworResetRequest(userID, expires, token)
-	if err != nil {
+	if err = t.Execute(&msg, r); err != nil {
 		return nil, err
 	}
-
-	return request, nil
+	return msg.Bytes(), nil
 }

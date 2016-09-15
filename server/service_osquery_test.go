@@ -16,7 +16,7 @@ func TestEnrollAgent(t *testing.T) {
 
 	conf := config.TestConfig()
 	conf.Osquery.EnrollSecret = "foobar"
-	svc, err := NewService(ds, kitlog.NewNopLogger(), conf)
+	svc, err := NewService(ds, kitlog.NewNopLogger(), conf, nil)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -40,7 +40,7 @@ func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
 
 	conf := config.TestConfig()
 	conf.Osquery.EnrollSecret = "foobar"
-	svc, err := NewService(ds, kitlog.NewNopLogger(), conf)
+	svc, err := NewService(ds, kitlog.NewNopLogger(), conf, nil)
 	assert.Nil(t, err)
 
 	ctx := context.Background()

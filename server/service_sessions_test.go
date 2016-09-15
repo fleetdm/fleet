@@ -17,14 +17,18 @@ func TestAuthenticate(t *testing.T) {
 	ds, err := datastore.New("gorm-sqlite3", ":memory:")
 	assert.Nil(t, err)
 
-	svc, err := NewService(ds, kitlog.NewNopLogger(), config.TestConfig())
+	svc, err := NewService(ds, kitlog.NewNopLogger(), config.TestConfig(), nil)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
 
-	user, err := kolide.NewUser("foo", "bar", "foo@kolide.co", false, false, bcryptCost)
-	assert.Nil(t, err)
-	user, err = ds.NewUser(user)
+	payload := kolide.UserPayload{
+		Username: stringPtr("foo"),
+		Password: stringPtr("bar"),
+		Email:    stringPtr("foo@kolide.co"),
+		Admin:    boolPtr(false),
+	}
+	user, err := svc.NewUser(ctx, payload)
 	assert.Nil(t, err)
 	assert.NotZero(t, user.ID)
 

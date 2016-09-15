@@ -25,41 +25,10 @@ func decodeGetUserRequest(ctx context.Context, r *http.Request) (interface{}, er
 }
 
 func decodeChangePasswordRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
-	if err != nil {
-		return nil, err
-	}
-	var req changePasswordRequest
+	var req resetPasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, err
 	}
-	req.UserID = id
-	return req, nil
-}
-
-func decodeUpdateAdminRoleRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
-	if err != nil {
-		return nil, err
-	}
-	var req updateAdminRoleRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, err
-	}
-	req.UserID = id
-	return req, nil
-}
-
-func decodeUpdateUserStatusRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
-	if err != nil {
-		return nil, err
-	}
-	var req updateUserStatusRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, err
-	}
-	req.UserID = id
 	return req, nil
 }
 
@@ -73,5 +42,21 @@ func decodeModifyUserRequest(ctx context.Context, r *http.Request) (interface{},
 		return nil, err
 	}
 	req.ID = id
+	return req, nil
+}
+
+func decodeForgotPasswordRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	var req forgotPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, err
+	}
+	return req, nil
+}
+
+func decodeResetPasswordRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	var req resetPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, err
+	}
 	return req, nil
 }
