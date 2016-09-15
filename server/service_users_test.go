@@ -11,6 +11,7 @@ import (
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/kolide"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )
 
@@ -36,7 +37,7 @@ func TestRequestPasswordReset(t *testing.T) {
 	var requestPasswordResetTests = []struct {
 		email   string
 		emailFn func(e kolide.Email) error
-		wantErr interface{}
+		wantErr error
 		user    *kolide.User
 		vc      *viewerContext
 	}{
@@ -106,12 +107,12 @@ func TestCreateUser(t *testing.T) {
 		Email              *string
 		NeedsPasswordReset *bool
 		Admin              *bool
-		Err                error
+		wantErr            error
 	}{
 		{
 			Username: stringPtr("admin1"),
 			Password: stringPtr("foobar"),
-			Err:      invalidArgumentError{},
+			wantErr:  invalidArgumentError{field: "email", required: true},
 		},
 		{
 			Username:           stringPtr("admin1"),
@@ -119,6 +120,22 @@ func TestCreateUser(t *testing.T) {
 			Email:              stringPtr("admin1@example.com"),
 			NeedsPasswordReset: boolPtr(true),
 			Admin:              boolPtr(false),
+		},
+		{
+			Username:           stringPtr("admin1"),
+			Password:           stringPtr("foobar"),
+			Email:              stringPtr("admin1@example.com"),
+			NeedsPasswordReset: boolPtr(true),
+			Admin:              boolPtr(false),
+			wantErr:            datastore.ErrExists,
+		},
+		{
+			Username:           stringPtr("@admin1"),
+			Password:           stringPtr("foobar"),
+			Email:              stringPtr("admin1@example.com"),
+			NeedsPasswordReset: boolPtr(true),
+			Admin:              boolPtr(false),
+			wantErr:            invalidArgumentError{field: "username", required: true},
 		},
 	}
 
@@ -131,12 +148,10 @@ func TestCreateUser(t *testing.T) {
 			AdminForcedPasswordReset: tt.NeedsPasswordReset,
 		}
 		user, err := svc.NewUser(ctx, payload)
-		switch err.(type) {
-		case nil:
-		case invalidArgumentError:
+		require.Equal(t, tt.wantErr, err)
+		if err != nil {
+			// skip rest of the test if error is not nil
 			continue
-		default:
-			t.Fatalf("got %q, want %q", err, tt.Err)
 		}
 
 		assert.NotZero(t, user.ID)
@@ -150,9 +165,6 @@ func TestCreateUser(t *testing.T) {
 		assert.Equal(t, user.AdminForcedPasswordReset, *tt.NeedsPasswordReset)
 		assert.Equal(t, user.Admin, *tt.Admin)
 
-		// check duplicate creation
-		_, err = svc.NewUser(ctx, payload)
-		assert.Equal(t, datastore.ErrExists, err)
 	}
 }
 
@@ -163,7 +175,7 @@ func TestChangeUserPassword(t *testing.T) {
 	var passwordChangeTests = []struct {
 		token       string
 		newPassword string
-		wantErr     interface{}
+		wantErr     error
 	}{
 		{ // all good
 			token:       "abcd",

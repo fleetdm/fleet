@@ -13,7 +13,7 @@ import (
 ////////////////////////////////////////////////////////////////////////////////
 
 type loginRequest struct {
-	Username string
+	Username string // can be username or email
 	Password string
 }
 

@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/kolide/kolide-ose/datastore"
@@ -12,7 +13,7 @@ import (
 )
 
 func (svc service) Login(ctx context.Context, username, password string) (*kolide.User, string, error) {
-	user, err := svc.ds.User(username)
+	user, err := svc.userByEmailOrUsername(username)
 	switch err {
 	case nil:
 	case datastore.ErrNotFound:
@@ -39,6 +40,13 @@ func (svc service) Login(ctx context.Context, username, password string) (*kolid
 	}
 
 	return user, token, nil
+}
+
+func (svc service) userByEmailOrUsername(username string) (*kolide.User, error) {
+	if strings.Contains(username, "@") {
+		return svc.ds.UserByEmail(username)
+	}
+	return svc.ds.User(username)
 }
 
 // makeSession is a helper that creates a new session after authentication
