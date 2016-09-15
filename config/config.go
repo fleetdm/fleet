@@ -323,19 +323,17 @@ func (man Manager) getConfigDuration(key string) time.Duration {
 
 // loadConfigFile handles the loading of the config file.
 func (man Manager) loadConfigFile() {
-	configFile := man.command.PersistentFlags().Lookup("config").Value.String()
-	if configFile != "" {
-		man.viper.SetConfigFile(configFile)
-	} else {
-		man.viper.SetConfigName("kolide")
-		man.viper.AddConfigPath(".")
-		man.viper.AddConfigPath("$HOME")
-		man.viper.AddConfigPath("./tools/app")
-		man.viper.AddConfigPath("/etc/kolide")
-	}
-
 	man.viper.SetConfigType("yaml")
 
+	configFile := man.command.PersistentFlags().Lookup("config").Value.String()
+
+	if configFile == "" {
+		// No config file set, only use configs from env
+		// vars/flags/defaults
+		return
+	}
+
+	man.viper.SetConfigFile(configFile)
 	err := man.viper.ReadInConfig()
 
 	fmt.Println("Using config file: ", man.viper.ConfigFileUsed())
@@ -343,7 +341,6 @@ func (man Manager) loadConfigFile() {
 	if err != nil {
 		panic("Error reading config: " + err.Error())
 	}
-
 }
 
 // TestConfig returns a barebones configuration suitable for use in tests.

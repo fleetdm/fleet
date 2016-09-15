@@ -46,7 +46,7 @@ wish to override the default value.
 `,
 	}
 
-	rootCmd.PersistentFlags().String("config", "", "Path to a configuration file")
+	rootCmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
 
 	return rootCmd
 }
