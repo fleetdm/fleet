@@ -2,6 +2,7 @@ package server
 
 import (
 	"testing"
+	"time"
 
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/kolide/kolide-ose/config"
@@ -33,10 +34,26 @@ func TestAuthenticate(t *testing.T) {
 
 	for _, tt := range loginTests {
 		t.Run(tt.username, func(st *testing.T) {
-			loggedIn, token, err := svc.Login(context.Background(), tt.username, tt.password)
+			svc, _, user = setupLoginTests(t)
+			ctx := context.Background()
+			loggedIn, token, err := svc.Login(ctx, tt.username, tt.password)
 			require.Nil(st, err, "login unsuccesful")
 			assert.Equal(st, user.ID, loggedIn.ID)
 			assert.NotEmpty(st, token)
+
+			sessions, err := svc.GetInfoAboutSessionsForUser(ctx, user.ID)
+			require.Nil(st, err)
+			require.Len(st, sessions, 1, "user should have one session")
+			session := sessions[0]
+			assert.Equal(st, user.ID, session.UserID)
+			assert.WithinDuration(st, time.Now(), session.AccessedAt, 3*time.Second,
+				"access time should be set with current time at session creation")
+			oldAccessTime := session.AccessedAt
+
+			session, err = svc.GetSessionByKey(ctx, session.Key)
+			require.Nil(st, err)
+			assert.True(st, session.AccessedAt.After(oldAccessTime), "session access time should be updated")
+
 		})
 	}
 

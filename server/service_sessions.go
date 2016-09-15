@@ -59,8 +59,9 @@ func (svc service) makeSession(id uint) (string, error) {
 	}
 
 	session := &kolide.Session{
-		UserID: id,
-		Key:    base64.StdEncoding.EncodeToString(key),
+		UserID:     id,
+		Key:        base64.StdEncoding.EncodeToString(key),
+		AccessedAt: time.Now().UTC(),
 	}
 
 	session, err = svc.ds.NewSession(session)
