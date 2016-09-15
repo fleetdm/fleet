@@ -20,7 +20,9 @@ import (
 )
 
 func createServeCmd(configManager config.Manager) *cobra.Command {
-	return &cobra.Command{
+	var devMode bool = false
+
+	serveCmd := &cobra.Command{
 		Use:   "serve",
 		Short: "Launch the kolide server",
 		Long: `
@@ -45,19 +47,39 @@ the way that the kolide server works.
 			logger = kitlog.NewContext(logger).With("ts", kitlog.DefaultTimestampUTC)
 
 			mailSvc := mail.NewService(config.SMTP)
-			ds, err := datastore.New("inmem", "")
-			if err != nil {
-				initFatal(err, "initializing datastore")
+
+			var ds kolide.Datastore
+			var err error
+			if devMode {
+				fmt.Println(
+					"Dev mode enabled, using in-memory DB.\n",
+					"Warning: Changes will not be saved across process restarts. This should NOT be used in production.",
+				)
+				ds, err = datastore.New("inmem", "")
+				if err != nil {
+					initFatal(err, "initializing datastore")
+				}
+
+			} else {
+				connString := datastore.GetMysqlConnectionString(config.Mysql)
+				ds, err = datastore.New("gorm-mysql", connString)
+				if err != nil {
+					initFatal(err, "initializing datastore")
+				}
 			}
 
-			svcLogger := kitlog.NewContext(logger).With("component", "service")
-			var svc kolide.Service
-			{ // temp create an admin user
-				svc, _ = server.NewService(ds, logger, config, mailSvc)
+			svc, err := server.NewService(ds, logger, config, mailSvc)
+			if err != nil {
+				initFatal(err, "initializing service")
+			}
+
+			if devMode {
+				// bootstrap an admin user when using the
+				// in-memory database
 				var (
-					name     = "admin"
+					name     = "Admin User"
 					username = "admin"
-					password = "secret"
+					password = "admin"
 					email    = "admin@kolide.co"
 					enabled  = true
 					isAdmin  = true
@@ -74,8 +96,10 @@ the way that the kolide server works.
 				if err != nil {
 					initFatal(err, "creating bootstrap user")
 				}
-				svc = server.NewLoggingService(svc, svcLogger)
 			}
+
+			svcLogger := kitlog.NewContext(logger).With("component", "service")
+			svc = server.NewLoggingService(svc, svcLogger)
 
 			httpLogger := kitlog.NewContext(logger).With("component", "http")
 
@@ -99,6 +123,10 @@ the way that the kolide server works.
 			logger.Log("terminated", <-errs)
 		},
 	}
+
+	serveCmd.PersistentFlags().BoolVar(&devMode, "dev", false, "Use dev settings (in-mem DB, etc.)")
+
+	return serveCmd
 }
 
 // cors headers

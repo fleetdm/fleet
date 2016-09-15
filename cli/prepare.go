@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"fmt"
 
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/kolide/kolide-ose/config"
@@ -33,17 +32,13 @@ To setup kolide infrastructure, use one of the available commands.
 		Long:  ``,
 		Run: func(cmd *cobra.Command, args []string) {
 			config := configManager.LoadConfig()
-			connString := fmt.Sprintf(
-				"%s:%s@(%s)/%s?charset=utf8&parseTime=True&loc=Local",
-				config.Mysql.Username,
-				config.Mysql.Password,
-				config.Mysql.Address,
-				config.Mysql.Database,
-			)
+			connString := datastore.GetMysqlConnectionString(config.Mysql)
+
 			ds, err := datastore.New("gorm-mysql", connString)
 			if err != nil {
 				initFatal(err, "creating db connection")
 			}
+
 			if err := ds.Drop(); err != nil {
 				initFatal(err, "dropping db tables")
 			}
@@ -62,13 +57,8 @@ To setup kolide infrastructure, use one of the available commands.
 		Long:  ``,
 		Run: func(cmd *cobra.Command, arg []string) {
 			config := configManager.LoadConfig()
-			connString := fmt.Sprintf(
-				"%s:%s@(%s)/%s?charset=utf8&parseTime=True&loc=Local",
-				config.Mysql.Username,
-				config.Mysql.Password,
-				config.Mysql.Address,
-				config.Mysql.Database,
-			)
+			connString := datastore.GetMysqlConnectionString(config.Mysql)
+
 			ds, err := datastore.New("gorm-mysql", connString)
 			if err != nil {
 				initFatal(err, "creating db connection")
@@ -92,7 +82,11 @@ To setup kolide infrastructure, use one of the available commands.
 				Enabled:  &enabled,
 				Admin:    &isAdmin,
 			}
-			svc, _ := server.NewService(ds, kitlog.NewNopLogger(), config, nil)
+			svc, err := server.NewService(ds, kitlog.NewNopLogger(), config, nil)
+			if err != nil {
+				initFatal(err, "creating service")
+			}
+
 			_, err = svc.NewUser(context.Background(), admin)
 			if err != nil {
 				initFatal(err, "saving new user")
