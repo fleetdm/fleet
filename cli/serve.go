@@ -46,7 +46,12 @@ the way that the kolide server works.
 			logger = kitlog.NewLogfmtLogger(os.Stderr)
 			logger = kitlog.NewContext(logger).With("ts", kitlog.DefaultTimestampUTC)
 
-			mailSvc := mail.NewService(config.SMTP)
+			var mailService kolide.MailService
+			if devMode {
+				mailService = devMailService{}
+			} else {
+				mailService = mail.NewService(config.SMTP)
+			}
 
 			var ds kolide.Datastore
 			var err error
@@ -68,7 +73,7 @@ the way that the kolide server works.
 				}
 			}
 
-			svc, err := server.NewService(ds, logger, config, mailSvc)
+			svc, err := server.NewService(ds, logger, config, mailService)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
@@ -127,6 +132,23 @@ the way that the kolide server works.
 	serveCmd.PersistentFlags().BoolVar(&devMode, "dev", false, "Use dev settings (in-mem DB, etc.)")
 
 	return serveCmd
+}
+
+// used in devMode to print an email
+// which would otherwise be sent via SMTP
+type devMailService struct{}
+
+func (devMailService) SendEmail(e kolide.Email) error {
+	fmt.Println("---dev mode: printing email---")
+	defer fmt.Println("---dev mode: email printed---")
+	msg, err := e.Msg.Message()
+	if err != nil {
+		return err
+	}
+	fmt.Printf("From: %q To: %q \n", e.From, e.To)
+	_, err = os.Stdout.Write(msg)
+	return err
+
 }
 
 // cors headers
