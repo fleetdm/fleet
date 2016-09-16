@@ -86,6 +86,23 @@ func makeGetUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 	}
 }
 
+func makeGetSessionUserEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		user, err := svc.AuthenticatedUser(ctx)
+		if err != nil {
+			return getUserResponse{Err: err}, nil
+		}
+		return getUserResponse{
+			ID:                       user.ID,
+			Username:                 user.Username,
+			Email:                    user.Email,
+			Admin:                    user.Admin,
+			Enabled:                  user.Enabled,
+			AdminForcedPasswordReset: user.AdminForcedPasswordReset,
+		}, nil
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // List Users
 ////////////////////////////////////////////////////////////////////////////////

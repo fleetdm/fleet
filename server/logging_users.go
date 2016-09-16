@@ -92,6 +92,30 @@ func (mw loggingMiddleware) User(ctx context.Context, id uint) (*kolide.User, er
 	return user, err
 }
 
+func (mw loggingMiddleware) AuthenticatedUser(ctx context.Context) (*kolide.User, error) {
+	var (
+		user     *kolide.User
+		err      error
+		username = "none"
+	)
+
+	defer func(begin time.Time) {
+		_ = mw.logger.Log(
+			"method", "User",
+			"user", username,
+			"err", err,
+			"took", time.Since(begin),
+		)
+	}(time.Now())
+
+	user, err = mw.Service.AuthenticatedUser(ctx)
+
+	if user != nil {
+		username = user.Username
+	}
+	return user, err
+}
+
 func (mw loggingMiddleware) ResetPassword(ctx context.Context, token, password string) error {
 	var err error
 

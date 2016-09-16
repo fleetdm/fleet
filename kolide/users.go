@@ -26,6 +26,10 @@ type UserService interface {
 	// User returns a valid User given a User ID
 	User(ctx context.Context, id uint) (*User, error)
 
+	// AuthenticatedUser returns the current user
+	// from the viewer context
+	AuthenticatedUser(ctx context.Context) (*User, error)
+
 	// Users returns all users
 	Users(ctx context.Context) ([]*User, error)
 

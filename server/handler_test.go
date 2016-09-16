@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net/http/httptest"
 	"testing"
 
@@ -60,6 +61,10 @@ func TestAPIRoutes(t *testing.T) {
 		},
 		{
 			verb: "GET",
+			uri:  "/api/v1/kolide/me",
+		},
+		{
+			verb: "GET",
 			uri:  "/api/v1/kolide/queries/1",
 		},
 		{
@@ -113,12 +118,13 @@ func TestAPIRoutes(t *testing.T) {
 	}
 
 	for _, route := range routes {
-		recorder := httptest.NewRecorder()
-		handler.ServeHTTP(
-			recorder,
-			httptest.NewRequest(route.verb, route.uri, nil),
-		)
-		assert.NotEqual(t, 404, recorder.Code)
+		t.Run(fmt.Sprintf(": %v", route.uri), func(st *testing.T) {
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(
+				recorder,
+				httptest.NewRequest(route.verb, route.uri, nil),
+			)
+			assert.NotEqual(st, 404, recorder.Code)
+		})
 	}
-
 }

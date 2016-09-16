@@ -15,6 +15,22 @@ import (
 	"golang.org/x/net/context"
 )
 
+func TestAuthenticatedUser(t *testing.T) {
+	ds, err := datastore.New("inmem", "")
+	assert.Nil(t, err)
+	createTestUsers(t, ds)
+	svc, err := NewService(ds, kitlog.NewNopLogger(), config.TestConfig(), nil)
+	assert.Nil(t, err)
+	admin1, err := ds.User("admin1")
+	assert.Nil(t, err)
+
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "viewerContext", &viewerContext{user: admin1})
+	user, err := svc.AuthenticatedUser(ctx)
+	assert.Nil(t, err)
+	assert.Equal(t, user, admin1)
+}
+
 func TestRequestPasswordReset(t *testing.T) {
 	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
