@@ -128,7 +128,7 @@ func TestCreateUser(t *testing.T) {
 		{
 			Username: stringPtr("admin1"),
 			Password: stringPtr("foobar"),
-			wantErr:  invalidArgumentError{field: "email", required: true},
+			wantErr:  invalidArgumentError{invalidArgument{name: "email", reason: "missing required argument"}},
 		},
 		{
 			Username:           stringPtr("admin1"),
@@ -151,7 +151,7 @@ func TestCreateUser(t *testing.T) {
 			Email:              stringPtr("admin1@example.com"),
 			NeedsPasswordReset: boolPtr(true),
 			Admin:              boolPtr(false),
-			wantErr:            invalidArgumentError{field: "username", required: true},
+			wantErr:            invalidArgumentError{invalidArgument{name: "username", reason: "'@' character not allowed in usernames"}},
 		},
 	}
 
@@ -204,11 +204,11 @@ func TestChangeUserPassword(t *testing.T) {
 		},
 		{ // missing token
 			newPassword: "123cat!",
-			wantErr:     invalidArgumentError{field: "token", required: true},
+			wantErr:     invalidArgumentError{invalidArgument{name: "token", reason: "cannot be empty field"}},
 		},
 		{ // missing password
 			token:   "abcd",
-			wantErr: invalidArgumentError{field: "password", required: true},
+			wantErr: invalidArgumentError{invalidArgument{name: "new_password", reason: "cannot be empty field"}},
 		},
 	}
 

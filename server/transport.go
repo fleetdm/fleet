@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -16,20 +15,6 @@ var (
 	// errBadRoute is used for mux errors
 	errBadRoute = errors.New("bad route")
 )
-
-type invalidArgumentError struct {
-	field    string
-	required bool
-}
-
-// invalidArgumentError is returned when one or more arguments are invalid.
-func (e invalidArgumentError) Error() string {
-	req := "optional"
-	if e.required {
-		req = "required"
-	}
-	return fmt.Sprintf("%s argument invalid or missing: %s", req, e.field)
-}
 
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	if e, ok := response.(errorer); ok && e.error() != nil {
@@ -72,6 +57,24 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 	}
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
+
+	// decide on error type and encode proper JSON format
+	type validator interface {
+		Invalid() []map[string]string
+	}
+	if e, ok := err.(validator); ok {
+		var ve = struct {
+			Message string              `json:"message"`
+			Errors  []map[string]string `json:"errors"`
+		}{
+			Message: "Validation Failed",
+			Errors:  e.Invalid(),
+		}
+		enc.Encode(ve)
+		return
+	}
+
+	// other errors
 	enc.Encode(map[string]interface{}{
 		"error": err.Error(),
 	})
