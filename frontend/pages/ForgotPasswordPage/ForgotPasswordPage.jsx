@@ -8,6 +8,7 @@ import {
 } from '../../redux/nodes/components/ForgotPasswordPage/actions';
 import ForgotPasswordForm from '../../components/forms/ForgotPasswordForm';
 import Icon from '../../components/icons/Icon';
+import StackedWhiteBoxes from '../../components/StackedWhiteBoxes';
 
 export class ForgotPasswordPage extends Component {
   static propTypes = {
@@ -71,25 +72,20 @@ export class ForgotPasswordPage extends Component {
   }
 
   render () {
-    const {
-      containerStyles,
-      forgotPasswordStyles,
-      headerStyles,
-      smallWhiteTabStyles,
-      textStyles,
-      whiteTabStyles,
-    } = componentStyles;
+    const leadText = 'If you’ve forgotten your password enter your email below and we will email you a link so that you can reset your password.';
+    const whiteBoxOverrideStyles = {
+      headerWrapper: { textAlign: 'left' },
+    };
 
     return (
-      <div style={containerStyles}>
-        <div style={smallWhiteTabStyles} />
-        <div style={whiteTabStyles} />
-        <div style={forgotPasswordStyles}>
-          <p style={headerStyles}>Forgot Password</p>
-          <p style={textStyles}>If you’ve forgotten your password enter your email below and we will email you a link so that you can reset your password.</p>
-          {this.renderContent()}
-        </div>
-      </div>
+      <StackedWhiteBoxes
+        headerText="Forgot Password"
+        leadText={leadText}
+        previousLocation="/login"
+        style={whiteBoxOverrideStyles}
+      >
+        {this.renderContent()}
+      </StackedWhiteBoxes>
     );
   }
 }

@@ -15,7 +15,9 @@ export default {
     minHeight: '100%',
   },
   body: {
-    color: color.primary,
+    backgroundImage: 'url("/assets/images/background.png")',
+    backgroundSize: 'cover',
+    color: color.textUltradark,
     ...defaultMargin,
     ...defaultPadding,
     fontFamily: 'Oxygen, sans-serif',
@@ -25,16 +27,5 @@ export default {
   },
   'h1, h2, h3': {
     lineHeight: 1.2,
-  },
-  '#app': {
-  },
-  '#bg': {
-    position: 'fixed',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    zIndex: '-1',
-    opacity: '0.4',
   },
 };

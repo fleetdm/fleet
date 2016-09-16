@@ -19,7 +19,7 @@ export default {
   forgotPasswordStyles: {
     fontSize: font.medium,
     textDecoration: 'none',
-    color: color.lightGrey,
+    color: color.accentText,
   },
   forgotPasswordWrapperStyles: {
     marginTop: padding.base,

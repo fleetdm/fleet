@@ -1,19 +1,10 @@
-import expect, { spyOn, restoreSpies } from 'expect';
+import expect from 'expect';
 import { mount } from 'enzyme';
-import { noop } from 'lodash';
-import * as bgImageUtility from '../../utilities/backgroundImage';
 import { connectedComponent, reduxMockStore } from '../../test/helpers';
 import local from '../../utilities/local';
 import LoginPage from './LoginPage';
 
 describe('LoginPage - component', () => {
-  beforeEach(() => {
-    spyOn(bgImageUtility, 'loadBackground').andReturn(noop);
-    spyOn(bgImageUtility, 'resizeBackground').andReturn(noop);
-  });
-
-  afterEach(restoreSpies);
-
   context('when the user is not logged in', () => {
     const mockStore = reduxMockStore({ auth: {} });
 

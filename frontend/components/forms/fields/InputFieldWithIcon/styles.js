@@ -8,7 +8,7 @@ export default {
     position: 'relative',
   },
   errorStyles: {
-    color: color.red,
+    color: color.alert,
     fontSize: font.small,
     textTransform: 'lowercase',
   },
@@ -20,7 +20,7 @@ export default {
   inputErrorStyles: (error) => {
     if (error) {
       return {
-        borderBottomColor: color.red,
+        borderBottomColor: color.alert,
       };
     }
 
@@ -33,8 +33,8 @@ export default {
       borderTop: 'none',
       borderBottomWidth: '1px',
       borderBottomStyle: 'solid',
-      borderBottomColor: color.brightPurple,
-      color: '#A2A1C8',
+      borderBottomColor: color.brand,
+      color: color.accentText,
       width: '378px',
       ':focus': {
         outline: 'none',
@@ -44,7 +44,7 @@ export default {
     if (value) {
       return {
         ...baseStyles,
-        color: color.grey,
+        color: color.textUltradark,
       };
     }
 
@@ -54,7 +54,7 @@ export default {
     if (!value) return { visibility: 'hidden', height: '22px' };
 
     return {
-      color: color.brightPurple,
+      color: color.brand,
       fontSize: font.small,
       textTransform: 'lowercase',
     };

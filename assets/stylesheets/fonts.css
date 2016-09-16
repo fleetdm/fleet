@@ -27,3 +27,8 @@
 	font-weight: normal;
 	font-style: normal;
 }
+
+body {
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}

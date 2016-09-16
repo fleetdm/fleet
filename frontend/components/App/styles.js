@@ -5,7 +5,7 @@ const { color } = styles;
 export default {
   footerStyles: {
     alignItems: 'center',
-    backgroundColor: color.darkGrey,
+    backgroundColor: color.footerBg,
     height: '55px',
     textAlign: 'center',
     position: 'absolute',
