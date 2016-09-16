@@ -27,7 +27,7 @@ export const loginUser = (formData) => {
   return (dispatch) => {
     return new Promise((resolve, reject) => {
       dispatch(loginRequest);
-      Kolide.loginUser(formData)
+      return Kolide.loginUser(formData)
         .then(user => {
           dispatch(loginSuccess(user));
           return resolve(user);

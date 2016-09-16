@@ -1,61 +1,21 @@
 import fetch from 'isomorphic-fetch';
-import config from '../config';
+import Base from './base';
 import endpoints from './endpoints';
 import local from '../utilities/local';
 
-class Kolide {
-  constructor () {
-    this.baseURL = this.setBaseURL();
-  }
-
-  setBaseURL () {
-    const {
-      settings: { env },
-      environments: { development },
-    } = config;
-
-    if (env === development) {
-      return 'http://localhost:8080/api';
-    }
-
-    throw new Error(`API base URL is not configured for environment: ${env}`);
-  }
-
-  setBearerToken (bearerToken) {
-    this.bearerToken = bearerToken;
-  }
-
+class Kolide extends Base {
   loginUser ({ username, password }) {
     const { LOGIN } = endpoints;
-    const endpoint = this.baseURL + LOGIN;
+    const loginEndpoint = this.baseURL + LOGIN;
 
-    return fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ username, password }),
-    })
-      .then(response => {
-        return response.json()
-          .then(user => {
-            if (response.ok) {
-              const { token } = user;
+    return this.post(loginEndpoint, JSON.stringify({ username, password }));
+  }
 
-              local.setItem('auth_token', token);
-              this.setBearerToken(token);
+  forgotPassword ({ email }) {
+    const { FORGOT_PASSWORD } = endpoints;
+    const forgotPasswordEndpoint = this.baseURL + FORGOT_PASSWORD;
 
-              return user;
-            }
-
-            const error = new Error(response.statusText);
-            error.response = response;
-            error.message = user.error;
-
-            throw error;
-          });
-      });
+    return this.post(forgotPasswordEndpoint, JSON.stringify({ email }));
   }
 }
 

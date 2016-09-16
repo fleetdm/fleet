@@ -2,18 +2,21 @@ import { createStore, applyMiddleware, compose } from 'redux';
 import thunkMiddleware from 'redux-thunk';
 import { browserHistory } from 'react-router';
 import { routerMiddleware } from 'react-router-redux';
+import authMiddleware from './middlewares/auth';
 import reducers from './reducers';
 
 const initialState = {};
-const middleware = [
+
+const appliedMiddleware = applyMiddleware(
   thunkMiddleware,
   routerMiddleware(browserHistory),
-];
-const appliedMiddleware = applyMiddleware(...middleware);
+  authMiddleware,
+);
 
 const store = createStore(
   reducers,
   initialState,
   compose(appliedMiddleware),
 );
+
 export default store;

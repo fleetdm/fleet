@@ -7,6 +7,8 @@ import validEmail from '../validators/valid_email';
 
 class ForgotPasswordForm extends Component {
   static propTypes = {
+    clearErrors: PropTypes.func,
+    error: PropTypes.string,
     onSubmit: PropTypes.func,
   };
 
@@ -21,6 +23,7 @@ class ForgotPasswordForm extends Component {
   }
 
   onInputFieldChange = (evt) => {
+    const { clearErrors, error: serverError } = this.props;
     const { value } = evt.target;
 
     this.setState({
@@ -29,6 +32,8 @@ class ForgotPasswordForm extends Component {
         email: value,
       },
     });
+
+    if (serverError) clearErrors();
 
     return false;
   }
@@ -61,7 +66,8 @@ class ForgotPasswordForm extends Component {
   }
 
   render () {
-    const { error, formData: { email } } = this.state;
+    const { error: serverError } = this.props;
+    const { error: clientError, formData: { email } } = this.state;
     const { formStyles, inputStyles, submitButtonStyles } = componentStyles;
     const { onFormSubmit, onInputFieldChange } = this;
     const disabled = !email;
@@ -69,7 +75,7 @@ class ForgotPasswordForm extends Component {
     return (
       <form onSubmit={onFormSubmit} style={formStyles}>
         <InputFieldWithIcon
-          error={error}
+          error={clientError || serverError}
           iconName="envelope"
           name="email"
           onChange={onInputFieldChange}
