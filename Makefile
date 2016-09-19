@@ -21,6 +21,13 @@ REVISION		= $(shell git rev-parse HEAD)
 GOVERSION		= $(shell go version | awk '{print $$3}')
 NOW				= $(shell date +"%Y%m%d-%T")
 USER			= $(shell whoami)
+DOCKER_IMAGE_NAME = kolide/kolide
+
+ifndef CIRCLE_PR_NUMBER
+DOCKER_IMAGE_TAG = dev-unset
+else
+DOCKER_IMAGE_TAG = dev-${CIRCLE_PR_NUMBER}
+endif
 
 build: .prefix
 	go build -o ${OUTPUT} -ldflags "\
@@ -65,6 +72,11 @@ distclean:
 	rm -rf build/*
 	rm -rf assets/bundle.js
 	rm -rf vendor/*
+
+docker-build-circle:
+	@echo ">> building docker image"
+	docker build -t "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" .
+	docker push "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
 
 docker:
 	docker pull kolide/kolide-builder:1.7

@@ -14,4 +14,12 @@ dependencies:
 
 test:
   override:
-      - docker run -v $(pwd):/go/src/github.com/kolide/kolide-ose -v /home/ubuntu/.go_workspace/pkg:/go/pkg kolide/kolide-builder:1.7 -C
+      - docker run -v $(pwd):/go/src/github.com/kolide/kolide-ose -v /home/ubuntu/.go_workspace/pkg:/go/pkg kolide/kolide-builder:1.7 -B
+
+deployment:
+  development:
+    branch: /^((?!master).)*$/  # not the master branch
+    commands:
+      - make docker-build-circle
+
+
