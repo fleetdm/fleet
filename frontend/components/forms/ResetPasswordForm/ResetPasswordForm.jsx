@@ -113,6 +113,7 @@ class ResetPasswordForm extends Component {
     return (
       <form onSubmit={onFormSubmit} style={formStyles}>
         <InputFieldWithIcon
+          autofocus
           error={errors.new_password}
           iconName="lock"
           name="new_password"

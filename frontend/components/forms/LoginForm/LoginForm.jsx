@@ -72,6 +72,7 @@ class LoginForm extends Component {
         <div style={containerStyles}>
           <img alt="Avatar" src={avatar} />
           <InputFieldWithIcon
+            autofocus
             iconName="user"
             name="username"
             onChange={onInputChange('username')}

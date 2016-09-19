@@ -5,6 +5,7 @@ import componentStyles from './styles';
 
 class InputFieldWithIcon extends Component {
   static propTypes = {
+    autofocus: PropTypes.bool,
     error: PropTypes.string,
     iconName: PropTypes.string,
     name: PropTypes.string,
@@ -15,6 +16,7 @@ class InputFieldWithIcon extends Component {
   };
 
   static defaultProps = {
+    autofocus: false,
     style: {},
     type: 'text',
   };
@@ -22,6 +24,15 @@ class InputFieldWithIcon extends Component {
   constructor (props) {
     super(props);
     this.state = { value: null };
+  }
+
+  componentDidMount () {
+    const { autofocus } = this.props;
+    const { input } = this;
+
+    if (autofocus) input.focus();
+
+    return false;
   }
 
   onInputChange = (evt) => {
@@ -70,6 +81,7 @@ class InputFieldWithIcon extends Component {
           name={name}
           onChange={onInputChange}
           placeholder={placeholder}
+          ref={(r) => { this.input = r; }}
           style={[inputStyles(value), inputErrorStyles(error), style]}
           type={type}
         />

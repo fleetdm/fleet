@@ -75,6 +75,7 @@ class ForgotPasswordForm extends Component {
     return (
       <form onSubmit={onFormSubmit} style={formStyles}>
         <InputFieldWithIcon
+          autofocus
           error={clientError || serverError}
           iconName="envelope"
           name="email"
