@@ -15,7 +15,7 @@ type OsqueryStore interface {
 
 type OsqueryService interface {
 	EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string) (string, error)
-	GetClientConfig(ctx context.Context, action string, data json.RawMessage) (OsqueryConfig, error)
+	GetClientConfig(ctx context.Context, action string, data json.RawMessage) (*OsqueryConfig, error)
 	GetDistributedQueries(ctx context.Context) (map[string]string, error)
 	SubmitDistributedQueryResults(ctx context.Context, results OsqueryDistributedQueryResults) error
 	SubmitStatusLogs(ctx context.Context, logs []OsqueryResultLog) error
@@ -24,9 +24,44 @@ type OsqueryService interface {
 
 type OsqueryDistributedQueryResults map[string][]map[string]string
 
+type QueryContent struct {
+	Query       string `json:"query"`
+	Description string `json:"description,omitempty"`
+	Interval    uint   `json:"interval"`
+	Platform    string `json:"platform,omitempty"`
+	Version     string `json:"version,omitempty"`
+	Snapshot    bool   `json:"snapshot,omitempty"`
+	Removed     bool   `json:"removed,omitempty"`
+	Shard       uint   `json:"shard,omitempty"`
+}
+
+type Queries map[string]QueryContent
+
+type PackContent struct {
+	Platform  string   `json:"platform,omitempty"`
+	Version   string   `json:"version,omitempty"`
+	Shard     uint     `json:"shard,omitempty"`
+	Discovery []string `json:"discovery,omitempty"`
+	Queries   Queries  `json:"queries"`
+}
+
+type Packs map[string]PackContent
+
+type Options struct {
+	PackDelimiter      string `json:"pack_delimiter,omitempty"`
+	DisableDistributed bool   `json:"disable_distributed"`
+}
+
+type Decorators struct {
+	Load     []string            `json:"load,omitempty"`
+	Always   []string            `json:"always,omitempty"`
+	Interval map[string][]string `json:"interval,omitempty"`
+}
+
 type OsqueryConfig struct {
-	Packs    []Pack
-	Schedule []Query
+	Options    Options    `json:"options,omitempty"`
+	Decorators Decorators `json:"decorators,omitempty"`
+	Packs      Packs      `json:"packs,omitempty"`
 }
 
 type OsqueryResultLog struct {
@@ -45,13 +80,4 @@ type OsqueryStatusLog struct {
 	Message     string            `json:"message"`
 	Version     string            `json:"version"`
 	Decorations map[string]string `json:"decorations"`
-}
-
-// TODO: move this to just use LabelQueriesForHot
-// LabelQueriesForHost calculates the appropriate update cutoff (given
-// interval) and uses the datastore to retrieve the label queries for the
-// provided host.
-func LabelQueriesForHost(store OsqueryStore, host *Host, interval time.Duration) (map[string]string, error) {
-	cutoff := time.Now().Add(-interval)
-	return store.LabelQueriesForHost(host, cutoff)
 }

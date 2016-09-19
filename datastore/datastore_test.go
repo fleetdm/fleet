@@ -367,7 +367,7 @@ func testLabelQueries(t *testing.T, db kolide.Datastore) {
 	assert.NoError(t, err)
 
 	// Use a 10 minute interval, so the query we just added should show up
-	queries, err = kolide.LabelQueriesForHost(db, host, 10*time.Minute)
+	queries, err = db.LabelQueriesForHost(host, time.Now().Add(-(10 * time.Minute)))
 	assert.NoError(t, err)
 	delete(expectQueries, "1")
 	assert.Equal(t, expectQueries, queries)
@@ -375,7 +375,7 @@ func testLabelQueries(t *testing.T, db kolide.Datastore) {
 	// Record an old query execution -- Shouldn't change the return
 	err = db.RecordLabelQueryExecutions(host, map[string]bool{"2": true}, baseTime.Add(-1*time.Hour))
 	assert.NoError(t, err)
-	queries, err = kolide.LabelQueriesForHost(db, host, 10*time.Minute)
+	queries, err = db.LabelQueriesForHost(host, time.Now().Add(-(10 * time.Minute)))
 	assert.NoError(t, err)
 	assert.Equal(t, expectQueries, queries)
 
@@ -386,7 +386,7 @@ func testLabelQueries(t *testing.T, db kolide.Datastore) {
 	// Now these should no longer show up in the necessary to run queries
 	delete(expectQueries, "2")
 	delete(expectQueries, "3")
-	queries, err = kolide.LabelQueriesForHost(db, host, 10*time.Minute)
+	queries, err = db.LabelQueriesForHost(host, time.Now().Add(-(10 * time.Minute)))
 	assert.NoError(t, err)
 	assert.Equal(t, expectQueries, queries)
 

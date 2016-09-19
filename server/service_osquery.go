@@ -26,9 +26,9 @@ func (svc service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 	return host.NodeKey, nil
 }
 
-func (svc service) GetClientConfig(ctx context.Context, action string, data json.RawMessage) (kolide.OsqueryConfig, error) {
+func (svc service) GetClientConfig(ctx context.Context, action string, data json.RawMessage) (*kolide.OsqueryConfig, error) {
 	var config kolide.OsqueryConfig
-	return config, nil
+	return &config, nil
 }
 
 func (svc service) SubmitStatusLogs(ctx context.Context, logs []kolide.OsqueryResultLog) error {
