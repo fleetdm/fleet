@@ -2,6 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { noop } from 'lodash';
 import { push } from 'react-router-redux';
+import debounce from '../../utilities/debounce';
 import { resetPassword } from '../../redux/nodes/components/ResetPasswordPage/actions';
 import ResetPasswordForm from '../../components/forms/ResetPasswordForm';
 import StackedWhiteBoxes from '../../components/StackedWhiteBoxes';
@@ -24,7 +25,7 @@ export class ResetPasswordPage extends Component {
     return false;
   }
 
-  onSubmit = (formData) => {
+  onSubmit = debounce((formData) => {
     const { dispatch, token } = this.props;
     const resetPasswordData = {
       ...formData,
@@ -35,7 +36,7 @@ export class ResetPasswordPage extends Component {
       .then(() => {
         return dispatch(push('/login'));
       });
-  }
+  })
 
   render () {
     const { onSubmit } = this;

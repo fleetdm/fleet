@@ -6,6 +6,7 @@ import {
   clearForgotPasswordErrors,
   forgotPasswordAction,
 } from '../../redux/nodes/components/ForgotPasswordPage/actions';
+import debounce from '../../utilities/debounce';
 import ForgotPasswordForm from '../../components/forms/ForgotPasswordForm';
 import Icon from '../../components/icons/Icon';
 import StackedWhiteBoxes from '../../components/StackedWhiteBoxes';
@@ -21,11 +22,11 @@ export class ForgotPasswordPage extends Component {
     dispatch: noop,
   };
 
-  onSubmit = (formData) => {
+  onSubmit = debounce((formData) => {
     const { dispatch } = this.props;
 
     return dispatch(forgotPasswordAction(formData));
-  }
+  })
 
   clearErrors = () => {
     const { dispatch } = this.props;

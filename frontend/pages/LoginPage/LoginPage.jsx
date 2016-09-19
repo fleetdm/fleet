@@ -2,6 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { push } from 'react-router-redux';
 import componentStyles from './styles';
+import debounce from '../../utilities/debounce';
 import local from '../../utilities/local';
 import LoginForm from '../../components/forms/LoginForm';
 import { loginUser } from '../../redux/nodes/auth/actions';
@@ -24,13 +25,13 @@ export class LoginPage extends Component {
     return false;
   }
 
-  onSubmit = (formData) => {
+  onSubmit = debounce((formData) => {
     const { dispatch } = this.props;
     return dispatch(loginUser(formData))
       .then(() => {
         return dispatch(push('/login_successful'));
       });
-  }
+  })
 
   render () {
     const { formWrapperStyles, whiteTabStyles } = componentStyles;
