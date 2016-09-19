@@ -2,6 +2,7 @@ package server
 
 import (
 	"html/template"
+	"io/ioutil"
 	"net/http"
 	"strings"
 
@@ -39,12 +40,26 @@ func newBinaryFileSystem(root string) *binaryFileSystem {
 
 func ServeFrontend() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t, err := template.ParseFiles("frontend/templates/react.tmpl")
+		fs := newBinaryFileSystem("/frontend")
+		file, err := fs.Open("templates/react.tmpl")
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		t.Execute(w, nil)
+		data, err := ioutil.ReadAll(file)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		t, err := template.New("react").Parse(string(data))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if err := t.Execute(w, nil); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	})
 }
 
