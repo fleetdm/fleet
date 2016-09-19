@@ -4,6 +4,13 @@ import endpoints from './endpoints';
 import local from '../utilities/local';
 
 class Kolide extends Base {
+  forgotPassword ({ email }) {
+    const { FORGOT_PASSWORD } = endpoints;
+    const forgotPasswordEndpoint = this.baseURL + FORGOT_PASSWORD;
+
+    return this.post(forgotPasswordEndpoint, JSON.stringify({ email }));
+  }
+
   loginUser ({ username, password }) {
     const { LOGIN } = endpoints;
     const loginEndpoint = this.baseURL + LOGIN;
@@ -11,11 +18,18 @@ class Kolide extends Base {
     return this.post(loginEndpoint, JSON.stringify({ username, password }));
   }
 
-  forgotPassword ({ email }) {
-    const { FORGOT_PASSWORD } = endpoints;
-    const forgotPasswordEndpoint = this.baseURL + FORGOT_PASSWORD;
+  logout () {
+    const { LOGOUT } = endpoints;
+    const logoutEndpoint = this.baseURL + LOGOUT;
 
-    return this.post(forgotPasswordEndpoint, JSON.stringify({ email }));
+    return this.authenticatedPost(logoutEndpoint);
+  }
+
+  me () {
+    const { ME } = endpoints;
+    const meEndpoint = this.baseURL + ME;
+
+    return this.authenticatedGet(meEndpoint);
   }
 
   resetPassword (formData) {

@@ -1,7 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { push } from 'react-router-redux';
-import componentStyles from './styles';
+import AuthenticationFormWrapper from '../../components/AuthenticationFormWrapper';
 import debounce from '../../utilities/debounce';
 import local from '../../utilities/local';
 import LoginForm from '../../components/forms/LoginForm';
@@ -34,14 +34,12 @@ export class LoginPage extends Component {
   })
 
   render () {
-    const { formWrapperStyles, whiteTabStyles } = componentStyles;
     const { onSubmit } = this;
 
     return (
-      <div style={formWrapperStyles}>
-        <div style={whiteTabStyles} />
+      <AuthenticationFormWrapper>
         <LoginForm onSubmit={onSubmit} />
-      </div>
+      </AuthenticationFormWrapper>
     );
   }
 }

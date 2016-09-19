@@ -3,7 +3,7 @@ import styles from '../../styles';
 const { color, padding } = styles;
 
 export default {
-  formWrapperStyles: {
+  containerStyles: {
     alignItems: 'center',
     display: 'flex',
     justifyContent: 'center',

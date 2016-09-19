@@ -1,21 +1,20 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { Link } from 'react-router';
-import paths from '../../router/paths';
 
-export class HomePage extends Component {
+export class AuthenticatedRoutes extends Component {
   static propTypes = {
+    children: PropTypes.element,
     user: PropTypes.object,
   };
 
   render () {
-    const { user } = this.props;
-    const { LOGOUT } = paths;
+    const { children, user } = this.props;
+
+    if (!user) return false;
 
     return (
       <div>
-        Home page
-        {user && <Link to={LOGOUT}>Logout</Link>}
+        {children}
       </div>
     );
   }
@@ -27,5 +26,4 @@ const mapStateToProps = (state) => {
   return { user };
 };
 
-export default connect(mapStateToProps)(HomePage);
-
+export default connect(mapStateToProps)(AuthenticatedRoutes);

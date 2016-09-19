@@ -7,7 +7,7 @@ global.window = doc.defaultView;
 global.navigator = global.window.navigator;
 
 function mockStorage() {
-  const storage = {};
+  let storage = {};
 
   return {
     setItem(key, value = '') {
@@ -24,6 +24,9 @@ function mockStorage() {
     },
     key(i) {
       return Object.keys(storage)[i] || null;
+    },
+    clear () {
+      storage = {};
     },
   };
 }

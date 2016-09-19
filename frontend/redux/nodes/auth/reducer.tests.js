@@ -4,9 +4,21 @@ import thunk from 'redux-thunk';
 import authMiddleware from '../../middlewares/auth';
 import kolide from '../../../kolide';
 import local from '../../../utilities/local';
-import { loginRequest, LOGIN_REQUEST, LOGIN_SUCCESS, loginUser } from './actions';
+import {
+  loginRequest,
+  LOGIN_REQUEST,
+  LOGIN_SUCCESS,
+  loginUser,
+  logoutUser,
+  LOGOUT_REQUEST,
+  LOGOUT_SUCCESS,
+} from './actions';
 import reducer, { initialState } from './reducer';
-import { validLoginRequest, validUser } from '../../../test/mocks';
+import {
+  validLoginRequest,
+  validLogoutRequest,
+  validUser,
+} from '../../../test/mocks';
 
 describe('Auth - reducer', () => {
   it('sets the initial state', () => {
@@ -85,6 +97,63 @@ describe('Auth - reducer', () => {
         .then(() => {
           const actionTypes = store.getActions().map(a => a.type);
           expect(actionTypes).toInclude(LOGIN_REQUEST, LOGIN_SUCCESS);
+          done();
+        })
+        .catch(done);
+    });
+  });
+
+  context('logoutUser action', () => {
+    const bearerToken = 'ABC123';
+    const middlewares = [thunk, authMiddleware];
+    const mockStore = configureStore(middlewares);
+    const store = mockStore({});
+
+    beforeEach(() => {
+      local.setItem('auth_token', bearerToken);
+      kolide.setBearerToken(bearerToken);
+    });
+
+
+    it('calls the api logout endpoint', (done) => {
+      const logoutRequestMock = validLogoutRequest(bearerToken);
+      store.dispatch(logoutUser())
+        .then(() => {
+          expect(logoutRequestMock.isDone()).toEqual(true);
+          done();
+        })
+        .catch(done);
+    });
+
+    it('removes the users auth token from local storage', (done) => {
+      validLogoutRequest(bearerToken);
+
+      store.dispatch(logoutUser())
+        .then(() => {
+          expect(local.getItem('auth_token')).toNotExist();
+          done();
+        })
+        .catch(done);
+    });
+
+    it('clears the api client bearerToken', (done) => {
+      validLogoutRequest(bearerToken);
+
+      store.dispatch(logoutUser())
+        .then(() => {
+          expect(kolide.bearerToken).toNotExist();
+          done();
+        })
+        .catch(done);
+    });
+
+    it('dispatches LOGOUT_REQUEST and LOGOUT_SUCCESS actions', (done) => {
+      validLogoutRequest(bearerToken);
+
+      store.dispatch(logoutUser())
+        .then(() => {
+          const actionTypes = store.getActions().map(a => a.type);
+          expect(actionTypes).toInclude(LOGOUT_REQUEST, LOGOUT_SUCCESS);
           done();
         })
         .catch(done);
