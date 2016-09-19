@@ -8,7 +8,7 @@ import {
   forgotPasswordSuccessAction,
   forgotPasswordErrorAction,
 } from './actions';
-import { invalidPasswordResetRequest, validPasswordResetRequest } from '../../../../test/mocks';
+import { invalidForgotPasswordRequest, validForgotPasswordRequest } from '../../../../test/mocks';
 import reducer, { initialState } from './reducer';
 
 describe('ForgotPasswordPage - reducer', () => {
@@ -71,7 +71,7 @@ describe('ForgotPasswordPage - reducer', () => {
 
     it('dispatches the appropriate actions when successful', (done) => {
       const formData = { email: 'hi@thegnar.co' };
-      const request = validPasswordResetRequest();
+      const request = validForgotPasswordRequest();
       const store = mockStore({});
 
       store.dispatch(forgotPasswordAction(formData))
@@ -89,7 +89,7 @@ describe('ForgotPasswordPage - reducer', () => {
     it('dispatches the appropriate actions when unsuccessful', (done) => {
       const formData = { email: 'hi@thegnar.co' };
       const error = 'Something went wrong';
-      const invalidRequest = invalidPasswordResetRequest(error);
+      const invalidRequest = invalidForgotPasswordRequest(error);
       const store = mockStore({});
 
       store.dispatch(forgotPasswordAction(formData))

@@ -12,6 +12,7 @@ describe('ResetPasswordPage - component', () => {
   });
 
   it('Redirects to the login page when there is no token', () => {
+    const { connectedComponent, reduxMockStore } = testHelpers;
     const redirectToLoginAction = {
       type: '@@router/CALL_HISTORY_METHOD',
       payload: {
@@ -19,8 +20,15 @@ describe('ResetPasswordPage - component', () => {
         args: ['/login'],
       },
     };
-    const { reduxMockStore, connectedComponent } = testHelpers;
-    const mockStore = reduxMockStore();
+    const store = {
+      components: {
+        ResetPasswordPage: {
+          loading: false,
+          error: null,
+        },
+      },
+    };
+    const mockStore = reduxMockStore(store);
 
     mount(connectedComponent(ConnectedPage, { mockStore }));
 

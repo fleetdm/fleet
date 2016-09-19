@@ -3,9 +3,11 @@ import Kolide from './index';
 import mocks from '../test/mocks';
 
 const {
-  invalidPasswordResetRequest,
+  invalidForgotPasswordRequest,
+  invalidResetPasswordRequest,
+  validForgotPasswordRequest,
   validLoginRequest,
-  validPasswordResetRequest,
+  validResetPasswordRequest,
   validUser,
 } = mocks;
 
@@ -35,7 +37,7 @@ describe('Kolide - API client', () => {
 
   describe('#forgotPassword', () => {
     it('calls the appropriate endpoint with the correct parameters when successful', (done) => {
-      const request = validPasswordResetRequest();
+      const request = validForgotPasswordRequest();
       const email = 'hi@thegnar.co';
 
       Kolide.forgotPassword({ email })
@@ -48,10 +50,50 @@ describe('Kolide - API client', () => {
 
     it('return errors correctly for unsuccessful requests', (done) => {
       const error = 'Something went wrong';
-      const request = invalidPasswordResetRequest(error);
+      const request = invalidForgotPasswordRequest(error);
       const email = 'hi@thegnar.co';
 
       Kolide.forgotPassword({ email })
+        .then(done)
+        .catch(errorResponse => {
+          const { response } = errorResponse;
+
+          expect(response).toEqual({ error });
+          expect(request.isDone()).toEqual(true);
+          done();
+        });
+    });
+  });
+
+  describe('#resetPassword', () => {
+    const newPassword = 'p@ssw0rd';
+
+    it('calls the appropriate endpoint with the correct parameters when successful', (done) => {
+      const passwordResetToken = 'password-reset-token';
+      const request = validResetPasswordRequest(newPassword, passwordResetToken);
+      const formData = {
+        new_password: newPassword,
+        password_reset_token: passwordResetToken,
+      };
+
+      Kolide.resetPassword(formData)
+        .then(() => {
+          expect(request.isDone()).toEqual(true);
+          done();
+        })
+        .catch(done);
+    });
+
+    it('return errors correctly for unsuccessful requests', (done) => {
+      const error = 'Resource not found';
+      const passwordResetToken = 'invalid-password-reset-token';
+      const request = invalidResetPasswordRequest(newPassword, passwordResetToken, error);
+      const formData = {
+        new_password: newPassword,
+        password_reset_token: passwordResetToken,
+      };
+
+      Kolide.resetPassword(formData)
         .then(done)
         .catch(errorResponse => {
           const { response } = errorResponse;

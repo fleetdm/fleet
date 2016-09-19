@@ -17,6 +17,13 @@ class Kolide extends Base {
 
     return this.post(forgotPasswordEndpoint, JSON.stringify({ email }));
   }
+
+  resetPassword (formData) {
+    const { RESET_PASSWORD } = endpoints;
+    const resetPasswordEndpoint = this.baseURL + RESET_PASSWORD;
+
+    return this.post(resetPasswordEndpoint, JSON.stringify(formData));
+  }
 }
 
 export default new Kolide();

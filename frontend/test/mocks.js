@@ -17,21 +17,42 @@ export const validLoginRequest = () => {
   .reply(200, validUser);
 };
 
-export const validPasswordResetRequest = () => {
+export const validForgotPasswordRequest = () => {
   return nock('http://localhost:8080')
   .post('/api/v1/kolide/forgot_password')
   .reply(200, validUser);
 };
 
-export const invalidPasswordResetRequest = (error) => {
+export const invalidForgotPasswordRequest = (error) => {
   return nock('http://localhost:8080')
   .post('/api/v1/kolide/forgot_password')
   .reply(422, { error });
 };
 
+export const validResetPasswordRequest = (password, token) => {
+  return nock('http://localhost:8080')
+  .post('/api/v1/kolide/reset_password', JSON.stringify({
+    new_password: password,
+    password_reset_token: token,
+  }))
+  .reply(200, validUser);
+};
+
+export const invalidResetPasswordRequest = (password, token, error) => {
+  return nock('http://localhost:8080')
+  .post('/api/v1/kolide/reset_password', JSON.stringify({
+    new_password: password,
+    password_reset_token: token,
+  }))
+  .reply(422, { error });
+};
+
+
 export default {
-  invalidPasswordResetRequest,
+  invalidForgotPasswordRequest,
+  invalidResetPasswordRequest,
+  validForgotPasswordRequest,
   validLoginRequest,
-  validPasswordResetRequest,
+  validResetPasswordRequest,
   validUser,
 };
