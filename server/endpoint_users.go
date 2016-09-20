@@ -23,6 +23,7 @@ type createUserResponse struct {
 	Name                     string `json:"name"`
 	Admin                    bool   `json:"admin"`
 	Enabled                  bool   `json:"enabled"`
+	Position                 string `json:"position,omitempty"`
 	AdminForcedPasswordReset bool   `json:"force_password_reset"`
 	Err                      error  `json:"error,omitempty"`
 }
@@ -42,6 +43,7 @@ func makeCreateUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 			Email:                    user.Email,
 			Admin:                    user.Admin,
 			Enabled:                  user.Enabled,
+			Position:                 user.Position,
 			AdminForcedPasswordReset: user.AdminForcedPasswordReset,
 		}, nil
 	}
@@ -62,6 +64,7 @@ type getUserResponse struct {
 	Name                     string `json:"name"`
 	Admin                    bool   `json:"admin"`
 	Enabled                  bool   `json:"enabled"`
+	Position                 string `json:"position,omitempty"`
 	AdminForcedPasswordReset bool   `json:"force_password_reset"`
 	Err                      error  `json:"error,omitempty"`
 }
@@ -81,6 +84,7 @@ func makeGetUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 			Email:                    user.Email,
 			Admin:                    user.Admin,
 			Enabled:                  user.Enabled,
+			Position:                 user.Position,
 			AdminForcedPasswordReset: user.AdminForcedPasswordReset,
 		}, nil
 	}
@@ -98,6 +102,7 @@ func makeGetSessionUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 			Email:                    user.Email,
 			Admin:                    user.Admin,
 			Enabled:                  user.Enabled,
+			Position:                 user.Position,
 			AdminForcedPasswordReset: user.AdminForcedPasswordReset,
 		}, nil
 	}
@@ -129,6 +134,7 @@ func makeListUsersEndpoint(svc kolide.Service) endpoint.Endpoint {
 				Email:                    user.Email,
 				Admin:                    user.Admin,
 				Enabled:                  user.Enabled,
+				Position:                 user.Position,
 				AdminForcedPasswordReset: user.AdminForcedPasswordReset,
 			})
 		}
@@ -175,6 +181,7 @@ type modifyUserResponse struct {
 	Name                     string `json:"name"`
 	Admin                    bool   `json:"admin"`
 	Enabled                  bool   `json:"enabled"`
+	Position                 string `json:"position,omitempty"`
 	AdminForcedPasswordReset bool   `json:"force_password_reset"`
 	Err                      error  `json:"error,omitempty"`
 }
@@ -195,6 +202,7 @@ func makeModifyUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 			Email:                    user.Email,
 			Admin:                    user.Admin,
 			Enabled:                  user.Enabled,
+			Position:                 user.Position,
 			AdminForcedPasswordReset: user.AdminForcedPasswordReset,
 			Err: err,
 		}, nil

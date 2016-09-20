@@ -86,6 +86,7 @@ the way that the kolide server works.
 					username = "admin"
 					password = "admin"
 					email    = "admin@kolide.co"
+					position = "Head of Security"
 					enabled  = true
 					isAdmin  = true
 				)
@@ -95,6 +96,7 @@ the way that the kolide server works.
 					Password: &password,
 					Email:    &email,
 					Enabled:  &enabled,
+					Position: &position,
 					Admin:    &isAdmin,
 				}
 				_, err := svc.NewUser(ctx, admin)

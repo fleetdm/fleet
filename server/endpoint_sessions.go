@@ -25,6 +25,7 @@ type loginResponse struct {
 	Name                     string `json:"name"`
 	Admin                    bool   `json:"admin"`
 	Enabled                  bool   `json:"enabled"`
+	Position                 string `json:"position,omitempty"`
 	AdminForcedPasswordReset bool   `json:"force_password_reset"`
 	Err                      error  `json:"error,omitempty"`
 }
@@ -45,6 +46,7 @@ func makeLoginEndpoint(svc kolide.Service) endpoint.Endpoint {
 			Email:                    user.Email,
 			Admin:                    user.Admin,
 			Enabled:                  user.Enabled,
+			Position:                 user.Position,
 			AdminForcedPasswordReset: user.AdminForcedPasswordReset,
 		}, nil
 	}
