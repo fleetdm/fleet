@@ -6,18 +6,26 @@
   - [Installing build dependencies](#installing-build-dependencies)
   - [Building](#building)
     - [Generating the packaged JavaScript](#generating-the-packaged-javascript)
-    - [Compiling the kolide binary](#compiling-the-kolide-binary)
+    - [Automatic rebuilding of the JavaScript bundle](#automatic-rebuilding-of-the-javascript-bundle)
+    - [Compiling the Kolide binary](#compiling-the-kolide-binary)
     - [Managing Go dependencies with glide](#managing-go-dependencies-with-glide)
-    - [Automatic recompilation](#automatic-recompilation)
   - [Testing](#testing)
-    - [Application tests](#application-tests)
+    - [Full test suite](#full-test-suite)
+    - [Go unit tests](#go-unit-tests)
+    - [JavaScript unit tests](#javascript-unit-tests)
+    - [Go linters](#go-linters)
+    - [JavaScript linters](#javascript-linters)
     - [Viewing test coverage](#viewing-test-coverage)
-    - [Testing email](#testing-email)
+  - [Email](#email)
+    - [Testing email using MailHog](#testing-email-using-mailhog)
+    - [Viewing email content in the terminal](#viewing-email-content-in-the-terminal)
   - [Development Infrastructure](#development-infrastructure)
     - [Starting the local development environment](#starting-the-local-development-environment)
     - [Stopping the local development environment](#stopping-the-local-development-environment)
     - [Setting up the database tables](#setting-up-the-database-tables)
   - [Running Kolide](#running-kolide)
+    - [Using Docker development infrastructure](#using-docker-development-infrastructure)
+    - [Using no external dependencies](#using-no-external-dependencies)
 
 
 ## Development Environment
@@ -27,16 +35,27 @@
 To setup a working local development environment, you must install the following
 minimum toolset:
 
-* [Docker](https://www.docker.com/products/overview#/install_the_platform)
-* [Go](https://golang.org/dl/) (1.6 or greater)
+* [Go](https://golang.org/dl/) (1.7 or greater)
 * [Node.js](https://nodejs.org/en/download/current/) (and npm)
 * [GNU Make](https://www.gnu.org/software/make/)
+* [Docker](https://www.docker.com/products/overview#/install_the_platform)
 
-Once you have those minimum requirements, to install build dependencies, run the following:
+
+If you're using MacOS or Linux, you should have Make installed already. If you
+are using Windows, you will need to install it separately. Additionally, if you
+would only like to run an in-memory instances of Kolide (for demonstrations,
+testing, etc.), then you do not need to install Docker.
+
+Once you have those minimum requirements, you will need to install Kolide's
+dependent libraries. To do this, run the following:
 
 ```
 make deps
 ```
+
+When pulling in new revisions to the Kolide codebase to your working source
+tree, it may be necessary to re-run `make deps` if a new Go or JavaScript
+dependency was added.
 
 ### Building
 
@@ -49,7 +68,39 @@ following:
 make generate
 ```
 
-#### Compiling the kolide binary
+#### Automatic rebuilding of the JavaScript bundle
+
+Normally, `make generate` takes the JavaScript code, bundles it into a single
+bundle via Webpack, and inlines that bundle into a generated Go source file so
+that all of the frontend code can be statically compiled into the binary. When
+you build the code after running `make generate`, all of that JavaScript is
+included in the binary.
+
+This makes deploying Kolide a dream, since you only have to worry about a single
+static binary. If you are working on frontend code, it is likely that you don't
+want to have to manually re-run `make generate` and `make build` every time you
+edit JavaScript and CSS in order to see your changes in the browser. To solve
+this problem, before you build the Kolide binary, run the following command
+instead of `make generate`:
+
+```
+make generate-dev
+```
+
+Instead of reading the JavaScript from a inlined static bundle compiled within
+the binary, `make generate-dev` will generate a Go source file which reads the
+frontend code from disk and run Webpack in "watch mode".
+
+Note that when you run `make generate-dev`, Webpack will be watching the
+JavaScript files that were used to generate the bundle, so the process will be
+long lived. Depending on your personal workflow, you might want to run this in a
+background terminal window.
+
+After you run `make generate-dev`, run `make build` to build the binary, launch
+the binary and you'll be able to refresh the browser whenever you edit and save
+frontend code.
+
+#### Compiling the Kolide binary
 
 Use `go build` to build the application code. For your convenience, a make
 command is included which builds the code:
@@ -88,25 +139,54 @@ To update, use [`glide up`](https://github.com/Masterminds/glide#glide-update-al
 
 ### Testing
 
-#### Application tests
+#### Full test suite
 
-You can use [`go test $(glide novendor)`](https://github.com/Masterminds/glide#glide-novendor-aliased-to-nv)
-to run the go unit tests and skip tests in the vendor directory. This will run
-go test over all directories of your project except the vendor directory.
-
-To execute all of the tests that CI will execute, run the following from the root
-of the repository:
+To execute all of the tests that CI will execute, run the following from the
+root of the repository:
 
 ```
 make test
 ```
 
+It is a good idea to run `make test` before submitting a Pull Request.
+
+#### Go unit tests
+
+To run all Go unit tests, run the following:
+
+```
+make test-go
+```
+
+#### JavaScript unit tests
+
+To run all JavaScript unit tests, run the following:
+
+```
+make test-js
+```
+
+#### Go linters
+
+To run all Go linters and static analyzers, run the following:
+
+```
+make lint-go
+```
+
+#### JavaScript linters
+
+To run all JavaScript linters and static analyzers, run the following:
+
+```
+make lint-js
+```
 
 #### Viewing test coverage
 
-When you run `make test` from the root of the repository, test coverage reports
-are generated in every subpackage. For example, the `sessions` subpackage will
-have a coverage report generated in `./sessions/sessions.cover`
+When you run `make test` or `make test-go` from the root of the repository, test
+coverage reports are generated in every subpackage. For example, the `server`
+subpackage will have a coverage report generated in `./server/server.cover`
 
 To explore a test coverage report on a line-by-line basis in the browser, run
 the following:
@@ -123,7 +203,9 @@ To view test a test coverage report in a terminal, run the following:
 go tool cover -func=./server/server.cover
 ```
 
-#### Testing Email
+### Email
+
+#### Testing email using MailHog
 
 To intercept sent emails while running a Kolide development environment, make
 sure that you've set the SMTP address to `<docker host ip>:1025` and leave the
@@ -133,14 +215,16 @@ browser to view the [MailHog](https://github.com/mailhog/MailHog) UI.
 For example, if docker is running natively on your `localhost`, then your mail
 settings should look something like:
 
-```json
-{
-  "mail": {
-    "address": "localhost:1025",
-    "pool_connections": 4
-  }
-}
+```yaml
+mail:
+  address: localhost:1025
 ```
+
+#### Viewing email content in the terminal
+
+If you're [running Kolide in dev mode](#using-no-external-dependencies), emails
+will be printed to the terminal instead of being sent via an SMTP server. This
+may be useful if you want to view the content of all emails that Kolide sends.
 
 ### Development infrastructure
 
@@ -177,17 +261,31 @@ kolide prepare db
 
 ### Running Kolide
 
-Now you are prepared to run a Kolide development environment. Run the following:
+#### Using Docker development infrastructure
+
+To start the Kolide server backed by the Docker development infrasturcture, run
+the Kolide binary as follows:
 
 ```
 kolide serve
 ```
 
-If you're running the binary from the root of the repository, where it is built
-by default, then the binary will automatically use the provided example
-configuration file, which assumes that you are running docker locally, on
-`localhost` via a native engine.
+There is an example configuration file included in this repository to make this
+process easier for you. You may have to edit the example configuration file to
+use the output of `docker-machine ip` instead of `localhost` if you're using
+Docker via [Docker Toolbox](https://www.docker.com/products/docker-toolbox).
 
-You may have to edit the example configuration file to use the output of
-`docker-machine ip` instead of `localhost` if you're using Docker via
-[Docker Toolbox](https://www.docker.com/products/docker-toolbox).
+#### Using no external dependencies
+
+If you'd like to launch the Kolide server with no external dependencies, run
+the following:
+
+```
+kolide serve --dev
+```
+
+This will use in-memory mocks for the database, print emails to the console,
+etc. If you're demo-ing Kolide or testing a quick feature, dev mode is ideal.
+Keep in mind that, since everything is in-memory, when you kill the process,
+everything you did in dev mode will be lost. This is nice for development but
+not so nice for production environments.
