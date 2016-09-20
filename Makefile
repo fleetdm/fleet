@@ -96,16 +96,17 @@ test-js:
 test: lint-go lint-js test-go test-js
 
 generate: .prefix
+	webpack --progress --colors
 	go-bindata -pkg=server \
 		-o=server/bindata.go \
 		frontend/templates/ assets/...
-	webpack --progress --colors --bail
 
 generate-dev: .prefix
+	webpack --progress --colors
 	go-bindata -debug -pkg=server \
 		-o=server/bindata.go \
 		frontend/templates/ assets/...
-	webpack --progress --colors --bail --watch
+	webpack --progress --colors --watch
 
 deps:
 	npm install
