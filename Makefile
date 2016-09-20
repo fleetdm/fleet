@@ -84,7 +84,8 @@ test-go:
 test-js:
 	_mocha --compilers js:babel-core/register \
 		--recursive 'frontend/**/*.tests.js*' \
-		--require 'frontend/.test.setup.js'
+		--require 'frontend/.test.setup.js' \
+		--require 'frontend/test/loaderMock.js'
 
 test: lint-go lint-js test-go test-js
 

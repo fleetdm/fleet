@@ -1,3 +1,0 @@
---compilers js:babel-register
---require test/loaderMock.js
-
