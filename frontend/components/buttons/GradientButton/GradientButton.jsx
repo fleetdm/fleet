@@ -4,7 +4,6 @@ import componentStyles from './styles';
 
 class GradientButton extends Component {
   static propTypes = {
-    disabled: PropTypes.bool,
     onClick: PropTypes.func,
     style: PropTypes.object,
     text: PropTypes.string,
@@ -16,13 +15,12 @@ class GradientButton extends Component {
   };
 
   render () {
-    const { disabled, onClick, style, text, type } = this.props;
+    const { onClick, style, text, type } = this.props;
 
     return (
       <button
-        disabled={disabled}
         onClick={onClick}
-        style={[componentStyles(disabled), style]}
+        style={[componentStyles, style]}
         type={type}
       >
         {text}

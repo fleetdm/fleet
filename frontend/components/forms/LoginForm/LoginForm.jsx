@@ -6,6 +6,7 @@ import componentStyles from './styles';
 import GradientButton from '../../buttons/GradientButton';
 import InputFieldWithIcon from '../fields/InputFieldWithIcon';
 import paths from '../../../router/paths';
+import validatePresence from '../validators/validate_presence';
 
 class LoginForm extends Component {
   static propTypes = {
@@ -16,6 +17,10 @@ class LoginForm extends Component {
     super(props);
 
     this.state = {
+      errors: {
+        username: null,
+        password: null,
+      },
       formData: {
         username: null,
         password: null,
@@ -25,10 +30,14 @@ class LoginForm extends Component {
 
   onInputChange = (formField) => {
     return ({ target }) => {
-      const { formData } = this.state;
+      const { errors, formData } = this.state;
       const { value } = target;
 
       this.setState({
+        errors: {
+          ...errors,
+          [formField]: null,
+        },
         formData: {
           ...formData,
           [formField]: value,
@@ -39,8 +48,9 @@ class LoginForm extends Component {
 
   onFormSubmit = (evt) => {
     evt.preventDefault();
+    const valid = this.validate();
 
-    if (this.canSubmit()) {
+    if (valid) {
       const { formData } = this.state;
       const { onSubmit } = this.props;
 
@@ -50,10 +60,66 @@ class LoginForm extends Component {
     return false;
   }
 
-  canSubmit = () => {
-    const { formData: { username, password } } = this.state;
+  validate = () => {
+    const {
+      errors,
+      formData: { username, password },
+    } = this.state;
 
-    return username && password;
+    if (!validatePresence(username)) {
+      this.setState({
+        errors: {
+          ...errors,
+          username: 'Username or email field must be completed',
+        },
+      });
+
+      return false;
+    }
+
+    if (!validatePresence(password)) {
+      this.setState({
+        errors: {
+          ...errors,
+          password: 'Password field must be completed',
+        },
+      });
+
+      return false;
+    }
+
+    return true;
+  }
+
+  validate = () => {
+    const {
+      errors,
+      formData: { username, password },
+    } = this.state;
+
+    if (!validatePresence(username)) {
+      this.setState({
+        errors: {
+          ...errors,
+          username: 'Username or email field must be completed',
+        },
+      });
+
+      return false;
+    }
+
+    if (!validatePresence(password)) {
+      this.setState({
+        errors: {
+          ...errors,
+          password: 'Password field must be completed',
+        },
+      });
+
+      return false;
+    }
+
+    return true;
   }
 
   render () {
@@ -64,8 +130,8 @@ class LoginForm extends Component {
       formStyles,
       submitButtonStyles,
     } = componentStyles;
+    const { errors } = this.state;
     const { onInputChange, onFormSubmit } = this;
-    const canSubmit = this.canSubmit();
 
     return (
       <form onSubmit={onFormSubmit} style={formStyles}>
@@ -73,12 +139,14 @@ class LoginForm extends Component {
           <img alt="Avatar" src={avatar} />
           <InputFieldWithIcon
             autofocus
+            error={errors.username}
             iconName="user"
             name="username"
             onChange={onInputChange('username')}
             placeholder="Username or Email"
           />
           <InputFieldWithIcon
+            error={errors.password}
             iconName="lock"
             name="password"
             onChange={onInputChange('password')}
@@ -90,7 +158,6 @@ class LoginForm extends Component {
           </div>
         </div>
         <GradientButton
-          disabled={!canSubmit}
           onClick={onFormSubmit}
           style={submitButtonStyles}
           text="Login"

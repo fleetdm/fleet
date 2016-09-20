@@ -44,8 +44,8 @@ describe('LoginForm - component', () => {
 
     submitBtn.simulate('click');
 
-    expect(submitBtn.prop('style')).toInclude({
-      cursor: 'not-allowed',
+    expect(form.state().errors).toInclude({
+      username: 'Username or email field must be completed',
     });
     expect(submitSpy).toNotHaveBeenCalled();
   });

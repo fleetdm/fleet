@@ -3,6 +3,7 @@ import radium from 'radium';
 import componentStyles from './styles';
 import GradientButton from '../../buttons/GradientButton';
 import InputFieldWithIcon from '../fields/InputFieldWithIcon';
+import validatePresence from '../validators/validate_presence';
 import validEmail from '../validators/valid_email';
 
 class ForgotPasswordForm extends Component {
@@ -16,6 +17,9 @@ class ForgotPasswordForm extends Component {
     super(props);
 
     this.state = {
+      errors: {
+        email: null,
+      },
       formData: {
         email: null,
       },
@@ -27,7 +31,9 @@ class ForgotPasswordForm extends Component {
     const { value } = evt.target;
 
     this.setState({
-      error: null,
+      errors: {
+        email: null,
+      },
       formData: {
         email: value,
       },
@@ -54,12 +60,24 @@ class ForgotPasswordForm extends Component {
   validate = () => {
     const { formData: { email } } = this.state;
 
+    if (!validatePresence(email)) {
+      this.setState({
+        errors: {
+          email: 'Email field must be completed',
+        },
+      });
+
+      return false;
+    }
+
     if (validEmail(email)) {
       return true;
     }
 
     this.setState({
-      error: `${email} is not a valid email`,
+      errors: {
+        email: `${email} is not a valid email`,
+      },
     });
 
     return false;
@@ -67,16 +85,15 @@ class ForgotPasswordForm extends Component {
 
   render () {
     const { error: serverError } = this.props;
-    const { error: clientError, formData: { email } } = this.state;
+    const { errors: clientErrors } = this.state;
     const { formStyles, inputStyles, submitButtonStyles } = componentStyles;
     const { onFormSubmit, onInputFieldChange } = this;
-    const disabled = !email;
 
     return (
       <form onSubmit={onFormSubmit} style={formStyles}>
         <InputFieldWithIcon
           autofocus
-          error={clientError || serverError}
+          error={clientErrors.email || serverError}
           iconName="envelope"
           name="email"
           onChange={onInputFieldChange}
@@ -84,7 +101,6 @@ class ForgotPasswordForm extends Component {
           style={inputStyles}
         />
         <GradientButton
-          disabled={disabled}
           type="submit"
           style={submitButtonStyles}
           text="Reset Password"

@@ -33,7 +33,9 @@ describe('ForgotPasswordForm - component', () => {
 
     submitBtn.simulate('submit');
 
-    expect(submitBtn.prop('disabled')).toEqual(true);
+    expect(form.state().errors).toInclude({
+      email: 'Email field must be completed',
+    });
     expect(submitSpy).toNotHaveBeenCalled();
   });
 
@@ -59,8 +61,8 @@ describe('ForgotPasswordForm - component', () => {
     submitBtn.simulate('submit');
 
     expect(submitSpy).toNotHaveBeenCalled();
-    expect(form.state()).toInclude({
-      error: 'invalid-email is not a valid email',
+    expect(form.state().errors).toInclude({
+      email: 'invalid-email is not a valid email',
     });
   });
 });

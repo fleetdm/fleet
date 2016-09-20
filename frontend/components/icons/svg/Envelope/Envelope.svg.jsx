@@ -1,5 +1,8 @@
 import React, { Component } from 'react';
 import base, { basePropTypes } from '../base';
+import Styles from '../../../../styles';
+
+const { color } = Styles;
 
 class Envelope extends Component {
   static propTypes = {
@@ -8,22 +11,22 @@ class Envelope extends Component {
 
   static variants = {
     default: {
-      fill: '#EAEEFB',
-      stroke: '#B9C2E4',
+      border: color.accentMedium,
+      fill: color.accentLight,
     },
     colored: {
-      fill: '#EED6FF',
-      stroke: '#C48DED',
+      border: color.brandLight,
+      fill: color.brandUltralight,
     },
     error: {
-      fill: '#FFB5B2',
-      stroke: '#FF5850',
+      border: color.alert,
+      fill: color.alertLight,
     },
   };
 
   render () {
     const { alt, style, variant } = this.props;
-    const color = Envelope.variants[variant];
+    const iconVariant = Envelope.variants[variant];
 
     return (
       <svg
@@ -41,10 +44,10 @@ class Envelope extends Component {
             </mask>
           </defs>
           <g stroke="none" strokeWidth="1" fill="none" fillRule="evenodd">
-            <g transform="translate(-714.000000, -594.000000)" stroke={color.stroke}>
+            <g transform="translate(-714.000000, -594.000000)" stroke={iconVariant.border}>
               <g transform="translate(241.000000, 370.000000)">
                 <g transform="translate(473.000000, 225.000000)">
-                  <use mask="url(#mask-2)" strokeWidth="2" fill={color.fill} xlinkHref="#path-1" />
+                  <use mask="url(#mask-2)" strokeWidth="2" fill={iconVariant.fill} xlinkHref="#path-1" />
                   <polyline points="0.533320551 0.599345964 5.52216436 3.65714135 10.5638681 0.475880292" />
                 </g>
               </g>
