@@ -1,6 +1,8 @@
 import jsdom from 'jsdom';
 
-const doc = jsdom.jsdom('<!doctype html><html><body></body></html>');
+const doc = jsdom.jsdom('<!doctype html><html><body></body></html>', {
+  url: 'http://localhost:8080/foo',
+});
 
 global.document = doc;
 global.window = doc.defaultView;

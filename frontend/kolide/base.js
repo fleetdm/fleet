@@ -1,25 +1,12 @@
 import fetch from 'isomorphic-fetch';
-
-import config from '../config';
 import local from '../utilities/local';
 
 class Base {
   constructor () {
-    this.baseURL = this.setBaseURL();
+    const { origin } = global.window.location;
+
+    this.baseURL = `${origin}/api`;
     this.bearerToken = local.getItem('auth_token');
-  }
-
-  setBaseURL () {
-    const {
-      settings: { env },
-      environments: { development },
-    } = config;
-
-    if (env === development) {
-      return 'http://localhost:8080/api';
-    }
-
-    throw new Error(`API base URL is not configured for environment: ${env}`);
   }
 
   setBearerToken (bearerToken) {
