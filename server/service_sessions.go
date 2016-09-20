@@ -3,7 +3,6 @@ package server
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"fmt"
 	"strings"
 	"time"
 
@@ -17,23 +16,16 @@ func (svc service) Login(ctx context.Context, username, password string) (*kolid
 	switch err {
 	case nil:
 	case datastore.ErrNotFound:
-		return nil, "", authError{
-			message: fmt.Sprintf("user %s not found", username),
-		}
+		return nil, "", authError{reason: "no such user", clientReason: "bad credentials"}
 	default:
 		return nil, "", err
 	}
 	if !user.Enabled {
-		return nil, "", authError{
-			message: fmt.Sprintf("account disabled %s", username),
-		}
+		return nil, "", authError{reason: "account disabled"}
 	}
 	if err := user.ValidatePassword(password); err != nil {
-		return nil, "", authError{
-			message: fmt.Sprintf("invalid password for user %s", username),
-		}
+		return nil, "", authError{reason: "bad password", clientReason: "bad credentials"}
 	}
-
 	token, err := svc.makeSession(user.ID)
 	if err != nil {
 		return nil, "", err

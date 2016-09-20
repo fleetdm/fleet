@@ -13,23 +13,24 @@ import (
 	"golang.org/x/net/context"
 )
 
-func authMiddleware(svc kolide.Service, logger kitlog.Logger, next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// all good to pass
-		next.ServeHTTP(w, r)
-	})
-}
-
 // authentication error
 type authError struct {
-	message string
+	reason string
+	// client reason is used to provide
+	// a different error message to the client
+	// when security is a concern
+	clientReason string
 }
 
 func (e authError) Error() string {
-	if e.message == "" {
-		return "unauthorized"
+	return e.reason
+}
+
+func (e authError) AuthError() string {
+	if e.clientReason != "" {
+		return e.clientReason
 	}
-	return fmt.Sprintf("unauthorized: %s", e.message)
+	return "authorization error"
 }
 
 // forbidden, set when user is authenticated, but not allowd to perform action

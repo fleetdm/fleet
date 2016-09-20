@@ -74,6 +74,21 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 		return
 	}
 
+	type authenticationError interface {
+		AuthError() string
+	}
+	if e, ok := err.(authenticationError); ok {
+		var ae = struct {
+			Message string `json:"message"`
+			Error   string `json:"error"`
+		}{
+			Message: "Authentication Failed",
+			Error:   e.AuthError(),
+		}
+		enc.Encode(ae)
+		return
+	}
+
 	// other errors
 	enc.Encode(map[string]interface{}{
 		"error": err.Error(),
