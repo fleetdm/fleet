@@ -1,0 +1,57 @@
+[class^="kolidecon-"], [class*=" kolidecon-"] {
+  /* use !important to prevent issues with browser extensions that change fonts */
+  font-family: 'kolidecons' !important;
+  speak: none;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+
+  /* Better Font Rendering =========== */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.kolidecon-filter:before {
+  content: "\e906";
+}
+.kolidecon-penciledit:before {
+  content: "\e907";
+}
+.kolidecon-upcarat:before {
+  content: "\e90b";
+}
+.kolidecon-downcarat:before {
+  content: "\e90c";
+}
+.kolidecon-username:before {
+  content: "\e900";
+}
+.kolidecon-password:before {
+  content: "\e902";
+}
+.kolidecon-email:before {
+  content: "\e904";
+}
+.kolidecon-search:before {
+  content: "\e909";
+}
+.kolidecon-hosts:before {
+  content: "\e901";
+}
+.kolidecon-query:before {
+  content: "\e903";
+}
+.kolidecon-packs:before {
+  content: "\e905";
+}
+.kolidecon-alerts:before {
+  content: "\1f32b";
+}
+.kolidecon-help:before {
+  content: "\e908";
+}
+.kolidecon-admin:before {
+  content: "\e90a";
+}

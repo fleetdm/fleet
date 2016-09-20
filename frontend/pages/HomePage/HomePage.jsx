@@ -14,6 +14,7 @@ export class HomePage extends Component {
 
     return (
       <div>
+        <i className="kolidecon-username" />
         Home page
         {user && <Link to={LOGOUT}>Logout</Link>}
       </div>
@@ -28,4 +29,3 @@ const mapStateToProps = (state) => {
 };
 
 export default connect(mapStateToProps)(HomePage);
-
