@@ -20,7 +20,6 @@ const routes = (
   <Provider store={store}>
     <Router history={history}>
       <Route path="/" component={radium(App)}>
-        <IndexRoute component={radium(HomePage)} />
         <Route component={radium(LoginRoutes)}>
           <Route path="forgot_password" component={radium(ForgotPasswordPage)} />
           <Route path="login" component={radium(LoginPage)} />
@@ -29,6 +28,9 @@ const routes = (
             <Route path="login_successful" component={radium(LoginSuccessfulPage)} />
             <Route path="logout" component={radium(LogoutPage)} />
           </Route>
+        </Route>
+        <Route component={AuthenticatedRoutes}>
+          <IndexRoute component={radium(HomePage)} />
         </Route>
       </Route>
     </Router>
