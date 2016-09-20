@@ -29,7 +29,8 @@ module.exports = {
     'import/no-unresolved': 'error',
     'linebreak-style': 0,
     'import/no-named-as-default': 'off',
-    'import/no-named-as-default-member': 'off'
+    'import/no-named-as-default-member': 'off',
+    'no-underscore-dangle': 0
   },
   settings: {
     'import/resolver': {

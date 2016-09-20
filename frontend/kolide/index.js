@@ -1,7 +1,5 @@
-import fetch from 'isomorphic-fetch';
 import Base from './base';
 import endpoints from './endpoints';
-import local from '../utilities/local';
 
 class Kolide extends Base {
   forgotPassword ({ email }) {

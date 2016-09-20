@@ -1,3 +1,5 @@
+import fetch from 'isomorphic-fetch';
+
 import config from '../config';
 import local from '../utilities/local';
 
@@ -40,7 +42,7 @@ class Base {
     const headers = {
       ...overrideHeaders,
       Authorization: `Bearer ${this.bearerToken}`,
-    }
+    };
 
     return this._request(method, endpoint, body, headers);
   }

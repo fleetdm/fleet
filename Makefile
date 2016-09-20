@@ -71,7 +71,7 @@ build: .prefix
 	-X github.com/kolide/kolide-ose/version.goVersion=${GOVERSION}"
 
 lint-js:
-	eslint . --ext .js,.jsx
+	eslint frontend --ext .js,.jsx
 
 lint-go:
 	go vet $(shell glide nv)
@@ -86,7 +86,7 @@ test-js:
 		--recursive 'frontend/**/*.tests.js*' \
 		--require 'frontend/.test.setup.js'
 
-test: lint test-go test-js
+test: lint-go lint-js test-go test-js
 
 generate: .prefix
 	go-bindata -pkg=server \
