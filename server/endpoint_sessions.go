@@ -43,6 +43,7 @@ func makeLoginEndpoint(svc kolide.Service) endpoint.Endpoint {
 			Token:                    token,
 			ID:                       user.ID,
 			Username:                 user.Username,
+			Name:                     user.Name,
 			Email:                    user.Email,
 			Admin:                    user.Admin,
 			Enabled:                  user.Enabled,

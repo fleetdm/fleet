@@ -40,6 +40,7 @@ func makeCreateUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 		return createUserResponse{
 			ID:                       user.ID,
 			Username:                 user.Username,
+			Name:                     user.Name,
 			Email:                    user.Email,
 			Admin:                    user.Admin,
 			Enabled:                  user.Enabled,
@@ -81,6 +82,7 @@ func makeGetUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 		return getUserResponse{
 			ID:                       user.ID,
 			Username:                 user.Username,
+			Name:                     user.Name,
 			Email:                    user.Email,
 			Admin:                    user.Admin,
 			Enabled:                  user.Enabled,
@@ -99,6 +101,7 @@ func makeGetSessionUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 		return getUserResponse{
 			ID:                       user.ID,
 			Username:                 user.Username,
+			Name:                     user.Name,
 			Email:                    user.Email,
 			Admin:                    user.Admin,
 			Enabled:                  user.Enabled,
@@ -131,6 +134,7 @@ func makeListUsersEndpoint(svc kolide.Service) endpoint.Endpoint {
 			resp.Users = append(resp.Users, getUserResponse{
 				ID:                       user.ID,
 				Username:                 user.Username,
+				Name:                     user.Name,
 				Email:                    user.Email,
 				Admin:                    user.Admin,
 				Enabled:                  user.Enabled,
@@ -199,6 +203,7 @@ func makeModifyUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 		return modifyUserResponse{
 			ID:                       user.ID,
 			Username:                 user.Username,
+			Name:                     user.Name,
 			Email:                    user.Email,
 			Admin:                    user.Admin,
 			Enabled:                  user.Enabled,
