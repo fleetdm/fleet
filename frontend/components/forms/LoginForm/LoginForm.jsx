@@ -1,7 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 import radium from 'radium';
-import avatar from './avatar.svg';
+import avatar from '../../../../assets/images/avatar.svg';
 import componentStyles from './styles';
 import GradientButton from '../../buttons/GradientButton';
 import InputFieldWithIcon from '../fields/InputFieldWithIcon';
