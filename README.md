@@ -289,3 +289,10 @@ etc. If you're demo-ing Kolide or testing a quick feature, dev mode is ideal.
 Keep in mind that, since everything is in-memory, when you kill the process,
 everything you did in dev mode will be lost. This is nice for development but
 not so nice for production environments.
+
+If you've used `make build` to build the Kolide binary, you can also run the
+following to launch an in-memory instance of the server:
+
+```
+make run
+```

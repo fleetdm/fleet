@@ -55,6 +55,8 @@ define HELP_TEXT
 	make lint-go      - Run the Go linters
 	make lint-js      - Run the JavaScript linters
 
+	make run          - Run the Kolide server in dev mode
+
 endef
 
 help:
@@ -123,6 +125,9 @@ else
 	rm -rf build vendor
 	rm -f assets/bundle.js
 endif
+
+run:
+	$(OUTPUT) serve --dev
 
 docker-build-circle:
 	@echo ">> building docker image"
