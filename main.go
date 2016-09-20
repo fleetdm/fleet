@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/kolide/kolide-ose/cli"
-	_ "github.com/kolide/kolide-ose/config"
 )
 
 func init() {
