@@ -15,7 +15,7 @@ export default {
     minHeight: '100%',
   },
   body: {
-    backgroundImage: 'url("/assets/images/background.png")',
+    background: 'url("/assets/images/background.png") center center',
     backgroundSize: 'cover',
     color: color.textUltradark,
     ...defaultMargin,

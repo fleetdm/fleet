@@ -55,3 +55,27 @@
 .kolidecon-admin:before {
   content: "\e90a";
 }
+.kolidecon-chevron-bold-down:before {
+  content: "\e90d";
+}
+.kolidecon-chevron-bold-up:before {
+  content: "\e90e";
+}
+.kolidecon-chevron-bold-left:before {
+  content: "\e90f";
+}
+.kolidecon-chevron-bold-right:before {
+  content: "\e910";
+}
+.kolidecon-chevron-down:before {
+  content: "\e911";
+}
+.kolidecon-chevron-up:before {
+  content: "\e912";
+}
+.kolidecon-chevron-left:before {
+  content: "\e913";
+}
+.kolidecon-chevron-right:before {
+  content: "\e914";
+}
