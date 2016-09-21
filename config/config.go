@@ -58,10 +58,11 @@ type SessionConfig struct {
 
 // OsqueryConfig defines configs related to osquery
 type OsqueryConfig struct {
-	EnrollSecret  string
-	NodeKeySize   int
-	StatusLogFile string
-	ResultLogFile string
+	EnrollSecret        string
+	NodeKeySize         int
+	StatusLogFile       string
+	ResultLogFile       string
+	LabelUpdateInterval time.Duration
 }
 
 // LoggingConfig defines configs related to logging
@@ -123,6 +124,7 @@ func (man Manager) addConfigs() {
 	man.addConfigInt("osquery.node_key_size", 24)
 	man.addConfigString("osquery.status_log_file", "/tmp/osquery_status")
 	man.addConfigString("osquery.result_log_file", "/tmp/osquery_result")
+	man.addConfigDuration("osquery.label_update_interval", 1*time.Hour)
 
 	// Logging
 	man.addConfigBool("logging.debug", false)
@@ -166,10 +168,11 @@ func (man Manager) LoadConfig() KolideConfig {
 			Duration: man.getConfigDuration("session.duration"),
 		},
 		Osquery: OsqueryConfig{
-			EnrollSecret:  man.getConfigString("osquery.enroll_secret"),
-			NodeKeySize:   man.getConfigInt("osquery.node_key_size"),
-			StatusLogFile: man.getConfigString("osquery.status_log_file"),
-			ResultLogFile: man.getConfigString("osquery.result_log_file"),
+			EnrollSecret:        man.getConfigString("osquery.enroll_secret"),
+			NodeKeySize:         man.getConfigInt("osquery.node_key_size"),
+			StatusLogFile:       man.getConfigString("osquery.status_log_file"),
+			ResultLogFile:       man.getConfigString("osquery.result_log_file"),
+			LabelUpdateInterval: man.getConfigDuration("osquery.label_update_interval"),
 		},
 		Logging: LoggingConfig{
 			Debug:         man.getConfigBool("logging.debug"),
@@ -357,10 +360,11 @@ func TestConfig() KolideConfig {
 			Duration: 24 * 90 * time.Hour,
 		},
 		Osquery: OsqueryConfig{
-			EnrollSecret:  "",
-			NodeKeySize:   24,
-			StatusLogFile: "",
-			ResultLogFile: "",
+			EnrollSecret:        "",
+			NodeKeySize:         24,
+			StatusLogFile:       "",
+			ResultLogFile:       "",
+			LabelUpdateInterval: 1 * time.Hour,
 		},
 		Logging: LoggingConfig{
 			Debug:         true,

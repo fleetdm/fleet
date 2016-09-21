@@ -78,3 +78,4 @@ import:
 - package: gopkg.in/natefinch/lumberjack.v2
   version: v2.0
 - package: github.com/golang/mock
+- package: github.com/WatchBeam/clock

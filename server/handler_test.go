@@ -5,9 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	kitlog "github.com/go-kit/kit/log"
 	"github.com/gorilla/mux"
-	"github.com/kolide/kolide-ose/config"
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
@@ -17,7 +15,7 @@ func TestAPIRoutes(t *testing.T) {
 	ds, err := datastore.New("gorm-sqlite3", ":memory:")
 	assert.Nil(t, err)
 
-	svc, err := NewService(ds, kitlog.NewNopLogger(), config.TestConfig(), nil)
+	svc, err := newTestService(ds)
 	assert.Nil(t, err)
 
 	ctx := context.Background()

@@ -1,5 +1,5 @@
-hash: 082be2432c000297d8d76bd1dc0f2be4e98954d0f49682603469e1b3056790f5
-updated: 2016-08-29T09:08:22.504560027-04:00
+hash: 3bf651074168b7611aabf854ebba43d0a41dd3cb3fbd0892268f9163e4240f9f
+updated: 2016-09-20T11:30:44.994118865-07:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -13,6 +13,8 @@ imports:
   - spew
 - name: github.com/dgrijalva/jwt-go
   version: 01aeca54ebda6e0fbfafd0a524d234159c05ec20
+  subpackages:
+  - request
 - name: github.com/elazarl/go-bindata-assetfs
   version: 9a6736ed45b44bf3835afeebb3034b57ed329f3e
 - name: github.com/fsnotify/fsnotify
@@ -42,8 +44,6 @@ imports:
   version: 100eb0c0a9c5b306ca2fb4f165df21d80ada4b82
 - name: github.com/golang/mock
   version: bd3c8e81be01eef76d4b503f5e687d2d1354d2d9
-  subpackages:
-  - gomock
 - name: github.com/golang/protobuf
   version: c3cefd437628a0b7d31b34fe44b3a7a540e98527
   subpackages:
@@ -119,6 +119,9 @@ imports:
   version: d77da356e56a7428ad25149ca77381849a6a5232
   subpackages:
   - assert
+  - require
+- name: github.com/WatchBeam/clock
+  version: d5a6612f3d9a070b964adc65dbd94c6080458f83
 - name: golang.org/x/crypto
   version: bc89c496413265e715159bdc8478ee9a92fdc265
   subpackages:

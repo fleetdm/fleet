@@ -3,8 +3,6 @@ package server
 import (
 	"testing"
 
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/kolide/kolide-ose/config"
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/kolide"
 	"github.com/stretchr/testify/assert"
@@ -15,7 +13,7 @@ func TestGetAllQueries(t *testing.T) {
 	ds, err := datastore.New("gorm-sqlite3", ":memory:")
 	assert.Nil(t, err)
 
-	svc, err := NewService(ds, kitlog.NewNopLogger(), config.TestConfig(), nil)
+	svc, err := newTestService(ds)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -39,7 +37,7 @@ func TestGetQuery(t *testing.T) {
 	ds, err := datastore.New("gorm-sqlite3", ":memory:")
 	assert.Nil(t, err)
 
-	svc, err := NewService(ds, kitlog.NewNopLogger(), config.TestConfig(), nil)
+	svc, err := newTestService(ds)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -62,7 +60,7 @@ func TestNewQuery(t *testing.T) {
 	ds, err := datastore.New("gorm-sqlite3", ":memory:")
 	assert.Nil(t, err)
 
-	svc, err := NewService(ds, kitlog.NewNopLogger(), config.TestConfig(), nil)
+	svc, err := newTestService(ds)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -85,7 +83,7 @@ func TestModifyQuery(t *testing.T) {
 	ds, err := datastore.New("gorm-sqlite3", ":memory:")
 	assert.Nil(t, err)
 
-	svc, err := NewService(ds, kitlog.NewNopLogger(), config.TestConfig(), nil)
+	svc, err := newTestService(ds)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -112,7 +110,7 @@ func TestDeleteQuery(t *testing.T) {
 	ds, err := datastore.New("gorm-sqlite3", ":memory:")
 	assert.Nil(t, err)
 
-	svc, err := NewService(ds, kitlog.NewNopLogger(), config.TestConfig(), nil)
+	svc, err := newTestService(ds)
 	assert.Nil(t, err)
 
 	ctx := context.Background()

@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/WatchBeam/clock"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/kolide/kolide-ose/config"
 	"github.com/kolide/kolide-ose/datastore"
@@ -73,7 +74,7 @@ the way that the kolide server works.
 				}
 			}
 
-			svc, err := server.NewService(ds, logger, config, mailService)
+			svc, err := server.NewService(ds, logger, config, mailService, clock.C)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}

@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 
+	"github.com/WatchBeam/clock"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/kolide/kolide-ose/config"
 	"github.com/kolide/kolide-ose/datastore"
@@ -82,7 +83,7 @@ To setup kolide infrastructure, use one of the available commands.
 				Enabled:  &enabled,
 				Admin:    &isAdmin,
 			}
-			svc, err := server.NewService(ds, kitlog.NewNopLogger(), config, nil)
+			svc, err := server.NewService(ds, kitlog.NewNopLogger(), config, nil, clock.C)
 			if err != nil {
 				initFatal(err, "creating service")
 			}

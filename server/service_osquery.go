@@ -10,6 +10,14 @@ import (
 	"golang.org/x/net/context"
 )
 
+type osqueryError struct {
+	message string
+}
+
+func (e osqueryError) Error() string {
+	return e.message
+}
+
 func (svc service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string) (string, error) {
 	if enrollSecret != svc.config.Osquery.EnrollSecret {
 		return "", errors.New(
@@ -51,10 +59,52 @@ func (svc service) SubmitResultsLogs(ctx context.Context, logs []kolide.OsqueryS
 	return nil
 }
 
-func (svc service) GetDistributedQueries(ctx context.Context) (map[string]string, error) {
-	var queries map[string]string
+// hostLabelQueryPrefix is appended before the query name when a query is
+// provided as a label query. This allows the results to be retrieved when
+// osqueryd writes the distributed query results.
+const hostLabelQueryPrefix = "kolide_label_query_"
 
-	queries["id1"] = "select * from osquery_info"
+// hostDetailQueryPrefix is appended before the query name when a query is
+// provided as a detail query.
+const hostDetailQueryPrefix = "kolide_detail_query_"
+
+// hostDetailQueries returns the map of queries that should be executed by
+// osqueryd to fill in the host details
+func hostDetailQueries(host kolide.Host) map[string]string {
+	queries := make(map[string]string)
+	if host.Platform == "" {
+		queries[hostDetailQueryPrefix+"platform"] = "select build_platform from osquery_info;"
+	}
+	return queries
+}
+
+func (svc service) GetDistributedQueries(ctx context.Context) (map[string]string, error) {
+	queries := make(map[string]string)
+
+	host, err := osqueryHostFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	queries = hostDetailQueries(*host)
+	if len(queries) > 0 {
+		// If the host details need to be updated, we should do so
+		// before checking for any other queries
+		return queries, nil
+	}
+
+	// Retrieve the label queries that should be updated
+	cutoff := svc.clock.Now().Add(-svc.config.Osquery.LabelUpdateInterval)
+	labelQueries, err := svc.ds.LabelQueriesForHost(host, cutoff)
+	if err != nil {
+		return nil, err
+	}
+
+	for name, query := range labelQueries {
+		queries[hostLabelQueryPrefix+name] = query
+	}
+
+	// TODO: retrieve the active distributed queries for this host
 
 	return queries, nil
 }

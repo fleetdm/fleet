@@ -4,8 +4,6 @@ import (
 	"testing"
 	"time"
 
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/kolide/kolide-ose/config"
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/kolide"
 	"github.com/stretchr/testify/assert"
@@ -63,7 +61,7 @@ func setupLoginTests(t *testing.T) (kolide.Service, kolide.UserPayload, kolide.U
 	ds, err := datastore.New("gorm-sqlite3", ":memory:")
 	assert.Nil(t, err)
 
-	svc, err := NewService(ds, kitlog.NewNopLogger(), config.TestConfig(), nil)
+	svc, err := newTestService(ds)
 	assert.Nil(t, err)
 	payload := kolide.UserPayload{
 		Username: stringPtr("foo"),

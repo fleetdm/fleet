@@ -3,8 +3,6 @@ package server
 import (
 	"testing"
 
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/kolide/kolide-ose/config"
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/kolide"
 	"github.com/stretchr/testify/assert"
@@ -15,7 +13,7 @@ func TestGetAllHosts(t *testing.T) {
 	ds, err := datastore.New("gorm-sqlite3", ":memory:")
 	assert.Nil(t, err)
 
-	svc, err := NewService(ds, kitlog.NewNopLogger(), config.TestConfig(), nil)
+	svc, err := newTestService(ds)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -38,7 +36,7 @@ func TestGetHost(t *testing.T) {
 	ds, err := datastore.New("gorm-sqlite3", ":memory:")
 	assert.Nil(t, err)
 
-	svc, err := NewService(ds, kitlog.NewNopLogger(), config.TestConfig(), nil)
+	svc, err := newTestService(ds)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -59,7 +57,7 @@ func TestNewHost(t *testing.T) {
 	ds, err := datastore.New("gorm-sqlite3", ":memory:")
 	assert.Nil(t, err)
 
-	svc, err := NewService(ds, kitlog.NewNopLogger(), config.TestConfig(), nil)
+	svc, err := newTestService(ds)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -80,7 +78,7 @@ func TestModifyHost(t *testing.T) {
 	ds, err := datastore.New("gorm-sqlite3", ":memory:")
 	assert.Nil(t, err)
 
-	svc, err := NewService(ds, kitlog.NewNopLogger(), config.TestConfig(), nil)
+	svc, err := newTestService(ds)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -105,7 +103,7 @@ func TestDeleteHost(t *testing.T) {
 	ds, err := datastore.New("gorm-sqlite3", ":memory:")
 	assert.Nil(t, err)
 
-	svc, err := NewService(ds, kitlog.NewNopLogger(), config.TestConfig(), nil)
+	svc, err := newTestService(ds)
 	assert.Nil(t, err)
 
 	ctx := context.Background()

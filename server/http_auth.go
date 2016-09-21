@@ -129,6 +129,14 @@ func emptyVC() *viewerContext {
 	return &viewerContext{}
 }
 
+func osqueryHostFromContext(ctx context.Context) (*kolide.Host, error) {
+	host, ok := ctx.Value("osqueryHost").(*kolide.Host)
+	if !ok {
+		return nil, errNoContext
+	}
+	return host, nil
+}
+
 func viewerContextFromContext(ctx context.Context) (*viewerContext, error) {
 	vc, ok := ctx.Value("viewerContext").(*viewerContext)
 	if !ok {

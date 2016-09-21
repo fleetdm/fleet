@@ -5,25 +5,15 @@ package server
 import (
 	"io"
 
+	"github.com/WatchBeam/clock"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/kolide/kolide-ose/config"
 	"github.com/kolide/kolide-ose/kolide"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 
-// configuration defaults
-// TODO move to main?
-const (
-	defaultBcryptCost       int    = 12
-	defaultSaltKeySize      int    = 24
-	defaultCookieName       string = "KolideSession"
-	defaultEnrollSecret     string = "xxx change me"
-	defaultNodeKeySize      int    = 24
-	defaultSMTPTokenKeySize int    = 24
-)
-
 // NewService creates a new service from the config struct
-func NewService(ds kolide.Datastore, logger kitlog.Logger, kolideConfig config.KolideConfig, mailService kolide.MailService) (kolide.Service, error) {
+func NewService(ds kolide.Datastore, logger kitlog.Logger, kolideConfig config.KolideConfig, mailService kolide.MailService, c clock.Clock) (kolide.Service, error) {
 	var svc kolide.Service
 
 	logFile := func(path string) io.Writer {
@@ -39,6 +29,7 @@ func NewService(ds kolide.Datastore, logger kitlog.Logger, kolideConfig config.K
 		ds:     ds,
 		logger: logger,
 		config: kolideConfig,
+		clock:  c,
 
 		osqueryStatusLogWriter:  logFile(kolideConfig.Osquery.StatusLogFile),
 		osqueryResultsLogWriter: logFile(kolideConfig.Osquery.ResultLogFile),
@@ -52,6 +43,7 @@ type service struct {
 	ds     kolide.Datastore
 	logger kitlog.Logger
 	config config.KolideConfig
+	clock  clock.Clock
 
 	osqueryStatusLogWriter  io.Writer
 	osqueryResultsLogWriter io.Writer

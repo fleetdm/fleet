@@ -374,7 +374,7 @@ matches = VALUES(matches)
 `
 	}
 
-	if err := orm.DB.Debug().Exec(queryString, vals...).Error; err != nil {
+	if err := orm.DB.Exec(queryString, vals...).Error; err != nil {
 		return errors.DatabaseError(err)
 	}
 

@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	kitlog "github.com/go-kit/kit/log"
 	"github.com/kolide/kolide-ose/config"
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/kolide"
@@ -19,7 +18,7 @@ func TestAuthenticatedUser(t *testing.T) {
 	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 	createTestUsers(t, ds)
-	svc, err := NewService(ds, kitlog.NewNopLogger(), config.TestConfig(), nil)
+	svc, err := newTestService(ds)
 	assert.Nil(t, err)
 	admin1, err := ds.User("admin1")
 	assert.Nil(t, err)
@@ -114,7 +113,7 @@ func TestRequestPasswordReset(t *testing.T) {
 
 func TestCreateUser(t *testing.T) {
 	ds, _ := datastore.New("inmem", "")
-	svc, _ := NewService(ds, kitlog.NewNopLogger(), config.TestConfig(), nil)
+	svc, _ := newTestService(ds)
 	ctx := context.Background()
 
 	var createUserTests = []struct {
@@ -186,7 +185,7 @@ func TestCreateUser(t *testing.T) {
 
 func TestChangeUserPassword(t *testing.T) {
 	ds, _ := datastore.New("inmem", "")
-	svc, _ := NewService(ds, kitlog.NewNopLogger(), config.TestConfig(), nil)
+	svc, _ := newTestService(ds)
 	createTestUsers(t, ds)
 	var passwordChangeTests = []struct {
 		token       string
