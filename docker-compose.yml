@@ -7,3 +7,9 @@ mysql:
     MYSQL_PASSWORD: kolide
   ports:
     - "3306:3306"
+
+mailhog:
+  image: mailhog/mailhog:latest
+  ports:
+    - "8025:8025"
+    - "1025:1025"

@@ -220,6 +220,9 @@ mail:
   address: localhost:1025
 ```
 
+`localhost:1025` is the default configuration. You can use `kolide config_dump`
+to see the values which Kolide is using given your configuration.
+
 #### Viewing email content in the terminal
 
 If you're [running Kolide in dev mode](#using-no-external-dependencies), emails
@@ -270,10 +273,15 @@ the Kolide binary as follows:
 kolide serve
 ```
 
-There is an example configuration file included in this repository to make this
-process easier for you. You may have to edit the example configuration file to
-use the output of `docker-machine ip` instead of `localhost` if you're using
-Docker via [Docker Toolbox](https://www.docker.com/products/docker-toolbox).
+By default, Kolide will try to connect to servers running on default ports on
+localhost.
+
+If you're using Docker via [Docker Toolbox](https://www.docker.com/products/docker-toolbox).
+you may have to modify the default values use the output of `docker-machine ip`
+instead of `localhost`.There is an example configuration file included in this
+repository to make this process easier for you.  Use the `--config` flag of the
+Kolide binary to specify the path to your config. See `kolide --help` for more
+options.
 
 #### Using no external dependencies
 

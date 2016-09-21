@@ -109,7 +109,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("app.web_address", "0.0.0.0:8080")
 
 	// SMTP
-	man.addConfigString("smtp.server", "")
+	man.addConfigString("smtp.server", "0.0.0.0:1025")
 	man.addConfigString("smtp.username", "")
 	man.addConfigString("smtp.password", "")
 	man.addConfigInt("smtp.pool_connections", 4)
