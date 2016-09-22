@@ -41,9 +41,9 @@ minimum toolset:
 * [Docker](https://www.docker.com/products/overview#/install_the_platform)
 
 
-If you're using MacOS or Linux, you should have Make installed already. If you
+If you're using MacOS or Linux, Make should be installed by default. If you
 are using Windows, you will need to install it separately. Additionally, if you
-would only like to run an in-memory instances of Kolide (for demonstrations,
+would only like to run an in-memory instance of Kolide (for demonstrations,
 testing, etc.), then you do not need to install Docker.
 
 Once you have those minimum requirements, you will need to install Kolide's
@@ -53,9 +53,8 @@ dependent libraries. To do this, run the following:
 make deps
 ```
 
-When pulling in new revisions to the Kolide codebase to your working source
-tree, it may be necessary to re-run `make deps` if a new Go or JavaScript
-dependency was added.
+When pulling in new revisions to your working source tree, it may be necessary
+to re-run `make deps` if a new Go or JavaScript dependency was added.
 
 ### Building
 
