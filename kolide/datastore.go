@@ -9,6 +9,7 @@ type Datastore interface {
 	HostStore
 	PasswordResetStore
 	SessionStore
+	AppConfigStore
 	Name() string
 	Drop() error
 	Migrate() error

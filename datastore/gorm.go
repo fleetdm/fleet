@@ -34,6 +34,7 @@ var tables = [...]interface{}{
 	&kolide.DistributedQueryCampaignTarget{},
 	&kolide.Query{},
 	&kolide.DistributedQueryExecution{},
+	&kolide.OrgInfo{},
 }
 
 type gormDB struct {

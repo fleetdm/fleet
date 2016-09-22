@@ -13,6 +13,7 @@ type inmem struct {
 	users          map[uint]*kolide.User
 	sessions       map[uint]*kolide.Session
 	passwordResets map[uint]*kolide.PasswordResetRequest
+	orginfo        *kolide.OrgInfo
 }
 
 func (orm *inmem) Name() string {

@@ -115,6 +115,17 @@ the way that the kolide server works.
 						initFatal(err, "creating bootstrap user")
 					}
 				}
+				devOrgInfo := &kolide.OrgInfo{
+					OrgName:    "Kolide",
+					OrgLogoURL: fmt.Sprintf("%s/logo.png", config.Server.Address),
+				}
+				_, err := svc.NewOrgInfo(ctx, kolide.OrgInfoPayload{
+					OrgName:    &devOrgInfo.OrgName,
+					OrgLogoURL: &devOrgInfo.OrgLogoURL,
+				})
+				if err != nil {
+					initFatal(err, "creating fake org info")
+				}
 			}
 
 			svcLogger := kitlog.NewContext(logger).With("component", "service")

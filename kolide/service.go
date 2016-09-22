@@ -8,4 +8,5 @@ type Service interface {
 	QueryService
 	OsqueryService
 	HostService
+	AppConfigService
 }

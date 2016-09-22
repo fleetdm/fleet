@@ -141,6 +141,26 @@ func attachAPIRoutes(router *mux.Router, ctx context.Context, svc kolide.Service
 		),
 	).Methods("DELETE")
 
+	router.Handle("/api/v1/kolide/config",
+		kithttp.NewServer(
+			ctx,
+			authenticated(makeGetAppConfigEndpoint(svc)),
+			decodeNoParamsRequest,
+			encodeResponse,
+			opts...,
+		),
+	).Methods("GET")
+
+	router.Handle("/api/v1/kolide/config",
+		kithttp.NewServer(
+			ctx,
+			authenticated(mustBeAdmin(makeModifyAppConfigRequest(svc))),
+			decodeModifyAppConfigRequest,
+			encodeResponse,
+			opts...,
+		),
+	).Methods("PATCH")
+
 	router.Handle("/api/v1/kolide/queries/{id}",
 		kithttp.NewServer(
 			ctx,
