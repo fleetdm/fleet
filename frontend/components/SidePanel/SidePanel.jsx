@@ -1,4 +1,5 @@
 import React, { Component, PropTypes } from 'react';
+import radium from 'radium';
 import { isEqual, last } from 'lodash';
 import componentStyles from './styles';
 import kolideLogo from '../../../assets/images/kolide-logo.svg';
@@ -15,15 +16,7 @@ class SidePanel extends Component {
     this.state = {
       activeTab: 'Hosts',
       activeSubItem: 'Add Hosts',
-    };
-  }
-
-  setActiveTab = (activeTab) => {
-    return (evt) => {
-      evt.preventDefault();
-
-      this.setState({ activeTab });
-      return false;
+      showSubItems: false,
     };
   }
 
@@ -32,6 +25,28 @@ class SidePanel extends Component {
       evt.preventDefault();
 
       this.setState({ activeSubItem });
+      return false;
+    };
+  }
+
+  setActiveTab = (activeTab) => {
+    return (evt) => {
+      evt.preventDefault();
+
+      this.setState({
+        activeTab,
+      });
+
+      return false;
+    };
+  }
+
+  toggleShowSubItems = (showSubItems) => {
+    return (evt) => {
+      evt.preventDefault();
+
+      this.setState({ showSubItems });
+
       return false;
     };
   }
@@ -141,15 +156,34 @@ class SidePanel extends Component {
   }
 
   renderSubItems = (subItems) => {
-    const { subItemsStyles } = componentStyles;
-    const { renderSubItem } = this;
+    const { subItemListStyles, subItemsStyles } = componentStyles;
+    const { renderCollapseSubItems, renderSubItem } = this;
+    const { showSubItems } = this.state;
+
+    if (!subItems.length) return false;
 
     return (
-      <ul style={subItemsStyles}>
-        {subItems.map(subItem => {
-          return renderSubItem(subItem);
-        })}
-      </ul>
+      <div style={subItemsStyles(showSubItems)}>
+        <ul style={subItemListStyles(showSubItems)}>
+          {subItems.map(subItem => {
+            return renderSubItem(subItem);
+          })}
+        </ul>
+        {renderCollapseSubItems()}
+      </div>
+    );
+  }
+
+  renderCollapseSubItems = () => {
+    const { toggleShowSubItems } = this;
+    const { showSubItems } = this.state;
+    const { collapseSubItemsWrapper } = componentStyles;
+    const iconName = showSubItems ? 'kolidecon-chevron-bold-left' : 'kolidecon-chevron-bold-right';
+
+    return (
+      <div style={collapseSubItemsWrapper}>
+        <i className={iconName} style={{ color: '#FFF' }} onClick={toggleShowSubItems(!showSubItems)} />
+      </div>
     );
   }
 
@@ -166,4 +200,4 @@ class SidePanel extends Component {
   }
 }
 
-export default SidePanel;
+export default radium(SidePanel);

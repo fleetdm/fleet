@@ -1,10 +1,12 @@
 import { debounce } from 'lodash';
 
-const TIMEOUT = 1000; // only allow 1 click per second
+const DEFAULT_TIMEOUT = 1000; // 1 function execution per second by default
 
-export default (func) => {
-  return debounce(func, TIMEOUT, {
-    leading: true,
-    trailing: false,
+export default (func, options = {}) => {
+  const { leading = true, trailing = false, timeout = DEFAULT_TIMEOUT } = options;
+
+  return debounce(func, timeout, {
+    leading,
+    trailing,
   });
 };

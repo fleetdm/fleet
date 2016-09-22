@@ -2,12 +2,15 @@ import Styles from '../../styles';
 
 const { border, color, font, padding } = Styles;
 
-export default {
+const componentStyles = {
   companyLogoStyles: {
     position: 'absolute',
     left: '16px',
     height: '44px',
     marginRight: '10px',
+    '@media (max-width: 760px)': {
+      left: '4px',
+    },
   },
   headerStyles: {
     borderBottomColor: color.accentLight,
@@ -23,6 +26,10 @@ export default {
     fontSize: '22px',
     marginRight: '16px',
     top: '4px',
+    left: 0,
+    '@media (max-width: 760px)': {
+      left: '5px',
+    },
   },
   navItemBeforeStyles: {
     content: '',
@@ -33,6 +40,9 @@ export default {
     top: '2px',
     bottom: 0,
     backgroundColor: '#9a61c6',
+    '@media (max-width: 760px)': {
+      left: 0,
+    },
   },
   navItemListStyles: {
     listStyle: 'none',
@@ -42,10 +52,19 @@ export default {
   navItemNameStyles: {
     display: 'inline-block',
     textDecoration: 'none',
+    '@media (max-width: 760px)': {
+      display: 'none',
+    },
   },
   navItemStyles: (active) => {
     const activeStyles = {
       color: color.brand,
+      borderBottom: 'none',
+      transition: 'none',
+      '@media (max-width: 760px)': {
+        borderBottom: '8px solid #9a61c6',
+        textAlign: 'center',
+      },
     };
 
     const baseStyles = {
@@ -56,9 +75,10 @@ export default {
       fontSize: font.small,
       textTransform: 'uppercase',
       paddingTop: padding.half,
-      WebkitTransition: 'all 0.2s ease-in-out',
-      MozTransition: 'all 0.2s ease-in-out',
       transition: 'all 0.2s ease-in-out',
+      '@media (max-width: 760px)': {
+        textAlign: 'center',
+      },
     };
 
     if (active) {
@@ -80,6 +100,9 @@ export default {
       borderTopWidth: '1px',
       marginRight: '16px',
       marginTop: '5px',
+      '@media (max-width: 760px)': {
+        marginRight: 0,
+      },
     };
 
     if (lastChild) {
@@ -104,6 +127,10 @@ export default {
     position: 'fixed',
     top: 0,
     width: '216px',
+    '@media (max-width: 760px)': {
+      paddingLeft: 0,
+      width: '54px',
+    },
   },
   orgNameStyles: {
     fontSize: font.medium,
@@ -115,6 +142,9 @@ export default {
     textOverflow: 'ellipsis',
     top: '3px',
     whiteSpace: 'nowrap',
+    '@media (max-width: 760px)': {
+      display: 'none',
+    },
   },
   subItemBeforeStyles: {
     backgroundColor: color.white,
@@ -152,8 +182,6 @@ export default {
       paddingLeft: padding.most,
       paddingTop: padding.xSmall,
       position: 'relative',
-      WebkitTransition: 'all 0.2s ease-in-out',
-      MozTransition: 'all 0.2s ease-in-out',
       textTransform: 'none',
       transition: 'all 0.2s ease-in-out',
     };
@@ -167,17 +195,46 @@ export default {
 
     return baseStyles;
   },
-  subItemsStyles: {
-    backgroundColor: color.brand,
-    boxShadow: 'inset 0 5px 8px 0 rgba(0, 0, 0, 0.12), inset 0 -5px 8px 0 rgba(0, 0, 0, 0.12)',
-    listStyle: 'none',
-    marginBottom: 0,
-    marginLeft: '-24px',
-    marginRight: 0,
-    marginTop: padding.medium,
-    minHeight: '6px',
-    paddingBottom: padding.half,
-    paddingTop: padding.half,
+  subItemsStyles: (expanded) => {
+    return {
+      backgroundColor: color.brand,
+      boxShadow: 'inset 0 5px 8px 0 rgba(0, 0, 0, 0.12), inset 0 -5px 8px 0 rgba(0, 0, 0, 0.12)',
+      marginBottom: 0,
+      marginRight: 0,
+      minHeight: '87px',
+      paddingBottom: padding.half,
+      paddingTop: padding.half,
+      marginLeft: '-24px',
+      marginTop: padding.medium,
+      transition: 'width 0.1s ease-in-out',
+      '@media (max-width: 760px)': {
+        bottom: '-8px',
+        left: '54px',
+        marginLeft: 0,
+        position: 'absolute',
+        width: expanded ? '251px' : '18px',
+      },
+    };
+  },
+  subItemListStyles: (expanded) => {
+    return {
+      listStyle: 'none',
+      '@media (max-width: 760px)': {
+        borderRight: '1px solid rgba(0,0,0,0.16)',
+        display: expanded ? 'inline-block' : 'none',
+        padding: 0,
+        textAlign: 'left',
+        width: '211px',
+      },
+    };
+  },
+  collapseSubItemsWrapper: {
+    position: 'absolute',
+    right: '3px',
+    top: '41%',
+    '@media (min-width: 761px)': {
+      display: 'none',
+    },
   },
   usernameStyles: {
     position: 'relative',
@@ -187,6 +244,9 @@ export default {
     padding: 0,
     fontSize: font.small,
     textTransform: 'uppercase',
+    '@media (max-width: 760px)': {
+      display: 'none',
+    },
   },
   userStatusStyles: (enabled) => {
     const backgroundColor = enabled ? color.success : color.warning;
@@ -202,6 +262,11 @@ export default {
       position: 'relative',
       top: '6px',
       width: size,
+      '@media (max-width: 760px)': {
+        display: 'none',
+      },
     };
   },
 };
+
+export default componentStyles;
