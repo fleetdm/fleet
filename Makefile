@@ -31,7 +31,7 @@ endif
 DOCKER_IMAGE_NAME = kolide/kolide
 
 ifndef CIRCLE_PR_NUMBER
-	DOCKER_IMAGE_TAG = dev-unset
+	DOCKER_IMAGE_TAG = latest
 else
 	DOCKER_IMAGE_TAG = dev-${CIRCLE_PR_NUMBER}
 endif
