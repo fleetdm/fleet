@@ -140,14 +140,14 @@ class LoginForm extends Component {
           <InputFieldWithIcon
             autofocus
             error={errors.username}
-            iconName="user"
+            iconName="kolidecon-username"
             name="username"
             onChange={onInputChange('username')}
             placeholder="Username or Email"
           />
           <InputFieldWithIcon
             error={errors.password}
-            iconName="lock"
+            iconName="kolidecon-password"
             name="password"
             onChange={onInputChange('password')}
             placeholder="Password"

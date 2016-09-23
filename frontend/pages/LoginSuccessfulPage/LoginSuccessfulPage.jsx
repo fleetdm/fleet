@@ -6,13 +6,11 @@ import componentStyles from './styles';
 import Icon from '../../components/icons/Icon';
 import paths from '../../router/paths';
 
-const COUNTDOWN_INTERVAL = 1000;
-const REDIRECT_TIME = 3000;
+const REDIRECT_TIME = 1200;
 
 class LoginSuccessfulPage extends Component {
   static propTypes = {
     dispatch: PropTypes.func.isRequired,
-    user: PropTypes.object,
   };
 
   constructor (props) {
@@ -27,42 +25,23 @@ class LoginSuccessfulPage extends Component {
     this.startRedirectCountdown();
   }
 
-  componentWillUnmount () {
-    const { interval } = this;
-
-    if (interval) clearInterval(interval);
-  }
-
   startRedirectCountdown = () => {
     const { dispatch } = this.props;
     const { HOME } = paths;
+    const { redirectTime } = this.state;
 
-    this.interval = setInterval(() => {
-      const { redirectTime } = this.state;
-
-      if (redirectTime > 0) {
-        this.setState({
-          redirectTime: redirectTime - COUNTDOWN_INTERVAL,
-        });
-
-        return false;
-      }
-
+    setTimeout(() => {
       return dispatch(push(HOME));
-    }, COUNTDOWN_INTERVAL);
+    }, redirectTime);
   }
 
   render () {
     const { loginSuccessStyles, subtextStyles, whiteBoxStyles } = componentStyles;
-    const { redirectTime } = this.state;
-    const secondsToRedirect = redirectTime / 1000;
-
     return (
       <div style={whiteBoxStyles}>
         <Icon name="check" />
         <p style={loginSuccessStyles}>Login successful</p>
-        <p style={subtextStyles}>Hold on to your butts.</p>
-        <p style={subtextStyles}>redirecting in {secondsToRedirect}</p>
+        <p style={subtextStyles}>hold on to your butts...</p>
       </div>
     );
   }

@@ -4,16 +4,15 @@ const { border, color, font, padding } = styles;
 
 export default {
   boxStyles: {
-    alignItems: 'center',
     backgroundColor: color.white,
-    borderTopLeftRadius: border.radius.base,
-    borderTopRightRadius: border.radius.base,
+    borderRadius: border.radius.base,
     boxShadow: border.shadow.blur,
+    minHeight: '370px',
     boxSizing: 'border-box',
-    display: 'flex',
-    flexDirection: 'column',
-    padding: padding.base,
-    width: '522px',
+    padding: '30px',
+    width: '524px',
+    position: 'relative',
+    fontWeight: 300,
   },
   containerStyles: {
     alignItems: 'center',
@@ -24,6 +23,10 @@ export default {
   exStyles: {
     color: color.lightGrey,
     textDecoration: 'none',
+    position: 'absolute',
+    top: '30px',
+    right: '30px',
+    fontWeight: 'bold',
   },
   exWrapperStyles: {
     textAlign: 'right',
@@ -53,6 +56,8 @@ export default {
   textStyles: {
     color: color.purpleGrey,
     fontSize: font.medium,
+    lineHeight: '30px',
+    letterSpacing: '0.64px',
   },
   smallTabStyles: {
     backgroundColor: color.white,

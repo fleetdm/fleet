@@ -24,7 +24,7 @@ class StackedWhiteBoxes extends Component {
 
     return (
       <div style={exWrapperStyles}>
-        <Link style={exStyles} to={previousLocation}>x</Link>
+        <Link style={exStyles} to={previousLocation}>╳</Link>
       </div>
     );
   }

@@ -9,6 +9,7 @@ node_modules
 
 # generated artifacts
 assets/bundle.js
+assets/bundle.css
 server/bindata.go
 *.cover
 *.test

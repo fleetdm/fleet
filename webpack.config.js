@@ -6,8 +6,9 @@ var autoprefixer = require('autoprefixer');
 var ExtractTextPlugin = require("extract-text-webpack-plugin");
 
 var plugins = [
-    new webpack.NoErrorsPlugin(),
-    new webpack.optimize.DedupePlugin(),
+  new webpack.NoErrorsPlugin(),
+  new webpack.optimize.DedupePlugin(),
+  new ExtractTextPlugin("bundle.css", {allChunks: false})
 ];
 
 if (process.env.NODE_ENV === 'production') {
@@ -39,6 +40,10 @@ var config  = {
       {test: /\.(png|gif)$/, loader: 'url-loader?name=[name]@[hash].[ext]&limit=6000'},
       {test: /\.(pdf|ico|jpg|svg|eot|otf|woff|ttf|mp4|webm)$/, loader: 'file-loader?name=[name]@[hash].[ext]'},
       {test: /\.json$/, loader: 'json-loader'},
+      {
+        test: /\.scss$/,
+        loader: ExtractTextPlugin.extract("style-loader", "css-loader!autoprefixer-loader!sass-loader")
+      },
       {
         test: /\.jsx?$/,
         include: path.join(repo, 'frontend'),

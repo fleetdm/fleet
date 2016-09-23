@@ -6,16 +6,38 @@ export default {
   containerStyles: {
     marginTop: padding.base,
     position: 'relative',
+    width: '100%',
   },
   errorStyles: {
     color: color.alert,
     fontSize: font.small,
     textTransform: 'lowercase',
   },
-  iconStyles: {
-    position: 'absolute',
-    right: '6px',
-    top: '29px',
+  iconStyles: (value) => {
+    const baseStyles = {
+      position: 'absolute',
+      right: '6px',
+      top: '28px',
+      fontSize: '20px',
+      color: color.accentText,
+    };
+    if (value) {
+      return {
+        ...baseStyles,
+        color: color.brand,
+      };
+    }
+
+    return baseStyles;
+  },
+
+  iconErrorStyles: (error) => {
+    if (error) {
+      return {
+        color: color.alert,
+      };
+    }
+    return false;
   },
   inputErrorStyles: (error) => {
     if (error) {
@@ -26,20 +48,34 @@ export default {
 
     return {};
   },
-  inputStyles: (value) => {
+  inputStyles: (value, type) => {
     const baseStyles = {
       borderLeft: 'none',
       borderRight: 'none',
       borderTop: 'none',
-      borderBottomWidth: '1px',
+      borderBottomWidth: '2px',
+      fontSize: '20px',
       borderBottomStyle: 'solid',
-      borderBottomColor: color.brand,
+      borderBottomColor: color.brandUltralight,
       color: color.accentText,
-      width: '378px',
+      paddingRight: '30px',
+      opacity: '1',
+      textIndent: '1px',
+      position: 'relative',
+      width: '100%',
+      boxSizing: 'border-box',
       ':focus': {
         outline: 'none',
       },
     };
+
+    if (type === 'password' && value) {
+      return {
+        ...baseStyles,
+        letterSpacing: '7px',
+        color: color.textUltradark,
+      };
+    }
 
     if (value) {
       return {

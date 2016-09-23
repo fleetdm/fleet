@@ -4,6 +4,7 @@ import { isEqual, last } from 'lodash';
 import componentStyles from './styles';
 import kolideLogo from '../../../assets/images/kolide-logo.svg';
 import navItems from './navItems';
+import './styles.scss';
 
 class SidePanel extends Component {
   static propTypes = {
@@ -41,6 +42,10 @@ class SidePanel extends Component {
     };
   }
 
+  setSubNavClass = (showSubItems) => {
+    return showSubItems ? 'sub-nav sub-nav--expanded' : 'sub-nav';
+  }
+
   toggleShowSubItems = (showSubItems) => {
     return (evt) => {
       evt.preventDefault();
@@ -64,6 +69,7 @@ class SidePanel extends Component {
       orgNameStyles,
       usernameStyles,
       userStatusStyles,
+      orgChevronStyles,
     } = componentStyles;
 
     return (
@@ -76,6 +82,7 @@ class SidePanel extends Component {
         <h1 style={orgNameStyles}>Kolide, Inc.</h1>
         <div style={userStatusStyles(enabled)} />
         <h2 style={usernameStyles}>{username}</h2>
+        <i style={orgChevronStyles} className="kolidecon-chevron-bold-down" />
       </header>
     );
   }
@@ -97,6 +104,7 @@ class SidePanel extends Component {
       <div style={navItemWrapperStyles(lastChild)} key={`nav-item-${name}`}>
         {active && <div style={navItemBeforeStyles} />}
         <li
+          key={name}
           onClick={setActiveTab(name)}
           style={navItemStyles(active)}
         >
@@ -146,6 +154,7 @@ class SidePanel extends Component {
       >
         {active && <div style={subItemBeforeStyles} />}
         <li
+          key={name}
           onClick={setActiveSubItem(name)}
           style={subItemStyles(active)}
         >
@@ -157,13 +166,11 @@ class SidePanel extends Component {
 
   renderSubItems = (subItems) => {
     const { subItemListStyles, subItemsStyles } = componentStyles;
-    const { renderCollapseSubItems, renderSubItem } = this;
+    const { renderCollapseSubItems, renderSubItem, setSubNavClass } = this;
     const { showSubItems } = this.state;
 
-    if (!subItems.length) return false;
-
     return (
-      <div style={subItemsStyles(showSubItems)}>
+      <div className={setSubNavClass(showSubItems)} style={subItemsStyles}>
         <ul style={subItemListStyles(showSubItems)}>
           {subItems.map(subItem => {
             return renderSubItem(subItem);
@@ -181,8 +188,8 @@ class SidePanel extends Component {
     const iconName = showSubItems ? 'kolidecon-chevron-bold-left' : 'kolidecon-chevron-bold-right';
 
     return (
-      <div style={collapseSubItemsWrapper}>
-        <i className={iconName} style={{ color: '#FFF' }} onClick={toggleShowSubItems(!showSubItems)} />
+      <div style={collapseSubItemsWrapper} onClick={toggleShowSubItems(!showSubItems)}>
+        <i className={iconName} />
       </div>
     );
   }

@@ -12,19 +12,21 @@ export default {
     boxSizing: 'border-box',
     display: 'flex',
     flexDirection: 'column',
-    padding: padding.base,
+    padding: '30px',
     width: FORM_WIDTH,
     minHeight: '350px',
+    fontWeight: '300',
   },
   forgotPasswordStyles: {
     fontSize: font.medium,
+    letterSpacing: '1px',
     textDecoration: 'none',
     color: color.accentText,
   },
   forgotPasswordWrapperStyles: {
     marginTop: padding.base,
     textAlign: 'right',
-    width: '378px',
+    width: '100%',
   },
   formStyles: {
     boxShadow: '0 5px 30px 0 rgba(0,0,0,0.30)',
@@ -32,7 +34,6 @@ export default {
   submitButtonStyles: {
     borderTopLeftRadius: 0,
     borderTopRightRadius: 0,
-    marginTop: 0,
     padding: padding.base,
     width: FORM_WIDTH,
   },

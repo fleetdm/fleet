@@ -86,7 +86,7 @@ class ForgotPasswordForm extends Component {
   render () {
     const { error: serverError } = this.props;
     const { errors: clientErrors } = this.state;
-    const { formStyles, inputStyles, submitButtonStyles } = componentStyles;
+    const { formStyles, submitButtonContainerStyles, submitButtonStyles } = componentStyles;
     const { onFormSubmit, onInputFieldChange } = this;
 
     return (
@@ -94,17 +94,18 @@ class ForgotPasswordForm extends Component {
         <InputFieldWithIcon
           autofocus
           error={clientErrors.email || serverError}
-          iconName="envelope"
+          iconName="kolidecon-email"
           name="email"
           onChange={onInputFieldChange}
           placeholder="Email Address"
-          style={inputStyles}
         />
-        <GradientButton
-          type="submit"
-          style={submitButtonStyles}
-          text="Reset Password"
-        />
+        <div style={submitButtonContainerStyles}>
+          <GradientButton
+            type="submit"
+            text="Reset Password"
+            style={submitButtonStyles}
+          />
+        </div>
       </form>
     );
   }

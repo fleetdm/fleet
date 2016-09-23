@@ -5,21 +5,43 @@ const { border, color, font, padding } = Styles;
 const componentStyles = {
   companyLogoStyles: {
     position: 'absolute',
-    left: '16px',
-    height: '44px',
+    left: '0',
+    top: '23px',
+    height: '42px',
     marginRight: '10px',
+    borderColor: color.accentMedium,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    borderRadius: '100%',
     '@media (max-width: 760px)': {
-      left: '4px',
+      left: '5px',
     },
   },
   headerStyles: {
     borderBottomColor: color.accentLight,
     borderBottomStyle: 'solid',
     borderBottomWidth: '1px',
-    height: '67px',
-    marginBottom: padding.half,
-    marginRight: padding.medium,
+    height: '62px',
+    cursor: 'pointer',
     paddingLeft: '54px',
+    paddingTop: '26px',
+    marginRight: '16px',
+    position: 'relative',
+  },
+  orgChevronStyles: {
+    color: color.accentMedium,
+    fontSize: '12px',
+    position: 'absolute',
+    top: '50px',
+    right: '35px',
+    '@media (max-width: 760px)': {
+      top: 'auto',
+      left: '0',
+      right: '0',
+      bottom: '6px',
+      textAlign: 'center',
+      display: 'block',
+    },
   },
   iconStyles: {
     position: 'relative',
@@ -28,7 +50,9 @@ const componentStyles = {
     top: '4px',
     left: 0,
     '@media (max-width: 760px)': {
-      left: '5px',
+      display: 'block',
+      textAlign: 'center',
+      marginRight: 0,
     },
   },
   navItemBeforeStyles: {
@@ -36,8 +60,8 @@ const componentStyles = {
     width: '6px',
     height: '50px',
     position: 'absolute',
-    left: '-24px',
-    top: '2px',
+    left: '-16px',
+    top: 0,
     bottom: 0,
     backgroundColor: '#9a61c6',
     '@media (max-width: 760px)': {
@@ -60,10 +84,11 @@ const componentStyles = {
     const activeStyles = {
       color: color.brand,
       borderBottom: 'none',
-      transition: 'none',
+      ':hover': {
+        color: color.brandDark,
+      },
       '@media (max-width: 760px)': {
-        borderBottom: '8px solid #9a61c6',
-        textAlign: 'center',
+        borderBottom: '6px solid #9a61c6',
       },
     };
 
@@ -72,12 +97,13 @@ const componentStyles = {
       position: 'relative',
       color: color.textLight,
       cursor: 'pointer',
-      fontSize: font.small,
+      fontSize: '13px',
+      letterSpacing: '0.5px',
       textTransform: 'uppercase',
       paddingTop: padding.half,
-      transition: 'all 0.2s ease-in-out',
-      '@media (max-width: 760px)': {
-        textAlign: 'center',
+      transition: 'color 0.2s ease-in-out',
+      ':hover': {
+        color: color.textDark,
       },
     };
 
@@ -122,25 +148,24 @@ const componentStyles = {
     bottom: 0,
     boxShadow: '2px 0 8px 0 rgba(0, 0, 0, 0.1)',
     left: 0,
-    paddingLeft: padding.large,
-    paddingTop: padding.large,
+    paddingLeft: '16px',
     position: 'fixed',
     top: 0,
-    width: '216px',
+    width: '223px',
     '@media (max-width: 760px)': {
       paddingLeft: 0,
       width: '54px',
     },
   },
   orgNameStyles: {
-    fontSize: font.medium,
+    fontSize: '16px',
     letterSpacing: '0.5px',
     margin: 0,
     overFlow: 'hidden',
     padding: 0,
     position: 'relative',
     textOverflow: 'ellipsis',
-    top: '3px',
+    top: '1px',
     whiteSpace: 'nowrap',
     '@media (max-width: 760px)': {
       display: 'none',
@@ -167,8 +192,12 @@ const componentStyles = {
   },
   subItemStyles: (active) => {
     const activeStyles = {
+      fontSize: '13px',
       fontWeight: font.weight.bold,
       opacity: '1',
+      ':hover': {
+        opacity: '1.0',
+      },
     };
 
     const baseStyles = {
@@ -184,6 +213,9 @@ const componentStyles = {
       position: 'relative',
       textTransform: 'none',
       transition: 'all 0.2s ease-in-out',
+      ':hover': {
+        opacity: '0.75',
+      },
     };
 
     if (active) {
@@ -195,54 +227,62 @@ const componentStyles = {
 
     return baseStyles;
   },
-  subItemsStyles: (expanded) => {
-    return {
-      backgroundColor: color.brand,
-      boxShadow: 'inset 0 5px 8px 0 rgba(0, 0, 0, 0.12), inset 0 -5px 8px 0 rgba(0, 0, 0, 0.12)',
-      marginBottom: 0,
-      marginRight: 0,
-      minHeight: '87px',
-      paddingBottom: padding.half,
-      paddingTop: padding.half,
-      marginLeft: '-24px',
-      marginTop: padding.medium,
-      transition: 'width 0.1s ease-in-out',
-      '@media (max-width: 760px)': {
-        bottom: '-8px',
-        left: '54px',
-        marginLeft: 0,
-        position: 'absolute',
-        width: expanded ? '251px' : '18px',
-      },
-    };
+  subItemsStyles: {
+    backgroundColor: color.brand,
+    boxShadow: 'inset 0 5px 8px 0 rgba(0, 0, 0, 0.12), inset 0 -5px 8px 0 rgba(0, 0, 0, 0.12)',
+    marginRight: 0,
+    marginBottom: '6px',
+    paddingBottom: '3px',
+    paddingTop: '3px',
+    marginLeft: '-16px',
+    position: 'relative',
+    top: '10px',
+    transition: 'width 0.1s ease-in-out',
+    '@media (max-width: 760px)': {
+      minHeight: '84px',
+      borderTopRightRadius: '3px',
+      borderBottomRightRadius: '3px',
+      boxShadow: '2px 2px 8px rgba(0,0,0,0.1)',
+      bottom: '-8px',
+      left: '54px',
+      marginLeft: 0,
+      position: 'absolute',
+    },
   },
   subItemListStyles: (expanded) => {
     return {
       listStyle: 'none',
+      paddingLeft: '16px',
       '@media (max-width: 760px)': {
         borderRight: '1px solid rgba(0,0,0,0.16)',
         display: expanded ? 'inline-block' : 'none',
         padding: 0,
         textAlign: 'left',
-        width: '211px',
+        width: '166px',
       },
     };
   },
   collapseSubItemsWrapper: {
     position: 'absolute',
-    right: '3px',
-    top: '41%',
+    right: '4px',
+    top: '0',
+    bottom: '0',
+    lineHeight: '95px',
+    color: '#fff',
+
     '@media (min-width: 761px)': {
       display: 'none',
     },
   },
   usernameStyles: {
     position: 'relative',
-    top: '3px',
     display: 'inline-block',
     margin: 0,
     padding: 0,
-    fontSize: font.small,
+    top: '-3px',
+    left: '4px',
+    fontSize: '13px',
+    letterSpacing: '0.6px',
     textTransform: 'uppercase',
     '@media (max-width: 760px)': {
       display: 'none',
@@ -257,10 +297,8 @@ const componentStyles = {
       borderRadius: border.radius.circle,
       display: 'inline-block',
       height: size,
-      left: '1px',
       marginRight: '6px',
       position: 'relative',
-      top: '6px',
       width: size,
       '@media (max-width: 760px)': {
         display: 'none',

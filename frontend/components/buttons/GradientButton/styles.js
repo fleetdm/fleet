@@ -16,7 +16,6 @@ export default {
   fontSize: font.large,
   fontWeight: '300',
   letterSpacing: '4px',
-  marginTop: padding.base,
   padding: padding.medium,
   position: 'relative',
   textTransform: 'uppercase',

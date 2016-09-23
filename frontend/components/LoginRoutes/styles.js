@@ -3,7 +3,6 @@ export default {
     alignItems: 'center',
     display: 'flex',
     flexDirection: 'column',
-    paddingTop: '80px',
+    marginTop: '13vh',
   },
 };
-
