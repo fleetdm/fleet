@@ -24,7 +24,7 @@ describe('App - component', () => {
     const spy = spyOn(authActions, 'fetchCurrentUser').andCall(() => {
       return { type: 'LOAD_USER_ACTION' };
     });
-    const store = { auth: {} };
+    const store = { app: {}, auth: {} };
     const mockStore = helpers.reduxMockStore(store);
     const application = helpers.connectedComponent(ConnectedApp, { mockStore });
 
@@ -39,6 +39,7 @@ describe('App - component', () => {
       return { type: 'LOAD_USER_ACTION' };
     });
     const store = {
+      app: {},
       auth: {
         user: {
           id: 1,
@@ -59,7 +60,7 @@ describe('App - component', () => {
     const spy = spyOn(authActions, 'fetchCurrentUser').andCall(() => {
       return { type: 'LOAD_USER_ACTION' };
     });
-    const store = { auth: {} };
+    const store = { app: {}, auth: {} };
     const mockStore = helpers.reduxMockStore(store);
     const application = helpers.connectedComponent(ConnectedApp, { mockStore });
 

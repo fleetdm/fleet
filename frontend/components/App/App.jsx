@@ -11,6 +11,7 @@ export class App extends Component {
   static propTypes = {
     children: PropTypes.element,
     dispatch: PropTypes.func,
+    showBackgroundImage: PropTypes.bool,
     user: PropTypes.object,
   };
 
@@ -29,11 +30,11 @@ export class App extends Component {
   }
 
   render () {
-    const { children } = this.props;
+    const { children, showBackgroundImage } = this.props;
 
     return (
       <StyleRoot>
-        <Style rules={globalStyles} />
+        <Style rules={globalStyles(showBackgroundImage)} />
         {children}
         <Footer />
       </StyleRoot>
@@ -42,9 +43,13 @@ export class App extends Component {
 }
 
 const mapStateToProps = (state) => {
+  const { showBackgroundImage } = state.app;
   const { user } = state.auth;
 
-  return { user };
+  return {
+    showBackgroundImage,
+    user,
+  };
 };
 
 export default connect(mapStateToProps)(App);
