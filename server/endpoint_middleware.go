@@ -17,7 +17,7 @@ func authenticated(next endpoint.Endpoint) endpoint.Endpoint {
 			return nil, err
 		}
 		if !vc.IsLoggedIn() {
-			return nil, forbiddenError{message: "must be logged in"}
+			return nil, authError{reason: "must be logged in", clientReason: "must be logged in"}
 		}
 		return next(ctx, request)
 	}
@@ -30,7 +30,7 @@ func mustBeAdmin(next endpoint.Endpoint) endpoint.Endpoint {
 			return nil, err
 		}
 		if !vc.IsAdmin() {
-			return nil, forbiddenError{message: "must be an admin"}
+			return nil, permissionError{message: "must be an admin"}
 		}
 		return next(ctx, request)
 	}
@@ -43,7 +43,7 @@ func canPerformActions(next endpoint.Endpoint) endpoint.Endpoint {
 			return nil, err
 		}
 		if !vc.CanPerformActions() {
-			return nil, forbiddenError{message: "no read permissions"}
+			return nil, permissionError{message: "no read permissions"}
 		}
 		return next(ctx, request)
 	}
@@ -56,9 +56,8 @@ func canReadUser(next endpoint.Endpoint) endpoint.Endpoint {
 			return nil, err
 		}
 		uid := requestUserIDFromContext(ctx)
-		// TODO discuss the semantics of this check
 		if !vc.CanPerformReadActionOnUser(uid) {
-			return nil, forbiddenError{message: "no read permissions on user"}
+			return nil, permissionError{message: "no read permissions on user"}
 		}
 		return next(ctx, request)
 	}
@@ -72,7 +71,7 @@ func canModifyUser(next endpoint.Endpoint) endpoint.Endpoint {
 		}
 		uid := requestUserIDFromContext(ctx)
 		if !vc.CanPerformWriteActionOnUser(uid) {
-			return nil, forbiddenError{message: "no write permissions on user"}
+			return nil, permissionError{message: "no write permissions on user"}
 		}
 		return next(ctx, request)
 	}
@@ -97,31 +96,26 @@ func validateModifyUserRequest(next endpoint.Endpoint) endpoint.Endpoint {
 		p := r.payload
 		must := requireRoleForUserModification(p)
 
-		// check for admin required fields
-		if fields, ok := must[admin]; ok {
-			if !vc.IsAdmin() {
-				return nil, forbiddenError{message: "must be an admin", fields: fields}
+		var badArgs []invalidArgument
+		if !vc.IsAdmin() {
+			for _, field := range must[admin] {
+				badArgs = append(badArgs, invalidArgument{name: field, reason: "must be an admin"})
 			}
 		}
-
-		// check if any fields which the user can update themselves were set
-		if fields, ok := must[self]; ok {
-			if !vc.CanPerformWriteActionOnUser(uid) {
-				return nil, forbiddenError{message: "no write permission on user", fields: fields}
+		if !vc.CanPerformWriteActionOnUser(uid) {
+			for _, field := range must[self] {
+				badArgs = append(badArgs, invalidArgument{name: field, reason: "no write permissions on user"})
 			}
 		}
-
-		// check password reset permissions
-		// must be either self or an admin
 		if p.Password != nil {
-			if vc.IsUserID(uid) || vc.IsAdmin() {
-				return nil, forbiddenError{
-					message: "must be your own account or an admin",
-					fields:  []string{"password"},
-				}
+			if !vc.IsUserID(uid) || !vc.IsAdmin() {
+				badArgs = append(badArgs,
+					invalidArgument{name: "password", reason: "must be an admin or own account"})
 			}
 		}
-
+		if len(badArgs) != 0 {
+			return nil, permissionError{badArgs: badArgs}
+		}
 		return next(ctx, request)
 	}
 }

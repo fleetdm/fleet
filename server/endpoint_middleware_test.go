@@ -53,7 +53,7 @@ func TestEndpointPermissions(t *testing.T) {
 		{
 			endpoint: mustBeAdmin(e),
 			vc:       &viewerContext{user: user1},
-			wantErr:  forbiddenError{message: "must be an admin"},
+			wantErr:  permissionError{message: "must be an admin"},
 		},
 		{
 			endpoint: canModifyUser(e),
@@ -62,13 +62,13 @@ func TestEndpointPermissions(t *testing.T) {
 		{
 			endpoint: canModifyUser(e),
 			vc:       &viewerContext{user: user1},
-			wantErr:  forbiddenError{message: "no write permissions on user"},
+			wantErr:  permissionError{message: "no write permissions on user"},
 		},
 		{
 			endpoint:  canModifyUser(e),
 			vc:        &viewerContext{user: user1},
 			requestID: admin1.ID,
-			wantErr:   forbiddenError{message: "no write permissions on user"},
+			wantErr:   permissionError{message: "no write permissions on user"},
 		},
 		{
 			endpoint:  canReadUser(e),
@@ -79,7 +79,7 @@ func TestEndpointPermissions(t *testing.T) {
 			endpoint:  canReadUser(e),
 			vc:        &viewerContext{user: user2},
 			requestID: admin1.ID,
-			wantErr:   forbiddenError{message: "no read permissions on user"},
+			wantErr:   permissionError{message: "no read permissions on user"},
 		},
 		{
 			endpoint: validateModifyUserRequest(e),
@@ -90,7 +90,7 @@ func TestEndpointPermissions(t *testing.T) {
 			endpoint: validateModifyUserRequest(e),
 			request:  modifyUserRequest{payload: kolide.UserPayload{Enabled: boolPtr(true)}},
 			vc:       &viewerContext{user: user1},
-			wantErr:  forbiddenError{message: "must be an admin"},
+			wantErr:  permissionError{message: "unauthorized: must be an admin"},
 		},
 	}
 
@@ -112,9 +112,9 @@ func TestEndpointPermissions(t *testing.T) {
 				request = req
 			}
 			_, eerr := tt.endpoint(ctx, request)
-			assert.IsType(t, tt.wantErr, eerr)
-			if ferr, ok := eerr.(forbiddenError); ok {
-				assert.Equal(t, tt.wantErr.(forbiddenError).message, ferr.message)
+			assert.IsType(st, tt.wantErr, eerr)
+			if ferr, ok := eerr.(permissionError); ok {
+				assert.Equal(st, tt.wantErr.(permissionError).message, ferr.Error())
 			}
 		})
 	}

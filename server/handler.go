@@ -299,6 +299,7 @@ func MakeHandler(ctx context.Context, svc kolide.Service, jwtKey string, ds koli
 			setViewerContext(svc, ds, jwtKey, logger),
 		),
 		kithttp.ServerErrorLogger(logger),
+		kithttp.ServerErrorEncoder(encodeError),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
 		),

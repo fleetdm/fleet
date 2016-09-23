@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/kolide/kolide-ose/kolide"
@@ -55,7 +56,15 @@ type invalidArgument struct {
 
 // invalidArgumentError is returned when one or more arguments are invalid.
 func (e invalidArgumentError) Error() string {
-	return "validation failed"
+	switch len(e) {
+	case 0:
+		return "validation failed"
+	case 1:
+		return fmt.Sprintf("validation failed: %s %s", e[0].name, e[0].reason)
+	default:
+		return fmt.Sprintf("validation failed: %s %s and %d other errors", e[0].name, e[0].reason,
+			len(e))
+	}
 }
 
 func (e invalidArgumentError) Invalid() []map[string]string {

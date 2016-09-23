@@ -21,7 +21,7 @@ func (svc service) Login(ctx context.Context, username, password string) (*kolid
 		return nil, "", err
 	}
 	if !user.Enabled {
-		return nil, "", authError{reason: "account disabled"}
+		return nil, "", authError{reason: "account disabled", clientReason: "account disabled"}
 	}
 	if err := user.ValidatePassword(password); err != nil {
 		return nil, "", authError{reason: "bad password", clientReason: "bad credentials"}
