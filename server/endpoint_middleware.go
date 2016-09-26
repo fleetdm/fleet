@@ -107,12 +107,6 @@ func validateModifyUserRequest(next endpoint.Endpoint) endpoint.Endpoint {
 				badArgs = append(badArgs, invalidArgument{name: field, reason: "no write permissions on user"})
 			}
 		}
-		if p.Password != nil {
-			if !vc.IsUserID(uid) || !vc.IsAdmin() {
-				badArgs = append(badArgs,
-					invalidArgument{name: "password", reason: "must be an admin or own account"})
-			}
-		}
 		if len(badArgs) != 0 {
 			return nil, permissionError{badArgs: badArgs}
 		}
@@ -150,6 +144,9 @@ func requireRoleForUserModification(p kolide.UserPayload) map[permission][]strin
 	}
 	if p.Email != nil {
 		selfFields = append(selfFields, "email")
+	}
+	if p.Password != nil {
+		selfFields = append(selfFields, "password")
 	}
 	// self is always a must, otherwise
 	// anyone can edit the field, and we don't have that requirement
