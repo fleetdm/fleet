@@ -8,9 +8,24 @@ import (
 )
 
 type OsqueryStore interface {
+	// LabelQueriesForHost returns the label queries that should be executed
+	// for the given host. The cutoff is the minimum timestamp a query
+	// execution should have to be considered "fresh". Executions that are
+	// not fresh will be repeated. Results are returned in a map of label
+	// id -> query
 	LabelQueriesForHost(host *Host, cutoff time.Time) (map[string]string, error)
+
+	// RecordLabelQueryExecutions saves the results of label queries. The
+	// results map is a map of label id -> whether or not the label
+	// matches. The time parameter is the timestamp to save with the query
+	// execution.
 	RecordLabelQueryExecutions(host *Host, results map[string]bool, t time.Time) error
+
+	// NewLabel saves a new label.
 	NewLabel(label *Label) error
+
+	// LabelsForHost returns the labels that the given host is in.
+	LabelsForHost(host *Host) ([]Label, error)
 }
 
 type OsqueryService interface {

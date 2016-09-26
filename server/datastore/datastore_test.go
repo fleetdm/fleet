@@ -9,6 +9,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const bcryptCost = 6
@@ -268,59 +269,62 @@ func testAdminAttribute(t *testing.T, db kolide.UserStore, users []*kolide.User)
 	}
 }
 
-// TestUser tests the UserStore interface
-// this test uses the default testing backend
 func TestLabelQueries(t *testing.T) {
 	db := setup(t)
 	defer teardown(t, db)
 
-	testLabelQueries(t, db)
+	testLabels(t, db)
 }
 
-func testLabelQueries(t *testing.T, db kolide.Datastore) {
+func testLabels(t *testing.T, db kolide.Datastore) {
+	hosts := []kolide.Host{}
 	var host *kolide.Host
 	var err error
 	for i := 0; i < 10; i++ {
 		host, err = db.EnrollHost(string(i), "foo", "", "", 10)
-		assert.NoError(t, err, "enrollment should succeed")
+		assert.Nil(t, err, "enrollment should succeed")
+		hosts = append(hosts, *host)
 	}
 
 	baseTime := time.Now()
 
 	// No queries should be returned before labels or queries added
 	queries, err := db.LabelQueriesForHost(host, baseTime)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.Empty(t, queries)
 
-	labelQueries := []*kolide.Query{
-		&kolide.Query{
+	// No labels should match
+	labels, err := db.LabelsForHost(host)
+	assert.Nil(t, err)
+	assert.Empty(t, labels)
+
+	labelQueries := []kolide.Query{
+		kolide.Query{
 			Name:     "query1",
 			Query:    "query1",
 			Platform: "darwin",
 		},
-		&kolide.Query{
+		kolide.Query{
 			Name:     "query2",
 			Query:    "query2",
 			Platform: "darwin",
 		},
-		&kolide.Query{
+		kolide.Query{
 			Name:     "query3",
 			Query:    "query3",
 			Platform: "darwin",
 		},
-		&kolide.Query{
+		kolide.Query{
 			Name:     "query4",
 			Query:    "query4",
 			Platform: "darwin",
 		},
 	}
 
-	expectQueries := make(map[string]string)
-
-	for i, query := range labelQueries {
-		assert.NoError(t, db.NewQuery(query))
-		expectQueries[fmt.Sprint(i+1)] = query.Query
+	for _, query := range labelQueries {
+		assert.Nil(t, db.NewQuery(&query))
 	}
+
 	// this one should not show up
 	assert.NoError(t, db.NewQuery(&kolide.Query{
 		Platform: "not_darwin",
@@ -332,27 +336,35 @@ func testLabelQueries(t *testing.T, db kolide.Datastore) {
 	assert.NoError(t, err)
 	assert.Empty(t, queries)
 
-	labels := []*kolide.Label{
-		&kolide.Label{
-			Name:    "label1",
-			QueryID: 1,
-		},
-		&kolide.Label{
-			Name:    "label2",
-			QueryID: 2,
-		},
-		&kolide.Label{
+	newLabels := []kolide.Label{
+		// Note these are intentionally out of order
+		kolide.Label{
 			Name:    "label3",
 			QueryID: 3,
 		},
-		&kolide.Label{
+		kolide.Label{
+			Name:    "label1",
+			QueryID: 1,
+		},
+		kolide.Label{
+			Name:    "label2",
+			QueryID: 2,
+		},
+		kolide.Label{
 			Name:    "label4",
 			QueryID: 4,
 		},
 	}
 
-	for _, label := range labels {
-		assert.NoError(t, db.NewLabel(label))
+	for _, label := range newLabels {
+		assert.Nil(t, db.NewLabel(&label))
+	}
+
+	expectQueries := map[string]string{
+		"1": "query3",
+		"2": "query1",
+		"3": "query2",
+		"4": "query4",
 	}
 
 	host.Platform = "darwin"
@@ -361,6 +373,11 @@ func testLabelQueries(t *testing.T, db kolide.Datastore) {
 	queries, err = db.LabelQueriesForHost(host, baseTime)
 	assert.NoError(t, err)
 	assert.Equal(t, expectQueries, queries)
+
+	// No labels should match with no results yet
+	labels, err = db.LabelsForHost(host)
+	assert.Nil(t, err)
+	assert.Empty(t, labels)
 
 	// Record a query execution
 	err = db.RecordLabelQueryExecutions(host, map[string]bool{"1": true}, baseTime)
@@ -380,7 +397,7 @@ func testLabelQueries(t *testing.T, db kolide.Datastore) {
 	assert.Equal(t, expectQueries, queries)
 
 	// Record a newer execution for that query and another
-	err = db.RecordLabelQueryExecutions(host, map[string]bool{"2": true, "3": false}, baseTime)
+	err = db.RecordLabelQueryExecutions(host, map[string]bool{"2": false, "3": true}, baseTime)
 	assert.NoError(t, err)
 
 	// Now these should no longer show up in the necessary to run queries
@@ -390,12 +407,32 @@ func testLabelQueries(t *testing.T, db kolide.Datastore) {
 	assert.NoError(t, err)
 	assert.Equal(t, expectQueries, queries)
 
+	// Now the two matching labels should be returned
+	labels, err = db.LabelsForHost(host)
+	assert.Nil(t, err)
+	if assert.Len(t, labels, 2) {
+		assert.Equal(t, "label3", labels[0].Name)
+		assert.Equal(t, "label2", labels[1].Name)
+	}
+
+	// A host that hasn't executed any label queries should still be asked
+	// to execute those queries
+	hosts[0].Platform = "darwin"
+	queries, err = db.LabelQueriesForHost(host, time.Now())
+	assert.Nil(t, err)
+	assert.Len(t, queries, 4)
+
+	// There should still be no labels returned for a host that never
+	// executed any label queries
+	labels, err = db.LabelsForHost(&hosts[0])
+	assert.Nil(t, err)
+	assert.Empty(t, labels)
 }
 
 // setup creates a datastore for testing
 func setup(t *testing.T) kolide.Datastore {
 	db, err := gorm.Open("sqlite3", ":memory:")
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	ds := gormDB{DB: db, Driver: "sqlite3"}
 	err = ds.Migrate()

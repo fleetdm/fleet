@@ -301,7 +301,7 @@ func (orm gormDB) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (map[
 		)
 	}
 	rows, err := orm.DB.Raw(`
-SELECT q.id, q.query
+SELECT l.id, q.query
 FROM labels l JOIN queries q
 ON l.query_id = q.id
 WHERE q.platform = ?
@@ -323,7 +323,7 @@ AND q.id NOT IN /* subtract the set of executions that are recent enough */
 		var id, query string
 		err = rows.Scan(&id, &query)
 		if err != nil {
-			return results, nil
+			return nil, errors.DatabaseError(err)
 		}
 		results[id] = query
 	}
@@ -380,6 +380,29 @@ matches = VALUES(matches)
 	}
 
 	return nil
+}
+
+func (orm gormDB) LabelsForHost(host *kolide.Host) ([]kolide.Label, error) {
+	if host == nil {
+		return nil, errors.New(
+			"error finding host queries",
+			"nil pointer passed to LabelQueriesForHost",
+		)
+	}
+
+	results := []kolide.Label{}
+	err := orm.DB.Raw(`
+SELECT labels.* from labels, label_query_executions lqe
+WHERE lqe.host_id = ?
+AND lqe.label_id = labels.id
+AND lqe.matches
+`, host.ID).Scan(&results).Error
+
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, errors.DatabaseError(err)
+	}
+
+	return results, nil
 }
 
 func (orm gormDB) NewPack(pack *kolide.Pack) error {
