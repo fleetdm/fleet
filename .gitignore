@@ -10,7 +10,7 @@ node_modules
 # generated artifacts
 assets/bundle.*
 assets/*@*.svg
-server/bindata.go
+bindata.go
 *.cover
 *.test
 *.log

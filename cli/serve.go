@@ -10,12 +10,12 @@ import (
 
 	"github.com/WatchBeam/clock"
 	kitlog "github.com/go-kit/kit/log"
-	"github.com/kolide/kolide-ose/config"
-	"github.com/kolide/kolide-ose/datastore"
-	"github.com/kolide/kolide-ose/kolide"
-	"github.com/kolide/kolide-ose/mail"
-	"github.com/kolide/kolide-ose/server"
-	"github.com/kolide/kolide-ose/version"
+	"github.com/kolide/kolide-ose/server/config"
+	"github.com/kolide/kolide-ose/server/datastore"
+	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide-ose/server/mail"
+	"github.com/kolide/kolide-ose/server/service"
+	"github.com/kolide/kolide-ose/server/version"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -74,7 +74,7 @@ the way that the kolide server works.
 				}
 			}
 
-			svc, err := server.NewService(ds, logger, config, mailService, clock.C)
+			svc, err := service.NewService(ds, logger, config, mailService, clock.C)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
@@ -129,15 +129,15 @@ the way that the kolide server works.
 			}
 
 			svcLogger := kitlog.NewContext(logger).With("component", "service")
-			svc = server.NewLoggingService(svc, svcLogger)
+			svc = service.NewLoggingService(svc, svcLogger)
 
 			httpLogger := kitlog.NewContext(logger).With("component", "http")
 
-			apiHandler := server.MakeHandler(ctx, svc, config.Auth.JwtKey, httpLogger)
+			apiHandler := service.MakeHandler(ctx, svc, config.Auth.JwtKey, httpLogger)
 			http.Handle("/api/", accessControl(apiHandler))
 			http.Handle("/version", version.Handler())
-			http.Handle("/assets/", server.ServeStaticAssets("/assets/"))
-			http.Handle("/", server.ServeFrontend())
+			http.Handle("/assets/", service.ServeStaticAssets("/assets/"))
+			http.Handle("/", service.ServeFrontend())
 
 			errs := make(chan error, 2)
 			go func() {

@@ -1,8 +1,8 @@
 package cli
 
 import (
-	"github.com/kolide/kolide-ose/config"
-	"github.com/kolide/kolide-ose/version"
+	"github.com/kolide/kolide-ose/server/config"
+	"github.com/kolide/kolide-ose/server/version"
 	"github.com/spf13/cobra"
 )
 

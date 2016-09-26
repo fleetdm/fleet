@@ -99,8 +99,8 @@ test: lint-go lint-js test-go test-js
 
 generate: .prefix
 	webpack --progress --colors
-	go-bindata -pkg=server \
-		-o=server/bindata.go \
+	go-bindata -pkg=service \
+		-o=server/service/bindata.go \
 		frontend/templates/ assets/...
 
 # we first generate the webpack bundle so that bindata knows to watch the
@@ -108,8 +108,8 @@ generate: .prefix
 # run webpack in watch mode to continuously re-generate the bundle
 generate-dev: .prefix
 	webpack --progress --colors
-	go-bindata -debug -pkg=server \
-		-o=server/bindata.go \
+	go-bindata -debug -pkg=service \
+		-o=server/service/bindata.go \
 		frontend/templates/ assets/...
 	webpack --progress --colors --watch
 

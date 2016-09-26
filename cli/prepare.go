@@ -5,10 +5,10 @@ import (
 
 	"github.com/WatchBeam/clock"
 	kitlog "github.com/go-kit/kit/log"
-	"github.com/kolide/kolide-ose/config"
-	"github.com/kolide/kolide-ose/datastore"
-	"github.com/kolide/kolide-ose/kolide"
-	"github.com/kolide/kolide-ose/server"
+	"github.com/kolide/kolide-ose/server/config"
+	"github.com/kolide/kolide-ose/server/datastore"
+	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide-ose/server/service"
 	"github.com/spf13/cobra"
 )
 
@@ -83,7 +83,7 @@ To setup kolide infrastructure, use one of the available commands.
 				Enabled:  &enabled,
 				Admin:    &isAdmin,
 			}
-			svc, err := server.NewService(ds, kitlog.NewNopLogger(), config, nil, clock.C)
+			svc, err := service.NewService(ds, kitlog.NewNopLogger(), config, nil, clock.C)
 			if err != nil {
 				initFatal(err, "creating service")
 			}
