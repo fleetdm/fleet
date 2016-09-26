@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"testing"
 
 	kitlog "github.com/go-kit/kit/log"
@@ -18,6 +19,7 @@ import (
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/kolide"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )
 
@@ -29,7 +31,7 @@ func TestLogin(t *testing.T) {
 
 	opts := []kithttp.ServerOption{
 		kithttp.ServerBefore(
-			setViewerContext(svc, ds, "foobar", logger),
+			setRequestsContexts(svc, "CHANGEME"),
 		),
 		kithttp.ServerErrorLogger(logger),
 		kithttp.ServerAfter(
@@ -37,7 +39,9 @@ func TestLogin(t *testing.T) {
 		),
 	}
 	r := mux.NewRouter()
-	attachAPIRoutes(r, context.Background(), svc, opts)
+	ke := MakeKolideServerEndpoints(svc, "CHANGEME")
+	kh := makeKolideKitHandlers(context.Background(), ke, opts)
+	attachKolideAPIRoutes(r, kh)
 	r.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "index")
 	}))
@@ -128,8 +132,8 @@ func TestLogin(t *testing.T) {
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", jsn.Token))
 		client := &http.Client{}
 		resp, err = client.Do(req)
-		assert.Nil(t, err)
-		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		require.Nil(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode, strconv.Itoa(tt.status))
 
 		_, err = ioutil.ReadAll(resp.Body)
 		assert.Nil(t, err)

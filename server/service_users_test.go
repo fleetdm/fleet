@@ -9,6 +9,7 @@ import (
 	"github.com/kolide/kolide-ose/config"
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/kolide"
+	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
@@ -24,7 +25,7 @@ func TestAuthenticatedUser(t *testing.T) {
 	assert.Nil(t, err)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "viewerContext", &viewerContext{user: admin1})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin1})
 	user, err := svc.AuthenticatedUser(ctx)
 	assert.Nil(t, err)
 	assert.Equal(t, user, admin1)
@@ -54,31 +55,31 @@ func TestRequestPasswordReset(t *testing.T) {
 		emailFn func(e kolide.Email) error
 		wantErr error
 		user    *kolide.User
-		vc      *viewerContext
+		vc      *viewer.Viewer
 	}{
 		{
 			email:   admin1.Email,
 			emailFn: defaultEmailFn,
 			user:    admin1,
-			vc:      &viewerContext{user: admin1},
+			vc:      &viewer.Viewer{User: admin1},
 		},
 		{
 			email:   admin1.Email,
 			emailFn: defaultEmailFn,
 			user:    admin1,
-			vc:      emptyVC(),
+			vc:      nil,
 		},
 		{
 			email:   user1.Email,
 			emailFn: defaultEmailFn,
 			user:    user1,
-			vc:      &viewerContext{user: admin1},
+			vc:      &viewer.Viewer{User: admin1},
 		},
 		{
 			email:   admin1.Email,
 			emailFn: errEmailFn,
 			user:    user1,
-			vc:      emptyVC(),
+			vc:      nil,
 			wantErr: errors.New("test err"),
 		},
 	}
@@ -89,14 +90,13 @@ func TestRequestPasswordReset(t *testing.T) {
 			st.Parallel()
 			ctx := context.Background()
 			if tt.vc != nil {
-				ctx = context.WithValue(ctx, "viewerContext", tt.vc)
+				ctx = viewer.NewContext(ctx, *tt.vc)
 			}
 			mailer := &mockMailService{SendEmailFn: tt.emailFn}
 			svc.mailService = mailer
-
 			serviceErr := svc.RequestPasswordReset(ctx, tt.email)
 			assert.Equal(t, tt.wantErr, serviceErr)
-			if tt.vc.IsAdmin() {
+			if tt.vc != nil && tt.vc.IsAdmin() {
 				assert.False(st, mailer.Invoked, "email should not be sent if reset requested by admin")
 				assert.True(st, tt.user.AdminForcedPasswordReset, "AdminForcedPasswordReset should be true if reset requested by admin")
 			} else {

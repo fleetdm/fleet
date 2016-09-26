@@ -7,6 +7,7 @@ import (
 	"github.com/go-kit/kit/endpoint"
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/kolide"
+	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,7 +27,7 @@ func TestEndpointPermissions(t *testing.T) {
 	var endpointTests = []struct {
 		endpoint endpoint.Endpoint
 		// who is making the request
-		vc *viewerContext
+		vc *viewer.Viewer
 		// what resource are we editing
 		requestID uint
 		// what error to expect
@@ -48,36 +49,36 @@ func TestEndpointPermissions(t *testing.T) {
 		},
 		{
 			endpoint: mustBeAdmin(e),
-			vc:       &viewerContext{user: admin1},
+			vc:       &viewer.Viewer{User: admin1},
 		},
 		{
 			endpoint: mustBeAdmin(e),
-			vc:       &viewerContext{user: user1},
+			vc:       &viewer.Viewer{User: user1},
 			wantErr:  permissionError{message: "must be an admin"},
 		},
 		{
 			endpoint: canModifyUser(e),
-			vc:       &viewerContext{user: admin1},
+			vc:       &viewer.Viewer{User: admin1},
 		},
 		{
 			endpoint: canModifyUser(e),
-			vc:       &viewerContext{user: user1},
+			vc:       &viewer.Viewer{User: user1},
 			wantErr:  permissionError{message: "no write permissions on user"},
 		},
 		{
 			endpoint:  canModifyUser(e),
-			vc:        &viewerContext{user: user1},
+			vc:        &viewer.Viewer{User: user1},
 			requestID: admin1.ID,
 			wantErr:   permissionError{message: "no write permissions on user"},
 		},
 		{
 			endpoint:  canReadUser(e),
-			vc:        &viewerContext{user: user1},
+			vc:        &viewer.Viewer{User: user1},
 			requestID: admin1.ID,
 		},
 		{
 			endpoint:  canReadUser(e),
-			vc:        &viewerContext{user: user2},
+			vc:        &viewer.Viewer{User: user2},
 			requestID: admin1.ID,
 			wantErr:   permissionError{message: "no read permissions on user"},
 		},
@@ -89,7 +90,7 @@ func TestEndpointPermissions(t *testing.T) {
 		{
 			endpoint: validateModifyUserRequest(e),
 			request:  modifyUserRequest{payload: kolide.UserPayload{Enabled: boolPtr(true)}},
-			vc:       &viewerContext{user: user1},
+			vc:       &viewer.Viewer{User: user1},
 			wantErr:  permissionError{message: "unauthorized: must be an admin"},
 		},
 	}
@@ -100,7 +101,7 @@ func TestEndpointPermissions(t *testing.T) {
 			st.Parallel()
 			ctx := context.Background()
 			if tt.vc != nil {
-				ctx = context.WithValue(ctx, "viewerContext", tt.vc)
+				ctx = viewer.NewContext(ctx, *tt.vc)
 			}
 			if tt.requestID != 0 {
 				ctx = context.WithValue(ctx, "request-id", tt.requestID)

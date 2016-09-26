@@ -8,6 +8,7 @@ import (
 
 	"github.com/kolide/kolide-ose/datastore"
 	"github.com/kolide/kolide-ose/kolide"
+	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"golang.org/x/net/context"
 )
 
@@ -75,9 +76,9 @@ func (svc service) Logout(ctx context.Context) error {
 }
 
 func (svc service) DestroySession(ctx context.Context) error {
-	vc, err := viewerContextFromContext(ctx)
-	if err != nil {
-		return err
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return errNoContext
 	}
 
 	session, err := svc.ds.FindSessionByID(vc.SessionID())

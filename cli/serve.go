@@ -133,7 +133,7 @@ the way that the kolide server works.
 
 			httpLogger := kitlog.NewContext(logger).With("component", "http")
 
-			apiHandler := server.MakeHandler(ctx, svc, config.Auth.JwtKey, ds, httpLogger)
+			apiHandler := server.MakeHandler(ctx, svc, config.Auth.JwtKey, httpLogger)
 			http.Handle("/api/", accessControl(apiHandler))
 			http.Handle("/version", version.Handler())
 			http.Handle("/assets/", server.ServeStaticAssets("/assets/"))

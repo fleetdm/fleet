@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/kolide/kolide-ose/kolide"
+	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/net/context"
 )
@@ -94,14 +95,14 @@ func (svc service) User(ctx context.Context, id uint) (*kolide.User, error) {
 }
 
 func (svc service) AuthenticatedUser(ctx context.Context) (*kolide.User, error) {
-	vc, err := viewerContextFromContext(ctx)
-	if err != nil {
-		return nil, err
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, errNoContext
 	}
 	if !vc.IsLoggedIn() {
 		return nil, permissionError{}
 	}
-	return vc.user, nil
+	return vc.User, nil
 }
 
 func (svc service) Users(ctx context.Context) ([]*kolide.User, error) {
@@ -141,25 +142,22 @@ func (svc service) RequestPasswordReset(ctx context.Context, email string) error
 	// or a user
 	// if an admin requests a password reset, then no token is
 	// generated, instead the AdminForcedPasswordReset flag is set
-	vc, err := viewerContextFromContext(ctx)
-	if err != nil {
-		return err
-	}
-
 	user, err := svc.ds.UserByEmail(email)
 	if err != nil {
 		return err
 	}
-
-	if vc.IsAdmin() {
-		user.AdminForcedPasswordReset = true
-		if err := svc.saveUser(user); err != nil {
-			return err
+	vc, ok := viewer.FromContext(ctx)
+	if ok {
+		if vc.IsAdmin() {
+			user.AdminForcedPasswordReset = true
+			if err := svc.saveUser(user); err != nil {
+				return err
+			}
+			if err := svc.DeleteSessionsForUser(ctx, user.ID); err != nil {
+				return err
+			}
+			return nil
 		}
-		if err := svc.DeleteSessionsForUser(ctx, user.ID); err != nil {
-			return err
-		}
-		return nil
 	}
 
 	token, err := generateRandomText(svc.config.SMTP.TokenKeySize)

@@ -21,7 +21,9 @@ func TestAPIRoutes(t *testing.T) {
 	ctx := context.Background()
 
 	r := mux.NewRouter()
-	attachAPIRoutes(r, ctx, svc, nil)
+	ke := MakeKolideServerEndpoints(svc, "CHANGEME")
+	kh := makeKolideKitHandlers(ctx, ke, nil)
+	attachKolideAPIRoutes(r, kh)
 	handler := mux.NewRouter()
 	handler.PathPrefix("/api/v1/kolide").Handler(r)
 
@@ -110,7 +112,7 @@ func TestAPIRoutes(t *testing.T) {
 			uri:  "/api/v1/kolide/packs/1",
 		},
 		{
-			verb: "GET",
+			verb: "POST",
 			uri:  "/api/v1/kolide/packs/1/queries/2",
 		},
 		{

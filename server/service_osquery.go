@@ -7,6 +7,7 @@ import (
 
 	"github.com/kolide/kolide-ose/errors"
 	"github.com/kolide/kolide-ose/kolide"
+	"github.com/kolide/kolide-ose/server/contexts/host"
 	"golang.org/x/net/context"
 )
 
@@ -81,12 +82,12 @@ func hostDetailQueries(host kolide.Host) map[string]string {
 func (svc service) GetDistributedQueries(ctx context.Context) (map[string]string, error) {
 	queries := make(map[string]string)
 
-	host, err := osqueryHostFromContext(ctx)
-	if err != nil {
-		return nil, err
+	host, ok := host.FromContext(ctx)
+	if !ok {
+		return nil, errNoContext
 	}
 
-	queries = hostDetailQueries(*host)
+	queries = hostDetailQueries(host)
 	if len(queries) > 0 {
 		// If the host details need to be updated, we should do so
 		// before checking for any other queries
@@ -95,7 +96,7 @@ func (svc service) GetDistributedQueries(ctx context.Context) (map[string]string
 
 	// Retrieve the label queries that should be updated
 	cutoff := svc.clock.Now().Add(-svc.config.Osquery.LabelUpdateInterval)
-	labelQueries, err := svc.ds.LabelQueriesForHost(host, cutoff)
+	labelQueries, err := svc.ds.LabelQueriesForHost(&host, cutoff)
 	if err != nil {
 		return nil, err
 	}

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/kolide/kolide-ose/kolide"
+	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"golang.org/x/net/context"
 )
 
@@ -14,16 +15,16 @@ func (mw loggingMiddleware) NewUser(ctx context.Context, p kolide.UserPayload) (
 		username = "none"
 	)
 
-	vc, err := viewerContextFromContext(ctx)
-	if err != nil {
-		return nil, err
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, errNoContext
 	}
 
 	defer func(begin time.Time) {
 		_ = mw.logger.Log(
 			"method", "NewUser",
 			"user", username,
-			"created_by", vc.user.Username,
+			"created_by", vc.Username(),
 			"err", err,
 			"took", time.Since(begin),
 		)
@@ -44,16 +45,16 @@ func (mw loggingMiddleware) ModifyUser(ctx context.Context, userID uint, p kolid
 		username = "none"
 	)
 
-	vc, err := viewerContextFromContext(ctx)
-	if err != nil {
-		return nil, err
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, errNoContext
 	}
 
 	defer func(begin time.Time) {
 		_ = mw.logger.Log(
 			"method", "ModifyUser",
 			"user", username,
-			"modified_by", vc.user.Username,
+			"modified_by", vc.Username(),
 			"err", err,
 			"took", time.Since(begin),
 		)
@@ -136,12 +137,9 @@ func (mw loggingMiddleware) RequestPasswordReset(ctx context.Context, email stri
 		requestedBy = "unauthenticated"
 		err         error
 	)
-	vc, err := viewerContextFromContext(ctx)
-	if err != nil {
-		return err
-	}
-	if vc.IsLoggedIn() {
-		requestedBy = vc.user.Username
+	vc, ok := viewer.FromContext(ctx)
+	if ok {
+		requestedBy = vc.Username()
 	}
 
 	defer func(begin time.Time) {
