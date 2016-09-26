@@ -77,6 +77,7 @@ func (svc service) ModifyUser(ctx context.Context, userID uint, p kolide.UserPay
 		}
 		user.Password = hashed
 		user.Salt = salt
+		user.AdminForcedPasswordReset = false
 	}
 
 	err = svc.saveUser(user)
