@@ -13,6 +13,7 @@ class AuthenticationFormWrapper extends Component {
 
     return (
       <div style={containerStyles}>
+        <img alt="Kolide text logo" src="/assets/images/kolide-logo-text.svg" />
         <div style={whiteTabStyles} />
         {children}
       </div>

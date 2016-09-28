@@ -1,0 +1,10 @@
+.login-form-animation-leave {
+  opacity: 1;
+  transform: scale(1.0);
+}
+
+.login-form-animation-leave.login-form-animation-leave-active {
+  opacity: 0.01;
+  transform: scale(1.3);
+  transition: all 300ms ease-in;
+}

@@ -45,16 +45,12 @@ class StackedWhiteBoxes extends Component {
     const {
       boxStyles,
       containerStyles,
-      smallTabStyles,
-      tabStyles,
       textStyles,
     } = componentStyles;
     const { renderBackButton, renderHeader } = this;
 
     return (
       <div style={containerStyles}>
-        <div style={smallTabStyles} />
-        <div style={tabStyles} />
         <div style={boxStyles}>
           {renderBackButton()}
           {renderHeader()}

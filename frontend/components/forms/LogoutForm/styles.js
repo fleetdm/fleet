@@ -18,7 +18,7 @@ export default {
     boxSizing: 'border-box',
     display: 'flex',
     flexDirection: 'column',
-    padding: padding.base,
+    padding: '30px',
     width: FORM_WIDTH,
     minHeight: '350px',
   },
@@ -41,4 +41,3 @@ export default {
     textTransform: 'uppercase',
   },
 };
-

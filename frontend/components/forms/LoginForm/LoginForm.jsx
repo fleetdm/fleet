@@ -8,6 +8,7 @@ import InputFieldWithIcon from '../fields/InputFieldWithIcon';
 import paths from '../../../router/paths';
 import validatePresence from '../validators/validate_presence';
 
+
 class LoginForm extends Component {
   static propTypes = {
     onSubmit: PropTypes.func,
@@ -132,7 +133,6 @@ class LoginForm extends Component {
     } = componentStyles;
     const { errors } = this.state;
     const { onInputChange, onFormSubmit } = this;
-
     return (
       <form onSubmit={onFormSubmit} style={formStyles}>
         <div style={containerStyles}>

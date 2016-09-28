@@ -92,6 +92,7 @@ test-go:
 test-js:
 	_mocha --compilers js:babel-core/register \
 		--recursive 'frontend/**/*.tests.js*' \
+		--require ignore-styles \
 		--require 'frontend/.test.setup.js' \
 		--require 'frontend/test/loaderMock.js'
 

@@ -5,6 +5,8 @@ import AuthenticationFormWrapper from '../../components/AuthenticationFormWrappe
 import debounce from '../../utilities/debounce';
 import LogoutForm from '../../components/forms/LogoutForm';
 import { logoutUser } from '../../redux/nodes/auth/actions';
+import { hideBackgroundImage, showBackgroundImage } from '../../redux/nodes/app/actions';
+
 
 export class LogoutPage extends Component {
   static propTypes = {
@@ -15,6 +17,18 @@ export class LogoutPage extends Component {
   static defaultProps = {
     dispatch: noop,
   };
+
+  componentWillMount () {
+    const { dispatch } = this.props;
+
+    dispatch(showBackgroundImage);
+  }
+
+  componentWillUnmount () {
+    const { dispatch } = this.props;
+
+    dispatch(hideBackgroundImage);
+  }
 
   onSubmit = debounce(() => {
     const { dispatch } = this.props;

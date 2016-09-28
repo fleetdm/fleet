@@ -1,18 +1,20 @@
 import styles from '../../styles';
 
-const { border, color, font, padding } = styles;
+const { border, color, font } = styles;
 
 export default {
   boxStyles: {
     backgroundColor: color.white,
     borderRadius: border.radius.base,
     boxShadow: border.shadow.blur,
-    minHeight: '370px',
+    minHeight: '402px',
     boxSizing: 'border-box',
     padding: '30px',
     width: '524px',
-    position: 'relative',
     fontWeight: 300,
+    position: 'absolute',
+    top: '-399px',
+    zIndex: '2',
   },
   containerStyles: {
     alignItems: 'center',
@@ -45,27 +47,10 @@ export default {
   headerWrapperStyles: {
     width: '100%',
   },
-  tabStyles: {
-    backgroundColor: color.white,
-    borderTopLeftRadius: border.radius.base,
-    borderTopRightRadius: border.radius.base,
-    boxShadow: border.shadow.blur,
-    height: '20px',
-    width: '460px',
-  },
   textStyles: {
     color: color.purpleGrey,
     fontSize: font.medium,
     lineHeight: '30px',
     letterSpacing: '0.64px',
-  },
-  smallTabStyles: {
-    backgroundColor: color.white,
-    borderTopLeftRadius: border.radius.base,
-    borderTopRightRadius: border.radius.base,
-    boxShadow: border.shadow.blur,
-    height: '20px',
-    marginTop: padding.base,
-    width: '400px',
   },
 };
