@@ -56,14 +56,14 @@ type SessionStore interface {
 }
 
 type SessionService interface {
-	Login(ctx context.Context, username, password string) (*User, string, error)
-	Logout(ctx context.Context) error
-	DestroySession(ctx context.Context) error
-	GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([]*Session, error)
-	DeleteSessionsForUser(ctx context.Context, id uint) error
-	GetInfoAboutSession(ctx context.Context, id uint) (*Session, error)
-	GetSessionByKey(ctx context.Context, key string) (*Session, error)
-	DeleteSession(ctx context.Context, id uint) error
+	Login(ctx context.Context, username, password string) (user *User, token string, err error)
+	Logout(ctx context.Context) (err error)
+	DestroySession(ctx context.Context) (err error)
+	GetInfoAboutSessionsForUser(ctx context.Context, id uint) (sessions []*Session, err error)
+	DeleteSessionsForUser(ctx context.Context, id uint) (err error)
+	GetInfoAboutSession(ctx context.Context, id uint) (session *Session, err error)
+	GetSessionByKey(ctx context.Context, key string) (session *Session, err error)
+	DeleteSession(ctx context.Context, id uint) (err error)
 }
 
 // Session is the model object which represents what an active session is

@@ -10,12 +10,14 @@ import (
 
 	"github.com/WatchBeam/clock"
 	kitlog "github.com/go-kit/kit/log"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/kolide/kolide-ose/server/config"
 	"github.com/kolide/kolide-ose/server/datastore"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/kolide/kolide-ose/server/mail"
 	"github.com/kolide/kolide-ose/server/service"
 	"github.com/kolide/kolide-ose/server/version"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -128,14 +130,30 @@ the way that the kolide server works.
 				}
 			}
 
+			fieldKeys := []string{"method", "error"}
+			requestCount := kitprometheus.NewCounterFrom(prometheus.CounterOpts{
+				Namespace: "api",
+				Subsystem: "service",
+				Name:      "request_count",
+				Help:      "Number of requests received.",
+			}, fieldKeys)
+			requestLatency := kitprometheus.NewSummaryFrom(prometheus.SummaryOpts{
+				Namespace: "api",
+				Subsystem: "service",
+				Name:      "request_latency_microseconds",
+				Help:      "Total duration of requests in microseconds.",
+			}, fieldKeys)
+
 			svcLogger := kitlog.NewContext(logger).With("component", "service")
 			svc = service.NewLoggingService(svc, svcLogger)
+			svc = service.NewMetricsService(svc, requestCount, requestLatency)
 
 			httpLogger := kitlog.NewContext(logger).With("component", "http")
 
 			apiHandler := service.MakeHandler(ctx, svc, config.Auth.JwtKey, httpLogger)
 			http.Handle("/api/", accessControl(apiHandler))
 			http.Handle("/version", version.Handler())
+			http.Handle("/metrics", prometheus.Handler())
 			http.Handle("/assets/", service.ServeStaticAssets("/assets/"))
 			http.Handle("/", service.ServeFrontend())
 

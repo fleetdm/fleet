@@ -1,9 +1,8 @@
 package service
 
 import (
-	"context"
-
 	"github.com/kolide/kolide-ose/server/kolide"
+	"golang.org/x/net/context"
 )
 
 func (svc service) NewOrgInfo(ctx context.Context, p kolide.OrgInfoPayload) (*kolide.OrgInfo, error) {

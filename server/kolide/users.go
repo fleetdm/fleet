@@ -21,30 +21,30 @@ type UserStore interface {
 // UserService contains methods for managing a Kolide User
 type UserService interface {
 	// NewUser creates a new User from a request Payload
-	NewUser(ctx context.Context, p UserPayload) (*User, error)
+	NewUser(ctx context.Context, p UserPayload) (user *User, err error)
 
 	// User returns a valid User given a User ID
-	User(ctx context.Context, id uint) (*User, error)
+	User(ctx context.Context, id uint) (user *User, err error)
 
 	// AuthenticatedUser returns the current user
 	// from the viewer context
-	AuthenticatedUser(ctx context.Context) (*User, error)
+	AuthenticatedUser(ctx context.Context) (user *User, err error)
 
 	// Users returns all users
-	Users(ctx context.Context) ([]*User, error)
+	Users(ctx context.Context) (users []*User, err error)
 
 	// RequestPasswordReset generates a password reset request for
 	// a user. The request results in a token emailed to the user.
 	// If the person making the request is an admin the AdminForcedPasswordReset
 	// parameter is enabled instead of sending an email with a password reset token
-	RequestPasswordReset(ctx context.Context, email string) error
+	RequestPasswordReset(ctx context.Context, email string) (err error)
 
 	// ResetPassword validate a password reset token and updates
 	// a user's password
-	ResetPassword(ctx context.Context, token, password string) error
+	ResetPassword(ctx context.Context, token, password string) (err error)
 
 	// ModifyUser updates a user's parameters given a UserPayload
-	ModifyUser(ctx context.Context, userID uint, p UserPayload) (*User, error)
+	ModifyUser(ctx context.Context, userID uint, p UserPayload) (user *User, err error)
 }
 
 // User is the model struct which represents a kolide user

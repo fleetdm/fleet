@@ -1,6 +1,6 @@
 package kolide
 
-import "context"
+import "golang.org/x/net/context"
 
 // AppConfigStore contains method for saving and retrieving
 // application configuration
@@ -13,9 +13,9 @@ type AppConfigStore interface {
 // AppConfigService provides methods for configuring
 // the Kolide application
 type AppConfigService interface {
-	NewOrgInfo(ctx context.Context, p OrgInfoPayload) (*OrgInfo, error)
-	OrgInfo(ctx context.Context) (*OrgInfo, error)
-	ModifyOrgInfo(ctx context.Context, p OrgInfoPayload) (*OrgInfo, error)
+	NewOrgInfo(ctx context.Context, p OrgInfoPayload) (info *OrgInfo, err error)
+	OrgInfo(ctx context.Context) (info *OrgInfo, err error)
+	ModifyOrgInfo(ctx context.Context, p OrgInfoPayload) (info *OrgInfo, err error)
 }
 
 // OrgInfo holds information about the current
