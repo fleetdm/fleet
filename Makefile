@@ -71,12 +71,12 @@ endif
 
 build: .prefix
 	go build -i -o ${OUTPUT} -ldflags "\
-	-X github.com/kolide/kolide-ose/version.version=${VERSION} \
-	-X github.com/kolide/kolide-ose/version.branch=${BRANCH} \
-	-X github.com/kolide/kolide-ose/version.revision=${REVISION} \
-	-X github.com/kolide/kolide-ose/version.buildDate=${NOW} \
-	-X github.com/kolide/kolide-ose/version.buildUser=${USER} \
-	-X github.com/kolide/kolide-ose/version.goVersion=${GOVERSION}"
+	-X github.com/kolide/kolide-ose/server/version.version=${VERSION} \
+	-X github.com/kolide/kolide-ose/server/version.branch=${BRANCH} \
+	-X github.com/kolide/kolide-ose/server/version.revision=${REVISION} \
+	-X github.com/kolide/kolide-ose/server/version.buildDate=${NOW} \
+	-X github.com/kolide/kolide-ose/server/version.buildUser=${USER} \
+	-X github.com/kolide/kolide-ose/server/version.goVersion=${GOVERSION}"
 
 lint-js:
 	eslint frontend --ext .js,.jsx
