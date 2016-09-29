@@ -1,6 +1,7 @@
 import md5 from 'js-md5';
 import Kolide from '../../../kolide';
 
+export const CLEAR_AUTH_ERRORS = 'CLEAR_AUTH_ERRORS';
 export const LOGIN_REQUEST = 'LOGIN_REQUEST';
 export const LOGIN_SUCCESS = 'LOGIN_SUCCESS';
 export const LOGIN_FAILURE = 'LOGIN_FAILURE';
@@ -8,6 +9,7 @@ export const LOGOUT_REQUEST = 'LOGOUT_REQUEST';
 export const LOGOUT_SUCCESS = 'LOGOUT_SUCCESS';
 export const LOGOUT_FAILURE = 'LOGOUT_FAILURE';
 
+export const clearAuthErrors = { type: CLEAR_AUTH_ERRORS };
 export const loginRequest = { type: LOGIN_REQUEST };
 export const loginSuccess = (user) => {
   return {

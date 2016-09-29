@@ -1,5 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
+import { noop } from 'lodash';
 import radium from 'radium';
 import avatar from '../../../../assets/images/avatar.svg';
 import componentStyles from './styles';
@@ -8,10 +9,19 @@ import InputFieldWithIcon from '../fields/InputFieldWithIcon';
 import paths from '../../../router/paths';
 import validatePresence from '../validators/validate_presence';
 
-
 class LoginForm extends Component {
   static propTypes = {
+    serverErrors: PropTypes.shape({
+      username: PropTypes.string,
+      password: PropTypes.string,
+    }),
+    onChange: PropTypes.func,
     onSubmit: PropTypes.func,
+  };
+
+  static defaultProps = {
+    onChange: noop,
+    serverErrors: {},
   };
 
   constructor (props) {
@@ -32,7 +42,10 @@ class LoginForm extends Component {
   onInputChange = (formField) => {
     return ({ target }) => {
       const { errors, formData } = this.state;
+      const { onChange } = this.props;
       const { value } = target;
+
+      onChange(value);
 
       this.setState({
         errors: {
@@ -131,22 +144,24 @@ class LoginForm extends Component {
       formStyles,
       submitButtonStyles,
     } = componentStyles;
+    const { serverErrors } = this.props;
     const { errors } = this.state;
     const { onInputChange, onFormSubmit } = this;
+
     return (
       <form onSubmit={onFormSubmit} style={formStyles}>
         <div style={containerStyles}>
           <img alt="Avatar" src={avatar} />
           <InputFieldWithIcon
             autofocus
-            error={errors.username}
+            error={errors.username || serverErrors.username}
             iconName="kolidecon-username"
             name="username"
             onChange={onInputChange('username')}
             placeholder="Username or Email"
           />
           <InputFieldWithIcon
-            error={errors.password}
+            error={errors.password || serverErrors.password}
             iconName="kolidecon-password"
             name="password"
             onChange={onInputChange('password')}

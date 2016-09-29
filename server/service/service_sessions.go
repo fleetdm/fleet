@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"github.com/kolide/kolide-ose/server/datastore"
 	"github.com/kolide/kolide-ose/server/kolide"
-	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"golang.org/x/net/context"
 )
 
@@ -17,7 +17,7 @@ func (svc service) Login(ctx context.Context, username, password string) (*kolid
 	switch err {
 	case nil:
 	case datastore.ErrNotFound:
-		return nil, "", authError{reason: "no such user", clientReason: "bad credentials"}
+		return nil, "", authError{reason: "no such user"}
 	default:
 		return nil, "", err
 	}
@@ -25,7 +25,7 @@ func (svc service) Login(ctx context.Context, username, password string) (*kolid
 		return nil, "", authError{reason: "account disabled", clientReason: "account disabled"}
 	}
 	if err := user.ValidatePassword(password); err != nil {
-		return nil, "", authError{reason: "bad password", clientReason: "bad credentials"}
+		return nil, "", authError{reason: "bad password"}
 	}
 	token, err := svc.makeSession(user.ID)
 	if err != nil {

@@ -6,9 +6,9 @@ import (
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/go-kit/kit/endpoint"
-	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/kolide/kolide-ose/server/contexts/token"
 	"github.com/kolide/kolide-ose/server/contexts/viewer"
+	"github.com/kolide/kolide-ose/server/kolide"
 	"golang.org/x/net/context"
 )
 
@@ -43,27 +43,27 @@ func authViewer(ctx context.Context, jwtKey string, bearerToken string, svc koli
 		return []byte(jwtKey), nil
 	})
 	if err != nil {
-		return nil, authError{reason: err.Error(), clientReason: "bad credentials"}
+		return nil, authError{reason: err.Error()}
 	}
 	claims, ok := jwtToken.Claims.(jwt.MapClaims)
 	if !ok {
-		return nil, authError{reason: "no jwt claims", clientReason: "bad credentials"}
+		return nil, authError{reason: "no jwt claims"}
 	}
 	sessionKeyClaim, ok := claims["session_key"]
 	if !ok {
-		return nil, authError{reason: "no session_key in JWT claims", clientReason: "bad credentials"}
+		return nil, authError{reason: "no session_key in JWT claims"}
 	}
 	sessionKey, ok := sessionKeyClaim.(string)
 	if !ok {
-		return nil, authError{reason: "non-string key in sessionClaim", clientReason: "bad credentials"}
+		return nil, authError{reason: "non-string key in sessionClaim"}
 	}
 	session, err := svc.GetSessionByKey(ctx, sessionKey)
 	if err != nil {
-		return nil, authError{reason: err.Error(), clientReason: "bad credentials"}
+		return nil, authError{reason: err.Error()}
 	}
 	user, err := svc.User(ctx, session.UserID)
 	if err != nil {
-		return nil, authError{reason: err.Error(), clientReason: "bad credentials"}
+		return nil, authError{reason: err.Error()}
 	}
 	return &viewer.Viewer{User: user, Session: session}, nil
 }

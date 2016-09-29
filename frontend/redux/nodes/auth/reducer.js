@@ -1,4 +1,5 @@
 import {
+  CLEAR_AUTH_ERRORS,
   LOGIN_FAILURE,
   LOGIN_REQUEST,
   LOGIN_SUCCESS,
@@ -15,6 +16,11 @@ export const initialState = {
 
 const reducer = (state = initialState, action) => {
   switch (action.type) {
+    case CLEAR_AUTH_ERRORS:
+      return {
+        ...state,
+        error: null,
+      };
     case LOGIN_REQUEST:
     case LOGOUT_REQUEST:
       return {
