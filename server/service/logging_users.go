@@ -3,28 +3,29 @@ package service
 import (
 	"time"
 
-	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/kolide/kolide-ose/server/contexts/viewer"
+	"github.com/kolide/kolide-ose/server/kolide"
 	"golang.org/x/net/context"
 )
 
 func (mw loggingMiddleware) NewUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
 	var (
-		user     *kolide.User
-		err      error
-		username = "none"
+		user         *kolide.User
+		err          error
+		username     = "none"
+		loggedInUser = "unauthenticated"
 	)
 
 	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return nil, errNoContext
+	if ok {
+		loggedInUser = vc.Username()
 	}
 
 	defer func(begin time.Time) {
 		_ = mw.logger.Log(
 			"method", "NewUser",
 			"user", username,
-			"created_by", vc.Username(),
+			"created_by", loggedInUser,
 			"err", err,
 			"took", time.Since(begin),
 		)

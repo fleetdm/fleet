@@ -75,6 +75,7 @@ func New(driver, conn string, opts ...DBOption) (kolide.Datastore, error) {
 			users:          make(map[uint]*kolide.User),
 			sessions:       make(map[uint]*kolide.Session),
 			passwordResets: make(map[uint]*kolide.PasswordResetRequest),
+			invites:        make(map[uint]*kolide.Invite),
 		}
 		return ds, nil
 	default:

@@ -1,4 +1,4 @@
-// package service holds the implementation of the kolide service interface and the HTTP endpoints
+// Package service holds the implementation of the kolide service interface and the HTTP endpoints
 // for the API
 package service
 

@@ -28,6 +28,9 @@ type KolideEndpoints struct {
 	DeleteSession          endpoint.Endpoint
 	GetAppConfig           endpoint.Endpoint
 	ModifyAppConfig        endpoint.Endpoint
+	CreateInvite           endpoint.Endpoint
+	ListInvites            endpoint.Endpoint
+	DeleteInvite           endpoint.Endpoint
 	GetQuery               endpoint.Endpoint
 	GetAllQueries          endpoint.Endpoint
 	CreateQuery            endpoint.Endpoint
@@ -50,8 +53,8 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		Logout:                 makeLogoutEndpoint(svc),
 		ForgotPassword:         makeForgotPasswordEndpoint(svc),
 		ResetPassword:          makeResetPasswordEndpoint(svc),
+		CreateUser:             makeCreateUserEndpoint(svc),
 		Me:                     authenticated(jwtKey, svc, makeGetSessionUserEndpoint(svc)),
-		CreateUser:             authenticated(jwtKey, svc, mustBeAdmin(makeCreateUserEndpoint(svc))),
 		GetUser:                authenticated(jwtKey, svc, canReadUser(makeGetUserEndpoint(svc))),
 		ListUsers:              authenticated(jwtKey, svc, canPerformActions(makeListUsersEndpoint(svc))),
 		ModifyUser:             authenticated(jwtKey, svc, validateModifyUserRequest(makeModifyUserEndpoint(svc))),
@@ -61,6 +64,9 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		DeleteSession:          authenticated(jwtKey, svc, mustBeAdmin(makeDeleteSessionEndpoint(svc))),
 		GetAppConfig:           authenticated(jwtKey, svc, makeGetAppConfigEndpoint(svc)),
 		ModifyAppConfig:        authenticated(jwtKey, svc, mustBeAdmin(makeModifyAppConfigRequest(svc))),
+		CreateInvite:           authenticated(jwtKey, svc, mustBeAdmin(makeCreateInviteEndpoint(svc))),
+		ListInvites:            authenticated(jwtKey, svc, mustBeAdmin(makeListInvitesEndpoint(svc))),
+		DeleteInvite:           authenticated(jwtKey, svc, mustBeAdmin(makeDeleteInviteEndpoint(svc))),
 		GetQuery:               authenticated(jwtKey, svc, makeGetQueryEndpoint(svc)),
 		GetAllQueries:          authenticated(jwtKey, svc, makeGetAllQueriesEndpoint(svc)),
 		CreateQuery:            authenticated(jwtKey, svc, makeCreateQueryEndpoint(svc)),
@@ -93,6 +99,9 @@ type kolideHandlers struct {
 	DeleteSession          *kithttp.Server
 	GetAppConfig           *kithttp.Server
 	ModifyAppConfig        *kithttp.Server
+	CreateInvite           *kithttp.Server
+	ListInvites            *kithttp.Server
+	DeleteInvite           *kithttp.Server
 	GetQuery               *kithttp.Server
 	GetAllQueries          *kithttp.Server
 	CreateQuery            *kithttp.Server
@@ -128,6 +137,9 @@ func makeKolideKitHandlers(ctx context.Context, e KolideEndpoints, opts []kithtt
 		DeleteSession:          newServer(e.DeleteSession, decodeDeleteSessionRequest),
 		GetAppConfig:           newServer(e.GetAppConfig, decodeNoParamsRequest),
 		ModifyAppConfig:        newServer(e.ModifyAppConfig, decodeModifyAppConfigRequest),
+		CreateInvite:           newServer(e.CreateInvite, decodeCreateInviteRequest),
+		ListInvites:            newServer(e.ListInvites, decodeNoParamsRequest),
+		DeleteInvite:           newServer(e.DeleteInvite, decodeDeleteInviteRequest),
 		GetQuery:               newServer(e.GetQuery, decodeGetQueryRequest),
 		GetAllQueries:          newServer(e.GetAllQueries, decodeGetQueryRequest),
 		CreateQuery:            newServer(e.CreateQuery, decodeCreateQueryRequest),
@@ -182,6 +194,9 @@ func attachKolideAPIRoutes(r *mux.Router, h kolideHandlers) {
 	r.Handle("/api/v1/kolide/sessions/{id}", h.DeleteSession).Methods("DELETE")
 	r.Handle("/api/v1/kolide/config", h.GetAppConfig).Methods("GET")
 	r.Handle("/api/v1/kolide/config", h.ModifyAppConfig).Methods("PATCH")
+	r.Handle("/api/v1/kolide/invites", h.CreateInvite).Methods("POST")
+	r.Handle("/api/v1/kolide/invites", h.ListInvites).Methods("GET")
+	r.Handle("/api/v1/kolide/invites/{id}", h.DeleteInvite).Methods("DELETE")
 	r.Handle("/api/v1/kolide/queries/{id}", h.GetQuery).Methods("GET")
 	r.Handle("/api/v1/kolide/queries", h.GetAllQueries).Methods("GET")
 	r.Handle("/api/v1/kolide/queries", h.CreateQuery).Methods("POST")

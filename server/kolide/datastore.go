@@ -10,6 +10,7 @@ type Datastore interface {
 	PasswordResetStore
 	SessionStore
 	AppConfigStore
+	InviteStore
 	Name() string
 	Drop() error
 	Migrate() error

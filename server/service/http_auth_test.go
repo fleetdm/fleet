@@ -15,9 +15,7 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
-	"github.com/kolide/kolide-ose/server/config"
 	"github.com/kolide/kolide-ose/server/datastore"
-	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
@@ -26,7 +24,7 @@ import (
 func TestLogin(t *testing.T) {
 	ds, _ := datastore.New("inmem", "")
 	svc, _ := newTestService(ds)
-	createTestUsers(t, ds)
+	users := createTestUsers(t, ds)
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 
 	opts := []kithttp.ServerOption{
@@ -54,7 +52,7 @@ func TestLogin(t *testing.T) {
 	}{
 		{
 			username: "admin1",
-			password: *testUsers["admin1"].Password,
+			password: testUsers["admin1"].PlaintextPassword,
 			status:   http.StatusOK,
 		},
 		{
@@ -70,21 +68,13 @@ func TestLogin(t *testing.T) {
 	}
 
 	for _, tt := range loginTests {
-		p, ok := testUsers[tt.username]
-		if !ok {
-			p = kolide.UserPayload{
-				Username: stringPtr(tt.username),
-				Password: stringPtr("foobar"),
-				Email:    stringPtr("admin1@example.com"),
-				Admin:    boolPtr(true),
-			}
+		var shouldBeAdmin bool
+		if u, ok := testUsers[tt.username]; ok {
+			shouldBeAdmin = u.IsAdmin
 		}
 
 		// test sessions
-		testUser, err := ds.User(tt.username)
-		if err != nil {
-			assert.Equal(t, datastore.ErrNotFound, err)
-		}
+		testUser, _ := users[tt.username]
 
 		params := loginRequest{
 			Username: tt.username,
@@ -117,7 +107,7 @@ func TestLogin(t *testing.T) {
 			continue // skip remaining tests
 		}
 
-		assert.Equal(t, falseIfNil(p.Admin), jsn.Admin)
+		assert.Equal(t, shouldBeAdmin, jsn.Admin)
 
 		// ensure that a session was created for our test user and stored
 		sessions, err := ds.FindAllSessionsForUser(testUser.ID)
@@ -144,36 +134,17 @@ func TestLogin(t *testing.T) {
 	}
 }
 
-func createTestUsers(t *testing.T, ds kolide.Datastore) {
-	svc := svcWithNoValidation(ds, kitlog.NewNopLogger())
-	ctx := context.Background()
-	for _, tt := range testUsers {
-		payload := kolide.UserPayload{
-			Username: tt.Username,
-			Password: tt.Password,
-			Email:    tt.Email,
-			Admin:    tt.Admin,
-			AdminForcedPasswordReset: tt.AdminForcedPasswordReset,
-		}
-		_, err := svc.NewUser(ctx, payload)
-		assert.Nil(t, err)
-	}
-}
-
-func svcWithNoValidation(ds kolide.Datastore, logger kitlog.Logger) kolide.Service {
-	var svc kolide.Service
-	svc = service{
-		ds:     ds,
-		logger: logger,
-		config: config.TestConfig(),
-	}
-
-	return svc
-}
-
 // an io.ReadCloser for new request body
 type nopCloser struct {
 	io.Reader
 }
 
 func (nopCloser) Close() error { return nil }
+
+// helper to convert a bool pointer false
+func falseIfNil(b *bool) bool {
+	if b == nil {
+		return false
+	}
+	return *b
+}

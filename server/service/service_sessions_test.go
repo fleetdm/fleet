@@ -14,25 +14,33 @@ import (
 const bcryptCost = 6
 
 func TestAuthenticate(t *testing.T) {
-	svc, payload, user := setupLoginTests(t)
+	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	require.Nil(t, err)
+	svc, err := newTestService(ds)
+	require.Nil(t, err)
+	users := createTestUsers(t, ds)
+
 	var loginTests = []struct {
 		username string
 		password string
+		user     kolide.User
 		wantErr  error
 	}{
 		{
-			username: *payload.Username,
-			password: *payload.Password,
+			user:     users["admin1"],
+			username: testUsers["admin1"].Username,
+			password: testUsers["admin1"].PlaintextPassword,
 		},
 		{
-			username: *payload.Email,
-			password: *payload.Password,
+			user:     users["user1"],
+			username: testUsers["user1"].Email,
+			password: testUsers["user1"].PlaintextPassword,
 		},
 	}
 
 	for _, tt := range loginTests {
 		t.Run(tt.username, func(st *testing.T) {
-			svc, _, user = setupLoginTests(t)
+			user := tt.user
 			ctx := context.Background()
 			loggedIn, token, err := svc.Login(ctx, tt.username, tt.password)
 			require.Nil(st, err, "login unsuccesful")
@@ -49,23 +57,4 @@ func TestAuthenticate(t *testing.T) {
 		})
 	}
 
-}
-
-func setupLoginTests(t *testing.T) (kolide.Service, kolide.UserPayload, kolide.User) {
-	ds, err := datastore.New("gorm-sqlite3", ":memory:")
-	assert.Nil(t, err)
-
-	svc, err := newTestService(ds)
-	assert.Nil(t, err)
-	payload := kolide.UserPayload{
-		Username: stringPtr("foo"),
-		Password: stringPtr("bar"),
-		Email:    stringPtr("foo@kolide.co"),
-		Admin:    boolPtr(false),
-	}
-	ctx := context.Background()
-	user, err := svc.NewUser(ctx, payload)
-	assert.Nil(t, err)
-	assert.NotZero(t, user.ID)
-	return svc, payload, *user
 }

@@ -85,7 +85,7 @@ the way that the kolide server works.
 				// Bootstrap a few users when using the in-memory database.
 				// Each user's default password will just be their username.
 				users := []kolide.User{
-					kolide.User{
+					{
 						Name:     "Admin User",
 						Username: "admin",
 						Email:    "admin@kolide.co",
@@ -93,7 +93,7 @@ the way that the kolide server works.
 						Admin:    true,
 						Enabled:  true,
 					},
-					kolide.User{
+					{
 						Name:     "Normal User",
 						Username: "user",
 						Email:    "user@kolide.co",
@@ -104,15 +104,12 @@ the way that the kolide server works.
 				}
 
 				for _, user := range users {
-					_, err := svc.NewUser(ctx, kolide.UserPayload{
-						Name:     &user.Name,
-						Username: &user.Username,
-						Password: &user.Username,
-						Email:    &user.Email,
-						Enabled:  &user.Enabled,
-						Position: &user.Position,
-						Admin:    &user.Admin,
-					})
+					user := user
+					err := user.SetPassword(user.Username, config.Auth.SaltKeySize, config.Auth.BcryptCost)
+					if err != nil {
+						initFatal(err, "creating bootstrap user")
+					}
+					_, err = ds.NewUser(&user)
 					if err != nil {
 						initFatal(err, "creating bootstrap user")
 					}

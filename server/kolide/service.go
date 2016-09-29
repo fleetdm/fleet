@@ -9,4 +9,5 @@ type Service interface {
 	OsqueryService
 	HostService
 	AppConfigService
+	InviteService
 }

@@ -38,7 +38,10 @@ type AuthConfig struct {
 
 // AppConfig defines configs related to HTTP
 type AppConfig struct {
-	WebAddress string
+	WebAddress                string
+	TokenKeySize              int
+	TokenKey                  string
+	InviteTokenValidityPeriod time.Duration
 }
 
 // SMTPConfig defines configs related to SMTP email
@@ -47,7 +50,6 @@ type SMTPConfig struct {
 	Username        string
 	Password        string
 	PoolConnections int
-	TokenKeySize    int
 }
 
 // SessionConfig defines configs related to user sessions
@@ -107,13 +109,15 @@ func (man Manager) addConfigs() {
 
 	// App
 	man.addConfigString("app.web_address", "0.0.0.0:8080")
+	man.addConfigString("app.token_key", "CHANGEME")
+	man.addConfigDuration("app.invite_token_validity_period", 5*24*time.Hour)
+	man.addConfigInt("app.token_key_size", 24)
 
 	// SMTP
 	man.addConfigString("smtp.server", "0.0.0.0:1025")
 	man.addConfigString("smtp.username", "")
 	man.addConfigString("smtp.password", "")
 	man.addConfigInt("smtp.pool_connections", 4)
-	man.addConfigInt("smtp.token_key_size", 24)
 
 	// Session
 	man.addConfigInt("session.key_size", 64)
@@ -154,14 +158,16 @@ func (man Manager) LoadConfig() KolideConfig {
 			SaltKeySize: man.getConfigInt("auth.salt_key_size"),
 		},
 		App: AppConfig{
-			WebAddress: man.getConfigString("app.web_address"),
+			WebAddress:                man.getConfigString("app.web_address"),
+			TokenKeySize:              man.getConfigInt("app.token_key_size"),
+			TokenKey:                  man.getConfigString("app.token_key"),
+			InviteTokenValidityPeriod: man.getConfigDuration("app.invite_token_validity_period"),
 		},
 		SMTP: SMTPConfig{
 			Server:          man.getConfigString("smtp.server"),
 			Username:        man.getConfigString("smtp.username"),
 			Password:        man.getConfigString("smtp.password"),
 			PoolConnections: man.getConfigInt("smtp.pool_connections"),
-			TokenKeySize:    man.getConfigInt("smtp.token_key_size"),
 		},
 		Session: SessionConfig{
 			KeySize:  man.getConfigInt("session.key_size"),
@@ -350,6 +356,10 @@ func (man Manager) loadConfigFile() {
 // Individual tests may want to override some of the values provided.
 func TestConfig() KolideConfig {
 	return KolideConfig{
+		App: AppConfig{
+			TokenKey:                  "CHANGEME",
+			InviteTokenValidityPeriod: 5 * 24 * time.Hour,
+		},
 		Auth: AuthConfig{
 			JwtKey:      "CHANGEME",
 			BcryptCost:  6, // Low cost keeps tests fast
@@ -370,5 +380,6 @@ func TestConfig() KolideConfig {
 			Debug:         true,
 			DisableBanner: true,
 		},
+		SMTP: SMTPConfig{},
 	}
 }

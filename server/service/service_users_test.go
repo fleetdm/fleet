@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/WatchBeam/clock"
 	"github.com/kolide/kolide-ose/server/config"
+	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"github.com/kolide/kolide-ose/server/datastore"
 	"github.com/kolide/kolide-ose/server/kolide"
-	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
@@ -114,6 +115,7 @@ func TestRequestPasswordReset(t *testing.T) {
 func TestCreateUser(t *testing.T) {
 	ds, _ := datastore.New("inmem", "")
 	svc, _ := newTestService(ds)
+	invites := setupInvites(t, ds, []string{"admin2@example.com"})
 	ctx := context.Background()
 
 	var createUserTests = []struct {
@@ -122,48 +124,70 @@ func TestCreateUser(t *testing.T) {
 		Email              *string
 		NeedsPasswordReset *bool
 		Admin              *bool
+		InviteToken        *string
 		wantErr            error
 	}{
 		{
-			Username: stringPtr("admin1"),
+			Username:    stringPtr("admin2"),
+			Password:    stringPtr("foobar"),
+			InviteToken: &invites["admin2@example.com"].Token,
+			wantErr:     &invalidArgumentError{invalidArgument{name: "email", reason: "missing required argument"}},
+		},
+		{
+			Username: stringPtr("admin2"),
 			Password: stringPtr("foobar"),
-			wantErr:  invalidArgumentError{invalidArgument{name: "email", reason: "missing required argument"}},
+			Email:    stringPtr("admin2@example.com"),
+			wantErr:  &invalidArgumentError{invalidArgument{name: "invite_token", reason: "missing required argument"}},
 		},
 		{
-			Username:           stringPtr("admin1"),
+			Username:           stringPtr("admin2"),
 			Password:           stringPtr("foobar"),
-			Email:              stringPtr("admin1@example.com"),
+			Email:              stringPtr("admin2@example.com"),
 			NeedsPasswordReset: boolPtr(true),
 			Admin:              boolPtr(false),
+			InviteToken:        &invites["admin2@example.com"].Token,
+		},
+		{ // should return ErrNotFound because the invite is deleted
+			// after a user signs up
+			Username:           stringPtr("admin2"),
+			Password:           stringPtr("foobar"),
+			Email:              stringPtr("admin2@example.com"),
+			NeedsPasswordReset: boolPtr(true),
+			Admin:              boolPtr(false),
+			InviteToken:        &invites["admin2@example.com"].Token,
+			wantErr:            datastore.ErrNotFound,
 		},
 		{
-			Username:           stringPtr("admin1"),
+			Username:           stringPtr("admin3"),
 			Password:           stringPtr("foobar"),
-			Email:              stringPtr("admin1@example.com"),
+			Email:              &invites["expired"].Email,
 			NeedsPasswordReset: boolPtr(true),
 			Admin:              boolPtr(false),
-			wantErr:            datastore.ErrExists,
+			InviteToken:        &invites["expired"].Token,
+			wantErr:            errors.New("expired invite token"),
 		},
 		{
-			Username:           stringPtr("@admin1"),
+			Username:           stringPtr("@admin2"),
 			Password:           stringPtr("foobar"),
-			Email:              stringPtr("admin1@example.com"),
+			Email:              stringPtr("admin2@example.com"),
 			NeedsPasswordReset: boolPtr(true),
 			Admin:              boolPtr(false),
-			wantErr:            invalidArgumentError{invalidArgument{name: "username", reason: "'@' character not allowed in usernames"}},
+			InviteToken:        &invites["admin2@example.com"].Token,
+			wantErr:            &invalidArgumentError{invalidArgument{name: "username", reason: "'@' character not allowed in usernames"}},
 		},
 	}
 
-	for _, tt := range createUserTests {
+	for i, tt := range createUserTests {
 		payload := kolide.UserPayload{
-			Username: tt.Username,
-			Password: tt.Password,
-			Email:    tt.Email,
-			Admin:    tt.Admin,
+			Username:                 tt.Username,
+			Password:                 tt.Password,
+			Email:                    tt.Email,
+			Admin:                    tt.Admin,
+			InviteToken:              tt.InviteToken,
 			AdminForcedPasswordReset: tt.NeedsPasswordReset,
 		}
 		user, err := svc.NewUser(ctx, payload)
-		require.Equal(t, tt.wantErr, err)
+		require.Equal(t, tt.wantErr, err, strconv.Itoa(i))
 		if err != nil {
 			// skip rest of the test if error is not nil
 			continue
@@ -181,6 +205,32 @@ func TestCreateUser(t *testing.T) {
 		assert.Equal(t, user.Admin, *tt.Admin)
 
 	}
+}
+
+func setupInvites(t *testing.T, ds kolide.Datastore, emails []string) map[string]*kolide.Invite {
+	invites := make(map[string]*kolide.Invite)
+	users := createTestUsers(t, ds)
+	mockClock := clock.NewMockClock()
+	for _, e := range emails {
+		invite, err := ds.NewInvite(&kolide.Invite{
+			InvitedBy: users["admin1"].ID,
+			Token:     e,
+			Email:     e,
+			CreatedAt: mockClock.Now(),
+		})
+		require.Nil(t, err)
+		invites[e] = invite
+	}
+	// add an expired invitation
+	invite, err := ds.NewInvite(&kolide.Invite{
+		InvitedBy: users["admin1"].ID,
+		Token:     "expired",
+		Email:     "expiredinvite@gmail.com",
+		CreatedAt: mockClock.Now().AddDate(-1, 0, 0),
+	})
+	require.Nil(t, err)
+	invites["expired"] = invite
+	return invites
 }
 
 func TestChangeUserPassword(t *testing.T) {
@@ -203,11 +253,11 @@ func TestChangeUserPassword(t *testing.T) {
 		},
 		{ // missing token
 			newPassword: "123cat!",
-			wantErr:     invalidArgumentError{invalidArgument{name: "token", reason: "cannot be empty field"}},
+			wantErr:     &invalidArgumentError{invalidArgument{name: "token", reason: "cannot be empty field"}},
 		},
 		{ // missing password
 			token:   "abcd",
-			wantErr: invalidArgumentError{invalidArgument{name: "new_password", reason: "cannot be empty field"}},
+			wantErr: &invalidArgumentError{invalidArgument{name: "new_password", reason: "cannot be empty field"}},
 		},
 	}
 
@@ -226,41 +276,4 @@ func TestChangeUserPassword(t *testing.T) {
 		serr := svc.ResetPassword(ctx, tt.token, tt.newPassword)
 		assert.Equal(t, tt.wantErr, serr, strconv.Itoa(i))
 	}
-}
-
-type mockMailService struct {
-	SendEmailFn func(e kolide.Email) error
-	Invoked     bool
-}
-
-func (svc *mockMailService) SendEmail(e kolide.Email) error {
-	svc.Invoked = true
-	return svc.SendEmailFn(e)
-}
-
-var testUsers = map[string]kolide.UserPayload{
-	"admin1": {
-		Username: stringPtr("admin1"),
-		Password: stringPtr("foobar"),
-		Email:    stringPtr("admin1@example.com"),
-		Admin:    boolPtr(true),
-	},
-	"user1": {
-		Username: stringPtr("user1"),
-		Password: stringPtr("foobar"),
-		Email:    stringPtr("user1@example.com"),
-	},
-	"user2": {
-		Username: stringPtr("user2"),
-		Password: stringPtr("bazfoo"),
-		Email:    stringPtr("user2@example.com"),
-	},
-}
-
-func stringPtr(s string) *string {
-	return &s
-}
-
-func boolPtr(b bool) *bool {
-	return &b
 }

@@ -13,6 +13,7 @@ type inmem struct {
 	users          map[uint]*kolide.User
 	sessions       map[uint]*kolide.Session
 	passwordResets map[uint]*kolide.PasswordResetRequest
+	invites        map[uint]*kolide.Invite
 	orginfo        *kolide.OrgInfo
 }
 

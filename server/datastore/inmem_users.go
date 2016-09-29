@@ -41,7 +41,6 @@ func (orm *inmem) Users() ([]*kolide.User, error) {
 	}
 
 	return users, nil
-
 }
 
 func (orm *inmem) UserByEmail(email string) (*kolide.User, error) {
