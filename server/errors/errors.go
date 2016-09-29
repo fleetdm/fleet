@@ -1,7 +1,6 @@
 package errors
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/Sirupsen/logrus"
@@ -26,7 +25,7 @@ type KolideError struct {
 
 // Implementation of error interface
 func (e *KolideError) Error() string {
-	return fmt.Sprintf("Public: %s Private: %s Err: %+v", e.PublicMessage, e.PrivateMessage, e.Err)
+	return e.PublicMessage
 }
 
 // Create a new KolideError specifying the public and private messages. The

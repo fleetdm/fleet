@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"testing"
 
 	"github.com/go-kit/kit/endpoint"
@@ -9,6 +8,8 @@ import (
 	"github.com/kolide/kolide-ose/server/datastore"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/net/context"
 )
 
 // TestEndpointPermissions tests that
@@ -119,4 +120,115 @@ func TestEndpointPermissions(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestGetNodeKey tests the reflection logic for pulling the node key from
+// various (fake) request types
+func TestGetNodeKey(t *testing.T) {
+	type Foo struct {
+		Foo     string
+		NodeKey string
+	}
+
+	type Bar struct {
+		Bar     string
+		NodeKey string
+	}
+
+	type Nope struct {
+		Nope string
+	}
+
+	type Almost struct {
+		NodeKey int
+	}
+
+	var getNodeKeyTests = []struct {
+		i         interface{}
+		expectKey string
+		shouldErr bool
+	}{
+		{
+			i:         Foo{Foo: "foo", NodeKey: "fookey"},
+			expectKey: "fookey",
+			shouldErr: false,
+		},
+		{
+			i:         Bar{Bar: "bar", NodeKey: "barkey"},
+			expectKey: "barkey",
+			shouldErr: false,
+		},
+		{
+			i:         Nope{Nope: "nope"},
+			expectKey: "",
+			shouldErr: true,
+		},
+		{
+			i:         Almost{NodeKey: 10},
+			expectKey: "",
+			shouldErr: true,
+		},
+	}
+
+	for _, tt := range getNodeKeyTests {
+		t.Run("", func(t *testing.T) {
+			key, err := getNodeKey(tt.i)
+			assert.Equal(t, tt.expectKey, key)
+			if tt.shouldErr {
+				assert.IsType(t, osqueryError{}, err)
+			} else {
+				assert.Nil(t, err)
+			}
+		})
+	}
+}
+
+func TestAuthenticatedHost(t *testing.T) {
+	ds, err := datastore.New("gorm-sqlite3", "")
+	require.Nil(t, err)
+	svc, err := newTestService(ds)
+	require.Nil(t, err)
+
+	endpoint := authenticatedHost(
+		svc,
+		func(ctx context.Context, request interface{}) (interface{}, error) {
+			return nil, nil
+		},
+	)
+
+	ctx := context.Background()
+	goodNodeKey, err := svc.EnrollAgent(ctx, "", "host123")
+	assert.Nil(t, err)
+	require.NotEmpty(t, goodNodeKey)
+
+	var authenticatedHostTests = []struct {
+		nodeKey   string
+		shouldErr bool
+	}{
+		{
+			nodeKey:   "invalid",
+			shouldErr: true,
+		},
+		{
+			nodeKey:   "",
+			shouldErr: true,
+		},
+		{
+			nodeKey:   goodNodeKey,
+			shouldErr: false,
+		},
+	}
+
+	for _, tt := range authenticatedHostTests {
+		t.Run("", func(t *testing.T) {
+			var r = struct{ NodeKey string }{NodeKey: tt.nodeKey}
+			_, err = endpoint(context.Background(), r)
+			if tt.shouldErr {
+				assert.IsType(t, osqueryError{}, err)
+			} else {
+				assert.Nil(t, err)
+			}
+		})
+	}
+
 }

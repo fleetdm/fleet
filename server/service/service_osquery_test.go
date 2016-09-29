@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	hostctx "github.com/kolide/kolide-ose/server/contexts/host"
 	"github.com/kolide/kolide-ose/server/datastore"
 	"github.com/kolide/kolide-ose/server/kolide"
-	hostContext "github.com/kolide/kolide-ose/server/contexts/host"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -102,7 +102,7 @@ func TestGetDistributedQueries(t *testing.T) {
 	require.Len(t, hosts, 1)
 	host := hosts[0]
 
-	ctx = hostContext.NewContext(ctx, *host)
+	ctx = hostctx.NewContext(ctx, *host)
 
 	// With no platform set, we should get the details query
 	queries, err := svc.GetDistributedQueries(ctx)
@@ -116,8 +116,8 @@ func TestGetDistributedQueries(t *testing.T) {
 	}
 
 	host.Platform = "darwin"
-
-	ctx = hostContext.NewContext(ctx, *host)
+	ds.SaveHost(host)
+	ctx = hostctx.NewContext(ctx, *host)
 
 	// With the platform set, we should get the label queries (but none
 	// exist yet)

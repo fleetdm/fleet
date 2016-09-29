@@ -71,6 +71,29 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		return
 	}
 
+	type osqueryError interface {
+		error
+		NodeInvalid() bool
+	}
+	if e, ok := err.(osqueryError); ok {
+		// osquery expects to receive the node_invalid key when a TLS
+		// request provides an invalid node_key for authentication. It
+		// doesn't use the error message provided, but we provide this
+		// for debugging purposes (and perhaps osquery will use this
+		// error message in the future).
+
+		errMap := map[string]interface{}{"error": e.Error()}
+		if e.NodeInvalid() {
+			w.WriteHeader(http.StatusUnauthorized)
+			errMap["node_invalid"] = true
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+
+		enc.Encode(errMap)
+		return
+	}
+
 	// Other errors
 	switch domain {
 	case "service":

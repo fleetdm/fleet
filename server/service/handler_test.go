@@ -25,7 +25,7 @@ func TestAPIRoutes(t *testing.T) {
 	kh := makeKolideKitHandlers(ctx, ke, nil)
 	attachKolideAPIRoutes(r, kh)
 	handler := mux.NewRouter()
-	handler.PathPrefix("/api/v1/kolide").Handler(r)
+	handler.PathPrefix("/").Handler(r)
 
 	var routes = []struct {
 		verb string
@@ -134,6 +134,26 @@ func TestAPIRoutes(t *testing.T) {
 		{
 			verb: "DELETE",
 			uri:  "/api/v1/kolide/packs/1/queries/2",
+		},
+		{
+			verb: "POST",
+			uri:  "/api/v1/osquery/enroll",
+		},
+		{
+			verb: "POST",
+			uri:  "/api/v1/osquery/config",
+		},
+		{
+			verb: "POST",
+			uri:  "/api/v1/osquery/distributed/read",
+		},
+		{
+			verb: "POST",
+			uri:  "/api/v1/osquery/distributed/write",
+		},
+		{
+			verb: "POST",
+			uri:  "/api/v1/osquery/log",
 		},
 	}
 

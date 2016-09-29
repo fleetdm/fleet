@@ -2,45 +2,63 @@ package service
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
+	hostctx "github.com/kolide/kolide-ose/server/contexts/host"
 	"github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
-	"github.com/kolide/kolide-ose/server/contexts/host"
 	"golang.org/x/net/context"
 )
 
 type osqueryError struct {
-	message string
+	message     string
+	nodeInvalid bool
 }
 
 func (e osqueryError) Error() string {
 	return e.message
 }
 
+func (e osqueryError) NodeInvalid() bool {
+	return e.nodeInvalid
+}
+
+func (svc service) AuthenticateHost(ctx context.Context, nodeKey string) (*kolide.Host, error) {
+	if nodeKey == "" {
+		return nil, osqueryError{
+			message:     "authentication error: missing node key",
+			nodeInvalid: true,
+		}
+	}
+	host, err := svc.ds.AuthenticateHost(nodeKey)
+	if err != nil {
+		return nil, osqueryError{
+			message:     "authentication error: " + err.Error(),
+			nodeInvalid: true,
+		}
+	}
+	return host, nil
+}
+
 func (svc service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string) (string, error) {
 	if enrollSecret != svc.config.Osquery.EnrollSecret {
-		return "", errors.New(
-			"Node key invalid",
-			fmt.Sprintf("Invalid node key provided: %s", enrollSecret),
-		)
+		return "", osqueryError{message: "invalid enroll secret", nodeInvalid: true}
 	}
 
 	host, err := svc.ds.EnrollHost(hostIdentifier, "", "", "", svc.config.Osquery.NodeKeySize)
 	if err != nil {
-		return "", err
+		return "", osqueryError{message: "enrollment failed: " + err.Error(), nodeInvalid: true}
 	}
 
 	return host.NodeKey, nil
 }
 
-func (svc service) GetClientConfig(ctx context.Context, action string, data json.RawMessage) (*kolide.OsqueryConfig, error) {
+func (svc service) GetClientConfig(ctx context.Context) (*kolide.OsqueryConfig, error) {
 	var config kolide.OsqueryConfig
 	return &config, nil
 }
 
-func (svc service) SubmitStatusLogs(ctx context.Context, logs []kolide.OsqueryResultLog) error {
+func (svc service) SubmitStatusLogs(ctx context.Context, logs []kolide.OsqueryStatusLog) error {
 	for _, log := range logs {
 		err := json.NewEncoder(svc.osqueryStatusLogWriter).Encode(log)
 		if err != nil {
@@ -50,13 +68,42 @@ func (svc service) SubmitStatusLogs(ctx context.Context, logs []kolide.OsqueryRe
 	return nil
 }
 
-func (svc service) SubmitResultsLogs(ctx context.Context, logs []kolide.OsqueryStatusLog) error {
+func (svc service) SubmitResultLogs(ctx context.Context, logs []kolide.OsqueryResultLog) error {
 	for _, log := range logs {
 		err := json.NewEncoder(svc.osqueryResultsLogWriter).Encode(log)
 		if err != nil {
 			return errors.NewFromError(err, http.StatusInternalServerError, "error writing result log")
 		}
 	}
+	return nil
+}
+
+func (svc service) SubmitLogs(ctx context.Context, logType string, data *json.RawMessage) error {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return osqueryError{message: "internal error: missing host from request context"}
+	}
+
+	var err error
+	switch logType {
+	case "status":
+		// TODO: Decode and submit logs
+
+	case "result":
+		// TODO: Decode and submit logs
+
+	default:
+		err = osqueryError{message: "unknown log type: " + logType}
+		svc.logger.Log("method", "SubmitLogs", "err", err)
+	}
+
+	if err != nil {
+		return osqueryError{message: "log ingestion failed: " + err.Error()}
+	}
+
+	// TODO: Update update_time of host
+	_ = host
+
 	return nil
 }
 
@@ -82,9 +129,9 @@ func hostDetailQueries(host kolide.Host) map[string]string {
 func (svc service) GetDistributedQueries(ctx context.Context) (map[string]string, error) {
 	queries := make(map[string]string)
 
-	host, ok := host.FromContext(ctx)
+	host, ok := hostctx.FromContext(ctx)
 	if !ok {
-		return nil, errNoContext
+		return nil, osqueryError{message: "internal error: missing host from request context"}
 	}
 
 	queries = hostDetailQueries(host)

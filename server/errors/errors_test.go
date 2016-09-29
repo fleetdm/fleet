@@ -42,9 +42,7 @@ func TestNewFromError(t *testing.T) {
 	err := errors.New("Foo error")
 	kolideErr := NewFromError(err, StatusUnprocessableEntity, "Public error")
 
-	assert.Equal(t,
-		"Public: Public error Private: Foo error Err: Foo error",
-		kolideErr.Error())
+	assert.Equal(t, "Public error", kolideErr.Error())
 
 	expect := &KolideError{
 		Err:            err,

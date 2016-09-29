@@ -130,6 +130,9 @@ func testAuthenticateHost(t *testing.T, db kolide.HostStore) {
 
 	_, err := db.AuthenticateHost("7B1A9DC9-B042-489F-8D5A-EEC2412C95AA")
 	assert.NotNil(t, err)
+
+	_, err = db.AuthenticateHost("")
+	assert.NotNil(t, err)
 }
 
 // TestUser tests the UserStore interface

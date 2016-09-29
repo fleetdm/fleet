@@ -162,14 +162,14 @@ func (orm gormDB) EnrollHost(uuid, hostname, ip, platform string, nodeKeySize in
 
 func (orm gormDB) AuthenticateHost(nodeKey string) (*kolide.Host, error) {
 	host := kolide.Host{NodeKey: nodeKey}
-	err := orm.DB.Where(&host).First(&host).Error
+	err := orm.DB.Where("node_key = ?", host.NodeKey).First(&host).Error
 	if err != nil {
 		switch err {
 		case gorm.ErrRecordNotFound:
 			e := errors.NewFromError(
 				err,
 				http.StatusUnauthorized,
-				"Unauthorized",
+				"invalid node key",
 			)
 			// osqueryd expects the literal string "true" here
 			e.Extra = map[string]interface{}{"node_invalid": "true"}
