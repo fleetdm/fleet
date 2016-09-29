@@ -10,15 +10,15 @@ dependencies:
     - docker info
     - docker login -e $DOCKER_HUB_EMAIL -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
   override:
-    - docker pull kolide/kolide-builder:dev
-    - docker run -v $(pwd):/go/src/github.com/kolide/kolide-ose -v /home/ubuntu/.go_workspace/pkg:/go/pkg kolide/kolide-builder:dev --deps
+    - docker pull kolide/kolide-builder:1.7
+    - docker run -v $(pwd):/go/src/github.com/kolide/kolide-ose -v /home/ubuntu/.go_workspace/pkg:/go/pkg kolide/kolide-builder:1.7 --deps
   cache_directories:
     - "vendor"
     - "node_modules"
 
 test:
   override:
-      - docker run -v $(pwd):/go/src/github.com/kolide/kolide-ose -v /home/ubuntu/.go_workspace/pkg:/go/pkg kolide/kolide-builder:dev --build
+      - docker run -v $(pwd):/go/src/github.com/kolide/kolide-ose -v /home/ubuntu/.go_workspace/pkg:/go/pkg kolide/kolide-builder:1.7 --build
 
 deployment:
   development:
