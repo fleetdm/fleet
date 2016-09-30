@@ -151,16 +151,18 @@ func TestGetDistributedQueries(t *testing.T) {
 	expectQueries := make(map[string]string)
 
 	for _, query := range labelQueries {
-		assert.NoError(t, ds.NewQuery(query))
+		_, err := ds.NewQuery(query)
+		assert.Nil(t, err)
 		expectQueries[fmt.Sprintf("kolide_label_query_%d", query.ID)] = query.Query
 	}
 	// this one should not show up
-	assert.NoError(t, ds.NewQuery(&kolide.Query{
+	_, err = ds.NewQuery(&kolide.Query{
 		ID:       4,
 		Name:     "query4",
 		Platform: "not_darwin",
 		Query:    "query4",
-	}))
+	})
+	assert.Nil(t, err)
 
 	labels := []*kolide.Label{
 		&kolide.Label{
@@ -182,7 +184,8 @@ func TestGetDistributedQueries(t *testing.T) {
 	}
 
 	for _, label := range labels {
-		assert.NoError(t, ds.NewLabel(label))
+		_, err := ds.NewLabel(label)
+		assert.Nil(t, err)
 	}
 
 	// Now we should get the label queries
@@ -193,7 +196,7 @@ func TestGetDistributedQueries(t *testing.T) {
 
 	// Record a query execution
 	err = ds.RecordLabelQueryExecutions(host, map[string]bool{"1": true}, mockClock.Now())
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	// Now that query should not be returned
 	queries, err = svc.GetDistributedQueries(ctx)
@@ -212,19 +215,19 @@ func TestGetDistributedQueries(t *testing.T) {
 
 	// Record an old query execution -- Shouldn't change the return
 	err = ds.RecordLabelQueryExecutions(host, map[string]bool{"2": true}, mockClock.Now().Add(-10*time.Hour))
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	queries, err = svc.GetDistributedQueries(ctx)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.Equal(t, expectQueries, queries)
 
 	// Record a newer execution for that query and another
 	err = ds.RecordLabelQueryExecutions(host, map[string]bool{"2": true, "3": false}, mockClock.Now().Add(-1*time.Minute))
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	// Now these should no longer show up in the necessary to run queries
 	delete(expectQueries, "kolide_label_query_2")
 	delete(expectQueries, "kolide_label_query_3")
 	queries, err = svc.GetDistributedQueries(ctx)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.Equal(t, expectQueries, queries)
 }

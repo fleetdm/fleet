@@ -146,7 +146,7 @@ func TestAddQueryToPack(t *testing.T) {
 		Name:  "bar",
 		Query: "select * from time;",
 	}
-	err = ds.NewQuery(query)
+	_, err = ds.NewQuery(query)
 	assert.Nil(t, err)
 	assert.NotZero(t, query.ID)
 
@@ -182,7 +182,7 @@ func TestGetQueriesInPack(t *testing.T) {
 		Name:  "bar",
 		Query: "select * from time;",
 	}
-	err = ds.NewQuery(query)
+	_, err = ds.NewQuery(query)
 	assert.Nil(t, err)
 	assert.NotZero(t, query.ID)
 
@@ -214,7 +214,7 @@ func TestRemoveQueryFromPack(t *testing.T) {
 		Name:  "bar",
 		Query: "select * from time;",
 	}
-	err = ds.NewQuery(query)
+	_, err = ds.NewQuery(query)
 	assert.Nil(t, err)
 	assert.NotZero(t, query.ID)
 

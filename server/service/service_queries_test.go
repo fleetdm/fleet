@@ -22,7 +22,7 @@ func TestGetAllQueries(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
 
-	err = ds.NewQuery(&kolide.Query{
+	_, err = ds.NewQuery(&kolide.Query{
 		Name:  "foo",
 		Query: "select * from time;",
 	})
@@ -46,7 +46,7 @@ func TestGetQuery(t *testing.T) {
 		Name:  "foo",
 		Query: "select * from time;",
 	}
-	err = ds.NewQuery(query)
+	_, err = ds.NewQuery(query)
 	assert.Nil(t, err)
 	assert.NotZero(t, query.ID)
 
@@ -92,7 +92,7 @@ func TestModifyQuery(t *testing.T) {
 		Name:  "foo",
 		Query: "select * from time;",
 	}
-	err = ds.NewQuery(query)
+	_, err = ds.NewQuery(query)
 	assert.Nil(t, err)
 	assert.NotZero(t, query.ID)
 
@@ -119,7 +119,7 @@ func TestDeleteQuery(t *testing.T) {
 		Name:  "foo",
 		Query: "select * from time;",
 	}
-	err = ds.NewQuery(query)
+	_, err = ds.NewQuery(query)
 	assert.Nil(t, err)
 	assert.NotZero(t, query.ID)
 

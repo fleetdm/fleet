@@ -3,6 +3,7 @@ package datastore
 import (
 	"fmt"
 	"math/rand"
+	"sort"
 	"testing"
 	"time"
 
@@ -325,18 +326,21 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 	}
 
 	for _, query := range labelQueries {
-		assert.Nil(t, db.NewQuery(&query))
+		newQuery, err := db.NewQuery(&query)
+		assert.Nil(t, err)
+		assert.NotZero(t, newQuery.ID)
 	}
 
 	// this one should not show up
-	assert.NoError(t, db.NewQuery(&kolide.Query{
+	_, err = db.NewQuery(&kolide.Query{
 		Platform: "not_darwin",
 		Query:    "query5",
-	}))
+	})
+	assert.Nil(t, err)
 
 	// No queries should be returned before labels added
 	queries, err = db.LabelQueriesForHost(host, baseTime)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.Empty(t, queries)
 
 	newLabels := []kolide.Label{
@@ -360,7 +364,9 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 	}
 
 	for _, label := range newLabels {
-		assert.Nil(t, db.NewLabel(&label))
+		newLabel, err := db.NewLabel(&label)
+		assert.Nil(t, err)
+		assert.NotZero(t, newLabel.ID)
 	}
 
 	expectQueries := map[string]string{
@@ -374,7 +380,7 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 
 	// Now queries should be returned
 	queries, err = db.LabelQueriesForHost(host, baseTime)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.Equal(t, expectQueries, queries)
 
 	// No labels should match with no results yet
@@ -384,38 +390,40 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 
 	// Record a query execution
 	err = db.RecordLabelQueryExecutions(host, map[string]bool{"1": true}, baseTime)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	// Use a 10 minute interval, so the query we just added should show up
 	queries, err = db.LabelQueriesForHost(host, time.Now().Add(-(10 * time.Minute)))
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	delete(expectQueries, "1")
 	assert.Equal(t, expectQueries, queries)
 
 	// Record an old query execution -- Shouldn't change the return
 	err = db.RecordLabelQueryExecutions(host, map[string]bool{"2": true}, baseTime.Add(-1*time.Hour))
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	queries, err = db.LabelQueriesForHost(host, time.Now().Add(-(10 * time.Minute)))
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.Equal(t, expectQueries, queries)
 
 	// Record a newer execution for that query and another
 	err = db.RecordLabelQueryExecutions(host, map[string]bool{"2": false, "3": true}, baseTime)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	// Now these should no longer show up in the necessary to run queries
 	delete(expectQueries, "2")
 	delete(expectQueries, "3")
 	queries, err = db.LabelQueriesForHost(host, time.Now().Add(-(10 * time.Minute)))
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.Equal(t, expectQueries, queries)
 
 	// Now the two matching labels should be returned
 	labels, err = db.LabelsForHost(host)
 	assert.Nil(t, err)
 	if assert.Len(t, labels, 2) {
-		assert.Equal(t, "label3", labels[0].Name)
-		assert.Equal(t, "label2", labels[1].Name)
+		labelNames := []string{labels[0].Name, labels[1].Name}
+		sort.Strings(labelNames)
+		assert.Equal(t, "label2", labelNames[0])
+		assert.Equal(t, "label3", labelNames[1])
 	}
 
 	// A host that hasn't executed any label queries should still be asked
@@ -438,6 +446,7 @@ func setup(t *testing.T) kolide.Datastore {
 	require.Nil(t, err)
 
 	ds := gormDB{DB: db, Driver: "sqlite3"}
+
 	err = ds.Migrate()
 	assert.Nil(t, err)
 	// Log using t.Log so that output only shows up if the test fails
@@ -475,16 +484,16 @@ func randomString(strlen int) string {
 }
 
 func testSaveQuery(t *testing.T, ds kolide.Datastore) {
-	query := kolide.Query{
+	query := &kolide.Query{
 		Name:  "foo",
 		Query: "bar",
 	}
-	err := ds.SaveQuery(&query)
+	query, err := ds.NewQuery(query)
 	assert.Nil(t, err)
 	assert.NotEqual(t, 0, query.ID)
 
 	query.Query = "baz"
-	err = ds.SaveQuery(&query)
+	err = ds.SaveQuery(query)
 	assert.Nil(t, err)
 
 	queryVerify, err := ds.Query(query.ID)
@@ -493,15 +502,15 @@ func testSaveQuery(t *testing.T, ds kolide.Datastore) {
 }
 
 func testDeleteQuery(t *testing.T, ds kolide.Datastore) {
-	query := kolide.Query{
+	query := &kolide.Query{
 		Name:  "foo",
 		Query: "bar",
 	}
-	err := ds.SaveQuery(&query)
+	query, err := ds.NewQuery(query)
 	assert.Nil(t, err)
 	assert.NotEqual(t, query.ID, 0)
 
-	err = ds.DeleteQuery(&query)
+	err = ds.DeleteQuery(query)
 	assert.Nil(t, err)
 
 	assert.NotEqual(t, query.ID, 0)
@@ -539,7 +548,7 @@ func testAddAndRemoveQueryFromPack(t *testing.T, ds kolide.Datastore) {
 		Name:  "bar",
 		Query: "bar",
 	}
-	err = ds.NewQuery(q1)
+	_, err = ds.NewQuery(q1)
 	assert.Nil(t, err)
 	err = ds.AddQueryToPack(q1, pack)
 	assert.Nil(t, err)
@@ -548,7 +557,7 @@ func testAddAndRemoveQueryFromPack(t *testing.T, ds kolide.Datastore) {
 		Name:  "baz",
 		Query: "baz",
 	}
-	err = ds.NewQuery(q2)
+	_, err = ds.NewQuery(q2)
 	assert.Nil(t, err)
 	err = ds.AddQueryToPack(q2, pack)
 	assert.Nil(t, err)

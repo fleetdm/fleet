@@ -22,7 +22,7 @@ type OsqueryStore interface {
 	RecordLabelQueryExecutions(host *Host, results map[string]bool, t time.Time) error
 
 	// NewLabel saves a new label.
-	NewLabel(label *Label) error
+	NewLabel(label *Label) (*Label, error)
 
 	// LabelsForHost returns the labels that the given host is in.
 	LabelsForHost(host *Host) ([]Label, error)

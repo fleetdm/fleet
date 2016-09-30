@@ -8,7 +8,7 @@ import (
 
 type QueryStore interface {
 	// Query methods
-	NewQuery(query *Query) error
+	NewQuery(query *Query) (*Query, error)
 	SaveQuery(query *Query) error
 	DeleteQuery(query *Query) error
 	Query(id uint) (*Query, error)

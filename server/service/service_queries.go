@@ -44,7 +44,7 @@ func (svc service) NewQuery(ctx context.Context, p kolide.QueryPayload) (*kolide
 		query.Version = *p.Version
 	}
 
-	err := svc.ds.NewQuery(&query)
+	_, err := svc.ds.NewQuery(&query)
 	if err != nil {
 		return nil, err
 	}

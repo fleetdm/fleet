@@ -228,23 +228,26 @@ func (orm gormDB) NewHost(host *kolide.Host) (*kolide.Host, error) {
 }
 
 func (orm gormDB) MarkHostSeen(host *kolide.Host, t time.Time) error {
-	updateTime := time.Now()
 	err := orm.DB.Exec("UPDATE hosts SET updated_at=? WHERE node_key=?", t, host.NodeKey).Error
 	if err != nil {
 		return errors.DatabaseError(err)
 	}
-	host.UpdatedAt = updateTime
+	host.UpdatedAt = t
 	return nil
 }
 
-func (orm gormDB) NewQuery(query *kolide.Query) error {
+func (orm gormDB) NewQuery(query *kolide.Query) (*kolide.Query, error) {
 	if query == nil {
-		return errors.New(
+		return nil, errors.New(
 			"error creating query",
 			"nil pointer passed to NewQuery",
 		)
 	}
-	return orm.DB.Create(query).Error
+	err := orm.DB.Create(query).Error
+	if err != nil {
+		return nil, err
+	}
+	return query, nil
 }
 
 func (orm gormDB) SaveQuery(query *kolide.Query) error {
@@ -284,14 +287,18 @@ func (orm gormDB) Queries() ([]*kolide.Query, error) {
 	return queries, err
 }
 
-func (orm gormDB) NewLabel(label *kolide.Label) error {
+func (orm gormDB) NewLabel(label *kolide.Label) (*kolide.Label, error) {
 	if label == nil {
-		return errors.New(
+		return nil, errors.New(
 			"error creating label",
 			"nil pointer passed to NewLabel",
 		)
 	}
-	return orm.DB.Create(label).Error
+	err := orm.DB.Create(label).Error
+	if err != nil {
+		return nil, err
+	}
+	return label, nil
 }
 
 func (orm gormDB) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (map[string]string, error) {
