@@ -1,6 +1,9 @@
 import React, { Component, PropTypes } from 'react';
-import radium from 'radium';
+import { connect } from 'react-redux';
 import { isEqual, last } from 'lodash';
+import { push } from 'react-router-redux';
+import radium, { StyleRoot } from 'radium';
+import { activeTabFromPathname, activeSubTabFromPathname } from './helpers';
 import componentStyles from './styles';
 import kolideLogo from '../../../assets/images/kolide-logo.svg';
 import navItems from './navItems';
@@ -8,17 +11,41 @@ import './styles.scss';
 
 class SidePanel extends Component {
   static propTypes = {
+    dispatch: PropTypes.func,
+    pathname: PropTypes.string,
     user: PropTypes.object,
   };
 
   constructor (props) {
     super(props);
+    const { pathname, user: { admin } } = this.props;
+
+    this.userNavItems = navItems(admin);
+
+    const activeTab = activeTabFromPathname(this.userNavItems, pathname);
+    const activeSubItem = activeSubTabFromPathname(activeTab, pathname);
 
     this.state = {
-      activeTab: 'Hosts',
-      activeSubItem: 'Add Hosts',
+      activeTab,
+      activeSubItem,
       showSubItems: false,
     };
+  }
+
+  componentWillReceiveProps (nextProps) {
+    if (isEqual(nextProps, this.props)) return false;
+
+    const { pathname } = nextProps;
+
+    const activeTab = activeTabFromPathname(this.userNavItems, pathname);
+    const activeSubItem = activeSubTabFromPathname(activeTab, pathname);
+
+    this.setState({
+      activeTab,
+      activeSubItem,
+    });
+
+    return false;
   }
 
   setActiveSubItem = (activeSubItem) => {
@@ -34,9 +61,16 @@ class SidePanel extends Component {
     return (evt) => {
       evt.preventDefault();
 
+      const { pathname, dispatch } = this.props;
+      const { defaultPathname } = activeTab;
+      const activeSubItem = activeSubTabFromPathname(activeTab, pathname);
+
       this.setState({
         activeTab,
+        activeSubItem,
       });
+
+      if (defaultPathname) return dispatch(push(defaultPathname));
 
       return false;
     };
@@ -90,7 +124,7 @@ class SidePanel extends Component {
   renderNavItem = (navItem, lastChild) => {
     const { activeTab } = this.state;
     const { icon, name, subItems } = navItem;
-    const active = activeTab === name;
+    const active = activeTab.name === name;
     const {
       iconStyles,
       navItemBeforeStyles,
@@ -105,7 +139,7 @@ class SidePanel extends Component {
         {active && <div style={navItemBeforeStyles} />}
         <li
           key={name}
-          onClick={setActiveTab(name)}
+          onClick={setActiveTab(navItem)}
           style={navItemStyles(active)}
         >
           <div style={{ position: 'relative' }}>
@@ -121,10 +155,9 @@ class SidePanel extends Component {
   }
 
   renderNavItems = () => {
-    const { renderNavItem } = this;
+    const { renderNavItem, userNavItems } = this;
     const { navItemListStyles } = componentStyles;
     const { user: { admin } } = this.props;
-    const userNavItems = navItems(admin);
 
     return (
       <ul style={navItemListStyles}>
@@ -139,7 +172,7 @@ class SidePanel extends Component {
   renderSubItem = (subItem) => {
     const { activeSubItem } = this.state;
     const { name, path } = subItem;
-    const active = activeSubItem === name;
+    const active = activeSubItem === subItem;
     const { setActiveSubItem } = this;
     const {
       subItemBeforeStyles,
@@ -155,7 +188,7 @@ class SidePanel extends Component {
         {active && <div style={subItemBeforeStyles} />}
         <li
           key={name}
-          onClick={setActiveSubItem(name)}
+          onClick={setActiveSubItem(subItem)}
           style={subItemStyles(active)}
         >
           <span to={path} style={subItemLinkStyles(active)}>{name}</span>
@@ -189,7 +222,7 @@ class SidePanel extends Component {
 
     return (
       <div style={collapseSubItemsWrapper} onClick={toggleShowSubItems(!showSubItems)}>
-        <i className={iconName} />
+        <i className={iconName} style={{ color: '#FFF' }} />
       </div>
     );
   }
@@ -199,12 +232,15 @@ class SidePanel extends Component {
     const { renderHeader, renderNavItems } = this;
 
     return (
-      <nav style={navStyles}>
-        {renderHeader()}
-        {renderNavItems()}
-      </nav>
+      <StyleRoot>
+        <nav style={navStyles}>
+          {renderHeader()}
+          {renderNavItems()}
+        </nav>
+      </StyleRoot>
     );
   }
 }
 
-export default radium(SidePanel);
+const ConnectedComponent = connect()(SidePanel);
+export default radium(ConnectedComponent);

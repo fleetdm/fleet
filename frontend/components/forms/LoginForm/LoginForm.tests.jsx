@@ -8,10 +8,10 @@ import { fillInFormInput } from '../../../test/helpers';
 describe('LoginForm - component', () => {
   afterEach(restoreSpies);
 
-  it('renders 2 InputFieldWithIcon components', () => {
+  it('renders 2 InputField components', () => {
     const form = mount(<LoginForm onSubmit={noop} />);
 
-    expect(form.find('InputFieldWithIcon').length).toEqual(2);
+    expect(form.find('InputField').length).toEqual(2);
   });
 
   it('updates component state when the username field is changed', () => {

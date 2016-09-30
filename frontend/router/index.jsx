@@ -12,6 +12,8 @@ import ForgotPasswordPage from '../pages/ForgotPasswordPage';
 import HomePage from '../pages/HomePage';
 import LoginRoutes from '../components/LoginRoutes';
 import LogoutPage from '../pages/LogoutPage';
+import NewQueryPage from '../pages/Queries/NewQueryPage';
+import QueryPageWrapper from '../components/Queries/QueryPageWrapper';
 import ResetPasswordPage from '../pages/ResetPasswordPage';
 import store from '../redux/store';
 
@@ -33,6 +35,9 @@ const routes = (
             <IndexRoute component={radium(HomePage)} />
             <Route path="admin" component={AuthenticatedAdminRoutes}>
               <IndexRoute component={radium(AdminDashboardPage)} />
+            </Route>
+            <Route path="queries" component={radium(QueryPageWrapper)}>
+              <Route path="new" component={radium(NewQueryPage)} />
             </Route>
           </Route>
         </Route>

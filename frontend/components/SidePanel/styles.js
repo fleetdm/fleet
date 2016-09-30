@@ -124,7 +124,6 @@ const componentStyles = {
       borderTopColor: color.accentLight,
       borderTopStyle: 'solid',
       borderTopWidth: '1px',
-      marginRight: '16px',
       marginTop: '5px',
       '@media (max-width: 760px)': {
         marginRight: 0,
@@ -253,6 +252,7 @@ const componentStyles = {
     return {
       listStyle: 'none',
       paddingLeft: '16px',
+      minHeight: '87px',
       '@media (max-width: 760px)': {
         borderRight: '1px solid rgba(0,0,0,0.16)',
         display: expanded ? 'inline-block' : 'none',
@@ -263,13 +263,13 @@ const componentStyles = {
     };
   },
   collapseSubItemsWrapper: {
+    boxSizing: 'border-box',
+    cursor: 'pointer',
+    height: '100%',
     position: 'absolute',
-    right: '4px',
-    top: '0',
     bottom: '0',
     lineHeight: '95px',
     color: '#fff',
-
     '@media (min-width: 761px)': {
       display: 'none',
     },

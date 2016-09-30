@@ -1,9 +1,9 @@
-import React, { Component, PropTypes } from 'react';
+import React, { PropTypes } from 'react';
 import radium from 'radium';
 import componentStyles from './styles';
+import InputField from '../InputField';
 
-
-class InputFieldWithIcon extends Component {
+class InputFieldWithIcon extends InputField {
   static propTypes = {
     autofocus: PropTypes.bool,
     error: PropTypes.string,
@@ -14,36 +14,6 @@ class InputFieldWithIcon extends Component {
     style: PropTypes.object,
     type: PropTypes.string,
   };
-
-  static defaultProps = {
-    autofocus: false,
-    style: {},
-    type: 'text',
-  };
-
-  constructor (props) {
-    super(props);
-    this.state = { value: null };
-  }
-
-  componentDidMount () {
-    const { autofocus } = this.props;
-    const { input } = this;
-
-    if (autofocus) input.focus();
-
-    return false;
-  }
-
-  onInputChange = (evt) => {
-    evt.preventDefault();
-
-    const { value } = evt.target;
-    const { onChange } = this.props;
-
-    this.setState({ value });
-    return onChange(evt);
-  }
 
   renderHeading = () => {
     const { error, placeholder } = this.props;

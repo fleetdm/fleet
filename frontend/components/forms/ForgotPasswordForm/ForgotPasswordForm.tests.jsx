@@ -13,7 +13,7 @@ describe('ForgotPasswordForm - component', () => {
   it('renders an InputFieldWithIcon components', () => {
     const form = mount(<ForgotPasswordForm onSubmit={noop} />);
 
-    expect(form.find('InputFieldWithIcon').length).toEqual(1);
+    expect(form.find('InputField').length).toEqual(1);
   });
 
   it('updates component state when the email field is changed', () => {

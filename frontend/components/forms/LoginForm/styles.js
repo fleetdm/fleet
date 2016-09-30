@@ -34,7 +34,10 @@ export default {
   submitButtonStyles: {
     borderTopLeftRadius: 0,
     borderTopRightRadius: 0,
-    padding: padding.base,
+    paddingBottom: padding.base,
+    paddingLeft: padding.base,
+    paddingRight: padding.base,
+    paddingTop: padding.base,
     width: FORM_WIDTH,
   },
 };

@@ -1,48 +1,53 @@
 export default (admin) => {
   const adminNavItems = [
     {
+      defaultPathname: '/admin/users',
       icon: 'kolidecon-admin',
       name: 'Admin',
-      path: '/admin',
-      subItems: [],
+      path: /^\/admin/,
+      subItems: [
+        { name: 'User Management', path: /\/users/ },
+      ],
     },
   ];
 
   const userNavItems = [
     {
+      defaultPathname: '/',
       icon: 'kolidecon-hosts',
       name: 'Hosts',
-      path: '/admin/hosts',
+      path: /^\/$/,
       subItems: [
-        { name: 'Add Hosts', path: '/' },
-        { name: 'Manage Hosts', path: '/' },
+        { name: 'Add Hosts', path: /\/add/ },
+        { name: 'Manage Hosts', path: /\/manage/ },
       ],
     },
     {
+      defaultPathname: '/queries/new',
       icon: 'kolidecon-query',
       name: 'Query',
-      path: '/admin/queries',
+      path: /^\/queries/,
       subItems: [
-        { name: 'New Query', path: '/' },
-        { name: 'Queries & Results', path: '/' },
+        { name: 'New Query', path: /\/new/ },
+        { name: 'Queries & Results', path: /\/results/ },
       ],
     },
     {
       icon: 'kolidecon-packs',
       name: 'Packs',
-      path: '/admin/packs',
+      path: /^\/packs/,
       subItems: [],
     },
     {
       icon: 'kolidecon-alerts',
       name: 'Alerts',
-      path: '/admin/alerts',
+      path: /^\/alerts/,
       subItems: [],
     },
     {
       icon: 'kolidecon-help',
       name: 'Help',
-      path: '/admin/help',
+      path: /^\/help/,
       subItems: [],
     },
   ];

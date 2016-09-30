@@ -1,5 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
+import { StyleRoot } from 'radium';
+import componentStyles from './styles';
 import SidePanel from '../../components/SidePanel';
 
 export class CoreLayout extends Component {
@@ -11,14 +13,22 @@ export class CoreLayout extends Component {
 
   render () {
     const { children, user } = this.props;
+    const { wrapperStyles } = componentStyles;
 
     if (!user) return false;
 
+    const { pathname } = global.window.location;
+
     return (
-      <div>
-        <SidePanel user={user} />
-        <div style={{ marginLeft: '240px' }}>{children}</div>
-      </div>
+      <StyleRoot>
+        <SidePanel
+          pathname={pathname}
+          user={user}
+        />
+        <div style={wrapperStyles}>
+          {children}
+        </div>
+      </StyleRoot>
     );
   }
 }
