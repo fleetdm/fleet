@@ -42,6 +42,7 @@ class Base {
     };
 
     return fetch(endpoint, {
+      credentials: 'same-origin',
       method,
       headers,
       body,
