@@ -31,9 +31,9 @@ func NewService(ds kolide.Datastore, logger kitlog.Logger, kolideConfig config.K
 		config: kolideConfig,
 		clock:  c,
 
-		osqueryStatusLogWriter:  logFile(kolideConfig.Osquery.StatusLogFile),
-		osqueryResultsLogWriter: logFile(kolideConfig.Osquery.ResultLogFile),
-		mailService:             mailService,
+		osqueryStatusLogWriter: logFile(kolideConfig.Osquery.StatusLogFile),
+		osqueryResultLogWriter: logFile(kolideConfig.Osquery.ResultLogFile),
+		mailService:            mailService,
 	}
 	svc = validationMiddleware{svc}
 	return svc, nil
@@ -45,8 +45,8 @@ type service struct {
 	config config.KolideConfig
 	clock  clock.Clock
 
-	osqueryStatusLogWriter  io.Writer
-	osqueryResultsLogWriter io.Writer
+	osqueryStatusLogWriter io.Writer
+	osqueryResultLogWriter io.Writer
 
 	mailService kolide.MailService
 }

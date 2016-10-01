@@ -59,50 +59,43 @@ func (svc service) GetClientConfig(ctx context.Context) (*kolide.OsqueryConfig, 
 }
 
 func (svc service) SubmitStatusLogs(ctx context.Context, logs []kolide.OsqueryStatusLog) error {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return osqueryError{message: "internal error: missing host from request context"}
+	}
+
 	for _, log := range logs {
 		err := json.NewEncoder(svc.osqueryStatusLogWriter).Encode(log)
 		if err != nil {
 			return errors.NewFromError(err, http.StatusInternalServerError, "error writing status log")
 		}
 	}
+
+	err := svc.ds.MarkHostSeen(&host, svc.clock.Now())
+	if err != nil {
+		return osqueryError{message: "failed to update host seen: " + err.Error()}
+	}
+
 	return nil
 }
 
 func (svc service) SubmitResultLogs(ctx context.Context, logs []kolide.OsqueryResultLog) error {
-	for _, log := range logs {
-		err := json.NewEncoder(svc.osqueryResultsLogWriter).Encode(log)
-		if err != nil {
-			return errors.NewFromError(err, http.StatusInternalServerError, "error writing result log")
-		}
-	}
-	return nil
-}
-
-func (svc service) SubmitLogs(ctx context.Context, logType string, data *json.RawMessage) error {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return osqueryError{message: "internal error: missing host from request context"}
 	}
 
-	var err error
-	switch logType {
-	case "status":
-		// TODO: Decode and submit logs
-
-	case "result":
-		// TODO: Decode and submit logs
-
-	default:
-		err = osqueryError{message: "unknown log type: " + logType}
-		svc.logger.Log("method", "SubmitLogs", "err", err)
+	for _, log := range logs {
+		err := json.NewEncoder(svc.osqueryResultLogWriter).Encode(log)
+		if err != nil {
+			return errors.NewFromError(err, http.StatusInternalServerError, "error writing result log")
+		}
 	}
 
+	err := svc.ds.MarkHostSeen(&host, svc.clock.Now())
 	if err != nil {
-		return osqueryError{message: "log ingestion failed: " + err.Error()}
+		return osqueryError{message: "failed to update host seen: " + err.Error()}
 	}
-
-	// TODO: Update update_time of host
-	_ = host
 
 	return nil
 }

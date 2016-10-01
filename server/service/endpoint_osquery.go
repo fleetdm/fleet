@@ -116,9 +116,9 @@ func makeSubmitDistributedQueryResultsEndpoint(svc kolide.Service) endpoint.Endp
 ////////////////////////////////////////////////////////////////////////////////
 
 type submitLogsRequest struct {
-	NodeKey string           `json:"node_key"`
-	LogType string           `json:"log_type"`
-	Data    *json.RawMessage `json:"data"`
+	NodeKey string          `json:"node_key"`
+	LogType string          `json:"log_type"`
+	Data    json.RawMessage `json:"data"`
 }
 
 type submitLogsResponse struct {
@@ -130,10 +130,36 @@ func (r submitLogsResponse) error() error { return r.Err }
 func makeSubmitLogsEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(submitLogsRequest)
-		err := svc.SubmitLogs(ctx, req.LogType, req.Data)
-		if err != nil {
-			return submitLogsResponse{Err: err}, nil
+
+		var err error
+		switch req.LogType {
+		case "status":
+			var statuses []kolide.OsqueryStatusLog
+			if err := json.Unmarshal(req.Data, &statuses); err != nil {
+				err = osqueryError{message: "unmarshalling status logs: " + err.Error()}
+				break
+			}
+
+			err = svc.SubmitStatusLogs(ctx, statuses)
+			if err != nil {
+				break
+			}
+
+		case "result":
+			var results []kolide.OsqueryResultLog
+			if err := json.Unmarshal(req.Data, &results); err != nil {
+				err = osqueryError{message: "unmarshalling result logs: " + err.Error()}
+				break
+			}
+			err = svc.SubmitResultLogs(ctx, results)
+			if err != nil {
+				break
+			}
+
+		default:
+			err = osqueryError{message: "unknown log type: " + req.LogType}
 		}
-		return submitLogsResponse{}, nil
+
+		return submitLogsResponse{Err: err}, nil
 	}
 }

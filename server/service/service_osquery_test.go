@@ -1,8 +1,11 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -56,6 +59,149 @@ func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
 	hosts, err = ds.Hosts()
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 0)
+}
+
+func TestSubmitStatusLogs(t *testing.T) {
+	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	assert.Nil(t, err)
+
+	mockClock := clock.NewMockClock()
+
+	svc, err := newTestServiceWithClock(ds, mockClock)
+	assert.Nil(t, err)
+
+	ctx := context.Background()
+
+	_, err = svc.EnrollAgent(ctx, "", "host123")
+	assert.Nil(t, err)
+
+	hosts, err := ds.Hosts()
+	require.Nil(t, err)
+	require.Len(t, hosts, 1)
+	host := hosts[0]
+
+	// Hack to get at the service internals and modify the writer
+	serv := ((svc.(validationMiddleware)).Service).(service)
+
+	// Error due to missing host
+	err = serv.SubmitResultLogs(ctx, []kolide.OsqueryResultLog{})
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "missing host")
+
+	// Add that host
+	ctx = hostctx.NewContext(ctx, *host)
+
+	var statusBuf bytes.Buffer
+	serv.osqueryStatusLogWriter = &statusBuf
+
+	logs := []string{
+		`{"severity":"0","filename":"tls.cpp","line":"216","message":"some message","version":"1.8.2","decorations":{"host_uuid":"uuid_foobar","username":"zwass"}}`,
+		`{"severity":"1","filename":"buffered.cpp","line":"122","message":"warning!","version":"1.8.2","decorations":{"host_uuid":"uuid_foobar","username":"zwass"}}`,
+	}
+	logJSON := fmt.Sprintf("[%s]", strings.Join(logs, ","))
+
+	var status []kolide.OsqueryStatusLog
+	err = json.Unmarshal([]byte(logJSON), &status)
+	require.Nil(t, err)
+
+	err = serv.SubmitStatusLogs(ctx, status)
+	assert.Nil(t, err)
+
+	statusJSON := statusBuf.String()
+	statusJSON = strings.TrimRight(statusJSON, "\n")
+	statusLines := strings.Split(statusJSON, "\n")
+
+	if assert.Equal(t, len(logs), len(statusLines)) {
+		for i, line := range statusLines {
+			assert.JSONEq(t, logs[i], line)
+		}
+	}
+
+	// Verify that the update time is set appropriately
+	checkHost, err := ds.Host(host.ID)
+	assert.Nil(t, err)
+	assert.Equal(t, mockClock.Now(), checkHost.UpdatedAt)
+
+	// Advance clock time and check that time is updated on new logs
+	mockClock.AddTime(1 * time.Minute)
+
+	err = serv.SubmitStatusLogs(ctx, []kolide.OsqueryStatusLog{})
+	assert.Nil(t, err)
+
+	checkHost, err = ds.Host(host.ID)
+	assert.Nil(t, err)
+	assert.Equal(t, mockClock.Now(), checkHost.UpdatedAt)
+}
+
+func TestSubmitResultLogs(t *testing.T) {
+	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	assert.Nil(t, err)
+
+	mockClock := clock.NewMockClock()
+
+	svc, err := newTestServiceWithClock(ds, mockClock)
+	assert.Nil(t, err)
+
+	ctx := context.Background()
+
+	_, err = svc.EnrollAgent(ctx, "", "host123")
+	assert.Nil(t, err)
+
+	hosts, err := ds.Hosts()
+	require.Nil(t, err)
+	require.Len(t, hosts, 1)
+	host := hosts[0]
+
+	// Hack to get at the service internals and modify the writer
+	serv := ((svc.(validationMiddleware)).Service).(service)
+
+	// Error due to missing host
+	err = serv.SubmitResultLogs(ctx, []kolide.OsqueryResultLog{})
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "missing host")
+
+	ctx = hostctx.NewContext(ctx, *host)
+
+	var resultBuf bytes.Buffer
+	serv.osqueryResultLogWriter = &resultBuf
+
+	logs := []string{
+		`{"name":"system_info","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 17:55:15 2016 UTC","unixTime":"1475258115","decorations":{"host_uuid":"some_uuid","username":"zwass"},"columns":{"cpu_brand":"Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz","hostname":"hostimus","physical_memory":"17179869184"},"action":"added"}`,
+		`{"name":"encrypted","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 21:19:15 2016 UTC","unixTime":"1475270355","decorations":{"host_uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEB","username":"zwass"},"columns":{"encrypted":"1","name":"\/dev\/disk1","type":"AES-XTS","uid":"","user_uuid":"","uuid":"some_uuid"},"action":"added"}`,
+	}
+	logJSON := fmt.Sprintf("[%s]", strings.Join(logs, ","))
+
+	var results []kolide.OsqueryResultLog
+	err = json.Unmarshal([]byte(logJSON), &results)
+	require.Nil(t, err)
+
+	err = serv.SubmitResultLogs(ctx, results)
+	assert.Nil(t, err)
+
+	resultJSON := resultBuf.String()
+	resultJSON = strings.TrimRight(resultJSON, "\n")
+	resultLines := strings.Split(resultJSON, "\n")
+
+	if assert.Equal(t, len(logs), len(resultLines)) {
+		for i, line := range resultLines {
+			assert.JSONEq(t, logs[i], line)
+		}
+	}
+
+	// Verify that the update time is set appropriately
+	checkHost, err := ds.Host(host.ID)
+	assert.Nil(t, err)
+	assert.Equal(t, mockClock.Now(), checkHost.UpdatedAt)
+
+	// Advance clock time and check that time is updated on new logs
+	mockClock.AddTime(1 * time.Minute)
+
+	err = serv.SubmitResultLogs(ctx, []kolide.OsqueryResultLog{})
+	assert.Nil(t, err)
+
+	checkHost, err = ds.Host(host.ID)
+	assert.Nil(t, err)
+	assert.Equal(t, mockClock.Now(), checkHost.UpdatedAt)
 }
 
 func TestHostDetailQueries(t *testing.T) {
