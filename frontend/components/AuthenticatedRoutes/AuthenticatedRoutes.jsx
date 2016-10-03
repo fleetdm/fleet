@@ -14,9 +14,10 @@ export class AuthenticatedRoutes extends Component {
 
   componentWillMount () {
     const { loading, user } = this.props;
-    const { redirectToLogin } = this;
+    const { redirectToLogin, redirectToPasswordReset } = this;
 
     if (!loading && !user) return redirectToLogin();
+    if (user && user.force_password_reset) return redirectToPasswordReset();
 
     return false;
   }
@@ -25,9 +26,10 @@ export class AuthenticatedRoutes extends Component {
     if (isEqual(this.props, nextProps)) return false;
 
     const { loading, user } = nextProps;
-    const { redirectToLogin } = this;
+    const { redirectToLogin, redirectToPasswordReset } = this;
 
     if (!loading && !user) return redirectToLogin();
+    if (user && user.force_password_reset) return redirectToPasswordReset();
 
     return false;
   }
@@ -37,6 +39,13 @@ export class AuthenticatedRoutes extends Component {
     const { LOGIN } = paths;
 
     return dispatch(push(LOGIN));
+  }
+
+  redirectToPasswordReset = () => {
+    const { dispatch } = this.props;
+    const { RESET_PASSWORD } = paths;
+
+    return dispatch(push(RESET_PASSWORD));
   }
 
   render () {

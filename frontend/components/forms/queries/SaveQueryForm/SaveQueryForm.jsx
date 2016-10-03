@@ -1,7 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import radium from 'radium';
 import componentStyles from './styles';
-import GradientButton from '../../../buttons/GradientButton';
+import Button from '../../../buttons/Button';
 import InputField from '../../fields/InputField';
 import validatePresence from '../../validators/validate_presence';
 
@@ -294,7 +294,7 @@ class SaveQueryForm extends Component {
     return (
       <form style={runQuerySectionStyles} onSubmit={onFormSubmit(RUN)}>
         <span style={runQueryTipStyles}>&#8984; + Enter</span>
-        <GradientButton
+        <Button
           style={buttonStyles}
           text="Run Query"
           type="submit"
@@ -345,17 +345,16 @@ class SaveQueryForm extends Component {
         {renderMoreOptionsCtaSection()}
         {renderMoreOptionsFormFields()}
         <div style={buttonWrapperStyles}>
-          <GradientButton
+          <Button
             onClick={onFormSubmit(SAVE)}
             style={buttonInvertStyles}
             text="Save Query Only"
+            variant="inverse"
           />
-
-          <GradientButton
-            onClick={onFormSubmit(RUN_AND_SAVE)}
-            style={buttonStyles}
+          <Button
             text="Run & Save Query"
             type="submit"
+            style={buttonStyles}
           />
         </div>
       </form>

@@ -18,6 +18,7 @@ class SidePanel extends Component {
 
   constructor (props) {
     super(props);
+
     const { pathname, user: { admin } } = this.props;
 
     this.userNavItems = navItems(admin);
@@ -122,7 +123,7 @@ class SidePanel extends Component {
   }
 
   renderNavItem = (navItem, lastChild) => {
-    const { activeTab } = this.state;
+    const { activeTab = {} } = this.state;
     const { icon, name, subItems } = navItem;
     const active = activeTab.name === name;
     const {
@@ -202,6 +203,8 @@ class SidePanel extends Component {
     const { renderCollapseSubItems, renderSubItem, setSubNavClass } = this;
     const { showSubItems } = this.state;
 
+    if (!subItems.length) return false;
+
     return (
       <div className={setSubNavClass(showSubItems)} style={subItemsStyles}>
         <ul style={subItemListStyles(showSubItems)}>
@@ -222,7 +225,7 @@ class SidePanel extends Component {
 
     return (
       <div style={collapseSubItemsWrapper} onClick={toggleShowSubItems(!showSubItems)}>
-        <i className={iconName} style={{ color: '#FFF' }} />
+        <i className={iconName} />
       </div>
     );
   }

@@ -1,6 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import componentStyles from './styles';
-import GradientButton from '../../buttons/GradientButton';
+import Button from '../../buttons/Button';
 
 class LogoutForm extends Component {
   static propTypes = {
@@ -36,11 +36,12 @@ class LogoutForm extends Component {
           <p style={usernameStyles}>{user.username}</p>
           <p style={subtextStyles}>Are you sure you want to log out?</p>
         </div>
-        <GradientButton
+        <Button
           onClick={onFormSubmit}
           style={submitButtonStyles}
           text="Logout"
           type="submit"
+          variant="gradient"
         />
       </form>
     );

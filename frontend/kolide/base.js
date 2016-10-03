@@ -9,12 +9,20 @@ class Base {
     this.bearerToken = local.getItem('auth_token');
   }
 
+  endpoint (pathname) {
+    return this.baseURL + pathname;
+  }
+
   setBearerToken (bearerToken) {
     this.bearerToken = bearerToken;
   }
 
   authenticatedGet (endpoint, overrideHeaders = {}) {
     return this._authenticatedRequest('GET', endpoint, {}, overrideHeaders);
+  }
+
+  authenticatedPatch (endpoint, body = {}, overrideHeaders = {}) {
+    return this._authenticatedRequest('PATCH', endpoint, body, overrideHeaders);
   }
 
   authenticatedPost (endpoint, body = {}, overrideHeaders = {}) {

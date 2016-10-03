@@ -5,5 +5,6 @@ export default {
   },
   shadow: {
     blur: '0 0 30px 0 rgba(0,0,0,0.30)',
+    slight: '0 2px 8px 0 rgba(0,0,0,0.12)',
   },
 };

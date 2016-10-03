@@ -1,6 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import componentStyles from './styles';
-import GradientButton from '../../buttons/GradientButton';
+import Button from '../../buttons/Button';
 import InputFieldWithIcon from '../fields/InputFieldWithIcon';
 import validatePresence from '../validators/validate_presence';
 import validateEquality from '../validators/validate_equality';
@@ -104,9 +104,9 @@ class ResetPasswordForm extends Component {
   render () {
     const { errors } = this.state;
     const {
+      buttonStyles,
       formStyles,
       inputStyles,
-      submitButtonStyles,
     } = componentStyles;
     const { onFormSubmit, onInputChange } = this;
 
@@ -131,11 +131,12 @@ class ResetPasswordForm extends Component {
           style={inputStyles}
           type="password"
         />
-        <GradientButton
+        <Button
           onClick={onFormSubmit}
-          style={submitButtonStyles}
+          style={buttonStyles}
           text="Reset Password"
           type="submit"
+          variant="gradient"
         />
       </form>
     );

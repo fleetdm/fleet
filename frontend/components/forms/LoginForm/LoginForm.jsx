@@ -4,7 +4,7 @@ import { noop } from 'lodash';
 import radium from 'radium';
 import avatar from '../../../../assets/images/avatar.svg';
 import componentStyles from './styles';
-import GradientButton from '../../buttons/GradientButton';
+import Button from '../../buttons/Button';
 import InputFieldWithIcon from '../fields/InputFieldWithIcon';
 import paths from '../../../router/paths';
 import validatePresence from '../validators/validate_presence';
@@ -172,11 +172,12 @@ class LoginForm extends Component {
             <Link style={forgotPasswordStyles} to={paths.FORGOT_PASSWORD}>Forgot Password?</Link>
           </div>
         </div>
-        <GradientButton
+        <Button
           onClick={onFormSubmit}
           style={submitButtonStyles}
           text="Login"
           type="submit"
+          variant="gradient"
         />
       </form>
     );

@@ -6,10 +6,12 @@ const {
   invalidForgotPasswordRequest,
   invalidResetPasswordRequest,
   validForgotPasswordRequest,
+  validGetUsersRequest,
   validLoginRequest,
   validLogoutRequest,
   validMeRequest,
   validResetPasswordRequest,
+  validUpdateUserRequest,
   validUser,
 } = mocks;
 
@@ -17,6 +19,21 @@ describe('Kolide - API client', () => {
   describe('defaults', () => {
     it('sets the base URL', () => {
       expect(Kolide.baseURL).toEqual('http://localhost:8080/api');
+    });
+  });
+
+  describe('#getUsers', () => {
+    it('calls the appropriate endpoint with the correct parameters', (done) => {
+      const bearerToken = 'valid-bearer-token';
+      const request = validGetUsersRequest();
+
+      Kolide.getUsers(bearerToken)
+        .then((users) => {
+          expect(users).toEqual([validUser]);
+          expect(request.isDone()).toEqual(true);
+          done();
+        })
+        .catch(done);
     });
   });
 
@@ -135,6 +152,20 @@ describe('Kolide - API client', () => {
           expect(request.isDone()).toEqual(true);
           done();
         });
+    });
+  });
+
+  describe('#updateUser', () => {
+    it('calls the appropriate endpoint with the correct parameters', (done) => {
+      const formData = { enabled: false };
+      const request = validUpdateUserRequest(validUser, formData);
+
+      Kolide.updateUser(validUser, formData)
+        .then(() => {
+          expect(request.isDone()).toEqual(true);
+          done();
+        })
+        .catch(done);
     });
   });
 });

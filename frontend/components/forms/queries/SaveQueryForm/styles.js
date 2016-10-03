@@ -19,10 +19,6 @@ const formInput = {
 };
 
 const buttonStyles = {
-  backgroundImage: 'none',
-  backgroundColor: color.brandDark,
-  boxShadow: '0 3px 0 #C38DEC',
-  fontSize: font.medium,
   letterSpacing: '1px',
   paddingTop: padding.xSmall,
   paddingBottom: padding.xSmall,
@@ -30,17 +26,8 @@ const buttonStyles = {
 };
 
 export default {
-  buttonStyles: {
-    ...buttonStyles,
-  },
+  buttonStyles,
   buttonInvertStyles: {
-    ...buttonStyles,
-    backgroundColor: color.white,
-    borderColor: color.brandLight,
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    boxShadow: '0 3px 0 #9651CA',
-    color: color.brandDark,
     marginRight: padding.half,
   },
   buttonWrapperStyles: {

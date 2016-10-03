@@ -9,6 +9,13 @@ class Kolide extends Base {
     return this.post(forgotPasswordEndpoint, JSON.stringify({ email }));
   }
 
+  getUsers = () => {
+    const { USERS } = endpoints;
+
+    return this.authenticatedGet(this.endpoint(USERS))
+      .then(response => { return response.users; });
+  }
+
   loginUser ({ username, password }) {
     const { LOGIN } = endpoints;
     const loginEndpoint = this.baseURL + LOGIN;
@@ -35,6 +42,13 @@ class Kolide extends Base {
     const resetPasswordEndpoint = this.baseURL + RESET_PASSWORD;
 
     return this.post(resetPasswordEndpoint, JSON.stringify(formData));
+  }
+
+  updateUser = (user, formData) => {
+    const { USERS } = endpoints;
+    const updateUserEndpoint = `${this.baseURL}${USERS}/${user.id}`;
+
+    return this.authenticatedPatch(updateUserEndpoint, JSON.stringify(formData));
   }
 }
 

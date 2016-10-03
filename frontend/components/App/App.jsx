@@ -1,7 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { noop } from 'lodash';
-import { Style, StyleRoot } from 'radium';
+import { Style } from 'radium';
 import { fetchCurrentUser } from '../../redux/nodes/auth/actions';
 import Footer from './Footer';
 import globalStyles from '../../styles/global';
@@ -33,11 +33,11 @@ export class App extends Component {
     const { children, showBackgroundImage } = this.props;
 
     return (
-      <StyleRoot>
+      <div>
         <Style rules={globalStyles(showBackgroundImage)} />
         {children}
         <Footer />
-      </StyleRoot>
+      </div>
     );
   }
 }

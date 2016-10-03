@@ -5,6 +5,7 @@ import componentStyles from './styles';
 class InputField extends Component {
   static propTypes = {
     autofocus: PropTypes.bool,
+    defaultValue: PropTypes.string,
     error: PropTypes.string,
     inputWrapperStyles: PropTypes.object,
     inputOptions: PropTypes.object,
@@ -19,6 +20,7 @@ class InputField extends Component {
 
   static defaultProps = {
     autofocus: false,
+    defaultValue: '',
     inputWrapperStyles: {},
     inputOptions: {},
     label: null,
@@ -29,7 +31,10 @@ class InputField extends Component {
 
   constructor (props) {
     super(props);
-    this.state = { value: null };
+
+    const { defaultValue } = props;
+
+    this.state = { value: defaultValue };
   }
 
   componentDidMount () {
@@ -83,6 +88,7 @@ class InputField extends Component {
             style={[inputStyles(type, value), inputErrorStyles(error), style]}
             type={type}
             {...inputOptions}
+            value={value}
           />
         </div>
       );
@@ -94,12 +100,12 @@ class InputField extends Component {
         <input
           name={name}
           onChange={onInputChange}
-          className="input-with-icon"
           placeholder={placeholder}
           ref={(r) => { this.input = r; }}
           style={[inputStyles(type, value), inputErrorStyles(error), style]}
           type={type}
           {...inputOptions}
+          value={value}
         />
       </div>
     );

@@ -6,11 +6,13 @@ import debounce from '../../utilities/debounce';
 import { resetPassword } from '../../redux/nodes/components/ResetPasswordPage/actions';
 import ResetPasswordForm from '../../components/forms/ResetPasswordForm';
 import StackedWhiteBoxes from '../../components/StackedWhiteBoxes';
+import userActions from '../../redux/nodes/entities/users/actions';
 
 export class ResetPasswordPage extends Component {
   static propTypes = {
     dispatch: PropTypes.func,
     token: PropTypes.string,
+    user: PropTypes.object,
   };
 
   static defaultProps = {
@@ -18,15 +20,18 @@ export class ResetPasswordPage extends Component {
   };
 
   componentWillMount () {
-    const { dispatch, token } = this.props;
+    const { dispatch, token, user } = this.props;
 
-    if (!token) return dispatch(push('/login'));
+    if (!user && !token) return dispatch(push('/login'));
 
     return false;
   }
 
   onSubmit = debounce((formData) => {
-    const { dispatch, token } = this.props;
+    const { dispatch, token, user } = this.props;
+
+    if (user) return this.updateUser(formData);
+
     const resetPasswordData = {
       ...formData,
       password_reset_token: token,
@@ -37,6 +42,15 @@ export class ResetPasswordPage extends Component {
         return dispatch(push('/login'));
       });
   })
+
+  updateUser = (formData) => {
+    const { dispatch, user } = this.props;
+    const { new_password: password } = formData;
+    const passwordUpdateParams = { password };
+
+    return dispatch(userActions.update(user, passwordUpdateParams))
+      .then(() => { return dispatch(push('/')); });
+  }
 
   render () {
     const { onSubmit } = this;
@@ -56,10 +70,12 @@ const mapStateToProps = (state, ownProps) => {
   const { query = {} } = ownProps.location || {};
   const { token } = query;
   const { ResetPasswordPage: componentState } = state.components;
+  const { user } = state.auth;
 
   return {
     ...componentState,
     token,
+    user,
   };
 };
 

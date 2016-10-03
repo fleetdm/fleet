@@ -2,6 +2,7 @@ import { pxToRem } from './helpers';
 
 export default {
   xSmall: pxToRem(10),
+  mini: pxToRem(12),
   small: pxToRem(14),
   medium: pxToRem(16),
   base: pxToRem(18),

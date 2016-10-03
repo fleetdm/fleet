@@ -13,6 +13,13 @@ describe('AuthenticatedRoutes - component', () => {
       args: ['/login'],
     },
   };
+  const redirectToPasswordResetAction = {
+    type: '@@router/CALL_HISTORY_METHOD',
+    payload: {
+      method: 'push',
+      args: ['/reset_password'],
+    },
+  };
   const renderedText = 'This text was rendered';
   const storeWithUser = {
     auth: {
@@ -20,6 +27,17 @@ describe('AuthenticatedRoutes - component', () => {
       user: {
         id: 1,
         email: 'hi@thegnar.co',
+        force_password_reset: false,
+      },
+    },
+  };
+  const storeWithUserRequiringPwReset = {
+    auth: {
+      loading: false,
+      user: {
+        id: 1,
+        email: 'hi@thegnar.co',
+        force_password_reset: true,
       },
     },
   };
@@ -48,6 +66,20 @@ describe('AuthenticatedRoutes - component', () => {
     );
 
     expect(component.text()).toEqual(renderedText);
+  });
+
+  it('redirects to reset password is force_password_reset is true', () => {
+    const { reduxMockStore } = helpers;
+    const mockStore = reduxMockStore(storeWithUserRequiringPwReset);
+    mount(
+      <Provider store={mockStore}>
+        <AuthenticatedRoutes>
+          <div>{renderedText}</div>
+        </AuthenticatedRoutes>
+      </Provider>
+    );
+
+    expect(mockStore.getActions()).toInclude(redirectToPasswordResetAction);
   });
 
   it('redirects to login without a user', () => {

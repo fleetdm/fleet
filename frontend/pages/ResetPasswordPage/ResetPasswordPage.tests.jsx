@@ -11,7 +11,7 @@ describe('ResetPasswordPage - component', () => {
     expect(page.find('ResetPasswordForm').length).toEqual(1);
   });
 
-  it('Redirects to the login page when there is no token', () => {
+  it('Redirects to the login page when there is no token or user', () => {
     const { connectedComponent, reduxMockStore } = testHelpers;
     const redirectToLoginAction = {
       type: '@@router/CALL_HISTORY_METHOD',
@@ -21,6 +21,7 @@ describe('ResetPasswordPage - component', () => {
       },
     };
     const store = {
+      auth: {},
       components: {
         ResetPasswordPage: {
           loading: false,
