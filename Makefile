@@ -87,7 +87,7 @@ lint-go:
 lint: lint-go lint-js
 
 test-go:
-	go test -v -cover $(shell glide nv)
+	go test -cover $(shell glide nv)
 
 test-js:
 	_mocha --compilers js:babel-core/register \
