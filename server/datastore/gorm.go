@@ -29,7 +29,6 @@ var tables = [...]interface{}{
 	&kolide.Label{},
 	&kolide.LabelQueryExecution{},
 	&kolide.Option{},
-	&kolide.Target{},
 	&kolide.DistributedQueryCampaign{},
 	&kolide.DistributedQueryCampaignTarget{},
 	&kolide.Query{},
@@ -301,6 +300,42 @@ func (orm gormDB) NewLabel(label *kolide.Label) (*kolide.Label, error) {
 	return label, nil
 }
 
+func (orm gormDB) SaveLabel(label *kolide.Label) error {
+	if label == nil {
+		return errors.New(
+			"error saving label",
+			"nil pointer passed to SaveLabel",
+		)
+	}
+	return orm.DB.Save(label).Error
+}
+
+func (orm gormDB) DeleteLabel(lid uint) error {
+	err := orm.DB.Where("id = ?", lid).Delete(&kolide.Label{}).Error
+	if err != nil {
+		return err
+	}
+
+	return orm.DB.Where("target_id = ? and type = ?", lid, kolide.TargetLabel).Delete(&kolide.PackTarget{}).Error
+}
+
+func (orm gormDB) Label(lid uint) (*kolide.Label, error) {
+	label := &kolide.Label{
+		ID: lid,
+	}
+	err := orm.DB.Where("id = ?", label.ID).First(&label).Error
+	if err != nil {
+		return nil, err
+	}
+	return label, nil
+}
+
+func (orm gormDB) Labels() ([]*kolide.Label, error) {
+	var labels []*kolide.Label
+	err := orm.DB.Find(&labels).Error
+	return labels, err
+}
+
 func (orm gormDB) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (map[string]string, error) {
 	if host == nil {
 		return nil, errors.New(
@@ -390,21 +425,14 @@ matches = VALUES(matches)
 	return nil
 }
 
-func (orm gormDB) LabelsForHost(host *kolide.Host) ([]kolide.Label, error) {
-	if host == nil {
-		return nil, errors.New(
-			"error finding host queries",
-			"nil pointer passed to LabelQueriesForHost",
-		)
-	}
-
+func (orm gormDB) LabelsForHost(hid uint) ([]kolide.Label, error) {
 	results := []kolide.Label{}
 	err := orm.DB.Raw(`
 SELECT labels.* from labels, label_query_executions lqe
 WHERE lqe.host_id = ?
 AND lqe.label_id = labels.id
 AND lqe.matches
-`, host.ID).Scan(&results).Error
+`, hid).Scan(&results).Error
 
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errors.DatabaseError(err)
@@ -433,29 +461,22 @@ func (orm gormDB) SavePack(pack *kolide.Pack) error {
 	return orm.DB.Save(pack).Error
 }
 
-func (orm gormDB) DeletePack(pack *kolide.Pack) error {
-	if pack == nil {
-		return errors.New(
-			"error deleting pack",
-			"nil pointer passed to DeletePack",
-		)
-	}
-	err := orm.DB.Delete(pack).Error
+func (orm gormDB) DeletePack(pid uint) error {
+	err := orm.DB.Where("id = ?", pid).Delete(&kolide.Pack{}).Error
 	if err != nil {
 		return err
 	}
 
-	err = orm.DB.Where("pack_id = ?", pack.ID).Delete(&kolide.PackQuery{}).Error
+	err = orm.DB.Where("pack_id = ?", pid).Delete(&kolide.PackQuery{}).Error
 	if err != nil {
 		return err
 	}
-
-	return nil
+	return orm.DB.Where("pack_id = ?", pid).Delete(&kolide.PackTarget{}).Error
 }
 
-func (orm gormDB) Pack(id uint) (*kolide.Pack, error) {
+func (orm gormDB) Pack(pid uint) (*kolide.Pack, error) {
 	pack := &kolide.Pack{
-		ID: id,
+		ID: pid,
 	}
 	err := orm.DB.Where(pack).First(pack).Error
 	if err != nil {
@@ -470,16 +491,10 @@ func (orm gormDB) Packs() ([]*kolide.Pack, error) {
 	return packs, err
 }
 
-func (orm gormDB) AddQueryToPack(query *kolide.Query, pack *kolide.Pack) error {
-	if query == nil || pack == nil {
-		return errors.New(
-			"error adding query from pack",
-			"nil pointer passed to AddQueryToPack",
-		)
-	}
+func (orm gormDB) AddQueryToPack(qid uint, pid uint) error {
 	pq := &kolide.PackQuery{
-		QueryID: query.ID,
-		PackID:  pack.ID,
+		QueryID: qid,
+		PackID:  pid,
 	}
 	return orm.DB.Create(pq).Error
 }
@@ -554,4 +569,112 @@ func (orm gormDB) RemoveQueryFromPack(query *kolide.Query, pack *kolide.Pack) er
 		PackID:  pack.ID,
 	}
 	return orm.DB.Where(pq).Delete(pq).Error
+}
+
+func (orm gormDB) AddLabelToPack(lid uint, pid uint) error {
+	pt := &kolide.PackTarget{
+		Type:     kolide.TargetLabel,
+		PackID:   pid,
+		TargetID: lid,
+	}
+
+	return orm.DB.Create(pt).Error
+}
+
+func (orm gormDB) ActivePacksForHost(hid uint) ([]*kolide.Pack, error) {
+	packs := []*kolide.Pack{}
+
+	// we will need to give some subset of packs to this host based on the
+	// labels which this host is known to belong to
+	allPacks, err := orm.Packs()
+	if err != nil {
+		return nil, err
+	}
+
+	// pull the labels that this host belongs to
+	labels, err := orm.LabelsForHost(hid)
+	if err != nil {
+		return nil, err
+	}
+
+	// in order to use o(1) array indexing in an o(n) loop vs a o(n^2) double
+	// for loop iteration, we must create the array which may be indexed below
+	labelIDs := map[uint]bool{}
+	for _, label := range labels {
+		labelIDs[label.ID] = true
+	}
+
+	for _, pack := range allPacks {
+		// for each pack, we must know what labels have been assigned to that
+		// pack
+		labelsForPack, err := orm.GetLabelsForPack(pack)
+		if err != nil {
+			return nil, err
+		}
+
+		// o(n) iteration to determine whether or not a pack is enabled
+		// in this case, n is len(labelsForPack)
+		for _, label := range labelsForPack {
+			if labelIDs[label.ID] {
+				packs = append(packs, pack)
+				break
+			}
+		}
+	}
+
+	return packs, nil
+}
+
+func (orm gormDB) GetLabelsForPack(pack *kolide.Pack) ([]*kolide.Label, error) {
+	if pack == nil {
+		return nil, errors.New(
+			"error getting labels for pack",
+			"nil pointer passed to GetLabelsForPack",
+		)
+	}
+
+	results := []*kolide.Label{}
+	err := orm.DB.Raw(`
+SELECT
+	l.id,
+	l.created_at,
+	l.updated_at,
+	l.name,
+	l.query_id
+FROM
+	labels l
+JOIN
+	pack_targets pt
+ON
+	pt.target_id = l.id
+WHERE
+	pt.type = ?
+		AND
+	pt.pack_id = ?;
+
+`,
+		kolide.TargetLabel, pack.ID).Scan(&results).Error
+
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, errors.DatabaseError(err)
+	}
+
+	return results, nil
+}
+
+func (orm gormDB) RemoveLabelFromPack(label *kolide.Label, pack *kolide.Pack) error {
+	if label == nil || pack == nil {
+		return errors.New(
+			"error removing label from pack",
+			"nil pointer passed to RemoveLabelFromPack",
+		)
+	}
+
+	pt := &kolide.PackTarget{
+		Type:     kolide.TargetLabel,
+		PackID:   pack.ID,
+		TargetID: label.ID,
+	}
+
+	return orm.DB.Delete(pt).Error
 }

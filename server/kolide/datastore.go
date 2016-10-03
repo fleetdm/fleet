@@ -5,7 +5,7 @@ type Datastore interface {
 	UserStore
 	QueryStore
 	PackStore
-	OsqueryStore
+	LabelStore
 	HostStore
 	PasswordResetStore
 	SessionStore

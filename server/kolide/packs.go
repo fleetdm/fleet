@@ -10,14 +10,22 @@ type PackStore interface {
 	// Pack methods
 	NewPack(pack *Pack) error
 	SavePack(pack *Pack) error
-	DeletePack(pack *Pack) error
-	Pack(id uint) (*Pack, error)
+	DeletePack(pid uint) error
+	Pack(pid uint) (*Pack, error)
 	Packs() ([]*Pack, error)
 
 	// Modifying the queries in packs
-	AddQueryToPack(query *Query, pack *Pack) error
+	AddQueryToPack(qid uint, pid uint) error
 	GetQueriesInPack(pack *Pack) ([]*Query, error)
 	RemoveQueryFromPack(query *Query, pack *Pack) error
+
+	// Modifying the labels for packs
+	AddLabelToPack(lid uint, pid uint) error
+	GetLabelsForPack(pack *Pack) ([]*Label, error)
+	RemoveLabelFromPack(label *Label, pack *Pack) error
+
+	// Packs from the host's perspective
+	ActivePacksForHost(hid uint) ([]*Pack, error)
 }
 
 type PackService interface {
@@ -30,6 +38,10 @@ type PackService interface {
 	AddQueryToPack(ctx context.Context, qid, pid uint) error
 	GetQueriesInPack(ctx context.Context, id uint) ([]*Query, error)
 	RemoveQueryFromPack(ctx context.Context, qid, pid uint) error
+
+	AddLabelToPack(ctx context.Context, lid, pid uint) error
+	GetLabelsForPack(ctx context.Context, pid uint) ([]*Label, error)
+	RemoveLabelFromPack(ctx context.Context, lid, pid uint) error
 }
 
 type Pack struct {
@@ -48,8 +60,16 @@ type PackQuery struct {
 	QueryID   uint
 }
 
+type TargetType int
+
+const (
+	TargetLabel TargetType = iota
+	TargetHost
+)
+
 type PackTarget struct {
 	ID       uint `gorm:"primary_key"`
+	Type     TargetType
 	PackID   uint
 	TargetID uint
 }

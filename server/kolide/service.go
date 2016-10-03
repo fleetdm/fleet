@@ -5,6 +5,7 @@ type Service interface {
 	UserService
 	SessionService
 	PackService
+	LabelService
 	QueryService
 	OsqueryService
 	HostService

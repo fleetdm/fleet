@@ -49,6 +49,14 @@ type KolideEndpoints struct {
 	GetDistributedQueries         endpoint.Endpoint
 	SubmitDistributedQueryResults endpoint.Endpoint
 	SubmitLogs                    endpoint.Endpoint
+	GetLabel                      endpoint.Endpoint
+	GetAllLabels                  endpoint.Endpoint
+	CreateLabel                   endpoint.Endpoint
+	ModifyLabel                   endpoint.Endpoint
+	DeleteLabel                   endpoint.Endpoint
+	AddLabelToPack                endpoint.Endpoint
+	GetLabelsForPack              endpoint.Endpoint
+	DeleteLabelFromPack           endpoint.Endpoint
 }
 
 // MakeKolideServerEndpoints creates the Kolide API endpoints.
@@ -94,6 +102,14 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		GetDistributedQueries:         authenticatedHost(svc, makeGetDistributedQueriesEndpoint(svc)),
 		SubmitDistributedQueryResults: authenticatedHost(svc, makeSubmitDistributedQueryResultsEndpoint(svc)),
 		SubmitLogs:                    authenticatedHost(svc, makeSubmitLogsEndpoint(svc)),
+		GetLabel:                      authenticatedUser(jwtKey, svc, makeGetLabelEndpoint(svc)),
+		GetAllLabels:                  authenticatedUser(jwtKey, svc, makeGetAllLabelsEndpoint(svc)),
+		CreateLabel:                   authenticatedUser(jwtKey, svc, makeCreateLabelEndpoint(svc)),
+		ModifyLabel:                   authenticatedUser(jwtKey, svc, makeModifyLabelEndpoint(svc)),
+		DeleteLabel:                   authenticatedUser(jwtKey, svc, makeDeleteLabelEndpoint(svc)),
+		AddLabelToPack:                authenticatedUser(jwtKey, svc, makeAddLabelToPackEndpoint(svc)),
+		GetLabelsForPack:              authenticatedUser(jwtKey, svc, makeGetLabelsForPackEndpoint(svc)),
+		DeleteLabelFromPack:           authenticatedUser(jwtKey, svc, makeDeleteLabelFromPackEndpoint(svc)),
 	}
 }
 
@@ -134,6 +150,14 @@ type kolideHandlers struct {
 	GetDistributedQueries         *kithttp.Server
 	SubmitDistributedQueryResults *kithttp.Server
 	SubmitLogs                    *kithttp.Server
+	GetLabel                      *kithttp.Server
+	GetAllLabels                  *kithttp.Server
+	CreateLabel                   *kithttp.Server
+	ModifyLabel                   *kithttp.Server
+	DeleteLabel                   *kithttp.Server
+	AddLabelToPack                *kithttp.Server
+	GetLabelsForPack              *kithttp.Server
+	DeleteLabelFromPack           *kithttp.Server
 }
 
 func makeKolideKitHandlers(ctx context.Context, e KolideEndpoints, opts []kithttp.ServerOption) kolideHandlers {
@@ -177,6 +201,14 @@ func makeKolideKitHandlers(ctx context.Context, e KolideEndpoints, opts []kithtt
 		GetDistributedQueries:         newServer(e.GetDistributedQueries, decodeGetDistributedQueriesRequest),
 		SubmitDistributedQueryResults: newServer(e.SubmitDistributedQueryResults, decodeSubmitDistributedQueryResultsRequest),
 		SubmitLogs:                    newServer(e.SubmitLogs, decodeSubmitLogsRequest),
+		GetLabel:                      newServer(e.GetLabel, decodeGetLabelRequest),
+		GetAllLabels:                  newServer(e.GetAllLabels, decodeNoParamsRequest),
+		CreateLabel:                   newServer(e.CreateLabel, decodeCreateLabelRequest),
+		ModifyLabel:                   newServer(e.ModifyLabel, decodeModifyLabelRequest),
+		DeleteLabel:                   newServer(e.DeleteLabel, decodeDeleteLabelRequest),
+		AddLabelToPack:                newServer(e.AddLabelToPack, decodeAddLabelToPackRequest),
+		GetLabelsForPack:              newServer(e.GetLabelsForPack, decodeGetLabelsForPackRequest),
+		DeleteLabelFromPack:           newServer(e.DeleteLabelFromPack, decodeDeleteLabelFromPackRequest),
 	}
 }
 
@@ -239,6 +271,14 @@ func attachKolideAPIRoutes(r *mux.Router, h kolideHandlers) {
 	r.Handle("/api/v1/kolide/packs/{pid}/queries/{qid}", h.AddQueryToPack).Methods("POST")
 	r.Handle("/api/v1/kolide/packs/{id}/queries", h.GetQueriesInPack).Methods("GET")
 	r.Handle("/api/v1/kolide/packs/{pid}/queries/{qid}", h.DeleteQueryFromPack).Methods("DELETE")
+	r.Handle("/api/v1/kolide/labels/{id}", h.GetLabel).Methods("GET")
+	r.Handle("/api/v1/kolide/labels", h.GetAllLabels).Methods("GET")
+	r.Handle("/api/v1/kolide/labels", h.CreateLabel).Methods("POST")
+	r.Handle("/api/v1/kolide/labels/{id}", h.ModifyLabel).Methods("PATCH")
+	r.Handle("/api/v1/kolide/labels/{id}", h.DeleteLabel).Methods("DELETE")
+	r.Handle("/api/v1/kolide/packs/{pid}/labels/{lid}", h.AddLabelToPack).Methods("POST")
+	r.Handle("/api/v1/kolide/packs/{pid}/labels", h.GetLabelsForPack).Methods("GET")
+	r.Handle("/api/v1/kolide/packs/{pid}/labels/{lid}", h.DeleteLabelFromPack).Methods("DELETE")
 
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST")
 	r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST")

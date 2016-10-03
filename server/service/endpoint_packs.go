@@ -248,3 +248,90 @@ func makeDeleteQueryFromPackEndpoint(svc kolide.Service) endpoint.Endpoint {
 		return deleteQueryFromPackResponse{}, nil
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Add Label To Pack
+////////////////////////////////////////////////////////////////////////////////
+
+type addLabelToPackRequest struct {
+	PackID  uint
+	LabelID uint
+}
+
+type addLabelToPackResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r addLabelToPackResponse) error() error { return r.Err }
+
+func makeAddLabelToPackEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(addLabelToPackRequest)
+		err := svc.AddLabelToPack(ctx, req.LabelID, req.PackID)
+		if err != nil {
+			return addLabelToPackResponse{Err: err}, nil
+		}
+		return addLabelToPackResponse{}, nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get Labels For Pack
+////////////////////////////////////////////////////////////////////////////////
+
+type getLabelsForPackRequest struct {
+	PackID uint
+}
+
+type getLabelsForPackResponse struct {
+	Labels []getLabelResponse
+	Err    error `json:"error,omitempty"`
+}
+
+func (r getLabelsForPackResponse) error() error { return r.Err }
+
+func makeGetLabelsForPackEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(getLabelsForPackRequest)
+		labels, err := svc.GetLabelsForPack(ctx, req.PackID)
+		if err != nil {
+			return getLabelsForPackResponse{Err: err}, nil
+		}
+
+		var resp getLabelsForPackResponse
+		for _, label := range labels {
+			resp.Labels = append(resp.Labels, getLabelResponse{
+				ID:      label.ID,
+				Name:    label.Name,
+				QueryID: label.QueryID,
+			})
+		}
+		return resp, nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Delete Label From Pack
+////////////////////////////////////////////////////////////////////////////////
+
+type deleteLabelFromPackRequest struct {
+	LabelID uint
+	PackID  uint
+}
+
+type deleteLabelFromPackResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteLabelFromPackResponse) error() error { return r.Err }
+
+func makeDeleteLabelFromPackEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(deleteLabelFromPackRequest)
+		err := svc.RemoveLabelFromPack(ctx, req.LabelID, req.PackID)
+		if err != nil {
+			return deleteLabelFromPackResponse{Err: err}, nil
+		}
+		return deleteLabelFromPackResponse{}, nil
+	}
+}

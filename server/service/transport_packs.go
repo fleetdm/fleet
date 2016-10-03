@@ -88,3 +88,43 @@ func decodeDeleteQueryFromPackRequest(ctx context.Context, r *http.Request) (int
 	req.QueryID = qid
 	return req, nil
 }
+
+func decodeAddLabelToPackRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	lid, err := idFromRequest(r, "lid")
+	if err != nil {
+		return nil, err
+	}
+	pid, err := idFromRequest(r, "pid")
+	if err != nil {
+		return nil, err
+	}
+	return addLabelToPackRequest{
+		PackID:  pid,
+		LabelID: lid,
+	}, nil
+}
+
+func decodeGetLabelsForPackRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	pid, err := idFromRequest(r, "pid")
+	if err != nil {
+		return nil, err
+	}
+	var req getLabelsForPackRequest
+	req.PackID = pid
+	return req, nil
+}
+
+func decodeDeleteLabelFromPackRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	lid, err := idFromRequest(r, "lid")
+	if err != nil {
+		return nil, err
+	}
+	pid, err := idFromRequest(r, "pid")
+	if err != nil {
+		return nil, err
+	}
+	var req deleteLabelFromPackRequest
+	req.PackID = pid
+	req.LabelID = lid
+	return req, nil
+}

@@ -117,3 +117,8 @@ func TestAddAndRemoveQueryFromPack(t *testing.T) {
 	ds := setup(t)
 	testAddAndRemoveQueryFromPack(t, ds)
 }
+
+func TestManagingLabelsOnPacks(t *testing.T) {
+	ds := setup(t)
+	testManagingLabelsOnPacks(t, ds)
+}

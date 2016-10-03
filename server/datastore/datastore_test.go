@@ -298,7 +298,7 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 	assert.Empty(t, queries)
 
 	// No labels should match
-	labels, err := db.LabelsForHost(host)
+	labels, err := db.LabelsForHost(host.ID)
 	assert.Nil(t, err)
 	assert.Empty(t, labels)
 
@@ -384,7 +384,7 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 	assert.Equal(t, expectQueries, queries)
 
 	// No labels should match with no results yet
-	labels, err = db.LabelsForHost(host)
+	labels, err = db.LabelsForHost(host.ID)
 	assert.Nil(t, err)
 	assert.Empty(t, labels)
 
@@ -417,7 +417,7 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 	assert.Equal(t, expectQueries, queries)
 
 	// Now the two matching labels should be returned
-	labels, err = db.LabelsForHost(host)
+	labels, err = db.LabelsForHost(host.ID)
 	assert.Nil(t, err)
 	if assert.Len(t, labels, 2) {
 		labelNames := []string{labels[0].Name, labels[1].Name}
@@ -435,7 +435,7 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 
 	// There should still be no labels returned for a host that never
 	// executed any label queries
-	labels, err = db.LabelsForHost(&hosts[0])
+	labels, err = db.LabelsForHost(hosts[0].ID)
 	assert.Nil(t, err)
 	assert.Empty(t, labels)
 }
@@ -529,7 +529,7 @@ func testDeletePack(t *testing.T, ds kolide.Datastore) {
 	pack, err = ds.Pack(pack.ID)
 	assert.Nil(t, err)
 
-	err = ds.DeletePack(pack)
+	err = ds.DeletePack(pack.ID)
 	assert.Nil(t, err)
 
 	assert.NotEqual(t, pack.ID, 0)
@@ -550,7 +550,7 @@ func testAddAndRemoveQueryFromPack(t *testing.T, ds kolide.Datastore) {
 	}
 	_, err = ds.NewQuery(q1)
 	assert.Nil(t, err)
-	err = ds.AddQueryToPack(q1, pack)
+	err = ds.AddQueryToPack(q1.ID, pack.ID)
 	assert.Nil(t, err)
 
 	q2 := &kolide.Query{
@@ -559,7 +559,7 @@ func testAddAndRemoveQueryFromPack(t *testing.T, ds kolide.Datastore) {
 	}
 	_, err = ds.NewQuery(q2)
 	assert.Nil(t, err)
-	err = ds.AddQueryToPack(q2, pack)
+	err = ds.AddQueryToPack(q2.ID, pack.ID)
 	assert.Nil(t, err)
 
 	queries, err := ds.GetQueriesInPack(pack)
@@ -572,4 +572,55 @@ func testAddAndRemoveQueryFromPack(t *testing.T, ds kolide.Datastore) {
 	queries, err = ds.GetQueriesInPack(pack)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 1)
+}
+
+func testManagingLabelsOnPacks(t *testing.T, ds kolide.Datastore) {
+	mysqlQuery := &kolide.Query{
+		Name:  "MySQL",
+		Query: "select pid from processes where name = 'mysqld';",
+	}
+	mysqlQuery, err := ds.NewQuery(mysqlQuery)
+	assert.Nil(t, err)
+
+	osqueryRunningQuery := &kolide.Query{
+		Name:  "Is osquery currently running?",
+		Query: "select pid from processes where name = 'osqueryd';",
+	}
+	osqueryRunningQuery, err = ds.NewQuery(osqueryRunningQuery)
+	assert.Nil(t, err)
+
+	monitoringPack := &kolide.Pack{
+		Name: "monitoring",
+	}
+	err = ds.NewPack(monitoringPack)
+	assert.Nil(t, err)
+
+	mysqlLabel := &kolide.Label{
+		Name:    "MySQL Monitoring",
+		QueryID: mysqlQuery.ID,
+	}
+	mysqlLabel, err = ds.NewLabel(mysqlLabel)
+	assert.Nil(t, err)
+
+	err = ds.AddLabelToPack(mysqlLabel.ID, monitoringPack.ID)
+	assert.Nil(t, err)
+
+	labels, err := ds.GetLabelsForPack(monitoringPack)
+	assert.Nil(t, err)
+	assert.Len(t, labels, 1)
+	assert.Equal(t, "MySQL Monitoring", labels[0].Name)
+
+	osqueryLabel := &kolide.Label{
+		Name:    "Osquery Monitoring",
+		QueryID: osqueryRunningQuery.ID,
+	}
+	osqueryLabel, err = ds.NewLabel(osqueryLabel)
+	assert.Nil(t, err)
+
+	err = ds.AddLabelToPack(osqueryLabel.ID, monitoringPack.ID)
+	assert.Nil(t, err)
+
+	labels, err = ds.GetLabelsForPack(monitoringPack)
+	assert.Nil(t, err)
+	assert.Len(t, labels, 2)
 }

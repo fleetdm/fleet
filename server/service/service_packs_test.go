@@ -186,7 +186,7 @@ func TestGetQueriesInPack(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotZero(t, query.ID)
 
-	err = ds.AddQueryToPack(query, pack)
+	err = ds.AddQueryToPack(query.ID, pack.ID)
 	assert.Nil(t, err)
 
 	queries, err := svc.GetQueriesInPack(ctx, pack.ID)
@@ -218,7 +218,7 @@ func TestRemoveQueryFromPack(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotZero(t, query.ID)
 
-	err = ds.AddQueryToPack(query, pack)
+	err = ds.AddQueryToPack(query.ID, pack.ID)
 	assert.Nil(t, err)
 
 	queries, err := ds.GetQueriesInPack(pack)

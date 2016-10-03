@@ -377,3 +377,87 @@ func TestGetDistributedQueries(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, expectQueries, queries)
 }
+
+func TestGetClientConfig(t *testing.T) {
+	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	assert.Nil(t, err)
+
+	mockClock := clock.NewMockClock()
+
+	svc, err := newTestServiceWithClock(ds, mockClock)
+	assert.Nil(t, err)
+
+	ctx := context.Background()
+
+	hosts, err := ds.Hosts()
+	require.Nil(t, err)
+	require.Len(t, hosts, 0)
+
+	_, err = svc.EnrollAgent(ctx, "", "user.local")
+	assert.Nil(t, err)
+
+	hosts, err = ds.Hosts()
+	require.Nil(t, err)
+	require.Len(t, hosts, 1)
+	host := hosts[0]
+
+	ctx = hostctx.NewContext(ctx, *host)
+
+	// with no queries, packs, labels, etc. verify the state of a fresh host
+	// asking for a config
+	config, err := svc.GetClientConfig(ctx)
+	require.Nil(t, err)
+	assert.NotNil(t, config)
+	assert.False(t, config.Options.DisableDistributed)
+	assert.Equal(t, "/", config.Options.PackDelimiter)
+
+	// this will be greater than 0 if we ever start inserting an administration
+	// pack
+	assert.Len(t, config.Packs, 0)
+
+	// let's populate the database with some info
+
+	mysqlQuery := &kolide.Query{
+		Name:  "MySQL",
+		Query: "select pid from processes where name = 'mysqld';",
+	}
+	mysqlQuery, err = ds.NewQuery(mysqlQuery)
+	assert.Nil(t, err)
+
+	infoQuery := &kolide.Query{
+		Name:     "Info",
+		Query:    "select * from osquery_info;",
+		Interval: 60,
+	}
+	infoQuery, err = ds.NewQuery(infoQuery)
+	assert.Nil(t, err)
+
+	monitoringPack := &kolide.Pack{
+		Name: "monitoring",
+	}
+	err = ds.NewPack(monitoringPack)
+	assert.Nil(t, err)
+
+	err = ds.AddQueryToPack(infoQuery.ID, monitoringPack.ID)
+	assert.Nil(t, err)
+
+	mysqlLabel := &kolide.Label{
+		Name:    "MySQL Monitoring",
+		QueryID: mysqlQuery.ID,
+	}
+	mysqlLabel, err = ds.NewLabel(mysqlLabel)
+	assert.Nil(t, err)
+
+	err = ds.AddLabelToPack(mysqlLabel.ID, monitoringPack.ID)
+	assert.Nil(t, err)
+
+	err = ds.RecordLabelQueryExecutions(host, map[string]bool{fmt.Sprintf("%d", mysqlQuery.ID): true}, mockClock.Now())
+	assert.Nil(t, err)
+
+	// with a minimal setup of packs, labels, and queries, will our host get the
+	// pack
+	config, err = svc.GetClientConfig(ctx)
+	require.Nil(t, err)
+	assert.Len(t, config.Packs, 1)
+	assert.Len(t, config.Packs["monitoring"].Queries, 1)
+}

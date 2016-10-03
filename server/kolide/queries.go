@@ -51,38 +51,6 @@ type Query struct {
 	Version      string
 }
 
-type Label struct {
-	ID        uint `gorm:"primary_key"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Name      string `gorm:"not null;unique_index:idx_label_unique_name"`
-	QueryID   uint
-}
-
-type LabelQueryExecution struct {
-	ID        uint `gorm:"primary_key"`
-	UpdatedAt time.Time
-	Matches   bool
-	LabelID   uint // Note we manually specify a unique index on these
-	HostID    uint // fields in gormDB.Migrate
-}
-
-type TargetType int
-
-const (
-	TargetLabel TargetType = iota
-	TargetHost  TargetType = iota
-)
-
-type Target struct {
-	ID        uint `gorm:"primary_key"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Type      TargetType
-	TargetID  uint
-	QueryID   uint
-}
-
 type DistributedQueryStatus int
 
 const (
@@ -103,6 +71,7 @@ type DistributedQueryCampaign struct {
 
 type DistributedQueryCampaignTarget struct {
 	ID                         uint `gorm:"primary_key"`
+	Type                       TargetType
 	DistributedQueryCampaignID uint
 	TargetID                   uint
 }
@@ -110,10 +79,10 @@ type DistributedQueryCampaignTarget struct {
 type DistributedQueryExecutionStatus int
 
 const (
-	ExecutionWaiting   DistributedQueryExecutionStatus = iota
-	ExecutionRequested DistributedQueryExecutionStatus = iota
-	ExecutionSucceeded DistributedQueryExecutionStatus = iota
-	ExecutionFailed    DistributedQueryExecutionStatus = iota
+	ExecutionWaiting DistributedQueryExecutionStatus = iota
+	ExecutionRequested
+	ExecutionSucceeded
+	ExecutionFailed
 )
 
 type DistributedQueryExecution struct {
@@ -136,9 +105,9 @@ type Option struct {
 type DecoratorType int
 
 const (
-	DecoratorLoad     DecoratorType = iota
-	DecoratorAlways   DecoratorType = iota
-	DecoratorInterval DecoratorType = iota
+	DecoratorLoad DecoratorType = iota
+	DecoratorAlways
+	DecoratorInterval
 )
 
 type Decorator struct {

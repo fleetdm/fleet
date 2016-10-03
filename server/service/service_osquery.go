@@ -54,8 +54,53 @@ func (svc service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 }
 
 func (svc service) GetClientConfig(ctx context.Context) (*kolide.OsqueryConfig, error) {
-	var config kolide.OsqueryConfig
-	return &config, nil
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return nil, osqueryError{message: "internal error: missing host from request context"}
+	}
+
+	config := &kolide.OsqueryConfig{
+		Options: kolide.OsqueryOptions{
+			PackDelimiter:      "/",
+			DisableDistributed: false,
+		},
+		Packs: kolide.Packs{},
+	}
+
+	packs, err := svc.ds.ActivePacksForHost(host.ID)
+	if err != nil {
+		return nil, osqueryError{message: "database error: " + err.Error()}
+	}
+
+	for _, pack := range packs {
+		// first, we must figure out what queries are in this pack
+		queries, err := svc.ds.GetQueriesInPack(pack)
+		if err != nil {
+			return nil, osqueryError{message: "database error: " + err.Error()}
+		}
+
+		// the serializable osquery config struct expects content in a
+		// particular format, so we do the conversion here
+		configQueries := kolide.Queries{}
+		for _, query := range queries {
+			configQueries[query.Name] = kolide.QueryContent{
+				Query:    query.Query,
+				Interval: query.Interval,
+				Platform: query.Platform,
+				Version:  query.Version,
+				Snapshot: query.Snapshot,
+			}
+		}
+
+		// finally, we add the pack to the client config struct with all of
+		// the packs queries
+		config.Packs[pack.Name] = kolide.PackContent{
+			Platform: pack.Platform,
+			Queries:  configQueries,
+		}
+	}
+
+	return config, nil
 }
 
 func (svc service) SubmitStatusLogs(ctx context.Context, logs []kolide.OsqueryStatusLog) error {

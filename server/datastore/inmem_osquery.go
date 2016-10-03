@@ -26,14 +26,14 @@ func (orm *inmem) NewLabel(label *kolide.Label) (*kolide.Label, error) {
 	return &newLabel, nil
 }
 
-func (orm *inmem) LabelsForHost(host *kolide.Host) ([]kolide.Label, error) {
+func (orm *inmem) LabelsForHost(hid uint) ([]kolide.Label, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
 	// First get IDs of label executions for the host
 	resLabels := []kolide.Label{}
 	for _, lqe := range orm.labelQueryExecutions {
-		if lqe.HostID == host.ID && lqe.Matches {
+		if lqe.HostID == hid && lqe.Matches {
 			if label := orm.labels[lqe.LabelID]; label != nil {
 				resLabels = append(resLabels, *label)
 			}

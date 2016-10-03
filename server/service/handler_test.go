@@ -155,6 +155,38 @@ func TestAPIRoutes(t *testing.T) {
 			verb: "POST",
 			uri:  "/api/v1/osquery/log",
 		},
+		{
+			verb: "GET",
+			uri:  "/api/v1/kolide/labels/1",
+		},
+		{
+			verb: "GET",
+			uri:  "/api/v1/kolide/labels",
+		},
+		{
+			verb: "POST",
+			uri:  "/api/v1/kolide/labels",
+		},
+		{
+			verb: "PATCH",
+			uri:  "/api/v1/kolide/labels/1",
+		},
+		{
+			verb: "DELETE",
+			uri:  "/api/v1/kolide/labels/1",
+		},
+		{
+			verb: "POST",
+			uri:  "/api/v1/kolide/packs/1/labels/2",
+		},
+		{
+			verb: "GET",
+			uri:  "/api/v1/kolide/packs/1/labels",
+		},
+		{
+			verb: "DELETE",
+			uri:  "/api/v1/kolide/packs/1/labels/2",
+		},
 	}
 
 	for _, route := range routes {
