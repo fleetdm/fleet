@@ -3,7 +3,7 @@ import { connect } from 'react-redux';
 import { noop } from 'lodash';
 import { Style } from 'radium';
 import { fetchCurrentUser } from '../../redux/nodes/auth/actions';
-import Footer from './Footer';
+import Footer from '../Footer';
 import globalStyles from '../../styles/global';
 import { authToken } from '../../utilities/local';
 
