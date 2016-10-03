@@ -1,7 +1,4 @@
-import config from '../config';
-
 const { window } = global;
-const { settings } = config;
 
 const local = {
   clear: () => {
@@ -11,15 +8,13 @@ const local = {
   },
   getItem: (itemName) => {
     const { localStorage } = window;
-    const { env } = settings;
 
-    return localStorage.getItem(`KOLIDE-${env}::${itemName}`);
+    return localStorage.getItem(`KOLIDE::${itemName}`);
   },
   setItem: (itemName, value) => {
     const { localStorage } = window;
-    const { env } = settings;
 
-    return localStorage.setItem(`KOLIDE-${env}::${itemName}`, value);
+    return localStorage.setItem(`KOLIDE::${itemName}`, value);
   },
 };
 
