@@ -4,5 +4,5 @@ export default {
   HOME: '/',
   LOGIN: '/login',
   LOGOUT: '/logout',
-  RESET_PASSWORD: '/reset_password',
+  RESET_PASSWORD: '/login/reset',
 };

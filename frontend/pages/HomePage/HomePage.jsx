@@ -17,7 +17,7 @@ export class HomePage extends Component {
 
     return (
       <div style={containerStyles}>
-        <Avatar size="small" style={avatarStyles} user={user} />
+        {user && <Avatar size="small" style={avatarStyles} user={user} />}
         <span>You are successfully logged in! </span>
         {user && <Link to={LOGOUT}>Logout</Link>}
       </div>

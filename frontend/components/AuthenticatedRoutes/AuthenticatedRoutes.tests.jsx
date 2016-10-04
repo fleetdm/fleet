@@ -17,7 +17,7 @@ describe('AuthenticatedRoutes - component', () => {
     type: '@@router/CALL_HISTORY_METHOD',
     payload: {
       method: 'push',
-      args: ['/reset_password'],
+      args: ['/login/reset'],
     },
   };
   const renderedText = 'This text was rendered';

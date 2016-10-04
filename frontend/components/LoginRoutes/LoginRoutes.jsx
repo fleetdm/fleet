@@ -29,14 +29,14 @@ export class LoginRoutes extends Component {
 
   render () {
     const { containerStyles, logoStyles } = componentStyles;
-    const { children } = this.props;
+    const { children, location: { pathname } } = this.props;
 
     return (
       <div style={containerStyles}>
         <img style={logoStyles} alt="Kolide text logo" src="/assets/images/kolide-logo-text.svg" />
-        <LoginPage />
+        <LoginPage pathname={pathname} />
         <RouteTransition
-          pathname={this.props.location.pathname}
+          pathname={pathname}
           atEnter={{
             scale: 1.3,
             opacity: 0,
@@ -61,4 +61,10 @@ export class LoginRoutes extends Component {
   }
 }
 
-export default connect()(LoginRoutes);
+const mapStateToProps = (state, ownProps) => {
+  const { location } = ownProps;
+
+  return { location };
+};
+
+export default connect(mapStateToProps)(LoginRoutes);
