@@ -11,9 +11,6 @@ export default {
     fontSize: font.base,
     color: color.textMedium,
   },
-  targetsInputStyle: {
-    width: '100%',
-  },
   titleStyles: {
     color: color.textMedium,
     display: 'inline-block',

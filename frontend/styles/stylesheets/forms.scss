@@ -2,3 +2,27 @@
    color: #A8B1CD;
    opacity: 1;
 }
+
+.Select.target-select {
+  .Select-control {
+    padding-bottom: 5px;
+    :focus {
+      outline: none;
+    }
+  }
+  .Select-menu-outer,
+  .Select-placeholder {
+    font-size: 14px;
+    line-height: 36px;
+  }
+  .Select-option.is-focused,
+  .Select-option.is-selected {
+    background-color: #EAEDFB;
+  }
+  .Select-value {
+    background-color: #FFFFFF;
+    border: 1px solid #B8C2E3;
+    box-shadow: 0 3px 0 #EAEDFB;
+    color: #A8B1CD;
+  }
+}

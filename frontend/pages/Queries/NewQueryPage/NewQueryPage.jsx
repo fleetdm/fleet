@@ -11,6 +11,18 @@ class NewQueryPage extends Component {
     };
   }
 
+  onNewQueryFormSubmit = (formData) => {
+    const { textEditorText } = this.state;
+    const data = {
+      queryText: textEditorText,
+      ...formData,
+    };
+
+    console.log('New Query Form submitted', data);
+
+    return false;
+  }
+
   onOsqueryTableSelect = (selectedOsqueryTable) => {
     this.setState({ selectedOsqueryTable });
 
@@ -25,11 +37,12 @@ class NewQueryPage extends Component {
 
   render () {
     const { selectedOsqueryTable, textEditorText } = this.state;
-    const { onOsqueryTableSelect, onTextEditorInputChange } = this;
+    const { onNewQueryFormSubmit, onOsqueryTableSelect, onTextEditorInputChange } = this;
 
     return (
       <div>
         <NewQuery
+          onNewQueryFormSubmit={onNewQueryFormSubmit}
           onOsqueryTableSelect={onOsqueryTableSelect}
           onTextEditorInputChange={onTextEditorInputChange}
           selectedOsqueryTable={selectedOsqueryTable}
