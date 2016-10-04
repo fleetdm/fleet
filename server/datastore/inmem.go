@@ -17,6 +17,7 @@ type inmem struct {
 	labels               map[uint]*kolide.Label
 	labelQueryExecutions map[uint]*kolide.LabelQueryExecution
 	queries              map[uint]*kolide.Query
+	packs                map[uint]*kolide.Pack
 	hosts                map[uint]*kolide.Host
 	orginfo              *kolide.OrgInfo
 }
@@ -35,6 +36,7 @@ func (orm *inmem) Migrate() error {
 	orm.labels = make(map[uint]*kolide.Label)
 	orm.labelQueryExecutions = make(map[uint]*kolide.LabelQueryExecution)
 	orm.queries = make(map[uint]*kolide.Query)
+	orm.packs = make(map[uint]*kolide.Pack)
 	orm.hosts = make(map[uint]*kolide.Host)
 	return nil
 }

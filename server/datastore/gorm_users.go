@@ -1,8 +1,9 @@
 package datastore
 
-import "github.com/kolide/kolide-ose/server/kolide"
+import (
+	"github.com/kolide/kolide-ose/server/kolide"
+)
 
-// NewUser creates a new user in the gorm backend
 func (orm gormDB) NewUser(user *kolide.User) (*kolide.User, error) {
 	err := orm.DB.Create(user).Error
 	if err != nil {
@@ -11,7 +12,6 @@ func (orm gormDB) NewUser(user *kolide.User) (*kolide.User, error) {
 	return user, nil
 }
 
-// User returns a specific user in the gorm backend
 func (orm gormDB) User(username string) (*kolide.User, error) {
 	user := &kolide.User{
 		Username: username,
@@ -43,7 +43,6 @@ func (orm gormDB) UserByEmail(email string) (*kolide.User, error) {
 	return user, nil
 }
 
-// UserByID returns a datastore user given a user ID
 func (orm gormDB) UserByID(id uint) (*kolide.User, error) {
 	user := &kolide.User{ID: id}
 	err := orm.DB.Where(user).First(user).Error

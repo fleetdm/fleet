@@ -2,9 +2,12 @@
 package datastore
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 
+	"github.com/kolide/kolide-ose/server/config"
 	"github.com/kolide/kolide-ose/server/kolide"
 )
 
@@ -71,14 +74,38 @@ func New(driver, conn string, opts ...DBOption) (kolide.Datastore, error) {
 		return ds, nil
 	case "inmem":
 		ds := &inmem{
-			Driver:         "inmem",
-			users:          make(map[uint]*kolide.User),
-			sessions:       make(map[uint]*kolide.Session),
-			passwordResets: make(map[uint]*kolide.PasswordResetRequest),
-			invites:        make(map[uint]*kolide.Invite),
+			Driver: "inmem",
 		}
+
+		err := ds.Migrate()
+		if err != nil {
+			return nil, err
+		}
+
 		return ds, nil
 	default:
 		return nil, fmt.Errorf("unsupported datastore driver %s", driver)
 	}
+}
+
+func generateRandomText(keySize int) (string, error) {
+	key := make([]byte, keySize)
+	_, err := rand.Read(key)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.StdEncoding.EncodeToString(key), nil
+}
+
+// GetMysqlConnectionString returns a MySQL connection string using the
+// provided configuration.
+func GetMysqlConnectionString(conf config.MysqlConfig) string {
+	return fmt.Sprintf(
+		"%s:%s@(%s)/%s?charset=utf8&parseTime=True&loc=Local",
+		conf.Username,
+		conf.Password,
+		conf.Address,
+		conf.Database,
+	)
 }

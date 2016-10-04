@@ -1,25 +1,11 @@
 package datastore
 
 import (
-	"os"
 	"testing"
 
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/stretchr/testify/assert"
 )
-
-func TestOrgInfo(t *testing.T) {
-	var ds kolide.Datastore
-	address := os.Getenv("MYSQL_ADDR")
-	if address == "" {
-		ds = setup(t)
-	} else {
-		ds = setupMySQLGORM(t)
-		defer teardownMySQLGORM(t, ds)
-	}
-
-	testOrgInfo(t, ds)
-}
 
 func testOrgInfo(t *testing.T, db kolide.Datastore) {
 	info := &kolide.OrgInfo{

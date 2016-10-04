@@ -1,6 +1,8 @@
 package datastore
 
-import "github.com/kolide/kolide-ose/server/kolide"
+import (
+	"github.com/kolide/kolide-ose/server/kolide"
+)
 
 func (orm *inmem) NewQuery(query *kolide.Query) (*kolide.Query, error) {
 	orm.mtx.Lock()
