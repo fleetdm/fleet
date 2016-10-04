@@ -68,6 +68,10 @@ the way that the kolide server works.
 					initFatal(err, "initializing datastore")
 				}
 
+				err = ds.Migrate()
+				if err != nil {
+					initFatal(err, "initializing datastore")
+				}
 			} else {
 				connString := datastore.GetMysqlConnectionString(config.Mysql)
 				ds, err = datastore.New("gorm-mysql", connString)
