@@ -2,7 +2,6 @@
    color: #A8B1CD;
    opacity: 1;
 }
-
 .Select.target-select {
   .Select-control {
     padding-bottom: 5px;
@@ -24,5 +23,42 @@
     border: 1px solid #B8C2E3;
     box-shadow: 0 3px 0 #EAEDFB;
     color: #A8B1CD;
+  }
+}
+.kolide-dropdown {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  border: 1px solid #AE6DDf;
+  border-radius: 2px;
+  color: #858495;
+  font-size: 14px;
+  height: 30px;
+  text-indent: 4px;
+  text-transform: uppercase;
+  width: 100%;
+  background-color: #FFFFFF;
+}
+.kolide-dropdown-wrapper {
+  height: 30px;
+  position: relative;
+  :focus {
+    outline: none;
+  }
+  &:after {
+    content: '';
+    display: block;
+    width: 30px;
+    height: 29px;
+    background: url('/assets/images/down-arrow.png') no-repeat;
+    background-color: #AE6DDF;
+    background-position: center;
+    background-size: 15px;
+    border-top-right-radius: 2px;
+    border-bottom-right-radius: 2px;
+    pointer-events: none;
+    position: absolute;
+    top: 1px;
+    right: 0;
   }
 }

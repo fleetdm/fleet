@@ -6,7 +6,6 @@ import componentStyles from './styles';
 class Dropdown extends Component {
   static propTypes = {
     containerStyles: PropTypes.object,
-    fieldName: PropTypes.string,
     options: PropTypes.arrayOf(PropTypes.shape({
       text: PropTypes.string,
       value: PropTypes.string,
@@ -19,12 +18,11 @@ class Dropdown extends Component {
   };
 
   onOptionClick = (evt) => {
-    const { target: { value } } = evt;
-    const { fieldName, onSelect } = this.props;
+    evt.preventDefault();
 
-    onSelect({
-      [fieldName]: value,
-    });
+    const { onSelect } = this.props;
+
+    onSelect(evt);
 
     return false;
   }
@@ -46,11 +44,13 @@ class Dropdown extends Component {
     const { selectWrapperStyles } = componentStyles;
 
     return (
-      <select style={[selectWrapperStyles, containerStyles]} onChange={onOptionClick}>
-        {options.map(option => {
-          return renderOption(option);
-        })}
-      </select>
+      <div className="kolide-dropdown-wrapper">
+        <select className="kolide-dropdown" style={[selectWrapperStyles, containerStyles]} onChange={onOptionClick}>
+          {options.map(option => {
+            return renderOption(option);
+          })}
+        </select>
+      </div>
     );
   }
 }

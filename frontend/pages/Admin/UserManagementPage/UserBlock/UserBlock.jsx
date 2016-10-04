@@ -7,6 +7,7 @@ import EditUserForm from '../../../../components/forms/Admin/EditUserForm';
 
 class UserBlock extends Component {
   static propTypes = {
+    onEditUser: PropTypes.func,
     onSelect: PropTypes.func,
     user: PropTypes.object,
   };
@@ -49,23 +50,20 @@ class UserBlock extends Component {
   }
 
   onEditUserFormSubmit = (updatedUser) => {
-    const { user, onSelect } = this.props;
-    const formData = {
-      user_actions: 'edit_user',
-      updated_user: updatedUser,
-    };
+    const { user, onEditUser } = this.props;
 
     this.setState({
       isEdit: false,
     });
 
-    return onSelect(user, formData);
+    return onEditUser(user, updatedUser);
   }
 
-  onUserActionSelect = (formData) => {
+  onUserActionSelect = ({ target }) => {
     const { onSelect, user } = this.props;
+    const { value: action } = target;
 
-    if (formData.user_actions === 'modify_details') {
+    if (action === 'modify_details') {
       this.setState({
         isEdit: true,
       });
@@ -73,7 +71,7 @@ class UserBlock extends Component {
       return false;
     }
 
-    return onSelect(user, formData);
+    return onSelect(user, action);
   }
 
   render () {
@@ -125,7 +123,6 @@ class UserBlock extends Component {
           <p style={userPositionStyles}>{position}</p>
           <p style={userEmailStyles}>{email}</p>
           <Dropdown
-            fieldName="user_actions"
             options={userActionOptions}
             initialOption={{ text: 'Actions...' }}
             onSelect={this.onUserActionSelect}

@@ -2,6 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import radium from 'radium';
 import componentStyles from './styles';
 import Button from '../../../buttons/Button';
+import Dropdown from '../../fields/Dropdown';
 import InputField from '../../fields/InputField';
 import validatePresence from '../../validators/validate_presence';
 
@@ -54,7 +55,6 @@ class SaveQueryForm extends Component {
   onFieldChange = (fieldName) => {
     return ({ target }) => {
       const { errors, formData } = this.state;
-
       this.setState({
         errors: {
           ...errors,
@@ -160,11 +160,7 @@ class SaveQueryForm extends Component {
   renderMoreOptionsFormFields = () => {
     const {
       errors,
-      formData: {
-        duration,
-        platforms,
-        hosts,
-      },
+      formData: { hosts },
       showMoreOptions,
     } = this.state;
     const {
@@ -200,16 +196,12 @@ class SaveQueryForm extends Component {
         <div style={formSectionStyles}>
           <div>
             <label htmlFor="duration" style={labelStyles}>Query Duration</label>
-            <select
+            <Dropdown
               key="duration"
-              name="duration"
-              value={duration}
-              onChange={onFieldChange('duration')}
-              style={dropdownInputStyles}
-            >
-              <option value="short">Short</option>
-              <option value="long">Long</option>
-            </select>
+              options={[{ text: 'Short', value: 'short' }, { text: 'Long', value: 'long' }]}
+              onSelect={onFieldChange('duration')}
+              containerStyles={dropdownInputStyles}
+            />
           </div>
           <small style={helpTextStyles}>
             Individual hosts are not always online. A longer duration will return more complete results. You can view results of any in-progress query at any time.
@@ -218,16 +210,12 @@ class SaveQueryForm extends Component {
         <div style={formSectionStyles}>
           <div>
             <label htmlFor="platforms" style={labelStyles}>Query Platform</label>
-            <select
+            <Dropdown
               key="platforms"
-              name="platforms"
-              value={platforms}
-              onChange={onFieldChange('platforms')}
-              style={dropdownInputStyles}
-            >
-              <option value="all">ALL PLATFORMS</option>
-              <option value="none">NO PLATFORMS</option>
-            </select>
+              options={[{ text: 'ALL PLATFORMS', value: 'all' }, { text: 'NO PLATFORMS', value: 'none' }]}
+              onSelect={onFieldChange('platforms')}
+              containerStyles={dropdownInputStyles}
+            />
           </div>
           <small style={helpTextStyles}>
             Specifying a platform allows you to restrict the query from running on a certain platform (even on hosts specifically targeted that do not match).

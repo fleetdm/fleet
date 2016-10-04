@@ -32,12 +32,12 @@ class UserManagementPage extends Component {
     return false;
   }
 
-  onUserActionSelect = (user, formData) => {
+  onUserActionSelect = (user, action) => {
     const { dispatch } = this.props;
     const { update } = userActions;
 
-    if (formData.user_actions) {
-      switch (formData.user_actions) {
+    if (action) {
+      switch (action) {
         case 'demote_user':
           return dispatch(update(user, { admin: false }))
             .then(() => {
@@ -63,17 +63,24 @@ class UserManagementPage extends Component {
             .then(() => {
               return dispatch(renderFlash('success', 'User forced to reset password', update(user, { force_password_reset: false })));
             });
-        case 'edit_user':
-          return dispatch(update(user, formData.updated_user))
-            .then(() => {
-              return dispatch(renderFlash('success', 'User updated', update(user, user)));
-            });
         default:
           return false;
       }
     }
 
     return false;
+  }
+
+  onEditUser = (user, updatedUser) => {
+    const { dispatch } = this.props;
+    const { update } = userActions;
+
+    return dispatch(update(user, updatedUser))
+      .then(() => {
+        return dispatch(
+          renderFlash('success', 'User updated', update(user, user))
+        );
+      });
   }
 
   onInviteUserSubmit = (formData) => {
@@ -98,11 +105,12 @@ class UserManagementPage extends Component {
   }
 
   renderUserBlock = (user) => {
-    const { onUserActionSelect } = this;
+    const { onEditUser, onUserActionSelect } = this;
 
     return (
       <UserBlock
         key={user.email}
+        onEditUser={onEditUser}
         onSelect={onUserActionSelect}
         user={user}
       />
