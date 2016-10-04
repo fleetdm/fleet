@@ -1,5 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
+import { includes } from 'lodash';
 import { push } from 'react-router-redux';
 import ReactCSSTransitionGroup from 'react-addons-css-transition-group';
 import { clearAuthErrors, loginUser } from '../../redux/nodes/auth/actions';
@@ -9,6 +10,8 @@ import LoginForm from '../../components/forms/LoginForm';
 import LoginSuccessfulPage from '../LoginSuccessfulPage';
 import paths from '../../router/paths';
 import './styles.scss';
+
+const WHITELIST_ERRORS = ['Unable to authenticate the current user'];
 
 export class LoginPage extends Component {
 
@@ -60,7 +63,7 @@ export class LoginPage extends Component {
   serverErrors = () => {
     const { error } = this.props;
 
-    if (!error) return undefined;
+    if (!error || includes(WHITELIST_ERRORS, error)) return undefined;
 
     return {
       username: error,

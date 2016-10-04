@@ -23,7 +23,8 @@ export class App extends Component {
     const { dispatch, user } = this.props;
 
     if (!user && !!authToken()) {
-      dispatch(fetchCurrentUser());
+      dispatch(fetchCurrentUser())
+        .catch(() => { return false; });
     }
 
     return false;

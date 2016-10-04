@@ -15,6 +15,22 @@ describe('LoginPage - component', () => {
     });
   });
 
+  context('when the users session is not recognized', () => {
+    const mockStore = reduxMockStore({
+      auth: {
+        error: 'Unable to authenticate the current user',
+      },
+    });
+
+    it('renders the LoginForm without displaying errors', () => {
+      const page = mount(connectedComponent(LoginPage, { mockStore }));
+      const loginForm = page.find('LoginForm');
+
+      expect(loginForm.length).toEqual(1);
+      expect(loginForm.prop('serverErrors')).toEqual({});
+    });
+  });
+
   context('when the user is logged in', () => {
     beforeEach(() => {
       local.setItem('auth_token', 'fake-auth-token');

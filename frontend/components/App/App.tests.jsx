@@ -1,13 +1,21 @@
-import React from 'react';
 import expect, { spyOn, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
-import ConnectedApp, { App } from './App';
+import ConnectedApp from './App';
 import * as authActions from '../../redux/nodes/auth/actions';
 import helpers from '../../test/helpers';
 import local from '../../utilities/local';
 
+const {
+  connectedComponent,
+  reduxMockStore,
+} = helpers;
+
 describe('App - component', () => {
-  const component = mount(<App />);
+  const store = { app: {}, auth: {} };
+  const mockStore = reduxMockStore(store);
+  const component = mount(
+    connectedComponent(ConnectedApp, { mockStore })
+  );
 
   afterEach(() => {
     restoreSpies();
@@ -22,11 +30,12 @@ describe('App - component', () => {
     local.setItem('auth_token', 'ABC123');
 
     const spy = spyOn(authActions, 'fetchCurrentUser').andCall(() => {
-      return { type: 'LOAD_USER_ACTION' };
+      return (dispatch) => {
+        dispatch({ type: 'LOAD_USER_ACTION' });
+        return Promise.resolve();
+      };
     });
-    const store = { app: {}, auth: {} };
-    const mockStore = helpers.reduxMockStore(store);
-    const application = helpers.connectedComponent(ConnectedApp, { mockStore });
+    const application = connectedComponent(ConnectedApp, { mockStore });
 
     mount(application);
     expect(spy).toHaveBeenCalled();
@@ -38,7 +47,7 @@ describe('App - component', () => {
     const spy = spyOn(authActions, 'fetchCurrentUser').andCall(() => {
       return { type: 'LOAD_USER_ACTION' };
     });
-    const store = {
+    const storeWithUser = {
       app: {},
       auth: {
         user: {
@@ -47,8 +56,8 @@ describe('App - component', () => {
         },
       },
     };
-    const mockStore = helpers.reduxMockStore(store);
-    const application = helpers.connectedComponent(ConnectedApp, { mockStore });
+    const mockStoreWithUser = reduxMockStore(storeWithUser);
+    const application = connectedComponent(ConnectedApp, { mockStore: mockStoreWithUser });
 
     mount(application);
     expect(spy).toNotHaveBeenCalled();
@@ -60,9 +69,7 @@ describe('App - component', () => {
     const spy = spyOn(authActions, 'fetchCurrentUser').andCall(() => {
       return { type: 'LOAD_USER_ACTION' };
     });
-    const store = { app: {}, auth: {} };
-    const mockStore = helpers.reduxMockStore(store);
-    const application = helpers.connectedComponent(ConnectedApp, { mockStore });
+    const application = connectedComponent(ConnectedApp, { mockStore });
 
     mount(application);
     expect(spy).toNotHaveBeenCalled();
