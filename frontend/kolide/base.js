@@ -1,6 +1,12 @@
 import fetch from 'isomorphic-fetch';
 import local from '../utilities/local';
 
+const REQUEST_METHODS = {
+  GET: 'GET',
+  PATCH: 'PATCH',
+  POST: 'POST',
+};
+
 class Base {
   constructor () {
     const { origin } = global.window.location;
@@ -18,19 +24,27 @@ class Base {
   }
 
   authenticatedGet (endpoint, overrideHeaders = {}) {
-    return this._authenticatedRequest('GET', endpoint, {}, overrideHeaders);
+    const { GET } = REQUEST_METHODS;
+
+    return this._authenticatedRequest(GET, endpoint, {}, overrideHeaders);
   }
 
   authenticatedPatch (endpoint, body = {}, overrideHeaders = {}) {
-    return this._authenticatedRequest('PATCH', endpoint, body, overrideHeaders);
+    const { PATCH } = REQUEST_METHODS;
+
+    return this._authenticatedRequest(PATCH, endpoint, body, overrideHeaders);
   }
 
   authenticatedPost (endpoint, body = {}, overrideHeaders = {}) {
-    return this._authenticatedRequest('POST', endpoint, body, overrideHeaders);
+    const { POST } = REQUEST_METHODS;
+
+    return this._authenticatedRequest(POST, endpoint, body, overrideHeaders);
   }
 
   post (endpoint, body = {}, overrideHeaders = {}) {
-    return this._request('POST', endpoint, body, overrideHeaders);
+    const { POST } = REQUEST_METHODS;
+
+    return this._request(POST, endpoint, body, overrideHeaders);
   }
 
   _authenticatedRequest(method, endpoint, body, overrideHeaders) {
@@ -43,18 +57,18 @@ class Base {
   }
 
   _request (method, endpoint, body, overrideHeaders) {
+    const credentials = 'same-origin';
+    const { GET } = REQUEST_METHODS;
     const headers = {
       Accept: 'application/json',
       'Content-Type': 'application/json',
       ...overrideHeaders,
     };
+    const requestAttrs = method === GET
+      ? { credentials, method, headers }
+      : { credentials, method, body, headers };
 
-    return fetch(endpoint, {
-      credentials: 'same-origin',
-      method,
-      headers,
-      body,
-    })
+    return fetch(endpoint, requestAttrs)
       .then(response => {
         return response.json()
           .then(jsonResponse => {
