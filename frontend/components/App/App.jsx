@@ -4,6 +4,7 @@ import { noop } from 'lodash';
 import { Style } from 'radium';
 import { fetchCurrentUser } from '../../redux/nodes/auth/actions';
 import Footer from '../Footer';
+import { getConfig } from '../../redux/nodes/app/actions';
 import globalStyles from '../../styles/global';
 import { authToken } from '../../utilities/local';
 
@@ -27,7 +28,15 @@ export class App extends Component {
         .catch(() => { return false; });
     }
 
+    if (user) dispatch(getConfig());
+
     return false;
+  }
+
+  componentWillReceiveProps (nextProps) {
+    const { dispatch, user } = nextProps;
+
+    if (this.props.user !== user) dispatch(getConfig());
   }
 
   render () {

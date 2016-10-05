@@ -8,13 +8,17 @@ import SidePanel from '../../components/SidePanel';
 export class CoreLayout extends Component {
   static propTypes = {
     children: PropTypes.node,
+    config: PropTypes.shape({
+      org_logo_url: PropTypes.string,
+      org_name: PropTypes.string,
+    }),
     dispatch: PropTypes.func,
     notifications: PropTypes.object,
     user: PropTypes.object,
   };
 
   render () {
-    const { children, dispatch, notifications, user } = this.props;
+    const { children, config, dispatch, notifications, user } = this.props;
     const { wrapperStyles } = componentStyles;
 
     if (!user) return false;
@@ -24,6 +28,7 @@ export class CoreLayout extends Component {
     return (
       <StyleRoot>
         <SidePanel
+          config={config}
           pathname={pathname}
           user={user}
         />
@@ -39,8 +44,9 @@ export class CoreLayout extends Component {
 const mapStateToProps = (state) => {
   const { user } = state.auth;
   const { notifications } = state;
+  const { config } = state.app;
 
-  return { user, notifications };
+  return { config, notifications, user };
 };
 
 export default connect(mapStateToProps)(CoreLayout);

@@ -11,6 +11,10 @@ import './styles.scss';
 
 class SidePanel extends Component {
   static propTypes = {
+    config: PropTypes.shape({
+      org_logo_url: PropTypes.string,
+      org_name: PropTypes.name,
+    }),
     dispatch: PropTypes.func,
     pathname: PropTypes.string,
     user: PropTypes.object,
@@ -93,6 +97,9 @@ class SidePanel extends Component {
 
   renderHeader = () => {
     const {
+      config: {
+        org_name: orgName,
+      },
       user: {
         enabled,
         username,
@@ -114,7 +121,7 @@ class SidePanel extends Component {
           src={kolideLogo}
           style={companyLogoStyles}
         />
-        <h1 style={orgNameStyles}>Kolide, Inc.</h1>
+        <h1 style={orgNameStyles}>{orgName}</h1>
         <div style={userStatusStyles(enabled)} />
         <h2 style={usernameStyles}>{username}</h2>
         <i style={orgChevronStyles} className="kolidecon-chevron-bold-down" />

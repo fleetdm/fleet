@@ -6,6 +6,7 @@ const {
   invalidForgotPasswordRequest,
   invalidResetPasswordRequest,
   validForgotPasswordRequest,
+  validGetConfigRequest,
   validGetUsersRequest,
   validLoginRequest,
   validLogoutRequest,
@@ -19,6 +20,20 @@ describe('Kolide - API client', () => {
   describe('defaults', () => {
     it('sets the base URL', () => {
       expect(Kolide.baseURL).toEqual('http://localhost:8080/api');
+    });
+  });
+
+  describe('#getConfig', () => {
+    it('calls the appropriate endpoint with the correct parameters', (done) => {
+      const bearerToken = 'valid-bearer-token';
+      const request = validGetConfigRequest(bearerToken);
+
+      Kolide.getConfig(bearerToken)
+        .then(() => {
+          expect(request.isDone()).toEqual(true);
+          done();
+        })
+        .catch(done);
     });
   });
 

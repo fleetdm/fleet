@@ -12,6 +12,16 @@ export const validUser = {
   gravatarURL: 'https://www.gravatar.com/avatar/7157f4758f8423b59aaee869d919f6b9',
 };
 
+export const validGetConfigRequest = (bearerToken) => {
+  return nock('http://localhost:8080', {
+    reqHeaders: {
+      Authorization: `Bearer ${bearerToken}`,
+    },
+  })
+    .get('/api/v1/kolide/config')
+    .reply(200, { config: { name: 'Kolide' } });
+};
+
 export const validGetUsersRequest = (bearerToken) => {
   return nock('http://localhost:8080', {
     reqHeaders: {
@@ -89,6 +99,7 @@ export default {
   invalidForgotPasswordRequest,
   invalidResetPasswordRequest,
   validForgotPasswordRequest,
+  validGetConfigRequest,
   validGetUsersRequest,
   validLoginRequest,
   validLogoutRequest,

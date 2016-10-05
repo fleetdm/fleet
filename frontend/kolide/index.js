@@ -9,6 +9,13 @@ class Kolide extends Base {
     return this.post(forgotPasswordEndpoint, JSON.stringify({ email }));
   }
 
+  getConfig = () => {
+    const { CONFIG } = endpoints;
+
+    return this.authenticatedGet(this.endpoint(CONFIG))
+      .then(response => { return response.org_info; });
+  }
+
   getUsers = () => {
     const { USERS } = endpoints;
 
