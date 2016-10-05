@@ -93,9 +93,12 @@ func TestDecodeSubmitDistributedQueryResultsRequest(t *testing.T) {
 			"id2": {
 				{"col3": "val5", "col4": "val6"},
 			},
+			"id3": {},
 		}, params.Results)
 	}).Methods("POST")
 
+	// Note we explicitly test the case that requires using the shim
+	// because of the inconsistent JSON schema
 	var body bytes.Buffer
 	body.Write([]byte(`{
         "node_key": "key",
@@ -106,7 +109,8 @@ func TestDecodeSubmitDistributedQueryResultsRequest(t *testing.T) {
           ],
           "id2": [
             {"col3": "val5", "col4": "val6"}
-          ]
+          ],
+          "id3": ""
         }
     }`))
 

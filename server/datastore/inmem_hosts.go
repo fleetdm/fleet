@@ -79,7 +79,13 @@ func (orm *inmem) EnrollHost(uuid, hostname, ip, platform string, nodeKeySize in
 		return nil, errors.New("missing uuid for host enrollment")
 	}
 
-	host := kolide.Host{UUID: uuid}
+	host := kolide.Host{
+		UUID:             uuid,
+		HostName:         hostname,
+		IPAddress:        ip,
+		Platform:         platform,
+		DetailUpdateTime: time.Unix(0, 0).Add(24 * time.Hour),
+	}
 	for _, h := range orm.hosts {
 		if h.UUID == uuid {
 			host = *h

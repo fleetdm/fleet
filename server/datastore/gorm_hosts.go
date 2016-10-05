@@ -20,10 +20,11 @@ func (orm gormDB) EnrollHost(uuid, hostname, ip, platform string, nodeKeySize in
 		case gorm.ErrRecordNotFound:
 			// Create new Host
 			host = kolide.Host{
-				UUID:      uuid,
-				HostName:  hostname,
-				IPAddress: ip,
-				Platform:  platform,
+				UUID:             uuid,
+				HostName:         hostname,
+				IPAddress:        ip,
+				Platform:         platform,
+				DetailUpdateTime: time.Unix(0, 0).Add(24 * time.Hour),
 			}
 
 		default:

@@ -2,7 +2,11 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
+	"time"
 
 	hostctx "github.com/kolide/kolide-ose/server/contexts/host"
 	"github.com/kolide/kolide-ose/server/errors"
@@ -154,30 +158,131 @@ const hostLabelQueryPrefix = "kolide_label_query_"
 // provided as a detail query.
 const hostDetailQueryPrefix = "kolide_detail_query_"
 
+// detailQueries defines the detail queries that should be run on the host, as
+// well as how the results of those queries should be ingested into the
+// kolide.Host data model. This map should not be modified at runtime.
+var detailQueries = map[string]struct {
+	Query      string
+	IngestFunc func(host *kolide.Host, rows []map[string]string) error
+}{
+	"osquery_info": {
+		Query: "select * from osquery_info limit 1",
+		IngestFunc: func(host *kolide.Host, rows []map[string]string) error {
+			if len(rows) != 1 {
+				return osqueryError{
+					message: fmt.Sprintf("expected 1 row but got %d", len(rows)),
+				}
+			}
+
+			host.Platform = rows[0]["build_platform"]
+			host.OsqueryVersion = rows[0]["version"]
+
+			return nil
+		},
+	},
+	"system_info": {
+		Query: "select * from system_info limit 1",
+		IngestFunc: func(host *kolide.Host, rows []map[string]string) error {
+			if len(rows) != 1 {
+				return osqueryError{
+					message: fmt.Sprintf("expected 1 row but got %d", len(rows)),
+				}
+			}
+
+			var err error
+			host.PhysicalMemory, err = strconv.Atoi(rows[0]["physical_memory"])
+			if err != nil {
+				return err
+			}
+			host.HostName = rows[0]["hostname"]
+			host.UUID = rows[0]["uuid"]
+
+			return nil
+		},
+	},
+	"os_version": {
+		Query: "select * from os_version limit 1",
+		IngestFunc: func(host *kolide.Host, rows []map[string]string) error {
+			if len(rows) != 1 {
+				return osqueryError{
+					message: fmt.Sprintf("expected 1 row but got %d", len(rows)),
+				}
+			}
+
+			host.OSVersion = fmt.Sprintf(
+				"%s %s.%s.%s",
+				rows[0]["name"],
+				rows[0]["major"],
+				rows[0]["minor"],
+				rows[0]["patch"],
+			)
+
+			return nil
+		},
+	},
+	"uptime": {
+		Query: "select * from uptime limit 1",
+		IngestFunc: func(host *kolide.Host, rows []map[string]string) error {
+			if len(rows) != 1 {
+				return osqueryError{
+					message: fmt.Sprintf("expected 1 row but got %d", len(rows)),
+				}
+			}
+
+			uptimeSeconds, err := strconv.Atoi(rows[0]["total_seconds"])
+			if err != nil {
+				return err
+			}
+			host.Uptime = time.Duration(uptimeSeconds) * time.Second
+
+			return nil
+		},
+	},
+	"network_interface": {
+		Query: `select * from interface_details id join interface_addresses ia
+                        on ia.interface = id.interface where broadcast != ""
+                        order by (ibytes + obytes) desc limit 1`,
+		IngestFunc: func(host *kolide.Host, rows []map[string]string) error {
+			if len(rows) != 1 {
+				return osqueryError{
+					message: fmt.Sprintf("expected 1 row but got %d", len(rows)),
+				}
+			}
+
+			host.PrimaryMAC = rows[0]["mac"]
+			host.PrimaryIP = rows[0]["address"]
+
+			return nil
+		},
+	},
+}
+
+// detailUpdateInterval determines how often the detail queries should be
+// updated
+const detailUpdateInterval = 1 * time.Hour
+
 // hostDetailQueries returns the map of queries that should be executed by
 // osqueryd to fill in the host details
-func hostDetailQueries(host kolide.Host) map[string]string {
+func (svc service) hostDetailQueries(host kolide.Host) map[string]string {
 	queries := make(map[string]string)
-	if host.Platform == "" {
-		queries[hostDetailQueryPrefix+"platform"] = "select build_platform from osquery_info;"
+	if host.DetailUpdateTime.After(svc.clock.Now().Add(-detailUpdateInterval)) {
+		// No need to update already fresh details
+		return queries
+	}
+
+	for name, query := range detailQueries {
+		queries[hostDetailQueryPrefix+name] = query.Query
 	}
 	return queries
 }
 
 func (svc service) GetDistributedQueries(ctx context.Context) (map[string]string, error) {
-	queries := make(map[string]string)
-
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return nil, osqueryError{message: "internal error: missing host from request context"}
 	}
 
-	queries = hostDetailQueries(host)
-	if len(queries) > 0 {
-		// If the host details need to be updated, we should do so
-		// before checking for any other queries
-		return queries, nil
-	}
+	queries := svc.hostDetailQueries(host)
 
 	// Retrieve the label queries that should be updated
 	cutoff := svc.clock.Now().Add(-svc.config.Osquery.LabelUpdateInterval)
@@ -195,6 +300,66 @@ func (svc service) GetDistributedQueries(ctx context.Context) (map[string]string
 	return queries, nil
 }
 
+// ingestDetailQuery takes the results of a detail query and modifies the
+// provided kolide.Host appropriately.
+func (svc service) ingestDetailQuery(host *kolide.Host, name string, rows []map[string]string) error {
+	trimmedQuery := strings.TrimPrefix(name, hostDetailQueryPrefix)
+	query, ok := detailQueries[trimmedQuery]
+	if !ok {
+		return osqueryError{message: "unknown detail query " + trimmedQuery}
+	}
+
+	err := query.IngestFunc(host, rows)
+	if err != nil {
+		return osqueryError{
+			message: fmt.Sprintf("ingesting query %s: %s", name, err.Error()),
+		}
+	}
+	return nil
+}
+
+func (svc service) ingestLabelQuery(host *kolide.Host, query string, rows []map[string]string) error {
+	trimmedQuery := strings.TrimPrefix(query, hostLabelQueryPrefix)
+	switch trimmedQuery {
+	}
+
+	return nil
+}
+
 func (svc service) SubmitDistributedQueryResults(ctx context.Context, results kolide.OsqueryDistributedQueryResults) error {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return osqueryError{message: "internal error: missing host from request context"}
+	}
+
+	err := svc.ds.MarkHostSeen(&host, svc.clock.Now())
+	if err != nil {
+		return osqueryError{message: "failed to update host seen: " + err.Error()}
+	}
+
+	for query, rows := range results {
+		switch {
+		case strings.HasPrefix(query, hostDetailQueryPrefix):
+			err = svc.ingestDetailQuery(&host, query, rows)
+
+		case strings.HasPrefix(query, hostLabelQueryPrefix):
+			err = svc.ingestLabelQuery(&host, query, rows)
+
+		default:
+			// TODO ingest regular distributed query results
+		}
+
+		if err != nil {
+			return osqueryError{message: "failed to ingest result: " + err.Error()}
+		}
+
+	}
+
+	host.DetailUpdateTime = svc.clock.Now()
+	err = svc.ds.SaveHost(&host)
+	if err != nil {
+		return osqueryError{message: "failed to update host details: " + err.Error()}
+	}
+
 	return nil
 }

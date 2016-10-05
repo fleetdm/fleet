@@ -34,12 +34,19 @@ type HostPayload struct {
 }
 
 type Host struct {
-	ID        uint `gorm:"primary_key"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	NodeKey   string `gorm:"unique_index:idx_host_unique_nodekey"`
-	HostName  string
-	UUID      string `gorm:"unique_index:idx_host_unique_uuid"`
-	IPAddress string
-	Platform  string
+	ID               uint `gorm:"primary_key"`
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	DetailUpdateTime time.Time // Time that the host details were last updated
+	NodeKey          string    `gorm:"unique_index:idx_host_unique_nodekey"`
+	HostName         string
+	UUID             string `gorm:"unique_index:idx_host_unique_uuid"`
+	IPAddress        string
+	Platform         string
+	OsqueryVersion   string
+	OSVersion        string
+	Uptime           time.Duration
+	PhysicalMemory   int `sql:"type:bigint"`
+	PrimaryMAC       string
+	PrimaryIP        string
 }
