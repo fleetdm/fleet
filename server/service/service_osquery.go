@@ -318,11 +318,12 @@ func (svc service) ingestDetailQuery(host *kolide.Host, name string, rows []map[
 	return nil
 }
 
-func (svc service) ingestLabelQuery(host *kolide.Host, query string, rows []map[string]string) error {
+// ingestLabelQuery records the results of label queries run by a host
+func (svc service) ingestLabelQuery(host kolide.Host, query string, rows []map[string]string, results map[string]bool) error {
 	trimmedQuery := strings.TrimPrefix(query, hostLabelQueryPrefix)
-	switch trimmedQuery {
-	}
-
+	// A label query matches if there is at least one result for that
+	// query. We must also store negative results.
+	results[trimmedQuery] = len(rows) > 0
 	return nil
 }
 
@@ -337,13 +338,14 @@ func (svc service) SubmitDistributedQueryResults(ctx context.Context, results ko
 		return osqueryError{message: "failed to update host seen: " + err.Error()}
 	}
 
+	labelResults := map[string]bool{}
 	for query, rows := range results {
 		switch {
 		case strings.HasPrefix(query, hostDetailQueryPrefix):
 			err = svc.ingestDetailQuery(&host, query, rows)
 
 		case strings.HasPrefix(query, hostLabelQueryPrefix):
-			err = svc.ingestLabelQuery(&host, query, rows)
+			err = svc.ingestLabelQuery(host, query, rows, labelResults)
 
 		default:
 			// TODO ingest regular distributed query results
@@ -353,6 +355,13 @@ func (svc service) SubmitDistributedQueryResults(ctx context.Context, results ko
 			return osqueryError{message: "failed to ingest result: " + err.Error()}
 		}
 
+	}
+
+	if len(labelResults) > 0 {
+		err = svc.ds.RecordLabelQueryExecutions(&host, labelResults, svc.clock.Now())
+		if err != nil {
+			return osqueryError{message: "failed to save labels: " + err.Error()}
+		}
 	}
 
 	host.DetailUpdateTime = svc.clock.Now()

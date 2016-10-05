@@ -271,20 +271,20 @@ func TestLabelQueries(t *testing.T) {
 	assert.Len(t, queries, 0)
 
 	// Add some queries and labels to ensure they are returned
-	labelQueries := []*kolide.Query{
-		&kolide.Query{
+	labelQueries := []kolide.Query{
+		kolide.Query{
 			ID:       1,
 			Name:     "query1",
 			Platform: "darwin",
 			Query:    "query1",
 		},
-		&kolide.Query{
+		kolide.Query{
 			ID:       2,
 			Name:     "query2",
 			Platform: "darwin",
 			Query:    "query2",
 		},
-		&kolide.Query{
+		kolide.Query{
 			ID:       3,
 			Name:     "query3",
 			Platform: "darwin",
@@ -295,7 +295,7 @@ func TestLabelQueries(t *testing.T) {
 	expectQueries := make(map[string]string)
 
 	for _, query := range labelQueries {
-		_, err := ds.NewQuery(query)
+		_, err := ds.NewQuery(&query)
 		assert.Nil(t, err)
 		expectQueries[fmt.Sprintf("kolide_label_query_%d", query.ID)] = query.Query
 	}
@@ -308,27 +308,27 @@ func TestLabelQueries(t *testing.T) {
 	})
 	assert.Nil(t, err)
 
-	labels := []*kolide.Label{
-		&kolide.Label{
+	labels := []kolide.Label{
+		kolide.Label{
 			Name:    "label1",
 			QueryID: 1,
 		},
-		&kolide.Label{
+		kolide.Label{
 			Name:    "label2",
 			QueryID: 2,
 		},
-		&kolide.Label{
+		kolide.Label{
 			Name:    "label3",
 			QueryID: 3,
 		},
-		&kolide.Label{
+		kolide.Label{
 			Name:    "label4",
 			QueryID: 4,
 		},
 	}
 
 	for _, label := range labels {
-		_, err := ds.NewLabel(label)
+		_, err := ds.NewLabel(&label)
 		assert.Nil(t, err)
 	}
 
@@ -339,8 +339,18 @@ func TestLabelQueries(t *testing.T) {
 	assert.Equal(t, expectQueries, queries)
 
 	// Record a query execution
-	err = ds.RecordLabelQueryExecutions(host, map[string]bool{"1": true}, mockClock.Now())
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostLabelQueryPrefix + "1": {{"col1": "val1"}},
+		},
+	)
 	assert.Nil(t, err)
+
+	// Verify that labels are set appropriately
+	hostLabels, err := ds.LabelsForHost(host.ID)
+	assert.Len(t, hostLabels, 1)
+	assert.Equal(t, "label1", hostLabels[0].Name)
 
 	// Now that query should not be returned
 	queries, err = svc.GetDistributedQueries(ctx)
@@ -362,15 +372,14 @@ func TestLabelQueries(t *testing.T) {
 	assert.Len(t, queries, 3)
 	assert.Equal(t, expectQueries, queries)
 
-	// Record an old query execution -- Shouldn't change the return
-	err = ds.RecordLabelQueryExecutions(host, map[string]bool{"2": true}, mockClock.Now().Add(-10*time.Hour))
-	assert.Nil(t, err)
-	queries, err = svc.GetDistributedQueries(ctx)
-	assert.Nil(t, err)
-	assert.Equal(t, expectQueries, queries)
-
-	// Record a newer execution for that query and another
-	err = ds.RecordLabelQueryExecutions(host, map[string]bool{"2": true, "3": false}, mockClock.Now().Add(-1*time.Minute))
+	// Record a query execution
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostLabelQueryPrefix + "2": {{"col1": "val1"}},
+			hostLabelQueryPrefix + "3": {},
+		},
+	)
 	assert.Nil(t, err)
 
 	// Now these should no longer show up in the necessary to run queries
@@ -379,6 +388,15 @@ func TestLabelQueries(t *testing.T) {
 	queries, err = svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
 	assert.Equal(t, expectQueries, queries)
+
+	// Verify that labels are set appropriately
+	hostLabels, err = ds.LabelsForHost(host.ID)
+	assert.Len(t, hostLabels, 2)
+	expectLabelNames := map[string]bool{"label1": true, "label2": true}
+	for _, label := range hostLabels {
+		assert.Contains(t, expectLabelNames, label.Name)
+		delete(expectLabelNames, label.Name)
+	}
 }
 
 func TestGetClientConfig(t *testing.T) {
