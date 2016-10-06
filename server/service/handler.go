@@ -193,7 +193,7 @@ func makeKolideKitHandlers(ctx context.Context, e KolideEndpoints, opts []kithtt
 		ListInvites:                   newServer(e.ListInvites, decodeNoParamsRequest),
 		DeleteInvite:                  newServer(e.DeleteInvite, decodeDeleteInviteRequest),
 		GetQuery:                      newServer(e.GetQuery, decodeGetQueryRequest),
-		GetAllQueries:                 newServer(e.GetAllQueries, decodeGetQueryRequest),
+		GetAllQueries:                 newServer(e.GetAllQueries, decodeNoParamsRequest),
 		CreateQuery:                   newServer(e.CreateQuery, decodeCreateQueryRequest),
 		ModifyQuery:                   newServer(e.ModifyQuery, decodeModifyQueryRequest),
 		DeleteQuery:                   newServer(e.DeleteQuery, decodeDeleteQueryRequest),
