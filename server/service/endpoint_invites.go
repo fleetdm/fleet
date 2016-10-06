@@ -62,7 +62,8 @@ func makeListInvitesEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return listInvitesResponse{Err: err}, nil
 		}
-		var resp listInvitesResponse
+
+		resp := listInvitesResponse{Invites: []inviteResponse{}}
 		for _, invite := range invites {
 			resp.Invites = append(resp.Invites, inviteResponse{
 				ID:        invite.ID,

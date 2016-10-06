@@ -55,7 +55,7 @@ func makeGetAllLabelsEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return getAllLabelsResponse{Err: err}, nil
 		}
-		var resp getAllLabelsResponse
+		resp := getAllLabelsResponse{Labels: []getLabelResponse{}}
 		for _, label := range labels {
 			resp.Labels = append(resp.Labels, getLabelResponse{
 				ID:      label.ID,

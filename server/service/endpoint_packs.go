@@ -55,7 +55,7 @@ func makeGetAllPacksEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return getPackResponse{Err: err}, nil
 		}
-		var resp getAllPacksResponse
+		resp := getAllPacksResponse{Packs: []getPackResponse{}}
 		for _, pack := range packs {
 			resp.Packs = append(resp.Packs, getPackResponse{
 				ID:       pack.ID,

@@ -65,7 +65,7 @@ func makeGetAllQueriesEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return getAllQueriesResponse{Err: err}, nil
 		}
-		var resp getAllQueriesResponse
+		resp := getAllQueriesResponse{Queries: []getQueryResponse{}}
 		for _, query := range queries {
 			resp.Queries = append(resp.Queries, getQueryResponse{
 				ID:           query.ID,
