@@ -71,9 +71,11 @@ func (svc service) ModifyUser(ctx context.Context, userID uint, p kolide.UserPay
 	}
 
 	if p.AdminForcedPasswordReset != nil {
-		err = svc.RequestPasswordReset(ctx, user.Email)
-		if err != nil {
-			return nil, err
+		if *p.AdminForcedPasswordReset {
+			err = svc.RequestPasswordReset(ctx, user.Email)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
