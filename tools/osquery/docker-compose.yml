@@ -10,7 +10,7 @@ services:
     extra_hosts:
       - "dockerhost:${LOCALHOST}"
     environment:
-      ENROLL_SECRET: 'super secure'
+      ENROLL_SECRET: ''
     command: osqueryd --flagfile=/etc/osquery/osquery.flags
 
   centos7-osquery:
@@ -22,5 +22,5 @@ services:
     extra_hosts:
       - "dockerhost:${LOCALHOST}"
     environment:
-      ENROLL_SECRET: 'super secure'
+      ENROLL_SECRET: ''
     command: osqueryd --flagfile=/etc/osquery/osquery.flags

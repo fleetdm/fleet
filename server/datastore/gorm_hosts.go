@@ -22,7 +22,7 @@ func (orm gormDB) EnrollHost(uuid, hostname, ip, platform string, nodeKeySize in
 			host = kolide.Host{
 				UUID:             uuid,
 				HostName:         hostname,
-				IPAddress:        ip,
+				PrimaryIP:        ip,
 				Platform:         platform,
 				DetailUpdateTime: time.Unix(0, 0).Add(24 * time.Hour),
 			}
@@ -43,7 +43,7 @@ func (orm gormDB) EnrollHost(uuid, hostname, ip, platform string, nodeKeySize in
 		host.HostName = hostname
 	}
 	if ip != "" {
-		host.IPAddress = ip
+		host.PrimaryIP = ip
 	}
 	if platform != "" {
 		host.Platform = platform

@@ -20,8 +20,6 @@ type HostStore interface {
 type HostService interface {
 	GetAllHosts(ctx context.Context) ([]*Host, error)
 	GetHost(ctx context.Context, id uint) (*Host, error)
-	NewHost(ctx context.Context, p HostPayload) (*Host, error)
-	ModifyHost(ctx context.Context, id uint, p HostPayload) (*Host, error)
 	DeleteHost(ctx context.Context, id uint) error
 }
 
@@ -34,19 +32,18 @@ type HostPayload struct {
 }
 
 type Host struct {
-	ID               uint `gorm:"primary_key"`
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
-	DetailUpdateTime time.Time // Time that the host details were last updated
-	NodeKey          string    `gorm:"unique_index:idx_host_unique_nodekey"`
-	HostName         string
-	UUID             string `gorm:"unique_index:idx_host_unique_uuid"`
-	IPAddress        string
-	Platform         string
-	OsqueryVersion   string
-	OSVersion        string
-	Uptime           time.Duration
-	PhysicalMemory   int `sql:"type:bigint"`
-	PrimaryMAC       string
-	PrimaryIP        string
+	ID               uint          `gorm:"primary_key" json:"id"`
+	CreatedAt        time.Time     `json:"created_at"`
+	UpdatedAt        time.Time     `json:"updated_at"`
+	DetailUpdateTime time.Time     `json:"detail_updated_at"` // Time that the host details were last updated
+	NodeKey          string        `gorm:"unique_index:idx_host_unique_nodekey" json:"-"`
+	HostName         string        `json:"hostname"`
+	UUID             string        `gorm:"unique_index:idx_host_unique_uuid" json:"uuid"`
+	Platform         string        `json:"platform"`
+	OsqueryVersion   string        `json:"osquery_version"`
+	OSVersion        string        `json:"os_version"`
+	Uptime           time.Duration `json:"uptime"`
+	PhysicalMemory   int           `sql:"type:bigint" json:"memory"`
+	PrimaryMAC       string        `json:"mac"`
+	PrimaryIP        string        `json:"ip"`
 }

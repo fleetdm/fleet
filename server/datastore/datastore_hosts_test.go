@@ -47,7 +47,7 @@ func testEnrollHost(t *testing.T, db kolide.Datastore) {
 		hosts = append(hosts, h)
 		assert.Equal(t, tt.uuid, h.UUID)
 		assert.Equal(t, tt.hostname, h.HostName)
-		assert.Equal(t, tt.ip, h.IPAddress)
+		assert.Equal(t, tt.ip, h.PrimaryIP)
 		assert.Equal(t, tt.platform, h.Platform)
 		assert.NotEmpty(t, h.NodeKey)
 	}
@@ -56,7 +56,7 @@ func testEnrollHost(t *testing.T, db kolide.Datastore) {
 		oldNodeKey := enrolled.NodeKey
 		newhostname := fmt.Sprintf("changed.%s", enrolled.HostName)
 
-		h, err := db.EnrollHost(enrolled.UUID, newhostname, enrolled.IPAddress, enrolled.Platform, 15)
+		h, err := db.EnrollHost(enrolled.UUID, newhostname, enrolled.PrimaryIP, enrolled.Platform, 15)
 		assert.Nil(t, err)
 		assert.Equal(t, enrolled.UUID, h.UUID)
 		assert.NotEmpty(t, h.NodeKey)

@@ -187,6 +187,18 @@ func TestAPIRoutes(t *testing.T) {
 			verb: "DELETE",
 			uri:  "/api/v1/kolide/packs/1/labels/2",
 		},
+		{
+			verb: "GET",
+			uri:  "/api/v1/kolide/hosts/1",
+		},
+		{
+			verb: "GET",
+			uri:  "/api/v1/kolide/hosts",
+		},
+		{
+			verb: "DELETE",
+			uri:  "/api/v1/kolide/hosts/1",
+		},
 	}
 
 	for _, route := range routes {
