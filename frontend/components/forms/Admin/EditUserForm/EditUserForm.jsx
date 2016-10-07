@@ -36,12 +36,8 @@ class EditUserForm extends Component {
   constructor (props) {
     super(props);
 
-    const { user } = props;
-
     this.state = {
-      formData: {
-        ...user,
-      },
+      formData: {},
     };
   }
 

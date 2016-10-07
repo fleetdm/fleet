@@ -28,11 +28,11 @@ class Dropdown extends Component {
   }
 
   renderOption = (option) => {
-    const { value, text } = option;
+    const { disabled = false, value, text } = option;
     const { optionWrapperStyles } = componentStyles;
 
     return (
-      <option key={value} style={optionWrapperStyles} value={value}>
+      <option key={value} style={optionWrapperStyles} value={value} disabled={disabled}>
         {text}
       </option>
     );

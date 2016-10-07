@@ -11,6 +11,7 @@ import { renderFlash } from '../../../redux/nodes/notifications/actions';
 
 class UserManagementPage extends Component {
   static propTypes = {
+    currentUser: PropTypes.object,
     dispatch: PropTypes.func,
     users: PropTypes.arrayOf(PropTypes.object),
   };
@@ -33,21 +34,29 @@ class UserManagementPage extends Component {
   }
 
   onUserActionSelect = (user, action) => {
-    const { dispatch } = this.props;
+    const { currentUser, dispatch } = this.props;
     const { update } = userActions;
 
     if (action) {
       switch (action) {
-        case 'demote_user':
+        case 'demote_user': {
+          if (currentUser.id === user.id) {
+            return dispatch(renderFlash('error', 'You cannot demote yourself'));
+          }
           return dispatch(update(user, { admin: false }))
             .then(() => {
               return dispatch(renderFlash('success', 'User demoted', update(user, { admin: true })));
             });
-        case 'disable_account':
+        }
+        case 'disable_account': {
+          if (currentUser.id === user.id) {
+            return dispatch(renderFlash('error', 'You cannot disable your own account'));
+          }
           return dispatch(userActions.update(user, { enabled: false }))
             .then(() => {
               return dispatch(renderFlash('success', 'User account disabled', update(user, { enabled: true })));
             });
+        }
         case 'enable_account':
           return dispatch(update(user, { enabled: true }))
             .then(() => {
@@ -105,10 +114,12 @@ class UserManagementPage extends Component {
   }
 
   renderUserBlock = (user) => {
+    const { currentUser } = this.props;
     const { onEditUser, onUserActionSelect } = this;
 
     return (
       <UserBlock
+        currentUser={currentUser}
         key={user.email}
         onEditUser={onEditUser}
         onSelect={onUserActionSelect}
@@ -169,9 +180,10 @@ class UserManagementPage extends Component {
 }
 
 const mapStateToProps = (state) => {
+  const { user: currentUser } = state.auth;
   const { entities: users } = entityGetter(state).get('users');
 
-  return { users };
+  return { currentUser, users };
 };
 
 export default connect(mapStateToProps)(UserManagementPage);

@@ -7,17 +7,19 @@ import EditUserForm from '../../../../components/forms/Admin/EditUserForm';
 
 class UserBlock extends Component {
   static propTypes = {
+    currentUser: PropTypes.object,
     onEditUser: PropTypes.func,
     onSelect: PropTypes.func,
     user: PropTypes.object,
   };
 
-  static userActionOptions = (user) => {
+  static userActionOptions = (currentUser, user) => {
+    const disableActions = currentUser.id === user.id;
     const userEnableAction = user.enabled
-      ? { text: 'Disable Account', value: 'disable_account' }
+      ? { disabled: disableActions, text: 'Disable Account', value: 'disable_account' }
       : { text: 'Enable Account', value: 'enable_account' };
     const userPromotionAction = user.admin
-      ? { text: 'Demote User', value: 'demote_user' }
+      ? { disabled: disableActions, text: 'Demote User', value: 'demote_user' }
       : { text: 'Promote User', value: 'promote_user' };
 
     return [
@@ -88,7 +90,7 @@ class UserBlock extends Component {
       userStatusWrapperStyles,
       userWrapperStyles,
     } = componentStyles;
-    const { user } = this.props;
+    const { currentUser, user } = this.props;
     const {
       admin,
       email,
@@ -99,7 +101,7 @@ class UserBlock extends Component {
     } = user;
     const userLabel = admin ? 'Admin' : 'User';
     const activeLabel = enabled ? 'Active' : 'Disabled';
-    const userActionOptions = UserBlock.userActionOptions(user);
+    const userActionOptions = UserBlock.userActionOptions(currentUser, user);
     const { isEdit } = this.state;
     const { onEditUserFormSubmit, onToggleEditing } = this;
 

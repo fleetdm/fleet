@@ -5,7 +5,13 @@ import { hideFlash } from '../../redux/nodes/notifications/actions';
 
 const FlashMessage = ({ notification, dispatch }) => {
   const { alertType, isVisible, message, undoAction } = notification;
-  const { containerStyles, contentStyles, undoStyles } = componentStyles;
+  const {
+    containerStyles,
+    contentStyles,
+    flashActionStyles,
+    removeFlashMessageStyles,
+    undoStyles,
+  } = componentStyles;
 
   const submitUndoAction = () => {
     dispatch(undoAction);
@@ -25,11 +31,9 @@ const FlashMessage = ({ notification, dispatch }) => {
       <div style={contentStyles}>
         {message}
       </div>
-      <div onClick={submitUndoAction} style={undoStyles}>
-        Undo
-      </div>
-      <div onClick={removeFlashMessage}>
-        X
+      <div style={flashActionStyles}>
+        <div onClick={submitUndoAction} style={undoStyles}>{undoAction && 'undo'}</div>
+        <div onClick={removeFlashMessage} style={removeFlashMessageStyles(alertType)}>x</div>
       </div>
     </div>
   );
