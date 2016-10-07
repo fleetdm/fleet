@@ -9,7 +9,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func TestGetAllQueries(t *testing.T) {
+func TestListQueries(t *testing.T) {
 	ds, err := datastore.New("gorm-sqlite3", ":memory:")
 	assert.Nil(t, err)
 
@@ -18,7 +18,7 @@ func TestGetAllQueries(t *testing.T) {
 
 	ctx := context.Background()
 
-	queries, err := svc.GetAllQueries(ctx)
+	queries, err := svc.ListQueries(ctx)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
 
@@ -28,7 +28,7 @@ func TestGetAllQueries(t *testing.T) {
 	})
 	assert.Nil(t, err)
 
-	queries, err = svc.GetAllQueries(ctx)
+	queries, err = svc.ListQueries(ctx)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 1)
 }

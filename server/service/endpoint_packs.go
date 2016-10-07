@@ -39,23 +39,24 @@ func makeGetPackEndpoint(svc kolide.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Get All Packs
+// List Packs
 ////////////////////////////////////////////////////////////////////////////////
 
-type getAllPacksResponse struct {
+type listPacksResponse struct {
 	Packs []getPackResponse `json:"packs"`
 	Err   error             `json:"error,omitempty"`
 }
 
-func (r getAllPacksResponse) error() error { return r.Err }
+func (r listPacksResponse) error() error { return r.Err }
 
-func makeGetAllPacksEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeListPacksEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		packs, err := svc.GetAllPacks(ctx)
+		packs, err := svc.ListPacks(ctx)
 		if err != nil {
 			return getPackResponse{Err: err}, nil
 		}
-		resp := getAllPacksResponse{Packs: []getPackResponse{}}
+
+		resp := listPacksResponse{Packs: []getPackResponse{}}
 		for _, pack := range packs {
 			resp.Packs = append(resp.Packs, getPackResponse{
 				ID:       pack.ID,

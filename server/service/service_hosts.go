@@ -5,7 +5,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (svc service) GetAllHosts(ctx context.Context) ([]*kolide.Host, error) {
+func (svc service) ListHosts(ctx context.Context) ([]*kolide.Host, error) {
 	return svc.ds.Hosts()
 }
 

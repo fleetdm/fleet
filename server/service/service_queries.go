@@ -5,7 +5,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (svc service) GetAllQueries(ctx context.Context) ([]*kolide.Query, error) {
+func (svc service) ListQueries(ctx context.Context) ([]*kolide.Query, error) {
 	return svc.ds.Queries()
 }
 

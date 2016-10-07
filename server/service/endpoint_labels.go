@@ -39,23 +39,24 @@ func makeGetLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Get All Labels
+// List Labels
 ////////////////////////////////////////////////////////////////////////////////
 
-type getAllLabelsResponse struct {
+type listLabelsResponse struct {
 	Labels []getLabelResponse `json:"labels"`
 	Err    error              `json:"error,omitempty"`
 }
 
-func (r getAllLabelsResponse) error() error { return r.Err }
+func (r listLabelsResponse) error() error { return r.Err }
 
-func makeGetAllLabelsEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeListLabelsEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		labels, err := svc.GetAllLabels(ctx)
+		labels, err := svc.ListLabels(ctx)
 		if err != nil {
-			return getAllLabelsResponse{Err: err}, nil
+			return listLabelsResponse{Err: err}, nil
 		}
-		resp := getAllLabelsResponse{Labels: []getLabelResponse{}}
+
+		resp := listLabelsResponse{Labels: []getLabelResponse{}}
 		for _, label := range labels {
 			resp.Labels = append(resp.Labels, getLabelResponse{
 				ID:      label.ID,

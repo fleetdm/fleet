@@ -29,7 +29,7 @@ type PackStore interface {
 }
 
 type PackService interface {
-	GetAllPacks(ctx context.Context) ([]*Pack, error)
+	ListPacks(ctx context.Context) ([]*Pack, error)
 	GetPack(ctx context.Context, id uint) (*Pack, error)
 	NewPack(ctx context.Context, p PackPayload) (*Pack, error)
 	ModifyPack(ctx context.Context, id uint, p PackPayload) (*Pack, error)

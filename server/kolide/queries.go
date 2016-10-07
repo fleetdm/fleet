@@ -16,7 +16,7 @@ type QueryStore interface {
 }
 
 type QueryService interface {
-	GetAllQueries(ctx context.Context) ([]*Query, error)
+	ListQueries(ctx context.Context) ([]*Query, error)
 	GetQuery(ctx context.Context, id uint) (*Query, error)
 	NewQuery(ctx context.Context, p QueryPayload) (*Query, error)
 	ModifyQuery(ctx context.Context, id uint, p QueryPayload) (*Query, error)

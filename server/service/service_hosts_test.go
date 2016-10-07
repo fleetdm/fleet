@@ -9,7 +9,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func TestGetAllHosts(t *testing.T) {
+func TestListHosts(t *testing.T) {
 	ds, err := datastore.New("gorm-sqlite3", ":memory:")
 	assert.Nil(t, err)
 
@@ -18,7 +18,7 @@ func TestGetAllHosts(t *testing.T) {
 
 	ctx := context.Background()
 
-	hosts, err := svc.GetAllHosts(ctx)
+	hosts, err := svc.ListHosts(ctx)
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 0)
 
@@ -27,7 +27,7 @@ func TestGetAllHosts(t *testing.T) {
 	})
 	assert.Nil(t, err)
 
-	hosts, err = svc.GetAllHosts(ctx)
+	hosts, err = svc.ListHosts(ctx)
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 1)
 }

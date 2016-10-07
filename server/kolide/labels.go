@@ -32,7 +32,7 @@ type LabelStore interface {
 }
 
 type LabelService interface {
-	GetAllLabels(ctx context.Context) ([]*Label, error)
+	ListLabels(ctx context.Context) ([]*Label, error)
 	GetLabel(ctx context.Context, id uint) (*Label, error)
 	NewLabel(ctx context.Context, p LabelPayload) (*Label, error)
 	ModifyLabel(ctx context.Context, id uint, p LabelPayload) (*Label, error)

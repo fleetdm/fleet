@@ -18,7 +18,7 @@ type HostStore interface {
 }
 
 type HostService interface {
-	GetAllHosts(ctx context.Context) ([]*Host, error)
+	ListHosts(ctx context.Context) ([]*Host, error)
 	GetHost(ctx context.Context, id uint) (*Host, error)
 	DeleteHost(ctx context.Context, id uint) error
 }

@@ -9,7 +9,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func TestGetAllLabels(t *testing.T) {
+func TestListLabels(t *testing.T) {
 	ds, err := datastore.New("gorm-sqlite3", ":memory:")
 	assert.Nil(t, err)
 
@@ -18,7 +18,7 @@ func TestGetAllLabels(t *testing.T) {
 
 	ctx := context.Background()
 
-	labels, err := svc.GetAllLabels(ctx)
+	labels, err := svc.ListLabels(ctx)
 	assert.Nil(t, err)
 	assert.Len(t, labels, 0)
 
@@ -28,7 +28,7 @@ func TestGetAllLabels(t *testing.T) {
 	})
 	assert.Nil(t, err)
 
-	labels, err = svc.GetAllLabels(ctx)
+	labels, err = svc.ListLabels(ctx)
 	assert.Nil(t, err)
 	assert.Len(t, labels, 1)
 	assert.Equal(t, "foo", labels[0].Name)

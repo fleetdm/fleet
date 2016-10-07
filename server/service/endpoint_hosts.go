@@ -36,21 +36,21 @@ func makeGetHostEndpoint(svc kolide.Service) endpoint.Endpoint {
 // List Hosts
 ////////////////////////////////////////////////////////////////////////////////
 
-type getAllHostsResponse struct {
+type listHostsResponse struct {
 	Hosts []kolide.Host `json:"hosts"`
 	Err   error         `json:"error,omitempty"`
 }
 
-func (r getAllHostsResponse) error() error { return r.Err }
+func (r listHostsResponse) error() error { return r.Err }
 
-func makeGetAllHostsEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeListHostsEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		hosts, err := svc.GetAllHosts(ctx)
+		hosts, err := svc.ListHosts(ctx)
 		if err != nil {
-			return getAllHostsResponse{Err: err}, nil
+			return listHostsResponse{Err: err}, nil
 		}
 
-		resp := getAllHostsResponse{Hosts: []kolide.Host{}}
+		resp := listHostsResponse{Hosts: []kolide.Host{}}
 		for _, host := range hosts {
 			resp.Hosts = append(resp.Hosts, *host)
 		}

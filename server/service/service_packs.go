@@ -5,7 +5,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (svc service) GetAllPacks(ctx context.Context) ([]*kolide.Pack, error) {
+func (svc service) ListPacks(ctx context.Context) ([]*kolide.Pack, error) {
 	return svc.ds.Packs()
 }
 
