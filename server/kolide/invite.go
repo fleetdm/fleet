@@ -58,20 +58,20 @@ type InvitePayload struct {
 
 // Invite represents an invitation for a user to join Kolide.
 type Invite struct {
-	ID        uint `gorm:"primary_key"`
-	CreatedAt time.Time
-	InvitedBy uint   `gorm:"not null"`
-	Email     string `gorm:"not null;unique_index:idx_invite_unique_email"`
-	Admin     bool
-	Name      string
-	Position  string
-	Token     string `gorm:"not null;unique_index:idx_invite_unique_key"`
+	ID        uint      `json:"id" gorm:"primary_key"`
+	CreatedAt time.Time `json:"-"`
+	InvitedBy uint      `json:"invited_by" gorm:"not null"`
+	Email     string    `json:"email" gorm:"not null;unique_index:idx_invite_unique_email"`
+	Admin     bool      `json:"admin"`
+	Name      string    `json:"name"`
+	Position  string    `json:"position,omitempty"`
+	Token     string    `json:"-" gorm:"not null;unique_index:idx_invite_unique_key"`
 }
 
 // TODO: fixme
 // this is not the right way to generate emails at all
 const inviteEmailTempate = `
-{{.InvitedBy}} invited you to join Kolide., 
+{{.InvitedBy}} invited you to join Kolide.,
 http://localhost:8080/signup?token={{.Token}}
 `
 

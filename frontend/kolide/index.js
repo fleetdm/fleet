@@ -61,7 +61,8 @@ class Kolide extends Base {
     const { USERS } = endpoints;
     const updateUserEndpoint = `${this.baseURL}${USERS}/${user.id}`;
 
-    return this.authenticatedPatch(updateUserEndpoint, JSON.stringify(formData));
+    return this.authenticatedPatch(updateUserEndpoint, JSON.stringify(formData))
+      .then(response => { return response.user; });
   }
 }
 

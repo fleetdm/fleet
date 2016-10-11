@@ -15,10 +15,8 @@ type getPackRequest struct {
 }
 
 type getPackResponse struct {
-	ID       uint   `json:"id"`
-	Name     string `json:"name"`
-	Platform string `json:"platform"`
-	Err      error  `json:"error,omitempty"`
+	Pack *kolide.Pack `json:"pack,omitempty"`
+	Err  error        `json:"error,omitempty"`
 }
 
 func (r getPackResponse) error() error { return r.Err }
@@ -30,11 +28,7 @@ func makeGetPackEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return getPackResponse{Err: err}, nil
 		}
-		return getPackResponse{
-			ID:       pack.ID,
-			Name:     pack.Name,
-			Platform: pack.Platform,
-		}, nil
+		return getPackResponse{pack, nil}, nil
 	}
 }
 
@@ -43,8 +37,8 @@ func makeGetPackEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type listPacksResponse struct {
-	Packs []getPackResponse `json:"packs"`
-	Err   error             `json:"error,omitempty"`
+	Packs []kolide.Pack `json:"packs"`
+	Err   error         `json:"error,omitempty"`
 }
 
 func (r listPacksResponse) error() error { return r.Err }
@@ -56,13 +50,9 @@ func makeListPacksEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return getPackResponse{Err: err}, nil
 		}
 
-		resp := listPacksResponse{Packs: []getPackResponse{}}
+		resp := listPacksResponse{Packs: []kolide.Pack{}}
 		for _, pack := range packs {
-			resp.Packs = append(resp.Packs, getPackResponse{
-				ID:       pack.ID,
-				Name:     pack.Name,
-				Platform: pack.Platform,
-			})
+			resp.Packs = append(resp.Packs, *pack)
 		}
 		return resp, nil
 	}
@@ -77,10 +67,8 @@ type createPackRequest struct {
 }
 
 type createPackResponse struct {
-	ID       uint   `json:"id"`
-	Name     string `json:"name"`
-	Platform string `json:"platform"`
-	Err      error  `json:"error,omitempty"`
+	Pack *kolide.Pack `json:"pack,omitempty"`
+	Err  error        `json:"error,omitempty"`
 }
 
 func (r createPackResponse) error() error { return r.Err }
@@ -92,11 +80,7 @@ func makeCreatePackEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return createPackResponse{Err: err}, nil
 		}
-		return createPackResponse{
-			ID:       pack.ID,
-			Name:     pack.Name,
-			Platform: pack.Platform,
-		}, nil
+		return createPackResponse{pack, nil}, nil
 	}
 }
 
@@ -110,10 +94,8 @@ type modifyPackRequest struct {
 }
 
 type modifyPackResponse struct {
-	ID       uint   `json:"id"`
-	Name     string `json:"name"`
-	Platform string `json:"platform"`
-	Err      error  `json:"error,omitempty"`
+	Pack *kolide.Pack `json:"pack,omitempty"`
+	Err  error        `json:"error,omitempty"`
 }
 
 func (r modifyPackResponse) error() error { return r.Err }
@@ -125,11 +107,7 @@ func makeModifyPackEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return modifyPackResponse{Err: err}, nil
 		}
-		return modifyPackResponse{
-			ID:       pack.ID,
-			Name:     pack.Name,
-			Platform: pack.Platform,
-		}, nil
+		return modifyPackResponse{pack, nil}, nil
 	}
 }
 
@@ -193,8 +171,8 @@ type getQueriesInPackRequest struct {
 }
 
 type getQueriesInPackResponse struct {
-	Queries []getQueryResponse
-	Err     error `json:"error,omitempty"`
+	Queries []kolide.Query `json:"queries"`
+	Err     error          `json:"error,omitempty"`
 }
 
 func (r getQueriesInPackResponse) error() error { return r.Err }
@@ -209,16 +187,7 @@ func makeGetQueriesInPackEndpoint(svc kolide.Service) endpoint.Endpoint {
 
 		var resp getQueriesInPackResponse
 		for _, query := range queries {
-			resp.Queries = append(resp.Queries, getQueryResponse{
-				ID:           query.ID,
-				Name:         query.Name,
-				Query:        query.Query,
-				Interval:     query.Interval,
-				Snapshot:     query.Snapshot,
-				Differential: query.Differential,
-				Platform:     query.Platform,
-				Version:      query.Version,
-			})
+			resp.Queries = append(resp.Queries, *query)
 		}
 		return resp, nil
 	}
@@ -285,8 +254,8 @@ type getLabelsForPackRequest struct {
 }
 
 type getLabelsForPackResponse struct {
-	Labels []getLabelResponse
-	Err    error `json:"error,omitempty"`
+	Labels []kolide.Label `json:"labels"`
+	Err    error          `json:"error,omitempty"`
 }
 
 func (r getLabelsForPackResponse) error() error { return r.Err }
@@ -301,11 +270,7 @@ func makeGetLabelsForPackEndpoint(svc kolide.Service) endpoint.Endpoint {
 
 		var resp getLabelsForPackResponse
 		for _, label := range labels {
-			resp.Labels = append(resp.Labels, getLabelResponse{
-				ID:      label.ID,
-				Name:    label.Name,
-				QueryID: label.QueryID,
-			})
+			resp.Labels = append(resp.Labels, *label)
 		}
 		return resp, nil
 	}

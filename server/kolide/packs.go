@@ -45,11 +45,11 @@ type PackService interface {
 }
 
 type Pack struct {
-	ID        uint `gorm:"primary_key"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Name      string `gorm:"not null;unique_index:idx_pack_unique_name"`
-	Platform  string
+	ID        uint      `json:"id" gorm:"primary_key"`
+	CreatedAt time.Time `json:"-"`
+	UpdatedAt time.Time `json:"-"`
+	Name      string    `json:"name" gorm:"not null;unique_index:idx_pack_unique_name"`
+	Platform  string    `json:"platform"`
 }
 
 type PackQuery struct {

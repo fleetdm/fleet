@@ -11,13 +11,8 @@ type createInviteRequest struct {
 }
 
 type createInviteResponse struct {
-	ID        uint   `json:"id"`
-	InvitedBy uint   `json:"invited_by"`
-	Email     string `json:"email"`
-	Name      string `json:"name"`
-	Admin     bool   `json:"admin"`
-	Position  string `json:"position,omitempty"`
-	Err       error  `json:"error,omitempty"`
+	Invite *kolide.Invite `json:"invite,omitempty"`
+	Err    error          `json:"error,omitempty"`
 }
 
 func (r createInviteResponse) error() error { return r.Err }
@@ -29,29 +24,13 @@ func makeCreateInviteEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return createInviteResponse{Err: err}, nil
 		}
-		return createInviteResponse{
-			ID:        invite.ID,
-			InvitedBy: invite.InvitedBy,
-			Email:     invite.Email,
-			Name:      invite.Name,
-			Position:  invite.Position,
-			Admin:     invite.Admin,
-		}, nil
+		return createInviteResponse{invite, nil}, nil
 	}
 }
 
-type inviteResponse struct {
-	ID        uint   `json:"id"`
-	InvitedBy uint   `json:"invited_by"`
-	Email     string `json:"email"`
-	Name      string `json:"name"`
-	Admin     bool   `json:"admin"`
-	Position  string `json:"position,omitempty"`
-}
-
 type listInvitesResponse struct {
-	Invites []inviteResponse `json:"invites"`
-	Err     error            `json:"error,omitempty"`
+	Invites []kolide.Invite `json:"invites"`
+	Err     error           `json:"error,omitempty"`
 }
 
 func (r listInvitesResponse) error() error { return r.Err }
@@ -63,16 +42,9 @@ func makeListInvitesEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return listInvitesResponse{Err: err}, nil
 		}
 
-		resp := listInvitesResponse{Invites: []inviteResponse{}}
+		resp := listInvitesResponse{Invites: []kolide.Invite{}}
 		for _, invite := range invites {
-			resp.Invites = append(resp.Invites, inviteResponse{
-				ID:        invite.ID,
-				InvitedBy: invite.InvitedBy,
-				Email:     invite.Email,
-				Name:      invite.Name,
-				Admin:     invite.Admin,
-				Position:  invite.Position,
-			})
+			resp.Invites = append(resp.Invites, *invite)
 		}
 		return resp, nil
 	}

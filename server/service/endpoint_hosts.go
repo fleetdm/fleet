@@ -15,8 +15,8 @@ type getHostRequest struct {
 }
 
 type getHostResponse struct {
-	kolide.Host
-	Err error `json:"error,omitempty"`
+	Host *kolide.Host `json:"host"`
+	Err  error        `json:"error,omitempty"`
 }
 
 func (r getHostResponse) error() error { return r.Err }
@@ -28,7 +28,7 @@ func makeGetHostEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return getHostResponse{Err: err}, nil
 		}
-		return getHostResponse{*host, nil}, nil
+		return getHostResponse{host, nil}, nil
 	}
 }
 

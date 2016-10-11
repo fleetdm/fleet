@@ -45,11 +45,11 @@ type LabelPayload struct {
 }
 
 type Label struct {
-	ID        uint `gorm:"primary_key"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Name      string `gorm:"not null;unique_index:idx_label_unique_name"`
-	QueryID   uint
+	ID        uint      `json:"id" gorm:"primary_key"`
+	CreatedAt time.Time `json:"-"`
+	UpdatedAt time.Time `json:"-"`
+	Name      string    `json:"name" gorm:"not null;unique_index:idx_label_unique_name"`
+	QueryID   uint      `json:"query_id"`
 }
 
 type LabelQueryExecution struct {

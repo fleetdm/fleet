@@ -15,10 +15,8 @@ type getLabelRequest struct {
 }
 
 type getLabelResponse struct {
-	ID      uint   `json:"id"`
-	Name    string `json:"name"`
-	QueryID uint   `json:"query_id"`
-	Err     error  `json:"error,omitempty"`
+	Label *kolide.Label `json:"label"`
+	Err   error         `json:"error,omitempty"`
 }
 
 func (r getLabelResponse) error() error { return r.Err }
@@ -30,11 +28,7 @@ func makeGetLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return getLabelResponse{Err: err}, nil
 		}
-		return getLabelResponse{
-			ID:      label.ID,
-			Name:    label.Name,
-			QueryID: label.QueryID,
-		}, nil
+		return getLabelResponse{label, nil}, nil
 	}
 }
 
@@ -43,8 +37,8 @@ func makeGetLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type listLabelsResponse struct {
-	Labels []getLabelResponse `json:"labels"`
-	Err    error              `json:"error,omitempty"`
+	Labels []kolide.Label `json:"labels"`
+	Err    error          `json:"error,omitempty"`
 }
 
 func (r listLabelsResponse) error() error { return r.Err }
@@ -56,13 +50,9 @@ func makeListLabelsEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return listLabelsResponse{Err: err}, nil
 		}
 
-		resp := listLabelsResponse{Labels: []getLabelResponse{}}
+		resp := listLabelsResponse{Labels: []kolide.Label{}}
 		for _, label := range labels {
-			resp.Labels = append(resp.Labels, getLabelResponse{
-				ID:      label.ID,
-				Name:    label.Name,
-				QueryID: label.QueryID,
-			})
+			resp.Labels = append(resp.Labels, *label)
 		}
 		return resp, nil
 	}
@@ -77,10 +67,8 @@ type createLabelRequest struct {
 }
 
 type createLabelResponse struct {
-	ID      uint   `json:"id"`
-	Name    string `json:"name"`
-	QueryID uint   `json:"query_id"`
-	Err     error  `json:"error,omitempty"`
+	Label *kolide.Label `json:"label"`
+	Err   error         `json:"error,omitempty"`
 }
 
 func (r createLabelResponse) error() error { return r.Err }
@@ -92,11 +80,7 @@ func makeCreateLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return createLabelResponse{Err: err}, nil
 		}
-		return createLabelResponse{
-			ID:      label.ID,
-			Name:    label.Name,
-			QueryID: label.QueryID,
-		}, nil
+		return createLabelResponse{label, nil}, nil
 	}
 }
 
@@ -110,10 +94,8 @@ type modifyLabelRequest struct {
 }
 
 type modifyLabelResponse struct {
-	ID      uint   `json:"id"`
-	Name    string `json:"name"`
-	QueryID uint   `json:"query_id"`
-	Err     error  `json:"error,omitempty"`
+	Label *kolide.Label `json:"label"`
+	Err   error         `json:"error,omitempty"`
 }
 
 func (r modifyLabelResponse) error() error { return r.Err }
@@ -125,11 +107,7 @@ func makeModifyLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return modifyLabelResponse{Err: err}, nil
 		}
-		return modifyLabelResponse{
-			ID:      label.ID,
-			Name:    label.Name,
-			QueryID: label.QueryID,
-		}, nil
+		return modifyLabelResponse{label, nil}, nil
 	}
 }
 

@@ -32,7 +32,8 @@ export const fetchCurrentUser = () => {
   return (dispatch) => {
     dispatch(loginRequest);
     return Kolide.me()
-      .then(user => {
+      .then(response => {
+        const { user } = response;
         const { email } = user;
         const emailHash = md5(email.toLowerCase());
 
@@ -52,12 +53,13 @@ export const loginUser = (formData) => {
     return new Promise((resolve, reject) => {
       dispatch(loginRequest);
       return Kolide.loginUser(formData)
-        .then(user => {
+        .then(response => {
+          const { user } = response;
           const { email } = user;
           const emailHash = md5(email.toLowerCase());
 
           user.gravatarURL = `https://www.gravatar.com/avatar/${emailHash}`;
-          dispatch(loginSuccess(user));
+          dispatch(loginSuccess(response));
           return resolve(user);
         })
         .catch(response => {

@@ -16,6 +16,7 @@ import (
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	"github.com/kolide/kolide-ose/server/datastore"
+	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
@@ -56,6 +57,11 @@ func TestLogin(t *testing.T) {
 			status:   http.StatusOK,
 		},
 		{
+			username: "user1",
+			password: testUsers["user1"].PlaintextPassword,
+			status:   http.StatusOK,
+		},
+		{
 			username: "nosuchuser",
 			password: "nosuchuser",
 			status:   http.StatusUnauthorized,
@@ -89,15 +95,9 @@ func TestLogin(t *testing.T) {
 		assert.Equal(t, tt.status, resp.StatusCode)
 
 		var jsn = struct {
-			Token              string `json:"token"`
-			ID                 uint   `json:"id"`
-			Username           string `json:"username"`
-			Email              string `json:"email"`
-			Name               string `json:"name"`
-			Admin              bool   `json:"admin"`
-			Enabled            bool   `json:"enabled"`
-			NeedsPasswordReset bool   `json:"needs_password_reset"`
-			Err                string `json:"error,omitempty"`
+			User  *kolide.User `json:"user"`
+			Token string       `json:"token"`
+			Err   string       `json:"error,omitempty"`
 		}{}
 		err = json.NewDecoder(resp.Body).Decode(&jsn)
 		assert.Nil(t, err)
@@ -107,7 +107,9 @@ func TestLogin(t *testing.T) {
 			continue // skip remaining tests
 		}
 
-		assert.Equal(t, shouldBeAdmin, jsn.Admin)
+		require.NotNil(t, jsn.User)
+		assert.Equal(t, shouldBeAdmin, jsn.User.Admin)
+		assert.Equal(t, tt.username, jsn.User.Username)
 
 		// ensure that a session was created for our test user and stored
 		sessions, err := ds.FindAllSessionsForUser(testUser.ID)

@@ -15,15 +15,8 @@ type getQueryRequest struct {
 }
 
 type getQueryResponse struct {
-	ID           uint   `json:"id"`
-	Name         string `json:"name"`
-	Query        string `json:"query"`
-	Interval     uint   `json:"interval"`
-	Snapshot     bool   `json:"snapshot"`
-	Differential bool   `json:"differential"`
-	Platform     string `json:"platform"`
-	Version      string `json:"version"`
-	Err          error  `json:"error,omitempty"`
+	Query *kolide.Query `json:"query,omitempty"`
+	Err   error         `json:"error,omitempty"`
 }
 
 func (r getQueryResponse) error() error { return r.Err }
@@ -35,16 +28,7 @@ func makeGetQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return getQueryResponse{Err: err}, nil
 		}
-		return getQueryResponse{
-			ID:           query.ID,
-			Name:         query.Name,
-			Query:        query.Query,
-			Interval:     query.Interval,
-			Snapshot:     query.Snapshot,
-			Differential: query.Differential,
-			Platform:     query.Platform,
-			Version:      query.Version,
-		}, nil
+		return getQueryResponse{query, nil}, nil
 	}
 }
 
@@ -53,8 +37,8 @@ func makeGetQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type listQueriesResponse struct {
-	Queries []getQueryResponse `json:"queries"`
-	Err     error              `json:"error,omitempty"`
+	Queries []kolide.Query `json:"queries"`
+	Err     error          `json:"error,omitempty"`
 }
 
 func (r listQueriesResponse) error() error { return r.Err }
@@ -66,18 +50,9 @@ func makeListQueriesEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return listQueriesResponse{Err: err}, nil
 		}
 
-		resp := listQueriesResponse{Queries: []getQueryResponse{}}
+		resp := listQueriesResponse{Queries: []kolide.Query{}}
 		for _, query := range queries {
-			resp.Queries = append(resp.Queries, getQueryResponse{
-				ID:           query.ID,
-				Name:         query.Name,
-				Query:        query.Query,
-				Interval:     query.Interval,
-				Snapshot:     query.Snapshot,
-				Differential: query.Differential,
-				Platform:     query.Platform,
-				Version:      query.Version,
-			})
+			resp.Queries = append(resp.Queries, *query)
 		}
 		return resp, nil
 	}
@@ -92,15 +67,8 @@ type createQueryRequest struct {
 }
 
 type createQueryResponse struct {
-	ID           uint   `json:"id"`
-	Name         string `json:"name"`
-	Query        string `json:"query"`
-	Interval     uint   `json:"interval"`
-	Snapshot     bool   `json:"snapshot"`
-	Differential bool   `json:"differential"`
-	Platform     string `json:"platform"`
-	Version      string `json:"version"`
-	Err          error  `json:"error,omitempty"`
+	Query *kolide.Query `json:"query,omitempty"`
+	Err   error         `json:"error,omitempty"`
 }
 
 func (r createQueryResponse) error() error { return r.Err }
@@ -112,16 +80,7 @@ func makeCreateQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return createQueryResponse{Err: err}, nil
 		}
-		return createQueryResponse{
-			ID:           query.ID,
-			Name:         query.Name,
-			Query:        query.Query,
-			Interval:     query.Interval,
-			Snapshot:     query.Snapshot,
-			Differential: query.Differential,
-			Platform:     query.Platform,
-			Version:      query.Version,
-		}, nil
+		return createQueryResponse{query, nil}, nil
 	}
 }
 
@@ -135,15 +94,8 @@ type modifyQueryRequest struct {
 }
 
 type modifyQueryResponse struct {
-	ID           uint   `json:"id"`
-	Name         string `json:"name"`
-	Query        string `json:"query"`
-	Interval     uint   `json:"interval"`
-	Snapshot     bool   `json:"snapshot"`
-	Differential bool   `json:"differential"`
-	Platform     string `json:"platform"`
-	Version      string `json:"version"`
-	Err          error  `json:"error,omitempty"`
+	Query *kolide.Query `json:"query,omitempty"`
+	Err   error         `json:"error,omitempty"`
 }
 
 func (r modifyQueryResponse) error() error { return r.Err }
@@ -155,16 +107,7 @@ func makeModifyQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return modifyQueryResponse{Err: err}, nil
 		}
-		return modifyQueryResponse{
-			ID:           query.ID,
-			Name:         query.Name,
-			Query:        query.Query,
-			Interval:     query.Interval,
-			Snapshot:     query.Snapshot,
-			Differential: query.Differential,
-			Platform:     query.Platform,
-			Version:      query.Version,
-		}, nil
+		return modifyQueryResponse{query, nil}, nil
 	}
 }
 

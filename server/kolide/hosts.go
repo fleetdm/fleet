@@ -23,27 +23,19 @@ type HostService interface {
 	DeleteHost(ctx context.Context, id uint) error
 }
 
-type HostPayload struct {
-	NodeKey   *string
-	HostName  *string
-	UUID      *string
-	IPAddress *string
-	Platform  *string
-}
-
 type Host struct {
-	ID               uint          `gorm:"primary_key" json:"id"`
-	CreatedAt        time.Time     `json:"created_at"`
+	ID               uint          `json:"id" gorm:"primary_key"`
+	CreatedAt        time.Time     `json:"-"`
 	UpdatedAt        time.Time     `json:"updated_at"`
 	DetailUpdateTime time.Time     `json:"detail_updated_at"` // Time that the host details were last updated
-	NodeKey          string        `gorm:"unique_index:idx_host_unique_nodekey" json:"-"`
+	NodeKey          string        `json:"-" gorm:"unique_index:idx_host_unique_nodekey"`
 	HostName         string        `json:"hostname"`
-	UUID             string        `gorm:"unique_index:idx_host_unique_uuid" json:"uuid"`
+	UUID             string        `json:"uuid" gorm:"unique_index:idx_host_unique_uuid"`
 	Platform         string        `json:"platform"`
 	OsqueryVersion   string        `json:"osquery_version"`
 	OSVersion        string        `json:"os_version"`
 	Uptime           time.Duration `json:"uptime"`
-	PhysicalMemory   int           `sql:"type:bigint" json:"memory"`
+	PhysicalMemory   int           `json:"memory" sql:"type:bigint"`
 	PrimaryMAC       string        `json:"mac"`
 	PrimaryIP        string        `json:"ip"`
 }

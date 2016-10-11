@@ -39,16 +39,16 @@ type PackPayload struct {
 }
 
 type Query struct {
-	ID           uint `gorm:"primary_key"`
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	Name         string `gorm:"not null;unique_index:idx_query_unique_name"`
-	Query        string `gorm:"not null"`
-	Interval     uint
-	Snapshot     bool
-	Differential bool
-	Platform     string
-	Version      string
+	ID           uint      `json:"id" gorm:"primary_key"`
+	CreatedAt    time.Time `json:"-"`
+	UpdatedAt    time.Time `json:"-"`
+	Name         string    `json:"name" gorm:"not null;unique_index:idx_query_unique_name"`
+	Query        string    `json:"query" gorm:"not null"`
+	Interval     uint      `json:"interval"`
+	Snapshot     bool      `json:"snapshot"`
+	Differential bool      `json:"differential"`
+	Platform     string    `json:"platform"`
+	Version      string    `json:"version"`
 }
 
 type DistributedQueryStatus int
