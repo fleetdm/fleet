@@ -5,6 +5,8 @@ export const CONFIG_START = 'CONFIG_START';
 export const CONFIG_SUCCESS = 'CONFIG_SUCCESS';
 export const SHOW_BACKGROUND_IMAGE = 'SHOW_BACKGROUND_IMAGE';
 export const HIDE_BACKGROUND_IMAGE = 'HIDE_BACKGROUND_IMAGE';
+export const SHOW_RIGHT_SIDE_PANEL = 'SHOW_RIGHT_SIDE_PANEL';
+export const REMOVE_RIGHT_SIDE_PANEL = 'REMOVE_RIGHT_SIDE_PANEL';
 
 export const showBackgroundImage = {
   type: SHOW_BACKGROUND_IMAGE,
@@ -35,4 +37,10 @@ export const getConfig = () => {
         return false;
       });
   };
+};
+export const showRightSidePanel = {
+  type: SHOW_RIGHT_SIDE_PANEL,
+};
+export const removeRightSidePanel = {
+  type: REMOVE_RIGHT_SIDE_PANEL,
 };

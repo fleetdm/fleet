@@ -1,14 +1,36 @@
-import React, { Component } from 'react';
+import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { find } from 'lodash';
 import NewQuery from '../../../components/Queries/NewQuery';
+import QuerySidePanel from '../../../components/Queries/QuerySidePanel';
+import { showRightSidePanel, removeRightSidePanel } from '../../../redux/nodes/app/actions';
+import { osqueryTables } from '../../../utilities/osquery_tables';
 
 class NewQueryPage extends Component {
-  constructor (props) {
-    super(props);
+  static propTypes = {
+    dispatch: PropTypes.func,
+  };
+
+  componentWillMount () {
+    const { dispatch } = this.props;
+    const selectedOsqueryTable = find(osqueryTables, { name: 'users' });
 
     this.state = {
-      selectedOsqueryTable: 'users',
+      selectedOsqueryTable,
       textEditorText: 'SELECT * FROM users u JOIN groups g WHERE u.gid = g.gid',
     };
+
+    dispatch(showRightSidePanel);
+
+    return false;
+  }
+
+  componentWillUnmount () {
+    const { dispatch } = this.props;
+
+    dispatch(removeRightSidePanel);
+
+    return false;
   }
 
   onNewQueryFormSubmit = (formData) => {
@@ -19,11 +41,10 @@ class NewQueryPage extends Component {
     };
 
     console.log('New Query Form submitted', data);
-
-    return false;
   }
 
-  onOsqueryTableSelect = (selectedOsqueryTable) => {
+  onOsqueryTableSelect = (tableName) => {
+    const selectedOsqueryTable = find(osqueryTables, { name: tableName.toLowerCase() });
     this.setState({ selectedOsqueryTable });
 
     return false;
@@ -48,9 +69,14 @@ class NewQueryPage extends Component {
           selectedOsqueryTable={selectedOsqueryTable}
           textEditorText={textEditorText}
         />
+        <QuerySidePanel
+          onOsqueryTableSelect={onOsqueryTableSelect}
+          onTextEditorInputChange={onTextEditorInputChange}
+          selectedOsqueryTable={selectedOsqueryTable}
+        />
       </div>
     );
   }
 }
 
-export default NewQueryPage;
+export default connect()(NewQueryPage);

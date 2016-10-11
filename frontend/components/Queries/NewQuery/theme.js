@@ -92,7 +92,7 @@ ace.define("ace/theme/kolide",["require","exports","module","ace/lib/dom"], func
   .ace-kolide .ace_heading,\
   .ace-kolide .ace_markup.ace_heading,\
   .ace-kolide .ace_string {\
-    color: #718C00\
+    color: #4FD061\
   }\
   .ace-kolide .ace_entity.ace_name.ace_tag,\
   .ace-kolide .ace_entity.ace_other.ace_attribute-name,\

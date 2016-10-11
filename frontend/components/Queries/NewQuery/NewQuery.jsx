@@ -112,7 +112,6 @@ class NewQuery extends Component {
     const { onTextEditorInputChange, textEditorText } = this.props;
     const { saveQuery, selectedTargets, targetOptions, theme } = this.state;
     const {
-      onBeforeLoad,
       onLoad,
       onSaveQueryFormSubmit,
       onTargetSelect,
@@ -135,7 +134,6 @@ class NewQuery extends Component {
             minLines={4}
             maxLines={4}
             name="query-editor"
-            onBeforeLoad={onBeforeLoad}
             onLoad={onLoad}
             onChange={onTextEditorInputChange}
             setOptions={{ enableLinking: true }}

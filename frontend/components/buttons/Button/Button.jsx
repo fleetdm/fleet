@@ -22,10 +22,7 @@ class Button extends Component {
     return (
       <button
         onClick={onClick}
-        style={{
-          ...componentStyles[variant],
-          ...style,
-        }}
+        style={[componentStyles[variant], style]}
         type={type}
       >
         {text}

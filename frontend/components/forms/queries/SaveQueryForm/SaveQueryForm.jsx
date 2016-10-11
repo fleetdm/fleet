@@ -4,6 +4,7 @@ import componentStyles from './styles';
 import Button from '../../../buttons/Button';
 import Dropdown from '../../fields/Dropdown';
 import InputField from '../../fields/InputField';
+import isMacOS from '../../../../utilities/isMacOS';
 import validatePresence from '../../validators/validate_presence';
 
 const RUN_TYPES = {
@@ -281,7 +282,7 @@ class SaveQueryForm extends Component {
 
     return (
       <form style={runQuerySectionStyles} onSubmit={onFormSubmit(RUN)}>
-        <span style={runQueryTipStyles}>&#8984; + Enter</span>
+        <span style={runQueryTipStyles}>{isMacOS() ? '⌘' : 'Ctrl'} + Enter</span>
         <Button
           style={buttonStyles}
           text="Run Query"

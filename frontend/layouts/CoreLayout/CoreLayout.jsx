@@ -14,11 +14,12 @@ export class CoreLayout extends Component {
     }),
     dispatch: PropTypes.func,
     notifications: PropTypes.object,
+    showRightSidePanel: PropTypes.bool,
     user: PropTypes.object,
   };
 
   render () {
-    const { children, config, dispatch, notifications, user } = this.props;
+    const { children, config, dispatch, notifications, showRightSidePanel, user } = this.props;
     const { wrapperStyles } = componentStyles;
 
     if (!user) return false;
@@ -32,7 +33,7 @@ export class CoreLayout extends Component {
           pathname={pathname}
           user={user}
         />
-        <div style={wrapperStyles}>
+        <div style={wrapperStyles(showRightSidePanel)}>
           <FlashMessage notification={notifications} dispatch={dispatch} />
           {children}
         </div>
@@ -42,11 +43,18 @@ export class CoreLayout extends Component {
 }
 
 const mapStateToProps = (state) => {
-  const { user } = state.auth;
-  const { notifications } = state;
-  const { config } = state.app;
+  const {
+    app: { config, showRightSidePanel },
+    auth: { user },
+    notifications,
+  } = state;
 
-  return { config, notifications, user };
+  return {
+    config,
+    notifications,
+    showRightSidePanel,
+    user,
+  };
 };
 
 export default connect(mapStateToProps)(CoreLayout);

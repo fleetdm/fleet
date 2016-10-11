@@ -1,42 +1,14 @@
 import React from 'react';
-import expect, { spyOn, restoreSpies } from 'expect';
+import expect, { restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
+import { createAceSpy } from '../../../test/helpers';
 import NewQuery from './index';
 
-const createAceSpy = () => {
-  return spyOn(global.window.ace, 'edit').andReturn({
-    $options: {},
-    getValue: () => { return 'Hello world'; },
-    getSession: () => {
-      return {
-        getMarkers: noop,
-        setAnnotations: noop,
-        setMode: noop,
-        setUseWrapMode: noop,
-      };
-    },
-    handleOptions: noop,
-    handleMarkers: noop,
-    on: noop,
-    renderer: {
-      setShowGutter: noop,
-    },
-    session: {
-      on: noop,
-    },
-    setFontSize: noop,
-    setMode: noop,
-    setOption: noop,
-    setOptions: noop,
-    setShowPrintMargin: noop,
-    setTheme: noop,
-    setValue: noop,
-  });
-};
-
 describe('NewQuery - component', () => {
-  beforeEach(createAceSpy);
+  beforeEach(() => {
+    createAceSpy();
+  });
   afterEach(restoreSpies);
 
   it('renders the SaveQuerySection', () => {

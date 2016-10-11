@@ -1,4 +1,5 @@
 /* eslint-disable */
+import { osqueryTableNames } from '../../../utilities/osquery_tables';
 ace.define("ace/mode/kolide_highlight_rules",["require","exports","module","ace/lib/oop","ace/mode/sql_highlight_rules"], function(acequire, exports, module) {
   "use strict";
 
@@ -26,7 +27,7 @@ ace.define("ace/mode/kolide_highlight_rules",["require","exports","module","ace/
         "money|real|number|integer"
         );
 
-    var osqueryTables = ("users|groups");
+    var osqueryTables = osqueryTableNames.join('|');
 
     var keywordMapper = this.createKeywordMapper({
       "osquery-token": osqueryTables,

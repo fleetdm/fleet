@@ -20,6 +20,7 @@ describe('App - reducer', () => {
         error: null,
         loading: false,
         showBackgroundImage: true,
+        showRightSidePanel: false,
       });
     });
   });
@@ -29,12 +30,14 @@ describe('App - reducer', () => {
       const state = {
         ...initialState,
         showBackgroundImage: true,
+        showRightSidePanel: false,
       };
       expect(reducer(state, hideBackgroundImage)).toEqual({
         config: {},
         error: null,
         loading: false,
         showBackgroundImage: false,
+        showRightSidePanel: false,
       });
     });
   });
@@ -46,6 +49,7 @@ describe('App - reducer', () => {
         error: null,
         loading: true,
         showBackgroundImage: false,
+        showRightSidePanel: false,
       });
     });
   });
@@ -62,6 +66,7 @@ describe('App - reducer', () => {
         error: null,
         loading: false,
         showBackgroundImage: false,
+        showRightSidePanel: false,
       });
     });
   });
@@ -78,6 +83,7 @@ describe('App - reducer', () => {
         error,
         loading: false,
         showBackgroundImage: false,
+        showRightSidePanel: false,
       });
     });
   });
