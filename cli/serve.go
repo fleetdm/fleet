@@ -147,7 +147,7 @@ the way that the kolide server works.
 			httpLogger := kitlog.NewContext(logger).With("component", "http")
 
 			apiHandler := service.MakeHandler(ctx, svc, config.Auth.JwtKey, httpLogger)
-			http.Handle("/api/", accessControl(apiHandler))
+			http.Handle("/api/", apiHandler)
 			http.Handle("/version", version.Handler())
 			http.Handle("/metrics", prometheus.Handler())
 			http.Handle("/assets/", service.ServeStaticAssets("/assets/"))
@@ -198,19 +198,4 @@ func (devMailService) SendEmail(e kolide.Email) error {
 	_, err = os.Stdout.Write(msg)
 	return err
 
-}
-
-// cors headers
-func accessControl(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type")
-
-		if r.Method == "OPTIONS" {
-			return
-		}
-
-		h.ServeHTTP(w, r)
-	})
 }
