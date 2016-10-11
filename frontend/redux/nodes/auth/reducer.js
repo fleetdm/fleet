@@ -12,7 +12,6 @@ export const initialState = {
   loading: false,
   error: null,
   user: null,
-  token: null,
 };
 
 const reducer = (state = initialState, action) => {
@@ -32,8 +31,7 @@ const reducer = (state = initialState, action) => {
       return {
         ...state,
         loading: false,
-        user: action.payload.data.user,
-        token: action.payload.data.token,
+        user: action.payload.user,
       };
     case LOGIN_FAILURE:
       return {
@@ -46,13 +44,12 @@ const reducer = (state = initialState, action) => {
         ...state,
         loading: false,
         user: null,
-        token: null,
       };
     case LOGOUT_FAILURE:
       return {
         ...state,
         loading: false,
-        error: action.payload.data.error,
+        error: action.payload.error,
       };
     default:
       return state;

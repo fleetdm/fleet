@@ -9,7 +9,7 @@ const authMiddleware = store => next => action => {
   const { type, payload } = action;
 
   if (type === LOGIN_SUCCESS) {
-    const { token } = payload.data;
+    const { token } = payload;
 
     if (token) {
       local.setItem('auth_token', token);

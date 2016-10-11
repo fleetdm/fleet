@@ -11,11 +11,12 @@ export const LOGOUT_FAILURE = 'LOGOUT_FAILURE';
 
 export const clearAuthErrors = { type: CLEAR_AUTH_ERRORS };
 export const loginRequest = { type: LOGIN_REQUEST };
-export const loginSuccess = (user) => {
+export const loginSuccess = ({ user, token }) => {
   return {
     type: LOGIN_SUCCESS,
     payload: {
-      data: user,
+      user,
+      token,
     },
   };
 };
@@ -38,7 +39,7 @@ export const fetchCurrentUser = () => {
         const emailHash = md5(email.toLowerCase());
 
         user.gravatarURL = `https://www.gravatar.com/avatar/${emailHash}`;
-        return dispatch(loginSuccess(user));
+        return dispatch(loginSuccess({ user }));
       })
       .catch(response => {
         dispatch(loginFailure('Unable to authenticate the current user'));
@@ -59,7 +60,7 @@ export const loginUser = (formData) => {
           const emailHash = md5(email.toLowerCase());
 
           user.gravatarURL = `https://www.gravatar.com/avatar/${emailHash}`;
-          dispatch(loginSuccess(response));
+          dispatch(loginSuccess({ ...response, user }));
           return resolve(user);
         })
         .catch(response => {
@@ -74,7 +75,9 @@ export const loginUser = (formData) => {
 export const logoutFailure = (error) => {
   return {
     type: LOGOUT_FAILURE,
-    error,
+    payload: {
+      error,
+    },
   };
 };
 export const logoutRequest = { type: LOGOUT_REQUEST };
