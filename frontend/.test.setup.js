@@ -1,11 +1,27 @@
 import jsdom from 'jsdom';
 
-const doc = jsdom.jsdom('<!doctype html><html><body></body></html>', {
-  url: 'http://localhost:8080/foo',
-});
+const doc = jsdom.jsdom(
+  `<!doctype html>
+  <html>
+    <body>
+      <input id="method1" value="hello world" />
+      <input id="method2" value="hello world" />
+    </body>
+  </html>`,
+  {
+    url: 'http://localhost:8080/foo'
+  },
+);
 
 global.document = doc;
+global.document.queryCommandEnabled = () => { return true; };
+global.document.execCommand = () => { return true; };
 global.window = doc.defaultView;
+global.window.getSelection = () => {
+  return {
+    removeAllRanges: () => { return true; },
+  };
+};
 global.navigator = global.window.navigator;
 
 function mockStorage() {

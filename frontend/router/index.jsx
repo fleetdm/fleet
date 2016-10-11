@@ -13,6 +13,7 @@ import ForgotPasswordPage from '../pages/ForgotPasswordPage';
 import HomePage from '../pages/HomePage';
 import LoginRoutes from '../components/LoginRoutes';
 import LogoutPage from '../pages/LogoutPage';
+import NewHostPage from '../pages/hosts/NewHostPage';
 import NewQueryPage from '../pages/Queries/NewQueryPage';
 import QueryPageWrapper from '../components/Queries/QueryPageWrapper';
 import ResetPasswordPage from '../pages/ResetPasswordPage';
@@ -39,6 +40,9 @@ const routes = (
               </Route>
               <Route path="queries" component={radium(QueryPageWrapper)}>
                 <Route path="new" component={radium(NewQueryPage)} />
+              </Route>
+              <Route path="hosts">
+                <Route path="new" component={radium(NewHostPage)} />
               </Route>
             </Route>
           </Route>

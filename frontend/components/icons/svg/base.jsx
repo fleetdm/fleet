@@ -1,10 +1,11 @@
 import React, { Component, PropTypes } from 'react';
-import { keys, pick } from 'lodash';
+import { keys, noop, pick } from 'lodash';
 import radium from 'radium';
 
 export const basePropTypes = {
   alt: PropTypes.string,
   name: PropTypes.string,
+  onClick: PropTypes.func,
   style: PropTypes.object,
   variant: PropTypes.string,
 };
@@ -16,6 +17,7 @@ export default function (SVGComponent) {
     };
 
     static defaultProps = {
+      onClick: noop,
       variant: 'default',
     };
 

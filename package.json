@@ -60,6 +60,7 @@
     "redux-thunk": "^2.1.0",
     "require-hacker": "^2.1.4",
     "sass-loader": "^4.0.2",
+    "select": "^1.0.6",
     "style-loader": "^0.13.0",
     "stylus-loader": "1.5.1",
     "url-loader": "^0.5.7",

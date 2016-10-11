@@ -39,6 +39,16 @@
   font-style: normal;
 }
 
+@font-face {
+  font-family: 'SourceCodePro';
+  src: url("/assets/fonts/source-code-pro/SourceCodePro-Regular.eot");
+  src: url("/assets/fonts/source-code-pro/SourceCodePro-Regular.eot?#iefix")
+  format("embedded-opentype"),
+  url("/assets/fonts/source-code-pro/SourceCodePro-Regular.ttf.woff")
+  format("woff"), url("/assets/fonts/source-code-pro/SourceCodePro-Regular.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal; }
+
 body {
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;

@@ -1,0 +1,16 @@
+.kolide-ol {
+  margin-left: 0;
+  padding-left: 0;
+  list-style-type: none;
+
+  li {
+    counter-increment: step-counter;
+    &::before {
+      content: counter(step-counter) ")";
+      display: inline-block;
+      margin-right: 10px;
+      text-align: left;
+      width: 10px;
+    }
+  }
+}

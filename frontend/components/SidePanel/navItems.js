@@ -13,12 +13,12 @@ export default (admin) => {
 
   const userNavItems = [
     {
-      defaultPathname: '/',
+      defaultPathname: '/hosts/new',
       icon: 'kolidecon-hosts',
       name: 'Hosts',
-      path: /^\/$/,
+      path: /^\/hosts/,
       subItems: [
-        { name: 'Add Hosts', path: /\/add/ },
+        { name: 'Add Hosts', path: /\/new/ },
         { name: 'Manage Hosts', path: /\/manage/ },
       ],
     },

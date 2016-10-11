@@ -1,6 +1,7 @@
 import React from 'react';
 import expect from 'expect';
 import { mount } from 'enzyme';
+import { noop } from 'lodash';
 import base from './base';
 import { KolideLoginBackground } from './KolideLoginBackground/KolideLoginBackground.svg.jsx';
 
@@ -18,6 +19,7 @@ describe('base - svg HOC', () => {
     expect(mountedComponent.find(KolideLoginBackground).props()).toEqual({
       alt: 'image alt',
       name: 'component name',
+      onClick: noop,
       variant: 'default',
     });
   });
