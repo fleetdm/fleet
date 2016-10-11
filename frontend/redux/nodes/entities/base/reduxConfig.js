@@ -8,19 +8,37 @@ const initialState = {
 };
 
 const reduxConfig = ({
+  createFunc = noop,
   entityName,
   loadFunc,
-  parseFunc = noop,
+  parseFunc,
   schema,
   updateFunc,
 }) => {
   const actionTypes = {
+    CREATE_FAILURE: `${entityName}_CREATE_FAILURE`,
+    CREATE_REQUEST: `${entityName}_CREATE_REQUEST`,
+    CREATE_SUCCESS: `${entityName}_CREATE_SUCCESS`,
     LOAD_FAILURE: `${entityName}_LOAD_FAILURE`,
     LOAD_REQUEST: `${entityName}_LOAD_REQUEST`,
     LOAD_SUCCESS: `${entityName}_LOAD_SUCCESS`,
     UPDATE_FAILURE: `${entityName}_UPDATE_FAILURE`,
     UPDATE_REQUEST: `${entityName}_UPDATE_REQUEST`,
     UPDATE_SUCCESS: `${entityName}_UPDATE_SUCCESS`,
+  };
+
+  const createFailure = (errors) => {
+    return {
+      type: actionTypes.CREATE_FAILURE,
+      payload: { errors },
+    };
+  };
+  const createRequest = { type: actionTypes.CREATE_REQUEST };
+  const createSuccess = (data) => {
+    return {
+      type: actionTypes.CREATE_SUCCESS,
+      payload: { data },
+    };
   };
 
   const loadFailure = (errors) => {
@@ -52,9 +70,35 @@ const reduxConfig = ({
   };
 
   const parsedResponse = (responseArray) => {
+    if (!parseFunc) return responseArray;
+
     return responseArray.map(response => {
       return parseFunc(response);
     });
+  };
+
+  const create = (...args) => {
+    return (dispatch) => {
+      dispatch(createRequest);
+
+      return createFunc(...args)
+        .then(response => {
+          if (!response) return [];
+
+          const { entities } = normalize(parsedResponse([response]), arrayOf(schema));
+
+          return dispatch(createSuccess(entities));
+        })
+        .catch(response => {
+          const { errors } = response;
+          const { error } = response.message || {};
+          const errorMessage = errors || error;
+
+          dispatch(createFailure(errorMessage));
+
+          throw error;
+        });
+    };
   };
 
   const load = (...args) => {
@@ -99,18 +143,21 @@ const reduxConfig = ({
   };
 
   const actions = {
+    create,
     load,
     update,
   };
 
   const reducer = (state = initialState, { type, payload }) => {
     switch (type) {
-      case actionTypes.UPDATE_REQUEST:
+      case actionTypes.CREATE_REQUEST:
       case actionTypes.LOAD_REQUEST:
+      case actionTypes.UPDATE_REQUEST:
         return {
           ...state,
           loading: true,
         };
+      case actionTypes.CREATE_SUCCESS:
       case actionTypes.UPDATE_SUCCESS:
       case actionTypes.LOAD_SUCCESS:
         return {
@@ -121,14 +168,13 @@ const reduxConfig = ({
             ...payload.data[entityName],
           },
         };
+      case actionTypes.CREATE_FAILURE:
       case actionTypes.UPDATE_FAILURE:
       case actionTypes.LOAD_FAILURE:
         return {
           ...state,
           loading: false,
-          errors: {
-            ...payload.errors,
-          },
+          errors: payload.errors,
         };
       default:
         return state;

@@ -23,6 +23,12 @@ class Kolide extends Base {
       .then(response => { return response.users; });
   }
 
+  inviteUser = (formData) => {
+    const { INVITES } = endpoints;
+
+    return this.authenticatedPost(this.endpoint(INVITES), JSON.stringify(formData));
+  }
+
   loginUser ({ username, password }) {
     const { LOGIN } = endpoints;
     const loginEndpoint = this.baseURL + LOGIN;

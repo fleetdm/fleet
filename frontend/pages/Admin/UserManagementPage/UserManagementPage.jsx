@@ -3,6 +3,7 @@ import { connect } from 'react-redux';
 import componentStyles from './styles';
 import entityGetter from '../../../redux/entityGetter';
 import Button from '../../../components/buttons/Button';
+import inviteActions from '../../../redux/nodes/entities/invites/actions';
 import InviteUserForm from '../../../components/forms/InviteUserForm';
 import Modal from '../../../components/Modal';
 import userActions from '../../../redux/nodes/entities/users/actions';
@@ -93,8 +94,19 @@ class UserManagementPage extends Component {
   }
 
   onInviteUserSubmit = (formData) => {
-    console.log('user invited', formData);
-    return this.toggleInviteUserModal();
+    const { dispatch } = this.props;
+
+    dispatch(inviteActions.create(formData))
+      .then(() => {
+        dispatch(renderFlash('success', 'User invited'));
+        return this.toggleInviteUserModal();
+      })
+      .catch(error => {
+        const inviteError = error === 'resource already created'
+          ? 'User has already been invited'
+          : error;
+        this.setState({ inviteError });
+      });
   }
 
   onInviteCancel = (evt) => {
@@ -129,7 +141,8 @@ class UserManagementPage extends Component {
   }
 
   renderModal = () => {
-    const { showInviteUserModal } = this.state;
+    const { currentUser } = this.props;
+    const { inviteError, showInviteUserModal } = this.state;
     const { onInviteCancel, onInviteUserSubmit, toggleInviteUserModal } = this;
 
     if (!showInviteUserModal) return false;
@@ -140,6 +153,8 @@ class UserManagementPage extends Component {
         onExit={toggleInviteUserModal}
       >
         <InviteUserForm
+          error={inviteError}
+          invitedBy={currentUser}
           onCancel={onInviteCancel}
           onSubmit={onInviteUserSubmit}
         />

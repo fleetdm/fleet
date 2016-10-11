@@ -8,6 +8,10 @@ import validEmail from '../validators/valid_email';
 
 class InviteUserForm extends Component {
   static propTypes = {
+    error: PropTypes.string,
+    invitedBy: PropTypes.shape({
+      id: PropTypes.number,
+    }),
     onCancel: PropTypes.func,
     onSubmit: PropTypes.func,
   };
@@ -17,14 +21,30 @@ class InviteUserForm extends Component {
 
     this.state = {
       errors: {
+        admin: null,
         email: null,
-        role: null,
+        name: null,
       },
       formData: {
+        admin: 'false',
         email: null,
-        role: 'user',
+        name: null,
       },
     };
+  }
+
+  componentWillReceiveProps (nextProps) {
+    const { error } = nextProps;
+    const { errors } = this.state;
+
+    if (this.props.error !== error) {
+      this.setState({
+        errors: {
+          ...errors,
+          email: error,
+        },
+      });
+    }
   }
 
   onInputChange = (formField) => {
@@ -50,10 +70,15 @@ class InviteUserForm extends Component {
     const valid = this.validate();
 
     if (valid) {
-      const { formData } = this.state;
-      const { onSubmit } = this.props;
+      const { formData: { admin, email, name } } = this.state;
+      const { invitedBy, onSubmit } = this.props;
 
-      return onSubmit(formData);
+      return onSubmit({
+        admin: admin === 'true',
+        email,
+        invited_by: invitedBy.id,
+        name,
+      });
     }
 
     return false;
@@ -92,7 +117,7 @@ class InviteUserForm extends Component {
 
   render () {
     const { buttonStyles, buttonWrapperStyles, radioElementStyles, roleTitleStyles } = componentStyles;
-    const { errors, formData: { role } } = this.state;
+    const { errors, formData: { admin } } = this.state;
     const { onCancel } = this.props;
     const { onFormSubmit, onInputChange } = this;
 
@@ -100,6 +125,12 @@ class InviteUserForm extends Component {
       <form onSubmit={onFormSubmit}>
         <InputFieldWithIcon
           autofocus
+          error={errors.name}
+          name="name"
+          onChange={onInputChange('name')}
+          placeholder="Name"
+        />
+        <InputFieldWithIcon
           error={errors.email}
           name="email"
           onChange={onInputChange('email')}
@@ -108,17 +139,17 @@ class InviteUserForm extends Component {
         <div style={radioElementStyles}>
           <p style={roleTitleStyles}>role</p>
           <input
-            checked={role === 'user'}
-            onChange={onInputChange('role')}
+            checked={admin === 'false'}
+            onChange={onInputChange('admin')}
             type="radio"
-            value="user"
+            value="false"
           /> USER (default)
           <br />
           <input
-            checked={role === 'admin'}
-            onChange={onInputChange('role')}
+            checked={admin === 'true'}
+            onChange={onInputChange('admin')}
             type="radio"
-            value="admin"
+            value="true"
           /> ADMIN
         </div>
         <div style={buttonWrapperStyles}>

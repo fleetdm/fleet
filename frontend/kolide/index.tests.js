@@ -8,6 +8,7 @@ const {
   validForgotPasswordRequest,
   validGetConfigRequest,
   validGetUsersRequest,
+  validInviteUserRequest,
   validLoginRequest,
   validLogoutRequest,
   validMeRequest,
@@ -45,6 +46,28 @@ describe('Kolide - API client', () => {
       Kolide.getUsers(bearerToken)
         .then((users) => {
           expect(users).toEqual([validUser]);
+          expect(request.isDone()).toEqual(true);
+          done();
+        })
+        .catch(done);
+    });
+  });
+
+  describe('#inviteUser', () => {
+    it('calls the appropriate endpoint with the correct parameters', (done) => {
+      const bearerToken = 'valid-bearer-token';
+      const formData = {
+        email: 'new@user.org',
+        admin: false,
+        invited_by: 1,
+        id: 1,
+        name: '',
+      };
+      const request = validInviteUserRequest(bearerToken, formData);
+
+      Kolide.setBearerToken(bearerToken);
+      Kolide.inviteUser(formData)
+        .then(() => {
           expect(request.isDone()).toEqual(true);
           done();
         })
