@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/WatchBeam/clock"
 	kitlog "github.com/go-kit/kit/log"
@@ -82,6 +83,7 @@ the way that the kolide server works.
 
 			if devMode {
 				createDevUsers(ds, config)
+				createDevHosts(ds, config)
 				createDevOrgInfo(svc, config)
 
 			}
@@ -202,6 +204,44 @@ func createDevUsers(ds kolide.Datastore, config config.KolideConfig) {
 		_, err = ds.NewUser(&user)
 		if err != nil {
 			initFatal(err, "creating bootstrap user")
+		}
+	}
+}
+
+// Bootstrap a few hosts when using the in-memory database.
+func createDevHosts(ds kolide.Datastore, config config.KolideConfig) {
+	hosts := []kolide.Host{
+		{
+			NodeKey:        "totally-legit",
+			HostName:       "jmeller-mbp.local",
+			UUID:           "1234-5678-9101",
+			Platform:       "darwin",
+			OsqueryVersion: "2.0.0",
+			OSVersion:      "10.10.1",
+			Uptime:         60 * time.Minute,
+			PhysicalMemory: 4145483776,
+			PrimaryMAC:     "10:11:12:13:14:15",
+			PrimaryIP:      "192.168.1.10",
+		},
+		{
+			NodeKey:        "definitely-legit",
+			HostName:       "marpaia.local",
+			UUID:           "1234-5678-9102",
+			Platform:       "windows",
+			OsqueryVersion: "2.0.0",
+			OSVersion:      "1607",
+			Uptime:         60 * time.Minute,
+			PhysicalMemory: 17179869184,
+			PrimaryMAC:     "10:11:12:13:14:16",
+			PrimaryIP:      "192.168.1.11",
+		},
+	}
+
+	for _, host := range hosts {
+		host := host
+		_, err := ds.NewHost(&host)
+		if err != nil {
+			initFatal(err, "creating bootstrap host")
 		}
 	}
 }
