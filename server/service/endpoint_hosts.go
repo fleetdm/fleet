@@ -6,6 +6,11 @@ import (
 	"golang.org/x/net/context"
 )
 
+type hostResponse struct {
+	kolide.Host
+	Status string `json:"status"`
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Get Host
 ////////////////////////////////////////////////////////////////////////////////
@@ -15,8 +20,8 @@ type getHostRequest struct {
 }
 
 type getHostResponse struct {
-	Host *kolide.Host `json:"host"`
-	Err  error        `json:"error,omitempty"`
+	Host *hostResponse `json:"host"`
+	Err  error         `json:"error,omitempty"`
 }
 
 func (r getHostResponse) error() error { return r.Err }
@@ -28,7 +33,7 @@ func makeGetHostEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return getHostResponse{Err: err}, nil
 		}
-		return getHostResponse{host, nil}, nil
+		return getHostResponse{&hostResponse{*host, svc.HostStatus(ctx, *host)}, nil}, nil
 	}
 }
 
@@ -37,8 +42,8 @@ func makeGetHostEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type listHostsResponse struct {
-	Hosts []kolide.Host `json:"hosts"`
-	Err   error         `json:"error,omitempty"`
+	Hosts []hostResponse `json:"hosts"`
+	Err   error          `json:"error,omitempty"`
 }
 
 func (r listHostsResponse) error() error { return r.Err }
@@ -50,9 +55,9 @@ func makeListHostsEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return listHostsResponse{Err: err}, nil
 		}
 
-		resp := listHostsResponse{Hosts: []kolide.Host{}}
+		resp := listHostsResponse{Hosts: []hostResponse{}}
 		for _, host := range hosts {
-			resp.Hosts = append(resp.Hosts, *host)
+			resp.Hosts = append(resp.Hosts, hostResponse{*host, svc.HostStatus(ctx, *host)})
 		}
 		return resp, nil
 	}
