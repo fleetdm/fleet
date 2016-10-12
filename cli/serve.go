@@ -51,7 +51,7 @@ the way that the kolide server works.
 
 			var mailService kolide.MailService
 			if devMode {
-				mailService = devMailService{}
+				mailService = createDevMailService(config)
 			} else {
 				mailService = mail.NewService(config.SMTP)
 			}
@@ -81,49 +81,9 @@ the way that the kolide server works.
 			}
 
 			if devMode {
-				// Bootstrap a few users when using the in-memory database.
-				// Each user's default password will just be their username.
-				users := []kolide.User{
-					{
-						Name:     "Admin User",
-						Username: "admin",
-						Email:    "admin@kolide.co",
-						Position: "Director of Security",
-						Admin:    true,
-						Enabled:  true,
-					},
-					{
-						Name:     "Normal User",
-						Username: "user",
-						Email:    "user@kolide.co",
-						Position: "Security Engineer",
-						Admin:    false,
-						Enabled:  true,
-					},
-				}
+				createDevUsers(ds, config)
+				createDevOrgInfo(svc, config)
 
-				for _, user := range users {
-					user := user
-					err := user.SetPassword(user.Username, config.Auth.SaltKeySize, config.Auth.BcryptCost)
-					if err != nil {
-						initFatal(err, "creating bootstrap user")
-					}
-					_, err = ds.NewUser(&user)
-					if err != nil {
-						initFatal(err, "creating bootstrap user")
-					}
-				}
-				devOrgInfo := &kolide.OrgInfo{
-					OrgName:    "Kolide",
-					OrgLogoURL: fmt.Sprintf("%s/logo.png", config.Server.Address),
-				}
-				_, err := svc.NewOrgInfo(ctx, kolide.OrgInfoPayload{
-					OrgName:    &devOrgInfo.OrgName,
-					OrgLogoURL: &devOrgInfo.OrgLogoURL,
-				})
-				if err != nil {
-					initFatal(err, "creating fake org info")
-				}
 			}
 
 			fieldKeys := []string{"method", "error"}
@@ -197,5 +157,65 @@ func (devMailService) SendEmail(e kolide.Email) error {
 	fmt.Printf("From: %q To: %q \n", e.From, e.To)
 	_, err = os.Stdout.Write(msg)
 	return err
+}
 
+// Creates the mail service to be used with the --dev flag.
+// If the user provides SMTP settings, then an actual MailService will be returned,
+// otherwise return the mock devMailService which prints the contents of an email to stdout.
+func createDevMailService(config config.KolideConfig) kolide.MailService {
+	smtp := config.SMTP
+	if smtp.Server != "" &&
+		smtp.Username != "" &&
+		smtp.Password != "" {
+		return mail.NewService(config.SMTP)
+	}
+	return devMailService{}
+}
+
+// Bootstrap a few users when using the in-memory database.
+// Each user's default password will just be their username.
+func createDevUsers(ds kolide.Datastore, config config.KolideConfig) {
+	users := []kolide.User{
+		{
+			Name:     "Admin User",
+			Username: "admin",
+			Email:    "admin@kolide.co",
+			Position: "Director of Security",
+			Admin:    true,
+			Enabled:  true,
+		},
+		{
+			Name:     "Normal User",
+			Username: "user",
+			Email:    "user@kolide.co",
+			Position: "Security Engineer",
+			Admin:    false,
+			Enabled:  true,
+		},
+	}
+	for _, user := range users {
+		user := user
+		err := user.SetPassword(user.Username, config.Auth.SaltKeySize, config.Auth.BcryptCost)
+		if err != nil {
+			initFatal(err, "creating bootstrap user")
+		}
+		_, err = ds.NewUser(&user)
+		if err != nil {
+			initFatal(err, "creating bootstrap user")
+		}
+	}
+}
+
+func createDevOrgInfo(svc kolide.Service, config config.KolideConfig) {
+	devOrgInfo := &kolide.OrgInfo{
+		OrgName:    "Kolide",
+		OrgLogoURL: fmt.Sprintf("%s/logo.png", config.Server.Address),
+	}
+	_, err := svc.NewOrgInfo(context.Background(), kolide.OrgInfoPayload{
+		OrgName:    &devOrgInfo.OrgName,
+		OrgLogoURL: &devOrgInfo.OrgLogoURL,
+	})
+	if err != nil {
+		initFatal(err, "creating fake org info")
+	}
 }
