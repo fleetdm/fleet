@@ -3,6 +3,7 @@ package service
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"golang.org/x/net/context"
 )
@@ -44,5 +45,6 @@ func decodeLoginRequest(ctx context.Context, r *http.Request) (interface{}, erro
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, err
 	}
+	req.Username = strings.ToLower(req.Username)
 	return req, nil
 }

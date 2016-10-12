@@ -85,15 +85,29 @@ func TestDecodeLoginRequest(t *testing.T) {
 		assert.Equal(t, "foo", params.Username)
 		assert.Equal(t, "bar", params.Password)
 	}).Methods("POST")
-
-	var body bytes.Buffer
-	body.Write([]byte(`{
+	t.Run("lowercase username", func(t *testing.T) {
+		var body bytes.Buffer
+		body.Write([]byte(`{
         "username": "foo",
         "password": "bar"
     }`))
 
-	router.ServeHTTP(
-		httptest.NewRecorder(),
-		httptest.NewRequest("POST", "/api/v1/kolide/login", &body),
-	)
+		router.ServeHTTP(
+			httptest.NewRecorder(),
+			httptest.NewRequest("POST", "/api/v1/kolide/login", &body),
+		)
+	})
+	t.Run("uppercase username", func(t *testing.T) {
+		var body bytes.Buffer
+		body.Write([]byte(`{
+        "username": "Foo",
+        "password": "bar"
+    }`))
+
+		router.ServeHTTP(
+			httptest.NewRecorder(),
+			httptest.NewRequest("POST", "/api/v1/kolide/login", &body),
+		)
+	})
+
 }

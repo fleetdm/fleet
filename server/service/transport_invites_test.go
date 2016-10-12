@@ -23,15 +23,33 @@ func TestDecodeCreateInviteRequest(t *testing.T) {
 		assert.Equal(t, uint(1), *params.payload.InvitedBy)
 	}).Methods("POST")
 
-	var body bytes.Buffer
-	body.Write([]byte(`{
+	t.Run("lowercase email", func(t *testing.T) {
+		var body bytes.Buffer
+		body.Write([]byte(`{
         "name": "foo",
         "email": "foo@kolide.co",
         "invited_by": 1
     }`))
 
-	router.ServeHTTP(
-		httptest.NewRecorder(),
-		httptest.NewRequest("POST", "/api/v1/kolide/invites", &body),
-	)
+		router.ServeHTTP(
+			httptest.NewRecorder(),
+			httptest.NewRequest("POST", "/api/v1/kolide/invites", &body),
+		)
+	})
+
+	t.Run("uppercase email", func(t *testing.T) {
+		// email string should be lowerased after decode.
+		var body bytes.Buffer
+		body.Write([]byte(`{
+        "name": "foo",
+        "email": "Foo@Kolide.co",
+        "invited_by": 1
+    }`))
+
+		router.ServeHTTP(
+			httptest.NewRecorder(),
+			httptest.NewRequest("POST", "/api/v1/kolide/invites", &body),
+		)
+	})
+
 }
