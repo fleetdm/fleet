@@ -2,6 +2,12 @@
 
 PATH := $(GOPATH)/bin:$(shell npm bin):$(PATH)
 
+ifeq ($(OS), Windows_NT)
+	GC_OFF = set GOGC=off &&
+else
+	GC_OFF = GOGC=off
+endif
+
 ifneq ($(OS), Windows_NT)
 	ifeq ($(shell uname), Darwin)
 		SHELL := /bin/bash
@@ -70,7 +76,7 @@ else#
 endif
 
 build: .prefix
-	GOGC=off go build -i -o ${OUTPUT} -ldflags "\
+	${GC_OFF} go build -i -o ${OUTPUT} -ldflags "\
 	-X github.com/kolide/kolide-ose/server/version.version=${VERSION} \
 	-X github.com/kolide/kolide-ose/server/version.branch=${BRANCH} \
 	-X github.com/kolide/kolide-ose/server/version.revision=${REVISION} \
