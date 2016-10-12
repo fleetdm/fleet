@@ -70,7 +70,7 @@ else#
 endif
 
 build: .prefix
-	go build -i -o ${OUTPUT} -ldflags "\
+	GOGC=off go build -i -o ${OUTPUT} -ldflags "\
 	-X github.com/kolide/kolide-ose/server/version.version=${VERSION} \
 	-X github.com/kolide/kolide-ose/server/version.branch=${BRANCH} \
 	-X github.com/kolide/kolide-ose/server/version.revision=${REVISION} \
