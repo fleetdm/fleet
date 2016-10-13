@@ -50,9 +50,9 @@ func (orm gormDB) Pack(pid uint) (*kolide.Pack, error) {
 	return pack, nil
 }
 
-func (orm gormDB) Packs() ([]*kolide.Pack, error) {
+func (orm gormDB) Packs(opt kolide.ListOptions) ([]*kolide.Pack, error) {
 	var packs []*kolide.Pack
-	err := orm.DB.Find(&packs).Error
+	err := orm.applyListOptions(opt).Find(&packs).Error
 	return packs, err
 }
 
@@ -151,7 +151,7 @@ func (orm gormDB) ActivePacksForHost(hid uint) ([]*kolide.Pack, error) {
 
 	// we will need to give some subset of packs to this host based on the
 	// labels which this host is known to belong to
-	allPacks, err := orm.Packs()
+	allPacks, err := orm.Packs(kolide.ListOptions{})
 	if err != nil {
 		return nil, err
 	}

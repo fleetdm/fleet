@@ -68,7 +68,7 @@ func (mw loggingMiddleware) Invites(ctx context.Context) ([]*kolide.Invite, erro
 			"took", time.Since(begin),
 		)
 	}(time.Now())
-	invites, err = mw.Service.Invites(ctx)
+	invites, err = mw.Service.ListInvites(ctx, kolide.ListOptions{})
 	return invites, err
 }
 

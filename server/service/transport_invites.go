@@ -32,3 +32,11 @@ func decodeDeleteInviteRequest(ctx context.Context, r *http.Request) (interface{
 	req.ID = id
 	return req, nil
 }
+
+func decodeListInvitesRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	opt, err := listOptionsFromRequest(r)
+	if err != nil {
+		return nil, err
+	}
+	return listInvitesRequest{ListOptions: opt}, nil
+}

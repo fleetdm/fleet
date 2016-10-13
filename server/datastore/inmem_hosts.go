@@ -2,6 +2,7 @@ package datastore
 
 import (
 	"errors"
+	"sort"
 	"time"
 
 	"github.com/kolide/kolide-ose/server/kolide"
@@ -59,14 +60,25 @@ func (orm *inmem) Host(id uint) (*kolide.Host, error) {
 	return host, nil
 }
 
-func (orm *inmem) Hosts() ([]*kolide.Host, error) {
+func (orm *inmem) Hosts(opt kolide.ListOptions) ([]*kolide.Host, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
-	hosts := []*kolide.Host{}
-	for _, host := range orm.hosts {
-		hosts = append(hosts, host)
+	// We need to sort by keys to provide reliable ordering
+	keys := []int{}
+	for k, _ := range orm.hosts {
+		keys = append(keys, int(k))
 	}
+	sort.Ints(keys)
+
+	hosts := []*kolide.Host{}
+	for _, k := range keys {
+		hosts = append(hosts, orm.hosts[uint(k)])
+	}
+
+	// Apply limit/offset
+	low, high := orm.getLimitOffsetSliceBounds(opt, len(hosts))
+	hosts = hosts[low:high]
 
 	return hosts, nil
 }

@@ -35,6 +35,9 @@ func makeGetQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 // List Queries
 ////////////////////////////////////////////////////////////////////////////////
+type listQueriesRequest struct {
+	ListOptions kolide.ListOptions
+}
 
 type listQueriesResponse struct {
 	Queries []kolide.Query `json:"queries"`
@@ -45,7 +48,8 @@ func (r listQueriesResponse) error() error { return r.Err }
 
 func makeListQueriesEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		queries, err := svc.ListQueries(ctx)
+		req := request.(listQueriesRequest)
+		queries, err := svc.ListQueries(ctx, req.ListOptions)
 		if err != nil {
 			return listQueriesResponse{Err: err}, nil
 		}

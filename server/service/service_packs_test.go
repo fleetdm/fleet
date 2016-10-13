@@ -18,7 +18,7 @@ func TestListPacks(t *testing.T) {
 
 	ctx := context.Background()
 
-	queries, err := svc.ListPacks(ctx)
+	queries, err := svc.ListPacks(ctx, kolide.ListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
 
@@ -27,7 +27,7 @@ func TestListPacks(t *testing.T) {
 	})
 	assert.Nil(t, err)
 
-	queries, err = svc.ListPacks(ctx)
+	queries, err = svc.ListPacks(ctx, kolide.ListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, queries, 1)
 }
@@ -70,7 +70,7 @@ func TestNewPack(t *testing.T) {
 
 	assert.Nil(t, err)
 
-	queries, err := ds.Packs()
+	queries, err := ds.Packs(kolide.ListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, queries, 1)
 }
@@ -120,7 +120,7 @@ func TestDeletePack(t *testing.T) {
 	err = svc.DeletePack(ctx, pack.ID)
 	assert.Nil(t, err)
 
-	queries, err := ds.Packs()
+	queries, err := ds.Packs(kolide.ListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
 

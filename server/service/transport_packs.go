@@ -49,6 +49,14 @@ func decodeGetPackRequest(ctx context.Context, r *http.Request) (interface{}, er
 	return req, nil
 }
 
+func decodeListPacksRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	opt, err := listOptionsFromRequest(r)
+	if err != nil {
+		return nil, err
+	}
+	return listPacksRequest{ListOptions: opt}, nil
+}
+
 func decodeAddQueryToPackRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	qid, err := idFromRequest(r, "qid")
 	if err != nil {

@@ -5,8 +5,8 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (svc service) ListQueries(ctx context.Context) ([]*kolide.Query, error) {
-	return svc.ds.Queries()
+func (svc service) ListQueries(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Query, error) {
+	return svc.ds.Queries(opt)
 }
 
 func (svc service) GetQuery(ctx context.Context, id uint) (*kolide.Query, error) {

@@ -26,7 +26,7 @@ func TestEnrollAgent(t *testing.T) {
 
 	ctx := context.Background()
 
-	hosts, err := ds.Hosts()
+	hosts, err := ds.Hosts(kolide.ListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 0)
 
@@ -34,7 +34,7 @@ func TestEnrollAgent(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotEmpty(t, nodeKey)
 
-	hosts, err = ds.Hosts()
+	hosts, err = ds.Hosts(kolide.ListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 1)
 }
@@ -48,7 +48,7 @@ func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
 
 	ctx := context.Background()
 
-	hosts, err := ds.Hosts()
+	hosts, err := ds.Hosts(kolide.ListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 0)
 
@@ -56,7 +56,7 @@ func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Empty(t, nodeKey)
 
-	hosts, err = ds.Hosts()
+	hosts, err = ds.Hosts(kolide.ListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 0)
 }
@@ -75,7 +75,7 @@ func TestSubmitStatusLogs(t *testing.T) {
 	_, err = svc.EnrollAgent(ctx, "", "host123")
 	assert.Nil(t, err)
 
-	hosts, err := ds.Hosts()
+	hosts, err := ds.Hosts(kolide.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, hosts, 1)
 	host := hosts[0]
@@ -147,7 +147,7 @@ func TestSubmitResultLogs(t *testing.T) {
 	_, err = svc.EnrollAgent(ctx, "", "host123")
 	assert.Nil(t, err)
 
-	hosts, err := ds.Hosts()
+	hosts, err := ds.Hosts(kolide.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, hosts, 1)
 	host := hosts[0]
@@ -248,7 +248,7 @@ func TestLabelQueries(t *testing.T) {
 	_, err = svc.EnrollAgent(ctx, "", "host123")
 	assert.Nil(t, err)
 
-	hosts, err := ds.Hosts()
+	hosts, err := ds.Hosts(kolide.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, hosts, 1)
 	host := hosts[0]
@@ -410,14 +410,14 @@ func TestGetClientConfig(t *testing.T) {
 
 	ctx := context.Background()
 
-	hosts, err := ds.Hosts()
+	hosts, err := ds.Hosts(kolide.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, hosts, 0)
 
 	_, err = svc.EnrollAgent(ctx, "", "user.local")
 	assert.Nil(t, err)
 
-	hosts, err = ds.Hosts()
+	hosts, err = ds.Hosts(kolide.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, hosts, 1)
 	host := hosts[0]

@@ -24,6 +24,14 @@ func decodeGetUserRequest(ctx context.Context, r *http.Request) (interface{}, er
 	return getUserRequest{ID: id}, nil
 }
 
+func decodeListUsersRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	opt, err := listOptionsFromRequest(r)
+	if err != nil {
+		return nil, err
+	}
+	return listUsersRequest{ListOptions: opt}, nil
+}
+
 func decodeChangePasswordRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	var req resetPasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

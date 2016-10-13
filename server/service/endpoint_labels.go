@@ -36,6 +36,10 @@ func makeGetLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
 // List Labels
 ////////////////////////////////////////////////////////////////////////////////
 
+type listLabelsRequest struct {
+	ListOptions kolide.ListOptions
+}
+
 type listLabelsResponse struct {
 	Labels []kolide.Label `json:"labels"`
 	Err    error          `json:"error,omitempty"`
@@ -45,7 +49,8 @@ func (r listLabelsResponse) error() error { return r.Err }
 
 func makeListLabelsEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		labels, err := svc.ListLabels(ctx)
+		req := request.(listLabelsRequest)
+		labels, err := svc.ListLabels(ctx, req.ListOptions)
 		if err != nil {
 			return listLabelsResponse{Err: err}, nil
 		}

@@ -74,6 +74,10 @@ func makeGetSessionUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 // List Users
 ////////////////////////////////////////////////////////////////////////////////
 
+type listUsersRequest struct {
+	ListOptions kolide.ListOptions
+}
+
 type listUsersResponse struct {
 	Users []kolide.User `json:"users"`
 	Err   error         `json:"error,omitempty"`
@@ -83,7 +87,8 @@ func (r listUsersResponse) error() error { return r.Err }
 
 func makeListUsersEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		users, err := svc.Users(ctx)
+		req := request.(listUsersRequest)
+		users, err := svc.ListUsers(ctx, req.ListOptions)
 		if err != nil {
 			return listUsersResponse{Err: err}, nil
 		}

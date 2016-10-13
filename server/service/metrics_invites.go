@@ -35,7 +35,7 @@ func (mw metricsMiddleware) DeleteInvite(ctx context.Context, id uint) error {
 	return err
 }
 
-func (mw metricsMiddleware) Invites(ctx context.Context) ([]*kolide.Invite, error) {
+func (mw metricsMiddleware) ListInvites(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Invite, error) {
 	var (
 		invites []*kolide.Invite
 		err     error
@@ -45,7 +45,7 @@ func (mw metricsMiddleware) Invites(ctx context.Context) ([]*kolide.Invite, erro
 		mw.requestCount.With(lvs...).Add(1)
 		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	invites, err = mw.Service.Invites(ctx)
+	invites, err = mw.Service.ListInvites(ctx, opt)
 	return invites, err
 }
 

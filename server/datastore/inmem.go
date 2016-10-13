@@ -44,3 +44,23 @@ func (orm *inmem) Migrate() error {
 func (orm *inmem) Drop() error {
 	return orm.Migrate()
 }
+
+// getLimitOffsetSliceBounds returns the bounds that should be used for
+// re-slicing the results to comply with the requested ListOptions. Lack of
+// generics forces us to do this rather than reslicing in this method.
+func (orm *inmem) getLimitOffsetSliceBounds(opt kolide.ListOptions, length int) (low uint, high uint) {
+	if opt.PerPage == 0 {
+		// PerPage value of 0 indicates unlimited
+		return 0, uint(length)
+	}
+
+	offset := opt.Page * opt.PerPage
+	max := offset + opt.PerPage
+	if offset > uint(length) {
+		offset = uint(length)
+	}
+	if max > uint(length) {
+		max = uint(length)
+	}
+	return offset, max
+}

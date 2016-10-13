@@ -54,9 +54,9 @@ func (orm gormDB) Label(lid uint) (*kolide.Label, error) {
 	return label, nil
 }
 
-func (orm gormDB) Labels() ([]*kolide.Label, error) {
+func (orm gormDB) Labels(opt kolide.ListOptions) ([]*kolide.Label, error) {
 	var labels []*kolide.Label
-	err := orm.DB.Find(&labels).Error
+	err := orm.applyListOptions(opt).Find(&labels).Error
 	return labels, err
 }
 

@@ -1,6 +1,8 @@
 package datastore
 
 import (
+	"sort"
+
 	"github.com/kolide/kolide-ose/server/kolide"
 )
 
@@ -58,14 +60,25 @@ func (orm *inmem) Pack(id uint) (*kolide.Pack, error) {
 	return pack, nil
 }
 
-func (orm *inmem) Packs() ([]*kolide.Pack, error) {
+func (orm *inmem) Packs(opt kolide.ListOptions) ([]*kolide.Pack, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
-	packs := []*kolide.Pack{}
-	for _, pack := range orm.packs {
-		packs = append(packs, pack)
+	// We need to sort by keys to provide reliable ordering
+	keys := []int{}
+	for k, _ := range orm.packs {
+		keys = append(keys, int(k))
 	}
+	sort.Ints(keys)
+
+	packs := []*kolide.Pack{}
+	for _, k := range keys {
+		packs = append(packs, orm.packs[uint(k)])
+	}
+
+	// Apply limit/offset
+	low, high := orm.getLimitOffsetSliceBounds(opt, len(packs))
+	packs = packs[low:high]
 
 	return packs, nil
 }

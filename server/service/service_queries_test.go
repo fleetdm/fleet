@@ -18,7 +18,7 @@ func TestListQueries(t *testing.T) {
 
 	ctx := context.Background()
 
-	queries, err := svc.ListQueries(ctx)
+	queries, err := svc.ListQueries(ctx, kolide.ListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
 
@@ -28,7 +28,7 @@ func TestListQueries(t *testing.T) {
 	})
 	assert.Nil(t, err)
 
-	queries, err = svc.ListQueries(ctx)
+	queries, err = svc.ListQueries(ctx, kolide.ListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, queries, 1)
 }
@@ -74,7 +74,7 @@ func TestNewQuery(t *testing.T) {
 
 	assert.Nil(t, err)
 
-	queries, err := ds.Queries()
+	queries, err := ds.Queries(kolide.ListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, queries, 1)
 }
@@ -126,7 +126,7 @@ func TestDeleteQuery(t *testing.T) {
 	err = svc.DeleteQuery(ctx, query.ID)
 	assert.Nil(t, err)
 
-	queries, err := ds.Queries()
+	queries, err := ds.Queries(kolide.ListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
 

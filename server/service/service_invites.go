@@ -61,8 +61,8 @@ func (svc service) InviteNewUser(ctx context.Context, payload kolide.InvitePaylo
 	return invite, nil
 }
 
-func (svc service) Invites(ctx context.Context) ([]*kolide.Invite, error) {
-	return svc.ds.Invites()
+func (svc service) ListInvites(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Invite, error) {
+	return svc.ds.Invites(opt)
 }
 
 func (svc service) VerifyInvite(ctx context.Context, email, token string) error {

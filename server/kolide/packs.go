@@ -12,7 +12,7 @@ type PackStore interface {
 	SavePack(pack *Pack) error
 	DeletePack(pid uint) error
 	Pack(pid uint) (*Pack, error)
-	Packs() ([]*Pack, error)
+	Packs(opt ListOptions) ([]*Pack, error)
 
 	// Modifying the queries in packs
 	AddQueryToPack(qid uint, pid uint) error
@@ -29,7 +29,7 @@ type PackStore interface {
 }
 
 type PackService interface {
-	ListPacks(ctx context.Context) ([]*Pack, error)
+	ListPacks(ctx context.Context, opt ListOptions) ([]*Pack, error)
 	GetPack(ctx context.Context, id uint) (*Pack, error)
 	NewPack(ctx context.Context, p PackPayload) (*Pack, error)
 	ModifyPack(ctx context.Context, id uint, p PackPayload) (*Pack, error)

@@ -5,8 +5,8 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (svc service) ListPacks(ctx context.Context) ([]*kolide.Pack, error) {
-	return svc.ds.Packs()
+func (svc service) ListPacks(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Pack, error) {
+	return svc.ds.Packs(opt)
 }
 
 func (svc service) GetPack(ctx context.Context, id uint) (*kolide.Pack, error) {

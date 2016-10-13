@@ -50,8 +50,8 @@ func (orm gormDB) Query(id uint) (*kolide.Query, error) {
 	return query, nil
 }
 
-func (orm gormDB) Queries() ([]*kolide.Query, error) {
+func (orm gormDB) Queries(opt kolide.ListOptions) ([]*kolide.Query, error) {
 	var queries []*kolide.Query
-	err := orm.DB.Find(&queries).Error
+	err := orm.applyListOptions(opt).Find(&queries).Error
 	return queries, err
 }

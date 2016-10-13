@@ -12,11 +12,11 @@ type QueryStore interface {
 	SaveQuery(query *Query) error
 	DeleteQuery(query *Query) error
 	Query(id uint) (*Query, error)
-	Queries() ([]*Query, error)
+	Queries(opt ListOptions) ([]*Query, error)
 }
 
 type QueryService interface {
-	ListQueries(ctx context.Context) ([]*Query, error)
+	ListQueries(ctx context.Context, opt ListOptions) ([]*Query, error)
 	GetQuery(ctx context.Context, id uint) (*Query, error)
 	NewQuery(ctx context.Context, p QueryPayload) (*Query, error)
 	ModifyQuery(ctx context.Context, id uint, p QueryPayload) (*Query, error)

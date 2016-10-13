@@ -5,8 +5,8 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (svc service) ListLabels(ctx context.Context) ([]*kolide.Label, error) {
-	return svc.ds.Labels()
+func (svc service) ListLabels(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Label, error) {
+	return svc.ds.Labels(opt)
 }
 
 func (svc service) GetLabel(ctx context.Context, id uint) (*kolide.Label, error) {

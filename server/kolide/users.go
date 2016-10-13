@@ -14,7 +14,7 @@ import (
 type UserStore interface {
 	NewUser(user *User) (*User, error)
 	User(username string) (*User, error)
-	Users() ([]*User, error)
+	Users(opt ListOptions) ([]*User, error)
 	UserByEmail(email string) (*User, error)
 	UserByID(id uint) (*User, error)
 	SaveUser(user *User) error
@@ -33,7 +33,7 @@ type UserService interface {
 	AuthenticatedUser(ctx context.Context) (user *User, err error)
 
 	// Users returns all users
-	Users(ctx context.Context) (users []*User, err error)
+	ListUsers(ctx context.Context, opt ListOptions) (users []*User, err error)
 
 	// RequestPasswordReset generates a password reset request for
 	// a user. The request results in a token emailed to the user.

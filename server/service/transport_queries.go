@@ -47,3 +47,11 @@ func decodeGetQueryRequest(ctx context.Context, r *http.Request) (interface{}, e
 	req.ID = id
 	return req, nil
 }
+
+func decodeListQueriesRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	opt, err := listOptionsFromRequest(r)
+	if err != nil {
+		return nil, err
+	}
+	return listQueriesRequest{ListOptions: opt}, nil
+}

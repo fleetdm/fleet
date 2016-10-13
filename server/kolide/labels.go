@@ -12,7 +12,7 @@ type LabelStore interface {
 	SaveLabel(Label *Label) error
 	DeleteLabel(lid uint) error
 	Label(lid uint) (*Label, error)
-	Labels() ([]*Label, error)
+	Labels(opt ListOptions) ([]*Label, error)
 
 	// LabelQueriesForHost returns the label queries that should be executed
 	// for the given host. The cutoff is the minimum timestamp a query
@@ -32,7 +32,7 @@ type LabelStore interface {
 }
 
 type LabelService interface {
-	ListLabels(ctx context.Context) ([]*Label, error)
+	ListLabels(ctx context.Context, opt ListOptions) ([]*Label, error)
 	GetLabel(ctx context.Context, id uint) (*Label, error)
 	NewLabel(ctx context.Context, p LabelPayload) (*Label, error)
 	ModifyLabel(ctx context.Context, id uint, p LabelPayload) (*Label, error)

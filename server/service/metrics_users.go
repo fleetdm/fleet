@@ -55,7 +55,7 @@ func (mw metricsMiddleware) User(ctx context.Context, id uint) (*kolide.User, er
 	return user, err
 }
 
-func (mw metricsMiddleware) Users(ctx context.Context) ([]*kolide.User, error) {
+func (mw metricsMiddleware) ListUsers(ctx context.Context, opt kolide.ListOptions) ([]*kolide.User, error) {
 
 	var (
 		users []*kolide.User
@@ -67,7 +67,7 @@ func (mw metricsMiddleware) Users(ctx context.Context) ([]*kolide.User, error) {
 		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	users, err = mw.Service.Users(ctx)
+	users, err = mw.Service.ListUsers(ctx, opt)
 	return users, err
 }
 

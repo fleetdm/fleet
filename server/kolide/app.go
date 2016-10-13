@@ -32,3 +32,13 @@ type OrgInfoPayload struct {
 	OrgName    *string `json:"org_name"`
 	OrgLogoURL *string `json:"org_logo_url"`
 }
+
+// ListOptions defines options related to paging and ordering to be used when
+// listing objects
+type ListOptions struct {
+	// Which page to return (must be positive integer)
+	Page uint
+	// How many results per page (must be positive integer, 0 indicates
+	// unlimited)
+	PerPage uint
+}

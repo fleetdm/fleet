@@ -18,7 +18,7 @@ func TestListLabels(t *testing.T) {
 
 	ctx := context.Background()
 
-	labels, err := svc.ListLabels(ctx)
+	labels, err := svc.ListLabels(ctx, kolide.ListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, labels, 0)
 
@@ -28,7 +28,7 @@ func TestListLabels(t *testing.T) {
 	})
 	assert.Nil(t, err)
 
-	labels, err = svc.ListLabels(ctx)
+	labels, err = svc.ListLabels(ctx, kolide.ListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, labels, 1)
 	assert.Equal(t, "foo", labels[0].Name)
@@ -75,7 +75,7 @@ func TestNewLabel(t *testing.T) {
 
 	assert.Nil(t, err)
 
-	labels, err := ds.Labels()
+	labels, err := ds.Labels(kolide.ListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, labels, 1)
 	assert.Equal(t, "foo", labels[0].Name)
@@ -127,7 +127,7 @@ func TestDeleteLabel(t *testing.T) {
 	err = svc.DeleteLabel(ctx, label.ID)
 	assert.Nil(t, err)
 
-	labels, err := ds.Labels()
+	labels, err := ds.Labels(kolide.ListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, labels, 0)
 }

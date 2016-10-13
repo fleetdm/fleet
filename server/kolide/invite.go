@@ -15,7 +15,7 @@ type InviteStore interface {
 	NewInvite(i *Invite) (*Invite, error)
 
 	// Invites lists all invites in the datastore.
-	Invites() ([]*Invite, error)
+	Invites(opt ListOptions) ([]*Invite, error)
 
 	// Invite retrieves an invite by it's ID.
 	Invite(id uint) (*Invite, error)
@@ -40,7 +40,7 @@ type InviteService interface {
 	DeleteInvite(ctx context.Context, id uint) (err error)
 
 	// Invites returns a list of all invites.
-	Invites(ctx context.Context) (invites []*Invite, err error)
+	ListInvites(ctx context.Context, opt ListOptions) (invites []*Invite, err error)
 
 	// VerifyInvite verifies that an invite exists and that it matches the
 	// invite token.

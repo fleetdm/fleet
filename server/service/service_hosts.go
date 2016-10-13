@@ -7,8 +7,8 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (svc service) ListHosts(ctx context.Context) ([]*kolide.Host, error) {
-	return svc.ds.Hosts()
+func (svc service) ListHosts(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Host, error) {
+	return svc.ds.Hosts(opt)
 }
 
 func (svc service) GetHost(ctx context.Context, id uint) (*kolide.Host, error) {

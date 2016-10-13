@@ -36,6 +36,10 @@ func makeGetPackEndpoint(svc kolide.Service) endpoint.Endpoint {
 // List Packs
 ////////////////////////////////////////////////////////////////////////////////
 
+type listPacksRequest struct {
+	ListOptions kolide.ListOptions
+}
+
 type listPacksResponse struct {
 	Packs []kolide.Pack `json:"packs"`
 	Err   error         `json:"error,omitempty"`
@@ -45,7 +49,8 @@ func (r listPacksResponse) error() error { return r.Err }
 
 func makeListPacksEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		packs, err := svc.ListPacks(ctx)
+		req := request.(listPacksRequest)
+		packs, err := svc.ListPacks(ctx, req.ListOptions)
 		if err != nil {
 			return getPackResponse{Err: err}, nil
 		}

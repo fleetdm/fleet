@@ -1,6 +1,10 @@
 package datastore
 
-import "github.com/kolide/kolide-ose/server/kolide"
+import (
+	"sort"
+
+	"github.com/kolide/kolide-ose/server/kolide"
+)
 
 // NewInvite creates and stores a new invitation in a DB.
 func (orm *inmem) NewInvite(invite *kolide.Invite) (*kolide.Invite, error) {
@@ -19,14 +23,25 @@ func (orm *inmem) NewInvite(invite *kolide.Invite) (*kolide.Invite, error) {
 }
 
 // Invites lists all invites in the datastore.
-func (orm *inmem) Invites() ([]*kolide.Invite, error) {
+func (orm *inmem) Invites(opt kolide.ListOptions) ([]*kolide.Invite, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
-	var invites []*kolide.Invite
-	for _, invite := range orm.invites {
-		invites = append(invites, invite)
+	// We need to sort by keys to provide reliable ordering
+	keys := []int{}
+	for k, _ := range orm.invites {
+		keys = append(keys, int(k))
 	}
+	sort.Ints(keys)
+
+	invites := []*kolide.Invite{}
+	for _, k := range keys {
+		invites = append(invites, orm.invites[uint(k)])
+	}
+
+	// Apply limit/offset
+	low, high := orm.getLimitOffsetSliceBounds(opt, len(invites))
+	invites = invites[low:high]
 
 	return invites, nil
 }

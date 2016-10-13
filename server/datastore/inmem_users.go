@@ -1,6 +1,10 @@
 package datastore
 
-import "github.com/kolide/kolide-ose/server/kolide"
+import (
+	"sort"
+
+	"github.com/kolide/kolide-ose/server/kolide"
+)
 
 func (orm *inmem) NewUser(user *kolide.User) (*kolide.User, error) {
 	orm.mtx.Lock()
@@ -31,14 +35,25 @@ func (orm *inmem) User(username string) (*kolide.User, error) {
 	return nil, ErrNotFound
 }
 
-func (orm *inmem) Users() ([]*kolide.User, error) {
+func (orm *inmem) Users(opt kolide.ListOptions) ([]*kolide.User, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
-	var users []*kolide.User
-	for _, user := range orm.users {
-		users = append(users, user)
+	// We need to sort by keys to provide reliable ordering
+	keys := []int{}
+	for k, _ := range orm.users {
+		keys = append(keys, int(k))
 	}
+	sort.Ints(keys)
+
+	users := []*kolide.User{}
+	for _, k := range keys {
+		users = append(users, orm.users[uint(k)])
+	}
+
+	// Apply limit/offset
+	low, high := orm.getLimitOffsetSliceBounds(opt, len(users))
+	users = users[low:high]
 
 	return users, nil
 }

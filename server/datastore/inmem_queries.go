@@ -1,6 +1,8 @@
 package datastore
 
 import (
+	"sort"
+
 	"github.com/kolide/kolide-ose/server/kolide"
 )
 
@@ -58,14 +60,25 @@ func (orm *inmem) Query(id uint) (*kolide.Query, error) {
 	return query, nil
 }
 
-func (orm *inmem) Queries() ([]*kolide.Query, error) {
+func (orm *inmem) Queries(opt kolide.ListOptions) ([]*kolide.Query, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
-	queries := []*kolide.Query{}
-	for _, query := range orm.queries {
-		queries = append(queries, query)
+	// We need to sort by keys to provide reliable ordering
+	keys := []int{}
+	for k, _ := range orm.queries {
+		keys = append(keys, int(k))
 	}
+	sort.Ints(keys)
+
+	queries := []*kolide.Query{}
+	for _, k := range keys {
+		queries = append(queries, orm.queries[uint(k)])
+	}
+
+	// Apply limit/offset
+	low, high := orm.getLimitOffsetSliceBounds(opt, len(queries))
+	queries = queries[low:high]
 
 	return queries, nil
 }

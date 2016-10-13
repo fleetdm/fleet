@@ -100,9 +100,9 @@ func (orm gormDB) Host(id uint) (*kolide.Host, error) {
 	return host, nil
 }
 
-func (orm gormDB) Hosts() ([]*kolide.Host, error) {
+func (orm gormDB) Hosts(opt kolide.ListOptions) ([]*kolide.Host, error) {
 	var hosts []*kolide.Host
-	err := orm.DB.Find(&hosts).Error
+	err := orm.applyListOptions(opt).Find(&hosts).Error
 	if err != nil {
 		return nil, err
 	}

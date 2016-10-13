@@ -41,6 +41,10 @@ func makeGetHostEndpoint(svc kolide.Service) endpoint.Endpoint {
 // List Hosts
 ////////////////////////////////////////////////////////////////////////////////
 
+type listHostsRequest struct {
+	ListOptions kolide.ListOptions
+}
+
 type listHostsResponse struct {
 	Hosts []hostResponse `json:"hosts"`
 	Err   error          `json:"error,omitempty"`
@@ -50,7 +54,8 @@ func (r listHostsResponse) error() error { return r.Err }
 
 func makeListHostsEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		hosts, err := svc.ListHosts(ctx)
+		req := request.(listHostsRequest)
+		hosts, err := svc.ListHosts(ctx, req.ListOptions)
 		if err != nil {
 			return listHostsResponse{Err: err}, nil
 		}

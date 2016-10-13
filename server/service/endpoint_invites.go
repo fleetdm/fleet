@@ -28,6 +28,10 @@ func makeCreateInviteEndpoint(svc kolide.Service) endpoint.Endpoint {
 	}
 }
 
+type listInvitesRequest struct {
+	ListOptions kolide.ListOptions
+}
+
 type listInvitesResponse struct {
 	Invites []kolide.Invite `json:"invites"`
 	Err     error           `json:"error,omitempty"`
@@ -37,7 +41,8 @@ func (r listInvitesResponse) error() error { return r.Err }
 
 func makeListInvitesEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		invites, err := svc.Invites(ctx)
+		req := request.(listInvitesRequest)
+		invites, err := svc.ListInvites(ctx, req.ListOptions)
 		if err != nil {
 			return listInvitesResponse{Err: err}, nil
 		}
