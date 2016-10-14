@@ -154,15 +154,16 @@ class InviteUserForm extends Component {
         </div>
         <div style={buttonWrapperStyles}>
           <Button
-            onClick={onCancel}
-            style={buttonStyles}
-            text="Cancel"
-            variant="inverse"
-          />
-          <Button
             style={buttonStyles}
             text="Invite"
             type="submit"
+          />
+          <Button
+            onClick={onCancel}
+            style={buttonStyles}
+            text="Cancel"
+            type="input"
+            variant="inverse"
           />
         </div>
       </form>

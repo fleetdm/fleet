@@ -34,5 +34,7 @@ export default {
     width: '260px',
   },
   usersWrapperStyles: {
+    display: 'flex',
+    flexWrap: 'wrap',
   },
 };

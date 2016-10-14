@@ -14,6 +14,14 @@ export default {
       justifyContent: 'space-between',
       paddingLeft: padding.half,
       paddingRight: padding.half,
+      position: 'fixed',
+      left: '223px',
+      right: 0,
+      top: 0,
+      zIndex: '2',
+      '@media (max-width: 760px)': {
+        left: '54px',
+      },
     };
 
     if (alertType === 'success') {

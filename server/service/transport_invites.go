@@ -25,12 +25,7 @@ func decodeDeleteInviteRequest(ctx context.Context, r *http.Request) (interface{
 	if err != nil {
 		return nil, err
 	}
-	var req deleteInviteRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, err
-	}
-	req.ID = id
-	return req, nil
+	return deleteInviteRequest{ID: id}, nil
 }
 
 func decodeListInvitesRequest(ctx context.Context, r *http.Request) (interface{}, error) {

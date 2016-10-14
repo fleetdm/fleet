@@ -201,7 +201,7 @@ class SaveQueryForm extends Component {
               key="duration"
               options={[{ text: 'Short', value: 'short' }, { text: 'Long', value: 'long' }]}
               onSelect={onFieldChange('duration')}
-              containerStyles={dropdownInputStyles}
+              selectStyles={dropdownInputStyles}
             />
           </div>
           <small style={helpTextStyles}>
@@ -215,7 +215,7 @@ class SaveQueryForm extends Component {
               key="platforms"
               options={[{ text: 'ALL PLATFORMS', value: 'all' }, { text: 'NO PLATFORMS', value: 'none' }]}
               onSelect={onFieldChange('platforms')}
-              containerStyles={dropdownInputStyles}
+              selectStyles={dropdownInputStyles}
             />
           </div>
           <small style={helpTextStyles}>

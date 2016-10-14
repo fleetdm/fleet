@@ -15,6 +15,7 @@ export default {
   },
   buttonWrapperStyles: {
     display: 'flex',
+    flexDirection: 'row-reverse',
     justifyContent: 'space-between',
   },
   radioElementStyles: {

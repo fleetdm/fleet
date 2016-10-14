@@ -146,6 +146,7 @@ const componentStyles = {
     borderRightWidth: '1px',
     bottom: 0,
     boxShadow: '2px 0 8px 0 rgba(0, 0, 0, 0.1)',
+    boxSizing: 'border-box',
     left: 0,
     paddingLeft: '16px',
     position: 'fixed',

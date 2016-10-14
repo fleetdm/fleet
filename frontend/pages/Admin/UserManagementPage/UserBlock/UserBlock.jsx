@@ -1,26 +1,35 @@
 import React, { Component, PropTypes } from 'react';
 import radium from 'radium';
+
 import Avatar from '../../../../components/Avatar';
 import componentStyles from './styles';
 import Dropdown from '../../../../components/forms/fields/Dropdown';
 import EditUserForm from '../../../../components/forms/Admin/EditUserForm';
+import { userStatusLabel } from './helpers';
 
 class UserBlock extends Component {
   static propTypes = {
     currentUser: PropTypes.object,
+    invite: PropTypes.bool,
     onEditUser: PropTypes.func,
     onSelect: PropTypes.func,
     user: PropTypes.object,
   };
 
-  static userActionOptions = (currentUser, user) => {
+  static userActionOptions = (currentUser, user, invite) => {
     const disableActions = currentUser.id === user.id;
+    const inviteActions = [
+      { text: 'Actions...', value: '' },
+      { text: 'Revoke Invitation', value: 'revert_invitation' },
+    ];
     const userEnableAction = user.enabled
       ? { disabled: disableActions, text: 'Disable Account', value: 'disable_account' }
       : { text: 'Enable Account', value: 'enable_account' };
     const userPromotionAction = user.admin
       ? { disabled: disableActions, text: 'Demote User', value: 'demote_user' }
       : { text: 'Promote User', value: 'promote_user' };
+
+    if (invite) return inviteActions;
 
     return [
       { text: 'Actions...', value: '' },
@@ -76,7 +85,24 @@ class UserBlock extends Component {
     return onSelect(user, action);
   }
 
+  renderCTAs = () => {
+    const { currentUser, invite, user } = this.props;
+    const { onUserActionSelect } = this;
+    const userActionOptions = UserBlock.userActionOptions(currentUser, user, invite);
+    const { revokeInviteStyles } = componentStyles(user, invite);
+
+    return (
+      <Dropdown
+        containerStyles={invite ? revokeInviteStyles : {}}
+        options={userActionOptions}
+        initialOption={{ text: 'Actions...' }}
+        onSelect={onUserActionSelect}
+      />
+    );
+  }
+
   render () {
+    const { invite, user } = this.props;
     const {
       avatarStyles,
       nameStyles,
@@ -89,24 +115,25 @@ class UserBlock extends Component {
       userStatusStyles,
       userStatusWrapperStyles,
       userWrapperStyles,
-    } = componentStyles;
-    const { currentUser, user } = this.props;
+    } = componentStyles(user, invite);
     const {
       admin,
       email,
-      enabled,
       name,
       position,
       username,
     } = user;
-    const userLabel = admin ? 'Admin' : 'User';
-    const activeLabel = enabled ? 'Active' : 'Disabled';
-    const userActionOptions = UserBlock.userActionOptions(currentUser, user);
     const { isEdit } = this.state;
-    const { onEditUserFormSubmit, onToggleEditing } = this;
+    const { onEditUserFormSubmit, onToggleEditing, renderCTAs } = this;
+    const statusLabel = userStatusLabel(user, invite);
+    const userLabel = admin ? 'Admin' : 'User';
 
     if (isEdit) {
-      return <EditUserForm onCancel={onToggleEditing} onSubmit={onEditUserFormSubmit} user={user} />;
+      return (
+        <div style={userWrapperStyles}>
+          <EditUserForm onCancel={onToggleEditing} onSubmit={onEditUserFormSubmit} user={user} />
+        </div>
+      );
     }
 
     return (
@@ -118,17 +145,13 @@ class UserBlock extends Component {
           <Avatar user={user} style={avatarStyles} />
           <div style={userStatusWrapperStyles}>
             <span style={userLabelStyles}>{userLabel}</span>
-            <span style={userStatusStyles(enabled)}>{activeLabel}</span>
+            <span style={userStatusStyles}>{statusLabel}</span>
             <div style={{ clear: 'both' }} />
           </div>
           <p style={usernameStyles}>{username}</p>
           <p style={userPositionStyles}>{position}</p>
           <p style={userEmailStyles}>{email}</p>
-          <Dropdown
-            options={userActionOptions}
-            initialOption={{ text: 'Actions...' }}
-            onSelect={this.onUserActionSelect}
-          />
+          {renderCTAs()}
         </div>
       </div>
     );

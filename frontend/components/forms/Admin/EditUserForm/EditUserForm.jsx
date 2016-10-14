@@ -1,36 +1,19 @@
 import React, { Component, PropTypes } from 'react';
 import radium from 'radium';
 import Avatar from '../../../Avatar';
+import { avatarStyles } from '../../../../pages/Admin/UserManagementPage/UserBlock/styles';
 import Button from '../../../buttons/Button';
-import componentStyles from '../../../../pages/Admin/UserManagementPage/UserBlock/styles';
+import componentStyles from './styles';
 import InputField from '../../fields/InputField';
 import Styleguide from '../../../../styles';
 
-const { color, font, padding } = Styleguide;
+const { color } = Styleguide;
 
 class EditUserForm extends Component {
   static propTypes = {
     onCancel: PropTypes.func,
     onSubmit: PropTypes.func,
     user: PropTypes.object,
-  };
-
-  static inputStyles = {
-    borderLeft: 'none',
-    borderRight: 'none',
-    borderTop: 'none',
-    borderBottomWidth: '1px',
-    fontSize: font.small,
-    borderBottomStyle: 'solid',
-    borderBottomColor: color.brand,
-    color: color.textMedium,
-    width: '100%',
-  };
-
-  static labelStyles = {
-    color: color.textLight,
-    textTransform: 'uppercase',
-    fontSize: font.mini,
   };
 
   constructor (props) {
@@ -66,9 +49,13 @@ class EditUserForm extends Component {
 
   render () {
     const {
-      avatarStyles,
+      avatarWrapperStyles,
+      buttonWrapperStyles,
       formButtonStyles,
-      userWrapperStyles,
+      formWrapperStyles,
+      inputStyles,
+      inputWrapperStyles,
+      labelStyles,
     } = componentStyles;
     const { user } = this.props;
     const {
@@ -80,55 +67,57 @@ class EditUserForm extends Component {
     const { onFormSubmit, onInputChange } = this;
 
     return (
-      <form style={[userWrapperStyles, { boxSizing: 'border-box', padding: '10px' }]} onSubmit={onFormSubmit}>
+      <form style={formWrapperStyles} onSubmit={onFormSubmit}>
         <InputField
           defaultValue={name}
           label="name"
-          labelStyles={EditUserForm.labelStyles}
+          labelStyles={labelStyles}
           name="name"
           onChange={onInputChange('name')}
-          inputWrapperStyles={{ marginTop: 0, marginBottom: padding.half }}
-          style={EditUserForm.inputStyles}
+          inputWrapperStyles={inputWrapperStyles}
+          style={inputStyles}
         />
-        <Avatar user={user} style={avatarStyles} />
+        <div style={avatarWrapperStyles}>
+          <Avatar user={user} style={avatarStyles} />
+        </div>
         <InputField
           defaultValue={username}
           label="username"
-          labelStyles={EditUserForm.labelStyles}
+          labelStyles={labelStyles}
           name="username"
           onChange={onInputChange('username')}
           inputWrapperStyles={{ marginTop: 0 }}
-          style={[EditUserForm.inputStyles, { color: color.brand }]}
+          style={[inputStyles, { color: color.brand }]}
         />
         <InputField
           defaultValue={position}
           label="position"
-          labelStyles={EditUserForm.labelStyles}
+          labelStyles={labelStyles}
           name="position"
           onChange={onInputChange('position')}
           inputWrapperStyles={{ marginTop: 0 }}
-          style={EditUserForm.inputStyles}
+          style={inputStyles}
         />
         <InputField
           defaultValue={email}
           inputWrapperStyles={{ marginTop: 0 }}
           label="email"
-          labelStyles={EditUserForm.labelStyles}
+          labelStyles={labelStyles}
           name="email"
           onChange={onInputChange('email')}
-          style={[EditUserForm.inputStyles, { color: color.link }]}
+          style={[inputStyles, { color: color.link }]}
         />
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
+        <div style={buttonWrapperStyles}>
+          <Button
+            style={formButtonStyles}
+            text="Submit"
+            type="submit"
+          />
           <Button
             onClick={this.props.onCancel}
             style={formButtonStyles}
             text="Cancel"
             variant="inverse"
-          />
-          <Button
-            style={formButtonStyles}
-            text="Submit"
-            type="submit"
           />
         </div>
       </form>

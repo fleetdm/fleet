@@ -14,6 +14,7 @@ class UserManagementPage extends Component {
   static propTypes = {
     currentUser: PropTypes.object,
     dispatch: PropTypes.func,
+    invites: PropTypes.arrayOf(PropTypes.object),
     users: PropTypes.arrayOf(PropTypes.object),
   };
 
@@ -26,10 +27,10 @@ class UserManagementPage extends Component {
   }
 
   componentWillMount () {
-    const { dispatch, users } = this.props;
-    const { load } = userActions;
+    const { dispatch, invites, users } = this.props;
 
-    if (!users.length) dispatch(load());
+    if (!users.length) dispatch(userActions.loadAll());
+    if (!invites.length) dispatch(inviteActions.loadAll());
 
     return false;
   }
@@ -72,6 +73,11 @@ class UserManagementPage extends Component {
           return dispatch(update(user, { force_password_reset: true }))
             .then(() => {
               return dispatch(renderFlash('success', 'User forced to reset password', update(user, { force_password_reset: false })));
+            });
+        case 'revert_invitation':
+          return dispatch(inviteActions.destroy({ entityID: user.id }))
+            .then(() => {
+              return dispatch(renderFlash('success', 'Invite revoked'));
             });
         default:
           return false;
@@ -125,13 +131,15 @@ class UserManagementPage extends Component {
     return false;
   }
 
-  renderUserBlock = (user) => {
+  renderUserBlock = (user, options = { invite: false }) => {
     const { currentUser } = this.props;
+    const { invite } = options;
     const { onEditUser, onUserActionSelect } = this;
 
     return (
       <UserBlock
         currentUser={currentUser}
+        invite={invite}
         key={user.email}
         onEditUser={onEditUser}
         onSelect={onUserActionSelect}
@@ -171,11 +179,12 @@ class UserManagementPage extends Component {
       usersWrapperStyles,
     } = componentStyles;
     const { toggleInviteUserModal } = this;
-    const { users } = this.props;
+    const { invites, users } = this.props;
+    const resourcesCount = users.length + invites.length;
 
     return (
       <div style={containerStyles}>
-        <span style={numUsersStyles}>Listing {users.length} users</span>
+        <span style={numUsersStyles}>Listing {resourcesCount} users</span>
         <div style={addUserWrapperStyles}>
           <Button
             onClick={toggleInviteUserModal}
@@ -187,6 +196,9 @@ class UserManagementPage extends Component {
           {users.map(user => {
             return this.renderUserBlock(user);
           })}
+          {invites.map(user => {
+            return this.renderUserBlock(user, { invite: true });
+          })}
         </div>
         {this.renderModal()}
       </div>
@@ -195,10 +207,12 @@ class UserManagementPage extends Component {
 }
 
 const mapStateToProps = (state) => {
+  const stateEntityGetter = entityGetter(state);
   const { user: currentUser } = state.auth;
-  const { entities: users } = entityGetter(state).get('users');
+  const { entities: users } = stateEntityGetter.get('users');
+  const { entities: invites } = stateEntityGetter.get('invites');
 
-  return { currentUser, users };
+  return { currentUser, invites, users };
 };
 
 export default connect(mapStateToProps)(UserManagementPage);

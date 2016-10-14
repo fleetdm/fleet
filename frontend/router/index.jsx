@@ -3,7 +3,6 @@ import { browserHistory, IndexRoute, Route, Router } from 'react-router';
 import { Provider } from 'react-redux';
 import radium, { StyleRoot } from 'radium';
 import { syncHistoryWithStore } from 'react-router-redux';
-import AdminDashboardPage from '../pages/Admin/DashboardPage';
 import AdminUserManagementPage from '../pages/Admin/UserManagementPage';
 import App from '../components/App';
 import AuthenticatedAdminRoutes from '../components/AuthenticatedAdminRoutes';
@@ -35,7 +34,6 @@ const routes = (
             <Route component={radium(CoreLayout)}>
               <IndexRoute component={radium(HomePage)} />
               <Route path="admin" component={AuthenticatedAdminRoutes}>
-                <IndexRoute component={radium(AdminDashboardPage)} />
                 <Route path="users" component={radium(AdminUserManagementPage)} />
               </Route>
               <Route path="queries" component={radium(QueryPageWrapper)}>

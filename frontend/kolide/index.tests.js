@@ -7,12 +7,14 @@ const {
   invalidResetPasswordRequest,
   validForgotPasswordRequest,
   validGetConfigRequest,
+  validGetInvitesRequest,
   validGetUsersRequest,
   validInviteUserRequest,
   validLoginRequest,
   validLogoutRequest,
   validMeRequest,
   validResetPasswordRequest,
+  validRevokeInviteRequest,
   validUpdateUserRequest,
   validUser,
 } = mocks;
@@ -30,6 +32,21 @@ describe('Kolide - API client', () => {
       const request = validGetConfigRequest(bearerToken);
 
       Kolide.getConfig(bearerToken)
+        .then(() => {
+          expect(request.isDone()).toEqual(true);
+          done();
+        })
+        .catch(done);
+    });
+  });
+
+  describe('#getInvites', () => {
+    it('calls the appropriate endpoint with the correct parameters', (done) => {
+      const bearerToken = 'valid-bearer-token';
+      const request = validGetInvitesRequest(bearerToken);
+
+      Kolide.setBearerToken(bearerToken);
+      Kolide.getInvites()
         .then(() => {
           expect(request.isDone()).toEqual(true);
           done();
@@ -190,6 +207,22 @@ describe('Kolide - API client', () => {
           expect(request.isDone()).toEqual(true);
           done();
         });
+    });
+  });
+
+  describe('#revokeInvite', () => {
+    it('calls the appropriate endpoint with the correct parameters', (done) => {
+      const bearerToken = 'valid-bearer-token';
+      const entityID = 1;
+      const request = validRevokeInviteRequest(bearerToken, entityID);
+
+      Kolide.setBearerToken(bearerToken);
+      Kolide.revokeInvite({ entityID })
+        .then(() => {
+          expect(request.isDone()).toEqual(true);
+          done();
+        })
+        .catch(done);
     });
   });
 

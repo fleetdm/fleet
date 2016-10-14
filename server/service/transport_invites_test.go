@@ -18,8 +18,6 @@ func TestDecodeCreateInviteRequest(t *testing.T) {
 		assert.Nil(t, err)
 
 		params := r.(createInviteRequest)
-		assert.Equal(t, "foo", *params.payload.Name)
-		assert.Equal(t, "foo@kolide.co", *params.payload.Email)
 		assert.Equal(t, uint(1), *params.payload.InvitedBy)
 	}).Methods("POST")
 

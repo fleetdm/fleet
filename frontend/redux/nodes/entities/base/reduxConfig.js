@@ -1,5 +1,6 @@
 import { noop } from 'lodash';
 import { normalize, arrayOf } from 'normalizr';
+import { entitiesExceptID } from './helpers';
 
 const initialState = {
   loading: false,
@@ -9,7 +10,9 @@ const initialState = {
 
 const reduxConfig = ({
   createFunc = noop,
+  destroyFunc,
   entityName,
+  loadAllFunc,
   loadFunc,
   parseFunc,
   schema,
@@ -19,6 +22,9 @@ const reduxConfig = ({
     CREATE_FAILURE: `${entityName}_CREATE_FAILURE`,
     CREATE_REQUEST: `${entityName}_CREATE_REQUEST`,
     CREATE_SUCCESS: `${entityName}_CREATE_SUCCESS`,
+    DESTROY_FAILURE: `${entityName}_DESTROY_FAILURE`,
+    DESTROY_REQUEST: `${entityName}_DESTROY_REQUEST`,
+    DESTROY_SUCCESS: `${entityName}_DESTROY_SUCCESS`,
     LOAD_FAILURE: `${entityName}_LOAD_FAILURE`,
     LOAD_REQUEST: `${entityName}_LOAD_REQUEST`,
     LOAD_SUCCESS: `${entityName}_LOAD_SUCCESS`,
@@ -38,6 +44,20 @@ const reduxConfig = ({
     return {
       type: actionTypes.CREATE_SUCCESS,
       payload: { data },
+    };
+  };
+
+  const destroyFailure = (errors) => {
+    return {
+      type: actionTypes.DESTROY_FAILURE,
+      payload: { errors },
+    };
+  };
+  const destroyRequest = { type: actionTypes.DESTROY_REQUEST };
+  const destroySuccess = (id) => {
+    return {
+      type: actionTypes.DESTROY_SUCCESS,
+      payload: { id },
     };
   };
 
@@ -101,11 +121,54 @@ const reduxConfig = ({
     };
   };
 
+  const destroy = (...args) => {
+    return (dispatch) => {
+      dispatch(destroyRequest);
+
+      return destroyFunc(...args)
+        .then(() => {
+          const { entityID } = args[0];
+
+          return dispatch(destroySuccess(entityID));
+        })
+        .catch(response => {
+          const { errors } = response;
+          const { error } = response.message || {};
+          const errorMessage = errors || error;
+
+          dispatch(destroyFailure(errorMessage));
+
+          throw error;
+        });
+    };
+  };
+
   const load = (...args) => {
     return (dispatch) => {
       dispatch(loadRequest);
 
       return loadFunc(...args)
+        .then(response => {
+          if (!response) return [];
+
+          const { entities } = normalize(parsedResponse(response), arrayOf(schema));
+
+          return dispatch(loadSuccess(entities));
+        })
+        .catch(response => {
+          const { errors } = response;
+
+          dispatch(loadFailure(errors));
+          throw response;
+        });
+    };
+  };
+
+  const loadAll = (...args) => {
+    return (dispatch) => {
+      dispatch(loadRequest);
+
+      return loadAllFunc(...args)
         .then(response => {
           if (!response) return [];
 
@@ -144,13 +207,16 @@ const reduxConfig = ({
 
   const actions = {
     create,
+    destroy,
     load,
+    loadAll,
     update,
   };
 
   const reducer = (state = initialState, { type, payload }) => {
     switch (type) {
       case actionTypes.CREATE_REQUEST:
+      case actionTypes.DESTROY_REQUEST:
       case actionTypes.LOAD_REQUEST:
       case actionTypes.UPDATE_REQUEST:
         return {
@@ -168,7 +234,17 @@ const reduxConfig = ({
             ...payload.data[entityName],
           },
         };
+      case actionTypes.DESTROY_SUCCESS: {
+        return {
+          ...state,
+          loading: false,
+          data: {
+            ...entitiesExceptID(state.data, payload.id),
+          },
+        };
+      }
       case actionTypes.CREATE_FAILURE:
+      case actionTypes.DESTROY_FAILURE:
       case actionTypes.UPDATE_FAILURE:
       case actionTypes.LOAD_FAILURE:
         return {
