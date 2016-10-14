@@ -63,11 +63,13 @@ func TestInviteNewUser(t *testing.T) {
 	}
 
 	for _, tt := range inviteTests {
-		invite, err := svc.InviteNewUser(context.Background(), tt.payload)
-		assert.Equal(t, err, tt.wantErr)
-		if err != nil {
-			continue
-		}
-		assert.Equal(t, *tt.payload.InvitedBy, invite.InvitedBy)
+		t.Run("", func(t *testing.T) {
+			invite, err := svc.InviteNewUser(context.Background(), tt.payload)
+			assert.Equal(t, tt.wantErr, err)
+			if err != nil {
+				return
+			}
+			assert.Equal(t, *tt.payload.InvitedBy, invite.InvitedBy)
+		})
 	}
 }
