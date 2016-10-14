@@ -18,7 +18,7 @@ func (orm *inmem) NewQuery(query *kolide.Query) (*kolide.Query, error) {
 		}
 	}
 
-	newQuery.ID = uint(len(orm.queries) + 1)
+	newQuery.ID = orm.nextID(newQuery)
 	orm.queries[newQuery.ID] = &newQuery
 
 	return &newQuery, nil

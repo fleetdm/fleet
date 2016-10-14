@@ -18,8 +18,7 @@ func (orm *inmem) NewHost(host *kolide.Host) (*kolide.Host, error) {
 		}
 	}
 
-	host.ID = uint(len(orm.hosts) + 1)
-	orm.hosts[host.ID] = host
+	host.ID = orm.nextID(host)
 
 	return host, nil
 }
@@ -122,7 +121,7 @@ func (orm *inmem) EnrollHost(uuid, hostname, ip, platform string, nodeKeySize in
 	}
 
 	if host.ID == 0 {
-		host.ID = uint(len(orm.hosts) + 1)
+		host.ID = orm.nextID(host)
 	}
 	orm.hosts[host.ID] = &host
 

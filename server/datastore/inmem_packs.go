@@ -18,7 +18,7 @@ func (orm *inmem) NewPack(pack *kolide.Pack) error {
 		}
 	}
 
-	newPack.ID = uint(len(orm.packs) + 1)
+	newPack.ID = orm.nextID(pack)
 	orm.packs[newPack.ID] = &newPack
 
 	return nil

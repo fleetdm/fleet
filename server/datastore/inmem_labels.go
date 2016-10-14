@@ -20,7 +20,7 @@ func (orm *inmem) NewLabel(label *kolide.Label) (*kolide.Label, error) {
 		}
 	}
 
-	newLabel.ID = uint(len(orm.labels) + 1)
+	newLabel.ID = orm.nextID(label)
 	orm.labels[newLabel.ID] = &newLabel
 
 	return &newLabel, nil
@@ -112,12 +112,12 @@ func (orm *inmem) RecordLabelQueryExecutions(host *kolide.Host, results map[stri
 		if !updated {
 			// Create new execution
 			lqe := kolide.LabelQueryExecution{
-				ID:        uint(len(orm.labelQueryExecutions) + 1),
 				HostID:    host.ID,
 				LabelID:   label.ID,
 				UpdatedAt: t,
 				Matches:   matches,
 			}
+			lqe.ID = orm.nextID(lqe)
 			orm.labelQueryExecutions[lqe.ID] = &lqe
 		}
 	}

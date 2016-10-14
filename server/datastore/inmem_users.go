@@ -16,7 +16,7 @@ func (orm *inmem) NewUser(user *kolide.User) (*kolide.User, error) {
 		}
 	}
 
-	user.ID = uint(len(orm.users) + 1)
+	user.ID = orm.nextID(user)
 	orm.users[user.ID] = user
 
 	return user, nil

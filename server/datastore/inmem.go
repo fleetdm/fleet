@@ -1,6 +1,7 @@
 package datastore
 
 import (
+	"reflect"
 	"sync"
 
 	"github.com/kolide/kolide-ose/server/kolide"
@@ -8,8 +9,10 @@ import (
 
 type inmem struct {
 	kolide.Datastore
-	Driver               string
-	mtx                  sync.RWMutex
+	Driver  string
+	mtx     sync.RWMutex
+	nextIDs map[interface{}]uint
+
 	users                map[uint]*kolide.User
 	sessions             map[uint]*kolide.Session
 	passwordResets       map[uint]*kolide.PasswordResetRequest
@@ -19,7 +22,8 @@ type inmem struct {
 	queries              map[uint]*kolide.Query
 	packs                map[uint]*kolide.Pack
 	hosts                map[uint]*kolide.Host
-	orginfo              *kolide.OrgInfo
+
+	orginfo *kolide.OrgInfo
 }
 
 func (orm *inmem) Name() string {
@@ -29,6 +33,7 @@ func (orm *inmem) Name() string {
 func (orm *inmem) Migrate() error {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
+	orm.nextIDs = make(map[interface{}]uint)
 	orm.users = make(map[uint]*kolide.User)
 	orm.sessions = make(map[uint]*kolide.Session)
 	orm.passwordResets = make(map[uint]*kolide.PasswordResetRequest)
@@ -63,4 +68,12 @@ func (orm *inmem) getLimitOffsetSliceBounds(opt kolide.ListOptions, length int) 
 		max = uint(length)
 	}
 	return offset, max
+}
+
+// nextID returns the next ID value that should be used for a struct of the
+// given type
+func (orm *inmem) nextID(val interface{}) uint {
+	valType := reflect.TypeOf(val)
+	orm.nextIDs[valType]++
+	return orm.nextIDs[valType]
 }
