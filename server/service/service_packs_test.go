@@ -70,7 +70,7 @@ func TestNewPack(t *testing.T) {
 
 	assert.Nil(t, err)
 
-	queries, err := ds.Packs(kolide.ListOptions{})
+	queries, err := ds.ListPacks(kolide.ListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, queries, 1)
 }
@@ -120,7 +120,7 @@ func TestDeletePack(t *testing.T) {
 	err = svc.DeletePack(ctx, pack.ID)
 	assert.Nil(t, err)
 
-	queries, err := ds.Packs(kolide.ListOptions{})
+	queries, err := ds.ListPacks(kolide.ListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
 
@@ -150,14 +150,14 @@ func TestAddQueryToPack(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotZero(t, query.ID)
 
-	queries, err := ds.GetQueriesInPack(pack)
+	queries, err := ds.ListQueriesInPack(pack)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
 
 	err = svc.AddQueryToPack(ctx, query.ID, pack.ID)
 	assert.Nil(t, err)
 
-	queries, err = ds.GetQueriesInPack(pack)
+	queries, err = ds.ListQueriesInPack(pack)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 1)
 }
@@ -189,7 +189,7 @@ func TestGetQueriesInPack(t *testing.T) {
 	err = ds.AddQueryToPack(query.ID, pack.ID)
 	assert.Nil(t, err)
 
-	queries, err := svc.GetQueriesInPack(ctx, pack.ID)
+	queries, err := svc.ListQueriesInPack(ctx, pack.ID)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 1)
 }
@@ -221,14 +221,14 @@ func TestRemoveQueryFromPack(t *testing.T) {
 	err = ds.AddQueryToPack(query.ID, pack.ID)
 	assert.Nil(t, err)
 
-	queries, err := ds.GetQueriesInPack(pack)
+	queries, err := ds.ListQueriesInPack(pack)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 1)
 
 	err = svc.RemoveQueryFromPack(ctx, query.ID, pack.ID)
 	assert.Nil(t, err)
 
-	queries, err = ds.GetQueriesInPack(pack)
+	queries, err = ds.ListQueriesInPack(pack)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
 }

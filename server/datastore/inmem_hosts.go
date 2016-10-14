@@ -60,7 +60,7 @@ func (orm *inmem) Host(id uint) (*kolide.Host, error) {
 	return host, nil
 }
 
-func (orm *inmem) Hosts(opt kolide.ListOptions) ([]*kolide.Host, error) {
+func (orm *inmem) ListHosts(opt kolide.ListOptions) ([]*kolide.Host, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 

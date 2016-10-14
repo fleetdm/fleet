@@ -23,7 +23,7 @@ func (orm *inmem) NewInvite(invite *kolide.Invite) (*kolide.Invite, error) {
 }
 
 // Invites lists all invites in the datastore.
-func (orm *inmem) Invites(opt kolide.ListOptions) ([]*kolide.Invite, error) {
+func (orm *inmem) ListInvites(opt kolide.ListOptions) ([]*kolide.Invite, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 

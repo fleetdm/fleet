@@ -60,7 +60,7 @@ func (orm *inmem) Pack(id uint) (*kolide.Pack, error) {
 	return pack, nil
 }
 
-func (orm *inmem) Packs(opt kolide.ListOptions) ([]*kolide.Pack, error) {
+func (orm *inmem) ListPacks(opt kolide.ListOptions) ([]*kolide.Pack, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 

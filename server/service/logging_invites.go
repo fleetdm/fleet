@@ -51,7 +51,7 @@ func (mw loggingMiddleware) DeleteInvite(ctx context.Context, id uint) error {
 	return err
 }
 
-func (mw loggingMiddleware) Invites(ctx context.Context) ([]*kolide.Invite, error) {
+func (mw loggingMiddleware) ListInvites(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Invite, error) {
 	var (
 		invites []*kolide.Invite
 		err     error
@@ -68,7 +68,7 @@ func (mw loggingMiddleware) Invites(ctx context.Context) ([]*kolide.Invite, erro
 			"took", time.Since(begin),
 		)
 	}(time.Now())
-	invites, err = mw.Service.ListInvites(ctx, kolide.ListOptions{})
+	invites, err = mw.Service.ListInvites(ctx, opt)
 	return invites, err
 }
 

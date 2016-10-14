@@ -15,7 +15,7 @@ type InviteStore interface {
 	NewInvite(i *Invite) (*Invite, error)
 
 	// Invites lists all invites in the datastore.
-	Invites(opt ListOptions) ([]*Invite, error)
+	ListInvites(opt ListOptions) ([]*Invite, error)
 
 	// Invite retrieves an invite by it's ID.
 	Invite(id uint) (*Invite, error)

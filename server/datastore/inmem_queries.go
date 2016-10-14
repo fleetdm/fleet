@@ -60,7 +60,7 @@ func (orm *inmem) Query(id uint) (*kolide.Query, error) {
 	return query, nil
 }
 
-func (orm *inmem) Queries(opt kolide.ListOptions) ([]*kolide.Query, error) {
+func (orm *inmem) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 

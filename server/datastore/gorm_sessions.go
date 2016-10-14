@@ -7,7 +7,7 @@ import (
 	"github.com/kolide/kolide-ose/server/kolide"
 )
 
-func (orm gormDB) FindSessionByID(id uint) (*kolide.Session, error) {
+func (orm gormDB) SessionByID(id uint) (*kolide.Session, error) {
 	session := &kolide.Session{
 		ID: id,
 	}
@@ -26,7 +26,7 @@ func (orm gormDB) FindSessionByID(id uint) (*kolide.Session, error) {
 
 }
 
-func (orm gormDB) FindSessionByKey(key string) (*kolide.Session, error) {
+func (orm gormDB) SessionByKey(key string) (*kolide.Session, error) {
 	session := &kolide.Session{
 		Key: key,
 	}
@@ -44,7 +44,7 @@ func (orm gormDB) FindSessionByKey(key string) (*kolide.Session, error) {
 	return session, nil
 }
 
-func (orm gormDB) FindAllSessionsForUser(id uint) ([]*kolide.Session, error) {
+func (orm gormDB) ListSessionsForUser(id uint) ([]*kolide.Session, error) {
 	var sessions []*kolide.Session
 	err := orm.DB.Where("user_id = ?", id).Find(&sessions).Error
 	return sessions, err

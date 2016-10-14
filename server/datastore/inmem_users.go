@@ -35,7 +35,7 @@ func (orm *inmem) User(username string) (*kolide.User, error) {
 	return nil, ErrNotFound
 }
 
-func (orm *inmem) Users(opt kolide.ListOptions) ([]*kolide.User, error) {
+func (orm *inmem) ListUsers(opt kolide.ListOptions) ([]*kolide.User, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 

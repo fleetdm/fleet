@@ -71,7 +71,7 @@ func TestDeleteHost(t *testing.T) {
 	err = svc.DeleteHost(ctx, host.ID)
 	assert.Nil(t, err)
 
-	hosts, err := ds.Hosts(kolide.ListOptions{})
+	hosts, err := ds.ListHosts(kolide.ListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 0)
 

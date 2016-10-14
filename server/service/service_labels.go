@@ -6,7 +6,7 @@ import (
 )
 
 func (svc service) ListLabels(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Label, error) {
-	return svc.ds.Labels(opt)
+	return svc.ds.ListLabels(opt)
 }
 
 func (svc service) GetLabel(ctx context.Context, id uint) (*kolide.Label, error) {

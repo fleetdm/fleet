@@ -52,14 +52,14 @@ func testAddAndRemoveQueryFromPack(t *testing.T, ds kolide.Datastore) {
 	err = ds.AddQueryToPack(q2.ID, pack.ID)
 	assert.Nil(t, err)
 
-	queries, err := ds.GetQueriesInPack(pack)
+	queries, err := ds.ListQueriesInPack(pack)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 2)
 
 	err = ds.RemoveQueryFromPack(q1, pack)
 	assert.Nil(t, err)
 
-	queries, err = ds.GetQueriesInPack(pack)
+	queries, err = ds.ListQueriesInPack(pack)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 1)
 }

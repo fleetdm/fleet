@@ -6,7 +6,7 @@ import (
 	"github.com/kolide/kolide-ose/server/kolide"
 )
 
-func (orm *inmem) FindSessionByKey(key string) (*kolide.Session, error) {
+func (orm *inmem) SessionByKey(key string) (*kolide.Session, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
@@ -18,7 +18,7 @@ func (orm *inmem) FindSessionByKey(key string) (*kolide.Session, error) {
 	return nil, ErrNotFound
 }
 
-func (orm *inmem) FindSessionByID(id uint) (*kolide.Session, error) {
+func (orm *inmem) SessionByID(id uint) (*kolide.Session, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
@@ -28,7 +28,7 @@ func (orm *inmem) FindSessionByID(id uint) (*kolide.Session, error) {
 	return nil, ErrNotFound
 }
 
-func (orm *inmem) FindAllSessionsForUser(id uint) ([]*kolide.Session, error) {
+func (orm *inmem) ListSessionsForUser(id uint) ([]*kolide.Session, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 

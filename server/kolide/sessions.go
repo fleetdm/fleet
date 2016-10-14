@@ -33,14 +33,14 @@ var (
 type SessionStore interface {
 	// Given a session key, find and return a session object or an error if one
 	// could not be found for the given key
-	FindSessionByKey(key string) (*Session, error)
+	SessionByKey(key string) (*Session, error)
 
 	// Given a session id, find and return a session object or an error if one
 	// could not be found for the given id
-	FindSessionByID(id uint) (*Session, error)
+	SessionByID(id uint) (*Session, error)
 
 	// Find all of the active sessions for a given user
-	FindAllSessionsForUser(id uint) ([]*Session, error)
+	ListSessionsForUser(id uint) ([]*Session, error)
 
 	// Store a new session struct
 	NewSession(session *Session) (*Session, error)

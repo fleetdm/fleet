@@ -81,7 +81,7 @@ func (svc service) DestroySession(ctx context.Context) error {
 		return errNoContext
 	}
 
-	session, err := svc.ds.FindSessionByID(vc.SessionID())
+	session, err := svc.ds.SessionByID(vc.SessionID())
 	if err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func (svc service) DestroySession(ctx context.Context) error {
 func (svc service) GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([]*kolide.Session, error) {
 	var validatedSessions []*kolide.Session
 
-	sessions, err := svc.ds.FindAllSessionsForUser(id)
+	sessions, err := svc.ds.ListSessionsForUser(id)
 	if err != nil {
 		return validatedSessions, err
 	}
@@ -111,7 +111,7 @@ func (svc service) DeleteSessionsForUser(ctx context.Context, id uint) error {
 }
 
 func (svc service) GetInfoAboutSession(ctx context.Context, id uint) (*kolide.Session, error) {
-	session, err := svc.ds.FindSessionByID(id)
+	session, err := svc.ds.SessionByID(id)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +125,7 @@ func (svc service) GetInfoAboutSession(ctx context.Context, id uint) (*kolide.Se
 }
 
 func (svc service) GetSessionByKey(ctx context.Context, key string) (*kolide.Session, error) {
-	session, err := svc.ds.FindSessionByKey(key)
+	session, err := svc.ds.SessionByKey(key)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +139,7 @@ func (svc service) GetSessionByKey(ctx context.Context, key string) (*kolide.Ses
 }
 
 func (svc service) DeleteSession(ctx context.Context, id uint) error {
-	session, err := svc.ds.FindSessionByID(id)
+	session, err := svc.ds.SessionByID(id)
 	if err != nil {
 		return err
 	}

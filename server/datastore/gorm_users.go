@@ -23,7 +23,7 @@ func (orm gormDB) User(username string) (*kolide.User, error) {
 	return user, nil
 }
 
-func (orm gormDB) Users(opt kolide.ListOptions) ([]*kolide.User, error) {
+func (orm gormDB) ListUsers(opt kolide.ListOptions) ([]*kolide.User, error) {
 	var users []*kolide.User
 	err := orm.applyListOptions(opt).Find(&users).Error
 	if err != nil {

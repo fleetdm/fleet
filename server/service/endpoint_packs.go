@@ -185,7 +185,7 @@ func (r getQueriesInPackResponse) error() error { return r.Err }
 func makeGetQueriesInPackEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(getQueriesInPackRequest)
-		queries, err := svc.GetQueriesInPack(ctx, req.ID)
+		queries, err := svc.ListQueriesInPack(ctx, req.ID)
 		if err != nil {
 			return getQueriesInPackResponse{Err: err}, nil
 		}
@@ -268,7 +268,7 @@ func (r getLabelsForPackResponse) error() error { return r.Err }
 func makeGetLabelsForPackEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(getLabelsForPackRequest)
-		labels, err := svc.GetLabelsForPack(ctx, req.PackID)
+		labels, err := svc.ListLabelsForPack(ctx, req.PackID)
 		if err != nil {
 			return getLabelsForPackResponse{Err: err}, nil
 		}

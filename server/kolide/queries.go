@@ -12,7 +12,7 @@ type QueryStore interface {
 	SaveQuery(query *Query) error
 	DeleteQuery(query *Query) error
 	Query(id uint) (*Query, error)
-	Queries(opt ListOptions) ([]*Query, error)
+	ListQueries(opt ListOptions) ([]*Query, error)
 }
 
 type QueryService interface {

@@ -54,7 +54,7 @@ func (orm gormDB) Label(lid uint) (*kolide.Label, error) {
 	return label, nil
 }
 
-func (orm gormDB) Labels(opt kolide.ListOptions) ([]*kolide.Label, error) {
+func (orm gormDB) ListLabels(opt kolide.ListOptions) ([]*kolide.Label, error) {
 	var labels []*kolide.Label
 	err := orm.applyListOptions(opt).Find(&labels).Error
 	return labels, err
@@ -149,7 +149,7 @@ matches = VALUES(matches)
 	return nil
 }
 
-func (orm gormDB) LabelsForHost(hid uint) ([]kolide.Label, error) {
+func (orm gormDB) ListLabelsForHost(hid uint) ([]kolide.Label, error) {
 	results := []kolide.Label{}
 	err := orm.DB.Raw(`
 SELECT labels.* from labels, label_query_executions lqe

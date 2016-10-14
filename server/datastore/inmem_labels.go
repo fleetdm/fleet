@@ -26,7 +26,7 @@ func (orm *inmem) NewLabel(label *kolide.Label) (*kolide.Label, error) {
 	return &newLabel, nil
 }
 
-func (orm *inmem) LabelsForHost(hid uint) ([]kolide.Label, error) {
+func (orm *inmem) ListLabelsForHost(hid uint) ([]kolide.Label, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 

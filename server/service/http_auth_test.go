@@ -112,7 +112,7 @@ func TestLogin(t *testing.T) {
 		assert.Equal(t, tt.username, jsn.User.Username)
 
 		// ensure that a session was created for our test user and stored
-		sessions, err := ds.FindAllSessionsForUser(testUser.ID)
+		sessions, err := ds.ListSessionsForUser(testUser.ID)
 		assert.Nil(t, err)
 		assert.Len(t, sessions, 1)
 
@@ -131,7 +131,7 @@ func TestLogin(t *testing.T) {
 		assert.Nil(t, err)
 
 		// ensure that our user's session was deleted from the store
-		sessions, err = ds.FindAllSessionsForUser(testUser.ID)
+		sessions, err = ds.ListSessionsForUser(testUser.ID)
 		assert.Len(t, sessions, 0)
 	}
 }

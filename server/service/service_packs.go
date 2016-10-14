@@ -6,7 +6,7 @@ import (
 )
 
 func (svc service) ListPacks(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Pack, error) {
-	return svc.ds.Packs(opt)
+	return svc.ds.ListPacks(opt)
 }
 
 func (svc service) GetPack(ctx context.Context, id uint) (*kolide.Pack, error) {
@@ -61,13 +61,13 @@ func (svc service) AddQueryToPack(ctx context.Context, qid, pid uint) error {
 	return svc.ds.AddQueryToPack(qid, pid)
 }
 
-func (svc service) GetQueriesInPack(ctx context.Context, id uint) ([]*kolide.Query, error) {
+func (svc service) ListQueriesInPack(ctx context.Context, id uint) ([]*kolide.Query, error) {
 	pack, err := svc.ds.Pack(id)
 	if err != nil {
 		return nil, err
 	}
 
-	queries, err := svc.ds.GetQueriesInPack(pack)
+	queries, err := svc.ds.ListQueriesInPack(pack)
 	if err != nil {
 		return nil, err
 	}
@@ -97,13 +97,13 @@ func (svc service) AddLabelToPack(ctx context.Context, lid, pid uint) error {
 	return svc.ds.AddLabelToPack(lid, pid)
 }
 
-func (svc service) GetLabelsForPack(ctx context.Context, pid uint) ([]*kolide.Label, error) {
+func (svc service) ListLabelsForPack(ctx context.Context, pid uint) ([]*kolide.Label, error) {
 	pack, err := svc.ds.Pack(pid)
 	if err != nil {
 		return nil, err
 	}
 
-	labels, err := svc.ds.GetLabelsForPack(pack)
+	labels, err := svc.ds.ListLabelsForPack(pack)
 	if err != nil {
 		return nil, err
 	}

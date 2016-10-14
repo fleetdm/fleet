@@ -116,7 +116,7 @@ func (svc service) AuthenticatedUser(ctx context.Context) (*kolide.User, error) 
 }
 
 func (svc service) ListUsers(ctx context.Context, opt kolide.ListOptions) ([]*kolide.User, error) {
-	return svc.ds.Users(opt)
+	return svc.ds.ListUsers(opt)
 }
 
 func (svc service) ResetPassword(ctx context.Context, token, password string) error {

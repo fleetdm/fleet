@@ -50,7 +50,7 @@ func (orm gormDB) Pack(pid uint) (*kolide.Pack, error) {
 	return pack, nil
 }
 
-func (orm gormDB) Packs(opt kolide.ListOptions) ([]*kolide.Pack, error) {
+func (orm gormDB) ListPacks(opt kolide.ListOptions) ([]*kolide.Pack, error) {
 	var packs []*kolide.Pack
 	err := orm.applyListOptions(opt).Find(&packs).Error
 	return packs, err
@@ -64,7 +64,7 @@ func (orm gormDB) AddQueryToPack(qid uint, pid uint) error {
 	return orm.DB.Create(pq).Error
 }
 
-func (orm gormDB) GetQueriesInPack(pack *kolide.Pack) ([]*kolide.Query, error) {
+func (orm gormDB) ListQueriesInPack(pack *kolide.Pack) ([]*kolide.Query, error) {
 	var queries []*kolide.Query
 	if pack == nil {
 		return nil, errors.New(
@@ -146,18 +146,18 @@ func (orm gormDB) AddLabelToPack(lid uint, pid uint) error {
 	return orm.DB.Create(pt).Error
 }
 
-func (orm gormDB) ActivePacksForHost(hid uint) ([]*kolide.Pack, error) {
+func (orm gormDB) ListPacksForHost(hid uint) ([]*kolide.Pack, error) {
 	packs := []*kolide.Pack{}
 
 	// we will need to give some subset of packs to this host based on the
 	// labels which this host is known to belong to
-	allPacks, err := orm.Packs(kolide.ListOptions{})
+	allPacks, err := orm.ListPacks(kolide.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
 
 	// pull the labels that this host belongs to
-	labels, err := orm.LabelsForHost(hid)
+	labels, err := orm.ListLabelsForHost(hid)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +172,7 @@ func (orm gormDB) ActivePacksForHost(hid uint) ([]*kolide.Pack, error) {
 	for _, pack := range allPacks {
 		// for each pack, we must know what labels have been assigned to that
 		// pack
-		labelsForPack, err := orm.GetLabelsForPack(pack)
+		labelsForPack, err := orm.ListLabelsForPack(pack)
 		if err != nil {
 			return nil, err
 		}
@@ -190,7 +190,7 @@ func (orm gormDB) ActivePacksForHost(hid uint) ([]*kolide.Pack, error) {
 	return packs, nil
 }
 
-func (orm gormDB) GetLabelsForPack(pack *kolide.Pack) ([]*kolide.Label, error) {
+func (orm gormDB) ListLabelsForPack(pack *kolide.Pack) ([]*kolide.Label, error) {
 	if pack == nil {
 		return nil, errors.New(
 			"error getting labels for pack",

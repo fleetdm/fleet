@@ -6,7 +6,7 @@ import (
 )
 
 func (svc service) ListQueries(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Query, error) {
-	return svc.ds.Queries(opt)
+	return svc.ds.ListQueries(opt)
 }
 
 func (svc service) GetQuery(ctx context.Context, id uint) (*kolide.Query, error) {

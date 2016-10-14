@@ -12,20 +12,20 @@ type PackStore interface {
 	SavePack(pack *Pack) error
 	DeletePack(pid uint) error
 	Pack(pid uint) (*Pack, error)
-	Packs(opt ListOptions) ([]*Pack, error)
+	ListPacks(opt ListOptions) ([]*Pack, error)
 
 	// Modifying the queries in packs
 	AddQueryToPack(qid uint, pid uint) error
-	GetQueriesInPack(pack *Pack) ([]*Query, error)
+	ListQueriesInPack(pack *Pack) ([]*Query, error)
 	RemoveQueryFromPack(query *Query, pack *Pack) error
 
 	// Modifying the labels for packs
 	AddLabelToPack(lid uint, pid uint) error
-	GetLabelsForPack(pack *Pack) ([]*Label, error)
+	ListLabelsForPack(pack *Pack) ([]*Label, error)
 	RemoveLabelFromPack(label *Label, pack *Pack) error
 
 	// Packs from the host's perspective
-	ActivePacksForHost(hid uint) ([]*Pack, error)
+	ListPacksForHost(hid uint) ([]*Pack, error)
 }
 
 type PackService interface {
@@ -36,11 +36,11 @@ type PackService interface {
 	DeletePack(ctx context.Context, id uint) error
 
 	AddQueryToPack(ctx context.Context, qid, pid uint) error
-	GetQueriesInPack(ctx context.Context, id uint) ([]*Query, error)
+	ListQueriesInPack(ctx context.Context, id uint) ([]*Query, error)
 	RemoveQueryFromPack(ctx context.Context, qid, pid uint) error
 
 	AddLabelToPack(ctx context.Context, lid, pid uint) error
-	GetLabelsForPack(ctx context.Context, pid uint) ([]*Label, error)
+	ListLabelsForPack(ctx context.Context, pid uint) ([]*Label, error)
 	RemoveLabelFromPack(ctx context.Context, lid, pid uint) error
 }
 

@@ -11,7 +11,7 @@ type HostStore interface {
 	SaveHost(host *Host) error
 	DeleteHost(host *Host) error
 	Host(id uint) (*Host, error)
-	Hosts(opt ListOptions) ([]*Host, error)
+	ListHosts(opt ListOptions) ([]*Host, error)
 	EnrollHost(uuid, hostname, ip, platform string, nodeKeySize int) (*Host, error)
 	AuthenticateHost(nodeKey string) (*Host, error)
 	MarkHostSeen(host *Host, t time.Time) error

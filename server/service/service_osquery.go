@@ -71,14 +71,14 @@ func (svc service) GetClientConfig(ctx context.Context) (*kolide.OsqueryConfig, 
 		Packs: kolide.Packs{},
 	}
 
-	packs, err := svc.ds.ActivePacksForHost(host.ID)
+	packs, err := svc.ds.ListPacksForHost(host.ID)
 	if err != nil {
 		return nil, osqueryError{message: "database error: " + err.Error()}
 	}
 
 	for _, pack := range packs {
 		// first, we must figure out what queries are in this pack
-		queries, err := svc.ds.GetQueriesInPack(pack)
+		queries, err := svc.ds.ListQueriesInPack(pack)
 		if err != nil {
 			return nil, osqueryError{message: "database error: " + err.Error()}
 		}
