@@ -19,6 +19,7 @@ func (orm *inmem) NewHost(host *kolide.Host) (*kolide.Host, error) {
 	}
 
 	host.ID = orm.nextID(host)
+	orm.hosts[host.ID] = host
 
 	return host, nil
 }
