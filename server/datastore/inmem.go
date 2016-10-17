@@ -90,7 +90,7 @@ func sortResults(slice interface{}, opt kolide.ListOptions, fields map[string]st
 // nextID returns the next ID value that should be used for a struct of the
 // given type
 func (orm *inmem) nextID(val interface{}) uint {
-	valType := reflect.TypeOf(val)
+	valType := reflect.TypeOf(reflect.Indirect(reflect.ValueOf(val)).Interface())
 	orm.nextIDs[valType]++
 	return orm.nextIDs[valType]
 }
