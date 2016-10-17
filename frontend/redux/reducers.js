@@ -5,6 +5,7 @@ import auth from './nodes/auth/reducer';
 import components from './nodes/components/reducer';
 import entities from './nodes/entities/reducer';
 import notifications from './nodes/notifications/reducer';
+import redirectLocation from './nodes/redirectLocation/reducer';
 
 export default combineReducers({
   app,
@@ -12,5 +13,6 @@ export default combineReducers({
   components,
   entities,
   notifications,
+  redirectLocation,
   routing: routerReducer,
 });

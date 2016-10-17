@@ -3,7 +3,9 @@ import { connect } from 'react-redux';
 import { includes } from 'lodash';
 import { push } from 'react-router-redux';
 import ReactCSSTransitionGroup from 'react-addons-css-transition-group';
+
 import { clearAuthErrors, loginUser } from '../../redux/nodes/auth/actions';
+import { clearRedirectLocation } from '../../redux/nodes/redirectLocation/actions';
 import debounce from '../../utilities/debounce';
 import LoginForm from '../../components/forms/LoginForm';
 import LoginSuccessfulPage from '../LoginSuccessfulPage';
@@ -18,6 +20,7 @@ export class LoginPage extends Component {
     error: PropTypes.string,
     loading: PropTypes.bool,
     pathname: PropTypes.string,
+    redirectLocation: PropTypes.object,
     user: PropTypes.object,
   };
 
@@ -46,14 +49,16 @@ export class LoginPage extends Component {
   };
 
   onSubmit = debounce((formData) => {
-    const { dispatch } = this.props;
+    const { dispatch, redirectLocation } = this.props;
     const { HOME } = paths;
     const redirectTime = 1500;
     return dispatch(loginUser(formData))
       .then(() => {
         this.setState({ loginVisible: false });
         setTimeout(() => {
-          return dispatch(push(HOME));
+          const nextLocation = redirectLocation || HOME;
+          dispatch(clearRedirectLocation);
+          return dispatch(push(nextLocation));
         }, redirectTime);
       });
   })
@@ -104,10 +109,12 @@ export class LoginPage extends Component {
 
 const mapStateToProps = (state) => {
   const { error, loading, user } = state.auth;
+  const { redirectLocation } = state;
 
   return {
     error,
     loading,
+    redirectLocation,
     user,
   };
 };

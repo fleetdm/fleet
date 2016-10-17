@@ -30,6 +30,9 @@ describe('AuthenticatedRoutes - component', () => {
         force_password_reset: false,
       },
     },
+    routing: {
+      locationBeforeTransitions: {},
+    },
   };
   const storeWithUserRequiringPwReset = {
     auth: {
@@ -40,17 +43,26 @@ describe('AuthenticatedRoutes - component', () => {
         force_password_reset: true,
       },
     },
+    routing: {
+      locationBeforeTransitions: {},
+    },
   };
   const storeWithoutUser = {
     auth: {
       loading: false,
       user: null,
     },
+    routing: {
+      locationBeforeTransitions: {},
+    },
   };
   const storeLoadingUser = {
     auth: {
       loading: true,
       user: null,
+    },
+    routing: {
+      locationBeforeTransitions: {},
     },
   };
 

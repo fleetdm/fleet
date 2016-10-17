@@ -2,13 +2,16 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { isEqual } from 'lodash';
 import { push } from 'react-router-redux';
+
 import paths from '../../router/paths';
+import { setRedirectLocation } from '../../redux/nodes/redirectLocation/actions';
 
 export class AuthenticatedRoutes extends Component {
   static propTypes = {
     children: PropTypes.element,
     dispatch: PropTypes.func,
     loading: PropTypes.bool.isRequired,
+    locationBeforeTransitions: PropTypes.object,
     user: PropTypes.object,
   };
 
@@ -35,9 +38,10 @@ export class AuthenticatedRoutes extends Component {
   }
 
   redirectToLogin = () => {
-    const { dispatch } = this.props;
+    const { dispatch, locationBeforeTransitions } = this.props;
     const { LOGIN } = paths;
 
+    dispatch(setRedirectLocation(locationBeforeTransitions));
     return dispatch(push(LOGIN));
   }
 
@@ -63,8 +67,9 @@ export class AuthenticatedRoutes extends Component {
 
 const mapStateToProps = (state) => {
   const { loading, user } = state.auth;
+  const { locationBeforeTransitions } = state.routing;
 
-  return { loading, user };
+  return { loading, locationBeforeTransitions, user };
 };
 
 export default connect(mapStateToProps)(AuthenticatedRoutes);
