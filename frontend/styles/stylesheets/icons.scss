@@ -13,6 +13,77 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+kolidecon-centos:before {
+  content: "\e91f";
+}
+.kolidecon-windows:before {
+  content: "\e920";
+}
+.kolidecon-ubuntu:before {
+  content: "\e921";
+}
+.kolidecon-hamburger:before {
+  content: "\e922";
+}
+
+.kolidecon-logoflat:before {
+  content: "\e91d";
+}
+
+.kolidecon-logoflat:after {
+  content: "\e91e";
+  margin-left: -1em;
+  color: rgb(255, 255, 255);
+}
+
+.kolidecon-tag:before {
+  content: "\e916";
+}
+.kolidecon-uptime:before {
+  content: "\e915";
+}
+.kolidecon-world:before {
+  content: "\e917";
+}
+.kolidecon-mac:before {
+  content: "\e918";
+}
+.kolidecon-memory:before {
+  content: "\e919";
+}
+.kolidecon-storage:before {
+  content: "\e91a";
+}
+.kolidecon-cpu:before {
+  content: "\e91b";
+}
+.kolidecon-apple:before {
+  content: "\e91c";
+}
+.kolidecon-chevrondownbold:before {
+  content: "\e90d";
+}
+.kolidecon-chevronupbold:before {
+  content: "\e90e";
+}
+.kolidecon-chevronleftbold:before {
+  content: "\e90f";
+}
+.kolidecon-chevronrightbold:before {
+  content: "\e910";
+}
+.kolidecon-chevrondown:before {
+  content: "\e911";
+}
+.kolidecon-chevronup:before {
+  content: "\e912";
+}
+.kolidecon-chevronleft:before {
+  content: "\e913";
+}
+.kolidecon-chevronright:before {
+  content: "\e914";
+}
 .kolidecon-filter:before {
   content: "\e906";
 }
@@ -54,28 +125,4 @@
 }
 .kolidecon-admin:before {
   content: "\e90a";
-}
-.kolidecon-chevron-bold-down:before {
-  content: "\e90d";
-}
-.kolidecon-chevron-bold-up:before {
-  content: "\e90e";
-}
-.kolidecon-chevron-bold-left:before {
-  content: "\e90f";
-}
-.kolidecon-chevron-bold-right:before {
-  content: "\e910";
-}
-.kolidecon-chevron-down:before {
-  content: "\e911";
-}
-.kolidecon-chevron-up:before {
-  content: "\e912";
-}
-.kolidecon-chevron-left:before {
-  content: "\e913";
-}
-.kolidecon-chevron-right:before {
-  content: "\e914";
 }
