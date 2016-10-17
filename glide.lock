@@ -1,5 +1,5 @@
-hash: 18323336ff6ef09b5aa4c35766dea76ad4986f955c3f0b2598772322a8f72f7f
-updated: 2016-10-14T15:44:13.911342299-07:00
+hash: e39bd9f3a0b0d8746e54485a742b52058d2623f3d03cb1925c0ab4cdee312385
+updated: 2016-10-17T13:39:07.1672564-04:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -143,7 +143,7 @@ imports:
 - name: github.com/spf13/viper
   version: 7fb2782df3d83e0036cc89f461ed0422628776f4
 - name: github.com/stretchr/testify
-  version: d77da356e56a7428ad25149ca77381849a6a5232
+  version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0
   subpackages:
   - assert
   - require

@@ -158,7 +158,7 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 	// A host that hasn't executed any label queries should still be asked
 	// to execute those queries
 	hosts[0].Platform = "darwin"
-	queries, err = db.LabelQueriesForHost(host, time.Now())
+	queries, err = db.LabelQueriesForHost(&hosts[0], time.Now())
 	assert.Nil(t, err)
 	assert.Len(t, queries, 4)
 

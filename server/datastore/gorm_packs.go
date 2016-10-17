@@ -146,50 +146,6 @@ func (orm gormDB) AddLabelToPack(lid uint, pid uint) error {
 	return orm.DB.Create(pt).Error
 }
 
-func (orm gormDB) ListPacksForHost(hid uint) ([]*kolide.Pack, error) {
-	packs := []*kolide.Pack{}
-
-	// we will need to give some subset of packs to this host based on the
-	// labels which this host is known to belong to
-	allPacks, err := orm.ListPacks(kolide.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	// pull the labels that this host belongs to
-	labels, err := orm.ListLabelsForHost(hid)
-	if err != nil {
-		return nil, err
-	}
-
-	// in order to use o(1) array indexing in an o(n) loop vs a o(n^2) double
-	// for loop iteration, we must create the array which may be indexed below
-	labelIDs := map[uint]bool{}
-	for _, label := range labels {
-		labelIDs[label.ID] = true
-	}
-
-	for _, pack := range allPacks {
-		// for each pack, we must know what labels have been assigned to that
-		// pack
-		labelsForPack, err := orm.ListLabelsForPack(pack)
-		if err != nil {
-			return nil, err
-		}
-
-		// o(n) iteration to determine whether or not a pack is enabled
-		// in this case, n is len(labelsForPack)
-		for _, label := range labelsForPack {
-			if labelIDs[label.ID] {
-				packs = append(packs, pack)
-				break
-			}
-		}
-	}
-
-	return packs, nil
-}
-
 func (orm gormDB) ListLabelsForPack(pack *kolide.Pack) ([]*kolide.Label, error) {
 	if pack == nil {
 		return nil, errors.New(

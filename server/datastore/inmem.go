@@ -10,7 +10,6 @@ import (
 )
 
 type inmem struct {
-	kolide.Datastore
 	Driver  string
 	mtx     sync.RWMutex
 	nextIDs map[interface{}]uint
@@ -24,6 +23,8 @@ type inmem struct {
 	queries              map[uint]*kolide.Query
 	packs                map[uint]*kolide.Pack
 	hosts                map[uint]*kolide.Host
+	packQueries          map[uint]*kolide.PackQuery
+	packTargets          map[uint]*kolide.PackTarget
 
 	orginfo *kolide.OrgInfo
 }
@@ -45,6 +46,8 @@ func (orm *inmem) Migrate() error {
 	orm.queries = make(map[uint]*kolide.Query)
 	orm.packs = make(map[uint]*kolide.Pack)
 	orm.hosts = make(map[uint]*kolide.Host)
+	orm.packQueries = make(map[uint]*kolide.PackQuery)
+	orm.packTargets = make(map[uint]*kolide.PackTarget)
 	return nil
 }
 

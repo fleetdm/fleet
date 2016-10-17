@@ -129,3 +129,47 @@ func (svc service) RemoveLabelFromPack(ctx context.Context, lid, pid uint) error
 
 	return nil
 }
+
+func (svc service) ListPacksForHost(ctx context.Context, hid uint) ([]*kolide.Pack, error) {
+	packs := []*kolide.Pack{}
+
+	// we will need to give some subset of packs to this host based on the
+	// labels which this host is known to belong to
+	allPacks, err := svc.ds.ListPacks(kolide.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	// pull the labels that this host belongs to
+	labels, err := svc.ds.ListLabelsForHost(hid)
+	if err != nil {
+		return nil, err
+	}
+
+	// in order to use o(1) array indexing in an o(n) loop vs a o(n^2) double
+	// for loop iteration, we must create the array which may be indexed below
+	labelIDs := map[uint]bool{}
+	for _, label := range labels {
+		labelIDs[label.ID] = true
+	}
+
+	for _, pack := range allPacks {
+		// for each pack, we must know what labels have been assigned to that
+		// pack
+		labelsForPack, err := svc.ds.ListLabelsForPack(pack)
+		if err != nil {
+			return nil, err
+		}
+
+		// o(n) iteration to determine whether or not a pack is enabled
+		// in this case, n is len(labelsForPack)
+		for _, label := range labelsForPack {
+			if labelIDs[label.ID] {
+				packs = append(packs, pack)
+				break
+			}
+		}
+	}
+
+	return packs, nil
+}

@@ -7,30 +7,28 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func testOrgInfo(t *testing.T, db kolide.Datastore) {
+func testOrgInfo(t *testing.T, ds kolide.Datastore) {
 	info := &kolide.OrgInfo{
 		OrgName:    "Kolide",
 		OrgLogoURL: "localhost:8080/logo.png",
 	}
 
-	info, err := db.NewOrgInfo(info)
+	info, err := ds.NewOrgInfo(info)
 	assert.Nil(t, err)
-	assert.Equal(t, info.ID, uint(1))
 
-	info2, err := db.OrgInfo()
+	info2, err := ds.OrgInfo()
 	assert.Nil(t, err)
-	assert.Equal(t, info2.ID, uint(1))
 	assert.Equal(t, info2.OrgName, info.OrgName)
 
 	info2.OrgName = "koolide"
-	err = db.SaveOrgInfo(info2)
+	err = ds.SaveOrgInfo(info2)
 	assert.Nil(t, err)
 
-	info3, err := db.OrgInfo()
+	info3, err := ds.OrgInfo()
 	assert.Nil(t, err)
 	assert.Equal(t, info3.OrgName, info2.OrgName)
 
-	info4, err := db.NewOrgInfo(info3)
+	info4, err := ds.NewOrgInfo(info3)
 	assert.Nil(t, err)
-	assert.Equal(t, info4.ID, uint(1))
+	assert.Equal(t, info4.OrgName, info3.OrgName)
 }

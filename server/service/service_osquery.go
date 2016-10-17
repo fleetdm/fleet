@@ -71,7 +71,7 @@ func (svc service) GetClientConfig(ctx context.Context) (*kolide.OsqueryConfig, 
 		Packs: kolide.Packs{},
 	}
 
-	packs, err := svc.ds.ListPacksForHost(host.ID)
+	packs, err := svc.ListPacksForHost(ctx, host.ID)
 	if err != nil {
 		return nil, osqueryError{message: "database error: " + err.Error()}
 	}

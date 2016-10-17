@@ -23,9 +23,6 @@ type PackStore interface {
 	AddLabelToPack(lid uint, pid uint) error
 	ListLabelsForPack(pack *Pack) ([]*Label, error)
 	RemoveLabelFromPack(label *Label, pack *Pack) error
-
-	// Packs from the host's perspective
-	ListPacksForHost(hid uint) ([]*Pack, error)
 }
 
 type PackService interface {
@@ -42,6 +39,8 @@ type PackService interface {
 	AddLabelToPack(ctx context.Context, lid, pid uint) error
 	ListLabelsForPack(ctx context.Context, pid uint) ([]*Label, error)
 	RemoveLabelFromPack(ctx context.Context, lid, pid uint) error
+
+	ListPacksForHost(ctx context.Context, hid uint) ([]*Pack, error)
 }
 
 type Pack struct {

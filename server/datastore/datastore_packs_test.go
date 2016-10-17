@@ -14,7 +14,7 @@ func testDeletePack(t *testing.T, ds kolide.Datastore) {
 	}
 	err := ds.NewPack(pack)
 	assert.Nil(t, err)
-	assert.NotEqual(t, pack.ID, 0)
+	assert.NotEqual(t, uint(0), pack.ID)
 
 	pack, err = ds.Pack(pack.ID)
 	require.Nil(t, err)
@@ -22,7 +22,7 @@ func testDeletePack(t *testing.T, ds kolide.Datastore) {
 	err = ds.DeletePack(pack.ID)
 	assert.Nil(t, err)
 
-	assert.NotEqual(t, pack.ID, 0)
+	assert.NotEqual(t, uint(0), pack.ID)
 	pack, err = ds.Pack(pack.ID)
 	assert.NotNil(t, err)
 }
@@ -33,13 +33,16 @@ func testAddAndRemoveQueryFromPack(t *testing.T, ds kolide.Datastore) {
 	}
 	err := ds.NewPack(pack)
 	assert.Nil(t, err)
+	assert.NotEqual(t, uint(0), pack.ID)
 
 	q1 := &kolide.Query{
 		Name:  "bar",
 		Query: "bar",
 	}
-	_, err = ds.NewQuery(q1)
+	q1, err = ds.NewQuery(q1)
 	assert.Nil(t, err)
+	assert.NotEqual(t, uint(0), q1.ID)
+
 	err = ds.AddQueryToPack(q1.ID, pack.ID)
 	assert.Nil(t, err)
 
@@ -47,8 +50,12 @@ func testAddAndRemoveQueryFromPack(t *testing.T, ds kolide.Datastore) {
 		Name:  "baz",
 		Query: "baz",
 	}
-	_, err = ds.NewQuery(q2)
+	q2, err = ds.NewQuery(q2)
 	assert.Nil(t, err)
+	assert.NotEqual(t, uint(0), q2.ID)
+
+	assert.NotEqual(t, q1.ID, q2.ID)
+
 	err = ds.AddQueryToPack(q2.ID, pack.ID)
 	assert.Nil(t, err)
 

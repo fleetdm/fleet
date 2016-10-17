@@ -2,6 +2,7 @@ package datastore
 
 import (
 	"errors"
+	"sort"
 	"strconv"
 	"time"
 
@@ -9,11 +10,9 @@ import (
 )
 
 func (orm *inmem) NewLabel(label *kolide.Label) (*kolide.Label, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
-
 	newLabel := *label
 
+	orm.mtx.Lock()
 	for _, l := range orm.labels {
 		if l.Name == label.Name {
 			return nil, ErrExists
@@ -22,16 +21,16 @@ func (orm *inmem) NewLabel(label *kolide.Label) (*kolide.Label, error) {
 
 	newLabel.ID = orm.nextID(label)
 	orm.labels[newLabel.ID] = &newLabel
+	orm.mtx.Unlock()
 
 	return &newLabel, nil
 }
 
 func (orm *inmem) ListLabelsForHost(hid uint) ([]kolide.Label, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
-
 	// First get IDs of label executions for the host
 	resLabels := []kolide.Label{}
+
+	orm.mtx.Lock()
 	for _, lqe := range orm.labelQueryExecutions {
 		if lqe.HostID == hid && lqe.Matches {
 			if label := orm.labels[lqe.LabelID]; label != nil {
@@ -39,22 +38,23 @@ func (orm *inmem) ListLabelsForHost(hid uint) ([]kolide.Label, error) {
 			}
 		}
 	}
+	orm.mtx.Unlock()
 
 	return resLabels, nil
 }
 
 func (orm *inmem) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (map[string]string, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
-
 	// Get post-cutoff executions for host
 	execedQueryIDs := map[uint]uint{} // Map queryID -> labelID
+
+	orm.mtx.Lock()
 	for _, lqe := range orm.labelQueryExecutions {
 		if lqe.HostID == host.ID && (lqe.UpdatedAt == cutoff || lqe.UpdatedAt.After(cutoff)) {
 			label := orm.labels[lqe.LabelID]
 			execedQueryIDs[label.QueryID] = label.ID
 		}
 	}
+	orm.mtx.Unlock()
 
 	queryToLabel := map[uint]uint{} // Map queryID -> labelID
 	for _, label := range orm.labels {
@@ -79,7 +79,10 @@ func (orm *inmem) getLabelByIDString(id string) (*kolide.Label, error) {
 		return nil, errors.New("non-int label ID")
 	}
 
+	orm.mtx.Lock()
 	label, ok := orm.labels[uint(labelID)]
+	orm.mtx.Unlock()
+
 	if !ok {
 		return nil, errors.New("label ID not found: " + string(labelID))
 	}
@@ -88,9 +91,6 @@ func (orm *inmem) getLabelByIDString(id string) (*kolide.Label, error) {
 }
 
 func (orm *inmem) RecordLabelQueryExecutions(host *kolide.Host, results map[string]bool, t time.Time) error {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
-
 	// Record executions
 	for strLabelID, matches := range results {
 		label, err := orm.getLabelByIDString(strLabelID)
@@ -99,6 +99,7 @@ func (orm *inmem) RecordLabelQueryExecutions(host *kolide.Host, results map[stri
 		}
 
 		updated := false
+		orm.mtx.Lock()
 		for _, lqe := range orm.labelQueryExecutions {
 			if lqe.LabelID == label.ID && lqe.HostID == host.ID {
 				// Update existing execution values
@@ -120,7 +121,75 @@ func (orm *inmem) RecordLabelQueryExecutions(host *kolide.Host, results map[stri
 			lqe.ID = orm.nextID(lqe)
 			orm.labelQueryExecutions[lqe.ID] = &lqe
 		}
+		orm.mtx.Unlock()
 	}
+
+	return nil
+}
+
+func (orm *inmem) DeleteLabel(lid uint) error {
+	orm.mtx.Lock()
+	delete(orm.labels, lid)
+	orm.mtx.Unlock()
+
+	return nil
+}
+
+func (orm *inmem) Label(lid uint) (*kolide.Label, error) {
+	orm.mtx.Lock()
+	label, ok := orm.labels[lid]
+	orm.mtx.Unlock()
+
+	if !ok {
+		return nil, errors.New("Label not found")
+	}
+	return label, nil
+}
+
+func (orm *inmem) ListLabels(opt kolide.ListOptions) ([]*kolide.Label, error) {
+	// We need to sort by keys to provide reliable ordering
+	keys := []int{}
+
+	orm.mtx.Lock()
+	for k, _ := range orm.labels {
+		keys = append(keys, int(k))
+	}
+	sort.Ints(keys)
+
+	labels := []*kolide.Label{}
+	for _, k := range keys {
+		labels = append(labels, orm.labels[uint(k)])
+	}
+	orm.mtx.Unlock()
+
+	// Apply ordering
+	if opt.OrderKey != "" {
+		var fields = map[string]string{
+			"id":         "ID",
+			"created_at": "CreatedAt",
+			"updated_at": "UpdatedAt",
+			"name":       "Name",
+		}
+		if err := sortResults(labels, opt, fields); err != nil {
+			return nil, err
+		}
+	}
+
+	// Apply limit/offset
+	low, high := orm.getLimitOffsetSliceBounds(opt, len(labels))
+	labels = labels[low:high]
+
+	return labels, nil
+}
+
+func (orm *inmem) SaveLabel(label *kolide.Label) error {
+	orm.mtx.Lock()
+	if _, ok := orm.labels[label.ID]; !ok {
+		return ErrNotFound
+	}
+
+	orm.labels[label.ID] = label
+	orm.mtx.Unlock()
 
 	return nil
 }

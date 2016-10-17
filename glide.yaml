@@ -46,10 +46,6 @@ import:
   version: ~1.0.0
   subpackages:
   - difflib
-- package: github.com/stretchr/testify
-  version: d77da356e56a7428ad25149ca77381849a6a5232
-  subpackages:
-  - assert
 - package: golang.org/x/crypto
   version: bc89c496413265e715159bdc8478ee9a92fdc265
   subpackages:
@@ -84,3 +80,5 @@ import:
   subpackages:
   - prometheus
 - package: github.com/patrickmn/sortutil
+- package: github.com/stretchr/testify
+  version: ^1.1.4
