@@ -46,6 +46,16 @@ export const validInviteUserRequest = (bearerToken, formData) => {
     .reply(200, formData);
 };
 
+export const validGetHostsRequest = (bearerToken) => {
+  return nock('http://localhost:8080', {
+    reqHeaders: {
+      Authorization: `Bearer ${bearerToken}`,
+    },
+  })
+    .get('/api/v1/kolide/hosts')
+    .reply(200, { hosts: [] });
+};
+
 export const validGetUsersRequest = (bearerToken) => {
   return nock('http://localhost:8080', {
     reqHeaders: {
@@ -134,6 +144,7 @@ export default {
   invalidResetPasswordRequest,
   validForgotPasswordRequest,
   validGetConfigRequest,
+  validGetHostsRequest,
   validGetInvitesRequest,
   validGetUsersRequest,
   validInviteUserRequest,

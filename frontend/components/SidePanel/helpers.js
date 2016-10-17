@@ -2,7 +2,8 @@ import { find } from 'lodash';
 
 export const activeTabFromPathname = (navItems, pathname) => {
   return find(navItems, (item) => {
-    return item.path.test(pathname);
+    const { path: { regex } } = item;
+    return regex.test(pathname);
   });
 };
 
@@ -14,6 +15,7 @@ export const activeSubTabFromPathname = (activeTab, pathname) => {
   if (!subItems.length) return undefined;
 
   return find(subItems, (subItem) => {
-    return subItem.path.test(pathname);
-  });
+    const { path: { regex } } = subItem;
+    return regex.test(pathname);
+  }) || subItems[0];
 };

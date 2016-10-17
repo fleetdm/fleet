@@ -1,53 +1,96 @@
 export default (admin) => {
   const adminNavItems = [
     {
-      defaultPathname: '/admin/users',
       icon: 'kolidecon-admin',
       name: 'Admin',
-      path: /^\/admin/,
+      path: {
+        regex: /^\/admin/,
+        location: '/admin/users',
+      },
       subItems: [
-        { name: 'User Management', path: /\/users/ },
+        {
+          name: 'User Management',
+          path: {
+            regex: /\/users/,
+            location: '/admin/users',
+          },
+        },
       ],
     },
   ];
 
   const userNavItems = [
     {
-      defaultPathname: '/hosts/new',
       icon: 'kolidecon-hosts',
       name: 'Hosts',
-      path: /^\/hosts/,
+      path: {
+        regex: /^\/hosts/,
+        location: '/hosts/new',
+      },
       subItems: [
-        { name: 'Add Hosts', path: /\/new/ },
-        { name: 'Manage Hosts', path: /\/manage/ },
+        {
+          name: 'Add Hosts',
+          path: {
+            regex: /\/new/,
+            location: '/hosts/new',
+          },
+        },
+        {
+          name: 'Manage Hosts',
+          path: {
+            regex: /\/manage/,
+            location: '/hosts/manage',
+          },
+        },
       ],
     },
     {
       defaultPathname: '/queries/new',
       icon: 'kolidecon-query',
       name: 'Query',
-      path: /^\/queries/,
+      path: {
+        regex: /^\/queries/,
+        location: '/queries/new',
+      },
       subItems: [
-        { name: 'New Query', path: /\/new/ },
-        { name: 'Queries & Results', path: /\/results/ },
+        {
+          name: 'New Query',
+          path: {
+            regex: /\/new/,
+            location: '/queries/new',
+          },
+        },
+        {
+          name: 'Queries & Results',
+          path: {
+            regex: /\/results/,
+            location: '/queries/results',
+          },
+        },
       ],
     },
     {
       icon: 'kolidecon-packs',
       name: 'Packs',
-      path: /^\/packs/,
+      path: {
+        regex: /^\/packs/,
+      },
       subItems: [],
     },
     {
       icon: 'kolidecon-alerts',
       name: 'Alerts',
-      path: /^\/alerts/,
+      path: {
+        regex: /^\/alerts/,
+      },
       subItems: [],
     },
     {
       icon: 'kolidecon-help',
       name: 'Help',
-      path: /^\/help/,
+      path: {
+        regex: /^\/help/,
+      },
       subItems: [],
     },
   ];

@@ -19,6 +19,7 @@ export default {
   footerAccent: '#84878E',
   link: '#4A90E2',
   linkLight: '#C0D8F5',
+  silver: '#D4D8DF',
   success: '#4FD061',
   successLight: '#94E39F',
   textDark: '#858495',

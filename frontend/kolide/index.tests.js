@@ -7,6 +7,7 @@ const {
   invalidResetPasswordRequest,
   validForgotPasswordRequest,
   validGetConfigRequest,
+  validGetHostsRequest,
   validGetInvitesRequest,
   validGetUsersRequest,
   validInviteUserRequest,
@@ -32,6 +33,21 @@ describe('Kolide - API client', () => {
       const request = validGetConfigRequest(bearerToken);
 
       Kolide.getConfig(bearerToken)
+        .then(() => {
+          expect(request.isDone()).toEqual(true);
+          done();
+        })
+        .catch(done);
+    });
+  });
+
+  describe('#getHosts', () => {
+    it('calls the appropriate endpoint with the correct parameters', (done) => {
+      const bearerToken = 'valid-bearer-token';
+      const request = validGetHostsRequest(bearerToken);
+
+      Kolide.setBearerToken(bearerToken);
+      Kolide.getHosts()
         .then(() => {
           expect(request.isDone()).toEqual(true);
           done();

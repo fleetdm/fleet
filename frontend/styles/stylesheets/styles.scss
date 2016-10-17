@@ -14,3 +14,45 @@
     }
   }
 }
+.container-triangle {
+  &::before, &::after {
+    border-radius: 3px;
+    content: '';
+    display: block;
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    z-index: 1;
+  }
+  &.left {
+    &::after {
+      border-color: transparent #FFFFFF transparent transparent;
+      border-width: 15px;
+      right: 99%;
+      top: 23px;
+    }
+    &::before {
+      border-color: transparent #9CA3AC transparent transparent;
+      border-width: 16px;
+      right: 99%;
+      top: 22px;
+      z-index: -1;
+    }
+  }
+  &.right {
+    &::after {
+      border-color: transparent transparent transparent #FFFFFF;
+      border-width: 15px;
+      left: 99%;
+      top: 23px;
+    }
+    &::before {
+      border-color: transparent transparent transparent #9CA3AC;
+      border-width: 16px;
+      left: 99%;
+      top: 22px;
+      z-index: -1;
+    }
+  }
+}

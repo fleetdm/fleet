@@ -57,7 +57,12 @@ class SidePanel extends Component {
     return (evt) => {
       evt.preventDefault();
 
-      this.setState({ activeSubItem });
+      const { dispatch } = this.props;
+      const { path: { location: tabLocation } } = activeSubItem;
+
+      if (!tabLocation) return false;
+
+      dispatch(push(tabLocation));
       return false;
     };
   }
@@ -67,15 +72,11 @@ class SidePanel extends Component {
       evt.preventDefault();
 
       const { pathname, dispatch } = this.props;
-      const { defaultPathname } = activeTab;
       const activeSubItem = activeSubTabFromPathname(activeTab, pathname);
+      const { path: { location: tabLocation } } = activeSubItem;
 
-      this.setState({
-        activeTab,
-        activeSubItem,
-      });
-
-      if (defaultPathname) return dispatch(push(defaultPathname));
+      this.setState({ activeTab, activeSubItem });
+      if (tabLocation) return dispatch(push(tabLocation));
 
       return false;
     };
@@ -124,7 +125,7 @@ class SidePanel extends Component {
         <h1 style={orgNameStyles}>{orgName}</h1>
         <div style={userStatusStyles(enabled)} />
         <h2 style={usernameStyles}>{username}</h2>
-        <i style={orgChevronStyles} className="kolidecon-chevron-bold-down" />
+        <i style={orgChevronStyles} className="kolidecon-chevrondownbold" />
       </header>
     );
   }
@@ -156,8 +157,8 @@ class SidePanel extends Component {
               {name}
             </span>
           </div>
-          {active && renderSubItems(subItems)}
         </li>
+        {active && renderSubItems(subItems)}
       </div>
     );
   }
@@ -199,7 +200,7 @@ class SidePanel extends Component {
           onClick={setActiveSubItem(subItem)}
           style={subItemStyles(active)}
         >
-          <span to={path} style={subItemLinkStyles(active)}>{name}</span>
+          <span to={path.location} style={subItemLinkStyles(active)}>{name}</span>
         </li>
       </div>
     );
@@ -228,7 +229,7 @@ class SidePanel extends Component {
     const { toggleShowSubItems } = this;
     const { showSubItems } = this.state;
     const { collapseSubItemsWrapper } = componentStyles;
-    const iconName = showSubItems ? 'kolidecon-chevron-bold-left' : 'kolidecon-chevron-bold-right';
+    const iconName = showSubItems ? 'kolidecon-chevronleftbold' : 'kolidecon-chevronrightbold';
 
     return (
       <div style={collapseSubItemsWrapper} onClick={toggleShowSubItems(!showSubItems)}>

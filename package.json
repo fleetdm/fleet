@@ -35,6 +35,7 @@
     "jsdom": "^9.5.0",
     "json-loader": "^0.5.4",
     "lodash": "^4.3.0",
+    "moment": "^2.15.1",
     "nock": "^8.0.0",
     "node-sass": "^3.10.0",
     "normalizr": "^2.2.1",

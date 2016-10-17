@@ -1,6 +1,7 @@
 export default {
   CONFIG: '/v1/kolide/config',
   FORGOT_PASSWORD: '/v1/kolide/forgot_password',
+  HOSTS: '/v1/kolide/hosts',
   INVITES: '/v1/kolide/invites',
   LOGIN: '/v1/kolide/login',
   LOGOUT: '/v1/kolide/logout',

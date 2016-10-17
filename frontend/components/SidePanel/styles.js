@@ -202,6 +202,7 @@ const componentStyles = {
 
     const baseStyles = {
       color: color.white,
+      cursor: 'pointer',
       marginBottom: '5px',
       marginLeft: 0,
       marginRight: 0,
@@ -230,13 +231,14 @@ const componentStyles = {
   subItemsStyles: {
     backgroundColor: color.brand,
     boxShadow: 'inset 0 5px 8px 0 rgba(0, 0, 0, 0.12), inset 0 -5px 8px 0 rgba(0, 0, 0, 0.12)',
+    fontSize: '13px',
     marginRight: 0,
     marginBottom: '6px',
     paddingBottom: '3px',
     paddingTop: '3px',
     marginLeft: '-16px',
     position: 'relative',
-    top: '10px',
+    top: '0px',
     transition: 'width 0.1s ease-in-out',
     '@media (max-width: 760px)': {
       minHeight: '84px',

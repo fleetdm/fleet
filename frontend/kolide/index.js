@@ -23,6 +23,13 @@ class Kolide extends Base {
       .then(response => { return response.invites; });
   }
 
+  getHosts = () => {
+    const { HOSTS } = endpoints;
+
+    return this.authenticatedGet(this.endpoint(HOSTS))
+      .then(response => { return response.hosts; });
+  }
+
   getUsers = () => {
     const { USERS } = endpoints;
 
