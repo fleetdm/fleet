@@ -62,6 +62,8 @@ func listOptionsFromRequest(r *http.Request) (kolide.ListOptions, error) {
 
 	pageString := r.URL.Query().Get("page")
 	perPageString := r.URL.Query().Get("per_page")
+	orderKey := r.URL.Query().Get("order_key")
+	orderDirectionString := r.URL.Query().Get("order_direction")
 
 	var page int = 0
 	if pageString != "" {
@@ -94,7 +96,31 @@ func listOptionsFromRequest(r *http.Request) (kolide.ListOptions, error) {
 		perPage = defaultPerPage
 	}
 
-	return kolide.ListOptions{Page: uint(page), PerPage: uint(perPage)}, nil
+	if orderKey == "" && orderDirectionString != "" {
+		return kolide.ListOptions{},
+			errors.New("order_key must be specified with order_direction")
+	}
+
+	var orderDirection kolide.OrderDirection
+	switch orderDirectionString {
+	case "desc":
+		orderDirection = kolide.OrderDescending
+	case "asc":
+		orderDirection = kolide.OrderAscending
+	case "":
+		orderDirection = kolide.OrderAscending
+	default:
+		return kolide.ListOptions{},
+			errors.New("unknown order_direction: " + orderDirectionString)
+
+	}
+
+	return kolide.ListOptions{
+		Page:           uint(page),
+		PerPage:        uint(perPage),
+		OrderKey:       orderKey,
+		OrderDirection: orderDirection,
+	}, nil
 }
 
 func decodeNoParamsRequest(ctx context.Context, r *http.Request) (interface{}, error) {

@@ -17,7 +17,7 @@ func (orm *inmem) NewInvite(invite *kolide.Invite) (*kolide.Invite, error) {
 		}
 	}
 
-	invite.ID = orm.nextID(invite)
+	invite.ID = uint(len(orm.invites) + 1)
 	orm.invites[invite.ID] = invite
 	return invite, nil
 }
@@ -37,6 +37,23 @@ func (orm *inmem) ListInvites(opt kolide.ListOptions) ([]*kolide.Invite, error) 
 	invites := []*kolide.Invite{}
 	for _, k := range keys {
 		invites = append(invites, orm.invites[uint(k)])
+	}
+
+	// Apply ordering
+	if opt.OrderKey != "" {
+		var fields = map[string]string{
+			"id":                 "ID",
+			"created_at":         "CreatedAt",
+			"updated_at":         "UpdatedAt",
+			"detail_update_time": "DetailUpdateTime",
+			"email":              "Email",
+			"admin":              "Admin",
+			"name":               "Name",
+			"position":           "Position",
+		}
+		if err := sortResults(invites, opt, fields); err != nil {
+			return nil, err
+		}
 	}
 
 	// Apply limit/offset

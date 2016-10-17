@@ -51,6 +51,24 @@ func (orm *inmem) ListUsers(opt kolide.ListOptions) ([]*kolide.User, error) {
 		users = append(users, orm.users[uint(k)])
 	}
 
+	// Apply ordering
+	if opt.OrderKey != "" {
+		var fields = map[string]string{
+			"id":         "ID",
+			"created_at": "CreatedAt",
+			"updated_at": "UpdatedAt",
+			"username":   "Username",
+			"name":       "Name",
+			"email":      "Email",
+			"admin":      "Admin",
+			"enabled":    "Enabled",
+			"position":   "Position",
+		}
+		if err := sortResults(users, opt, fields); err != nil {
+			return nil, err
+		}
+	}
+
 	// Apply limit/offset
 	low, high := orm.getLimitOffsetSliceBounds(opt, len(users))
 	users = users[low:high]

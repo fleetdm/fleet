@@ -40,6 +40,33 @@ func TestListOptionsFromRequest(t *testing.T) {
 			listOptions: kolide.ListOptions{},
 		},
 
+		// Both order params provided
+		{
+			url:         "/foo?order_key=foo&order_direction=desc",
+			listOptions: kolide.ListOptions{OrderKey: "foo", OrderDirection: kolide.OrderDescending},
+		},
+		// Both order params provided (asc)
+		{
+			url:         "/foo?order_key=bar&order_direction=asc",
+			listOptions: kolide.ListOptions{OrderKey: "bar", OrderDirection: kolide.OrderAscending},
+		},
+		// Default order direction
+		{
+			url:         "/foo?order_key=foo",
+			listOptions: kolide.ListOptions{OrderKey: "foo", OrderDirection: kolide.OrderAscending},
+		},
+
+		// All params defined
+		{
+			url: "/foo?order_key=foo&order_direction=desc&page=1&per_page=100",
+			listOptions: kolide.ListOptions{
+				OrderKey:       "foo",
+				OrderDirection: kolide.OrderDescending,
+				Page:           1,
+				PerPage:        100,
+			},
+		},
+
 		// various error cases
 		{
 			url:       "/foo?page=foo&per_page=10",
@@ -55,6 +82,14 @@ func TestListOptionsFromRequest(t *testing.T) {
 		},
 		{
 			url:       "/foo?page=-1&per_page=-10",
+			shouldErr: true,
+		},
+		{
+			url:       "/foo?page=1&order_direction=desc",
+			shouldErr: true,
+		},
+		{
+			url:       "/foo?&order_direction=foo&order_key=",
 			shouldErr: true,
 		},
 	}

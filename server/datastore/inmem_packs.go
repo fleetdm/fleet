@@ -76,6 +76,20 @@ func (orm *inmem) ListPacks(opt kolide.ListOptions) ([]*kolide.Pack, error) {
 		packs = append(packs, orm.packs[uint(k)])
 	}
 
+	// Apply ordering
+	if opt.OrderKey != "" {
+		var fields = map[string]string{
+			"id":         "ID",
+			"created_at": "CreatedAt",
+			"updated_at": "UpdatedAt",
+			"name":       "Name",
+			"platform":   "Platform",
+		}
+		if err := sortResults(packs, opt, fields); err != nil {
+			return nil, err
+		}
+	}
+
 	// Apply limit/offset
 	low, high := orm.getLimitOffsetSliceBounds(opt, len(packs))
 	packs = packs[low:high]

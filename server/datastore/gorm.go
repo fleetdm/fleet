@@ -88,11 +88,23 @@ func openGORM(driver, conn string, maxAttempts int) (*gorm.DB, error) {
 // applyLimitOffset applies the appropriate limit and offset parameters to the
 // gorm.DB instance, returning a DB that can be chained as usual with *gorm.DB.
 func (orm *gormDB) applyListOptions(opt kolide.ListOptions) *gorm.DB {
-	if opt.PerPage == 0 {
+	db := orm.DB
+	if opt.PerPage != 0 {
 		// PerPage value of 0 indicates unlimited
-		return orm.DB
+		offset := opt.Page * opt.PerPage
+		db = db.Limit(opt.PerPage).Offset(offset)
 	}
 
-	offset := opt.Page * opt.PerPage
-	return orm.DB.Limit(opt.PerPage).Offset(offset)
+	if opt.OrderKey != "" {
+		var dir string
+		if opt.OrderDirection == kolide.OrderDescending {
+			dir = "DESC"
+		} else {
+			dir = "ASC"
+		}
+
+		db = db.Order(opt.OrderKey + " " + dir)
+	}
+
+	return db
 }

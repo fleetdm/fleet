@@ -76,6 +76,25 @@ func (orm *inmem) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, error) {
 		queries = append(queries, orm.queries[uint(k)])
 	}
 
+	// Apply ordering
+	if opt.OrderKey != "" {
+		var fields = map[string]string{
+			"id":           "ID",
+			"created_at":   "CreatedAt",
+			"updated_at":   "UpdatedAt",
+			"name":         "Name",
+			"query":        "Query",
+			"interval":     "Interval",
+			"snapshot":     "Snapshot",
+			"differential": "Differential",
+			"platform":     "Platform",
+			"version":      "Version",
+		}
+		if err := sortResults(queries, opt, fields); err != nil {
+			return nil, err
+		}
+	}
+
 	// Apply limit/offset
 	low, high := orm.getLimitOffsetSliceBounds(opt, len(queries))
 	queries = queries[low:high]

@@ -33,6 +33,13 @@ type OrgInfoPayload struct {
 	OrgLogoURL *string `json:"org_logo_url"`
 }
 
+type OrderDirection int
+
+const (
+	OrderAscending OrderDirection = iota
+	OrderDescending
+)
+
 // ListOptions defines options related to paging and ordering to be used when
 // listing objects
 type ListOptions struct {
@@ -41,4 +48,8 @@ type ListOptions struct {
 	// How many results per page (must be positive integer, 0 indicates
 	// unlimited)
 	PerPage uint
+	// Key to use for ordering
+	OrderKey string
+	// Direction of ordering
+	OrderDirection OrderDirection
 }

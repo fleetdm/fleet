@@ -76,6 +76,28 @@ func (orm *inmem) ListHosts(opt kolide.ListOptions) ([]*kolide.Host, error) {
 		hosts = append(hosts, orm.hosts[uint(k)])
 	}
 
+	// Apply ordering
+	if opt.OrderKey != "" {
+		var fields = map[string]string{
+			"id":                 "ID",
+			"created_at":         "CreatedAt",
+			"updated_at":         "UpdatedAt",
+			"detail_update_time": "DetailUpdateTime",
+			"hostname":           "HostName",
+			"uuid":               "UUID",
+			"platform":           "Platform",
+			"osquery_version":    "OsqueryVersion",
+			"os_version":         "OSVersion",
+			"uptime":             "Uptime",
+			"memory":             "PhysicalMemory",
+			"mac":                "PrimaryMAC",
+			"ip":                 "PrimaryIP",
+		}
+		if err := sortResults(hosts, opt, fields); err != nil {
+			return nil, err
+		}
+	}
+
 	// Apply limit/offset
 	low, high := orm.getLimitOffsetSliceBounds(opt, len(hosts))
 	hosts = hosts[low:high]

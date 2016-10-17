@@ -1,10 +1,12 @@
 package datastore
 
 import (
+	"errors"
 	"reflect"
 	"sync"
 
 	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/patrickmn/sortutil"
 )
 
 type inmem struct {
@@ -68,6 +70,21 @@ func (orm *inmem) getLimitOffsetSliceBounds(opt kolide.ListOptions, length int) 
 		max = uint(length)
 	}
 	return offset, max
+}
+
+func sortResults(slice interface{}, opt kolide.ListOptions, fields map[string]string) error {
+	field, ok := fields[opt.OrderKey]
+	if !ok {
+		return errors.New("cannot sort on unknown key: " + opt.OrderKey)
+	}
+
+	if opt.OrderDirection == kolide.OrderDescending {
+		sortutil.DescByField(slice, field)
+	} else {
+		sortutil.AscByField(slice, field)
+	}
+
+	return nil
 }
 
 // nextID returns the next ID value that should be used for a struct of the
