@@ -71,7 +71,7 @@ help:
 .prefix:
 ifeq ($(OS), Windows_NT)
 	if not exist build mkdir build
-else#
+else
 	mkdir -p build
 endif
 
