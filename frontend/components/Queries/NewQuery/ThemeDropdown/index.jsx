@@ -17,6 +17,7 @@ import 'brace/theme/monokai';
 import 'brace/theme/solarized_light';
 import 'brace/theme/sqlserver';
 import 'brace/theme/tomorrow';
+
 import componentStyles from './styles';
 
 const ThemeDropdown = ({ onSelectChange, theme }) => {

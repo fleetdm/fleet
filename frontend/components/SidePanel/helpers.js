@@ -12,7 +12,9 @@ export const activeSubTabFromPathname = (activeTab, pathname) => {
 
   const { subItems } = activeTab;
 
-  if (!subItems.length) return undefined;
+  if (!subItems.length) {
+    return undefined;
+  }
 
   return find(subItems, (subItem) => {
     const { path: { regex } } = subItem;

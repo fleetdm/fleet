@@ -1,6 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import radium from 'radium';
+
 import componentStyles from './styles';
 import Icon from '../../components/icons/Icon';
 

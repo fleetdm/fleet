@@ -1,4 +1,5 @@
 import expect from 'expect';
+
 import Kolide from './index';
 import mocks from '../test/mocks';
 

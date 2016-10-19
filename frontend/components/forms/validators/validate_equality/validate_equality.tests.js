@@ -1,4 +1,5 @@
 import expect from 'expect';
+
 import validateEquality from './index';
 
 describe('validateEquality - validator', () => {

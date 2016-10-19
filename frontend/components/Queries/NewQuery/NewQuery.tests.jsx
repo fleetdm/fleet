@@ -2,6 +2,7 @@ import React from 'react';
 import expect, { restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
+
 import { createAceSpy } from '../../../test/helpers';
 import NewQuery from './index';
 

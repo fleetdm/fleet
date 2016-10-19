@@ -1,6 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { noop } from 'lodash';
+
 import componentStyles from './styles';
 import {
   clearForgotPasswordErrors,

@@ -1,4 +1,5 @@
 import React, { Component, PropTypes } from 'react';
+
 import componentStyles from './styles';
 import Button from '../../buttons/Button';
 

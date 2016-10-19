@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+
 import base, { basePropTypes } from '../base';
 import Styles from '../../../../styles';
 

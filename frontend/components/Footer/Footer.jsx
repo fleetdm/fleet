@@ -1,5 +1,6 @@
 import React from 'react';
 import radium from 'radium';
+
 import componentStyles from './styles';
 import footerLogo from '../../../assets/images/footer-logo.svg';
 

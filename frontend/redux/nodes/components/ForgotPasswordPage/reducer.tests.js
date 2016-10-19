@@ -1,6 +1,7 @@
 import configureStore from 'redux-mock-store';
 import expect from 'expect';
 import thunk from 'redux-thunk';
+
 import {
   clearForgotPasswordErrors,
   forgotPasswordAction,

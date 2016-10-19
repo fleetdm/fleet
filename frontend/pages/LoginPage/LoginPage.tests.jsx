@@ -1,5 +1,6 @@
 import expect from 'expect';
 import { mount } from 'enzyme';
+
 import { connectedComponent, reduxMockStore } from '../../test/helpers';
 import local from '../../utilities/local';
 import LoginPage from './LoginPage';

@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { push } from 'react-router-redux';
+
 import kolide from '../../kolide';
 import { LOGIN_FAILURE, LOGIN_SUCCESS, LOGOUT_SUCCESS } from '../nodes/auth/actions';
 import local from '../../utilities/local';

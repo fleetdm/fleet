@@ -1,4 +1,5 @@
 import expect from 'expect';
+
 import validatePresence from './index';
 
 const validInputs = [

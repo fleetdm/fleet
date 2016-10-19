@@ -1,5 +1,6 @@
 import { noop } from 'lodash';
 import { normalize, arrayOf } from 'normalizr';
+
 import { entitiesExceptID } from './helpers';
 
 const initialState = {

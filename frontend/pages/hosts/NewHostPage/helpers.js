@@ -11,7 +11,9 @@ export const copyText = (elementId) => {
 
   const canCopy = global.document.queryCommandEnabled('copy');
 
-  if (!canCopy) return false;
+  if (!canCopy) {
+    return false;
+  }
 
   global.document.execCommand('copy');
   removeSelectedText();

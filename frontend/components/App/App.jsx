@@ -2,6 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { noop } from 'lodash';
 import { Style } from 'radium';
+
 import { fetchCurrentUser } from '../../redux/nodes/auth/actions';
 import Footer from '../Footer';
 import { getConfig } from '../../redux/nodes/app/actions';
@@ -25,10 +26,14 @@ export class App extends Component {
 
     if (!user && !!authToken()) {
       dispatch(fetchCurrentUser())
-        .catch(() => { return false; });
+        .catch(() => {
+          return false;
+        });
     }
 
-    if (user) dispatch(getConfig());
+    if (user) {
+      dispatch(getConfig());
+    }
 
     return false;
   }
@@ -36,7 +41,9 @@ export class App extends Component {
   componentWillReceiveProps (nextProps) {
     const { dispatch, user } = nextProps;
 
-    if (this.props.user !== user) dispatch(getConfig());
+    if (this.props.user !== user) {
+      dispatch(getConfig());
+    }
   }
 
   render () {

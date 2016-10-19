@@ -1,5 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import radium from 'radium';
+
 import componentStyles from './styles';
 import Button from '../../buttons/Button';
 import InputFieldWithIcon from '../fields/InputFieldWithIcon';

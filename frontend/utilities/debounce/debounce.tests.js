@@ -1,4 +1,5 @@
 import expect from 'expect';
+
 import debounce from './index';
 
 describe('debounce - utility', () => {

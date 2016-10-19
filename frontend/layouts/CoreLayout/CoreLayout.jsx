@@ -1,6 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { StyleRoot } from 'radium';
+
 import componentStyles from './styles';
 import FlashMessage from '../../components/FlashMessage';
 import SidePanel from '../../components/SidePanel';

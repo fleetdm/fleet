@@ -1,6 +1,7 @@
 import React from 'react';
 import expect from 'expect';
 import { mount } from 'enzyme';
+
 import { ForgotPasswordPage } from './ForgotPasswordPage';
 
 describe('ForgotPasswordPage - component', () => {

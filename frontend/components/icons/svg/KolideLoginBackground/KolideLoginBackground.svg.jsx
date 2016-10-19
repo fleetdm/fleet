@@ -1,5 +1,6 @@
 /* eslint-disable */
 import React, { Component } from 'react';
+
 import base, { basePropTypes } from '../base';
 
 export class KolideLoginBackground extends Component {

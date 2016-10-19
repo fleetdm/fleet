@@ -1,4 +1,5 @@
 import md5 from 'js-md5';
+
 import Kolide from '../../../kolide';
 
 export const CLEAR_AUTH_ERRORS = 'CLEAR_AUTH_ERRORS';

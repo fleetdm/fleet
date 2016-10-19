@@ -1,5 +1,6 @@
 import React, { PropTypes } from 'react';
 import radium from 'radium';
+
 import componentStyles from './styles';
 import { hideFlash } from '../../redux/nodes/notifications/actions';
 
@@ -24,7 +25,9 @@ const FlashMessage = ({ notification, dispatch }) => {
     return false;
   };
 
-  if (!isVisible) return false;
+  if (!isVisible) {
+    return false;
+  }
 
   return (
     <div style={containerStyles(alertType)}>

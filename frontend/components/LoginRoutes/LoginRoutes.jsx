@@ -1,6 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { RouteTransition } from 'react-router-transition';
+
 import { hideBackgroundImage, showBackgroundImage } from '../../redux/nodes/app/actions';
 import LoginPage from '../../pages/LoginPage';
 import componentStyles from './styles';

@@ -2,6 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { noop } from 'lodash';
 import { push } from 'react-router-redux';
+
 import debounce from '../../utilities/debounce';
 import { resetPassword } from '../../redux/nodes/components/ResetPasswordPage/actions';
 import ResetPasswordForm from '../../components/forms/ResetPasswordForm';
@@ -22,7 +23,9 @@ export class ResetPasswordPage extends Component {
   componentWillMount () {
     const { dispatch, token, user } = this.props;
 
-    if (!user && !token) return dispatch(push('/login'));
+    if (!user && !token) {
+      return dispatch(push('/login'));
+    }
 
     return false;
   }
@@ -30,7 +33,9 @@ export class ResetPasswordPage extends Component {
   onSubmit = debounce((formData) => {
     const { dispatch, token, user } = this.props;
 
-    if (user) return this.updateUser(formData);
+    if (user) {
+      return this.updateUser(formData);
+    }
 
     const resetPasswordData = {
       ...formData,

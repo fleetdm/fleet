@@ -1,5 +1,6 @@
 import expect, { spyOn, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
+
 import ConnectedApp from './App';
 import * as authActions from '../../redux/nodes/auth/actions';
 import helpers from '../../test/helpers';

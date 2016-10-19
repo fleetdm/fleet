@@ -1,7 +1,8 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
+
 import componentStyles from './styles';
-import entityGetter from '../../../redux/entityGetter';
+import entityGetter from '../../../redux/utilities/entityGetter';
 import Button from '../../../components/buttons/Button';
 import inviteActions from '../../../redux/nodes/entities/invites/actions';
 import InviteUserForm from '../../../components/forms/InviteUserForm';
@@ -29,8 +30,13 @@ class UserManagementPage extends Component {
   componentWillMount () {
     const { dispatch, invites, users } = this.props;
 
-    if (!users.length) dispatch(userActions.loadAll());
-    if (!invites.length) dispatch(inviteActions.loadAll());
+    if (!users.length) {
+      dispatch(userActions.loadAll());
+    }
+
+    if (!invites.length) {
+      dispatch(inviteActions.loadAll());
+    }
 
     return false;
   }
@@ -153,7 +159,9 @@ class UserManagementPage extends Component {
     const { inviteError, showInviteUserModal } = this.state;
     const { onInviteCancel, onInviteUserSubmit, toggleInviteUserModal } = this;
 
-    if (!showInviteUserModal) return false;
+    if (!showInviteUserModal) {
+      return false;
+    }
 
     return (
       <Modal

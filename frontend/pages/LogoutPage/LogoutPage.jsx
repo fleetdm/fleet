@@ -1,6 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { noop } from 'lodash';
+
 import AuthenticationFormWrapper from '../../components/AuthenticationFormWrapper';
 import debounce from '../../utilities/debounce';
 import LogoutForm from '../../components/forms/LogoutForm';
@@ -55,4 +56,5 @@ const mapStateToProps = (state) => {
 
   return { user };
 };
+
 export default connect(mapStateToProps)(LogoutPage);

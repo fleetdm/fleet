@@ -1,4 +1,5 @@
 import { LOCATION_CHANGE } from 'react-router-redux';
+
 import { RENDER_FLASH, HIDE_FLASH } from './actions';
 
 export const initialState = {

@@ -1,5 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import radium from 'radium';
+
 import Button from '../../buttons/Button';
 import {
   availability,
@@ -86,7 +87,9 @@ class QuerySidePanel extends Component {
     const { showAllColumns } = this.state;
     const { onShowAllColumns } = this;
 
-    if (showAllColumns) return false;
+    if (showAllColumns) {
+      return false;
+    }
 
     return (
       <div style={[columnWrapperStyles, { display: 'flex', justifyContent: 'space-between' }]}>

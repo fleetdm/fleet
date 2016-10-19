@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+
 import base, { basePropTypes } from '../base';
 
 class Check extends Component {

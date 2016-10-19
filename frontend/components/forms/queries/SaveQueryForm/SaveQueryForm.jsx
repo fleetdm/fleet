@@ -1,5 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import radium from 'radium';
+
 import componentStyles from './styles';
 import Button from '../../../buttons/Button';
 import Dropdown from '../../fields/Dropdown';
@@ -79,7 +80,9 @@ class SaveQueryForm extends Component {
       const { onSubmit } = this.props;
       const { validate } = this;
 
-      if (validate(runType)) return onSubmit({ formData, runType });
+      if (validate(runType)) {
+        return onSubmit({ formData, runType });
+      }
 
       return false;
     };
@@ -106,7 +109,9 @@ class SaveQueryForm extends Component {
     } = this.state;
     const { RUN } = RUN_TYPES;
 
-    if (runType === RUN) return true;
+    if (runType === RUN) {
+      return true;
+    }
 
     if (!validatePresence(name)) {
       this.setState({
@@ -175,7 +180,9 @@ class SaveQueryForm extends Component {
     } = componentStyles;
     const { onFieldChange } = this;
 
-    if (!showMoreOptions) return false;
+    if (!showMoreOptions) {
+      return false;
+    }
 
     return (
       <div>
@@ -313,7 +320,9 @@ class SaveQueryForm extends Component {
     const { RUN_AND_SAVE, SAVE } = RUN_TYPES;
     const { saveQuery } = this.props;
 
-    if (!saveQuery) return renderRunQuery();
+    if (!saveQuery) {
+      return renderRunQuery();
+    }
 
     return (
       <form onSubmit={onFormSubmit(RUN_AND_SAVE)}>

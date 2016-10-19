@@ -2,6 +2,7 @@ import React from 'react';
 import expect from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
+
 import base from './base';
 import { KolideLoginBackground } from './KolideLoginBackground/KolideLoginBackground.svg.jsx';
 

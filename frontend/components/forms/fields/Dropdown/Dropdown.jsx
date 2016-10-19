@@ -1,6 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import radium from 'radium';
 import { noop } from 'lodash';
+
 import componentStyles from './styles';
 
 class Dropdown extends Component {

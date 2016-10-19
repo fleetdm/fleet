@@ -1,6 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { push } from 'react-router-redux';
+
 import paths from '../../router/paths';
 
 export class AuthenticatedAdminRoutes extends Component {
@@ -14,7 +15,9 @@ export class AuthenticatedAdminRoutes extends Component {
     const { dispatch, user: { admin } } = this.props;
     const { HOME } = paths;
 
-    if (!admin) dispatch(push(HOME));
+    if (!admin) {
+      dispatch(push(HOME));
+    }
 
     return false;
   }
@@ -22,7 +25,9 @@ export class AuthenticatedAdminRoutes extends Component {
   render () {
     const { children, user } = this.props;
 
-    if (!user) return false;
+    if (!user) {
+      return false;
+    }
 
     return (
       <div>

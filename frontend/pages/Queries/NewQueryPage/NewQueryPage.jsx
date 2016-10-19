@@ -1,6 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { find } from 'lodash';
+
 import NewQuery from '../../../components/Queries/NewQuery';
 import QuerySidePanel from '../../../components/Queries/QuerySidePanel';
 import { showRightSidePanel, removeRightSidePanel } from '../../../redux/nodes/app/actions';

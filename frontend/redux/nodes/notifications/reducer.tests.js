@@ -1,5 +1,6 @@
 import expect from 'expect';
 import { LOCATION_CHANGE } from 'react-router-redux';
+
 import reducer, { initialState } from './reducer';
 import {
   hideFlash,

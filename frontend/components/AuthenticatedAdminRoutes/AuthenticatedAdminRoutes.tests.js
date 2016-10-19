@@ -1,5 +1,6 @@
 import expect from 'expect';
 import { mount } from 'enzyme';
+
 import ConnectedAdminRoutes from './AuthenticatedAdminRoutes';
 import { connectedComponent, reduxMockStore } from '../../test/helpers';
 

@@ -2,6 +2,7 @@ import React from 'react';
 import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
+
 import LoginForm from './LoginForm';
 import { fillInFormInput } from '../../../test/helpers';
 

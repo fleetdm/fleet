@@ -1,4 +1,5 @@
 import expect, { createSpy, restoreSpies } from 'expect';
+
 import reduxConfig from './reduxConfig';
 import { reduxMockStore } from '../../../../test/helpers';
 import schemas from './schemas';

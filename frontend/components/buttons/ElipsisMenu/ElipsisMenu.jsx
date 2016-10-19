@@ -63,7 +63,9 @@ export class ElipsisMenu extends Component {
     const { showChildren, tooltipDirection } = this.state;
     const triangleDirection = tooltipDirection === 'left' ? 'right' : 'left';
 
-    if (!showChildren) return false;
+    if (!showChildren) {
+      return false;
+    }
 
     return (
       <div

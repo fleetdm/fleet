@@ -2,6 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 import { noop } from 'lodash';
 import radium from 'radium';
+
 import avatar from '../../../../assets/images/avatar.svg';
 import componentStyles from './styles';
 import Button from '../../buttons/Button';

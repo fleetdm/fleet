@@ -2,6 +2,7 @@ import React from 'react';
 import expect from 'expect';
 import { mount } from 'enzyme';
 import { Provider } from 'react-redux';
+
 import AuthenticatedRoutes from './index';
 import helpers from '../../test/helpers';
 
@@ -124,4 +125,3 @@ describe('AuthenticatedRoutes - component', () => {
     expect(component.html()).toNotExist();
   });
 });
-

@@ -1,6 +1,7 @@
 import configureStore from 'redux-mock-store';
 import expect from 'expect';
 import thunk from 'redux-thunk';
+
 import authMiddleware from '../../middlewares/auth';
 import kolide from '../../../kolide';
 import local from '../../../utilities/local';

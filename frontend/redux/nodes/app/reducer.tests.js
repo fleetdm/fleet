@@ -1,4 +1,5 @@
 import expect from 'expect';
+
 import reducer, { initialState } from './reducer';
 import {
   configFailure,

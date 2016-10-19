@@ -1,5 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import radium from 'radium';
+
 import componentStyles from './styles';
 
 class InputField extends Component {
@@ -41,7 +42,9 @@ class InputField extends Component {
     const { autofocus } = this.props;
     const { input } = this;
 
-    if (autofocus) input.focus();
+    if (autofocus) {
+      input.focus();
+    }
 
     return false;
   }
@@ -60,7 +63,9 @@ class InputField extends Component {
     const { componentLabelStyles } = componentStyles;
     const { error, label, labelStyles, name } = this.props;
 
-    if (!label) return false;
+    if (!label) {
+      return false;
+    }
 
     return (
       <label htmlFor={name} style={[componentLabelStyles(error), labelStyles]}>

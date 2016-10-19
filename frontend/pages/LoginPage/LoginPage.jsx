@@ -35,7 +35,9 @@ export class LoginPage extends Component {
     const { dispatch, pathname, user } = this.props;
     const { HOME, LOGIN } = paths;
 
-    if (user && pathname === LOGIN) return dispatch(push(HOME));
+    if (user && pathname === LOGIN) {
+      return dispatch(push(HOME));
+    }
 
     return false;
   }
@@ -43,7 +45,9 @@ export class LoginPage extends Component {
   onChange = () => {
     const { dispatch, error } = this.props;
 
-    if (error) return dispatch(clearAuthErrors);
+    if (error) {
+      return dispatch(clearAuthErrors);
+    }
 
     return false;
   };
@@ -66,7 +70,9 @@ export class LoginPage extends Component {
   serverErrors = () => {
     const { error } = this.props;
 
-    if (!error || includes(WHITELIST_ERRORS, error)) return undefined;
+    if (!error || includes(WHITELIST_ERRORS, error)) {
+      return undefined;
+    }
 
     return {
       username: error,
@@ -78,7 +84,9 @@ export class LoginPage extends Component {
     const { loginVisible } = this.state;
     const { onChange, onSubmit, serverErrors } = this;
 
-    if (!loginVisible) return false;
+    if (!loginVisible) {
+      return false;
+    }
 
     return (
       <LoginForm

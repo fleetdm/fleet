@@ -1,5 +1,6 @@
 import expect, { restoreSpies } from 'expect';
 import { mount } from 'enzyme';
+
 import helpers from '../../../test/helpers';
 import NewQueryPage from './NewQueryPage';
 

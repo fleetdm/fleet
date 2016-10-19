@@ -1,4 +1,5 @@
 import fetch from 'isomorphic-fetch';
+
 import local from '../utilities/local';
 
 const REQUEST_METHODS = {

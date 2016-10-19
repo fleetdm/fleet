@@ -35,7 +35,9 @@ export const numAdditionalColumns = (table) => {
 };
 
 export const availability = (platform) => {
-  if (!platform) return '';
+  if (!platform) {
+    return '';
+  }
 
   if (includes(ALL_PLATFORMS_AVAILABILITY, platform.toLowerCase())) {
     return 'All Platforms';

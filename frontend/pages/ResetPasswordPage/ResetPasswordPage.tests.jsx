@@ -1,6 +1,7 @@
 import React from 'react';
 import expect from 'expect';
 import { mount } from 'enzyme';
+
 import ConnectedPage, { ResetPasswordPage } from './ResetPasswordPage';
 import testHelpers from '../../test/helpers';
 

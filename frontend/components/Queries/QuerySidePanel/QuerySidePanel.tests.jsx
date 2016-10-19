@@ -1,6 +1,7 @@
 import React from 'react';
 import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
+
 import helpers from '../../../test/helpers';
 import QuerySidePanel from './QuerySidePanel';
 

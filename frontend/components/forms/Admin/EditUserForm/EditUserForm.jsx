@@ -1,5 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import radium from 'radium';
+
 import Avatar from '../../../Avatar';
 import { avatarStyles } from '../../../../pages/Admin/UserManagementPage/UserBlock/styles';
 import Button from '../../../buttons/Button';

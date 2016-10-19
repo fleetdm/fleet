@@ -1,5 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import radium from 'radium';
+
 import Check from './svg/Check';
 import Clipboard from './svg/Clipboard';
 import Envelope from './svg/Envelope';

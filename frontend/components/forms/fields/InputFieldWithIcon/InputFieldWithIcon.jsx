@@ -1,5 +1,6 @@
 import React, { PropTypes } from 'react';
 import radium from 'radium';
+
 import componentStyles from './styles';
 import InputField from '../InputField';
 

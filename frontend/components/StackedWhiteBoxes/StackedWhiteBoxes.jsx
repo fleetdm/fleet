@@ -1,6 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import radium from 'radium';
 import { Link } from 'react-router';
+
 import componentStyles from './styles';
 
 class StackedWhiteBoxes extends Component {

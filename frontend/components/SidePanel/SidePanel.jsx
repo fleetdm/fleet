@@ -3,6 +3,7 @@ import { connect } from 'react-redux';
 import { isEqual, last } from 'lodash';
 import { push } from 'react-router-redux';
 import radium, { StyleRoot } from 'radium';
+
 import { activeTabFromPathname, activeSubTabFromPathname } from './helpers';
 import componentStyles from './styles';
 import kolideLogo from '../../../assets/images/kolide-logo.svg';
