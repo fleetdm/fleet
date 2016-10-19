@@ -14,7 +14,7 @@ import (
 const bcryptCost = 6
 
 func TestAuthenticate(t *testing.T) {
-	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	ds, err := datastore.New("inmem", "")
 	require.Nil(t, err)
 	svc, err := newTestService(ds)
 	require.Nil(t, err)

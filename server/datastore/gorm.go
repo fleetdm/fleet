@@ -5,7 +5,6 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql" // db driver
-	_ "github.com/mattn/go-sqlite3"    // db driver
 
 	"github.com/jinzhu/gorm"
 	"github.com/kolide/kolide-ose/server/config"

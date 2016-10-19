@@ -10,7 +10,7 @@ import (
 )
 
 func TestListHosts(t *testing.T) {
-	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds)
@@ -33,7 +33,7 @@ func TestListHosts(t *testing.T) {
 }
 
 func TestGetHost(t *testing.T) {
-	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds)
@@ -54,7 +54,7 @@ func TestGetHost(t *testing.T) {
 }
 
 func TestDeleteHost(t *testing.T) {
-	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds)

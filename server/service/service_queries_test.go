@@ -10,7 +10,7 @@ import (
 )
 
 func TestListQueries(t *testing.T) {
-	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds)
@@ -34,7 +34,7 @@ func TestListQueries(t *testing.T) {
 }
 
 func TestGetQuery(t *testing.T) {
-	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds)
@@ -46,7 +46,7 @@ func TestGetQuery(t *testing.T) {
 		Name:  "foo",
 		Query: "select * from time;",
 	}
-	_, err = ds.NewQuery(query)
+	query, err = ds.NewQuery(query)
 	assert.Nil(t, err)
 	assert.NotZero(t, query.ID)
 
@@ -57,7 +57,7 @@ func TestGetQuery(t *testing.T) {
 }
 
 func TestNewQuery(t *testing.T) {
-	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds)
@@ -80,7 +80,7 @@ func TestNewQuery(t *testing.T) {
 }
 
 func TestModifyQuery(t *testing.T) {
-	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds)
@@ -92,7 +92,7 @@ func TestModifyQuery(t *testing.T) {
 		Name:  "foo",
 		Query: "select * from time;",
 	}
-	_, err = ds.NewQuery(query)
+	query, err = ds.NewQuery(query)
 	assert.Nil(t, err)
 	assert.NotZero(t, query.ID)
 
@@ -107,7 +107,7 @@ func TestModifyQuery(t *testing.T) {
 }
 
 func TestDeleteQuery(t *testing.T) {
-	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds)
@@ -119,7 +119,7 @@ func TestDeleteQuery(t *testing.T) {
 		Name:  "foo",
 		Query: "select * from time;",
 	}
-	_, err = ds.NewQuery(query)
+	query, err = ds.NewQuery(query)
 	assert.Nil(t, err)
 	assert.NotZero(t, query.ID)
 

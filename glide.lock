@@ -74,7 +74,6 @@ imports:
   version: a646b13548ec0aa812fe805b2780f460dd2771b6
   subpackages:
   - dialects/mysql
-  - dialects/sqlite
 - name: github.com/jinzhu/inflection
   version: 8f4d3a0d04ce0b7c0cf3126fb98524246d00d102
 - name: github.com/jordan-wright/email
@@ -87,8 +86,6 @@ imports:
   version: 61b492c03cf472e0c6419be5899b8e0dc28b1b88
 - name: github.com/manucorporat/sse
   version: ee05b128a739a0fb76c7ebd3ae4810c1de808d6d
-- name: github.com/mattn/go-sqlite3
-  version: e118d4451349065b8e7ce0f0af32e033995363f8
 - name: github.com/matttproud/golang_protobuf_extensions
   version: c12348ce28de40eed0136aa2b644d0ee0650e56c
   subpackages:

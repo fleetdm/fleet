@@ -35,13 +35,10 @@ import:
   version: a646b13548ec0aa812fe805b2780f460dd2771b6
   subpackages:
   - dialects/mysql
-  - dialects/sqlite
 - package: github.com/jinzhu/inflection
   version: 8f4d3a0d04ce0b7c0cf3126fb98524246d00d102
 - package: github.com/manucorporat/sse
   version: ee05b128a739a0fb76c7ebd3ae4810c1de808d6d
-- package: github.com/mattn/go-sqlite3
-  version: e118d4451349065b8e7ce0f0af32e033995363f8
 - package: github.com/pmezard/go-difflib
   version: ~1.0.0
   subpackages:

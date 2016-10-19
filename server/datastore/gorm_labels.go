@@ -107,20 +107,9 @@ func (orm gormDB) RecordLabelQueryExecutions(host *kolide.Host, results map[stri
 	}
 
 	insert := new(bytes.Buffer)
-	switch orm.Driver {
-	case "mysql":
-		insert.WriteString("INSERT ")
-	case "sqlite3":
-		insert.WriteString("REPLACE ")
-	default:
-		return errors.New(
-			"Unknown DB driver",
-			"Tried to use unknown DB driver in RecordLabelQueryExecutions: "+orm.Driver,
-		)
-	}
 
 	insert.WriteString(
-		"INTO label_query_executions (updated_at, matches, label_id, host_id) VALUES",
+		"INSERT INTO label_query_executions (updated_at, matches, label_id, host_id) VALUES",
 	)
 
 	// Build up all the values and the query string
@@ -133,14 +122,11 @@ func (orm gormDB) RecordLabelQueryExecutions(host *kolide.Host, results map[stri
 	queryString := insert.String()
 	queryString = strings.TrimSuffix(queryString, ",")
 
-	switch orm.Driver {
-	case "mysql":
-		queryString += `
+	queryString += `
 ON DUPLICATE KEY UPDATE
 updated_at = VALUES(updated_at),
 matches = VALUES(matches)
 `
-	}
 
 	if err := orm.DB.Exec(queryString, vals...).Error; err != nil {
 		return errors.DatabaseError(err)

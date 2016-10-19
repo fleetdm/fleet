@@ -12,7 +12,7 @@ import (
 )
 
 func TestAPIRoutes(t *testing.T) {
-	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds)

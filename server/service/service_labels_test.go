@@ -10,7 +10,7 @@ import (
 )
 
 func TestListLabels(t *testing.T) {
-	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds)
@@ -35,7 +35,7 @@ func TestListLabels(t *testing.T) {
 }
 
 func TestGetLabel(t *testing.T) {
-	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds)
@@ -57,7 +57,7 @@ func TestGetLabel(t *testing.T) {
 }
 
 func TestNewLabel(t *testing.T) {
-	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds)
@@ -82,7 +82,7 @@ func TestNewLabel(t *testing.T) {
 }
 
 func TestModifyLabel(t *testing.T) {
-	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds)
@@ -108,7 +108,7 @@ func TestModifyLabel(t *testing.T) {
 }
 
 func TestDeleteLabel(t *testing.T) {
-	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds)

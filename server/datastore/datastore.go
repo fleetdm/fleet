@@ -54,24 +54,6 @@ func New(driver, conn string, opts ...DBOption) (kolide.Datastore, error) {
 			return nil, err
 		}
 		return ds, nil
-	case "gorm-sqlite3":
-		db, err := openGORM("sqlite3", conn, opt.maxAttempts)
-		if err != nil {
-			return nil, err
-		}
-		ds := gormDB{
-			DB:     db,
-			Driver: "sqlite3",
-		}
-		// configure logger
-		if opt.logger != nil {
-			db.SetLogger(opt.logger)
-			db.LogMode(opt.debug)
-		}
-		if err := ds.Migrate(); err != nil {
-			return nil, err
-		}
-		return ds, nil
 	case "inmem":
 		ds := &inmem{
 			Driver: "inmem",

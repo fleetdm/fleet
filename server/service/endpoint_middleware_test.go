@@ -184,7 +184,7 @@ func TestGetNodeKey(t *testing.T) {
 }
 
 func TestAuthenticatedHost(t *testing.T) {
-	ds, err := datastore.New("gorm-sqlite3", "")
+	ds, err := datastore.New("inmem", "")
 	require.Nil(t, err)
 	svc, err := newTestService(ds)
 	require.Nil(t, err)

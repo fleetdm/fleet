@@ -18,7 +18,7 @@ import (
 )
 
 func TestEnrollAgent(t *testing.T) {
-	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds)
@@ -40,7 +40,7 @@ func TestEnrollAgent(t *testing.T) {
 }
 
 func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
-	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds)
@@ -62,7 +62,7 @@ func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
 }
 
 func TestSubmitStatusLogs(t *testing.T) {
-	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
 	mockClock := clock.NewMockClock()
@@ -134,7 +134,7 @@ func TestSubmitStatusLogs(t *testing.T) {
 }
 
 func TestSubmitResultLogs(t *testing.T) {
-	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
 	mockClock := clock.NewMockClock()
@@ -235,7 +235,7 @@ func TestHostDetailQueries(t *testing.T) {
 }
 
 func TestLabelQueries(t *testing.T) {
-	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
 	mockClock := clock.NewMockClock()
@@ -400,7 +400,7 @@ func TestLabelQueries(t *testing.T) {
 }
 
 func TestGetClientConfig(t *testing.T) {
-	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
 	mockClock := clock.NewMockClock()
@@ -484,7 +484,7 @@ func TestGetClientConfig(t *testing.T) {
 }
 
 func TestDetailQueries(t *testing.T) {
-	ds, err := datastore.New("gorm-sqlite3", ":memory:")
+	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
 	mockClock := clock.NewMockClock()
