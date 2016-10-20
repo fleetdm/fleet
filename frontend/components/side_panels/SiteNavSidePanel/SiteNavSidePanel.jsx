@@ -6,11 +6,11 @@ import radium, { StyleRoot } from 'radium';
 
 import { activeTabFromPathname, activeSubTabFromPathname } from './helpers';
 import componentStyles from './styles';
-import kolideLogo from '../../../assets/images/kolide-logo.svg';
+import kolideLogo from '../../../../assets/images/kolide-logo.svg';
 import navItems from './navItems';
 import './styles.scss';
 
-class SidePanel extends Component {
+class SiteNavSidePanel extends Component {
   static propTypes = {
     config: PropTypes.shape({
       org_logo_url: PropTypes.string,
@@ -254,5 +254,5 @@ class SidePanel extends Component {
   }
 }
 
-const ConnectedComponent = connect()(SidePanel);
+const ConnectedComponent = connect()(SiteNavSidePanel);
 export default radium(ConnectedComponent);

@@ -4,7 +4,7 @@ import { StyleRoot } from 'radium';
 
 import componentStyles from './styles';
 import FlashMessage from '../../components/FlashMessage';
-import SidePanel from '../../components/SidePanel';
+import SiteNavSidePanel from '../../components/side_panels/SiteNavSidePanel';
 
 export class CoreLayout extends Component {
   static propTypes = {
@@ -29,7 +29,7 @@ export class CoreLayout extends Component {
 
     return (
       <StyleRoot>
-        <SidePanel
+        <SiteNavSidePanel
           config={config}
           pathname={pathname}
           user={user}

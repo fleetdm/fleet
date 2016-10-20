@@ -11,6 +11,7 @@ import {
 } from './helpers';
 import componentStyles from './styles';
 import { osqueryTables } from '../../../utilities/osquery_tables';
+import SecondarySidePanelContainer from '../SecondarySidePanelContainer';
 
 
 class QuerySidePanel extends Component {
@@ -135,7 +136,6 @@ class QuerySidePanel extends Component {
 
   render () {
     const {
-      containerStyles,
       platformsTextStyles,
       sectionHeader,
       tableDescriptionStyles,
@@ -149,7 +149,7 @@ class QuerySidePanel extends Component {
     const { selectedOsqueryTable: { description, platform } } = this.props;
 
     return (
-      <div style={containerStyles}>
+      <SecondarySidePanelContainer>
         <p style={sectionHeader}>Choose a Table</p>
         {renderTableSelect()}
         <p style={tableDescriptionStyles}>{description}</p>
@@ -169,7 +169,7 @@ class QuerySidePanel extends Component {
           <p style={sectionHeader}>Suggested Queries</p>
           {renderSuggestedQueries()}
         </div>
-      </div>
+      </SecondarySidePanelContainer>
     );
   }
 }
