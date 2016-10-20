@@ -105,7 +105,10 @@ func (v Viewer) CanPerformReadActionOnUser(uid uint) bool {
 // ability to perform write actions on the given user
 func (v Viewer) CanPerformWriteActionOnUser(uid uint) bool {
 	if v.User != nil {
-		return v.CanPerformActions() && (v.IsUserID(uid) || v.IsAdmin())
+		// By not requiring v.CanPerformActions() here, we allow the
+		// user to update their password when they are in the forced
+		// password reset state.
+		return v.IsUserID(uid) || v.IsAdmin()
 	}
 	return false
 }

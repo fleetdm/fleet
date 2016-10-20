@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"time"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"golang.org/x/net/context"
@@ -146,8 +147,8 @@ func (svc service) ResetPassword(ctx context.Context, token, password string) er
 }
 
 func (svc service) RequestPasswordReset(ctx context.Context, email string) error {
-	// the password reset is different depending on wether performed by an admin
-	// or a user
+	// the password reset is different depending on whether performed by an
+	// admin or a user
 	// if an admin requests a password reset, then no token is
 	// generated, instead the AdminForcedPasswordReset flag is set
 	user, err := svc.ds.UserByEmail(email)
@@ -168,8 +169,7 @@ func (svc service) RequestPasswordReset(ctx context.Context, email string) error
 		}
 	}
 
-	// TODO: change this to jwt key
-	token, err := generateRandomText(svc.config.App.TokenKeySize)
+	token, err := jwt.New(jwt.SigningMethodHS256).SignedString([]byte(svc.config.App.TokenKey))
 	if err != nil {
 		return err
 	}

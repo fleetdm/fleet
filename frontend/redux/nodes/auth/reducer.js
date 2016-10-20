@@ -3,6 +3,9 @@ import {
   LOGIN_FAILURE,
   LOGIN_REQUEST,
   LOGIN_SUCCESS,
+  UPDATE_USER_FAILURE,
+  UPDATE_USER_REQUEST,
+  UPDATE_USER_SUCCESS,
   LOGOUT_FAILURE,
   LOGOUT_REQUEST,
   LOGOUT_SUCCESS,
@@ -23,6 +26,7 @@ const reducer = (state = initialState, action) => {
       };
     case LOGIN_REQUEST:
     case LOGOUT_REQUEST:
+    case UPDATE_USER_REQUEST:
       return {
         ...state,
         loading: true,
@@ -34,6 +38,18 @@ const reducer = (state = initialState, action) => {
         user: action.payload.user,
       };
     case LOGIN_FAILURE:
+      return {
+        ...state,
+        loading: false,
+        error: action.payload.error,
+      };
+    case UPDATE_USER_SUCCESS:
+      return {
+        ...state,
+        loading: false,
+        user: action.payload.user,
+      };
+    case UPDATE_USER_FAILURE:
       return {
         ...state,
         loading: false,
