@@ -1,4 +1,8 @@
-@import "styles/stylesheets/fonts.scss";
-@import "styles/stylesheets/icons.scss";
-@import "styles/stylesheets/forms.scss";
-@import "styles/stylesheets/styles.scss";
+$base-font-size: 16;
+
+@import "bourbon";
+@import "./helpers";
+@import "./variables";
+
+@import "styles/**/*.scss";
+@import "components/**/*.scss";

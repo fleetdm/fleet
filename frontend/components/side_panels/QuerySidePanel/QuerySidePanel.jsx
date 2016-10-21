@@ -9,10 +9,10 @@ import {
   numAdditionalColumns,
   shouldShowAllColumns,
 } from './helpers';
-import componentStyles from './styles';
 import { osqueryTables } from '../../../utilities/osquery_tables';
 import SecondarySidePanelContainer from '../SecondarySidePanelContainer';
 
+const classBlock = 'query-side-panel';
 
 class QuerySidePanel extends Component {
   static propTypes = {
@@ -66,16 +66,15 @@ class QuerySidePanel extends Component {
   renderColumns = () => {
     const { selectedOsqueryTable } = this.props;
     const { showAllColumns } = this.state;
-    const { columnNameStyles, columnWrapperStyles, helpStyles } = componentStyles;
     const columns = columnsToRender(selectedOsqueryTable, showAllColumns);
 
     return columns.map(column => {
       return (
-        <div style={columnWrapperStyles} key={column.name}>
-          <span style={columnNameStyles}>{column.name}</span>
+        <div key={column.name} className={`${classBlock}__column-wrapper`}>
+          <span className={`${classBlock}__column-name`}>{column.name}</span>
           <div>
             <span>{displayTypeForDataType(column.type)}</span>
-            <i className="kolidecon-help" style={helpStyles} title={column.description} />
+            <i className={`${classBlock}__help kolidecon-help`} title={column.description} />
           </div>
         </div>
       );
@@ -83,7 +82,6 @@ class QuerySidePanel extends Component {
   }
 
   renderMoreColumns = () => {
-    const { columnWrapperStyles, numMoreColumnsStyles, showAllColumnsStyles } = componentStyles;
     const { selectedOsqueryTable } = this.props;
     const { showAllColumns } = this.state;
     const { onShowAllColumns } = this;
@@ -93,25 +91,24 @@ class QuerySidePanel extends Component {
     }
 
     return (
-      <div style={[columnWrapperStyles, { display: 'flex', justifyContent: 'space-between' }]}>
-        <span style={numMoreColumnsStyles}>{numAdditionalColumns(selectedOsqueryTable)} MORE COLUMNS</span>
-        <span onClick={onShowAllColumns} style={showAllColumnsStyles}>SHOW</span>
+      <div className={`${classBlock}__column-wrapper`}>
+        <span className={`${classBlock}__more-columns`}>{numAdditionalColumns(selectedOsqueryTable)} MORE COLUMNS</span>
+        <span onClick={onShowAllColumns} className={`${classBlock}__show-columns`}>SHOW</span>
       </div>
     );
   }
 
   renderSuggestedQueries = () => {
-    const { columnWrapperStyles, loadSuggestedQueryStyles, suggestedQueryStyles } = componentStyles;
     const { onSuggestedQueryClick } = this;
     const { selectedOsqueryTable } = this.props;
 
     return selectedOsqueryTable.examples.map(example => {
       return (
-        <div key={example} style={columnWrapperStyles}>
-          <span style={suggestedQueryStyles}>{example}</span>
+        <div key={example} className={`${classBlock}__column-wrapper`}>
+          <span className={`${classBlock}__suggestion`}>{example}</span>
           <Button
             onClick={onSuggestedQueryClick(example)}
-            style={loadSuggestedQueryStyles}
+            className={`${classBlock}__load-suggestion`}
             text="LOAD"
           />
         </div>
@@ -136,11 +133,6 @@ class QuerySidePanel extends Component {
 
   render () {
     const {
-      platformsTextStyles,
-      sectionHeader,
-      tableDescriptionStyles,
-    } = componentStyles;
-    const {
       renderColumns,
       renderMoreColumns,
       renderTableSelect,
@@ -149,24 +141,24 @@ class QuerySidePanel extends Component {
     const { selectedOsqueryTable: { description, platform } } = this.props;
 
     return (
-      <SecondarySidePanelContainer>
-        <p style={sectionHeader}>Choose a Table</p>
+      <SecondarySidePanelContainer className={classBlock}>
+        <p className={`${classBlock}__header`}>Choose a Table</p>
         {renderTableSelect()}
-        <p style={tableDescriptionStyles}>{description}</p>
+        <p className={`${classBlock}__table`}>{description}</p>
         <div>
-          <p style={sectionHeader}>OS Availability</p>
-          <p style={platformsTextStyles}>{availability(platform)}</p>
+          <p className={`${classBlock}__header`}>OS Availability</p>
+          <p className={`${classBlock}__platform`}>{availability(platform)}</p>
         </div>
         <div>
-          <p style={sectionHeader}>Columns</p>
+          <p className={`${classBlock}__header`}>Columns</p>
           {renderColumns()}
           {renderMoreColumns()}
         </div>
         <div>
-          <p style={sectionHeader}>Joins</p>
+          <p className={`${classBlock}__header`}>Joins</p>
         </div>
         <div>
-          <p style={sectionHeader}>Suggested Queries</p>
+          <p className={`${classBlock}__header`}>Suggested Queries</p>
           {renderSuggestedQueries()}
         </div>
       </SecondarySidePanelContainer>

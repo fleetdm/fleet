@@ -1,0 +1,73 @@
+.query-side-panel {
+  background-color: $white;
+  border-left: 1px solid $borderMedium;
+  bottom: 0;
+  box-shadow: 2px 0 8px 0 rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+  overflow: scroll;
+  padding: px-to-rem(13) px-to-rem(13) 70px;
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: 300px;
+
+  &__header {
+    font-size: px-to-rem(24);
+    color: $textMedium;
+  }
+
+  &__table {
+    font-size: px-to-rem(14);
+    color: $textMedium;
+  }
+
+  &__platform {
+    color: $textMedium;
+    font-size: px-to-rem(14);
+    text-transform: capitalize;
+  }
+
+  &__column-wrapper {
+    @include display(flex);
+    @include align-items(center);
+    @include justify-content(space-between);
+    border-top: 1px solid $accentLight;
+    color: $textDark;
+    font-size: px-to-rem(14);
+    padding-bottom: px-to-rem(9);
+    padding-top: px-to-rem(9);
+  }
+
+  &__column-name {
+    padding: px-to-rem(7) px-to-rem(9);
+    background-color: $accentLight;
+    border: 1px solid $accentMedium;
+    border-radius: $border-radius;
+  }
+
+  &__help {
+    margin-left: px-to-rem(9);
+    vertical-align: middle;
+  }
+
+  &__more-columns {
+    color: $textMedium;
+  }
+
+  &__show-columns {
+    color: $brand;
+    cursor: pointer;
+  }
+
+  &__suggestion {
+    color: $textMedium;
+    font-size:  px-to-rem(12);
+  }
+
+  &__load-suggestion {
+    padding: 1px 5px;
+  }
+}
+
+
+

@@ -4,6 +4,7 @@ var path = require('path');
 var webpack = require('webpack');
 var autoprefixer = require('autoprefixer');
 var ExtractTextPlugin = require("extract-text-webpack-plugin");
+var bourbon = require('node-bourbon').includePaths;
 
 var plugins = [
   new webpack.NoErrorsPlugin(),
@@ -41,9 +42,10 @@ var config  = {
       {test: /\.(pdf|ico|jpg|svg|eot|otf|woff|ttf|mp4|webm)$/, loader: 'file-loader?name=[name]@[hash].[ext]'},
       {test: /\.json$/, loader: 'raw-loader'},
       {
-        test: /\.(scss|css)$/,
-        loader: ExtractTextPlugin.extract("style-loader", "css-loader!autoprefixer-loader!sass-loader")
+        test: /\.css$/,
+        loader: ExtractTextPlugin.extract("style-loader", "css-loader!autoprefixer-loader")
       },
+      { test: /\.scss$/, loader: "style!css!sass?includePaths[]=" + bourbon + "!import-glob" },
       {
         test: /\.jsx?$/,
         include: path.join(repo, 'frontend'),
