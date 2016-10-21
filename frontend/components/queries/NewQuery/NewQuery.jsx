@@ -8,12 +8,15 @@ import 'react-select/dist/react-select.css';
 import './mode';
 import './theme';
 import componentStyles from './styles';
+import debounce from '../../../utilities/debounce';
 import SaveQueryForm from '../../forms/queries/SaveQueryForm';
 import SaveQuerySection from './SaveQuerySection';
 import ThemeDropdown from './ThemeDropdown';
+import { validateQuery } from './helpers';
 
 class NewQuery extends Component {
   static propTypes = {
+    onInvalidQuerySubmit: PropTypes.func,
     onNewQueryFormSubmit: PropTypes.func,
     onOsqueryTableSelect: PropTypes.func,
     onTextEditorInputChange: PropTypes.func,
@@ -67,17 +70,26 @@ class NewQuery extends Component {
     });
   }
 
-  onSaveQueryFormSubmit = (formData) => {
-    const { onNewQueryFormSubmit } = this.props;
+  onSaveQueryFormSubmit = debounce((formData) => {
+    const {
+      onInvalidQuerySubmit,
+      onNewQueryFormSubmit,
+      textEditorText,
+    } = this.props;
     const { selectedTargets } = this.state;
 
-    onNewQueryFormSubmit({
+    const { error } = validateQuery(textEditorText);
+
+    if (error) {
+      return onInvalidQuerySubmit(error);
+    }
+
+    return onNewQueryFormSubmit({
       ...formData,
+      query: textEditorText,
       selectedTargets,
     });
-
-    return false;
-  }
+  })
 
   onTargetSelect = (selectedTargets) => {
     this.setState({ selectedTargets });

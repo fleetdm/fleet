@@ -2,10 +2,11 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { find } from 'lodash';
 
-import NewQuery from '../../../components/Queries/NewQuery';
+import NewQuery from '../../../components/queries/NewQuery';
+import { osqueryTables } from '../../../utilities/osquery_tables';
 import QuerySidePanel from '../../../components/side_panels/QuerySidePanel';
 import { showRightSidePanel, removeRightSidePanel } from '../../../redux/nodes/app/actions';
-import { osqueryTables } from '../../../utilities/osquery_tables';
+import { renderFlash } from '../../../redux/nodes/notifications/actions';
 
 class NewQueryPage extends Component {
   static propTypes = {
@@ -35,13 +36,15 @@ class NewQueryPage extends Component {
   }
 
   onNewQueryFormSubmit = (formData) => {
-    const { textEditorText } = this.state;
-    const data = {
-      queryText: textEditorText,
-      ...formData,
-    };
+    console.log('New Query Form submitted', formData);
+  }
 
-    console.log('New Query Form submitted', data);
+  onInvalidQuerySubmit = (errorMessage) => {
+    const { dispatch } = this.props;
+
+    dispatch(renderFlash('error', errorMessage));
+
+    return false;
   }
 
   onOsqueryTableSelect = (tableName) => {
@@ -59,12 +62,18 @@ class NewQueryPage extends Component {
 
   render () {
     const { selectedOsqueryTable, textEditorText } = this.state;
-    const { onNewQueryFormSubmit, onOsqueryTableSelect, onTextEditorInputChange } = this;
+    const {
+      onNewQueryFormSubmit,
+      onInvalidQuerySubmit,
+      onOsqueryTableSelect,
+      onTextEditorInputChange,
+    } = this;
 
     return (
       <div>
         <NewQuery
           onNewQueryFormSubmit={onNewQueryFormSubmit}
+          onInvalidQuerySubmit={onInvalidQuerySubmit}
           onOsqueryTableSelect={onOsqueryTableSelect}
           onTextEditorInputChange={onTextEditorInputChange}
           selectedOsqueryTable={selectedOsqueryTable}

@@ -81,7 +81,7 @@ class SaveQueryForm extends Component {
       const { validate } = this;
 
       if (validate(runType)) {
-        return onSubmit({ formData, runType });
+        return onSubmit({ ...formData, runType });
       }
 
       return false;

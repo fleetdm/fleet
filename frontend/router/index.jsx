@@ -15,8 +15,8 @@ import LoginRoutes from '../components/LoginRoutes';
 import LogoutPage from '../pages/LogoutPage';
 import ManageHostsPage from '../pages/hosts/ManageHostsPage';
 import NewHostPage from '../pages/hosts/NewHostPage';
-import NewQueryPage from '../pages/Queries/NewQueryPage';
-import QueryPageWrapper from '../components/Queries/QueryPageWrapper';
+import NewQueryPage from '../pages/queries/NewQueryPage';
+import QueryPageWrapper from '../components/queries/QueryPageWrapper';
 import ResetPasswordPage from '../pages/ResetPasswordPage';
 import store from '../redux/store';
 

@@ -55,16 +55,14 @@ describe('SaveQueryForm - component', () => {
     form.simulate('submit');
 
     expect(onSubmit).toHaveBeenCalledWith({
+      description: null,
+      duration: 'short',
+      hosts: 'all',
+      hostsPercentage: null,
+      name: queryName,
+      platforms: 'all',
       runType: 'RUN_AND_SAVE',
-      formData: {
-        description: null,
-        duration: 'short',
-        hosts: 'all',
-        hostsPercentage: null,
-        name: queryName,
-        platforms: 'all',
-        scanInterval: 0,
-      },
+      scanInterval: 0,
     });
   });
 
@@ -77,16 +75,14 @@ describe('SaveQueryForm - component', () => {
     form.simulate('submit');
 
     expect(onSubmit).toHaveBeenCalledWith({
+      description: null,
+      duration: 'short',
+      hosts: 'all',
+      hostsPercentage: null,
+      name: null,
+      platforms: 'all',
       runType: 'RUN',
-      formData: {
-        description: null,
-        duration: 'short',
-        hosts: 'all',
-        hostsPercentage: null,
-        name: null,
-        platforms: 'all',
-        scanInterval: 0,
-      },
+      scanInterval: 0,
     });
   });
 });
