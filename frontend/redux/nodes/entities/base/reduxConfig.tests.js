@@ -35,7 +35,7 @@ describe('reduxConfig', () => {
         mockStore.dispatch(actions.create());
 
         const dispatchedActions = mockStore.getActions();
-        const dispatchedActionTypes = dispatchedActions.map(action => { return action.type; });
+        const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
 
         expect(dispatchedActionTypes).toInclude('users_CREATE_REQUEST');
         expect(dispatchedActionTypes).toInclude('users_CREATE_SUCCESS');
@@ -87,7 +87,7 @@ describe('reduxConfig', () => {
         mockStore.dispatch(actions.create());
 
         const dispatchedActions = mockStore.getActions();
-        const dispatchedActionTypes = dispatchedActions.map(action => { return action.type; });
+        const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
 
         expect(dispatchedActionTypes).toInclude('users_CREATE_REQUEST');
         expect(dispatchedActionTypes).toNotInclude('users_CREATE_SUCCESS');
@@ -137,7 +137,7 @@ describe('reduxConfig', () => {
         mockStore.dispatch(actions.destroy({ inviteID: invite.id }));
 
         const dispatchedActions = mockStore.getActions();
-        const dispatchedActionTypes = dispatchedActions.map(action => { return action.type; });
+        const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
 
         expect(dispatchedActionTypes).toInclude('invites_DESTROY_REQUEST');
         expect(dispatchedActionTypes).toInclude('invites_DESTROY_SUCCESS');
@@ -190,7 +190,7 @@ describe('reduxConfig', () => {
         mockStore.dispatch(actions.create());
 
         const dispatchedActions = mockStore.getActions();
-        const dispatchedActionTypes = dispatchedActions.map(action => { return action.type; });
+        const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
 
         expect(dispatchedActionTypes).toInclude('users_CREATE_REQUEST');
         expect(dispatchedActionTypes).toNotInclude('users_CREATE_SUCCESS');
@@ -240,7 +240,7 @@ describe('reduxConfig', () => {
         mockStore.dispatch(actions.load());
 
         const dispatchedActions = mockStore.getActions();
-        const dispatchedActionTypes = dispatchedActions.map(action => { return action.type; });
+        const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
 
         expect(dispatchedActionTypes).toInclude('users_LOAD_REQUEST');
         expect(dispatchedActionTypes).toInclude('users_LOAD_SUCCESS');
@@ -292,7 +292,7 @@ describe('reduxConfig', () => {
         mockStore.dispatch(actions.load());
 
         const dispatchedActions = mockStore.getActions();
-        const dispatchedActionTypes = dispatchedActions.map(action => { return action.type; });
+        const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
 
         expect(dispatchedActionTypes).toInclude('users_LOAD_REQUEST');
         expect(dispatchedActionTypes).toNotInclude('users_LOAD_SUCCESS');
@@ -342,7 +342,7 @@ describe('reduxConfig', () => {
         mockStore.dispatch(actions.loadAll());
 
         const dispatchedActions = mockStore.getActions();
-        const dispatchedActionTypes = dispatchedActions.map(action => { return action.type; });
+        const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
 
         expect(dispatchedActionTypes).toInclude('users_LOAD_REQUEST');
         expect(dispatchedActionTypes).toInclude('users_LOAD_SUCCESS');
@@ -394,7 +394,7 @@ describe('reduxConfig', () => {
         mockStore.dispatch(actions.loadAll());
 
         const dispatchedActions = mockStore.getActions();
-        const dispatchedActionTypes = dispatchedActions.map(action => { return action.type; });
+        const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
 
         expect(dispatchedActionTypes).toInclude('users_LOAD_REQUEST');
         expect(dispatchedActionTypes).toNotInclude('users_LOAD_SUCCESS');

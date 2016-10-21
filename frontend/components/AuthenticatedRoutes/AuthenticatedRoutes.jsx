@@ -4,15 +4,17 @@ import { isEqual } from 'lodash';
 import { push } from 'react-router-redux';
 
 import paths from '../../router/paths';
+import redirectLocationInterface from '../../interfaces/redirect_location';
 import { setRedirectLocation } from '../../redux/nodes/redirectLocation/actions';
+import userInterface from '../../interfaces/user';
 
 export class AuthenticatedRoutes extends Component {
   static propTypes = {
     children: PropTypes.element,
     dispatch: PropTypes.func,
     loading: PropTypes.bool.isRequired,
-    locationBeforeTransitions: PropTypes.object,
-    user: PropTypes.object,
+    locationBeforeTransitions: redirectLocationInterface,
+    user: userInterface,
   };
 
   componentWillMount () {

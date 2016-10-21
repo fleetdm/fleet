@@ -8,12 +8,13 @@ import { resetPassword } from '../../redux/nodes/components/ResetPasswordPage/ac
 import ResetPasswordForm from '../../components/forms/ResetPasswordForm';
 import StackedWhiteBoxes from '../../components/StackedWhiteBoxes';
 import { updateUser } from '../../redux/nodes/auth/actions';
+import userInterface from '../../interfaces/user';
 
 export class ResetPasswordPage extends Component {
   static propTypes = {
     dispatch: PropTypes.func,
     token: PropTypes.string,
-    user: PropTypes.object,
+    user: userInterface,
   };
 
   static defaultProps = {

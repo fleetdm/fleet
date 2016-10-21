@@ -30,7 +30,7 @@ describe('App - actions', () => {
       store.dispatch(getConfig())
         .then(() => {
           const actions = store.getActions()
-            .map(action => { return action.type; });
+            .map((action) => { return action.type; });
 
           expect(actions).toInclude(CONFIG_START);
           expect(actions).toInclude(CONFIG_SUCCESS);

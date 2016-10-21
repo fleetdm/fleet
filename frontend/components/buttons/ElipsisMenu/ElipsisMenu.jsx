@@ -8,7 +8,7 @@ import componentStyles from './styles';
 export class ElipsisMenu extends Component {
   static propTypes = {
     children: PropTypes.node,
-    positionStyles: PropTypes.object,
+    positionStyles: PropTypes.object, // eslint-disable-line react/forbid-prop-types
   };
 
   constructor (props) {
@@ -84,11 +84,16 @@ export class ElipsisMenu extends Component {
 
     return (
       <div
-        onClick={onToggleChildren}
         ref={setDOMNode}
         style={[containerStyles, positionStyles]}
       >
-        <span style={elipsisStyles}>&bull; &bull; &bull;</span>
+        <button
+          className="btn--unstyled"
+          onClick={onToggleChildren}
+          style={elipsisStyles}
+        >
+          &bull; &bull; &bull;
+        </button>
         {renderChildren()}
       </div>
     );

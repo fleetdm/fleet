@@ -8,13 +8,14 @@ import Footer from '../Footer';
 import { getConfig } from '../../redux/nodes/app/actions';
 import globalStyles from '../../styles/global';
 import { authToken } from '../../utilities/local';
+import userInterface from '../../interfaces/user';
 
 export class App extends Component {
   static propTypes = {
     children: PropTypes.element,
     dispatch: PropTypes.func,
     showBackgroundImage: PropTypes.bool,
-    user: PropTypes.object,
+    user: userInterface,
   };
 
   static defaultProps = {

@@ -127,7 +127,9 @@ class SaveQueryForm extends Component {
     return true;
   }
 
-  toggleShowMoreOptions = () => {
+  toggleShowMoreOptions = (evt) => {
+    evt.preventDefault();
+
     const { showMoreOptions } = this.state;
 
     this.setState({
@@ -145,20 +147,20 @@ class SaveQueryForm extends Component {
     if (showMoreOptions) {
       return (
         <div style={moreOptionsCtaSectionStyles}>
-          <span onClick={toggleShowMoreOptions} style={moreOptionsTextStyles}>
+          <button className="btn--unstyled" onClick={toggleShowMoreOptions} style={moreOptionsTextStyles}>
             Fewer Options
             <i className="kolidecon-upcarat" style={moreOptionsIconStyles} />
-          </span>
+          </button>
         </div>
       );
     }
 
     return (
       <div style={moreOptionsCtaSectionStyles}>
-        <span onClick={toggleShowMoreOptions} style={moreOptionsTextStyles}>
+        <button className="btn--unstyled" onClick={toggleShowMoreOptions} style={moreOptionsTextStyles}>
           More Options
           <i className="kolidecon-downcarat" style={moreOptionsIconStyles} />
-        </span>
+        </button>
       </div>
     );
   }
@@ -271,7 +273,7 @@ class SaveQueryForm extends Component {
             type="tel"
           />
           <small style={helpTextStyles}>
-            You can use queries you write in "scans". The interval can be used to control how frequently the query runs when it is running continuously.
+            You can use queries you write in &quot;scans&quot;. The interval can be used to control how frequently the query runs when it is running continuously.
           </small>
         </div>
       </div>

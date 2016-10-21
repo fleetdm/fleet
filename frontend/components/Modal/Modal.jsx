@@ -7,7 +7,6 @@ class Modal extends Component {
   static propTypes = {
     children: PropTypes.node,
     onExit: PropTypes.func,
-    overrideStyles: PropTypes.object,
     title: PropTypes.string,
   };
 
@@ -26,7 +25,7 @@ class Modal extends Component {
         <div style={modalStyles}>
           <div style={headerStyles}>
             <span>{title}</span>
-            <span style={exStyles} onClick={onExit}>╳</span>
+            <button className="btn--unstyled" style={exStyles} onClick={onExit}>╳</button>
           </div>
           <div style={contentStyles}>
             {children}

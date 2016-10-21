@@ -179,7 +179,7 @@ const componentStyles = {
     height: '7px',
     left: '24px',
     position: 'absolute',
-    top: '15px',
+    top: '18px',
     width: '7px',
   },
   subItemLinkStyles: (active) => {

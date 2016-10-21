@@ -7,6 +7,7 @@ import Button from '../../../buttons/Button';
 import componentStyles from './styles';
 import InputField from '../../fields/InputField';
 import Styleguide from '../../../../styles';
+import userInterface from '../../../../interfaces/user';
 
 const { color } = Styleguide;
 
@@ -14,7 +15,7 @@ class EditUserForm extends Component {
   static propTypes = {
     onCancel: PropTypes.func,
     onSubmit: PropTypes.func,
-    user: PropTypes.object,
+    user: userInterface,
   };
 
   constructor (props) {

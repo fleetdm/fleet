@@ -4,12 +4,14 @@ import radium from 'radium';
 
 import componentStyles from './styles';
 import ElipsisMenu from '../../../components/buttons/ElipsisMenu';
+import hostInterface from '../../../interfaces/host';
 import { humanMemory, humanUptime, platformIconClass } from './helpers';
 
 const {
   containerStyles,
   contentSeparatorStyles,
   disableIconStyles,
+  elipsisChildItemStyles,
   elipsisChidrenWrapperStyles,
   elipsisPositionStyles,
   hostContentItemStyles,
@@ -41,15 +43,15 @@ const HostDetails = ({ host, onQueryClick = noop, onDisableClick = noop }) => {
     <div style={containerStyles(status)}>
       <ElipsisMenu positionStyles={elipsisPositionStyles}>
         <div style={elipsisChidrenWrapperStyles}>
-          <div onClick={onQueryClick(host)} style={{ cursor: 'pointer', width: '60px' }}>
+          <button className="btn--unstyled" onClick={onQueryClick(host)} style={elipsisChildItemStyles}>
             <i className="kolidecon-query" style={queryIconStyles} />
             <div>Query</div>
-          </div>
+          </button>
           <div style={verticleRuleStyles} />
-          <div onClick={onDisableClick(host)} style={{ cursor: 'pointer', width: '60px' }}>
+          <button className="btn--unstyled" onClick={onDisableClick(host)} style={elipsisChildItemStyles}>
             <i className="kolidecon-ex" style={disableIconStyles} />
             <div>Disable</div>
-          </div>
+          </button>
         </div>
       </ElipsisMenu>
       <div style={statusStyles(status)}>
@@ -91,14 +93,7 @@ const HostDetails = ({ host, onQueryClick = noop, onDisableClick = noop }) => {
 };
 
 HostDetails.propTypes = {
-  host: PropTypes.shape({
-    hostname: PropTypes.string,
-    ip: PropTypes.string,
-    mac: PropTypes.string,
-    memory: PropTypes.number,
-    platform: PropTypes.string,
-    uptime: PropTypes.number,
-  }).isRequired,
+  host: hostInterface.isRequired,
   onDisableClick: PropTypes.func,
   onQueryClick: PropTypes.func,
 };

@@ -8,14 +8,14 @@ class InputField extends Component {
     autofocus: PropTypes.bool,
     defaultValue: PropTypes.string,
     error: PropTypes.string,
-    inputWrapperStyles: PropTypes.object,
-    inputOptions: PropTypes.object,
+    inputWrapperStyles: PropTypes.object, // eslint-disable-line react/forbid-prop-types
+    inputOptions: PropTypes.object, // eslint-disable-line react/forbid-prop-types
     label: PropTypes.string,
-    labelStyles: PropTypes.object,
+    labelStyles: PropTypes.object, // eslint-disable-line react/forbid-prop-types
     name: PropTypes.string,
     onChange: PropTypes.func,
     placeholder: PropTypes.string,
-    style: PropTypes.object,
+    style: PropTypes.object, // eslint-disable-line react/forbid-prop-types
     type: PropTypes.string,
   };
 

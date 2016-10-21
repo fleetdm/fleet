@@ -95,7 +95,7 @@ describe('ForgotPasswordPage - reducer', () => {
 
       store.dispatch(forgotPasswordAction(formData))
         .then(done)
-        .catch(errorResponse => {
+        .catch((errorResponse) => {
           const actions = store.getActions();
           const { response } = errorResponse;
 

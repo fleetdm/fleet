@@ -24,6 +24,7 @@ module.exports = {
     'space-before-function-paren': 0,
     'react/prefer-stateless-function': 0,
     'react/no-multi-comp': 0,
+    'react/no-unused-prop-types': [1, { 'customValidators': [], skipShapeProps: true }],
     'no-param-reassign': 0,
     'new-cap': 0,
     'import/no-unresolved': 'error',

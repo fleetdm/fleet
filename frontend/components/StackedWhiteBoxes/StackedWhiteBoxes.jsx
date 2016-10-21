@@ -10,7 +10,7 @@ class StackedWhiteBoxes extends Component {
     headerText: PropTypes.string,
     leadText: PropTypes.string,
     previousLocation: PropTypes.string,
-    style: PropTypes.object,
+    style: PropTypes.object, // eslint-disable-line react/forbid-prop-types
   };
 
   static defaultProps = {

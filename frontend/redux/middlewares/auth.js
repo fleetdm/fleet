@@ -6,7 +6,7 @@ import { LOGIN_FAILURE, LOGIN_SUCCESS, LOGOUT_SUCCESS } from '../nodes/auth/acti
 import local from '../../utilities/local';
 import paths from '../../router/paths';
 
-const authMiddleware = store => next => action => {
+const authMiddleware = store => next => (action) => {
   const { type, payload } = action;
 
   if (type === LOGIN_SUCCESS) {

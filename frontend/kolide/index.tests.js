@@ -177,7 +177,7 @@ describe('Kolide - API client', () => {
 
       Kolide.forgotPassword({ email })
         .then(done)
-        .catch(errorResponse => {
+        .catch((errorResponse) => {
           const { response } = errorResponse;
 
           expect(response).toEqual({ error });
@@ -217,7 +217,7 @@ describe('Kolide - API client', () => {
 
       Kolide.resetPassword(formData)
         .then(done)
-        .catch(errorResponse => {
+        .catch((errorResponse) => {
           const { response } = errorResponse;
 
           expect(response).toEqual({ error });

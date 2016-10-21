@@ -38,7 +38,7 @@ export const fetchCurrentUser = () => {
   return (dispatch) => {
     dispatch(loginRequest);
     return Kolide.me()
-      .then(response => {
+      .then((response) => {
         const { user } = response;
         const { email } = user;
         const emailHash = md5(email.toLowerCase());
@@ -46,7 +46,7 @@ export const fetchCurrentUser = () => {
         user.gravatarURL = `https://www.gravatar.com/avatar/${emailHash}`;
         return dispatch(loginSuccess({ user }));
       })
-      .catch(response => {
+      .catch((response) => {
         dispatch(loginFailure('Unable to authenticate the current user'));
         throw response;
       });
@@ -59,7 +59,7 @@ export const loginUser = (formData) => {
     return new Promise((resolve, reject) => {
       dispatch(loginRequest);
       return Kolide.loginUser(formData)
-        .then(response => {
+        .then((response) => {
           const { user } = response;
           const { email } = user;
           const emailHash = md5(email.toLowerCase());
@@ -68,7 +68,7 @@ export const loginUser = (formData) => {
           dispatch(loginSuccess({ ...response, user }));
           return resolve(user);
         })
-        .catch(response => {
+        .catch((response) => {
           const { error } = response;
           dispatch(loginFailure(error));
           return reject(error);

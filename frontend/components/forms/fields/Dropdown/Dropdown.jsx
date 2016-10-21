@@ -3,16 +3,14 @@ import radium from 'radium';
 import { noop } from 'lodash';
 
 import componentStyles from './styles';
+import dropdownOptionInterface from '../../../../interfaces/dropdownOption';
 
 class Dropdown extends Component {
   static propTypes = {
-    selectStyles: PropTypes.object,
-    options: PropTypes.arrayOf(PropTypes.shape({
-      text: PropTypes.string,
-      value: PropTypes.string,
-    })),
+    selectStyles: PropTypes.object, // eslint-disable-line react/forbid-prop-types
+    options: PropTypes.arrayOf(dropdownOptionInterface),
     onSelect: PropTypes.func,
-    containerStyles: PropTypes.object,
+    containerStyles: PropTypes.object, // eslint-disable-line react/forbid-prop-types
   };
 
   static defaultProps = {
@@ -48,7 +46,7 @@ class Dropdown extends Component {
     return (
       <div className="kolide-dropdown-wrapper" style={containerStyles}>
         <select className="kolide-dropdown" style={[selectWrapperStyles, selectStyles]} onChange={onOptionClick}>
-          {options.map(option => {
+          {options.map((option) => {
             return renderOption(option);
           })}
         </select>

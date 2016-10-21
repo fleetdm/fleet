@@ -93,7 +93,7 @@ const reduxConfig = ({
   const parsedResponse = (responseArray) => {
     if (!parseFunc) return responseArray;
 
-    return responseArray.map(response => {
+    return responseArray.map((response) => {
       return parseFunc(response);
     });
   };
@@ -103,14 +103,14 @@ const reduxConfig = ({
       dispatch(createRequest);
 
       return createFunc(...args)
-        .then(response => {
+        .then((response) => {
           if (!response) return [];
 
           const { entities } = normalize(parsedResponse([response]), arrayOf(schema));
 
           return dispatch(createSuccess(entities));
         })
-        .catch(response => {
+        .catch((response) => {
           const { errors } = response;
           const { error } = response.message || {};
           const errorMessage = errors || error;
@@ -132,7 +132,7 @@ const reduxConfig = ({
 
           return dispatch(destroySuccess(entityID));
         })
-        .catch(response => {
+        .catch((response) => {
           const { errors } = response;
           const { error } = response.message || {};
           const errorMessage = errors || error;
@@ -149,14 +149,14 @@ const reduxConfig = ({
       dispatch(loadRequest);
 
       return loadFunc(...args)
-        .then(response => {
+        .then((response) => {
           if (!response) return [];
 
           const { entities } = normalize(parsedResponse(response), arrayOf(schema));
 
           return dispatch(loadSuccess(entities));
         })
-        .catch(response => {
+        .catch((response) => {
           const { errors } = response;
 
           dispatch(loadFailure(errors));
@@ -170,14 +170,14 @@ const reduxConfig = ({
       dispatch(loadRequest);
 
       return loadAllFunc(...args)
-        .then(response => {
+        .then((response) => {
           if (!response) return [];
 
           const { entities } = normalize(parsedResponse(response), arrayOf(schema));
 
           return dispatch(loadSuccess(entities));
         })
-        .catch(response => {
+        .catch((response) => {
           const { errors } = response;
 
           dispatch(loadFailure(errors));
@@ -191,13 +191,13 @@ const reduxConfig = ({
       dispatch(updateRequest);
 
       return updateFunc(...args)
-        .then(response => {
+        .then((response) => {
           if (!response) return {};
           const { entities } = normalize(parsedResponse([response]), arrayOf(schema));
 
           return dispatch(updateSuccess(entities));
         })
-        .catch(response => {
+        .catch((response) => {
           const { errors } = response;
 
           dispatch(updateFailure(errors));

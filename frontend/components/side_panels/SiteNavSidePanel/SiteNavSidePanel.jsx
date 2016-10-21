@@ -6,19 +6,18 @@ import radium, { StyleRoot } from 'radium';
 
 import { activeTabFromPathname, activeSubTabFromPathname } from './helpers';
 import componentStyles from './styles';
+import configInterface from '../../../interfaces/config';
 import kolideLogo from '../../../../assets/images/kolide-logo.svg';
 import navItems from './navItems';
+import userInterface from '../../../interfaces/user';
 import './styles.scss';
 
 class SiteNavSidePanel extends Component {
   static propTypes = {
-    config: PropTypes.shape({
-      org_logo_url: PropTypes.string,
-      org_name: PropTypes.name,
-    }),
+    config: configInterface,
     dispatch: PropTypes.func,
     pathname: PropTypes.string,
-    user: PropTypes.object,
+    user: userInterface,
   };
 
   constructor (props) {
@@ -146,19 +145,23 @@ class SiteNavSidePanel extends Component {
 
     return (
       <div style={navItemWrapperStyles(lastChild)} key={`nav-item-${name}`}>
-        {active && <div style={navItemBeforeStyles} />}
-        <li
-          key={name}
+        <button
+          className="btn--unstyled"
           onClick={setActiveTab(navItem)}
-          style={navItemStyles(active)}
         >
-          <div style={{ position: 'relative' }}>
-            <i className={icon} style={iconStyles} />
-            <span style={navItemNameStyles}>
-              {name}
-            </span>
-          </div>
-        </li>
+          {active && <div style={navItemBeforeStyles} />}
+          <li
+            key={name}
+            style={navItemStyles(active)}
+          >
+            <div style={{ position: 'relative' }}>
+              <i className={icon} style={iconStyles} />
+              <span style={navItemNameStyles}>
+                {name}
+              </span>
+            </div>
+          </li>
+        </button>
         {active && renderSubItems(subItems)}
       </div>
     );
@@ -191,19 +194,20 @@ class SiteNavSidePanel extends Component {
     } = componentStyles;
 
     return (
-      <div
+      <button
+        className="btn--unstyled"
         key={`sub-item-${name}`}
+        onClick={setActiveSubItem(subItem)}
         style={{ position: 'relative' }}
       >
         {active && <div style={subItemBeforeStyles} />}
         <li
           key={name}
-          onClick={setActiveSubItem(subItem)}
           style={subItemStyles(active)}
         >
           <span to={path.location} style={subItemLinkStyles(active)}>{name}</span>
         </li>
-      </div>
+      </button>
     );
   }
 
@@ -217,7 +221,7 @@ class SiteNavSidePanel extends Component {
     return (
       <div className={setSubNavClass(showSubItems)} style={subItemsStyles}>
         <ul style={subItemListStyles(showSubItems)}>
-          {subItems.map(subItem => {
+          {subItems.map((subItem) => {
             return renderSubItem(subItem);
           })}
         </ul>
@@ -233,9 +237,9 @@ class SiteNavSidePanel extends Component {
     const iconName = showSubItems ? 'kolidecon-chevronleftbold' : 'kolidecon-chevronrightbold';
 
     return (
-      <div style={collapseSubItemsWrapper} onClick={toggleShowSubItems(!showSubItems)}>
+      <button className="btn--unstyles" style={collapseSubItemsWrapper} onClick={toggleShowSubItems(!showSubItems)}>
         <i className={iconName} />
-      </div>
+      </button>
     );
   }
 

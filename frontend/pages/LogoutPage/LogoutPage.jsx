@@ -7,12 +7,12 @@ import debounce from '../../utilities/debounce';
 import LogoutForm from '../../components/forms/LogoutForm';
 import { logoutUser } from '../../redux/nodes/auth/actions';
 import { hideBackgroundImage, showBackgroundImage } from '../../redux/nodes/app/actions';
-
+import userInterface from '../../interfaces/user';
 
 export class LogoutPage extends Component {
   static propTypes = {
     dispatch: PropTypes.func,
-    user: PropTypes.object,
+    user: userInterface,
   };
 
   static defaultProps = {

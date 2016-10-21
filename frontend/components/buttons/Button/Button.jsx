@@ -6,7 +6,7 @@ import componentStyles from './styles';
 class Button extends Component {
   static propTypes = {
     onClick: PropTypes.func,
-    style: PropTypes.object,
+    style: PropTypes.object, // eslint-disable-line react/forbid-prop-types
     text: PropTypes.string,
     type: PropTypes.string,
     variant: PropTypes.string,

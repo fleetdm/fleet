@@ -15,7 +15,7 @@ describe('ElipsisMenu - component', () => {
     expect(component.state().showChildren).toEqual(false);
     expect(component.text()).toNotContain('ElipsisMenu Children');
 
-    component.simulate('click');
+    component.find('button').simulate('click');
 
     expect(component.state().showChildren).toEqual(true);
     expect(component.text()).toContain('ElipsisMenu Children');

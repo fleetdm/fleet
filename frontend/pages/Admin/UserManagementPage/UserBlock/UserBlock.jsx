@@ -5,15 +5,16 @@ import Avatar from '../../../../components/Avatar';
 import componentStyles from './styles';
 import Dropdown from '../../../../components/forms/fields/Dropdown';
 import EditUserForm from '../../../../components/forms/Admin/EditUserForm';
+import userInterface from '../../../../interfaces/user';
 import { userStatusLabel } from './helpers';
 
 class UserBlock extends Component {
   static propTypes = {
-    currentUser: PropTypes.object,
+    currentUser: userInterface,
     invite: PropTypes.bool,
     onEditUser: PropTypes.func,
     onSelect: PropTypes.func,
-    user: PropTypes.object,
+    user: userInterface,
   };
 
   static userActionOptions = (currentUser, user, invite) => {

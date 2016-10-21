@@ -46,6 +46,10 @@ export default {
   disableIconStyles: {
     fontSize: font.larger,
   },
+  elipsisChildItemStyles: {
+    color: color.textMedium,
+    width: '60px',
+  },
   elipsisChidrenWrapperStyles: {
     alignItems: 'center',
     backgroundColor: color.white,
@@ -53,7 +57,6 @@ export default {
     borderRadius: '3px',
     boxShadow: '0 2px 8px 0 rgba(0, 0, 0, 0.05)',
     boxSizing: 'border-box',
-    color: color.textMedium,
     display: 'flex',
     height: '100px',
     justifyContent: 'space-around',

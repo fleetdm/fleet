@@ -7,9 +7,9 @@ const Slider = ({ onClick, engaged }) => {
   const { containerStyles, buttonStyles } = componentStyles;
 
   return (
-    <div onClick={onClick} style={containerStyles(engaged)}>
+    <button className="btn--unstyled" onClick={onClick} style={containerStyles(engaged)}>
       <div style={buttonStyles(engaged)} />
-    </div>
+    </button>
   );
 };
 

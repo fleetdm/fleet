@@ -1,9 +1,9 @@
 import { flatten, map, flatMap } from 'lodash';
-import osqueryTablesJSON from '../osquery_tables';
+import osqueryTablesJSON from '../osquery_tables.json';
 
 const appendPlatformKeyToTables = (parsedTables) => {
   return map(parsedTables, (platform) => {
-    return platform.tables.map(table => {
+    return platform.tables.map((table) => {
       table.platform = platform.key;
 
       return table;

@@ -2,11 +2,12 @@ import React, { Component, PropTypes } from 'react';
 
 import componentStyles from './styles';
 import Button from '../../buttons/Button';
+import userInterface from '../../../interfaces/user';
 
 class LogoutForm extends Component {
   static propTypes = {
     onSubmit: PropTypes.func,
-    user: PropTypes.object,
+    user: userInterface,
   };
 
   onFormSubmit = (evt) => {

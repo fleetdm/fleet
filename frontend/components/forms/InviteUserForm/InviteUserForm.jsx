@@ -4,15 +4,14 @@ import radium from 'radium';
 import componentStyles from './styles';
 import Button from '../../buttons/Button';
 import InputFieldWithIcon from '../fields/InputFieldWithIcon';
+import userInterface from '../../../interfaces/user';
 import validatePresence from '../validators/validate_presence';
 import validEmail from '../validators/valid_email';
 
 class InviteUserForm extends Component {
   static propTypes = {
     error: PropTypes.string,
-    invitedBy: PropTypes.shape({
-      id: PropTypes.number,
-    }),
+    invitedBy: userInterface,
     onCancel: PropTypes.func,
     onSubmit: PropTypes.func,
   };

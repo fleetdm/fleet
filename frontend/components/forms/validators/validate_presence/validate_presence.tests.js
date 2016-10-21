@@ -17,13 +17,13 @@ const invalidInputs = [
 
 describe('validatePresence - validator', () => {
   it('returns true for valid inputs', () => {
-    validInputs.forEach(input => {
+    validInputs.forEach((input) => {
       expect(validatePresence(input)).toEqual(true);
     });
   });
 
   it('returns false for invalid inputs', () => {
-    invalidInputs.forEach(input => {
+    invalidInputs.forEach((input) => {
       expect(validatePresence(input)).toEqual(false);
     });
   });

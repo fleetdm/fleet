@@ -14,7 +14,7 @@ describe('New Host Page - component', () => {
     const icon = page.find('Icon').first();
     icon.simulate('click');
 
-    const dispatchedActionMessages = mockStore.getActions().map(action => { return action.payload.message; });
+    const dispatchedActionMessages = mockStore.getActions().map((action) => { return action.payload.message; });
     expect(dispatchedActionMessages).toInclude('Text copied to clipboard');
   });
 

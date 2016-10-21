@@ -3,20 +3,20 @@ import { connect } from 'react-redux';
 import { StyleRoot } from 'radium';
 
 import componentStyles from './styles';
+import configInterface from '../../interfaces/config';
 import FlashMessage from '../../components/FlashMessage';
 import SiteNavSidePanel from '../../components/side_panels/SiteNavSidePanel';
+import notificationInterface from '../../interfaces/notification';
+import userInterface from '../../interfaces/user';
 
 export class CoreLayout extends Component {
   static propTypes = {
     children: PropTypes.node,
-    config: PropTypes.shape({
-      org_logo_url: PropTypes.string,
-      org_name: PropTypes.string,
-    }),
+    config: configInterface,
     dispatch: PropTypes.func,
-    notifications: PropTypes.object,
+    notifications: notificationInterface,
     showRightSidePanel: PropTypes.bool,
-    user: PropTypes.object,
+    user: userInterface,
   };
 
   render () {

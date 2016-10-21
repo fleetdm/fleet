@@ -50,7 +50,7 @@ describe('Auth - reducer', () => {
     it('calls the api login endpoint', (done) => {
       const loginRequestMock = validLoginRequest();
       store.dispatch(loginUser(formData))
-        .then(user => {
+        .then((user) => {
           expect(loginRequestMock.isDone()).toEqual(true);
           expect(local.getItem('auth_token')).toEqual(user.token);
           done();
@@ -62,7 +62,7 @@ describe('Auth - reducer', () => {
       validLoginRequest();
 
       store.dispatch(loginUser(formData))
-        .then(user => {
+        .then((user) => {
           expect(user).toEqual(validUser);
           done();
         })
@@ -73,7 +73,7 @@ describe('Auth - reducer', () => {
       validLoginRequest();
 
       store.dispatch(loginUser(formData))
-        .then(user => {
+        .then((user) => {
           expect(local.getItem('auth_token')).toEqual(user.token);
           done();
         })
@@ -84,7 +84,7 @@ describe('Auth - reducer', () => {
       validLoginRequest();
 
       store.dispatch(loginUser(formData))
-        .then(user => {
+        .then((user) => {
           expect(kolide.bearerToken).toEqual(user.token);
           done();
         })

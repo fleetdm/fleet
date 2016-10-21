@@ -104,7 +104,7 @@ describe('ResetPasswordPage - reducer', () => {
 
       store.dispatch(resetPassword(formData))
         .then(done)
-        .catch(errorResponse => {
+        .catch((errorResponse) => {
           const actions = store.getActions();
           const { response } = errorResponse;
 

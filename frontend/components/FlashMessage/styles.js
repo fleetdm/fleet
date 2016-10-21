@@ -45,6 +45,7 @@ export default {
     return {
       backgroundColor,
       borderRadius: '50%',
+      color: color.white,
       cursor: 'pointer',
       height: '30px',
       textAlign: 'center',
@@ -52,6 +53,7 @@ export default {
     };
   },
   undoStyles: {
+    color: color.white,
     cursor: 'pointer',
   },
 };

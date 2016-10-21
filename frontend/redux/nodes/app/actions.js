@@ -26,12 +26,12 @@ export const getConfig = () => {
     dispatch(loadConfig);
 
     return Kolide.getConfig()
-      .then(config => {
+      .then((config) => {
         dispatch(configSuccess(config));
 
         return config;
       })
-      .catch(error => {
+      .catch((error) => {
         dispatch(configFailure(error));
 
         return false;

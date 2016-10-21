@@ -5,15 +5,14 @@ import { RouteTransition } from 'react-router-transition';
 import { hideBackgroundImage, showBackgroundImage } from '../../redux/nodes/app/actions';
 import LoginPage from '../../pages/LoginPage';
 import componentStyles from './styles';
+import redirectLocationInterface from '../../interfaces/redirect_location';
 
 
 export class LoginRoutes extends Component {
   static propTypes = {
     children: PropTypes.element,
     dispatch: PropTypes.func,
-    location: PropTypes.shape({
-      pathname: PropTypes.string,
-    }),
+    location: redirectLocationInterface,
   };
 
   componentWillMount () {

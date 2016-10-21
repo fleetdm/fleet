@@ -20,7 +20,6 @@ export default {
   },
   elipsisStyles: {
     color: color.textDark,
-    cursor: 'pointer',
     fontSize: font.medium,
     fontWeight: 'bold',
     letterSpacing: '-1px',

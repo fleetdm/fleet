@@ -3,12 +3,13 @@ import { connect } from 'react-redux';
 import { push } from 'react-router-redux';
 
 import paths from '../../router/paths';
+import userInterface from '../../interfaces/user';
 
 export class AuthenticatedAdminRoutes extends Component {
   static propTypes = {
     children: PropTypes.node,
     dispatch: PropTypes.func,
-    user: PropTypes.object,
+    user: userInterface,
   };
 
   componentWillMount () {

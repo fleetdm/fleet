@@ -6,49 +6,49 @@ class Kolide extends Base {
     const { FORGOT_PASSWORD } = endpoints;
     const forgotPasswordEndpoint = this.baseURL + FORGOT_PASSWORD;
 
-    return this.post(forgotPasswordEndpoint, JSON.stringify({ email }));
+    return Base.post(forgotPasswordEndpoint, JSON.stringify({ email }));
   }
 
   getConfig = () => {
     const { CONFIG } = endpoints;
 
     return this.authenticatedGet(this.endpoint(CONFIG))
-      .then(response => { return response.org_info; });
+      .then((response) => { return response.org_info; });
   }
 
   getInvites = () => {
     const { INVITES } = endpoints;
 
     return this.authenticatedGet(this.endpoint(INVITES))
-      .then(response => { return response.invites; });
+      .then((response) => { return response.invites; });
   }
 
   getHosts = () => {
     const { HOSTS } = endpoints;
 
     return this.authenticatedGet(this.endpoint(HOSTS))
-      .then(response => { return response.hosts; });
+      .then((response) => { return response.hosts; });
   }
 
   getUsers = () => {
     const { USERS } = endpoints;
 
     return this.authenticatedGet(this.endpoint(USERS))
-      .then(response => { return response.users; });
+      .then((response) => { return response.users; });
   }
 
   inviteUser = (formData) => {
     const { INVITES } = endpoints;
 
     return this.authenticatedPost(this.endpoint(INVITES), JSON.stringify(formData))
-      .then(response => { return response.invite; });
+      .then((response) => { return response.invite; });
   }
 
   loginUser ({ username, password }) {
     const { LOGIN } = endpoints;
     const loginEndpoint = this.baseURL + LOGIN;
 
-    return this.post(loginEndpoint, JSON.stringify({ username, password }));
+    return Base.post(loginEndpoint, JSON.stringify({ username, password }));
   }
 
   logout () {
@@ -69,7 +69,7 @@ class Kolide extends Base {
     const { RESET_PASSWORD } = endpoints;
     const resetPasswordEndpoint = this.baseURL + RESET_PASSWORD;
 
-    return this.post(resetPasswordEndpoint, JSON.stringify(formData));
+    return Base.post(resetPasswordEndpoint, JSON.stringify(formData));
   }
 
   revokeInvite = ({ entityID }) => {
@@ -84,7 +84,7 @@ class Kolide extends Base {
     const updateUserEndpoint = `${this.baseURL}${USERS}/${user.id}`;
 
     return this.authenticatedPatch(updateUserEndpoint, JSON.stringify(formData))
-      .then(response => { return response.user; });
+      .then((response) => { return response.user; });
   }
 }
 

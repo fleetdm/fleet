@@ -13,7 +13,7 @@ class InputFieldWithIcon extends InputField {
     name: PropTypes.string,
     onChange: PropTypes.func,
     placeholder: PropTypes.string,
-    style: PropTypes.object,
+    style: PropTypes.object, // eslint-disable-line react/forbid-prop-types
     type: PropTypes.string,
   };
 

@@ -26,7 +26,7 @@ export const resetPassword = (formData) => {
       .then(() => {
         return dispatch(resetPasswordSuccess);
       })
-      .catch(response => {
+      .catch((response) => {
         const { error } = response;
 
         dispatch(resetPasswordError(error));

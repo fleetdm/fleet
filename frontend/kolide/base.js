@@ -17,6 +17,44 @@ class Base {
     this.bearerToken = local.getItem('auth_token');
   }
 
+  static _request (method, endpoint, body, overrideHeaders) {
+    const credentials = 'same-origin';
+    const { DELETE, GET } = REQUEST_METHODS;
+    const headers = {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      ...overrideHeaders,
+    };
+    const requestAttrs = method === GET
+      ? { credentials, method, headers }
+      : { credentials, method, body, headers };
+
+    return fetch(endpoint, requestAttrs)
+      .then((response) => {
+        if (method === DELETE) return false;
+
+        return response.json()
+          .then((jsonResponse) => {
+            if (response.ok) {
+              return jsonResponse;
+            }
+
+            const error = new Error(response.statusText);
+            error.response = jsonResponse;
+            error.message = jsonResponse;
+            error.error = jsonResponse.error;
+
+            throw error;
+          });
+      });
+  }
+
+  static post (endpoint, body = {}, overrideHeaders = {}) {
+    const { POST } = REQUEST_METHODS;
+
+    return Base._request(POST, endpoint, body, overrideHeaders);
+  }
+
   endpoint (pathname) {
     return this.baseURL + pathname;
   }
@@ -49,12 +87,6 @@ class Base {
     return this._authenticatedRequest(POST, endpoint, body, overrideHeaders);
   }
 
-  post (endpoint, body = {}, overrideHeaders = {}) {
-    const { POST } = REQUEST_METHODS;
-
-    return this._request(POST, endpoint, body, overrideHeaders);
-  }
-
   _authenticatedHeaders = (headers) => {
     return {
       ...headers,
@@ -65,39 +97,7 @@ class Base {
   _authenticatedRequest(method, endpoint, body, overrideHeaders) {
     const headers = this._authenticatedHeaders(overrideHeaders);
 
-    return this._request(method, endpoint, body, headers);
-  }
-
-  _request (method, endpoint, body, overrideHeaders) {
-    const credentials = 'same-origin';
-    const { DELETE, GET } = REQUEST_METHODS;
-    const headers = {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      ...overrideHeaders,
-    };
-    const requestAttrs = method === GET
-      ? { credentials, method, headers }
-      : { credentials, method, body, headers };
-
-    return fetch(endpoint, requestAttrs)
-      .then(response => {
-        if (method === DELETE) return false;
-
-        return response.json()
-          .then(jsonResponse => {
-            if (response.ok) {
-              return jsonResponse;
-            }
-
-            const error = new Error(response.statusText);
-            error.response = jsonResponse;
-            error.message = jsonResponse;
-            error.error = jsonResponse.error;
-
-            throw error;
-          });
-      });
+    return Base._request(method, endpoint, body, headers);
   }
 }
 

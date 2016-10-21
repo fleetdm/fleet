@@ -36,7 +36,7 @@ export const forgotPasswordAction = (formData) => {
 
         return dispatch(forgotPasswordSuccessAction(email));
       })
-      .catch(response => {
+      .catch((response) => {
         const { error } = response;
 
         dispatch(forgotPasswordErrorAction(error));

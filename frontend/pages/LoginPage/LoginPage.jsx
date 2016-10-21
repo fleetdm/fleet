@@ -10,6 +10,8 @@ import debounce from '../../utilities/debounce';
 import LoginForm from '../../components/forms/LoginForm';
 import LoginSuccessfulPage from '../LoginSuccessfulPage';
 import paths from '../../router/paths';
+import redirectLocationInterface from '../../interfaces/redirect_location';
+import userInterface from '../../interfaces/user';
 import './styles.scss';
 
 const WHITELIST_ERRORS = ['Unable to authenticate the current user'];
@@ -18,10 +20,9 @@ export class LoginPage extends Component {
   static propTypes = {
     dispatch: PropTypes.func,
     error: PropTypes.string,
-    loading: PropTypes.bool,
     pathname: PropTypes.string,
-    redirectLocation: PropTypes.object,
-    user: PropTypes.object,
+    redirectLocation: redirectLocationInterface,
+    user: userInterface,
   };
 
   constructor () {
