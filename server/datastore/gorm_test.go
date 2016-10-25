@@ -6,44 +6,47 @@ import (
 	"testing"
 
 	"github.com/kolide/kolide-ose/server/kolide"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func setupGorm(t *testing.T) kolide.Datastore {
-	user := "kolide"
-	password := "kolide"
-	dbName := "kolide"
+func setupGorm(t *testing.T) (ds kolide.Datastore, teardown func()) {
+	var (
+		user     = "kolide"
+		password = "kolide"
+		dbName   = "kolide"
+		host     = "127.0.0.1"
+	)
 
-	// try container first
-	host := os.Getenv("MYSQL_PORT_3306_TCP_ADDR")
-	if host == "" {
-		host = "127.0.0.1"
+	// use linked container if available.
+	if h, ok := os.LookupEnv("MYSQL_PORT_3306_TCP_ADDR"); ok {
+		host = h
 	}
-	host = fmt.Sprintf("%s:3306", host)
-
-	connString := fmt.Sprintf("%s:%s@(%s)/%s?charset=utf8&parseTime=True&loc=Local", user, password, host, dbName)
+	connString := fmt.Sprintf("%s:%s@(%s:3306)/%s?charset=utf8&parseTime=True&loc=Local", user, password, host, dbName)
 	ds, err := New("gorm-mysql", connString)
-
-	err = ds.Migrate()
-	assert.Nil(t, err)
-	return ds
-}
-
-func teardownGorm(t *testing.T, ds kolide.Datastore) {
-	err := ds.Drop()
-	assert.Nil(t, err)
+	require.Nil(t, err)
+	teardown = func() {
+		db, ok := ds.(gormDB)
+		if !ok {
+			panic("expected gormDB datastore")
+		}
+		db.DB.Close()
+	}
+	return ds, teardown
 }
 
 func TestGorm(t *testing.T) {
-	address := os.Getenv("MYSQL_ADDR")
-	if address == "" {
+	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
 		t.SkipNow()
 	}
+	ds, teardown := setupGorm(t)
+	defer teardown()
 	for _, f := range testFunctions {
 		t.Run(functionName(f), func(t *testing.T) {
-			ds := setupGorm(t)
-			defer teardownGorm(t, ds)
+			err := ds.Migrate()
+			require.Nil(t, err)
 			f(t, ds)
+			err = ds.Drop()
+			require.Nil(t, err)
 		})
 	}
 }
