@@ -1,14 +1,12 @@
 package datastore
 
 import (
-	"github.com/Sirupsen/logrus"
+	"log"
+
 	"github.com/kolide/kolide-ose/server/kolide"
 )
 
-const (
-	// TODO @marpaia fix/document default values
-	defaultMaxAttempts int = 15
-)
+const defaultMaxAttempts int = 15
 
 // DBOption is used to pass optional arguments to a database connection
 type DBOption func(o *dbOptions) error
@@ -18,11 +16,11 @@ type dbOptions struct {
 	maxAttempts int
 	db          kolide.Datastore
 	debug       bool // gorm debug
-	logger      *logrus.Logger
+	logger      *log.Logger
 }
 
 // Logger adds a logger to the datastore
-func Logger(l *logrus.Logger) DBOption {
+func Logger(l *log.Logger) DBOption {
 	return func(o *dbOptions) error {
 		o.logger = l
 		return nil

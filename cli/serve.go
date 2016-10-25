@@ -3,6 +3,7 @@ package cli
 import (
 	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -69,8 +70,15 @@ the way that the kolide server works.
 					initFatal(err, "initializing datastore")
 				}
 			} else {
+				var dbOption []datastore.DBOption
+				gormLogger := log.New(os.Stderr, "", 0)
+				gormLogger.SetOutput(kitlog.NewStdlibAdapter(logger))
+				dbOption = append(dbOption, datastore.Logger(gormLogger))
+				if config.Logging.Debug {
+					dbOption = append(dbOption, datastore.Debug())
+				}
 				connString := datastore.GetMysqlConnectionString(config.Mysql)
-				ds, err = datastore.New("gorm-mysql", connString)
+				ds, err = datastore.New("gorm-mysql", connString, dbOption...)
 				if err != nil {
 					initFatal(err, "initializing datastore")
 				}
