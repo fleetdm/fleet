@@ -1,0 +1,21 @@
+.new-query {
+  &__select-targets {
+    font-size: $base;
+  }
+  &__targets-count {
+    font-size: $small;
+    margin-left: $xSmall;
+  }
+  &__text-editor-wrapper {
+    margin-top: $base;
+  }
+  &__title {
+    color: $textMedium;
+    display: inline-block;
+    font-size: $large;
+  }
+  &__wrapper {
+    background-color: $white;
+    padding: $base;
+  }
+}

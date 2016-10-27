@@ -8,6 +8,7 @@ import InputField from '../../fields/InputField';
 import isMacOS from '../../../../utilities/isMacOS';
 import validatePresence from '../../validators/validate_presence';
 
+const baseClass = 'save-query-form';
 const RUN_TYPES = {
   RUN: 'RUN',
   RUN_AND_SAVE: 'RUN_AND_SAVE',
@@ -282,7 +283,6 @@ class SaveQueryForm extends Component {
 
   renderRunQuery = () => {
     const {
-      buttonStyles,
       runQuerySectionStyles,
       runQueryTipStyles,
     } = componentStyles;
@@ -293,7 +293,7 @@ class SaveQueryForm extends Component {
       <form style={runQuerySectionStyles} onSubmit={onFormSubmit(RUN)}>
         <span style={runQueryTipStyles}>{isMacOS() ? '⌘' : 'Ctrl'} + Enter</span>
         <Button
-          style={buttonStyles}
+          className={`${baseClass}__btn`}
           text="Run Query"
           type="submit"
         />
@@ -303,8 +303,6 @@ class SaveQueryForm extends Component {
 
   render () {
     const {
-      buttonInvertStyles,
-      buttonStyles,
       buttonWrapperStyles,
       labelStyles,
       helpTextStyles,
@@ -346,15 +344,15 @@ class SaveQueryForm extends Component {
         {renderMoreOptionsFormFields()}
         <div style={buttonWrapperStyles}>
           <Button
+            className={`${baseClass}__btn--inverse`}
             onClick={onFormSubmit(SAVE)}
-            style={buttonInvertStyles}
             text="Save Query Only"
             variant="inverse"
           />
           <Button
+            className={`${baseClass}__btn`}
             text="Run & Save Query"
             type="submit"
-            style={buttonStyles}
           />
         </div>
       </form>

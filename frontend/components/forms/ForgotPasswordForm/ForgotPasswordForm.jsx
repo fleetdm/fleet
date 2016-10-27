@@ -7,6 +7,8 @@ import InputFieldWithIcon from '../fields/InputFieldWithIcon';
 import validatePresence from '../validators/validate_presence';
 import validEmail from '../validators/valid_email';
 
+const baseClass = 'forgot-password-form';
+
 class ForgotPasswordForm extends Component {
   static propTypes = {
     clearErrors: PropTypes.func,
@@ -89,7 +91,7 @@ class ForgotPasswordForm extends Component {
   render () {
     const { error: serverError } = this.props;
     const { errors: clientErrors } = this.state;
-    const { formStyles, submitButtonContainerStyles, submitButtonStyles } = componentStyles;
+    const { formStyles, submitButtonContainerStyles } = componentStyles;
     const { onFormSubmit, onInputFieldChange } = this;
 
     return (
@@ -104,7 +106,7 @@ class ForgotPasswordForm extends Component {
         />
         <div style={submitButtonContainerStyles}>
           <Button
-            style={submitButtonStyles}
+            className={`${baseClass}__submit-btn`}
             type="submit"
             text="Reset Password"
             variant="gradient"

@@ -18,18 +18,7 @@ const formInput = {
   width: '300px',
 };
 
-const buttonStyles = {
-  letterSpacing: '1px',
-  paddingTop: padding.xSmall,
-  paddingBottom: padding.xSmall,
-  width: '200px',
-};
-
 export default {
-  buttonStyles,
-  buttonInvertStyles: {
-    marginRight: padding.half,
-  },
   buttonWrapperStyles: {
     ...formSection,
     justifyContent: 'flex-end',

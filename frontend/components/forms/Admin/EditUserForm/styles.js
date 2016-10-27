@@ -12,10 +12,6 @@ export default {
     justifyContent: 'space-between',
     marginTop: padding.half,
   },
-  formButtonStyles: {
-    paddingLeft: padding.base,
-    paddingRight: padding.base,
-  },
   formWrapperStyles: {
     boxSizing: 'border-box',
     paddingLeft: padding.half,

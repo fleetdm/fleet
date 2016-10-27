@@ -4,6 +4,8 @@ import componentStyles from './styles';
 import Button from '../../buttons/Button';
 import userInterface from '../../../interfaces/user';
 
+const baseClass = 'logout-form';
+
 class LogoutForm extends Component {
   static propTypes = {
     onSubmit: PropTypes.func,
@@ -23,7 +25,6 @@ class LogoutForm extends Component {
       avatarStyles,
       containerStyles,
       formStyles,
-      submitButtonStyles,
       subtextStyles,
       usernameStyles,
     } = componentStyles;
@@ -39,8 +40,8 @@ class LogoutForm extends Component {
           <p style={subtextStyles}>Are you sure you want to log out?</p>
         </div>
         <Button
+          className={`${baseClass}__submit-btn`}
           onClick={onFormSubmit}
-          style={submitButtonStyles}
           text="Logout"
           type="submit"
           variant="gradient"

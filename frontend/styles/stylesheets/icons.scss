@@ -13,6 +13,12 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.kolidecon-single-host:before {
+  content: "\e923";
+}
+.kolidecon-all-hosts:before {
+  content: "\e924";
+}
 .kolidecon-centos:before {
   content: "\e91f";
 }
@@ -25,18 +31,16 @@
 .kolidecon-hamburger:before {
   content: "\e922";
 }
-
-.kolidecon-logoflat:before {
+.kolidecon-logoflat .path1:before {
   content: "\e91d";
+  color: rgb(101, 105, 110);
 }
-
-.kolidecon-logoflat:after {
+.kolidecon-logoflat .path2:before {
   content: "\e91e";
   margin-left: -1em;
   color: rgb(255, 255, 255);
 }
-
-.kolidecon-tag:before {
+.kolidecon-label:before {
   content: "\e916";
 }
 .kolidecon-uptime:before {

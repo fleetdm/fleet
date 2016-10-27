@@ -8,6 +8,8 @@ import userInterface from '../../../interfaces/user';
 import validatePresence from '../validators/validate_presence';
 import validEmail from '../validators/valid_email';
 
+const baseClass = 'invite-user-form';
+
 class InviteUserForm extends Component {
   static propTypes = {
     error: PropTypes.string,
@@ -116,7 +118,7 @@ class InviteUserForm extends Component {
   }
 
   render () {
-    const { buttonStyles, buttonWrapperStyles, radioElementStyles, roleTitleStyles } = componentStyles;
+    const { buttonWrapperStyles, radioElementStyles, roleTitleStyles } = componentStyles;
     const { errors, formData: { admin } } = this.state;
     const { onCancel } = this.props;
     const { onFormSubmit, onInputChange } = this;
@@ -154,13 +156,13 @@ class InviteUserForm extends Component {
         </div>
         <div style={buttonWrapperStyles}>
           <Button
-            style={buttonStyles}
+            className={`${baseClass}__btn`}
             text="Invite"
             type="submit"
           />
           <Button
+            className={`${baseClass}__btn`}
             onClick={onCancel}
-            style={buttonStyles}
             text="Cancel"
             type="input"
             variant="inverse"

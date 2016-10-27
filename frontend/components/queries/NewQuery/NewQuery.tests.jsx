@@ -3,7 +3,7 @@ import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
-import { createAceSpy } from '../../../test/helpers';
+import { createAceSpy, fillInFormInput } from '../../../test/helpers';
 import NewQuery from './index';
 
 describe('NewQuery - component', () => {
@@ -48,6 +48,18 @@ describe('NewQuery - component', () => {
     component.find('Slider').simulate('click');
 
     expect(component.find('SaveQueryForm').length).toEqual(1);
+  });
+
+  it('calls onTargetSelectInputChange when changing the select target input text', () => {
+    const onTargetSelectInputChangeSpy = createSpy();
+    const component = mount(
+      <NewQuery onTargetSelectInputChange={onTargetSelectInputChangeSpy} />
+    );
+    const selectTargetsInput = component.find('.Select-input input');
+
+    fillInFormInput(selectTargetsInput, 'my target');
+
+    expect(onTargetSelectInputChangeSpy).toHaveBeenCalledWith('my target');
   });
 
   describe('Query string validations', () => {

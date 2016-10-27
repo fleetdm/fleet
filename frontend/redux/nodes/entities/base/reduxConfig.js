@@ -15,7 +15,8 @@ const reduxConfig = ({
   entityName,
   loadAllFunc,
   loadFunc,
-  parseFunc,
+  parseApiResponseFunc,
+  parseEntityFunc,
   schema,
   updateFunc,
 }) => {
@@ -90,11 +91,21 @@ const reduxConfig = ({
     };
   };
 
-  const parsedResponse = (responseArray) => {
-    if (!parseFunc) return responseArray;
+  const parse = (apiResponse) => {
+    if (!parseApiResponseFunc && !parseEntityFunc) {
+      return apiResponse;
+    }
 
-    return responseArray.map((response) => {
-      return parseFunc(response);
+    const entitiesArray = parseApiResponseFunc
+      ? parseApiResponseFunc(apiResponse)
+      : apiResponse;
+
+    if (!parseEntityFunc) {
+      return entitiesArray;
+    }
+
+    return entitiesArray.map((entity) => {
+      return parseEntityFunc(entity);
     });
   };
 
@@ -106,7 +117,7 @@ const reduxConfig = ({
         .then((response) => {
           if (!response) return [];
 
-          const { entities } = normalize(parsedResponse([response]), arrayOf(schema));
+          const { entities } = normalize(parse([response]), arrayOf(schema));
 
           return dispatch(createSuccess(entities));
         })
@@ -152,7 +163,7 @@ const reduxConfig = ({
         .then((response) => {
           if (!response) return [];
 
-          const { entities } = normalize(parsedResponse(response), arrayOf(schema));
+          const { entities } = normalize(parse(response), arrayOf(schema));
 
           return dispatch(loadSuccess(entities));
         })
@@ -173,7 +184,7 @@ const reduxConfig = ({
         .then((response) => {
           if (!response) return [];
 
-          const { entities } = normalize(parsedResponse(response), arrayOf(schema));
+          const { entities } = normalize(parse(response), arrayOf(schema));
 
           return dispatch(loadSuccess(entities));
         })
@@ -193,7 +204,7 @@ const reduxConfig = ({
       return updateFunc(...args)
         .then((response) => {
           if (!response) return {};
-          const { entities } = normalize(parsedResponse([response]), arrayOf(schema));
+          const { entities } = normalize(parse([response]), arrayOf(schema));
 
           return dispatch(updateSuccess(entities));
         })

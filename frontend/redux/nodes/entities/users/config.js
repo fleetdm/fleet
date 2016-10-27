@@ -8,7 +8,7 @@ const { USERS } = schemas;
 export default reduxConfig({
   entityName: 'users',
   loadAllFunc: Kolide.getUsers,
-  parseFunc: addGravatarUrlToResource,
+  parseEntityFunc: addGravatarUrlToResource,
   schema: USERS,
   updateFunc: Kolide.updateUser,
 });

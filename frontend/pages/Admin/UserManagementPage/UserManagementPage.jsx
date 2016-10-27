@@ -7,7 +7,7 @@ import Button from '../../../components/buttons/Button';
 import inviteActions from '../../../redux/nodes/entities/invites/actions';
 import inviteInterface from '../../../interfaces/invite';
 import InviteUserForm from '../../../components/forms/InviteUserForm';
-import Modal from '../../../components/Modal';
+import Modal from '../../../components/modals/Modal';
 import userActions from '../../../redux/nodes/entities/users/actions';
 import UserBlock from './UserBlock';
 import userInterface from '../../../interfaces/user';

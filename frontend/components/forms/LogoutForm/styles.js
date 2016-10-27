@@ -25,9 +25,6 @@ export default {
   formStyles: {
     boxShadow: '0 5px 30px 0 rgba(0,0,0,0.30)',
   },
-  submitButtonStyles: {
-    width: FORM_WIDTH,
-  },
   subtextStyles: {
     color: color.textLight,
     fontSize: font.medium,

@@ -31,13 +31,4 @@ export default {
   formStyles: {
     boxShadow: '0 5px 30px 0 rgba(0,0,0,0.30)',
   },
-  submitButtonStyles: {
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-    paddingBottom: padding.base,
-    paddingLeft: padding.base,
-    paddingRight: padding.base,
-    paddingTop: padding.base,
-    width: FORM_WIDTH,
-  },
 };

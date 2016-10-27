@@ -10,6 +10,8 @@ import InputFieldWithIcon from '../fields/InputFieldWithIcon';
 import paths from '../../../router/paths';
 import validatePresence from '../validators/validate_presence';
 
+const baseClass = 'login-form';
+
 class LoginForm extends Component {
   static propTypes = {
     serverErrors: PropTypes.shape({
@@ -143,7 +145,6 @@ class LoginForm extends Component {
       forgotPasswordStyles,
       forgotPasswordWrapperStyles,
       formStyles,
-      submitButtonStyles,
     } = componentStyles;
     const { serverErrors } = this.props;
     const { errors } = this.state;
@@ -174,8 +175,8 @@ class LoginForm extends Component {
           </div>
         </div>
         <Button
+          className={`${baseClass}__submit-btn`}
           onClick={onFormSubmit}
-          style={submitButtonStyles}
           text="Login"
           type="submit"
           variant="gradient"

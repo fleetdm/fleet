@@ -2,24 +2,33 @@ import React, { Component, PropTypes } from 'react';
 import AceEditor from 'react-ace';
 import 'brace/ext/linking';
 import radium from 'radium';
-import Select from 'react-select';
-import 'react-select/dist/react-select.css';
 
 import './mode';
 import './theme';
-import componentStyles from './styles';
 import debounce from '../../../utilities/debounce';
 import SaveQueryForm from '../../forms/queries/SaveQueryForm';
 import SaveQuerySection from './SaveQuerySection';
+import SelectTargetsInput from '../SelectTargetsInput';
+import SelectTargetsMenu from '../SelectTargetsMenu';
+import targetInterface from '../../../interfaces/target';
 import ThemeDropdown from './ThemeDropdown';
 import { validateQuery } from './helpers';
 
+const baseClass = 'new-query';
+
 class NewQuery extends Component {
   static propTypes = {
+    isLoadingTargets: PropTypes.bool,
+    moreInfoTarget: targetInterface,
     onInvalidQuerySubmit: PropTypes.func,
     onNewQueryFormSubmit: PropTypes.func,
     onOsqueryTableSelect: PropTypes.func,
+    onRemoveMoreInfoTarget: PropTypes.func,
+    onTargetSelectInputChange: PropTypes.func,
+    onTargetSelectMoreInfo: PropTypes.func,
     onTextEditorInputChange: PropTypes.func,
+    selectedTargetsCount: PropTypes.number,
+    targets: PropTypes.arrayOf(targetInterface),
     textEditorText: PropTypes.string,
   };
 
@@ -28,26 +37,6 @@ class NewQuery extends Component {
 
     this.state = {
       saveQuery: false,
-      targetOptions: [
-        {
-          id: 3,
-          label: 'OS X El Capitan 10.11',
-          name: 'osx-10.11',
-          type: 'host',
-        },
-        {
-          id: 4,
-          label: "Jason Meller's Macbook Pro",
-          name: 'jmeller.local',
-          type: 'host',
-        },
-        {
-          id: 4,
-          label: 'All Macs',
-          name: 'macs',
-          type: 'label',
-        },
-      ],
       selectedTargets: [],
       theme: 'kolide',
     };
@@ -118,12 +107,17 @@ class NewQuery extends Component {
 
   render () {
     const {
-      containerStyles,
-      selectTargetsHeaderStyles,
-      titleStyles,
-    } = componentStyles;
-    const { onTextEditorInputChange, textEditorText } = this.props;
-    const { saveQuery, selectedTargets, targetOptions, theme } = this.state;
+      isLoadingTargets,
+      moreInfoTarget,
+      onRemoveMoreInfoTarget,
+      onTargetSelectInputChange,
+      onTargetSelectMoreInfo,
+      onTextEditorInputChange,
+      selectedTargetsCount,
+      targets,
+      textEditorText,
+    } = this.props;
+    const { saveQuery, selectedTargets, theme } = this.state;
     const {
       onLoad,
       onSaveQueryFormSubmit,
@@ -131,14 +125,15 @@ class NewQuery extends Component {
       onThemeSelect,
       onToggleSaveQuery,
     } = this;
+    const menuRenderer = SelectTargetsMenu(onTargetSelectMoreInfo, onRemoveMoreInfoTarget, moreInfoTarget);
 
     return (
-      <div style={containerStyles}>
-        <p style={titleStyles}>
+      <div className={`${baseClass}__wrapper`}>
+        <p className={`${baseClass}__title`}>
           New Query Page
         </p>
         <ThemeDropdown onSelectChange={onThemeSelect} theme={theme} />
-        <div style={{ marginTop: '20px' }}>
+        <div className={`${baseClass}__text-editor-wrapper`}>
           <AceEditor
             enableBasicAutocompletion
             enableLiveAutocompletion
@@ -158,17 +153,17 @@ class NewQuery extends Component {
           />
         </div>
         <div>
-          <p style={selectTargetsHeaderStyles}>Select Targets</p>
-          <Select
-            className="target-select"
-            multi
-            name="targets"
-            options={targetOptions}
-            onChange={onTargetSelect}
-            placeholder="Type to search"
-            resetValue={[]}
-            value={selectedTargets}
-            valueKey="name"
+          <p>
+            <span className={`${baseClass}__select-targets`}>Select Targets</span>
+            <span className={`${baseClass}__targets-count`}> {selectedTargetsCount} unique hosts</span>
+          </p>
+          <SelectTargetsInput
+            isLoading={isLoadingTargets}
+            menuRenderer={menuRenderer}
+            onTargetSelect={onTargetSelect}
+            onTargetSelectInputChange={onTargetSelectInputChange}
+            selectedTargets={selectedTargets}
+            targets={targets}
           />
         </div>
         <SaveQuerySection onToggleSaveQuery={onToggleSaveQuery} saveQuery={saveQuery} />

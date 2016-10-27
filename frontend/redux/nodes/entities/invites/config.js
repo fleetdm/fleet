@@ -10,7 +10,7 @@ export default reduxConfig({
   destroyFunc: Kolide.revokeInvite,
   entityName: 'invites',
   loadAllFunc: Kolide.getInvites,
-  parseFunc: addGravatarUrlToResource,
+  parseEntityFunc: addGravatarUrlToResource,
   schema,
 });
 

@@ -31,4 +31,4 @@ export const platformIconClass = (platform) => {
   return `kolidecon-${platformClass}`;
 };
 
-export default { humanUptime, platformIconClass };
+export default { humanMemory, humanUptime, platformIconClass };

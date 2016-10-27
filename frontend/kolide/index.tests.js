@@ -72,6 +72,40 @@ describe('Kolide - API client', () => {
     });
   });
 
+  describe('#getTargets', () => {
+    it('correctly parses the response', () => {
+      Kolide.getTargets()
+        .then((response) => {
+          expect(response).toEqual({
+            targets: [
+              {
+                id: 3,
+                label: 'OS X El Capitan 10.11',
+                name: 'osx-10.11',
+                platform: 'darwin',
+                target_type: 'hosts',
+              },
+              {
+                id: 4,
+                label: 'Jason Meller\'s Macbook Pro',
+                name: 'jmeller.local',
+                platform: 'darwin',
+                target_type: 'hosts',
+              },
+              {
+                id: 4,
+                label: 'All Macs',
+                name: 'macs',
+                count: 1234,
+                target_type: 'labels',
+              },
+            ],
+            selected_targets_count: 1234,
+          });
+        });
+    });
+  });
+
   describe('#getUsers', () => {
     it('calls the appropriate endpoint with the correct parameters', (done) => {
       const bearerToken = 'valid-bearer-token';

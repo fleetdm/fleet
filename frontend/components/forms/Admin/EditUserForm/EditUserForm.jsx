@@ -9,6 +9,7 @@ import InputField from '../../fields/InputField';
 import Styleguide from '../../../../styles';
 import userInterface from '../../../../interfaces/user';
 
+const baseClass = 'edit-user-form';
 const { color } = Styleguide;
 
 class EditUserForm extends Component {
@@ -53,7 +54,6 @@ class EditUserForm extends Component {
     const {
       avatarWrapperStyles,
       buttonWrapperStyles,
-      formButtonStyles,
       formWrapperStyles,
       inputStyles,
       inputWrapperStyles,
@@ -111,13 +111,13 @@ class EditUserForm extends Component {
         />
         <div style={buttonWrapperStyles}>
           <Button
-            style={formButtonStyles}
+            className={`${baseClass}__form-btn`}
             text="Submit"
             type="submit"
           />
           <Button
+            className={`${baseClass}__form-btn`}
             onClick={this.props.onCancel}
-            style={formButtonStyles}
             text="Cancel"
             variant="inverse"
           />

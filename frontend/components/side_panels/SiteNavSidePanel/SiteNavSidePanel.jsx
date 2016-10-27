@@ -148,13 +148,14 @@ class SiteNavSidePanel extends Component {
         <button
           className="btn--unstyled"
           onClick={setActiveTab(navItem)}
+          style={{ width: '100%' }}
         >
           {active && <div style={navItemBeforeStyles} />}
           <li
             key={name}
             style={navItemStyles(active)}
           >
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative', textAlign: 'left' }}>
               <i className={icon} style={iconStyles} />
               <span style={navItemNameStyles}>
                 {name}
@@ -237,7 +238,7 @@ class SiteNavSidePanel extends Component {
     const iconName = showSubItems ? 'kolidecon-chevronleftbold' : 'kolidecon-chevronrightbold';
 
     return (
-      <button className="btn--unstyles" style={collapseSubItemsWrapper} onClick={toggleShowSubItems(!showSubItems)}>
+      <button className="btn--unstyled" style={collapseSubItemsWrapper} onClick={toggleShowSubItems(!showSubItems)}>
         <i className={iconName} />
       </button>
     );

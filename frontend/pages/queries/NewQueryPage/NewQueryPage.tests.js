@@ -10,7 +10,11 @@ describe('NewQueryPage - component', () => {
   beforeEach(createAceSpy);
   afterEach(restoreSpies);
 
-  const mockStore = reduxMockStore();
+  const mockStore = reduxMockStore({
+    entities: {
+      targets: {},
+    },
+  });
 
   it('renders the NewQuery component', () => {
     const page = mount(connectedComponent(NewQueryPage, { mockStore }));
