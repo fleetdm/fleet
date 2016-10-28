@@ -3,10 +3,8 @@ export default {
     alignItems: 'center',
     display: 'flex',
     flexDirection: 'column',
-    marginTop: '14vh',
     position: 'relative',
-  },
-  logoStyles: {
-    marginBottom: '40px',
+    height: 'calc(100vh - 94px)',
+    justifyContent: 'center',
   },
 };

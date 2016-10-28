@@ -24,6 +24,8 @@ export default {
   },
   formStyles: {
     boxShadow: '0 5px 30px 0 rgba(0,0,0,0.30)',
+    width: '460px',
+    alignSelf: 'center',
   },
   subtextStyles: {
     color: color.textLight,

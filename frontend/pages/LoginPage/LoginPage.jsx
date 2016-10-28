@@ -2,8 +2,8 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { includes } from 'lodash';
 import { push } from 'react-router-redux';
-import ReactCSSTransitionGroup from 'react-addons-css-transition-group';
 
+import AuthenticationFormWrapper from '../../components/AuthenticationFormWrapper';
 import { clearAuthErrors, loginUser } from '../../redux/nodes/auth/actions';
 import { clearRedirectLocation } from '../../redux/nodes/redirectLocation/actions';
 import debounce from '../../utilities/debounce';
@@ -85,14 +85,11 @@ export class LoginPage extends Component {
     const { loginVisible } = this.state;
     const { onChange, onSubmit, serverErrors } = this;
 
-    if (!loginVisible) {
-      return false;
-    }
-
     return (
       <LoginForm
         onChange={onChange}
         onSubmit={onSubmit}
+        isHidden={!loginVisible}
         serverErrors={serverErrors()}
       />
     );
@@ -102,16 +99,10 @@ export class LoginPage extends Component {
     const { showLoginForm } = this;
 
     return (
-      <div>
+      <AuthenticationFormWrapper>
         <LoginSuccessfulPage />
-        <ReactCSSTransitionGroup
-          transitionName="login-form-animation"
-          transitionEnterTimeout={500}
-          transitionLeaveTimeout={300}
-        >
-          {showLoginForm()}
-        </ReactCSSTransitionGroup>
-      </div>
+        {showLoginForm()}
+      </AuthenticationFormWrapper>
     );
   }
 }

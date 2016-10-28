@@ -28,12 +28,11 @@ export class LoginRoutes extends Component {
   }
 
   render () {
-    const { containerStyles, logoStyles } = componentStyles;
+    const { containerStyles } = componentStyles;
     const { children, location: { pathname } } = this.props;
 
     return (
       <div style={containerStyles}>
-        <img style={logoStyles} alt="Kolide text logo" src="/assets/images/kolide-logo-text.svg" />
         <LoginPage pathname={pathname} />
         <RouteTransition
           pathname={pathname}

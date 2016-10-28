@@ -20,6 +20,7 @@ class LoginForm extends Component {
     }),
     onChange: PropTypes.func,
     onSubmit: PropTypes.func,
+    isHidden: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -145,13 +146,16 @@ class LoginForm extends Component {
       forgotPasswordStyles,
       forgotPasswordWrapperStyles,
       formStyles,
+      hideForm,
     } = componentStyles;
     const { serverErrors } = this.props;
     const { errors } = this.state;
     const { onInputChange, onFormSubmit } = this;
 
+    const byeFelicia = this.props.isHidden ? hideForm : {};
+
     return (
-      <form onSubmit={onFormSubmit} style={formStyles}>
+      <form onSubmit={onFormSubmit} style={[formStyles, byeFelicia]}>
         <div style={containerStyles}>
           <img alt="Avatar" src={avatar} />
           <InputFieldWithIcon

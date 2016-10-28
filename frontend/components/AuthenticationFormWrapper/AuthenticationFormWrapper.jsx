@@ -10,12 +10,11 @@ class AuthenticationFormWrapper extends Component {
 
   render () {
     const { children } = this.props;
-    const { containerStyles, whiteTabStyles } = componentStyles;
+    const { containerStyles } = componentStyles;
 
     return (
       <div style={containerStyles}>
         <img alt="Kolide text logo" src="/assets/images/kolide-logo-text.svg" />
-        <div style={whiteTabStyles} />
         {children}
       </div>
     );

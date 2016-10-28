@@ -30,5 +30,15 @@ export default {
   },
   formStyles: {
     boxShadow: '0 5px 30px 0 rgba(0,0,0,0.30)',
+    marginTop: '-260px',
+    opacity: 1,
+    transform: 'scale(1.0)',
+    width: '460px',
+    alignSelf: 'center',
+  },
+  hideForm: {
+    opacity: 0,
+    transform: 'scale(1.3)',
+    transition: 'all 300ms ease-in',
   },
 };
