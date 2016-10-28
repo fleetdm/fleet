@@ -1,37 +1,42 @@
+$gradient-start: #7166d9;
+$gradient-end: #c86dd7;
+
 .button {
   border-radius: $border-radius;
-  box-shadow: 0 3px 0 #734893;
+  box-shadow: 0 3px 0 $button-shadow;
   box-sizing: border-box;
   cursor: pointer;
   font-size: $medium;
-  padding: $xSmall;
+  padding: $xsmall;
   position: relative;
+
   &:active {
-    box-shadow: 0 1px 0 #734893, 0 -2px 0 #D1D9E9;
+    box-shadow: 0 1px 0 $button-shadow, 0 -2px 0 $silver;
     top: 2px;
   }
+
   &:focus {
     outline: none;
   }
+
   &__default {
-    @extend .button;
     background-color: $brand;
     border: 1px solid $brand;
-    box-shadow: 0 3px 0 $brandLight;
+    box-shadow: 0 3px 0 $brand-light;
     color: $white;
   }
+
   &__inverse {
-    @extend .button;
     background-color: $white;
-    border: 1px solid $brandLight;
-    box-shadow: 0 3px 0 $brandDark;
-    color: $brandDark;
+    border: 1px solid $brand-light;
+    box-shadow: 0 3px 0 $brand-dark;
+    color: $brand-dark;
   }
+
   &__gradient {
-    @extend .button;
     background-color: transparent;
-    background-image: linear-gradient(134deg, #7166D9 0%, #C86DD7 100%);
-    border: none;
+    background-image: linear-gradient(134deg, $gradient-start 0%, $gradient-end 100%);
+    border: 0;
     color: $white;
     font-size: $large;
     font-weight: $light;
@@ -39,13 +44,14 @@
     padding: $medium;
     width: 100%;
   }
+
   &__unstyled {
-    @extend .button;
     background-color: transparent;
-    border: none;
+    border: 0;
     box-shadow: none;
     margin: 0;
     padding: 0;
+
     &:active {
       box-shadow: none;
       top: 0;

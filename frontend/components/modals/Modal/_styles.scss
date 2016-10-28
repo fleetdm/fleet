@@ -1,6 +1,6 @@
 .modal {
   &__background {
-    background-color: rgba(0,0,0,0.25);
+    background-color: rgba($black, 0.25);
     bottom: 0;
     left: 0;
     position: fixed;
@@ -8,12 +8,14 @@
     top: 0;
     z-index: 3;
   }
+
   &__content {
     padding: $base;
     padding-top: 0;
   }
+
   &__ex {
-    color: $textMedium;
+    color: $text-medium;
     cursor: pointer;
     font-size: $larger;
     position: absolute;
@@ -21,8 +23,9 @@
     right: $base;
     text-decoration: none;
   }
+
   &__header {
-    color: $textMedium;
+    color: $text-medium;
     font-size: $large;
     font-weight: $bold;
     position: relative;
@@ -30,6 +33,7 @@
     padding-bottom: 0;
     text-transform: uppercase;
   }
+
   &__modal_container {
     background-color: $white;
     left: 25%;

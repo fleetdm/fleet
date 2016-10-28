@@ -1,12 +1,12 @@
 import styles from '../../styles';
 
-const { border, color, font } = styles;
+const { color, font } = styles;
 
 export default {
   boxStyles: {
     backgroundColor: color.white,
-    borderRadius: border.radius.base,
-    boxShadow: border.shadow.blur,
+    borderRadius: '4px',
+    boxShadow: '0 0 30px 0 rgba(0,0,0,0.30)',
     minHeight: '402px',
     boxSizing: 'border-box',
     padding: '30px',

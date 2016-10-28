@@ -1,11 +1,12 @@
 .save-query-form {
   &__btn {
     letter-spacing: 1px;
-    padding-bottom: $xSmall;
-    padding-top: $xSmall;
+    padding-bottom: $xsmall;
+    padding-top: $xsmall;
     width: 200px;
+
     &--inverse {
-      margin-right: $xSmall;
+      margin-right: $xsmall;
     }
   }
 }

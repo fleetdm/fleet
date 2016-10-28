@@ -4,8 +4,9 @@
   "description": "Kolide, Black Box Security. Unboxed",
   "author": "Kolide, Inc.",
   "private": "true",
+  "sasslintConfig": ".sass-lint.yml",
   "scripts": {
-    "lint": "make lint-js",
+    "lint": "make lint-js && make lint-scss",
     "test": "make test-js"
   },
   "dependencies": {
@@ -98,6 +99,7 @@
     "eslint-plugin-react": "6.3.0",
     "ignore-styles": "^5.0.1",
     "mocha": "^3.0.2",
-    "react-addons-test-utils": "^15.3.1"
+    "react-addons-test-utils": "^15.3.1",
+    "sass-lint": "^1.9.1"
   }
 }

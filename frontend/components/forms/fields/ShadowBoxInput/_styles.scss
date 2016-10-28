@@ -1,22 +1,25 @@
 .shadow-box-input {
   &__icon {
-    color: $accentMedium;
+    color: $accent-medium;
     font-size: $medium;
     position: absolute;
     right: 6px;
     top: 12px;
   }
+
   &__input {
-    border: 1px solid $accentMedium;
-    box-shadow: inset 0 0 5px 0 rgba(0,0,0,0.12);
-    color: $textMedium;
+    border: 1px solid $accent-medium;
+    box-shadow: inset 0 0 5px 0 rgba($black, 0.12);
+    color: $text-medium;
     font-size: $small;
     padding-left: 4px;
-    &::placeholder {
-      color: $textMedium;
+
+    @include placeholder {
+      color: $text-medium;
       font-size: $small;
     }
   }
+
   &__wrapper {
     display: inline-block;
     position: relative;

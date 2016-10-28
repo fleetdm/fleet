@@ -1,6 +1,6 @@
 import styles from '../../../styles';
 
-const { border, color, font, padding } = styles;
+const { color, font, padding } = styles;
 const FORM_WIDTH = '460px';
 
 export default {
@@ -13,8 +13,8 @@ export default {
   containerStyles: {
     alignItems: 'center',
     backgroundColor: color.white,
-    borderTopLeftRadius: border.radius.base,
-    borderTopRightRadius: border.radius.base,
+    borderTopLeftRadius: '4px',
+    borderTopRightRadius: '4px',
     boxSizing: 'border-box',
     display: 'flex',
     flexDirection: 'column',

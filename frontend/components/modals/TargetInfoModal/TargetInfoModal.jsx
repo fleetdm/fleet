@@ -46,7 +46,7 @@ class TargetInfoModal extends Component {
 
   renderHostModal = () => {
     const { className, onExit, target } = this.props;
-    const hostBaseClass = `${baseClass}__host`;
+    const hostBaseClass = 'host-modal';
     const {
       ip,
       mac,
@@ -59,14 +59,15 @@ class TargetInfoModal extends Component {
     const isOnline = status === 'online';
     const isOffline = status === 'offline';
     const { renderButtons, renderHeader } = this;
-    const statusClassName = classnames(`${hostBaseClass}__status`, {
-      '--is-online': isOnline,
-      '--is-offline': isOffline,
-    });
+    const statusClassName = classnames(
+      `${hostBaseClass}__status`,
+      { [`${hostBaseClass}__status--is-online`]: isOnline },
+      { [`${hostBaseClass}__status--is-offline`]: isOffline },
+    );
 
     return (
       <Modal
-        className={`${className} host-modal`}
+        className={`${className} ${hostBaseClass}`}
         onExit={onExit}
         title={renderHeader()}
       >
@@ -122,12 +123,12 @@ class TargetInfoModal extends Component {
       hosts = [],
       query,
     } = target;
-    const labelBaseClass = `${baseClass}__label`;
+    const labelBaseClass = 'label-modal';
     const { renderButtons, renderHeader } = this;
 
     return (
       <Modal
-        className={`${className} label-modal`}
+        className={`${className} ${labelBaseClass}`}
         onExit={onExit}
         title={renderHeader()}
       >

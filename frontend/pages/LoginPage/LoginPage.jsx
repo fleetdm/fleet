@@ -12,7 +12,6 @@ import LoginSuccessfulPage from '../LoginSuccessfulPage';
 import paths from '../../router/paths';
 import redirectLocationInterface from '../../interfaces/redirect_location';
 import userInterface from '../../interfaces/user';
-import './styles.scss';
 
 const WHITELIST_ERRORS = ['Unable to authenticate the current user'];
 

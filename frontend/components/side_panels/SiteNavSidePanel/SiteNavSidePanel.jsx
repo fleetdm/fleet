@@ -10,7 +10,6 @@ import configInterface from '../../../interfaces/config';
 import kolideLogo from '../../../../assets/images/kolide-logo.svg';
 import navItems from './navItems';
 import userInterface from '../../../interfaces/user';
-import './styles.scss';
 
 class SiteNavSidePanel extends Component {
   static propTypes = {

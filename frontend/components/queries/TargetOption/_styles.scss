@@ -1,60 +1,71 @@
 .target-option {
   &__btn {
     background-color: $brand;
-    border: none;
-    box-shadow: 0 3px 0 $brandDark;
+    border: 0;
+    box-shadow: 0 3px 0 $brand-dark;
     float: right;
     padding: 0 $medium;
   }
+
   &__count {
-    background-color: $textMedium;
+    background-color: $text-medium;
     border-radius: $border-radius;
     color: $white;
     font-size: $small;
     font-weight: bold;
     padding: 5px;
   }
+
   &__delimeter {
-    color: $textDark;
+    color: $text-dark;
     font-weight: $bold;
-    margin: 0 $xSmall;
+    margin: 0 $xsmall;
   }
+
   &__icon {
-    color: $textMedium;
+    color: $text-medium;
     font-size: $base;
     margin: 0 0 0 $base;
   }
+
   &__ip {
     color: $link;
     font-size: $small;
   }
+
   &__label-host {
     color: $link;
     font-size: $base;
-    margin-left: $xSmall;
+    margin-left: $xsmall;
   }
+
   &__label-label {
-    color: $textMedium;
+    color: $text-medium;
     font-size: $base;
-    margin-left: $xSmall;
+    margin-left: $xsmall;
+
     .all-hosts {
       font-weight: $bold;
     }
   }
+
   &__more-info {
     color: $brand;
     cursor: pointer;
     float: right;
     margin-right: $base;
   }
+
   &__target-icon {
     font-size: $base;
-    color: $textMedium;
-    margin-right: $xSmall;
+    color: $text-medium;
+    margin-right: $xsmall;
   }
+
   &__target-modal {
     width: 1000px;
   }
+
   &__wrapper {
     cursor: default;
   }

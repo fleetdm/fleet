@@ -1,6 +1,6 @@
 import Styles from '../../../../styles';
 
-const { border, color, font, padding } = Styles;
+const { color, font, padding } = Styles;
 
 export default (user, invite) => {
   const { admin, enabled } = user;
@@ -111,7 +111,7 @@ export default (user, invite) => {
     userWrapperStyles: {
       backgroundColor: userWrapperBgColor,
       border: invite ? `1px dashed ${color.brand}` : 'none',
-      boxShadow: border.shadow.blur,
+      boxShadow: '0 0 30px 0 rgba(0,0,0,0.30)',
       display: 'inline-block',
       height: '390px',
       marginLeft: padding.most,

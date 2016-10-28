@@ -1,11 +1,11 @@
 import styles from '../../styles';
 
-const { border, color, font, padding } = styles;
+const { color, font, padding } = styles;
 
 export default {
   emailSentButtonWrapperStyles: {
     backgroundColor: color.successLight,
-    borderRadius: border.radius.base,
+    borderRadius: '4px',
     color: color.white,
     padding: padding.base,
     position: 'relative',
@@ -25,7 +25,7 @@ export default {
   emailSentTextWrapperStyles: {
     padding: padding.base,
     backgroundColor: color.accentLight,
-    borderRadius: border.radius.base,
+    borderRadius: '4px',
     marginBottom: padding.base,
   },
   emailTextStyles: {

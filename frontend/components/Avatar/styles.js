@@ -1,11 +1,7 @@
-import Styles from '../../styles';
-
-const { border } = Styles;
-
 export default (size) => {
   const lowercaseSize = size && size.toLowerCase();
   const baseStyles = {
-    borderRadius: border.radius.circle,
+    borderRadius: '50%',
   };
   const smallStyles = {
     height: '20px',

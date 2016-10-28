@@ -1,6 +1,6 @@
 import Styles from '../../../styles';
 
-const { border, color, font, padding } = Styles;
+const { color, font, padding } = Styles;
 
 const componentStyles = {
   companyLogoStyles: {
@@ -173,7 +173,7 @@ const componentStyles = {
   },
   subItemBeforeStyles: {
     backgroundColor: color.white,
-    borderRadius: border.radius.circle,
+    borderRadius: '50%',
     content: '',
     display: 'block',
     height: '7px',
@@ -297,7 +297,7 @@ const componentStyles = {
 
     return {
       backgroundColor,
-      borderRadius: border.radius.circle,
+      borderRadius: '50%',
       display: 'inline-block',
       height: size,
       marginRight: '6px',

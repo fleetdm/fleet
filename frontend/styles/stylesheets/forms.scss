@@ -1,57 +1,72 @@
-.input-with-icon::placeholder {
-   color: #A8B1CD;
-   opacity: 1;
+.input-with-icon {
+  @include placeholder {
+    color: $accent-text;
+    opacity: 1;
+ }
 }
-.Select.target-select {
-  .Select-control {
-    padding-bottom: 5px;
-    :focus {
-      outline: none;
+
+.Select {
+  .target-select {
+    .Select-control {
+      padding-bottom: 5px;
+
+      &:focus {
+        outline: none;
+      }
+    }
+
+    .Select-menu-outer,
+    .Select-placeholder {
+      font-size: 14px;
+      line-height: 36px;
+    }
+
+    .Select-option {
+      &.is-focused,
+      &.is-selected {
+        background-color: $accent-light;
+      }
+    }
+
+    .Select-value {
+      background-color: $white;
+      border: 1px solid $accent-dark;
+      box-shadow: 0 3px 0 $accent-light;
+      color: $accent-text;
     }
   }
-  .Select-menu-outer,
-  .Select-placeholder {
-    font-size: 14px;
-    line-height: 36px;
-  }
-  .Select-option.is-focused,
-  .Select-option.is-selected {
-    background-color: #EAEDFB;
-  }
-  .Select-value {
-    background-color: #FFFFFF;
-    border: 1px solid #B8C2E3;
-    box-shadow: 0 3px 0 #EAEDFB;
-    color: #A8B1CD;
-  }
 }
+
 .kolide-dropdown {
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
-  border: 1px solid #AE6DDf;
+  border: 1px solid $brand;
   border-radius: 2px;
-  color: #858495;
+  color: $text-dark;
   font-size: 14px;
   height: 30px;
   text-indent: 4px;
   text-transform: uppercase;
   width: 100%;
-  background-color: #FFFFFF;
+  background-color: $white;
 }
+
 .kolide-dropdown-wrapper {
   height: 30px;
   position: relative;
+
   :focus {
     outline: none;
   }
-  &:after {
+
+  &::after {
     content: '';
     display: block;
     width: 30px;
     height: 29px;
     background: url('/assets/images/down-arrow.png') no-repeat;
-    background-color: #AE6DDF;
+    background-color: $brand;
     background-position: center;
     background-size: 15px;
     border-top-right-radius: 2px;

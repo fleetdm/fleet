@@ -1,6 +1,5 @@
 import React, { Component, PropTypes } from 'react';
 import classnames from 'classnames';
-import radium from 'radium';
 
 const baseClass = 'button';
 
@@ -31,7 +30,7 @@ class Button extends Component {
   render () {
     const { handleClick } = this;
     const { className, text, type, variant } = this.props;
-    const fullClassName = classnames(`${baseClass}__${variant}`, className);
+    const fullClassName = classnames(baseClass, `${baseClass}__${variant}`, className);
 
     return (
       <button
@@ -45,4 +44,4 @@ class Button extends Component {
   }
 }
 
-export default radium(Button);
+export default Button;

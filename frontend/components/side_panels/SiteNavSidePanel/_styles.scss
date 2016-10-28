@@ -1,8 +1,9 @@
 @media (max-width: 760px) {
   .sub-nav {
     width: 22px;
-  }
-  .sub-nav--expanded {
-    width: 188px;
+
+    &-expanded {
+      width: 188px;
+    }
   }
 }

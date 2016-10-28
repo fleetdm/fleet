@@ -5,8 +5,9 @@
 
   li {
     counter-increment: step-counter;
+
     &::before {
-      content: counter(step-counter) ")";
+      content: counter(step-counter) ')';
       display: inline-block;
       margin-right: 10px;
       text-align: left;
@@ -14,8 +15,10 @@
     }
   }
 }
+
 .container-triangle {
-  &::before, &::after {
+  &::before,
+  &::after {
     border-radius: 3px;
     content: '';
     display: block;
@@ -25,30 +28,34 @@
     border-style: solid;
     z-index: 1;
   }
+
   &.left {
     &::after {
-      border-color: transparent #FFFFFF transparent transparent;
+      border-color: transparent $white transparent transparent;
       border-width: 15px;
       right: 99%;
       top: 23px;
     }
+
     &::before {
-      border-color: transparent #9CA3AC transparent transparent;
+      border-color: transparent $text-medium transparent transparent;
       border-width: 16px;
       right: 99%;
       top: 22px;
       z-index: -1;
     }
   }
+
   &.right {
     &::after {
-      border-color: transparent transparent transparent #FFFFFF;
+      border-color: transparent transparent transparent $white;
       border-width: 15px;
       left: 99%;
       top: 23px;
     }
+
     &::before {
-      border-color: transparent transparent transparent #9CA3AC;
+      border-color: transparent transparent transparent $text-medium;
       border-width: 16px;
       left: 99%;
       top: 22px;
@@ -59,9 +66,10 @@
 
 .btn--unstyled {
   background-color: transparent;
-  border: none;
+  border: 0;
   margin: 0;
   padding: 0;
+
   &:focus {
     outline: none;
   }

@@ -86,6 +86,8 @@ build: .prefix
 
 lint-js:
 	eslint frontend --ext .js,.jsx
+lint-scss:
+	sass-lint --verbose
 
 lint-go:
 	go vet $(shell glide nv)
@@ -102,7 +104,7 @@ test-js:
 		--require 'frontend/.test.setup.js' \
 		--require 'frontend/test/loaderMock.js'
 
-test: lint-go lint-js test-go test-js
+test: lint-go lint-js lint-scss test-go test-js
 
 generate: .prefix
 	webpack --progress --colors

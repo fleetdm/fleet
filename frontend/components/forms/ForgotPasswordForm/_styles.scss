@@ -1,7 +1,7 @@
 .forgot-password-form {
   &__submit-btn {
     &:active {
-      boxShadow: '0 1px 0 #734893',
+      box-shadow: 0 1px 0 $button-shadow;
     }
   }
 }
