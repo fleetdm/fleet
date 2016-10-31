@@ -1,5 +1,5 @@
-hash: e39bd9f3a0b0d8746e54485a742b52058d2623f3d03cb1925c0ab4cdee312385
-updated: 2016-10-17T13:39:07.1672564-04:00
+hash: 7a3bef7d804686cd678aeaa0914be556ff4e357be2ce8fd5b9cd2e81164ed4a6
+updated: 2016-10-24T12:32:41.928983481-07:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -21,6 +21,11 @@ imports:
   version: 9a6736ed45b44bf3835afeebb3034b57ed329f3e
 - name: github.com/fsnotify/fsnotify
   version: f12c6236fe7b5cf6bcf30e5935d08cb079d78334
+- name: github.com/garyburd/redigo
+  version: 8873b2f1995f59d4bcdd2b0dc9858e2cb9bf0c13
+  subpackages:
+  - internal
+  - redis
 - name: github.com/gin-gonic/contrib
   version: 547e518040cfb96576b507d2f26779ab9c6fc829
   subpackages:

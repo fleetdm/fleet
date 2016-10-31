@@ -13,7 +13,6 @@ func functionName(f func(*testing.T, kolide.Datastore)) string {
 	fullName := runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
 	elements := strings.Split(fullName, ".")
 	return elements[len(elements)-1]
-
 }
 
 var testFunctions = [...]func(*testing.T, kolide.Datastore){

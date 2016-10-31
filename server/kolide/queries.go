@@ -1,6 +1,7 @@
 package kolide
 
 import (
+	"encoding/json"
 	"time"
 
 	"golang.org/x/net/context"
@@ -87,7 +88,14 @@ const (
 	ExecutionFailed
 )
 
+type DistributedQueryResult struct {
+	DistributedQueryCampaignID uint            `json:"distributed_query_execution_id"`
+	Host                       Host            `json:"host"`
+	ResultJSON                 json.RawMessage `json:"result_json"`
+}
+
 type DistributedQueryExecution struct {
+	ID                 uint
 	HostID             uint
 	DistributedQueryID uint
 	Status             DistributedQueryExecutionStatus
