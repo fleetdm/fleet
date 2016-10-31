@@ -58,8 +58,11 @@ define HELP_TEXT
 	make test         - Run the full test suite
 	make test-go      - Run the Go tests
 	make test-js      - Run the JavaScript tests
+
+	make lint         - Run all linters
 	make lint-go      - Run the Go linters
 	make lint-js      - Run the JavaScript linters
+	make lint-scss    - Run the SCSS linters
 
 	make run          - Run the Kolide server in dev mode
 
@@ -86,13 +89,14 @@ build: .prefix
 
 lint-js:
 	eslint frontend --ext .js,.jsx
+
 lint-scss:
 	sass-lint --verbose
 
 lint-go:
 	go vet $(shell glide nv)
 
-lint: lint-go lint-js
+lint: lint-go lint-js lint-scss
 
 test-go:
 	go test -cover $(shell glide nv)
@@ -104,7 +108,7 @@ test-js:
 		--require 'frontend/.test.setup.js' \
 		--require 'frontend/test/loaderMock.js'
 
-test: lint-go lint-js lint-scss test-go test-js
+test: lint test-go test-js
 
 generate: .prefix
 	webpack --progress --colors
