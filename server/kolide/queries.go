@@ -25,6 +25,7 @@ type QueryService interface {
 
 type QueryPayload struct {
 	Name         *string
+	Description  *string
 	Query        *string
 	Interval     *uint
 	Snapshot     *bool
@@ -43,6 +44,7 @@ type Query struct {
 	CreatedAt    time.Time `json:"-"`
 	UpdatedAt    time.Time `json:"-"`
 	Name         string    `json:"name" gorm:"not null;unique_index:idx_query_unique_name"`
+	Description  string    `json:"description"`
 	Query        string    `json:"query" gorm:"not null"`
 	Interval     uint      `json:"interval"`
 	Snapshot     bool      `json:"snapshot"`

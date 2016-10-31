@@ -20,6 +20,10 @@ func (svc service) NewQuery(ctx context.Context, p kolide.QueryPayload) (*kolide
 		query.Name = *p.Name
 	}
 
+	if p.Description != nil {
+		query.Description = *p.Description
+	}
+
 	if p.Query != nil {
 		query.Query = *p.Query
 	}
@@ -59,6 +63,10 @@ func (svc service) ModifyQuery(ctx context.Context, id uint, p kolide.QueryPaylo
 
 	if p.Name != nil {
 		query.Name = *p.Name
+	}
+
+	if p.Description != nil {
+		query.Description = *p.Description
 	}
 
 	if p.Query != nil {
