@@ -8,5 +8,31 @@
     &--inverse {
       margin-right: $xsmall;
     }
+
+    &--wrapper {
+      margin-top: $base;
+      text-align: right;
+    }
+
+    &--cancel {
+      margin-right: $xsmall;
+    }
+  }
+
+  &__label {
+    display: block;
+    margin-top: $base;
+    margin-bottom: $xsmall;
+  }
+
+  &__input {
+    box-shadow: inset 0 0 5px 0 rgba(0, 0, 0, 0.12);
+    width: 100%;
+
+    &--name {
+      height: 30px;
+      line-height: 30px;
+      padding-left: 3px;
+    }
   }
 }

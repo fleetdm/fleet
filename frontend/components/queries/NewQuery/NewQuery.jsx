@@ -5,9 +5,9 @@ import radium from 'radium';
 
 import './mode';
 import './theme';
+import Button from '../../buttons/Button';
 import debounce from '../../../utilities/debounce';
-import SaveQueryForm from '../../forms/queries/SaveQueryForm';
-import SaveQuerySection from './SaveQuerySection';
+import SaveQueryFormModal from '../../modals/SaveQueryFormModal';
 import SelectTargetsInput from '../SelectTargetsInput';
 import SelectTargetsMenu from '../SelectTargetsMenu';
 import targetInterface from '../../../interfaces/target';
@@ -36,7 +36,7 @@ class NewQuery extends Component {
     super(props);
 
     this.state = {
-      saveQuery: false,
+      isSaveQueryForm: false,
       selectedTargets: [],
       theme: 'kolide',
     };
@@ -59,15 +59,34 @@ class NewQuery extends Component {
     });
   }
 
-  onSaveQueryFormSubmit = debounce((formData) => {
-    const {
-      onInvalidQuerySubmit,
-      onNewQueryFormSubmit,
-      textEditorText,
-    } = this.props;
-    const { selectedTargets } = this.state;
+  onLoadSaveQueryModal = () => {
+    this.setState({ isSaveQueryForm: true });
 
+    return false;
+  }
+
+  onRunQuery = (evt) => {
+    evt.preventDefault();
+
+    const { onSaveQueryFormSubmit } = this;
+
+    return onSaveQueryFormSubmit({});
+  }
+
+  onSaveQueryFormCancel = (evt) => {
+    evt.preventDefault();
+
+    this.setState({ isSaveQueryForm: false });
+
+    return false;
+  }
+
+  onSaveQueryFormSubmit = debounce((formData) => {
+    const { onInvalidQuerySubmit, onNewQueryFormSubmit, textEditorText } = this.props;
+    const { selectedTargets } = this.state;
     const { error } = validateQuery(textEditorText);
+
+    this.setState({ isSaveQueryForm: false });
 
     if (error) {
       return onInvalidQuerySubmit(error);
@@ -95,14 +114,23 @@ class NewQuery extends Component {
     return false;
   }
 
-  onToggleSaveQuery = () => {
-    const { saveQuery } = this.state;
+  renderSaveQueryFormModal = () => {
+    const { isSaveQueryForm } = this.state;
+    const {
+      onSaveQueryFormSubmit,
+      onSaveQueryFormCancel,
+    } = this;
 
-    this.setState({
-      saveQuery: !saveQuery,
-    });
+    if (!isSaveQueryForm) {
+      return false;
+    }
 
-    return false;
+    return (
+      <SaveQueryFormModal
+        onCancel={onSaveQueryFormCancel}
+        onSubmit={onSaveQueryFormSubmit}
+      />
+    );
   }
 
   render () {
@@ -117,13 +145,14 @@ class NewQuery extends Component {
       targets,
       textEditorText,
     } = this.props;
-    const { saveQuery, selectedTargets, theme } = this.state;
+    const { selectedTargets, theme } = this.state;
     const {
       onLoad,
-      onSaveQueryFormSubmit,
+      onLoadSaveQueryModal,
+      onRunQuery,
       onTargetSelect,
       onThemeSelect,
-      onToggleSaveQuery,
+      renderSaveQueryFormModal,
     } = this;
     const menuRenderer = SelectTargetsMenu(onTargetSelectMoreInfo, onRemoveMoreInfoTarget, moreInfoTarget);
 
@@ -166,8 +195,21 @@ class NewQuery extends Component {
             targets={targets}
           />
         </div>
-        <SaveQuerySection onToggleSaveQuery={onToggleSaveQuery} saveQuery={saveQuery} />
-        <SaveQueryForm onSubmit={onSaveQueryFormSubmit} saveQuery={saveQuery} />
+        <div className={`${baseClass}__btn-wrapper`}>
+          <Button
+            className={`${baseClass}__save-query-btn`}
+            onClick={onLoadSaveQueryModal}
+            text="Save Query"
+            variant="inverse"
+          />
+          <Button
+            className={`${baseClass}__run-query-btn`}
+            disabled={!selectedTargets.length}
+            onClick={onRunQuery}
+            text="Run Query"
+          />
+        </div>
+        {renderSaveQueryFormModal()}
       </div>
     );
   }

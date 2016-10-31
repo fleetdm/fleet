@@ -14,7 +14,7 @@ describe('SaveQueryForm - component', () => {
 
   it('handles query name input changes', () => {
     const form = mount(
-      <SaveQueryForm onSubmit={noop} saveQuery />
+      <SaveQueryForm onSubmit={noop} />
     );
     const queryNameInput = form.find({ name: 'name' });
 
@@ -24,49 +24,11 @@ describe('SaveQueryForm - component', () => {
 
     expect(formData).toEqual({
       description: null,
-      duration: 'short',
-      hosts: 'all',
-      hostsPercentage: null,
       name: queryName,
-      platforms: 'all',
-      scanInterval: 0,
     });
   });
 
   it('does not submit the form if it is invalid', () => {
-    const onSubmit = createSpy();
-    const form = mount(
-      <SaveQueryForm onSubmit={onSubmit} saveQuery />
-    );
-
-    form.simulate('submit');
-
-    expect(onSubmit).toNotHaveBeenCalled();
-  });
-
-  it('calls onSubmit with the formData and "RUN_AND_SAVE" runType when the saveQuery prop is present', () => {
-    const onSubmit = createSpy();
-    const form = mount(
-      <SaveQueryForm onSubmit={onSubmit} saveQuery />
-    );
-    const queryNameInput = form.find({ name: 'name' });
-
-    fillInFormInput(queryNameInput, queryName);
-    form.simulate('submit');
-
-    expect(onSubmit).toHaveBeenCalledWith({
-      description: null,
-      duration: 'short',
-      hosts: 'all',
-      hostsPercentage: null,
-      name: queryName,
-      platforms: 'all',
-      runType: 'RUN_AND_SAVE',
-      scanInterval: 0,
-    });
-  });
-
-  it('calls onSubmit with the formData and "RUN" runType without the saveQuery prop', () => {
     const onSubmit = createSpy();
     const form = mount(
       <SaveQueryForm onSubmit={onSubmit} />
@@ -74,15 +36,20 @@ describe('SaveQueryForm - component', () => {
 
     form.simulate('submit');
 
+    expect(onSubmit).toNotHaveBeenCalled();
+  });
+
+  it('calls onSubmit with the formData when the form is submitted with valid data', () => {
+    const onSubmit = createSpy();
+    const form = mount(<SaveQueryForm onSubmit={onSubmit} />);
+    const queryNameInput = form.find({ name: 'name' });
+
+    fillInFormInput(queryNameInput, queryName);
+    form.simulate('submit');
+
     expect(onSubmit).toHaveBeenCalledWith({
       description: null,
-      duration: 'short',
-      hosts: 'all',
-      hostsPercentage: null,
-      name: null,
-      platforms: 'all',
-      runType: 'RUN',
-      scanInterval: 0,
+      name: queryName,
     });
   });
 });

@@ -2,12 +2,13 @@ $gradient-start: #7166d9;
 $gradient-end: #c86dd7;
 
 .button {
-  border-radius: $border-radius;
+  border-radius: 2px;
   box-shadow: 0 3px 0 $button-shadow;
   box-sizing: border-box;
   cursor: pointer;
   font-size: $medium;
-  padding: $xsmall;
+  font-weight: $bold;
+  padding: 0.25rem $large;
   position: relative;
 
   &:active {
@@ -24,6 +25,12 @@ $gradient-end: #c86dd7;
     border: 1px solid $brand;
     box-shadow: 0 3px 0 $brand-light;
     color: $white;
+
+    &--disabled {
+      background-color: $brand-light;
+      border-color: $brand-light;
+      cursor: not-allowed;
+    }
   }
 
   &__inverse {

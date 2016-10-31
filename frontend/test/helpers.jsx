@@ -44,6 +44,10 @@ export const createAceSpy = () => {
     },
     session: {
       on: noop,
+      selection: {
+        fromJSON: noop,
+        toJSON: noop,
+      },
     },
     setFontSize: noop,
     setMode: noop,

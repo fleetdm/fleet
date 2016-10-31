@@ -1,4 +1,5 @@
 import React, { Component, PropTypes } from 'react';
+import classnames from 'classnames';
 import radium from 'radium';
 
 import componentStyles from './styles';
@@ -8,9 +9,11 @@ class InputField extends Component {
     autofocus: PropTypes.bool,
     defaultValue: PropTypes.string,
     error: PropTypes.string,
+    inputClassName: PropTypes.string, // eslint-disable-line react/forbid-prop-types
     inputWrapperStyles: PropTypes.object, // eslint-disable-line react/forbid-prop-types
     inputOptions: PropTypes.object, // eslint-disable-line react/forbid-prop-types
     label: PropTypes.string,
+    labelClassName: PropTypes.string,
     labelStyles: PropTypes.object, // eslint-disable-line react/forbid-prop-types
     name: PropTypes.string,
     onChange: PropTypes.func,
@@ -61,24 +64,29 @@ class InputField extends Component {
 
   renderLabel = () => {
     const { componentLabelStyles } = componentStyles;
-    const { error, label, labelStyles, name } = this.props;
+    const { error, label, labelClassName, labelStyles, name } = this.props;
 
     if (!label) {
       return false;
     }
 
     return (
-      <label htmlFor={name} style={[componentLabelStyles(error), labelStyles]}>
+      <label
+        className={labelClassName}
+        htmlFor={name}
+        style={[componentLabelStyles(error), labelStyles]}
+      >
         {error || label}
       </label>
     );
   }
 
   render () {
-    const { error, inputOptions, inputWrapperStyles, name, placeholder, style, type } = this.props;
+    const { error, inputClassName, inputOptions, inputWrapperStyles, name, placeholder, style, type } = this.props;
     const { inputErrorStyles, inputStyles } = componentStyles;
     const { value } = this.state;
     const { onInputChange, renderLabel } = this;
+    const className = classnames('input-with-icon', inputClassName);
 
     if (type === 'textarea') {
       return (
@@ -87,7 +95,7 @@ class InputField extends Component {
           <textarea
             name={name}
             onChange={onInputChange}
-            className="input-with-icon"
+            className={className}
             placeholder={placeholder}
             ref={(r) => { this.input = r; }}
             style={[inputStyles(type, value), inputErrorStyles(error), style]}
@@ -103,6 +111,7 @@ class InputField extends Component {
       <div style={inputWrapperStyles}>
         {renderLabel()}
         <input
+          className={className}
           name={name}
           onChange={onInputChange}
           placeholder={placeholder}

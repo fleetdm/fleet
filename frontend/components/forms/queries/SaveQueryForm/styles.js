@@ -3,9 +3,6 @@ import Styles from '../../../../styles';
 const { color, font, padding } = Styles;
 
 const formSection = {
-  borderTopColor: color.accentLight,
-  borderTopStyle: 'solid',
-  borderTopWidth: '1px',
   display: 'flex',
   justifyContent: 'space-between',
   marginTop: padding.base,

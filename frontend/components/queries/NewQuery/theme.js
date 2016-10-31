@@ -5,11 +5,15 @@ ace.define("ace/theme/kolide",["require","exports","module","ace/lib/dom"], func
   exports.cssClass = "ace-kolide";
   exports.cssText = ".ace-kolide .ace_gutter {\
                      background: #9CA3AC;\
-                     color: #FFF\
+                     color: #FFF;\
+                     z-index: 1\
 }\
 .ace-kolide .ace_print-margin {\
   width: 1px;\
     background: #f6f6f6\
+}\
+.ace-kolide .ace_scrollbar {\
+  z-index: 1;\
 }\
 .ace-kolide .ace_osquery-token{\
   background-color: #AE6DDF;\

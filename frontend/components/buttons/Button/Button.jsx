@@ -22,19 +22,25 @@ class Button extends Component {
 
     if (disabled) return false;
 
-    onClick(evt);
+    if (onClick) {
+      onClick(evt);
+    }
 
     return false;
   }
 
   render () {
     const { handleClick } = this;
-    const { className, text, type, variant } = this.props;
-    const fullClassName = classnames(baseClass, `${baseClass}__${variant}`, className);
+    const { className, disabled, text, type, variant } = this.props;
+    const fullClassName = classnames(`${baseClass}__${variant}`, className, {
+      [baseClass]: variant !== 'unstyled',
+      [`${baseClass}__${variant}--disabled`]: disabled,
+    });
 
     return (
       <button
         className={fullClassName}
+        disabled={disabled}
         onClick={handleClick}
         type={type}
       >
