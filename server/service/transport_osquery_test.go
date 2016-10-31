@@ -2,7 +2,7 @@ package service
 
 import (
 	"bytes"
-	"context"
+	"golang.org/x/net/context"
 	"net/http"
 	"net/http/httptest"
 	"testing"

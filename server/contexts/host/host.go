@@ -3,9 +3,8 @@
 package host
 
 import (
-	"context"
-
 	"github.com/kolide/kolide-ose/server/kolide"
+	"golang.org/x/net/context"
 )
 
 type key int

@@ -1,7 +1,7 @@
 package service
 
 import (
-	"context"
+	"golang.org/x/net/context"
 	"testing"
 
 	"github.com/WatchBeam/clock"

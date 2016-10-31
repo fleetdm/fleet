@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"context"
-
 	"github.com/WatchBeam/clock"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/kolide/kolide-ose/server/config"
@@ -10,6 +8,7 @@ import (
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/kolide/kolide-ose/server/service"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 func createPrepareCmd(configManager config.Manager) *cobra.Command {

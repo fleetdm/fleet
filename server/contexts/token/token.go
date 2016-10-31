@@ -3,7 +3,7 @@
 package token
 
 import (
-	"context"
+	"golang.org/x/net/context"
 	"net/http"
 	"strings"
 )
