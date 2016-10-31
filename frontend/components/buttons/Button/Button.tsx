@@ -1,26 +1,30 @@
-import React, { Component, PropTypes } from 'react';
-import classnames from 'classnames';
+import * as React from 'react';
+const classnames = require('classnames');
 
 const baseClass = 'button';
 
-class Button extends Component {
-  static propTypes = {
-    className: PropTypes.string,
-    disabled: PropTypes.bool,
-    onClick: PropTypes.func,
-    text: PropTypes.string,
-    type: PropTypes.string,
-    variant: PropTypes.string,
-  };
+interface IButtonProps {
+  className: string;
+  disabled: boolean;
+  onClick: (evt: React.MouseEvent<HTMLButtonElement>) => boolean;
+  text: string;
+  type: string;
+  variant: string;
+}
 
+interface IButtonState {}
+
+class Button extends React.Component<IButtonProps, IButtonState> {
   static defaultProps = {
     variant: 'default',
   };
 
-  handleClick = (evt) => {
+  handleClick = (evt: React.MouseEvent<HTMLButtonElement>) => {
     const { disabled, onClick } = this.props;
 
-    if (disabled) return false;
+    if (disabled) {
+      return false;
+    }
 
     if (onClick) {
       onClick(evt);

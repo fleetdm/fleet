@@ -6,10 +6,14 @@
   "private": "true",
   "sasslintConfig": ".sass-lint.yml",
   "scripts": {
-    "lint": "make lint-js && make lint-scss",
+    "lint": "make lint-js && make lint-scss && make lint-ts",
     "test": "make test-js"
   },
   "dependencies": {
+    "@types/classnames": "0.0.31",
+    "@types/expect": "^1.13.30",
+    "@types/mocha": "^2.2.32",
+    "@types/react": "^0.14.43",
     "autoprefixer": "6.3.7",
     "autoprefixer-loader": "^3.2.0",
     "babel-core": "6.11.4",
@@ -69,6 +73,8 @@
     "sqlite-parser": "^0.14.5",
     "style-loader": "^0.13.0",
     "stylus-loader": "1.5.1",
+    "tslint": "^3.15.1",
+    "typescript": "^2.1.0-dev.20161031",
     "url-loader": "^0.5.7",
     "webpack": "1.13.1",
     "webpack-dev-middleware": "^1.5.1",
@@ -91,6 +97,7 @@
     }
   },
   "devDependencies": {
+    "@types/node": "^6.0.46",
     "babel-eslint": "^6.1.2",
     "eslint": "3.6.0",
     "eslint-config-airbnb": "12.0.0",
@@ -100,6 +107,13 @@
     "ignore-styles": "^5.0.1",
     "mocha": "^3.0.2",
     "react-addons-test-utils": "^15.3.1",
-    "sass-lint": "^1.9.1"
+    "sass-lint": "^1.9.1",
+    "source-map-loader": "^0.1.5",
+    "ts-loader": "^0.9.5",
+    "ts-node": "^1.6.1",
+    "tslint-eslint-rules": "^2.1.0",
+    "tslint-react": "^1.1.0",
+    "typescript": "^2.1.0-dev.20161031",
+    "typescript-require": "^0.2.9-1"
   }
 }

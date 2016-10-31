@@ -41,6 +41,7 @@ var config  = {
       {test: /\.(png|gif)$/, loader: 'url-loader?name=[name]@[hash].[ext]&limit=6000'},
       {test: /\.(pdf|ico|jpg|svg|eot|otf|woff|ttf|mp4|webm)$/, loader: 'file-loader?name=[name]@[hash].[ext]'},
       {test: /\.json$/, loader: 'raw-loader'},
+      {test: /\.tsx?$/, exclude: /node_modules/, loader: 'ts-loader'},
       {
         test: /\.css$/,
         loader: ExtractTextPlugin.extract("style-loader", "css-loader!autoprefixer-loader")
