@@ -14,7 +14,7 @@ func (svc service) GetQuery(ctx context.Context, id uint) (*kolide.Query, error)
 }
 
 func (svc service) NewQuery(ctx context.Context, p kolide.QueryPayload) (*kolide.Query, error) {
-	var query kolide.Query
+	query := &kolide.Query{}
 
 	if p.Name != nil {
 		query.Name = *p.Name
@@ -48,11 +48,11 @@ func (svc service) NewQuery(ctx context.Context, p kolide.QueryPayload) (*kolide
 		query.Version = *p.Version
 	}
 
-	_, err := svc.ds.NewQuery(&query)
+	query, err := svc.ds.NewQuery(query)
 	if err != nil {
 		return nil, err
 	}
-	return &query, nil
+	return query, nil
 }
 
 func (svc service) ModifyQuery(ctx context.Context, id uint, p kolide.QueryPayload) (*kolide.Query, error) {
