@@ -59,7 +59,10 @@ var config  = {
     alias: {
       '#app': path.join(repo, 'frontend'),
       '#components': path.join(repo, 'frontend/components'),
-    }
+    },
+    root: [
+      path.resolve(path.join(repo, './frontend'))
+    ]
   },
   svgo1: {
     multipass: true,

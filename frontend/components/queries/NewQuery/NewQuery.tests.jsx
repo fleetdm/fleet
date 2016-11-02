@@ -3,7 +3,7 @@ import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
-import { createAceSpy, fillInFormInput } from '../../../test/helpers';
+import { createAceSpy, fillInFormInput } from 'test/helpers';
 import NewQuery from './index';
 
 describe('NewQuery - component', () => {

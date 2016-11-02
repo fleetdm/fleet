@@ -3,16 +3,16 @@ import AceEditor from 'react-ace';
 import 'brace/ext/linking';
 import radium from 'radium';
 
+import Button from 'components/buttons/Button';
+import debounce from 'utilities/debounce';
+import SaveQueryFormModal from 'components/modals/SaveQueryFormModal';
+import SelectTargetsInput from 'components/queries/SelectTargetsInput';
+import SelectTargetsMenu from 'components/queries/SelectTargetsMenu';
+import targetInterface from 'interfaces/target';
+import ThemeDropdown from 'components/queries/NewQuery/ThemeDropdown';
+import { validateQuery } from 'components/queries/NewQuery/helpers';
 import './mode';
 import './theme';
-import Button from '../../buttons/Button';
-import debounce from '../../../utilities/debounce';
-import SaveQueryFormModal from '../../modals/SaveQueryFormModal';
-import SelectTargetsInput from '../SelectTargetsInput';
-import SelectTargetsMenu from '../SelectTargetsMenu';
-import targetInterface from '../../../interfaces/target';
-import ThemeDropdown from './ThemeDropdown';
-import { validateQuery } from './helpers';
 
 const baseClass = 'new-query';
 
