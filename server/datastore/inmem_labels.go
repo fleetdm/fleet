@@ -4,6 +4,7 @@ import (
 	"errors"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/kolide/kolide-ose/server/kolide"
@@ -192,4 +193,69 @@ func (orm *inmem) SaveLabel(label *kolide.Label) error {
 	orm.mtx.Unlock()
 
 	return nil
+}
+
+func (orm *inmem) SearchLabels(query string, omit []uint) ([]kolide.Label, error) {
+	omitLookup := map[uint]bool{}
+	for _, o := range omit {
+		omitLookup[o] = true
+	}
+
+	var results []kolide.Label
+
+	orm.mtx.Lock()
+	defer orm.mtx.Unlock()
+
+	for _, l := range orm.labels {
+		if len(results) == 10 {
+			break
+		}
+
+		if strings.Contains(l.Name, query) && !omitLookup[l.ID] {
+			results = append(results, *l)
+			continue
+		}
+	}
+
+	return results, nil
+}
+
+func (orm *inmem) ListHostsInLabel(lid uint) ([]kolide.Host, error) {
+	var hosts []kolide.Host
+
+	orm.mtx.Lock()
+	defer orm.mtx.Unlock()
+
+	for _, lqe := range orm.labelQueryExecutions {
+		if lqe.LabelID == lid && lqe.Matches {
+			hosts = append(hosts, *orm.hosts[lqe.HostID])
+		}
+	}
+
+	return hosts, nil
+}
+
+func (orm *inmem) ListUniqueHostsInLabels(labels []uint) ([]kolide.Host, error) {
+	var hosts []kolide.Host
+
+	labelSet := map[uint]bool{}
+	hostSet := map[uint]bool{}
+
+	for _, label := range labels {
+		labelSet[label] = true
+	}
+
+	orm.mtx.Lock()
+	defer orm.mtx.Unlock()
+
+	for _, lqe := range orm.labelQueryExecutions {
+		if labelSet[lqe.LabelID] && lqe.Matches {
+			if !hostSet[lqe.HostID] {
+				hosts = append(hosts, *orm.hosts[lqe.HostID])
+				hostSet[lqe.HostID] = true
+			}
+		}
+	}
+
+	return hosts, nil
 }

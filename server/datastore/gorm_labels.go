@@ -150,3 +150,69 @@ AND lqe.matches
 
 	return results, nil
 }
+
+func (orm gormDB) SearchLabels(query string, omit []uint) ([]kolide.Label, error) {
+	sql := `
+SELECT *
+FROM labels
+WHERE MATCH(name)
+AGAINST(? IN BOOLEAN MODE)
+`
+	results := []kolide.Label{}
+
+	var db *gorm.DB
+	if len(omit) > 0 {
+		sql += "AND id NOT IN (?) LIMIT 10;"
+		db = orm.DB.Raw(sql, query+"*", omit)
+	} else {
+		sql += "LIMIT 10;"
+		db = orm.DB.Raw(sql, query+"*")
+	}
+
+	err := db.Scan(&results).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, errors.DatabaseError(err)
+	}
+	return results, nil
+}
+
+func (orm gormDB) ListHostsInLabel(lid uint) ([]kolide.Host, error) {
+	results := []kolide.Host{}
+	err := orm.DB.Raw(`
+SELECT h.*
+FROM label_query_executions lqe
+JOIN hosts h
+ON lqe.host_id = h.id
+WHERE lqe.label_id = ?
+AND lqe.matches = 1;
+`, lid).Scan(&results).Error
+
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, errors.DatabaseError(err)
+	}
+
+	return results, nil
+}
+
+func (orm gormDB) ListUniqueHostsInLabels(labels []uint) ([]kolide.Host, error) {
+	if labels == nil || len(labels) == 0 {
+		return nil, nil
+	}
+
+	results := []kolide.Host{}
+	err := orm.DB.Raw(`
+SELECT h.*
+FROM label_query_executions lqe
+JOIN hosts h
+ON lqe.host_id = h.id
+WHERE lqe.label_id in (?)
+AND lqe.matches = 1
+GROUP BY h.id;
+`, labels).Scan(&results).Error
+
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, errors.DatabaseError(err)
+	}
+
+	return results, nil
+}

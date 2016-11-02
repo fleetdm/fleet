@@ -29,6 +29,11 @@ type LabelStore interface {
 
 	// LabelsForHost returns the labels that the given host is in.
 	ListLabelsForHost(hid uint) ([]Label, error)
+
+	ListHostsInLabel(lid uint) ([]Host, error)
+	ListUniqueHostsInLabels(labels []uint) ([]Host, error)
+
+	SearchLabels(query string, omit []uint) ([]Label, error)
 }
 
 type LabelService interface {
@@ -48,7 +53,7 @@ type Label struct {
 	ID        uint      `json:"id" gorm:"primary_key"`
 	CreatedAt time.Time `json:"-"`
 	UpdatedAt time.Time `json:"-"`
-	Name      string    `json:"name" gorm:"not null;unique_index:idx_label_unique_name"`
+	Name      string    `json:"name" gorm:"not null;unique_index:idx_label_unique_name"` // there is a fulltext index on this field
 	QueryID   uint      `json:"query_id"`
 }
 

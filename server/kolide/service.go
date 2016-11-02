@@ -11,4 +11,5 @@ type Service interface {
 	HostService
 	AppConfigService
 	InviteService
+	TargetService
 }

@@ -15,6 +15,7 @@ type HostStore interface {
 	EnrollHost(uuid, hostname, ip, platform string, nodeKeySize int) (*Host, error)
 	AuthenticateHost(nodeKey string) (*Host, error)
 	MarkHostSeen(host *Host, t time.Time) error
+	SearchHosts(query string, omit []uint) ([]Host, error)
 }
 
 type HostService interface {
@@ -30,7 +31,7 @@ type Host struct {
 	UpdatedAt        time.Time     `json:"updated_at"`
 	DetailUpdateTime time.Time     `json:"detail_updated_at"` // Time that the host details were last updated
 	NodeKey          string        `json:"-" gorm:"unique_index:idx_host_unique_nodekey"`
-	HostName         string        `json:"hostname"`
+	HostName         string        `json:"hostname"` // there is a fulltext index on this field
 	UUID             string        `json:"uuid" gorm:"unique_index:idx_host_unique_uuid"`
 	Platform         string        `json:"platform"`
 	OsqueryVersion   string        `json:"osquery_version"`
@@ -38,5 +39,5 @@ type Host struct {
 	Uptime           time.Duration `json:"uptime"`
 	PhysicalMemory   int           `json:"memory" sql:"type:bigint"`
 	PrimaryMAC       string        `json:"mac"`
-	PrimaryIP        string        `json:"ip"`
+	PrimaryIP        string        `json:"ip"` // there is a fulltext index on this field
 }

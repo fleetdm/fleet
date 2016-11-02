@@ -138,9 +138,11 @@ func (orm gormDB) RemoveQueryFromPack(query *kolide.Query, pack *kolide.Pack) er
 
 func (orm gormDB) AddLabelToPack(lid uint, pid uint) error {
 	pt := &kolide.PackTarget{
-		Type:     kolide.TargetLabel,
-		PackID:   pid,
-		TargetID: lid,
+		PackID: pid,
+		Target: kolide.Target{
+			Type:     kolide.TargetLabel,
+			TargetID: lid,
+		},
 	}
 
 	return orm.DB.Create(pt).Error
@@ -191,11 +193,5 @@ func (orm gormDB) RemoveLabelFromPack(label *kolide.Label, pack *kolide.Pack) er
 		)
 	}
 
-	pt := &kolide.PackTarget{
-		Type:     kolide.TargetLabel,
-		PackID:   pack.ID,
-		TargetID: label.ID,
-	}
-
-	return orm.DB.Delete(pt).Error
+	return orm.DB.Where("pack_id = ? AND type = ? AND target_id = ?", pack.ID, kolide.TargetLabel, label.ID).Delete(&kolide.PackTarget{}).Error
 }

@@ -3,9 +3,11 @@ package datastore
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var enrollTests = []struct {
@@ -80,4 +82,63 @@ func testAuthenticateHost(t *testing.T, db kolide.Datastore) {
 
 	_, err = db.AuthenticateHost("")
 	assert.NotNil(t, err)
+}
+
+func testSearchHosts(t *testing.T, db kolide.Datastore) {
+	_, err := db.NewHost(&kolide.Host{
+		DetailUpdateTime: time.Now(),
+		NodeKey:          "1",
+		UUID:             "1",
+		HostName:         "foo.local",
+		PrimaryIP:        "192.168.1.10",
+	})
+	require.Nil(t, err)
+
+	_, err = db.NewHost(&kolide.Host{
+		DetailUpdateTime: time.Now(),
+		NodeKey:          "2",
+		UUID:             "2",
+		HostName:         "bar.local",
+		PrimaryIP:        "192.168.1.11",
+	})
+	require.Nil(t, err)
+
+	h3, err := db.NewHost(&kolide.Host{
+		DetailUpdateTime: time.Now(),
+		NodeKey:          "3",
+		UUID:             "3",
+		HostName:         "foo-bar.local",
+		PrimaryIP:        "192.168.1.12",
+	})
+	require.Nil(t, err)
+
+	hosts, err := db.SearchHosts("foo", nil)
+	assert.Nil(t, err)
+	assert.Len(t, hosts, 2)
+
+	host, err := db.SearchHosts("foo", []uint{h3.ID})
+	assert.Nil(t, err)
+	assert.Len(t, host, 1)
+	assert.Equal(t, "foo.local", host[0].HostName)
+
+	none, err := db.SearchHosts("xxx", nil)
+	assert.Nil(t, err)
+	assert.Len(t, none, 0)
+}
+
+func testSearchHostsLimit(t *testing.T, db kolide.Datastore) {
+	for i := 0; i < 15; i++ {
+		_, err := db.NewHost(&kolide.Host{
+			DetailUpdateTime: time.Now(),
+			NodeKey:          fmt.Sprintf("%d", i),
+			UUID:             fmt.Sprintf("%d", i),
+			HostName:         fmt.Sprintf("foo.%d.local", i),
+			PrimaryIP:        fmt.Sprintf("192.168.1.%d", i+1),
+		})
+		require.Nil(t, err)
+	}
+
+	hosts, err := db.SearchHosts("foo", nil)
+	require.Nil(t, err)
+	assert.Len(t, hosts, 10)
 }

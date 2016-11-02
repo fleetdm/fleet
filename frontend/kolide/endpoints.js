@@ -10,5 +10,6 @@ export default {
   LOGOUT: '/v1/kolide/logout',
   ME: '/v1/kolide/me',
   RESET_PASSWORD: '/v1/kolide/reset_password',
+  TARGETS: '/v1/kolide/targets',
   USERS: '/v1/kolide/users',
 };

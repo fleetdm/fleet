@@ -59,16 +59,8 @@ type PackQuery struct {
 	QueryID   uint
 }
 
-type TargetType int
-
-const (
-	TargetLabel TargetType = iota
-	TargetHost
-)
-
 type PackTarget struct {
 	ID       uint `gorm:"primary_key"`
-	Type     TargetType
 	PackID   uint
-	TargetID uint
+	Target
 }

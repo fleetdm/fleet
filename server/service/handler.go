@@ -60,6 +60,7 @@ type KolideEndpoints struct {
 	GetHost                       endpoint.Endpoint
 	DeleteHost                    endpoint.Endpoint
 	ListHosts                     endpoint.Endpoint
+	SearchTargets                 endpoint.Endpoint
 }
 
 // MakeKolideServerEndpoints creates the Kolide API endpoints.
@@ -101,6 +102,15 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		GetHost:                authenticatedUser(jwtKey, svc, makeGetHostEndpoint(svc)),
 		ListHosts:              authenticatedUser(jwtKey, svc, makeListHostsEndpoint(svc)),
 		DeleteHost:             authenticatedUser(jwtKey, svc, makeDeleteHostEndpoint(svc)),
+		GetLabel:               authenticatedUser(jwtKey, svc, makeGetLabelEndpoint(svc)),
+		ListLabels:             authenticatedUser(jwtKey, svc, makeListLabelsEndpoint(svc)),
+		CreateLabel:            authenticatedUser(jwtKey, svc, makeCreateLabelEndpoint(svc)),
+		ModifyLabel:            authenticatedUser(jwtKey, svc, makeModifyLabelEndpoint(svc)),
+		DeleteLabel:            authenticatedUser(jwtKey, svc, makeDeleteLabelEndpoint(svc)),
+		AddLabelToPack:         authenticatedUser(jwtKey, svc, makeAddLabelToPackEndpoint(svc)),
+		GetLabelsForPack:       authenticatedUser(jwtKey, svc, makeGetLabelsForPackEndpoint(svc)),
+		DeleteLabelFromPack:    authenticatedUser(jwtKey, svc, makeDeleteLabelFromPackEndpoint(svc)),
+		SearchTargets:          authenticatedUser(jwtKey, svc, makeSearchTargetsEndpoint(svc)),
 
 		// Osquery endpoints
 		EnrollAgent:                   makeEnrollAgentEndpoint(svc),
@@ -108,14 +118,6 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		GetDistributedQueries:         authenticatedHost(svc, makeGetDistributedQueriesEndpoint(svc)),
 		SubmitDistributedQueryResults: authenticatedHost(svc, makeSubmitDistributedQueryResultsEndpoint(svc)),
 		SubmitLogs:                    authenticatedHost(svc, makeSubmitLogsEndpoint(svc)),
-		GetLabel:                      authenticatedUser(jwtKey, svc, makeGetLabelEndpoint(svc)),
-		ListLabels:                    authenticatedUser(jwtKey, svc, makeListLabelsEndpoint(svc)),
-		CreateLabel:                   authenticatedUser(jwtKey, svc, makeCreateLabelEndpoint(svc)),
-		ModifyLabel:                   authenticatedUser(jwtKey, svc, makeModifyLabelEndpoint(svc)),
-		DeleteLabel:                   authenticatedUser(jwtKey, svc, makeDeleteLabelEndpoint(svc)),
-		AddLabelToPack:                authenticatedUser(jwtKey, svc, makeAddLabelToPackEndpoint(svc)),
-		GetLabelsForPack:              authenticatedUser(jwtKey, svc, makeGetLabelsForPackEndpoint(svc)),
-		DeleteLabelFromPack:           authenticatedUser(jwtKey, svc, makeDeleteLabelFromPackEndpoint(svc)),
 	}
 }
 
@@ -167,6 +169,7 @@ type kolideHandlers struct {
 	GetHost                       *kithttp.Server
 	DeleteHost                    *kithttp.Server
 	ListHosts                     *kithttp.Server
+	SearchTargets                 *kithttp.Server
 }
 
 func makeKolideKitHandlers(ctx context.Context, e KolideEndpoints, opts []kithttp.ServerOption) kolideHandlers {
@@ -221,6 +224,7 @@ func makeKolideKitHandlers(ctx context.Context, e KolideEndpoints, opts []kithtt
 		GetHost:                       newServer(e.GetHost, decodeGetHostRequest),
 		DeleteHost:                    newServer(e.DeleteHost, decodeDeleteHostRequest),
 		ListHosts:                     newServer(e.ListHosts, decodeListHostsRequest),
+		SearchTargets:                 newServer(e.SearchTargets, decodeSearchTargetsRequest),
 	}
 }
 
@@ -295,6 +299,8 @@ func attachKolideAPIRoutes(r *mux.Router, h kolideHandlers) {
 	r.Handle("/api/v1/kolide/hosts", h.ListHosts).Methods("GET")
 	r.Handle("/api/v1/kolide/hosts/{id}", h.GetHost).Methods("GET")
 	r.Handle("/api/v1/kolide/hosts/{id}", h.DeleteHost).Methods("DELETE")
+
+	r.Handle("/api/v1/kolide/targets", h.SearchTargets).Methods("POST")
 
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST")
 	r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST")
