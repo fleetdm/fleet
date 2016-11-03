@@ -25,7 +25,7 @@ class Check extends Component {
   };
 
   render () {
-    const { alt, style, variant } = this.props;
+    const { alt, style, variant, className } = this.props;
 
     return (
       <svg
@@ -34,6 +34,7 @@ class Check extends Component {
         viewBox="0 0 100 100"
         alt={alt}
         style={style}
+        className={className}
       >
         {Check.variants[variant]}
       </svg>

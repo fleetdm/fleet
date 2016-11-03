@@ -1,6 +1,5 @@
 import React, { Component } from 'react';
 import { noop } from 'lodash';
-import radium from 'radium';
 
 import { handleClickOutside } from './helpers';
 
@@ -32,5 +31,5 @@ export default (WrappedComponent, { onOutsideClick = noop, getDOMNode = noop }) 
     }
   }
 
-  return radium(ClickOutside);
+  return ClickOutside;
 };

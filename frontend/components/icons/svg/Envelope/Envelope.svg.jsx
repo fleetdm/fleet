@@ -1,9 +1,7 @@
 import React, { Component } from 'react';
 
 import base, { basePropTypes } from '../base';
-import Styles from '../../../../styles';
-
-const { color } = Styles;
+import color from '../../../../styles/colors';
 
 class Envelope extends Component {
   static propTypes = {
@@ -26,7 +24,7 @@ class Envelope extends Component {
   };
 
   render () {
-    const { alt, style, variant } = this.props;
+    const { alt, style, variant, className } = this.props;
     const iconVariant = Envelope.variants[variant];
 
     return (
@@ -36,6 +34,7 @@ class Envelope extends Component {
         viewBox="0 0 11 09"
         alt={alt}
         style={style}
+        className={className}
       >
         <g>
           <defs>

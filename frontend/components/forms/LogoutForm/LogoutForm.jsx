@@ -1,6 +1,5 @@
 import React, { Component, PropTypes } from 'react';
 
-import componentStyles from './styles';
 import Button from '../../buttons/Button';
 import userInterface from '../../../interfaces/user';
 
@@ -21,23 +20,16 @@ class LogoutForm extends Component {
   }
 
   render () {
-    const {
-      avatarStyles,
-      containerStyles,
-      formStyles,
-      subtextStyles,
-      usernameStyles,
-    } = componentStyles;
     const { user } = this.props;
     const { gravatarURL } = user;
     const { onFormSubmit } = this;
 
     return (
-      <form onSubmit={onFormSubmit} style={formStyles}>
-        <div style={containerStyles}>
-          <img alt="Avatar" src={gravatarURL} style={avatarStyles} />
-          <p style={usernameStyles}>{user.username}</p>
-          <p style={subtextStyles}>Are you sure you want to log out?</p>
+      <form onSubmit={onFormSubmit} className={baseClass}>
+        <div className={`${baseClass}__container`}>
+          <img alt="Avatar" src={gravatarURL} className={`${baseClass}__avatar`} />
+          <p className={`${baseClass}__username`}>{user.username}</p>
+          <p className={`${baseClass}__subtext`}>Are you sure you want to log out?</p>
         </div>
         <Button
           className={`${baseClass}__submit-btn`}

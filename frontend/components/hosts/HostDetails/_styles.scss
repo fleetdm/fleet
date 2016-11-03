@@ -1,0 +1,103 @@
+.host-details {
+  background-color: $white;
+  border: 1px solid $silver;
+  border-radius: 3px;
+  box-shadow: 0 2px 8px 0 rgba($black, 0.05);
+  box-sizing: border-box;
+  display: inline-block;
+  height: 286px;
+  padding: $pad-half;
+  margin: $pad-base 0 0 $pad-base;
+  position: relative;
+  text-align: center;
+  width: 240px;
+
+  &--online {
+    border-top: 6px solid $success;
+  }
+
+  &--offline {
+    border-top: 6px solid $alert;
+  }
+
+  &__separator {
+    border-top: 1px solid $accent-light;
+    margin-top: $pad-half;
+
+  }
+
+  &__vertical-separator {
+    border-right: 1px dashed $text-light;
+    height: 62%;
+    width: 1px;
+  }
+
+  &__disabled-icon {
+    font-size: $larger;
+  }
+
+  &__icon {
+    color: $text-dark;
+    font-size: $mini;
+    margin-right: 3px;
+  }
+
+
+  &__query-icon {
+    color: $brand;
+    font-size: $larger;
+  }
+
+  &__status {
+    font-size: $medium;
+    text-align: left;
+    text-transform: uppercase;
+
+    &--online {
+      color: $success;
+    }
+
+    &--offline {
+      color: $alert;
+    }
+  }
+
+  &__host-content {
+    color: $text-ultradark;
+    font-size: $small;
+
+    &--mono {
+      font-family: SourceCodePro;
+    }
+
+    &--caps {
+      text-transform: capitalize;
+    }
+  }
+
+  &__hostname {
+    color: $link;
+    font-size: $mini;
+    font-weight: $bold;
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  &__ellipsis-children {
+    @include align-items(center);
+    @include display(flex);
+    @include justify-content(space-around);
+    background-color: $white;
+    border: 1px solid $text-medium;
+    border-radius: 3px;
+    box-shadow: 0 2px 8px 0 rgba($black, 0.05);
+    box-sizing: border-box;
+    height: 100px;
+    width: 200px;
+  }
+
+  &__ellipsis-child-item {
+    color: $text-medium;
+    width: 60px;
+  }
+}

@@ -1,7 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import AceEditor from 'react-ace';
 import 'brace/ext/linking';
-import radium from 'radium';
 
 import Button from 'components/buttons/Button';
 import debounce from 'utilities/debounce';
@@ -215,4 +214,4 @@ class NewQuery extends Component {
   }
 }
 
-export default radium(NewQuery);
+export default NewQuery;

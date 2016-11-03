@@ -49,5 +49,4 @@ function mockStorage() {
   };
 }
 
-require('radium').TestMode.enable();
 global.localStorage = window.localStorage = mockStorage();

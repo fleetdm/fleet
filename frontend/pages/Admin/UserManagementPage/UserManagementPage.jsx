@@ -1,7 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 
-import componentStyles from './styles';
 import entityGetter from '../../../redux/utilities/entityGetter';
 import Button from '../../../components/buttons/Button';
 import inviteActions from '../../../redux/nodes/entities/invites/actions';
@@ -181,28 +180,23 @@ class UserManagementPage extends Component {
   };
 
   render () {
-    const {
-      addUserButtonStyles,
-      addUserWrapperStyles,
-      containerStyles,
-      numUsersStyles,
-      usersWrapperStyles,
-    } = componentStyles;
     const { toggleInviteUserModal } = this;
     const { invites, users } = this.props;
     const resourcesCount = users.length + invites.length;
 
+    const baseClass = 'user-management';
+
     return (
-      <div style={containerStyles}>
-        <span style={numUsersStyles}>Listing {resourcesCount} users</span>
-        <div style={addUserWrapperStyles}>
+      <div className={baseClass}>
+        <span className={`${baseClass}__user-count`}>Listing {resourcesCount} users</span>
+        <div className={`${baseClass}__add-user-wrap`}>
           <Button
             onClick={toggleInviteUserModal}
-            style={addUserButtonStyles}
+            className={`${baseClass}__add-user-btn`}
             text="Add User"
           />
         </div>
-        <div style={usersWrapperStyles}>
+        <div className={`${baseClass}__users`}>
           {users.map((user) => {
             return this.renderUserBlock(user);
           })}

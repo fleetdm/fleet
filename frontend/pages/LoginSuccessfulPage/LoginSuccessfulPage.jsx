@@ -1,10 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import radium from 'radium';
 
-import componentStyles from './styles';
 import Icon from '../../components/icons/Icon';
-
 
 class LoginSuccessfulPage extends Component {
   static propTypes = {
@@ -12,16 +9,16 @@ class LoginSuccessfulPage extends Component {
   };
 
   render () {
-    const { loginSuccessStyles, subtextStyles, whiteBoxStyles } = componentStyles;
+    const baseClass = 'login-success';
     return (
-      <div style={whiteBoxStyles}>
+      <div className={baseClass}>
         <Icon name="check" />
-        <p style={loginSuccessStyles}>Login successful</p>
-        <p style={subtextStyles}>hold on to your butts...</p>
+        <p className={`${baseClass}__text`}>Login successful</p>
+        <p className={`${baseClass}__sub-text`}>hold on to your butts...</p>
       </div>
     );
   }
 }
 
 const ConnectedComponent = connect()(LoginSuccessfulPage);
-export default radium(ConnectedComponent);
+export default ConnectedComponent;

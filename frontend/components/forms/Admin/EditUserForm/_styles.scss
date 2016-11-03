@@ -1,6 +1,49 @@
 .edit-user-form {
+  box-sizing: border-box;
+  padding: 0 $pad-half;
+
+  &__avatar-wrap {
+    text-align: center;
+  }
+
+  form &__input {
+    border: 0;
+    border-bottom: 1px solid $brand;
+    font-size: $small;
+    color: $text-medium;
+    width: 100%;
+
+    &--username {
+      color: $brand;
+    }
+
+    &--email {
+      color: $link;
+    }
+  }
+
+  &__label {
+    color: $text-light;
+    text-transform: uppercase;
+    font-size: $mini;
+  }
+
+  &__input-wrap {
+    margin-top: 0;
+
+    &--first {
+      margin-bottom: $pad-half;
+    }
+  }
+
+  &__btn-wrap {
+    @include display(flex);
+    @include flex-direction(row-reverse);
+    @include justify-content(space-between);
+    margin-top: $pad-half;
+  }
+
   &__form-btn {
-    padding-left: $base;
-    padding-right: $base;
+    padding: inherit $base;
   }
 }

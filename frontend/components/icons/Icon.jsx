@@ -1,5 +1,4 @@
 import React, { Component, PropTypes } from 'react';
-import radium from 'radium';
 
 import Check from './svg/Check';
 import Clipboard from './svg/Clipboard';
@@ -11,6 +10,7 @@ import User from './svg/User';
 class Icon extends Component {
   static propTypes = {
     name: PropTypes.string.isRequired,
+    className: PropTypes.string,
   };
 
   static iconNames = {
@@ -25,8 +25,8 @@ class Icon extends Component {
   render () {
     const IconComponent = Icon.iconNames[this.props.name];
 
-    return <IconComponent {...this.props} />;
+    return <IconComponent {...this.props} className={this.props.className} />;
   }
 }
 
-export default radium(Icon);
+export default Icon;

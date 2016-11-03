@@ -1,7 +1,4 @@
 import React, { Component, PropTypes } from 'react';
-import radium from 'radium';
-
-import componentStyles from './styles';
 
 class SecondarySidePanelContainer extends Component {
   static propTypes = {
@@ -10,14 +7,13 @@ class SecondarySidePanelContainer extends Component {
 
   render () {
     const { children } = this.props;
-    const { containerStyles } = componentStyles;
 
     return (
-      <div style={containerStyles}>
+      <div className="secondary-side-panel-container">
         {children}
       </div>
     );
   }
 }
 
-export default radium(SecondarySidePanelContainer);
+export default SecondarySidePanelContainer;

@@ -1,6 +1,5 @@
 import React, { Component, PropTypes } from 'react';
 import classnames from 'classnames';
-import radium from 'radium';
 
 const baseClass = 'modal';
 
@@ -32,4 +31,4 @@ class Modal extends Component {
   }
 }
 
-export default radium(Modal);
+export default Modal;

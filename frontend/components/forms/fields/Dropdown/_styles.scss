@@ -1,0 +1,47 @@
+.kolide-dropdown {
+  @include appearance(none);
+  position: relative;
+  height: 30px;
+  width: 100%;
+  border: 1px solid $brand;
+  border-radius: 2px;
+  color: $text-dark;
+  font-size: 14px;
+  text-indent: 4px;
+  text-transform: uppercase;
+  background-color: $white;
+
+  &:focus {
+    outline: none;
+  }
+
+  &__wrapper {
+    position: relative;
+
+    &::after {
+      content: '';
+      display: block;
+      width: 30px;
+      height: 29px;
+      background: $brand url('/assets/images/down-arrow.png') no-repeat center center;
+      background-size: 15px;
+      border-top-right-radius: 2px;
+      border-bottom-right-radius: 2px;
+      pointer-events: none;
+      position: absolute;
+      top: 1px;
+      right: 0;
+    }
+  }
+
+  &__option {
+    color: $text-medium;
+    cursor: pointer;
+    padding: $pad-half;
+
+    &:hover {
+      background: $bg-light;
+      color: $text-ultradark;
+    }
+  }
+}

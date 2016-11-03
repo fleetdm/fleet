@@ -1,0 +1,33 @@
+.input-field {
+  border: 1px solid $brand;
+  border-radius: 2px;
+  font-size: $base;
+  padding-right: 30px;
+  opacity: 1;
+  text-indent: 1px;
+  position: relative;
+  box-sizing: border-box;
+  color: $text-ultradark;
+
+  @include placeholder {
+    color: $accent-text;
+  }
+
+  &:focus {
+    outline: none;
+  }
+
+  &--error {
+    border-color: $alert;
+  }
+
+  &--password {
+    letter-spacing: 7px;
+  }
+
+  &__label {
+    &--error {
+      color: $alert;
+    }
+  }
+}

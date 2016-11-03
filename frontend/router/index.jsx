@@ -1,7 +1,6 @@
 import React from 'react';
 import { browserHistory, IndexRoute, Route, Router } from 'react-router';
 import { Provider } from 'react-redux';
-import radium, { StyleRoot } from 'radium';
 import { syncHistoryWithStore } from 'react-router-redux';
 
 import AdminUserManagementPage from '../pages/Admin/UserManagementPage';
@@ -25,30 +24,28 @@ const history = syncHistoryWithStore(browserHistory, store);
 const routes = (
   <Provider store={store}>
     <Router history={history}>
-      <StyleRoot>
-        <Route path="/" component={radium(App)}>
-          <Route path="login" component={radium(LoginRoutes)}>
-            <Route path="forgot" component={radium(ForgotPasswordPage)} />
-            <Route path="reset" component={radium(ResetPasswordPage)} />
-          </Route>
-          <Route component={AuthenticatedRoutes}>
-            <Route path="logout" component={radium(LogoutPage)} />
-            <Route component={radium(CoreLayout)}>
-              <IndexRoute component={radium(HomePage)} />
-              <Route path="admin" component={AuthenticatedAdminRoutes}>
-                <Route path="users" component={radium(AdminUserManagementPage)} />
-              </Route>
-              <Route path="queries" component={radium(QueryPageWrapper)}>
-                <Route path="new" component={radium(NewQueryPage)} />
-              </Route>
-              <Route path="hosts">
-                <Route path="new" component={radium(NewHostPage)} />
-                <Route path="manage" component={radium(ManageHostsPage)} />
-              </Route>
+      <Route path="/" component={App}>
+        <Route path="login" component={LoginRoutes}>
+          <Route path="forgot" component={ForgotPasswordPage} />
+          <Route path="reset" component={ResetPasswordPage} />
+        </Route>
+        <Route component={AuthenticatedRoutes}>
+          <Route path="logout" component={LogoutPage} />
+          <Route component={CoreLayout}>
+            <IndexRoute component={HomePage} />
+            <Route path="admin" component={AuthenticatedAdminRoutes}>
+              <Route path="users" component={AdminUserManagementPage} />
+            </Route>
+            <Route path="queries" component={QueryPageWrapper}>
+              <Route path="new" component={NewQueryPage} />
+            </Route>
+            <Route path="hosts">
+              <Route path="new" component={NewHostPage} />
+              <Route path="manage" component={ManageHostsPage} />
             </Route>
           </Route>
         </Route>
-      </StyleRoot>
+      </Route>
     </Router>
   </Provider>
 );

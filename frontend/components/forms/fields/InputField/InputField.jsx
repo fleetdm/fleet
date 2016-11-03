@@ -1,8 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import classnames from 'classnames';
-import radium from 'radium';
 
-import componentStyles from './styles';
+const baseClass = 'input-field';
 
 class InputField extends Component {
   static propTypes = {
@@ -10,26 +9,23 @@ class InputField extends Component {
     defaultValue: PropTypes.string,
     error: PropTypes.string,
     inputClassName: PropTypes.string, // eslint-disable-line react/forbid-prop-types
-    inputWrapperStyles: PropTypes.object, // eslint-disable-line react/forbid-prop-types
+    inputWrapperClass: PropTypes.string,
     inputOptions: PropTypes.object, // eslint-disable-line react/forbid-prop-types
     label: PropTypes.string,
     labelClassName: PropTypes.string,
-    labelStyles: PropTypes.object, // eslint-disable-line react/forbid-prop-types
     name: PropTypes.string,
     onChange: PropTypes.func,
     placeholder: PropTypes.string,
-    style: PropTypes.object, // eslint-disable-line react/forbid-prop-types
     type: PropTypes.string,
   };
 
   static defaultProps = {
     autofocus: false,
     defaultValue: '',
-    inputWrapperStyles: {},
+    inputWrapperClass: '',
     inputOptions: {},
     label: null,
-    labelStyles: {},
-    style: {},
+    labelClassName: '',
     type: 'text',
   };
 
@@ -63,8 +59,12 @@ class InputField extends Component {
   }
 
   renderLabel = () => {
-    const { componentLabelStyles } = componentStyles;
-    const { error, label, labelClassName, labelStyles, name } = this.props;
+    const { error, label, labelClassName, name } = this.props;
+    const labelWrapperClasses = classnames(
+      `${baseClass}__label`,
+      labelClassName,
+      { [`${baseClass}__label--error`]: error }
+    );
 
     if (!label) {
       return false;
@@ -72,9 +72,8 @@ class InputField extends Component {
 
     return (
       <label
-        className={labelClassName}
+        className={labelWrapperClasses}
         htmlFor={name}
-        style={[componentLabelStyles(error), labelStyles]}
       >
         {error || label}
       </label>
@@ -82,23 +81,27 @@ class InputField extends Component {
   }
 
   render () {
-    const { error, inputClassName, inputOptions, inputWrapperStyles, name, placeholder, style, type } = this.props;
-    const { inputErrorStyles, inputStyles } = componentStyles;
+    const { error, inputClassName, inputOptions, inputWrapperClass, name, placeholder, type } = this.props;
     const { value } = this.state;
     const { onInputChange, renderLabel } = this;
-    const className = classnames('input-with-icon', inputClassName);
+    const inputClasses = classnames(
+      baseClass,
+      inputClassName,
+      { [`${baseClass}--password`]: type === 'password' && value },
+      { [`${baseClass}--error`]: error }
+    );
+    const inputWrapperClasses = classnames(`${baseClass}__wrapper`, inputWrapperClass);
 
     if (type === 'textarea') {
       return (
-        <div style={inputWrapperStyles}>
+        <div className={inputWrapperClasses}>
           {renderLabel()}
           <textarea
             name={name}
             onChange={onInputChange}
-            className={className}
+            className={inputClasses}
             placeholder={placeholder}
             ref={(r) => { this.input = r; }}
-            style={[inputStyles(type, value), inputErrorStyles(error), style]}
             type={type}
             {...inputOptions}
             value={value}
@@ -108,15 +111,14 @@ class InputField extends Component {
     }
 
     return (
-      <div style={inputWrapperStyles}>
+      <div className={inputWrapperClasses}>
         {renderLabel()}
         <input
-          className={className}
           name={name}
           onChange={onInputChange}
+          className={inputClasses}
           placeholder={placeholder}
           ref={(r) => { this.input = r; }}
-          style={[inputStyles(type, value), inputErrorStyles(error), style]}
           type={type}
           {...inputOptions}
           value={value}
@@ -126,5 +128,5 @@ class InputField extends Component {
   }
 }
 
-export default radium(InputField);
+export default InputField;
 

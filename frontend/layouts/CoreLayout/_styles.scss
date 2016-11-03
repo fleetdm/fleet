@@ -1,0 +1,12 @@
+.core-wrapper {
+  margin: 0 0 0 241px;
+  padding: $pad-base $pad-base 0;
+
+  &--show-panel {
+    margin-right: 300px;
+  }
+
+  @media (max-width: 760px) {
+    margin-left: 54px;
+  }
+}

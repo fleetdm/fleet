@@ -1,0 +1,7 @@
+.avatar {
+  border-radius: 50%;
+
+  &--small {
+    @include size(20px);
+  }
+}

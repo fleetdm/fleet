@@ -1,9 +1,9 @@
 import React, { Component, PropTypes } from 'react';
-import radium from 'radium';
 
 import { calculateTooltipDirection } from './helpers';
 import ClickOutside from '../../ClickOutside';
-import componentStyles from './styles';
+
+const baseClass = 'ellipsis-menu';
 
 export class ElipsisMenu extends Component {
   static propTypes = {
@@ -59,7 +59,6 @@ export class ElipsisMenu extends Component {
 
   renderChildren = () => {
     const { children } = this.props;
-    const { childrenWrapperStyles } = componentStyles;
     const { showChildren, tooltipDirection } = this.state;
     const triangleDirection = tooltipDirection === 'left' ? 'right' : 'left';
 
@@ -69,8 +68,7 @@ export class ElipsisMenu extends Component {
 
     return (
       <div
-        className={`container-triangle ${triangleDirection}`}
-        style={childrenWrapperStyles(tooltipDirection)}
+        className={`container-triangle ${triangleDirection} ${baseClass}__triangle ${baseClass}__triangle--${tooltipDirection}`}
       >
         {children}
       </div>
@@ -78,19 +76,18 @@ export class ElipsisMenu extends Component {
   }
 
   render () {
-    const { containerStyles, elipsisStyles } = componentStyles;
     const { onToggleChildren, renderChildren, setDOMNode } = this;
     const { positionStyles } = this.props;
 
     return (
       <div
         ref={setDOMNode}
-        style={[containerStyles, positionStyles]}
+        className={baseClass}
+        style={positionStyles}
       >
         <button
-          className="btn--unstyled"
           onClick={onToggleChildren}
-          style={elipsisStyles}
+          className={`${baseClass}__btn button button__unstyled`}
         >
           &bull; &bull; &bull;
         </button>
@@ -100,7 +97,7 @@ export class ElipsisMenu extends Component {
   }
 }
 
-const StyledComponent = radium(ElipsisMenu);
+const StyledComponent = ElipsisMenu;
 export default ClickOutside(StyledComponent, {
   getDOMNode: (component) => {
     return component.DOMNode;

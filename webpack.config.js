@@ -5,6 +5,7 @@ var webpack = require('webpack');
 var autoprefixer = require('autoprefixer');
 var ExtractTextPlugin = require("extract-text-webpack-plugin");
 var bourbon = require('node-bourbon').includePaths;
+var WebpackBuildNotifierPlugin = require('webpack-build-notifier');
 
 var plugins = [
   new webpack.NoErrorsPlugin(),
@@ -22,6 +23,18 @@ if (process.env.NODE_ENV === 'production') {
       'process.env': {NODE_ENV: JSON.stringify('production')}
     })
   ]);
+};
+
+if (process.argv.includes('--notify')) {
+  plugins = plugins.concat([
+    new WebpackBuildNotifierPlugin({
+      title: "Kolide",
+      logo: path.resolve("./assets/images/kolide-logo.svg"),
+      suppressWarning: true,
+      suppressSuccess: true,
+      sound: false
+    })
+  ])
 };
 
 var repo = __dirname
@@ -43,10 +56,14 @@ var config  = {
       {test: /\.json$/, loader: 'raw-loader'},
       {test: /\.tsx?$/, exclude: /node_modules/, loader: 'ts-loader'},
       {
-        test: /\.css$/,
-        loader: ExtractTextPlugin.extract("style-loader", "css-loader!autoprefixer-loader")
+        test: /\.scss$/,
+        exclude: /node_modules/,
+        loader: ExtractTextPlugin.extract('style-loader', 'css!sass?sourceMap=true&includePaths[]=' + bourbon + '!import-glob')
       },
-      { test: /\.scss$/, loader: "style!css!sass?includePaths[]=" + bourbon + "!import-glob" },
+      {
+        test: /\.css$/,
+        loader: ExtractTextPlugin.extract('style-loader', 'css-loader!autoprefixer-loader')
+      },
       {
         test: /\.jsx?$/,
         include: path.join(repo, 'frontend'),

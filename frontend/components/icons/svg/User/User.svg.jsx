@@ -1,9 +1,7 @@
 import React, { Component } from 'react';
 
 import base, { basePropTypes } from '../base';
-import Styles from '../../../../styles';
-
-const { color } = Styles;
+import color from '../../../../styles/colors';
 
 export class User extends Component {
   static propTypes = {
@@ -26,7 +24,7 @@ export class User extends Component {
   };
 
   render () {
-    const { alt, style, variant } = this.props;
+    const { alt, style, variant, className } = this.props;
     const iconVariant = User.variants[variant];
 
     if (variant === 'circle') {
@@ -40,6 +38,7 @@ export class User extends Component {
           xmlnsXlink="http://www.w3.org/1999/xlink"
           alt={alt}
           style={style}
+          className={className}
         >
           <g stroke="none" strokeWidth="1" fill="none" fillRule="evenodd">
             <g transform="translate(-672.000000, -519.000000)" fill={iconVariant.fill} stroke={iconVariant.border}>

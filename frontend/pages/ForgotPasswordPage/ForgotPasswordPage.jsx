@@ -2,7 +2,6 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { noop } from 'lodash';
 
-import componentStyles from './styles';
 import {
   clearForgotPasswordErrors,
   forgotPasswordAction,
@@ -38,26 +37,21 @@ export class ForgotPasswordPage extends Component {
   renderContent = () => {
     const { clearErrors } = this;
     const { email, error } = this.props;
-    const {
-      emailSentButtonWrapperStyles,
-      emailSentIconStyles,
-      emailSentTextStyles,
-      emailSentTextWrapperStyles,
-      emailTextStyles,
-    } = componentStyles;
+
+    const baseClass = 'forgot-password';
 
     if (email) {
       return (
         <div>
-          <div style={emailSentTextWrapperStyles}>
-            <p style={emailSentTextStyles}>
+          <div className={`${baseClass}__text-wrapper`}>
+            <p className={`${baseClass}__text`}>
               An email was sent to
-              <span style={emailTextStyles}> {email}</span>.
+              <span className={`${baseClass}__email`}> {email}</span>.
                Click the link on the email to proceed with the password reset process.
             </p>
           </div>
-          <div style={emailSentButtonWrapperStyles}>
-            <Icon name="check" style={emailSentIconStyles} />
+          <div className={`${baseClass}__button`}>
+            <Icon name="check" className={`${baseClass}__icon`} />
             EMAIL SENT
           </div>
         </div>
@@ -75,16 +69,13 @@ export class ForgotPasswordPage extends Component {
 
   render () {
     const leadText = 'If you’ve forgotten your password enter your email below and we will email you a link so that you can reset your password.';
-    const whiteBoxOverrideStyles = {
-      headerWrapper: { textAlign: 'left' },
-    };
 
     return (
       <StackedWhiteBoxes
         headerText="Forgot Password"
         leadText={leadText}
         previousLocation="/login"
-        style={whiteBoxOverrideStyles}
+        className="forgot-password__header"
       >
         {this.renderContent()}
       </StackedWhiteBoxes>

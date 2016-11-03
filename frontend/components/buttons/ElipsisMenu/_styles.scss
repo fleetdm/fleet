@@ -1,0 +1,26 @@
+.ellipsis-menu {
+  @include user-select(none);
+  display: inline-block;
+  position: absolute;
+
+  &__btn {
+    color: $text-dark;
+    font-size: $medium;
+    font-weight: $bold;
+    letter-spacing: -1px;
+  }
+
+  &__triangle {
+    position: absolute;
+    top: -22px;
+    z-index: 1;
+
+    &--left {
+      left: -218px;
+    }
+
+    &--right {
+      right: -218px;
+    }
+  }
+}

@@ -1,0 +1,4 @@
+.auth-form-wrapper {
+  @include display(flex);
+  @include flex-direction(column);
+}

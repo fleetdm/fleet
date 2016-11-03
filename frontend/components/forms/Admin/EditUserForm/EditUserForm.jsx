@@ -1,16 +1,11 @@
 import React, { Component, PropTypes } from 'react';
-import radium from 'radium';
 
 import Avatar from '../../../Avatar';
-import { avatarStyles } from '../../../../pages/Admin/UserManagementPage/UserBlock/styles';
 import Button from '../../../buttons/Button';
-import componentStyles from './styles';
 import InputField from '../../fields/InputField';
-import Styleguide from '../../../../styles';
 import userInterface from '../../../../interfaces/user';
 
 const baseClass = 'edit-user-form';
-const { color } = Styleguide;
 
 class EditUserForm extends Component {
   static propTypes = {
@@ -51,14 +46,6 @@ class EditUserForm extends Component {
   }
 
   render () {
-    const {
-      avatarWrapperStyles,
-      buttonWrapperStyles,
-      formWrapperStyles,
-      inputStyles,
-      inputWrapperStyles,
-      labelStyles,
-    } = componentStyles;
     const { user } = this.props;
     const {
       email,
@@ -69,47 +56,47 @@ class EditUserForm extends Component {
     const { onFormSubmit, onInputChange } = this;
 
     return (
-      <form style={formWrapperStyles} onSubmit={onFormSubmit}>
+      <form className={baseClass} onSubmit={onFormSubmit}>
         <InputField
           defaultValue={name}
           label="name"
-          labelStyles={labelStyles}
+          labelClassName={`${baseClass}__label`}
           name="name"
           onChange={onInputChange('name')}
-          inputWrapperStyles={inputWrapperStyles}
-          style={inputStyles}
+          inputWrapperClass={`${baseClass}__input-wrap ${baseClass}__input-wrap--first`}
+          inputClassName={`${baseClass}__input`}
         />
-        <div style={avatarWrapperStyles}>
-          <Avatar user={user} style={avatarStyles} />
+        <div className={`${baseClass}__avatar-wrap`}>
+          <Avatar user={user} className="user-block__avatar" />
         </div>
         <InputField
           defaultValue={username}
           label="username"
-          labelStyles={labelStyles}
+          labelClassName={`${baseClass}__label`}
           name="username"
           onChange={onInputChange('username')}
-          inputWrapperStyles={{ marginTop: 0 }}
-          style={[inputStyles, { color: color.brand }]}
+          inputWrapperClass={`${baseClass}__input-wrap`}
+          inputClassName={`${baseClass}__input ${baseClass}__input--username`}
         />
         <InputField
           defaultValue={position}
           label="position"
-          labelStyles={labelStyles}
+          labelClassName={`${baseClass}__label`}
           name="position"
           onChange={onInputChange('position')}
-          inputWrapperStyles={{ marginTop: 0 }}
-          style={inputStyles}
+          inputWrapperClass={`${baseClass}__input-wrap`}
+          inputClassName={`${baseClass}__input`}
         />
         <InputField
           defaultValue={email}
-          inputWrapperStyles={{ marginTop: 0 }}
+          inputWrapperClass={`${baseClass}__input-wrap`}
           label="email"
-          labelStyles={labelStyles}
+          labelClassName={`${baseClass}__label`}
           name="email"
           onChange={onInputChange('email')}
-          style={[inputStyles, { color: color.link }]}
+          inputClassName={`${baseClass}__input ${baseClass}__input--email`}
         />
-        <div style={buttonWrapperStyles}>
+        <div className={`${baseClass}__btn-wrap`}>
           <Button
             className={`${baseClass}__form-btn`}
             text="Submit"
@@ -127,4 +114,4 @@ class EditUserForm extends Component {
   }
 }
 
-export default radium(EditUserForm);
+export default EditUserForm;

@@ -1,27 +1,12 @@
 import React, { PropTypes } from 'react';
 import { noop } from 'lodash';
-import radium from 'radium';
 
-import componentStyles from './styles';
 import ElipsisMenu from '../../../components/buttons/ElipsisMenu';
 import hostInterface from '../../../interfaces/host';
 import { humanMemory, humanUptime, platformIconClass } from './helpers';
 
-const {
-  containerStyles,
-  contentSeparatorStyles,
-  disableIconStyles,
-  elipsisChildItemStyles,
-  elipsisChidrenWrapperStyles,
-  elipsisPositionStyles,
-  hostContentItemStyles,
-  hostnameStyles,
-  iconStyles,
-  monoStyles,
-  queryIconStyles,
-  statusStyles,
-  verticleRuleStyles,
-} = componentStyles;
+const baseClass = 'host-details';
+
 export const STATUSES = {
   online: 'ONLINE',
   offline: 'OFFLINE',
@@ -40,52 +25,52 @@ const HostDetails = ({ host, onQueryClick = noop, onDisableClick = noop }) => {
   } = host;
 
   return (
-    <div style={containerStyles(status)}>
-      <ElipsisMenu positionStyles={elipsisPositionStyles}>
-        <div style={elipsisChidrenWrapperStyles}>
-          <button className="btn--unstyled" onClick={onQueryClick(host)} style={elipsisChildItemStyles}>
-            <i className="kolidecon-query" style={queryIconStyles} />
+    <div className={`${baseClass} ${baseClass}--${status}`}>
+      <ElipsisMenu positionStyles={{ top: '-3px', right: '10px' }}>
+        <div className={`${baseClass}__ellipsis-children`}>
+          <button className={`${baseClass}__ellipsis-child-item button button__unstyled`} onClick={onQueryClick(host)}>
+            <i className={`${baseClass}__query-icon kolidecon-query`} />
             <div>Query</div>
           </button>
-          <div style={verticleRuleStyles} />
-          <button className="btn--unstyled" onClick={onDisableClick(host)} style={elipsisChildItemStyles}>
-            <i className="kolidecon-ex" style={disableIconStyles} />
+          <div className={`${baseClass}__vertical-separator`} />
+          <button className={`${baseClass}__ellipsis-child-item button button__unstyled`} onClick={onDisableClick(host)}>
+            <i className={`${baseClass}__disabled-icon kolidecon-ex`} />
             <div>Disable</div>
           </button>
         </div>
       </ElipsisMenu>
-      <div style={statusStyles(status)}>
+      <div className={`${baseClass}__status ${baseClass}__status--${status}`}>
         {status}
       </div>
-      <p style={hostnameStyles}>{hostname}</p>
-      <div style={contentSeparatorStyles}>
+      <p className={`${baseClass}__hostname`}>{hostname}</p>
+      <div className={`${baseClass}__separator`}>
         <div>
-          <i className={platformIconClass(platform)} style={iconStyles} />
-          <span style={hostContentItemStyles}>{osVersion}</span>
+          <i className={`${baseClass}__icon ${platformIconClass(platform)}`} />
+          <span className={`${baseClass}__host-content`}>{osVersion}</span>
         </div>
         <div>
-          <span style={[hostContentItemStyles, { textTransform: 'capitalize' }]}>{platform}</span>
+          <span className={`${baseClass}__host-content ${baseClass}__host-content--caps`}>{platform}</span>
         </div>
         <div>
           <span style={{ marginRight: '8px' }}>
-            <i className="kolidecon-memory" style={iconStyles} />
-            <span style={hostContentItemStyles}>{humanMemory(memory)}</span>
+            <i className={`${baseClass}__icon kolidecon-memory`} />
+            <span className={`${baseClass}__host-content`}>{humanMemory(memory)}</span>
           </span>
-          <i className="kolidecon-uptime" style={iconStyles} />
-          <span style={hostContentItemStyles}>{humanUptime(uptime)}</span>
+          <i className={`${baseClass}__icon kolidecon-uptime`} />
+          <span className={`${baseClass}__host-content`}>{humanUptime(uptime)}</span>
         </div>
         <div>
-          <i className="kolidecon-mac" style={iconStyles} />
-          <span style={[hostContentItemStyles, monoStyles]}>{mac}</span>
+          <i className={`${baseClass}__icon kolidecon-mac`} />
+          <span className={`${baseClass}__host-content ${baseClass}__host-content--mono`}>{mac}</span>
         </div>
         <div>
-          <i className="kolidecon-world" style={iconStyles} />
-          <span style={[hostContentItemStyles, monoStyles]}>{ip}</span>
+          <i className={`${baseClass}__icon kolidecon-world`} />
+          <span className={`${baseClass}__host-content ${baseClass}__host-content--mono`}>{ip}</span>
         </div>
       </div>
-      <div style={contentSeparatorStyles}>
+      <div className={`${baseClass}__separator`}>
         <div>
-          <span style={[hostContentItemStyles, { textTransform: 'capitalize' }]}>Tags go here</span>
+          <span className={`${baseClass}__host-content ${baseClass}__host-content--caps`}>Tags go here</span>
         </div>
       </div>
     </div>
@@ -98,4 +83,4 @@ HostDetails.propTypes = {
   onQueryClick: PropTypes.func,
 };
 
-export default radium(HostDetails);
+export default HostDetails;

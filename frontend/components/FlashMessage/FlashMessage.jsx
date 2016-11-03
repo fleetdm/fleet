@@ -1,19 +1,12 @@
 import React, { PropTypes } from 'react';
-import radium from 'radium';
 
-import componentStyles from './styles';
 import { hideFlash } from '../../redux/nodes/notifications/actions';
 import notificationInterface from '../../interfaces/notification';
 
+const baseClass = 'flash-message';
+
 const FlashMessage = ({ notification, dispatch }) => {
   const { alertType, isVisible, message, undoAction } = notification;
-  const {
-    containerStyles,
-    contentStyles,
-    flashActionStyles,
-    removeFlashMessageStyles,
-    undoStyles,
-  } = componentStyles;
 
   const submitUndoAction = () => {
     dispatch(undoAction);
@@ -31,24 +24,22 @@ const FlashMessage = ({ notification, dispatch }) => {
   }
 
   return (
-    <div style={containerStyles(alertType)}>
-      <div style={contentStyles}>
+    <div className={`${baseClass} ${baseClass}--${alertType}`}>
+      <div className={`${baseClass}__content`}>
         {message}
       </div>
-      <div style={flashActionStyles}>
+      <div className={`${baseClass}__action`}>
         <button
-          className="btn--unstyled"
+          className={`${baseClass}__undo button button__unstyled`}
           onClick={submitUndoAction}
-          style={undoStyles}
         >
           {undoAction && 'undo'}
         </button>
         <button
-          className="btn--unstyled"
+          className={`${baseClass}__remove ${baseClass}__remove--${alertType} button button__unstyled`}
           onClick={removeFlashMessage}
-          style={removeFlashMessageStyles(alertType)}
         >
-          x
+          &times;
         </button>
       </div>
     </div>
@@ -60,4 +51,4 @@ FlashMessage.propTypes = {
   notification: notificationInterface,
 };
 
-export default radium(FlashMessage);
+export default FlashMessage;

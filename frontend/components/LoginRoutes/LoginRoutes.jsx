@@ -4,7 +4,6 @@ import { RouteTransition } from 'react-router-transition';
 
 import { hideBackgroundImage, showBackgroundImage } from '../../redux/nodes/app/actions';
 import LoginPage from '../../pages/LoginPage';
-import componentStyles from './styles';
 import redirectLocationInterface from '../../interfaces/redirect_location';
 
 
@@ -28,11 +27,10 @@ export class LoginRoutes extends Component {
   }
 
   render () {
-    const { containerStyles } = componentStyles;
     const { children, location: { pathname } } = this.props;
 
     return (
-      <div style={containerStyles}>
+      <div className="login-routes">
         <LoginPage pathname={pathname} />
         <RouteTransition
           pathname={pathname}

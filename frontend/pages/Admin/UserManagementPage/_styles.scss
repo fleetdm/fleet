@@ -1,0 +1,38 @@
+.user-management {
+  background-color: $white;
+  min-height: 100px;
+  padding-bottom: 190px;
+  padding-right: $pad-most;
+  padding-top: $pad-base;
+
+  &__user-count {
+    border-bottom: 1px solid $border-medium;
+    color: $text-medium;
+    display: inline-block;
+    font-size: $large;
+    margin-left: $pad-most;
+    padding-bottom: $pad-half;
+    width: 260px;
+  }
+
+  &__add-user-wrap {
+    float: right;
+  }
+
+  &__add-user-btn {
+    height: 38px;
+    letter-spacing: normal;
+    margin-top: 0;
+    margin-left: $pad-half;
+    padding-bottom: 0;
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 0;
+    width: 145px;
+  }
+
+  &__users {
+    display: flex;
+    flex-wrap: wrap;
+  }
+}

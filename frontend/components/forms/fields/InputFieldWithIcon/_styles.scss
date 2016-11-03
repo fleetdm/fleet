@@ -1,0 +1,66 @@
+.input-icon-field {
+  margin-top: $pad-base;
+  position: relative;
+  width: 100%;
+
+  &__icon {
+    position: absolute;
+    right: 6px;
+    top: 28px;
+    font-size: 20px;
+    color: $accent-text;
+
+    &--active {
+      color: $brand;
+    }
+
+    &--error {
+      color: $alert;
+    }
+  }
+
+  &__input {
+    border-left: 0;
+    border-right: 0;
+    border-top: 0;
+    border-bottom-width: 2px;
+    font-size: 20px;
+    border-bottom-style: solid;
+    border-bottom-color: $brand-ultralight;
+    color: $accent-text;
+    padding-right: 30px;
+    opacity: 1;
+    text-indent: 1px;
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
+
+    &:focus {
+      outline: none;
+    }
+
+    &--error {
+      border-bottom-color: $alert;
+    }
+
+    &--password {
+      letter-spacing: 7px;
+    }
+  }
+
+  &__label {
+    color: $brand;
+    font-size: $small;
+    text-transform: lowercase;
+
+    &--hidden {
+      visibility: hidden;
+    }
+  }
+
+  &__errors {
+    color: $alert;
+    font-size: $small;
+    text-transform: lowercase;
+  }
+}

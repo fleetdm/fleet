@@ -1,4 +1,39 @@
 .logout-form {
+  @include align-self(center);
+  box-shadow: 0 5px 30px 0 rgba($black, 0.3);
+  width: 460px;
+
+  &__container {
+    @include display(flex);
+    @include align-items(center);
+    @include flex-direction(column);
+    background-color: $white;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    box-sizing: border-box;
+    padding: 30px;
+    width: 460px;
+    min-height: 350px;
+  }
+
+  &__avatar {
+    border: 1px solid $brand;
+    border-radius: 50%;
+  }
+
+  &__username {
+    color: $brand;
+    font-size: $large;
+    margin: $pad-half 0;
+    text-transform: uppercase;
+  }
+
+  &__subtext {
+    color: $text-light;
+    font-size: $medium;
+    margin-top: $pad-half;
+  }
+
   &__submit-btn {
     width: 460px;
   }

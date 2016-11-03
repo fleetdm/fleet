@@ -1,8 +1,8 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { map, noop } from 'lodash';
+import classnames from 'classnames';
 
-import componentStyles from './styles';
 import { copyText } from './helpers';
 import Icon from '../../../components/icons/Icon';
 import { renderFlash } from '../../../redux/nodes/notifications/actions';
@@ -11,6 +11,8 @@ const HOST_TABS = {
   FIRST: 'What Does This Script Do?',
   SECOND: 'Additional Script Options',
 };
+
+const baseClass = 'new-host';
 
 export class NewHostPage extends Component {
   static propTypes = {
@@ -103,60 +105,52 @@ export class NewHostPage extends Component {
   }
 
   renderHostTabHeaders = () => {
-    const { hostTabHeaderStyles } = componentStyles;
     const { selectedTab } = this.state;
     const { onSetActiveTab } = this;
 
     return map(HOST_TABS, (tab) => {
       const selected = selectedTab === tab;
+      const hostTabHeaderClass = classnames(
+        `${baseClass}__tab-header`,
+        { [`${baseClass}__tab-header--selected`]: selected }
+      );
 
-      return <button className="btn--unstyled" onClick={onSetActiveTab(tab)} key={tab} style={hostTabHeaderStyles(selected)}>{tab}</button>;
+      return <button className={`button button__unstyled ${hostTabHeaderClass}`} onClick={onSetActiveTab(tab)} key={tab}>{tab}</button>;
     });
   }
 
   render () {
-    const {
-      clipboardIconStyles,
-      clipboardTextStyles,
-      headerStyles,
-      inputStyles,
-      textStyles,
-      scriptInfoWrapperStyles,
-      selectedTabContentStyles,
-      sectionWrapperStyles,
-    } = componentStyles;
     const { method1Text, method1TextCopied, method2Text, method2TextCopied } = this.state;
     const { onCopyText, renderHostTabContent, renderHostTabHeaders } = this;
-    const method2HeaderStyles = { ...headerStyles, width: '626px' };
 
     return (
-      <div>
-        <div style={sectionWrapperStyles}>
-          <p style={headerStyles}>Method 1 - One Liner</p>
-          <div style={{ position: 'relative' }}>
-            <input id="method1" style={inputStyles} value={method1Text} readOnly />
-            {method1TextCopied && <span style={clipboardTextStyles}>copied!</span>}
-            <Icon name="clipboard" onClick={onCopyText(method1Text, '#method1')} style={clipboardIconStyles} variant={method1TextCopied ? 'copied' : 'default'} />
+      <div className={baseClass}>
+        <div className={`${baseClass}__section-wrap`}>
+          <p className={`${baseClass}__title`}>Method 1 - One Liner</p>
+          <div className={`${baseClass}__input-wrap`}>
+            <input id="method1" className={`${baseClass}__input`} value={method1Text} readOnly />
+            {method1TextCopied && <span className={`${baseClass}__clipboard-text`}>copied!</span>}
+            <Icon name="clipboard" onClick={onCopyText(method1Text, '#method1')} className={`${baseClass}__clipboard-icon`} variant={method1TextCopied ? 'copied' : 'default'} />
           </div>
-          <div style={scriptInfoWrapperStyles}>
+          <div className={`${baseClass}__tab-wrap`}>
             {renderHostTabHeaders()}
-            <div style={selectedTabContentStyles}>
+            <div className={`${baseClass}__tab-body`}>
               {renderHostTabContent()}
             </div>
           </div>
         </div>
-        <div style={sectionWrapperStyles}>
-          <p style={method2HeaderStyles}>Method 2 - Your osqueryd with Kolide config</p>
-          <div style={{ position: 'relative' }}>
-            <input id="method2" style={inputStyles} value={method2Text} readOnly />
-            {method2TextCopied && <span style={clipboardTextStyles}>copied!</span>}
-            <Icon name="clipboard" onClick={onCopyText(method2Text, '#method2')} style={clipboardIconStyles} variant={method2TextCopied ? 'copied' : 'default'} />
+        <div className={`${baseClass}__section-wrap`}>
+          <p className={`${baseClass}__title ${baseClass}__title--wide`}>Method 2 - Your osqueryd with Kolide config</p>
+          <div className={`${baseClass}__input-wrap`}>
+            <input id="method2" className={`${baseClass}__input`} value={method2Text} readOnly />
+            {method2TextCopied && <span className={`${baseClass}__clipboard-text`}>copied!</span>}
+            <Icon name="clipboard" onClick={onCopyText(method2Text, '#method2')} className={`${baseClass}__clipboard-icon`} variant={method2TextCopied ? 'copied' : 'default'} />
           </div>
-          <p style={textStyles}>This method allows you to configure an existing osqueryd installation to work with Kolide. The <span style={{ color: '#AE6DDf', fontFamily: 'SourceCodePro, Oxygen' }}>--config_endpoints</span> flag allows us to point your osqueryd installation to your Kolide configuration.</p>
+          <p className={`${baseClass}__text`}>This method allows you to configure an existing osqueryd installation to work with Kolide. The <code>--config_endpoints</code> flag allows us to point your osqueryd installation to your Kolide configuration.</p>
         </div>
-        <div style={sectionWrapperStyles}>
-          <p style={headerStyles}>Method 3 - Need More Methods?</p>
-          <p style={textStyles}>Many IT automation frameworks offer direct recipes and scripts for deploying osquery. Choose a method below to learn more.</p>
+        <div className={`${baseClass}__section-wrap`}>
+          <p className={`${baseClass}__title`}>Method 3 - Need More Methods?</p>
+          <p className={`${baseClass}__text`}>Many IT automation frameworks offer direct recipes and scripts for deploying osquery. Choose a method below to learn more.</p>
         </div>
       </div>
     );

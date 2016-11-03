@@ -2,8 +2,8 @@
 files:
   include: 'frontend/**/*.s+(a|c)ss'
   ignore:
-    - 'frontend/styles/stylesheets/fonts.scss'
-    - 'frontend/styles/stylesheets/icons.scss'
+    - 'frontend/styles/_fonts.scss'
+    - 'frontend/styles/_icons.scss'
 options:
   formatter: stylish
   merge-default-rules: false
@@ -53,8 +53,7 @@ rules:
     - 1
     - size: 2
   leading-zero:
-    - 1
-    - include: true
+    - 0
   mixin-name-format:
     - 1
     - convention: '^[\-_a-z]+$'

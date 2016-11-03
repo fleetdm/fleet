@@ -1,9 +1,7 @@
 import React, { Component } from 'react';
 
 import base, { basePropTypes } from '../base';
-import Styles from '../../../../styles';
-
-const { color } = Styles;
+import color from '../../../../styles/colors';
 
 class Lock extends Component {
   static propTypes = {
@@ -26,7 +24,7 @@ class Lock extends Component {
   };
 
   render () {
-    const { alt, style, variant } = this.props;
+    const { alt, style, variant, className } = this.props;
     const iconVariant = Lock.variants[variant];
 
     return (
@@ -39,6 +37,7 @@ class Lock extends Component {
         xmlnsXlink="http://www.w3.org/1999/xlink"
         alt={alt}
         style={style}
+        className={className}
       >
         <g stroke="none" strokeWidth="1" fill="none" fillRule="evenodd">
           <g transform="translate(-671.000000, -594.000000)" stroke={iconVariant.border}>

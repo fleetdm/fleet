@@ -1,0 +1,10 @@
+.secondary-side-panel-container {
+  @include position(fixed, 0 0 0 null);
+  background-color: $white;
+  border-left: 1px solid $border-medium;
+  box-shadow: 2px 0 8px 0 rgba($black, 0.1);
+  box-sizing: border-box;
+  overflow: scroll;
+  padding: $pad-small $pad-small 70px;
+  width: 300px;
+}

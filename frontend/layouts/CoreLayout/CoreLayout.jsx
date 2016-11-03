@@ -1,8 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { StyleRoot } from 'radium';
+import classnames from 'classnames';
 
-import componentStyles from './styles';
 import configInterface from '../../interfaces/config';
 import FlashMessage from '../../components/FlashMessage';
 import SiteNavSidePanel from '../../components/side_panels/SiteNavSidePanel';
@@ -21,24 +20,27 @@ export class CoreLayout extends Component {
 
   render () {
     const { children, config, dispatch, notifications, showRightSidePanel, user } = this.props;
-    const { wrapperStyles } = componentStyles;
+    const wrapperClass = classnames(
+      'core-wrapper',
+      { 'core-wrapper--show-panel': showRightSidePanel }
+    );
 
     if (!user) return false;
 
     const { pathname } = global.window.location;
 
     return (
-      <StyleRoot>
+      <div>
         <SiteNavSidePanel
           config={config}
           pathname={pathname}
           user={user}
         />
-        <div style={wrapperStyles(showRightSidePanel)}>
+        <div className={wrapperClass}>
           <FlashMessage notification={notifications} dispatch={dispatch} />
           {children}
         </div>
-      </StyleRoot>
+      </div>
     );
   }
 }

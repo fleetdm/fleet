@@ -1,7 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 
-import componentStyles from './styles';
 import entityGetter from '../../../redux/utilities/entityGetter';
 import hostActions from '../../../redux/nodes/entities/hosts/actions';
 import HostDetails from '../../../components/hosts/HostDetails';
@@ -51,11 +50,10 @@ class ManageHostsPage extends Component {
   }
 
   render () {
-    const { containerStyles } = componentStyles;
     const { renderHosts } = this;
 
     return (
-      <div style={containerStyles}>
+      <div className="manage-hosts">
         {renderHosts()}
       </div>
     );

@@ -1,4 +1,20 @@
 .invite-user-form {
+  &__radio {
+    padding-bottom: $pad-base;
+  }
+
+  &__role {
+    color: $brand;
+    font-size: $mini;
+    margin-bottom: 0;
+  }
+
+  &__btn-wrap {
+    @include display(flex);
+    @include flex-direction(row-reverse);
+    @include justify-content(space-between);
+  }
+
   &__btn {
     font-size: $small;
     height: 38px;

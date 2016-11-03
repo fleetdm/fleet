@@ -1,0 +1,34 @@
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+  color: $text-ultradark;
+  padding: 0;
+  margin: 0;
+  font-family: 'Oxygen', sans-serif;
+  font-size: $base;
+  line-height: 1.6;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+}
+
+.wrapper {
+  background: $bg-medium;
+  margin:  0 0 $footer-height;
+  min-height: calc(100vh - #{$footer-height});
+
+  &--background {
+    background: url('/assets/images/background.png') center center;
+    background-size: cover;
+  }
+}
+
+.cf {
+  @include clearfix;
+}

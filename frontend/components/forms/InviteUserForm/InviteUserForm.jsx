@@ -1,7 +1,5 @@
 import React, { Component, PropTypes } from 'react';
-import radium from 'radium';
 
-import componentStyles from './styles';
 import Button from '../../buttons/Button';
 import InputFieldWithIcon from '../fields/InputFieldWithIcon';
 import userInterface from '../../../interfaces/user';
@@ -118,7 +116,6 @@ class InviteUserForm extends Component {
   }
 
   render () {
-    const { buttonWrapperStyles, radioElementStyles, roleTitleStyles } = componentStyles;
     const { errors, formData: { admin } } = this.state;
     const { onCancel } = this.props;
     const { onFormSubmit, onInputChange } = this;
@@ -138,8 +135,8 @@ class InviteUserForm extends Component {
           onChange={onInputChange('email')}
           placeholder="Email"
         />
-        <div style={radioElementStyles}>
-          <p style={roleTitleStyles}>role</p>
+        <div className={`${baseClass}__radio`}>
+          <p className={`${baseClass}__role`}>role</p>
           <input
             checked={admin === 'false'}
             onChange={onInputChange('admin')}
@@ -154,7 +151,7 @@ class InviteUserForm extends Component {
             value="true"
           /> ADMIN
         </div>
-        <div style={buttonWrapperStyles}>
+        <div className={`${baseClass}__btn-wrap`}>
           <Button
             className={`${baseClass}__btn`}
             text="Invite"
@@ -173,4 +170,4 @@ class InviteUserForm extends Component {
   }
 }
 
-export default radium(InviteUserForm);
+export default InviteUserForm;

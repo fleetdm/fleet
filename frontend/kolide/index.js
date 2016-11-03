@@ -74,9 +74,7 @@ class Kolide extends Base {
       .then((response) => { return response.hosts; });
   }
 
-  getTargets = (options = {}) => {
-    console.log(options);
-
+  getTargets = () => {
     const stubbedResponse = {
       targets: {
         hosts: [

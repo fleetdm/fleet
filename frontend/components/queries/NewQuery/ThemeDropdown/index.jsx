@@ -1,5 +1,4 @@
 import React, { PropTypes } from 'react';
-import radium from 'radium';
 import 'brace/mode/sql';
 import 'brace/theme/dreamweaver';
 import 'brace/theme/cobalt';
@@ -18,14 +17,11 @@ import 'brace/theme/solarized_light';
 import 'brace/theme/sqlserver';
 import 'brace/theme/tomorrow';
 
-import componentStyles from './styles';
-
 const ThemeDropdown = ({ onSelectChange, theme }) => {
-  const { themeDropdownStyles } = componentStyles;
   return (
-    <div style={themeDropdownStyles}>
+    <div className="theme-dropdown">
       <span style={{ fontSize: '10px' }}>Editor Theme:</span>
-      <select onChange={onSelectChange} style={themeDropdownStyles} value={theme}>
+      <select onChange={onSelectChange} className="theme-dropdown" value={theme}>
         <option value="kolide">Kolide</option>
         <option value="dreamweaver">Dreamweaver</option>
         <option value="cobalt">Cobalt</option>
@@ -53,4 +49,4 @@ ThemeDropdown.propTypes = {
   theme: PropTypes.string,
 };
 
-export default radium(ThemeDropdown);
+export default ThemeDropdown;

@@ -1,6 +1,5 @@
 import React, { Component, PropTypes } from 'react';
 
-import componentStyles from './styles';
 import Button from '../../buttons/Button';
 import InputFieldWithIcon from '../fields/InputFieldWithIcon';
 import validatePresence from '../validators/validate_presence';
@@ -104,15 +103,11 @@ class ResetPasswordForm extends Component {
 
   render () {
     const { errors } = this.state;
-    const {
-      buttonStyles,
-      formStyles,
-      inputStyles,
-    } = componentStyles;
     const { onFormSubmit, onInputChange } = this;
+    const baseClass = 'reset-password-form';
 
     return (
-      <form onSubmit={onFormSubmit} style={formStyles}>
+      <form onSubmit={onFormSubmit} className={baseClass}>
         <InputFieldWithIcon
           autofocus
           error={errors.new_password}
@@ -120,7 +115,7 @@ class ResetPasswordForm extends Component {
           name="new_password"
           onChange={onInputChange('new_password')}
           placeholder="New Password"
-          style={inputStyles}
+          className={`${baseClass}__input`}
           type="password"
         />
         <InputFieldWithIcon
@@ -129,12 +124,12 @@ class ResetPasswordForm extends Component {
           name="new_password_confirmation"
           onChange={onInputChange('new_password_confirmation')}
           placeholder="Confirm Password"
-          style={inputStyles}
+          className={`${baseClass}__input`}
           type="password"
         />
         <Button
           onClick={onFormSubmit}
-          style={buttonStyles}
+          className={`${baseClass}__btn`}
           text="Reset Password"
           type="submit"
           variant="gradient"

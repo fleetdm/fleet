@@ -1,0 +1,62 @@
+.stacked-white-boxes {
+  @include display(flex);
+  @include align-items(center);
+  @include justify-content(center);
+  @include flex-direction(column);
+
+  &__box {
+    background-color: $white;
+    border-radius: 4px;
+    box-shadow: 0 0 30px 0 rgba($black, 0.3);
+    min-height: 402px;
+    box-sizing: border-box;
+    padding: 30px;
+    width: 524px;
+    font-weight: 300;
+    position: absolute;
+    top: -385px;
+    z-index: 2;
+  }
+
+  &__text {
+    color: $text-ultradark;
+    font-size: $medium;
+    line-height: 30px;
+    letter-spacing: 0.64px;
+  }
+}
+
+.stacked-box-header {
+  width: 100%;
+
+  &__text {
+    font-family: 'Oxygen', sans-serif;
+    font-size: $large;
+    font-weight: 300;
+    color: $text-ultradark;
+    line-height: 32px;
+    margin-top: 0;
+    margin-bottom: 0;
+    text-transform: uppercase;
+  }
+}
+
+.stack-box-back {
+  text-align: right;
+  width: 100%;
+
+  &__link {
+    @include transition(color 150ms ease-in-out);
+    color: $text-light;
+    text-decoration: none;
+    position: absolute;
+    top: 30px;
+    right: 30px;
+    cursor: pointer;
+    font-weight: bold;
+
+    &:hover {
+      color: $brand-light;
+    }
+  }
+}

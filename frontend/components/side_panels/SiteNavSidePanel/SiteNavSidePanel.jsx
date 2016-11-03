@@ -1,11 +1,10 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { isEqual, last } from 'lodash';
+import { isEqual } from 'lodash';
 import { push } from 'react-router-redux';
-import radium, { StyleRoot } from 'radium';
+import classnames from 'classnames';
 
 import { activeTabFromPathname, activeSubTabFromPathname } from './helpers';
-import componentStyles from './styles';
 import configInterface from '../../../interfaces/config';
 import kolideLogo from '../../../../assets/images/kolide-logo.svg';
 import navItems from './navItems';
@@ -105,58 +104,57 @@ class SiteNavSidePanel extends Component {
         username,
       },
     } = this.props;
-    const {
-      companyLogoStyles,
-      headerStyles,
-      orgNameStyles,
-      usernameStyles,
-      userStatusStyles,
-      orgChevronStyles,
-    } = componentStyles;
+
+    const headerBaseClass = 'site-nav-header';
+
+    const userStatusClass = classnames(
+      `${headerBaseClass}__user-status`,
+      { [`${headerBaseClass}__user-status--enabled`]: enabled }
+    );
 
     return (
-      <header style={headerStyles}>
+      <header className={headerBaseClass}>
         <img
           alt="Company logo"
           src={kolideLogo}
-          style={companyLogoStyles}
+          className={`${headerBaseClass}__logo`}
         />
-        <h1 style={orgNameStyles}>{orgName}</h1>
-        <div style={userStatusStyles(enabled)} />
-        <h2 style={usernameStyles}>{username}</h2>
-        <i style={orgChevronStyles} className="kolidecon-chevrondownbold" />
+        <h1 className={`${headerBaseClass}__org-name`}>{orgName}</h1>
+        <div className={userStatusClass} />
+        <h2 className={`${headerBaseClass}__username`}>{username}</h2>
+        <i className={`${headerBaseClass}__org-chevron kolidecon-chevrondownbold`} />
       </header>
     );
   }
 
-  renderNavItem = (navItem, lastChild) => {
+  renderNavItem = (navItem) => {
     const { activeTab = {} } = this.state;
     const { icon, name, subItems } = navItem;
     const active = activeTab.name === name;
-    const {
-      iconStyles,
-      navItemBeforeStyles,
-      navItemNameStyles,
-      navItemStyles,
-      navItemWrapperStyles,
-    } = componentStyles;
     const { renderSubItems, setActiveTab } = this;
 
+    const navItemBaseClass = 'site-nav-item';
+
+    const navItemClasses = classnames(
+      `${navItemBaseClass}__item`,
+      { [`${navItemBaseClass}__item--active`]: active }
+    );
+
     return (
-      <div style={navItemWrapperStyles(lastChild)} key={`nav-item-${name}`}>
+      <div className={navItemBaseClass} key={`nav-item-${name}`}>
         <button
-          className="btn--unstyled"
+          className="button button__unstyled"
           onClick={setActiveTab(navItem)}
           style={{ width: '100%' }}
         >
-          {active && <div style={navItemBeforeStyles} />}
+          {active && <div className={`${navItemBaseClass}__active-nav`} />}
           <li
             key={name}
-            style={navItemStyles(active)}
+            className={navItemClasses}
           >
             <div style={{ position: 'relative', textAlign: 'left' }}>
-              <i className={icon} style={iconStyles} />
-              <span style={navItemNameStyles}>
+              <i className={`${navItemBaseClass}__icon ${icon}`} />
+              <span className={`${navItemBaseClass}__name`}>
                 {name}
               </span>
             </div>
@@ -169,14 +167,11 @@ class SiteNavSidePanel extends Component {
 
   renderNavItems = () => {
     const { renderNavItem, userNavItems } = this;
-    const { navItemListStyles } = componentStyles;
-    const { user: { admin } } = this.props;
 
     return (
-      <ul style={navItemListStyles}>
-        {userNavItems.map((navItem, index, collection) => {
-          const lastChild = admin && isEqual(navItem, last(collection));
-          return renderNavItem(navItem, lastChild);
+      <ul className="site-nav-list">
+        {userNavItems.map((navItem) => {
+          return renderNavItem(navItem);
         })}
       </ul>
     );
@@ -187,40 +182,52 @@ class SiteNavSidePanel extends Component {
     const { name, path } = subItem;
     const active = activeSubItem === subItem;
     const { setActiveSubItem } = this;
-    const {
-      subItemBeforeStyles,
-      subItemStyles,
-      subItemLinkStyles,
-    } = componentStyles;
+
+    const baseSubItemClass = 'site-sub-item';
+
+    const baseSubItemItemClass = classnames(
+      `${baseSubItemClass}__item`,
+      { [`${baseSubItemClass}__item--active`]: active }
+    );
+
+    const baseSubItemLinkClass = classnames(
+      `${baseSubItemClass}__link`,
+      { [`${baseSubItemClass}__link--active`]: active }
+    );
 
     return (
       <button
-        className="btn--unstyled"
         key={`sub-item-${name}`}
         onClick={setActiveSubItem(subItem)}
-        style={{ position: 'relative' }}
+        className={`${baseSubItemClass} button button__unstyled`}
       >
-        {active && <div style={subItemBeforeStyles} />}
+        {active && <div className={`${baseSubItemClass}__before`} />}
         <li
           key={name}
-          style={subItemStyles(active)}
+          className={baseSubItemItemClass}
         >
-          <span to={path.location} style={subItemLinkStyles(active)}>{name}</span>
+          <span to={path.location} className={baseSubItemLinkClass}>{name}</span>
         </li>
       </button>
     );
   }
 
   renderSubItems = (subItems) => {
-    const { subItemListStyles, subItemsStyles } = componentStyles;
     const { renderCollapseSubItems, renderSubItem, setSubNavClass } = this;
     const { showSubItems } = this.state;
+
+    const baseSubItemsClass = 'site-sub-items';
+
+    const subItemListClasses = classnames(
+      `${baseSubItemsClass}__list`,
+      { [`${baseSubItemsClass}__list--expanded`]: showSubItems }
+    );
 
     if (!subItems.length) return false;
 
     return (
-      <div className={setSubNavClass(showSubItems)} style={subItemsStyles}>
-        <ul style={subItemListStyles(showSubItems)}>
+      <div className={`${setSubNavClass(showSubItems)} ${baseSubItemsClass}`}>
+        <ul className={subItemListClasses}>
           {subItems.map((subItem) => {
             return renderSubItem(subItem);
           })}
@@ -233,30 +240,29 @@ class SiteNavSidePanel extends Component {
   renderCollapseSubItems = () => {
     const { toggleShowSubItems } = this;
     const { showSubItems } = this.state;
-    const { collapseSubItemsWrapper } = componentStyles;
     const iconName = showSubItems ? 'kolidecon-chevronleftbold' : 'kolidecon-chevronrightbold';
 
     return (
-      <button className="btn--unstyled" style={collapseSubItemsWrapper} onClick={toggleShowSubItems(!showSubItems)}>
+      <button
+        className="button button__unstyled collapse-sub-item"
+        onClick={toggleShowSubItems(!showSubItems)}
+      >
         <i className={iconName} />
       </button>
     );
   }
 
   render () {
-    const { navStyles } = componentStyles;
     const { renderHeader, renderNavItems } = this;
 
     return (
-      <StyleRoot>
-        <nav style={navStyles}>
-          {renderHeader()}
-          {renderNavItems()}
-        </nav>
-      </StyleRoot>
+      <nav className="site-nav">
+        {renderHeader()}
+        {renderNavItems()}
+      </nav>
     );
   }
 }
 
 const ConnectedComponent = connect()(SiteNavSidePanel);
-export default radium(ConnectedComponent);
+export default ConnectedComponent;

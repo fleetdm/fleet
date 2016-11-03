@@ -1,14 +1,22 @@
 import React, { PropTypes } from 'react';
-import radium from 'radium';
-
-import componentStyles from './styles';
+import classnames from 'classnames';
 
 const Slider = ({ onClick, engaged }) => {
-  const { containerStyles, buttonStyles } = componentStyles;
+  const baseClass = 'slider-wrap';
+
+  const sliderBtnClass = classnames(
+    baseClass,
+    { [`${baseClass}--active`]: engaged }
+  );
+
+  const sliderDotClass = classnames(
+    `${baseClass}__dot`,
+    { [`${baseClass}__dot--active`]: engaged }
+  );
 
   return (
-    <button className="btn--unstyled" onClick={onClick} style={containerStyles(engaged)}>
-      <div style={buttonStyles(engaged)} />
+    <button className={`button button__unstyled ${sliderBtnClass}`} onClick={onClick}>
+      <div className={sliderDotClass} />
     </button>
   );
 };
@@ -18,4 +26,4 @@ Slider.propTypes = {
   onClick: PropTypes.func,
 };
 
-export default radium(Slider);
+export default Slider;

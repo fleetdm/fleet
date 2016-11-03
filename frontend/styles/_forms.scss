@@ -1,0 +1,38 @@
+.input-with-icon {
+  @include placeholder {
+    color: $accent-text;
+    opacity: 1;
+  }
+}
+
+.Select {
+  .target-select {
+    .Select-control {
+      padding-bottom: 5px;
+
+      &:focus {
+        outline: none;
+      }
+    }
+
+    .Select-menu-outer,
+    .Select-placeholder {
+      font-size: 14px;
+      line-height: 36px;
+    }
+
+    .Select-option {
+      &.is-focused,
+      &.is-selected {
+        background-color: $accent-light;
+      }
+    }
+
+    .Select-value {
+      background-color: $white;
+      border: 1px solid $accent-dark;
+      box-shadow: 0 3px 0 $accent-light;
+      color: $accent-text;
+    }
+  }
+}

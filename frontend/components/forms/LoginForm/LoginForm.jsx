@@ -1,10 +1,9 @@
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 import { noop } from 'lodash';
-import radium from 'radium';
+import classnames from 'classnames';
 
 import avatar from '../../../../assets/images/avatar.svg';
-import componentStyles from './styles';
 import Button from '../../buttons/Button';
 import InputFieldWithIcon from '../fields/InputFieldWithIcon';
 import paths from '../../../router/paths';
@@ -141,22 +140,18 @@ class LoginForm extends Component {
   }
 
   render () {
-    const {
-      containerStyles,
-      forgotPasswordStyles,
-      forgotPasswordWrapperStyles,
-      formStyles,
-      hideForm,
-    } = componentStyles;
-    const { serverErrors } = this.props;
+    const { serverErrors, isHidden } = this.props;
     const { errors } = this.state;
     const { onInputChange, onFormSubmit } = this;
 
-    const byeFelicia = this.props.isHidden ? hideForm : {};
+    const loginFormClass = classnames(
+      baseClass,
+      { [`${baseClass}--hidden`]: isHidden }
+    );
 
     return (
-      <form onSubmit={onFormSubmit} style={[formStyles, byeFelicia]}>
-        <div style={containerStyles}>
+      <form onSubmit={onFormSubmit} className={loginFormClass}>
+        <div className={`${baseClass}__container`}>
           <img alt="Avatar" src={avatar} />
           <InputFieldWithIcon
             autofocus
@@ -174,8 +169,8 @@ class LoginForm extends Component {
             placeholder="Password"
             type="password"
           />
-          <div style={forgotPasswordWrapperStyles}>
-            <Link style={forgotPasswordStyles} to={paths.FORGOT_PASSWORD}>Forgot Password?</Link>
+          <div className={`${baseClass}__forgot-wrap`}>
+            <Link className={`${baseClass}__forgot-link`} to={paths.FORGOT_PASSWORD}>Forgot Password?</Link>
           </div>
         </div>
         <Button
@@ -190,4 +185,4 @@ class LoginForm extends Component {
   }
 }
 
-export default radium(LoginForm);
+export default LoginForm;

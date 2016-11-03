@@ -1,0 +1,137 @@
+.user-block {
+  @include transition(all 300ms ease-in-out);
+  background-color: $white;
+  border: 0;
+  box-shadow: 0 0 30px 0 rgba($black, 0.3);
+  display: inline-block;
+  height: 390px;
+  margin-left: $pad-most;
+  margin-top: $pad-most;
+  position: relative;
+  width: 239px;
+
+  &--invited {
+    border: 1px dashed $brand;
+  }
+
+  &--disabled {
+    background-color: $bg-medium;
+  }
+
+  &__header {
+    @include transition(all 300ms ease-in-out);
+    background-color: $bg-light;
+    border-bottom: 1px solid $accent-light;
+    color: $text-ultradark;
+    height: 51px;
+    margin-bottom: $pad-half;
+    text-align: center;
+    width: 100%;
+
+    &--admin {
+      background-color: $brand;
+      color: $white;
+    }
+
+    &--user {
+      background-color: $white;
+      color: $text-ultradark;
+    }
+
+    &--disabled {
+      background-color: $text-light;
+      color: $text-ultradark;
+    }
+  }
+
+  &__header-name {
+    line-height: 51px;
+    margin: 0;
+    padding: 0;
+  }
+
+  &__details {
+    padding: 0 $pad-half;
+  }
+
+  &__avatar {
+    @include transition(all 300ms ease-in-out);
+    border: 1px solid $text-medium;
+    filter: none;
+    display: block;
+    margin: 0 auto;
+
+    &--enabled {
+      border: 1px solid $brand;
+    }
+  }
+
+  &__status-wrapper {
+    border-top: 1px solid $border-medium;
+    border-bottom: 1px solid $border-medium;
+    margin-top: $pad-half;
+    padding-top: $pad-half;
+    padding-bottom: $pad-half;
+  }
+
+  &__status-label {
+    @include transition(all 300ms ease-in-out);
+    float: left;
+    font-size: $small;
+    font-weight: $normal;
+
+    &--admin {
+      font-weight: $bold;
+    }
+  }
+
+  &__status-text {
+    @include transition(all 300ms ease-in-out);
+    float: right;
+    font-size: $small;
+    text-transform: uppercase;
+
+    &--invited {
+      color: $brand;
+    }
+
+    &--enabled {
+      color: $success;
+    }
+
+    &--disabled {
+      color: $text-medium;
+    }
+  }
+
+  &__username {
+    @include transition(all 300ms ease-in-out);
+    color: $text-medium;
+    font-size: $medium;
+    text-transform: uppercase;
+
+    &--enabled {
+      color: $brand;
+    }
+  }
+
+  &__position {
+    font-size: $small;
+  }
+
+  &__email {
+    @include transition(all 300ms ease-in-out);
+    color: $link;
+    font-size: $mini;
+
+    &--disabled {
+      color: $text-medium;
+    }
+  }
+}
+
+.revoke-invite {
+  position: absolute;
+  width: 221px;
+  bottom: 43px;
+}

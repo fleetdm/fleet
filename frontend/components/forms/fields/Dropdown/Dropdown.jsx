@@ -1,16 +1,15 @@
 import React, { Component, PropTypes } from 'react';
-import radium from 'radium';
 import { noop } from 'lodash';
 
-import componentStyles from './styles';
 import dropdownOptionInterface from '../../../../interfaces/dropdownOption';
+
+const baseClass = 'kolide-dropdown';
 
 class Dropdown extends Component {
   static propTypes = {
-    selectStyles: PropTypes.object, // eslint-disable-line react/forbid-prop-types
     options: PropTypes.arrayOf(dropdownOptionInterface),
     onSelect: PropTypes.func,
-    containerStyles: PropTypes.object, // eslint-disable-line react/forbid-prop-types
+    className: PropTypes.string,
   };
 
   static defaultProps = {
@@ -29,23 +28,21 @@ class Dropdown extends Component {
 
   renderOption = (option) => {
     const { disabled = false, value, text } = option;
-    const { optionWrapperStyles } = componentStyles;
 
     return (
-      <option key={value} style={optionWrapperStyles} value={value} disabled={disabled}>
+      <option key={value} className={`${baseClass}__option`} value={value} disabled={disabled}>
         {text}
       </option>
     );
   }
 
   render () {
-    const { containerStyles, options, selectStyles } = this.props;
+    const { options, className } = this.props;
     const { onOptionClick, renderOption } = this;
-    const { selectWrapperStyles } = componentStyles;
 
     return (
-      <div className="kolide-dropdown-wrapper" style={containerStyles}>
-        <select className="kolide-dropdown" style={[selectWrapperStyles, selectStyles]} onChange={onOptionClick}>
+      <div className={[`${baseClass}__wrapper ${className}`]}>
+        <select className={baseClass} onChange={onOptionClick}>
           {options.map((option) => {
             return renderOption(option);
           })}
@@ -55,4 +52,4 @@ class Dropdown extends Component {
   }
 }
 
-export default radium(Dropdown);
+export default Dropdown;

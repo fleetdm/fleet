@@ -125,7 +125,7 @@ generate-dev: .prefix
 	go-bindata -debug -pkg=service \
 		-o=server/service/bindata.go \
 		frontend/templates/ assets/...
-	webpack --progress --colors --watch
+	webpack --progress --colors --watch --notify
 
 deps:
 	npm install

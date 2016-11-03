@@ -22,6 +22,7 @@ describe('base - svg HOC', () => {
       name: 'component name',
       onClick: noop,
       variant: 'default',
+      className: '',
     });
   });
 

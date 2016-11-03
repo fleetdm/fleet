@@ -1,0 +1,19 @@
+.logout-page {
+  @include display(flex);
+  @include align-items(center);
+  @include justify-content(center);
+  @include flex-direction(column);
+  position: relative;
+  height: calc(100vh - #{$footer-height});
+
+  &__tab {
+    @include align-self(center);
+    background-color: $white;
+    height: 30px;
+    margin-top: 20px;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    box-shadow: 0 5px 30px 0 rgba($black, 0.3);
+    width: 376px;
+  }
+}

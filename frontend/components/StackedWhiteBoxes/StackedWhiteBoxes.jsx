@@ -1,61 +1,57 @@
 import React, { Component, PropTypes } from 'react';
-import radium from 'radium';
 import { Link } from 'react-router';
-
-import componentStyles from './styles';
+import classnames from 'classnames';
 
 class StackedWhiteBoxes extends Component {
   static propTypes = {
     children: PropTypes.element,
     headerText: PropTypes.string,
+    className: PropTypes.string,
     leadText: PropTypes.string,
     previousLocation: PropTypes.string,
-    style: PropTypes.object, // eslint-disable-line react/forbid-prop-types
-  };
-
-  static defaultProps = {
-    style: {},
   };
 
   renderBackButton = () => {
     const { previousLocation } = this.props;
-    const { exStyles, exWrapperStyles } = componentStyles;
+    const baseClass = 'stack-box-back';
 
     if (!previousLocation) return false;
 
     return (
-      <div style={exWrapperStyles}>
-        <Link style={exStyles} to={previousLocation}>╳</Link>
+      <div className={baseClass}>
+        <Link to={previousLocation} className={`${baseClass}__link`}>╳</Link>
       </div>
     );
   }
 
   renderHeader = () => {
-    const { headerStyles, headerWrapperStyles } = componentStyles;
-    const { headerText, style } = this.props;
+    const { headerText, className } = this.props;
+    const baseClass = 'stacked-box-header';
+
+    const boxHeaderClass = classnames(
+      baseClass,
+      className
+    );
 
     return (
-      <div style={[headerWrapperStyles, style.headerWrapper]}>
-        <p style={headerStyles}>{headerText}</p>
+      <div className={boxHeaderClass}>
+        <p className={`${baseClass}__text`}>{headerText}</p>
       </div>
     );
   }
 
   render () {
     const { children, leadText } = this.props;
-    const {
-      boxStyles,
-      containerStyles,
-      textStyles,
-    } = componentStyles;
     const { renderBackButton, renderHeader } = this;
 
+    const baseClass = 'stacked-white-boxes';
+
     return (
-      <div style={containerStyles}>
-        <div style={boxStyles}>
+      <div className={baseClass}>
+        <div className={`${baseClass}__box`}>
           {renderBackButton()}
           {renderHeader()}
-          <p style={textStyles}>{leadText}</p>
+          <p className={`${baseClass}__text`}>{leadText}</p>
           {children}
         </div>
       </div>
@@ -63,4 +59,4 @@ class StackedWhiteBoxes extends Component {
   }
 }
 
-export default radium(StackedWhiteBoxes);
+export default StackedWhiteBoxes;

@@ -1,8 +1,7 @@
 import React, { Component, PropTypes } from 'react';
-import radium from 'radium';
+import classnames from 'classnames';
 
 import Avatar from '../../../../components/Avatar';
-import componentStyles from './styles';
 import Dropdown from '../../../../components/forms/fields/Dropdown';
 import EditUserForm from '../../../../components/forms/Admin/EditUserForm';
 import userInterface from '../../../../interfaces/user';
@@ -90,14 +89,13 @@ class UserBlock extends Component {
     const { currentUser, invite, user } = this.props;
     const { onUserActionSelect } = this;
     const userActionOptions = UserBlock.userActionOptions(currentUser, user, invite);
-    const { revokeInviteStyles } = componentStyles(user, invite);
 
     return (
       <Dropdown
-        containerStyles={invite ? revokeInviteStyles : {}}
         options={userActionOptions}
         initialOption={{ text: 'Actions...' }}
         onSelect={onUserActionSelect}
+        className={invite ? 'revoke-invite' : ''}
       />
     );
   }
@@ -105,53 +103,83 @@ class UserBlock extends Component {
   render () {
     const { invite, user } = this.props;
     const {
-      avatarStyles,
-      nameStyles,
-      userDetailsStyles,
-      userEmailStyles,
-      userHeaderStyles,
-      userLabelStyles,
-      usernameStyles,
-      userPositionStyles,
-      userStatusStyles,
-      userStatusWrapperStyles,
-      userWrapperStyles,
-    } = componentStyles(user, invite);
-    const {
       admin,
       email,
       name,
       position,
       username,
+      enabled,
     } = user;
     const { isEdit } = this.state;
     const { onEditUserFormSubmit, onToggleEditing, renderCTAs } = this;
     const statusLabel = userStatusLabel(user, invite);
     const userLabel = admin ? 'Admin' : 'User';
 
+    const baseClass = 'user-block';
+
+    const userWrapperClass = classnames(
+      baseClass,
+      { [`${baseClass}--invited`]: invite },
+      { [`${baseClass}--disabled`]: !enabled }
+    );
+
+    const userHeaderClass = classnames(
+      `${baseClass}__header`,
+      { [`${baseClass}__header--admin`]: admin },
+      { [`${baseClass}__header--user`]: !admin },
+      { [`${baseClass}__header--disabled`]: !enabled }
+    );
+
+    const userAvatarClass = classnames(
+      `${baseClass}__avatar`,
+      { [`${baseClass}__avatar--enabled`]: enabled }
+    );
+
+    const userStatusLabelClass = classnames(
+      `${baseClass}__status-label`,
+      { [`${baseClass}__status-label--admin`]: admin }
+    );
+
+    const userStatusTextClass = classnames(
+      `${baseClass}__status-text`,
+      { [`${baseClass}__status-text--invited`]: invite },
+      { [`${baseClass}__status-text--enabled`]: enabled },
+      { [`${baseClass}__status-text--disabled`]: !enabled }
+    );
+
+    const userUsernameClass = classnames(
+      `${baseClass}__username`,
+      { [`${baseClass}__username--enabled`]: enabled }
+    );
+
+    const userEmailClass = classnames(
+      `${baseClass}__email`,
+      { [`${baseClass}__email--disabled`]: !enabled }
+    );
+
     if (isEdit) {
       return (
-        <div style={userWrapperStyles}>
+        <div className={userWrapperClass}>
           <EditUserForm onCancel={onToggleEditing} onSubmit={onEditUserFormSubmit} user={user} />
         </div>
       );
     }
 
     return (
-      <div style={userWrapperStyles}>
-        <div style={userHeaderStyles}>
-          <span style={nameStyles}>{name}</span>
+      <div className={userWrapperClass}>
+        <div className={userHeaderClass}>
+          <span className={`${baseClass}__header-name`}>{name}</span>
         </div>
-        <div style={userDetailsStyles}>
-          <Avatar user={user} style={avatarStyles} />
-          <div style={userStatusWrapperStyles}>
-            <span style={userLabelStyles}>{userLabel}</span>
-            <span style={userStatusStyles}>{statusLabel}</span>
-            <div style={{ clear: 'both' }} />
+        <div className={`${baseClass}__details`}>
+          <Avatar user={user} className={userAvatarClass} />
+          <div className={`${baseClass}__status-wrapper`}>
+            <span className={userStatusLabelClass}>{userLabel}</span>
+            <span className={userStatusTextClass}>{statusLabel}</span>
+            <div className="cf" />
           </div>
-          <p style={usernameStyles}>{username}</p>
-          <p style={userPositionStyles}>{position}</p>
-          <p style={userEmailStyles}>{email}</p>
+          <p className={userUsernameClass}>{username}</p>
+          <p className={`${baseClass}__position`}>{position}</p>
+          <p className={userEmailClass}>{email}</p>
           {renderCTAs()}
         </div>
       </div>
@@ -159,4 +187,4 @@ class UserBlock extends Component {
   }
 }
 
-export default radium(UserBlock);
+export default UserBlock;

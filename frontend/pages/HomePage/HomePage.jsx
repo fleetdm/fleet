@@ -3,7 +3,6 @@ import { connect } from 'react-redux';
 import { Link } from 'react-router';
 
 import Avatar from '../../components/Avatar';
-import componentStyles from './styles';
 import paths from '../../router/paths';
 import userInterface from '../../interfaces/user';
 
@@ -13,13 +12,13 @@ export class HomePage extends Component {
   };
 
   render () {
-    const { avatarStyles, containerStyles } = componentStyles;
     const { user } = this.props;
     const { LOGOUT } = paths;
+    const baseClass = 'home-page';
 
     return (
-      <div style={containerStyles}>
-        {user && <Avatar size="small" style={avatarStyles} user={user} />}
+      <div className={baseClass}>
+        {user && <Avatar size="small" className={`${baseClass}__avatar`} user={user} />}
         <span>You are successfully logged in! </span>
         {user && <Link to={LOGOUT}>Logout</Link>}
       </div>

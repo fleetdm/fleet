@@ -1,0 +1,8 @@
+.login-routes {
+  @include align-items(center);
+  @include display(flex);
+  @include flex-direction(column);
+  @include justify-content(center);
+  position: relative;
+  height: calc(100vh - #{$footer-height});
+}

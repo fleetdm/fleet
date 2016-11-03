@@ -1,9 +1,7 @@
 import React, { Component } from 'react';
 
 import base, { basePropTypes } from '../base';
-import Styles from '../../../../styles';
-
-const { color } = Styles;
+import color from '../../../../styles/colors';
 
 class Envelope extends Component {
   static propTypes = {
@@ -22,7 +20,7 @@ class Envelope extends Component {
   };
 
   render () {
-    const { alt, onClick, style, variant } = this.props;
+    const { alt, onClick, style, variant, className } = this.props;
     const iconVariant = Envelope.variants[variant];
     const { clipboardFill, paperFill } = iconVariant;
 
@@ -34,6 +32,7 @@ class Envelope extends Component {
         viewBox="0 0 25 26"
         alt={alt}
         style={style}
+        className={className}
       >
         <g stroke="none" strokeWidth="1" fill="none" fillRule="evenodd">
           <g transform="translate(-1037.000000, -132.000000)">

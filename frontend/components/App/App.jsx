@@ -1,12 +1,11 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { noop } from 'lodash';
-import { Style } from 'radium';
+import classnames from 'classnames';
 
 import { fetchCurrentUser } from '../../redux/nodes/auth/actions';
 import Footer from '../Footer';
 import { getConfig } from '../../redux/nodes/app/actions';
-import globalStyles from '../../styles/global';
 import { authToken } from '../../utilities/local';
 import userInterface from '../../interfaces/user';
 
@@ -50,9 +49,13 @@ export class App extends Component {
   render () {
     const { children, showBackgroundImage } = this.props;
 
+    const wrapperStyles = classnames(
+      'wrapper',
+      { 'wrapper--background': showBackgroundImage }
+    );
+
     return (
-      <div>
-        <Style rules={globalStyles(showBackgroundImage)} />
+      <div className={wrapperStyles}>
         {children}
         <Footer />
       </div>

@@ -3,7 +3,6 @@ import { connect } from 'react-redux';
 import { noop } from 'lodash';
 
 import AuthenticationFormWrapper from '../../components/AuthenticationFormWrapper';
-import componentStyles from './styles';
 import debounce from '../../utilities/debounce';
 import LogoutForm from '../../components/forms/LogoutForm';
 import { logoutUser } from '../../redux/nodes/auth/actions';
@@ -41,14 +40,14 @@ export class LogoutPage extends Component {
   render () {
     const { user } = this.props;
     const { onSubmit } = this;
-    const { authWrapperStyles, whiteTabStyles } = componentStyles;
+    const baseClass = 'logout-page';
 
     if (!user) return false;
 
     return (
-      <div style={authWrapperStyles}>
+      <div className={baseClass}>
         <AuthenticationFormWrapper>
-          <div style={whiteTabStyles} />
+          <div className={`${baseClass}__tab`} />
           <LogoutForm onSubmit={onSubmit} user={user} />
         </AuthenticationFormWrapper>
       </div>

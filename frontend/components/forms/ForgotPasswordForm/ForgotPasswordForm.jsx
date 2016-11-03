@@ -1,7 +1,5 @@
 import React, { Component, PropTypes } from 'react';
-import radium from 'radium';
 
-import componentStyles from './styles';
 import Button from '../../buttons/Button';
 import InputFieldWithIcon from '../fields/InputFieldWithIcon';
 import validatePresence from '../validators/validate_presence';
@@ -91,11 +89,10 @@ class ForgotPasswordForm extends Component {
   render () {
     const { error: serverError } = this.props;
     const { errors: clientErrors } = this.state;
-    const { formStyles, submitButtonContainerStyles } = componentStyles;
     const { onFormSubmit, onInputFieldChange } = this;
 
     return (
-      <form onSubmit={onFormSubmit} style={formStyles}>
+      <form onSubmit={onFormSubmit} className={baseClass}>
         <InputFieldWithIcon
           autofocus
           error={clientErrors.email || serverError}
@@ -104,7 +101,7 @@ class ForgotPasswordForm extends Component {
           onChange={onInputFieldChange}
           placeholder="Email Address"
         />
-        <div style={submitButtonContainerStyles}>
+        <div className={`${baseClass}__button-wrap`}>
           <Button
             className={`${baseClass}__submit-btn`}
             type="submit"
@@ -117,4 +114,4 @@ class ForgotPasswordForm extends Component {
   }
 }
 
-export default radium(ForgotPasswordForm);
+export default ForgotPasswordForm;

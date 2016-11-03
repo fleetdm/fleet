@@ -405,7 +405,7 @@ export class KolideLoginBackground extends Component {
   };
 
   render () {
-    const { alt, style, variant } = this.props;
+    const { alt, style, variant, className } = this.props;
 
     return (
       <svg
@@ -421,6 +421,7 @@ export class KolideLoginBackground extends Component {
         xmlSpace="preserve"
         alt={alt}
         style={style}
+        className={className}
       >
       {KolideLoginBackground.variants[variant]}
       </svg>
