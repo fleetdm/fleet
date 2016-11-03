@@ -78,14 +78,6 @@ export default (admin) => {
       subItems: [],
     },
     {
-      icon: 'kolidecon-alerts',
-      name: 'Alerts',
-      path: {
-        regex: /^\/alerts/,
-      },
-      subItems: [],
-    },
-    {
       icon: 'kolidecon-help',
       name: 'Help',
       path: {
