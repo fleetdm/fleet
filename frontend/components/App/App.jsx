@@ -42,7 +42,7 @@ export class App extends Component {
   componentWillReceiveProps (nextProps) {
     const { dispatch, user } = nextProps;
 
-    if (this.props.user !== user) {
+    if (user && this.props.user !== user) {
       dispatch(getConfig());
     }
   }
