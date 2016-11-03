@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/net/context"
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/net/context"
 
 	"github.com/WatchBeam/clock"
 	hostctx "github.com/kolide/kolide-ose/server/contexts/host"
@@ -270,60 +271,26 @@ func TestLabelQueries(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
 
-	// Add some queries and labels to ensure they are returned
-	labelQueries := []kolide.Query{
-		kolide.Query{
-			ID:       1,
-			Name:     "query1",
-			Platform: "darwin",
-			Query:    "query1",
-		},
-		kolide.Query{
-			ID:       2,
-			Name:     "query2",
-			Platform: "darwin",
-			Query:    "query2",
-		},
-		kolide.Query{
-			ID:       3,
-			Name:     "query3",
-			Platform: "darwin",
-			Query:    "query3",
-		},
-	}
-
-	expectQueries := make(map[string]string)
-
-	for _, query := range labelQueries {
-		_, err := ds.NewQuery(&query)
-		assert.Nil(t, err)
-		expectQueries[fmt.Sprintf("kolide_label_query_%d", query.ID)] = query.Query
-	}
-	// this one should not show up
-	_, err = ds.NewQuery(&kolide.Query{
-		ID:       4,
-		Name:     "query4",
-		Platform: "not_darwin",
-		Query:    "query4",
-	})
-	assert.Nil(t, err)
-
 	labels := []kolide.Label{
 		kolide.Label{
-			Name:    "label1",
-			QueryID: 1,
+			Name:     "label1",
+			Query:    "query1",
+			Platform: "darwin",
 		},
 		kolide.Label{
-			Name:    "label2",
-			QueryID: 2,
+			Name:     "label2",
+			Query:    "query2",
+			Platform: "darwin",
 		},
 		kolide.Label{
-			Name:    "label3",
-			QueryID: 3,
+			Name:     "label3",
+			Query:    "query3",
+			Platform: "darwin,linux",
 		},
 		kolide.Label{
-			Name:    "label4",
-			QueryID: 4,
+			Name:     "label4",
+			Query:    "query4",
+			Platform: "linux",
 		},
 	}
 
@@ -336,7 +303,6 @@ func TestLabelQueries(t *testing.T) {
 	queries, err = svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 3)
-	assert.Equal(t, expectQueries, queries)
 
 	// Record a query execution
 	err = svc.SubmitDistributedQueryResults(
@@ -370,7 +336,6 @@ func TestLabelQueries(t *testing.T) {
 	queries, err = svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 3)
-	assert.Equal(t, expectQueries, queries)
 
 	// Record a query execution
 	err = svc.SubmitDistributedQueryResults(
@@ -383,11 +348,9 @@ func TestLabelQueries(t *testing.T) {
 	assert.Nil(t, err)
 
 	// Now these should no longer show up in the necessary to run queries
-	delete(expectQueries, "kolide_label_query_2")
-	delete(expectQueries, "kolide_label_query_3")
 	queries, err = svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
-	assert.Equal(t, expectQueries, queries)
+	assert.Len(t, queries, 1)
 
 	// Verify that labels are set appropriately
 	hostLabels, err = ds.ListLabelsForHost(host.ID)
@@ -438,13 +401,6 @@ func TestGetClientConfig(t *testing.T) {
 
 	// let's populate the database with some info
 
-	mysqlQuery := &kolide.Query{
-		Name:  "MySQL",
-		Query: "select pid from processes where name = 'mysqld';",
-	}
-	mysqlQuery, err = ds.NewQuery(mysqlQuery)
-	assert.Nil(t, err)
-
 	infoQuery := &kolide.Query{
 		Name:     "Info",
 		Query:    "select * from osquery_info;",
@@ -463,8 +419,8 @@ func TestGetClientConfig(t *testing.T) {
 	assert.Nil(t, err)
 
 	mysqlLabel := &kolide.Label{
-		Name:    "MySQL Monitoring",
-		QueryID: mysqlQuery.ID,
+		Name:  "MySQL Monitoring",
+		Query: "select pid from processes where name = 'mysqld';",
 	}
 	mysqlLabel, err = ds.NewLabel(mysqlLabel)
 	assert.Nil(t, err)
@@ -472,7 +428,11 @@ func TestGetClientConfig(t *testing.T) {
 	err = ds.AddLabelToPack(mysqlLabel.ID, monitoringPack.ID)
 	assert.Nil(t, err)
 
-	err = ds.RecordLabelQueryExecutions(host, map[string]bool{fmt.Sprintf("%d", mysqlQuery.ID): true}, mockClock.Now())
+	err = ds.RecordLabelQueryExecutions(
+		host,
+		map[string]bool{fmt.Sprintf("%d", mysqlLabel.ID): true},
+		mockClock.Now(),
+	)
 	assert.Nil(t, err)
 
 	// with a minimal setup of packs, labels, and queries, will our host get the

@@ -33,42 +33,6 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 	assert.Nil(t, err)
 	assert.Empty(t, labels)
 
-	labelQueries := []kolide.Query{
-		kolide.Query{
-			Name:     "query1",
-			Query:    "query1",
-			Platform: "darwin",
-		},
-		kolide.Query{
-			Name:     "query2",
-			Query:    "query2",
-			Platform: "darwin",
-		},
-		kolide.Query{
-			Name:     "query3",
-			Query:    "query3",
-			Platform: "darwin",
-		},
-		kolide.Query{
-			Name:     "query4",
-			Query:    "query4",
-			Platform: "darwin",
-		},
-	}
-
-	for _, query := range labelQueries {
-		newQuery, err := db.NewQuery(&query)
-		assert.Nil(t, err)
-		assert.NotZero(t, newQuery.ID)
-	}
-
-	// this one should not show up
-	_, err = db.NewQuery(&kolide.Query{
-		Platform: "not_darwin",
-		Query:    "query5",
-	})
-	assert.Nil(t, err)
-
 	// No queries should be returned before labels added
 	queries, err = db.LabelQueriesForHost(host, baseTime)
 	assert.Nil(t, err)
@@ -77,20 +41,24 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 	newLabels := []kolide.Label{
 		// Note these are intentionally out of order
 		kolide.Label{
-			Name:    "label3",
-			QueryID: 3,
+			Name:     "label3",
+			Query:    "query3",
+			Platform: "darwin",
 		},
 		kolide.Label{
-			Name:    "label1",
-			QueryID: 1,
+			Name:     "label1",
+			Query:    "query1",
+			Platform: "darwin",
 		},
 		kolide.Label{
-			Name:    "label2",
-			QueryID: 2,
+			Name:     "label2",
+			Query:    "query2",
+			Platform: "darwin",
 		},
 		kolide.Label{
-			Name:    "label4",
-			QueryID: 4,
+			Name:     "label4",
+			Query:    "query4",
+			Platform: "darwin",
 		},
 	}
 
@@ -172,29 +140,15 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 }
 
 func testManagingLabelsOnPacks(t *testing.T, ds kolide.Datastore) {
-	mysqlQuery := &kolide.Query{
-		Name:  "MySQL",
-		Query: "select pid from processes where name = 'mysqld';",
-	}
-	mysqlQuery, err := ds.NewQuery(mysqlQuery)
-	assert.Nil(t, err)
-
-	osqueryRunningQuery := &kolide.Query{
-		Name:  "Is osquery currently running?",
-		Query: "select pid from processes where name = 'osqueryd';",
-	}
-	osqueryRunningQuery, err = ds.NewQuery(osqueryRunningQuery)
-	assert.Nil(t, err)
-
 	monitoringPack := &kolide.Pack{
 		Name: "monitoring",
 	}
-	err = ds.NewPack(monitoringPack)
+	err := ds.NewPack(monitoringPack)
 	assert.Nil(t, err)
 
 	mysqlLabel := &kolide.Label{
-		Name:    "MySQL Monitoring",
-		QueryID: mysqlQuery.ID,
+		Name:  "MySQL Monitoring",
+		Query: "select pid from processes where name = 'mysqld';",
 	}
 	mysqlLabel, err = ds.NewLabel(mysqlLabel)
 	assert.Nil(t, err)
@@ -208,8 +162,8 @@ func testManagingLabelsOnPacks(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, "MySQL Monitoring", labels[0].Name)
 
 	osqueryLabel := &kolide.Label{
-		Name:    "Osquery Monitoring",
-		QueryID: osqueryRunningQuery.ID,
+		Name:  "Osquery Monitoring",
+		Query: "select pid from processes where name = 'osqueryd';",
 	}
 	osqueryLabel, err = ds.NewLabel(osqueryLabel)
 	assert.Nil(t, err)
@@ -294,8 +248,8 @@ func testListHostsInLabel(t *testing.T, db kolide.Datastore) {
 	require.Nil(t, err)
 
 	l1, err := db.NewLabel(&kolide.Label{
-		Name:    "label foo",
-		QueryID: 1,
+		Name:  "label foo",
+		Query: "query1",
 	})
 	require.Nil(t, err)
 	require.NotZero(t, l1.ID)
@@ -367,16 +321,16 @@ func testListUniqueHostsInLabels(t *testing.T, db kolide.Datastore) {
 	require.Nil(t, err)
 
 	l1, err := db.NewLabel(&kolide.Label{
-		Name:    "label foo",
-		QueryID: 1,
+		Name:  "label foo",
+		Query: "query1",
 	})
 	require.Nil(t, err)
 	require.NotZero(t, l1.ID)
 	l1ID := fmt.Sprintf("%d", l1.ID)
 
 	l2, err := db.NewLabel(&kolide.Label{
-		Name:    "label bar",
-		QueryID: 2,
+		Name:  "label bar",
+		Query: "query2",
 	})
 	require.Nil(t, err)
 	require.NotZero(t, l2.ID)

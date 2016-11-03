@@ -21,36 +21,23 @@ func (svc service) NewLabel(ctx context.Context, p kolide.LabelPayload) (*kolide
 	}
 	label.Name = *p.Name
 
-	if p.QueryID != nil {
-		label.QueryID = *p.QueryID
+	if p.Query == nil {
+		return nil, newInvalidArgumentError("query", "missing required argument")
+	}
+	label.Query = *p.Query
+
+	if p.Platform != nil {
+		label.Platform = *p.Platform
+	}
+
+	if p.Description != nil {
+		label.Description = *p.Description
 	}
 
 	label, err := svc.ds.NewLabel(label)
 	if err != nil {
 		return nil, err
 	}
-	return label, nil
-}
-
-func (svc service) ModifyLabel(ctx context.Context, id uint, p kolide.LabelPayload) (*kolide.Label, error) {
-	label, err := svc.ds.Label(id)
-	if err != nil {
-		return nil, err
-	}
-
-	if p.Name != nil {
-		label.Name = *p.Name
-	}
-
-	if p.QueryID != nil {
-		label.QueryID = *p.QueryID
-	}
-
-	err = svc.ds.SaveLabel(label)
-	if err != nil {
-		return nil, err
-	}
-
 	return label, nil
 }
 

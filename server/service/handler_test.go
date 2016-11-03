@@ -168,10 +168,6 @@ func TestAPIRoutes(t *testing.T) {
 			uri:  "/api/v1/kolide/labels",
 		},
 		{
-			verb: "PATCH",
-			uri:  "/api/v1/kolide/labels/1",
-		},
-		{
 			verb: "DELETE",
 			uri:  "/api/v1/kolide/labels/1",
 		},

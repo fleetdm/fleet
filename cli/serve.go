@@ -328,13 +328,13 @@ func createDevLabels(ds kolide.Datastore, config config.KolideConfig) {
 			CreatedAt: time.Date(2016, time.October, 27, 8, 31, 16, 0, time.UTC),
 			UpdatedAt: time.Date(2016, time.October, 27, 8, 31, 16, 0, time.UTC),
 			Name:      "dev_label_apache",
-			QueryID:   4,
+			Query:     "select * from processes where nae like '%Apache%'",
 		},
 		{
 			CreatedAt: time.Now().Add(-1 * time.Hour),
 			UpdatedAt: time.Now(),
 			Name:      "dev_label_darwin",
-			QueryID:   5,
+			Query:     "select * from osquery_info where build_platform='darwin'",
 		},
 	}
 

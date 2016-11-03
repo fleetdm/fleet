@@ -28,8 +28,8 @@ func TestSearchTargets(t *testing.T) {
 	require.Nil(t, err)
 
 	l1, err := ds.NewLabel(&kolide.Label{
-		Name:    "label foo",
-		QueryID: 1,
+		Name:  "label foo",
+		Query: "query foo",
 	})
 	require.Nil(t, err)
 
@@ -93,16 +93,16 @@ func TestCountHostsInTargets(t *testing.T) {
 	require.Nil(t, err)
 
 	l1, err := ds.NewLabel(&kolide.Label{
-		Name:    "label foo",
-		QueryID: 1,
+		Name:  "label foo",
+		Query: "query foo",
 	})
 	require.Nil(t, err)
 	require.NotZero(t, l1.ID)
 	l1ID := fmt.Sprintf("%d", l1.ID)
 
 	l2, err := ds.NewLabel(&kolide.Label{
-		Name:    "label bar",
-		QueryID: 1,
+		Name:  "label bar",
+		Query: "query foo",
 	})
 	require.Nil(t, err)
 	require.NotZero(t, l2.ID)
@@ -165,8 +165,8 @@ func TestSearchWithOmit(t *testing.T) {
 	require.Nil(t, err)
 
 	l1, err := ds.NewLabel(&kolide.Label{
-		Name:    "label foo",
-		QueryID: 1,
+		Name:  "label foo",
+		Query: "query foo",
 	})
 
 	{
@@ -225,8 +225,8 @@ func TestSearchHostsInLabels(t *testing.T) {
 	require.Nil(t, err)
 
 	l1, err := ds.NewLabel(&kolide.Label{
-		Name:    "label foo",
-		QueryID: 1,
+		Name:  "label foo",
+		Query: "query foo",
 	})
 	require.Nil(t, err)
 	require.NotZero(t, l1.ID)

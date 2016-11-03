@@ -24,16 +24,6 @@ func (orm gormDB) NewLabel(label *kolide.Label) (*kolide.Label, error) {
 	return label, nil
 }
 
-func (orm gormDB) SaveLabel(label *kolide.Label) error {
-	if label == nil {
-		return errors.New(
-			"error saving label",
-			"nil pointer passed to SaveLabel",
-		)
-	}
-	return orm.DB.Save(label).Error
-}
-
 func (orm gormDB) DeleteLabel(lid uint) error {
 	err := orm.DB.Where("id = ?", lid).Delete(&kolide.Label{}).Error
 	if err != nil {
@@ -68,13 +58,12 @@ func (orm gormDB) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (map[
 		)
 	}
 	rows, err := orm.DB.Raw(`
-SELECT l.id, q.query
-FROM labels l JOIN queries q
-ON l.query_id = q.id
-WHERE q.platform = ?
-AND q.id NOT IN /* subtract the set of executions that are recent enough */
+SELECT l.id, l.query
+from labels l
+WHERE l.platform = ?
+AND l.id NOT IN /* subtract the set of executions that are recent enough */
 (
-  SELECT l.query_id
+  SELECT l.id
   FROM labels l
   JOIN label_query_executions lqe
   ON lqe.label_id = l.id

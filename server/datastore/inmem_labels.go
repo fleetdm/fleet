@@ -46,32 +46,24 @@ func (orm *inmem) ListLabelsForHost(hid uint) ([]kolide.Label, error) {
 
 func (orm *inmem) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (map[string]string, error) {
 	// Get post-cutoff executions for host
-	execedQueryIDs := map[uint]uint{} // Map queryID -> labelID
+	execedIDs := map[uint]bool{}
 
 	orm.mtx.Lock()
 	for _, lqe := range orm.labelQueryExecutions {
 		if lqe.HostID == host.ID && (lqe.UpdatedAt == cutoff || lqe.UpdatedAt.After(cutoff)) {
-			label := orm.labels[lqe.LabelID]
-			execedQueryIDs[label.QueryID] = label.ID
+			execedIDs[lqe.LabelID] = true
+		}
+	}
+
+	queries := map[string]string{}
+	for _, label := range orm.labels {
+		if (label.Platform == "" || strings.Contains(label.Platform, host.Platform)) && !execedIDs[label.ID] {
+			queries[strconv.Itoa(int(label.ID))] = label.Query
 		}
 	}
 	orm.mtx.Unlock()
 
-	queryToLabel := map[uint]uint{} // Map queryID -> labelID
-	for _, label := range orm.labels {
-		queryToLabel[label.QueryID] = label.ID
-	}
-
-	resQueries := map[string]string{}
-	for _, query := range orm.queries {
-		_, execed := execedQueryIDs[query.ID]
-		labelID := queryToLabel[query.ID]
-		if query.Platform == host.Platform && !execed {
-			resQueries[strconv.Itoa(int(labelID))] = query.Query
-		}
-	}
-
-	return resQueries, nil
+	return queries, nil
 }
 
 func (orm *inmem) getLabelByIDString(id string) (*kolide.Label, error) {
@@ -181,18 +173,6 @@ func (orm *inmem) ListLabels(opt kolide.ListOptions) ([]*kolide.Label, error) {
 	labels = labels[low:high]
 
 	return labels, nil
-}
-
-func (orm *inmem) SaveLabel(label *kolide.Label) error {
-	orm.mtx.Lock()
-	if _, ok := orm.labels[label.ID]; !ok {
-		return ErrNotFound
-	}
-
-	orm.labels[label.ID] = label
-	orm.mtx.Unlock()
-
-	return nil
 }
 
 func (orm *inmem) SearchLabels(query string, omit []uint) ([]kolide.Label, error) {

@@ -15,19 +15,6 @@ func decodeCreateLabelRequest(ctx context.Context, r *http.Request) (interface{}
 	return req, nil
 }
 
-func decodeModifyLabelRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
-	if err != nil {
-		return nil, err
-	}
-	var req modifyLabelRequest
-	if err := json.NewDecoder(r.Body).Decode(&req.payload); err != nil {
-		return nil, err
-	}
-	req.ID = id
-	return req, nil
-}
-
 func decodeDeleteLabelRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	id, err := idFromRequest(r, "id")
 	if err != nil {

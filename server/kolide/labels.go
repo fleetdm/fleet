@@ -9,7 +9,6 @@ import (
 type LabelStore interface {
 	// Label methods
 	NewLabel(Label *Label) (*Label, error)
-	SaveLabel(Label *Label) error
 	DeleteLabel(lid uint) error
 	Label(lid uint) (*Label, error)
 	ListLabels(opt ListOptions) ([]*Label, error)
@@ -40,21 +39,24 @@ type LabelService interface {
 	ListLabels(ctx context.Context, opt ListOptions) ([]*Label, error)
 	GetLabel(ctx context.Context, id uint) (*Label, error)
 	NewLabel(ctx context.Context, p LabelPayload) (*Label, error)
-	ModifyLabel(ctx context.Context, id uint, p LabelPayload) (*Label, error)
 	DeleteLabel(ctx context.Context, id uint) error
 }
 
 type LabelPayload struct {
-	Name    *string
-	QueryID *uint `json:"query_id"`
+	Name        *string
+	Query       *string `json:"query"`
+	Platform    *string `json:"platform"`
+	Description *string `json:"description"`
 }
 
 type Label struct {
-	ID        uint      `json:"id" gorm:"primary_key"`
-	CreatedAt time.Time `json:"-"`
-	UpdatedAt time.Time `json:"-"`
-	Name      string    `json:"name" gorm:"not null;unique_index:idx_label_unique_name"` // there is a fulltext index on this field
-	QueryID   uint      `json:"query_id"`
+	ID          uint      `json:"id" gorm:"primary_key"`
+	CreatedAt   time.Time `json:"-"`
+	UpdatedAt   time.Time `json:"-"`
+	Name        string    `json:"name" gorm:"not null;unique_index:idx_label_unique_name"` // there is a fulltext index on this field
+	Description string    `json:"description"`
+	Query       string    `json:"query" gorm:"not null"`
+	Platform    string    `json:"platform"`
 }
 
 type LabelQueryExecution struct {

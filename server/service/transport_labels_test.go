@@ -20,40 +20,20 @@ func TestDecodeCreateLabelRequest(t *testing.T) {
 
 		params := r.(createLabelRequest)
 		assert.Equal(t, "foo", *params.payload.Name)
-		assert.Equal(t, uint(4), *params.payload.QueryID)
+		assert.Equal(t, "select * from foo;", *params.payload.Query)
+		assert.Equal(t, "darwin", *params.payload.Platform)
 	}).Methods("POST")
 
 	var body bytes.Buffer
 	body.Write([]byte(`{
         "name": "foo",
-        "query_id": 4
+        "query": "select * from foo;",
+		"platform": "darwin"
     }`))
 
 	router.ServeHTTP(
 		httptest.NewRecorder(),
 		httptest.NewRequest("POST", "/api/v1/kolide/labels", &body),
-	)
-}
-
-func TestDecodeModifyLabelRequest(t *testing.T) {
-	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/kolide/labels/{id}", func(writer http.ResponseWriter, request *http.Request) {
-		r, err := decodeModifyLabelRequest(context.Background(), request)
-		assert.Nil(t, err)
-
-		params := r.(modifyLabelRequest)
-		assert.Equal(t, "foo", *params.payload.Name)
-		assert.Equal(t, uint(1), params.ID)
-	}).Methods("PATCH")
-
-	var body bytes.Buffer
-	body.Write([]byte(`{
-        "name": "foo"
-    }`))
-
-	router.ServeHTTP(
-		httptest.NewRecorder(),
-		httptest.NewRequest("PATCH", "/api/v1/kolide/labels/1", &body),
 	)
 }
 
