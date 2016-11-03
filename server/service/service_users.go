@@ -71,15 +71,6 @@ func (svc service) ModifyUser(ctx context.Context, userID uint, p kolide.UserPay
 		user.GravatarURL = *p.GravatarURL
 	}
 
-	if p.AdminForcedPasswordReset != nil {
-		if *p.AdminForcedPasswordReset {
-			err = svc.RequestPasswordReset(ctx, user.Email)
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-
 	if p.Password != nil {
 		err := user.SetPassword(
 			*p.Password,
@@ -97,8 +88,16 @@ func (svc service) ModifyUser(ctx context.Context, userID uint, p kolide.UserPay
 		return nil, err
 	}
 
-	return user, nil
-
+	// https://github.com/kolide/kolide-ose/issues/351
+	// Calling this action last, because svc.RequestPasswordReset saves the
+	// user separately and we don't want to override the value set there
+	if p.AdminForcedPasswordReset != nil && *p.AdminForcedPasswordReset {
+		err = svc.RequestPasswordReset(ctx, user.Email)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return svc.User(ctx, userID)
 }
 
 func (svc service) User(ctx context.Context, id uint) (*kolide.User, error) {
