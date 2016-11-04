@@ -1,7 +1,7 @@
 import React, { PropTypes } from 'react';
 import { noop } from 'lodash';
 
-import ElipsisMenu from '../../../components/buttons/ElipsisMenu';
+import EllipsisMenu from '../../../components/buttons/EllipsisMenu';
 import hostInterface from '../../../interfaces/host';
 import { humanMemory, humanUptime, platformIconClass } from './helpers';
 
@@ -26,7 +26,7 @@ const HostDetails = ({ host, onQueryClick = noop, onDisableClick = noop }) => {
 
   return (
     <div className={`${baseClass} ${baseClass}--${status}`}>
-      <ElipsisMenu positionStyles={{ top: '-3px', right: '10px' }}>
+      <EllipsisMenu positionStyles={{ top: '-3px', right: '10px' }}>
         <div className={`${baseClass}__ellipsis-children`}>
           <button className={`${baseClass}__ellipsis-child-item button button__unstyled`} onClick={onQueryClick(host)}>
             <i className={`${baseClass}__query-icon kolidecon-query`} />
@@ -38,7 +38,7 @@ const HostDetails = ({ host, onQueryClick = noop, onDisableClick = noop }) => {
             <div>Disable</div>
           </button>
         </div>
-      </ElipsisMenu>
+      </EllipsisMenu>
       <div className={`${baseClass}__status ${baseClass}__status--${status}`}>
         {status}
       </div>

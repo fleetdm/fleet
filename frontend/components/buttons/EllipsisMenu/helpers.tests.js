@@ -2,7 +2,7 @@ import expect from 'expect';
 
 import { calculateTooltipDirection } from './helpers';
 
-describe('ElipsisMenu - helpers', () => {
+describe('EllipsisMenu - helpers', () => {
   describe('#calculateTooltipDirection', () => {
     it('returns "left" if the element does not fit to the right in the browser', () => {
       const el = {

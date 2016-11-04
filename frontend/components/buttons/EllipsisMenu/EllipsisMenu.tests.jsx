@@ -2,22 +2,22 @@ import React from 'react';
 import expect from 'expect';
 import { mount } from 'enzyme';
 
-import { ElipsisMenu } from './ElipsisMenu';
+import { EllipsisMenu } from './EllipsisMenu';
 
-describe('ElipsisMenu - component', () => {
+describe('EllipsisMenu - component', () => {
   it('Displays children on click', () => {
     const component = mount(
-      <ElipsisMenu>
-        <span>ElipsisMenu Children</span>
-      </ElipsisMenu>
+      <EllipsisMenu>
+        <span>EllipsisMenu Children</span>
+      </EllipsisMenu>
     );
 
     expect(component.state().showChildren).toEqual(false);
-    expect(component.text()).toNotContain('ElipsisMenu Children');
+    expect(component.text()).toNotContain('EllipsisMenu Children');
 
     component.find('button').simulate('click');
 
     expect(component.state().showChildren).toEqual(true);
-    expect(component.text()).toContain('ElipsisMenu Children');
+    expect(component.text()).toContain('EllipsisMenu Children');
   });
 });

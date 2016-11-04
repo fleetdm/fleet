@@ -5,7 +5,7 @@ import ClickOutside from '../../ClickOutside';
 
 const baseClass = 'ellipsis-menu';
 
-export class ElipsisMenu extends Component {
+export class EllipsisMenu extends Component {
   static propTypes = {
     children: PropTypes.node,
     positionStyles: PropTypes.object, // eslint-disable-line react/forbid-prop-types
@@ -97,8 +97,7 @@ export class ElipsisMenu extends Component {
   }
 }
 
-const StyledComponent = ElipsisMenu;
-export default ClickOutside(StyledComponent, {
+export default ClickOutside(EllipsisMenu, {
   getDOMNode: (component) => {
     return component.DOMNode;
   },
