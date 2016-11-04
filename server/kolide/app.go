@@ -5,32 +5,44 @@ import "golang.org/x/net/context"
 // AppConfigStore contains method for saving and retrieving
 // application configuration
 type AppConfigStore interface {
-	NewOrgInfo(info *OrgInfo) (*OrgInfo, error)
-	OrgInfo() (*OrgInfo, error)
-	SaveOrgInfo(info *OrgInfo) error
+	NewAppConfig(info *AppConfig) (*AppConfig, error)
+	AppConfig() (*AppConfig, error)
+	SaveAppConfig(info *AppConfig) error
 }
 
 // AppConfigService provides methods for configuring
 // the Kolide application
 type AppConfigService interface {
-	NewOrgInfo(ctx context.Context, p OrgInfoPayload) (info *OrgInfo, err error)
-	OrgInfo(ctx context.Context) (info *OrgInfo, err error)
-	ModifyOrgInfo(ctx context.Context, p OrgInfoPayload) (info *OrgInfo, err error)
+	NewAppConfig(ctx context.Context, p AppConfigPayload) (info *AppConfig, err error)
+	AppConfig(ctx context.Context) (info *AppConfig, err error)
+	ModifyAppConfig(ctx context.Context, p AppConfigPayload) (info *AppConfig, err error)
 }
 
-// OrgInfo holds information about the current
-// organization using Kolide
+// AppConfig holds configuration about the Kolide application.
+// AppConfig data can be managed by a Kolide API user.
+type AppConfig struct {
+	ID              uint `gorm:"primary_key"`
+	OrgName         string
+	OrgLogoURL      string
+	KolideServerURL string
+}
+
+// AppConfigPayload contains request and response format of
+// the AppConfig struct.
+type AppConfigPayload struct {
+	OrgInfo        *OrgInfo        `json:"org_info,omitempty"`
+	ServerSettings *ServerSettings `json:"server_settings,omitempty"`
+}
+
+// OrgInfo contains general info about the organization using Kolide.
 type OrgInfo struct {
-	ID         uint `gorm:"primary_key"`
-	OrgName    string
-	OrgLogoURL string
+	OrgName    *string `json:"org_name,omitempty"`
+	OrgLogoURL *string `json:"org_logo_url,omitempty"`
 }
 
-// OrgInfoPayload is used to accept
-// OrgInfo modifications by a client
-type OrgInfoPayload struct {
-	OrgName    *string `json:"org_name"`
-	OrgLogoURL *string `json:"org_logo_url"`
+// ServerSettings contains general settings about the kolide App.
+type ServerSettings struct {
+	KolideServerURL *string `json:"web_address_url,omitempty"`
 }
 
 type OrderDirection int

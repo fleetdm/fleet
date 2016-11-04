@@ -5,7 +5,7 @@ import (
 	"github.com/kolide/kolide-ose/server/kolide"
 )
 
-func (orm gormDB) NewOrgInfo(info *kolide.OrgInfo) (*kolide.OrgInfo, error) {
+func (orm gormDB) NewAppConfig(info *kolide.AppConfig) (*kolide.AppConfig, error) {
 	err := orm.DB.First(info).Error
 	switch err {
 	case gorm.ErrRecordNotFound:
@@ -15,14 +15,14 @@ func (orm gormDB) NewOrgInfo(info *kolide.OrgInfo) (*kolide.OrgInfo, error) {
 		}
 		return info, nil
 	case nil:
-		return info, orm.SaveOrgInfo(info)
+		return info, orm.SaveAppConfig(info)
 	default:
 		return nil, err
 	}
 }
 
-func (orm gormDB) OrgInfo() (*kolide.OrgInfo, error) {
-	info := &kolide.OrgInfo{}
+func (orm gormDB) AppConfig() (*kolide.AppConfig, error) {
+	info := &kolide.AppConfig{}
 	err := orm.DB.First(info).Error
 	if err != nil {
 		return nil, err
@@ -30,6 +30,6 @@ func (orm gormDB) OrgInfo() (*kolide.OrgInfo, error) {
 	return info, nil
 }
 
-func (orm gormDB) SaveOrgInfo(info *kolide.OrgInfo) error {
+func (orm gormDB) SaveAppConfig(info *kolide.AppConfig) error {
 	return orm.DB.Save(info).Error
 }

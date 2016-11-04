@@ -14,41 +14,62 @@ type getAppConfigResponse struct {
 
 func (r getAppConfigResponse) error() error { return r.Err }
 
-type appConfig map[string]map[string]string
-
 func makeGetAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		info, err := svc.OrgInfo(ctx)
+		config, err := svc.AppConfig(ctx)
 		if err != nil {
 			return getAppConfigResponse{Err: err}, nil
 		}
-		config := appConfig{
-			"org_info": map[string]string{
-				"org_name":     info.OrgName,
-				"org_logo_url": info.OrgLogoURL,
-			},
-		}
-		return config, nil
+		response := appConfigPayload(*config)
+		return response, nil
 	}
 }
 
 type modifyAppConfigRequest struct {
-	OrgPayload kolide.OrgInfoPayload `json:"org_info"`
+	ConfigPayload kolide.AppConfigPayload
 }
 
 func makeModifyAppConfigRequest(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(modifyAppConfigRequest)
-		info, err := svc.ModifyOrgInfo(ctx, req.OrgPayload)
+		config, err := svc.ModifyAppConfig(ctx, req.ConfigPayload)
 		if err != nil {
 			return getAppConfigResponse{Err: err}, nil
 		}
-		config := appConfig{
-			"org_info": map[string]string{
-				"org_name":     info.OrgName,
-				"org_logo_url": info.OrgLogoURL,
-			},
-		}
-		return config, nil
+		response := appConfigPayload(*config)
+		return response, nil
 	}
+}
+
+func appConfigPayload(config kolide.AppConfig) kolide.AppConfigPayload {
+	orgInfo := func() *kolide.OrgInfo {
+		if config.OrgName == "" && config.OrgLogoURL == "" {
+			return nil
+		}
+		return &kolide.OrgInfo{
+			OrgName:    nilString(config.OrgName),
+			OrgLogoURL: nilString(config.OrgLogoURL),
+		}
+	}
+
+	serverSettings := func() *kolide.ServerSettings {
+		if config.KolideServerURL == "" {
+			return nil
+		}
+		return &kolide.ServerSettings{
+			KolideServerURL: nilString(config.KolideServerURL),
+		}
+	}
+
+	return kolide.AppConfigPayload{
+		OrgInfo:        orgInfo(),
+		ServerSettings: serverSettings(),
+	}
+}
+
+func nilString(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }

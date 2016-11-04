@@ -26,7 +26,7 @@ var tables = [...]interface{}{
 	&kolide.DistributedQueryCampaignTarget{},
 	&kolide.Query{},
 	&kolide.DistributedQueryExecution{},
-	&kolide.OrgInfo{},
+	&kolide.AppConfig{},
 	&kolide.Invite{},
 }
 

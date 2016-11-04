@@ -8,9 +8,9 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (mw metricsMiddleware) NewOrgInfo(ctx context.Context, p kolide.OrgInfoPayload) (*kolide.OrgInfo, error) {
+func (mw metricsMiddleware) NewAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
 	var (
-		info *kolide.OrgInfo
+		info *kolide.AppConfig
 		err  error
 	)
 	defer func(begin time.Time) {
@@ -18,13 +18,13 @@ func (mw metricsMiddleware) NewOrgInfo(ctx context.Context, p kolide.OrgInfoPayl
 		mw.requestCount.With(lvs...).Add(1)
 		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	info, err = mw.Service.NewOrgInfo(ctx, p)
+	info, err = mw.Service.NewAppConfig(ctx, p)
 	return info, err
 }
 
-func (mw metricsMiddleware) OrgInfo(ctx context.Context) (*kolide.OrgInfo, error) {
+func (mw metricsMiddleware) AppConfig(ctx context.Context) (*kolide.AppConfig, error) {
 	var (
-		info *kolide.OrgInfo
+		info *kolide.AppConfig
 		err  error
 	)
 	defer func(begin time.Time) {
@@ -32,13 +32,13 @@ func (mw metricsMiddleware) OrgInfo(ctx context.Context) (*kolide.OrgInfo, error
 		mw.requestCount.With(lvs...).Add(1)
 		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	info, err = mw.Service.OrgInfo(ctx)
+	info, err = mw.Service.AppConfig(ctx)
 	return info, err
 }
 
-func (mw metricsMiddleware) ModifyOrgInfo(ctx context.Context, p kolide.OrgInfoPayload) (*kolide.OrgInfo, error) {
+func (mw metricsMiddleware) ModifyAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
 	var (
-		info *kolide.OrgInfo
+		info *kolide.AppConfig
 		err  error
 	)
 	defer func(begin time.Time) {
@@ -46,6 +46,6 @@ func (mw metricsMiddleware) ModifyOrgInfo(ctx context.Context, p kolide.OrgInfoP
 		mw.requestCount.With(lvs...).Add(1)
 		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	info, err = mw.Service.ModifyOrgInfo(ctx, p)
+	info, err = mw.Service.ModifyAppConfig(ctx, p)
 	return info, err
 }

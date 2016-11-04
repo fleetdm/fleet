@@ -26,7 +26,7 @@ type inmem struct {
 	packQueries          map[uint]*kolide.PackQuery
 	packTargets          map[uint]*kolide.PackTarget
 
-	orginfo *kolide.OrgInfo
+	orginfo *kolide.AppConfig
 }
 
 func (orm *inmem) Name() string {

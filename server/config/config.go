@@ -39,7 +39,6 @@ type AuthConfig struct {
 
 // AppConfig defines configs related to HTTP
 type AppConfig struct {
-	WebAddress                string
 	TokenKeySize              int
 	TokenKey                  string
 	InviteTokenValidityPeriod time.Duration
@@ -161,7 +160,6 @@ func (man Manager) LoadConfig() KolideConfig {
 			SaltKeySize: man.getConfigInt("auth.salt_key_size"),
 		},
 		App: AppConfig{
-			WebAddress:                man.getConfigString("app.web_address"),
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),
 			TokenKey:                  man.getConfigString("app.token_key"),
 			InviteTokenValidityPeriod: man.getConfigDuration("app.invite_token_validity_period"),

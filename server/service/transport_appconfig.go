@@ -9,7 +9,7 @@ import (
 
 func decodeModifyAppConfigRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	var req modifyAppConfigRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&req.ConfigPayload); err != nil {
 		return nil, err
 	}
 	return req, nil

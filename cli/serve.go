@@ -94,7 +94,7 @@ the way that the kolide server works.
 				createDevHosts(ds, config)
 				createDevQueries(ds, config)
 				createDevLabels(ds, config)
-				createDevOrgInfo(svc, config)
+				createDevOrgInfo(ds, config)
 			}
 
 			fieldKeys := []string{"method", "error"}
@@ -265,15 +265,12 @@ func createDevHosts(ds kolide.Datastore, config config.KolideConfig) {
 	}
 }
 
-func createDevOrgInfo(svc kolide.Service, config config.KolideConfig) {
-	devOrgInfo := &kolide.OrgInfo{
+func createDevOrgInfo(ds kolide.Datastore, config config.KolideConfig) {
+	devOrgInfo := &kolide.AppConfig{
 		OrgName:    "Kolide",
 		OrgLogoURL: fmt.Sprintf("%s/logo.png", config.Server.Address),
 	}
-	_, err := svc.NewOrgInfo(context.Background(), kolide.OrgInfoPayload{
-		OrgName:    &devOrgInfo.OrgName,
-		OrgLogoURL: &devOrgInfo.OrgLogoURL,
-	})
+	_, err := ds.NewAppConfig(devOrgInfo)
 	if err != nil {
 		initFatal(err, "creating fake org info")
 	}
