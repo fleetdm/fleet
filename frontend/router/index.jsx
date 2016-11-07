@@ -14,7 +14,7 @@ import LoginRoutes from '../components/LoginRoutes';
 import LogoutPage from '../pages/LogoutPage';
 import ManageHostsPage from '../pages/hosts/ManageHostsPage';
 import NewHostPage from '../pages/hosts/NewHostPage';
-import NewQueryPage from '../pages/queries/NewQueryPage';
+import QueryPage from '../pages/queries/QueryPage';
 import QueryPageWrapper from '../components/queries/QueryPageWrapper';
 import ResetPasswordPage from '../pages/ResetPasswordPage';
 import store from '../redux/store';
@@ -37,7 +37,8 @@ const routes = (
               <Route path="users" component={AdminUserManagementPage} />
             </Route>
             <Route path="queries" component={QueryPageWrapper}>
-              <Route path="new" component={NewQueryPage} />
+              <Route path="new" component={QueryPage} />
+              <Route path=":id" component={QueryPage} />
             </Route>
             <Route path="hosts">
               <Route path="new" component={NewHostPage} />

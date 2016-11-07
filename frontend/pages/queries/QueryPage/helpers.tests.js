@@ -7,7 +7,7 @@ const validQuery = 'SELECT * FROM users';
 const createQuery = 'CREATE TABLE users (LastName varchar(255))';
 const insertQuery = 'INSERT INTO users (name) values ("Mike")';
 
-describe('NewQuery - helpers', () => {
+describe('QueryPage - helpers', () => {
   describe('#validateQuery', () => {
     const { validateQuery } = helpers;
 

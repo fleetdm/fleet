@@ -12,6 +12,36 @@ export const validUser = {
   gravatarURL: 'https://www.gravatar.com/avatar/7157f4758f8423b59aaee869d919f6b9',
 };
 
+export const validCreateQueryRequest = (bearerToken, queryParams) => {
+  return nock('http://localhost:8080', {
+    reqHeaders: {
+      Authorization: `Bearer ${bearerToken}`,
+    },
+  })
+    .post('/api/v1/kolide/queries', JSON.stringify(queryParams))
+    .reply(201, { query: queryParams });
+};
+
+export const invalidGetQueryRequest = (bearerToken, queryID) => {
+  return nock('http://localhost:8080', {
+    reqHeaders: {
+      Authorization: `Bearer ${bearerToken}`,
+    },
+  })
+    .get(`/api/v1/kolide/queries/${queryID}`)
+    .reply(404, { error: 'resource not found' });
+};
+
+export const validGetQueryRequest = (bearerToken, queryID) => {
+  return nock('http://localhost:8080', {
+    reqHeaders: {
+      Authorization: `Bearer ${bearerToken}`,
+    },
+  })
+    .get(`/api/v1/kolide/queries/${queryID}`)
+    .reply(200, { query: { id: queryID } });
+};
+
 export const validGetConfigRequest = (bearerToken) => {
   return nock('http://localhost:8080', {
     reqHeaders: {
@@ -141,11 +171,14 @@ export const validUpdateUserRequest = (user, formData) => {
 
 export default {
   invalidForgotPasswordRequest,
+  invalidGetQueryRequest,
   invalidResetPasswordRequest,
+  validCreateQueryRequest,
   validForgotPasswordRequest,
   validGetConfigRequest,
   validGetHostsRequest,
   validGetInvitesRequest,
+  validGetQueryRequest,
   validGetUsersRequest,
   validInviteUserRequest,
   validLoginRequest,

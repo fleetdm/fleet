@@ -36,17 +36,16 @@ class LoginForm extends Component {
         password: null,
       },
       formData: {
-        username: null,
-        password: null,
+        username: '',
+        password: '',
       },
     };
   }
 
   onInputChange = (formField) => {
-    return ({ target }) => {
+    return (value) => {
       const { errors, formData } = this.state;
       const { onChange } = this.props;
-      const { value } = target;
 
       onChange(value);
 
@@ -141,7 +140,7 @@ class LoginForm extends Component {
 
   render () {
     const { serverErrors, isHidden } = this.props;
-    const { errors } = this.state;
+    const { errors, formData: { username, password } } = this.state;
     const { onInputChange, onFormSubmit } = this;
 
     const loginFormClass = classnames(
@@ -160,6 +159,7 @@ class LoginForm extends Component {
             name="username"
             onChange={onInputChange('username')}
             placeholder="Username or Email"
+            value={username}
           />
           <InputFieldWithIcon
             error={errors.password || serverErrors.password}
@@ -168,6 +168,7 @@ class LoginForm extends Component {
             onChange={onInputChange('password')}
             placeholder="Password"
             type="password"
+            value={password}
           />
           <div className={`${baseClass}__forgot-wrap`}>
             <Link className={`${baseClass}__forgot-link`} to={paths.FORGOT_PASSWORD}>Forgot Password?</Link>

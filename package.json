@@ -75,6 +75,7 @@
     "typescript": "^2.1.0-dev.20161031",
     "url-loader": "^0.5.7",
     "webpack": "1.13.1",
+    "webpack-build-notifier": "^0.1.13",
     "webpack-dev-middleware": "^1.5.1",
     "webpack-hot-middleware": "^2.7.1",
     "whatwg-fetch": "^0.11.0",

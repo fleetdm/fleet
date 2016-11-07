@@ -24,6 +24,9 @@ describe('EditUserForm - form', () => {
     fillInFormInput(emailInput, email);
     form.simulate('submit');
 
-    expect(onSubmit).toHaveBeenCalledWith({ email });
+    expect(onSubmit).toHaveBeenCalledWith({
+      ...user,
+      email,
+    });
   });
 });

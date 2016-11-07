@@ -39,6 +39,11 @@ $gradient-end: #c86dd7;
     border: 1px solid $brand-light;
     box-shadow: 0 3px 0 $brand-dark;
     color: $brand-dark;
+
+    &--disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
   }
 
   &__gradient {

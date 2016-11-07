@@ -25,7 +25,7 @@ if (process.env.NODE_ENV === 'production') {
   ]);
 };
 
-if (process.argv.includes('--notify')) {
+if (process.argv.indexOf('--notify') > -1) {
   plugins = plugins.concat([
     new WebpackBuildNotifierPlugin({
       title: "Kolide",

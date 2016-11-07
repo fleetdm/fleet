@@ -6,7 +6,6 @@ const baseClass = 'input-field';
 class InputField extends Component {
   static propTypes = {
     autofocus: PropTypes.bool,
-    defaultValue: PropTypes.string,
     error: PropTypes.string,
     inputClassName: PropTypes.string, // eslint-disable-line react/forbid-prop-types
     inputWrapperClass: PropTypes.string,
@@ -17,25 +16,18 @@ class InputField extends Component {
     onChange: PropTypes.func,
     placeholder: PropTypes.string,
     type: PropTypes.string,
+    value: PropTypes.string.isRequired,
   };
 
   static defaultProps = {
     autofocus: false,
-    defaultValue: '',
     inputWrapperClass: '',
     inputOptions: {},
     label: null,
     labelClassName: '',
     type: 'text',
+    value: '',
   };
-
-  constructor (props) {
-    super(props);
-
-    const { defaultValue } = props;
-
-    this.state = { value: defaultValue };
-  }
 
   componentDidMount () {
     const { autofocus } = this.props;
@@ -54,8 +46,7 @@ class InputField extends Component {
     const { value } = evt.target;
     const { onChange } = this.props;
 
-    this.setState({ value });
-    return onChange(evt);
+    return onChange(value);
   }
 
   renderLabel = () => {
@@ -81,13 +72,13 @@ class InputField extends Component {
   }
 
   render () {
-    const { error, inputClassName, inputOptions, inputWrapperClass, name, placeholder, type } = this.props;
-    const { value } = this.state;
+    const { error, inputClassName, inputOptions, inputWrapperClass, name, placeholder, type, value } = this.props;
     const { onInputChange, renderLabel } = this;
+    const shouldShowPasswordClass = type === 'password';
     const inputClasses = classnames(
       baseClass,
       inputClassName,
-      { [`${baseClass}--password`]: type === 'password' && value },
+      { [`${baseClass}--password`]: shouldShowPasswordClass },
       { [`${baseClass}--error`]: error }
     );
     const inputWrapperClasses = classnames(`${baseClass}__wrapper`, inputWrapperClass);

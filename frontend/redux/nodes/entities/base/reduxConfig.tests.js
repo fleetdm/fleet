@@ -220,7 +220,7 @@ describe('reduxConfig', () => {
     describe('successful load call', () => {
       const mockStore = reduxMockStore(store);
       const loadFunc = createSpy().andCall(() => {
-        return Promise.resolve([user]);
+        return Promise.resolve(user);
       });
 
       const config = reduxConfig({

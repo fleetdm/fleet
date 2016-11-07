@@ -119,7 +119,9 @@ const reduxConfig = ({
 
           const { entities } = normalize(parse([response]), arrayOf(schema));
 
-          return dispatch(createSuccess(entities));
+          dispatch(createSuccess(entities));
+
+          return response;
         })
         .catch((response) => {
           const { errors } = response;
@@ -163,7 +165,7 @@ const reduxConfig = ({
         .then((response) => {
           if (!response) return [];
 
-          const { entities } = normalize(parse(response), arrayOf(schema));
+          const { entities } = normalize(parse([response]), arrayOf(schema));
 
           return dispatch(loadSuccess(entities));
         })

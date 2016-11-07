@@ -11,25 +11,32 @@ class EditUserForm extends Component {
   static propTypes = {
     onCancel: PropTypes.func,
     onSubmit: PropTypes.func,
-    user: userInterface,
+    user: userInterface.isRequired,
   };
 
   constructor (props) {
     super(props);
 
+    const { user: { email, name, position, username } } = props;
+
     this.state = {
-      formData: {},
+      formData: {
+        email,
+        name,
+        position,
+        username,
+      },
     };
   }
 
   onInputChange = (fieldName) => {
-    return (evt) => {
+    return (value) => {
       const { formData } = this.state;
 
       this.setState({
         formData: {
           ...formData,
-          [fieldName]: evt.target.value,
+          [fieldName]: value,
         },
       });
 
@@ -52,7 +59,7 @@ class EditUserForm extends Component {
       name,
       position,
       username,
-    } = user;
+    } = this.state.formData;
     const { onFormSubmit, onInputChange } = this;
 
     return (
@@ -65,6 +72,7 @@ class EditUserForm extends Component {
           onChange={onInputChange('name')}
           inputWrapperClass={`${baseClass}__input-wrap ${baseClass}__input-wrap--first`}
           inputClassName={`${baseClass}__input`}
+          value={name}
         />
         <div className={`${baseClass}__avatar-wrap`}>
           <Avatar user={user} className="user-block__avatar" />
@@ -77,6 +85,7 @@ class EditUserForm extends Component {
           onChange={onInputChange('username')}
           inputWrapperClass={`${baseClass}__input-wrap`}
           inputClassName={`${baseClass}__input ${baseClass}__input--username`}
+          value={username}
         />
         <InputField
           defaultValue={position}
@@ -86,6 +95,7 @@ class EditUserForm extends Component {
           onChange={onInputChange('position')}
           inputWrapperClass={`${baseClass}__input-wrap`}
           inputClassName={`${baseClass}__input`}
+          value={position}
         />
         <InputField
           defaultValue={email}
@@ -95,6 +105,7 @@ class EditUserForm extends Component {
           name="email"
           onChange={onInputChange('email')}
           inputClassName={`${baseClass}__input ${baseClass}__input--email`}
+          value={email}
         />
         <div className={`${baseClass}__btn-wrap`}>
           <Button

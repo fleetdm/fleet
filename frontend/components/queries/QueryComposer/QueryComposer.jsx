@@ -1,31 +1,33 @@
 import React, { Component, PropTypes } from 'react';
 import AceEditor from 'react-ace';
+import 'brace/mode/sql';
 import 'brace/ext/linking';
 
-import Button from 'components/buttons/Button';
-import debounce from 'utilities/debounce';
-import SaveQueryFormModal from 'components/modals/SaveQueryFormModal';
+import QueryForm from 'components/forms/queries/QueryForm';
+import queryInterface from 'interfaces/query';
 import SelectTargetsInput from 'components/queries/SelectTargetsInput';
 import SelectTargetsMenu from 'components/queries/SelectTargetsMenu';
 import targetInterface from 'interfaces/target';
-import ThemeDropdown from 'components/queries/NewQuery/ThemeDropdown';
-import { validateQuery } from 'components/queries/NewQuery/helpers';
 import './mode';
 import './theme';
 
-const baseClass = 'new-query';
+const baseClass = 'query-composer';
 
-class NewQuery extends Component {
+class QueryComposer extends Component {
   static propTypes = {
     isLoadingTargets: PropTypes.bool,
     moreInfoTarget: targetInterface,
-    onInvalidQuerySubmit: PropTypes.func,
-    onNewQueryFormSubmit: PropTypes.func,
     onOsqueryTableSelect: PropTypes.func,
     onRemoveMoreInfoTarget: PropTypes.func,
+    onRunQuery: PropTypes.func,
+    onSaveQueryFormSubmit: PropTypes.func,
+    onTargetSelect: PropTypes.func,
     onTargetSelectInputChange: PropTypes.func,
     onTargetSelectMoreInfo: PropTypes.func,
     onTextEditorInputChange: PropTypes.func,
+    onUpdateQuery: PropTypes.func,
+    query: queryInterface,
+    selectedTargets: PropTypes.arrayOf(targetInterface),
     selectedTargetsCount: PropTypes.number,
     targets: PropTypes.arrayOf(targetInterface),
     textEditorText: PropTypes.string,
@@ -36,8 +38,6 @@ class NewQuery extends Component {
 
     this.state = {
       isSaveQueryForm: false,
-      selectedTargets: [],
-      theme: 'kolide',
     };
   }
 
@@ -64,14 +64,6 @@ class NewQuery extends Component {
     return false;
   }
 
-  onRunQuery = (evt) => {
-    evt.preventDefault();
-
-    const { onSaveQueryFormSubmit } = this;
-
-    return onSaveQueryFormSubmit({});
-  }
-
   onSaveQueryFormCancel = (evt) => {
     evt.preventDefault();
 
@@ -80,54 +72,22 @@ class NewQuery extends Component {
     return false;
   }
 
-  onSaveQueryFormSubmit = debounce((formData) => {
-    const { onInvalidQuerySubmit, onNewQueryFormSubmit, textEditorText } = this.props;
-    const { selectedTargets } = this.state;
-    const { error } = validateQuery(textEditorText);
-
-    this.setState({ isSaveQueryForm: false });
-
-    if (error) {
-      return onInvalidQuerySubmit(error);
-    }
-
-    return onNewQueryFormSubmit({
-      ...formData,
-      query: textEditorText,
-      selectedTargets,
-    });
-  })
-
-  onTargetSelect = (selectedTargets) => {
-    this.setState({ selectedTargets });
-    return false;
-  }
-
-  onThemeSelect = (evt) => {
-    evt.preventDefault();
-
-    this.setState({
-      theme: evt.target.value,
-    });
-
-    return false;
-  }
-
-  renderSaveQueryFormModal = () => {
-    const { isSaveQueryForm } = this.state;
+  renderQueryComposerActions = () => {
     const {
+      onRunQuery,
       onSaveQueryFormSubmit,
-      onSaveQueryFormCancel,
-    } = this;
-
-    if (!isSaveQueryForm) {
-      return false;
-    }
+      onUpdateQuery,
+      query,
+      textEditorText,
+    } = this.props;
 
     return (
-      <SaveQueryFormModal
-        onCancel={onSaveQueryFormCancel}
-        onSubmit={onSaveQueryFormSubmit}
+      <QueryForm
+        onRunQuery={onRunQuery}
+        onSaveAsNew={onSaveQueryFormSubmit}
+        onSaveChanges={onUpdateQuery}
+        query={query}
+        queryText={textEditorText}
       />
     );
   }
@@ -137,30 +97,23 @@ class NewQuery extends Component {
       isLoadingTargets,
       moreInfoTarget,
       onRemoveMoreInfoTarget,
+      onTargetSelect,
       onTargetSelectInputChange,
       onTargetSelectMoreInfo,
       onTextEditorInputChange,
+      selectedTargets,
       selectedTargetsCount,
       targets,
       textEditorText,
     } = this.props;
-    const { selectedTargets, theme } = this.state;
     const {
       onLoad,
-      onLoadSaveQueryModal,
-      onRunQuery,
-      onTargetSelect,
-      onThemeSelect,
-      renderSaveQueryFormModal,
+      renderQueryComposerActions,
     } = this;
     const menuRenderer = SelectTargetsMenu(onTargetSelectMoreInfo, onRemoveMoreInfoTarget, moreInfoTarget);
 
     return (
       <div className={`${baseClass}__wrapper`}>
-        <p className={`${baseClass}__title`}>
-          New Query Page
-        </p>
-        <ThemeDropdown onSelectChange={onThemeSelect} theme={theme} />
         <div className={`${baseClass}__text-editor-wrapper`}>
           <AceEditor
             enableBasicAutocompletion
@@ -175,7 +128,7 @@ class NewQuery extends Component {
             setOptions={{ enableLinking: true }}
             showGutter
             showPrintMargin={false}
-            theme={theme}
+            theme="kolide"
             value={textEditorText}
             width="100%"
           />
@@ -194,24 +147,10 @@ class NewQuery extends Component {
             targets={targets}
           />
         </div>
-        <div className={`${baseClass}__btn-wrapper`}>
-          <Button
-            className={`${baseClass}__save-query-btn`}
-            onClick={onLoadSaveQueryModal}
-            text="Save Query"
-            variant="inverse"
-          />
-          <Button
-            className={`${baseClass}__run-query-btn`}
-            disabled={!selectedTargets.length}
-            onClick={onRunQuery}
-            text="Run Query"
-          />
-        </div>
-        {renderSaveQueryFormModal()}
+        {renderQueryComposerActions()}
       </div>
     );
   }
 }
 
-export default NewQuery;
+export default QueryComposer;

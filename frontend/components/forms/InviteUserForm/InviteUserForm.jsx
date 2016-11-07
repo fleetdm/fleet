@@ -27,8 +27,8 @@ class InviteUserForm extends Component {
       },
       formData: {
         admin: 'false',
-        email: null,
-        name: null,
+        email: '',
+        name: '',
       },
     };
   }
@@ -48,9 +48,8 @@ class InviteUserForm extends Component {
   }
 
   onInputChange = (formField) => {
-    return ({ target }) => {
+    return (value) => {
       const { errors, formData } = this.state;
-      const { value } = target;
 
       this.setState({
         errors: {
@@ -62,8 +61,18 @@ class InviteUserForm extends Component {
           [formField]: value,
         },
       });
+
+      return false;
     };
   }
+
+  onRadioInputChange = (formField) => {
+    return (evt) => {
+      const { value } = evt.target;
+
+      return this.onInputChange(formField)(value);
+    };
+  };
 
   onFormSubmit = (evt) => {
     evt.preventDefault();
@@ -116,9 +125,9 @@ class InviteUserForm extends Component {
   }
 
   render () {
-    const { errors, formData: { admin } } = this.state;
+    const { errors, formData: { admin, email, name } } = this.state;
     const { onCancel } = this.props;
-    const { onFormSubmit, onInputChange } = this;
+    const { onFormSubmit, onInputChange, onRadioInputChange } = this;
 
     return (
       <form onSubmit={onFormSubmit}>
@@ -128,25 +137,27 @@ class InviteUserForm extends Component {
           name="name"
           onChange={onInputChange('name')}
           placeholder="Name"
+          value={name}
         />
         <InputFieldWithIcon
           error={errors.email}
           name="email"
           onChange={onInputChange('email')}
           placeholder="Email"
+          value={email}
         />
         <div className={`${baseClass}__radio`}>
           <p className={`${baseClass}__role`}>role</p>
           <input
             checked={admin === 'false'}
-            onChange={onInputChange('admin')}
+            onChange={onRadioInputChange('admin')}
             type="radio"
             value="false"
           /> USER (default)
           <br />
           <input
             checked={admin === 'true'}
-            onChange={onInputChange('admin')}
+            onChange={onRadioInputChange('admin')}
             type="radio"
             value="true"
           /> ADMIN

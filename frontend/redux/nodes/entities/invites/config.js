@@ -13,4 +13,3 @@ export default reduxConfig({
   parseEntityFunc: addGravatarUrlToResource,
   schema,
 });
-

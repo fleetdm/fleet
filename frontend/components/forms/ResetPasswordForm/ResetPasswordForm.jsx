@@ -19,8 +19,8 @@ class ResetPasswordForm extends Component {
         new_password_confirmation: null,
       },
       formData: {
-        new_password: null,
-        new_password_confirmation: null,
+        new_password: '',
+        new_password_confirmation: '',
       },
     };
   }
@@ -39,9 +39,8 @@ class ResetPasswordForm extends Component {
   }
 
   onInputChange = (inputName) => {
-    return ({ target }) => {
+    return (value) => {
       const { formData } = this.state;
-      const { value } = target;
 
       this.setState({
         errors: {
@@ -102,7 +101,13 @@ class ResetPasswordForm extends Component {
   }
 
   render () {
-    const { errors } = this.state;
+    const {
+      errors,
+      formData: {
+        new_password: newPassword,
+        new_password_confirmation: newPasswordConfirmation,
+      },
+    } = this.state;
     const { onFormSubmit, onInputChange } = this;
     const baseClass = 'reset-password-form';
 
@@ -117,6 +122,7 @@ class ResetPasswordForm extends Component {
           placeholder="New Password"
           className={`${baseClass}__input`}
           type="password"
+          value={newPassword}
         />
         <InputFieldWithIcon
           error={errors.new_password_confirmation}
@@ -126,6 +132,7 @@ class ResetPasswordForm extends Component {
           placeholder="Confirm Password"
           className={`${baseClass}__input`}
           type="password"
+          value={newPasswordConfirmation}
         />
         <Button
           onClick={onFormSubmit}

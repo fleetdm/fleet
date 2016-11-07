@@ -22,14 +22,13 @@ class ForgotPasswordForm extends Component {
         email: null,
       },
       formData: {
-        email: null,
+        email: '',
       },
     };
   }
 
-  onInputFieldChange = (evt) => {
+  onInputFieldChange = (value) => {
     const { clearErrors, error: serverError } = this.props;
-    const { value } = evt.target;
 
     this.setState({
       errors: {
@@ -88,7 +87,7 @@ class ForgotPasswordForm extends Component {
 
   render () {
     const { error: serverError } = this.props;
-    const { errors: clientErrors } = this.state;
+    const { errors: clientErrors, formData } = this.state;
     const { onFormSubmit, onInputFieldChange } = this;
 
     return (
@@ -100,6 +99,7 @@ class ForgotPasswordForm extends Component {
           name="email"
           onChange={onInputFieldChange}
           placeholder="Email Address"
+          value={formData.email}
         />
         <div className={`${baseClass}__button-wrap`}>
           <Button
