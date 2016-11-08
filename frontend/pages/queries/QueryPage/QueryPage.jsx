@@ -26,7 +26,11 @@ class QueryPage extends Component {
   };
 
   componentWillMount () {
-    const { dispatch } = this.props;
+    const { dispatch, query } = this.props;
+
+    if (query) {
+      dispatch(setQueryText(query.query));
+    }
 
     this.state = {
       isLoadingTargets: false,
@@ -37,6 +41,19 @@ class QueryPage extends Component {
 
     dispatch(showRightSidePanel);
     this.fetchTargets();
+
+    return false;
+  }
+
+  componentWillReceiveProps (nextProps) {
+    const { dispatch, query: newQuery } = nextProps;
+    const { query: oldQuery } = this.props;
+
+    if ((!oldQuery && newQuery) || (oldQuery && oldQuery.query !== newQuery.query)) {
+      const { query: queryText } = newQuery;
+
+      dispatch(setQueryText(queryText));
+    }
 
     return false;
   }
@@ -96,7 +113,8 @@ class QueryPage extends Component {
 
     return dispatch(queryActions.create(queryParams))
       .then((query) => {
-        return dispatch(push(`/queries/${query.id}`));
+        dispatch(push(`/queries/${query.id}`));
+        dispatch(renderFlash('success', 'Query created'));
       })
       .catch((errorResponse) => {
         dispatch(renderFlash('error', errorResponse));
@@ -149,9 +167,12 @@ class QueryPage extends Component {
   }
 
   onUpdateQuery = (formData) => {
-    // TODO: call API to update the query
+    const { dispatch, query } = this.props;
 
-    console.log('TODO: update query', formData);
+    dispatch(queryActions.update(query, formData))
+      .then(() => {
+        dispatch(renderFlash('success', 'Query updated!'));
+      });
 
     return false;
   };

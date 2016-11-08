@@ -9,4 +9,5 @@ export default reduxConfig({
   entityName: 'queries',
   loadFunc: Kolide.getQuery,
   schema,
+  updateFunc: Kolide.updateQuery,
 });

@@ -62,7 +62,7 @@ class QueryForm extends Component {
         formData: {
           description: query.description,
           name: query.name,
-          queryText,
+          query: queryText,
         },
       });
     }

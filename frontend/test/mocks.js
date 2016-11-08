@@ -162,6 +162,16 @@ export const invalidResetPasswordRequest = (password, token, error) => {
   .reply(422, { error });
 };
 
+export const validUpdateQueryRequest = (bearerToken, query, formData) => {
+  return nock('http://localhost:8080', {
+    reqHeaders: {
+      Authorization: `Bearer ${bearerToken}`,
+    },
+  })
+  .patch(`/api/v1/kolide/queries/${query.id}`, JSON.stringify(formData))
+  .reply(200, { query: { ...query, ...formData } });
+};
+
 export const validUpdateUserRequest = (user, formData) => {
   return nock('http://localhost:8080')
   .patch(`/api/v1/kolide/users/${user.id}`, JSON.stringify(formData))
@@ -186,6 +196,7 @@ export default {
   validMeRequest,
   validResetPasswordRequest,
   validRevokeInviteRequest,
+  validUpdateQueryRequest,
   validUpdateUserRequest,
   validUser,
 };

@@ -20,6 +20,7 @@ const {
   validMeRequest,
   validResetPasswordRequest,
   validRevokeInviteRequest,
+  validUpdateQueryRequest,
   validUpdateUserRequest,
   validUser,
 } = mocks;
@@ -312,6 +313,27 @@ describe('Kolide - API client', () => {
       Kolide.revokeInvite({ entityID })
         .then(() => {
           expect(request.isDone()).toEqual(true);
+          done();
+        })
+        .catch(done);
+    });
+  });
+
+  describe('#updateQuery', () => {
+    it('calls the appropriate endpoint with the correct parameters', (done) => {
+      const bearerToken = 'valid-bearer-token';
+      const query = { id: 1, name: 'Query Name', description: 'Query Description', query: 'SELECT * FROM users' };
+      const updateQueryParams = { name: 'New Query Name' };
+      const request = validUpdateQueryRequest(bearerToken, query, updateQueryParams);
+
+      Kolide.setBearerToken(bearerToken);
+      Kolide.updateQuery(query, updateQueryParams)
+        .then((queryResponse) => {
+          expect(request.isDone()).toEqual(true);
+          expect(queryResponse).toEqual({
+            ...query,
+            ...updateQueryParams,
+          });
           done();
         })
         .catch(done);

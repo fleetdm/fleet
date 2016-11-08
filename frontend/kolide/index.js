@@ -199,6 +199,14 @@ class Kolide extends Base {
     return this.authenticatedDelete(endpoint);
   }
 
+  updateQuery = ({ id: queryID }, updateParams) => {
+    const { QUERIES } = endpoints;
+    const updateQueryEndpoint = `${this.baseURL}${QUERIES}/${queryID}`;
+
+    return this.authenticatedPatch(updateQueryEndpoint, JSON.stringify(updateParams))
+      .then((response) => { return response.query; });
+  }
+
   updateUser = (user, formData) => {
     const { USERS } = endpoints;
     const updateUserEndpoint = `${this.baseURL}${USERS}/${user.id}`;
