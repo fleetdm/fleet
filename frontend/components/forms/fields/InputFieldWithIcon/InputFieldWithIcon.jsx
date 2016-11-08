@@ -39,7 +39,7 @@ class InputFieldWithIcon extends InputField {
       `${baseClass}__input`,
       'input-with-icon',
       { [`${baseClass}__input--error`]: error },
-      { [`${baseClass}__input--password`]: type === 'password' }
+      { [`${baseClass}__input--password`]: type === 'password' && value }
     );
 
     const iconClasses = classnames(
