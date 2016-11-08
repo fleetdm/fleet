@@ -30,13 +30,13 @@ const FlashMessage = ({ notification, dispatch }) => {
       </div>
       <div className={`${baseClass}__action`}>
         <button
-          className={`${baseClass}__undo button button__unstyled`}
+          className={`${baseClass}__undo button button--unstyled`}
           onClick={submitUndoAction}
         >
           {undoAction && 'undo'}
         </button>
         <button
-          className={`${baseClass}__remove ${baseClass}__remove--${alertType} button button__unstyled`}
+          className={`${baseClass}__remove ${baseClass}__remove--${alertType} button button--unstyled`}
           onClick={removeFlashMessage}
         >
           &times;

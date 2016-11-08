@@ -15,7 +15,7 @@ const Slider = ({ onClick, engaged }) => {
   );
 
   return (
-    <button className={`button button__unstyled ${sliderBtnClass}`} onClick={onClick}>
+    <button className={`button button--unstyled ${sliderBtnClass}`} onClick={onClick}>
       <div className={sliderDotClass} />
     </button>
   );

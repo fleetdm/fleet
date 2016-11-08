@@ -87,7 +87,7 @@ export class EllipsisMenu extends Component {
       >
         <button
           onClick={onToggleChildren}
-          className={`${baseClass}__btn button button__unstyled`}
+          className={`${baseClass}__btn button button--unstyled`}
         >
           &bull; &bull; &bull;
         </button>

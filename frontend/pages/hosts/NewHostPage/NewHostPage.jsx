@@ -115,7 +115,7 @@ export class NewHostPage extends Component {
         { [`${baseClass}__tab-header--selected`]: selected }
       );
 
-      return <button className={`button button__unstyled ${hostTabHeaderClass}`} onClick={onSetActiveTab(tab)} key={tab}>{tab}</button>;
+      return <button className={`button button--unstyled ${hostTabHeaderClass}`} onClick={onSetActiveTab(tab)} key={tab}>{tab}</button>;
     });
   }
 

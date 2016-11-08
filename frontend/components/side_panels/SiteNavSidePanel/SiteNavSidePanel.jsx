@@ -143,7 +143,7 @@ class SiteNavSidePanel extends Component {
     return (
       <div className={navItemBaseClass} key={`nav-item-${name}`}>
         <button
-          className="button button__unstyled"
+          className="button button--unstyled"
           onClick={setActiveTab(navItem)}
           style={{ width: '100%' }}
         >
@@ -199,7 +199,7 @@ class SiteNavSidePanel extends Component {
       <button
         key={`sub-item-${name}`}
         onClick={setActiveSubItem(subItem)}
-        className={`${baseSubItemClass} button button__unstyled`}
+        className={`${baseSubItemClass} button button--unstyled`}
       >
         {active && <div className={`${baseSubItemClass}__before`} />}
         <li
@@ -244,7 +244,7 @@ class SiteNavSidePanel extends Component {
 
     return (
       <button
-        className="button button__unstyled collapse-sub-item"
+        className="button button--unstyled collapse-sub-item"
         onClick={toggleShowSubItems(!showSubItems)}
       >
         <i className={iconName} />

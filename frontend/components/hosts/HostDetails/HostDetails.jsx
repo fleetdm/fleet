@@ -28,12 +28,12 @@ const HostDetails = ({ host, onQueryClick = noop, onDisableClick = noop }) => {
     <div className={`${baseClass} ${baseClass}--${status}`}>
       <EllipsisMenu positionStyles={{ top: '-3px', right: '10px' }}>
         <div className={`${baseClass}__ellipsis-children`}>
-          <button className={`${baseClass}__ellipsis-child-item button button__unstyled`} onClick={onQueryClick(host)}>
+          <button className={`${baseClass}__ellipsis-child-item button button--unstyled`} onClick={onQueryClick(host)}>
             <i className={`${baseClass}__query-icon kolidecon-query`} />
             <div>Query</div>
           </button>
           <div className={`${baseClass}__vertical-separator`} />
-          <button className={`${baseClass}__ellipsis-child-item button button__unstyled`} onClick={onDisableClick(host)}>
+          <button className={`${baseClass}__ellipsis-child-item button button--unstyled`} onClick={onDisableClick(host)}>
             <i className={`${baseClass}__disabled-icon kolidecon-ex`} />
             <div>Disable</div>
           </button>
