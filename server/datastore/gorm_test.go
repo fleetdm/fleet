@@ -29,6 +29,7 @@ func setupGorm(t *testing.T) (ds kolide.Datastore, teardown func()) {
 		if !ok {
 			panic("expected gormDB datastore")
 		}
+		require.Nil(t, db.Drop())
 		db.DB.Close()
 	}
 	return ds, teardown
@@ -38,15 +39,11 @@ func TestGorm(t *testing.T) {
 	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
 		t.SkipNow()
 	}
-	ds, teardown := setupGorm(t)
-	defer teardown()
 	for _, f := range testFunctions {
 		t.Run(functionName(f), func(t *testing.T) {
-			err := ds.Migrate()
-			require.Nil(t, err)
+			ds, teardown := setupGorm(t)
+			defer teardown()
 			f(t, ds)
-			err = ds.Drop()
-			require.Nil(t, err)
 		})
 	}
 }
