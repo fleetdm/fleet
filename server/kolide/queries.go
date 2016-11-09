@@ -95,7 +95,7 @@ type DistributedQueryResult struct {
 }
 
 type DistributedQueryExecution struct {
-	ID                 uint
+	ID                 uint `gorm:"primary_key"`
 	HostID             uint
 	DistributedQueryID uint
 	Status             DistributedQueryExecutionStatus
