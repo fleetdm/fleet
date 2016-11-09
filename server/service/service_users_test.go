@@ -2,7 +2,6 @@ package service
 
 import (
 	"errors"
-	"strconv"
 	"testing"
 	"time"
 
@@ -86,9 +85,9 @@ func TestRequestPasswordReset(t *testing.T) {
 	}
 
 	for _, tt := range requestPasswordResetTests {
-		tt := tt
-		t.Run("", func(st *testing.T) {
-			st.Parallel()
+		t.Run("", func(t *testing.T) {
+			t.Parallel()
+			tt := tt
 			ctx := context.Background()
 			if tt.vc != nil {
 				ctx = viewer.NewContext(ctx, *tt.vc)
@@ -98,14 +97,14 @@ func TestRequestPasswordReset(t *testing.T) {
 			serviceErr := svc.RequestPasswordReset(ctx, tt.email)
 			assert.Equal(t, tt.wantErr, serviceErr)
 			if tt.vc != nil && tt.vc.IsAdmin() {
-				assert.False(st, mailer.Invoked, "email should not be sent if reset requested by admin")
-				assert.True(st, tt.user.AdminForcedPasswordReset, "AdminForcedPasswordReset should be true if reset requested by admin")
+				assert.False(t, mailer.Invoked, "email should not be sent if reset requested by admin")
+				assert.True(t, tt.user.AdminForcedPasswordReset, "AdminForcedPasswordReset should be true if reset requested by admin")
 			} else {
-				assert.True(st, mailer.Invoked, "email should be sent if vc is not admin")
+				assert.True(t, mailer.Invoked, "email should be sent if vc is not admin")
 				if serviceErr == nil {
 					req, err := ds.FindPassswordResetsByUserID(tt.user.ID)
-					assert.Nil(st, err)
-					assert.NotEmpty(st, req, "user should have at least one password reset request")
+					assert.Nil(t, err)
+					assert.NotEmpty(t, req, "user should have at least one password reset request")
 				}
 			}
 		})
@@ -177,32 +176,34 @@ func TestCreateUser(t *testing.T) {
 		},
 	}
 
-	for i, tt := range createUserTests {
-		payload := kolide.UserPayload{
-			Username:                 tt.Username,
-			Password:                 tt.Password,
-			Email:                    tt.Email,
-			Admin:                    tt.Admin,
-			InviteToken:              tt.InviteToken,
-			AdminForcedPasswordReset: tt.NeedsPasswordReset,
-		}
-		user, err := svc.NewUser(ctx, payload)
-		require.Equal(t, tt.wantErr, err, strconv.Itoa(i))
-		if err != nil {
-			// skip rest of the test if error is not nil
-			continue
-		}
+	for _, tt := range createUserTests {
+		t.Run("", func(t *testing.T) {
+			payload := kolide.UserPayload{
+				Username:                 tt.Username,
+				Password:                 tt.Password,
+				Email:                    tt.Email,
+				Admin:                    tt.Admin,
+				InviteToken:              tt.InviteToken,
+				AdminForcedPasswordReset: tt.NeedsPasswordReset,
+			}
+			user, err := svc.NewUser(ctx, payload)
+			require.Equal(t, tt.wantErr, err)
+			if err != nil {
+				// skip rest of the test if error is not nil
+				return
+			}
 
-		assert.NotZero(t, user.ID)
+			assert.NotZero(t, user.ID)
 
-		err = user.ValidatePassword(*tt.Password)
-		assert.Nil(t, err)
+			err = user.ValidatePassword(*tt.Password)
+			assert.Nil(t, err)
 
-		err = user.ValidatePassword("different_password")
-		assert.NotNil(t, err)
+			err = user.ValidatePassword("different_password")
+			assert.NotNil(t, err)
 
-		assert.Equal(t, user.AdminForcedPasswordReset, *tt.NeedsPasswordReset)
-		assert.Equal(t, user.Admin, *tt.Admin)
+			assert.Equal(t, user.AdminForcedPasswordReset, *tt.NeedsPasswordReset)
+			assert.Equal(t, user.Admin, *tt.Admin)
+		})
 
 	}
 }
@@ -261,19 +262,21 @@ func TestChangeUserPassword(t *testing.T) {
 		},
 	}
 
-	for i, tt := range passwordChangeTests {
-		ctx := context.Background()
-		request := &kolide.PasswordResetRequest{
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-			ExpiresAt: time.Now().Add(time.Hour * 24),
-			UserID:    1,
-			Token:     "abcd",
-		}
-		_, err := ds.NewPasswordResetRequest(request)
-		assert.Nil(t, err)
+	for _, tt := range passwordChangeTests {
+		t.Run("", func(t *testing.T) {
+			ctx := context.Background()
+			request := &kolide.PasswordResetRequest{
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				ExpiresAt: time.Now().Add(time.Hour * 24),
+				UserID:    1,
+				Token:     "abcd",
+			}
+			_, err := ds.NewPasswordResetRequest(request)
+			assert.Nil(t, err)
 
-		serr := svc.ResetPassword(ctx, tt.token, tt.newPassword)
-		assert.Equal(t, tt.wantErr, serr, strconv.Itoa(i))
+			serr := svc.ResetPassword(ctx, tt.token, tt.newPassword)
+			assert.Equal(t, tt.wantErr, serr)
+		})
 	}
 }
