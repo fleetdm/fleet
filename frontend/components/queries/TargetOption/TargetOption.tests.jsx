@@ -8,10 +8,10 @@ import TargetOption from './TargetOption';
 describe('TargetOption - component', () => {
   const hostTarget = {
     detail_updated_at: '2016-10-25T16:24:27.679472917-04:00',
+    display_text: 'Jason Meller\'s Windows Note',
     hostname: 'Jason Meller\'s Windows Note',
     id: 2,
     ip: '192.168.1.11',
-    label: 'Jason Meller\'s Windows Note',
     mac: '0C-BA-8D-45-FD-B9',
     memory: 4145483776,
     os_version: 'Windows Vista 0.0.1',
@@ -26,8 +26,8 @@ describe('TargetOption - component', () => {
   const labelTarget = {
     count: 38,
     description: 'This group consists of machines utilized for developing within the WIN 10 environment',
+    display_text: 'Windows 10 Development',
     hosts: [hostTarget],
-    label: 'Windows 10 Development',
     name: 'windows10',
     query: "SELECT * FROM last WHERE username = 'root' AND last.time > ((SELECT unix_time FROM time) - 3600);",
     target_type: 'labels',

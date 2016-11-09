@@ -33,6 +33,10 @@ class QueryComposer extends Component {
     textEditorText: PropTypes.string,
   };
 
+  static defaultProps = {
+    selectedTargetsCount: 0,
+  };
+
   constructor (props) {
     super(props);
 

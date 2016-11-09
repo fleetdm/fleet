@@ -5,6 +5,7 @@ import {
   selectOsqueryTable,
   setQueryText,
   setSelectedTargets,
+  setSelectedTargetsQuery,
 } from './actions';
 
 describe('QueryPages - reducer', () => {
@@ -19,6 +20,7 @@ describe('QueryPages - reducer', () => {
         queryText: initialState.queryText,
         selectedOsqueryTable: selectOsqueryTableAction.payload.selectedOsqueryTable,
         selectedTargets: [],
+        selectedTargetsQuery: '',
       });
     });
   });
@@ -31,6 +33,7 @@ describe('QueryPages - reducer', () => {
         queryText,
         selectedOsqueryTable: initialState.selectedOsqueryTable,
         selectedTargets: [],
+        selectedTargetsQuery: '',
       });
     });
   });
@@ -42,6 +45,16 @@ describe('QueryPages - reducer', () => {
       expect(reducer(initialState, setSelectedTargetsAction)).toEqual({
         ...initialState,
         selectedTargets,
+      });
+    });
+  });
+
+  context('setSelectedTargetsQuery action', () => {
+    it('sets the selectedTarges attribute', () => {
+      const setSelectedTargetsQueryAction = setSelectedTargetsQuery('192');
+      expect(reducer(initialState, setSelectedTargetsQueryAction)).toEqual({
+        ...initialState,
+        selectedTargetsQuery: '192',
       });
     });
   });

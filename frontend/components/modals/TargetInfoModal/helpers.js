@@ -1,7 +1,7 @@
 export const headerClassName = (target) => {
-  const { label, target_type: targetType } = target;
+  const { display_text: displayText, target_type: targetType } = target;
 
-  if (label.toLowerCase() === 'all hosts') {
+  if (displayText.toLowerCase() === 'all hosts') {
     return 'kolidecon-all-hosts';
   }
 

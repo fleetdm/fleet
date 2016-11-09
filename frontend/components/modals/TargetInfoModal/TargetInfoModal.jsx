@@ -33,13 +33,13 @@ class TargetInfoModal extends Component {
 
   renderHeader = () => {
     const { target } = this.props;
-    const { label } = target;
+    const { display_text: displayText } = target;
     const className = headerClassName(target);
 
     return (
       <span className={`${baseClass}__header`}>
         <i className={className} />
-        <span>{label}</span>
+        <span>{displayText}</span>
       </span>
     );
   }

@@ -1,4 +1,5 @@
 import React, { Component, PropTypes } from 'react';
+import { difference } from 'lodash';
 import Select from 'react-select';
 import 'react-select/dist/react-select.css';
 
@@ -14,6 +15,12 @@ class SelectTargetsInput extends Component {
     targets: PropTypes.arrayOf(targetInterface),
   };
 
+  filterOptions = (options) => {
+    const { selectedTargets } = this.props;
+
+    return difference(options, selectedTargets);
+  }
+
   render () {
     const {
       isLoading,
@@ -28,6 +35,8 @@ class SelectTargetsInput extends Component {
       <Select
         className="target-select"
         isLoading={isLoading}
+        filterOptions={this.filterOptions}
+        labelKey="display_text"
         menuRenderer={menuRenderer}
         multi
         name="targets"
@@ -37,7 +46,7 @@ class SelectTargetsInput extends Component {
         placeholder="Label Name, Host Name, IP Address, etc."
         resetValue={[]}
         value={selectedTargets}
-        valueKey="label"
+        valueKey="display_text"
       />
     );
   }

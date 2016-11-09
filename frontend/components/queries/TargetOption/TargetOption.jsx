@@ -36,9 +36,9 @@ class TargetOption extends Component {
   }
 
   targetIconClass = () => {
-    const { label, target_type: targetType } = this.props.target;
+    const { display_text: displayText, target_type: targetType } = this.props.target;
 
-    if (label.toLowerCase() === 'all hosts') {
+    if (displayText.toLowerCase() === 'all hosts') {
       return 'kolidecon-all-hosts';
     }
 
@@ -79,7 +79,7 @@ class TargetOption extends Component {
 
   render () {
     const { onMoreInfoClick, target } = this.props;
-    const { label, target_type: targetType } = target;
+    const { display_text: displayText, target_type: targetType } = target;
     const {
       handleSelect,
       hostPlatformIconClass,
@@ -96,7 +96,7 @@ class TargetOption extends Component {
       <div className={wrapperClassName}>
         <i className={`${targetIconClass()} ${classBlock}__target-icon`} />
         {targetType === 'hosts' && <i className={`${classBlock}__icon ${hostPlatformIconClass()}`} />}
-        <span className={`${classBlock}__label-label`}>{label}</span>
+        <span className={`${classBlock}__label-label`}>{displayText}</span>
         <span className={`${classBlock}__delimeter`}>&bull;</span>
         {renderTargetDetail()}
         <Button className={`${classBlock}__btn`} text="ADD" onClick={handleSelect} variant="brand" />
