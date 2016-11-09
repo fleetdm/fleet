@@ -156,3 +156,40 @@ AGAINST(? IN BOOLEAN MODE)
 	}
 	return results, nil
 }
+
+func (orm gormDB) DistributedQueriesForHost(host *kolide.Host) (map[uint]string, error) {
+	sql := `
+SELECT DISTINCT dqc.id, q.query
+FROM distributed_query_campaigns dqc
+JOIN distributed_query_campaign_targets dqct
+    ON (dqc.id = dqct.distributed_query_campaign_id)
+LEFT JOIN label_query_executions lqe
+    ON (dqct.type = ? AND dqct.target_id = lqe.label_id AND lqe.matches)
+LEFT JOIN hosts h
+    ON ((dqct.type = ? AND lqe.host_id = h.id) OR (dqct.type = ? AND dqct.target_id = h.id))
+LEFT JOIN distributed_query_executions dqe
+    ON (h.id = dqe.host_id AND dqc.id = dqe.distributed_query_id)
+JOIN queries q
+    ON (dqc.query_id = q.id)
+WHERE dqe.status IS NULL AND dqc.status = ? AND h.id = ?;
+`
+	rows, err := orm.DB.Raw(sql, kolide.TargetLabel, kolide.TargetLabel, kolide.TargetHost, kolide.QueryRunning, host.ID).Rows()
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, errors.DatabaseError(err)
+	}
+	defer rows.Close()
+
+	results := map[uint]string{}
+	for rows.Next() {
+		var id uint
+		var query string
+		err = rows.Scan(&id, &query)
+		if err != nil {
+			return nil, errors.DatabaseError(err)
+		}
+		results[id] = query
+	}
+
+	return results, nil
+
+}

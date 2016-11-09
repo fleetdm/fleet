@@ -14,17 +14,20 @@ type inmem struct {
 	mtx     sync.RWMutex
 	nextIDs map[interface{}]uint
 
-	users                map[uint]*kolide.User
-	sessions             map[uint]*kolide.Session
-	passwordResets       map[uint]*kolide.PasswordResetRequest
-	invites              map[uint]*kolide.Invite
-	labels               map[uint]*kolide.Label
-	labelQueryExecutions map[uint]*kolide.LabelQueryExecution
-	queries              map[uint]*kolide.Query
-	packs                map[uint]*kolide.Pack
-	hosts                map[uint]*kolide.Host
-	packQueries          map[uint]*kolide.PackQuery
-	packTargets          map[uint]*kolide.PackTarget
+	users                           map[uint]*kolide.User
+	sessions                        map[uint]*kolide.Session
+	passwordResets                  map[uint]*kolide.PasswordResetRequest
+	invites                         map[uint]*kolide.Invite
+	labels                          map[uint]*kolide.Label
+	labelQueryExecutions            map[uint]*kolide.LabelQueryExecution
+	queries                         map[uint]*kolide.Query
+	packs                           map[uint]*kolide.Pack
+	hosts                           map[uint]*kolide.Host
+	packQueries                     map[uint]*kolide.PackQuery
+	packTargets                     map[uint]*kolide.PackTarget
+	distributedQueryExecutions      map[uint]kolide.DistributedQueryExecution
+	distributedQueryCampaigns       map[uint]kolide.DistributedQueryCampaign
+	distributedQueryCampaignTargets map[uint]kolide.DistributedQueryCampaignTarget
 
 	orginfo *kolide.AppConfig
 }
@@ -48,6 +51,9 @@ func (orm *inmem) Migrate() error {
 	orm.hosts = make(map[uint]*kolide.Host)
 	orm.packQueries = make(map[uint]*kolide.PackQuery)
 	orm.packTargets = make(map[uint]*kolide.PackTarget)
+	orm.distributedQueryExecutions = make(map[uint]kolide.DistributedQueryExecution)
+	orm.distributedQueryCampaigns = make(map[uint]kolide.DistributedQueryCampaign)
+	orm.distributedQueryCampaignTargets = make(map[uint]kolide.DistributedQueryCampaignTarget)
 	return nil
 }
 

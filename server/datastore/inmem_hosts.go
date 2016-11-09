@@ -203,3 +203,40 @@ func (orm *inmem) SearchHosts(query string, omit []uint) ([]kolide.Host, error) 
 
 	return results, nil
 }
+
+func (orm *inmem) DistributedQueriesForHost(host *kolide.Host) (map[uint]string, error) {
+	// lookup of executions for this host
+	hostExecutions := map[uint]kolide.DistributedQueryExecutionStatus{}
+	for _, e := range orm.distributedQueryExecutions {
+		if e.HostID == host.ID {
+			hostExecutions[e.DistributedQueryCampaignID] = e.Status
+		}
+	}
+
+	// lookup of labels for this host (only including matching labels)
+	hostLabels := map[uint]bool{}
+	labels, err := orm.ListLabelsForHost(host.ID)
+	if err != nil {
+		return nil, err
+	}
+	for _, l := range labels {
+		hostLabels[l.ID] = true
+	}
+
+	queries := map[uint]string{} // map campaign ID -> query string
+	for _, campaign := range orm.distributedQueryCampaigns {
+		if campaign.Status != kolide.QueryRunning {
+			continue
+		}
+		for _, target := range orm.distributedQueryCampaignTargets {
+			if campaign.ID == target.DistributedQueryCampaignID &&
+				((target.Type == kolide.TargetHost && target.TargetID == host.ID) ||
+					(target.Type == kolide.TargetLabel && hostLabels[target.TargetID])) &&
+				(hostExecutions[campaign.ID] == kolide.ExecutionWaiting) {
+				queries[campaign.ID] = orm.queries[campaign.QueryID].Query
+			}
+		}
+	}
+
+	return queries, nil
+}

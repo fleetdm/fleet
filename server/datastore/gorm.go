@@ -47,8 +47,12 @@ func (orm gormDB) Migrate() error {
 		}
 	}
 
-	// Have to manually add indexes. Yuck!
+	// Have to manually add indexes when specific ordering needed.
 	err := orm.DB.Model(&kolide.LabelQueryExecution{}).AddUniqueIndex("idx_lqe_label_host", "label_id", "host_id").Error
+	if err != nil {
+		return err
+	}
+	err = orm.DB.Model(&kolide.DistributedQueryExecution{}).AddUniqueIndex("idx_dqe_unique_host_dq_id", "host_id", "distributed_query_campaign_id").Error
 	if err != nil {
 		return err
 	}

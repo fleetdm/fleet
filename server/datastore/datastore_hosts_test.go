@@ -142,3 +142,139 @@ func testSearchHostsLimit(t *testing.T, db kolide.Datastore) {
 	require.Nil(t, err)
 	assert.Len(t, hosts, 10)
 }
+
+func testDistributedQueriesForHost(t *testing.T, db kolide.Datastore) {
+	h1, err := db.NewHost(&kolide.Host{
+		DetailUpdateTime: time.Now(),
+		NodeKey:          "1",
+		UUID:             "1",
+		HostName:         "foo.local",
+		PrimaryIP:        "192.168.1.10",
+	})
+	require.Nil(t, err)
+
+	h2, err := db.NewHost(&kolide.Host{
+		DetailUpdateTime: time.Now(),
+		NodeKey:          "2",
+		UUID:             "2",
+		HostName:         "bar.local",
+		PrimaryIP:        "192.168.1.11",
+	})
+	require.Nil(t, err)
+
+	// All should have no queries
+	var queries map[uint]string
+	queries, err = db.DistributedQueriesForHost(h1)
+	require.Nil(t, err)
+	assert.Empty(t, queries)
+	queries, err = db.DistributedQueriesForHost(h2)
+	require.Nil(t, err)
+	assert.Empty(t, queries)
+
+	// Create a label
+	l1, err := db.NewLabel(&kolide.Label{
+		Name:  "label foo",
+		Query: "query1",
+	})
+	require.Nil(t, err)
+	l1ID := fmt.Sprintf("%d", l1.ID)
+
+	// Add hosts to label
+	for _, h := range []*kolide.Host{h1, h2} {
+		err = db.RecordLabelQueryExecutions(h, map[string]bool{l1ID: true}, time.Now())
+		require.Nil(t, err)
+	}
+
+	// Create a query
+	q1 := &kolide.Query{
+		Name:  "bar",
+		Query: "select * from bar",
+	}
+	q1, err = db.NewQuery(q1)
+	require.Nil(t, err)
+
+	// Create a query campaign
+	c1 := kolide.DistributedQueryCampaign{
+		QueryID: q1.ID,
+		Status:  kolide.QueryRunning,
+	}
+	c1, err = db.NewDistributedQueryCampaign(c1)
+	require.Nil(t, err)
+
+	// Add a target to the campaign
+	target := kolide.DistributedQueryCampaignTarget{
+		Type: kolide.TargetLabel,
+		DistributedQueryCampaignID: c1.ID,
+		TargetID:                   l1.ID,
+	}
+	target, err = db.NewDistributedQueryCampaignTarget(target)
+	require.Nil(t, err)
+
+	// All should have the query now
+	queries, err = db.DistributedQueriesForHost(h1)
+	require.Nil(t, err)
+	assert.Len(t, queries, 1)
+	assert.Equal(t, "select * from bar", queries[c1.ID])
+	queries, err = db.DistributedQueriesForHost(h2)
+	require.Nil(t, err)
+	assert.Len(t, queries, 1)
+	assert.Equal(t, "select * from bar", queries[c1.ID])
+
+	// Record an execution
+	exec := kolide.DistributedQueryExecution{
+		HostID: h1.ID,
+		DistributedQueryCampaignID: c1.ID,
+		Status: kolide.ExecutionSucceeded,
+	}
+	exec, err = db.NewDistributedQueryExecution(exec)
+	require.Nil(t, err)
+
+	// Add another query/campaign
+	q2 := &kolide.Query{
+		Name:  "foo",
+		Query: "select * from foo",
+	}
+	q2, err = db.NewQuery(q2)
+	require.Nil(t, err)
+
+	c2 := kolide.DistributedQueryCampaign{
+		QueryID: q2.ID,
+		Status:  kolide.QueryRunning,
+	}
+	c2, err = db.NewDistributedQueryCampaign(c2)
+	require.Nil(t, err)
+
+	// This one targets only h1
+	target = kolide.DistributedQueryCampaignTarget{
+		Type: kolide.TargetHost,
+		DistributedQueryCampaignID: c2.ID,
+		TargetID:                   h1.ID,
+	}
+	target, err = db.NewDistributedQueryCampaignTarget(target)
+	require.Nil(t, err)
+
+	// Check for correct queries
+	queries, err = db.DistributedQueriesForHost(h1)
+	require.Nil(t, err)
+	assert.Len(t, queries, 1)
+	assert.Equal(t, "select * from foo", queries[c2.ID])
+	queries, err = db.DistributedQueriesForHost(h2)
+	require.Nil(t, err)
+	assert.Len(t, queries, 1)
+	assert.Equal(t, "select * from bar", queries[c1.ID])
+
+	// End both of the campaigns
+	c1.Status = kolide.QueryComplete
+	require.Nil(t, db.SaveDistributedQueryCampaign(c1))
+	c2.Status = kolide.QueryComplete
+	require.Nil(t, db.SaveDistributedQueryCampaign(c2))
+
+	// Now no queries should be returned
+	queries, err = db.DistributedQueriesForHost(h1)
+	require.Nil(t, err)
+	assert.Empty(t, queries)
+	queries, err = db.DistributedQueriesForHost(h2)
+	require.Nil(t, err)
+	assert.Empty(t, queries)
+
+}

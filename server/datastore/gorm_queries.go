@@ -55,3 +55,22 @@ func (orm gormDB) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, error) {
 	err := orm.applyListOptions(opt).Find(&queries).Error
 	return queries, err
 }
+
+func (orm gormDB) NewDistributedQueryExecution(exec kolide.DistributedQueryExecution) (kolide.DistributedQueryExecution, error) {
+	err := orm.DB.Create(&exec).Error
+	return exec, err
+}
+
+func (orm gormDB) NewDistributedQueryCampaign(camp kolide.DistributedQueryCampaign) (kolide.DistributedQueryCampaign, error) {
+	err := orm.DB.Create(&camp).Error
+	return camp, err
+}
+
+func (orm gormDB) SaveDistributedQueryCampaign(camp kolide.DistributedQueryCampaign) error {
+	return orm.DB.Save(&camp).Error
+}
+
+func (orm gormDB) NewDistributedQueryCampaignTarget(target kolide.DistributedQueryCampaignTarget) (kolide.DistributedQueryCampaignTarget, error) {
+	err := orm.DB.Create(&target).Error
+	return target, err
+}
