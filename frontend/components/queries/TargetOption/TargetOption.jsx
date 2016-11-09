@@ -99,7 +99,7 @@ class TargetOption extends Component {
         <span className={`${classBlock}__label-label`}>{label}</span>
         <span className={`${classBlock}__delimeter`}>&bull;</span>
         {renderTargetDetail()}
-        <Button className={`${classBlock}__btn`} text="ADD" onClick={handleSelect} />
+        <Button className={`${classBlock}__btn`} text="ADD" onClick={handleSelect} variant="brand" />
         <Button className={`${classBlock}__more-info`} onClick={onMoreInfoClick(target)} text="more info" variant="unstyled" />
         {renderTargetInfoModal()}
       </div>

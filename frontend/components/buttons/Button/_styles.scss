@@ -1,62 +1,91 @@
 $gradient-start: #7166d9;
 $gradient-end: #c86dd7;
-
+$inverse-hover: #fafbff;
 $base-class: 'button';
 
-@mixin button-shadow($color) {
-  @include transition(transform 150ms ease-in-out);
-  box-shadow: 0 4px 0 $color;
+@mixin button-variant($color, $hover: null, $shadow: null) {
+  @if not $shadow {
+    $shadow: adjust-color($color, $lightness: -20%, $saturation: 20%);
+  }
 
-  &:active {
-    @include transform(translate(0, 4px));
+  @if not $hover {
+    $hover: darken($color, 5%);
+  }
+
+  background-color: $color;
+  box-shadow: 0 2px 0 $shadow, 0 3px 5px 0 rgba($black, 0.15);
+
+  &.#{$base-class}--disabled {
+    &:hover {
+      background-color: $color;
+    }
+  }
+
+  &:hover {
+    background-color: $hover;
   }
 }
 
 .#{$base-class} {
-  border-radius: 2px;
-  box-shadow: 0 3px 0 $button-shadow;
-  box-sizing: border-box;
-  cursor: pointer;
-  font-size: $medium;
-  font-weight: $bold;
-  padding: 0.25rem $large;
+  @include user-select(none);
+  @include transition(background 150ms ease-in-out, top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out);
+  @include button-variant($link);
   position: relative;
-  height: 40px;
+  height: 38px;
+  text-align: center;
+  color: $white;
+  line-height: 36px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-radius: 2px;
+  font-size: $medium;
+  font-family: 'Oxygen', $helvetica;
+  display: inline-block;
+  padding: 0 $pad-large;
+  top: 0;
   border: 0;
+  cursor: pointer;
+  box-sizing: border-box;
 
   &:active {
-    box-shadow: 0 1px 0 $button-shadow, 0 -2px 0 $silver;
+    box-shadow: 0 0 0 $black, 0 1px 2px rgba($black, .15), 0 -1px 0 rgba($white, .1) inset;
     top: 2px;
-    outline: none;
   }
 
   &:focus {
     outline: none;
   }
 
-  &--default {
-    @include button-shadow($brand-light);
-    background-color: $brand;
-    border: 1px solid $brand;
-    color: $white;
+  &--brand {
+    @include button-variant($brand);
+  }
 
-    &.#{$base-class}--disabled {
-      background-color: $brand-light;
-      border-color: $brand-light;
-      cursor: not-allowed;
-    }
+  &--success {
+    @include button-variant($success);
+  }
+
+  &--alert {
+    @include button-variant($alert);
+  }
+
+  &--warning {
+    @include button-variant($warning);
   }
 
   &--inverse {
-    @include button-shadow($brand-dark);
-    background-color: $white;
-    border: 1px solid $brand-light;
-    color: $brand-dark;
+    @include button-variant($white, $inverse-hover, $brand);
+    color: $brand;
+    border: 1px solid $brand;
+    border-bottom-color: $white;
 
-    &.#{$base-class}--disabled {
-      cursor: not-allowed;
-      opacity: 0.5;
+    &:active {
+      border-bottom-color: $brand;
     }
+  }
+
+  &--disabled {
+    opacity: 0.4;
+    cursor: default;
   }
 
   &--gradient {
@@ -68,12 +97,8 @@ $base-class: 'button';
     letter-spacing: 4px;
     padding: $medium;
     width: 100%;
-  }
-
-  &--success {
-    @include button-shadow(darken($success, 10%));
-    background-color: $success;
-    color: $white;
+    height: auto;
+    box-shadow: none;
   }
 
   &--unstyled {
@@ -82,10 +107,17 @@ $base-class: 'button';
     box-shadow: none;
     margin: 0;
     padding: 0;
+    height: auto;
+    line-height: normal;
 
     &:active {
       box-shadow: none;
       top: 0;
+    }
+
+    &:hover {
+      background-color: transparent;
+      box-shadow: none;
     }
   }
 }

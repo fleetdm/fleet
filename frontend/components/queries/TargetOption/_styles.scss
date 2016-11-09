@@ -1,10 +1,10 @@
 .target-option {
   &__btn {
-    background-color: $brand;
-    border: 0;
-    box-shadow: 0 3px 0 $brand-dark;
     float: right;
-    padding: 0 $medium;
+    padding: 0 $pad-medium;
+    height: 24px;
+    line-height: 20px;
+    font-size: 15px;
   }
 
   &__count {
@@ -19,13 +19,13 @@
   &__delimeter {
     color: $text-dark;
     font-weight: $bold;
-    margin: 0 $xsmall;
+    margin: 0 $pad-xsmall;
   }
 
   &__icon {
     color: $text-medium;
     font-size: $base;
-    margin: 0 0 0 $base;
+    margin: 0 0 0 $pad-base;
   }
 
   &__ip {
@@ -36,13 +36,13 @@
   &__label-host {
     color: $link;
     font-size: $base;
-    margin-left: $xsmall;
+    margin-left: $pad-xsmall;
   }
 
   &__label-label {
     color: $text-medium;
     font-size: $base;
-    margin-left: $xsmall;
+    margin-left: $pad-xsmall;
 
     .all-hosts {
       font-weight: $bold;
@@ -53,13 +53,13 @@
     color: $brand;
     cursor: pointer;
     float: right;
-    margin-right: $base;
+    margin-right: $pad-base;
   }
 
   &__target-icon {
     font-size: $base;
     color: $text-medium;
-    margin-right: $xsmall;
+    margin-right: $pad-xsmall;
   }
 
   &__target-modal {

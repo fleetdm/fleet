@@ -112,6 +112,7 @@ class EditUserForm extends Component {
             className={`${baseClass}__form-btn`}
             text="Submit"
             type="submit"
+            variant="brand"
           />
           <Button
             className={`${baseClass}__form-btn`}

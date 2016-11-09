@@ -185,6 +185,7 @@ class QueryForm extends Component {
             className={`${baseClass}__run-query-btn`}
             onClick={onRunQuery}
             text="Run Query"
+            variant="brand"
           />
         </div>
       </form>
