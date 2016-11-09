@@ -9,8 +9,9 @@ import {
   shouldShowAllColumns,
 } from './helpers';
 import osqueryTableInterface from '../../../interfaces/osquery_table';
-import { osqueryTables } from '../../../utilities/osquery_tables';
+import { osqueryTableNames } from '../../../utilities/osquery_tables';
 import SecondarySidePanelContainer from '../SecondarySidePanelContainer';
+import Dropdown from '../../../components/forms/fields/Dropdown';
 
 const baseClass = 'query-side-panel';
 
@@ -40,11 +41,10 @@ class QuerySidePanel extends Component {
     return false;
   }
 
-  onSelectTable = ({ target }) => {
+  onSelectTable = ({ value }) => {
     const { onOsqueryTableSelect } = this.props;
-    const { value: tableName } = target;
 
-    onOsqueryTableSelect(tableName);
+    onOsqueryTableSelect(value);
 
     return false;
   }
@@ -120,14 +120,17 @@ class QuerySidePanel extends Component {
     const { onSelectTable } = this;
     const { selectedOsqueryTable } = this.props;
 
+    const tableNames = osqueryTableNames.map((name) => {
+      return { label: name, value: name };
+    });
+
     return (
-      <div className="kolide-dropdown__wrapper">
-        <select className="kolide-dropdown" onChange={onSelectTable} value={selectedOsqueryTable.name}>
-          {osqueryTables.map((table) => {
-            return <option key={table.name} value={table.name} className="kolide-dropdown__option">{table.name}</option>;
-          })}
-        </select>
-      </div>
+      <Dropdown
+        options={tableNames}
+        value={selectedOsqueryTable.name}
+        onSelect={onSelectTable}
+        placeholder="Choose Table..."
+      />
     );
   }
 

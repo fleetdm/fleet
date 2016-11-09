@@ -2,6 +2,6 @@ import { PropTypes } from 'react';
 
 export default PropTypes.shape({
   disabled: PropTypes.bool,
-  text: PropTypes.string,
+  label: PropTypes.string,
   value: PropTypes.string,
 });

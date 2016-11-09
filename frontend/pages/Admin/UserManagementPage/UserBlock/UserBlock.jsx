@@ -19,24 +19,22 @@ class UserBlock extends Component {
   static userActionOptions = (currentUser, user, invite) => {
     const disableActions = currentUser.id === user.id;
     const inviteActions = [
-      { text: 'Actions...', value: '' },
-      { text: 'Revoke Invitation', value: 'revert_invitation' },
+      { label: 'Revoke Invitation', value: 'revert_invitation' },
     ];
     const userEnableAction = user.enabled
-      ? { disabled: disableActions, text: 'Disable Account', value: 'disable_account' }
-      : { text: 'Enable Account', value: 'enable_account' };
+      ? { disabled: disableActions, label: 'Disable Account', value: 'disable_account' }
+      : { label: 'Enable Account', value: 'enable_account' };
     const userPromotionAction = user.admin
-      ? { disabled: disableActions, text: 'Demote User', value: 'demote_user' }
-      : { text: 'Promote User', value: 'promote_user' };
+      ? { disabled: disableActions, label: 'Demote User', value: 'demote_user' }
+      : { label: 'Promote User', value: 'promote_user' };
 
     if (invite) return inviteActions;
 
     return [
-      { text: 'Actions...', value: '' },
       userEnableAction,
       userPromotionAction,
-      { text: 'Require Password Reset', value: 'reset_password' },
-      { text: 'Modify Details', value: 'modify_details' },
+      { label: 'Require Password Reset', value: 'reset_password' },
+      { label: 'Modify Details', value: 'modify_details' },
     ];
   };
 
@@ -70,9 +68,8 @@ class UserBlock extends Component {
     return onEditUser(user, updatedUser);
   }
 
-  onUserActionSelect = ({ target }) => {
+  onUserActionSelect = ({ value: action }) => {
     const { onSelect, user } = this.props;
-    const { value: action } = target;
 
     if (action === 'modify_details') {
       this.setState({
@@ -93,7 +90,7 @@ class UserBlock extends Component {
     return (
       <Dropdown
         options={userActionOptions}
-        initialOption={{ text: 'Actions...' }}
+        placeholder="Actions..."
         onSelect={onUserActionSelect}
         className={invite ? 'revoke-invite' : ''}
       />

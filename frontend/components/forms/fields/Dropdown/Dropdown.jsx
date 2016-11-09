@@ -1,53 +1,38 @@
 import React, { Component, PropTypes } from 'react';
+import Select from 'react-select';
 import { noop } from 'lodash';
 
 import dropdownOptionInterface from '../../../../interfaces/dropdownOption';
 
-const baseClass = 'kolide-dropdown';
-
 class Dropdown extends Component {
   static propTypes = {
-    options: PropTypes.arrayOf(dropdownOptionInterface),
+    options: PropTypes.arrayOf(dropdownOptionInterface).isRequired,
     onSelect: PropTypes.func,
     className: PropTypes.string,
+    placeholder: PropTypes.string,
+    value: PropTypes.string,
+    clearable: PropTypes.bool,
   };
 
   static defaultProps = {
     onSelect: noop,
+    clearable: false,
+    placeholder: 'Select One...',
   };
 
-  onOptionClick = (evt) => {
-    evt.preventDefault();
-
-    const { onSelect } = this.props;
-
-    onSelect(evt);
-
-    return false;
-  }
-
-  renderOption = (option) => {
-    const { disabled = false, value, text } = option;
-
-    return (
-      <option key={value} className={`${baseClass}__option`} value={value} disabled={disabled}>
-        {text}
-      </option>
-    );
-  }
-
   render () {
-    const { options, className } = this.props;
-    const { onOptionClick, renderOption } = this;
+    const { options, className, placeholder, value, clearable, onSelect } = this.props;
 
     return (
-      <div className={[`${baseClass}__wrapper ${className}`]}>
-        <select className={baseClass} onChange={onOptionClick}>
-          {options.map((option) => {
-            return renderOption(option);
-          })}
-        </select>
-      </div>
+      <Select
+        className={className}
+        name="targets"
+        options={options}
+        onChange={onSelect}
+        placeholder={placeholder}
+        value={value}
+        clearable={clearable}
+      />
     );
   }
 }
