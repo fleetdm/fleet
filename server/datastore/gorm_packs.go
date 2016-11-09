@@ -65,7 +65,6 @@ func (orm gormDB) AddQueryToPack(qid uint, pid uint) error {
 }
 
 func (orm gormDB) ListQueriesInPack(pack *kolide.Pack) ([]*kolide.Query, error) {
-	var queries []*kolide.Query
 	if pack == nil {
 		return nil, errors.New(
 			"error getting queries in pack",
@@ -73,18 +72,10 @@ func (orm gormDB) ListQueriesInPack(pack *kolide.Pack) ([]*kolide.Query, error) 
 		)
 	}
 
-	rows, err := orm.DB.Raw(`
+	results := []*kolide.Query{}
+	err := orm.DB.Raw(`
 SELECT
-  q.id,
-  q.created_at,
-  q.updated_at,
-  q.name,
-  q.query,
-  q.interval,
-  q.snapshot,
-  q.differential,
-  q.platform,
-  q.version
+  q.*
 FROM
   queries q
 JOIN
@@ -93,33 +84,13 @@ ON
   pq.query_id = q.id
 AND
   pq.pack_id = ?;
-`, pack.ID).Rows()
+`, pack.ID).Scan(&results).Error
+
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errors.DatabaseError(err)
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		query := new(kolide.Query)
-		err = rows.Scan(
-			&query.ID,
-			&query.CreatedAt,
-			&query.UpdatedAt,
-			&query.Name,
-			&query.Query,
-			&query.Interval,
-			&query.Snapshot,
-			&query.Differential,
-			&query.Platform,
-			&query.Version,
-		)
-		if err != nil {
-			return nil, err
-		}
-		queries = append(queries, query)
-	}
-
-	return queries, nil
+	return results, nil
 }
 
 func (orm gormDB) RemoveQueryFromPack(query *kolide.Query, pack *kolide.Pack) error {
@@ -159,11 +130,7 @@ func (orm gormDB) ListLabelsForPack(pack *kolide.Pack) ([]*kolide.Label, error) 
 	results := []*kolide.Label{}
 	err := orm.DB.Raw(`
 SELECT
-	l.id,
-	l.created_at,
-	l.updated_at,
-	l.name,
-	l.query_id
+	l.*
 FROM
 	labels l
 JOIN
