@@ -25,7 +25,7 @@ import (
 )
 
 func createServeCmd(configManager config.Manager) *cobra.Command {
-	var devMode bool = false
+	var devMode = false
 
 	serveCmd := &cobra.Command{
 		Use:   "serve",
@@ -117,7 +117,16 @@ the way that the kolide server works.
 
 			httpLogger := kitlog.NewContext(logger).With("component", "http")
 
-			apiHandler := service.MakeHandler(ctx, svc, config.Auth.JwtKey, httpLogger)
+			var apiHandler http.Handler
+			{
+				apiHandler = service.MakeHandler(ctx, svc, config.Auth.JwtKey, httpLogger)
+				// WithSetup will check if first time setup is required
+				// By performing the same check inside main, we can make server startups
+				// more efficient after the first startup.
+				if service.RequireSetup(svc, logger) {
+					apiHandler = service.WithSetup(svc, logger, apiHandler)
+				}
+			}
 			http.Handle("/api/", apiHandler)
 			http.Handle("/version", version.Handler())
 			http.Handle("/metrics", prometheus.Handler())

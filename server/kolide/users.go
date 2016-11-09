@@ -25,6 +25,10 @@ type UserService interface {
 	// NewUser creates a new User from a request Payload
 	NewUser(ctx context.Context, p UserPayload) (user *User, err error)
 
+	// NewAdminCreatedUser allows an admin to create a new user without
+	// first creating and validating invite tokens.
+	NewAdminCreatedUser(ctx context.Context, p UserPayload) (user *User, err error)
+
 	// User returns a valid User given a User ID
 	User(ctx context.Context, id uint) (user *User, err error)
 

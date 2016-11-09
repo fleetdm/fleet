@@ -10,16 +10,16 @@ import (
 	"golang.org/x/net/context"
 )
 
-func TestCreateOrgInfo(t *testing.T) {
+func TestCreateAppConfig(t *testing.T) {
 	ds, err := datastore.New("inmem", "")
 	require.Nil(t, err)
 	svc, err := newTestService(ds)
 	require.Nil(t, err)
-	var orgInfoTests = []struct {
-		infoPayload kolide.AppConfigPayload
+	var appConfigTests = []struct {
+		configPayload kolide.AppConfigPayload
 	}{
 		{
-			infoPayload: kolide.AppConfigPayload{
+			configPayload: kolide.AppConfigPayload{
 				OrgInfo: &kolide.OrgInfo{
 					OrgLogoURL: stringPtr("acme.co/images/logo.png"),
 					OrgName:    stringPtr("Acme"),
@@ -31,11 +31,11 @@ func TestCreateOrgInfo(t *testing.T) {
 		},
 	}
 
-	for _, tt := range orgInfoTests {
-		result, err := svc.NewAppConfig(context.Background(), tt.infoPayload)
+	for _, tt := range appConfigTests {
+		result, err := svc.NewAppConfig(context.Background(), tt.configPayload)
 		require.Nil(t, err)
 
-		payload := tt.infoPayload
+		payload := tt.configPayload
 		assert.NotEmpty(t, result.ID)
 		assert.Equal(t, *payload.OrgInfo.OrgLogoURL, result.OrgLogoURL)
 		assert.Equal(t, *payload.OrgInfo.OrgName, result.OrgName)

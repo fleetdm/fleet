@@ -42,7 +42,7 @@ type OrgInfo struct {
 
 // ServerSettings contains general settings about the kolide App.
 type ServerSettings struct {
-	KolideServerURL *string `json:"web_address_url,omitempty"`
+	KolideServerURL *string `json:"kolide_server_url,omitempty"`
 }
 
 type OrderDirection int

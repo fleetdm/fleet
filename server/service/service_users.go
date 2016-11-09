@@ -20,15 +20,27 @@ func (svc service) NewUser(ctx context.Context, p kolide.UserPayload) (*kolide.U
 	if err != nil {
 		return nil, err
 	}
+	user, err := svc.newUser(p)
+	if err != nil {
+		return nil, err
+	}
+	err = svc.ds.DeleteInvite(invite)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func (svc service) NewAdminCreatedUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
+	return svc.newUser(p)
+}
+
+func (svc service) newUser(p kolide.UserPayload) (*kolide.User, error) {
 	user, err := p.User(svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost)
 	if err != nil {
 		return nil, err
 	}
 	user, err = svc.ds.NewUser(user)
-	if err != nil {
-		return nil, err
-	}
-	err = svc.ds.DeleteInvite(invite)
 	if err != nil {
 		return nil, err
 	}
