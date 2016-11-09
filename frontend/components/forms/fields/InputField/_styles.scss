@@ -1,13 +1,13 @@
 .input-field {
-  border: 1px solid $brand;
+  @include transition(border 150ms ease-in-out, box-shadow 150ms ease-in-out);
+  line-height: 18px;
   border-radius: 2px;
+  background-color: $white;
+  border: solid 1px $accent-medium;
   font-size: $base;
-  padding-right: 30px;
-  opacity: 1;
-  text-indent: 1px;
-  position: relative;
-  box-sizing: border-box;
-  color: $text-ultradark;
+  padding: $pad-xsmall $pad-base;
+  color: $text-dark;
+  font-family: 'Oxygen', sans-serif;
 
   @include placeholder {
     color: $accent-text;
@@ -15,19 +15,47 @@
 
   &:focus {
     outline: none;
+    box-shadow: inset 0 0 8px 0 rgba($black, 0.1);
+    border-bottom-color: $brand;
   }
 
   &--error {
+    @include transition(background 150ms ease-in-out, color 150ms ease-in-out);
     border-color: $alert;
+    background-color: $alert;
+    color: $white;
+    box-shadow: inset 0 -4px 4px 0 rgba($black, 0.1);
+
+    &:focus {
+      box-shadow: inset 0 0 8px 0 rgba($black, 0.1);
+      border-bottom-color: $alert;
+      background-color: $white;
+      color: $text-dark;
+    }
   }
 
   &--password {
     letter-spacing: 7px;
   }
 
+  &__textarea {
+    min-height: 100px;
+    max-width: 100%;
+  }
+
   &__label {
+    display: block;
+    font-size: $base;
+    font-weight: $light;
+    color: $text-dark;
+    margin-bottom: $pad-xsmall;
+
     &--error {
       color: $alert;
     }
+  }
+
+  &__wrapper {
+    margin-bottom: $pad-large;
   }
 }

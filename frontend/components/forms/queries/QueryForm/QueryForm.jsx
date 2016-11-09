@@ -148,39 +148,45 @@ class QueryForm extends Component {
     const { canSaveAsNew, canSaveChanges } = helpers;
 
     return (
-      <form>
+      <form className={baseClass}>
         <InputField
           error={errors.name}
-          label="Query Title:"
+          label="Query Title"
           name="name"
           onChange={onFieldChange('name')}
           value={name}
+          inputClassName={`${baseClass}__query-title`}
         />
         <InputField
           error={errors.description}
-          label="Query Description:"
+          label="Query Description"
           name="description"
           onChange={onFieldChange('description')}
           value={description}
+          type="textarea"
+          inputClassName={`${baseClass}__query-description`}
         />
-        <Button
-          className={`${baseClass}__save-changes-btn`}
-          disabled={!canSaveChanges(formData, query)}
-          onClick={onSaveChanges}
-          text="Save Changes"
-          variant="inverse"
-        />
-        <Button
-          className={`${baseClass}__save-as-new-btn`}
-          disabled={!canSaveAsNew(formData, query)}
-          onClick={onSaveAsNew}
-          text="Save As New..."
-        />
-        <Button
-          className={`${baseClass}__run-query-btn`}
-          onClick={onRunQuery}
-          text="Run Query"
-        />
+        <div className={`${baseClass}__button-wrap`}>
+          <Button
+            className={`${baseClass}__save-changes-btn`}
+            disabled={!canSaveChanges(formData, query)}
+            onClick={onSaveChanges}
+            text="Save Changes"
+            variant="inverse"
+          />
+          <Button
+            className={`${baseClass}__save-as-new-btn`}
+            disabled={!canSaveAsNew(formData, query)}
+            onClick={onSaveAsNew}
+            text="Save As New..."
+            variant="success"
+          />
+          <Button
+            className={`${baseClass}__run-query-btn`}
+            onClick={onRunQuery}
+            text="Run Query"
+          />
+        </div>
       </form>
     );
   }

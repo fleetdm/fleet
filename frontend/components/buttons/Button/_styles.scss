@@ -3,6 +3,15 @@ $gradient-end: #c86dd7;
 
 $base-class: 'button';
 
+@mixin button-shadow($color) {
+  @include transition(transform 150ms ease-in-out);
+  box-shadow: 0 4px 0 $color;
+
+  &:active {
+    @include transform(translate(0, 4px));
+  }
+}
+
 .#{$base-class} {
   border-radius: 2px;
   box-shadow: 0 3px 0 $button-shadow;
@@ -12,6 +21,8 @@ $base-class: 'button';
   font-weight: $bold;
   padding: 0.25rem $large;
   position: relative;
+  height: 40px;
+  border: 0;
 
   &:active {
     box-shadow: 0 1px 0 $button-shadow, 0 -2px 0 $silver;
@@ -24,9 +35,9 @@ $base-class: 'button';
   }
 
   &--default {
+    @include button-shadow($brand-light);
     background-color: $brand;
     border: 1px solid $brand;
-    box-shadow: 0 3px 0 $brand-light;
     color: $white;
 
     &.#{$base-class}--disabled {
@@ -37,9 +48,9 @@ $base-class: 'button';
   }
 
   &--inverse {
+    @include button-shadow($brand-dark);
     background-color: $white;
     border: 1px solid $brand-light;
-    box-shadow: 0 3px 0 $brand-dark;
     color: $brand-dark;
 
     &.#{$base-class}--disabled {
@@ -51,13 +62,18 @@ $base-class: 'button';
   &--gradient {
     background-color: transparent;
     background-image: linear-gradient(134deg, $gradient-start 0%, $gradient-end 100%);
-    border: 0;
     color: $white;
     font-size: $large;
     font-weight: $light;
     letter-spacing: 4px;
     padding: $medium;
     width: 100%;
+  }
+
+  &--success {
+    @include button-shadow(darken($success, 10%));
+    background-color: $success;
+    color: $white;
   }
 
   &--unstyled {

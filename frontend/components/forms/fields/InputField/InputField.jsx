@@ -75,12 +75,11 @@ class InputField extends Component {
     const { error, inputClassName, inputOptions, inputWrapperClass, name, placeholder, type, value } = this.props;
     const { onInputChange, renderLabel } = this;
     const shouldShowPasswordClass = type === 'password';
-    const inputClasses = classnames(
-      baseClass,
-      inputClassName,
-      { [`${baseClass}--password`]: shouldShowPasswordClass },
-      { [`${baseClass}--error`]: error }
-    );
+    const inputClasses = classnames(baseClass, inputClassName, {
+      [`${baseClass}--password`]: shouldShowPasswordClass,
+      [`${baseClass}--error`]: error,
+      [`${baseClass}__textarea`]: type === 'textarea',
+    });
     const inputWrapperClasses = classnames(`${baseClass}__wrapper`, inputWrapperClass);
 
     if (type === 'textarea') {

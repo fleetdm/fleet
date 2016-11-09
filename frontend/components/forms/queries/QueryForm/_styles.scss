@@ -1,0 +1,16 @@
+.query-form {
+  margin-top: $pad-base;
+
+  &__query-title,
+  &__query-description {
+    width: 50%;
+  }
+
+  &__button-wrap {
+    text-align: right;
+
+    .button {
+      margin-left: $pad-xsmall;
+    }
+  }
+}
