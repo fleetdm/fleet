@@ -45,7 +45,7 @@
     "moment": "^2.15.1",
     "nock": "^8.0.0",
     "node-bourbon": "^4.2.8",
-    "node-sass": "^3.10.0",
+    "node-sass": "^3.10.1",
     "normalizr": "^2.2.1",
     "postcss-functions": "^2.1.0",
     "postcss-loader": "^0.8.0",
