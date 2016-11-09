@@ -37,7 +37,7 @@ describe('QueryForm - component', () => {
       formData: {
         description: 'new description',
         name: 'new name',
-        queryText,
+        query: queryText,
       },
     });
   });
@@ -78,7 +78,7 @@ describe('QueryForm - component', () => {
     expect(onSaveChangesSpy).toHaveBeenCalledWith({
       description: query.description,
       name: 'New query name',
-      queryText,
+      query: queryText,
     });
   });
 
@@ -130,7 +130,7 @@ describe('QueryForm - component', () => {
     expect(onSaveAsNewSpy).toHaveBeenCalledWith({
       description: query.description,
       name: 'New query name',
-      queryText,
+      query: queryText,
     });
   });
 

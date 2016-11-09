@@ -69,7 +69,7 @@ describe('QueryComposer - component', () => {
     expect(onSaveQueryFormSubmitSpy).toHaveBeenCalledWith({
       description: 'My query description',
       name: 'My query name',
-      queryText,
+      query: queryText,
     });
   });
 
@@ -111,7 +111,7 @@ describe('QueryComposer - component', () => {
     expect(onSaveChangesSpy).toHaveBeenCalledWith({
       description: query.description,
       name: 'My new query name',
-      queryText: query.query,
+      query: query.query,
     });
   });
 

@@ -3,7 +3,7 @@ import { isEmpty } from 'lodash';
 const formChanged = (formData, query) => {
   return formData.name !== query.name ||
     formData.description !== query.description ||
-    formData.queryText !== query.query;
+    formData.query !== query.query;
 };
 
 const canSaveAsNew = (formData, query) => {
