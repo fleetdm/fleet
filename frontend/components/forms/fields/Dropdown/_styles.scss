@@ -1,47 +1,89 @@
-.kolide-dropdown {
-  @include appearance(none);
-  position: relative;
-  height: 30px;
-  width: 100%;
-  border: 1px solid $brand;
-  border-radius: 2px;
-  color: $text-dark;
-  font-size: 14px;
-  text-indent: 4px;
-  text-transform: uppercase;
-  background-color: $white;
-
-  &:focus {
-    outline: none;
+.Select {
+  .Select-control {
+    border: 1px solid $accent-medium;
+    border-radius: 2px;
+    height: 40px;
   }
 
-  &__wrapper {
-    position: relative;
+  .Select-value {
+    font-size: $medium;
+  }
 
-    &::after {
-      content: '';
-      display: block;
-      width: 30px;
-      height: 29px;
-      background: $brand url('/assets/images/down-arrow.png') no-repeat center center;
-      background-size: 15px;
-      border-top-right-radius: 2px;
-      border-bottom-right-radius: 2px;
-      pointer-events: none;
-      position: absolute;
-      top: 1px;
-      right: 0;
+  &--single {
+    > .Select-control {
+      .Select-value {
+        line-height: 38px;
+      }
     }
   }
 
-  &__option {
-    color: $text-medium;
-    cursor: pointer;
-    padding: $pad-half;
+  .Select-arrow {
+    border-top-color: $brand;
+  }
 
-    &:hover {
-      background: $bg-light;
-      color: $text-ultradark;
+  &.is-focused {
+    .Select-control {
+      border: 1px solid $brand;
+    }
+
+    &:not(.is-open) {
+      .Select-control {
+        box-shadow: none;
+      }
+    }
+  }
+
+  &.is-open {
+    .Select-control {
+      box-shadow: inset 0 0 8px 0 rgba(0, 0, 0, 0.08);
+    }
+  }
+
+  .Select-menu-outer {
+    margin-top: 2px;
+    box-shadow: 0 1px 3px 1px rgba($black, 0.05);
+    border: solid 1px $accent-light;
+    border-radius: 2px;
+  }
+
+  .Select-option {
+    color: $text-dark;
+    font-size: $medium;
+
+    &.is-focused {
+      background-color: $brand;
+      color: $white;
+
+      .Select-icon {
+        color: $brand-ultralight;
+      }
+    }
+
+    &.is-disabled {
+      color: $silver;
+
+      .Select-icon {
+        visibility: hidden;
+        opacity: 0;
+      }
+    }
+  }
+
+  .Select-icon {
+    color: $accent-medium;
+  }
+
+  &.Select--multi {
+    .Select-option {
+      &.is-disabled {
+        color: $text-dark;
+        cursor: default;
+
+        &.is-focused {
+          background-color: $brand;
+          color: $white;
+        }
+      }
     }
   }
 }

@@ -13,6 +13,9 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.kolidecon-add-button:before {
+  content: "\e925";
+}
 .kolidecon-single-host:before {
   content: "\e923";
 }

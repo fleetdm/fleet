@@ -3,6 +3,7 @@ import Select from 'react-select';
 import { noop } from 'lodash';
 
 import dropdownOptionInterface from '../../../../interfaces/dropdownOption';
+import Option from './Option';
 
 class Dropdown extends Component {
   static propTypes = {
@@ -28,6 +29,7 @@ class Dropdown extends Component {
         className={className}
         name="targets"
         options={options}
+        optionRenderer={Option}
         onChange={onSelect}
         placeholder={placeholder}
         value={value}

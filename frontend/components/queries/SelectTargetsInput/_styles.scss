@@ -1,0 +1,41 @@
+.target-select {
+  &.Select {
+    .Select-control {
+      height: 48px;
+    }
+
+    .Select-input {
+      height: 46px;
+
+      > input {
+        line-height: 30px;
+        padding: 8px 0;
+      }
+    }
+
+    .Select-placeholder {
+      line-height: 46px;
+    }
+
+    &.Select--multi {
+      .Select-option {
+        &.is-disabled {
+          &.is-focused {
+            .target-option__label-label,
+            .target-option__target-icon,
+            .target-option__delimeter,
+            .target-option__ip,
+            .target-option__more-info,
+            .target-option__icon {
+              color: $white;
+            }
+          }
+        }
+      }
+
+      .Select-value {
+        line-height: 1.9;
+      }
+    }
+  }
+}
