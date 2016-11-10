@@ -1,5 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
+import { first, isEqual, size } from 'lodash';
 
 import entityGetter from '../../../redux/utilities/entityGetter';
 import Button from '../../../components/buttons/Button';
@@ -29,9 +30,10 @@ class UserManagementPage extends Component {
   }
 
   componentWillMount () {
-    const { dispatch, invites, users } = this.props;
+    const { currentUser, dispatch, invites, users } = this.props;
 
-    if (!users.length) {
+    if (!size(users) ||
+      (size(users) === 1 && isEqual(first(users), currentUser))) {
       dispatch(userActions.loadAll());
     }
 

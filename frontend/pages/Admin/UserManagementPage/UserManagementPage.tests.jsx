@@ -12,6 +12,7 @@ const currentUser = {
   position: 'Head of Gnar',
   username: 'gnardog',
 };
+const loadUsersAction = { type: 'users_LOAD_REQUEST' };
 const store = {
   auth: {
     user: {
@@ -53,5 +54,50 @@ describe('UserManagementPage - component', () => {
     const page = mount(connectedComponent(UserManagementPage, { mockStore }));
 
     expect(page.text()).toInclude('Listing 2 users');
+  });
+
+  it('gets all users if there are no users in state', () => {
+    const mockStore = reduxMockStore({
+      ...store,
+      entities: {
+        ...store.entities,
+        users: {
+          ...store.entities.users,
+          data: {},
+        },
+      },
+    });
+
+    mount(connectedComponent(UserManagementPage, { mockStore }));
+
+    expect(mockStore.getActions()).toInclude(loadUsersAction);
+  });
+
+  it('gets all users if the only user in state is the current user', () => {
+    const mockStore = reduxMockStore(store);
+
+    mount(connectedComponent(UserManagementPage, { mockStore }));
+
+    expect(mockStore.getActions()).toInclude(loadUsersAction);
+  });
+
+  it('does not get users if users are already loaded', () => {
+    const mockStore = reduxMockStore({
+      ...store,
+      entities: {
+        ...store.entities,
+        users: {
+          ...store.entities.users,
+          data: {
+            1: { ...currentUser },
+            2: { id: 2, email: 'hi@gnar.dog', full_name: 'GnarDog' },
+          },
+        },
+      },
+    });
+
+    mount(connectedComponent(UserManagementPage, { mockStore }));
+
+    expect(mockStore.getActions()).toNotInclude(loadUsersAction);
   });
 });
