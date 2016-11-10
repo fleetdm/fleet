@@ -334,7 +334,7 @@ func forceSetup(w http.ResponseWriter, r *http.Request) {
 
 // RequireSetup checks if the service must be configured by an administrator.
 func RequireSetup(svc kolide.Service, logger kitlog.Logger) bool {
-	users, err := svc.ListUsers(context.Background(), kolide.ListOptions{Page: 1, PerPage: 1})
+	users, err := svc.ListUsers(context.Background(), kolide.ListOptions{Page: 0, PerPage: 1})
 	if err != nil {
 		logger.Log("err", err)
 	}
