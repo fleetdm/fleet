@@ -7,6 +7,7 @@ interface IButtonProps {
   className: string;
   disabled: boolean;
   onClick: (evt: React.MouseEvent<HTMLButtonElement>) => boolean;
+  size: string;
   text: string;
   type: string;
   variant: string;
@@ -16,6 +17,7 @@ interface IButtonState {}
 
 class Button extends React.Component<IButtonProps, IButtonState> {
   static defaultProps = {
+    size: '',
     variant: 'default',
   };
 
@@ -35,10 +37,11 @@ class Button extends React.Component<IButtonProps, IButtonState> {
 
   render () {
     const { handleClick } = this;
-    const { className, disabled, text, type, variant } = this.props;
+    const { className, disabled, size, text, type, variant } = this.props;
     const fullClassName = classnames(`${baseClass}--${variant}`, className, {
       [baseClass]: variant !== 'unstyled',
       [`${baseClass}--disabled`]: disabled,
+      [`${baseClass}--${size}`]: size,
     });
 
     return (

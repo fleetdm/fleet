@@ -1,8 +1,8 @@
 .user-block {
   @include transition(all 300ms ease-in-out);
   background-color: $white;
-  border: 0;
-  box-shadow: 0 0 30px 0 rgba($black, 0.3);
+  border: 1px solid $accent-light;
+  box-shadow: 0 0 8px 0 rgba($black, 0.12);
   display: inline-block;
   height: 390px;
   margin-left: $pad-most;
@@ -24,7 +24,7 @@
     border-bottom: 1px solid $accent-light;
     color: $text-ultradark;
     height: 51px;
-    margin-bottom: $pad-half;
+    margin-bottom: $pad-xsmall;
     text-align: center;
     width: 100%;
 
@@ -48,13 +48,22 @@
     line-height: 51px;
     margin: 0;
     padding: 0;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: $light;
+    font-size: $base;
   }
 
   &__details {
-    padding: 0 $pad-half;
+    padding: 0 $pad-large;
+
+    .Select {
+      margin-top: $pad-most;
+    }
   }
 
   &__avatar {
+    @include size(100px);
     @include transition(all 300ms ease-in-out);
     border: 1px solid $text-medium;
     filter: none;
@@ -69,27 +78,26 @@
   &__status-wrapper {
     border-top: 1px solid $border-medium;
     border-bottom: 1px solid $border-medium;
-    margin-top: $pad-half;
-    padding-top: $pad-half;
-    padding-bottom: $pad-half;
+    margin-top: $pad-xsmall;
+    padding: $pad-xsmall 0;
   }
 
   &__status-label {
     @include transition(all 300ms ease-in-out);
     float: left;
-    font-size: $small;
-    font-weight: $normal;
-
-    &--admin {
-      font-weight: $bold;
-    }
+    font-weight: $bold;
+    font-size: $medium;
+    letter-spacing: 1px;
+    text-transform: uppercase;
   }
 
   &__status-text {
     @include transition(all 300ms ease-in-out);
     float: right;
-    font-size: $small;
     text-transform: uppercase;
+    font-weight: $bold;
+    font-size: $medium;
+    letter-spacing: 1px;
 
     &--invited {
       color: $brand;
@@ -109,6 +117,9 @@
     color: $text-medium;
     font-size: $medium;
     text-transform: uppercase;
+    line-height: $larger;
+    margin: 0;
+    letter-spacing: 1px;
 
     &--enabled {
       color: $brand;
@@ -117,16 +128,30 @@
 
   &__position {
     font-size: $small;
+    line-height: $larger;
+    margin: 0;
+    letter-spacing: 0.5px;
+    color: $text-ultradark;
+    font-weight: $light;
   }
 
   &__email {
     @include transition(all 300ms ease-in-out);
     color: $link;
-    font-size: $mini;
+    font-size: $small;
+    line-height: $larger;
+    margin: 0;
 
     &--disabled {
       color: $text-medium;
     }
+  }
+
+  &__last-seen {
+    font-size: $mini;
+    line-height: $larger;
+    margin: 0;
+    color: $text-medium;
   }
 }
 

@@ -40,6 +40,7 @@ $base-class: 'button';
   border-radius: 2px;
   font-size: $medium;
   font-family: 'Oxygen', $helvetica;
+  font-weight: $bold;
   display: inline-block;
   padding: 0 $pad-large;
   top: 0;
@@ -86,6 +87,17 @@ $base-class: 'button';
   &--disabled {
     opacity: 0.4;
     cursor: default;
+  }
+
+  &--small {
+    height: 28px;
+    line-height: 26px;
+    padding: 0 $pad-medium;
+  }
+
+  &--large {
+    height: 48px;
+    line-height: 46px;
   }
 
   &--gradient {

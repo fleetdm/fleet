@@ -1,6 +1,6 @@
 .input-field {
   @include transition(border 150ms ease-in-out, box-shadow 150ms ease-in-out);
-  line-height: 18px;
+  line-height: 34px;
   border-radius: 2px;
   background-color: $white;
   border: solid 1px $accent-medium;
@@ -8,6 +8,8 @@
   padding: $pad-xsmall $pad-base;
   color: $text-dark;
   font-family: 'Oxygen', sans-serif;
+  box-sizing: border-box;
+  height: 40px;
 
   @include placeholder {
     color: $accent-text;
@@ -56,6 +58,6 @@
   }
 
   &__wrapper {
-    margin-bottom: $pad-large;
+    margin-bottom: $pad-base;
   }
 }
