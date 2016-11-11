@@ -168,7 +168,7 @@ LEFT JOIN label_query_executions lqe
 LEFT JOIN hosts h
     ON ((dqct.type = ? AND lqe.host_id = h.id) OR (dqct.type = ? AND dqct.target_id = h.id))
 LEFT JOIN distributed_query_executions dqe
-    ON (h.id = dqe.host_id AND dqc.id = dqe.distributed_query_id)
+    ON (h.id = dqe.host_id AND dqc.id = dqe.distributed_query_campaign_id)
 JOIN queries q
     ON (dqc.query_id = q.id)
 WHERE dqe.status IS NULL AND dqc.status = ? AND h.id = ?;
