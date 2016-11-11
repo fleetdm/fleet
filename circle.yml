@@ -11,6 +11,7 @@ dependencies:
     - docker login -e $DOCKER_HUB_EMAIL -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
   override:
     - docker pull kolide/kolide-builder:1.7
+    - docker pull redis
     - docker run -v $(pwd):/go/src/github.com/kolide/kolide-ose -v /home/ubuntu/.go_workspace/pkg:/go/pkg kolide/kolide-builder:1.7 --deps
   cache_directories:
     - "vendor"
@@ -18,7 +19,10 @@ dependencies:
 
 test:
   override:
-      - docker run -v $(pwd):/go/src/github.com/kolide/kolide-ose -v /home/ubuntu/.go_workspace/pkg:/go/pkg kolide/kolide-builder:1.7 --build
+      - docker run -d --name redis redis
+      - docker run -d --name mysql -e MYSQL_ROOT_PASSWORD=toor -e MYSQL_DATABASE=kolide -e MYSQL_USER=kolide -e MYSQL_PASSWORD=kolide mysql:5.7
+      - docker run --link redis:redis --link mysql:mysql -e MYSQL_TEST=true -e REDIS_TEST=true -v $(pwd):/go/src/github.com/kolide/kolide-ose -v /home/ubuntu/.go_workspace/pkg:/go/pkg kolide/kolide-builder:1.7 --build
+      - docker stop $(docker ps -a -q)
 
 deployment:
   development:

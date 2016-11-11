@@ -2,6 +2,7 @@ package pubsub
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"reflect"
 	"runtime"
@@ -75,7 +76,7 @@ func setupRedis(t *testing.T) (store *redisQueryResults, teardown func()) {
 	)
 
 	if a, ok := os.LookupEnv("REDIS_PORT_6379_TCP_ADDR"); ok {
-		addr = a
+		addr = fmt.Sprintf("%s:6379", a)
 	}
 
 	store = NewRedisQueryResults(NewRedisPool(addr, password))
@@ -98,8 +99,8 @@ func testQueryResultsStoreErrors(t *testing.T, store kolide.QueryResultStore) {
 			ResultJSON:                 json.RawMessage(`{"bing":"fds"}`),
 			Host: kolide.Host{
 				ID:               4,
-				UpdatedAt:        time.Now(),
-				DetailUpdateTime: time.Now(),
+				UpdatedAt:        time.Now().UTC(),
+				DetailUpdateTime: time.Now().UTC(),
 			},
 		},
 	)
@@ -123,8 +124,8 @@ func testQueryResultsStore(t *testing.T, store kolide.QueryResultStore) {
 				// Note these times need to be set to avoid
 				// issues with roundtrip serializing the zero
 				// time value. See https://goo.gl/CCEs8x
-				UpdatedAt:        time.Now(),
-				DetailUpdateTime: time.Now(),
+				UpdatedAt:        time.Now().UTC(),
+				DetailUpdateTime: time.Now().UTC(),
 			},
 		},
 		kolide.DistributedQueryResult{
@@ -132,8 +133,8 @@ func testQueryResultsStore(t *testing.T, store kolide.QueryResultStore) {
 			ResultJSON:                 json.RawMessage(`{"whoo":"wahh"}`),
 			Host: kolide.Host{
 				ID:               3,
-				UpdatedAt:        time.Now(),
-				DetailUpdateTime: time.Now(),
+				UpdatedAt:        time.Now().UTC(),
+				DetailUpdateTime: time.Now().UTC(),
 			},
 		},
 		kolide.DistributedQueryResult{
@@ -141,8 +142,8 @@ func testQueryResultsStore(t *testing.T, store kolide.QueryResultStore) {
 			ResultJSON:                 json.RawMessage(`{"bing":"fds"}`),
 			Host: kolide.Host{
 				ID:               4,
-				UpdatedAt:        time.Now(),
-				DetailUpdateTime: time.Now(),
+				UpdatedAt:        time.Now().UTC(),
+				DetailUpdateTime: time.Now().UTC(),
 			},
 		},
 	}
@@ -159,8 +160,8 @@ func testQueryResultsStore(t *testing.T, store kolide.QueryResultStore) {
 			ResultJSON:                 json.RawMessage(`{"tim":"tom"}`),
 			Host: kolide.Host{
 				ID:               1,
-				UpdatedAt:        time.Now(),
-				DetailUpdateTime: time.Now(),
+				UpdatedAt:        time.Now().UTC(),
+				DetailUpdateTime: time.Now().UTC(),
 			},
 		},
 		kolide.DistributedQueryResult{
@@ -168,8 +169,8 @@ func testQueryResultsStore(t *testing.T, store kolide.QueryResultStore) {
 			ResultJSON:                 json.RawMessage(`{"slim":"slam"}`),
 			Host: kolide.Host{
 				ID:               3,
-				UpdatedAt:        time.Now(),
-				DetailUpdateTime: time.Now(),
+				UpdatedAt:        time.Now().UTC(),
+				DetailUpdateTime: time.Now().UTC(),
 			},
 		},
 	}
