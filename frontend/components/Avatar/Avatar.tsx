@@ -19,9 +19,8 @@ class Avatar extends React.Component<IAvatarInterface, IAvatarState> {
   render (): JSX.Element {
     const { className, size, user } = this.props;
     const isSmall = size && size.toLowerCase() === 'small';
-    const avatarClasses = classnames(baseClass, {
+    const avatarClasses = classnames(baseClass, className, {
       [`${baseClass}--${size}`]: isSmall,
-      className,
     });
     const { gravatarURL } = user;
 
