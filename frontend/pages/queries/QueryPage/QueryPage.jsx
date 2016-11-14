@@ -72,6 +72,12 @@ class QueryPage extends Component {
     return false;
   }
 
+  onCloseTargetSelect = () => {
+    this.onRemoveMoreInfoTarget();
+
+    return false;
+  }
+
   onOsqueryTableSelect = (tableName) => {
     const { dispatch } = this.props;
 
@@ -80,9 +86,7 @@ class QueryPage extends Component {
     return false;
   }
 
-  onRemoveMoreInfoTarget = (evt) => {
-    evt.preventDefault();
-
+  onRemoveMoreInfoTarget = () => {
     this.setState({ moreInfoTarget: null });
 
     return false;
@@ -140,12 +144,19 @@ class QueryPage extends Component {
     return (evt) => {
       evt.preventDefault();
 
+      const currentMoreInfoTarget = this.state.moreInfoTarget || {};
+
+      if (isEqual(moreInfoTarget.display_text, currentMoreInfoTarget.display_text)) {
+        this.setState({ moreInfoTarget: null });
+
+        return false;
+      }
+
       const { target_type: targetType } = moreInfoTarget;
 
       if (targetType.toLowerCase() === 'labels') {
         return Kolide.getLabelHosts(moreInfoTarget.id)
           .then((hosts) => {
-            console.log('hosts', hosts);
             this.setState({
               moreInfoTarget: {
                 ...moreInfoTarget,
@@ -222,6 +233,7 @@ class QueryPage extends Component {
   render () {
     const {
       fetchTargets,
+      onCloseTargetSelect,
       onOsqueryTableSelect,
       onRemoveMoreInfoTarget,
       onRunQuery,
@@ -249,6 +261,7 @@ class QueryPage extends Component {
         <QueryComposer
           isLoadingTargets={isLoadingTargets}
           moreInfoTarget={moreInfoTarget}
+          onCloseTargetSelect={onCloseTargetSelect}
           onOsqueryTableSelect={onOsqueryTableSelect}
           onRemoveMoreInfoTarget={onRemoveMoreInfoTarget}
           onRunQuery={onRunQuery}

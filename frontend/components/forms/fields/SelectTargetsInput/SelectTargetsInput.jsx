@@ -3,12 +3,13 @@ import { difference } from 'lodash';
 import Select from 'react-select';
 import 'react-select/dist/react-select.css';
 
-import targetInterface from '../../../interfaces/target';
+import targetInterface from 'interfaces/target';
 
 class SelectTargetsInput extends Component {
   static propTypes = {
     isLoading: PropTypes.bool,
     menuRenderer: PropTypes.func,
+    onCloseTargetSelect: PropTypes.func,
     onTargetSelect: PropTypes.func,
     onTargetSelectInputChange: PropTypes.func,
     selectedTargets: PropTypes.arrayOf(targetInterface),
@@ -25,6 +26,7 @@ class SelectTargetsInput extends Component {
     const {
       isLoading,
       menuRenderer,
+      onCloseTargetSelect,
       onTargetSelect,
       onTargetSelectInputChange,
       selectedTargets,
@@ -42,6 +44,7 @@ class SelectTargetsInput extends Component {
         name="targets"
         options={targets}
         onChange={onTargetSelect}
+        onClose={onCloseTargetSelect}
         onInputChange={onTargetSelectInputChange}
         placeholder="Label Name, Host Name, IP Address, etc."
         resetValue={[]}

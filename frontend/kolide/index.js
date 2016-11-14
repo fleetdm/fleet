@@ -93,7 +93,17 @@ class Kolide extends Base {
     const { TARGETS } = endpoints;
 
     return this.authenticatedPost(this.endpoint(TARGETS), JSON.stringify({ query, selected }))
-      .then((response) => { return appendTargetTypeToTargets(response); });
+      .then((response) => {
+        const { targets } = response;
+
+        return {
+          ...response,
+          targets: [
+            ...appendTargetTypeToTargets(targets.hosts, 'hosts'),
+            ...appendTargetTypeToTargets(targets.labels, 'labels'),
+          ],
+        };
+      });
   }
 
   getUsers = () => {

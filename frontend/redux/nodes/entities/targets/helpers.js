@@ -1,27 +1,12 @@
 import { map } from 'lodash';
 
-export const appendTargetTypeToTargets = (apiResponse) => {
-  const { targets } = apiResponse;
-  const hosts = map(targets.hosts, (host) => {
+export const appendTargetTypeToTargets = (targets, targetType) => {
+  return map(targets, (target) => {
     return {
-      ...host,
-      target_type: 'hosts',
+      ...target,
+      target_type: targetType,
     };
   });
-  const labels = map(targets.labels, (label) => {
-    return {
-      ...label,
-      target_type: 'labels',
-    };
-  });
-
-  return {
-    ...apiResponse,
-    targets: [
-      ...hosts,
-      ...labels,
-    ],
-  };
 };
 
 export default { appendTargetTypeToTargets };

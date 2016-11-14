@@ -1,64 +1,32 @@
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import AceEditor from 'react-ace';
 import classnames from 'classnames';
 
-import Button from '../../buttons/Button';
-import { headerClassName } from './helpers';
-import hostHelpers from '../../hosts/HostDetails/helpers';
-import Modal from '../Modal';
-import ShadowBox from '../../ShadowBox';
-import ShadowBoxInput from '../../forms/fields/ShadowBoxInput';
-import targetInterface from '../../../interfaces/target';
+import hostHelpers from 'components/hosts/HostDetails/helpers';
+import ShadowBox from 'components/ShadowBox';
+import ShadowBoxInput from 'components/forms/fields/ShadowBoxInput';
+import targetInterface from 'interfaces/target';
 
-const baseClass = 'target-info-modal';
+const baseClass = 'target-details';
 
-class TargetInfoModal extends Component {
+class TargetDetails extends Component {
   static propTypes = {
-    className: PropTypes.string,
-    onAdd: PropTypes.func,
-    onExit: PropTypes.func,
-    target: targetInterface.isRequired,
+    target: targetInterface,
   };
 
-  renderButtons = () => {
-    const { onAdd, onExit } = this.props;
-
-    return (
-      <div className={`${baseClass}__btn-wrapper`}>
-        <Button className={`${baseClass}__cancel-btn`} text="CANCEL" variant="inverse" onClick={onExit} />
-        <Button className={`${baseClass}__add-btn`} text="ADD TO TARGETS" onClick={onAdd} />
-      </div>
-    );
-  }
-
-  renderHeader = () => {
-    const { target } = this.props;
-    const { display_text: displayText } = target;
-    const className = headerClassName(target);
-
-    return (
-      <span className={`${baseClass}__header`}>
-        <i className={className} />
-        <span>{displayText}</span>
-      </span>
-    );
-  }
-
-  renderHostModal = () => {
-    const { className, onExit, target } = this.props;
-    const hostBaseClass = 'host-modal';
+  renderHost = () => {
     const {
       ip,
       mac,
       memory,
+      osqueryVersion,
+      osVersion,
       platform,
-      os_version: osVersion,
-      osquery_version: osqueryVersion,
       status,
-    } = target;
+    } = this.props.target;
+    const hostBaseClass = 'host-target';
     const isOnline = status === 'online';
     const isOffline = status === 'offline';
-    const { renderButtons, renderHeader } = this;
     const statusClassName = classnames(
       `${hostBaseClass}__status`,
       { [`${hostBaseClass}__status--is-online`]: isOnline },
@@ -66,11 +34,7 @@ class TargetInfoModal extends Component {
     );
 
     return (
-      <Modal
-        className={`${className} ${hostBaseClass}`}
-        onExit={onExit}
-        title={renderHeader()}
-      >
+      <div>
         <p className={statusClassName}>{status}</p>
         <ShadowBox>
           <table className={`${baseClass}__table`}>
@@ -111,35 +75,23 @@ class TargetInfoModal extends Component {
             <span>Labels</span>
           </div>
         </div>
-        {renderButtons()}
-      </Modal>
+      </div>
     );
   }
 
-  renderLabelModal = () => {
-    const { className, onExit, target } = this.props;
-    const {
-      description,
-      hosts = [],
-      query,
-    } = target;
-    const labelBaseClass = 'label-modal';
-    const { renderButtons, renderHeader } = this;
+  renderLabel = () => {
+    const { hosts, query } = this.props.target;
+    const labelBaseClass = 'label-target';
 
     return (
-      <Modal
-        className={`${className} ${labelBaseClass}`}
-        onExit={onExit}
-        title={renderHeader()}
-      >
-        <p className={`${labelBaseClass}__description`}>{description}</p>
+      <div>
         <div className={`${labelBaseClass}__text-editor-wrapper`}>
           <AceEditor
             editorProps={{ $blockScrolling: Infinity }}
             mode="kolide"
             minLines={4}
             maxLines={4}
-            name="modal-label-query"
+            name="label-query"
             readOnly
             setOptions={{ wrap: true }}
             showGutter={false}
@@ -185,21 +137,26 @@ class TargetInfoModal extends Component {
             </tbody>
           </table>
         </ShadowBox>
-        {renderButtons()}
-      </Modal>
+      </div>
     );
   }
 
   render () {
-    const { renderHostModal, renderLabelModal } = this;
-    const { target_type: targetType } = this.props.target;
+    const { target } = this.props;
 
-    if (targetType === 'hosts') {
-      return renderHostModal();
+    if (!target) {
+      return false;
     }
 
-    return renderLabelModal();
+    const { target_type: targetType } = target;
+    const { renderHost, renderLabel } = this;
+
+    if (targetType === 'labels') {
+      return renderLabel();
+    }
+
+    return renderHost();
   }
 }
 
-export default TargetInfoModal;
+export default TargetDetails;
