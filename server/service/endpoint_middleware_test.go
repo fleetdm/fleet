@@ -186,7 +186,7 @@ func TestGetNodeKey(t *testing.T) {
 func TestAuthenticatedHost(t *testing.T) {
 	ds, err := datastore.New("inmem", "")
 	require.Nil(t, err)
-	svc, err := newTestService(ds)
+	svc, err := newTestService(ds, nil)
 	require.Nil(t, err)
 
 	endpoint := authenticatedHost(

@@ -13,7 +13,7 @@ func TestListLabels(t *testing.T) {
 	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
-	svc, err := newTestService(ds)
+	svc, err := newTestService(ds, nil)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -38,7 +38,7 @@ func TestGetLabel(t *testing.T) {
 	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
-	svc, err := newTestService(ds)
+	svc, err := newTestService(ds, nil)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -60,7 +60,7 @@ func TestNewLabel(t *testing.T) {
 	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
-	svc, err := newTestService(ds)
+	svc, err := newTestService(ds, nil)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -85,7 +85,7 @@ func TestDeleteLabel(t *testing.T) {
 	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
-	svc, err := newTestService(ds)
+	svc, err := newTestService(ds, nil)
 	assert.Nil(t, err)
 
 	ctx := context.Background()

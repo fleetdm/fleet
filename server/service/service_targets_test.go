@@ -16,7 +16,7 @@ func TestSearchTargets(t *testing.T) {
 	ds, err := datastore.New("inmem", "")
 	require.Nil(t, err)
 
-	svc, err := newTestService(ds)
+	svc, err := newTestService(ds, nil)
 	require.Nil(t, err)
 
 	ctx := context.Background()
@@ -47,7 +47,7 @@ func TestCountHostsInTargets(t *testing.T) {
 	ds, err := datastore.New("inmem", "")
 	require.Nil(t, err)
 
-	svc, err := newTestService(ds)
+	svc, err := newTestService(ds, nil)
 	require.Nil(t, err)
 
 	ctx := context.Background()
@@ -143,7 +143,7 @@ func TestSearchWithOmit(t *testing.T) {
 	ds, err := datastore.New("inmem", "")
 	require.Nil(t, err)
 
-	svc, err := newTestService(ds)
+	svc, err := newTestService(ds, nil)
 	require.Nil(t, err)
 
 	ctx := context.Background()
@@ -195,7 +195,7 @@ func TestSearchHostsInLabels(t *testing.T) {
 	ds, err := datastore.New("inmem", "")
 	require.Nil(t, err)
 
-	svc, err := newTestService(ds)
+	svc, err := newTestService(ds, nil)
 	require.Nil(t, err)
 
 	ctx := context.Background()
@@ -248,7 +248,7 @@ func TestSearchResultsLimit(t *testing.T) {
 	ds, err := datastore.New("inmem", "")
 	require.Nil(t, err)
 
-	svc, err := newTestService(ds)
+	svc, err := newTestService(ds, nil)
 	require.Nil(t, err)
 
 	ctx := context.Background()

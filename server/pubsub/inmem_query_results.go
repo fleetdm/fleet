@@ -40,7 +40,12 @@ func (im *inmemQueryResults) WriteResult(result kolide.DistributedQueryResult) e
 		return errors.New("no subscribers for channel")
 	}
 
-	channel <- result
+	select {
+	case channel <- result:
+		// intentionally do nothing
+	default:
+		return errors.New("no subscribers for channel")
+	}
 
 	return nil
 }

@@ -13,7 +13,7 @@ func TestListPacks(t *testing.T) {
 	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
-	svc, err := newTestService(ds)
+	svc, err := newTestService(ds, nil)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -36,7 +36,7 @@ func TestGetPack(t *testing.T) {
 	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
-	svc, err := newTestService(ds)
+	svc, err := newTestService(ds, nil)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -58,7 +58,7 @@ func TestNewPack(t *testing.T) {
 	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
-	svc, err := newTestService(ds)
+	svc, err := newTestService(ds, nil)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -79,7 +79,7 @@ func TestModifyPack(t *testing.T) {
 	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
-	svc, err := newTestService(ds)
+	svc, err := newTestService(ds, nil)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -105,7 +105,7 @@ func TestDeletePack(t *testing.T) {
 	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
-	svc, err := newTestService(ds)
+	svc, err := newTestService(ds, nil)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -130,7 +130,7 @@ func TestAddQueryToPack(t *testing.T) {
 	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
-	svc, err := newTestService(ds)
+	svc, err := newTestService(ds, nil)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -166,7 +166,7 @@ func TestGetQueriesInPack(t *testing.T) {
 	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
-	svc, err := newTestService(ds)
+	svc, err := newTestService(ds, nil)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -198,7 +198,7 @@ func TestRemoveQueryFromPack(t *testing.T) {
 	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
-	svc, err := newTestService(ds)
+	svc, err := newTestService(ds, nil)
 	assert.Nil(t, err)
 
 	ctx := context.Background()

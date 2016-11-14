@@ -158,6 +158,10 @@ const hostLabelQueryPrefix = "kolide_label_query_"
 // provided as a detail query.
 const hostDetailQueryPrefix = "kolide_detail_query_"
 
+// hostDistributedQueryPrefix is appended before the query name when a query is
+// run from a distributed query campaign
+const hostDistributedQueryPrefix = "kolide_distributed_query_"
+
 // detailQueries defines the detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the
 // kolide.Host data model. This map should not be modified at runtime.
@@ -295,7 +299,14 @@ func (svc service) GetDistributedQueries(ctx context.Context) (map[string]string
 		queries[hostLabelQueryPrefix+name] = query
 	}
 
-	// TODO: retrieve the active distributed queries for this host
+	distributedQueries, err := svc.ds.DistributedQueriesForHost(&host)
+	if err != nil {
+		return nil, osqueryError{message: "retrieving query campaigns: " + err.Error()}
+	}
+
+	for id, query := range distributedQueries {
+		queries[hostDistributedQueryPrefix+strconv.Itoa(int(id))] = query
+	}
 
 	return queries, nil
 }
@@ -327,6 +338,43 @@ func (svc service) ingestLabelQuery(host kolide.Host, query string, rows []map[s
 	return nil
 }
 
+// ingestDistributedQuery takes the results of a distributed query and modifies the
+// provided kolide.Host appropriately.
+func (svc service) ingestDistributedQuery(host kolide.Host, name string, rows []map[string]string) error {
+	trimmedQuery := strings.TrimPrefix(name, hostDistributedQueryPrefix)
+
+	campaignID, err := strconv.Atoi(trimmedQuery)
+	if err != nil {
+		return osqueryError{message: "unable to parse campaign ID: " + trimmedQuery}
+	}
+
+	// Write the results to the pubsub store
+	res := kolide.DistributedQueryResult{
+		DistributedQueryCampaignID: uint(campaignID),
+		Host: host,
+		Rows: rows,
+	}
+
+	err = svc.resultStore.WriteResult(res)
+	if err != nil {
+		return osqueryError{message: "writing results: " + err.Error()}
+	}
+
+	// Record execution of the query
+	exec := kolide.DistributedQueryExecution{
+		HostID: host.ID,
+		DistributedQueryCampaignID: uint(campaignID),
+		Status: kolide.ExecutionSucceeded,
+	}
+
+	_, err = svc.ds.NewDistributedQueryExecution(exec)
+	if err != nil {
+		return osqueryError{message: "recording execution: " + err.Error()}
+	}
+
+	return nil
+}
+
 func (svc service) SubmitDistributedQueryResults(ctx context.Context, results kolide.OsqueryDistributedQueryResults) error {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
@@ -347,8 +395,11 @@ func (svc service) SubmitDistributedQueryResults(ctx context.Context, results ko
 		case strings.HasPrefix(query, hostLabelQueryPrefix):
 			err = svc.ingestLabelQuery(host, query, rows, labelResults)
 
+		case strings.HasPrefix(query, hostDistributedQueryPrefix):
+			err = svc.ingestDistributedQuery(host, query, rows)
+
 		default:
-			// TODO ingest regular distributed query results
+			err = osqueryError{message: "unknown query prefix: " + query}
 		}
 
 		if err != nil {

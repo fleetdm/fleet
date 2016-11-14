@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 	hostctx "github.com/kolide/kolide-ose/server/contexts/host"
 	"github.com/kolide/kolide-ose/server/datastore"
 	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide-ose/server/pubsub"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,7 +25,7 @@ func TestEnrollAgent(t *testing.T) {
 	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
-	svc, err := newTestService(ds)
+	svc, err := newTestService(ds, nil)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -44,7 +47,7 @@ func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
 	ds, err := datastore.New("inmem", "")
 	assert.Nil(t, err)
 
-	svc, err := newTestService(ds)
+	svc, err := newTestService(ds, nil)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -68,7 +71,7 @@ func TestSubmitStatusLogs(t *testing.T) {
 
 	mockClock := clock.NewMockClock()
 
-	svc, err := newTestServiceWithClock(ds, mockClock)
+	svc, err := newTestServiceWithClock(ds, nil, mockClock)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -140,7 +143,7 @@ func TestSubmitResultLogs(t *testing.T) {
 
 	mockClock := clock.NewMockClock()
 
-	svc, err := newTestServiceWithClock(ds, mockClock)
+	svc, err := newTestServiceWithClock(ds, nil, mockClock)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -241,7 +244,7 @@ func TestLabelQueries(t *testing.T) {
 
 	mockClock := clock.NewMockClock()
 
-	svc, err := newTestServiceWithClock(ds, mockClock)
+	svc, err := newTestServiceWithClock(ds, nil, mockClock)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -368,7 +371,7 @@ func TestGetClientConfig(t *testing.T) {
 
 	mockClock := clock.NewMockClock()
 
-	svc, err := newTestServiceWithClock(ds, mockClock)
+	svc, err := newTestServiceWithClock(ds, nil, mockClock)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -449,7 +452,7 @@ func TestDetailQueries(t *testing.T) {
 
 	mockClock := clock.NewMockClock()
 
-	svc, err := newTestServiceWithClock(ds, mockClock)
+	svc, err := newTestServiceWithClock(ds, nil, mockClock)
 	assert.Nil(t, err)
 
 	ctx := context.Background()
@@ -583,4 +586,141 @@ func TestDetailQueries(t *testing.T) {
 	queries, err = svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
 	assert.Len(t, queries, len(detailQueries))
+}
+
+func TestDistributedQueries(t *testing.T) {
+	ds, err := datastore.New("inmem", "")
+	require.Nil(t, err)
+
+	mockClock := clock.NewMockClock()
+
+	rs := pubsub.NewInmemQueryResults()
+
+	svc, err := newTestServiceWithClock(ds, rs, mockClock)
+	require.Nil(t, err)
+
+	ctx := context.Background()
+
+	nodeKey, err := svc.EnrollAgent(ctx, "", "host123")
+	require.Nil(t, err)
+
+	host, err := ds.AuthenticateHost(nodeKey)
+	require.Nil(t, err)
+
+	ctx = hostctx.NewContext(ctx, *host)
+
+	// Create label
+	n := "foo"
+	q := "select * from foo;"
+	label, err := svc.NewLabel(ctx, kolide.LabelPayload{
+		Name:  &n,
+		Query: &q,
+	})
+	require.Nil(t, err)
+	labelId := strconv.Itoa(int(label.ID))
+
+	// Record match with label
+	err = ds.RecordLabelQueryExecutions(host, map[string]bool{labelId: true}, mockClock.Now())
+	require.Nil(t, err)
+
+	// Create query
+	n = "time"
+	q = "select year, month, day, hour, minutes, seconds from time"
+	query, err := svc.NewQuery(ctx, kolide.QueryPayload{
+		Name:  &n,
+		Query: &q,
+	})
+	require.Nil(t, err)
+
+	// Create query campaign
+	c1 := kolide.DistributedQueryCampaign{
+		QueryID: query.ID,
+		Status:  kolide.QueryRunning,
+	}
+	// TODO use service method
+	c1, err = ds.NewDistributedQueryCampaign(c1)
+	require.Nil(t, err)
+
+	// Add a target to the campaign (targeting the matching label)
+	target := kolide.DistributedQueryCampaignTarget{
+		Type: kolide.TargetLabel,
+		DistributedQueryCampaignID: c1.ID,
+		TargetID:                   label.ID,
+	}
+	// TODO use service method
+	target, err = ds.NewDistributedQueryCampaignTarget(target)
+	require.Nil(t, err)
+
+	queryKey := fmt.Sprintf("%s%d", hostDistributedQueryPrefix, c1.ID)
+
+	// Now we should get the active distributed query
+	queries, err := svc.GetDistributedQueries(ctx)
+	require.Nil(t, err)
+	assert.Len(t, queries, len(detailQueries)+1)
+	assert.Equal(t, q, queries[queryKey])
+
+	expectedRows := []map[string]string{
+		{
+			"year":    "2016",
+			"month":   "11",
+			"day":     "11",
+			"hour":    "6",
+			"minutes": "12",
+			"seconds": "10",
+		},
+	}
+	results := map[string][]map[string]string{
+		queryKey: expectedRows,
+	}
+
+	// Submit results (should error because no one is listening)
+	err = svc.SubmitDistributedQueryResults(ctx, results)
+	assert.NotNil(t, err)
+
+	// TODO use service method
+	readChan, err := rs.ReadChannel(ctx, c1)
+	require.Nil(t, err)
+
+	// We need to listen for the result in a separate thread to prevent the
+	// write to the result channel from failing
+	var waitSetup, waitComplete sync.WaitGroup
+	waitSetup.Add(1)
+	waitComplete.Add(1)
+	go func() {
+		waitSetup.Done()
+		select {
+		case val := <-readChan:
+			if res, ok := val.(kolide.DistributedQueryResult); ok {
+				assert.Equal(t, c1.ID, res.DistributedQueryCampaignID)
+				assert.Equal(t, expectedRows, res.Rows)
+				assert.Equal(t, *host, res.Host)
+			} else {
+				t.Error("Wrong result type")
+			}
+			assert.NotNil(t, val)
+
+		case <-time.After(1 * time.Second):
+			t.Error("No result received")
+		}
+		waitComplete.Done()
+	}()
+
+	waitSetup.Wait()
+	// Sleep a short time to ensure that the above goroutine is blocking on
+	// the channel read (the waitSetup.Wait() is not necessarily sufficient
+	// if there is a context switch immediately after waitSetup.Done() is
+	// called). This should be a small price to pay to prevent flakiness in
+	// this test.
+	time.Sleep(10 * time.Millisecond)
+
+	err = svc.SubmitDistributedQueryResults(ctx, results)
+	require.Nil(t, err)
+
+	// Now the distributed query should be completed and not returned
+	queries, err = svc.GetDistributedQueries(ctx)
+	require.Nil(t, err)
+	assert.Len(t, queries, len(detailQueries))
+	assert.NotContains(t, queries, queryKey)
+
+	waitComplete.Wait()
 }

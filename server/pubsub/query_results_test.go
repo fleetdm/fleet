@@ -1,7 +1,6 @@
 package pubsub
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"reflect"
@@ -96,7 +95,7 @@ func testQueryResultsStoreErrors(t *testing.T, store kolide.QueryResultStore) {
 	err := store.WriteResult(
 		kolide.DistributedQueryResult{
 			DistributedQueryCampaignID: 1,
-			ResultJSON:                 json.RawMessage(`{"bing":"fds"}`),
+			Rows: []map[string]string{{"bing": "fds"}},
 			Host: kolide.Host{
 				ID:               4,
 				UpdatedAt:        time.Now().UTC(),
@@ -118,7 +117,7 @@ func testQueryResultsStore(t *testing.T, store kolide.QueryResultStore) {
 	expected1 := []kolide.DistributedQueryResult{
 		kolide.DistributedQueryResult{
 			DistributedQueryCampaignID: 1,
-			ResultJSON:                 json.RawMessage(`{"foo":"bar"}`),
+			Rows: []map[string]string{{"foo": "bar"}},
 			Host: kolide.Host{
 				ID: 1,
 				// Note these times need to be set to avoid
@@ -130,7 +129,7 @@ func testQueryResultsStore(t *testing.T, store kolide.QueryResultStore) {
 		},
 		kolide.DistributedQueryResult{
 			DistributedQueryCampaignID: 1,
-			ResultJSON:                 json.RawMessage(`{"whoo":"wahh"}`),
+			Rows: []map[string]string{{"whoo": "wahh"}},
 			Host: kolide.Host{
 				ID:               3,
 				UpdatedAt:        time.Now().UTC(),
@@ -139,7 +138,7 @@ func testQueryResultsStore(t *testing.T, store kolide.QueryResultStore) {
 		},
 		kolide.DistributedQueryResult{
 			DistributedQueryCampaignID: 1,
-			ResultJSON:                 json.RawMessage(`{"bing":"fds"}`),
+			Rows: []map[string]string{{"bing": "fds"}},
 			Host: kolide.Host{
 				ID:               4,
 				UpdatedAt:        time.Now().UTC(),
@@ -157,7 +156,7 @@ func testQueryResultsStore(t *testing.T, store kolide.QueryResultStore) {
 	expected2 := []kolide.DistributedQueryResult{
 		kolide.DistributedQueryResult{
 			DistributedQueryCampaignID: 2,
-			ResultJSON:                 json.RawMessage(`{"tim":"tom"}`),
+			Rows: []map[string]string{{"tim": "tom"}},
 			Host: kolide.Host{
 				ID:               1,
 				UpdatedAt:        time.Now().UTC(),
@@ -166,7 +165,7 @@ func testQueryResultsStore(t *testing.T, store kolide.QueryResultStore) {
 		},
 		kolide.DistributedQueryResult{
 			DistributedQueryCampaignID: 2,
-			ResultJSON:                 json.RawMessage(`{"slim":"slam"}`),
+			Rows: []map[string]string{{"slim": "slam"}},
 			Host: kolide.Host{
 				ID:               3,
 				UpdatedAt:        time.Now().UTC(),

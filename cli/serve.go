@@ -17,6 +17,7 @@ import (
 	"github.com/kolide/kolide-ose/server/datastore"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/kolide/kolide-ose/server/mail"
+	"github.com/kolide/kolide-ose/server/pubsub"
 	"github.com/kolide/kolide-ose/server/service"
 	"github.com/kolide/kolide-ose/server/version"
 	"github.com/prometheus/client_golang/prometheus"
@@ -84,7 +85,7 @@ the way that the kolide server works.
 				}
 			}
 
-			svc, err := service.NewService(ds, logger, config, mailService, clock.C)
+			svc, err := service.NewService(ds, pubsub.NewInmemQueryResults(), logger, config, mailService, clock.C)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
@@ -334,7 +335,7 @@ func createDevLabels(ds kolide.Datastore, config config.KolideConfig) {
 			CreatedAt: time.Date(2016, time.October, 27, 8, 31, 16, 0, time.UTC),
 			UpdatedAt: time.Date(2016, time.October, 27, 8, 31, 16, 0, time.UTC),
 			Name:      "dev_label_apache",
-			Query:     "select * from processes where nae like '%Apache%'",
+			Query:     "select * from processes where name like '%Apache%'",
 		},
 		{
 			CreatedAt: time.Now().Add(-1 * time.Hour),

@@ -16,7 +16,7 @@ const bcryptCost = 6
 func TestAuthenticate(t *testing.T) {
 	ds, err := datastore.New("inmem", "")
 	require.Nil(t, err)
-	svc, err := newTestService(ds)
+	svc, err := newTestService(ds, nil)
 	require.Nil(t, err)
 	users := createTestUsers(t, ds)
 

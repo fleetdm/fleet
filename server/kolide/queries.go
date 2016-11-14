@@ -1,7 +1,6 @@
 package kolide
 
 import (
-	"encoding/json"
 	"time"
 
 	"golang.org/x/net/context"
@@ -101,9 +100,9 @@ const (
 )
 
 type DistributedQueryResult struct {
-	DistributedQueryCampaignID uint            `json:"distributed_query_execution_id"`
-	Host                       Host            `json:"host"`
-	ResultJSON                 json.RawMessage `json:"result_json"`
+	DistributedQueryCampaignID uint                `json:"distributed_query_execution_id"`
+	Host                       Host                `json:"host"`
+	Rows                       []map[string]string `json:"rows"`
 }
 
 type DistributedQueryExecution struct {

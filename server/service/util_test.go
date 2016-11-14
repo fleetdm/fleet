@@ -10,12 +10,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTestService(ds kolide.Datastore) (kolide.Service, error) {
-	return NewService(ds, kitlog.NewNopLogger(), config.TestConfig(), nil, clock.C)
+func newTestService(ds kolide.Datastore, rs kolide.QueryResultStore) (kolide.Service, error) {
+	return NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), nil, clock.C)
 }
 
-func newTestServiceWithClock(ds kolide.Datastore, c clock.Clock) (kolide.Service, error) {
-	return NewService(ds, kitlog.NewNopLogger(), config.TestConfig(), nil, c)
+func newTestServiceWithClock(ds kolide.Datastore, rs kolide.QueryResultStore, c clock.Clock) (kolide.Service, error) {
+	return NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), nil, c)
 }
 
 func createTestUsers(t *testing.T, ds kolide.Datastore) map[string]kolide.User {

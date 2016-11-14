@@ -13,7 +13,7 @@ import (
 func TestCreateAppConfig(t *testing.T) {
 	ds, err := datastore.New("inmem", "")
 	require.Nil(t, err)
-	svc, err := newTestService(ds)
+	svc, err := newTestService(ds, nil)
 	require.Nil(t, err)
 	var appConfigTests = []struct {
 		configPayload kolide.AppConfigPayload
