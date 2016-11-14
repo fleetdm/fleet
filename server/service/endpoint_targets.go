@@ -26,6 +26,7 @@ type hostSearchResult struct {
 type labelSearchResult struct {
 	kolide.Label
 	DisplayText string `json:"display_text"`
+	Count       uint   `json:"count"`
 }
 
 type targetsData struct {
@@ -70,10 +71,15 @@ func makeSearchTargetsEndpoint(svc kolide.Service) endpoint.Endpoint {
 		}
 
 		for _, label := range results.Labels {
+			count, err := svc.CountHostsInTargets(ctx, nil, []uint{label.ID})
+			if err != nil {
+				return searchTargetsResponse{Err: err}, nil
+			}
 			targets.Labels = append(targets.Labels,
 				labelSearchResult{
 					label,
 					label.Name,
+					count,
 				},
 			)
 		}
