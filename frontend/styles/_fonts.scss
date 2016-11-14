@@ -1,55 +1,51 @@
 @font-face {
-	font-family: 'Oxygen';
-	src: url('/assets/fonts/oxygen/Oxygen-Light.eot');
-	src: url('/assets/fonts/oxygen/Oxygen-Light.eot?#iefix') format('embedded-opentype'),
-		url('/assets/fonts/oxygen/Oxygen-Light.woff') format('woff'),
-		url('/assets/fonts/oxygen/Oxygen-Light.ttf') format('truetype');
-	font-weight: 300;
-	font-style: normal;
+  font-family: 'Oxygen';
+  src: url('/assets/fonts/oxygen/Oxygen-Light.eot');
+  src: url('/assets/fonts/oxygen/Oxygen-Light.eot?#iefix') format('embedded-opentype'),
+    url('/assets/fonts/oxygen/Oxygen-Light.woff') format('woff'),
+    url('/assets/fonts/oxygen/Oxygen-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
 }
 
 @font-face {
-	font-family: 'Oxygen';
-	src: url('/assets/fonts/oxygen/Oxygen-Bold.eot');
-	src: url('/assets/fonts/oxygen/Oxygen-Bold.eot?#iefix') format('embedded-opentype'),
-		url('/assets/fonts/oxygen/Oxygen-Bold.woff') format('woff'),
-		url('/assets/fonts/oxygen/Oxygen-Bold.ttf') format('truetype');
-	font-weight: bold;
-	font-style: normal;
+  font-family: 'Oxygen';
+  src: url('/assets/fonts/oxygen/Oxygen-Bold.eot');
+  src: url('/assets/fonts/oxygen/Oxygen-Bold.eot?#iefix') format('embedded-opentype'),
+    url('/assets/fonts/oxygen/Oxygen-Bold.woff') format('woff'),
+    url('/assets/fonts/oxygen/Oxygen-Bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
 }
 
 @font-face {
-	font-family: 'Oxygen';
-	src: url('/assets/fonts/oxygen/Oxygen-Regular.eot');
-	src: url('/assets/fonts/oxygen/Oxygen-Regular.eot?#iefix') format('embedded-opentype'),
-		url('/assets/fonts/oxygen/Oxygen-Regular.woff') format('woff'),
-		url('/assets/fonts/oxygen/Oxygen-Regular.ttf') format('truetype');
-	font-weight: normal;
-	font-style: normal;
+  font-family: 'Oxygen';
+  src: url('/assets/fonts/oxygen/Oxygen-Regular.eot');
+  src: url('/assets/fonts/oxygen/Oxygen-Regular.eot?#iefix') format('embedded-opentype'),
+    url('/assets/fonts/oxygen/Oxygen-Regular.woff') format('woff'),
+    url('/assets/fonts/oxygen/Oxygen-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
 }
 
 @font-face {
   font-family: 'kolidecons';
-  src:  url('/assets/fonts/kolidecons/kolidecons.eot?5ajxpu');
-  src:  url('/assets/fonts/kolidecons/kolidecons.eot?5ajxpu#iefix') format('embedded-opentype'),
-    url('/assets/fonts/kolidecons/kolidecons.ttf?5ajxpu') format('truetype'),
-    url('/assets/fonts/kolidecons/kolidecons.woff?5ajxpu') format('woff'),
-    url('/assets/fonts/kolidecons/kolidecons.svg?5ajxpu#kolidecons') format('svg');
+  src: url('/assets/fonts/kolidecons/kolidecons.woff?5ajxpu') format('woff');
   font-weight: normal;
   font-style: normal;
 }
 
 @font-face {
   font-family: 'SourceCodePro';
-  src: url("/assets/fonts/source-code-pro/SourceCodePro-Regular.eot");
-  src: url("/assets/fonts/source-code-pro/SourceCodePro-Regular.eot?#iefix")
-  format("embedded-opentype"),
-  url("/assets/fonts/source-code-pro/SourceCodePro-Regular.ttf.woff")
-  format("woff"), url("/assets/fonts/source-code-pro/SourceCodePro-Regular.ttf") format("truetype");
+  src: url('/assets/fonts/source-code-pro/SourceCodePro-Regular.eot');
+  src: url('/assets/fonts/source-code-pro/SourceCodePro-Regular.eot?#iefix')
+  format('embedded-opentype'),
+  url('/assets/fonts/source-code-pro/SourceCodePro-Regular.ttf.woff')
+  format('woff'), url('/assets/fonts/source-code-pro/SourceCodePro-Regular.ttf') format('truetype');
   font-weight: normal;
   font-style: normal; }
 
 body {
-	-webkit-font-smoothing: antialiased;
-	-moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }

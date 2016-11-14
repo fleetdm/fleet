@@ -1,135 +1,224 @@
-[class^="kolidecon-"], [class*=" kolidecon-"] {
-  /* use !important to prevent issues with browser extensions that change fonts */
-  font-family: 'kolidecons' !important;
-  speak: none;
-  font-style: normal;
-  font-weight: normal;
-  font-variant: normal;
-  text-transform: none;
-  line-height: 1;
-
-  /* Better Font Rendering =========== */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+[class^="kolidecon-"],
+[class*=" kolidecon-"],
+.kolidecon {
+    display: inline-block;
+    font: normal normal normal 14px/1 'kolidecons';
+    font-size: inherit;
+    text-rendering: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
-.kolidecon-add-button:before {
-  content: "\e925";
+ .kolidecon-lg {
+    font-size: 1.33333333em;
+    line-height: 0.75em;
+    vertical-align: -15%;
 }
-.kolidecon-single-host:before {
-  content: "\e923";
+
+.kolidecon-2x {
+    font-size: 2em;
 }
-.kolidecon-all-hosts:before {
-  content: "\e924";
+
+.kolidecon-3x {
+    font-size: 3em;
 }
-.kolidecon-centos:before {
-  content: "\e91f";
+
+.kolidecon-4x {
+    font-size: 4em;
 }
-.kolidecon-windows:before {
-  content: "\e920";
+
+.kolidecon-5x {
+    font-size: 5em;
 }
-.kolidecon-ubuntu:before {
-  content: "\e921";
+
+  .kolidecon-fw {
+    width: 1.28571429em;
+    text-align: center;
 }
-.kolidecon-hamburger:before {
-  content: "\e922";
+
+       .kolidecon-kolide-logo-flat:before {
+    content: '\f000';
 }
-.kolidecon-logoflat .path1:before {
-  content: "\e91d";
-  color: rgb(101, 105, 110);
+
+ .kolidecon-chevrondown:before {
+    content: '\f004';
 }
-.kolidecon-logoflat .path2:before {
-  content: "\e91e";
-  margin-left: -1em;
-  color: rgb(255, 255, 255);
+
+ .kolidecon-chevronleft:before {
+    content: '\f006';
 }
-.kolidecon-label:before {
-  content: "\e916";
+
+ .kolidecon-chevronright:before {
+    content: '\f008';
 }
-.kolidecon-uptime:before {
-  content: "\e915";
+
+ .kolidecon-chevronup:before {
+    content: '\f00a';
 }
-.kolidecon-world:before {
-  content: "\e917";
+
+ .kolidecon-cpu:before {
+    content: '\f00c';
 }
-.kolidecon-mac:before {
-  content: "\e918";
+
+ .kolidecon-downcarat:before {
+    content: '\f00d';
 }
-.kolidecon-memory:before {
-  content: "\e919";
+
+ .kolidecon-filter:before {
+    content: '\f00f';
 }
-.kolidecon-storage:before {
-  content: "\e91a";
+
+ .kolidecon-mac:before {
+    content: '\f012';
 }
-.kolidecon-cpu:before {
-  content: "\e91b";
+
+ .kolidecon-memory:before {
+    content: '\f013';
 }
-.kolidecon-apple:before {
-  content: "\e91c";
+
+ .kolidecon-penciledit:before {
+    content: '\f015';
 }
-.kolidecon-chevrondownbold:before {
-  content: "\e90d";
+
+ .kolidecon-storage:before {
+    content: '\f019';
 }
-.kolidecon-chevronupbold:before {
-  content: "\e90e";
+
+ .kolidecon-upcarat:before {
+    content: '\f01b';
 }
-.kolidecon-chevronleftbold:before {
-  content: "\e90f";
+
+ .kolidecon-uptime:before {
+    content: '\f01c';
 }
-.kolidecon-chevronrightbold:before {
-  content: "\e910";
+
+ .kolidecon-world:before {
+    content: '\f01d';
 }
-.kolidecon-chevrondown:before {
-  content: "\e911";
+
+ .kolidecon-osquery:before {
+    content: '\f021';
 }
-.kolidecon-chevronup:before {
-  content: "\e912";
+
+ .kolidecon-join:before {
+    content: '\f022';
 }
-.kolidecon-chevronleft:before {
-  content: "\e913";
+
+ .kolidecon-add-button:before {
+    content: '\f029';
 }
-.kolidecon-chevronright:before {
-  content: "\e914";
+
+ .kolidecon-username:before {
+    content: '\f02a';
 }
-.kolidecon-filter:before {
-  content: "\e906";
+
+ .kolidecon-password:before {
+    content: '\f02b';
 }
-.kolidecon-penciledit:before {
-  content: "\e907";
+
+ .kolidecon-email:before {
+    content: '\f02c';
 }
-.kolidecon-upcarat:before {
-  content: "\e90b";
+
+ .kolidecon-query:before {
+    content: '\f02d';
 }
-.kolidecon-downcarat:before {
-  content: "\e90c";
+
+ .kolidecon-hosts:before {
+    content: '\f02e';
 }
-.kolidecon-username:before {
-  content: "\e900";
+
+ .kolidecon-packs:before {
+    content: '\f02f';
 }
-.kolidecon-password:before {
-  content: "\e902";
+
+ .kolidecon-help:before {
+    content: '\f030';
 }
-.kolidecon-email:before {
-  content: "\e904";
+
+ .kolidecon-admin:before {
+    content: '\f031';
 }
-.kolidecon-search:before {
-  content: "\e909";
+
+ .kolidecon-config:before {
+    content: '\f032';
 }
-.kolidecon-hosts:before {
-  content: "\e901";
+
+ .kolidecon-label:before {
+    content: '\f033';
 }
-.kolidecon-query:before {
-  content: "\e903";
+
+ .kolidecon-mia:before {
+    content: '\f034';
 }
-.kolidecon-packs:before {
-  content: "\e905";
+
+ .kolidecon-success-check:before {
+    content: '\f035';
 }
-.kolidecon-alerts:before {
-  content: "\1f32b";
+
+ .kolidecon-offline:before {
+    content: '\f036';
 }
-.kolidecon-help:before {
-  content: "\e908";
+
+ .kolidecon-windows:before {
+    content: '\f037';
 }
-.kolidecon-admin:before {
-  content: "\e90a";
+
+ .kolidecon-centos:before {
+    content: '\f038';
 }
+
+ .kolidecon-ubuntu:before {
+    content: '\f039';
+}
+
+ .kolidecon-apple:before {
+    content: '\f03a';
+}
+
+ .kolidecon-search:before {
+    content: '\f03b';
+}
+
+ .kolidecon-all-hosts:before {
+    content: '\f03c';
+}
+
+ .kolidecon-single-host:before {
+    content: '\f03d';
+}
+
+ .kolidecon-alerts:before {
+    content: '\f03e';
+}
+
+ .kolidecon-logout:before {
+    content: '\f03f';
+}
+
+ .kolidecon-user-settings:before {
+    content: '\f040';
+}
+
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0
+}
+
+.sr-only-focusable:active,
+.sr-only-focusable:focus {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto
+}
+
