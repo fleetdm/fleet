@@ -1,10 +1,8 @@
-$base-font-size: 16;
-
 @import 'bourbon.scss';
-@import './helpers.scss';
-@import './variables.scss';
 
-@import 'styles/**/*.scss';
+@import 'styles/helpers.scss';
+@import 'styles/var/**/*.scss';
+@import 'styles/global/**/*.scss';
 @import 'components/**/*.scss';
 @import 'layouts/**/*.scss';
 @import 'pages/**/*.scss';

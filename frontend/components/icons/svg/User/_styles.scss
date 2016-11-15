@@ -1,0 +1,14 @@
+.user-svg {
+  stroke: $accent-medium;
+  fill: $accent-light;
+
+  &--colored {
+    stroke: $brand-light;
+    fill: $brand-ultralight;
+  }
+
+  &--error {
+    stroke: $alert;
+    fill: $alert-light;
+  }
+}

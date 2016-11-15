@@ -1,0 +1,25 @@
+.envelope-svg {
+  &__border {
+    stroke: $accent-medium;
+
+    &--colored {
+      stroke: $brand-light;
+    }
+
+    &--error {
+      stroke: $alert;
+    }
+  }
+
+  &__fill {
+    fill: $accent-light;
+
+    &--colored {
+      fill: $brand-ultralight;
+    }
+
+    &--error {
+      fill: $alert-light;
+    }
+  }
+}

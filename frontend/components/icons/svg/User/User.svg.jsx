@@ -1,31 +1,22 @@
 import React, { Component } from 'react';
+import classnames from 'classnames';
 
 import base, { basePropTypes } from '../base';
-import color from '../../../../styles/colors';
+
+const baseClass = 'user-svg';
 
 export class User extends Component {
   static propTypes = {
     ...basePropTypes,
   };
 
-  static variants = {
-    default: {
-      border: color.accentMedium,
-      fill: color.accentLight,
-    },
-    colored: {
-      border: color.brandLight,
-      fill: color.brandUltralight,
-    },
-    error: {
-      border: color.alert,
-      fill: color.alertLight,
-    },
-  };
-
   render () {
     const { alt, style, variant, className } = this.props;
-    const iconVariant = User.variants[variant];
+
+    const userClasses = classnames(
+      `${baseClass}__border`,
+      `${baseClass}__border--${variant}`
+    );
 
     if (variant === 'circle') {
       return (
@@ -41,7 +32,7 @@ export class User extends Component {
           className={className}
         >
           <g stroke="none" strokeWidth="1" fill="none" fillRule="evenodd">
-            <g transform="translate(-672.000000, -519.000000)" fill={iconVariant.fill} stroke={iconVariant.border}>
+            <g transform="translate(-672.000000, -519.000000)" className={userClasses}>
               <g transform="translate(272.000000, 340.000000)">
                 <g transform="translate(41.000000, 170.000000)">
                   <g transform="translate(360.000000, 9.500000)">
@@ -68,7 +59,7 @@ export class User extends Component {
         style={style}
       >
         <g stroke="none" strokeWidth="1" fill="none" fillRule="evenodd">
-          <g transform="translate(-672.000000, -519.000000)" fill={iconVariant.fill} stroke={iconVariant.border}>
+          <g transform="translate(-672.000000, -519.000000)" className={userClasses}>
             <g transform="translate(272.000000, 340.000000)">
               <g transform="translate(41.000000, 170.000000)">
                 <g transform="translate(360.000000, 9.500000)">

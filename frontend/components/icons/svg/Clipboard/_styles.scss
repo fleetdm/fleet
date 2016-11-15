@@ -1,0 +1,11 @@
+.clipboard-svg {
+  fill: $text-dark;
+
+  &__paper {
+    fill: $bg-light;
+  }
+
+  &--copied {
+    fill: $brand-light;
+  }
+}

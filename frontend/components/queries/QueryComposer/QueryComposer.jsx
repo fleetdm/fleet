@@ -5,7 +5,7 @@ import 'brace/ext/linking';
 
 import QueryForm from 'components/forms/queries/QueryForm';
 import queryInterface from 'interfaces/query';
-import SelectTargets from 'components/forms/fields/SelectTargetsInput';
+import SelectTargets from 'components/forms/fields/SelectTargetsDropdown';
 import targetInterface from 'interfaces/target';
 import './mode';
 import './theme';

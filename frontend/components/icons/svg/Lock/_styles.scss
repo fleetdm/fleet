@@ -1,0 +1,37 @@
+.lock-svg {
+  &__border {
+    stroke: $accent-medium;
+
+    &--colored {
+      stroke: $brand-light;
+    }
+
+    &--error {
+      stroke: $alert;
+    }
+  }
+
+  &__fill1 {
+    fill: $accent-light;
+
+    &--colored {
+      fill: $brand-ultralight;
+    }
+
+    &--error {
+      fill: $alert-light;
+    }
+  }
+
+  &__fill2 {
+    fill: $accent-medium;
+
+    &--colored {
+      fill: $brand-light;
+    }
+
+    &--error {
+      fill: $alert;
+    }
+  }
+}

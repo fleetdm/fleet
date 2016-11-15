@@ -3,7 +3,7 @@ import classNames from 'classnames';
 import { filter, includes, isEqual, noop } from 'lodash';
 
 import targetInterface from 'interfaces/target';
-import SelectTargets from 'components/forms/fields/SelectTargetsInput';
+import SelectTargets from 'components/forms/fields/SelectTargetsDropdown';
 
 
 const SelectTargetsMenuWrapper = (onMoreInfoClick, onRemoveMoreInfoTarget, moreInfoTarget) => {
