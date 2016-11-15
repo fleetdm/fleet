@@ -8,6 +8,7 @@ import { activeTabFromPathname, activeSubTabFromPathname } from './helpers';
 import configInterface from '../../../interfaces/config';
 import kolideLogo from '../../../../assets/images/kolide-logo.svg';
 import navItems from './navItems';
+import UserMenu from './UserMenu';
 import userInterface from '../../../interfaces/user';
 
 class SiteNavSidePanel extends Component {
@@ -32,6 +33,7 @@ class SiteNavSidePanel extends Component {
       activeTab,
       activeSubItem,
       showSubItems: false,
+      userMenuOpened: false,
     };
   }
 
@@ -94,18 +96,32 @@ class SiteNavSidePanel extends Component {
     };
   }
 
+  toggleUserMenu = () => {
+    const { userMenuOpened } = this.state;
+
+    this.setState({ userMenuOpened: !userMenuOpened });
+  }
+
   renderHeader = () => {
     const {
       config: {
         org_name: orgName,
       },
-      user: {
-        enabled,
-        username,
-      },
+      user,
     } = this.props;
 
+    const { userMenuOpened } = this.state;
+    const { toggleUserMenu } = this;
+    const { enabled, username } = user;
+
     const headerBaseClass = 'site-nav-header';
+
+    const headerToggleClass = classnames(
+      headerBaseClass,
+      'button',
+      'button--unstyled',
+      { [`${headerBaseClass}--open`]: userMenuOpened }
+    );
 
     const userStatusClass = classnames(
       `${headerBaseClass}__user-status`,
@@ -113,16 +129,25 @@ class SiteNavSidePanel extends Component {
     );
 
     return (
-      <header className={headerBaseClass}>
-        <img
-          alt="Company logo"
-          src={kolideLogo}
-          className={`${headerBaseClass}__logo`}
-        />
-        <h1 className={`${headerBaseClass}__org-name`}>{orgName}</h1>
-        <div className={userStatusClass} />
-        <h2 className={`${headerBaseClass}__username`}>{username}</h2>
-        <i className={`${headerBaseClass}__org-chevron kolidecon-chevrondownbold`} />
+      <header>
+        <button className={headerToggleClass} onClick={toggleUserMenu}>
+          <div className={`${headerBaseClass}__org`}>
+            <img
+              alt="Company logo"
+              src={kolideLogo}
+              className={`${headerBaseClass}__logo`}
+            />
+            <h1 className={`${headerBaseClass}__org-name`}>{orgName}</h1>
+            <div className={userStatusClass} />
+            <h2 className={`${headerBaseClass}__username`}>{username}</h2>
+            <i className={`${headerBaseClass}__org-chevron kolidecon-chevrondown`} />
+          </div>
+
+          <UserMenu
+            user={user}
+            isOpened={userMenuOpened}
+          />
+        </button>
       </header>
     );
   }
@@ -147,17 +172,14 @@ class SiteNavSidePanel extends Component {
           onClick={setActiveTab(navItem)}
           style={{ width: '100%' }}
         >
-          {active && <div className={`${navItemBaseClass}__active-nav`} />}
           <li
             key={name}
             className={navItemClasses}
           >
-            <div style={{ position: 'relative', textAlign: 'left' }}>
-              <i className={`${navItemBaseClass}__icon ${icon}`} />
-              <span className={`${navItemBaseClass}__name`}>
-                {name}
-              </span>
-            </div>
+            <i className={`${navItemBaseClass}__icon ${icon}`} />
+            <span className={`${navItemBaseClass}__name`}>
+              {name}
+            </span>
           </li>
         </button>
         {active && renderSubItems(subItems)}
