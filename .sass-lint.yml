@@ -2,7 +2,8 @@
 files:
   include: 'frontend/**/*.s+(a|c)ss'
   ignore:
-    - 'frontend/styles/_fonts.scss'
+    - 'frontend/styles/global/_fonts.scss'
+    - 'frontend/styles/global/_icons.scss'
 options:
   formatter: stylish
   merge-default-rules: false
