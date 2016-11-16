@@ -71,7 +71,7 @@ type Session struct {
 	CreateTimestamp
 	ID         uint
 	AccessedAt time.Time `db:"accessed_at"`
-	UserID     uint
+	UserID     uint      `db:"user_id"`
 	Key        string
 }
 

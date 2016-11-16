@@ -181,6 +181,10 @@ func (d *Datastore) ListHostsInLabel(lid uint) ([]kolide.Host, error) {
 }
 
 func (d *Datastore) ListUniqueHostsInLabels(labels []uint) ([]kolide.Host, error) {
+	if len(labels) == 0 {
+		return []kolide.Host{}, nil
+	}
+
 	sqlStatement := `
 		SELECT h.*
 		FROM label_query_executions lqe

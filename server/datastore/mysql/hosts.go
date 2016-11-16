@@ -191,8 +191,20 @@ func (d *Datastore) AuthenticateHost(nodeKey string) (*kolide.Host, error) {
 
 }
 
-func (d *Datastore) MarkHostSeen(*kolide.Host, time.Time) error {
-	panic("not implemented")
+func (d *Datastore) MarkHostSeen(host *kolide.Host, t time.Time) error {
+	sqlStatement := `
+		UPDATE hosts SET
+			updated_at = ?
+		WHERE node_key=?
+	`
+
+	_, err := d.db.Exec(sqlStatement, t, host.NodeKey)
+	if err != nil {
+		return errors.DatabaseError(err)
+	}
+
+	host.UpdatedAt = t
+	return nil
 }
 
 func (d *Datastore) searchHostsWithOmits(query string, omits ...uint) ([]kolide.Host, error) {

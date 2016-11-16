@@ -8,7 +8,7 @@ import (
 func (d *Datastore) SessionByKey(key string) (*kolide.Session, error) {
 	sqlStatement := `
 		SELECT * FROM sessions
-			WHERE key = ? LIMIT 1
+			WHERE ` + "`key`" + ` = ? LIMIT 1
 	`
 	session := &kolide.Session{}
 	err := d.db.Get(session, sqlStatement, key)
@@ -53,9 +53,9 @@ func (d *Datastore) NewSession(session *kolide.Session) (*kolide.Session, error)
 	sqlStatement := `
 		INSERT INTO sessions (
 			user_id,
-			key
+			` + "`key`" + `
 		)
-		VALUES(?,?,?,?)
+		VALUES(?,?)
 	`
 	result, err := d.db.Exec(sqlStatement, session.UserID, session.Key)
 	if err != nil {

@@ -60,7 +60,7 @@ func (d *Datastore) User(username string) (*kolide.User, error) {
 // kolide.ListOptions
 func (d *Datastore) ListUsers(opt kolide.ListOptions) ([]*kolide.User, error) {
 	sqlStatement := `
-		SELECT * FROM USERS WHERE NOT deleted
+		SELECT * FROM users WHERE NOT deleted
 	`
 	sqlStatement = appendListOptionsToSQL(sqlStatement, opt)
 	users := []*kolide.User{}
