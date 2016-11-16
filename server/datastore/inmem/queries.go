@@ -1,12 +1,13 @@
-package datastore
+package inmem
 
 import (
 	"sort"
 
+	"github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
 )
 
-func (orm *inmem) NewQuery(query *kolide.Query) (*kolide.Query, error) {
+func (orm *Datastore) NewQuery(query *kolide.Query) (*kolide.Query, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
@@ -14,7 +15,7 @@ func (orm *inmem) NewQuery(query *kolide.Query) (*kolide.Query, error) {
 
 	for _, q := range orm.queries {
 		if query.Name == q.Name {
-			return nil, ErrExists
+			return nil, errors.ErrExists
 		}
 	}
 
@@ -24,43 +25,43 @@ func (orm *inmem) NewQuery(query *kolide.Query) (*kolide.Query, error) {
 	return &newQuery, nil
 }
 
-func (orm *inmem) SaveQuery(query *kolide.Query) error {
+func (orm *Datastore) SaveQuery(query *kolide.Query) error {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
 	if _, ok := orm.queries[query.ID]; !ok {
-		return ErrNotFound
+		return errors.ErrNotFound
 	}
 
 	orm.queries[query.ID] = query
 	return nil
 }
 
-func (orm *inmem) DeleteQuery(query *kolide.Query) error {
+func (orm *Datastore) DeleteQuery(query *kolide.Query) error {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
 	if _, ok := orm.queries[query.ID]; !ok {
-		return ErrNotFound
+		return errors.ErrNotFound
 	}
 
 	delete(orm.queries, query.ID)
 	return nil
 }
 
-func (orm *inmem) Query(id uint) (*kolide.Query, error) {
+func (orm *Datastore) Query(id uint) (*kolide.Query, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
 	query, ok := orm.queries[id]
 	if !ok {
-		return nil, ErrNotFound
+		return nil, errors.ErrNotFound
 	}
 
 	return query, nil
 }
 
-func (orm *inmem) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, error) {
+func (orm *Datastore) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
@@ -102,50 +103,50 @@ func (orm *inmem) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, error) {
 	return queries, nil
 }
 
-func (orm *inmem) NewDistributedQueryExecution(exec kolide.DistributedQueryExecution) (kolide.DistributedQueryExecution, error) {
+func (orm *Datastore) NewDistributedQueryExecution(exec *kolide.DistributedQueryExecution) (*kolide.DistributedQueryExecution, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
 	for _, e := range orm.distributedQueryExecutions {
 		if exec.HostID == e.ID && exec.DistributedQueryCampaignID == e.DistributedQueryCampaignID {
-			return exec, ErrExists
+			return exec, errors.ErrExists
 		}
 	}
 
 	exec.ID = orm.nextID(exec)
-	orm.distributedQueryExecutions[exec.ID] = exec
+	orm.distributedQueryExecutions[exec.ID] = *exec
 
 	return exec, nil
 }
 
-func (orm *inmem) NewDistributedQueryCampaign(camp kolide.DistributedQueryCampaign) (kolide.DistributedQueryCampaign, error) {
+func (orm *Datastore) NewDistributedQueryCampaign(camp *kolide.DistributedQueryCampaign) (*kolide.DistributedQueryCampaign, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
 	camp.ID = orm.nextID(camp)
-	orm.distributedQueryCampaigns[camp.ID] = camp
+	orm.distributedQueryCampaigns[camp.ID] = *camp
 
 	return camp, nil
 }
 
-func (orm *inmem) SaveDistributedQueryCampaign(camp kolide.DistributedQueryCampaign) error {
+func (orm *Datastore) SaveDistributedQueryCampaign(camp *kolide.DistributedQueryCampaign) error {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
 	if _, ok := orm.distributedQueryCampaigns[camp.ID]; !ok {
-		return ErrNotFound
+		return errors.ErrNotFound
 	}
 
-	orm.distributedQueryCampaigns[camp.ID] = camp
+	orm.distributedQueryCampaigns[camp.ID] = *camp
 	return nil
 }
 
-func (orm *inmem) NewDistributedQueryCampaignTarget(target kolide.DistributedQueryCampaignTarget) (kolide.DistributedQueryCampaignTarget, error) {
+func (orm *Datastore) NewDistributedQueryCampaignTarget(target *kolide.DistributedQueryCampaignTarget) (*kolide.DistributedQueryCampaignTarget, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
 	target.ID = orm.nextID(target)
-	orm.distributedQueryCampaignTargets[target.ID] = target
+	orm.distributedQueryCampaignTargets[target.ID] = *target
 
 	return target, nil
 }

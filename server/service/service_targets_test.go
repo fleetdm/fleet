@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kolide/kolide-ose/server/datastore"
+	"github.com/kolide/kolide-ose/server/datastore/inmem"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -13,7 +13,7 @@ import (
 )
 
 func TestSearchTargets(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	require.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -44,7 +44,7 @@ func TestSearchTargets(t *testing.T) {
 }
 
 func TestCountHostsInTargets(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	require.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -140,7 +140,7 @@ func TestCountHostsInTargets(t *testing.T) {
 }
 
 func TestSearchWithOmit(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	require.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -192,7 +192,7 @@ func TestSearchWithOmit(t *testing.T) {
 }
 
 func TestSearchHostsInLabels(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	require.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -245,7 +245,7 @@ func TestSearchHostsInLabels(t *testing.T) {
 }
 
 func TestSearchResultsLimit(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	require.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)

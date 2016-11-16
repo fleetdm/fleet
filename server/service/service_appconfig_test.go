@@ -3,7 +3,7 @@ package service
 import (
 	"testing"
 
-	"github.com/kolide/kolide-ose/server/datastore"
+	"github.com/kolide/kolide-ose/server/datastore/inmem"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -11,7 +11,7 @@ import (
 )
 
 func TestCreateAppConfig(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	require.Nil(t, err)
 	svc, err := newTestService(ds, nil)
 	require.Nil(t, err)

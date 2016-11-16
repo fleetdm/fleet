@@ -361,7 +361,7 @@ func (svc service) ingestDistributedQuery(host kolide.Host, name string, rows []
 	}
 
 	// Record execution of the query
-	exec := kolide.DistributedQueryExecution{
+	exec := &kolide.DistributedQueryExecution{
 		HostID: host.ID,
 		DistributedQueryCampaignID: uint(campaignID),
 		Status: kolide.ExecutionSucceeded,

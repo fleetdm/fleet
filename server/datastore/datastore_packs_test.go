@@ -12,7 +12,7 @@ func testDeletePack(t *testing.T, ds kolide.Datastore) {
 	pack := &kolide.Pack{
 		Name: "foo",
 	}
-	err := ds.NewPack(pack)
+	_, err := ds.NewPack(pack)
 	assert.Nil(t, err)
 	assert.NotEqual(t, uint(0), pack.ID)
 
@@ -31,7 +31,7 @@ func testAddAndRemoveQueryFromPack(t *testing.T, ds kolide.Datastore) {
 	pack := &kolide.Pack{
 		Name: "foo",
 	}
-	err := ds.NewPack(pack)
+	_, err := ds.NewPack(pack)
 	assert.Nil(t, err)
 	assert.NotEqual(t, uint(0), pack.ID)
 

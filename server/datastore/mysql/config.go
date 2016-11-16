@@ -1,10 +1,6 @@
-package datastore
+package mysql
 
-import (
-	"log"
-
-	"github.com/kolide/kolide-ose/server/kolide"
-)
+import "github.com/go-kit/kit/log"
 
 const defaultMaxAttempts int = 15
 
@@ -14,13 +10,11 @@ type DBOption func(o *dbOptions) error
 type dbOptions struct {
 	// maxAttempts configures the number of retries to connect to the DB
 	maxAttempts int
-	db          kolide.Datastore
-	debug       bool // gorm debug
-	logger      *log.Logger
+	logger      log.Logger
 }
 
 // Logger adds a logger to the datastore
-func Logger(l *log.Logger) DBOption {
+func Logger(l log.Logger) DBOption {
 	return func(o *dbOptions) error {
 		o.logger = l
 		return nil
@@ -33,23 +27,6 @@ func Logger(l *log.Logger) DBOption {
 func LimitAttempts(attempts int) DBOption {
 	return func(o *dbOptions) error {
 		o.maxAttempts = attempts
-		return nil
-	}
-}
-
-// Debug sets the GORM debug level
-func Debug() DBOption {
-	return func(o *dbOptions) error {
-		o.debug = true
-		return nil
-	}
-}
-
-// datastore allows you to pass your own datastore
-// this option can be used to pass a specific testing implementation
-func datastore(db kolide.Datastore) DBOption {
-	return func(o *dbOptions) error {
-		o.db = db
 		return nil
 	}
 }

@@ -31,10 +31,6 @@ import:
   version: c3cefd437628a0b7d31b34fe44b3a7a540e98527
   subpackages:
   - proto
-- package: github.com/jinzhu/gorm
-  version: a646b13548ec0aa812fe805b2780f460dd2771b6
-  subpackages:
-  - dialects/mysql
 - package: github.com/jinzhu/inflection
   version: 8f4d3a0d04ce0b7c0cf3126fb98524246d00d102
 - package: github.com/manucorporat/sse
@@ -83,3 +79,4 @@ import:
   version: ^1.0.0
   subpackages:
   - redis
+- package: github.com/jmoiron/sqlx

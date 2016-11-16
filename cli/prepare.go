@@ -4,7 +4,7 @@ import (
 	"github.com/WatchBeam/clock"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/kolide/kolide-ose/server/config"
-	"github.com/kolide/kolide-ose/server/datastore"
+	"github.com/kolide/kolide-ose/server/datastore/mysql"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/kolide/kolide-ose/server/pubsub"
 	"github.com/kolide/kolide-ose/server/service"
@@ -33,9 +33,9 @@ To setup kolide infrastructure, use one of the available commands.
 		Long:  ``,
 		Run: func(cmd *cobra.Command, args []string) {
 			config := configManager.LoadConfig()
-			connString := datastore.GetMysqlConnectionString(config.Mysql)
+			connString := mysql.GetMysqlConnectionString(config.Mysql)
 
-			ds, err := datastore.New("gorm-mysql", connString)
+			ds, err := mysql.New(connString, clock.C)
 			if err != nil {
 				initFatal(err, "creating db connection")
 			}
@@ -58,15 +58,13 @@ To setup kolide infrastructure, use one of the available commands.
 		Long:  ``,
 		Run: func(cmd *cobra.Command, arg []string) {
 			config := configManager.LoadConfig()
-			connString := datastore.GetMysqlConnectionString(config.Mysql)
+			connString := mysql.GetMysqlConnectionString(config.Mysql)
 
-			ds, err := datastore.New("gorm-mysql", connString)
+			ds, err := mysql.New(connString, clock.C)
 			if err != nil {
 				initFatal(err, "creating db connection")
 			}
-			if err != nil {
-				initFatal(err, "creating new service")
-			}
+
 			var (
 				name     = "admin"
 				username = "admin"
@@ -88,7 +86,7 @@ To setup kolide infrastructure, use one of the available commands.
 				initFatal(err, "creating service")
 			}
 
-			_, err = svc.NewUser(context.Background(), admin)
+			_, err = svc.NewAdminCreatedUser(context.Background(), admin)
 			if err != nil {
 				initFatal(err, "saving new user")
 			}

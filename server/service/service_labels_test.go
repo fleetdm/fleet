@@ -3,14 +3,14 @@ package service
 import (
 	"testing"
 
-	"github.com/kolide/kolide-ose/server/datastore"
+	"github.com/kolide/kolide-ose/server/datastore/inmem"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
 func TestListLabels(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -35,7 +35,7 @@ func TestListLabels(t *testing.T) {
 }
 
 func TestGetLabel(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -57,7 +57,7 @@ func TestGetLabel(t *testing.T) {
 }
 
 func TestNewLabel(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -82,7 +82,7 @@ func TestNewLabel(t *testing.T) {
 }
 
 func TestDeleteLabel(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)

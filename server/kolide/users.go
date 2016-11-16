@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/net/context"
@@ -55,19 +54,19 @@ type UserService interface {
 
 // User is the model struct which represents a kolide user
 type User struct {
-	ID                       uint      `json:"id" gorm:"primary_key"`
-	CreatedAt                time.Time `json:"-"`
-	UpdatedAt                time.Time `json:"-"`
-	Username                 string    `json:"username" gorm:"not null;unique_index:idx_user_unique_username"`
-	Password                 []byte    `json:"-" gorm:"not null"`
-	Salt                     string    `json:"-" gorm:"not null"`
-	Name                     string    `json:"name"`
-	Email                    string    `json:"email" gorm:"not null;unique_index:idx_user_unique_email"`
-	Admin                    bool      `json:"admin" gorm:"not null"`
-	Enabled                  bool      `json:"enabled" gorm:"not null"`
-	AdminForcedPasswordReset bool      `json:"force_password_reset"`
-	GravatarURL              string    `json:"gravatar_url"`
-	Position                 string    `json:"position,omitempty"` // job role
+	UpdateCreateTimestamps
+	DeleteFields
+	ID                       uint   `json:"id" gorm:"primary_key"`
+	Username                 string `json:"username" gorm:"not null;unique_index:idx_user_unique_username"`
+	Password                 []byte `json:"-" gorm:"not null"`
+	Salt                     string `json:"-" gorm:"not null"`
+	Name                     string `json:"name"`
+	Email                    string `json:"email" gorm:"not null;unique_index:idx_user_unique_email"`
+	Admin                    bool   `json:"admin" gorm:"not null"`
+	Enabled                  bool   `json:"enabled" gorm:"not null"`
+	AdminForcedPasswordReset bool   `json:"force_password_reset" db:"admin_forced_password_reset"`
+	GravatarURL              string `json:"gravatar_url" db:"gravatar_url"`
+	Position                 string `json:"position,omitempty"` // job role
 }
 
 // UserPayload is used to modify an existing user

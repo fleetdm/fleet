@@ -1,6 +1,7 @@
 package datastore
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/kolide/kolide-ose/server/kolide"
@@ -9,8 +10,9 @@ import (
 
 func testDeleteQuery(t *testing.T, ds kolide.Datastore) {
 	query := &kolide.Query{
-		Name:  "foo",
-		Query: "bar",
+		Name:     "foo",
+		Query:    "bar",
+		Interval: 123,
 	}
 	query, err := ds.NewQuery(query)
 	assert.Nil(t, err)
@@ -41,4 +43,19 @@ func testSaveQuery(t *testing.T, ds kolide.Datastore) {
 	queryVerify, err := ds.Query(query.ID)
 	assert.Nil(t, err)
 	assert.Equal(t, "baz", queryVerify.Query)
+}
+
+func testListQuery(t *testing.T, ds kolide.Datastore) {
+	for i := 0; i < 10; i++ {
+		_, err := ds.NewQuery(&kolide.Query{
+			Name:  fmt.Sprintf("name%02d", i),
+			Query: fmt.Sprintf("query%02d", i),
+		})
+		assert.Nil(t, err)
+	}
+
+	opts := kolide.ListOptions{}
+	results, err := ds.ListQueries(opts)
+	assert.Nil(t, err)
+	assert.Equal(t, 10, len(results))
 }

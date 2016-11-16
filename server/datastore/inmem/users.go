@@ -1,18 +1,19 @@
-package datastore
+package inmem
 
 import (
 	"sort"
 
+	"github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
 )
 
-func (orm *inmem) NewUser(user *kolide.User) (*kolide.User, error) {
+func (orm *Datastore) NewUser(user *kolide.User) (*kolide.User, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
 	for _, in := range orm.users {
 		if in.Username == user.Username {
-			return nil, ErrExists
+			return nil, errors.ErrExists
 		}
 	}
 
@@ -22,7 +23,7 @@ func (orm *inmem) NewUser(user *kolide.User) (*kolide.User, error) {
 	return user, nil
 }
 
-func (orm *inmem) User(username string) (*kolide.User, error) {
+func (orm *Datastore) User(username string) (*kolide.User, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
@@ -32,10 +33,10 @@ func (orm *inmem) User(username string) (*kolide.User, error) {
 		}
 	}
 
-	return nil, ErrNotFound
+	return nil, errors.ErrNotFound
 }
 
-func (orm *inmem) ListUsers(opt kolide.ListOptions) ([]*kolide.User, error) {
+func (orm *Datastore) ListUsers(opt kolide.ListOptions) ([]*kolide.User, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
@@ -76,7 +77,7 @@ func (orm *inmem) ListUsers(opt kolide.ListOptions) ([]*kolide.User, error) {
 	return users, nil
 }
 
-func (orm *inmem) UserByEmail(email string) (*kolide.User, error) {
+func (orm *Datastore) UserByEmail(email string) (*kolide.User, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
@@ -86,10 +87,10 @@ func (orm *inmem) UserByEmail(email string) (*kolide.User, error) {
 		}
 	}
 
-	return nil, ErrNotFound
+	return nil, errors.ErrNotFound
 }
 
-func (orm *inmem) UserByID(id uint) (*kolide.User, error) {
+func (orm *Datastore) UserByID(id uint) (*kolide.User, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
@@ -97,15 +98,15 @@ func (orm *inmem) UserByID(id uint) (*kolide.User, error) {
 		return user, nil
 	}
 
-	return nil, ErrNotFound
+	return nil, errors.ErrNotFound
 }
 
-func (orm *inmem) SaveUser(user *kolide.User) error {
+func (orm *Datastore) SaveUser(user *kolide.User) error {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
 	if _, ok := orm.users[user.ID]; !ok {
-		return ErrNotFound
+		return errors.ErrNotFound
 	}
 
 	orm.users[user.ID] = user

@@ -8,7 +8,7 @@ import (
 
 type PackStore interface {
 	// Pack methods
-	NewPack(pack *Pack) error
+	NewPack(pack *Pack) (*Pack, error)
 	SavePack(pack *Pack) error
 	DeletePack(pid uint) error
 	Pack(pid uint) (*Pack, error)
@@ -44,11 +44,11 @@ type PackService interface {
 }
 
 type Pack struct {
-	ID        uint      `json:"id" gorm:"primary_key"`
-	CreatedAt time.Time `json:"-"`
-	UpdatedAt time.Time `json:"-"`
-	Name      string    `json:"name" gorm:"not null;unique_index:idx_pack_unique_name"`
-	Platform  string    `json:"platform"`
+	UpdateCreateTimestamps
+	DeleteFields
+	ID       uint   `json:"id" gorm:"primary_key"`
+	Name     string `json:"name" gorm:"not null;unique_index:idx_pack_unique_name"`
+	Platform string `json:"platform"`
 }
 
 type PackQuery struct {
@@ -60,7 +60,7 @@ type PackQuery struct {
 }
 
 type PackTarget struct {
-	ID       uint `gorm:"primary_key"`
-	PackID   uint
+	ID     uint `gorm:"primary_key"`
+	PackID uint
 	Target
 }

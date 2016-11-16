@@ -3,7 +3,6 @@ package cli
 import (
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,7 +13,8 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/kolide/kolide-ose/server/config"
-	"github.com/kolide/kolide-ose/server/datastore"
+	"github.com/kolide/kolide-ose/server/datastore/inmem"
+	"github.com/kolide/kolide-ose/server/datastore/mysql"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/kolide/kolide-ose/server/mail"
 	"github.com/kolide/kolide-ose/server/pubsub"
@@ -66,23 +66,20 @@ the way that the kolide server works.
 					"Dev mode enabled, using in-memory DB.\n",
 					"Warning: Changes will not be saved across process restarts. This should NOT be used in production.",
 				)
-				ds, err = datastore.New("inmem", "")
-				if err != nil {
-					initFatal(err, "initializing datastore")
+
+				if ds, err = inmem.New(); err != nil {
+					initFatal(err, "initializing inmem database")
 				}
 			} else {
-				var dbOption []datastore.DBOption
-				gormLogger := log.New(os.Stderr, "", 0)
-				gormLogger.SetOutput(kitlog.NewStdlibAdapter(logger))
-				dbOption = append(dbOption, datastore.Logger(gormLogger))
-				if config.Logging.Debug {
-					dbOption = append(dbOption, datastore.Debug())
-				}
-				connString := datastore.GetMysqlConnectionString(config.Mysql)
-				ds, err = datastore.New("gorm-mysql", connString, dbOption...)
+				const defaultMaxAttempts = 15
+
+				connString := mysql.GetMysqlConnectionString(config.Mysql)
+				ds, err = mysql.New(connString, clock.C, mysql.Logger(logger))
+
 				if err != nil {
 					initFatal(err, "initializing datastore")
 				}
+
 			}
 
 			svc, err := service.NewService(ds, pubsub.NewInmemQueryResults(), logger, config, mailService, clock.C)
@@ -198,24 +195,38 @@ func createDevMailService(config config.KolideConfig) kolide.MailService {
 func createDevUsers(ds kolide.Datastore, config config.KolideConfig) {
 	users := []kolide.User{
 		{
-			CreatedAt: time.Date(2016, time.October, 27, 10, 0, 0, 0, time.UTC),
-			UpdatedAt: time.Date(2016, time.October, 27, 10, 0, 0, 0, time.UTC),
-			Name:      "Admin User",
-			Username:  "admin",
-			Email:     "admin@kolide.co",
-			Position:  "Director of Security",
-			Admin:     true,
-			Enabled:   true,
+			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+				CreateTimestamp: kolide.CreateTimestamp{
+					CreatedAt: time.Date(2016, time.October, 27, 10, 0, 0, 0, time.UTC),
+				},
+				UpdateTimestamp: kolide.UpdateTimestamp{
+					UpdatedAt: time.Date(2016, time.October, 27, 10, 0, 0, 0, time.UTC),
+				},
+			},
+
+			Name:     "Admin User",
+			Username: "admin",
+			Email:    "admin@kolide.co",
+			Position: "Director of Security",
+			Admin:    true,
+			Enabled:  true,
 		},
 		{
-			CreatedAt: time.Now().Add(-3 * time.Hour),
-			UpdatedAt: time.Now().Add(-1 * time.Hour),
-			Name:      "Normal User",
-			Username:  "user",
-			Email:     "user@kolide.co",
-			Position:  "Security Engineer",
-			Admin:     false,
-			Enabled:   true,
+			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+				CreateTimestamp: kolide.CreateTimestamp{
+					CreatedAt: time.Now().Add(-3 * time.Hour),
+				},
+				UpdateTimestamp: kolide.UpdateTimestamp{
+					UpdatedAt: time.Now().Add(-1 * time.Hour),
+				},
+			},
+
+			Name:     "Normal User",
+			Username: "user",
+			Email:    "user@kolide.co",
+			Position: "Security Engineer",
+			Admin:    false,
+			Enabled:  true,
 		},
 	}
 	for _, user := range users {
@@ -235,8 +246,14 @@ func createDevUsers(ds kolide.Datastore, config config.KolideConfig) {
 func createDevHosts(ds kolide.Datastore, config config.KolideConfig) {
 	hosts := []kolide.Host{
 		{
-			CreatedAt:        time.Date(2016, time.October, 27, 10, 0, 0, 0, time.UTC),
-			UpdatedAt:        time.Now().Add(-20 * time.Minute),
+			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+				CreateTimestamp: kolide.CreateTimestamp{
+					CreatedAt: time.Date(2016, time.October, 27, 10, 0, 0, 0, time.UTC),
+				},
+				UpdateTimestamp: kolide.UpdateTimestamp{
+					UpdatedAt: time.Now().Add(-20 * time.Minute),
+				},
+			},
 			NodeKey:          "totally-legit",
 			HostName:         "jmeller-mbp.local",
 			UUID:             "1234-5678-9101",
@@ -250,8 +267,15 @@ func createDevHosts(ds kolide.Datastore, config config.KolideConfig) {
 			DetailUpdateTime: time.Now().Add(-20 * time.Minute),
 		},
 		{
-			CreatedAt:        time.Now().Add(-1 * time.Hour),
-			UpdatedAt:        time.Now().Add(-20 * time.Minute),
+			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+				CreateTimestamp: kolide.CreateTimestamp{
+					CreatedAt: time.Date(2016, time.October, 27, 4, 3, 10, 0, time.UTC),
+				},
+				UpdateTimestamp: kolide.UpdateTimestamp{
+					UpdatedAt: time.Date(2016, time.October, 27, 4, 3, 10, 0, time.UTC),
+				},
+			},
+
 			NodeKey:          "definitely-legit",
 			HostName:         "marpaia.local",
 			UUID:             "1234-5678-9102",
@@ -289,34 +313,67 @@ func createDevOrgInfo(ds kolide.Datastore, config config.KolideConfig) {
 func createDevQueries(ds kolide.Datastore, config config.KolideConfig) {
 	queries := []kolide.Query{
 		{
-			CreatedAt: time.Date(2016, time.October, 17, 7, 6, 0, 0, time.UTC),
-			UpdatedAt: time.Date(2016, time.October, 17, 7, 6, 0, 0, time.UTC),
-			Name:      "dev_query_1",
-			Query:     "select * from processes",
+			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+				CreateTimestamp: kolide.CreateTimestamp{
+					CreatedAt: time.Date(2016, time.October, 17, 7, 6, 0, 0, time.UTC),
+				},
+				UpdateTimestamp: kolide.UpdateTimestamp{
+					UpdatedAt: time.Date(2016, time.October, 17, 7, 6, 0, 0, time.UTC),
+				},
+			},
+
+			Name:  "dev_query_1",
+			Query: "select * from processes",
 		},
 		{
-			CreatedAt: time.Date(2016, time.October, 27, 4, 3, 10, 0, time.UTC),
-			UpdatedAt: time.Date(2016, time.October, 27, 4, 3, 10, 0, time.UTC),
-			Name:      "dev_query_2",
-			Query:     "select * from time",
+			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+				CreateTimestamp: kolide.CreateTimestamp{
+					CreatedAt: time.Date(2016, time.October, 27, 4, 3, 10, 0, time.UTC),
+				},
+				UpdateTimestamp: kolide.UpdateTimestamp{
+					UpdatedAt: time.Date(2016, time.October, 27, 4, 3, 10, 0, time.UTC),
+				},
+			},
+			Name:  "dev_query_2",
+			Query: "select * from time",
 		},
 		{
-			CreatedAt: time.Now().Add(-24 * time.Hour),
-			UpdatedAt: time.Now().Add(-17 * time.Hour),
-			Name:      "dev_query_3",
-			Query:     "select * from cpuid",
+			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+				CreateTimestamp: kolide.CreateTimestamp{
+					CreatedAt: time.Now().Add(-24 * time.Hour),
+				},
+				UpdateTimestamp: kolide.UpdateTimestamp{
+					UpdatedAt: time.Now().Add(-17 * time.Hour),
+				},
+			},
+
+			Name:  "dev_query_3",
+			Query: "select * from cpuid",
 		},
 		{
-			CreatedAt: time.Now().Add(-1 * time.Hour),
-			UpdatedAt: time.Now().Add(-30 * time.Minute),
-			Name:      "dev_query_4",
-			Query:     "select 1 from processes where name like '%Apache%'",
+			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+				CreateTimestamp: kolide.CreateTimestamp{
+					CreatedAt: time.Now().Add(-1 * time.Hour),
+				},
+				UpdateTimestamp: kolide.UpdateTimestamp{
+					UpdatedAt: time.Now().Add(-30 * time.Hour),
+				},
+			},
+
+			Name:  "dev_query_4",
+			Query: "select 1 from processes where name like '%Apache%'",
 		},
 		{
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-			Name:      "dev_query_5",
-			Query:     "select 1 from osquery_info where build_platform='darwin'",
+			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+				CreateTimestamp: kolide.CreateTimestamp{
+					CreatedAt: time.Now(),
+				},
+				UpdateTimestamp: kolide.UpdateTimestamp{
+					UpdatedAt: time.Now(),
+				},
+			},
+			Name:  "dev_query_5",
+			Query: "select 1 from osquery_info where build_platform='darwin'",
 		},
 	}
 
@@ -332,16 +389,29 @@ func createDevQueries(ds kolide.Datastore, config config.KolideConfig) {
 func createDevLabels(ds kolide.Datastore, config config.KolideConfig) {
 	labels := []kolide.Label{
 		{
-			CreatedAt: time.Date(2016, time.October, 27, 8, 31, 16, 0, time.UTC),
-			UpdatedAt: time.Date(2016, time.October, 27, 8, 31, 16, 0, time.UTC),
-			Name:      "dev_label_apache",
-			Query:     "select * from processes where name like '%Apache%'",
+			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+				CreateTimestamp: kolide.CreateTimestamp{
+					CreatedAt: time.Date(2016, time.October, 27, 8, 31, 16, 0, time.UTC),
+				},
+				UpdateTimestamp: kolide.UpdateTimestamp{
+					UpdatedAt: time.Date(2016, time.October, 27, 8, 31, 16, 0, time.UTC),
+				},
+			},
+			Name:  "dev_label_apache",
+			Query: "select * from processes where nae like '%Apache%'",
 		},
 		{
-			CreatedAt: time.Now().Add(-1 * time.Hour),
-			UpdatedAt: time.Now(),
-			Name:      "dev_label_darwin",
-			Query:     "select * from osquery_info where build_platform='darwin'",
+			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+				CreateTimestamp: kolide.CreateTimestamp{
+					CreatedAt: time.Now().Add(-1 * time.Hour),
+				},
+				UpdateTimestamp: kolide.UpdateTimestamp{
+					UpdatedAt: time.Now(),
+				},
+			},
+
+			Name:  "dev_label_darwin",
+			Query: "select * from osquery_info where build_platform='darwin'",
 		},
 	}
 

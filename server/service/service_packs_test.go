@@ -3,14 +3,14 @@ package service
 import (
 	"testing"
 
-	"github.com/kolide/kolide-ose/server/datastore"
+	"github.com/kolide/kolide-ose/server/datastore/inmem"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
 func TestListPacks(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -22,7 +22,7 @@ func TestListPacks(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
 
-	err = ds.NewPack(&kolide.Pack{
+	_, err = ds.NewPack(&kolide.Pack{
 		Name: "foo",
 	})
 	assert.Nil(t, err)
@@ -33,7 +33,7 @@ func TestListPacks(t *testing.T) {
 }
 
 func TestGetPack(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -44,7 +44,7 @@ func TestGetPack(t *testing.T) {
 	pack := &kolide.Pack{
 		Name: "foo",
 	}
-	err = ds.NewPack(pack)
+	_, err = ds.NewPack(pack)
 	assert.Nil(t, err)
 	assert.NotZero(t, pack.ID)
 
@@ -55,7 +55,7 @@ func TestGetPack(t *testing.T) {
 }
 
 func TestNewPack(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -76,7 +76,7 @@ func TestNewPack(t *testing.T) {
 }
 
 func TestModifyPack(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -87,7 +87,7 @@ func TestModifyPack(t *testing.T) {
 	pack := &kolide.Pack{
 		Name: "foo",
 	}
-	err = ds.NewPack(pack)
+	_, err = ds.NewPack(pack)
 	assert.Nil(t, err)
 	assert.NotZero(t, pack.ID)
 
@@ -102,7 +102,7 @@ func TestModifyPack(t *testing.T) {
 }
 
 func TestDeletePack(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -113,7 +113,7 @@ func TestDeletePack(t *testing.T) {
 	pack := &kolide.Pack{
 		Name: "foo",
 	}
-	err = ds.NewPack(pack)
+	_, err = ds.NewPack(pack)
 	assert.Nil(t, err)
 	assert.NotZero(t, pack.ID)
 
@@ -127,7 +127,7 @@ func TestDeletePack(t *testing.T) {
 }
 
 func TestAddQueryToPack(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -138,7 +138,7 @@ func TestAddQueryToPack(t *testing.T) {
 	pack := &kolide.Pack{
 		Name: "foo",
 	}
-	err = ds.NewPack(pack)
+	_, err = ds.NewPack(pack)
 	assert.Nil(t, err)
 	assert.NotZero(t, pack.ID)
 
@@ -163,7 +163,7 @@ func TestAddQueryToPack(t *testing.T) {
 }
 
 func TestGetQueriesInPack(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -174,7 +174,7 @@ func TestGetQueriesInPack(t *testing.T) {
 	pack := &kolide.Pack{
 		Name: "foo",
 	}
-	err = ds.NewPack(pack)
+	_, err = ds.NewPack(pack)
 	assert.Nil(t, err)
 	assert.NotZero(t, pack.ID)
 
@@ -195,7 +195,7 @@ func TestGetQueriesInPack(t *testing.T) {
 }
 
 func TestRemoveQueryFromPack(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -206,7 +206,7 @@ func TestRemoveQueryFromPack(t *testing.T) {
 	pack := &kolide.Pack{
 		Name: "foo",
 	}
-	err = ds.NewPack(pack)
+	_, err = ds.NewPack(pack)
 	assert.Nil(t, err)
 	assert.NotZero(t, pack.ID)
 

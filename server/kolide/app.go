@@ -21,10 +21,10 @@ type AppConfigService interface {
 // AppConfig holds configuration about the Kolide application.
 // AppConfig data can be managed by a Kolide API user.
 type AppConfig struct {
-	ID              uint `gorm:"primary_key"`
-	OrgName         string
-	OrgLogoURL      string
-	KolideServerURL string
+	ID              int64
+	OrgName         string `db:"org_name"`
+	OrgLogoURL      string `db:"org_logo_url"`
+	KolideServerURL string `db:"kolide_server_url"`
 }
 
 // AppConfigPayload contains request and response format of
@@ -36,8 +36,8 @@ type AppConfigPayload struct {
 
 // OrgInfo contains general info about the organization using Kolide.
 type OrgInfo struct {
-	OrgName    *string `json:"org_name,omitempty"`
-	OrgLogoURL *string `json:"org_logo_url,omitempty"`
+	OrgName    *string `json:"org_name,omitempty" db:"org_name"`
+	OrgLogoURL *string `json:"org_logo_url,omitempty" db:"org_logo_url"`
 }
 
 // ServerSettings contains general settings about the kolide App.

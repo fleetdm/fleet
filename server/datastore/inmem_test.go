@@ -3,76 +3,18 @@ package datastore
 import (
 	"testing"
 
-	"github.com/kolide/kolide-ose/server/kolide"
-	"github.com/stretchr/testify/assert"
+	"github.com/kolide/kolide-ose/server/datastore/inmem"
+	"github.com/stretchr/testify/require"
 )
 
 func TestInmem(t *testing.T) {
+
 	for _, f := range testFunctions {
 		t.Run(functionName(f), func(t *testing.T) {
-			ds, err := New("inmem", "")
-			assert.Nil(t, err)
+			ds, err := inmem.New()
+			defer func() { require.Nil(t, ds.Drop()) }()
+			require.Nil(t, err)
 			f(t, ds)
 		})
 	}
-}
-
-func TestApplyLimitOffset(t *testing.T) {
-	im := inmem{}
-	data := []int{}
-
-	// should work with empty
-	low, high := im.getLimitOffsetSliceBounds(kolide.ListOptions{}, len(data))
-	result := data[low:high]
-	assert.Len(t, result, 0)
-	low, high = im.getLimitOffsetSliceBounds(kolide.ListOptions{Page: 1, PerPage: 20}, len(data))
-	result = data[low:high]
-	assert.Len(t, result, 0)
-
-	// insert some data
-	for i := 0; i < 100; i++ {
-		data = append(data, i)
-	}
-
-	// unlimited
-	low, high = im.getLimitOffsetSliceBounds(kolide.ListOptions{}, len(data))
-	result = data[low:high]
-	assert.Len(t, result, 100)
-	assert.Equal(t, data, result)
-
-	// reasonable limit page 0
-	low, high = im.getLimitOffsetSliceBounds(kolide.ListOptions{PerPage: 20}, len(data))
-	result = data[low:high]
-	assert.Len(t, result, 20)
-	assert.Equal(t, data[:20], result)
-
-	// too many per page
-	low, high = im.getLimitOffsetSliceBounds(kolide.ListOptions{PerPage: 200}, len(data))
-	result = data[low:high]
-	assert.Len(t, result, 100)
-	assert.Equal(t, data, result)
-
-	// offset should be past end (zero results)
-	low, high = im.getLimitOffsetSliceBounds(kolide.ListOptions{Page: 1, PerPage: 200}, len(data))
-	result = data[low:high]
-	assert.Len(t, result, 0)
-
-	// all pages appended should equal the original data
-	result = []int{}
-	for i := 0; i < 5; i++ { // 5 used intentionally
-		low, high = im.getLimitOffsetSliceBounds(kolide.ListOptions{Page: uint(i), PerPage: 25}, len(data))
-		result = append(result, data[low:high]...)
-	}
-	assert.Len(t, result, 100)
-	assert.Equal(t, data, result)
-
-	// again with different params
-	result = []int{}
-	for i := 0; i < 100; i++ { // 5 used intentionally
-		low, high = im.getLimitOffsetSliceBounds(kolide.ListOptions{Page: uint(i), PerPage: 1}, len(data))
-		result = append(result, data[low:high]...)
-	}
-	assert.Len(t, result, 100)
-	assert.Equal(t, data, result)
-
 }

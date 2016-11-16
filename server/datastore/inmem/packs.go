@@ -1,17 +1,18 @@
-package datastore
+package inmem
 
 import (
 	"sort"
 
+	"github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
 )
 
-func (orm *inmem) NewPack(pack *kolide.Pack) error {
+func (orm *Datastore) NewPack(pack *kolide.Pack) (*kolide.Pack, error) {
 	newPack := *pack
 
 	for _, q := range orm.packs {
 		if pack.Name == q.Name {
-			return ErrExists
+			return nil, errors.ErrExists
 		}
 	}
 
@@ -20,15 +21,14 @@ func (orm *inmem) NewPack(pack *kolide.Pack) error {
 	orm.packs[newPack.ID] = &newPack
 	orm.mtx.Unlock()
 
-	// TODO NewPack should return (*kolide.Pack, error) and this is a work around
 	pack.ID = newPack.ID
 
-	return nil
+	return pack, nil
 }
 
-func (orm *inmem) SavePack(pack *kolide.Pack) error {
+func (orm *Datastore) SavePack(pack *kolide.Pack) error {
 	if _, ok := orm.packs[pack.ID]; !ok {
-		return ErrNotFound
+		return errors.ErrNotFound
 	}
 
 	orm.mtx.Lock()
@@ -38,9 +38,9 @@ func (orm *inmem) SavePack(pack *kolide.Pack) error {
 	return nil
 }
 
-func (orm *inmem) DeletePack(pid uint) error {
+func (orm *Datastore) DeletePack(pid uint) error {
 	if _, ok := orm.packs[pid]; !ok {
-		return ErrNotFound
+		return errors.ErrNotFound
 	}
 
 	orm.mtx.Lock()
@@ -50,18 +50,18 @@ func (orm *inmem) DeletePack(pid uint) error {
 	return nil
 }
 
-func (orm *inmem) Pack(id uint) (*kolide.Pack, error) {
+func (orm *Datastore) Pack(id uint) (*kolide.Pack, error) {
 	orm.mtx.Lock()
 	pack, ok := orm.packs[id]
 	orm.mtx.Unlock()
 	if !ok {
-		return nil, ErrNotFound
+		return nil, errors.ErrNotFound
 	}
 
 	return pack, nil
 }
 
-func (orm *inmem) ListPacks(opt kolide.ListOptions) ([]*kolide.Pack, error) {
+func (orm *Datastore) ListPacks(opt kolide.ListOptions) ([]*kolide.Pack, error) {
 	// We need to sort by keys to provide reliable ordering
 	keys := []int{}
 	orm.mtx.Lock()
@@ -97,7 +97,7 @@ func (orm *inmem) ListPacks(opt kolide.ListOptions) ([]*kolide.Pack, error) {
 	return packs, nil
 }
 
-func (orm *inmem) AddQueryToPack(qid uint, pid uint) error {
+func (orm *Datastore) AddQueryToPack(qid uint, pid uint) error {
 	packQuery := &kolide.PackQuery{
 		PackID:  pid,
 		QueryID: qid,
@@ -111,7 +111,7 @@ func (orm *inmem) AddQueryToPack(qid uint, pid uint) error {
 	return nil
 }
 
-func (orm *inmem) ListQueriesInPack(pack *kolide.Pack) ([]*kolide.Query, error) {
+func (orm *Datastore) ListQueriesInPack(pack *kolide.Pack) ([]*kolide.Query, error) {
 	var queries []*kolide.Query
 
 	orm.mtx.Lock()
@@ -123,7 +123,7 @@ func (orm *inmem) ListQueriesInPack(pack *kolide.Pack) ([]*kolide.Query, error) 
 	return queries, nil
 }
 
-func (orm *inmem) RemoveQueryFromPack(query *kolide.Query, pack *kolide.Pack) error {
+func (orm *Datastore) RemoveQueryFromPack(query *kolide.Query, pack *kolide.Pack) error {
 	var packQueriesToDelete []uint
 
 	orm.mtx.Lock()
@@ -141,7 +141,7 @@ func (orm *inmem) RemoveQueryFromPack(query *kolide.Query, pack *kolide.Pack) er
 	return nil
 }
 
-func (orm *inmem) AddLabelToPack(lid uint, pid uint) error {
+func (orm *Datastore) AddLabelToPack(lid uint, pid uint) error {
 	pt := &kolide.PackTarget{
 		PackID: pid,
 		Target: kolide.Target{
@@ -158,7 +158,7 @@ func (orm *inmem) AddLabelToPack(lid uint, pid uint) error {
 	return nil
 }
 
-func (orm *inmem) ListLabelsForPack(pack *kolide.Pack) ([]*kolide.Label, error) {
+func (orm *Datastore) ListLabelsForPack(pack *kolide.Pack) ([]*kolide.Label, error) {
 	var labels []*kolide.Label
 
 	orm.mtx.Lock()
@@ -172,7 +172,7 @@ func (orm *inmem) ListLabelsForPack(pack *kolide.Pack) ([]*kolide.Label, error) 
 	return labels, nil
 }
 
-func (orm *inmem) RemoveLabelFromPack(label *kolide.Label, pack *kolide.Pack) error {
+func (orm *Datastore) RemoveLabelFromPack(label *kolide.Label, pack *kolide.Pack) error {
 	var labelsToDelete []uint
 
 	orm.mtx.Lock()

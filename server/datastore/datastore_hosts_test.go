@@ -40,6 +40,78 @@ var enrollTests = []struct {
 	},
 }
 
+func testSaveHosts(t *testing.T, db kolide.Datastore) {
+	host, err := db.NewHost(&kolide.Host{
+		DetailUpdateTime: time.Now(),
+		NodeKey:          "1",
+		UUID:             "1",
+		HostName:         "foo.local",
+		PrimaryIP:        "192.168.1.10",
+	})
+	assert.Nil(t, err)
+	assert.NotNil(t, host)
+
+	host.HostName = "bar.local"
+	err = db.SaveHost(host)
+	assert.Nil(t, err)
+
+	host, err = db.Host(host.ID)
+	assert.Nil(t, err)
+	assert.Equal(t, "bar.local", host.HostName)
+
+	err = db.DeleteHost(host)
+	assert.Nil(t, err)
+
+	host, err = db.Host(host.ID)
+	assert.NotNil(t, err)
+}
+
+func testDeleteHost(t *testing.T, db kolide.Datastore) {
+	host, err := db.NewHost(&kolide.Host{
+		DetailUpdateTime: time.Now(),
+		NodeKey:          "1",
+		UUID:             "1",
+		HostName:         "foo.local",
+		PrimaryIP:        "192.168.1.10",
+	})
+	assert.Nil(t, err)
+	assert.NotNil(t, host)
+
+	err = db.DeleteHost(host)
+	assert.Nil(t, err)
+
+	host, err = db.Host(host.ID)
+	assert.NotNil(t, err)
+}
+
+func testListHost(t *testing.T, db kolide.Datastore) {
+	hosts := []*kolide.Host{}
+	for i := 0; i < 10; i++ {
+		host, err := db.NewHost(&kolide.Host{
+			DetailUpdateTime: time.Now(),
+			NodeKey:          fmt.Sprintf("%d", i),
+			UUID:             fmt.Sprintf("%d", i),
+			HostName:         fmt.Sprintf("foo.local%d", i),
+			PrimaryIP:        fmt.Sprintf("192.168.1.%d", i),
+		})
+		assert.Nil(t, err)
+		if err != nil {
+			return
+		}
+		hosts = append(hosts, host)
+	}
+
+	hosts2, err := db.ListHosts(kolide.ListOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, len(hosts), len(hosts2))
+	err = db.DeleteHost(hosts[0])
+	assert.Nil(t, err)
+	hosts2, err = db.ListHosts(kolide.ListOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, len(hosts)-1, len(hosts2))
+
+}
+
 func testEnrollHost(t *testing.T, db kolide.Datastore) {
 	var hosts []*kolide.Host
 	for _, tt := range enrollTests {
@@ -112,16 +184,16 @@ func testSearchHosts(t *testing.T, db kolide.Datastore) {
 	})
 	require.Nil(t, err)
 
-	hosts, err := db.SearchHosts("foo", nil)
+	hosts, err := db.SearchHosts("foo")
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 2)
 
-	host, err := db.SearchHosts("foo", []uint{h3.ID})
+	host, err := db.SearchHosts("foo", h3.ID)
 	assert.Nil(t, err)
 	assert.Len(t, host, 1)
 	assert.Equal(t, "foo.local", host[0].HostName)
 
-	none, err := db.SearchHosts("xxx", nil)
+	none, err := db.SearchHosts("xxx")
 	assert.Nil(t, err)
 	assert.Len(t, none, 0)
 }
@@ -138,7 +210,7 @@ func testSearchHostsLimit(t *testing.T, db kolide.Datastore) {
 		require.Nil(t, err)
 	}
 
-	hosts, err := db.SearchHosts("foo", nil)
+	hosts, err := db.SearchHosts("foo")
 	require.Nil(t, err)
 	assert.Len(t, hosts, 10)
 }
@@ -194,7 +266,7 @@ func testDistributedQueriesForHost(t *testing.T, db kolide.Datastore) {
 	require.Nil(t, err)
 
 	// Create a query campaign
-	c1 := kolide.DistributedQueryCampaign{
+	c1 := &kolide.DistributedQueryCampaign{
 		QueryID: q1.ID,
 		Status:  kolide.QueryRunning,
 	}
@@ -202,7 +274,7 @@ func testDistributedQueriesForHost(t *testing.T, db kolide.Datastore) {
 	require.Nil(t, err)
 
 	// Add a target to the campaign
-	target := kolide.DistributedQueryCampaignTarget{
+	target := &kolide.DistributedQueryCampaignTarget{
 		Type: kolide.TargetLabel,
 		DistributedQueryCampaignID: c1.ID,
 		TargetID:                   l1.ID,
@@ -221,12 +293,12 @@ func testDistributedQueriesForHost(t *testing.T, db kolide.Datastore) {
 	assert.Equal(t, "select * from bar", queries[c1.ID])
 
 	// Record an execution
-	exec := kolide.DistributedQueryExecution{
+	exec := &kolide.DistributedQueryExecution{
 		HostID: h1.ID,
 		DistributedQueryCampaignID: c1.ID,
 		Status: kolide.ExecutionSucceeded,
 	}
-	exec, err = db.NewDistributedQueryExecution(exec)
+	_, err = db.NewDistributedQueryExecution(exec)
 	require.Nil(t, err)
 
 	// Add another query/campaign
@@ -237,7 +309,7 @@ func testDistributedQueriesForHost(t *testing.T, db kolide.Datastore) {
 	q2, err = db.NewQuery(q2)
 	require.Nil(t, err)
 
-	c2 := kolide.DistributedQueryCampaign{
+	c2 := &kolide.DistributedQueryCampaign{
 		QueryID: q2.ID,
 		Status:  kolide.QueryRunning,
 	}
@@ -245,12 +317,12 @@ func testDistributedQueriesForHost(t *testing.T, db kolide.Datastore) {
 	require.Nil(t, err)
 
 	// This one targets only h1
-	target = kolide.DistributedQueryCampaignTarget{
+	target = &kolide.DistributedQueryCampaignTarget{
 		Type: kolide.TargetHost,
 		DistributedQueryCampaignID: c2.ID,
 		TargetID:                   h1.ID,
 	}
-	target, err = db.NewDistributedQueryCampaignTarget(target)
+	_, err = db.NewDistributedQueryCampaignTarget(target)
 	require.Nil(t, err)
 
 	// Check for correct queries

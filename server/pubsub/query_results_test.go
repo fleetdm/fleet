@@ -97,8 +97,12 @@ func testQueryResultsStoreErrors(t *testing.T, store kolide.QueryResultStore) {
 			DistributedQueryCampaignID: 1,
 			Rows: []map[string]string{{"bing": "fds"}},
 			Host: kolide.Host{
-				ID:               4,
-				UpdatedAt:        time.Now().UTC(),
+				ID: 4,
+				UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+					UpdateTimestamp: kolide.UpdateTimestamp{
+						UpdatedAt: time.Now().UTC(),
+					},
+				},
 				DetailUpdateTime: time.Now().UTC(),
 			},
 		},
@@ -123,7 +127,15 @@ func testQueryResultsStore(t *testing.T, store kolide.QueryResultStore) {
 				// Note these times need to be set to avoid
 				// issues with roundtrip serializing the zero
 				// time value. See https://goo.gl/CCEs8x
-				UpdatedAt:        time.Now().UTC(),
+				UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+					UpdateTimestamp: kolide.UpdateTimestamp{
+						UpdatedAt: time.Now().UTC(),
+					},
+					CreateTimestamp: kolide.CreateTimestamp{
+						CreatedAt: time.Now().UTC(),
+					},
+				},
+
 				DetailUpdateTime: time.Now().UTC(),
 			},
 		},
@@ -131,8 +143,16 @@ func testQueryResultsStore(t *testing.T, store kolide.QueryResultStore) {
 			DistributedQueryCampaignID: 1,
 			Rows: []map[string]string{{"whoo": "wahh"}},
 			Host: kolide.Host{
-				ID:               3,
-				UpdatedAt:        time.Now().UTC(),
+				ID: 3,
+				UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+					UpdateTimestamp: kolide.UpdateTimestamp{
+						UpdatedAt: time.Now().UTC(),
+					},
+					CreateTimestamp: kolide.CreateTimestamp{
+						CreatedAt: time.Now().UTC(),
+					},
+				},
+
 				DetailUpdateTime: time.Now().UTC(),
 			},
 		},
@@ -140,8 +160,16 @@ func testQueryResultsStore(t *testing.T, store kolide.QueryResultStore) {
 			DistributedQueryCampaignID: 1,
 			Rows: []map[string]string{{"bing": "fds"}},
 			Host: kolide.Host{
-				ID:               4,
-				UpdatedAt:        time.Now().UTC(),
+				ID: 4,
+				UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+					UpdateTimestamp: kolide.UpdateTimestamp{
+						UpdatedAt: time.Now().UTC(),
+					},
+					CreateTimestamp: kolide.CreateTimestamp{
+						CreatedAt: time.Now().UTC(),
+					},
+				},
+
 				DetailUpdateTime: time.Now().UTC(),
 			},
 		},
@@ -158,8 +186,16 @@ func testQueryResultsStore(t *testing.T, store kolide.QueryResultStore) {
 			DistributedQueryCampaignID: 2,
 			Rows: []map[string]string{{"tim": "tom"}},
 			Host: kolide.Host{
-				ID:               1,
-				UpdatedAt:        time.Now().UTC(),
+				ID: 1,
+				UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+					UpdateTimestamp: kolide.UpdateTimestamp{
+						UpdatedAt: time.Now().UTC(),
+					},
+					CreateTimestamp: kolide.CreateTimestamp{
+						CreatedAt: time.Now().UTC(),
+					},
+				},
+
 				DetailUpdateTime: time.Now().UTC(),
 			},
 		},
@@ -167,8 +203,16 @@ func testQueryResultsStore(t *testing.T, store kolide.QueryResultStore) {
 			DistributedQueryCampaignID: 2,
 			Rows: []map[string]string{{"slim": "slam"}},
 			Host: kolide.Host{
-				ID:               3,
-				UpdatedAt:        time.Now().UTC(),
+				ID: 3,
+				UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+					UpdateTimestamp: kolide.UpdateTimestamp{
+						UpdatedAt: time.Now().UTC(),
+					},
+					CreateTimestamp: kolide.CreateTimestamp{
+						CreatedAt: time.Now().UTC(),
+					},
+				},
+
 				DetailUpdateTime: time.Now().UTC(),
 			},
 		},

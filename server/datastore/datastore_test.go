@@ -18,8 +18,12 @@ func functionName(f func(*testing.T, kolide.Datastore)) string {
 var testFunctions = [...]func(*testing.T, kolide.Datastore){
 	testOrgInfo,
 	testCreateInvite,
+	testListInvites,
+	testDeleteInvite,
+	testSaveInvite,
 	testDeleteQuery,
 	testSaveQuery,
+	testListQuery,
 	testDeletePack,
 	testAddAndRemoveQueryFromPack,
 	testEnrollHost,
@@ -38,4 +42,7 @@ var testFunctions = [...]func(*testing.T, kolide.Datastore){
 	testListHostsInLabel,
 	testListUniqueHostsInLabels,
 	testDistributedQueriesForHost,
+	testSaveHosts,
+	testDeleteHost,
+	testListHost,
 }

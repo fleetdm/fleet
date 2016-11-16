@@ -88,7 +88,7 @@ func testSaveUser(t *testing.T, ds kolide.Datastore) {
 
 func testPasswordAttribute(t *testing.T, ds kolide.Datastore, users []*kolide.User) {
 	for _, user := range users {
-		randomText, err := generateRandomText(8)
+		randomText, err := kolide.RandomText(8) //GenerateRandomText(8)
 		assert.Nil(t, err)
 		user.Password = []byte(randomText)
 		err = ds.SaveUser(user)

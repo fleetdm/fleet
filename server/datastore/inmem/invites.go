@@ -1,19 +1,20 @@
-package datastore
+package inmem
 
 import (
 	"sort"
 
+	"github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
 )
 
 // NewInvite creates and stores a new invitation in a DB.
-func (orm *inmem) NewInvite(invite *kolide.Invite) (*kolide.Invite, error) {
+func (orm *Datastore) NewInvite(invite *kolide.Invite) (*kolide.Invite, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
 	for _, in := range orm.invites {
 		if in.Email == invite.Email {
-			return nil, ErrExists
+			return nil, errors.ErrExists
 		}
 	}
 
@@ -23,7 +24,7 @@ func (orm *inmem) NewInvite(invite *kolide.Invite) (*kolide.Invite, error) {
 }
 
 // Invites lists all invites in the datastore.
-func (orm *inmem) ListInvites(opt kolide.ListOptions) ([]*kolide.Invite, error) {
+func (orm *Datastore) ListInvites(opt kolide.ListOptions) ([]*kolide.Invite, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
@@ -63,17 +64,17 @@ func (orm *inmem) ListInvites(opt kolide.ListOptions) ([]*kolide.Invite, error) 
 	return invites, nil
 }
 
-func (orm *inmem) Invite(id uint) (*kolide.Invite, error) {
+func (orm *Datastore) Invite(id uint) (*kolide.Invite, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 	if invite, ok := orm.invites[id]; ok {
 		return invite, nil
 	}
-	return nil, ErrNotFound
+	return nil, errors.ErrNotFound
 }
 
 // InviteByEmail retrieves an invite for a specific email address.
-func (orm *inmem) InviteByEmail(email string) (*kolide.Invite, error) {
+func (orm *Datastore) InviteByEmail(email string) (*kolide.Invite, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
@@ -82,16 +83,16 @@ func (orm *inmem) InviteByEmail(email string) (*kolide.Invite, error) {
 			return invite, nil
 		}
 	}
-	return nil, ErrNotFound
+	return nil, errors.ErrNotFound
 }
 
 // SaveInvite saves an invitation in the datastore.
-func (orm *inmem) SaveInvite(invite *kolide.Invite) error {
+func (orm *Datastore) SaveInvite(invite *kolide.Invite) error {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
 	if _, ok := orm.invites[invite.ID]; !ok {
-		return ErrNotFound
+		return errors.ErrNotFound
 	}
 
 	orm.invites[invite.ID] = invite
@@ -99,12 +100,12 @@ func (orm *inmem) SaveInvite(invite *kolide.Invite) error {
 }
 
 // DeleteInvite deletes an invitation.
-func (orm *inmem) DeleteInvite(invite *kolide.Invite) error {
+func (orm *Datastore) DeleteInvite(invite *kolide.Invite) error {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
 	if _, ok := orm.invites[invite.ID]; !ok {
-		return ErrNotFound
+		return errors.ErrNotFound
 	}
 	delete(orm.invites, invite.ID)
 	return nil

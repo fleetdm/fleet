@@ -1,5 +1,5 @@
-hash: 7a3bef7d804686cd678aeaa0914be556ff4e357be2ce8fd5b9cd2e81164ed4a6
-updated: 2016-10-24T12:32:41.928983481-07:00
+hash: 3519c1da46244ec37972b542173f088df94422080bc99652f88f960d70a7005a
+updated: 2016-11-02T22:14:07.180331599+08:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -75,12 +75,10 @@ imports:
   - json/token
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
-- name: github.com/jinzhu/gorm
-  version: a646b13548ec0aa812fe805b2780f460dd2771b6
-  subpackages:
-  - dialects/mysql
 - name: github.com/jinzhu/inflection
   version: 8f4d3a0d04ce0b7c0cf3126fb98524246d00d102
+- name: github.com/jmoiron/sqlx
+  version: 5f97679e23f75f42b265fec8d3bdb1c8de90b79d
 - name: github.com/jordan-wright/email
   version: fd703108daeb23d77c124d12978e9b6c4f28f034
 - name: github.com/kr/fs
@@ -179,7 +177,7 @@ imports:
 - name: gopkg.in/go-playground/validator.v8
   version: 5f57d2222ad794d0dffb07e664ea05e2ee07d60c
 - name: gopkg.in/natefinch/lumberjack.v2
-  version: 514cbda263a734ae8caac038dadf05f8f3f9f738
+  version: e21e5cbec0cd0861b9dc302736ad5666c529d93f
 - name: gopkg.in/yaml.v2
   version: e4d366fc3c7938e2958e662b4258c7a89e1f0e3e
 testImports: []

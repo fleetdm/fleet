@@ -24,7 +24,7 @@ func (svc service) NewPack(ctx context.Context, p kolide.PackPayload) (*kolide.P
 		pack.Platform = *p.Platform
 	}
 
-	err := svc.ds.NewPack(&pack)
+	_, err := svc.ds.NewPack(&pack)
 	if err != nil {
 		return nil, err
 	}

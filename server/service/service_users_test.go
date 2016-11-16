@@ -8,15 +8,17 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/kolide/kolide-ose/server/config"
 	"github.com/kolide/kolide-ose/server/contexts/viewer"
-	"github.com/kolide/kolide-ose/server/datastore"
+	"github.com/kolide/kolide-ose/server/datastore/inmem"
+	kolide_errors "github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )
 
 func TestAuthenticatedUser(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	assert.Nil(t, err)
 	createTestUsers(t, ds)
 	svc, err := newTestService(ds, nil)
@@ -32,7 +34,7 @@ func TestAuthenticatedUser(t *testing.T) {
 }
 
 func TestRequestPasswordReset(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	assert.Nil(t, err)
 	createTestUsers(t, ds)
 	admin1, err := ds.User("admin1")
@@ -112,7 +114,7 @@ func TestRequestPasswordReset(t *testing.T) {
 }
 
 func TestCreateUser(t *testing.T) {
-	ds, _ := datastore.New("inmem", "")
+	ds, _ := inmem.New()
 	svc, _ := newTestService(ds, nil)
 	invites := setupInvites(t, ds, []string{"admin2@example.com"})
 	ctx := context.Background()
@@ -154,7 +156,7 @@ func TestCreateUser(t *testing.T) {
 			NeedsPasswordReset: boolPtr(true),
 			Admin:              boolPtr(false),
 			InviteToken:        &invites["admin2@example.com"].Token,
-			wantErr:            datastore.ErrNotFound,
+			wantErr:            kolide_errors.ErrNotFound,
 		},
 		{
 			Username:           stringPtr("admin3"),
@@ -217,7 +219,11 @@ func setupInvites(t *testing.T, ds kolide.Datastore, emails []string) map[string
 			InvitedBy: users["admin1"].ID,
 			Token:     e,
 			Email:     e,
-			CreatedAt: mockClock.Now(),
+			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+				CreateTimestamp: kolide.CreateTimestamp{
+					CreatedAt: mockClock.Now(),
+				},
+			},
 		})
 		require.Nil(t, err)
 		invites[e] = invite
@@ -227,7 +233,11 @@ func setupInvites(t *testing.T, ds kolide.Datastore, emails []string) map[string
 		InvitedBy: users["admin1"].ID,
 		Token:     "expired",
 		Email:     "expiredinvite@gmail.com",
-		CreatedAt: mockClock.Now().AddDate(-1, 0, 0),
+		UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+			CreateTimestamp: kolide.CreateTimestamp{
+				CreatedAt: mockClock.Now().AddDate(-1, 0, 0),
+			},
+		},
 	})
 	require.Nil(t, err)
 	invites["expired"] = invite
@@ -235,7 +245,7 @@ func setupInvites(t *testing.T, ds kolide.Datastore, emails []string) map[string
 }
 
 func TestChangeUserPassword(t *testing.T) {
-	ds, _ := datastore.New("inmem", "")
+	ds, _ := inmem.New()
 	svc, _ := newTestService(ds, nil)
 	createTestUsers(t, ds)
 	var passwordChangeTests = []struct {
@@ -250,7 +260,7 @@ func TestChangeUserPassword(t *testing.T) {
 		{ // bad token
 			token:       "dcbaz",
 			newPassword: "123cat!",
-			wantErr:     datastore.ErrNotFound,
+			wantErr:     kolide_errors.ErrNotFound,
 		},
 		{ // missing token
 			newPassword: "123cat!",
@@ -266,8 +276,14 @@ func TestChangeUserPassword(t *testing.T) {
 		t.Run("", func(t *testing.T) {
 			ctx := context.Background()
 			request := &kolide.PasswordResetRequest{
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
+				UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+					CreateTimestamp: kolide.CreateTimestamp{
+						CreatedAt: time.Now(),
+					},
+					UpdateTimestamp: kolide.UpdateTimestamp{
+						UpdatedAt: time.Now(),
+					},
+				},
 				ExpiresAt: time.Now().Add(time.Hour * 24),
 				UserID:    1,
 				Token:     "abcd",

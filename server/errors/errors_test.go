@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jinzhu/gorm"
+
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/go-playground/validator.v8"
 )
@@ -172,22 +172,4 @@ func TestReturnErrorValidationError(t *testing.T) {
 	sort.Sort(expect)
 
 	assert.Equal(t, expect, compFields)
-}
-
-func TestReturnErrorGormError(t *testing.T) {
-	r := gin.New()
-
-	r.POST("/foo", func(c *gin.Context) {
-		err := gorm.Errors{}
-		err.Add(gorm.ErrInvalidSQL)
-		ReturnError(c, err)
-	})
-
-	req, _ := http.NewRequest("POST", "/foo", nil)
-	resp := httptest.NewRecorder()
-
-	r.ServeHTTP(resp, req)
-	assert.Equal(t, http.StatusInternalServerError, resp.Code)
-
-	assert.JSONEq(t, `{"message": "Database error"}`, resp.Body.String())
 }

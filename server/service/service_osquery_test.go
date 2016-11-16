@@ -14,7 +14,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	hostctx "github.com/kolide/kolide-ose/server/contexts/host"
-	"github.com/kolide/kolide-ose/server/datastore"
+	"github.com/kolide/kolide-ose/server/datastore/inmem"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/kolide/kolide-ose/server/pubsub"
 	"github.com/stretchr/testify/assert"
@@ -22,7 +22,7 @@ import (
 )
 
 func TestEnrollAgent(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -44,7 +44,7 @@ func TestEnrollAgent(t *testing.T) {
 }
 
 func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -66,7 +66,7 @@ func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
 }
 
 func TestSubmitStatusLogs(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	assert.Nil(t, err)
 
 	mockClock := clock.NewMockClock()
@@ -138,7 +138,7 @@ func TestSubmitStatusLogs(t *testing.T) {
 }
 
 func TestSubmitResultLogs(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	assert.Nil(t, err)
 
 	mockClock := clock.NewMockClock()
@@ -211,9 +211,16 @@ func TestSubmitResultLogs(t *testing.T) {
 func TestHostDetailQueries(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	host := kolide.Host{
-		ID:               1,
-		CreatedAt:        mockClock.Now(),
-		UpdatedAt:        mockClock.Now(),
+		ID: 1,
+		UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+			UpdateTimestamp: kolide.UpdateTimestamp{
+				UpdatedAt: mockClock.Now(),
+			},
+			CreateTimestamp: kolide.CreateTimestamp{
+				CreatedAt: mockClock.Now(),
+			},
+		},
+
 		DetailUpdateTime: mockClock.Now(),
 		NodeKey:          "test_key",
 		HostName:         "test_hostname",
@@ -239,7 +246,7 @@ func TestHostDetailQueries(t *testing.T) {
 }
 
 func TestLabelQueries(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	assert.Nil(t, err)
 
 	mockClock := clock.NewMockClock()
@@ -366,7 +373,7 @@ func TestLabelQueries(t *testing.T) {
 }
 
 func TestGetClientConfig(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	assert.Nil(t, err)
 
 	mockClock := clock.NewMockClock()
@@ -415,7 +422,7 @@ func TestGetClientConfig(t *testing.T) {
 	monitoringPack := &kolide.Pack{
 		Name: "monitoring",
 	}
-	err = ds.NewPack(monitoringPack)
+	_, err = ds.NewPack(monitoringPack)
 	assert.Nil(t, err)
 
 	err = ds.AddQueryToPack(infoQuery.ID, monitoringPack.ID)
@@ -447,7 +454,7 @@ func TestGetClientConfig(t *testing.T) {
 }
 
 func TestDetailQueries(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	assert.Nil(t, err)
 
 	mockClock := clock.NewMockClock()
@@ -589,7 +596,7 @@ func TestDetailQueries(t *testing.T) {
 }
 
 func TestDistributedQueries(t *testing.T) {
-	ds, err := datastore.New("inmem", "")
+	ds, err := inmem.New()
 	require.Nil(t, err)
 
 	mockClock := clock.NewMockClock()
@@ -633,7 +640,7 @@ func TestDistributedQueries(t *testing.T) {
 	require.Nil(t, err)
 
 	// Create query campaign
-	c1 := kolide.DistributedQueryCampaign{
+	c1 := &kolide.DistributedQueryCampaign{
 		QueryID: query.ID,
 		Status:  kolide.QueryRunning,
 	}
@@ -642,7 +649,7 @@ func TestDistributedQueries(t *testing.T) {
 	require.Nil(t, err)
 
 	// Add a target to the campaign (targeting the matching label)
-	target := kolide.DistributedQueryCampaignTarget{
+	target := &kolide.DistributedQueryCampaignTarget{
 		Type: kolide.TargetLabel,
 		DistributedQueryCampaignID: c1.ID,
 		TargetID:                   label.ID,
@@ -678,7 +685,7 @@ func TestDistributedQueries(t *testing.T) {
 	assert.NotNil(t, err)
 
 	// TODO use service method
-	readChan, err := rs.ReadChannel(ctx, c1)
+	readChan, err := rs.ReadChannel(ctx, *c1)
 	require.Nil(t, err)
 
 	// We need to listen for the result in a separate thread to prevent the

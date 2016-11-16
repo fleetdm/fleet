@@ -186,8 +186,14 @@ func (svc service) RequestPasswordReset(ctx context.Context, email string) error
 	}
 
 	request := &kolide.PasswordResetRequest{
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+			CreateTimestamp: kolide.CreateTimestamp{
+				CreatedAt: time.Now(),
+			},
+			UpdateTimestamp: kolide.UpdateTimestamp{
+				UpdatedAt: time.Now(),
+			},
+		},
 		ExpiresAt: time.Now().Add(time.Hour * 24),
 		UserID:    user.ID,
 		Token:     token,

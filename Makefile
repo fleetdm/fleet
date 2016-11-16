@@ -112,10 +112,12 @@ test-js:
 test: lint test-go test-js
 
 generate: .prefix
+	go-bindata -o=server/datastore/mysql/bindata.go -pkg=mysql db/
 	webpack --progress --colors
 	go-bindata -pkg=service \
 		-o=server/service/bindata.go \
 		frontend/templates/ assets/...
+
 
 # we first generate the webpack bundle so that bindata knows to watch the
 # output bundle file. then, generate debug bindata source file. finally, we

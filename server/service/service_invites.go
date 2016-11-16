@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/kolide/kolide-ose/server/datastore"
+	kolide_errors "github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"golang.org/x/net/context"
 )
@@ -15,7 +15,7 @@ func (svc service) InviteNewUser(ctx context.Context, payload kolide.InvitePaylo
 	if err == nil {
 		return nil, newInvalidArgumentError("email", "a user with this account already exists")
 	}
-	if err != datastore.ErrNotFound {
+	if err != kolide_errors.ErrNotFound {
 		return nil, err
 	}
 
@@ -34,7 +34,6 @@ func (svc service) InviteNewUser(ctx context.Context, payload kolide.InvitePaylo
 		Email:     *payload.Email,
 		Admin:     *payload.Admin,
 		InvitedBy: inviter.ID,
-		CreatedAt: svc.clock.Now(),
 		Token:     token,
 	}
 	if payload.Position != nil {

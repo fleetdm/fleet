@@ -3,7 +3,6 @@ package kolide
 import (
 	"bytes"
 	"html/template"
-	"time"
 
 	"golang.org/x/net/context"
 )
@@ -58,14 +57,15 @@ type InvitePayload struct {
 
 // Invite represents an invitation for a user to join Kolide.
 type Invite struct {
-	ID        uint      `json:"id" gorm:"primary_key"`
-	CreatedAt time.Time `json:"-"`
-	InvitedBy uint      `json:"invited_by" gorm:"not null"`
-	Email     string    `json:"email" gorm:"not null;unique_index:idx_invite_unique_email"`
-	Admin     bool      `json:"admin"`
-	Name      string    `json:"name"`
-	Position  string    `json:"position,omitempty"`
-	Token     string    `json:"-" gorm:"not null;unique_index:idx_invite_unique_key"`
+	UpdateCreateTimestamps
+	DeleteFields
+	ID        uint   `json:"id" gorm:"primary_key"`
+	InvitedBy uint   `json:"invited_by" gorm:"not null" db:"invited_by"`
+	Email     string `json:"email" gorm:"not null;unique_index:idx_invite_unique_email"`
+	Admin     bool   `json:"admin"`
+	Name      string `json:"name"`
+	Position  string `json:"position,omitempty"`
+	Token     string `json:"-" gorm:"not null;unique_index:idx_invite_unique_key"`
 }
 
 // TODO: fixme
