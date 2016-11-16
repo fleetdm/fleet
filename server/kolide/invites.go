@@ -59,13 +59,13 @@ type InvitePayload struct {
 type Invite struct {
 	UpdateCreateTimestamps
 	DeleteFields
-	ID        uint   `json:"id" gorm:"primary_key"`
-	InvitedBy uint   `json:"invited_by" gorm:"not null" db:"invited_by"`
-	Email     string `json:"email" gorm:"not null;unique_index:idx_invite_unique_email"`
+	ID        uint   `json:"id"`
+	InvitedBy uint   `json:"invited_by" db:"invited_by"`
+	Email     string `json:"email"`
 	Admin     bool   `json:"admin"`
 	Name      string `json:"name"`
 	Position  string `json:"position,omitempty"`
-	Token     string `json:"-" gorm:"not null;unique_index:idx_invite_unique_key"`
+	Token     string `json:"-"`
 }
 
 // TODO: fixme

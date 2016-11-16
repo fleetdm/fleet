@@ -69,10 +69,10 @@ type SessionService interface {
 // Session is the model object which represents what an active session is
 type Session struct {
 	CreateTimestamp
-	ID         uint      `gorm:"primary_key"`
+	ID         uint
 	AccessedAt time.Time `db:"accessed_at"`
-	UserID     uint      `gorm:"not null" db:"user_id"`
-	Key        string    `gorm:"not null;unique_index:idx_session_unique_key"`
+	UserID     uint
+	Key        string
 }
 
 ////////////////////////////////////////////////////////////////////////////////

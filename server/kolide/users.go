@@ -56,14 +56,14 @@ type UserService interface {
 type User struct {
 	UpdateCreateTimestamps
 	DeleteFields
-	ID                       uint   `json:"id" gorm:"primary_key"`
-	Username                 string `json:"username" gorm:"not null;unique_index:idx_user_unique_username"`
-	Password                 []byte `json:"-" gorm:"not null"`
-	Salt                     string `json:"-" gorm:"not null"`
+	ID                       uint   `json:"id"`
+	Username                 string `json:"username"`
+	Password                 []byte `json:"-"`
+	Salt                     string `json:"-"`
 	Name                     string `json:"name"`
-	Email                    string `json:"email" gorm:"not null;unique_index:idx_user_unique_email"`
-	Admin                    bool   `json:"admin" gorm:"not null"`
-	Enabled                  bool   `json:"enabled" gorm:"not null"`
+	Email                    string `json:"email"`
+	Admin                    bool   `json:"admin"`
+	Enabled                  bool   `json:"enabled"`
 	AdminForcedPasswordReset bool   `json:"force_password_reset" db:"admin_forced_password_reset"`
 	GravatarURL              string `json:"gravatar_url" db:"gravatar_url"`
 	Position                 string `json:"position,omitempty"` // job role

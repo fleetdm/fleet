@@ -11,7 +11,7 @@ type CreateTimestamp struct {
 // delete record in the database. We mark it deleted, records with Deleted
 // set to true will not normally be included in results
 type DeleteFields struct {
-	DeletedAt *time.Time `json:"deleted_at" db:"deleted_at" gorm:"-"`
+	DeletedAt *time.Time `json:"deleted_at" db:"deleted_at"`
 	Deleted   bool       `json:"deleted"`
 }
 

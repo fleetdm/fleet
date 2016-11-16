@@ -46,13 +46,13 @@ type PackService interface {
 type Pack struct {
 	UpdateCreateTimestamps
 	DeleteFields
-	ID       uint   `json:"id" gorm:"primary_key"`
-	Name     string `json:"name" gorm:"not null;unique_index:idx_pack_unique_name"`
+	ID       uint   `json:"id"`
+	Name     string `json:"name"`
 	Platform string `json:"platform"`
 }
 
 type PackQuery struct {
-	ID        uint `gorm:"primary_key"`
+	ID        uint
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	PackID    uint
@@ -60,7 +60,7 @@ type PackQuery struct {
 }
 
 type PackTarget struct {
-	ID     uint `gorm:"primary_key"`
+	ID     uint
 	PackID uint
 	Target
 }
