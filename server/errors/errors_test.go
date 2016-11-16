@@ -1,17 +1,11 @@
 package errors
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
-	"net/http/httptest"
-	"sort"
 	"testing"
 
-	"github.com/gin-gonic/gin"
-
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/go-playground/validator.v8"
 )
 
 func TestNew(t *testing.T) {
@@ -66,41 +60,6 @@ func TestDatabaseError(t *testing.T) {
 	assert.Equal(t, expect, kolideErr)
 }
 
-func TestReturnErrorUnspecified(t *testing.T) {
-	r := gin.New()
-	r.POST("/foo", func(c *gin.Context) {
-		ReturnError(c, errors.New("foo"))
-	})
-
-	req, _ := http.NewRequest("POST", "/foo", nil)
-	resp := httptest.NewRecorder()
-
-	r.ServeHTTP(resp, req)
-	assert.Equal(t, http.StatusInternalServerError, resp.Code)
-
-	expect := `{"message": "Unspecified error"}`
-	assert.JSONEq(t, expect, resp.Body.String())
-}
-
-func TestReturnErrorKolideError(t *testing.T) {
-	r := gin.New()
-	r.POST("/foo", func(c *gin.Context) {
-		ReturnError(c, &KolideError{
-			StatusCode:    http.StatusUnauthorized,
-			PublicMessage: "Some error",
-		})
-	})
-
-	req, _ := http.NewRequest("POST", "/foo", nil)
-	resp := httptest.NewRecorder()
-
-	r.ServeHTTP(resp, req)
-	assert.Equal(t, http.StatusUnauthorized, resp.Code)
-
-	expect := `{"message": "Some error"}`
-	assert.JSONEq(t, expect, resp.Body.String())
-}
-
 // These types and functions for performing an unordered comparison on a
 // []map[string]string] as parsed from the error JSON
 type errorField map[string]string
@@ -118,58 +77,4 @@ func (e errorFields) Less(i, j int) bool {
 
 func (e errorFields) Swap(i, j int) {
 	e[i], e[j] = e[j], e[i]
-}
-
-func TestReturnErrorValidationError(t *testing.T) {
-	r := gin.New()
-
-	type Foo struct {
-		Email    string `json:"email_foo" validate:"required,email"`
-		Password string `json:"password" validate:"required"`
-	}
-
-	validate := validator.New(&validator.Config{TagName: "validate", FieldNameTag: "json"})
-
-	r.POST("/foo", func(c *gin.Context) {
-		ReturnError(c, validate.Struct(&Foo{Email: "foo", Password: ""}))
-	})
-
-	req, _ := http.NewRequest("POST", "/foo", nil)
-	resp := httptest.NewRecorder()
-
-	r.ServeHTTP(resp, req)
-	assert.Equal(t, StatusUnprocessableEntity, resp.Code)
-
-	var bodyJson map[string]interface{}
-	err := json.Unmarshal(resp.Body.Bytes(), &bodyJson)
-	assert.Nil(t, err)
-	assert.Equal(t, "Validation error", bodyJson["message"])
-
-	fields, ok := bodyJson["errors"].([]interface{})
-	assert.True(t, ok)
-
-	// The error fields must be copied from []interface{} to
-	// []map[string][string] before we can sort
-	compFields := make(errorFields, 0, 0)
-	for _, field := range fields {
-		field := field.(map[string]interface{})
-		compFields = append(
-			compFields,
-			errorField{
-				"code":    field["code"].(string),
-				"field":   field["field"].(string),
-				"message": field["message"].(string),
-			})
-	}
-
-	expect := errorFields{
-		{"code": "invalid", "field": "email_foo", "message": "email"},
-		{"code": "invalid", "field": "password", "message": "required"},
-	}
-
-	// Sort to standardize ordering before comparison
-	sort.Sort(compFields)
-	sort.Sort(expect)
-
-	assert.Equal(t, expect, compFields)
 }
