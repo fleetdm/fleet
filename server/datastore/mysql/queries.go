@@ -90,18 +90,15 @@ func (d *Datastore) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, error)
 }
 
 func (d *Datastore) SaveDistributedQueryCampaign(camp *kolide.DistributedQueryCampaign) error {
-
 	sqlStatement := `
 		UPDATE distributed_query_campaigns SET
 			query_id = ?,
-			max_duration = ?,
 			status = ?,
 			user_id = ?
 		WHERE id = ?
 		AND NOT deleted
 	`
-	_, err := d.db.Exec(sqlStatement, camp.QueryID, camp.MaxDuration,
-		camp.Status, camp.UserID, camp.ID)
+	_, err := d.db.Exec(sqlStatement, camp.QueryID, camp.Status, camp.UserID, camp.ID)
 	if err != nil {
 		return errors.DatabaseError(err)
 	}
@@ -114,13 +111,12 @@ func (d *Datastore) NewDistributedQueryCampaign(camp *kolide.DistributedQueryCam
 	sqlStatement := `
 		INSERT INTO distributed_query_campaigns (
 			query_id,
-			max_duration,
 			status,
 			user_id
 		)
-		VALUES(?,?,?,?)
+		VALUES(?,?,?)
 	`
-	result, err := d.db.Exec(sqlStatement, camp.QueryID, camp.MaxDuration, camp.Status, camp.UserID)
+	result, err := d.db.Exec(sqlStatement, camp.QueryID, camp.Status, camp.UserID)
 	if err != nil {
 		return nil, errors.DatabaseError(err)
 	}

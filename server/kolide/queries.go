@@ -33,6 +33,7 @@ type QueryService interface {
 	NewQuery(ctx context.Context, p QueryPayload) (*Query, error)
 	ModifyQuery(ctx context.Context, id uint, p QueryPayload) (*Query, error)
 	DeleteQuery(ctx context.Context, id uint) error
+	NewDistributedQueryCampaign(ctx context.Context, userID uint, queryString string, hosts []uint, labels []uint) (*DistributedQueryCampaign, error)
 }
 
 type QueryPayload struct {
@@ -76,11 +77,10 @@ const (
 type DistributedQueryCampaign struct {
 	UpdateCreateTimestamps
 	DeleteFields
-	ID          uint
-	QueryID     uint          `db:"query_id"`
-	MaxDuration time.Duration `db:"max_duration"`
-	Status      DistributedQueryStatus
-	UserID      uint
+	ID      uint                   `json:"id"`
+	QueryID uint                   `json:"query_id" db:"query_id"`
+	Status  DistributedQueryStatus `json:"status"`
+	UserID  uint                   `json:"user_id"`
 }
 
 type DistributedQueryCampaignTarget struct {

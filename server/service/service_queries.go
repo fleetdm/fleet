@@ -114,3 +114,48 @@ func (svc service) DeleteQuery(ctx context.Context, id uint) error {
 
 	return nil
 }
+
+func (svc service) NewDistributedQueryCampaign(ctx context.Context, userID uint, queryString string, hosts []uint, labels []uint) (*kolide.DistributedQueryCampaign, error) {
+	query, err := svc.NewQuery(ctx, kolide.QueryPayload{
+		Name:  &queryString,
+		Query: &queryString,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	campaign, err := svc.ds.NewDistributedQueryCampaign(&kolide.DistributedQueryCampaign{
+		QueryID: query.ID,
+		Status:  kolide.QueryRunning,
+		UserID:  userID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Add host targets
+	for _, hid := range hosts {
+		_, err = svc.ds.NewDistributedQueryCampaignTarget(&kolide.DistributedQueryCampaignTarget{
+			Type: kolide.TargetHost,
+			DistributedQueryCampaignID: campaign.ID,
+			TargetID:                   hid,
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Add label targets
+	for _, lid := range labels {
+		_, err = svc.ds.NewDistributedQueryCampaignTarget(&kolide.DistributedQueryCampaignTarget{
+			Type: kolide.TargetLabel,
+			DistributedQueryCampaignID: campaign.ID,
+			TargetID:                   lid,
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return campaign, nil
+}

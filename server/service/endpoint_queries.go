@@ -2,6 +2,7 @@ package service
 
 import (
 	"github.com/go-kit/kit/endpoint"
+	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"golang.org/x/net/context"
 )
@@ -137,5 +138,41 @@ func makeDeleteQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return deleteQueryResponse{Err: err}, nil
 		}
 		return deleteQueryResponse{}, nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Create Distributed Query Campaign
+////////////////////////////////////////////////////////////////////////////////
+
+type createDistributedQueryCampaignRequest struct {
+	UserID   uint
+	Query    string `json:"query"`
+	Selected struct {
+		Labels []uint `json:"labels"`
+		Hosts  []uint `json:"hosts"`
+	} `json:"selected"`
+}
+
+type createDistributedQueryCampaignResponse struct {
+	Campaign *kolide.DistributedQueryCampaign `json:"campaign,omitempty"`
+	Err      error                            `json:"error,omitempty"`
+}
+
+func (r createDistributedQueryCampaignResponse) error() error { return r.Err }
+
+func makeCreateDistributedQueryCampaignEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		vc, ok := viewer.FromContext(ctx)
+		if !ok {
+			return nil, errNoContext
+		}
+
+		req := request.(createDistributedQueryCampaignRequest)
+		campaign, err := svc.NewDistributedQueryCampaign(ctx, vc.UserID(), req.Query, req.Selected.Hosts, req.Selected.Labels)
+		if err != nil {
+			return createQueryResponse{Err: err}, nil
+		}
+		return createDistributedQueryCampaignResponse{campaign, nil}, nil
 	}
 }

@@ -630,35 +630,11 @@ func TestDistributedQueries(t *testing.T) {
 	err = ds.RecordLabelQueryExecutions(host, map[string]bool{labelId: true}, mockClock.Now())
 	require.Nil(t, err)
 
-	// Create query
-	n = "time"
 	q = "select year, month, day, hour, minutes, seconds from time"
-	query, err := svc.NewQuery(ctx, kolide.QueryPayload{
-		Name:  &n,
-		Query: &q,
-	})
+	campaign, err := svc.NewDistributedQueryCampaign(ctx, 0, q, []uint{}, []uint{label.ID})
 	require.Nil(t, err)
 
-	// Create query campaign
-	c1 := &kolide.DistributedQueryCampaign{
-		QueryID: query.ID,
-		Status:  kolide.QueryRunning,
-	}
-	// TODO use service method
-	c1, err = ds.NewDistributedQueryCampaign(c1)
-	require.Nil(t, err)
-
-	// Add a target to the campaign (targeting the matching label)
-	target := &kolide.DistributedQueryCampaignTarget{
-		Type: kolide.TargetLabel,
-		DistributedQueryCampaignID: c1.ID,
-		TargetID:                   label.ID,
-	}
-	// TODO use service method
-	target, err = ds.NewDistributedQueryCampaignTarget(target)
-	require.Nil(t, err)
-
-	queryKey := fmt.Sprintf("%s%d", hostDistributedQueryPrefix, c1.ID)
+	queryKey := fmt.Sprintf("%s%d", hostDistributedQueryPrefix, campaign.ID)
 
 	// Now we should get the active distributed query
 	queries, err := svc.GetDistributedQueries(ctx)
@@ -685,7 +661,7 @@ func TestDistributedQueries(t *testing.T) {
 	assert.NotNil(t, err)
 
 	// TODO use service method
-	readChan, err := rs.ReadChannel(ctx, *c1)
+	readChan, err := rs.ReadChannel(ctx, *campaign)
 	require.Nil(t, err)
 
 	// We need to listen for the result in a separate thread to prevent the
@@ -698,7 +674,7 @@ func TestDistributedQueries(t *testing.T) {
 		select {
 		case val := <-readChan:
 			if res, ok := val.(kolide.DistributedQueryResult); ok {
-				assert.Equal(t, c1.ID, res.DistributedQueryCampaignID)
+				assert.Equal(t, campaign.ID, res.DistributedQueryCampaignID)
 				assert.Equal(t, expectedRows, res.Rows)
 				assert.Equal(t, *host, res.Host)
 			} else {

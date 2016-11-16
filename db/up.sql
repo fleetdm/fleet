@@ -36,7 +36,6 @@ CREATE TABLE `distributed_query_campaigns` (
   `deleted_at` timestamp NULL DEFAULT NULL,
   `deleted` tinyint(1) NOT NULL DEFAULT FALSE,
   `query_id` int(10) unsigned DEFAULT NULL,
-  `max_duration` bigint(20) DEFAULT NULL,
   `status` int(11) DEFAULT NULL,
   `user_id` int(10) unsigned DEFAULT NULL,
   PRIMARY KEY (`id`)

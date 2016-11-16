@@ -55,3 +55,11 @@ func decodeListQueriesRequest(ctx context.Context, r *http.Request) (interface{}
 	}
 	return listQueriesRequest{ListOptions: opt}, nil
 }
+
+func decodeCreateDistributedQueryCampaignRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	var req createDistributedQueryCampaignRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, err
+	}
+	return req, nil
+}
