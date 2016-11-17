@@ -4,7 +4,6 @@ import { map, noop } from 'lodash';
 import classnames from 'classnames';
 
 import { copyText } from './helpers';
-import Icon from '../../../components/icons/Icon';
 import { renderFlash } from '../../../redux/nodes/notifications/actions';
 
 const HOST_TABS = {
@@ -123,6 +122,21 @@ export class NewHostPage extends Component {
     const { method1Text, method1TextCopied, method2Text, method2TextCopied } = this.state;
     const { onCopyText, renderHostTabContent, renderHostTabHeaders } = this;
 
+    const method1IconClasses = classnames('kolidecon',
+      'kolidecon-clipboard',
+      `${baseClass}__clipboard-icon`,
+      {
+        [`${baseClass}__clipboard-icon--copied`]: method1TextCopied,
+      }
+    );
+    const method2IconClasses = classnames('kolidecon',
+      'kolidecon-clipboard',
+      `${baseClass}__clipboard-icon`,
+      {
+        [`${baseClass}__clipboard-icon--copied`]: method2TextCopied,
+      }
+    );
+
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__section-wrap`}>
@@ -130,7 +144,7 @@ export class NewHostPage extends Component {
           <div className={`${baseClass}__input-wrap`}>
             <input id="method1" className={`${baseClass}__input`} value={method1Text} readOnly />
             {method1TextCopied && <span className={`${baseClass}__clipboard-text`}>copied!</span>}
-            <Icon name="clipboard" onClick={onCopyText(method1Text, '#method1')} className={`${baseClass}__clipboard-icon`} variant={method1TextCopied ? 'copied' : 'default'} />
+            <a href="#copyMethod1" onClick={onCopyText(method1Text, '#method1')}><i className={method1IconClasses} /></a>
           </div>
           <div className={`${baseClass}__tab-wrap`}>
             {renderHostTabHeaders()}
@@ -144,7 +158,7 @@ export class NewHostPage extends Component {
           <div className={`${baseClass}__input-wrap`}>
             <input id="method2" className={`${baseClass}__input`} value={method2Text} readOnly />
             {method2TextCopied && <span className={`${baseClass}__clipboard-text`}>copied!</span>}
-            <Icon name="clipboard" onClick={onCopyText(method2Text, '#method2')} className={`${baseClass}__clipboard-icon`} variant={method2TextCopied ? 'copied' : 'default'} />
+            <a href="#copyMethod2" onClick={onCopyText(method2Text, '#method2')}><i className={method2IconClasses} /></a>
           </div>
           <p className={`${baseClass}__text`}>This method allows you to configure an existing osqueryd installation to work with Kolide. The <code>--config_endpoints</code> flag allows us to point your osqueryd installation to your Kolide configuration.</p>
         </div>

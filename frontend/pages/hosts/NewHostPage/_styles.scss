@@ -48,6 +48,12 @@
     right: 10px;
     cursor: pointer;
     top: 18px;
+    font-size: $large;
+    color: $text-medium;
+
+    &--copied {
+      color: $brand-light;
+    }
   }
 
   &__tab-wrap {

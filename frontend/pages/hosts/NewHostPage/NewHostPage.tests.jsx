@@ -11,7 +11,7 @@ describe('New Host Page - component', () => {
     const page = mount(
       connectedComponent(ConnectedNewHostPage, { mockStore })
     );
-    const icon = page.find('Icon').first();
+    const icon = page.find('.kolidecon-clipboard').first();
     icon.simulate('click');
 
     const dispatchedActionMessages = mockStore.getActions().map((action) => { return action.payload.message; });
@@ -20,8 +20,8 @@ describe('New Host Page - component', () => {
 
   it('saves the copied text in state', () => {
     const page = mount(<NewHostPage />);
-    const method1Icon = page.find('Icon').first();
-    const method2Icon = page.find('Icon').last();
+    const method1Icon = page.find('.kolidecon-clipboard').first();
+    const method2Icon = page.find('.kolidecon-clipboard').last();
 
     method1Icon.simulate('click');
 

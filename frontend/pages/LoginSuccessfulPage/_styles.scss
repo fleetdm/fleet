@@ -24,4 +24,9 @@
     font-size: $medium;
     color: $accent-text;
   }
+
+  &__icon {
+    color: $success;
+    font-size: 100px;
+  }
 }

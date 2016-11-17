@@ -2,7 +2,6 @@ import React, { Component, PropTypes } from 'react';
 
 import Button from 'components/buttons/Button';
 import formDataInterface from 'interfaces/registration_form_data';
-import Icon from 'components/icons/Icon';
 
 class ConfirmationPage extends Component {
   static propTypes = {
@@ -32,7 +31,7 @@ class ConfirmationPage extends Component {
 
     return (
       <div>
-        <Icon name="check" />
+        <i className="kolidecon kolidecon-success-check" />
         <table>
           <caption>Administrator Configuration</caption>
           <tbody>
