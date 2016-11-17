@@ -7,6 +7,7 @@ import mocks from '../test/mocks';
 const {
   invalidForgotPasswordRequest,
   invalidResetPasswordRequest,
+  validCreateLabelRequest,
   validCreateQueryRequest,
   validForgotPasswordRequest,
   validGetConfigRequest,
@@ -32,6 +33,26 @@ describe('Kolide - API client', () => {
   describe('defaults', () => {
     it('sets the base URL', () => {
       expect(Kolide.baseURL).toEqual('http://localhost:8080/api');
+    });
+  });
+
+  describe('#createLabel', () => {
+    it('calls the appropriate endpoint with the correct parameters', (done) => {
+      const bearerToken = 'valid-bearer-token';
+      const description = 'label description';
+      const name = 'label name';
+      const query = 'SELECT * FROM users';
+      const labelParams = { description, name, query };
+      const request = validCreateLabelRequest(bearerToken, labelParams);
+
+      Kolide.setBearerToken(bearerToken);
+      Kolide.createLabel(labelParams)
+        .then((labelResponse) => {
+          expect(request.isDone()).toEqual(true);
+          expect(labelResponse).toEqual({ ...labelParams, type: 'custom' });
+          done();
+        })
+        .catch(done);
     });
   });
 

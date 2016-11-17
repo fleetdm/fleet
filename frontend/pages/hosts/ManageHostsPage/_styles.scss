@@ -2,3 +2,23 @@
   background-color: $white;
   padding: $pad-base;
 }
+
+.hosts-page-side-panel {
+  &-enter {
+    right: -300px;
+
+    &.hosts-page-side-panel-enter-active {
+      right: 0;
+      transition: right 300ms ease-in;
+    }
+  }
+
+  &-leave {
+    right: 0;
+
+    &.hosts-page-side-panel-leave-active {
+      right: -300px;
+      transition: right 200ms ease-in;
+    }
+  }
+}

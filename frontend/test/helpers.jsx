@@ -59,10 +59,37 @@ export const createAceSpy = () => {
   });
 };
 
+export const stubbedOsqueryTable = {
+  attributes: {},
+  blacklisted: false,
+  columns: [
+    { description: 'User ID', name: 'uid', options: { index: true }, type: 'BIGINT_TYPE' },
+    { description: 'Group ID (unsigned)', name: 'gid', options: {}, type: 'BIGINT_TYPE' },
+    { description: 'User ID as int64 signed (Apple)', name: 'uid_signed', options: {}, type: 'BIGINT_TYPE' },
+    { description: 'Default group ID as int64 signed (Apple)', name: 'gid_signed', options: {}, type: 'BIGINT_TYPE' },
+    { description: 'Username', name: 'username', options: {}, type: 'TEXT_TYPE' },
+    { description: 'Optional user description', name: 'description', options: {}, type: 'TEXT_TYPE' },
+    { description: "User's home directory", name: 'directory', options: {}, type: 'TEXT_TYPE' },
+    { description: "User's configured default shell", name: 'shell', options: {}, type: 'TEXT_TYPE' },
+    { description: "User's UUID (Apple)", name: 'uuid', options: {}, type: 'TEXT_TYPE' },
+  ],
+  description: 'Local system users.',
+  examples: [
+    'select * from users where uid = 1000',
+    "select * from users where username = 'root'",
+    'select count(*) from users u, user_groups ug where u.uid = ug.uid',
+  ],
+  foreign_keys: [],
+  function: 'genUsers',
+  name: 'users',
+  profile: {},
+};
+
 export default {
   connectedComponent,
   createAceSpy,
   fillInFormInput,
   reduxMockStore,
+  stubbedOsqueryTable,
 };
 

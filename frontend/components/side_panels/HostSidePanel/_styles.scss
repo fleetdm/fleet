@@ -1,0 +1,26 @@
+.host-side-panel {
+  &__add-label-btn {
+    color: $success;
+  }
+
+  &__wrapper {
+    color: $text-medium;
+    padding: 0;
+  }
+
+  &__hr {
+    color: $text-medium;
+    margin: $pad-base $pad-auto;
+    width: 80%;
+  }
+
+  &__panel-group-item {
+    background-color: $white;
+    color: $text-medium;
+    padding: $pad-half $pad-large;
+
+    .title {
+      padding-left: 20px;
+    }
+  }
+}

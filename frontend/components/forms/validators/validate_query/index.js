@@ -9,6 +9,10 @@ const invalidQueryResponse = (message) => {
 const validQueryResponse = { valid: true, error: null };
 
 export const validateQuery = (queryText) => {
+  if (!queryText) {
+    return invalidQueryResponse('Query text must be present');
+  }
+
   try {
     const ast = sqliteParser(queryText);
     const { statement } = ast;
@@ -26,4 +30,5 @@ export const validateQuery = (queryText) => {
   }
 };
 
-export default { validateQuery };
+export default validateQuery;
+

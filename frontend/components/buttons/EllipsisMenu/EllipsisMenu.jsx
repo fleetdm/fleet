@@ -102,8 +102,7 @@ export default ClickOutside(EllipsisMenu, {
     return component.DOMNode;
   },
   onOutsideClick: (component) => {
-    return (evt) => {
-      evt.preventDefault();
+    return () => {
       component.setState({ showChildren: false });
 
       return false;

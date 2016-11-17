@@ -1,0 +1,12 @@
+.panel-group-item {
+  &__wrapper {
+    color: $text-medium;
+    display: block;
+    width: 100%;
+
+    &--is-selected {
+      background-color: $brand;
+      color: $white;
+    };
+  }
+}

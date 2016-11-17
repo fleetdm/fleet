@@ -18,7 +18,7 @@ describe('QueryComposer - component', () => {
         onOsqueryTableSelect={noop}
         onTextEditorInputChange={noop}
         selectedTargets={[]}
-        textEditorText="Hello world"
+        queryText="Hello world"
       />
     );
 
@@ -38,7 +38,7 @@ describe('QueryComposer - component', () => {
         onTextEditorInputChange={noop}
         query={query}
         selectedTargets={[]}
-        textEditorText="Hello world"
+        queryText="Hello world"
       />
     );
 
@@ -54,9 +54,9 @@ describe('QueryComposer - component', () => {
     const selectedTargets = [{ name: 'my target' }];
     const component = mount(
       <QueryComposer
-        onSaveQueryFormSubmit={onSaveQueryFormSubmitSpy}
+        onSave={onSaveQueryFormSubmitSpy}
         selectedTargets={selectedTargets}
-        textEditorText={queryText}
+        queryText={queryText}
       />
     );
 
@@ -81,7 +81,7 @@ describe('QueryComposer - component', () => {
       <QueryComposer
         onRunQuery={onRunQuerySpy}
         selectedTargets={selectedTargets}
-        textEditorText={query}
+        queryText={query}
       />
     );
     component.find('.query-form__run-query-btn').simulate('click');
@@ -98,9 +98,9 @@ describe('QueryComposer - component', () => {
     };
     const component = mount(
       <QueryComposer
-        onUpdateQuery={onSaveChangesSpy}
+        onUpdate={onSaveChangesSpy}
         query={query}
-        textEditorText={query.query}
+        queryText={query.query}
       />
     );
     const form = component.find('QueryForm');
@@ -121,7 +121,7 @@ describe('QueryComposer - component', () => {
       <QueryComposer
         onTargetSelectInputChange={onTargetSelectInputChangeSpy}
         selectedTargets={[]}
-        textEditorText="SELECT * FROM users"
+        queryText="SELECT * FROM users"
       />
     );
     const selectTargetsInput = component.find('.Select-input input');

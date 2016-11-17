@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import Select from 'react-select';
 import { noop } from 'lodash';
 
-import dropdownOptionInterface from '../../../../interfaces/dropdownOption';
+import dropdownOptionInterface from 'interfaces/dropdownOption';
 
 class Dropdown extends Component {
   static propTypes = {

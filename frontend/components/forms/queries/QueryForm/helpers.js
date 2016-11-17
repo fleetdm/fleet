@@ -30,4 +30,13 @@ const canSaveChanges = (formData, query) => {
   return false;
 };
 
-export default { canSaveAsNew, canSaveChanges };
+const allPlatforms = { label: 'All Platforms', value: '' };
+const platformOptions = [
+  allPlatforms,
+  { label: 'mac OS', value: 'darwin' },
+  { label: 'Windows', value: 'windows' },
+  { label: 'Ubuntu', value: 'ubuntu' },
+  { label: 'Centos', value: 'centos' },
+];
+
+export default { allPlatforms, canSaveAsNew, canSaveChanges, platformOptions };

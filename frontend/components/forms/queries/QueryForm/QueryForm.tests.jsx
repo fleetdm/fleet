@@ -44,7 +44,7 @@ describe('QueryForm - component', () => {
 
   it('validates the query name before saving changes', () => {
     const onSaveChangesSpy = createSpy();
-    const form = mount(<QueryForm query={query} queryText={queryText} onSaveChanges={onSaveChangesSpy} />);
+    const form = mount(<QueryForm query={query} queryText={queryText} onUpdate={onSaveChangesSpy} />);
     const inputFields = form.find('InputField');
     const nameInput = inputFields.find({ name: 'name' });
 
@@ -57,7 +57,7 @@ describe('QueryForm - component', () => {
     expect(onSaveChangesSpy).toNotHaveBeenCalled();
     expect(form.state()).toInclude({
       errors: {
-        name: 'Query name must be present',
+        name: 'Query title must be present',
         description: null,
       },
     });
@@ -65,7 +65,7 @@ describe('QueryForm - component', () => {
 
   it('calls the onSaveChanges prop when the form is valid', () => {
     const onSaveChangesSpy = createSpy();
-    const form = mount(<QueryForm query={query} queryText={queryText} onSaveChanges={onSaveChangesSpy} />);
+    const form = mount(<QueryForm query={query} queryText={queryText} onUpdate={onSaveChangesSpy} />);
     const inputFields = form.find('InputField');
     const nameInput = inputFields.find({ name: 'name' });
 
@@ -118,7 +118,7 @@ describe('QueryForm - component', () => {
 
   it('calls the onSaveAsNew prop when "Save As New" is clicked and the form is valid', () => {
     const onSaveAsNewSpy = createSpy();
-    const form = mount(<QueryForm query={query} queryText={queryText} onSaveAsNew={onSaveAsNewSpy} />);
+    const form = mount(<QueryForm query={query} queryText={queryText} onSave={onSaveAsNewSpy} />);
     const inputFields = form.find('InputField');
     const nameInput = inputFields.find({ name: 'name' });
     const saveAsNewBtn = form.find('.query-form__save-as-new-btn');
@@ -136,7 +136,7 @@ describe('QueryForm - component', () => {
 
   it('does not call the onSaveAsNew prop when "Save As New" is clicked and the form is not valid', () => {
     const onSaveAsNewSpy = createSpy();
-    const form = mount(<QueryForm query={query} queryText={queryText} onSaveAsNew={onSaveAsNewSpy} />);
+    const form = mount(<QueryForm query={query} queryText={queryText} onSave={onSaveAsNewSpy} />);
     const inputFields = form.find('InputField');
     const nameInput = inputFields.find({ name: 'name' });
     const saveAsNewBtn = form.find('.query-form__save-as-new-btn');
@@ -148,7 +148,7 @@ describe('QueryForm - component', () => {
     expect(onSaveAsNewSpy).toNotHaveBeenCalled();
     expect(form.state()).toInclude({
       errors: {
-        name: 'Query name must be present',
+        name: 'Query title must be present',
         description: null,
       },
     });

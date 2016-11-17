@@ -15,7 +15,7 @@ import { removeRightSidePanel, showRightSidePanel } from 'redux/nodes/app/action
 import { renderFlash } from 'redux/nodes/notifications/actions';
 import { selectOsqueryTable, setQueryText, setSelectedTargets, setSelectedTargetsQuery } from 'redux/nodes/components/QueryPages/actions';
 import targetInterface from 'interfaces/target';
-import { validateQuery } from 'pages/queries/QueryPage/helpers';
+import validateQuery from 'components/forms/validators/validate_query';
 
 class QueryPage extends Component {
   static propTypes = {
@@ -265,18 +265,18 @@ class QueryPage extends Component {
           onOsqueryTableSelect={onOsqueryTableSelect}
           onRemoveMoreInfoTarget={onRemoveMoreInfoTarget}
           onRunQuery={onRunQuery}
-          onSaveQueryFormSubmit={onSaveQueryFormSubmit}
+          onSave={onSaveQueryFormSubmit}
           onTargetSelect={onTargetSelect}
           onTargetSelectInputChange={fetchTargets}
           onTargetSelectMoreInfo={onTargetSelectMoreInfo}
           onTextEditorInputChange={onTextEditorInputChange}
-          onUpdateQuery={onUpdateQuery}
+          onUpdate={onUpdateQuery}
           query={query}
           selectedTargets={selectedTargets}
           selectedTargetsCount={selectedTargetsCount}
           selectedOsqueryTable={selectedOsqueryTable}
           targets={targets}
-          textEditorText={queryText}
+          queryText={queryText}
         />
         <QuerySidePanel
           onOsqueryTableSelect={onOsqueryTableSelect}

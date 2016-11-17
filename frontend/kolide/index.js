@@ -3,6 +3,18 @@ import endpoints from './endpoints';
 import { appendTargetTypeToTargets } from '../redux/nodes/entities/targets/helpers';
 
 class Kolide extends Base {
+  createLabel = ({ description, name, query }) => {
+    const { LABELS } = endpoints;
+
+    return this.authenticatedPost(this.endpoint(LABELS), JSON.stringify({ description, name, query }))
+      .then((response) => {
+        return {
+          ...response.label,
+          type: 'custom',
+        };
+      });
+  }
+
   createQuery = ({ description, name, query }) => {
     const { QUERIES } = endpoints;
 
@@ -103,6 +115,28 @@ class Kolide extends Base {
             ...appendTargetTypeToTargets(targets.labels, 'labels'),
           ],
         };
+      });
+  }
+
+  getLabels = () => {
+    const { LABELS } = endpoints;
+
+    return this.authenticatedGet(this.endpoint(LABELS))
+      .then((response) => {
+        const labels = response.labels.map((label) => {
+          return { ...label, type: 'custom' };
+        });
+        const stubbedLabels = [
+          { id: 100, display_text: 'All Hosts', type: 'all', count: 22 },
+          { id: 40, display_text: 'OFFLINE', type: 'status', count: 2 },
+          { id: 50, display_text: 'ONLINE', type: 'status', count: 20 },
+          { id: 60, display_text: 'MAC OS', type: 'platform', count: 1 },
+          { id: 70, display_text: 'CENTOS', type: 'platform', count: 10 },
+          { id: 80, display_text: 'UBUNTU', type: 'platform', count: 10 },
+          { id: 110, display_text: 'WINDOWS', type: 'platform', count: 1 },
+        ];
+
+        return labels.concat(stubbedLabels);
       });
   }
 

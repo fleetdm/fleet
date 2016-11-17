@@ -2,6 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import { isEqual } from 'lodash';
 
 import Button from 'components/buttons/Button';
+import Dropdown from 'components/forms/fields/Dropdown';
 import helpers from 'components/forms/queries/QueryForm/helpers';
 import InputField from 'components/forms/fields/InputField';
 import queryInterface from 'interfaces/query';
@@ -11,11 +12,13 @@ const baseClass = 'query-form';
 
 class QueryForm extends Component {
   static propTypes = {
+    onCancel: PropTypes.func,
     onRunQuery: PropTypes.func,
-    onSaveAsNew: PropTypes.func,
-    onSaveChanges: PropTypes.func,
+    onSave: PropTypes.func,
+    onUpdate: PropTypes.func,
     query: queryInterface,
     queryText: PropTypes.string.isRequired,
+    queryType: PropTypes.string,
   };
 
   static defaultProps = {
@@ -25,27 +28,34 @@ class QueryForm extends Component {
   constructor (props) {
     super(props);
 
-    const { query: { description, name }, queryText } = this.props;
+    const {
+      query: { description, name },
+      queryText,
+      queryType,
+    } = this.props;
+    const errors = { description: null, name: null };
+    const formData = { description, name, query: queryText };
 
-    this.state = {
-      errors: {
-        description: null,
-        name: null,
-      },
-      formData: {
-        description,
-        name,
-        query: queryText,
-      },
-    };
+    if (queryType === 'label') {
+      const { allPlatforms: platform } = helpers;
+
+      this.state = {
+        errors: { ...errors, platform: null },
+        formData: { ...formData, platform },
+      };
+    } else {
+      this.state = { errors, formData };
+    }
   }
 
   componentDidMount = () => {
     const { query, queryText } = this.props;
     const { description, name } = query;
+    const { formData } = this.state;
 
     this.setState({
       formData: {
+        ...formData,
         description,
         name,
         query: queryText,
@@ -58,10 +68,13 @@ class QueryForm extends Component {
     const { query: staleQuery, queryText: staleQueryText } = this.props;
 
     if (!isEqual(query, staleQuery) || !isEqual(queryText, staleQueryText)) {
+      const { formData } = this.state;
+
       this.setState({
         formData: {
-          description: query.description,
-          name: query.name,
+          ...formData,
+          description: query.description || formData.description,
+          name: query.name || formData.name,
           query: queryText,
         },
       });
@@ -70,11 +83,23 @@ class QueryForm extends Component {
     return false;
   }
 
+  onCancel = (evt) => {
+    evt.preventDefault();
+
+    const { onCancel: handleCancel } = this.props;
+
+    return handleCancel();
+  }
+
   onFieldChange = (name) => {
     return (value) => {
-      const { formData } = this.state;
+      const { errors, formData } = this.state;
 
       this.setState({
+        errors: {
+          ...errors,
+          [name]: null,
+        },
         formData: {
           ...formData,
           [name]: value,
@@ -85,29 +110,29 @@ class QueryForm extends Component {
     };
   }
 
-  onSaveAsNew = (evt) => {
+  onSave = (evt) => {
     evt.preventDefault();
 
     const { formData } = this.state;
     const { valid } = this;
-    const { onSaveAsNew: handleSaveAsNew } = this.props;
+    const { onSave: handleSave } = this.props;
 
     if (valid()) {
-      handleSaveAsNew(formData);
+      handleSave(formData);
     }
 
     return false;
   }
 
-  onSaveChanges = (evt) => {
+  onUpdate = (evt) => {
     evt.preventDefault();
 
     const { formData } = this.state;
     const { valid } = this;
-    const { onSaveChanges: handleSaveChanges } = this.props;
+    const { onUpdate: handleUpdate } = this.props;
 
     if (valid()) {
-      handleSaveChanges(formData);
+      handleUpdate(formData);
     }
 
     return false;
@@ -115,6 +140,7 @@ class QueryForm extends Component {
 
   valid = () => {
     const { errors, formData: { name } } = this.state;
+    const { queryType } = this.props;
 
     const namePresent = validatePresence(name);
 
@@ -122,7 +148,7 @@ class QueryForm extends Component {
       this.setState({
         errors: {
           ...errors,
-          name: 'Query name must be present',
+          name: `${queryType === 'label' ? 'Label title' : 'Query title'} must be present`,
         },
       });
 
@@ -134,24 +160,94 @@ class QueryForm extends Component {
     return true;
   }
 
+  renderButtons = () => {
+    const { canSaveAsNew, canSaveChanges } = helpers;
+    const { formData } = this.state;
+    const { onRunQuery, query, queryType } = this.props;
+    const { onCancel, onSave, onUpdate } = this;
+
+    if (queryType === 'label') {
+      return (
+        <div className={`${baseClass}__button-wrap`}>
+          <Button
+            className={`${baseClass}__save-changes-btn`}
+            onClick={onCancel}
+            text="Cancel"
+            variant="inverse"
+          />
+          <Button
+            className={`${baseClass}__save-as-new-btn`}
+            disabled={!canSaveAsNew(formData, query)}
+            onClick={onSave}
+            text="Save Label"
+            variant="brand"
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className={`${baseClass}__button-wrap`}>
+        <Button
+          className={`${baseClass}__save-changes-btn`}
+          disabled={!canSaveChanges(formData, query)}
+          onClick={onUpdate}
+          text="Save Changes"
+          variant="inverse"
+        />
+        <Button
+          className={`${baseClass}__save-as-new-btn`}
+          disabled={!canSaveAsNew(formData, query)}
+          onClick={onSave}
+          text="Save As New..."
+          variant="success"
+        />
+        <Button
+          className={`${baseClass}__run-query-btn`}
+          onClick={onRunQuery}
+          text="Run Query"
+          variant="brand"
+        />
+      </div>
+    );
+  }
+
+  renderPlatformDropdown = () => {
+    const { queryType } = this.props;
+
+    if (queryType !== 'label') {
+      return false;
+    }
+
+    const { formData: { platform } } = this.state;
+    const { onFieldChange } = this;
+    const { platformOptions } = helpers;
+
+    return (
+      <Dropdown
+        options={platformOptions}
+        onSelect={onFieldChange('platform')}
+        value={platform.value}
+      />
+    );
+  }
+
   render () {
     const {
       errors,
-      formData,
       formData: {
         description,
         name,
       },
     } = this.state;
-    const { onFieldChange, onSaveAsNew, onSaveChanges } = this;
-    const { onRunQuery, query } = this.props;
-    const { canSaveAsNew, canSaveChanges } = helpers;
+    const { onFieldChange, renderPlatformDropdown, renderButtons } = this;
+    const { queryType } = this.props;
 
     return (
       <form className={baseClass}>
         <InputField
           error={errors.name}
-          label="Query Title"
+          label={queryType === 'label' ? 'Label title' : 'Query Title'}
           name="name"
           onChange={onFieldChange('name')}
           value={name}
@@ -159,35 +255,15 @@ class QueryForm extends Component {
         />
         <InputField
           error={errors.description}
-          label="Query Description"
+          label="Description"
           name="description"
           onChange={onFieldChange('description')}
           value={description}
           type="textarea"
           inputClassName={`${baseClass}__query-description`}
         />
-        <div className={`${baseClass}__button-wrap`}>
-          <Button
-            className={`${baseClass}__save-changes-btn`}
-            disabled={!canSaveChanges(formData, query)}
-            onClick={onSaveChanges}
-            text="Save Changes"
-            variant="inverse"
-          />
-          <Button
-            className={`${baseClass}__save-as-new-btn`}
-            disabled={!canSaveAsNew(formData, query)}
-            onClick={onSaveAsNew}
-            text="Save As New..."
-            variant="success"
-          />
-          <Button
-            className={`${baseClass}__run-query-btn`}
-            onClick={onRunQuery}
-            text="Run Query"
-            variant="brand"
-          />
-        </div>
+        {renderPlatformDropdown()}
+        {renderButtons()}
       </form>
     );
   }

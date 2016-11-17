@@ -3,6 +3,7 @@ export default {
   FORGOT_PASSWORD: '/v1/kolide/forgot_password',
   HOSTS: '/v1/kolide/hosts',
   INVITES: '/v1/kolide/invites',
+  LABELS: '/v1/kolide/labels',
   LABEL_HOSTS: (id) => {
     return `/v1/kolide/labels/${id}/hosts`;
   },
