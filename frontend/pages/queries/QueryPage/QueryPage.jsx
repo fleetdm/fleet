@@ -201,10 +201,10 @@ class QueryPage extends Component {
     dispatch(setSelectedTargetsQuery(query));
 
     const hosts = flatMap(selectedTargets, (target) => {
-      return target.target_type === 'hosts' ? target.id : null;
+      return target.target_type === 'hosts' ? [target.id] : [];
     });
     const labels = flatMap(selectedTargets, (target) => {
-      return target.target_type === 'labels' ? target.id : null;
+      return target.target_type === 'labels' ? [target.id] : [];
     });
     const selected = { hosts, labels };
 
