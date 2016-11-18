@@ -14,10 +14,14 @@ const appliedMiddleware = applyMiddleware(
   authMiddleware,
 );
 
+const composeEnhancers = process.env.NODE_ENV !== 'production' &&
+  typeof global.window === 'object' &&
+  global.window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ ?
+  global.window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ : compose;
 const store = createStore(
   reducers,
   initialState,
-  compose(appliedMiddleware),
+  composeEnhancers(appliedMiddleware),
 );
 
 export default store;
