@@ -1,228 +1,236 @@
-[class^="kolidecon-"],
-[class*=" kolidecon-"],
+[class^='kolidecon-'],
+[class*=' kolidecon-'],
 .kolidecon {
-    display: inline-block;
-    font: normal normal normal 14px/1 'kolidecons';
-    font-size: inherit;
-    text-rendering: auto;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font: normal normal normal 14px/1 'kolidecons';
+  font-size: inherit;
+  text-rendering: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
- .kolidecon-lg {
-    font-size: 1.33333333em;
-    line-height: 0.75em;
-    vertical-align: -15%;
+.kolidecon-lg {
+  font-size: 1.33333333em;
+  line-height: 0.75em;
+  vertical-align: -15%;
 }
 
 .kolidecon-2x {
-    font-size: 2em;
+  font-size: 2em;
 }
 
 .kolidecon-3x {
-    font-size: 3em;
+  font-size: 3em;
 }
 
 .kolidecon-4x {
-    font-size: 4em;
+  font-size: 4em;
 }
 
 .kolidecon-5x {
-    font-size: 5em;
+  font-size: 5em;
 }
 
-  .kolidecon-fw {
-    width: 1.28571429em;
-    text-align: center;
+.kolidecon-fw {
+  width: 1.28571429em;
+  text-align: center;
 }
 
-       .kolidecon-kolide-logo-flat:before {
-    content: '\f000';
+.kolidecon-kolide-logo-flat:before {
+  content: '\f000';
 }
 
- .kolidecon-chevrondown:before {
-    content: '\f004';
+.kolidecon-chevrondown:before {
+  content: '\f004';
 }
 
- .kolidecon-chevronleft:before {
-    content: '\f006';
+.kolidecon-chevronleft:before {
+  content: '\f006';
 }
 
- .kolidecon-chevronright:before {
-    content: '\f008';
+.kolidecon-chevronright:before {
+  content: '\f008';
 }
 
- .kolidecon-chevronup:before {
-    content: '\f00a';
+.kolidecon-chevronup:before {
+  content: '\f00a';
 }
 
- .kolidecon-cpu:before {
-    content: '\f00c';
+.kolidecon-cpu:before {
+  content: '\f00c';
 }
 
- .kolidecon-downcarat:before {
-    content: '\f00d';
+.kolidecon-downcarat:before {
+  content: '\f00d';
 }
 
- .kolidecon-filter:before {
-    content: '\f00f';
+.kolidecon-filter:before {
+  content: '\f00f';
 }
 
- .kolidecon-mac:before {
-    content: '\f012';
+.kolidecon-mac:before {
+  content: '\f012';
 }
 
- .kolidecon-memory:before {
-    content: '\f013';
+.kolidecon-memory:before {
+  content: '\f013';
 }
 
- .kolidecon-penciledit:before {
-    content: '\f015';
+.kolidecon-penciledit:before {
+  content: '\f015';
 }
 
- .kolidecon-storage:before {
-    content: '\f019';
+.kolidecon-storage:before {
+  content: '\f019';
 }
 
- .kolidecon-upcarat:before {
-    content: '\f01b';
+.kolidecon-upcarat:before {
+  content: '\f01b';
 }
 
- .kolidecon-uptime:before {
-    content: '\f01c';
+.kolidecon-uptime:before {
+  content: '\f01c';
 }
 
- .kolidecon-world:before {
-    content: '\f01d';
+.kolidecon-world:before {
+  content: '\f01d';
 }
 
- .kolidecon-osquery:before {
-    content: '\f021';
+.kolidecon-osquery:before {
+  content: '\f021';
 }
 
- .kolidecon-join:before {
-    content: '\f022';
+.kolidecon-join:before {
+  content: '\f022';
 }
 
- .kolidecon-add-button:before {
-    content: '\f029';
+.kolidecon-add-button:before {
+  content: '\f029';
 }
 
- .kolidecon-username:before {
-    content: '\f02a';
+.kolidecon-username:before {
+  content: '\f02a';
 }
 
- .kolidecon-password:before {
-    content: '\f02b';
+.kolidecon-password:before {
+  content: '\f02b';
 }
 
- .kolidecon-email:before {
-    content: '\f02c';
+.kolidecon-email:before {
+  content: '\f02c';
 }
 
- .kolidecon-query:before {
-    content: '\f02d';
+.kolidecon-query:before {
+  content: '\f02d';
 }
 
- .kolidecon-hosts:before {
-    content: '\f02e';
+.kolidecon-hosts:before {
+  content: '\f02e';
 }
 
- .kolidecon-packs:before {
-    content: '\f02f';
+.kolidecon-packs:before {
+  content: '\f02f';
 }
 
- .kolidecon-help:before {
-    content: '\f030';
+.kolidecon-help:before {
+  content: '\f030';
 }
 
- .kolidecon-admin:before {
-    content: '\f031';
+.kolidecon-admin:before {
+  content: '\f031';
 }
 
- .kolidecon-config:before {
-    content: '\f032';
+.kolidecon-config:before {
+  content: '\f032';
 }
 
- .kolidecon-label:before {
-    content: '\f033';
+.kolidecon-mia:before {
+  content: '\f034';
 }
 
- .kolidecon-mia:before {
-    content: '\f034';
+.kolidecon-success-check:before {
+  content: '\f035';
 }
 
- .kolidecon-success-check:before {
-    content: '\f035';
+.kolidecon-offline:before {
+  content: '\f036';
 }
 
- .kolidecon-offline:before {
-    content: '\f036';
+.kolidecon-windows:before {
+  content: '\f037';
 }
 
- .kolidecon-windows:before {
-    content: '\f037';
+.kolidecon-centos:before {
+  content: '\f038';
 }
 
- .kolidecon-centos:before {
-    content: '\f038';
+.kolidecon-ubuntu:before {
+  content: '\f039';
 }
 
- .kolidecon-ubuntu:before {
-    content: '\f039';
+.kolidecon-apple:before {
+  content: '\f03a';
 }
 
- .kolidecon-apple:before {
-    content: '\f03a';
+.kolidecon-search:before {
+  content: '\f03b';
 }
 
- .kolidecon-search:before {
-    content: '\f03b';
+.kolidecon-all-hosts:before {
+  content: '\f03c';
 }
 
- .kolidecon-all-hosts:before {
-    content: '\f03c';
+.kolidecon-single-host:before {
+  content: '\f03d';
 }
 
- .kolidecon-single-host:before {
-    content: '\f03d';
+.kolidecon-alerts:before {
+  content: '\f03e';
 }
 
- .kolidecon-alerts:before {
-    content: '\f03e';
+.kolidecon-logout:before {
+  content: '\f03f';
 }
 
- .kolidecon-logout:before {
-    content: '\f03f';
+.kolidecon-user-settings:before {
+  content: '\f040';
 }
 
- .kolidecon-user-settings:before {
-    content: '\f040';
+.kolidecon-clipboard:before {
+  content: '\f043';
 }
 
- .kolidecon-clipboard:before {
-    content: '\f043';
+.kolidecon-list-select:before {
+  content: '\f044';
+}
+
+.kolidecon-grid-select:before {
+  content: '\f045';
+}
+
+.kolidecon-label:before {
+  content: '\f033';
 }
 
 
 .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    border: 0
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0
 }
 
 .sr-only-focusable:active,
 .sr-only-focusable:focus {
-    position: static;
-    width: auto;
-    height: auto;
-    margin: 0;
-    overflow: visible;
-    clip: auto
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  overflow: visible;
+  clip: auto
 }
 

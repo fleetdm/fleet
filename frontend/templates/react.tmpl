@@ -8,5 +8,8 @@
   <body>
     <div id="app"></div>
     <script async defer src="/assets/bundle.js" onload="this.parentElement.removeChild(this)"></script>
+    <!-- Because iOS hates interactive stuff, we have to kill it with fire -->
+    <script>document.addEventListener("touchstart", function() {},false);</script>
+    <!-- End Apple Hate -->
   </body>
 </html>
