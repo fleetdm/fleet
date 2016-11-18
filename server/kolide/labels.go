@@ -43,7 +43,7 @@ type LabelService interface {
 }
 
 type LabelPayload struct {
-	Name        *string
+	Name        *string `json:"name"`
 	Query       *string `json:"query"`
 	Platform    *string `json:"platform"`
 	Description *string `json:"description"`

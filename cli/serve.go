@@ -398,7 +398,7 @@ func createDevLabels(ds kolide.Datastore, config config.KolideConfig) {
 				},
 			},
 			Name:  "dev_label_apache",
-			Query: "select * from processes where nae like '%Apache%'",
+			Query: "select * from processes where name like '%Apache%'",
 		},
 		{
 			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
