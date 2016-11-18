@@ -15,7 +15,10 @@ type TargetService interface {
 	// (hosts and label) which match the supplied search query.
 	SearchTargets(ctx context.Context, query string, selectedHostIDs []uint, selectedLabelIDs []uint) (*TargetSearchResults, error)
 
-	CountHostsInTargets(ctx context.Context, hosts []uint, labels []uint) (uint, error)
+	// CountHostsInTargets returns the count of hosts in the selected
+	// targets. The first return uint is the total number of hosts in the
+	// targets. The second return uint is the total online hosts.
+	CountHostsInTargets(ctx context.Context, hostIDs []uint, labelIDs []uint) (uint, uint, error)
 }
 
 type TargetType int

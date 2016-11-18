@@ -18,6 +18,7 @@ type labelResponse struct {
 	kolide.Label
 	DisplayText string `json:"display_text"`
 	Count       uint   `json:"count"`
+	Online      uint   `json:"online"`
 }
 
 type getLabelResponse struct {
@@ -34,7 +35,7 @@ func makeGetLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return getLabelResponse{Err: err}, nil
 		}
-		count, err := svc.CountHostsInTargets(ctx, nil, []uint{label.ID})
+		total, online, err := svc.CountHostsInTargets(ctx, nil, []uint{label.ID})
 		if err != nil {
 			return getLabelResponse{Err: err}, nil
 		}
@@ -42,7 +43,8 @@ func makeGetLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
 			Label: labelResponse{
 				*label,
 				label.Name,
-				count,
+				total,
+				online,
 			},
 		}, nil
 	}
@@ -73,7 +75,7 @@ func makeListLabelsEndpoint(svc kolide.Service) endpoint.Endpoint {
 
 		resp := listLabelsResponse{}
 		for _, label := range labels {
-			count, err := svc.CountHostsInTargets(ctx, nil, []uint{label.ID})
+			total, online, err := svc.CountHostsInTargets(ctx, nil, []uint{label.ID})
 			if err != nil {
 				return listLabelsResponse{Err: err}, nil
 			}
@@ -81,7 +83,8 @@ func makeListLabelsEndpoint(svc kolide.Service) endpoint.Endpoint {
 				labelResponse{
 					*label,
 					label.Name,
-					count,
+					total,
+					online,
 				},
 			)
 		}
@@ -111,7 +114,7 @@ func makeCreateLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return createLabelResponse{Err: err}, nil
 		}
-		count, err := svc.CountHostsInTargets(ctx, nil, []uint{label.ID})
+		total, online, err := svc.CountHostsInTargets(ctx, nil, []uint{label.ID})
 		if err != nil {
 			return createLabelResponse{Err: err}, nil
 		}
@@ -119,7 +122,8 @@ func makeCreateLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
 			Label: labelResponse{
 				*label,
 				label.Name,
-				count,
+				total,
+				online,
 			},
 		}, nil
 	}

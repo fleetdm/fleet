@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/WatchBeam/clock"
 	"github.com/kolide/kolide-ose/server/datastore/inmem"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/stretchr/testify/assert"
@@ -47,7 +48,9 @@ func TestCountHostsInTargets(t *testing.T) {
 	ds, err := inmem.New()
 	require.Nil(t, err)
 
-	svc, err := newTestService(ds, nil)
+	mockClock := clock.NewMockClock()
+
+	svc, err := newTestServiceWithClock(ds, nil, mockClock)
 	require.Nil(t, err)
 
 	ctx := context.Background()
@@ -59,6 +62,7 @@ func TestCountHostsInTargets(t *testing.T) {
 		UUID:      "1",
 	})
 	require.Nil(t, err)
+	require.Nil(t, ds.MarkHostSeen(h1, mockClock.Now()))
 
 	h2, err := ds.NewHost(&kolide.Host{
 		HostName:  "bar.local",
@@ -67,6 +71,8 @@ func TestCountHostsInTargets(t *testing.T) {
 		UUID:      "2",
 	})
 	require.Nil(t, err)
+	// make this host "offline"
+	require.Nil(t, ds.MarkHostSeen(h2, mockClock.Now().Add(-1*time.Hour)))
 
 	h3, err := ds.NewHost(&kolide.Host{
 		HostName:  "baz.local",
@@ -75,6 +81,7 @@ func TestCountHostsInTargets(t *testing.T) {
 		UUID:      "3",
 	})
 	require.Nil(t, err)
+	require.Nil(t, ds.MarkHostSeen(h3, mockClock.Now().Add(-5*time.Minute)))
 
 	h4, err := ds.NewHost(&kolide.Host{
 		HostName:  "xxx.local",
@@ -83,6 +90,7 @@ func TestCountHostsInTargets(t *testing.T) {
 		UUID:      "4",
 	})
 	require.Nil(t, err)
+	require.Nil(t, ds.MarkHostSeen(h4, mockClock.Now()))
 
 	h5, err := ds.NewHost(&kolide.Host{
 		HostName:  "yyy.local",
@@ -91,6 +99,7 @@ func TestCountHostsInTargets(t *testing.T) {
 		UUID:      "5",
 	})
 	require.Nil(t, err)
+	require.Nil(t, ds.MarkHostSeen(h5, mockClock.Now()))
 
 	l1, err := ds.NewLabel(&kolide.Label{
 		Name:  "label foo",
@@ -118,25 +127,38 @@ func TestCountHostsInTargets(t *testing.T) {
 		assert.Nil(t, err)
 	}
 
-	count, err := svc.CountHostsInTargets(ctx, nil, []uint{l1.ID, l2.ID})
+	total, online, err := svc.CountHostsInTargets(ctx, nil, []uint{l1.ID, l2.ID})
 	assert.Nil(t, err)
-	assert.Equal(t, uint(5), count)
+	assert.Equal(t, uint(5), total)
+	assert.Equal(t, uint(4), online)
 
-	count, err = svc.CountHostsInTargets(ctx, []uint{h1.ID, h2.ID}, []uint{l1.ID, l2.ID})
+	total, online, err = svc.CountHostsInTargets(ctx, []uint{h1.ID, h2.ID}, []uint{l1.ID, l2.ID})
 	assert.Nil(t, err)
-	assert.Equal(t, uint(5), count)
+	assert.Equal(t, uint(5), total)
+	assert.Equal(t, uint(4), online)
 
-	count, err = svc.CountHostsInTargets(ctx, []uint{h1.ID, h2.ID}, nil)
+	total, online, err = svc.CountHostsInTargets(ctx, []uint{h1.ID, h2.ID}, nil)
 	assert.Nil(t, err)
-	assert.Equal(t, uint(2), count)
+	assert.Equal(t, uint(2), total)
+	assert.Equal(t, uint(1), online)
 
-	count, err = svc.CountHostsInTargets(ctx, []uint{h1.ID}, []uint{l2.ID})
+	total, online, err = svc.CountHostsInTargets(ctx, []uint{h1.ID}, []uint{l2.ID})
 	assert.Nil(t, err)
-	assert.Equal(t, uint(4), count)
+	assert.Equal(t, uint(4), total)
+	assert.Equal(t, uint(4), online)
 
-	count, err = svc.CountHostsInTargets(ctx, nil, nil)
+	total, online, err = svc.CountHostsInTargets(ctx, nil, nil)
 	assert.Nil(t, err)
-	assert.Equal(t, uint(0), count)
+	assert.Equal(t, uint(0), total)
+	assert.Equal(t, uint(0), online)
+
+	// Advance clock so all hosts are offline
+	mockClock.AddTime(1 * time.Hour)
+	total, online, err = svc.CountHostsInTargets(ctx, nil, []uint{l1.ID, l2.ID})
+	assert.Nil(t, err)
+	assert.Equal(t, uint(5), total)
+	assert.Equal(t, uint(0), online)
+
 }
 
 func TestSearchWithOmit(t *testing.T) {

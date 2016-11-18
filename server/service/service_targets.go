@@ -23,23 +23,30 @@ func (svc service) SearchTargets(ctx context.Context, query string, selectedHost
 	return results, nil
 }
 
-func (svc service) CountHostsInTargets(ctx context.Context, hosts []uint, labels []uint) (uint, error) {
-	hostsInLabels, err := svc.ds.ListUniqueHostsInLabels(labels)
+func (svc service) CountHostsInTargets(ctx context.Context, hostIDs []uint, labelIDs []uint) (uint, uint, error) {
+	hosts, err := svc.ds.ListUniqueHostsInLabels(labelIDs)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
+	}
+
+	for _, id := range hostIDs {
+		h, err := svc.ds.Host(id)
+		if err != nil {
+			return 0, 0, err
+		}
+		hosts = append(hosts, *h)
 	}
 
 	hostLookup := map[uint]bool{}
-
+	online := uint(0)
 	for _, host := range hosts {
-		hostLookup[host] = true
-	}
-
-	for _, host := range hostsInLabels {
 		if !hostLookup[host.ID] {
 			hostLookup[host.ID] = true
+			if svc.HostStatus(ctx, host) == "online" {
+				online++
+			}
 		}
 	}
 
-	return uint(len(hostLookup)), nil
+	return uint(len(hostLookup)), online, nil
 }

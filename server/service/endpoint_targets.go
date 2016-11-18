@@ -27,6 +27,7 @@ type labelSearchResult struct {
 	kolide.Label
 	DisplayText string `json:"display_text"`
 	Count       uint   `json:"count"`
+	Online      uint   `json:"online"`
 }
 
 type targetsData struct {
@@ -35,9 +36,10 @@ type targetsData struct {
 }
 
 type searchTargetsResponse struct {
-	Targets              *targetsData `json:"targets,omitempty"`
-	SelectedTargetsCount uint         `json:"selected_targets_count,omitempty"`
-	Err                  error        `json:"error,omitempty"`
+	Targets               *targetsData `json:"targets,omitempty"`
+	SelectedTargetsCount  uint         `json:"selected_targets_count"`
+	SelectedTargetsOnline uint         `json:"selected_targets_online"`
+	Err                   error        `json:"error,omitempty"`
 }
 
 func (r searchTargetsResponse) error() error { return r.Err }
@@ -47,11 +49,6 @@ func makeSearchTargetsEndpoint(svc kolide.Service) endpoint.Endpoint {
 		req := request.(searchTargetsRequest)
 
 		results, err := svc.SearchTargets(ctx, req.Query, req.Selected.Hosts, req.Selected.Labels)
-		if err != nil {
-			return searchTargetsResponse{Err: err}, nil
-		}
-
-		count, err := svc.CountHostsInTargets(ctx, req.Selected.Hosts, req.Selected.Labels)
 		if err != nil {
 			return searchTargetsResponse{Err: err}, nil
 		}
@@ -71,7 +68,7 @@ func makeSearchTargetsEndpoint(svc kolide.Service) endpoint.Endpoint {
 		}
 
 		for _, label := range results.Labels {
-			count, err := svc.CountHostsInTargets(ctx, nil, []uint{label.ID})
+			total, online, err := svc.CountHostsInTargets(ctx, nil, []uint{label.ID})
 			if err != nil {
 				return searchTargetsResponse{Err: err}, nil
 			}
@@ -79,14 +76,21 @@ func makeSearchTargetsEndpoint(svc kolide.Service) endpoint.Endpoint {
 				labelSearchResult{
 					label,
 					label.Name,
-					count,
+					total,
+					online,
 				},
 			)
 		}
 
+		total, online, err := svc.CountHostsInTargets(ctx, req.Selected.Hosts, req.Selected.Labels)
+		if err != nil {
+			return searchTargetsResponse{Err: err}, nil
+		}
+
 		return searchTargetsResponse{
-			Targets:              targets,
-			SelectedTargetsCount: count,
+			Targets:               targets,
+			SelectedTargetsCount:  total,
+			SelectedTargetsOnline: online,
 		}, nil
 	}
 }
