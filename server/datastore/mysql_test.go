@@ -7,7 +7,9 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/go-kit/kit/log"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/kolide/kolide-ose/server/datastore/mysql"
+	_ "github.com/kolide/kolide-ose/server/datastore/mysql/migrations"
 	"github.com/stretchr/testify/require"
 )
 

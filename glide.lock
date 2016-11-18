@@ -1,5 +1,5 @@
-hash: ceffc2eea38197f3398b8abd70fae1c04852ffc5c307515d2275f1955be6f423
-updated: 2016-11-16T10:18:48.9588602-08:00
+hash: 4a87ddb9e91081df70590230979f58985cc7a9a1f9f6be2e1033e4b84cf2c6e0
+updated: 2016-11-18T19:27:52.047338531+08:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -92,6 +92,8 @@ imports:
   version: 792786c7400a136282c1664665ae0a8db921c6c2
   subpackages:
   - difflib
+- name: github.com/pressly/goose
+  version: d6e8fe0292718c30342b3ed7f324dc21634b3bc6
 - name: github.com/prometheus/client_golang
   version: c5b7fccd204277076155f10851dad72b76a49317
   subpackages:
@@ -158,7 +160,7 @@ imports:
 - name: gopkg.in/go-playground/validator.v8
   version: 5f57d2222ad794d0dffb07e664ea05e2ee07d60c
 - name: gopkg.in/natefinch/lumberjack.v2
-  version: 514cbda263a734ae8caac038dadf05f8f3f9f738
+  version: e21e5cbec0cd0861b9dc302736ad5666c529d93f
 - name: gopkg.in/yaml.v2
   version: e4d366fc3c7938e2958e662b4258c7a89e1f0e3e
 testImports:

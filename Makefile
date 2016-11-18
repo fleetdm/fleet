@@ -112,7 +112,6 @@ test-js:
 test: lint test-go test-js
 
 generate: .prefix
-	go-bindata -o=server/datastore/mysql/bindata.go -pkg=mysql db/
 	webpack --progress --colors
 	go-bindata -pkg=service \
 		-o=server/service/bindata.go \
@@ -127,7 +126,6 @@ generate-dev: .prefix
 	go-bindata -debug -pkg=service \
 		-o=server/service/bindata.go \
 		frontend/templates/ assets/...
-	go-bindata -o=server/datastore/mysql/bindata.go -pkg=mysql db/
 	webpack --progress --colors --watch --notify
 
 deps:

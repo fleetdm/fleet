@@ -5,11 +5,11 @@
 - [Development Environment](#development-environment)
   - [Installing build dependencies](#installing-build-dependencies)
   - [Building](#building)
-    - [Generate packaged SQL statements](#generate-packaged-sql-statements)
     - [Generating the packaged JavaScript](#generating-the-packaged-javascript)
     - [Automatic rebuilding of the JavaScript bundle](#automatic-rebuilding-of-the-javascript-bundle)
     - [Compiling the Kolide binary](#compiling-the-kolide-binary)
     - [Managing Go dependencies with glide](#managing-go-dependencies-with-glide)
+    - [Database Modifications](#database-modifications)
   - [Testing](#testing)
     - [Full test suite](#full-test-suite)
     - [Go unit tests](#go-unit-tests)
@@ -57,14 +57,6 @@ make deps
 When pulling in new revisions to your working source tree, it may be necessary
 to re-run `make deps` if a new Go or JavaScript dependency was added.
 
-### Building
-
-#### Generate packaged SQL statements
-SQL statements used to generate the Kolide database are bundled into the kolide binary.  
-These statements are included under the db directory. If the SQL statements are changed,
-say a table is added for example, bindata.go must be regenerated in order for the
-application to pick up the SQL changes.  Use the following
-command to regenerate bindata.go.
 
 ```
 make generate
@@ -146,6 +138,45 @@ To add a new dependency, use [`glide get [package name]`](https://github.com/Mas
 To update, use [`glide up`](https://github.com/Masterminds/glide#glide-update-aliased-to-up) which will use VCS and `glide.yaml` to figure out the correct updates.
 
 ##### Testing application code with glide
+
+#### Database Modifications
+
+  * From the project root run the following commands:
+  ``` bash
+  > go get github.com/pressly/goose
+  > cd server/datastore/mysql/migrations
+  > goose create AddColumnFooToUsers
+  ```
+  * Find the file you created in the migrations directory and edit it
+  ``` go
+  package migration
+
+  import (
+  	"database/sql"
+
+  	"github.com/pressly/goose"
+  )
+
+  func init() {
+  	goose.AddMigration(Up_20161118212656, Down_20161118212656)
+  }
+
+  func Up_20161118212656(tx *sql.Tx) error {
+  	_, err := tx.Exec("ALTER TABLE `users` ADD COLUMN `foo` varchar(10) NOT NULL;")
+  	return err
+  }
+
+  func Down_20161118212656(tx *sql.Tx) error {
+  	_, err := tx.Exec("ALTER TABLE `users` DROP COLUMN `foo`;")
+  	return err
+  }
+  ```
+  * Update the database by running the following command
+  ``` bash
+  > make build
+  > build/kolide prepare db
+  ```
+
 
 
 ### Testing

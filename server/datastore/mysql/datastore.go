@@ -2,15 +2,16 @@ package mysql
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/WatchBeam/clock"
 	"github.com/go-kit/kit/log"
-	"github.com/go-sql-driver/mysql" // db driver
+
 	"github.com/jmoiron/sqlx"
 	"github.com/kolide/kolide-ose/server/config"
+
 	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/pressly/goose"
 )
 
 const (
@@ -72,25 +73,9 @@ func (d *Datastore) Name() string {
 // Migrate creates database
 func (d *Datastore) Migrate() error {
 
-	sql, err := Asset("db/up.sql")
-	if err != nil {
-		return err
-	}
+	goose.SetDialect("mysql")
 
-	tx := d.db.MustBegin()
-
-	for _, statement := range strings.SplitAfter(string(sql), ";") {
-		if _, err = tx.Exec(statement); err != nil {
-			if driverErr, ok := err.(*mysql.MySQLError); ok {
-				if driverErr.Number != 1065 { // ignore empty queries
-					tx.Rollback()
-					return err
-				}
-			}
-		}
-	}
-
-	if err = tx.Commit(); err != nil {
+	if err := goose.Run("up", d.db.DB, "."); err != nil {
 		return err
 	}
 
@@ -100,33 +85,23 @@ func (d *Datastore) Migrate() error {
 
 // Drop removes database
 func (d *Datastore) Drop() error {
-	var (
-		sql []byte
-		err error
-	)
+	goose.SetDialect("mysql")
 
-	if sql, err = Asset("db/down.sql"); err != nil {
-		return err
-	}
+	for {
+		version, err := goose.EnsureDBVersion(d.db.DB)
+		if err != nil {
+			return err
+		}
 
-	tx := d.db.MustBegin()
+		if version == 0 {
+			d.db.Exec("DROP TABLE IF EXISTS `goose_db_version`;")
+			return nil
+		}
 
-	for _, statement := range strings.SplitAfter(string(sql), ";") {
-		if _, err = tx.Exec(statement); err != nil {
-			if driverErr, ok := err.(*mysql.MySQLError); ok {
-				if driverErr.Number != 1065 { // ignore empty queries
-					tx.Rollback()
-					return err
-				}
-			}
+		if err = goose.Run("down", d.db.DB, "."); err != nil {
+			return err
 		}
 	}
-
-	if err = tx.Commit(); err != nil {
-		return err
-	}
-
-	return nil
 
 }
 
