@@ -50,8 +50,8 @@ func TestMySQL(t *testing.T) {
 	for _, f := range testFunctions {
 
 		t.Run(functionName(f), func(t *testing.T) {
-			require.Nil(t, ds.Migrate())
 			defer func() { require.Nil(t, ds.Drop()) }()
+			require.Nil(t, ds.Migrate())
 
 			f(t, ds)
 		})
