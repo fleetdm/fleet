@@ -71,7 +71,7 @@ export class LoginPage extends Component {
     const { error } = this.props;
 
     if (!error || includes(WHITELIST_ERRORS, error)) {
-      return undefined;
+      return {};
     }
 
     return {
@@ -86,10 +86,10 @@ export class LoginPage extends Component {
 
     return (
       <LoginForm
-        onChange={onChange}
-        onSubmit={onSubmit}
+        onChangeFunc={onChange}
+        handleSubmit={onSubmit}
         isHidden={!loginVisible}
-        serverErrors={serverErrors()}
+        errors={serverErrors()}
       />
     );
   }

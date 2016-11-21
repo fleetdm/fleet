@@ -1,105 +1,33 @@
 import React, { Component, PropTypes } from 'react';
 
-import Button from '../../buttons/Button';
-import InputFieldWithIcon from '../fields/InputFieldWithIcon';
-import validatePresence from '../validators/validate_presence';
-import validEmail from '../validators/valid_email';
+import Button from 'components/buttons/Button';
+import Form from 'components/forms/Form';
+import formFieldInterface from 'interfaces/form_field';
+import helpers from 'components/forms/ForgotPasswordForm/helpers';
+import InputFieldWithIcon from 'components/forms/fields/InputFieldWithIcon';
 
 const baseClass = 'forgot-password-form';
+const fieldNames = ['email'];
+const { validate } = helpers;
 
 class ForgotPasswordForm extends Component {
   static propTypes = {
-    clearErrors: PropTypes.func,
-    error: PropTypes.string,
-    onSubmit: PropTypes.func,
+    fields: PropTypes.shape({
+      email: formFieldInterface.isRequired,
+    }).isRequired,
+    handleSubmit: PropTypes.func,
   };
 
-  constructor (props) {
-    super(props);
-
-    this.state = {
-      errors: {
-        email: null,
-      },
-      formData: {
-        email: '',
-      },
-    };
-  }
-
-  onInputFieldChange = (value) => {
-    const { clearErrors, error: serverError } = this.props;
-
-    this.setState({
-      errors: {
-        email: null,
-      },
-      formData: {
-        email: value,
-      },
-    });
-
-    if (serverError) {
-      clearErrors();
-    }
-
-    return false;
-  }
-
-  onFormSubmit = (evt) => {
-    evt.preventDefault();
-
-    const { formData } = this.state;
-    const { onSubmit } = this.props;
-
-    if (this.validate()) {
-      return onSubmit(formData);
-    }
-
-    return false;
-  }
-
-  validate = () => {
-    const { formData: { email } } = this.state;
-
-    if (!validatePresence(email)) {
-      this.setState({
-        errors: {
-          email: 'Email field must be completed',
-        },
-      });
-
-      return false;
-    }
-
-    if (validEmail(email)) {
-      return true;
-    }
-
-    this.setState({
-      errors: {
-        email: `${email} is not a valid email`,
-      },
-    });
-
-    return false;
-  }
-
   render () {
-    const { error: serverError } = this.props;
-    const { errors: clientErrors, formData } = this.state;
-    const { onFormSubmit, onInputFieldChange } = this;
+    const { fields, handleSubmit } = this.props;
 
     return (
-      <form onSubmit={onFormSubmit} className={baseClass}>
+      <form onSubmit={handleSubmit} className={baseClass}>
         <InputFieldWithIcon
+          {...fields.email}
           autofocus
-          error={clientErrors.email || serverError}
           iconName="kolidecon-email"
-          name="email"
-          onChange={onInputFieldChange}
           placeholder="Email Address"
-          value={formData.email}
         />
         <div className={`${baseClass}__button-wrap`}>
           <Button
@@ -114,4 +42,7 @@ class ForgotPasswordForm extends Component {
   }
 }
 
-export default ForgotPasswordForm;
+export default Form(ForgotPasswordForm, {
+  fields: fieldNames,
+  validate,
+});

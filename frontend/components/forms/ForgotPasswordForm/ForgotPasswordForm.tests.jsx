@@ -12,13 +12,13 @@ describe('ForgotPasswordForm - component', () => {
   afterEach(restoreSpies);
 
   it('renders an InputFieldWithIcon components', () => {
-    const form = mount(<ForgotPasswordForm onSubmit={noop} />);
+    const form = mount(<ForgotPasswordForm handleSubmit={noop} />);
 
     expect(form.find('InputFieldWithIcon').length).toEqual(1);
   });
 
   it('updates component state when the email field is changed', () => {
-    const form = mount(<ForgotPasswordForm onSubmit={noop} />);
+    const form = mount(<ForgotPasswordForm handleSubmit={noop} />);
 
     const emailField = form.find({ name: 'email' });
     fillInFormInput(emailField, email);
@@ -29,7 +29,7 @@ describe('ForgotPasswordForm - component', () => {
 
   it('it does not submit the form when the form fields have not been filled out', () => {
     const submitSpy = createSpy();
-    const form = mount(<ForgotPasswordForm onSubmit={submitSpy} />);
+    const form = mount(<ForgotPasswordForm handleSubmit={submitSpy} />);
     const submitBtn = form.find('button');
 
     submitBtn.simulate('submit');
@@ -42,7 +42,7 @@ describe('ForgotPasswordForm - component', () => {
 
   it('submits the form data when the form is submitted', () => {
     const submitSpy = createSpy();
-    const form = mount(<ForgotPasswordForm onSubmit={submitSpy} />);
+    const form = mount(<ForgotPasswordForm handleSubmit={submitSpy} />);
     const emailField = form.find({ name: 'email' });
     const submitBtn = form.find('button');
 
@@ -54,7 +54,7 @@ describe('ForgotPasswordForm - component', () => {
 
   it('does not submit the form if the email is not valid', () => {
     const submitSpy = createSpy();
-    const form = mount(<ForgotPasswordForm onSubmit={submitSpy} />);
+    const form = mount(<ForgotPasswordForm handleSubmit={submitSpy} />);
     const emailField = form.find({ name: 'email' });
     const submitBtn = form.find('button');
 

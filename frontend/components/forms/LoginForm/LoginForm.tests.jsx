@@ -10,13 +10,13 @@ describe('LoginForm - component', () => {
   afterEach(restoreSpies);
 
   it('renders 2 InputField components', () => {
-    const form = mount(<LoginForm onSubmit={noop} />);
+    const form = mount(<LoginForm handleSubmit={noop} />);
 
     expect(form.find('InputFieldWithIcon').length).toEqual(2);
   });
 
   it('updates component state when the username field is changed', () => {
-    const form = mount(<LoginForm onSubmit={noop} />);
+    const form = mount(<LoginForm handleSubmit={noop} />);
     const username = 'hi@thegnar.co';
 
     const usernameField = form.find({ name: 'username' });
@@ -27,7 +27,7 @@ describe('LoginForm - component', () => {
   });
 
   it('updates component state when the password field is changed', () => {
-    const form = mount(<LoginForm onSubmit={noop} />);
+    const form = mount(<LoginForm handleSubmit={noop} />);
 
     const passwordField = form.find({ name: 'password' });
     fillInFormInput(passwordField, 'hello');
@@ -40,7 +40,7 @@ describe('LoginForm - component', () => {
 
   it('it does not submit the form when the form fields have not been filled out', () => {
     const submitSpy = createSpy();
-    const form = mount(<LoginForm onSubmit={submitSpy} />);
+    const form = mount(<LoginForm handleSubmit={submitSpy} />);
     const submitBtn = form.find('button');
 
     submitBtn.simulate('click');
@@ -53,7 +53,7 @@ describe('LoginForm - component', () => {
 
   it('submits the form data when form is submitted', () => {
     const submitSpy = createSpy();
-    const form = mount(<LoginForm onSubmit={submitSpy} />);
+    const form = mount(<LoginForm handleSubmit={submitSpy} />);
     const usernameField = form.find({ name: 'username' });
     const passwordField = form.find({ name: 'password' });
     const submitBtn = form.find('button');

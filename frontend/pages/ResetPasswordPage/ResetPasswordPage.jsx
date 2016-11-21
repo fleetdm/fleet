@@ -66,7 +66,7 @@ export class ResetPasswordPage extends Component {
         headerText="Reset Password"
         leadText="Create a new password using at least one letter, one numeral and seven characters."
       >
-        <ResetPasswordForm onSubmit={onSubmit} />
+        <ResetPasswordForm handleSubmit={onSubmit} />
       </StackedWhiteBoxes>
     );
   }

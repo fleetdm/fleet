@@ -157,7 +157,7 @@ class UserBlock extends Component {
     if (isEdit) {
       return (
         <div className={userWrapperClass}>
-          <EditUserForm onCancel={onToggleEditing} onSubmit={onEditUserFormSubmit} user={user} />
+          <EditUserForm onCancel={onToggleEditing} handleSubmit={onEditUserFormSubmit} formData={user} />
         </div>
       );
     }

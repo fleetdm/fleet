@@ -21,7 +21,7 @@ export class ForgotPasswordPage extends Component {
     dispatch: noop,
   };
 
-  onSubmit = debounce((formData) => {
+  handleSubmit = debounce((formData) => {
     const { dispatch } = this.props;
 
     return dispatch(forgotPasswordAction(formData));
@@ -34,7 +34,7 @@ export class ForgotPasswordPage extends Component {
   }
 
   renderContent = () => {
-    const { clearErrors } = this;
+    const { clearErrors, handleSubmit } = this;
     const { email, error } = this.props;
 
     const baseClass = 'forgot-password';
@@ -59,9 +59,9 @@ export class ForgotPasswordPage extends Component {
 
     return (
       <ForgotPasswordForm
-        clearErrors={clearErrors}
-        error={error}
-        onSubmit={this.onSubmit}
+        onChangeFunc={clearErrors}
+        errors={{ email: error }}
+        handleSubmit={handleSubmit}
       />
     );
   }

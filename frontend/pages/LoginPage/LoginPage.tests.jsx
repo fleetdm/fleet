@@ -28,7 +28,7 @@ describe('LoginPage - component', () => {
       const loginForm = page.find('LoginForm');
 
       expect(loginForm.length).toEqual(1);
-      expect(loginForm.prop('serverErrors')).toEqual({});
+      expect(loginForm.prop('errors')).toEqual({});
     });
   });
 

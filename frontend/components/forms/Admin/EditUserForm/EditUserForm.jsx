@@ -1,106 +1,57 @@
 import React, { Component, PropTypes } from 'react';
 
-import Button from '../../../buttons/Button';
-import InputField from '../../fields/InputField';
-import userInterface from '../../../../interfaces/user';
+import Button from 'components/buttons/Button';
+import Form from 'components/forms/Form';
+import formFieldInterface from 'interfaces/form_field';
+import InputField from 'components/forms/fields/InputField';
 
 const baseClass = 'edit-user-form';
+const fieldNames = ['email', 'name', 'position', 'username'];
 
 class EditUserForm extends Component {
   static propTypes = {
     onCancel: PropTypes.func,
-    onSubmit: PropTypes.func,
-    user: userInterface.isRequired,
+    handleSubmit: PropTypes.func,
+    fields: PropTypes.shape({
+      email: formFieldInterface.isRequired,
+      name: formFieldInterface.isRequired,
+      position: formFieldInterface.isRequired,
+      username: formFieldInterface.isRequired,
+    }).isRequired,
   };
 
-  constructor (props) {
-    super(props);
-
-    const { user: { email, name, position, username } } = props;
-
-    this.state = {
-      formData: {
-        email,
-        name,
-        position,
-        username,
-      },
-    };
-  }
-
-  onInputChange = (fieldName) => {
-    return (value) => {
-      const { formData } = this.state;
-
-      this.setState({
-        formData: {
-          ...formData,
-          [fieldName]: value,
-        },
-      });
-
-      return false;
-    };
-  }
-
-  onFormSubmit = (evt) => {
-    evt.preventDefault();
-    const { formData } = this.state;
-    const { onSubmit } = this.props;
-
-    return onSubmit(formData);
-  }
-
   render () {
-    const {
-      email,
-      name,
-      position,
-      username,
-    } = this.state.formData;
-    const { onFormSubmit, onInputChange } = this;
+    const { fields, handleSubmit, onCancel } = this.props;
 
     return (
-      <form className={baseClass} onSubmit={onFormSubmit}>
+      <form className={baseClass} onSubmit={handleSubmit}>
         <InputField
-          defaultValue={name}
+          {...fields.name}
           label="Name"
           labelClassName={`${baseClass}__label`}
-          name="name"
-          onChange={onInputChange('name')}
           inputWrapperClass={`${baseClass}__input-wrap ${baseClass}__input-wrap--first`}
           inputClassName={`${baseClass}__input`}
-          value={name}
         />
         <InputField
-          defaultValue={username}
+          {...fields.username}
           label="Username"
           labelClassName={`${baseClass}__label`}
-          name="username"
-          onChange={onInputChange('username')}
           inputWrapperClass={`${baseClass}__input-wrap`}
           inputClassName={`${baseClass}__input ${baseClass}__input--username`}
-          value={username}
         />
         <InputField
-          defaultValue={position}
+          {...fields.position}
           label="Position"
           labelClassName={`${baseClass}__label`}
-          name="position"
-          onChange={onInputChange('position')}
           inputWrapperClass={`${baseClass}__input-wrap`}
           inputClassName={`${baseClass}__input`}
-          value={position}
         />
         <InputField
-          defaultValue={email}
+          {...fields.email}
           inputWrapperClass={`${baseClass}__input-wrap`}
           label="Email"
           labelClassName={`${baseClass}__label`}
-          name="email"
-          onChange={onInputChange('email')}
           inputClassName={`${baseClass}__input ${baseClass}__input--email`}
-          value={email}
         />
         <div className={`${baseClass}__btn-wrap`}>
           <Button
@@ -111,7 +62,7 @@ class EditUserForm extends Component {
           />
           <Button
             className={`${baseClass}__form-btn`}
-            onClick={this.props.onCancel}
+            onClick={onCancel}
             text="Cancel"
             variant="inverse"
           />
@@ -121,4 +72,6 @@ class EditUserForm extends Component {
   }
 }
 
-export default EditUserForm;
+export default Form(EditUserForm, {
+  fields: fieldNames,
+});
