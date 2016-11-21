@@ -6,9 +6,9 @@ import PanelGroup from './PanelGroup';
 
 describe('PanelGroup - component', () => {
   const validPanelGroupItems = [
-    { type: 'all', title: 'All Hosts', hosts_count: 20 },
-    { type: 'platform', title: 'MAC OS', hosts_count: 10 },
-    { type: 'status', title: 'ONLINE', hosts_count: 10 },
+    { type: 'all', display_text: 'All Hosts', hosts_count: 20 },
+    { type: 'platform', display_text: 'MAC OS', hosts_count: 10 },
+    { type: 'status', display_text: 'ONLINE', hosts_count: 10 },
   ];
 
   const component = mount(

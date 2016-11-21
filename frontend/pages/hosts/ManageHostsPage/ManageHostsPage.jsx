@@ -11,22 +11,29 @@ import labelInterface from 'interfaces/label';
 import HostDetails from 'components/hosts/HostDetails';
 import hostInterface from 'interfaces/host';
 import HostSidePanel from 'components/side_panels/HostSidePanel';
+import HostsTable from 'components/hosts/HostsTable';
 import osqueryTableInterface from 'interfaces/osquery_table';
 import QueryComposer from 'components/queries/QueryComposer';
 import QuerySidePanel from 'components/side_panels/QuerySidePanel';
 import { renderFlash } from 'redux/nodes/notifications/actions';
+import Rocker from 'components/buttons/Rocker';
 import { selectOsqueryTable } from 'redux/nodes/components/QueryPages/actions';
-import { setSelectedLabel } from 'redux/nodes/components/ManageHostsPage/actions';
+import { setDisplay, setSelectedLabel } from 'redux/nodes/components/ManageHostsPage/actions';
 import { showRightSidePanel, removeRightSidePanel } from 'redux/nodes/app/actions';
 import validateQuery from 'components/forms/validators/validate_query';
 
 export class ManageHostsPage extends Component {
   static propTypes = {
     dispatch: PropTypes.func,
+    display: PropTypes.oneOf(['Grid', 'List']),
     hosts: PropTypes.arrayOf(hostInterface),
     labels: PropTypes.arrayOf(labelInterface),
     selectedLabel: labelInterface,
     selectedOsqueryTable: osqueryTableInterface,
+  };
+
+  static defaultProps = {
+    display: 'Grid',
   };
 
   constructor (props) {
@@ -154,8 +161,17 @@ export class ManageHostsPage extends Component {
     return false;
   }
 
+  onToggleDisplay = () => {
+    const { dispatch, display } = this.props;
+    const newDisplay = display === 'Grid' ? 'List' : 'Grid';
+
+    dispatch(setDisplay(newDisplay));
+
+    return false;
+  }
+
   renderHeader = () => {
-    const { selectedLabel } = this.props;
+    const { display, selectedLabel } = this.props;
     const { isAddLabel } = this.state;
 
     if (!selectedLabel || isAddLabel) {
@@ -163,6 +179,13 @@ export class ManageHostsPage extends Component {
     }
 
     const { count, description, display_text: displayText, query } = selectedLabel;
+    const { onToggleDisplay } = this;
+    const buttonOptions = {
+      aIcon: 'grid-select',
+      aText: 'Grid',
+      bIcon: 'list-select',
+      bText: 'List',
+    };
 
     return (
       <div>
@@ -185,16 +208,48 @@ export class ManageHostsPage extends Component {
         <p>Description</p>
         <p>{description}</p>
         <p>{count} Hosts Total</p>
+        <div>
+          <Rocker
+            handleChange={onToggleDisplay}
+            name="host-display-toggle"
+            options={buttonOptions}
+            value={display}
+          />
+        </div>
       </div>
     );
   }
 
-  renderBody = () => {
-    const { hosts } = this.props;
+  renderHosts = () => {
+    const { display, hosts } = this.props;
+    const { isAddLabel } = this.state;
+    const { onHostDetailActionClick } = this;
+
+    if (isAddLabel) {
+      return false;
+    }
+
+    if (display === 'Grid') {
+      return hosts.map((host) => {
+        return (
+          <HostDetails
+            host={host}
+            key={`host-${host.id}-details`}
+            onDisableClick={onHostDetailActionClick('disable')}
+            onQueryClick={onHostDetailActionClick('query')}
+          />
+        );
+      });
+    }
+
+    return <HostsTable hosts={hosts} />;
+  }
+
+
+  renderForm = () => {
     const { isAddLabel, labelQueryText } = this.state;
     const {
       onCancelAddLabel,
-      onHostDetailActionClick,
       onSaveAddLabel,
       onTextEditorInputChange,
     } = this;
@@ -212,16 +267,7 @@ export class ManageHostsPage extends Component {
       );
     }
 
-    return hosts.map((host) => {
-      return (
-        <HostDetails
-          host={host}
-          key={host.hostname}
-          onDisableClick={onHostDetailActionClick('disable')}
-          onQueryClick={onHostDetailActionClick('query')}
-        />
-      );
-    });
+    return false;
   }
 
   renderSidePanel = () => {
@@ -266,12 +312,13 @@ export class ManageHostsPage extends Component {
   }
 
   render () {
-    const { renderBody, renderHeader, renderSidePanel } = this;
+    const { renderForm, renderHeader, renderHosts, renderSidePanel } = this;
 
     return (
       <div className="manage-hosts">
         {renderHeader()}
-        {renderBody()}
+        {renderForm()}
+        {renderHosts()}
         {renderSidePanel()}
       </div>
     );
@@ -279,12 +326,13 @@ export class ManageHostsPage extends Component {
 }
 
 const mapStateToProps = (state) => {
+  const { display, selectedLabel } = state.components.ManageHostsPage;
   const { entities: hosts } = entityGetter(state).get('hosts');
   const { entities: labels } = entityGetter(state).get('labels');
-  const { selectedLabel } = state.components.ManageHostsPage;
   const { selectedOsqueryTable } = state.components.QueryPages;
 
   return {
+    display,
     hosts,
     labels,
     selectedLabel,

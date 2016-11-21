@@ -31,7 +31,7 @@ class Rocker extends Component {
     return (
       <div className={rockerClasses}>
         <label className={`${baseClass}__label`} htmlFor={name}>
-          <input className={`${baseClass}__checkbox`} type="checkbox" value={value} name={name} id={name} onChange={handleChange} />
+          <input className={`${baseClass}__checkbox`} type="checkbox" value={value} name={name} id={name} onChange={handleChange} checked={value === bText} />
           <span className={`${baseClass}__switch ${baseClass}__switch--opt-b`}>
             <span className={`${baseClass}__text`}>
               <i className={`kolidecon kolidecon-${bIcon}`} /> {bText}

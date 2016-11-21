@@ -1,0 +1,49 @@
+.hosts-table {
+  &__wrapper {
+    border: solid 1px $accent-dark;
+    border-radius: 3px;
+    box-shadow: inset 0 0 8px 0 rgba(0, 0, 0, 0.12);
+    margin-top: $pad-base;
+    max-height: 550px;
+    overflow: scroll;
+  }
+
+  &__table {
+    border-collapse: collapse;
+    color: $text-medium;
+    font-size: $small;
+    width: 100%;
+  }
+
+  thead {
+    background-color: $bg-medium;
+    color: $text-ultradark;
+    text-align: left;
+
+    th {
+      padding: $pad-small $pad-xsmall;
+    }
+  }
+
+  tbody {
+    td {
+      padding: $pad-xsmall;
+    }
+  }
+
+  &__hostname {
+    color: $link;
+  }
+
+  &__status {
+    text-indent: 5px;
+
+    &--online {
+      color: $success;
+    }
+
+    &--offline {
+      color: $alert;
+    }
+  }
+}
