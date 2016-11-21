@@ -93,6 +93,7 @@ the way that the kolide server works.
 				createDevQueries(ds, config)
 				createDevLabels(ds, config)
 				createDevOrgInfo(ds, config)
+				createDevPacksAndQueries(ds, config)
 			}
 
 			fieldKeys := []string{"method", "error"}
@@ -421,5 +422,66 @@ func createDevLabels(ds kolide.Datastore, config config.KolideConfig) {
 		if err != nil {
 			initFatal(err, "creating bootstrap label")
 		}
+	}
+}
+
+func createDevPacksAndQueries(ds kolide.Datastore, config config.KolideConfig) {
+	query1 := &kolide.Query{
+		Name:  "Osquery Info",
+		Query: "select * from osquery_info",
+	}
+	query1, err := ds.NewQuery(query1)
+	if err != nil {
+		initFatal(err, "creating dev queries")
+	}
+
+	query2 := &kolide.Query{
+		Name:     "Launchd",
+		Query:    "select * from launchd",
+		Platform: "darwin",
+	}
+	query2, err = ds.NewQuery(query2)
+	if err != nil {
+		initFatal(err, "creating dev queries")
+	}
+
+	query3 := &kolide.Query{
+		Name:  "registry",
+		Query: "select * from osquery_registry",
+	}
+	query3, err = ds.NewQuery(query3)
+	if err != nil {
+		initFatal(err, "creating dev queries")
+	}
+
+	pack1 := &kolide.Pack{
+		Name: "Osquery Internal Info",
+	}
+	pack1, err = ds.NewPack(pack1)
+	if err != nil {
+		initFatal(err, "creating dev packs")
+	}
+
+	pack2 := &kolide.Pack{
+		Name: "macOS Attacks",
+	}
+	pack2, err = ds.NewPack(pack2)
+	if err != nil {
+		initFatal(err, "creating dev packs")
+	}
+
+	err = ds.AddQueryToPack(query1.ID, pack1.ID)
+	if err != nil {
+		initFatal(err, "creating dev packs")
+	}
+
+	err = ds.AddQueryToPack(query3.ID, pack1.ID)
+	if err != nil {
+		initFatal(err, "creating dev packs")
+	}
+
+	err = ds.AddQueryToPack(query2.ID, pack2.ID)
+	if err != nil {
+		initFatal(err, "creating dev packs")
 	}
 }

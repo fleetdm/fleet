@@ -19,11 +19,13 @@ func TestDecodeCreatePackRequest(t *testing.T) {
 
 		params := r.(createPackRequest)
 		assert.Equal(t, "foo", *params.payload.Name)
+		assert.Equal(t, "bar", *params.payload.Description)
 	}).Methods("POST")
 
 	var body bytes.Buffer
 	body.Write([]byte(`{
-        "name": "foo"
+		"name": "foo",
+		"description": "bar"
     }`))
 
 	router.ServeHTTP(
@@ -40,12 +42,14 @@ func TestDecodeModifyPackRequest(t *testing.T) {
 
 		params := r.(modifyPackRequest)
 		assert.Equal(t, "foo", *params.payload.Name)
+		assert.Equal(t, "bar", *params.payload.Description)
 		assert.Equal(t, uint(1), params.ID)
 	}).Methods("PATCH")
 
 	var body bytes.Buffer
 	body.Write([]byte(`{
-        "name": "foo"
+		"name": "foo",
+		"description": "bar"
     }`))
 
 	router.ServeHTTP(

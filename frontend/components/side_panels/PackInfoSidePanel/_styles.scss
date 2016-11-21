@@ -1,0 +1,13 @@
+.pack-info-side-panel {
+  background-color: $white;
+  border-left: 1px solid $border-medium;
+  bottom: 0;
+  box-shadow: 2px 0 8px 0 rgba($black, 0.1);
+  box-sizing: border-box;
+  overflow: scroll;
+  padding: px-to-rem(13) px-to-rem(13) 70px;
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: 300px;
+}

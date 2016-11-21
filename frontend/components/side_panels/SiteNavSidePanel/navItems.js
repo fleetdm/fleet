@@ -70,12 +70,29 @@ export default (admin) => {
       ],
     },
     {
+      defaultPathname: '/packs/all',
       icon: 'kolidecon-packs',
       name: 'Packs',
       path: {
         regex: /^\/packs/,
+        location: '/packs/all',
       },
-      subItems: [],
+      subItems: [
+        {
+          name: 'All Packs',
+          path: {
+            regex: /\/all/,
+            location: '/packs/all',
+          },
+        },
+        {
+          name: 'Pack Composer',
+          path: {
+            regex: /\/new/,
+            location: '/packs/new',
+          },
+        },
+      ],
     },
     {
       icon: 'kolidecon-help',

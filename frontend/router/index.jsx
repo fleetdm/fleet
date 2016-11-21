@@ -4,6 +4,7 @@ import { Provider } from 'react-redux';
 import { syncHistoryWithStore } from 'react-router-redux';
 
 import AdminUserManagementPage from 'pages/Admin/UserManagementPage';
+import AllPacksPage from 'pages/packs/AllPacksPage';
 import App from 'components/App';
 import AuthenticatedAdminRoutes from 'components/AuthenticatedAdminRoutes';
 import AuthenticatedRoutes from 'components/AuthenticatedRoutes';
@@ -18,6 +19,7 @@ import QueryPage from 'pages/queries/QueryPage';
 import QueryPageWrapper from 'components/queries/QueryPageWrapper';
 import RegistrationPage from 'pages/RegistrationPage';
 import ResetPasswordPage from 'pages/ResetPasswordPage';
+import PackPageWrapper from 'components/packs/PackPageWrapper';
 import store from 'redux/store';
 
 const history = syncHistoryWithStore(browserHistory, store);
@@ -41,6 +43,9 @@ const routes = (
             <Route path="queries" component={QueryPageWrapper}>
               <Route path="new" component={QueryPage} />
               <Route path=":id" component={QueryPage} />
+            </Route>
+            <Route path="packs" component={PackPageWrapper}>
+              <Route path="all" component={AllPacksPage} />
             </Route>
             <Route path="hosts">
               <Route path="new" component={NewHostPage} />

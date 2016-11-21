@@ -140,6 +140,13 @@ class Kolide extends Base {
       });
   }
 
+  getPacks = () => {
+    const { PACKS } = endpoints;
+
+    return this.authenticatedGet(this.endpoint(PACKS))
+      .then((response) => { return response.packs; });
+  }
+
   getUsers = () => {
     const { USERS } = endpoints;
 

@@ -47,11 +47,6 @@ type QueryPayload struct {
 	Version      *string
 }
 
-type PackPayload struct {
-	Name     *string
-	Platform *string
-}
-
 type Query struct {
 	UpdateCreateTimestamps
 	DeleteFields

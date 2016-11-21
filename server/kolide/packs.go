@@ -46,9 +46,16 @@ type PackService interface {
 type Pack struct {
 	UpdateCreateTimestamps
 	DeleteFields
-	ID       uint   `json:"id"`
-	Name     string `json:"name"`
-	Platform string `json:"platform"`
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Platform    string `json:"platform"`
+}
+
+type PackPayload struct {
+	Name        *string
+	Description *string
+	Platform    *string
 }
 
 type PackQuery struct {

@@ -1,0 +1,19 @@
+.all-packs-page {
+  &__title {
+    color: $text-medium;
+    display: inline-block;
+    font-size: $large;
+  }
+
+  &__wrapper {
+    background-color: $white;
+    padding: $base;
+  }
+}
+
+  &__table {
+    border-collapse: collapse;
+    color: $text-medium;
+    font-size: $small;
+    width: 100%;
+  }

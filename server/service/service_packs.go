@@ -20,6 +20,10 @@ func (svc service) NewPack(ctx context.Context, p kolide.PackPayload) (*kolide.P
 		pack.Name = *p.Name
 	}
 
+	if p.Description != nil {
+		pack.Description = *p.Description
+	}
+
 	if p.Platform != nil {
 		pack.Platform = *p.Platform
 	}
@@ -39,6 +43,10 @@ func (svc service) ModifyPack(ctx context.Context, id uint, p kolide.PackPayload
 
 	if p.Name != nil {
 		pack.Name = *p.Name
+	}
+
+	if p.Description != nil {
+		pack.Description = *p.Description
 	}
 
 	if p.Platform != nil {
