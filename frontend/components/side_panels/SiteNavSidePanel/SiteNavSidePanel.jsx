@@ -4,12 +4,14 @@ import { isEqual } from 'lodash';
 import { push } from 'react-router-redux';
 import classnames from 'classnames';
 
+import configInterface from 'interfaces/config';
+import { logoutUser } from 'redux/nodes/auth/actions';
+import userInterface from 'interfaces/user';
+
 import { activeTabFromPathname, activeSubTabFromPathname } from './helpers';
-import configInterface from '../../../interfaces/config';
 import kolideLogo from '../../../../assets/images/kolide-logo.svg';
 import navItems from './navItems';
 import UserMenu from './UserMenu';
-import userInterface from '../../../interfaces/user';
 
 class SiteNavSidePanel extends Component {
   static propTypes = {
@@ -49,6 +51,16 @@ class SiteNavSidePanel extends Component {
       activeTab,
       activeSubItem,
     });
+
+    return false;
+  }
+
+  onLogout = (evt) => {
+    evt.preventDefault();
+
+    const { dispatch } = this.props;
+
+    dispatch(logoutUser());
 
     return false;
   }
@@ -111,7 +123,7 @@ class SiteNavSidePanel extends Component {
     } = this.props;
 
     const { userMenuOpened } = this.state;
-    const { toggleUserMenu } = this;
+    const { onLogout, toggleUserMenu } = this;
     const { enabled, username } = user;
 
     const headerBaseClass = 'site-nav-header';
@@ -144,8 +156,9 @@ class SiteNavSidePanel extends Component {
           </div>
 
           <UserMenu
-            user={user}
             isOpened={userMenuOpened}
+            onLogout={onLogout}
+            user={user}
           />
         </button>
       </header>
