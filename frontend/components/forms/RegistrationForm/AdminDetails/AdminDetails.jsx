@@ -6,14 +6,14 @@ import Button from 'components/buttons/Button';
 import InputFieldWithIcon from 'components/forms/fields/InputFieldWithIcon';
 import helpers from './helpers';
 
-const formFields = ['full_name', 'username', 'password', 'password_confirmation', 'email'];
+const formFields = ['name', 'username', 'password', 'password_confirmation', 'email'];
 const { validate } = helpers;
 
 class AdminDetails extends Component {
   static propTypes = {
     fields: PropTypes.shape({
       email: formFieldInterface.isRequired,
-      full_name: formFieldInterface.isRequired,
+      name: formFieldInterface.isRequired,
       password: formFieldInterface.isRequired,
       password_confirmation: formFieldInterface.isRequired,
       username: formFieldInterface.isRequired,
@@ -27,7 +27,7 @@ class AdminDetails extends Component {
     return (
       <div>
         <InputFieldWithIcon
-          {...fields.full_name}
+          {...fields.name}
           placeholder="Full Name"
         />
         <InputFieldWithIcon

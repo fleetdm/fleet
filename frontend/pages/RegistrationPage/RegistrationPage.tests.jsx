@@ -7,9 +7,40 @@ import ConnectedRegistrationPage, { RegistrationPage } from 'pages/RegistrationP
 
 const baseStore = {
   app: {},
+  auth: {},
+};
+const user = {
+  id: 1,
+  name: 'Gnar Dog',
+  email: 'hi@gnar.dog',
 };
 
 describe('RegistrationPage - component', () => {
+  it('redirects to the login page when a user is logged in', () => {
+    const storeWithUser = {
+      ...baseStore,
+      auth: {
+        loading: false,
+        user,
+      },
+    };
+    const mockStore = reduxMockStore(storeWithUser);
+
+    mount(connectedComponent(ConnectedRegistrationPage, { mockStore }));
+
+    const dispatchedActions = mockStore.getActions();
+
+    const redirectToHomeAction = {
+      type: '@@router/CALL_HISTORY_METHOD',
+      payload: {
+        method: 'push',
+        args: ['/'],
+      },
+    };
+
+    expect(dispatchedActions).toInclude(redirectToHomeAction);
+  });
+
   it('displays the Kolide background triangles', () => {
     const mockStore = reduxMockStore(baseStore);
 
@@ -20,7 +51,17 @@ describe('RegistrationPage - component', () => {
     });
   });
 
-  it('renders the RegistrationForm', () => {
+  it('does not render the RegistrationForm if the user is loading', () => {
+    const mockStore = reduxMockStore({
+      app: {},
+      auth: { loading: true },
+    });
+    const page = mount(connectedComponent(ConnectedRegistrationPage, { mockStore }));
+
+    expect(page.find('RegistrationForm').length).toEqual(0);
+  });
+
+  it('renders the RegistrationForm when there is no user', () => {
     const mockStore = reduxMockStore(baseStore);
     const page = mount(connectedComponent(ConnectedRegistrationPage, { mockStore }));
 

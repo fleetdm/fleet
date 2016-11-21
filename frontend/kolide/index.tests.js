@@ -22,6 +22,7 @@ const {
   validMeRequest,
   validResetPasswordRequest,
   validRevokeInviteRequest,
+  validSetupRequest,
   validUpdateQueryRequest,
   validUpdateUserRequest,
   validUser,
@@ -317,6 +318,29 @@ describe('Kolide - API client', () => {
 
       Kolide.setBearerToken(bearerToken);
       Kolide.revokeInvite({ entityID })
+        .then(() => {
+          expect(request.isDone()).toEqual(true);
+          done();
+        })
+        .catch(done);
+    });
+  });
+
+  describe('#setup', () => {
+    it('calls the appropriate endpoint with the correct parameters', (done) => {
+      const formData = {
+        email: 'hi@gnar.dog',
+        name: 'Gnar Dog',
+        kolide_server_url: 'https://gnar.kolide.co',
+        org_logo_url: 'https://thegnar.co/assets/logo.png',
+        org_name: 'The Gnar Co.',
+        password: 'p@ssw0rd',
+        password_confirmation: 'p@ssw0rd',
+        username: 'gnardog',
+      };
+      const request = validSetupRequest(formData);
+
+      Kolide.setup(formData)
         .then(() => {
           expect(request.isDone()).toEqual(true);
           done();

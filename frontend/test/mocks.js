@@ -1,5 +1,7 @@
 import nock from 'nock';
 
+import helpers from 'kolide/helpers';
+
 export const validUser = {
   token: 'auth_token',
   id: 1,
@@ -213,6 +215,14 @@ export const invalidResetPasswordRequest = (password, token, error) => {
   .reply(422, { error });
 };
 
+export const validSetupRequest = (formData) => {
+  const setupData = helpers.setupData(formData);
+
+  return nock('http://localhost:8080')
+    .post('/api/v1/setup', JSON.stringify(setupData))
+    .reply(200, {});
+};
+
 export const validUpdateQueryRequest = (bearerToken, query, formData) => {
   return nock('http://localhost:8080', {
     reqHeaders: {
@@ -249,6 +259,7 @@ export default {
   validMeRequest,
   validResetPasswordRequest,
   validRevokeInviteRequest,
+  validSetupRequest,
   validUpdateQueryRequest,
   validUpdateUserRequest,
   validUser,

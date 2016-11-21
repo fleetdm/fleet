@@ -6,13 +6,13 @@ import Button from 'components/buttons/Button';
 import helpers from 'components/forms/RegistrationForm/KolideDetails/helpers';
 import InputFieldWithIcon from 'components/forms/fields/InputFieldWithIcon';
 
-const formFields = ['kolide_web_address'];
+const formFields = ['kolide_server_url'];
 const { validate } = helpers;
 
 class KolideDetails extends Component {
   static propTypes = {
     fields: PropTypes.shape({
-      kolide_web_address: formFieldInterface.isRequired,
+      kolide_server_url: formFieldInterface.isRequired,
     }).isRequired,
     handleSubmit: PropTypes.func.isRequired,
   };
@@ -23,7 +23,7 @@ class KolideDetails extends Component {
     return (
       <div>
         <InputFieldWithIcon
-          {...fields.kolide_web_address}
+          {...fields.kolide_server_url}
           placeholder="Kolide Web Address"
         />
         <Button

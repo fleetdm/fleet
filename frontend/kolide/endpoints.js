@@ -13,6 +13,7 @@ export default {
   PACKS: '/v1/kolide/packs',
   QUERIES: '/v1/kolide/queries',
   RESET_PASSWORD: '/v1/kolide/reset_password',
+  SETUP: '/v1/setup',
   TARGETS: '/v1/kolide/targets',
   USERS: '/v1/kolide/users',
 };

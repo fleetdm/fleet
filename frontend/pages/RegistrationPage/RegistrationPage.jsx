@@ -1,14 +1,20 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { noop } from 'lodash';
+import { push } from 'react-router-redux';
 
 import Breadcrumbs from 'pages/RegistrationPage/Breadcrumbs';
+import paths from 'router/paths';
 import RegistrationForm from 'components/forms/RegistrationForm';
+import { setup } from 'redux/nodes/auth/actions';
 import { showBackgroundImage } from 'redux/nodes/app/actions';
+import userInterface from 'interfaces/user';
 
 export class RegistrationPage extends Component {
   static propTypes = {
+    currentUser: userInterface,
     dispatch: PropTypes.func.isRequired,
+    isLoadingUser: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -24,11 +30,27 @@ export class RegistrationPage extends Component {
   }
 
   componentWillMount () {
-    const { dispatch } = this.props;
+    const { currentUser, dispatch } = this.props;
+    const { HOME } = paths;
+
+    if (currentUser) {
+      dispatch(push(HOME));
+
+      return false;
+    }
 
     dispatch(showBackgroundImage);
 
     return false;
+  }
+
+  componentWillReceiveProps (nextProps) {
+    const { currentUser, dispatch } = nextProps;
+    const { HOME } = paths;
+
+    if (currentUser) {
+      dispatch(push(HOME));
+    }
   }
 
   onNextPage = () => {
@@ -39,9 +61,12 @@ export class RegistrationPage extends Component {
   }
 
   onRegistrationFormSubmit = (formData) => {
-    console.log('registration form submitted:', formData);
+    const { dispatch } = this.props;
+    const { LOGIN } = paths;
 
-    return false;
+    return dispatch(setup(formData))
+      .then(() => { return dispatch(push(LOGIN)); })
+      .catch(() => { return false; });
   }
 
   onSetPage = (page) => {
@@ -51,8 +76,13 @@ export class RegistrationPage extends Component {
   }
 
   render () {
+    const { isLoadingUser } = this.props;
     const { page } = this.state;
     const { onRegistrationFormSubmit, onNextPage, onSetPage } = this;
+
+    if (isLoadingUser) {
+      return false;
+    }
 
     return (
       <div>
@@ -63,4 +93,10 @@ export class RegistrationPage extends Component {
   }
 }
 
-export default connect()(RegistrationPage);
+const mapStateToProps = (state) => {
+  const { loading: isLoadingUser, user: currentUser } = state.auth;
+
+  return { currentUser, isLoadingUser };
+};
+
+export default connect(mapStateToProps)(RegistrationPage);

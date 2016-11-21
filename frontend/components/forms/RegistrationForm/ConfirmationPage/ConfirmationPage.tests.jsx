@@ -13,7 +13,7 @@ describe('ConfirmationPage - form', () => {
     username: 'jmeller',
     email: 'jason@kolide.co',
     org_name: 'Kolide',
-    kolide_web_address: 'http://kolide.kolide.co',
+    kolide_server_url: 'http://kolide.kolide.co',
   };
 
   it('renders the user information', () => {
@@ -28,7 +28,7 @@ describe('ConfirmationPage - form', () => {
     expect(form.text()).toInclude(formData.username);
     expect(form.text()).toInclude(formData.email);
     expect(form.text()).toInclude(formData.org_name);
-    expect(form.text()).toInclude(formData.kolide_web_address);
+    expect(form.text()).toInclude(formData.kolide_server_url);
   });
 
   it('submits the form', () => {

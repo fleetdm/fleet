@@ -22,7 +22,7 @@ class ConfirmationPage extends Component {
       formData: {
         email,
         full_name: fullName,
-        kolide_web_address: kolideWebAddress,
+        kolide_server_url: kolideWebAddress,
         org_name: orgName,
         username,
       },

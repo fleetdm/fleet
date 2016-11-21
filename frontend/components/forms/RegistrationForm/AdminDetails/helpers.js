@@ -6,7 +6,7 @@ const validate = (formData) => {
   const errors = {};
   const {
     email,
-    full_name: fullName,
+    name: fullName,
     password,
     password_confirmation: passwordConfirmation,
     username,
@@ -21,7 +21,7 @@ const validate = (formData) => {
   }
 
   if (!fullName) {
-    errors.full_name = 'Full name must be present';
+    errors.name = 'Full name must be present';
   }
 
   if (!username) {

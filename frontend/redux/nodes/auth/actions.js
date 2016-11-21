@@ -1,7 +1,8 @@
 import md5 from 'js-md5';
 
-import Kolide from '../../../kolide';
-import userActions from '../../../redux/nodes/entities/users/actions';
+import { configSuccess } from 'redux/nodes/app/actions';
+import Kolide from 'kolide';
+import userActions from 'redux/nodes/entities/users/actions';
 
 export const CLEAR_AUTH_ERRORS = 'CLEAR_AUTH_ERRORS';
 export const LOGIN_REQUEST = 'LOGIN_REQUEST';
@@ -77,6 +78,17 @@ export const loginUser = (formData) => {
   };
 };
 
+export const setup = (registrationFormData) => {
+  return (dispatch) => {
+    return Kolide.setup(registrationFormData)
+      .then((response) => {
+        return dispatch(configSuccess({
+          kolide_server_url: response.kolide_server_url,
+          ...response.org_info,
+        }));
+      });
+  };
+};
 export const updateUserRequest = { type: UPDATE_USER_REQUEST };
 export const updateUserSuccess = (user) => {
   return {
