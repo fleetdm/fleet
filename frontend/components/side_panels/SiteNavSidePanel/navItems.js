@@ -9,10 +9,17 @@ export default (admin) => {
       },
       subItems: [
         {
-          name: 'User Management',
+          name: 'Manage Users',
           path: {
             regex: /\/users/,
             location: '/admin/users',
+          },
+        },
+        {
+          name: 'App Settings',
+          path: {
+            regex: /\/settings/,
+            location: '/admin/settings',
           },
         },
       ],
