@@ -8,18 +8,9 @@ const baseClass = 'target-option';
 class TargetOption extends Component {
   static propTypes = {
     onMoreInfoClick: PropTypes.func,
-    onRemoveMoreInfoTarget: PropTypes.func,
     onSelect: PropTypes.func,
     target: targetInterface.isRequired,
   };
-
-  handleRemoveMoreInfoTarget = (evt) => {
-    evt.preventDefault();
-
-    const { onRemoveMoreInfoTarget } = this.props;
-
-    return onRemoveMoreInfoTarget();
-  }
 
   handleSelect = (evt) => {
     const { onSelect, target } = this.props;

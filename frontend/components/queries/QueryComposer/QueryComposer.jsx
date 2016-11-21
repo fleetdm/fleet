@@ -5,7 +5,7 @@ import 'brace/ext/linking';
 
 import QueryForm from 'components/forms/queries/QueryForm';
 import queryInterface from 'interfaces/query';
-import SelectTargets from 'components/forms/fields/SelectTargetsDropdown';
+import SelectTargetsDropdown from 'components/forms/fields/SelectTargetsDropdown';
 import targetInterface from 'interfaces/target';
 import './mode';
 import './theme';
@@ -14,24 +14,18 @@ const baseClass = 'query-composer';
 
 class QueryComposer extends Component {
   static propTypes = {
-    isLoadingTargets: PropTypes.bool,
-    moreInfoTarget: targetInterface,
-    onCloseTargetSelect: PropTypes.func,
-    onCancel: PropTypes.func,
+    onFetchTargets: PropTypes.func,
+    onFormCancel: PropTypes.func,
     onOsqueryTableSelect: PropTypes.func,
-    onRemoveMoreInfoTarget: PropTypes.func,
     onRunQuery: PropTypes.func,
     onSave: PropTypes.func,
     onTargetSelect: PropTypes.func,
-    onTargetSelectInputChange: PropTypes.func,
-    onTargetSelectMoreInfo: PropTypes.func,
     onTextEditorInputChange: PropTypes.func,
     onUpdate: PropTypes.func,
     query: queryInterface,
     queryType: PropTypes.string,
     selectedTargets: PropTypes.arrayOf(targetInterface),
     selectedTargetsCount: PropTypes.number,
-    targets: PropTypes.arrayOf(targetInterface),
     queryText: PropTypes.string,
   };
 
@@ -39,14 +33,6 @@ class QueryComposer extends Component {
     queryType: 'query',
     selectedTargetsCount: 0,
   };
-
-  constructor (props) {
-    super(props);
-
-    this.state = {
-      isSaveQueryForm: false,
-    };
-  }
 
   onLoad = (editor) => {
     editor.setOptions({
@@ -65,23 +51,9 @@ class QueryComposer extends Component {
     });
   }
 
-  onLoadSaveQueryModal = () => {
-    this.setState({ isSaveQueryForm: true });
-
-    return false;
-  }
-
-  onSaveQueryFormCancel = (evt) => {
-    evt.preventDefault();
-
-    this.setState({ isSaveQueryForm: false });
-
-    return false;
-  }
-
   renderForm = () => {
     const {
-      onCancel,
+      onFormCancel,
       onRunQuery,
       onSave,
       onUpdate,
@@ -92,7 +64,7 @@ class QueryComposer extends Component {
 
     return (
       <QueryForm
-        onCancel={onCancel}
+        onCancel={onFormCancel}
         onRunQuery={onRunQuery}
         onSave={onSave}
         onUpdate={onUpdate}
@@ -105,24 +77,17 @@ class QueryComposer extends Component {
 
   renderTargetsInput = () => {
     const {
-      isLoadingTargets,
-      moreInfoTarget,
-      onCloseTargetSelect,
-      onRemoveMoreInfoTarget,
+      onFetchTargets,
       onTargetSelect,
-      onTargetSelectInputChange,
-      onTargetSelectMoreInfo,
       queryType,
       selectedTargets,
       selectedTargetsCount,
-      targets,
     } = this.props;
 
     if (queryType === 'label') {
       return false;
     }
 
-    const menuRenderer = SelectTargets.Menu(onTargetSelectMoreInfo, onRemoveMoreInfoTarget, moreInfoTarget);
 
     return (
       <div>
@@ -130,14 +95,10 @@ class QueryComposer extends Component {
           <span className={`${baseClass}__select-targets`}>Select Targets</span>
           <span className={`${baseClass}__targets-count`}> {selectedTargetsCount} unique hosts</span>
         </p>
-        <SelectTargets.Input
-          isLoading={isLoadingTargets}
-          menuRenderer={menuRenderer}
-          onCloseTargetSelect={onCloseTargetSelect}
-          onTargetSelect={onTargetSelect}
-          onTargetSelectInputChange={onTargetSelectInputChange}
+        <SelectTargetsDropdown
+          onFetchTargets={onFetchTargets}
+          onSelect={onTargetSelect}
           selectedTargets={selectedTargets}
-          targets={targets}
         />
       </div>
     );

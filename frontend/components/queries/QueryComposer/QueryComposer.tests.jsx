@@ -114,20 +114,4 @@ describe('QueryComposer - component', () => {
       query: query.query,
     });
   });
-
-  it('calls onTargetSelectInputChange when changing the select target input text', () => {
-    const onTargetSelectInputChangeSpy = createSpy();
-    const component = mount(
-      <QueryComposer
-        onTargetSelectInputChange={onTargetSelectInputChangeSpy}
-        selectedTargets={[]}
-        queryText="SELECT * FROM users"
-      />
-    );
-    const selectTargetsInput = component.find('.Select-input input');
-
-    fillInFormInput(selectTargetsInput, 'my target');
-
-    expect(onTargetSelectInputChangeSpy).toHaveBeenCalledWith('my target');
-  });
 });

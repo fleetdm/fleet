@@ -1,11 +1,9 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { flatMap, isEqual } from 'lodash';
 import { push } from 'react-router-redux';
 
 import debounce from 'utilities/debounce';
 import entityGetter from 'redux/utilities/entityGetter';
-import Kolide from 'kolide';
 import QueryComposer from 'components/queries/QueryComposer';
 import osqueryTableInterface from 'interfaces/osquery_table';
 import queryActions from 'redux/nodes/entities/queries/actions';
@@ -24,8 +22,15 @@ class QueryPage extends Component {
     queryText: PropTypes.string,
     selectedOsqueryTable: osqueryTableInterface,
     selectedTargets: PropTypes.arrayOf(targetInterface),
-    selectedTargetsQuery: PropTypes.string,
   };
+
+  constructor (props) {
+    super(props);
+
+    this.state = {
+      selectedTargetsCount: 0,
+    };
+  }
 
   componentWillMount () {
     const { dispatch, query } = this.props;
@@ -34,31 +39,19 @@ class QueryPage extends Component {
       dispatch(setQueryText(query.query));
     }
 
-    this.state = {
-      isLoadingTargets: false,
-      moreInfoTarget: null,
-      selectedTargetsCount: 0,
-      targets: [],
-    };
-
     dispatch(showRightSidePanel);
-    this.fetchTargets();
 
     return false;
   }
 
   componentWillReceiveProps (nextProps) {
-    const { dispatch, query: newQuery, selectedTargets, selectedTargetsQuery } = nextProps;
+    const { dispatch, query: newQuery } = nextProps;
     const { query: oldQuery } = this.props;
 
     if ((!oldQuery && newQuery) || (oldQuery && oldQuery.query !== newQuery.query)) {
       const { query: queryText } = newQuery;
 
       dispatch(setQueryText(queryText));
-    }
-
-    if (!isEqual(selectedTargets, this.props.selectedTargets)) {
-      this.fetchTargets(selectedTargetsQuery, selectedTargets);
     }
 
     return false;
@@ -72,8 +65,14 @@ class QueryPage extends Component {
     return false;
   }
 
-  onCloseTargetSelect = () => {
-    this.onRemoveMoreInfoTarget();
+  onFetchTargets = (query, targetResponse) => {
+    const { dispatch } = this.props;
+    const {
+      selected_targets_count: selectedTargetsCount,
+    } = targetResponse;
+
+    dispatch(setSelectedTargetsQuery(query));
+    this.setState({ selectedTargetsCount });
 
     return false;
   }
@@ -82,12 +81,6 @@ class QueryPage extends Component {
     const { dispatch } = this.props;
 
     dispatch(selectOsqueryTable(tableName));
-
-    return false;
-  }
-
-  onRemoveMoreInfoTarget = () => {
-    this.setState({ moreInfoTarget: null });
 
     return false;
   }
@@ -140,41 +133,6 @@ class QueryPage extends Component {
     return false;
   }
 
-  onTargetSelectMoreInfo = (moreInfoTarget) => {
-    return (evt) => {
-      evt.preventDefault();
-
-      const currentMoreInfoTarget = this.state.moreInfoTarget || {};
-
-      if (isEqual(moreInfoTarget.display_text, currentMoreInfoTarget.display_text)) {
-        this.setState({ moreInfoTarget: null });
-
-        return false;
-      }
-
-      const { target_type: targetType } = moreInfoTarget;
-
-      if (targetType.toLowerCase() === 'labels') {
-        return Kolide.getLabelHosts(moreInfoTarget.id)
-          .then((hosts) => {
-            this.setState({
-              moreInfoTarget: {
-                ...moreInfoTarget,
-                hosts,
-              },
-            });
-
-            return false;
-          });
-      }
-
-
-      this.setState({ moreInfoTarget });
-
-      return false;
-    };
-  }
-
   onTextEditorInputChange = (queryText) => {
     const { dispatch } = this.props;
 
@@ -194,61 +152,17 @@ class QueryPage extends Component {
     return false;
   };
 
-  fetchTargets = (query, selectedTargets = this.props.selectedTargets) => {
-    const { dispatch } = this.props;
-
-    this.setState({ isLoadingTargets: true });
-    dispatch(setSelectedTargetsQuery(query));
-
-    const hosts = flatMap(selectedTargets, (target) => {
-      return target.target_type === 'hosts' ? [target.id] : [];
-    });
-    const labels = flatMap(selectedTargets, (target) => {
-      return target.target_type === 'labels' ? [target.id] : [];
-    });
-    const selected = { hosts, labels };
-
-    return Kolide.getTargets(query, selected)
-      .then((response) => {
-        const {
-          selected_targets_count: selectedTargetsCount,
-          targets,
-        } = response;
-
-        this.setState({
-          isLoadingTargets: false,
-          selectedTargetsCount,
-          targets,
-        });
-
-        return query;
-      })
-      .catch((error) => {
-        this.setState({ isLoadingTargets: false });
-
-        throw error;
-      });
-  }
-
   render () {
     const {
-      fetchTargets,
-      onCloseTargetSelect,
+      onFetchTargets,
       onOsqueryTableSelect,
-      onRemoveMoreInfoTarget,
       onRunQuery,
       onSaveQueryFormSubmit,
       onTargetSelect,
-      onTargetSelectMoreInfo,
       onTextEditorInputChange,
       onUpdateQuery,
     } = this;
-    const {
-      isLoadingTargets,
-      moreInfoTarget,
-      selectedTargetsCount,
-      targets,
-    } = this.state;
+    const { selectedTargetsCount } = this.state;
     const {
       query,
       queryText,
@@ -259,23 +173,17 @@ class QueryPage extends Component {
     return (
       <div>
         <QueryComposer
-          isLoadingTargets={isLoadingTargets}
-          moreInfoTarget={moreInfoTarget}
-          onCloseTargetSelect={onCloseTargetSelect}
+          onFetchTargets={onFetchTargets}
           onOsqueryTableSelect={onOsqueryTableSelect}
-          onRemoveMoreInfoTarget={onRemoveMoreInfoTarget}
           onRunQuery={onRunQuery}
           onSave={onSaveQueryFormSubmit}
           onTargetSelect={onTargetSelect}
-          onTargetSelectInputChange={fetchTargets}
-          onTargetSelectMoreInfo={onTargetSelectMoreInfo}
           onTextEditorInputChange={onTextEditorInputChange}
           onUpdate={onUpdateQuery}
           query={query}
           selectedTargets={selectedTargets}
           selectedTargetsCount={selectedTargetsCount}
           selectedOsqueryTable={selectedOsqueryTable}
-          targets={targets}
           queryText={queryText}
         />
         <QuerySidePanel
@@ -291,9 +199,9 @@ class QueryPage extends Component {
 const mapStateToProps = (state, { params }) => {
   const { id: queryID } = params;
   const query = entityGetter(state).get('queries').findBy({ id: queryID });
-  const { queryText, selectedOsqueryTable, selectedTargets, selectedTargetsQuery } = state.components.QueryPages;
+  const { queryText, selectedOsqueryTable, selectedTargets } = state.components.QueryPages;
 
-  return { query, queryText, selectedOsqueryTable, selectedTargets, selectedTargetsQuery };
+  return { query, queryText, selectedOsqueryTable, selectedTargets };
 };
 
 export default connect(mapStateToProps)(QueryPage);

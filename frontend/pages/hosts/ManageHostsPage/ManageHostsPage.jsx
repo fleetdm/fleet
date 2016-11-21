@@ -203,7 +203,7 @@ export class ManageHostsPage extends Component {
       return (
         <QueryComposer
           key="query-composer"
-          onCancel={onCancelAddLabel}
+          onFormCancel={onCancelAddLabel}
           onSave={onSaveAddLabel}
           onTextEditorInputChange={onTextEditorInputChange}
           queryType="label"
