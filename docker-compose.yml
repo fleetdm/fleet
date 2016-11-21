@@ -1,7 +1,7 @@
 version: '2'
 services:
   mysql:
-    image: mysql:5.7.13
+    image: mysql:5.7
     command: mysqld --datadir=/tmpfs
     tmpfs: /tmpfs
     environment:
