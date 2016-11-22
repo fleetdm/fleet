@@ -158,12 +158,12 @@ func (orm *Datastore) AddLabelToPack(lid uint, pid uint) error {
 	return nil
 }
 
-func (orm *Datastore) ListLabelsForPack(pack *kolide.Pack) ([]*kolide.Label, error) {
+func (orm *Datastore) ListLabelsForPack(pid uint) ([]*kolide.Label, error) {
 	var labels []*kolide.Label
 
 	orm.mtx.Lock()
 	for _, pt := range orm.packTargets {
-		if pt.Type == kolide.TargetLabel && pt.PackID == pack.ID {
+		if pt.Type == kolide.TargetLabel && pt.PackID == pid {
 			labels = append(labels, orm.labels[pt.TargetID])
 		}
 	}
@@ -188,4 +188,60 @@ func (orm *Datastore) RemoveLabelFromPack(label *kolide.Label, pack *kolide.Pack
 	orm.mtx.Unlock()
 
 	return nil
+}
+
+func (orm *Datastore) ListHostsInPack(pid uint, opt kolide.ListOptions) ([]*kolide.Host, error) {
+	hosts := []*kolide.Host{}
+	hostLookup := map[uint]bool{}
+
+	orm.mtx.Lock()
+	for _, pt := range orm.packTargets {
+		if pt.PackID != pid {
+			continue
+		}
+
+		switch pt.Type {
+		case kolide.TargetHost:
+			if !hostLookup[pt.TargetID] {
+				hostLookup[pt.TargetID] = true
+				hosts = append(hosts, orm.hosts[pt.TargetID])
+			}
+		case kolide.TargetLabel:
+			for _, lqe := range orm.labelQueryExecutions {
+				if lqe.LabelID == pt.TargetID && lqe.Matches && !hostLookup[lqe.HostID] {
+					hostLookup[lqe.HostID] = true
+					hosts = append(hosts, orm.hosts[lqe.HostID])
+				}
+			}
+		}
+	}
+	orm.mtx.Unlock()
+
+	// Apply ordering
+	if opt.OrderKey != "" {
+		var fields = map[string]string{
+			"id":                 "ID",
+			"created_at":         "CreatedAt",
+			"updated_at":         "UpdatedAt",
+			"detail_update_time": "DetailUpdateTime",
+			"hostname":           "HostName",
+			"uuid":               "UUID",
+			"platform":           "Platform",
+			"osquery_version":    "OsqueryVersion",
+			"os_version":         "OSVersion",
+			"uptime":             "Uptime",
+			"memory":             "PhysicalMemory",
+			"mac":                "PrimaryMAC",
+			"ip":                 "PrimaryIP",
+		}
+		if err := sortResults(hosts, opt, fields); err != nil {
+			return nil, err
+		}
+	}
+
+	// Apply limit/offset
+	low, high := orm.getLimitOffsetSliceBounds(opt, len(hosts))
+	hosts = hosts[low:high]
+
+	return hosts, nil
 }

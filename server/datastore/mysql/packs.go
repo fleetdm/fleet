@@ -9,11 +9,11 @@ import (
 func (d *Datastore) NewPack(pack *kolide.Pack) (*kolide.Pack, error) {
 
 	sql := `
-		INSERT INTO packs ( name, platform )
-			VALUES ( ?, ?)
+		INSERT INTO packs ( name, description, platform, created_by, disabled )
+			VALUES ( ?, ?, ?, ?, ?)
 	`
 
-	result, err := d.db.Exec(sql, pack.Name, pack.Platform)
+	result, err := d.db.Exec(sql, pack.Name, pack.Description, pack.Platform, pack.CreatedBy, pack.Disabled)
 	if err != nil {
 		return nil, errors.DatabaseError(err)
 	}
@@ -28,11 +28,11 @@ func (d *Datastore) SavePack(pack *kolide.Pack) error {
 
 	sql := `
 		UPDATE packs
-			SET name = ?, platform = ?
+			SET name = ?, platform = ?, disabled = ?, description = ?,
 			WHERE id = ? AND NOT deleted
 	`
 
-	_, err := d.db.Exec(sql, pack.Name, pack.Platform, pack.ID)
+	_, err := d.db.Exec(sql, pack.Name, pack.Platform, pack.Disabled, pack.Description, pack.ID)
 	if err != nil {
 		return errors.DatabaseError(err)
 	}
@@ -156,7 +156,7 @@ func (d *Datastore) AddLabelToPack(lid uint, pid uint) error {
 }
 
 // ListLabelsForPack will return a list of kolide.Label records associated with kolide.Pack
-func (d *Datastore) ListLabelsForPack(pack *kolide.Pack) ([]*kolide.Label, error) {
+func (d *Datastore) ListLabelsForPack(pid uint) ([]*kolide.Label, error) {
 	sql := `
 	SELECT
 		l.id,
@@ -178,7 +178,7 @@ func (d *Datastore) ListLabelsForPack(pack *kolide.Pack) ([]*kolide.Label, error
 
 	labels := []*kolide.Label{}
 
-	if err := d.db.Select(&labels, sql, kolide.TargetLabel, pack.ID); err != nil {
+	if err := d.db.Select(&labels, sql, kolide.TargetLabel, pid); err != nil {
 		return nil, errors.DatabaseError(err)
 	}
 
@@ -197,4 +197,29 @@ func (d *Datastore) RemoveLabelFromPack(label *kolide.Label, pack *kolide.Pack) 
 	}
 
 	return nil
+}
+
+func (d *Datastore) ListHostsInPack(pid uint, opt kolide.ListOptions) ([]*kolide.Host, error) {
+	sql := `
+		SELECT DISTINCT h.*
+		FROM hosts h
+		JOIN pack_targets pt
+		JOIN label_query_executions lqe
+		ON (
+		  pt.target_id = lqe.label_id
+		  AND lqe.host_id = h.id
+		  AND lqe.matches
+		  AND pt.type = ?
+		) OR (
+		  pt.target_id = h.id
+		  AND pt.type = ?
+		)
+		WHERE pt.pack_id = ?
+	`
+	sql = appendListOptionsToSQL(sql, opt)
+	hosts := []*kolide.Host{}
+	if err := d.db.Select(&hosts, sql, kolide.TargetLabel, kolide.TargetHost, pid); err != nil {
+		return nil, errors.DatabaseError(err)
+	}
+	return hosts, nil
 }

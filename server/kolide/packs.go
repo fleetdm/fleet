@@ -21,8 +21,10 @@ type PackStore interface {
 
 	// Modifying the labels for packs
 	AddLabelToPack(lid uint, pid uint) error
-	ListLabelsForPack(pack *Pack) ([]*Label, error)
+	ListLabelsForPack(pid uint) ([]*Label, error)
 	RemoveLabelFromPack(label *Label, pack *Pack) error
+
+	ListHostsInPack(pid uint, opt ListOptions) ([]*Host, error)
 }
 
 type PackService interface {
@@ -41,6 +43,7 @@ type PackService interface {
 	RemoveLabelFromPack(ctx context.Context, lid, pid uint) error
 
 	ListPacksForHost(ctx context.Context, hid uint) ([]*Pack, error)
+	ListHostsInPack(ctx context.Context, pid uint, opt ListOptions) ([]*Host, error)
 }
 
 type Pack struct {
@@ -50,12 +53,15 @@ type Pack struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Platform    string `json:"platform"`
+	CreatedBy   uint   `json:"created_by" db:"created_by"`
+	Disabled    bool   `json:"disabled"`
 }
 
 type PackPayload struct {
 	Name        *string
 	Description *string
 	Platform    *string
+	Disabled    *bool
 }
 
 type PackQuery struct {

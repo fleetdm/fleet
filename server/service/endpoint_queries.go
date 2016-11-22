@@ -2,7 +2,6 @@ package service
 
 import (
 	"github.com/go-kit/kit/endpoint"
-	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"golang.org/x/net/context"
 )
@@ -163,13 +162,8 @@ func (r createDistributedQueryCampaignResponse) error() error { return r.Err }
 
 func makeCreateDistributedQueryCampaignEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		vc, ok := viewer.FromContext(ctx)
-		if !ok {
-			return nil, errNoContext
-		}
-
 		req := request.(createDistributedQueryCampaignRequest)
-		campaign, err := svc.NewDistributedQueryCampaign(ctx, vc.UserID(), req.Query, req.Selected.Hosts, req.Selected.Labels)
+		campaign, err := svc.NewDistributedQueryCampaign(ctx, req.Query, req.Selected.Hosts, req.Selected.Labels)
 		if err != nil {
 			return createQueryResponse{Err: err}, nil
 		}

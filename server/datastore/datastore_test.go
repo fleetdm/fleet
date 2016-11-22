@@ -45,4 +45,5 @@ var testFunctions = [...]func(*testing.T, kolide.Datastore){
 	testSaveHosts,
 	testDeleteHost,
 	testListHost,
+	testGetHostsInPack,
 }

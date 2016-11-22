@@ -33,7 +33,7 @@ type QueryService interface {
 	NewQuery(ctx context.Context, p QueryPayload) (*Query, error)
 	ModifyQuery(ctx context.Context, id uint, p QueryPayload) (*Query, error)
 	DeleteQuery(ctx context.Context, id uint) error
-	NewDistributedQueryCampaign(ctx context.Context, userID uint, queryString string, hosts []uint, labels []uint) (*DistributedQueryCampaign, error)
+	NewDistributedQueryCampaign(ctx context.Context, queryString string, hosts []uint, labels []uint) (*DistributedQueryCampaign, error)
 }
 
 type QueryPayload struct {

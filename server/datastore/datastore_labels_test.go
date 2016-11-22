@@ -157,7 +157,7 @@ func testManagingLabelsOnPacks(t *testing.T, ds kolide.Datastore) {
 	err = ds.AddLabelToPack(mysqlLabel.ID, monitoringPack.ID)
 	require.Nil(t, err)
 
-	labels, err := ds.ListLabelsForPack(monitoringPack)
+	labels, err := ds.ListLabelsForPack(monitoringPack.ID)
 	require.Nil(t, err)
 	if assert.Len(t, labels, 1) {
 		assert.Equal(t, "MySQL Monitoring", labels[0].Name)
@@ -173,7 +173,7 @@ func testManagingLabelsOnPacks(t *testing.T, ds kolide.Datastore) {
 	err = ds.AddLabelToPack(osqueryLabel.ID, monitoringPack.ID)
 	require.Nil(t, err)
 
-	labels, err = ds.ListLabelsForPack(monitoringPack)
+	labels, err = ds.ListLabelsForPack(monitoringPack.ID)
 	require.Nil(t, err)
 	assert.Len(t, labels, 2)
 }

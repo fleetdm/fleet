@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"golang.org/x/net/context"
 )
@@ -28,6 +29,17 @@ func (svc service) NewPack(ctx context.Context, p kolide.PackPayload) (*kolide.P
 		pack.Platform = *p.Platform
 	}
 
+	if p.Disabled != nil {
+		pack.Disabled = *p.Disabled
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if ok {
+		if createdBy := vc.UserID(); createdBy != uint(0) {
+			pack.CreatedBy = createdBy
+		}
+	}
+
 	_, err := svc.ds.NewPack(&pack)
 	if err != nil {
 		return nil, err
@@ -51,6 +63,10 @@ func (svc service) ModifyPack(ctx context.Context, id uint, p kolide.PackPayload
 
 	if p.Platform != nil {
 		pack.Platform = *p.Platform
+	}
+
+	if p.Disabled != nil {
+		pack.Disabled = *p.Disabled
 	}
 
 	err = svc.ds.SavePack(pack)
@@ -106,12 +122,7 @@ func (svc service) AddLabelToPack(ctx context.Context, lid, pid uint) error {
 }
 
 func (svc service) ListLabelsForPack(ctx context.Context, pid uint) ([]*kolide.Label, error) {
-	pack, err := svc.ds.Pack(pid)
-	if err != nil {
-		return nil, err
-	}
-
-	labels, err := svc.ds.ListLabelsForPack(pack)
+	labels, err := svc.ds.ListLabelsForPack(pid)
 	if err != nil {
 		return nil, err
 	}
@@ -138,6 +149,10 @@ func (svc service) RemoveLabelFromPack(ctx context.Context, lid, pid uint) error
 	return nil
 }
 
+func (svc service) ListHostsInPack(ctx context.Context, pid uint, opt kolide.ListOptions) ([]*kolide.Host, error) {
+	return svc.ds.ListHostsInPack(pid, opt)
+}
+
 func (svc service) ListPacksForHost(ctx context.Context, hid uint) ([]*kolide.Pack, error) {
 	packs := []*kolide.Pack{}
 
@@ -162,9 +177,14 @@ func (svc service) ListPacksForHost(ctx context.Context, hid uint) ([]*kolide.Pa
 	}
 
 	for _, pack := range allPacks {
+		// don't include packs which have been disabled
+		if pack.Disabled {
+			continue
+		}
+
 		// for each pack, we must know what labels have been assigned to that
 		// pack
-		labelsForPack, err := svc.ds.ListLabelsForPack(pack)
+		labelsForPack, err := svc.ds.ListLabelsForPack(pack.ID)
 		if err != nil {
 			return nil, err
 		}

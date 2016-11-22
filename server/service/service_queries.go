@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"golang.org/x/net/context"
 )
@@ -115,7 +116,12 @@ func (svc service) DeleteQuery(ctx context.Context, id uint) error {
 	return nil
 }
 
-func (svc service) NewDistributedQueryCampaign(ctx context.Context, userID uint, queryString string, hosts []uint, labels []uint) (*kolide.DistributedQueryCampaign, error) {
+func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString string, hosts []uint, labels []uint) (*kolide.DistributedQueryCampaign, error) {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, errNoContext
+	}
+
 	query, err := svc.NewQuery(ctx, kolide.QueryPayload{
 		Name:  &queryString,
 		Query: &queryString,
@@ -127,7 +133,7 @@ func (svc service) NewDistributedQueryCampaign(ctx context.Context, userID uint,
 	campaign, err := svc.ds.NewDistributedQueryCampaign(&kolide.DistributedQueryCampaign{
 		QueryID: query.ID,
 		Status:  kolide.QueryRunning,
-		UserID:  userID,
+		UserID:  vc.UserID(),
 	})
 	if err != nil {
 		return nil, err
