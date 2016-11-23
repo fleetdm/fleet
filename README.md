@@ -225,6 +225,24 @@ To run all Go linters and static analyzers, run the following:
 make lint-go
 ```
 
+# Integration Tests
+
+By default, tests that require external dependecies like Mysql or Redis are 
+skipped. The tests can be enabled by setting `MYSQL_TEST=true` and 
+`REDIS_TEST=true` environment variables. MYSQL will try to connect with the 
+following credentials. 
+```
+user        = "kolide"
+password    = "kolide"
+database    = "kolide"
+host        = "127.0.0.1"
+```
+Redis tests expect a redis instance at `127.0.0.1:6379`. 
+
+
+Both the Redis and MySQL tests will also be automatically enabled with Docker 
+links. You can check out the CircleCI configuration file(`circle.yml`) for an example of 
+how to use Docker links to run integration tests.
 #### JavaScript linters
 
 To run all JavaScript linters and static analyzers, run the following:
