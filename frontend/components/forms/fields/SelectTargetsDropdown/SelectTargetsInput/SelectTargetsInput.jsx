@@ -7,6 +7,7 @@ import targetInterface from 'interfaces/target';
 
 class SelectTargetsInput extends Component {
   static propTypes = {
+    className: PropTypes.string,
     isLoading: PropTypes.bool,
     menuRenderer: PropTypes.func,
     onClose: PropTypes.func,
@@ -24,6 +25,7 @@ class SelectTargetsInput extends Component {
 
   render () {
     const {
+      className,
       isLoading,
       menuRenderer,
       onClose,
@@ -35,7 +37,7 @@ class SelectTargetsInput extends Component {
 
     return (
       <Select
-        className="target-select"
+        className={`${className} target-select`}
         isLoading={isLoading}
         filterOptions={this.filterOptions}
         labelKey="display_text"
@@ -48,6 +50,8 @@ class SelectTargetsInput extends Component {
         onInputChange={onTargetSelectInputChange}
         placeholder="Label Name, Host Name, IP Address, etc."
         resetValue={[]}
+        scrollMenuIntoView={false}
+        tabSelectsValue={false}
         value={selectedTargets}
         valueKey="display_text"
       />

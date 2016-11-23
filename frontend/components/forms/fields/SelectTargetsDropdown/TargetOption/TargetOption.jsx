@@ -29,7 +29,12 @@ class TargetOption extends Component {
     const { count, ip, target_type: targetType } = target;
 
     if (targetType === 'hosts') {
-      return <span className={`${baseClass}__ip`}>{ip}</span>;
+      return (
+        <span>
+          <span className={`${baseClass}__delimeter`}>&bull;</span>
+          <span className={`${baseClass}__ip`}>{ip}</span>
+        </span>
+      );
     }
 
     return <span className={`${baseClass}__count`}>{count} hosts</span>;
@@ -57,7 +62,6 @@ class TargetOption extends Component {
           {targetType === 'hosts' && <i className={`${baseClass}__icon ${hostPlatformIconClass()}`} />}
           {targetType === 'labels' && <i className={`${baseClass}__icon kolidecon-label`} />}
           <span className={`${baseClass}__label-label`}>{displayText}</span>
-          <span className={`${baseClass}__delimeter`}>&bull;</span>
           {renderTargetDetail()}
         </button>
       </div>

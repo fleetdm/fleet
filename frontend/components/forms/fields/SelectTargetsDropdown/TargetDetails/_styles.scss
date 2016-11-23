@@ -1,0 +1,181 @@
+.host-target,
+.label-target {
+  padding: $pad-large;
+
+  &__back {
+    color: $text-dark;
+    font-size: $xsmall;
+    display: none;
+
+    @include breakpoint(tablet) {
+      display: inline-block;
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 10px;
+
+      &:active {
+        top: 10px;
+      }
+    }
+  }
+
+  @include breakpoint(tablet) {
+    padding-top: $pad-most;
+  }
+}
+
+.host-target {
+  &__display-text {
+    font-size: $medium;
+    font-weight: $bold;
+    letter-spacing: 0.6px;
+    color: $text-ultradark;
+    margin: 0;
+  }
+
+  &__icon {
+    color: $accent-text;
+    margin-right: $pad-small;
+    width: 21px;
+
+    &--online {
+      color: $success;
+    }
+
+    &--offline {
+      color: $alert;
+    }
+  }
+
+  &__status {
+    margin: $pad-xsmall 0;
+    font-size: $small;
+    font-weight: $bold;
+    letter-spacing: 1.3px;
+    text-transform: uppercase;
+
+    &--is-online {
+      color: $success;
+    }
+
+    &--is-offline {
+      color: $alert;
+    }
+  }
+
+  &__labels-wrapper {
+    position: absolute;
+    bottom: $pad-large;
+  }
+
+  &__labels-header {
+    font-size: $small;
+    font-weight: $bold;
+    letter-spacing: 0.9px;
+    color: $text-dark;
+    text-transform: uppercase;
+    margin: 0;
+  }
+
+  &__labels-list {
+    font-size: $small;
+    font-weight: $normal;
+    line-height: 1.85;
+    letter-spacing: 0.5px;
+    color: $text-medium;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+
+    li {
+      display: inline-block;
+
+      &::after {
+        content: ',';
+        margin-right: 3px;
+      }
+
+      &:last-child {
+        &::after {
+          content: '';
+          margin: 0;
+        }
+      }
+    }
+  }
+
+  &__platform-text {
+    text-transform: capitalize;
+  }
+
+  &__mac-address {
+    text-transform: uppercase;
+  }
+}
+
+.label-target {
+  &__display-text {
+    font-size: $medium;
+    font-weight: $bold;
+    letter-spacing: 0.6px;
+    color: $text-ultradark;
+    margin: 0;
+  }
+
+  &__icon {
+    color: $accent-text;
+    margin-right: $pad-small;
+    width: 21px;
+  }
+
+  &__hosts {
+    margin: $pad-xsmall 0;
+    letter-spacing: 0.4px;
+    font-size: $small;
+    font-weight: $normal;
+  }
+
+  &__hosts-count {
+    font-weight: $bold;
+    color: $text-dark;
+
+    strong {
+      min-width: 21px;
+      text-align: center;
+      font-weight: $bold;
+      display: inline-block;
+      margin-right: $pad-small;
+    }
+  }
+
+  &__hosts-online {
+    color: $success;
+  }
+
+  &__description {
+    font-size: $pad-medium;
+    font-weight: $normal;
+    line-height: 1.71;
+    color: $text-dark;
+    margin: 0 0 $pad-small;
+  }
+}
+
+.target-details {
+  &__table {
+    border-collapse: collapse;
+    border-spacing: 0;
+    text-align: left;
+    font-size: $small;
+    width: 100%;
+    margin-bottom: $pad-medium;
+
+    th {
+      font-weight: $bold;
+      line-height: 2.3;
+      color: $text-dark;
+      padding-right: $pad-half;
+    }
+  }
+}

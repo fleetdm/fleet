@@ -1,0 +1,45 @@
+.target-list {
+  &__type {
+    background-color: $bg-medium;
+    line-height: $larger;
+    padding: 0 $base;
+    margin: 0;
+    text-transform: uppercase;
+    font-weight: $light;
+    font-size: $mini;
+    color: $text-dark;
+    letter-spacing: 0.5px;
+  }
+
+  &__options {
+    width: 57%;
+    float: left;
+    overflow-y: auto;
+    box-shadow: 0 8px 12px 0 rgba(0, 0, 0, 0.15);
+    min-height: 500px;
+    position: relative;
+    z-index: 2;
+    background-color: $bg-light;
+  }
+
+  &__spotlight {
+    width: 43%;
+    float: right;
+    overflow-y: auto;
+    background-color: $white;
+    min-height: 500px;
+    position: relative;
+    z-index: 1;
+  }
+
+  &__not-found {
+    font-size: $small;
+    font-weight: $bold;
+    line-height: 2.64;
+    text-align: left;
+    color: $text-dark;
+    text-transform: uppercase;
+    display: block;
+    padding: 0 $large;
+  }
+}

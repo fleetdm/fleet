@@ -12,13 +12,21 @@
     font-size: $base;
   }
 
+  &__target-label {
+    margin: 0;
+    font-size: $base;
+    font-weight: $light;
+    color: $text-dark;
+    margin-bottom: $pad-xsmall;
+  }
+
   &__targets-count {
     font-size: $small;
     margin-left: $xsmall;
   }
 
   &__text-editor-wrapper {
-    margin-top: $base;
+    margin: $base 0;
   }
 
   &__title {
@@ -30,5 +38,13 @@
   &__wrapper {
     background-color: $white;
     padding: $base;
+
+    h1 {
+      font-size: $large;
+      font-weight: $light;
+      letter-spacing: 1.2px;
+      color: $text-medium;
+      margin: 0;
+    }
   }
 }

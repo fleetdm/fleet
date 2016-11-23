@@ -1,26 +1,45 @@
 .target-select {
   &.Select {
     .Select-control {
+      @include transition(border 150ms ease-in-out, box-shadow 150ms ease-in-out);
       height: 48px;
+    }
+
+    .Select-arrow {
+      border-width: 8px 8px 2.5px;
     }
 
     .Select-input {
       height: 46px;
+      margin: 0 0 0 $pad-base;
 
       > input {
         line-height: 30px;
         padding: 8px 0;
+        color: $text-ultradark;
+        font-size: 16px;
       }
     }
 
     .Select-placeholder {
       line-height: 46px;
+      font-size: 16px;
+      padding: 0 $pad-base;
+    }
+
+    .Select-arrow-zone {
+      padding-right: 19px;
     }
 
     &.Select--multi {
       .Select-option {
+        padding: 0;
+        background-color: $bg-light;
+
         &.is-disabled {
           &.is-focused {
+            background-color: $brand-light;
+
             .target-option__label-label,
             .target-option__target-icon,
             .target-option__delimeter,
@@ -29,12 +48,162 @@
             .target-option__icon {
               color: $white;
             }
+
+            .target-option__add-btn {
+              color: $brand-ultralight;
+            }
+
+            .target-option__count {
+              background-color: $white;
+              color: $brand;
+            }
           }
+        }
+
+        &:last-child {
+          border-bottom-right-radius: 0;
+          border-bottom-left-radius: 0;
         }
       }
 
       .Select-value {
         line-height: 1.9;
+      }
+    }
+
+    &.is-focused {
+      .Select-control {
+        border: 1px solid $accent-medium;
+        border-bottom-color: $brand;
+        box-shadow: inset 0 0 8px 0 rgba($black, 0.1);
+      }
+    }
+  }
+
+  .Select-menu-outer {
+    max-height: 500px;
+    height: 500px;
+    overflow: hidden;
+    box-shadow: 0 8px 12px 0 rgba(0, 0, 0, 0.15);
+
+    .Select-menu {
+      height: 498px;
+      max-height: 498px;
+      overflow: hidden;
+      position: relative;
+
+      &::after {
+        @extend %kolidecon;
+        content: '\f03c';
+        font-size: 150px;
+        position: absolute;
+        left: 57%;
+        top: 50%;
+        margin-top: -75px;
+        opacity: 0.25;
+        width: 43%;
+        text-align: center;
+      }
+    }
+
+    .target-list {
+      height: 100%;
+    }
+  }
+
+  .Select-value {
+    border-radius: 2px;
+    background-color: $white;
+    box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.12), 0 2px 0 0 $accent-dark;
+    border: solid 1px $accent-dark;
+
+    .Select-value-icon {
+      border: 0;
+      float: right;
+      visibility: hidden;
+      position: relative;
+      padding: 0 $pad-medium;
+      line-height: 34px;
+
+      &::after {
+        @extend %kolidecon;
+        @include transition(color 150ms ease-in-out);
+        @include transform(translate(-50%, -50%));
+        content: '\f036';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        visibility: visible;
+        font-size: 20px;
+        color: $accent-dark;
+      }
+
+      &:hover {
+        &::after {
+          color: $accent-text;
+        }
+      }
+    }
+
+    .Select-value-label {
+      font-size: 16px;
+      font-weight: $normal;
+      color: $text-dark;
+      padding: 0 0 0 $pad-medium;
+      line-height: 34px;
+    }
+  }
+
+  .Select-clear {
+    font-size: 28px;
+    margin-right: 10px;
+    color: $text-dark;
+
+    &:hover {
+      color: $alert;
+    }
+  }
+
+  .Select-loading-zone {
+    padding-right: 10px;
+  }
+
+  &.is-empty {
+    .Select-menu-outer {
+      .Select-menu {
+        &::after {
+          content: '\f049';
+          font-size: 180px;
+          margin-top: -90px;
+          color: $accent-medium;
+        }
+      }
+    }
+  }
+
+  @include breakpoint(tablet) {
+    .Select-menu-outer {
+      .Select-menu {
+        min-width: 665px;
+
+        &::after {
+          display: none;
+        }
+      }
+    }
+
+    &.show-preview {
+      .Select-menu-outer {
+        .Select-menu {
+          left: auto;
+          right: 0;
+        }
+      }
+
+      .Select-menu {
+        left: 0;
+        right: auto;
+        position: absolute;
       }
     }
   }

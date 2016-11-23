@@ -6,8 +6,9 @@ import targetInterface from 'interfaces/target';
 import TargetDetails from '../TargetDetails';
 import TargetOption from '../TargetOption';
 
+const baseClass = 'target-list';
 
-const SelectTargetsMenuWrapper = (onMoreInfoClick, moreInfoTarget) => {
+const SelectTargetsMenuWrapper = (onMoreInfoClick, moreInfoTarget, handleBackToResults) => {
   const SelectTargetsMenu = ({
     focusedOption,
     instancePrefix,
@@ -21,8 +22,13 @@ const SelectTargetsMenuWrapper = (onMoreInfoClick, moreInfoTarget) => {
     onOptionRef,
   }) => {
     const Option = optionComponent;
+
     const renderTargets = (targetType) => {
       const targets = filter(options, { target_type: targetType });
+
+      if (targets.length === 0) {
+        return <span className={`${baseClass}__not-found`}>Unable to find any matching {targetType}.</span>;
+      }
 
       return targets.map((target, index) => {
         const { disabled: isDisabled } = target;
@@ -61,14 +67,14 @@ const SelectTargetsMenuWrapper = (onMoreInfoClick, moreInfoTarget) => {
     };
 
     return (
-      <div>
-        <div>
-          <div>hosts</div>
-          {renderTargets('hosts')}
-          <div>labels</div>
+      <div className={baseClass}>
+        <div className={`${baseClass}__options`}>
+          <p className={`${baseClass}__type`}>labels</p>
           {renderTargets('labels')}
+          <p className={`${baseClass}__type`}>hosts</p>
+          {renderTargets('hosts')}
         </div>
-        <TargetDetails target={moreInfoTarget} />
+        <TargetDetails target={moreInfoTarget} className={`${baseClass}__spotlight`} handleBackToResults={handleBackToResults} />
       </div>
     );
   };

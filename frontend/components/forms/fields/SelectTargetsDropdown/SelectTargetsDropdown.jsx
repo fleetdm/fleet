@@ -1,5 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import { isEqual, noop } from 'lodash';
+import classnames from 'classnames';
 
 import Kolide from 'kolide';
 import targetInterface from 'interfaces/target';
@@ -22,6 +23,7 @@ class SelectTargetsDropdown extends Component {
     super(props);
 
     this.state = {
+      isEmpty: false,
       isLoadingTargets: false,
       moreInfoTarget: null,
       query: '',
@@ -57,8 +59,6 @@ class SelectTargetsDropdown extends Component {
       const currentMoreInfoTarget = this.state.moreInfoTarget || {};
 
       if (isEqual(moreInfoTarget.display_text, currentMoreInfoTarget.display_text)) {
-        this.setState({ moreInfoTarget: null });
-
         return false;
       }
 
@@ -75,11 +75,16 @@ class SelectTargetsDropdown extends Component {
           });
       }
 
-
       this.setState({ moreInfoTarget });
 
       return false;
     };
+  }
+
+  onBackToResults = () => {
+    this.setState({
+      moreInfoTarget: null,
+    });
   }
 
   fetchTargets = (query, selectedTargets = this.props.selectedTargets) => {
@@ -92,6 +97,14 @@ class SelectTargetsDropdown extends Component {
         const {
           targets,
         } = response;
+
+        if (targets.length === 0) {
+          // We don't want the lib's default "No Results" so we fake it
+          targets.push({});
+          this.setState({ isEmpty: true });
+        } else {
+          this.setState({ isEmpty: false });
+        }
 
         onFetchTargets(query, response);
 
@@ -107,13 +120,19 @@ class SelectTargetsDropdown extends Component {
   }
 
   render () {
-    const { isLoadingTargets, moreInfoTarget, targets } = this.state;
-    const { fetchTargets, onInputClose, onTargetSelectMoreInfo } = this;
+    const { isEmpty, isLoadingTargets, moreInfoTarget, targets } = this.state;
+    const { fetchTargets, onBackToResults, onInputClose, onTargetSelectMoreInfo } = this;
     const { onSelect, selectedTargets } = this.props;
-    const menuRenderer = Menu(onTargetSelectMoreInfo, moreInfoTarget);
+    const menuRenderer = Menu(onTargetSelectMoreInfo, moreInfoTarget, onBackToResults);
+
+    const inputClasses = classnames({
+      'show-preview': moreInfoTarget,
+      'is-empty': isEmpty,
+    });
 
     return (
       <Input
+        className={inputClasses}
         isLoading={isLoadingTargets}
         menuRenderer={menuRenderer}
         onClose={onInputClose}
