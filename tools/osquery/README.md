@@ -21,7 +21,9 @@ Using Docker enables us to rapidly spin up and down pre-configured `osqueryd` in
 
 Docker and docker-compose are the only dependencies. The necessary container images will be pulled from Docker Cloud on first run.
 
-Before using the following commands, set the environment variable `LOCALHOST` to the public IP (127.0.0.1 will not work) of the docker host machine. This will allow the containers to connect to the local Kolide server.
+Before using the following commands, set the environment variable `LOCALHOST` to the public IP (127.0.0.1 will not work) of the docker host machine. This will allow the containers to connect to the local Kolide server. You will also need to
+set `KOLIDE_OSQUERY_VERSION` to either `1.8.2` or `latest` (currently 2.1.2) to indicate which version of osquery that you want to run on your
+containers.
 
 ### Running osqueryd
 
