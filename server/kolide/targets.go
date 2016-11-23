@@ -18,7 +18,7 @@ type TargetService interface {
 	// CountHostsInTargets returns the count of hosts in the selected
 	// targets. The first return uint is the total number of hosts in the
 	// targets. The second return uint is the total online hosts.
-	CountHostsInTargets(ctx context.Context, hostIDs []uint, labelIDs []uint) (uint, uint, error)
+	CountHostsInTargets(ctx context.Context, hostIDs []uint, labelIDs []uint) (total uint, online uint, err error)
 }
 
 type TargetType int

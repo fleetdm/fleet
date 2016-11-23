@@ -23,7 +23,7 @@ func (svc service) SearchTargets(ctx context.Context, query string, selectedHost
 	return results, nil
 }
 
-func (svc service) CountHostsInTargets(ctx context.Context, hostIDs []uint, labelIDs []uint) (uint, uint, error) {
+func (svc service) CountHostsInTargets(ctx context.Context, hostIDs []uint, labelIDs []uint) (total uint, online uint, err error) {
 	hosts, err := svc.ds.ListUniqueHostsInLabels(labelIDs)
 	if err != nil {
 		return 0, 0, err
@@ -38,7 +38,7 @@ func (svc service) CountHostsInTargets(ctx context.Context, hostIDs []uint, labe
 	}
 
 	hostLookup := map[uint]bool{}
-	online := uint(0)
+	online = uint(0)
 	for _, host := range hosts {
 		if !hostLookup[host.ID] {
 			hostLookup[host.ID] = true

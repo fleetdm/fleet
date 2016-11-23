@@ -1,6 +1,8 @@
 package mysql
 
 import (
+	"fmt"
+
 	"github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
 )
@@ -89,23 +91,6 @@ func (d *Datastore) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, error)
 
 }
 
-func (d *Datastore) SaveDistributedQueryCampaign(camp *kolide.DistributedQueryCampaign) error {
-	sqlStatement := `
-		UPDATE distributed_query_campaigns SET
-			query_id = ?,
-			status = ?,
-			user_id = ?
-		WHERE id = ?
-		AND NOT deleted
-	`
-	_, err := d.db.Exec(sqlStatement, camp.QueryID, camp.Status, camp.UserID, camp.ID)
-	if err != nil {
-		return errors.DatabaseError(err)
-	}
-
-	return nil
-}
-
 func (d *Datastore) NewDistributedQueryCampaign(camp *kolide.DistributedQueryCampaign) (*kolide.DistributedQueryCampaign, error) {
 
 	sqlStatement := `
@@ -124,6 +109,60 @@ func (d *Datastore) NewDistributedQueryCampaign(camp *kolide.DistributedQueryCam
 	id, _ := result.LastInsertId()
 	camp.ID = uint(id)
 	return camp, nil
+}
+
+func (d *Datastore) DistributedQueryCampaign(id uint) (*kolide.DistributedQueryCampaign, error) {
+	sql := `
+		SELECT * FROM distributed_query_campaigns WHERE id = ? AND NOT deleted
+	`
+	campaign := &kolide.DistributedQueryCampaign{}
+	if err := d.db.Get(campaign, sql, id); err != nil {
+		return nil, errors.DatabaseError(err)
+	}
+
+	return campaign, nil
+}
+
+func (d *Datastore) SaveDistributedQueryCampaign(camp *kolide.DistributedQueryCampaign) error {
+	sqlStatement := `
+		UPDATE distributed_query_campaigns SET
+			query_id = ?,
+			status = ?,
+			user_id = ?
+		WHERE id = ?
+		AND NOT deleted
+	`
+	_, err := d.db.Exec(sqlStatement, camp.QueryID, camp.Status, camp.UserID, camp.ID)
+	if err != nil {
+		return errors.DatabaseError(err)
+	}
+
+	return nil
+}
+
+func (d *Datastore) DistributedQueryCampaignTargetIDs(id uint) (hostIDs []uint, labelIDs []uint, err error) {
+	sqlStatement := `
+		SELECT * FROM distributed_query_campaign_targets WHERE distributed_query_campaign_id = ?
+	`
+	targets := []kolide.DistributedQueryCampaignTarget{}
+
+	if err = d.db.Select(&targets, sqlStatement, id); err != nil {
+		return nil, nil, errors.DatabaseError(err)
+	}
+
+	hostIDs = []uint{}
+	labelIDs = []uint{}
+	for _, target := range targets {
+		if target.Type == kolide.TargetHost {
+			hostIDs = append(hostIDs, target.TargetID)
+		} else if target.Type == kolide.TargetLabel {
+			labelIDs = append(labelIDs, target.TargetID)
+		} else {
+			return []uint{}, []uint{}, fmt.Errorf("invalid target type: %d", target.Type)
+		}
+	}
+
+	return hostIDs, labelIDs, nil
 }
 
 func (d *Datastore) NewDistributedQueryCampaignTarget(target *kolide.DistributedQueryCampaignTarget) (*kolide.DistributedQueryCampaignTarget, error) {

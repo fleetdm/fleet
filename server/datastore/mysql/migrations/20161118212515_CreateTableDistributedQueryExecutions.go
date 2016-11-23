@@ -18,8 +18,7 @@ func Up_20161118212515(tx *sql.Tx) error {
 		"`status` int(11) DEFAULT NULL," +
 		"`error` varchar(1024) DEFAULT NULL," +
 		"`execution_duration` bigint(20) DEFAULT NULL," +
-		"UNIQUE KEY `idx_dqe_unique_dqec_id` (`distributed_query_campaign_id`)," +
-		"UNIQUE KEY `idx_dqe_unique_host_id` (`host_id`)," +
+		"UNIQUE KEY `idx_dqe_unique_host_dqc_id` (`host_id`, `distributed_query_campaign_id`)," +
 		"PRIMARY KEY (`id`)" +
 		") ENGINE=InnoDB DEFAULT CHARSET=utf8;"
 	_, err := tx.Exec(sqlStatement)

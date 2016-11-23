@@ -3,6 +3,7 @@ package kolide
 import (
 	"time"
 
+	"github.com/kolide/kolide-ose/server/websocket"
 	"golang.org/x/net/context"
 )
 
@@ -16,12 +17,19 @@ type QueryStore interface {
 
 	// NewDistributedQueryCampaign creates a new distributed query campaign
 	NewDistributedQueryCampaign(camp *DistributedQueryCampaign) (*DistributedQueryCampaign, error)
+	// DistributedQueryCampaign loads a distributed query campaign by ID
+	DistributedQueryCampaign(id uint) (*DistributedQueryCampaign, error)
 	// SaveDistributedQueryCampaign updates an existing distributed query
 	// campaign
 	SaveDistributedQueryCampaign(camp *DistributedQueryCampaign) error
+	// DistributedQueryCampaignTargetIDs gets the IDs of the targets for
+	// the query campaign of the provided ID
+	DistributedQueryCampaignTargetIDs(id uint) (hostIDs []uint, labelIDs []uint, err error)
+
 	// NewDistributedQueryCampaignTarget adds a new target to an existing
 	// distributed query campaign
 	NewDistributedQueryCampaignTarget(target *DistributedQueryCampaignTarget) (*DistributedQueryCampaignTarget, error)
+
 	// NewDistributedQueryCampaignExecution records a new execution for a
 	// distributed query campaign
 	NewDistributedQueryExecution(exec *DistributedQueryExecution) (*DistributedQueryExecution, error)
@@ -34,6 +42,12 @@ type QueryService interface {
 	ModifyQuery(ctx context.Context, id uint, p QueryPayload) (*Query, error)
 	DeleteQuery(ctx context.Context, id uint) error
 	NewDistributedQueryCampaign(ctx context.Context, queryString string, hosts []uint, labels []uint) (*DistributedQueryCampaign, error)
+
+	// StreamCampaignResults streams updates with query results and
+	// expected host totals over the provided websocket. Note that the type
+	// signature is somewhat inconsistent due to this being a streaming API
+	// and not the typical go-kit RPC style.
+	StreamCampaignResults(ctx context.Context, conn *websocket.Conn, campaignID uint)
 }
 
 type QueryPayload struct {
@@ -75,7 +89,7 @@ type DistributedQueryCampaign struct {
 	ID      uint                   `json:"id"`
 	QueryID uint                   `json:"query_id" db:"query_id"`
 	Status  DistributedQueryStatus `json:"status"`
-	UserID  uint                   `json:"user_id"`
+	UserID  uint                   `json:"user_id" db:"user_id"`
 }
 
 type DistributedQueryCampaignTarget struct {
