@@ -17,10 +17,11 @@ func (d *Datastore) NewLabel(label *kolide.Label) (*kolide.Label, error) {
 			name,
 			description,
 			query,
-			platform
-		) VALUES ( ?, ?, ?, ?)
+			platform,
+			label_type
+		) VALUES ( ?, ?, ?, ?, ?)
 	`
-	result, err := d.db.Exec(sql, label.Name, label.Description, label.Query, label.Platform)
+	result, err := d.db.Exec(sql, label.Name, label.Description, label.Query, label.Platform, label.LabelType)
 	if err != nil {
 		return nil, errors.DatabaseError(err)
 	}

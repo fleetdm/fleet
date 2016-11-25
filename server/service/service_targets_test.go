@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/kolide/kolide-ose/server/config"
 	"github.com/kolide/kolide-ose/server/datastore/inmem"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/stretchr/testify/assert"
@@ -14,7 +15,7 @@ import (
 )
 
 func TestSearchTargets(t *testing.T) {
-	ds, err := inmem.New()
+	ds, err := inmem.New(config.TestConfig())
 	require.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -45,7 +46,7 @@ func TestSearchTargets(t *testing.T) {
 }
 
 func TestCountHostsInTargets(t *testing.T) {
-	ds, err := inmem.New()
+	ds, err := inmem.New(config.TestConfig())
 	require.Nil(t, err)
 
 	mockClock := clock.NewMockClock()
@@ -162,7 +163,7 @@ func TestCountHostsInTargets(t *testing.T) {
 }
 
 func TestSearchWithOmit(t *testing.T) {
-	ds, err := inmem.New()
+	ds, err := inmem.New(config.TestConfig())
 	require.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -214,7 +215,7 @@ func TestSearchWithOmit(t *testing.T) {
 }
 
 func TestSearchHostsInLabels(t *testing.T) {
-	ds, err := inmem.New()
+	ds, err := inmem.New(config.TestConfig())
 	require.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -267,7 +268,7 @@ func TestSearchHostsInLabels(t *testing.T) {
 }
 
 func TestSearchResultsLimit(t *testing.T) {
-	ds, err := inmem.New()
+	ds, err := inmem.New(config.TestConfig())
 	require.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)

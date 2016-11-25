@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/go-kit/kit/endpoint"
+	"github.com/kolide/kolide-ose/server/config"
 	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"github.com/kolide/kolide-ose/server/datastore/inmem"
 	"github.com/kolide/kolide-ose/server/kolide"
@@ -17,7 +18,7 @@ import (
 // permissions to access or modify resources
 func TestEndpointPermissions(t *testing.T) {
 	req := struct{}{}
-	ds, _ := inmem.New()
+	ds, _ := inmem.New(config.TestConfig())
 	createTestUsers(t, ds)
 	admin1, _ := ds.User("admin1")
 	user1, _ := ds.User("user1")
@@ -184,7 +185,7 @@ func TestGetNodeKey(t *testing.T) {
 }
 
 func TestAuthenticatedHost(t *testing.T) {
-	ds, err := inmem.New()
+	ds, err := inmem.New(config.TestConfig())
 	require.Nil(t, err)
 	svc, err := newTestService(ds, nil)
 	require.Nil(t, err)

@@ -6,13 +6,14 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	"github.com/kolide/kolide-ose/server/config"
 	"github.com/kolide/kolide-ose/server/datastore/inmem"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
 func TestAPIRoutes(t *testing.T) {
-	ds, err := inmem.New()
+	ds, err := inmem.New(config.TestConfig())
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)

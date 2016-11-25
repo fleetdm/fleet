@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/WatchBeam/clock"
 	kitlog "github.com/go-kit/kit/log"
@@ -24,6 +23,12 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
+
+type initializer interface {
+	// Initialize is used to populate a datastore with
+	// preloaded data
+	Initialize() error
+}
 
 func createServeCmd(configManager config.Manager) *cobra.Command {
 	var devMode = false
@@ -67,7 +72,7 @@ the way that the kolide server works.
 					"Warning: Changes will not be saved across process restarts. This should NOT be used in production.",
 				)
 
-				if ds, err = inmem.New(); err != nil {
+				if ds, err = inmem.New(config); err != nil {
 					initFatal(err, "initializing inmem database")
 				}
 			} else {
@@ -79,21 +84,17 @@ the way that the kolide server works.
 				if err != nil {
 					initFatal(err, "initializing datastore")
 				}
+			}
 
+			if initializingDS, ok := ds.(initializer); ok {
+				if err := initializingDS.Initialize(); err != nil {
+					initFatal(err, "loading built in data")
+				}
 			}
 
 			svc, err := service.NewService(ds, pubsub.NewInmemQueryResults(), logger, config, mailService, clock.C)
 			if err != nil {
 				initFatal(err, "initializing service")
-			}
-
-			if devMode {
-				createDevUsers(ds, config)
-				createDevHosts(ds, config)
-				createDevQueries(ds, config)
-				createDevLabels(ds, config)
-				createDevOrgInfo(ds, config)
-				createDevPacksAndQueries(ds, config)
 			}
 
 			fieldKeys := []string{"method", "error"}
@@ -189,299 +190,4 @@ func createDevMailService(config config.KolideConfig) kolide.MailService {
 		return mail.NewService(config.SMTP)
 	}
 	return devMailService{}
-}
-
-// Bootstrap a few users when using the in-memory database.
-// Each user's default password will just be their username.
-func createDevUsers(ds kolide.Datastore, config config.KolideConfig) {
-	users := []kolide.User{
-		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
-					CreatedAt: time.Date(2016, time.October, 27, 10, 0, 0, 0, time.UTC),
-				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
-					UpdatedAt: time.Date(2016, time.October, 27, 10, 0, 0, 0, time.UTC),
-				},
-			},
-
-			Name:     "Admin User",
-			Username: "admin",
-			Email:    "admin@kolide.co",
-			Position: "Director of Security",
-			Admin:    true,
-			Enabled:  true,
-		},
-		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
-					CreatedAt: time.Now().Add(-3 * time.Hour),
-				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
-					UpdatedAt: time.Now().Add(-1 * time.Hour),
-				},
-			},
-
-			Name:     "Normal User",
-			Username: "user",
-			Email:    "user@kolide.co",
-			Position: "Security Engineer",
-			Admin:    false,
-			Enabled:  true,
-		},
-	}
-	for _, user := range users {
-		user := user
-		err := user.SetPassword(user.Username, config.Auth.SaltKeySize, config.Auth.BcryptCost)
-		if err != nil {
-			initFatal(err, "creating bootstrap user")
-		}
-		_, err = ds.NewUser(&user)
-		if err != nil {
-			initFatal(err, "creating bootstrap user")
-		}
-	}
-}
-
-// Bootstrap a few hosts when using the in-memory database.
-func createDevHosts(ds kolide.Datastore, config config.KolideConfig) {
-	hosts := []kolide.Host{
-		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
-					CreatedAt: time.Date(2016, time.October, 27, 10, 0, 0, 0, time.UTC),
-				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
-					UpdatedAt: time.Now().Add(-20 * time.Minute),
-				},
-			},
-			NodeKey:          "totally-legit",
-			HostName:         "jmeller-mbp.local",
-			UUID:             "1234-5678-9101",
-			Platform:         "darwin",
-			OsqueryVersion:   "2.0.0",
-			OSVersion:        "Mac OS X 10.11.6",
-			Uptime:           60 * time.Minute,
-			PhysicalMemory:   4145483776,
-			PrimaryMAC:       "C0:11:1B:13:3E:15",
-			PrimaryIP:        "192.168.1.10",
-			DetailUpdateTime: time.Now().Add(-20 * time.Minute),
-		},
-		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
-					CreatedAt: time.Date(2016, time.October, 27, 4, 3, 10, 0, time.UTC),
-				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
-					UpdatedAt: time.Date(2016, time.October, 27, 4, 3, 10, 0, time.UTC),
-				},
-			},
-
-			NodeKey:          "definitely-legit",
-			HostName:         "marpaia.local",
-			UUID:             "1234-5678-9102",
-			Platform:         "windows",
-			OsqueryVersion:   "2.0.0",
-			OSVersion:        "Windows 10.0.0",
-			Uptime:           60 * time.Minute,
-			PhysicalMemory:   17179869184,
-			PrimaryMAC:       "7e:5c:be:ef:b4:df",
-			PrimaryIP:        "192.168.1.11",
-			DetailUpdateTime: time.Now().Add(-10 * time.Second),
-		},
-	}
-
-	for _, host := range hosts {
-		host := host
-		_, err := ds.NewHost(&host)
-		if err != nil {
-			initFatal(err, "creating bootstrap host")
-		}
-	}
-}
-
-func createDevOrgInfo(ds kolide.Datastore, config config.KolideConfig) {
-	devOrgInfo := &kolide.AppConfig{
-		OrgName:    "Kolide",
-		OrgLogoURL: fmt.Sprintf("%s/logo.png", config.Server.Address),
-	}
-	_, err := ds.NewAppConfig(devOrgInfo)
-	if err != nil {
-		initFatal(err, "creating fake org info")
-	}
-}
-
-func createDevQueries(ds kolide.Datastore, config config.KolideConfig) {
-	queries := []kolide.Query{
-		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
-					CreatedAt: time.Date(2016, time.October, 17, 7, 6, 0, 0, time.UTC),
-				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
-					UpdatedAt: time.Date(2016, time.October, 17, 7, 6, 0, 0, time.UTC),
-				},
-			},
-
-			Name:  "dev_query_1",
-			Query: "select * from processes",
-		},
-		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
-					CreatedAt: time.Date(2016, time.October, 27, 4, 3, 10, 0, time.UTC),
-				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
-					UpdatedAt: time.Date(2016, time.October, 27, 4, 3, 10, 0, time.UTC),
-				},
-			},
-			Name:  "dev_query_2",
-			Query: "select * from time",
-		},
-		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
-					CreatedAt: time.Now().Add(-24 * time.Hour),
-				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
-					UpdatedAt: time.Now().Add(-17 * time.Hour),
-				},
-			},
-
-			Name:  "dev_query_3",
-			Query: "select * from cpuid",
-		},
-		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
-					CreatedAt: time.Now().Add(-1 * time.Hour),
-				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
-					UpdatedAt: time.Now().Add(-30 * time.Hour),
-				},
-			},
-
-			Name:  "dev_query_4",
-			Query: "select 1 from processes where name like '%Apache%'",
-		},
-		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
-					CreatedAt: time.Now(),
-				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
-					UpdatedAt: time.Now(),
-				},
-			},
-			Name:  "dev_query_5",
-			Query: "select 1 from osquery_info where build_platform='darwin'",
-		},
-	}
-
-	for _, query := range queries {
-		query := query
-		_, err := ds.NewQuery(&query)
-		if err != nil {
-			initFatal(err, "creating bootstrap query")
-		}
-	}
-}
-
-func createDevLabels(ds kolide.Datastore, config config.KolideConfig) {
-	labels := []kolide.Label{
-		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
-					CreatedAt: time.Date(2016, time.October, 27, 8, 31, 16, 0, time.UTC),
-				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
-					UpdatedAt: time.Date(2016, time.October, 27, 8, 31, 16, 0, time.UTC),
-				},
-			},
-			Name:  "dev_label_apache",
-			Query: "select * from processes where name like '%Apache%'",
-		},
-		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
-					CreatedAt: time.Now().Add(-1 * time.Hour),
-				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
-					UpdatedAt: time.Now(),
-				},
-			},
-
-			Name:  "dev_label_darwin",
-			Query: "select * from osquery_info where build_platform='darwin'",
-		},
-	}
-
-	for _, label := range labels {
-		label := label
-		_, err := ds.NewLabel(&label)
-		if err != nil {
-			initFatal(err, "creating bootstrap label")
-		}
-	}
-}
-
-func createDevPacksAndQueries(ds kolide.Datastore, config config.KolideConfig) {
-	query1 := &kolide.Query{
-		Name:  "Osquery Info",
-		Query: "select * from osquery_info",
-	}
-	query1, err := ds.NewQuery(query1)
-	if err != nil {
-		initFatal(err, "creating dev queries")
-	}
-
-	query2 := &kolide.Query{
-		Name:     "Launchd",
-		Query:    "select * from launchd",
-		Platform: "darwin",
-	}
-	query2, err = ds.NewQuery(query2)
-	if err != nil {
-		initFatal(err, "creating dev queries")
-	}
-
-	query3 := &kolide.Query{
-		Name:  "registry",
-		Query: "select * from osquery_registry",
-	}
-	query3, err = ds.NewQuery(query3)
-	if err != nil {
-		initFatal(err, "creating dev queries")
-	}
-
-	pack1 := &kolide.Pack{
-		Name: "Osquery Internal Info",
-	}
-	pack1, err = ds.NewPack(pack1)
-	if err != nil {
-		initFatal(err, "creating dev packs")
-	}
-
-	pack2 := &kolide.Pack{
-		Name: "macOS Attacks",
-	}
-	pack2, err = ds.NewPack(pack2)
-	if err != nil {
-		initFatal(err, "creating dev packs")
-	}
-
-	err = ds.AddQueryToPack(query1.ID, pack1.ID)
-	if err != nil {
-		initFatal(err, "creating dev packs")
-	}
-
-	err = ds.AddQueryToPack(query3.ID, pack1.ID)
-	if err != nil {
-		initFatal(err, "creating dev packs")
-	}
-
-	err = ds.AddQueryToPack(query2.ID, pack2.ID)
-	if err != nil {
-		initFatal(err, "creating dev packs")
-	}
 }

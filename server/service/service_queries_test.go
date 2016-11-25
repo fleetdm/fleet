@@ -3,6 +3,7 @@ package service
 import (
 	"testing"
 
+	"github.com/kolide/kolide-ose/server/config"
 	"github.com/kolide/kolide-ose/server/datastore/inmem"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/stretchr/testify/assert"
@@ -10,7 +11,7 @@ import (
 )
 
 func TestListQueries(t *testing.T) {
-	ds, err := inmem.New()
+	ds, err := inmem.New(config.TestConfig())
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -34,7 +35,7 @@ func TestListQueries(t *testing.T) {
 }
 
 func TestGetQuery(t *testing.T) {
-	ds, err := inmem.New()
+	ds, err := inmem.New(config.TestConfig())
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -57,7 +58,7 @@ func TestGetQuery(t *testing.T) {
 }
 
 func TestNewQuery(t *testing.T) {
-	ds, err := inmem.New()
+	ds, err := inmem.New(config.TestConfig())
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -80,7 +81,7 @@ func TestNewQuery(t *testing.T) {
 }
 
 func TestModifyQuery(t *testing.T) {
-	ds, err := inmem.New()
+	ds, err := inmem.New(config.TestConfig())
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -107,7 +108,7 @@ func TestModifyQuery(t *testing.T) {
 }
 
 func TestDeleteQuery(t *testing.T) {
-	ds, err := inmem.New()
+	ds, err := inmem.New(config.TestConfig())
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)

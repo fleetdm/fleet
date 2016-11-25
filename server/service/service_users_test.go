@@ -18,7 +18,7 @@ import (
 )
 
 func TestAuthenticatedUser(t *testing.T) {
-	ds, err := inmem.New()
+	ds, err := inmem.New(config.TestConfig())
 	assert.Nil(t, err)
 	createTestUsers(t, ds)
 	svc, err := newTestService(ds, nil)
@@ -34,7 +34,7 @@ func TestAuthenticatedUser(t *testing.T) {
 }
 
 func TestRequestPasswordReset(t *testing.T) {
-	ds, err := inmem.New()
+	ds, err := inmem.New(config.TestConfig())
 	assert.Nil(t, err)
 	createTestUsers(t, ds)
 	admin1, err := ds.User("admin1")
@@ -114,7 +114,7 @@ func TestRequestPasswordReset(t *testing.T) {
 }
 
 func TestCreateUser(t *testing.T) {
-	ds, _ := inmem.New()
+	ds, _ := inmem.New(config.TestConfig())
 	svc, _ := newTestService(ds, nil)
 	invites := setupInvites(t, ds, []string{"admin2@example.com"})
 	ctx := context.Background()
@@ -245,7 +245,7 @@ func setupInvites(t *testing.T, ds kolide.Datastore, emails []string) map[string
 }
 
 func TestChangeUserPassword(t *testing.T) {
-	ds, _ := inmem.New()
+	ds, _ := inmem.New(config.TestConfig())
 	svc, _ := newTestService(ds, nil)
 	createTestUsers(t, ds)
 	var passwordChangeTests = []struct {

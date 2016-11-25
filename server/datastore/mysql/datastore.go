@@ -83,6 +83,14 @@ func (d *Datastore) Migrate() error {
 
 }
 
+// Initialize preload data needed by the application
+func (d *Datastore) Initialize() error {
+	if err := d.createBuiltinLabels(); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Drop removes database
 func (d *Datastore) Drop() error {
 	goose.SetDialect("mysql")
@@ -151,4 +159,55 @@ func GetMysqlConnectionString(conf config.MysqlConfig) string {
 		conf.Address,
 		conf.Database,
 	)
+}
+
+func (d *Datastore) createBuiltinLabels() error {
+	// Nuke built in labels and recreate them
+	_, err := d.db.Exec("DELETE from labels WHERE label_type = ?", kolide.LabelTypeBuiltIn)
+	if err != nil {
+		return err
+	}
+
+	labels := []kolide.Label{
+		{
+			Platform:  "darwin",
+			Name:      "Mac OS X",
+			Query:     "select 1 from osquery_info where build_platform = 'darwin';",
+			LabelType: kolide.LabelTypeBuiltIn,
+		},
+		{
+			Platform:  "ubuntu",
+			Name:      "Ubuntu Linux",
+			Query:     "select 1 from osquery_info where build_platform = 'ubuntu';",
+			LabelType: kolide.LabelTypeBuiltIn,
+		},
+		{
+			Platform:  "centos",
+			Name:      "CentOS Linux",
+			Query:     "select 1 from osquery_info where build_platform = 'centos';",
+			LabelType: kolide.LabelTypeBuiltIn,
+		},
+		{
+			Platform:  "windows",
+			Name:      "MS Windows",
+			Query:     "select 1 from osquery_info where build_platform = 'windows';",
+			LabelType: kolide.LabelTypeBuiltIn,
+		},
+		{
+			Platform:  "all",
+			Name:      "All Hosts",
+			Query:     "select 1;",
+			LabelType: kolide.LabelTypeBuiltIn,
+		},
+	}
+
+	for _, label := range labels {
+		_, err = d.NewLabel(&label)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+
 }

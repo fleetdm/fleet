@@ -13,6 +13,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/WatchBeam/clock"
+	"github.com/kolide/kolide-ose/server/config"
 	hostctx "github.com/kolide/kolide-ose/server/contexts/host"
 	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"github.com/kolide/kolide-ose/server/datastore/inmem"
@@ -23,7 +24,7 @@ import (
 )
 
 func TestEnrollAgent(t *testing.T) {
-	ds, err := inmem.New()
+	ds, err := inmem.New(config.TestConfig())
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -45,7 +46,7 @@ func TestEnrollAgent(t *testing.T) {
 }
 
 func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
-	ds, err := inmem.New()
+	ds, err := inmem.New(config.TestConfig())
 	assert.Nil(t, err)
 
 	svc, err := newTestService(ds, nil)
@@ -67,7 +68,7 @@ func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
 }
 
 func TestSubmitStatusLogs(t *testing.T) {
-	ds, err := inmem.New()
+	ds, err := inmem.New(config.TestConfig())
 	assert.Nil(t, err)
 
 	mockClock := clock.NewMockClock()
@@ -139,7 +140,7 @@ func TestSubmitStatusLogs(t *testing.T) {
 }
 
 func TestSubmitResultLogs(t *testing.T) {
-	ds, err := inmem.New()
+	ds, err := inmem.New(config.TestConfig())
 	assert.Nil(t, err)
 
 	mockClock := clock.NewMockClock()
@@ -247,7 +248,7 @@ func TestHostDetailQueries(t *testing.T) {
 }
 
 func TestLabelQueries(t *testing.T) {
-	ds, err := inmem.New()
+	ds, err := inmem.New(config.TestConfig())
 	assert.Nil(t, err)
 
 	mockClock := clock.NewMockClock()
@@ -374,7 +375,7 @@ func TestLabelQueries(t *testing.T) {
 }
 
 func TestGetClientConfig(t *testing.T) {
-	ds, err := inmem.New()
+	ds, err := inmem.New(config.TestConfig())
 	assert.Nil(t, err)
 
 	mockClock := clock.NewMockClock()
@@ -455,7 +456,7 @@ func TestGetClientConfig(t *testing.T) {
 }
 
 func TestDetailQueries(t *testing.T) {
-	ds, err := inmem.New()
+	ds, err := inmem.New(config.TestConfig())
 	assert.Nil(t, err)
 
 	mockClock := clock.NewMockClock()
@@ -597,7 +598,7 @@ func TestDetailQueries(t *testing.T) {
 }
 
 func TestDistributedQueries(t *testing.T) {
-	ds, err := inmem.New()
+	ds, err := inmem.New(config.TestConfig())
 	require.Nil(t, err)
 
 	mockClock := clock.NewMockClock()

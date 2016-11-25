@@ -49,14 +49,26 @@ type LabelPayload struct {
 	Description *string `json:"description"`
 }
 
+// LabelType is used to catagorize the kind of label
+type LabelType uint
+
+const (
+	// LabelTypeDefault - the label can change, this is the default
+	LabelTypeDefault LabelType = iota
+	// LabelTypeBuiltIn - this type of label is created by Kolide on start up
+	// and can't be removed by end user.
+	LabelTypeBuiltIn
+)
+
 type Label struct {
 	UpdateCreateTimestamps
 	DeleteFields
-	ID          uint   `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Query       string `json:"query"`
-	Platform    string `json:"platform"`
+	ID          uint      `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Query       string    `json:"query"`
+	Platform    string    `json:"platform"`
+	LabelType   LabelType `json:"label_type" db:"label_type"`
 }
 
 type LabelQueryExecution struct {

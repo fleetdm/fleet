@@ -14,7 +14,7 @@ import (
 )
 
 func TestInviteNewUser(t *testing.T) {
-	ds, err := inmem.New()
+	ds, err := inmem.New(config.TestConfig())
 	createTestUsers(t, ds)
 	assert.Nil(t, err)
 	nosuchAdminID := uint(999)
