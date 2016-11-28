@@ -4,6 +4,7 @@ import AceEditor from 'react-ace';
 import classnames from 'classnames';
 
 import hostHelpers from 'components/hosts/HostDetails/helpers';
+import Icon from 'components/Icon';
 import targetInterface from 'interfaces/target';
 
 const baseClass = 'target-details';
@@ -53,16 +54,16 @@ class TargetDetails extends Component {
     return (
       <div className={`${hostBaseClass} ${className}`}>
         <button className={`button button--unstyled ${hostBaseClass}__back`} onClick={handleBackToResults}>
-          <i className="kolidecon kolidecon-chevronleft" />Back
+          <Icon name="chevronleft" />Back
         </button>
 
         <p className={`${hostBaseClass}__display-text`}>
-          <i className={`${hostBaseClass}__icon kolidecon-fw kolidecon-single-host`} />
+          <Icon name="single-host" fw className={`${hostBaseClass}__icon`} />
           <span>{displayText}</span>
         </p>
         <p className={statusClassName}>
-          {isOnline && <i className={`${hostBaseClass}__icon ${hostBaseClass}__icon--online kolidecon-fw kolidecon-success-check`} />}
-          {isOffline && <i className={`${hostBaseClass}__icon ${hostBaseClass}__icon--offline kolidecon-fw kolidecon-offline`} />}
+          {isOnline && <Icon name="success-check" fw className={`${hostBaseClass}__icon ${hostBaseClass}__icon--online`} />}
+          {isOffline && <Icon name="offline" fw className={`${hostBaseClass}__icon ${hostBaseClass}__icon--offline`} />}
           <span>{status}</span>
         </p>
         <table className={`${baseClass}__table`}>
@@ -78,7 +79,7 @@ class TargetDetails extends Component {
             <tr>
               <th>Platform</th>
               <td>
-                <i className={hostHelpers.platformIconClass(platform)} />
+                <Icon name={hostHelpers.platformIconClass(platform)} />
                 <span className={`${hostBaseClass}__platform-text`}> {platform}</span>
               </td>
             </tr>
@@ -98,7 +99,7 @@ class TargetDetails extends Component {
         </table>
         <div className={`${hostBaseClass}__labels-wrapper`}>
           <p className={`${hostBaseClass}__labels-header`}>
-            <i className={`${hostBaseClass}__icon kolidecon-fw kolidecon-label`} />
+            <Icon name="label" fw className={`${hostBaseClass}__icon`} />
             <span>Labels</span>
           </p>
           <ul className={`${hostBaseClass}__labels-list`}>
@@ -127,11 +128,11 @@ class TargetDetails extends Component {
     return (
       <div className={`${labelBaseClass} ${className}`}>
         <button className={`button button--unstyled ${labelBaseClass}__back`} onClick={handleBackToResults}>
-          <i className="kolidecon kolidecon-chevronleft" /> Back
+          <Icon name="chevronleft" /> Back
         </button>
 
         <p className={`${labelBaseClass}__display-text`}>
-          <i className={`${labelBaseClass}__icon kolidecon-fw kolidecon-label`} />
+          <Icon name="label" fw className={`${labelBaseClass}__icon`} />
           <span>{displayText}</span>
         </p>
 

@@ -12,6 +12,7 @@ import HostDetails from 'components/hosts/HostDetails';
 import hostInterface from 'interfaces/host';
 import HostSidePanel from 'components/side_panels/HostSidePanel';
 import HostsTable from 'components/hosts/HostsTable';
+import Icon from 'components/Icon';
 import osqueryTableInterface from 'interfaces/osquery_table';
 import QueryComposer from 'components/queries/QueryComposer';
 import QuerySidePanel from 'components/side_panels/QuerySidePanel';
@@ -189,7 +190,7 @@ export class ManageHostsPage extends Component {
 
     return (
       <div>
-        <i className="kolidecon-label" />
+        <Icon name="label" />
         <span>{displayText}</span>
         <AceEditor
           editorProps={{ $blockScrolling: Infinity }}

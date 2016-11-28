@@ -7,6 +7,7 @@ import classnames from 'classnames';
 import configInterface from 'interfaces/config';
 import { logoutUser } from 'redux/nodes/auth/actions';
 import userInterface from 'interfaces/user';
+import Icon from 'components/Icon';
 
 import { activeTabFromPathname, activeSubTabFromPathname } from './helpers';
 import kolideLogo from '../../../../assets/images/kolide-logo.svg';
@@ -152,7 +153,7 @@ class SiteNavSidePanel extends Component {
             <h1 className={`${headerBaseClass}__org-name`}>{orgName}</h1>
             <div className={userStatusClass} />
             <h2 className={`${headerBaseClass}__username`}>{username}</h2>
-            <i className={`${headerBaseClass}__org-chevron kolidecon-chevrondown`} />
+            <Icon name="chevrondown" className={`${headerBaseClass}__org-chevron`} />
           </div>
 
           <UserMenu
@@ -189,7 +190,7 @@ class SiteNavSidePanel extends Component {
             key={name}
             className={navItemClasses}
           >
-            <i className={`${navItemBaseClass}__icon ${icon}`} />
+            <Icon name={icon} className={`${navItemBaseClass}__icon`} />
             <span className={`${navItemBaseClass}__name`}>
               {name}
             </span>
@@ -275,14 +276,14 @@ class SiteNavSidePanel extends Component {
   renderCollapseSubItems = () => {
     const { toggleShowSubItems } = this;
     const { showSubItems } = this.state;
-    const iconName = showSubItems ? 'kolidecon-chevronleftbold' : 'kolidecon-chevronrightbold';
+    const iconName = showSubItems ? 'chevronleft' : 'chevronright';
 
     return (
       <button
         className="button button--unstyled collapse-sub-item"
         onClick={toggleShowSubItems(!showSubItems)}
       >
-        <i className={iconName} />
+        <Icon name={iconName} />
       </button>
     );
   }

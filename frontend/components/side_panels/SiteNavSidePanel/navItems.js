@@ -1,7 +1,7 @@
 export default (admin) => {
   const adminNavItems = [
     {
-      icon: 'kolidecon-admin',
+      icon: 'admin',
       name: 'Admin',
       path: {
         regex: /^\/admin/,
@@ -28,7 +28,7 @@ export default (admin) => {
 
   const userNavItems = [
     {
-      icon: 'kolidecon-hosts',
+      icon: 'hosts',
       name: 'Hosts',
       path: {
         regex: /^\/hosts/,
@@ -53,7 +53,7 @@ export default (admin) => {
     },
     {
       defaultPathname: '/queries/new',
-      icon: 'kolidecon-query',
+      icon: 'query',
       name: 'Query',
       path: {
         regex: /^\/queries/,
@@ -78,7 +78,7 @@ export default (admin) => {
     },
     {
       defaultPathname: '/packs/all',
-      icon: 'kolidecon-packs',
+      icon: 'packs',
       name: 'Packs',
       path: {
         regex: /^\/packs/,
@@ -102,7 +102,7 @@ export default (admin) => {
       ],
     },
     {
-      icon: 'kolidecon-help',
+      icon: 'help',
       name: 'Help',
       path: {
         regex: /^\/help/,

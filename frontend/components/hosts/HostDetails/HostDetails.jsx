@@ -1,8 +1,9 @@
 import React, { PropTypes } from 'react';
 import { noop } from 'lodash';
 
-import EllipsisMenu from '../../../components/buttons/EllipsisMenu';
-import hostInterface from '../../../interfaces/host';
+import EllipsisMenu from 'components/buttons/EllipsisMenu';
+import hostInterface from 'interfaces/host';
+import Icon from 'components/Icon';
 import { humanMemory, humanUptime, platformIconClass } from './helpers';
 
 const baseClass = 'host-details';
@@ -29,12 +30,12 @@ const HostDetails = ({ host, onQueryClick = noop, onDisableClick = noop }) => {
       <EllipsisMenu positionStyles={{ top: '-3px', right: '10px' }}>
         <div className={`${baseClass}__ellipsis-children`}>
           <button className={`${baseClass}__ellipsis-child-item button button--unstyled`} onClick={onQueryClick(host)}>
-            <i className={`${baseClass}__query-icon kolidecon-query`} />
+            <Icon name="query" className={`${baseClass}__query-icon`} />
             <div>Query</div>
           </button>
           <div className={`${baseClass}__vertical-separator`} />
           <button className={`${baseClass}__ellipsis-child-item button button--unstyled`} onClick={onDisableClick(host)}>
-            <i className={`${baseClass}__disabled-icon kolidecon-ex`} />
+            <Icon name="offline" className={`${baseClass}__disabled-icon`} />
             <div>Disable</div>
           </button>
         </div>
@@ -45,7 +46,7 @@ const HostDetails = ({ host, onQueryClick = noop, onDisableClick = noop }) => {
       <p className={`${baseClass}__hostname`}>{hostname}</p>
       <div className={`${baseClass}__separator`}>
         <div>
-          <i className={`${baseClass}__icon ${platformIconClass(platform)}`} />
+          <Icon name={platformIconClass(platform)} className={`${baseClass}__icon`} />
           <span className={`${baseClass}__host-content`}>{osVersion}</span>
         </div>
         <div>
@@ -53,18 +54,18 @@ const HostDetails = ({ host, onQueryClick = noop, onDisableClick = noop }) => {
         </div>
         <div>
           <span style={{ marginRight: '8px' }}>
-            <i className={`${baseClass}__icon kolidecon-memory`} />
+            <Icon name="memory" className={`${baseClass}__icon`} />
             <span className={`${baseClass}__host-content`}>{humanMemory(memory)}</span>
           </span>
-          <i className={`${baseClass}__icon kolidecon-uptime`} />
+          <Icon name="uptime" className={`${baseClass}__icon`} />
           <span className={`${baseClass}__host-content`}>{humanUptime(uptime)}</span>
         </div>
         <div>
-          <i className={`${baseClass}__icon kolidecon-mac`} />
+          <Icon name="mac" className={`${baseClass}__icon`} />
           <span className={`${baseClass}__host-content ${baseClass}__host-content--mono`}>{mac}</span>
         </div>
         <div>
-          <i className={`${baseClass}__icon kolidecon-world`} />
+          <Icon name="world" className={`${baseClass}__icon`} />
           <span className={`${baseClass}__host-content ${baseClass}__host-content--mono`}>{ip}</span>
         </div>
       </div>

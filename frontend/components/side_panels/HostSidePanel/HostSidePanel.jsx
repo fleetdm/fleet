@@ -1,6 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import { filter } from 'lodash';
 
+import Icon from 'components/Icon';
 import InputField from 'components/forms/fields/InputField';
 import labelInterface from 'interfaces/label';
 import PanelGroup from 'components/side_panels/HostSidePanel/PanelGroup';
@@ -64,7 +65,7 @@ class HostSidePanel extends Component {
         />
         <hr className={`${baseClass}__hr`} />
         <div className={`${baseClass}__panel-group-item`}>
-          <i className="kolidecon-tag" />
+          <Icon name="tag" />
           <span className="title">LABELS</span>
         </div>
         <div className={`${baseClass}__panel-group-item`}>
@@ -82,9 +83,9 @@ class HostSidePanel extends Component {
         />
         <hr className={`${baseClass}__hr`} />
         <button className={`${baseClass}__add-label-btn button button--unstyled`} onClick={onAddLabelClick}>
-          <i className="kolidecon-add-button" />
+          <Icon name="add-button" />
           ADD NEW LABEL
-          <i className="kolidecon-label" />
+          <Icon name="label" />
         </button>
       </SecondarySidePanelContainer>
     );

@@ -1,6 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import classnames from 'classnames';
 
+import Icon from 'components/Icon';
 import targetInterface from 'interfaces/target';
 
 const baseClass = 'target-option';
@@ -21,7 +22,7 @@ class TargetOption extends Component {
   hostPlatformIconClass = () => {
     const { platform } = this.props.target;
 
-    return platform === 'darwin' ? 'kolidecon-apple' : `kolidecon-${platform}`;
+    return platform === 'darwin' ? 'apple' : `${platform}`;
   }
 
   renderTargetDetail = () => {
@@ -56,11 +57,11 @@ class TargetOption extends Component {
     return (
       <div className={wrapperClassName}>
         <button className={`button button--unstyled ${baseClass}__add-btn`} onClick={handleSelect}>
-          <i className="kolidecon-add-button" />
+          <Icon name="add-button" />
         </button>
         <button className={`button button--unstyled ${baseClass}__target-content`} onClick={onMoreInfoClick(target)}>
-          {targetType === 'hosts' && <i className={`${baseClass}__icon ${hostPlatformIconClass()}`} />}
-          {targetType === 'labels' && <i className={`${baseClass}__icon kolidecon-label`} />}
+          {targetType === 'hosts' && <Icon name={hostPlatformIconClass()} className={`${baseClass}__icon`} />}
+          {targetType === 'labels' && <Icon name="label" className={`${baseClass}__icon`} />}
           <span className={`${baseClass}__label-label`}>{displayText}</span>
           {renderTargetDetail()}
         </button>

@@ -2,6 +2,8 @@ import React, { Component, PropTypes } from 'react';
 import { noop } from 'lodash';
 import classnames from 'classnames';
 
+import Icon from 'components/Icon';
+
 class Rocker extends Component {
 
   static propTypes = {
@@ -34,12 +36,12 @@ class Rocker extends Component {
           <input className={`${baseClass}__checkbox`} type="checkbox" value={value} name={name} id={name} onChange={handleChange} checked={value === bText} />
           <span className={`${baseClass}__switch ${baseClass}__switch--opt-b`}>
             <span className={`${baseClass}__text`}>
-              <i className={`kolidecon kolidecon-${bIcon}`} /> {bText}
+              <Icon name={bIcon} /> {bText}
             </span>
           </span>
           <span className={`${baseClass}__switch ${baseClass}__switch--opt-a`}>
             <span className={`${baseClass}__text`}>
-              <i className={`kolidecon kolidecon-${aIcon}`} /> {aText}
+              <Icon name={aIcon} /> {aText}
             </span>
           </span>
         </label>

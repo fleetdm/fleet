@@ -1,6 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import classnames from 'classnames';
 
+import Icon from 'components/Icon';
 import hostInterface from 'interfaces/host';
 import { platformIconClass, statusIconClass } from 'utilities/icon_class';
 
@@ -17,8 +18,8 @@ class HostsTable extends Component {
     return (
       <tr key={`host-${host.id}-table`}>
         <td className={`${baseClass}__hostname`}>{host.hostname}</td>
-        <td className={statusClassName}><i className={statusIconClass(host.status)} /></td>
-        <td><i className={platformIconClass(host.platform)} /> {host.os_version}</td>
+        <td className={statusClassName}><Icon name={statusIconClass(host.status)} /></td>
+        <td><Icon name={platformIconClass(host.platform)} /> {host.os_version}</td>
         <td>{host.osquery_version}</td>
         <td>{host.ip}</td>
         <td>{host.mac}</td>

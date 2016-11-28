@@ -3,9 +3,9 @@ export const statusIconClass = (status = '') => {
 
   switch (lowerStatus) {
     case 'online':
-      return 'kolidecon-success-check';
+      return 'success-check';
     case 'offline':
-      return 'kolidecon-offline';
+      return 'offline';
     default:
       return '';
   }
@@ -16,9 +16,9 @@ export const platformIconClass = (platform = '') => {
 
   switch (lowerPlatform) {
     case 'darwin':
-      return 'kolidecon-apple';
+      return 'apple';
     default:
-      return `kolidecon-${lowerPlatform}`;
+      return lowerPlatform;
   }
 };
 

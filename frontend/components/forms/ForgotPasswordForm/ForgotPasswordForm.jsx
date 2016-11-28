@@ -26,7 +26,7 @@ class ForgotPasswordForm extends Component {
         <InputFieldWithIcon
           {...fields.email}
           autofocus
-          iconName="kolidecon-email"
+          iconName="email"
           placeholder="Email Address"
         />
         <div className={`${baseClass}__button-wrap`}>

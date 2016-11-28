@@ -28,7 +28,7 @@ export const platformIconClass = (platform) => {
     platformClass = 'apple';
   }
 
-  return `kolidecon-${platformClass}`;
+  return platformClass;
 };
 
 export default { humanMemory, humanUptime, platformIconClass };

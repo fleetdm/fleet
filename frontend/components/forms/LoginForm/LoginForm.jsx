@@ -38,12 +38,12 @@ class LoginForm extends Component {
           <InputFieldWithIcon
             {...fields.username}
             autofocus
-            iconName="kolidecon-username"
+            iconName="username"
             placeholder="Username or Email"
           />
           <InputFieldWithIcon
             {...fields.password}
-            iconName="kolidecon-password"
+            iconName="password"
             placeholder="Password"
             type="password"
           />

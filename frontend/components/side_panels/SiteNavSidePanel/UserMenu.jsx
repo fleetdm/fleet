@@ -1,6 +1,8 @@
 import React, { Component, PropTypes } from 'react';
 import classnames from 'classnames';
 
+import Icon from 'components/Icon';
+
 class UserMenu extends Component {
   static propTypes = {
     isOpened: PropTypes.bool,
@@ -46,8 +48,8 @@ class UserMenu extends Component {
 
         <nav className={`${toggleBaseClass}__nav`}>
           <ul className={`${toggleBaseClass}__nav-list`}>
-            <li className={`${toggleBaseClass}__nav-item`}><a href="#user-settings"><i className="kolidecon-user-settings" /><span>Account Settings</span></a></li>
-            <li className={`${toggleBaseClass}__nav-item`}><a href="#logout" onClick={onLogout}><i className="kolidecon-logout" /><span>Log Out</span></a></li>
+            <li className={`${toggleBaseClass}__nav-item`}><a href="#user-settings"><Icon name="user-settings" /><span>Account Settings</span></a></li>
+            <li className={`${toggleBaseClass}__nav-item`}><a href="#logout" onClick={onLogout}><Icon name="logout" /><span>Log Out</span></a></li>
           </ul>
         </nav>
       </div>

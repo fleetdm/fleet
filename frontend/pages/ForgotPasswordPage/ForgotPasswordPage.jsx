@@ -5,10 +5,11 @@ import { noop } from 'lodash';
 import {
   clearForgotPasswordErrors,
   forgotPasswordAction,
-} from '../../redux/nodes/components/ForgotPasswordPage/actions';
-import debounce from '../../utilities/debounce';
-import ForgotPasswordForm from '../../components/forms/ForgotPasswordForm';
-import StackedWhiteBoxes from '../../components/StackedWhiteBoxes';
+} from 'redux/nodes/components/ForgotPasswordPage/actions';
+import debounce from 'utilities/debounce';
+import ForgotPasswordForm from 'components/forms/ForgotPasswordForm';
+import Icon from 'components/Icon';
+import StackedWhiteBoxes from 'components/StackedWhiteBoxes';
 
 export class ForgotPasswordPage extends Component {
   static propTypes = {
@@ -50,7 +51,7 @@ export class ForgotPasswordPage extends Component {
             </p>
           </div>
           <div className={`${baseClass}__button`}>
-            <i className={`${baseClass}__icon kolidecon kolidecon-success-check`} />
+            <Icon name="success-check" className={`${baseClass}__icon`} />
             EMAIL SENT
           </div>
         </div>

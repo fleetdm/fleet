@@ -1,6 +1,7 @@
 import React, { PropTypes } from 'react';
 import classnames from 'classnames';
 
+import Icon from 'components/Icon';
 import InputField from '../InputField';
 
 const baseClass = 'input-icon-field';
@@ -44,7 +45,6 @@ class InputFieldWithIcon extends InputField {
 
     const iconClasses = classnames(
       `${baseClass}__icon`,
-      iconName,
       { [`${baseClass}__icon--error`]: error },
       { [`${baseClass}__icon--active`]: value }
     );
@@ -61,7 +61,7 @@ class InputFieldWithIcon extends InputField {
           type={type}
           value={value}
         />
-        {iconName && <i className={iconClasses} />}
+        {iconName && <Icon name={iconName} className={iconClasses} />}
       </div>
     );
   }
