@@ -50,10 +50,10 @@ func New(dbConnectString string, c clock.Clock, opts ...DBOption) (*Datastore, e
 			// we're connected!
 			break
 		}
-		sleep := time.Duration(attempt)
+		interval := time.Duration(attempt) * time.Second
 		options.logger.Log("mysql", fmt.Sprintf(
-			"could not connect to db: %v, sleeping %v", dbError, sleep))
-		time.Sleep(sleep * time.Second)
+			"could not connect to db: %v, sleeping %v", dbError, interval))
+		time.Sleep(interval)
 	}
 
 	if dbError != nil {
