@@ -7,6 +7,7 @@ type Service interface {
 	PackService
 	LabelService
 	QueryService
+	CampaignService
 	OsqueryService
 	HostService
 	AppConfigService

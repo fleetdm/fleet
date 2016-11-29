@@ -4,6 +4,7 @@ package kolide
 type Datastore interface {
 	UserStore
 	QueryStore
+	CampaignStore
 	PackStore
 	LabelStore
 	HostStore
