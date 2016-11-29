@@ -9,8 +9,9 @@ const baseClass = 'panel-group-item';
 class PanelGroupItem extends Component {
   static propTypes = {
     item: PropTypes.shape({
-      hosts_count: PropTypes.number,
-      title: PropTypes.string,
+      count: PropTypes.number,
+      description: PropTypes.string,
+      display_text: PropTypes.string,
       type: PropTypes.string,
     }).isRequired,
     onLabelClick: PropTypes.func,
@@ -21,17 +22,29 @@ class PanelGroupItem extends Component {
     const { item, onLabelClick, isSelected } = this.props;
     const {
       count,
+      description,
       display_text: displayText,
+      type,
     } = item;
-    const wrapperClassName = classnames(baseClass, `${baseClass}__wrapper`, {
-      [`${baseClass}__wrapper--is-selected`]: isSelected,
-    });
+    const wrapperClassName = classnames(
+      baseClass,
+      'button',
+      'button--unstyled',
+      `${baseClass}__${type.toLowerCase()}`,
+      `${baseClass}__${type.toLowerCase()}--${displayText.toLowerCase().replace(' ', '-')}`,
+      {
+        [`${baseClass}--selected`]: isSelected,
+      }
+    );
 
     return (
-      <button className={`${wrapperClassName} button button--unstyled`} onClick={onLabelClick}>
-        <Icon name={iconClassForLabel(item)} />
-        <span>{displayText}</span>
-        <span>{count}</span>
+      <button className={wrapperClassName} onClick={onLabelClick}>
+        <Icon name={iconClassForLabel(item)} className={`${baseClass}__icon`} />
+        <span className={`${baseClass}__name`}>
+          {displayText}
+          {description && <span className={`${baseClass}__description`}>{description}</span>}
+        </span>
+        <span className={`${baseClass}__count`}>{count}</span>
       </button>
     );
   }

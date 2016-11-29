@@ -35,3 +35,8 @@ h3 {
 .cf {
   @include clearfix;
 }
+
+input,
+textarea {
+  font-family: 'Oxygen', sans-serif;
+}

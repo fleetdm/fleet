@@ -10,7 +10,7 @@ class SecondarySidePanelContainer extends Component {
     const { children, className } = this.props;
 
     return (
-      <div className={`${className} secondary-side-panel-container`}>
+      <div className={`secondary-side-panel-container ${className}`}>
         {children}
       </div>
     );

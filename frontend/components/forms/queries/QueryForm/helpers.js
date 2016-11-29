@@ -33,7 +33,7 @@ const canSaveChanges = (formData, query) => {
 const allPlatforms = { label: 'All Platforms', value: '' };
 const platformOptions = [
   allPlatforms,
-  { label: 'mac OS', value: 'darwin' },
+  { label: 'macOS', value: 'darwin' },
   { label: 'Windows', value: 'windows' },
   { label: 'Ubuntu', value: 'ubuntu' },
   { label: 'Centos', value: 'centos' },

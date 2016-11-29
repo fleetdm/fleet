@@ -35,9 +35,10 @@ class PanelGroup extends Component {
   render () {
     const { groupItems } = this.props;
     const { renderGroupItem } = this;
+    const baseClass = 'panel-group';
 
     return (
-      <div>
+      <div className={baseClass}>
         {groupItems.map((item) => {
           return renderGroupItem(item);
         })}

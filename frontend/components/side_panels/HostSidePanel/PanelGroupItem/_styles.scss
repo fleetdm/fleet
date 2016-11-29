@@ -1,12 +1,114 @@
-.panel-group-item {
-  &__wrapper {
-    color: $text-medium;
-    display: block;
-    width: 100%;
+$base-class: 'panel-group-item';
 
-    &--is-selected {
-      background-color: $brand;
+@mixin selected-hover($color: $brand) {
+  &:hover {
+    color: $color;
+    background-color: rgba($color, 0.1);
+
+    .#{$base-class}__icon,
+    .#{$base-class}__count {
+      color: $color;
+    }
+  }
+
+  &.#{$base-class}--selected {
+    color: $white;
+    background-color: $color;
+
+    .#{$base-class}__icon,
+    .#{$base-class}__count {
       color: $white;
-    };
+    }
+  }
+}
+
+.#{$base-class} {
+  @include transition(color 75ms ease-in-out, background 75ms ease-in-out);
+  @include display(flex);
+  @include align-items(center);
+  width: 100%;
+  font-size: 16px;
+  line-height: 2.25;
+  letter-spacing: 0.5px;
+  font-weight: $normal;
+  color: $text-medium;
+  text-align: left;
+  padding: 0 $pad-large;
+  border-radius: 4px;
+
+  &__icon {
+    @include transition(color 75ms ease-in-out);
+    margin-right: 23px;
+    font-size: 18px;
+  }
+
+  &__name {
+    @include ellipsis(80%);
+    @include flex-grow(1);
+  }
+
+  &__description {
+    font-size: 13px;
+    margin-left: 4px;
+    text-transform: lowercase;
+  }
+
+  &__count {
+    @include transition(color 75ms ease-in-out);
+    font-weight: $bold;
+    text-align: right;
+    font-size: 14px;
+  }
+
+  &__all {
+    @include selected-hover($brand);
+  }
+
+  &__status {
+    &--offline {
+      @include selected-hover($alert);
+
+      .#{$base-class}__count,
+      .#{$base-class}__icon {
+        color: $alert;
+      }
+    }
+
+    &--online {
+      @include selected-hover($success);
+
+      .#{$base-class}__count,
+      .#{$base-class}__icon {
+        color: $success;
+      }
+    }
+
+    &--mia {
+      @include selected-hover($text-ultradark);
+
+      .#{$base-class}__count,
+      .#{$base-class}__icon {
+        color: $text-ultradark;
+      }
+    }
+  }
+
+  &__platform {
+    @include selected-hover($link);
+    text-transform: none;
+
+    .#{$base-class}__icon {
+      color: $text-light;
+    }
+  }
+
+  &__custom {
+    @include selected-hover($brand);
+    font-size: 14px;
+    text-transform: none;
+
+    .#{$base-class}__icon {
+      color: $silver;
+    }
   }
 }
