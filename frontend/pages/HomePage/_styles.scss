@@ -5,4 +5,9 @@
     margin-right: $pad-xsmall;
     vertical-align: middle;
   }
+
+  &__progress-bar {
+    margin-top: $pad-base;
+    width: 378px;
+  }
 }

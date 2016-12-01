@@ -1,0 +1,12 @@
+.progress-bar {
+  background-color: $success-light;
+  height: 10px;
+  overflow: hidden;
+
+  div {
+    background-color: $success;
+    height: 100%;
+    overflow: hidden;
+    transition: width 300ms ease-in;
+  }
+}
