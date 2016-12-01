@@ -112,7 +112,6 @@ func testGetHostsInPack(t *testing.T, ds kolide.Datastore) {
 		HostName:         "foobar.local",
 		NodeKey:          "1",
 		UUID:             "1",
-		PrimaryIP:        "192.168.1.1",
 	})
 	require.Nil(t, err)
 
@@ -132,7 +131,6 @@ func testGetHostsInPack(t *testing.T, ds kolide.Datastore) {
 		HostName:         "foobaz.local",
 		NodeKey:          "2",
 		UUID:             "2",
-		PrimaryIP:        "192.168.1.2",
 	})
 	require.Nil(t, err)
 

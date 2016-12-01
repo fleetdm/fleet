@@ -34,6 +34,13 @@ func (orm *Datastore) SaveHost(host *kolide.Host) error {
 		return kolide_errors.ErrNotFound
 	}
 
+	for _, nic := range host.NetworkInterfaces {
+		if nic.ID == 0 {
+			nic.ID = orm.nextID(nic)
+		}
+		nic.HostID = host.ID
+	}
+	host.ResetPrimaryNetwork()
 	orm.hosts[host.ID] = host
 	return nil
 }
@@ -107,7 +114,7 @@ func (orm *Datastore) ListHosts(opt kolide.ListOptions) ([]*kolide.Host, error) 
 	return hosts, nil
 }
 
-func (orm *Datastore) EnrollHost(uuid, hostname, ip, platform string, nodeKeySize int) (*kolide.Host, error) {
+func (orm *Datastore) EnrollHost(uuid, hostname, platform string, nodeKeySize int) (*kolide.Host, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
 
@@ -118,7 +125,6 @@ func (orm *Datastore) EnrollHost(uuid, hostname, ip, platform string, nodeKeySiz
 	host := kolide.Host{
 		UUID:             uuid,
 		HostName:         hostname,
-		PrimaryIP:        ip,
 		Platform:         platform,
 		DetailUpdateTime: time.Unix(0, 0).Add(24 * time.Hour),
 	}
@@ -138,9 +144,7 @@ func (orm *Datastore) EnrollHost(uuid, hostname, ip, platform string, nodeKeySiz
 	if hostname != "" {
 		host.HostName = hostname
 	}
-	if ip != "" {
-		host.PrimaryIP = ip
-	}
+
 	if platform != "" {
 		host.Platform = platform
 	}
@@ -197,8 +201,16 @@ func (orm *Datastore) SearchHosts(query string, omit ...uint) ([]kolide.Host, er
 			break
 		}
 
-		if (strings.Contains(h.HostName, query) || strings.Contains(h.PrimaryIP, query)) && !omitLookup[h.ID] {
+		if strings.Contains(h.HostName, query) && !omitLookup[h.ID] {
 			results = append(results, *h)
+			continue
+		}
+
+		for _, nic := range h.NetworkInterfaces {
+			if strings.Contains(nic.IPAddress, query) && !omitLookup[nic.HostID] {
+				results = append(results, *h)
+				break
+			}
 		}
 	}
 

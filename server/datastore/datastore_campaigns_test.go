@@ -34,7 +34,6 @@ func newCampaign(t *testing.T, ds kolide.Datastore, queryID uint, status kolide.
 func newHost(t *testing.T, ds kolide.Datastore, name, ip, key, uuid string, tim time.Time) *kolide.Host {
 	h, err := ds.NewHost(&kolide.Host{
 		HostName:         name,
-		PrimaryIP:        ip,
 		NodeKey:          key,
 		UUID:             uuid,
 		DetailUpdateTime: tim,

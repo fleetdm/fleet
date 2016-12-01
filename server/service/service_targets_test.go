@@ -24,8 +24,7 @@ func TestSearchTargets(t *testing.T) {
 	ctx := context.Background()
 
 	h1, err := ds.NewHost(&kolide.Host{
-		HostName:  "foo.local",
-		PrimaryIP: "192.168.1.10",
+		HostName: "foo.local",
 	})
 	require.Nil(t, err)
 
@@ -57,47 +56,42 @@ func TestCountHostsInTargets(t *testing.T) {
 	ctx := context.Background()
 
 	h1, err := ds.NewHost(&kolide.Host{
-		HostName:  "foo.local",
-		PrimaryIP: "192.168.1.10",
-		NodeKey:   "1",
-		UUID:      "1",
+		HostName: "foo.local",
+		NodeKey:  "1",
+		UUID:     "1",
 	})
 	require.Nil(t, err)
 	require.Nil(t, ds.MarkHostSeen(h1, mockClock.Now()))
 
 	h2, err := ds.NewHost(&kolide.Host{
-		HostName:  "bar.local",
-		PrimaryIP: "192.168.1.11",
-		NodeKey:   "2",
-		UUID:      "2",
+		HostName: "bar.local",
+		NodeKey:  "2",
+		UUID:     "2",
 	})
 	require.Nil(t, err)
 	// make this host "offline"
 	require.Nil(t, ds.MarkHostSeen(h2, mockClock.Now().Add(-1*time.Hour)))
 
 	h3, err := ds.NewHost(&kolide.Host{
-		HostName:  "baz.local",
-		PrimaryIP: "192.168.1.12",
-		NodeKey:   "3",
-		UUID:      "3",
+		HostName: "baz.local",
+		NodeKey:  "3",
+		UUID:     "3",
 	})
 	require.Nil(t, err)
 	require.Nil(t, ds.MarkHostSeen(h3, mockClock.Now().Add(-5*time.Minute)))
 
 	h4, err := ds.NewHost(&kolide.Host{
-		HostName:  "xxx.local",
-		PrimaryIP: "192.168.1.13",
-		NodeKey:   "4",
-		UUID:      "4",
+		HostName: "xxx.local",
+		NodeKey:  "4",
+		UUID:     "4",
 	})
 	require.Nil(t, err)
 	require.Nil(t, ds.MarkHostSeen(h4, mockClock.Now()))
 
 	h5, err := ds.NewHost(&kolide.Host{
-		HostName:  "yyy.local",
-		PrimaryIP: "192.168.1.14",
-		NodeKey:   "5",
-		UUID:      "5",
+		HostName: "yyy.local",
+		NodeKey:  "5",
+		UUID:     "5",
 	})
 	require.Nil(t, err)
 	require.Nil(t, ds.MarkHostSeen(h5, mockClock.Now()))
@@ -172,18 +166,16 @@ func TestSearchWithOmit(t *testing.T) {
 	ctx := context.Background()
 
 	h1, err := ds.NewHost(&kolide.Host{
-		HostName:  "foo.local",
-		PrimaryIP: "192.168.1.10",
-		NodeKey:   "1",
-		UUID:      "1",
+		HostName: "foo.local",
+		NodeKey:  "1",
+		UUID:     "1",
 	})
 	require.Nil(t, err)
 
 	h2, err := ds.NewHost(&kolide.Host{
-		HostName:  "foobar.local",
-		PrimaryIP: "192.168.1.11",
-		NodeKey:   "2",
-		UUID:      "2",
+		HostName: "foobar.local",
+		NodeKey:  "2",
+		UUID:     "2",
 	})
 	require.Nil(t, err)
 
@@ -224,26 +216,23 @@ func TestSearchHostsInLabels(t *testing.T) {
 	ctx := context.Background()
 
 	h1, err := ds.NewHost(&kolide.Host{
-		HostName:  "foo.local",
-		PrimaryIP: "192.168.1.10",
-		NodeKey:   "1",
-		UUID:      "1",
+		HostName: "foo.local",
+		NodeKey:  "1",
+		UUID:     "1",
 	})
 	require.Nil(t, err)
 
 	h2, err := ds.NewHost(&kolide.Host{
-		HostName:  "bar.local",
-		PrimaryIP: "192.168.1.11",
-		NodeKey:   "2",
-		UUID:      "2",
+		HostName: "bar.local",
+		NodeKey:  "2",
+		UUID:     "2",
 	})
 	require.Nil(t, err)
 
 	h3, err := ds.NewHost(&kolide.Host{
-		HostName:  "baz.local",
-		PrimaryIP: "192.168.1.12",
-		NodeKey:   "3",
-		UUID:      "3",
+		HostName: "baz.local",
+		NodeKey:  "3",
+		UUID:     "3",
 	})
 	require.Nil(t, err)
 
@@ -278,10 +267,9 @@ func TestSearchResultsLimit(t *testing.T) {
 
 	for i := 0; i < 15; i++ {
 		_, err := ds.NewHost(&kolide.Host{
-			HostName:  fmt.Sprintf("foo.%d.local", i),
-			PrimaryIP: fmt.Sprintf("192.168.1.%d", i+1),
-			NodeKey:   fmt.Sprintf("%d", i+1),
-			UUID:      fmt.Sprintf("%d", i+1),
+			HostName: fmt.Sprintf("foo.%d.local", i),
+			NodeKey:  fmt.Sprintf("%d", i+1),
+			UUID:     fmt.Sprintf("%d", i+1),
 		})
 		require.Nil(t, err)
 	}

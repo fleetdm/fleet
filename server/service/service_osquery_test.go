@@ -486,16 +486,16 @@ func TestDetailQueries(t *testing.T) {
         "address": "192.168.0.1",
         "broadcast": "192.168.0.255",
         "ibytes": "1601207629",
-        "ierrors": "0",
+        "ierrors": "314179",
         "interface": "en0",
         "ipackets": "25698094",
         "last_change": "1474233476",
         "mac": "5f:3d:4b:10:25:82",
         "mask": "255.255.255.0",
-        "metric": "0",
+        "metric": "1",
         "mtu": "1453",
         "obytes": "2607283152",
-        "oerrors": "0",
+        "oerrors": "101010",
         "opackets": "12264603",
         "point_to_point": "",
         "type": "6"
@@ -577,10 +577,6 @@ func TestDetailQueries(t *testing.T) {
 
 	// uptime
 	assert.Equal(t, 1730893*time.Second, host.Uptime)
-
-	// network_interface
-	assert.Equal(t, "5f:3d:4b:10:25:82", host.PrimaryMAC)
-	assert.Equal(t, "192.168.0.1", host.PrimaryIP)
 
 	ctx = hostctx.NewContext(ctx, *host)
 

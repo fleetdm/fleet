@@ -6,4 +6,4 @@
 --tls_server_certs=/etc/osquery/kolide.crt
 --verbose=true
 --tls_dump=true
---host_identifier=uuid
+--host_identifier=hostname

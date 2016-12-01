@@ -18,7 +18,7 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 	var host *kolide.Host
 	var err error
 	for i := 0; i < 10; i++ {
-		host, err = db.EnrollHost(string(i), "foo", "", "", 10)
+		host, err = db.EnrollHost(string(i), "foo", "", 10)
 		assert.Nil(t, err, "enrollment should succeed")
 		hosts = append(hosts, *host)
 	}
@@ -229,7 +229,6 @@ func testListHostsInLabel(t *testing.T, db kolide.Datastore) {
 		NodeKey:          "1",
 		UUID:             "1",
 		HostName:         "foo.local",
-		PrimaryIP:        "192.168.1.10",
 	})
 	require.Nil(t, err)
 
@@ -238,7 +237,6 @@ func testListHostsInLabel(t *testing.T, db kolide.Datastore) {
 		NodeKey:          "2",
 		UUID:             "2",
 		HostName:         "bar.local",
-		PrimaryIP:        "192.168.1.11",
 	})
 	require.Nil(t, err)
 
@@ -247,7 +245,6 @@ func testListHostsInLabel(t *testing.T, db kolide.Datastore) {
 		NodeKey:          "3",
 		UUID:             "3",
 		HostName:         "baz.local",
-		PrimaryIP:        "192.168.1.12",
 	})
 	require.Nil(t, err)
 
@@ -300,7 +297,6 @@ func testListUniqueHostsInLabels(t *testing.T, db kolide.Datastore) {
 		NodeKey:          "1",
 		UUID:             "1",
 		HostName:         "foo.local",
-		PrimaryIP:        "192.168.1.10",
 	})
 	require.Nil(t, err)
 
@@ -309,7 +305,6 @@ func testListUniqueHostsInLabels(t *testing.T, db kolide.Datastore) {
 		NodeKey:          "2",
 		UUID:             "2",
 		HostName:         "bar.local",
-		PrimaryIP:        "192.168.1.11",
 	})
 	require.Nil(t, err)
 
@@ -318,7 +313,6 @@ func testListUniqueHostsInLabels(t *testing.T, db kolide.Datastore) {
 		NodeKey:          "3",
 		UUID:             "3",
 		HostName:         "baz.local",
-		PrimaryIP:        "192.168.1.12",
 	})
 	require.Nil(t, err)
 
@@ -327,7 +321,6 @@ func testListUniqueHostsInLabels(t *testing.T, db kolide.Datastore) {
 		NodeKey:          "4",
 		UUID:             "4",
 		HostName:         "xxx.local",
-		PrimaryIP:        "192.168.1.13",
 	})
 	require.Nil(t, err)
 
@@ -336,7 +329,6 @@ func testListUniqueHostsInLabels(t *testing.T, db kolide.Datastore) {
 		NodeKey:          "5",
 		UUID:             "5",
 		HostName:         "yyy.local",
-		PrimaryIP:        "192.168.1.14",
 	})
 	require.Nil(t, err)
 

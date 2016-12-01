@@ -49,7 +49,7 @@ func (svc service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 		return "", osqueryError{message: "invalid enroll secret", nodeInvalid: true}
 	}
 
-	host, err := svc.ds.EnrollHost(hostIdentifier, "", "", "", svc.config.Osquery.NodeKeySize)
+	host, err := svc.ds.EnrollHost(hostIdentifier, "", "", svc.config.Osquery.NodeKeySize)
 	if err != nil {
 		return "", osqueryError{message: "enrollment failed: " + err.Error(), nodeInvalid: true}
 	}
@@ -200,7 +200,22 @@ var detailQueries = map[string]struct {
 			}
 			host.HostName = rows[0]["hostname"]
 			host.UUID = rows[0]["uuid"]
-
+			host.CPUType = rows[0]["cpu_type"]
+			host.CPUSubtype = rows[0]["cpu_subtype"]
+			host.CPUBrand = rows[0]["cpu_brand"]
+			host.CPUPhysicalCores, err = strconv.Atoi(rows[0]["cpu_physical_cores"])
+			if err != nil {
+				return err
+			}
+			host.CPULogicalCores, err = strconv.Atoi(rows[0]["cpu_logical_cores"])
+			if err != nil {
+				return err
+			}
+			host.HardwareVendor = rows[0]["hardware_vendor"]
+			host.HardwareModel = rows[0]["hardware_model"]
+			host.HardwareVersion = rows[0]["hardware_version"]
+			host.HardwareSerial = rows[0]["hardware_serial"]
+			host.ComputerName = rows[0]["computer_name"]
 			return nil
 		},
 	},
@@ -221,6 +236,12 @@ var detailQueries = map[string]struct {
 				rows[0]["patch"],
 			)
 
+			if build, ok := rows[0]["build"]; ok {
+				host.Build = build
+			}
+
+			host.PlatformLike = rows[0]["platform_like"]
+			host.CodeName = rows[0]["code_name"]
 			return nil
 		},
 	},
@@ -245,16 +266,58 @@ var detailQueries = map[string]struct {
 	"network_interface": {
 		Query: `select * from interface_details id join interface_addresses ia
                         on ia.interface = id.interface where broadcast != ""
-                        order by (ibytes + obytes) desc limit 1`,
-		IngestFunc: func(host *kolide.Host, rows []map[string]string) error {
-			if len(rows) != 1 {
-				return osqueryError{
-					message: fmt.Sprintf("expected 1 row but got %d", len(rows)),
+                        order by (ibytes + obytes) desc`,
+		IngestFunc: func(host *kolide.Host, rows []map[string]string) (err error) {
+
+			networkInterfaces := []*kolide.NetworkInterface{}
+
+			for _, row := range rows {
+				nic := kolide.NetworkInterface{}
+
+				nic.MAC = row["mac"]
+				nic.IPAddress = row["address"]
+				nic.Broadcast = row["broadcast"]
+				if nic.IBytes, err = strconv.ParseInt(row["ibytes"], 10, 64); err != nil {
+					return err
 				}
+				if nic.IErrors, err = strconv.ParseInt(row["ierrors"], 10, 64); err != nil {
+					return err
+				}
+				nic.Interface = row["interface"]
+				if nic.IPackets, err = strconv.ParseInt(row["ipackets"], 10, 64); err != nil {
+					return err
+				}
+				// Optional last_change
+				if lastChange, ok := row["last_change"]; ok {
+					if nic.LastChange, err = strconv.ParseInt(lastChange, 10, 64); err != nil {
+						return err
+					}
+				}
+				nic.Mask = row["mask"]
+				if nic.Metric, err = strconv.Atoi(row["metric"]); err != nil {
+					return err
+				}
+				if nic.MTU, err = strconv.Atoi(row["mtu"]); err != nil {
+					return err
+				}
+				if nic.OBytes, err = strconv.ParseInt(row["obytes"], 10, 64); err != nil {
+					return err
+				}
+				if nic.OErrors, err = strconv.ParseInt(row["oerrors"], 10, 64); err != nil {
+					return err
+				}
+				if nic.OPackets, err = strconv.ParseInt(row["opackets"], 10, 64); err != nil {
+					return err
+				}
+				nic.PointToPoint = row["point_to_point"]
+				if nic.Type, err = strconv.Atoi(row["type"]); err != nil {
+					return err
+				}
+
+				networkInterfaces = append(networkInterfaces, &nic)
 			}
 
-			host.PrimaryMAC = rows[0]["mac"]
-			host.PrimaryIP = rows[0]["address"]
+			host.NetworkInterfaces = networkInterfaces
 
 			return nil
 		},
@@ -326,6 +389,7 @@ func (svc service) ingestDetailQuery(host *kolide.Host, name string, rows []map[
 			message: fmt.Sprintf("ingesting query %s: %s", name, err.Error()),
 		}
 	}
+
 	return nil
 }
 
