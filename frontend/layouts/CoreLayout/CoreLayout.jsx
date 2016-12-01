@@ -2,11 +2,12 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import classnames from 'classnames';
 
-import configInterface from '../../interfaces/config';
-import FlashMessage from '../../components/FlashMessage';
-import SiteNavSidePanel from '../../components/side_panels/SiteNavSidePanel';
-import notificationInterface from '../../interfaces/notification';
-import userInterface from '../../interfaces/user';
+import configInterface from 'interfaces/config';
+import FlashMessage from 'components/FlashMessage';
+import SiteNavHeader from 'components/side_panels/SiteNavHeader';
+import SiteNavSidePanel from 'components/side_panels/SiteNavSidePanel';
+import notificationInterface from 'interfaces/notification';
+import userInterface from 'interfaces/user';
 
 export class CoreLayout extends Component {
   static propTypes = {
@@ -31,11 +32,17 @@ export class CoreLayout extends Component {
 
     return (
       <div>
-        <SiteNavSidePanel
-          config={config}
-          pathname={pathname}
-          user={user}
-        />
+        <nav className="site-nav">
+          <SiteNavHeader
+            config={config}
+            user={user}
+          />
+          <SiteNavSidePanel
+            config={config}
+            pathname={pathname}
+            user={user}
+          />
+        </nav>
         <div className={wrapperClass}>
           <FlashMessage notification={notifications} dispatch={dispatch} />
           {children}

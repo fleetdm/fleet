@@ -6,7 +6,7 @@
     margin-right: 300px;
   }
 
-  @media (max-width: 760px) {
-    margin-left: 54px;
+  @include breakpoint(tablet) {
+    margin-left: 55px;
   }
 }

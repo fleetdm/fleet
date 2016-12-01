@@ -2,14 +2,14 @@
   @include display(flex);
   @include align-items(center);
   @include justify-content(space-between);
-  @include position(fixed, 0 0 null 223px);
+  @include position(fixed, 0 0 null 240px);
   color: $white;
   height: 50px;
   padding: 0 $pad-half;
   z-index: 2;
 
-  @media (max-width: 760px) {
-    left: 54px;
+  @include breakpoint(tablet) {
+    left: 55px;
   }
 
   &--success {

@@ -1,0 +1,267 @@
+.site-nav-header {
+  position: relative;
+
+  &__button {
+    @include transition(background 150ms $ease-in-quad);
+    cursor: pointer;
+    padding: $pad-large $pad-medium 0;
+    position: relative;
+    display: block;
+    width: 100%;
+    color: $text-ultradark;
+    text-align: left;
+    border-radius: 0;
+
+    &:hover {
+      background: $bg-medium;
+    }
+
+    @include breakpoint(tablet) {
+      padding: 0;
+    }
+
+    &--open {
+      background-color: $text-dark;
+
+      .site-nav-header__org {
+        border-color: $text-ultradark;
+      }
+
+      .site-nav-header__org-name,
+      .site-nav-header__username {
+        color: $white;
+      }
+
+      .site-nav-header__org-chevron {
+        @include transform(rotate(180deg));
+      }
+
+      &:hover {
+        background-color: $text-dark;
+      }
+
+      @include breakpoint(tablet) {
+        width: 240px;
+
+        .site-nav-header__org,
+        .user-menu-toggle {
+          box-shadow: 1px 6px 15px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        .user-menu-toggle {
+          span {
+            display: inline-block;
+          }
+        }
+
+        .site-nav-header__org-chevron {
+          float: right;
+          margin-right: 27px;
+        }
+
+        .site-nav-header__org-name {
+          display: block;
+        }
+
+        .site-nav-header__user-status,
+        .user-menu-toggle__name,
+        .user-menu-toggle__position,
+        .site-nav-header__username {
+          display: inline-block;
+        }
+
+        .site-nav-header__user-status {
+          margin-left: 11px;
+        }
+
+        .site-nav-header__logo {
+          margin-top: 0;
+        }
+      }
+    }
+  }
+
+  &__org {
+    @include transition(border 150ms $ease-in-quad);
+    @include clearfix;
+    position: relative;
+    z-index: 2;
+    border-bottom: 1px solid $accent-light;
+    padding-bottom: $pad-medium;
+    max-height: 100px;
+  }
+
+  &__logo {
+    @include size(42px);
+    float: left;
+    margin-right: 10px;
+    border: 1px solid $accent-medium;
+    border-radius: 50%;
+
+    @include breakpoint(tablet) {
+      margin: 24px 5px 10px;
+    }
+  }
+
+  &__org-name {
+    @include ellipsis(110px);
+    font-size: 16px;
+    letter-spacing: 0.5px;
+    margin: 0;
+    padding: 0;
+    display: block;
+    white-space: nowrap;
+    text-transform: none;
+
+    @include breakpoint(tablet) {
+      display: none;
+      margin: 24px 0 5px 63px;
+    }
+  }
+
+  &__user-status {
+    @include size(16px);
+    background-color: $warning;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+    position: relative;
+
+    &--enabled {
+      background-color: $success;
+    }
+
+    @include breakpoint(tablet) {
+      display: none;
+    }
+  }
+
+  &__username {
+    @include ellipsis(110px);
+    margin: 0;
+    padding: 0;
+    font-size: 13px;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    position: relative;
+    line-height: 16px;
+
+    @include breakpoint(tablet) {
+      display: none;
+    }
+  }
+
+  &__org-chevron {
+    @include transition(transform 150ms $ease-in-quad);
+    color: $accent-medium;
+    font-size: 12px;
+    float: right;
+
+    @include breakpoint(tablet) {
+      float: none;
+      text-align: center;
+      display: block;
+      clear: both;
+    }
+  }
+}
+
+.user-menu-toggle {
+  @include transition(opacity 150ms ease-in-out);
+  height: 0;
+  background-color: $text-dark;
+  width: 239px;
+  position: absolute;
+  left: 0;
+  padding: 0;
+  z-index: 2;
+  overflow: hidden;
+  opacity: 0;
+  box-sizing: border-box;
+
+  @include breakpoint(tablet) {
+    width: 240px;
+  }
+
+  &--open {
+    height: auto;
+    padding: $pad-medium 0 0;
+    opacity: 1;
+  }
+
+  &__avatar {
+    @include size(42px);
+    float: left;
+    border: solid 1px $accent-medium;
+    border-radius: 50%;
+    margin: 0 10px 0 $pad-medium;
+
+    @include breakpoint(tablet) {
+      margin: $pad-xsmall 5px;
+    }
+  }
+
+  &__name,
+  &__position {
+    @include ellipsis(170px);
+    color: $white;
+    font-size: $small;
+    margin: 0;
+    line-height: $large;
+    float: left;
+    text-transform: none;
+    font-weight: $normal;
+
+    @include breakpoint(tablet) {
+      display: none;
+      margin-left: 15px;
+    }
+  }
+
+  &__name {
+    @include breakpoint(tablet) {
+      margin-top: 4px;
+    }
+  }
+
+  &__nav {
+    clear: both;
+    padding-top: $pad-small;
+  }
+
+  &__nav-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  &__nav-item {
+    font-size: $small;
+    text-transform: uppercase;
+
+    a {
+      @include transition(background 150ms $ease-in-quad);
+      letter-spacing: 0.5px;
+      color: $white;
+      display: block;
+      line-height: 50px;
+      text-decoration: none;
+      padding: 0 $pad-medium;
+
+      i {
+        margin-right: $pad-half;
+        font-size: $large;
+      }
+
+      &:hover {
+        background: $accent-text;
+      }
+    }
+
+    @include breakpoint(tablet) {
+      span {
+        display: none;
+      }
+    }
+  }
+}

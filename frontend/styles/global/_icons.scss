@@ -80,10 +80,6 @@
     content: '\f013';
 }
 
- .kolidecon-penciledit:before {
-    content: '\f015';
-}
-
  .kolidecon-storage:before {
     content: '\f019';
 }
@@ -110,14 +106,6 @@
 
  .kolidecon-add-button:before {
     content: '\f029';
-}
-
- .kolidecon-query:before {
-    content: '\f02d';
-}
-
- .kolidecon-hosts:before {
-    content: '\f02e';
 }
 
  .kolidecon-packs:before {
@@ -286,6 +274,26 @@
 
  .kolidecon-email:before {
     content: '\f02c';
+}
+
+ .kolidecon-hosts:before {
+    content: '\f02e';
+}
+
+ .kolidecon-query:before {
+    content: '\f02d';
+}
+
+ .kolidecon-import:before {
+    content: '\f058';
+}
+
+ .kolidecon-pencil:before {
+    content: '\f059';
+}
+
+ .kolidecon-add-plus:before {
+    content: '\f05a';
 }
 
 

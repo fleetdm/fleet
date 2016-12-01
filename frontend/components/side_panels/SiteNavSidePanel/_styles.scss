@@ -1,227 +1,14 @@
-.site-nav-header {
-  @include transition(background 150ms $ease-in-quad);
-  cursor: pointer;
-  padding: $pad-large $pad-medium 0;
-  position: relative;
-  display: block;
-  width: 100%;
-  color: $text-ultradark;
-  text-align: left;
-  border-radius: 0;
-
-  &:hover {
-    background: $bg-medium;
-  }
-
-  @media (max-width: 760px) {
-    padding: 0;
-  }
-
-  &__org {
-    @include transition(border 150ms $ease-in-quad);
-    @include clearfix;
-    position: relative;
-    z-index: 2;
-    border-bottom: 1px solid $accent-light;
-    padding-bottom: $pad-medium;
-    max-height: 100px;
-  }
-
-  &__logo {
-    @include size(42px);
-    float: left;
-    margin-right: 10px;
-    border: 1px solid $accent-medium;
-    border-radius: 50%;
-
-    @media (max-width: 760px) {
-      margin: $pad-half 5px;
-    }
-  }
-
-  &__org-name {
-    @include ellipsis(110px);
-    font-size: 16px;
-    letter-spacing: 0.5px;
-    margin: 0;
-    padding: 0;
-    display: block;
-    white-space: nowrap;
-
-    @media (max-width: 760px) {
-      display: none;
-    }
-  }
-
-  &__user-status {
-    @include size(16px);
-    background-color: $warning;
-    border-radius: 50%;
-    display: inline-block;
-    margin-right: 6px;
-    position: relative;
-
-    &--enabled {
-      background-color: $success;
-    }
-
-    @media (max-width: 760px) {
-      display: none;
-    }
-  }
-
-  &__username {
-    @include ellipsis(110px);
-    margin: 0;
-    padding: 0;
-    font-size: 13px;
-    letter-spacing: 0.6px;
-    text-transform: uppercase;
-    position: relative;
-    line-height: 16px;
-
-    @media (max-width: 760px) {
-      display: none;
-    }
-  }
-
-  &__org-chevron {
-    @include transition(transform 150ms $ease-in-quad);
-    color: $accent-medium;
-    font-size: 12px;
-    float: right;
-
-    @media (max-width: 760px) {
-      float: none;
-      text-align: center;
-      display: block;
-      clear: both;
-    }
-  }
-
-  &--open {
-    background-color: $text-dark;
-
-    .site-nav-header__org {
-      border-color: $text-ultradark;
-    }
-
-    .site-nav-header__org-name,
-    .site-nav-header__username {
-      color: $white;
-    }
-
-    .site-nav-header__org-chevron {
-      @include transform(rotate(180deg));
-    }
-
-    &:hover {
-      background-color: $text-dark;
-    }
-  }
-}
-
-.user-menu-toggle {
-  @include transition(opacity 150ms ease-in-out);
-  height: 0;
-  background-color: $text-dark;
-  width: 222px;
-  position: absolute;
-  left: 0;
-  padding: 0;
-  z-index: 2;
-  overflow: hidden;
-  opacity: 0;
-  box-sizing: border-box;
-
-  @media (max-width: 760px) {
-    width: 53px;
-  }
-
-  &--open {
-    height: auto;
-    padding: $pad-medium 0 0;
-    opacity: 1;
-  }
-
-  &__avatar {
-    @include size(42px);
-    float: left;
-    border: solid 1px $accent-medium;
-    border-radius: 50%;
-    margin: 0 10px 0 $pad-medium;
-
-    @media (max-width: 760px) {
-      margin: $pad-xsmall 5px;
-    }
-  }
-
-  &__name,
-  &__position {
-    @include ellipsis(135px);
-    color: $white;
-    font-size: $small;
-    margin: 0;
-    line-height: $large;
-    float: left;
-
-    @media (max-width: 760px) {
-      display: none;
-    }
-  }
-
-  &__nav {
-    clear: both;
-    padding-top: $pad-small;
-  }
-
-  &__nav-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-
-  &__nav-item {
-    font-size: $small;
-    text-transform: uppercase;
-
-    a {
-      @include transition(background 150ms $ease-in-quad);
-      letter-spacing: 0.5px;
-      color: $white;
-      display: block;
-      line-height: 50px;
-      text-decoration: none;
-      padding: 0 $pad-medium;
-
-      i {
-        margin-right: $pad-half;
-        font-size: $large;
-      }
-
-      &:hover {
-        background: $accent-text;
-      }
-    }
-
-    @media (max-width: 760px) {
-      span {
-        display: none;
-      }
-    }
-  }
-}
-
 .site-nav-item {
   position: relative;
+  margin: 15px 0;
 
   &__icon {
     position: relative;
     font-size: $large;
     margin-right: $pad-medium;
-    vertical-align: middle;
+    vertical-align: sub;
 
-    @media (max-width: 760px) {
+    @include breakpoint(tablet) {
       display: block;
       text-align: center;
       margin-right: 0;
@@ -232,13 +19,15 @@
   &__name {
     text-decoration: none;
     vertical-align: middle;
+    font-weight: $normal;
+    font-size: 14px;
 
-    @media (max-width: 760px) {
+    @include breakpoint(tablet) {
       display: none;
     }
   }
 
-  &__item {
+  &__button {
     @include transition(color 200ms ease-in-out);
     line-height: 40px;
     position: relative;
@@ -254,7 +43,13 @@
       color: $text-dark;
     }
 
-    &--active {
+    @include breakpoint(tablet) {
+      height: 50px;
+    }
+  }
+
+  &--active {
+    .site-nav-item__button {
       color: $brand;
       border-bottom: 0;
 
@@ -263,33 +58,38 @@
       }
 
       &::before {
+        @include position(absolute, 0 null null 0);
         content: '';
         width: 6px;
         height: 55px;
-        position: absolute;
-        left: 0;
-        top: 0;
         background-color: $brand;
         z-index: 1;
       }
 
-      @media (max-width: 760px) {
+      @include breakpoint(tablet) {
         border-bottom: 6px solid #9a61c6;
         border-left: 6px solid #9a61c6;
         padding: 0;
+        border-radius: 0;
 
         &::before {
           display: none;
         }
       }
     }
+
+    @include breakpoint(tablet) {
+      .site-nav-item__icon {
+        @include transform(translate(-2px, 3px));
+      }
+    }
   }
 
   &:last-child {
     border-top: 1px solid $accent-light;
-    margin-top: 5px;
+    padding-top: 15px;
 
-    @media (max-width: 760px) {
+    @include breakpoint(tablet) {
       margin-right: 0;
     }
   }
@@ -303,52 +103,98 @@
 
 .site-sub-item {
   position: relative;
+  cursor: pointer;
+  margin: 0;
+  text-transform: none;
 
-  &__before {
-    background-color: $white;
-    border-radius: 50%;
-    content: '';
-    display: block;
-    height: 7px;
-    left: 24px;
-    position: absolute;
-    top: 18px;
-    width: 7px;
-  }
-
-  &__item {
-    @include transition(all 200ms ease-in-out);
-    color: $white;
-    cursor: pointer;
-    margin: 5px 0;
-    opacity: 0.5;
-    padding: $pad-xsmall 0 $pad-xsmall $pad-most;
-    position: relative;
-    text-transform: none;
-
-    &:hover {
-      opacity: 0.75;
-    };
-
-    &--active {
+  &--active {
+    .site-sub-item__button {
+      color: $white;
       font-size: 13px;
       font-weight: $bold;
-      opacity: 1;
 
       &:hover {
-        opacity: 1;
-      };
+        color: $white;
+      }
+    }
+
+    &::before {
+      @include size(7px);
+      content: '';
+      display: block;
+      border-radius: 50%;
+      background-color: $white;
+      position: absolute;
+      left: 45px;
+      top: 50%;
+      margin: -3px 0 0 -4px;
+
+      @include breakpoint(tablet) {
+        display: none;
+      }
+    }
+  }
+
+  &__button {
+    @include transition(color 150ms ease-in-out);
+    color: rgba($white, 0.75);
+    text-transform: none;
+    cursor: pointer;
+    padding: 9px 0 9px 60px;
+    font-size: 13px;
+    font-weight: $light;
+    width: 100%;
+    text-align: left;
+
+    &:hover {
+      color: rgba($white, 0.9);
+    }
+
+    @include breakpoint(tablet) {
+      text-align: center;
+      padding: 3px 0 9px;
+      height: 44px;
     }
   }
 
   &__link {
     @include transition(font-size 200ms ease-in-out);
-    font-size: $mini;
+    font-size: 14px;
 
     &--active {
-      font-size: $small;
       text-decoration: none;
       text-transform: none;
+    }
+  }
+
+  &__name {
+    @include breakpoint(desktop) {
+      display: inline-block;
+    }
+
+    @include breakpoint(tablet) {
+      display: none;
+    }
+  }
+
+  &__icon {
+    @include breakpoint(desktop) {
+      display: none;
+    }
+
+    @include breakpoint(tablet) {
+      display: inline-block;
+      font-size: 25px;
+
+      .kolidecon {
+        vertical-align: 1px;
+      }
+    }
+  }
+
+  @include breakpoint(tablet) {
+    &:first-child {
+      display: none;
     }
   }
 }
@@ -358,37 +204,27 @@
   background-color: $brand;
   box-shadow: inset 0 5px 8px 0 rgba($black, 0.12), inset 0 -5px 8px 0 rgba($black, 0.12);
   font-size: 13px;
-  margin: 0 0 6px -16px;
-  padding: 3px 0;
+  margin: 0;
+  padding: 0;
   position: relative;
-  top: 0;
 
-  @media (max-width: 760px) {
-    min-height: 84px;
-    border-top-right-radius: 3px;
-    border-bottom-right-radius: 3px;
-    box-shadow: 2px 2px 8px rgba($black, 0.1);
-    bottom: -8px;
-    left: 54px;
-    margin-left: 0;
-    position: absolute;
+  @include breakpoint(tablet) {
+    @include linear-gradient(to bottom, #9a61c6 0%, $brand 18%, $brand 82%, #9a61c6 100%);
+    box-shadow: none;
   }
 
   &__list {
-    list-style: none;
-    padding-left: 16px;
-    min-height: 87px;
+    padding: 12px 0;
+    margin: 0;
 
-    @media (max-width: 760px) {
-      border-right: 1px solid rgba($black, 0.16);
-      display: none;
+    @include breakpoint(tablet) {
       padding: 0;
-      text-align: left;
-      width: 166px;
+      text-align: center;
+      width: 100%;
     }
 
     &--expanded {
-      @media (max-width: 760px) {
+      @include breakpoint(tablet) {
         display: inline-block;
       }
     }
@@ -404,7 +240,7 @@
   right: 4px;
   top: 0;
 
-  @media (min-width: 761px) {
+  @include breakpoint(gttablet) {
     display: none;
   }
 }
@@ -418,20 +254,11 @@
   left: 0;
   position: fixed;
   top: 0;
-  width: 223px;
+  width: 240px;
+  z-index: 5;
 
-  @media (max-width: 760px) {
+  @include breakpoint(tablet) {
     padding-left: 0;
-    width: 54px;
-  }
-}
-
-@media (max-width: 760px) {
-  .sub-nav {
-    width: 0;
-
-    &-expanded {
-      width: 188px;
-    }
+    width: 55px;
   }
 }
