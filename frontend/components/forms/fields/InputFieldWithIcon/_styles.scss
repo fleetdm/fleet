@@ -7,7 +7,7 @@
     position: absolute;
     right: 6px;
     top: 28px;
-    font-size: 20px;
+    font-size: 14px;
     color: $accent-text;
 
     &--active {
@@ -27,13 +27,18 @@
     font-size: 20px;
     border-bottom-style: solid;
     border-bottom-color: $brand-ultralight;
-    color: $accent-text;
     padding-right: 30px;
     opacity: 1;
     text-indent: 1px;
     position: relative;
     width: 100%;
     box-sizing: border-box;
+    font-family: 'Oxygen', $helvetica;
+    color: $text-dark;
+
+    @include placeholder {
+      color: $accent-text;
+    }
 
     &:focus {
       outline: none;
@@ -62,5 +67,20 @@
     color: $alert;
     font-size: $small;
     text-transform: lowercase;
+  }
+
+  &__hint {
+    font-size: 14px;
+    font-weight: $normal;
+    line-height: 1.57;
+    letter-spacing: 1px;
+    color: $accent-text;
+
+    code {
+      color: $brand-light;
+      background-color: $accent-light;
+      padding: 2px;
+      font-family: 'SourceCodePro', $monospace;
+    }
   }
 }

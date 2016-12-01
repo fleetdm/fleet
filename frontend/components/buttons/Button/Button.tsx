@@ -8,6 +8,7 @@ interface IButtonProps {
   disabled: boolean;
   onClick: (evt: React.MouseEvent<HTMLButtonElement>) => boolean;
   size: string;
+  tabIndex: number;
   text: string;
   type: string;
   variant: string;
@@ -37,7 +38,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
 
   render () {
     const { handleClick } = this;
-    const { className, disabled, size, text, type, variant } = this.props;
+    const { className, disabled, size, tabIndex, text, type, variant } = this.props;
     const fullClassName = classnames(`${baseClass}--${variant}`, className, {
       [baseClass]: variant !== 'unstyled',
       [`${baseClass}--disabled`]: disabled,
@@ -49,6 +50,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         className={fullClassName}
         disabled={disabled}
         onClick={handleClick}
+        tabIndex={tabIndex}
         type={type}
       >
         {text}

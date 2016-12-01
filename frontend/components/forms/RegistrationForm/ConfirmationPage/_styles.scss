@@ -1,0 +1,92 @@
+.confirm-user-reg {
+  &__wrapper {
+    padding: 0 35px 25px;
+  }
+
+  &__icon {
+    color: $success;
+    font-size: 120px;
+    display: block;
+    text-align: center;
+    margin: 10px 0 35px;
+  }
+
+  &__submit {
+    bottom: 0;
+    top: auto;
+    position: absolute;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+
+    &:active {
+      top: auto;
+    }
+  }
+
+  &__table {
+    width: 100%;
+
+    caption {
+      font-size: 18px;
+      font-weight: $bold;
+      line-height: 0.72;
+      letter-spacing: 0.6px;
+      color: $text-dark;
+      text-transform: uppercase;
+      padding-bottom: 20px;
+    }
+
+    tr {
+      vertical-align: bottom;
+    }
+
+    th {
+      font-size: 14px;
+      font-weight: $bold;
+      line-height: 1.71;
+      letter-spacing: 0.5px;
+      color: $text-dark;
+      text-align: left;
+    }
+
+    td {
+      font-size: 14px;
+      font-weight: $light;
+      line-height: 1.71;
+      letter-spacing: 0.5px;
+      color: $text-dark;
+    }
+  }
+
+  &__table-url {
+    @include ellipsis(90%);
+    font-family: 'SourceCodePro', $monospace;
+    vertical-align: bottom;
+  }
+
+  &__import {
+    @include user-select(none);
+    font-size: 14px;
+    font-weight: $light;
+    line-height: 1.71;
+    letter-spacing: 0.5px;
+    color: $text-dark;
+    margin: 30px 0 0;
+
+    label {
+      display: block;
+      position: relative;
+    }
+
+    p {
+      margin: 0;
+      padding-left: 40px;
+    }
+
+    .kolide-checkbox__input {
+      position: absolute;
+      left: 0;
+      top: 0;
+    }
+  }
+}

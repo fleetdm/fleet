@@ -7,7 +7,7 @@
     font-size: $xsmall;
     display: none;
 
-    @include breakpoint(tablet) {
+    @include breakpoint(ltdesktop) {
       display: inline-block;
       position: absolute;
       top: 10px;
@@ -20,7 +20,7 @@
     }
   }
 
-  @include breakpoint(tablet) {
+  @include breakpoint(ltdesktop) {
     padding-top: $pad-most;
   }
 }

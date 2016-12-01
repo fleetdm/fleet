@@ -1,4 +1,5 @@
 import React, { Component, PropTypes } from 'react';
+import classnames from 'classnames';
 
 import AdminDetails from 'components/forms/RegistrationForm/AdminDetails';
 import ConfirmationPage from 'components/forms/RegistrationForm/ConfirmationPage';
@@ -12,6 +13,8 @@ const PAGE_HEADER_TEXT = {
   4: 'SUCCESS',
 };
 
+const baseClass = 'user-registration';
+
 class RegistrationForm extends Component {
   static propTypes = {
     onNextPage: PropTypes.func,
@@ -21,8 +24,14 @@ class RegistrationForm extends Component {
 
   constructor (props) {
     super(props);
+    const { window } = global;
 
-    this.state = { errors: {}, formData: {} };
+    this.state = {
+      errors: {},
+      formData: {
+        kolide_server_url: window.location.origin,
+      },
+    };
   }
 
   onPageFormSubmit = (pageFormData) => {
@@ -39,11 +48,32 @@ class RegistrationForm extends Component {
     return onNextPage();
   }
 
-  onSubmit = () => {
+  onSubmitConfirmation = () => {
     const { formData } = this.state;
     const { onSubmit: handleSubmit } = this.props;
 
     return handleSubmit(formData);
+  }
+
+  isCurrentPage = (num) => {
+    const { page } = this.props;
+
+    if (num === page) {
+      return true;
+    }
+
+    return false;
+  }
+
+  renderHeader = () => {
+    const { page } = this.props;
+    const headerText = PAGE_HEADER_TEXT[page];
+
+    if (headerText) {
+      return <h2 className={`${baseClass}__title`}>{headerText}</h2>;
+    }
+
+    return false;
   }
 
   renderDescription = () => {
@@ -51,7 +81,7 @@ class RegistrationForm extends Component {
 
     if (page === 1) {
       return (
-        <div>
+        <div className={`${baseClass}__description`}>
           <p>Additional admins can be designated within the Kolide App</p>
           <p>Passwords must include 7 characters, at least 1 number (eg. 0-9) and at least 1 symbol (eg. ^&*#)</p>
         </div>
@@ -60,7 +90,7 @@ class RegistrationForm extends Component {
 
     if (page === 2) {
       return (
-        <div>
+        <div className={`${baseClass}__description`}>
           <p>Set your Organization&apos;s name (eg. Yahoo! Inc)</p>
           <p>Specify the website URL of your organization (eg. Yahoo.com)</p>
         </div>
@@ -69,7 +99,7 @@ class RegistrationForm extends Component {
 
     if (page === 3) {
       return (
-        <div>
+        <div className={`${baseClass}__description`}>
           <p>Define the base URL which osqueryd clients use to connect and register with Kolide.</p>
           <p>
             <small>Note: Please ensure the URL you choose is accessible to all endpoints that need to communicate with Kolide. Otherwise, they will not be able to correctly register.</small>
@@ -81,51 +111,82 @@ class RegistrationForm extends Component {
     return false;
   }
 
-  renderHeader = () => {
+  renderContent = () => {
     const { page } = this.props;
-    const headerText = PAGE_HEADER_TEXT[page];
-
-    if (headerText) {
-      return <h2>{headerText}</h2>;
-    }
-
-    return false;
-  }
-
-  renderPageForm = () => {
     const { formData } = this.state;
-    const { onPageFormSubmit, onSubmit } = this;
-    const { page } = this.props;
-
-    if (page === 1) {
-      return <AdminDetails formData={formData} handleSubmit={onPageFormSubmit} />;
-    }
-
-    if (page === 2) {
-      return <OrgDetails formData={formData} handleSubmit={onPageFormSubmit} />;
-    }
-
-    if (page === 3) {
-      return <KolideDetails formData={formData} handleSubmit={onPageFormSubmit} />;
-    }
+    const {
+      onSubmitConfirmation,
+      renderDescription,
+      renderHeader,
+    } = this;
 
     if (page === 4) {
-      return <ConfirmationPage formData={formData} handleSubmit={onSubmit} />;
+      return (
+        <div>
+          {renderHeader()}
+          <ConfirmationPage formData={formData} handleSubmit={onSubmitConfirmation} className={`${baseClass}__confirmation`} />
+        </div>
+      );
     }
 
-    return false;
+    return (
+      <div>
+        {renderHeader()}
+        {renderDescription()}
+      </div>
+    );
   }
 
   render () {
-    const { onSubmit } = this.props;
-    const { renderDescription, renderHeader, renderPageForm } = this;
+    const { onSubmit, page } = this.props;
+    const { formData } = this.state;
+    const { isCurrentPage, onPageFormSubmit, renderContent } = this;
+
+    const containerClass = classnames(`${baseClass}__container`, {
+      [`${baseClass}__container--complete`]: page > 3,
+    });
+
+    const adminDetailsClass = classnames(
+      `${baseClass}__field-wrapper`,
+      `${baseClass}__field-wrapper--admin`
+    );
+
+    const orgDetailsClass = classnames(
+      `${baseClass}__field-wrapper`,
+      `${baseClass}__field-wrapper--org`
+    );
+
+    const kolideDetailsClass = classnames(
+      `${baseClass}__field-wrapper`,
+      `${baseClass}__field-wrapper--kolide`
+    );
+
+    const formSectionClasses = classnames(
+      `${baseClass}__form`,
+      {
+        [`${baseClass}__form--step1-active`]: page === 1,
+        [`${baseClass}__form--step1-complete`]: page > 1,
+        [`${baseClass}__form--step2-active`]: page === 2,
+        [`${baseClass}__form--step2-complete`]: page > 2,
+        [`${baseClass}__form--step3-active`]: page === 3,
+        [`${baseClass}__form--step3-complete`]: page > 3,
+      }
+    );
 
     return (
-      <form onSubmit={onSubmit}>
-        {renderHeader()}
-        {renderDescription()}
-        {renderPageForm()}
-      </form>
+      <div className={baseClass}>
+        <div className={containerClass}>
+          {renderContent()}
+
+          <form onSubmit={onSubmit} className={formSectionClasses}>
+            <AdminDetails formData={formData} handleSubmit={onPageFormSubmit} className={adminDetailsClass} currentPage={isCurrentPage(1)} />
+
+            <OrgDetails formData={formData} handleSubmit={onPageFormSubmit} className={orgDetailsClass} currentPage={isCurrentPage(2)} />
+
+            <KolideDetails formData={formData} handleSubmit={onPageFormSubmit} className={kolideDetailsClass} currentPage={isCurrentPage(3)} />
+          </form>
+        </div>
+      </div>
     );
   }
 }

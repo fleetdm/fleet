@@ -1,0 +1,146 @@
+.registration-breadcrumbs {
+  @include display(flex);
+  @include justify-content(space-between);
+  @include align-content(center);
+  width: 665px;
+  height: 125px;
+  margin: 0 auto;
+
+  @include breakpoint(tablet) {
+    height: 75px;
+  }
+
+  &__page {
+    text-align: center;
+    width: 145px;
+    font-size: 14px;
+    font-weight: $normal;
+    line-height: 1.53;
+    letter-spacing: 0.5px;
+    color: $text-medium;
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      width: 235px;
+      height: 2px;
+      background-image: linear-gradient(to right, $accent-dark 50%, transparent 50%);
+      background-position: left top;
+      background-repeat: repeat-x;
+      background-size: 17px 2px;
+      bottom: 43px;
+      left: 84px;
+
+      @include breakpoint(tablet) {
+        bottom: 23px;
+      }
+    }
+
+    &::after {
+      @extend %kolidecon;
+      @include size(24px);
+      background-color: $white;
+      display: block;
+      border-radius: 50%;
+      content: '';
+      font-size: 28px;
+      margin: 14px auto 0;
+      position: relative;
+      z-index: 1;
+      cursor: pointer;
+
+      @include breakpoint(tablet) {
+        margin-top: 4px;
+      }
+    }
+
+    &:focus {
+      outline: none;
+    }
+
+    &--active {
+      font-weight: $bold;
+      color: $text-dark;
+    }
+
+    &--1 {
+      &::after {
+        border: solid 2px $success;
+      }
+
+      &.registration-breadcrumbs__page--active {
+        &::after {
+          background-color: $success;
+        }
+      }
+
+      &.registration-breadcrumbs__page--complete {
+        &::before {
+          background-image: linear-gradient(to right, $success 0%, $link 100%);
+          background-size: auto;
+          z-index: 2;
+        }
+
+        &::after {
+          @include size(28px);
+          content: '\f035';
+          color: $success;
+          border: 0;
+        }
+      }
+    }
+
+    &--2 {
+      &::after {
+        border: solid 2px $link;
+      }
+
+      &.registration-breadcrumbs__page--active {
+        &::after {
+          background-color: $link;
+        }
+      }
+
+      &.registration-breadcrumbs__page--complete {
+        &::before {
+          background-image: linear-gradient(to right, $link 0%, $brand-light 100%);
+          background-size: auto;
+          z-index: 2;
+        }
+
+        &::after {
+          @include size(28px);
+          content: '\f035';
+          color: $link;
+          border: 0;
+        }
+      }
+    }
+
+    &--3 {
+      &::before {
+        display: none;
+      }
+
+      &::after {
+        border: solid 2px $brand-light;
+      }
+
+      &.registration-breadcrumbs__page--active {
+        &::after {
+          background-color: $brand-light;
+        }
+      }
+
+      &.registration-breadcrumbs__page--complete {
+        &::after {
+          @include size(28px);
+          content: '\f035';
+          color: $brand-light;
+          border: 0;
+        }
+      }
+    }
+  }
+}

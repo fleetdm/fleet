@@ -11,6 +11,8 @@ const { validate } = helpers;
 
 class OrgDetails extends Component {
   static propTypes = {
+    className: PropTypes.string,
+    currentPage: PropTypes.bool,
     fields: PropTypes.shape({
       org_name: formFieldInterface.isRequired,
       org_logo_url: formFieldInterface.isRequired,
@@ -19,22 +21,29 @@ class OrgDetails extends Component {
   };
 
   render () {
-    const { fields, handleSubmit } = this.props;
+    const { className, currentPage, fields, handleSubmit } = this.props;
+    const tabIndex = currentPage ? 1 : -1;
 
     return (
-      <div>
-        <InputFieldWithIcon
-          {...fields.org_name}
-          placeholder="Organization Name"
-        />
-        <InputFieldWithIcon
-          {...fields.org_logo_url}
-          placeholder="Organization Logo URL (must start with https://)"
-        />
+      <div className={className}>
+        <div className="registration-fields">
+          <InputFieldWithIcon
+            {...fields.org_name}
+            placeholder="Organization Name"
+            tabIndex={tabIndex}
+          />
+          <InputFieldWithIcon
+            {...fields.org_logo_url}
+            placeholder="Organization Logo URL"
+            tabIndex={tabIndex}
+            hint="must start with https://"
+          />
+        </div>
         <Button
           onClick={handleSubmit}
           text="Submit"
           variant="gradient"
+          tabIndex={tabIndex}
         />
       </div>
     );

@@ -84,6 +84,7 @@ describe('RegistrationPage - component', () => {
   describe('#onSetPage', () => {
     it('sets state to the page number', () => {
       const page = mount(<RegistrationPage />);
+      page.setState({ page: 3 });
       page.node.onSetPage(3);
 
       expect(page.state()).toInclude({ page: 3 });

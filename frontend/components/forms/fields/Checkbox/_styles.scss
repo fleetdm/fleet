@@ -1,0 +1,45 @@
+.kolide-checkbox {
+  &__input {
+    visibility: hidden;
+    margin: 0;
+
+    &:checked + .kolide-checkbox__tick {
+      &::after {
+        background-color: $brand;
+        border: solid 2px $brand;
+      }
+
+      &::before {
+        @include transform(rotate(45deg));
+        @include position(absolute, 50% null null 50%);
+        box-sizing: border-box;
+        display: table;
+        width: 7px;
+        height: 13px;
+        margin: -8px 0 0 -4px;
+        border: 2px solid $white;
+        border-top: 0;
+        border-left: 0;
+        content: '';
+      }
+    }
+  }
+
+  &__tick {
+    @include size(20px);
+    position: absolute;
+    display: inline-block;
+
+    &::after {
+      @include transition(border 75ms ease-in-out, background 75ms ease-in-out);
+      @include size(20px);
+      border-radius: 2px;
+      border: solid 2px $border-medium;
+      content: '';
+      box-sizing: border-box;
+      display: block;
+      background-color: $white;
+      visibility: visible;
+    }
+  }
+}

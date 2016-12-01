@@ -10,6 +10,8 @@ import { setup } from 'redux/nodes/auth/actions';
 import { showBackgroundImage } from 'redux/nodes/app/actions';
 import userInterface from 'interfaces/user';
 
+import kolideLogo from '../../../assets/images/kolide-logo-condensed.svg';
+
 export class RegistrationPage extends Component {
   static propTypes = {
     currentUser: userInterface,
@@ -70,6 +72,11 @@ export class RegistrationPage extends Component {
   }
 
   onSetPage = (page) => {
+    const { page: currentPage } = this.state;
+    if (page >= currentPage) {
+      return false;
+    }
+
     this.setState({ page });
 
     return false;
@@ -85,7 +92,12 @@ export class RegistrationPage extends Component {
     }
 
     return (
-      <div>
+      <div className="registration-page">
+        <img
+          alt="Kolide"
+          src={kolideLogo}
+          className="registration-page__logo"
+        />
         <Breadcrumbs onClick={onSetPage} page={page} />
         <RegistrationForm page={page} onNextPage={onNextPage} onSubmit={onRegistrationFormSubmit} />
       </div>

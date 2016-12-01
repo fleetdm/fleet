@@ -1,7 +1,6 @@
 import { PropTypes } from 'react';
 
 export default PropTypes.shape({
-  full_name: PropTypes.string,
   username: PropTypes.string,
   password: PropTypes.string,
   password_confirmation: PropTypes.string,

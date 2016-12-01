@@ -6,14 +6,15 @@ import Button from 'components/buttons/Button';
 import InputFieldWithIcon from 'components/forms/fields/InputFieldWithIcon';
 import helpers from './helpers';
 
-const formFields = ['name', 'username', 'password', 'password_confirmation', 'email'];
+const formFields = ['username', 'password', 'password_confirmation', 'email'];
 const { validate } = helpers;
 
 class AdminDetails extends Component {
   static propTypes = {
+    className: PropTypes.string,
+    currentPage: PropTypes.bool,
     fields: PropTypes.shape({
       email: formFieldInterface.isRequired,
-      name: formFieldInterface.isRequired,
       password: formFieldInterface.isRequired,
       password_confirmation: formFieldInterface.isRequired,
       username: formFieldInterface.isRequired,
@@ -22,40 +23,44 @@ class AdminDetails extends Component {
   };
 
   render () {
-    const { fields, handleSubmit } = this.props;
+    const { className, currentPage, fields, handleSubmit } = this.props;
+    const tabIndex = currentPage ? 1 : -1;
 
     return (
-      <div>
-        <InputFieldWithIcon
-          {...fields.name}
-          placeholder="Full Name"
-        />
-        <InputFieldWithIcon
-          {...fields.username}
-          iconName="username"
-          placeholder="Username"
-        />
-        <InputFieldWithIcon
-          {...fields.password}
-          iconName="password"
-          placeholder="Password"
-          type="password"
-        />
-        <InputFieldWithIcon
-          {...fields.password_confirmation}
-          iconName="password"
-          placeholder="Confirm Password"
-          type="password"
-        />
-        <InputFieldWithIcon
-          {...fields.email}
-          iconName="email"
-          placeholder="Email"
-        />
+      <div className={className}>
+        <div className="registration-fields">
+          <InputFieldWithIcon
+            {...fields.username}
+            iconName="username"
+            placeholder="Username"
+            tabIndex={tabIndex}
+          />
+          <InputFieldWithIcon
+            {...fields.password}
+            iconName="password"
+            placeholder="Password"
+            type="password"
+            tabIndex={tabIndex}
+          />
+          <InputFieldWithIcon
+            {...fields.password_confirmation}
+            iconName="password"
+            placeholder="Confirm Password"
+            type="password"
+            tabIndex={tabIndex}
+          />
+          <InputFieldWithIcon
+            {...fields.email}
+            iconName="email"
+            placeholder="Email"
+            tabIndex={tabIndex}
+          />
+        </div>
         <Button
           onClick={handleSubmit}
           text="Submit"
           variant="gradient"
+          tabIndex={tabIndex}
         />
       </div>
     );

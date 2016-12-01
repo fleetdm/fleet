@@ -24,21 +24,26 @@ class Breadcrumbs extends Component {
   render () {
     const { onClick } = this;
     const { page } = this.props;
-    const page1ClassName = classnames('button--unstyled', 'page-1-btn', {
-      'is-active': page >= 1,
+    const baseClass = 'registration-breadcrumbs';
+    const pageBaseClass = `${baseClass}__page`;
+    const page1ClassName = classnames(pageBaseClass, `${pageBaseClass}--1`, 'button--unstyled', {
+      [`${pageBaseClass}--active`]: page === 1,
+      [`${pageBaseClass}--complete`]: page > 1,
     });
-    const page2ClassName = classnames('button--unstyled', 'page-2-btn', {
-      'is-active': page >= 2,
+    const page2ClassName = classnames(pageBaseClass, `${pageBaseClass}--2`, 'button--unstyled', {
+      [`${pageBaseClass}--active`]: page === 2,
+      [`${pageBaseClass}--complete`]: page > 2,
     });
-    const page3ClassName = classnames('button--unstyled', 'page-3-btn', {
-      'is-active': page >= 3,
+    const page3ClassName = classnames(pageBaseClass, `${pageBaseClass}--3`, 'button--unstyled', {
+      [`${pageBaseClass}--active`]: page === 3,
+      [`${pageBaseClass}--complete`]: page > 3,
     });
 
     return (
-      <div>
-        <button className={page1ClassName} onClick={onClick(1)}>Page 1</button>
-        <button className={page2ClassName} onClick={onClick(2)}>Page 2</button>
-        <button className={page3ClassName} onClick={onClick(3)}>Page 3</button>
+      <div className={baseClass}>
+        <button className={page1ClassName} onClick={onClick(1)}>Setup User</button>
+        <button className={page2ClassName} onClick={onClick(2)}>Setup Organization</button>
+        <button className={page3ClassName} onClick={onClick(3)}>Set Kolide URL</button>
       </div>
     );
   }

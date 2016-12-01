@@ -9,24 +9,6 @@ import { fillInFormInput } from 'test/helpers';
 describe('AdminDetails - form', () => {
   afterEach(restoreSpies);
 
-  describe('name input', () => {
-    it('renders an input field', () => {
-      const form = mount(<AdminDetails handleSubmit={noop} />);
-      const fullNameField = form.find({ name: 'name' });
-
-      expect(fullNameField.length).toEqual(1);
-    });
-
-    it('updates state when the field changes', () => {
-      const form = mount(<AdminDetails handleSubmit={noop} />);
-      const fullNameField = form.find({ name: 'name' }).find('input');
-
-      fillInFormInput(fullNameField, 'The Gnar Co');
-
-      expect(form.state().formData).toInclude({ name: 'The Gnar Co' });
-    });
-  });
-
   describe('username input', () => {
     it('renders an input field', () => {
       const form = mount(<AdminDetails handleSubmit={noop} />);
@@ -111,7 +93,6 @@ describe('AdminDetails - form', () => {
       expect(onSubmitSpy).toNotHaveBeenCalled();
       expect(form.state().errors).toInclude({
         email: 'Email must be present',
-        name: 'Full name must be present',
         password: 'Password must be present',
         password_confirmation: 'Password confirmation must be present',
         username: 'Username must be present',
@@ -152,14 +133,12 @@ describe('AdminDetails - form', () => {
       const onSubmitSpy = createSpy();
       const form = mount(<AdminDetails handleSubmit={onSubmitSpy} />);
       const emailField = form.find({ name: 'email' }).find('input');
-      const fullNameField = form.find({ name: 'name' }).find('input');
       const passwordConfirmationField = form.find({ name: 'password_confirmation' }).find('input');
       const passwordField = form.find({ name: 'password' }).find('input');
       const usernameField = form.find({ name: 'username' }).find('input');
       const submitBtn = form.find('Button');
 
       fillInFormInput(emailField, 'hi@gnar.dog');
-      fillInFormInput(fullNameField, 'Gnar Dog');
       fillInFormInput(passwordField, 'p@ssw0rd');
       fillInFormInput(passwordConfirmationField, 'p@ssw0rd');
       fillInFormInput(usernameField, 'gnardog');

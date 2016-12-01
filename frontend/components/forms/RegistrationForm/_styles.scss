@@ -1,0 +1,196 @@
+.user-registration {
+  @include display(flex);
+  @include align-content(center);
+  @include justify-content(center);
+  @include flex-grow(1);
+
+  &__container {
+    @include align-self(center);
+    @include size(500px 520px);
+    border-radius: 4px;
+    background-color: $bg-light;
+    box-shadow: 0 0 30px 0 rgba(0, 0, 0, 0.3);
+    box-sizing: border-box;
+    padding: 25px 35px;
+    margin-top: -55px;
+
+    &--complete {
+      padding: 0;
+
+      .user-registration__title {
+        font-size: 24px;
+        font-weight: $bold;
+        line-height: 0.54;
+        letter-spacing: 0.9px;
+        color: $text-dark;
+        padding: 25px 35px;
+      }
+    }
+  }
+
+  &__form {
+    @include transform(translateY(-85px));
+    width: 100%;
+    height: 470px;
+    position: absolute;
+    top: 50%;
+    left: 0;
+    overflow: hidden;
+    box-sizing: border-box;
+    padding: 25px 0;
+
+    @include breakpoint(tablet) {
+      @include transform(translateY(-100px));
+    }
+
+    &--step1-complete {
+      .user-registration__field-wrapper--admin {
+        left: -184px;
+      }
+
+      .user-registration__field-wrapper--org {
+        left: 50%;
+      }
+
+      .user-registration__field-wrapper--kolide {
+        left: calc(100% + 184px);
+      }
+    }
+
+    &--step2-complete {
+      .user-registration__field-wrapper--admin {
+        left: calc(-50% - 184px);
+      }
+
+      .user-registration__field-wrapper--org {
+        left: -184px;
+      }
+
+      .user-registration__field-wrapper--kolide {
+        left: 50%;
+      }
+    }
+
+    &--step3-complete {
+      .user-registration__field-wrapper--admin {
+        left: calc(-100% - 184px);
+      }
+
+      .user-registration__field-wrapper--org {
+        left: calc(-50% - 184px);
+      }
+
+      .user-registration__field-wrapper--kolide {
+        left: -184px;
+      }
+    }
+
+    &::before,
+    &::after {
+      background-image: linear-gradient(to right, $accent-dark 50%, transparent 50%);
+      background-position: left top;
+      background-repeat: repeat-x;
+      background-size: 17px 2px;
+      position: absolute;
+      top: 100px;
+      left: 50%;
+      width: 50%;
+      height: 2px;
+      content: '';
+      z-index: 1;
+    }
+
+    &::before {
+      left: auto;
+      right: 50%;
+    }
+
+    &--step1-active {
+      &::before {
+        display: none;
+      }
+    }
+
+    &--step3-active,
+    &--step3-complete {
+      &::after {
+        display: none;
+      }
+    }
+  }
+
+  &__description {
+    font-size: 14px;
+    font-weight: $light;
+    line-height: 1.43;
+    letter-spacing: 0.5px;
+    color: $text-dark;
+  }
+
+  &__title {
+    font-size: 18px;
+    font-weight: $bold;
+    line-height: 0.72;
+    letter-spacing: 0.6px;
+    color: $text-dark;
+    margin: 0;
+    padding: 0;
+  }
+
+  &__field-wrapper {
+    @include transition(left 300ms ease);
+    width: 430px;
+    min-height: 400px;
+    padding-bottom: 75px;
+    border-radius: 4px;
+    background-color: $bg-light;
+    box-shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.3);
+    margin: 0 auto;
+    position: absolute;
+    box-sizing: border-box;
+    margin-left: -215px;
+    z-index: 2;
+
+    &--admin {
+      left: 50%;
+    }
+
+    &--org {
+      left: calc(100% + 184px);
+    }
+
+    &--kolide {
+      top: 45px;
+      left: calc(150% + 184px);
+    }
+
+    input {
+      background-color: transparent;
+    }
+
+    .button {
+      bottom: 0;
+      top: auto;
+      position: absolute;
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+
+      &:active {
+        top: auto;
+      }
+    }
+
+    .registration-fields {
+      padding: 0 35px 25px;
+      box-sizing: border-box;
+    }
+  }
+
+  &__confirmation {
+    background-color: $bg-light;
+    position: relative;
+    z-index: 2;
+    width: 500px;
+    height: 500px;
+  }
+}
