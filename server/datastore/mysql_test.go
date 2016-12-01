@@ -1,31 +1,31 @@
 package datastore
 
 import (
-	"fmt"
 	"os"
 	"testing"
 
 	"github.com/WatchBeam/clock"
 	"github.com/go-kit/kit/log"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/kolide/kolide-ose/server/config"
 	"github.com/kolide/kolide-ose/server/datastore/mysql"
 	_ "github.com/kolide/kolide-ose/server/datastore/mysql/migrations"
 	"github.com/stretchr/testify/require"
 )
 
 func setupMySQL(t *testing.T) (ds *mysql.Datastore, teardown func()) {
-	var (
-		user     = "kolide"
-		password = "kolide"
-		dbName   = "kolide"
-		host     = "127.0.0.1"
-	)
-
-	if h, ok := os.LookupEnv("MYSQL_PORT_3306_TCP_ADDR"); ok {
-		host = h
+	config := config.MysqlConfig{
+		Username: "kolide",
+		Password: "kolide",
+		Database: "kolide",
+		Address:  "127.0.0.1:3306",
 	}
 
-	connString := fmt.Sprintf("%s:%s@(%s:3306)/%s?charset=utf8&parseTime=True&loc=Local", user, password, host, dbName)
+	if h, ok := os.LookupEnv("MYSQL_PORT_3306_TCP_ADDR"); ok {
+		config.Address = h + ":3306"
+	}
+
+	connString := mysql.GetMysqlConnectionString(config)
 
 	ds, err := mysql.New(connString, clock.NewMockClock(), mysql.Logger(log.NewNopLogger()), mysql.LimitAttempts(1))
 	require.Nil(t, err)

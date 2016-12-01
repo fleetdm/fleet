@@ -637,6 +637,12 @@ func TestDistributedQueries(t *testing.T) {
 	campaign, err := svc.NewDistributedQueryCampaign(ctx, q, []uint{}, []uint{label.ID})
 	require.Nil(t, err)
 
+	// Manually set the campaign to running (so that it shows up when
+	// requesting queries)
+	campaign.Status = kolide.QueryRunning
+	err = ds.SaveDistributedQueryCampaign(campaign)
+	require.Nil(t, err)
+
 	queryKey := fmt.Sprintf("%s%d", hostDistributedQueryPrefix, campaign.ID)
 
 	// Now we should get the active distributed query

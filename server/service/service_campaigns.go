@@ -26,7 +26,7 @@ func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 
 	campaign, err := svc.ds.NewDistributedQueryCampaign(&kolide.DistributedQueryCampaign{
 		QueryID: query.ID,
-		Status:  kolide.QueryRunning,
+		Status:  kolide.QueryWaiting,
 		UserID:  vc.UserID(),
 	})
 	if err != nil {
@@ -73,10 +73,26 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		return
 	}
 
-	if campaign.Status != kolide.QueryRunning {
+	if campaign.Status != kolide.QueryWaiting {
 		conn.WriteJSONError(fmt.Sprintf("campaign %d not running", campaignID))
 		return
 	}
+
+	// Setting status to running will cause the query to be returned to the
+	// targets when they check in for their queries
+	campaign.Status = kolide.QueryRunning
+	if err := svc.ds.SaveDistributedQueryCampaign(campaign); err != nil {
+		conn.WriteJSONError("error saving campaign state")
+		return
+	}
+
+	// Setting the status to completed stops the query from being sent to
+	// targets. If this fails, there is a background job that will clean up
+	// this campaign.
+	defer func() {
+		campaign.Status = kolide.QueryComplete
+		svc.ds.SaveDistributedQueryCampaign(campaign)
+	}()
 
 	// Open the channel from which we will receive incoming query results
 	// (probably from the redis pubsub implementation)

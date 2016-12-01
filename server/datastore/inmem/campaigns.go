@@ -2,6 +2,7 @@ package inmem
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
@@ -77,7 +78,8 @@ func (orm *Datastore) NewDistributedQueryExecution(exec *kolide.DistributedQuery
 	defer orm.mtx.Unlock()
 
 	for _, e := range orm.distributedQueryExecutions {
-		if exec.HostID == e.ID && exec.DistributedQueryCampaignID == e.DistributedQueryCampaignID {
+		if exec.HostID == e.HostID && exec.DistributedQueryCampaignID == e.DistributedQueryCampaignID {
+			fmt.Printf("%+v -- %+v\n", exec, orm.distributedQueryExecutions)
 			return exec, errors.ErrExists
 		}
 	}
@@ -86,4 +88,30 @@ func (orm *Datastore) NewDistributedQueryExecution(exec *kolide.DistributedQuery
 	orm.distributedQueryExecutions[exec.ID] = *exec
 
 	return exec, nil
+}
+
+func (orm *Datastore) CleanupDistributedQueryCampaigns(now time.Time) (expired uint, deleted uint, err error) {
+	orm.mtx.Lock()
+	defer orm.mtx.Unlock()
+
+	// First expire old waiting and running campaigns
+	for id, c := range orm.distributedQueryCampaigns {
+		if (c.Status == kolide.QueryWaiting && c.CreatedAt.Before(now.Add(-1*time.Minute))) ||
+			(c.Status == kolide.QueryRunning && c.CreatedAt.Before(now.Add(-24*time.Hour))) {
+			c.Status = kolide.QueryComplete
+			orm.distributedQueryCampaigns[id] = c
+			expired++
+		}
+	}
+
+	// Now delete executions for expired campaigns
+	for id, e := range orm.distributedQueryExecutions {
+		c, ok := orm.distributedQueryCampaigns[e.DistributedQueryCampaignID]
+		if !ok || c.Status == kolide.QueryComplete {
+			delete(orm.distributedQueryExecutions, id)
+			deleted++
+		}
+	}
+
+	return expired, deleted, nil
 }

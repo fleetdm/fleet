@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
@@ -120,4 +121,47 @@ func (d *Datastore) NewDistributedQueryExecution(exec *kolide.DistributedQueryEx
 	exec.ID = uint(id)
 
 	return exec, nil
+}
+
+func (d *Datastore) CleanupDistributedQueryCampaigns(now time.Time) (expired uint, deleted uint, err error) {
+	// First expire old waiting and running campaigns
+	sqlStatement := `
+		UPDATE distributed_query_campaigns
+		SET status = ?
+		WHERE (status = ? AND created_at < ?)
+		OR (status = ? AND created_at < ?)
+	`
+	result, err := d.db.Exec(sqlStatement, kolide.QueryComplete,
+		kolide.QueryWaiting, now.Add(-1*time.Minute),
+		kolide.QueryRunning, now.Add(-24*time.Hour))
+	if err != nil {
+		return expired, deleted, errors.DatabaseError(err)
+	}
+
+	exp, err := result.RowsAffected()
+	if err != nil {
+		return expired, deleted, errors.DatabaseError(err)
+	}
+	expired = uint(exp)
+
+	// Now delete executions for expired campaigns
+	sqlStatement = `
+		DELETE dqe
+		FROM distributed_query_executions dqe
+		JOIN distributed_query_campaigns dqc
+		ON dqe.distributed_query_campaign_id = dqc.id
+		WHERE dqc.status = ?
+	`
+	result, err = d.db.Exec(sqlStatement, kolide.QueryComplete)
+	if err != nil {
+		return expired, deleted, errors.DatabaseError(err)
+	}
+
+	del, err := result.RowsAffected()
+	if err != nil {
+		return expired, deleted, errors.DatabaseError(err)
+	}
+	deleted = uint(del)
+
+	return expired, deleted, nil
 }

@@ -153,7 +153,7 @@ func appendListOptionsToSQL(sql string, opts kolide.ListOptions) string {
 // provided configuration.
 func GetMysqlConnectionString(conf config.MysqlConfig) string {
 	return fmt.Sprintf(
-		"%s:%s@(%s)/%s?charset=utf8&parseTime=True&loc=Local",
+		"%s:%s@(%s)/%s?charset=utf8&parseTime=true&loc=UTC",
 		conf.Username,
 		conf.Password,
 		conf.Address,

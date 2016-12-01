@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/WatchBeam/clock"
 	kitlog "github.com/go-kit/kit/log"
@@ -96,6 +97,14 @@ the way that the kolide server works.
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
+
+			go func() {
+				ticker := time.NewTicker(1 * time.Hour)
+				for {
+					ds.CleanupDistributedQueryCampaigns(time.Now())
+					<-ticker.C
+				}
+			}()
 
 			fieldKeys := []string{"method", "error"}
 			requestCount := kitprometheus.NewCounterFrom(prometheus.CounterOpts{

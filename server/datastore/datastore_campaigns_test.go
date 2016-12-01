@@ -21,8 +21,13 @@ func newQuery(t *testing.T, ds kolide.Datastore, name, q string) *kolide.Query {
 	return query
 }
 
-func newCampaign(t *testing.T, ds kolide.Datastore, queryID uint, status kolide.DistributedQueryStatus) *kolide.DistributedQueryCampaign {
+func newCampaign(t *testing.T, ds kolide.Datastore, queryID uint, status kolide.DistributedQueryStatus, now time.Time) *kolide.DistributedQueryCampaign {
 	campaign, err := ds.NewDistributedQueryCampaign(&kolide.DistributedQueryCampaign{
+		UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+			CreateTimestamp: kolide.CreateTimestamp{
+				CreatedAt: now,
+			},
+		},
 		QueryID: queryID,
 		Status:  status,
 	})
@@ -31,17 +36,27 @@ func newCampaign(t *testing.T, ds kolide.Datastore, queryID uint, status kolide.
 	return campaign
 }
 
-func newHost(t *testing.T, ds kolide.Datastore, name, ip, key, uuid string, tim time.Time) *kolide.Host {
+func newExecution(t *testing.T, ds kolide.Datastore, campaignID uint, hostID uint) *kolide.DistributedQueryExecution {
+	execution, err := ds.NewDistributedQueryExecution(&kolide.DistributedQueryExecution{
+		HostID: hostID,
+		DistributedQueryCampaignID: campaignID,
+	})
+	require.Nil(t, err)
+
+	return execution
+}
+
+func newHost(t *testing.T, ds kolide.Datastore, name, ip, key, uuid string, now time.Time) *kolide.Host {
 	h, err := ds.NewHost(&kolide.Host{
 		HostName:         name,
 		NodeKey:          key,
 		UUID:             uuid,
-		DetailUpdateTime: tim,
+		DetailUpdateTime: now,
 	})
 
 	require.Nil(t, err)
 	require.NotZero(t, h.ID)
-	require.Nil(t, ds.MarkHostSeen(h, tim))
+	require.Nil(t, ds.MarkHostSeen(h, now))
 
 	return h
 }
@@ -94,7 +109,7 @@ func testDistributedQueryCampaign(t *testing.T, ds kolide.Datastore) {
 
 	query := newQuery(t, ds, "test", "select * from time")
 
-	campaign := newCampaign(t, ds, query.ID, kolide.QueryRunning)
+	campaign := newCampaign(t, ds, query.ID, kolide.QueryRunning, mockClock.Now())
 
 	{
 		retrieved, err := ds.DistributedQueryCampaign(campaign.ID)
@@ -125,5 +140,90 @@ func testDistributedQueryCampaign(t *testing.T, ds kolide.Datastore) {
 	addHost(t, ds, campaign.ID, h3.ID)
 
 	checkTargets(t, ds, campaign.ID, []uint{h1.ID, h2.ID, h3.ID}, []uint{l1.ID, l2.ID})
+
+}
+
+func testCleanupDistributedQueryCampaigns(t *testing.T, ds kolide.Datastore) {
+	mockClock := clock.NewMockClock()
+
+	query := newQuery(t, ds, "test", "select * from time")
+
+	c1 := newCampaign(t, ds, query.ID, kolide.QueryWaiting, mockClock.Now())
+	c2 := newCampaign(t, ds, query.ID, kolide.QueryRunning, mockClock.Now())
+
+	h1 := newHost(t, ds, "1", "", "1", "1", mockClock.Now())
+	h2 := newHost(t, ds, "2", "", "2", "2", mockClock.Now())
+	h3 := newHost(t, ds, "3", "", "3", "3", mockClock.Now())
+
+	// Cleanup and verify that nothing changed (because time has not
+	// advanced)
+	expired, deleted, err := ds.CleanupDistributedQueryCampaigns(mockClock.Now())
+	require.Nil(t, err)
+	assert.Equal(t, uint(0), expired)
+	assert.Equal(t, uint(0), deleted)
+
+	{
+		retrieved, err := ds.DistributedQueryCampaign(c1.ID)
+		require.Nil(t, err)
+		assert.Equal(t, c1.QueryID, retrieved.QueryID)
+		assert.Equal(t, c1.Status, retrieved.Status)
+	}
+	{
+		retrieved, err := ds.DistributedQueryCampaign(c2.ID)
+		require.Nil(t, err)
+		assert.Equal(t, c2.QueryID, retrieved.QueryID)
+		assert.Equal(t, c2.Status, retrieved.Status)
+	}
+
+	// Add some executions
+	newExecution(t, ds, c1.ID, h1.ID)
+	newExecution(t, ds, c1.ID, h2.ID)
+	newExecution(t, ds, c2.ID, h1.ID)
+	newExecution(t, ds, c2.ID, h2.ID)
+	newExecution(t, ds, c2.ID, h3.ID)
+
+	mockClock.AddTime(1*time.Minute + 1*time.Second)
+
+	// Cleanup and verify that the campaign was expired and executions
+	// deleted appropriately
+	expired, deleted, err = ds.CleanupDistributedQueryCampaigns(mockClock.Now())
+	require.Nil(t, err)
+	assert.Equal(t, uint(1), expired)
+	assert.Equal(t, uint(2), deleted)
+	{
+		// c1 should now be complete
+		retrieved, err := ds.DistributedQueryCampaign(c1.ID)
+		require.Nil(t, err)
+		assert.Equal(t, c1.QueryID, retrieved.QueryID)
+		assert.Equal(t, kolide.QueryComplete, retrieved.Status)
+	}
+	{
+		retrieved, err := ds.DistributedQueryCampaign(c2.ID)
+		require.Nil(t, err)
+		assert.Equal(t, c2.QueryID, retrieved.QueryID)
+		assert.Equal(t, c2.Status, retrieved.Status)
+	}
+
+	mockClock.AddTime(24*time.Hour + 1*time.Second)
+
+	// Cleanup and verify that the campaign was expired and executions
+	// deleted appropriately
+	expired, deleted, err = ds.CleanupDistributedQueryCampaigns(mockClock.Now())
+	require.Nil(t, err)
+	assert.Equal(t, uint(1), expired)
+	assert.Equal(t, uint(3), deleted)
+	{
+		retrieved, err := ds.DistributedQueryCampaign(c1.ID)
+		require.Nil(t, err)
+		assert.Equal(t, c1.QueryID, retrieved.QueryID)
+		assert.Equal(t, kolide.QueryComplete, retrieved.Status)
+	}
+	{
+		// c2 should now be complete
+		retrieved, err := ds.DistributedQueryCampaign(c2.ID)
+		require.Nil(t, err)
+		assert.Equal(t, c2.QueryID, retrieved.QueryID)
+		assert.Equal(t, kolide.QueryComplete, retrieved.Status)
+	}
 
 }
