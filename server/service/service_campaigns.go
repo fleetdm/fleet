@@ -7,6 +7,7 @@ import (
 	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/kolide/kolide-ose/server/websocket"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -16,12 +17,13 @@ func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 		return nil, errNoContext
 	}
 
-	query, err := svc.NewQuery(ctx, kolide.QueryPayload{
-		Name:  &queryString,
-		Query: &queryString,
+	query, err := svc.ds.NewQuery(&kolide.Query{
+		Name:  fmt.Sprintf("distributed_%s_%d", vc.Username(), time.Now().Unix()),
+		Query: queryString,
+		Saved: false,
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "new query")
 	}
 
 	campaign, err := svc.ds.NewDistributedQueryCampaign(&kolide.DistributedQueryCampaign{
@@ -30,7 +32,7 @@ func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 		UserID:  vc.UserID(),
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "new campaign")
 	}
 
 	// Add host targets
@@ -41,7 +43,7 @@ func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 			TargetID:                   hid,
 		})
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "adding host target")
 		}
 	}
 
@@ -53,7 +55,7 @@ func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 			TargetID:                   lid,
 		})
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "adding label target")
 		}
 	}
 

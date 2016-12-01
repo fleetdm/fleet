@@ -14,7 +14,7 @@ func (svc service) GetQuery(ctx context.Context, id uint) (*kolide.Query, error)
 }
 
 func (svc service) NewQuery(ctx context.Context, p kolide.QueryPayload) (*kolide.Query, error) {
-	query := &kolide.Query{}
+	query := &kolide.Query{Saved: true}
 
 	if p.Name != nil {
 		query.Name = *p.Name

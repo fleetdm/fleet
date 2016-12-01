@@ -18,6 +18,7 @@ func Up_20161118212649(tx *sql.Tx) error {
 			"`updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
 			"`deleted_at` timestamp NULL DEFAULT NULL," +
 			"`deleted` tinyint(1) NOT NULL DEFAULT FALSE," +
+			"`saved` tinyint(1) NOT NULL DEFAULT FALSE," +
 			"`name` varchar(255) NOT NULL," +
 			"`description` varchar(255) DEFAULT NULL," +
 			"`query` varchar(255) NOT NULL," +
@@ -26,8 +27,7 @@ func Up_20161118212649(tx *sql.Tx) error {
 			"`differential` tinyint(1) NOT NULL DEFAULT FALSE," +
 			"`platform` varchar(255) DEFAULT NULL," +
 			"`version` varchar(255) DEFAULT NULL," +
-			"PRIMARY KEY (`id`)," +
-			"UNIQUE KEY `idx_query_unique_name` (`name`)" +
+			"PRIMARY KEY (`id`)" +
 			") ENGINE=InnoDB DEFAULT CHARSET=utf8;",
 	)
 	return err
