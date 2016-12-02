@@ -316,19 +316,22 @@ func attachKolideAPIRoutes(r *mux.Router, h kolideHandlers) {
 // WithSetup is an http middleware that checks if a database user exists.
 // If one does, it serves the API with a setup middleware.
 // If the server is already configured, the default API handler is exposed.
-func WithSetup(svc kolide.Service, logger kitlog.Logger, next http.Handler) http.Handler {
-	configRouter := http.NewServeMux()
-	configRouter.Handle("/api/v1/kolide/config", http.HandlerFunc(forceSetup))
-	configRouter.Handle("/api/v1/setup", kithttp.NewServer(
-		context.Background(),
-		makeSetupEndpoint(svc),
-		decodeSetupRequest,
-		encodeResponse,
-	))
-	if RequireSetup(svc, logger) {
-		return configRouter
+func WithSetup(svc kolide.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		configRouter := http.NewServeMux()
+		configRouter.Handle("/api/v1/kolide/config", http.HandlerFunc(forceSetup))
+		configRouter.Handle("/api/v1/setup", kithttp.NewServer(
+			context.Background(),
+			makeSetupEndpoint(svc),
+			decodeSetupRequest,
+			encodeResponse,
+		))
+		if RequireSetup(svc, logger) {
+			configRouter.ServeHTTP(w, r)
+		} else {
+			next.ServeHTTP(w, r)
+		}
 	}
-	return next
 }
 
 func forceSetup(w http.ResponseWriter, r *http.Request) {
@@ -345,6 +348,7 @@ func RequireSetup(svc kolide.Service, logger kitlog.Logger) bool {
 	users, err := svc.ListUsers(context.Background(), kolide.ListOptions{Page: 0, PerPage: 1})
 	if err != nil {
 		logger.Log("err", err)
+		return false
 	}
 	return len(users) == 0
 }
