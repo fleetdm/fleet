@@ -3,9 +3,9 @@ export default (admin) => {
     {
       icon: 'admin',
       name: 'Admin',
-      path: {
-        regex: /^\/admin/,
-        location: '/admin/users',
+      location: {
+        regex: /^\/admin\/users/,
+        pathname: '/admin/users',
       },
       subItems: [],
     },
@@ -13,109 +13,105 @@ export default (admin) => {
 
   const userNavItems = [
     {
-      defaultPathname: '/hosts/manage',
       icon: 'hosts',
       name: 'Hosts',
-      path: {
+      location: {
         regex: /^\/hosts/,
-        location: '/hosts/manage',
+        pathname: '/hosts/manage',
       },
       subItems: [
         {
           icon: 'hosts',
           name: 'Manage Hosts',
-          path: {
+          location: {
             regex: /\/hosts\/manage/,
-            location: '/hosts/manage',
+            pathname: '/hosts/manage',
           },
         },
         {
           icon: 'add-plus',
           name: 'Add Hosts',
-          path: {
+          location: {
             regex: /\/hosts\/new/,
-            location: '/hosts/new',
+            pathname: '/hosts/new',
           },
         },
       ],
     },
     {
-      defaultPathname: '/queries/results',
       icon: 'query',
       name: 'Query',
-      path: {
+      location: {
         regex: /^\/queries/,
-        location: '/queries/results',
+        pathname: '/queries',
       },
       subItems: [
         {
           icon: 'query',
           name: 'Manage Queries',
-          path: {
-            regex: /\/queries\/results/,
-            location: '/queries/results',
+          location: {
+            regex: /\/queries$/,
+            pathname: '/queries',
           },
         },
         {
           icon: 'pencil',
           name: 'New Query',
-          path: {
+          location: {
             regex: /\/queries\/new/,
-            location: '/queries/new',
+            pathname: '/queries/new',
           },
         },
       ],
     },
     {
-      defaultPathname: '/packs/all',
       icon: 'packs',
       name: 'Packs',
-      path: {
+      location: {
         regex: /^\/packs/,
-        location: '/packs/all',
+        pathname: '/packs/all',
       },
       subItems: [
         {
           icon: 'packs',
           name: 'Manage Packs',
-          path: {
+          location: {
             regex: /\/packs\/all/,
-            location: '/packs/all',
+            pathname: '/packs/all',
           },
         },
         {
           icon: 'pencil',
           name: 'New Pack',
-          path: {
+          location: {
             regex: /\/packs\/new/,
-            location: '/packs/new',
+            pathname: '/packs/new',
           },
         },
       ],
     },
     {
-      defaultPathname: '/config/options',
       icon: 'config',
       name: 'Config',
-      path: {
+      location: {
         regex: /^\/config/,
-        location: '/config/options',
+        pathname: '/config/options',
       },
       subItems: [
         {
           icon: 'config',
           name: 'Osquery Options',
-          path: {
+          location: {
             regex: /\/config\/options/,
-            location: '/config/options',
+            pathname: '/config/options',
           },
         },
         {
           icon: 'import',
           name: 'Import Config',
-          path: {
+          location: {
             regex: /\/config\/import/,
-            location: '/config/import',
+            pathname: '/config/import',
           },
         },
       ],
@@ -123,7 +119,7 @@ export default (admin) => {
     {
       icon: 'help',
       name: 'Help',
-      path: {
+      location: {
         regex: /^\/help/,
       },
       subItems: [],

@@ -1,19 +1,17 @@
 import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
 import classnames from 'classnames';
 
 import configInterface from 'interfaces/config';
-import { logoutUser } from 'redux/nodes/auth/actions';
 import userInterface from 'interfaces/user';
 import Icon from 'components/Icon';
 
 import kolideLogo from '../../../../assets/images/kolide-logo.svg';
 import UserMenu from './UserMenu';
 
-class SiteNavSidePanel extends Component {
+class SiteNavHeader extends Component {
   static propTypes = {
     config: configInterface,
-    dispatch: PropTypes.func,
+    onLogoutUser: PropTypes.func,
     user: userInterface,
   };
 
@@ -29,16 +27,6 @@ class SiteNavSidePanel extends Component {
     const { document } = global;
     const { closeUserMenu } = this;
     document.addEventListener('mousedown', closeUserMenu, false);
-  }
-
-  onLogout = (evt) => {
-    evt.preventDefault();
-
-    const { dispatch } = this.props;
-
-    dispatch(logoutUser());
-
-    return false;
   }
 
   closeUserMenu = (evt) => {
@@ -61,11 +49,12 @@ class SiteNavSidePanel extends Component {
       config: {
         org_name: orgName,
       },
+      onLogoutUser,
       user,
     } = this.props;
 
     const { userMenuOpened } = this.state;
-    const { onLogout, toggleUserMenu } = this;
+    const { toggleUserMenu } = this;
     const { enabled, username } = user;
 
     const headerBaseClass = 'site-nav-header';
@@ -99,7 +88,7 @@ class SiteNavSidePanel extends Component {
 
           <UserMenu
             isOpened={userMenuOpened}
-            onLogout={onLogout}
+            onLogout={onLogoutUser}
             user={user}
           />
         </button>
@@ -108,5 +97,4 @@ class SiteNavSidePanel extends Component {
   }
 }
 
-const ConnectedComponent = connect()(SiteNavSidePanel);
-export default ConnectedComponent;
+export default SiteNavHeader;

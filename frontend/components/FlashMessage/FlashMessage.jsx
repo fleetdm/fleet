@@ -1,23 +1,11 @@
 import React, { PropTypes } from 'react';
 
-import { hideFlash } from '../../redux/nodes/notifications/actions';
 import notificationInterface from '../../interfaces/notification';
 
 const baseClass = 'flash-message';
 
-const FlashMessage = ({ notification, dispatch }) => {
+const FlashMessage = ({ notification, onRemoveFlash, onUndoActionClick }) => {
   const { alertType, isVisible, message, undoAction } = notification;
-
-  const submitUndoAction = () => {
-    dispatch(undoAction);
-    dispatch(hideFlash);
-    return false;
-  };
-
-  const removeFlashMessage = () => {
-    dispatch(hideFlash);
-    return false;
-  };
 
   if (!isVisible) {
     return false;
@@ -31,13 +19,13 @@ const FlashMessage = ({ notification, dispatch }) => {
       <div className={`${baseClass}__action`}>
         <button
           className={`${baseClass}__undo button button--unstyled`}
-          onClick={submitUndoAction}
+          onClick={onUndoActionClick(undoAction)}
         >
           {undoAction && 'undo'}
         </button>
         <button
           className={`${baseClass}__remove ${baseClass}__remove--${alertType} button button--unstyled`}
-          onClick={removeFlashMessage}
+          onClick={onRemoveFlash}
         >
           &times;
         </button>
@@ -47,8 +35,9 @@ const FlashMessage = ({ notification, dispatch }) => {
 };
 
 FlashMessage.propTypes = {
-  dispatch: PropTypes.func,
   notification: notificationInterface,
+  onRemoveFlash: PropTypes.func,
+  onUndoActionClick: PropTypes.func,
 };
 
 export default FlashMessage;
