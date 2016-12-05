@@ -4,6 +4,7 @@ import { filter, includes, isEqual, noop } from 'lodash';
 
 import targetInterface from 'interfaces/target';
 import TargetDetails from '../TargetDetails';
+import { targetFilter } from './helpers';
 import TargetOption from '../TargetOption';
 
 const baseClass = 'target-list';
@@ -24,7 +25,7 @@ const SelectTargetsMenuWrapper = (onMoreInfoClick, moreInfoTarget, handleBackToR
     const Option = optionComponent;
 
     const renderTargets = (targetType) => {
-      const targets = filter(options, { target_type: targetType });
+      const targets = filter(options, targetFilter(targetType));
 
       if (targets.length === 0) {
         return <span className={`${baseClass}__not-found`}>Unable to find any matching {targetType}.</span>;
@@ -69,6 +70,8 @@ const SelectTargetsMenuWrapper = (onMoreInfoClick, moreInfoTarget, handleBackToR
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__options`}>
+          <p className={`${baseClass}__type`}>all hosts</p>
+          {renderTargets('all')}
           <p className={`${baseClass}__type`}>labels</p>
           {renderTargets('labels')}
           <p className={`${baseClass}__type`}>hosts</p>

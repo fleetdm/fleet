@@ -3,6 +3,7 @@ import classnames from 'classnames';
 
 import Icon from 'components/Icon';
 import targetInterface from 'interfaces/target';
+import TargetIcon from './TargetIcon';
 
 const baseClass = 'target-option';
 
@@ -17,12 +18,6 @@ class TargetOption extends Component {
     const { onSelect, target } = this.props;
 
     return onSelect(target, evt);
-  }
-
-  hostPlatformIconClass = () => {
-    const { platform } = this.props.target;
-
-    return platform === 'darwin' ? 'apple' : `${platform}`;
   }
 
   renderTargetDetail = () => {
@@ -46,7 +41,6 @@ class TargetOption extends Component {
     const { display_text: displayText, target_type: targetType } = target;
     const {
       handleSelect,
-      hostPlatformIconClass,
       renderTargetDetail,
     } = this;
     const wrapperClassName = classnames(`${baseClass}__wrapper`, {
@@ -60,8 +54,7 @@ class TargetOption extends Component {
           <Icon name="add-button" />
         </button>
         <button className={`button button--unstyled ${baseClass}__target-content`} onClick={onMoreInfoClick(target)}>
-          {targetType === 'hosts' && <Icon name={hostPlatformIconClass()} className={`${baseClass}__icon`} />}
-          {targetType === 'labels' && <Icon name="label" className={`${baseClass}__icon`} />}
+          <TargetIcon target={target} />
           <span className={`${baseClass}__label-label`}>{displayText}</span>
           {renderTargetDetail()}
         </button>

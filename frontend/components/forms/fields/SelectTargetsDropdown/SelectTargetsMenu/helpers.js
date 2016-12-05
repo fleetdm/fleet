@@ -1,12 +1,15 @@
-import { isEqual } from 'lodash';
+export const targetFilter = (targetType) => {
+  if (targetType === 'all') {
+    return { name: 'All Hosts' };
+  }
 
-export const shouldShowModal = (moreInfoTarget, target) => {
-  if (!moreInfoTarget) return false;
+  if (targetType === 'labels') {
+    return (option) => {
+      return option.target_type === targetType && option.name !== 'All Hosts';
+    };
+  }
 
-  return isEqual(
-    { id: moreInfoTarget.id, type: moreInfoTarget.target_type },
-    { id: target.id, type: target.target_type },
-  );
+  return { target_type: targetType };
 };
 
-export default { shouldShowModal };
+export default { targetFilter };
