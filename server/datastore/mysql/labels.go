@@ -213,16 +213,19 @@ func (d *Datastore) ListUniqueHostsInLabels(labels []uint) ([]kolide.Host, error
 }
 
 func (d *Datastore) searchLabelsWithOmits(query string, omit ...uint) ([]kolide.Label, error) {
+	if len(query) > 0 {
+		query += "*"
+	}
 	sqlStatement := `
 		SELECT *
 		FROM labels
 		WHERE MATCH(name)
-		AGAINST('` + query + "*" + `' IN BOOLEAN MODE)
+		AGAINST(? IN BOOLEAN MODE)
 	  AND NOT deleted
 		AND id NOT IN (?)
 		LIMIT 10
 	`
-	sql, args, err := sqlx.In(sqlStatement, omit)
+	sql, args, err := sqlx.In(sqlStatement, query, omit)
 	if err != nil {
 		return nil, errors.DatabaseError(err)
 	}
@@ -245,6 +248,10 @@ func (d *Datastore) SearchLabels(query string, omit ...uint) ([]kolide.Label, er
 		return d.searchLabelsWithOmits(query, omit...)
 	}
 
+	if len(query) > 0 {
+		query += "*"
+	}
+
 	sqlStatement := `
 		SELECT *
 		FROM labels
@@ -254,7 +261,7 @@ func (d *Datastore) SearchLabels(query string, omit ...uint) ([]kolide.Label, er
 		LIMIT 10
 	`
 	matches := []kolide.Label{}
-	err := d.db.Select(&matches, sqlStatement, query+"*")
+	err := d.db.Select(&matches, sqlStatement, query)
 	if err != nil {
 		return nil, errors.DatabaseError(err)
 	}

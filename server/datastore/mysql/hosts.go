@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -402,7 +401,13 @@ func (d *Datastore) MarkHostSeen(host *kolide.Host, t time.Time) error {
 	return nil
 }
 
-func (d *Datastore) searchHostsWithOmits(query string, omits ...uint) ([]kolide.Host, error) {
+func (d *Datastore) searchHostsWithOmits(query string, omit ...uint) ([]kolide.Host, error) {
+	hostnameQuery := query
+	if len(hostnameQuery) > 0 {
+		hostnameQuery += "*"
+	}
+
+	ipQuery := `"` + query + `"`
 
 	sqlStatement :=
 		`
@@ -414,32 +419,30 @@ func (d *Datastore) searchHostsWithOmits(query string, omits ...uint) ([]kolide.
 				SELECT id
 				FROM hosts
 				WHERE
-				MATCH(host_name) AGAINST('%s*' IN BOOLEAN MODE)
+				MATCH(host_name) AGAINST(? IN BOOLEAN MODE)
 			)
 		OR
 			id IN (
 				SELECT host_id
 				FROM network_interfaces
 				WHERE
-				MATCH(ip_address) AGAINST('"%s"' IN BOOLEAN MODE)
+				MATCH(ip_address) AGAINST(? IN BOOLEAN MODE)
 			)
 		)
 		AND NOT deleted
-		AND id NOT IN (%s)
+		AND id NOT IN (?)
 		LIMIT 10
 	`
-	excludeList := ""
-	for _, omit := range omits {
-		if excludeList != "" {
-			excludeList += ", "
-		}
-		excludeList += strconv.Itoa(int(omit))
+
+	sql, args, err := sqlx.In(sqlStatement, hostnameQuery, ipQuery, omit)
+	if err != nil {
+		return nil, errors.DatabaseError(err)
 	}
+	sql = d.db.Rebind(sql)
 
-	sqlStatement = fmt.Sprintf(sqlStatement, query, query, excludeList)
 	hosts := []kolide.Host{}
-
-	if err := d.db.Select(&hosts, sqlStatement); err != nil {
+	err = d.db.Select(&hosts, sql, args...)
+	if err != nil {
 		return nil, errors.DatabaseError(err)
 	}
 
@@ -459,8 +462,13 @@ func (d *Datastore) SearchHosts(query string, omit ...uint) ([]kolide.Host, erro
 		return d.searchHostsWithOmits(query, omit...)
 	}
 
-	hostNameQuery := fmt.Sprintf(`%s*`, query)
-	ipQuery := fmt.Sprintf(`"%s"`, query)
+	hostnameQuery := query
+	if len(hostnameQuery) > 0 {
+		hostnameQuery += "*"
+	}
+
+	// Needs quotes to avoid each . marking a word boundary
+	ipQuery := `"` + query + `"`
 
 	sqlStatement :=
 		`
@@ -487,11 +495,11 @@ func (d *Datastore) SearchHosts(query string, omit ...uint) ([]kolide.Host, erro
 	`
 	hosts := []kolide.Host{}
 
-	if err := d.db.Select(&hosts, sqlStatement, hostNameQuery, ipQuery); err != nil {
+	if err := d.db.Select(&hosts, sqlStatement, hostnameQuery, ipQuery); err != nil {
 		return nil, errors.DatabaseError(err)
 	}
 	// We're not using range to avoid having to copy the hosts slice
-	// when we populate the host NewworkInterfaces
+	// when we populate the host NetworkInterfaces
 	for i := 0; i < len(hosts); i++ {
 		if err := d.getNetInterfacesForHost(&hosts[i]); err != nil {
 			return nil, errors.DatabaseError(err)

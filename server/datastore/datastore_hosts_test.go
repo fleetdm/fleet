@@ -238,6 +238,11 @@ func testSearchHosts(t *testing.T, db kolide.Datastore) {
 	})
 	require.Nil(t, err)
 
+	// We once threw errors when the search query was empty. Verify that we
+	// don't error.
+	_, err = db.SearchHosts("")
+	require.Nil(t, err)
+
 	hosts, err := db.SearchHosts("foo")
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 2)

@@ -196,6 +196,11 @@ func testSearchLabels(t *testing.T, db kolide.Datastore) {
 	})
 	require.Nil(t, err)
 
+	// We once threw errors when the search query was empty. Verify that we
+	// don't error.
+	_, err = db.SearchLabels("")
+	require.Nil(t, err)
+
 	labels, err := db.SearchLabels("foo")
 	assert.Nil(t, err)
 	assert.Len(t, labels, 2)
