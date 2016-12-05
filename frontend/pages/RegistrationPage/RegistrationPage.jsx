@@ -1,6 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { noop } from 'lodash';
+import { max, noop } from 'lodash';
 import { push } from 'react-router-redux';
 
 import Breadcrumbs from 'pages/RegistrationPage/Breadcrumbs';
@@ -26,7 +26,10 @@ export class RegistrationPage extends Component {
   constructor (props) {
     super(props);
 
-    this.state = { page: 1 };
+    this.state = {
+      page: 1,
+      pageProgress: 1,
+    };
 
     return false;
   }
@@ -56,8 +59,12 @@ export class RegistrationPage extends Component {
   }
 
   onNextPage = () => {
-    const { page } = this.state;
-    this.setState({ page: page + 1 });
+    const { page, pageProgress } = this.state;
+    const nextPage = page + 1;
+    this.setState({
+      page: nextPage,
+      pageProgress: max([nextPage, pageProgress]),
+    });
 
     return false;
   }
@@ -72,8 +79,8 @@ export class RegistrationPage extends Component {
   }
 
   onSetPage = (page) => {
-    const { page: currentPage } = this.state;
-    if (page >= currentPage) {
+    const { pageProgress } = this.state;
+    if (page > pageProgress) {
       return false;
     }
 
@@ -84,7 +91,7 @@ export class RegistrationPage extends Component {
 
   render () {
     const { isLoadingUser } = this.props;
-    const { page } = this.state;
+    const { page, pageProgress } = this.state;
     const { onRegistrationFormSubmit, onNextPage, onSetPage } = this;
 
     if (isLoadingUser) {
@@ -98,7 +105,7 @@ export class RegistrationPage extends Component {
           src={kolideLogo}
           className="registration-page__logo"
         />
-        <Breadcrumbs onClick={onSetPage} page={page} />
+        <Breadcrumbs onClick={onSetPage} page={page} pageProgress={pageProgress} />
         <RegistrationForm page={page} onNextPage={onNextPage} onSubmit={onRegistrationFormSubmit} />
       </div>
     );
