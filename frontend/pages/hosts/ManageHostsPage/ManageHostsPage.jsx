@@ -2,6 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import AceEditor from 'react-ace';
 import { connect } from 'react-redux';
 import { filter } from 'lodash';
+import { push } from 'react-router-redux';
 import ReactCSSTransitionGroup from 'react-addons-css-transition-group';
 
 import entityGetter from 'redux/utilities/entityGetter';
@@ -23,11 +24,14 @@ import { setDisplay, setSelectedLabel } from 'redux/nodes/components/ManageHosts
 import { showRightSidePanel, removeRightSidePanel } from 'redux/nodes/app/actions';
 import validateQuery from 'components/forms/validators/validate_query';
 
+const NEW_LABEL_HASH = '#new_label';
+
 export class ManageHostsPage extends Component {
   static propTypes = {
     dispatch: PropTypes.func,
     display: PropTypes.oneOf(['Grid', 'List']),
     hosts: PropTypes.arrayOf(hostInterface),
+    isAddLabel: PropTypes.bool,
     labels: PropTypes.arrayOf(labelInterface),
     selectedLabel: labelInterface,
     selectedOsqueryTable: osqueryTableInterface,
@@ -41,7 +45,6 @@ export class ManageHostsPage extends Component {
     super(props);
 
     this.state = {
-      isAddLabel: false,
       labelQueryText: '',
     };
   }
@@ -90,7 +93,9 @@ export class ManageHostsPage extends Component {
   }
 
   onCancelAddLabel = () => {
-    this.setState({ isAddLabel: false });
+    const { dispatch } = this.props;
+
+    dispatch(push('/hosts/manage'));
 
     return false;
   }
@@ -98,9 +103,9 @@ export class ManageHostsPage extends Component {
   onAddLabelClick = (evt) => {
     evt.preventDefault();
 
-    this.setState({
-      isAddLabel: true,
-    });
+    const { dispatch } = this.props;
+
+    dispatch(push(`/hosts/manage${NEW_LABEL_HASH}`));
 
     return false;
   }
@@ -150,7 +155,8 @@ export class ManageHostsPage extends Component {
 
     return dispatch(labelActions.create(formData))
       .then(() => {
-        this.setState({ isAddLabel: false });
+        this.setState({ labelQueryText: '' });
+        dispatch(push('/hosts/manage'));
 
         return false;
       });
@@ -172,8 +178,7 @@ export class ManageHostsPage extends Component {
   }
 
   renderHeader = () => {
-    const { display, selectedLabel } = this.props;
-    const { isAddLabel } = this.state;
+    const { display, isAddLabel, selectedLabel } = this.props;
 
     if (!selectedLabel || isAddLabel) {
       return false;
@@ -222,8 +227,7 @@ export class ManageHostsPage extends Component {
   }
 
   renderHosts = () => {
-    const { display, hosts } = this.props;
-    const { isAddLabel } = this.state;
+    const { display, hosts, isAddLabel } = this.props;
     const { onHostDetailActionClick } = this;
 
     if (isAddLabel) {
@@ -248,7 +252,8 @@ export class ManageHostsPage extends Component {
 
 
   renderForm = () => {
-    const { isAddLabel, labelQueryText } = this.state;
+    const { isAddLabel } = this.props;
+    const { labelQueryText } = this.state;
     const {
       onCancelAddLabel,
       onSaveAddLabel,
@@ -273,8 +278,8 @@ export class ManageHostsPage extends Component {
 
   renderSidePanel = () => {
     let SidePanel;
-    const { isAddLabel } = this.state;
     const {
+      isAddLabel,
       labels,
       selectedLabel,
       selectedOsqueryTable,
@@ -326,15 +331,17 @@ export class ManageHostsPage extends Component {
   }
 }
 
-const mapStateToProps = (state) => {
+const mapStateToProps = (state, { location }) => {
   const { display, selectedLabel } = state.components.ManageHostsPage;
   const { entities: hosts } = entityGetter(state).get('hosts');
   const { entities: labels } = entityGetter(state).get('labels');
+  const isAddLabel = location.hash === NEW_LABEL_HASH;
   const { selectedOsqueryTable } = state.components.QueryPages;
 
   return {
     display,
     hosts,
+    isAddLabel,
     labels,
     selectedLabel,
     selectedOsqueryTable,

@@ -44,6 +44,7 @@ describe('QueryComposer - component', () => {
 
     const form = component.find('QueryForm');
 
+    expect(component.text()).toInclude('New Query');
     expect(form.length).toEqual(1);
     expect(form.find('InputField').length).toEqual(2);
   });

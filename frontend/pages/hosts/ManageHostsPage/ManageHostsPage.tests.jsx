@@ -1,5 +1,5 @@
 import React from 'react';
-import expect from 'expect';
+import expect, { restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
@@ -21,6 +21,17 @@ const host = {
   uptime: 3600000000000,
   uuid: '1234-5678-9101',
 };
+const mockStore = reduxMockStore({
+  components: {
+    ManageHostsPage: {
+      display: 'Grid',
+      selectedLabel: { id: 100, display_text: 'All Hosts', type: 'all', count: 22 },
+    },
+    QueryPages: {
+      selectedOsqueryTable: stubbedOsqueryTable,
+    },
+  },
+});
 
 describe('ManageHostsPage - component', () => {
   const props = {
@@ -33,6 +44,7 @@ describe('ManageHostsPage - component', () => {
   beforeEach(() => {
     createAceSpy();
   });
+  afterEach(restoreSpies);
 
   describe('side panels', () => {
     it('renders a HostSidePanel when not adding a new label', () => {
@@ -42,9 +54,9 @@ describe('ManageHostsPage - component', () => {
     });
 
     it('renders a QuerySidePanel when adding a new label', () => {
-      const page = mount(<ManageHostsPage {...props} />);
-
-      page.setState({ isAddLabel: true });
+      const ownProps = { location: { hash: '#new_label' } };
+      const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
+      const page = mount(component);
 
       expect(page.find('QuerySidePanel').length).toEqual(1);
     });
@@ -64,16 +76,8 @@ describe('ManageHostsPage - component', () => {
     });
 
     it('toggles between displays', () => {
-      const mockStore = reduxMockStore({
-        components: {
-          ManageHostsPage: {
-            display: 'Grid',
-            selectedLabel: { id: 100, display_text: 'All Hosts', type: 'all', count: 22 },
-          },
-          QueryPages: {},
-        },
-      });
-      const component = connectedComponent(ConnectedManageHostsPage, { mockStore });
+      const ownProps = { location: {} };
+      const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
       const page = mount(component);
       const button = page.find('Rocker').find('input');
       const toggleDisplayAction = {
@@ -86,6 +90,26 @@ describe('ManageHostsPage - component', () => {
       button.simulate('change');
 
       expect(mockStore.getActions()).toInclude(toggleDisplayAction);
+    });
+  });
+
+  describe('Adding a new label', () => {
+    beforeEach(() => createAceSpy());
+    afterEach(restoreSpies);
+
+    const ownProps = { location: { hash: '#new_label' } };
+    const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
+
+    it('renders a QueryComposer component', () => {
+      const page = mount(component);
+
+      expect(page.find('QueryComposer').length).toEqual(1);
+    });
+
+    it('displays "New Label Query" as the query form header', () => {
+      const page = mount(component);
+
+      expect(page.find('QueryComposer').text()).toInclude('New Label Query');
     });
   });
 });

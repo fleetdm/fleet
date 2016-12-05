@@ -105,12 +105,12 @@ class QueryComposer extends Component {
   }
 
   render () {
-    const { onTextEditorInputChange, queryText } = this.props;
+    const { onTextEditorInputChange, queryText, queryType } = this.props;
     const { onLoad, renderForm, renderTargetsInput } = this;
 
     return (
       <div className={`${baseClass}__wrapper`}>
-        <h1>New Query</h1>
+        <h1>{queryType === 'label' ? 'New Label Query' : 'New Query'}</h1>
         <div className={`${baseClass}__text-editor-wrapper`}>
           <AceEditor
             enableBasicAutocompletion
