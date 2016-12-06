@@ -90,11 +90,13 @@ func newExecution(t *testing.T, ds kolide.Datastore, campaignID uint, hostID uin
 }
 
 func newHost(t *testing.T, ds kolide.Datastore, name, ip, key, uuid string, now time.Time) *kolide.Host {
+	osqueryHostID, _ := kolide.RandomText(10)
 	h, err := ds.NewHost(&kolide.Host{
 		HostName:         name,
 		NodeKey:          key,
 		UUID:             uuid,
 		DetailUpdateTime: now,
+		OsqueryHostID:    osqueryHostID,
 	})
 
 	require.Nil(t, err)

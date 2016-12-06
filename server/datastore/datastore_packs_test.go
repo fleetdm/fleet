@@ -110,6 +110,7 @@ func testGetHostsInPack(t *testing.T, ds kolide.Datastore) {
 	h1, err := ds.NewHost(&kolide.Host{
 		DetailUpdateTime: mockClock.Now(),
 		HostName:         "foobar.local",
+		OsqueryHostID:    "1",
 		NodeKey:          "1",
 		UUID:             "1",
 	})
@@ -129,6 +130,7 @@ func testGetHostsInPack(t *testing.T, ds kolide.Datastore) {
 	h2, err := ds.NewHost(&kolide.Host{
 		DetailUpdateTime: mockClock.Now(),
 		HostName:         "foobaz.local",
+		OsqueryHostID:    "2",
 		NodeKey:          "2",
 		UUID:             "2",
 	})

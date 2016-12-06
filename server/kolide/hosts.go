@@ -14,10 +14,10 @@ type HostStore interface {
 	DeleteHost(host *Host) error
 	Host(id uint) (*Host, error)
 	ListHosts(opt ListOptions) ([]*Host, error)
-	EnrollHost(uuid, hostname, platform string, nodeKeySize int) (*Host, error)
+	EnrollHost(osqueryHostId string, nodeKeySize int) (*Host, error)
 	AuthenticateHost(nodeKey string) (*Host, error)
 	MarkHostSeen(host *Host, t time.Time) error
-	SearchHosts(query string, omit ...uint) ([]Host, error)
+	SearchHosts(query string, omit ...uint) ([]*Host, error)
 	// DistributedQueriesForHost retrieves the distributed queries that the
 	// given host should run. The result map is a mapping from campaign ID
 	// to query text.
@@ -34,7 +34,11 @@ type HostService interface {
 type Host struct {
 	UpdateCreateTimestamps
 	DeleteFields
-	ID               uint          `json:"id"`
+	ID uint `json:"id"`
+	// OsqueryHostID is the key used in the request context that is
+	// used to retrieve host information.  It is sent from osquery and may currently be
+	// a GUID or a Host Name, but in either case, it MUST be unique
+	OsqueryHostID    string        `json:"-" db:"osquery_host_id"`
 	DetailUpdateTime time.Time     `json:"detail_updated_at" db:"detail_update_time"` // Time that the host details were last updated
 	NodeKey          string        `json:"-" db:"node_key"`
 	HostName         string        `json:"hostname" db:"host_name"` // there is a fulltext index on this field
@@ -72,7 +76,7 @@ type Host struct {
 // change should be written back to the database
 func (h *Host) ResetPrimaryNetwork() bool {
 	if h.PrimaryNetworkInterfaceID != nil {
-		// No nic (should never happen)
+		// This *may* happen if other details of the host are fetched before network_interfaces
 		if len(h.NetworkInterfaces) == 0 {
 			h.PrimaryNetworkInterfaceID = nil
 			return true

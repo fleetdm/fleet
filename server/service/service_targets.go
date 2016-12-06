@@ -12,7 +12,10 @@ func (svc service) SearchTargets(ctx context.Context, query string, selectedHost
 	if err != nil {
 		return nil, err
 	}
-	results.Hosts = hosts
+
+	for _, h := range hosts {
+		results.Hosts = append(results.Hosts, *h)
+	}
 
 	labels, err := svc.ds.SearchLabels(query, selectedLabelIDs...)
 	if err != nil {

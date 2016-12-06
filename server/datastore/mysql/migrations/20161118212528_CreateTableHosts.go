@@ -14,15 +14,16 @@ func Up_20161118212528(tx *sql.Tx) error {
 	_, err := tx.Exec(
 		"CREATE TABLE `hosts` (" +
 			"`id` int(10) unsigned NOT NULL AUTO_INCREMENT," +
+			"`osquery_host_id` varchar(255) NOT NULL," +
 			"`created_at` timestamp DEFAULT CURRENT_TIMESTAMP," +
 			"`updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
 			"`deleted_at` timestamp NULL DEFAULT NULL," +
 			"`deleted` tinyint(1) NOT NULL DEFAULT FALSE," +
 			"`detail_update_time` timestamp NULL DEFAULT NULL," +
 			"`node_key` varchar(255) DEFAULT NULL," +
-			"`host_name` varchar(255) DEFAULT NULL," +
-			"`uuid` varchar(255) DEFAULT NULL," +
-			"`platform` varchar(255) DEFAULT NULL," +
+			"`host_name` varchar(255) NOT NULL DEFAULT ''," +
+			"`uuid` varchar(255) NOT NULL DEFAULT ''," +
+			"`platform` varchar(255) NOT NULL DEFAULT ''," +
 			"`osquery_version` varchar(255) NOT NULL DEFAULT ''," +
 			"`os_version` varchar(255) NOT NULL DEFAULT ''," +
 			"`build` varchar(255) NOT NULL DEFAULT ''," +
@@ -43,7 +44,7 @@ func Up_20161118212528(tx *sql.Tx) error {
 			"`primary_ip_id` INT(10) UNSIGNED DEFAULT NULL, " +
 			"PRIMARY KEY (`id`)," +
 			"UNIQUE KEY `idx_host_unique_nodekey` (`node_key`)," +
-			"UNIQUE KEY `idx_host_unique_uuid` (`uuid`)," +
+			"UNIQUE KEY `idx_osquery_host_id` (`osquery_host_id`)," +
 			"FULLTEXT KEY `hosts_search` (`host_name`)" +
 			") ENGINE=InnoDB DEFAULT CHARSET=utf8;",
 	)

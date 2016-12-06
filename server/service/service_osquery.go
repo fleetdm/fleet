@@ -49,7 +49,7 @@ func (svc service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 		return "", osqueryError{message: "invalid enroll secret", nodeInvalid: true}
 	}
 
-	host, err := svc.ds.EnrollHost(hostIdentifier, "", "", svc.config.Osquery.NodeKeySize)
+	host, err := svc.ds.EnrollHost(hostIdentifier, svc.config.Osquery.NodeKeySize)
 	if err != nil {
 		return "", osqueryError{message: "enrollment failed: " + err.Error(), nodeInvalid: true}
 	}
@@ -313,7 +313,6 @@ var detailQueries = map[string]struct {
 				if nic.Type, err = strconv.Atoi(row["type"]); err != nil {
 					return err
 				}
-
 				networkInterfaces = append(networkInterfaces, &nic)
 			}
 
@@ -441,6 +440,7 @@ func (svc service) ingestDistributedQuery(host kolide.Host, name string, rows []
 
 func (svc service) SubmitDistributedQueryResults(ctx context.Context, results kolide.OsqueryDistributedQueryResults) error {
 	host, ok := hostctx.FromContext(ctx)
+
 	if !ok {
 		return osqueryError{message: "internal error: missing host from request context"}
 	}
@@ -455,13 +455,10 @@ func (svc service) SubmitDistributedQueryResults(ctx context.Context, results ko
 		switch {
 		case strings.HasPrefix(query, hostDetailQueryPrefix):
 			err = svc.ingestDetailQuery(&host, query, rows)
-
 		case strings.HasPrefix(query, hostLabelQueryPrefix):
 			err = svc.ingestLabelQuery(host, query, rows, labelResults)
-
 		case strings.HasPrefix(query, hostDistributedQueryPrefix):
 			err = svc.ingestDistributedQuery(host, query, rows)
-
 		default:
 			err = osqueryError{message: "unknown query prefix: " + query}
 		}

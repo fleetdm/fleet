@@ -3,6 +3,7 @@ package datastore
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"testing"
 	"time"
 
@@ -18,8 +19,8 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 	var host *kolide.Host
 	var err error
 	for i := 0; i < 10; i++ {
-		host, err = db.EnrollHost(string(i), "foo", "", 10)
-		assert.Nil(t, err, "enrollment should succeed")
+		host, err = db.EnrollHost(string(i), 10)
+		require.Nil(t, err, "enrollment should succeed")
 		hosts = append(hosts, *host)
 	}
 
@@ -231,6 +232,7 @@ func testSearchLabelsLimit(t *testing.T, db kolide.Datastore) {
 func testListHostsInLabel(t *testing.T, db kolide.Datastore) {
 	h1, err := db.NewHost(&kolide.Host{
 		DetailUpdateTime: time.Now(),
+		OsqueryHostID:    "1",
 		NodeKey:          "1",
 		UUID:             "1",
 		HostName:         "foo.local",
@@ -239,6 +241,7 @@ func testListHostsInLabel(t *testing.T, db kolide.Datastore) {
 
 	h2, err := db.NewHost(&kolide.Host{
 		DetailUpdateTime: time.Now(),
+		OsqueryHostID:    "2",
 		NodeKey:          "2",
 		UUID:             "2",
 		HostName:         "bar.local",
@@ -247,6 +250,7 @@ func testListHostsInLabel(t *testing.T, db kolide.Datastore) {
 
 	h3, err := db.NewHost(&kolide.Host{
 		DetailUpdateTime: time.Now(),
+		OsqueryHostID:    "3",
 		NodeKey:          "3",
 		UUID:             "3",
 		HostName:         "baz.local",
@@ -297,45 +301,19 @@ func testBuiltInLabels(t *testing.T, db kolide.Datastore) {
 }
 
 func testListUniqueHostsInLabels(t *testing.T, db kolide.Datastore) {
-	h1, err := db.NewHost(&kolide.Host{
-		DetailUpdateTime: time.Now(),
-		NodeKey:          "1",
-		UUID:             "1",
-		HostName:         "foo.local",
-	})
-	require.Nil(t, err)
-
-	h2, err := db.NewHost(&kolide.Host{
-		DetailUpdateTime: time.Now(),
-		NodeKey:          "2",
-		UUID:             "2",
-		HostName:         "bar.local",
-	})
-	require.Nil(t, err)
-
-	h3, err := db.NewHost(&kolide.Host{
-		DetailUpdateTime: time.Now(),
-		NodeKey:          "3",
-		UUID:             "3",
-		HostName:         "baz.local",
-	})
-	require.Nil(t, err)
-
-	h4, err := db.NewHost(&kolide.Host{
-		DetailUpdateTime: time.Now(),
-		NodeKey:          "4",
-		UUID:             "4",
-		HostName:         "xxx.local",
-	})
-	require.Nil(t, err)
-
-	h5, err := db.NewHost(&kolide.Host{
-		DetailUpdateTime: time.Now(),
-		NodeKey:          "5",
-		UUID:             "5",
-		HostName:         "yyy.local",
-	})
-	require.Nil(t, err)
+	hosts := []*kolide.Host{}
+	for i := 0; i < 4; i++ {
+		h, err := db.NewHost(&kolide.Host{
+			DetailUpdateTime: time.Now(),
+			OsqueryHostID:    strconv.Itoa(i),
+			NodeKey:          strconv.Itoa(i),
+			UUID:             strconv.Itoa(i),
+			HostName:         fmt.Sprintf("host_%d", i),
+		})
+		require.Nil(t, err)
+		require.NotNil(t, h)
+		hosts = append(hosts, h)
+	}
 
 	l1, err := db.NewLabel(&kolide.Label{
 		Name:  "label foo",
@@ -353,17 +331,17 @@ func testListUniqueHostsInLabels(t *testing.T, db kolide.Datastore) {
 	require.NotZero(t, l2.ID)
 	l2ID := fmt.Sprintf("%d", l2.ID)
 
-	for _, h := range []*kolide.Host{h1, h2, h3} {
-		err = db.RecordLabelQueryExecutions(h, map[string]bool{l1ID: true}, time.Now())
+	for i := 0; i < 3; i++ {
+		err = db.RecordLabelQueryExecutions(hosts[i], map[string]bool{l1ID: true}, time.Now())
+		assert.Nil(t, err)
+	}
+	// host 2 executes twice
+	for i := 2; i < len(hosts); i++ {
+		err = db.RecordLabelQueryExecutions(hosts[i], map[string]bool{l2ID: true}, time.Now())
 		assert.Nil(t, err)
 	}
 
-	for _, h := range []*kolide.Host{h3, h4, h5} {
-		err = db.RecordLabelQueryExecutions(h, map[string]bool{l2ID: true}, time.Now())
-		assert.Nil(t, err)
-	}
-
-	hosts, err := db.ListUniqueHostsInLabels([]uint{l1.ID, l2.ID})
+	uniqueHosts, err := db.ListUniqueHostsInLabels([]uint{l1.ID, l2.ID})
 	assert.Nil(t, err)
-	assert.Len(t, hosts, 5)
+	assert.Equal(t, len(hosts), len(uniqueHosts))
 }

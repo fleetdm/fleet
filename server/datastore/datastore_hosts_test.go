@@ -2,6 +2,7 @@ package datastore
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -96,6 +97,16 @@ func testSaveHosts(t *testing.T, db kolide.Datastore) {
 	assert.Equal(t, host.NetworkInterfaces[0].ID, *host.PrimaryNetworkInterfaceID)
 	assert.Equal(t, 1, len(host.NetworkInterfaces))
 
+	// remove all nics primary nic should be nil
+	host.NetworkInterfaces = []*kolide.NetworkInterface{}
+	err = db.SaveHost(host)
+	require.Nil(t, err)
+	assert.Nil(t, host.PrimaryNetworkInterfaceID)
+	host, err = db.Host(host.ID)
+	require.Nil(t, err)
+	require.NotNil(t, host)
+	assert.Nil(t, host.PrimaryNetworkInterfaceID)
+
 	err = db.DeleteHost(host)
 	assert.Nil(t, err)
 
@@ -111,8 +122,8 @@ func testDeleteHost(t *testing.T, db kolide.Datastore) {
 		UUID:             "1",
 		HostName:         "foo.local",
 	})
-	assert.Nil(t, err)
-	assert.NotNil(t, host)
+	require.Nil(t, err)
+	require.NotNil(t, host)
 
 	err = db.DeleteHost(host)
 	assert.Nil(t, err)
@@ -126,6 +137,7 @@ func testListHost(t *testing.T, db kolide.Datastore) {
 	for i := 0; i < 10; i++ {
 		host, err := db.NewHost(&kolide.Host{
 			DetailUpdateTime: time.Now(),
+			OsqueryHostID:    strconv.Itoa(i),
 			NodeKey:          fmt.Sprintf("%d", i),
 			UUID:             fmt.Sprintf("%d", i),
 			HostName:         fmt.Sprintf("foo.local%d", i),
@@ -137,9 +149,39 @@ func testListHost(t *testing.T, db kolide.Datastore) {
 		hosts = append(hosts, host)
 	}
 
+	hosts[1].NetworkInterfaces = []*kolide.NetworkInterface{
+		&kolide.NetworkInterface{
+			Interface: "en0",
+			IPAddress: "99.100.101.102",
+		},
+		&kolide.NetworkInterface{
+			Interface: "en1",
+			IPAddress: "99.100.101.103",
+		},
+	}
+
+	err := db.SaveHost(hosts[1])
+	require.Nil(t, err)
+
+	hosts[3].NetworkInterfaces = []*kolide.NetworkInterface{
+		&kolide.NetworkInterface{
+			Interface: "en2",
+			IPAddress: "99.100.101.104",
+		},
+	}
+	err = db.SaveHost(hosts[3])
+	require.Nil(t, err)
+
 	hosts2, err := db.ListHosts(kolide.ListOptions{})
 	require.Nil(t, err)
 	assert.Equal(t, len(hosts), len(hosts2))
+
+	require.Equal(t, 2, len(hosts2[1].NetworkInterfaces))
+	require.Equal(t, 0, len(hosts2[2].NetworkInterfaces))
+	require.Equal(t, 1, len(hosts2[3].NetworkInterfaces))
+	assert.Equal(t, "en1", hosts2[1].NetworkInterfaces[1].Interface)
+	assert.Equal(t, "en2", hosts2[3].NetworkInterfaces[0].Interface)
+
 	err = db.DeleteHost(hosts[0])
 	require.Nil(t, err)
 	hosts2, err = db.ListHosts(kolide.ListOptions{})
@@ -173,32 +215,19 @@ func testListHost(t *testing.T, db kolide.Datastore) {
 func testEnrollHost(t *testing.T, db kolide.Datastore) {
 	var hosts []*kolide.Host
 	for _, tt := range enrollTests {
-		h, err := db.EnrollHost(tt.uuid, tt.hostname, tt.platform, tt.nodeKeySize)
+		h, err := db.EnrollHost(tt.uuid, tt.nodeKeySize)
 		require.Nil(t, err)
 
 		hosts = append(hosts, h)
-		assert.Equal(t, tt.uuid, h.UUID)
-		assert.Equal(t, tt.hostname, h.HostName)
-		assert.Equal(t, tt.platform, h.Platform)
+		assert.Equal(t, tt.uuid, h.OsqueryHostID)
 		assert.NotEmpty(t, h.NodeKey)
-	}
-
-	for _, enrolled := range hosts {
-		oldNodeKey := enrolled.NodeKey
-		newhostname := fmt.Sprintf("changed.%s", enrolled.HostName)
-
-		h, err := db.EnrollHost(enrolled.UUID, newhostname, enrolled.Platform, 15)
-		assert.Nil(t, err)
-		assert.Equal(t, enrolled.UUID, h.UUID)
-		assert.NotEmpty(t, h.NodeKey)
-		assert.NotEqual(t, oldNodeKey, h.NodeKey)
 	}
 
 }
 
 func testAuthenticateHost(t *testing.T, db kolide.Datastore) {
 	for _, tt := range enrollTests {
-		h, err := db.EnrollHost(tt.uuid, tt.hostname, tt.platform, tt.nodeKeySize)
+		h, err := db.EnrollHost(tt.uuid, tt.nodeKeySize)
 		require.Nil(t, err)
 
 		returned, err := db.AuthenticateHost(h.NodeKey)
@@ -215,6 +244,7 @@ func testAuthenticateHost(t *testing.T, db kolide.Datastore) {
 
 func testSearchHosts(t *testing.T, db kolide.Datastore) {
 	_, err := db.NewHost(&kolide.Host{
+		OsqueryHostID:    "1234",
 		DetailUpdateTime: time.Now(),
 		NodeKey:          "1",
 		UUID:             "1",
@@ -223,6 +253,7 @@ func testSearchHosts(t *testing.T, db kolide.Datastore) {
 	require.Nil(t, err)
 
 	h2, err := db.NewHost(&kolide.Host{
+		OsqueryHostID:    "5679",
 		DetailUpdateTime: time.Now(),
 		NodeKey:          "2",
 		UUID:             "2",
@@ -231,6 +262,7 @@ func testSearchHosts(t *testing.T, db kolide.Datastore) {
 	require.Nil(t, err)
 
 	h3, err := db.NewHost(&kolide.Host{
+		OsqueryHostID:    "99999",
 		DetailUpdateTime: time.Now(),
 		NodeKey:          "3",
 		UUID:             "3",
@@ -286,7 +318,7 @@ func testSearchHosts(t *testing.T, db kolide.Datastore) {
 
 	h3.NetworkInterfaces = []*kolide.NetworkInterface{
 		&kolide.NetworkInterface{
-			Interface: "en0",
+			Interface: "en3",
 			IPAddress: "99.100.101.104",
 		},
 	}
@@ -295,6 +327,8 @@ func testSearchHosts(t *testing.T, db kolide.Datastore) {
 	hits, err = db.SearchHosts("99.100.101")
 	require.Nil(t, err)
 	assert.Equal(t, 2, len(hits))
+	assert.Equal(t, 2, len(hits[0].NetworkInterfaces))
+	assert.Equal(t, "en0", hits[0].NetworkInterfaces[0].Interface)
 
 	hits, err = db.SearchHosts("99.100.101", h3.ID)
 	require.Nil(t, err)
@@ -306,6 +340,7 @@ func testSearchHostsLimit(t *testing.T, db kolide.Datastore) {
 	for i := 0; i < 15; i++ {
 		_, err := db.NewHost(&kolide.Host{
 			DetailUpdateTime: time.Now(),
+			OsqueryHostID:    fmt.Sprintf("host%d", i),
 			NodeKey:          fmt.Sprintf("%d", i),
 			UUID:             fmt.Sprintf("%d", i),
 			HostName:         fmt.Sprintf("foo.%d.local", i),
@@ -320,6 +355,7 @@ func testSearchHostsLimit(t *testing.T, db kolide.Datastore) {
 
 func testDistributedQueriesForHost(t *testing.T, db kolide.Datastore) {
 	h1, err := db.NewHost(&kolide.Host{
+		OsqueryHostID:    "1",
 		DetailUpdateTime: time.Now(),
 		NodeKey:          "1",
 		UUID:             "1",
@@ -328,6 +364,7 @@ func testDistributedQueriesForHost(t *testing.T, db kolide.Datastore) {
 	require.Nil(t, err)
 
 	h2, err := db.NewHost(&kolide.Host{
+		OsqueryHostID:    "2",
 		DetailUpdateTime: time.Now(),
 		NodeKey:          "2",
 		UUID:             "2",
