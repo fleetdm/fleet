@@ -86,10 +86,10 @@ func (d *Datastore) ListPacks(opt kolide.ListOptions) ([]*kolide.Pack, error) {
 // AddQueryToPack associates a kolide.Query with a kolide.Pack
 func (d *Datastore) AddQueryToPack(qid uint, pid uint) error {
 	sql := `
-		INSERT INTO pack_queries ( pack_id, query_id)
+		INSERT INTO pack_queries (query_id, pack_id)
 			VALUES (?, ?)
 	`
-	if _, err := d.db.Exec(sql, pid, qid); err != nil {
+	if _, err := d.db.Exec(sql, qid, pid); err != nil {
 		return errors.DatabaseError(err)
 	}
 

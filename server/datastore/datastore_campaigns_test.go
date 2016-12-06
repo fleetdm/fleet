@@ -11,86 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newQuery(t *testing.T, ds kolide.Datastore, name, q string) *kolide.Query {
-	query, err := ds.NewQuery(&kolide.Query{
-		Name:  name,
-		Query: q,
-	})
-	require.Nil(t, err)
-
-	return query
-}
-
-func newCampaign(t *testing.T, ds kolide.Datastore, queryID uint, status kolide.DistributedQueryStatus, now time.Time) *kolide.DistributedQueryCampaign {
-	campaign, err := ds.NewDistributedQueryCampaign(&kolide.DistributedQueryCampaign{
-		UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-			CreateTimestamp: kolide.CreateTimestamp{
-				CreatedAt: now,
-			},
-		},
-		QueryID: queryID,
-		Status:  status,
-	})
-	require.Nil(t, err)
-
-	return campaign
-}
-
-func newExecution(t *testing.T, ds kolide.Datastore, campaignID uint, hostID uint) *kolide.DistributedQueryExecution {
-	execution, err := ds.NewDistributedQueryExecution(&kolide.DistributedQueryExecution{
-		HostID: hostID,
-		DistributedQueryCampaignID: campaignID,
-	})
-	require.Nil(t, err)
-
-	return execution
-}
-
-func newHost(t *testing.T, ds kolide.Datastore, name, ip, key, uuid string, now time.Time) *kolide.Host {
-	h, err := ds.NewHost(&kolide.Host{
-		HostName:         name,
-		NodeKey:          key,
-		UUID:             uuid,
-		DetailUpdateTime: now,
-	})
-
-	require.Nil(t, err)
-	require.NotZero(t, h.ID)
-	require.Nil(t, ds.MarkHostSeen(h, now))
-
-	return h
-}
-
-func newLabel(t *testing.T, ds kolide.Datastore, name, query string) *kolide.Label {
-	l, err := ds.NewLabel(&kolide.Label{Name: name, Query: query})
-
-	require.Nil(t, err)
-	require.NotZero(t, l.ID)
-
-	return l
-}
-
-func addHost(t *testing.T, ds kolide.Datastore, campaignID, hostID uint) {
-	_, err := ds.NewDistributedQueryCampaignTarget(
-		&kolide.DistributedQueryCampaignTarget{
-			Type:                       kolide.TargetHost,
-			TargetID:                   hostID,
-			DistributedQueryCampaignID: campaignID,
-		})
-	require.Nil(t, err)
-
-}
-
-func addLabel(t *testing.T, ds kolide.Datastore, campaignID, labelID uint) {
-	_, err := ds.NewDistributedQueryCampaignTarget(
-		&kolide.DistributedQueryCampaignTarget{
-			Type:                       kolide.TargetLabel,
-			TargetID:                   labelID,
-			DistributedQueryCampaignID: campaignID,
-		})
-	require.Nil(t, err)
-}
-
 func checkTargets(t *testing.T, ds kolide.Datastore, campaignID uint, expectedHostIDs []uint, expectedLabelIDs []uint) {
 	hostIDs, labelIDs, err := ds.DistributedQueryCampaignTargetIDs(campaignID)
 	require.Nil(t, err)
@@ -127,17 +47,17 @@ func testDistributedQueryCampaign(t *testing.T, ds kolide.Datastore) {
 
 	checkTargets(t, ds, campaign.ID, []uint{}, []uint{})
 
-	addHost(t, ds, campaign.ID, h1.ID)
+	addHostToCampaign(t, ds, campaign.ID, h1.ID)
 	checkTargets(t, ds, campaign.ID, []uint{h1.ID}, []uint{})
 
-	addLabel(t, ds, campaign.ID, l1.ID)
+	addLabelToCampaign(t, ds, campaign.ID, l1.ID)
 	checkTargets(t, ds, campaign.ID, []uint{h1.ID}, []uint{l1.ID})
 
-	addLabel(t, ds, campaign.ID, l2.ID)
+	addLabelToCampaign(t, ds, campaign.ID, l2.ID)
 	checkTargets(t, ds, campaign.ID, []uint{h1.ID}, []uint{l1.ID, l2.ID})
 
-	addHost(t, ds, campaign.ID, h2.ID)
-	addHost(t, ds, campaign.ID, h3.ID)
+	addHostToCampaign(t, ds, campaign.ID, h2.ID)
+	addHostToCampaign(t, ds, campaign.ID, h3.ID)
 
 	checkTargets(t, ds, campaign.ID, []uint{h1.ID, h2.ID, h3.ID}, []uint{l1.ID, l2.ID})
 

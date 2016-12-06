@@ -58,6 +58,10 @@ func (orm *Datastore) Query(id uint) (*kolide.Query, error) {
 		return nil, errors.ErrNotFound
 	}
 
+	if err := orm.loadPacksForQueries([]*kolide.Query{query}); err != nil {
+		return nil, errors.DatabaseError(err)
+	}
+
 	return query, nil
 }
 
@@ -102,5 +106,23 @@ func (orm *Datastore) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, erro
 	low, high := orm.getLimitOffsetSliceBounds(opt, len(queries))
 	queries = queries[low:high]
 
+	if err := orm.loadPacksForQueries(queries); err != nil {
+		return nil, errors.DatabaseError(err)
+	}
+
 	return queries, nil
+}
+
+// loadPacksForQueries loads the packs associated with the provided queries
+func (orm *Datastore) loadPacksForQueries(queries []*kolide.Query) error {
+	for _, q := range queries {
+		q.Packs = make([]kolide.Pack, 0)
+		for _, pq := range orm.packQueries {
+			if pq.QueryID == q.ID {
+				q.Packs = append(q.Packs, *orm.packs[pq.PackID])
+			}
+		}
+	}
+
+	return nil
 }
