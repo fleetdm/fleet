@@ -23,9 +23,11 @@ func TestListQueries(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
 
-	_, err = ds.NewQuery(&kolide.Query{
-		Name:  "foo",
-		Query: "select * from time;",
+	name := "foo"
+	query := "select * from time"
+	_, err = svc.NewQuery(ctx, kolide.QueryPayload{
+		Name:  &name,
+		Query: &query,
 	})
 	assert.Nil(t, err)
 

@@ -74,7 +74,9 @@ func (orm *Datastore) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, erro
 
 	queries := []*kolide.Query{}
 	for _, k := range keys {
-		queries = append(queries, orm.queries[uint(k)])
+		if orm.queries[uint(k)].Saved {
+			queries = append(queries, orm.queries[uint(k)])
+		}
 	}
 
 	// Apply ordering

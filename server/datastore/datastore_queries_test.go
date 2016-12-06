@@ -6,6 +6,7 @@ import (
 
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func testDeleteQuery(t *testing.T, ds kolide.Datastore) {
@@ -50,9 +51,18 @@ func testListQuery(t *testing.T, ds kolide.Datastore) {
 		_, err := ds.NewQuery(&kolide.Query{
 			Name:  fmt.Sprintf("name%02d", i),
 			Query: fmt.Sprintf("query%02d", i),
+			Saved: true,
 		})
-		assert.Nil(t, err)
+		require.Nil(t, err)
 	}
+
+	// One unsaved query should not be returned
+	_, err := ds.NewQuery(&kolide.Query{
+		Name:  "unsaved",
+		Query: "select * from time",
+		Saved: false,
+	})
+	require.Nil(t, err)
 
 	opts := kolide.ListOptions{}
 	results, err := ds.ListQueries(opts)
