@@ -96,6 +96,15 @@ func TestCountHostsInTargets(t *testing.T) {
 	require.Nil(t, err)
 	require.Nil(t, ds.MarkHostSeen(h5, mockClock.Now()))
 
+	h6, err := ds.NewHost(&kolide.Host{
+		HostName: "zzz.local",
+		NodeKey:  "6",
+		UUID:     "6",
+	})
+	require.Nil(t, err)
+	const thirtyDaysAndAMinuteAgo = -1 * (30*24*60 + 1)
+	require.Nil(t, ds.MarkHostSeen(h6, mockClock.Now().Add(thirtyDaysAndAMinuteAgo*time.Minute)))
+
 	l1, err := ds.NewLabel(&kolide.Label{
 		Name:  "label foo",
 		Query: "query foo",
@@ -112,7 +121,7 @@ func TestCountHostsInTargets(t *testing.T) {
 	require.NotZero(t, l2.ID)
 	l2ID := fmt.Sprintf("%d", l2.ID)
 
-	for _, h := range []*kolide.Host{h1, h2, h3} {
+	for _, h := range []*kolide.Host{h1, h2, h3, h6} {
 		err = ds.RecordLabelQueryExecutions(h, map[string]bool{l1ID: true}, time.Now())
 		assert.Nil(t, err)
 	}
@@ -122,37 +131,55 @@ func TestCountHostsInTargets(t *testing.T) {
 		assert.Nil(t, err)
 	}
 
-	total, online, err := svc.CountHostsInTargets(ctx, nil, []uint{l1.ID, l2.ID})
-	assert.Nil(t, err)
-	assert.Equal(t, uint(5), total)
-	assert.Equal(t, uint(4), online)
+	metrics, err := svc.CountHostsInTargets(ctx, nil, []uint{l1.ID, l2.ID})
+	require.Nil(t, err)
+	require.NotNil(t, metrics)
+	assert.Equal(t, uint(6), metrics.TotalHosts)
+	assert.Equal(t, uint(1), metrics.OfflineHosts)
+	assert.Equal(t, uint(4), metrics.OnlineHosts)
+	assert.Equal(t, uint(1), metrics.MissingInActionHosts)
 
-	total, online, err = svc.CountHostsInTargets(ctx, []uint{h1.ID, h2.ID}, []uint{l1.ID, l2.ID})
-	assert.Nil(t, err)
-	assert.Equal(t, uint(5), total)
-	assert.Equal(t, uint(4), online)
+	metrics, err = svc.CountHostsInTargets(ctx, []uint{h1.ID, h2.ID}, []uint{l1.ID, l2.ID})
+	require.Nil(t, err)
+	require.NotNil(t, metrics)
+	assert.Equal(t, uint(6), metrics.TotalHosts)
+	assert.Equal(t, uint(1), metrics.OfflineHosts)
+	assert.Equal(t, uint(4), metrics.OnlineHosts)
+	assert.Equal(t, uint(1), metrics.MissingInActionHosts)
 
-	total, online, err = svc.CountHostsInTargets(ctx, []uint{h1.ID, h2.ID}, nil)
-	assert.Nil(t, err)
-	assert.Equal(t, uint(2), total)
-	assert.Equal(t, uint(1), online)
+	metrics, err = svc.CountHostsInTargets(ctx, []uint{h1.ID, h2.ID}, nil)
+	require.Nil(t, err)
+	require.NotNil(t, metrics)
+	assert.Equal(t, uint(2), metrics.TotalHosts)
+	assert.Equal(t, uint(1), metrics.OnlineHosts)
+	assert.Equal(t, uint(1), metrics.OfflineHosts)
+	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
 
-	total, online, err = svc.CountHostsInTargets(ctx, []uint{h1.ID}, []uint{l2.ID})
-	assert.Nil(t, err)
-	assert.Equal(t, uint(4), total)
-	assert.Equal(t, uint(4), online)
+	metrics, err = svc.CountHostsInTargets(ctx, []uint{h1.ID}, []uint{l2.ID})
+	require.Nil(t, err)
+	require.NotNil(t, metrics)
+	assert.Equal(t, uint(4), metrics.TotalHosts)
+	assert.Equal(t, uint(4), metrics.OnlineHosts)
+	assert.Equal(t, uint(0), metrics.OfflineHosts)
+	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
 
-	total, online, err = svc.CountHostsInTargets(ctx, nil, nil)
-	assert.Nil(t, err)
-	assert.Equal(t, uint(0), total)
-	assert.Equal(t, uint(0), online)
+	metrics, err = svc.CountHostsInTargets(ctx, nil, nil)
+	require.Nil(t, err)
+	require.NotNil(t, metrics)
+	assert.Equal(t, uint(0), metrics.TotalHosts)
+	assert.Equal(t, uint(0), metrics.OnlineHosts)
+	assert.Equal(t, uint(0), metrics.OfflineHosts)
+	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
 
 	// Advance clock so all hosts are offline
 	mockClock.AddTime(1 * time.Hour)
-	total, online, err = svc.CountHostsInTargets(ctx, nil, []uint{l1.ID, l2.ID})
-	assert.Nil(t, err)
-	assert.Equal(t, uint(5), total)
-	assert.Equal(t, uint(0), online)
+	metrics, err = svc.CountHostsInTargets(ctx, nil, []uint{l1.ID, l2.ID})
+	require.Nil(t, err)
+	require.NotNil(t, metrics)
+	assert.Equal(t, uint(6), metrics.TotalHosts)
+	assert.Equal(t, uint(0), metrics.OnlineHosts)
+	assert.Equal(t, uint(5), metrics.OfflineHosts)
+	assert.Equal(t, uint(1), metrics.MissingInActionHosts)
 
 }
 

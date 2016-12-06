@@ -63,8 +63,10 @@ func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 }
 
 type targetTotals struct {
-	Total  uint `json:"count"`
-	Online uint `json:"online"`
+	Total           uint `json:"count"`
+	Online          uint `json:"online"`
+	Offline         uint `json:"offline"`
+	MissingInAction uint `json:"missing_in_action"`
 }
 
 func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Conn, campaignID uint) {
@@ -126,14 +128,18 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 				}
 			}
 
-			var totals targetTotals
-			totals.Total, totals.Online, err = svc.CountHostsInTargets(
-				context.Background(), hostIDs, labelIDs,
-			)
+			metrics, err := svc.CountHostsInTargets(context.Background(), hostIDs, labelIDs)
 			if err != nil {
 				if err = conn.WriteJSONError("error retrieving target counts"); err != nil {
 					return
 				}
+			}
+
+			totals := targetTotals{
+				Total:           metrics.TotalHosts,
+				Online:          metrics.OnlineHosts,
+				Offline:         metrics.OfflineHosts,
+				MissingInAction: metrics.MissingInActionHosts,
 			}
 
 			if err = conn.WriteJSONMessage("totals", totals); err != nil {

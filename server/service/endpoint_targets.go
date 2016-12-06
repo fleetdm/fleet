@@ -25,9 +25,10 @@ type hostSearchResult struct {
 
 type labelSearchResult struct {
 	kolide.Label
-	DisplayText string `json:"display_text"`
-	Count       uint   `json:"count"`
-	Online      uint   `json:"online"`
+	DisplayText     string `json:"display_text"`
+	Count           uint   `json:"count"`
+	Online          uint   `json:"online"`
+	MissingInAction uint   `json:"missing_in_action"`
 }
 
 type targetsData struct {
@@ -36,10 +37,11 @@ type targetsData struct {
 }
 
 type searchTargetsResponse struct {
-	Targets               *targetsData `json:"targets,omitempty"`
-	SelectedTargetsCount  uint         `json:"selected_targets_count"`
-	SelectedTargetsOnline uint         `json:"selected_targets_online"`
-	Err                   error        `json:"error,omitempty"`
+	Targets                        *targetsData `json:"targets,omitempty"`
+	SelectedTargetsCount           uint         `json:"selected_targets_count"`
+	SelectedTargetsOnline          uint         `json:"selected_targets_online"`
+	SelectedTargetsMissingInAction uint         `json:"selected_targets_missing_in_action"`
+	Err                            error        `json:"error,omitempty"`
 }
 
 func (r searchTargetsResponse) error() error { return r.Err }
@@ -68,7 +70,7 @@ func makeSearchTargetsEndpoint(svc kolide.Service) endpoint.Endpoint {
 		}
 
 		for _, label := range results.Labels {
-			total, online, err := svc.CountHostsInTargets(ctx, nil, []uint{label.ID})
+			metrics, err := svc.CountHostsInTargets(ctx, nil, []uint{label.ID})
 			if err != nil {
 				return searchTargetsResponse{Err: err}, nil
 			}
@@ -76,21 +78,23 @@ func makeSearchTargetsEndpoint(svc kolide.Service) endpoint.Endpoint {
 				labelSearchResult{
 					label,
 					label.Name,
-					total,
-					online,
+					metrics.TotalHosts,
+					metrics.OnlineHosts,
+					metrics.MissingInActionHosts,
 				},
 			)
 		}
 
-		total, online, err := svc.CountHostsInTargets(ctx, req.Selected.Hosts, req.Selected.Labels)
+		metrics, err := svc.CountHostsInTargets(ctx, req.Selected.Hosts, req.Selected.Labels)
 		if err != nil {
 			return searchTargetsResponse{Err: err}, nil
 		}
 
 		return searchTargetsResponse{
-			Targets:               targets,
-			SelectedTargetsCount:  total,
-			SelectedTargetsOnline: online,
+			Targets:                        targets,
+			SelectedTargetsCount:           metrics.TotalHosts,
+			SelectedTargetsOnline:          metrics.OnlineHosts,
+			SelectedTargetsMissingInAction: metrics.MissingInActionHosts,
 		}, nil
 	}
 }

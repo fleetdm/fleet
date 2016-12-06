@@ -1,9 +1,26 @@
 package service
 
 import (
+	"time"
+
 	"github.com/go-kit/kit/endpoint"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"golang.org/x/net/context"
+)
+
+const (
+	// StatusOnline host is active
+	StatusOnline string = "online"
+	// StatusOffline no communication with host for OfflineDuration
+	StatusOffline string = "offline"
+	// StatusMIA no communition with host for MIADuration
+	StatusMIA string = "mia"
+	// OfflineDuration if a host hasn't been in communition for this
+	// period it is considered offline
+	OfflineDuration time.Duration = 30 * time.Minute
+	// OfflineDuration if a host hasn't been in communition for this
+	// period it is considered MIA
+	MIADuration time.Duration = 30 * 24 * time.Hour
 )
 
 type hostResponse struct {

@@ -1,8 +1,6 @@
 package service
 
 import (
-	"time"
-
 	"github.com/kolide/kolide-ose/server/kolide"
 	"golang.org/x/net/context"
 )
@@ -16,11 +14,14 @@ func (svc service) GetHost(ctx context.Context, id uint) (*kolide.Host, error) {
 }
 
 func (svc service) HostStatus(ctx context.Context, host kolide.Host) string {
-	if host.UpdatedAt.Add(30 * time.Minute).Before(svc.clock.Now()) {
-		return "offline"
-	} else {
-		return "online"
+	if host.UpdatedAt.Add(OfflineDuration).Before(svc.clock.Now()) {
+		if host.UpdatedAt.Add(MIADuration).Before(svc.clock.Now()) {
+			return StatusMIA
+		}
+		return StatusOffline
 	}
+
+	return StatusOnline
 }
 
 func (svc service) DeleteHost(ctx context.Context, id uint) error {
