@@ -9,7 +9,6 @@ import App from 'components/App';
 import AuthenticatedAdminRoutes from 'components/AuthenticatedAdminRoutes';
 import AuthenticatedRoutes from 'components/AuthenticatedRoutes';
 import CoreLayout from 'layouts/CoreLayout';
-import ForgotPasswordPage from 'pages/ForgotPasswordPage';
 import HomePage from 'pages/HomePage';
 import LoginRoutes from 'components/LoginRoutes';
 import LogoutPage from 'pages/LogoutPage';
@@ -18,7 +17,6 @@ import NewHostPage from 'pages/hosts/NewHostPage';
 import QueryPage from 'pages/queries/QueryPage';
 import QueryPageWrapper from 'components/queries/QueryPageWrapper';
 import RegistrationPage from 'pages/RegistrationPage';
-import ResetPasswordPage from 'pages/ResetPasswordPage';
 import PackPageWrapper from 'components/packs/PackPageWrapper';
 import store from 'redux/store';
 
@@ -30,8 +28,8 @@ const routes = (
       <Route path="/" component={App}>
         <Route path="setup" component={RegistrationPage} />
         <Route path="login" component={LoginRoutes}>
-          <Route path="forgot" component={ForgotPasswordPage} />
-          <Route path="reset" component={ResetPasswordPage} />
+          <Route path="forgot" />
+          <Route path="reset" />
         </Route>
         <Route component={AuthenticatedRoutes}>
           <Route path="logout" component={LogoutPage} />

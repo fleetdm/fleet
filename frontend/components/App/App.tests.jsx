@@ -75,9 +75,4 @@ describe('App - component', () => {
     mount(application);
     expect(spy).toNotHaveBeenCalled();
   });
-
-
-  it('renders the Footer component', () => {
-    expect(component.find('Footer').length).toEqual(1);
-  });
 });

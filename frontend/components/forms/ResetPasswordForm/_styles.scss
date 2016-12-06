@@ -1,6 +1,10 @@
 .reset-password-form {
   width: 100%;
 
+  &__button-wrap {
+    @include position(absolute, null 0 0 0);
+  }
+
   &__input {
     width: 100%;
   }

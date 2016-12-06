@@ -1,7 +1,7 @@
 html {
   position: relative;
-  min-height: 100%;
   min-width: $min-width;
+  height: 100%;
   // Because iOS hates us we must fight to the death!
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
   // End Apple War
@@ -15,6 +15,17 @@ body {
   font-size: $base;
   line-height: 1.6;
   min-width: $min-width;
+  height: 100%;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+.wrapper,
+.wrapper > div {
+  min-height: 100vh;
 }
 
 h1,
@@ -25,13 +36,19 @@ h3 {
 
 .wrapper {
   background: $bg-medium;
-  margin:  0 0 $footer-height;
-  min-height: calc(100vh - #{$footer-height});
+  margin: 0;
 
   &--background {
     background: url('/assets/images/background.png') center center;
     background-size: cover;
   }
+}
+
+.body-wrap {
+  border-radius: 3px;
+  background-color: $white;
+  box-shadow: 0 0 12px 0 rgba(0, 0, 0, 0.1);
+  border: solid 1px $silver;
 }
 
 .cf {

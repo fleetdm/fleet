@@ -1,12 +1,27 @@
+.app-wrap {
+  @include display(flex);
+  min-height: calc(100vh - #{$footer-height});
+}
+
 .core-wrapper {
-  margin: 0 0 0 241px;
+  @include flex-grow(1);
+  margin: 0;
   padding: $pad-base $pad-base 0;
 
   &--show-panel {
     margin-right: 300px;
   }
+}
+
+.site-nav {
+  background-color: $white;
+  border-right: 1px solid $border-medium;
+  box-shadow: 2px 0 8px 0 rgba($black, 0.1);
+  box-sizing: border-box;
+  min-width: 240px;
 
   @include breakpoint(tablet) {
-    margin-left: 55px;
+    padding-left: 0;
+    min-width: 55px;
   }
 }

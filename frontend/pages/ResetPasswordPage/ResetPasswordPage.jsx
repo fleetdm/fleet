@@ -49,6 +49,12 @@ export class ResetPasswordPage extends Component {
       });
   })
 
+  handleLeave = (location) => {
+    const { dispatch } = this.props;
+
+    return dispatch(push(location));
+  }
+
   updateUser = (formData) => {
     const { dispatch, user } = this.props;
     const { new_password: password } = formData;
@@ -59,12 +65,13 @@ export class ResetPasswordPage extends Component {
   }
 
   render () {
-    const { onSubmit } = this;
+    const { handleLeave, onSubmit } = this;
 
     return (
       <StackedWhiteBoxes
         headerText="Reset Password"
         leadText="Create a new password using at least one letter, one numeral and seven characters."
+        onLeave={handleLeave}
       >
         <ResetPasswordForm handleSubmit={onSubmit} />
       </StackedWhiteBoxes>
@@ -72,15 +79,12 @@ export class ResetPasswordPage extends Component {
   }
 }
 
-const mapStateToProps = (state, ownProps) => {
-  const { query = {} } = ownProps.location || {};
-  const { token } = query;
+const mapStateToProps = (state) => {
   const { ResetPasswordPage: componentState } = state.components;
   const { user } = state.auth;
 
   return {
     ...componentState,
-    token,
     user,
   };
 };

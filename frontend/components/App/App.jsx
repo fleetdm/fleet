@@ -4,7 +4,6 @@ import { noop } from 'lodash';
 import classnames from 'classnames';
 
 import { fetchCurrentUser } from '../../redux/nodes/auth/actions';
-import Footer from '../Footer';
 import { getConfig } from '../../redux/nodes/app/actions';
 import { authToken } from '../../utilities/local';
 import userInterface from '../../interfaces/user';
@@ -57,7 +56,6 @@ export class App extends Component {
     return (
       <div className={wrapperStyles}>
         {children}
-        <Footer />
       </div>
     );
   }

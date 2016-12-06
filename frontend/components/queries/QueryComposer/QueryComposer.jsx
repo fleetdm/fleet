@@ -109,7 +109,7 @@ class QueryComposer extends Component {
     const { onLoad, renderForm, renderTargetsInput } = this;
 
     return (
-      <div className={`${baseClass}__wrapper`}>
+      <div className={`${baseClass}__wrapper body-wrap`}>
         <h1>{queryType === 'label' ? 'New Label Query' : 'New Query'}</h1>
         <div className={`${baseClass}__text-editor-wrapper`}>
           <AceEditor

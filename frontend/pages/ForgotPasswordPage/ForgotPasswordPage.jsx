@@ -1,5 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
+import { push } from 'react-router-redux';
 import { noop } from 'lodash';
 
 import {
@@ -21,6 +22,12 @@ export class ForgotPasswordPage extends Component {
   static defaultProps = {
     dispatch: noop,
   };
+
+  handleLeave = (location) => {
+    const { dispatch } = this.props;
+
+    return dispatch(push(location));
+  }
 
   handleSubmit = debounce((formData) => {
     const { dispatch } = this.props;
@@ -68,6 +75,7 @@ export class ForgotPasswordPage extends Component {
   }
 
   render () {
+    const { handleLeave } = this;
     const leadText = 'If you’ve forgotten your password enter your email below and we will email you a link so that you can reset your password.';
 
     return (
@@ -75,7 +83,8 @@ export class ForgotPasswordPage extends Component {
         headerText="Forgot Password"
         leadText={leadText}
         previousLocation="/login"
-        className="forgot-password__header"
+        className="forgot-password"
+        onLeave={handleLeave}
       >
         {this.renderContent()}
       </StackedWhiteBoxes>

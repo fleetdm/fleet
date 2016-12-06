@@ -3,15 +3,17 @@ import { connect } from 'react-redux';
 import { includes } from 'lodash';
 import { push } from 'react-router-redux';
 
-import AuthenticationFormWrapper from '../../components/AuthenticationFormWrapper';
-import { clearAuthErrors, loginUser } from '../../redux/nodes/auth/actions';
-import { clearRedirectLocation } from '../../redux/nodes/redirectLocation/actions';
-import debounce from '../../utilities/debounce';
-import LoginForm from '../../components/forms/LoginForm';
-import LoginSuccessfulPage from '../LoginSuccessfulPage';
-import paths from '../../router/paths';
-import redirectLocationInterface from '../../interfaces/redirect_location';
-import userInterface from '../../interfaces/user';
+import AuthenticationFormWrapper from 'components/AuthenticationFormWrapper';
+import { clearAuthErrors, loginUser } from 'redux/nodes/auth/actions';
+import { clearRedirectLocation } from 'redux/nodes/redirectLocation/actions';
+import debounce from 'utilities/debounce';
+import LoginForm from 'components/forms/LoginForm';
+import LoginSuccessfulPage from 'pages/LoginSuccessfulPage';
+import ForgotPasswordPage from 'pages/ForgotPasswordPage';
+import ResetPasswordPage from 'pages/ResetPasswordPage';
+import paths from 'router/paths';
+import redirectLocationInterface from 'interfaces/redirect_location';
+import userInterface from 'interfaces/user';
 
 const WHITELIST_ERRORS = ['Unable to authenticate the current user'];
 
@@ -20,12 +22,15 @@ export class LoginPage extends Component {
     dispatch: PropTypes.func,
     error: PropTypes.string,
     pathname: PropTypes.string,
+    isForgotPassPage: PropTypes.bool,
+    isResetPassPage: PropTypes.bool,
+    token: PropTypes.string,
     redirectLocation: redirectLocationInterface,
     user: userInterface,
   };
 
-  constructor () {
-    super();
+  constructor (props) {
+    super(props);
     this.state = {
       loginVisible: true,
     };
@@ -96,11 +101,14 @@ export class LoginPage extends Component {
 
   render () {
     const { showLoginForm } = this;
+    const { isForgotPassPage, isResetPassPage, token } = this.props;
 
     return (
       <AuthenticationFormWrapper>
         <LoginSuccessfulPage />
         {showLoginForm()}
+        { isForgotPassPage && <ForgotPasswordPage /> }
+        { isResetPassPage && <ResetPasswordPage token={token} /> }
       </AuthenticationFormWrapper>
     );
   }

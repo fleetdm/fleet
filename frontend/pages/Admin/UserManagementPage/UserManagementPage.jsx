@@ -189,7 +189,7 @@ class UserManagementPage extends Component {
     const baseClass = 'user-management';
 
     return (
-      <div className={baseClass}>
+      <div className={`${baseClass} body-wrap`}>
         <span className={`${baseClass}__user-count`}>Listing {resourcesCount} users</span>
         <div className={`${baseClass}__add-user-wrap`}>
           <Button

@@ -53,7 +53,7 @@ class AllPacksPage extends Component {
     const { packs } = this.props;
 
     return (
-      <div>
+      <div className={`${baseClass} body-wrap`}>
         <div className={`${baseClass}__wrapper`}>
           <p className={`${baseClass}__title`}>
             Query Packs

@@ -244,21 +244,3 @@
     display: none;
   }
 }
-
-.site-nav {
-  background-color: $white;
-  border-right: 1px solid $border-medium;
-  bottom: 0;
-  box-shadow: 2px 0 8px 0 rgba($black, 0.1);
-  box-sizing: border-box;
-  left: 0;
-  position: fixed;
-  top: 0;
-  width: 240px;
-  z-index: 5;
-
-  @include breakpoint(tablet) {
-    padding-left: 0;
-    width: 55px;
-  }
-}

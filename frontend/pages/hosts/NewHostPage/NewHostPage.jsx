@@ -138,7 +138,7 @@ export class NewHostPage extends Component {
 
     return (
       <div className={baseClass}>
-        <div className={`${baseClass}__section-wrap`}>
+        <div className={`${baseClass}__section-wrap body-wrap`}>
           <p className={`${baseClass}__title`}>Method 1 - One Liner</p>
           <div className={`${baseClass}__input-wrap`}>
             <input id="method1" className={`${baseClass}__input`} value={method1Text} readOnly />
@@ -152,7 +152,7 @@ export class NewHostPage extends Component {
             </div>
           </div>
         </div>
-        <div className={`${baseClass}__section-wrap`}>
+        <div className={`${baseClass}__section-wrap body-wrap`}>
           <p className={`${baseClass}__title ${baseClass}__title--wide`}>Method 2 - Your osqueryd with Kolide config</p>
           <div className={`${baseClass}__input-wrap`}>
             <input id="method2" className={`${baseClass}__input`} value={method2Text} readOnly />
@@ -161,7 +161,7 @@ export class NewHostPage extends Component {
           </div>
           <p className={`${baseClass}__text`}>This method allows you to configure an existing osqueryd installation to work with Kolide. The <code>--config_endpoints</code> flag allows us to point your osqueryd installation to your Kolide configuration.</p>
         </div>
-        <div className={`${baseClass}__section-wrap`}>
+        <div className={`${baseClass}__section-wrap body-wrap`}>
           <p className={`${baseClass}__title`}>Method 3 - Need More Methods?</p>
           <p className={`${baseClass}__text`}>Many IT automation frameworks offer direct recipes and scripts for deploying osquery. Choose a method below to learn more.</p>
         </div>

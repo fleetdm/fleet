@@ -1,10 +1,10 @@
 .footer {
-  @include position(absolute, null 0 0 0);
   @include align-items(center);
   background-color: $footer-bg;
   height: $footer-height;
   text-align: center;
   padding-top: 15px;
   box-sizing: border-box;
-  z-index: 5;
+  width: 100%;
+  position: relative;
 }
