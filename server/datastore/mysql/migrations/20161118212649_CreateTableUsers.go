@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	goose.AddMigration(Up_20161118212758, Down_20161118212758)
+	goose.AddMigration(Up_20161118212649, Down_20161118212649)
 }
 
-func Up_20161118212758(tx *sql.Tx) error {
+func Up_20161118212649(tx *sql.Tx) error {
 	_, err := tx.Exec(
 		"CREATE TABLE `users` (" +
 			"`id` int(10) unsigned NOT NULL AUTO_INCREMENT," +
@@ -36,7 +36,7 @@ func Up_20161118212758(tx *sql.Tx) error {
 	return err
 }
 
-func Down_20161118212758(tx *sql.Tx) error {
+func Down_20161118212649(tx *sql.Tx) error {
 	_, err := tx.Exec("DROP TABLE IF EXISTS `users`;")
 	return err
 }

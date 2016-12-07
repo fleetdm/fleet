@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"golang.org/x/net/context"
 )
@@ -46,6 +47,11 @@ func (svc service) NewQuery(ctx context.Context, p kolide.QueryPayload) (*kolide
 
 	if p.Version != nil {
 		query.Version = *p.Version
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if ok {
+		query.AuthorID = vc.UserID()
 	}
 
 	query, err := svc.ds.NewQuery(query)

@@ -49,6 +49,13 @@ func (orm *Datastore) DeleteQuery(query *kolide.Query) error {
 	return nil
 }
 
+func (orm *Datastore) getUserNameByID(id uint) string {
+	if u, ok := orm.users[id]; ok {
+		return u.Name
+	}
+	return ""
+}
+
 func (orm *Datastore) Query(id uint) (*kolide.Query, error) {
 	orm.mtx.Lock()
 	defer orm.mtx.Unlock()
@@ -57,6 +64,8 @@ func (orm *Datastore) Query(id uint) (*kolide.Query, error) {
 	if !ok {
 		return nil, errors.ErrNotFound
 	}
+
+	query.AuthorName = orm.getUserNameByID(query.AuthorID)
 
 	if err := orm.loadPacksForQueries([]*kolide.Query{query}); err != nil {
 		return nil, errors.DatabaseError(err)
@@ -78,8 +87,10 @@ func (orm *Datastore) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, erro
 
 	queries := []*kolide.Query{}
 	for _, k := range keys {
-		if orm.queries[uint(k)].Saved {
-			queries = append(queries, orm.queries[uint(k)])
+		q := orm.queries[uint(k)]
+		if q.Saved {
+			q.AuthorName = orm.getUserNameByID(q.AuthorID)
+			queries = append(queries, q)
 		}
 	}
 

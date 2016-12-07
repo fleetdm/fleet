@@ -4,9 +4,11 @@ import (
 	"testing"
 
 	"github.com/kolide/kolide-ose/server/config"
+	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"github.com/kolide/kolide-ose/server/datastore/inmem"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )
 
@@ -63,10 +65,15 @@ func TestNewQuery(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
 	assert.Nil(t, err)
 
+	createTestUsers(t, ds)
 	svc, err := newTestService(ds, nil)
 	assert.Nil(t, err)
 
+	user, err := ds.User("admin1")
+	require.Nil(t, err)
+
 	ctx := context.Background()
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 
 	name := "foo"
 	query := "select * from time;"
@@ -79,7 +86,9 @@ func TestNewQuery(t *testing.T) {
 
 	queries, err := ds.ListQueries(kolide.ListOptions{})
 	assert.Nil(t, err)
-	assert.Len(t, queries, 1)
+	if assert.Len(t, queries, 1) {
+		assert.Equal(t, "Test Name admin1", queries[0].AuthorName)
+	}
 }
 
 func TestModifyQuery(t *testing.T) {

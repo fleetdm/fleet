@@ -25,9 +25,11 @@ func checkTargets(t *testing.T, ds kolide.Datastore, campaignID uint, expectedHo
 }
 
 func testDistributedQueryCampaign(t *testing.T, ds kolide.Datastore) {
+	user := newUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
+
 	mockClock := clock.NewMockClock()
 
-	query := newQuery(t, ds, "test", "select * from time")
+	query := newQuery(t, ds, "test", "select * from time", user.ID)
 
 	campaign := newCampaign(t, ds, query.ID, kolide.QueryRunning, mockClock.Now())
 
@@ -64,9 +66,11 @@ func testDistributedQueryCampaign(t *testing.T, ds kolide.Datastore) {
 }
 
 func testCleanupDistributedQueryCampaigns(t *testing.T, ds kolide.Datastore) {
+	user := newUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
+
 	mockClock := clock.NewMockClock()
 
-	query := newQuery(t, ds, "test", "select * from time")
+	query := newQuery(t, ds, "test", "select * from time", user.ID)
 
 	c1 := newCampaign(t, ds, query.ID, kolide.QueryWaiting, mockClock.Now())
 	c2 := newCampaign(t, ds, query.ID, kolide.QueryRunning, mockClock.Now())

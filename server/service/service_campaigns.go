@@ -18,9 +18,10 @@ func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 	}
 
 	query, err := svc.ds.NewQuery(&kolide.Query{
-		Name:  fmt.Sprintf("distributed_%s_%d", vc.Username(), time.Now().Unix()),
-		Query: queryString,
-		Saved: false,
+		Name:     fmt.Sprintf("distributed_%s_%d", vc.Username(), time.Now().Unix()),
+		Query:    queryString,
+		Saved:    false,
+		AuthorID: vc.UserID(),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "new query")

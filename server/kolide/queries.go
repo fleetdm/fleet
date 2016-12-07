@@ -57,6 +57,10 @@ type Query struct {
 	Differential bool   `json:"differential"`
 	Platform     string `json:"platform"`
 	Version      string `json:"version"`
+	AuthorID     uint   `json:"author_id" db:"author_id"`
+	// AuthorName is retrieved with a join to the users table in the MySQL
+	// backend (using AuthorID)
+	AuthorName string `json:"author_name" db:"author_name"`
 	// Packs is loaded when retrieving queries, but is stored in a join
 	// table in the MySQL backend.
 	Packs []Pack `json:"packs" db:"-"`

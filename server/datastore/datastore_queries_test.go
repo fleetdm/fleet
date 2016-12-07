@@ -11,17 +11,20 @@ import (
 )
 
 func testDeleteQuery(t *testing.T, ds kolide.Datastore) {
+	user := newUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
+
 	query := &kolide.Query{
 		Name:     "foo",
 		Query:    "bar",
 		Interval: 123,
+		AuthorID: user.ID,
 	}
 	query, err := ds.NewQuery(query)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 	assert.NotEqual(t, query.ID, 0)
 
 	err = ds.DeleteQuery(query)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	assert.NotEqual(t, query.ID, 0)
 	_, err = ds.Query(query.ID)
@@ -29,39 +32,47 @@ func testDeleteQuery(t *testing.T, ds kolide.Datastore) {
 }
 
 func testSaveQuery(t *testing.T, ds kolide.Datastore) {
+	user := newUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
+
 	query := &kolide.Query{
-		Name:  "foo",
-		Query: "bar",
+		Name:     "foo",
+		Query:    "bar",
+		AuthorID: user.ID,
 	}
 	query, err := ds.NewQuery(query)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 	assert.NotEqual(t, 0, query.ID)
 
 	query.Query = "baz"
 	err = ds.SaveQuery(query)
 
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	queryVerify, err := ds.Query(query.ID)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 	assert.Equal(t, "baz", queryVerify.Query)
+	assert.Equal(t, "Zach", queryVerify.AuthorName)
 }
 
 func testListQuery(t *testing.T, ds kolide.Datastore) {
+	user := newUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
+
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewQuery(&kolide.Query{
-			Name:  fmt.Sprintf("name%02d", i),
-			Query: fmt.Sprintf("query%02d", i),
-			Saved: true,
+			Name:     fmt.Sprintf("name%02d", i),
+			Query:    fmt.Sprintf("query%02d", i),
+			Saved:    true,
+			AuthorID: user.ID,
 		})
 		require.Nil(t, err)
 	}
 
 	// One unsaved query should not be returned
 	_, err := ds.NewQuery(&kolide.Query{
-		Name:  "unsaved",
-		Query: "select * from time",
-		Saved: false,
+		Name:     "unsaved",
+		Query:    "select * from time",
+		Saved:    false,
+		AuthorID: user.ID,
 	})
 	require.Nil(t, err)
 
@@ -78,8 +89,10 @@ func checkPacks(t *testing.T, expected []kolide.Pack, actual []kolide.Pack) {
 }
 
 func testLoadPacksForQueries(t *testing.T, ds kolide.Datastore) {
-	q1 := newQuery(t, ds, "q1", "select * from time")
-	q2 := newQuery(t, ds, "q2", "select * from osquery_info")
+	user := newUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
+
+	q1 := newQuery(t, ds, "q1", "select * from time", user.ID)
+	q2 := newQuery(t, ds, "q2", "select * from osquery_info", user.ID)
 
 	p1 := newPack(t, ds, "p1")
 	p2 := newPack(t, ds, "p2")

@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	goose.AddMigration(Up_20161118212649, Down_20161118212649)
+	goose.AddMigration(Up_20161118212758, Down_20161118212758)
 }
 
-func Up_20161118212649(tx *sql.Tx) error {
+func Up_20161118212758(tx *sql.Tx) error {
 	_, err := tx.Exec(
 		"CREATE TABLE `queries` (" +
 			"`id` int(10) unsigned NOT NULL AUTO_INCREMENT," +
@@ -27,13 +27,15 @@ func Up_20161118212649(tx *sql.Tx) error {
 			"`differential` tinyint(1) NOT NULL DEFAULT FALSE," +
 			"`platform` varchar(255) DEFAULT NULL," +
 			"`version` varchar(255) DEFAULT NULL," +
-			"PRIMARY KEY (`id`)" +
+			"`author_id` int(10) unsigned DEFAULT NULL," +
+			"PRIMARY KEY (`id`)," +
+			"FOREIGN KEY (`author_id`) REFERENCES `users`(`id`) ON DELETE SET NULL" +
 			") ENGINE=InnoDB DEFAULT CHARSET=utf8;",
 	)
 	return err
 }
 
-func Down_20161118212649(tx *sql.Tx) error {
+func Down_20161118212758(tx *sql.Tx) error {
 	_, err := tx.Exec("DROP TABLE IF EXISTS `queries`;")
 	return err
 }

@@ -11,13 +11,14 @@ func (d *Datastore) NewQuery(query *kolide.Query) (*kolide.Query, error) {
 
 	sql := `
 		INSERT INTO queries (name, description, query,
-			saved, snapshot, differential, platform, version, ` + "`interval`" + `)
-		VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ? )
+			saved, snapshot, differential, platform, version,
+		` + "`interval`" + `, author_id)
+		VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
 	`
 
 	result, err := d.db.Exec(sql, query.Name, query.Description, query.Query,
-		query.Saved, query.Snapshot, query.Differential, query.Platform,
-		query.Version, query.Interval)
+		query.Saved, query.Snapshot, query.Differential, query.Platform, query.Version,
+		query.Interval, query.AuthorID)
 	if err != nil {
 		return nil, errors.DatabaseError(err)
 	}
@@ -32,11 +33,14 @@ func (d *Datastore) SaveQuery(q *kolide.Query) error {
 	sql := `
 		UPDATE queries
 			SET name = ?, description = ?, query = ?, ` + "`interval`" + ` = ?,
-			 saved = ?, snapshot = ?, differential = ?, platform = ?, version = ?
+			saved = ?, snapshot = ?, differential = ?, platform = ?, version = ?,
+			author_id = ?
 			WHERE id = ? AND NOT deleted
 	`
 	_, err := d.db.Exec(sql, q.Name, q.Description, q.Query, q.Interval,
-		q.Saved, q.Snapshot, q.Differential, q.Platform, q.Version, q.ID)
+		q.Saved, q.Snapshot, q.Differential, q.Platform, q.Version,
+		q.AuthorID,
+		q.ID)
 	if err != nil {
 		return errors.DatabaseError(err)
 	}
@@ -64,7 +68,12 @@ func (d *Datastore) DeleteQuery(query *kolide.Query) error {
 // exists
 func (d *Datastore) Query(id uint) (*kolide.Query, error) {
 	sql := `
-		SELECT * FROM queries WHERE id = ? AND NOT deleted
+		SELECT q.*, IFNULL(u.name, "") AS author_name
+		FROM queries q
+		LEFT JOIN users u
+			ON q.author_id = u.id
+		WHERE q.id = ?
+		AND NOT q.deleted
 	`
 	query := &kolide.Query{}
 	if err := d.db.Get(query, sql, id); err != nil {
@@ -82,9 +91,12 @@ func (d *Datastore) Query(id uint) (*kolide.Query, error) {
 // determined by passed in kolide.ListOptions
 func (d *Datastore) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, error) {
 	sql := `
-		SELECT * FROM queries
+		SELECT q.*, IFNULL(u.name, "") AS author_name
+		FROM queries q
+		LEFT JOIN users u
+			ON q.author_id = u.id
 		WHERE saved = true
-		AND NOT deleted
+		AND NOT q.deleted
 	`
 	sql = appendListOptionsToSQL(sql, opt)
 	results := []*kolide.Query{}

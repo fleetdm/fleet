@@ -22,6 +22,7 @@ func createTestUsers(t *testing.T, ds kolide.Datastore) map[string]kolide.User {
 	users := make(map[string]kolide.User)
 	for _, u := range testUsers {
 		user := &kolide.User{
+			Name:     "Test Name " + u.Username,
 			Username: u.Username,
 			Email:    u.Email,
 			Admin:    u.IsAdmin,
