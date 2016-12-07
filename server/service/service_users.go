@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"golang.org/x/net/context"
@@ -180,10 +179,11 @@ func (svc service) RequestPasswordReset(ctx context.Context, email string) error
 		}
 	}
 
-	token, err := jwt.New(jwt.SigningMethodHS256).SignedString([]byte(svc.config.App.TokenKey))
+	random, err := kolide.RandomText(svc.config.App.TokenKeySize)
 	if err != nil {
 		return err
 	}
+	token := base64.URLEncoding.EncodeToString([]byte(random))
 
 	request := &kolide.PasswordResetRequest{
 		UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
