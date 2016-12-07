@@ -2,6 +2,7 @@ package inmem
 
 import (
 	"sort"
+	"time"
 
 	"github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
@@ -16,6 +17,11 @@ func (orm *Datastore) NewInvite(invite *kolide.Invite) (*kolide.Invite, error) {
 		if in.Email == invite.Email {
 			return nil, errors.ErrExists
 		}
+	}
+
+	// set time if missing.
+	if invite.CreatedAt.IsZero() {
+		invite.CreatedAt = time.Now()
 	}
 
 	invite.ID = uint(len(orm.invites) + 1)
