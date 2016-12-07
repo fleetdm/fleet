@@ -2,7 +2,6 @@ package service
 
 import (
 	"encoding/base64"
-	"errors"
 
 	kolide_errors "github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
@@ -77,7 +76,7 @@ func (svc service) VerifyInvite(ctx context.Context, email, token string) error 
 
 	expiresAt := invite.CreatedAt.Add(svc.config.App.InviteTokenValidityPeriod)
 	if svc.clock.Now().After(expiresAt) {
-		return errors.New("expired invite token")
+		return newInvalidArgumentError("invite_token", "Invite token has expired.")
 	}
 
 	return nil

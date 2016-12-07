@@ -165,7 +165,7 @@ func TestCreateUser(t *testing.T) {
 			NeedsPasswordReset: boolPtr(true),
 			Admin:              boolPtr(false),
 			InviteToken:        &invites["expired"].Token,
-			wantErr:            errors.New("expired invite token"),
+			wantErr:            &invalidArgumentError{{name: "invite_token", reason: "Invite token has expired."}},
 		},
 		{
 			Username:           stringPtr("@admin2"),
