@@ -147,9 +147,8 @@ class TargetDetails extends Component {
           <AceEditor
             editorProps={{ $blockScrolling: Infinity }}
             mode="kolide"
-            minLines={4}
-            maxLines={4}
-            fontSize={13}
+            minLines={1}
+            maxLines={20}
             name="label-query"
             readOnly
             setOptions={{ wrap: true }}
@@ -158,6 +157,7 @@ class TargetDetails extends Component {
             theme="kolide"
             value={query}
             width="100%"
+            fontSize={14}
           />
         </div>
       </div>

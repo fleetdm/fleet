@@ -117,8 +117,8 @@ class QueryComposer extends Component {
             enableLiveAutocompletion
             editorProps={{ $blockScrolling: Infinity }}
             mode="kolide"
-            minLines={4}
-            maxLines={4}
+            minLines={2}
+            maxLines={20}
             name="query-editor"
             onLoad={onLoad}
             onChange={onTextEditorInputChange}
@@ -128,6 +128,7 @@ class QueryComposer extends Component {
             theme="kolide"
             value={queryText}
             width="100%"
+            fontSize={14}
           />
         </div>
         {renderTargetsInput()}

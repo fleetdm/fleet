@@ -197,20 +197,23 @@ export class ManageHostsPage extends Component {
       <div>
         <Icon name="label" />
         <span>{displayText}</span>
-        <AceEditor
-          editorProps={{ $blockScrolling: Infinity }}
-          mode="kolide"
-          minLines={2}
-          maxLines={4}
-          name="label-header"
-          readOnly
-          setOptions={{ wrap: true }}
-          showGutter={false}
-          showPrintMargin={false}
-          theme="kolide"
-          value={query}
-          width="100%"
-        />
+        { query &&
+          <AceEditor
+            editorProps={{ $blockScrolling: Infinity }}
+            mode="kolide"
+            minLines={1}
+            maxLines={20}
+            name="label-header"
+            readOnly
+            setOptions={{ wrap: true }}
+            showGutter={false}
+            showPrintMargin={false}
+            theme="kolide"
+            value={query}
+            width="100%"
+            fontSize={14}
+          />
+        }
         <p>Description</p>
         <p>{description}</p>
         <p>{count} Hosts Total</p>
