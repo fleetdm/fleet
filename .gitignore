@@ -15,5 +15,8 @@ bindata.go
 *.test
 *.log
 
+# typescript generated test files
+tmp/ 
+
 # operating system artifacts
 .DS_Store
