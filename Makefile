@@ -23,6 +23,7 @@ endif
 VERSION = 0.0.0-development
 BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
 REVISION = $(shell git rev-parse HEAD)
+REVSHORT = $(shell git rev-parse --short HEAD)
 USER = $(shell whoami)
 
 ifeq ($(OS), Windows_NT)
@@ -37,9 +38,9 @@ endif
 DOCKER_IMAGE_NAME = kolide/kolide
 
 ifndef CIRCLE_PR_NUMBER
-	DOCKER_IMAGE_TAG = latest
+	DOCKER_IMAGE_TAG = ${REVSHORT}
 else
-	DOCKER_IMAGE_TAG = dev-${CIRCLE_PR_NUMBER}
+	DOCKER_IMAGE_TAG = dev-${CIRCLE_PR_NUMBER}-${REVSHORT}
 endif
 
 all: build
