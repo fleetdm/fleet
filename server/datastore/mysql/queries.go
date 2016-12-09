@@ -53,15 +53,41 @@ func (d *Datastore) DeleteQuery(query *kolide.Query) error {
 	query.MarkDeleted(d.clock.Now())
 	sql := `
 		UPDATE queries
-			SET deleted_at = ?, deleted = ?
+			SET deleted_at = ?, deleted = true
 			WHERE id = ?
 	`
-	_, err := d.db.Exec(sql, query.DeletedAt, true, query.ID)
+	_, err := d.db.Exec(sql, query.DeletedAt, query.ID)
 	if err != nil {
 		return errors.DatabaseError(err)
 	}
 
 	return nil
+}
+
+// DeleteQueries (soft) deletes the existing query objects with the provided
+// IDs. The number of deleted queries is returned along with any error.
+func (d *Datastore) DeleteQueries(ids []uint) (uint, error) {
+	sql := `
+		UPDATE queries
+			SET deleted_at = NOW(), deleted = true
+			WHERE id IN (?)
+	`
+	query, args, err := sqlx.In(sql, ids)
+	if err != nil {
+		return 0, errors.DatabaseError(err)
+	}
+
+	result, err := d.db.Exec(query, args...)
+	if err != nil {
+		return 0, errors.DatabaseError(err)
+	}
+
+	deleted, err := result.RowsAffected()
+	if err != nil {
+		return 0, errors.DatabaseError(err)
+	}
+
+	return uint(deleted), nil
 }
 
 // Query returns a single Query identified by id, if such
@@ -115,6 +141,10 @@ func (d *Datastore) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, error)
 
 // loadPacksForQueries loads the packs associated with the provided queries
 func (d *Datastore) loadPacksForQueries(queries []*kolide.Query) error {
+	if len(queries) == 0 {
+		return nil
+	}
+
 	sql := `
 		SELECT p.*, pq.query_id AS query_id
 		FROM packs p

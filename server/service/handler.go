@@ -37,6 +37,7 @@ type KolideEndpoints struct {
 	CreateQuery                    endpoint.Endpoint
 	ModifyQuery                    endpoint.Endpoint
 	DeleteQuery                    endpoint.Endpoint
+	DeleteQueries                  endpoint.Endpoint
 	CreateDistributedQueryCampaign endpoint.Endpoint
 	GetPack                        endpoint.Endpoint
 	ListPacks                      endpoint.Endpoint
@@ -92,6 +93,7 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		CreateQuery:                    authenticatedUser(jwtKey, svc, makeCreateQueryEndpoint(svc)),
 		ModifyQuery:                    authenticatedUser(jwtKey, svc, makeModifyQueryEndpoint(svc)),
 		DeleteQuery:                    authenticatedUser(jwtKey, svc, makeDeleteQueryEndpoint(svc)),
+		DeleteQueries:                  authenticatedUser(jwtKey, svc, makeDeleteQueriesEndpoint(svc)),
 		CreateDistributedQueryCampaign: authenticatedUser(jwtKey, svc, makeCreateDistributedQueryCampaignEndpoint(svc)),
 		GetPack:             authenticatedUser(jwtKey, svc, makeGetPackEndpoint(svc)),
 		ListPacks:           authenticatedUser(jwtKey, svc, makeListPacksEndpoint(svc)),
@@ -146,6 +148,7 @@ type kolideHandlers struct {
 	CreateQuery                    *kithttp.Server
 	ModifyQuery                    *kithttp.Server
 	DeleteQuery                    *kithttp.Server
+	DeleteQueries                  *kithttp.Server
 	CreateDistributedQueryCampaign *kithttp.Server
 	GetPack                        *kithttp.Server
 	ListPacks                      *kithttp.Server
@@ -201,6 +204,7 @@ func makeKolideKitHandlers(ctx context.Context, e KolideEndpoints, opts []kithtt
 		CreateQuery:                    newServer(e.CreateQuery, decodeCreateQueryRequest),
 		ModifyQuery:                    newServer(e.ModifyQuery, decodeModifyQueryRequest),
 		DeleteQuery:                    newServer(e.DeleteQuery, decodeDeleteQueryRequest),
+		DeleteQueries:                  newServer(e.DeleteQueries, decodeDeleteQueriesRequest),
 		CreateDistributedQueryCampaign: newServer(e.CreateDistributedQueryCampaign, decodeCreateDistributedQueryCampaignRequest),
 		GetPack:                       newServer(e.GetPack, decodeGetPackRequest),
 		ListPacks:                     newServer(e.ListPacks, decodeListPacksRequest),
@@ -282,6 +286,7 @@ func attachKolideAPIRoutes(r *mux.Router, h kolideHandlers) {
 	r.Handle("/api/v1/kolide/queries", h.CreateQuery).Methods("POST")
 	r.Handle("/api/v1/kolide/queries/{id}", h.ModifyQuery).Methods("PATCH")
 	r.Handle("/api/v1/kolide/queries/{id}", h.DeleteQuery).Methods("DELETE")
+	r.Handle("/api/v1/kolide/queries/delete", h.DeleteQueries).Methods("POST")
 	r.Handle("/api/v1/kolide/queries/run", h.CreateDistributedQueryCampaign).Methods("POST")
 
 	r.Handle("/api/v1/kolide/packs/{id}", h.GetPack).Methods("GET")

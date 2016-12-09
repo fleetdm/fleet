@@ -29,7 +29,7 @@ func testDistributedQueryCampaign(t *testing.T, ds kolide.Datastore) {
 
 	mockClock := clock.NewMockClock()
 
-	query := newQuery(t, ds, "test", "select * from time", user.ID)
+	query := newQuery(t, ds, "test", "select * from time", user.ID, false)
 
 	campaign := newCampaign(t, ds, query.ID, kolide.QueryRunning, mockClock.Now())
 
@@ -70,7 +70,7 @@ func testCleanupDistributedQueryCampaigns(t *testing.T, ds kolide.Datastore) {
 
 	mockClock := clock.NewMockClock()
 
-	query := newQuery(t, ds, "test", "select * from time", user.ID)
+	query := newQuery(t, ds, "test", "select * from time", user.ID, false)
 
 	c1 := newCampaign(t, ds, query.ID, kolide.QueryWaiting, mockClock.Now())
 	c2 := newCampaign(t, ds, query.ID, kolide.QueryRunning, mockClock.Now())

@@ -49,6 +49,23 @@ func (orm *Datastore) DeleteQuery(query *kolide.Query) error {
 	return nil
 }
 
+// DeleteQueries (soft) deletes the existing query objects with the provided
+// IDs. The number of deleted queries is returned along with any error.
+func (orm *Datastore) DeleteQueries(ids []uint) (uint, error) {
+	orm.mtx.Lock()
+	defer orm.mtx.Unlock()
+
+	deleted := uint(0)
+	for _, id := range ids {
+		if _, ok := orm.queries[id]; ok {
+			delete(orm.queries, id)
+			deleted++
+		}
+	}
+
+	return deleted, nil
+}
+
 func (orm *Datastore) getUserNameByID(id uint) string {
 	if u, ok := orm.users[id]; ok {
 		return u.Name

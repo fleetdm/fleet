@@ -139,3 +139,29 @@ func makeDeleteQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
 		return deleteQueryResponse{}, nil
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Delete Queries
+////////////////////////////////////////////////////////////////////////////////
+
+type deleteQueriesRequest struct {
+	IDs []uint `json:"ids"`
+}
+
+type deleteQueriesResponse struct {
+	Deleted uint  `json:"deleted"`
+	Err     error `json:"error,omitempty"`
+}
+
+func (r deleteQueriesResponse) error() error { return r.Err }
+
+func makeDeleteQueriesEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(deleteQueriesRequest)
+		deleted, err := svc.DeleteQueries(ctx, req.IDs)
+		if err != nil {
+			return deleteQueriesResponse{Err: err}, nil
+		}
+		return deleteQueriesResponse{Deleted: deleted}, nil
+	}
+}

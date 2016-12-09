@@ -120,3 +120,7 @@ func (svc service) DeleteQuery(ctx context.Context, id uint) error {
 
 	return nil
 }
+
+func (svc service) DeleteQueries(ctx context.Context, ids []uint) (uint, error) {
+	return svc.ds.DeleteQueries(ids)
+}

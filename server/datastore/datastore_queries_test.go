@@ -31,6 +31,44 @@ func testDeleteQuery(t *testing.T, ds kolide.Datastore) {
 	assert.NotNil(t, err)
 }
 
+func testDeleteQueries(t *testing.T, ds kolide.Datastore) {
+	user := newUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
+
+	q1 := newQuery(t, ds, "q1", "select * from time", user.ID, true)
+	q2 := newQuery(t, ds, "q2", "select * from processes", user.ID, true)
+	q3 := newQuery(t, ds, "q3", "select 1", user.ID, true)
+	q4 := newQuery(t, ds, "q4", "select * from osquery_info", user.ID, true)
+
+	queries, err := ds.ListQueries(kolide.ListOptions{})
+	require.Nil(t, err)
+	assert.Len(t, queries, 4)
+
+	deleted, err := ds.DeleteQueries([]uint{q1.ID, q3.ID})
+	require.Nil(t, err)
+	assert.Equal(t, uint(2), deleted)
+
+	queries, err = ds.ListQueries(kolide.ListOptions{})
+	require.Nil(t, err)
+	assert.Len(t, queries, 2)
+
+	deleted, err = ds.DeleteQueries([]uint{q2.ID})
+	require.Nil(t, err)
+	assert.Equal(t, uint(1), deleted)
+
+	queries, err = ds.ListQueries(kolide.ListOptions{})
+	require.Nil(t, err)
+	assert.Len(t, queries, 1)
+
+	deleted, err = ds.DeleteQueries([]uint{q2.ID, q4.ID})
+	require.Nil(t, err)
+	assert.Equal(t, uint(1), deleted)
+
+	queries, err = ds.ListQueries(kolide.ListOptions{})
+	require.Nil(t, err)
+	assert.Len(t, queries, 0)
+
+}
+
 func testSaveQuery(t *testing.T, ds kolide.Datastore) {
 	user := newUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
 
@@ -91,8 +129,8 @@ func checkPacks(t *testing.T, expected []kolide.Pack, actual []kolide.Pack) {
 func testLoadPacksForQueries(t *testing.T, ds kolide.Datastore) {
 	user := newUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
 
-	q1 := newQuery(t, ds, "q1", "select * from time", user.ID)
-	q2 := newQuery(t, ds, "q2", "select * from osquery_info", user.ID)
+	q1 := newQuery(t, ds, "q1", "select * from time", user.ID, true)
+	q2 := newQuery(t, ds, "q2", "select * from osquery_info", user.ID, true)
 
 	p1 := newPack(t, ds, "p1")
 	p2 := newPack(t, ds, "p2")

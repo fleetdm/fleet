@@ -8,11 +8,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newQuery(t *testing.T, ds kolide.Datastore, name, q string, authorID uint) *kolide.Query {
+func newQuery(t *testing.T, ds kolide.Datastore, name, q string, authorID uint, saved bool) *kolide.Query {
 	query, err := ds.NewQuery(&kolide.Query{
 		Name:     name,
 		Query:    q,
 		AuthorID: authorID,
+		Saved:    saved,
 	})
 	require.Nil(t, err)
 
