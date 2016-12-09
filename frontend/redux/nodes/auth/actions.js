@@ -44,7 +44,7 @@ export const fetchCurrentUser = () => {
         const { email } = user;
         const emailHash = md5(email.toLowerCase());
 
-        user.gravatarURL = `https://www.gravatar.com/avatar/${emailHash}`;
+        user.gravatarURL = `https://www.gravatar.com/avatar/${emailHash}?d=blank`;
         return dispatch(loginSuccess({ user }));
       })
       .catch((response) => {
@@ -65,7 +65,7 @@ export const loginUser = (formData) => {
           const { email } = user;
           const emailHash = md5(email.toLowerCase());
 
-          user.gravatarURL = `https://www.gravatar.com/avatar/${emailHash}`;
+          user.gravatarURL = `https://www.gravatar.com/avatar/${emailHash}?d=blank`;
           dispatch(loginSuccess({ ...response, user }));
           return resolve(user);
         })

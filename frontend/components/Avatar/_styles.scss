@@ -1,4 +1,6 @@
 .avatar {
+  background: $white url('/assets/images/avatar-default.png') center center;
+  background-size: contain;
   border-radius: 50%;
 
   &--small {

@@ -1,6 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import classnames from 'classnames';
 
+import Avatar from 'components/Avatar';
 import Icon from 'components/Icon';
 
 class UserMenu extends Component {
@@ -22,8 +23,8 @@ class UserMenu extends Component {
     const {
       isOpened,
       onLogout,
+      user,
       user: {
-        gravatarURL,
         name,
         position,
       },
@@ -37,12 +38,7 @@ class UserMenu extends Component {
 
     return (
       <div className={userMenuClass}>
-        <img
-          alt="User Avatar"
-          src={gravatarURL}
-          className={`${toggleBaseClass}__avatar`}
-        />
-
+        <Avatar className={`${toggleBaseClass}__avatar`} user={user} />
         <p className={`${toggleBaseClass}__name`}>{ name }</p>
         <p className={`${toggleBaseClass}__position`}>{ position }</p>
 
