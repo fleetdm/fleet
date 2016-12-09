@@ -1,5 +1,5 @@
 .input-icon-field {
-  margin-top: $pad-base;
+  margin-top: 22px;
   position: relative;
   width: 100%;
 
@@ -7,7 +7,7 @@
     position: absolute;
     right: 6px;
     top: 28px;
-    font-size: 14px;
+    font-size: 18px;
     color: $accent-text;
 
     &--active {
@@ -20,21 +20,16 @@
   }
 
   &__input {
-    border-left: 0;
-    border-right: 0;
-    border-top: 0;
-    border-bottom-width: 2px;
+    border: 0;
+    border-bottom: 2px solid $brand-ultralight;
+    padding: 0 30px 8px 0;
     font-size: 20px;
-    border-bottom-style: solid;
-    border-bottom-color: $brand-ultralight;
-    padding-right: 30px;
-    opacity: 1;
     text-indent: 1px;
     position: relative;
     width: 100%;
     box-sizing: border-box;
-    font-family: 'Oxygen', $helvetica;
     color: $text-dark;
+    font-weight: $light;
 
     @include placeholder {
       color: $accent-text;
