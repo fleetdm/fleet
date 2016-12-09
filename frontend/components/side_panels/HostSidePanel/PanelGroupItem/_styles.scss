@@ -24,8 +24,6 @@ $base-class: 'panel-group-item';
 
 .#{$base-class} {
   @include transition(color 75ms ease-in-out, background 75ms ease-in-out);
-  @include display(flex);
-  @include align-items(center);
   width: 100%;
   font-size: 16px;
   line-height: 2.25;
@@ -35,6 +33,11 @@ $base-class: 'panel-group-item';
   text-align: left;
   padding: 0 $pad-large;
   border-radius: 4px;
+
+  &__flexy {
+    @include display(flex);
+    @include align-items(center);
+  }
 
   &__icon {
     @include transition(color 75ms ease-in-out);

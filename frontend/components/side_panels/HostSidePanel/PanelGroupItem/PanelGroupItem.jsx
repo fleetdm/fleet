@@ -39,12 +39,14 @@ class PanelGroupItem extends Component {
 
     return (
       <button className={wrapperClassName} onClick={onLabelClick}>
-        <Icon name={iconClassForLabel(item)} className={`${baseClass}__icon`} />
-        <span className={`${baseClass}__name`}>
-          {displayText}
-          {description && <span className={`${baseClass}__description`}>{description}</span>}
-        </span>
-        <span className={`${baseClass}__count`}>{count}</span>
+        <div className={`${baseClass}__flexy`}>
+          <Icon name={iconClassForLabel(item)} className={`${baseClass}__icon`} />
+          <span className={`${baseClass}__name`}>
+            {displayText}
+            {description && <span className={`${baseClass}__description`}>{description}</span>}
+          </span>
+          <span className={`${baseClass}__count`}>{count}</span>
+        </div>
       </button>
     );
   }
