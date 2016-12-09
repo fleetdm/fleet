@@ -110,7 +110,11 @@ $base-class: 'button';
     padding: $medium;
     width: 100%;
     height: auto;
-    box-shadow: none;
+    box-shadow: inset 0 -3px 0px 0 rgba(0, 0, 0, 0.25), 0 -2px 3px 0 rgba(0, 0, 0, 0.15);
+
+    &:active {
+      box-shadow: 0 1px 0 #734893, 0 -2px 0 #D1D9E9;
+    }
   }
 
   &--unstyled {
