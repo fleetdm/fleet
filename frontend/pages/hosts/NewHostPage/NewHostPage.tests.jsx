@@ -21,16 +21,9 @@ describe('New Host Page - component', () => {
   it('saves the copied text in state', () => {
     const page = mount(<NewHostPage />);
     const method1Icon = page.find('.kolidecon-clipboard').first();
-    const method2Icon = page.find('.kolidecon-clipboard').last();
 
     method1Icon.simulate('click');
 
     expect(page.state().method1TextCopied).toEqual(true);
-    expect(page.state().method2TextCopied).toEqual(false);
-
-    method2Icon.simulate('click');
-
-    expect(page.state().method1TextCopied).toEqual(false);
-    expect(page.state().method2TextCopied).toEqual(true);
   });
 });

@@ -10,13 +10,14 @@ node_modules
 # generated artifacts
 assets/bundle.*
 assets/*@*.svg
+assets/*@*.png
 bindata.go
 *.cover
 *.test
 *.log
 
 # typescript generated test files
-tmp/ 
+tmp/
 
 # operating system artifacts
 .DS_Store

@@ -1,25 +1,25 @@
 .new-host {
   &__section-wrap {
     margin-bottom: $pad-base;
-    padding: $pad-base;
+    padding: 30px;
   }
 
   &__title {
-    border-bottom: 1px solid $accent-light;
+    font-weight: $light;
+    letter-spacing: 1px;
+    color: $text-ultradark;
     font-size: $large;
     width: 364px;
-
-    &--wide {
-      width: 626px;
-    }
+    margin: 0 0 32px;
   }
 
   &__input-wrap {
     position: relative;
+    margin: 0 0 23px;
   }
 
   &__input {
-    color: #6f737f;
+    color: $text-ultradark;
     border-radius: 3px;
     background-color: $white;
     border: solid 1px $accent-dark;
@@ -55,46 +55,58 @@
     }
   }
 
-  &__tab-wrap {
-    margin-top: $pad-base;
-  }
+  &__text {
+    color: $text-ultradark;
+    font-size: 16px;
+    line-height: 32px;
+    margin: 0 0 $large;
+    max-width: 860px;
 
-  &__tab-header {
-    background-color: $bg-light;
-    color: $text-medium;
-    cursor: pointer;
-    display: inline-block;
-    font-size: $small;
-    height: 36px;
-    line-height: 36px;
-    padding-left: $pad-base;
-    width: 235px;
-    letter-spacing: 0;
+    p {
+      margin: 0;
+    }
 
-    &--selected {
-      background-color: $bg-medium;
-      color: $brand-light;
+    .kolide-ol {
+      margin: 0;
     }
   }
 
-  &__tab-body {
-    background-color: $bg-medium;
-    border-radius: 3px;
-    box-sizing: border-box;
-    color: $text-ultradark;
-    font-size: $small;
-    height: 196px;
-    padding-bottom: $pad-base;
-    padding-left: $pad-base;
-    padding-right: $pad-base;
-    padding-top: $pad-base;
-    width: 100%;
+  &__view-script {
+    @include clearfix;
+    margin: 0;
+
+    .button {
+      float: right;
+      color: $link;
+      font-weight: $normal;
+      text-transform: none;
+    }
   }
 
-  &__text {
-    color: $text-ultradark;
-    font-size: $small;
-    line-height: $large;
+  &__more-methods {
+    @include display(flex);
+    @include justify-content(space-between);
+    @include align-content(center);
+    @include align-items(center);
+    margin: 0;
+    padding: 42px 0;
+    list-style: none;
+    border-radius: 3px;
+    background-color: $white;
+    box-shadow: inset 0 0 8px 0 rgba(0, 0, 0, 0.08);
+    border: solid 1px $accent-medium;
+
+    li {
+      &:first-child,
+      &:last-child {
+        @include flex-grow(1);
+        text-align: center;
+      }
+    }
+
+    img {
+      max-width: 130px;
+    }
   }
 
   code {
