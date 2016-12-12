@@ -153,6 +153,12 @@ func (svc service) ResetPassword(ctx context.Context, token, password string) er
 		return err
 	}
 
+	// Clear sessions so that any other browsers will have to log in with
+	// the new password
+	if err := svc.DeleteSessionsForUser(ctx, user.ID); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -172,6 +178,8 @@ func (svc service) RequestPasswordReset(ctx context.Context, email string) error
 			if err := svc.saveUser(user); err != nil {
 				return err
 			}
+			// Sessions should only be cleared if this is an admin
+			// forced password reset
 			if err := svc.DeleteSessionsForUser(ctx, user.ID); err != nil {
 				return err
 			}
@@ -186,23 +194,12 @@ func (svc service) RequestPasswordReset(ctx context.Context, email string) error
 	token := base64.URLEncoding.EncodeToString([]byte(random))
 
 	request := &kolide.PasswordResetRequest{
-		UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-			CreateTimestamp: kolide.CreateTimestamp{
-				CreatedAt: time.Now(),
-			},
-			UpdateTimestamp: kolide.UpdateTimestamp{
-				UpdatedAt: time.Now(),
-			},
-		},
 		ExpiresAt: time.Now().Add(time.Hour * 24),
 		UserID:    user.ID,
 		Token:     token,
 	}
 	request, err = svc.ds.NewPasswordResetRequest(request)
 	if err != nil {
-		return err
-	}
-	if err := svc.DeleteSessionsForUser(ctx, user.ID); err != nil {
 		return err
 	}
 
