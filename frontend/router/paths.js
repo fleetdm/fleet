@@ -5,6 +5,7 @@ export default {
   HOME: '/',
   LOGIN: '/login',
   LOGOUT: '/logout',
+  MANAGE_HOSTS: '/hosts/manage',
   NEW_PACK: '/packs/new',
   RESET_PASSWORD: '/login/reset',
 };

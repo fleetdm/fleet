@@ -47,7 +47,7 @@ const routes = (
             </Route>
             <Route path="hosts">
               <Route path="new" component={NewHostPage} />
-              <Route path="manage" component={ManageHostsPage} />
+              <Route path="manage(/:active_label)" component={ManageHostsPage} />
             </Route>
           </Route>
         </Route>

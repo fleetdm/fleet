@@ -21,6 +21,8 @@ const host = {
   uptime: 3600000000000,
   uuid: '1234-5678-9101',
 };
+const allHostsLabel = { id: 1, display_text: 'All Hosts', slug: 'all-hosts', type: 'all', count: 22 };
+const windowsLabel = { id: 2, display_text: 'Windows', slug: 'windows', type: 'platform', count: 22 };
 const mockStore = reduxMockStore({
   components: {
     ManageHostsPage: {
@@ -29,6 +31,16 @@ const mockStore = reduxMockStore({
     },
     QueryPages: {
       selectedOsqueryTable: stubbedOsqueryTable,
+    },
+  },
+  entities: {
+    labels: {
+      data: {
+        1: allHostsLabel,
+        2: windowsLabel,
+        3: { id: 3, display_text: 'Ubuntu', slug: 'ubuntu', type: 'platform', count: 22 },
+        4: { id: 4, display_text: 'ONLINE', slug: 'online', type: 'status', count: 22 },
+      },
     },
   },
 });
@@ -54,7 +66,7 @@ describe('ManageHostsPage - component', () => {
     });
 
     it('renders a QuerySidePanel when adding a new label', () => {
-      const ownProps = { location: { hash: '#new_label' } };
+      const ownProps = { location: { hash: '#new_label' }, params: {} };
       const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
       const page = mount(component);
 
@@ -76,7 +88,7 @@ describe('ManageHostsPage - component', () => {
     });
 
     it('toggles between displays', () => {
-      const ownProps = { location: {} };
+      const ownProps = { location: {}, params: {} };
       const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
       const page = mount(component);
       const button = page.find('Rocker').find('input');
@@ -97,7 +109,7 @@ describe('ManageHostsPage - component', () => {
     beforeEach(() => createAceSpy());
     afterEach(restoreSpies);
 
-    const ownProps = { location: { hash: '#new_label' } };
+    const ownProps = { location: { hash: '#new_label' }, params: {} };
     const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
 
     it('renders a QueryComposer component', () => {
@@ -110,6 +122,31 @@ describe('ManageHostsPage - component', () => {
       const page = mount(component);
 
       expect(page.find('QueryComposer').text()).toInclude('New Label Query');
+    });
+  });
+
+  describe('Active label', () => {
+    beforeEach(() => createAceSpy());
+    afterEach(restoreSpies);
+
+    it('Displays the all hosts label as the active label by default', () => {
+      const ownProps = { location: {}, params: {} };
+      const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
+      const page = mount(component);
+
+      expect(page.find('HostSidePanel').props()).toInclude({
+        selectedLabel: allHostsLabel,
+      });
+    });
+
+    it('Displays the windows label as the active label', () => {
+      const ownProps = { location: {}, params: { active_label: 'windows' } };
+      const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
+      const page = mount(component);
+
+      expect(page.find('HostSidePanel').props()).toInclude({
+        selectedLabel: windowsLabel,
+      });
     });
   });
 });

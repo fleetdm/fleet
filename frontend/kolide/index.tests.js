@@ -50,7 +50,12 @@ describe('Kolide - API client', () => {
       Kolide.createLabel(labelParams)
         .then((labelResponse) => {
           expect(request.isDone()).toEqual(true);
-          expect(labelResponse).toEqual({ ...labelParams, type: 'custom' });
+          expect(labelResponse).toEqual({
+            ...labelParams,
+            display_text: name,
+            slug: 'label-name',
+            type: 'custom',
+          });
           done();
         })
         .catch(done);

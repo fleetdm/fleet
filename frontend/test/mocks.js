@@ -21,7 +21,7 @@ export const validCreateLabelRequest = (bearerToken, labelParams) => {
     },
   })
     .post('/api/v1/kolide/labels', JSON.stringify(labelParams))
-    .reply(201, { label: labelParams });
+    .reply(201, { label: { ...labelParams, display_text: labelParams.name } });
 };
 
 export const validCreateQueryRequest = (bearerToken, queryParams) => {

@@ -3,6 +3,13 @@ import expect from 'expect';
 import helpers from 'kolide/helpers';
 
 describe('Kolide API - helpers', () => {
+  describe('#labelSlug', () => {
+    it('creates a slug for the label', () => {
+      expect(helpers.labelSlug({ display_text: 'All Hosts' })).toEqual('all-hosts');
+      expect(helpers.labelSlug({ display_text: 'windows' })).toEqual('windows');
+    });
+  });
+
   describe('#setupData', () => {
     const formData = {
       email: 'hi@gnar.dog',

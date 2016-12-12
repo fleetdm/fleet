@@ -56,7 +56,7 @@
     "react-ace": "^3.6.0",
     "react-addons-css-transition-group": "^15.3.2",
     "react-dom": "^15.3.2",
-    "react-entity-getter": "0.0.2",
+    "react-entity-getter": "0.0.5",
     "react-redux": "^4.4.5",
     "react-router": "^2.7.0",
     "react-router-redux": "^4.0.5",

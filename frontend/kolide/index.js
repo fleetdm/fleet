@@ -9,8 +9,11 @@ class Kolide extends Base {
 
     return this.authenticatedPost(this.endpoint(LABELS), JSON.stringify({ description, name, query }))
       .then((response) => {
+        const { label } = response;
+
         return {
-          ...response.label,
+          ...label,
+          slug: helpers.labelSlug(label),
           type: 'custom',
         };
       });
@@ -124,18 +127,24 @@ class Kolide extends Base {
 
     return this.authenticatedGet(this.endpoint(LABELS))
       .then((response) => {
+        const labelTypeForDisplayText = {
+          'All Hosts': 'all',
+          'MS Windows': 'platform',
+          'CentOS Linux': 'platform',
+          'Mac OS X': 'platform',
+          'Ubuntu Linux': 'platform',
+        };
         const labels = response.labels.map((label) => {
-          return { ...label, type: 'custom' };
+          return {
+            ...label,
+            slug: helpers.labelSlug(label),
+            type: labelTypeForDisplayText[label.display_text] || 'custom',
+          };
         });
         const stubbedLabels = [
-          { id: 100, display_text: 'All Hosts', type: 'all', count: 22 },
-          { id: 40, display_text: 'ONLINE', type: 'status', count: 20 },
-          { id: 50, display_text: 'OFFLINE', type: 'status', count: 2 },
-          { id: 55, display_text: 'MIA', description: '(offline > 30 days)', type: 'status', count: 3 },
-          { id: 60, display_text: 'macOS', type: 'platform', count: 1 },
-          { id: 70, display_text: 'Windows', type: 'platform', count: 1 },
-          { id: 80, display_text: 'Ubuntu', type: 'platform', count: 10 },
-          { id: 90, display_text: 'Centos', type: 'platform', count: 10 },
+          { id: 40, display_text: 'ONLINE', slug: 'online', type: 'status', count: 20 },
+          { id: 50, display_text: 'OFFLINE', slug: 'offline', type: 'status', count: 2 },
+          { id: 55, display_text: 'MIA', description: '(offline > 30 days)', slug: 'mia', type: 'status', count: 3 },
         ];
 
         return labels.concat(stubbedLabels);
