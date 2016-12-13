@@ -8,6 +8,7 @@ class UserMenu extends Component {
   static propTypes = {
     isOpened: PropTypes.bool,
     onLogout: PropTypes.func,
+    onRedirectTo: PropTypes.func,
     user: PropTypes.shape({
       gravatarURL: PropTypes.string,
       name: PropTypes.string,
@@ -20,15 +21,8 @@ class UserMenu extends Component {
   };
 
   render () {
-    const {
-      isOpened,
-      onLogout,
-      user,
-      user: {
-        name,
-        position,
-      },
-    } = this.props;
+    const { isOpened, onLogout, onRedirectTo, user } = this.props;
+    const { name, position } = user;
 
     const toggleBaseClass = 'user-menu-toggle';
     const userMenuClass = classnames(
@@ -44,7 +38,7 @@ class UserMenu extends Component {
 
         <nav className={`${toggleBaseClass}__nav`}>
           <ul className={`${toggleBaseClass}__nav-list`}>
-            <li className={`${toggleBaseClass}__nav-item`}><a href="#user-settings"><Icon name="user-settings" /><span>Account Settings</span></a></li>
+            <li className={`${toggleBaseClass}__nav-item`}><a href="#settings" onClick={onRedirectTo('/settings')}><Icon name="user-settings" /><span>Account Settings</span></a></li>
             <li className={`${toggleBaseClass}__nav-item`}><a href="#logout" onClick={onLogout}><Icon name="logout" /><span>Log Out</span></a></li>
           </ul>
         </nav>

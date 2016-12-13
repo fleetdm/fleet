@@ -8,7 +8,7 @@ import navItems from './navItems';
 
 class SiteNavSidePanel extends Component {
   static propTypes = {
-    onNavItemClick: PropTypes.func,
+    onRedirectTo: PropTypes.func,
     pathname: PropTypes.string,
     user: userInterface,
   };
@@ -23,17 +23,6 @@ class SiteNavSidePanel extends Component {
     this.state = {
       showSubItems: false,
       userMenuOpened: false,
-    };
-  }
-
-  onNavItemClick = (navItem) => {
-    return (evt) => {
-      evt.preventDefault();
-
-      const { onNavItemClick: handleNavItemClick } = this.props;
-      const { pathname: navItemPathname } = navItem.location;
-
-      return handleNavItemClick(navItemPathname);
     };
   }
 
@@ -59,8 +48,8 @@ class SiteNavSidePanel extends Component {
 
   renderNavItem = (navItem) => {
     const { icon, name, subItems } = navItem;
-    const { pathname } = this.props;
-    const { onNavItemClick, renderSubItems } = this;
+    const { onRedirectTo, pathname } = this.props;
+    const { renderSubItems } = this;
     const active = navItem.location.regex.test(pathname);
 
     const navItemBaseClass = 'site-nav-item';
@@ -74,7 +63,7 @@ class SiteNavSidePanel extends Component {
       <li className={navItemClasses} key={`nav-item-${name}`}>
         <button
           className={`${navItemBaseClass}__button button button--unstyled`}
-          onClick={onNavItemClick(navItem)}
+          onClick={onRedirectTo(navItem.location)}
           style={{ width: '100%' }}
         >
           <Icon name={icon} className={`${navItemBaseClass}__icon`} />
@@ -101,8 +90,7 @@ class SiteNavSidePanel extends Component {
 
   renderSubItem = (subItem) => {
     const { icon, name } = subItem;
-    const { pathname } = this.props;
-    const { onNavItemClick } = this;
+    const { onRedirectTo, pathname } = this.props;
     const active = subItem.location.regex.test(pathname);
 
     const baseSubItemClass = 'site-sub-item';
@@ -120,7 +108,7 @@ class SiteNavSidePanel extends Component {
         <button
           className={`${baseSubItemClass}__button button button--unstyled`}
           key={`sub-item-${name}`}
-          onClick={onNavItemClick(subItem)}
+          onClick={onRedirectTo(subItem.location)}
         >
           <span className={`${baseSubItemClass}__name`}>{name}</span>
           <span className={`${baseSubItemClass}__icon`}><Icon name={icon} /></span>

@@ -12,6 +12,7 @@ class SiteNavHeader extends Component {
   static propTypes = {
     config: configInterface,
     onLogoutUser: PropTypes.func,
+    onRedirectTo: PropTypes.func,
     user: userInterface,
   };
 
@@ -50,6 +51,7 @@ class SiteNavHeader extends Component {
         org_name: orgName,
       },
       onLogoutUser,
+      onRedirectTo,
       user,
     } = this.props;
 
@@ -89,6 +91,7 @@ class SiteNavHeader extends Component {
           <UserMenu
             isOpened={userMenuOpened}
             onLogout={onLogoutUser}
+            onRedirectTo={onRedirectTo}
             user={user}
           />
         </button>

@@ -30,12 +30,16 @@ export class CoreLayout extends Component {
     return false;
   }
 
-  onNavItemClick = (path) => {
-    const { dispatch } = this.props;
+  onRedirectTo = (path) => {
+    return (evt) => {
+      evt.preventDefault();
 
-    dispatch(push(path));
+      const { dispatch } = this.props;
 
-    return false;
+      dispatch(push(path));
+
+      return false;
+    };
   }
 
   onRemoveFlash = () => {
@@ -68,7 +72,7 @@ export class CoreLayout extends Component {
 
     if (!user) return false;
 
-    const { onLogoutUser, onNavItemClick, onRemoveFlash, onUndoActionClick } = this;
+    const { onLogoutUser, onRedirectTo, onRemoveFlash, onUndoActionClick } = this;
     const { pathname } = global.window.location;
 
     return (
@@ -77,11 +81,12 @@ export class CoreLayout extends Component {
           <SiteNavHeader
             config={config}
             onLogoutUser={onLogoutUser}
+            onRedirectTo={onRedirectTo}
             user={user}
           />
           <SiteNavSidePanel
             config={config}
-            onNavItemClick={onNavItemClick}
+            onRedirectTo={onRedirectTo}
             pathname={pathname}
             user={user}
           />

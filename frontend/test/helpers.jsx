@@ -1,8 +1,8 @@
 import React from 'react';
 import configureStore from 'redux-mock-store';
+import expect, { spyOn } from 'expect';
 import { noop } from 'lodash';
 import { Provider } from 'react-redux';
-import { spyOn } from 'expect';
 import thunk from 'redux-thunk';
 
 export const fillInFormInput = (inputComponent, value) => {
@@ -22,6 +22,26 @@ export const connectedComponent = (ComponentClass, { props = {}, mockStore }) =>
       <ComponentClass {...props} />
     </Provider>
   );
+};
+
+export const itBehavesLikeAFormInputElement = (form, inputName, inputType = 'InputField') => {
+  const inputField = form.find({ name: inputName }).find('input');
+
+  expect(inputField.length).toEqual(1);
+
+  if (inputType === 'Checkbox') {
+    const inputValue = form.state().formData[inputName];
+
+    inputField.simulate('change');
+
+    expect(form.state().formData[inputName]).toEqual(!inputValue);
+  } else {
+    const inputText = 'some text';
+
+    fillInFormInput(inputField, inputText);
+
+    expect(form.state().formData).toInclude({ [inputName]: inputText });
+  }
 };
 
 export const createAceSpy = () => {
@@ -89,6 +109,7 @@ export default {
   connectedComponent,
   createAceSpy,
   fillInFormInput,
+  itBehavesLikeAFormInputElement,
   reduxMockStore,
   stubbedOsqueryTable,
 };

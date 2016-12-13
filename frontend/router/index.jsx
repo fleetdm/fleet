@@ -14,11 +14,12 @@ import LoginRoutes from 'components/LoginRoutes';
 import LogoutPage from 'pages/LogoutPage';
 import ManageHostsPage from 'pages/hosts/ManageHostsPage';
 import NewHostPage from 'pages/hosts/NewHostPage';
+import PackPageWrapper from 'components/packs/PackPageWrapper';
 import QueryPage from 'pages/queries/QueryPage';
 import QueryPageWrapper from 'components/queries/QueryPageWrapper';
 import RegistrationPage from 'pages/RegistrationPage';
-import PackPageWrapper from 'components/packs/PackPageWrapper';
 import store from 'redux/store';
+import UserSettingsPage from 'pages/UserSettingsPage';
 
 const history = syncHistoryWithStore(browserHistory, store);
 
@@ -49,6 +50,7 @@ const routes = (
               <Route path="new" component={NewHostPage} />
               <Route path="manage(/:active_label)" component={ManageHostsPage} />
             </Route>
+            <Route path="settings" component={UserSettingsPage} />
           </Route>
         </Route>
       </Route>
