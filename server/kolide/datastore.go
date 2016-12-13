@@ -12,6 +12,7 @@ type Datastore interface {
 	SessionStore
 	AppConfigStore
 	InviteStore
+	ScheduledQueryStore
 	Name() string
 	Drop() error
 	Migrate() error

@@ -29,26 +29,6 @@ func (svc service) NewQuery(ctx context.Context, p kolide.QueryPayload) (*kolide
 		query.Query = *p.Query
 	}
 
-	if p.Interval != nil {
-		query.Interval = *p.Interval
-	}
-
-	if p.Snapshot != nil {
-		query.Snapshot = *p.Snapshot
-	}
-
-	if p.Differential != nil {
-		query.Differential = *p.Differential
-	}
-
-	if p.Platform != nil {
-		query.Platform = *p.Platform
-	}
-
-	if p.Version != nil {
-		query.Version = *p.Version
-	}
-
 	vc, ok := viewer.FromContext(ctx)
 	if ok {
 		query.AuthorID = vc.UserID()
@@ -77,26 +57,6 @@ func (svc service) ModifyQuery(ctx context.Context, id uint, p kolide.QueryPaylo
 
 	if p.Query != nil {
 		query.Query = *p.Query
-	}
-
-	if p.Interval != nil {
-		query.Interval = *p.Interval
-	}
-
-	if p.Snapshot != nil {
-		query.Snapshot = *p.Snapshot
-	}
-
-	if p.Differential != nil {
-		query.Differential = *p.Differential
-	}
-
-	if p.Platform != nil {
-		query.Platform = *p.Platform
-	}
-
-	if p.Version != nil {
-		query.Version = *p.Version
 	}
 
 	err = svc.ds.SaveQuery(query)

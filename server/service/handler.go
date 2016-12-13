@@ -44,9 +44,11 @@ type KolideEndpoints struct {
 	CreatePack                     endpoint.Endpoint
 	ModifyPack                     endpoint.Endpoint
 	DeletePack                     endpoint.Endpoint
-	AddQueryToPack                 endpoint.Endpoint
-	GetQueriesInPack               endpoint.Endpoint
-	DeleteQueryFromPack            endpoint.Endpoint
+	ScheduleQueries                endpoint.Endpoint
+	GetScheduledQueriesInPack      endpoint.Endpoint
+	GetScheduledQuery              endpoint.Endpoint
+	ModifyScheduledQuery           endpoint.Endpoint
+	DeleteScheduledQuery           endpoint.Endpoint
 	EnrollAgent                    endpoint.Endpoint
 	GetClientConfig                endpoint.Endpoint
 	GetDistributedQueries          endpoint.Endpoint
@@ -94,32 +96,34 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		CreateInvite:                   authenticatedUser(jwtKey, svc, mustBeAdmin(makeCreateInviteEndpoint(svc))),
 		ListInvites:                    authenticatedUser(jwtKey, svc, mustBeAdmin(makeListInvitesEndpoint(svc))),
 		DeleteInvite:                   authenticatedUser(jwtKey, svc, mustBeAdmin(makeDeleteInviteEndpoint(svc))),
-		GetQuery:                       authenticatedUser(jwtKey, svc, canPerformActions(makeGetQueryEndpoint(svc))),
-		ListQueries:                    authenticatedUser(jwtKey, svc, canPerformActions(makeListQueriesEndpoint(svc))),
-		CreateQuery:                    authenticatedUser(jwtKey, svc, canPerformActions(makeCreateQueryEndpoint(svc))),
-		ModifyQuery:                    authenticatedUser(jwtKey, svc, canPerformActions(makeModifyQueryEndpoint(svc))),
-		DeleteQuery:                    authenticatedUser(jwtKey, svc, canPerformActions(makeDeleteQueryEndpoint(svc))),
-		DeleteQueries:                  authenticatedUser(jwtKey, svc, canPerformActions(makeDeleteQueriesEndpoint(svc))),
-		CreateDistributedQueryCampaign: authenticatedUser(jwtKey, svc, canPerformActions(makeCreateDistributedQueryCampaignEndpoint(svc))),
-		GetPack:             authenticatedUser(jwtKey, svc, canPerformActions(makeGetPackEndpoint(svc))),
-		ListPacks:           authenticatedUser(jwtKey, svc, canPerformActions(makeListPacksEndpoint(svc))),
-		CreatePack:          authenticatedUser(jwtKey, svc, canPerformActions(makeCreatePackEndpoint(svc))),
-		ModifyPack:          authenticatedUser(jwtKey, svc, canPerformActions(makeModifyPackEndpoint(svc))),
-		DeletePack:          authenticatedUser(jwtKey, svc, canPerformActions(makeDeletePackEndpoint(svc))),
-		AddQueryToPack:      authenticatedUser(jwtKey, svc, canPerformActions(makeAddQueryToPackEndpoint(svc))),
-		GetQueriesInPack:    authenticatedUser(jwtKey, svc, canPerformActions(makeGetQueriesInPackEndpoint(svc))),
-		DeleteQueryFromPack: authenticatedUser(jwtKey, svc, canPerformActions(makeDeleteQueryFromPackEndpoint(svc))),
-		GetHost:             authenticatedUser(jwtKey, svc, canPerformActions(makeGetHostEndpoint(svc))),
-		ListHosts:           authenticatedUser(jwtKey, svc, canPerformActions(makeListHostsEndpoint(svc))),
-		DeleteHost:          authenticatedUser(jwtKey, svc, canPerformActions(makeDeleteHostEndpoint(svc))),
-		GetLabel:            authenticatedUser(jwtKey, svc, canPerformActions(makeGetLabelEndpoint(svc))),
-		ListLabels:          authenticatedUser(jwtKey, svc, canPerformActions(makeListLabelsEndpoint(svc))),
-		CreateLabel:         authenticatedUser(jwtKey, svc, canPerformActions(makeCreateLabelEndpoint(svc))),
-		DeleteLabel:         authenticatedUser(jwtKey, svc, canPerformActions(makeDeleteLabelEndpoint(svc))),
-		AddLabelToPack:      authenticatedUser(jwtKey, svc, canPerformActions(makeAddLabelToPackEndpoint(svc))),
-		GetLabelsForPack:    authenticatedUser(jwtKey, svc, canPerformActions(makeGetLabelsForPackEndpoint(svc))),
-		DeleteLabelFromPack: authenticatedUser(jwtKey, svc, canPerformActions(makeDeleteLabelFromPackEndpoint(svc))),
-		SearchTargets:       authenticatedUser(jwtKey, svc, canPerformActions(makeSearchTargetsEndpoint(svc))),
+		GetQuery:                       authenticatedUser(jwtKey, svc, makeGetQueryEndpoint(svc)),
+		ListQueries:                    authenticatedUser(jwtKey, svc, makeListQueriesEndpoint(svc)),
+		CreateQuery:                    authenticatedUser(jwtKey, svc, makeCreateQueryEndpoint(svc)),
+		ModifyQuery:                    authenticatedUser(jwtKey, svc, makeModifyQueryEndpoint(svc)),
+		DeleteQuery:                    authenticatedUser(jwtKey, svc, makeDeleteQueryEndpoint(svc)),
+		DeleteQueries:                  authenticatedUser(jwtKey, svc, makeDeleteQueriesEndpoint(svc)),
+		CreateDistributedQueryCampaign: authenticatedUser(jwtKey, svc, makeCreateDistributedQueryCampaignEndpoint(svc)),
+		GetPack:                   authenticatedUser(jwtKey, svc, makeGetPackEndpoint(svc)),
+		ListPacks:                 authenticatedUser(jwtKey, svc, makeListPacksEndpoint(svc)),
+		CreatePack:                authenticatedUser(jwtKey, svc, makeCreatePackEndpoint(svc)),
+		ModifyPack:                authenticatedUser(jwtKey, svc, makeModifyPackEndpoint(svc)),
+		DeletePack:                authenticatedUser(jwtKey, svc, makeDeletePackEndpoint(svc)),
+		ScheduleQueries:           authenticatedUser(jwtKey, svc, makeScheduleQueriesEndpoint(svc)),
+		GetScheduledQueriesInPack: authenticatedUser(jwtKey, svc, makeGetScheduledQueriesInPackEndpoint(svc)),
+		GetScheduledQuery:         authenticatedUser(jwtKey, svc, makeGetScheduledQueryEndpoint(svc)),
+		ModifyScheduledQuery:      authenticatedUser(jwtKey, svc, makeModifyScheduledQueryEndpoint(svc)),
+		DeleteScheduledQuery:      authenticatedUser(jwtKey, svc, makeDeleteScheduledQueryEndpoint(svc)),
+		GetHost:                   authenticatedUser(jwtKey, svc, makeGetHostEndpoint(svc)),
+		ListHosts:                 authenticatedUser(jwtKey, svc, makeListHostsEndpoint(svc)),
+		DeleteHost:                authenticatedUser(jwtKey, svc, makeDeleteHostEndpoint(svc)),
+		GetLabel:                  authenticatedUser(jwtKey, svc, makeGetLabelEndpoint(svc)),
+		ListLabels:                authenticatedUser(jwtKey, svc, makeListLabelsEndpoint(svc)),
+		CreateLabel:               authenticatedUser(jwtKey, svc, makeCreateLabelEndpoint(svc)),
+		DeleteLabel:               authenticatedUser(jwtKey, svc, makeDeleteLabelEndpoint(svc)),
+		AddLabelToPack:            authenticatedUser(jwtKey, svc, makeAddLabelToPackEndpoint(svc)),
+		GetLabelsForPack:          authenticatedUser(jwtKey, svc, makeGetLabelsForPackEndpoint(svc)),
+		DeleteLabelFromPack:       authenticatedUser(jwtKey, svc, makeDeleteLabelFromPackEndpoint(svc)),
+		SearchTargets:             authenticatedUser(jwtKey, svc, makeSearchTargetsEndpoint(svc)),
 
 		// Osquery endpoints
 		EnrollAgent:                   makeEnrollAgentEndpoint(svc),
@@ -161,9 +165,11 @@ type kolideHandlers struct {
 	CreatePack                     *kithttp.Server
 	ModifyPack                     *kithttp.Server
 	DeletePack                     *kithttp.Server
-	AddQueryToPack                 *kithttp.Server
-	GetQueriesInPack               *kithttp.Server
-	DeleteQueryFromPack            *kithttp.Server
+	ScheduleQueries                *kithttp.Server
+	GetScheduledQueriesInPack      *kithttp.Server
+	GetScheduledQuery              *kithttp.Server
+	ModifyScheduledQuery           *kithttp.Server
+	DeleteScheduledQuery           *kithttp.Server
 	EnrollAgent                    *kithttp.Server
 	GetClientConfig                *kithttp.Server
 	GetDistributedQueries          *kithttp.Server
@@ -217,9 +223,11 @@ func makeKolideKitHandlers(ctx context.Context, e KolideEndpoints, opts []kithtt
 		CreatePack:                    newServer(e.CreatePack, decodeCreatePackRequest),
 		ModifyPack:                    newServer(e.ModifyPack, decodeModifyPackRequest),
 		DeletePack:                    newServer(e.DeletePack, decodeDeletePackRequest),
-		AddQueryToPack:                newServer(e.AddQueryToPack, decodeAddQueryToPackRequest),
-		GetQueriesInPack:              newServer(e.GetQueriesInPack, decodeGetQueriesInPackRequest),
-		DeleteQueryFromPack:           newServer(e.DeleteQueryFromPack, decodeDeleteQueryFromPackRequest),
+		ScheduleQueries:               newServer(e.ScheduleQueries, decodeScheduleQueriesRequest),
+		GetScheduledQueriesInPack:     newServer(e.GetScheduledQueriesInPack, decodeGetScheduledQueriesInPackRequest),
+		GetScheduledQuery:             newServer(e.GetScheduledQuery, decodeGetScheduledQueryRequest),
+		ModifyScheduledQuery:          newServer(e.ModifyScheduledQuery, decodeModifyScheduledQueryRequest),
+		DeleteScheduledQuery:          newServer(e.DeleteScheduledQuery, decodeDeleteScheduledQueryRequest),
 		EnrollAgent:                   newServer(e.EnrollAgent, decodeEnrollAgentRequest),
 		GetClientConfig:               newServer(e.GetClientConfig, decodeGetClientConfigRequest),
 		GetDistributedQueries:         newServer(e.GetDistributedQueries, decodeGetDistributedQueriesRequest),
@@ -300,9 +308,11 @@ func attachKolideAPIRoutes(r *mux.Router, h kolideHandlers) {
 	r.Handle("/api/v1/kolide/packs", h.CreatePack).Methods("POST")
 	r.Handle("/api/v1/kolide/packs/{id}", h.ModifyPack).Methods("PATCH")
 	r.Handle("/api/v1/kolide/packs/{id}", h.DeletePack).Methods("DELETE")
-	r.Handle("/api/v1/kolide/packs/{pid}/queries/{qid}", h.AddQueryToPack).Methods("POST")
-	r.Handle("/api/v1/kolide/packs/{id}/queries", h.GetQueriesInPack).Methods("GET")
-	r.Handle("/api/v1/kolide/packs/{pid}/queries/{qid}", h.DeleteQueryFromPack).Methods("DELETE")
+	r.Handle("/api/v1/kolide/packs/{id}/scheduled", h.GetScheduledQueriesInPack).Methods("GET")
+	r.Handle("/api/v1/kolide/schedule", h.ScheduleQueries).Methods("POST")
+	r.Handle("/api/v1/kolide/schedule/{id}", h.GetScheduledQuery).Methods("GET")
+	r.Handle("/api/v1/kolide/schedule/{id}", h.ModifyScheduledQuery).Methods("PATCH")
+	r.Handle("/api/v1/kolide/schedule/{id}", h.DeleteScheduledQuery).Methods("DELETE")
 	r.Handle("/api/v1/kolide/labels/{id}", h.GetLabel).Methods("GET")
 	r.Handle("/api/v1/kolide/labels", h.ListLabels).Methods("GET")
 	r.Handle("/api/v1/kolide/labels", h.CreateLabel).Methods("POST")

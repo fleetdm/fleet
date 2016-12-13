@@ -22,11 +22,6 @@ func Up_20161118212758(tx *sql.Tx) error {
 			"`name` varchar(255) NOT NULL," +
 			"`description` varchar(255) DEFAULT NULL," +
 			"`query` varchar(255) NOT NULL," +
-			"`interval` int(10) unsigned DEFAULT NULL," +
-			"`snapshot` tinyint(1) NOT NULL DEFAULT FALSE," +
-			"`differential` tinyint(1) NOT NULL DEFAULT FALSE," +
-			"`platform` varchar(255) DEFAULT NULL," +
-			"`version` varchar(255) DEFAULT NULL," +
 			"`author_id` int(10) unsigned DEFAULT NULL," +
 			"PRIMARY KEY (`id`)," +
 			"FOREIGN KEY (`author_id`) REFERENCES `users`(`id`) ON DELETE SET NULL" +

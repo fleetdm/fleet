@@ -42,30 +42,20 @@ type QueryService interface {
 }
 
 type QueryPayload struct {
-	Name         *string `json:"name"`
-	Description  *string `json:"description"`
-	Query        *string `json:"query"`
-	Interval     *uint   `json:"interval"`
-	Snapshot     *bool   `json:"snapshot"`
-	Differential *bool   `json:"differential"`
-	Platform     *string `json:"platform"`
-	Version      *string `json:"version"`
+	Name        *string
+	Description *string
+	Query       *string
 }
 
 type Query struct {
 	UpdateCreateTimestamps
 	DeleteFields
-	ID           uint   `json:"id"`
-	Name         string `json:"name"`
-	Description  string `json:"description"`
-	Query        string `json:"query"`
-	Interval     uint   `json:"interval"`
-	Saved        bool   `json:"saved"`
-	Snapshot     bool   `json:"snapshot"`
-	Differential bool   `json:"differential"`
-	Platform     string `json:"platform"`
-	Version      string `json:"version"`
-	AuthorID     uint   `json:"author_id" db:"author_id"`
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Query       string `json:"query"`
+	Saved       bool   `json:"saved"`
+	AuthorID    uint   `json:"author_id" db:"author_id"`
 	// AuthorName is retrieved with a join to the users table in the MySQL
 	// backend (using AuthorID)
 	AuthorName string `json:"author_name" db:"author_name"`

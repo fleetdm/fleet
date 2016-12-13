@@ -6,6 +6,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide-ose/server/test"
 	"github.com/patrickmn/sortutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,13 +26,13 @@ func checkTargets(t *testing.T, ds kolide.Datastore, campaignID uint, expectedHo
 }
 
 func testDistributedQueryCampaign(t *testing.T, ds kolide.Datastore) {
-	user := newUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
+	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
 
 	mockClock := clock.NewMockClock()
 
-	query := newQuery(t, ds, "test", "select * from time", user.ID, false)
+	query := test.NewQuery(t, ds, "test", "select * from time", user.ID, false)
 
-	campaign := newCampaign(t, ds, query.ID, kolide.QueryRunning, mockClock.Now())
+	campaign := test.NewCampaign(t, ds, query.ID, kolide.QueryRunning, mockClock.Now())
 
 	{
 		retrieved, err := ds.DistributedQueryCampaign(campaign.ID)
@@ -40,44 +41,44 @@ func testDistributedQueryCampaign(t *testing.T, ds kolide.Datastore) {
 		assert.Equal(t, campaign.Status, retrieved.Status)
 	}
 
-	h1 := newHost(t, ds, "foo.local", "192.168.1.10", "1", "1", mockClock.Now())
-	h2 := newHost(t, ds, "bar.local", "192.168.1.11", "2", "2", mockClock.Now().Add(-1*time.Hour))
-	h3 := newHost(t, ds, "baz.local", "192.168.1.12", "3", "3", mockClock.Now().Add(-13*time.Minute))
+	h1 := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", mockClock.Now())
+	h2 := test.NewHost(t, ds, "bar.local", "192.168.1.11", "2", "2", mockClock.Now().Add(-1*time.Hour))
+	h3 := test.NewHost(t, ds, "baz.local", "192.168.1.12", "3", "3", mockClock.Now().Add(-13*time.Minute))
 
-	l1 := newLabel(t, ds, "label foo", "query foo")
-	l2 := newLabel(t, ds, "label bar", "query foo")
+	l1 := test.NewLabel(t, ds, "label foo", "query foo")
+	l2 := test.NewLabel(t, ds, "label bar", "query foo")
 
 	checkTargets(t, ds, campaign.ID, []uint{}, []uint{})
 
-	addHostToCampaign(t, ds, campaign.ID, h1.ID)
+	test.AddHostToCampaign(t, ds, campaign.ID, h1.ID)
 	checkTargets(t, ds, campaign.ID, []uint{h1.ID}, []uint{})
 
-	addLabelToCampaign(t, ds, campaign.ID, l1.ID)
+	test.AddLabelToCampaign(t, ds, campaign.ID, l1.ID)
 	checkTargets(t, ds, campaign.ID, []uint{h1.ID}, []uint{l1.ID})
 
-	addLabelToCampaign(t, ds, campaign.ID, l2.ID)
+	test.AddLabelToCampaign(t, ds, campaign.ID, l2.ID)
 	checkTargets(t, ds, campaign.ID, []uint{h1.ID}, []uint{l1.ID, l2.ID})
 
-	addHostToCampaign(t, ds, campaign.ID, h2.ID)
-	addHostToCampaign(t, ds, campaign.ID, h3.ID)
+	test.AddHostToCampaign(t, ds, campaign.ID, h2.ID)
+	test.AddHostToCampaign(t, ds, campaign.ID, h3.ID)
 
 	checkTargets(t, ds, campaign.ID, []uint{h1.ID, h2.ID, h3.ID}, []uint{l1.ID, l2.ID})
 
 }
 
 func testCleanupDistributedQueryCampaigns(t *testing.T, ds kolide.Datastore) {
-	user := newUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
+	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
 
 	mockClock := clock.NewMockClock()
 
-	query := newQuery(t, ds, "test", "select * from time", user.ID, false)
+	query := test.NewQuery(t, ds, "test", "select * from time", user.ID, false)
 
-	c1 := newCampaign(t, ds, query.ID, kolide.QueryWaiting, mockClock.Now())
-	c2 := newCampaign(t, ds, query.ID, kolide.QueryRunning, mockClock.Now())
+	c1 := test.NewCampaign(t, ds, query.ID, kolide.QueryWaiting, mockClock.Now())
+	c2 := test.NewCampaign(t, ds, query.ID, kolide.QueryRunning, mockClock.Now())
 
-	h1 := newHost(t, ds, "1", "", "1", "1", mockClock.Now())
-	h2 := newHost(t, ds, "2", "", "2", "2", mockClock.Now())
-	h3 := newHost(t, ds, "3", "", "3", "3", mockClock.Now())
+	h1 := test.NewHost(t, ds, "1", "", "1", "1", mockClock.Now())
+	h2 := test.NewHost(t, ds, "2", "", "2", "2", mockClock.Now())
+	h3 := test.NewHost(t, ds, "3", "", "3", "3", mockClock.Now())
 
 	// Cleanup and verify that nothing changed (because time has not
 	// advanced)
@@ -100,11 +101,11 @@ func testCleanupDistributedQueryCampaigns(t *testing.T, ds kolide.Datastore) {
 	}
 
 	// Add some executions
-	newExecution(t, ds, c1.ID, h1.ID)
-	newExecution(t, ds, c1.ID, h2.ID)
-	newExecution(t, ds, c2.ID, h1.ID)
-	newExecution(t, ds, c2.ID, h2.ID)
-	newExecution(t, ds, c2.ID, h3.ID)
+	test.NewExecution(t, ds, c1.ID, h1.ID)
+	test.NewExecution(t, ds, c1.ID, h2.ID)
+	test.NewExecution(t, ds, c2.ID, h1.ID)
+	test.NewExecution(t, ds, c2.ID, h2.ID)
+	test.NewExecution(t, ds, c2.ID, h3.ID)
 
 	mockClock.AddTime(1*time.Minute + 1*time.Second)
 

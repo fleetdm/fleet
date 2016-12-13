@@ -26,7 +26,7 @@ type Datastore struct {
 	queries                         map[uint]*kolide.Query
 	packs                           map[uint]*kolide.Pack
 	hosts                           map[uint]*kolide.Host
-	packQueries                     map[uint]*kolide.PackQuery
+	scheduledQueries                map[uint]*kolide.ScheduledQuery
 	packTargets                     map[uint]*kolide.PackTarget
 	distributedQueryExecutions      map[uint]kolide.DistributedQueryExecution
 	distributedQueryCampaigns       map[uint]kolide.DistributedQueryCampaign
@@ -81,7 +81,7 @@ func (orm *Datastore) Migrate() error {
 	orm.queries = make(map[uint]*kolide.Query)
 	orm.packs = make(map[uint]*kolide.Pack)
 	orm.hosts = make(map[uint]*kolide.Host)
-	orm.packQueries = make(map[uint]*kolide.PackQuery)
+	orm.scheduledQueries = make(map[uint]*kolide.ScheduledQuery)
 	orm.packTargets = make(map[uint]*kolide.PackTarget)
 	orm.distributedQueryExecutions = make(map[uint]kolide.DistributedQueryExecution)
 	orm.distributedQueryCampaigns = make(map[uint]kolide.DistributedQueryCampaign)
@@ -164,9 +164,8 @@ func (orm *Datastore) createDevPacksAndQueries() error {
 	}
 
 	query2 := &kolide.Query{
-		Name:     "Launchd",
-		Query:    "select * from launchd",
-		Platform: "darwin",
+		Name:  "Launchd",
+		Query: "select * from launchd",
 	}
 	query2, err = orm.NewQuery(query2)
 	if err != nil {
@@ -198,17 +197,31 @@ func (orm *Datastore) createDevPacksAndQueries() error {
 		return err
 	}
 
-	err = orm.AddQueryToPack(query1.ID, pack1.ID)
+	_, err = orm.NewScheduledQuery(&kolide.ScheduledQuery{
+		QueryID:  query1.ID,
+		PackID:   pack1.ID,
+		Interval: 60,
+	})
 	if err != nil {
 		return err
 	}
 
-	err = orm.AddQueryToPack(query3.ID, pack1.ID)
+	t := true
+	_, err = orm.NewScheduledQuery(&kolide.ScheduledQuery{
+		QueryID:  query3.ID,
+		PackID:   pack1.ID,
+		Interval: 60,
+		Snapshot: &t,
+	})
 	if err != nil {
 		return err
 	}
 
-	err = orm.AddQueryToPack(query2.ID, pack2.ID)
+	_, err = orm.NewScheduledQuery(&kolide.ScheduledQuery{
+		QueryID:  query2.ID,
+		PackID:   pack2.ID,
+		Interval: 60,
+	})
 	if err != nil {
 		return err
 	}

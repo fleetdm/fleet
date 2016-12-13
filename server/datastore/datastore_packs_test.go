@@ -6,6 +6,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide-ose/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,56 +30,8 @@ func testDeletePack(t *testing.T, ds kolide.Datastore) {
 	assert.NotNil(t, err)
 }
 
-func testAddAndRemoveQueryFromPack(t *testing.T, ds kolide.Datastore) {
-	user := newUser(t, ds, "Zach", "zwass", "zwass@kolide.co", false)
-
-	pack := &kolide.Pack{
-		Name: "foo",
-	}
-	_, err := ds.NewPack(pack)
-	assert.Nil(t, err)
-	assert.NotEqual(t, uint(0), pack.ID)
-
-	q1 := &kolide.Query{
-		Name:     "bar",
-		Query:    "bar",
-		AuthorID: user.ID,
-	}
-	q1, err = ds.NewQuery(q1)
-	require.Nil(t, err)
-	assert.NotEqual(t, uint(0), q1.ID)
-
-	err = ds.AddQueryToPack(q1.ID, pack.ID)
-	require.Nil(t, err)
-
-	q2 := &kolide.Query{
-		Name:     "baz",
-		Query:    "baz",
-		AuthorID: user.ID,
-	}
-	q2, err = ds.NewQuery(q2)
-	require.Nil(t, err)
-	assert.NotEqual(t, uint(0), q2.ID)
-
-	assert.NotEqual(t, q1.ID, q2.ID)
-
-	err = ds.AddQueryToPack(q2.ID, pack.ID)
-	require.Nil(t, err)
-
-	queries, err := ds.ListQueriesInPack(pack)
-	require.Nil(t, err)
-	assert.Len(t, queries, 2)
-
-	err = ds.RemoveQueryFromPack(q1, pack)
-	require.Nil(t, err)
-
-	queries, err = ds.ListQueriesInPack(pack)
-	require.Nil(t, err)
-	assert.Len(t, queries, 1)
-}
-
 func testGetHostsInPack(t *testing.T, ds kolide.Datastore) {
-	user := newUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
+	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
 
 	mockClock := clock.NewMockClock()
 
@@ -101,11 +54,8 @@ func testGetHostsInPack(t *testing.T, ds kolide.Datastore) {
 	})
 	require.Nil(t, err)
 
-	err = ds.AddQueryToPack(q1.ID, p1.ID)
-	require.Nil(t, err)
-
-	err = ds.AddQueryToPack(q2.ID, p1.ID)
-	require.Nil(t, err)
+	test.NewScheduledQuery(t, ds, p1.ID, q1.ID, 60, false, false)
+	test.NewScheduledQuery(t, ds, p1.ID, q2.ID, 60, false, false)
 
 	l1, err := ds.NewLabel(&kolide.Label{
 		Name: "foo",

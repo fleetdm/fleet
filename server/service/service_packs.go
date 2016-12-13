@@ -81,42 +81,6 @@ func (svc service) DeletePack(ctx context.Context, id uint) error {
 	return svc.ds.DeletePack(id)
 }
 
-func (svc service) AddQueryToPack(ctx context.Context, qid, pid uint) error {
-	return svc.ds.AddQueryToPack(qid, pid)
-}
-
-func (svc service) ListQueriesInPack(ctx context.Context, id uint) ([]*kolide.Query, error) {
-	pack, err := svc.ds.Pack(id)
-	if err != nil {
-		return nil, err
-	}
-
-	queries, err := svc.ds.ListQueriesInPack(pack)
-	if err != nil {
-		return nil, err
-	}
-
-	return queries, nil
-}
-
-func (svc service) RemoveQueryFromPack(ctx context.Context, qid, pid uint) error {
-	pack, err := svc.ds.Pack(pid)
-	if err != nil {
-		return err
-	}
-
-	query, err := svc.ds.Query(qid)
-	if err != nil {
-		return err
-	}
-
-	err = svc.ds.RemoveQueryFromPack(query, pack)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
 func (svc service) AddLabelToPack(ctx context.Context, lid, pid uint) error {
 	return svc.ds.AddLabelToPack(lid, pid)
 }

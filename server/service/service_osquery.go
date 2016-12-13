@@ -78,7 +78,7 @@ func (svc service) GetClientConfig(ctx context.Context) (*kolide.OsqueryConfig, 
 
 	for _, pack := range packs {
 		// first, we must figure out what queries are in this pack
-		queries, err := svc.ds.ListQueriesInPack(pack)
+		queries, err := svc.ds.ListScheduledQueriesInPack(pack.ID, kolide.ListOptions{})
 		if err != nil {
 			return nil, osqueryError{message: "database error: " + err.Error()}
 		}

@@ -97,50 +97,6 @@ func (orm *Datastore) ListPacks(opt kolide.ListOptions) ([]*kolide.Pack, error) 
 	return packs, nil
 }
 
-func (orm *Datastore) AddQueryToPack(qid uint, pid uint) error {
-	packQuery := &kolide.PackQuery{
-		PackID:  pid,
-		QueryID: qid,
-	}
-
-	orm.mtx.Lock()
-	packQuery.ID = orm.nextID(packQuery)
-	orm.packQueries[packQuery.ID] = packQuery
-	orm.mtx.Unlock()
-
-	return nil
-}
-
-func (orm *Datastore) ListQueriesInPack(pack *kolide.Pack) ([]*kolide.Query, error) {
-	var queries []*kolide.Query
-
-	orm.mtx.Lock()
-	for _, packQuery := range orm.packQueries {
-		queries = append(queries, orm.queries[packQuery.QueryID])
-	}
-	orm.mtx.Unlock()
-
-	return queries, nil
-}
-
-func (orm *Datastore) RemoveQueryFromPack(query *kolide.Query, pack *kolide.Pack) error {
-	var packQueriesToDelete []uint
-
-	orm.mtx.Lock()
-	for _, packQuery := range orm.packQueries {
-		if packQuery.QueryID == query.ID && packQuery.PackID == pack.ID {
-			packQueriesToDelete = append(packQueriesToDelete, packQuery.ID)
-		}
-	}
-
-	for _, packQueryToDelete := range packQueriesToDelete {
-		delete(orm.packQueries, packQueryToDelete)
-	}
-	orm.mtx.Unlock()
-
-	return nil
-}
-
 func (orm *Datastore) AddLabelToPack(lid uint, pid uint) error {
 	pt := &kolide.PackTarget{
 		PackID: pid,

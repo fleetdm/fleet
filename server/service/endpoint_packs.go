@@ -36,7 +36,7 @@ func makeGetPackEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return getPackResponse{Err: err}, nil
 		}
 
-		queries, err := svc.ListQueriesInPack(ctx, pack.ID)
+		queries, err := svc.GetScheduledQueriesInPack(ctx, pack.ID, kolide.ListOptions{})
 		if err != nil {
 			return getPackResponse{Err: err}, nil
 		}
@@ -81,7 +81,7 @@ func makeListPacksEndpoint(svc kolide.Service) endpoint.Endpoint {
 
 		resp := listPacksResponse{Packs: []packResponse{}}
 		for _, pack := range packs {
-			queries, err := svc.ListQueriesInPack(ctx, pack.ID)
+			queries, err := svc.GetScheduledQueriesInPack(ctx, pack.ID, kolide.ListOptions{})
 			if err != nil {
 				return getPackResponse{Err: err}, nil
 			}
@@ -174,89 +174,6 @@ func makeDeletePackEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return deletePackResponse{Err: err}, nil
 		}
 		return deletePackResponse{}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Add Query To Pack
-////////////////////////////////////////////////////////////////////////////////
-
-type addQueryToPackRequest struct {
-	QueryID uint
-	PackID  uint
-}
-
-type addQueryToPackResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r addQueryToPackResponse) error() error { return r.Err }
-
-func makeAddQueryToPackEndpoint(svc kolide.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(addQueryToPackRequest)
-		err := svc.AddQueryToPack(ctx, req.QueryID, req.PackID)
-		if err != nil {
-			return addQueryToPackResponse{Err: err}, nil
-		}
-		return addQueryToPackResponse{}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Get Queries In Pack
-////////////////////////////////////////////////////////////////////////////////
-
-type getQueriesInPackRequest struct {
-	ID uint
-}
-
-type getQueriesInPackResponse struct {
-	Queries []kolide.Query `json:"queries"`
-	Err     error          `json:"error,omitempty"`
-}
-
-func (r getQueriesInPackResponse) error() error { return r.Err }
-
-func makeGetQueriesInPackEndpoint(svc kolide.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(getQueriesInPackRequest)
-		queries, err := svc.ListQueriesInPack(ctx, req.ID)
-		if err != nil {
-			return getQueriesInPackResponse{Err: err}, nil
-		}
-
-		var resp getQueriesInPackResponse
-		for _, query := range queries {
-			resp.Queries = append(resp.Queries, *query)
-		}
-		return resp, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Delete Query From Pack
-////////////////////////////////////////////////////////////////////////////////
-
-type deleteQueryFromPackRequest struct {
-	QueryID uint
-	PackID  uint
-}
-
-type deleteQueryFromPackResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r deleteQueryFromPackResponse) error() error { return r.Err }
-
-func makeDeleteQueryFromPackEndpoint(svc kolide.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(deleteQueryFromPackRequest)
-		err := svc.RemoveQueryFromPack(ctx, req.QueryID, req.PackID)
-		if err != nil {
-			return deleteQueryFromPackResponse{Err: err}, nil
-		}
-		return deleteQueryFromPackResponse{}, nil
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide-ose/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -327,8 +328,6 @@ func testSearchHosts(t *testing.T, ds kolide.Datastore) {
 	hits, err = ds.SearchHosts("99.100.101")
 	require.Nil(t, err)
 	assert.Equal(t, 2, len(hits))
-	assert.Equal(t, 2, len(hits[0].NetworkInterfaces))
-	assert.Equal(t, "en0", hits[0].NetworkInterfaces[0].Interface)
 
 	hits, err = ds.SearchHosts("99.100.101", h3.ID)
 	require.Nil(t, err)
@@ -354,7 +353,7 @@ func testSearchHostsLimit(t *testing.T, ds kolide.Datastore) {
 }
 
 func testDistributedQueriesForHost(t *testing.T, ds kolide.Datastore) {
-	user := newUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
+	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
 
 	h1, err := ds.NewHost(&kolide.Host{
 		OsqueryHostID:    "1",

@@ -133,16 +133,20 @@ func TestAPIRoutes(t *testing.T) {
 			uri:  "/api/v1/kolide/packs/1",
 		},
 		{
-			verb: "POST",
-			uri:  "/api/v1/kolide/packs/1/queries/2",
+			verb: "GET",
+			uri:  "/api/v1/kolide/packs/1/scheduled",
 		},
 		{
-			verb: "GET",
-			uri:  "/api/v1/kolide/packs/1/queries",
+			verb: "POST",
+			uri:  "/api/v1/kolide/schedule",
 		},
 		{
 			verb: "DELETE",
-			uri:  "/api/v1/kolide/packs/1/queries/2",
+			uri:  "/api/v1/kolide/schedule/1",
+		},
+		{
+			verb: "PATCH",
+			uri:  "/api/v1/kolide/schedule/1",
 		},
 		{
 			verb: "POST",

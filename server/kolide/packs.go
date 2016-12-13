@@ -1,8 +1,6 @@
 package kolide
 
 import (
-	"time"
-
 	"golang.org/x/net/context"
 )
 
@@ -13,11 +11,6 @@ type PackStore interface {
 	DeletePack(pid uint) error
 	Pack(pid uint) (*Pack, error)
 	ListPacks(opt ListOptions) ([]*Pack, error)
-
-	// Modifying the queries in packs
-	AddQueryToPack(qid uint, pid uint) error
-	ListQueriesInPack(pack *Pack) ([]*Query, error)
-	RemoveQueryFromPack(query *Query, pack *Pack) error
 
 	// Modifying the labels for packs
 	AddLabelToPack(lid uint, pid uint) error
@@ -33,10 +26,6 @@ type PackService interface {
 	NewPack(ctx context.Context, p PackPayload) (*Pack, error)
 	ModifyPack(ctx context.Context, id uint, p PackPayload) (*Pack, error)
 	DeletePack(ctx context.Context, id uint) error
-
-	AddQueryToPack(ctx context.Context, qid, pid uint) error
-	ListQueriesInPack(ctx context.Context, id uint) ([]*Query, error)
-	RemoveQueryFromPack(ctx context.Context, qid, pid uint) error
 
 	AddLabelToPack(ctx context.Context, lid, pid uint) error
 	ListLabelsForPack(ctx context.Context, pid uint) ([]*Label, error)
@@ -62,14 +51,6 @@ type PackPayload struct {
 	Description *string
 	Platform    *string
 	Disabled    *bool
-}
-
-type PackQuery struct {
-	ID        uint
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	PackID    uint
-	QueryID   uint
 }
 
 type PackTarget struct {

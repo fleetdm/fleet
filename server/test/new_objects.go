@@ -1,4 +1,4 @@
-package datastore
+package test
 
 import (
 	"testing"
@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newQuery(t *testing.T, ds kolide.Datastore, name, q string, authorID uint, saved bool) *kolide.Query {
+func NewQuery(t *testing.T, ds kolide.Datastore, name, q string, authorID uint, saved bool) *kolide.Query {
 	query, err := ds.NewQuery(&kolide.Query{
 		Name:     name,
 		Query:    q,
@@ -24,7 +24,7 @@ func newQuery(t *testing.T, ds kolide.Datastore, name, q string, authorID uint, 
 	return query
 }
 
-func newPack(t *testing.T, ds kolide.Datastore, name string) *kolide.Pack {
+func NewPack(t *testing.T, ds kolide.Datastore, name string) *kolide.Pack {
 	pack, err := ds.NewPack(&kolide.Pack{
 		Name: name,
 	})
@@ -37,12 +37,7 @@ func newPack(t *testing.T, ds kolide.Datastore, name string) *kolide.Pack {
 	return pack
 }
 
-func addQueryToPack(t *testing.T, ds kolide.Datastore, queryID, packID uint) {
-	err := ds.AddQueryToPack(queryID, packID)
-	require.Nil(t, err)
-}
-
-func newCampaign(t *testing.T, ds kolide.Datastore, queryID uint, status kolide.DistributedQueryStatus, now time.Time) *kolide.DistributedQueryCampaign {
+func NewCampaign(t *testing.T, ds kolide.Datastore, queryID uint, status kolide.DistributedQueryStatus, now time.Time) *kolide.DistributedQueryCampaign {
 	campaign, err := ds.NewDistributedQueryCampaign(&kolide.DistributedQueryCampaign{
 		UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
 			CreateTimestamp: kolide.CreateTimestamp{
@@ -61,7 +56,7 @@ func newCampaign(t *testing.T, ds kolide.Datastore, queryID uint, status kolide.
 	return campaign
 }
 
-func addHostToCampaign(t *testing.T, ds kolide.Datastore, campaignID, hostID uint) {
+func AddHostToCampaign(t *testing.T, ds kolide.Datastore, campaignID, hostID uint) {
 	_, err := ds.NewDistributedQueryCampaignTarget(
 		&kolide.DistributedQueryCampaignTarget{
 			Type:                       kolide.TargetHost,
@@ -71,7 +66,7 @@ func addHostToCampaign(t *testing.T, ds kolide.Datastore, campaignID, hostID uin
 	require.Nil(t, err)
 }
 
-func addLabelToCampaign(t *testing.T, ds kolide.Datastore, campaignID, labelID uint) {
+func AddLabelToCampaign(t *testing.T, ds kolide.Datastore, campaignID, labelID uint) {
 	_, err := ds.NewDistributedQueryCampaignTarget(
 		&kolide.DistributedQueryCampaignTarget{
 			Type:                       kolide.TargetLabel,
@@ -81,7 +76,7 @@ func addLabelToCampaign(t *testing.T, ds kolide.Datastore, campaignID, labelID u
 	require.Nil(t, err)
 }
 
-func newExecution(t *testing.T, ds kolide.Datastore, campaignID uint, hostID uint) *kolide.DistributedQueryExecution {
+func NewExecution(t *testing.T, ds kolide.Datastore, campaignID uint, hostID uint) *kolide.DistributedQueryExecution {
 	execution, err := ds.NewDistributedQueryExecution(&kolide.DistributedQueryExecution{
 		HostID: hostID,
 		DistributedQueryCampaignID: campaignID,
@@ -91,7 +86,7 @@ func newExecution(t *testing.T, ds kolide.Datastore, campaignID uint, hostID uin
 	return execution
 }
 
-func newHost(t *testing.T, ds kolide.Datastore, name, ip, key, uuid string, now time.Time) *kolide.Host {
+func NewHost(t *testing.T, ds kolide.Datastore, name, ip, key, uuid string, now time.Time) *kolide.Host {
 	osqueryHostID, _ := kolide.RandomText(10)
 	h, err := ds.NewHost(&kolide.Host{
 		HostName:         name,
@@ -108,7 +103,7 @@ func newHost(t *testing.T, ds kolide.Datastore, name, ip, key, uuid string, now 
 	return h
 }
 
-func newLabel(t *testing.T, ds kolide.Datastore, name, query string) *kolide.Label {
+func NewLabel(t *testing.T, ds kolide.Datastore, name, query string) *kolide.Label {
 	l, err := ds.NewLabel(&kolide.Label{Name: name, Query: query})
 
 	require.Nil(t, err)
@@ -117,7 +112,7 @@ func newLabel(t *testing.T, ds kolide.Datastore, name, query string) *kolide.Lab
 	return l
 }
 
-func newUser(t *testing.T, ds kolide.Datastore, name, username, email string, admin bool) *kolide.User {
+func NewUser(t *testing.T, ds kolide.Datastore, name, username, email string, admin bool) *kolide.User {
 	u, err := ds.NewUser(&kolide.User{
 		Password: []byte("garbage"),
 		Salt:     "garbage",
@@ -131,4 +126,18 @@ func newUser(t *testing.T, ds kolide.Datastore, name, username, email string, ad
 	require.NotZero(t, u.ID)
 
 	return u
+}
+
+func NewScheduledQuery(t *testing.T, ds kolide.Datastore, pid, qid, interval uint, snapshot, removed bool) *kolide.ScheduledQuery {
+	sq, err := ds.NewScheduledQuery(&kolide.ScheduledQuery{
+		PackID:   pid,
+		QueryID:  qid,
+		Interval: interval,
+		Snapshot: &snapshot,
+		Removed:  &removed,
+	})
+	require.Nil(t, err)
+	require.NotZero(t, sq.ID)
+
+	return sq
 }

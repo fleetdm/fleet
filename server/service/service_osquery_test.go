@@ -19,6 +19,7 @@ import (
 	"github.com/kolide/kolide-ose/server/datastore/inmem"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/kolide/kolide-ose/server/pubsub"
+	"github.com/kolide/kolide-ose/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -414,10 +415,10 @@ func TestGetClientConfig(t *testing.T) {
 	// let's populate the database with some info
 
 	infoQuery := &kolide.Query{
-		Name:     "Info",
-		Query:    "select * from osquery_info;",
-		Interval: 60,
+		Name:  "Info",
+		Query: "select * from osquery_info;",
 	}
+	infoQueryInterval := uint(60)
 	infoQuery, err = ds.NewQuery(infoQuery)
 	assert.Nil(t, err)
 
@@ -427,8 +428,7 @@ func TestGetClientConfig(t *testing.T) {
 	_, err = ds.NewPack(monitoringPack)
 	assert.Nil(t, err)
 
-	err = ds.AddQueryToPack(infoQuery.ID, monitoringPack.ID)
-	assert.Nil(t, err)
+	test.NewScheduledQuery(t, ds, monitoringPack.ID, infoQuery.ID, infoQueryInterval, false, false)
 
 	mysqlLabel := &kolide.Label{
 		Name:  "MySQL Monitoring",

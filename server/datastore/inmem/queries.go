@@ -145,9 +145,9 @@ func (orm *Datastore) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, erro
 func (orm *Datastore) loadPacksForQueries(queries []*kolide.Query) error {
 	for _, q := range queries {
 		q.Packs = make([]kolide.Pack, 0)
-		for _, pq := range orm.packQueries {
-			if pq.QueryID == q.ID {
-				q.Packs = append(q.Packs, *orm.packs[pq.PackID])
+		for _, sq := range orm.scheduledQueries {
+			if sq.QueryID == q.ID {
+				q.Packs = append(q.Packs, *orm.packs[sq.PackID])
 			}
 		}
 	}
