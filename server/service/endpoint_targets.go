@@ -28,6 +28,7 @@ type labelSearchResult struct {
 	DisplayText     string `json:"display_text"`
 	Count           uint   `json:"count"`
 	Online          uint   `json:"online"`
+	Offline         uint   `json:"offline"`
 	MissingInAction uint   `json:"missing_in_action"`
 }
 
@@ -37,11 +38,12 @@ type targetsData struct {
 }
 
 type searchTargetsResponse struct {
-	Targets                        *targetsData `json:"targets,omitempty"`
-	SelectedTargetsCount           uint         `json:"selected_targets_count"`
-	SelectedTargetsOnline          uint         `json:"selected_targets_online"`
-	SelectedTargetsMissingInAction uint         `json:"selected_targets_missing_in_action"`
-	Err                            error        `json:"error,omitempty"`
+	Targets                *targetsData `json:"targets,omitempty"`
+	TargetsCount           uint         `json:"targets_count"`
+	TargetsOnline          uint         `json:"targets_online"`
+	TargetsOffline         uint         `json:"targets_offline"`
+	TargetsMissingInAction uint         `json:"targets_missing_in_action"`
+	Err                    error        `json:"error,omitempty"`
 }
 
 func (r searchTargetsResponse) error() error { return r.Err }
@@ -76,11 +78,12 @@ func makeSearchTargetsEndpoint(svc kolide.Service) endpoint.Endpoint {
 			}
 			targets.Labels = append(targets.Labels,
 				labelSearchResult{
-					label,
-					label.Name,
-					metrics.TotalHosts,
-					metrics.OnlineHosts,
-					metrics.MissingInActionHosts,
+					Label:           label,
+					DisplayText:     label.Name,
+					Count:           metrics.TotalHosts,
+					Online:          metrics.OnlineHosts,
+					Offline:         metrics.OfflineHosts,
+					MissingInAction: metrics.MissingInActionHosts,
 				},
 			)
 		}
@@ -91,10 +94,11 @@ func makeSearchTargetsEndpoint(svc kolide.Service) endpoint.Endpoint {
 		}
 
 		return searchTargetsResponse{
-			Targets:                        targets,
-			SelectedTargetsCount:           metrics.TotalHosts,
-			SelectedTargetsOnline:          metrics.OnlineHosts,
-			SelectedTargetsMissingInAction: metrics.MissingInActionHosts,
+			Targets:                targets,
+			TargetsCount:           metrics.TotalHosts,
+			TargetsOnline:          metrics.OnlineHosts,
+			TargetsOffline:         metrics.OfflineHosts,
+			TargetsMissingInAction: metrics.MissingInActionHosts,
 		}, nil
 	}
 }

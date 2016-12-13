@@ -112,7 +112,7 @@ export const validGetTargetsRequest = (bearerToken, query) => {
       },
     })
     .reply(200, {
-      selected_targets_count: 1234,
+      targets_count: 1234,
       targets: [
         {
           id: 3,

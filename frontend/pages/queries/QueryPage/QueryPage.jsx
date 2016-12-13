@@ -28,7 +28,7 @@ class QueryPage extends Component {
     super(props);
 
     this.state = {
-      selectedTargetsCount: 0,
+      targetsCount: 0,
     };
   }
 
@@ -68,11 +68,11 @@ class QueryPage extends Component {
   onFetchTargets = (query, targetResponse) => {
     const { dispatch } = this.props;
     const {
-      selected_targets_count: selectedTargetsCount,
+      targets_count: targetsCount,
     } = targetResponse;
 
     dispatch(setSelectedTargetsQuery(query));
-    this.setState({ selectedTargetsCount });
+    this.setState({ targetsCount });
 
     return false;
   }
@@ -162,7 +162,7 @@ class QueryPage extends Component {
       onTextEditorInputChange,
       onUpdateQuery,
     } = this;
-    const { selectedTargetsCount } = this.state;
+    const { targetsCount } = this.state;
     const {
       query,
       queryText,
@@ -182,7 +182,7 @@ class QueryPage extends Component {
           onUpdate={onUpdateQuery}
           query={query}
           selectedTargets={selectedTargets}
-          selectedTargetsCount={selectedTargetsCount}
+          targetsCount={targetsCount}
           selectedOsqueryTable={selectedOsqueryTable}
           queryText={queryText}
         />
