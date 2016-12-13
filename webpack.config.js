@@ -50,6 +50,9 @@ var config  = {
   },
   plugins: plugins,
   module: {
+    // The following noParse suppresses the warning about sqlite-parser being a
+    // pre-compiled JS file. See https://goo.gl/N4s6bB.
+    noParse: /node_modules\/sqlite-parser\/dist\/sqlite-parser-min.js/,
     loaders: [
       {test: /\.(png|gif)$/, loader: 'url-loader?name=[name]@[hash].[ext]&limit=6000'},
       {test: /\.(pdf|ico|jpg|svg|eot|otf|woff|ttf|mp4|webm)$/, loader: 'file-loader?name=[name]@[hash].[ext]'},
