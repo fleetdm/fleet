@@ -38,6 +38,10 @@ type UserService interface {
 	// Users returns all users
 	ListUsers(ctx context.Context, opt ListOptions) (users []*User, err error)
 
+	// ChangePassword validates the existing password, and sets the new
+	// password. User is retrieved from the viewer context.
+	ChangePassword(ctx context.Context, oldPass, newPass string) error
+
 	// RequestPasswordReset generates a password reset request for
 	// a user. The request results in a token emailed to the user.
 	// If the person making the request is an admin the AdminForcedPasswordReset

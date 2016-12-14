@@ -118,12 +118,35 @@ func (mw loggingMiddleware) AuthenticatedUser(ctx context.Context) (*kolide.User
 	return user, err
 }
 
+func (mw loggingMiddleware) ChangePassword(ctx context.Context, oldPass, newPass string) error {
+	var (
+		requestedBy = "unauthenticated"
+		err         error
+	)
+	vc, ok := viewer.FromContext(ctx)
+	if ok {
+		requestedBy = vc.Username()
+	}
+
+	defer func(begin time.Time) {
+		_ = mw.logger.Log(
+			"method", "ChangePassword",
+			"err", err,
+			"requested_by", requestedBy,
+			"took", time.Since(begin),
+		)
+	}(time.Now())
+
+	err = mw.Service.ChangePassword(ctx, oldPass, newPass)
+	return err
+}
+
 func (mw loggingMiddleware) ResetPassword(ctx context.Context, token, password string) error {
 	var err error
 
 	defer func(begin time.Time) {
 		_ = mw.logger.Log(
-			"method", "ChangePassword",
+			"method", "ResetPassword",
 			"err", err,
 			"took", time.Since(begin),
 		)

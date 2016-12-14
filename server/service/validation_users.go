@@ -37,6 +37,20 @@ func (mw validationMiddleware) NewUser(ctx context.Context, p kolide.UserPayload
 	return mw.Service.NewUser(ctx, p)
 }
 
+func (mw validationMiddleware) ChangePassword(ctx context.Context, oldPass, newPass string) error {
+	invalid := &invalidArgumentError{}
+	if oldPass == "" {
+		invalid.Append("old_password", "cannot be empty field")
+	}
+	if newPass == "" {
+		invalid.Append("new_password", "cannot be empty field")
+	}
+	if invalid.HasErrors() {
+		return invalid
+	}
+	return mw.Service.ChangePassword(ctx, oldPass, newPass)
+}
+
 func (mw validationMiddleware) ResetPassword(ctx context.Context, token, password string) error {
 	invalid := &invalidArgumentError{}
 	if token == "" {

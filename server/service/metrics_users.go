@@ -87,6 +87,19 @@ func (mw metricsMiddleware) AuthenticatedUser(ctx context.Context) (*kolide.User
 	return user, err
 }
 
+func (mw metricsMiddleware) ChangePassword(ctx context.Context, oldPass, newPass string) error {
+	var err error
+
+	defer func(begin time.Time) {
+		lvs := []string{"method", "ChangePassword", "error", fmt.Sprint(err != nil)}
+		mw.requestCount.With(lvs...).Add(1)
+		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	err = mw.Service.ChangePassword(ctx, oldPass, newPass)
+	return err
+}
+
 func (mw metricsMiddleware) ResetPassword(ctx context.Context, token, password string) error {
 	var err error
 

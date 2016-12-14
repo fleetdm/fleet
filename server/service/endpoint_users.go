@@ -102,6 +102,29 @@ func makeListUsersEndpoint(svc kolide.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Change Password
+////////////////////////////////////////////////////////////////////////////////
+
+type changePasswordRequest struct {
+	OldPassword string `json:"old_password"`
+	NewPassword string `json:"new_password"`
+}
+
+type changePasswordResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r changePasswordResponse) error() error { return r.Err }
+
+func makeChangePasswordEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(changePasswordRequest)
+		err := svc.ChangePassword(ctx, req.OldPassword, req.NewPassword)
+		return changePasswordResponse{Err: err}, nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Reset Password
 ////////////////////////////////////////////////////////////////////////////////
 

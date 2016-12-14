@@ -5,13 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/WatchBeam/clock"
 	"github.com/kolide/kolide-ose/server/config"
 	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"github.com/kolide/kolide-ose/server/datastore/inmem"
 	kolide_errors "github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
 
+	"github.com/WatchBeam/clock"
+	pkg_errors "github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
@@ -244,11 +245,71 @@ func setupInvites(t *testing.T, ds kolide.Datastore, emails []string) map[string
 	return invites
 }
 
-func TestChangeUserPassword(t *testing.T) {
+func TestChangePassword(t *testing.T) {
+	ds, _ := inmem.New(config.TestConfig())
+	svc, _ := newTestService(ds, nil)
+	users := createTestUsers(t, ds)
+	var passwordChangeTests = []struct {
+		user        kolide.User
+		oldPassword string
+		newPassword string
+		anyErr      bool
+		wantErr     error
+	}{
+		{ // all good
+			user:        users["admin1"],
+			oldPassword: "foobar",
+			newPassword: "123cat!",
+		},
+		{ // all good
+			user:        users["user1"],
+			oldPassword: "foobar",
+			newPassword: "newpass",
+		},
+		{ // bad old password
+			user:        users["user1"],
+			oldPassword: "wrong_password",
+			newPassword: "123cat!",
+			anyErr:      true,
+		},
+		{ // missing old password
+			newPassword: "123cat!",
+			wantErr:     &invalidArgumentError{invalidArgument{name: "old_password", reason: "cannot be empty field"}},
+		},
+		{ // missing new password
+			oldPassword: "abcd",
+			wantErr:     &invalidArgumentError{invalidArgument{name: "new_password", reason: "cannot be empty field"}},
+		},
+	}
+
+	for _, tt := range passwordChangeTests {
+		t.Run("", func(t *testing.T) {
+			ctx := context.Background()
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: &tt.user})
+
+			err := svc.ChangePassword(ctx, tt.oldPassword, tt.newPassword)
+			if tt.anyErr {
+				require.NotNil(t, err)
+			} else {
+				require.Equal(t, tt.wantErr, pkg_errors.Cause(err))
+			}
+
+			if err != nil {
+				return
+			}
+
+			// Attempt login after successful change
+			_, _, err = svc.Login(context.Background(), tt.user.Username, tt.newPassword)
+			require.Nil(t, err, "should be able to login with new password")
+		})
+	}
+}
+
+func TestResetPassword(t *testing.T) {
 	ds, _ := inmem.New(config.TestConfig())
 	svc, _ := newTestService(ds, nil)
 	createTestUsers(t, ds)
-	var passwordChangeTests = []struct {
+	var passwordResetTests = []struct {
 		token       string
 		newPassword string
 		wantErr     error
@@ -272,7 +333,7 @@ func TestChangeUserPassword(t *testing.T) {
 		},
 	}
 
-	for _, tt := range passwordChangeTests {
+	for _, tt := range passwordResetTests {
 		t.Run("", func(t *testing.T) {
 			ctx := context.Background()
 			request := &kolide.PasswordResetRequest{
@@ -292,7 +353,7 @@ func TestChangeUserPassword(t *testing.T) {
 			assert.Nil(t, err)
 
 			serr := svc.ResetPassword(ctx, tt.token, tt.newPassword)
-			assert.Equal(t, tt.wantErr, serr)
+			assert.Equal(t, tt.wantErr, pkg_errors.Cause(serr))
 		})
 	}
 }

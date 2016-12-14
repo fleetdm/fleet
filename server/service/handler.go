@@ -19,6 +19,7 @@ type KolideEndpoints struct {
 	ForgotPassword                 endpoint.Endpoint
 	ResetPassword                  endpoint.Endpoint
 	Me                             endpoint.Endpoint
+	ChangePassword                 endpoint.Endpoint
 	CreateUser                     endpoint.Endpoint
 	GetUser                        endpoint.Endpoint
 	ListUsers                      endpoint.Endpoint
@@ -84,6 +85,7 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		// canPerformActions (these other checks should also call
 		// canPerformActions if that is appropriate).
 		Me:                             authenticatedUser(jwtKey, svc, canPerformActions(makeGetSessionUserEndpoint(svc))),
+		ChangePassword:                 authenticatedUser(jwtKey, svc, canPerformActions(makeChangePasswordEndpoint(svc))),
 		GetUser:                        authenticatedUser(jwtKey, svc, canReadUser(makeGetUserEndpoint(svc))),
 		ListUsers:                      authenticatedUser(jwtKey, svc, canPerformActions(makeListUsersEndpoint(svc))),
 		ModifyUser:                     authenticatedUser(jwtKey, svc, validateModifyUserRequest(makeModifyUserEndpoint(svc))),
@@ -140,6 +142,7 @@ type kolideHandlers struct {
 	ForgotPassword                 *kithttp.Server
 	ResetPassword                  *kithttp.Server
 	Me                             *kithttp.Server
+	ChangePassword                 *kithttp.Server
 	CreateUser                     *kithttp.Server
 	GetUser                        *kithttp.Server
 	ListUsers                      *kithttp.Server
@@ -198,6 +201,7 @@ func makeKolideKitHandlers(ctx context.Context, e KolideEndpoints, opts []kithtt
 		ForgotPassword:                 newServer(e.ForgotPassword, decodeForgotPasswordRequest),
 		ResetPassword:                  newServer(e.ResetPassword, decodeResetPasswordRequest),
 		Me:                             newServer(e.Me, decodeNoParamsRequest),
+		ChangePassword:                 newServer(e.ChangePassword, decodeChangePasswordRequest),
 		CreateUser:                     newServer(e.CreateUser, decodeCreateUserRequest),
 		GetUser:                        newServer(e.GetUser, decodeGetUserRequest),
 		ListUsers:                      newServer(e.ListUsers, decodeListUsersRequest),
@@ -278,6 +282,7 @@ func attachKolideAPIRoutes(r *mux.Router, h kolideHandlers) {
 	r.Handle("/api/v1/kolide/forgot_password", h.ForgotPassword).Methods("POST")
 	r.Handle("/api/v1/kolide/reset_password", h.ResetPassword).Methods("POST")
 	r.Handle("/api/v1/kolide/me", h.Me).Methods("GET")
+	r.Handle("/api/v1/kolide/change_password", h.ChangePassword).Methods("POST")
 
 	r.Handle("/api/v1/kolide/users", h.ListUsers).Methods("GET")
 	r.Handle("/api/v1/kolide/users", h.CreateUser).Methods("POST")
