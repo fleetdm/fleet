@@ -1,41 +1,34 @@
 .PHONY: build
 
 PATH := $(GOPATH)/bin:$(shell npm bin):$(PATH)
-
-ifeq ($(OS), Windows_NT)
-	GC_OFF = set GOGC=off &&
-else
-	GC_OFF = GOGC=off
-endif
-
-ifneq ($(OS), Windows_NT)
-	ifeq ($(shell uname), Darwin)
-		SHELL := /bin/bash
-	endif
-endif
-
-ifeq ($(OS), Windows_NT)
-	OUTPUT = build/kolide.exe
-else
-	OUTPUT = build/kolide
-endif
-
 VERSION = 0.0.0-development
 BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
 REVISION = $(shell git rev-parse HEAD)
 REVSHORT = $(shell git rev-parse --short HEAD)
 USER = $(shell whoami)
+DOCKER_IMAGE_NAME = kolide/kolide
 
-ifeq ($(OS), Windows_NT)
+ifneq ($(OS), Windows_NT)
+	# If on macOS, set the shell to bash explicitly
+	ifeq ($(shell uname), Darwin)
+		SHELL := /bin/bash
+	endif
+
+	# The output binary name is different on Windows, so we're explicit here
+	OUTPUT = build/kolide
+
+	# To populate version metadata, we use unix tools to get certain data
+	GOVERSION = $(shell go version | awk '{print $$3}')
+	NOW	= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+else
+	# The output binary name is different on Windows, so we're explicit here
+	OUTPUT = build/kolide.exe
+
+	# To populate version metadata, we use windows tools to get the certain data
 	GOVERSION_CMD = "(go version).Split()[2]"
 	GOVERSION = $(shell powershell $(GOVERSION_CMD))
 	NOW	= $(shell powershell Get-Date -format s)
-else
-	GOVERSION = $(shell go version | awk '{print $$3}')
-	NOW	= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 endif
-
-DOCKER_IMAGE_NAME = kolide/kolide
 
 ifndef CIRCLE_PR_NUMBER
 	DOCKER_IMAGE_TAG = ${REVSHORT}
@@ -64,6 +57,7 @@ define HELP_TEXT
 	make lint-go      - Run the Go linters
 	make lint-js      - Run the JavaScript linters
 	make lint-scss    - Run the SCSS linters
+	make lint-ts      - Run the TypeScript linters
 
 	make run          - Run the Kolide server in dev mode
 
@@ -79,8 +73,9 @@ else
 	mkdir -p build
 endif
 
+build: export GOGC = off
 build: .prefix
-	${GC_OFF} go build -i -o ${OUTPUT} -ldflags "\
+	go build -i -o ${OUTPUT} -ldflags "\
 	-X github.com/kolide/kolide-ose/server/version.version=${VERSION} \
 	-X github.com/kolide/kolide-ose/server/version.branch=${BRANCH} \
 	-X github.com/kolide/kolide-ose/server/version.revision=${REVISION} \
@@ -90,8 +85,10 @@ build: .prefix
 
 lint-js:
 	eslint frontend --ext .js,.jsx
+
 lint-ts:
 	tslint frontend/**/*.tsx frontend/**/*.ts
+
 lint-scss:
 	sass-lint --verbose
 
@@ -103,12 +100,13 @@ lint: lint-go lint-js lint-scss lint-ts
 test-go:
 	go test -cover $(shell glide nv)
 
+test-js: export NODE_PATH = ./frontend
 test-js:
-	NODE_PATH=./frontend _mocha --compilers js:babel-core/register,tsx:typescript-require  \
-		--recursive 'frontend/**/*.tests.js*' \
+	_mocha --compilers js:babel-core/register,tsx:typescript-require  \
+		--recursive "frontend/**/*.tests.js*" \
 		--require ignore-styles \
-		--require 'frontend/.test.setup.js' \
-		--require 'frontend/test/loaderMock.js'
+		--require "frontend/.test.setup.js" \
+		--require "frontend/test/loaderMock.js"
 
 test: lint test-go test-js
 
@@ -133,7 +131,6 @@ deps:
 	npm install
 	go get github.com/jteeuwen/go-bindata/...
 	go get github.com/Masterminds/glide
-	go get github.com/pressly/goose/cmd/goose
 	glide install
 
 distclean:
