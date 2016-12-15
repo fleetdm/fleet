@@ -1,4 +1,4 @@
-import React, { Component, PropTypes } from 'react';
+import { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 
 import entityGetter from 'redux/utilities/entityGetter';
@@ -27,11 +27,11 @@ class QueryPageWrapper extends Component {
   render () {
     const { children } = this.props;
 
-    return (
-      <div>
-        {children}
-      </div>
-    );
+    if (!children) {
+      return false;
+    }
+
+    return children;
   }
 }
 

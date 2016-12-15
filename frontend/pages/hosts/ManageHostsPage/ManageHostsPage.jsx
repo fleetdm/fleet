@@ -23,8 +23,10 @@ import { selectOsqueryTable } from 'redux/nodes/components/QueryPages/actions';
 import { setDisplay } from 'redux/nodes/components/ManageHostsPage/actions';
 import { showRightSidePanel, removeRightSidePanel } from 'redux/nodes/app/actions';
 import validateQuery from 'components/forms/validators/validate_query';
+import iconClassForLabel from 'utilities/icon_class_for_label';
 
 const NEW_LABEL_HASH = '#new_label';
+const baseClass = 'manage-hosts';
 
 export class ManageHostsPage extends Component {
   static propTypes = {
@@ -180,9 +182,12 @@ export class ManageHostsPage extends Component {
     };
 
     return (
-      <div>
-        <Icon name="label" />
-        <span>{displayText}</span>
+      <div className={`${baseClass}__header`}>
+        <h1 className={`${baseClass}__title`}>
+          <Icon name={iconClassForLabel(selectedLabel)} />
+          <span>{displayText}</span>
+        </h1>
+
         { query &&
           <AceEditor
             editorProps={{ $blockScrolling: Infinity }}
@@ -200,10 +205,14 @@ export class ManageHostsPage extends Component {
             fontSize={14}
           />
         }
-        <p>Description</p>
-        <p>{description}</p>
-        <p>{count} Hosts Total</p>
-        <div>
+
+        <div className={`${baseClass}__description`}>
+          <h2>Description</h2>
+          <p>{description}</p>
+        </div>
+
+        <div className={`${baseClass}__topper`}>
+          <p className={`${baseClass}__host-count`}>{count} Hosts Total</p>
           <Rocker
             handleChange={onToggleDisplay}
             name="host-display-toggle"
@@ -308,12 +317,18 @@ export class ManageHostsPage extends Component {
 
   render () {
     const { renderForm, renderHeader, renderHosts, renderSidePanel } = this;
+    const { display } = this.props;
 
     return (
-      <div className="manage-hosts body-wrap">
-        {renderHeader()}
-        {renderForm()}
-        {renderHosts()}
+      <div className="has-sidebar">
+        <div className={`${baseClass} body-wrap`}>
+          {renderHeader()}
+          {renderForm()}
+          <div className={`${baseClass}__list ${baseClass}__list--${display.toLowerCase()}`}>
+            {renderHosts()}
+          </div>
+        </div>
+
         {renderSidePanel()}
       </div>
     );

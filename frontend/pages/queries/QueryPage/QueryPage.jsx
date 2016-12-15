@@ -171,7 +171,7 @@ class QueryPage extends Component {
     } = this.props;
 
     return (
-      <div>
+      <div className="has-sidebar">
         <QueryComposer
           onFetchTargets={onFetchTargets}
           onOsqueryTableSelect={onOsqueryTableSelect}

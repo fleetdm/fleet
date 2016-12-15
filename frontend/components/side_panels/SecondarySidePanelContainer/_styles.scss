@@ -1,9 +1,11 @@
 .secondary-side-panel-container {
-  @include position(fixed, 0 0 0 null);
+  @include align-self(stretch);
   background-color: $white;
   border-left: 1px solid $border-medium;
   box-shadow: -2px 0 8px 0 rgba($black, 0.1);
   box-sizing: border-box;
   overflow: scroll;
   width: 300px;
+  margin-left: $pad-base;
+  min-height: 100%;
 }

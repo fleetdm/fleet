@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import classnames from 'classnames';
 
 import Icon from 'components/Icon';
-import { iconClassForLabel } from './helpers';
+import iconClassForLabel from 'utilities/icon_class_for_label';
 
 const baseClass = 'panel-group-item';
 

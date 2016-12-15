@@ -14,7 +14,7 @@ body {
   font-family: 'Oxygen', sans-serif;
   font-size: $base;
   line-height: 1.6;
-  min-width: $min-width;
+  min-width: $medium-width;
   height: 100%;
 }
 
@@ -49,6 +49,21 @@ h3 {
   background-color: $white;
   box-shadow: 0 0 12px 0 rgba(0, 0, 0, 0.1);
   border: solid 1px $silver;
+  min-width: 630px;
+  box-sizing: border-box;
+  margin-top: $pad-base;
+  margin-right: $pad-base;
+}
+
+.has-sidebar {
+  @include display(flex);
+  height: 100%;
+
+  .body-wrap {
+    @include flex-grow(1);
+    @include align-self(flex-start);
+    margin-right: 0;
+  }
 }
 
 .cf {

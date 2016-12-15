@@ -16,4 +16,4 @@ export const iconClassForLabel = (label) => {
   }
 };
 
-export default { iconClassForLabel };
+export default iconClassForLabel;

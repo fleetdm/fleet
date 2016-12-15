@@ -1,23 +1,88 @@
 .manage-hosts {
   padding: $pad-base;
+
+  &__header {
+    .ace-kolide {
+      margin: 12px 0;
+    }
+  }
+
+  &__title {
+    margin: 0;
+    font-weight: $light;
+    font-size: 20px;
+    letter-spacing: 1px;
+    color: $text-medium;
+
+    .kolidecon {
+      color: $text-light;
+      margin-right: 15px;
+    }
+  }
+
+  &__description {
+    line-height: 1.54;
+    letter-spacing: 0.5px;
+    margin: 0;
+
+    h2 {
+      text-transform: uppercase;
+      color: $text-dark;
+      font-weight: $light;
+      font-size: 16px;
+    }
+
+    p {
+      color: $text-medium;
+      margin: 0;
+      font-size: 13px;
+    }
+  }
+
+  &__topper {
+    @include display(flex);
+    @include align-items(flex-end);
+    border-bottom: solid 1px $accent-light;
+    padding-bottom: 10px;
+  }
+
+  &__host-count {
+    @include flex-grow(1);
+    font-size: 14px;
+    font-weight: $light;
+    letter-spacing: 0.9px;
+    color: $text-dark;
+    margin: 0;
+    display: inline-block;
+  }
+
+  &__list {
+    &--grid {
+      @include display(flex);
+      @include justify-content(center);
+      @include flex-wrap(wrap);
+      max-width: $medium-width;
+      margin: 0 auto;
+    }
+  }
 }
 
 .hosts-page-side-panel {
   &-enter {
-    right: -300px;
+    margin-right: -250px;
 
     &.hosts-page-side-panel-enter-active {
-      right: 0;
-      transition: right 300ms ease-in;
+      @include transition(margin 3000ms ease-in);
+      margin-right: 0;
     }
   }
 
   &-leave {
-    right: 0;
+    margin-right: 0;
 
     &.hosts-page-side-panel-leave-active {
-      right: -300px;
-      transition: right 200ms ease-in;
+      @include transition(margin 300ms ease-in);
+      margin-right: -250px;
     }
   }
 }
