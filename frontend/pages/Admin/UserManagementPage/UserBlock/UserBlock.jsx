@@ -117,14 +117,15 @@ class UserBlock extends Component {
     const userWrapperClass = classnames(
       baseClass,
       { [`${baseClass}--invited`]: invite },
-      { [`${baseClass}--disabled`]: !enabled }
+      { [`${baseClass}--disabled`]: !enabled && !invite }
     );
 
     const userHeaderClass = classnames(
       `${baseClass}__header`,
       { [`${baseClass}__header--admin`]: admin },
       { [`${baseClass}__header--user`]: !admin },
-      { [`${baseClass}__header--disabled`]: !enabled }
+      { [`${baseClass}__header--invited`]: invite },
+      { [`${baseClass}__header--disabled`]: !enabled && !invite }
     );
 
     const userAvatarClass = classnames(
@@ -141,12 +142,18 @@ class UserBlock extends Component {
       `${baseClass}__status-text`,
       { [`${baseClass}__status-text--invited`]: invite },
       { [`${baseClass}__status-text--enabled`]: enabled },
-      { [`${baseClass}__status-text--disabled`]: !enabled }
+      { [`${baseClass}__status-text--disabled`]: !enabled && !invite }
     );
 
     const userUsernameClass = classnames(
       `${baseClass}__username`,
-      { [`${baseClass}__username--enabled`]: enabled }
+      { [`${baseClass}__username--enabled`]: enabled },
+      { [`${baseClass}__username--hidden`]: !username }
+    );
+
+    const userPositionClass = classnames(
+      `${baseClass}__position`,
+      { [`${baseClass}__position--hidden`]: !position }
     );
 
     const userEmailClass = classnames(
@@ -175,7 +182,7 @@ class UserBlock extends Component {
             <div className="cf" />
           </div>
           <p className={userUsernameClass}>{username}</p>
-          <p className={`${baseClass}__position`}>{position}</p>
+          <p className={userPositionClass} title={position}>{position}</p>
           <p className={userEmailClass}>{email}</p>
           {renderCTAs()}
         </div>

@@ -190,7 +190,7 @@ class UserManagementPage extends Component {
 
     return (
       <div className={`${baseClass} body-wrap`}>
-        <span className={`${baseClass}__user-count`}>Listing {resourcesCount} users</span>
+        <h1 className={`${baseClass}__user-count`}>Listing {resourcesCount} users</h1>
         <div className={`${baseClass}__add-user-wrap`}>
           <Button
             onClick={toggleInviteUserModal}
