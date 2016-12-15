@@ -105,6 +105,9 @@ func (p UserPayload) User(keySize, cost int) (*User, error) {
 	if p.Name != nil {
 		user.Name = *p.Name
 	}
+	if p.GravatarURL != nil {
+		user.GravatarURL = *p.GravatarURL
+	}
 	if p.Position != nil {
 		user.Position = *p.Position
 	}

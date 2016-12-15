@@ -274,11 +274,11 @@ func TestChangePassword(t *testing.T) {
 		},
 		{ // missing old password
 			newPassword: "123cat!",
-			wantErr:     &invalidArgumentError{invalidArgument{name: "old_password", reason: "cannot be empty field"}},
+			wantErr:     &invalidArgumentError{invalidArgument{name: "old_password", reason: "cannot be empty"}},
 		},
 		{ // missing new password
 			oldPassword: "abcd",
-			wantErr:     &invalidArgumentError{invalidArgument{name: "new_password", reason: "cannot be empty field"}},
+			wantErr:     &invalidArgumentError{invalidArgument{name: "new_password", reason: "cannot be empty"}},
 		},
 	}
 
