@@ -1,5 +1,6 @@
 import configureStore from 'redux-mock-store';
 import expect from 'expect';
+import { find } from 'lodash';
 import thunk from 'redux-thunk';
 
 import authMiddleware from '../../middlewares/auth';
@@ -48,11 +49,15 @@ describe('Auth - reducer', () => {
 
 
     it('calls the api login endpoint', (done) => {
-      const loginRequestMock = validLoginRequest();
+      const expectedBearerToken = 'expected-bearer-token';
+      const loginRequestMock = validLoginRequest(expectedBearerToken);
+
       store.dispatch(loginUser(formData))
-        .then((user) => {
+        .then(() => {
+          const loginSuccessAction = find(store.getActions(), { type: 'LOGIN_SUCCESS' });
+
+          expect(loginSuccessAction.payload.token).toEqual(expectedBearerToken);
           expect(loginRequestMock.isDone()).toEqual(true);
-          expect(local.getItem('auth_token')).toEqual(user.token);
           done();
         })
         .catch(done);
@@ -70,22 +75,24 @@ describe('Auth - reducer', () => {
     });
 
     it('sets the users auth token in local storage', (done) => {
-      validLoginRequest();
+      const expectedBearerToken = 'expected-bearer-token';
+      validLoginRequest(expectedBearerToken);
 
       store.dispatch(loginUser(formData))
-        .then((user) => {
-          expect(local.getItem('auth_token')).toEqual(user.token);
+        .then(() => {
+          expect(local.getItem('auth_token')).toEqual(expectedBearerToken);
           done();
         })
         .catch(done);
     });
 
     it('sets the api client bearerToken', (done) => {
-      validLoginRequest();
+      const expectedBearerToken = 'expected-bearer-token';
+      validLoginRequest(expectedBearerToken);
 
       store.dispatch(loginUser(formData))
-        .then((user) => {
-          expect(kolide.bearerToken).toEqual(user.token);
+        .then(() => {
+          expect(kolide.bearerToken).toEqual(expectedBearerToken);
           done();
         })
         .catch(done);

@@ -1,5 +1,3 @@
-import md5 from 'js-md5';
-
 import { configSuccess } from 'redux/nodes/app/actions';
 import Kolide from 'kolide';
 import userActions from 'redux/nodes/entities/users/actions';
@@ -39,12 +37,7 @@ export const fetchCurrentUser = () => {
   return (dispatch) => {
     dispatch(loginRequest);
     return Kolide.me()
-      .then((response) => {
-        const { user } = response;
-        const { email } = user;
-        const emailHash = md5(email.toLowerCase());
-
-        user.gravatarURL = `https://www.gravatar.com/avatar/${emailHash}?d=blank`;
+      .then((user) => {
         return dispatch(loginSuccess({ user }));
       })
       .catch((response) => {
@@ -59,15 +52,12 @@ export const loginUser = (formData) => {
   return (dispatch) => {
     return new Promise((resolve, reject) => {
       dispatch(loginRequest);
+
       return Kolide.loginUser(formData)
         .then((response) => {
-          const { user } = response;
-          const { email } = user;
-          const emailHash = md5(email.toLowerCase());
+          dispatch(loginSuccess(response));
 
-          user.gravatarURL = `https://www.gravatar.com/avatar/${emailHash}?d=blank`;
-          dispatch(loginSuccess({ ...response, user }));
-          return resolve(user);
+          return resolve(response.user);
         })
         .catch((response) => {
           const { error } = response;
@@ -111,9 +101,9 @@ export const updateUser = (targetUser, formData) => {
     return new Promise((resolve, reject) => {
       dispatch(updateUserRequest);
       return dispatch(userActions.update(targetUser, formData))
-        .then((response) => {
-          const { user } = response;
+        .then((user) => {
           dispatch(updateUserSuccess(user));
+
           return resolve(user);
         })
         .catch((response) => {

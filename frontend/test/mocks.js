@@ -3,7 +3,6 @@ import nock from 'nock';
 import helpers from 'kolide/helpers';
 
 export const validUser = {
-  token: 'auth_token',
   id: 1,
   username: 'admin',
   email: 'admin@kolide.co',
@@ -11,7 +10,7 @@ export const validUser = {
   admin: true,
   enabled: true,
   needs_password_reset: false,
-  gravatarURL: 'https://www.gravatar.com/avatar/7157f4758f8423b59aaee869d919f6b9',
+  gravatarURL: 'https://www.gravatar.com/avatar/7157f4758f8423b59aaee869d919f6b9?d=blank',
 };
 
 export const validCreateLabelRequest = (bearerToken, labelParams) => {
@@ -85,7 +84,7 @@ export const validInviteUserRequest = (bearerToken, formData) => {
     },
   })
     .post('/api/v1/kolide/invites', JSON.stringify(formData))
-    .reply(200, formData);
+    .reply(200, { invite: formData });
 };
 
 export const validGetHostsRequest = (bearerToken) => {
@@ -149,10 +148,10 @@ export const validGetUsersRequest = (bearerToken) => {
     .reply(200, { users: [validUser] });
 };
 
-export const validLoginRequest = () => {
+export const validLoginRequest = (bearerToken = 'abc123') => {
   return nock('http://localhost:8080')
   .post('/api/v1/kolide/login')
-  .reply(200, validUser);
+  .reply(200, { user: validUser, token: bearerToken });
 };
 
 export const validMeRequest = (bearerToken) => {
@@ -162,7 +161,7 @@ export const validMeRequest = (bearerToken) => {
     },
   })
     .get('/api/v1/kolide/me')
-    .reply(200, validUser);
+    .reply(200, { user: validUser });
 };
 
 export const validLogoutRequest = (bearerToken) => {
@@ -236,7 +235,7 @@ export const validUpdateQueryRequest = (bearerToken, query, formData) => {
 export const validUpdateUserRequest = (user, formData) => {
   return nock('http://localhost:8080')
   .patch(`/api/v1/kolide/users/${user.id}`, JSON.stringify(formData))
-  .reply(200, validUser);
+  .reply(200, { user: validUser });
 };
 
 

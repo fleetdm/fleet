@@ -44,7 +44,13 @@ class Kolide extends Base {
     const { INVITES } = endpoints;
 
     return this.authenticatedGet(this.endpoint(INVITES))
-      .then((response) => { return response.invites; });
+      .then((response) => {
+        const { invites } = response;
+
+        return invites.map((invite) => {
+          return helpers.addGravatarUrlToResource(invite);
+        });
+      });
   }
 
   getHosts = () => {
@@ -162,21 +168,40 @@ class Kolide extends Base {
     const { USERS } = endpoints;
 
     return this.authenticatedGet(this.endpoint(USERS))
-      .then((response) => { return response.users; });
+      .then((response) => {
+        const { users } = response;
+
+        return users.map((user) => {
+          return helpers.addGravatarUrlToResource(user);
+        });
+      });
   }
 
   inviteUser = (formData) => {
     const { INVITES } = endpoints;
 
     return this.authenticatedPost(this.endpoint(INVITES), JSON.stringify(formData))
-      .then((response) => { return response.invite; });
+      .then((response) => {
+        const { invite } = response;
+
+        return helpers.addGravatarUrlToResource(invite);
+      });
   }
 
   loginUser ({ username, password }) {
     const { LOGIN } = endpoints;
     const loginEndpoint = this.baseURL + LOGIN;
 
-    return Base.post(loginEndpoint, JSON.stringify({ username, password }));
+    return Base.post(loginEndpoint, JSON.stringify({ username, password }))
+      .then((response) => {
+        const { user } = response;
+        const userWithGravatarUrl = helpers.addGravatarUrlToResource(user);
+
+        return {
+          ...response,
+          user: userWithGravatarUrl,
+        };
+      });
   }
 
   logout () {
@@ -190,7 +215,12 @@ class Kolide extends Base {
     const { ME } = endpoints;
     const meEndpoint = this.baseURL + ME;
 
-    return this.authenticatedGet(meEndpoint);
+    return this.authenticatedGet(meEndpoint)
+      .then((response) => {
+        const { user } = response;
+
+        return helpers.addGravatarUrlToResource(user);
+      });
   }
 
   resetPassword (formData) {
@@ -227,7 +257,11 @@ class Kolide extends Base {
     const updateUserEndpoint = `${this.baseURL}${USERS}/${user.id}`;
 
     return this.authenticatedPatch(updateUserEndpoint, JSON.stringify(formData))
-      .then((response) => { return response.user; });
+      .then((response) => {
+        const { user: updatedUser } = response;
+
+        return helpers.addGravatarUrlToResource(updatedUser);
+      });
   }
 }
 

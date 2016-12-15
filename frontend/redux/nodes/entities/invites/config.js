@@ -1,7 +1,6 @@
-import { addGravatarUrlToResource } from '../base/helpers';
-import Kolide from '../../../../kolide';
-import reduxConfig from '../base/reduxConfig';
-import schemas from '../base/schemas';
+import Kolide from 'kolide';
+import reduxConfig from 'redux/nodes/entities/base/reduxConfig';
+import schemas from 'redux/nodes/entities/base/schemas';
 
 const { INVITES: schema } = schemas;
 
@@ -10,6 +9,5 @@ export default reduxConfig({
   destroyFunc: Kolide.revokeInvite,
   entityName: 'invites',
   loadAllFunc: Kolide.getInvites,
-  parseEntityFunc: addGravatarUrlToResource,
   schema,
 });

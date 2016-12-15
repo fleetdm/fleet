@@ -1,7 +1,20 @@
 import { kebabCase, pick } from 'lodash';
+import md5 from 'js-md5';
 
 const ORG_INFO_ATTRS = ['org_name', 'org_logo_url'];
 const ADMIN_ATTRS = ['email', 'name', 'password', 'password_confirmation', 'username'];
+
+export const addGravatarUrlToResource = (resource) => {
+  const { email } = resource;
+
+  const emailHash = md5(email.toLowerCase());
+  const gravatarURL = `https://www.gravatar.com/avatar/${emailHash}?d=blank`;
+
+  return {
+    ...resource,
+    gravatarURL,
+  };
+};
 
 const labelSlug = (label) => {
   const { display_text: displayText } = label;
@@ -29,4 +42,4 @@ const setupData = (formData) => {
   };
 };
 
-export default { labelSlug, setupData };
+export default { addGravatarUrlToResource, labelSlug, setupData };
