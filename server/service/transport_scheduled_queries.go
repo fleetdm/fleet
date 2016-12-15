@@ -7,8 +7,8 @@ import (
 	"golang.org/x/net/context"
 )
 
-func decodeScheduleQueriesRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	var req scheduleQueriesRequest
+func decodeScheduleQueryRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	var req scheduleQueryRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, err

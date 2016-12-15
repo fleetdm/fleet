@@ -79,12 +79,12 @@ func makeGetScheduledQueriesInPackEndpoint(svc kolide.Service) endpoint.Endpoint
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Schedule Queries
+// Schedule Query
 ////////////////////////////////////////////////////////////////////////////////
 
-type scheduleQuerySubmission struct {
+type scheduleQueryRequest struct {
 	PackID   uint    `json:"pack_id"`
-	QueryIDs []uint  `json:"query_ids"`
+	QueryID  uint    `json:"query_id"`
 	Interval uint    `json:"interval"`
 	Snapshot *bool   `json:"snapshot"`
 	Removed  *bool   `json:"removed"`
@@ -93,44 +93,31 @@ type scheduleQuerySubmission struct {
 	Shard    *uint   `json:"shard"`
 }
 
-type scheduleQueriesRequest struct {
-	Options []scheduleQuerySubmission `json:"options"`
+type scheduleQueryResponse struct {
+	Scheduled scheduledQueryResponse `json:"scheduled"`
+	Err       error                  `json:"error,omitempty"`
 }
 
-type scheduleQueriesResponse struct {
-	Scheduled []scheduledQueryResponse `json:"scheduled"`
-	Err       error                    `json:"error,omitempty"`
-}
-
-func (r scheduleQueriesResponse) error() error { return r.Err }
-
-func makeScheduleQueriesEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeScheduleQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(scheduleQueriesRequest)
-		resp := getScheduledQueriesInPackResponse{Scheduled: []scheduledQueryResponse{}}
+		req := request.(scheduleQueryRequest)
 
-		for _, submission := range req.Options {
-			for _, queryID := range submission.QueryIDs {
-				scheduled, err := svc.ScheduleQuery(ctx, &kolide.ScheduledQuery{
-					PackID:   submission.PackID,
-					QueryID:  queryID,
-					Interval: submission.Interval,
-					Snapshot: submission.Snapshot,
-					Removed:  submission.Removed,
-					Platform: submission.Platform,
-					Version:  submission.Version,
-					Shard:    submission.Shard,
-				})
-				if err != nil {
-					return scheduleQueriesResponse{Err: err}, nil
-				}
-				resp.Scheduled = append(resp.Scheduled, scheduledQueryResponse{
-					ScheduledQuery: *scheduled,
-				})
-			}
+		scheduled, err := svc.ScheduleQuery(ctx, &kolide.ScheduledQuery{
+			PackID:   req.PackID,
+			QueryID:  req.QueryID,
+			Interval: req.Interval,
+			Snapshot: req.Snapshot,
+			Removed:  req.Removed,
+			Platform: req.Platform,
+			Version:  req.Version,
+			Shard:    req.Shard,
+		})
+		if err != nil {
+			return scheduleQueryResponse{Err: err}, nil
 		}
-
-		return resp, nil
+		return scheduleQueryResponse{Scheduled: scheduledQueryResponse{
+			ScheduledQuery: *scheduled,
+		}}, nil
 	}
 }
 

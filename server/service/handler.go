@@ -45,7 +45,7 @@ type KolideEndpoints struct {
 	CreatePack                     endpoint.Endpoint
 	ModifyPack                     endpoint.Endpoint
 	DeletePack                     endpoint.Endpoint
-	ScheduleQueries                endpoint.Endpoint
+	ScheduleQuery                  endpoint.Endpoint
 	GetScheduledQueriesInPack      endpoint.Endpoint
 	GetScheduledQuery              endpoint.Endpoint
 	ModifyScheduledQuery           endpoint.Endpoint
@@ -110,7 +110,7 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		CreatePack:                authenticatedUser(jwtKey, svc, makeCreatePackEndpoint(svc)),
 		ModifyPack:                authenticatedUser(jwtKey, svc, makeModifyPackEndpoint(svc)),
 		DeletePack:                authenticatedUser(jwtKey, svc, makeDeletePackEndpoint(svc)),
-		ScheduleQueries:           authenticatedUser(jwtKey, svc, makeScheduleQueriesEndpoint(svc)),
+		ScheduleQuery:             authenticatedUser(jwtKey, svc, makeScheduleQueryEndpoint(svc)),
 		GetScheduledQueriesInPack: authenticatedUser(jwtKey, svc, makeGetScheduledQueriesInPackEndpoint(svc)),
 		GetScheduledQuery:         authenticatedUser(jwtKey, svc, makeGetScheduledQueryEndpoint(svc)),
 		ModifyScheduledQuery:      authenticatedUser(jwtKey, svc, makeModifyScheduledQueryEndpoint(svc)),
@@ -168,7 +168,7 @@ type kolideHandlers struct {
 	CreatePack                     *kithttp.Server
 	ModifyPack                     *kithttp.Server
 	DeletePack                     *kithttp.Server
-	ScheduleQueries                *kithttp.Server
+	ScheduleQuery                  *kithttp.Server
 	GetScheduledQueriesInPack      *kithttp.Server
 	GetScheduledQuery              *kithttp.Server
 	ModifyScheduledQuery           *kithttp.Server
@@ -227,7 +227,7 @@ func makeKolideKitHandlers(ctx context.Context, e KolideEndpoints, opts []kithtt
 		CreatePack:                    newServer(e.CreatePack, decodeCreatePackRequest),
 		ModifyPack:                    newServer(e.ModifyPack, decodeModifyPackRequest),
 		DeletePack:                    newServer(e.DeletePack, decodeDeletePackRequest),
-		ScheduleQueries:               newServer(e.ScheduleQueries, decodeScheduleQueriesRequest),
+		ScheduleQuery:                 newServer(e.ScheduleQuery, decodeScheduleQueryRequest),
 		GetScheduledQueriesInPack:     newServer(e.GetScheduledQueriesInPack, decodeGetScheduledQueriesInPackRequest),
 		GetScheduledQuery:             newServer(e.GetScheduledQuery, decodeGetScheduledQueryRequest),
 		ModifyScheduledQuery:          newServer(e.ModifyScheduledQuery, decodeModifyScheduledQueryRequest),
@@ -314,7 +314,7 @@ func attachKolideAPIRoutes(r *mux.Router, h kolideHandlers) {
 	r.Handle("/api/v1/kolide/packs/{id}", h.ModifyPack).Methods("PATCH")
 	r.Handle("/api/v1/kolide/packs/{id}", h.DeletePack).Methods("DELETE")
 	r.Handle("/api/v1/kolide/packs/{id}/scheduled", h.GetScheduledQueriesInPack).Methods("GET")
-	r.Handle("/api/v1/kolide/schedule", h.ScheduleQueries).Methods("POST")
+	r.Handle("/api/v1/kolide/schedule", h.ScheduleQuery).Methods("POST")
 	r.Handle("/api/v1/kolide/schedule/{id}", h.GetScheduledQuery).Methods("GET")
 	r.Handle("/api/v1/kolide/schedule/{id}", h.ModifyScheduledQuery).Methods("PATCH")
 	r.Handle("/api/v1/kolide/schedule/{id}", h.DeleteScheduledQuery).Methods("DELETE")
