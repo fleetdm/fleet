@@ -9,6 +9,7 @@ import (
 
 	kolide_errors "github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/patrickmn/sortutil"
 )
 
 func (orm *Datastore) NewLabel(label *kolide.Label) (*kolide.Label, error) {
@@ -192,11 +193,13 @@ func (orm *Datastore) SearchLabels(query string, omit ...uint) ([]kolide.Label, 
 			break
 		}
 
-		if strings.Contains(l.Name, query) && !omitLookup[l.ID] {
+		if (strings.Contains(l.Name, query) || l.Name == "All Hosts") && !omitLookup[l.ID] {
 			results = append(results, *l)
 			continue
 		}
 	}
+
+	sortutil.AscByField(results, "ID")
 
 	return results, nil
 }

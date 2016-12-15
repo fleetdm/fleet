@@ -197,23 +197,34 @@ func testSearchLabels(t *testing.T, db kolide.Datastore) {
 	})
 	require.Nil(t, err)
 
-	// We once threw errors when the search query was empty. Verify that we
-	// don't error.
-	_, err = db.SearchLabels("")
+	all, err := db.NewLabel(&kolide.Label{
+		Name:      "All Hosts",
+		LabelType: kolide.LabelTypeBuiltIn,
+	})
+	require.Nil(t, err)
+	all, err = db.Label(all.ID)
 	require.Nil(t, err)
 
-	labels, err := db.SearchLabels("foo")
-	assert.Nil(t, err)
-	assert.Len(t, labels, 2)
+	// We once threw errors when the search query was empty. Verify that we
+	// don't error.
+	labels, err := db.SearchLabels("")
+	require.Nil(t, err)
+	assert.Contains(t, labels, *all)
 
-	label, err := db.SearchLabels("foo", l3.ID)
+	labels, err = db.SearchLabels("foo")
+	assert.Nil(t, err)
+	assert.Len(t, labels, 3)
+	assert.Contains(t, labels, *all)
+
+	label, err := db.SearchLabels("foo", l3.ID, all.ID)
 	assert.Nil(t, err)
 	assert.Len(t, label, 1)
 	assert.Equal(t, "foo", label[0].Name)
 
 	none, err := db.SearchLabels("xxx")
 	assert.Nil(t, err)
-	assert.Len(t, none, 0)
+	assert.Len(t, none, 1)
+	assert.Contains(t, labels, *all)
 }
 
 func testSearchLabelsLimit(t *testing.T, db kolide.Datastore) {
@@ -296,8 +307,10 @@ func testBuiltInLabels(t *testing.T, db kolide.Datastore) {
 
 	hits, err := db.SearchLabels("Mac OS X")
 	require.Nil(t, err)
-	assert.Equal(t, 1, len(hits))
+	// Should get Mac OS X and All Hosts
+	assert.Equal(t, 2, len(hits))
 	assert.Equal(t, kolide.LabelTypeBuiltIn, hits[0].LabelType)
+	assert.Equal(t, kolide.LabelTypeBuiltIn, hits[1].LabelType)
 }
 
 func testListUniqueHostsInLabels(t *testing.T, db kolide.Datastore) {

@@ -170,6 +170,12 @@ func (d *Datastore) createBuiltinLabels() error {
 
 	labels := []kolide.Label{
 		{
+			Platform:  "all",
+			Name:      "All Hosts",
+			Query:     "select 1;",
+			LabelType: kolide.LabelTypeBuiltIn,
+		},
+		{
 			Platform:  "darwin",
 			Name:      "Mac OS X",
 			Query:     "select 1 from osquery_info where build_platform = 'darwin';",
@@ -191,12 +197,6 @@ func (d *Datastore) createBuiltinLabels() error {
 			Platform:  "windows",
 			Name:      "MS Windows",
 			Query:     "select 1 from osquery_info where build_platform = 'windows';",
-			LabelType: kolide.LabelTypeBuiltIn,
-		},
-		{
-			Platform:  "all",
-			Name:      "All Hosts",
-			Query:     "select 1;",
 			LabelType: kolide.LabelTypeBuiltIn,
 		},
 	}

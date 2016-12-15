@@ -219,13 +219,20 @@ func (d *Datastore) searchLabelsWithOmits(query string, omit ...uint) ([]kolide.
 	sqlStatement := `
 		SELECT *
 		FROM labels
-		WHERE MATCH(name)
-		AGAINST(? IN BOOLEAN MODE)
-	  AND NOT deleted
+		WHERE (
+			MATCH(name) AGAINST(? IN BOOLEAN MODE)
+			AND NOT deleted
+		)
+		OR (
+			label_type=?
+			AND name = 'All Hosts'
+		)
 		AND id NOT IN (?)
+		ORDER BY id ASC
 		LIMIT 10
 	`
-	sql, args, err := sqlx.In(sqlStatement, query, omit)
+
+	sql, args, err := sqlx.In(sqlStatement, query, kolide.LabelTypeBuiltIn, omit)
 	if err != nil {
 		return nil, errors.DatabaseError(err)
 	}
@@ -255,13 +262,19 @@ func (d *Datastore) SearchLabels(query string, omit ...uint) ([]kolide.Label, er
 	sqlStatement := `
 		SELECT *
 		FROM labels
-		WHERE MATCH(name)
-		AGAINST(? IN BOOLEAN MODE)
-	  AND NOT deleted
+		WHERE (
+			MATCH(name) AGAINST(? IN BOOLEAN MODE)
+			AND NOT deleted
+		)
+		OR (
+			label_type=?
+			AND name = 'All Hosts'
+		)
+		ORDER BY id ASC
 		LIMIT 10
 	`
 	matches := []kolide.Label{}
-	err := d.db.Select(&matches, sqlStatement, query)
+	err := d.db.Select(&matches, sqlStatement, query, kolide.LabelTypeBuiltIn)
 	if err != nil {
 		return nil, errors.DatabaseError(err)
 	}
