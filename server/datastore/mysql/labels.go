@@ -220,12 +220,14 @@ func (d *Datastore) searchLabelsWithOmits(query string, omit ...uint) ([]kolide.
 		SELECT *
 		FROM labels
 		WHERE (
-			MATCH(name) AGAINST(? IN BOOLEAN MODE)
-			AND NOT deleted
-		)
-		OR (
-			label_type=?
-			AND name = 'All Hosts'
+			(
+				MATCH(name) AGAINST(? IN BOOLEAN MODE)
+				AND NOT deleted
+			)
+			OR (
+				label_type=?
+				AND name = 'All Hosts'
+			)
 		)
 		AND id NOT IN (?)
 		ORDER BY id ASC
@@ -250,7 +252,6 @@ func (d *Datastore) searchLabelsWithOmits(query string, omit ...uint) ([]kolide.
 
 // SearchLabels performs wildcard searches on kolide.Label name
 func (d *Datastore) SearchLabels(query string, omit ...uint) ([]kolide.Label, error) {
-
 	if len(omit) > 0 {
 		return d.searchLabelsWithOmits(query, omit...)
 	}
@@ -263,12 +264,14 @@ func (d *Datastore) SearchLabels(query string, omit ...uint) ([]kolide.Label, er
 		SELECT *
 		FROM labels
 		WHERE (
-			MATCH(name) AGAINST(? IN BOOLEAN MODE)
-			AND NOT deleted
-		)
-		OR (
-			label_type=?
-			AND name = 'All Hosts'
+			(
+				MATCH(name) AGAINST(? IN BOOLEAN MODE)
+				AND NOT deleted
+			)
+			OR (
+				label_type=?
+				AND name = 'All Hosts'
+			)
 		)
 		ORDER BY id ASC
 		LIMIT 10
