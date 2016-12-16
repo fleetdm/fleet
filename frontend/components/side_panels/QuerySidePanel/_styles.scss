@@ -1,63 +1,159 @@
 .query-side-panel {
-  padding: $pad-small $pad-small $footer-height;
+  padding: 0 $pad-small $footer-height;
 
   &__header {
-    font-size: px-to-rem(24);
+    margin: 0 0 12px;
+    padding: 0 0 5px;
+    font-size: 16px;
+    font-weight: $bold;
+    letter-spacing: -0.5px;
     color: $text-medium;
+    border-bottom: solid 1px $accent-light;
   }
 
-  &__table {
-    font-size: px-to-rem(14);
-    color: $text-medium;
+  &__choose-table {
+    margin-bottom: 24px;
+
+    .Select {
+      margin: 0 0 $pad-half;
+    }
   }
 
-  &__platform {
-    color: $text-medium;
-    font-size: px-to-rem(14);
-    text-transform: capitalize;
+  &__description {
+    font-size: 14px;
+    line-height: 1.43;
+    letter-spacing: 0.5px;
+    color: $text-light;
+    margin: 0;
+  }
+
+  &__platforms {
+    font-size: 14px;
+    line-height: 2.29;
+    letter-spacing: 0.5px;
+    color: $text-light;
+    list-style: none;
+    margin: 0 0 24px;
+    padding: 0;
+
+    .kolidecon {
+      font-size: 18px;
+      margin-right: 15px;
+    }
+  }
+
+  &__columns,
+  &__joins,
+  &__suggested-queries {
+    margin: 0 0 24px;
+  }
+
+  &__column-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
   }
 
   &__column-wrapper {
     @include display(flex);
-    @include align-items(center);
-    @include justify-content(space-between);
+    margin: 0 0 15px;
+    padding-top: $pad-half;
     border-top: 1px solid $accent-light;
-    color: $text-dark;
-    font-size: px-to-rem(14);
-    padding-bottom: px-to-rem(9);
-    padding-top: px-to-rem(9);
-  }
-
-  &__column-name {
-    padding: px-to-rem(7) px-to-rem(9);
-    background-color: $accent-light;
-    border: 1px solid $accent-medium;
-    border-radius: $border-radius;
-  }
-
-  &__help {
-    margin-left: px-to-rem(9);
-    vertical-align: middle;
   }
 
   &__more-columns {
+    @include flex-grow(1);
+    font-size: 14px;
+    font-weight: $light;
+    line-height: 1.43;
+    letter-spacing: 0.5px;
     color: $text-medium;
   }
 
   &__show-columns {
     color: $brand;
     cursor: pointer;
+    font-size: 14px;
+    line-height: 1.43;
+  }
+
+  &__joins-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    li {
+      font-size: 14px;
+      line-height: 2.29;
+      letter-spacing: 0.7px;
+      color: $text-dark;
+    }
+
+    .kolidecon {
+      color: $accent-dark;
+      font-size: 12px;
+    }
   }
 
   &__suggestion {
-    color: $text-medium;
-    font-size: px-to-rem(12);
+    @include flex-grow(1);
+    font-size: 14px;
+    line-height: 1.71;
+    letter-spacing: 0.5px;
+    text-align: left;
+    color: $text-light;
   }
 
   &__load-suggestion {
+    @include align-self(center);
     padding: 1px 5px;
+    margin: 0 0 0 10px;
   }
 }
 
+.query-column-list {
+  &__item {
+    @include display(flex);
+    @include align-items(center);
+    @include justify-content(space-between);
+    border-top: 1px solid $accent-light;
+    color: $text-dark;
+    font-size: px-to-rem(14);
+    padding-bottom: $pad-half;
+    padding-top: $pad-half;
+
+    &:first-of-type {
+      border: 0;
+    }
+  }
+
+  &__name {
+    line-height: 28px;
+    border-radius: 3px;
+    background-color: $accent-light;
+    border: solid 1px #dce2f7;
+    color: #858495;
+    padding: 0 13px;
+    box-sizing: border-box;
+  }
+
+  &__description {
+    @include flex-grow(1);
+    text-align: right;
+  }
+
+  &__type {
+    font-size: 14px;
+    letter-spacing: 0.7px;
+    color: $text-medium;
+  }
+
+  &__help {
+    margin-left: 12px;
+    vertical-align: text-bottom;
+    font-size: 20px;
+    color: #c1c8e1;
+  }
+}
 
 

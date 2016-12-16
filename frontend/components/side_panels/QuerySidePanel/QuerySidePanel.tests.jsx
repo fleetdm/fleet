@@ -58,12 +58,4 @@ describe('QuerySidePanel - component', () => {
     const component = mount(<QuerySidePanel {...props} />);
     expect(component.text()).toContain('4 MORE COLUMNSSHOW');
   });
-
-  it('calls the onTextEditorInputChange props when loading a Suggested Query', () => {
-    const component = mount(<QuerySidePanel {...props} />);
-    const loadSuggestedQueryButton = component.find('Button').first();
-    loadSuggestedQueryButton.simulate('click');
-
-    expect(onTextEditorInputChange).toHaveBeenCalledWith('select * from users where uid = 1000');
-  });
 });

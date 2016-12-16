@@ -2,10 +2,14 @@
   @include align-self(stretch);
   background-color: $white;
   border-left: 1px solid $border-medium;
+  border-top: 1px solid $border-medium;
   box-shadow: -2px 0 8px 0 rgba($black, 0.1);
   box-sizing: border-box;
   overflow: scroll;
-  width: 300px;
+  width: 320px;
+  margin-top: $pad-base;
   margin-left: $pad-base;
   min-height: 100%;
+  border-top-left-radius: 3px;
+  padding-top: $pad-base;
 }
