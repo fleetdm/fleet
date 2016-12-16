@@ -93,7 +93,15 @@ the way that the kolide server works.
 				}
 			}
 
-			svc, err := service.NewService(ds, pubsub.NewInmemQueryResults(), logger, config, mailService, clock.C)
+			var resultStore kolide.QueryResultStore
+			if devMode {
+				resultStore = pubsub.NewInmemQueryResults()
+			} else {
+				redisPool := pubsub.NewRedisPool(config.Redis.Address, config.Redis.Password)
+				resultStore = pubsub.NewRedisQueryResults(redisPool)
+			}
+
+			svc, err := service.NewService(ds, resultStore, logger, config, mailService, clock.C)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}

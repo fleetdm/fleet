@@ -22,6 +22,12 @@ type MysqlConfig struct {
 	Database string
 }
 
+// RedisConfig defines configs related to Redis
+type RedisConfig struct {
+	Address  string
+	Password string
+}
+
 // ServerConfig defines configs related to the Kolide server
 type ServerConfig struct {
 	Address string
@@ -79,6 +85,7 @@ type LoggingConfig struct {
 // updated to set and retrieve the configurations as appropriate.
 type KolideConfig struct {
 	Mysql   MysqlConfig
+	Redis   RedisConfig
 	Server  ServerConfig
 	Auth    AuthConfig
 	App     AppConfig
@@ -96,6 +103,10 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mysql.username", "kolide")
 	man.addConfigString("mysql.password", "kolide")
 	man.addConfigString("mysql.database", "kolide")
+
+	// Redis
+	man.addConfigString("redis.address", "localhost:6379")
+	man.addConfigString("redis.password", "")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080")
@@ -147,6 +158,10 @@ func (man Manager) LoadConfig() KolideConfig {
 			Username: man.getConfigString("mysql.username"),
 			Password: man.getConfigString("mysql.password"),
 			Database: man.getConfigString("mysql.database"),
+		},
+		Redis: RedisConfig{
+			Address:  man.getConfigString("redis.address"),
+			Password: man.getConfigString("redis.password"),
 		},
 		Server: ServerConfig{
 			Address: man.getConfigString("server.address"),
