@@ -7,64 +7,64 @@ import (
 	"github.com/kolide/kolide-ose/server/kolide"
 )
 
-func (orm *Datastore) NewScheduledQuery(sq *kolide.ScheduledQuery) (*kolide.ScheduledQuery, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) NewScheduledQuery(sq *kolide.ScheduledQuery) (*kolide.ScheduledQuery, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
 	newScheduledQuery := *sq
 
-	newScheduledQuery.ID = orm.nextID(newScheduledQuery)
-	orm.scheduledQueries[newScheduledQuery.ID] = &newScheduledQuery
+	newScheduledQuery.ID = d.nextID(newScheduledQuery)
+	d.scheduledQueries[newScheduledQuery.ID] = &newScheduledQuery
 
 	return &newScheduledQuery, nil
 }
 
-func (orm *Datastore) SaveScheduledQuery(sq *kolide.ScheduledQuery) (*kolide.ScheduledQuery, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) SaveScheduledQuery(sq *kolide.ScheduledQuery) (*kolide.ScheduledQuery, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
-	if _, ok := orm.scheduledQueries[sq.ID]; !ok {
+	if _, ok := d.scheduledQueries[sq.ID]; !ok {
 		return nil, errors.ErrNotFound
 	}
 
-	orm.scheduledQueries[sq.ID] = sq
+	d.scheduledQueries[sq.ID] = sq
 	return sq, nil
 }
 
-func (orm *Datastore) DeleteScheduledQuery(id uint) error {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) DeleteScheduledQuery(id uint) error {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
-	if _, ok := orm.scheduledQueries[id]; !ok {
+	if _, ok := d.scheduledQueries[id]; !ok {
 		return errors.ErrNotFound
 	}
 
-	delete(orm.scheduledQueries, id)
+	delete(d.scheduledQueries, id)
 	return nil
 }
 
-func (orm *Datastore) ScheduledQuery(id uint) (*kolide.ScheduledQuery, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) ScheduledQuery(id uint) (*kolide.ScheduledQuery, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
-	sq, ok := orm.scheduledQueries[id]
+	sq, ok := d.scheduledQueries[id]
 	if !ok {
 		return nil, errors.ErrNotFound
 	}
 
-	sq.Name = orm.queries[sq.QueryID].Name
-	sq.Query = orm.queries[sq.QueryID].Query
+	sq.Name = d.queries[sq.QueryID].Name
+	sq.Query = d.queries[sq.QueryID].Query
 
 	return sq, nil
 }
 
-func (orm *Datastore) ListScheduledQueriesInPack(id uint, opt kolide.ListOptions) ([]*kolide.ScheduledQuery, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) ListScheduledQueriesInPack(id uint, opt kolide.ListOptions) ([]*kolide.ScheduledQuery, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
 	// We need to sort by keys to provide reliable ordering
 	keys := []int{}
-	for k, sq := range orm.scheduledQueries {
+	for k, sq := range d.scheduledQueries {
 		if sq.PackID == id {
 			keys = append(keys, int(k))
 		}
@@ -78,9 +78,9 @@ func (orm *Datastore) ListScheduledQueriesInPack(id uint, opt kolide.ListOptions
 
 	scheduledQueries := []*kolide.ScheduledQuery{}
 	for _, k := range keys {
-		q := orm.scheduledQueries[uint(k)]
-		q.Name = orm.queries[q.QueryID].Name
-		q.Query = orm.queries[q.QueryID].Query
+		q := d.scheduledQueries[uint(k)]
+		q.Name = d.queries[q.QueryID].Name
+		q.Query = d.queries[q.QueryID].Query
 		scheduledQueries = append(scheduledQueries, q)
 	}
 
@@ -104,7 +104,7 @@ func (orm *Datastore) ListScheduledQueriesInPack(id uint, opt kolide.ListOptions
 	}
 
 	// Apply limit/offset
-	low, high := orm.getLimitOffsetSliceBounds(opt, len(scheduledQueries))
+	low, high := d.getLimitOffsetSliceBounds(opt, len(scheduledQueries))
 	scheduledQueries = scheduledQueries[low:high]
 
 	return scheduledQueries, nil

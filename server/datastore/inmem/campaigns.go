@@ -8,21 +8,21 @@ import (
 	"github.com/kolide/kolide-ose/server/kolide"
 )
 
-func (orm *Datastore) NewDistributedQueryCampaign(camp *kolide.DistributedQueryCampaign) (*kolide.DistributedQueryCampaign, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) NewDistributedQueryCampaign(camp *kolide.DistributedQueryCampaign) (*kolide.DistributedQueryCampaign, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
-	camp.ID = orm.nextID(camp)
-	orm.distributedQueryCampaigns[camp.ID] = *camp
+	camp.ID = d.nextID(camp)
+	d.distributedQueryCampaigns[camp.ID] = *camp
 
 	return camp, nil
 }
 
-func (orm *Datastore) DistributedQueryCampaign(id uint) (*kolide.DistributedQueryCampaign, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) DistributedQueryCampaign(id uint) (*kolide.DistributedQueryCampaign, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
-	campaign, ok := orm.distributedQueryCampaigns[id]
+	campaign, ok := d.distributedQueryCampaigns[id]
 	if !ok {
 		return nil, errors.ErrNotFound
 	}
@@ -30,25 +30,25 @@ func (orm *Datastore) DistributedQueryCampaign(id uint) (*kolide.DistributedQuer
 	return &campaign, nil
 }
 
-func (orm *Datastore) SaveDistributedQueryCampaign(camp *kolide.DistributedQueryCampaign) error {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) SaveDistributedQueryCampaign(camp *kolide.DistributedQueryCampaign) error {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
-	if _, ok := orm.distributedQueryCampaigns[camp.ID]; !ok {
+	if _, ok := d.distributedQueryCampaigns[camp.ID]; !ok {
 		return errors.ErrNotFound
 	}
 
-	orm.distributedQueryCampaigns[camp.ID] = *camp
+	d.distributedQueryCampaigns[camp.ID] = *camp
 	return nil
 }
 
-func (orm *Datastore) DistributedQueryCampaignTargetIDs(id uint) (hostIDs []uint, labelIDs []uint, err error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) DistributedQueryCampaignTargetIDs(id uint) (hostIDs []uint, labelIDs []uint, err error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
 	hostIDs = []uint{}
 	labelIDs = []uint{}
-	for _, target := range orm.distributedQueryCampaignTargets {
+	for _, target := range d.distributedQueryCampaignTargets {
 		if target.DistributedQueryCampaignID == id {
 			if target.Type == kolide.TargetHost {
 				hostIDs = append(hostIDs, target.TargetID)
@@ -63,52 +63,52 @@ func (orm *Datastore) DistributedQueryCampaignTargetIDs(id uint) (hostIDs []uint
 	return hostIDs, labelIDs, nil
 }
 
-func (orm *Datastore) NewDistributedQueryCampaignTarget(target *kolide.DistributedQueryCampaignTarget) (*kolide.DistributedQueryCampaignTarget, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) NewDistributedQueryCampaignTarget(target *kolide.DistributedQueryCampaignTarget) (*kolide.DistributedQueryCampaignTarget, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
-	target.ID = orm.nextID(target)
-	orm.distributedQueryCampaignTargets[target.ID] = *target
+	target.ID = d.nextID(target)
+	d.distributedQueryCampaignTargets[target.ID] = *target
 
 	return target, nil
 }
 
-func (orm *Datastore) NewDistributedQueryExecution(exec *kolide.DistributedQueryExecution) (*kolide.DistributedQueryExecution, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) NewDistributedQueryExecution(exec *kolide.DistributedQueryExecution) (*kolide.DistributedQueryExecution, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
-	for _, e := range orm.distributedQueryExecutions {
+	for _, e := range d.distributedQueryExecutions {
 		if exec.HostID == e.HostID && exec.DistributedQueryCampaignID == e.DistributedQueryCampaignID {
-			fmt.Printf("%+v -- %+v\n", exec, orm.distributedQueryExecutions)
+			fmt.Printf("%+v -- %+v\n", exec, d.distributedQueryExecutions)
 			return exec, errors.ErrExists
 		}
 	}
 
-	exec.ID = orm.nextID(exec)
-	orm.distributedQueryExecutions[exec.ID] = *exec
+	exec.ID = d.nextID(exec)
+	d.distributedQueryExecutions[exec.ID] = *exec
 
 	return exec, nil
 }
 
-func (orm *Datastore) CleanupDistributedQueryCampaigns(now time.Time) (expired uint, deleted uint, err error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) CleanupDistributedQueryCampaigns(now time.Time) (expired uint, deleted uint, err error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
 	// First expire old waiting and running campaigns
-	for id, c := range orm.distributedQueryCampaigns {
+	for id, c := range d.distributedQueryCampaigns {
 		if (c.Status == kolide.QueryWaiting && c.CreatedAt.Before(now.Add(-1*time.Minute))) ||
 			(c.Status == kolide.QueryRunning && c.CreatedAt.Before(now.Add(-24*time.Hour))) {
 			c.Status = kolide.QueryComplete
-			orm.distributedQueryCampaigns[id] = c
+			d.distributedQueryCampaigns[id] = c
 			expired++
 		}
 	}
 
 	// Now delete executions for expired campaigns
-	for id, e := range orm.distributedQueryExecutions {
-		c, ok := orm.distributedQueryCampaigns[e.DistributedQueryCampaignID]
+	for id, e := range d.distributedQueryExecutions {
+		c, ok := d.distributedQueryCampaigns[e.DistributedQueryCampaignID]
 		if !ok || c.Status == kolide.QueryComplete {
-			delete(orm.distributedQueryExecutions, id)
+			delete(d.distributedQueryExecutions, id)
 			deleted++
 		}
 	}

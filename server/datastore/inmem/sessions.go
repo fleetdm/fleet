@@ -7,11 +7,11 @@ import (
 	"github.com/kolide/kolide-ose/server/kolide"
 )
 
-func (orm *Datastore) SessionByKey(key string) (*kolide.Session, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) SessionByKey(key string) (*kolide.Session, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
-	for _, session := range orm.sessions {
+	for _, session := range d.sessions {
 		if session.Key == key {
 			return session, nil
 		}
@@ -19,22 +19,22 @@ func (orm *Datastore) SessionByKey(key string) (*kolide.Session, error) {
 	return nil, errors.ErrNotFound
 }
 
-func (orm *Datastore) SessionByID(id uint) (*kolide.Session, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) SessionByID(id uint) (*kolide.Session, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
-	if session, ok := orm.sessions[id]; ok {
+	if session, ok := d.sessions[id]; ok {
 		return session, nil
 	}
 	return nil, errors.ErrNotFound
 }
 
-func (orm *Datastore) ListSessionsForUser(id uint) ([]*kolide.Session, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) ListSessionsForUser(id uint) ([]*kolide.Session, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
 	var sessions []*kolide.Session
-	for _, session := range orm.sessions {
+	for _, session := range d.sessions {
 		if session.UserID == id {
 			sessions = append(sessions, session)
 		}
@@ -45,13 +45,13 @@ func (orm *Datastore) ListSessionsForUser(id uint) ([]*kolide.Session, error) {
 	return sessions, nil
 }
 
-func (orm *Datastore) NewSession(session *kolide.Session) (*kolide.Session, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) NewSession(session *kolide.Session) (*kolide.Session, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
-	session.ID = orm.nextID(session)
-	orm.sessions[session.ID] = session
-	if err := orm.MarkSessionAccessed(session); err != nil {
+	session.ID = d.nextID(session)
+	d.sessions[session.ID] = session
+	if err := d.MarkSessionAccessed(session); err != nil {
 		return nil, err
 	}
 
@@ -59,29 +59,29 @@ func (orm *Datastore) NewSession(session *kolide.Session) (*kolide.Session, erro
 
 }
 
-func (orm *Datastore) DestroySession(session *kolide.Session) error {
-	if _, ok := orm.sessions[session.ID]; !ok {
+func (d *Datastore) DestroySession(session *kolide.Session) error {
+	if _, ok := d.sessions[session.ID]; !ok {
 		return errors.ErrNotFound
 	}
-	delete(orm.sessions, session.ID)
+	delete(d.sessions, session.ID)
 	return nil
 }
 
-func (orm *Datastore) DestroyAllSessionsForUser(id uint) error {
-	for _, session := range orm.sessions {
+func (d *Datastore) DestroyAllSessionsForUser(id uint) error {
+	for _, session := range d.sessions {
 		if session.UserID == id {
-			delete(orm.sessions, session.ID)
+			delete(d.sessions, session.ID)
 		}
 	}
 	return nil
 }
 
-func (orm *Datastore) MarkSessionAccessed(session *kolide.Session) error {
+func (d *Datastore) MarkSessionAccessed(session *kolide.Session) error {
 	session.AccessedAt = time.Now().UTC()
-	if _, ok := orm.sessions[session.ID]; !ok {
+	if _, ok := d.sessions[session.ID]; !ok {
 		return errors.ErrNotFound
 	}
-	orm.sessions[session.ID] = session
+	d.sessions[session.ID] = session
 	return nil
 }
 

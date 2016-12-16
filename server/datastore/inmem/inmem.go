@@ -49,7 +49,7 @@ func New(config config.KolideConfig) (*Datastore, error) {
 	return ds, nil
 }
 
-func (orm *Datastore) Name() string {
+func (d *Datastore) Name() string {
 	return "inmem"
 }
 
@@ -68,57 +68,57 @@ func sortResults(slice interface{}, opt kolide.ListOptions, fields map[string]st
 	return nil
 }
 
-func (orm *Datastore) Migrate() error {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
-	orm.nextIDs = make(map[interface{}]uint)
-	orm.users = make(map[uint]*kolide.User)
-	orm.sessions = make(map[uint]*kolide.Session)
-	orm.passwordResets = make(map[uint]*kolide.PasswordResetRequest)
-	orm.invites = make(map[uint]*kolide.Invite)
-	orm.labels = make(map[uint]*kolide.Label)
-	orm.labelQueryExecutions = make(map[uint]*kolide.LabelQueryExecution)
-	orm.queries = make(map[uint]*kolide.Query)
-	orm.packs = make(map[uint]*kolide.Pack)
-	orm.hosts = make(map[uint]*kolide.Host)
-	orm.scheduledQueries = make(map[uint]*kolide.ScheduledQuery)
-	orm.packTargets = make(map[uint]*kolide.PackTarget)
-	orm.distributedQueryExecutions = make(map[uint]kolide.DistributedQueryExecution)
-	orm.distributedQueryCampaigns = make(map[uint]kolide.DistributedQueryCampaign)
-	orm.distributedQueryCampaignTargets = make(map[uint]kolide.DistributedQueryCampaignTarget)
+func (d *Datastore) Migrate() error {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	d.nextIDs = make(map[interface{}]uint)
+	d.users = make(map[uint]*kolide.User)
+	d.sessions = make(map[uint]*kolide.Session)
+	d.passwordResets = make(map[uint]*kolide.PasswordResetRequest)
+	d.invites = make(map[uint]*kolide.Invite)
+	d.labels = make(map[uint]*kolide.Label)
+	d.labelQueryExecutions = make(map[uint]*kolide.LabelQueryExecution)
+	d.queries = make(map[uint]*kolide.Query)
+	d.packs = make(map[uint]*kolide.Pack)
+	d.hosts = make(map[uint]*kolide.Host)
+	d.scheduledQueries = make(map[uint]*kolide.ScheduledQuery)
+	d.packTargets = make(map[uint]*kolide.PackTarget)
+	d.distributedQueryExecutions = make(map[uint]kolide.DistributedQueryExecution)
+	d.distributedQueryCampaigns = make(map[uint]kolide.DistributedQueryCampaign)
+	d.distributedQueryCampaignTargets = make(map[uint]kolide.DistributedQueryCampaignTarget)
 	return nil
 }
 
-func (orm *Datastore) Drop() error {
-	return orm.Migrate()
+func (d *Datastore) Drop() error {
+	return d.Migrate()
 }
 
-func (orm *Datastore) Initialize() error {
-	if err := orm.createBuiltinLabels(); err != nil {
+func (d *Datastore) Initialize() error {
+	if err := d.createBuiltinLabels(); err != nil {
 		return err
 	}
 
-	if err := orm.createDevUsers(); err != nil {
+	if err := d.createDevUsers(); err != nil {
 		return err
 	}
 
-	if err := orm.createDevHosts(); err != nil {
+	if err := d.createDevHosts(); err != nil {
 		return err
 	}
 
-	if err := orm.createDevQueries(); err != nil {
+	if err := d.createDevQueries(); err != nil {
 		return err
 	}
 
-	if err := orm.createDevLabels(); err != nil {
+	if err := d.createDevLabels(); err != nil {
 		return err
 	}
 
-	if err := orm.createDevOrgInfo(); err != nil {
+	if err := d.createDevOrgInfo(); err != nil {
 		return err
 	}
 
-	if err := orm.createDevPacksAndQueries(); err != nil {
+	if err := d.createDevPacksAndQueries(); err != nil {
 		return err
 	}
 
@@ -128,7 +128,7 @@ func (orm *Datastore) Initialize() error {
 // getLimitOffsetSliceBounds returns the bounds that should be used for
 // re-slicing the results to comply with the requested ListOptions. Lack of
 // generics forces us to do this rather than reslicing in this method.
-func (orm *Datastore) getLimitOffsetSliceBounds(opt kolide.ListOptions, length int) (low uint, high uint) {
+func (d *Datastore) getLimitOffsetSliceBounds(opt kolide.ListOptions, length int) (low uint, high uint) {
 	if opt.PerPage == 0 {
 		// PerPage value of 0 indicates unlimited
 		return 0, uint(length)
@@ -147,18 +147,18 @@ func (orm *Datastore) getLimitOffsetSliceBounds(opt kolide.ListOptions, length i
 
 // nextID returns the next ID value that should be used for a struct of the
 // given type
-func (orm *Datastore) nextID(val interface{}) uint {
+func (d *Datastore) nextID(val interface{}) uint {
 	valType := reflect.TypeOf(reflect.Indirect(reflect.ValueOf(val)).Interface())
-	orm.nextIDs[valType]++
-	return orm.nextIDs[valType]
+	d.nextIDs[valType]++
+	return d.nextIDs[valType]
 }
 
-func (orm *Datastore) createDevPacksAndQueries() error {
+func (d *Datastore) createDevPacksAndQueries() error {
 	query1 := &kolide.Query{
 		Name:  "Osquery Info",
 		Query: "select * from osquery_info",
 	}
-	query1, err := orm.NewQuery(query1)
+	query1, err := d.NewQuery(query1)
 	if err != nil {
 		return err
 	}
@@ -167,7 +167,7 @@ func (orm *Datastore) createDevPacksAndQueries() error {
 		Name:  "Launchd",
 		Query: "select * from launchd",
 	}
-	query2, err = orm.NewQuery(query2)
+	query2, err = d.NewQuery(query2)
 	if err != nil {
 		return err
 	}
@@ -176,7 +176,7 @@ func (orm *Datastore) createDevPacksAndQueries() error {
 		Name:  "registry",
 		Query: "select * from osquery_registry",
 	}
-	query3, err = orm.NewQuery(query3)
+	query3, err = d.NewQuery(query3)
 	if err != nil {
 		return err
 	}
@@ -184,7 +184,7 @@ func (orm *Datastore) createDevPacksAndQueries() error {
 	pack1 := &kolide.Pack{
 		Name: "Osquery Internal Info",
 	}
-	pack1, err = orm.NewPack(pack1)
+	pack1, err = d.NewPack(pack1)
 	if err != nil {
 		return err
 	}
@@ -192,12 +192,12 @@ func (orm *Datastore) createDevPacksAndQueries() error {
 	pack2 := &kolide.Pack{
 		Name: "macOS Attacks",
 	}
-	pack2, err = orm.NewPack(pack2)
+	pack2, err = d.NewPack(pack2)
 	if err != nil {
 		return err
 	}
 
-	_, err = orm.NewScheduledQuery(&kolide.ScheduledQuery{
+	_, err = d.NewScheduledQuery(&kolide.ScheduledQuery{
 		QueryID:  query1.ID,
 		PackID:   pack1.ID,
 		Interval: 60,
@@ -207,7 +207,7 @@ func (orm *Datastore) createDevPacksAndQueries() error {
 	}
 
 	t := true
-	_, err = orm.NewScheduledQuery(&kolide.ScheduledQuery{
+	_, err = d.NewScheduledQuery(&kolide.ScheduledQuery{
 		QueryID:  query3.ID,
 		PackID:   pack1.ID,
 		Interval: 60,
@@ -217,7 +217,7 @@ func (orm *Datastore) createDevPacksAndQueries() error {
 		return err
 	}
 
-	_, err = orm.NewScheduledQuery(&kolide.ScheduledQuery{
+	_, err = d.NewScheduledQuery(&kolide.ScheduledQuery{
 		QueryID:  query2.ID,
 		PackID:   pack2.ID,
 		Interval: 60,
@@ -229,7 +229,7 @@ func (orm *Datastore) createDevPacksAndQueries() error {
 	return nil
 }
 
-func (orm *Datastore) createBuiltinLabels() error {
+func (d *Datastore) createBuiltinLabels() error {
 	labels := []kolide.Label{
 		{
 			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
@@ -305,7 +305,7 @@ func (orm *Datastore) createBuiltinLabels() error {
 
 	for _, label := range labels {
 		label := label
-		_, err := orm.NewLabel(&label)
+		_, err := d.NewLabel(&label)
 		if err != nil {
 			return err
 		}
@@ -316,7 +316,7 @@ func (orm *Datastore) createBuiltinLabels() error {
 
 // Bootstrap a few users when using the in-memory database.
 // Each user's default password will just be their username.
-func (orm *Datastore) createDevUsers() error {
+func (d *Datastore) createDevUsers() error {
 	users := []kolide.User{
 		{
 			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
@@ -355,11 +355,11 @@ func (orm *Datastore) createDevUsers() error {
 	}
 	for _, user := range users {
 		user := user
-		err := user.SetPassword(user.Username, orm.config.Auth.SaltKeySize, orm.config.Auth.BcryptCost)
+		err := user.SetPassword(user.Username, d.config.Auth.SaltKeySize, d.config.Auth.BcryptCost)
 		if err != nil {
 			return nil
 		}
-		_, err = orm.NewUser(&user)
+		_, err = d.NewUser(&user)
 		if err != nil {
 			return err
 		}
@@ -368,7 +368,7 @@ func (orm *Datastore) createDevUsers() error {
 	return nil
 }
 
-func (orm *Datastore) createDevQueries() error {
+func (d *Datastore) createDevQueries() error {
 	queries := []kolide.Query{
 		{
 			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
@@ -437,7 +437,7 @@ func (orm *Datastore) createDevQueries() error {
 
 	for _, query := range queries {
 		query := query
-		_, err := orm.NewQuery(&query)
+		_, err := d.NewQuery(&query)
 		if err != nil {
 			return err
 		}
@@ -447,7 +447,7 @@ func (orm *Datastore) createDevQueries() error {
 }
 
 // Bootstrap a few hosts when using the in-memory database.
-func (orm *Datastore) createDevHosts() error {
+func (d *Datastore) createDevHosts() error {
 	hosts := []kolide.Host{
 		{
 			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
@@ -492,7 +492,7 @@ func (orm *Datastore) createDevHosts() error {
 
 	for _, host := range hosts {
 		host := host
-		_, err := orm.NewHost(&host)
+		_, err := d.NewHost(&host)
 		if err != nil {
 			return err
 		}
@@ -501,19 +501,19 @@ func (orm *Datastore) createDevHosts() error {
 	return nil
 }
 
-func (orm *Datastore) createDevOrgInfo() error {
+func (d *Datastore) createDevOrgInfo() error {
 	devOrgInfo := &kolide.AppConfig{
 		OrgName:    "Kolide",
-		OrgLogoURL: fmt.Sprintf("%s/logo.png", orm.config.Server.Address),
+		OrgLogoURL: fmt.Sprintf("%s/logo.png", d.config.Server.Address),
 	}
-	_, err := orm.NewAppConfig(devOrgInfo)
+	_, err := d.NewAppConfig(devOrgInfo)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (orm *Datastore) createDevLabels() error {
+func (d *Datastore) createDevLabels() error {
 	labels := []kolide.Label{
 		{
 			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
@@ -544,7 +544,7 @@ func (orm *Datastore) createDevLabels() error {
 
 	for _, label := range labels {
 		label := label
-		_, err := orm.NewLabel(&label)
+		_, err := d.NewLabel(&label)
 		if err != nil {
 			return err
 		}

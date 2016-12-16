@@ -7,27 +7,27 @@ import (
 	"github.com/kolide/kolide-ose/server/kolide"
 )
 
-func (orm *Datastore) NewUser(user *kolide.User) (*kolide.User, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) NewUser(user *kolide.User) (*kolide.User, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
-	for _, in := range orm.users {
+	for _, in := range d.users {
 		if in.Username == user.Username {
 			return nil, errors.ErrExists
 		}
 	}
 
-	user.ID = orm.nextID(user)
-	orm.users[user.ID] = user
+	user.ID = d.nextID(user)
+	d.users[user.ID] = user
 
 	return user, nil
 }
 
-func (orm *Datastore) User(username string) (*kolide.User, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) User(username string) (*kolide.User, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
-	for _, user := range orm.users {
+	for _, user := range d.users {
 		if user.Username == username {
 			return user, nil
 		}
@@ -36,20 +36,20 @@ func (orm *Datastore) User(username string) (*kolide.User, error) {
 	return nil, errors.ErrNotFound
 }
 
-func (orm *Datastore) ListUsers(opt kolide.ListOptions) ([]*kolide.User, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) ListUsers(opt kolide.ListOptions) ([]*kolide.User, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
 	// We need to sort by keys to provide reliable ordering
 	keys := []int{}
-	for k, _ := range orm.users {
+	for k, _ := range d.users {
 		keys = append(keys, int(k))
 	}
 	sort.Ints(keys)
 
 	users := []*kolide.User{}
 	for _, k := range keys {
-		users = append(users, orm.users[uint(k)])
+		users = append(users, d.users[uint(k)])
 	}
 
 	// Apply ordering
@@ -71,17 +71,17 @@ func (orm *Datastore) ListUsers(opt kolide.ListOptions) ([]*kolide.User, error) 
 	}
 
 	// Apply limit/offset
-	low, high := orm.getLimitOffsetSliceBounds(opt, len(users))
+	low, high := d.getLimitOffsetSliceBounds(opt, len(users))
 	users = users[low:high]
 
 	return users, nil
 }
 
-func (orm *Datastore) UserByEmail(email string) (*kolide.User, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) UserByEmail(email string) (*kolide.User, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
-	for _, user := range orm.users {
+	for _, user := range d.users {
 		if user.Email == email {
 			return user, nil
 		}
@@ -90,25 +90,25 @@ func (orm *Datastore) UserByEmail(email string) (*kolide.User, error) {
 	return nil, errors.ErrNotFound
 }
 
-func (orm *Datastore) UserByID(id uint) (*kolide.User, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) UserByID(id uint) (*kolide.User, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
-	if user, ok := orm.users[id]; ok {
+	if user, ok := d.users[id]; ok {
 		return user, nil
 	}
 
 	return nil, errors.ErrNotFound
 }
 
-func (orm *Datastore) SaveUser(user *kolide.User) error {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) SaveUser(user *kolide.User) error {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
-	if _, ok := orm.users[user.ID]; !ok {
+	if _, ok := d.users[user.ID]; !ok {
 		return errors.ErrNotFound
 	}
 
-	orm.users[user.ID] = user
+	d.users[user.ID] = user
 	return nil
 }

@@ -7,58 +7,58 @@ import (
 	"github.com/kolide/kolide-ose/server/kolide"
 )
 
-func (orm *Datastore) NewQuery(query *kolide.Query) (*kolide.Query, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) NewQuery(query *kolide.Query) (*kolide.Query, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
 	newQuery := *query
 
-	for _, q := range orm.queries {
+	for _, q := range d.queries {
 		if query.Name == q.Name {
 			return nil, errors.ErrExists
 		}
 	}
 
-	newQuery.ID = orm.nextID(newQuery)
-	orm.queries[newQuery.ID] = &newQuery
+	newQuery.ID = d.nextID(newQuery)
+	d.queries[newQuery.ID] = &newQuery
 
 	return &newQuery, nil
 }
 
-func (orm *Datastore) SaveQuery(query *kolide.Query) error {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) SaveQuery(query *kolide.Query) error {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
-	if _, ok := orm.queries[query.ID]; !ok {
+	if _, ok := d.queries[query.ID]; !ok {
 		return errors.ErrNotFound
 	}
 
-	orm.queries[query.ID] = query
+	d.queries[query.ID] = query
 	return nil
 }
 
-func (orm *Datastore) DeleteQuery(query *kolide.Query) error {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) DeleteQuery(query *kolide.Query) error {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
-	if _, ok := orm.queries[query.ID]; !ok {
+	if _, ok := d.queries[query.ID]; !ok {
 		return errors.ErrNotFound
 	}
 
-	delete(orm.queries, query.ID)
+	delete(d.queries, query.ID)
 	return nil
 }
 
 // DeleteQueries (soft) deletes the existing query objects with the provided
 // IDs. The number of deleted queries is returned along with any error.
-func (orm *Datastore) DeleteQueries(ids []uint) (uint, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) DeleteQueries(ids []uint) (uint, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
 	deleted := uint(0)
 	for _, id := range ids {
-		if _, ok := orm.queries[id]; ok {
-			delete(orm.queries, id)
+		if _, ok := d.queries[id]; ok {
+			delete(d.queries, id)
 			deleted++
 		}
 	}
@@ -66,47 +66,47 @@ func (orm *Datastore) DeleteQueries(ids []uint) (uint, error) {
 	return deleted, nil
 }
 
-func (orm *Datastore) getUserNameByID(id uint) string {
-	if u, ok := orm.users[id]; ok {
+func (d *Datastore) getUserNameByID(id uint) string {
+	if u, ok := d.users[id]; ok {
 		return u.Name
 	}
 	return ""
 }
 
-func (orm *Datastore) Query(id uint) (*kolide.Query, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) Query(id uint) (*kolide.Query, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
-	query, ok := orm.queries[id]
+	query, ok := d.queries[id]
 	if !ok {
 		return nil, errors.ErrNotFound
 	}
 
-	query.AuthorName = orm.getUserNameByID(query.AuthorID)
+	query.AuthorName = d.getUserNameByID(query.AuthorID)
 
-	if err := orm.loadPacksForQueries([]*kolide.Query{query}); err != nil {
+	if err := d.loadPacksForQueries([]*kolide.Query{query}); err != nil {
 		return nil, errors.DatabaseError(err)
 	}
 
 	return query, nil
 }
 
-func (orm *Datastore) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
 	// We need to sort by keys to provide reliable ordering
 	keys := []int{}
-	for k, _ := range orm.queries {
+	for k, _ := range d.queries {
 		keys = append(keys, int(k))
 	}
 	sort.Ints(keys)
 
 	queries := []*kolide.Query{}
 	for _, k := range keys {
-		q := orm.queries[uint(k)]
+		q := d.queries[uint(k)]
 		if q.Saved {
-			q.AuthorName = orm.getUserNameByID(q.AuthorID)
+			q.AuthorName = d.getUserNameByID(q.AuthorID)
 			queries = append(queries, q)
 		}
 	}
@@ -131,10 +131,10 @@ func (orm *Datastore) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, erro
 	}
 
 	// Apply limit/offset
-	low, high := orm.getLimitOffsetSliceBounds(opt, len(queries))
+	low, high := d.getLimitOffsetSliceBounds(opt, len(queries))
 	queries = queries[low:high]
 
-	if err := orm.loadPacksForQueries(queries); err != nil {
+	if err := d.loadPacksForQueries(queries); err != nil {
 		return nil, errors.DatabaseError(err)
 	}
 
@@ -142,12 +142,12 @@ func (orm *Datastore) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, erro
 }
 
 // loadPacksForQueries loads the packs associated with the provided queries
-func (orm *Datastore) loadPacksForQueries(queries []*kolide.Query) error {
+func (d *Datastore) loadPacksForQueries(queries []*kolide.Query) error {
 	for _, q := range queries {
 		q.Packs = make([]kolide.Pack, 0)
-		for _, sq := range orm.scheduledQueries {
+		for _, sq := range d.scheduledQueries {
 			if sq.QueryID == q.ID {
-				q.Packs = append(q.Packs, *orm.packs[sq.PackID])
+				q.Packs = append(q.Packs, *d.packs[sq.PackID])
 			}
 		}
 	}

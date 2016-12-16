@@ -9,11 +9,11 @@ import (
 )
 
 // NewInvite creates and stores a new invitation in a DB.
-func (orm *Datastore) NewInvite(invite *kolide.Invite) (*kolide.Invite, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) NewInvite(invite *kolide.Invite) (*kolide.Invite, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
-	for _, in := range orm.invites {
+	for _, in := range d.invites {
 		if in.Email == invite.Email {
 			return nil, errors.ErrExists
 		}
@@ -24,26 +24,26 @@ func (orm *Datastore) NewInvite(invite *kolide.Invite) (*kolide.Invite, error) {
 		invite.CreatedAt = time.Now()
 	}
 
-	invite.ID = uint(len(orm.invites) + 1)
-	orm.invites[invite.ID] = invite
+	invite.ID = uint(len(d.invites) + 1)
+	d.invites[invite.ID] = invite
 	return invite, nil
 }
 
 // Invites lists all invites in the datastore.
-func (orm *Datastore) ListInvites(opt kolide.ListOptions) ([]*kolide.Invite, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) ListInvites(opt kolide.ListOptions) ([]*kolide.Invite, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
 	// We need to sort by keys to provide reliable ordering
 	keys := []int{}
-	for k, _ := range orm.invites {
+	for k, _ := range d.invites {
 		keys = append(keys, int(k))
 	}
 	sort.Ints(keys)
 
 	invites := []*kolide.Invite{}
 	for _, k := range keys {
-		invites = append(invites, orm.invites[uint(k)])
+		invites = append(invites, d.invites[uint(k)])
 	}
 
 	// Apply ordering
@@ -64,27 +64,27 @@ func (orm *Datastore) ListInvites(opt kolide.ListOptions) ([]*kolide.Invite, err
 	}
 
 	// Apply limit/offset
-	low, high := orm.getLimitOffsetSliceBounds(opt, len(invites))
+	low, high := d.getLimitOffsetSliceBounds(opt, len(invites))
 	invites = invites[low:high]
 
 	return invites, nil
 }
 
-func (orm *Datastore) Invite(id uint) (*kolide.Invite, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
-	if invite, ok := orm.invites[id]; ok {
+func (d *Datastore) Invite(id uint) (*kolide.Invite, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	if invite, ok := d.invites[id]; ok {
 		return invite, nil
 	}
 	return nil, errors.ErrNotFound
 }
 
 // InviteByEmail retrieves an invite for a specific email address.
-func (orm *Datastore) InviteByEmail(email string) (*kolide.Invite, error) {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) InviteByEmail(email string) (*kolide.Invite, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
-	for _, invite := range orm.invites {
+	for _, invite := range d.invites {
 		if invite.Email == email {
 			return invite, nil
 		}
@@ -93,26 +93,26 @@ func (orm *Datastore) InviteByEmail(email string) (*kolide.Invite, error) {
 }
 
 // SaveInvite saves an invitation in the datastore.
-func (orm *Datastore) SaveInvite(invite *kolide.Invite) error {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) SaveInvite(invite *kolide.Invite) error {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
-	if _, ok := orm.invites[invite.ID]; !ok {
+	if _, ok := d.invites[invite.ID]; !ok {
 		return errors.ErrNotFound
 	}
 
-	orm.invites[invite.ID] = invite
+	d.invites[invite.ID] = invite
 	return nil
 }
 
 // DeleteInvite deletes an invitation.
-func (orm *Datastore) DeleteInvite(invite *kolide.Invite) error {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
+func (d *Datastore) DeleteInvite(invite *kolide.Invite) error {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
-	if _, ok := orm.invites[invite.ID]; !ok {
+	if _, ok := d.invites[invite.ID]; !ok {
 		return errors.ErrNotFound
 	}
-	delete(orm.invites, invite.ID)
+	delete(d.invites, invite.ID)
 	return nil
 }

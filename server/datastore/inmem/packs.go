@@ -7,53 +7,53 @@ import (
 	"github.com/kolide/kolide-ose/server/kolide"
 )
 
-func (orm *Datastore) NewPack(pack *kolide.Pack) (*kolide.Pack, error) {
+func (d *Datastore) NewPack(pack *kolide.Pack) (*kolide.Pack, error) {
 	newPack := *pack
 
-	for _, q := range orm.packs {
+	for _, q := range d.packs {
 		if pack.Name == q.Name {
 			return nil, errors.ErrExists
 		}
 	}
 
-	orm.mtx.Lock()
-	newPack.ID = orm.nextID(pack)
-	orm.packs[newPack.ID] = &newPack
-	orm.mtx.Unlock()
+	d.mtx.Lock()
+	newPack.ID = d.nextID(pack)
+	d.packs[newPack.ID] = &newPack
+	d.mtx.Unlock()
 
 	pack.ID = newPack.ID
 
 	return pack, nil
 }
 
-func (orm *Datastore) SavePack(pack *kolide.Pack) error {
-	if _, ok := orm.packs[pack.ID]; !ok {
+func (d *Datastore) SavePack(pack *kolide.Pack) error {
+	if _, ok := d.packs[pack.ID]; !ok {
 		return errors.ErrNotFound
 	}
 
-	orm.mtx.Lock()
-	orm.packs[pack.ID] = pack
-	orm.mtx.Unlock()
+	d.mtx.Lock()
+	d.packs[pack.ID] = pack
+	d.mtx.Unlock()
 
 	return nil
 }
 
-func (orm *Datastore) DeletePack(pid uint) error {
-	if _, ok := orm.packs[pid]; !ok {
+func (d *Datastore) DeletePack(pid uint) error {
+	if _, ok := d.packs[pid]; !ok {
 		return errors.ErrNotFound
 	}
 
-	orm.mtx.Lock()
-	delete(orm.packs, pid)
-	orm.mtx.Unlock()
+	d.mtx.Lock()
+	delete(d.packs, pid)
+	d.mtx.Unlock()
 
 	return nil
 }
 
-func (orm *Datastore) Pack(id uint) (*kolide.Pack, error) {
-	orm.mtx.Lock()
-	pack, ok := orm.packs[id]
-	orm.mtx.Unlock()
+func (d *Datastore) Pack(id uint) (*kolide.Pack, error) {
+	d.mtx.Lock()
+	pack, ok := d.packs[id]
+	d.mtx.Unlock()
 	if !ok {
 		return nil, errors.ErrNotFound
 	}
@@ -61,20 +61,20 @@ func (orm *Datastore) Pack(id uint) (*kolide.Pack, error) {
 	return pack, nil
 }
 
-func (orm *Datastore) ListPacks(opt kolide.ListOptions) ([]*kolide.Pack, error) {
+func (d *Datastore) ListPacks(opt kolide.ListOptions) ([]*kolide.Pack, error) {
 	// We need to sort by keys to provide reliable ordering
 	keys := []int{}
-	orm.mtx.Lock()
-	for k, _ := range orm.packs {
+	d.mtx.Lock()
+	for k, _ := range d.packs {
 		keys = append(keys, int(k))
 	}
 	sort.Ints(keys)
 
 	packs := []*kolide.Pack{}
 	for _, k := range keys {
-		packs = append(packs, orm.packs[uint(k)])
+		packs = append(packs, d.packs[uint(k)])
 	}
-	orm.mtx.Unlock()
+	d.mtx.Unlock()
 
 	// Apply ordering
 	if opt.OrderKey != "" {
@@ -91,13 +91,13 @@ func (orm *Datastore) ListPacks(opt kolide.ListOptions) ([]*kolide.Pack, error) 
 	}
 
 	// Apply limit/offset
-	low, high := orm.getLimitOffsetSliceBounds(opt, len(packs))
+	low, high := d.getLimitOffsetSliceBounds(opt, len(packs))
 	packs = packs[low:high]
 
 	return packs, nil
 }
 
-func (orm *Datastore) AddLabelToPack(lid uint, pid uint) error {
+func (d *Datastore) AddLabelToPack(lid uint, pid uint) error {
 	pt := &kolide.PackTarget{
 		PackID: pid,
 		Target: kolide.Target{
@@ -106,52 +106,52 @@ func (orm *Datastore) AddLabelToPack(lid uint, pid uint) error {
 		},
 	}
 
-	orm.mtx.Lock()
-	pt.ID = orm.nextID(pt)
-	orm.packTargets[pt.ID] = pt
-	orm.mtx.Unlock()
+	d.mtx.Lock()
+	pt.ID = d.nextID(pt)
+	d.packTargets[pt.ID] = pt
+	d.mtx.Unlock()
 
 	return nil
 }
 
-func (orm *Datastore) ListLabelsForPack(pid uint) ([]*kolide.Label, error) {
+func (d *Datastore) ListLabelsForPack(pid uint) ([]*kolide.Label, error) {
 	var labels []*kolide.Label
 
-	orm.mtx.Lock()
-	for _, pt := range orm.packTargets {
+	d.mtx.Lock()
+	for _, pt := range d.packTargets {
 		if pt.Type == kolide.TargetLabel && pt.PackID == pid {
-			labels = append(labels, orm.labels[pt.TargetID])
+			labels = append(labels, d.labels[pt.TargetID])
 		}
 	}
-	orm.mtx.Unlock()
+	d.mtx.Unlock()
 
 	return labels, nil
 }
 
-func (orm *Datastore) RemoveLabelFromPack(label *kolide.Label, pack *kolide.Pack) error {
+func (d *Datastore) RemoveLabelFromPack(label *kolide.Label, pack *kolide.Pack) error {
 	var labelsToDelete []uint
 
-	orm.mtx.Lock()
-	for _, pt := range orm.packTargets {
+	d.mtx.Lock()
+	for _, pt := range d.packTargets {
 		if pt.Type == kolide.TargetLabel && pt.TargetID == label.ID && pt.PackID == pack.ID {
 			labelsToDelete = append(labelsToDelete, pt.ID)
 		}
 	}
 
 	for _, id := range labelsToDelete {
-		delete(orm.packTargets, id)
+		delete(d.packTargets, id)
 	}
-	orm.mtx.Unlock()
+	d.mtx.Unlock()
 
 	return nil
 }
 
-func (orm *Datastore) ListHostsInPack(pid uint, opt kolide.ListOptions) ([]*kolide.Host, error) {
+func (d *Datastore) ListHostsInPack(pid uint, opt kolide.ListOptions) ([]*kolide.Host, error) {
 	hosts := []*kolide.Host{}
 	hostLookup := map[uint]bool{}
 
-	orm.mtx.Lock()
-	for _, pt := range orm.packTargets {
+	d.mtx.Lock()
+	for _, pt := range d.packTargets {
 		if pt.PackID != pid {
 			continue
 		}
@@ -160,18 +160,18 @@ func (orm *Datastore) ListHostsInPack(pid uint, opt kolide.ListOptions) ([]*koli
 		case kolide.TargetHost:
 			if !hostLookup[pt.TargetID] {
 				hostLookup[pt.TargetID] = true
-				hosts = append(hosts, orm.hosts[pt.TargetID])
+				hosts = append(hosts, d.hosts[pt.TargetID])
 			}
 		case kolide.TargetLabel:
-			for _, lqe := range orm.labelQueryExecutions {
+			for _, lqe := range d.labelQueryExecutions {
 				if lqe.LabelID == pt.TargetID && lqe.Matches && !hostLookup[lqe.HostID] {
 					hostLookup[lqe.HostID] = true
-					hosts = append(hosts, orm.hosts[lqe.HostID])
+					hosts = append(hosts, d.hosts[lqe.HostID])
 				}
 			}
 		}
 	}
-	orm.mtx.Unlock()
+	d.mtx.Unlock()
 
 	// Apply ordering
 	if opt.OrderKey != "" {
@@ -196,7 +196,7 @@ func (orm *Datastore) ListHostsInPack(pid uint, opt kolide.ListOptions) ([]*koli
 	}
 
 	// Apply limit/offset
-	low, high := orm.getLimitOffsetSliceBounds(opt, len(hosts))
+	low, high := d.getLimitOffsetSliceBounds(opt, len(hosts))
 	hosts = hosts[low:high]
 
 	return hosts, nil
