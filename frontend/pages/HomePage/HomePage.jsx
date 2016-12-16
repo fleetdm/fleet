@@ -18,7 +18,7 @@ export class HomePage extends Component {
     const baseClass = 'home-page';
 
     return (
-      <div className={baseClass}>
+      <div className={`${baseClass} body-wrap`}>
         {user && <Avatar size="small" className={`${baseClass}__avatar`} user={user} />}
         <span>You are successfully logged in! </span>
         {user && <Link to={LOGOUT}>Logout</Link>}

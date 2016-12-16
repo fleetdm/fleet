@@ -91,7 +91,7 @@ describe('ManageHostsPage - component', () => {
       const ownProps = { location: {}, params: {} };
       const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
       const page = mount(component);
-      const button = page.find('Rocker').find('input');
+      const button = page.find('Rocker').find('button');
       const toggleDisplayAction = {
         type: 'SET_DISPLAY',
         payload: {
@@ -99,7 +99,7 @@ describe('ManageHostsPage - component', () => {
         },
       };
 
-      button.simulate('change');
+      button.simulate('click');
 
       expect(mockStore.getActions()).toInclude(toggleDisplayAction);
     });

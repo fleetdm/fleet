@@ -156,11 +156,10 @@ export class ManageHostsPage extends Component {
     return false;
   }
 
-  onToggleDisplay = () => {
-    const { dispatch, display } = this.props;
-    const newDisplay = display === 'Grid' ? 'List' : 'Grid';
+  onToggleDisplay = (val) => {
+    const { dispatch } = this.props;
 
-    dispatch(setDisplay(newDisplay));
+    dispatch(setDisplay(val));
 
     return false;
   }
@@ -175,10 +174,10 @@ export class ManageHostsPage extends Component {
     const { count, description, display_text: displayText, query } = selectedLabel;
     const { onToggleDisplay } = this;
     const buttonOptions = {
-      aIcon: 'grid-select',
-      aText: 'Grid',
-      bIcon: 'list-select',
-      bText: 'List',
+      rightIcon: 'grid-select',
+      rightText: 'Grid',
+      leftIcon: 'list-select',
+      leftText: 'List',
     };
 
     return (
@@ -214,8 +213,7 @@ export class ManageHostsPage extends Component {
         <div className={`${baseClass}__topper`}>
           <p className={`${baseClass}__host-count`}>{count} Hosts Total</p>
           <Rocker
-            handleChange={onToggleDisplay}
-            name="host-display-toggle"
+            onChange={onToggleDisplay}
             options={buttonOptions}
             value={display}
           />

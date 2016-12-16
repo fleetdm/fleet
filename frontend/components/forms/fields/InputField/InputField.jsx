@@ -1,5 +1,8 @@
 import React, { Component, PropTypes } from 'react';
 import classnames from 'classnames';
+import { pick } from 'lodash';
+
+import FormField from 'components/forms/FormField';
 
 const baseClass = 'input-field';
 
@@ -7,6 +10,7 @@ class InputField extends Component {
   static propTypes = {
     autofocus: PropTypes.bool,
     error: PropTypes.string,
+    hint: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
     inputClassName: PropTypes.string, // eslint-disable-line react/forbid-prop-types
     inputWrapperClass: PropTypes.string,
     inputOptions: PropTypes.object, // eslint-disable-line react/forbid-prop-types
@@ -49,43 +53,21 @@ class InputField extends Component {
     return onChange(value);
   }
 
-  renderLabel = () => {
-    const { error, label, labelClassName, name } = this.props;
-    const labelWrapperClasses = classnames(
-      `${baseClass}__label`,
-      labelClassName,
-      { [`${baseClass}__label--error`]: error }
-    );
-
-    if (!label) {
-      return false;
-    }
-
-    return (
-      <label
-        className={labelWrapperClasses}
-        htmlFor={name}
-      >
-        {error || label}
-      </label>
-    );
-  }
-
   render () {
     const { error, inputClassName, inputOptions, inputWrapperClass, name, placeholder, type, value } = this.props;
-    const { onInputChange, renderLabel } = this;
+    const { onInputChange } = this;
     const shouldShowPasswordClass = type === 'password';
     const inputClasses = classnames(baseClass, inputClassName, {
       [`${baseClass}--password`]: shouldShowPasswordClass,
       [`${baseClass}--error`]: error,
       [`${baseClass}__textarea`]: type === 'textarea',
     });
-    const inputWrapperClasses = classnames(`${baseClass}__wrapper`, inputWrapperClass);
+
+    const formFieldProps = pick(this.props, ['hint', 'label', 'error', 'name']);
 
     if (type === 'textarea') {
       return (
-        <div className={inputWrapperClasses}>
-          {renderLabel()}
+        <FormField {...formFieldProps} type="textarea" className={inputWrapperClass}>
           <textarea
             name={name}
             onChange={onInputChange}
@@ -96,13 +78,12 @@ class InputField extends Component {
             {...inputOptions}
             value={value}
           />
-        </div>
+        </FormField>
       );
     }
 
     return (
-      <div className={inputWrapperClasses}>
-        {renderLabel()}
+      <FormField {...formFieldProps} type="input" className={inputWrapperClass}>
         <input
           name={name}
           onChange={onInputChange}
@@ -113,7 +94,7 @@ class InputField extends Component {
           {...inputOptions}
           value={value}
         />
-      </div>
+      </FormField>
     );
   }
 }

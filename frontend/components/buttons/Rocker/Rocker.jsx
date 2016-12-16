@@ -8,43 +8,54 @@ class Rocker extends Component {
 
   static propTypes = {
     className: PropTypes.string,
-    handleChange: PropTypes.func,
-    name: PropTypes.string,
+    onChange: PropTypes.func,
     options: PropTypes.shape({
-      aText: PropTypes.string,
-      aIcon: PropTypes.string,
-      bText: PropTypes.string,
-      bIcon: PropTypes.string,
+      rightText: PropTypes.string,
+      rightIcon: PropTypes.string,
+      leftText: PropTypes.string,
+      leftIcon: PropTypes.string,
     }),
     value: PropTypes.string,
   };
 
   static defaultProps = {
-    handleChange: noop,
+    onChange: noop,
+  };
+
+  handleChange = (evt) => {
+    const { onChange, options: { rightText, leftText }, value } = this.props;
+    evt.preventDefault();
+
+    const newOption = value === leftText ? rightText : leftText;
+
+    onChange(newOption);
   };
 
   render () {
-    const { className, handleChange, name, options, value } = this.props;
-    const { aText, aIcon, bText, bIcon } = options;
+    const { handleChange } = this;
+    const { className, options, value } = this.props;
+    const { rightText, rightIcon, leftText, leftIcon } = options;
     const baseClass = 'kolide-rocker';
 
     const rockerClasses = classnames(baseClass, className);
+    const buttonClasses = classnames(`${baseClass}__button`, 'button', 'button--unstyled', {
+      [`${baseClass}__button--checked`]: value === leftText,
+    });
 
     return (
       <div className={rockerClasses}>
-        <label className={`${baseClass}__label`} htmlFor={name}>
-          <input className={`${baseClass}__checkbox`} type="checkbox" value={value} name={name} id={name} onChange={handleChange} checked={value === bText} />
-          <span className={`${baseClass}__switch ${baseClass}__switch--opt-b`}>
+        <button className={buttonClasses} onClick={handleChange}>
+          <span className={`${baseClass}__switch ${baseClass}__switch--left`}>
             <span className={`${baseClass}__text`}>
-              <Icon name={bIcon} /> {bText}
+              <Icon name={leftIcon} /> {leftText}
             </span>
           </span>
-          <span className={`${baseClass}__switch ${baseClass}__switch--opt-a`}>
+          <span className={`${baseClass}__switch ${baseClass}__switch--right`}>
             <span className={`${baseClass}__text`}>
-              <Icon name={aIcon} /> {aText}
+              <Icon name={rightIcon} /> {rightText}
             </span>
           </span>
-        </label>
+        </button>
       </div>
     );
   }

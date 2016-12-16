@@ -1,7 +1,11 @@
 .kolide-checkbox {
+  @include clearfix;
+  position: relative;
+
   &__input {
     visibility: hidden;
     margin: 0;
+    position: absolute;
 
     &:checked + .kolide-checkbox__tick {
       &::after {
@@ -41,5 +45,16 @@
       background-color: $white;
       visibility: visible;
     }
+  }
+
+  &__label {
+    font-size: 13px;
+    font-weight: $normal;
+    line-height: 20px;
+    letter-spacing: 0.5px;
+    color: $text-medium;
+    display: inline-block;
+    padding-left: 15px;
+    float: left;
   }
 }

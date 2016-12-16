@@ -135,6 +135,7 @@ class InviteUserForm extends Component {
           autofocus
           error={errors.name}
           name="name"
+          iconName="username"
           onChange={onInputChange('name')}
           placeholder="Name"
           value={name}
@@ -142,6 +143,7 @@ class InviteUserForm extends Component {
         <InputFieldWithIcon
           error={errors.email}
           name="email"
+          iconName="email"
           onChange={onInputChange('email')}
           placeholder="Email"
           value={email}

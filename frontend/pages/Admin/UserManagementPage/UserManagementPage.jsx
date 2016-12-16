@@ -2,16 +2,16 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { first, isEqual, size } from 'lodash';
 
-import entityGetter from '../../../redux/utilities/entityGetter';
-import Button from '../../../components/buttons/Button';
-import inviteActions from '../../../redux/nodes/entities/invites/actions';
-import inviteInterface from '../../../interfaces/invite';
-import InviteUserForm from '../../../components/forms/InviteUserForm';
-import Modal from '../../../components/modals/Modal';
-import userActions from '../../../redux/nodes/entities/users/actions';
+import entityGetter from 'redux/utilities/entityGetter';
+import Button from 'components/buttons/Button';
+import inviteActions from 'redux/nodes/entities/invites/actions';
+import inviteInterface from 'interfaces/invite';
+import InviteUserForm from 'components/forms/InviteUserForm';
+import Modal from 'components/modals/Modal';
+import userActions from 'redux/nodes/entities/users/actions';
+import userInterface from 'interfaces/user';
+import { renderFlash } from 'redux/nodes/notifications/actions';
 import UserBlock from './UserBlock';
-import userInterface from '../../../interfaces/user';
-import { renderFlash } from '../../../redux/nodes/notifications/actions';
 
 class UserManagementPage extends Component {
   static propTypes = {

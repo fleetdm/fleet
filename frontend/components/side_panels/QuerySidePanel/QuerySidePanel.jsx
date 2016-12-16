@@ -129,7 +129,7 @@ class QuerySidePanel extends Component {
       <Dropdown
         options={tableNames}
         value={selectedOsqueryTable.name}
-        onSelect={onSelectTable}
+        onChange={onSelectTable}
         placeholder="Choose Table..."
       />
     );

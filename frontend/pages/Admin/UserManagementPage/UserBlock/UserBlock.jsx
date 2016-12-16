@@ -91,7 +91,7 @@ class UserBlock extends Component {
       <Dropdown
         options={userActionOptions}
         placeholder="Actions..."
-        onSelect={onUserActionSelect}
+        onChange={onUserActionSelect}
         className={invite ? 'revoke-invite' : ''}
       />
     );

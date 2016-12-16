@@ -1,38 +1,55 @@
 import React, { Component, PropTypes } from 'react';
 import Select from 'react-select';
-import { noop } from 'lodash';
+import { noop, pick } from 'lodash';
 
 import dropdownOptionInterface from 'interfaces/dropdownOption';
+import FormField from 'components/forms/FormField';
+
+const baseClass = 'input-dropdown';
 
 class Dropdown extends Component {
   static propTypes = {
     options: PropTypes.arrayOf(dropdownOptionInterface).isRequired,
-    onSelect: PropTypes.func,
+    onChange: PropTypes.func,
     className: PropTypes.string,
+    error: PropTypes.string,
+    hint: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
+    label: PropTypes.string,
     placeholder: PropTypes.string,
     value: PropTypes.string,
     clearable: PropTypes.bool,
   };
 
   static defaultProps = {
-    onSelect: noop,
+    onChange: noop,
     clearable: false,
     placeholder: 'Select One...',
   };
 
+  handleChange = ({ value }) => {
+    const { onChange } = this.props;
+
+    return onChange(value);
+  };
+
   render () {
-    const { options, className, placeholder, value, clearable, onSelect } = this.props;
+    const { handleChange } = this;
+    const { options, className, placeholder, value, clearable } = this.props;
+
+    const formFieldProps = pick(this.props, ['hint', 'label', 'error', 'name']);
 
     return (
-      <Select
-        className={className}
-        name="targets"
-        options={options}
-        onChange={onSelect}
-        placeholder={placeholder}
-        value={value}
-        clearable={clearable}
-      />
+      <FormField {...formFieldProps} type="dropdown">
+        <Select
+          className={`${baseClass}__select ${className}`}
+          name="targets"
+          options={options}
+          onChange={handleChange}
+          placeholder={placeholder}
+          value={value}
+          clearable={clearable}
+        />
+      </FormField>
     );
   }
 }

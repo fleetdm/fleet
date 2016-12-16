@@ -9,20 +9,25 @@
   }
 
   &__select-targets {
-    font-size: $base;
+    float: left;
   }
 
   &__target-label {
-    margin: 0;
-    font-size: $base;
-    font-weight: $light;
+    font-size: 16px;
+    font-weight: $bold;
+    font-style: normal;
+    font-stretch: normal;
+    letter-spacing: -0.5px;
     color: $text-dark;
-    margin-bottom: $pad-xsmall;
+    display: block;
+    margin-bottom: 4px;
+    text-align: right;
   }
 
   &__targets-count {
     font-size: $small;
     margin-left: $xsmall;
+    color: $brand;
   }
 
   &__text-editor-wrapper {
