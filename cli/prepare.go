@@ -40,10 +40,6 @@ To setup kolide infrastructure, use one of the available commands.
 				initFatal(err, "creating db connection")
 			}
 
-			if err := ds.Drop(); err != nil {
-				initFatal(err, "dropping db tables")
-			}
-
 			if err := ds.Migrate(); err != nil {
 				initFatal(err, "migrating db schema")
 			}
