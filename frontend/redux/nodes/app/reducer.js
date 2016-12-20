@@ -3,9 +3,7 @@ import {
   CONFIG_START,
   CONFIG_SUCCESS,
   HIDE_BACKGROUND_IMAGE,
-  REMOVE_RIGHT_SIDE_PANEL,
   SHOW_BACKGROUND_IMAGE,
-  SHOW_RIGHT_SIDE_PANEL,
 } from './actions';
 
 export const initialState = {
@@ -13,7 +11,6 @@ export const initialState = {
   error: null,
   loading: false,
   showBackgroundImage: false,
-  showRightSidePanel: false,
 };
 
 const reducer = (state = initialState, { type, payload }) => {
@@ -41,20 +38,10 @@ const reducer = (state = initialState, { type, payload }) => {
         ...state,
         showBackgroundImage: false,
       };
-    case REMOVE_RIGHT_SIDE_PANEL:
-      return {
-        ...state,
-        showRightSidePanel: false,
-      };
     case SHOW_BACKGROUND_IMAGE:
       return {
         ...state,
         showBackgroundImage: true,
-      };
-    case SHOW_RIGHT_SIDE_PANEL:
-      return {
-        ...state,
-        showRightSidePanel: true,
       };
     default:
       return state;

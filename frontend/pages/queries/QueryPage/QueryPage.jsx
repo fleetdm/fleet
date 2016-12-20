@@ -9,7 +9,6 @@ import osqueryTableInterface from 'interfaces/osquery_table';
 import queryActions from 'redux/nodes/entities/queries/actions';
 import queryInterface from 'interfaces/query';
 import QuerySidePanel from 'components/side_panels/QuerySidePanel';
-import { removeRightSidePanel, showRightSidePanel } from 'redux/nodes/app/actions';
 import { renderFlash } from 'redux/nodes/notifications/actions';
 import { selectOsqueryTable, setQueryText, setSelectedTargets, setSelectedTargetsQuery } from 'redux/nodes/components/QueryPages/actions';
 import targetInterface from 'interfaces/target';
@@ -39,8 +38,6 @@ class QueryPage extends Component {
       dispatch(setQueryText(query.query));
     }
 
-    dispatch(showRightSidePanel);
-
     return false;
   }
 
@@ -53,14 +50,6 @@ class QueryPage extends Component {
 
       dispatch(setQueryText(queryText));
     }
-
-    return false;
-  }
-
-  componentWillUnmount () {
-    const { dispatch } = this.props;
-
-    dispatch(removeRightSidePanel);
 
     return false;
   }

@@ -21,7 +21,6 @@ import { renderFlash } from 'redux/nodes/notifications/actions';
 import Rocker from 'components/buttons/Rocker';
 import { selectOsqueryTable } from 'redux/nodes/components/QueryPages/actions';
 import { setDisplay } from 'redux/nodes/components/ManageHostsPage/actions';
-import { showRightSidePanel, removeRightSidePanel } from 'redux/nodes/app/actions';
 import validateQuery from 'components/forms/validators/validate_query';
 import iconClassForLabel from 'utilities/icon_class_for_label';
 
@@ -58,8 +57,6 @@ export class ManageHostsPage extends Component {
       labels,
     } = this.props;
 
-    dispatch(showRightSidePanel);
-
     if (!hosts.length) {
       dispatch(hostActions.loadAll());
     }
@@ -69,12 +66,6 @@ export class ManageHostsPage extends Component {
     }
 
     return false;
-  }
-
-  componentWillUnmount () {
-    const { dispatch } = this.props;
-
-    dispatch(removeRightSidePanel);
   }
 
   onCancelAddLabel = () => {
