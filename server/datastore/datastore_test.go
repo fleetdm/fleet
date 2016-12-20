@@ -18,6 +18,7 @@ func functionName(f func(*testing.T, kolide.Datastore)) string {
 var testFunctions = [...]func(*testing.T, kolide.Datastore){
 	testOrgInfo,
 	testCreateInvite,
+	testInviteByEmail,
 	testListInvites,
 	testDeleteInvite,
 	testSaveInvite,

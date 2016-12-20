@@ -15,13 +15,13 @@ func notFound(kind string) *notFoundError {
 }
 
 func (e *notFoundError) Error() string {
-	if e.ID == 0 {
-		return fmt.Sprintf("%s was not found in the datastore", e.ResourceType)
+	if e.ID != 0 {
+		return fmt.Sprintf("%s %d was not found in the datastore", e.ResourceType, e.ID)
 	}
 	if e.Message != "" {
-		return fmt.Sprintf("%s, %s was not found in the datastore", e.ResourceType, e.Message)
+		return fmt.Sprintf("%s %s was not found in the datastore", e.ResourceType, e.Message)
 	}
-	return fmt.Sprintf("%s %d was not found in the datastore", e.ResourceType, e.ID)
+	return fmt.Sprintf("%s was not found in the datastore", e.ResourceType)
 }
 
 func (e *notFoundError) WithID(id uint) error {

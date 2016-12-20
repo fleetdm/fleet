@@ -90,7 +90,7 @@ func (d *Datastore) InviteByEmail(email string) (*kolide.Invite, error) {
 		}
 	}
 	return nil, notFound("Invite").
-		WithMessage(fmt.Sprintf("with email address: %s", email))
+		WithMessage(fmt.Sprintf("with email %s", email))
 }
 
 // SaveInvite saves an invitation in the datastore.

@@ -1,8 +1,11 @@
 package mysql
 
 import (
-	"github.com/kolide/kolide-ose/server/errors"
+	"database/sql"
+	"fmt"
+
 	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/pkg/errors"
 )
 
 // NewInvite generates a new invitation
@@ -16,7 +19,7 @@ func (d *Datastore) NewInvite(i *kolide.Invite) (*kolide.Invite, error) {
 	result, err := d.db.Exec(sql, i.InvitedBy, i.Email, i.Admin,
 		i.Name, i.Position, i.Token)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "create invite")
 	}
 
 	id, _ := result.LastInsertId()
@@ -32,10 +35,12 @@ func (d *Datastore) ListInvites(opt kolide.ListOptions) ([]*kolide.Invite, error
 
 	invites := []*kolide.Invite{}
 
-	sql := appendListOptionsToSQL("SELECT * FROM invites WHERE NOT deleted", opt)
-	err := d.db.Select(&invites, sql)
-	if err != nil {
-		return nil, errors.DatabaseError(err)
+	query := appendListOptionsToSQL("SELECT * FROM invites WHERE NOT deleted", opt)
+	err := d.db.Select(&invites, query)
+	if err != nil && err == sql.ErrNoRows {
+		return nil, notFound("Invite")
+	} else if err != nil {
+		return nil, errors.Wrap(err, "select invite by ID")
 	}
 	return invites, nil
 }
@@ -44,8 +49,10 @@ func (d *Datastore) ListInvites(opt kolide.ListOptions) ([]*kolide.Invite, error
 func (d *Datastore) Invite(id uint) (*kolide.Invite, error) {
 	invite := &kolide.Invite{}
 	err := d.db.Get(invite, "SELECT * FROM invites WHERE id = ? AND NOT deleted", id)
-	if err != nil {
-		return nil, errors.DatabaseError(err)
+	if err != nil && err == sql.ErrNoRows {
+		return nil, notFound("Invite").WithID(id)
+	} else if err != nil {
+		return nil, errors.Wrap(err, "select invite by ID")
 	}
 	return invite, nil
 }
@@ -54,8 +61,11 @@ func (d *Datastore) Invite(id uint) (*kolide.Invite, error) {
 func (d *Datastore) InviteByEmail(email string) (*kolide.Invite, error) {
 	invite := &kolide.Invite{}
 	err := d.db.Get(invite, "SELECT * FROM invites WHERE email = ? AND NOT deleted", email)
-	if err != nil {
-		return nil, errors.DatabaseError(err)
+	if err != nil && err == sql.ErrNoRows {
+		return nil, notFound("Invite").
+			WithMessage(fmt.Sprintf("with email %s", email))
+	} else if err != nil {
+		return nil, errors.Wrap(err, "sqlx get invite")
 	}
 	return invite, nil
 }
@@ -71,7 +81,7 @@ func (d *Datastore) SaveInvite(i *kolide.Invite) error {
 		i.Admin, i.Name, i.Position, i.Token, i.ID,
 	)
 	if err != nil {
-		return errors.DatabaseError(err)
+		return errors.Wrap(err, "save invite")
 	}
 
 	return nil
@@ -86,7 +96,7 @@ func (d *Datastore) DeleteInvite(i *kolide.Invite) error {
 	`
 	_, err := d.db.Exec(sql, i.DeletedAt, true, i.ID)
 	if err != nil {
-		return errors.DatabaseError(err)
+		return errors.Wrap(err, "delete invite")
 	}
 	return nil
 }

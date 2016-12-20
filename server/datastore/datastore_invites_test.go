@@ -1,11 +1,13 @@
 package datastore
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func testCreateInvite(t *testing.T, ds kolide.Datastore) {
@@ -126,4 +128,36 @@ func testSaveInvite(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, "Bob", invite.Name)
 	assert.True(t, invite.Admin)
 
+}
+
+func testInviteByEmail(t *testing.T, ds kolide.Datastore) {
+	setupTestInvites(t, ds)
+
+	var inviteTests = []struct {
+		email   string
+		wantErr error
+	}{
+		{
+			email: "user0@foo.com",
+		},
+		{
+			email:   "nosuchuser@nosuchdomain.com",
+			wantErr: errors.New("Invite with email nosuchuser@nosuchdomain.com was not found in the datastore"),
+		},
+	}
+
+	for _, tt := range inviteTests {
+		t.Run("", func(t *testing.T) {
+			invite, err := ds.InviteByEmail(tt.email)
+			if tt.wantErr != nil {
+				require.NotNil(t, err)
+				assert.Equal(t, tt.wantErr.Error(), err.Error())
+				return
+			} else {
+				require.Nil(t, err)
+			}
+			assert.NotEqual(t, invite.ID, 0)
+
+		})
+	}
 }
