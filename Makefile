@@ -115,6 +115,7 @@ generate: .prefix
 	go-bindata -pkg=service \
 		-o=server/service/bindata.go \
 		frontend/templates/ assets/...
+	go-bindata -pkg=kolide -o=server/kolide/bindata.go server/mail/templates
 
 
 # we first generate the webpack bundle so that bindata knows to watch the
@@ -125,6 +126,7 @@ generate-dev: .prefix
 	go-bindata -debug -pkg=service \
 		-o=server/service/bindata.go \
 		frontend/templates/ assets/...
+	go-bindata -pkg=kolide -o=server/kolide/bindata.go server/mail/templates
 	webpack --progress --colors --watch --notify
 
 deps:

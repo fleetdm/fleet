@@ -52,3 +52,7 @@ type service struct {
 
 	mailService kolide.MailService
 }
+
+func (s service) SendEmail(mail kolide.Email) error {
+	return s.mailService.SendEmail(mail)
+}

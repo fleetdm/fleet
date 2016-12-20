@@ -329,6 +329,7 @@ func testSearchHosts(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, err)
 	assert.Equal(t, 2, len(hits))
 
+
 	hits, err = ds.SearchHosts("99.100.101", h3.ID)
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(hits))

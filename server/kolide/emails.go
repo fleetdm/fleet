@@ -26,9 +26,10 @@ type Mailer interface {
 }
 
 type Email struct {
-	To   []string
-	From string
-	Msg  Mailer
+	Subject string
+	To      []string
+	Config  *AppConfig
+	Mailer  Mailer
 }
 
 type MailService interface {
@@ -45,21 +46,56 @@ type PasswordResetRequest struct {
 	Token     string
 }
 
-const passwordResetTemplate = `
-You requested a password reset,
-Follow the link below to reset your password:
-http://localhost:8080/login/reset?token={{.Token}}
-`
+// SMTPTestMailer is used to build an email message that will be used as
+// a test message when testing SMTP configuration
+type SMTPTestMailer struct {
+	KolideServerURL string
+}
 
-func (r PasswordResetRequest) Message() ([]byte, error) {
-	var msg bytes.Buffer
-	var err error
-	t := template.New(passwordResetTemplate)
-	if t, err = t.Parse(passwordResetTemplate); err != nil {
+func (m *SMTPTestMailer) Message() ([]byte, error) {
+	t, err := getTemplate("server/mail/templates/smtp_setup.html")
+	if err != nil {
 		return nil, err
 	}
+
+	var msg bytes.Buffer
+	if err = t.Execute(&msg, m); err != nil {
+		return nil, err
+	}
+
+	return msg.Bytes(), nil
+}
+
+type PasswordResetMailer struct {
+	// URL for the Kolide application
+	KolideServerURL string
+	// Token password reset token
+	Token string
+}
+
+func (r PasswordResetMailer) Message() ([]byte, error) {
+	t, err := getTemplate("server/mail/templates/password_reset.html")
+	if err != nil {
+		return nil, err
+	}
+
+	var msg bytes.Buffer
 	if err = t.Execute(&msg, r); err != nil {
 		return nil, err
 	}
 	return msg.Bytes(), nil
+}
+
+func getTemplate(templatePath string) (*template.Template, error) {
+	templateData, err := Asset(templatePath)
+	if err != nil {
+		return nil, err
+	}
+
+	t, err := template.New("email_template").Parse(string(templateData))
+	if err != nil {
+		return nil, err
+	}
+
+	return t, nil
 }

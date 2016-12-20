@@ -35,7 +35,9 @@ func TestAuthenticatedUser(t *testing.T) {
 
 func TestRequestPasswordReset(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
-	assert.Nil(t, err)
+	require.Nil(t, err)
+	createTestAppConfig(t, ds)
+
 	createTestUsers(t, ds)
 	admin1, err := ds.User("admin1")
 	assert.Nil(t, err)

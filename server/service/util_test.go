@@ -11,11 +11,35 @@ import (
 )
 
 func newTestService(ds kolide.Datastore, rs kolide.QueryResultStore) (kolide.Service, error) {
-	return NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), nil, clock.C)
+	mailer := &mockMailService{SendEmailFn: func(e kolide.Email) error { return nil }}
+	return NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), mailer, clock.C)
 }
 
 func newTestServiceWithClock(ds kolide.Datastore, rs kolide.QueryResultStore, c clock.Clock) (kolide.Service, error) {
-	return NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), nil, c)
+	mailer := &mockMailService{SendEmailFn: func(e kolide.Email) error { return nil }}
+	return NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), mailer, c)
+}
+
+func createTestAppConfig(t *testing.T, ds kolide.Datastore) *kolide.AppConfig {
+	config := &kolide.AppConfig{
+		OrgName:                "Tyrell Corp",
+		OrgLogoURL:             "https://tyrell.com/image.png",
+		KolideServerURL:        "https://kolide.tyrell.com",
+		SMTPConfigured:         true,
+		SMTPDisabled:           false,
+		SMTPSenderAddress:      "kolide@tyrell.com",
+		SMTPServer:             "smtp.tyrell.com",
+		SMTPPort:               587,
+		SMTPAuthenticationType: kolide.AuthTypeUserNamePassword,
+		SMTPUserName:           "deckard",
+		SMTPPassword:           "replicant",
+		SMTPVerifySSLCerts:     true,
+		SMTPEnableTLS:          true,
+	}
+	result, err := ds.NewAppConfig(config)
+	require.Nil(t, err)
+	require.NotNil(t, result)
+	return result
 }
 
 func createTestUsers(t *testing.T, ds kolide.Datastore) map[string]kolide.User {

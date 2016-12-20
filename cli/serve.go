@@ -58,15 +58,10 @@ the way that the kolide server works.
 			logger = kitlog.NewLogfmtLogger(os.Stderr)
 			logger = kitlog.NewContext(logger).With("ts", kitlog.DefaultTimestampUTC)
 
-			var mailService kolide.MailService
-			if devMode {
-				mailService = createDevMailService(config)
-			} else {
-				mailService = mail.NewService(config.SMTP)
-			}
-
 			var ds kolide.Datastore
 			var err error
+			var mailService kolide.MailService
+
 			if devMode {
 				fmt.Println(
 					"Dev mode enabled, using in-memory DB.\n",
@@ -76,6 +71,7 @@ the way that the kolide server works.
 				if ds, err = inmem.New(config); err != nil {
 					initFatal(err, "initializing inmem database")
 				}
+				mailService = mail.NewDevService()
 			} else {
 				const defaultMaxAttempts = 15
 
@@ -85,6 +81,7 @@ the way that the kolide server works.
 				if err != nil {
 					initFatal(err, "initializing datastore")
 				}
+				mailService = mail.NewService()
 			}
 
 			if initializingDS, ok := ds.(initializer); ok {
@@ -178,33 +175,4 @@ the way that the kolide server works.
 	serveCmd.PersistentFlags().BoolVar(&devMode, "dev", false, "Use dev settings (in-mem DB, etc.)")
 
 	return serveCmd
-}
-
-// used in devMode to print an email
-// which would otherwise be sent via SMTP
-type devMailService struct{}
-
-func (devMailService) SendEmail(e kolide.Email) error {
-	fmt.Println("---dev mode: printing email---")
-	defer fmt.Println("---dev mode: email printed---")
-	msg, err := e.Msg.Message()
-	if err != nil {
-		return err
-	}
-	fmt.Printf("From: %q To: %q \n", e.From, e.To)
-	_, err = os.Stdout.Write(msg)
-	return err
-}
-
-// Creates the mail service to be used with the --dev flag.
-// If the user provides SMTP settings, then an actual MailService will be returned,
-// otherwise return the mock devMailService which prints the contents of an email to stdout.
-func createDevMailService(config config.KolideConfig) kolide.MailService {
-	smtp := config.SMTP
-	if smtp.Server != "" &&
-		smtp.Username != "" &&
-		smtp.Password != "" {
-		return mail.NewService(config.SMTP)
-	}
-	return devMailService{}
 }

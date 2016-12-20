@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/patrickmn/sortutil"
 )
 
 func (d *Datastore) NewHost(host *kolide.Host) (*kolide.Host, error) {
@@ -202,9 +203,11 @@ func (d *Datastore) SearchHosts(query string, omit ...uint) ([]*kolide.Host, err
 		for _, nic := range h.NetworkInterfaces {
 			if strings.Contains(nic.IPAddress, query) && !omitLookup[nic.HostID] {
 				results = append(results, h)
+
 				break
 			}
 		}
+		sortutil.AscByField(h.NetworkInterfaces, "ID")
 	}
 
 	return results, nil

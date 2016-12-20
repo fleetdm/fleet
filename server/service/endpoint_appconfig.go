@@ -1,75 +1,72 @@
 package service
 
 import (
+	"fmt"
+
 	"github.com/go-kit/kit/endpoint"
+	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"golang.org/x/net/context"
 )
 
-// getAppConfig is used to return
-// current configuration data to the client
-type getAppConfigResponse struct {
-	Err error `json:"error,omitempty"`
+type appConfigResponse struct {
+	OrgInfo        *kolide.OrgInfo        `json:"org_info,omitemtpy"`
+	ServerSettings *kolide.ServerSettings `json:"server_settings,omitempty"`
+	SMTPSettings   *kolide.SMTPSettings   `json:"smtp_settings,omitempty"`
+	Err            error                  `json:"error,omitempty"`
+	// SMTPTestError if present gives reason smtp test failed
+	SMTPTestError string `json:"smtp_test_error,omitempty"`
 }
 
-func (r getAppConfigResponse) error() error { return r.Err }
+func (r appConfigResponse) error() error { return r.Err }
 
 func makeGetAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		vc, ok := viewer.FromContext(ctx)
+		if !ok {
+			return nil, fmt.Errorf("could not fetch user")
+		}
 		config, err := svc.AppConfig(ctx)
 		if err != nil {
-			return getAppConfigResponse{Err: err}, nil
+			return nil, err
 		}
-		response := appConfigPayload(*config)
+		var smtpSettings *kolide.SMTPSettings
+		// only admin can see smtp settings
+		if vc.IsAdmin() {
+			smtpSettings = smtpSettingsFromAppConfig(config)
+		}
+		response := appConfigResponse{
+			OrgInfo: &kolide.OrgInfo{
+				OrgName:    &config.OrgName,
+				OrgLogoURL: &config.OrgLogoURL,
+			},
+			ServerSettings: &kolide.ServerSettings{
+				KolideServerURL: &config.KolideServerURL,
+			},
+			SMTPSettings: smtpSettings,
+		}
 		return response, nil
 	}
-}
-
-type modifyAppConfigRequest struct {
-	ConfigPayload kolide.AppConfigPayload
 }
 
 func makeModifyAppConfigRequest(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(modifyAppConfigRequest)
-		config, err := svc.ModifyAppConfig(ctx, req.ConfigPayload)
+		req := request.(kolide.AppConfigPayload)
+		config, err := svc.ModifyAppConfig(ctx, req)
 		if err != nil {
-			return getAppConfigResponse{Err: err}, nil
+			return appConfigResponse{Err: err}, nil
 		}
-		response := appConfigPayload(*config)
+		response := appConfigResponse{
+			OrgInfo: &kolide.OrgInfo{
+				OrgName:    &config.OrgName,
+				OrgLogoURL: &config.OrgLogoURL,
+			},
+			ServerSettings: &kolide.ServerSettings{
+				KolideServerURL: &config.KolideServerURL,
+			},
+			SMTPSettings:  smtpSettingsFromAppConfig(config),
+			SMTPTestError: config.SMTPLastError,
+		}
 		return response, nil
 	}
-}
-
-func appConfigPayload(config kolide.AppConfig) kolide.AppConfigPayload {
-	orgInfo := func() *kolide.OrgInfo {
-		if config.OrgName == "" && config.OrgLogoURL == "" {
-			return nil
-		}
-		return &kolide.OrgInfo{
-			OrgName:    nilString(config.OrgName),
-			OrgLogoURL: nilString(config.OrgLogoURL),
-		}
-	}
-
-	serverSettings := func() *kolide.ServerSettings {
-		if config.KolideServerURL == "" {
-			return nil
-		}
-		return &kolide.ServerSettings{
-			KolideServerURL: nilString(config.KolideServerURL),
-		}
-	}
-
-	return kolide.AppConfigPayload{
-		OrgInfo:        orgInfo(),
-		ServerSettings: serverSettings(),
-	}
-}
-
-func nilString(s string) *string {
-	if s == "" {
-		return nil
-	}
-	return &s
 }

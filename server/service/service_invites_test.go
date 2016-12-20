@@ -16,6 +16,7 @@ import (
 func TestInviteNewUser(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
 	createTestUsers(t, ds)
+	createTestAppConfig(t, ds)
 	assert.Nil(t, err)
 	nosuchAdminID := uint(999)
 	adminID := uint(1)

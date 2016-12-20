@@ -231,10 +231,19 @@ func (svc service) RequestPasswordReset(ctx context.Context, email string) error
 		return err
 	}
 
+	config, err := svc.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+
 	resetEmail := kolide.Email{
-		From: "no-reply@kolide.co",
-		To:   []string{user.Email},
-		Msg:  request,
+		Subject: "Reset Your Kolide Password",
+		To:      []string{user.Email},
+		Config:  config,
+		Mailer: &kolide.PasswordResetMailer{
+			KolideServerURL: config.KolideServerURL,
+			Token:           token,
+		},
 	}
 
 	err = svc.mailService.SendEmail(resetEmail)
