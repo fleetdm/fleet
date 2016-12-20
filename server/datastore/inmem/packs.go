@@ -3,7 +3,6 @@ package inmem
 import (
 	"sort"
 
-	"github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
 )
 
@@ -12,7 +11,7 @@ func (d *Datastore) NewPack(pack *kolide.Pack) (*kolide.Pack, error) {
 
 	for _, q := range d.packs {
 		if pack.Name == q.Name {
-			return nil, errors.ErrExists
+			return nil, alreadyExists("Pack", q.ID)
 		}
 	}
 
@@ -28,7 +27,7 @@ func (d *Datastore) NewPack(pack *kolide.Pack) (*kolide.Pack, error) {
 
 func (d *Datastore) SavePack(pack *kolide.Pack) error {
 	if _, ok := d.packs[pack.ID]; !ok {
-		return errors.ErrNotFound
+		return notFound("Pack").WithID(pack.ID)
 	}
 
 	d.mtx.Lock()
@@ -40,7 +39,7 @@ func (d *Datastore) SavePack(pack *kolide.Pack) error {
 
 func (d *Datastore) DeletePack(pid uint) error {
 	if _, ok := d.packs[pid]; !ok {
-		return errors.ErrNotFound
+		return notFound("Pack").WithID(pid)
 	}
 
 	d.mtx.Lock()
@@ -55,7 +54,7 @@ func (d *Datastore) Pack(id uint) (*kolide.Pack, error) {
 	pack, ok := d.packs[id]
 	d.mtx.Unlock()
 	if !ok {
-		return nil, errors.ErrNotFound
+		return nil, notFound("Pack").WithID(id)
 	}
 
 	return pack, nil

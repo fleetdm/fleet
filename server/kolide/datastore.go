@@ -17,3 +17,16 @@ type Datastore interface {
 	Drop() error
 	Migrate() error
 }
+
+// NotFoundError is returned when the datastore resource cannot be found.
+type NotFoundError interface {
+	error
+	IsNotFound() bool
+}
+
+// AlreadyExists is returned when creating a datastore resource that already
+// exists.
+type AlreadyExistsError interface {
+	error
+	IsExists() bool
+}

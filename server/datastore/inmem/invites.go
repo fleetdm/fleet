@@ -1,10 +1,10 @@
 package inmem
 
 import (
+	"fmt"
 	"sort"
 	"time"
 
-	"github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
 )
 
@@ -15,7 +15,7 @@ func (d *Datastore) NewInvite(invite *kolide.Invite) (*kolide.Invite, error) {
 
 	for _, in := range d.invites {
 		if in.Email == invite.Email {
-			return nil, errors.ErrExists
+			return nil, alreadyExists("Invite", invite.ID)
 		}
 	}
 
@@ -76,7 +76,7 @@ func (d *Datastore) Invite(id uint) (*kolide.Invite, error) {
 	if invite, ok := d.invites[id]; ok {
 		return invite, nil
 	}
-	return nil, errors.ErrNotFound
+	return nil, alreadyExists("Invite", id)
 }
 
 // InviteByEmail retrieves an invite for a specific email address.
@@ -89,7 +89,8 @@ func (d *Datastore) InviteByEmail(email string) (*kolide.Invite, error) {
 			return invite, nil
 		}
 	}
-	return nil, errors.ErrNotFound
+	return nil, notFound("Invite").
+		WithMessage(fmt.Sprintf("with email address: %s", email))
 }
 
 // SaveInvite saves an invitation in the datastore.
@@ -98,7 +99,7 @@ func (d *Datastore) SaveInvite(invite *kolide.Invite) error {
 	defer d.mtx.Unlock()
 
 	if _, ok := d.invites[invite.ID]; !ok {
-		return errors.ErrNotFound
+		return notFound("Invite").WithID(invite.ID)
 	}
 
 	d.invites[invite.ID] = invite
@@ -111,7 +112,7 @@ func (d *Datastore) DeleteInvite(invite *kolide.Invite) error {
 	defer d.mtx.Unlock()
 
 	if _, ok := d.invites[invite.ID]; !ok {
-		return errors.ErrNotFound
+		return notFound("Invite").WithID(invite.ID)
 	}
 	delete(d.invites, invite.ID)
 	return nil

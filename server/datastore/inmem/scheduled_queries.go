@@ -3,7 +3,6 @@ package inmem
 import (
 	"sort"
 
-	"github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
 )
 
@@ -24,7 +23,7 @@ func (d *Datastore) SaveScheduledQuery(sq *kolide.ScheduledQuery) (*kolide.Sched
 	defer d.mtx.Unlock()
 
 	if _, ok := d.scheduledQueries[sq.ID]; !ok {
-		return nil, errors.ErrNotFound
+		return nil, notFound("ScheduledQuery").WithID(sq.ID)
 	}
 
 	d.scheduledQueries[sq.ID] = sq
@@ -36,7 +35,7 @@ func (d *Datastore) DeleteScheduledQuery(id uint) error {
 	defer d.mtx.Unlock()
 
 	if _, ok := d.scheduledQueries[id]; !ok {
-		return errors.ErrNotFound
+		return notFound("ScheduledQuery").WithID(id)
 	}
 
 	delete(d.scheduledQueries, id)
@@ -49,7 +48,7 @@ func (d *Datastore) ScheduledQuery(id uint) (*kolide.ScheduledQuery, error) {
 
 	sq, ok := d.scheduledQueries[id]
 	if !ok {
-		return nil, errors.ErrNotFound
+		return nil, notFound("ScheduledQuery").WithID(id)
 	}
 
 	sq.Name = d.queries[sq.QueryID].Name

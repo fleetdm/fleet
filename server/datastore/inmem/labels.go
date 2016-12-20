@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	kolide_errors "github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/patrickmn/sortutil"
 )
@@ -18,7 +17,7 @@ func (d *Datastore) NewLabel(label *kolide.Label) (*kolide.Label, error) {
 	d.mtx.Lock()
 	for _, l := range d.labels {
 		if l.Name == label.Name {
-			return nil, kolide_errors.ErrExists
+			return nil, alreadyExists("Label", l.ID)
 		}
 	}
 

@@ -1,9 +1,9 @@
 package inmem
 
 import (
+	"fmt"
 	"sort"
 
-	"github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
 )
 
@@ -13,7 +13,7 @@ func (d *Datastore) NewUser(user *kolide.User) (*kolide.User, error) {
 
 	for _, in := range d.users {
 		if in.Username == user.Username {
-			return nil, errors.ErrExists
+			return nil, alreadyExists("User", in.ID)
 		}
 	}
 
@@ -33,7 +33,8 @@ func (d *Datastore) User(username string) (*kolide.User, error) {
 		}
 	}
 
-	return nil, errors.ErrNotFound
+	return nil, notFound("User").
+		WithMessage(fmt.Sprintf("with username %s", username))
 }
 
 func (d *Datastore) ListUsers(opt kolide.ListOptions) ([]*kolide.User, error) {
@@ -87,7 +88,8 @@ func (d *Datastore) UserByEmail(email string) (*kolide.User, error) {
 		}
 	}
 
-	return nil, errors.ErrNotFound
+	return nil, notFound("User").
+		WithMessage(fmt.Sprintf("with email address %s", email))
 }
 
 func (d *Datastore) UserByID(id uint) (*kolide.User, error) {
@@ -98,7 +100,7 @@ func (d *Datastore) UserByID(id uint) (*kolide.User, error) {
 		return user, nil
 	}
 
-	return nil, errors.ErrNotFound
+	return nil, notFound("User").WithID(id)
 }
 
 func (d *Datastore) SaveUser(user *kolide.User) error {
@@ -106,7 +108,7 @@ func (d *Datastore) SaveUser(user *kolide.User) error {
 	defer d.mtx.Unlock()
 
 	if _, ok := d.users[user.ID]; !ok {
-		return errors.ErrNotFound
+		return notFound("User").WithID(user.ID)
 	}
 
 	d.users[user.ID] = user

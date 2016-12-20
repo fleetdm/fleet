@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/kolide/kolide-ose/server/errors"
 	"golang.org/x/net/context"
 )
 
@@ -94,10 +93,34 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		return
 	}
 
+	type notFoundError interface {
+		error
+		IsNotFound() bool
+	}
+	if e, ok := err.(notFoundError); ok {
+		je := jsonError{
+			Message: "Resource Not Found",
+			Error:   e.Error(),
+		}
+		w.WriteHeader(http.StatusNotFound)
+		enc.Encode(je)
+	}
+
+	type existsError interface {
+		error
+		IsExists() bool
+	}
+	if e, ok := err.(existsError); ok {
+		je := jsonError{
+			Message: "Resource Already Exists",
+			Error:   e.Error(),
+		}
+		w.WriteHeader(http.StatusConflict)
+		enc.Encode(je)
+	}
+
 	// Other errors
 	switch domain {
-	case "service":
-		w.WriteHeader(codeFromErr(err))
 	case kithttp.DomainDecode:
 		w.WriteHeader(http.StatusBadRequest)
 	case kithttp.DomainDo:
@@ -108,15 +131,4 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	enc.Encode(map[string]interface{}{
 		"error": err.Error(),
 	})
-}
-
-func codeFromErr(err error) int {
-	switch err {
-	case errors.ErrNotFound:
-		return http.StatusNotFound
-	case errors.ErrExists:
-		return http.StatusConflict
-	default:
-		return http.StatusInternalServerError
-	}
 }

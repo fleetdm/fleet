@@ -1,17 +1,6 @@
 package errors
 
-import (
-	goerrs "errors"
-	"net/http"
-)
-
-var (
-	// ErrNotFound is returned when the datastore resource cannot be found
-	ErrNotFound = goerrs.New("resource not found")
-
-	// ErrExists is returned when creating a datastore resource that already exists
-	ErrExists = goerrs.New("resource already created")
-)
+import "net/http"
 
 // Kolide's internal representation for errors. It can be used to wrap another
 // error (stored in Err), and additionally contains fields for public

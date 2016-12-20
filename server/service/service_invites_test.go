@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"testing"
 
 	"golang.org/x/net/context"
@@ -8,7 +9,6 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/kolide/kolide-ose/server/config"
 	"github.com/kolide/kolide-ose/server/datastore/inmem"
-	"github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/stretchr/testify/assert"
 )
@@ -44,7 +44,7 @@ func TestInviteNewUser(t *testing.T) {
 				InvitedBy: &nosuchAdminID,
 				Admin:     boolPtr(false),
 			},
-			wantErr: errors.ErrNotFound,
+			wantErr: errors.New("User 999 was not found in the datastore"),
 		},
 		{
 			payload: kolide.InvitePayload{
@@ -67,9 +67,11 @@ func TestInviteNewUser(t *testing.T) {
 	for _, tt := range inviteTests {
 		t.Run("", func(t *testing.T) {
 			invite, err := svc.InviteNewUser(context.Background(), tt.payload)
-			assert.Equal(t, tt.wantErr, err)
-			if err != nil {
+			if tt.wantErr != nil {
+				assert.Equal(t, tt.wantErr.Error(), err.Error())
 				return
+			} else {
+				assert.Nil(t, err)
 			}
 			assert.Equal(t, *tt.payload.InvitedBy, invite.InvitedBy)
 		})

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
 )
 
@@ -24,7 +23,7 @@ func (d *Datastore) DistributedQueryCampaign(id uint) (*kolide.DistributedQueryC
 
 	campaign, ok := d.distributedQueryCampaigns[id]
 	if !ok {
-		return nil, errors.ErrNotFound
+		return nil, notFound("DistributedQueryCampaign").WithID(id)
 	}
 
 	return &campaign, nil
@@ -35,7 +34,7 @@ func (d *Datastore) SaveDistributedQueryCampaign(camp *kolide.DistributedQueryCa
 	defer d.mtx.Unlock()
 
 	if _, ok := d.distributedQueryCampaigns[camp.ID]; !ok {
-		return errors.ErrNotFound
+		return notFound("DistributedQueryCampaign").WithID(camp.ID)
 	}
 
 	d.distributedQueryCampaigns[camp.ID] = *camp
@@ -80,7 +79,7 @@ func (d *Datastore) NewDistributedQueryExecution(exec *kolide.DistributedQueryEx
 	for _, e := range d.distributedQueryExecutions {
 		if exec.HostID == e.HostID && exec.DistributedQueryCampaignID == e.DistributedQueryCampaignID {
 			fmt.Printf("%+v -- %+v\n", exec, d.distributedQueryExecutions)
-			return exec, errors.ErrExists
+			return exec, alreadyExists("DistributedQueryExecution", exec.HostID)
 		}
 	}
 

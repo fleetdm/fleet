@@ -1,9 +1,9 @@
 package inmem
 
 import (
+	"fmt"
 	"time"
 
-	"github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
 )
 
@@ -16,7 +16,7 @@ func (d *Datastore) SessionByKey(key string) (*kolide.Session, error) {
 			return session, nil
 		}
 	}
-	return nil, errors.ErrNotFound
+	return nil, notFound("Session")
 }
 
 func (d *Datastore) SessionByID(id uint) (*kolide.Session, error) {
@@ -26,7 +26,7 @@ func (d *Datastore) SessionByID(id uint) (*kolide.Session, error) {
 	if session, ok := d.sessions[id]; ok {
 		return session, nil
 	}
-	return nil, errors.ErrNotFound
+	return nil, notFound("Session").WithID(id)
 }
 
 func (d *Datastore) ListSessionsForUser(id uint) ([]*kolide.Session, error) {
@@ -40,7 +40,8 @@ func (d *Datastore) ListSessionsForUser(id uint) ([]*kolide.Session, error) {
 		}
 	}
 	if len(sessions) == 0 {
-		return nil, errors.ErrNotFound
+		return nil, notFound("Session").
+			WithMessage(fmt.Sprintf("for user id %d", id))
 	}
 	return sessions, nil
 }
@@ -61,7 +62,7 @@ func (d *Datastore) NewSession(session *kolide.Session) (*kolide.Session, error)
 
 func (d *Datastore) DestroySession(session *kolide.Session) error {
 	if _, ok := d.sessions[session.ID]; !ok {
-		return errors.ErrNotFound
+		return notFound("Session").WithID(session.ID)
 	}
 	delete(d.sessions, session.ID)
 	return nil
@@ -79,7 +80,7 @@ func (d *Datastore) DestroyAllSessionsForUser(id uint) error {
 func (d *Datastore) MarkSessionAccessed(session *kolide.Session) error {
 	session.AccessedAt = time.Now().UTC()
 	if _, ok := d.sessions[session.ID]; !ok {
-		return errors.ErrNotFound
+		return notFound("Session").WithID(session.ID)
 	}
 	d.sessions[session.ID] = session
 	return nil

@@ -15,7 +15,7 @@ func (d *Datastore) NewQuery(query *kolide.Query) (*kolide.Query, error) {
 
 	for _, q := range d.queries {
 		if query.Name == q.Name {
-			return nil, errors.ErrExists
+			return nil, alreadyExists("Query", q.ID)
 		}
 	}
 
@@ -30,7 +30,7 @@ func (d *Datastore) SaveQuery(query *kolide.Query) error {
 	defer d.mtx.Unlock()
 
 	if _, ok := d.queries[query.ID]; !ok {
-		return errors.ErrNotFound
+		return notFound("Query").WithID(query.ID)
 	}
 
 	d.queries[query.ID] = query
@@ -42,7 +42,7 @@ func (d *Datastore) DeleteQuery(query *kolide.Query) error {
 	defer d.mtx.Unlock()
 
 	if _, ok := d.queries[query.ID]; !ok {
-		return errors.ErrNotFound
+		return notFound("Query").WithID(query.ID)
 	}
 
 	delete(d.queries, query.ID)
@@ -79,7 +79,7 @@ func (d *Datastore) Query(id uint) (*kolide.Query, error) {
 
 	query, ok := d.queries[id]
 	if !ok {
-		return nil, errors.ErrNotFound
+		return nil, notFound("Query").WithID(id)
 	}
 
 	query.AuthorName = d.getUserNameByID(query.AuthorID)

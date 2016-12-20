@@ -1,7 +1,8 @@
 package inmem
 
 import (
-	"github.com/kolide/kolide-ose/server/errors"
+	"fmt"
+
 	"github.com/kolide/kolide-ose/server/kolide"
 )
 
@@ -19,7 +20,7 @@ func (d *Datastore) SavePasswordResetRequest(req *kolide.PasswordResetRequest) e
 	defer d.mtx.Unlock()
 
 	if _, ok := d.passwordResets[req.ID]; !ok {
-		return errors.ErrNotFound
+		return notFound("PasswordResetRequest").WithID(req.ID)
 	}
 
 	d.passwordResets[req.ID] = req
@@ -31,7 +32,7 @@ func (d *Datastore) DeletePasswordResetRequest(req *kolide.PasswordResetRequest)
 	defer d.mtx.Unlock()
 
 	if _, ok := d.passwordResets[req.ID]; !ok {
-		return errors.ErrNotFound
+		return notFound("PasswordResetRequest").WithID(req.ID)
 	}
 
 	delete(d.passwordResets, req.ID)
@@ -58,7 +59,7 @@ func (d *Datastore) FindPassswordResetByID(id uint) (*kolide.PasswordResetReques
 		return req, nil
 	}
 
-	return nil, errors.ErrNotFound
+	return nil, notFound("PasswordResetRequest").WithID(id)
 }
 
 func (d *Datastore) FindPassswordResetsByUserID(userID uint) ([]*kolide.PasswordResetRequest, error) {
@@ -73,7 +74,8 @@ func (d *Datastore) FindPassswordResetsByUserID(userID uint) ([]*kolide.Password
 	}
 
 	if len(resets) == 0 {
-		return nil, errors.ErrNotFound
+		return nil, notFound("PasswordResetRequest").
+			WithMessage(fmt.Sprintf("for user id %d", userID))
 	}
 
 	return resets, nil
@@ -89,7 +91,7 @@ func (d *Datastore) FindPassswordResetByToken(token string) (*kolide.PasswordRes
 		}
 	}
 
-	return nil, errors.ErrNotFound
+	return nil, notFound("PasswordResetRequest")
 }
 
 func (d *Datastore) FindPassswordResetByTokenAndUserID(token string, userID uint) (*kolide.PasswordResetRequest, error) {
@@ -102,5 +104,5 @@ func (d *Datastore) FindPassswordResetByTokenAndUserID(token string, userID uint
 		}
 	}
 
-	return nil, errors.ErrNotFound
+	return nil, notFound("PasswordResetRequest")
 }
