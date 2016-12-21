@@ -2,11 +2,29 @@ import expect from 'expect';
 
 import helpers from 'kolide/helpers';
 
+const label1 = { id: 1, target_type: 'labels' };
+const label2 = { id: 2, target_type: 'labels' };
+const host1 = { id: 6, target_type: 'hosts' };
+const host2 = { id: 5, target_type: 'hosts' };
+
 describe('Kolide API - helpers', () => {
   describe('#labelSlug', () => {
     it('creates a slug for the label', () => {
       expect(helpers.labelSlug({ display_text: 'All Hosts' })).toEqual('all-hosts');
       expect(helpers.labelSlug({ display_text: 'windows' })).toEqual('windows');
+    });
+  });
+
+  describe('#formatSelectedTargetsForApi', () => {
+    const { formatSelectedTargetsForApi } = helpers;
+
+    it('splits targets into labels and hosts', () => {
+      const targets = [host1, host2, label1, label2];
+
+      expect(formatSelectedTargetsForApi(targets)).toEqual({
+        hosts: [6, 5],
+        labels: [1, 2],
+      });
     });
   });
 

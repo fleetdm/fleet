@@ -1,4 +1,4 @@
-import { kebabCase, pick } from 'lodash';
+import { flatMap, kebabCase, pick } from 'lodash';
 import md5 from 'js-md5';
 
 const ORG_INFO_ATTRS = ['org_name', 'org_logo_url'];
@@ -26,6 +26,20 @@ const labelSlug = (label) => {
   return kebabCase(lowerDisplayText);
 };
 
+const filterTarget = (targetType) => {
+  return (target) => {
+    return target.target_type === targetType ? [target.id] : [];
+  };
+};
+
+export const formatSelectedTargetsForApi = (selectedTargets) => {
+  const targets = selectedTargets || [];
+  const hosts = flatMap(targets, filterTarget('hosts'));
+  const labels = flatMap(targets, filterTarget('labels'));
+
+  return { hosts, labels };
+};
+
 const setupData = (formData) => {
   const orgInfo = pick(formData, ORG_INFO_ATTRS);
   const adminInfo = pick(formData, ADMIN_ATTRS);
@@ -42,4 +56,4 @@ const setupData = (formData) => {
   };
 };
 
-export default { addGravatarUrlToResource, labelSlug, setupData };
+export default { addGravatarUrlToResource, formatSelectedTargetsForApi, labelSlug, setupData };

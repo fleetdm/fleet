@@ -84,7 +84,7 @@ class UserManagementPage extends Component {
               return dispatch(renderFlash('success', 'User forced to reset password', update(user, { force_password_reset: false })));
             });
         case 'revert_invitation':
-          return dispatch(inviteActions.destroy({ entityID: user.id }))
+          return dispatch(inviteActions.destroy(user))
             .then(() => {
               return dispatch(renderFlash('success', 'Invite revoked'));
             });

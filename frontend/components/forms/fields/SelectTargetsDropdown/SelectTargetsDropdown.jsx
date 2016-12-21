@@ -4,7 +4,7 @@ import classnames from 'classnames';
 
 import Kolide from 'kolide';
 import targetInterface from 'interfaces/target';
-import { formatSelectedTargetsForApi } from './helpers';
+import { formatSelectedTargetsForApi } from 'kolide/helpers';
 import Input from './SelectTargetsInput';
 import Menu from './SelectTargetsMenu';
 

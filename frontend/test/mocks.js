@@ -214,6 +214,16 @@ export const invalidResetPasswordRequest = (password, token, error) => {
   .reply(422, { error });
 };
 
+export const validRunQueryRequest = (bearerToken, data) => {
+  return nock('http://localhost:8080', {
+    reqHeaders: {
+      Authorization: `Bearer ${bearerToken}`,
+    },
+  })
+  .post('/api/v1/kolide/queries/run', JSON.stringify(data))
+  .reply(200, { campaign: { id: 1 } });
+};
+
 export const validSetupRequest = (formData) => {
   const setupData = helpers.setupData(formData);
 
@@ -258,6 +268,7 @@ export default {
   validMeRequest,
   validResetPasswordRequest,
   validRevokeInviteRequest,
+  validRunQueryRequest,
   validSetupRequest,
   validUpdateQueryRequest,
   validUpdateUserRequest,

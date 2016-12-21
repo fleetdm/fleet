@@ -141,7 +141,7 @@ const reduxConfig = ({
 
       return destroyFunc(...args)
         .then(() => {
-          const { entityID } = args[0];
+          const { id: entityID } = args[0];
 
           return dispatch(destroySuccess(entityID));
         })
@@ -208,7 +208,9 @@ const reduxConfig = ({
           if (!response) return {};
           const { entities } = normalize(parse([response]), arrayOf(schema));
 
-          return dispatch(updateSuccess(entities));
+          dispatch(updateSuccess(entities));
+
+          return response;
         })
         .catch((response) => {
           const { errors } = response;

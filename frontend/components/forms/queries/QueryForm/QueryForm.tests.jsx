@@ -25,6 +25,36 @@ describe('QueryForm - component', () => {
     expect(inputFields.find({ name: 'description' }).length).toEqual(1);
   });
 
+  it('renders a "stop query" button when a query is running', () => {
+    const form = mount(<QueryForm query={query} queryIsRunning queryText={queryText} />);
+    const runQueryBtn = form.find('.query-form__run-query-btn');
+    const stopQueryBtn = form.find('.query-form__stop-query-btn');
+
+    expect(runQueryBtn.length).toEqual(0);
+    expect(stopQueryBtn.length).toEqual(1);
+  });
+
+  it('renders a "run query" button when a query is not running', () => {
+    const form = mount(<QueryForm query={query} queryIsRunning={false} queryText={queryText} />);
+    const runQueryBtn = form.find('.query-form__run-query-btn');
+    const stopQueryBtn = form.find('.query-form__stop-query-btn');
+
+    expect(runQueryBtn.length).toEqual(1);
+    expect(stopQueryBtn.length).toEqual(0);
+  });
+
+  it('calls the onStopQuery prop when the stop query button is clicked', () => {
+    const onStopQuerySpy = createSpy();
+    const form = mount(
+      <QueryForm onStopQuery={onStopQuerySpy} query={query} queryIsRunning queryText={queryText} />
+    );
+    const stopQueryBtn = form.find('.query-form__stop-query-btn');
+
+    stopQueryBtn.simulate('click');
+
+    expect(onStopQuerySpy).toHaveBeenCalled();
+  });
+
   it('updates state on input field change', () => {
     const form = mount(<QueryForm query={query} queryText={queryText} />);
     const inputFields = form.find('InputField');

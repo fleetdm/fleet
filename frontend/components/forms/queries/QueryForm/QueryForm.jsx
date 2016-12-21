@@ -15,8 +15,10 @@ class QueryForm extends Component {
     onCancel: PropTypes.func,
     onRunQuery: PropTypes.func,
     onSave: PropTypes.func,
+    onStopQuery: PropTypes.func,
     onUpdate: PropTypes.func,
     query: queryInterface,
+    queryIsRunning: PropTypes.bool,
     queryText: PropTypes.string.isRequired,
     queryType: PropTypes.string,
   };
@@ -163,8 +165,35 @@ class QueryForm extends Component {
   renderButtons = () => {
     const { canSaveAsNew, canSaveChanges } = helpers;
     const { formData } = this.state;
-    const { onRunQuery, query, queryType } = this.props;
+    const {
+      onRunQuery,
+      onStopQuery,
+      query,
+      queryIsRunning,
+      queryType,
+    } = this.props;
     const { onCancel, onSave, onUpdate } = this;
+    let runQueryButton;
+
+    if (queryIsRunning) {
+      runQueryButton = (
+        <Button
+          className={`${baseClass}__stop-query-btn`}
+          onClick={onStopQuery}
+          text="Stop Query"
+          variant="alert"
+        />
+      );
+    } else {
+      runQueryButton = (
+        <Button
+          className={`${baseClass}__run-query-btn`}
+          onClick={onRunQuery}
+          text="Run Query"
+          variant="brand"
+        />
+      );
+    }
 
     if (queryType === 'label') {
       return (
@@ -202,12 +231,7 @@ class QueryForm extends Component {
           text="Save As New..."
           variant="success"
         />
-        <Button
-          className={`${baseClass}__run-query-btn`}
-          onClick={onRunQuery}
-          text="Run Query"
-          variant="brand"
-        />
+        {runQueryButton}
       </div>
     );
   }

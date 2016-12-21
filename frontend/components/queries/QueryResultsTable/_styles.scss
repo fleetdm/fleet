@@ -1,0 +1,49 @@
+.query-results-table {
+  background-color: $white;
+  margin-top: 29px;
+  padding: $pad-base;
+
+  &__filter-icon {
+    &--is-active {
+      color: $brand;
+    }
+  }
+
+  &__progress-details {
+    display: inline-block;
+    width: 378px;
+  }
+
+  &__table-wrapper {
+    border: solid 1px $accent-dark;
+    border-radius: 3px;
+    box-shadow: inset 0 0 8px 0 rgba(0, 0, 0, 0.12);
+    max-height: 550px;
+    overflow: scroll;
+  }
+
+  &__table {
+    border-collapse: collapse;
+    color: $text-medium;
+    font-size: $small;
+    width: 100%;
+  }
+
+  thead {
+    background-color: $bg-medium;
+    color: $text-ultradark;
+    text-align: left;
+
+    th {
+      padding: $pad-small $pad-xsmall;
+    }
+  }
+
+  tbody {
+    background-color: $white;
+
+    td {
+      padding: $pad-xsmall;
+    }
+  }
+}

@@ -2,6 +2,7 @@ import { appendTargetTypeToTargets } from 'redux/nodes/entities/targets/helpers'
 import Base from 'kolide/base';
 import endpoints from 'kolide/endpoints';
 import helpers from 'kolide/helpers';
+import local from 'utilities/local';
 
 class Kolide extends Base {
   createLabel = ({ description, name, query }) => {
@@ -148,9 +149,9 @@ class Kolide extends Base {
           };
         });
         const stubbedLabels = [
-          { id: 40, display_text: 'ONLINE', slug: 'online', type: 'status', count: 20 },
-          { id: 50, display_text: 'OFFLINE', slug: 'offline', type: 'status', count: 2 },
-          { id: 55, display_text: 'MIA', description: '(offline > 30 days)', slug: 'mia', type: 'status', count: 3 },
+          { id: 40, display_text: 'ONLINE', type: 'status', count: 20 },
+          { id: 50, display_text: 'OFFLINE', type: 'status', count: 2 },
+          { id: 55, display_text: 'MIA', description: '(offline > 30 days)', type: 'status', count: 3 },
         ];
 
         return labels.concat(stubbedLabels);
@@ -235,6 +236,25 @@ class Kolide extends Base {
     const endpoint = `${this.endpoint(INVITES)}/${entityID}`;
 
     return this.authenticatedDelete(endpoint);
+  }
+
+  runQuery = ({ query, selected }) => {
+    const { RUN_QUERY } = endpoints;
+
+    return this.authenticatedPost(this.endpoint(RUN_QUERY), JSON.stringify({ query, selected }))
+      .then(response => response.campaign);
+  }
+
+  runQueryWebsocket = (campaignID) => {
+    return new Promise((resolve) => {
+      const socket = new global.WebSocket(`${this.websocketBaseURL}/v1/kolide/results/${campaignID}`);
+
+      socket.onopen = () => {
+        socket.send(JSON.stringify({ type: 'auth', data: { token: local.getItem('auth_token') } }));
+      };
+
+      return resolve(socket);
+    });
   }
 
   setup = (formData) => {

@@ -19,10 +19,12 @@ class QueryComposer extends Component {
     onOsqueryTableSelect: PropTypes.func,
     onRunQuery: PropTypes.func,
     onSave: PropTypes.func,
+    onStopQuery: PropTypes.func,
     onTargetSelect: PropTypes.func,
     onTextEditorInputChange: PropTypes.func,
     onUpdate: PropTypes.func,
     query: queryInterface,
+    queryIsRunning: PropTypes.bool,
     queryType: PropTypes.string,
     selectedTargets: PropTypes.arrayOf(targetInterface),
     targetsCount: PropTypes.number,
@@ -56,8 +58,10 @@ class QueryComposer extends Component {
       onFormCancel,
       onRunQuery,
       onSave,
+      onStopQuery,
       onUpdate,
       query,
+      queryIsRunning,
       queryText,
       queryType,
     } = this.props;
@@ -67,8 +71,10 @@ class QueryComposer extends Component {
         onCancel={onFormCancel}
         onRunQuery={onRunQuery}
         onSave={onSave}
+        onStopQuery={onStopQuery}
         onUpdate={onUpdate}
         query={query}
+        queryIsRunning={queryIsRunning}
         queryType={queryType}
         queryText={queryText}
       />
@@ -105,7 +111,7 @@ class QueryComposer extends Component {
   }
 
   render () {
-    const { onTextEditorInputChange, queryText, queryType } = this.props;
+    const { onTextEditorInputChange, queryIsRunning, queryText, queryType } = this.props;
     const { onLoad, renderForm, renderTargetsInput } = this;
 
     return (
@@ -122,6 +128,7 @@ class QueryComposer extends Component {
             name="query-editor"
             onLoad={onLoad}
             onChange={onTextEditorInputChange}
+            readOnly={queryIsRunning}
             setOptions={{ enableLinking: true }}
             showGutter
             showPrintMargin={false}

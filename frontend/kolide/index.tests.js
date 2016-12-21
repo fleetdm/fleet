@@ -22,6 +22,7 @@ const {
   validMeRequest,
   validResetPasswordRequest,
   validRevokeInviteRequest,
+  validRunQueryRequest,
   validSetupRequest,
   validUpdateQueryRequest,
   validUpdateUserRequest,
@@ -323,6 +324,22 @@ describe('Kolide - API client', () => {
 
       Kolide.setBearerToken(bearerToken);
       Kolide.revokeInvite({ entityID })
+        .then(() => {
+          expect(request.isDone()).toEqual(true);
+          done();
+        })
+        .catch(done);
+    });
+  });
+
+  describe('#runQuery', () => {
+    it('calls the appropriate endpoint with the correct parameters', (done) => {
+      const bearerToken = 'valid-bearer-token';
+      const data = { query: 'select * from users', selected: { hosts: [], labels: [] } };
+      const request = validRunQueryRequest(bearerToken, data);
+
+      Kolide.setBearerToken(bearerToken);
+      Kolide.runQuery(data)
         .then(() => {
           expect(request.isDone()).toEqual(true);
           done();
