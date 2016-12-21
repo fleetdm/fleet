@@ -8,28 +8,6 @@
     margin-right: $xsmall;
   }
 
-  &__select-targets {
-    float: left;
-  }
-
-  &__target-label {
-    font-size: 16px;
-    font-weight: $bold;
-    font-style: normal;
-    font-stretch: normal;
-    letter-spacing: -0.5px;
-    color: $text-dark;
-    display: block;
-    margin-bottom: 4px;
-    text-align: right;
-  }
-
-  &__targets-count {
-    font-size: $small;
-    margin-left: $xsmall;
-    color: $brand;
-  }
-
   &__text-editor-wrapper {
     margin: $base 0;
   }

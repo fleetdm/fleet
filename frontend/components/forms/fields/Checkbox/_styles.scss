@@ -1,6 +1,8 @@
 .kolide-checkbox {
   @include clearfix;
+  @include size(20px);
   position: relative;
+  display: block;
 
   &__input {
     visibility: hidden;
@@ -32,6 +34,7 @@
   &__tick {
     @include size(20px);
     position: absolute;
+    left: 0;
     display: inline-block;
 
     &::after {
@@ -44,6 +47,12 @@
       display: block;
       background-color: $white;
       visibility: visible;
+    }
+
+    &--disabled {
+      &::after {
+        background-color: $border-medium;
+      }
     }
   }
 

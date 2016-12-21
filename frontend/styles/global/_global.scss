@@ -53,16 +53,22 @@ h3 {
   box-sizing: border-box;
   margin-top: $pad-base;
   margin-right: $pad-base;
+
+  @at-root .has-sidebar & {
+    margin-right: 0;
+  }
 }
 
 .has-sidebar {
   @include display(flex);
   height: 100%;
 
-  .body-wrap {
-    @include flex-grow(1);
-    @include align-self(flex-start);
-    margin-right: 0;
+  > * {
+    &:first-child {
+      @include flex-grow(1);
+      @include align-self(flex-start);
+      margin-right: 0;
+    }
   }
 }
 
@@ -77,6 +83,16 @@ button {
 
   &:-webkit-autofill {
     -webkit-box-shadow: 0 0 0 1000px #fff inset;
-    -webkit-text-fill-color: $text-dark !important;
+    -webkit-text-fill-color: $text-dark !important; //sass-lint:disable-line no-important
+  }
+}
+
+input {
+  &[type=number] {
+    &::-webkit-inner-spin-button,
+    &::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
   }
 }

@@ -16,7 +16,9 @@ export const reduxMockStore = (store = {}) => {
   return mockStore(store);
 };
 
-export const connectedComponent = (ComponentClass, { props = {}, mockStore }) => {
+export const connectedComponent = (ComponentClass, options = {}) => {
+  const { props = {}, mockStore = reduxMockStore() } = options;
+
   return (
     <Provider store={mockStore}>
       <ComponentClass {...props} />
@@ -24,7 +26,22 @@ export const connectedComponent = (ComponentClass, { props = {}, mockStore }) =>
   );
 };
 
-export const itBehavesLikeAFormInputElement = (form, inputName, inputType = 'InputField') => {
+export const itBehavesLikeAFormDropdownElement = (form, inputName) => {
+  const dropdownField = form.find('Select').findWhere(s => s.prop('name') === `${inputName}-select`);
+
+  expect(dropdownField.length).toEqual(1);
+
+  const inputNode = dropdownField.find('input');
+
+  const options = dropdownField.prop('options');
+
+  fillInFormInput(inputNode, options[0].label);
+  dropdownField.find('.Select-option').first().simulate('mousedown');
+
+  expect(form.state().formData).toInclude({ [inputName]: options[0].value });
+};
+
+export const itBehavesLikeAFormInputElement = (form, inputName, inputType = 'InputField', inputText = 'some text') => {
   const inputField = form.find({ name: inputName }).find('input');
 
   expect(inputField.length).toEqual(1);
@@ -36,8 +53,6 @@ export const itBehavesLikeAFormInputElement = (form, inputName, inputType = 'Inp
 
     expect(form.state().formData[inputName]).toEqual(!inputValue);
   } else {
-    const inputText = 'some text';
-
     fillInFormInput(inputField, inputText);
 
     expect(form.state().formData).toInclude({ [inputName]: inputText });

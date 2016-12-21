@@ -1,0 +1,26 @@
+.pack-form {
+  h1 {
+    font-size: $large;
+    font-weight: $light;
+    letter-spacing: 1.2px;
+    color: $text-medium;
+    margin: 0 0 20px;
+  }
+
+  &__pack-title {
+    .input-field {
+      width: 50%;
+    }
+  }
+
+  &__pack-description {
+    .input-field {
+      width: 75%;
+    }
+  }
+
+  &__pack-buttons {
+    margin: 25px 0;
+    text-align: right;
+  }
+}

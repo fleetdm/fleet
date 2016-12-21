@@ -12,11 +12,15 @@ export const statusIconClass = (status = '') => {
 };
 
 export const platformIconClass = (platform = '') => {
+  if (!platform) return '';
+
   const lowerPlatform = platform.toLowerCase();
 
   switch (lowerPlatform) {
     case 'darwin':
       return 'apple';
+    case 'linux':
+      return 'ubuntu';
     default:
       return lowerPlatform;
   }

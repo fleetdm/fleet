@@ -8,6 +8,7 @@ import targetInterface from 'interfaces/target';
 class SelectTargetsInput extends Component {
   static propTypes = {
     className: PropTypes.string,
+    disabled: PropTypes.bool,
     isLoading: PropTypes.bool,
     menuRenderer: PropTypes.func,
     onClose: PropTypes.func,
@@ -26,6 +27,7 @@ class SelectTargetsInput extends Component {
   render () {
     const {
       className,
+      disabled,
       isLoading,
       menuRenderer,
       onClose,
@@ -38,6 +40,7 @@ class SelectTargetsInput extends Component {
     return (
       <Select
         className={`${className} target-select`}
+        disabled={disabled}
         isLoading={isLoading}
         filterOptions={this.filterOptions}
         labelKey="display_text"

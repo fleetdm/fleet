@@ -5,9 +5,49 @@
   box-shadow: 2px 0 8px 0 rgba($black, 0.1);
   box-sizing: border-box;
   overflow: scroll;
-  padding: px-to-rem(13) px-to-rem(13) 70px;
-  position: fixed;
-  right: 0;
-  top: 0;
-  width: 300px;
+  padding: 30px;
+
+  &__title {
+    font-size: 18px;
+    font-weight: $normal;
+    letter-spacing: 0.7px;
+    color: $text-dark;
+    border-bottom: 1px solid $accent-light;
+    padding-bottom: 8px;
+    margin: 0 0 4px;
+  }
+
+  p {
+    font-size: 13px;
+    line-height: 1.85;
+    letter-spacing: 0.5px;
+    color: #858495;
+  }
+
+  dl {
+    dt {
+      font-weight: $bold;
+      font-size: 13px;
+      line-height: 1.85;
+      letter-spacing: 0.5px;
+      color: #858495;
+
+      .kolidecon {
+        font-size: 20px;
+        margin-right: 5px;
+      }
+
+      span {
+        vertical-align: 2px;
+      }
+    }
+
+    dd {
+      font-size: 13px;
+      line-height: 1.85;
+      letter-spacing: 0.5px;
+      color: #858495;
+      margin-left: 30px;
+    }
+  }
 }

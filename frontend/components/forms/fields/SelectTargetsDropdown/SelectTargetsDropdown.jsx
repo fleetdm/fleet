@@ -1,6 +1,6 @@
 import React, { Component, PropTypes } from 'react';
-import { isEqual, noop } from 'lodash';
 import classnames from 'classnames';
+import { isEqual, noop } from 'lodash';
 
 import Kolide from 'kolide';
 import targetInterface from 'interfaces/target';
@@ -8,14 +8,21 @@ import { formatSelectedTargetsForApi } from 'kolide/helpers';
 import Input from './SelectTargetsInput';
 import Menu from './SelectTargetsMenu';
 
+const baseClass = 'target-select';
+
 class SelectTargetsDropdown extends Component {
   static propTypes = {
+    disabled: PropTypes.bool,
+    error: PropTypes.string,
+    label: PropTypes.string,
     onFetchTargets: PropTypes.func,
     onSelect: PropTypes.func.isRequired,
     selectedTargets: PropTypes.arrayOf(targetInterface),
+    targetsCount: PropTypes.number,
   };
 
   static defaultProps = {
+    disabled: false,
     onFetchTargets: noop,
   };
 
@@ -119,10 +126,31 @@ class SelectTargetsDropdown extends Component {
       });
   }
 
+  renderLabel = () => {
+    const { error, label, targetsCount } = this.props;
+
+    if (!label) {
+      return false;
+    }
+
+    return (
+      <p className={`${baseClass}__label`}>
+        <span className={`${baseClass}__select-targets`}>{error || label}</span>
+        <span className={`${baseClass}__targets-count`}> {targetsCount} unique {targetsCount === 1 ? 'host' : 'hosts' }</span>
+      </p>
+    );
+  }
+
   render () {
     const { isEmpty, isLoadingTargets, moreInfoTarget, targets } = this.state;
-    const { fetchTargets, onBackToResults, onInputClose, onTargetSelectMoreInfo } = this;
-    const { onSelect, selectedTargets } = this.props;
+    const {
+      fetchTargets,
+      onBackToResults,
+      onInputClose,
+      onTargetSelectMoreInfo,
+      renderLabel,
+    } = this;
+    const { disabled, onSelect, selectedTargets } = this.props;
     const menuRenderer = Menu(onTargetSelectMoreInfo, moreInfoTarget, onBackToResults);
 
     const inputClasses = classnames({
@@ -131,17 +159,20 @@ class SelectTargetsDropdown extends Component {
     });
 
     return (
-      <Input
-        className={inputClasses}
-        isLoading={isLoadingTargets}
-        menuRenderer={menuRenderer}
-        onClose={onInputClose}
-        onTargetSelect={onSelect}
-        onTargetSelectInputChange={fetchTargets}
-        onInputChange={fetchTargets}
-        selectedTargets={selectedTargets}
-        targets={targets}
-      />
+      <div className={baseClass}>
+        {renderLabel()}
+        <Input
+          className={inputClasses}
+          disabled={disabled}
+          isLoading={isLoadingTargets}
+          menuRenderer={menuRenderer}
+          onClose={onInputClose}
+          onTargetSelect={onSelect}
+          onTargetSelectInputChange={fetchTargets}
+          selectedTargets={selectedTargets}
+          targets={targets}
+        />
+      </div>
     );
   }
 }

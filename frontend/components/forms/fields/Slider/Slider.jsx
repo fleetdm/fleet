@@ -41,10 +41,6 @@ Slider.propTypes = {
   onChange: PropTypes.func,
   inactiveText: PropTypes.string,
   activeText: PropTypes.string,
-  error: PropTypes.string,
-  hint: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
-  label: PropTypes.string,
-  name: PropTypes.string,
 };
 
 export default Slider;

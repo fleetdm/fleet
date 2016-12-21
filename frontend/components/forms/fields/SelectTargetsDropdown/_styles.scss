@@ -1,4 +1,34 @@
 .target-select {
+  margin-bottom: $pad-small;
+
+  &__label {
+    font-size: 16px;
+    font-weight: $bold;
+    font-style: normal;
+    font-stretch: normal;
+    letter-spacing: -0.5px;
+    color: $text-dark;
+    display: block;
+    margin-bottom: 4px;
+    text-align: right;
+
+    &--error {
+      .target-select__select-targets {
+        color: $alert;
+      }
+    }
+  }
+
+  &__select-targets {
+    float: left;
+  }
+
+  &__targets-count {
+    font-size: $small;
+    margin-left: $xsmall;
+    color: $brand;
+  }
+
   &.Select {
     .Select-control {
       @include transition(border 150ms ease-in-out, box-shadow 150ms ease-in-out);

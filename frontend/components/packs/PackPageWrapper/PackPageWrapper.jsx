@@ -1,18 +1,14 @@
-import React, { Component, PropTypes } from 'react';
+import React from 'react';
 
-class PackPageWrapper extends Component {
+class PackPageWrapper extends React.Component {
   static propTypes = {
-    children: PropTypes.node,
+    children: React.PropTypes.node,
   };
 
   render () {
     const { children } = this.props;
 
-    return (
-      <div>
-        {children}
-      </div>
-    );
+    return (children || null);
   }
 }
 

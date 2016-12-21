@@ -1,5 +1,5 @@
 import React, { Component, PropTypes } from 'react';
-import { noop } from 'lodash';
+import { isEqual, noop } from 'lodash';
 
 const defaultValidate = () => { return { valid: true, errors: {} }; };
 
@@ -23,6 +23,24 @@ export default (WrappedComponent, { fields, validate = defaultValidate }) => {
       const { errors, formData } = props;
 
       this.state = { errors, formData };
+    }
+
+    componentWillReceiveProps (nextProps) {
+      const { formData: formDataProp } = nextProps;
+      const { formData: oldFormDataProp } = this.props;
+
+      if (!isEqual(formDataProp, oldFormDataProp)) {
+        const { formData } = this.state;
+
+        this.setState({
+          formData: {
+            ...formData,
+            ...formDataProp,
+          },
+        });
+      }
+
+      return false;
     }
 
     onFieldChange = (fieldName) => {

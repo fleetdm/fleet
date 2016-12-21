@@ -1,0 +1,44 @@
+.queries-list-wrapper {
+  padding: $pad-small $pad-base;
+
+  &__query-count {
+    font-size: 20px;
+    font-weight: $light;
+    letter-spacing: -0.5px;
+    text-align: left;
+    color: $text-dark;
+
+    span {
+      background-color: $brand;
+      border-radius: 14px;
+      color: $white;
+      display: inline-block;
+      line-height: 26px;
+      height: 26px;
+      text-align: center;
+      width: 44px;
+      font-size: 15px;
+      font-weight: $bold;
+      letter-spacing: -0.5px;
+    }
+  }
+
+  &__queries-list-wrapper {
+    margin-top: $pad-base;
+    clear: both;
+  }
+
+  &__search-queries-input {
+    float: left;
+    display: inline-block;
+    width: '400px';
+  }
+
+  &__query-btn {
+    float: right;
+  }
+
+  &__search-queries {
+    float: left;
+  }
+}

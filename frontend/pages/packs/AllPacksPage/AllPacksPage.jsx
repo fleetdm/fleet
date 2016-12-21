@@ -1,5 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
+import moment from 'moment';
 import { push } from 'react-router-redux';
 
 import Button from 'components/buttons/Button';
@@ -19,6 +20,7 @@ class AllPacksPage extends Component {
 
   componentWillMount() {
     const { dispatch, packs } = this.props;
+
     if (!packs.length) {
       dispatch(packActions.loadAll());
     }
@@ -36,14 +38,16 @@ class AllPacksPage extends Component {
   }
 
   renderPack = (pack) => {
+    const updatedTime = moment(pack.updated_at);
+
     return (
       <tr key={`pack-${pack.id}-table`}>
         <td>{pack.name}</td>
-        <td>0?</td>
+        <td>{pack.query_count}</td>
         <td>Enabled?</td>
         <td>Jason Meller?</td>
-        <td>0?</td>
-        <td>Yesterday?</td>
+        <td>{pack.hosts_count}</td>
+        <td>{updatedTime.fromNow()}</td>
       </tr>
     );
   }

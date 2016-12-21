@@ -5,6 +5,18 @@ import helpers from 'kolide/helpers';
 import local from 'utilities/local';
 
 class Kolide extends Base {
+  addLabelToPack = (packID, labelID) => {
+    const path = `/v1/kolide/packs/${packID}/labels/${labelID}`;
+
+    return this.authenticatedPost(this.endpoint(path));
+  }
+
+  addQueryToPack = ({ packID, queryID }) => {
+    const endpoint = `/v1/kolide/packs/${packID}/queries/${queryID}`;
+
+    return this.authenticatedPost(this.endpoint(endpoint));
+  }
+
   createLabel = ({ description, name, query }) => {
     const { LABELS } = endpoints;
 
@@ -20,11 +32,42 @@ class Kolide extends Base {
       });
   }
 
+  createPack = ({ name, description }) => {
+    const { PACKS } = endpoints;
+
+    return this.authenticatedPost(this.endpoint(PACKS), JSON.stringify({ description, name }))
+      .then((response) => { return response.pack; });
+  }
+
   createQuery = ({ description, name, query }) => {
     const { QUERIES } = endpoints;
 
     return this.authenticatedPost(this.endpoint(QUERIES), JSON.stringify({ description, name, query }))
       .then((response) => { return response.query; });
+  }
+
+  createScheduledQuery = ({ interval, logging_type: loggingType, pack_id: packID, platform, query_id: queryID, version }) => {
+    const removed = loggingType === 'differential';
+    const snapshot = loggingType === 'snapshot';
+
+    const formData = {
+      interval: Number(interval),
+      pack_id: Number(packID),
+      platform,
+      query_id: Number(queryID),
+      removed,
+      snapshot,
+      version,
+    };
+
+    return this.authenticatedPost(this.endpoint('/v1/kolide/schedule'), JSON.stringify(formData))
+      .then(response => response.scheduled);
+  }
+
+  destroyScheduledQuery = ({ id }) => {
+    const endpoint = `${this.endpoint('/v1/kolide/schedule')}/${id}`;
+
+    return this.authenticatedDelete(endpoint);
   }
 
   forgotPassword ({ email }) {
@@ -104,12 +147,27 @@ class Kolide extends Base {
       .then((response) => { return response.hosts; });
   }
 
+  getPack = (packID) => {
+    const { PACKS } = endpoints;
+    const getPackEndpoint = `${this.baseURL}${PACKS}/${packID}`;
+
+    return this.authenticatedGet(getPackEndpoint)
+      .then((response) => { return response.pack; });
+  }
+
   getQuery = (queryID) => {
     const { QUERIES } = endpoints;
     const getQueryEndpoint = `${this.baseURL}${QUERIES}/${queryID}`;
 
     return this.authenticatedGet(getQueryEndpoint)
       .then((response) => { return response.query; });
+  }
+
+  getQueries = () => {
+    const { QUERIES } = endpoints;
+
+    return this.authenticatedGet(this.endpoint(QUERIES))
+      .then((response) => { return response.queries; });
   }
 
   getTargets = (query, selected = { hosts: [], labels: [] }) => {
@@ -163,6 +221,14 @@ class Kolide extends Base {
 
     return this.authenticatedGet(this.endpoint(PACKS))
       .then((response) => { return response.packs; });
+  }
+
+  getScheduledQueries = (pack) => {
+    const { SCHEDULED_QUERIES } = endpoints;
+    const scheduledQueryPath = SCHEDULED_QUERIES(pack);
+
+    return this.authenticatedGet(this.endpoint(scheduledQueryPath))
+      .then(response => response.scheduled);
   }
 
   getUsers = () => {

@@ -16,6 +16,7 @@ describe('QueryComposer - component', () => {
     const component = mount(
       <QueryComposer
         onOsqueryTableSelect={noop}
+        onTargetSelect={noop}
         onTextEditorInputChange={noop}
         selectedTargets={[]}
         queryText="Hello world"
@@ -35,6 +36,7 @@ describe('QueryComposer - component', () => {
     const component = mount(
       <QueryComposer
         onOsqueryTableSelect={noop}
+        onTargetSelect={noop}
         onTextEditorInputChange={noop}
         query={query}
         selectedTargets={[]}
@@ -56,6 +58,7 @@ describe('QueryComposer - component', () => {
     const component = mount(
       <QueryComposer
         onSave={onSaveQueryFormSubmitSpy}
+        onTargetSelect={noop}
         selectedTargets={selectedTargets}
         queryText={queryText}
       />
@@ -81,6 +84,7 @@ describe('QueryComposer - component', () => {
     const component = mount(
       <QueryComposer
         onRunQuery={onRunQuerySpy}
+        onTargetSelect={noop}
         selectedTargets={selectedTargets}
         queryText={query}
       />
@@ -99,6 +103,7 @@ describe('QueryComposer - component', () => {
     };
     const component = mount(
       <QueryComposer
+        onTargetSelect={noop}
         onUpdate={onSaveChangesSpy}
         query={query}
         queryText={query.query}

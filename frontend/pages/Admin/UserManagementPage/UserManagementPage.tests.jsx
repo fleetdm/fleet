@@ -90,7 +90,7 @@ describe('UserManagementPage - component', () => {
           ...store.entities.users,
           data: {
             1: { ...currentUser },
-            2: { id: 2, email: 'hi@gnar.dog', full_name: 'GnarDog' },
+            2: { id: 2, email: 'another@gnar.dog', full_name: 'GnarDog' },
           },
         },
       },

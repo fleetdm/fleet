@@ -68,7 +68,7 @@ class UserBlock extends Component {
     return onEditUser(user, updatedUser);
   }
 
-  onUserActionSelect = ({ value: action }) => {
+  onUserActionSelect = (action) => {
     const { onSelect, user } = this.props;
 
     if (action === 'modify_details') {

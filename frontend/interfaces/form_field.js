@@ -4,6 +4,6 @@ export default PropTypes.shape({
   error: PropTypes.string,
   name: PropTypes.string,
   onChange: PropTypes.func,
-  value: PropTypes.string,
+  value: PropTypes.any,
 });
 

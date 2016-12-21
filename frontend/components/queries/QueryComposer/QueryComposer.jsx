@@ -97,14 +97,12 @@ class QueryComposer extends Component {
 
     return (
       <div>
-        <p className={`${baseClass}__target-label`}>
-          <span className={`${baseClass}__select-targets`}>Select Targets</span>
-          <span className={`${baseClass}__targets-count`}> {targetsCount} unique {targetsCount === 1 ? 'host' : 'hosts' }</span>
-        </p>
         <SelectTargetsDropdown
           onFetchTargets={onFetchTargets}
           onSelect={onTargetSelect}
           selectedTargets={selectedTargets}
+          targetsCount={targetsCount}
+          label="Select Targets"
         />
       </div>
     );

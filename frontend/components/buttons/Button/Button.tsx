@@ -9,7 +9,7 @@ interface IButtonProps {
   onClick: (evt: React.MouseEvent<HTMLButtonElement>) => boolean;
   size: string;
   tabIndex: number;
-  text: string;
+  text: any;
   type: string;
   variant: string;
 }

@@ -1,0 +1,39 @@
+.search-pack-query {
+  &__title {
+    font-size: 18px;
+    font-weight: $bold;
+    letter-spacing: -0.5px;
+    color: $text-dark;
+    margin: 0 0 10px;
+  }
+
+  .form-field--dropdown {
+    margin-bottom: 20px;
+  }
+
+  .ace-kolide {
+    margin-bottom: 20px;
+  }
+
+  &__description {
+    margin: 0 0 30px;
+
+    h2 {
+      font-size: 16px;
+      font-weight: $bold;
+      letter-spacing: -0.5px;
+      color: $text-dark;
+      border-bottom: 1px solid #eaeefb;
+      padding: 0 0 9px;
+      margin: 0 0 9px;
+    }
+
+    p {
+      margin: 0 0 10px;
+      font-size: 14px;
+      font-weight: $normal;
+      line-height: 1.71;
+      color: $text-medium;
+    }
+  }
+}

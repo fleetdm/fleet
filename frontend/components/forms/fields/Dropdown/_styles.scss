@@ -1,3 +1,17 @@
+.dropdown {
+  &__label {
+    display: block;
+    font-size: 16px;
+    font-weight: $light;
+    color: $text-dark;
+    margin-bottom: $pad-xsmall;
+
+    &--error {
+      color: $alert;
+    }
+  }
+}
+
 .Select {
   .Select-control {
     border: 1px solid $accent-medium;
@@ -29,6 +43,18 @@
     &:not(.is-open) {
       .Select-control {
         box-shadow: none;
+      }
+    }
+  }
+
+  &.has-value {
+    > .Select-control,
+    &.is-pseudo-focused > .Select-control {
+      .Select-value {
+        .Select-value-label {
+          color: $text-dark;
+          font-size: 16px;
+        }
       }
     }
   }
@@ -73,6 +99,14 @@
     color: $accent-medium;
   }
 
+  .Select-placeholder {
+    color: $accent-text;
+    font-size: 16px;
+    line-height: 40px;
+    padding: 0 12px;
+    box-sizing: border-box;
+  }
+
   &.Select--multi {
     .Select-option {
       &.is-disabled {
@@ -84,27 +118,6 @@
           color: $white;
         }
       }
-    }
-  }
-}
-
-.input-dropdown {
-  &__wrapper {
-    margin-bottom: $pad-base;
-  }
-
-  &__hint {
-    font-size: 14px;
-    font-weight: $normal;
-    line-height: 1.57;
-    letter-spacing: 1px;
-    color: $accent-text;
-
-    code {
-      color: $brand-light;
-      background-color: $accent-light;
-      padding: 2px;
-      font-family: 'SourceCodePro', $monospace;
     }
   }
 }

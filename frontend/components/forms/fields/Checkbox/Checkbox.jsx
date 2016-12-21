@@ -10,15 +10,14 @@ class Checkbox extends Component {
   static propTypes = {
     children: PropTypes.node,
     className: PropTypes.string,
+    disabled: PropTypes.bool,
     name: PropTypes.string,
     onChange: PropTypes.func,
-    error: PropTypes.string,
-    hint: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
-    label: PropTypes.string,
     value: PropTypes.bool,
   };
 
   static defaultProps = {
+    disabled: false,
     onChange: noop,
   };
 
@@ -30,16 +29,28 @@ class Checkbox extends Component {
 
   render () {
     const { handleChange } = this;
-    const { children, className, name, value } = this.props;
+    const { children, className, disabled, name, value } = this.props;
     const checkBoxClass = classnames(baseClass, className);
 
     const formFieldProps = pick(this.props, ['hint', 'label', 'error', 'name']);
 
+    const checkBoxTickClass = classnames(`${checkBoxClass}__tick`, {
+      [`${checkBoxClass}__tick--disabled`]: disabled,
+    });
+
     return (
       <FormField {...formFieldProps} type="checkbox">
         <label htmlFor={name} className={checkBoxClass}>
-          <input type="checkbox" name={name} id={name} className={`${checkBoxClass}__input`} onChange={handleChange} checked={value} />
-          <span className={`${checkBoxClass}__tick`} />
+          <input
+            checked={value}
+            className={`${checkBoxClass}__input`}
+            disabled={disabled}
+            id={name}
+            name={name}
+            onChange={handleChange}
+            type="checkbox"
+          />
+          <span className={checkBoxTickClass} />
           <div className={`${checkBoxClass}__label`}>{children}</div>
         </label>
       </FormField>

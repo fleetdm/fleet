@@ -10,18 +10,15 @@ class InputField extends Component {
   static propTypes = {
     autofocus: PropTypes.bool,
     error: PropTypes.string,
-    hint: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
     inputClassName: PropTypes.string, // eslint-disable-line react/forbid-prop-types
     inputWrapperClass: PropTypes.string,
     inputOptions: PropTypes.object, // eslint-disable-line react/forbid-prop-types
-    label: PropTypes.string,
-    labelClassName: PropTypes.string,
     name: PropTypes.string,
     onChange: PropTypes.func,
     onFocus: PropTypes.func,
     placeholder: PropTypes.string,
     type: PropTypes.string,
-    value: PropTypes.string.isRequired,
+    value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
   };
 
   static defaultProps = {

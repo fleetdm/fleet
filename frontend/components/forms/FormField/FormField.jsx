@@ -9,7 +9,7 @@ class FormField extends Component {
     className: PropTypes.string,
     error: PropTypes.string,
     hint: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
-    label: PropTypes.string,
+    label: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
     name: PropTypes.string,
     type: PropTypes.string,
   };
@@ -46,9 +46,9 @@ class FormField extends Component {
     const { renderLabel, renderHint } = this;
     const { children, className, type } = this.props;
 
-    const formFieldClass = classnames(baseClass, className, {
+    const formFieldClass = classnames(baseClass, {
       [`${baseClass}--${type}`]: type,
-    });
+    }, className);
 
     return (
       <div className={formFieldClass}>
