@@ -20,6 +20,10 @@ func (svc service) NewUser(ctx context.Context, p kolide.UserPayload) (*kolide.U
 	if err != nil {
 		return nil, err
 	}
+
+	// set the payload Admin property based on an existing invite.
+	p.Admin = &invite.Admin
+
 	user, err := svc.newUser(p)
 	if err != nil {
 		return nil, err
