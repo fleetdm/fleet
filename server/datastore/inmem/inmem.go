@@ -512,7 +512,7 @@ func (d *Datastore) createDevHosts() error {
 func (d *Datastore) createDevOrgInfo() error {
 	devOrgInfo := &kolide.AppConfig{
 		OrgName:                "Kolide",
-		OrgLogoURL:             fmt.Sprintf("%s/logo.png", d.config.Server.Address),
+		OrgLogoURL:             fmt.Sprintf("%s/assets/images/kolide-logo.svg", d.config.Server.Address),
 		SMTPPort:               587,
 		SMTPAuthenticationType: kolide.AuthTypeUserNamePassword,
 		SMTPEnableTLS:          true,
