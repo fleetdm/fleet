@@ -8,7 +8,7 @@
     margin-right: $pad-medium;
     vertical-align: sub;
 
-    @include breakpoint(tablet) {
+    @include breakpoint(smalldesk) {
       display: block;
       text-align: center;
       margin-right: 0;
@@ -22,7 +22,7 @@
     font-weight: $normal;
     font-size: 14px;
 
-    @include breakpoint(tablet) {
+    @include breakpoint(smalldesk) {
       display: none;
     }
   }
@@ -43,7 +43,7 @@
       color: $text-dark;
     }
 
-    @include breakpoint(tablet) {
+    @include breakpoint(smalldesk) {
       height: 50px;
     }
   }
@@ -66,7 +66,7 @@
         z-index: 1;
       }
 
-      @include breakpoint(tablet) {
+      @include breakpoint(smalldesk) {
         border-bottom: 6px solid #9a61c6;
         border-left: 6px solid #9a61c6;
         padding: 0;
@@ -78,7 +78,7 @@
       }
     }
 
-    @include breakpoint(tablet) {
+    @include breakpoint(smalldesk) {
       .site-nav-item__icon {
         @include transform(translate(-2px, 3px));
       }
@@ -89,7 +89,7 @@
     border-top: 1px solid $accent-light;
     padding-top: 15px;
 
-    @include breakpoint(tablet) {
+    @include breakpoint(smalldesk) {
       margin-right: 0;
     }
   }
@@ -129,7 +129,7 @@
       top: 50%;
       margin: -3px 0 0 -4px;
 
-      @include breakpoint(tablet) {
+      @include breakpoint(smalldesk) {
         display: none;
       }
     }
@@ -150,7 +150,7 @@
       color: rgba($white, 0.9);
     }
 
-    @include breakpoint(tablet) {
+    @include breakpoint(smalldesk) {
       text-align: center;
       padding: 3px 0 9px;
       height: 44px;
@@ -172,7 +172,7 @@
       display: inline-block;
     }
 
-    @include breakpoint(tablet) {
+    @include breakpoint(smalldesk) {
       display: none;
     }
   }
@@ -182,7 +182,7 @@
       display: none;
     }
 
-    @include breakpoint(tablet) {
+    @include breakpoint(smalldesk) {
       display: inline-block;
       font-size: 25px;
 
@@ -192,7 +192,7 @@
     }
   }
 
-  @include breakpoint(tablet) {
+  @include breakpoint(smalldesk) {
     &:first-child {
       display: none;
     }
@@ -208,7 +208,7 @@
   padding: 0;
   position: relative;
 
-  @include breakpoint(tablet) {
+  @include breakpoint(smalldesk) {
     @include linear-gradient(to bottom, #9a61c6 0%, $brand 18%, $brand 82%, #9a61c6 100%);
     box-shadow: none;
   }
@@ -217,14 +217,14 @@
     padding: 12px 0;
     margin: 0;
 
-    @include breakpoint(tablet) {
+    @include breakpoint(smalldesk) {
       padding: 0;
       text-align: center;
       width: 100%;
     }
 
     &--expanded {
-      @include breakpoint(tablet) {
+      @include breakpoint(smalldesk) {
         display: inline-block;
       }
     }
@@ -240,7 +240,7 @@
   right: 4px;
   top: 0;
 
-  @include breakpoint(gttablet) {
+  @include breakpoint(gtsmalldesk) {
     display: none;
   }
 }

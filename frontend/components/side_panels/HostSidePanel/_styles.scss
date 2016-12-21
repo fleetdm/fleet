@@ -30,7 +30,7 @@
       }
 
       &__icon {
-        top: 8px;
+        top: 6px;
       }
     }
   }
@@ -49,33 +49,30 @@
     color: $text-medium;
     padding: $pad-half $pad-large;
 
+    &--filter {
+      position: relative;
+
+      .kolidecon {
+        position: absolute;
+        top: calc(#{$pad-half} + 8px);
+        left: calc(#{$pad-large} + 10px);
+        font-size: 22px;
+        color: $text-light;
+      }
+    }
+
     .title {
       padding-left: 20px;
       font-size: 16px;
     }
-
-    .icon {
-      font-size: 16px;
-    }
-
-    .input-field {
-      width: 100%;
-    }
   }
 
   &__filter-labels {
-    border-radius: 3px;
-    background-color: $white;
-    border: 1px solid $silver;
-    font-size: 14px;
-    font-weight: $normal;
-    letter-spacing: 0.7px;
-    text-align: left;
-    padding: 6px 25px 6px 20px;
-    color: $text-dark;
+    margin: 0;
 
-    @include placeholder {
-      color: $text-light;
+    .input-field {
+      padding-left: 42px;
+      width: 100%;
     }
   }
 }

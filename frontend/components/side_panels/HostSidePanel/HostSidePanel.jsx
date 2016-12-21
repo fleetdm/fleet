@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import { filter } from 'lodash';
 
 import Icon from 'components/Icon';
-import InputFieldWithIcon from 'components/forms/fields/InputFieldWithIcon';
+import InputField from 'components/forms/fields/InputField';
 import labelInterface from 'interfaces/label';
 import PanelGroup from 'components/side_panels/HostSidePanel/PanelGroup';
 import SecondarySidePanelContainer from 'components/side_panels/SecondarySidePanelContainer';
@@ -68,15 +68,15 @@ class HostSidePanel extends Component {
           <Icon name="label" />
           <span className="title">LABELS</span>
         </div>
-        <div className={`${baseClass}__panel-group-item`}>
-          <InputFieldWithIcon
+        <div className={`${baseClass}__panel-group-item ${baseClass}__panel-group-item--filter`}>
+          <InputField
             name="tags-filter"
             onChange={onFilterLabels}
             placeholder="Filter Labels by Name..."
             value={labelFilter}
-            iconName="search"
-            className={`${baseClass}__filter-labels`}
+            inputWrapperClass={`${baseClass}__filter-labels`}
           />
+          <Icon name="search" />
         </div>
         <PanelGroup
           groupItems={customLabels}

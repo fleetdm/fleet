@@ -306,17 +306,19 @@ export class ManageHostsPage extends Component {
 
   render () {
     const { renderForm, renderHeader, renderHosts, renderSidePanel } = this;
-    const { display } = this.props;
+    const { display, isAddLabel } = this.props;
 
     return (
       <div className="has-sidebar">
-        <div className={`${baseClass} body-wrap`}>
-          {renderHeader()}
-          {renderForm()}
-          <div className={`${baseClass}__list ${baseClass}__list--${display.toLowerCase()}`}>
-            {renderHosts()}
+        {renderForm()}
+        {!isAddLabel &&
+          <div className={`${baseClass} body-wrap`}>
+            {renderHeader()}
+            <div className={`${baseClass}__list ${baseClass}__list--${display.toLowerCase()}`}>
+              {renderHosts()}
+            </div>
           </div>
-        </div>
+        }
 
         {renderSidePanel()}
       </div>

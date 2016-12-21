@@ -69,15 +69,17 @@
 
 .hosts-page-side-panel {
   &-enter {
+    @include transition(margin 300ms ease-in);
     margin-right: -250px;
 
     &.hosts-page-side-panel-enter-active {
-      @include transition(margin 3000ms ease-in);
+      @include transition(margin 300ms ease-in);
       margin-right: 0;
     }
   }
 
   &-leave {
+    @include transition(margin 300ms ease-in);
     margin-right: 0;
 
     &.hosts-page-side-panel-leave-active {

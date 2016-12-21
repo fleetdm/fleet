@@ -16,12 +16,13 @@
       background: $bg-medium;
     }
 
-    @include breakpoint(tablet) {
+    @include breakpoint(smalldesk) {
       padding: 0;
     }
 
     &--open {
       background-color: $text-dark;
+      z-index: 6;
 
       .site-nav-header__org {
         border-color: $text-ultradark;
@@ -40,7 +41,7 @@
         background-color: $text-dark;
       }
 
-      @include breakpoint(tablet) {
+      @include breakpoint(smalldesk) {
         width: 240px;
 
         .site-nav-header__org,
@@ -98,7 +99,7 @@
     border: 1px solid $accent-medium;
     border-radius: 50%;
 
-    @include breakpoint(tablet) {
+    @include breakpoint(smalldesk) {
       margin: 24px 5px 10px;
     }
   }
@@ -113,7 +114,7 @@
     white-space: nowrap;
     text-transform: none;
 
-    @include breakpoint(tablet) {
+    @include breakpoint(smalldesk) {
       display: none;
       margin: 24px 0 5px 63px;
     }
@@ -131,7 +132,7 @@
       background-color: $success;
     }
 
-    @include breakpoint(tablet) {
+    @include breakpoint(smalldesk) {
       display: none;
     }
   }
@@ -146,7 +147,7 @@
     position: relative;
     line-height: 16px;
 
-    @include breakpoint(tablet) {
+    @include breakpoint(smalldesk) {
       display: none;
     }
   }
@@ -157,7 +158,7 @@
     font-size: 12px;
     float: right;
 
-    @include breakpoint(tablet) {
+    @include breakpoint(smalldesk) {
       float: none;
       text-align: center;
       display: block;
@@ -179,7 +180,7 @@
   opacity: 0;
   box-sizing: border-box;
 
-  @include breakpoint(tablet) {
+  @include breakpoint(smalldesk) {
     width: 240px;
   }
 
@@ -196,7 +197,7 @@
     border-radius: 50%;
     margin: 0 10px 0 $pad-medium;
 
-    @include breakpoint(tablet) {
+    @include breakpoint(smalldesk) {
       margin: $pad-xsmall 5px;
     }
   }
@@ -212,14 +213,14 @@
     text-transform: none;
     font-weight: $normal;
 
-    @include breakpoint(tablet) {
+    @include breakpoint(smalldesk) {
       display: none;
       margin-left: 15px;
     }
   }
 
   &__name {
-    @include breakpoint(tablet) {
+    @include breakpoint(smalldesk) {
       margin-top: 4px;
     }
   }
@@ -258,7 +259,7 @@
       }
     }
 
-    @include breakpoint(tablet) {
+    @include breakpoint(smalldesk) {
       span {
         display: none;
       }
