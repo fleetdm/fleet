@@ -1,0 +1,20 @@
+.manage-user {
+  .input-field {
+    width: 75%;
+  }
+
+  &__button-wrap {
+    width: 75%;
+    border-top: 1px solid $accent-medium;
+    padding-top: 45px;
+    margin-top: 45px;
+
+    .button {
+      width: calc(50% - 30px);
+
+      &:last-child {
+        margin-left: 60px;
+      }
+    }
+  }
+}

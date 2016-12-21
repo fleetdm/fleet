@@ -1,6 +1,8 @@
 import React, { Component, PropTypes } from 'react';
 import classnames from 'classnames';
 
+import Icon from 'components/Icon';
+
 const baseClass = 'modal';
 
 class Modal extends Component {
@@ -20,7 +22,11 @@ class Modal extends Component {
         <div className={modalContainerClassName}>
           <div className={`${baseClass}__header`}>
             <span>{title}</span>
-            <button className={`button--unstyled ${baseClass}__ex`} onClick={onExit}>x</button>
+            <div className={`${baseClass}__ex`}>
+              <button className="button button--unstyled" onClick={onExit}>
+                <Icon name="x" />
+              </button>
+            </div>
           </div>
           <div className={`${baseClass}__content`}>
             {children}

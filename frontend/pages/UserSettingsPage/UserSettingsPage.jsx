@@ -14,7 +14,7 @@ import userActions from 'redux/nodes/entities/users/actions';
 import userInterface from 'interfaces/user';
 import UserSettingsForm from 'components/forms/UserSettingsForm';
 
-const baseClass = 'user-settings-page';
+const baseClass = 'user-settings';
 
 class UserSettingsPage extends Component {
   static propTypes = {
@@ -117,28 +117,30 @@ class UserSettingsPage extends Component {
     const lastUpdatedAt = moment(updatedAt).fromNow();
 
     return (
-      <div>
-        <div className="body-wrap">
+      <div className={baseClass}>
+        <div className={`${baseClass}__manage body-wrap`}>
           <h1>Manage User Settings</h1>
           <UserSettingsForm formData={user} handleSubmit={handleSubmit} onCancel={onCancel} />
         </div>
-        <div className="body-wrap">
+        <div className={`${baseClass}__additional body-wrap`}>
           <h1>Additional Info</h1>
-          <Avatar user={user} />
-          <div className={`${baseClass}__change-avatar-text`}>
-            Change Photo at Gravatar
+
+          <div className={`${baseClass}__change-avatar`}>
+            <Avatar user={user} className={`${baseClass}__avatar`} />
+            <a href="http://en.gravatar.com/emails/">Change Photo at Gravatar</a>
           </div>
+
           <div className={`${baseClass}__more-info-detail`}>
             <Icon name="username" />
-            <b>Role</b> - USER
+            <strong>Role</strong> - USER
           </div>
           <div className={`${baseClass}__more-info-detail`}>
             <Icon name="lock-big" />
-            <b>Password</b>
+            <strong>Password</strong>
           </div>
-          <Button onClick={onShowModal} text="CHANGE PASSWORD" variant="brand" />
-          <small>Last changed: {lastUpdatedAt}</small>
-          <Button onClick={onLogout} text="LOGOUT" variant="alert" />
+          <Button onClick={onShowModal} text="CHANGE PASSWORD" variant="brand" className={`${baseClass}__button`} />
+          <p className={`${baseClass}__last-updated`}>Last changed: {lastUpdatedAt}</p>
+          <Button onClick={onLogout} text="LOGOUT" variant="alert" className={`${baseClass}__button`} />
         </div>
         {renderModal()}
       </div>

@@ -7,6 +7,8 @@ import InputField from 'components/forms/fields/InputField';
 
 const formFields = ['email', 'name', 'position', 'username'];
 
+const baseClass = 'manage-user';
+
 class UserSettingsForm extends Component {
   static propTypes = {
     fields: PropTypes.shape({
@@ -23,7 +25,7 @@ class UserSettingsForm extends Component {
     const { fields, handleSubmit, onCancel } = this.props;
 
     return (
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className={baseClass}>
         <InputField
           {...fields.username}
           autofocus
@@ -41,17 +43,19 @@ class UserSettingsForm extends Component {
           {...fields.position}
           label="Position"
         />
-        <Button
-          onClick={onCancel}
-          text="CANCEL"
-          type="button"
-          variant="inverse"
-        />
-        <Button
-          text="UPDATE"
-          type="submit"
-          variant="brand"
-        />
+        <div className={`${baseClass}__button-wrap`}>
+          <Button
+            onClick={onCancel}
+            text="CANCEL"
+            type="button"
+            variant="inverse"
+          />
+          <Button
+            text="UPDATE"
+            type="submit"
+            variant="brand"
+          />
+        </div>
       </form>
     );
   }

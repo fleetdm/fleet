@@ -1,0 +1,76 @@
+.user-settings {
+  @include display(flex);
+
+  h1 {
+    font-size: 24px;
+    font-weight: $light;
+    line-height: 1.33;
+    letter-spacing: 1px;
+    color: $text-dark;
+    margin: 0 0 30px;
+  }
+
+  &__manage {
+    @include flex-grow(1);
+    @include align-self(flex-start);
+    padding: 30px;
+  }
+
+  &__additional {
+    width: 350px;
+    min-width: 350px;
+    max-width: 350px;
+    box-sizing: border-box;
+    padding: 30px;
+  }
+
+  &__change-avatar {
+    position: relative;
+    padding: 0 0 20px;
+
+    a {
+      display: block;
+      border-radius: 2px;
+      background-color: rgba(32, 36, 50, 0.6);
+      line-height: 40px;
+      color: #fff;
+      text-align: center;
+      margin-top: -10px;
+      position: relative;
+      z-index: 1;
+      text-decoration: none;
+    }
+  }
+
+  &__avatar {
+    @include size(200px);
+    border: solid 1px $brand-dark;
+    margin: 0 auto;
+    display: block;
+  }
+
+  &__more-info-detail {
+    line-height: 50px;
+    border-top: 1px solid $accent-medium;
+    color: $text-medium;
+
+    .kolidecon {
+      color: $silver;
+      font-size: 18px;
+      margin-right: 11px;
+    }
+  }
+
+  &__button {
+    width: 100%;
+  }
+
+  &__last-updated {
+    font-size: 13px;
+    line-height: 40px;
+    letter-spacing: 0.5px;
+    color: $text-medium;
+    border-bottom: 1px solid $accent-medium;
+    margin: 0 0 35px;
+  }
+}
