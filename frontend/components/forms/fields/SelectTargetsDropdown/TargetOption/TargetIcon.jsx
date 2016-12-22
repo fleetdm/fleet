@@ -1,6 +1,6 @@
 import React from 'react';
 
-import Icon from 'components/Icon';
+import Icon from 'components/icons/Icon';
 import targetInterface from 'interfaces/target';
 
 const baseClass = 'target-option';

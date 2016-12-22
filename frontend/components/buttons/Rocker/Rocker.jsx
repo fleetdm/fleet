@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import { noop } from 'lodash';
 import classnames from 'classnames';
 
-import Icon from 'components/Icon';
+import Icon from 'components/icons/Icon';
 
 class Rocker extends Component {
 

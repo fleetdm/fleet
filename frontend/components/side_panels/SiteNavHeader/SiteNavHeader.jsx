@@ -3,7 +3,7 @@ import classnames from 'classnames';
 
 import configInterface from 'interfaces/config';
 import userInterface from 'interfaces/user';
-import Icon from 'components/Icon';
+import Icon from 'components/icons/Icon';
 
 import kolideLogo from '../../../../assets/images/kolide-logo.svg';
 import UserMenu from './UserMenu';

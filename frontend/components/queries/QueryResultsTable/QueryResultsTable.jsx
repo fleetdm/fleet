@@ -4,7 +4,7 @@ import { get, keys, omit, values } from 'lodash';
 
 import campaignInterface from 'interfaces/campaign';
 import filterArrayByHash from 'utilities/filter_array_by_hash';
-import Icon from 'components/Icon';
+import Icon from 'components/icons/Icon';
 import InputField from 'components/forms/fields/InputField';
 import ProgressBar from 'components/ProgressBar';
 

@@ -3,7 +3,7 @@ import { noop } from 'lodash';
 
 import EllipsisMenu from 'components/buttons/EllipsisMenu';
 import hostInterface from 'interfaces/host';
-import Icon from 'components/Icon';
+import Icon from 'components/icons/Icon';
 import { humanMemory, humanUptime, platformIconClass } from './helpers';
 
 const baseClass = 'host-details';

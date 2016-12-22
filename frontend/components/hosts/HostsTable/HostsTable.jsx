@@ -1,7 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import classnames from 'classnames';
 
-import Icon from 'components/Icon';
+import Icon from 'components/icons/Icon';
 import hostInterface from 'interfaces/host';
 import { platformIconClass, statusIconClass } from 'utilities/icon_class';
 

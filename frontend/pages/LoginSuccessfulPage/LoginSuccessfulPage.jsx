@@ -1,7 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 
-import Icon from 'components/Icon';
+import Icon from 'components/icons/Icon';
 
 class LoginSuccessfulPage extends Component {
   static propTypes = {

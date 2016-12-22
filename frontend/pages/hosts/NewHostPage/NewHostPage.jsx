@@ -4,7 +4,7 @@ import { noop } from 'lodash';
 import classnames from 'classnames';
 
 import { renderFlash } from 'redux/nodes/notifications/actions';
-import Icon from 'components/Icon';
+import Icon from 'components/icons/Icon';
 import { copyText } from './helpers';
 import AnsibleImage from '../../../../assets/images/Ansible.png';
 import ChefImage from '../../../../assets/images/Chef.png';

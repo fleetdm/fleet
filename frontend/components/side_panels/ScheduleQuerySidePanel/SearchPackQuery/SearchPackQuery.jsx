@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import AceEditor from 'react-ace';
 import { isEqual } from 'lodash';
 
-import Icon from 'components/Icon';
+import Icon from 'components/icons/Icon';
 import queryInterface from 'interfaces/query';
 import Dropdown from 'components/forms/fields/Dropdown';
 

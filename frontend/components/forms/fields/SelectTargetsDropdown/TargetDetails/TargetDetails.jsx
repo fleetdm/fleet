@@ -4,7 +4,7 @@ import AceEditor from 'react-ace';
 import classnames from 'classnames';
 
 import hostHelpers from 'components/hosts/HostDetails/helpers';
-import Icon from 'components/Icon';
+import Icon from 'components/icons/Icon';
 import targetInterface from 'interfaces/target';
 
 const baseClass = 'target-details';

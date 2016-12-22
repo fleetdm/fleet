@@ -11,21 +11,26 @@ describe('PanelGroupItem - component', () => {
     type: 'all',
   };
 
-  const component = mount(
+  const labelComponent = mount(
     <PanelGroupItem item={validPanelGroupItem} />
   );
 
-  it('renders the icon', () => {
-    const icon = component.find('i.kolidecon-hosts');
+  const platformComponent = mount(
+    <PanelGroupItem item={validPanelGroupItem} type="platform" />
+  );
 
-    expect(icon.length).toEqual(1);
+  it('renders the appropriate icon', () => {
+    expect(labelComponent.find('PlatformIcon').length).toEqual(0);
+    expect(labelComponent.find('Icon').length).toEqual(1);
+
+    expect(platformComponent.find('PlatformIcon').length).toEqual(1);
   });
 
   it('renders the item text', () => {
-    expect(component.text()).toContain(validPanelGroupItem.display_text);
+    expect(labelComponent.text()).toContain(validPanelGroupItem.display_text);
   });
 
   it('renders the item count', () => {
-    expect(component.text()).toContain(validPanelGroupItem.count);
+    expect(labelComponent.text()).toContain(validPanelGroupItem.count);
   });
 });

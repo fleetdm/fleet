@@ -1,7 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import classnames from 'classnames';
 
-import Icon from 'components/Icon';
+import Icon from 'components/icons/Icon';
 
 const baseClass = 'modal';
 

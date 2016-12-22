@@ -1,7 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import { filter } from 'lodash';
 
-import Icon from 'components/Icon';
+import Icon from 'components/icons/Icon';
 import InputField from 'components/forms/fields/InputField';
 import labelInterface from 'interfaces/label';
 import PanelGroup from 'components/side_panels/HostSidePanel/PanelGroup';
@@ -50,18 +50,21 @@ class HostSidePanel extends Component {
           groupItems={allHostLabels}
           onLabelClick={onLabelClick}
           selectedLabel={selectedLabel}
+          type="all-hosts"
         />
         <hr className={`${baseClass}__hr`} />
         <PanelGroup
           groupItems={hostStatusLabels}
           onLabelClick={onLabelClick}
           selectedLabel={selectedLabel}
+          type="status"
         />
         <hr className={`${baseClass}__hr`} />
         <PanelGroup
           groupItems={hostPlatformLabels}
           onLabelClick={onLabelClick}
           selectedLabel={selectedLabel}
+          type="platform"
         />
         <hr className={`${baseClass}__hr`} />
         <div className={`${baseClass}__panel-group-item`}>
@@ -82,6 +85,7 @@ class HostSidePanel extends Component {
           groupItems={customLabels}
           onLabelClick={onLabelClick}
           selectedLabel={selectedLabel}
+          type="label"
         />
         <hr className={`${baseClass}__hr`} />
         <button className={`${baseClass}__add-label-btn button button--unstyled`} onClick={onAddLabelClick}>

@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import classnames from 'classnames';
 
 import userInterface from 'interfaces/user';
-import Icon from 'components/Icon';
+import Icon from 'components/icons/Icon';
 
 import navItems from './navItems';
 

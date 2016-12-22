@@ -12,7 +12,7 @@ import HostDetails from 'components/hosts/HostDetails';
 import hostInterface from 'interfaces/host';
 import HostSidePanel from 'components/side_panels/HostSidePanel';
 import HostsTable from 'components/hosts/HostsTable';
-import Icon from 'components/Icon';
+import Icon from 'components/icons/Icon';
 import osqueryTableInterface from 'interfaces/osquery_table';
 import paths from 'router/paths';
 import QueryComposer from 'components/queries/QueryComposer';

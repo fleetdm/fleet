@@ -1,9 +1,9 @@
 import React, { Component, PropTypes } from 'react';
 
 import Checkbox from 'components/forms/fields/Checkbox';
-import Icon from 'components/Icon';
+import Icon from 'components/icons/Icon';
+import PlatformIcon from 'components/icons/PlatformIcon';
 import { isEqual } from 'lodash';
-import { platformIconClass } from 'utilities/icon_class';
 import scheduledQueryInterface from 'interfaces/scheduled_query';
 
 class QueriesListItem extends Component {
@@ -60,7 +60,7 @@ class QueriesListItem extends Component {
         </td>
         <td>{name}</td>
         <td>{interval}</td>
-        <td><Icon name={platformIconClass(platform)} /></td>
+        <td><PlatformIcon name={platform} /></td>
         <td>{version}</td>
         <td><Icon name={loggingTypeString()} /></td>
       </tr>

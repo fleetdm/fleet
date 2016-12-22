@@ -9,6 +9,7 @@ class PanelGroup extends Component {
     groupItems: PropTypes.arrayOf(labelInterface),
     onLabelClick: PropTypes.func,
     selectedLabel: labelInterface,
+    type: PropTypes.string,
   };
 
   static defaultProps = {
@@ -19,6 +20,7 @@ class PanelGroup extends Component {
     const {
       onLabelClick,
       selectedLabel,
+      type,
     } = this.props;
     const selected = isEqual(selectedLabel, item);
 
@@ -28,6 +30,7 @@ class PanelGroup extends Component {
         item={item}
         key={item.display_text}
         onLabelClick={onLabelClick(item)}
+        type={type}
       />
     );
   }

@@ -3,7 +3,7 @@ import classnames from 'classnames';
 import { includes, size } from 'lodash';
 
 import queryInterface from 'interfaces/query';
-import Icon from 'components/Icon';
+import Icon from 'components/icons/Icon';
 import QueriesListItem from 'components/queries/QueriesList/QueriesListItem';
 import Checkbox from 'components/forms/fields/Checkbox';
 

@@ -1,6 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 
-import Icon from 'components/Icon';
+import Icon from 'components/icons/Icon';
 import Button from 'components/buttons/Button';
 import Dropdown from 'components/forms/fields/Dropdown';
 import Form from 'components/forms/Form';

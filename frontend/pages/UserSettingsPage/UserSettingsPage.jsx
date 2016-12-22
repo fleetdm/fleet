@@ -6,7 +6,7 @@ import moment from 'moment';
 import Avatar from 'components/Avatar';
 import Button from 'components/buttons/Button';
 import ChangePasswordForm from 'components/forms/ChangePasswordForm';
-import Icon from 'components/Icon';
+import Icon from 'components/icons/Icon';
 import { logoutUser } from 'redux/nodes/auth/actions';
 import Modal from 'components/modals/Modal';
 import { renderFlash } from 'redux/nodes/notifications/actions';

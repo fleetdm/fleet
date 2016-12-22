@@ -13,7 +13,7 @@ describe('QueriesListItem - component', () => {
     const component = mount(<QueriesListItem checked={false} onSelect={noop} scheduledQuery={scheduledQueryStub} />);
     expect(component.text()).toInclude(scheduledQueryStub.name);
     expect(component.text()).toInclude(scheduledQueryStub.interval);
-    expect(component.find('.kolidecon-apple').length).toEqual(1);
+    expect(component.find('PlatformIcon').length).toEqual(1);
   });
 
   it('renders a Checkbox component', () => {

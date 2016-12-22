@@ -2,9 +2,9 @@ import React, { Component, PropTypes } from 'react';
 
 import osqueryTableInterface from 'interfaces/osquery_table';
 import { osqueryTableNames } from 'utilities/osquery_tables';
-import iconClassForLabel from 'utilities/icon_class_for_label';
 import Dropdown from 'components/forms/fields/Dropdown';
-import Icon from 'components/Icon';
+import Icon from 'components/icons/Icon';
+import PlatformIcon from 'components/icons/PlatformIcon';
 import SecondarySidePanelContainer from '../SecondarySidePanelContainer';
 
 import {
@@ -43,7 +43,7 @@ class QuerySidePanel extends Component {
     return false;
   }
 
-  onSelectTable = ({ value }) => {
+  onSelectTable = (value) => {
     const { onOsqueryTableSelect } = this.props;
 
     onOsqueryTableSelect(value);
@@ -140,7 +140,11 @@ class QuerySidePanel extends Component {
           <h2 className={`${baseClass}__header`}>OS Availability</h2>
           <ul className={`${baseClass}__platforms`}>
             {platformArr.map((os, idx) => {
-              return <li key={idx}><Icon name={iconClassForLabel(os)} /> {os.display_text}</li>;
+              if (os.type === 'all') {
+                return <li key={idx}><Icon name="hosts" /> {os.display_text}</li>;
+              }
+
+              return <li key={idx}><PlatformIcon name={os.type} /> {os.display_text}</li>;
             })}
           </ul>
         </div>
