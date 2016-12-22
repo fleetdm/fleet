@@ -154,3 +154,13 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query kolide.Distri
 	}()
 	return outChannel, nil
 }
+
+// HealthCheck verifies that the redis backend can be pinged, returning an error
+// otherwise.
+func (r *redisQueryResults) HealthCheck() error {
+	conn := r.pool.Get()
+	defer conn.Close()
+
+	_, err := conn.Do("PING")
+	return err
+}
