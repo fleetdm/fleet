@@ -22,6 +22,7 @@ import (
 	"github.com/kolide/kolide-ose/server/service"
 	"github.com/kolide/kolide-ose/server/version"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -143,16 +144,18 @@ the way that the kolide server works.
 				}
 			}
 
+			// a list of dependencies which could affect the status of the app if unavailable
 			healthCheckers := map[string]interface{}{
 				"datastore":          ds,
 				"query_result_store": resultStore,
 			}
+
+			http.Handle("/healthz", prometheus.InstrumentHandler("healthz", healthz(healthCheckers)))
+			http.Handle("/version", prometheus.InstrumentHandler("version", version.Handler()))
+			http.Handle("/assets/", prometheus.InstrumentHandler("static_assets", service.ServeStaticAssets("/assets/")))
+			http.Handle("/metrics", prometheus.InstrumentHandler("metrics", promhttp.Handler()))
 			http.Handle("/api/", apiHandler)
-			http.Handle("/healthz", healthz(healthCheckers))
-			http.Handle("/version", version.Handler())
-			http.Handle("/metrics", prometheus.Handler())
-			http.Handle("/assets/", service.ServeStaticAssets("/assets/"))
-			http.Handle("/", service.ServeFrontend())
+			http.Handle("/", prometheus.InstrumentHandler("get_frontend", service.ServeFrontend()))
 
 			errs := make(chan error, 2)
 			go func() {
