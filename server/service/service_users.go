@@ -158,8 +158,12 @@ func (svc service) ChangePassword(ctx context.Context, oldPass, newPass string) 
 		return errNoContext
 	}
 
+	if err := vc.User.ValidatePassword(newPass); err == nil {
+		return newInvalidArgumentError("new_password", "cannot reuse old password")
+	}
+
 	if err := vc.User.ValidatePassword(oldPass); err != nil {
-		return errors.Wrap(err, "password validation failed")
+		return newInvalidArgumentError("old_password", "old password does not match")
 	}
 
 	return errors.Wrap(svc.setNewPassword(ctx, vc.User, newPass), "setting new password")
@@ -173,6 +177,11 @@ func (svc service) ResetPassword(ctx context.Context, token, password string) er
 	user, err := svc.User(ctx, reset.UserID)
 	if err != nil {
 		return errors.Wrap(err, "retrieving user")
+	}
+
+	// prevent setting the same password
+	if err := user.ValidatePassword(password); err == nil {
+		return newInvalidArgumentError("new_password", "cannot reuse old password")
 	}
 
 	err = svc.setNewPassword(ctx, user, password)

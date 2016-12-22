@@ -264,6 +264,12 @@ func TestChangePassword(t *testing.T) {
 			oldPassword: "foobar",
 			newPassword: "123cat!",
 		},
+		{ // prevent password reuse
+			user:        users["admin1"],
+			oldPassword: "foobar",
+			newPassword: "foobar",
+			wantErr:     &invalidArgumentError{invalidArgument{name: "new_password", reason: "cannot reuse old password"}},
+		},
 		{ // all good
 			user:        users["user1"],
 			oldPassword: "foobar",
@@ -320,6 +326,11 @@ func TestResetPassword(t *testing.T) {
 		{ // all good
 			token:       "abcd",
 			newPassword: "123cat!",
+		},
+		{ // prevent reuse
+			token:       "abcd",
+			newPassword: "123cat!",
+			wantErr:     &invalidArgumentError{invalidArgument{name: "new_password", reason: "cannot reuse old password"}},
 		},
 		{ // bad token
 			token:       "dcbaz",
