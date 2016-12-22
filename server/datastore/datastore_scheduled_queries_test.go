@@ -9,6 +9,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func testNewScheduledQuery(t *testing.T, ds kolide.Datastore) {
+	u1 := test.NewUser(t, ds, "Admin", "admin", "admin@kolide.co", true)
+	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)
+	p1 := test.NewPack(t, ds, "baz")
+
+	query, err := ds.NewScheduledQuery(&kolide.ScheduledQuery{
+		PackID:  p1.ID,
+		QueryID: q1.ID,
+	})
+	require.Nil(t, err)
+	assert.Equal(t, "foo", query.Name)
+	assert.Equal(t, "select * from time;", query.Query)
+}
+
 func testScheduledQuery(t *testing.T, ds kolide.Datastore) {
 	u1 := test.NewUser(t, ds, "Admin", "admin", "admin@kolide.co", true)
 	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)

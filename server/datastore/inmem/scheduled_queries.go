@@ -15,6 +15,9 @@ func (d *Datastore) NewScheduledQuery(sq *kolide.ScheduledQuery) (*kolide.Schedu
 	newScheduledQuery.ID = d.nextID(newScheduledQuery)
 	d.scheduledQueries[newScheduledQuery.ID] = &newScheduledQuery
 
+	newScheduledQuery.Query = d.queries[newScheduledQuery.QueryID].Query
+	newScheduledQuery.Name = d.queries[newScheduledQuery.QueryID].Name
+
 	return &newScheduledQuery, nil
 }
 
