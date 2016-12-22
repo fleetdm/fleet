@@ -65,9 +65,15 @@ the way that the kolide server works.
 			var mailService kolide.MailService
 
 			if devMode {
-				fmt.Println(
-					"Dev mode enabled, using in-memory DB.\n",
-					"Warning: Changes will not be saved across process restarts. This should NOT be used in production.",
+				fmt.Print(
+					"********************************************************************************\n",
+					"* Warning:                                                                     *\n",
+					"*                                                                              *\n",
+					"*    Developer mode is currently enabled, so Kolide is using a transient,      *\n",
+					"*    in-memory DB. Any changes you make to the database will not be saved      *\n",
+					"*    across process restarts. This should NOT be used in production.           *\n",
+					"*                                                                              *\n",
+					"********************************************************************************\n",
 				)
 
 				if ds, err = inmem.New(config); err != nil {
