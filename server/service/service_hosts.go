@@ -14,14 +14,14 @@ func (svc service) GetHost(ctx context.Context, id uint) (*kolide.Host, error) {
 }
 
 func (svc service) HostStatus(ctx context.Context, host kolide.Host) string {
-	if host.UpdatedAt.Add(OfflineDuration).Before(svc.clock.Now()) {
-		if host.UpdatedAt.Add(MIADuration).Before(svc.clock.Now()) {
-			return StatusMIA
-		}
+	switch {
+	case host.UpdatedAt.Add(MIADuration).Before(svc.clock.Now()):
+		return StatusMIA
+	case host.UpdatedAt.Add(OfflineDuration).Before(svc.clock.Now()):
 		return StatusOffline
+	default:
+		return StatusOnline
 	}
-
-	return StatusOnline
 }
 
 func (svc service) DeleteHost(ctx context.Context, id uint) error {
