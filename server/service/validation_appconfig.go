@@ -7,34 +7,30 @@ import (
 
 func (mw validationMiddleware) ModifyAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
 	invalid := &invalidArgumentError{}
-	if p.ServerSettings == nil {
-		invalid.Append("server_settings", "missing")
-	}
-	if p.ServerSettings != nil && p.ServerSettings.KolideServerURL == nil {
+
+	if p.ServerSettings.KolideServerURL == nil || *p.ServerSettings.KolideServerURL == "" {
 		invalid.Append("kolide_server_url", "missing")
 	}
-	if p.ServerSettings != nil && p.ServerSettings.KolideServerURL != nil {
+	if p.ServerSettings.KolideServerURL != nil && *p.ServerSettings.KolideServerURL != "" {
 		if err := validateKolideServerURL(*p.ServerSettings.KolideServerURL); err != nil {
 			invalid.Append("kolide_server_url", err.Error())
 		}
 	}
-	if p.SMTPSettings == nil {
-		invalid.Append("smtp_settings", "missing")
-	}
-	if p.SMTPSettings != nil && !p.SMTPSettings.SMTPDisabled {
+
+	if p.SMTPSettings.SMTPEnabled {
 		if p.SMTPSettings.SMTPSenderAddress != "" {
 			invalid.Append("smtp_sender_address", "required argument")
 		}
 		if p.SMTPSettings.SMTPServer == "" {
 			invalid.Append("smtp_server", "required argument")
 		}
-		if p.SMTPSettings.SMTPAuthenticationType != kolide.AuthTypeUserNamePassword &&
-			p.SMTPSettings.SMTPAuthenticationType != kolide.AuthTypeNone {
+		if p.SMTPSettings.SMTPAuthenticationType != kolide.AuthTypeNameUserNamePassword &&
+			p.SMTPSettings.SMTPAuthenticationType != kolide.AuthTypeNameNone {
 			invalid.Append("smtp_authentication_type", "invalid value")
 		}
-		if p.SMTPSettings.SMTPAuthenticationType == kolide.AuthTypeUserNamePassword {
-			if p.SMTPSettings.SMTPAuthenticationMethod != kolide.AuthMethodCramMD5 &&
-				p.SMTPSettings.SMTPAuthenticationMethod != kolide.AuthMethodPlain {
+		if p.SMTPSettings.SMTPAuthenticationType == kolide.AuthTypeNameUserNamePassword {
+			if p.SMTPSettings.SMTPAuthenticationMethod != kolide.AuthMethodNameCramMD5 &&
+				p.SMTPSettings.SMTPAuthenticationMethod != kolide.AuthMethodNamePlain {
 				invalid.Append("smtp_authentication_method", "invalid value")
 			}
 			if p.SMTPSettings.SMTPUserName == "" {

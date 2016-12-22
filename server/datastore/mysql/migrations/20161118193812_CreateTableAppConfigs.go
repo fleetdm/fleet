@@ -28,7 +28,7 @@ func Up_20161118193812(tx *sql.Tx) error {
 		"`smtp_password` VARCHAR(255) NOT NULL DEFAULT ''," +
 		"`smtp_verify_ssl_certs` TINYINT(1) NOT NULL DEFAULT TRUE, " +
 		"`smtp_enable_start_tls` TINYINT(1) NOT NULL DEFAULT TRUE, " +
-		"`smtp_disabled` TINYINT(1) NOT NULL DEFAULT FALSE, " +
+		"`smtp_enabled` TINYINT(1) NOT NULL DEFAULT FALSE, " +
 		"PRIMARY KEY (`id`)" +
 		") ENGINE=InnoDB DEFAULT CHARSET=utf8;"
 	if _, err := tx.Exec(sqlStatement); err != nil {

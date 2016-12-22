@@ -35,6 +35,7 @@ var testFunctions = [...]func(*testing.T, kolide.MailService){
 	testSMTPPlainAuth,
 	testSMTPSkipVerify,
 	testSMTPNoAuth,
+	testMailTest,
 }
 
 func TestMail(t *testing.T) {
@@ -53,7 +54,7 @@ func testSMTPPlainAuth(t *testing.T, mailer kolide.MailService) {
 		To:      []string{"john@kolide.co"},
 		Config: &kolide.AppConfig{
 			SMTPConfigured:           true,
-			SMTPDisabled:             false,
+			SMTPEnabled:              true,
 			SMTPAuthenticationType:   kolide.AuthTypeUserNamePassword,
 			SMTPAuthenticationMethod: kolide.AuthMethodPlain,
 			SMTPUserName:             "bob",
@@ -80,7 +81,7 @@ func testSMTPSkipVerify(t *testing.T, mailer kolide.MailService) {
 		To:      []string{"john@kolide.co"},
 		Config: &kolide.AppConfig{
 			SMTPConfigured:           true,
-			SMTPDisabled:             false,
+			SMTPEnabled:              true,
 			SMTPAuthenticationType:   kolide.AuthTypeUserNamePassword,
 			SMTPAuthenticationMethod: kolide.AuthMethodPlain,
 			SMTPUserName:             "bob",
@@ -107,7 +108,7 @@ func testSMTPNoAuth(t *testing.T, mailer kolide.MailService) {
 		To:      []string{"bob@foo.com"},
 		Config: &kolide.AppConfig{
 			SMTPConfigured:         true,
-			SMTPDisabled:           false,
+			SMTPEnabled:            true,
 			SMTPAuthenticationType: kolide.AuthTypeNone,
 			SMTPEnableTLS:          true,
 			SMTPVerifySSLCerts:     true,
@@ -122,4 +123,27 @@ func testSMTPNoAuth(t *testing.T, mailer kolide.MailService) {
 
 	err := mailer.SendEmail(mail)
 	assert.Nil(t, err)
+}
+
+func testMailTest(t *testing.T, mailer kolide.MailService) {
+	mail := kolide.Email{
+		Subject: "test tester",
+		To:      []string{"bob@foo.com"},
+		Config: &kolide.AppConfig{
+			SMTPConfigured:         true,
+			SMTPEnabled:            true,
+			SMTPAuthenticationType: kolide.AuthTypeNone,
+			SMTPEnableTLS:          true,
+			SMTPVerifySSLCerts:     true,
+			SMTPPort:               1025,
+			SMTPServer:             "localhost",
+			SMTPSenderAddress:      "kolide@kolide.com",
+		},
+		Mailer: &kolide.SMTPTestMailer{
+			KolideServerURL: "https://localhost:8080",
+		},
+	}
+	err := Test(mailer, mail)
+	assert.Nil(t, err)
+
 }

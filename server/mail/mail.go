@@ -20,6 +20,23 @@ func NewDevService() kolide.MailService {
 type mailService struct{}
 type devMailService struct{}
 
+type sender interface {
+	sendMail(e kolide.Email, msg []byte) error
+}
+
+func Test(mailer kolide.MailService, e kolide.Email) error {
+	mailBody, err := getMessageBody(e)
+	if err != nil {
+		return err
+	}
+
+	if svc, ok := mailer.(sender); ok {
+		return svc.sendMail(e, mailBody)
+	}
+
+	return nil
+}
+
 const (
 	PortSSL = 465
 	PortTLS = 587
@@ -38,20 +55,29 @@ func getMessageBody(e kolide.Email) ([]byte, error) {
 }
 
 func (dm devMailService) SendEmail(e kolide.Email) error {
-	if !e.Config.SMTPDisabled {
-		if e.Config.SMTPConfigured {
-			msg, err := getMessageBody(e)
-			if err != nil {
-				return err
-			}
-			fmt.Printf(string(msg))
+	if !e.Config.SMTPEnabled {
+		return fmt.Errorf("email disabled")
+	}
+	if e.Config.SMTPConfigured {
+		msg, err := getMessageBody(e)
+		if err != nil {
+			return err
 		}
+		fmt.Printf(string(msg))
 	}
 	return nil
 }
 
+func (dm devMailService) sendMail(e kolide.Email, msg []byte) error {
+	fmt.Println(string(msg))
+	return nil
+}
+
 func (m mailService) SendEmail(e kolide.Email) error {
-	if !e.Config.SMTPDisabled && e.Config.SMTPConfigured {
+	if !e.Config.SMTPEnabled {
+		return fmt.Errorf("email disabled")
+	}
+	if e.Config.SMTPConfigured {
 		msg, err := getMessageBody(e)
 		if err != nil {
 			return err

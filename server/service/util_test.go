@@ -26,7 +26,7 @@ func createTestAppConfig(t *testing.T, ds kolide.Datastore) *kolide.AppConfig {
 		OrgLogoURL:             "https://tyrell.com/image.png",
 		KolideServerURL:        "https://kolide.tyrell.com",
 		SMTPConfigured:         true,
-		SMTPDisabled:           false,
+		SMTPEnabled:            true,
 		SMTPSenderAddress:      "kolide@tyrell.com",
 		SMTPServer:             "smtp.tyrell.com",
 		SMTPPort:               587,
