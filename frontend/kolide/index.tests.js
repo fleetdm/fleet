@@ -1,8 +1,9 @@
 import expect from 'expect';
 import nock from 'nock';
 
-import Kolide from './index';
-import mocks from '../test/mocks';
+import Kolide from 'kolide';
+import helpers from 'kolide/helpers';
+import mocks from 'test/mocks';
 
 const {
   invalidForgotPasswordRequest,
@@ -29,6 +30,7 @@ const {
   validRevokeInviteRequest,
   validRunQueryRequest,
   validSetupRequest,
+  validUpdateConfigRequest,
   validUpdateQueryRequest,
   validUpdateUserRequest,
   validUser,
@@ -455,6 +457,39 @@ describe('Kolide - API client', () => {
       const request = validSetupRequest(formData);
 
       Kolide.setup(formData)
+        .then(() => {
+          expect(request.isDone()).toEqual(true);
+          done();
+        })
+        .catch(done);
+    });
+  });
+
+  describe('#updateConfig', () => {
+    it('calls the appropriate endpoint with the correct parameters', (done) => {
+      const bearerToken = 'valid-bearer-token';
+      const formData = {
+        org_name: 'Kolide',
+        org_logo_url: '0.0.0.0:8080/logo.png',
+        kolide_server_url: '',
+        configured: false,
+        sender_address: '',
+        server: '',
+        port: 587,
+        authentication_type: 'authtype_username_password',
+        user_name: '',
+        password: '',
+        enable_ssl_tls: true,
+        authentication_method: 'authmethod_plain',
+        verify_ssl_certs: true,
+        enable_start_tls: true,
+        email_enabled: false,
+      };
+      const configData = helpers.formatConfigDataForServer(formData);
+      const request = validUpdateConfigRequest(bearerToken, configData);
+
+      Kolide.setBearerToken(bearerToken);
+      Kolide.updateConfig(formData)
         .then(() => {
           expect(request.isDone()).toEqual(true);
           done();

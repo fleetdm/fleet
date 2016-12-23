@@ -73,9 +73,12 @@
     color: $text-dark;
     margin: 30px 0 0;
 
-    label {
+    .kolide-checkbox {
       display: block;
-      position: relative;
+
+      &__label {
+        padding: 0;
+      }
     }
 
     p {

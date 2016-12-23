@@ -26,6 +26,7 @@ class Dropdown extends Component {
   static defaultProps = {
     onChange: noop,
     clearable: false,
+    name: 'targets',
     placeholder: 'Select One...',
   };
 
@@ -68,7 +69,7 @@ class Dropdown extends Component {
         <Select
           className={`${baseClass}__select ${className}`}
           clearable={clearable}
-          name={`${name}-select` || 'targets'}
+          name={`${name}-select`}
           onChange={handleChange}
           options={options}
           placeholder={placeholder}

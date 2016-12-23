@@ -8,6 +8,7 @@
     visibility: hidden;
     margin: 0;
     position: absolute;
+    z-index: -1;
 
     &:checked + .kolide-checkbox__tick {
       &::after {
@@ -36,6 +37,7 @@
     position: absolute;
     left: 0;
     display: inline-block;
+    float: left;
 
     &::after {
       @include transition(border 75ms ease-in-out, background 75ms ease-in-out);

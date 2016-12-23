@@ -295,6 +295,16 @@ export const validSetupRequest = (formData) => {
     .reply(200, {});
 };
 
+export const validUpdateConfigRequest = (bearerToken, configData) => {
+  return nock('http://localhost:8080', {
+    reqHeaders: {
+      Authorization: `Bearer ${bearerToken}`,
+    },
+  })
+  .patch('/api/v1/kolide/config', JSON.stringify(configData))
+  .reply(200, {});
+};
+
 export const validUpdateQueryRequest = (bearerToken, query, formData) => {
   return nock('http://localhost:8080', {
     reqHeaders: {
@@ -338,6 +348,7 @@ export default {
   validRevokeInviteRequest,
   validRunQueryRequest,
   validSetupRequest,
+  validUpdateConfigRequest,
   validUpdateQueryRequest,
   validUpdateUserRequest,
   validUser,

@@ -251,7 +251,7 @@ class QueryForm extends Component {
       <Dropdown
         options={platformOptions}
         onChange={onFieldChange('platform')}
-        value={platform.value}
+        value={platform}
       />
     );
   }

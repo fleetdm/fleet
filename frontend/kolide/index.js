@@ -80,8 +80,7 @@ class Kolide extends Base {
   getConfig = () => {
     const { CONFIG } = endpoints;
 
-    return this.authenticatedGet(this.endpoint(CONFIG))
-      .then((response) => { return response.org_info; });
+    return this.authenticatedGet(this.endpoint(CONFIG));
   }
 
   getInvites = () => {
@@ -328,6 +327,13 @@ class Kolide extends Base {
     const setupData = helpers.setupData(formData);
 
     return Base.post(this.endpoint(SETUP), JSON.stringify(setupData));
+  }
+
+  updateConfig = (formData) => {
+    const { CONFIG } = endpoints;
+    const configData = helpers.formatConfigDataForServer(formData);
+
+    return this.authenticatedPatch(this.endpoint(CONFIG), JSON.stringify(configData));
   }
 
   updateQuery = ({ id: queryID }, updateParams) => {

@@ -4,7 +4,8 @@ import { pick } from 'lodash';
 
 import FormField from 'components/forms/FormField';
 
-const Slider = ({ onChange, value, inactiveText = 'Off', activeText = 'On' }) => {
+const Slider = (props) => {
+  const { onChange, value, inactiveText = 'Off', activeText = 'On' } = props;
   const baseClass = 'kolide-slider';
 
   const sliderBtnClass = classnames(
@@ -23,7 +24,7 @@ const Slider = ({ onChange, value, inactiveText = 'Off', activeText = 'On' }) =>
     return onChange(!value);
   };
 
-  const formFieldProps = pick(this.props, ['hint', 'label', 'error', 'name']);
+  const formFieldProps = pick(props, ['hint', 'label', 'error', 'name']);
 
   return (
     <FormField {...formFieldProps} type="slider">

@@ -3,7 +3,7 @@ import classnames from 'classnames';
 
 import Avatar from '../../../../components/Avatar';
 import Dropdown from '../../../../components/forms/fields/Dropdown';
-import EditUserForm from '../../../../components/forms/Admin/EditUserForm';
+import EditUserForm from '../../../../components/forms/admin/EditUserForm';
 import userInterface from '../../../../interfaces/user';
 import { userStatusLabel } from './helpers';
 

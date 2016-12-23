@@ -4,10 +4,27 @@ export default (admin) => {
       icon: 'admin',
       name: 'Admin',
       location: {
-        regex: /^\/admin\/users/,
+        regex: /^\/admin/,
         pathname: '/admin/users',
       },
-      subItems: [],
+      subItems: [
+        {
+          icon: 'admin',
+          name: 'Manage Users',
+          location: {
+            regex: /\/admin\/users/,
+            pathname: '/admin/users',
+          },
+        },
+        {
+          icon: 'user-settings',
+          name: 'App Settings',
+          location: {
+            regex: /\/admin\/settings/,
+            pathname: '/admin/settings',
+          },
+        },
+      ],
     },
   ];
 

@@ -22,7 +22,15 @@ export default (WrappedComponent, { fields, validate = defaultValidate }) => {
 
       const { errors, formData } = props;
 
+      if (!errors) {
+        this.state = { errors: {}, formData };
+
+        return false;
+      }
+
       this.state = { errors, formData };
+
+      return false;
     }
 
     componentWillReceiveProps (nextProps) {
@@ -81,7 +89,11 @@ export default (WrappedComponent, { fields, validate = defaultValidate }) => {
       const { errors } = this.state;
       const { errors: serverErrors } = this.props;
 
-      return errors[fieldName] || serverErrors[fieldName];
+      if (serverErrors) {
+        return errors[fieldName] || serverErrors[fieldName];
+      }
+
+      return errors[fieldName];
     }
 
     getFields = () => {

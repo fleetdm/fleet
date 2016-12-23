@@ -1,5 +1,7 @@
 import expect from 'expect';
+import { omit } from 'lodash';
 
+import { configStub } from 'test/stubs';
 import helpers from 'kolide/helpers';
 
 const label1 = { id: 1, target_type: 'labels' };
@@ -12,6 +14,31 @@ describe('Kolide API - helpers', () => {
     it('creates a slug for the label', () => {
       expect(helpers.labelSlug({ display_text: 'All Hosts' })).toEqual('all-hosts');
       expect(helpers.labelSlug({ display_text: 'windows' })).toEqual('windows');
+    });
+  });
+
+  describe('#formatConfigDataForServer', () => {
+    const { formatConfigDataForServer } = helpers;
+    const config = {
+      org_name: 'Kolide',
+      org_logo_url: '0.0.0.0:8080/logo.png',
+      kolide_server_url: '',
+      configured: false,
+      sender_address: '',
+      server: '',
+      port: 587,
+      authentication_type: 'authtype_username_password',
+      user_name: '',
+      password: '',
+      enable_ssl_tls: true,
+      authentication_method: 'authmethod_plain',
+      verify_ssl_certs: true,
+      enable_start_tls: true,
+      email_enabled: false,
+    };
+
+    it('splits config into categories for the server', () => {
+      expect(formatConfigDataForServer(config)).toEqual(omit(configStub, ['smtp_settings.configured']));
     });
   });
 

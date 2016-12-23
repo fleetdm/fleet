@@ -1,0 +1,167 @@
+.app-config-form {
+  &__section {
+    @include clearfix;
+
+    .smtp-options {
+      font-size: 15px;
+      font-weight: $bold;
+      line-height: 3.2;
+      letter-spacing: 0.6px;
+      color: $text-dark;
+      padding-left: 15px;
+
+      em {
+        font-style: normal;
+      }
+
+      &--configured {
+        em {
+          color: $success;
+        }
+      }
+
+      &--notconfigured {
+        em {
+          color: $alert;
+        }
+      }
+    }
+  }
+
+  &__inputs {
+    width: 60%;
+    float: left;
+    padding: 0 40px 0 0;
+    box-sizing: border-box;
+
+    .input-field {
+      width: 100%;
+    }
+
+    &--smtp {
+      margin: 0 0 $pad-base;
+
+      .input-field__wrapper {
+        width: 18%;
+        float: right;
+
+        &:first-child {
+          float: left;
+          width: 78%;
+        }
+      }
+
+      .kolide-checkbox {
+        clear: left;
+        display: block;
+      }
+    }
+  }
+
+  &__details {
+    float: right;
+    width: 40%;
+
+    p {
+      font-size: 15px;
+      font-weight: $normal;
+      line-height: 1.6;
+      letter-spacing: 0.5px;
+      color: $text-dark;
+
+      &.app-config-form__note {
+        font-size: 13px;
+        color: $text-medium;
+      }
+    }
+
+    .hint {
+      color: $text-medium;
+
+      &--brand {
+        color: $brand;
+      }
+    }
+  }
+
+  &__avatar-preview {
+    text-align: center;
+
+    img {
+      border-radius: 80px;
+      height: 160px;
+      width: 160px;
+    }
+
+    p {
+      color: $link;
+      font-size: 18px;
+      font-weight: $bold;
+      margin-top: 0;
+    }
+  }
+
+  &__show-options {
+    color: $text-dark;
+  }
+
+  &__smtp-section {
+    border-radius: 2px;
+    background-color: $bg-medium;
+    border: solid 1px $accent-medium;
+    padding: 30px;
+
+    .input-field__wrapper {
+      @include clearfix;
+
+      &:last-child {
+        margin: 0;
+      }
+    }
+
+    .input-field__label {
+      float: left;
+      font-size: 15px;
+      font-weight: $bold;
+      letter-spacing: 0.6px;
+      text-align: right;
+      color: $text-dark;
+      width: 30%;
+      margin: 0;
+      line-height: 40px;
+
+      @media (min-width: $medium-width + 1) and (max-width: 1195px) {
+        line-height: 18px;
+      }
+    }
+
+    .input-field,
+    .Select,
+    .slide-wrapper {
+      width: 60%;
+      float: right;
+    }
+
+    .slide-wrapper {
+      .slider-option {
+        font-size: 18px;
+        font-weight: $light;
+        letter-spacing: 1.3px;
+        text-align: left;
+        vertical-align: text-bottom;
+
+        &--off {
+          color: $text-light;
+        }
+
+        &--on {
+          color: $brand;
+        }
+      }
+
+      .button {
+        margin: 0 10px;
+      }
+    }
+  }
+}

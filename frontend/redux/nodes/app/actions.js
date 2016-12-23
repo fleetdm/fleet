@@ -1,4 +1,7 @@
-import Kolide from '../../../kolide';
+import Kolide from 'kolide';
+
+import formatApiErrors from 'utilities/format_api_errors';
+import { frontendFormattedConfig } from 'redux/nodes/app/helpers';
 
 export const CONFIG_FAILURE = 'CONFIG_FAILURE';
 export const CONFIG_START = 'CONFIG_START';
@@ -25,12 +28,35 @@ export const getConfig = () => {
 
     return Kolide.getConfig()
       .then((config) => {
-        dispatch(configSuccess(config));
+        const formattedConfig = frontendFormattedConfig(config);
 
-        return config;
+        dispatch(configSuccess(formattedConfig));
+
+        return formattedConfig;
       })
       .catch((error) => {
         dispatch(configFailure(error));
+
+        return false;
+      });
+  };
+};
+export const updateConfig = (configData) => {
+  return (dispatch) => {
+    dispatch(loadConfig);
+
+    return Kolide.updateConfig(configData)
+      .then((config) => {
+        const formattedConfig = frontendFormattedConfig(config);
+
+        dispatch(configSuccess(formattedConfig));
+
+        return formattedConfig;
+      })
+      .catch((error) => {
+        const formattedErrors = formatApiErrors(error);
+
+        dispatch(configFailure(formattedErrors));
 
         return false;
       });

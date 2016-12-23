@@ -6,6 +6,30 @@ export const adminUserStub = {
   username: 'gnardog',
 };
 
+export const configStub = {
+  org_info: {
+    org_name: 'Kolide',
+    org_logo_url: '0.0.0.0:8080/logo.png',
+  },
+  server_settings: {
+    kolide_server_url: '',
+  },
+  smtp_settings: {
+    configured: false,
+    sender_address: '',
+    server: '',
+    port: 587,
+    authentication_type: 'authtype_username_password',
+    user_name: '',
+    password: '',
+    enable_ssl_tls: true,
+    authentication_method: 'authmethod_plain',
+    verify_ssl_certs: true,
+    enable_start_tls: true,
+    email_enabled: false,
+  },
+};
+
 export const packStub = {
   created_at: '0001-01-01T00:00:00Z',
   updated_at: '0001-01-01T00:00:00Z',
@@ -57,6 +81,7 @@ export const userStub = {
 
 export default {
   adminUserStub,
+  configStub,
   packStub,
   queryStub,
   scheduledQueryStub,

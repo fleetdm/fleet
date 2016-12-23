@@ -3,6 +3,7 @@ import { browserHistory, IndexRoute, Route, Router } from 'react-router';
 import { Provider } from 'react-redux';
 import { syncHistoryWithStore } from 'react-router-redux';
 
+import AdminAppSettingsPage from 'pages/Admin/AppSettingsPage';
 import AdminUserManagementPage from 'pages/Admin/UserManagementPage';
 import AllPacksPage from 'pages/packs/AllPacksPage';
 import App from 'components/App';
@@ -40,6 +41,7 @@ const routes = (
             <IndexRoute component={HomePage} />
             <Route path="admin" component={AuthenticatedAdminRoutes}>
               <Route path="users" component={AdminUserManagementPage} />
+              <Route path="settings" component={AdminAppSettingsPage} />
             </Route>
             <Route path="hosts">
               <Route path="new" component={NewHostPage} />

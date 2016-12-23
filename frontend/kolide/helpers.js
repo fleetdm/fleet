@@ -32,6 +32,21 @@ const filterTarget = (targetType) => {
   };
 };
 
+export const formatConfigDataForServer = (config) => {
+  const orgInfoAttrs = ['org_logo_url', 'org_name'];
+  const serverSettingsAttrs = ['kolide_server_url'];
+  const smtpSettingsAttrs = [
+    'authentication_method', 'authentication_type', 'email_enabled', 'enable_ssl_tls',
+    'enable_start_tls', 'password', 'port', 'sender_address', 'server', 'user_name', 'verify_ssl_certs',
+  ];
+
+  return {
+    org_info: pick(config, orgInfoAttrs),
+    server_settings: pick(config, serverSettingsAttrs),
+    smtp_settings: pick(config, smtpSettingsAttrs),
+  };
+};
+
 export const formatSelectedTargetsForApi = (selectedTargets) => {
   const targets = selectedTargets || [];
   const hosts = flatMap(targets, filterTarget('hosts'));
@@ -56,4 +71,4 @@ const setupData = (formData) => {
   };
 };
 
-export default { addGravatarUrlToResource, formatSelectedTargetsForApi, labelSlug, setupData };
+export default { addGravatarUrlToResource, formatConfigDataForServer, formatSelectedTargetsForApi, labelSlug, setupData };

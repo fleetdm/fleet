@@ -5,10 +5,10 @@ const baseClass = 'form-field';
 
 class FormField extends Component {
   static propTypes = {
-    children: PropTypes.element,
+    children: PropTypes.node,
     className: PropTypes.string,
     error: PropTypes.string,
-    hint: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
+    hint: PropTypes.oneOfType([PropTypes.array, PropTypes.node, PropTypes.string]),
     label: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
     name: PropTypes.string,
     type: PropTypes.string,

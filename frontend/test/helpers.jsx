@@ -17,7 +17,7 @@ export const reduxMockStore = (store = {}) => {
 };
 
 export const connectedComponent = (ComponentClass, options = {}) => {
-  const { props = {}, mockStore = reduxMockStore() } = options;
+  const { mockStore = reduxMockStore(), props = {} } = options;
 
   return (
     <Provider store={mockStore}>
