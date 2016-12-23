@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/go-kit/kit/endpoint"
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/kolide/kolide-ose/server/websocket"
@@ -15,7 +16,6 @@ import (
 ////////////////////////////////////////////////////////////////////////////////
 
 type createDistributedQueryCampaignRequest struct {
-	UserID   uint
 	Query    string `json:"query"`
 	Selected struct {
 		Labels []uint `json:"labels"`
@@ -45,11 +45,12 @@ func makeCreateDistributedQueryCampaignEndpoint(svc kolide.Service) endpoint.End
 // Stream Distributed Query Campaign Results and Metadata
 ////////////////////////////////////////////////////////////////////////////////
 
-func makeStreamDistributedQueryCampaignResultsHandler(svc kolide.Service, jwtKey string) http.HandlerFunc {
+func makeStreamDistributedQueryCampaignResultsHandler(svc kolide.Service, jwtKey string, logger kitlog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Upgrade to websocket connection
 		conn, err := websocket.Upgrade(w, r)
 		if err != nil {
+			logger.Log("err", err, "msg", "could not upgrade to websocket")
 			return
 		}
 		defer conn.Close()
@@ -57,12 +58,14 @@ func makeStreamDistributedQueryCampaignResultsHandler(svc kolide.Service, jwtKey
 		// Receive the auth bearer token
 		token, err := conn.ReadAuthToken()
 		if err != nil {
+			logger.Log("err", err, "msg", "failed to read auth token")
 			return
 		}
 
 		// Authenticate with the token
 		vc, err := authViewer(context.Background(), jwtKey, string(token), svc)
 		if err != nil || !vc.CanPerformActions() {
+			logger.Log("err", err, "msg", "unauthorized viewer")
 			conn.WriteJSONError("unauthorized")
 			return
 		}
@@ -71,6 +74,7 @@ func makeStreamDistributedQueryCampaignResultsHandler(svc kolide.Service, jwtKey
 
 		campaignID, err := idFromRequest(r, "id")
 		if err != nil {
+			logger.Log("err", err, "invalid campaign ID")
 			conn.WriteJSONError("invalid campaign ID")
 			return
 		}
