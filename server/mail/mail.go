@@ -55,20 +55,10 @@ func getMessageBody(e kolide.Email) ([]byte, error) {
 }
 
 func (dm devMailService) SendEmail(e kolide.Email) error {
-	if !e.Config.SMTPEnabled {
-		return fmt.Errorf("email disabled")
+	msg, err := getMessageBody(e)
+	if err != nil {
+		return err
 	}
-	if e.Config.SMTPConfigured {
-		msg, err := getMessageBody(e)
-		if err != nil {
-			return err
-		}
-		fmt.Printf(string(msg))
-	}
-	return nil
-}
-
-func (dm devMailService) sendMail(e kolide.Email, msg []byte) error {
 	fmt.Println(string(msg))
 	return nil
 }
