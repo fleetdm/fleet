@@ -51,7 +51,7 @@ class Checkbox extends Component {
             type="checkbox"
           />
           <span className={checkBoxTickClass} />
-          <div className={`${checkBoxClass}__label`}>{children}</div>
+          <span className={`${checkBoxClass}__label`}>{children}</span>
         </label>
       </FormField>
     );

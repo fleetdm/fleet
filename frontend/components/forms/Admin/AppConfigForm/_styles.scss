@@ -1,6 +1,7 @@
 .app-config-form {
   &__section {
     @include clearfix;
+    margin: 0 0 15px;
 
     .smtp-options {
       font-size: 15px;
@@ -41,7 +42,7 @@
     &--smtp {
       margin: 0 0 $pad-base;
 
-      .input-field__wrapper {
+      .form-field {
         width: 18%;
         float: right;
 
@@ -49,11 +50,12 @@
           float: left;
           width: 78%;
         }
-      }
 
-      .kolide-checkbox {
-        clear: left;
-        display: block;
+        &--checkbox {
+          clear: both;
+          width: 100%;
+          float: none;
+        }
       }
     }
   }
@@ -91,6 +93,7 @@
       border-radius: 80px;
       height: 160px;
       width: 160px;
+      border: 1px solid $accent-medium;
     }
 
     p {
@@ -106,38 +109,39 @@
   }
 
   &__smtp-section {
+    @include clearfix;
     border-radius: 2px;
     background-color: $bg-medium;
     border: solid 1px $accent-medium;
     padding: 30px;
 
-    .input-field__wrapper {
+    .form-field {
       @include clearfix;
+
+      &__label {
+        float: left;
+        font-size: 15px;
+        font-weight: $bold;
+        letter-spacing: 0.6px;
+        text-align: right;
+        color: $text-dark;
+        width: 32%;
+        margin: 0;
+        line-height: 40px;
+
+        @media (min-width: $medium-width + 1) and (max-width: 1195px) {
+          line-height: 18px;
+        }
+      }
 
       &:last-child {
         margin: 0;
       }
     }
 
-    .input-field__label {
-      float: left;
-      font-size: 15px;
-      font-weight: $bold;
-      letter-spacing: 0.6px;
-      text-align: right;
-      color: $text-dark;
-      width: 30%;
-      margin: 0;
-      line-height: 40px;
-
-      @media (min-width: $medium-width + 1) and (max-width: 1195px) {
-        line-height: 18px;
-      }
-    }
-
     .input-field,
     .Select,
-    .slide-wrapper {
+    .kolide-slider__wrapper {
       width: 60%;
       float: right;
     }

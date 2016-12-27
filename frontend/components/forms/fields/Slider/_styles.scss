@@ -26,7 +26,9 @@
   }
 
   &__wrapper {
-    margin-bottom: $pad-base;
+    @include display(flex);
+    @include align-items(center);
+    height: 40px;
   }
 
   &__dot {
@@ -50,11 +52,13 @@
     text-align: left;
     vertical-align: text-bottom;
     text-transform: uppercase;
-    margin: 0 10px;
+    margin-right: 10px;
     color: $text-light;
 
     &--active {
       color: $brand;
+      margin-right: 0;
+      margin-left: 10px;
     }
   }
 }

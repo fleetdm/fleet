@@ -1,8 +1,7 @@
 .kolide-checkbox {
   @include clearfix;
-  @include size(20px);
   position: relative;
-  display: block;
+  display: inline-block;
 
   &__input {
     visibility: hidden;
@@ -34,10 +33,9 @@
 
   &__tick {
     @include size(20px);
-    position: absolute;
-    left: 0;
+    @include position(absolute, 50% null null 0);
+    @include transform(translateY(-10px));
     display: inline-block;
-    float: left;
 
     &::after {
       @include transition(border 75ms ease-in-out, background 75ms ease-in-out);
@@ -64,8 +62,6 @@
     line-height: 20px;
     letter-spacing: 0.5px;
     color: $text-medium;
-    display: inline-block;
-    padding-left: 15px;
-    float: left;
+    padding-left: 25px;
   }
 }

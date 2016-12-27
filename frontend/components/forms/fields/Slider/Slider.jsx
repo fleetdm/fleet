@@ -28,11 +28,13 @@ const Slider = (props) => {
 
   return (
     <FormField {...formFieldProps} type="slider">
-      <span className={`${baseClass}__label ${baseClass}__label--inactive`}>{inactiveText}</span>
-      <button className={`button button--unstyled ${sliderBtnClass}`} onClick={handleClick}>
-        <div className={sliderDotClass} />
-      </button>
-      <span className={`${baseClass}__label ${baseClass}__label--active`}>{activeText}</span>
+      <div className={`${baseClass}__wrapper`}>
+        <span className={`${baseClass}__label ${baseClass}__label--inactive`}>{inactiveText}</span>
+        <button className={`button button--unstyled ${sliderBtnClass}`} onClick={handleClick}>
+          <div className={sliderDotClass} />
+        </button>
+        <span className={`${baseClass}__label ${baseClass}__label--active`}>{activeText}</span>
+      </div>
     </FormField>
   );
 };
