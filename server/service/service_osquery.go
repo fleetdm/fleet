@@ -11,6 +11,7 @@ import (
 	hostctx "github.com/kolide/kolide-ose/server/contexts/host"
 	"github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide-ose/server/pubsub"
 	"golang.org/x/net/context"
 )
 
@@ -420,7 +421,23 @@ func (svc service) ingestDistributedQuery(host kolide.Host, name string, rows []
 
 	err = svc.resultStore.WriteResult(res)
 	if err != nil {
-		return osqueryError{message: "writing results: " + err.Error()}
+		nErr, ok := err.(pubsub.Error)
+		if !ok || !nErr.NoSubscriber() {
+			return osqueryError{message: "writing results: " + err.Error()}
+		}
+
+		// If there are no subscribers, the campaign is "orphaned"
+		// and should be closed so that we don't continue trying to
+		// execute that query when we can't write to any subscriber
+		campaign, err := svc.ds.DistributedQueryCampaign(uint(campaignID))
+		if err != nil {
+			return osqueryError{message: "loading orphaned campaign: " + err.Error()}
+		}
+
+		campaign.Status = kolide.QueryComplete
+		if err := svc.ds.SaveDistributedQueryCampaign(campaign); err != nil {
+			return osqueryError{message: "closing orphaned campaign: " + err.Error()}
+		}
 	}
 
 	// Record execution of the query

@@ -2,7 +2,6 @@ package pubsub
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -10,6 +9,7 @@ import (
 
 	"github.com/garyburd/redigo/redis"
 	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/pkg/errors"
 )
 
 type redisQueryResults struct {
@@ -66,15 +66,15 @@ func (r *redisQueryResults) WriteResult(result kolide.DistributedQueryResult) er
 
 	jsonVal, err := json.Marshal(&result)
 	if err != nil {
-		return errors.New("error marshalling JSON for writing result: " + err.Error())
+		return errors.Wrap(err, "marshalling JSON for result")
 	}
 
 	n, err := redis.Int(conn.Do("PUBLISH", channelName, string(jsonVal)))
 	if err != nil {
-		return fmt.Errorf("PUBLISH failed to channel %s: %s", channelName, err.Error())
+		return errors.Wrap(err, "PUBLISH failed to channel "+channelName)
 	}
 	if n == 0 {
-		return fmt.Errorf("no subscribers for channel %s", channelName)
+		return noSubscriberError{channelName}
 	}
 
 	return nil
@@ -142,7 +142,7 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query kolide.Distri
 					}
 					outChannel <- res
 				case error:
-					outChannel <- msg
+					outChannel <- errors.Wrap(msg, "reading from redis")
 				}
 
 			case <-ctx.Done():

@@ -1,7 +1,7 @@
 package pubsub
 
 import (
-	"errors"
+	"strconv"
 	"sync"
 
 	"golang.org/x/net/context"
@@ -37,14 +37,14 @@ func (im *inmemQueryResults) getChannel(id uint) chan interface{} {
 func (im *inmemQueryResults) WriteResult(result kolide.DistributedQueryResult) error {
 	channel, ok := im.resultChannels[result.DistributedQueryCampaignID]
 	if !ok {
-		return errors.New("no subscribers for channel")
+		return noSubscriberError{strconv.Itoa(int(result.DistributedQueryCampaignID))}
 	}
 
 	select {
 	case channel <- result:
 		// intentionally do nothing
 	default:
-		return errors.New("no subscribers for channel")
+		return noSubscriberError{strconv.Itoa(int(result.DistributedQueryCampaignID))}
 	}
 
 	return nil

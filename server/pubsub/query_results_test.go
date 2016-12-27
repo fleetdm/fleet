@@ -91,10 +91,10 @@ func setupRedis(t *testing.T) (store *redisQueryResults, teardown func()) {
 }
 
 func testQueryResultsStoreErrors(t *testing.T, store kolide.QueryResultStore) {
-	// Test handling results for two campaigns in parallel
+	// Write with no subscriber
 	err := store.WriteResult(
 		kolide.DistributedQueryResult{
-			DistributedQueryCampaignID: 1,
+			DistributedQueryCampaignID: 9999,
 			Rows: []map[string]string{{"bing": "fds"}},
 			Host: kolide.Host{
 				ID: 4,
@@ -108,6 +108,10 @@ func testQueryResultsStoreErrors(t *testing.T, store kolide.QueryResultStore) {
 		},
 	)
 	assert.NotNil(t, err)
+	castErr, ok := err.(Error)
+	if assert.True(t, ok, "err should be pubsub.Error") {
+		assert.True(t, castErr.NoSubscriber(), "NoSubscriber() should be true")
+	}
 }
 
 func testQueryResultsStore(t *testing.T, store kolide.QueryResultStore) {
