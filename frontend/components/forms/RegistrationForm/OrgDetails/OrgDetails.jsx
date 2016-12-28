@@ -39,12 +39,9 @@ class OrgDetails extends Component {
             hint="must start with https://"
           />
         </div>
-        <Button
-          onClick={handleSubmit}
-          text="Submit"
-          variant="gradient"
-          tabIndex={tabIndex}
-        />
+        <Button onClick={handleSubmit} variant="gradient" tabIndex={tabIndex}>
+          Submit
+        </Button>
       </div>
     );
   }

@@ -44,12 +44,7 @@ class EditPackFormWrapper extends Component {
 
     return (
       <div className={className}>
-        <Button
-          onClick={onEditPack}
-          text="EDIT"
-          type="button"
-          variant="brand"
-        />
+        <Button onClick={onEditPack} variant="brand">EDIT</Button>
         <h1><Icon name="packs" /> {pack.name}</h1>
         <p>{pack.description}</p>
         <SelectTargetsDropdown

@@ -33,9 +33,10 @@ class ForgotPasswordForm extends Component {
           <Button
             className={`${baseClass}__submit-btn`}
             type="submit"
-            text="Reset Password"
             variant="gradient"
-          />
+          >
+            Reset Password
+          </Button>
         </div>
       </form>
     );

@@ -192,11 +192,9 @@ class UserManagementPage extends Component {
       <div className={`${baseClass} body-wrap`}>
         <h1 className={`${baseClass}__user-count`}>Listing {resourcesCount} users</h1>
         <div className={`${baseClass}__add-user-wrap`}>
-          <Button
-            onClick={toggleInviteUserModal}
-            className={`${baseClass}__add-user-btn`}
-            text="Add User"
-          />
+          <Button onClick={toggleInviteUserModal} className={`${baseClass}__add-user-btn`}>
+            Add User
+          </Button>
         </div>
         <div className={`${baseClass}__users`}>
           {users.map((user) => {

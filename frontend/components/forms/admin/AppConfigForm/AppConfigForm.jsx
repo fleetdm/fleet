@@ -161,7 +161,7 @@ class AppConfigForm extends Component {
           <div className={`${baseClass}__details`}>
             <p>What base URL should <strong>osqueryd</strong> clients user to connect and register with <strong>Kolide</strong>?</p>
             <p className={`${baseClass}__note`}><strong>Note:</strong>Please ensure the URL you choose is accessible to all endpoints that need to communicate with Kolide, otherwise they will not be able to correctly register.</p>
-            <Button text="SEND TEST" variant="inverse" />
+            <Button variant="inverse">SEND TEST</Button>
           </div>
         </div>
         <div className={`${baseClass}__section`}>
@@ -212,10 +212,11 @@ class AppConfigForm extends Component {
           {renderAdvancedOptions()}
         </div>
         <Button
-          text="UPDATE SETTINGS"
           type="submit"
           variant="brand"
-        />
+        >
+          UPDATE SETTINGS
+        </Button>
       </form>
     );
   }

@@ -63,11 +63,9 @@ class AllPacksPage extends Component {
             Query Packs
           </p>
           <div className={`${baseClass}__new_pack`}>
-            <Button
-              text="CREATE NEW PACK"
-              variant="brand"
-              onClick={goToNewPackPage}
-            />
+            <Button variant="brand" onClick={goToNewPackPage}>
+              CREATE NEW PACK
+            </Button>
           </div>
           <table className={`${baseClass}__table`}>
             <thead>

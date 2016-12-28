@@ -71,12 +71,9 @@ class ConfirmationPage extends Component {
           </div>
         </div>
 
-        <Button
-          onClick={onSubmit}
-          text="Finish"
-          variant="gradient"
-          className={`${baseClass}__submit`}
-        />
+        <Button onClick={onSubmit} variant="gradient" className={`${baseClass}__submit`}>
+          Finish
+        </Button>
       </div>
     );
   }

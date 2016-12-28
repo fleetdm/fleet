@@ -39,12 +39,13 @@ describe('EditPackFormWrapper - component', () => {
     const spy = createSpy();
     const component = mount(
       <EditPackFormWrapper
+        isEdit={false}
         onCancelEditPack={noop}
         onEditPack={spy}
         pack={packStub}
       />
     );
-    const editBtn = component.find('Button').findWhere(b => b.prop('text') === 'EDIT');
+    const editBtn = component.find('Button').find({ children: 'EDIT' });
 
     editBtn.simulate('click');
 

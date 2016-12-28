@@ -180,18 +180,20 @@ class QueryForm extends Component {
         <Button
           className={`${baseClass}__stop-query-btn`}
           onClick={onStopQuery}
-          text="Stop Query"
           variant="alert"
-        />
+        >
+          Stop Query
+        </Button>
       );
     } else {
       runQueryButton = (
         <Button
           className={`${baseClass}__run-query-btn`}
           onClick={onRunQuery}
-          text="Run Query"
           variant="brand"
-        />
+        >
+          Run Query
+        </Button>
       );
     }
 
@@ -201,16 +203,18 @@ class QueryForm extends Component {
           <Button
             className={`${baseClass}__save-changes-btn`}
             onClick={onCancel}
-            text="Cancel"
             variant="inverse"
-          />
+          >
+            Cancel
+          </Button>
           <Button
             className={`${baseClass}__save-as-new-btn`}
             disabled={!canSaveAsNew(formData, query)}
             onClick={onSave}
-            text="Save Label"
             variant="brand"
-          />
+          >
+            Save Label
+          </Button>
         </div>
       );
     }
@@ -221,16 +225,18 @@ class QueryForm extends Component {
           className={`${baseClass}__save-changes-btn`}
           disabled={!canSaveChanges(formData, query)}
           onClick={onUpdate}
-          text="Save Changes"
           variant="inverse"
-        />
+        >
+          Save Changes
+        </Button>
         <Button
           className={`${baseClass}__save-as-new-btn`}
           disabled={!canSaveAsNew(formData, query)}
           onClick={onSave}
-          text="Save As New..."
           variant="success"
-        />
+        >
+          Save As New...
+        </Button>
         {runQueryButton}
       </div>
     );

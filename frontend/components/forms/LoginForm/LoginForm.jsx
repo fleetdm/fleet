@@ -54,10 +54,11 @@ class LoginForm extends Component {
         <Button
           className={`${baseClass}__submit-btn`}
           onClick={handleSubmit}
-          text="Login"
           type="submit"
           variant="gradient"
-        />
+        >
+          Login
+        </Button>
       </form>
     );
   }

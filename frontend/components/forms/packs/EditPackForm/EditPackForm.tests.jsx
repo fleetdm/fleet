@@ -44,9 +44,9 @@ describe('EditPackForm - component', () => {
     it('calls the onCancel prop when "CANCEL" is clicked', () => {
       const spy = createSpy();
       const form = mount(<EditPackForm formData={packStub} handleSubmit={noop} onCancel={spy} />);
-      const cancelBtn = form.find('Button').findWhere(f => f.prop('text') === 'CANCEL');
+      const cancelBtn = form.find('Button').find({ children: 'CANCEL' });
 
-      cancelBtn.simulate('click');
+      cancelBtn.first().simulate('click');
 
       expect(spy).toHaveBeenCalled();
     });

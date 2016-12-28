@@ -17,8 +17,8 @@ const SmtpWarning = ({ onDismiss, shouldShowWarning }) => {
         <span className={`${baseClass}__label`}>Warning!</span>
       </div>
       <span className={`${baseClass}__text`}>Email is not currently configured in Kolide. Many features rely on email to work.</span>
-      <Button onClick={onDismiss} text="Dismiss" variant="unstyled" />
-      <Button text="Resolve" variant="unstyled" />
+      <Button onClick={onDismiss} variant="unstyled">Dismiss</Button>
+      <Button variant="unstyled">Resolve</Button>
     </div>
   );
 };

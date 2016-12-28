@@ -29,17 +29,8 @@ class EditPackForm extends Component {
         <InputField
           {...fields.description}
         />
-        <Button
-          onClick={onCancel}
-          text="CANCEL"
-          type="button"
-          variant="inverse"
-        />
-        <Button
-          text="SAVE"
-          type="submit"
-          variant="brand"
-        />
+        <Button onClick={onCancel} type="button" variant="inverse">CANCEL</Button>
+        <Button type="submit" variant="brand">SAVE</Button>
       </form>
     );
   }

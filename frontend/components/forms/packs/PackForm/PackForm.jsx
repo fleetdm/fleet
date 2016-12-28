@@ -62,11 +62,9 @@ class PackForm extends Component {
           />
         </div>
         <div className={`${baseClass}__pack-buttons`}>
-          <Button
-            text="Save Query pack"
-            type="submit"
-            variant="brand"
-          />
+          <Button type="submit" variant="brand">
+            Save Query Pack
+          </Button>
         </div>
       </form>
     );

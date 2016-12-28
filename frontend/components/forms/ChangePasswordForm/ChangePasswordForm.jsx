@@ -39,17 +39,8 @@ class ChangePasswordForm extends Component {
           label="New Password Confirmation"
           type="password"
         />
-        <Button
-          onClick={onCancel}
-          text="CANCEL"
-          type="button"
-          variant="inverse"
-        />
-        <Button
-          text="CHANGE PASSWORD"
-          type="submit"
-          variant="brand"
-        />
+        <Button onClick={onCancel} variant="inverse">CANCEL</Button>
+        <Button type="submit" variant="brand">CHANGE PASSWORD</Button>
       </form>
     );
   }

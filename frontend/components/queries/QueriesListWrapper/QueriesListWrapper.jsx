@@ -87,9 +87,10 @@ class QueriesListWrapper extends Component {
         <Button
           className={`${baseClass}__query-btn`}
           onClick={onRemoveScheduledQueries}
-          text={`Remove ${queryText}`}
           variant="alert"
-        />
+        >
+          Remove {queryText}
+        </Button>
       );
     }
 

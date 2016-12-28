@@ -56,12 +56,9 @@ class AdminDetails extends Component {
             tabIndex={tabIndex}
           />
         </div>
-        <Button
-          onClick={handleSubmit}
-          text="Submit"
-          variant="gradient"
-          tabIndex={tabIndex}
-        />
+        <Button onClick={handleSubmit} variant="gradient" tabIndex={tabIndex}>
+          Submit
+        </Button>
       </div>
     );
   }

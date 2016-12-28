@@ -25,8 +25,8 @@ describe('QueriesListWrapper - component', () => {
 
     component.find('Checkbox').last().find('input').simulate('change');
 
-    const addQueryBtn = component.find('Button').findWhere(b => b.prop('text') === 'Add New Query');
-    const removeQueryBtn = component.find('Button').findWhere(b => b.prop('text') === 'Remove Query');
+    const addQueryBtn = component.find('Button').find({ children: 'Add New Query' });
+    const removeQueryBtn = component.find('Button').find({ children: ['Remove ', 'Query'] });
 
     expect(addQueryBtn.length).toEqual(0);
     expect(removeQueryBtn.length).toEqual(1);
@@ -44,7 +44,7 @@ describe('QueriesListWrapper - component', () => {
 
     component.find('Checkbox').last().find('input').simulate('change');
 
-    const removeQueryBtn = component.find('Button').findWhere(b => b.prop('text') === 'Remove Query');
+    const removeQueryBtn = component.find('Button').find({ children: ['Remove ', 'Query'] });
 
     removeQueryBtn.simulate('click');
 

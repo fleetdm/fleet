@@ -138,9 +138,13 @@ class UserSettingsPage extends Component {
             <Icon name="lock-big" />
             <strong>Password</strong>
           </div>
-          <Button onClick={onShowModal} text="CHANGE PASSWORD" variant="brand" className={`${baseClass}__button`} />
+          <Button onClick={onShowModal} variant="brand" className={`${baseClass}__button`}>
+            CHANGE PASSWORD
+          </Button>
           <p className={`${baseClass}__last-updated`}>Last changed: {lastUpdatedAt}</p>
-          <Button onClick={onLogout} text="LOGOUT" variant="alert" className={`${baseClass}__button`} />
+          <Button onClick={onLogout} variant="alert" className={`${baseClass}__button`}>
+            LOGOUT
+          </Button>
         </div>
         {renderModal()}
       </div>

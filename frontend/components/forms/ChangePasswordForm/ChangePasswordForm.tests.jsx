@@ -39,7 +39,7 @@ describe('ChangePasswordForm - component', () => {
   it('calls the onCancel prop when CANCEL is clicked', () => {
     const onCancelSpy = createSpy();
     const form = mount(<ChangePasswordForm handleSubmit={noop} onCancel={onCancelSpy} />);
-    const cancelBtn = form.find('Button').findWhere(n => n.prop('text') === 'CANCEL').find('button');
+    const cancelBtn = form.find('Button').findWhere(n => n.prop('children') === 'CANCEL').find('button');
 
     cancelBtn.simulate('click');
 

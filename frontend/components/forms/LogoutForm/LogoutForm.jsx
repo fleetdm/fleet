@@ -34,10 +34,11 @@ class LogoutForm extends Component {
         <Button
           className={`${baseClass}__submit-btn`}
           onClick={onFormSubmit}
-          text="Logout"
           type="submit"
           variant="gradient"
-        />
+        >
+          Logout
+        </Button>
       </form>
     );
   }

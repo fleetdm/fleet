@@ -42,10 +42,11 @@ class ResetPasswordForm extends Component {
           <Button
             onClick={handleSubmit}
             className={`${baseClass}__btn`}
-            text="Reset Password"
             type="submit"
             variant="gradient"
-          />
+          >
+            Reset Password
+          </Button>
         </div>
       </form>
     );

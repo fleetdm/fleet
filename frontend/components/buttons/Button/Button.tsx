@@ -4,12 +4,12 @@ const classnames = require('classnames');
 const baseClass = 'button';
 
 interface IButtonProps {
+  children: React.ReactChild;
   className: string;
   disabled: boolean;
   onClick: (evt: React.MouseEvent<HTMLButtonElement>) => boolean;
   size: string;
   tabIndex: number;
-  text: any;
   type: string;
   variant: string;
 }
@@ -19,6 +19,7 @@ interface IButtonState {}
 class Button extends React.Component<IButtonProps, IButtonState> {
   static defaultProps = {
     size: '',
+    type: 'button',
     variant: 'default',
   };
 
@@ -38,7 +39,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
 
   render () {
     const { handleClick } = this;
-    const { className, disabled, size, tabIndex, text, type, variant } = this.props;
+    const { children, className, disabled, size, tabIndex, type, variant } = this.props;
     const fullClassName = classnames(baseClass, `${baseClass}--${variant}`, className, {
       [baseClass]: variant !== 'unstyled',
       [`${baseClass}--disabled`]: disabled,
@@ -53,7 +54,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         tabIndex={tabIndex}
         type={type}
       >
-        {text}
+        {children}
       </button>
     );
   }

@@ -56,16 +56,18 @@ class EditUserForm extends Component {
         <div className={`${baseClass}__btn-wrap`}>
           <Button
             className={`${baseClass}__form-btn ${baseClass}__form-btn--submit`}
-            text="Submit"
             type="submit"
             variant="brand"
-          />
+          >
+            Submit
+          </Button>
           <Button
             className={`${baseClass}__form-btn`}
             onClick={onCancel}
-            text="Cancel"
             variant="inverse"
-          />
+          >
+            Cancel
+          </Button>
         </div>
       </form>
     );

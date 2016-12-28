@@ -165,18 +165,17 @@ class InviteUserForm extends Component {
           /> ADMIN
         </div>
         <div className={`${baseClass}__btn-wrap`}>
-          <Button
-            className={`${baseClass}__btn`}
-            text="Invite"
-            type="submit"
-          />
+          <Button className={`${baseClass}__btn`} type="submit">
+            Invite
+          </Button>
           <Button
             className={`${baseClass}__btn`}
             onClick={onCancel}
-            text="Cancel"
             type="input"
             variant="inverse"
-          />
+          >
+            Cancel
+          </Button>
         </div>
       </form>
     );
