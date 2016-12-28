@@ -3,6 +3,7 @@ package service
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"html/template"
 	"time"
 
 	"github.com/kolide/kolide-ose/server/contexts/viewer"
@@ -254,7 +255,7 @@ func (svc service) RequestPasswordReset(ctx context.Context, email string) error
 		To:      []string{user.Email},
 		Config:  config,
 		Mailer: &kolide.PasswordResetMailer{
-			KolideServerURL: config.KolideServerURL,
+			KolideServerURL: template.URL(config.KolideServerURL),
 			Token:           token,
 		},
 	}

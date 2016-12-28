@@ -2,16 +2,11 @@ package service
 
 import (
 	"encoding/base64"
+	"html/template"
 
 	"github.com/kolide/kolide-ose/server/kolide"
 	"golang.org/x/net/context"
 )
-
-type inviteMailer struct{}
-
-func (m *inviteMailer) Message() ([]byte, error) {
-	return []byte("test message"), nil
-}
 
 func (svc service) InviteNewUser(ctx context.Context, payload kolide.InvitePayload) (*kolide.Invite, error) {
 	// verify that the user with the given email does not already exist
@@ -63,7 +58,11 @@ func (svc service) InviteNewUser(ctx context.Context, payload kolide.InvitePaylo
 		Subject: "You're Invited to Kolide",
 		To:      []string{invite.Email},
 		Config:  config,
-		Mailer:  &inviteMailer{},
+		Mailer: &kolide.InviteMailer{
+			Invite:            invite,
+			KolideServerURL:   template.URL(config.KolideServerURL),
+			InvitedByUsername: inviter.Name,
+		},
 	}
 
 	err = svc.mailService.SendEmail(inviteEmail)

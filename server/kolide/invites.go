@@ -68,20 +68,20 @@ type Invite struct {
 	Token     string `json:"-"`
 }
 
-// TODO: fixme
-// this is not the right way to generate emails at all
-const inviteEmailTempate = `
-{{.InvitedBy}} invited you to join Kolide.,
-http://localhost:8080/signup?token={{.Token}}
-`
+// InviteMailer is used to build an email template for the invite email.
+type InviteMailer struct {
+	*Invite
+	KolideServerURL   template.URL
+	InvitedByUsername string
+}
 
-func (i Invite) Message() ([]byte, error) {
-	var msg bytes.Buffer
-	var err error
-	t := template.New(inviteEmailTempate)
-	if t, err = t.Parse(inviteEmailTempate); err != nil {
+func (i *InviteMailer) Message() ([]byte, error) {
+	t, err := getTemplate("server/mail/templates/invite_token.html")
+	if err != nil {
 		return nil, err
 	}
+
+	var msg bytes.Buffer
 	if err = t.Execute(&msg, i); err != nil {
 		return nil, err
 	}
