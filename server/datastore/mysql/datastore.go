@@ -176,7 +176,6 @@ func (d *Datastore) createBuiltinLabels() error {
 
 	labels := []kolide.Label{
 		{
-			Platform:  "all",
 			Name:      "All Hosts",
 			Query:     "select 1;",
 			LabelType: kolide.LabelTypeBuiltIn,

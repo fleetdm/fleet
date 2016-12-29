@@ -317,7 +317,6 @@ func (d *Datastore) createBuiltinLabels() error {
 					UpdatedAt: time.Now().UTC(),
 				},
 			},
-			Platform:  "all",
 			Name:      "All Hosts",
 			Query:     "select 1;",
 			LabelType: kolide.LabelTypeBuiltIn,

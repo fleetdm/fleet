@@ -77,7 +77,7 @@ func (d *Datastore) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (ma
 	sqlStatment := `
 			SELECT l.id, l.query
 			FROM labels l
-			WHERE l.platform = ?
+			WHERE (l.platform = ? OR l.platform = '')
 			AND NOT l.deleted
 			AND l.id NOT IN /* subtract the set of executions that are recent enough */
 			(

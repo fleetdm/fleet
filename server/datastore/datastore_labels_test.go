@@ -49,9 +49,8 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 			Platform: "darwin",
 		},
 		kolide.Label{
-			Name:     "label1",
-			Query:    "query1",
-			Platform: "darwin",
+			Name:  "label1",
+			Query: "query1",
 		},
 		kolide.Label{
 			Name:     "label2",
