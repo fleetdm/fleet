@@ -64,15 +64,6 @@ type Query struct {
 	Packs []Pack `json:"packs" db:"-"`
 }
 
-type Option struct {
-	ID        uint
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Key       string
-	Value     string
-	Platform  string
-}
-
 type DecoratorType int
 
 const (

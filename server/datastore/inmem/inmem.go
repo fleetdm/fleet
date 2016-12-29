@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/kolide/kolide-ose/server/config"
+	"github.com/kolide/kolide-ose/server/datastore/internal/appstate"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/patrickmn/sortutil"
 )
@@ -31,9 +32,9 @@ type Datastore struct {
 	distributedQueryExecutions      map[uint]kolide.DistributedQueryExecution
 	distributedQueryCampaigns       map[uint]kolide.DistributedQueryCampaign
 	distributedQueryCampaignTargets map[uint]kolide.DistributedQueryCampaignTarget
-
-	orginfo *kolide.AppConfig
-	config  *config.KolideConfig
+	options                         map[uint]*kolide.Option
+	appConfig                       *kolide.AppConfig
+	config                          *config.KolideConfig
 }
 
 func New(config config.KolideConfig) (*Datastore, error) {
@@ -68,32 +69,44 @@ func sortResults(slice interface{}, opt kolide.ListOptions, fields map[string]st
 	return nil
 }
 
-func (orm *Datastore) Migrate() error {
-	orm.mtx.Lock()
-	defer orm.mtx.Unlock()
-	orm.nextIDs = make(map[interface{}]uint)
-	orm.users = make(map[uint]*kolide.User)
-	orm.sessions = make(map[uint]*kolide.Session)
-	orm.passwordResets = make(map[uint]*kolide.PasswordResetRequest)
-	orm.invites = make(map[uint]*kolide.Invite)
-	orm.labels = make(map[uint]*kolide.Label)
-	orm.labelQueryExecutions = make(map[uint]*kolide.LabelQueryExecution)
-	orm.queries = make(map[uint]*kolide.Query)
-	orm.packs = make(map[uint]*kolide.Pack)
-	orm.hosts = make(map[uint]*kolide.Host)
-	orm.scheduledQueries = make(map[uint]*kolide.ScheduledQuery)
-	orm.packTargets = make(map[uint]*kolide.PackTarget)
-	orm.distributedQueryExecutions = make(map[uint]kolide.DistributedQueryExecution)
-	orm.distributedQueryCampaigns = make(map[uint]kolide.DistributedQueryCampaign)
-	orm.distributedQueryCampaignTargets = make(map[uint]kolide.DistributedQueryCampaignTarget)
-	orm.orginfo = &kolide.AppConfig{
+func (d *Datastore) Migrate() error {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	d.nextIDs = make(map[interface{}]uint)
+	d.users = make(map[uint]*kolide.User)
+	d.sessions = make(map[uint]*kolide.Session)
+	d.passwordResets = make(map[uint]*kolide.PasswordResetRequest)
+	d.invites = make(map[uint]*kolide.Invite)
+	d.labels = make(map[uint]*kolide.Label)
+	d.labelQueryExecutions = make(map[uint]*kolide.LabelQueryExecution)
+	d.queries = make(map[uint]*kolide.Query)
+	d.packs = make(map[uint]*kolide.Pack)
+	d.hosts = make(map[uint]*kolide.Host)
+	d.scheduledQueries = make(map[uint]*kolide.ScheduledQuery)
+	d.packTargets = make(map[uint]*kolide.PackTarget)
+	d.distributedQueryExecutions = make(map[uint]kolide.DistributedQueryExecution)
+	d.distributedQueryCampaigns = make(map[uint]kolide.DistributedQueryCampaign)
+	d.distributedQueryCampaignTargets = make(map[uint]kolide.DistributedQueryCampaignTarget)
+	d.options = make(map[uint]*kolide.Option)
+
+	for _, initData := range appstate.Options {
+		opt := kolide.Option{
+			Name:     initData.Name,
+			Value:    kolide.OptionValue{Val: initData.Value},
+			Type:     initData.Type,
+			ReadOnly: initData.ReadOnly,
+		}
+		opt.ID = d.nextID(opt)
+		d.options[opt.ID] = &opt
+	}
+
+	d.appConfig = &kolide.AppConfig{
 		ID:                 1,
 		SMTPEnableTLS:      true,
 		SMTPPort:           587,
 		SMTPEnableStartTLS: true,
 		SMTPVerifySSLCerts: true,
 	}
-
 	return nil
 }
 

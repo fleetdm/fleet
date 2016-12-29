@@ -14,4 +14,5 @@ type Service interface {
 	InviteService
 	TargetService
 	ScheduledQueryService
+	OptionService
 }
