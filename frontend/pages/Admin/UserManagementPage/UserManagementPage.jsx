@@ -85,9 +85,8 @@ class UserManagementPage extends Component {
             });
         case 'revert_invitation':
           return dispatch(inviteActions.destroy(user))
-            .then(() => {
-              return dispatch(renderFlash('success', 'Invite revoked'));
-            });
+            .then(() => dispatch(renderFlash('success', 'Invite revoked')))
+            .catch(() => dispatch(renderFlash('error', 'Invite could not be revoked')));
         default:
           return false;
       }

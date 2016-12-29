@@ -265,7 +265,7 @@ export const validRevokeInviteRequest = (bearerToken, inviteID) => {
     },
   })
   .delete(`/api/v1/kolide/invites/${inviteID}`)
-  .reply(200);
+  .reply(200, {});
 };
 
 export const invalidResetPasswordRequest = (password, token, error) => {

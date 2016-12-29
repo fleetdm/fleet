@@ -20,7 +20,7 @@ class Base {
 
   static _request (method, endpoint, body, overrideHeaders) {
     const credentials = 'same-origin';
-    const { DELETE, GET } = REQUEST_METHODS;
+    const { GET } = REQUEST_METHODS;
     const headers = {
       Accept: 'application/json',
       'Content-Type': 'application/json',
@@ -32,8 +32,6 @@ class Base {
 
     return fetch(endpoint, requestAttrs)
       .then((response) => {
-        if (method === DELETE) return false;
-
         return response.json()
           .then((jsonResponse) => {
             if (response.ok) {
