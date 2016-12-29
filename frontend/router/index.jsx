@@ -1,5 +1,5 @@
 import React from 'react';
-import { browserHistory, IndexRoute, Route, Router } from 'react-router';
+import { browserHistory, IndexRedirect, IndexRoute, Route, Router } from 'react-router';
 import { Provider } from 'react-redux';
 import { syncHistoryWithStore } from 'react-router-redux';
 
@@ -11,7 +11,6 @@ import AuthenticatedAdminRoutes from 'components/AuthenticatedAdminRoutes';
 import AuthenticatedRoutes from 'components/AuthenticatedRoutes';
 import CoreLayout from 'layouts/CoreLayout';
 import EditPackPage from 'pages/packs/EditPackPage';
-import HomePage from 'pages/HomePage';
 import LoginRoutes from 'components/LoginRoutes';
 import LogoutPage from 'pages/LogoutPage';
 import ManageHostsPage from 'pages/hosts/ManageHostsPage';
@@ -38,7 +37,7 @@ const routes = (
         <Route component={AuthenticatedRoutes}>
           <Route path="logout" component={LogoutPage} />
           <Route component={CoreLayout}>
-            <IndexRoute component={HomePage} />
+            <IndexRedirect to="/hosts/manage" />
             <Route path="admin" component={AuthenticatedAdminRoutes}>
               <Route path="users" component={AdminUserManagementPage} />
               <Route path="settings" component={AdminAppSettingsPage} />
