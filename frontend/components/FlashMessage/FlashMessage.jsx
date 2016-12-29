@@ -1,18 +1,22 @@
 import React, { PropTypes } from 'react';
+import classnames from 'classnames';
 
 import notificationInterface from '../../interfaces/notification';
 
 const baseClass = 'flash-message';
 
-const FlashMessage = ({ notification, onRemoveFlash, onUndoActionClick }) => {
+const FlashMessage = ({ fullWidth, notification, onRemoveFlash, onUndoActionClick }) => {
   const { alertType, isVisible, message, undoAction } = notification;
+  const klass = classnames(baseClass, `${baseClass}--${alertType}`, {
+    [`${baseClass}--full-width`]: fullWidth,
+  });
 
   if (!isVisible) {
     return false;
   }
 
   return (
-    <div className={`${baseClass} ${baseClass}--${alertType}`}>
+    <div className={klass}>
       <div className={`${baseClass}__content`}>
         {message}
       </div>
@@ -35,6 +39,7 @@ const FlashMessage = ({ notification, onRemoveFlash, onUndoActionClick }) => {
 };
 
 FlashMessage.propTypes = {
+  fullWidth: PropTypes.bool,
   notification: notificationInterface,
   onRemoveFlash: PropTypes.func,
   onUndoActionClick: PropTypes.func,

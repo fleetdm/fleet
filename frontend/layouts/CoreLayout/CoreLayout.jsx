@@ -4,11 +4,8 @@ import { logoutUser } from 'redux/nodes/auth/actions';
 import { push } from 'react-router-redux';
 
 import configInterface from 'interfaces/config';
-import FlashMessage from 'components/FlashMessage';
-import { hideFlash } from 'redux/nodes/notifications/actions';
 import SiteNavHeader from 'components/side_panels/SiteNavHeader';
 import SiteNavSidePanel from 'components/side_panels/SiteNavSidePanel';
-import notificationInterface from 'interfaces/notification';
 import userInterface from 'interfaces/user';
 
 export class CoreLayout extends Component {
@@ -16,7 +13,6 @@ export class CoreLayout extends Component {
     children: PropTypes.node,
     config: configInterface,
     dispatch: PropTypes.func,
-    notifications: notificationInterface,
     user: userInterface,
   };
 
@@ -28,7 +24,7 @@ export class CoreLayout extends Component {
     return false;
   }
 
-  onRedirectTo = (path) => {
+  onNavItemClick = (path) => {
     return (evt) => {
       evt.preventDefault();
 
@@ -40,33 +36,12 @@ export class CoreLayout extends Component {
     };
   }
 
-  onRemoveFlash = () => {
-    const { dispatch } = this.props;
-
-    dispatch(hideFlash);
-
-    return false;
-  }
-
-  onUndoActionClick = (undoAction) => {
-    return (evt) => {
-      evt.preventDefault();
-
-      const { dispatch } = this.props;
-      const { onRemoveFlash } = this;
-
-      dispatch(undoAction);
-
-      return onRemoveFlash();
-    };
-  }
-
   render () {
-    const { children, config, notifications, user } = this.props;
+    const { children, config, user } = this.props;
 
     if (!user) return false;
 
-    const { onLogoutUser, onRedirectTo, onRemoveFlash, onUndoActionClick } = this;
+    const { onLogoutUser, onNavItemClick } = this;
     const { pathname } = global.window.location;
 
     return (
@@ -75,22 +50,17 @@ export class CoreLayout extends Component {
           <SiteNavHeader
             config={config}
             onLogoutUser={onLogoutUser}
-            onRedirectTo={onRedirectTo}
+            onNavItemClick={onNavItemClick}
             user={user}
           />
           <SiteNavSidePanel
             config={config}
-            onRedirectTo={onRedirectTo}
+            onNavItemClick={onNavItemClick}
             pathname={pathname}
             user={user}
           />
         </nav>
         <div className="core-wrapper">
-          <FlashMessage
-            notification={notifications}
-            onRemoveFlash={onRemoveFlash}
-            onUndoActionClick={onUndoActionClick}
-          />
           {children}
         </div>
       </div>
@@ -102,12 +72,10 @@ const mapStateToProps = (state) => {
   const {
     app: { config },
     auth: { user },
-    notifications,
   } = state;
 
   return {
     config,
-    notifications,
     user,
   };
 };

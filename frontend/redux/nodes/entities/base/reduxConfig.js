@@ -125,12 +125,12 @@ const reduxConfig = ({
         })
         .catch((response) => {
           const { errors } = response;
-          const { error } = response.message || {};
+          const { errors: error } = response.message || {};
           const errorMessage = errors || error;
 
           dispatch(createFailure(errorMessage));
 
-          throw error;
+          throw errorMessage;
         });
     };
   };

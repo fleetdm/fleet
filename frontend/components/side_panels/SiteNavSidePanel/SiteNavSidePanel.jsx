@@ -8,7 +8,7 @@ import navItems from './navItems';
 
 class SiteNavSidePanel extends Component {
   static propTypes = {
-    onRedirectTo: PropTypes.func,
+    onNavItemClick: PropTypes.func,
     pathname: PropTypes.string,
     user: userInterface,
   };
@@ -48,7 +48,7 @@ class SiteNavSidePanel extends Component {
 
   renderNavItem = (navItem) => {
     const { icon, name, subItems } = navItem;
-    const { onRedirectTo, pathname } = this.props;
+    const { onNavItemClick, pathname } = this.props;
     const { renderSubItems } = this;
     const active = navItem.location.regex.test(pathname);
 
@@ -63,7 +63,7 @@ class SiteNavSidePanel extends Component {
       <li className={navItemClasses} key={`nav-item-${name}`}>
         <button
           className={`${navItemBaseClass}__button button button--unstyled`}
-          onClick={onRedirectTo(navItem.location)}
+          onClick={onNavItemClick(navItem.location.pathname)}
           style={{ width: '100%' }}
         >
           <Icon name={icon} className={`${navItemBaseClass}__icon`} />
@@ -90,7 +90,7 @@ class SiteNavSidePanel extends Component {
 
   renderSubItem = (subItem) => {
     const { icon, name } = subItem;
-    const { onRedirectTo, pathname } = this.props;
+    const { onNavItemClick, pathname } = this.props;
     const active = subItem.location.regex.test(pathname);
 
     const baseSubItemClass = 'site-sub-item';
@@ -108,7 +108,7 @@ class SiteNavSidePanel extends Component {
         <button
           className={`${baseSubItemClass}__button button button--unstyled`}
           key={`sub-item-${name}`}
-          onClick={onRedirectTo(subItem.location)}
+          onClick={onNavItemClick(subItem.location.pathname)}
         >
           <span className={`${baseSubItemClass}__name`}>{name}</span>
           <span className={`${baseSubItemClass}__icon`}><Icon name={icon} /></span>

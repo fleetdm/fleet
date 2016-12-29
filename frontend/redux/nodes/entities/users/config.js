@@ -5,6 +5,7 @@ import schemas from 'redux/nodes/entities/base/schemas';
 const { USERS } = schemas;
 
 export default reduxConfig({
+  createFunc: Kolide.createUser,
   entityName: 'users',
   loadAllFunc: Kolide.getUsers,
   schema: USERS,

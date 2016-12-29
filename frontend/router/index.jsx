@@ -9,6 +9,7 @@ import AllPacksPage from 'pages/packs/AllPacksPage';
 import App from 'components/App';
 import AuthenticatedAdminRoutes from 'components/AuthenticatedAdminRoutes';
 import AuthenticatedRoutes from 'components/AuthenticatedRoutes';
+import ConfirmInvitePage from 'pages/ConfirmInvitePage';
 import CoreLayout from 'layouts/CoreLayout';
 import EditPackPage from 'pages/packs/EditPackPage';
 import LoginRoutes from 'components/LoginRoutes';
@@ -31,6 +32,7 @@ const routes = (
       <Route path="/" component={App}>
         <Route path="setup" component={RegistrationPage} />
         <Route path="login" component={LoginRoutes}>
+          <Route path="invites/:invite_token" component={ConfirmInvitePage} />
           <Route path="forgot" />
           <Route path="reset" />
         </Route>

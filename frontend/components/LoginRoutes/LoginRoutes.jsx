@@ -1,6 +1,5 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { RouteTransition } from 'react-router-transition';
 
 import { hideBackgroundImage, showBackgroundImage } from 'redux/nodes/app/actions';
 import LoginPage from 'pages/LoginPage';
@@ -39,33 +38,13 @@ export class LoginRoutes extends Component {
 
     return (
       <div className="login-routes">
-        <LoginPage
-          pathname={pathname}
-          token={token}
-          isForgotPassPage={isForgotPassPage}
-          isResetPassPage={isResetPassPage}
-        />
-        <RouteTransition
-          pathname={pathname}
-          atEnter={{
-            scale: 1.3,
-            opacity: 0,
-          }}
-          atLeave={{
-            scale: 1.3,
-            opacity: 0,
-          }}
-          atActive={{
-            scale: 1,
-            opacity: 1,
-          }}
-          mapStyles={styles => ({
-            opacity: styles.opacity,
-            transform: `scale(${styles.scale})`,
-          })}
-        >
-          {children}
-        </RouteTransition>
+        {children ||
+          <LoginPage
+            pathname={pathname}
+            token={token}
+            isForgotPassPage={isForgotPassPage}
+            isResetPassPage={isResetPassPage}
+          />}
         <Footer />
       </div>
     );

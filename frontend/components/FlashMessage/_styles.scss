@@ -1,15 +1,24 @@
+.wrapper > div.flash-message {
+  height: 50px;
+  min-height: 50px;
+  max-height: 50px;
+}
+
 .flash-message {
   @include display(flex);
   @include align-items(center);
   @include justify-content(space-between);
   @include position(fixed, 0 0 null 240px);
   color: $white;
-  height: 50px;
   padding: 0 $pad-half;
   z-index: 2;
 
   @include breakpoint(tablet) {
     left: 55px;
+  }
+
+  &--full-width {
+    left: 0;
   }
 
   &--success {

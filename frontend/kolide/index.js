@@ -70,6 +70,13 @@ class Kolide extends Base {
     return this.authenticatedDelete(endpoint);
   }
 
+  createUser = (formData) => {
+    const { USERS } = endpoints;
+
+    return this.authenticatedPost(this.endpoint(USERS), JSON.stringify(formData))
+      .then((response) => { return response.user; });
+  }
+
   forgotPassword ({ email }) {
     const { FORGOT_PASSWORD } = endpoints;
     const forgotPasswordEndpoint = this.baseURL + FORGOT_PASSWORD;
