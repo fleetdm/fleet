@@ -139,14 +139,16 @@ the way that the kolide server works.
 
 			httpLogger := kitlog.NewContext(logger).With("component", "http")
 
-			var apiHandler http.Handler
+			var apiHandler, frontendHandler http.Handler
 			{
+				frontendHandler = prometheus.InstrumentHandler("get_frontend", service.ServeFrontend())
 				apiHandler = service.MakeHandler(ctx, svc, config.Auth.JwtKey, httpLogger)
 				// WithSetup will check if first time setup is required
 				// By performing the same check inside main, we can make server startups
 				// more efficient after the first startup.
 				if service.RequireSetup(svc, logger) {
 					apiHandler = service.WithSetup(svc, logger, apiHandler)
+					frontendHandler = service.RedirectLoginToSetup(svc, logger, frontendHandler)
 				}
 			}
 
@@ -161,7 +163,7 @@ the way that the kolide server works.
 			http.Handle("/assets/", prometheus.InstrumentHandler("static_assets", service.ServeStaticAssets("/assets/")))
 			http.Handle("/metrics", prometheus.InstrumentHandler("metrics", promhttp.Handler()))
 			http.Handle("/api/", apiHandler)
-			http.Handle("/", prometheus.InstrumentHandler("get_frontend", service.ServeFrontend()))
+			http.Handle("/", frontendHandler)
 
 			errs := make(chan error, 2)
 			go func() {

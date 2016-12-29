@@ -1,7 +1,6 @@
 package service
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/go-kit/kit/endpoint"
@@ -369,7 +368,6 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 func WithSetup(svc kolide.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		configRouter := http.NewServeMux()
-		configRouter.Handle("/api/v1/kolide/config", http.HandlerFunc(forceSetup))
 		configRouter.Handle("/api/v1/setup", kithttp.NewServer(
 			context.Background(),
 			makeSetupEndpoint(svc),
@@ -384,12 +382,24 @@ func WithSetup(svc kolide.Service, logger kitlog.Logger, next http.Handler) http
 	}
 }
 
-func forceSetup(w http.ResponseWriter, r *http.Request) {
-	response := map[string]bool{
-		"require_setup": true,
-	}
-	if err := json.NewEncoder(w).Encode(&response); err != nil {
-		encodeError(context.Background(), err, w)
+// RedirectLoginToSetup detects if the setup endpoint should be used. If setup is required it redirect all
+// frontend urls to /setup, otherwise the frontend router is used.
+func RedirectLoginToSetup(svc kolide.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		redirect := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/setup" {
+				next.ServeHTTP(w, r)
+				return
+			}
+			newURL := r.URL
+			newURL.Path = "/setup"
+			http.Redirect(w, r, newURL.String(), http.StatusTemporaryRedirect)
+		})
+		if RequireSetup(svc, logger) {
+			redirect.ServeHTTP(w, r)
+		} else {
+			next.ServeHTTP(w, r)
+		}
 	}
 }
 
