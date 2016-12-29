@@ -4,6 +4,7 @@ import kolideLogo from '../../../../assets/images/kolide-logo.svg';
 
 class OrgLogoIcon extends Component {
   static propTypes = {
+    className: PropTypes.string,
     src: PropTypes.string.isRequired,
   };
 
@@ -40,12 +41,14 @@ class OrgLogoIcon extends Component {
   }
 
   render () {
+    const { className } = this.props;
     const { imageSrc } = this.state;
     const { onError } = this;
 
     return (
       <img
         alt="Organization Logo"
+        className={className}
         onError={onError}
         src={imageSrc}
       />
