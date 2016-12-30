@@ -49,15 +49,16 @@ func (mw metricsMiddleware) ListInvites(ctx context.Context, opt kolide.ListOpti
 	return invites, err
 }
 
-func (mw metricsMiddleware) VerifyInvite(ctx context.Context, email string, token string) error {
+func (mw metricsMiddleware) VerifyInvite(ctx context.Context, token string) (*kolide.Invite, error) {
 	var (
-		err error
+		err    error
+		invite *kolide.Invite
 	)
 	defer func(begin time.Time) {
 		lvs := []string{"method", "VerifyInvite", "error", fmt.Sprint(err != nil)}
 		mw.requestCount.With(lvs...).Add(1)
 		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	err = mw.Service.VerifyInvite(ctx, email, token)
-	return err
+	invite, err = mw.Service.VerifyInvite(ctx, token)
+	return invite, err
 }

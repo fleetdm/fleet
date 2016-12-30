@@ -72,18 +72,19 @@ func (mw loggingMiddleware) ListInvites(ctx context.Context, opt kolide.ListOpti
 	return invites, err
 }
 
-func (mw loggingMiddleware) VerifyInvite(ctx context.Context, email string, token string) error {
+func (mw loggingMiddleware) VerifyInvite(ctx context.Context, token string) (*kolide.Invite, error) {
 	var (
-		err error
+		err    error
+		invite *kolide.Invite
 	)
 	defer func(begin time.Time) {
 		_ = mw.logger.Log(
 			"method", "VerifyInvite",
-			"email", email,
+			"token", token,
 			"err", err,
 			"took", time.Since(begin),
 		)
 	}(time.Now())
-	err = mw.Service.VerifyInvite(ctx, email, token)
-	return err
+	invite, err = mw.Service.VerifyInvite(ctx, token)
+	return invite, err
 }

@@ -93,6 +93,20 @@ func (d *Datastore) InviteByEmail(email string) (*kolide.Invite, error) {
 		WithMessage(fmt.Sprintf("with email %s", email))
 }
 
+// InviteByToken retrieves an invite given the invite token.
+func (d *Datastore) InviteByToken(token string) (*kolide.Invite, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+
+	for _, invite := range d.invites {
+		if invite.Token == token {
+			return invite, nil
+		}
+	}
+	return nil, notFound("Invite").
+		WithMessage(fmt.Sprintf("with token %s", token))
+}
+
 // SaveInvite saves an invitation in the datastore.
 func (d *Datastore) SaveInvite(invite *kolide.Invite) error {
 	d.mtx.Lock()

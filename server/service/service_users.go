@@ -13,11 +13,7 @@ import (
 )
 
 func (svc service) NewUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
-	err := svc.VerifyInvite(ctx, *p.Email, *p.InviteToken)
-	if err != nil {
-		return nil, err
-	}
-	invite, err := svc.ds.InviteByEmail(*p.Email)
+	invite, err := svc.VerifyInvite(ctx, *p.InviteToken)
 	if err != nil {
 		return nil, err
 	}

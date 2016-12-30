@@ -33,6 +33,7 @@ type KolideEndpoints struct {
 	CreateInvite                   endpoint.Endpoint
 	ListInvites                    endpoint.Endpoint
 	DeleteInvite                   endpoint.Endpoint
+	VerifyInvite                   endpoint.Endpoint
 	GetQuery                       endpoint.Endpoint
 	ListQueries                    endpoint.Endpoint
 	CreateQuery                    endpoint.Endpoint
@@ -78,6 +79,7 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		ForgotPassword: makeForgotPasswordEndpoint(svc),
 		ResetPassword:  makeResetPasswordEndpoint(svc),
 		CreateUser:     makeCreateUserEndpoint(svc),
+		VerifyInvite:   makeVerifyInviteEndpoint(svc),
 
 		// Authenticated user endpoints
 		// Each of these endpoints should have exactly one
@@ -160,6 +162,7 @@ type kolideHandlers struct {
 	CreateInvite                   http.Handler
 	ListInvites                    http.Handler
 	DeleteInvite                   http.Handler
+	VerifyInvite                   http.Handler
 	GetQuery                       http.Handler
 	ListQueries                    http.Handler
 	CreateQuery                    http.Handler
@@ -221,6 +224,7 @@ func makeKolideKitHandlers(ctx context.Context, e KolideEndpoints, opts []kithtt
 		CreateInvite:                   newServer(e.CreateInvite, decodeCreateInviteRequest),
 		ListInvites:                    newServer(e.ListInvites, decodeListInvitesRequest),
 		DeleteInvite:                   newServer(e.DeleteInvite, decodeDeleteInviteRequest),
+		VerifyInvite:                   newServer(e.VerifyInvite, decodeVerifyInviteRequest),
 		GetQuery:                       newServer(e.GetQuery, decodeGetQueryRequest),
 		ListQueries:                    newServer(e.ListQueries, decodeListQueriesRequest),
 		CreateQuery:                    newServer(e.CreateQuery, decodeCreateQueryRequest),
@@ -319,6 +323,7 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/invites", h.CreateInvite).Methods("POST").Name("create_invite")
 	r.Handle("/api/v1/kolide/invites", h.ListInvites).Methods("GET").Name("list_invites")
 	r.Handle("/api/v1/kolide/invites/{id}", h.DeleteInvite).Methods("DELETE").Name("delete_invite")
+	r.Handle("/api/v1/kolide/invites/{token}", h.VerifyInvite).Methods("GET").Name("verify_invite")
 
 	r.Handle("/api/v1/kolide/queries/{id}", h.GetQuery).Methods("GET").Name("get_query")
 	r.Handle("/api/v1/kolide/queries", h.ListQueries).Methods("GET").Name("list_queries")

@@ -130,6 +130,38 @@ func testSaveInvite(t *testing.T, ds kolide.Datastore) {
 
 }
 
+func testInviteByToken(t *testing.T, ds kolide.Datastore) {
+	setupTestInvites(t, ds)
+
+	var inviteTests = []struct {
+		token   string
+		wantErr error
+	}{
+		{
+			token: "admin",
+		},
+		{
+			token:   "nosuchtoken",
+			wantErr: errors.New("Invite with token nosuchtoken was not found in the datastore"),
+		},
+	}
+
+	for _, tt := range inviteTests {
+		t.Run("", func(t *testing.T) {
+			invite, err := ds.InviteByToken(tt.token)
+			if tt.wantErr != nil {
+				require.NotNil(t, err)
+				assert.Equal(t, tt.wantErr.Error(), err.Error())
+				return
+			} else {
+				require.Nil(t, err)
+			}
+			assert.NotEqual(t, invite.ID, 0)
+
+		})
+	}
+}
+
 func testInviteByEmail(t *testing.T, ds kolide.Datastore) {
 	setupTestInvites(t, ds)
 

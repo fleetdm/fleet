@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gorilla/mux"
 	"golang.org/x/net/context"
 )
 
@@ -26,6 +27,15 @@ func decodeDeleteInviteRequest(ctx context.Context, r *http.Request) (interface{
 		return nil, err
 	}
 	return deleteInviteRequest{ID: id}, nil
+}
+
+func decodeVerifyInviteRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	vars := mux.Vars(r)
+	token, ok := vars["token"]
+	if !ok {
+		return 0, errBadRoute
+	}
+	return verifyInviteRequest{Token: token}, nil
 }
 
 func decodeListInvitesRequest(ctx context.Context, r *http.Request) (interface{}, error) {

@@ -2,13 +2,13 @@ package service
 
 import (
 	"bytes"
-	"golang.org/x/net/context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/net/context"
 )
 
 func TestDecodeCreateInviteRequest(t *testing.T) {
@@ -49,5 +49,22 @@ func TestDecodeCreateInviteRequest(t *testing.T) {
 			httptest.NewRequest("POST", "/api/v1/kolide/invites", &body),
 		)
 	})
+
+}
+
+func TestDecodeVerifyInviteRequest(t *testing.T) {
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/kolide/invites/{token}", func(writer http.ResponseWriter, request *http.Request) {
+		r, err := decodeCreateInviteRequest(context.Background(), request)
+		assert.Nil(t, err)
+
+		params := r.(verifyInviteRequest)
+		assert.Equal(t, "test_token", params.Token)
+	}).Methods("GET")
+
+	router.ServeHTTP(
+		httptest.NewRecorder(),
+		httptest.NewRequest("GET", "/api/v1/kolide/tokens/test_token", nil),
+	)
 
 }

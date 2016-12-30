@@ -22,6 +22,9 @@ type InviteStore interface {
 	// InviteByEmail retrieves an invite for a specific email address.
 	InviteByEmail(email string) (*Invite, error)
 
+	// InviteByToken retrieves and invite using the token string.
+	InviteByToken(token string) (*Invite, error)
+
 	// SaveInvite saves an invitation in the datastore.
 	SaveInvite(i *Invite) error
 
@@ -43,7 +46,7 @@ type InviteService interface {
 
 	// VerifyInvite verifies that an invite exists and that it matches the
 	// invite token.
-	VerifyInvite(ctx context.Context, email, token string) (err error)
+	VerifyInvite(ctx context.Context, token string) (invite *Invite, err error)
 }
 
 // InvitePayload contains fields required to create a new user invite.

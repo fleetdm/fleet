@@ -37,7 +37,7 @@ func (d *Datastore) ListInvites(opt kolide.ListOptions) ([]*kolide.Invite, error
 
 	query := appendListOptionsToSQL("SELECT * FROM invites WHERE NOT deleted", opt)
 	err := d.db.Select(&invites, query)
-	if err != nil && err == sql.ErrNoRows {
+	if err == sql.ErrNoRows {
 		return nil, notFound("Invite")
 	} else if err != nil {
 		return nil, errors.Wrap(err, "select invite by ID")
@@ -47,27 +47,40 @@ func (d *Datastore) ListInvites(opt kolide.ListOptions) ([]*kolide.Invite, error
 
 // Invite returns Invite identified by id.
 func (d *Datastore) Invite(id uint) (*kolide.Invite, error) {
-	invite := &kolide.Invite{}
-	err := d.db.Get(invite, "SELECT * FROM invites WHERE id = ? AND NOT deleted", id)
-	if err != nil && err == sql.ErrNoRows {
+	var invite kolide.Invite
+	err := d.db.Get(&invite, "SELECT * FROM invites WHERE id = ? AND NOT deleted", id)
+	if err == sql.ErrNoRows {
 		return nil, notFound("Invite").WithID(id)
 	} else if err != nil {
 		return nil, errors.Wrap(err, "select invite by ID")
 	}
-	return invite, nil
+	return &invite, nil
 }
 
 // InviteByEmail finds an Invite with a particular email, if one exists.
 func (d *Datastore) InviteByEmail(email string) (*kolide.Invite, error) {
-	invite := &kolide.Invite{}
-	err := d.db.Get(invite, "SELECT * FROM invites WHERE email = ? AND NOT deleted", email)
-	if err != nil && err == sql.ErrNoRows {
+	var invite kolide.Invite
+	err := d.db.Get(&invite, "SELECT * FROM invites WHERE email = ? AND NOT deleted", email)
+	if err == sql.ErrNoRows {
 		return nil, notFound("Invite").
 			WithMessage(fmt.Sprintf("with email %s", email))
 	} else if err != nil {
-		return nil, errors.Wrap(err, "sqlx get invite")
+		return nil, errors.Wrap(err, "sqlx get invite by email")
 	}
-	return invite, nil
+	return &invite, nil
+}
+
+// InviteByToken finds an Invite with a particular token, if one exists.
+func (d *Datastore) InviteByToken(token string) (*kolide.Invite, error) {
+	var invite kolide.Invite
+	err := d.db.Get(&invite, "SELECT * FROM invites WHERE token = ? AND NOT deleted", token)
+	if err == sql.ErrNoRows {
+		return nil, notFound("Invite").
+			WithMessage(fmt.Sprintf("with token %s", token))
+	} else if err != nil {
+		return nil, errors.Wrap(err, "sqlx get invite by token")
+	}
+	return &invite, nil
 }
 
 // SaveInvite modifies existing Invite
