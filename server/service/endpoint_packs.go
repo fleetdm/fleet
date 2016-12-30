@@ -16,8 +16,8 @@ type getPackRequest struct {
 
 type packResponse struct {
 	kolide.Pack
-	QueryCount   uint `json:"query_count"`
-	TargetsCount uint `json:"targets_count"`
+	QueryCount      uint `json:"query_count"`
+	TotalHostsCount uint `json:"total_hosts_count"`
 }
 
 type getPackResponse struct {
@@ -48,9 +48,9 @@ func makeGetPackEndpoint(svc kolide.Service) endpoint.Endpoint {
 
 		return getPackResponse{
 			Pack: packResponse{
-				Pack:         *pack,
-				QueryCount:   uint(len(queries)),
-				TargetsCount: uint(len(hosts)),
+				Pack:            *pack,
+				QueryCount:      uint(len(queries)),
+				TotalHostsCount: uint(len(hosts)),
 			},
 		}, nil
 	}
@@ -90,9 +90,9 @@ func makeListPacksEndpoint(svc kolide.Service) endpoint.Endpoint {
 				return getPackResponse{Err: err}, nil
 			}
 			resp.Packs = append(resp.Packs, packResponse{
-				Pack:         *pack,
-				QueryCount:   uint(len(queries)),
-				TargetsCount: uint(len(hosts)),
+				Pack:            *pack,
+				QueryCount:      uint(len(queries)),
+				TotalHostsCount: uint(len(hosts)),
 			})
 		}
 		return resp, nil
@@ -134,9 +134,9 @@ func makeCreatePackEndpoint(svc kolide.Service) endpoint.Endpoint {
 
 		return createPackResponse{
 			Pack: packResponse{
-				Pack:         *pack,
-				QueryCount:   uint(len(queries)),
-				TargetsCount: uint(len(hosts)),
+				Pack:            *pack,
+				QueryCount:      uint(len(queries)),
+				TotalHostsCount: uint(len(hosts)),
 			},
 			Err: nil,
 		}, nil
@@ -179,9 +179,9 @@ func makeModifyPackEndpoint(svc kolide.Service) endpoint.Endpoint {
 
 		return modifyPackResponse{
 			Pack: packResponse{
-				Pack:         *pack,
-				QueryCount:   uint(len(queries)),
-				TargetsCount: uint(len(hosts)),
+				Pack:            *pack,
+				QueryCount:      uint(len(queries)),
+				TotalHostsCount: uint(len(hosts)),
 			},
 			Err: nil,
 		}, nil
