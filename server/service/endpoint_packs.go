@@ -108,7 +108,7 @@ type createPackRequest struct {
 }
 
 type createPackResponse struct {
-	Pack *kolide.Pack `json:"pack,omitempty"`
+	Pack packResponse `json:"pack,omitempty"`
 	Err  error        `json:"error,omitempty"`
 }
 
@@ -121,7 +121,25 @@ func makeCreatePackEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return createPackResponse{Err: err}, nil
 		}
-		return createPackResponse{pack, nil}, nil
+
+		queries, err := svc.GetScheduledQueriesInPack(ctx, pack.ID, kolide.ListOptions{})
+		if err != nil {
+			return createPackResponse{Err: err}, nil
+		}
+
+		hosts, err := svc.ListHostsInPack(ctx, pack.ID, kolide.ListOptions{})
+		if err != nil {
+			return createPackResponse{Err: err}, nil
+		}
+
+		return createPackResponse{
+			Pack: packResponse{
+				Pack:         *pack,
+				QueryCount:   uint(len(queries)),
+				TargetsCount: uint(len(hosts)),
+			},
+			Err: nil,
+		}, nil
 	}
 }
 
@@ -135,7 +153,7 @@ type modifyPackRequest struct {
 }
 
 type modifyPackResponse struct {
-	Pack *kolide.Pack `json:"pack,omitempty"`
+	Pack packResponse `json:"pack,omitempty"`
 	Err  error        `json:"error,omitempty"`
 }
 
@@ -148,7 +166,25 @@ func makeModifyPackEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return modifyPackResponse{Err: err}, nil
 		}
-		return modifyPackResponse{pack, nil}, nil
+
+		queries, err := svc.GetScheduledQueriesInPack(ctx, pack.ID, kolide.ListOptions{})
+		if err != nil {
+			return modifyPackResponse{Err: err}, nil
+		}
+
+		hosts, err := svc.ListHostsInPack(ctx, pack.ID, kolide.ListOptions{})
+		if err != nil {
+			return modifyPackResponse{Err: err}, nil
+		}
+
+		return modifyPackResponse{
+			Pack: packResponse{
+				Pack:         *pack,
+				QueryCount:   uint(len(queries)),
+				TargetsCount: uint(len(hosts)),
+			},
+			Err: nil,
+		}, nil
 	}
 }
 
