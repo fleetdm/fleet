@@ -92,16 +92,16 @@ func TestLogin(t *testing.T) {
 
 		requestBody := &nopCloser{bytes.NewBuffer(j)}
 		resp, err := http.Post(server.URL+"/api/v1/kolide/login", "application/json", requestBody)
-		assert.Nil(t, err)
+		require.Nil(t, err)
 		assert.Equal(t, tt.status, resp.StatusCode)
 
 		var jsn = struct {
-			User  *kolide.User `json:"user"`
-			Token string       `json:"token"`
-			Err   string       `json:"error,omitempty"`
+			User  *kolide.User        `json:"user"`
+			Token string              `json:"token"`
+			Err   []map[string]string `json:"errors,omitempty"`
 		}{}
 		err = json.NewDecoder(resp.Body).Decode(&jsn)
-		assert.Nil(t, err)
+		require.Nil(t, err)
 
 		if tt.status != http.StatusOK {
 			assert.NotEqual(t, "", jsn.Err)

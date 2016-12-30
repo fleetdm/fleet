@@ -16,7 +16,16 @@ type errorer interface {
 type jsonError struct {
 	Message string              `json:"message"`
 	Errors  []map[string]string `json:"errors,omitempty"`
-	Error   string              `json:"error,omitempty"`
+}
+
+// use baseError to encode an jsonError.Errors field with an error that has
+// a generic "name" field. The frontend client always expects errors in a
+// []map[string]string format.
+func baseError(err string) []map[string]string {
+	return []map[string]string{map[string]string{
+		"name":   "base",
+		"reason": err},
+	}
 }
 
 // encode error and status header to the client
@@ -32,6 +41,7 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	enc.SetIndent("", "  ")
 
 	type validationError interface {
+		error
 		Invalid() []map[string]string
 	}
 	if e, ok := err.(validationError); ok {
@@ -45,12 +55,13 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	}
 
 	type authenticationError interface {
+		error
 		AuthError() string
 	}
 	if e, ok := err.(authenticationError); ok {
 		ae := jsonError{
 			Message: "Authentication Failed",
-			Error:   e.AuthError(),
+			Errors:  baseError(e.AuthError()),
 		}
 		w.WriteHeader(http.StatusUnauthorized)
 		enc.Encode(ae)
@@ -100,10 +111,11 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	if e, ok := err.(notFoundError); ok {
 		je := jsonError{
 			Message: "Resource Not Found",
-			Error:   e.Error(),
+			Errors:  baseError(e.Error()),
 		}
 		w.WriteHeader(http.StatusNotFound)
 		enc.Encode(je)
+		return
 	}
 
 	type existsError interface {
@@ -113,10 +125,11 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	if e, ok := err.(existsError); ok {
 		je := jsonError{
 			Message: "Resource Already Exists",
-			Error:   e.Error(),
+			Errors:  baseError(e.Error()),
 		}
 		w.WriteHeader(http.StatusConflict)
 		enc.Encode(je)
+		return
 	}
 
 	// Other errors
@@ -128,7 +141,9 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	default:
 		w.WriteHeader(http.StatusInternalServerError)
 	}
-	enc.Encode(map[string]interface{}{
-		"error": err.Error(),
-	})
+	je := jsonError{
+		Message: "Unknown Error",
+		Errors:  baseError(err.Error()),
+	}
+	enc.Encode(je)
 }
