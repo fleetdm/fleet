@@ -94,3 +94,25 @@ func (d *Datastore) ListOptions() ([]kolide.Option, error) {
 	}
 	return opts, nil
 }
+
+func (d *Datastore) GetOsqueryConfigOptions() (map[string]interface{}, error) {
+	// Retrieve all the options that are set. The value field is JSON formatted so
+	// to retrieve options that are set, we check JSON null keyword
+	sqlStatement := `
+		SELECT *
+		FROM options
+		WHERE value != "null"
+	`
+	var opts []kolide.Option
+	if err := d.db.Select(&opts, sqlStatement); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, notFound("Option")
+		}
+		return nil, errors.Wrap(err, "select from options")
+	}
+	optConfig := map[string]interface{}{}
+	for _, opt := range opts {
+		optConfig[opt.Name] = opt.GetValue()
+	}
+	return optConfig, nil
+}

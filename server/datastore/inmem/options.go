@@ -72,3 +72,15 @@ func (d *Datastore) ListOptions() ([]kolide.Option, error) {
 	sortutil.AscByField(result, "Name")
 	return result, nil
 }
+
+func (d *Datastore) GetOsqueryConfigOptions() (map[string]interface{}, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	optConfig := map[string]interface{}{}
+	for _, opt := range d.options {
+		if opt.OptionSet() {
+			optConfig[opt.Name] = opt.GetValue()
+		}
+	}
+	return optConfig, nil
+}

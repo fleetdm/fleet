@@ -1,7 +1,7 @@
 package service
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/kolide/kolide-ose/server/kolide"
 	"golang.org/x/net/context"
@@ -25,8 +25,8 @@ func (mw validationMiddleware) ModifyOptions(ctx context.Context, req kolide.Opt
 }
 
 var (
-	errTypeMismatch = fmt.Errorf("type mismatch")
-	errInvalidType  = fmt.Errorf("invalid option type")
+	errTypeMismatch = errors.New("type mismatch")
+	errInvalidType  = errors.New("invalid option type")
 )
 
 func validateValueMapsToOptionType(opt kolide.Option) error {

@@ -64,12 +64,14 @@ func (svc service) GetClientConfig(ctx context.Context) (*kolide.OsqueryConfig, 
 		return nil, osqueryError{message: "internal error: missing host from request context"}
 	}
 
+	options, err := svc.ds.GetOsqueryConfigOptions()
+	if err != nil {
+		return nil, osqueryError{message: "internal error: unable to fetch configuration options"}
+	}
+
 	config := &kolide.OsqueryConfig{
-		Options: kolide.OsqueryOptions{
-			PackDelimiter:      "/",
-			DisableDistributed: false,
-		},
-		Packs: kolide.Packs{},
+		Options: options,
+		Packs:   kolide.Packs{},
 	}
 
 	packs, err := svc.ListPacksForHost(ctx, host.ID)

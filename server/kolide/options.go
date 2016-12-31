@@ -22,6 +22,9 @@ type OptionStore interface {
 	Option(id uint) (*Option, error)
 	// OptionByName returns an option uniquely identified by name
 	OptionByName(name string) (*Option, error)
+	// GetOsqueryConfigOptions returns options in a format that will be the options
+	// section of osquery configuration
+	GetOsqueryConfigOptions() (map[string]interface{}, error)
 }
 
 // OptionService interface describes methods that operate on osquery options

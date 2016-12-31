@@ -405,8 +405,16 @@ func TestGetClientConfig(t *testing.T) {
 	config, err := svc.GetClientConfig(ctx)
 	require.Nil(t, err)
 	assert.NotNil(t, config)
-	assert.False(t, config.Options.DisableDistributed)
-	assert.Equal(t, "/", config.Options.PackDelimiter)
+	val, ok := config.Options["disable_distributed"]
+	require.True(t, ok)
+	disabled, ok := val.(bool)
+	require.True(t, ok)
+	assert.False(t, disabled)
+	val, ok = config.Options["pack_delimiter"]
+	require.True(t, ok)
+	delim, ok := val.(string)
+	require.True(t, ok)
+	assert.Equal(t, "/", delim)
 
 	// this will be greater than 0 if we ever start inserting an administration
 	// pack

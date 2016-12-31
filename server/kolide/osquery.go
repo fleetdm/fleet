@@ -39,11 +39,6 @@ type PackContent struct {
 
 type Packs map[string]PackContent
 
-type OsqueryOptions struct {
-	PackDelimiter      string `json:"pack_delimiter,omitempty"`
-	DisableDistributed bool   `json:"disable_distributed"`
-}
-
 type Decorators struct {
 	Load     []string            `json:"load,omitempty"`
 	Always   []string            `json:"always,omitempty"`
@@ -51,9 +46,9 @@ type Decorators struct {
 }
 
 type OsqueryConfig struct {
-	Options    OsqueryOptions `json:"options,omitempty"`
-	Decorators Decorators     `json:"decorators,omitempty"`
-	Packs      Packs          `json:"packs,omitempty"`
+	Options    map[string]interface{} `json:"options"`
+	Decorators Decorators             `json:"decorators,omitempty"`
+	Packs      Packs                  `json:"packs,omitempty"`
 }
 
 type OsqueryResultLog struct {
