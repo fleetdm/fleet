@@ -82,10 +82,7 @@ the way that the kolide server works.
 				mailService = mail.NewDevService()
 			} else {
 				const defaultMaxAttempts = 15
-
-				connString := mysql.GetMysqlConnectionString(config.Mysql)
-				ds, err = mysql.New(connString, clock.C, mysql.Logger(logger))
-
+				ds, err = mysql.New(config.Mysql, clock.C, mysql.Logger(logger))
 				if err != nil {
 					initFatal(err, "initializing datastore")
 				}

@@ -25,9 +25,7 @@ func setupMySQL(t *testing.T) (ds *mysql.Datastore, teardown func()) {
 		config.Address = h + ":3306"
 	}
 
-	connString := mysql.GetMysqlConnectionString(config)
-
-	ds, err := mysql.New(connString, clock.NewMockClock(), mysql.Logger(log.NewNopLogger()), mysql.LimitAttempts(1))
+	ds, err := mysql.New(config, clock.NewMockClock(), mysql.Logger(log.NewNopLogger()), mysql.LimitAttempts(1))
 	require.Nil(t, err)
 	teardown = func() {
 		ds.Close()

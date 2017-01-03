@@ -33,9 +33,7 @@ To setup kolide infrastructure, use one of the available commands.
 		Long:  ``,
 		Run: func(cmd *cobra.Command, args []string) {
 			config := configManager.LoadConfig()
-			connString := mysql.GetMysqlConnectionString(config.Mysql)
-
-			ds, err := mysql.New(connString, clock.C)
+			ds, err := mysql.New(config.Mysql, clock.C)
 			if err != nil {
 				initFatal(err, "creating db connection")
 			}
@@ -54,9 +52,7 @@ To setup kolide infrastructure, use one of the available commands.
 		Long:  ``,
 		Run: func(cmd *cobra.Command, arg []string) {
 			config := configManager.LoadConfig()
-			connString := mysql.GetMysqlConnectionString(config.Mysql)
-
-			ds, err := mysql.New(connString, clock.C)
+			ds, err := mysql.New(config.Mysql, clock.C)
 			if err != nil {
 				initFatal(err, "creating db connection")
 			}
