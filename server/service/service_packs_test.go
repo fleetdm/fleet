@@ -7,6 +7,7 @@ import (
 	"github.com/kolide/kolide-ose/server/datastore/inmem"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )
 
@@ -64,16 +65,31 @@ func TestNewPack(t *testing.T) {
 
 	ctx := context.Background()
 
-	name := "foo"
-	_, err = svc.NewPack(ctx, kolide.PackPayload{
-		Name: &name,
+	labelName := "label"
+	labelQuery := "select 1"
+	label, err := svc.NewLabel(ctx, kolide.LabelPayload{
+		Name:  &labelName,
+		Query: &labelQuery,
+	})
+
+	packName := "foo"
+	packLabelIDs := []uint{label.ID}
+	pack, err := svc.NewPack(ctx, kolide.PackPayload{
+		Name:     &packName,
+		LabelIDs: &packLabelIDs,
 	})
 
 	assert.Nil(t, err)
 
-	queries, err := ds.ListPacks(kolide.ListOptions{})
+	packs, err := ds.ListPacks(kolide.ListOptions{})
 	assert.Nil(t, err)
-	assert.Len(t, queries, 1)
+	require.Len(t, packs, 1)
+	assert.Equal(t, pack.ID, packs[0].ID)
+
+	labels, err := ds.ListLabelsForPack(pack.ID)
+	assert.Nil(t, err)
+	require.Len(t, labels, 1)
+	assert.Equal(t, label.ID, labels[0].ID)
 }
 
 func TestModifyPack(t *testing.T) {
@@ -85,21 +101,48 @@ func TestModifyPack(t *testing.T) {
 
 	ctx := context.Background()
 
+	label := &kolide.Label{
+		Name:  "label",
+		Query: "select 1",
+	}
+	label, err = ds.NewLabel(label)
+	assert.Nil(t, err)
+	assert.NotZero(t, label.ID)
+
 	pack := &kolide.Pack{
 		Name: "foo",
 	}
-	_, err = ds.NewPack(pack)
+	pack, err = ds.NewPack(pack)
 	assert.Nil(t, err)
 	assert.NotZero(t, pack.ID)
 
 	newName := "bar"
+	labelIDs := []uint{label.ID}
 	packVerify, err := svc.ModifyPack(ctx, pack.ID, kolide.PackPayload{
-		Name: &newName,
+		Name:     &newName,
+		LabelIDs: &labelIDs,
 	})
 	assert.Nil(t, err)
 
 	assert.Equal(t, pack.ID, packVerify.ID)
 	assert.Equal(t, "bar", packVerify.Name)
+
+	labels, err := ds.ListLabelsForPack(pack.ID)
+	assert.Nil(t, err)
+	require.Len(t, labels, 1)
+	assert.Equal(t, label.ID, labels[0].ID)
+
+	newLabelIDs := []uint{}
+	packVerify2, err := svc.ModifyPack(ctx, pack.ID, kolide.PackPayload{
+		LabelIDs: &newLabelIDs,
+	})
+	assert.Nil(t, err)
+
+	assert.Equal(t, pack.ID, packVerify2.ID)
+
+	labels, err = ds.ListLabelsForPack(pack.ID)
+	assert.Nil(t, err)
+	require.Len(t, labels, 0)
 }
 
 func TestDeletePack(t *testing.T) {
@@ -124,5 +167,4 @@ func TestDeletePack(t *testing.T) {
 	queries, err := ds.ListPacks(kolide.ListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
-
 }

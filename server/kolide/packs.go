@@ -13,24 +13,32 @@ type PackStore interface {
 	ListPacks(opt ListOptions) ([]*Pack, error)
 
 	// Modifying the labels for packs
-	AddLabelToPack(lid uint, pid uint) error
+	AddLabelToPack(lid, pid uint) error
+	RemoveLabelFromPack(lid, pid uint) error
 	ListLabelsForPack(pid uint) ([]*Label, error)
-	RemoveLabelFromPack(label *Label, pack *Pack) error
 
+	// Modifying the hosts for packs
+	AddHostToPack(hid uint, pid uint) error
+	RemoveHostFromPack(hid uint, pid uint) error
 	ListHostsInPack(pid uint, opt ListOptions) ([]*Host, error)
 }
 
 type PackService interface {
+	// Pack methods
 	ListPacks(ctx context.Context, opt ListOptions) ([]*Pack, error)
 	GetPack(ctx context.Context, id uint) (*Pack, error)
 	NewPack(ctx context.Context, p PackPayload) (*Pack, error)
 	ModifyPack(ctx context.Context, id uint, p PackPayload) (*Pack, error)
 	DeletePack(ctx context.Context, id uint) error
 
+	// Modifying the labels for packs
 	AddLabelToPack(ctx context.Context, lid, pid uint) error
-	ListLabelsForPack(ctx context.Context, pid uint) ([]*Label, error)
 	RemoveLabelFromPack(ctx context.Context, lid, pid uint) error
+	ListLabelsForPack(ctx context.Context, pid uint) ([]*Label, error)
 
+	// Modifying the hosts for packs
+	AddHostToPack(ctx context.Context, hid, pid uint) error
+	RemoveHostFromPack(ctx context.Context, hid, pid uint) error
 	ListPacksForHost(ctx context.Context, hid uint) ([]*Pack, error)
 	ListHostsInPack(ctx context.Context, pid uint, opt ListOptions) ([]*Host, error)
 }
@@ -47,10 +55,12 @@ type Pack struct {
 }
 
 type PackPayload struct {
-	Name        *string
-	Description *string
-	Platform    *string
-	Disabled    *bool
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
+	Platform    *string `json:"platform"`
+	Disabled    *bool   `json:"disabled"`
+	HostIDs     *[]uint `json:"host_ids"`
+	LabelIDs    *[]uint `json:"label_ids"`
 }
 
 type PackTarget struct {

@@ -6,18 +6,50 @@ import (
 	"golang.org/x/net/context"
 )
 
+type packResponse struct {
+	kolide.Pack
+	QueryCount      uint   `json:"query_count"`
+	TotalHostsCount uint   `json:"total_hosts_count"`
+	HostIDs         []uint `json:"host_ids"`
+	LabelIDs        []uint `json:"label_ids"`
+}
+
+func packResponseForPack(ctx context.Context, svc kolide.Service, pack kolide.Pack) (*packResponse, error) {
+	queries, err := svc.GetScheduledQueriesInPack(ctx, pack.ID, kolide.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	hosts, err := svc.ListHostsInPack(ctx, pack.ID, kolide.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	hostIDs := make([]uint, len(hosts), len(hosts))
+	for _, host := range hosts {
+		hostIDs = append(hostIDs, host.ID)
+	}
+	labels, err := svc.ListLabelsForPack(ctx, pack.ID)
+	labelIDs := make([]uint, len(labels), len(labels))
+	for _, label := range labels {
+		labelIDs = append(labelIDs, label.ID)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &packResponse{
+		Pack:            pack,
+		QueryCount:      uint(len(queries)),
+		TotalHostsCount: uint(len(hosts)),
+		HostIDs:         hostIDs,
+		LabelIDs:        labelIDs,
+	}, nil
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Get Pack
 ////////////////////////////////////////////////////////////////////////////////
 
 type getPackRequest struct {
 	ID uint
-}
-
-type packResponse struct {
-	kolide.Pack
-	QueryCount      uint `json:"query_count"`
-	TotalHostsCount uint `json:"total_hosts_count"`
 }
 
 type getPackResponse struct {
@@ -36,22 +68,13 @@ func makeGetPackEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return getPackResponse{Err: err}, nil
 		}
 
-		queries, err := svc.GetScheduledQueriesInPack(ctx, pack.ID, kolide.ListOptions{})
-		if err != nil {
-			return getPackResponse{Err: err}, nil
-		}
-
-		hosts, err := svc.ListHostsInPack(ctx, pack.ID, kolide.ListOptions{})
+		resp, err := packResponseForPack(ctx, svc, *pack)
 		if err != nil {
 			return getPackResponse{Err: err}, nil
 		}
 
 		return getPackResponse{
-			Pack: packResponse{
-				Pack:            *pack,
-				QueryCount:      uint(len(queries)),
-				TotalHostsCount: uint(len(hosts)),
-			},
+			Pack: *resp,
 		}, nil
 	}
 }
@@ -79,21 +102,13 @@ func makeListPacksEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return getPackResponse{Err: err}, nil
 		}
 
-		resp := listPacksResponse{Packs: []packResponse{}}
+		resp := listPacksResponse{Packs: make([]packResponse, len(packs), len(packs))}
 		for _, pack := range packs {
-			queries, err := svc.GetScheduledQueriesInPack(ctx, pack.ID, kolide.ListOptions{})
+			packResp, err := packResponseForPack(ctx, svc, *pack)
 			if err != nil {
 				return getPackResponse{Err: err}, nil
 			}
-			hosts, err := svc.ListHostsInPack(ctx, pack.ID, kolide.ListOptions{})
-			if err != nil {
-				return getPackResponse{Err: err}, nil
-			}
-			resp.Packs = append(resp.Packs, packResponse{
-				Pack:            *pack,
-				QueryCount:      uint(len(queries)),
-				TotalHostsCount: uint(len(hosts)),
-			})
+			resp.Packs = append(resp.Packs, *packResp)
 		}
 		return resp, nil
 	}
@@ -122,23 +137,13 @@ func makeCreatePackEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return createPackResponse{Err: err}, nil
 		}
 
-		queries, err := svc.GetScheduledQueriesInPack(ctx, pack.ID, kolide.ListOptions{})
-		if err != nil {
-			return createPackResponse{Err: err}, nil
-		}
-
-		hosts, err := svc.ListHostsInPack(ctx, pack.ID, kolide.ListOptions{})
+		resp, err := packResponseForPack(ctx, svc, *pack)
 		if err != nil {
 			return createPackResponse{Err: err}, nil
 		}
 
 		return createPackResponse{
-			Pack: packResponse{
-				Pack:            *pack,
-				QueryCount:      uint(len(queries)),
-				TotalHostsCount: uint(len(hosts)),
-			},
-			Err: nil,
+			Pack: *resp,
 		}, nil
 	}
 }
@@ -167,23 +172,13 @@ func makeModifyPackEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return modifyPackResponse{Err: err}, nil
 		}
 
-		queries, err := svc.GetScheduledQueriesInPack(ctx, pack.ID, kolide.ListOptions{})
-		if err != nil {
-			return modifyPackResponse{Err: err}, nil
-		}
-
-		hosts, err := svc.ListHostsInPack(ctx, pack.ID, kolide.ListOptions{})
+		resp, err := packResponseForPack(ctx, svc, *pack)
 		if err != nil {
 			return modifyPackResponse{Err: err}, nil
 		}
 
 		return modifyPackResponse{
-			Pack: packResponse{
-				Pack:            *pack,
-				QueryCount:      uint(len(queries)),
-				TotalHostsCount: uint(len(hosts)),
-			},
-			Err: nil,
+			Pack: *resp,
 		}, nil
 	}
 }
@@ -210,88 +205,5 @@ func makeDeletePackEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return deletePackResponse{Err: err}, nil
 		}
 		return deletePackResponse{}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Add Label To Pack
-////////////////////////////////////////////////////////////////////////////////
-
-type addLabelToPackRequest struct {
-	PackID  uint
-	LabelID uint
-}
-
-type addLabelToPackResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r addLabelToPackResponse) error() error { return r.Err }
-
-func makeAddLabelToPackEndpoint(svc kolide.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(addLabelToPackRequest)
-		err := svc.AddLabelToPack(ctx, req.LabelID, req.PackID)
-		if err != nil {
-			return addLabelToPackResponse{Err: err}, nil
-		}
-		return addLabelToPackResponse{}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Get Labels For Pack
-////////////////////////////////////////////////////////////////////////////////
-
-type getLabelsForPackRequest struct {
-	PackID uint
-}
-
-type getLabelsForPackResponse struct {
-	Labels []kolide.Label `json:"labels"`
-	Err    error          `json:"error,omitempty"`
-}
-
-func (r getLabelsForPackResponse) error() error { return r.Err }
-
-func makeGetLabelsForPackEndpoint(svc kolide.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(getLabelsForPackRequest)
-		labels, err := svc.ListLabelsForPack(ctx, req.PackID)
-		if err != nil {
-			return getLabelsForPackResponse{Err: err}, nil
-		}
-
-		var resp getLabelsForPackResponse
-		for _, label := range labels {
-			resp.Labels = append(resp.Labels, *label)
-		}
-		return resp, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Delete Label From Pack
-////////////////////////////////////////////////////////////////////////////////
-
-type deleteLabelFromPackRequest struct {
-	LabelID uint
-	PackID  uint
-}
-
-type deleteLabelFromPackResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r deleteLabelFromPackResponse) error() error { return r.Err }
-
-func makeDeleteLabelFromPackEndpoint(svc kolide.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(deleteLabelFromPackRequest)
-		err := svc.RemoveLabelFromPack(ctx, req.LabelID, req.PackID)
-		if err != nil {
-			return deleteLabelFromPackResponse{Err: err}, nil
-		}
-		return deleteLabelFromPackResponse{}, nil
 	}
 }

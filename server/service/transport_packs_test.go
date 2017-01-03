@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )
 
@@ -20,12 +21,18 @@ func TestDecodeCreatePackRequest(t *testing.T) {
 		params := r.(createPackRequest)
 		assert.Equal(t, "foo", *params.payload.Name)
 		assert.Equal(t, "bar", *params.payload.Description)
+		require.NotNil(t, params.payload.HostIDs)
+		assert.Len(t, *params.payload.HostIDs, 3)
+		require.NotNil(t, params.payload.LabelIDs)
+		assert.Len(t, *params.payload.LabelIDs, 2)
 	}).Methods("POST")
 
 	var body bytes.Buffer
 	body.Write([]byte(`{
 		"name": "foo",
-		"description": "bar"
+		"description": "bar",
+		"host_ids": [1, 2, 3],
+		"label_ids": [1, 5]
     }`))
 
 	router.ServeHTTP(
@@ -41,15 +48,21 @@ func TestDecodeModifyPackRequest(t *testing.T) {
 		assert.Nil(t, err)
 
 		params := r.(modifyPackRequest)
+		assert.Equal(t, uint(1), params.ID)
 		assert.Equal(t, "foo", *params.payload.Name)
 		assert.Equal(t, "bar", *params.payload.Description)
-		assert.Equal(t, uint(1), params.ID)
+		require.NotNil(t, params.payload.HostIDs)
+		assert.Len(t, *params.payload.HostIDs, 3)
+		require.NotNil(t, params.payload.LabelIDs)
+		assert.Len(t, *params.payload.LabelIDs, 2)
 	}).Methods("PATCH")
 
 	var body bytes.Buffer
 	body.Write([]byte(`{
 		"name": "foo",
-		"description": "bar"
+		"description": "bar",
+		"host_ids": [1, 2, 3],
+		"label_ids": [1, 5]
     }`))
 
 	router.ServeHTTP(

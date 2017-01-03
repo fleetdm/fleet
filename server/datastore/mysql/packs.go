@@ -82,8 +82,24 @@ func (d *Datastore) AddLabelToPack(lid uint, pid uint) error {
 	sql := `
 		INSERT INTO pack_targets ( pack_id,	type, target_id )
 			VALUES ( ?, ?, ? )
+			ON DUPLICATE KEY UPDATE id=id
 	`
 	_, err := d.db.Exec(sql, pid, kolide.TargetLabel, lid)
+	if err != nil {
+		return errors.DatabaseError(err)
+	}
+
+	return nil
+}
+
+// AddHostToPack associates a kolide.Host with a kolide.Pack
+func (d *Datastore) AddHostToPack(hid, pid uint) error {
+	sql := `
+		INSERT INTO pack_targets ( pack_id, type, target_id )
+			VALUES ( ?, ?, ? )
+			ON DUPLICATE KEY UPDATE id=id
+	`
+	_, err := d.db.Exec(sql, pid, kolide.TargetHost, hid)
 	if err != nil {
 		return errors.DatabaseError(err)
 	}
@@ -123,16 +139,31 @@ func (d *Datastore) ListLabelsForPack(pid uint) ([]*kolide.Label, error) {
 
 // RemoreLabelFromPack will remove the association between a kolide.Label and
 // a kolide.Pack
-func (d *Datastore) RemoveLabelFromPack(label *kolide.Label, pack *kolide.Pack) error {
+func (d *Datastore) RemoveLabelFromPack(lid, pid uint) error {
 	sql := `
-		DELETE FROM pack_labels
-			WHERE target_id = ? AND pack_id = ?
+		DELETE FROM pack_targets
+			WHERE target_id = ? AND pack_id = ? AND type = ?
 	`
-	if _, err := d.db.Exec(sql, label.ID, pack.ID); err != nil {
+	if _, err := d.db.Exec(sql, lid, pid, kolide.TargetLabel); err != nil {
 		return errors.DatabaseError(err)
 	}
 
 	return nil
+}
+
+// RemoveHostFromPack will remove the association between a kolide.Host and a
+// kolide.Pack
+func (d *Datastore) RemoveHostFromPack(hid, pid uint) error {
+	sql := `
+		DELETE FROM pack_targets
+			WHERE target_id = ? AND pack_id = ? AND type = ?
+	`
+	if _, err := d.db.Exec(sql, hid, pid, kolide.TargetHost); err != nil {
+		return errors.DatabaseError(err)
+	}
+
+	return nil
+
 }
 
 func (d *Datastore) ListHostsInPack(pid uint, opt kolide.ListOptions) ([]*kolide.Host, error) {

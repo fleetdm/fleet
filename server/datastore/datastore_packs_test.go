@@ -105,3 +105,22 @@ func testGetHostsInPack(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, err)
 	require.Len(t, hostsInPack, 2)
 }
+
+func testAddLabelToPackTwice(t *testing.T, ds kolide.Datastore) {
+	l1 := test.NewLabel(t, ds, "l1", "select 1;")
+	p1 := test.NewPack(t, ds, "p1")
+
+	err := ds.AddLabelToPack(l1.ID, p1.ID)
+	assert.Nil(t, err)
+
+	labels, err := ds.ListLabelsForPack(p1.ID)
+	assert.Nil(t, err)
+	assert.Len(t, labels, 1)
+
+	err = ds.AddLabelToPack(l1.ID, p1.ID)
+	assert.Nil(t, err)
+
+	labels, err = ds.ListLabelsForPack(p1.ID)
+	assert.Nil(t, err)
+	assert.Len(t, labels, 1)
+}
