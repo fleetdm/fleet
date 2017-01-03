@@ -7,20 +7,6 @@
     letter-spacing: -0.5px;
     text-align: left;
     color: $text-dark;
-
-    span {
-      background-color: $brand;
-      border-radius: 14px;
-      color: $white;
-      display: inline-block;
-      line-height: 26px;
-      height: 26px;
-      text-align: center;
-      width: 44px;
-      font-size: 15px;
-      font-weight: $bold;
-      letter-spacing: -0.5px;
-    }
   }
 
   &__queries-list-wrapper {

@@ -1,0 +1,37 @@
+.packs-list {
+  border: 1px solid #b9c2e4;
+  border-radius: 3px;
+  box-shadow: inset 0 0 8px 0 rgba(0, 0, 0, 0.12);
+  margin-top: 20px;
+  opacity: 0.8;
+
+  thead {
+    background-color: $bg-medium;
+    border-bottom: 1px solid $accent-medium;
+  }
+
+  &__th {
+    color: $link;
+    font-size: 14px;
+    padding: 14px;
+    text-align: center;
+
+    &:first-child {
+      text-align: left;
+    }
+
+    &:last-child {
+      padding-right: 25px;
+      text-align: right;
+    }
+  }
+
+  &__th-pack-name {
+    padding-left: 0;
+    text-align: left;
+  }
+
+  &__select-all {
+    margin-bottom: 0;
+  }
+}

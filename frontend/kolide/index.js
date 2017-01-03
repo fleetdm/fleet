@@ -64,6 +64,13 @@ class Kolide extends Base {
       .then(response => response.scheduled);
   }
 
+  destroyPack = ({ id }) => {
+    const { PACKS } = endpoints;
+    const endpoint = `${this.endpoint(PACKS)}/${id}`;
+
+    return this.authenticatedDelete(endpoint);
+  }
+
   destroyScheduledQuery = ({ id }) => {
     const endpoint = `${this.endpoint('/v1/kolide/schedule')}/${id}`;
 
@@ -341,6 +348,14 @@ class Kolide extends Base {
     const configData = helpers.formatConfigDataForServer(formData);
 
     return this.authenticatedPatch(this.endpoint(CONFIG), JSON.stringify(configData));
+  }
+
+  updatePack = ({ id: packID }, updateParams) => {
+    const { PACKS } = endpoints;
+    const updatePackEndpoint = `${this.baseURL}${PACKS}/${packID}`;
+
+    return this.authenticatedPatch(updatePackEndpoint, JSON.stringify(updateParams))
+      .then((response) => { return response.pack; });
   }
 
   updateQuery = ({ id: queryID }, updateParams) => {

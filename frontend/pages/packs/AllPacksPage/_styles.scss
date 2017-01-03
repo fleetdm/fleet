@@ -1,4 +1,50 @@
 .all-packs-page {
+  &__bulk-action-btn {
+    color: $link;
+    font-size: 15px;
+    font-weight: $normal;
+    margin-left: 26px;
+
+    &--disable {
+      margin-left: 0;
+
+      i {
+        color: $alert;
+      }
+    }
+
+    &--enable {
+      i {
+        color: $success;
+      }
+    }
+
+    &--delete {
+      i {
+        color: $silver;
+      }
+    }
+  }
+
+  &__pack-count {
+    color: #858495;
+    font-size: 14px;
+    font-weight: $bold;
+    letter-spacing: -0.5px;
+    margin: 0;
+  }
+
+  &__search-create-section {
+    @include display(flex);
+    @include justify-content(space-between);
+
+    input {
+      &[name='pack-filter'] {
+        width: 240px;
+      }
+    }
+  }
+
   &__title {
     color: $text-medium;
     display: inline-block;

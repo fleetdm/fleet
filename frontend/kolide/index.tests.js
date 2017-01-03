@@ -12,6 +12,7 @@ const {
   validCreatePackRequest,
   validCreateQueryRequest,
   validCreateScheduledQueryRequest,
+  validDestroyPackRequest,
   validDestroyScheduledQueryRequest,
   validForgotPasswordRequest,
   validGetConfigRequest,
@@ -31,6 +32,7 @@ const {
   validRunQueryRequest,
   validSetupRequest,
   validUpdateConfigRequest,
+  validUpdatePackRequest,
   validUpdateQueryRequest,
   validUpdateUserRequest,
   validUser,
@@ -70,16 +72,42 @@ describe('Kolide - API client', () => {
     });
   });
 
-  describe('#createPack', () => {
-    it('calls the appropriate endpoint with the correct parameters', (done) => {
-      const bearerToken = 'valid-bearer-token';
-      const description = 'pack description';
-      const name = 'pack name';
-      const queryParams = { description, name };
-      const request = validCreatePackRequest(bearerToken, queryParams);
+  describe('packs', () => {
+    const bearerToken = 'valid-bearer-token';
+    const pack = { id: 1, name: 'Pack Name', description: 'Pack Description' };
+
+    it('#createPack', (done) => {
+      const { description, name } = pack;
+      const params = { description, name };
+      const request = validCreatePackRequest(bearerToken, params);
 
       Kolide.setBearerToken(bearerToken);
-      Kolide.createPack(queryParams)
+      Kolide.createPack(params)
+        .then(() => {
+          expect(request.isDone()).toEqual(true);
+          done();
+        })
+        .catch(done);
+    });
+
+    it('#destroyPack', (done) => {
+      const request = validDestroyPackRequest(bearerToken, pack);
+
+      Kolide.setBearerToken(bearerToken);
+      Kolide.destroyPack(pack)
+        .then(() => {
+          expect(request.isDone()).toEqual(true);
+          done();
+        })
+        .catch(done);
+    });
+
+    it('#updatePack', (done) => {
+      const updatePackParams = { name: 'New Pack Name' };
+      const request = validUpdatePackRequest(bearerToken, pack, updatePackParams);
+
+      Kolide.setBearerToken(bearerToken);
+      Kolide.updatePack(pack, updatePackParams)
         .then(() => {
           expect(request.isDone()).toEqual(true);
           done();

@@ -86,15 +86,15 @@ export default (admin) => {
       name: 'Packs',
       location: {
         regex: /^\/packs/,
-        pathname: '/packs/all',
+        pathname: '/packs/manage',
       },
       subItems: [
         {
           icon: 'packs',
           name: 'Manage Packs',
           location: {
-            regex: /\/packs\/all/,
-            pathname: '/packs/all',
+            regex: /\/packs\/manage/,
+            pathname: '/packs/manage',
           },
         },
         {

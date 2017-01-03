@@ -64,6 +64,16 @@ export const validCreateScheduledQueryRequest = (bearerToken, formData) => {
     .reply(201, { scheduled_query: scheduledQueryStub });
 };
 
+export const validDestroyPackRequest = (bearerToken, pack) => {
+  return nock('http://localhost:8080', {
+    reqHeaders: {
+      Authorization: `Bearer ${bearerToken}`,
+    },
+  })
+    .delete(`/api/v1/kolide/packs/${pack.id}`)
+    .reply(200, {});
+};
+
 export const validDestroyScheduledQueryRequest = (bearerToken, scheduledQuery) => {
   return nock('http://localhost:8080', {
     reqHeaders: {
@@ -305,6 +315,16 @@ export const validUpdateConfigRequest = (bearerToken, configData) => {
   .reply(200, {});
 };
 
+export const validUpdatePackRequest = (bearerToken, pack, formData) => {
+  return nock('http://localhost:8080', {
+    reqHeaders: {
+      Authorization: `Bearer ${bearerToken}`,
+    },
+  })
+  .patch(`/api/v1/kolide/packs/${pack.id}`, JSON.stringify(formData))
+  .reply(200, { pack: { ...pack, ...formData } });
+};
+
 export const validUpdateQueryRequest = (bearerToken, query, formData) => {
   return nock('http://localhost:8080', {
     reqHeaders: {
@@ -330,6 +350,7 @@ export default {
   validCreatePackRequest,
   validCreateQueryRequest,
   validCreateScheduledQueryRequest,
+  validDestroyPackRequest,
   validDestroyScheduledQueryRequest,
   validForgotPasswordRequest,
   validGetConfigRequest,
@@ -349,6 +370,7 @@ export default {
   validRunQueryRequest,
   validSetupRequest,
   validUpdateConfigRequest,
+  validUpdatePackRequest,
   validUpdateQueryRequest,
   validUpdateUserRequest,
   validUser,

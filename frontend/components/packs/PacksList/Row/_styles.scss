@@ -1,0 +1,57 @@
+.packs-list-row {
+  border-bottom: 1px solid $accent-medium;
+  cursor: pointer;
+
+  &--selected {
+    background-color: $accent-light;
+  }
+
+  &:focus {
+    outline: none;
+  }
+
+  &__td {
+    color: $text-ultradark;
+    font-weight: $bold;
+    padding: 7px 0;
+    text-align: center;
+
+    &:first-child {
+      padding-left: 14px;
+      text-align: left;
+    }
+
+    &:last-child {
+      padding-right: 25px;
+      text-align: right;
+    }
+  }
+
+  &__td-pack-name {
+    text-align: left;
+  }
+
+  &__checkbox {
+    margin-bottom: 0;
+  }
+
+  &__status-icon {
+    &--enabled {
+      color: $success;
+    }
+
+    &--disabled {
+      color: $alert;
+    }
+  }
+
+  &__status-text {
+    color: $text-ultradark;
+    font-weight: $normal;
+    margin-left: 10px;
+
+    @include breakpoint(smalldesk) {
+      display: none;
+    }
+  }
+}

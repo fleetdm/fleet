@@ -49,7 +49,7 @@ const routes = (
               <Route path="manage" component={ManageHostsPage} />
             </Route>
             <Route path="packs" component={PackPageWrapper}>
-              <Route path="all" component={AllPacksPage} />
+              <Route path="manage" component={AllPacksPage} />
               <Route path="new" component={PackComposerPage} />
               <Route path=":id">
                 <IndexRoute component={EditPackPage} />

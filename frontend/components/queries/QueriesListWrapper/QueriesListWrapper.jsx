@@ -4,6 +4,7 @@ import { pull } from 'lodash';
 import Button from 'components/buttons/Button';
 import helpers from 'components/queries/QueriesListWrapper/helpers';
 import InputField from 'components/forms/fields/InputField';
+import NumberPill from 'components/NumberPill';
 import QueriesList from 'components/queries/QueriesList';
 import queryInterface from 'interfaces/query';
 
@@ -102,7 +103,7 @@ class QueriesListWrapper extends Component {
     const queryCount = scheduledQueries.length;
     const queryText = queryCount === 1 ? 'Query' : 'Queries';
 
-    return <h1 className={`${baseClass}__query-count`}><span>{queryCount}</span> {queryText}</h1>;
+    return <h1 className={`${baseClass}__query-count`}><NumberPill number={queryCount} /> {queryText}</h1>;
   }
 
   renderQueriesList = () => {
