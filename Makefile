@@ -98,7 +98,11 @@ lint-go:
 lint: lint-go lint-js lint-scss lint-ts
 
 test-go:
-	go test -cover $(shell glide nv)
+	go test $(shell glide nv)
+
+analyze-go:
+	go test -race -cover $(shell glide nv)
+
 
 test-js: export NODE_PATH = ./frontend
 test-js:
