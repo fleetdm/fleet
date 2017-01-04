@@ -96,9 +96,5 @@ func (svc service) VerifyInvite(ctx context.Context, token string) (*kolide.Invi
 }
 
 func (svc service) DeleteInvite(ctx context.Context, id uint) error {
-	invite, err := svc.ds.Invite(id)
-	if err != nil {
-		return err
-	}
-	return svc.ds.DeleteInvite(invite)
+	return svc.ds.DeleteInvite(id)
 }

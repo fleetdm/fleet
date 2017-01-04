@@ -108,7 +108,7 @@ func testSaveHosts(t *testing.T, ds kolide.Datastore) {
 	require.NotNil(t, host)
 	assert.Nil(t, host.PrimaryNetworkInterfaceID)
 
-	err = ds.DeleteHost(host)
+	err = ds.DeleteHost(host.ID)
 	assert.Nil(t, err)
 
 	host, err = ds.Host(host.ID)
@@ -126,7 +126,7 @@ func testDeleteHost(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, err)
 	require.NotNil(t, host)
 
-	err = ds.DeleteHost(host)
+	err = ds.DeleteHost(host.ID)
 	assert.Nil(t, err)
 
 	host, err = ds.Host(host.ID)
@@ -183,7 +183,7 @@ func testListHost(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, "en1", hosts2[1].NetworkInterfaces[1].Interface)
 	assert.Equal(t, "en2", hosts2[3].NetworkInterfaces[0].Interface)
 
-	err = ds.DeleteHost(hosts[0])
+	err = ds.DeleteHost(hosts[0].ID)
 	require.Nil(t, err)
 	hosts2, err = ds.ListHosts(kolide.ListOptions{})
 	require.Nil(t, err)

@@ -96,7 +96,7 @@ func testDeleteInvite(t *testing.T, ds kolide.Datastore) {
 	assert.Nil(t, err)
 	assert.NotNil(t, invite)
 
-	err = ds.DeleteInvite(invite)
+	err = ds.DeleteInvite(invite.ID)
 	assert.Nil(t, err)
 
 	invite, err = ds.InviteByEmail("user0@foo.com")

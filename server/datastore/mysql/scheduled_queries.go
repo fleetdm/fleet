@@ -66,17 +66,7 @@ func (d *Datastore) SaveScheduledQuery(sq *kolide.ScheduledQuery) (*kolide.Sched
 }
 
 func (d *Datastore) DeleteScheduledQuery(id uint) error {
-	query := `
-		UPDATE scheduled_queries
-			SET deleted_at = ?, deleted = ?
-			WHERE id = ?
-	`
-	_, err := d.db.Exec(query, d.clock.Now(), true, id)
-	if err != nil {
-		return errors.Wrap(err, "deleting a scheduled query")
-	}
-
-	return nil
+	return d.deleteEntity("scheduled_queries", id)
 }
 
 func (d *Datastore) ScheduledQuery(id uint) (*kolide.ScheduledQuery, error) {

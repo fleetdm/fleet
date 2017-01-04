@@ -121,13 +121,13 @@ func (d *Datastore) SaveInvite(invite *kolide.Invite) error {
 }
 
 // DeleteInvite deletes an invitation.
-func (d *Datastore) DeleteInvite(invite *kolide.Invite) error {
+func (d *Datastore) DeleteInvite(id uint) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
-	if _, ok := d.invites[invite.ID]; !ok {
-		return notFound("Invite").WithID(invite.ID)
+	if _, ok := d.invites[id]; !ok {
+		return notFound("Invite").WithID(id)
 	}
-	delete(d.invites, invite.ID)
+	delete(d.invites, id)
 	return nil
 }

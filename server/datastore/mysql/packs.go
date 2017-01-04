@@ -42,17 +42,7 @@ func (d *Datastore) SavePack(pack *kolide.Pack) error {
 
 // DeletePack soft deletes a kolide.Pack so that it won't show up in results
 func (d *Datastore) DeletePack(pid uint) error {
-	sql := `
-		UPDATE packs
-			SET deleted_at = ?, deleted = TRUE
-			WHERE id = ?
-	`
-	_, err := d.db.Exec(sql, d.clock.Now(), pid)
-	if err != nil {
-		return errors.DatabaseError(err)
-	}
-
-	return nil
+	return d.deleteEntity("packs", pid)
 }
 
 // Pack fetch kolide.Pack with matching ID

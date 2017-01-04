@@ -45,15 +45,15 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 	return nil
 }
 
-func (d *Datastore) DeleteHost(host *kolide.Host) error {
+func (d *Datastore) DeleteHost(hid uint) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
-	if _, ok := d.hosts[host.ID]; !ok {
-		return notFound("Host").WithID(host.ID)
+	if _, ok := d.hosts[hid]; !ok {
+		return notFound("Host").WithID(hid)
 	}
 
-	delete(d.hosts, host.ID)
+	delete(d.hosts, hid)
 	return nil
 }
 

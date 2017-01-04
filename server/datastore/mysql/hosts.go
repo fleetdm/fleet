@@ -239,19 +239,8 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 	return nil
 }
 
-func (d *Datastore) DeleteHost(host *kolide.Host) error {
-	sqlStatement := `
-		UPDATE hosts SET
-			deleted = TRUE,
-			deleted_at = ?
-		WHERE id = ?
-	`
-	_, err := d.db.Exec(sqlStatement, d.clock.Now(), host.ID)
-	if err != nil {
-		return errors.DatabaseError(err)
-	}
-
-	return nil
+func (d *Datastore) DeleteHost(hid uint) error {
+	return d.deleteEntity("hosts", hid)
 }
 
 // TODO needs test

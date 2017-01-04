@@ -25,7 +25,8 @@ func (svc service) NewUser(ctx context.Context, p kolide.UserPayload) (*kolide.U
 	if err != nil {
 		return nil, err
 	}
-	err = svc.ds.DeleteInvite(invite)
+
+	err = svc.ds.DeleteInvite(invite.ID)
 	if err != nil {
 		return nil, err
 	}

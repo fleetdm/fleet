@@ -15,13 +15,6 @@ type DeleteFields struct {
 	Deleted   bool       `json:"deleted"`
 }
 
-// MarkDeleted indicates a record is deleted. It won't actually be removed from
-// the database, but won't be returned in result sets.
-func (d *DeleteFields) MarkDeleted(deleted time.Time) {
-	d.DeletedAt = &deleted
-	d.Deleted = true
-}
-
 // UpdateTimestamp contains a timestamp that is set whenever an entity is changed
 type UpdateTimestamp struct {
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`

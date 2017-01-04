@@ -34,13 +34,7 @@ func (d *Datastore) NewLabel(label *kolide.Label) (*kolide.Label, error) {
 
 // DeleteLabel soft deletes a kolide.Label
 func (d *Datastore) DeleteLabel(lid uint) error {
-	sql := `
-		UPDATE labels
-		SET deleted_at = ?, deleted = TRUE
-		WHERE id = ?
-	`
-	_, err := d.db.Exec(sql, d.clock.Now(), lid)
-	return errors.DatabaseError(err)
+	return d.deleteEntity("labels", lid)
 }
 
 // Label returns a kolide.Label identified by  lid if one exists

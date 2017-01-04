@@ -29,7 +29,7 @@ type InviteStore interface {
 	SaveInvite(i *Invite) error
 
 	// DeleteInvite deletes an invitation.
-	DeleteInvite(i *Invite) error
+	DeleteInvite(id uint) error
 }
 
 // InviteService contains methods for a service which deals with
