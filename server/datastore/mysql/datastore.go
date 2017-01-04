@@ -6,10 +6,8 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/go-kit/kit/log"
-
 	"github.com/jmoiron/sqlx"
 	"github.com/kolide/kolide-ose/server/config"
-
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/pressly/goose"
 )

@@ -56,3 +56,7 @@ type service struct {
 func (s service) SendEmail(mail kolide.Email) error {
 	return s.mailService.SendEmail(mail)
 }
+
+func (s service) Clock() clock.Clock {
+	return s.clock
+}

@@ -47,12 +47,12 @@ func (svc service) CountHostsInTargets(ctx context.Context, hostIDs []uint, labe
 	for _, host := range hosts {
 		if !hostLookup[host.ID] {
 			hostLookup[host.ID] = true
-			switch svc.HostStatus(ctx, host) {
-			case StatusOnline:
+			switch host.Status(svc.clock.Now().UTC()) {
+			case kolide.StatusOnline:
 				result.OnlineHosts++
-			case StatusOffline:
+			case kolide.StatusOffline:
 				result.OfflineHosts++
-			case StatusMIA:
+			case kolide.StatusMIA:
 				result.MissingInActionHosts++
 			}
 		}

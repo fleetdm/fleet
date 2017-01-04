@@ -133,7 +133,6 @@ func (d *Datastore) RecordLabelQueryExecutions(host *kolide.Host, results map[st
 	}
 
 	return nil
-
 }
 
 // ListLabelsForHost returns a list of kolide.Label for a given host id.

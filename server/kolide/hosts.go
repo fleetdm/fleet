@@ -8,6 +8,21 @@ import (
 	"golang.org/x/net/context"
 )
 
+const (
+	// StatusOnline host is active
+	StatusOnline string = "online"
+	// StatusOffline no communication with host for OfflineDuration
+	StatusOffline string = "offline"
+	// StatusMIA no communition with host for MIADuration
+	StatusMIA string = "mia"
+	// OfflineDuration if a host hasn't been in communition for this
+	// period it is considered offline
+	OfflineDuration time.Duration = 30 * time.Minute
+	// OfflineDuration if a host hasn't been in communition for this
+	// period it is considered MIA
+	MIADuration time.Duration = 30 * 24 * time.Hour
+)
+
 type HostStore interface {
 	NewHost(host *Host) (*Host, error)
 	SaveHost(host *Host) error
@@ -17,6 +32,7 @@ type HostStore interface {
 	EnrollHost(osqueryHostId string, nodeKeySize int) (*Host, error)
 	AuthenticateHost(nodeKey string) (*Host, error)
 	MarkHostSeen(host *Host, t time.Time) error
+	GenerateHostStatusStatistics(now time.Time) (online, offline, mia uint, err error)
 	SearchHosts(query string, omit ...uint) ([]*Host, error)
 	// DistributedQueriesForHost retrieves the distributed queries that the
 	// given host should run. The result map is a mapping from campaign ID
@@ -27,7 +43,7 @@ type HostStore interface {
 type HostService interface {
 	ListHosts(ctx context.Context, opt ListOptions) ([]*Host, error)
 	GetHost(ctx context.Context, id uint) (*Host, error)
-	HostStatus(ctx context.Context, host Host) string
+	GetHostSummary(ctx context.Context) (*HostSummary, error)
 	DeleteHost(ctx context.Context, id uint) error
 }
 
@@ -40,6 +56,7 @@ type Host struct {
 	// a GUID or a Host Name, but in either case, it MUST be unique
 	OsqueryHostID    string        `json:"-" db:"osquery_host_id"`
 	DetailUpdateTime time.Time     `json:"detail_updated_at" db:"detail_update_time"` // Time that the host details were last updated
+	SeenTime         time.Time     `json:"seen_time" db:"seen_time"`                  // Time that the host was last "seen"
 	NodeKey          string        `json:"-" db:"node_key"`
 	HostName         string        `json:"hostname" db:"host_name"` // there is a fulltext index on this field
 	UUID             string        `json:"uuid"`
@@ -66,6 +83,15 @@ type Host struct {
 	// can be found in the NetworkInterfaces element with the same ip_address.
 	PrimaryNetworkInterfaceID *uint               `json:"primary_ip_id,omitempty" db:"primary_ip_id"`
 	NetworkInterfaces         []*NetworkInterface `json:"network_interfaces" db:"-"`
+}
+
+// HostSummary is a structure which represents a data summary about the total
+// set of hosts in the database. This structure is returned by the HostService
+// method GetHostSummary
+type HostSummary struct {
+	OnlineCount  uint `json:"online_count"`
+	OfflineCount uint `json:"offline_count"`
+	MIACount     uint `json:"mia_count"`
 }
 
 // ResetPrimaryNetwork will determine if the PrimaryNetworkInterfaceID
@@ -110,4 +136,15 @@ func RandomText(keySize int) (string, error) {
 	}
 
 	return base64.StdEncoding.EncodeToString(key), nil
+}
+
+func (h *Host) Status(now time.Time) string {
+	switch {
+	case h.SeenTime.Add(MIADuration).Before(now):
+		return StatusMIA
+	case h.SeenTime.Add(OfflineDuration).Before(now):
+		return StatusOffline
+	default:
+		return StatusOnline
+	}
 }

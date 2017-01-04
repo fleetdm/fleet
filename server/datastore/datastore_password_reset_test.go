@@ -10,7 +10,7 @@ import (
 
 func testPasswordResetRequests(t *testing.T, db kolide.Datastore) {
 	createTestUsers(t, db)
-	now := time.Now()
+	now := time.Now().UTC()
 	tomorrow := now.Add(time.Hour * 24)
 	var passwordResetTests = []struct {
 		userID  uint

@@ -122,12 +122,12 @@ func TestCountHostsInTargets(t *testing.T) {
 	l2ID := fmt.Sprintf("%d", l2.ID)
 
 	for _, h := range []*kolide.Host{h1, h2, h3, h6} {
-		err = ds.RecordLabelQueryExecutions(h, map[string]bool{l1ID: true}, time.Now())
+		err = ds.RecordLabelQueryExecutions(h, map[string]bool{l1ID: true}, mockClock.Now())
 		assert.Nil(t, err)
 	}
 
 	for _, h := range []*kolide.Host{h3, h4, h5} {
-		err = ds.RecordLabelQueryExecutions(h, map[string]bool{l2ID: true}, time.Now())
+		err = ds.RecordLabelQueryExecutions(h, map[string]bool{l2ID: true}, mockClock.Now())
 		assert.Nil(t, err)
 	}
 

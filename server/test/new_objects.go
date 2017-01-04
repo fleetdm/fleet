@@ -93,6 +93,7 @@ func NewHost(t *testing.T, ds kolide.Datastore, name, ip, key, uuid string, now 
 		NodeKey:          key,
 		UUID:             uuid,
 		DetailUpdateTime: now,
+		SeenTime:         now,
 		OsqueryHostID:    osqueryHostID,
 	})
 
