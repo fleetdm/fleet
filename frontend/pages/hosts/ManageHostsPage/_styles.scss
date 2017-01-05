@@ -59,9 +59,9 @@
   &__list {
     &--grid {
       @include display(flex);
-      @include justify-content(center);
+      @include justify-content(space-around);
       @include flex-wrap(wrap);
-      max-width: $medium-width;
+      @include align-content(center);
       margin: 0 auto;
     }
   }

@@ -11,6 +11,7 @@ interface IButtonProps {
   size: string;
   tabIndex: number;
   type: string;
+  title: string;
   variant: string;
 }
 
@@ -39,7 +40,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
 
   render () {
     const { handleClick } = this;
-    const { children, className, disabled, size, tabIndex, type, variant } = this.props;
+    const { children, className, disabled, size, tabIndex, type, title, variant } = this.props;
     const fullClassName = classnames(baseClass, `${baseClass}--${variant}`, className, {
       [baseClass]: variant !== 'unstyled',
       [`${baseClass}--disabled`]: disabled,
@@ -53,6 +54,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         onClick={handleClick}
         tabIndex={tabIndex}
         type={type}
+        title={title}
       >
         {children}
       </button>

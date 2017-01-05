@@ -21,14 +21,4 @@ export const humanMemory = (bytes) => {
   return `${inGigaBytes(bytes)} GB`;
 };
 
-export const platformIconClass = (platform) => {
-  let platformClass = platform.toLowerCase();
-
-  if (platformClass === 'darwin') {
-    platformClass = 'apple';
-  }
-
-  return platformClass;
-};
-
-export default { humanMemory, humanUptime, platformIconClass };
+export default { humanMemory, humanUptime };

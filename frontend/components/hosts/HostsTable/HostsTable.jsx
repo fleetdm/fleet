@@ -23,6 +23,7 @@ class HostsTable extends Component {
         <td>{host.osquery_version}</td>
         <td>{host.ip}</td>
         <td>{host.mac}</td>
+        <td><a href="#add-query"><Icon name="add-plus" /></a></td>
       </tr>
     );
   }
@@ -42,6 +43,7 @@ class HostsTable extends Component {
               <th>Osquery</th>
               <th>IPv4</th>
               <th>Physical Address</th>
+              <th><Icon name="query" /></th>
             </tr>
           </thead>
           <tbody>

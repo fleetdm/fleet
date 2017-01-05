@@ -1,10 +1,11 @@
 import React, { PropTypes } from 'react';
 import { noop } from 'lodash';
 
-import EllipsisMenu from 'components/buttons/EllipsisMenu';
+import Button from 'components/buttons/Button';
 import hostInterface from 'interfaces/host';
 import Icon from 'components/icons/Icon';
-import { humanMemory, humanUptime, platformIconClass } from './helpers';
+import PlatformIcon from 'components/icons/PlatformIcon';
+import { humanMemory, humanUptime } from './helpers';
 
 const baseClass = 'host-details';
 
@@ -13,7 +14,7 @@ export const STATUSES = {
   offline: 'OFFLINE',
 };
 
-const HostDetails = ({ host, onQueryClick = noop, onDisableClick = noop }) => {
+const HostDetails = ({ host, onQueryClick = noop }) => {
   const {
     hostname,
     ip,
@@ -27,60 +28,58 @@ const HostDetails = ({ host, onQueryClick = noop, onDisableClick = noop }) => {
 
   return (
     <div className={`${baseClass} ${baseClass}--${status}`}>
-      <EllipsisMenu positionStyles={{ top: '-3px', right: '10px' }}>
-        <div className={`${baseClass}__ellipsis-children`}>
-          <button className={`${baseClass}__ellipsis-child-item button button--unstyled`} onClick={onQueryClick(host)}>
-            <Icon name="query" className={`${baseClass}__query-icon`} />
-            <div>Query</div>
-          </button>
-          <div className={`${baseClass}__vertical-separator`} />
-          <button className={`${baseClass}__ellipsis-child-item button button--unstyled`} onClick={onDisableClick(host)}>
-            <Icon name="offline" className={`${baseClass}__disabled-icon`} />
-            <div>Disable</div>
-          </button>
-        </div>
-      </EllipsisMenu>
-      <div className={`${baseClass}__status ${baseClass}__status--${status}`}>
-        {status}
-      </div>
+      <span className={`${baseClass}__add-query`}>
+        <Button onClick={onQueryClick(host)} variant="unstyled" title="Query this host">
+          <Icon name="query" className={`${baseClass}__add-query-icon`} key="add-query" />
+        </Button>
+      </span>
+
+      <p className={`${baseClass}__status`}>{status}</p>
+
       <p className={`${baseClass}__hostname`}>{hostname}</p>
-      <div className={`${baseClass}__separator`}>
-        <div>
-          <Icon name={platformIconClass(platform)} className={`${baseClass}__icon`} />
+
+      <ul className={`${baseClass}__details-list`}>
+        <li className={` ${baseClass}__detail ${baseClass}__detail--os`}>
+          <PlatformIcon name={platform} className={`${baseClass}__icon`} />
           <span className={`${baseClass}__host-content`}>{osVersion}</span>
-        </div>
-        <div>
-          <span className={`${baseClass}__host-content ${baseClass}__host-content--caps`}>{platform}</span>
-        </div>
-        <div>
-          <span style={{ marginRight: '8px' }}>
-            <Icon name="memory" className={`${baseClass}__icon`} />
-            <span className={`${baseClass}__host-content`}>{humanMemory(memory)}</span>
-          </span>
+        </li>
+
+        <li className={` ${baseClass}__detail ${baseClass}__detail--cpu`}>
+          <Icon name="cpu" className={`${baseClass}__icon`} />
+          <span className={`${baseClass}__host-content`}> 1 x 2.4Ghz</span>
+        </li>
+
+        <li className={` ${baseClass}__detail ${baseClass}__detail--osquery`}>
+          <Icon name="osquery" className={`${baseClass}__icon`} />
+          <span className={`${baseClass}__host-content`}>2.0.1</span>
+        </li>
+
+        <li className={` ${baseClass}__detail ${baseClass}__detail--memory`}>
+          <Icon name="memory" className={`${baseClass}__icon`} />
+          <span className={`${baseClass}__host-content`}>{humanMemory(memory)}</span>
+        </li>
+
+        <li className={` ${baseClass}__detail ${baseClass}__detail--uptime`}>
           <Icon name="uptime" className={`${baseClass}__icon`} />
           <span className={`${baseClass}__host-content`}>{humanUptime(uptime)}</span>
-        </div>
-        <div>
+        </li>
+
+        <li className={` ${baseClass}__detail ${baseClass}__detail--mac`}>
           <Icon name="mac" className={`${baseClass}__icon`} />
-          <span className={`${baseClass}__host-content ${baseClass}__host-content--mono`}>{mac}</span>
-        </div>
-        <div>
+          <span className={`${baseClass}__host-content ${baseClass}__host-content--mono`}>{mac || '04:01:34:EA:54:01'}</span>
+        </li>
+
+        <li className={` ${baseClass}__detail ${baseClass}__detail--ip`}>
           <Icon name="world" className={`${baseClass}__icon`} />
-          <span className={`${baseClass}__host-content ${baseClass}__host-content--mono`}>{ip}</span>
-        </div>
-      </div>
-      <div className={`${baseClass}__separator`}>
-        <div>
-          <span className={`${baseClass}__host-content ${baseClass}__host-content--caps`}>Tags go here</span>
-        </div>
-      </div>
+          <span className={`${baseClass}__host-content ${baseClass}__host-content--mono`}>{ip || '104.236.116.77'}</span>
+        </li>
+      </ul>
     </div>
   );
 };
 
 HostDetails.propTypes = {
   host: hostInterface.isRequired,
-  onDisableClick: PropTypes.func,
   onQueryClick: PropTypes.func,
 };
 
