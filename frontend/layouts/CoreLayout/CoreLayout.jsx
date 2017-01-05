@@ -4,9 +4,12 @@ import { logoutUser } from 'redux/nodes/auth/actions';
 import { push } from 'react-router-redux';
 
 import configInterface from 'interfaces/config';
+import FlashMessage from 'components/FlashMessage';
 import SiteNavHeader from 'components/side_panels/SiteNavHeader';
 import SiteNavSidePanel from 'components/side_panels/SiteNavSidePanel';
 import userInterface from 'interfaces/user';
+import notificationInterface from 'interfaces/notification';
+import { hideFlash } from 'redux/nodes/notifications/actions';
 
 export class CoreLayout extends Component {
   static propTypes = {
@@ -14,6 +17,8 @@ export class CoreLayout extends Component {
     config: configInterface,
     dispatch: PropTypes.func,
     user: userInterface,
+    fullWidthFlash: PropTypes.bool,
+    notifications: notificationInterface,
   };
 
   onLogoutUser = () => {
@@ -36,8 +41,30 @@ export class CoreLayout extends Component {
     };
   }
 
+  onRemoveFlash = () => {
+    const { dispatch } = this.props;
+
+    dispatch(hideFlash);
+
+    return false;
+  }
+
+  onUndoActionClick = (undoAction) => {
+    return (evt) => {
+      evt.preventDefault();
+
+      const { dispatch } = this.props;
+      const { onRemoveFlash } = this;
+
+      dispatch(undoAction);
+
+      return onRemoveFlash();
+    };
+  }
+
   render () {
-    const { children, config, user } = this.props;
+    const { fullWidthFlash, notifications, children, config, user } = this.props;
+    const { onRemoveFlash, onUndoActionClick } = this;
 
     if (!user) return false;
 
@@ -61,6 +88,12 @@ export class CoreLayout extends Component {
           />
         </nav>
         <div className="core-wrapper">
+          <FlashMessage
+            fullWidth={fullWidthFlash}
+            notification={notifications}
+            onRemoveFlash={onRemoveFlash}
+            onUndoActionClick={onUndoActionClick}
+          />
           {children}
         </div>
       </div>
@@ -72,9 +105,14 @@ const mapStateToProps = (state) => {
   const {
     app: { config },
     auth: { user },
+    notifications,
   } = state;
 
+  const fullWidthFlash = !user;
+
   return {
+    notifications,
+    fullWidthFlash,
     config,
     user,
   };

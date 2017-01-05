@@ -76,29 +76,4 @@ describe('App - component', () => {
     mount(application);
     expect(spy).toNotHaveBeenCalled();
   });
-
-  it('renders the FlashMessage component when notifications are present', () => {
-    const storeWithNotifications = {
-      app: {},
-      auth: {
-      },
-      notifications: {
-        alertType: 'success',
-        isVisible: true,
-        message: 'nice jerb!',
-      },
-    };
-    const mockStoreWithNotifications = reduxMockStore(storeWithNotifications);
-    const componentWithFlash = connectedComponent(ConnectedApp, {
-      mockStore: mockStoreWithNotifications,
-    });
-    const componentWithoutFlash = connectedComponent(ConnectedApp, {
-      mockStore,
-    });
-
-    const appWithFlash = mount(componentWithFlash);
-    const appWithoutFlash = mount(componentWithoutFlash);
-    expect(appWithFlash.find('FlashMessage').html()).toExist();
-    expect(appWithoutFlash.find('FlashMessage').html()).toNotExist();
-  });
 });

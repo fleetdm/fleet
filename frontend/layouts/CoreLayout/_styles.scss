@@ -7,6 +7,7 @@
   @include flex-grow(1);
   margin: 0;
   padding: 0 0 0 $pad-base;
+  position: relative;
 }
 
 .site-nav {

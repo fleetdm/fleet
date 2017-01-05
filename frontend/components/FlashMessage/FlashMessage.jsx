@@ -1,7 +1,9 @@
 import React, { PropTypes } from 'react';
 import classnames from 'classnames';
 
-import notificationInterface from '../../interfaces/notification';
+import notificationInterface from 'interfaces/notification';
+import Icon from 'components/icons/Icon';
+import Button from 'components/buttons/Button';
 
 const baseClass = 'flash-message';
 
@@ -15,24 +17,31 @@ const FlashMessage = ({ fullWidth, notification, onRemoveFlash, onUndoActionClic
     return false;
   }
 
+  const alertIcon = alertType === 'success' ? 'success-check' : 'warning-filled';
+
   return (
     <div className={klass}>
       <div className={`${baseClass}__content`}>
-        {message}
+        <Icon name={alertIcon} /> <span>{message}</span>
+
+        {undoAction &&
+          <Button
+            className={`${baseClass}__undo`}
+            variant="unstyled"
+            onClick={onUndoActionClick(undoAction)}
+          >
+            Undo
+          </Button>
+        }
       </div>
       <div className={`${baseClass}__action`}>
-        <button
-          className={`${baseClass}__undo button button--unstyled`}
-          onClick={onUndoActionClick(undoAction)}
-        >
-          {undoAction && 'undo'}
-        </button>
-        <button
-          className={`${baseClass}__remove ${baseClass}__remove--${alertType} button button--unstyled`}
+        <Button
+          className={`${baseClass}__remove ${baseClass}__remove--${alertType}`}
+          variant="unstyled"
           onClick={onRemoveFlash}
         >
-          &times;
-        </button>
+          <Icon name="x" />
+        </Button>
       </div>
     </div>
   );

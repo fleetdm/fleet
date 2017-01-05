@@ -7,7 +7,7 @@ import AppConfigForm from 'components/forms/admin/AppConfigForm';
 import { itBehavesLikeAFormInputElement } from 'test/helpers';
 
 describe('AppConfigForm - form', () => {
-  const form = mount(<AppConfigForm handleSubmit={noop} />);
+  const form = mount(<AppConfigForm handleSubmit={noop} smtpConfigured={false} />);
 
   describe('Organization Name input', () => {
     it('renders an input field', () => {

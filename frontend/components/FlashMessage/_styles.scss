@@ -7,53 +7,67 @@
 .flash-message {
   @include display(flex);
   @include align-items(center);
-  @include justify-content(space-between);
-  @include position(fixed, 0 0 null 240px);
+  @include justify-content(center);
+  @include position(absolute, 0 0 null 0);
   color: $white;
-  padding: 0 $pad-half;
+  padding: $pad-half;
   z-index: 2;
-
-  @include breakpoint(tablet) {
-    left: 55px;
-  }
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  background-color: #3d4758;
+  min-width: $min-width;
 
   &--full-width {
     left: 0;
   }
 
   &--success {
-    background-color: $success;
+    .kolidecon {
+      color: $success;
+    }
   }
 
   &--error {
-    background-color: $alert;
+    .kolidecon {
+      color: $alert;
+    }
   }
 
-  &__action {
-    @include display(flex);
-    @include justify-content(space-between);
-    width: 96px;
-  }
-
-  &__remove {
-    @include size(30px);
-    border-radius: 50%;
-    color: $white;
-    cursor: pointer;
+  &__content {
+    @include flex-grow(1);
     text-align: center;
 
-    &--success {
-      background-color: $success-light;
+    span {
+      margin-left: 15px;
+      margin-right: 15px;
     }
 
-    &--error {
-      background-color: $alert-light;
+    .kolidecon {
+      font-size: 24px;
     }
   }
 
   &__undo {
     color: $white;
     cursor: pointer;
+    font-size: 16px;
+    text-decoration: underline;
+    text-transform: uppercase;
+  }
+
+  &__remove {
+    @include size(30px);
+    cursor: pointer;
+    text-align: center;
+    margin-left: 15px;
+
+    .kolidecon {
+      @include transition(color 150ms ease-in-out);
+      color: $text-light;
+      font-size: 24px;
+
+      &:hover {
+        color: $white;
+      }
+    }
   }
 }
-
