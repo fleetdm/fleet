@@ -12,73 +12,8 @@
     text-align: left;
     border-radius: 0;
 
-    &:hover {
-      background: $bg-medium;
-    }
-
     @include breakpoint(smalldesk) {
       padding: 0;
-    }
-
-    &--open {
-      background-color: $text-dark;
-      z-index: 6;
-
-      .site-nav-header__org {
-        border-color: $text-ultradark;
-      }
-
-      .site-nav-header__org-name,
-      .site-nav-header__username {
-        color: $white;
-      }
-
-      .site-nav-header__org-chevron {
-        @include transform(rotate(180deg));
-      }
-
-      &:hover {
-        background-color: $text-dark;
-      }
-
-      @include breakpoint(smalldesk) {
-        width: 240px;
-
-        .site-nav-header__org,
-        .user-menu-toggle {
-          box-shadow: 1px 6px 15px 0 rgba(0, 0, 0, 0.2);
-        }
-
-        .user-menu-toggle {
-          span {
-            display: inline-block;
-          }
-        }
-
-        .site-nav-header__org-chevron {
-          float: right;
-          margin-right: 27px;
-        }
-
-        .site-nav-header__org-name {
-          display: block;
-        }
-
-        .site-nav-header__user-status,
-        .user-menu-toggle__name,
-        .user-menu-toggle__position,
-        .site-nav-header__username {
-          display: inline-block;
-        }
-
-        .site-nav-header__user-status {
-          margin-left: 11px;
-        }
-
-        .site-nav-header__logo {
-          margin-top: 0;
-        }
-      }
     }
   }
 
@@ -151,38 +86,22 @@
       display: none;
     }
   }
-
-  &__org-chevron {
-    @include transition(transform 150ms $ease-in-quad);
-    color: $accent-medium;
-    font-size: 12px;
-    float: right;
-
-    @include breakpoint(smalldesk) {
-      float: none;
-      text-align: center;
-      display: block;
-      clear: both;
-    }
-  }
 }
 
 .user-menu-toggle {
-  @include transition(opacity 150ms ease-in-out);
   height: 0;
-  background-color: $text-dark;
   width: 239px;
   position: absolute;
-  left: 0;
+  left: $base;
   padding: 0;
   z-index: 2;
   overflow: hidden;
   opacity: 0;
   box-sizing: border-box;
-
-  @include breakpoint(smalldesk) {
-    width: 240px;
-  }
+  border-radius: 4px;
+  background-color: #443a6b;
+  box-shadow: 1px 6px 15px 0 rgba(0, 0, 0, 0.2);
+  border: solid 1px rgba(73, 143, 226, 0.6);
 
   &--open {
     height: auto;
@@ -196,38 +115,28 @@
     border: solid 1px $accent-medium;
     border-radius: 50%;
     margin: 0 10px 0 $pad-medium;
-
-    @include breakpoint(smalldesk) {
-      margin: $pad-xsmall 5px;
-    }
   }
 
   &__name,
   &__position {
     @include ellipsis(170px);
-    color: $white;
-    font-size: $small;
     margin: 0;
-    line-height: $large;
     float: left;
     text-transform: none;
-    font-weight: $normal;
-
-    @include breakpoint(smalldesk) {
-      display: none;
-      margin-left: 15px;
-    }
+    font-size: 15px;
+    font-weight: $bold;
+    line-height: 1.6;
+    letter-spacing: -0.5px;
+    color: rgba(255, 255, 255, 0.95);
   }
 
-  &__name {
-    @include breakpoint(smalldesk) {
-      margin-top: 4px;
-    }
+  &__position {
+    font-weight: $normal;
+    color: rgba(255, 255, 255, 0.6);
   }
 
   &__nav {
     clear: both;
-    padding-top: $pad-small;
   }
 
   &__nav-list {
@@ -237,31 +146,45 @@
   }
 
   &__nav-item {
-    font-size: $small;
-    text-transform: uppercase;
+    font-size: 15px;
+    font-weight: $normal;
+    letter-spacing: 0.5px;
+    padding: 14px 0;
 
     a {
-      @include transition(background 150ms $ease-in-quad);
-      letter-spacing: 0.5px;
+      @include transition(opacity 75ms $ease-in-quad, background 75ms $ease-in-quad);
       color: $white;
       display: block;
-      line-height: 50px;
       text-decoration: none;
-      padding: 0 $pad-medium;
+      text-transform: none;
+      margin: 0 18px;
+      line-height: 40px;
+      border-radius: 4px;
+      padding: 0 9px;
+      opacity: 0.75;
+
+      &:hover {
+        opacity: 1;
+      }
 
       i {
         margin-right: $pad-half;
         font-size: $large;
-      }
-
-      &:hover {
-        background: $accent-text;
+        vertical-align: text-bottom;
       }
     }
 
-    @include breakpoint(smalldesk) {
-      span {
-        display: none;
+    &:first-child {
+      border-bottom: solid 1px rgba(73, 143, 226, 0.4);
+
+      a:hover {
+        background-color: $link;
+      }
+    }
+
+    &:last-child {
+      a:hover {
+        background-color: #3c3655;
       }
     }
   }
