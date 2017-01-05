@@ -28,7 +28,7 @@ $base-class: 'button';
 
 .#{$base-class} {
   @include user-select(none);
-  @include transition(background 150ms ease-in-out, top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out);
+  @include transition(color 150ms ease-in-out, background 150ms ease-in-out, top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out);
   @include button-variant($link);
   position: relative;
   height: 38px;
@@ -48,11 +48,6 @@ $base-class: 'button';
   border: 0;
   cursor: pointer;
   box-sizing: border-box;
-
-  &:active {
-    box-shadow: 0 0 0 $black, 0 1px 2px rgba($black, .15), 0 -1px 0 rgba($white, .1) inset;
-    top: 2px;
-  }
 
   &:focus {
     outline: none;

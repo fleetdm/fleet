@@ -65,7 +65,7 @@ describe('QueryPage - component', () => {
     }));
     const form = page.find('QueryForm');
     const nameInput = form.find({ name: 'name' }).find('input');
-    const saveChangesBtn = form.find('Button').first();
+    const saveChangesBtn = form.find('li.dropdown-button__option').first().find('Button');
 
     kolide.setBearerToken(bearerToken);
     validUpdateQueryRequest(bearerToken, query, {

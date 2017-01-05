@@ -2,6 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import { isEqual } from 'lodash';
 
 import Button from 'components/buttons/Button';
+import DropdownButton from 'components/buttons/DropdownButton';
 import Dropdown from 'components/forms/fields/Dropdown';
 import helpers from 'components/forms/queries/QueryForm/helpers';
 import InputField from 'components/forms/fields/InputField';
@@ -173,6 +174,17 @@ class QueryForm extends Component {
       queryType,
     } = this.props;
     const { onCancel, onSave, onUpdate } = this;
+
+    const dropdownBtnOptions = [{
+      disabled: !canSaveChanges(formData, query),
+      label: 'Save Changes',
+      onClick: onUpdate,
+    }, {
+      disabled: !canSaveAsNew(formData, query),
+      label: 'Save As New...',
+      onClick: onSave,
+    }];
+
     let runQueryButton;
 
     if (queryIsRunning) {
@@ -221,22 +233,14 @@ class QueryForm extends Component {
 
     return (
       <div className={`${baseClass}__button-wrap`}>
-        <Button
-          className={`${baseClass}__save-changes-btn`}
-          disabled={!canSaveChanges(formData, query)}
-          onClick={onUpdate}
-          variant="inverse"
-        >
-          Save Changes
-        </Button>
-        <Button
-          className={`${baseClass}__save-as-new-btn`}
-          disabled={!canSaveAsNew(formData, query)}
-          onClick={onSave}
+        <DropdownButton
+          className={`${baseClass}__save`}
+          options={dropdownBtnOptions}
           variant="success"
         >
-          Save As New...
-        </Button>
+          Save
+        </DropdownButton>
+
         {runQueryButton}
       </div>
     );

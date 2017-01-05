@@ -9,7 +9,8 @@
   &__button-wrap {
     text-align: right;
 
-    .button {
+    .query-form__run-query-btn,
+    .query-form__stop-query-btn {
       margin-left: $pad-xsmall;
     }
   }

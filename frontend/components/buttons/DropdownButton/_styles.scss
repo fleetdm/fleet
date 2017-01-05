@@ -1,0 +1,54 @@
+.dropdown-button {
+  &__wrapper {
+    display: inline-block;
+    position: relative;
+  }
+
+  &__carat {
+    font-size: 6px;
+    vertical-align: middle;
+    margin-left: 10px;
+  }
+
+  &__options {
+    position: absolute;
+    right: 0;
+    top: 45px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: none;
+    z-index: 2;
+    border-radius: 2px;
+    background-color: $white;
+    border: solid 1px $accent-medium;
+
+    &--opened {
+      display: inline-block;
+    }
+  }
+
+  &__option {
+    display: block;
+
+    .button {
+      color: $text-dark;
+      text-transform: none;
+      text-align: left;
+      font-weight: $normal;
+      margin: 0;
+      border-radius: 0;
+      padding: 0 10px;
+      white-space: nowrap;
+      width: 100%;
+      font-size: 15px;
+      height: 38px;
+      letter-spacing: -0.5px;
+
+      &:hover {
+        background-color: $brand-light;
+        color: $white;
+      }
+    }
+  }
+}

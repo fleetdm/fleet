@@ -68,7 +68,8 @@ describe('QueryComposer - component', () => {
 
     fillInFormInput(form.find({ name: 'name' }), 'My query name');
     fillInFormInput(form.find({ name: 'description' }), 'My query description');
-    form.find('.query-form__save-as-new-btn').simulate('click');
+    form.find('.query-form__save').simulate('click');
+    form.find('li').last().find('Button').simulate('click');
 
     expect(onSaveQueryFormSubmitSpy).toHaveBeenCalledWith({
       description: 'My query description',
@@ -112,7 +113,8 @@ describe('QueryComposer - component', () => {
     const form = component.find('QueryForm');
 
     fillInFormInput(form.find({ name: 'name' }), 'My new query name');
-    form.find('.query-form__save-changes-btn').simulate('click');
+    form.find('.query-form__save').simulate('click');
+    form.find('li').first().find('Button').simulate('click');
 
     expect(onSaveChangesSpy).toHaveBeenCalledWith({
       description: query.description,

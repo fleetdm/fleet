@@ -80,9 +80,10 @@ describe('QueryForm - component', () => {
 
     fillInFormInput(nameInput, '');
 
-    const saveChangesBtn = form.find('.query-form__save-changes-btn');
+    const saveDropButton = form.find('.query-form__save');
 
-    saveChangesBtn.simulate('click');
+    saveDropButton.simulate('click');
+    form.find('li').first().find('Button').simulate('click');
 
     expect(onSaveChangesSpy).toNotHaveBeenCalled();
     expect(form.state()).toInclude({
@@ -101,9 +102,10 @@ describe('QueryForm - component', () => {
 
     fillInFormInput(nameInput, 'New query name');
 
-    const saveChangesBtn = form.find('.query-form__save-changes-btn');
+    const saveDropButton = form.find('.query-form__save');
 
-    saveChangesBtn.simulate('click');
+    saveDropButton.simulate('click');
+    form.find('li').first().find('Button').simulate('click');
 
     expect(onSaveChangesSpy).toHaveBeenCalledWith({
       description: query.description,
@@ -116,15 +118,15 @@ describe('QueryForm - component', () => {
     const form = mount(<QueryForm query={query} queryText={queryText} />);
     const inputFields = form.find('InputField');
     const nameInput = inputFields.find({ name: 'name' });
-    const saveChangesBtn = form.find('.query-form__save-changes-btn');
+    const saveChangesOption = form.find('li.dropdown-button__option').first().find('Button');
 
-    expect(saveChangesBtn.props()).toInclude({
+    expect(saveChangesOption.props()).toInclude({
       disabled: true,
     });
 
     fillInFormInput(nameInput, 'New query name');
 
-    expect(saveChangesBtn.props()).toNotInclude({
+    expect(saveChangesOption.props()).toNotInclude({
       disabled: true,
     });
   });
@@ -133,15 +135,15 @@ describe('QueryForm - component', () => {
     const form = mount(<QueryForm query={query} queryText={queryText} />);
     const inputFields = form.find('InputField');
     const descriptionInput = inputFields.find({ name: 'description' });
-    const saveChangesBtn = form.find('.query-form__save-changes-btn');
+    const saveChangesOption = form.find('li.dropdown-button__option').first().find('Button');
 
-    expect(saveChangesBtn.props()).toInclude({
+    expect(saveChangesOption.props()).toInclude({
       disabled: true,
     });
 
     fillInFormInput(descriptionInput, 'New query description');
 
-    expect(saveChangesBtn.props()).toNotInclude({
+    expect(saveChangesOption.props()).toNotInclude({
       disabled: true,
     });
   });
@@ -151,11 +153,11 @@ describe('QueryForm - component', () => {
     const form = mount(<QueryForm query={query} queryText={queryText} onSave={onSaveAsNewSpy} />);
     const inputFields = form.find('InputField');
     const nameInput = inputFields.find({ name: 'name' });
-    const saveAsNewBtn = form.find('.query-form__save-as-new-btn');
+    const saveAsNewOption = form.find('li.dropdown-button__option').last().find('Button');
 
     fillInFormInput(nameInput, 'New query name');
 
-    saveAsNewBtn.simulate('click');
+    saveAsNewOption.simulate('click');
 
     expect(onSaveAsNewSpy).toHaveBeenCalledWith({
       description: query.description,
@@ -169,11 +171,11 @@ describe('QueryForm - component', () => {
     const form = mount(<QueryForm query={query} queryText={queryText} onSave={onSaveAsNewSpy} />);
     const inputFields = form.find('InputField');
     const nameInput = inputFields.find({ name: 'name' });
-    const saveAsNewBtn = form.find('.query-form__save-as-new-btn');
+    const saveAsNewOption = form.find('li.dropdown-button__option').last().find('Button');
 
     fillInFormInput(nameInput, '');
 
-    saveAsNewBtn.simulate('click');
+    saveAsNewOption.simulate('click');
 
     expect(onSaveAsNewSpy).toNotHaveBeenCalled();
     expect(form.state()).toInclude({
