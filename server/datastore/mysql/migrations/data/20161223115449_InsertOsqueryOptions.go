@@ -1,26 +1,25 @@
-package migration
+package data
 
 import (
 	"database/sql"
 
 	"github.com/kolide/kolide-ose/server/datastore/internal/appstate"
 	"github.com/kolide/kolide-ose/server/kolide"
-	"github.com/pressly/goose"
 )
 
 func init() {
-	goose.AddMigration(Up_20161223115449, Down_20161223115449)
+	MigrationClient.AddMigration(Up_20161223115449, Down_20161223115449)
 }
 
 func Up_20161223115449(tx *sql.Tx) error {
 	sqlStatement := `
-    INSERT INTO options (
-      name,
-      type,
-      value,
-      read_only
-    ) VALUES( ?, ?, ?, ?)
-  `
+		INSERT INTO options (
+			name,
+			type,
+			value,
+			read_only
+		) VALUES (?, ?, ?, ?)
+	`
 
 	for _, opt := range appstate.Options {
 		ov := kolide.Option{

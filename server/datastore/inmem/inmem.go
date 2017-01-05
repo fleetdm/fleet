@@ -43,7 +43,7 @@ func New(config config.KolideConfig) (*Datastore, error) {
 		config: &config,
 	}
 
-	if err := ds.Migrate(); err != nil {
+	if err := ds.MigrateTables(); err != nil {
 		return nil, err
 	}
 
@@ -69,9 +69,10 @@ func sortResults(slice interface{}, opt kolide.ListOptions, fields map[string]st
 	return nil
 }
 
-func (d *Datastore) Migrate() error {
+func (d *Datastore) MigrateTables() error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
+
 	d.nextIDs = make(map[interface{}]uint)
 	d.users = make(map[uint]*kolide.User)
 	d.sessions = make(map[uint]*kolide.Session)
@@ -88,6 +89,13 @@ func (d *Datastore) Migrate() error {
 	d.distributedQueryCampaigns = make(map[uint]kolide.DistributedQueryCampaign)
 	d.distributedQueryCampaignTargets = make(map[uint]kolide.DistributedQueryCampaignTarget)
 	d.options = make(map[uint]*kolide.Option)
+
+	return nil
+}
+
+func (d *Datastore) MigrateData() error {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 
 	for _, initData := range appstate.Options {
 		opt := kolide.Option{
@@ -107,11 +115,12 @@ func (d *Datastore) Migrate() error {
 		SMTPEnableStartTLS: true,
 		SMTPVerifySSLCerts: true,
 	}
+
 	return nil
 }
 
 func (d *Datastore) Drop() error {
-	return d.Migrate()
+	return d.MigrateTables()
 }
 
 func (d *Datastore) Initialize() error {

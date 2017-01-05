@@ -11,6 +11,8 @@ import (
 )
 
 func testOptions(t *testing.T, ds kolide.Datastore) {
+	require.Nil(t, ds.MigrateData())
+
 	// were options pre-loaded?
 	opts, err := ds.ListOptions()
 	require.Nil(t, err)
@@ -58,6 +60,8 @@ func testOptions(t *testing.T, ds kolide.Datastore) {
 }
 
 func testOptionsToConfig(t *testing.T, ds kolide.Datastore) {
+	require.Nil(t, ds.MigrateData())
+
 	resp, err := ds.GetOsqueryConfigOptions()
 	require.Nil(t, err)
 	assert.Len(t, resp, 10)

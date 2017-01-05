@@ -18,6 +18,7 @@ import (
 	"github.com/kolide/kolide-ose/server/config"
 	"github.com/kolide/kolide-ose/server/datastore/inmem"
 	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/stretchr/testify/require"
 )
 
 type testResource struct {
@@ -29,8 +30,11 @@ type testResource struct {
 func setupEndpointTest(t *testing.T) *testResource {
 	test := &testResource{}
 
-	jwtKey := "CHANGEME"
-	test.ds, _ = inmem.New(config.TestConfig())
+	var err error
+	test.ds, err = inmem.New(config.TestConfig())
+	require.Nil(t, err)
+	require.Nil(t, test.ds.MigrateData())
+
 	devOrgInfo := &kolide.AppConfig{
 		OrgName:                "Kolide",
 		OrgLogoURL:             "http://foo.bar/image.png",
@@ -45,6 +49,7 @@ func setupEndpointTest(t *testing.T) *testResource {
 	createTestUsers(t, test.ds)
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 
+	jwtKey := "CHANGEME"
 	opts := []kithttp.ServerOption{
 		kithttp.ServerBefore(setRequestsContexts(svc, jwtKey)),
 		kithttp.ServerErrorLogger(logger),

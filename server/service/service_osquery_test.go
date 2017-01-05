@@ -377,7 +377,8 @@ func TestLabelQueries(t *testing.T) {
 
 func TestGetClientConfig(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
-	assert.Nil(t, err)
+	require.Nil(t, err)
+	require.Nil(t, ds.MigrateData())
 
 	mockClock := clock.NewMockClock()
 

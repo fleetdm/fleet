@@ -8,8 +8,9 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/kolide/kolide-ose/server/config"
+	"github.com/kolide/kolide-ose/server/datastore/mysql/migrations/data"
+	"github.com/kolide/kolide-ose/server/datastore/mysql/migrations/tables"
 	"github.com/kolide/kolide-ose/server/kolide"
-	"github.com/pressly/goose"
 )
 
 const (
@@ -73,17 +74,20 @@ func (d *Datastore) Name() string {
 	return "mysql"
 }
 
-// Migrate creates database
-func (d *Datastore) Migrate() error {
-
-	goose.SetDialect("mysql")
-
-	if err := goose.Run("up", d.db.DB, "."); err != nil {
+func (d *Datastore) MigrateTables() error {
+	if err := tables.MigrationClient.Up(d.db.DB, ""); err != nil {
 		return err
 	}
 
 	return nil
+}
 
+func (d *Datastore) MigrateData() error {
+	if err := data.MigrationClient.Up(d.db.DB, ""); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Initialize preload data needed by the application

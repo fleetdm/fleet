@@ -38,8 +38,12 @@ To setup kolide infrastructure, use one of the available commands.
 				initFatal(err, "creating db connection")
 			}
 
-			if err := ds.Migrate(); err != nil {
+			if err := ds.MigrateTables(); err != nil {
 				initFatal(err, "migrating db schema")
+			}
+
+			if err := ds.MigrateData(); err != nil {
+				initFatal(err, "migrating builtin data")
 			}
 		},
 	}

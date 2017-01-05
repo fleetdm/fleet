@@ -59,4 +59,4 @@ import:
   subpackages:
   - redis
 - package: github.com/jmoiron/sqlx
-- package: github.com/pressly/goose
+- package: github.com/kolide/goose

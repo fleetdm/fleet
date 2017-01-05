@@ -14,6 +14,8 @@ import (
 func TestCreateAppConfig(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
 	require.Nil(t, err)
+	require.Nil(t, ds.MigrateData())
+
 	svc, err := newTestService(ds, nil)
 	require.Nil(t, err)
 	var appConfigTests = []struct {

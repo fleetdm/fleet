@@ -1,5 +1,5 @@
-hash: 4a87ddb9e91081df70590230979f58985cc7a9a1f9f6be2e1033e4b84cf2c6e0
-updated: 2016-11-18T19:27:52.047338531+08:00
+hash: e9cd204c0dd7e3e9102a2e0c87cc722101473f0d8fd31b05ec7f88837dd1d529
+updated: 2017-01-04T15:27:20.412164218-08:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -11,6 +11,10 @@ imports:
   version: 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
   subpackages:
   - quantile
+- name: github.com/davecgh/go-spew
+  version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
+  subpackages:
+  - spew
 - name: github.com/dgrijalva/jwt-go
   version: 01aeca54ebda6e0fbfafd0a524d234159c05ec20
 - name: github.com/elazarl/go-bindata-assetfs
@@ -68,6 +72,8 @@ imports:
   - reflectx
 - name: github.com/jordan-wright/email
   version: fd703108daeb23d77c124d12978e9b6c4f28f034
+- name: github.com/kolide/goose
+  version: 5221ed7545f6b931a24f99d9bd3e7bcf36aee71b
 - name: github.com/kr/fs
   version: 2788f0dbd16903de03cb8186e5c7d97b69ad387b
 - name: github.com/kr/logfmt
@@ -94,12 +100,11 @@ imports:
   version: 792786c7400a136282c1664665ae0a8db921c6c2
   subpackages:
   - difflib
-- name: github.com/pressly/goose
-  version: d6e8fe0292718c30342b3ed7f324dc21634b3bc6
 - name: github.com/prometheus/client_golang
   version: c5b7fccd204277076155f10851dad72b76a49317
   subpackages:
   - prometheus
+  - prometheus/promhttp
 - name: github.com/prometheus/client_model
   version: fa8ad6fec33561be4280a8f0514318c79d7f6cb6
   subpackages:
@@ -162,11 +167,7 @@ imports:
 - name: gopkg.in/go-playground/validator.v8
   version: 5f57d2222ad794d0dffb07e664ea05e2ee07d60c
 - name: gopkg.in/natefinch/lumberjack.v2
-  version: e21e5cbec0cd0861b9dc302736ad5666c529d93f
+  version: dd45e6a67c53f673bb49ca8a001fd3a63ceb640e
 - name: gopkg.in/yaml.v2
   version: e4d366fc3c7938e2958e662b4258c7a89e1f0e3e
-testImports:
-- name: github.com/davecgh/go-spew
-  version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
-  subpackages:
-  - spew
+testImports: []
