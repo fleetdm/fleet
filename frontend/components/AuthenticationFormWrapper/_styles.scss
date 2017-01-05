@@ -1,6 +1,11 @@
 .auth-form-wrapper {
   @include display(flex);
   @include flex-direction(column);
-  @include justify-content(center);
+  @include justify-content(flex-start);
   @include flex-grow(1);
+  padding: $base 0;
+
+  @include breakpoint(desktop) {
+    @include justify-content(center);
+  }
 }
