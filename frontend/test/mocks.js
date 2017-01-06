@@ -276,13 +276,13 @@ export const validResetPasswordRequest = (password, token) => {
   .reply(200, validUser);
 };
 
-export const validRevokeInviteRequest = (bearerToken, inviteID) => {
+export const validRevokeInviteRequest = (bearerToken, invite) => {
   return nock('http://localhost:8080', {
     reqheaders: {
       Authorization: `Bearer ${bearerToken}`,
     },
   })
-  .delete(`/api/v1/kolide/invites/${inviteID}`)
+  .delete(`/api/v1/kolide/invites/${invite.id}`)
   .reply(200, {});
 };
 

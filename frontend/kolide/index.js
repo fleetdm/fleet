@@ -310,9 +310,9 @@ class Kolide extends Base {
     return Base.post(resetPasswordEndpoint, JSON.stringify(formData));
   }
 
-  revokeInvite = ({ entityID }) => {
+  revokeInvite = ({ id }) => {
     const { INVITES } = endpoints;
-    const endpoint = `${this.endpoint(INVITES)}/${entityID}`;
+    const endpoint = `${this.endpoint(INVITES)}/${id}`;
 
     return this.authenticatedDelete(endpoint);
   }

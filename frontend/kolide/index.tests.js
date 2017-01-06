@@ -4,6 +4,7 @@ import nock from 'nock';
 import Kolide from 'kolide';
 import helpers from 'kolide/helpers';
 import mocks from 'test/mocks';
+import { userStub } from 'test/stubs';
 
 const {
   invalidForgotPasswordRequest,
@@ -443,11 +444,10 @@ describe('Kolide - API client', () => {
   describe('#revokeInvite', () => {
     it('calls the appropriate endpoint with the correct parameters', (done) => {
       const bearerToken = 'valid-bearer-token';
-      const entityID = 1;
-      const request = validRevokeInviteRequest(bearerToken, entityID);
+      const request = validRevokeInviteRequest(bearerToken, userStub);
 
       Kolide.setBearerToken(bearerToken);
-      Kolide.revokeInvite({ entityID })
+      Kolide.revokeInvite(userStub)
         .then(() => {
           expect(request.isDone()).toEqual(true);
           done();
