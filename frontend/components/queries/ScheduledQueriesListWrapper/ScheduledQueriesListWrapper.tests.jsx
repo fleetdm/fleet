@@ -4,7 +4,7 @@ import { mount } from 'enzyme';
 
 import { queryStub, scheduledQueryStub } from 'test/stubs';
 import { fillInFormInput } from 'test/helpers';
-import QueriesListWrapper from './index';
+import ScheduledQueriesListWrapper from './index';
 
 const allQueries = [queryStub];
 const scheduledQueries = [
@@ -12,12 +12,12 @@ const scheduledQueries = [
   { ...scheduledQueryStub, id: 100, name: 'mac hosts' },
 ];
 
-describe('QueriesListWrapper - component', () => {
+describe('ScheduledQueriesListWrapper - component', () => {
   afterEach(restoreSpies);
 
   it('renders the "Remove Query" button when queries have been selected', () => {
     const component = mount(
-      <QueriesListWrapper
+      <ScheduledQueriesListWrapper
         allQueries={allQueries}
         scheduledQueries={scheduledQueries}
       />
@@ -35,7 +35,7 @@ describe('QueriesListWrapper - component', () => {
   it('calls the onRemoveScheduledQueries prop', () => {
     const spy = createSpy();
     const component = mount(
-      <QueriesListWrapper
+      <ScheduledQueriesListWrapper
         allQueries={allQueries}
         onRemoveScheduledQueries={spy}
         scheduledQueries={[scheduledQueryStub]}
@@ -53,14 +53,14 @@ describe('QueriesListWrapper - component', () => {
 
   it('filters queries', () => {
     const component = mount(
-      <QueriesListWrapper
+      <ScheduledQueriesListWrapper
         allQueries={allQueries}
         scheduledQueries={scheduledQueries}
       />
     );
 
     const searchQueriesInput = component.find({ name: 'search-queries' });
-    const QueriesList = component.find('QueriesList');
+    const QueriesList = component.find('ScheduledQueriesList');
 
     expect(QueriesList.prop('scheduledQueries')).toEqual(scheduledQueries);
 
@@ -72,12 +72,12 @@ describe('QueriesListWrapper - component', () => {
   it('allows selecting all scheduled queries at once', () => {
     const allScheduledQueryIDs = scheduledQueries.map(sq => sq.id);
     const component = mount(
-      <QueriesListWrapper
+      <ScheduledQueriesListWrapper
         allQueries={allQueries}
         scheduledQueries={scheduledQueries}
       />
     );
-    const selectAllCheckbox = component.find({ name: 'select-all-queries' });
+    const selectAllCheckbox = component.find({ name: 'select-all-scheduled-queries' });
 
     selectAllCheckbox.simulate('change');
 

@@ -4,17 +4,17 @@ import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
 import { scheduledQueryStub } from 'test/stubs';
-import QueriesList from './index';
+import ScheduledQueriesList from './index';
 
 const scheduledQueries = [
   { ...scheduledQueryStub, id: 1 },
   { ...scheduledQueryStub, id: 2 },
 ];
 
-describe('QueriesList - component', () => {
-  it('renders a QueriesListItem for each scheduled query', () => {
+describe('ScheduledQueriesList - component', () => {
+  it('renders a ScheduledQueriesListItem for each scheduled query', () => {
     const component = mount(
-      <QueriesList
+      <ScheduledQueriesList
         allQueries={[]}
         onHidePackForm={noop}
         onSelectQuery={noop}
@@ -23,12 +23,12 @@ describe('QueriesList - component', () => {
       />
     );
 
-    expect(component.find('QueriesListItem').length).toEqual(2);
+    expect(component.find('ScheduledQueriesListItem').length).toEqual(2);
   });
 
   it('renders "No queries found" help text when scheduled queries are available but the scheduled queries are filtered out', () => {
     const component = mount(
-      <QueriesList
+      <ScheduledQueriesList
         allQueries={[]}
         isScheduledQueriesAvailable
         onHidePackForm={noop}
@@ -43,7 +43,7 @@ describe('QueriesList - component', () => {
 
   it('renders initial help text when no queries have been scheduled yet', () => {
     const component = mount(
-      <QueriesList
+      <ScheduledQueriesList
         allQueries={[]}
         onHidePackForm={noop}
         onSelectQuery={noop}

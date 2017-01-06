@@ -3,55 +3,60 @@ import classnames from 'classnames';
 import { includes, size } from 'lodash';
 
 import queryInterface from 'interfaces/query';
-import Icon from 'components/icons/Icon';
-import QueriesListItem from 'components/queries/QueriesList/QueriesListItem';
 import Checkbox from 'components/forms/fields/Checkbox';
+import QueriesListRow from 'components/queries/QueriesList/QueriesListRow';
 
 const baseClass = 'queries-list';
 
 class QueriesList extends Component {
   static propTypes = {
-    isScheduledQueriesAvailable: PropTypes.bool,
-    onSelectAllQueries: PropTypes.func.isRequired,
+    checkedQueryIDs: PropTypes.arrayOf(PropTypes.number).isRequired,
+    isQueriesAvailable: PropTypes.bool,
+    onCheckAll: PropTypes.func.isRequired,
+    onCheckQuery: PropTypes.func.isRequired,
     onSelectQuery: PropTypes.func.isRequired,
-    scheduledQueries: PropTypes.arrayOf(queryInterface).isRequired,
-    selectedScheduledQueryIDs: PropTypes.arrayOf(PropTypes.number).isRequired,
+    queries: PropTypes.arrayOf(queryInterface).isRequired,
+    selectedQuery: queryInterface,
+  };
+
+  static defaultProps = {
+    selectedQuery: {},
   };
 
   constructor (props) {
     super(props);
 
-    this.state = { allQueriesSelected: false };
+    this.state = { allQueriesChecked: false };
   }
 
-  isChecked = (scheduledQuery) => {
-    const { selectedScheduledQueryIDs } = this.props;
-    const { allQueriesSelected } = this.state;
+  isChecked = (query) => {
+    const { checkedQueryIDs } = this.props;
+    const { allQueriesChecked } = this.state;
 
-    if (allQueriesSelected) {
+    if (allQueriesChecked) {
       return true;
     }
 
-    return includes(selectedScheduledQueryIDs, scheduledQuery.id);
+    return includes(checkedQueryIDs, query.id);
   }
 
-  handleSelectAllQueries = (shouldSelectAllQueries) => {
-    const { onSelectAllQueries } = this.props;
-    const { allQueriesSelected } = this.state;
+  handleCheckAll = (shouldCheckAllQueries) => {
+    const { onCheckAll } = this.props;
+    const { allQueriesChecked } = this.state;
 
-    this.setState({ allQueriesSelected: !allQueriesSelected });
+    this.setState({ allQueriesChecked: !allQueriesChecked });
 
-    return onSelectAllQueries(shouldSelectAllQueries);
+    return onCheckAll(shouldCheckAllQueries);
   }
 
   renderHelpText = () => {
-    const { isScheduledQueriesAvailable, scheduledQueries } = this.props;
+    const { isQueriesAvailable, queries } = this.props;
 
-    if (scheduledQueries.length) {
+    if (queries.length) {
       return false;
     }
 
-    if (isScheduledQueriesAvailable) {
+    if (isQueriesAvailable) {
       return (
         <tr>
           <td colSpan={6}>
@@ -64,31 +69,19 @@ class QueriesList extends Component {
     return (
       <tr>
         <td colSpan={6}>
-          <div className={`${baseClass}__first-query`}>
-            <h1>First let&apos;s <span>add a query</span>.</h1>
-            <h2>Then we&apos;ll set the following:</h2>
-            <p><strong>interval:</strong> the amount of time, in seconds, the query waits before running</p>
-            <p><strong>platform:</strong> the computer platform where this query will run (other platforms ignored)</p>
-            <p><strong>minimum <Icon name="osquery" /> version:</strong> the minimum required <strong>osqueryd</strong> version installed on a host</p>
-            <p><strong>logging type:</strong></p>
-            <ul>
-              <li><strong><Icon name="plus-minus" /> differential:</strong> show only what’s added from last run</li>
-              <li><strong><Icon name="bold-plus" /> differential (ignore removals):</strong> show only what’s been added since the last run</li>
-              <li><strong><Icon name="camera" /> snapshot:</strong> show everything in its current state</li>
-            </ul>
-          </div>
+          <p>No queries available. Try creating one.</p>
         </td>
       </tr>
     );
   }
 
   render () {
-    const { onSelectQuery, scheduledQueries, selectedScheduledQueryIDs } = this.props;
-    const { allQueriesSelected } = this.state;
-    const { renderHelpText, handleSelectAllQueries } = this;
+    const { checkedQueryIDs, onCheckQuery, onSelectQuery, queries, selectedQuery } = this.props;
+    const { allQueriesChecked } = this.state;
+    const { renderHelpText, handleCheckAll } = this;
 
     const wrapperClassName = classnames(`${baseClass}__table`, {
-      [`${baseClass}__table--query-selected`]: size(selectedScheduledQueryIDs),
+      [`${baseClass}__table--query-selected`]: size(checkedQueryIDs),
     });
 
     return (
@@ -97,26 +90,26 @@ class QueriesList extends Component {
           <thead>
             <tr>
               <th><Checkbox
-                name="select-all-queries"
-                onChange={handleSelectAllQueries}
-                value={allQueriesSelected}
+                name="check-all-queries"
+                onChange={handleCheckAll}
+                value={allQueriesChecked}
               /></th>
               <th>Query Name</th>
-              <th>Interval [s]</th>
-              <th>Platform</th>
-              <th><Icon name="osquery" /> Ver.</th>
-              <th>Logging</th>
+              <th>Author</th>
+              <th>Last Modified</th>
             </tr>
           </thead>
           <tbody>
             {renderHelpText()}
-            {!!scheduledQueries.length && scheduledQueries.map((scheduledQuery) => {
+            {!!queries.length && queries.map((query) => {
               return (
-                <QueriesListItem
-                  checked={this.isChecked(scheduledQuery)}
-                  key={`scheduled-query-${scheduledQuery.id}`}
+                <QueriesListRow
+                  checked={this.isChecked(query)}
+                  key={`query-row-${query.id}`}
+                  onCheck={onCheckQuery}
                   onSelect={onSelectQuery}
-                  scheduledQuery={scheduledQuery}
+                  query={query}
+                  selected={selectedQuery.id === query.id}
                 />
               );
             })}
@@ -128,3 +121,4 @@ class QueriesList extends Component {
 }
 
 export default QueriesList;
+

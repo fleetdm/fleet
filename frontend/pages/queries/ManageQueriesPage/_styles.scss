@@ -1,0 +1,36 @@
+.manage-queries-page {
+  &__delete-queries-btn {
+    font-size: 15px;
+    font-weight: $normal;
+  }
+
+  &__query-count {
+    color: #858495;
+    font-size: 14px;
+    font-weight: $bold;
+    letter-spacing: -0.5px;
+    margin: 0;
+  }
+
+  &__search-create-section {
+    @include display(flex);
+    @include justify-content(space-between);
+
+    input {
+      &[name='query-filter'] {
+        width: 240px;
+      }
+    }
+  }
+
+  &__title {
+    color: $text-medium;
+    display: inline-block;
+    font-size: $large;
+  }
+
+  &__wrapper {
+    padding: $base;
+  }
+}
+

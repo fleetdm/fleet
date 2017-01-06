@@ -8,6 +8,7 @@
   &__table {
     border-collapse: collapse;
     width: 100%;
+    min-height: 132px;
     border-radius: 3px;
 
     thead {
@@ -23,31 +24,9 @@
         color: $link;
         padding: 15px 10px;
 
-        .form-field {
-          margin: 0;
-        }
-
         &:nth-child(1) {
           border-top-left-radius: 3px;
           width: 20px;
-        }
-
-        &:nth-child(2) {
-          width: calc(46% - 20px);
-        }
-
-        &:nth-child(3) {
-          width: 18%;
-        }
-
-        &:nth-child(4) {
-          width: 18%;
-          text-align: center;
-        }
-
-        &:nth-child(5) {
-          width: 18%;
-          text-align: center;
         }
 
         &:last-child {
@@ -63,102 +42,17 @@
         margin: 0;
         border-bottom: 1px solid $accent-light;
 
-        .form-field {
-          margin: 0;
-        }
-
         &:nth-child(1) {
           text-align: center;
           vertical-align: middle;
         }
 
-        &:nth-child(2) {
-          font-size: 14px;
-          font-weight: $bold;
-          line-height: 2.71;
-          letter-spacing: -0.5px;
-          text-align: left;
-          color: $text-ultradark;
-        }
-
-        &:nth-child(3) {
-          font-size: 14px;
-          font-weight: $normal;
-          line-height: 2.71;
-          letter-spacing: -0.5px;
-          color: $text-ultradark;
-        }
-
-        &:nth-child(4) {
-          color: $text-light;
-          text-align: center;
-          font-size: 14px;
-
-          .kolidecon {
-            font-size: 18px;
-          }
-        }
-
-        &:nth-child(5) {
-          font-size: 14px;
-          font-weight: $normal;
-          line-height: 2.71;
-          letter-spacing: -0.5px;
-          text-align: center;
-          color: $text-ultradark;
-        }
-
-        &:nth-child(6) {
+        &:last-child {
           text-align: center;
           font-size: 18px;
           color: $text-ultradark;
         }
       }
-    }
-  }
-
-  &__first-query {
-    padding: 30px 15px 100px;
-    text-align: left;
-
-    h1 {
-      color: $text-dark;
-      font-size: 24px;
-      font-weight: $light;
-      line-height: 1.96;
-      letter-spacing: -0.5px;
-      margin: 0;
-    }
-
-    h2 {
-      font-size: 20px;
-      line-height: 2;
-      letter-spacing: -0.4px;
-      color: $text-dark;
-      font-weight: $light;
-      margin: 0;
-    }
-
-    p {
-      font-size: 16px;
-      font-weight: $normal;
-      line-height: 2.5;
-      color: $text-dark;
-      margin: 0;
-    }
-
-    ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-
-    li {
-      margin-left: 15px;
-      font-size: 16px;
-      font-weight: $normal;
-      line-height: 2.5;
-      color: $text-dark;
     }
   }
 }

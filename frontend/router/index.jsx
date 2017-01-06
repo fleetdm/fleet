@@ -15,6 +15,7 @@ import EditPackPage from 'pages/packs/EditPackPage';
 import LoginRoutes from 'components/LoginRoutes';
 import LogoutPage from 'pages/LogoutPage';
 import ManageHostsPage from 'pages/hosts/ManageHostsPage';
+import ManageQueriesPage from 'pages/queries/ManageQueriesPage';
 import NewHostPage from 'pages/hosts/NewHostPage';
 import PackPageWrapper from 'components/packs/PackPageWrapper';
 import PackComposerPage from 'pages/packs/PackComposerPage';
@@ -63,6 +64,7 @@ const routes = (
               <Route path="manage(/:active_label)" component={ManageHostsPage} />
             </Route>
             <Route path="queries" component={QueryPageWrapper}>
+              <Route path="manage" component={ManageQueriesPage} />
               <Route path="new" component={QueryPage} />
               <Route path=":id" component={QueryPage} />
             </Route>

@@ -2,7 +2,7 @@ import expect from 'expect';
 
 import helpers from './helpers';
 
-describe('QueriesListWrapper - helpers', () => {
+describe('ScheduledQueriesListWrapper - helpers', () => {
   describe('#filterQueries', () => {
     const { filterQueries } = helpers;
 

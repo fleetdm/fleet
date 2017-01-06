@@ -4,26 +4,26 @@ import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
 import { scheduledQueryStub } from 'test/stubs';
-import QueriesListItem from './index';
+import ScheduledQueriesListItem from './index';
 
-describe('QueriesListItem - component', () => {
+describe('ScheduledQueriesListItem - component', () => {
   afterEach(restoreSpies);
 
   it('renders the scheduled query data', () => {
-    const component = mount(<QueriesListItem checked={false} onSelect={noop} scheduledQuery={scheduledQueryStub} />);
+    const component = mount(<ScheduledQueriesListItem checked={false} onSelect={noop} scheduledQuery={scheduledQueryStub} />);
     expect(component.text()).toInclude(scheduledQueryStub.name);
     expect(component.text()).toInclude(scheduledQueryStub.interval);
     expect(component.find('PlatformIcon').length).toEqual(1);
   });
 
   it('renders a Checkbox component', () => {
-    const component = mount(<QueriesListItem checked={false} onSelect={noop} scheduledQuery={scheduledQueryStub} />);
+    const component = mount(<ScheduledQueriesListItem checked={false} onSelect={noop} scheduledQuery={scheduledQueryStub} />);
     expect(component.find('Checkbox').length).toEqual(1);
   });
 
   it('calls the onSelect prop when a checkbox is changed', () => {
     const onSelectSpy = createSpy();
-    const component = mount(<QueriesListItem checked={false} onSelect={onSelectSpy} scheduledQuery={scheduledQueryStub} />);
+    const component = mount(<ScheduledQueriesListItem checked={false} onSelect={onSelectSpy} scheduledQuery={scheduledQueryStub} />);
     const checkbox = component.find('Checkbox').first();
 
     checkbox.find('input').simulate('change');

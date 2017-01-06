@@ -12,26 +12,35 @@ const baseClass = 'kolide-ace';
 class KolideAce extends Component {
   static propTypes = {
     error: PropTypes.string,
+    fontSize: PropTypes.number,
     name: PropTypes.string,
     onChange: PropTypes.func,
     onLoad: PropTypes.func,
     value: PropTypes.string,
     readOnly: PropTypes.bool,
+    showGutter: PropTypes.bool,
+    wrapEnabled: PropTypes.bool,
     wrapperClassName: PropTypes.string,
   };
 
   static defaultProps = {
+    fontSize: 14,
     name: 'query-editor',
+    showGutter: true,
+    wrapEnabled: false,
   };
 
   render () {
     const {
       error,
+      fontSize,
       name,
       onChange,
       onLoad,
       readOnly,
+      showGutter,
       value,
+      wrapEnabled,
       wrapperClassName,
     } = this.props;
 
@@ -46,6 +55,7 @@ class KolideAce extends Component {
           enableBasicAutocompletion
           enableLiveAutocompletion
           editorProps={{ $blockScrolling: Infinity }}
+          fontSize={fontSize}
           mode="kolide"
           minLines={2}
           maxLines={20}
@@ -54,12 +64,12 @@ class KolideAce extends Component {
           onLoad={onLoad}
           readOnly={readOnly}
           setOptions={{ enableLinking: true }}
-          showGutter
+          showGutter={showGutter}
           showPrintMargin={false}
           theme="kolide"
           value={value}
           width="100%"
-          fontSize={14}
+          wrapEnabled={wrapEnabled}
         />
       </div>
     );

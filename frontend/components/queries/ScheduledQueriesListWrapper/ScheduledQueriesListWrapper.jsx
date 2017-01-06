@@ -2,15 +2,15 @@ import React, { Component, PropTypes } from 'react';
 import { pull } from 'lodash';
 
 import Button from 'components/buttons/Button';
-import helpers from 'components/queries/QueriesListWrapper/helpers';
+import helpers from 'components/queries/ScheduledQueriesListWrapper/helpers';
 import InputField from 'components/forms/fields/InputField';
 import NumberPill from 'components/NumberPill';
-import QueriesList from 'components/queries/QueriesList';
+import QueriesList from 'components/queries/ScheduledQueriesList';
 import queryInterface from 'interfaces/query';
 
-const baseClass = 'queries-list-wrapper';
+const baseClass = 'scheduled-queries-list-wrapper';
 
-class QueriesListWrapper extends Component {
+class ScheduledQueriesListWrapper extends Component {
   static propTypes = {
     onRemoveScheduledQueries: PropTypes.func,
     onScheduledQueryFormSubmit: PropTypes.func,
@@ -149,4 +149,4 @@ class QueriesListWrapper extends Component {
   }
 }
 
-export default QueriesListWrapper;
+export default ScheduledQueriesListWrapper;

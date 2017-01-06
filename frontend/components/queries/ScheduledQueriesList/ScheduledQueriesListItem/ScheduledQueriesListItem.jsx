@@ -6,7 +6,7 @@ import PlatformIcon from 'components/icons/PlatformIcon';
 import { isEqual } from 'lodash';
 import scheduledQueryInterface from 'interfaces/scheduled_query';
 
-class QueriesListItem extends Component {
+class ScheduledQueriesListItem extends Component {
   static propTypes = {
     checked: PropTypes.bool,
     disabled: PropTypes.bool,
@@ -68,5 +68,5 @@ class QueriesListItem extends Component {
   }
 }
 
-export default QueriesListItem;
+export default ScheduledQueriesListItem;
 
