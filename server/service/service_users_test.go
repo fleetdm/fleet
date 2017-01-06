@@ -19,7 +19,7 @@ import (
 
 func TestAuthenticatedUser(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
-	assert.Nil(t, err)
+	require.Nil(t, err)
 	createTestUsers(t, ds)
 	svc, err := newTestService(ds, nil)
 	assert.Nil(t, err)
@@ -183,12 +183,11 @@ func TestCreateUser(t *testing.T) {
 	for _, tt := range createUserTests {
 		t.Run("", func(t *testing.T) {
 			payload := kolide.UserPayload{
-				Username:                 tt.Username,
-				Password:                 tt.Password,
-				Email:                    tt.Email,
-				Admin:                    tt.Admin,
-				InviteToken:              tt.InviteToken,
-				AdminForcedPasswordReset: tt.NeedsPasswordReset,
+				Username:    tt.Username,
+				Password:    tt.Password,
+				Email:       tt.Email,
+				Admin:       tt.Admin,
+				InviteToken: tt.InviteToken,
 			}
 			user, err := svc.NewUser(ctx, payload)
 			if tt.wantErr != nil {
@@ -207,7 +206,6 @@ func TestCreateUser(t *testing.T) {
 			err = user.ValidatePassword("different_password")
 			assert.NotNil(t, err)
 
-			assert.Equal(t, user.AdminForcedPasswordReset, *tt.NeedsPasswordReset)
 			assert.Equal(t, user.Admin, *tt.Admin)
 		})
 
@@ -372,6 +370,54 @@ func TestResetPassword(t *testing.T) {
 			} else {
 				assert.Nil(t, serr)
 			}
+		})
+	}
+}
+
+func TestRequirePasswordReset(t *testing.T) {
+	ds, err := inmem.New(config.TestConfig())
+	require.Nil(t, err)
+	svc, err := newTestService(ds, nil)
+	require.Nil(t, err)
+
+	createTestUsers(t, ds)
+
+	for _, tt := range testUsers {
+		t.Run(tt.Username, func(t *testing.T) {
+			user, err := ds.User(tt.Username)
+			require.Nil(t, err)
+
+			var sessions []*kolide.Session
+			ctx := context.Background()
+
+			// Log user in
+			if tt.Enabled {
+				_, _, err = svc.Login(ctx, tt.Username, tt.PlaintextPassword)
+				require.Nil(t, err, "login unsuccesful")
+				sessions, err = svc.GetInfoAboutSessionsForUser(ctx, user.ID)
+				require.Nil(t, err)
+				require.Len(t, sessions, 1, "user should have one session")
+			}
+
+			// Reset and verify sessions destroyed
+			retUser, err := svc.RequirePasswordReset(ctx, user.ID, true)
+			require.Nil(t, err)
+			assert.True(t, retUser.AdminForcedPasswordReset)
+			checkUser, err := ds.User(tt.Username)
+			require.Nil(t, err)
+			assert.True(t, checkUser.AdminForcedPasswordReset)
+			sessions, err = svc.GetInfoAboutSessionsForUser(ctx, user.ID)
+			require.Nil(t, err)
+			require.Len(t, sessions, 0, "sessions should be destroyed")
+
+			// try undo
+			retUser, err = svc.RequirePasswordReset(ctx, user.ID, false)
+			require.Nil(t, err)
+			assert.False(t, retUser.AdminForcedPasswordReset)
+			checkUser, err = ds.User(tt.Username)
+			require.Nil(t, err)
+			assert.False(t, checkUser.AdminForcedPasswordReset)
+
 		})
 	}
 }

@@ -3,7 +3,7 @@ import { normalize, arrayOf } from 'normalizr';
 
 import { entitiesExceptID, formatErrorResponse } from 'redux/nodes/entities/base/helpers';
 
-const initialState = {
+export const initialState = {
   loading: false,
   errors: {},
   data: {},

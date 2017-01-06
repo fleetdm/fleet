@@ -55,7 +55,7 @@ class UserManagementPage extends Component {
 
   onUserActionSelect = (user, action) => {
     const { currentUser, dispatch } = this.props;
-    const { update } = userActions;
+    const { update, requirePasswordReset } = userActions;
 
     if (action) {
       switch (action) {
@@ -88,9 +88,9 @@ class UserManagementPage extends Component {
               return dispatch(renderFlash('success', 'User promoted to admin', update(user, { admin: false })));
             });
         case 'reset_password':
-          return dispatch(update(user, { force_password_reset: true }))
+          return dispatch(requirePasswordReset(user, { require: true }))
             .then(() => {
-              return dispatch(renderFlash('success', 'User forced to reset password', update(user, { force_password_reset: false })));
+              return dispatch(renderFlash('success', 'User required to reset password', requirePasswordReset(user, { require: false })));
             });
         case 'revert_invitation':
           return dispatch(inviteActions.destroy(user))
@@ -225,4 +225,3 @@ const mapStateToProps = (state) => {
 };
 
 export default connect(mapStateToProps)(UserManagementPage);
-

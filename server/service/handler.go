@@ -24,6 +24,7 @@ type KolideEndpoints struct {
 	GetUser                        endpoint.Endpoint
 	ListUsers                      endpoint.Endpoint
 	ModifyUser                     endpoint.Endpoint
+	RequirePasswordReset           endpoint.Endpoint
 	GetSessionsForUserInfo         endpoint.Endpoint
 	DeleteSessionsForUser          endpoint.Endpoint
 	GetSessionInfo                 endpoint.Endpoint
@@ -91,6 +92,7 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		GetUser:                        authenticatedUser(jwtKey, svc, canReadUser(makeGetUserEndpoint(svc))),
 		ListUsers:                      authenticatedUser(jwtKey, svc, canPerformActions(makeListUsersEndpoint(svc))),
 		ModifyUser:                     authenticatedUser(jwtKey, svc, validateModifyUserRequest(makeModifyUserEndpoint(svc))),
+		RequirePasswordReset:           authenticatedUser(jwtKey, svc, mustBeAdmin(makeRequirePasswordResetEndpoint(svc))),
 		GetSessionsForUserInfo:         authenticatedUser(jwtKey, svc, canReadUser(makeGetInfoAboutSessionsForUserEndpoint(svc))),
 		DeleteSessionsForUser:          authenticatedUser(jwtKey, svc, canModifyUser(makeDeleteSessionsForUserEndpoint(svc))),
 		GetSessionInfo:                 authenticatedUser(jwtKey, svc, mustBeAdmin(makeGetInfoAboutSessionEndpoint(svc))),
@@ -149,6 +151,7 @@ type kolideHandlers struct {
 	GetUser                        http.Handler
 	ListUsers                      http.Handler
 	ModifyUser                     http.Handler
+	RequirePasswordReset           http.Handler
 	GetSessionsForUserInfo         http.Handler
 	DeleteSessionsForUser          http.Handler
 	GetSessionInfo                 http.Handler
@@ -209,6 +212,7 @@ func makeKolideKitHandlers(ctx context.Context, e KolideEndpoints, opts []kithtt
 		GetUser:                        newServer(e.GetUser, decodeGetUserRequest),
 		ListUsers:                      newServer(e.ListUsers, decodeListUsersRequest),
 		ModifyUser:                     newServer(e.ModifyUser, decodeModifyUserRequest),
+		RequirePasswordReset:           newServer(e.RequirePasswordReset, decodeRequirePasswordResetRequest),
 		GetSessionsForUserInfo:         newServer(e.GetSessionsForUserInfo, decodeGetInfoAboutSessionsForUserRequest),
 		DeleteSessionsForUser:          newServer(e.DeleteSessionsForUser, decodeDeleteSessionsForUserRequest),
 		GetSessionInfo:                 newServer(e.GetSessionInfo, decodeGetInfoAboutSessionRequest),
@@ -304,6 +308,7 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/users", h.CreateUser).Methods("POST").Name("create_user")
 	r.Handle("/api/v1/kolide/users/{id}", h.GetUser).Methods("GET").Name("get_user")
 	r.Handle("/api/v1/kolide/users/{id}", h.ModifyUser).Methods("PATCH").Name("modify_user")
+	r.Handle("/api/v1/kolide/users/{id}/require_password_reset", h.RequirePasswordReset).Methods("POST").Name("require_password_reset")
 	r.Handle("/api/v1/kolide/users/{id}/sessions", h.GetSessionsForUserInfo).Methods("GET").Name("get_session_for_user")
 	r.Handle("/api/v1/kolide/users/{id}/sessions", h.DeleteSessionsForUser).Methods("DELETE").Name("delete_session_for_user")
 

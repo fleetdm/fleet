@@ -1,7 +1,6 @@
 package inmem
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/kolide/kolide-ose/server/kolide"
@@ -39,10 +38,7 @@ func (d *Datastore) ListSessionsForUser(id uint) ([]*kolide.Session, error) {
 			sessions = append(sessions, session)
 		}
 	}
-	if len(sessions) == 0 {
-		return nil, notFound("Session").
-			WithMessage(fmt.Sprintf("for user id %d", id))
-	}
+
 	return sessions, nil
 }
 

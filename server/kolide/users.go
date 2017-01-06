@@ -19,40 +19,45 @@ type UserStore interface {
 	SaveUser(user *User) error
 }
 
-// UserService contains methods for managing a Kolide User
+// UserService contains methods for managing a Kolide User.
 type UserService interface {
-	// NewUser creates a new User from a request Payload
+	// NewUser creates a new User from a request Payload.
 	NewUser(ctx context.Context, p UserPayload) (user *User, err error)
 
 	// NewAdminCreatedUser allows an admin to create a new user without
 	// first creating and validating invite tokens.
 	NewAdminCreatedUser(ctx context.Context, p UserPayload) (user *User, err error)
 
-	// User returns a valid User given a User ID
+	// User returns a valid User given a User ID.
 	User(ctx context.Context, id uint) (user *User, err error)
 
-	// AuthenticatedUser returns the current user
-	// from the viewer context
+	// AuthenticatedUser returns the current user from the viewer context.
 	AuthenticatedUser(ctx context.Context) (user *User, err error)
 
-	// Users returns all users
+	// ListUsers returns all users.
 	ListUsers(ctx context.Context, opt ListOptions) (users []*User, err error)
 
 	// ChangePassword validates the existing password, and sets the new
 	// password. User is retrieved from the viewer context.
 	ChangePassword(ctx context.Context, oldPass, newPass string) error
 
-	// RequestPasswordReset generates a password reset request for
-	// a user. The request results in a token emailed to the user.
-	// If the person making the request is an admin the AdminForcedPasswordReset
-	// parameter is enabled instead of sending an email with a password reset token
+	// RequestPasswordReset generates a password reset request for the user
+	// specified by email. The request results in a token emailed to the
+	// user.
 	RequestPasswordReset(ctx context.Context, email string) (err error)
 
-	// ResetPassword validate a password reset token and updates
-	// a user's password
+	// RequirePasswordReset requires a password reset for the user
+	// specified by ID (if require is true). It deletes all of the user's
+	// sessions, and requires that their password be reset upon the next
+	// login. Setting require to false will take a user out of this state.
+	// The updated user is returned.
+	RequirePasswordReset(ctx context.Context, uid uint, require bool) (*User, error)
+
+	// ResetPassword validates the provided password reset token and
+	// updates the user's password.
 	ResetPassword(ctx context.Context, token, password string) (err error)
 
-	// ModifyUser updates a user's parameters given a UserPayload
+	// ModifyUser updates a user's parameters given a UserPayload.
 	ModifyUser(ctx context.Context, userID uint, p UserPayload) (user *User, err error)
 }
 
@@ -75,16 +80,15 @@ type User struct {
 
 // UserPayload is used to modify an existing user
 type UserPayload struct {
-	Username                 *string `json:"username"`
-	Name                     *string `json:"name"`
-	Email                    *string `json:"email"`
-	Admin                    *bool   `json:"admin"`
-	Enabled                  *bool   `json:"enabled"`
-	AdminForcedPasswordReset *bool   `json:"force_password_reset"`
-	Password                 *string `json:"password"`
-	GravatarURL              *string `json:"gravatar_url"`
-	Position                 *string `json:"position"`
-	InviteToken              *string `json:"invite_token"`
+	Username    *string `json:"username"`
+	Name        *string `json:"name"`
+	Email       *string `json:"email"`
+	Admin       *bool   `json:"admin"`
+	Enabled     *bool   `json:"enabled"`
+	Password    *string `json:"password"`
+	GravatarURL *string `json:"gravatar_url"`
+	Position    *string `json:"position"`
+	InviteToken *string `json:"invite_token"`
 }
 
 // User creates a user from payload.
@@ -94,8 +98,7 @@ func (p UserPayload) User(keySize, cost int) (*User, error) {
 		Username: *p.Username,
 		Email:    *p.Email,
 		Admin:    falseIfNil(p.Admin),
-		AdminForcedPasswordReset: falseIfNil(p.AdminForcedPasswordReset),
-		Enabled:                  true,
+		Enabled:  true,
 	}
 	if err := user.SetPassword(*p.Password, keySize, cost); err != nil {
 		return nil, err

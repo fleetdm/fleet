@@ -220,9 +220,6 @@ func requireRoleForUserModification(p kolide.UserPayload) map[permission][]strin
 	if p.Admin != nil {
 		adminFields = append(adminFields, "admin")
 	}
-	if p.AdminForcedPasswordReset != nil {
-		adminFields = append(adminFields, "force_password_reset")
-	}
 	if len(adminFields) != 0 {
 		must[admin] = adminFields
 	}
