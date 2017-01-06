@@ -21,7 +21,7 @@ func Up_20161223115449(tx *sql.Tx) error {
 		) VALUES (?, ?, ?, ?)
 	`
 
-	for _, opt := range appstate.Options {
+	for _, opt := range appstate.Options() {
 		ov := kolide.Option{
 			Name:     opt.Name,
 			ReadOnly: opt.ReadOnly,
@@ -44,7 +44,7 @@ func Down_20161223115449(tx *sql.Tx) error {
 		DELETE FROM options
 		WHERE name = ?
 	`
-	for _, opt := range appstate.Options {
+	for _, opt := range appstate.Options() {
 		_, err := tx.Exec(sqlStatement, opt.Name)
 		if err != nil {
 			return err

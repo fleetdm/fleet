@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kolide/kolide-ose/server/datastore/inmem"
-	"github.com/kolide/kolide-ose/server/datastore/mysql"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -298,14 +296,7 @@ func testListHostsInLabel(t *testing.T, db kolide.Datastore) {
 }
 
 func testBuiltInLabels(t *testing.T, db kolide.Datastore) {
-	if i, ok := db.(*mysql.Datastore); ok {
-		err := i.Initialize()
-		require.Nil(t, err)
-	}
-	if i, ok := db.(*inmem.Datastore); ok {
-		err := i.Initialize()
-		require.Nil(t, err)
-	}
+	require.Nil(t, db.MigrateData())
 
 	hits, err := db.SearchLabels("Mac OS X")
 	require.Nil(t, err)

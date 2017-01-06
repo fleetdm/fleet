@@ -95,9 +95,8 @@ func (d *Datastore) MigrateTables() error {
 
 func (d *Datastore) MigrateData() error {
 	d.mtx.Lock()
-	defer d.mtx.Unlock()
 
-	for _, initData := range appstate.Options {
+	for _, initData := range appstate.Options() {
 		opt := kolide.Option{
 			Name:     initData.Name,
 			Value:    kolide.OptionValue{Val: initData.Value},
@@ -116,6 +115,12 @@ func (d *Datastore) MigrateData() error {
 		SMTPVerifySSLCerts: true,
 	}
 
+	d.mtx.Unlock()
+
+	if err := d.createBuiltinLabels(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -124,10 +129,6 @@ func (d *Datastore) Drop() error {
 }
 
 func (d *Datastore) Initialize() error {
-	if err := d.createBuiltinLabels(); err != nil {
-		return err
-	}
-
 	if err := d.createDevUsers(); err != nil {
 		return err
 	}
@@ -260,79 +261,7 @@ func (d *Datastore) createDevPacksAndQueries() error {
 }
 
 func (d *Datastore) createBuiltinLabels() error {
-	labels := []kolide.Label{
-		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
-					CreatedAt: time.Now().UTC(),
-				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
-					UpdatedAt: time.Now().UTC(),
-				},
-			},
-			Platform:  "darwin",
-			Name:      "Mac OS X",
-			Query:     "select 1 from osquery_info where build_platform = 'darwin';",
-			LabelType: kolide.LabelTypeBuiltIn,
-		},
-		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
-					CreatedAt: time.Now().UTC(),
-				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
-					UpdatedAt: time.Now().UTC(),
-				},
-			},
-			Platform:  "ubuntu",
-			Name:      "Ubuntu Linux",
-			Query:     "select 1 from osquery_info where build_platform = 'ubuntu';",
-			LabelType: kolide.LabelTypeBuiltIn,
-		},
-		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
-					CreatedAt: time.Now().UTC(),
-				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
-					UpdatedAt: time.Now().UTC(),
-				},
-			},
-			Platform:  "centos",
-			Name:      "CentOS Linux",
-			Query:     "select 1 from osquery_info where build_platform = 'centos';",
-			LabelType: kolide.LabelTypeBuiltIn,
-		},
-		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
-					CreatedAt: time.Now().UTC(),
-				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
-					UpdatedAt: time.Now().UTC(),
-				},
-			},
-			Platform:  "windows",
-			Name:      "MS Windows",
-			Query:     "select 1 from osquery_info where build_platform = 'windows';",
-			LabelType: kolide.LabelTypeBuiltIn,
-		},
-		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
-					CreatedAt: time.Now().UTC(),
-				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
-					UpdatedAt: time.Now().UTC(),
-				},
-			},
-			Name:      "All Hosts",
-			Query:     "select 1;",
-			LabelType: kolide.LabelTypeBuiltIn,
-		},
-	}
-
-	for _, label := range labels {
+	for _, label := range appstate.Labels() {
 		label := label
 		_, err := d.NewLabel(&label)
 		if err != nil {
