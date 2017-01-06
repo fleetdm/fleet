@@ -26,7 +26,7 @@
 
   &__users {
     @include display(flex);
-    @include flex-wrap(flex);
+    @include flex-wrap(wrap);
     clear: both;
   }
 }
