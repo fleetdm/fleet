@@ -5,14 +5,19 @@ export default (formData) => {
   const {
     authentication_type: authType,
     kolide_server_url: kolideServerUrl,
+    org_name: orgName,
+    password: smtpPassword,
     sender_address: smtpSenderAddress,
     server: smtpServer,
     user_name: smtpUserName,
-    password: smtpPassword,
   } = formData;
 
   if (!kolideServerUrl) {
     errors.kolide_server_url = 'Kolide Server URL must be present';
+  }
+
+  if (!orgName) {
+    errors.org_name = 'Organization Name must be present';
   }
 
   if (some([smtpSenderAddress, smtpPassword, smtpServer, smtpUserName])) {
