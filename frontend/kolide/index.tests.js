@@ -4,7 +4,7 @@ import nock from 'nock';
 import Kolide from 'kolide';
 import helpers from 'kolide/helpers';
 import mocks from 'test/mocks';
-import { userStub } from 'test/stubs';
+import { queryStub, userStub } from 'test/stubs';
 
 const {
   invalidForgotPasswordRequest,
@@ -13,6 +13,7 @@ const {
   validCreatePackRequest,
   validCreateQueryRequest,
   validCreateScheduledQueryRequest,
+  validDestroyQueryRequest,
   validDestroyPackRequest,
   validDestroyScheduledQueryRequest,
   validForgotPasswordRequest,
@@ -117,8 +118,8 @@ describe('Kolide - API client', () => {
     });
   });
 
-  describe('#createQuery', () => {
-    it('calls the appropriate endpoint with the correct parameters', (done) => {
+  describe('queries', () => {
+    it('#createQuery', (done) => {
       const bearerToken = 'valid-bearer-token';
       const description = 'query description';
       const name = 'query name';
@@ -131,6 +132,60 @@ describe('Kolide - API client', () => {
         .then((queryResponse) => {
           expect(request.isDone()).toEqual(true);
           expect(queryResponse).toEqual(queryParams);
+          done();
+        })
+        .catch(done);
+    });
+
+    it('#destroyQuery', (done) => {
+      const bearerToken = 'valid-bearer-token';
+      const request = validDestroyQueryRequest(bearerToken, queryStub);
+
+      Kolide.setBearerToken(bearerToken);
+      Kolide.destroyQuery(queryStub)
+        .then(() => {
+          expect(request.isDone()).toEqual(true);
+          done();
+        })
+        .catch(done);
+    });
+
+    it('getQueries', (done) => {
+      const bearerToken = 'valid-bearer-token';
+      const request = validGetQueriesRequest(bearerToken);
+
+      Kolide.setBearerToken(bearerToken);
+      Kolide.getQueries()
+        .then(() => {
+          expect(request.isDone()).toEqual(true);
+          done();
+        })
+        .catch(done);
+    });
+
+    it('#getQuery', (done) => {
+      const bearerToken = 'valid-bearer-token';
+      const queryID = 10;
+      const request = validGetQueryRequest(bearerToken, queryID);
+
+      Kolide.setBearerToken(bearerToken);
+      Kolide.getQuery(queryID)
+        .then(() => {
+          expect(request.isDone()).toEqual(true);
+          done();
+        })
+        .catch(done);
+    });
+
+    it('#runQuery', (done) => {
+      const bearerToken = 'valid-bearer-token';
+      const data = { query: 'select * from users', selected: { hosts: [], labels: [] } };
+      const request = validRunQueryRequest(bearerToken, data);
+
+      Kolide.setBearerToken(bearerToken);
+      Kolide.runQuery(data)
+        .then(() => {
+          expect(request.isDone()).toEqual(true);
           done();
         })
         .catch(done);
@@ -173,37 +228,6 @@ describe('Kolide - API client', () => {
 
       Kolide.setBearerToken(bearerToken);
       Kolide.getInvites()
-        .then(() => {
-          expect(request.isDone()).toEqual(true);
-          done();
-        })
-        .catch(done);
-    });
-  });
-
-  describe('#getQueries', () => {
-    it('calls the appropriate endpoint with the correct parameters', (done) => {
-      const bearerToken = 'valid-bearer-token';
-      const request = validGetQueriesRequest(bearerToken);
-
-      Kolide.setBearerToken(bearerToken);
-      Kolide.getQueries()
-        .then(() => {
-          expect(request.isDone()).toEqual(true);
-          done();
-        })
-        .catch(done);
-    });
-  });
-
-  describe('#getQuery', () => {
-    it('calls the appropriate endpoint with the correct parameters', (done) => {
-      const bearerToken = 'valid-bearer-token';
-      const queryID = 10;
-      const request = validGetQueryRequest(bearerToken, queryID);
-
-      Kolide.setBearerToken(bearerToken);
-      Kolide.getQuery(queryID)
         .then(() => {
           expect(request.isDone()).toEqual(true);
           done();
@@ -448,22 +472,6 @@ describe('Kolide - API client', () => {
 
       Kolide.setBearerToken(bearerToken);
       Kolide.revokeInvite(userStub)
-        .then(() => {
-          expect(request.isDone()).toEqual(true);
-          done();
-        })
-        .catch(done);
-    });
-  });
-
-  describe('#runQuery', () => {
-    it('calls the appropriate endpoint with the correct parameters', (done) => {
-      const bearerToken = 'valid-bearer-token';
-      const data = { query: 'select * from users', selected: { hosts: [], labels: [] } };
-      const request = validRunQueryRequest(bearerToken, data);
-
-      Kolide.setBearerToken(bearerToken);
-      Kolide.runQuery(data)
         .then(() => {
           expect(request.isDone()).toEqual(true);
           done();
