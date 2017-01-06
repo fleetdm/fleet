@@ -1,0 +1,53 @@
+.kolide-404 {
+  p {
+    color: #666;
+  }
+
+  a {
+    color: #4a90e2;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  .primary-header {
+    height: 90px;
+    width: 100%;
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.06);
+
+    &__logo {
+      height: 48px;
+      width: 174px;
+      position: absolute;
+      top: 25px;
+      left: 40px;
+    }
+  }
+
+  .gopher-container {
+    margin: -20px auto 0;
+    max-width: 340px;
+
+    img {
+      height: 470px;
+    }
+  }
+
+  main {
+    text-align: center;
+
+    > h1 {
+      font-size: 56px;
+      max-width: 479px;
+      margin: 34px auto 0;
+    }
+
+    > h2 {
+      font-size: 36px;
+      margin: 13px 0 30px;
+    }
+  }
+
+}

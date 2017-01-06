@@ -1,7 +1,11 @@
-.wrapper > div.flash-message {
-  height: 50px;
-  min-height: 50px;
-  max-height: 50px;
+.wrapper {
+  > div {
+    &.flash-message {
+      height: 50px;
+      min-height: 50px;
+      max-height: 50px;
+    }
+  }
 }
 
 .flash-message {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { browserHistory, IndexRedirect, IndexRoute, Route, Router } from 'react-router';
+import { browserHistory, IndexRedirect, IndexRoute, Redirect, Route, Router } from 'react-router';
 import { Provider } from 'react-redux';
 import { syncHistoryWithStore } from 'react-router-redux';
 
@@ -21,6 +21,8 @@ import PackComposerPage from 'pages/packs/PackComposerPage';
 import QueryPage from 'pages/queries/QueryPage';
 import QueryPageWrapper from 'components/queries/QueryPageWrapper';
 import RegistrationPage from 'pages/RegistrationPage';
+import Kolide404 from 'pages/Kolide404';
+import Kolide500 from 'pages/Kolide500';
 import store from 'redux/store';
 import UserSettingsPage from 'pages/UserSettingsPage';
 
@@ -68,6 +70,9 @@ const routes = (
           </Route>
         </Route>
       </Route>
+      <Route path="/500" component={Kolide500} />
+      <Route path="/404" component={Kolide404} />
+      <Redirect from="*" to="/404" />
     </Router>
   </Provider>
 );
