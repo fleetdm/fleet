@@ -60,14 +60,17 @@ class Dropdown extends Component {
 
   render () {
     const { handleChange } = this;
-    const { className, clearable, name, options, placeholder, value, wrapperClassName } = this.props;
+    const { error, className, clearable, name, options, placeholder, value, wrapperClassName } = this.props;
 
     const formFieldProps = pick(this.props, ['hint', 'label', 'error', 'name']);
+    const selectClasses = classnames(className, `${baseClass}__select`, {
+      [`${baseClass}__select--error`]: error,
+    });
 
     return (
       <FormField {...formFieldProps} type="dropdown" className={wrapperClassName}>
         <Select
-          className={`${baseClass}__select ${className}`}
+          className={selectClasses}
           clearable={clearable}
           name={`${name}-select`}
           onChange={handleChange}

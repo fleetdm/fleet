@@ -2,7 +2,6 @@ import React, { Component, PropTypes } from 'react';
 import AceEditor from 'react-ace';
 import { connect } from 'react-redux';
 import { push } from 'react-router-redux';
-import ReactCSSTransitionGroup from 'react-addons-css-transition-group';
 
 import entityGetter from 'redux/utilities/entityGetter';
 import hostActions from 'redux/nodes/entities/hosts/actions';
@@ -279,15 +278,7 @@ export class ManageHostsPage extends Component {
       );
     }
 
-    return (
-      <ReactCSSTransitionGroup
-        transitionName="hosts-page-side-panel"
-        transitionEnterTimeout={500}
-        transitionLeaveTimeout={0}
-      >
-        {SidePanel}
-      </ReactCSSTransitionGroup>
-    );
+    return SidePanel;
   }
 
   render () {

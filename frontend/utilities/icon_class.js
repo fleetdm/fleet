@@ -20,7 +20,7 @@ export const platformIconClass = (platform = '') => {
     case 'darwin':
       return 'apple';
     case 'linux':
-      return 'ubuntu';
+      return 'penguin';
     default:
       return lowerPlatform;
   }

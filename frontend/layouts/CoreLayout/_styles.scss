@@ -7,7 +7,12 @@
   @include flex-grow(1);
   margin: 0;
   padding: 0 0 0 $pad-base;
+  max-width: calc(100% - 258px);
   position: relative;
+
+  @include breakpoint(smalldesk) {
+    max-width: calc(100% - 73px);
+  }
 }
 
 .site-nav {

@@ -36,10 +36,10 @@ class QueriesListItem extends Component {
     }
 
     if (removed) {
-      return 'bold-plus';
+      return 'plus-minus';
     }
 
-    return 'plus-minus';
+    return 'bold-plus';
   }
 
   render () {

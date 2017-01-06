@@ -10,6 +10,21 @@
       color: $alert;
     }
   }
+
+  &__select {
+    &--error {
+      &.Select {
+        .Select-control {
+          border-color: $alert;
+          background-color: $alert-light;
+        }
+
+        .Select-arrow {
+          border-top-color: $alert;
+        }
+      }
+    }
+  }
 }
 
 .Select {

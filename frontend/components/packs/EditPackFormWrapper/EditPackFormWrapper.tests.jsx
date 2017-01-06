@@ -45,7 +45,7 @@ describe('EditPackFormWrapper - component', () => {
         pack={packStub}
       />
     );
-    const editBtn = component.find('Button').find({ children: 'EDIT' });
+    const editBtn = component.find('Button');
 
     editBtn.simulate('click');
 

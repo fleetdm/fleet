@@ -1,0 +1,26 @@
+.edit-pack-form {
+  &__edit-btn {
+    float: right;
+  }
+
+  &__title {
+    font-size: 24px;
+    font-weight: $light;
+    letter-spacing: -0.5px;
+    text-align: left;
+    color: $text-dark;
+    margin: 0;
+
+    .kolidecon {
+      color: $accent-dark;
+    }
+  }
+
+  &__description {
+    font-size: 15px;
+    font-weight: $normal;
+    line-height: 2.0;
+    color: $text-medium;
+    max-width: 800px;
+  }
+}

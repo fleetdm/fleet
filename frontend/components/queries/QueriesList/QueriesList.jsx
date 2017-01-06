@@ -67,11 +67,13 @@ class QueriesList extends Component {
           <div className={`${baseClass}__first-query`}>
             <h1>First let&apos;s <span>add a query</span>.</h1>
             <h2>Then we&apos;ll set the following:</h2>
-            <p><strong>interval:</strong> the amount of time the query waits before running</p>
+            <p><strong>interval:</strong> the amount of time, in seconds, the query waits before running</p>
+            <p><strong>platform:</strong> the computer platform where this query will run (other platforms ignored)</p>
             <p><strong>minimum <Icon name="osquery" /> version:</strong> the minimum required <strong>osqueryd</strong> version installed on a host</p>
             <p><strong>logging type:</strong></p>
             <ul>
-              <li><strong><Icon name="plus-minus" /> differential:</strong> show only what&apos;s different from last run</li>
+              <li><strong><Icon name="plus-minus" /> differential:</strong> show only what’s added from last run</li>
+              <li><strong><Icon name="bold-plus" /> differential (ignore removals):</strong> show only what’s been added since the last run</li>
               <li><strong><Icon name="camera" /> snapshot:</strong> show everything in its current state</li>
             </ul>
           </div>

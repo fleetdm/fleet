@@ -79,7 +79,7 @@ class ConfigurePackQueryForm extends Component {
             {...fields.version}
             options={minOsqueryVersionOptions}
             placeholder="- - -"
-            label={[<Icon name="osquery" key="min-osquery-vers" />, ' ver.']}
+            label={['minimum ', <Icon name="osquery" key="min-osquery-vers" />, ' version']}
             wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--osquer-vers`}
           />
           <Dropdown

@@ -12,4 +12,8 @@
   min-height: 100%;
   border-top-left-radius: 3px;
   padding-top: $pad-base;
+
+  @include breakpoint(smalldesk) {
+    width: 300px;
+  }
 }
