@@ -25,6 +25,7 @@ func (d *Datastore) NewQuery(query *kolide.Query) (*kolide.Query, error) {
 
 	id, _ := result.LastInsertId()
 	query.ID = uint(id)
+	query.Packs = []kolide.Pack{}
 	return query, nil
 }
 

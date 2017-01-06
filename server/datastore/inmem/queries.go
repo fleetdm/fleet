@@ -20,6 +20,7 @@ func (d *Datastore) NewQuery(query *kolide.Query) (*kolide.Query, error) {
 	}
 
 	newQuery.ID = d.nextID(newQuery)
+	newQuery.Packs = []kolide.Pack{}
 	d.queries[newQuery.ID] = &newQuery
 
 	return &newQuery, nil

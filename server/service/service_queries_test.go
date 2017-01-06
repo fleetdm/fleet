@@ -57,7 +57,6 @@ func TestGetQuery(t *testing.T) {
 
 	queryVerify, err := svc.GetQuery(ctx, query.ID)
 	assert.Nil(t, err)
-
 	assert.Equal(t, query.ID, queryVerify.ID)
 }
 
@@ -77,12 +76,13 @@ func TestNewQuery(t *testing.T) {
 
 	name := "foo"
 	query := "select * from time;"
-	_, err = svc.NewQuery(ctx, kolide.QueryPayload{
+	q, err := svc.NewQuery(ctx, kolide.QueryPayload{
 		Name:  &name,
 		Query: &query,
 	})
-
 	assert.Nil(t, err)
+	assert.Equal(t, "Test Name admin1", q.AuthorName)
+	assert.Equal(t, []kolide.Pack{}, q.Packs)
 
 	queries, err := ds.ListQueries(kolide.ListOptions{})
 	assert.Nil(t, err)
@@ -141,5 +141,4 @@ func TestDeleteQuery(t *testing.T) {
 	queries, err := ds.ListQueries(kolide.ListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
-
 }

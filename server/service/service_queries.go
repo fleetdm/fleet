@@ -32,12 +32,14 @@ func (svc service) NewQuery(ctx context.Context, p kolide.QueryPayload) (*kolide
 	vc, ok := viewer.FromContext(ctx)
 	if ok {
 		query.AuthorID = vc.UserID()
+		query.AuthorName = vc.FullName()
 	}
 
 	query, err := svc.ds.NewQuery(query)
 	if err != nil {
 		return nil, err
 	}
+
 	return query, nil
 }
 
