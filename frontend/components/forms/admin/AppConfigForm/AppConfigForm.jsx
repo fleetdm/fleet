@@ -160,12 +160,16 @@ class AppConfigForm extends Component {
           </div>
           <div className={`${baseClass}__details`}>
             <p>What base URL should <strong>osqueryd</strong> clients user to connect and register with <strong>Kolide</strong>?</p>
-            <p className={`${baseClass}__note`}><strong>Note:</strong>Please ensure the URL you choose is accessible to all endpoints that need to communicate with Kolide, otherwise they will not be able to correctly register.</p>
-            <Button variant="inverse">SEND TEST</Button>
+            <p className={`${baseClass}__note`}><strong>Note:</strong> Please ensure the URL you choose is accessible to all endpoints that need to communicate with Kolide, otherwise they will not be able to correctly register.</p>
           </div>
         </div>
         <div className={`${baseClass}__section`}>
-          <h2>SMTP Options <small className={`smtp-options smtp-options--${smtpConfigured ? 'configured' : 'notconfigured'}`}>STATUS: <em>{smtpConfigured ? 'CONFIGURED' : 'NOT CONFIGURED'}</em></small></h2>
+          <h2>SMTP Options <small className={`smtp-options smtp-options--${smtpConfigured ? 'configured' : 'notconfigured'}`}>STATUS: <em>{smtpConfigured ? 'CONFIGURED' : 'NOT CONFIGURED'}</em></small>
+            <div className={`${baseClass}__smtp-buttons`}>
+              <Button variant="inverse">Send Test</Button>
+              <Button variant="inverse-alert">Disable Email</Button>
+            </div>
+          </h2>
           <div className={`${baseClass}__inputs`}>
             <InputField
               {...fields.sender_address}

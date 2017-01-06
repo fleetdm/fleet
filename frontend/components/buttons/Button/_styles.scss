@@ -80,6 +80,17 @@ $base-class: 'button';
     }
   }
 
+  &--inverse-alert {
+    @include button-variant($white, $inverse-hover, $alert);
+    color: $alert;
+    border: 1px solid $alert;
+    border-bottom-color: $white;
+
+    &:active {
+      border-bottom-color: $alert;
+    }
+  }
+
   &--disabled {
     opacity: 0.4;
     cursor: default;

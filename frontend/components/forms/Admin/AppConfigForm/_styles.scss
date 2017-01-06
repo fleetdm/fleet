@@ -1,7 +1,7 @@
 .app-config-form {
   &__section {
     @include clearfix;
-    margin: 0 0 15px;
+    margin: 0 0 30px;
 
     .smtp-options {
       font-size: 15px;
@@ -25,6 +25,21 @@
         em {
           color: $alert;
         }
+      }
+    }
+  }
+
+  &__smtp-buttons {
+    float: right;
+    width: 40%;
+
+    .button {
+      width: 45%;
+      float: left;
+
+      &:last-child {
+        width: 53%;
+        float: right;
       }
     }
   }
