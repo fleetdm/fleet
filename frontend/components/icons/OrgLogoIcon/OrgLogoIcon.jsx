@@ -28,16 +28,39 @@ class OrgLogoIcon extends Component {
 
   componentWillReceiveProps (nextProps) {
     const { src } = nextProps;
+    const { unchangedSourceProp } = this;
+
+    if (unchangedSourceProp(nextProps)) {
+      return false;
+    }
 
     this.setState({ imageSrc: src });
 
     return false;
   }
 
+  shouldComponentUpdate (nextProps) {
+    const { imageSrc } = this.state;
+    const { unchangedSourceProp } = this;
+
+    if (unchangedSourceProp(nextProps) && (imageSrc === kolideLogo)) {
+      return false;
+    }
+
+    return true;
+  }
+
   onError = () => {
     this.setState({ imageSrc: kolideLogo });
 
     return false;
+  }
+
+  unchangedSourceProp = (nextProps) => {
+    const { src: nextSrcProp } = nextProps;
+    const { src } = this.props;
+
+    return src === nextSrcProp;
   }
 
   render () {
