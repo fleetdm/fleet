@@ -14,6 +14,9 @@ const baseClass = 'pack-composer';
 export class PackComposerPage extends Component {
   static propTypes = {
     dispatch: PropTypes.func,
+    serverErrors: PropTypes.shape({
+      base: PropTypes.string,
+    }),
   };
 
   static defaultProps = {
@@ -81,6 +84,7 @@ export class PackComposerPage extends Component {
   render () {
     const { handleSubmit, onFetchTargets } = this;
     const { selectedTargetsCount } = this.state;
+    const { serverErrors } = this.props;
 
     return (
       <div className="has-sidebar">
@@ -89,6 +93,7 @@ export class PackComposerPage extends Component {
           handleSubmit={handleSubmit}
           onFetchTargets={onFetchTargets}
           selectedTargetsCount={selectedTargetsCount}
+          serverErrors={serverErrors}
         />
         <PackInfoSidePanel />
       </div>
@@ -96,4 +101,10 @@ export class PackComposerPage extends Component {
   }
 }
 
-export default connect()(PackComposerPage);
+const mapStateToProps = (state) => {
+  const { errors: serverErrors } = state.entities.packs;
+
+  return { serverErrors };
+};
+
+export default connect(mapStateToProps)(PackComposerPage);

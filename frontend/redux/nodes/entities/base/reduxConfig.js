@@ -1,7 +1,7 @@
 import { noop } from 'lodash';
 import { normalize, arrayOf } from 'normalizr';
 
-import { entitiesExceptID } from './helpers';
+import { entitiesExceptID, formatErrorResponse } from 'redux/nodes/entities/base/helpers';
 
 const initialState = {
   loading: false,
@@ -21,6 +21,7 @@ const reduxConfig = ({
   updateFunc,
 }) => {
   const actionTypes = {
+    CLEAR_ERRORS: `${entityName}_CLEAR_ERRORS`,
     CREATE_FAILURE: `${entityName}_CREATE_FAILURE`,
     CREATE_REQUEST: `${entityName}_CREATE_REQUEST`,
     CREATE_SUCCESS: `${entityName}_CREATE_SUCCESS`,
@@ -33,6 +34,10 @@ const reduxConfig = ({
     UPDATE_FAILURE: `${entityName}_UPDATE_FAILURE`,
     UPDATE_REQUEST: `${entityName}_UPDATE_REQUEST`,
     UPDATE_SUCCESS: `${entityName}_UPDATE_SUCCESS`,
+  };
+
+  const clearErrors = {
+    type: actionTypes.CLEAR_ERRORS,
   };
 
   const createFailure = (errors) => {
@@ -124,13 +129,11 @@ const reduxConfig = ({
           return response;
         })
         .catch((response) => {
-          const { errors } = response;
-          const { errors: error } = response.message || {};
-          const errorMessage = errors || error;
+          const errorsObject = formatErrorResponse(response);
 
-          dispatch(createFailure(errorMessage));
+          dispatch(createFailure(errorsObject));
 
-          throw errorMessage;
+          throw errorsObject;
         });
     };
   };
@@ -146,13 +149,11 @@ const reduxConfig = ({
           return dispatch(destroySuccess(entityID));
         })
         .catch((response) => {
-          const { errors } = response;
-          const { error } = response.message || {};
-          const errorMessage = errors || error;
+          const errorsObject = formatErrorResponse(response);
 
-          dispatch(destroyFailure(errorMessage));
+          dispatch(destroyFailure(errorsObject));
 
-          throw error;
+          throw errorsObject;
         });
     };
   };
@@ -170,10 +171,11 @@ const reduxConfig = ({
           return dispatch(loadSuccess(entities));
         })
         .catch((response) => {
-          const { errors } = response;
+          const errorsObject = formatErrorResponse(response);
 
-          dispatch(loadFailure(errors));
-          throw response;
+          dispatch(loadFailure(errorsObject));
+
+          throw errorsObject;
         });
     };
   };
@@ -191,10 +193,11 @@ const reduxConfig = ({
           return dispatch(loadSuccess(entities));
         })
         .catch((response) => {
-          const { errors } = response;
+          const errorsObject = formatErrorResponse(response);
 
-          dispatch(loadFailure(errors));
-          throw response;
+          dispatch(loadFailure(errorsObject));
+
+          throw errorsObject;
         });
     };
   };
@@ -213,15 +216,17 @@ const reduxConfig = ({
           return response;
         })
         .catch((response) => {
-          const { errors } = response;
+          const errorsObject = formatErrorResponse(response);
 
-          dispatch(updateFailure(errors));
-          throw response;
+          dispatch(updateFailure(errorsObject));
+
+          throw errorsObject;
         });
     };
   };
 
   const actions = {
+    clearErrors,
     create,
     destroy,
     load,
@@ -231,12 +236,18 @@ const reduxConfig = ({
 
   const reducer = (state = initialState, { type, payload }) => {
     switch (type) {
+      case actionTypes.CLEAR_ERRORS:
+        return {
+          ...state,
+          errors: {},
+        };
       case actionTypes.CREATE_REQUEST:
       case actionTypes.DESTROY_REQUEST:
       case actionTypes.LOAD_REQUEST:
       case actionTypes.UPDATE_REQUEST:
         return {
           ...state,
+          errors: {},
           loading: true,
         };
       case actionTypes.CREATE_SUCCESS:
@@ -245,6 +256,7 @@ const reduxConfig = ({
         return {
           ...state,
           loading: false,
+          errors: {},
           data: {
             ...state.data,
             ...payload.data[entityName],
@@ -254,6 +266,7 @@ const reduxConfig = ({
         return {
           ...state,
           loading: false,
+          errors: {},
           data: {
             ...entitiesExceptID(state.data, payload.id),
           },

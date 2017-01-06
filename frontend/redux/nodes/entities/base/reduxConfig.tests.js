@@ -1,15 +1,51 @@
 import expect, { createSpy, restoreSpies } from 'expect';
+import { find } from 'lodash';
 
-import reduxConfig from './reduxConfig';
-import { reduxMockStore } from '../../../../test/helpers';
-import schemas from './schemas';
+import { formatErrorResponse } from 'redux/nodes/entities/base/helpers';
+import reduxConfig from 'redux/nodes/entities/base/reduxConfig';
+import { reduxMockStore } from 'test/helpers';
+import schemas from 'redux/nodes/entities/base/schemas';
 
-const store = { entities: { invites: {}, users: {} } };
+const store = {
+  entities: {
+    invites: {
+      errors: {},
+      data: {},
+      loading: false,
+    },
+    users: {
+      errors: {},
+      data: {},
+      loading: false,
+    },
+  },
+};
 const invite = { id: 1, name: 'Gnar Dog', email: 'hi@thegnar.co' };
 const user = { id: 1, email: 'hi@thegnar.co' };
 
 describe('reduxConfig', () => {
   afterEach(restoreSpies);
+
+  describe('dispatching the clear errors action', () => {
+    it('sets the errors to an empty object', () => {
+      const initialState = {
+        data: {},
+        errors: {
+          base: 'Unable to find the current user',
+        },
+        loading: false,
+      };
+
+      const config = reduxConfig({
+        entityName: 'users',
+        schema: schemas.USERS,
+      });
+      const { actions, reducer } = config;
+      const newState = reducer(initialState, actions.clearErrors);
+
+      expect(newState.errors).toEqual({});
+    });
+  });
 
   describe('dispatching the create action', () => {
     describe('successful create call', () => {
@@ -66,9 +102,23 @@ describe('reduxConfig', () => {
 
     describe('unsuccessful create call', () => {
       const mockStore = reduxMockStore(store);
-      const errors = { base: 'Unable to create user' };
+      const errors = [
+        { name: 'first_name',
+          reason: 'is not valid',
+        },
+        { name: 'last_name',
+          reason: 'must be changed or something',
+        },
+      ];
+      const errorResponse = {
+        message: {
+          message: 'Validation Failed',
+          errors,
+        },
+      };
+      const formattedErrors = formatErrorResponse(errorResponse);
       const createFunc = createSpy().andCall(() => {
-        return Promise.reject({ errors });
+        return Promise.reject(errorResponse);
       });
       const config = reduxConfig({
         createFunc,
@@ -91,14 +141,19 @@ describe('reduxConfig', () => {
 
         expect(dispatchedActionTypes).toInclude('users_CREATE_REQUEST');
         expect(dispatchedActionTypes).toNotInclude('users_CREATE_SUCCESS');
-        expect(dispatchedActionTypes).toInclude('users_CREATE_FAILURE');
+
+        const createFailureAction = find(dispatchedActions, { type: 'users_CREATE_FAILURE' });
+
+        expect(createFailureAction.payload).toEqual({
+          errors: formattedErrors,
+        });
       });
 
       it('adds the returned errors to state', () => {
         const createFailureAction = {
           type: 'users_CREATE_FAILURE',
           payload: {
-            errors,
+            errors: formattedErrors,
           },
         };
         const initialState = {
@@ -108,7 +163,7 @@ describe('reduxConfig', () => {
         };
         const newState = reducer(initialState, createFailureAction);
 
-        expect(newState.errors).toEqual(errors);
+        expect(newState.errors).toEqual(formattedErrors);
       });
     });
   });
@@ -167,41 +222,57 @@ describe('reduxConfig', () => {
       });
     });
 
-    describe('unsuccessful create call', () => {
+    describe('unsuccessful destroy call', () => {
       const mockStore = reduxMockStore(store);
-      const errors = { base: 'Unable to create user' };
-      const createFunc = createSpy().andCall(() => {
-        return Promise.reject({ errors });
+      const errors = [
+        {
+          name: 'base',
+          reason: 'Unable to create user',
+        },
+      ];
+      const errorResponse = {
+        message: {
+          message: 'Validation Failed',
+          errors,
+        },
+      };
+      const destroyFunc = createSpy().andCall(() => {
+        return Promise.reject(errorResponse);
       });
+      const formattedErrors = formatErrorResponse(errorResponse);
       const config = reduxConfig({
-        createFunc,
+        destroyFunc,
         entityName: 'users',
         schema: schemas.USERS,
       });
       const { actions, reducer } = config;
 
       it('calls the createFunc', () => {
-        mockStore.dispatch(actions.create());
+        mockStore.dispatch(actions.destroy());
 
-        expect(createFunc).toHaveBeenCalled();
+        expect(destroyFunc).toHaveBeenCalled();
       });
 
       it('dispatches the correct actions', () => {
-        mockStore.dispatch(actions.create());
+        mockStore.dispatch(actions.destroy());
 
         const dispatchedActions = mockStore.getActions();
         const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
+        const destroyFailureAction = find(dispatchedActions, { type: 'users_DESTROY_FAILURE' });
 
-        expect(dispatchedActionTypes).toInclude('users_CREATE_REQUEST');
-        expect(dispatchedActionTypes).toNotInclude('users_CREATE_SUCCESS');
-        expect(dispatchedActionTypes).toInclude('users_CREATE_FAILURE');
+        expect(dispatchedActionTypes).toInclude('users_DESTROY_REQUEST');
+        expect(dispatchedActionTypes).toNotInclude('users_DESTROY_SUCCESS');
+
+        expect(destroyFailureAction.payload).toEqual({
+          errors: formattedErrors,
+        });
       });
 
       it('adds the returned errors to state', () => {
-        const createFailureAction = {
-          type: 'users_CREATE_FAILURE',
+        const destroyFailureAction = {
+          type: 'users_DESTROY_FAILURE',
           payload: {
-            errors,
+            errors: formattedErrors,
           },
         };
         const initialState = {
@@ -209,9 +280,9 @@ describe('reduxConfig', () => {
           entities: {},
           errors: {},
         };
-        const newState = reducer(initialState, createFailureAction);
+        const newState = reducer(initialState, destroyFailureAction);
 
-        expect(newState.errors).toEqual(errors);
+        expect(newState.errors).toEqual(formattedErrors);
       });
     });
   });
@@ -271,9 +342,21 @@ describe('reduxConfig', () => {
 
     describe('unsuccessful load call', () => {
       const mockStore = reduxMockStore(store);
-      const errors = { base: 'Unable to load users' };
+      const errors = [
+        {
+          name: 'base',
+          reason: 'Unable to load users',
+        },
+      ];
+      const errorResponse = {
+        message: {
+          message: 'Something went wrong',
+          errors,
+        },
+      };
+      const formattedErrors = formatErrorResponse(errorResponse);
       const loadFunc = createSpy().andCall(() => {
-        return Promise.reject({ errors });
+        return Promise.reject(errorResponse);
       });
       const config = reduxConfig({
         entityName: 'users',
@@ -293,17 +376,20 @@ describe('reduxConfig', () => {
 
         const dispatchedActions = mockStore.getActions();
         const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
+        const loadFailureAction = find(dispatchedActions, { type: 'users_LOAD_FAILURE' });
 
         expect(dispatchedActionTypes).toInclude('users_LOAD_REQUEST');
         expect(dispatchedActionTypes).toNotInclude('users_LOAD_SUCCESS');
-        expect(dispatchedActionTypes).toInclude('users_LOAD_FAILURE');
+        expect(loadFailureAction.payload).toEqual({
+          errors: formattedErrors,
+        });
       });
 
       it('adds the returned errors to state', () => {
         const loadFailureAction = {
           type: 'users_LOAD_FAILURE',
           payload: {
-            errors,
+            errors: formattedErrors,
           },
         };
         const initialState = {
@@ -313,7 +399,7 @@ describe('reduxConfig', () => {
         };
         const newState = reducer(initialState, loadFailureAction);
 
-        expect(newState.errors).toEqual(errors);
+        expect(newState.errors).toEqual(formattedErrors);
       });
     });
   });
@@ -373,9 +459,21 @@ describe('reduxConfig', () => {
 
     describe('unsuccessful loadAll call', () => {
       const mockStore = reduxMockStore(store);
-      const errors = { base: 'Unable to load users' };
+      const errors = [
+        {
+          name: 'base',
+          reason: 'Unable to load users',
+        },
+      ];
+      const errorResponse = {
+        message: {
+          message: 'Cannot get users',
+          errors,
+        },
+      };
+      const formattedErrors = formatErrorResponse(errorResponse);
       const loadAllFunc = createSpy().andCall(() => {
-        return Promise.reject({ errors });
+        return Promise.reject(errorResponse);
       });
       const config = reduxConfig({
         entityName: 'users',
@@ -395,17 +493,21 @@ describe('reduxConfig', () => {
 
         const dispatchedActions = mockStore.getActions();
         const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
+        const loadAllFailureAction = find(dispatchedActions, { type: 'users_LOAD_FAILURE' });
 
         expect(dispatchedActionTypes).toInclude('users_LOAD_REQUEST');
         expect(dispatchedActionTypes).toNotInclude('users_LOAD_SUCCESS');
-        expect(dispatchedActionTypes).toInclude('users_LOAD_FAILURE');
+
+        expect(loadAllFailureAction.payload).toEqual({
+          errors: formattedErrors,
+        });
       });
 
       it('adds the returned errors to state', () => {
         const loadAllFailureAction = {
           type: 'users_LOAD_FAILURE',
           payload: {
-            errors,
+            errors: formattedErrors,
           },
         };
         const initialState = {
@@ -415,7 +517,7 @@ describe('reduxConfig', () => {
         };
         const newState = reducer(initialState, loadAllFailureAction);
 
-        expect(newState.errors).toEqual(errors);
+        expect(newState.errors).toEqual(formattedErrors);
       });
     });
   });

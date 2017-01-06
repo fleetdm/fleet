@@ -18,7 +18,7 @@ describe('App - reducer', () => {
     it('shows the background image', () => {
       expect(reducer(initialState, showBackgroundImage)).toEqual({
         config: {},
-        error: null,
+        error: {},
         loading: false,
         showBackgroundImage: true,
       });
@@ -33,7 +33,7 @@ describe('App - reducer', () => {
       };
       expect(reducer(state, hideBackgroundImage)).toEqual({
         config: {},
-        error: null,
+        error: {},
         loading: false,
         showBackgroundImage: false,
       });
@@ -44,7 +44,7 @@ describe('App - reducer', () => {
     it('sets the state to loading', () => {
       expect(reducer(initialState, loadConfig)).toEqual({
         config: {},
-        error: null,
+        error: {},
         loading: true,
         showBackgroundImage: false,
       });
@@ -60,7 +60,7 @@ describe('App - reducer', () => {
       };
       expect(reducer(loadingConfigState, configSuccess(config))).toEqual({
         config,
-        error: null,
+        error: {},
         loading: false,
         showBackgroundImage: false,
       });

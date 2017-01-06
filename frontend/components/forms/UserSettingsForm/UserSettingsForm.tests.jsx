@@ -31,7 +31,7 @@ describe('UserSettingsForm - component', () => {
     fillInFormInput(nameInput, expectedFormData.name);
     fillInFormInput(usernameInput, expectedFormData.username);
 
-    form.simulate('submit');
+    form.find('form').simulate('submit');
 
     expect(handleSubmitSpy).toHaveBeenCalledWith(expectedFormData);
   });

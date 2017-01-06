@@ -1,89 +1,73 @@
 import React, { Component, PropTypes } from 'react';
-import { isEqual } from 'lodash';
+import { size } from 'lodash';
 
 import Button from 'components/buttons/Button';
 import DropdownButton from 'components/buttons/DropdownButton';
 import Dropdown from 'components/forms/fields/Dropdown';
+import Form from 'components/forms/Form';
+import formFieldInterface from 'interfaces/form_field';
 import helpers from 'components/forms/queries/QueryForm/helpers';
 import InputField from 'components/forms/fields/InputField';
+import KolideAce from 'components/KolideAce';
 import queryInterface from 'interfaces/query';
-import validatePresence from 'components/forms/validators/validate_presence';
+import SelectTargetsDropdown from 'components/forms/fields/SelectTargetsDropdown';
+import targetInterface from 'interfaces/target';
+import validateQuery from 'components/forms/validators/validate_query';
 
 const baseClass = 'query-form';
 
+const validate = (formData) => {
+  const errors = {};
+  const {
+    error: queryError,
+    valid: queryValid,
+  } = validateQuery(formData.query);
+
+  if (!queryValid) {
+    errors.query = queryError;
+  }
+
+  if (!formData.name) {
+    errors.name = 'Title must be present';
+  }
+
+  const valid = !size(errors);
+
+  return { valid, errors };
+};
+
 class QueryForm extends Component {
   static propTypes = {
+    baseError: PropTypes.string,
+    fields: PropTypes.shape({
+      description: formFieldInterface.isRequired,
+      name: formFieldInterface.isRequired,
+      query: formFieldInterface.isRequired,
+    }).isRequired,
+    handleSubmit: PropTypes.func,
+    formData: queryInterface,
     onCancel: PropTypes.func,
+    onFetchTargets: PropTypes.func,
+    onOsqueryTableSelect: PropTypes.func,
     onRunQuery: PropTypes.func,
-    onSave: PropTypes.func,
     onStopQuery: PropTypes.func,
+    onTargetSelect: PropTypes.func,
     onUpdate: PropTypes.func,
-    query: queryInterface,
     queryIsRunning: PropTypes.bool,
-    queryText: PropTypes.string.isRequired,
     queryType: PropTypes.string,
+    selectedTargets: PropTypes.arrayOf(targetInterface),
+    targetsCount: PropTypes.number,
   };
 
   static defaultProps = {
-    query: {},
+    queryType: 'query',
+    targetsCount: 0,
   };
 
   constructor (props) {
     super(props);
 
-    const {
-      query: { description, name },
-      queryText,
-      queryType,
-    } = this.props;
-    const errors = { description: null, name: null };
-    const formData = { description, name, query: queryText };
-
-    if (queryType === 'label') {
-      const { allPlatforms: platform } = helpers;
-
-      this.state = {
-        errors: { ...errors, platform: null },
-        formData: { ...formData, platform: platform.value },
-      };
-    } else {
-      this.state = { errors, formData };
-    }
-  }
-
-  componentDidMount = () => {
-    const { query, queryText } = this.props;
-    const { description, name } = query;
-    const { formData } = this.state;
-
-    this.setState({
-      formData: {
-        ...formData,
-        description,
-        name,
-        query: queryText,
-      },
-    });
-  }
-
-  componentWillReceiveProps = (nextProps) => {
-    const { query, queryText } = nextProps;
-    const { query: staleQuery, queryText: staleQueryText } = this.props;
-
-    if (!isEqual(query, staleQuery) || !isEqual(queryText, staleQueryText)) {
-      const { formData } = this.state;
-
-      this.setState({
-        formData: {
-          ...formData,
-          description: query.description || formData.description,
-          name: query.name || formData.name,
-          query: queryText,
-        },
-      });
-    }
-
-    return false;
+    this.state = { errors: {} };
   }
 
   onCancel = (evt) => {
@@ -94,95 +78,73 @@ class QueryForm extends Component {
     return handleCancel();
   }
 
-  onFieldChange = (name) => {
-    return (value) => {
-      const { errors, formData } = this.state;
+  onLoad = (editor) => {
+    editor.setOptions({
+      enableLinking: true,
+    });
 
-      this.setState({
-        errors: {
-          ...errors,
-          [name]: null,
-        },
-        formData: {
-          ...formData,
-          [name]: value,
-        },
-      });
+    editor.on('linkClick', (data) => {
+      const { type, value } = data.token;
+      const { onOsqueryTableSelect } = this.props;
+
+      if (type === 'osquery-token') {
+        return onOsqueryTableSelect(value);
+      }
 
       return false;
-    };
-  }
-
-  onSave = (evt) => {
-    evt.preventDefault();
-
-    const { formData } = this.state;
-    const { valid } = this;
-    const { onSave: handleSave } = this.props;
-
-    if (valid()) {
-      handleSave(formData);
-    }
-
-    return false;
+    });
   }
 
   onUpdate = (evt) => {
     evt.preventDefault();
 
-    const { formData } = this.state;
-    const { valid } = this;
+    const { fields } = this.props;
     const { onUpdate: handleUpdate } = this.props;
+    const formData = {
+      description: fields.description.value,
+      name: fields.name.value,
+      query: fields.query.value,
+    };
 
-    if (valid()) {
+    const { valid, errors } = validate(formData);
+
+    if (valid) {
       handleUpdate(formData);
-    }
-
-    return false;
-  }
-
-  valid = () => {
-    const { errors, formData: { name } } = this.state;
-    const { queryType } = this.props;
-
-    const namePresent = validatePresence(name);
-
-    if (!namePresent) {
-      this.setState({
-        errors: {
-          ...errors,
-          name: `${queryType === 'label' ? 'Label title' : 'Query title'} must be present`,
-        },
-      });
 
       return false;
     }
 
-    // TODO: validate queryText
+    this.setState({
+      errors: {
+        ...this.state.errors,
+        ...errors,
+      },
+    });
 
-    return true;
+    return false;
   }
 
   renderButtons = () => {
     const { canSaveAsNew, canSaveChanges } = helpers;
-    const { formData } = this.state;
     const {
+      fields,
+      formData,
+      handleSubmit,
       onRunQuery,
       onStopQuery,
-      query,
       queryIsRunning,
       queryType,
     } = this.props;
-    const { onCancel, onSave, onUpdate } = this;
+    const { onCancel, onUpdate } = this;
 
     const dropdownBtnOptions = [{
-      disabled: !canSaveChanges(formData, query),
+      disabled: !canSaveChanges(fields, formData),
       label: 'Save Changes',
       onClick: onUpdate,
     }, {
-      disabled: !canSaveAsNew(formData, query),
+      disabled: !canSaveAsNew(fields, formData),
       label: 'Save As New...',
-      onClick: onSave,
+      onClick: handleSubmit,
     }];
 
     let runQueryButton;
@@ -221,8 +183,8 @@ class QueryForm extends Component {
           </Button>
           <Button
             className={`${baseClass}__save-as-new-btn`}
-            disabled={!canSaveAsNew(formData, query)}
-            onClick={onSave}
+            disabled={!canSaveAsNew(fields, formData)}
+            type="submit"
             variant="brand"
           >
             Save Label
@@ -247,54 +209,77 @@ class QueryForm extends Component {
   }
 
   renderPlatformDropdown = () => {
-    const { queryType } = this.props;
+    const { fields, queryType } = this.props;
 
     if (queryType !== 'label') {
       return false;
     }
 
-    const { formData: { platform } } = this.state;
-    const { onFieldChange } = this;
     const { platformOptions } = helpers;
 
     return (
       <Dropdown
+        {...fields.platform}
         options={platformOptions}
-        onChange={onFieldChange('platform')}
-        value={platform}
       />
     );
   }
 
-  render () {
+  renderTargetsInput = () => {
     const {
-      errors,
-      formData: {
-        description,
-        name,
-      },
-    } = this.state;
-    const { onFieldChange, renderPlatformDropdown, renderButtons } = this;
-    const { queryType } = this.props;
+      onFetchTargets,
+      onTargetSelect,
+      queryType,
+      selectedTargets,
+      targetsCount,
+    } = this.props;
+
+    if (queryType === 'label') {
+      return false;
+    }
+
 
     return (
-      <form className={baseClass}>
+      <div>
+        <SelectTargetsDropdown
+          onFetchTargets={onFetchTargets}
+          onSelect={onTargetSelect}
+          selectedTargets={selectedTargets}
+          targetsCount={targetsCount}
+          label="Select Targets"
+        />
+      </div>
+    );
+  }
+
+  render () {
+    const { errors } = this.state;
+    const { baseError, fields, handleSubmit, queryIsRunning, queryType } = this.props;
+    const { onLoad, renderPlatformDropdown, renderButtons, renderTargetsInput } = this;
+
+    return (
+      <form className={`${baseClass}__wrapper body-wrap`} onSubmit={handleSubmit}>
+        <h1>{queryType === 'label' ? 'New Label Query' : 'New Query'}</h1>
+        <KolideAce
+          {...fields.query}
+          error={fields.query.error || errors.query}
+          onLoad={onLoad}
+          readOnly={queryIsRunning}
+          wrapperClassName={`${baseClass}__text-editor-wrapper`}
+        />
+        {baseError && <div className="form__base-error">{baseError}</div>}
+        {renderTargetsInput()}
         <InputField
-          error={errors.name}
-          label={queryType === 'label' ? 'Label title' : 'Query Title'}
-          name="name"
-          onChange={onFieldChange('name')}
-          value={name}
+          {...fields.name}
+          error={fields.name.error || errors.name}
           inputClassName={`${baseClass}__query-title`}
+          label={queryType === 'label' ? 'Label title' : 'Query Title'}
         />
         <InputField
-          error={errors.description}
-          label="Description"
-          name="description"
-          onChange={onFieldChange('description')}
-          value={description}
-          type="textarea"
+          {...fields.description}
           inputClassName={`${baseClass}__query-description`}
+          label="Description"
+          type="textarea"
         />
         {renderPlatformDropdown()}
         {renderButtons()}
@@ -303,4 +288,7 @@ class QueryForm extends Component {
   }
 }
 
-export default QueryForm;
+export default Form(QueryForm, {
+  fields: ['description', 'name', 'platform', 'query'],
+  validate,
+});

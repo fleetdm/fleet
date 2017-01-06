@@ -1,12 +1,22 @@
 import React from 'react';
 import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
+import { noop } from 'lodash';
 
 import { fillInFormInput } from 'test/helpers';
 import PackForm from './index';
 
 describe('PackForm - component', () => {
   afterEach(restoreSpies);
+
+  it('renders the base error', () => {
+    const baseError = 'Pack already exists';
+    const formWithError = mount(<PackForm serverErrors={{ base: baseError }} handleSubmit={noop} />);
+    const formWithoutError = mount(<PackForm handleSubmit={noop} />);
+
+    expect(formWithError.text()).toInclude(baseError);
+    expect(formWithoutError.text()).toNotInclude(baseError);
+  });
 
   it('renders the correct components', () => {
     const form = mount(<PackForm />);
@@ -20,7 +30,7 @@ describe('PackForm - component', () => {
     const handleSubmitSpy = createSpy();
     const form = mount(<PackForm handleSubmit={handleSubmitSpy} />);
 
-    form.simulate('submit');
+    form.find('form').simulate('submit');
 
     expect(handleSubmitSpy).toNotHaveBeenCalled();
 
@@ -33,7 +43,7 @@ describe('PackForm - component', () => {
 
   it('calls the handleSubmit prop when a valid form is submitted', () => {
     const handleSubmitSpy = createSpy();
-    const form = mount(<PackForm handleSubmit={handleSubmitSpy} />);
+    const form = mount(<PackForm handleSubmit={handleSubmitSpy} />).find('form');
     const nameField = form.find('InputField').find({ name: 'name' });
 
     fillInFormInput(nameField, 'Mac OS Attacks');

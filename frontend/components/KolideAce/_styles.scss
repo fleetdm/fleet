@@ -1,0 +1,21 @@
+.kolide-ace {
+  &__error-field {
+    color: $alert;
+    display: block;
+    font-size: 16px;
+    font-stretch: normal;
+    font-style: normal;
+    font-weight: $bold;
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
+    min-height: 25px;
+  }
+
+  &__wrapper {
+    &--error {
+      .ace-kolide {
+        border: 1px solid $alert;
+      }
+    }
+  }
+}

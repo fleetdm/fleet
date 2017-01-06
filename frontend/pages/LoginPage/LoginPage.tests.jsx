@@ -19,16 +19,18 @@ describe('LoginPage - component', () => {
   context('when the users session is not recognized', () => {
     const mockStore = reduxMockStore({
       auth: {
-        error: 'Unable to authenticate the current user',
+        errors: { base: 'Unable to authenticate the current user' },
       },
     });
 
-    it('renders the LoginForm without displaying errors', () => {
+    it('renders the LoginForm base errors', () => {
       const page = mount(connectedComponent(LoginPage, { mockStore }));
       const loginForm = page.find('LoginForm');
 
       expect(loginForm.length).toEqual(1);
-      expect(loginForm.prop('errors')).toEqual({});
+      expect(loginForm.prop('serverErrors')).toEqual({
+        base: 'Unable to authenticate the current user',
+      });
     });
   });
 

@@ -18,7 +18,7 @@ describe('EditUserForm - form', () => {
   it('sends the users changed attributes when the form is submitted', () => {
     const email = 'newEmail@gnar.dog';
     const onSubmit = createSpy();
-    const form = mount(<EditUserForm formData={user} handleSubmit={onSubmit} />);
+    const form = mount(<EditUserForm formData={user} handleSubmit={onSubmit} />).find('form');
     const emailInput = form.find({ name: 'email' });
 
     fillInFormInput(emailInput, email);

@@ -16,12 +16,18 @@ export class ForgotPasswordPage extends Component {
   static propTypes = {
     dispatch: PropTypes.func,
     email: PropTypes.string,
-    error: PropTypes.string,
+    errors: PropTypes.shape({
+      base: PropTypes.string,
+    }),
   };
 
   static defaultProps = {
     dispatch: noop,
   };
+
+  componentWillUnmount () {
+    return this.clearErrors();
+  }
 
   handleLeave = (location) => {
     const { dispatch } = this.props;
@@ -32,7 +38,8 @@ export class ForgotPasswordPage extends Component {
   handleSubmit = debounce((formData) => {
     const { dispatch } = this.props;
 
-    return dispatch(forgotPasswordAction(formData));
+    return dispatch(forgotPasswordAction(formData))
+      .catch(() => false);
   })
 
   clearErrors = () => {
@@ -43,7 +50,7 @@ export class ForgotPasswordPage extends Component {
 
   renderContent = () => {
     const { clearErrors, handleSubmit } = this;
-    const { email, error } = this.props;
+    const { email, errors } = this.props;
 
     const baseClass = 'forgot-password';
 
@@ -67,9 +74,9 @@ export class ForgotPasswordPage extends Component {
 
     return (
       <ForgotPasswordForm
-        onChangeFunc={clearErrors}
-        errors={{ email: error }}
         handleSubmit={handleSubmit}
+        onChangeFunc={clearErrors}
+        serverErrors={errors}
       />
     );
   }

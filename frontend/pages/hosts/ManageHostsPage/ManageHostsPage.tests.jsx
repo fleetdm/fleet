@@ -112,16 +112,16 @@ describe('ManageHostsPage - component', () => {
     const ownProps = { location: { hash: '#new_label' }, params: {} };
     const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
 
-    it('renders a QueryComposer component', () => {
+    it('renders a QueryForm component', () => {
       const page = mount(component);
 
-      expect(page.find('QueryComposer').length).toEqual(1);
+      expect(page.find('QueryForm').length).toEqual(1);
     });
 
     it('displays "New Label Query" as the query form header', () => {
       const page = mount(component);
 
-      expect(page.find('QueryComposer').text()).toInclude('New Label Query');
+      expect(page.find('QueryForm').text()).toInclude('New Label Query');
     });
   });
 

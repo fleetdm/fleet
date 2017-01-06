@@ -10,7 +10,10 @@ const baseClass = 'invite-user-form';
 
 class InviteUserForm extends Component {
   static propTypes = {
-    error: PropTypes.string,
+    serverErrors: PropTypes.shape({
+      email: PropTypes.string,
+      base: PropTypes.string,
+    }),
     invitedBy: userInterface,
     onCancel: PropTypes.func,
     onSubmit: PropTypes.func,
@@ -33,15 +36,14 @@ class InviteUserForm extends Component {
     };
   }
 
-  componentWillReceiveProps (nextProps) {
-    const { error } = nextProps;
+  componentWillReceiveProps ({ serverErrors }) {
     const { errors } = this.state;
 
-    if (this.props.error !== error) {
+    if (this.props.serverErrors !== serverErrors) {
       this.setState({
         errors: {
           ...errors,
-          email: error,
+          ...serverErrors,
         },
       });
     }

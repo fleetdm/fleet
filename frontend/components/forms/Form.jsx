@@ -6,44 +6,62 @@ const defaultValidate = () => { return { valid: true, errors: {} }; };
 export default (WrappedComponent, { fields, validate = defaultValidate }) => {
   class Form extends Component {
     static propTypes = {
-      errors: PropTypes.object, // eslint-disable-line react/forbid-prop-types
+      serverErrors: PropTypes.object, // eslint-disable-line react/forbid-prop-types
       formData: PropTypes.object, // eslint-disable-line react/forbid-prop-types
       handleSubmit: PropTypes.func,
       onChangeFunc: PropTypes.func,
     };
 
     static defaultProps = {
-      errors: {},
+      serverErrors: {},
       formData: {},
     };
 
     constructor (props) {
       super(props);
 
-      const { errors, formData } = props;
+      const { formData } = props;
 
-      if (!errors) {
-        this.state = { errors: {}, formData };
-
-        return false;
-      }
-
-      this.state = { errors, formData };
+      this.state = {
+        errors: {},
+        formData,
+      };
 
       return false;
     }
 
-    componentWillReceiveProps (nextProps) {
-      const { formData: formDataProp } = nextProps;
-      const { formData: oldFormDataProp } = this.props;
+    componentWillMount () {
+      const { serverErrors } = this.props;
 
-      if (!isEqual(formDataProp, oldFormDataProp)) {
-        const { formData } = this.state;
+      this.setState({ errors: serverErrors });
+
+      return false;
+    }
+
+    componentWillReceiveProps ({ formData, serverErrors }) {
+      const {
+        formData: oldFormDataProp,
+        serverErrors: oldServerErrors,
+      } = this.props;
+
+      if (!isEqual(formData, oldFormDataProp)) {
+        const { formData: currentFormData } = this.state;
 
         this.setState({
           formData: {
+            ...currentFormData,
             ...formData,
-            ...formDataProp,
+          },
+        });
+      }
+
+      if (!isEqual(serverErrors, oldServerErrors)) {
+        const { errors } = this.state;
+
+        this.setState({
+          errors: {
+            ...errors,
+            ...serverErrors,
           },
         });
       }
@@ -59,7 +77,7 @@ export default (WrappedComponent, { fields, validate = defaultValidate }) => {
         onChangeFunc(fieldName, value);
 
         this.setState({
-          errors: { ...errors, [fieldName]: null },
+          errors: { ...errors, base: null, [fieldName]: null },
           formData: { ...formData, [fieldName]: value },
         });
 
@@ -87,11 +105,6 @@ export default (WrappedComponent, { fields, validate = defaultValidate }) => {
 
     getError = (fieldName) => {
       const { errors } = this.state;
-      const { errors: serverErrors } = this.props;
-
-      if (serverErrors) {
-        return errors[fieldName] || serverErrors[fieldName];
-      }
 
       return errors[fieldName];
     }
@@ -118,8 +131,18 @@ export default (WrappedComponent, { fields, validate = defaultValidate }) => {
 
     render () {
       const { getFields, onSubmit, props } = this;
+      const { errors } = this.state;
 
-      return <WrappedComponent {...props} fields={getFields()} handleSubmit={onSubmit} />;
+      return (
+        <div>
+          <WrappedComponent
+            {...props}
+            baseError={errors.base}
+            fields={getFields()}
+            handleSubmit={onSubmit}
+          />
+        </div>
+      );
     }
   }
 

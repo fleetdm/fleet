@@ -15,6 +15,7 @@ const formFields = ['username', 'password'];
 
 class LoginForm extends Component {
   static propTypes = {
+    baseError: PropTypes.string,
     fields: PropTypes.shape({
       password: formFieldInterface.isRequired,
       username: formFieldInterface.isRequired,
@@ -24,7 +25,7 @@ class LoginForm extends Component {
   };
 
   render () {
-    const { fields, handleSubmit, isHidden } = this.props;
+    const { baseError, fields, handleSubmit, isHidden } = this.props;
 
     const loginFormClass = classnames(
       baseClass,
@@ -35,6 +36,7 @@ class LoginForm extends Component {
       <form onSubmit={handleSubmit} className={loginFormClass}>
         <div className={`${baseClass}__container`}>
           <img alt="Avatar" src={avatar} />
+          {baseError && <div className="form__base-error">{baseError}</div>}
           <InputFieldWithIcon
             {...fields.username}
             autofocus

@@ -9,6 +9,15 @@ import { fillInFormInput } from '../../../test/helpers';
 describe('LoginForm - component', () => {
   afterEach(restoreSpies);
 
+  it('renders the base error', () => {
+    const baseError = 'Unable to authenticate the current user';
+    const formWithError = mount(<LoginForm serverErrors={{ base: baseError }} handleSubmit={noop} />);
+    const formWithoutError = mount(<LoginForm handleSubmit={noop} />);
+
+    expect(formWithError.text()).toInclude(baseError);
+    expect(formWithoutError.text()).toNotInclude(baseError);
+  });
+
   it('renders 2 InputField components', () => {
     const form = mount(<LoginForm handleSubmit={noop} />);
 

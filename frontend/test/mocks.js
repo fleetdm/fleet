@@ -91,7 +91,15 @@ export const invalidGetQueryRequest = (bearerToken, queryID) => {
     },
   })
     .get(`/api/v1/kolide/queries/${queryID}`)
-    .reply(404, { error: 'resource not found' });
+    .reply(404, {
+      message: 'Resource not found',
+      errors: [
+        {
+          name: 'base',
+          reason: 'Resource not found',
+        },
+      ],
+    });
 };
 
 export const validGetQueriesRequest = (bearerToken) => {
@@ -256,7 +264,7 @@ export const validForgotPasswordRequest = () => {
 export const invalidForgotPasswordRequest = (error) => {
   return nock('http://localhost:8080')
   .post('/api/v1/kolide/forgot_password')
-  .reply(422, { error });
+  .reply(422, error);
 };
 
 export const validResetPasswordRequest = (password, token) => {

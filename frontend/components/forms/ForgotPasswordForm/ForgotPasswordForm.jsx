@@ -12,6 +12,7 @@ const { validate } = helpers;
 
 class ForgotPasswordForm extends Component {
   static propTypes = {
+    baseError: PropTypes.string,
     fields: PropTypes.shape({
       email: formFieldInterface.isRequired,
     }).isRequired,
@@ -19,10 +20,11 @@ class ForgotPasswordForm extends Component {
   };
 
   render () {
-    const { fields, handleSubmit } = this.props;
+    const { baseError, fields, handleSubmit } = this.props;
 
     return (
       <form onSubmit={handleSubmit} className={baseClass}>
+        {baseError && <div className="form__base-error">{baseError}</div>}
         <InputFieldWithIcon
           {...fields.email}
           autofocus

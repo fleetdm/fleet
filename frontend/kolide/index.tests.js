@@ -382,16 +382,18 @@ describe('Kolide - API client', () => {
     });
 
     it('return errors correctly for unsuccessful requests', (done) => {
-      const error = 'Something went wrong';
-      const request = invalidForgotPasswordRequest(error);
+      const error = { base: 'Something went wrong' };
+      const errorResponse = {
+        message: {
+          errors: [error],
+        },
+      };
+      const request = invalidForgotPasswordRequest(errorResponse);
       const email = 'hi@thegnar.co';
 
       Kolide.forgotPassword({ email })
         .then(done)
-        .catch((errorResponse) => {
-          const { response } = errorResponse;
-
-          expect(response).toEqual({ error });
+        .catch(() => {
           expect(request.isDone()).toEqual(true);
           done();
         });

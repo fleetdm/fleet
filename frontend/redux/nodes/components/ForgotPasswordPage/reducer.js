@@ -7,7 +7,7 @@ import {
 
 export const initialState = {
   email: null,
-  error: null,
+  errors: {},
   loading: false,
 };
 
@@ -16,25 +16,26 @@ const reducer = (state = initialState, { type, payload }) => {
     case CLEAR_FORGOT_PASSWORD_ERRORS:
       return {
         ...state,
-        error: null,
+        errors: {},
       };
     case FORGOT_PASSWORD_REQUEST:
       return {
         ...state,
+        errors: {},
         loading: true,
       };
     case FORGOT_PASSWORD_SUCCESS:
       return {
         ...state,
         email: payload.data.email,
-        error: null,
+        errors: {},
         loading: false,
       };
     case FORGOT_PASSWORD_ERROR:
       return {
         ...state,
         email: null,
-        error: payload.error,
+        errors: payload.errors,
         loading: false,
       };
     default:

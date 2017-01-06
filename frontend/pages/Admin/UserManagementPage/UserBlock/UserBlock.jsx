@@ -14,6 +14,11 @@ class UserBlock extends Component {
     onEditUser: PropTypes.func,
     onSelect: PropTypes.func,
     user: userInterface,
+    userErrors: PropTypes.shape({
+      base: PropTypes.string,
+      name: PropTypes.string,
+      username: PropTypes.string,
+    }),
   };
 
   static userActionOptions = (currentUser, user, invite) => {
@@ -61,11 +66,13 @@ class UserBlock extends Component {
   onEditUserFormSubmit = (updatedUser) => {
     const { user, onEditUser } = this.props;
 
-    this.setState({
-      isEdit: false,
-    });
+    return onEditUser(user, updatedUser)
+      .then(() => {
+        this.setState({ isEdit: false });
 
-    return onEditUser(user, updatedUser);
+        return false;
+      })
+      .catch(() => false);
   }
 
   onUserActionSelect = (action) => {
@@ -98,7 +105,7 @@ class UserBlock extends Component {
   }
 
   render () {
-    const { invite, user } = this.props;
+    const { invite, user, userErrors } = this.props;
     const {
       admin,
       email,
@@ -164,7 +171,12 @@ class UserBlock extends Component {
     if (isEdit) {
       return (
         <div className={userWrapperClass}>
-          <EditUserForm onCancel={onToggleEditing} handleSubmit={onEditUserFormSubmit} formData={user} />
+          <EditUserForm
+            onCancel={onToggleEditing}
+            handleSubmit={onEditUserFormSubmit}
+            formData={user}
+            serverErrors={userErrors}
+          />
         </div>
       );
     }

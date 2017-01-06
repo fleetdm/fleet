@@ -21,7 +21,7 @@ describe('ChangePasswordForm - component', () => {
 
   it('calls the handleSubmit props with form data', () => {
     const handleSubmitSpy = createSpy();
-    const form = mount(<ChangePasswordForm handleSubmit={handleSubmitSpy} onCancel={noop} />);
+    const form = mount(<ChangePasswordForm handleSubmit={handleSubmitSpy} onCancel={noop} />).find('form');
     const expectedFormData = { password: 'password', new_password: 'new_password', new_password_confirmation: 'new_password' };
     const passwordInput = form.find({ name: 'password' }).find('input');
     const newPasswordInput = form.find({ name: 'new_password' }).find('input');
@@ -38,7 +38,7 @@ describe('ChangePasswordForm - component', () => {
 
   it('calls the onCancel prop when CANCEL is clicked', () => {
     const onCancelSpy = createSpy();
-    const form = mount(<ChangePasswordForm handleSubmit={noop} onCancel={onCancelSpy} />);
+    const form = mount(<ChangePasswordForm handleSubmit={noop} onCancel={onCancelSpy} />).find('form');
     const cancelBtn = form.find('Button').findWhere(n => n.prop('children') === 'CANCEL').find('button');
 
     cancelBtn.simulate('click');

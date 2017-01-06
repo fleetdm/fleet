@@ -1,6 +1,6 @@
 import { configSuccess } from 'redux/nodes/app/actions';
+import { formatErrorResponse } from 'redux/nodes/entities/base/helpers';
 import Kolide from 'kolide';
-import userActions from 'redux/nodes/entities/users/actions';
 
 export const CLEAR_AUTH_ERRORS = 'CLEAR_AUTH_ERRORS';
 export const LOGIN_REQUEST = 'LOGIN_REQUEST';
@@ -24,11 +24,11 @@ export const loginSuccess = ({ user, token }) => {
     },
   };
 };
-export const loginFailure = (error) => {
+export const loginFailure = (errors) => {
   return {
     type: LOGIN_FAILURE,
     payload: {
-      error,
+      errors,
     },
   };
 };
@@ -41,7 +41,7 @@ export const fetchCurrentUser = () => {
         return dispatch(loginSuccess({ user }));
       })
       .catch((response) => {
-        dispatch(loginFailure('Unable to authenticate the current user'));
+        dispatch(loginFailure({ base: 'Unable to authenticate the current user' }));
         throw response;
       });
   };
@@ -60,9 +60,11 @@ export const loginUser = (formData) => {
           return resolve(response.user);
         })
         .catch((response) => {
-          const { error } = response;
-          dispatch(loginFailure(error));
-          return reject(error);
+          const errorObject = formatErrorResponse(response);
+
+          dispatch(loginFailure(errorObject));
+
+          return reject(response);
         });
     });
   };
@@ -88,11 +90,11 @@ export const updateUserSuccess = (user) => {
     },
   };
 };
-export const updateUserFailure = (error) => {
+export const updateUserFailure = (errors) => {
   return {
     type: UPDATE_USER_FAILURE,
     payload: {
-      error,
+      errors,
     },
   };
 };
@@ -100,26 +102,29 @@ export const updateUser = (targetUser, formData) => {
   return (dispatch) => {
     return new Promise((resolve, reject) => {
       dispatch(updateUserRequest);
-      return dispatch(userActions.update(targetUser, formData))
+
+      return Kolide.updateUser(targetUser, formData)
         .then((user) => {
           dispatch(updateUserSuccess(user));
 
           return resolve(user);
         })
         .catch((response) => {
-          const { error } = response;
-          dispatch(updateUserFailure(error));
-          return reject(error);
+          const errorObject = formatErrorResponse(response);
+
+          dispatch(updateUserFailure(errorObject));
+
+          return reject(response);
         });
     });
   };
 };
 
-export const logoutFailure = (error) => {
+export const logoutFailure = (errors) => {
   return {
     type: LOGOUT_FAILURE,
     payload: {
-      error,
+      errors,
     },
   };
 };
@@ -128,12 +133,12 @@ export const logoutSuccess = { type: LOGOUT_SUCCESS };
 export const logoutUser = () => {
   return (dispatch) => {
     dispatch(logoutRequest);
+
     return Kolide.logout()
-      .then(() => {
-        return dispatch(logoutSuccess);
-      })
+      .then(() => dispatch(logoutSuccess))
       .catch((error) => {
-        dispatch(logoutFailure('Unable to log out of your account'));
+        dispatch(logoutFailure({ base: 'Unable to log out of your account' }));
+
         throw error;
       });
   };

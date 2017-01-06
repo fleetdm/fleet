@@ -11,6 +11,15 @@ const email = 'hi@thegnar.co';
 describe('ForgotPasswordForm - component', () => {
   afterEach(restoreSpies);
 
+  it('renders the base error', () => {
+    const baseError = 'Cant find the specified user';
+    const formWithError = mount(<ForgotPasswordForm serverErrors={{ base: baseError }} handleSubmit={noop} />);
+    const formWithoutError = mount(<ForgotPasswordForm handleSubmit={noop} />);
+
+    expect(formWithError.text()).toInclude(baseError);
+    expect(formWithoutError.text()).toNotInclude(baseError);
+  });
+
   it('renders an InputFieldWithIcon components', () => {
     const form = mount(<ForgotPasswordForm handleSubmit={noop} />);
 

@@ -1,4 +1,5 @@
-import Kolide from '../../../../kolide';
+import Kolide from 'kolide';
+import { formatErrorResponse } from 'redux/nodes/entities/base/helpers';
 
 export const CLEAR_FORGOT_PASSWORD_ERRORS = 'CLEAR_FORGOT_PASSWORD_ERRORS';
 export const FORGOT_PASSWORD_REQUEST = 'FORGOT_PASSWORD_REQUEST';
@@ -17,11 +18,11 @@ export const forgotPasswordSuccessAction = (email) => {
     },
   };
 };
-export const forgotPasswordErrorAction = (error) => {
+export const forgotPasswordErrorAction = (errors) => {
   return {
     type: FORGOT_PASSWORD_ERROR,
     payload: {
-      error,
+      errors,
     },
   };
 };
@@ -30,6 +31,7 @@ export const forgotPasswordErrorAction = (error) => {
 export const forgotPasswordAction = (formData) => {
   return (dispatch) => {
     dispatch(forgotPasswordRequestAction);
+
     return Kolide.forgotPassword(formData)
       .then(() => {
         const { email } = formData;
@@ -37,9 +39,9 @@ export const forgotPasswordAction = (formData) => {
         return dispatch(forgotPasswordSuccessAction(email));
       })
       .catch((response) => {
-        const { error } = response;
+        const errorObject = formatErrorResponse(response);
 
-        dispatch(forgotPasswordErrorAction(error));
+        dispatch(forgotPasswordErrorAction(errorObject));
         throw response;
       });
   };

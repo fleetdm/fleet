@@ -13,6 +13,7 @@ const baseClass = 'pack-form';
 
 class PackForm extends Component {
   static propTypes = {
+    baseError: PropTypes.string,
     className: PropTypes.string,
     fields: PropTypes.shape({
       description: formFieldInterface.isRequired,
@@ -26,6 +27,7 @@ class PackForm extends Component {
 
   render () {
     const {
+      baseError,
       className,
       fields,
       handleSubmit,
@@ -38,6 +40,7 @@ class PackForm extends Component {
     return (
       <form className={packFormClass} onSubmit={handleSubmit}>
         <h1>New Pack</h1>
+        {baseError && <div className="form__base-error">{baseError}</div>}
         <InputField
           {...fields.name}
           placeholder="Query Pack Title"

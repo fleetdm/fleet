@@ -23,14 +23,15 @@ describe('QueryPage - component', () => {
       },
     },
     entities: {
+      queries: {},
       targets: {},
     },
   });
 
-  it('renders the QueryComposer component', () => {
+  it('renders the QueryForm component', () => {
     const page = mount(connectedComponent(QueryPage, { mockStore, props: locationProp }));
 
-    expect(page.find('QueryComposer').length).toEqual(1);
+    expect(page.find('QueryForm').length).toEqual(1);
   });
 
   it('renders the QuerySidePanel component', () => {
@@ -42,7 +43,7 @@ describe('QueryPage - component', () => {
   it('calls the onUpdateQuery prop when the query is updated', () => {
     const bearerToken = 'abc123';
     const locationWithQueryProp = { params: { id: 1 } };
-    const query = { id: 1, name: 'My query', description: 'My query description' };
+    const query = { id: 1, name: 'My query', description: 'My query description', query: 'select * from users' };
     const mockStoreWithQuery = reduxMockStore({
       components: {
         QueryPages: {
@@ -74,6 +75,8 @@ describe('QueryPage - component', () => {
       queryText: 'SELECT * FROM users',
     });
     fillInFormInput(nameInput, 'new name');
+
+    form.simulate('submit');
     saveChangesBtn.simulate('click');
 
     expect(mockStoreWithQuery.getActions()).toInclude({

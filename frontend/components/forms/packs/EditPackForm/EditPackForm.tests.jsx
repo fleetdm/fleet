@@ -25,7 +25,7 @@ describe('EditPackForm - component', () => {
   describe('form submission', () => {
     it('submits the forms with the form data', () => {
       const spy = createSpy();
-      const form = mount(<EditPackForm formData={packStub} handleSubmit={spy} onCancel={noop} />);
+      const form = mount(<EditPackForm formData={packStub} handleSubmit={spy} onCancel={noop} />).find('form');
 
       const nameInput = form.find({ name: 'name' }).find('input');
       const descriptionInput = form.find({ name: 'description' }).find('input');
@@ -43,7 +43,7 @@ describe('EditPackForm - component', () => {
 
     it('calls the onCancel prop when "CANCEL" is clicked', () => {
       const spy = createSpy();
-      const form = mount(<EditPackForm formData={packStub} handleSubmit={noop} onCancel={spy} />);
+      const form = mount(<EditPackForm formData={packStub} handleSubmit={noop} onCancel={spy} />).find('form');
       const cancelBtn = form.find('Button').find({ children: 'CANCEL' });
 
       cancelBtn.first().simulate('click');

@@ -20,15 +20,15 @@ describe('ForgotPasswordPage - reducer', () => {
   });
 
   describe('clearForgotPasswordErrors', () => {
-    it('changes the loading state to true', () => {
+    it('resets the errors key to an empty object', () => {
       const errorState = {
         ...initialState,
-        error: 'Something went wrong',
+        errors: { base: 'Something went wrong' },
       };
 
       expect(reducer(errorState, clearForgotPasswordErrors)).toEqual({
         ...errorState,
-        error: null,
+        errors: {},
       });
     });
   });
@@ -56,11 +56,11 @@ describe('ForgotPasswordPage - reducer', () => {
 
   describe('forgotPasswordErrorAction', () => {
     it('changes the loading state to false and sets the error state', () => {
-      const error = 'There was an error with your request';
+      const errors = { base: 'There was an error with your request' };
 
-      expect(reducer(initialState, forgotPasswordErrorAction(error))).toEqual({
+      expect(reducer(initialState, forgotPasswordErrorAction(errors))).toEqual({
         ...initialState,
-        error,
+        errors,
         loading: false,
       });
     });
@@ -89,18 +89,17 @@ describe('ForgotPasswordPage - reducer', () => {
 
     it('dispatches the appropriate actions when unsuccessful', (done) => {
       const formData = { email: 'hi@thegnar.co' };
-      const error = 'Something went wrong';
-      const invalidRequest = invalidForgotPasswordRequest(error);
+      const error = { name: 'base', reason: 'Something went wrong' };
+      const errorResponse = { errors: [error] };
+      const invalidRequest = invalidForgotPasswordRequest(errorResponse);
       const store = mockStore({});
 
       store.dispatch(forgotPasswordAction(formData))
         .then(done)
-        .catch((errorResponse) => {
+        .catch(() => {
           const actions = store.getActions();
-          const { response } = errorResponse;
 
-          expect(response).toEqual({ error });
-          expect(actions).toInclude(forgotPasswordErrorAction(error));
+          expect(actions).toInclude(forgotPasswordErrorAction({ base: 'Something went wrong' }));
           expect(invalidRequest.isDone()).toEqual(true);
           done();
         });

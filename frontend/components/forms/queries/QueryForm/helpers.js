@@ -1,29 +1,27 @@
-import { isEmpty } from 'lodash';
-
-const formChanged = (formData, query) => {
-  return formData.name !== query.name ||
-    formData.description !== query.description ||
-    formData.query !== query.query;
+const formChanged = (fields, query) => {
+  return query.name !== fields.name.value ||
+    query.description !== fields.description.value ||
+    query.query !== fields.query.value;
 };
 
-const canSaveAsNew = (formData, query) => {
-  if (isEmpty(query)) {
+const canSaveAsNew = (fields, query = {}) => {
+  if (!fields.name.value && !fields.description.value) {
     return true;
   }
 
-  if (formData.name !== query.name) {
+  if (fields.name.value !== query.name) {
     return true;
   }
 
   return false;
 };
 
-const canSaveChanges = (formData, query) => {
-  if (isEmpty(query)) {
+const canSaveChanges = (fields, query = {}) => {
+  if (!query.name && !query.description) {
     return false;
   }
 
-  if (formChanged(formData, query)) {
+  if (formChanged(fields, query)) {
     return true;
   }
 

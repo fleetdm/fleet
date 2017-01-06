@@ -10,7 +10,7 @@ describe('ConfirmInvitePage - component', () => {
   const params = { invite_token: inviteToken };
   const component = connectedComponent(ConfirmInvitePage, {
     props: { location, params },
-    mockStore: reduxMockStore({ auth: {} }),
+    mockStore: reduxMockStore({ auth: {}, entities: { users: {} } }),
   });
   const page = mount(component);
 

@@ -65,7 +65,7 @@ describe('QueryPageWrapper - helpers', () => {
             expect(flashMessageAction).toExist();
             expect(flashMessageAction.payload).toInclude({
               alertType: 'error',
-              message: 'resource not found',
+              message: 'Resource not found',
             });
 
             done();

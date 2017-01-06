@@ -35,7 +35,10 @@ class AppSettingsPage extends Component {
     dispatch(updateConfig(formData))
       .then(() => {
         dispatch(renderFlash('success', 'Settings updated!'));
-      });
+
+        return false;
+      })
+      .catch(() => false);
 
     return false;
   }
@@ -60,7 +63,7 @@ class AppSettingsPage extends Component {
         />
         <AppConfigForm
           formData={appConfig}
-          errors={error}
+          serverErrors={error}
           handleSubmit={onFormSubmit}
           smtpConfigured={smtpConfigured}
         />

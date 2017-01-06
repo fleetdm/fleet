@@ -15,13 +15,11 @@ import HostsTable from 'components/hosts/HostsTable';
 import Icon from 'components/icons/Icon';
 import osqueryTableInterface from 'interfaces/osquery_table';
 import paths from 'router/paths';
-import QueryComposer from 'components/queries/QueryComposer';
+import QueryForm from 'components/forms/queries/QueryForm';
 import QuerySidePanel from 'components/side_panels/QuerySidePanel';
-import { renderFlash } from 'redux/nodes/notifications/actions';
 import Rocker from 'components/buttons/Rocker';
 import { selectOsqueryTable } from 'redux/nodes/components/QueryPages/actions';
 import { setDisplay } from 'redux/nodes/components/ManageHostsPage/actions';
-import validateQuery from 'components/forms/validators/validate_query';
 import iconClassForLabel from 'utilities/icon_class_for_label';
 
 const NEW_LABEL_HASH = '#new_label';
@@ -33,6 +31,9 @@ export class ManageHostsPage extends Component {
     display: PropTypes.oneOf(['Grid', 'List']),
     hosts: PropTypes.arrayOf(hostInterface),
     isAddLabel: PropTypes.bool,
+    labelErrors: PropTypes.shape({
+      base: PropTypes.string,
+    }),
     labels: PropTypes.arrayOf(labelInterface),
     selectedLabel: labelInterface,
     selectedOsqueryTable: osqueryTableInterface,
@@ -122,29 +123,13 @@ export class ManageHostsPage extends Component {
 
   onSaveAddLabel = (formData) => {
     const { dispatch } = this.props;
-    const { labelQueryText } = this.state;
-
-    const { error } = validateQuery(labelQueryText);
-
-    if (error) {
-      dispatch(renderFlash('error', error));
-
-      return false;
-    }
 
     return dispatch(labelActions.create(formData))
       .then(() => {
-        this.setState({ labelQueryText: '' });
         dispatch(push('/hosts/manage'));
 
         return false;
       });
-  }
-
-  onTextEditorInputChange = (labelQueryText) => {
-    this.setState({ labelQueryText });
-
-    return false;
   }
 
   onToggleDisplay = (val) => {
@@ -239,23 +224,24 @@ export class ManageHostsPage extends Component {
 
 
   renderForm = () => {
-    const { isAddLabel } = this.props;
-    const { labelQueryText } = this.state;
+    const { isAddLabel, labelErrors } = this.props;
     const {
       onCancelAddLabel,
+      onOsqueryTableSelect,
       onSaveAddLabel,
-      onTextEditorInputChange,
     } = this;
+    const queryStub = { description: '', name: '', query: '' };
 
     if (isAddLabel) {
       return (
-        <QueryComposer
+        <QueryForm
           key="query-composer"
-          onFormCancel={onCancelAddLabel}
-          onSave={onSaveAddLabel}
-          onTextEditorInputChange={onTextEditorInputChange}
+          onCancel={onCancelAddLabel}
+          onOsqueryTableSelect={onOsqueryTableSelect}
+          handleSubmit={onSaveAddLabel}
           queryType="label"
-          queryText={labelQueryText}
+          query={queryStub}
+          serverErrors={labelErrors}
         />
       );
     }
@@ -338,11 +324,13 @@ const mapStateToProps = (state, { location, params }) => {
     { ignoreCase: true },
   );
   const { selectedOsqueryTable } = state.components.QueryPages;
+  const labelErrors = state.entities.labels.errors;
 
   return {
     display,
     hosts,
     isAddLabel,
+    labelErrors,
     labels,
     selectedLabel,
     selectedOsqueryTable,

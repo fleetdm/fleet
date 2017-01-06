@@ -35,9 +35,11 @@ export const getConfig = () => {
         return formattedConfig;
       })
       .catch((error) => {
-        dispatch(configFailure(error));
+        const formattedErrors = formatApiErrors(error);
 
-        return false;
+        dispatch(configFailure(formattedErrors));
+
+        throw error;
       });
   };
 };
@@ -58,7 +60,7 @@ export const updateConfig = (configData) => {
 
         dispatch(configFailure(formattedErrors));
 
-        return false;
+        throw error;
       });
   };
 };

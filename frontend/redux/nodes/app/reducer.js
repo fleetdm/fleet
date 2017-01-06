@@ -8,7 +8,7 @@ import {
 
 export const initialState = {
   config: {},
-  error: null,
+  error: {},
   loading: false,
   showBackgroundImage: false,
 };
@@ -24,7 +24,7 @@ const reducer = (state = initialState, { type, payload }) => {
       return {
         ...state,
         config: payload.data,
-        error: null,
+        error: {},
         loading: false,
       };
     case CONFIG_FAILURE:

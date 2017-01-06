@@ -1,6 +1,6 @@
 import expect from 'expect';
 
-import { entitiesExceptID } from './helpers';
+import { entitiesExceptID, formatErrorResponse } from './helpers';
 
 describe('reduxConfig - helpers', () => {
   describe('#entitiesExceptID', () => {
@@ -22,6 +22,33 @@ describe('reduxConfig - helpers', () => {
 
       expect(entitiesExceptID(entities, id)).toEqual({
         2: { name: 'Dog' },
+      });
+    });
+  });
+
+  describe('#formatErrorResponse', () => {
+    it('converts the error response to an object for redux state', () => {
+      const errors = [
+        { name: 'first_name',
+          reason: 'is not valid',
+        },
+        { name: 'first_name',
+          reason: 'must be something else',
+        },
+        { name: 'last_name',
+          reason: 'must be changed or something',
+        },
+      ];
+      const errorResponse = {
+        message: {
+          message: 'Validation Failed',
+          errors,
+        },
+      };
+
+      expect(formatErrorResponse(errorResponse)).toEqual({
+        first_name: 'is not valid, must be something else',
+        last_name: 'must be changed or something',
       });
     });
   });

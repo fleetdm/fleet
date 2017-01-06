@@ -13,7 +13,7 @@ import {
 
 export const initialState = {
   loading: false,
-  error: null,
+  errors: {},
   user: null,
 };
 
@@ -22,7 +22,7 @@ const reducer = (state = initialState, action) => {
     case CLEAR_AUTH_ERRORS:
       return {
         ...state,
-        error: null,
+        errors: {},
       };
     case LOGIN_REQUEST:
     case LOGOUT_REQUEST:
@@ -41,7 +41,7 @@ const reducer = (state = initialState, action) => {
       return {
         ...state,
         loading: false,
-        error: action.payload.error,
+        errors: action.payload.errors,
       };
     case UPDATE_USER_SUCCESS:
       return {
@@ -53,7 +53,7 @@ const reducer = (state = initialState, action) => {
       return {
         ...state,
         loading: false,
-        error: action.payload.error,
+        errors: action.payload.errors,
       };
     case LOGOUT_SUCCESS:
       return {
@@ -65,7 +65,7 @@ const reducer = (state = initialState, action) => {
       return {
         ...state,
         loading: false,
-        error: action.payload.error,
+        errors: action.payload.errors,
       };
     default:
       return state;

@@ -1,6 +1,7 @@
 import React from 'react';
 import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
+import { noop } from 'lodash';
 
 import ConfirmInviteForm from 'components/forms/ConfirmInviteForm';
 import { fillInFormInput } from 'test/helpers';
@@ -21,6 +22,15 @@ describe('ConfirmInviteForm - component', () => {
 
   it('renders', () => {
     expect(form.length).toEqual(1);
+  });
+
+  it('renders the base error', () => {
+    const baseError = 'Unable to authenticate the current user';
+    const formWithError = mount(<ConfirmInviteForm serverErrors={{ base: baseError }} handleSubmit={noop} />);
+    const formWithoutError = mount(<ConfirmInviteForm handleSubmit={noop} />);
+
+    expect(formWithError.text()).toInclude(baseError);
+    expect(formWithoutError.text()).toNotInclude(baseError);
   });
 
   it('calls the handleSubmit prop with the invite_token when valid', () => {

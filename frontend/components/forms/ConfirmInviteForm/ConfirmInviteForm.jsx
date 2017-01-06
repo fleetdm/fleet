@@ -11,6 +11,7 @@ const { validate } = helpers;
 
 class ConfirmInviteForm extends Component {
   static propTypes = {
+    baseError: PropTypes.string,
     className: PropTypes.string,
     fields: PropTypes.shape({
       name: formFieldInterface.isRequired,
@@ -22,10 +23,11 @@ class ConfirmInviteForm extends Component {
   };
 
   render () {
-    const { className, fields, handleSubmit } = this.props;
+    const { baseError, className, fields, handleSubmit } = this.props;
 
     return (
       <form className={className}>
+        {baseError && <div className="form__base-error">{baseError}</div>}
         <div className="fields">
           <InputFieldWithIcon
             {...fields.name}
