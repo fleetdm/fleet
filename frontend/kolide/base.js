@@ -80,7 +80,7 @@ class Base {
     return this._authenticatedRequest(PATCH, endpoint, body, overrideHeaders);
   }
 
-  authenticatedPost (endpoint, body = {}, overrideHeaders = {}) {
+  authenticatedPost (endpoint, body = JSON.stringify({}), overrideHeaders = {}) {
     const { POST } = REQUEST_METHODS;
 
     return this._authenticatedRequest(POST, endpoint, body, overrideHeaders);
