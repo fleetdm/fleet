@@ -15,7 +15,7 @@ import UserSettingsForm from 'components/forms/UserSettingsForm';
 
 const baseClass = 'user-settings';
 
-class UserSettingsPage extends Component {
+export class UserSettingsPage extends Component {
   static propTypes = {
     dispatch: PropTypes.func.isRequired,
     errors: PropTypes.shape({
@@ -116,7 +116,8 @@ class UserSettingsPage extends Component {
       return false;
     }
 
-    const { updated_at: updatedAt } = user;
+    const { admin, updated_at: updatedAt } = user;
+    const roleText = admin ? 'ADMIN' : 'USER';
     const lastUpdatedAt = moment(updatedAt).fromNow();
 
     return (
@@ -140,7 +141,7 @@ class UserSettingsPage extends Component {
 
           <div className={`${baseClass}__more-info-detail`}>
             <Icon name="username" />
-            <strong>Role</strong> - USER
+            <strong>Role</strong> - {roleText}
           </div>
           <div className={`${baseClass}__more-info-detail`}>
             <Icon name="lock-big" />
