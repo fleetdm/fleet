@@ -18,7 +18,6 @@
     border: solid 1px $accent-dark;
     border-radius: 3px;
     box-shadow: inset 0 0 8px 0 rgba(0, 0, 0, 0.12);
-    max-height: 550px;
     overflow: scroll;
   }
 
@@ -27,6 +26,7 @@
     color: $text-medium;
     font-size: $small;
     width: 100%;
+    table-layout: fixed;
   }
 
   thead {
@@ -36,14 +36,30 @@
 
     th {
       padding: $pad-small $pad-xsmall;
+      width: 125px;
+    }
+
+    .input-field {
+      width: 100%;
     }
   }
 
   tbody {
     background-color: $white;
+    height: 550px;
+    min-width: 100%;
+    overflow: auto;
+    display: inline-block;
 
     td {
       padding: $pad-xsmall;
+      min-width: 125px;
+    }
+
+    tr {
+      &:nth-child(even) {
+        background-color: $bg-light;
+      }
     }
   }
 }

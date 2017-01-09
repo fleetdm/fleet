@@ -1,0 +1,7 @@
+.query-page {
+  &__content {
+    @include display(flex);
+    @include flex-direction(column);
+    margin-bottom: $pad-base;
+  }
+}

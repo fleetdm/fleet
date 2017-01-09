@@ -267,7 +267,7 @@ class QueryForm extends Component {
     const { onLoad, renderPlatformDropdown, renderButtons, renderTargetsInput } = this;
 
     return (
-      <form className={`${baseClass}__wrapper body-wrap`} onSubmit={handleSubmit}>
+      <form className={`${baseClass}__wrapper`} onSubmit={handleSubmit}>
         <h1>{queryType === 'label' ? 'New Label Query' : 'New Query'}</h1>
         <KolideAce
           {...fields.query}

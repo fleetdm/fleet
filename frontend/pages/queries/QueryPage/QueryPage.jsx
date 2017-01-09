@@ -20,6 +20,8 @@ import { selectOsqueryTable, setSelectedTargets, setSelectedTargetsQuery } from 
 import targetInterface from 'interfaces/target';
 import validateQuery from 'components/forms/validators/validate_query';
 
+const baseClass = 'query-page';
+
 class QueryPage extends Component {
   static propTypes = {
     campaign: campaignInterface,
@@ -218,23 +220,27 @@ class QueryPage extends Component {
     } = this.props;
 
     return (
-      <div className="has-sidebar">
-        <QueryForm
-          formData={query}
-          handleSubmit={onSaveQueryFormSubmit}
-          onFetchTargets={onFetchTargets}
-          onOsqueryTableSelect={onOsqueryTableSelect}
-          onRunQuery={onRunQuery}
-          onStopQuery={onStopQuery}
-          onTargetSelect={onTargetSelect}
-          onUpdate={onUpdateQuery}
-          queryIsRunning={queryIsRunning}
-          selectedTargets={selectedTargets}
-          serverErrors={errors}
-          targetsCount={targetsCount}
-          selectedOsqueryTable={selectedOsqueryTable}
-        />
-        {campaign && <QueryResultsTable campaign={campaign} />}
+      <div className={`${baseClass} has-sidebar`}>
+        <div className={`${baseClass}__content`}>
+          <div className={`${baseClass}__form body-wrap`}>
+            <QueryForm
+              formData={query}
+              handleSubmit={onSaveQueryFormSubmit}
+              onFetchTargets={onFetchTargets}
+              onOsqueryTableSelect={onOsqueryTableSelect}
+              onRunQuery={onRunQuery}
+              onStopQuery={onStopQuery}
+              onTargetSelect={onTargetSelect}
+              onUpdate={onUpdateQuery}
+              queryIsRunning={queryIsRunning}
+              selectedTargets={selectedTargets}
+              serverErrors={errors}
+              targetsCount={targetsCount}
+              selectedOsqueryTable={selectedOsqueryTable}
+            />
+          </div>
+          {campaign && <div className={`${baseClass}__results body-wrap`}><QueryResultsTable campaign={campaign} /></div>}
+        </div>
         <QuerySidePanel
           onOsqueryTableSelect={onOsqueryTableSelect}
           onTextEditorInputChange={onTextEditorInputChange}
