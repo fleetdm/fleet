@@ -53,10 +53,10 @@ type LabelPayload struct {
 type LabelType uint
 
 const (
-	// LabelTypeDefault - the label can change, this is the default
-	LabelTypeDefault LabelType = iota
-	// LabelTypeBuiltIn - this type of label is created by Kolide on start up
-	// and can't be removed by end user.
+	// LabelTypeRegular is for user created labels that can be modified.
+	LabelTypeRegular LabelType = iota
+	// LabelTypeBuiltIn is for labels built into Kolide that cannot be
+	// modified by users.
 	LabelTypeBuiltIn
 )
 
