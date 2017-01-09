@@ -28,6 +28,7 @@ class ChangePasswordForm extends Component {
           {...fields.password}
           autofocus
           label="Original Password"
+          type="password"
         />
         <InputField
           {...fields.new_password}

@@ -114,6 +114,7 @@ class AppConfigForm extends Component {
         <InputField
           {...fields.password}
           label="SMTP Password"
+          type="password"
         />
         <Dropdown
           {...fields.authentication_method}

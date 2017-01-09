@@ -19,6 +19,17 @@ describe('ChangePasswordForm - component', () => {
     itBehavesLikeAFormInputElement(form, 'new_password_confirmation');
   });
 
+  it('renders the password fields as HTML password fields', () => {
+    const form = mount(<ChangePasswordForm handleSubmit={noop} onCancel={noop} />);
+    const passwordField = form.find({ name: 'password' });
+    const newPasswordField = form.find({ name: 'new_password' });
+    const newPasswordConfirmationField = form.find({ name: 'new_password_confirmation' });
+
+    expect(passwordField.prop('type')).toEqual('password');
+    expect(newPasswordField.prop('type')).toEqual('password');
+    expect(newPasswordConfirmationField.prop('type')).toEqual('password');
+  });
+
   it('calls the handleSubmit props with form data', () => {
     const handleSubmitSpy = createSpy();
     const form = mount(<ChangePasswordForm handleSubmit={handleSubmitSpy} onCancel={noop} />).find('form');

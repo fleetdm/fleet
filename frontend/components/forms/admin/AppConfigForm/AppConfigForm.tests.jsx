@@ -58,6 +58,12 @@ describe('AppConfigForm - form', () => {
   });
 
   describe('SMTP user password input', () => {
+    it('renders an HTML password input', () => {
+      const passwordField = form.find({ name: 'password' });
+
+      expect(passwordField.prop('type')).toEqual('password');
+    });
+
     it('renders an input field', () => {
       itBehavesLikeAFormInputElement(form, 'password');
     });
