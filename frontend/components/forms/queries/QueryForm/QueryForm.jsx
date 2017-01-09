@@ -95,6 +95,16 @@ class QueryForm extends Component {
     });
   }
 
+  onRunQuery = (queryText) => {
+    return (evt) => {
+      evt.preventDefault();
+
+      const { onRunQuery: handleRunQuery } = this.props;
+
+      return handleRunQuery(queryText);
+    };
+  }
+
   onUpdate = (evt) => {
     evt.preventDefault();
 
@@ -130,12 +140,11 @@ class QueryForm extends Component {
       fields,
       formData,
       handleSubmit,
-      onRunQuery,
       onStopQuery,
       queryIsRunning,
       queryType,
     } = this.props;
-    const { onCancel, onUpdate } = this;
+    const { onCancel, onRunQuery, onUpdate } = this;
 
     const dropdownBtnOptions = [{
       disabled: !canSaveChanges(fields, formData),
@@ -163,7 +172,7 @@ class QueryForm extends Component {
       runQueryButton = (
         <Button
           className={`${baseClass}__run-query-btn`}
-          onClick={onRunQuery}
+          onClick={onRunQuery(fields.query.value)}
           variant="brand"
         >
           Run Query

@@ -174,13 +174,13 @@ describe('QueryForm - component', () => {
     });
   });
 
-  it('calls the onRunQuery prop when "Run Query" is clicked and the form is valid', () => {
+  it('calls the onRunQuery prop with the query text when "Run Query" is clicked and the form is valid', () => {
     const onRunQuerySpy = createSpy();
     const form = mount(<QueryForm formData={{ ...query, query: queryText }} onRunQuery={onRunQuerySpy} />);
     const runQueryBtn = form.find('.query-form__run-query-btn');
 
     runQueryBtn.simulate('click');
 
-    expect(onRunQuerySpy).toHaveBeenCalled();
+    expect(onRunQuerySpy).toHaveBeenCalledWith(query.query);
   });
 });

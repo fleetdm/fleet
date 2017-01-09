@@ -70,11 +70,9 @@ class QueryPage extends Component {
     return false;
   }
 
-  onRunQuery = debounce((evt) => {
-    evt.preventDefault();
-
-    const { dispatch, query, selectedTargets } = this.props;
-    const { error } = validateQuery(query.query);
+  onRunQuery = debounce((queryText) => {
+    const { dispatch, selectedTargets } = this.props;
+    const { error } = validateQuery(queryText);
 
     if (error) {
       dispatch(renderFlash('error', error));
@@ -89,7 +87,7 @@ class QueryPage extends Component {
     removeSocket();
     destroyCampaign();
 
-    dispatch(create({ query: query.query, selected }))
+    dispatch(create({ query: queryText, selected }))
       .then((campaignResponse) => {
         return Kolide.runQueryWebsocket(campaignResponse.id)
           .then((socket) => {
