@@ -3,28 +3,32 @@
 package token
 
 import (
-	"golang.org/x/net/context"
 	"net/http"
 	"strings"
+
+	"golang.org/x/net/context"
 )
 
 type key int
 
 const tokenKey key = 0
 
+// Token is the concrete type which represents kolide session tokens
+type Token string
+
 // FromHTTPRequest extracts an Authorization
 // from an HTTP header if present.
-func FromHTTPRequest(r *http.Request) string {
+func FromHTTPRequest(r *http.Request) Token {
 	headers := r.Header.Get("Authorization")
 	headerParts := strings.Split(headers, " ")
 	if len(headerParts) != 2 || strings.ToUpper(headerParts[0]) != "BEARER" {
 		return ""
 	}
-	return headerParts[1]
+	return Token(headerParts[1])
 }
 
 // NewContext returns a new context carrying the Authorization Bearer token.
-func NewContext(ctx context.Context, token string) context.Context {
+func NewContext(ctx context.Context, token Token) context.Context {
 	if token == "" {
 		return ctx
 	}
@@ -32,7 +36,7 @@ func NewContext(ctx context.Context, token string) context.Context {
 }
 
 // FromContext extracts the Authorization Bearer token if present.
-func FromContext(ctx context.Context) (string, bool) {
-	token, ok := ctx.Value(tokenKey).(string)
+func FromContext(ctx context.Context) (Token, bool) {
+	token, ok := ctx.Value(tokenKey).(Token)
 	return token, ok
 }

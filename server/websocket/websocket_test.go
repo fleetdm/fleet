@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/kolide/kolide-ose/server/contexts/token"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -238,7 +239,7 @@ func TestReadAuthToken(t *testing.T) {
 	var cases = []struct {
 		typ   string
 		data  authData
-		token string
+		token token.Token
 		err   error
 	}{
 		{

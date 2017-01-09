@@ -25,9 +25,14 @@ func TestAuthenticatedUser(t *testing.T) {
 	assert.Nil(t, err)
 	admin1, err := ds.User("admin1")
 	assert.Nil(t, err)
+	admin1Session, err := ds.NewSession(&kolide.Session{
+		UserID: admin1.ID,
+		Key:    "admin1",
+	})
+	assert.Nil(t, err)
 
 	ctx := context.Background()
-	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin1})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin1, Session: admin1Session})
 	user, err := svc.AuthenticatedUser(ctx)
 	assert.Nil(t, err)
 	assert.Equal(t, user, admin1)

@@ -18,11 +18,34 @@ import (
 // permissions to access or modify resources
 func TestEndpointPermissions(t *testing.T) {
 	req := struct{}{}
-	ds, _ := inmem.New(config.TestConfig())
+	ds, err := inmem.New(config.TestConfig())
+	assert.Nil(t, err)
+
 	createTestUsers(t, ds)
-	admin1, _ := ds.User("admin1")
-	user1, _ := ds.User("user1")
-	user2, _ := ds.User("user2")
+
+	admin1, err := ds.User("admin1")
+	assert.Nil(t, err)
+	admin1Session, err := ds.NewSession(&kolide.Session{
+		UserID: admin1.ID,
+		Key:    "admin1",
+	})
+	assert.Nil(t, err)
+
+	user1, err := ds.User("user1")
+	assert.Nil(t, err)
+	user1Session, err := ds.NewSession(&kolide.Session{
+		UserID: user1.ID,
+		Key:    "user1",
+	})
+	assert.Nil(t, err)
+
+	user2, err := ds.User("user2")
+	assert.Nil(t, err)
+	user2Session, err := ds.NewSession(&kolide.Session{
+		UserID: user2.ID,
+		Key:    "user2",
+	})
+	assert.Nil(t, err)
 	user2.Enabled = false
 
 	e := endpoint.Nop // a test endpoint
@@ -51,36 +74,36 @@ func TestEndpointPermissions(t *testing.T) {
 		},
 		{
 			endpoint: mustBeAdmin(e),
-			vc:       &viewer.Viewer{User: admin1},
+			vc:       &viewer.Viewer{User: admin1, Session: admin1Session},
 		},
 		{
 			endpoint: mustBeAdmin(e),
-			vc:       &viewer.Viewer{User: user1},
+			vc:       &viewer.Viewer{User: user1, Session: user1Session},
 			wantErr:  permissionError{message: "must be an admin"},
 		},
 		{
 			endpoint: canModifyUser(e),
-			vc:       &viewer.Viewer{User: admin1},
+			vc:       &viewer.Viewer{User: admin1, Session: admin1Session},
 		},
 		{
 			endpoint: canModifyUser(e),
-			vc:       &viewer.Viewer{User: user1},
+			vc:       &viewer.Viewer{User: user1, Session: user1Session},
 			wantErr:  permissionError{message: "no write permissions on user"},
 		},
 		{
 			endpoint:  canModifyUser(e),
-			vc:        &viewer.Viewer{User: user1},
+			vc:        &viewer.Viewer{User: user1, Session: user1Session},
 			requestID: admin1.ID,
 			wantErr:   permissionError{message: "no write permissions on user"},
 		},
 		{
 			endpoint:  canReadUser(e),
-			vc:        &viewer.Viewer{User: user1},
+			vc:        &viewer.Viewer{User: user1, Session: user1Session},
 			requestID: admin1.ID,
 		},
 		{
 			endpoint:  canReadUser(e),
-			vc:        &viewer.Viewer{User: user2},
+			vc:        &viewer.Viewer{User: user2, Session: user2Session},
 			requestID: admin1.ID,
 			wantErr:   permissionError{message: "no read permissions on user"},
 		},

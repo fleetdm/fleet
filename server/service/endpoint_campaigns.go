@@ -63,7 +63,7 @@ func makeStreamDistributedQueryCampaignResultsHandler(svc kolide.Service, jwtKey
 		}
 
 		// Authenticate with the token
-		vc, err := authViewer(context.Background(), jwtKey, string(token), svc)
+		vc, err := authViewer(context.Background(), jwtKey, token, svc)
 		if err != nil || !vc.CanPerformActions() {
 			logger.Log("err", err, "msg", "unauthorized viewer")
 			conn.WriteJSONError("unauthorized")

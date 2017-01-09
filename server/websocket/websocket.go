@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/kolide/kolide-ose/server/contexts/token"
 	"github.com/pkg/errors"
 )
 
@@ -112,13 +113,13 @@ func (c *Conn) ReadJSONMessage() (*JSONMessage, error) {
 // authData defines the data used to authenticate a Kolide frontend client over
 // a websocket connection.
 type authData struct {
-	Token string `json:"token"`
+	Token token.Token `json:"token"`
 }
 
 // ReadAuthToken reads from the websocket, returning an auth token embedded in
 // a JSONMessage with type "auth" and data that can be unmarshalled to
 // authData.
-func (c *Conn) ReadAuthToken() (string, error) {
+func (c *Conn) ReadAuthToken() (token.Token, error) {
 	msg, err := c.ReadJSONMessage()
 	if err != nil {
 		return "", errors.Wrap(err, "read auth token")
