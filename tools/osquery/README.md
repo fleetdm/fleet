@@ -44,11 +44,11 @@ docker-compose rm
 If you want to only start one instance of `osqueryd`, use:
 
 ```
-docker-compose run ubuntu14-osqueryd
+docker-compose run ubuntu14-osquery
 ```
 or
 ```
-docker-compose run centos7-osqueryd
+docker-compose run centos7-osquery
 ```
 
 Note that `docker-compose run` does not save state between calls.
