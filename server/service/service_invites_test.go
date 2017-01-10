@@ -1,80 +1,127 @@
 package service
 
 import (
-	"errors"
 	"testing"
-
-	"golang.org/x/net/context"
+	"time"
 
 	"github.com/WatchBeam/clock"
 	"github.com/kolide/kolide-ose/server/config"
-	"github.com/kolide/kolide-ose/server/datastore/inmem"
 	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide-ose/server/mock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/net/context"
 )
 
-func TestInviteNewUser(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	createTestUsers(t, ds)
-	createTestAppConfig(t, ds)
-	assert.Nil(t, err)
-	nosuchAdminID := uint(999)
-	adminID := uint(1)
+func TestInviteNewUserMock(t *testing.T) {
+	svc, mockStore, mailer := setupInviteTest(t)
+	ctx := context.Background()
+
+	payload := kolide.InvitePayload{
+		Email:     stringPtr("user@acme.co"),
+		InvitedBy: &adminUser.ID,
+		Admin:     boolPtr(false),
+	}
+
+	// happy path
+	invite, err := svc.InviteNewUser(ctx, payload)
+	require.Nil(t, err)
+	assert.Equal(t, invite.ID, validInvite.ID)
+	assert.True(t, mockStore.NewInviteFuncInvoked)
+	assert.True(t, mockStore.AppConfigFuncInvoked)
+	assert.True(t, mailer.Invoked)
+
+	mockStore.UserByEmailFunc = mock.UserByEmailWithUser(new(kolide.User))
+	_, err = svc.InviteNewUser(ctx, payload)
+	require.NotNil(t, err, "should err if the user we're inviting already exists")
+}
+
+func TestVerifyInvite(t *testing.T) {
+	ms := new(mock.Store)
+	svc := service{
+		ds:     ms,
+		config: config.TestConfig(),
+		clock:  clock.NewMockClock(),
+	}
+	ctx := context.Background()
+
+	ms.InviteByTokenFunc = mock.ReturnFakeInviteByToken(expiredInvite)
+	wantErr := &invalidArgumentError{{name: "invite_token", reason: "Invite token has expired."}}
+	_, err := svc.VerifyInvite(ctx, expiredInvite.Token)
+	assert.Equal(t, err, wantErr)
+
+	wantErr = &invalidArgumentError{{name: "invite_token",
+		reason: "Invite Token does not match Email Address."}}
+
+	_, err = svc.VerifyInvite(ctx, "bad_token")
+	assert.Equal(t, err, wantErr)
+}
+
+func TestDeleteInvite(t *testing.T) {
+	ms := new(mock.Store)
+	svc := service{ds: ms}
+
+	ms.DeleteInviteFunc = func(uint) error { return nil }
+	err := svc.DeleteInvite(context.Background(), 1)
+	require.Nil(t, err)
+	assert.True(t, ms.DeleteInviteFuncInvoked)
+}
+
+func TestListInvites(t *testing.T) {
+	ms := new(mock.Store)
+	svc := service{ds: ms}
+
+	ms.ListInvitesFunc = func(kolide.ListOptions) ([]*kolide.Invite, error) {
+		return nil, nil
+	}
+	_, err := svc.ListInvites(context.Background(), kolide.ListOptions{})
+	require.Nil(t, err)
+	assert.True(t, ms.ListInvitesFuncInvoked)
+}
+
+func setupInviteTest(t *testing.T) (kolide.Service, *mock.Store, *mockMailService) {
+	ms := new(mock.Store)
+	ms.UserByEmailFunc = mock.UserWithEmailNotFound()
+	ms.UserByIDFunc = mock.UserWithID(adminUser)
+	ms.NewInviteFunc = mock.ReturnNewInivite(validInvite)
+	ms.AppConfigFunc = mock.ReturnFakeAppConfig(&kolide.AppConfig{
+		KolideServerURL: "https://acme.co",
+	})
 	mailer := &mockMailService{SendEmailFn: func(e kolide.Email) error { return nil }}
+
 	svc := validationMiddleware{service{
-		ds:          ds,
+		ds:          ms,
 		config:      config.TestConfig(),
 		mailService: mailer,
 		clock:       clock.NewMockClock(),
 	}}
+	return svc, ms, mailer
+}
 
-	var inviteTests = []struct {
-		payload kolide.InvitePayload
-		wantErr error
-	}{
-		{
-			wantErr: &invalidArgumentError{
-				{name: "email", reason: "missing required argument"},
-				{name: "invited_by", reason: "missing required argument"},
-				{name: "admin", reason: "missing required argument"},
-			},
-		},
-		{
-			payload: kolide.InvitePayload{
-				Email:     stringPtr("nosuchuser@example.com"),
-				InvitedBy: &nosuchAdminID,
-				Admin:     boolPtr(false),
-			},
-			wantErr: errors.New("User 999 was not found in the datastore"),
-		},
-		{
-			payload: kolide.InvitePayload{
-				Email:     stringPtr("admin1@example.com"),
-				InvitedBy: &adminID,
-				Admin:     boolPtr(false),
-			},
-			wantErr: &invalidArgumentError{
-				{name: "email", reason: "a user with this account already exists"}},
-		},
-		{
-			payload: kolide.InvitePayload{
-				Email:     stringPtr("nosuchuser@example.com"),
-				InvitedBy: &adminID,
-				Admin:     boolPtr(false),
-			},
-		},
-	}
+var adminUser = &kolide.User{
+	ID:       1,
+	Email:    "admin@acme.co",
+	Username: "admin",
+	Name:     "Administrator",
+}
 
-	for _, tt := range inviteTests {
-		t.Run("", func(t *testing.T) {
-			invite, err := svc.InviteNewUser(context.Background(), tt.payload)
-			if tt.wantErr != nil {
-				assert.Equal(t, tt.wantErr.Error(), err.Error())
-				return
-			} else {
-				assert.Nil(t, err)
-			}
-			assert.Equal(t, *tt.payload.InvitedBy, invite.InvitedBy)
-		})
-	}
+var existingUser = &kolide.User{
+	ID:       2,
+	Email:    "user@acme.co",
+	Username: "user",
+}
+
+var validInvite = &kolide.Invite{
+	ID:    1,
+	Token: "abcd",
+}
+
+var expiredInvite = &kolide.Invite{
+	ID:    1,
+	Token: "abcd",
+	UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+		CreateTimestamp: kolide.CreateTimestamp{
+			CreatedAt: time.Now().AddDate(-1, 0, 0),
+		},
+	},
 }
