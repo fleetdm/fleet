@@ -54,7 +54,7 @@ func TestDatabaseError(t *testing.T) {
 	expect := &KolideError{
 		Err:            err,
 		StatusCode:     http.StatusInternalServerError,
-		PublicMessage:  "Database error",
+		PublicMessage:  "Database error: " + err.Error(),
 		PrivateMessage: "Foo error",
 	}
 	assert.Equal(t, expect, kolideErr)
