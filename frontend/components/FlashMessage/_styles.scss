@@ -12,13 +12,17 @@
   @include display(flex);
   @include align-items(center);
   @include justify-content(center);
-  @include position(absolute, 0 0 null 0);
+  @include position(fixed, 0 0 null $nav-width);
   color: $white;
   padding: $pad-half;
   z-index: 2;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
   background-color: #3d4758;
   min-width: $min-width;
+
+  @include breakpoint(smalldesk) {
+    left: $nav-tablet-width;
+  }
 
   &--full-width {
     left: 0;
