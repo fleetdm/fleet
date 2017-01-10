@@ -233,15 +233,17 @@ export class ManageHostsPage extends Component {
 
     if (isAddLabel) {
       return (
-        <QueryForm
-          key="query-composer"
-          onCancel={onCancelAddLabel}
-          onOsqueryTableSelect={onOsqueryTableSelect}
-          handleSubmit={onSaveAddLabel}
-          queryType="label"
-          query={queryStub}
-          serverErrors={labelErrors}
-        />
+        <div className="body-wrap">
+          <QueryForm
+            key="query-composer"
+            onCancel={onCancelAddLabel}
+            onOsqueryTableSelect={onOsqueryTableSelect}
+            handleSubmit={onSaveAddLabel}
+            queryType="label"
+            query={queryStub}
+            serverErrors={labelErrors}
+          />
+        </div>
       );
     }
 

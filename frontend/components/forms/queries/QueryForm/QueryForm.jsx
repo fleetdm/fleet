@@ -184,14 +184,14 @@ class QueryForm extends Component {
       return (
         <div className={`${baseClass}__button-wrap`}>
           <Button
-            className={`${baseClass}__save-changes-btn`}
+            className={`${baseClass}__cancel-btn`}
             onClick={onCancel}
             variant="inverse"
           >
             Cancel
           </Button>
           <Button
-            className={`${baseClass}__save-as-new-btn`}
+            className={`${baseClass}__save-btn`}
             disabled={!canSaveAsNew(fields, formData)}
             type="submit"
             variant="brand"
@@ -227,10 +227,13 @@ class QueryForm extends Component {
     const { platformOptions } = helpers;
 
     return (
-      <Dropdown
-        {...fields.platform}
-        options={platformOptions}
-      />
+      <div className="form-field form-field--dropdown">
+        <label className="form-field__label" htmlFor="platform">Platform</label>
+        <Dropdown
+          {...fields.platform}
+          options={platformOptions}
+        />
+      </div>
     );
   }
 
