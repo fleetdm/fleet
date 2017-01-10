@@ -95,8 +95,6 @@ func TestRequestPasswordReset(t *testing.T) {
 
 	for _, tt := range requestPasswordResetTests {
 		t.Run("", func(t *testing.T) {
-			t.Parallel()
-			tt := tt
 			ctx := context.Background()
 			if tt.vc != nil {
 				ctx = viewer.NewContext(ctx, *tt.vc)
@@ -105,16 +103,11 @@ func TestRequestPasswordReset(t *testing.T) {
 			svc.mailService = mailer
 			serviceErr := svc.RequestPasswordReset(ctx, tt.email)
 			assert.Equal(t, tt.wantErr, serviceErr)
-			if tt.vc != nil && tt.vc.IsAdmin() {
-				assert.False(t, mailer.Invoked, "email should not be sent if reset requested by admin")
-				assert.True(t, tt.user.AdminForcedPasswordReset, "AdminForcedPasswordReset should be true if reset requested by admin")
-			} else {
-				assert.True(t, mailer.Invoked, "email should be sent if vc is not admin")
-				if serviceErr == nil {
-					req, err := ds.FindPassswordResetsByUserID(tt.user.ID)
-					assert.Nil(t, err)
-					assert.NotEmpty(t, req, "user should have at least one password reset request")
-				}
+			assert.True(t, mailer.Invoked, "email should be sent if vc is not admin")
+			if serviceErr == nil {
+				req, err := ds.FindPassswordResetsByUserID(tt.user.ID)
+				assert.Nil(t, err)
+				assert.NotEmpty(t, req, "user should have at least one password reset request")
 			}
 		})
 	}
