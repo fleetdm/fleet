@@ -9,6 +9,9 @@ import {
   LOGOUT_FAILURE,
   LOGOUT_REQUEST,
   LOGOUT_SUCCESS,
+  PERFORM_REQUIRED_PASSWORD_RESET_REQUEST,
+  PERFORM_REQUIRED_PASSWORD_RESET_SUCCESS,
+  PERFORM_REQUIRED_PASSWORD_RESET_FAILURE,
 } from './actions';
 
 export const initialState = {
@@ -62,6 +65,25 @@ const reducer = (state = initialState, action) => {
         user: null,
       };
     case LOGOUT_FAILURE:
+      return {
+        ...state,
+        loading: false,
+        errors: action.payload.errors,
+      };
+    case PERFORM_REQUIRED_PASSWORD_RESET_REQUEST:
+      return {
+        ...state,
+        errors: {},
+        loading: true,
+      };
+    case PERFORM_REQUIRED_PASSWORD_RESET_SUCCESS:
+      return {
+        ...state,
+        errors: {},
+        loading: false,
+        user: action.payload.user,
+      };
+    case PERFORM_REQUIRED_PASSWORD_RESET_FAILURE:
       return {
         ...state,
         loading: false,

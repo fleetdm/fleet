@@ -4,6 +4,7 @@ import { formatErrorResponse } from 'redux/nodes/entities/base/helpers';
 
 import config from './config';
 
+// Actions for admin to require password reset for a user
 export const REQUIRE_PASSWORD_RESET_REQUEST = 'REQUIRE_PASSWORD_RESET_REQUEST';
 export const REQUIRE_PASSWORD_RESET_SUCCESS = 'REQUIRE_PASSWORD_RESET_SUCCESS';
 export const REQUIRE_PASSWORD_RESET_FAILURE = 'REQUIRE_PASSWORD_RESET_FAILURE';

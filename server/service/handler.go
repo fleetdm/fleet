@@ -25,6 +25,7 @@ type KolideEndpoints struct {
 	ListUsers                      endpoint.Endpoint
 	ModifyUser                     endpoint.Endpoint
 	RequirePasswordReset           endpoint.Endpoint
+	PerformRequiredPasswordReset   endpoint.Endpoint
 	GetSessionsForUserInfo         endpoint.Endpoint
 	DeleteSessionsForUser          endpoint.Endpoint
 	GetSessionInfo                 endpoint.Endpoint
@@ -87,12 +88,15 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		// stricter/different checks and should NOT also use
 		// canPerformActions (these other checks should also call
 		// canPerformActions if that is appropriate).
-		Me:                             authenticatedUser(jwtKey, svc, canPerformActions(makeGetSessionUserEndpoint(svc))),
-		ChangePassword:                 authenticatedUser(jwtKey, svc, canPerformActions(makeChangePasswordEndpoint(svc))),
-		GetUser:                        authenticatedUser(jwtKey, svc, canReadUser(makeGetUserEndpoint(svc))),
-		ListUsers:                      authenticatedUser(jwtKey, svc, canPerformActions(makeListUsersEndpoint(svc))),
-		ModifyUser:                     authenticatedUser(jwtKey, svc, validateModifyUserRequest(makeModifyUserEndpoint(svc))),
-		RequirePasswordReset:           authenticatedUser(jwtKey, svc, mustBeAdmin(makeRequirePasswordResetEndpoint(svc))),
+		Me:                   authenticatedUser(jwtKey, svc, canPerformActions(makeGetSessionUserEndpoint(svc))),
+		ChangePassword:       authenticatedUser(jwtKey, svc, canPerformActions(makeChangePasswordEndpoint(svc))),
+		GetUser:              authenticatedUser(jwtKey, svc, canReadUser(makeGetUserEndpoint(svc))),
+		ListUsers:            authenticatedUser(jwtKey, svc, canPerformActions(makeListUsersEndpoint(svc))),
+		ModifyUser:           authenticatedUser(jwtKey, svc, validateModifyUserRequest(makeModifyUserEndpoint(svc))),
+		RequirePasswordReset: authenticatedUser(jwtKey, svc, mustBeAdmin(makeRequirePasswordResetEndpoint(svc))),
+		// PerformRequiredPasswordReset needs only to authenticate the
+		// logged in user
+		PerformRequiredPasswordReset:   authenticatedUser(jwtKey, svc, makePerformRequiredPasswordResetEndpoint(svc)),
 		GetSessionsForUserInfo:         authenticatedUser(jwtKey, svc, canReadUser(makeGetInfoAboutSessionsForUserEndpoint(svc))),
 		DeleteSessionsForUser:          authenticatedUser(jwtKey, svc, canModifyUser(makeDeleteSessionsForUserEndpoint(svc))),
 		GetSessionInfo:                 authenticatedUser(jwtKey, svc, mustBeAdmin(makeGetInfoAboutSessionEndpoint(svc))),
@@ -152,6 +156,7 @@ type kolideHandlers struct {
 	ListUsers                      http.Handler
 	ModifyUser                     http.Handler
 	RequirePasswordReset           http.Handler
+	PerformRequiredPasswordReset   http.Handler
 	GetSessionsForUserInfo         http.Handler
 	DeleteSessionsForUser          http.Handler
 	GetSessionInfo                 http.Handler
@@ -213,6 +218,7 @@ func makeKolideKitHandlers(ctx context.Context, e KolideEndpoints, opts []kithtt
 		ListUsers:                      newServer(e.ListUsers, decodeListUsersRequest),
 		ModifyUser:                     newServer(e.ModifyUser, decodeModifyUserRequest),
 		RequirePasswordReset:           newServer(e.RequirePasswordReset, decodeRequirePasswordResetRequest),
+		PerformRequiredPasswordReset:   newServer(e.PerformRequiredPasswordReset, decodePerformRequiredPasswordResetRequest),
 		GetSessionsForUserInfo:         newServer(e.GetSessionsForUserInfo, decodeGetInfoAboutSessionsForUserRequest),
 		DeleteSessionsForUser:          newServer(e.DeleteSessionsForUser, decodeDeleteSessionsForUserRequest),
 		GetSessionInfo:                 newServer(e.GetSessionInfo, decodeGetInfoAboutSessionRequest),
@@ -303,6 +309,7 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/reset_password", h.ResetPassword).Methods("POST").Name("reset_password")
 	r.Handle("/api/v1/kolide/me", h.Me).Methods("GET").Name("me")
 	r.Handle("/api/v1/kolide/change_password", h.ChangePassword).Methods("POST").Name("change_password")
+	r.Handle("/api/v1/kolide/perform_required_password_reset", h.PerformRequiredPasswordReset).Methods("POST").Name("perform_required_password_reset")
 
 	r.Handle("/api/v1/kolide/users", h.ListUsers).Methods("GET").Name("list_users")
 	r.Handle("/api/v1/kolide/users", h.CreateUser).Methods("POST").Name("create_user")

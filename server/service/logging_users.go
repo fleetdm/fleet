@@ -260,3 +260,25 @@ func (mw loggingMiddleware) RequestPasswordReset(ctx context.Context, email stri
 	err = mw.Service.RequestPasswordReset(ctx, email)
 	return err
 }
+
+func (mw loggingMiddleware) PerformRequiredPasswordReset(ctx context.Context, password string) (*kolide.User, error) {
+	var (
+		resetBy = "unauthenticated"
+		err     error
+	)
+	vc, ok := viewer.FromContext(ctx)
+	if ok {
+		resetBy = vc.Username()
+	}
+	defer func(begin time.Time) {
+		_ = mw.logger.Log(
+			"method", "PerformRequiredPasswordReset",
+			"err", err,
+			"reset_by", resetBy,
+			"took", time.Since(begin),
+		)
+	}(time.Now())
+
+	user, err := mw.Service.PerformRequiredPasswordReset(ctx, password)
+	return user, err
+}

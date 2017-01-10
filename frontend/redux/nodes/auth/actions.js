@@ -12,6 +12,10 @@ export const UPDATE_USER_FAILURE = 'UPDATE_USER_FAILURE';
 export const LOGOUT_REQUEST = 'LOGOUT_REQUEST';
 export const LOGOUT_SUCCESS = 'LOGOUT_SUCCESS';
 export const LOGOUT_FAILURE = 'LOGOUT_FAILURE';
+// Actions for a user resetting their password after a required reset
+export const PERFORM_REQUIRED_PASSWORD_RESET_REQUEST = 'PERFORM_REQUIRED_PASSWORD_RESET_REQUEST';
+export const PERFORM_REQUIRED_PASSWORD_RESET_SUCCESS = 'PERFORM_REQUIRED_PASSWORD_RESET_SUCCESS';
+export const PERFORM_REQUIRED_PASSWORD_RESET_FAILURE = 'PERFORM_REQUIRED_PASSWORD_RESET_FAILURE';
 
 export const clearAuthErrors = { type: CLEAR_AUTH_ERRORS };
 export const loginRequest = { type: LOGIN_REQUEST };
@@ -140,6 +144,39 @@ export const logoutUser = () => {
         dispatch(logoutFailure({ base: 'Unable to log out of your account' }));
 
         throw error;
+      });
+  };
+};
+
+export const performRequiredPasswordResetRequest = { type: PERFORM_REQUIRED_PASSWORD_RESET_REQUEST };
+
+export const performRequiredPasswordResetSuccess = (user) => {
+  return {
+    type: PERFORM_REQUIRED_PASSWORD_RESET_SUCCESS,
+    payload: { user },
+  };
+};
+
+export const performRequiredPasswordResetFailure = (errors) => {
+  return {
+    type: PERFORM_REQUIRED_PASSWORD_RESET_FAILURE,
+    payload: { errors },
+  };
+};
+
+export const performRequiredPasswordReset = (resetParams) => {
+  return (dispatch) => {
+    dispatch(performRequiredPasswordResetRequest);
+
+    return Kolide.performRequiredPasswordReset(resetParams)
+      .then((updatedUser) => {
+        dispatch(performRequiredPasswordResetSuccess(updatedUser));
+      })
+      .catch((response) => {
+        const errorsObject = formatErrorResponse(response);
+        dispatch(performRequiredPasswordResetFailure(errorsObject));
+
+        throw response;
       });
   };
 };

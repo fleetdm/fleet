@@ -53,6 +53,11 @@ type UserService interface {
 	// The updated user is returned.
 	RequirePasswordReset(ctx context.Context, uid uint, require bool) (*User, error)
 
+	// PerformRequiredPasswordReset resets a password for a user that is in
+	// the required reset state. It must be called with the logged in
+	// viewer context of that user.
+	PerformRequiredPasswordReset(ctx context.Context, password string) (*User, error)
+
 	// ResetPassword validates the provided password reset token and
 	// updates the user's password.
 	ResetPassword(ctx context.Context, token, password string) (err error)

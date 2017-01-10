@@ -14,6 +14,9 @@ import {
   logoutUser,
   LOGOUT_REQUEST,
   LOGOUT_SUCCESS,
+    performRequiredPasswordResetRequest,
+  performRequiredPasswordResetSuccess,
+  performRequiredPasswordResetFailure,
 } from './actions';
 import reducer, { initialState } from './reducer';
 import {
@@ -165,6 +168,54 @@ describe('Auth - reducer', () => {
           done();
         })
         .catch(done);
+    });
+  });
+
+  context('perform required password reset', () => {
+    const user = { id: 1, email: 'zwass@kolide.co', force_password_reset: true };
+
+    it('updates state when request is dispatched', () => {
+      const initState = {
+        ...initialState,
+        user,
+      };
+      const newState = reducer(initState, performRequiredPasswordResetRequest);
+
+      expect(newState).toEqual({
+        ...initState,
+        loading: true,
+      });
+    });
+
+    it('updates state when request is successful', () => {
+      const initState = {
+        ...initialState,
+        user,
+        loading: true,
+      };
+      const newUser = { ...user, force_password_reset: false };
+      const newState = reducer(initState, performRequiredPasswordResetSuccess(newUser));
+
+      expect(newState).toEqual({
+        ...initState,
+        loading: false,
+        user: newUser,
+      });
+    });
+
+    it('updates state when request fails', () => {
+      const initState = {
+        ...initialState,
+        loading: true,
+      };
+      const errors = { base: 'Unable to reset password' };
+      const newState = reducer(initState, performRequiredPasswordResetFailure(errors));
+
+      expect(newState).toEqual({
+        ...initState,
+        errors,
+        loading: false,
+      });
     });
   });
 });

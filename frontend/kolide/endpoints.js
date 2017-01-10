@@ -11,6 +11,7 @@ export default {
   LOGOUT: '/v1/kolide/logout',
   ME: '/v1/kolide/me',
   PACKS: '/v1/kolide/packs',
+  PERFORM_REQUIRED_PASSWORD_RESET: '/v1/kolide/perform_required_password_reset',
   QUERIES: '/v1/kolide/queries',
   RESET_PASSWORD: '/v1/kolide/reset_password',
   RUN_QUERY: '/v1/kolide/queries/run',

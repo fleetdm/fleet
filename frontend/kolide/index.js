@@ -395,6 +395,19 @@ class Kolide extends Base {
         return helpers.addGravatarUrlToResource(updatedUser);
       });
   }
+
+  // Perform a password reset for the currently logged in user that has had a
+  // reset required
+  performRequiredPasswordReset = ({ password }) => {
+    const { PERFORM_REQUIRED_PASSWORD_RESET } = endpoints;
+    const performRequiredPasswordResetEndpoint = this.baseURL + PERFORM_REQUIRED_PASSWORD_RESET;
+
+    return this.authenticatedPost(performRequiredPasswordResetEndpoint, JSON.stringify({ new_password: password }))
+      .then((response) => {
+        const { user: updatedUser } = response;
+        return helpers.addGravatarUrlToResource(updatedUser);
+      });
+  }
 }
 
 export default new Kolide();

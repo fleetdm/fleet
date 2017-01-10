@@ -426,3 +426,62 @@ func TestRequirePasswordReset(t *testing.T) {
 		})
 	}
 }
+
+func TestPerformRequiredPasswordReset(t *testing.T) {
+	ds, err := inmem.New(config.TestConfig())
+	require.Nil(t, err)
+	svc, err := newTestService(ds, nil)
+	require.Nil(t, err)
+
+	createTestUsers(t, ds)
+
+	for _, tt := range testUsers {
+		t.Run(tt.Username, func(t *testing.T) {
+			if !tt.Enabled {
+				return
+			}
+
+			user, err := ds.User(tt.Username)
+			require.Nil(t, err)
+
+			ctx := context.Background()
+
+			_, err = svc.RequirePasswordReset(ctx, user.ID, true)
+			require.Nil(t, err)
+
+			// should error when not logged in
+			_, err = svc.PerformRequiredPasswordReset(ctx, "new_pass")
+			require.NotNil(t, err)
+
+			session, err := ds.NewSession(&kolide.Session{
+				UserID: user.ID,
+			})
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: user, Session: session})
+
+			// should error when reset not required
+			_, err = svc.RequirePasswordReset(ctx, user.ID, false)
+			require.Nil(t, err)
+			_, err = svc.PerformRequiredPasswordReset(ctx, "new_pass")
+			require.NotNil(t, err)
+
+			_, err = svc.RequirePasswordReset(ctx, user.ID, true)
+			require.Nil(t, err)
+
+			// should error when using same password
+			_, err = svc.PerformRequiredPasswordReset(ctx, tt.PlaintextPassword)
+			require.NotNil(t, err)
+
+			// should succeed with good new password
+			u, err := svc.PerformRequiredPasswordReset(ctx, "new_pass")
+			require.Nil(t, err)
+			assert.False(t, u.AdminForcedPasswordReset)
+
+			ctx = context.Background()
+
+			// Now user should be able to login with new password
+			u, _, err = svc.Login(ctx, tt.Username, "new_pass")
+			require.Nil(t, err)
+			assert.False(t, u.AdminForcedPasswordReset)
+		})
+	}
+}

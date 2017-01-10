@@ -180,6 +180,34 @@ func (svc service) ResetPassword(ctx context.Context, token, password string) er
 	return nil
 }
 
+func (svc service) PerformRequiredPasswordReset(ctx context.Context, password string) (*kolide.User, error) {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, errNoContext
+	}
+	user := vc.User
+
+	if !user.AdminForcedPasswordReset {
+		return nil, errors.New("user does not require password reset")
+	}
+
+	// prevent setting the same password
+	if err := user.ValidatePassword(password); err == nil {
+		return nil, newInvalidArgumentError("new_password", "cannot reuse old password")
+	}
+
+	user.AdminForcedPasswordReset = false
+	err := svc.setNewPassword(ctx, user, password)
+	if err != nil {
+		return nil, errors.Wrap(err, "setting new password")
+	}
+
+	// Sessions should already have been cleared when the reset was
+	// required
+
+	return user, nil
+}
+
 func (svc service) RequirePasswordReset(ctx context.Context, uid uint, require bool) (*kolide.User, error) {
 	user, err := svc.ds.UserByID(uid)
 	if err != nil {
