@@ -51,15 +51,7 @@
   }
 
   &__title {
-    color: $text-dark;
     margin: 0 0 12px;
-    font-size: 24px;
-    font-weight: $light;
-    letter-spacing: -0.5px;
-
-    .number-pill {
-      vertical-align: text-bottom;
-    }
   }
 
   &__wrapper {

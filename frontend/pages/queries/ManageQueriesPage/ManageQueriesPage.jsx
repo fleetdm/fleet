@@ -244,9 +244,9 @@ export class ManageQueriesPage extends Component {
     return (
       <div className={`${baseClass} has-sidebar`}>
         <div className={`${baseClass}__wrapper body-wrap`}>
-          <p className={`${baseClass}__title`}>
+          <h1 className={`${baseClass}__title`}>
             <NumberPill number={queriesCount} /> Queries
-          </p>
+          </h1>
           <div className={`${baseClass}__filter-and-cta`}>
             <div className={`${baseClass}__filter-queries`}>
               <InputField

@@ -262,9 +262,9 @@ export class AllPacksPage extends Component {
     return (
       <div className={`${baseClass} has-sidebar`}>
         <div className={`${baseClass}__wrapper body-wrap`}>
-          <p className={`${baseClass}__title`}>
+          <h1 className={`${baseClass}__title`}>
             <NumberPill number={packsCount} /> Query Packs
-          </p>
+          </h1>
           <div className={`${baseClass}__search-create-section`}>
             <InputField
               name="pack-filter"

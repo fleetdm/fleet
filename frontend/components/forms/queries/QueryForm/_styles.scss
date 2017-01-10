@@ -1,14 +1,6 @@
 .query-form {
   &__wrapper {
     padding: $base;
-
-    h1 {
-      font-size: $large;
-      font-weight: $light;
-      letter-spacing: 1.2px;
-      color: $text-medium;
-      margin: 0;
-    }
   }
 
   &__query-title,
