@@ -1,8 +1,6 @@
 package kolide
 
-import (
-	"golang.org/x/net/context"
-)
+import "golang.org/x/net/context"
 
 type OsqueryService interface {
 	EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string) (nodeKey string, err error)
@@ -52,13 +50,16 @@ type OsqueryConfig struct {
 }
 
 type OsqueryResultLog struct {
-	Name           string            `json:"name"`
-	HostIdentifier string            `json:"hostIdentifier"`
-	UnixTime       string            `json:"unixTime"`
-	CalendarTime   string            `json:"calendarTime"`
-	Columns        map[string]string `json:"columns"`
-	Action         string            `json:"action"`
-	Decorations    map[string]string `json:"decorations"`
+	Name           string `json:"name"`
+	HostIdentifier string `json:"hostIdentifier"`
+	UnixTime       string `json:"unixTime"`
+	CalendarTime   string `json:"calendarTime"`
+	// Columns stores the columns of differential queries
+	Columns map[string]string `json:"columns,omitempty"`
+	// Snapshot stores the rows and columns of snapshot queries
+	Snapshot    []map[string]string `json:"snapshot,omitempty"`
+	Action      string              `json:"action"`
+	Decorations map[string]string   `json:"decorations"`
 }
 
 type OsqueryStatusLog struct {
