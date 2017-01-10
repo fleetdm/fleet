@@ -28,7 +28,7 @@ func (d *Datastore) SavePack(pack *kolide.Pack) error {
 
 	sql := `
 			UPDATE packs
-			SET name = ?, platform = ?, disabled = ?, description = ?,
+			SET name = ?, platform = ?, disabled = ?, description = ?
 			WHERE id = ? AND NOT deleted
 	`
 
