@@ -17,7 +17,16 @@
     margin: 0 0 4px;
   }
 
-  p {
+  &__subtitle {
+    font-size: 16px;
+    letter-spacing: 0.7px;
+    color: $text-dark;
+    margin: 0 0 10px;
+    padding-top: 15px;
+  }
+
+  p,
+  ul {
     font-size: 13px;
     line-height: 1.85;
     letter-spacing: 0.5px;

@@ -37,12 +37,17 @@ const PackInfoSidePanel = () => {
         <dd>Record full query result each time.</dd>
       </dl>
 
+      <h4 className={`${baseClass}__subtitle`}>Where do I find results?</h4>
       <p>
-        Packs are distributed to specified <b>targets</b>. Targets may be
-        <b>individual hosts</b> or groups of hosts called <b>labels.</b>
+        Packs are distributed to specified <b>targets</b>. Targets may be <b>individual hosts</b> or groups of hosts called <b>labels.</b>
       </p>
+      <p>The results of queries run via query packs are stored in log files for your convenience. We recommend forwarding this logs to a log aggregation tool or other actionable tool for further analysis. These logs can be found in the following locations:</p>
+      <ul>
+        <li><strong>Status Log:</strong> /path/to/status/logs</li>
+        <li><strong>Result Log:</strong> /path/to/result/logs</li>
+      </ul>
       <p>
-        Learn more about Query Packs in the <a href="https://kolide.co">documentation</a>.
+        Learn more about log aggregation in the <a href="https://osquery.readthedocs.io/en/stable/deployment/log-aggregation/" target="_blank" rel="noopener noreferrer">documentation</a>.
       </p>
     </SecondarySidePanelContainer>
   );
