@@ -141,6 +141,7 @@ func testQueryResultsStore(t *testing.T, store kolide.QueryResultStore) {
 				},
 
 				DetailUpdateTime: time.Now().UTC(),
+				SeenTime:         time.Now().UTC(),
 			},
 		},
 		kolide.DistributedQueryResult{
@@ -158,6 +159,7 @@ func testQueryResultsStore(t *testing.T, store kolide.QueryResultStore) {
 				},
 
 				DetailUpdateTime: time.Now().UTC(),
+				SeenTime:         time.Now().UTC(),
 			},
 		},
 		kolide.DistributedQueryResult{
@@ -175,6 +177,7 @@ func testQueryResultsStore(t *testing.T, store kolide.QueryResultStore) {
 				},
 
 				DetailUpdateTime: time.Now().UTC(),
+				SeenTime:         time.Now().UTC(),
 			},
 		},
 	}
@@ -201,6 +204,7 @@ func testQueryResultsStore(t *testing.T, store kolide.QueryResultStore) {
 				},
 
 				DetailUpdateTime: time.Now().UTC(),
+				SeenTime:         time.Now().UTC(),
 			},
 		},
 		kolide.DistributedQueryResult{
@@ -218,6 +222,7 @@ func testQueryResultsStore(t *testing.T, store kolide.QueryResultStore) {
 				},
 
 				DetailUpdateTime: time.Now().UTC(),
+				SeenTime:         time.Now().UTC(),
 			},
 		},
 	}
