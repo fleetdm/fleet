@@ -13,11 +13,11 @@ type ScheduledQueryStore interface {
 }
 
 type ScheduledQueryService interface {
-	GetScheduledQuery(ctx context.Context, id uint) (*ScheduledQuery, error)
-	GetScheduledQueriesInPack(ctx context.Context, id uint, opts ListOptions) ([]*ScheduledQuery, error)
-	ScheduleQuery(ctx context.Context, sq *ScheduledQuery) (*ScheduledQuery, error)
-	DeleteScheduledQuery(ctx context.Context, id uint) error
-	ModifyScheduledQuery(ctx context.Context, sq *ScheduledQuery) (*ScheduledQuery, error)
+	GetScheduledQuery(ctx context.Context, id uint) (query *ScheduledQuery, err error)
+	GetScheduledQueriesInPack(ctx context.Context, id uint, opts ListOptions) (queries []*ScheduledQuery, err error)
+	ScheduleQuery(ctx context.Context, sq *ScheduledQuery) (query *ScheduledQuery, err error)
+	DeleteScheduledQuery(ctx context.Context, id uint) (err error)
+	ModifyScheduledQuery(ctx context.Context, sq *ScheduledQuery) (query *ScheduledQuery, err error)
 }
 
 type ScheduledQuery struct {

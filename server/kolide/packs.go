@@ -25,22 +25,22 @@ type PackStore interface {
 
 type PackService interface {
 	// Pack methods
-	ListPacks(ctx context.Context, opt ListOptions) ([]*Pack, error)
-	GetPack(ctx context.Context, id uint) (*Pack, error)
-	NewPack(ctx context.Context, p PackPayload) (*Pack, error)
-	ModifyPack(ctx context.Context, id uint, p PackPayload) (*Pack, error)
-	DeletePack(ctx context.Context, id uint) error
+	ListPacks(ctx context.Context, opt ListOptions) (packs []*Pack, err error)
+	GetPack(ctx context.Context, id uint) (pack *Pack, err error)
+	NewPack(ctx context.Context, p PackPayload) (pack *Pack, err error)
+	ModifyPack(ctx context.Context, id uint, p PackPayload) (pack *Pack, err error)
+	DeletePack(ctx context.Context, id uint) (err error)
 
 	// Modifying the labels for packs
-	AddLabelToPack(ctx context.Context, lid, pid uint) error
-	RemoveLabelFromPack(ctx context.Context, lid, pid uint) error
-	ListLabelsForPack(ctx context.Context, pid uint) ([]*Label, error)
+	AddLabelToPack(ctx context.Context, lid, pid uint) (err error)
+	RemoveLabelFromPack(ctx context.Context, lid, pid uint) (err error)
+	ListLabelsForPack(ctx context.Context, pid uint) (labels []*Label, err error)
 
 	// Modifying the hosts for packs
-	AddHostToPack(ctx context.Context, hid, pid uint) error
-	RemoveHostFromPack(ctx context.Context, hid, pid uint) error
-	ListPacksForHost(ctx context.Context, hid uint) ([]*Pack, error)
-	ListHostsInPack(ctx context.Context, pid uint, opt ListOptions) ([]*Host, error)
+	AddHostToPack(ctx context.Context, hid, pid uint) (err error)
+	RemoveHostFromPack(ctx context.Context, hid, pid uint) (err error)
+	ListPacksForHost(ctx context.Context, hid uint) (packs []*Pack, err error)
+	ListHostsInPack(ctx context.Context, pid uint, opt ListOptions) (hosts []*Host, err error)
 }
 
 type Pack struct {

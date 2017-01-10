@@ -8,6 +8,87 @@ import (
 	"golang.org/x/net/context"
 )
 
+func (mw loggingMiddleware) NewAdminCreatedUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
+	var (
+		user         *kolide.User
+		err          error
+		username     = "none"
+		loggedInUser = "unauthenticated"
+	)
+
+	vc, ok := viewer.FromContext(ctx)
+	if ok {
+		loggedInUser = vc.Username()
+	}
+
+	defer func(begin time.Time) {
+		_ = mw.logger.Log(
+			"method", "NewAdminCreatedUser",
+			"user", username,
+			"created_by", loggedInUser,
+			"err", err,
+			"took", time.Since(begin),
+		)
+	}(time.Now())
+
+	user, err = mw.Service.NewAdminCreatedUser(ctx, p)
+	if user != nil {
+		username = user.Username
+	}
+	return user, err
+}
+
+func (mw loggingMiddleware) ListUsers(ctx context.Context, opt kolide.ListOptions) ([]*kolide.User, error) {
+	var (
+		users    []*kolide.User
+		err      error
+		username = "none"
+	)
+
+	vc, ok := viewer.FromContext(ctx)
+	if ok {
+		username = vc.Username()
+	}
+
+	defer func(begin time.Time) {
+		_ = mw.logger.Log(
+			"method", "ListUsers",
+			"user", username,
+			"err", err,
+			"took", time.Since(begin),
+		)
+	}(time.Now())
+
+	users, err = mw.Service.ListUsers(ctx, opt)
+	return users, err
+}
+
+func (mw loggingMiddleware) RequirePasswordReset(ctx context.Context, uid uint, require bool) (*kolide.User, error) {
+	var (
+		user     *kolide.User
+		err      error
+		username = "none"
+	)
+
+	vc, ok := viewer.FromContext(ctx)
+	if ok {
+		username = vc.Username()
+	}
+
+	defer func(begin time.Time) {
+		_ = mw.logger.Log(
+			"method", "RequirePasswordReset",
+			"user", username,
+			"err", err,
+			"took", time.Since(begin),
+		)
+	}(time.Now())
+
+	user, err = mw.Service.RequirePasswordReset(ctx, uid, require)
+	return user, err
+
+}
+
 func (mw loggingMiddleware) NewUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
 	var (
 		user         *kolide.User

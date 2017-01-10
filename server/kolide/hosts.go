@@ -41,10 +41,10 @@ type HostStore interface {
 }
 
 type HostService interface {
-	ListHosts(ctx context.Context, opt ListOptions) ([]*Host, error)
-	GetHost(ctx context.Context, id uint) (*Host, error)
-	GetHostSummary(ctx context.Context) (*HostSummary, error)
-	DeleteHost(ctx context.Context, id uint) error
+	ListHosts(ctx context.Context, opt ListOptions) (hosts []*Host, err error)
+	GetHost(ctx context.Context, id uint) (host *Host, err error)
+	GetHostSummary(ctx context.Context) (summary *HostSummary, err error)
+	DeleteHost(ctx context.Context, id uint) (err error)
 }
 
 type Host struct {

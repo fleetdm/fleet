@@ -5,13 +5,13 @@ import (
 )
 
 type OsqueryService interface {
-	EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string) (string, error)
-	AuthenticateHost(ctx context.Context, nodeKey string) (*Host, error)
-	GetClientConfig(ctx context.Context) (*OsqueryConfig, error)
-	GetDistributedQueries(ctx context.Context) (map[string]string, error)
-	SubmitDistributedQueryResults(ctx context.Context, results OsqueryDistributedQueryResults) error
-	SubmitStatusLogs(ctx context.Context, logs []OsqueryStatusLog) error
-	SubmitResultLogs(ctx context.Context, logs []OsqueryResultLog) error
+	EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string) (nodeKey string, err error)
+	AuthenticateHost(ctx context.Context, nodeKey string) (host *Host, err error)
+	GetClientConfig(ctx context.Context) (config *OsqueryConfig, err error)
+	GetDistributedQueries(ctx context.Context) (queries map[string]string, err error)
+	SubmitDistributedQueryResults(ctx context.Context, results OsqueryDistributedQueryResults) (err error)
+	SubmitStatusLogs(ctx context.Context, logs []OsqueryStatusLog) (err error)
+	SubmitResultLogs(ctx context.Context, logs []OsqueryResultLog) (err error)
 }
 
 type OsqueryDistributedQueryResults map[string][]map[string]string
