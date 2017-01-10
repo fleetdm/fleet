@@ -10,7 +10,16 @@ import (
 
 type hostResponse struct {
 	kolide.Host
-	Status string `json:"status"`
+	Status      string `json:"status"`
+	DisplayText string `json:"display_text"`
+}
+
+func hostResponseForHost(ctx context.Context, svc kolide.Service, host *kolide.Host) (*hostResponse, error) {
+	return &hostResponse{
+		Host:        *host,
+		Status:      host.Status(time.Now()),
+		DisplayText: host.HostName,
+	}, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -35,12 +44,14 @@ func makeGetHostEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return getHostResponse{Err: err}, nil
 		}
+
+		resp, err := hostResponseForHost(ctx, svc, host)
+		if err != nil {
+			return getHostResponse{Err: err}, nil
+		}
+
 		return getHostResponse{
-			&hostResponse{
-				Host:   *host,
-				Status: host.Status(time.Now()),
-			},
-			nil,
+			Host: resp,
 		}, nil
 	}
 }
@@ -68,17 +79,16 @@ func makeListHostsEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return listHostsResponse{Err: err}, nil
 		}
 
-		resp := listHostsResponse{Hosts: []hostResponse{}}
-		for _, host := range hosts {
-			resp.Hosts = append(
-				resp.Hosts,
-				hostResponse{
-					Host:   *host,
-					Status: host.Status(time.Now()),
-				},
-			)
+		hostResponses := make([]hostResponse, len(hosts), len(hosts))
+		for i, host := range hosts {
+			h, err := hostResponseForHost(ctx, svc, host)
+			if err != nil {
+				return listHostsResponse{Err: err}, nil
+			}
+
+			hostResponses[i] = *h
 		}
-		return resp, nil
+		return listHostsResponse{Hosts: hostResponses}, nil
 	}
 }
 
