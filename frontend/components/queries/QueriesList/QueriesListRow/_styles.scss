@@ -1,0 +1,24 @@
+.queries-list-row {
+  line-height: 38px;
+
+  &:hover {
+    cursor: pointer;
+  }
+
+  &:active,
+  &:focus {
+    outline: none;
+  }
+
+  td {
+    font-size: 14px;
+
+    &:nth-child(2) {
+      font-weight: $bold;
+    }
+
+    .form-field {
+      margin: 0;
+    }
+  }
+}

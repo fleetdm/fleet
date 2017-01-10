@@ -6,6 +6,8 @@ import KolideAce from 'components/KolideAce';
 import queryInterface from 'interfaces/query';
 import SecondarySidePanelContainer from 'components/side_panels/SecondarySidePanelContainer';
 
+const baseClass = 'query-details-side-panel';
+
 class QueryDetailsSidePanel extends Component {
   static propTypes = {
     onEditQuery: PropTypes.func.isRequired,
@@ -47,8 +49,8 @@ class QueryDetailsSidePanel extends Component {
     const { description, name, query: queryText } = query;
 
     return (
-      <SecondarySidePanelContainer>
-        <h1>{name}</h1>
+      <SecondarySidePanelContainer className={baseClass}>
+        <h1><Icon name="query" /> {name}</h1>
         <Button onClick={handleEditQueryClick} variant="inverse">Edit/Run Query</Button>
         <KolideAce
           fontSize={12}
@@ -56,6 +58,7 @@ class QueryDetailsSidePanel extends Component {
           readOnly
           showGutter={false}
           value={queryText}
+          wrapperClassName={`${baseClass}__query-preview`}
           wrapEnabled
         />
         <h2>Description</h2>

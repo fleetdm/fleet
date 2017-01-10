@@ -42,7 +42,6 @@ class Button extends React.Component<IButtonProps, IButtonState> {
     const { handleClick } = this;
     const { children, className, disabled, size, tabIndex, type, title, variant } = this.props;
     const fullClassName = classnames(baseClass, `${baseClass}--${variant}`, className, {
-      [baseClass]: variant !== 'unstyled',
       [`${baseClass}--disabled`]: disabled,
       [`${baseClass}--${size}`]: size,
     });

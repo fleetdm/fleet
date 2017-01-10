@@ -57,7 +57,7 @@ class QueriesListRow extends Component {
           />
         </td>
         <td>{name}</td>
-        <td>{authorName}</td>
+        <td className={`${baseClass}__author-name`}>{authorName}</td>
         <td>{lastModifiedDate}</td>
       </ClickableTableRow>
     );

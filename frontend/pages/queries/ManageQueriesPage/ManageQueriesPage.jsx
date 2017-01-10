@@ -8,6 +8,7 @@ import entityGetter from 'redux/utilities/entityGetter';
 import InputField from 'components/forms/fields/InputField';
 import Modal from 'components/modals/Modal';
 import NumberPill from 'components/NumberPill';
+import Icon from 'components/icons/Icon';
 import PackInfoSidePanel from 'components/side_panels/PackInfoSidePanel';
 import paths from 'router/paths';
 import QueryDetailsSidePanel from 'components/side_panels/QueryDetailsSidePanel';
@@ -174,7 +175,7 @@ export class ManageQueriesPage extends Component {
       const queryText = checkedQueryCount === 1 ? 'Query' : 'Queries';
 
       return (
-        <div>
+        <div className={`${baseClass}__ctas`}>
           <p className={`${baseClass}__query-count`}>{checkedQueryCount} {queryText} Selected</p>
           <Button
             className={btnClass}
@@ -246,13 +247,16 @@ export class ManageQueriesPage extends Component {
           <p className={`${baseClass}__title`}>
             <NumberPill number={queriesCount} /> Queries
           </p>
-          <div className={`${baseClass}__search-create-section`}>
-            <InputField
-              name="query-filter"
-              onChange={onFilterQueries}
-              placeholder="Search Queries"
-              value={queriesFilter}
-            />
+          <div className={`${baseClass}__filter-and-cta`}>
+            <div className={`${baseClass}__filter-queries`}>
+              <InputField
+                name="query-filter"
+                onChange={onFilterQueries}
+                placeholder="Filter Queries"
+                value={queriesFilter}
+              />
+              <Icon name="search" />
+            </div>
             {renderCTAs()}
           </div>
           <QueriesList

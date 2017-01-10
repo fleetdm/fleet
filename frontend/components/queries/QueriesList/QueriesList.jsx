@@ -95,7 +95,7 @@ class QueriesList extends Component {
                 value={allQueriesChecked}
               /></th>
               <th>Query Name</th>
-              <th>Author</th>
+              <th className={`${baseClass}__author-name`}>Author</th>
               <th>Last Modified</th>
             </tr>
           </thead>

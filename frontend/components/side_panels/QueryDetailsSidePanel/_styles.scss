@@ -1,0 +1,41 @@
+.query-details-side-panel {
+  padding: 20px;
+
+  h1 {
+    margin: 0 0 12px;
+    font-size: 18px;
+    font-weight: $bold;
+    letter-spacing: -0.5px;
+    color: $text-dark;
+
+    .kolidecon {
+      color: $text-light;
+      margin-right: 6px;
+    }
+  }
+
+  h2 {
+    font-size: 16px;
+    font-weight: $bold;
+    letter-spacing: -0.5px;
+    color: $text-dark;
+    border-bottom: solid 1px $accent-light;
+    padding: 0 0 4px;
+    margin: 0 0 6px;
+  }
+
+  p {
+    font-size: 14px;
+    font-weight: $normal;
+    line-height: 1.71;
+    color: $text-medium;
+  }
+
+  &__query-preview {
+    margin-bottom: 12px;
+  }
+
+  .button {
+    width: 100%;
+  }
+}

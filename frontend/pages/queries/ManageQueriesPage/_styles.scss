@@ -4,17 +4,27 @@
     font-weight: $normal;
   }
 
+  &__ctas {
+    @include flex-grow(1);
+    text-align: right;
+  }
+
   &__query-count {
-    color: #858495;
+    color: $text-dark;
     font-size: 14px;
     font-weight: $bold;
     letter-spacing: -0.5px;
-    margin: 0;
+    margin: 0 12px 0 0;
+    display: inline-block;
   }
 
-  &__search-create-section {
+  &__filter-and-cta {
     @include display(flex);
-    @include justify-content(space-between);
+    margin-bottom: $pad-small;
+
+    .form-field {
+      margin: 0;
+    }
 
     input {
       &[name='query-filter'] {
@@ -23,10 +33,33 @@
     }
   }
 
+  &__filter-queries {
+    @include flex-grow(1);
+    position: relative;
+
+    .input-field {
+      padding-left: 42px;
+    }
+
+    .kolidecon {
+      position: absolute;
+      top: 12px;
+      left: 9px;
+      font-size: 18px;
+      color: $accent-medium;
+    }
+  }
+
   &__title {
-    color: $text-medium;
-    display: inline-block;
-    font-size: $large;
+    color: $text-dark;
+    margin: 0 0 12px;
+    font-size: 24px;
+    font-weight: $light;
+    letter-spacing: -0.5px;
+
+    .number-pill {
+      vertical-align: text-bottom;
+    }
   }
 
   &__wrapper {
