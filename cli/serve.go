@@ -2,7 +2,6 @@ package cli
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"net/http"
 	"os"
@@ -49,11 +48,9 @@ the way that the kolide server works.
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			var (
-				httpAddr = flag.String("http.addr", ":8080", "HTTP listen address")
-				ctx      = context.Background()
-				logger   kitlog.Logger
+				ctx    = context.Background()
+				logger kitlog.Logger
 			)
-			flag.Parse()
 
 			config := configManager.LoadConfig()
 
@@ -165,12 +162,12 @@ the way that the kolide server works.
 			errs := make(chan error, 2)
 			go func() {
 				if !config.Server.TLS || (devMode && !configManager.IsSet("server.tls")) {
-					logger.Log("transport", "http", "address", *httpAddr, "msg", "listening")
-					errs <- http.ListenAndServe(*httpAddr, nil)
+					logger.Log("transport", "http", "address", config.Server.Address, "msg", "listening")
+					errs <- http.ListenAndServe(config.Server.Address, nil)
 				} else {
-					logger.Log("transport", "https", "address", *httpAddr, "msg", "listening")
+					logger.Log("transport", "https", "address", config.Server.Address, "msg", "listening")
 					errs <- http.ListenAndServeTLS(
-						*httpAddr,
+						config.Server.Address,
 						config.Server.Cert,
 						config.Server.Key,
 						nil,
