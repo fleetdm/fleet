@@ -17,10 +17,6 @@ const validate = (formData) => {
     errors.interval = 'Interval must be a number';
   }
 
-  if (!formData.platform) {
-    errors.platform = 'A platform must be selected';
-  }
-
   if (!formData.logging_type) {
     errors.logging_type = 'A Logging Type must be selected';
   }

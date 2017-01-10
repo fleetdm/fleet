@@ -90,13 +90,18 @@ func (svc service) GetClientConfig(ctx context.Context) (*kolide.OsqueryConfig, 
 		// particular format, so we do the conversion here
 		configQueries := kolide.Queries{}
 		for _, query := range queries {
-			configQueries[query.Name] = kolide.QueryContent{
+			queryContent := kolide.QueryContent{
 				Query:    query.Query,
 				Interval: query.Interval,
 				Platform: query.Platform,
 				Version:  query.Version,
-				Snapshot: query.Snapshot,
 			}
+
+			if query.Snapshot != nil && *query.Snapshot == true {
+				queryContent.Snapshot = query.Snapshot
+			}
+
+			configQueries[query.Name] = queryContent
 		}
 
 		// finally, we add the pack to the client config struct with all of

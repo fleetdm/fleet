@@ -11,7 +11,7 @@ import validate from 'components/forms/ConfigurePackQueryForm/validate';
 const baseClass = 'configure-pack-query-form';
 const fieldNames = ['query_id', 'interval', 'logging_type', 'platform', 'version'];
 const platformOptions = [
-  { label: 'All', value: 'all' },
+  { label: 'All', value: '' },
   { label: 'Windows', value: 'windows' },
   { label: 'Linux', value: 'linux' },
   { label: 'macOS', value: 'darwin' },
@@ -22,7 +22,7 @@ const loggingTypeOptions = [
   { label: 'Snapshot', value: 'snapshot' },
 ];
 const minOsqueryVersionOptions = [
-  { label: 'All', value: 'all' },
+  { label: 'All', value: '' },
   { label: '1.8.1 +', value: '1.8.1' },
   { label: '1.8.2 +', value: '1.8.2' },
   { label: '2.0.0 +', value: '2.0.0' },

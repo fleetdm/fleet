@@ -44,8 +44,8 @@ type getClientConfigRequest struct {
 }
 
 type getClientConfigResponse struct {
-	Config kolide.OsqueryConfig `json:"config,omitempty"`
-	Err    error                `json:"error,omitempty"`
+	kolide.OsqueryConfig
+	Err error `json:"error,omitempty"`
 }
 
 func (r getClientConfigResponse) error() error { return r.Err }
@@ -56,7 +56,7 @@ func makeGetClientConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return getClientConfigResponse{Err: err}, nil
 		}
-		return getClientConfigResponse{Config: *config}, nil
+		return getClientConfigResponse{OsqueryConfig: *config}, nil
 	}
 }
 
