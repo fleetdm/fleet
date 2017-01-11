@@ -139,14 +139,42 @@ export class ManageHostsPage extends Component {
     return false;
   }
 
+  renderQuery = () => {
+    const { selectedLabel } = this.props;
+    const { label_type: labelType, query } = selectedLabel;
+
+    if (!query || labelType === 1) {
+      return false;
+    }
+
+    return (
+      <AceEditor
+        editorProps={{ $blockScrolling: Infinity }}
+        mode="kolide"
+        minLines={1}
+        maxLines={20}
+        name="label-header"
+        readOnly
+        setOptions={{ wrap: true }}
+        showGutter={false}
+        showPrintMargin={false}
+        theme="kolide"
+        value={query}
+        width="100%"
+        fontSize={14}
+      />
+    );
+  }
+
   renderHeader = () => {
+    const { renderQuery } = this;
     const { display, isAddLabel, selectedLabel } = this.props;
 
     if (!selectedLabel || isAddLabel) {
       return false;
     }
 
-    const { count, description, display_text: displayText, query } = selectedLabel;
+    const { count, description, display_text: displayText } = selectedLabel;
     const { onToggleDisplay } = this;
     const buttonOptions = {
       rightIcon: 'grid-select',
@@ -162,28 +190,14 @@ export class ManageHostsPage extends Component {
           <span>{displayText}</span>
         </h1>
 
-        { query &&
-          <AceEditor
-            editorProps={{ $blockScrolling: Infinity }}
-            mode="kolide"
-            minLines={1}
-            maxLines={20}
-            name="label-header"
-            readOnly
-            setOptions={{ wrap: true }}
-            showGutter={false}
-            showPrintMargin={false}
-            theme="kolide"
-            value={query}
-            width="100%"
-            fontSize={14}
-          />
-        }
+        { renderQuery() }
 
-        <div className={`${baseClass}__description`}>
-          <h2>Description</h2>
-          <p>{description}</p>
-        </div>
+        {description &&
+          <div className={`${baseClass}__description`}>
+            <h2>Description</h2>
+            <p>{description}</p>
+          </div>
+        }
 
         <div className={`${baseClass}__topper`}>
           <p className={`${baseClass}__host-count`}>{count} Hosts Total</p>

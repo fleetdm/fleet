@@ -120,6 +120,7 @@ class TargetDetails extends Component {
       count,
       description,
       display_text: displayText,
+      label_type: labelType,
       online,
       query,
     } = target;
@@ -143,23 +144,25 @@ class TargetDetails extends Component {
 
         <p className={`${labelBaseClass}__description`}>{description || 'No Description'}</p>
 
-        <div className={`${labelBaseClass}__editor`}>
-          <AceEditor
-            editorProps={{ $blockScrolling: Infinity }}
-            mode="kolide"
-            minLines={1}
-            maxLines={20}
-            name="label-query"
-            readOnly
-            setOptions={{ wrap: true }}
-            showGutter={false}
-            showPrintMargin={false}
-            theme="kolide"
-            value={query}
-            width="100%"
-            fontSize={14}
-          />
-        </div>
+        {labelType !== 1 &&
+          <div className={`${labelBaseClass}__editor`}>
+            <AceEditor
+              editorProps={{ $blockScrolling: Infinity }}
+              mode="kolide"
+              minLines={1}
+              maxLines={20}
+              name="label-query"
+              readOnly
+              setOptions={{ wrap: true }}
+              showGutter={false}
+              showPrintMargin={false}
+              theme="kolide"
+              value={query}
+              width="100%"
+              fontSize={14}
+            />
+          </div>
+        }
       </div>
     );
   }
