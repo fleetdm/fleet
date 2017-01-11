@@ -1,9 +1,13 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { noop, size, find } from 'lodash';
+import { filter, includes, isEqual, noop, size, find } from 'lodash';
 import { push } from 'react-router-redux';
 
 import EditPackFormWrapper from 'components/packs/EditPackFormWrapper';
+import hostActions from 'redux/nodes/entities/hosts/actions';
+import hostInterface from 'interfaces/host';
+import labelActions from 'redux/nodes/entities/labels/actions';
+import labelInterface from 'interfaces/label';
 import packActions from 'redux/nodes/entities/packs/actions';
 import ScheduleQuerySidePanel from 'components/side_panels/ScheduleQuerySidePanel';
 import packInterface from 'interfaces/pack';
@@ -24,7 +28,9 @@ export class EditPackPage extends Component {
     isLoadingPack: PropTypes.bool,
     isLoadingScheduledQueries: PropTypes.bool,
     pack: packInterface,
+    packHosts: PropTypes.arrayOf(hostInterface),
     packID: PropTypes.string,
+    packLabels: PropTypes.arrayOf(labelInterface),
     scheduledQueries: PropTypes.arrayOf(queryInterface),
   };
 
@@ -41,12 +47,31 @@ export class EditPackPage extends Component {
   }
 
   componentDidMount () {
-    const { allQueries, dispatch, isLoadingPack, pack, packID, scheduledQueries } = this.props;
+    const {
+      allQueries,
+      dispatch,
+      isLoadingPack,
+      pack,
+      packHosts,
+      packID,
+      packLabels,
+      scheduledQueries,
+    } = this.props;
     const { load } = packActions;
     const { loadAll } = queryActions;
 
     if (!pack && !isLoadingPack) {
       dispatch(load(packID));
+    }
+
+    if (pack) {
+      if (!packHosts || packHosts.length !== pack.host_ids.length) {
+        dispatch(hostActions.loadAll());
+      }
+
+      if (!packLabels || packLabels.length !== pack.label_ids.length) {
+        dispatch(labelActions.loadAll());
+      }
     }
 
     if (!size(scheduledQueries)) {
@@ -55,6 +80,20 @@ export class EditPackPage extends Component {
 
     if (!size(allQueries)) {
       dispatch(loadAll());
+    }
+
+    return false;
+  }
+
+  componentWillReceiveProps ({ dispatch, pack, packHosts, packLabels }) {
+    if (!isEqual(pack, this.props.pack)) {
+      if (!packHosts || packHosts.length !== pack.host_ids.length) {
+        dispatch(hostActions.loadAll());
+      }
+
+      if (!packLabels || packLabels.length !== pack.label_ids.length) {
+        dispatch(labelActions.loadAll());
+      }
     }
 
     return false;
@@ -97,10 +136,10 @@ export class EditPackPage extends Component {
   }
 
   handlePackFormSubmit = (formData) => {
-    const { dispatch } = this.props;
+    const { dispatch, pack } = this.props;
     const { update } = packActions;
 
-    return dispatch(update(formData));
+    return dispatch(update(pack, formData));
   }
 
   handleRemoveScheduledQueries = (scheduledQueryIDs) => {
@@ -149,7 +188,9 @@ export class EditPackPage extends Component {
       onToggleEdit,
     } = this;
     const { targetsCount, selectedQuery } = this.state;
-    const { allQueries, isEdit, isLoadingScheduledQueries, pack, scheduledQueries } = this.props;
+    const { allQueries, isEdit, isLoadingScheduledQueries, pack, packHosts, packLabels, scheduledQueries } = this.props;
+
+    const packTargets = [...packHosts, ...packLabels];
 
     if (!pack || isLoadingScheduledQueries) {
       return false;
@@ -166,6 +207,7 @@ export class EditPackPage extends Component {
             onEditPack={onToggleEdit}
             onFetchTargets={onFetchTargets}
             pack={pack}
+            packTargets={packTargets}
             targetsCount={targetsCount}
           />
           <ScheduledQueriesListWrapper
@@ -194,6 +236,12 @@ const mapStateToProps = (state, { params, route }) => {
   const scheduledQueries = entityGetter.get('scheduled_queries').where({ pack_id: packID });
   const isLoadingScheduledQueries = state.entities.scheduled_queries.loading;
   const isEdit = route.path === 'edit';
+  const packHosts = pack ? filter(state.entities.hosts.data, (host) => {
+    return includes(pack.host_ids, host.id);
+  }) : [];
+  const packLabels = pack ? filter(state.entities.labels.data, (label) => {
+    return includes(pack.label_ids, label.id);
+  }) : [];
 
   return {
     allQueries,
@@ -201,7 +249,9 @@ const mapStateToProps = (state, { params, route }) => {
     isLoadingPack,
     isLoadingScheduledQueries,
     pack,
+    packHosts,
     packID,
+    packLabels,
     scheduledQueries,
   };
 };

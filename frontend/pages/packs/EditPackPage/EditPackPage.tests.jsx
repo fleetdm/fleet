@@ -8,6 +8,8 @@ import EditPackPage from './EditPackPage';
 describe('EditPackPage - component', () => {
   const store = {
     entities: {
+      hosts: { data: {} },
+      labels: { data: {} },
       packs: {
         data: {
           [packStub.id]: packStub,

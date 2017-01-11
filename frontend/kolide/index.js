@@ -32,10 +32,11 @@ class Kolide extends Base {
       });
   }
 
-  createPack = ({ name, description }) => {
+  createPack = ({ name, description, targets }) => {
     const { PACKS } = endpoints;
+    const packTargets = helpers.formatSelectedTargetsForApi(targets, true);
 
-    return this.authenticatedPost(this.endpoint(PACKS), JSON.stringify({ description, name }))
+    return this.authenticatedPost(this.endpoint(PACKS), JSON.stringify({ description, name, ...packTargets }))
       .then((response) => { return response.pack; });
   }
 
@@ -121,7 +122,7 @@ class Kolide extends Base {
     const { HOSTS } = endpoints;
 
     return this.authenticatedGet(this.endpoint(HOSTS))
-      .then((response) => { return response.hosts; });
+      .then(response => response.hosts);
   }
 
   getLabelHosts = (labelID) => {
@@ -358,11 +359,12 @@ class Kolide extends Base {
     return this.authenticatedPatch(this.endpoint(CONFIG), JSON.stringify(configData));
   }
 
-  updatePack = ({ id: packID }, updateParams) => {
+  updatePack = (pack, { description, name, targets }) => {
     const { PACKS } = endpoints;
-    const updatePackEndpoint = `${this.baseURL}${PACKS}/${packID}`;
+    const updatePackEndpoint = `${this.baseURL}${PACKS}/${pack.id}`;
+    const packTargets = helpers.formatSelectedTargetsForApi(targets, true);
 
-    return this.authenticatedPatch(updatePackEndpoint, JSON.stringify(updateParams))
+    return this.authenticatedPatch(updatePackEndpoint, JSON.stringify({ description, name, ...packTargets }))
       .then((response) => { return response.pack; });
   }
 

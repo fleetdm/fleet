@@ -4,7 +4,7 @@ import nock from 'nock';
 import Kolide from 'kolide';
 import helpers from 'kolide/helpers';
 import mocks from 'test/mocks';
-import { queryStub, userStub } from 'test/stubs';
+import { hostStub, queryStub, userStub } from 'test/stubs';
 
 const {
   invalidForgotPasswordRequest,
@@ -80,7 +80,7 @@ describe('Kolide - API client', () => {
 
     it('#createPack', (done) => {
       const { description, name } = pack;
-      const params = { description, name };
+      const params = { description, name, host_ids: [], label_ids: [] };
       const request = validCreatePackRequest(bearerToken, params);
 
       Kolide.setBearerToken(bearerToken);
@@ -105,7 +105,9 @@ describe('Kolide - API client', () => {
     });
 
     it('#updatePack', (done) => {
-      const updatePackParams = { name: 'New Pack Name' };
+      const targets = [hostStub];
+      const packTargets = helpers.formatSelectedTargetsForApi(targets, true);
+      const updatePackParams = { name: 'New Pack Name', ...packTargets };
       const request = validUpdatePackRequest(bearerToken, pack, updatePackParams);
 
       Kolide.setBearerToken(bearerToken);

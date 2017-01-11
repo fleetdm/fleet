@@ -53,6 +53,15 @@ describe('Kolide API - helpers', () => {
         labels: [1, 2],
       });
     });
+
+    it('appends `_id` when appendID is specified', () => {
+      const targets = [host1, host2, label1, label2];
+
+      expect(formatSelectedTargetsForApi(targets, true)).toEqual({
+        host_ids: [6, 5],
+        label_ids: [1, 2],
+      });
+    });
   });
 
   describe('#setupData', () => {

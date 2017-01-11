@@ -30,6 +30,60 @@ export const configStub = {
   },
 };
 
+export const hostStub = {
+  created_at: '2017-01-10T19:18:55Z',
+  updated_at: '2017-01-10T20:13:52Z',
+  deleted_at: null,
+  deleted: false,
+  id: 1,
+  detail_updated_at: '2017-01-10T20:01:48Z',
+  seen_time: '2017-01-10T20:13:54Z',
+  hostname: '52883a0ba916',
+  uuid: 'FD87130B-09A9-683D-9095-D92CD20728CA',
+  platform: 'ubuntu',
+  osquery_version: '2.1.2',
+  os_version: 'Ubuntu 14.4.',
+  build: '',
+  platform_like: 'debian',
+  code_name: '',
+  uptime: 45469000000000,
+  memory: 2094940160,
+  cpu_type: '6',
+  cpu_subtype: '78',
+  cpu_brand: 'Intel(R) Core(TM) i5-6267U CPU @ 2.90GHz',
+  cpu_physical_cores: 2,
+  cpu_logical_cores: 2,
+  hardware_vendor: ' ',
+  hardware_model: 'BHYVE',
+  hardware_version: '1.0',
+  hardware_serial: 'None',
+  computer_name: '52883a0ba916',
+  primary_ip_id: 1,
+  network_interfaces: [
+    {
+      id: 1,
+      interface: 'eth0',
+      address: '172.19.0.8',
+      mask: '255.255.0.0',
+      broadcast: '172.19.0.8',
+      point_to_point: '',
+      mac: '02:42:ac:13:00:08',
+      type: 1,
+      mtu: 1500,
+      metric: 0,
+      ipackets: 512,
+      opackets: 317,
+      ibytes: 97231,
+      obytes: 43502,
+      ierrors: 0,
+      oerrors: 0,
+      last_change: -1,
+    },
+  ],
+  status: 'online',
+  display_text: '52883a0ba916',
+};
+
 export const packStub = {
   created_at: '0001-01-01T00:00:00Z',
   updated_at: '0001-01-01T00:00:00Z',
@@ -41,6 +95,8 @@ export const packStub = {
   platform: '',
   created_by: 1,
   disabled: false,
+  host_ids: [],
+  label_ids: [],
 };
 
 export const queryStub = {
@@ -82,6 +138,7 @@ export const userStub = {
 export default {
   adminUserStub,
   configStub,
+  hostStub,
   packStub,
   queryStub,
   scheduledQueryStub,

@@ -1,8 +1,5 @@
 import { PropTypes } from 'react';
+import hostInterface from 'interfaces/host';
+import labelInterface from 'interfaces/label';
 
-export default PropTypes.shape({
-  id: PropTypes.number,
-  label: PropTypes.string,
-  name: PropTypes.string,
-  target_type: PropTypes.string,
-});
+export default PropTypes.oneOfType([hostInterface, labelInterface]);

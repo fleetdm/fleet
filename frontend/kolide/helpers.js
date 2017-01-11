@@ -47,10 +47,14 @@ export const formatConfigDataForServer = (config) => {
   };
 };
 
-export const formatSelectedTargetsForApi = (selectedTargets) => {
+export const formatSelectedTargetsForApi = (selectedTargets, appendID = false) => {
   const targets = selectedTargets || [];
   const hosts = flatMap(targets, filterTarget('hosts'));
   const labels = flatMap(targets, filterTarget('labels'));
+
+  if (appendID) {
+    return { host_ids: hosts, label_ids: labels };
+  }
 
   return { hosts, labels };
 };

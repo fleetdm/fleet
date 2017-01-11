@@ -8,5 +8,8 @@ export default reduxConfig({
   createFunc: Kolide.createLabel,
   entityName: 'labels',
   loadAllFunc: Kolide.getLabels,
+  parseEntityFunc: (label) => {
+    return { ...label, target_type: 'labels' };
+  },
   schema,
 });
