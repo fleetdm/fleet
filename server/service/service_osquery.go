@@ -40,6 +40,10 @@ func (svc service) AuthenticateHost(ctx context.Context, nodeKey string) (*kolid
 			nodeInvalid: true,
 		}
 	}
+	err = svc.ds.MarkHostSeen(host, svc.clock.Now())
+	if err != nil {
+		return nil, osqueryError{message: "failed to make host seen: " + err.Error()}
+	}
 	return host, nil
 }
 
