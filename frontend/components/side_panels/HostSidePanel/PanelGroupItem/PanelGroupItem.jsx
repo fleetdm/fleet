@@ -30,12 +30,22 @@ class PanelGroupItem extends Component {
     return <Icon name={iconClassForLabel(item)} className={`${baseClass}__icon`} />;
   }
 
+  renderDescription = () => {
+    const { item } = this.props;
+    const { description, type } = item;
+
+    if (!description || type === 'custom') {
+      return false;
+    }
+
+    return <span className={`${baseClass}__description`}>{description}</span>;
+  }
+
   render () {
-    const { renderIcon } = this;
+    const { renderDescription, renderIcon } = this;
     const { item, onLabelClick, isSelected } = this.props;
     const {
       count,
-      description,
       display_text: displayText,
       type,
     } = item;
@@ -56,7 +66,7 @@ class PanelGroupItem extends Component {
           {renderIcon()}
           <span className={`${baseClass}__name`}>
             {displayText}
-            {description && <span className={`${baseClass}__description`}>{description}</span>}
+            {renderDescription()}
           </span>
           <span className={`${baseClass}__count`}>{count}</span>
         </div>
