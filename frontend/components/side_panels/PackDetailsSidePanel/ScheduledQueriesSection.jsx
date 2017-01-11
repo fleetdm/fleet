@@ -53,16 +53,19 @@ class ScheduledQueriesSection extends Component {
     const queriesToRender = showAllQueries ? scheduledQueries : take(scheduledQueries, DEFAULT_NUM_QUERIES);
 
     return (
-      <div>
+      <div className={`${baseClass}__scheduled-queries`}>
         <p className={`${baseClass}__section-label`}>Queries</p>
-        {queriesToRender.map((scheduledQuery) => {
-          return (
-            <div key={`scheduled-query-${scheduledQuery.id}`}>
-              <Icon className={`${baseClass}__query-icon`} name="query" />
-              <span className={`${baseClass}__query-name`}>{scheduledQuery.name}</span>
-            </div>
-          );
-        })}
+
+        <ul className={`${baseClass}__queries-list`}>
+          {queriesToRender.map((scheduledQuery) => {
+            return (
+              <li key={`scheduled-query-${scheduledQuery.id}`}>
+                <Icon className={`${baseClass}__query-icon`} name="query" />
+                <span className={`${baseClass}__query-name`}>{scheduledQuery.name}</span>
+              </li>
+            );
+          })}
+        </ul>
         {renderShowMoreQueries()}
       </div>
     );

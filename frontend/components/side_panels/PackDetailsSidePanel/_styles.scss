@@ -4,6 +4,7 @@
   &__description {
     color: $text-medium;
     font-size: 14px;
+    word-wrap: break-word;
   }
 
   &__section-label {
@@ -42,6 +43,7 @@
   }
 
   &__pack-name {
+    @include ellipsis(250px);
     color: $text-dark;
     font-size: 18px;
     font-weight: $bold;
@@ -54,8 +56,16 @@
     margin-right: 15px;
   }
 
+  &__queries-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
   &__query-name {
+    @include ellipsis(240px);
     color: $text-medium;
     font-size: 16px;
+    vertical-align: bottom;
   }
 }

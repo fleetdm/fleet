@@ -28,6 +28,8 @@
   }
 
   &__td-pack-name {
+    @include ellipsis(110px);
+    display: table-cell;
     text-align: left;
   }
 

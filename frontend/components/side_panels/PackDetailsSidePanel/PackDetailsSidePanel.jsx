@@ -31,8 +31,10 @@ const PackDetailsSidePanel = ({ onUpdateSelectedPack, pack, scheduledQueries = [
 
   return (
     <SecondarySidePanelContainer className={baseClass}>
-      <Icon className={`${baseClass}__pack-icon`} name="packs" />
-      <span className={`${baseClass}__pack-name`}>{pack.name}</span>
+      <h2 className={`${baseClass}__pack-name`}>
+        <Icon className={`${baseClass}__pack-icon`} name="packs" />
+        <span>{pack.name}</span>
+      </h2>
       <Slider
         activeText="ENABLED"
         inactiveText="DISABLED"

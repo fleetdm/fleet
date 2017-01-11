@@ -56,7 +56,7 @@ class QueriesListRow extends Component {
             value={checked}
           />
         </td>
-        <td>{name}</td>
+        <td className={`${baseClass}__name`}>{name}</td>
         <td className={`${baseClass}__author-name`}>{authorName}</td>
         <td>{lastModifiedDate}</td>
       </ClickableTableRow>

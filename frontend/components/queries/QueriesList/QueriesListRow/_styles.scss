@@ -21,4 +21,9 @@
       margin: 0;
     }
   }
+
+  &__name {
+    @include ellipsis(120px);
+    display: table-cell;
+  }
 }

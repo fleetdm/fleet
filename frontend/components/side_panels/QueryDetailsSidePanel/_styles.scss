@@ -2,6 +2,7 @@
   padding: 20px;
 
   h1 {
+    @include ellipsis(250px);
     margin: 0 0 12px;
     font-size: 18px;
     font-weight: $bold;
@@ -31,6 +32,10 @@
 
   &__query-preview {
     margin-bottom: 12px;
+  }
+
+  &__description {
+    word-wrap: break-word;
   }
 
   .button {

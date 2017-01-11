@@ -4,6 +4,8 @@
   }
 
   &__title {
+    @include ellipsis(80%);
+
     .kolidecon {
       color: $accent-dark;
     }
@@ -15,5 +17,6 @@
     line-height: 2;
     color: $text-medium;
     max-width: 800px;
+    word-wrap: break-word;
   }
 }

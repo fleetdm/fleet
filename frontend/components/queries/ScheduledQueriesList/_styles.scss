@@ -161,4 +161,9 @@
       color: $text-dark;
     }
   }
+
+  &__query-name {
+    @include ellipsis(110px);
+    display: table-cell;
+  }
 }
