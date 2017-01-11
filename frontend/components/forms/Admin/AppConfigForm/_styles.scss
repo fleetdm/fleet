@@ -29,21 +29,6 @@
     }
   }
 
-  &__smtp-buttons {
-    float: right;
-    width: 40%;
-
-    .button {
-      width: 45%;
-      float: left;
-
-      &:last-child {
-        width: 53%;
-        float: right;
-      }
-    }
-  }
-
   &__inputs {
     width: 60%;
     float: left;

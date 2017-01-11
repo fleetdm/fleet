@@ -50,15 +50,20 @@ func (svc service) ModifyAppConfig(ctx context.Context, p kolide.AppConfigPayloa
 		return nil, err
 	}
 	newConfig := appConfigFromAppConfigPayload(p, *oldConfig)
+	smtpTest := p.SMTPTest != nil && *p.SMTPTest
+
+	// if the request actually included SMTP settings, let's analyze the request
+	// and figure out what is being requested
 	if p.SMTPSettings != nil {
 		oldSettings := smtpSettingsFromAppConfig(oldConfig)
-		// anything changed?
-		if !reflect.DeepEqual(oldSettings, p.SMTPSettings) {
+
+		// have the setting been updated or is the user trying to send a test email
+		if !reflect.DeepEqual(oldSettings, p.SMTPSettings) || smtpTest {
+			// make a test email and send it to the user who is changing settings
 			vc, ok := viewer.FromContext(ctx)
 			if !ok {
 				return nil, errNoContext
 			}
-
 			testMail := kolide.Email{
 				Subject: "Hello from Kolide",
 				To:      []string{vc.User.Email},
@@ -68,22 +73,33 @@ func (svc service) ModifyAppConfig(ctx context.Context, p kolide.AppConfigPayloa
 				Config: newConfig,
 			}
 
+			// try sending the test email
 			err = mail.Test(svc.mailService, testMail)
 			if err != nil {
-				return nil, mailError{
-					message: err.Error(),
-				}
-			}
-			newConfig.SMTPConfigured = true
-			newConfig.SMTPEnabled = true
+				// if there is an error, set configured to false
+				newConfig.SMTPConfigured = false
 
-			// if testing is indicated we don't persist anything, otherwise
-			// email is marked as unconfigured
-			if p.SMTPTest != nil && *p.SMTPTest {
-				return newConfig, nil
+				if smtpTest {
+					// if we're sending a test email, return: the test failed
+					return nil, mailError{
+						message: err.Error(),
+					}
+				}
+			} else {
+				// if there was not an error sending the test email, set
+				// configured to true
+				newConfig.SMTPConfigured = true
 			}
 		}
 	}
+	// if, this whole time, we've been sending a test email, then we don't want
+	// to actually save anything, so we just return the fake object
+	if smtpTest {
+		return newConfig, nil
+	}
+
+	// if this was not a test email, then we save the config to the database and
+	// return it
 	if err = svc.ds.SaveAppConfig(newConfig); err != nil {
 		return nil, err
 	}
@@ -112,7 +128,6 @@ func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppC
 			config.SMTPAuthenticationType = kolide.AuthTypeNone
 		}
 		config.SMTPConfigured = p.SMTPSettings.SMTPConfigured
-		config.SMTPEnabled = p.SMTPSettings.SMTPEnabled
 		config.SMTPDomain = p.SMTPSettings.SMTPDomain
 		config.SMTPEnableStartTLS = p.SMTPSettings.SMTPEnableStartTLS
 		config.SMTPEnableTLS = p.SMTPSettings.SMTPEnableTLS
@@ -140,7 +155,6 @@ func smtpSettingsFromAppConfig(config *kolide.AppConfig) *kolide.SMTPSettings {
 		SMTPDomain:               config.SMTPDomain,
 		SMTPVerifySSLCerts:       config.SMTPVerifySSLCerts,
 		SMTPEnableStartTLS:       config.SMTPEnableStartTLS,
-		SMTPEnabled:              config.SMTPEnabled,
 	}
 }
 

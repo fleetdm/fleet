@@ -64,17 +64,14 @@ func (dm devMailService) SendEmail(e kolide.Email) error {
 }
 
 func (m mailService) SendEmail(e kolide.Email) error {
-	if !e.Config.SMTPEnabled {
-		return fmt.Errorf("email disabled")
+	if !e.Config.SMTPConfigured {
+		return fmt.Errorf("email not configured")
 	}
-	if e.Config.SMTPConfigured {
-		msg, err := getMessageBody(e)
-		if err != nil {
-			return err
-		}
-		return m.sendMail(e, msg)
+	msg, err := getMessageBody(e)
+	if err != nil {
+		return err
 	}
-	return nil
+	return m.sendMail(e, msg)
 }
 
 func (m mailService) sendMail(e kolide.Email, msg []byte) error {

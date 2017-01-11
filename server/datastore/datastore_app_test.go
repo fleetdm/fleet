@@ -16,6 +16,7 @@ func testOrgInfo(t *testing.T, ds kolide.Datastore) {
 
 	info, err := ds.NewAppConfig(info)
 	assert.Nil(t, err)
+	require.NotNil(t, info)
 
 	info2, err := ds.AppConfig()
 	require.Nil(t, err)
