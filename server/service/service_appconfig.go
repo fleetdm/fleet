@@ -74,7 +74,8 @@ func (svc service) ModifyAppConfig(ctx context.Context, p kolide.AppConfigPayloa
 					message: err.Error(),
 				}
 			}
-			newConfig.SMTPConfigured = (err == nil)
+			newConfig.SMTPConfigured = true
+			newConfig.SMTPEnabled = true
 
 			// if testing is indicated we don't persist anything, otherwise
 			// email is marked as unconfigured
