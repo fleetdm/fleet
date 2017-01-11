@@ -2,11 +2,11 @@ package service
 
 import (
 	"fmt"
-	"reflect"
 
 	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/kolide/kolide-ose/server/mail"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -44,66 +44,48 @@ func (svc service) AppConfig(ctx context.Context) (*kolide.AppConfig, error) {
 	return svc.ds.AppConfig()
 }
 
-func (svc service) ModifyAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
-	oldConfig, err := svc.AppConfig(ctx)
-	if err != nil {
-		return nil, err
+func (svc service) SendTestEmail(ctx context.Context, config *kolide.AppConfig) error {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return errNoContext
 	}
-	newConfig := appConfigFromAppConfigPayload(p, *oldConfig)
-	smtpTest := p.SMTPTest != nil && *p.SMTPTest
 
-	// if the request actually included SMTP settings, let's analyze the request
-	// and figure out what is being requested
+	testMail := kolide.Email{
+		Subject: "Hello from Kolide",
+		To:      []string{vc.User.Email},
+		Mailer: &kolide.SMTPTestMailer{
+			KolideServerURL: config.KolideServerURL,
+		},
+		Config: config,
+	}
+
+	if err := mail.Test(svc.mailService, testMail); err != nil {
+		return mailError{message: err.Error()}
+	}
+	return nil
+
+}
+
+func (svc service) ModifyAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
+	oldAppConfig, err := svc.AppConfig(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed retrieving existing app config")
+	}
+	config := appConfigFromAppConfigPayload(p, *oldAppConfig)
+
 	if p.SMTPSettings != nil {
-		oldSettings := smtpSettingsFromAppConfig(oldConfig)
-
-		// have the setting been updated or is the user trying to send a test email
-		if !reflect.DeepEqual(oldSettings, p.SMTPSettings) || smtpTest {
-			// make a test email and send it to the user who is changing settings
-			vc, ok := viewer.FromContext(ctx)
-			if !ok {
-				return nil, errNoContext
-			}
-			testMail := kolide.Email{
-				Subject: "Hello from Kolide",
-				To:      []string{vc.User.Email},
-				Mailer: &kolide.SMTPTestMailer{
-					KolideServerURL: newConfig.KolideServerURL,
-				},
-				Config: newConfig,
-			}
-
-			// try sending the test email
-			err = mail.Test(svc.mailService, testMail)
-			if err != nil {
-				// if there is an error, set configured to false
-				newConfig.SMTPConfigured = false
-
-				if smtpTest {
-					// if we're sending a test email, return: the test failed
-					return nil, mailError{
-						message: err.Error(),
-					}
-				}
-			} else {
-				// if there was not an error sending the test email, set
-				// configured to true
-				newConfig.SMTPConfigured = true
-			}
+		if err = svc.SendTestEmail(ctx, config); err != nil {
+			err = errors.Wrap(err, "test email failed")
+			config.SMTPConfigured = false
+		} else {
+			config.SMTPConfigured = true
 		}
 	}
-	// if, this whole time, we've been sending a test email, then we don't want
-	// to actually save anything, so we just return the fake object
-	if smtpTest {
-		return newConfig, nil
-	}
 
-	// if this was not a test email, then we save the config to the database and
-	// return it
-	if err = svc.ds.SaveAppConfig(newConfig); err != nil {
-		return nil, err
+	if err := svc.ds.SaveAppConfig(config); err != nil {
+		err = errors.Wrap(err, "could not save config")
 	}
-	return newConfig, nil
+	return config, err
 }
 
 func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppConfig) *kolide.AppConfig {

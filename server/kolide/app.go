@@ -1,6 +1,8 @@
 package kolide
 
-import "golang.org/x/net/context"
+import (
+	"golang.org/x/net/context"
+)
 
 // AppConfigStore contains method for saving and retrieving
 // application configuration
@@ -16,6 +18,7 @@ type AppConfigService interface {
 	NewAppConfig(ctx context.Context, p AppConfigPayload) (info *AppConfig, err error)
 	AppConfig(ctx context.Context) (info *AppConfig, err error)
 	ModifyAppConfig(ctx context.Context, p AppConfigPayload) (info *AppConfig, err error)
+	SendTestEmail(ctx context.Context, config *AppConfig) error
 }
 
 // SMTP settings names returned from API, these map to SMTPAuthType and
