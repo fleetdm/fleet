@@ -8,7 +8,8 @@ describe('AppConfigForm - validations', () => {
     authentication_type: 'username_password',
     kolide_server_url: 'https://gnar.dog',
     sender_address: 'hi@gnar.dog',
-    server: 'https://gnar.dog',
+    server: '192.168.99.100',
+    port: 1025,
     user_name: 'gnardog',
     password: 'p@ssw0rd',
   };
@@ -70,6 +71,20 @@ describe('AppConfigForm - validations', () => {
         valid: false,
         errors: {
           server: 'SMTP Server must be present',
+        },
+      });
+    });
+
+    it('validates the smtp server', () => {
+      const invalidFormData = {
+        ...validFormData,
+        port: '',
+      };
+
+      expect(validate(invalidFormData)).toEqual({
+        valid: false,
+        errors: {
+          server: 'SMTP Server Port must be present',
         },
       });
     });

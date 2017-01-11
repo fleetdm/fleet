@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/kolide/kolide-ose/server/contexts/viewer"
@@ -9,12 +10,30 @@ import (
 	"golang.org/x/net/context"
 )
 
+// mailError is set when an error performing mail operations
+type mailError struct {
+	message string
+}
+
+func (e mailError) Error() string {
+	return fmt.Sprintf("a mail error occurred: %s", e.message)
+}
+
+func (e mailError) MailError() []map[string]string {
+	return []map[string]string{
+		map[string]string{
+			"name":   "base",
+			"reason": e.message,
+		},
+	}
+}
+
 func (svc service) NewAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
 	config, err := svc.ds.AppConfig()
 	if err != nil {
 		return nil, err
 	}
-	newConfig, err := svc.ds.NewAppConfig(fromPayload(p, *config))
+	newConfig, err := svc.ds.NewAppConfig(appConfigFromAppConfigPayload(p, *config))
 	if err != nil {
 		return nil, err
 	}
@@ -30,8 +49,8 @@ func (svc service) ModifyAppConfig(ctx context.Context, p kolide.AppConfigPayloa
 	if err != nil {
 		return nil, err
 	}
-	newConfig := fromPayload(p, *oldConfig)
-	if p.SMTPSettings != nil && p.SMTPSettings.SMTPEnabled {
+	newConfig := appConfigFromAppConfigPayload(p, *oldConfig)
+	if p.SMTPSettings != nil {
 		oldSettings := smtpSettingsFromAppConfig(oldConfig)
 		// anything changed?
 		if !reflect.DeepEqual(oldSettings, p.SMTPSettings) {
@@ -51,10 +70,9 @@ func (svc service) ModifyAppConfig(ctx context.Context, p kolide.AppConfigPayloa
 
 			err = mail.Test(svc.mailService, testMail)
 			if err != nil {
-				// if the provided SMTP parameters don't work with the targeted SMTP server
-				// capture the error and return it to the front end so that GUI can
-				// display the problem to the end user to aid in diagnosis
-				newConfig.SMTPLastError = err.Error()
+				return nil, mailError{
+					message: err.Error(),
+				}
 			}
 			newConfig.SMTPConfigured = (err == nil)
 
@@ -71,7 +89,7 @@ func (svc service) ModifyAppConfig(ctx context.Context, p kolide.AppConfigPayloa
 	return newConfig, nil
 }
 
-func fromPayload(p kolide.AppConfigPayload, config kolide.AppConfig) *kolide.AppConfig {
+func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppConfig) *kolide.AppConfig {
 	if p.OrgInfo != nil && p.OrgInfo.OrgLogoURL != nil {
 		config.OrgLogoURL = *p.OrgInfo.OrgLogoURL
 	}
@@ -125,7 +143,7 @@ func smtpSettingsFromAppConfig(config *kolide.AppConfig) *kolide.SMTPSettings {
 	}
 }
 
-func fromAppConfig(config *kolide.AppConfig) *kolide.AppConfigPayload {
+func appConfigPayloadFromAppConfig(config *kolide.AppConfig) *kolide.AppConfigPayload {
 	return &kolide.AppConfigPayload{
 		OrgInfo: &kolide.OrgInfo{
 			OrgLogoURL: &config.OrgLogoURL,

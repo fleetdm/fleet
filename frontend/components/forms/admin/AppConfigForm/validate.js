@@ -9,6 +9,7 @@ export default (formData) => {
     password: smtpPassword,
     sender_address: smtpSenderAddress,
     server: smtpServer,
+    port: smtpServerPort,
     user_name: smtpUserName,
   } = formData;
 
@@ -27,6 +28,10 @@ export default (formData) => {
 
     if (!smtpServer) {
       errors.server = 'SMTP Server must be present';
+    }
+
+    if (!smtpServerPort) {
+      errors.server = 'SMTP Server Port must be present';
     }
 
     if (authType !== 'authtype_none') {

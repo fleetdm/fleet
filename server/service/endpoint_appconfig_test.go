@@ -56,7 +56,7 @@ func testModifyAppConfig(t *testing.T, r *testResource) {
 		SMTPEnableStartTLS:     true,
 		SMTPEnabled:            true,
 	}
-	payload := fromAppConfig(config)
+	payload := appConfigPayloadFromAppConfig(config)
 	payload.SMTPTest = new(bool)
 
 	var buffer bytes.Buffer
@@ -92,7 +92,7 @@ func testModifyAppConfigWithValidationFail(t *testing.T, r *testResource) {
 		SMTPEnableStartTLS:     true,
 		SMTPEnabled:            true,
 	}
-	payload := fromAppConfig(config)
+	payload := appConfigPayloadFromAppConfig(config)
 	payload.SMTPTest = new(bool)
 
 	var buffer bytes.Buffer

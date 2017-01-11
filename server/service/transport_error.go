@@ -81,6 +81,19 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		return
 	}
 
+	type mailError interface {
+		MailError() []map[string]string
+	}
+	if e, ok := err.(mailError); ok {
+		me := jsonError{
+			Message: "Mail Error",
+			Errors:  e.MailError(),
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		enc.Encode(me)
+		return
+	}
+
 	type osqueryError interface {
 		error
 		NodeInvalid() bool

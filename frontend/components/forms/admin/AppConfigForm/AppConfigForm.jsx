@@ -105,6 +105,10 @@ class AppConfigForm extends Component {
       return false;
     }
 
+    if (fields.user_name) {
+      fields.password.value = '************';
+    }
+
     return (
       <div className={`${baseClass}__smtp-section`}>
         <InputField
@@ -188,6 +192,7 @@ class AppConfigForm extends Component {
             <InputField
               {...fields.port}
               label="&nbsp;"
+              type="number"
             />
             <Checkbox
               {...fields.enable_ssl_tls}

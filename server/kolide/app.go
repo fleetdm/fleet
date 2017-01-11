@@ -100,8 +100,6 @@ type AppConfig struct {
 	SMTPEnableStartTLS bool `db:"smtp_enable_start_tls"`
 	// SMTPDisabled if user sets this to TRUE emails will not be sent from the application
 	SMTPEnabled bool `db:"smtp_enabled"`
-	// SMTPLastError contains error information if email test fails, it's not persisted
-	SMTPLastError string
 }
 
 // ModifyAppConfigRequest contains application configuration information
@@ -132,7 +130,7 @@ type SMTPSettings struct {
 	// SMTPUserName must be provided if SMTPAuthenticationType is UserNamePassword
 	SMTPUserName string `json:"user_name"`
 	// SMTPPassword must be provided if SMTPAuthenticationType is UserNamePassword
-	SMTPPassword string `json:"password"`
+	SMTPPassword string `json:"-"`
 	// SMTPEnableSSLTLS whether to use SSL/TLS for SMTP
 	SMTPEnableTLS bool `json:"enable_ssl_tls"`
 	// SMTPAuthenticationMethod authentication method smtp server will use
