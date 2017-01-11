@@ -324,6 +324,7 @@ func TestLabelQueries(t *testing.T) {
 		map[string][]map[string]string{
 			hostLabelQueryPrefix + "1": {{"col1": "val1"}},
 		},
+		map[string]string{},
 	)
 	assert.Nil(t, err)
 
@@ -358,6 +359,7 @@ func TestLabelQueries(t *testing.T) {
 			hostLabelQueryPrefix + "2": {{"col1": "val1"}},
 			hostLabelQueryPrefix + "3": {},
 		},
+		map[string]string{},
 	)
 	assert.Nil(t, err)
 
@@ -567,7 +569,7 @@ func TestDetailQueries(t *testing.T) {
 	require.Nil(t, err)
 
 	// Verify that results are ingested properly
-	svc.SubmitDistributedQueryResults(ctx, results)
+	svc.SubmitDistributedQueryResults(ctx, results, map[string]string{})
 
 	// Make sure the result saved to the datastore
 	host, err = ds.AuthenticateHost(nodeKey)
@@ -715,7 +717,7 @@ func TestDistributedQueries(t *testing.T) {
 	// this test.
 	time.Sleep(10 * time.Millisecond)
 
-	err = svc.SubmitDistributedQueryResults(ctx, results)
+	err = svc.SubmitDistributedQueryResults(ctx, results, map[string]string{})
 	require.Nil(t, err)
 
 	// Now the distributed query should be completed and not returned
@@ -775,7 +777,7 @@ func TestOrphanedQueryCampaign(t *testing.T) {
 
 	// Submit results
 	ctx = hostctx.NewContext(context.Background(), *host)
-	err = svc.SubmitDistributedQueryResults(ctx, results)
+	err = svc.SubmitDistributedQueryResults(ctx, results, map[string]string{})
 	require.Nil(t, err)
 
 	// The campaign should be set to completed because it is orphaned

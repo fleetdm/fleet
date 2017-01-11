@@ -3,13 +3,11 @@ package service
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	hostctx "github.com/kolide/kolide-ose/server/contexts/host"
-	"github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/kolide/kolide-ose/server/pubsub"
 	"golang.org/x/net/context"
@@ -132,7 +130,7 @@ func (svc service) SubmitStatusLogs(ctx context.Context, logs []kolide.OsquerySt
 	for _, log := range logs {
 		err := json.NewEncoder(svc.osqueryStatusLogWriter).Encode(log)
 		if err != nil {
-			return errors.NewFromError(err, http.StatusInternalServerError, "error writing status log")
+			return osqueryError{message: "error writing status log: " + err.Error()}
 		}
 	}
 
@@ -153,7 +151,7 @@ func (svc service) SubmitResultLogs(ctx context.Context, logs []kolide.OsqueryRe
 	for _, log := range logs {
 		err := json.NewEncoder(svc.osqueryResultLogWriter).Encode(log)
 		if err != nil {
-			return errors.NewFromError(err, http.StatusInternalServerError, "error writing result log")
+			return osqueryError{message: "error writing result log: " + err.Error()}
 		}
 	}
 
@@ -419,7 +417,7 @@ func (svc service) ingestLabelQuery(host kolide.Host, query string, rows []map[s
 
 // ingestDistributedQuery takes the results of a distributed query and modifies the
 // provided kolide.Host appropriately.
-func (svc service) ingestDistributedQuery(host kolide.Host, name string, rows []map[string]string) error {
+func (svc service) ingestDistributedQuery(host kolide.Host, name string, rows []map[string]string, failed bool) error {
 	trimmedQuery := strings.TrimPrefix(name, hostDistributedQueryPrefix)
 
 	campaignID, err := strconv.Atoi(trimmedQuery)
@@ -432,6 +430,12 @@ func (svc service) ingestDistributedQuery(host kolide.Host, name string, rows []
 		DistributedQueryCampaignID: uint(campaignID),
 		Host: host,
 		Rows: rows,
+	}
+	if failed {
+		// osquery errors are not currently helpful, but we should fix
+		// them to be better in the future
+		errString := "failed"
+		res.Error = &errString
 	}
 
 	err = svc.resultStore.WriteResult(res)
@@ -456,10 +460,14 @@ func (svc service) ingestDistributedQuery(host kolide.Host, name string, rows []
 	}
 
 	// Record execution of the query
+	status := kolide.ExecutionSucceeded
+	if failed {
+		status = kolide.ExecutionFailed
+	}
 	exec := &kolide.DistributedQueryExecution{
 		HostID: host.ID,
 		DistributedQueryCampaignID: uint(campaignID),
-		Status: kolide.ExecutionSucceeded,
+		Status: status,
 	}
 
 	_, err = svc.ds.NewDistributedQueryExecution(exec)
@@ -470,7 +478,7 @@ func (svc service) ingestDistributedQuery(host kolide.Host, name string, rows []
 	return nil
 }
 
-func (svc service) SubmitDistributedQueryResults(ctx context.Context, results kolide.OsqueryDistributedQueryResults) error {
+func (svc service) SubmitDistributedQueryResults(ctx context.Context, results kolide.OsqueryDistributedQueryResults, statuses map[string]string) error {
 	host, ok := hostctx.FromContext(ctx)
 
 	if !ok {
@@ -490,7 +498,11 @@ func (svc service) SubmitDistributedQueryResults(ctx context.Context, results ko
 		case strings.HasPrefix(query, hostLabelQueryPrefix):
 			err = svc.ingestLabelQuery(host, query, rows, labelResults)
 		case strings.HasPrefix(query, hostDistributedQueryPrefix):
-			err = svc.ingestDistributedQuery(host, query, rows)
+			// osquery docs say any nonzero (string) value for
+			// status indicates a query error
+			status, ok := statuses[query]
+			failed := ok && status != "0"
+			err = svc.ingestDistributedQuery(host, query, rows, failed)
 		default:
 			err = osqueryError{message: "unknown query prefix: " + query}
 		}

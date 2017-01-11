@@ -90,8 +90,9 @@ func makeGetDistributedQueriesEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type submitDistributedQueryResultsRequest struct {
-	NodeKey string                                `json:"node_key"`
-	Results kolide.OsqueryDistributedQueryResults `json:"queries"`
+	NodeKey  string                                `json:"node_key"`
+	Results  kolide.OsqueryDistributedQueryResults `json:"queries"`
+	Statuses map[string]string                     `json:"statuses"`
 }
 
 type submitDistributedQueryResultsResponse struct {
@@ -103,7 +104,7 @@ func (r submitDistributedQueryResultsResponse) error() error { return r.Err }
 func makeSubmitDistributedQueryResultsEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(submitDistributedQueryResultsRequest)
-		err := svc.SubmitDistributedQueryResults(ctx, req.Results)
+		err := svc.SubmitDistributedQueryResults(ctx, req.Results, req.Statuses)
 		if err != nil {
 			return submitDistributedQueryResultsResponse{Err: err}, nil
 		}

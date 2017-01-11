@@ -7,7 +7,7 @@ type OsqueryService interface {
 	AuthenticateHost(ctx context.Context, nodeKey string) (host *Host, err error)
 	GetClientConfig(ctx context.Context) (config *OsqueryConfig, err error)
 	GetDistributedQueries(ctx context.Context) (queries map[string]string, err error)
-	SubmitDistributedQueryResults(ctx context.Context, results OsqueryDistributedQueryResults) (err error)
+	SubmitDistributedQueryResults(ctx context.Context, results OsqueryDistributedQueryResults, statuses map[string]string) (err error)
 	SubmitStatusLogs(ctx context.Context, logs []OsqueryStatusLog) (err error)
 	SubmitResultLogs(ctx context.Context, logs []OsqueryResultLog) (err error)
 }

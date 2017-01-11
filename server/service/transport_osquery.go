@@ -48,8 +48,9 @@ func decodeSubmitDistributedQueryResultsRequest(ctx context.Context, r *http.Req
 	// "node_key":"IGXCXknWQ1baTa8TZ6rF3kAPZ4\/aTsui"
 	// }
 	type distributedQueryResultsShim struct {
-		NodeKey string                     `json:"node_key"`
-		Results map[string]json.RawMessage `json:"queries"`
+		NodeKey  string                     `json:"node_key"`
+		Results  map[string]json.RawMessage `json:"queries"`
+		Statuses map[string]string          `json:"statuses"`
 	}
 
 	var shim distributedQueryResultsShim
@@ -68,8 +69,9 @@ func decodeSubmitDistributedQueryResultsRequest(ctx context.Context, r *http.Req
 	}
 
 	req := submitDistributedQueryResultsRequest{
-		NodeKey: shim.NodeKey,
-		Results: results,
+		NodeKey:  shim.NodeKey,
+		Results:  results,
+		Statuses: shim.Statuses,
 	}
 
 	return req, nil

@@ -2,10 +2,11 @@ package service
 
 import (
 	"bytes"
-	"golang.org/x/net/context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"golang.org/x/net/context"
 
 	"github.com/gorilla/mux"
 	"github.com/kolide/kolide-ose/server/kolide"
@@ -95,6 +96,7 @@ func TestDecodeSubmitDistributedQueryResultsRequest(t *testing.T) {
 			},
 			"id3": {},
 		}, params.Results)
+		assert.Equal(t, map[string]string{"id1": "0", "id3": "1"}, params.Statuses)
 	}).Methods("POST")
 
 	// Note we explicitly test the case that requires using the shim
@@ -111,7 +113,8 @@ func TestDecodeSubmitDistributedQueryResultsRequest(t *testing.T) {
             {"col3": "val5", "col4": "val6"}
           ],
           "id3": ""
-        }
+        },
+        "statuses": {"id1": "0", "id3": "1"}
     }`))
 
 	router.ServeHTTP(

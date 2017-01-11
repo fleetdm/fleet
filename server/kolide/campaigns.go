@@ -103,6 +103,11 @@ type DistributedQueryResult struct {
 	DistributedQueryCampaignID uint                `json:"distributed_query_execution_id"`
 	Host                       Host                `json:"host"`
 	Rows                       []map[string]string `json:"rows"`
+	// osquery currently doesn't return any helpful error information,
+	// but we use string here instead of bool for future-proofing. Note also
+	// that we can't use the error interface here because something
+	// implementing that interface may not (un)marshal properly
+	Error *string `json:"error"`
 }
 
 // DistributedQueryExecution is the metadata associated with a distributed
