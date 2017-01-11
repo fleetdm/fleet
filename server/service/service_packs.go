@@ -268,6 +268,21 @@ func (svc service) ListPacksForHost(ctx context.Context, hid uint) ([]*kolide.Pa
 				break
 			}
 		}
+
+		// for each pack, we must know what host have been assigned to that pack
+		hostsForPack, err := svc.ds.ListExplicitHostsInPack(pack.ID, kolide.ListOptions{})
+		if err != nil {
+			return nil, err
+		}
+
+		// o(n) iteration to determine whether or not a pack is enabled
+		// in this case, n is len(hostsForPack)
+		for _, host := range hostsForPack {
+			if host.ID == hid {
+				packs = append(packs, pack)
+				break
+			}
+		}
 	}
 
 	return packs, nil

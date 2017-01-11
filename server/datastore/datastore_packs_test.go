@@ -65,15 +65,7 @@ func testGetHostsInPack(t *testing.T, ds kolide.Datastore) {
 	err = ds.AddLabelToPack(l1.ID, p1.ID)
 	require.Nil(t, err)
 
-	h1, err := ds.NewHost(&kolide.Host{
-		DetailUpdateTime: mockClock.Now(),
-		SeenTime:         mockClock.Now(),
-		HostName:         "foobar.local",
-		OsqueryHostID:    "1",
-		NodeKey:          "1",
-		UUID:             "1",
-	})
-	require.Nil(t, err)
+	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", mockClock.Now())
 
 	err = ds.RecordLabelQueryExecutions(
 		h1,
@@ -86,15 +78,11 @@ func testGetHostsInPack(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, err)
 	require.Len(t, hostsInPack, 1)
 
-	h2, err := ds.NewHost(&kolide.Host{
-		DetailUpdateTime: mockClock.Now(),
-		SeenTime:         mockClock.Now(),
-		HostName:         "foobaz.local",
-		OsqueryHostID:    "2",
-		NodeKey:          "2",
-		UUID:             "2",
-	})
+	explicitHostsInPack, err := ds.ListExplicitHostsInPack(p1.ID, kolide.ListOptions{})
 	require.Nil(t, err)
+	require.Len(t, explicitHostsInPack, 0)
+
+	h2 := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", mockClock.Now())
 
 	err = ds.RecordLabelQueryExecutions(
 		h2,
@@ -106,6 +94,19 @@ func testGetHostsInPack(t *testing.T, ds kolide.Datastore) {
 	hostsInPack, err = ds.ListHostsInPack(p1.ID, kolide.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, hostsInPack, 2)
+
+	h3 := test.NewHost(t, ds, "h3.local", "10.10.10.3", "3", "3", mockClock.Now())
+
+	err = ds.AddHostToPack(h3.ID, p1.ID)
+	require.Nil(t, err)
+
+	hostsInPack, err = ds.ListHostsInPack(p1.ID, kolide.ListOptions{})
+	require.Nil(t, err)
+	require.Len(t, hostsInPack, 3)
+
+	explicitHostsInPack, err = ds.ListExplicitHostsInPack(p1.ID, kolide.ListOptions{})
+	require.Nil(t, err)
+	require.Len(t, explicitHostsInPack, 1)
 }
 
 func testAddLabelToPackTwice(t *testing.T, ds kolide.Datastore) {

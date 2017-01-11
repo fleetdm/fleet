@@ -3,9 +3,11 @@ package service
 import (
 	"testing"
 
+	"github.com/WatchBeam/clock"
 	"github.com/kolide/kolide-ose/server/config"
 	"github.com/kolide/kolide-ose/server/datastore/inmem"
 	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide-ose/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
@@ -167,4 +169,39 @@ func TestDeletePack(t *testing.T) {
 	queries, err := ds.ListPacks(kolide.ListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
+}
+
+func TestListPacksForHost(t *testing.T) {
+	ds, err := inmem.New(config.TestConfig())
+	assert.Nil(t, err)
+
+	mockClock := clock.NewMockClock()
+
+	svc, err := newTestService(ds, nil)
+	assert.Nil(t, err)
+
+	ctx := context.Background()
+
+	h1 := test.NewHost(t, ds, "h1", "10.10.10.1", "1", "1", mockClock.Now())
+	h2 := test.NewHost(t, ds, "h2", "10.10.10.2", "2", "2", mockClock.Now())
+
+	p1 := test.NewPack(t, ds, "p1")
+	p2 := test.NewPack(t, ds, "p2")
+
+	require.Nil(t, svc.AddHostToPack(ctx, h1.ID, p1.ID))
+	require.Nil(t, svc.AddHostToPack(ctx, h2.ID, p1.ID))
+
+	require.Nil(t, svc.AddHostToPack(ctx, h1.ID, p2.ID))
+
+	{
+		packs, err := svc.ListPacksForHost(ctx, h1.ID)
+		require.Nil(t, err)
+		require.Len(t, packs, 2)
+	}
+	{
+		packs, err := svc.ListPacksForHost(ctx, h2.ID)
+		require.Nil(t, err)
+		require.Len(t, packs, 1)
+	}
+
 }
