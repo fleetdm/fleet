@@ -143,6 +143,8 @@ the way that the kolide server works.
 				if service.RequireSetup(svc, logger) {
 					apiHandler = service.WithSetup(svc, logger, apiHandler)
 					frontendHandler = service.RedirectLoginToSetup(svc, logger, frontendHandler)
+				} else {
+					frontendHandler = service.RedirectSetupToLogin(svc, logger, frontendHandler)
 				}
 			}
 

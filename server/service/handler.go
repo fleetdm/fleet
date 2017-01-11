@@ -405,7 +405,7 @@ func RedirectLoginToSetup(svc kolide.Service, logger kitlog.Logger, next http.Ha
 		if RequireSetup(svc, logger) {
 			redirect.ServeHTTP(w, r)
 		} else {
-			next.ServeHTTP(w, r)
+			RedirectSetupToLogin(svc, logger, next).ServeHTTP(w, r)
 		}
 	}
 }
@@ -418,4 +418,18 @@ func RequireSetup(svc kolide.Service, logger kitlog.Logger) bool {
 		return false
 	}
 	return len(users) == 0
+}
+
+// RedirectSetupToLogin forces the /setup path to be redirected to login. This middleware is used after
+// the app has been setup.
+func RedirectSetupToLogin(svc kolide.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/setup" {
+			newURL := r.URL
+			newURL.Path = "/login"
+			http.Redirect(w, r, newURL.String(), http.StatusTemporaryRedirect)
+			return
+		}
+		next.ServeHTTP(w, r)
+	}
 }
