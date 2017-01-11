@@ -590,9 +590,12 @@ func TestDetailQueries(t *testing.T) {
 	// uptime
 	assert.Equal(t, 1730893*time.Second, host.Uptime)
 
-	ctx = hostctx.NewContext(ctx, *host)
+	mockClock.AddTime(1 * time.Minute)
 
 	// Now no detail queries should be required
+	host, err = ds.AuthenticateHost(nodeKey)
+	require.Nil(t, err)
+	ctx = hostctx.NewContext(ctx, *host)
 	queries, err = svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
@@ -600,6 +603,12 @@ func TestDetailQueries(t *testing.T) {
 	// Advance clock and queries should exist again
 	mockClock.AddTime(1*time.Hour + 1*time.Minute)
 
+	err = svc.SubmitDistributedQueryResults(ctx, kolide.OsqueryDistributedQueryResults{}, map[string]string{})
+	require.Nil(t, err)
+	host, err = ds.AuthenticateHost(nodeKey)
+	require.Nil(t, err)
+
+	ctx = hostctx.NewContext(ctx, *host)
 	queries, err = svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
 	assert.Len(t, queries, len(detailQueries))

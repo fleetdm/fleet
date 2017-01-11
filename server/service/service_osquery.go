@@ -494,11 +494,13 @@ func (svc service) SubmitDistributedQueryResults(ctx context.Context, results ko
 		return osqueryError{message: "failed to update host seen: " + err.Error()}
 	}
 
+	detailUpdated := false
 	labelResults := map[string]bool{}
 	for query, rows := range results {
 		switch {
 		case strings.HasPrefix(query, hostDetailQueryPrefix):
 			err = svc.ingestDetailQuery(&host, query, rows)
+			detailUpdated = true
 		case strings.HasPrefix(query, hostLabelQueryPrefix):
 			err = svc.ingestLabelQuery(host, query, rows, labelResults)
 		case strings.HasPrefix(query, hostDistributedQueryPrefix):
@@ -524,10 +526,15 @@ func (svc service) SubmitDistributedQueryResults(ctx context.Context, results ko
 		}
 	}
 
-	host.DetailUpdateTime = svc.clock.Now()
-	err = svc.ds.SaveHost(&host)
-	if err != nil {
-		return osqueryError{message: "failed to update host details: " + err.Error()}
+	if detailUpdated {
+		host.DetailUpdateTime = svc.clock.Now()
+	}
+
+	if len(labelResults) > 0 || detailUpdated {
+		err = svc.ds.SaveHost(&host)
+		if err != nil {
+			return osqueryError{message: "failed to update host details: " + err.Error()}
+		}
 	}
 
 	return nil
