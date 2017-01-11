@@ -252,3 +252,52 @@ func (d *Datastore) ListHostsInPack(pid uint, opt kolide.ListOptions) ([]*kolide
 
 	return hosts, nil
 }
+
+func (d *Datastore) ListExplicitHostsInPack(pid uint, opt kolide.ListOptions) ([]*kolide.Host, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+
+	hosts := []*kolide.Host{}
+	hostLookup := map[uint]bool{}
+
+	for _, pt := range d.packTargets {
+		if pt.PackID != pid {
+			continue
+		}
+
+		if pt.Type == kolide.TargetHost {
+			if !hostLookup[pt.TargetID] {
+				hostLookup[pt.TargetID] = true
+				hosts = append(hosts, d.hosts[pt.TargetID])
+			}
+		}
+	}
+
+	// Apply ordering
+	if opt.OrderKey != "" {
+		var fields = map[string]string{
+			"id":                 "ID",
+			"created_at":         "CreatedAt",
+			"updated_at":         "UpdatedAt",
+			"detail_update_time": "DetailUpdateTime",
+			"hostname":           "HostName",
+			"uuid":               "UUID",
+			"platform":           "Platform",
+			"osquery_version":    "OsqueryVersion",
+			"os_version":         "OSVersion",
+			"uptime":             "Uptime",
+			"memory":             "PhysicalMemory",
+			"mac":                "PrimaryMAC",
+			"ip":                 "PrimaryIP",
+		}
+		if err := sortResults(hosts, opt, fields); err != nil {
+			return nil, err
+		}
+	}
+
+	// Apply limit/offset
+	low, high := d.getLimitOffsetSliceBounds(opt, len(hosts))
+	hosts = hosts[low:high]
+
+	return hosts, nil
+}

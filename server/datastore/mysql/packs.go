@@ -1,21 +1,24 @@
 package mysql
 
 import (
-	"github.com/kolide/kolide-ose/server/errors"
+	"database/sql"
+	"fmt"
+
 	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/pkg/errors"
 )
 
 // NewPack creates a new Pack
 func (d *Datastore) NewPack(pack *kolide.Pack) (*kolide.Pack, error) {
 
-	sql := `
+	query := `
 		INSERT INTO packs ( name, description, platform, created_by, disabled )
 			VALUES ( ?, ?, ?, ?, ?)
 	`
 
-	result, err := d.db.Exec(sql, pack.Name, pack.Description, pack.Platform, pack.CreatedBy, pack.Disabled)
+	result, err := d.db.Exec(query, pack.Name, pack.Description, pack.Platform, pack.CreatedBy, pack.Disabled)
 	if err != nil {
-		return nil, errors.DatabaseError(err)
+		return nil, errors.Wrap(err, "creating new pack")
 	}
 
 	id, _ := result.LastInsertId()
@@ -25,16 +28,17 @@ func (d *Datastore) NewPack(pack *kolide.Pack) (*kolide.Pack, error) {
 
 // SavePack stores changes to pack
 func (d *Datastore) SavePack(pack *kolide.Pack) error {
-
-	sql := `
+	query := `
 			UPDATE packs
 			SET name = ?, platform = ?, disabled = ?, description = ?
 			WHERE id = ? AND NOT deleted
 	`
 
-	_, err := d.db.Exec(sql, pack.Name, pack.Platform, pack.Disabled, pack.Description, pack.ID)
-	if err != nil {
-		return errors.DatabaseError(err)
+	_, err := d.db.Exec(query, pack.Name, pack.Platform, pack.Disabled, pack.Description, pack.ID)
+	if err == sql.ErrNoRows {
+		return notFound("Pack").WithID(pack.ID)
+	} else if err != nil {
+		return errors.Wrap(err, "update pack")
 	}
 
 	return nil
@@ -42,15 +46,24 @@ func (d *Datastore) SavePack(pack *kolide.Pack) error {
 
 // DeletePack soft deletes a kolide.Pack so that it won't show up in results
 func (d *Datastore) DeletePack(pid uint) error {
-	return d.deleteEntity("packs", pid)
+	err := d.deleteEntity("packs", pid)
+	if err == sql.ErrNoRows {
+		return notFound("Pack").WithID(pid)
+	} else if err != nil {
+		return errors.Wrap(err, "delete pack")
+	}
+	return nil
 }
 
 // Pack fetch kolide.Pack with matching ID
 func (d *Datastore) Pack(pid uint) (*kolide.Pack, error) {
-	sql := `SELECT * FROM packs WHERE id = ? AND NOT deleted`
+	query := `SELECT * FROM packs WHERE id = ? AND NOT deleted`
 	pack := &kolide.Pack{}
-	if err := d.db.Get(pack, sql, pid); err != nil {
-		return nil, errors.DatabaseError(err)
+	err := d.db.Get(pack, query, pid)
+	if err == sql.ErrNoRows {
+		return nil, notFound("Pack").WithID(pid)
+	} else if err != nil {
+		return nil, errors.Wrap(err, "getting pack")
 	}
 
 	return pack, nil
@@ -58,25 +71,25 @@ func (d *Datastore) Pack(pid uint) (*kolide.Pack, error) {
 
 // ListPacks returns all kolide.Pack records limited and sorted by kolide.ListOptions
 func (d *Datastore) ListPacks(opt kolide.ListOptions) ([]*kolide.Pack, error) {
-	sql := `SELECT * FROM packs WHERE NOT deleted`
-	sql = appendListOptionsToSQL(sql, opt)
+	query := `SELECT * FROM packs WHERE NOT deleted`
 	packs := []*kolide.Pack{}
-	if err := d.db.Select(&packs, sql); err != nil {
-		return nil, errors.DatabaseError(err)
+	err := d.db.Select(&packs, appendListOptionsToSQL(query, opt))
+	if err != nil && err != sql.ErrNoRows {
+		return nil, errors.Wrap(err, "listing packs")
 	}
 	return packs, nil
 }
 
 // AddLabelToPack associates a kolide.Label with a kolide.Pack
 func (d *Datastore) AddLabelToPack(lid uint, pid uint) error {
-	sql := `
+	query := `
 		INSERT INTO pack_targets ( pack_id,	type, target_id )
 			VALUES ( ?, ?, ? )
 			ON DUPLICATE KEY UPDATE id=id
 	`
-	_, err := d.db.Exec(sql, pid, kolide.TargetLabel, lid)
+	_, err := d.db.Exec(query, pid, kolide.TargetLabel, lid)
 	if err != nil {
-		return errors.DatabaseError(err)
+		return errors.Wrap(err, "adding label to pack")
 	}
 
 	return nil
@@ -84,14 +97,14 @@ func (d *Datastore) AddLabelToPack(lid uint, pid uint) error {
 
 // AddHostToPack associates a kolide.Host with a kolide.Pack
 func (d *Datastore) AddHostToPack(hid, pid uint) error {
-	sql := `
+	query := `
 		INSERT INTO pack_targets ( pack_id, type, target_id )
 			VALUES ( ?, ?, ? )
 			ON DUPLICATE KEY UPDATE id=id
 	`
-	_, err := d.db.Exec(sql, pid, kolide.TargetHost, hid)
+	_, err := d.db.Exec(query, pid, kolide.TargetHost, hid)
 	if err != nil {
-		return errors.DatabaseError(err)
+		return errors.Wrap(err, "adding host to pack")
 	}
 
 	return nil
@@ -99,7 +112,7 @@ func (d *Datastore) AddHostToPack(hid, pid uint) error {
 
 // ListLabelsForPack will return a list of kolide.Label records associated with kolide.Pack
 func (d *Datastore) ListLabelsForPack(pid uint) ([]*kolide.Label, error) {
-	sql := `
+	query := `
 	SELECT
 		l.id,
 		l.created_at,
@@ -120,8 +133,8 @@ func (d *Datastore) ListLabelsForPack(pid uint) ([]*kolide.Label, error) {
 
 	labels := []*kolide.Label{}
 
-	if err := d.db.Select(&labels, sql, kolide.TargetLabel, pid); err != nil {
-		return nil, errors.DatabaseError(err)
+	if err := d.db.Select(&labels, query, kolide.TargetLabel, pid); err != nil && err != sql.ErrNoRows {
+		return nil, errors.Wrap(err, "listing labels for pack")
 	}
 
 	return labels, nil
@@ -130,12 +143,15 @@ func (d *Datastore) ListLabelsForPack(pid uint) ([]*kolide.Label, error) {
 // RemoreLabelFromPack will remove the association between a kolide.Label and
 // a kolide.Pack
 func (d *Datastore) RemoveLabelFromPack(lid, pid uint) error {
-	sql := `
+	query := `
 		DELETE FROM pack_targets
 			WHERE target_id = ? AND pack_id = ? AND type = ?
 	`
-	if _, err := d.db.Exec(sql, lid, pid, kolide.TargetLabel); err != nil {
-		return errors.DatabaseError(err)
+	_, err := d.db.Exec(query, lid, pid, kolide.TargetLabel)
+	if err == sql.ErrNoRows {
+		return notFound("PackTarget").WithMessage(fmt.Sprintf("label ID: %d, pack ID: %d", lid, pid))
+	} else if err != nil {
+		return errors.Wrap(err, "removing label from pack")
 	}
 
 	return nil
@@ -144,12 +160,15 @@ func (d *Datastore) RemoveLabelFromPack(lid, pid uint) error {
 // RemoveHostFromPack will remove the association between a kolide.Host and a
 // kolide.Pack
 func (d *Datastore) RemoveHostFromPack(hid, pid uint) error {
-	sql := `
+	query := `
 		DELETE FROM pack_targets
 			WHERE target_id = ? AND pack_id = ? AND type = ?
 	`
-	if _, err := d.db.Exec(sql, hid, pid, kolide.TargetHost); err != nil {
-		return errors.DatabaseError(err)
+	_, err := d.db.Exec(query, hid, pid, kolide.TargetHost)
+	if err == sql.ErrNoRows {
+		return notFound("PackTarget").WithMessage(fmt.Sprintf("host ID: %d, pack ID: %d", hid, pid))
+	} else if err != nil {
+		return errors.Wrap(err, "removing host from pack")
 	}
 
 	return nil
@@ -157,7 +176,7 @@ func (d *Datastore) RemoveHostFromPack(hid, pid uint) error {
 }
 
 func (d *Datastore) ListHostsInPack(pid uint, opt kolide.ListOptions) ([]*kolide.Host, error) {
-	sql := `
+	query := `
 		SELECT DISTINCT h.*
 		FROM hosts h
 		JOIN pack_targets pt
@@ -173,10 +192,28 @@ func (d *Datastore) ListHostsInPack(pid uint, opt kolide.ListOptions) ([]*kolide
 		)
 		WHERE pt.pack_id = ?
 	`
-	sql = appendListOptionsToSQL(sql, opt)
 	hosts := []*kolide.Host{}
-	if err := d.db.Select(&hosts, sql, kolide.TargetLabel, kolide.TargetHost, pid); err != nil {
-		return nil, errors.DatabaseError(err)
+	if err := d.db.Select(&hosts, appendListOptionsToSQL(query, opt), kolide.TargetLabel, kolide.TargetHost, pid); err != nil && err != sql.ErrNoRows {
+		return nil, errors.Wrap(err, "listing hosts in pack")
 	}
 	return hosts, nil
+}
+
+func (d *Datastore) ListExplicitHostsInPack(pid uint, opt kolide.ListOptions) ([]*kolide.Host, error) {
+	query := `
+		SELECT DISTINCT h.*
+		FROM hosts h
+		JOIN pack_targets pt
+		ON (
+		  pt.target_id = h.id
+		  AND pt.type = ?
+		)
+		WHERE pt.pack_id = ?
+	`
+	hosts := []*kolide.Host{}
+	if err := d.db.Select(&hosts, appendListOptionsToSQL(query, opt), kolide.TargetHost, pid); err != nil && err != sql.ErrNoRows {
+		return nil, errors.Wrap(err, "listing explicit hosts in pack")
+	}
+	return hosts, nil
+
 }

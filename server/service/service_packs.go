@@ -220,6 +220,10 @@ func (svc service) ListHostsInPack(ctx context.Context, pid uint, opt kolide.Lis
 	return svc.ds.ListHostsInPack(pid, opt)
 }
 
+func (svc service) ListExplicitHostsInPack(ctx context.Context, pid uint, opt kolide.ListOptions) ([]*kolide.Host, error) {
+	return svc.ds.ListExplicitHostsInPack(pid, opt)
+}
+
 func (svc service) ListPacksForHost(ctx context.Context, hid uint) ([]*kolide.Pack, error) {
 	packs := []*kolide.Pack{}
 

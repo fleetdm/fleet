@@ -19,7 +19,7 @@ func packResponseForPack(ctx context.Context, svc kolide.Service, pack kolide.Pa
 	if err != nil {
 		return nil, err
 	}
-	hosts, err := svc.ListHostsInPack(ctx, pack.ID, kolide.ListOptions{})
+	hosts, err := svc.ListExplicitHostsInPack(ctx, pack.ID, kolide.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
