@@ -1,6 +1,7 @@
 --force=true
 --host_identifier=hostname
 --verbose=true
+--debug
 --tls_dump=true
 
 --tls_hostname=dockerhost:8080
