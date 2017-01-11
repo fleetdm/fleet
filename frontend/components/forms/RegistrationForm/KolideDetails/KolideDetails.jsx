@@ -24,7 +24,7 @@ class KolideDetails extends Component {
     const tabIndex = currentPage ? 1 : -1;
 
     return (
-      <div className={className}>
+      <form onSubmit={handleSubmit} className={className}>
         <div className="registration-fields">
           <InputFieldWithIcon
             {...fields.kolide_server_url}
@@ -33,10 +33,10 @@ class KolideDetails extends Component {
             hint={['Don’t include ', <code key="hint">/v1</code>, ' or any other path']}
           />
         </div>
-        <Button onClick={handleSubmit} variant="gradient" tabIndex={tabIndex}>
+        <Button type="submit" variant="gradient" tabIndex={tabIndex} disabled={!currentPage}>
           Submit
         </Button>
-      </div>
+      </form>
     );
   }
 }

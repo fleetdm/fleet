@@ -39,10 +39,10 @@ describe('AdminDetails - form', () => {
     it('validates the email field', () => {
       const onSubmitSpy = createSpy();
       form = mount(<AdminDetails handleSubmit={onSubmitSpy} />);
-      const submitBtn = form.find('Button');
+      const htmlForm = form.find('form');
 
 
-      submitBtn.simulate('click');
+      htmlForm.simulate('submit');
 
       expect(onSubmitSpy).toNotHaveBeenCalled();
       expect(form.state().errors).toInclude({
@@ -57,10 +57,10 @@ describe('AdminDetails - form', () => {
       const onSubmitSpy = createSpy();
       form = mount(<AdminDetails handleSubmit={onSubmitSpy} />);
       const emailField = form.find({ name: 'email' }).find('input');
-      const submitBtn = form.find('Button');
+      const htmlForm = form.find('form');
 
       fillInFormInput(emailField, 'invalid-email');
-      submitBtn.simulate('click');
+      htmlForm.simulate('submit');
 
       expect(onSubmitSpy).toNotHaveBeenCalled();
       expect(form.state().errors).toInclude({ email: 'Email must be a valid email' });
@@ -71,11 +71,11 @@ describe('AdminDetails - form', () => {
       form = mount(<AdminDetails handleSubmit={onSubmitSpy} />);
       const passwordConfirmationField = form.find({ name: 'password_confirmation' }).find('input');
       const passwordField = form.find({ name: 'password' }).find('input');
-      const submitBtn = form.find('Button');
+      const htmlForm = form.find('form');
 
       fillInFormInput(passwordField, 'p@ssw0rd');
       fillInFormInput(passwordConfirmationField, 'password123');
-      submitBtn.simulate('click');
+      htmlForm.simulate('submit');
 
       expect(onSubmitSpy).toNotHaveBeenCalled();
       expect(form.state().errors).toInclude({
@@ -90,13 +90,13 @@ describe('AdminDetails - form', () => {
       const passwordConfirmationField = form.find({ name: 'password_confirmation' }).find('input');
       const passwordField = form.find({ name: 'password' }).find('input');
       const usernameField = form.find({ name: 'username' }).find('input');
-      const submitBtn = form.find('Button');
+      const htmlForm = form.find('form');
 
       fillInFormInput(emailField, 'hi@gnar.dog');
       fillInFormInput(passwordField, 'p@ssw0rd');
       fillInFormInput(passwordConfirmationField, 'p@ssw0rd');
       fillInFormInput(usernameField, 'gnardog');
-      submitBtn.simulate('click');
+      htmlForm.simulate('submit');
 
       expect(onSubmitSpy).toHaveBeenCalled();
     });

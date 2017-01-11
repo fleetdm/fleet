@@ -37,9 +37,9 @@ describe('ConfirmationPage - form', () => {
         handleSubmit={handleSubmitSpy}
       />
     );
-    const submitBtn = form.find('Button');
+    const htmlForm = form.find('form');
 
-    submitBtn.simulate('click');
+    htmlForm.simulate('submit');
 
     expect(handleSubmitSpy).toHaveBeenCalled();
   });

@@ -46,17 +46,16 @@ describe('OrgDetails - form', () => {
   });
 
   describe('submitting the form', () => {
-    it('validates presence of all fields', () => {
+    it('validates presence of org_name field', () => {
       const handleSubmitSpy = createSpy();
       const form = mount(<OrgDetails handleSubmit={handleSubmitSpy} />);
-      const submitBtn = form.find('Button');
+      const htmlForm = form.find('form');
 
-      submitBtn.simulate('click');
+      htmlForm.simulate('submit');
 
       expect(handleSubmitSpy).toNotHaveBeenCalled();
       expect(form.state().errors).toInclude({
         org_name: 'Organization name must be present',
-        org_logo_url: 'Organization logo URL must be present',
       });
     });
 
@@ -64,10 +63,10 @@ describe('OrgDetails - form', () => {
       const handleSubmitSpy = createSpy();
       const form = mount(<OrgDetails handleSubmit={handleSubmitSpy} />);
       const orgLogoField = form.find({ name: 'org_logo_url' }).find('input');
-      const submitBtn = form.find('Button');
+      const htmlForm = form.find('form');
 
       fillInFormInput(orgLogoField, 'http://www.thegnar.co/logo.png');
-      submitBtn.simulate('click');
+      htmlForm.simulate('submit');
 
       expect(handleSubmitSpy).toNotHaveBeenCalled();
       expect(form.state().errors).toInclude({
@@ -80,12 +79,12 @@ describe('OrgDetails - form', () => {
       const form = mount(<OrgDetails handleSubmit={handleSubmitSpy} />);
       const orgLogoField = form.find({ name: 'org_logo_url' }).find('input');
       const orgNameField = form.find({ name: 'org_name' }).find('input');
-      const submitBtn = form.find('Button');
+      const htmlForm = form.find('form');
 
       fillInFormInput(orgLogoField, 'https://www.thegnar.co/logo.png');
       fillInFormInput(orgNameField, 'The Gnar Co');
 
-      submitBtn.simulate('click');
+      htmlForm.simulate('submit');
 
       expect(handleSubmitSpy).toHaveBeenCalled();
     });

@@ -4,6 +4,7 @@ const classnames = require('classnames');
 const baseClass = 'button';
 
 interface IButtonProps {
+  autofocus: boolean;
   children: React.ReactChild;
   className: string;
   disabled: boolean;
@@ -17,12 +18,29 @@ interface IButtonProps {
 
 interface IButtonState {}
 
+interface Inputs {
+  button?: HTMLButtonElement;
+}
+
 class Button extends React.Component<IButtonProps, IButtonState> {
   static defaultProps = {
     size: '',
     type: 'button',
     variant: 'default',
   };
+
+  inputs: Inputs = {};
+
+  componentDidMount () {
+    const { autofocus } = this.props;
+    const { inputs: { button } } = this;
+
+    if (autofocus && button) {
+      button.focus();
+    }
+
+    return false;
+  }
 
   handleClick = (evt: React.MouseEvent<HTMLButtonElement>) => {
     const { disabled, onClick } = this.props;
@@ -38,8 +56,14 @@ class Button extends React.Component<IButtonProps, IButtonState> {
     return false;
   }
 
+  setRef = (button: HTMLButtonElement) => {
+    this.inputs.button = button;
+
+    return false;
+  }
+
   render () {
-    const { handleClick } = this;
+    const { handleClick, setRef } = this;
     const { children, className, disabled, size, tabIndex, type, title, variant } = this.props;
     const fullClassName = classnames(baseClass, `${baseClass}--${variant}`, className, {
       [`${baseClass}--disabled`]: disabled,
@@ -54,6 +78,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         tabIndex={tabIndex}
         type={type}
         title={title}
+        ref={setRef}
       >
         {children}
       </button>

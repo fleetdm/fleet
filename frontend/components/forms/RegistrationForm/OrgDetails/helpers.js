@@ -11,14 +11,9 @@ const validate = (formData) => {
     errors.org_name = 'Organization name must be present';
   }
 
-  if (!orgLogoUrl) {
-    errors.org_logo_url = 'Organization logo URL must be present';
-  }
-
   if (orgLogoUrl && !startsWith(orgLogoUrl, 'https://')) {
     errors.org_logo_url = 'Organization logo URL must start with https://';
   }
-
 
   const valid = !size(errors);
 

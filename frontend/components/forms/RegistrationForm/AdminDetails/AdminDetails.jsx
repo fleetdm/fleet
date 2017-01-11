@@ -27,13 +27,14 @@ class AdminDetails extends Component {
     const tabIndex = currentPage ? 1 : -1;
 
     return (
-      <div className={className}>
+      <form onSubmit={handleSubmit} className={className}>
         <div className="registration-fields">
           <InputFieldWithIcon
             {...fields.username}
             iconName="username"
             placeholder="Username"
             tabIndex={tabIndex}
+            autofocus={currentPage}
           />
           <InputFieldWithIcon
             {...fields.password}
@@ -56,10 +57,10 @@ class AdminDetails extends Component {
             tabIndex={tabIndex}
           />
         </div>
-        <Button onClick={handleSubmit} variant="gradient" tabIndex={tabIndex}>
+        <Button type="submit" variant="gradient" tabIndex={tabIndex} disabled={!currentPage}>
           Submit
         </Button>
-      </div>
+      </form>
     );
   }
 }

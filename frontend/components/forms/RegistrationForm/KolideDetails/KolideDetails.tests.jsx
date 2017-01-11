@@ -31,9 +31,9 @@ describe('KolideDetails - form', () => {
     it('validates the presence of the kolide web address field', () => {
       const handleSubmitSpy = createSpy();
       const form = mount(<KolideDetails handleSubmit={handleSubmitSpy} />);
-      const submitBtn = form.find('Button');
+      const htmlForm = form.find('form');
 
-      submitBtn.simulate('click');
+      htmlForm.simulate('submit');
 
       expect(handleSubmitSpy).toNotHaveBeenCalled();
       expect(form.state().errors).toInclude({ kolide_server_url: 'Kolide web address must be completed' });
@@ -43,10 +43,10 @@ describe('KolideDetails - form', () => {
       const handleSubmitSpy = createSpy();
       const form = mount(<KolideDetails handleSubmit={handleSubmitSpy} />);
       const kolideWebAddressField = form.find({ name: 'kolide_server_url' }).find('input');
-      const submitBtn = form.find('Button');
+      const htmlForm = form.find('form');
 
       fillInFormInput(kolideWebAddressField, 'http://gnar.kolide.co');
-      submitBtn.simulate('click');
+      htmlForm.simulate('submit');
 
       expect(handleSubmitSpy).toNotHaveBeenCalled();
       expect(form.state().errors).toInclude({
@@ -58,10 +58,10 @@ describe('KolideDetails - form', () => {
       const handleSubmitSpy = createSpy();
       const form = mount(<KolideDetails handleSubmit={handleSubmitSpy} />);
       const kolideWebAddressField = form.find({ name: 'kolide_server_url' }).find('input');
-      const submitBtn = form.find('Button');
+      const htmlForm = form.find('form');
 
       fillInFormInput(kolideWebAddressField, 'https://gnar.kolide.co');
-      submitBtn.simulate('click');
+      htmlForm.simulate('submit');
 
       expect(handleSubmitSpy).toHaveBeenCalled();
     });
