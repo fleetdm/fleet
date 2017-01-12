@@ -1,7 +1,8 @@
 .query-results-table {
   background-color: $white;
-  margin-top: 29px;
   padding: $pad-base;
+  max-width: 100%;
+  box-sizing: border-box;
 
   &__filter-icon {
     &--is-active {

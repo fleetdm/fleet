@@ -6,7 +6,7 @@ import campaignInterface from 'interfaces/campaign';
 import filterArrayByHash from 'utilities/filter_array_by_hash';
 import Icon from 'components/icons/Icon';
 import InputField from 'components/forms/fields/InputField';
-import ProgressBar from 'components/ProgressBar';
+import ProgressBar from 'components/loaders/ProgressBar';
 
 const baseClass = 'query-results-table';
 

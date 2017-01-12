@@ -2,6 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { push } from 'react-router-redux';
 import { first, isEqual, values } from 'lodash';
+import classnames from 'classnames';
 
 import Kolide from 'kolide';
 import campaignActions from 'redux/nodes/entities/campaigns/actions';
@@ -19,6 +20,7 @@ import { renderFlash } from 'redux/nodes/notifications/actions';
 import { selectOsqueryTable, setSelectedTargets, setSelectedTargetsQuery } from 'redux/nodes/components/QueryPages/actions';
 import targetInterface from 'interfaces/target';
 import validateQuery from 'components/forms/validators/validate_query';
+import Spinner from 'components/loaders/Spinner';
 
 const baseClass = 'query-page';
 
@@ -199,6 +201,30 @@ class QueryPage extends Component {
     return false;
   }
 
+  renderResultsTable = () => {
+    const { campaign } = this.props;
+    const resultsClasses = classnames(`${baseClass}__results`, 'body-wrap', {
+      [`${baseClass}__results--loading`]: this.socket && !campaign.query_results,
+    });
+    let resultBody = '';
+
+    if (!campaign || (!this.socket && !campaign.query_results)) {
+      return false;
+    }
+
+    if ((!campaign.query_results || campaign.query_results.length < 1) && this.socket) {
+      resultBody = <Spinner />;
+    } else {
+      resultBody = <QueryResultsTable campaign={campaign} />;
+    }
+
+    return (
+      <div className={resultsClasses}>
+        {resultBody}
+      </div>
+    );
+  }
+
   render () {
     const {
       onFetchTargets,
@@ -209,10 +235,10 @@ class QueryPage extends Component {
       onTargetSelect,
       onTextEditorInputChange,
       onUpdateQuery,
+      renderResultsTable,
     } = this;
     const { queryIsRunning, targetsCount } = this.state;
     const {
-      campaign,
       errors,
       query,
       selectedOsqueryTable,
@@ -239,7 +265,7 @@ class QueryPage extends Component {
               selectedOsqueryTable={selectedOsqueryTable}
             />
           </div>
-          {campaign && <div className={`${baseClass}__results body-wrap`}><QueryResultsTable campaign={campaign} /></div>}
+          {renderResultsTable()}
         </div>
         <QuerySidePanel
           onOsqueryTableSelect={onOsqueryTableSelect}

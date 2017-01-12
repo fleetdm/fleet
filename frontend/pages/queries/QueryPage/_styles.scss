@@ -1,7 +1,17 @@
 .query-page {
-  &__content {
+  @at-root .has-sidebar > &__content {
     @include display(flex);
     @include flex-direction(column);
+    @include align-self(stretch);
     margin-bottom: $pad-base;
+  }
+
+  &__results {
+    @include display(flex);
+    @include flex-grow(1);
+
+    &--loading {
+      @include align-items(center);
+    }
   }
 }
