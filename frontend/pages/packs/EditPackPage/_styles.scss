@@ -1,4 +1,10 @@
 .edit-pack-page {
+  @at-root .has-sidebar > &__content {
+    @include display(flex);
+    @include flex-direction(column);
+    @include align-self(stretch);
+  }
+
   &__pack-form {
     padding: $pad-small $pad-base;
   }

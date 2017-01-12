@@ -1,5 +1,7 @@
 .scheduled-queries-list-wrapper {
+  @include flex-grow(1);
   padding: $pad-small $pad-base;
+  margin-bottom: $base;
 
   &__query-count {
     margin: 0 0 15px;

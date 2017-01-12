@@ -152,8 +152,10 @@
       float: right;
       visibility: hidden;
       position: relative;
-      padding: 0 $pad-medium;
       line-height: 34px;
+      width: 25px;
+      padding: 0;
+      margin: 0 5px;
 
       &::after {
         @extend %kolidecon;
@@ -208,6 +210,12 @@
           color: $accent-medium;
         }
       }
+    }
+  }
+
+  &.is-disabled {
+    .Select-value-label {
+      padding: 0 $pad-medium;
     }
   }
 
