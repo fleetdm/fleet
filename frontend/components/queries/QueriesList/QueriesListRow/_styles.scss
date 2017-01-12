@@ -1,6 +1,10 @@
 .queries-list-row {
   line-height: 38px;
 
+  &--selected {
+    background-color: $accent-light;
+  }
+
   &:hover {
     cursor: pointer;
   }
