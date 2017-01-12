@@ -2,6 +2,7 @@ package service
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/go-kit/kit/endpoint"
 	kitlog "github.com/go-kit/kit/log"
@@ -381,6 +382,13 @@ func WithSetup(svc kolide.Service, logger kitlog.Logger, next http.Handler) http
 			decodeSetupRequest,
 			encodeResponse,
 		))
+
+		// whitelist osqueryd endpoints
+		if strings.HasPrefix(r.URL.Path, "/api/v1/osquery") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		if RequireSetup(svc, logger) {
 			configRouter.ServeHTTP(w, r)
 		} else {
