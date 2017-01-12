@@ -1,4 +1,5 @@
 import React, { Component, PropTypes } from 'react';
+import { Link } from 'react-router';
 
 import Button from 'components/buttons/Button';
 import Icon from 'components/icons/Icon';
@@ -30,16 +31,16 @@ class QueryDetailsSidePanel extends Component {
     }
 
     return (
-      <div>
+      <ul className={`${baseClass}__packs`}>
         {packs.map((pack) => {
           return (
-            <div key={`query-side-panel-pack-${pack.id}`}>
+            <li className={`${baseClass}__pack-item`} key={`query-side-panel-pack-${pack.id}`}>
               <Icon name="packs" />
-              <span>{pack.name}</span>
-            </div>
+              <Link to={`/packs/${pack.id}`} className={`${baseClass}__pack-name`}>{pack.name}</Link>
+            </li>
           );
         })}
-      </div>
+      </ul>
     );
   }
 
@@ -62,7 +63,7 @@ class QueryDetailsSidePanel extends Component {
           wrapEnabled
         />
         <h2>Description</h2>
-        <p className={`${baseClass}__description`}>{description}</p>
+        <p className={`${baseClass}__description`}>{description || <em>No description available</em>}</p>
         <h2>Packs</h2>
         {renderPacks()}
       </SecondarySidePanelContainer>

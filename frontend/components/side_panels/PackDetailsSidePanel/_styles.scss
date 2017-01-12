@@ -64,8 +64,12 @@
 
   &__query-name {
     @include ellipsis(240px);
-    color: $text-medium;
-    font-size: 16px;
-    vertical-align: bottom;
+    font-size: 14px;
+    vertical-align: middle;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
   }
 }

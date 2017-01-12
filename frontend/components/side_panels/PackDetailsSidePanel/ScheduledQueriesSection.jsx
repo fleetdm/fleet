@@ -1,5 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import { take } from 'lodash';
+import { Link } from 'react-router';
 
 import Button from 'components/buttons/Button';
 import Icon from 'components/icons/Icon';
@@ -61,7 +62,7 @@ class ScheduledQueriesSection extends Component {
             return (
               <li key={`scheduled-query-${scheduledQuery.id}`}>
                 <Icon className={`${baseClass}__query-icon`} name="query" />
-                <span className={`${baseClass}__query-name`}>{scheduledQuery.name}</span>
+                <Link to={`/queries/${scheduledQuery.id}`} className={`${baseClass}__query-name`}>{scheduledQuery.name}</Link>
               </li>
             );
           })}

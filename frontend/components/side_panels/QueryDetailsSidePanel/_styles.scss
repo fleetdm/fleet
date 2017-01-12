@@ -41,4 +41,28 @@
   .button {
     width: 100%;
   }
+
+  &__packs {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__pack-item {
+    .kolidecon {
+      margin-right: 12px;
+      color: $text-medium;
+    }
+  }
+
+  &__pack-name {
+    @include ellipsis(240px);
+    text-decoration: none;
+    font-size: 14px;
+    vertical-align: middle;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
 }

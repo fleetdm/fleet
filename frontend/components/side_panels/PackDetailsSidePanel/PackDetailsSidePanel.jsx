@@ -18,7 +18,7 @@ const Description = ({ pack }) => {
   return (
     <div>
       <p className={`${baseClass}__section-label`}>Description</p>
-      <p className={`${baseClass}__description`}>{pack.description}</p>
+      <p className={`${baseClass}__description`}>{pack.description || <em>No description available</em>}</p>
     </div>
   );
 };
