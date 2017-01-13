@@ -3,6 +3,7 @@ import classnames from 'classnames';
 
 import configInterface from 'interfaces/config';
 import OrgLogoIcon from 'components/icons/OrgLogoIcon';
+import Icon from 'components/icons/Icon';
 import userInterface from 'interfaces/user';
 import UserMenu from 'components/side_panels/SiteNavHeader/UserMenu';
 
@@ -89,6 +90,7 @@ class SiteNavHeader extends Component {
             <h1 className={`${headerBaseClass}__org-name`}>{orgName}</h1>
             <div className={userStatusClass} />
             <h2 className={`${headerBaseClass}__username`}>{username}</h2>
+            <Icon name="downcarat" className={`${headerBaseClass}__carat`} />
           </div>
 
           <UserMenu

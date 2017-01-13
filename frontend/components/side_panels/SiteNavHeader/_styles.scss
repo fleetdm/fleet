@@ -87,6 +87,12 @@
       display: none;
     }
   }
+
+  &__carat {
+    @include position(absolute, null 0 $pad-small null);
+    color: $accent-medium;
+    font-size: 9px;
+  }
 }
 
 .user-menu-toggle {
