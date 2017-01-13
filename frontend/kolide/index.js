@@ -17,6 +17,21 @@ class Kolide extends Base {
     return this.authenticatedPost(this.endpoint(endpoint));
   }
 
+  configOptions = {
+    loadAll: () => {
+      const { CONFIG_OPTIONS } = endpoints;
+
+      return this.authenticatedGet(this.endpoint(CONFIG_OPTIONS))
+        .then(response => response.options);
+    },
+    update: (options) => {
+      const { CONFIG_OPTIONS } = endpoints;
+
+      return this.authenticatedPatch(this.endpoint(CONFIG_OPTIONS), JSON.stringify({ options }))
+        .then(response => response.options);
+    },
+  }
+
   createLabel = ({ description, name, query }) => {
     const { LABELS } = endpoints;
 

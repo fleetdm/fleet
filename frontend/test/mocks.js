@@ -112,6 +112,16 @@ export const invalidGetQueryRequest = (bearerToken, queryID) => {
     });
 };
 
+export const validGetConfigOptionsRequest = (bearerToken) => {
+  return nock('http://localhost:8080', {
+    reqHeaders: {
+      Authorization: `Bearer ${bearerToken}`,
+    },
+  })
+    .get('/api/v1/kolide/options')
+    .reply(200, { options: [] });
+};
+
 export const validGetQueriesRequest = (bearerToken) => {
   return nock('http://localhost:8080', {
     reqHeaders: {
@@ -333,6 +343,16 @@ export const validUpdateConfigRequest = (bearerToken, configData) => {
   .reply(200, {});
 };
 
+export const validUpdateConfigOptionsRequest = (bearerToken, updatedOptions) => {
+  return nock('http://localhost:8080', {
+    reqHeaders: {
+      Authorization: `Bearer ${bearerToken}`,
+    },
+  })
+    .patch('/api/v1/kolide/options', JSON.stringify({ options: updatedOptions }))
+    .reply(200, { options: updatedOptions });
+};
+
 export const validUpdatePackRequest = (bearerToken, pack, formData) => {
   return nock('http://localhost:8080', {
     reqHeaders: {
@@ -372,6 +392,7 @@ export default {
   validDestroyPackRequest,
   validDestroyScheduledQueryRequest,
   validForgotPasswordRequest,
+  validGetConfigOptionsRequest,
   validGetConfigRequest,
   validGetHostsRequest,
   validGetInvitesRequest,
@@ -388,6 +409,7 @@ export default {
   validRevokeInviteRequest,
   validRunQueryRequest,
   validSetupRequest,
+  validUpdateConfigOptionsRequest,
   validUpdateConfigRequest,
   validUpdatePackRequest,
   validUpdateQueryRequest,

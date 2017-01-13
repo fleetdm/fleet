@@ -5,6 +5,7 @@ const baseClass = 'button';
 
 interface IButtonProps {
   autofocus: boolean;
+  block: boolean;
   children: React.ReactChild;
   className: string;
   disabled: boolean;
@@ -24,6 +25,7 @@ interface Inputs {
 
 class Button extends React.Component<IButtonProps, IButtonState> {
   static defaultProps = {
+    block: false,
     size: '',
     type: 'button',
     variant: 'default',
@@ -64,8 +66,9 @@ class Button extends React.Component<IButtonProps, IButtonState> {
 
   render () {
     const { handleClick, setRef } = this;
-    const { children, className, disabled, size, tabIndex, type, title, variant } = this.props;
+    const { block, children, className, disabled, size, tabIndex, type, title, variant } = this.props;
     const fullClassName = classnames(baseClass, `${baseClass}--${variant}`, className, {
+      [`${baseClass}--block`]: block,
       [`${baseClass}--disabled`]: disabled,
       [`${baseClass}--${size}`]: size,
     });

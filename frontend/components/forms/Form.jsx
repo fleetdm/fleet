@@ -13,8 +13,10 @@ export default (WrappedComponent, { fields, validate = defaultValidate }) => {
     };
 
     static defaultProps = {
-      serverErrors: {},
       formData: {},
+      onChangeFunc: noop,
+      onFormUpdate: noop,
+      serverErrors: {},
     };
 
     constructor (props) {
@@ -72,7 +74,7 @@ export default (WrappedComponent, { fields, validate = defaultValidate }) => {
     onFieldChange = (fieldName) => {
       return (value) => {
         const { errors, formData } = this.state;
-        const { onChangeFunc = noop } = this.props;
+        const { onChangeFunc } = this.props;
 
         onChangeFunc(fieldName, value);
 

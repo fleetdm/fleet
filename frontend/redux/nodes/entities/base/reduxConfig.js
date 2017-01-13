@@ -1,4 +1,4 @@
-import { noop } from 'lodash';
+import { isArray, noop } from 'lodash';
 import { normalize, arrayOf } from 'normalizr';
 
 import { entitiesExceptID, formatErrorResponse } from 'redux/nodes/entities/base/helpers';
@@ -114,17 +114,23 @@ const reduxConfig = ({
     });
   };
 
+  const successAction = (response, thunk) => {
+    if (!response) return {};
+
+    const parsable = isArray(response) ? response : [response];
+
+    const { entities } = normalize(parse(parsable), arrayOf(schema));
+
+    return thunk(entities);
+  };
+
   const create = (...args) => {
     return (dispatch) => {
       dispatch(createRequest);
 
       return createFunc(...args)
         .then((response) => {
-          if (!response) return [];
-
-          const { entities } = normalize(parse([response]), arrayOf(schema));
-
-          dispatch(createSuccess(entities));
+          dispatch(successAction(response, createSuccess));
 
           return response;
         })
@@ -164,11 +170,7 @@ const reduxConfig = ({
 
       return loadFunc(...args)
         .then((response) => {
-          if (!response) return [];
-
-          const { entities } = normalize(parse([response]), arrayOf(schema));
-
-          return dispatch(loadSuccess(entities));
+          return dispatch(successAction(response, loadSuccess));
         })
         .catch((response) => {
           const errorsObject = formatErrorResponse(response);
@@ -186,11 +188,7 @@ const reduxConfig = ({
 
       return loadAllFunc(...args)
         .then((response) => {
-          if (!response) return [];
-
-          const { entities } = normalize(parse(response), arrayOf(schema));
-
-          return dispatch(loadSuccess(entities));
+          return dispatch(successAction(response, loadSuccess));
         })
         .catch((response) => {
           const errorsObject = formatErrorResponse(response);
@@ -208,10 +206,7 @@ const reduxConfig = ({
 
       return updateFunc(...args)
         .then((response) => {
-          if (!response) return {};
-          const { entities } = normalize(parse([response]), arrayOf(schema));
-
-          dispatch(updateSuccess(entities));
+          dispatch(successAction(response, updateSuccess));
 
           return response;
         })

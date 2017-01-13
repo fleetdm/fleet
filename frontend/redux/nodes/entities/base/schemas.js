@@ -1,6 +1,7 @@
 import { Schema } from 'normalizr';
 
 const campaignsSchema = new Schema('campaigns');
+const configOptionsSchema = new Schema('config_options');
 const hostsSchema = new Schema('hosts');
 const invitesSchema = new Schema('invites');
 const labelsSchema = new Schema('labels');
@@ -12,6 +13,7 @@ const usersSchema = new Schema('users');
 
 export default {
   CAMPAIGNS: campaignsSchema,
+  CONFIG_OPTIONS: configOptionsSchema,
   HOSTS: hostsSchema,
   INVITES: invitesSchema,
   LABELS: labelsSchema,

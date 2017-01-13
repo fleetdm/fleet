@@ -91,6 +91,11 @@ $base-class: 'button';
     }
   }
 
+  &--block {
+    display: block;
+    width: 100%;
+  }
+
   &--disabled {
     opacity: 0.4;
     cursor: default;
@@ -125,7 +130,7 @@ $base-class: 'button';
   }
 
   &--unstyled {
-    background-color: transparent;
+    @include button-variant(transparent);
     border: 0;
     box-shadow: none;
     color: $text-dark;

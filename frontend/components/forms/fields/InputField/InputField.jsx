@@ -9,6 +9,7 @@ const baseClass = 'input-field';
 class InputField extends Component {
   static propTypes = {
     autofocus: PropTypes.bool,
+    disabled: PropTypes.bool,
     error: PropTypes.string,
     inputClassName: PropTypes.string, // eslint-disable-line react/forbid-prop-types
     inputWrapperClass: PropTypes.string,
@@ -18,7 +19,9 @@ class InputField extends Component {
     onFocus: PropTypes.func,
     placeholder: PropTypes.string,
     type: PropTypes.string,
-    value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    value: PropTypes.oneOfType(
+      [PropTypes.bool, PropTypes.string, PropTypes.number]
+    ).isRequired,
   };
 
   static defaultProps = {
@@ -54,6 +57,7 @@ class InputField extends Component {
 
   render () {
     const {
+      disabled,
       error,
       inputClassName,
       inputOptions,
@@ -68,6 +72,7 @@ class InputField extends Component {
     const shouldShowPasswordClass = type === 'password';
     const inputClasses = classnames(baseClass, inputClassName, {
       [`${baseClass}--password`]: shouldShowPasswordClass,
+      [`${baseClass}--disabled`]: disabled,
       [`${baseClass}--error`]: error,
       [`${baseClass}__textarea`]: type === 'textarea',
     });
@@ -81,6 +86,7 @@ class InputField extends Component {
             name={name}
             onChange={onInputChange}
             className={inputClasses}
+            disabled={disabled}
             placeholder={placeholder}
             ref={(r) => { this.input = r; }}
             type={type}
@@ -94,6 +100,7 @@ class InputField extends Component {
     return (
       <FormField {...formFieldProps} type="input" className={inputWrapperClass}>
         <input
+          disabled={disabled}
           name={name}
           onChange={onInputChange}
           onFocus={onFocus}

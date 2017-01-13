@@ -22,6 +22,10 @@
     border-bottom-color: $brand;
   }
 
+  &--disabled {
+    background-color: #f9f9f9;
+  }
+
   &--error {
     @include transition(background 150ms ease-in-out, color 150ms ease-in-out);
     border-color: $alert;

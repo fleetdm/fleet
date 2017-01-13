@@ -4,7 +4,7 @@ import nock from 'nock';
 import Kolide from 'kolide';
 import helpers from 'kolide/helpers';
 import mocks from 'test/mocks';
-import { hostStub, queryStub, userStub } from 'test/stubs';
+import { configOptionStub, hostStub, queryStub, userStub } from 'test/stubs';
 
 const {
   invalidForgotPasswordRequest,
@@ -17,6 +17,7 @@ const {
   validDestroyPackRequest,
   validDestroyScheduledQueryRequest,
   validForgotPasswordRequest,
+  validGetConfigOptionsRequest,
   validGetConfigRequest,
   validGetHostsRequest,
   validGetInvitesRequest,
@@ -33,6 +34,7 @@ const {
   validRevokeInviteRequest,
   validRunQueryRequest,
   validSetupRequest,
+  validUpdateConfigOptionsRequest,
   validUpdateConfigRequest,
   validUpdatePackRequest,
   validUpdateQueryRequest,
@@ -71,6 +73,39 @@ describe('Kolide - API client', () => {
           done();
         })
         .catch(done);
+    });
+  });
+
+  describe('configOptions', () => {
+    const bearerToken = 'valid-bearer-token';
+
+    it('#loadAll', (done) => {
+      const request = validGetConfigOptionsRequest(bearerToken);
+
+      Kolide.setBearerToken(bearerToken);
+      Kolide.configOptions.loadAll()
+        .then(() => {
+          expect(request.isDone()).toEqual(true);
+          done();
+        })
+        .catch(() => {
+          throw new Error('Request should have been stubbed');
+        });
+    });
+
+    it('#update', (done) => {
+      const options = [configOptionStub];
+      const request = validUpdateConfigOptionsRequest(bearerToken, options);
+
+      Kolide.setBearerToken(bearerToken);
+      Kolide.configOptions.update(options)
+        .then(() => {
+          expect(request.isDone()).toEqual(true);
+          done();
+        })
+        .catch(() => {
+          throw new Error('Request should have been stubbed');
+        });
     });
   });
 

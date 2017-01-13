@@ -1,0 +1,32 @@
+.config-options-page {
+  &__btn-wrapper {
+    min-width: 214px;
+  }
+
+  &__header-wrapper {
+    @include display(flex);
+    @include justify-content(space-around);
+
+    padding: 31px 35px;
+  }
+
+  &__options-wrapper {
+    border-top: 1px solid $accent-medium;
+    padding-top: 20px;
+  }
+
+  &__reset-btn {
+    margin-bottom: 32px;
+  }
+
+  h1 {
+    color: $text-dark;
+    font-size: 24px;
+    font-weight: $light;
+  }
+
+  p {
+    color: $text-medium;
+    font-size: 15px;
+  }
+}

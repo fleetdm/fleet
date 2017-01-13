@@ -168,6 +168,127 @@ describe('reduxConfig', () => {
     });
   });
 
+  describe('dispatching the update action', () => {
+    describe('successful update call', () => {
+      const mockStore = reduxMockStore(store);
+      const updateFunc = createSpy().andCall(() => {
+        return Promise.resolve([{ ...user, updated: true }]);
+      });
+
+      const config = reduxConfig({
+        updateFunc,
+        entityName: 'users',
+        schema: schemas.USERS,
+      });
+      const { actions, reducer } = config;
+
+      it('calls the updateFunc', () => {
+        mockStore.dispatch(actions.update(user));
+
+        expect(updateFunc).toHaveBeenCalledWith(user);
+      });
+
+      it('dispatches the correct actions', () => {
+        mockStore.dispatch(actions.update());
+
+        const dispatchedActions = mockStore.getActions();
+        const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
+
+        expect(dispatchedActionTypes).toInclude('users_UPDATE_REQUEST');
+        expect(dispatchedActionTypes).toInclude('users_UPDATE_SUCCESS');
+        expect(dispatchedActionTypes).toNotInclude('users_UPDATE_FAILURE');
+      });
+
+      it('adds the returned user to state', () => {
+        const updateSuccessAction = {
+          type: 'users_UPDATE_SUCCESS',
+          payload: {
+            data: {
+              users: {
+                [user.id]: { ...user, updated: true },
+              },
+            },
+          },
+        };
+        const initialState = {
+          loading: false,
+          entities: {},
+          errors: {},
+        };
+        const newState = reducer(initialState, updateSuccessAction);
+
+        expect(newState.data[user.id]).toEqual({ ...user, updated: true });
+      });
+    });
+
+    describe('unsuccessful update call', () => {
+      const mockStore = reduxMockStore(store);
+      const errors = [
+        { name: 'first_name',
+          reason: 'is not valid',
+        },
+        { name: 'last_name',
+          reason: 'must be changed or something',
+        },
+      ];
+      const errorResponse = {
+        message: {
+          message: 'Validation Failed',
+          errors,
+        },
+      };
+      const formattedErrors = formatErrorResponse(errorResponse);
+      const updateFunc = createSpy().andCall(() => {
+        return Promise.reject(errorResponse);
+      });
+      const config = reduxConfig({
+        entityName: 'users',
+        schema: schemas.USERS,
+        updateFunc,
+      });
+      const { actions, reducer } = config;
+
+      it('calls the updateFunc', () => {
+        mockStore.dispatch(actions.update(user));
+
+        expect(updateFunc).toHaveBeenCalledWith(user);
+      });
+
+      it('dispatches the correct actions', () => {
+        mockStore.dispatch(actions.update());
+
+        const dispatchedActions = mockStore.getActions();
+        const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
+
+        expect(dispatchedActionTypes).toInclude('users_UPDATE_REQUEST');
+        expect(dispatchedActionTypes).toNotInclude('users_UPDATE_SUCCESS');
+
+        const updateFailureAction = find(dispatchedActions, { type: 'users_UPDATE_FAILURE' });
+
+        expect(updateFailureAction.payload).toEqual({
+          errors: formattedErrors,
+        });
+      });
+
+      it('adds the returned errors to state', () => {
+        const updateFailureAction = {
+          type: 'users_UPDATE_FAILURE',
+          payload: {
+            errors: formattedErrors,
+          },
+        };
+        const initialState = {
+          loading: false,
+          entities: {},
+          errors: {},
+        };
+        const newState = reducer(initialState, updateFailureAction);
+
+        expect(newState.errors).toEqual(formattedErrors);
+      });
+    });
+  });
+
   describe('dispatching the destroy action', () => {
     describe('successful destroy call', () => {
       const mockStore = reduxMockStore(store);
