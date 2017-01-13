@@ -11,7 +11,7 @@ export const validUser = {
   admin: true,
   enabled: true,
   needs_password_reset: false,
-  gravatarURL: 'https://www.gravatar.com/avatar/7157f4758f8423b59aaee869d919f6b9?d=blank',
+  gravatarURL: 'https://www.gravatar.com/avatar/7157f4758f8423b59aaee869d919f6b9?d=blank&size=200',
 };
 
 export const validCreateLabelRequest = (bearerToken, labelParams) => {
