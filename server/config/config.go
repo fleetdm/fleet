@@ -50,14 +50,6 @@ type AppConfig struct {
 	InviteTokenValidityPeriod time.Duration
 }
 
-// SMTPConfig defines configs related to SMTP email
-type SMTPConfig struct {
-	Server          string
-	Username        string
-	Password        string
-	PoolConnections int
-}
-
 // SessionConfig defines configs related to user sessions
 type SessionConfig struct {
 	KeySize  int
@@ -89,7 +81,6 @@ type KolideConfig struct {
 	Server  ServerConfig
 	Auth    AuthConfig
 	App     AppConfig
-	SMTP    SMTPConfig
 	Session SessionConfig
 	Osquery OsqueryConfig
 	Logging LoggingConfig
@@ -124,12 +115,6 @@ func (man Manager) addConfigs() {
 	man.addConfigString("app.token_key", "CHANGEME")
 	man.addConfigDuration("app.invite_token_validity_period", 5*24*time.Hour)
 	man.addConfigInt("app.token_key_size", 24)
-
-	// SMTP
-	man.addConfigString("smtp.server", "0.0.0.0:1025")
-	man.addConfigString("smtp.username", "")
-	man.addConfigString("smtp.password", "")
-	man.addConfigInt("smtp.pool_connections", 4)
 
 	// Session
 	man.addConfigInt("session.key_size", 64)
@@ -178,12 +163,6 @@ func (man Manager) LoadConfig() KolideConfig {
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),
 			TokenKey:                  man.getConfigString("app.token_key"),
 			InviteTokenValidityPeriod: man.getConfigDuration("app.invite_token_validity_period"),
-		},
-		SMTP: SMTPConfig{
-			Server:          man.getConfigString("smtp.server"),
-			Username:        man.getConfigString("smtp.username"),
-			Password:        man.getConfigString("smtp.password"),
-			PoolConnections: man.getConfigInt("smtp.pool_connections"),
 		},
 		Session: SessionConfig{
 			KeySize:  man.getConfigInt("session.key_size"),
@@ -402,6 +381,5 @@ func TestConfig() KolideConfig {
 			Debug:         true,
 			DisableBanner: true,
 		},
-		SMTP: SMTPConfig{},
 	}
 }
