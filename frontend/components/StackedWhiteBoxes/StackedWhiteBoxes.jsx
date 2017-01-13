@@ -2,6 +2,8 @@ import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 import classnames from 'classnames';
 
+import Icon from 'components/icons/Icon';
+
 const baseClass = 'stacked-white-boxes';
 
 class StackedWhiteBoxes extends Component {
@@ -73,7 +75,9 @@ class StackedWhiteBoxes extends Component {
 
     return (
       <div className={`${baseClass}__back`}>
-        <Link to={previousLocation} className={`${baseClass}__back-link`} onClick={nowLeaving}>╳</Link>
+        <Link to={previousLocation} className={`${baseClass}__back-link`} onClick={nowLeaving}>
+          <Icon name="x" />
+        </Link>
       </div>
     );
   }
