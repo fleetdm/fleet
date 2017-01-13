@@ -20,6 +20,9 @@ type PackStore interface {
 
 	// ListPacks lists all packs in the datastore.
 	ListPacks(opt ListOptions) ([]*Pack, error)
+	// PackByName fetches pack if it exists, if the pack
+	// exists the bool return value is true
+	PackByName(name string) (*Pack, bool, error)
 
 	// AddLabelToPack adds an existing label to an existing pack, both by ID.
 	AddLabelToPack(lid, pid uint) error

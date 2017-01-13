@@ -10,6 +10,7 @@ import (
 
 type validationMiddleware struct {
 	kolide.Service
+	ds kolide.Datastore
 }
 
 func (mw validationMiddleware) NewUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
@@ -135,6 +136,12 @@ func (e *invalidArgumentError) Append(name, reason string) {
 	*e = append(*e, invalidArgument{
 		name:   name,
 		reason: reason,
+	})
+}
+func (e *invalidArgumentError) Appendf(name, reasonFmt string, args ...interface{}) {
+	*e = append(*e, invalidArgument{
+		name:   name,
+		reason: fmt.Sprintf(reasonFmt, args...),
 	})
 }
 

@@ -8,6 +8,24 @@ import (
 	"github.com/pkg/errors"
 )
 
+func (d *Datastore) PackByName(name string) (*kolide.Pack, bool, error) {
+	sqlStatement := `
+		SELECT *
+			FROM packs
+			WHERE name = ? AND NOT deleted
+	`
+	var pack kolide.Pack
+	err := d.db.Get(&pack, sqlStatement, name)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, false, nil
+		}
+		return nil, false, errors.Wrap(err, "fetching packs by name")
+	}
+
+	return &pack, true, nil
+}
+
 // NewPack creates a new Pack
 func (d *Datastore) NewPack(pack *kolide.Pack) (*kolide.Pack, error) {
 
@@ -192,6 +210,7 @@ func (d *Datastore) ListHostsInPack(pid uint, opt kolide.ListOptions) ([]*kolide
 		)
 		WHERE pt.pack_id = ?
 	`
+
 	hosts := []*kolide.Host{}
 	if err := d.db.Select(&hosts, appendListOptionsToSQL(query, opt), kolide.TargetLabel, kolide.TargetHost, pid); err != nil && err != sql.ErrNoRows {
 		return nil, errors.Wrap(err, "listing hosts in pack")

@@ -140,6 +140,19 @@ func (opt *Option) SetValue(v interface{}) {
 	opt.Value.Val = v
 }
 
+func (opt *Option) SameType(compare interface{}) bool {
+	switch compare.(type) {
+	case float64:
+		return opt.Type == OptionTypeInt
+	case string:
+		return opt.Type == OptionTypeString
+	case bool:
+		return opt.Type == OptionTypeBool
+	default:
+		return false
+	}
+}
+
 // OptionSet returns true if the option has a value assigned to it
 func (opt *Option) OptionSet() bool {
 	return opt.Value.Val != nil

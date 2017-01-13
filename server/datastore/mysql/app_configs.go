@@ -1,13 +1,13 @@
 package mysql
 
 import (
-	"github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/pkg/errors"
 )
 
 func (d *Datastore) NewAppConfig(info *kolide.AppConfig) (*kolide.AppConfig, error) {
 	if err := d.SaveAppConfig(info); err != nil {
-		return nil, errors.DatabaseError(err)
+		return nil, errors.Wrap(err, "new app config")
 	}
 
 	return info, nil
@@ -18,7 +18,7 @@ func (d *Datastore) AppConfig() (*kolide.AppConfig, error) {
 	info := &kolide.AppConfig{}
 	err := d.db.Get(info, "SELECT * FROM app_configs LIMIT 1")
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "selecting app config")
 	}
 	return info, nil
 }

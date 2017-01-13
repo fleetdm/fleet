@@ -36,7 +36,7 @@ func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore, logger
 		osqueryResultLogWriter: logFile(kolideConfig.Osquery.ResultLogFile),
 		mailService:            mailService,
 	}
-	svc = validationMiddleware{svc}
+	svc = validationMiddleware{svc, ds}
 	return svc, nil
 }
 

@@ -32,6 +32,20 @@ func testDeleteQuery(t *testing.T, ds kolide.Datastore) {
 	assert.NotNil(t, err)
 }
 
+func testGetQueryByName(t *testing.T, ds kolide.Datastore) {
+	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
+	test.NewQuery(t, ds, "q1", "select * from time", user.ID, true)
+	actual, ok, err := ds.QueryByName("q1")
+	require.Nil(t, err)
+	assert.True(t, ok)
+	assert.Equal(t, "q1", actual.Name)
+
+	actual, ok, err = ds.QueryByName("xxx")
+	assert.Nil(t, err)
+	assert.False(t, ok)
+
+}
+
 func testDeleteQueries(t *testing.T, ds kolide.Datastore) {
 	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
 

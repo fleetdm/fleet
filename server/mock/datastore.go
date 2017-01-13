@@ -18,6 +18,9 @@ type Store struct {
 	kolide.QueryStore
 	kolide.OptionStore
 	kolide.ScheduledQueryStore
+	kolide.DecoratorStore
+	kolide.FileIntegrityMonitoringStore
+	kolide.YARAStore
 
 	InviteStore
 	UserStore

@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/kolide/kolide-ose/server/errors"
 	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/pkg/errors"
 )
 
 // NewLabel creates a new kolide.Label
@@ -23,7 +23,7 @@ func (d *Datastore) NewLabel(label *kolide.Label) (*kolide.Label, error) {
 	`
 	result, err := d.db.Exec(sql, label.Name, label.Description, label.Query, label.Platform, label.LabelType)
 	if err != nil {
-		return nil, errors.DatabaseError(err)
+		return nil, errors.Wrap(err, "inserting label")
 	}
 
 	id, _ := result.LastInsertId()
@@ -46,7 +46,7 @@ func (d *Datastore) Label(lid uint) (*kolide.Label, error) {
 	label := &kolide.Label{}
 
 	if err := d.db.Get(label, sql, lid); err != nil {
-		return nil, errors.DatabaseError(err)
+		return nil, errors.Wrap(err, "selecting label")
 	}
 
 	return label, nil
@@ -61,7 +61,7 @@ func (d *Datastore) ListLabels(opt kolide.ListOptions) ([]*kolide.Label, error) 
 	labels := []*kolide.Label{}
 
 	if err := d.db.Select(&labels, sql); err != nil {
-		return nil, errors.DatabaseError(err)
+		return nil, errors.Wrap(err, "selecting labels")
 	}
 
 	return labels, nil
@@ -84,7 +84,7 @@ func (d *Datastore) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (ma
 	`
 	rows, err := d.db.Query(sqlStatment, host.Platform, host.ID, cutoff)
 	if err != nil && err != sql.ErrNoRows {
-		return nil, errors.DatabaseError(err)
+		return nil, errors.Wrap(err, "selecting label queries for host")
 	}
 
 	defer rows.Close()
@@ -94,7 +94,7 @@ func (d *Datastore) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (ma
 		var id, query string
 
 		if err = rows.Scan(&id, &query); err != nil {
-			return nil, errors.DatabaseError(err)
+			return nil, errors.Wrap(err, "scanning label queries for host")
 		}
 
 		results[id] = query
@@ -129,7 +129,7 @@ func (d *Datastore) RecordLabelQueryExecutions(host *kolide.Host, results map[st
 
 	_, err := d.db.Exec(sqlStatement, vals...)
 	if err != nil {
-		return errors.DatabaseError(err)
+		return errors.Wrap(err, "inserting label query execution")
 	}
 
 	return nil
@@ -148,7 +148,7 @@ func (d *Datastore) ListLabelsForHost(hid uint) ([]kolide.Label, error) {
 	labels := []kolide.Label{}
 	err := d.db.Select(&labels, sqlStatement, hid)
 	if err != nil {
-		return nil, errors.DatabaseError(err)
+		return nil, errors.Wrap(err, "selecting host labels")
 	}
 	return labels, nil
 
@@ -169,7 +169,7 @@ func (d *Datastore) ListHostsInLabel(lid uint) ([]kolide.Host, error) {
 	hosts := []kolide.Host{}
 	err := d.db.Select(&hosts, sqlStatement, lid)
 	if err != nil {
-		return nil, errors.DatabaseError(err)
+		return nil, errors.Wrap(err, "selecting label query executions")
 	}
 	return hosts, nil
 }
@@ -191,14 +191,14 @@ func (d *Datastore) ListUniqueHostsInLabels(labels []uint) ([]kolide.Host, error
 	`
 	query, args, err := sqlx.In(sqlStatement, labels)
 	if err != nil {
-		return nil, errors.DatabaseError(err)
+		return nil, errors.Wrap(err, "building query listing unique hosts in labels")
 	}
 
 	query = d.db.Rebind(query)
 	hosts := []kolide.Host{}
 	err = d.db.Select(&hosts, query, args...)
 	if err != nil {
-		return nil, errors.DatabaseError(err)
+		return nil, errors.Wrap(err, "listing unique hosts in labels")
 	}
 
 	return hosts, nil
@@ -229,7 +229,7 @@ func (d *Datastore) searchLabelsWithOmits(query string, omit ...uint) ([]kolide.
 
 	sql, args, err := sqlx.In(sqlStatement, query, kolide.LabelTypeBuiltIn, omit)
 	if err != nil {
-		return nil, errors.DatabaseError(err)
+		return nil, errors.Wrap(err, "building query for labels with omits")
 	}
 
 	sql = d.db.Rebind(sql)
@@ -237,7 +237,7 @@ func (d *Datastore) searchLabelsWithOmits(query string, omit ...uint) ([]kolide.
 	matches := []kolide.Label{}
 	err = d.db.Select(&matches, sql, args...)
 	if err != nil {
-		return nil, errors.DatabaseError(err)
+		return nil, errors.Wrap(err, "selecting labels with omits")
 	}
 
 	return matches, nil
@@ -272,7 +272,7 @@ func (d *Datastore) SearchLabels(query string, omit ...uint) ([]kolide.Label, er
 	matches := []kolide.Label{}
 	err := d.db.Select(&matches, sqlStatement, query, kolide.LabelTypeBuiltIn)
 	if err != nil {
-		return nil, errors.DatabaseError(err)
+		return nil, errors.Wrap(err, "selecting labels for search")
 	}
 
 	return matches, nil

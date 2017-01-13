@@ -49,7 +49,6 @@ func TestMySQL(t *testing.T) {
 		t.Run(functionName(f), func(t *testing.T) {
 			defer func() { require.Nil(t, ds.Drop()) }()
 			require.Nil(t, ds.MigrateTables())
-
 			f(t, ds)
 		})
 	}

@@ -80,6 +80,7 @@ func TestListInvites(t *testing.T) {
 }
 
 func setupInviteTest(t *testing.T) (kolide.Service, *mock.Store, *mockMailService) {
+
 	ms := new(mock.Store)
 	ms.UserByEmailFunc = mock.UserWithEmailNotFound()
 	ms.UserByIDFunc = mock.UserWithID(adminUser)
@@ -88,13 +89,12 @@ func setupInviteTest(t *testing.T) (kolide.Service, *mock.Store, *mockMailServic
 		KolideServerURL: "https://acme.co",
 	})
 	mailer := &mockMailService{SendEmailFn: func(e kolide.Email) error { return nil }}
-
 	svc := validationMiddleware{service{
 		ds:          ms,
 		config:      config.TestConfig(),
 		mailService: mailer,
 		clock:       clock.NewMockClock(),
-	}}
+	}, ms}
 	return svc, ms, mailer
 }
 

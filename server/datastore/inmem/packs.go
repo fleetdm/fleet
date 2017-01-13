@@ -6,6 +6,17 @@ import (
 	"github.com/kolide/kolide-ose/server/kolide"
 )
 
+func (d *Datastore) PackByName(name string) (*kolide.Pack, bool, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	for _, p := range d.packs {
+		if p.Name == name {
+			return p, true, nil
+		}
+	}
+	return nil, false, nil
+}
+
 func (d *Datastore) NewPack(pack *kolide.Pack) (*kolide.Pack, error) {
 	newPack := *pack
 

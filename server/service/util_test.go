@@ -111,3 +111,7 @@ func stringPtr(s string) *string {
 func boolPtr(b bool) *bool {
 	return &b
 }
+
+func uintPtr(n uint) *uint {
+	return &n
+}

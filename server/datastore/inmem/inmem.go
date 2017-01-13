@@ -33,6 +33,10 @@ type Datastore struct {
 	distributedQueryCampaigns       map[uint]kolide.DistributedQueryCampaign
 	distributedQueryCampaignTargets map[uint]kolide.DistributedQueryCampaignTarget
 	options                         map[uint]*kolide.Option
+	decorators                      map[uint]*kolide.Decorator
+	filePaths                       map[uint]*kolide.FIMSection
+	yaraFilePaths                   kolide.YARAFilePaths
+	yaraSignatureGroups             map[uint]*kolide.YARASignatureGroup
 	appConfig                       *kolide.AppConfig
 	config                          *config.KolideConfig
 }
@@ -89,13 +93,15 @@ func (d *Datastore) MigrateTables() error {
 	d.distributedQueryCampaigns = make(map[uint]kolide.DistributedQueryCampaign)
 	d.distributedQueryCampaignTargets = make(map[uint]kolide.DistributedQueryCampaignTarget)
 	d.options = make(map[uint]*kolide.Option)
+	d.decorators = make(map[uint]*kolide.Decorator)
+	d.filePaths = make(map[uint]*kolide.FIMSection)
+	d.yaraFilePaths = make(kolide.YARAFilePaths)
+	d.yaraSignatureGroups = make(map[uint]*kolide.YARASignatureGroup)
 
 	return nil
 }
 
 func (d *Datastore) MigrateData() error {
-	d.mtx.Lock()
-
 	for _, initData := range appstate.Options() {
 		opt := kolide.Option{
 			Name:     initData.Name,
@@ -114,8 +120,6 @@ func (d *Datastore) MigrateData() error {
 		SMTPEnableStartTLS: true,
 		SMTPVerifySSLCerts: true,
 	}
-
-	d.mtx.Unlock()
 
 	if err := d.createBuiltinLabels(); err != nil {
 		return err

@@ -12,9 +12,10 @@ import (
 )
 
 func (d *Datastore) NewLabel(label *kolide.Label) (*kolide.Label, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 	newLabel := *label
 
-	d.mtx.Lock()
 	for _, l := range d.labels {
 		if l.Name == label.Name {
 			return nil, alreadyExists("Label", l.ID)
@@ -23,7 +24,6 @@ func (d *Datastore) NewLabel(label *kolide.Label) (*kolide.Label, error) {
 
 	newLabel.ID = d.nextID(label)
 	d.labels[newLabel.ID] = &newLabel
-	d.mtx.Unlock()
 
 	return &newLabel, nil
 }

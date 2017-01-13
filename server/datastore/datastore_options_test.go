@@ -12,7 +12,6 @@ import (
 
 func testOptions(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, ds.MigrateData())
-
 	// were options pre-loaded?
 	opts, err := ds.ListOptions()
 	require.Nil(t, err)
@@ -56,12 +55,10 @@ func testOptions(t *testing.T, ds kolide.Datastore) {
 	opt2, err = ds.OptionByName("disable_distributed")
 	require.Nil(t, err)
 	assert.Equal(t, false, opt2.GetValue())
-
 }
 
 func testOptionsToConfig(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, ds.MigrateData())
-
 	resp, err := ds.GetOsqueryConfigOptions()
 	require.Nil(t, err)
 	assert.Len(t, resp, 10)

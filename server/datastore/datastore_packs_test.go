@@ -30,6 +30,27 @@ func testDeletePack(t *testing.T, ds kolide.Datastore) {
 	assert.NotNil(t, err)
 }
 
+func testGetPackByName(t *testing.T, ds kolide.Datastore) {
+	pack := &kolide.Pack{
+		Name: "foo",
+	}
+	_, err := ds.NewPack(pack)
+	assert.Nil(t, err)
+	assert.NotEqual(t, uint(0), pack.ID)
+
+	pack, ok, err := ds.PackByName(pack.Name)
+	require.Nil(t, err)
+	assert.True(t, ok)
+	assert.NotNil(t, pack)
+	assert.Equal(t, "foo", pack.Name)
+
+	pack, ok, err = ds.PackByName("bar")
+	require.Nil(t, err)
+	assert.False(t, ok)
+	assert.Nil(t, pack)
+
+}
+
 func testGetHostsInPack(t *testing.T, ds kolide.Datastore) {
 	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
 

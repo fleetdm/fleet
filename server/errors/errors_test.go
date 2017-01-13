@@ -47,19 +47,6 @@ func TestNewFromError(t *testing.T) {
 	assert.Equal(t, expect, kolideErr)
 }
 
-func TestDatabaseError(t *testing.T) {
-	err := errors.New("Foo error")
-	kolideErr := DatabaseError(err)
-
-	expect := &KolideError{
-		Err:            err,
-		StatusCode:     http.StatusInternalServerError,
-		PublicMessage:  "Database error: " + err.Error(),
-		PrivateMessage: "Foo error",
-	}
-	assert.Equal(t, expect, kolideErr)
-}
-
 // These types and functions for performing an unordered comparison on a
 // []map[string]string] as parsed from the error JSON
 type errorField map[string]string
