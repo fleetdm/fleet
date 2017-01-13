@@ -6,6 +6,8 @@ export const statusIconClass = (status = '') => {
       return 'success-check';
     case 'offline':
       return 'offline';
+    case 'mia':
+      return 'mia';
     default:
       return '';
   }

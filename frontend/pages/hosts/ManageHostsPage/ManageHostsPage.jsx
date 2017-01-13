@@ -2,6 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import AceEditor from 'react-ace';
 import { connect } from 'react-redux';
 import { push } from 'react-router-redux';
+import { orderBy, sortBy } from 'lodash';
 
 import entityGetter from 'redux/utilities/entityGetter';
 import hostActions from 'redux/nodes/entities/hosts/actions';
@@ -139,6 +140,13 @@ export class ManageHostsPage extends Component {
     return false;
   }
 
+  sortHosts = (hosts) => {
+    const alphaHosts = sortBy(hosts, (h) => { return h.hostname; });
+    const orderedHosts = orderBy(alphaHosts, 'status', 'desc');
+
+    return orderedHosts;
+  }
+
   renderQuery = () => {
     const { selectedLabel } = this.props;
     const { label_type: labelType, query } = selectedLabel;
@@ -213,14 +221,16 @@ export class ManageHostsPage extends Component {
 
   renderHosts = () => {
     const { display, hosts, isAddLabel } = this.props;
-    const { onHostDetailActionClick } = this;
+    const { onHostDetailActionClick, sortHosts } = this;
 
     if (isAddLabel) {
       return false;
     }
 
+    const sortedHosts = sortHosts(hosts);
+
     if (display === 'Grid') {
-      return hosts.map((host) => {
+      return sortedHosts.map((host) => {
         return (
           <HostDetails
             host={host}
@@ -232,7 +242,7 @@ export class ManageHostsPage extends Component {
       });
     }
 
-    return <HostsTable hosts={hosts} />;
+    return <HostsTable hosts={sortedHosts} />;
   }
 
 
