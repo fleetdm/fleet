@@ -15,11 +15,10 @@
     .query-form__stop-query-btn {
       margin-left: $pad-xsmall;
     }
-  }
 
-  &__btn-wrapper {
-    margin-top: $base;
-    text-align: right;
+    .kolide-timer {
+      display: block;
+    }
   }
 
   &__save-query-btn,
