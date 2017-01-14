@@ -6,8 +6,10 @@ import (
 	"strings"
 	"time"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -57,12 +59,12 @@ func (svc service) makeSession(id uint) (string, error) {
 
 	session, err = svc.ds.NewSession(session)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "creating new session")
 	}
 
-	tokenString, err := kolide.GenerateJWT(session.Key, svc.config.Auth.JwtKey)
+	tokenString, err := generateJWT(session.Key, svc.config.Auth.JwtKey)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "generating JWT token")
 	}
 
 	return tokenString, nil
@@ -146,7 +148,10 @@ func (svc service) DeleteSession(ctx context.Context, id uint) error {
 
 func (svc service) validateSession(session *kolide.Session) error {
 	if session == nil {
-		return kolide.ErrNoActiveSession
+		return authError{
+			reason:       "active session not present",
+			clientReason: "session error",
+		}
 	}
 
 	sessionDuration := svc.config.Session.Duration
@@ -154,10 +159,22 @@ func (svc service) validateSession(session *kolide.Session) error {
 	if sessionDuration != 0 && time.Since(session.AccessedAt) >= sessionDuration {
 		err := svc.ds.DestroySession(session)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "destroying session")
 		}
-		return kolide.ErrSessionExpired
+		return authError{
+			reason:       "expired session",
+			clientReason: "session error",
+		}
 	}
 
 	return svc.ds.MarkSessionAccessed(session)
+}
+
+// Given a session key create a JWT to be delivered to the client
+func generateJWT(sessionKey, jwtKey string) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"session_key": sessionKey,
+	})
+
+	return token.SignedString([]byte(jwtKey))
 }

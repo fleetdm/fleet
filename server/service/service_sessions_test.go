@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/kolide/kolide-ose/server/config"
+	"github.com/kolide/kolide-ose/server/contexts/token"
 	"github.com/kolide/kolide-ose/server/datastore/inmem"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/stretchr/testify/assert"
@@ -57,5 +58,32 @@ func TestAuthenticate(t *testing.T) {
 				"access time should be set with current time at session creation")
 		})
 	}
+}
 
+func TestGenerateJWT(t *testing.T) {
+	jwtKey := ""
+	tokenString, err := generateJWT("4", jwtKey)
+	require.Nil(t, err)
+
+	svc := authViewerService{}
+	viewer, err := authViewer(
+		context.Background(),
+		jwtKey,
+		token.Token(tokenString),
+		svc,
+	)
+	require.Nil(t, err)
+	require.NotNil(t, viewer)
+}
+
+type authViewerService struct {
+	kolide.Service
+}
+
+func (authViewerService) GetSessionByKey(ctx context.Context, key string) (*kolide.Session, error) {
+	return &kolide.Session{}, nil
+}
+
+func (authViewerService) User(ctx context.Context, uid uint) (*kolide.User, error) {
+	return &kolide.User{}, nil
 }
