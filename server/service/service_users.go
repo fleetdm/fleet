@@ -143,7 +143,10 @@ func (svc service) ChangePassword(ctx context.Context, oldPass, newPass string) 
 		return newInvalidArgumentError("old_password", "old password does not match")
 	}
 
-	return errors.Wrap(svc.setNewPassword(ctx, vc.User, newPass), "setting new password")
+	if err := svc.setNewPassword(ctx, vc.User, newPass); err != nil {
+		return errors.Wrap(err, "setting new password")
+	}
+	return nil
 }
 
 func (svc service) ResetPassword(ctx context.Context, token, password string) error {

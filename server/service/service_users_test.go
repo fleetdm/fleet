@@ -130,19 +130,19 @@ func TestCreateUser(t *testing.T) {
 	}{
 		{
 			Username:    stringPtr("admin2"),
-			Password:    stringPtr("foobar"),
+			Password:    stringPtr("foobarbaz1234!"),
 			InviteToken: &invites["admin2@example.com"].Token,
 			wantErr:     &invalidArgumentError{invalidArgument{name: "email", reason: "missing required argument"}},
 		},
 		{
 			Username: stringPtr("admin2"),
-			Password: stringPtr("foobar"),
+			Password: stringPtr("foobarbaz1234!"),
 			Email:    stringPtr("admin2@example.com"),
 			wantErr:  &invalidArgumentError{invalidArgument{name: "invite_token", reason: "missing required argument"}},
 		},
 		{
 			Username:           stringPtr("admin2"),
-			Password:           stringPtr("foobar"),
+			Password:           stringPtr("foobarbaz1234!"),
 			Email:              stringPtr("admin2@example.com"),
 			NeedsPasswordReset: boolPtr(true),
 			Admin:              boolPtr(false),
@@ -151,7 +151,7 @@ func TestCreateUser(t *testing.T) {
 		{ // should return ErrNotFound because the invite is deleted
 			// after a user signs up
 			Username:           stringPtr("admin2"),
-			Password:           stringPtr("foobar"),
+			Password:           stringPtr("foobarbaz1234!"),
 			Email:              stringPtr("admin2@example.com"),
 			NeedsPasswordReset: boolPtr(true),
 			Admin:              boolPtr(false),
@@ -160,7 +160,7 @@ func TestCreateUser(t *testing.T) {
 		},
 		{
 			Username:           stringPtr("admin3"),
-			Password:           stringPtr("foobar"),
+			Password:           stringPtr("foobarbaz1234!"),
 			Email:              &invites["expired"].Email,
 			NeedsPasswordReset: boolPtr(true),
 			Admin:              boolPtr(false),
@@ -169,7 +169,7 @@ func TestCreateUser(t *testing.T) {
 		},
 		{
 			Username:           stringPtr("@admin2"),
-			Password:           stringPtr("foobar"),
+			Password:           stringPtr("foobarbaz1234!"),
 			Email:              stringPtr("admin2@example.com"),
 			NeedsPasswordReset: boolPtr(true),
 			Admin:              boolPtr(false),
@@ -257,33 +257,36 @@ func TestChangePassword(t *testing.T) {
 	}{
 		{ // all good
 			user:        users["admin1"],
-			oldPassword: "foobar",
-			newPassword: "123cat!",
+			oldPassword: "foobarbaz1234!",
+			newPassword: "12345cat!",
 		},
 		{ // prevent password reuse
 			user:        users["admin1"],
-			oldPassword: "foobar",
-			newPassword: "foobar",
+			oldPassword: "12345cat!",
+			newPassword: "foobarbaz1234!",
 			wantErr:     &invalidArgumentError{invalidArgument{name: "new_password", reason: "cannot reuse old password"}},
 		},
 		{ // all good
 			user:        users["user1"],
-			oldPassword: "foobar",
-			newPassword: "newpass",
+			oldPassword: "foobarbaz1234!",
+			newPassword: "newpassa1234!",
 		},
 		{ // bad old password
 			user:        users["user1"],
 			oldPassword: "wrong_password",
-			newPassword: "123cat!",
+			newPassword: "12345cat!",
 			anyErr:      true,
 		},
 		{ // missing old password
-			newPassword: "123cat!",
+			newPassword: "123cataaa!",
 			wantErr:     &invalidArgumentError{invalidArgument{name: "old_password", reason: "cannot be empty"}},
 		},
 		{ // missing new password
 			oldPassword: "abcd",
-			wantErr:     &invalidArgumentError{invalidArgument{name: "new_password", reason: "cannot be empty"}},
+			wantErr: &invalidArgumentError{
+				{name: "new_password", reason: "cannot be empty"},
+				{name: "new_password", reason: "password does not meet validation requirements"},
+			},
 		},
 	}
 
@@ -295,8 +298,10 @@ func TestChangePassword(t *testing.T) {
 			err := svc.ChangePassword(ctx, tt.oldPassword, tt.newPassword)
 			if tt.anyErr {
 				require.NotNil(t, err)
-			} else {
+			} else if tt.wantErr != nil {
 				require.Equal(t, tt.wantErr, pkg_errors.Cause(err))
+			} else {
+				require.Nil(t, err)
 			}
 
 			if err != nil {
@@ -338,8 +343,11 @@ func TestResetPassword(t *testing.T) {
 			wantErr:     &invalidArgumentError{invalidArgument{name: "token", reason: "cannot be empty field"}},
 		},
 		{ // missing password
-			token:   "abcd",
-			wantErr: &invalidArgumentError{invalidArgument{name: "new_password", reason: "cannot be empty field"}},
+			token: "abcd",
+			wantErr: &invalidArgumentError{
+				{name: "new_password", reason: "cannot be empty field"},
+				{name: "new_password", reason: "password does not meet validation requirements"},
+			},
 		},
 	}
 
@@ -475,6 +483,40 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 			u, _, err = svc.Login(ctx, tt.Username, "new_pass")
 			require.Nil(t, err)
 			assert.False(t, u.AdminForcedPasswordReset)
+		})
+	}
+}
+
+func TestUserPasswordRequirements(t *testing.T) {
+	var passwordTests = []struct {
+		password string
+		wantErr  bool
+	}{
+		{
+			password: "foobar",
+			wantErr:  true,
+		},
+		{
+			password: "foobarbaz",
+			wantErr:  true,
+		},
+		{
+			password: "foobarbaz!",
+			wantErr:  true,
+		},
+		{
+			password: "foobarbaz!3",
+		},
+	}
+
+	for _, tt := range passwordTests {
+		t.Run(tt.password, func(t *testing.T) {
+			err := validatePasswordRequirements(tt.password)
+			if tt.wantErr {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+			}
 		})
 	}
 }

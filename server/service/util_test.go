@@ -69,26 +69,26 @@ var testUsers = map[string]struct {
 }{
 	"admin1": {
 		Username:          "admin1",
-		PlaintextPassword: "foobar",
+		PlaintextPassword: "foobarbaz1234!",
 		Email:             "admin1@example.com",
 		IsAdmin:           true,
 		Enabled:           true,
 	},
 	"user1": {
 		Username:          "user1",
-		PlaintextPassword: "foobar",
+		PlaintextPassword: "foobarbaz1234!",
 		Email:             "user1@example.com",
 		Enabled:           true,
 	},
 	"user2": {
 		Username:          "user2",
-		PlaintextPassword: "bazfoo",
+		PlaintextPassword: "bazfoo1234!",
 		Email:             "user2@example.com",
 		Enabled:           true,
 	},
 	"disabled1": {
 		Username:          "disabled1",
-		PlaintextPassword: "bazfoo",
+		PlaintextPassword: "bazfoo1234!",
 		Email:             "disabled1@example.com",
 		Enabled:           false,
 	},

@@ -1,8 +1,9 @@
 package service
 
 import (
-	"fmt"
+	"errors"
 	"strings"
+	"unicode"
 
 	"github.com/kolide/kolide-ose/server/kolide"
 	"golang.org/x/net/context"
@@ -32,6 +33,9 @@ func (mw validationMiddleware) NewUser(ctx context.Context, p kolide.UserPayload
 	} else {
 		if *p.Password == "" {
 			invalid.Append("password", "cannot be empty")
+		}
+		if err := validatePasswordRequirements(*p.Password); err != nil {
+			invalid.Append("password", err.Error())
 		}
 	}
 
@@ -95,6 +99,11 @@ func (mw validationMiddleware) ChangePassword(ctx context.Context, oldPass, newP
 	if newPass == "" {
 		invalid.Append("new_password", "cannot be empty")
 	}
+
+	if err := validatePasswordRequirements(newPass); err != nil {
+		invalid.Append("new_password", err.Error())
+	}
+
 	if invalid.HasErrors() {
 		return invalid
 	}
@@ -109,63 +118,39 @@ func (mw validationMiddleware) ResetPassword(ctx context.Context, token, passwor
 	if password == "" {
 		invalid.Append("new_password", "cannot be empty field")
 	}
+	if err := validatePasswordRequirements(password); err != nil {
+		invalid.Append("new_password", err.Error())
+	}
 	if invalid.HasErrors() {
 		return invalid
 	}
 	return mw.Service.ResetPassword(ctx, token, password)
 }
 
-type invalidArgumentError []invalidArgument
-type invalidArgument struct {
-	name   string
-	reason string
-}
+// Requirements for user password:
+// at least 7 character length
+// at least 1 symbol
+// at least 1 number
+func validatePasswordRequirements(password string) error {
+	var (
+		number bool
+		symbol bool
+	)
 
-// newInvalidArgumentError returns a invalidArgumentError with at least
-// one error.
-func newInvalidArgumentError(name, reason string) *invalidArgumentError {
-	var invalid invalidArgumentError
-	invalid = append(invalid, invalidArgument{
-		name:   name,
-		reason: reason,
-	})
-	return &invalid
-}
-
-func (e *invalidArgumentError) Append(name, reason string) {
-	*e = append(*e, invalidArgument{
-		name:   name,
-		reason: reason,
-	})
-}
-func (e *invalidArgumentError) Appendf(name, reasonFmt string, args ...interface{}) {
-	*e = append(*e, invalidArgument{
-		name:   name,
-		reason: fmt.Sprintf(reasonFmt, args...),
-	})
-}
-
-func (e *invalidArgumentError) HasErrors() bool {
-	return len(*e) != 0
-}
-
-// invalidArgumentError is returned when one or more arguments are invalid.
-func (e invalidArgumentError) Error() string {
-	switch len(e) {
-	case 0:
-		return "validation failed"
-	case 1:
-		return fmt.Sprintf("validation failed: %s %s", e[0].name, e[0].reason)
-	default:
-		return fmt.Sprintf("validation failed: %s %s and %d other errors", e[0].name, e[0].reason,
-			len(e))
+	for _, s := range password {
+		switch {
+		case unicode.IsNumber(s):
+			number = true
+		case unicode.IsPunct(s) || unicode.IsSymbol(s):
+			symbol = true
+		}
 	}
-}
 
-func (e invalidArgumentError) Invalid() []map[string]string {
-	var invalid []map[string]string
-	for _, i := range e {
-		invalid = append(invalid, map[string]string{"name": i.name, "reason": i.reason})
+	if len(password) >= 7 &&
+		number &&
+		symbol {
+		return nil
 	}
-	return invalid
+
+	return errors.New("password does not meet validation requirements")
 }
