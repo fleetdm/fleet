@@ -183,3 +183,23 @@ func testLoadPacksForQueries(t *testing.T, ds kolide.Datastore) {
 	checkPacks(t, []kolide.Pack{*p2, *p3}, q1.Packs)
 	checkPacks(t, []kolide.Pack{*p1, *p3}, q2.Packs)
 }
+
+func testDuplicateNewQuery(t *testing.T, ds kolide.Datastore) {
+	user := test.NewUser(t, ds, "Mike Arpaia", "marpaia", "mike@kolide.co", true)
+	q1, err := ds.NewQuery(&kolide.Query{
+		Name:     "foo",
+		Query:    "select * from time;",
+		AuthorID: user.ID,
+	})
+	require.Nil(t, err)
+	assert.NotZero(t, q1.ID)
+
+	_, err = ds.NewQuery(&kolide.Query{
+		Name:  "foo",
+		Query: "select * from osquery_info;",
+	})
+
+	// Note that we can't do the actual type assertion here because existsError
+	// is private to the individual datastore implementations
+	assert.Contains(t, err.Error(), "already exists in the datastore")
+}

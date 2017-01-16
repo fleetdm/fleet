@@ -60,3 +60,4 @@ import:
   - redis
 - package: github.com/jmoiron/sqlx
 - package: github.com/kolide/goose
+- package: github.com/VividCortex/mysqlerr

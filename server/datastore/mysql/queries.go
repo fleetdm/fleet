@@ -3,6 +3,8 @@ package mysql
 import (
 	"database/sql"
 
+	"github.com/VividCortex/mysqlerr"
+	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/pkg/errors"
@@ -37,6 +39,12 @@ func (d *Datastore) NewQuery(query *kolide.Query) (*kolide.Query, error) {
 		) VALUES ( ?, ?, ?, ?, ? )
 	`
 	result, err := d.db.Exec(sql, query.Name, query.Description, query.Query, query.Saved, query.AuthorID)
+	if driverErr, ok := err.(*mysql.MySQLError); ok {
+		if driverErr.Number == mysqlerr.ER_DUP_ENTRY {
+			// TODO: this shouldn't require an ID parameter
+			return nil, alreadyExists("Query", 0)
+		}
+	}
 	if err != nil {
 		return nil, errors.Wrap(err, "inserting new query")
 	}
