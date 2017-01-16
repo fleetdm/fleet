@@ -6,10 +6,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-////////////////////////////////////////////////////////////////////////////////
-// Get Label
-////////////////////////////////////////////////////////////////////////////////
-
 type getLabelRequest struct {
 	ID uint
 }
@@ -21,6 +17,7 @@ type labelResponse struct {
 	Online          uint   `json:"online"`
 	Offline         uint   `json:"offline"`
 	MissingInAction uint   `json:"missing_in_action"`
+	HostIDs         []uint `json:"host_ids,omitempty"`
 }
 
 type getLabelResponse struct {
@@ -30,6 +27,29 @@ type getLabelResponse struct {
 
 func (r getLabelResponse) error() error { return r.Err }
 
+func labelResponseForLabel(ctx context.Context, svc kolide.Service, label *kolide.Label) (*labelResponse, error) {
+	metrics, err := svc.CountHostsInTargets(ctx, nil, []uint{label.ID})
+	if err != nil {
+		return nil, err
+	}
+	hosts, err := svc.HostIDsForLabel(label.ID)
+	if err != nil {
+		return nil, err
+	}
+	return &labelResponse{
+		*label,
+		label.Name,
+		metrics.TotalHosts,
+		metrics.OnlineHosts,
+		metrics.OfflineHosts,
+		metrics.MissingInActionHosts,
+		hosts,
+	}, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get Label
+////////////////////////////////////////////////////////////////////////////////
 func makeGetLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(getLabelRequest)
@@ -37,20 +57,11 @@ func makeGetLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return getLabelResponse{Err: err}, nil
 		}
-		metrics, err := svc.CountHostsInTargets(ctx, nil, []uint{label.ID})
+		resp, err := labelResponseForLabel(ctx, svc, label)
 		if err != nil {
 			return getLabelResponse{Err: err}, nil
 		}
-		return getLabelResponse{
-			Label: labelResponse{
-				*label,
-				label.Name,
-				metrics.TotalHosts,
-				metrics.OnlineHosts,
-				metrics.OfflineHosts,
-				metrics.MissingInActionHosts,
-			},
-		}, nil
+		return getLabelResponse{Label: *resp}, nil
 	}
 }
 
@@ -79,20 +90,11 @@ func makeListLabelsEndpoint(svc kolide.Service) endpoint.Endpoint {
 
 		resp := listLabelsResponse{}
 		for _, label := range labels {
-			metrics, err := svc.CountHostsInTargets(ctx, nil, []uint{label.ID})
+			labelResp, err := labelResponseForLabel(ctx, svc, label)
 			if err != nil {
 				return listLabelsResponse{Err: err}, nil
 			}
-			resp.Labels = append(resp.Labels,
-				labelResponse{
-					*label,
-					label.Name,
-					metrics.TotalHosts,
-					metrics.OnlineHosts,
-					metrics.OfflineHosts,
-					metrics.MissingInActionHosts,
-				},
-			)
+			resp.Labels = append(resp.Labels, *labelResp)
 		}
 		return resp, nil
 	}
@@ -117,23 +119,11 @@ func makeCreateLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createLabelRequest)
 		label, err := svc.NewLabel(ctx, req.payload)
+		labelResp, err := labelResponseForLabel(ctx, svc, label)
 		if err != nil {
 			return createLabelResponse{Err: err}, nil
 		}
-		metrics, err := svc.CountHostsInTargets(ctx, nil, []uint{label.ID})
-		if err != nil {
-			return createLabelResponse{Err: err}, nil
-		}
-		return createLabelResponse{
-			Label: labelResponse{
-				*label,
-				label.Name,
-				metrics.TotalHosts,
-				metrics.OnlineHosts,
-				metrics.OfflineHosts,
-				metrics.MissingInActionHosts,
-			},
-		}, nil
+		return createLabelResponse{Label: *labelResp}, nil
 	}
 }
 

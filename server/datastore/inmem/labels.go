@@ -29,10 +29,11 @@ func (d *Datastore) NewLabel(label *kolide.Label) (*kolide.Label, error) {
 }
 
 func (d *Datastore) ListLabelsForHost(hid uint) ([]kolide.Label, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 	// First get IDs of label executions for the host
 	resLabels := []kolide.Label{}
 
-	d.mtx.Lock()
 	for _, lqe := range d.labelQueryExecutions {
 		if lqe.HostID == hid && lqe.Matches {
 			if label := d.labels[lqe.LabelID]; label != nil {
@@ -40,16 +41,16 @@ func (d *Datastore) ListLabelsForHost(hid uint) ([]kolide.Label, error) {
 			}
 		}
 	}
-	d.mtx.Unlock()
 
 	return resLabels, nil
 }
 
 func (d *Datastore) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (map[string]string, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 	// Get post-cutoff executions for host
 	execedIDs := map[uint]bool{}
 
-	d.mtx.Lock()
 	for _, lqe := range d.labelQueryExecutions {
 		if lqe.HostID == host.ID && (lqe.UpdatedAt == cutoff || lqe.UpdatedAt.After(cutoff)) {
 			execedIDs[lqe.LabelID] = true
@@ -62,7 +63,6 @@ func (d *Datastore) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (ma
 			queries[strconv.Itoa(int(label.ID))] = label.Query
 		}
 	}
-	d.mtx.Unlock()
 
 	return queries, nil
 }
@@ -141,11 +141,12 @@ func (d *Datastore) Label(lid uint) (*kolide.Label, error) {
 }
 
 func (d *Datastore) ListLabels(opt kolide.ListOptions) ([]*kolide.Label, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 	// We need to sort by keys to provide reliable ordering
 	keys := []int{}
 
-	d.mtx.Lock()
-	for k, _ := range d.labels {
+	for k := range d.labels {
 		keys = append(keys, int(k))
 	}
 	sort.Ints(keys)
@@ -154,7 +155,6 @@ func (d *Datastore) ListLabels(opt kolide.ListOptions) ([]*kolide.Label, error) 
 	for _, k := range keys {
 		labels = append(labels, d.labels[uint(k)])
 	}
-	d.mtx.Unlock()
 
 	// Apply ordering
 	if opt.OrderKey != "" {
@@ -199,7 +199,6 @@ func (d *Datastore) SearchLabels(query string, omit ...uint) ([]kolide.Label, er
 	}
 
 	sortutil.AscByField(results, "ID")
-
 	return results, nil
 }
 

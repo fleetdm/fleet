@@ -40,6 +40,9 @@ type LabelService interface {
 	GetLabel(ctx context.Context, id uint) (label *Label, err error)
 	NewLabel(ctx context.Context, p LabelPayload) (label *Label, err error)
 	DeleteLabel(ctx context.Context, id uint) (err error)
+	// HostIDsForLabel returns ids of hosts that belong to the label identified
+	// by lid
+	HostIDsForLabel(lid uint) ([]uint, error)
 }
 
 type LabelPayload struct {

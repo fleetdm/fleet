@@ -176,6 +176,7 @@ func testManagingLabelsOnPacks(t *testing.T, ds kolide.Datastore) {
 	labels, err = ds.ListLabelsForPack(monitoringPack.ID)
 	require.Nil(t, err)
 	assert.Len(t, labels, 2)
+
 }
 
 func testSearchLabels(t *testing.T, db kolide.Datastore) {
@@ -351,4 +352,9 @@ func testListUniqueHostsInLabels(t *testing.T, db kolide.Datastore) {
 	uniqueHosts, err := db.ListUniqueHostsInLabels([]uint{l1.ID, l2.ID})
 	assert.Nil(t, err)
 	assert.Equal(t, len(hosts), len(uniqueHosts))
+
+	labels, err := db.ListLabels(kolide.ListOptions{})
+	require.Nil(t, err)
+	require.Len(t, labels, 2)
+
 }

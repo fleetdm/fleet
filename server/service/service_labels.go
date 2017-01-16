@@ -44,3 +44,15 @@ func (svc service) NewLabel(ctx context.Context, p kolide.LabelPayload) (*kolide
 func (svc service) DeleteLabel(ctx context.Context, id uint) error {
 	return svc.ds.DeleteLabel(id)
 }
+
+func (svc service) HostIDsForLabel(lid uint) ([]uint, error) {
+	hosts, err := svc.ds.ListHostsInLabel(lid)
+	if err != nil {
+		return nil, err
+	}
+	var ids []uint
+	for _, h := range hosts {
+		ids = append(ids, h.ID)
+	}
+	return ids, nil
+}
