@@ -5,24 +5,12 @@ import { noop } from 'lodash';
 
 import ConnectedManageHostsPage, { ManageHostsPage } from 'pages/hosts/ManageHostsPage/ManageHostsPage';
 import { connectedComponent, createAceSpy, reduxMockStore, stubbedOsqueryTable } from 'test/helpers';
+import { hostStub } from 'test/stubs';
 
-const host = {
-  detail_updated_at: '2016-10-25T16:24:27.679472917-04:00',
-  hostname: 'jmeller-mbp.local',
-  id: 1,
-  ip: '192.168.1.10',
-  mac: '10:11:12:13:14:15',
-  memory: 4145483776,
-  os_version: 'Mac OS X 10.11.6',
-  osquery_version: '2.0.0',
-  platform: 'darwin',
-  status: 'online',
-  updated_at: '0001-01-01T00:00:00Z',
-  uptime: 3600000000000,
-  uuid: '1234-5678-9101',
-};
 const allHostsLabel = { id: 1, display_text: 'All Hosts', slug: 'all-hosts', type: 'all', count: 22 };
 const windowsLabel = { id: 2, display_text: 'Windows', slug: 'windows', type: 'platform', count: 22 };
+const offlineHost = { ...hostStub, id: 111, status: 'offline' };
+const offlineHostsLabel = { id: 5, display_text: 'OFFLINE', slug: 'offline', status: 'offline', type: 'status', count: 1 };
 const mockStore = reduxMockStore({
   components: {
     ManageHostsPage: {
@@ -35,12 +23,19 @@ const mockStore = reduxMockStore({
     },
   },
   entities: {
+    hosts: {
+      data: {
+        [hostStub.id]: hostStub,
+        [offlineHost.id]: offlineHost,
+      },
+    },
     labels: {
       data: {
         1: allHostsLabel,
         2: windowsLabel,
         3: { id: 3, display_text: 'Ubuntu', slug: 'ubuntu', type: 'platform', count: 22 },
         4: { id: 4, display_text: 'ONLINE', slug: 'online', type: 'status', count: 22 },
+        5: offlineHostsLabel,
       },
     },
   },
@@ -77,13 +72,13 @@ describe('ManageHostsPage - component', () => {
 
   describe('host rendering', () => {
     it('renders hosts as HostDetails by default', () => {
-      const page = mount(<ManageHostsPage {...props} hosts={[host]} />);
+      const page = mount(<ManageHostsPage {...props} hosts={[hostStub]} />);
 
       expect(page.find('HostDetails').length).toEqual(1);
     });
 
     it('renders hosts as HostsTable when the display is "List"', () => {
-      const page = mount(<ManageHostsPage {...props} display="List" hosts={[host]} />);
+      const page = mount(<ManageHostsPage {...props} display="List" hosts={[hostStub]} />);
 
       expect(page.find('HostsTable').length).toEqual(1);
     });
@@ -103,6 +98,26 @@ describe('ManageHostsPage - component', () => {
       button.simulate('click');
 
       expect(mockStore.getActions()).toInclude(toggleDisplayAction);
+    });
+
+    it('filters hosts', () => {
+      const allHostsLabelPageNode = mount(
+        <ManageHostsPage
+          {...props}
+          hosts={[hostStub, offlineHost]}
+          selectedLabel={allHostsLabel}
+        />
+      ).node;
+      const offlineHostsLabelPageNode = mount(
+        <ManageHostsPage
+          {...props}
+          hosts={[hostStub, offlineHost]}
+          selectedLabel={offlineHostsLabel}
+        />
+      ).node;
+
+      expect(allHostsLabelPageNode.filterHosts()).toEqual([hostStub, offlineHost]);
+      expect(offlineHostsLabelPageNode.filterHosts()).toEqual([offlineHost]);
     });
   });
 

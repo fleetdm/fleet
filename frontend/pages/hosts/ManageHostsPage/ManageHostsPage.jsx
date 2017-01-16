@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import AceEditor from 'react-ace';
 import { connect } from 'react-redux';
 import { push } from 'react-router-redux';
-import { orderBy, sortBy } from 'lodash';
+import { filter, orderBy, sortBy } from 'lodash';
 
 import entityGetter from 'redux/utilities/entityGetter';
 import { getStatusLabelCounts, setDisplay } from 'redux/nodes/components/ManageHostsPage/actions';
@@ -134,6 +134,20 @@ export class ManageHostsPage extends Component {
     return false;
   }
 
+  filterHosts = () => {
+    const { hosts: allHosts, selectedLabel } = this.props;
+
+    // TODO: Filter custom labels by their host_ids attribute
+    if (!selectedLabel || selectedLabel.type === 'custom' || selectedLabel.type === 'all') {
+      return allHosts;
+    }
+
+    const { type } = selectedLabel;
+    const filterObject = type === 'status' ? { status: selectedLabel.slug } : { [type]: selectedLabel[type] };
+
+    return filter(allHosts, filterObject);
+  }
+
   sortHosts = (hosts) => {
     const alphaHosts = sortBy(hosts, (h) => { return h.hostname; });
     const orderedHosts = orderBy(alphaHosts, 'status', 'desc');
@@ -214,14 +228,15 @@ export class ManageHostsPage extends Component {
   }
 
   renderHosts = () => {
-    const { display, hosts, isAddLabel } = this.props;
-    const { onHostDetailActionClick, sortHosts } = this;
+    const { display, isAddLabel } = this.props;
+    const { onHostDetailActionClick, filterHosts, sortHosts } = this;
 
     if (isAddLabel) {
       return false;
     }
 
-    const sortedHosts = sortHosts(hosts);
+    const filteredHosts = filterHosts();
+    const sortedHosts = sortHosts(filteredHosts);
 
     if (display === 'Grid') {
       return sortedHosts.map((host) => {
