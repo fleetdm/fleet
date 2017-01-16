@@ -310,7 +310,8 @@ func (d *Datastore) GenerateHostStatusStatistics(now time.Time) (online, offline
 		Offline uint `db:"offline"`
 		Online  uint `db:"online"`
 	}{}
-	if err := d.db.Get(&counts, sqlStatement, now, now, now, now); err != nil {
+	err := d.db.Get(&counts, sqlStatement, now, now, now, now)
+	if err != nil && err != sql.ErrNoRows {
 		e = errors.Wrap(err, "generating host statistics")
 		return
 	}
