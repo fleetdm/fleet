@@ -5,6 +5,7 @@ import { push } from 'react-router-redux';
 import { orderBy, sortBy } from 'lodash';
 
 import entityGetter from 'redux/utilities/entityGetter';
+import { getStatusLabelCounts, setDisplay } from 'redux/nodes/components/ManageHostsPage/actions';
 import hostActions from 'redux/nodes/entities/hosts/actions';
 import labelActions from 'redux/nodes/entities/labels/actions';
 import labelInterface from 'interfaces/label';
@@ -19,7 +20,7 @@ import QueryForm from 'components/forms/queries/QueryForm';
 import QuerySidePanel from 'components/side_panels/QuerySidePanel';
 import Rocker from 'components/buttons/Rocker';
 import { selectOsqueryTable } from 'redux/nodes/components/QueryPages/actions';
-import { setDisplay } from 'redux/nodes/components/ManageHostsPage/actions';
+import statusLabelsInterface from 'interfaces/status_labels';
 import iconClassForLabel from 'utilities/icon_class_for_label';
 
 const NEW_LABEL_HASH = '#new_label';
@@ -37,6 +38,7 @@ export class ManageHostsPage extends Component {
     labels: PropTypes.arrayOf(labelInterface),
     selectedLabel: labelInterface,
     selectedOsqueryTable: osqueryTableInterface,
+    statusLabels: statusLabelsInterface,
   };
 
   static defaultProps = {
@@ -52,19 +54,11 @@ export class ManageHostsPage extends Component {
   }
 
   componentWillMount () {
-    const {
-      dispatch,
-      hosts,
-      labels,
-    } = this.props;
+    const { dispatch } = this.props;
 
-    if (!hosts.length) {
-      dispatch(hostActions.loadAll());
-    }
-
-    if (!labels.length) {
-      dispatch(labelActions.loadAll());
-    }
+    dispatch(hostActions.loadAll());
+    dispatch(labelActions.loadAll());
+    dispatch(getStatusLabelCounts);
 
     return false;
   }
@@ -281,6 +275,7 @@ export class ManageHostsPage extends Component {
       labels,
       selectedLabel,
       selectedOsqueryTable,
+      statusLabels,
     } = this.props;
     const { onAddLabelClick, onLabelClick, onOsqueryTableSelect } = this;
 
@@ -300,6 +295,7 @@ export class ManageHostsPage extends Component {
           onAddLabelClick={onAddLabelClick}
           onLabelClick={onLabelClick}
           selectedLabel={selectedLabel}
+          statusLabels={statusLabels}
         />
       );
     }
@@ -331,7 +327,7 @@ export class ManageHostsPage extends Component {
 
 const mapStateToProps = (state, { location, params }) => {
   const activeLabelSlug = params.active_label || 'all-hosts';
-  const { display } = state.components.ManageHostsPage;
+  const { display, status_labels: statusLabels } = state.components.ManageHostsPage;
   const { entities: hosts } = entityGetter(state).get('hosts');
   const labelEntities = entityGetter(state).get('labels');
   const { entities: labels } = labelEntities;
@@ -351,6 +347,7 @@ const mapStateToProps = (state, { location, params }) => {
     labels,
     selectedLabel,
     selectedOsqueryTable,
+    statusLabels,
   };
 };
 

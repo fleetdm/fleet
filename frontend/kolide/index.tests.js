@@ -34,6 +34,7 @@ const {
   validRevokeInviteRequest,
   validRunQueryRequest,
   validSetupRequest,
+  validStatusLabelsGetCountsRequest,
   validUpdateConfigOptionsRequest,
   validUpdateConfigRequest,
   validUpdatePackRequest,
@@ -43,11 +44,31 @@ const {
 } = mocks;
 
 describe('Kolide - API client', () => {
-  afterEach(() => { nock.cleanAll(); });
+  afterEach(() => {
+    nock.cleanAll();
+    Kolide.setBearerToken(null);
+  });
 
   describe('defaults', () => {
     it('sets the base URL', () => {
       expect(Kolide.baseURL).toEqual('http://localhost:8080/api');
+    });
+  });
+
+  describe('statusLabels', () => {
+    it('#getCounts', (done) => {
+      const bearerToken = 'valid-bearer-token';
+      const request = validStatusLabelsGetCountsRequest(bearerToken);
+
+      Kolide.setBearerToken(bearerToken);
+      Kolide.statusLabels.getCounts()
+        .then(() => {
+          expect(request.isDone()).toEqual(true);
+          done();
+        })
+        .catch(() => {
+          throw new Error('Endpoint not reached');
+        });
     });
   });
 

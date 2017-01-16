@@ -333,6 +333,16 @@ export const validSetupRequest = (formData) => {
     .reply(200, {});
 };
 
+export const validStatusLabelsGetCountsRequest = (bearerToken) => {
+  return nock('http://localhost:8080', {
+    reqHeaders: {
+      Authorization: `Bearer ${bearerToken}`,
+    },
+  })
+    .get('/api/v1/kolide/host_summary')
+    .reply(200, { online_count: 100, offline_count: 23, mia_count: 2 });
+};
+
 export const validUpdateConfigRequest = (bearerToken, configData) => {
   return nock('http://localhost:8080', {
     reqHeaders: {
@@ -409,6 +419,7 @@ export default {
   validRevokeInviteRequest,
   validRunQueryRequest,
   validSetupRequest,
+  validStatusLabelsGetCountsRequest,
   validUpdateConfigOptionsRequest,
   validUpdateConfigRequest,
   validUpdatePackRequest,

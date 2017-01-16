@@ -2,13 +2,15 @@ import React, { Component, PropTypes } from 'react';
 import { isEqual, noop } from 'lodash';
 
 import labelInterface from 'interfaces/label';
-import PanelGroupItem from '../PanelGroupItem';
+import PanelGroupItem from 'components/side_panels/HostSidePanel/PanelGroupItem';
+import statusLabelsInterface from 'interfaces/status_labels';
 
 class PanelGroup extends Component {
   static propTypes = {
     groupItems: PropTypes.arrayOf(labelInterface),
     onLabelClick: PropTypes.func,
     selectedLabel: labelInterface,
+    statusLabels: statusLabelsInterface,
     type: PropTypes.string,
   };
 
@@ -20,6 +22,7 @@ class PanelGroup extends Component {
     const {
       onLabelClick,
       selectedLabel,
+      statusLabels,
       type,
     } = this.props;
     const selected = isEqual(selectedLabel, item);
@@ -30,6 +33,7 @@ class PanelGroup extends Component {
         item={item}
         key={item.display_text}
         onLabelClick={onLabelClick(item)}
+        statusLabels={statusLabels}
         type={type}
       />
     );

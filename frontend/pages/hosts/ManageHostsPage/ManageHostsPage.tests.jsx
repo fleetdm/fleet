@@ -28,6 +28,7 @@ const mockStore = reduxMockStore({
     ManageHostsPage: {
       display: 'Grid',
       selectedLabel: { id: 100, display_text: 'All Hosts', type: 'all', count: 22 },
+      status_labels: {},
     },
     QueryPages: {
       selectedOsqueryTable: stubbedOsqueryTable,

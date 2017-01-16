@@ -4,6 +4,7 @@ import classnames from 'classnames';
 import Icon from 'components/icons/Icon';
 import iconClassForLabel from 'utilities/icon_class_for_label';
 import PlatformIcon from 'components/icons/PlatformIcon';
+import statusLabelsInterface from 'interfaces/status_labels';
 
 const baseClass = 'panel-group-item';
 
@@ -17,8 +18,23 @@ class PanelGroupItem extends Component {
     }).isRequired,
     onLabelClick: PropTypes.func,
     isSelected: PropTypes.bool,
+    statusLabels: statusLabelsInterface,
     type: PropTypes.string,
   };
+
+  displayCount = () => {
+    const { item, statusLabels, type } = this.props;
+
+    if (type !== 'status') {
+      return item.count;
+    }
+
+    if (statusLabels.loading_counts) {
+      return '';
+    }
+
+    return statusLabels[`${item.id}_count`];
+  }
 
   renderIcon = () => {
     const { item, type } = this.props;
@@ -42,10 +58,9 @@ class PanelGroupItem extends Component {
   }
 
   render () {
-    const { renderDescription, renderIcon } = this;
+    const { displayCount, renderDescription, renderIcon } = this;
     const { item, onLabelClick, isSelected } = this.props;
     const {
-      count,
       display_text: displayText,
       type,
     } = item;
@@ -68,7 +83,7 @@ class PanelGroupItem extends Component {
             {displayText}
             {renderDescription()}
           </span>
-          <span className={`${baseClass}__count`}>{count}</span>
+          <span className={`${baseClass}__count`}>{displayCount()}</span>
         </div>
       </button>
     );

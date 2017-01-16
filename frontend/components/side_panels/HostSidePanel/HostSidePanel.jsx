@@ -6,6 +6,7 @@ import InputField from 'components/forms/fields/InputField';
 import labelInterface from 'interfaces/label';
 import PanelGroup from 'components/side_panels/HostSidePanel/PanelGroup';
 import SecondarySidePanelContainer from 'components/side_panels/SecondarySidePanelContainer';
+import statusLabelsInterface from 'interfaces/status_labels';
 
 const baseClass = 'host-side-panel';
 
@@ -15,6 +16,7 @@ class HostSidePanel extends Component {
     onAddLabelClick: PropTypes.func,
     onLabelClick: PropTypes.func,
     selectedLabel: labelInterface,
+    statusLabels: statusLabelsInterface,
   };
 
   constructor (props) {
@@ -31,7 +33,7 @@ class HostSidePanel extends Component {
   }
 
   render () {
-    const { labels, onAddLabelClick, onLabelClick, selectedLabel } = this.props;
+    const { labels, onAddLabelClick, onLabelClick, selectedLabel, statusLabels } = this.props;
     const { labelFilter } = this.state;
     const { onFilterLabels } = this;
     const allHostLabels = filter(labels, { type: 'all' });
@@ -56,6 +58,7 @@ class HostSidePanel extends Component {
         <PanelGroup
           groupItems={hostStatusLabels}
           onLabelClick={onLabelClick}
+          statusLabels={statusLabels}
           selectedLabel={selectedLabel}
           type="status"
         />
