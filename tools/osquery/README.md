@@ -72,3 +72,27 @@ docker-compose rm
 ```
 
 We have had no trouble running up to 100 containerized osqueryd instances on a single processor core and about 1GB of RAM.
+
+### Generating a osqueryd core file
+
+The docker containers are configured to allow core files to be generated if osqueryd
+crashes for some reason.  You can attach to the container hosting the errant osqueryd
+instance, install gdb and use it to read the core file to find out where the crash
+occurred. The other scenario where you might find a core dump useful is if osqueryd
+stops responding.  In this case you can generate a core dump using the following instructions.
+
+1. Open a shell session on a container
+```
+docker exec -t -i <container id> /bin/bash
+```
+2. Find the process ID of osqueryd
+```
+ps aux
+```
+There will be two osqueryd processes, you'll probably be interested in the child process (the one with the higher pid)
+
+3. Send a signal to the process to core dump
+```
+kill -3 <pid>
+```
+The core file should be in your current working directory on the container. 

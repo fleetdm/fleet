@@ -12,6 +12,10 @@ services:
     environment:
       ENROLL_SECRET: ''
     command: osqueryd --flagfile=/etc/osquery/osquery.flags
+    ulimits:
+      core:
+        hard:  1000000000
+        soft:  1000000000
 
   centos7-osquery:
     image: "kolide/centos7-osquery:${KOLIDE_OSQUERY_VERSION}"
@@ -23,3 +27,7 @@ services:
     environment:
       ENROLL_SECRET: ''
     command: osqueryd --flagfile=/etc/osquery/osquery.flags
+    ulimits:
+      core:
+        hard:  1000000000
+        soft:  1000000000
