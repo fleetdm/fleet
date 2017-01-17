@@ -10,10 +10,10 @@ describe('PlatformIcon - component', () => {
   });
 
   it('renders text if no icon', () => {
-    const component = mount(<PlatformIcon name="blah" />);
+    const component = mount(<PlatformIcon name="All" />);
 
     expect(component.find('span').length).toEqual(1);
-    expect(component.text()).toInclude('blah');
+    expect(component.text()).toInclude('All');
     expect(component.find('Icon').length).toEqual(0);
   });
 });

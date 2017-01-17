@@ -89,16 +89,7 @@
           color: $text-ultradark;
         }
 
-        &:nth-child(4) {
-          color: $text-light;
-          text-align: center;
-          font-size: 14px;
-
-          .kolidecon {
-            font-size: 18px;
-          }
-        }
-
+        &:nth-child(4),
         &:nth-child(5) {
           font-size: 14px;
           font-weight: $normal;
@@ -106,6 +97,10 @@
           letter-spacing: -0.5px;
           text-align: center;
           color: $text-ultradark;
+
+          .kolidecon {
+            font-size: 18px;
+          }
         }
 
         &:nth-child(6) {

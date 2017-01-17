@@ -36,12 +36,12 @@ export class PlatformIcon extends Component {
 
   render () {
     const { findIcon } = this;
-    const { className, fw, name, size, title } = this.props;
+    const { className, name, fw, size, title } = this.props;
     const iconClasses = classnames(baseClass, className);
     const iconName = findIcon();
 
     if (!iconName) {
-      return <span className={iconClasses}>{name}</span>;
+      return <span className={iconClasses}>{name || 'All'}</span>;
     }
 
     return (

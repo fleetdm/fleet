@@ -61,7 +61,7 @@ class ScheduledQueriesListItem extends Component {
         <td className="scheduled-queries-list__query-name">{name}</td>
         <td>{interval}</td>
         <td><PlatformIcon name={platform} /></td>
-        <td>{version}</td>
+        <td>{version ? `${version}+` : 'Any'}</td>
         <td><Icon name={loggingTypeString()} /></td>
       </tr>
     );
