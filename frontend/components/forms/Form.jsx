@@ -136,14 +136,12 @@ export default (WrappedComponent, { fields, validate = defaultValidate }) => {
       const { errors } = this.state;
 
       return (
-        <div>
-          <WrappedComponent
-            {...props}
-            baseError={errors.base}
-            fields={getFields()}
-            handleSubmit={onSubmit}
-          />
-        </div>
+        <WrappedComponent
+          {...props}
+          baseError={errors.base}
+          fields={getFields()}
+          handleSubmit={onSubmit}
+        />
       );
     }
   }

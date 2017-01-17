@@ -9,11 +9,11 @@ import formFieldInterface from 'interfaces/form_field';
 import Icon from 'components/icons/Icon';
 import InputField from 'components/forms/fields/InputField';
 
-const baseClass = 'config-option-form';
 const fieldNames = ['name', 'value'];
 
 class ConfigOptionForm extends Component {
   static propTypes = {
+    baseClass: PropTypes.string,
     configNameOptions: PropTypes.arrayOf(dropdownOptionInterface),
     fields: PropTypes.shape({
       name: formFieldInterface,
@@ -32,7 +32,7 @@ class ConfigOptionForm extends Component {
   }
 
   render () {
-    const { configNameOptions, fields, formData } = this.props;
+    const { baseClass, configNameOptions, fields, formData } = this.props;
     const { handleRemove } = this;
     const { name, read_only: readOnly, value } = formData;
     const inputType = formData.type === 'int' ? 'number' : 'input';
@@ -40,8 +40,8 @@ class ConfigOptionForm extends Component {
     const disabled = readOnly || !!(name && value);
 
     return (
-      <form className={baseClass}>
-        <Button disabled={readOnly} onClick={handleRemove} variant="unstyled">
+      <form className={`${baseClass}__form`}>
+        <Button disabled={readOnly} onClick={handleRemove} variant="unstyled" className={`${baseClass}__remove`}>
           <Icon name="x" onClick={handleRemove} />
         </Button>
         <Dropdown

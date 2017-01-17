@@ -4,6 +4,8 @@ import ConfigOptionForm from 'components/forms/ConfigOptionsForm/ConfigOptionFor
 import configOptionInterface from 'interfaces/config_option';
 import dropdownOptionInterface from 'interfaces/dropdownOption';
 
+const baseClass = 'config-options-form';
+
 class ConfigOptionsForm extends Component {
   static propTypes = {
     completedOptions: PropTypes.arrayOf(configOptionInterface),
@@ -32,14 +34,17 @@ class ConfigOptionsForm extends Component {
     const configErrors = errors[option.id] || {};
 
     return (
-      <ConfigOptionForm
-        configNameOptions={configNameOptions}
-        formData={option}
-        key={`config-option-form-${option.id}-${idx}`}
-        onChangeFunc={handleFormUpdate(option)}
-        onRemove={onRemoveOption}
-        serverErrors={configErrors}
-      />
+      <li className={`${baseClass}__option`} key={`${idx}-config-form-option`}>
+        <ConfigOptionForm
+          configNameOptions={configNameOptions}
+          formData={option}
+          key={`config-option-form-${option.id}-${idx}`}
+          onChangeFunc={handleFormUpdate(option)}
+          onRemove={onRemoveOption}
+          serverErrors={configErrors}
+          baseClass={baseClass}
+        />
+      </li>
     );
   }
 
@@ -48,10 +53,17 @@ class ConfigOptionsForm extends Component {
     const { renderConfigOptionForm } = this;
 
     return (
-      <div>
-        {completedOptions.map((option, idx) => {
-          return renderConfigOptionForm(option, idx);
-        })}
+      <div className={baseClass}>
+        <ul className={`${baseClass}__options`}>
+          <li className={`${baseClass}__option-header`}>
+            <span className={`${baseClass}__option-header-name`}>Option Name</span>
+            <span className={`${baseClass}__option-header-value`}>Value</span>
+          </li>
+
+          {completedOptions.map((option, idx) => {
+            return renderConfigOptionForm(option, idx);
+          })}
+        </ul>
       </div>
     );
   }

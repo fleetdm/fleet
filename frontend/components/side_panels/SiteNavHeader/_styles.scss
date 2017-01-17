@@ -92,6 +92,10 @@
     @include position(absolute, null 0 $pad-small null);
     color: $accent-medium;
     font-size: 9px;
+
+    @include breakpoint(smalldesk) {
+      display: none;
+    }
   }
 }
 

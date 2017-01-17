@@ -61,7 +61,7 @@ a {
   background-color: $white;
   box-shadow: 0 0 12px 0 rgba(0, 0, 0, 0.1);
   border: solid 1px $silver;
-  min-width: 610px;
+  min-width: 951px;
   max-width: calc(100vw - #{$nav-width} - #{$pad-base});
   box-sizing: border-box;
   margin-top: $pad-base;
@@ -73,6 +73,7 @@ a {
 
   @at-root .has-sidebar & {
     margin-right: 0;
+    min-width: 610px;
     max-width: calc(100vw - #{$nav-width} - #{$pad-base} - #{$pad-base} - #{$sidepanel-width});
 
     @include breakpoint(smalldesk) {

@@ -99,6 +99,10 @@ $base-class: 'button';
   &--disabled {
     opacity: 0.4;
     cursor: default;
+
+    &:hover {
+      cursor: default;
+    }
   }
 
   &--small {

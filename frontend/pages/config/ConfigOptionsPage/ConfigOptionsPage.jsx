@@ -5,6 +5,7 @@ import { differenceWith, find, filter, isEqual, noop } from 'lodash';
 import Button from 'components/buttons/Button';
 import configOptionActions from 'redux/nodes/entities/config_options/actions';
 import ConfigOptionsForm from 'components/forms/ConfigOptionsForm';
+import Icon from 'components/icons/Icon';
 import configOptionInterface from 'interfaces/config_option';
 import debounce from 'utilities/debounce';
 import defaultConfigOptions from 'pages/config/ConfigOptionsPage/default_config_options';
@@ -159,10 +160,10 @@ export class ConfigOptionsPage extends Component {
     return (
       <div className={`body-wrap ${baseClass}`}>
         <div className={`${baseClass}__header-wrapper`}>
-          <div>
+          <div className={`${baseClass}__header-content`}>
             <h1>Manage Additional Osquery Options</h1>
             <p>
-              Osquery allows you to set a number of configuration options (Osquery Documentation).
+              Osquery allows you to set a number of configuration options (<a href="https://osquery.io/docs/" target="_blank" rel="noopener noreferrer">Osquery Documentation</a>).
               Since Kolide manages your Osquery configuration, you can set these additional desired
               options on this screen. Some options that Kolide needs to function correctly will be ignored.
             </p>
@@ -183,7 +184,7 @@ export class ConfigOptionsPage extends Component {
           onFormUpdate={onOptionUpdate}
           onRemoveOption={onRemoveOption}
         />
-        <Button onClick={onAddNewOption} variant="unstyled">Add New Option</Button>
+        <Button onClick={onAddNewOption} variant="unstyled" className={`${baseClass}__add-new`}><Icon name="add-plus" /> Add New Option</Button>
       </div>
     );
   }
