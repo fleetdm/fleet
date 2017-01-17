@@ -111,7 +111,6 @@ func TestCountHostsInTargets(t *testing.T) {
 	})
 	require.Nil(t, err)
 	require.NotZero(t, l1.ID)
-	l1ID := fmt.Sprintf("%d", l1.ID)
 
 	l2, err := ds.NewLabel(&kolide.Label{
 		Name:  "label bar",
@@ -119,15 +118,14 @@ func TestCountHostsInTargets(t *testing.T) {
 	})
 	require.Nil(t, err)
 	require.NotZero(t, l2.ID)
-	l2ID := fmt.Sprintf("%d", l2.ID)
 
 	for _, h := range []*kolide.Host{h1, h2, h3, h6} {
-		err = ds.RecordLabelQueryExecutions(h, map[string]bool{l1ID: true}, mockClock.Now())
+		err = ds.RecordLabelQueryExecutions(h, map[uint]bool{l1.ID: true}, mockClock.Now())
 		assert.Nil(t, err)
 	}
 
 	for _, h := range []*kolide.Host{h3, h4, h5} {
-		err = ds.RecordLabelQueryExecutions(h, map[string]bool{l2ID: true}, mockClock.Now())
+		err = ds.RecordLabelQueryExecutions(h, map[uint]bool{l2.ID: true}, mockClock.Now())
 		assert.Nil(t, err)
 	}
 
@@ -269,10 +267,9 @@ func TestSearchHostsInLabels(t *testing.T) {
 	})
 	require.Nil(t, err)
 	require.NotZero(t, l1.ID)
-	l1ID := fmt.Sprintf("%d", l1.ID)
 
 	for _, h := range []*kolide.Host{h1, h2, h3} {
-		err = ds.RecordLabelQueryExecutions(h, map[string]bool{l1ID: true}, time.Now())
+		err = ds.RecordLabelQueryExecutions(h, map[uint]bool{l1.ID: true}, time.Now())
 		assert.Nil(t, err)
 	}
 

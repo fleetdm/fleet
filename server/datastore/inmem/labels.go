@@ -67,29 +67,12 @@ func (d *Datastore) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (ma
 	return queries, nil
 }
 
-func (d *Datastore) getLabelByIDString(id string) (*kolide.Label, error) {
-	labelID, err := strconv.Atoi(id)
-	if err != nil {
-		return nil, errors.New("non-int label ID")
-	}
-
-	d.mtx.Lock()
-	label, ok := d.labels[uint(labelID)]
-	d.mtx.Unlock()
-
-	if !ok {
-		return nil, errors.New("label ID not found: " + string(labelID))
-	}
-
-	return label, nil
-}
-
-func (d *Datastore) RecordLabelQueryExecutions(host *kolide.Host, results map[string]bool, t time.Time) error {
+func (d *Datastore) RecordLabelQueryExecutions(host *kolide.Host, results map[uint]bool, t time.Time) error {
 	// Record executions
-	for strLabelID, matches := range results {
-		label, err := d.getLabelByIDString(strLabelID)
-		if err != nil {
-			return err
+	for labelID, matches := range results {
+		label, ok := d.labels[labelID]
+		if !ok {
+			return notFound("Label").WithID(labelID)
 		}
 
 		updated := false

@@ -396,11 +396,10 @@ func testDistributedQueriesForHost(t *testing.T, ds kolide.Datastore) {
 		Query: "query1",
 	})
 	require.Nil(t, err)
-	l1ID := fmt.Sprintf("%d", l1.ID)
 
 	// Add hosts to label
 	for _, h := range []*kolide.Host{h1, h2} {
-		err = ds.RecordLabelQueryExecutions(h, map[string]bool{l1ID: true}, time.Now())
+		err = ds.RecordLabelQueryExecutions(h, map[uint]bool{l1.ID: true}, time.Now())
 		require.Nil(t, err)
 	}
 

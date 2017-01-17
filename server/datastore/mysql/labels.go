@@ -108,7 +108,7 @@ func (d *Datastore) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (ma
 
 }
 
-func (d *Datastore) RecordLabelQueryExecutions(host *kolide.Host, results map[string]bool, updated time.Time) error {
+func (d *Datastore) RecordLabelQueryExecutions(host *kolide.Host, results map[uint]bool, updated time.Time) error {
 	sqlStatement := `
 	INSERT INTO label_query_executions (updated_at, matches, label_id, host_id) VALUES
 

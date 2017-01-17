@@ -10,6 +10,7 @@ import (
 	hostctx "github.com/kolide/kolide-ose/server/contexts/host"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/kolide/kolide-ose/server/pubsub"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -403,11 +404,15 @@ func (svc service) ingestDetailQuery(host *kolide.Host, name string, rows []map[
 }
 
 // ingestLabelQuery records the results of label queries run by a host
-func (svc service) ingestLabelQuery(host kolide.Host, query string, rows []map[string]string, results map[string]bool) error {
+func (svc service) ingestLabelQuery(host kolide.Host, query string, rows []map[string]string, results map[uint]bool) error {
 	trimmedQuery := strings.TrimPrefix(query, hostLabelQueryPrefix)
+	trimmedQueryNum, err := strconv.Atoi(trimmedQuery)
+	if err != nil {
+		return errors.Wrap(err, "converting query from string to int")
+	}
 	// A label query matches if there is at least one result for that
 	// query. We must also store negative results.
-	results[trimmedQuery] = len(rows) > 0
+	results[uint(trimmedQueryNum)] = len(rows) > 0
 	return nil
 }
 
@@ -487,7 +492,7 @@ func (svc service) SubmitDistributedQueryResults(ctx context.Context, results ko
 	}
 
 	detailUpdated := false
-	labelResults := map[string]bool{}
+	labelResults := map[uint]bool{}
 	for query, rows := range results {
 		switch {
 		case strings.HasPrefix(query, hostDetailQueryPrefix):

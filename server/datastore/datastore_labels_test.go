@@ -89,7 +89,7 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 	assert.Empty(t, labels)
 
 	// Record a query execution
-	err = db.RecordLabelQueryExecutions(host, map[string]bool{"1": true}, baseTime)
+	err = db.RecordLabelQueryExecutions(host, map[uint]bool{1: true}, baseTime)
 	assert.Nil(t, err)
 
 	// Use a 10 minute interval, so the query we just added should show up
@@ -99,14 +99,14 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 	assert.Equal(t, expectQueries, queries)
 
 	// Record an old query execution -- Shouldn't change the return
-	err = db.RecordLabelQueryExecutions(host, map[string]bool{"2": true}, baseTime.Add(-1*time.Hour))
+	err = db.RecordLabelQueryExecutions(host, map[uint]bool{2: true}, baseTime.Add(-1*time.Hour))
 	assert.Nil(t, err)
 	queries, err = db.LabelQueriesForHost(host, time.Now().Add(-(10 * time.Minute)))
 	assert.Nil(t, err)
 	assert.Equal(t, expectQueries, queries)
 
 	// Record a newer execution for that query and another
-	err = db.RecordLabelQueryExecutions(host, map[string]bool{"2": false, "3": true}, baseTime)
+	err = db.RecordLabelQueryExecutions(host, map[uint]bool{2: false, 3: true}, baseTime)
 	assert.Nil(t, err)
 
 	// Now these should no longer show up in the necessary to run queries
@@ -275,7 +275,6 @@ func testListHostsInLabel(t *testing.T, db kolide.Datastore) {
 	})
 	require.Nil(t, err)
 	require.NotZero(t, l1.ID)
-	l1ID := fmt.Sprintf("%d", l1.ID)
 
 	{
 
@@ -285,7 +284,7 @@ func testListHostsInLabel(t *testing.T, db kolide.Datastore) {
 	}
 
 	for _, h := range []*kolide.Host{h1, h2, h3} {
-		err = db.RecordLabelQueryExecutions(h, map[string]bool{l1ID: true}, time.Now())
+		err = db.RecordLabelQueryExecutions(h, map[uint]bool{l1.ID: true}, time.Now())
 		assert.Nil(t, err)
 	}
 
@@ -329,7 +328,6 @@ func testListUniqueHostsInLabels(t *testing.T, db kolide.Datastore) {
 	})
 	require.Nil(t, err)
 	require.NotZero(t, l1.ID)
-	l1ID := fmt.Sprintf("%d", l1.ID)
 
 	l2, err := db.NewLabel(&kolide.Label{
 		Name:  "label bar",
@@ -337,15 +335,14 @@ func testListUniqueHostsInLabels(t *testing.T, db kolide.Datastore) {
 	})
 	require.Nil(t, err)
 	require.NotZero(t, l2.ID)
-	l2ID := fmt.Sprintf("%d", l2.ID)
 
 	for i := 0; i < 3; i++ {
-		err = db.RecordLabelQueryExecutions(hosts[i], map[string]bool{l1ID: true}, time.Now())
+		err = db.RecordLabelQueryExecutions(hosts[i], map[uint]bool{l1.ID: true}, time.Now())
 		assert.Nil(t, err)
 	}
 	// host 2 executes twice
 	for i := 2; i < len(hosts); i++ {
-		err = db.RecordLabelQueryExecutions(hosts[i], map[string]bool{l2ID: true}, time.Now())
+		err = db.RecordLabelQueryExecutions(hosts[i], map[uint]bool{l2.ID: true}, time.Now())
 		assert.Nil(t, err)
 	}
 

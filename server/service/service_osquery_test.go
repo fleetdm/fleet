@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -454,7 +453,7 @@ func TestGetClientConfig(t *testing.T) {
 
 	err = ds.RecordLabelQueryExecutions(
 		host,
-		map[string]bool{fmt.Sprintf("%d", mysqlLabel.ID): true},
+		map[uint]bool{mysqlLabel.ID: true},
 		mockClock.Now(),
 	)
 	assert.Nil(t, err)
@@ -645,7 +644,6 @@ func TestDistributedQueries(t *testing.T) {
 		Query: &q,
 	})
 	require.Nil(t, err)
-	labelId := strconv.Itoa(int(label.ID))
 
 	// Record match with label
 	ctx = viewer.NewContext(ctx, viewer.Viewer{
@@ -653,7 +651,7 @@ func TestDistributedQueries(t *testing.T) {
 			ID: 0,
 		},
 	})
-	err = ds.RecordLabelQueryExecutions(host, map[string]bool{labelId: true}, mockClock.Now())
+	err = ds.RecordLabelQueryExecutions(host, map[uint]bool{label.ID: true}, mockClock.Now())
 	require.Nil(t, err)
 	err = ds.MarkHostSeen(host, mockClock.Now())
 	require.Nil(t, err)

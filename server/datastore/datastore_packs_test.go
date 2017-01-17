@@ -1,7 +1,6 @@
 package datastore
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/WatchBeam/clock"
@@ -90,7 +89,7 @@ func testGetHostsInPack(t *testing.T, ds kolide.Datastore) {
 
 	err = ds.RecordLabelQueryExecutions(
 		h1,
-		map[string]bool{fmt.Sprintf("%d", l1.ID): true},
+		map[uint]bool{l1.ID: true},
 		mockClock.Now(),
 	)
 	require.Nil(t, err)
@@ -107,7 +106,7 @@ func testGetHostsInPack(t *testing.T, ds kolide.Datastore) {
 
 	err = ds.RecordLabelQueryExecutions(
 		h2,
-		map[string]bool{fmt.Sprintf("%d", l1.ID): true},
+		map[uint]bool{l1.ID: true},
 		mockClock.Now(),
 	)
 	require.Nil(t, err)
