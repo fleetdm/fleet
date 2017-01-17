@@ -76,6 +76,7 @@ type InviteMailer struct {
 	*Invite
 	KolideServerURL   template.URL
 	InvitedByUsername string
+	OrgName           string
 }
 
 func (i *InviteMailer) Message() ([]byte, error) {

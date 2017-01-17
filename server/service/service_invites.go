@@ -54,6 +54,10 @@ func (svc service) InviteNewUser(ctx context.Context, payload kolide.InvitePaylo
 		return nil, err
 	}
 
+	invitedBy := inviter.Name
+	if invitedBy == "" {
+		invitedBy = inviter.Username
+	}
 	inviteEmail := kolide.Email{
 		Subject: "You're Invited to Kolide",
 		To:      []string{invite.Email},
@@ -61,7 +65,8 @@ func (svc service) InviteNewUser(ctx context.Context, payload kolide.InvitePaylo
 		Mailer: &kolide.InviteMailer{
 			Invite:            invite,
 			KolideServerURL:   template.URL(config.KolideServerURL),
-			InvitedByUsername: inviter.Name,
+			OrgName:           config.OrgName,
+			InvitedByUsername: invitedBy,
 		},
 	}
 
