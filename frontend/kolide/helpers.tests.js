@@ -39,6 +39,15 @@ describe('Kolide API - helpers', () => {
 
     it('splits config into categories for the server', () => {
       expect(formatConfigDataForServer(config)).toEqual(omit(configStub, ['smtp_settings.configured']));
+      expect(formatConfigDataForServer({ org_name: 'The Gnar Co' })).toEqual({
+        org_info: { org_name: 'The Gnar Co' },
+      });
+      expect(
+        formatConfigDataForServer({ org_name: 'The Gnar Co', kolide_server_url: 'https://example.com' })
+      ).toEqual({
+        org_info: { org_name: 'The Gnar Co' },
+        server_settings: { kolide_server_url: 'https://example.com' },
+      });
     });
   });
 

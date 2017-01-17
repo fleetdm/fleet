@@ -1,0 +1,45 @@
+import expect from 'expect';
+
+import deepDifference from 'utilities/deep_difference';
+
+describe('deepDifference - utility', () => {
+  it('returns the difference for 2 un-nested objects', () => {
+    const obj1 = { id: 1, first_name: 'Joe', last_name: 'Smith' };
+    const obj2 = { id: 1, first_name: 'Joe', last_name: 'Smyth' };
+
+    expect(deepDifference(obj1, obj2)).toEqual({ last_name: 'Smith' });
+    expect(deepDifference(obj2, obj1)).toEqual({ last_name: 'Smyth' });
+  });
+
+  it('returns the difference for 2 nested objects', () => {
+    const obj1 = {
+      profile: { id: 1, first_name: 'Joe', last_name: 'Smith' },
+      preferences: { email: true, push: false },
+    };
+    const obj2 = {
+      profile: { id: 1, first_name: 'Joe', last_name: 'Smyth' },
+      preferences: { email: false, push: false },
+    };
+
+    expect(deepDifference(obj1, obj2)).toEqual({
+      profile: { last_name: 'Smith' },
+      preferences: { email: true },
+    });
+
+    expect(deepDifference(obj2, obj1)).toEqual({
+      profile: { last_name: 'Smyth' },
+      preferences: { email: false },
+    });
+  });
+
+  it('returns the difference for 1 nested object and 1 non-nested object', () => {
+    const obj1 = {
+      profile: { id: 1, first_name: 'Joe', last_name: 'Smith' },
+      preferences: { email: true, push: false },
+    };
+    const obj2 = { profile: 'my profile', preferences: 'my preferences' };
+
+    expect(deepDifference(obj1, obj2)).toEqual(obj1);
+    expect(deepDifference(obj2, obj1)).toEqual(obj2);
+  });
+});

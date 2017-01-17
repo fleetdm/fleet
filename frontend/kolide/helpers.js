@@ -1,4 +1,4 @@
-import { flatMap, kebabCase, pick } from 'lodash';
+import { flatMap, kebabCase, pick, size } from 'lodash';
 import md5 from 'js-md5';
 
 const ORG_INFO_ATTRS = ['org_name', 'org_logo_url'];
@@ -33,17 +33,21 @@ const filterTarget = (targetType) => {
 };
 
 export const formatConfigDataForServer = (config) => {
-  const orgInfoAttrs = ['org_logo_url', 'org_name'];
-  const serverSettingsAttrs = ['kolide_server_url'];
-  const smtpSettingsAttrs = [
+  const orgInfoAttrs = pick(config, ['org_logo_url', 'org_name']);
+  const serverSettingsAttrs = pick(config, ['kolide_server_url']);
+  const smtpSettingsAttrs = pick(config, [
     'authentication_method', 'authentication_type', 'email_enabled', 'enable_ssl_tls',
     'enable_start_tls', 'password', 'port', 'sender_address', 'server', 'user_name', 'verify_ssl_certs',
-  ];
+  ]);
+
+  const orgInfo = size(orgInfoAttrs) && { org_info: orgInfoAttrs };
+  const serverSettings = size(serverSettingsAttrs) && { server_settings: serverSettingsAttrs };
+  const smtpSettings = size(smtpSettingsAttrs) && { smtp_settings: smtpSettingsAttrs };
 
   return {
-    org_info: pick(config, orgInfoAttrs),
-    server_settings: pick(config, serverSettingsAttrs),
-    smtp_settings: pick(config, smtpSettingsAttrs),
+    ...orgInfo,
+    ...serverSettings,
+    ...smtpSettings,
   };
 };
 

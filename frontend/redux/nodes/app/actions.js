@@ -39,7 +39,7 @@ export const getConfig = () => {
 
         dispatch(configFailure(formattedErrors));
 
-        throw error;
+        throw formattedErrors;
       });
   };
 };
@@ -60,7 +60,7 @@ export const updateConfig = (configData) => {
 
         dispatch(configFailure(formattedErrors));
 
-        throw error;
+        throw formattedErrors;
       });
   };
 };

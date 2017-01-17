@@ -4,6 +4,7 @@ import { size } from 'lodash';
 
 import AppConfigForm from 'components/forms/admin/AppConfigForm';
 import configInterface from 'interfaces/config';
+import deepDifference from 'utilities/deep_difference';
 import { renderFlash } from 'redux/nodes/notifications/actions';
 import SmtpWarning from 'components/SmtpWarning';
 import { updateConfig } from 'redux/nodes/app/actions';
@@ -30,15 +31,22 @@ class AppSettingsPage extends Component {
   }
 
   onFormSubmit = (formData) => {
-    const { dispatch } = this.props;
+    const { appConfig, dispatch } = this.props;
+    const diff = deepDifference(formData, appConfig);
 
-    dispatch(updateConfig(formData))
+    dispatch(updateConfig(diff))
       .then(() => {
         dispatch(renderFlash('success', 'Settings updated!'));
 
         return false;
       })
-      .catch(() => false);
+      .catch((errors) => {
+        if (errors.base) {
+          dispatch(renderFlash('error', errors.base));
+        }
+
+        return false;
+      });
 
     return false;
   }

@@ -1,3 +1,5 @@
+import { get } from 'lodash';
+
 import { appendTargetTypeToTargets } from 'redux/nodes/entities/targets/helpers';
 import Base from 'kolide/base';
 import endpoints from 'kolide/endpoints';
@@ -377,7 +379,10 @@ class Kolide extends Base {
   updateConfig = (formData) => {
     const { CONFIG } = endpoints;
     const configData = helpers.formatConfigDataForServer(formData);
-    configData.smtp_settings.port = parseInt(configData.smtp_settings.port, 10);
+
+    if (get(configData, 'smtp_settings.port')) {
+      configData.smtp_settings.port = parseInt(configData.smtp_settings.port, 10);
+    }
 
     return this.authenticatedPatch(this.endpoint(CONFIG), JSON.stringify(configData));
   }
