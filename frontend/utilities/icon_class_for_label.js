@@ -4,7 +4,7 @@ export const iconClassForLabel = (label) => {
 
   if (lowerType === 'all') return 'hosts';
 
-  switch (lowerDisplayText) {
+  switch (lowerDisplayText || label) {
     case 'offline': return 'offline';
     case 'online': return 'success-check';
     case 'mia': return 'mia';

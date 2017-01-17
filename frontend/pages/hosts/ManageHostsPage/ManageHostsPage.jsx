@@ -14,6 +14,7 @@ import hostInterface from 'interfaces/host';
 import HostSidePanel from 'components/side_panels/HostSidePanel';
 import HostsTable from 'components/hosts/HostsTable';
 import Icon from 'components/icons/Icon';
+import PlatformIcon from 'components/icons/PlatformIcon';
 import osqueryTableInterface from 'interfaces/osquery_table';
 import paths from 'router/paths';
 import QueryForm from 'components/forms/queries/QueryForm';
@@ -22,6 +23,7 @@ import Rocker from 'components/buttons/Rocker';
 import { selectOsqueryTable } from 'redux/nodes/components/QueryPages/actions';
 import statusLabelsInterface from 'interfaces/status_labels';
 import iconClassForLabel from 'utilities/icon_class_for_label';
+import platformIconClass from 'utilities/platform_icon_class';
 
 const NEW_LABEL_HASH = '#new_label';
 const baseClass = 'manage-hosts';
@@ -155,6 +157,16 @@ export class ManageHostsPage extends Component {
     return orderedHosts;
   }
 
+  renderIcon = () => {
+    const { selectedLabel } = this.props;
+
+    if (platformIconClass(selectedLabel.display_text)) {
+      return <PlatformIcon name={platformIconClass(selectedLabel.display_text)} />;
+    }
+
+    return <Icon name={iconClassForLabel(selectedLabel)} />;
+  }
+
   renderQuery = () => {
     const { selectedLabel } = this.props;
     const { label_type: labelType, query } = selectedLabel;
@@ -183,7 +195,7 @@ export class ManageHostsPage extends Component {
   }
 
   renderHeader = () => {
-    const { renderQuery } = this;
+    const { renderIcon, renderQuery } = this;
     const { display, isAddLabel, selectedLabel } = this.props;
 
     if (!selectedLabel || isAddLabel) {
@@ -202,7 +214,7 @@ export class ManageHostsPage extends Component {
     return (
       <div className={`${baseClass}__header`}>
         <h1 className={`${baseClass}__title`}>
-          <Icon name={iconClassForLabel(selectedLabel)} />
+          {renderIcon()}
           <span>{displayText}</span>
         </h1>
 

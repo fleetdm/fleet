@@ -13,6 +13,18 @@
       color: $text-light;
       margin-right: 15px;
     }
+
+    .kolidecon-success-check {
+      color: $success;
+    }
+
+    .kolidecon-offline {
+      color: $alert;
+    }
+
+    .kolidecon-mia {
+      color: $text-ultradark;
+    }
   }
 
   &__description {

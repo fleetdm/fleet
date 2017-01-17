@@ -2,6 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import classnames from 'classnames';
 
 import Icon from 'components/icons/Icon';
+import platformIconClass from 'utilities/platform_icon_class';
 
 const baseClass = 'platform-icon';
 
@@ -14,31 +15,10 @@ export class PlatformIcon extends Component {
     title: PropTypes.string,
   };
 
-  findIcon = () => {
-    const { name } = this.props;
-
-    switch (name.toLowerCase()) {
-      case 'macos': return 'apple';
-      case 'mac os x': return 'apple';
-      case 'mac osx': return 'apple';
-      case 'mac os': return 'apple';
-      case 'darwin': return 'apple';
-      case 'centos': return 'centos';
-      case 'centos linux': return 'centos';
-      case 'ubuntu': return 'ubuntu';
-      case 'ubuntu linux': return 'ubuntu';
-      case 'linux': return 'linux';
-      case 'windows': return 'windows';
-      case 'ms windows': return 'windows';
-      default: return false;
-    }
-  };
-
   render () {
-    const { findIcon } = this;
     const { className, name, fw, size, title } = this.props;
     const iconClasses = classnames(baseClass, className);
-    const iconName = findIcon();
+    const iconName = platformIconClass(name);
 
     if (!iconName) {
       return <span className={iconClasses}>{name || 'All'}</span>;

@@ -5,6 +5,7 @@ import classnames from 'classnames';
 
 import hostHelpers from 'components/hosts/HostDetails/helpers';
 import Icon from 'components/icons/Icon';
+import PlatformIcon from 'components/icons/PlatformIcon';
 import targetInterface from 'interfaces/target';
 
 const baseClass = 'target-details';
@@ -79,7 +80,7 @@ class TargetDetails extends Component {
             <tr>
               <th>Platform</th>
               <td>
-                <Icon name={hostHelpers.platformIconClass(platform)} />
+                <PlatformIcon name={platform} />
                 <span className={`${hostBaseClass}__platform-text`}> {platform}</span>
               </td>
             </tr>
