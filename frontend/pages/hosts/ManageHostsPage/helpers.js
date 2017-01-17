@@ -1,0 +1,24 @@
+import { filter, includes } from 'lodash';
+
+const filterHosts = (hosts, label) => {
+  if (!label) {
+    return hosts;
+  }
+
+  const { host_ids: hostIDs, platform, slug, type } = label;
+
+  switch (type) {
+    case 'all':
+      return hosts;
+    case 'status':
+      return filter(hosts, { status: slug });
+    case 'platform':
+      return filter(hosts, { platform });
+    case 'custom':
+      return filter(hosts, h => includes(hostIDs, h.id));
+    default:
+      return hosts;
+  }
+};
+
+export default { filterHosts };

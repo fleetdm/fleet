@@ -91,6 +91,26 @@ export const hostStub = {
   display_text: '52883a0ba916',
 };
 
+export const labelStub = {
+  created_at: '2017-01-16T23:11:01Z',
+  updated_at: '2017-01-16T23:11:01Z',
+  deleted_at: null,
+  deleted: false,
+  id: 1,
+  name: 'All Hosts',
+  description: '',
+  query: 'select 1;',
+  platform: '',
+  label_type: 1,
+  display_text: 'All Hosts',
+  count: 20,
+  online: 20,
+  offline: 0,
+  missing_in_action: 0,
+  host_ids: [],
+  type: 'all',
+};
+
 export const packStub = {
   created_at: '0001-01-01T00:00:00Z',
   updated_at: '0001-01-01T00:00:00Z',
@@ -146,6 +166,7 @@ export default {
   adminUserStub,
   configStub,
   hostStub,
+  labelStub,
   packStub,
   queryStub,
   scheduledQueryStub,

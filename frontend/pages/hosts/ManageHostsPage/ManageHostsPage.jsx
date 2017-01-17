@@ -2,10 +2,11 @@ import React, { Component, PropTypes } from 'react';
 import AceEditor from 'react-ace';
 import { connect } from 'react-redux';
 import { push } from 'react-router-redux';
-import { filter, orderBy, sortBy } from 'lodash';
+import { orderBy, sortBy } from 'lodash';
 
 import entityGetter from 'redux/utilities/entityGetter';
 import { getStatusLabelCounts, setDisplay } from 'redux/nodes/components/ManageHostsPage/actions';
+import helpers from 'pages/hosts/ManageHostsPage/helpers';
 import hostActions from 'redux/nodes/entities/hosts/actions';
 import labelActions from 'redux/nodes/entities/labels/actions';
 import labelInterface from 'interfaces/label';
@@ -137,17 +138,9 @@ export class ManageHostsPage extends Component {
   }
 
   filterHosts = () => {
-    const { hosts: allHosts, selectedLabel } = this.props;
+    const { hosts, selectedLabel } = this.props;
 
-    // TODO: Filter custom labels by their host_ids attribute
-    if (!selectedLabel || selectedLabel.type === 'custom' || selectedLabel.type === 'all') {
-      return allHosts;
-    }
-
-    const { type } = selectedLabel;
-    const filterObject = type === 'status' ? { status: selectedLabel.slug } : { [type]: selectedLabel[type] };
-
-    return filter(allHosts, filterObject);
+    return helpers.filterHosts(hosts, selectedLabel);
   }
 
   sortHosts = (hosts) => {
@@ -196,13 +189,13 @@ export class ManageHostsPage extends Component {
 
   renderHeader = () => {
     const { renderIcon, renderQuery } = this;
-    const { display, isAddLabel, selectedLabel } = this.props;
+    const { display, isAddLabel, selectedLabel, statusLabels } = this.props;
 
     if (!selectedLabel || isAddLabel) {
       return false;
     }
 
-    const { count, description, display_text: displayText } = selectedLabel;
+    const { count, description, display_text: displayText, slug, type } = selectedLabel;
     const { onToggleDisplay } = this;
     const buttonOptions = {
       rightIcon: 'grid-select',
@@ -210,6 +203,9 @@ export class ManageHostsPage extends Component {
       leftIcon: 'list-select',
       leftText: 'List',
     };
+
+    const hostCount = type === 'status' ? statusLabels[`${slug}_count`] : count;
+    const hostsTotalDisplay = hostCount === 1 ? '1 Host Total' : `${hostCount} Hosts Total`;
 
     return (
       <div className={`${baseClass}__header`}>
@@ -228,7 +224,7 @@ export class ManageHostsPage extends Component {
         }
 
         <div className={`${baseClass}__topper`}>
-          <p className={`${baseClass}__host-count`}>{count} Hosts Total</p>
+          <p className={`${baseClass}__host-count`}>{hostsTotalDisplay}</p>
           <Rocker
             onChange={onToggleDisplay}
             options={buttonOptions}

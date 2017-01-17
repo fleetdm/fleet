@@ -47,6 +47,7 @@ describe('ManageHostsPage - component', () => {
     hosts: [],
     labels: [],
     selectedOsqueryTable: stubbedOsqueryTable,
+    statusLabels: {},
   };
 
   beforeEach(() => {
@@ -67,6 +68,22 @@ describe('ManageHostsPage - component', () => {
       const page = mount(component);
 
       expect(page.find('QuerySidePanel').length).toEqual(1);
+    });
+  });
+
+  describe('header', () => {
+    it('displays "1 Host Total" when there is 1 host', () => {
+      const oneHostLabel = { ...allHostsLabel, count: 1 };
+      const page = mount(<ManageHostsPage {...props} selectedLabel={oneHostLabel} />);
+
+      expect(page.text()).toInclude('1 Host Total');
+    });
+
+    it('displays "#{count} Hosts Total" when there are more than 1 host', () => {
+      const oneHostLabel = { ...allHostsLabel, count: 2 };
+      const page = mount(<ManageHostsPage {...props} selectedLabel={oneHostLabel} />);
+
+      expect(page.text()).toInclude('2 Hosts Total');
     });
   });
 

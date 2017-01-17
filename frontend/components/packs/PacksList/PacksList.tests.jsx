@@ -1,6 +1,7 @@
 import React from 'react';
 import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
+import { noop } from 'lodash';
 
 import PacksList from 'components/packs/PacksList';
 import { packStub } from 'test/stubs';
@@ -8,13 +9,19 @@ import { packStub } from 'test/stubs';
 describe('PacksList - component', () => {
   afterEach(restoreSpies);
 
+  const props = {
+    onCheckAllPacks: noop,
+    onCheckPack: noop,
+    onSelectPack: noop,
+  };
+
   it('renders', () => {
-    expect(mount(<PacksList packs={[packStub]} />).length).toEqual(1);
+    expect(mount(<PacksList {...props} packs={[packStub]} />).length).toEqual(1);
   });
 
   it('calls the onCheckAllPacks prop when select all packs checkbox is checked', () => {
     const spy = createSpy();
-    const component = mount(<PacksList onCheckAllPacks={spy} packs={[packStub]} />);
+    const component = mount(<PacksList {...props} onCheckAllPacks={spy} packs={[packStub]} />);
 
     component.find({ name: 'select-all-packs' }).simulate('change');
 
@@ -23,7 +30,7 @@ describe('PacksList - component', () => {
 
   it('calls the onCheckPack prop when a pack checkbox is checked', () => {
     const spy = createSpy();
-    const component = mount(<PacksList onCheckPack={spy} packs={[packStub]} />);
+    const component = mount(<PacksList {...props} onCheckPack={spy} packs={[packStub]} />);
     const packCheckbox = component.find({ name: `select-pack-${packStub.id}` });
 
     packCheckbox.simulate('change');
