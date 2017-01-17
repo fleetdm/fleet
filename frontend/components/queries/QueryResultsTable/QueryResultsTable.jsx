@@ -1,12 +1,13 @@
 import React, { Component } from 'react';
 import classnames from 'classnames';
-import { get, keys, omit, values } from 'lodash';
+import { get, keys, omit } from 'lodash';
 
 import campaignInterface from 'interfaces/campaign';
 import filterArrayByHash from 'utilities/filter_array_by_hash';
 import Icon from 'components/icons/Icon';
 import InputField from 'components/forms/fields/InputField';
 import ProgressBar from 'components/loaders/ProgressBar';
+import QueryResultsRow from 'components/queries/QueryResultsTable/QueryResultsRow';
 
 const baseClass = 'query-results-table';
 
@@ -104,17 +105,13 @@ class QueryResultsTable extends Component {
     const { resultsFilter } = this.state;
     const filteredQueryResults = filterArrayByHash(queryResults, resultsFilter);
 
-    return filteredQueryResults.map((row, index) => {
-      const queryAttrs = omit(row, ['hostname']);
-      const queryResult = values(queryAttrs);
-
+    return filteredQueryResults.map((queryResult, index) => {
       return (
-        <tr key={`query-results-table-row-${index}`}>
-          <td>{row.hostname}</td>
-          {queryResult.map((attribute, i) => {
-            return <td key={`query-results-table-row-data-${i}`}>{attribute}</td>;
-          })}
-        </tr>
+        <QueryResultsRow
+          index={index}
+          key={`qrtr-${index}`}
+          queryResult={queryResult}
+        />
       );
     });
   }

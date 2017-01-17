@@ -29,6 +29,10 @@ class Timer extends Component {
     }
   }
 
+  componentWillUnmount () {
+    this.pause();
+  }
+
   play = () => {
     const { interval, update } = this;
 
