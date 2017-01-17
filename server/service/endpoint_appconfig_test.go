@@ -25,7 +25,7 @@ func testGetAppConfig(t *testing.T, r *testResource) {
 
 	req, err := http.NewRequest("GET", r.server.URL+"/api/v1/kolide/config", nil)
 	require.Nil(t, err)
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.userToken))
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.adminToken))
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	require.Nil(t, err)
@@ -63,7 +63,7 @@ func testModifyAppConfig(t *testing.T, r *testResource) {
 	require.Nil(t, err)
 	req, err := http.NewRequest("PATCH", r.server.URL+"/api/v1/kolide/config", &buffer)
 	require.Nil(t, err)
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.userToken))
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.adminToken))
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	require.Nil(t, err)
@@ -92,7 +92,7 @@ func testModifyAppConfigWithValidationFail(t *testing.T, r *testResource) {
 	require.Nil(t, err)
 	req, err := http.NewRequest("PATCH", r.server.URL+"/api/v1/kolide/config", &buffer)
 	require.Nil(t, err)
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.userToken))
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.adminToken))
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	require.Nil(t, err)

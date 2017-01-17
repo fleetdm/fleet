@@ -107,17 +107,6 @@ func TestEndpointPermissions(t *testing.T) {
 			requestID: admin1.ID,
 			wantErr:   permissionError{message: "no read permissions on user"},
 		},
-		{
-			endpoint: validateModifyUserRequest(e),
-			request:  modifyUserRequest{},
-			wantErr:  errNoContext,
-		},
-		{
-			endpoint: validateModifyUserRequest(e),
-			request:  modifyUserRequest{payload: kolide.UserPayload{Enabled: boolPtr(true)}},
-			vc:       &viewer.Viewer{User: user1},
-			wantErr:  permissionError{message: "unauthorized: must be an admin"},
-		},
 	}
 
 	for _, tt := range endpointTests {

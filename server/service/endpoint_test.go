@@ -22,9 +22,10 @@ import (
 )
 
 type testResource struct {
-	server    *httptest.Server
-	userToken string
-	ds        kolide.Datastore
+	server     *httptest.Server
+	adminToken string
+	userToken  string
+	ds         kolide.Datastore
 }
 
 func setupEndpointTest(t *testing.T) *testResource {
@@ -80,7 +81,19 @@ func setupEndpointTest(t *testing.T) *testResource {
 		Err   string       `json:"error,omitempty"`
 	}{}
 	json.NewDecoder(resp.Body).Decode(&jsn)
+	test.adminToken = jsn.Token
+
+	// log in non admin user
+	userParam.Username = "user1"
+	userParam.Password = testUsers["user1"].PlaintextPassword
+	marshalledUser, _ = json.Marshal(userParam)
+	requestBody = &nopCloser{bytes.NewBuffer(marshalledUser)}
+	resp, err = http.Post(test.server.URL+"/api/v1/kolide/login", "application/json", requestBody)
+	require.Nil(t, err)
+	err = json.NewDecoder(resp.Body).Decode(&jsn)
+	require.Nil(t, err)
 	test.userToken = jsn.Token
+
 	return test
 }
 
@@ -101,6 +114,10 @@ var testFunctions = [...]func(*testing.T, *testResource){
 	testImportConfigMissingExternal,
 	testImportConfigWithMissingGlob,
 	testImportConfigWithGlob,
+	testAdminUserSetAdmin,
+	testNonAdminUserSetAdmin,
+	testAdminUserSetEnabled,
+	testNonAdminUserSetEnabled,
 }
 
 func TestEndpoints(t *testing.T) {

@@ -8,6 +8,68 @@ import (
 	"golang.org/x/net/context"
 )
 
+func (mw loggingMiddleware) ChangeUserAdmin(ctx context.Context, id uint, isAdmin bool) (*kolide.User, error) {
+	var (
+		loggedInUser = "unauthenticated"
+		userName     = "none"
+		err          error
+		user         *kolide.User
+	)
+
+	vc, ok := viewer.FromContext(ctx)
+	if ok {
+		loggedInUser = vc.Username()
+	}
+
+	defer func(begin time.Time) {
+		_ = mw.logger.Log(
+			"method", "ChangeUserAdmin",
+			"user", userName,
+			"changed_by", loggedInUser,
+			"admin", isAdmin,
+			"err", err,
+			"took", time.Since(begin),
+		)
+	}(time.Now())
+
+	user, err = mw.Service.ChangeUserAdmin(ctx, id, isAdmin)
+	if user != nil {
+		userName = user.Username
+	}
+	return user, err
+}
+
+func (mw loggingMiddleware) ChangeUserEnabled(ctx context.Context, id uint, isEnabled bool) (*kolide.User, error) {
+	var (
+		loggedInUser = "unauthenticated"
+		userName     = "none"
+		err          error
+		user         *kolide.User
+	)
+
+	vc, ok := viewer.FromContext(ctx)
+	if ok {
+		loggedInUser = vc.Username()
+	}
+
+	defer func(begin time.Time) {
+		_ = mw.logger.Log(
+			"method", "ChangeUserEnabled",
+			"user", userName,
+			"changed_by", loggedInUser,
+			"enabled", isEnabled,
+			"err", err,
+			"took", time.Since(begin),
+		)
+	}(time.Now())
+
+	user, err = mw.Service.ChangeUserEnabled(ctx, id, isEnabled)
+	if user != nil {
+		userName = user.Username
+	}
+	return user, err
+}
+
 func (mw loggingMiddleware) NewAdminCreatedUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
 	var (
 		user         *kolide.User

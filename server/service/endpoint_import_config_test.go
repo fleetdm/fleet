@@ -26,7 +26,7 @@ func testImportConfigWithGlob(t *testing.T, r *testResource) {
 	buff := bytes.NewBufferString(testJSON)
 	req, err := http.NewRequest("POST", r.server.URL+"/api/v1/kolide/osquery/config/import", buff)
 	require.Nil(t, err)
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.userToken))
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.adminToken))
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	require.Nil(t, err)
@@ -48,7 +48,7 @@ func testImportConfigWithMissingGlob(t *testing.T, r *testResource) {
 	buff := bytes.NewBufferString(testJSON)
 	req, err := http.NewRequest("POST", r.server.URL+"/api/v1/kolide/osquery/config/import", buff)
 	require.Nil(t, err)
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.userToken))
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.adminToken))
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	require.Nil(t, err)
@@ -73,7 +73,7 @@ func testImportConfig(t *testing.T, r *testResource) {
 	buff := bytes.NewBufferString(testJSON)
 	req, err := http.NewRequest("POST", r.server.URL+"/api/v1/kolide/osquery/config/import", buff)
 	require.Nil(t, err)
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.userToken))
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.adminToken))
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	require.Nil(t, err)
@@ -93,7 +93,7 @@ func testImportConfigMissingExternal(t *testing.T, r *testResource) {
 	buff := bytes.NewBufferString(testJSON)
 	req, err := http.NewRequest("POST", r.server.URL+"/api/v1/kolide/osquery/config/import", buff)
 	require.Nil(t, err)
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.userToken))
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.adminToken))
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	require.Nil(t, err)

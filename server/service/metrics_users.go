@@ -8,6 +8,38 @@ import (
 	"golang.org/x/net/context"
 )
 
+func (mw metricsMiddleware) ChangeUserAdmin(ctx context.Context, id uint, isAdmin bool) (*kolide.User, error) {
+	var (
+		user *kolide.User
+		err  error
+	)
+
+	defer func(begin time.Time) {
+		lvs := []string{"method", "ChangeUserAdmin", "error", fmt.Sprint(err != nil)}
+		mw.requestCount.With(lvs...).Add(1)
+		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	user, err = mw.Service.ChangeUserAdmin(ctx, id, isAdmin)
+	return user, err
+}
+
+func (mw metricsMiddleware) ChangeUserEnabled(ctx context.Context, id uint, isEnabled bool) (*kolide.User, error) {
+	var (
+		user *kolide.User
+		err  error
+	)
+
+	defer func(begin time.Time) {
+		lvs := []string{"method", "ChangeUserEnabled", "error", fmt.Sprint(err != nil)}
+		mw.requestCount.With(lvs...).Add(1)
+		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	user, err = mw.Service.ChangeUserEnabled(ctx, id, isEnabled)
+	return user, err
+}
+
 func (mw metricsMiddleware) NewUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
 	var (
 		user *kolide.User

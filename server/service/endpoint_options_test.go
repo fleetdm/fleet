@@ -15,7 +15,7 @@ func testGetOptions(t *testing.T, r *testResource) {
 
 	req, err := http.NewRequest("GET", r.server.URL+"/api/v1/kolide/options", nil)
 	require.Nil(t, err)
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.userToken))
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.adminToken))
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	require.Nil(t, err)
@@ -34,7 +34,7 @@ func testModifyOptions(t *testing.T, r *testResource) {
 	buff := bytes.NewBufferString(inJson)
 	req, err := http.NewRequest("PATCH", r.server.URL+"/api/v1/kolide/options", buff)
 	require.Nil(t, err)
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.userToken))
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.adminToken))
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	require.Nil(t, err)
@@ -55,7 +55,7 @@ func testModifyOptionsValidationFail(t *testing.T, r *testResource) {
 	buff := bytes.NewBufferString(inJson)
 	req, err := http.NewRequest("PATCH", r.server.URL+"/api/v1/kolide/options", buff)
 	require.Nil(t, err)
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.userToken))
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.adminToken))
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	require.Nil(t, err)

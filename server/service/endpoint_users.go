@@ -60,6 +60,52 @@ func makeGetUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 	}
 }
 
+type adminUserRequest struct {
+	ID    uint `json:"id"`
+	Admin bool `json:"admin"`
+}
+
+type adminUserResponse struct {
+	User *kolide.User `json:"user,omitempty"`
+	Err  error        `json:"error,omitempty"`
+}
+
+func (r adminUserResponse) error() error { return r.Err }
+
+func makeAdminUserEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(adminUserRequest)
+		user, err := svc.ChangeUserAdmin(ctx, req.ID, req.Admin)
+		if err != nil {
+			return adminUserResponse{Err: err}, nil
+		}
+		return adminUserResponse{User: user}, nil
+	}
+}
+
+type enableUserRequest struct {
+	ID      uint `json:"id"`
+	Enabled bool `json:"enabled"`
+}
+
+type enableUserResponse struct {
+	User *kolide.User `json:"user,omitempty"`
+	Err  error        `json:"error,omitempty"`
+}
+
+func (r enableUserResponse) error() error { return r.Err }
+
+func makeEnableUserEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(enableUserRequest)
+		user, err := svc.ChangeUserEnabled(ctx, req.ID, req.Enabled)
+		if err != nil {
+			return enableUserResponse{Err: err}, nil
+		}
+		return enableUserResponse{User: user}, nil
+	}
+}
+
 func makeGetSessionUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		user, err := svc.AuthenticatedUser(ctx)
