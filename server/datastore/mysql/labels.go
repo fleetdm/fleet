@@ -248,15 +248,48 @@ func (d *Datastore) searchLabelsWithOmits(query string, omit ...uint) ([]kolide.
 	return matches, nil
 }
 
+func (d *Datastore) searchLabelsDefault(omit ...uint) ([]kolide.Label, error) {
+	sqlStatement := `
+	SELECT *
+	FROM labels
+	WHERE NOT deleted
+	AND id NOT IN (?)
+	LIMIT 5
+	`
+
+	var in interface{}
+	{
+		// use -1 if there are no values to omit.
+		//Avoids empty args error for `sqlx.In`
+		in = omit
+		if len(omit) == 0 {
+			in = -1
+		}
+	}
+
+	var labels []kolide.Label
+	sql, args, err := sqlx.In(sqlStatement, in)
+	if err != nil {
+		return nil, errors.Wrap(err, "searching default labels")
+	}
+	sql = d.db.Rebind(sql)
+	err = d.db.Select(&labels, sql, args...)
+	if err != nil {
+		return nil, errors.Wrap(err, "searching default labels rebound")
+	}
+	return labels, nil
+}
+
 // SearchLabels performs wildcard searches on kolide.Label name
 func (d *Datastore) SearchLabels(query string, omit ...uint) ([]kolide.Label, error) {
+	if query == "" {
+		return d.searchLabelsDefault(omit...)
+	}
 	if len(omit) > 0 {
 		return d.searchLabelsWithOmits(query, omit...)
 	}
 
-	if len(query) > 0 {
-		query += "*"
-	}
+	query += "*"
 
 	sqlStatement := `
 		SELECT *

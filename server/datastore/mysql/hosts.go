@@ -526,17 +526,53 @@ func (d *Datastore) searchHostsWithOmits(query string, omit ...uint) ([]*kolide.
 	return hosts, nil
 }
 
+func (d *Datastore) searchHostsDefault(omit ...uint) ([]*kolide.Host, error) {
+	sqlStatement := `
+	SELECT * FROM hosts
+	WHERE NOT deleted
+	AND id NOT IN (?)
+	ORDER BY seen_time DESC
+	LIMIT 5
+	`
+
+	var in interface{}
+	{
+		// use -1 if there are no values to omit.
+		//Avoids empty args error for `sqlx.In`
+		in = omit
+		if len(omit) == 0 {
+			in = -1
+		}
+	}
+
+	var hosts []*kolide.Host
+	sql, args, err := sqlx.In(sqlStatement, in)
+	if err != nil {
+		return nil, errors.Wrap(err, "searching default hosts")
+	}
+	sql = d.db.Rebind(sql)
+	err = d.db.Select(&hosts, sql, args...)
+	if err != nil {
+		return nil, errors.Wrap(err, "searching default hosts rebound")
+	}
+	if err := d.getNetInterfacesForHosts(hosts); err != nil {
+		return nil, errors.Wrap(err, "getting network interfaces for default search hosts")
+	}
+	return hosts, nil
+}
+
 // SearchHosts find hosts by query containing an IP address or a host name. Optionally
 // pass a list of IDs to omit from the search
 func (d *Datastore) SearchHosts(query string, omit ...uint) ([]*kolide.Host, error) {
+	if query == "" {
+		return d.searchHostsDefault(omit...)
+	}
 	if len(omit) > 0 {
 		return d.searchHostsWithOmits(query, omit...)
 	}
 
 	hostnameQuery := query
-	if len(hostnameQuery) > 0 {
-		hostnameQuery += "*"
-	}
+	hostnameQuery += "*"
 
 	// Needs quotes to avoid each . marking a word boundary
 	ipQuery := `"` + query + `"`
