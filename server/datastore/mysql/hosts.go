@@ -336,7 +336,7 @@ func (d *Datastore) getNetInterfacesForHosts(hosts []*kolide.Host) error {
 		WHERE host_id IN (:hosts)
 		ORDER BY host_id ASC
 	`
-	hostIDs := make([]interface{}, len(hosts))
+	hostIDs := make([]uint, len(hosts))
 
 	for _, host := range hosts {
 		hostIDs = append(hostIDs, host.ID)
@@ -347,27 +347,28 @@ func (d *Datastore) getNetInterfacesForHosts(hosts []*kolide.Host) error {
 	}
 	query, args, err := sqlx.Named(sqlStatement, arg)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "select nics for hosts, named query")
 	}
 
 	query, args, err = sqlx.In(query, args...)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "select nics for hosts, in query")
 	}
 
 	query = d.db.Rebind(query)
 	nics := []*kolide.NetworkInterface{}
 	err = d.db.Select(&nics, query, args...)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "select nics for hosts, rebound query")
 	}
 
 	sortutil.AscByField(hosts, "ID")
 
-	i := 0
 	for _, host := range hosts {
-		for ; i < len(nics) && host.ID == nics[i].HostID; i++ {
-			host.NetworkInterfaces = append(host.NetworkInterfaces, nics[i])
+		for i := 0; i < len(nics); i++ {
+			if host.ID == nics[i].HostID {
+				host.NetworkInterfaces = append(host.NetworkInterfaces, nics[i])
+			}
 		}
 	}
 
@@ -520,7 +521,7 @@ func (d *Datastore) searchHostsWithOmits(query string, omit ...uint) ([]*kolide.
 	}
 
 	if err := d.getNetInterfacesForHosts(hosts); err != nil {
-		return nil, errors.Wrap(err, "getting network interfaces")
+		return nil, errors.Wrap(err, "getting network interfaces for hosts")
 	}
 
 	return hosts, nil
