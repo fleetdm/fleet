@@ -1,30 +1,35 @@
 import React, { PropTypes } from 'react';
+import classnames from 'classnames';
 
 import Button from 'components/buttons/Button';
 import Icon from 'components/icons/Icon';
 
 const baseClass = 'smtp-warning';
 
-const SmtpWarning = ({ onDismiss, shouldShowWarning }) => {
+const SmtpWarning = ({ className, onDismiss, onResolve, shouldShowWarning }) => {
   if (!shouldShowWarning) {
     return false;
   }
 
+  const fullClassName = classnames(baseClass, className);
+
   return (
-    <div className={baseClass}>
+    <div className={fullClassName}>
       <div className={`${baseClass}__icon-wrap`}>
         <Icon name="warning-filled" />
         <span className={`${baseClass}__label`}>Warning!</span>
       </div>
       <span className={`${baseClass}__text`}>Email is not currently configured in Kolide. Many features rely on email to work.</span>
-      <Button onClick={onDismiss} variant="unstyled">Dismiss</Button>
-      <Button variant="unstyled">Resolve</Button>
+      {onDismiss && <Button onClick={onDismiss} variant="unstyled">Dismiss</Button>}
+      <Button onClick={onResolve} variant="unstyled">Resolve</Button>
     </div>
   );
 };
 
 SmtpWarning.propTypes = {
-  onDismiss: PropTypes.func.isRequired,
+  className: PropTypes.string,
+  onDismiss: PropTypes.func,
+  onResolve: PropTypes.func,
   shouldShowWarning: PropTypes.bool.isRequired,
 };
 

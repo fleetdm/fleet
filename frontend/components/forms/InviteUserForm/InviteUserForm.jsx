@@ -128,11 +128,13 @@ class InviteUserForm extends Component {
 
   render () {
     const { errors, formData: { admin, email, name } } = this.state;
-    const { onCancel } = this.props;
+    const { onCancel, serverErrors } = this.props;
     const { onFormSubmit, onInputChange, onRadioInputChange } = this;
+    const baseError = serverErrors.base;
 
     return (
       <form onSubmit={onFormSubmit}>
+        {baseError && <div className="form__base-error">{baseError}</div>}
         <InputFieldWithIcon
           autofocus
           error={errors.name}

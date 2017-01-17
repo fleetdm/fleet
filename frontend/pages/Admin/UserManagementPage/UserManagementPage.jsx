@@ -1,20 +1,28 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { first, isEqual, size } from 'lodash';
+import { push } from 'react-router-redux';
 
-import entityGetter from 'redux/utilities/entityGetter';
 import Button from 'components/buttons/Button';
+import configInterface from 'interfaces/config';
+import entityGetter from 'redux/utilities/entityGetter';
 import inviteActions from 'redux/nodes/entities/invites/actions';
 import inviteInterface from 'interfaces/invite';
 import InviteUserForm from 'components/forms/InviteUserForm';
 import Modal from 'components/modals/Modal';
+import paths from 'router/paths';
+import SmtpWarning from 'components/SmtpWarning';
+import Spinner from 'components/loaders/Spinner';
 import userActions from 'redux/nodes/entities/users/actions';
 import userInterface from 'interfaces/user';
 import { renderFlash } from 'redux/nodes/notifications/actions';
 import UserBlock from './UserBlock';
 
+const baseClass = 'user-management';
+
 class UserManagementPage extends Component {
   static propTypes = {
+    appConfigLoading: PropTypes.bool,
+    config: configInterface,
     currentUser: userInterface,
     dispatch: PropTypes.func,
     inviteErrors: PropTypes.shape({
@@ -22,6 +30,8 @@ class UserManagementPage extends Component {
       email: PropTypes.string,
     }),
     invites: PropTypes.arrayOf(inviteInterface),
+    loadingInvites: PropTypes.bool,
+    loadingUsers: PropTypes.bool,
     userErrors: PropTypes.shape({
       base: PropTypes.string,
       name: PropTypes.string,
@@ -39,16 +49,10 @@ class UserManagementPage extends Component {
   }
 
   componentWillMount () {
-    const { currentUser, dispatch, invites, users } = this.props;
+    const { dispatch } = this.props;
 
-    if (!size(users) ||
-      (size(users) === 1 && isEqual(first(users), currentUser))) {
-      dispatch(userActions.loadAll());
-    }
-
-    if (!invites.length) {
-      dispatch(inviteActions.loadAll());
-    }
+    dispatch(userActions.loadAll());
+    dispatch(inviteActions.loadAll());
 
     return false;
   }
@@ -122,14 +126,25 @@ class UserManagementPage extends Component {
     dispatch(inviteActions.create(formData))
       .then(() => {
         dispatch(renderFlash('success', 'User invited'));
+
         return this.toggleInviteUserModal();
-      });
+      })
+      .catch(() => false);
   }
 
   onInviteCancel = (evt) => {
     evt.preventDefault();
 
     return this.toggleInviteUserModal();
+  }
+
+  goToAppConfigPage = (evt) => {
+    evt.preventDefault();
+
+    const { ADMIN_SETTINGS } = paths;
+    const { dispatch } = this.props;
+
+    dispatch(push(ADMIN_SETTINGS));
   }
 
   toggleInviteUserModal = () => {
@@ -184,30 +199,66 @@ class UserManagementPage extends Component {
     );
   };
 
-  render () {
-    const { toggleInviteUserModal } = this;
-    const { invites, users } = this.props;
-    const resourcesCount = users.length + invites.length;
+  renderSmtpWarning = () => {
+    const { appConfigLoading, config } = this.props;
+    const { goToAppConfigPage } = this;
 
-    const baseClass = 'user-management';
+    if (appConfigLoading) {
+      return false;
+    }
+
+    return (
+      <div className={`${baseClass}__smtp-warning-wrapper`}>
+        <SmtpWarning
+          onResolve={goToAppConfigPage}
+          shouldShowWarning={!config.configured}
+        />
+      </div>
+    );
+  }
+
+  renderUsersAndInvites = () => {
+    const { invites, loadingInvites, loadingUsers, users } = this.props;
+    const { renderUserBlock } = this;
+
+    if (loadingInvites || loadingUsers) {
+      return <div className={`${baseClass}__users`}><Spinner /></div>;
+    }
+
+    return (
+      <div className={`${baseClass}__users`}>
+        {users.map((user, idx) => {
+          return renderUserBlock(user, idx);
+        })}
+        {invites.map((user, idx) => {
+          return renderUserBlock(user, idx, { invite: true });
+        })}
+      </div>
+    );
+  }
+
+  render () {
+    const { renderModal, renderSmtpWarning, renderUsersAndInvites, toggleInviteUserModal } = this;
+    const { config, invites, users } = this.props;
+    const resourcesCount = users.length + invites.length;
 
     return (
       <div className={`${baseClass} body-wrap`}>
-        <h1 className={`${baseClass}__user-count`}>Listing {resourcesCount} users</h1>
-        <div className={`${baseClass}__add-user-wrap`}>
-          <Button onClick={toggleInviteUserModal} className={`${baseClass}__add-user-btn`}>
-            Add User
-          </Button>
+        <div className={`${baseClass}__heading-wrapper`}>
+          <h1 className={`${baseClass}__user-count`}>Listing {resourcesCount} users</h1>
+          <div className={`${baseClass}__add-user-wrap`}>
+            <Button
+              className={`${baseClass}__add-user-btn`}
+              disabled={!config.configured}
+              onClick={toggleInviteUserModal}
+            >
+              Add User
+            </Button>
+          </div>
         </div>
-        <div className={`${baseClass}__users`}>
-          {users.map((user, idx) => {
-            return this.renderUserBlock(user, idx);
-          })}
-          {invites.map((user, idx) => {
-            return this.renderUserBlock(user, idx, { invite: true });
-          })}
-        </div>
-        {this.renderModal()}
+        {renderSmtpWarning()}
+        {renderUsersAndInvites()}
+        {renderModal()}
       </div>
     );
   }
@@ -215,13 +266,25 @@ class UserManagementPage extends Component {
 
 const mapStateToProps = (state) => {
   const stateEntityGetter = entityGetter(state);
+  const { config } = state.app;
+  const { loading: appConfigLoading } = state.app;
   const { user: currentUser } = state.auth;
   const { entities: users } = stateEntityGetter.get('users');
   const { entities: invites } = stateEntityGetter.get('invites');
-  const { errors: inviteErrors } = state.entities.invites;
-  const { errors: userErrors } = state.entities.users;
+  const { errors: inviteErrors, loading: loadingInvites } = state.entities.invites;
+  const { errors: userErrors, loading: loadingUsers } = state.entities.users;
 
-  return { currentUser, inviteErrors, invites, userErrors, users };
+  return {
+    appConfigLoading,
+    config,
+    currentUser,
+    inviteErrors,
+    invites,
+    loadingInvites,
+    loadingUsers,
+    userErrors,
+    users,
+  };
 };
 
 export default connect(mapStateToProps)(UserManagementPage);

@@ -5,7 +5,7 @@ import { size } from 'lodash';
 import AppConfigForm from 'components/forms/admin/AppConfigForm';
 import configInterface from 'interfaces/config';
 import { renderFlash } from 'redux/nodes/notifications/actions';
-import SmtpWarning from 'pages/Admin/AppSettingsPage/SmtpWarning';
+import SmtpWarning from 'components/SmtpWarning';
 import { updateConfig } from 'redux/nodes/app/actions';
 
 export const baseClass = 'app-settings';
