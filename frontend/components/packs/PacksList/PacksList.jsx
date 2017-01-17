@@ -26,6 +26,22 @@ class PacksList extends Component {
     selectedPack: {},
   };
 
+  renderHelpText = () => {
+    const { packs } = this.props;
+
+    if (packs.length) {
+      return false;
+    }
+
+    return (
+      <tr className={`${baseClass}__empty-table`}>
+        <td colSpan={6}>
+          <p>No packs available. Try creating one.</p>
+        </td>
+      </tr>
+    );
+  }
+
   renderPack = (pack) => {
     const { checkedPackIDs, onCheckPack, onSelectPack, selectedPack } = this.props;
     const checked = includes(checkedPackIDs, pack.id);
@@ -45,7 +61,7 @@ class PacksList extends Component {
 
   render () {
     const { allPacksChecked, className, onCheckAllPacks, packs } = this.props;
-    const { renderPack } = this;
+    const { renderPack, renderHelpText } = this;
     const tableClassName = classnames(baseClass, className);
 
     return (
@@ -68,7 +84,8 @@ class PacksList extends Component {
           </tr>
         </thead>
         <tbody>
-          {packs.map(pack => renderPack(pack))}
+          {renderHelpText()}
+          {!!packs.length && packs.map(pack => renderPack(pack))}
         </tbody>
       </table>
     );
