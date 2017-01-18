@@ -28,14 +28,34 @@ func (d *Datastore) PackByName(name string) (*kolide.Pack, bool, error) {
 
 // NewPack creates a new Pack
 func (d *Datastore) NewPack(pack *kolide.Pack) (*kolide.Pack, error) {
+	var (
+		deletedPack kolide.Pack
+		query       string
+	)
+	err := d.db.Get(&deletedPack,
+		"SELECT * FROM packs WHERE name = ? AND deleted", pack.Name)
+	switch err {
+	case nil:
+		query = `
+		REPLACE INTO packs 
+			( name, description, platform, created_by, disabled, deleted)
+			VALUES ( ?, ?, ?, ?, ?, ?)
+		`
+	case sql.ErrNoRows:
+		query = `
+		INSERT INTO packs 
+			( name, description, platform, created_by, disabled, deleted)
+			VALUES ( ?, ?, ?, ?, ?, ?)
+		`
+	default:
+		return nil, errors.Wrap(err, "check for existing pack")
+	}
 
-	query := `
-		INSERT INTO packs ( name, description, platform, created_by, disabled )
-			VALUES ( ?, ?, ?, ?, ?)
-	`
-
-	result, err := d.db.Exec(query, pack.Name, pack.Description, pack.Platform, pack.CreatedBy, pack.Disabled)
-	if err != nil {
+	deleted := false
+	result, err := d.db.Exec(query, pack.Name, pack.Description, pack.Platform, pack.CreatedBy, pack.Disabled, deleted)
+	if err != nil && isDuplicate(err) {
+		return nil, alreadyExists("Pack", deletedPack.ID)
+	} else if err != nil {
 		return nil, errors.Wrap(err, "creating new pack")
 	}
 
