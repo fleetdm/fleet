@@ -1,6 +1,11 @@
 package mysql
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/VividCortex/mysqlerr"
+	"github.com/go-sql-driver/mysql"
+)
 
 type notFoundError struct {
 	ID           uint
@@ -56,4 +61,13 @@ func (e *existsError) Error() string {
 
 func (e *existsError) IsExists() bool {
 	return true
+}
+
+func isDuplicate(err error) bool {
+	if driverErr, ok := err.(*mysql.MySQLError); ok {
+		if driverErr.Number == mysqlerr.ER_DUP_ENTRY {
+			return true
+		}
+	}
+	return false
 }

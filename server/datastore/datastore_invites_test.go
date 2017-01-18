@@ -19,10 +19,10 @@ func testCreateInvite(t *testing.T, ds kolide.Datastore) {
 	}
 
 	invite, err := ds.NewInvite(invite)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	verify, err := ds.InviteByEmail(invite.Email)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 	assert.Equal(t, invite.ID, verify.ID)
 	assert.Equal(t, invite.Email, verify.Email)
 }
@@ -38,7 +38,7 @@ func setupTestInvites(t *testing.T, ds kolide.Datastore) {
 	}
 
 	admin, err = ds.NewInvite(admin)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	for user := 0; user < 23; user++ {
 		i := kolide.Invite{

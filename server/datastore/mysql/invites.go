@@ -10,15 +10,32 @@ import (
 
 // NewInvite generates a new invitation
 func (d *Datastore) NewInvite(i *kolide.Invite) (*kolide.Invite, error) {
+	var (
+		deletedInvite kolide.Invite
+		sqlStmt       string
+	)
+	err := d.db.Get(&deletedInvite, "SELECT * FROM invites WHERE email = ? AND deleted", i.Email)
+	switch err {
+	case nil:
+		sqlStmt = `
+		REPLACE INTO invites ( invited_by, email, admin, name, position, token, deleted)
+		  VALUES ( ?, ?, ?, ?, ?, ?, ?)
+		`
+	case sql.ErrNoRows:
+		sqlStmt = `
+		INSERT INTO invites ( invited_by, email, admin, name, position, token, deleted)
+		  VALUES ( ?, ?, ?, ?, ?, ?, ?)
+		`
+	default:
+		return nil, errors.Wrap(err, "check for existing invite")
+	}
 
-	sql := `
-	INSERT INTO invites ( invited_by, email, admin, name, position, token)
-	  VALUES ( ?, ?, ?, ?, ?, ?)
-	`
-
-	result, err := d.db.Exec(sql, i.InvitedBy, i.Email, i.Admin,
-		i.Name, i.Position, i.Token)
-	if err != nil {
+	deleted := false
+	result, err := d.db.Exec(sqlStmt, i.InvitedBy, i.Email, i.Admin,
+		i.Name, i.Position, i.Token, deleted)
+	if err != nil && isDuplicate(err) {
+		return nil, alreadyExists("Invite", 0)
+	} else if err != nil {
 		return nil, errors.Wrap(err, "create invite")
 	}
 
