@@ -129,12 +129,16 @@ class SelectTargetsDropdown extends Component {
   renderLabel = () => {
     const { error, label, targetsCount } = this.props;
 
+    const labelClassName = classnames(`${baseClass}__label`, {
+      [`${baseClass}__label--error`]: error,
+    });
+
     if (!label) {
       return false;
     }
 
     return (
-      <p className={`${baseClass}__label`}>
+      <p className={labelClassName}>
         <span className={`${baseClass}__select-targets`}>{error || label}</span>
         <span className={`${baseClass}__targets-count`}> {targetsCount} unique {targetsCount === 1 ? 'host' : 'hosts' }</span>
       </p>

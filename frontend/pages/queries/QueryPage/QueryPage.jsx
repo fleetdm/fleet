@@ -42,6 +42,7 @@ class QueryPage extends Component {
     this.state = {
       queryIsRunning: false,
       targetsCount: 0,
+      targetsError: null,
     };
   }
 
@@ -77,6 +78,12 @@ class QueryPage extends Component {
   onRunQuery = debounce((queryText) => {
     const { dispatch, selectedTargets } = this.props;
     const { error } = validateQuery(queryText);
+
+    if (!selectedTargets.length) {
+      this.setState({ targetsError: 'You must select at least one target to run a query' });
+
+      return false;
+    }
 
     if (error) {
       dispatch(renderFlash('error', error));
@@ -163,6 +170,8 @@ class QueryPage extends Component {
   onTargetSelect = (selectedTargets) => {
     const { dispatch } = this.props;
 
+    this.setState({ targetsError: null });
+
     dispatch(setSelectedTargets(selectedTargets));
 
     return false;
@@ -237,7 +246,7 @@ class QueryPage extends Component {
       onUpdateQuery,
       renderResultsTable,
     } = this;
-    const { queryIsRunning, targetsCount } = this.state;
+    const { queryIsRunning, targetsCount, targetsError } = this.state;
     const {
       errors,
       query,
@@ -262,6 +271,7 @@ class QueryPage extends Component {
               selectedTargets={selectedTargets}
               serverErrors={errors}
               targetsCount={targetsCount}
+              targetsError={targetsError}
               selectedOsqueryTable={selectedOsqueryTable}
             />
           </div>

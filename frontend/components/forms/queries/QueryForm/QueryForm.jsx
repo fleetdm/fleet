@@ -58,6 +58,7 @@ class QueryForm extends Component {
     queryType: PropTypes.string,
     selectedTargets: PropTypes.arrayOf(targetInterface),
     targetsCount: PropTypes.number,
+    targetsError: PropTypes.string,
   };
 
   static defaultProps = {
@@ -247,6 +248,7 @@ class QueryForm extends Component {
       queryType,
       selectedTargets,
       targetsCount,
+      targetsError,
     } = this.props;
 
     if (queryType === 'label') {
@@ -257,6 +259,7 @@ class QueryForm extends Component {
     return (
       <div>
         <SelectTargetsDropdown
+          error={targetsError}
           onFetchTargets={onFetchTargets}
           onSelect={onTargetSelect}
           selectedTargets={selectedTargets}

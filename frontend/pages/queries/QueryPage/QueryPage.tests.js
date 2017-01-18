@@ -40,6 +40,18 @@ describe('QueryPage - component', () => {
     expect(page.find('QuerySidePanel').length).toEqual(1);
   });
 
+  it('sets targetError in state when the query is run and there are no selected targets', () => {
+    const page = mount(connectedComponent(QueryPage, { mockStore, props: locationProp }));
+    const form = page.find('QueryForm');
+    const runQueryBtn = form.find('.query-form__run-query-btn');
+
+    expect(form.prop('targetsError')).toNotExist();
+
+    runQueryBtn.simulate('click');
+
+    expect(form.prop('targetsError')).toEqual('You must select at least one target to run a query');
+  });
+
   it('calls the onUpdateQuery prop when the query is updated', () => {
     const bearerToken = 'abc123';
     const locationWithQueryProp = { params: { id: 1 } };
