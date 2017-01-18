@@ -23,6 +23,7 @@ export const configStub = {
   },
   smtp_settings: {
     configured: false,
+    domain: '',
     sender_address: '',
     server: '',
     port: 587,

@@ -24,6 +24,7 @@ describe('Kolide API - helpers', () => {
       org_logo_url: '0.0.0.0:8080/logo.png',
       kolide_server_url: '',
       configured: false,
+      domain: '',
       sender_address: '',
       server: '',
       port: 587,
@@ -47,6 +48,11 @@ describe('Kolide API - helpers', () => {
       ).toEqual({
         org_info: { org_name: 'The Gnar Co' },
         server_settings: { kolide_server_url: 'https://example.com' },
+      });
+      expect(
+        formatConfigDataForServer({ domain: 'https://kolide.co' })
+      ).toEqual({
+        smtp_settings: { domain: 'https://kolide.co' },
       });
     });
   });
