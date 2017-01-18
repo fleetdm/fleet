@@ -90,6 +90,7 @@ export const hostStub = {
   ],
   status: 'online',
   display_text: '52883a0ba916',
+  target_type: 'hosts',
 };
 
 export const labelStub = {
@@ -110,6 +111,7 @@ export const labelStub = {
   missing_in_action: 0,
   host_ids: [],
   type: 'all',
+  target_type: 'hosts',
 };
 
 export const packStub = {

@@ -8,6 +8,7 @@ import Kolide from 'kolide';
 import campaignActions from 'redux/nodes/entities/campaigns/actions';
 import campaignInterface from 'interfaces/campaign';
 import debounce from 'utilities/debounce';
+import deepDifference from 'utilities/deep_difference';
 import entityGetter from 'redux/utilities/entityGetter';
 import { formatSelectedTargetsForApi } from 'kolide/helpers';
 import QueryForm from 'components/forms/queries/QueryForm';
@@ -179,8 +180,9 @@ class QueryPage extends Component {
 
   onUpdateQuery = (formData) => {
     const { dispatch, query } = this.props;
+    const updatedQuery = deepDifference(formData, query);
 
-    dispatch(queryActions.update(query, formData))
+    dispatch(queryActions.update(query, updatedQuery))
       .then(() => {
         dispatch(renderFlash('success', 'Query updated!'));
       });

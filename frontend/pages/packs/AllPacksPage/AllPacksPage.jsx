@@ -1,6 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { filter, get, includes, isEqual, noop, pull } from 'lodash';
+import { filter, find, get, includes, isEqual, noop, pull } from 'lodash';
 import { push } from 'react-router-redux';
 
 import Button from 'components/buttons/Button';
@@ -43,11 +43,9 @@ export class AllPacksPage extends Component {
   }
 
   componentWillMount() {
-    const { dispatch, packs, selectedPack } = this.props;
+    const { dispatch, selectedPack } = this.props;
 
-    if (!packs.length) {
-      dispatch(packActions.loadAll());
-    }
+    dispatch(packActions.loadAll());
 
     if (selectedPack) {
       this.getScheduledQueriesForPack(selectedPack);
@@ -69,17 +67,18 @@ export class AllPacksPage extends Component {
       evt.preventDefault();
 
       const { checkedPackIDs } = this.state;
-      const { dispatch } = this.props;
+      const { dispatch, packs } = this.props;
       const { destroy, update } = packActions;
 
       const promises = checkedPackIDs.map((packID) => {
+        const pack = find(packs, { id: packID });
         const disabled = actionType === 'disable';
 
         if (actionType === 'delete') {
-          return dispatch(destroy({ id: packID }));
+          return dispatch(destroy(pack));
         }
 
-        return dispatch(update({ id: packID }, { disabled }));
+        return dispatch(update(pack, { disabled }));
       });
 
       return Promise.all(promises)

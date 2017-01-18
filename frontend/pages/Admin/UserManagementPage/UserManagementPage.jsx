@@ -4,6 +4,7 @@ import { push } from 'react-router-redux';
 
 import Button from 'components/buttons/Button';
 import configInterface from 'interfaces/config';
+import deepDifference from 'utilities/deep_difference';
 import entityGetter from 'redux/utilities/entityGetter';
 import inviteActions from 'redux/nodes/entities/invites/actions';
 import inviteInterface from 'interfaces/invite';
@@ -19,7 +20,7 @@ import UserBlock from './UserBlock';
 
 const baseClass = 'user-management';
 
-class UserManagementPage extends Component {
+export class UserManagementPage extends Component {
   static propTypes = {
     appConfigLoading: PropTypes.bool,
     config: configInterface,
@@ -111,8 +112,9 @@ class UserManagementPage extends Component {
   onEditUser = (user, updatedUser) => {
     const { dispatch } = this.props;
     const { update } = userActions;
+    const updatedAttrs = deepDifference(updatedUser, user);
 
-    return dispatch(update(user, updatedUser))
+    return dispatch(update(user, updatedAttrs))
       .then(() => {
         dispatch(renderFlash('success', 'User updated', update(user, user)));
 

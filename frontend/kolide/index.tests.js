@@ -4,7 +4,7 @@ import nock from 'nock';
 import Kolide from 'kolide';
 import helpers from 'kolide/helpers';
 import mocks from 'test/mocks';
-import { configOptionStub, hostStub, queryStub, userStub } from 'test/stubs';
+import { configOptionStub, hostStub, packStub, queryStub, userStub } from 'test/stubs';
 
 const {
   invalidForgotPasswordRequest,
@@ -132,10 +132,9 @@ describe('Kolide - API client', () => {
 
   describe('packs', () => {
     const bearerToken = 'valid-bearer-token';
-    const pack = { id: 1, name: 'Pack Name', description: 'Pack Description' };
 
     it('#createPack', (done) => {
-      const { description, name } = pack;
+      const { description, name } = packStub;
       const params = { description, name, host_ids: [], label_ids: [] };
       const request = validCreatePackRequest(bearerToken, params);
 
@@ -149,10 +148,10 @@ describe('Kolide - API client', () => {
     });
 
     it('#destroyPack', (done) => {
-      const request = validDestroyPackRequest(bearerToken, pack);
+      const request = validDestroyPackRequest(bearerToken, packStub);
 
       Kolide.setBearerToken(bearerToken);
-      Kolide.destroyPack(pack)
+      Kolide.destroyPack(packStub)
         .then(() => {
           expect(request.isDone()).toEqual(true);
           done();
@@ -160,19 +159,34 @@ describe('Kolide - API client', () => {
         .catch(done);
     });
 
-    it('#updatePack', (done) => {
-      const targets = [hostStub];
-      const packTargets = helpers.formatSelectedTargetsForApi(targets, true);
-      const updatePackParams = { name: 'New Pack Name', ...packTargets };
-      const request = validUpdatePackRequest(bearerToken, pack, updatePackParams);
+    describe('#updatePack', () => {
+      it('sends the host and/or label ids if packs are changed', (done) => {
+        const targets = [hostStub];
+        const updatePackParams = { name: 'New Pack Name', host_ids: [hostStub.id] };
+        const request = validUpdatePackRequest(bearerToken, packStub, updatePackParams);
+        const updatedPack = { name: 'New Pack Name', targets };
 
-      Kolide.setBearerToken(bearerToken);
-      Kolide.updatePack(pack, updatePackParams)
-        .then(() => {
-          expect(request.isDone()).toEqual(true);
-          done();
-        })
-        .catch(done);
+        Kolide.setBearerToken(bearerToken);
+        Kolide.updatePack(packStub, updatedPack)
+          .then(() => {
+            expect(request.isDone()).toEqual(true);
+            done();
+          })
+          .catch(done);
+      });
+
+      it('does not send the host or label ids if packs are not changed', (done) => {
+        const updatePackParams = { name: 'New Pack Name' };
+        const request = validUpdatePackRequest(bearerToken, packStub, updatePackParams);
+
+        Kolide.setBearerToken(bearerToken);
+        Kolide.updatePack(packStub, updatePackParams)
+          .then(() => {
+            expect(request.isDone()).toEqual(true);
+            done();
+          })
+          .catch(done);
+      });
     });
   });
 

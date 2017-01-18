@@ -15,15 +15,18 @@ describe('deepDifference - utility', () => {
     const obj1 = {
       profile: { id: 1, first_name: 'Joe', last_name: 'Smith' },
       preferences: { email: true, push: false },
+      post_ids: [1, 2, 3],
     };
     const obj2 = {
       profile: { id: 1, first_name: 'Joe', last_name: 'Smyth' },
       preferences: { email: false, push: false },
+      post_ids: [1, 3],
     };
 
     expect(deepDifference(obj1, obj2)).toEqual({
       profile: { last_name: 'Smith' },
       preferences: { email: true },
+      post_ids: [2],
     });
 
     expect(deepDifference(obj2, obj1)).toEqual({
@@ -36,6 +39,7 @@ describe('deepDifference - utility', () => {
     const obj1 = {
       profile: { id: 1, first_name: 'Joe', last_name: 'Smith' },
       preferences: { email: true, push: false },
+      post_ids: [1, 2, 3],
     };
     const obj2 = { profile: 'my profile', preferences: 'my preferences' };
 

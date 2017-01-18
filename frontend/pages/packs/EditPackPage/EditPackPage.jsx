@@ -3,6 +3,7 @@ import { connect } from 'react-redux';
 import { filter, includes, isEqual, noop, size, find } from 'lodash';
 import { push } from 'react-router-redux';
 
+import deepDifference from 'utilities/deep_difference';
 import EditPackFormWrapper from 'components/packs/EditPackFormWrapper';
 import hostActions from 'redux/nodes/entities/hosts/actions';
 import hostInterface from 'interfaces/host';
@@ -138,8 +139,10 @@ export class EditPackPage extends Component {
   handlePackFormSubmit = (formData) => {
     const { dispatch, pack } = this.props;
     const { update } = packActions;
+    const updatedPack = deepDifference(formData, pack);
 
-    return dispatch(update(pack, formData));
+    return dispatch(update(pack, updatedPack))
+      .then(() => this.onToggleEdit());
   }
 
   handleRemoveScheduledQueries = (scheduledQueryIDs) => {

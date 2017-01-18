@@ -6,6 +6,7 @@ import moment from 'moment';
 import Avatar from 'components/Avatar';
 import Button from 'components/buttons/Button';
 import ChangePasswordForm from 'components/forms/ChangePasswordForm';
+import deepDifference from 'utilities/deep_difference';
 import Icon from 'components/icons/Icon';
 import { logoutUser, updateUser } from 'redux/nodes/auth/actions';
 import Modal from 'components/modals/Modal';
@@ -71,8 +72,9 @@ export class UserSettingsPage extends Component {
 
   handleSubmit = (formData) => {
     const { dispatch, user } = this.props;
+    const updatedUser = deepDifference(formData, user);
 
-    return dispatch(updateUser(user, formData))
+    return dispatch(updateUser(user, updatedUser))
       .then(() => {
         return dispatch(renderFlash('success', 'Account updated!'));
       })

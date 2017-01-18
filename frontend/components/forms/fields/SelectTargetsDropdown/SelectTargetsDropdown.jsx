@@ -29,6 +29,8 @@ class SelectTargetsDropdown extends Component {
   constructor (props) {
     super(props);
 
+    this.mounted = true;
+
     this.state = {
       isEmpty: false,
       isLoadingTargets: false,
@@ -51,6 +53,10 @@ class SelectTargetsDropdown extends Component {
     if (!isEqual(selectedTargets, this.props.selectedTargets)) {
       this.fetchTargets(query, selectedTargets);
     }
+  }
+
+  componentWillUnmount () {
+    this.mounted = false;
   }
 
   onInputClose = () => {
@@ -97,6 +103,10 @@ class SelectTargetsDropdown extends Component {
   fetchTargets = (query, selectedTargets = this.props.selectedTargets) => {
     const { onFetchTargets } = this.props;
 
+    if (!this.mounted) {
+      return false;
+    }
+
     this.setState({ isLoadingTargets: true, query });
 
     return Kolide.getTargets(query, formatSelectedTargetsForApi(selectedTargets))
@@ -105,9 +115,14 @@ class SelectTargetsDropdown extends Component {
           targets,
         } = response;
 
+        if (!this.mounted) {
+          return false;
+        }
+
         if (targets.length === 0) {
           // We don't want the lib's default "No Results" so we fake it
           targets.push({});
+
           this.setState({ isEmpty: true });
         } else {
           this.setState({ isEmpty: false });
@@ -120,7 +135,9 @@ class SelectTargetsDropdown extends Component {
         return query;
       })
       .catch((error) => {
-        this.setState({ isLoadingTargets: false });
+        if (this.mounted) {
+          this.setState({ isLoadingTargets: false });
+        }
 
         throw error;
       });

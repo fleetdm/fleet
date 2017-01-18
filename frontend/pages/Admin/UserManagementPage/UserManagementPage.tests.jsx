@@ -1,8 +1,10 @@
-import expect from 'expect';
+import React from 'react';
+import expect, { spyOn, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 
-import { connectedComponent, reduxMockStore } from '../../../test/helpers';
-import UserManagementPage from './UserManagementPage';
+import { connectedComponent, reduxMockStore } from 'test/helpers';
+import ConnectedUserManagementPage, { UserManagementPage } from 'pages/Admin/UserManagementPage/UserManagementPage';
+import userActions from 'redux/nodes/entities/users/actions';
 
 const currentUser = {
   admin: true,
@@ -48,16 +50,18 @@ const store = {
 };
 
 describe('UserManagementPage - component', () => {
+  afterEach(restoreSpies);
+
   it('displays a disabled "Add User" button if email is not configured', () => {
     const notConfiguredStore = { ...store, app: { config: { configured: false } } };
     const notConfiguredMockStore = reduxMockStore(notConfiguredStore);
-    const notConfiguredPage = mount(connectedComponent(UserManagementPage, {
+    const notConfiguredPage = mount(connectedComponent(ConnectedUserManagementPage, {
       mockStore: notConfiguredMockStore,
     }));
 
     const configuredStore = store;
     const configuredMockStore = reduxMockStore(configuredStore);
-    const configuredPage = mount(connectedComponent(UserManagementPage, {
+    const configuredPage = mount(connectedComponent(ConnectedUserManagementPage, {
       mockStore: configuredMockStore,
     }));
 
@@ -68,13 +72,13 @@ describe('UserManagementPage - component', () => {
   it('displays a SmtpWarning if email is not configured', () => {
     const notConfiguredStore = { ...store, app: { config: { configured: false } } };
     const notConfiguredMockStore = reduxMockStore(notConfiguredStore);
-    const notConfiguredPage = mount(connectedComponent(UserManagementPage, {
+    const notConfiguredPage = mount(connectedComponent(ConnectedUserManagementPage, {
       mockStore: notConfiguredMockStore,
     }));
 
     const configuredStore = store;
     const configuredMockStore = reduxMockStore(configuredStore);
-    const configuredPage = mount(connectedComponent(UserManagementPage, {
+    const configuredPage = mount(connectedComponent(ConnectedUserManagementPage, {
       mockStore: configuredMockStore,
     }));
 
@@ -85,7 +89,7 @@ describe('UserManagementPage - component', () => {
   it('goes to the app settings page for the user to resolve their smtp settings', () => {
     const notConfiguredStore = { ...store, app: { config: { configured: false } } };
     const mockStore = reduxMockStore(notConfiguredStore);
-    const page = mount(connectedComponent(UserManagementPage, { mockStore }));
+    const page = mount(connectedComponent(ConnectedUserManagementPage, { mockStore }));
 
     const smtpWarning = page.find('SmtpWarning');
 
@@ -101,14 +105,14 @@ describe('UserManagementPage - component', () => {
 
   it('renders user blocks for users and invites', () => {
     const mockStore = reduxMockStore(store);
-    const page = mount(connectedComponent(UserManagementPage, { mockStore }));
+    const page = mount(connectedComponent(ConnectedUserManagementPage, { mockStore }));
 
     expect(page.find('UserBlock').length).toEqual(2);
   });
 
   it('displays a count of the number of users & invites', () => {
     const mockStore = reduxMockStore(store);
-    const page = mount(connectedComponent(UserManagementPage, { mockStore }));
+    const page = mount(connectedComponent(ConnectedUserManagementPage, { mockStore }));
 
     expect(page.text()).toInclude('Listing 2 users');
   });
@@ -116,7 +120,7 @@ describe('UserManagementPage - component', () => {
   it('gets users on mount', () => {
     const mockStore = reduxMockStore(store);
 
-    mount(connectedComponent(UserManagementPage, { mockStore }));
+    mount(connectedComponent(ConnectedUserManagementPage, { mockStore }));
 
     expect(mockStore.getActions()).toInclude(loadUsersAction);
   });
@@ -124,8 +128,22 @@ describe('UserManagementPage - component', () => {
   it('gets invites on mount', () => {
     const mockStore = reduxMockStore(store);
 
-    mount(connectedComponent(UserManagementPage, { mockStore }));
+    mount(connectedComponent(ConnectedUserManagementPage, { mockStore }));
 
     expect(mockStore.getActions()).toInclude(loadInvitesAction);
+  });
+
+  it('updates a user with only the updated attributes', () => {
+    spyOn(userActions, 'update').andCallThrough();
+
+    const dispatch = () => Promise.resolve();
+    const props = { dispatch, config: {}, currentUser, invites: [], users: [currentUser] };
+    const pageNode = mount(<UserManagementPage {...props} />).node;
+    const updatedAttrs = { name: 'Updated Name' };
+    const updatedUser = { ...currentUser, ...updatedAttrs };
+
+    pageNode.onEditUser(currentUser, updatedUser);
+
+    expect(userActions.update).toHaveBeenCalledWith(currentUser, updatedAttrs);
   });
 });

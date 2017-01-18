@@ -1,9 +1,10 @@
-import expect, { restoreSpies } from 'expect';
+import expect, { spyOn, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 
 import { defaultSelectedOsqueryTable } from 'redux/nodes/components/QueryPages/actions';
 import helpers from 'test/helpers';
 import kolide from 'kolide';
+import queryActions from 'redux/nodes/entities/queries/actions';
 import QueryPage from 'pages/queries/QueryPage';
 import { validUpdateQueryRequest } from 'test/mocks';
 
@@ -53,6 +54,7 @@ describe('QueryPage - component', () => {
   });
 
   it('calls the onUpdateQuery prop when the query is updated', () => {
+    spyOn(queryActions, 'update').andCallThrough();
     const bearerToken = 'abc123';
     const locationWithQueryProp = { params: { id: 1 } };
     const query = { id: 1, name: 'My query', description: 'My query description', query: 'select * from users' };
@@ -91,6 +93,7 @@ describe('QueryPage - component', () => {
     form.simulate('submit');
     saveChangesBtn.simulate('click');
 
+    expect(queryActions.update).toHaveBeenCalledWith(query, { name: 'new name' });
     expect(mockStoreWithQuery.getActions()).toInclude({
       type: 'queries_UPDATE_REQUEST',
     });
