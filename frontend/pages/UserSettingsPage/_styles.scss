@@ -9,12 +9,13 @@
     @include flex-grow(1);
     @include align-self(flex-start);
     padding: 30px;
+    min-width: 542px;
   }
 
   &__additional {
     width: 350px;
-    min-width: 350px;
     max-width: 350px;
+    min-width: 350px;
     box-sizing: border-box;
     padding: 30px;
   }
