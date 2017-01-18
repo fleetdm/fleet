@@ -108,7 +108,7 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		GetSessionInfo:                 authenticatedUser(jwtKey, svc, mustBeAdmin(makeGetInfoAboutSessionEndpoint(svc))),
 		DeleteSession:                  authenticatedUser(jwtKey, svc, mustBeAdmin(makeDeleteSessionEndpoint(svc))),
 		GetAppConfig:                   authenticatedUser(jwtKey, svc, canPerformActions(makeGetAppConfigEndpoint(svc))),
-		ModifyAppConfig:                authenticatedUser(jwtKey, svc, mustBeAdmin(makeModifyAppConfigRequest(svc))),
+		ModifyAppConfig:                authenticatedUser(jwtKey, svc, mustBeAdmin(makeModifyAppConfigEndpoint(svc))),
 		CreateInvite:                   authenticatedUser(jwtKey, svc, mustBeAdmin(makeCreateInviteEndpoint(svc))),
 		ListInvites:                    authenticatedUser(jwtKey, svc, mustBeAdmin(makeListInvitesEndpoint(svc))),
 		DeleteInvite:                   authenticatedUser(jwtKey, svc, mustBeAdmin(makeDeleteInviteEndpoint(svc))),

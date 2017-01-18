@@ -6,7 +6,6 @@ import (
 	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/kolide/kolide-ose/server/mail"
-	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -69,23 +68,21 @@ func (svc service) SendTestEmail(ctx context.Context, config *kolide.AppConfig) 
 func (svc service) ModifyAppConfig(ctx context.Context, p kolide.AppConfigPayload) (*kolide.AppConfig, error) {
 	oldAppConfig, err := svc.AppConfig(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed retrieving existing app config")
+		return nil, err
 	}
 	config := appConfigFromAppConfigPayload(p, *oldAppConfig)
 
 	if p.SMTPSettings != nil {
 		if err = svc.SendTestEmail(ctx, config); err != nil {
-			err = errors.Wrap(err, "test email failed")
-			config.SMTPConfigured = false
-		} else {
-			config.SMTPConfigured = true
+			return nil, err
 		}
+		config.SMTPConfigured = true
 	}
 
 	if err := svc.ds.SaveAppConfig(config); err != nil {
-		err = errors.Wrap(err, "could not save config")
+		return nil, err
 	}
-	return config, err
+	return config, nil
 }
 
 func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppConfig) *kolide.AppConfig {
@@ -98,57 +95,68 @@ func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppC
 	if p.ServerSettings != nil && p.ServerSettings.KolideServerURL != nil {
 		config.KolideServerURL = *p.ServerSettings.KolideServerURL
 	}
+
+	populateSMTP := func(p *kolide.SMTPSettingsPayload) {
+		if p.SMTPAuthenticationMethod != nil {
+			switch *p.SMTPAuthenticationMethod {
+			case kolide.AuthMethodNameCramMD5:
+				config.SMTPAuthenticationMethod = kolide.AuthMethodCramMD5
+			case kolide.AuthMethodNamePlain:
+				config.SMTPAuthenticationMethod = kolide.AuthMethodPlain
+			default:
+				panic("unknown SMTP AuthMethod: " + *p.SMTPAuthenticationMethod)
+			}
+		}
+		if p.SMTPAuthenticationType != nil {
+			switch *p.SMTPAuthenticationType {
+			case kolide.AuthTypeNameUserNamePassword:
+				config.SMTPAuthenticationType = kolide.AuthTypeUserNamePassword
+			case kolide.AuthTypeNameNone:
+				config.SMTPAuthenticationType = kolide.AuthTypeNone
+			default:
+				panic("unknown SMTP AuthType: " + *p.SMTPAuthenticationType)
+			}
+		}
+
+		if p.SMTPDomain != nil {
+			config.SMTPDomain = *p.SMTPDomain
+		}
+
+		if p.SMTPEnableStartTLS != nil {
+			config.SMTPEnableStartTLS = *p.SMTPEnableStartTLS
+		}
+
+		if p.SMTPEnableTLS != nil {
+			config.SMTPEnableTLS = *p.SMTPEnableTLS
+		}
+
+		if p.SMTPPassword != nil {
+			config.SMTPPassword = *p.SMTPPassword
+		}
+
+		if p.SMTPPort != nil {
+			config.SMTPPort = *p.SMTPPort
+		}
+
+		if p.SMTPSenderAddress != nil {
+			config.SMTPSenderAddress = *p.SMTPSenderAddress
+		}
+
+		if p.SMTPServer != nil {
+			config.SMTPServer = *p.SMTPServer
+		}
+
+		if p.SMTPUserName != nil {
+			config.SMTPUserName = *p.SMTPUserName
+		}
+
+		if p.SMTPVerifySSLCerts != nil {
+			config.SMTPVerifySSLCerts = *p.SMTPVerifySSLCerts
+		}
+	}
+
 	if p.SMTPSettings != nil {
-		if p.SMTPSettings.SMTPAuthenticationMethod == kolide.AuthMethodNameCramMD5 {
-			config.SMTPAuthenticationMethod = kolide.AuthMethodCramMD5
-		} else {
-			config.SMTPAuthenticationMethod = kolide.AuthMethodPlain
-		}
-		if p.SMTPSettings.SMTPAuthenticationType == kolide.AuthTypeNameUserNamePassword {
-			config.SMTPAuthenticationType = kolide.AuthTypeUserNamePassword
-		} else {
-			config.SMTPAuthenticationType = kolide.AuthTypeNone
-		}
-		config.SMTPConfigured = p.SMTPSettings.SMTPConfigured
-		config.SMTPDomain = p.SMTPSettings.SMTPDomain
-		config.SMTPEnableStartTLS = p.SMTPSettings.SMTPEnableStartTLS
-		config.SMTPEnableTLS = p.SMTPSettings.SMTPEnableTLS
-		config.SMTPPassword = p.SMTPSettings.SMTPPassword
-		config.SMTPPort = p.SMTPSettings.SMTPPort
-		config.SMTPSenderAddress = p.SMTPSettings.SMTPSenderAddress
-		config.SMTPServer = p.SMTPSettings.SMTPServer
-		config.SMTPUserName = p.SMTPSettings.SMTPUserName
-		config.SMTPVerifySSLCerts = p.SMTPSettings.SMTPVerifySSLCerts
+		populateSMTP(p.SMTPSettings)
 	}
 	return &config
-}
-
-func smtpSettingsFromAppConfig(config *kolide.AppConfig) *kolide.SMTPSettings {
-	return &kolide.SMTPSettings{
-		SMTPConfigured:           config.SMTPConfigured,
-		SMTPSenderAddress:        config.SMTPSenderAddress,
-		SMTPServer:               config.SMTPServer,
-		SMTPPort:                 config.SMTPPort,
-		SMTPAuthenticationType:   config.SMTPAuthenticationType.String(),
-		SMTPUserName:             config.SMTPUserName,
-		SMTPPassword:             config.SMTPPassword,
-		SMTPEnableTLS:            config.SMTPEnableTLS,
-		SMTPAuthenticationMethod: config.SMTPAuthenticationMethod.String(),
-		SMTPDomain:               config.SMTPDomain,
-		SMTPVerifySSLCerts:       config.SMTPVerifySSLCerts,
-		SMTPEnableStartTLS:       config.SMTPEnableStartTLS,
-	}
-}
-
-func appConfigPayloadFromAppConfig(config *kolide.AppConfig) *kolide.AppConfigPayload {
-	return &kolide.AppConfigPayload{
-		OrgInfo: &kolide.OrgInfo{
-			OrgLogoURL: &config.OrgLogoURL,
-			OrgName:    &config.OrgName,
-		},
-		ServerSettings: &kolide.ServerSettings{
-			KolideServerURL: &config.KolideServerURL,
-		},
-		SMTPSettings: smtpSettingsFromAppConfig(config),
-	}
 }

@@ -22,7 +22,6 @@ type mockValidationError struct {
 }
 
 func testGetAppConfig(t *testing.T, r *testResource) {
-
 	req, err := http.NewRequest("GET", r.server.URL+"/api/v1/kolide/config", nil)
 	require.Nil(t, err)
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.adminToken))
@@ -36,8 +35,8 @@ func testGetAppConfig(t *testing.T, r *testResource) {
 	require.Nil(t, err)
 	require.NotNil(t, configInfo.SMTPSettings)
 	config := configInfo.SMTPSettings
-	assert.Equal(t, uint(465), config.SMTPPort)
-	require.NotNil(t, configInfo.OrgInfo)
+	assert.Equal(t, uint(465), *config.SMTPPort)
+	require.NotNil(t, *configInfo.OrgInfo)
 	assert.Equal(t, "Kolide", *configInfo.OrgInfo.OrgName)
 	assert.Equal(t, "http://foo.bar/image.png", *configInfo.OrgInfo.OrgLogoURL)
 
@@ -104,4 +103,17 @@ func testModifyAppConfigWithValidationFail(t *testing.T, r *testResource) {
 	existing, err := r.ds.AppConfig()
 	assert.Nil(t, err)
 	assert.Equal(t, config.SMTPEnableStartTLS, existing.SMTPEnableStartTLS)
+}
+
+func appConfigPayloadFromAppConfig(config *kolide.AppConfig) *kolide.AppConfigPayload {
+	return &kolide.AppConfigPayload{
+		OrgInfo: &kolide.OrgInfo{
+			OrgLogoURL: &config.OrgLogoURL,
+			OrgName:    &config.OrgName,
+		},
+		ServerSettings: &kolide.ServerSettings{
+			KolideServerURL: &config.KolideServerURL,
+		},
+		SMTPSettings: smtpSettingsFromAppConfig(config),
+	}
 }

@@ -4,7 +4,9 @@ package mail
 import (
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/smtp"
+	"time"
 
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/pkg/errors"
@@ -112,7 +114,7 @@ func (m mailService) sendMail(e kolide.Email, msg []byte) error {
 		return nil
 	}
 
-	client, err := smtp.Dial(smtpHost)
+	client, err := dialTimeout(smtpHost)
 	if err != nil {
 		return errors.Wrap(err, "could not dial smtp host")
 	}
@@ -154,4 +156,18 @@ func (m mailService) sendMail(e kolide.Email, msg []byte) error {
 		return errors.Wrap(err, "error on client quit")
 	}
 	return nil
+}
+
+// dialTimeout sets a timeout on net.Dial to prevent email from attempting to
+// send indefinitely.
+func dialTimeout(addr string) (*smtp.Client, error) {
+	conn, err := net.DialTimeout("tcp", addr, 15*time.Second)
+	if err != nil {
+		return nil, errors.Wrap(err, "dialing with timeout")
+	}
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, errors.Wrap(err, "split host port")
+	}
+	return smtp.NewClient(conn, host)
 }

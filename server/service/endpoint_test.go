@@ -2,7 +2,6 @@ package service
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -19,6 +18,7 @@ import (
 	"github.com/kolide/kolide-ose/server/datastore/inmem"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/net/context"
 )
 
 type testResource struct {
@@ -28,6 +28,13 @@ type testResource struct {
 	ds         kolide.Datastore
 }
 
+type endpointService struct {
+	kolide.Service
+}
+
+func (svc endpointService) SendTestEmail(ctx context.Context, config *kolide.AppConfig) error {
+	return nil
+}
 func setupEndpointTest(t *testing.T) *testResource {
 	test := &testResource{}
 
@@ -47,6 +54,7 @@ func setupEndpointTest(t *testing.T) *testResource {
 	}
 	test.ds.NewAppConfig(devOrgInfo)
 	svc, _ := newTestService(test.ds, nil)
+	svc = endpointService{svc}
 	createTestUsers(t, test.ds)
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 

@@ -113,45 +113,45 @@ type ModifyAppConfigRequest struct {
 	AppConfig AppConfig `json:"app_config"`
 }
 
-// SMTPSettings is part of the AppConfigPayload which defines the wire representation
+// SMTPSettingsPayload is part of the AppConfigPayload which defines the wire representation
 // of the app config endpoints
-type SMTPSettings struct {
+type SMTPSettingsPayload struct {
 	// SMTPConfigured is a flag that indicates if smtp has been successfully
 	// tested with the settings provided by an admin user.
-	SMTPConfigured bool `json:"configured"`
+	SMTPConfigured *bool `json:"configured"`
 	// SMTPSenderAddress is the email address that will appear in emails sent
 	// from Kolide
-	SMTPSenderAddress string `json:"sender_address"`
+	SMTPSenderAddress *string `json:"sender_address"`
 	// SMTPServer is the host name of the SMTP server Kolide will use to send mail
-	SMTPServer string `json:"server"`
+	SMTPServer *string `json:"server"`
 	// SMTPPort port SMTP server will use
-	SMTPPort uint `json:"port"`
+	SMTPPort *uint `json:"port"`
 	// SMTPAuthenticationType type of authentication for SMTP
-	SMTPAuthenticationType string `json:"authentication_type"`
+	SMTPAuthenticationType *string `json:"authentication_type"`
 	// SMTPUserName must be provided if SMTPAuthenticationType is UserNamePassword
-	SMTPUserName string `json:"user_name"`
+	SMTPUserName *string `json:"user_name"`
 	// SMTPPassword must be provided if SMTPAuthenticationType is UserNamePassword
-	SMTPPassword string `json:"password"`
+	SMTPPassword *string `json:"password"`
 	// SMTPEnableSSLTLS whether to use SSL/TLS for SMTP
-	SMTPEnableTLS bool `json:"enable_ssl_tls"`
+	SMTPEnableTLS *bool `json:"enable_ssl_tls"`
 	// SMTPAuthenticationMethod authentication method smtp server will use
-	SMTPAuthenticationMethod string `json:"authentication_method"`
+	SMTPAuthenticationMethod *string `json:"authentication_method"`
 
 	// SMTPDomain optional domain for SMTP
-	SMTPDomain string `json:"domain"`
+	SMTPDomain *string `json:"domain"`
 	// SMTPVerifySSLCerts defaults to true but can be turned off if self signed
 	// SSL certs are used by the SMTP server
-	SMTPVerifySSLCerts bool `json:"verify_ssl_certs"`
+	SMTPVerifySSLCerts *bool `json:"verify_ssl_certs"`
 	// SMTPEnableStartTLS detects of TLS is enabled on mail server and starts to use it (default true)
-	SMTPEnableStartTLS bool `json:"enable_start_tls"`
+	SMTPEnableStartTLS *bool `json:"enable_start_tls"`
 }
 
 // AppConfigPayload contains request/response format of
 // the AppConfig endpoints.
 type AppConfigPayload struct {
-	OrgInfo        *OrgInfo        `json:"org_info"`
-	ServerSettings *ServerSettings `json:"server_settings"`
-	SMTPSettings   *SMTPSettings   `json:"smtp_settings"`
+	OrgInfo        *OrgInfo             `json:"org_info"`
+	ServerSettings *ServerSettings      `json:"server_settings"`
+	SMTPSettings   *SMTPSettingsPayload `json:"smtp_settings"`
 	// SMTPTest is a flag that if set will cause the server to test email configuration
 	SMTPTest *bool `json:"smtp_test,omitempty"`
 }
