@@ -35,6 +35,12 @@ export class CoreLayout extends Component {
 
       const { dispatch } = this.props;
 
+      if (path.indexOf('http') !== -1) {
+        global.window.open(path, '_blank');
+
+        return false;
+      }
+
       dispatch(push(path));
 
       return false;

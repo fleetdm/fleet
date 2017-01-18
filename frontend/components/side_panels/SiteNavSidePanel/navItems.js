@@ -138,6 +138,7 @@ export default (admin) => {
       name: 'Help',
       location: {
         regex: /^\/help/,
+        pathname: 'https://docs.kolide.co/using-kolide/master',
       },
       subItems: [],
     },
