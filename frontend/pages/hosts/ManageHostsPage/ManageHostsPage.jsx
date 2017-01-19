@@ -300,9 +300,29 @@ export class ManageHostsPage extends Component {
     );
   }
 
+  renderNoHosts = () => {
+    return (
+      <div className={`${baseClass}__no-hosts`}>
+        <h1>No matching hosts found.</h1>
+        <h2>Where are the missing hosts?</h2>
+        <ul>
+          <li>Check your SQL query above to confirm there are no mistakes.</li>
+          <li>Check to confirm that your hosts are online.</li>
+          <li>Confirm that your expected hosts have osqueryd installed and configured.</li>
+        </ul>
+
+        <div className={`${baseClass}__no-hosts-contact`}>
+          <p>Still having trouble? Want to talk to a human?</p>
+          <p>Contact Kolide Support:</p>
+          <p><a href="mailto:support@kolide.co">support@kolide.co</a></p>
+        </div>
+      </div>
+    );
+  }
+
   renderHosts = () => {
     const { display, isAddLabel } = this.props;
-    const { onHostDetailActionClick, filterHosts, sortHosts } = this;
+    const { onHostDetailActionClick, filterHosts, sortHosts, renderNoHosts } = this;
 
     if (isAddLabel) {
       return false;
@@ -310,6 +330,10 @@ export class ManageHostsPage extends Component {
 
     const filteredHosts = filterHosts();
     const sortedHosts = sortHosts(filteredHosts);
+
+    if (sortedHosts.length === 0) {
+      return renderNoHosts();
+    }
 
     if (display === 'Grid') {
       return sortedHosts.map((host) => {
