@@ -1,8 +1,9 @@
 import React, { Component, PropTypes } from 'react';
 import AceEditor from 'react-ace';
 import { connect } from 'react-redux';
+import { filter, orderBy, sortBy } from 'lodash';
+import moment from 'moment';
 import { push } from 'react-router-redux';
-import { orderBy, sortBy } from 'lodash';
 
 import entityGetter from 'redux/utilities/entityGetter';
 import { getStatusLabelCounts, setDisplay } from 'redux/nodes/components/ManageHostsPage/actions';
@@ -258,7 +259,7 @@ export class ManageHostsPage extends Component {
       return false;
     }
 
-    const { count, description, display_text: displayText, slug, type } = selectedLabel;
+    const { count, description, display_text: displayText, statusLabelKey, type } = selectedLabel;
     const { onToggleDisplay } = this;
     const buttonOptions = {
       rightIcon: 'grid-select',
@@ -267,7 +268,7 @@ export class ManageHostsPage extends Component {
       leftText: 'List',
     };
 
-    const hostCount = type === 'status' ? statusLabels[`${slug}_count`] : count;
+    const hostCount = type === 'status' ? statusLabels[`${statusLabelKey}`] : count;
     const hostsTotalDisplay = hostCount === 1 ? '1 Host Total' : `${hostCount} Hosts Total`;
 
     return (
@@ -451,6 +452,11 @@ const mapStateToProps = (state, { location, params }) => {
   );
   const { selectedOsqueryTable } = state.components.QueryPages;
   const labelErrors = state.entities.labels.errors;
+
+  // TODO: remove this once the API is updated to return new_count
+  statusLabels.new_count = filter(hosts, (h) => {
+    return moment().diff(h.created_at, 'hours') <= 24;
+  }).length;
 
   return {
     display,

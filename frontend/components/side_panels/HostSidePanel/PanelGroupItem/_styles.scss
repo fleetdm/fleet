@@ -77,6 +77,15 @@ $base-class: 'panel-group-item';
       }
     }
 
+    &--new {
+      @include selected-hover($warning);
+
+      .#{$base-class}__count,
+      .#{$base-class}__icon {
+        color: $warning;
+      }
+    }
+
     &--online {
       @include selected-hover($success);
 
