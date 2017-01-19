@@ -36,6 +36,7 @@
     "extract-text-webpack-plugin": "^1.0.1",
     "file-loader": "^0.8.5",
     "history": "2.0.0",
+    "html-webpack-plugin": "^2.26.0",
     "import-glob-loader": "^1.1.0",
     "isomorphic-fetch": "^2.2.1",
     "js-md5": "^0.4.1",

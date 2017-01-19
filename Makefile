@@ -114,7 +114,7 @@ test-js:
 test: lint test-go test-js
 
 generate: .prefix
-	webpack --progress --colors
+	NODE_ENV=production webpack --progress --colors
 	go-bindata -pkg=service \
 		-o=server/service/bindata.go \
 		frontend/templates/ assets/...

@@ -6,24 +6,17 @@ var autoprefixer = require('autoprefixer');
 var ExtractTextPlugin = require("extract-text-webpack-plugin");
 var bourbon = require('node-bourbon').includePaths;
 var WebpackBuildNotifierPlugin = require('webpack-build-notifier');
+var HtmlWebpackPlugin = require('html-webpack-plugin');
+
 
 var plugins = [
   new webpack.NoErrorsPlugin(),
   new webpack.optimize.DedupePlugin(),
-  new ExtractTextPlugin("bundle.css", {allChunks: false})
+  new HtmlWebpackPlugin({
+    filename: '../frontend/templates/react.tmpl',
+    template: 'frontend/templates/react.ejs'
+  })
 ];
-
-if (process.env.NODE_ENV === 'production') {
-  plugins = plugins.concat([
-    new webpack.optimize.UglifyJsPlugin({
-      output: {comments: false},
-      test: /bundle\.js?$/
-    }),
-    new webpack.DefinePlugin({
-      'process.env': {NODE_ENV: JSON.stringify('production')}
-    })
-  ]);
-};
 
 if (process.argv.indexOf('--notify') > -1) {
   plugins = plugins.concat([
@@ -36,6 +29,23 @@ if (process.argv.indexOf('--notify') > -1) {
     })
   ])
 };
+
+if (process.env.NODE_ENV === 'production') {
+  plugins = plugins.concat([
+    new webpack.optimize.UglifyJsPlugin({
+      compress: {warnings: false},
+      output: {comments: false}
+    }),
+    new webpack.DefinePlugin({
+      'process.env': {NODE_ENV: JSON.stringify('production')}
+    }),
+    new ExtractTextPlugin("bundle-[contenthash].css", {allChunks: false})
+  ]);
+} else {
+  plugins = plugins.concat([
+    new ExtractTextPlugin("bundle.css", {allChunks: false})
+  ]);
+}
 
 var repo = __dirname
 
@@ -99,5 +109,9 @@ var config  = {
     ]
   }
 };
+
+if (process.env.NODE_ENV === 'production') {
+  config.output.filename = "[name]-[hash].js"
+}
 
 module.exports = config;

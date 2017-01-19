@@ -8,9 +8,10 @@ vendor
 node_modules
 
 # generated artifacts
-assets/bundle.*
+assets/bundle*.*
 assets/*@*.svg
 assets/*@*.png
+frontend/templates/react.tmpl
 bindata.go
 *.cover
 *.test
