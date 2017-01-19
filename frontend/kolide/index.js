@@ -35,6 +35,21 @@ class Kolide extends Base {
     },
   }
 
+  hosts = {
+    loadAll: () => {
+      const { HOSTS } = endpoints;
+
+      return this.authenticatedGet(this.endpoint(HOSTS))
+        .then(response => response.hosts);
+    },
+    destroy: (host) => {
+      const { HOSTS } = endpoints;
+      const endpoint = this.endpoint(`${HOSTS}/${host.id}`);
+
+      return this.authenticatedDelete(endpoint);
+    },
+  }
+
   statusLabels = {
     getCounts: () => {
       const { STATUS_LABEL_COUNTS } = endpoints;
@@ -179,13 +194,6 @@ class Kolide extends Base {
           return helpers.addGravatarUrlToResource(invite);
         });
       });
-  }
-
-  getHosts = () => {
-    const { HOSTS } = endpoints;
-
-    return this.authenticatedGet(this.endpoint(HOSTS))
-      .then(response => response.hosts);
   }
 
   getLabelHosts = (labelID) => {

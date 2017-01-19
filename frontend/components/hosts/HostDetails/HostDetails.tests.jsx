@@ -3,14 +3,14 @@ import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 
 import { hostStub } from 'test/stubs';
-import HostsTable from 'components/hosts/HostsTable';
+import HostDetails from 'components/hosts/HostDetails';
 
-describe('HostsTable - component', () => {
+describe('HostDetails - component', () => {
   afterEach(restoreSpies);
 
   it('calls the onDestroyHost prop when the trash icon button is clicked', () => {
     const spy = createSpy();
-    const component = mount(<HostsTable hosts={[hostStub]} onDestroyHost={spy} />);
+    const component = mount(<HostDetails host={hostStub} onDestroyHost={spy} />);
     const btn = component.find('Button');
 
     btn.simulate('click');
@@ -18,3 +18,4 @@ describe('HostsTable - component', () => {
     expect(spy).toHaveBeenCalled();
   });
 });
+

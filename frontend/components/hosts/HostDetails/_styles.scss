@@ -44,7 +44,7 @@
     margin: 0;
   }
 
-  &__add-query {
+  &__delete-host {
     float: right;
 
     span {
@@ -55,7 +55,7 @@
     }
   }
 
-  &__add-query-icon {
+  &__delete-host-icon {
     color: $link;
     font-size: 20px;
   }

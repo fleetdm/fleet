@@ -3,6 +3,7 @@ import expect, { spyOn, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
+import hostActions from 'redux/nodes/entities/hosts/actions';
 import labelActions from 'redux/nodes/entities/labels/actions';
 import ConnectedManageHostsPage, { ManageHostsPage } from 'pages/hosts/ManageHostsPage/ManageHostsPage';
 import { connectedComponent, createAceSpy, reduxMockStore, stubbedOsqueryTable } from 'test/helpers';
@@ -219,6 +220,30 @@ describe('ManageHostsPage - component', () => {
       confirmBtn.simulate('click');
 
       expect(labelActions.destroy).toHaveBeenCalledWith(customLabel);
+    });
+  });
+
+  describe('Delete a host', () => {
+    it('Deleted host after confirmation modal', () => {
+      const ownProps = { location: {}, params: { active_label: 'all-hosts' } };
+      const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
+      const page = mount(component);
+      const deleteBtn = page.find('HostDetails').first().find('Button');
+
+      spyOn(hostActions, 'destroy').andCallThrough();
+
+      expect(page.find('Modal').length).toEqual(0);
+
+      deleteBtn.simulate('click');
+
+      const confirmModal = page.find('Modal');
+
+      expect(confirmModal.length).toEqual(1);
+
+      const confirmBtn = confirmModal.find('.button--alert');
+      confirmBtn.simulate('click');
+
+      expect(hostActions.destroy).toHaveBeenCalledWith(hostStub);
     });
   });
 });

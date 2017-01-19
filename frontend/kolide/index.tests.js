@@ -14,6 +14,7 @@ const {
   validCreatePackRequest,
   validCreateQueryRequest,
   validCreateScheduledQueryRequest,
+  validDestroyHostRequest,
   validDestroyLabelRequest,
   validDestroyQueryRequest,
   validDestroyPackRequest,
@@ -147,6 +148,38 @@ describe('Kolide - API client', () => {
         .catch(() => {
           throw new Error('Request should have been stubbed');
         });
+    });
+  });
+
+  describe('hosts', () => {
+    describe('#loadAll', () => {
+      it('calls the correct endpoint with the correct params', (done) => {
+        const request = validGetHostsRequest(bearerToken);
+
+        Kolide.setBearerToken(bearerToken);
+        Kolide.hosts.loadAll()
+          .then(() => {
+            expect(request.isDone()).toEqual(true);
+            done();
+          })
+          .catch(done);
+      });
+    });
+
+    describe('#destroy', () => {
+      it('calls the correct endpoint with the correct params', (done) => {
+        const request = validDestroyHostRequest(bearerToken, hostStub);
+
+        Kolide.setBearerToken(bearerToken);
+        Kolide.hosts.destroy(hostStub)
+          .then(() => {
+            expect(request.isDone()).toEqual(true);
+            done();
+          })
+          .catch(() => {
+            throw new Error('Expected the request to be stubbed');
+          });
+      });
     });
   });
 
@@ -335,20 +368,6 @@ describe('Kolide - API client', () => {
       const request = validGetConfigRequest(bearerToken);
 
       Kolide.getConfig(bearerToken)
-        .then(() => {
-          expect(request.isDone()).toEqual(true);
-          done();
-        })
-        .catch(done);
-    });
-  });
-
-  describe('#getHosts', () => {
-    it('calls the appropriate endpoint with the correct parameters', (done) => {
-      const request = validGetHostsRequest(bearerToken);
-
-      Kolide.setBearerToken(bearerToken);
-      Kolide.getHosts()
         .then(() => {
           expect(request.isDone()).toEqual(true);
           done();

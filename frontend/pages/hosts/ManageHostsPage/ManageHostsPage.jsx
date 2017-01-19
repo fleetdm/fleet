@@ -22,11 +22,11 @@ import osqueryTableInterface from 'interfaces/osquery_table';
 import paths from 'router/paths';
 import QueryForm from 'components/forms/queries/QueryForm';
 import QuerySidePanel from 'components/side_panels/QuerySidePanel';
+import { renderFlash } from 'redux/nodes/notifications/actions';
 import Rocker from 'components/buttons/Rocker';
 import Button from 'components/buttons/Button';
 import Modal from 'components/modals/Modal';
 import { selectOsqueryTable } from 'redux/nodes/components/QueryPages/actions';
-import { renderFlash } from 'redux/nodes/notifications/actions';
 import statusLabelsInterface from 'interfaces/status_labels';
 import iconClassForLabel from 'utilities/icon_class_for_label';
 import platformIconClass from 'utilities/platform_icon_class';
@@ -58,7 +58,8 @@ export class ManageHostsPage extends Component {
 
     this.state = {
       labelQueryText: '',
-      showDeleteModal: false,
+      selectedHost: null,
+      showDeleteLabelModal: false,
     };
   }
 
@@ -68,14 +69,6 @@ export class ManageHostsPage extends Component {
     dispatch(hostActions.loadAll());
     dispatch(labelActions.loadAll());
     dispatch(getStatusLabelCounts);
-
-    return false;
-  }
-
-  onCancelAddLabel = () => {
-    const { dispatch } = this.props;
-
-    dispatch(push('/hosts/manage'));
 
     return false;
   }
@@ -90,15 +83,29 @@ export class ManageHostsPage extends Component {
     return false;
   }
 
-  onHostDetailActionClick = (type) => {
-    return (host) => {
-      return (evt) => {
-        evt.preventDefault();
+  onCancelAddLabel = () => {
+    const { dispatch } = this.props;
 
-        console.log(type, host);
-        return false;
-      };
-    };
+    dispatch(push('/hosts/manage'));
+
+    return false;
+  }
+
+  onDestroyHost = (evt) => {
+    evt.preventDefault();
+
+    const { dispatch } = this.props;
+    const { selectedHost } = this.state;
+
+    dispatch(hostActions.destroy(selectedHost))
+      .then(() => {
+        this.toggleHostModal(null)();
+
+        dispatch(getStatusLabelCounts);
+        dispatch(renderFlash('success', `Host "${selectedHost.hostname}" was successfully deleted`));
+      });
+
+    return false;
   }
 
   onLabelClick = (selectedLabel) => {
@@ -144,23 +151,36 @@ export class ManageHostsPage extends Component {
   }
 
   onDeleteLabel = () => {
-    const { toggleModal } = this;
+    const { toggleLabelModal } = this;
     const { dispatch, selectedLabel } = this.props;
     const { MANAGE_HOSTS } = paths;
 
     return dispatch(labelActions.destroy(selectedLabel))
       .then(() => {
-        toggleModal();
+        toggleLabelModal();
         dispatch(push(MANAGE_HOSTS));
         dispatch(renderFlash('success', 'Label successfully deleted'));
         return false;
       });
   }
 
-  toggleModal = () => {
-    const { showDeleteModal } = this.state;
+  toggleHostModal = (selectedHost) => {
+    return () => {
+      const { showDeleteHostModal } = this.state;
 
-    this.setState({ showDeleteModal: !showDeleteModal });
+      this.setState({
+        selectedHost,
+        showDeleteHostModal: !showDeleteHostModal,
+      });
+
+      return false;
+    };
+  }
+
+  toggleLabelModal = () => {
+    const { showDeleteLabelModal } = this.state;
+
+    this.setState({ showDeleteLabelModal: !showDeleteLabelModal });
     return false;
   }
 
@@ -177,23 +197,46 @@ export class ManageHostsPage extends Component {
     return orderedHosts;
   }
 
-  renderModal = () => {
-    const { showDeleteModal } = this.state;
-    const { toggleModal, onDeleteLabel } = this;
+  renderHostModal = () => {
+    const { showDeleteHostModal } = this.state;
+    const { toggleHostModal, onDestroyHost } = this;
 
-    if (!showDeleteModal) {
+    if (!showDeleteHostModal) {
+      return false;
+    }
+
+    return (
+      <Modal
+        title="Delete Host"
+        onExit={toggleHostModal(null)}
+        className={`${baseClass}__modal`}
+      >
+        <p>Are you sure you wish to delete this host?</p>
+        <div>
+          <Button onClick={toggleHostModal(null)} variant="inverse">Cancel</Button>
+          <Button onClick={onDestroyHost} variant="alert">Delete</Button>
+        </div>
+      </Modal>
+    );
+  }
+
+  renderLabelModal = () => {
+    const { showDeleteLabelModal } = this.state;
+    const { toggleLabelModal, onDeleteLabel } = this;
+
+    if (!showDeleteLabelModal) {
       return false;
     }
 
     return (
       <Modal
         title="Delete Label"
-        onExit={toggleModal}
+        onExit={toggleLabelModal}
         className={`${baseClass}__modal`}
       >
         <p>Are you sure you wish to delete this label?</p>
         <div>
-          <Button onClick={toggleModal} variant="inverse">Cancel</Button>
+          <Button onClick={toggleLabelModal} variant="inverse">Cancel</Button>
           <Button onClick={onDeleteLabel} variant="alert">Delete</Button>
         </div>
       </Modal>
@@ -201,7 +244,7 @@ export class ManageHostsPage extends Component {
   }
 
   renderDeleteButton = () => {
-    const { toggleModal } = this;
+    const { toggleLabelModal } = this;
     const { selectedLabel: { type } } = this.props;
 
     if (type !== 'custom') {
@@ -210,7 +253,7 @@ export class ManageHostsPage extends Component {
 
     return (
       <div className={`${baseClass}__delete-label`}>
-        <Button onClick={toggleModal} variant="alert">Delete</Button>
+        <Button onClick={toggleLabelModal} variant="alert">Delete</Button>
       </div>
     );
   }
@@ -328,7 +371,7 @@ export class ManageHostsPage extends Component {
 
   renderHosts = () => {
     const { display, isAddLabel, selectedLabel } = this.props;
-    const { onHostDetailActionClick, filterHosts, sortHosts, renderNoHosts } = this;
+    const { toggleHostModal, filterHosts, sortHosts, renderNoHosts } = this;
 
     if (isAddLabel) {
       return false;
@@ -351,14 +394,13 @@ export class ManageHostsPage extends Component {
           <HostDetails
             host={host}
             key={`host-${host.id}-details`}
-            onDisableClick={onHostDetailActionClick('disable')}
-            onQueryClick={onHostDetailActionClick('query')}
+            onDestroyHost={toggleHostModal}
           />
         );
       });
     }
 
-    return <HostsTable hosts={sortedHosts} />;
+    return <HostsTable hosts={sortedHosts} onDestroyHost={toggleHostModal} />;
   }
 
 
@@ -426,7 +468,7 @@ export class ManageHostsPage extends Component {
   }
 
   render () {
-    const { renderForm, renderHeader, renderHosts, renderSidePanel, renderModal } = this;
+    const { renderForm, renderHeader, renderHosts, renderSidePanel, renderHostModal, renderLabelModal } = this;
     const { display, isAddLabel } = this.props;
 
     return (
@@ -442,7 +484,8 @@ export class ManageHostsPage extends Component {
         }
 
         {renderSidePanel()}
-        {renderModal()}
+        {renderHostModal()}
+        {renderLabelModal()}
       </div>
     );
   }

@@ -1,6 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import classnames from 'classnames';
 
+import Button from 'components/buttons/Button';
 import Icon from 'components/icons/Icon';
 import PlatformIcon from 'components/icons/PlatformIcon';
 import hostInterface from 'interfaces/host';
@@ -11,9 +12,11 @@ const baseClass = 'hosts-table';
 class HostsTable extends Component {
   static propTypes = {
     hosts: PropTypes.arrayOf(hostInterface),
+    onDestroyHost: PropTypes.func,
   };
 
   renderHost = (host) => {
+    const { onDestroyHost } = this.props;
     const statusClassName = classnames(`${baseClass}__status`, `${baseClass}__status--${host.status}`);
 
     return (
@@ -24,7 +27,7 @@ class HostsTable extends Component {
         <td>{host.osquery_version}</td>
         <td>{host.ip}</td>
         <td>{host.mac}</td>
-        <td><a href="#add-query"><Icon name="add-plus" /></a></td>
+        <td><Button onClick={onDestroyHost(host)} variant="unstyled"><Icon name="trash" /></Button></td>
       </tr>
     );
   }
@@ -44,7 +47,7 @@ class HostsTable extends Component {
               <th>Osquery</th>
               <th>IPv4</th>
               <th>Physical Address</th>
-              <th><Icon name="query" /></th>
+              <th />
             </tr>
           </thead>
           <tbody>

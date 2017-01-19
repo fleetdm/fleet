@@ -1,5 +1,4 @@
 import React, { PropTypes } from 'react';
-import { noop } from 'lodash';
 
 import Button from 'components/buttons/Button';
 import hostInterface from 'interfaces/host';
@@ -14,7 +13,7 @@ export const STATUSES = {
   offline: 'OFFLINE',
 };
 
-const HostDetails = ({ host, onQueryClick = noop }) => {
+const HostDetails = ({ host, onDestroyHost }) => {
   const {
     hostname,
     ip,
@@ -28,9 +27,9 @@ const HostDetails = ({ host, onQueryClick = noop }) => {
 
   return (
     <div className={`${baseClass} ${baseClass}--${status}`}>
-      <span className={`${baseClass}__add-query`}>
-        <Button onClick={onQueryClick(host)} variant="unstyled" title="Query this host">
-          <Icon name="query" className={`${baseClass}__add-query-icon`} key="add-query" />
+      <span className={`${baseClass}__delete-host`}>
+        <Button onClick={onDestroyHost(host)} variant="unstyled" title="Delete this host">
+          <Icon name="trash" className={`${baseClass}__delete-host-icon`} />
         </Button>
       </span>
 
@@ -80,7 +79,7 @@ const HostDetails = ({ host, onQueryClick = noop }) => {
 
 HostDetails.propTypes = {
   host: hostInterface.isRequired,
-  onQueryClick: PropTypes.func,
+  onDestroyHost: PropTypes.func.isRequired,
 };
 
 export default HostDetails;

@@ -72,6 +72,12 @@
     display: inline-block;
   }
 
+  &__modal {
+    .button--alert {
+      margin-left: 10px;
+    }
+  }
+
   &__list {
     &--grid {
       @include display(flex);
