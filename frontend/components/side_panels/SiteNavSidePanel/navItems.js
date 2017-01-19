@@ -36,24 +36,7 @@ export default (admin) => {
         regex: /^\/hosts/,
         pathname: '/hosts/manage',
       },
-      subItems: [
-        {
-          icon: 'hosts',
-          name: 'Manage Hosts',
-          location: {
-            regex: /\/hosts\/manage/,
-            pathname: '/hosts/manage',
-          },
-        },
-        {
-          icon: 'add-plus',
-          name: 'Add Hosts',
-          location: {
-            regex: /\/hosts\/new/,
-            pathname: '/hosts/new',
-          },
-        },
-      ],
+      subItems: [],
     },
     {
       icon: 'query',
