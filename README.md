@@ -26,7 +26,6 @@
     - [Setting up the database tables](#setting-up-the-database-tables)
   - [Running Kolide](#running-kolide)
     - [Using Docker development infrastructure](#using-docker-development-infrastructure)
-    - [Using no external dependencies](#using-no-external-dependencies)
 
 
 ## Development Environment
@@ -396,25 +395,3 @@ instead of `localhost`.There is an example configuration file included in this
 repository to make this process easier for you.  Use the `--config` flag of the
 Kolide binary to specify the path to your config. See `kolide --help` for more
 options.
-
-#### Using no external dependencies
-
-If you'd like to launch the Kolide server with no external dependencies, run
-the following:
-
-```
-kolide serve --dev
-```
-
-This will use in-memory mocks for the database, print emails to the console,
-etc. If you're demo-ing Kolide or testing a quick feature, dev mode is ideal.
-Keep in mind that, since everything is in-memory, when you kill the process,
-everything you did in dev mode will be lost. This is nice for development but
-not so nice for production environments.
-
-If you've used `make build` to build the Kolide binary, you can also run the
-following to launch an in-memory instance of the server:
-
-```
-make run
-```

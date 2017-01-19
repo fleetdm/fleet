@@ -13,7 +13,6 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/kolide/kolide-ose/server/config"
-	"github.com/kolide/kolide-ose/server/datastore/inmem"
 	"github.com/kolide/kolide-ose/server/datastore/mysql"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/kolide/kolide-ose/server/mail"
@@ -33,8 +32,6 @@ type initializer interface {
 }
 
 func createServeCmd(configManager config.Manager) *cobra.Command {
-	var devMode = false
-
 	serveCmd := &cobra.Command{
 		Use:   "serve",
 		Short: "Launch the kolide server",
@@ -63,31 +60,11 @@ the way that the kolide server works.
 
 			var ds kolide.Datastore
 			var err error
-			var mailService kolide.MailService
+			mailService := mail.NewService()
 
-			if devMode {
-				fmt.Print(
-					"********************************************************************************\n",
-					"* Warning:                                                                     *\n",
-					"*                                                                              *\n",
-					"*    Developer mode is currently enabled, so Kolide is using a transient,      *\n",
-					"*    in-memory DB. Any changes you make to the database will not be saved      *\n",
-					"*    across process restarts. This should NOT be used in production.           *\n",
-					"*                                                                              *\n",
-					"********************************************************************************\n",
-				)
-
-				if ds, err = inmem.New(config); err != nil {
-					initFatal(err, "initializing inmem database")
-				}
-				mailService = mail.NewDevService()
-			} else {
-				const defaultMaxAttempts = 15
-				ds, err = mysql.New(config.Mysql, clock.C, mysql.Logger(logger))
-				if err != nil {
-					initFatal(err, "initializing datastore")
-				}
-				mailService = mail.NewService()
+			ds, err = mysql.New(config.Mysql, clock.C, mysql.Logger(logger))
+			if err != nil {
+				initFatal(err, "initializing datastore")
 			}
 
 			if initializingDS, ok := ds.(initializer); ok {
@@ -97,12 +74,8 @@ the way that the kolide server works.
 			}
 
 			var resultStore kolide.QueryResultStore
-			if devMode {
-				resultStore = pubsub.NewInmemQueryResults()
-			} else {
-				redisPool := pubsub.NewRedisPool(config.Redis.Address, config.Redis.Password)
-				resultStore = pubsub.NewRedisQueryResults(redisPool)
-			}
+			redisPool := pubsub.NewRedisPool(config.Redis.Address, config.Redis.Password)
+			resultStore = pubsub.NewRedisQueryResults(redisPool)
 
 			svc, err := service.NewService(ds, resultStore, logger, config, mailService, clock.C)
 			if err != nil {
@@ -167,7 +140,7 @@ the way that the kolide server works.
 
 			errs := make(chan error, 2)
 			go func() {
-				if !config.Server.TLS || (devMode && !configManager.IsSet("server.tls")) {
+				if !config.Server.TLS {
 					logger.Log("transport", "http", "address", config.Server.Address, "msg", "listening")
 					errs <- http.ListenAndServe(config.Server.Address, nil)
 				} else {
@@ -189,8 +162,6 @@ the way that the kolide server works.
 			logger.Log("terminated", <-errs)
 		},
 	}
-
-	serveCmd.PersistentFlags().BoolVar(&devMode, "dev", false, "Use dev settings (in-mem DB, etc.)")
 
 	return serveCmd
 }

@@ -59,7 +59,6 @@ define HELP_TEXT
 	make lint-scss    - Run the SCSS linters
 	make lint-ts      - Run the TypeScript linters
 
-	make run          - Run the Kolide server in dev mode
 
 endef
 
@@ -150,8 +149,6 @@ else
 	rm -f assets/bundle.js
 endif
 
-run:
-	$(OUTPUT) serve --dev
 
 docker-build-circle:
 	@echo ">> building docker image"

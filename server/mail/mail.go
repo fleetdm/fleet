@@ -16,12 +16,7 @@ func NewService() kolide.MailService {
 	return &mailService{}
 }
 
-func NewDevService() kolide.MailService {
-	return &devMailService{}
-}
-
 type mailService struct{}
-type devMailService struct{}
 
 type sender interface {
 	sendMail(e kolide.Email, msg []byte) error
@@ -61,15 +56,6 @@ func getMessageBody(e kolide.Email) ([]byte, error) {
 	subject := "Subject: " + e.Subject + "\r\n"
 	msg := []byte(subject + mime + content + "\r\n" + string(body) + "\r\n")
 	return msg, nil
-}
-
-func (dm devMailService) SendEmail(e kolide.Email) error {
-	msg, err := getMessageBody(e)
-	if err != nil {
-		return err
-	}
-	fmt.Println(string(msg))
-	return nil
 }
 
 func (m mailService) SendEmail(e kolide.Email) error {
