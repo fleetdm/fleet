@@ -91,6 +91,18 @@ describe('ManageHostsPage - component', () => {
   });
 
   describe('host rendering', () => {
+    it('render LonelyHost if no hosts available', () => {
+      const page = mount(<ManageHostsPage {...props} hosts={[]} selectedLabel={allHostsLabel} />);
+
+      expect(page.find('LonelyHost').length).toEqual(1);
+    });
+
+    it('renders message if no hosts available and not on All Hosts', () => {
+      const page = mount(<ManageHostsPage {...props} hosts={[]} selectedLabel={customLabel} />);
+
+      expect(page.find('.manage-hosts__no-hosts').length).toEqual(1);
+    });
+
     it('renders hosts as HostDetails by default', () => {
       const page = mount(<ManageHostsPage {...props} hosts={[hostStub]} />);
 

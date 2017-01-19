@@ -15,6 +15,7 @@ import HostDetails from 'components/hosts/HostDetails';
 import hostInterface from 'interfaces/host';
 import HostSidePanel from 'components/side_panels/HostSidePanel';
 import HostsTable from 'components/hosts/HostsTable';
+import LonelyHost from 'components/hosts/LonelyHost';
 import Icon from 'components/icons/Icon';
 import PlatformIcon from 'components/icons/PlatformIcon';
 import osqueryTableInterface from 'interfaces/osquery_table';
@@ -326,7 +327,7 @@ export class ManageHostsPage extends Component {
   }
 
   renderHosts = () => {
-    const { display, isAddLabel } = this.props;
+    const { display, isAddLabel, selectedLabel } = this.props;
     const { onHostDetailActionClick, filterHosts, sortHosts, renderNoHosts } = this;
 
     if (isAddLabel) {
@@ -337,6 +338,10 @@ export class ManageHostsPage extends Component {
     const sortedHosts = sortHosts(filteredHosts);
 
     if (sortedHosts.length === 0) {
+      if (selectedLabel && selectedLabel.type === 'all') {
+        return <LonelyHost />;
+      }
+
       return renderNoHosts();
     }
 
