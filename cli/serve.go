@@ -47,15 +47,19 @@ binary (which you're executing right now). Use the options below to customize
 the way that the kolide server works.
 `,
 		Run: func(cmd *cobra.Command, args []string) {
-			var (
-				ctx    = context.Background()
-				logger kitlog.Logger
-			)
-
+			ctx := context.Background()
 			config := configManager.LoadConfig()
 
-			logger = kitlog.NewLogfmtLogger(os.Stderr)
-			logger = kitlog.NewContext(logger).With("ts", kitlog.DefaultTimestampUTC)
+			var logger kitlog.Logger
+			{
+				output := os.Stderr
+				if config.Logging.JSON {
+					logger = kitlog.NewJSONLogger(output)
+				} else {
+					logger = kitlog.NewLogfmtLogger(output)
+				}
+				logger = kitlog.NewContext(logger).With("ts", kitlog.DefaultTimestampUTC)
+			}
 
 			var ds kolide.Datastore
 			var err error

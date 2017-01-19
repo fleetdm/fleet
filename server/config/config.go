@@ -68,6 +68,7 @@ type OsqueryConfig struct {
 // LoggingConfig defines configs related to logging
 type LoggingConfig struct {
 	Debug         bool
+	JSON          bool
 	DisableBanner bool
 }
 
@@ -129,6 +130,7 @@ func (man Manager) addConfigs() {
 
 	// Logging
 	man.addConfigBool("logging.debug", false)
+	man.addConfigBool("logging.json", false)
 	man.addConfigBool("logging.disable_banner", false)
 }
 
@@ -177,6 +179,7 @@ func (man Manager) LoadConfig() KolideConfig {
 		},
 		Logging: LoggingConfig{
 			Debug:         man.getConfigBool("logging.debug"),
+			JSON:          man.getConfigBool("logging.json"),
 			DisableBanner: man.getConfigBool("logging.disable_banner"),
 		},
 	}
