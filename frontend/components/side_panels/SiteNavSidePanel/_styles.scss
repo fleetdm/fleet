@@ -83,6 +83,14 @@
         @include transform(translate(-2px, 3px));
       }
     }
+
+    &.site-nav-item--single {
+      .site-nav-item__button {
+        &::before {
+          height: 41px;
+        }
+      }
+    }
   }
 
   &:last-child {

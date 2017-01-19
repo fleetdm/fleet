@@ -114,24 +114,7 @@ export default (admin) => {
         regex: /^\/config/,
         pathname: '/config/options',
       },
-      subItems: [
-        {
-          icon: 'config',
-          name: 'Osquery Options',
-          location: {
-            regex: /\/config\/options/,
-            pathname: '/config/options',
-          },
-        },
-        {
-          icon: 'import',
-          name: 'Import Config',
-          location: {
-            regex: /\/config\/import/,
-            pathname: '/config/import',
-          },
-        },
-      ],
+      subItems: [],
     },
     {
       icon: 'help',

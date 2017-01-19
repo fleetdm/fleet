@@ -56,7 +56,10 @@ class SiteNavSidePanel extends Component {
 
     const navItemClasses = classnames(
       `${navItemBaseClass}`,
-      { [`${navItemBaseClass}--active`]: active }
+      {
+        [`${navItemBaseClass}--active`]: active,
+        [`${navItemBaseClass}--single`]: subItems.length === 0,
+      }
     );
 
     return (
