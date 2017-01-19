@@ -14,6 +14,7 @@ var plugins = [
   new webpack.optimize.DedupePlugin(),
   new HtmlWebpackPlugin({
     filename: '../frontend/templates/react.tmpl',
+    inject: false,
     template: 'frontend/templates/react.ejs'
   })
 ];
