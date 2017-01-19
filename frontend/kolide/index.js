@@ -50,7 +50,35 @@ class Kolide extends Base {
 
       return this.authenticatedDelete(endpoint);
     },
-  };
+  }
+
+  users = {
+    changePassword: (passwordParams) => {
+      const { CHANGE_PASSWORD } = endpoints;
+
+      return this.authenticatedPost(this.endpoint(CHANGE_PASSWORD), JSON.stringify(passwordParams));
+    },
+    enable: (user, { enabled }) => {
+      const { ENABLE_USER } = endpoints;
+
+      return this.authenticatedPost(this.endpoint(ENABLE_USER(user.id)), JSON.stringify({ enabled }))
+        .then((response) => {
+          const { user: updatedUser } = response;
+
+          return helpers.addGravatarUrlToResource(updatedUser);
+        });
+    },
+    updateAdmin: (user, { admin }) => {
+      const { UPDATE_USER_ADMIN } = endpoints;
+
+      return this.authenticatedPost(this.endpoint(UPDATE_USER_ADMIN(user.id)), JSON.stringify({ admin }))
+        .then((response) => {
+          const { user: updatedUser } = response;
+
+          return helpers.addGravatarUrlToResource(updatedUser);
+        });
+    },
+  }
 
   createLabel = ({ description, name, query }) => {
     const { LABELS } = endpoints;

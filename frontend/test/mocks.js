@@ -14,6 +14,16 @@ export const validUser = {
   gravatarURL: 'https://www.gravatar.com/avatar/7157f4758f8423b59aaee869d919f6b9?d=blank&size=200',
 };
 
+export const validChangePasswordRequest = (bearerToken, params) => {
+  return nock('http://localhost:8080', {
+    reqHeaders: {
+      Authorization: `Bearer ${bearerToken}`,
+    },
+  })
+    .post('/api/v1/kolide/change_password', JSON.stringify(params))
+    .reply(200, {});
+};
+
 export const validCreateLabelRequest = (bearerToken, labelParams) => {
   return nock('http://localhost:8080', {
     reqHeaders: {
@@ -82,6 +92,16 @@ export const validDestroyQueryRequest = (bearerToken, query) => {
   })
     .delete(`/api/v1/kolide/queries/${query.id}`)
     .reply(200, {});
+};
+
+export const validEnableUserRequest = (bearerToken, user, params) => {
+  return nock('http://localhost:8080', {
+    reqHeaders: {
+      Authorization: `Bearer ${bearerToken}`,
+    },
+  })
+    .post(`/api/v1/kolide/users/${user.id}/enable`, JSON.stringify(params))
+    .reply(200, { user: { ...user, ...params } });
 };
 
 export const validDestroyPackRequest = (bearerToken, pack) => {
@@ -353,6 +373,16 @@ export const validStatusLabelsGetCountsRequest = (bearerToken) => {
     .reply(200, { online_count: 100, offline_count: 23, mia_count: 2 });
 };
 
+export const validUpdateAdminRequest = (bearerToken, user, params) => {
+  return nock('http://localhost:8080', {
+    reqHeaders: {
+      Authorization: `Bearer ${bearerToken}`,
+    },
+  })
+  .post(`/api/v1/kolide/users/${user.id}/admin`, JSON.stringify(params))
+  .reply(200, { user: { ...user, ...params } });
+};
+
 export const validUpdateConfigRequest = (bearerToken, configData) => {
   return nock('http://localhost:8080', {
     reqHeaders: {
@@ -404,6 +434,7 @@ export default {
   invalidForgotPasswordRequest,
   invalidGetQueryRequest,
   invalidResetPasswordRequest,
+  validChangePasswordRequest,
   validCreateLabelRequest,
   validCreatePackRequest,
   validCreateQueryRequest,
@@ -412,6 +443,7 @@ export default {
   validDestroyQueryRequest,
   validDestroyPackRequest,
   validDestroyScheduledQueryRequest,
+  validEnableUserRequest,
   validForgotPasswordRequest,
   validGetConfigOptionsRequest,
   validGetConfigRequest,
@@ -431,6 +463,7 @@ export default {
   validRunQueryRequest,
   validSetupRequest,
   validStatusLabelsGetCountsRequest,
+  validUpdateAdminRequest,
   validUpdateConfigOptionsRequest,
   validUpdateConfigRequest,
   validUpdatePackRequest,

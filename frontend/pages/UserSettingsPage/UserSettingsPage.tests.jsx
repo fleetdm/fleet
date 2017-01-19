@@ -14,7 +14,7 @@ describe('UserSettingsPage - component', () => {
   afterEach(restoreSpies);
 
   it('renders a UserSettingsForm component', () => {
-    const store = { auth: { user: userStub } };
+    const store = { auth: { user: userStub }, entities: { users: {} } };
     const mockStore = reduxMockStore(store);
 
     const page = mount(connectedComponent(ConnectedPage, { mockStore }));

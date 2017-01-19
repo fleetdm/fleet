@@ -14,14 +14,14 @@ describe('ChangePasswordForm - component', () => {
   it('has the correct fields', () => {
     const form = mount(<ChangePasswordForm handleSubmit={noop} onCancel={noop} />);
 
-    itBehavesLikeAFormInputElement(form, 'password');
+    itBehavesLikeAFormInputElement(form, 'old_password');
     itBehavesLikeAFormInputElement(form, 'new_password');
     itBehavesLikeAFormInputElement(form, 'new_password_confirmation');
   });
 
   it('renders the password fields as HTML password fields', () => {
     const form = mount(<ChangePasswordForm handleSubmit={noop} onCancel={noop} />);
-    const passwordField = form.find({ name: 'password' });
+    const passwordField = form.find({ name: 'old_password' });
     const newPasswordField = form.find({ name: 'new_password' });
     const newPasswordConfirmationField = form.find({ name: 'new_password_confirmation' });
 
@@ -33,12 +33,12 @@ describe('ChangePasswordForm - component', () => {
   it('calls the handleSubmit props with form data', () => {
     const handleSubmitSpy = createSpy();
     const form = mount(<ChangePasswordForm handleSubmit={handleSubmitSpy} onCancel={noop} />).find('form');
-    const expectedFormData = { password: 'password', new_password: 'new_password', new_password_confirmation: 'new_password' };
-    const passwordInput = form.find({ name: 'password' }).find('input');
+    const expectedFormData = { old_password: 'password', new_password: 'new_password', new_password_confirmation: 'new_password' };
+    const passwordInput = form.find({ name: 'old_password' }).find('input');
     const newPasswordInput = form.find({ name: 'new_password' }).find('input');
     const newPasswordConfirmationInput = form.find({ name: 'new_password_confirmation' }).find('input');
 
-    fillInFormInput(passwordInput, expectedFormData.password);
+    fillInFormInput(passwordInput, expectedFormData.old_password);
     fillInFormInput(newPasswordInput, expectedFormData.new_password);
     fillInFormInput(newPasswordConfirmationInput, expectedFormData.new_password_confirmation);
 

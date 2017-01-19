@@ -11,6 +11,7 @@ import Icon from 'components/icons/Icon';
 import { logoutUser, updateUser } from 'redux/nodes/auth/actions';
 import Modal from 'components/modals/Modal';
 import { renderFlash } from 'redux/nodes/notifications/actions';
+import userActions from 'redux/nodes/entities/users/actions';
 import userInterface from 'interfaces/user';
 import UserSettingsForm from 'components/forms/UserSettingsForm';
 
@@ -24,6 +25,11 @@ export class UserSettingsPage extends Component {
       base: PropTypes.string,
     }),
     user: userInterface,
+    userErrors: PropTypes.shape({
+      base: PropTypes.string,
+      new_password: PropTypes.string,
+      old_password: PropTypes.string,
+    }),
   };
 
   constructor (props) {
@@ -82,14 +88,19 @@ export class UserSettingsPage extends Component {
   }
 
   handleSubmitPasswordForm = (formData) => {
-    console.log('Change Password Form submitted', formData);
+    const { dispatch, user } = this.props;
 
-    this.setState({ showModal: false });
+    return dispatch(userActions.changePassword(user, formData))
+      .then(() => {
+        dispatch(renderFlash('success', 'Password changed successfully'));
+        this.setState({ showModal: false });
 
-    return false;
+        return false;
+      });
   }
 
   renderModal = () => {
+    const { userErrors } = this.props;
     const { showModal } = this.state;
     const { handleSubmitPasswordForm, onToggleModal } = this;
 
@@ -105,6 +116,7 @@ export class UserSettingsPage extends Component {
         <ChangePasswordForm
           handleSubmit={handleSubmitPasswordForm}
           onCancel={onToggleModal}
+          serverErrors={userErrors}
         />
       </Modal>
     );
@@ -165,8 +177,9 @@ export class UserSettingsPage extends Component {
 
 const mapStateToProps = (state) => {
   const { errors, user } = state.auth;
+  const { errors: userErrors } = state.entities.users;
 
-  return { errors, user };
+  return { errors, user, userErrors };
 };
 
 export default connect(mapStateToProps)(UserSettingsPage);

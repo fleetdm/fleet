@@ -1,6 +1,10 @@
 export default {
+  CHANGE_PASSWORD: '/v1/kolide/change_password',
   CONFIG: '/v1/kolide/config',
   CONFIG_OPTIONS: '/v1/kolide/options',
+  ENABLE_USER: (id) => {
+    return `/v1/kolide/users/${id}/enable`;
+  },
   FORGOT_PASSWORD: '/v1/kolide/forgot_password',
   HOSTS: '/v1/kolide/hosts',
   INVITES: '/v1/kolide/invites',
@@ -23,4 +27,7 @@ export default {
   STATUS_LABEL_COUNTS: '/v1/kolide/host_summary',
   TARGETS: '/v1/kolide/targets',
   USERS: '/v1/kolide/users',
+  UPDATE_USER_ADMIN: (id) => {
+    return `/v1/kolide/users/${id}/admin`;
+  },
 };

@@ -1,8 +1,9 @@
 import Kolide from 'kolide';
 
+import config from 'redux/nodes/entities/users/config';
 import { formatErrorResponse } from 'redux/nodes/entities/base/helpers';
 
-import config from './config';
+const { extendedActions } = config;
 
 // Actions for admin to require password reset for a user
 export const REQUIRE_PASSWORD_RESET_REQUEST = 'REQUIRE_PASSWORD_RESET_REQUEST';
@@ -25,6 +26,46 @@ export const requirePasswordResetFailure = (errors) => {
   };
 };
 
+export const changePassword = (user, { new_password: newPassword, old_password: oldPassword }) => {
+  const { successAction, updateFailure, updateRequest, updateSuccess } = extendedActions;
+
+  return (dispatch) => {
+    dispatch(updateRequest);
+
+    return Kolide.users.changePassword({ new_password: newPassword, old_password: oldPassword })
+      .then(() => {
+        return dispatch(successAction(user, updateSuccess));
+      })
+      .catch((response) => {
+        const errorsObject = formatErrorResponse(response);
+
+        dispatch(updateFailure(errorsObject));
+
+        throw errorsObject;
+      });
+  };
+};
+
+export const enableUser = (user, { enabled }) => {
+  const { successAction, updateFailure, updateRequest, updateSuccess } = extendedActions;
+
+  return (dispatch) => {
+    dispatch(updateRequest);
+
+    return Kolide.users.enable(user, { enabled })
+      .then((userResponse) => {
+        return dispatch(successAction(userResponse, updateSuccess));
+      })
+      .catch((response) => {
+        const errorsObject = formatErrorResponse(response);
+
+        dispatch(updateFailure(errorsObject));
+
+        throw errorsObject;
+      });
+  };
+};
+
 export const requirePasswordReset = (user, { require }) => {
   return (dispatch) => {
     dispatch(requirePasswordResetRequest);
@@ -44,4 +85,24 @@ export const requirePasswordReset = (user, { require }) => {
   };
 };
 
-export default { ...config.actions, requirePasswordReset };
+export const updateAdmin = (user, { admin }) => {
+  const { successAction, updateFailure, updateRequest, updateSuccess } = extendedActions;
+
+  return (dispatch) => {
+    dispatch(updateRequest);
+
+    return Kolide.users.updateAdmin(user, { admin })
+      .then((userResponse) => {
+        return dispatch(successAction(userResponse, updateSuccess));
+      })
+      .catch((response) => {
+        const errorsObject = formatErrorResponse(response);
+
+        dispatch(updateFailure(errorsObject));
+
+        throw errorsObject;
+      });
+  };
+};
+
+export default { ...config.actions, changePassword, enableUser, requirePasswordReset, updateAdmin };

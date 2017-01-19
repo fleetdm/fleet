@@ -6,13 +6,13 @@ import formFieldInterface from 'interfaces/form_field';
 import InputField from 'components/forms/fields/InputField';
 import validate from 'components/forms/ChangePasswordForm/validate';
 
-const formFields = ['password', 'new_password', 'new_password_confirmation'];
+const formFields = ['old_password', 'new_password', 'new_password_confirmation'];
 const baseClass = 'change-password-form';
 
 class ChangePasswordForm extends Component {
   static propTypes = {
     fields: PropTypes.shape({
-      password: formFieldInterface.isRequired,
+      old_password: formFieldInterface.isRequired,
       new_password: formFieldInterface.isRequired,
       new_password_confirmation: formFieldInterface.isRequired,
     }).isRequired,
@@ -26,7 +26,7 @@ class ChangePasswordForm extends Component {
     return (
       <form onSubmit={handleSubmit} className={baseClass}>
         <InputField
-          {...fields.password}
+          {...fields.old_password}
           autofocus
           label="Original Password"
           type="password"

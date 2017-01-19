@@ -4,13 +4,13 @@ import validateEquality from 'components/forms/validators/validate_equality';
 export default (formData) => {
   const errors = {};
   const {
-    password,
+    old_password: oldPassword,
     new_password: newPassword,
     new_password_confirmation: newPasswordConfirmation,
   } = formData;
 
-  if (!password) {
-    errors.password = 'Password must be present';
+  if (!oldPassword) {
+    errors.old_password = 'Password must be present';
   }
 
   if (!newPassword) {

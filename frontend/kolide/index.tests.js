@@ -9,6 +9,7 @@ import { configOptionStub, hostStub, packStub, queryStub, userStub, labelStub } 
 const {
   invalidForgotPasswordRequest,
   invalidResetPasswordRequest,
+  validChangePasswordRequest,
   validCreateLabelRequest,
   validCreatePackRequest,
   validCreateQueryRequest,
@@ -17,6 +18,7 @@ const {
   validDestroyQueryRequest,
   validDestroyPackRequest,
   validDestroyScheduledQueryRequest,
+  validEnableUserRequest,
   validForgotPasswordRequest,
   validGetConfigOptionsRequest,
   validGetConfigRequest,
@@ -36,6 +38,7 @@ const {
   validRunQueryRequest,
   validSetupRequest,
   validStatusLabelsGetCountsRequest,
+  validUpdateAdminRequest,
   validUpdateConfigOptionsRequest,
   validUpdateConfigRequest,
   validUpdatePackRequest,
@@ -50,6 +53,8 @@ describe('Kolide - API client', () => {
     Kolide.setBearerToken(null);
   });
 
+  const bearerToken = 'valid-bearer-token';
+
   describe('defaults', () => {
     it('sets the base URL', () => {
       expect(Kolide.baseURL).toEqual('http://localhost:8080/api');
@@ -58,7 +63,6 @@ describe('Kolide - API client', () => {
 
   describe('statusLabels', () => {
     it('#getCounts', (done) => {
-      const bearerToken = 'valid-bearer-token';
       const request = validStatusLabelsGetCountsRequest(bearerToken);
 
       Kolide.setBearerToken(bearerToken);
@@ -74,48 +78,48 @@ describe('Kolide - API client', () => {
   });
 
   describe('labels', () => {
-    const bearerToken = 'valid-bearer-token';
+    describe('#createLabel', () => {
+      it('calls the appropriate endpoint with the correct parameters', (done) => {
+        const description = 'label description';
+        const name = 'label name';
+        const query = 'SELECT * FROM users';
+        const labelParams = { description, name, query };
+        const request = validCreateLabelRequest(bearerToken, labelParams);
 
-    it('#createLabel', (done) => {
-      const description = 'label description';
-      const name = 'label name';
-      const query = 'SELECT * FROM users';
-      const labelParams = { description, name, query };
-      const request = validCreateLabelRequest(bearerToken, labelParams);
-
-      Kolide.setBearerToken(bearerToken);
-      Kolide.createLabel(labelParams)
-        .then((labelResponse) => {
-          expect(request.isDone()).toEqual(true);
-          expect(labelResponse).toEqual({
-            ...labelParams,
-            display_text: name,
-            slug: 'label-name',
-            type: 'custom',
-          });
-          done();
-        })
-        .catch(done);
+        Kolide.setBearerToken(bearerToken);
+        Kolide.createLabel(labelParams)
+          .then((labelResponse) => {
+            expect(request.isDone()).toEqual(true);
+            expect(labelResponse).toEqual({
+              ...labelParams,
+              display_text: name,
+              slug: 'label-name',
+              type: 'custom',
+            });
+            done();
+          })
+          .catch(done);
+      });
     });
 
-    it('#destroyLabel', (done) => {
-      const request = validDestroyLabelRequest(bearerToken, labelStub);
+    describe('#destroyLabel', () => {
+      it('calls the appropriate endpoint with the correct parameters', (done) => {
+        const request = validDestroyLabelRequest(bearerToken, labelStub);
 
-      Kolide.setBearerToken(bearerToken);
-      Kolide.labels.destroy(labelStub)
-        .then(() => {
-          expect(request.isDone()).toEqual(true);
-          done();
-        })
-        .catch(() => {
-          throw new Error('Request should have been stubbed');
-        });
+        Kolide.setBearerToken(bearerToken);
+        Kolide.labels.destroy(labelStub)
+          .then(() => {
+            expect(request.isDone()).toEqual(true);
+            done();
+          })
+          .catch(() => {
+            throw new Error('Request should have been stubbed');
+          });
+      });
     });
   });
 
   describe('configOptions', () => {
-    const bearerToken = 'valid-bearer-token';
-
     it('#loadAll', (done) => {
       const request = validGetConfigOptionsRequest(bearerToken);
 
@@ -147,8 +151,6 @@ describe('Kolide - API client', () => {
   });
 
   describe('packs', () => {
-    const bearerToken = 'valid-bearer-token';
-
     it('#createPack', (done) => {
       const { description, name } = packStub;
       const params = { description, name, host_ids: [], label_ids: [] };
@@ -208,7 +210,6 @@ describe('Kolide - API client', () => {
 
   describe('queries', () => {
     it('#createQuery', (done) => {
-      const bearerToken = 'valid-bearer-token';
       const description = 'query description';
       const name = 'query name';
       const query = 'SELECT * FROM users';
@@ -226,7 +227,6 @@ describe('Kolide - API client', () => {
     });
 
     it('#destroyQuery', (done) => {
-      const bearerToken = 'valid-bearer-token';
       const request = validDestroyQueryRequest(bearerToken, queryStub);
 
       Kolide.setBearerToken(bearerToken);
@@ -239,7 +239,6 @@ describe('Kolide - API client', () => {
     });
 
     it('getQueries', (done) => {
-      const bearerToken = 'valid-bearer-token';
       const request = validGetQueriesRequest(bearerToken);
 
       Kolide.setBearerToken(bearerToken);
@@ -252,7 +251,6 @@ describe('Kolide - API client', () => {
     });
 
     it('#getQuery', (done) => {
-      const bearerToken = 'valid-bearer-token';
       const queryID = 10;
       const request = validGetQueryRequest(bearerToken, queryID);
 
@@ -266,7 +264,6 @@ describe('Kolide - API client', () => {
     });
 
     it('#runQuery', (done) => {
-      const bearerToken = 'valid-bearer-token';
       const data = { query: 'select * from users', selected: { hosts: [], labels: [] } };
       const request = validRunQueryRequest(bearerToken, data);
 
@@ -280,9 +277,61 @@ describe('Kolide - API client', () => {
     });
   });
 
+  describe('users', () => {
+    describe('#changePassword', () => {
+      it('calls the appropriate endpoint with the correct parameters', (done) => {
+        const passwordParams = { old_password: 'password', new_password: 'p@ssw0rd' };
+        const request = validChangePasswordRequest(bearerToken, passwordParams);
+
+        Kolide.setBearerToken(bearerToken);
+        Kolide.users.changePassword(passwordParams)
+          .then(() => {
+            expect(request.isDone()).toEqual(true);
+            done();
+          })
+          .catch(() => {
+            throw new Error('Expected request to have been stubbed');
+          });
+      });
+    });
+
+    describe('#enable', () => {
+      it('calls the appropriate endpoint with the correct parameters', (done) => {
+        const enableParams = { enabled: true };
+        const request = validEnableUserRequest(bearerToken, userStub, enableParams);
+
+        Kolide.setBearerToken(bearerToken);
+        Kolide.users.enable(userStub, enableParams)
+          .then(() => {
+            expect(request.isDone()).toEqual(true);
+            done();
+          })
+          .catch(() => {
+            throw new Error('Request should have been stubbed');
+          });
+      });
+    });
+
+    describe('#updateAdmin', () => {
+      it('calls the appropriate endpoint with the correct parameters', (done) => {
+        const adminParams = { admin: true };
+        const request = validUpdateAdminRequest(bearerToken, userStub, adminParams);
+
+        Kolide.setBearerToken(bearerToken);
+        Kolide.users.updateAdmin(userStub, adminParams)
+          .then(() => {
+            expect(request.isDone()).toEqual(true);
+            done();
+          })
+          .catch(() => {
+            throw new Error('Request should have been stubbed');
+          });
+      });
+    });
+  });
+
   describe('#getConfig', () => {
     it('calls the appropriate endpoint with the correct parameters', (done) => {
-      const bearerToken = 'valid-bearer-token';
       const request = validGetConfigRequest(bearerToken);
 
       Kolide.getConfig(bearerToken)
@@ -296,7 +345,6 @@ describe('Kolide - API client', () => {
 
   describe('#getHosts', () => {
     it('calls the appropriate endpoint with the correct parameters', (done) => {
-      const bearerToken = 'valid-bearer-token';
       const request = validGetHostsRequest(bearerToken);
 
       Kolide.setBearerToken(bearerToken);
@@ -311,7 +359,6 @@ describe('Kolide - API client', () => {
 
   describe('#getInvites', () => {
     it('calls the appropriate endpoint with the correct parameters', (done) => {
-      const bearerToken = 'valid-bearer-token';
       const request = validGetInvitesRequest(bearerToken);
 
       Kolide.setBearerToken(bearerToken);
@@ -326,7 +373,6 @@ describe('Kolide - API client', () => {
 
   describe('#createScheduledQuery', () => {
     it('calls the appropriate endpoint with the correct parameters', (done) => {
-      const bearerToken = 'valid-bearer-token';
       const formData = {
         interval: 60,
         logging_type: 'differential',
@@ -348,7 +394,6 @@ describe('Kolide - API client', () => {
 
   describe('#destroyScheduledQuery', () => {
     it('calls the appropriate endpoint with the correct parameters', (done) => {
-      const bearerToken = 'valid-bearer-token';
       const scheduledQuery = { id: 1 };
       const request = validDestroyScheduledQueryRequest(bearerToken, scheduledQuery);
 
@@ -364,7 +409,6 @@ describe('Kolide - API client', () => {
 
   describe('#getScheduledQueries', () => {
     it('calls the appropriate endpoint with the correct parameters', (done) => {
-      const bearerToken = 'valid-bearer-token';
       const pack = { id: 1 };
       const request = validGetScheduledQueriesRequest(bearerToken, pack);
 
@@ -380,7 +424,6 @@ describe('Kolide - API client', () => {
 
   describe('#getTargets', () => {
     it('correctly parses the response', (done) => {
-      const bearerToken = 'valid-bearer-token';
       const hosts = [];
       const labels = [];
       const query = 'mac';
@@ -398,7 +441,6 @@ describe('Kolide - API client', () => {
 
   describe('#getUsers', () => {
     it('calls the appropriate endpoint with the correct parameters', (done) => {
-      const bearerToken = 'valid-bearer-token';
       const request = validGetUsersRequest();
 
       Kolide.getUsers(bearerToken)
@@ -413,7 +455,6 @@ describe('Kolide - API client', () => {
 
   describe('#inviteUser', () => {
     it('calls the appropriate endpoint with the correct parameters', (done) => {
-      const bearerToken = 'valid-bearer-token';
       const formData = {
         email: 'new@user.org',
         admin: false,
@@ -435,7 +476,6 @@ describe('Kolide - API client', () => {
 
   describe('#me', () => {
     it('calls the appropriate endpoint with the correct parameters', (done) => {
-      const bearerToken = 'ABC123';
       const request = validMeRequest(bearerToken);
 
       Kolide.setBearerToken(bearerToken);
@@ -468,7 +508,6 @@ describe('Kolide - API client', () => {
 
   describe('#logout', () => {
     it('calls the appropriate endpoint with the correct parameters', (done) => {
-      const bearerToken = 'ABC123';
       const request = validLogoutRequest(bearerToken);
 
       Kolide.setBearerToken(bearerToken);
@@ -555,7 +594,6 @@ describe('Kolide - API client', () => {
 
   describe('#revokeInvite', () => {
     it('calls the appropriate endpoint with the correct parameters', (done) => {
-      const bearerToken = 'valid-bearer-token';
       const request = validRevokeInviteRequest(bearerToken, userStub);
 
       Kolide.setBearerToken(bearerToken);
@@ -593,7 +631,6 @@ describe('Kolide - API client', () => {
 
   describe('#updateConfig', () => {
     it('calls the appropriate endpoint with the correct parameters', (done) => {
-      const bearerToken = 'valid-bearer-token';
       const formData = {
         org_name: 'Kolide',
         org_logo_url: '0.0.0.0:8080/logo.png',
@@ -626,7 +663,6 @@ describe('Kolide - API client', () => {
 
   describe('#updateQuery', () => {
     it('calls the appropriate endpoint with the correct parameters', (done) => {
-      const bearerToken = 'valid-bearer-token';
       const query = { id: 1, name: 'Query Name', description: 'Query Description', query: 'SELECT * FROM users' };
       const updateQueryParams = { name: 'New Query Name' };
       const request = validUpdateQueryRequest(bearerToken, query, updateQueryParams);

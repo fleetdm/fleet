@@ -552,7 +552,8 @@ describe('reduxConfig', () => {
         const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
 
         expect(dispatchedActionTypes).toInclude('users_LOAD_REQUEST');
-        expect(dispatchedActionTypes).toInclude('users_LOAD_SUCCESS');
+        expect(dispatchedActionTypes).toNotInclude('users_LOAD_SUCCESS');
+        expect(dispatchedActionTypes).toInclude('users_LOAD_ALL_SUCCESS');
         expect(dispatchedActionTypes).toNotInclude('users_LOAD_FAILURE');
       });
 

@@ -28,6 +28,7 @@ const reduxConfig = ({
     DESTROY_FAILURE: `${entityName}_DESTROY_FAILURE`,
     DESTROY_REQUEST: `${entityName}_DESTROY_REQUEST`,
     DESTROY_SUCCESS: `${entityName}_DESTROY_SUCCESS`,
+    LOAD_ALL_SUCCESS: `${entityName}_LOAD_ALL_SUCCESS`,
     LOAD_FAILURE: `${entityName}_LOAD_FAILURE`,
     LOAD_REQUEST: `${entityName}_LOAD_REQUEST`,
     LOAD_SUCCESS: `${entityName}_LOAD_SUCCESS`,
@@ -72,6 +73,12 @@ const reduxConfig = ({
     return {
       type: actionTypes.LOAD_FAILURE,
       payload: { errors },
+    };
+  };
+  const loadAllSuccess = (data) => {
+    return {
+      type: actionTypes.LOAD_ALL_SUCCESS,
+      payload: { data },
     };
   };
   const loadRequest = { type: actionTypes.LOAD_REQUEST };
@@ -188,7 +195,7 @@ const reduxConfig = ({
 
       return loadAllFunc(...args)
         .then((response) => {
-          return dispatch(successAction(response, loadSuccess));
+          return dispatch(successAction(response, loadAllSuccess));
         })
         .catch((response) => {
           const errorsObject = formatErrorResponse(response);
@@ -245,6 +252,15 @@ const reduxConfig = ({
           errors: {},
           loading: true,
         };
+      case actionTypes.LOAD_ALL_SUCCESS:
+        return {
+          ...state,
+          loading: false,
+          errors: {},
+          data: {
+            ...payload.data[entityName],
+          },
+        };
       case actionTypes.CREATE_SUCCESS:
       case actionTypes.UPDATE_SUCCESS:
       case actionTypes.LOAD_SUCCESS:
@@ -283,6 +299,22 @@ const reduxConfig = ({
 
   return {
     actions,
+    extendedActions: {
+      clearErrors,
+      createFailure,
+      createRequest,
+      createSuccess,
+      destroyFailure,
+      destroyRequest,
+      destroySuccess,
+      loadFailure,
+      loadRequest,
+      loadSuccess,
+      successAction,
+      updateFailure,
+      updateRequest,
+      updateSuccess,
+    },
     reducer,
   };
 };
