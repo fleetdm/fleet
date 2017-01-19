@@ -1,60 +1,50 @@
 .modal {
   &__background {
+    @include position(fixed, 0 0 0 0);
     background-color: rgba($black, 0.25);
-    bottom: 0;
-    left: 0;
-    position: fixed;
-    right: 0;
-    top: 0;
     z-index: 3;
   }
 
   &__content {
-    padding: $base;
-    padding-top: 0;
-
     .input-field {
       width: 100%;
-    }
-
-    button {
-      width: calc(50% - 25px);
-      margin-top: 25px;
-
-      &:last-child {
-        margin-left: 50px;
-      }
     }
   }
 
   &__ex {
-    position: absolute;
-    top: 6px;
-    right: $base;
+    @include position(absolute, 30px 30px null null);
+    @include size(30px);
+    line-height: 30px;
     text-decoration: none;
 
     .button {
+      @include size(30px);
+      line-height: 30px;
       color: $text-medium;
       font-size: $larger;
+
+      &:hover {
+        color: $alert-light;
+      }
     }
   }
 
   &__header {
-    padding: $base $base 0;
     font-size: 24px;
-    font-weight: $light;
-    line-height: 1.33;
-    letter-spacing: 1px;
-    color: $text-dark;
-    margin: 0 0 30px;
+    font-weight: $normal;
+    line-height: normal;
+    letter-spacing: -0.5px;
+    text-align: left;
+    color: $text-ultradark;
   }
 
   &__modal_container {
+    @include position(absolute, 25% null null 25%);
     background-color: $white;
-    left: 25%;
-    position: absolute;
-    top: 25%;
     width: 600px;
     z-index: 3;
+    padding: 30px;
+    box-shadow: 0 3px 3px rgba(0,0,0,0.07), 0 16px 24px rgba(50,50,93,0.14), inset 0 0 0 1px rgba(74,144,226,0.1);
+    border-radius: 2px;
   }
 }

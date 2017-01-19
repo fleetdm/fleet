@@ -7,6 +7,7 @@ import InputField from 'components/forms/fields/InputField';
 import validate from 'components/forms/ChangePasswordForm/validate';
 
 const formFields = ['password', 'new_password', 'new_password_confirmation'];
+const baseClass = 'change-password-form';
 
 class ChangePasswordForm extends Component {
   static propTypes = {
@@ -23,7 +24,7 @@ class ChangePasswordForm extends Component {
     const { fields, handleSubmit, onCancel } = this.props;
 
     return (
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className={baseClass}>
         <InputField
           {...fields.password}
           autofocus
@@ -40,8 +41,10 @@ class ChangePasswordForm extends Component {
           label="New Password Confirmation"
           type="password"
         />
-        <Button onClick={onCancel} variant="inverse">CANCEL</Button>
-        <Button type="submit" variant="brand">CHANGE PASSWORD</Button>
+        <div className={`${baseClass}__btn-wrap`}>
+          <Button type="submit" variant="brand" className={`${baseClass}__btn`}>Change Password</Button>
+          <Button onClick={onCancel} variant="inverse" className={`${baseClass}__btn`}>Cancel</Button>
+        </div>
       </form>
     );
   }

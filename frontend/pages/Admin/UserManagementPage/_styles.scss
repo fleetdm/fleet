@@ -35,4 +35,10 @@
     @include flex-wrap(wrap);
     clear: both;
   }
+
+  &__invite-modal {
+    &.modal__modal_container {
+      width: 540px;
+    }
+  }
 }

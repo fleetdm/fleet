@@ -1,10 +1,11 @@
 import React, { Component, PropTypes } from 'react';
 
-import Button from '../../buttons/Button';
-import InputFieldWithIcon from '../fields/InputFieldWithIcon';
-import userInterface from '../../../interfaces/user';
-import validatePresence from '../validators/validate_presence';
-import validEmail from '../validators/valid_email';
+import Button from 'components/buttons/Button';
+import InputFieldWithIcon from 'components/forms/fields/InputFieldWithIcon';
+import Checkbox from 'components/forms/fields/Checkbox';
+import userInterface from 'interfaces/user';
+import validatePresence from 'components/forms/validators/validate_presence';
+import validEmail from 'components/forms/validators/valid_email';
 
 const baseClass = 'invite-user-form';
 
@@ -29,7 +30,7 @@ class InviteUserForm extends Component {
         name: null,
       },
       formData: {
-        admin: 'false',
+        admin: false,
         email: '',
         name: '',
       },
@@ -68,11 +69,9 @@ class InviteUserForm extends Component {
     };
   }
 
-  onRadioInputChange = (formField) => {
+  onCheckboxChange = (formField) => {
     return (evt) => {
-      const { value } = evt.target;
-
-      return this.onInputChange(formField)(value);
+      return this.onInputChange(formField)(evt);
     };
   };
 
@@ -85,7 +84,7 @@ class InviteUserForm extends Component {
       const { invitedBy, onSubmit } = this.props;
 
       return onSubmit({
-        admin: admin === 'true',
+        admin,
         email,
         invited_by: invitedBy.id,
         name,
@@ -129,7 +128,7 @@ class InviteUserForm extends Component {
   render () {
     const { errors, formData: { admin, email, name } } = this.state;
     const { onCancel, serverErrors } = this.props;
-    const { onFormSubmit, onInputChange, onRadioInputChange } = this;
+    const { onFormSubmit, onInputChange, onCheckboxChange } = this;
     const baseError = serverErrors.base;
 
     return (
@@ -153,23 +152,18 @@ class InviteUserForm extends Component {
           value={email}
         />
         <div className={`${baseClass}__radio`}>
-          <p className={`${baseClass}__role`}>role</p>
-          <input
-            checked={admin === 'false'}
-            onChange={onRadioInputChange('admin')}
-            type="radio"
-            value="false"
-          /> USER (default)
-          <br />
-          <input
-            checked={admin === 'true'}
-            onChange={onRadioInputChange('admin')}
-            type="radio"
-            value="true"
-          /> ADMIN
+          <p className={`${baseClass}__role`}>admin</p>
+          <Checkbox
+            name="admin"
+            onChange={onCheckboxChange('admin')}
+            value={admin}
+            wrapperClassName={`${baseClass}__invite-admin`}
+          >
+            Enable Admin
+          </Checkbox>
         </div>
         <div className={`${baseClass}__btn-wrap`}>
-          <Button className={`${baseClass}__btn`} type="submit">
+          <Button className={`${baseClass}__btn`} type="submit" variant="brand">
             Invite
           </Button>
           <Button

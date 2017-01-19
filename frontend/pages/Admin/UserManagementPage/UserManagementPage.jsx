@@ -188,8 +188,9 @@ export class UserManagementPage extends Component {
 
     return (
       <Modal
-        title="Invite new user"
+        title="Invite New User"
         onExit={toggleInviteUserModal}
+        className={`${baseClass}__invite-modal`}
       >
         <InviteUserForm
           serverErrors={inviteErrors}
