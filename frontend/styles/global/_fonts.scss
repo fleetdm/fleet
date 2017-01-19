@@ -30,7 +30,8 @@
 
 @font-face {
   font-family: 'kolidecons';
-  src: url('/assets/fonts/kolidecons/kolidecons.woff') format('woff');
+  src: url('/assets/fonts/kolidecons/kolidecons.woff2') format('woff2'),
+    url('/assets/fonts/kolidecons/kolidecons.woff') format('woff');
   font-weight: normal;
   font-style: normal;
 }
@@ -38,10 +39,9 @@
 @font-face {
   font-family: 'SourceCodePro';
   src: url('/assets/fonts/source-code-pro/SourceCodePro-Regular.eot');
-  src: url('/assets/fonts/source-code-pro/SourceCodePro-Regular.eot?#iefix')
-  format('embedded-opentype'),
-  url('/assets/fonts/source-code-pro/SourceCodePro-Regular.ttf.woff')
-  format('woff'), url('/assets/fonts/source-code-pro/SourceCodePro-Regular.ttf') format('truetype');
+  src: url('/assets/fonts/source-code-pro/SourceCodePro-Regular.eot?#iefix') format('embedded-opentype'),
+    url('/assets/fonts/source-code-pro/SourceCodePro-Regular.ttf.woff') format('woff'),
+    url('/assets/fonts/source-code-pro/SourceCodePro-Regular.ttf') format('truetype');
   font-weight: normal;
   font-style: normal; }
 
