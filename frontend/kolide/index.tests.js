@@ -4,7 +4,7 @@ import nock from 'nock';
 import Kolide from 'kolide';
 import helpers from 'kolide/helpers';
 import mocks from 'test/mocks';
-import { configOptionStub, hostStub, packStub, queryStub, userStub } from 'test/stubs';
+import { configOptionStub, hostStub, packStub, queryStub, userStub, labelStub } from 'test/stubs';
 
 const {
   invalidForgotPasswordRequest,
@@ -13,6 +13,7 @@ const {
   validCreatePackRequest,
   validCreateQueryRequest,
   validCreateScheduledQueryRequest,
+  validDestroyLabelRequest,
   validDestroyQueryRequest,
   validDestroyPackRequest,
   validDestroyScheduledQueryRequest,
@@ -72,9 +73,10 @@ describe('Kolide - API client', () => {
     });
   });
 
-  describe('#createLabel', () => {
-    it('calls the appropriate endpoint with the correct parameters', (done) => {
-      const bearerToken = 'valid-bearer-token';
+  describe('labels', () => {
+    const bearerToken = 'valid-bearer-token';
+
+    it('#createLabel', (done) => {
       const description = 'label description';
       const name = 'label name';
       const query = 'SELECT * FROM users';
@@ -94,6 +96,20 @@ describe('Kolide - API client', () => {
           done();
         })
         .catch(done);
+    });
+
+    it('#destroyLabel', (done) => {
+      const request = validDestroyLabelRequest(bearerToken, labelStub);
+
+      Kolide.setBearerToken(bearerToken);
+      Kolide.labels.destroy(labelStub)
+        .then(() => {
+          expect(request.isDone()).toEqual(true);
+          done();
+        })
+        .catch(() => {
+          throw new Error('Request should have been stubbed');
+        });
     });
   });
 

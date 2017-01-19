@@ -27,6 +27,11 @@
     }
   }
 
+  &__delete-label {
+    float: right;
+    margin-bottom: 15px;
+  }
+
   &__description {
     line-height: 1.54;
     letter-spacing: 0.5px;

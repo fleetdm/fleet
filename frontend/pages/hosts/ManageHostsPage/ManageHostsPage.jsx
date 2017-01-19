@@ -21,7 +21,10 @@ import paths from 'router/paths';
 import QueryForm from 'components/forms/queries/QueryForm';
 import QuerySidePanel from 'components/side_panels/QuerySidePanel';
 import Rocker from 'components/buttons/Rocker';
+import Button from 'components/buttons/Button';
+import Modal from 'components/modals/Modal';
 import { selectOsqueryTable } from 'redux/nodes/components/QueryPages/actions';
+import { renderFlash } from 'redux/nodes/notifications/actions';
 import statusLabelsInterface from 'interfaces/status_labels';
 import iconClassForLabel from 'utilities/icon_class_for_label';
 import platformIconClass from 'utilities/platform_icon_class';
@@ -53,6 +56,7 @@ export class ManageHostsPage extends Component {
 
     this.state = {
       labelQueryText: '',
+      showDeleteModal: false,
     };
   }
 
@@ -137,6 +141,27 @@ export class ManageHostsPage extends Component {
     return false;
   }
 
+  onDeleteLabel = () => {
+    const { toggleModal } = this;
+    const { dispatch, selectedLabel } = this.props;
+    const { MANAGE_HOSTS } = paths;
+
+    return dispatch(labelActions.destroy(selectedLabel))
+      .then(() => {
+        toggleModal();
+        dispatch(push(MANAGE_HOSTS));
+        dispatch(renderFlash('success', 'Label successfully deleted'));
+        return false;
+      });
+  }
+
+  toggleModal = () => {
+    const { showDeleteModal } = this.state;
+
+    this.setState({ showDeleteModal: !showDeleteModal });
+    return false;
+  }
+
   filterHosts = () => {
     const { hosts, selectedLabel } = this.props;
 
@@ -148,6 +173,44 @@ export class ManageHostsPage extends Component {
     const orderedHosts = orderBy(alphaHosts, 'status', 'desc');
 
     return orderedHosts;
+  }
+
+  renderModal = () => {
+    const { showDeleteModal } = this.state;
+    const { toggleModal, onDeleteLabel } = this;
+
+    if (!showDeleteModal) {
+      return false;
+    }
+
+    return (
+      <Modal
+        title="Delete Label"
+        onExit={toggleModal}
+        className={`${baseClass}__modal`}
+      >
+        <p>Are you sure you wish to delete this label?</p>
+        <div>
+          <Button onClick={toggleModal} variant="inverse">Cancel</Button>
+          <Button onClick={onDeleteLabel} variant="alert">Delete</Button>
+        </div>
+      </Modal>
+    );
+  }
+
+  renderDeleteButton = () => {
+    const { toggleModal } = this;
+    const { selectedLabel: { type } } = this.props;
+
+    if (type !== 'custom') {
+      return false;
+    }
+
+    return (
+      <div className={`${baseClass}__delete-label`}>
+        <Button onClick={toggleModal} variant="alert">Delete</Button>
+      </div>
+    );
   }
 
   renderIcon = () => {
@@ -188,7 +251,7 @@ export class ManageHostsPage extends Component {
   }
 
   renderHeader = () => {
-    const { renderIcon, renderQuery } = this;
+    const { renderIcon, renderQuery, renderDeleteButton } = this;
     const { display, isAddLabel, selectedLabel, statusLabels } = this.props;
 
     if (!selectedLabel || isAddLabel) {
@@ -209,6 +272,8 @@ export class ManageHostsPage extends Component {
 
     return (
       <div className={`${baseClass}__header`}>
+        {renderDeleteButton()}
+
         <h1 className={`${baseClass}__title`}>
           {renderIcon()}
           <span>{displayText}</span>
@@ -327,7 +392,7 @@ export class ManageHostsPage extends Component {
   }
 
   render () {
-    const { renderForm, renderHeader, renderHosts, renderSidePanel } = this;
+    const { renderForm, renderHeader, renderHosts, renderSidePanel, renderModal } = this;
     const { display, isAddLabel } = this.props;
 
     return (
@@ -343,6 +408,7 @@ export class ManageHostsPage extends Component {
         }
 
         {renderSidePanel()}
+        {renderModal()}
       </div>
     );
   }

@@ -1,8 +1,9 @@
 import React from 'react';
-import expect, { restoreSpies } from 'expect';
+import expect, { spyOn, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
+import labelActions from 'redux/nodes/entities/labels/actions';
 import ConnectedManageHostsPage, { ManageHostsPage } from 'pages/hosts/ManageHostsPage/ManageHostsPage';
 import { connectedComponent, createAceSpy, reduxMockStore, stubbedOsqueryTable } from 'test/helpers';
 import { hostStub } from 'test/stubs';
@@ -11,6 +12,7 @@ const allHostsLabel = { id: 1, display_text: 'All Hosts', slug: 'all-hosts', typ
 const windowsLabel = { id: 2, display_text: 'Windows', slug: 'windows', type: 'platform', count: 22 };
 const offlineHost = { ...hostStub, id: 111, status: 'offline' };
 const offlineHostsLabel = { id: 5, display_text: 'OFFLINE', slug: 'offline', status: 'offline', type: 'status', count: 1 };
+const customLabel = { id: 6, display_text: 'Custom Label', slug: 'custom-label', type: 'custom', count: 3 };
 const mockStore = reduxMockStore({
   components: {
     ManageHostsPage: {
@@ -36,6 +38,7 @@ const mockStore = reduxMockStore({
         3: { id: 3, display_text: 'Ubuntu', slug: 'ubuntu', type: 'platform', count: 22 },
         4: { id: 4, display_text: 'ONLINE', slug: 'online', type: 'status', count: 22 },
         5: offlineHostsLabel,
+        6: customLabel,
       },
     },
   },
@@ -180,6 +183,30 @@ describe('ManageHostsPage - component', () => {
       expect(page.find('HostSidePanel').props()).toInclude({
         selectedLabel: windowsLabel,
       });
+    });
+  });
+
+  describe('Delete a label', () => {
+    it('Deleted label after confirmation modal', () => {
+      const ownProps = { location: {}, params: { active_label: 'custom-label' } };
+      const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
+      const page = mount(component);
+      const deleteBtn = page.find('.manage-hosts__delete-label').find('button');
+
+      spyOn(labelActions, 'destroy').andCallThrough();
+
+      expect(page.find('Modal').length).toEqual(0);
+
+      deleteBtn.simulate('click');
+
+      const confirmModal = page.find('Modal');
+
+      expect(confirmModal.length).toEqual(1);
+
+      const confirmBtn = confirmModal.find('.button--alert');
+      confirmBtn.simulate('click');
+
+      expect(labelActions.destroy).toHaveBeenCalledWith(customLabel);
     });
   });
 });

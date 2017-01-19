@@ -43,6 +43,15 @@ class Kolide extends Base {
     },
   }
 
+  labels = {
+    destroy: (label) => {
+      const { LABELS } = endpoints;
+      const endpoint = this.endpoint(`${LABELS}/${label.id}`);
+
+      return this.authenticatedDelete(endpoint);
+    },
+  };
+
   createLabel = ({ description, name, query }) => {
     const { LABELS } = endpoints;
 

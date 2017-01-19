@@ -6,6 +6,7 @@ const { LABELS: schema } = schemas;
 
 export default reduxConfig({
   createFunc: Kolide.createLabel,
+  destroyFunc: Kolide.labels.destroy,
   entityName: 'labels',
   loadAllFunc: Kolide.getLabels,
   parseEntityFunc: (label) => {
