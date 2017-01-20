@@ -9,14 +9,29 @@ import iconClassForLabel from 'utilities/icon_class_for_label';
 
 const baseClass = 'hosts-table';
 
+const ActionButton = ({ host, onDestroyHost, onQueryHost }) => {
+  if (host.status === 'online') {
+    return <Button onClick={onQueryHost(host)} variant="unstyled"><Icon name="query" /></Button>;
+  }
+
+  return <Button onClick={onDestroyHost(host)} variant="unstyled"><Icon name="trash" /></Button>;
+};
+
+ActionButton.propTypes = {
+  host: hostInterface,
+  onDestroyHost: PropTypes.func,
+  onQueryHost: PropTypes.func,
+};
+
 class HostsTable extends Component {
   static propTypes = {
     hosts: PropTypes.arrayOf(hostInterface),
     onDestroyHost: PropTypes.func,
+    onQueryHost: PropTypes.func,
   };
 
   renderHost = (host) => {
-    const { onDestroyHost } = this.props;
+    const { onDestroyHost, onQueryHost } = this.props;
     const statusClassName = classnames(`${baseClass}__status`, `${baseClass}__status--${host.status}`);
 
     return (
@@ -27,7 +42,7 @@ class HostsTable extends Component {
         <td>{host.osquery_version}</td>
         <td>{host.host_ip_address}</td>
         <td>{host.host_mac}</td>
-        <td><Button onClick={onDestroyHost(host)} variant="unstyled"><Icon name="trash" /></Button></td>
+        <td><ActionButton host={host} onDestroyHost={onDestroyHost} onQueryHost={onQueryHost} /></td>
       </tr>
     );
   }

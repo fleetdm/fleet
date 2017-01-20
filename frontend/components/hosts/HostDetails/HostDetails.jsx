@@ -13,7 +13,23 @@ export const STATUSES = {
   offline: 'OFFLINE',
 };
 
-const HostDetails = ({ host, onDestroyHost }) => {
+const ActionButton = ({ host, onDestroyHost, onQueryHost }) => {
+  if (host.status === 'online') {
+    return (
+      <Button onClick={onQueryHost(host)} variant="unstyled" title="Query this host">
+        <Icon name="query" className={`${baseClass}__cta-host-icon`} />
+      </Button>
+    );
+  }
+
+  return (
+    <Button onClick={onDestroyHost(host)} variant="unstyled" title="Delete this host">
+      <Icon name="trash" className={`${baseClass}__cta-host-icon`} />
+    </Button>
+  );
+};
+
+const HostDetails = ({ host, onDestroyHost, onQueryHost }) => {
   const {
     host_cpu: hostCpu,
     host_mac: hostMac,
@@ -29,10 +45,8 @@ const HostDetails = ({ host, onDestroyHost }) => {
 
   return (
     <div className={`${baseClass} ${baseClass}--${status}`}>
-      <span className={`${baseClass}__delete-host`}>
-        <Button onClick={onDestroyHost(host)} variant="unstyled" title="Delete this host">
-          <Icon name="trash" className={`${baseClass}__delete-host-icon`} />
-        </Button>
+      <span className={`${baseClass}__cta-host`}>
+        <ActionButton host={host} onDestroyHost={onDestroyHost} onQueryHost={onQueryHost} />
       </span>
 
       <p className={`${baseClass}__status`}>{status}</p>
@@ -79,9 +93,16 @@ const HostDetails = ({ host, onDestroyHost }) => {
   );
 };
 
+ActionButton.propTypes = {
+  host: hostInterface.isRequired,
+  onDestroyHost: PropTypes.func.isRequired,
+  onQueryHost: PropTypes.func.isRequired,
+};
+
 HostDetails.propTypes = {
   host: hostInterface.isRequired,
   onDestroyHost: PropTypes.func.isRequired,
+  onQueryHost: PropTypes.func.isRequired,
 };
 
 export default HostDetails;

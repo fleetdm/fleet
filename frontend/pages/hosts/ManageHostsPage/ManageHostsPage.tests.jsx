@@ -228,7 +228,7 @@ describe('ManageHostsPage - component', () => {
       const ownProps = { location: {}, params: { active_label: 'all-hosts' } };
       const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
       const page = mount(component);
-      const deleteBtn = page.find('HostDetails').first().find('Button');
+      const deleteBtn = page.find('HostDetails').last().find('Button');
 
       spyOn(hostActions, 'destroy').andCallThrough();
 
@@ -243,7 +243,7 @@ describe('ManageHostsPage - component', () => {
       const confirmBtn = confirmModal.find('.button--alert');
       confirmBtn.simulate('click');
 
-      expect(hostActions.destroy).toHaveBeenCalledWith(hostStub);
+      expect(hostActions.destroy).toHaveBeenCalledWith(offlineHost);
     });
   });
 });

@@ -95,9 +95,8 @@ export class ManageHostsPage extends Component {
 
   onAddHostSubmit = () => {
     const { toggleAddHostModal } = this;
-    toggleAddHostModal();
 
-    console.log('Submitted the Add Host Modal');
+    toggleAddHostModal();
 
     return false;
   }
@@ -182,6 +181,22 @@ export class ManageHostsPage extends Component {
         dispatch(renderFlash('success', 'Label successfully deleted'));
         return false;
       });
+  }
+
+  onQueryHost = (host) => {
+    return (evt) => {
+      evt.preventDefault();
+
+      const { dispatch } = this.props;
+      const { NEW_QUERY } = paths;
+
+      dispatch(push({
+        pathname: NEW_QUERY,
+        query: { host_ids: [host.id] },
+      }));
+
+      return false;
+    };
   }
 
   toggleAddHostModal = () => {
@@ -420,7 +435,7 @@ export class ManageHostsPage extends Component {
 
   renderHosts = () => {
     const { display, isAddLabel, selectedLabel } = this.props;
-    const { toggleDeleteHostModal, filterHosts, sortHosts, renderNoHosts, toggleAddHostModal } = this;
+    const { toggleDeleteHostModal, filterHosts, onQueryHost, sortHosts, renderNoHosts, toggleAddHostModal } = this;
 
     if (isAddLabel) {
       return false;
@@ -444,12 +459,19 @@ export class ManageHostsPage extends Component {
             host={host}
             key={`host-${host.id}-details`}
             onDestroyHost={toggleDeleteHostModal}
+            onQueryHost={onQueryHost}
           />
         );
       });
     }
 
-    return <HostsTable hosts={sortedHosts} onDestroyHost={toggleDeleteHostModal} />;
+    return (
+      <HostsTable
+        hosts={sortedHosts}
+        onDestroyHost={toggleDeleteHostModal}
+        onQueryHost={onQueryHost}
+      />
+    );
   }
 
 

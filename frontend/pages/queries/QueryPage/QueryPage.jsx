@@ -1,7 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { push } from 'react-router-redux';
-import { first, isEqual, values } from 'lodash';
+import { first, filter, includes, isArray, isEqual, values } from 'lodash';
 import classnames from 'classnames';
 
 import Kolide from 'kolide';
@@ -11,6 +11,7 @@ import debounce from 'utilities/debounce';
 import deepDifference from 'utilities/deep_difference';
 import entityGetter from 'redux/utilities/entityGetter';
 import { formatSelectedTargetsForApi } from 'kolide/helpers';
+import hostActions from 'redux/nodes/entities/hosts/actions';
 import QueryForm from 'components/forms/queries/QueryForm';
 import osqueryTableInterface from 'interfaces/osquery_table';
 import queryActions from 'redux/nodes/entities/queries/actions';
@@ -32,6 +33,7 @@ class QueryPage extends Component {
     errors: PropTypes.shape({
       base: PropTypes.string,
     }),
+    hostIDs: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
     query: queryInterface,
     selectedOsqueryTable: osqueryTableInterface,
     selectedTargets: PropTypes.arrayOf(targetInterface),
@@ -45,6 +47,16 @@ class QueryPage extends Component {
       targetsCount: 0,
       targetsError: null,
     };
+  }
+
+  componentWillMount () {
+    const { dispatch, hostIDs } = this.props;
+
+    if (hostIDs) {
+      dispatch(hostActions.loadAll());
+    }
+
+    return false;
   }
 
   componentWillUnmount () {
@@ -289,17 +301,41 @@ class QueryPage extends Component {
   }
 }
 
-const mapStateToProps = (state, { params }) => {
-  const { id: queryID } = params;
-  const { entities: campaigns } = entityGetter(state).get('campaigns');
+const mapStateToProps = (state, ownProps) => {
+  const stateEntities = entityGetter(state);
+  const { id: queryID } = ownProps.params;
+  const { entities: campaigns } = stateEntities.get('campaigns');
   const reduxQuery = entityGetter(state).get('queries').findBy({ id: queryID });
-  const { queryText, selectedOsqueryTable, selectedTargets } = state.components.QueryPages;
+  const { queryText, selectedOsqueryTable } = state.components.QueryPages;
   const campaign = first(values(campaigns));
   const { errors } = state.entities.queries;
   const queryStub = { description: '', name: '', query: queryText };
   const query = reduxQuery || queryStub;
+  let { selectedTargets } = state.components.QueryPages;
+  const { host_ids: hostIDs } = ownProps.location.query;
 
-  return { campaign, errors, query, selectedOsqueryTable, selectedTargets };
+  // hostIDs are URL params so they are strings
+  if (hostIDs && !queryID) {
+    const { entities: hosts } = stateEntities.get('hosts');
+    let hostFilter;
+
+    if (isArray(hostIDs)) {
+      hostFilter = h => includes(hostIDs, String(h.id));
+    } else {
+      hostFilter = { id: Number(hostIDs) };
+    }
+
+    selectedTargets = filter(hosts, hostFilter);
+  }
+
+  return {
+    campaign,
+    errors,
+    hostIDs,
+    query,
+    selectedOsqueryTable,
+    selectedTargets,
+  };
 };
 
 export default connect(mapStateToProps)(QueryPage);

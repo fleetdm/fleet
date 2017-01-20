@@ -44,7 +44,7 @@
     margin: 0;
   }
 
-  &__delete-host {
+  &__cta-host {
     float: right;
 
     span {
@@ -55,7 +55,7 @@
     }
   }
 
-  &__delete-host-icon {
+  &__cta-host-icon {
     color: $link;
     font-size: 20px;
   }
