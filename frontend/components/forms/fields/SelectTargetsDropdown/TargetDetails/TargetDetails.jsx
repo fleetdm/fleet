@@ -21,10 +21,13 @@ class TargetDetails extends Component {
     handleBackToResults: noop,
   };
 
-  onlineHosts = (labelBaseClass, online) => {
+  onlineHosts = (labelBaseClass, count, online) => {
+    const offline = count - online;
+    const percentOnline = ((count - offline) / count) * 100;
+
     if (online > 0) {
       return (
-        <span className={`${labelBaseClass}__hosts-online`}> ({online}% ONLINE)</span>
+        <span className={`${labelBaseClass}__hosts-online`}> ({percentOnline}% ONLINE)</span>
       );
     }
 
@@ -128,7 +131,7 @@ class TargetDetails extends Component {
 
         <p className={`${labelBaseClass}__hosts`}>
           <span className={`${labelBaseClass}__hosts-count`}><strong>{count}</strong>HOSTS</span>
-          { onlineHosts(labelBaseClass, online) }
+          { onlineHosts(labelBaseClass, count, online) }
         </p>
 
         <p className={`${labelBaseClass}__description`}>{description || 'No Description'}</p>
