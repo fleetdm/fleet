@@ -8,18 +8,34 @@ import (
 
 type packResponse struct {
 	kolide.Pack
-	QueryCount      uint   `json:"query_count"`
-	TotalHostsCount uint   `json:"total_hosts_count"`
-	HostIDs         []uint `json:"host_ids"`
-	LabelIDs        []uint `json:"label_ids"`
+	QueryCount uint `json:"query_count"`
+
+	// All current hosts in the pack. Hosts which are selected explicty and
+	// hosts which are part of a label.
+	TotalHostsCount uint `json:"total_hosts_count"`
+
+	// IDs of hosts which were explicitly selected.
+	HostIDs  []uint `json:"host_ids"`
+	LabelIDs []uint `json:"label_ids"`
 }
 
 func packResponseForPack(ctx context.Context, svc kolide.Service, pack kolide.Pack) (*packResponse, error) {
-	queries, err := svc.GetScheduledQueriesInPack(ctx, pack.ID, kolide.ListOptions{})
+	opts := kolide.ListOptions{}
+	queries, err := svc.GetScheduledQueriesInPack(ctx, pack.ID, opts)
 	if err != nil {
 		return nil, err
 	}
-	hosts, err := svc.ListExplicitHostsInPack(ctx, pack.ID, kolide.ListOptions{})
+
+	// ListHostsInPack returns hosts which were explicitly set +
+	// the hosts which are part of a packs labels. We want both for the totals,
+	// but only the explicit host ids for the host_id field.
+	allHosts, err := svc.ListHostsInPack(ctx, pack.ID, opts)
+	if err != nil {
+		return nil, err
+	}
+	totalHostCount := uint(len(allHosts))
+
+	hosts, err := svc.ListExplicitHostsInPack(ctx, pack.ID, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +54,7 @@ func packResponseForPack(ctx context.Context, svc kolide.Service, pack kolide.Pa
 	return &packResponse{
 		Pack:            pack,
 		QueryCount:      uint(len(queries)),
-		TotalHostsCount: uint(len(hosts)),
+		TotalHostsCount: totalHostCount,
 		HostIDs:         hostIDs,
 		LabelIDs:        labelIDs,
 	}, nil
