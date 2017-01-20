@@ -114,11 +114,15 @@ func (d *Datastore) ListHosts(opt kolide.ListOptions) ([]*kolide.Host, error) {
 	return hosts, nil
 }
 
-func (d *Datastore) GenerateHostStatusStatistics(now time.Time) (online, offline, mia uint, err error) {
+func (d *Datastore) GenerateHostStatusStatistics(now time.Time) (online, offline, mia, new uint, err error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
 	for _, host := range d.hosts {
+		if host.IsNew(now) {
+			new++
+		}
+
 		status := host.Status(now)
 		switch status {
 		case kolide.StatusMIA:
@@ -130,7 +134,7 @@ func (d *Datastore) GenerateHostStatusStatistics(now time.Time) (online, offline
 		}
 	}
 
-	return online, offline, mia, nil
+	return online, offline, mia, new, nil
 }
 
 func (d *Datastore) EnrollHost(osQueryHostID string, nodeKeySize int) (*kolide.Host, error) {

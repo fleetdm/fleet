@@ -501,11 +501,12 @@ func testDistributedQueriesForHost(t *testing.T, ds kolide.Datastore) {
 func testGenerateHostStatusStatistics(t *testing.T, ds kolide.Datastore) {
 	mockClock := clock.NewMockClock()
 
-	online, offline, mia, err := ds.GenerateHostStatusStatistics(mockClock.Now())
+	online, offline, mia, new, err := ds.GenerateHostStatusStatistics(mockClock.Now())
 	assert.Nil(t, err)
 	assert.Equal(t, uint(0), online)
 	assert.Equal(t, uint(0), offline)
 	assert.Equal(t, uint(0), mia)
+	assert.Equal(t, uint(0), new)
 
 	// Online
 	_, err = ds.NewHost(&kolide.Host{
@@ -515,6 +516,9 @@ func testGenerateHostStatusStatistics(t *testing.T, ds kolide.Datastore) {
 		NodeKey:          "1",
 		DetailUpdateTime: mockClock.Now(),
 		SeenTime:         mockClock.Now(),
+		UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+			CreateTimestamp: kolide.CreateTimestamp{CreatedAt: mockClock.Now()},
+		},
 	})
 	assert.Nil(t, err)
 
@@ -526,6 +530,9 @@ func testGenerateHostStatusStatistics(t *testing.T, ds kolide.Datastore) {
 		NodeKey:          "2",
 		DetailUpdateTime: mockClock.Now().Add(-1 * time.Minute),
 		SeenTime:         mockClock.Now().Add(-1 * time.Minute),
+		UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+			CreateTimestamp: kolide.CreateTimestamp{CreatedAt: mockClock.Now()},
+		},
 	})
 	assert.Nil(t, err)
 
@@ -537,6 +544,9 @@ func testGenerateHostStatusStatistics(t *testing.T, ds kolide.Datastore) {
 		NodeKey:          "3",
 		DetailUpdateTime: mockClock.Now().Add(-1 * time.Hour),
 		SeenTime:         mockClock.Now().Add(-1 * time.Hour),
+		UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+			CreateTimestamp: kolide.CreateTimestamp{CreatedAt: mockClock.Now()},
+		},
 	})
 	assert.Nil(t, err)
 
@@ -548,14 +558,18 @@ func testGenerateHostStatusStatistics(t *testing.T, ds kolide.Datastore) {
 		NodeKey:          "4",
 		DetailUpdateTime: mockClock.Now().Add(-35 * (24 * time.Hour)),
 		SeenTime:         mockClock.Now().Add(-35 * (24 * time.Hour)),
+		UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
+			CreateTimestamp: kolide.CreateTimestamp{CreatedAt: mockClock.Now()},
+		},
 	})
 	assert.Nil(t, err)
 
-	online, offline, mia, err = ds.GenerateHostStatusStatistics(mockClock.Now())
+	online, offline, mia, new, err = ds.GenerateHostStatusStatistics(mockClock.Now())
 	assert.Nil(t, err)
 	assert.Equal(t, uint(2), online)
 	assert.Equal(t, uint(1), offline)
 	assert.Equal(t, uint(1), mia)
+	assert.Equal(t, uint(4), new)
 }
 
 func testMarkHostSeen(t *testing.T, ds kolide.Datastore) {

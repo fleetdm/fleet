@@ -9,18 +9,26 @@ import (
 )
 
 const (
-	// StatusOnline host is active
-	StatusOnline string = "online"
-	// StatusOffline no communication with host for OfflineDuration
-	StatusOffline string = "offline"
-	// StatusMIA no communition with host for MIADuration
-	StatusMIA string = "mia"
+	// StatusOnline host is active.
+	StatusOnline = "online"
+
+	// StatusOffline no communication with host for OfflineDuration.
+	StatusOffline = "offline"
+
+	// StatusMIA no communication with host for MIADuration.
+	StatusMIA = "mia"
+
+	// NewDuration if a host has been created within this time period it's
+	// considered new.
+	NewDuration = 24 * time.Hour
+
 	// OfflineDuration if a host hasn't been in communition for this
-	// period it is considered offline
-	OfflineDuration time.Duration = 30 * time.Minute
+	// period it is considered offline.
+	OfflineDuration = 30 * time.Minute
+
 	// OfflineDuration if a host hasn't been in communition for this
-	// period it is considered MIA
-	MIADuration time.Duration = 30 * 24 * time.Hour
+	// period it is considered MIA.
+	MIADuration = 30 * 24 * time.Hour
 )
 
 type HostStore interface {
@@ -32,7 +40,7 @@ type HostStore interface {
 	EnrollHost(osqueryHostId string, nodeKeySize int) (*Host, error)
 	AuthenticateHost(nodeKey string) (*Host, error)
 	MarkHostSeen(host *Host, t time.Time) error
-	GenerateHostStatusStatistics(now time.Time) (online, offline, mia uint, err error)
+	GenerateHostStatusStatistics(now time.Time) (online, offline, mia, new uint, err error)
 	SearchHosts(query string, omit ...uint) ([]*Host, error)
 	// DistributedQueriesForHost retrieves the distributed queries that the
 	// given host should run. The result map is a mapping from campaign ID
@@ -92,6 +100,7 @@ type HostSummary struct {
 	OnlineCount  uint `json:"online_count"`
 	OfflineCount uint `json:"offline_count"`
 	MIACount     uint `json:"mia_count"`
+	NewCount     uint `json:"new_count"`
 }
 
 // ResetPrimaryNetwork will determine if the PrimaryNetworkInterfaceID
@@ -147,4 +156,13 @@ func (h *Host) Status(now time.Time) string {
 	default:
 		return StatusOnline
 	}
+}
+
+func (h *Host) IsNew(now time.Time) bool {
+	withDuration := h.CreatedAt.Add(NewDuration)
+	if withDuration.After(now) ||
+		withDuration.Equal(now) {
+		return true
+	}
+	return false
 }

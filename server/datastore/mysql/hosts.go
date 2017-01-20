@@ -283,7 +283,7 @@ func (d *Datastore) ListHosts(opt kolide.ListOptions) ([]*kolide.Host, error) {
 	return hosts, nil
 }
 
-func (d *Datastore) GenerateHostStatusStatistics(now time.Time) (online, offline, mia uint, e error) {
+func (d *Datastore) GenerateHostStatusStatistics(now time.Time) (online, offline, mia, new uint, e error) {
 	sqlStatement := `
 		SELECT (
 			SELECT count(id)
@@ -300,7 +300,12 @@ func (d *Datastore) GenerateHostStatusStatistics(now time.Time) (online, offline
 			SELECT count(id)
 			FROM hosts
 			WHERE DATE_ADD(seen_time, INTERVAL 30 MINUTE) > ?
-		) AS online
+		) AS online,
+		(
+			SELECT count(id)
+			FROM hosts
+			WHERE DATE_ADD(created_at, INTERVAL 1 DAY) >= ?
+		) AS new
 		FROM hosts
 		LIMIT 1;
 	`
@@ -309,8 +314,9 @@ func (d *Datastore) GenerateHostStatusStatistics(now time.Time) (online, offline
 		MIA     uint `db:"mia"`
 		Offline uint `db:"offline"`
 		Online  uint `db:"online"`
+		New     uint `db:"new"`
 	}{}
-	err := d.db.Get(&counts, sqlStatement, now, now, now, now)
+	err := d.db.Get(&counts, sqlStatement, now, now, now, now, now)
 	if err != nil && err != sql.ErrNoRows {
 		e = errors.Wrap(err, "generating host statistics")
 		return
@@ -319,7 +325,8 @@ func (d *Datastore) GenerateHostStatusStatistics(now time.Time) (online, offline
 	mia = counts.MIA
 	offline = counts.Offline
 	online = counts.Online
-	return online, offline, mia, nil
+	new = counts.New
+	return online, offline, mia, new, nil
 }
 
 // Optimized network interface fetch for sets of hosts.  Instead of looping
