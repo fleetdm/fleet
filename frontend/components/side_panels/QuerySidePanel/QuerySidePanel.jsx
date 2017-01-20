@@ -156,20 +156,6 @@ class QuerySidePanel extends Component {
           </ul>
           {renderMoreColumns()}
         </div>
-
-        <div className={`${baseClass}__joins`}>
-          <h2 className={`${baseClass}__header`}>Joins</h2>
-          <p className={`${baseClass}__description`}>This table joins with 7 other tables.</p>
-          <ul className={`${baseClass}__joins-list`}>
-            <li><Icon name="join" /> usergroups</li>
-            <li><Icon name="join" /> asl</li>
-            <li><Icon name="join" /> browser_plugins</li>
-            <li><Icon name="join" /> crashes</li>
-            <li><Icon name="join" /> launchd_overrides</li>
-            <li><Icon name="join" /> package_bom</li>
-            <li><Icon name="join" /> process_file_events</li>
-          </ul>
-        </div>
       </SecondarySidePanelContainer>
     );
   }

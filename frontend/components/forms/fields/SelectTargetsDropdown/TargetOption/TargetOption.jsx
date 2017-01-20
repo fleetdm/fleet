@@ -22,13 +22,17 @@ class TargetOption extends Component {
 
   renderTargetDetail = () => {
     const { target } = this.props;
-    const { count, ip, target_type: targetType } = target;
+    const {
+      count,
+      host_ip_address: hostIpAddress,
+      target_type: targetType,
+    } = target;
 
     if (targetType === 'hosts') {
       return (
         <span>
           <span className={`${baseClass}__delimeter`}>&bull;</span>
-          <span className={`${baseClass}__ip`}>{ip}</span>
+          <span className={`${baseClass}__ip`}>{hostIpAddress}</span>
         </span>
       );
     }

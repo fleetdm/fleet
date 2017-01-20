@@ -5,12 +5,16 @@ const targets = {
   hosts: [
     {
       id: 3,
+      cpu_brand: 'Intel(R) Core(TM) i5-6267U CPU @ 2.90GHz',
+      cpu_physical_cores: 2,
       label: 'OS X El Capitan 10.11',
       name: 'osx-10.11',
       platform: 'darwin',
     },
     {
       id: 4,
+      cpu_brand: 'Intel(R) Core(TM) i5-6267U CPU @ 2.90GHz',
+      cpu_physical_cores: 2,
       label: 'Jason Meller\'s Macbook Pro',
       name: 'jmeller.local',
       platform: 'darwin',
@@ -34,6 +38,9 @@ describe('targets - helpers', () => {
       expect(appendTargetTypeToTargets(targets.hosts, 'hosts')).toEqual([
         {
           id: 3,
+          cpu_brand: 'Intel(R) Core(TM) i5-6267U CPU @ 2.90GHz',
+          cpu_physical_cores: 2,
+          host_cpu: '2 x 2.90GHz',
           label: 'OS X El Capitan 10.11',
           name: 'osx-10.11',
           platform: 'darwin',
@@ -41,6 +48,9 @@ describe('targets - helpers', () => {
         },
         {
           id: 4,
+          cpu_brand: 'Intel(R) Core(TM) i5-6267U CPU @ 2.90GHz',
+          cpu_physical_cores: 2,
+          host_cpu: '2 x 2.90GHz',
           label: 'Jason Meller\'s Macbook Pro',
           name: 'jmeller.local',
           platform: 'darwin',

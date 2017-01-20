@@ -25,8 +25,8 @@ class HostsTable extends Component {
         <td className={statusClassName}><Icon name={iconClassForLabel(host.status)} /></td>
         <td><PlatformIcon name={host.platform} /> {host.os_version}</td>
         <td>{host.osquery_version}</td>
-        <td>{host.ip}</td>
-        <td>{host.mac}</td>
+        <td>{host.host_ip_address}</td>
+        <td>{host.host_mac}</td>
         <td><Button onClick={onDestroyHost(host)} variant="unstyled"><Icon name="trash" /></Button></td>
       </tr>
     );

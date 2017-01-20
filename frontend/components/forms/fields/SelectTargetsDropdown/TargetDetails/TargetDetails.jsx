@@ -35,11 +35,11 @@ class TargetDetails extends Component {
     const { className, handleBackToResults, target } = this.props;
     const {
       display_text: displayText,
-      ip,
-      mac,
+      host_mac: hostMac,
+      host_ip_address: hostIpAddress,
       memory,
-      osqueryVersion,
-      osVersion,
+      osquery_version: osqueryVersion,
+      os_version: osVersion,
       platform,
       status,
     } = target;
@@ -71,11 +71,11 @@ class TargetDetails extends Component {
           <tbody>
             <tr>
               <th>IP Address</th>
-              <td>{ip}</td>
+              <td>{hostIpAddress}</td>
             </tr>
             <tr>
               <th>MAC Address</th>
-              <td><span className={`${hostBaseClass}__mac-address`}>{mac}</span></td>
+              <td><span className={`${hostBaseClass}__mac-address`}>{hostMac}</span></td>
             </tr>
             <tr>
               <th>Platform</th>
@@ -98,18 +98,6 @@ class TargetDetails extends Component {
             </tr>
           </tbody>
         </table>
-        <div className={`${hostBaseClass}__labels-wrapper`}>
-          <p className={`${hostBaseClass}__labels-header`}>
-            <Icon name="label" fw className={`${hostBaseClass}__icon`} />
-            <span>Labels</span>
-          </p>
-          <ul className={`${hostBaseClass}__labels-list`}>
-            <li>Engineering</li>
-            <li>DevOps</li>
-            <li>ElCapDev</li>
-            <li>Workstation</li>
-          </ul>
-        </div>
       </div>
     );
   }

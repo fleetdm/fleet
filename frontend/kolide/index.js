@@ -196,9 +196,8 @@ class Kolide extends Base {
       });
   }
 
-  getLabelHosts = (labelID) => {
-    const { LABEL_HOSTS } = endpoints;
-    console.log(LABEL_HOSTS(labelID));
+  getLabelHosts = () => {
+    // const { LABEL_HOSTS } = endpoints;
 
     const stubbedResponse = {
       hosts: [

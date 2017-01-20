@@ -91,6 +91,9 @@ export const hostStub = {
   status: 'online',
   display_text: '52883a0ba916',
   target_type: 'hosts',
+  host_ip_address: '172.19.0.8',
+  host_mac: '02:42:ac:13:00:08',
+  host_cpu: '1 x 2.4Ghz',
 };
 
 export const labelStub = {
@@ -111,7 +114,7 @@ export const labelStub = {
   missing_in_action: 0,
   host_ids: [],
   type: 'all',
-  target_type: 'hosts',
+  target_type: 'labels',
 };
 
 export const packStub = {
