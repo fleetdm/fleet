@@ -1,6 +1,7 @@
 import React from 'react';
 import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
+import { noop } from 'lodash';
 
 import Row from 'components/packs/PacksList/Row';
 import { packStub } from 'test/stubs';
@@ -19,6 +20,18 @@ describe('PacksList - Row - component', () => {
     component.find({ name: `select-pack-${packStub.id}` }).simulate('change');
 
     expect(spy).toHaveBeenCalledWith(false, packStub.id);
+  });
+
+  it('outputs host count', () => {
+    const packWithHosts = { ...packStub, total_hosts_count: 3 };
+    const packWithoutHosts = { ...packStub, total_hosts_count: 0 };
+    const componentWithHosts = mount(<Row checked onCheck={noop} pack={packWithHosts} />);
+    const componentWithoutHosts = mount(<Row checked onCheck={noop} pack={packWithoutHosts} />);
+
+    const hostCountWith = componentWithHosts.find('.packs-list-row__td-host-count');
+    const hostCountWithout = componentWithoutHosts.find('.packs-list-row__td-host-count');
+    expect(hostCountWith.text()).toEqual(3);
+    expect(hostCountWithout.text()).toEqual(0);
   });
 });
 

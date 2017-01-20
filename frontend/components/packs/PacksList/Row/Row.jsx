@@ -80,7 +80,7 @@ class Row extends Component {
         <td className={`${baseClass}__td ${baseClass}__td-pack-name`}>{pack.name}</td>
         <td className={`${baseClass}__td ${baseClass}__td-query-count`}>{pack.query_count}</td>
         {renderStatusData()}
-        <td />
+        <td className={`${baseClass}__td ${baseClass}__td-host-count`}>{pack.total_hosts_count}</td>
         <td className={`${baseClass}__td`}>{updatedTime}</td>
       </ClickableTableRow>
     );
