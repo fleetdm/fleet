@@ -49,11 +49,10 @@ func (d *Datastore) DeleteHost(hid uint) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
-	if _, ok := d.hosts[hid]; !ok {
-		return notFound("Host").WithID(hid)
+	if _, ok := d.hosts[hid]; ok {
+		delete(d.hosts, hid)
 	}
 
-	delete(d.hosts, hid)
 	return nil
 }
 
