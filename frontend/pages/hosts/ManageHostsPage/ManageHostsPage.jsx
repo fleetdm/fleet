@@ -1,8 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import AceEditor from 'react-ace';
 import { connect } from 'react-redux';
-import { filter, orderBy, sortBy } from 'lodash';
-import moment from 'moment';
+import { orderBy, sortBy } from 'lodash';
 import { push } from 'react-router-redux';
 
 import entityGetter from 'redux/utilities/entityGetter';
@@ -504,11 +503,6 @@ const mapStateToProps = (state, { location, params }) => {
   );
   const { selectedOsqueryTable } = state.components.QueryPages;
   const labelErrors = state.entities.labels.errors;
-
-  // TODO: remove this once the API is updated to return new_count
-  statusLabels.new_count = filter(hosts, (h) => {
-    return moment().diff(h.created_at, 'hours') <= 24;
-  }).length;
 
   return {
     display,
