@@ -25,6 +25,8 @@ Before using the following commands, set the environment variable `LOCALHOST` to
 set `KOLIDE_OSQUERY_VERSION` to either `1.8.2` or `latest` (currently 2.1.2) to indicate which version of osquery that you want to run on your
 containers.
 
+You will also need to set the environment variable `ENROLL_SECRET` to the value of your kolide enroll secret(configured during the app setup or in the app config UI).
+
 ### Running osqueryd
 
 The osqueryd instances are configured to use the TLS plugins at `$LOCALHOST:8080`. Using the `example_config.json` in this directory should configure Kolide with the appropriate settings for these `osqueryd` containers to connect.

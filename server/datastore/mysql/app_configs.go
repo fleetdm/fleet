@@ -33,6 +33,7 @@ func (d *Datastore) SaveAppConfig(info *kolide.AppConfig) error {
 			org_name,
 			org_logo_url,
 			kolide_server_url,
+			osquery_enroll_secret,
 			smtp_configured,
 			smtp_sender_address,
 			smtp_server,
@@ -46,11 +47,12 @@ func (d *Datastore) SaveAppConfig(info *kolide.AppConfig) error {
 			smtp_verify_ssl_certs,
 			smtp_enable_start_tls
 		)
-		VALUES( 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
+		VALUES( 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
 		ON DUPLICATE KEY UPDATE
 			org_name = VALUES(org_name),
 			org_logo_url = VALUES(org_logo_url),
 			kolide_server_url = VALUES(kolide_server_url),
+			osquery_enroll_secret = VALUES(osquery_enroll_secret),
 			smtp_configured = VALUES(smtp_configured),
 			smtp_sender_address = VALUES(smtp_sender_address),
 			smtp_server = VALUES(smtp_server),
@@ -69,6 +71,7 @@ func (d *Datastore) SaveAppConfig(info *kolide.AppConfig) error {
 		info.OrgName,
 		info.OrgLogoURL,
 		info.KolideServerURL,
+		info.EnrollSecret,
 		info.SMTPConfigured,
 		info.SMTPSenderAddress,
 		info.SMTPServer,

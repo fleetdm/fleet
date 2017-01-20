@@ -10,7 +10,7 @@ services:
     extra_hosts:
       - "dockerhost:${LOCALHOST}"
     environment:
-      ENROLL_SECRET: ''
+      ENROLL_SECRET: "${ENROLL_SECRET}"
     command: osqueryd --flagfile=/etc/osquery/osquery.flags
     ulimits:
       core:
@@ -25,7 +25,7 @@ services:
     extra_hosts:
       - "dockerhost:${LOCALHOST}"
     environment:
-      ENROLL_SECRET: ''
+      ENROLL_SECRET: "${ENROLL_SECRET}"
     command: osqueryd --flagfile=/etc/osquery/osquery.flags
     ulimits:
       core:

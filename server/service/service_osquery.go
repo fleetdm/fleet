@@ -50,7 +50,12 @@ func (svc service) AuthenticateHost(ctx context.Context, nodeKey string) (*kolid
 }
 
 func (svc service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string) (string, error) {
-	if enrollSecret != svc.config.Osquery.EnrollSecret {
+	config, err := svc.ds.AppConfig()
+	if err != nil {
+		return "", osqueryError{message: "getting enroll secret: " + err.Error(), nodeInvalid: true}
+	}
+
+	if enrollSecret != config.EnrollSecret {
 		return "", osqueryError{message: "invalid enroll secret", nodeInvalid: true}
 	}
 

@@ -32,7 +32,16 @@ func (svc service) NewAppConfig(ctx context.Context, p kolide.AppConfigPayload) 
 	if err != nil {
 		return nil, err
 	}
-	newConfig, err := svc.ds.NewAppConfig(appConfigFromAppConfigPayload(p, *config))
+	fromPayload := appConfigFromAppConfigPayload(p, *config)
+	if fromPayload.EnrollSecret == "" {
+		// generate a random string if the user hasn't set one in the form
+		// TODO: actually generate the string. Until there's a UI to
+		// set/view the secret, we need to be ablet o enroll hosts so this value
+		// is hardcoded.
+		rand := "qrsvavgrylfrpher"
+		fromPayload.EnrollSecret = rand
+	}
+	newConfig, err := svc.ds.NewAppConfig(fromPayload)
 	if err != nil {
 		return nil, err
 	}
@@ -94,6 +103,9 @@ func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppC
 	}
 	if p.ServerSettings != nil && p.ServerSettings.KolideServerURL != nil {
 		config.KolideServerURL = *p.ServerSettings.KolideServerURL
+	}
+	if p.ServerSettings != nil && p.ServerSettings.EnrollSecret != nil {
+		config.EnrollSecret = *p.ServerSettings.EnrollSecret
 	}
 
 	populateSMTP := func(p *kolide.SMTPSettingsPayload) {

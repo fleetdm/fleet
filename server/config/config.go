@@ -58,7 +58,6 @@ type SessionConfig struct {
 
 // OsqueryConfig defines configs related to osquery
 type OsqueryConfig struct {
-	EnrollSecret        string
 	NodeKeySize         int
 	StatusLogFile       string
 	ResultLogFile       string
@@ -122,7 +121,6 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("session.duration", 24*90*time.Hour)
 
 	// Osquery
-	man.addConfigString("osquery.enroll_secret", "")
 	man.addConfigInt("osquery.node_key_size", 24)
 	man.addConfigString("osquery.status_log_file", "/tmp/osquery_status")
 	man.addConfigString("osquery.result_log_file", "/tmp/osquery_result")
@@ -171,7 +169,6 @@ func (man Manager) LoadConfig() KolideConfig {
 			Duration: man.getConfigDuration("session.duration"),
 		},
 		Osquery: OsqueryConfig{
-			EnrollSecret:        man.getConfigString("osquery.enroll_secret"),
 			NodeKeySize:         man.getConfigInt("osquery.node_key_size"),
 			StatusLogFile:       man.getConfigString("osquery.status_log_file"),
 			ResultLogFile:       man.getConfigString("osquery.result_log_file"),
@@ -374,7 +371,6 @@ func TestConfig() KolideConfig {
 			Duration: 24 * 90 * time.Hour,
 		},
 		Osquery: OsqueryConfig{
-			EnrollSecret:        "",
 			NodeKeySize:         24,
 			StatusLogFile:       "",
 			ResultLogFile:       "",

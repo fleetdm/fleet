@@ -24,12 +24,7 @@ import (
 )
 
 func TestEnrollAgent(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	assert.Nil(t, err)
-
-	svc, err := newTestService(ds, nil)
-	assert.Nil(t, err)
-
+	ds, svc, _ := setupOsqueryTests(t)
 	ctx := context.Background()
 
 	hosts, err := ds.ListHosts(kolide.ListOptions{})
@@ -37,7 +32,7 @@ func TestEnrollAgent(t *testing.T) {
 	assert.Len(t, hosts, 0)
 
 	nodeKey, err := svc.EnrollAgent(ctx, "", "host123")
-	assert.Nil(t, err)
+	require.Nil(t, err)
 	assert.NotEmpty(t, nodeKey)
 
 	hosts, err = ds.ListHosts(kolide.ListOptions{})
@@ -46,12 +41,7 @@ func TestEnrollAgent(t *testing.T) {
 }
 
 func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	assert.Nil(t, err)
-
-	svc, err := newTestService(ds, nil)
-	assert.Nil(t, err)
-
+	ds, svc, _ := setupOsqueryTests(t)
 	ctx := context.Background()
 
 	hosts, err := ds.ListHosts(kolide.ListOptions{})
@@ -68,18 +58,11 @@ func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
 }
 
 func TestSubmitStatusLogs(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	assert.Nil(t, err)
-
-	mockClock := clock.NewMockClock()
-
-	svc, err := newTestServiceWithClock(ds, nil, mockClock)
-	assert.Nil(t, err)
-
+	ds, svc, mockClock := setupOsqueryTests(t)
 	ctx := context.Background()
 
-	_, err = svc.EnrollAgent(ctx, "", "host123")
-	assert.Nil(t, err)
+	_, err := svc.EnrollAgent(ctx, "", "host123")
+	require.Nil(t, err)
 
 	hosts, err := ds.ListHosts(kolide.ListOptions{})
 	require.Nil(t, err)
@@ -140,18 +123,11 @@ func TestSubmitStatusLogs(t *testing.T) {
 }
 
 func TestSubmitResultLogs(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	assert.Nil(t, err)
-
-	mockClock := clock.NewMockClock()
-
-	svc, err := newTestServiceWithClock(ds, nil, mockClock)
-	assert.Nil(t, err)
-
+	ds, svc, mockClock := setupOsqueryTests(t)
 	ctx := context.Background()
 
-	_, err = svc.EnrollAgent(ctx, "", "host123")
-	assert.Nil(t, err)
+	_, err := svc.EnrollAgent(ctx, "", "host123")
+	require.Nil(t, err)
 
 	hosts, err := ds.ListHosts(kolide.ListOptions{})
 	require.Nil(t, err)
@@ -249,18 +225,12 @@ func TestHostDetailQueries(t *testing.T) {
 }
 
 func TestLabelQueries(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	assert.Nil(t, err)
 
-	mockClock := clock.NewMockClock()
-
-	svc, err := newTestServiceWithClock(ds, nil, mockClock)
-	assert.Nil(t, err)
-
+	ds, svc, mockClock := setupOsqueryTests(t)
 	ctx := context.Background()
 
-	_, err = svc.EnrollAgent(ctx, "", "host123")
-	assert.Nil(t, err)
+	_, err := svc.EnrollAgent(ctx, "", "host123")
+	require.Nil(t, err)
 
 	hosts, err := ds.ListHosts(kolide.ListOptions{})
 	require.Nil(t, err)
@@ -467,14 +437,7 @@ func TestGetClientConfig(t *testing.T) {
 }
 
 func TestDetailQueries(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	assert.Nil(t, err)
-
-	mockClock := clock.NewMockClock()
-
-	svc, err := newTestServiceWithClock(ds, nil, mockClock)
-	assert.Nil(t, err)
-
+	ds, svc, mockClock := setupOsqueryTests(t)
 	ctx := context.Background()
 
 	nodeKey, err := svc.EnrollAgent(ctx, "", "host123")
@@ -617,6 +580,9 @@ func TestDistributedQueries(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
 	require.Nil(t, err)
 
+	_, err = ds.NewAppConfig(&kolide.AppConfig{EnrollSecret: ""})
+	require.Nil(t, err)
+
 	mockClock := clock.NewMockClock()
 
 	rs := pubsub.NewInmemQueryResults()
@@ -740,6 +706,9 @@ func TestOrphanedQueryCampaign(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
 	require.Nil(t, err)
 
+	_, err = ds.NewAppConfig(&kolide.AppConfig{EnrollSecret: ""})
+	require.Nil(t, err)
+
 	rs := pubsub.NewInmemQueryResults()
 
 	svc, err := newTestService(ds, rs)
@@ -791,4 +760,18 @@ func TestOrphanedQueryCampaign(t *testing.T) {
 	campaign, err = ds.DistributedQueryCampaign(campaign.ID)
 	require.Nil(t, err)
 	assert.Equal(t, kolide.QueryComplete, campaign.Status)
+}
+
+func setupOsqueryTests(t *testing.T) (kolide.Datastore, kolide.Service, *clock.MockClock) {
+	ds, err := inmem.New(config.TestConfig())
+	require.Nil(t, err)
+
+	_, err = ds.NewAppConfig(&kolide.AppConfig{EnrollSecret: ""})
+	require.Nil(t, err)
+
+	mockClock := clock.NewMockClock()
+	svc, err := newTestServiceWithClock(ds, nil, mockClock)
+	require.Nil(t, err)
+
+	return ds, svc, mockClock
 }

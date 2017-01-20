@@ -199,6 +199,8 @@ func TestGetNodeKey(t *testing.T) {
 func TestAuthenticatedHost(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
 	require.Nil(t, err)
+	_, err = ds.NewAppConfig(&kolide.AppConfig{EnrollSecret: "foobarbaz"})
+	require.Nil(t, err)
 	svc, err := newTestService(ds, nil)
 	require.Nil(t, err)
 
@@ -210,7 +212,7 @@ func TestAuthenticatedHost(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	goodNodeKey, err := svc.EnrollAgent(ctx, "", "host123")
+	goodNodeKey, err := svc.EnrollAgent(ctx, "foobarbaz", "host123")
 	assert.Nil(t, err)
 	require.NotEmpty(t, goodNodeKey)
 
