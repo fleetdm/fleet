@@ -247,6 +247,7 @@ var detailQueries = map[string]struct {
 				rows[0]["minor"],
 				rows[0]["patch"],
 			)
+			host.OSVersion = strings.Trim(host.OSVersion, ".")
 
 			if build, ok := rows[0]["build"]; ok {
 				host.Build = build
