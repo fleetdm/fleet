@@ -7,10 +7,10 @@ import swoop from '../../../../assets/images/swoop-arrow.svg';
 
 const baseClass = 'lonely-host';
 
-const LonelyHost = ({ onAddHostClick = noop }) => {
+const LonelyHost = ({ onClick = noop }) => {
   return (
     <div className={baseClass}>
-      <Button variant="unstyled" className={`${baseClass}__add-host-btn`} onClick={onAddHostClick}>
+      <Button variant="unstyled" className={`${baseClass}__add-host-btn`} onClick={onClick}>
         <span className={`${baseClass}__title`}>Add New Host</span>
         <span className={`${baseClass}__icon`}>
           <img src={laptop} className={`${baseClass}__laptop`} role="presentation" />
@@ -28,7 +28,7 @@ const LonelyHost = ({ onAddHostClick = noop }) => {
 };
 
 LonelyHost.propTypes = {
-  onAddHostClick: PropTypes.func,
+  onClick: PropTypes.func,
 };
 
 export default LonelyHost;

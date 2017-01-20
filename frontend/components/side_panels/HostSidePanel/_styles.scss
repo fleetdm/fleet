@@ -9,13 +9,13 @@
     width: 100%;
     text-align: left;
 
-    &--icon-label {
-      margin: 0 0 0 $pad-small;
-    }
-
     &:hover {
       background-color: rgba($success, 0.1);
     }
+  }
+
+  &__add-label-icon {
+    margin: 0 0 0 $pad-small;
   }
 
   &__wrapper {
@@ -73,6 +73,30 @@
     .input-field {
       padding-left: 42px;
       width: 100%;
+    }
+  }
+
+  &__add-hosts {
+    padding: 0 $pad-large;
+    width: 100%;
+    line-height: 2.25;
+    margin-top: 10px;
+    text-align: left;
+
+    span {
+      font-size: 16px;
+      font-weight: $normal;
+      line-height: normal;
+      letter-spacing: -0.5px;
+      color: $link;
+      text-transform: none;
+    }
+
+    .kolidecon {
+      margin-right: 20px;
+      font-size: 26px;
+      vertical-align: middle;
+      margin-left: -3px;
     }
   }
 }

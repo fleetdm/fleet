@@ -127,4 +127,12 @@
       margin: 0;
     }
   }
+
+  &__invite-modal {
+    .modal__header {
+      span {
+        color: #48c586;
+      }
+    }
+  }
 }

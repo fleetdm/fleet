@@ -2,6 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import { filter } from 'lodash';
 
 import Icon from 'components/icons/Icon';
+import Button from 'components/buttons/Button';
 import InputField from 'components/forms/fields/InputField';
 import labelInterface from 'interfaces/label';
 import PanelGroup from 'components/side_panels/HostSidePanel/PanelGroup';
@@ -14,6 +15,7 @@ class HostSidePanel extends Component {
   static propTypes = {
     labels: PropTypes.arrayOf(labelInterface),
     onAddLabelClick: PropTypes.func,
+    onAddHostClick: PropTypes.func,
     onLabelClick: PropTypes.func,
     selectedLabel: labelInterface,
     statusLabels: statusLabelsInterface,
@@ -33,7 +35,7 @@ class HostSidePanel extends Component {
   }
 
   render () {
-    const { labels, onAddLabelClick, onLabelClick, selectedLabel, statusLabels } = this.props;
+    const { labels, onAddHostClick, onAddLabelClick, onLabelClick, selectedLabel, statusLabels } = this.props;
     const { labelFilter } = this.state;
     const { onFilterLabels } = this;
     const allHostLabels = filter(labels, { type: 'all' });
@@ -54,6 +56,12 @@ class HostSidePanel extends Component {
           selectedLabel={selectedLabel}
           type="all-hosts"
         />
+
+        <Button variant="unstyled" onClick={onAddHostClick} className={`${baseClass}__add-hosts`}>
+          <Icon name="laptop-plus" className={`${baseClass}__add-hosts-icon`} />
+          <span>Add New Host</span>
+        </Button>
+
         <hr className={`${baseClass}__hr`} />
         <PanelGroup
           groupItems={hostStatusLabels}
@@ -91,10 +99,10 @@ class HostSidePanel extends Component {
           type="label"
         />
         <hr className={`${baseClass}__hr`} />
-        <button className={`${baseClass}__add-label-btn button button--unstyled`} onClick={onAddLabelClick}>
+        <Button variant="unstyled" onClick={onAddLabelClick} className={`${baseClass}__add-label-btn`}>
           ADD NEW LABEL
-          <Icon name="label" className={`${baseClass}__add-label-btn--icon ${baseClass}__add-label-btn--icon-label`} />
-        </button>
+          <Icon name="label" className={`${baseClass}__add-label-icon`} />
+        </Button>
       </SecondarySidePanelContainer>
     );
   }

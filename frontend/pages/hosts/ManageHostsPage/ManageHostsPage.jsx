@@ -15,6 +15,7 @@ import hostInterface from 'interfaces/host';
 import HostSidePanel from 'components/side_panels/HostSidePanel';
 import HostsTable from 'components/hosts/HostsTable';
 import LonelyHost from 'components/hosts/LonelyHost';
+import AddHostModal from 'components/hosts/AddHostModal';
 import Icon from 'components/icons/Icon';
 import PlatformIcon from 'components/icons/PlatformIcon';
 import osqueryTableInterface from 'interfaces/osquery_table';
@@ -57,6 +58,8 @@ export class ManageHostsPage extends Component {
 
     this.state = {
       labelQueryText: '',
+      showDeleteHostModal: false,
+      showAddHostModal: false,
       selectedHost: null,
       showDeleteLabelModal: false,
     };
@@ -90,6 +93,24 @@ export class ManageHostsPage extends Component {
     return false;
   }
 
+  onAddHostSubmit = () => {
+    const { toggleAddHostModal } = this;
+    toggleAddHostModal();
+
+    console.log('Submitted the Add Host Modal');
+
+    return false;
+  }
+
+  onAddHostClick = (evt) => {
+    evt.preventDefault();
+
+    const { toggleAddHostModal } = this;
+    toggleAddHostModal();
+
+    return false;
+  }
+
   onDestroyHost = (evt) => {
     evt.preventDefault();
 
@@ -98,7 +119,7 @@ export class ManageHostsPage extends Component {
 
     dispatch(hostActions.destroy(selectedHost))
       .then(() => {
-        this.toggleHostModal(null)();
+        this.toggleDeleteHostModal(null)();
 
         dispatch(getStatusLabelCounts);
         dispatch(renderFlash('success', `Host "${selectedHost.hostname}" was successfully deleted`));
@@ -150,20 +171,26 @@ export class ManageHostsPage extends Component {
   }
 
   onDeleteLabel = () => {
-    const { toggleLabelModal } = this;
+    const { toggleDeleteLabelModal } = this;
     const { dispatch, selectedLabel } = this.props;
     const { MANAGE_HOSTS } = paths;
 
     return dispatch(labelActions.destroy(selectedLabel))
       .then(() => {
-        toggleLabelModal();
+        toggleDeleteLabelModal();
         dispatch(push(MANAGE_HOSTS));
         dispatch(renderFlash('success', 'Label successfully deleted'));
         return false;
       });
   }
 
-  toggleHostModal = (selectedHost) => {
+  toggleAddHostModal = () => {
+    const { showAddHostModal } = this.state;
+    this.setState({ showAddHostModal: !showAddHostModal });
+    return false;
+  }
+
+  toggleDeleteHostModal = (selectedHost) => {
     return () => {
       const { showDeleteHostModal } = this.state;
 
@@ -176,7 +203,7 @@ export class ManageHostsPage extends Component {
     };
   }
 
-  toggleLabelModal = () => {
+  toggleDeleteLabelModal = () => {
     const { showDeleteLabelModal } = this.state;
 
     this.setState({ showDeleteLabelModal: !showDeleteLabelModal });
@@ -196,9 +223,32 @@ export class ManageHostsPage extends Component {
     return orderedHosts;
   }
 
-  renderHostModal = () => {
+  renderAddHostModal = () => {
+    const { toggleAddHostModal } = this;
+    const { showAddHostModal } = this.state;
+    const { dispatch } = this.props;
+
+    if (!showAddHostModal) {
+      return false;
+    }
+
+    return (
+      <Modal
+        title="Add New Host"
+        onExit={toggleAddHostModal}
+        className={`${baseClass}__invite-modal`}
+      >
+        <AddHostModal
+          onReturnToApp={toggleAddHostModal}
+          dispatch={dispatch}
+        />
+      </Modal>
+    );
+  }
+
+  renderDeleteHostModal = () => {
     const { showDeleteHostModal } = this.state;
-    const { toggleHostModal, onDestroyHost } = this;
+    const { toggleDeleteHostModal, onDestroyHost } = this;
 
     if (!showDeleteHostModal) {
       return false;
@@ -207,21 +257,21 @@ export class ManageHostsPage extends Component {
     return (
       <Modal
         title="Delete Host"
-        onExit={toggleHostModal(null)}
+        onExit={toggleDeleteHostModal(null)}
         className={`${baseClass}__modal`}
       >
         <p>Are you sure you wish to delete this host?</p>
         <div>
-          <Button onClick={toggleHostModal(null)} variant="inverse">Cancel</Button>
+          <Button onClick={toggleDeleteHostModal(null)} variant="inverse">Cancel</Button>
           <Button onClick={onDestroyHost} variant="alert">Delete</Button>
         </div>
       </Modal>
     );
   }
 
-  renderLabelModal = () => {
+  renderDeleteLabelModal = () => {
     const { showDeleteLabelModal } = this.state;
-    const { toggleLabelModal, onDeleteLabel } = this;
+    const { toggleDeleteLabelModal, onDeleteLabel } = this;
 
     if (!showDeleteLabelModal) {
       return false;
@@ -230,12 +280,12 @@ export class ManageHostsPage extends Component {
     return (
       <Modal
         title="Delete Label"
-        onExit={toggleLabelModal}
+        onExit={toggleDeleteLabelModal}
         className={`${baseClass}__modal`}
       >
         <p>Are you sure you wish to delete this label?</p>
         <div>
-          <Button onClick={toggleLabelModal} variant="inverse">Cancel</Button>
+          <Button onClick={toggleDeleteLabelModal} variant="inverse">Cancel</Button>
           <Button onClick={onDeleteLabel} variant="alert">Delete</Button>
         </div>
       </Modal>
@@ -243,7 +293,7 @@ export class ManageHostsPage extends Component {
   }
 
   renderDeleteButton = () => {
-    const { toggleLabelModal } = this;
+    const { toggleDeleteLabelModal } = this;
     const { selectedLabel: { type } } = this.props;
 
     if (type !== 'custom') {
@@ -252,7 +302,7 @@ export class ManageHostsPage extends Component {
 
     return (
       <div className={`${baseClass}__delete-label`}>
-        <Button onClick={toggleLabelModal} variant="alert">Delete</Button>
+        <Button onClick={toggleDeleteLabelModal} variant="alert">Delete</Button>
       </div>
     );
   }
@@ -370,7 +420,7 @@ export class ManageHostsPage extends Component {
 
   renderHosts = () => {
     const { display, isAddLabel, selectedLabel } = this.props;
-    const { toggleHostModal, filterHosts, sortHosts, renderNoHosts } = this;
+    const { toggleDeleteHostModal, filterHosts, sortHosts, renderNoHosts, toggleAddHostModal } = this;
 
     if (isAddLabel) {
       return false;
@@ -381,7 +431,7 @@ export class ManageHostsPage extends Component {
 
     if (sortedHosts.length === 0) {
       if (selectedLabel && selectedLabel.type === 'all') {
-        return <LonelyHost />;
+        return <LonelyHost onClick={toggleAddHostModal} />;
       }
 
       return renderNoHosts();
@@ -393,13 +443,13 @@ export class ManageHostsPage extends Component {
           <HostDetails
             host={host}
             key={`host-${host.id}-details`}
-            onDestroyHost={toggleHostModal}
+            onDestroyHost={toggleDeleteHostModal}
           />
         );
       });
     }
 
-    return <HostsTable hosts={sortedHosts} onDestroyHost={toggleHostModal} />;
+    return <HostsTable hosts={sortedHosts} onDestroyHost={toggleDeleteHostModal} />;
   }
 
 
@@ -440,7 +490,7 @@ export class ManageHostsPage extends Component {
       selectedOsqueryTable,
       statusLabels,
     } = this.props;
-    const { onAddLabelClick, onLabelClick, onOsqueryTableSelect } = this;
+    const { onAddHostClick, onAddLabelClick, onLabelClick, onOsqueryTableSelect } = this;
 
     if (isAddLabel) {
       SidePanel = (
@@ -455,6 +505,7 @@ export class ManageHostsPage extends Component {
         <HostSidePanel
           key="hosts-side-panel"
           labels={labels}
+          onAddHostClick={onAddHostClick}
           onAddLabelClick={onAddLabelClick}
           onLabelClick={onLabelClick}
           selectedLabel={selectedLabel}
@@ -467,7 +518,7 @@ export class ManageHostsPage extends Component {
   }
 
   render () {
-    const { renderForm, renderHeader, renderHosts, renderSidePanel, renderHostModal, renderLabelModal } = this;
+    const { renderForm, renderHeader, renderHosts, renderSidePanel, renderAddHostModal, renderDeleteHostModal, renderDeleteLabelModal } = this;
     const { display, isAddLabel } = this.props;
 
     return (
@@ -483,8 +534,9 @@ export class ManageHostsPage extends Component {
         }
 
         {renderSidePanel()}
-        {renderHostModal()}
-        {renderLabelModal()}
+        {renderAddHostModal()}
+        {renderDeleteHostModal()}
+        {renderDeleteLabelModal()}
       </div>
     );
   }
