@@ -1,0 +1,34 @@
+.edit-pack-form {
+  h1 {
+    margin: 0 0 20px;
+  }
+
+  &__pack-title {
+    .input-field {
+      width: 50%;
+    }
+  }
+
+  &__pack-description {
+    .input-field {
+      width: 75%;
+    }
+  }
+
+  &__description {
+    p {
+      &:first-child {
+        margin-top: 0;
+      }
+    }
+  }
+
+  &__pack-buttons {
+    margin: 25px 0;
+    text-align: right;
+
+    .button {
+      margin-left: 15px;
+    }
+  }
+}
