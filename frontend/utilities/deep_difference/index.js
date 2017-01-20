@@ -9,10 +9,14 @@ const deepDifference = (obj1, obj2) => {
     if (isEqual(value, obj2Value)) return;
 
     if (isArray(value) && isArray(obj2Value)) {
-      const arrayDiff = differenceWith(value, obj2Value, isEqual);
+      if (!value.length && obj2Value.length) {
+        result[key] = value;
+      } else {
+        const arrayDiff = differenceWith(value, obj2Value, isEqual);
 
-      if (arrayDiff.length) {
-        result[key] = arrayDiff;
+        if (arrayDiff.length) {
+          result[key] = arrayDiff;
+        }
       }
     } else if (isObject(value) && isObject(obj2Value)) {
       result[key] = deepDifference(value, obj2Value);

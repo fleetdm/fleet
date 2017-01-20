@@ -46,4 +46,11 @@ describe('deepDifference - utility', () => {
     expect(deepDifference(obj1, obj2)).toEqual(obj1);
     expect(deepDifference(obj2, obj1)).toEqual(obj2);
   });
+
+  it('returns an empty array when comparing an empty array against a non-empty array', () => {
+    const obj1 = { pack_name: 'My Pack', label_ids: [] };
+    const obj2 = { pack_name: 'My Pack', label_ids: [1, 2] };
+
+    expect(deepDifference(obj1, obj2)).toEqual({ label_ids: [] });
+  });
 });
