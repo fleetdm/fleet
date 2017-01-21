@@ -1,6 +1,6 @@
 import moment from 'moment';
 
-const BYTES_PER_GIGABYTE = 1000000000;
+const BYTES_PER_GIGABYTE = 1074000000;
 const NANOSECONDS_PER_MILLISECOND = 1000000;
 
 const inGigaBytes = (bytes) => {
