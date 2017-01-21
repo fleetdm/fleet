@@ -246,4 +246,22 @@ describe('ManageHostsPage - component', () => {
       expect(hostActions.destroy).toHaveBeenCalledWith(offlineHost);
     });
   });
+
+  describe('Add Host', () => {
+    it('Open the Add Host modal from sidebar', () => {
+      const page = mount(<ManageHostsPage {...props} hosts={[]} selectedLabel={allHostsLabel} />);
+      const addNewHost = page.find('.host-side-panel__add-hosts');
+      addNewHost.simulate('click');
+
+      expect(page.find('AddHostModal').length).toEqual(1);
+    });
+
+    it('Open the Add Host modal from Lonely Host', () => {
+      const page = mount(<ManageHostsPage {...props} hosts={[]} selectedLabel={allHostsLabel} />);
+      const addNewHost = page.find('LonelyHost').find('Button');
+      addNewHost.simulate('click');
+
+      expect(page.find('AddHostModal').length).toEqual(1);
+    });
+  });
 });

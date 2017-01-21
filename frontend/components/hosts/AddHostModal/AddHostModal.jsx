@@ -18,7 +18,10 @@ class AddHostModal extends Component {
   constructor (props) {
     super(props);
 
-    this.state = { revealSecret: false };
+    this.state = {
+      revealSecret: false,
+      secretText: '1234567890',
+    };
   }
 
   onCopySecret = (elementClass) => {
@@ -95,7 +98,7 @@ class AddHostModal extends Component {
                   inputWrapperClass={`${baseClass}__secret-input`}
                   name="osqueryd-secret"
                   type={revealSecret ? 'text' : 'password'}
-                  value="1234567890"
+                  value={this.state.secretText}
                 />
                 <Button variant="unstyled" className={`${baseClass}__secret-copy-icon`} onClick={onCopySecret(`.${baseClass}__secret-input`)}>
                   <Icon name="clipboard" />
