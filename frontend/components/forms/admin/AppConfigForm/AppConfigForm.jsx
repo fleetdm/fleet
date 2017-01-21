@@ -22,7 +22,7 @@ const authTypeOptions = [
 const baseClass = 'app-config-form';
 const formFields = [
   'authentication_method', 'authentication_type', 'domain', 'enable_ssl_tls', 'enable_start_tls',
-  'kolide_server_url', 'org_logo_url', 'org_name', 'password', 'port', 'sender_address',
+  'kolide_server_url', 'org_logo_url', 'org_name', 'osquery_enroll_secret', 'password', 'port', 'sender_address',
   'server', 'user_name', 'verify_ssl_certs',
 ];
 const Header = ({ showAdvancedOptions }) => {
@@ -58,7 +58,7 @@ class AppConfigForm extends Component {
   constructor (props) {
     super(props);
 
-    this.state = { showAdvancedOptions: false };
+    this.state = { revealSecret: false, showAdvancedOptions: false };
   }
 
   onToggleAdvancedOptions = (evt) => {
@@ -67,6 +67,16 @@ class AppConfigForm extends Component {
     const { showAdvancedOptions } = this.state;
 
     this.setState({ showAdvancedOptions: !showAdvancedOptions });
+
+    return false;
+  }
+
+  onToggleRevealSecret = (evt) => {
+    evt.preventDefault();
+
+    const { revealSecret } = this.state;
+
+    this.setState({ revealSecret: !revealSecret });
 
     return false;
   }
@@ -128,8 +138,8 @@ class AppConfigForm extends Component {
 
   render () {
     const { fields, handleSubmit, smtpConfigured } = this.props;
-    const { onToggleAdvancedOptions, renderAdvancedOptions, renderSmtpSection } = this;
-    const { showAdvancedOptions } = this.state;
+    const { onToggleAdvancedOptions, onToggleRevealSecret, renderAdvancedOptions, renderSmtpSection } = this;
+    const { revealSecret, showAdvancedOptions } = this.state;
 
     return (
       <form className={baseClass} onSubmit={handleSubmit}>
@@ -206,6 +216,19 @@ class AppConfigForm extends Component {
             <p>If your mail server requires authentication, you need to specify the authentication type here.</p>
             <p><strong>No Authentication</strong> - Select this if your SMTP is open.</p>
             <p><strong>Username & Password</strong> - Select this if your SMTP server requires username and password before use.</p>
+          </div>
+        </div>
+        <div className={`${baseClass}__section`}>
+          <h2>Osquery Enrollment Secret</h2>
+          <div className={`${baseClass}__inputs`}>
+            <p className={`${baseClass}__enroll-secret-label`}>
+              This is the secret that you use to connect Kolide to osquery:
+              <Button variant="unstyled" onClick={onToggleRevealSecret}>Reveal Secret</Button>
+            </p>
+            <InputField
+              {...fields.osquery_enroll_secret}
+              type={revealSecret ? 'input' : 'password'}
+            />
           </div>
         </div>
         <div className={`${baseClass}__section`}>
