@@ -20,6 +20,15 @@ class Kolide extends Base {
     return this.authenticatedPost(this.endpoint(endpoint));
   }
 
+  config = {
+    getCertificate: () => {
+      const endpoint = this.endpoint('/v1/kolide/config/certificate');
+
+      return this.authenticatedGet(endpoint)
+        .then(response => global.window.atob(response.certificate_chain));
+    },
+  }
+
   configOptions = {
     loadAll: () => {
       const { CONFIG_OPTIONS } = endpoints;

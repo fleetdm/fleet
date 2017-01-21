@@ -15,6 +15,7 @@ const offlineHost = { ...hostStub, id: 111, status: 'offline' };
 const offlineHostsLabel = { id: 5, display_text: 'OFFLINE', slug: 'offline', status: 'offline', type: 'status', count: 1 };
 const customLabel = { id: 6, display_text: 'Custom Label', slug: 'custom-label', type: 'custom', count: 3 };
 const mockStore = reduxMockStore({
+  app: { config: {} },
   components: {
     ManageHostsPage: {
       display: 'Grid',

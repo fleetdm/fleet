@@ -7,7 +7,7 @@ import EditPackForm from 'components/forms/packs/EditPackForm';
 import { fillInFormInput } from 'test/helpers';
 import { packStub } from 'test/stubs';
 
-describe.only('EditPackForm - component', () => {
+describe('EditPackForm - component', () => {
   afterEach(restoreSpies);
 
   describe('form fields', () => {

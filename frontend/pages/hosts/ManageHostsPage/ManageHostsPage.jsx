@@ -1,6 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import AceEditor from 'react-ace';
 import { connect } from 'react-redux';
+import FileSaver from 'file-saver';
 import { orderBy, sortBy } from 'lodash';
 import { push } from 'react-router-redux';
 
@@ -17,6 +18,7 @@ import HostsTable from 'components/hosts/HostsTable';
 import LonelyHost from 'components/hosts/LonelyHost';
 import AddHostModal from 'components/hosts/AddHostModal';
 import Icon from 'components/icons/Icon';
+import Kolide from 'kolide';
 import PlatformIcon from 'components/icons/PlatformIcon';
 import osqueryTableInterface from 'interfaces/osquery_table';
 import paths from 'router/paths';
@@ -44,6 +46,7 @@ export class ManageHostsPage extends Component {
       base: PropTypes.string,
     }),
     labels: PropTypes.arrayOf(labelInterface),
+    osqueryEnrollSecret: PropTypes.string,
     selectedLabel: labelInterface,
     selectedOsqueryTable: osqueryTableInterface,
     statusLabels: statusLabelsInterface,
@@ -117,6 +120,18 @@ export class ManageHostsPage extends Component {
       });
 
     return false;
+  }
+
+  onFetchCertificate = () => {
+    return Kolide.config.getCertificate()
+      .then((certificate) => {
+        const filename = `${global.window.location.host}.pem`;
+        const file = new global.window.File([certificate], filename, { type: 'application/x-pem-file' });
+
+        FileSaver.saveAs(file);
+
+        return false;
+      });
   }
 
   onLabelClick = (selectedLabel) => {
@@ -231,13 +246,14 @@ export class ManageHostsPage extends Component {
   }
 
   renderAddHostModal = () => {
-    const { toggleAddHostModal } = this;
+    const { onFetchCertificate, toggleAddHostModal } = this;
     const { showAddHostModal } = this.state;
-    const { dispatch } = this.props;
+    const { osqueryEnrollSecret } = this.props;
 
     if (!showAddHostModal) {
       return false;
     }
+
 
     return (
       <Modal
@@ -246,8 +262,9 @@ export class ManageHostsPage extends Component {
         className={`${baseClass}__invite-modal`}
       >
         <AddHostModal
+          onFetchCertificate={onFetchCertificate}
           onReturnToApp={toggleAddHostModal}
-          dispatch={dispatch}
+          osqueryEnrollSecret={osqueryEnrollSecret}
         />
       </Modal>
     );
@@ -569,6 +586,7 @@ const mapStateToProps = (state, { location, params }) => {
   );
   const { selectedOsqueryTable } = state.components.QueryPages;
   const labelErrors = state.entities.labels.errors;
+  const { osquery_enroll_secret: osqueryEnrollSecret } = state.app.config;
 
   return {
     display,
@@ -576,6 +594,7 @@ const mapStateToProps = (state, { location, params }) => {
     isAddLabel,
     labelErrors,
     labels,
+    osqueryEnrollSecret,
     selectedLabel,
     selectedOsqueryTable,
     statusLabels,
