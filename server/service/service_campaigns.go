@@ -124,6 +124,14 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 
 	lastStatus := status.Status
 
+	// to improve performance of the frontend rendering the results table, we
+	// add the "host_hostname" field to every row.
+	mapHostnameRows := func(hostname string, rows []map[string]string) {
+		for _, row := range rows {
+			row["host_hostname"] = hostname
+		}
+	}
+
 	// Loop, pushing updates to results and expected totals
 	for {
 		select {
@@ -131,9 +139,10 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			// Receive a result and push it over the websocket
 			switch res := res.(type) {
 			case kolide.DistributedQueryResult:
+				mapHostnameRows(res.Host.HostName, res.Rows)
 				err = conn.WriteJSONMessage("result", res)
 				if err != nil {
-					fmt.Println("error writing to channel")
+					svc.logger.Log("msg", "error writing to channel", "err", err)
 				}
 				status.ActualResults++
 			}
