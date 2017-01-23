@@ -34,7 +34,7 @@ const filterTarget = (targetType) => {
 
 export const formatConfigDataForServer = (config) => {
   const orgInfoAttrs = pick(config, ['org_logo_url', 'org_name']);
-  const serverSettingsAttrs = pick(config, ['kolide_server_url']);
+  const serverSettingsAttrs = pick(config, ['kolide_server_url', 'osquery_enroll_secret']);
   const smtpSettingsAttrs = pick(config, [
     'authentication_method', 'authentication_type', 'domain', 'email_enabled', 'enable_ssl_tls',
     'enable_start_tls', 'password', 'port', 'sender_address', 'server', 'user_name', 'verify_ssl_certs',
