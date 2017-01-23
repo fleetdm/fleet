@@ -17,7 +17,7 @@ type labelResponse struct {
 	Online          uint   `json:"online"`
 	Offline         uint   `json:"offline"`
 	MissingInAction uint   `json:"missing_in_action"`
-	HostIDs         []uint `json:"host_ids,omitempty"`
+	HostIDs         []uint `json:"host_ids"`
 }
 
 type getLabelResponse struct {
