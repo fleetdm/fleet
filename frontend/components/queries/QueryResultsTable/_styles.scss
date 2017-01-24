@@ -4,6 +4,10 @@
   max-width: 100%;
   box-sizing: border-box;
 
+  &__export-btn {
+    float: right;
+  }
+
   &__filter-icon {
     &--is-active {
       color: $brand;
@@ -20,6 +24,7 @@
     border-radius: 3px;
     box-shadow: inset 0 0 8px 0 rgba(0, 0, 0, 0.12);
     overflow: scroll;
+    margin-top: 20px;
     max-height: 550px;
   }
 

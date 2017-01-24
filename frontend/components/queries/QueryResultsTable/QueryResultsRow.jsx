@@ -15,13 +15,13 @@ class QueryResultsRow extends Component {
 
   render () {
     const { index, queryResult } = this.props;
-    const { hostname } = queryResult;
-    const queryAttrs = omit(queryResult, ['hostname']);
+    const { host_hostname: hostHostname } = queryResult;
+    const queryAttrs = omit(queryResult, ['host_hostname']);
     const queryAttrValues = values(queryAttrs);
 
     return (
       <tr>
-        <td>{hostname}</td>
+        <td>{hostHostname}</td>
         {queryAttrValues.map((attribute, i) => {
           return <td key={`query-results-table-row-${index}-${i}`}>{attribute}</td>;
         })}

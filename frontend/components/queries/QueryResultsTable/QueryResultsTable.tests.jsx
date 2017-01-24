@@ -1,5 +1,5 @@
 import React from 'react';
-import expect from 'expect';
+import expect, { createSpy, restoreSpies } from 'expect';
 import { keys } from 'lodash';
 import { mount } from 'enzyme';
 
@@ -48,6 +48,8 @@ const campaignWithQueryResults = {
 };
 
 describe('QueryResultsTable - component', () => {
+  afterEach(restoreSpies);
+
   const componentWithoutQueryResults = mount(
     <QueryResultsTable campaign={campaignWithNoQueryResults} />
   );
@@ -77,5 +79,18 @@ describe('QueryResultsTable - component', () => {
     queryResultKeys.forEach((key) => {
       expect(tableHeaderText).toInclude(key);
     });
+  });
+
+  it('calls the onExportQueryResults prop when the export button is clicked', () => {
+    const spy = createSpy();
+    const component = mount(<QueryResultsTable campaign={campaignWithQueryResults} onExportQueryResults={spy} />);
+
+    const exportBtn = component.find('Button');
+
+    expect(spy).toNotHaveBeenCalled();
+
+    exportBtn.simulate('click');
+
+    expect(spy).toHaveBeenCalled();
   });
 });

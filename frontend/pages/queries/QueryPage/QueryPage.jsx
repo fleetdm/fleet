@@ -1,12 +1,14 @@
 import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
-import { push } from 'react-router-redux';
-import { first, filter, includes, isArray, isEqual, values } from 'lodash';
 import classnames from 'classnames';
+import { connect } from 'react-redux';
+import FileSaver from 'file-saver';
+import { filter, includes, isArray, isEqual, size } from 'lodash';
+import moment from 'moment';
+import { push } from 'react-router-redux';
 
 import Kolide from 'kolide';
-import campaignActions from 'redux/nodes/entities/campaigns/actions';
-import campaignInterface from 'interfaces/campaign';
+import campaignHelpers from 'redux/nodes/entities/campaigns/helpers';
+import convertToCSV from 'utilities/convert_to_csv';
 import debounce from 'utilities/debounce';
 import deepDifference from 'utilities/deep_difference';
 import entityGetter from 'redux/utilities/entityGetter';
@@ -26,9 +28,8 @@ import Spinner from 'components/loaders/Spinner';
 
 const baseClass = 'query-page';
 
-class QueryPage extends Component {
+export class QueryPage extends Component {
   static propTypes = {
-    campaign: campaignInterface,
     dispatch: PropTypes.func,
     errors: PropTypes.shape({
       base: PropTypes.string,
@@ -43,10 +44,13 @@ class QueryPage extends Component {
     super(props);
 
     this.state = {
+      campaign: {},
       queryIsRunning: false,
       targetsCount: 0,
       targetsError: null,
     };
+
+    this.csvQueryName = 'Query Results';
   }
 
   componentWillMount () {
@@ -64,6 +68,38 @@ class QueryPage extends Component {
 
     removeSocket();
     destroyCampaign();
+
+    return false;
+  }
+
+  onChangeQueryFormField = (fieldName, value) => {
+    if (fieldName === 'name') {
+      this.csvQueryName = value;
+    }
+
+    return false;
+  }
+
+  onExportQueryResults = (evt) => {
+    evt.preventDefault();
+
+    const { campaign } = this.state;
+    const { query_results: queryResults } = campaign;
+
+    if (queryResults) {
+      const csv = convertToCSV(queryResults, (fields) => {
+        const result = filter(fields, f => f !== 'host_hostname');
+
+        result.unshift('host_hostname');
+
+        return result;
+      });
+      const formattedTime = moment(new Date()).format('MM-DD-YY hh-mm-ss');
+      const filename = `${this.csvQueryName} (${formattedTime}).csv`;
+      const file = new global.window.File([csv], filename, { type: 'text/csv' });
+
+      FileSaver.saveAs(file);
+    }
 
     return false;
   }
@@ -104,18 +140,17 @@ class QueryPage extends Component {
       return false;
     }
 
-    const { create, update } = campaignActions;
     const { destroyCampaign, removeSocket } = this;
     const selected = formatSelectedTargetsForApi(selectedTargets);
 
     removeSocket();
     destroyCampaign();
 
-    dispatch(create({ query: queryText, selected }))
+    Kolide.queries.run({ query: queryText, selected })
       .then((campaignResponse) => {
-        return Kolide.runQueryWebsocket(campaignResponse.id)
+        return Kolide.websockets.queries.run(campaignResponse.id)
           .then((socket) => {
-            this.campaign = campaignResponse;
+            this.setState({ campaign: campaignResponse });
             this.socket = socket;
             this.setState({ queryIsRunning: true });
 
@@ -129,10 +164,21 @@ class QueryPage extends Component {
                 return false;
               }
 
-              return dispatch(update(this.campaign, socketData))
+              return campaignHelpers.update(this.state.campaign, socketData)
                 .then((updatedCampaign) => {
+                  const { status } = updatedCampaign;
+
+                  if (status === 'finished') {
+                    this.setState({ queryIsRunning: false });
+                    removeSocket();
+
+                    return false;
+                  }
+
                   this.previousSocketData = socketData;
-                  this.campaign = updatedCampaign;
+                  this.setState({ campaign: updatedCampaign });
+
+                  return false;
                 });
             };
           });
@@ -203,12 +249,11 @@ class QueryPage extends Component {
   };
 
   destroyCampaign = () => {
-    const { campaign, dispatch } = this.props;
-    const { destroy } = campaignActions;
+    const { campaign } = this.state;
 
-    if (campaign) {
+    if (this.campaign || campaign) {
       this.campaign = null;
-      dispatch(destroy(campaign));
+      this.setState({ campaign: {} });
     }
 
     return false;
@@ -225,20 +270,21 @@ class QueryPage extends Component {
   }
 
   renderResultsTable = () => {
-    const { campaign } = this.props;
+    const { campaign } = this.state;
+    const { onExportQueryResults } = this;
     const resultsClasses = classnames(`${baseClass}__results`, 'body-wrap', {
       [`${baseClass}__results--loading`]: this.socket && !campaign.query_results,
     });
     let resultBody = '';
 
-    if (!campaign || (!this.socket && !campaign.query_results)) {
+    if (!size(campaign) || (!this.socket && !campaign.query_results)) {
       return false;
     }
 
     if ((!campaign.query_results || campaign.query_results.length < 1) && this.socket) {
       resultBody = <Spinner />;
     } else {
-      resultBody = <QueryResultsTable campaign={campaign} />;
+      resultBody = <QueryResultsTable campaign={campaign} onExportQueryResults={onExportQueryResults} />;
     }
 
     return (
@@ -250,6 +296,7 @@ class QueryPage extends Component {
 
   render () {
     const {
+      onChangeQueryFormField,
       onFetchTargets,
       onOsqueryTableSelect,
       onRunQuery,
@@ -275,6 +322,7 @@ class QueryPage extends Component {
             <QueryForm
               formData={query}
               handleSubmit={onSaveQueryFormSubmit}
+              onChangeFunc={onChangeQueryFormField}
               onFetchTargets={onFetchTargets}
               onOsqueryTableSelect={onOsqueryTableSelect}
               onRunQuery={onRunQuery}
@@ -304,10 +352,8 @@ class QueryPage extends Component {
 const mapStateToProps = (state, ownProps) => {
   const stateEntities = entityGetter(state);
   const { id: queryID } = ownProps.params;
-  const { entities: campaigns } = stateEntities.get('campaigns');
   const reduxQuery = entityGetter(state).get('queries').findBy({ id: queryID });
   const { queryText, selectedOsqueryTable } = state.components.QueryPages;
-  const campaign = first(values(campaigns));
   const { errors } = state.entities.queries;
   const queryStub = { description: '', name: '', query: queryText };
   const query = reduxQuery || queryStub;
@@ -329,7 +375,6 @@ const mapStateToProps = (state, ownProps) => {
   }
 
   return {
-    campaign,
     errors,
     hostIDs,
     query,

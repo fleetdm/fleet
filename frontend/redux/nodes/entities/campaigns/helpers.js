@@ -2,8 +2,8 @@ export const destroyFunc = (campaign) => {
   return Promise.resolve(campaign);
 };
 
-export const updateFunc = (campaign, socketData) => {
-  return new Promise((resolve, reject) => {
+export const update = (campaign, socketData) => {
+  return new Promise((resolve) => {
     const { type, data } = socketData;
 
     if (type === 'totals') {
@@ -17,9 +17,6 @@ export const updateFunc = (campaign, socketData) => {
       const queryResults = campaign.query_results || [];
       const hosts = campaign.hosts || [];
       const { host, rows } = data;
-      const newQueryResults = rows.map((row) => {
-        return { ...row, hostname: host.hostname };
-      });
 
       return resolve({
         ...campaign,
@@ -29,13 +26,19 @@ export const updateFunc = (campaign, socketData) => {
         ],
         query_results: [
           ...queryResults,
-          ...newQueryResults,
+          ...rows,
         ],
       });
     }
 
-    return reject();
+    if (type === 'status') {
+      const { status } = data;
+
+      return resolve({ ...campaign, status });
+    }
+
+    return resolve(campaign);
   });
 };
 
-export default { destroyFunc, updateFunc };
+export default { destroyFunc, update };

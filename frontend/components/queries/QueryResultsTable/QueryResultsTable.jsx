@@ -1,7 +1,8 @@
-import React, { Component } from 'react';
+import React, { Component, PropTypes } from 'react';
 import classnames from 'classnames';
 import { get, keys, omit } from 'lodash';
 
+import Button from 'components/buttons/Button';
 import campaignInterface from 'interfaces/campaign';
 import filterArrayByHash from 'utilities/filter_array_by_hash';
 import Icon from 'components/icons/Icon';
@@ -14,6 +15,7 @@ const baseClass = 'query-results-table';
 class QueryResultsTable extends Component {
   static propTypes = {
     campaign: campaignInterface.isRequired,
+    onExportQueryResults: PropTypes.func,
   };
 
   constructor (props) {
@@ -117,7 +119,7 @@ class QueryResultsTable extends Component {
   }
 
   render () {
-    const { campaign } = this.props;
+    const { campaign, onExportQueryResults } = this.props;
     const {
       renderProgressDetails,
       renderTableHeaderRow,
@@ -131,6 +133,13 @@ class QueryResultsTable extends Component {
 
     return (
       <div className={baseClass}>
+        <Button
+          className={`${baseClass}__export-btn`}
+          onClick={onExportQueryResults}
+          variant="brand"
+        >
+          Export
+        </Button>
         {renderProgressDetails()}
         <div className={`${baseClass}__table-wrapper`}>
           <table className={`${baseClass}__table`}>

@@ -296,17 +296,19 @@ describe('Kolide - API client', () => {
         .catch(done);
     });
 
-    it('#runQuery', (done) => {
-      const data = { query: 'select * from users', selected: { hosts: [], labels: [] } };
-      const request = validRunQueryRequest(bearerToken, data);
+    describe('#run', () => {
+      it('calls the correct endpoint with the correct params', (done) => {
+        const data = { query: 'select * from users', selected: { hosts: [], labels: [] } };
+        const request = validRunQueryRequest(bearerToken, data);
 
-      Kolide.setBearerToken(bearerToken);
-      Kolide.runQuery(data)
-        .then(() => {
-          expect(request.isDone()).toEqual(true);
-          done();
-        })
-        .catch(done);
+        Kolide.setBearerToken(bearerToken);
+        Kolide.queries.run(data)
+          .then(() => {
+            expect(request.isDone()).toEqual(true);
+            done();
+          })
+          .catch(done);
+      });
     });
   });
 

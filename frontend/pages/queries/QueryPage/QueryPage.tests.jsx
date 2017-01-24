@@ -1,11 +1,15 @@
+import React from 'react';
 import expect, { spyOn, restoreSpies } from 'expect';
+import FileSave from 'file-saver';
 import { mount } from 'enzyme';
+import { noop } from 'lodash';
 
+import convertToCSV from 'utilities/convert_to_csv';
 import { defaultSelectedOsqueryTable } from 'redux/nodes/components/QueryPages/actions';
 import helpers from 'test/helpers';
 import kolide from 'kolide';
 import queryActions from 'redux/nodes/entities/queries/actions';
-import QueryPage from 'pages/queries/QueryPage';
+import ConnectedQueryPage, { QueryPage } from 'pages/queries/QueryPage/QueryPage';
 import { validUpdateQueryRequest } from 'test/mocks';
 import { hostStub } from 'test/stubs';
 
@@ -37,13 +41,13 @@ describe('QueryPage - component', () => {
   });
 
   it('renders the QueryForm component', () => {
-    const page = mount(connectedComponent(QueryPage, { mockStore, props: locationProp }));
+    const page = mount(connectedComponent(ConnectedQueryPage, { mockStore, props: locationProp }));
 
     expect(page.find('QueryForm').length).toEqual(1);
   });
 
   it('renders the QuerySidePanel component', () => {
-    const page = mount(connectedComponent(QueryPage, { mockStore, props: locationProp }));
+    const page = mount(connectedComponent(ConnectedQueryPage, { mockStore, props: locationProp }));
 
     expect(page.find('QuerySidePanel').length).toEqual(1);
   });
@@ -51,15 +55,15 @@ describe('QueryPage - component', () => {
   it('sets selectedTargets based on host_ids', () => {
     const singleHostProps = { params: {}, location: { query: { host_ids: String(hostStub.id) } } };
     const multipleHostsProps = { params: {}, location: { query: { host_ids: [String(hostStub.id), '99'] } } };
-    const singleHostPage = mount(connectedComponent(QueryPage, { mockStore, props: singleHostProps }));
-    const multipleHostsPage = mount(connectedComponent(QueryPage, { mockStore, props: multipleHostsProps }));
+    const singleHostPage = mount(connectedComponent(ConnectedQueryPage, { mockStore, props: singleHostProps }));
+    const multipleHostsPage = mount(connectedComponent(ConnectedQueryPage, { mockStore, props: multipleHostsProps }));
 
     expect(singleHostPage.find('QueryPage').prop('selectedTargets')).toEqual([hostStub]);
     expect(multipleHostsPage.find('QueryPage').prop('selectedTargets')).toEqual([hostStub, { ...hostStub, id: 99 }]);
   });
 
   it('sets targetError in state when the query is run and there are no selected targets', () => {
-    const page = mount(connectedComponent(QueryPage, { mockStore, props: locationProp }));
+    const page = mount(connectedComponent(ConnectedQueryPage, { mockStore, props: locationProp }));
     const form = page.find('QueryForm');
     const runQueryBtn = form.find('.query-form__run-query-btn');
 
@@ -91,7 +95,7 @@ describe('QueryPage - component', () => {
         },
       },
     });
-    const page = mount(connectedComponent(QueryPage, {
+    const page = mount(connectedComponent(ConnectedQueryPage, {
       mockStore: mockStoreWithQuery,
       props: locationWithQueryProp,
     }));
@@ -113,6 +117,27 @@ describe('QueryPage - component', () => {
     expect(queryActions.update).toHaveBeenCalledWith(query, { name: 'new name' });
     expect(mockStoreWithQuery.getActions()).toInclude({
       type: 'queries_UPDATE_REQUEST',
+    });
+  });
+
+  describe('export as csv', () => {
+    it('exports the campaign query results in csv format', () => {
+      const queryResult = { org_name: 'Kolide', org_url: 'https://kolide.co' };
+      const campaign = { id: 1, query_results: [queryResult] };
+      const queryResultsCSV = convertToCSV([queryResult]);
+      const fileSaveSpy = spyOn(FileSave, 'saveAs');
+      const Page = mount(<QueryPage dispatch={noop} selectedOsqueryTable={defaultSelectedOsqueryTable} />);
+      const filename = 'query_results.csv';
+      const fileStub = new global.window.File([queryResultsCSV], filename, { type: 'text/csv' });
+
+      Page.setState({ campaign });
+      Page.node.socket = {};
+
+      const QueryResultsTable = Page.find('QueryResultsTable');
+
+      QueryResultsTable.find('Button').simulate('click');
+
+      expect(fileSaveSpy).toHaveBeenCalledWith(fileStub);
     });
   });
 });
