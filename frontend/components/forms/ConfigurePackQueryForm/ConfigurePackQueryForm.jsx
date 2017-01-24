@@ -11,7 +11,7 @@ import validate from 'components/forms/ConfigurePackQueryForm/validate';
 const baseClass = 'configure-pack-query-form';
 const fieldNames = ['query_id', 'interval', 'logging_type', 'platform', 'version'];
 const platformOptions = [
-  { label: 'All', value: '' },
+  { label: 'All', value: 'all' },
   { label: 'Windows', value: 'windows' },
   { label: 'Linux', value: 'linux' },
   { label: 'macOS', value: 'darwin' },
@@ -73,6 +73,7 @@ class ConfigurePackQueryForm extends Component {
             options={platformOptions}
             placeholder="- - -"
             label="Platform"
+            multi
             wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
           />
           <Dropdown

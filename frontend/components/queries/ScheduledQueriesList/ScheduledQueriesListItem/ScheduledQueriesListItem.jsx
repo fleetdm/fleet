@@ -42,10 +42,21 @@ class ScheduledQueriesListItem extends Component {
     return 'bold-plus';
   }
 
+  renderPlatformIcon = () => {
+    const { scheduledQuery: { platform } } = this.props;
+    const platformArr = platform.split(',');
+
+    if (platformArr.includes('all')) {
+      return <PlatformIcon name="" />;
+    }
+
+    return platformArr.map((pltf, idx) => <PlatformIcon name={pltf} key={`${idx}-${pltf}`} />);
+  }
+
   render () {
     const { checked, disabled, scheduledQuery } = this.props;
-    const { onCheck } = this;
-    const { id, name, interval, platform, version } = scheduledQuery;
+    const { onCheck, renderPlatformIcon } = this;
+    const { id, name, interval, version } = scheduledQuery;
     const { loggingTypeString } = this;
 
     return (
@@ -60,7 +71,7 @@ class ScheduledQueriesListItem extends Component {
         </td>
         <td className="scheduled-queries-list__query-name">{name}</td>
         <td>{interval}</td>
-        <td><PlatformIcon name={platform} /></td>
+        <td>{renderPlatformIcon()}</td>
         <td>{version ? `${version}+` : 'Any'}</td>
         <td><Icon name={loggingTypeString()} /></td>
       </tr>

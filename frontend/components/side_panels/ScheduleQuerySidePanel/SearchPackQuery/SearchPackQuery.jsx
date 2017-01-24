@@ -93,7 +93,7 @@ class SearchPackQuery extends Component {
       return (
         <div className={`${baseClass}__description`}>
           <h2>description</h2>
-          <p>{selectedQuery.description}</p>
+          <p>{selectedQuery.description || <em>No description available.</em>}</p>
         </div>
       );
     }

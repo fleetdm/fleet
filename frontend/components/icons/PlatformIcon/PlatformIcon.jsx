@@ -19,9 +19,10 @@ export class PlatformIcon extends Component {
     const { className, name, fw, size, title } = this.props;
     const iconClasses = classnames(baseClass, className);
     const iconName = platformIconClass(name);
+    const properNameCase = name.charAt(0).toUpperCase() + name.slice(1);
 
     if (!iconName) {
-      return <span className={iconClasses}>{name || 'All'}</span>;
+      return <span className={iconClasses}>{properNameCase || 'All'}</span>;
     }
 
     return (
