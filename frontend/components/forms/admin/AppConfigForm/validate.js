@@ -1,5 +1,9 @@
 import { size, some } from 'lodash';
 
+import APP_CONSTANTS from 'app_constants';
+
+const { APP_SETTINGS } = APP_CONSTANTS;
+
 export default (formData) => {
   const errors = {};
   const {
@@ -21,7 +25,7 @@ export default (formData) => {
     errors.org_name = 'Organization Name must be present';
   }
 
-  if (some([smtpSenderAddress, smtpPassword, smtpServer, smtpUserName])) {
+  if (some([smtpSenderAddress, smtpServer, smtpUserName]) || (smtpPassword && smtpPassword !== APP_SETTINGS.FAKE_PASSWORD)) {
     if (!smtpSenderAddress) {
       errors.sender_address = 'SMTP Sender Address must be present';
     }

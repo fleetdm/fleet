@@ -117,6 +117,37 @@ describe('AppConfigForm - validations', () => {
       });
     });
 
+    it('does not validate smtp config if only password is present and it is the fake password', () => {
+      const formData = {
+        ...validFormData,
+        user_name: '',
+        server: '',
+        sender_address: '',
+        password: '********',
+      };
+      const invalidFormData = {
+        ...validFormData,
+        user_name: '',
+        server: '',
+        sender_address: '',
+        password: 'newPassword',
+      };
+
+      expect(validate(formData)).toEqual({
+        valid: true,
+        errors: {},
+      });
+
+      expect(validate(invalidFormData)).toEqual({
+        valid: false,
+        errors: {
+          sender_address: 'SMTP Sender Address must be present',
+          server: 'SMTP Server must be present',
+          user_name: 'SMTP Username must be present',
+        },
+      });
+    });
+
     it('does not validate the user_name and password if the auth type is "none"', () => {
       const formData = {
         ...validFormData,
