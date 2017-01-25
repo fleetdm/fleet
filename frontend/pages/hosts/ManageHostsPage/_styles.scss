@@ -73,6 +73,15 @@
   }
 
   &__modal {
+    p {
+      font-size: 16px;
+    }
+  }
+
+  &__modal-buttons {
+    @include display(flex);
+    @include flex-direction(row-reverse);
+
     .button--alert {
       margin-left: 10px;
     }

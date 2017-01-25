@@ -284,10 +284,11 @@ export class ManageHostsPage extends Component {
         onExit={toggleDeleteHostModal(null)}
         className={`${baseClass}__modal`}
       >
-        <p>Are you sure you wish to delete this host?</p>
-        <div>
-          <Button onClick={toggleDeleteHostModal(null)} variant="inverse">Cancel</Button>
+        <p>This action will delete the host from your Kolide instance.</p>
+        <p>If the host comes back online it will automatically re-enroll. To prevent the host from auto re-enrolling please disable or uninstall osquery on the host.</p>
+        <div className={`${baseClass}__modal-buttons`}>
           <Button onClick={onDestroyHost} variant="alert">Delete</Button>
+          <Button onClick={toggleDeleteHostModal(null)} variant="inverse">Cancel</Button>
         </div>
       </Modal>
     );
