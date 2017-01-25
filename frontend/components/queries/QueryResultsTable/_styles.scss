@@ -43,6 +43,14 @@
     th {
       padding: $pad-small $pad-xsmall;
       min-width: 125px;
+
+      span {
+        white-space: nowrap;
+
+        .kolidecon {
+          margin-right: 5px;
+        }
+      }
     }
 
     .input-field {
@@ -52,14 +60,9 @@
 
   tbody {
     background-color: $white;
-    // height: 550px;
-    // min-width: 100%;
-    // overflow: auto;
-    // display: inline-block;
 
     td {
       padding: $pad-xsmall;
-      // min-width: 125px;
     }
 
     tr {
