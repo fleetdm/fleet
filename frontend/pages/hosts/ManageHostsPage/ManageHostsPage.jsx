@@ -248,12 +248,11 @@ export class ManageHostsPage extends Component {
   renderAddHostModal = () => {
     const { onFetchCertificate, toggleAddHostModal } = this;
     const { showAddHostModal } = this.state;
-    const { osqueryEnrollSecret } = this.props;
+    const { dispatch, osqueryEnrollSecret } = this.props;
 
     if (!showAddHostModal) {
       return false;
     }
-
 
     return (
       <Modal
@@ -262,6 +261,7 @@ export class ManageHostsPage extends Component {
         className={`${baseClass}__invite-modal`}
       >
         <AddHostModal
+          dispatch={dispatch}
           onFetchCertificate={onFetchCertificate}
           onReturnToApp={toggleAddHostModal}
           osqueryEnrollSecret={osqueryEnrollSecret}

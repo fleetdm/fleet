@@ -85,7 +85,6 @@ class AddHostModal extends Component {
               </p>
               <div className={`${baseClass}__secret-wrapper`}>
                 <InputField
-                  disabled
                   inputWrapperClass={`${baseClass}__secret-input`}
                   name="osqueryd-secret"
                   type={revealSecret ? 'text' : 'password'}
