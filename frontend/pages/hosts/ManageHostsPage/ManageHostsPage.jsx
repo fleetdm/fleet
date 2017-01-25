@@ -78,6 +78,28 @@ export class ManageHostsPage extends Component {
     return false;
   }
 
+  componentDidMount () {
+    const { dispatch } = this.props;
+    const getLabels = () => {
+      dispatch(labelActions.loadAll());
+      dispatch(getStatusLabelCounts);
+    };
+
+    this.interval = global.window.setInterval(getLabels, 5000);
+
+    return false;
+  }
+
+  componentWillUnmount () {
+    if (this.interval) {
+      global.window.clearInterval(this.interval);
+
+      this.interval = null;
+    }
+
+    return false;
+  }
+
   onAddLabelClick = (evt) => {
     evt.preventDefault();
 
