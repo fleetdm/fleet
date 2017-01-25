@@ -25,7 +25,7 @@ You can specify the path to this certificate with the `--tls_server_certs` flag 
 
 ## Launching osqueryd
 
-Assuming that you arere deploying your enrollment secret as the environment variable `OSQUERY_ENROLL_SECRET` and your osquery server certificate is at `/etc/osquery/kolide.crt`, you could copy and paste the following command with the following flags (be sure to replace acme.kolide.co with the hostname for your Kolide installation):
+Assuming that you are deploying your enrollment secret as the environment variable `OSQUERY_ENROLL_SECRET` and your osquery server certificate is at `/etc/osquery/kolide.crt`, you could copy and paste the following command with the following flags (be sure to replace acme.kolide.co with the hostname for your Kolide installation):
 
 ```
 osqueryd
@@ -52,12 +52,34 @@ If your osquery server certificate is deployed to a path that is not `/etc/osque
 
 ### Using a flag file to manage flags
 
-For your convenience, osqueryd supports putting all of your flags into a single file. This file is commonly deployed to `/etc/osquery/osquery.flags`. If you've deployed the appropriate osquery flags to that path, you could simply launch osquery via:
+For your convenience, osqueryd supports putting all of your flags into a single file. We suggest deploying this file to `/etc/osquery/kolide.flags`. If you've deployed the appropriate osquery flags to that path, you could simply launch osquery via:
 
 ```
-osqueryd --flagfile=/etc/osquery/osquery.flags
+osqueryd --flagfile=/etc/osquery/kolide.flags
 ```
 
-## Configuration Management
+## Enrolling multiple macOS hosts
 
-We recommend that you use an infrastructure configuration management tool to manage these osquery configurations consistently across your environment. If you're unsure about what configuration management tools your organization uses, contact your company's system administrators. If you are evaluating new solutions for this problem, the founders of Kolide have successfully managed configurations in large production environments using [Chef](https://www.chef.io/chef/) and [Puppet](https://puppet.com/).
+If you're managing an enterprise environment with multiple Mac devices, you likely have an enterprise deployment tool like [Munki](https://www.munki.org/munki/) or [Jamf Pro](https://www.jamf.com/products/jamf-pro/) to deliver software to your mac fleet. You can deploy osqueryd and enroll all your macs into Kolide using your software management tool of choice.
+
+First, [download](https://osquery.io/downloads/) and import the osquery package into your software management repository. You can also use the community supported [autopkg recipe](https://github.com/autopkg/keeleysam-recipes/tree/master/osquery)
+to keep osqueryd updated.
+
+Next, you will have to create an enrollment package to get osqueryd running and talking to Kolide. Specifically, you'll have to create a custom package because you have to provide specific information about your Kolide deployment. To make this as easy as possible, we've created a Makefile to help you build a macOS enrollment package.
+
+First, download the Kolide repository from GitHub and navigate to the `tools/mac` directory of the repository.
+
+Next, you'll have to edit the `config.mk` file. You'll find all of the necessary information by clicking "Add New Host" in your kolide server.
+
+ - Set the `KOLIDE_HOSTNAME` variable to the FQDN of your Kolide server.
+ - Set the `ENROLL_SECRET` variable to the enroll secret you got from Kolide.
+ - Paste the contents of the Kolide TLS certificate after the following line:
+      ```
+      define KOLIDE_TLS_CERTIFICATE
+      ```
+
+Note that osqueryd requires a full certificate chain, even for certificates which might be trusted by your keychain. The "Fetch Kolide Certificate" button in the Add New Host screen will attempt to fetch the full chain for you.
+
+Once you've configured the `config.mk` file with the correct variables, you can run `make` in the `tools/mac` directory. Running `make` will create a new `kolide-enroll.pkg` file which you can import into your software repository and deploy to your mac fleet.
+
+The enrollment package must installed after the osqueryd package, and will install a LaunchDaemon to keep the osqueryd process running.

@@ -1,3 +1,11 @@
-# Kolide Documentation
+Kolide Documentation
+====================
 
-Please make sure that you use the documents that match your Kolide version. The version number should be a part of the page URL. If it's not, you are probably using the documentation of a development branch which may contain  changes that are not compatible with your Kolide version.
+Welcome to the Kolide documentation.
+
+- Information about using the Kolide web application can be found in the [Application Documentation](./application/README.md).
+- Resources for deploying osquery to hosts, deploying the Kolide server, installing Kolide's infrastructure dependencies, etc. can all be found in the [Infrastructure Documentation](./infrastructure/README.md).
+- If you are interested in accessing the Kolide REST API in order to programatially interact with your osquery installation, please see the [API Documentation](./api/README.md).
+- Finally, if you're interested in interacting with the Kolide source code, you will find information on modifying and building the code in the [Development Documentation](./development/README.md).
+
+If you have any questions, please don't hesitate to reach out to [support@kolide.co](mailto:support@kolide.co).
