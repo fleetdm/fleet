@@ -14,6 +14,6 @@
   padding-top: $pad-base;
 
   @include breakpoint(smalldesk) {
-    width: 300px;
+    width: $sidepanel-tablet-width;
   }
 }

@@ -77,7 +77,7 @@ a {
     max-width: calc(100vw - #{$nav-width} - #{$pad-base} - #{$pad-base} - #{$sidepanel-width});
 
     @include breakpoint(smalldesk) {
-      max-width: calc(100vw - #{$nav-tablet-width} - #{$pad-base} - #{$pad-base} - #{$sidepanel-width});
+      max-width: calc(100vw - #{$nav-tablet-width} - #{$pad-base} - #{$pad-base} - #{$sidepanel-tablet-width});
     }
   }
 }
