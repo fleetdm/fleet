@@ -151,11 +151,11 @@ describe('AllPacksPage - component', () => {
       const mockStore = reduxMockStore(store);
       const Component = connectedComponent(ConnectedAllPacksPage, { mockStore });
       const page = mount(Component).find('AllPacksPage');
-      const firstRow = page.find('Row').first();
+      const firstRow = page.find('Row').last();
 
       expect(page.prop('selectedPack')).toNotExist();
 
-      firstRow.find('ClickableTableRow').first().simulate('click');
+      firstRow.find('ClickableTableRow').last().simulate('click');
 
       const dispatchedActions = mockStore.getActions();
       const locationChangeAction = find(dispatchedActions, { type: '@@router/CALL_HISTORY_METHOD' });

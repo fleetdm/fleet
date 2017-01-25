@@ -1,6 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import classnames from 'classnames';
-import { includes, size } from 'lodash';
+import { includes, sortBy, size } from 'lodash';
 
 import queryInterface from 'interfaces/query';
 import Icon from 'components/icons/Icon';
@@ -110,7 +110,7 @@ class ScheduledQueriesList extends Component {
           </thead>
           <tbody>
             {renderHelpText()}
-            {!!scheduledQueries.length && scheduledQueries.map((scheduledQuery) => {
+            {!!scheduledQueries.length && sortBy(scheduledQueries, ['name']).map((scheduledQuery) => {
               return (
                 <QueriesListItem
                   checked={this.isChecked(scheduledQuery)}

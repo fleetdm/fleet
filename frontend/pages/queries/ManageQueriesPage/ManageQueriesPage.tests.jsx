@@ -161,11 +161,11 @@ describe('ManageQueriesPage - component', () => {
       const mockStore = reduxMockStore(store);
       const Component = connectedComponent(ConnectedManageQueriesPage, { mockStore });
       const page = mount(Component).find('ManageQueriesPage');
-      const firstRow = page.find('QueriesListRow').first();
+      const firstRow = page.find('QueriesListRow').last();
 
       expect(page.prop('selectedQuery')).toNotExist();
 
-      firstRow.find('ClickableTableRow').first().simulate('click');
+      firstRow.find('ClickableTableRow').last().simulate('click');
 
       const dispatchedActions = mockStore.getActions();
       const locationChangeAction = find(dispatchedActions, { type: '@@router/CALL_HISTORY_METHOD' });

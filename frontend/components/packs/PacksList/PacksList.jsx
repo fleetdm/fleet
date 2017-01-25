@@ -1,6 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import classnames from 'classnames';
-import { includes } from 'lodash';
+import { includes, orderBy } from 'lodash';
 
 import Checkbox from 'components/forms/fields/Checkbox';
 import packInterface from 'interfaces/pack';
@@ -85,7 +85,7 @@ class PacksList extends Component {
         </thead>
         <tbody>
           {renderHelpText()}
-          {!!packs.length && packs.map(pack => renderPack(pack))}
+          {!!packs.length && orderBy(packs, ['name']).map(pack => renderPack(pack))}
         </tbody>
       </table>
     );

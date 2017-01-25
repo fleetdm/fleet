@@ -1,6 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import AceEditor from 'react-ace';
-import { isEqual } from 'lodash';
+import { isEqual, sortBy } from 'lodash';
 
 import Icon from 'components/icons/Icon';
 import queryInterface from 'interfaces/query';
@@ -34,7 +34,9 @@ class SearchPackQuery extends Component {
       return { label: query.name, value: String(query.id) };
     });
 
-    this.setState({ queryDropdownOptions });
+    this.setState({
+      queryDropdownOptions: sortBy(queryDropdownOptions, ['label']),
+    });
   }
 
   componentWillReceiveProps (nextProps) {
@@ -45,7 +47,9 @@ class SearchPackQuery extends Component {
         return { label: query.name, value: String(query.id) };
       });
 
-      this.setState({ queryDropdownOptions });
+      this.setState({
+        queryDropdownOptions: sortBy(queryDropdownOptions, ['label']),
+      });
     }
   }
 
