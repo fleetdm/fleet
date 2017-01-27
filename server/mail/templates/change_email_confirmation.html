@@ -1,0 +1,91 @@
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link href="https://fonts.googleapis.com/css?family=Oxygen:400,700" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Oxygen', sans-serif;
+      }
+
+      h1 {
+        font-weight: normal;
+        margin: 20px 0 40px 0;
+      }
+
+      p {
+        line-height: 2.0;
+      }
+
+      a {
+        text-decoration: none;
+        color: #4a90e2;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      @media only screen and (max-device-width: 480px) {
+        table {
+          width: 100% !important;
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+
+        td {
+          width: 100% !important;
+          padding: 20px !important;
+        }
+      }
+
+    </style>
+  </head>
+  <body>
+    <table align="center" border="0" cellpadding="0" cellspacing="0" height="100%" width="100%" bgcolor="#f4f6fb" style="background: #f4f6fb; font-family: 'Oxygen', Arial, sans-serif; color: #66696f; border-collapse:collapse;">
+      <tr>
+        <td valign="top" align="center">
+          <table width="580" align="center" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="margin: 20px 10px;">
+            <tr>
+              <td colspan="2" bgcolor="#ffffff" style="padding:20px; font-family: 'Oxygen', Arial, sans-serif;">
+                <img src="{{.KolideServerURL}}/assets/images/kolide-logo-color@2x.png" width="174" height="48" />
+              </td>
+            </tr>
+            <tr>
+              <td colspan="2" style="padding:60px; font-family: 'Oxygen', Arial, sans-serif;">
+                <h1>Change Confirmation</h1>
+                <p><strong>Hello,</strong></p>
+                <p>This message is to confirm that the email address you recently changed actually works.  Please click the link below to confirm that you want to change your email address in Kolide.</p>
+                <table bgcolor="#f4f6fb" height="100px" cellpadding="20px">
+                  <tr>
+                    <td style="font-family: 'Oxygen', Arial, sans-serif;">
+                      <a href="{{.KolideServerURL}}/email/change/{{.Token}}">{{.KolideServerURL}}/email/change/{{.Token}}</a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr bgcolor="#9ca3ac">
+              <td valign="middle" align="left" style="padding:10px 20px; font-family: 'Oxygen', Arial, sans-serif; color: #fff;">
+                <a href="https://docs.kolide.co" style="color: #fff; text-decoration: none;">Help</a>
+              </td>
+              <td valign="middle" align="right" style="padding:10px 20px; font-family: 'Oxygen', Arial, sans-serif;">
+                <a href="https://kolide.co" style="text-decoration: none;"><img src="{{.KolideServerURL}}/assets/images/kolide-white@2x.png" width="122" height="33" /></a>
+              </td>
+            </tr>
+            <tr bgcolor="#f4f6fb">
+              <td colspan="2" style="padding:20px; font-family: 'Oxygen', Arial, sans-serif; color: '#66696f'; font-size: 13px;">
+                Please do no reply directly to this email. We are unable to respond
+                to inquires sent to this address. For immediate answers to your
+                questions, please email
+                <a href="mailto:support@kolide.co">support@kolide.co</a>
+                <br>
+                <br>
+              </td>
+            </tr>
+          </table>
+          <br>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

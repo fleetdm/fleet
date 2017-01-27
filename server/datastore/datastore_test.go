@@ -69,4 +69,5 @@ var testFunctions = [...]func(*testing.T, kolide.Datastore){
 	testMarkHostSeen,
 	testDuplicateNewQuery,
 	testIdempotentDeleteHost,
+	testChangeEmail,
 }

@@ -18,6 +18,10 @@ type UserByIDFunc func(id uint) (*kolide.User, error)
 
 type SaveUserFunc func(user *kolide.User) error
 
+type PendingEmailChangeFunc func(uid uint, newEmail string, token string) error
+
+type ChangeUserEmailFunc func(token string) (string, error)
+
 type UserStore struct {
 	NewUserFunc        NewUserFunc
 	NewUserFuncInvoked bool
@@ -36,6 +40,12 @@ type UserStore struct {
 
 	SaveUserFunc        SaveUserFunc
 	SaveUserFuncInvoked bool
+
+	PendingEmailChangeFunc        PendingEmailChangeFunc
+	PendingEmailChangeFuncInvoked bool
+
+	ChangeUserEmailFunc        ChangeUserEmailFunc
+	ChangeUserEmailFuncInvoked bool
 }
 
 func (s *UserStore) NewUser(user *kolide.User) (*kolide.User, error) {
@@ -66,4 +76,14 @@ func (s *UserStore) UserByID(id uint) (*kolide.User, error) {
 func (s *UserStore) SaveUser(user *kolide.User) error {
 	s.SaveUserFuncInvoked = true
 	return s.SaveUserFunc(user)
+}
+
+func (s *UserStore) PendingEmailChange(uid uint, newEmail string, token string) error {
+	s.PendingEmailChangeFuncInvoked = true
+	return s.PendingEmailChangeFunc(uid, newEmail, token)
+}
+
+func (s *UserStore) ConfirmPendingEmailChange(token string) (string, error) {
+	s.ChangeUserEmailFuncInvoked = true
+	return s.ChangeUserEmailFunc(token)
 }

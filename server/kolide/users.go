@@ -1,9 +1,11 @@
 package kolide
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"html/template"
 
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/net/context"
@@ -17,6 +19,13 @@ type UserStore interface {
 	UserByEmail(email string) (*User, error)
 	UserByID(id uint) (*User, error)
 	SaveUser(user *User) error
+	// PendingEmailChange creates a record with a pending email change for a user identified
+	// by uid. The change record is keyed by a unique token. The token is emailed to the user
+	// with a link that they can use to confirm the change.
+	PendingEmailChange(userID uint, newEmail, token string) error
+	// ConfirmPendingEmailChange will confirm new email address identified by token is valid.
+	// The new email will be written to user record.
+	ConfirmPendingEmailChange(token string) (string, error)
 }
 
 // UserService contains methods for managing a Kolide User.
@@ -70,6 +79,10 @@ type UserService interface {
 
 	// ChangeUserEnabled is used to enable/disable the user identified by id.
 	ChangeUserEnabled(ctx context.Context, id uint, isEnabled bool) (*User, error)
+
+	// ChangeUserEmail is used to confirm new email address and if confirmed,
+	// write the new email address to user.
+	ChangeUserEmail(ctx context.Context, token string) (string, error)
 }
 
 // User is the model struct which represents a kolide user
@@ -171,4 +184,22 @@ func falseIfNil(b *bool) bool {
 		return false
 	}
 	return *b
+}
+
+type ChangeEmailMailer struct {
+	KolideServerURL template.URL
+	Token           string
+}
+
+func (cem *ChangeEmailMailer) Message() ([]byte, error) {
+	t, err := getTemplate("server/mail/templates/change_email_confirmation.html")
+	if err != nil {
+		return nil, err
+	}
+	var msg bytes.Buffer
+	err = t.Execute(&msg, cem)
+	if err != nil {
+		return nil, err
+	}
+	return msg.Bytes(), nil
 }

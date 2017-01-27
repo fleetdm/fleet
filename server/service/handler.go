@@ -74,6 +74,7 @@ type KolideEndpoints struct {
 	ModifyOptions                  endpoint.Endpoint
 	ImportConfig                   endpoint.Endpoint
 	GetCertificate                 endpoint.Endpoint
+	ChangeEmail                    endpoint.Endpoint
 }
 
 // MakeKolideServerEndpoints creates the Kolide API endpoints.
@@ -143,6 +144,7 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		ModifyOptions:             authenticatedUser(jwtKey, svc, mustBeAdmin(makeModifyOptionsEndpoint(svc))),
 		ImportConfig:              authenticatedUser(jwtKey, svc, makeImportConfigEndpoint(svc)),
 		GetCertificate:            authenticatedUser(jwtKey, svc, makeCertificateEndpoint(svc)),
+		ChangeEmail:               authenticatedUser(jwtKey, svc, makeChangeEmailEndpoint(svc)),
 
 		// Osquery endpoints
 		EnrollAgent:                   makeEnrollAgentEndpoint(svc),
@@ -213,6 +215,7 @@ type kolideHandlers struct {
 	ModifyOptions                  http.Handler
 	ImportConfig                   http.Handler
 	GetCertificate                 http.Handler
+	ChangeEmail                    http.Handler
 }
 
 func makeKolideKitHandlers(ctx context.Context, e KolideEndpoints, opts []kithttp.ServerOption) *kolideHandlers {
@@ -279,6 +282,7 @@ func makeKolideKitHandlers(ctx context.Context, e KolideEndpoints, opts []kithtt
 		ModifyOptions:                 newServer(e.ModifyOptions, decodeModifyOptionsRequest),
 		ImportConfig:                  newServer(e.ImportConfig, decodeImportConfigRequest),
 		GetCertificate:                newServer(e.GetCertificate, decodeNoParamsRequest),
+		ChangeEmail:                   newServer(e.ChangeEmail, decodeChangeEmailRequest),
 	}
 }
 
@@ -348,6 +352,8 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/invites", h.ListInvites).Methods("GET").Name("list_invites")
 	r.Handle("/api/v1/kolide/invites/{id}", h.DeleteInvite).Methods("DELETE").Name("delete_invite")
 	r.Handle("/api/v1/kolide/invites/{token}", h.VerifyInvite).Methods("GET").Name("verify_invite")
+
+	r.Handle("/api/v1/kolide/email/change/{token}", h.ChangeEmail).Methods("GET").Name("change_email")
 
 	r.Handle("/api/v1/kolide/queries/{id}", h.GetQuery).Methods("GET").Name("get_query")
 	r.Handle("/api/v1/kolide/queries", h.ListQueries).Methods("GET").Name("list_queries")

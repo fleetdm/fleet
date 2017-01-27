@@ -5,6 +5,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"golang.org/x/net/context"
 )
@@ -83,12 +84,39 @@ func (mw validationMiddleware) ModifyUser(ctx context.Context, userID uint, p ko
 		if *p.Email == "" {
 			invalid.Append("email", "cannot be empty")
 		}
+		// if the user is not an admin, or if an admin is changing their own email
+		// address a password is required,
+		if passwordRequiredForEmailChange(ctx, userID, invalid) {
+			if p.Password == nil {
+				invalid.Append("password", "cannot be empty if email is changed")
+			}
+		}
 	}
 
 	if invalid.HasErrors() {
 		return nil, invalid
 	}
 	return mw.Service.ModifyUser(ctx, userID, p)
+}
+
+func passwordRequiredForEmailChange(ctx context.Context, uid uint, invalid *invalidArgumentError) bool {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		invalid.Append("viewer", "not present")
+		return false
+	}
+	// if a user is changing own email need a password no matter what
+	if vc.UserID() == uid {
+		return true
+	}
+	// if an admin is changing another users email no password needed
+	if vc.IsAdmin() {
+		return false
+	}
+	// should never get here because a non admin can't change the email of another
+	// user
+	invalid.Append("auth", "this user can't change another user's email")
+	return false
 }
 
 func (mw validationMiddleware) ChangePassword(ctx context.Context, oldPass, newPass string) error {

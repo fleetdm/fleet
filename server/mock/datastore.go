@@ -21,7 +21,6 @@ type Store struct {
 	kolide.DecoratorStore
 	kolide.FileIntegrityMonitoringStore
 	kolide.YARAStore
-
 	InviteStore
 	UserStore
 	AppConfigStore

@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/WatchBeam/clock"
 	"github.com/kolide/kolide-ose/server/config"
 	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"github.com/kolide/kolide-ose/server/datastore/inmem"
 	"github.com/kolide/kolide-ose/server/kolide"
-
-	"github.com/WatchBeam/clock"
+	"github.com/kolide/kolide-ose/server/mock"
 	pkg_errors "github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -36,6 +36,168 @@ func TestAuthenticatedUser(t *testing.T) {
 	user, err := svc.AuthenticatedUser(ctx)
 	assert.Nil(t, err)
 	assert.Equal(t, user, admin1)
+}
+
+func TestModifyUserEmail(t *testing.T) {
+	user := &kolide.User{
+		ID:      3,
+		Admin:   false,
+		Email:   "foo@bar.com",
+		Enabled: true,
+	}
+	user.SetPassword("password", 10, 10)
+	ms := new(mock.Store)
+	ms.PendingEmailChangeFunc = func(id uint, em, tk string) error {
+		return nil
+	}
+	ms.UserByIDFunc = func(id uint) (*kolide.User, error) {
+		return user, nil
+	}
+	ms.AppConfigFunc = func() (*kolide.AppConfig, error) {
+		config := &kolide.AppConfig{
+			SMTPPort:               1025,
+			SMTPConfigured:         true,
+			SMTPServer:             "127.0.0.1",
+			SMTPSenderAddress:      "xxx@kolide.co",
+			SMTPAuthenticationType: kolide.AuthTypeNone,
+		}
+		return config, nil
+	}
+	svc, err := newTestService(ms, nil)
+	ctx := context.Background()
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+	payload := kolide.UserPayload{
+		Email:    stringPtr("zip@zap.com"),
+		Password: stringPtr("password"),
+	}
+	_, err = svc.ModifyUser(ctx, 3, payload)
+	require.Nil(t, err)
+	assert.True(t, ms.PendingEmailChangeFuncInvoked)
+
+}
+
+func TestModifyUserEmailNoPassword(t *testing.T) {
+	user := &kolide.User{
+		ID:      3,
+		Admin:   true,
+		Email:   "foo@bar.com",
+		Enabled: true,
+	}
+	user.SetPassword("password", 10, 10)
+	ms := new(mock.Store)
+	ms.PendingEmailChangeFunc = func(id uint, em, tk string) error {
+		return nil
+	}
+	ms.UserByIDFunc = func(id uint) (*kolide.User, error) {
+		return user, nil
+	}
+	ms.AppConfigFunc = func() (*kolide.AppConfig, error) {
+		config := &kolide.AppConfig{
+			SMTPPort:               1025,
+			SMTPConfigured:         true,
+			SMTPServer:             "127.0.0.1",
+			SMTPSenderAddress:      "xxx@kolide.co",
+			SMTPAuthenticationType: kolide.AuthTypeNone,
+		}
+		return config, nil
+	}
+	svc, err := newTestService(ms, nil)
+	ctx := context.Background()
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+	payload := kolide.UserPayload{
+		Email: stringPtr("zip@zap.com"),
+		// NO PASSWORD
+		//	Password: stringPtr("password"),
+	}
+	_, err = svc.ModifyUser(ctx, 3, payload)
+	require.NotNil(t, err)
+	invalid, ok := err.(*invalidArgumentError)
+	require.True(t, ok)
+	require.Len(t, *invalid, 1)
+	assert.Equal(t, "cannot be empty if email is changed", (*invalid)[0].reason)
+	assert.False(t, ms.PendingEmailChangeFuncInvoked)
+
+}
+
+func TestModifyAdminUserEmailNoPassword(t *testing.T) {
+	user := &kolide.User{
+		ID:      3,
+		Admin:   true,
+		Email:   "foo@bar.com",
+		Enabled: true,
+	}
+	user.SetPassword("password", 10, 10)
+	ms := new(mock.Store)
+	ms.PendingEmailChangeFunc = func(id uint, em, tk string) error {
+		return nil
+	}
+	ms.UserByIDFunc = func(id uint) (*kolide.User, error) {
+		return user, nil
+	}
+	ms.AppConfigFunc = func() (*kolide.AppConfig, error) {
+		config := &kolide.AppConfig{
+			SMTPPort:               1025,
+			SMTPConfigured:         true,
+			SMTPServer:             "127.0.0.1",
+			SMTPSenderAddress:      "xxx@kolide.co",
+			SMTPAuthenticationType: kolide.AuthTypeNone,
+		}
+		return config, nil
+	}
+	svc, err := newTestService(ms, nil)
+	ctx := context.Background()
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+	payload := kolide.UserPayload{
+		Email: stringPtr("zip@zap.com"),
+		// NO PASSWORD
+		//	Password: stringPtr("password"),
+	}
+	_, err = svc.ModifyUser(ctx, 3, payload)
+	require.NotNil(t, err)
+	invalid, ok := err.(*invalidArgumentError)
+	require.True(t, ok)
+	require.Len(t, *invalid, 1)
+	assert.Equal(t, "cannot be empty if email is changed", (*invalid)[0].reason)
+	assert.False(t, ms.PendingEmailChangeFuncInvoked)
+
+}
+
+func TestModifyAdminUserEmailPassword(t *testing.T) {
+	user := &kolide.User{
+		ID:      3,
+		Admin:   true,
+		Email:   "foo@bar.com",
+		Enabled: true,
+	}
+	user.SetPassword("password", 10, 10)
+	ms := new(mock.Store)
+	ms.PendingEmailChangeFunc = func(id uint, em, tk string) error {
+		return nil
+	}
+	ms.UserByIDFunc = func(id uint) (*kolide.User, error) {
+		return user, nil
+	}
+	ms.AppConfigFunc = func() (*kolide.AppConfig, error) {
+		config := &kolide.AppConfig{
+			SMTPPort:               1025,
+			SMTPConfigured:         true,
+			SMTPServer:             "127.0.0.1",
+			SMTPSenderAddress:      "xxx@kolide.co",
+			SMTPAuthenticationType: kolide.AuthTypeNone,
+		}
+		return config, nil
+	}
+	svc, err := newTestService(ms, nil)
+	ctx := context.Background()
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+	payload := kolide.UserPayload{
+		Email:    stringPtr("zip@zap.com"),
+		Password: stringPtr("password"),
+	}
+	_, err = svc.ModifyUser(ctx, 3, payload)
+	require.Nil(t, err)
+	assert.True(t, ms.PendingEmailChangeFuncInvoked)
+
 }
 
 func TestRequestPasswordReset(t *testing.T) {
