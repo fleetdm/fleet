@@ -22,6 +22,22 @@ export const getStatusLabelCountsSuccess = (statusLabelCounts) => {
   };
 };
 
+export const silentGetStatusLabelCounts = (dispatch) => {
+  return Kolide.statusLabels.getCounts()
+    .then((counts) => {
+      dispatch(getStatusLabelCountsSuccess(counts));
+
+      return counts;
+    })
+    .catch((response) => {
+      const errorsObject = formatErrorResponse(response);
+
+      dispatch(getStatusLabelCountsFailure(errorsObject));
+
+      throw errorsObject;
+    });
+};
+
 export const getStatusLabelCounts = (dispatch) => {
   dispatch(loadStatusLabelCounts);
 
@@ -49,4 +65,4 @@ export const setDisplay = (display) => {
   };
 };
 
-export default { getStatusLabelCounts, setDisplay };
+export default { getStatusLabelCounts, setDisplay, silentGetStatusLabelCounts };

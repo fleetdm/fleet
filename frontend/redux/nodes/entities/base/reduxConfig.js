@@ -307,6 +307,7 @@ const reduxConfig = ({
       destroyFailure,
       destroyRequest,
       destroySuccess,
+      loadAllSuccess,
       loadFailure,
       loadRequest,
       loadSuccess,

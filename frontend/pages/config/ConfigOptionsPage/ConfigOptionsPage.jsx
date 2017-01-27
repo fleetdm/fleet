@@ -20,6 +20,7 @@ export class ConfigOptionsPage extends Component {
   static propTypes = {
     configOptions: PropTypes.arrayOf(configOptionInterface),
     dispatch: PropTypes.func.isRequired,
+    loadingConfig: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -154,8 +155,13 @@ export class ConfigOptionsPage extends Component {
 
   render () {
     const { configOptionErrors, configOptions } = this.state;
+    const { loadingConfig } = this.props;
     const { onAddNewOption, onOptionUpdate, onRemoveOption, onResetConfigOptions, onSave } = this;
     const availableOptions = filter(configOptions, option => option.value !== null);
+
+    if (loadingConfig) {
+      return false;
+    }
 
     return (
       <div className={`body-wrap ${baseClass}`}>
@@ -192,8 +198,9 @@ export class ConfigOptionsPage extends Component {
 
 const mapStateToProps = (state) => {
   const { entities: configOptions } = entityGetter(state).get('config_options');
+  const { loading: loadingConfig } = state.entities.config_options;
 
-  return { configOptions };
+  return { configOptions, loadingConfig };
 };
 
 export default connect(mapStateToProps)(ConfigOptionsPage);

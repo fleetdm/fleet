@@ -9,22 +9,31 @@ import { fillInFormInput } from 'test/helpers';
 
 describe('ConfigOptionsPage - component', () => {
   const blankConfigOption = { name: '', value: '' };
-  const props = { configOptions: [] };
+  const props = { configOptions: [], loadingConfig: false };
 
-  it('renders', () => {
-    const page = mount(<ConfigOptionsPage {...props} />);
+  describe('rendering', () => {
+    it('does not render when loading', () => {
+      const loadingProps = { ...props, loadingConfig: true };
+      const page = mount(<ConfigOptionsPage {...loadingProps} />);
 
-    expect(page.length).toEqual(1);
-  });
+      expect(page.html()).toNotExist();
+    });
 
-  it('renders reset and save buttons', () => {
-    const page = mount(<ConfigOptionsPage {...props} />);
-    const buttons = page.find('Button');
-    const resetButton = buttons.find('.config-options-page__reset-btn');
-    const saveButton = buttons.find('.config-options-page__save-btn');
+    it('renders when not loading the config', () => {
+      const page = mount(<ConfigOptionsPage {...props} />);
 
-    expect(resetButton.length).toEqual(1);
-    expect(saveButton.length).toEqual(1);
+      expect(page.length).toEqual(1);
+    });
+
+    it('renders reset and save buttons', () => {
+      const page = mount(<ConfigOptionsPage {...props} />);
+      const buttons = page.find('Button');
+      const resetButton = buttons.find('.config-options-page__reset-btn');
+      const saveButton = buttons.find('.config-options-page__save-btn');
+
+      expect(resetButton.length).toEqual(1);
+      expect(saveButton.length).toEqual(1);
+    });
   });
 
   it('resets config option defaults', () => {

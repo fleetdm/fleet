@@ -12,14 +12,15 @@ describe('EditPackPage - component', () => {
 
   const store = {
     entities: {
-      hosts: { data: {} },
-      labels: { data: {} },
+      hosts: { loading: false, data: {} },
+      labels: { loading: false, data: {} },
       packs: {
+        loading: false,
         data: {
           [packStub.id]: packStub,
         },
       },
-      scheduled_queries: {},
+      scheduled_queries: { loading: false, data: {} },
     },
   };
   const page = mount(connectedComponent(ConnectedEditPackPage, {
@@ -27,16 +28,66 @@ describe('EditPackPage - component', () => {
     mockStore: reduxMockStore(store),
   }));
 
-  it('renders', () => {
-    expect(page.length).toEqual(1);
-  });
+  describe('rendering', () => {
+    it('does not render when packs are loading', () => {
+      const packsLoadingStore = {
+        entities: {
+          ...store.entities,
+          packs: { ...store.entities.packs, loading: true },
+        },
+      };
 
-  it('renders a EditPackFormWrapper component', () => {
-    expect(page.find('EditPackFormWrapper').length).toEqual(1);
-  });
+      const loadingPacksPage = mount(connectedComponent(ConnectedEditPackPage, {
+        props: { params: { id: String(packStub.id) }, route: {} },
+        mockStore: reduxMockStore(packsLoadingStore),
+      }));
 
-  it('renders a ScheduleQuerySidePanel component', () => {
-    expect(page.find('ScheduleQuerySidePanel').length).toEqual(1);
+      expect(loadingPacksPage.html()).toNotExist();
+    });
+
+    it('does not render when scheduled queries are loading', () => {
+      const scheduledQueriesLoadingStore = {
+        entities: {
+          ...store.entities,
+          scheduled_queries: { ...store.entities.scheduled_queries, loading: true },
+        },
+      };
+
+      const loadingScheduledQueriesPage = mount(connectedComponent(ConnectedEditPackPage, {
+        props: { params: { id: String(packStub.id) }, route: {} },
+        mockStore: reduxMockStore(scheduledQueriesLoadingStore),
+      }));
+
+      expect(loadingScheduledQueriesPage.html()).toNotExist();
+    });
+
+    it('does not render when there is no pack', () => {
+      const noPackStore = {
+        entities: {
+          ...store.entities,
+          packs: { data: {}, loading: false },
+        },
+      };
+
+      const noPackPage = mount(connectedComponent(ConnectedEditPackPage, {
+        props: { params: { id: String(packStub.id) }, route: {} },
+        mockStore: reduxMockStore(noPackStore),
+      }));
+
+      expect(noPackPage.html()).toNotExist();
+    });
+
+    it('renders', () => {
+      expect(page.length).toEqual(1);
+    });
+
+    it('renders a EditPackFormWrapper component', () => {
+      expect(page.find('EditPackFormWrapper').length).toEqual(1);
+    });
+
+    it('renders a ScheduleQuerySidePanel component', () => {
+      expect(page.find('ScheduleQuerySidePanel').length).toEqual(1);
+    });
   });
 
   describe('updating a pack', () => {

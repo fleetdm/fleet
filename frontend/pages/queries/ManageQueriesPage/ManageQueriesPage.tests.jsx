@@ -10,6 +10,7 @@ import { queryStub } from 'test/stubs';
 const store = {
   entities: {
     queries: {
+      loading: false,
       data: {
         [queryStub.id]: queryStub,
         101: {
@@ -23,6 +24,38 @@ const store = {
 };
 
 describe('ManageQueriesPage - component', () => {
+  describe('rendering', () => {
+    it('does not render if queries are loading', () => {
+      const loadingQueriesStore = {
+        entities: { queries: { loading: true, data: {} } },
+      };
+      const Component = connectedComponent(ConnectedManageQueriesPage, {
+        mockStore: reduxMockStore(loadingQueriesStore),
+      });
+      const page = mount(Component);
+
+      expect(page.html()).toNotExist();
+    });
+
+    it('renders a QueriesList component', () => {
+      const Component = connectedComponent(ConnectedManageQueriesPage, {
+        mockStore: reduxMockStore(store),
+      });
+      const page = mount(Component);
+
+      expect(page.find('QueriesList').length).toEqual(1);
+    });
+
+    it('renders the QueryDetailsSidePanel when a query is selected', () => {
+      const mockStore = reduxMockStore(store);
+      const props = { location: { query: { selectedQuery: queryStub.id } } };
+      const Component = connectedComponent(ConnectedManageQueriesPage, { mockStore, props });
+      const page = mount(Component).find('ManageQueriesPage');
+
+      expect(page.find('QueryDetailsSidePanel').length).toEqual(1);
+    });
+  });
+
   it('filters the queries list', () => {
     const Component = connectedComponent(ConnectedManageQueriesPage, {
       mockStore: reduxMockStore(store),
@@ -35,21 +68,6 @@ describe('ManageQueriesPage - component', () => {
     fillInFormInput(queryFilterInput, 'My unique query name');
 
     expect(page.node.getQueries().length).toEqual(1);
-  });
-
-  it('renders a QueriesList component', () => {
-    const page = mount(connectedComponent(ConnectedManageQueriesPage));
-
-    expect(page.find('QueriesList').length).toEqual(1);
-  });
-
-  it('renders the QueryDetailsSidePanel when a query is selected', () => {
-    const mockStore = reduxMockStore(store);
-    const props = { location: { query: { selectedQuery: queryStub.id } } };
-    const Component = connectedComponent(ConnectedManageQueriesPage, { mockStore, props });
-    const page = mount(Component).find('ManageQueriesPage');
-
-    expect(page.find('QueryDetailsSidePanel').length).toEqual(1);
   });
 
   it('updates checkedQueryIDs in state when the check all queries Checkbox is toggled', () => {

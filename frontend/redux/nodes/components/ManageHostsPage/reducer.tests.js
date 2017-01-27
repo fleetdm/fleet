@@ -8,6 +8,7 @@ import {
   getStatusLabelCountsSuccess,
   loadStatusLabelCounts,
   setDisplay,
+  silentGetStatusLabelCounts,
 } from './actions';
 import reducer, { initialState } from './reducer';
 
@@ -113,6 +114,56 @@ describe('ManageHostsPage - reducer', () => {
           loading_counts: false,
         },
       });
+    });
+  });
+
+  describe('#silentGetStatusLabelCounts', () => {
+    it('dispatches the correct actions when successful', (done) => {
+      const statusLabelCounts = { online_count: 23, offline_count: 100, mia_count: 2 };
+      const store = { components: { ManageHostsPage: initialState } };
+      const mockStore = reduxMockStore(store);
+      const expectedActions = [
+        {
+          type: 'GET_STATUS_LABEL_COUNTS_SUCCESS',
+          payload: { status_labels: statusLabelCounts },
+        },
+      ];
+
+      spyOn(Kolide.statusLabels, 'getCounts')
+        .andReturn(Promise.resolve(statusLabelCounts));
+
+      mockStore.dispatch(silentGetStatusLabelCounts)
+        .then(() => {
+          expect(mockStore.getActions()).toEqual(expectedActions);
+
+          done();
+        });
+    });
+
+    it('dispatches the correct actions when unsuccessful', (done) => {
+      const store = { components: { ManageHostsPage: initialState } };
+      const mockStore = reduxMockStore(store);
+      const errors = [{ name: 'error_name', reason: 'error reason' }];
+      const errorObject = { message: { message: 'oops', errors } };
+      const expectedActions = [
+        {
+          type: 'GET_STATUS_LABEL_COUNTS_FAILURE',
+          payload: { errors: { error_name: 'error reason' } },
+        },
+      ];
+
+      spyOn(Kolide.statusLabels, 'getCounts')
+        .andReturn(Promise.reject(errorObject));
+
+      mockStore.dispatch(silentGetStatusLabelCounts)
+        .then(() => {
+          throw new Error('Promise should have failed');
+        })
+        .catch(() => {
+          expect(mockStore.getActions()).toEqual(expectedActions);
+
+          done();
+        });
     });
   });
 });

@@ -23,6 +23,7 @@ const baseClass = 'all-packs-page';
 export class AllPacksPage extends Component {
   static propTypes = {
     dispatch: PropTypes.func,
+    loadingPacks: PropTypes.bool.isRequired,
     packs: PropTypes.arrayOf(packInterface),
     selectedPack: packInterface,
     selectedScheduledQueries: PropTypes.arrayOf(scheduledQueryInterface),
@@ -254,9 +255,13 @@ export class AllPacksPage extends Component {
       renderCTAs,
       renderSidePanel,
     } = this;
-    const { selectedPack } = this.props;
+    const { loadingPacks, selectedPack } = this.props;
     const packs = getPacks();
     const packsCount = packs.length;
+
+    if (loadingPacks) {
+      return false;
+    }
 
     return (
       <div className={`${baseClass} has-sidebar`}>
@@ -297,8 +302,9 @@ const mapStateToProps = (state, { location }) => {
   const selectedPackID = get(location, 'query.selectedPack');
   const selectedPack = selectedPackID && packEntities.findBy({ id: selectedPackID });
   const selectedScheduledQueries = selectedPack && scheduledQueryEntities.where({ pack_id: selectedPack.id });
+  const { loading: loadingPacks } = state.entities.packs;
 
-  return { packs, selectedPack, selectedScheduledQueries };
+  return { loadingPacks, packs, selectedPack, selectedScheduledQueries };
 };
 
 export default connect(mapStateToProps)(AllPacksPage);

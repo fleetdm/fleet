@@ -6,7 +6,7 @@ import { orderBy, sortBy } from 'lodash';
 import { push } from 'react-router-redux';
 
 import entityGetter from 'redux/utilities/entityGetter';
-import { getStatusLabelCounts, setDisplay } from 'redux/nodes/components/ManageHostsPage/actions';
+import { getStatusLabelCounts, setDisplay, silentGetStatusLabelCounts } from 'redux/nodes/components/ManageHostsPage/actions';
 import helpers from 'pages/hosts/ManageHostsPage/helpers';
 import hostActions from 'redux/nodes/entities/hosts/actions';
 import labelActions from 'redux/nodes/entities/labels/actions';
@@ -46,6 +46,8 @@ export class ManageHostsPage extends Component {
       base: PropTypes.string,
     }),
     labels: PropTypes.arrayOf(labelInterface),
+    loadingHosts: PropTypes.bool.isRequired,
+    loadingLabels: PropTypes.bool.isRequired,
     osqueryEnrollSecret: PropTypes.string,
     selectedLabel: labelInterface,
     selectedOsqueryTable: osqueryTableInterface,
@@ -81,8 +83,8 @@ export class ManageHostsPage extends Component {
   componentDidMount () {
     const { dispatch } = this.props;
     const getLabels = () => {
-      dispatch(labelActions.loadAll());
-      dispatch(getStatusLabelCounts);
+      dispatch(labelActions.silentLoadAll());
+      dispatch(silentGetStatusLabelCounts);
     };
 
     this.interval = global.window.setInterval(getLabels, 5000);
@@ -573,7 +575,11 @@ export class ManageHostsPage extends Component {
 
   render () {
     const { renderForm, renderHeader, renderHosts, renderSidePanel, renderAddHostModal, renderDeleteHostModal, renderDeleteLabelModal } = this;
-    const { display, isAddLabel } = this.props;
+    const { display, isAddLabel, loadingHosts, loadingLabels } = this.props;
+
+    if (loadingHosts || loadingLabels) {
+      return false;
+    }
 
     return (
       <div className="has-sidebar">
@@ -608,7 +614,8 @@ const mapStateToProps = (state, { location, params }) => {
     { ignoreCase: true },
   );
   const { selectedOsqueryTable } = state.components.QueryPages;
-  const labelErrors = state.entities.labels.errors;
+  const { errors: labelErrors, loading: loadingLabels } = state.entities.labels;
+  const { loading: loadingHosts } = state.entities.hosts;
   const { osquery_enroll_secret: osqueryEnrollSecret } = state.app.config;
 
   return {
@@ -617,6 +624,8 @@ const mapStateToProps = (state, { location, params }) => {
     isAddLabel,
     labelErrors,
     labels,
+    loadingHosts,
+    loadingLabels,
     osqueryEnrollSecret,
     selectedLabel,
     selectedOsqueryTable,

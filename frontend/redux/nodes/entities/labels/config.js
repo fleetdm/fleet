@@ -5,10 +5,10 @@ import schemas from '../base/schemas';
 const { LABELS: schema } = schemas;
 
 export default reduxConfig({
-  createFunc: Kolide.createLabel,
+  createFunc: Kolide.labels.create,
   destroyFunc: Kolide.labels.destroy,
   entityName: 'labels',
-  loadAllFunc: Kolide.getLabels,
+  loadAllFunc: Kolide.labels.loadAll,
   parseEntityFunc: (label) => {
     return { ...label, target_type: 'labels' };
   },

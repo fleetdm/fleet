@@ -10,6 +10,7 @@ import { packStub } from 'test/stubs';
 const store = {
   entities: {
     packs: {
+      loading: false,
       data: {
         [packStub.id]: packStub,
         101: {
@@ -23,6 +24,32 @@ const store = {
 };
 
 describe('AllPacksPage - component', () => {
+  describe('rendering', () => {
+    it('does not render when packs are loading', () => {
+      const page = mount(<AllPacksPage loadingPacks packs={[packStub]} />);
+
+      expect(page.html()).toNotExist();
+    });
+
+    it('renders a PacksList component', () => {
+      const Component = connectedComponent(ConnectedAllPacksPage, {
+        mockStore: reduxMockStore(store),
+      });
+      const page = mount(Component);
+
+      expect(page.find('PacksList').length).toEqual(1);
+    });
+
+    it('renders the PackInfoSidePanel by default', () => {
+      const Component = connectedComponent(ConnectedAllPacksPage, {
+        mockStore: reduxMockStore(store),
+      });
+      const page = mount(Component);
+
+      expect(page.find('PackInfoSidePanel').length).toEqual(1);
+    });
+  });
+
   it('filters the packs list', () => {
     const Component = connectedComponent(ConnectedAllPacksPage, {
       mockStore: reduxMockStore(store),
@@ -35,18 +62,6 @@ describe('AllPacksPage - component', () => {
     fillInFormInput(packsFilterInput, 'My unique pack name');
 
     expect(page.node.getPacks().length).toEqual(1);
-  });
-
-  it('renders a PacksList component', () => {
-    const page = mount(connectedComponent(ConnectedAllPacksPage));
-
-    expect(page.find('PacksList').length).toEqual(1);
-  });
-
-  it('renders the PackInfoSidePanel by default', () => {
-    const page = mount(connectedComponent(ConnectedAllPacksPage));
-
-    expect(page.find('PackInfoSidePanel').length).toEqual(1);
   });
 
   it('updates checkedPackIDs in state when the select all packs Checkbox is toggled', () => {

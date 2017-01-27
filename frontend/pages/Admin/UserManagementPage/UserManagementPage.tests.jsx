@@ -1,6 +1,7 @@
 import React from 'react';
 import expect, { spyOn, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
+import { noop } from 'lodash';
 
 import { connectedComponent, reduxMockStore } from 'test/helpers';
 import ConnectedUserManagementPage, { UserManagementPage } from 'pages/Admin/UserManagementPage/UserManagementPage';
@@ -52,38 +53,84 @@ const store = {
 describe('UserManagementPage - component', () => {
   afterEach(restoreSpies);
 
-  it('displays a disabled "Add User" button if email is not configured', () => {
-    const notConfiguredStore = { ...store, app: { config: { configured: false } } };
-    const notConfiguredMockStore = reduxMockStore(notConfiguredStore);
-    const notConfiguredPage = mount(connectedComponent(ConnectedUserManagementPage, {
-      mockStore: notConfiguredMockStore,
-    }));
+  describe('rendering', () => {
+    it('does not render if invites are loading', () => {
+      const props = {
+        dispatch: noop,
+        config: {},
+        currentUser,
+        invites: [],
+        loadingInvites: true,
+        loadingUsers: false,
+        users: [currentUser],
+      };
+      const page = mount(<UserManagementPage {...props} />);
 
-    const configuredStore = store;
-    const configuredMockStore = reduxMockStore(configuredStore);
-    const configuredPage = mount(connectedComponent(ConnectedUserManagementPage, {
-      mockStore: configuredMockStore,
-    }));
+      expect(page.html()).toNotExist();
+    });
 
-    expect(notConfiguredPage.find('Button').first().prop('disabled')).toEqual(true);
-    expect(configuredPage.find('Button').first().prop('disabled')).toEqual(false);
-  });
+    it('does not render if users are loading', () => {
+      const props = {
+        dispatch: noop,
+        config: {},
+        currentUser,
+        invites: [],
+        loadingInvites: false,
+        loadingUsers: true,
+        users: [currentUser],
+      };
+      const page = mount(<UserManagementPage {...props} />);
 
-  it('displays a SmtpWarning if email is not configured', () => {
-    const notConfiguredStore = { ...store, app: { config: { configured: false } } };
-    const notConfiguredMockStore = reduxMockStore(notConfiguredStore);
-    const notConfiguredPage = mount(connectedComponent(ConnectedUserManagementPage, {
-      mockStore: notConfiguredMockStore,
-    }));
+      expect(page.html()).toNotExist();
+    });
 
-    const configuredStore = store;
-    const configuredMockStore = reduxMockStore(configuredStore);
-    const configuredPage = mount(connectedComponent(ConnectedUserManagementPage, {
-      mockStore: configuredMockStore,
-    }));
+    it('renders user blocks for users and invites', () => {
+      const mockStore = reduxMockStore(store);
+      const page = mount(connectedComponent(ConnectedUserManagementPage, { mockStore }));
 
-    expect(notConfiguredPage.find('SmtpWarning').html()).toExist();
-    expect(configuredPage.find('SmtpWarning').html()).toNotExist();
+      expect(page.find('UserBlock').length).toEqual(2);
+    });
+
+    it('displays a count of the number of users & invites', () => {
+      const mockStore = reduxMockStore(store);
+      const page = mount(connectedComponent(ConnectedUserManagementPage, { mockStore }));
+
+      expect(page.text()).toInclude('Listing 2 users');
+    });
+
+    it('displays a disabled "Add User" button if email is not configured', () => {
+      const notConfiguredStore = { ...store, app: { config: { configured: false } } };
+      const notConfiguredMockStore = reduxMockStore(notConfiguredStore);
+      const notConfiguredPage = mount(connectedComponent(ConnectedUserManagementPage, {
+        mockStore: notConfiguredMockStore,
+      }));
+
+      const configuredStore = store;
+      const configuredMockStore = reduxMockStore(configuredStore);
+      const configuredPage = mount(connectedComponent(ConnectedUserManagementPage, {
+        mockStore: configuredMockStore,
+      }));
+
+      expect(notConfiguredPage.find('Button').first().prop('disabled')).toEqual(true);
+      expect(configuredPage.find('Button').first().prop('disabled')).toEqual(false);
+    });
+
+    it('displays a SmtpWarning if email is not configured', () => {
+      const notConfiguredStore = { ...store, app: { config: { configured: false } } };
+      const notConfiguredMockStore = reduxMockStore(notConfiguredStore);
+      const notConfiguredPage = mount(connectedComponent(ConnectedUserManagementPage, {
+        mockStore: notConfiguredMockStore,
+      }));
+
+      const configuredStore = store;
+      const configuredMockStore = reduxMockStore(configuredStore);
+      const configuredPage = mount(connectedComponent(ConnectedUserManagementPage, {
+        mockStore: configuredMockStore,
+      }));
+
+      expect(notConfiguredPage.find('SmtpWarning').html()).toExist();
+      expect(configuredPage.find('SmtpWarning').html()).toNotExist();
+    });
   });
 
   it('goes to the app settings page for the user to resolve their smtp settings', () => {
@@ -101,20 +148,6 @@ describe('UserManagementPage - component', () => {
     };
 
     expect(mockStore.getActions()).toInclude(goToAppSettingsAction);
-  });
-
-  it('renders user blocks for users and invites', () => {
-    const mockStore = reduxMockStore(store);
-    const page = mount(connectedComponent(ConnectedUserManagementPage, { mockStore }));
-
-    expect(page.find('UserBlock').length).toEqual(2);
-  });
-
-  it('displays a count of the number of users & invites', () => {
-    const mockStore = reduxMockStore(store);
-    const page = mount(connectedComponent(ConnectedUserManagementPage, { mockStore }));
-
-    expect(page.text()).toInclude('Listing 2 users');
   });
 
   it('gets users on mount', () => {

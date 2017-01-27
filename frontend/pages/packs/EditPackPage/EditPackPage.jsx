@@ -47,7 +47,7 @@ export class EditPackPage extends Component {
     };
   }
 
-  componentDidMount () {
+  componentWillMount () {
     const {
       allQueries,
       dispatch,
@@ -195,11 +195,20 @@ export class EditPackPage extends Component {
       onToggleEdit,
     } = this;
     const { targetsCount, selectedQuery } = this.state;
-    const { allQueries, isEdit, isLoadingScheduledQueries, pack, packHosts, packLabels, scheduledQueries } = this.props;
+    const {
+      allQueries,
+      isEdit,
+      isLoadingPack,
+      isLoadingScheduledQueries,
+      pack,
+      packHosts,
+      packLabels,
+      scheduledQueries,
+    } = this.props;
 
     const packTargets = [...packHosts, ...packLabels];
 
-    if (!pack || isLoadingScheduledQueries) {
+    if (!pack || isLoadingPack || isLoadingScheduledQueries) {
       return false;
     }
 

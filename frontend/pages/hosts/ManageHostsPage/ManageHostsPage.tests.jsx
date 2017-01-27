@@ -51,6 +51,8 @@ describe('ManageHostsPage - component', () => {
     dispatch: noop,
     hosts: [],
     labels: [],
+    loadingHosts: false,
+    loadingLabels: false,
     selectedOsqueryTable: stubbedOsqueryTable,
     statusLabels: {},
   };
@@ -93,6 +95,20 @@ describe('ManageHostsPage - component', () => {
   });
 
   describe('host rendering', () => {
+    it('does not render if hosts are loading', () => {
+      const loadingProps = { ...props, loadingHosts: true };
+      const page = mount(<ManageHostsPage {...loadingProps} hosts={[]} selectedLabel={allHostsLabel} />);
+
+      expect(page.html()).toNotExist();
+    });
+
+    it('does not render if labels are loading', () => {
+      const loadingProps = { ...props, loadingLabels: true };
+      const page = mount(<ManageHostsPage {...loadingProps} hosts={[]} selectedLabel={allHostsLabel} />);
+
+      expect(page.html()).toNotExist();
+    });
+
     it('render LonelyHost if no hosts available', () => {
       const page = mount(<ManageHostsPage {...props} hosts={[]} selectedLabel={allHostsLabel} />);
 

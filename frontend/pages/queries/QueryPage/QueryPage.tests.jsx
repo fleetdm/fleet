@@ -20,7 +20,7 @@ describe('QueryPage - component', () => {
   beforeEach(createAceSpy);
   afterEach(restoreSpies);
 
-  const mockStore = reduxMockStore({
+  const store = {
     components: {
       QueryPages: {
         queryText: 'SELECT * FROM users',
@@ -35,21 +35,40 @@ describe('QueryPage - component', () => {
           99: { ...hostStub, id: 99 },
         },
       },
-      queries: {},
+      queries: { loading: false, data: {} },
       targets: {},
     },
-  });
+  };
+  const mockStore = reduxMockStore(store);
 
-  it('renders the QueryForm component', () => {
-    const page = mount(connectedComponent(ConnectedQueryPage, { mockStore, props: locationProp }));
+  describe('rendering', () => {
+    it('does not render when queries are loading', () => {
+      const loadingQueriesStore = {
+        ...store,
+        entities: {
+          ...store.entities,
+          queries: { loading: true, data: {} },
+        },
+      };
+      const page = mount(connectedComponent(ConnectedQueryPage, {
+        mockStore: reduxMockStore(loadingQueriesStore),
+        props: locationProp,
+      }));
 
-    expect(page.find('QueryForm').length).toEqual(1);
-  });
+      expect(page.html()).toNotExist();
+    });
 
-  it('renders the QuerySidePanel component', () => {
-    const page = mount(connectedComponent(ConnectedQueryPage, { mockStore, props: locationProp }));
+    it('renders the QueryForm component', () => {
+      const page = mount(connectedComponent(ConnectedQueryPage, { mockStore, props: locationProp }));
 
-    expect(page.find('QuerySidePanel').length).toEqual(1);
+      expect(page.find('QueryForm').length).toEqual(1);
+    });
+
+    it('renders the QuerySidePanel component', () => {
+      const page = mount(connectedComponent(ConnectedQueryPage, { mockStore, props: locationProp }));
+
+      expect(page.find('QuerySidePanel').length).toEqual(1);
+    });
   });
 
   it('sets selectedTargets based on host_ids', () => {

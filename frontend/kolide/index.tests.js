@@ -79,7 +79,7 @@ describe('Kolide - API client', () => {
   });
 
   describe('labels', () => {
-    describe('#createLabel', () => {
+    describe('#create', () => {
       it('calls the appropriate endpoint with the correct parameters', (done) => {
         const description = 'label description';
         const name = 'label name';
@@ -88,7 +88,7 @@ describe('Kolide - API client', () => {
         const request = validCreateLabelRequest(bearerToken, labelParams);
 
         Kolide.setBearerToken(bearerToken);
-        Kolide.createLabel(labelParams)
+        Kolide.labels.create(labelParams)
           .then((labelResponse) => {
             expect(request.isDone()).toEqual(true);
             expect(labelResponse).toEqual({
@@ -103,7 +103,7 @@ describe('Kolide - API client', () => {
       });
     });
 
-    describe('#destroyLabel', () => {
+    describe('#destroy', () => {
       it('calls the appropriate endpoint with the correct parameters', (done) => {
         const request = validDestroyLabelRequest(bearerToken, labelStub);
 

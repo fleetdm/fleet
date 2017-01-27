@@ -22,6 +22,7 @@ const baseClass = 'manage-queries-page';
 export class ManageQueriesPage extends Component {
   static propTypes = {
     dispatch: PropTypes.func,
+    loadingQueries: PropTypes.bool.isRequired,
     queries: PropTypes.arrayOf(queryInterface),
     selectedQuery: queryInterface,
   }
@@ -236,10 +237,14 @@ export class ManageQueriesPage extends Component {
       renderModal,
       renderSidePanel,
     } = this;
-    const { queries: allQueries, selectedQuery } = this.props;
+    const { loadingQueries, queries: allQueries, selectedQuery } = this.props;
     const queries = getQueries();
     const queriesCount = queries.length;
     const isQueriesAvailable = allQueries.length > 0;
+
+    if (loadingQueries) {
+      return false;
+    }
 
     return (
       <div className={`${baseClass} has-sidebar`}>
@@ -281,8 +286,9 @@ const mapStateToProps = (state, { location }) => {
   const { entities: queries } = queryEntities;
   const selectedQueryID = get(location, 'query.selectedQuery');
   const selectedQuery = selectedQueryID && queryEntities.findBy({ id: selectedQueryID });
+  const { loading: loadingQueries } = state.entities.queries;
 
-  return { queries, selectedQuery };
+  return { loadingQueries, queries, selectedQuery };
 };
 
 export default connect(mapStateToProps)(ManageQueriesPage);

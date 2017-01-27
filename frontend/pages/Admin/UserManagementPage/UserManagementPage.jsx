@@ -12,7 +12,6 @@ import InviteUserForm from 'components/forms/InviteUserForm';
 import Modal from 'components/modals/Modal';
 import paths from 'router/paths';
 import SmtpWarning from 'components/SmtpWarning';
-import Spinner from 'components/loaders/Spinner';
 import userActions from 'redux/nodes/entities/users/actions';
 import userInterface from 'interfaces/user';
 import { renderFlash } from 'redux/nodes/notifications/actions';
@@ -221,12 +220,8 @@ export class UserManagementPage extends Component {
   }
 
   renderUsersAndInvites = () => {
-    const { invites, loadingInvites, loadingUsers, users } = this.props;
+    const { invites, users } = this.props;
     const { renderUserBlock } = this;
-
-    if (loadingInvites || loadingUsers) {
-      return <div className={`${baseClass}__users`}><Spinner /></div>;
-    }
 
     return (
       <div className={`${baseClass}__users`}>
@@ -242,8 +237,12 @@ export class UserManagementPage extends Component {
 
   render () {
     const { renderModal, renderSmtpWarning, renderUsersAndInvites, toggleInviteUserModal } = this;
-    const { config, invites, users } = this.props;
+    const { config, invites, loadingInvites, loadingUsers, users } = this.props;
     const resourcesCount = users.length + invites.length;
+
+    if (loadingInvites || loadingUsers) {
+      return false;
+    }
 
     return (
       <div className={`${baseClass} body-wrap`}>

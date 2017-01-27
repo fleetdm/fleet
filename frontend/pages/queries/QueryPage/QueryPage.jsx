@@ -35,6 +35,7 @@ export class QueryPage extends Component {
       base: PropTypes.string,
     }),
     hostIDs: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
+    loadingQueries: PropTypes.bool.isRequired,
     query: queryInterface,
     selectedOsqueryTable: osqueryTableInterface,
     selectedTargets: PropTypes.arrayOf(targetInterface),
@@ -310,10 +311,15 @@ export class QueryPage extends Component {
     const { queryIsRunning, targetsCount, targetsError } = this.state;
     const {
       errors,
+      loadingQueries,
       query,
       selectedOsqueryTable,
       selectedTargets,
     } = this.props;
+
+    if (loadingQueries) {
+      return false;
+    }
 
     return (
       <div className={`${baseClass} has-sidebar`}>
@@ -354,7 +360,7 @@ const mapStateToProps = (state, ownProps) => {
   const { id: queryID } = ownProps.params;
   const reduxQuery = entityGetter(state).get('queries').findBy({ id: queryID });
   const { queryText, selectedOsqueryTable } = state.components.QueryPages;
-  const { errors } = state.entities.queries;
+  const { errors, loading: loadingQueries } = state.entities.queries;
   const queryStub = { description: '', name: '', query: queryText };
   const query = reduxQuery || queryStub;
   let { selectedTargets } = state.components.QueryPages;
@@ -377,6 +383,7 @@ const mapStateToProps = (state, ownProps) => {
   return {
     errors,
     hostIDs,
+    loadingQueries,
     query,
     selectedOsqueryTable,
     selectedTargets,

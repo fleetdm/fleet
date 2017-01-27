@@ -45,17 +45,17 @@ class Kolide extends Base {
   }
 
   hosts = {
-    loadAll: () => {
-      const { HOSTS } = endpoints;
-
-      return this.authenticatedGet(this.endpoint(HOSTS))
-        .then(response => response.hosts);
-    },
     destroy: (host) => {
       const { HOSTS } = endpoints;
       const endpoint = this.endpoint(`${HOSTS}/${host.id}`);
 
       return this.authenticatedDelete(endpoint);
+    },
+    loadAll: () => {
+      const { HOSTS } = endpoints;
+
+      return this.authenticatedGet(this.endpoint(HOSTS))
+        .then(response => response.hosts);
     },
   }
 
@@ -69,11 +69,54 @@ class Kolide extends Base {
   }
 
   labels = {
+    create: ({ description, name, query }) => {
+      const { LABELS } = endpoints;
+
+      return this.authenticatedPost(this.endpoint(LABELS), JSON.stringify({ description, name, query }))
+        .then((response) => {
+          const { label } = response;
+
+          return {
+            ...label,
+            slug: helpers.labelSlug(label),
+            type: 'custom',
+          };
+        });
+    },
     destroy: (label) => {
       const { LABELS } = endpoints;
       const endpoint = this.endpoint(`${LABELS}/${label.id}`);
 
       return this.authenticatedDelete(endpoint);
+    },
+    loadAll: () => {
+      const { LABELS } = endpoints;
+
+      return this.authenticatedGet(this.endpoint(LABELS))
+        .then((response) => {
+          const labelTypeForDisplayText = {
+            'All Hosts': 'all',
+            'MS Windows': 'platform',
+            'CentOS Linux': 'platform',
+            'Mac OS X': 'platform',
+            'Ubuntu Linux': 'platform',
+          };
+          const labels = response.labels.map((label) => {
+            return {
+              ...label,
+              slug: helpers.labelSlug(label),
+              type: labelTypeForDisplayText[label.display_text] || 'custom',
+            };
+          });
+          const stubbedLabels = [
+            { id: 'new', display_text: 'NEW', description: '(added in last 24hrs)', slug: 'recently_added', type: 'status', count: 0, statusLabelKey: 'new_count' },
+            { id: 'online', display_text: 'ONLINE', slug: 'online', type: 'status', count: 0, statusLabelKey: 'online_count' },
+            { id: 'offline', display_text: 'OFFLINE', slug: 'offline', type: 'status', count: 0, statusLabelKey: 'offline_count' },
+            { id: 'mia', display_text: 'MIA', description: '(offline > 30 days)', slug: 'mia', type: 'status', count: 0, statusLabelKey: 'mia_count' },
+          ];
+
+          return labels.concat(stubbedLabels);
+        });
     },
   }
 
@@ -128,21 +171,6 @@ class Kolide extends Base {
         });
       },
     },
-  }
-
-  createLabel = ({ description, name, query }) => {
-    const { LABELS } = endpoints;
-
-    return this.authenticatedPost(this.endpoint(LABELS), JSON.stringify({ description, name, query }))
-      .then((response) => {
-        const { label } = response;
-
-        return {
-          ...label,
-          slug: helpers.labelSlug(label),
-          type: 'custom',
-        };
-      });
   }
 
   createPack = ({ name, description, targets }) => {
@@ -310,36 +338,6 @@ class Kolide extends Base {
             ...appendTargetTypeToTargets(targets.labels, 'labels'),
           ],
         };
-      });
-  }
-
-  getLabels = () => {
-    const { LABELS } = endpoints;
-
-    return this.authenticatedGet(this.endpoint(LABELS))
-      .then((response) => {
-        const labelTypeForDisplayText = {
-          'All Hosts': 'all',
-          'MS Windows': 'platform',
-          'CentOS Linux': 'platform',
-          'Mac OS X': 'platform',
-          'Ubuntu Linux': 'platform',
-        };
-        const labels = response.labels.map((label) => {
-          return {
-            ...label,
-            slug: helpers.labelSlug(label),
-            type: labelTypeForDisplayText[label.display_text] || 'custom',
-          };
-        });
-        const stubbedLabels = [
-          { id: 'new', display_text: 'NEW', description: '(added in last 24hrs)', slug: 'recently_added', type: 'status', count: 0, statusLabelKey: 'new_count' },
-          { id: 'online', display_text: 'ONLINE', slug: 'online', type: 'status', count: 0, statusLabelKey: 'online_count' },
-          { id: 'offline', display_text: 'OFFLINE', slug: 'offline', type: 'status', count: 0, statusLabelKey: 'offline_count' },
-          { id: 'mia', display_text: 'MIA', description: '(offline > 30 days)', slug: 'mia', type: 'status', count: 0, statusLabelKey: 'mia_count' },
-        ];
-
-        return labels.concat(stubbedLabels);
       });
   }
 
