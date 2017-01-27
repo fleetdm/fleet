@@ -3,6 +3,7 @@ import expect, { spyOn, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
+import * as authActions from 'redux/nodes/auth/actions';
 import { connectedComponent, reduxMockStore } from 'test/helpers';
 import ConnectedUserManagementPage, { UserManagementPage } from 'pages/Admin/UserManagementPage/UserManagementPage';
 import userActions from 'redux/nodes/entities/users/actions';
@@ -166,17 +167,31 @@ describe('UserManagementPage - component', () => {
     expect(mockStore.getActions()).toInclude(loadInvitesAction);
   });
 
-  it('updates a user with only the updated attributes', () => {
-    spyOn(userActions, 'update').andCallThrough();
-
+  describe('updating a user', () => {
     const dispatch = () => Promise.resolve();
     const props = { dispatch, config: {}, currentUser, invites: [], users: [currentUser] };
     const pageNode = mount(<UserManagementPage {...props} />).node;
     const updatedAttrs = { name: 'Updated Name' };
-    const updatedUser = { ...currentUser, ...updatedAttrs };
 
-    pageNode.onEditUser(currentUser, updatedUser);
+    it('updates the current user with only the updated attributes', () => {
+      spyOn(authActions, 'updateUser').andCallThrough();
 
-    expect(userActions.update).toHaveBeenCalledWith(currentUser, updatedAttrs);
+      const updatedUser = { ...currentUser, ...updatedAttrs };
+
+      pageNode.onEditUser(currentUser, updatedUser);
+
+      expect(authActions.updateUser).toHaveBeenCalledWith(currentUser, updatedAttrs);
+    });
+
+    it('updates a different user with only the updated attributes', () => {
+      spyOn(userActions, 'update').andCallThrough();
+
+      const otherUser = { ...currentUser, id: currentUser.id + 1 };
+      const updatedUser = { ...otherUser, ...updatedAttrs };
+
+      pageNode.onEditUser(otherUser, updatedUser);
+
+      expect(userActions.update).toHaveBeenCalledWith(otherUser, updatedAttrs);
+    });
   });
 });

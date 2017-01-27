@@ -12,11 +12,12 @@ import inviteInterface from 'interfaces/invite';
 import InviteUserForm from 'components/forms/InviteUserForm';
 import Modal from 'components/modals/Modal';
 import paths from 'router/paths';
-import SmtpWarning from 'components/SmtpWarning';
-import userActions from 'redux/nodes/entities/users/actions';
-import userInterface from 'interfaces/user';
 import { renderFlash } from 'redux/nodes/notifications/actions';
+import SmtpWarning from 'components/SmtpWarning';
+import { updateUser } from 'redux/nodes/auth/actions';
+import userActions from 'redux/nodes/entities/users/actions';
 import UserBlock from 'components/UserBlock';
+import userInterface from 'interfaces/user';
 
 const baseClass = 'user-management';
 
@@ -111,15 +112,25 @@ export class UserManagementPage extends Component {
   }
 
   onEditUser = (user, updatedUser) => {
-    const { dispatch } = this.props;
+    const { currentUser, dispatch } = this.props;
     const { update } = userActions;
     const updatedAttrs = deepDifference(updatedUser, user);
+
+    if (currentUser.id === user.id) {
+      return dispatch(updateUser(user, updatedAttrs))
+        .then(() => {
+          dispatch(renderFlash('success', 'User updated', updateUser(user, user)));
+
+          return false;
+        })
+        .catch(() => false);
+    }
 
     return dispatch(update(user, updatedAttrs))
       .then(() => {
         dispatch(renderFlash('success', 'User updated', update(user, user)));
 
-        return Promise.resolve();
+        return false;
       })
       .catch(() => false);
   }

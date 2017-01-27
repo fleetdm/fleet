@@ -1,18 +1,21 @@
 import expect, { restoreSpies, spyOn } from 'expect';
 
 import * as Kolide from 'kolide';
+import userActions from 'redux/nodes/entities/users/actions';
 
 import { reduxMockStore } from 'test/helpers';
+import { userStub } from 'test/stubs';
 
 import {
   performRequiredPasswordReset,
   PERFORM_REQUIRED_PASSWORD_RESET_REQUEST,
   PERFORM_REQUIRED_PASSWORD_RESET_FAILURE,
   PERFORM_REQUIRED_PASSWORD_RESET_SUCCESS,
+  updateUser,
 } from './actions';
 
 const store = { entities: { invites: {}, users: {} } };
-const user = { id: 1, email: 'zwass@kolide.co', force_password_reset: false };
+const user = { ...userStub, id: 1, email: 'zwass@kolide.co', force_password_reset: false };
 
 describe('Auth - actions', () => {
   describe('dispatching the perform required password reset action', () => {
@@ -108,6 +111,28 @@ describe('Auth - actions', () => {
             expect(mockStore.getActions()).toEqual(expectedActions);
           });
       });
+    });
+  });
+
+  describe('#updateUser', () => {
+    it('calls the user update action', () => {
+      const updatedAttrs = { name: 'Jerry Garcia' };
+      const updatedUser = { ...userStub, ...updatedAttrs };
+      const mockStore = reduxMockStore(store);
+      const expectedActions = [
+        { type: 'UPDATE_USER_REQUEST' },
+        { type: 'UPDATE_USER_SUCCESS', payload: { user: updatedUser } },
+      ];
+
+      spyOn(userActions, 'update').andReturn(() => Promise.resolve(updatedUser));
+
+      return mockStore.dispatch(updateUser(userStub, updatedAttrs))
+        .then(() => {
+          expect(mockStore.getActions()).toEqual(expectedActions);
+        })
+        .catch(() => {
+          throw new Error(`Expected ${mockStore.getActions()} to equal ${expectedActions}`);
+        });
     });
   });
 });
