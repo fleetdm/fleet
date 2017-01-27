@@ -23,7 +23,7 @@ const host = {
 const queryResult = {
   distributed_query_execution_id: 4,
   host,
-  rows: [{ cwd: '/' }],
+  rows: [{ host_hostname: 'dfoihgsx', cwd: '/', directory: '/root' }],
 };
 
 const campaignWithNoQueryResults = {
@@ -43,7 +43,7 @@ const campaignWithNoQueryResults = {
 const campaignWithQueryResults = {
   ...campaignWithNoQueryResults,
   query_results: [
-    { hostname: host.hostname, cwd: '/' },
+    { host_hostname: 'dfoihgsx', cwd: '/', directory: '/root' },
   ],
 };
 
@@ -77,7 +77,11 @@ describe('QueryResultsTable - component', () => {
     const tableHeaderText = componentWithQueryResults.find('thead').text();
 
     queryResultKeys.forEach((key) => {
-      expect(tableHeaderText).toInclude(key);
+      if (key === 'host_hostname') {
+        expect(tableHeaderText).toInclude('hostname');
+      } else {
+        expect(tableHeaderText).toInclude(key);
+      }
     });
   });
 

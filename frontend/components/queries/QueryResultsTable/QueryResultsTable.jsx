@@ -88,7 +88,7 @@ class QueryResultsTable extends Component {
     const { renderTableHeaderRowData } = this;
     const { query_results: queryResults } = campaign;
 
-    const queryAttrs = omit(queryResults[0], ['hostname']);
+    const queryAttrs = omit(queryResults[0], ['host_hostname']);
     const queryResultColumns = keys(queryAttrs);
 
     return (
