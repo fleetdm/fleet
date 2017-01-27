@@ -1,19 +1,21 @@
 import React, { Component, PropTypes } from 'react';
 import classnames from 'classnames';
 
-import Avatar from '../../../../components/Avatar';
-import Dropdown from '../../../../components/forms/fields/Dropdown';
-import EditUserForm from '../../../../components/forms/admin/EditUserForm';
-import userInterface from '../../../../interfaces/user';
-import { userStatusLabel } from './helpers';
+import Avatar from 'components/Avatar';
+import Dropdown from 'components/forms/fields/Dropdown';
+import EditUserForm from 'components/forms/admin/EditUserForm';
+import helpers from 'components/UserBlock/helpers';
+import userInterface from 'interfaces/user';
 
 class UserBlock extends Component {
   static propTypes = {
-    currentUser: userInterface,
-    invite: PropTypes.bool,
-    onEditUser: PropTypes.func,
+    isCurrentUser: PropTypes.bool.isRequired,
+    isEditing: PropTypes.bool.isRequired,
+    isInvite: PropTypes.bool.isRequired,
+    onEditUser: PropTypes.func.isRequired,
+    onToggleEditUser: PropTypes.func.isRequired,
     onSelect: PropTypes.func,
-    user: userInterface,
+    user: userInterface.isRequired,
     userErrors: PropTypes.shape({
       base: PropTypes.string,
       name: PropTypes.string,
@@ -21,91 +23,48 @@ class UserBlock extends Component {
     }),
   };
 
-  static userActionOptions = (currentUser, user, invite) => {
-    const disableActions = currentUser.id === user.id;
-    const inviteActions = [
-      { label: 'Revoke Invitation', value: 'revert_invitation' },
-    ];
-    const userEnableAction = user.enabled
-      ? { disabled: disableActions, label: 'Disable Account', value: 'disable_account' }
-      : { label: 'Enable Account', value: 'enable_account' };
-    const userPromotionAction = user.admin
-      ? { disabled: disableActions, label: 'Demote User', value: 'demote_user' }
-      : { label: 'Promote User', value: 'promote_user' };
-
-    if (invite) return inviteActions;
-
-    return [
-      userEnableAction,
-      userPromotionAction,
-      { label: 'Require Password Reset', value: 'reset_password' },
-      { label: 'Modify Details', value: 'modify_details' },
-    ];
-  };
-
-  constructor (props) {
-    super(props);
-
-    this.state = {
-      isEdit: false,
-    };
-  }
-
   onToggleEditing = (evt) => {
     evt.preventDefault();
 
-    const { isEdit } = this.state;
+    const { onToggleEditUser, user } = this.props;
 
-    this.setState({
-      isEdit: !isEdit,
-    });
-
-    return false;
+    return onToggleEditUser(user);
   }
 
-  onEditUserFormSubmit = (updatedUser) => {
-    const { user, onEditUser } = this.props;
+  onEditUser = (updatedUser) => {
+    const { onEditUser, user } = this.props;
 
-    return onEditUser(user, updatedUser)
-      .then(() => {
-        this.setState({ isEdit: false });
-
-        return false;
-      })
-      .catch(() => false);
+    return onEditUser(user, updatedUser);
   }
 
   onUserActionSelect = (action) => {
-    const { onSelect, user } = this.props;
+    const { onSelect, onToggleEditUser, user } = this.props;
 
     if (action === 'modify_details') {
-      this.setState({
-        isEdit: true,
-      });
-
-      return false;
+      return onToggleEditUser(user);
     }
 
     return onSelect(user, action);
   }
 
   renderCTAs = () => {
-    const { currentUser, invite, user } = this.props;
+    const { isCurrentUser, isInvite, user } = this.props;
     const { onUserActionSelect } = this;
-    const userActionOptions = UserBlock.userActionOptions(currentUser, user, invite);
+    const userActionOptions = helpers.userActionOptions(isCurrentUser, user, isInvite);
 
     return (
       <Dropdown
+        name="user-action-dropdown"
         options={userActionOptions}
         placeholder="Actions..."
         onChange={onUserActionSelect}
-        className={invite ? 'revoke-invite' : ''}
+        className={isInvite ? 'revoke-invite' : ''}
       />
     );
   }
 
   render () {
-    const { invite, user, userErrors } = this.props;
+    const { isEditing, isInvite, user, userErrors } = this.props;
     const {
       admin,
       email,
@@ -114,25 +73,24 @@ class UserBlock extends Component {
       username,
       enabled,
     } = user;
-    const { isEdit } = this.state;
-    const { onEditUserFormSubmit, onToggleEditing, renderCTAs } = this;
-    const statusLabel = userStatusLabel(user, invite);
+    const { onEditUser, onToggleEditing, renderCTAs } = this;
+    const statusLabel = helpers.userStatusLabel(user, isInvite);
     const userLabel = admin ? 'Admin' : 'User';
 
     const baseClass = 'user-block';
 
     const userWrapperClass = classnames(
       baseClass,
-      { [`${baseClass}--invited`]: invite },
-      { [`${baseClass}--disabled`]: !enabled && !invite }
+      { [`${baseClass}--invited`]: isInvite },
+      { [`${baseClass}--disabled`]: !enabled && !isInvite }
     );
 
     const userHeaderClass = classnames(
       `${baseClass}__header`,
       { [`${baseClass}__header--admin`]: admin },
       { [`${baseClass}__header--user`]: !admin },
-      { [`${baseClass}__header--invited`]: invite },
-      { [`${baseClass}__header--disabled`]: !enabled && !invite }
+      { [`${baseClass}__header--invited`]: isInvite },
+      { [`${baseClass}__header--disabled`]: !enabled && !isInvite }
     );
 
     const userAvatarClass = classnames(
@@ -147,9 +105,9 @@ class UserBlock extends Component {
 
     const userStatusTextClass = classnames(
       `${baseClass}__status-text`,
-      { [`${baseClass}__status-text--invited`]: invite },
+      { [`${baseClass}__status-text--invited`]: isInvite },
       { [`${baseClass}__status-text--enabled`]: enabled },
-      { [`${baseClass}__status-text--disabled`]: !enabled && !invite }
+      { [`${baseClass}__status-text--disabled`]: !enabled && !isInvite }
     );
 
     const userUsernameClass = classnames(
@@ -168,12 +126,12 @@ class UserBlock extends Component {
       { [`${baseClass}__email--disabled`]: !enabled }
     );
 
-    if (isEdit) {
+    if (isEditing) {
       return (
         <div className={userWrapperClass}>
           <EditUserForm
             onCancel={onToggleEditing}
-            handleSubmit={onEditUserFormSubmit}
+            handleSubmit={onEditUser}
             formData={user}
             serverErrors={userErrors}
           />

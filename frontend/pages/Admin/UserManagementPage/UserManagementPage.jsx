@@ -1,5 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
+import { concat, includes, difference } from 'lodash';
 import { push } from 'react-router-redux';
 
 import Button from 'components/buttons/Button';
@@ -15,7 +16,7 @@ import SmtpWarning from 'components/SmtpWarning';
 import userActions from 'redux/nodes/entities/users/actions';
 import userInterface from 'interfaces/user';
 import { renderFlash } from 'redux/nodes/notifications/actions';
-import UserBlock from './UserBlock';
+import UserBlock from 'components/UserBlock';
 
 const baseClass = 'user-management';
 
@@ -45,6 +46,7 @@ export class UserManagementPage extends Component {
 
     this.state = {
       showInviteUserModal: false,
+      usersEditing: [],
     };
   }
 
@@ -118,7 +120,8 @@ export class UserManagementPage extends Component {
         dispatch(renderFlash('success', 'User updated', update(user, user)));
 
         return Promise.resolve();
-      });
+      })
+      .catch(() => false);
   }
 
   onInviteUserSubmit = (formData) => {
@@ -137,6 +140,22 @@ export class UserManagementPage extends Component {
     evt.preventDefault();
 
     return this.toggleInviteUserModal();
+  }
+
+  onToggleEditUser = (user) => {
+    const { dispatch } = this.props;
+    const { usersEditing } = this.state;
+    let updatedUsersEditing = [];
+
+    dispatch(userActions.clearErrors);
+
+    if (includes(usersEditing, user.id)) {
+      updatedUsersEditing = difference(usersEditing, [user.id]);
+    } else {
+      updatedUsersEditing = concat(usersEditing, [user.id]);
+    }
+
+    this.setState({ usersEditing: updatedUsersEditing });
   }
 
   goToAppConfigPage = (evt) => {
@@ -161,15 +180,19 @@ export class UserManagementPage extends Component {
   renderUserBlock = (user, idx, options = { invite: false }) => {
     const { currentUser, userErrors } = this.props;
     const { invite } = options;
-    const { onEditUser, onUserActionSelect } = this;
+    const { onEditUser, onToggleEditUser, onUserActionSelect } = this;
+    const { usersEditing } = this.state;
+    const isEditing = includes(usersEditing, user.id);
 
     return (
       <UserBlock
-        currentUser={currentUser}
-        invite={invite}
+        isEditing={isEditing}
+        isInvite={invite}
+        isCurrentUser={currentUser.id === user.id}
         key={`${user.email}-${idx}-${invite ? 'invite' : 'user'}`}
         onEditUser={onEditUser}
         onSelect={onUserActionSelect}
+        onToggleEditUser={onToggleEditUser}
         user={user}
         userErrors={userErrors}
       />
