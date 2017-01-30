@@ -1,7 +1,7 @@
 .PHONY: build
 
 PATH := $(GOPATH)/bin:$(shell npm bin):$(PATH)
-VERSION = 0.0.0-development
+VERSION = $(shell git describe --tags --always --dirty)
 BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
 REVISION = $(shell git rev-parse HEAD)
 REVSHORT = $(shell git rev-parse --short HEAD)
