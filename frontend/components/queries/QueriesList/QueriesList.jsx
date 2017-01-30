@@ -76,10 +76,11 @@ class QueriesList extends Component {
   }
 
   render () {
+    const alphaSort = q => q.name.toLowerCase();
     const { checkedQueryIDs, onCheckQuery, onSelectQuery, queries, selectedQuery } = this.props;
     const { allQueriesChecked } = this.state;
     const { renderHelpText, handleCheckAll } = this;
-
+    const sortedQueries = sortBy(queries, [alphaSort]);
     const wrapperClassName = classnames(`${baseClass}__table`, {
       [`${baseClass}__table--query-selected`]: size(checkedQueryIDs),
     });
@@ -101,7 +102,7 @@ class QueriesList extends Component {
           </thead>
           <tbody>
             {renderHelpText()}
-            {!!queries.length && sortBy(queries, ['name']).map((query) => {
+            {!!sortedQueries.length && sortedQueries.map((query) => {
               return (
                 <QueriesListRow
                   checked={this.isChecked(query)}

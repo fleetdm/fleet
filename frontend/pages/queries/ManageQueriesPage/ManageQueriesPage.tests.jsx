@@ -16,7 +16,7 @@ const store = {
         101: {
           ...queryStub,
           id: 101,
-          name: 'My unique query name',
+          name: 'alpha query',
         },
       },
     },
@@ -65,7 +65,7 @@ describe('ManageQueriesPage - component', () => {
 
     expect(page.node.getQueries().length).toEqual(2);
 
-    fillInFormInput(queryFilterInput, 'My unique query name');
+    fillInFormInput(queryFilterInput, 'alpha query');
 
     expect(page.node.getQueries().length).toEqual(1);
   });
@@ -115,7 +115,7 @@ describe('ManageQueriesPage - component', () => {
   });
 
   describe('bulk delete action', () => {
-    const queries = [queryStub, { ...queryStub, id: 101, name: 'My unique query name' }];
+    const queries = [queryStub, { ...queryStub, id: 101, name: 'alpha query' }];
 
     it('displays the delete action button when a query is checked', () => {
       const page = mount(<ManageQueriesPage queries={queries} />);
