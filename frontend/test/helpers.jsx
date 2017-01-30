@@ -5,12 +5,14 @@ import { noop } from 'lodash';
 import { Provider } from 'react-redux';
 import thunk from 'redux-thunk';
 
+import authMiddleware from 'redux/middlewares/auth';
+
 export const fillInFormInput = (inputComponent, value) => {
   return inputComponent.simulate('change', { target: { value } });
 };
 
 export const reduxMockStore = (store = {}) => {
-  const middlewares = [thunk];
+  const middlewares = [thunk, authMiddleware];
   const mockStore = configureStore(middlewares);
 
   return mockStore(store);

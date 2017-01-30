@@ -40,6 +40,7 @@ describe('reduxConfig - helpers', () => {
         },
       ];
       const errorResponse = {
+        status: 422,
         message: {
           message: 'Validation Failed',
           errors,
@@ -48,6 +49,7 @@ describe('reduxConfig - helpers', () => {
 
       expect(formatErrorResponse(errorResponse)).toEqual({
         first_name: 'is not valid, must be something else',
+        http_status: 422,
         last_name: 'must be changed or something',
       });
     });

@@ -99,7 +99,7 @@ describe('ForgotPasswordPage - reducer', () => {
         .catch(() => {
           const actions = store.getActions();
 
-          expect(actions).toInclude(forgotPasswordErrorAction({ base: 'Something went wrong' }));
+          expect(actions).toInclude(forgotPasswordErrorAction({ base: 'Something went wrong', http_status: 422 }));
           expect(invalidRequest.isDone()).toEqual(true);
           done();
         });

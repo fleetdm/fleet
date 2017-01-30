@@ -38,6 +38,7 @@ describe('ManageHostsPage - reducer', () => {
         },
       });
     });
+
     it('dispatches the correct actions when successful', (done) => {
       const statusLabelCounts = { online_count: 23, offline_count: 100, mia_count: 2 };
       const store = { components: { ManageHostsPage: initialState } };
@@ -65,12 +66,12 @@ describe('ManageHostsPage - reducer', () => {
       const store = { components: { ManageHostsPage: initialState } };
       const mockStore = reduxMockStore(store);
       const errors = [{ name: 'error_name', reason: 'error reason' }];
-      const errorObject = { message: { message: 'oops', errors } };
+      const errorObject = { status: 422, message: { message: 'oops', errors } };
       const expectedActions = [
         { type: 'LOAD_STATUS_LABEL_COUNTS' },
         {
           type: 'GET_STATUS_LABEL_COUNTS_FAILURE',
-          payload: { errors: { error_name: 'error reason' } },
+          payload: { errors: { error_name: 'error reason', http_status: 422 } },
         },
       ];
 
@@ -144,11 +145,11 @@ describe('ManageHostsPage - reducer', () => {
       const store = { components: { ManageHostsPage: initialState } };
       const mockStore = reduxMockStore(store);
       const errors = [{ name: 'error_name', reason: 'error reason' }];
-      const errorObject = { message: { message: 'oops', errors } };
+      const errorObject = { status: 422, message: { message: 'oops', errors } };
       const expectedActions = [
         {
           type: 'GET_STATUS_LABEL_COUNTS_FAILURE',
-          payload: { errors: { error_name: 'error reason' } },
+          payload: { errors: { error_name: 'error reason', http_status: 422 } },
         },
       ];
 

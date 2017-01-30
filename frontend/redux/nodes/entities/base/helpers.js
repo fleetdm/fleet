@@ -29,7 +29,10 @@ const formatServerErrors = (errors) => {
 export const formatErrorResponse = (errorResponse) => {
   const errors = get(errorResponse, 'message.errors') || [];
 
-  return formatServerErrors(errors);
+  return {
+    ...formatServerErrors(errors),
+    http_status: errorResponse.status,
+  };
 };
 
 export default { entitiesExceptID, formatErrorResponse };

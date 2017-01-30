@@ -70,6 +70,7 @@ describe('Users - actions', () => {
         },
       ];
       const errorResponse = {
+        status: 422,
         message: {
           message: 'Unable to enable the user',
           errors,
@@ -105,7 +106,7 @@ describe('Users - actions', () => {
 
             expect(dispatchedActions).toEqual([
               config.extendedActions.updateRequest,
-              config.extendedActions.updateFailure({ base: 'Unable to enable the user' }),
+              config.extendedActions.updateFailure({ base: 'Unable to enable the user', http_status: 422 }),
             ]);
 
             done();
@@ -168,6 +169,7 @@ describe('Users - actions', () => {
         },
       ];
       const errorResponse = {
+        status: 422,
         message: {
           message: 'Unable to change password',
           errors,
@@ -203,7 +205,7 @@ describe('Users - actions', () => {
 
             expect(dispatchedActions).toEqual([
               config.extendedActions.updateRequest,
-              config.extendedActions.updateFailure({ base: 'Unable to change password' }),
+              config.extendedActions.updateFailure({ base: 'Unable to change password', http_status: 422 }),
             ]);
 
             done();
@@ -263,6 +265,7 @@ describe('Users - actions', () => {
         },
       ];
       const errorResponse = {
+        status: 422,
         message: {
           message: 'Unable to make the user an admin',
           errors,
@@ -298,7 +301,7 @@ describe('Users - actions', () => {
 
             expect(dispatchedActions).toEqual([
               config.extendedActions.updateRequest,
-              config.extendedActions.updateFailure({ base: 'Unable to make the user an admin' }),
+              config.extendedActions.updateFailure({ base: 'Unable to make the user an admin', http_status: 422 }),
             ]);
 
             done();
@@ -352,6 +355,7 @@ describe('Users - actions', () => {
         },
       ];
       const errorResponse = {
+        status: 422,
         message: {
           message: 'Unable to require password reset',
           errors,
@@ -385,7 +389,7 @@ describe('Users - actions', () => {
           { type: REQUIRE_PASSWORD_RESET_REQUEST },
           {
             type: REQUIRE_PASSWORD_RESET_FAILURE,
-            payload: { errors: { base: 'Unable to require password reset' } },
+            payload: { errors: { base: 'Unable to require password reset', http_status: 422 } },
           },
         ];
 

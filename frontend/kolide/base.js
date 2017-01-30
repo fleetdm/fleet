@@ -39,9 +39,10 @@ class Base {
             }
 
             const error = new Error(response.statusText);
-            error.response = jsonResponse;
-            error.message = jsonResponse;
             error.error = jsonResponse.error;
+            error.message = jsonResponse;
+            error.response = jsonResponse;
+            error.status = response.status;
 
             throw error;
           });

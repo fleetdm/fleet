@@ -22,6 +22,13 @@ const store = {
 };
 const invite = { id: 1, name: 'Gnar Dog', email: 'hi@thegnar.co' };
 const user = { id: 1, email: 'hi@thegnar.co' };
+const unauthenticatedError = {
+  status: 401,
+  message: {
+    message: 'Unauthenticated',
+    errors: [{ base: 'User is not authenticated' }],
+  },
+};
 
 describe('reduxConfig', () => {
   afterEach(restoreSpies);
@@ -102,6 +109,28 @@ describe('reduxConfig', () => {
 
     describe('unsuccessful create call', () => {
       const mockStore = reduxMockStore(store);
+
+      describe('unauthenticated error', () => {
+        const createFunc = createSpy().andCall(() => Promise.reject(unauthenticatedError));
+        const config = reduxConfig({
+          createFunc,
+          entityName: 'users',
+          schema: schemas.USERS,
+        });
+        const { actions } = config;
+
+        it('dispatches the LOGOUT_SUCCESS action', (done) => {
+          mockStore.dispatch(actions.create())
+            .then(done)
+            .catch(() => {
+              const dispatchedActions = mockStore.getActions();
+
+              expect(dispatchedActions).toInclude({ type: 'LOGOUT_SUCCESS' });
+              done();
+            });
+        });
+      });
+
       const errors = [
         { name: 'first_name',
           reason: 'is not valid',
@@ -222,69 +251,92 @@ describe('reduxConfig', () => {
     });
 
     describe('unsuccessful update call', () => {
-      const mockStore = reduxMockStore(store);
-      const errors = [
-        { name: 'first_name',
-          reason: 'is not valid',
-        },
-        { name: 'last_name',
-          reason: 'must be changed or something',
-        },
-      ];
-      const errorResponse = {
-        message: {
-          message: 'Validation Failed',
-          errors,
-        },
-      };
-      const formattedErrors = formatErrorResponse(errorResponse);
-      const updateFunc = createSpy().andCall(() => {
-        return Promise.reject(errorResponse);
-      });
-      const config = reduxConfig({
-        entityName: 'users',
-        schema: schemas.USERS,
-        updateFunc,
-      });
-      const { actions, reducer } = config;
+      describe('unauthenticated error', () => {
+        const mockStore = reduxMockStore(store);
+        const updateFunc = createSpy().andCall(() => Promise.reject(unauthenticatedError));
+        const config = reduxConfig({ updateFunc, entityName: 'users', schema: schemas.USERS });
+        const { actions } = config;
 
-      it('calls the updateFunc', () => {
-        mockStore.dispatch(actions.update(user));
+        it('dispatches the LOGOUT_SUCCESS action', (done) => {
+          mockStore.dispatch(actions.update())
+            .then(done)
+            .catch(() => {
+              const dispatchedActions = mockStore.getActions();
 
-        expect(updateFunc).toHaveBeenCalledWith(user);
-      });
+              expect(dispatchedActions).toInclude({ type: 'LOGOUT_SUCCESS' });
 
-      it('dispatches the correct actions', () => {
-        mockStore.dispatch(actions.update());
-
-        const dispatchedActions = mockStore.getActions();
-        const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
-
-        expect(dispatchedActionTypes).toInclude('users_UPDATE_REQUEST');
-        expect(dispatchedActionTypes).toNotInclude('users_UPDATE_SUCCESS');
-
-        const updateFailureAction = find(dispatchedActions, { type: 'users_UPDATE_FAILURE' });
-
-        expect(updateFailureAction.payload).toEqual({
-          errors: formattedErrors,
+              done();
+            });
         });
       });
 
-      it('adds the returned errors to state', () => {
-        const updateFailureAction = {
-          type: 'users_UPDATE_FAILURE',
-          payload: {
-            errors: formattedErrors,
+      describe('unprocessable entitiy', () => {
+        const mockStore = reduxMockStore(store);
+
+        const errors = [
+          { name: 'first_name',
+            reason: 'is not valid',
+          },
+          { name: 'last_name',
+            reason: 'must be changed or something',
+          },
+        ];
+        const errorResponse = {
+          status: 422,
+          message: {
+            message: 'Validation Failed',
+            errors,
           },
         };
-        const initialState = {
-          loading: false,
-          entities: {},
-          errors: {},
-        };
-        const newState = reducer(initialState, updateFailureAction);
+        const formattedErrors = formatErrorResponse(errorResponse);
+        const updateFunc = createSpy().andCall(() => {
+          return Promise.reject(errorResponse);
+        });
+        const config = reduxConfig({
+          entityName: 'users',
+          schema: schemas.USERS,
+          updateFunc,
+        });
+        const { actions, reducer } = config;
 
-        expect(newState.errors).toEqual(formattedErrors);
+        it('calls the updateFunc', () => {
+          mockStore.dispatch(actions.update(user));
+
+          expect(updateFunc).toHaveBeenCalledWith(user);
+        });
+
+        it('dispatches the correct actions', () => {
+          mockStore.dispatch(actions.update());
+
+          const dispatchedActions = mockStore.getActions();
+          const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
+
+          expect(dispatchedActionTypes).toInclude('users_UPDATE_REQUEST');
+          expect(dispatchedActionTypes).toNotInclude('users_UPDATE_SUCCESS');
+
+          const updateFailureAction = find(dispatchedActions, { type: 'users_UPDATE_FAILURE' });
+
+          expect(updateFailureAction.payload).toEqual({
+            errors: formattedErrors,
+          });
+        });
+
+        it('adds the returned errors to state', () => {
+          const updateFailureAction = {
+            type: 'users_UPDATE_FAILURE',
+            payload: {
+              errors: formattedErrors,
+            },
+          };
+          const initialState = {
+            loading: false,
+            entities: {},
+            errors: {},
+          };
+          const newState = reducer(initialState, updateFailureAction);
+
+          expect(newState.errors).toEqual(formattedErrors);
+        });
       });
     });
   });
