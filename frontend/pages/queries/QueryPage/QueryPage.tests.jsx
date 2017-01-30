@@ -5,7 +5,7 @@ import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
 import convertToCSV from 'utilities/convert_to_csv';
-import { defaultSelectedOsqueryTable } from 'redux/nodes/components/QueryPages/actions';
+import * as queryPageActions from 'redux/nodes/components/QueryPages/actions';
 import helpers from 'test/helpers';
 import kolide from 'kolide';
 import queryActions from 'redux/nodes/entities/queries/actions';
@@ -14,6 +14,7 @@ import { validUpdateQueryRequest } from 'test/mocks';
 import { hostStub } from 'test/stubs';
 
 const { connectedComponent, createAceSpy, fillInFormInput, reduxMockStore } = helpers;
+const { defaultSelectedOsqueryTable } = queryPageActions;
 const locationProp = { params: {}, location: { query: {} } };
 
 describe('QueryPage - component', () => {
@@ -136,6 +137,33 @@ describe('QueryPage - component', () => {
     expect(queryActions.update).toHaveBeenCalledWith(query, { name: 'new name' });
     expect(mockStoreWithQuery.getActions()).toInclude({
       type: 'queries_UPDATE_REQUEST',
+    });
+  });
+
+  describe('#componentWillReceiveProps', () => {
+    it('resets selected targets and removed the campaign when the hostname changes', () => {
+      const queryResult = { org_name: 'Kolide', org_url: 'https://kolide.co' };
+      const campaign = { id: 1, query_results: [queryResult] };
+      const props = {
+        dispatch: noop,
+        loadingQueries: false,
+        location: { pathname: '/queries/11' },
+        selectedOsqueryTable: defaultSelectedOsqueryTable,
+        selectedTargets: [hostStub],
+      };
+      const Page = mount(<QueryPage {...props} />);
+      const PageNode = Page.node;
+
+      spyOn(PageNode, 'destroyCampaign');
+      spyOn(PageNode, 'removeSocket');
+      spyOn(queryPageActions, 'setSelectedTargets');
+
+      Page.setState({ campaign });
+      Page.setProps({ location: { pathname: '/queries/new' } });
+
+      expect(queryPageActions.setSelectedTargets).toHaveBeenCalledWith([]);
+      expect(PageNode.destroyCampaign).toHaveBeenCalled();
+      expect(PageNode.removeSocket).toHaveBeenCalled();
     });
   });
 

@@ -36,6 +36,9 @@ export class QueryPage extends Component {
     }),
     hostIDs: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
     loadingQueries: PropTypes.bool.isRequired,
+    location: PropTypes.shape({
+      pathname: PropTypes.string,
+    }),
     query: queryInterface,
     selectedOsqueryTable: osqueryTableInterface,
     selectedTargets: PropTypes.arrayOf(targetInterface),
@@ -64,11 +67,19 @@ export class QueryPage extends Component {
     return false;
   }
 
-  componentWillUnmount () {
-    const { destroyCampaign, removeSocket } = this;
+  componentWillReceiveProps (nextProps) {
+    const nextPathname = nextProps.location.pathname;
+    const { pathname } = this.props.location;
 
-    removeSocket();
-    destroyCampaign();
+    if (nextPathname !== pathname) {
+      this.resetCampaignAndTargets();
+    }
+
+    return false;
+  }
+
+  componentWillUnmount () {
+    this.resetCampaignAndTargets();
 
     return false;
   }
@@ -266,6 +277,17 @@ export class QueryPage extends Component {
       this.socket = null;
       this.previousSocketData = null;
     }
+
+    return false;
+  }
+
+  resetCampaignAndTargets = () => {
+    const { destroyCampaign, removeSocket } = this;
+    const { dispatch } = this.props;
+
+    destroyCampaign();
+    dispatch(setSelectedTargets([]));
+    removeSocket();
 
     return false;
   }
