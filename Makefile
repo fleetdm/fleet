@@ -48,6 +48,7 @@ define HELP_TEXT
 	make distclean    - Delete all build artifacts
 
 	make build        - Build the code
+	make package 	  - Build rpm and deb packages for linux
 
 	make test         - Run the full test suite
 	make test-go      - Run the Go tests
@@ -165,3 +166,11 @@ demo-restore:
 	mysql --binary-mode -u kolide -p \
 		-h ${MYSQL_PORT_3306_TCP_ADDR} kolide \
 		< ./tools/app/demo.sql
+
+package: export GOOS=linux
+package: export CGO_ENABLED=0
+package: build
+	mkdir -p build/pkgroot/usr/bin
+	cp build/kolide build/pkgroot/usr/bin
+	docker run --rm -it -v ${PWD}/build/pkgroot:/pkgroot -v ${PWD}/build:/out -e KOLIDE_VERSION="${VERSION}" kolide/fpm
+
