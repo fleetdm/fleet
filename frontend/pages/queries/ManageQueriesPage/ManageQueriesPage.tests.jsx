@@ -1,6 +1,6 @@
 import React from 'react';
 import expect from 'expect';
-import { find } from 'lodash';
+import { find, noop } from 'lodash';
 import { mount } from 'enzyme';
 
 import ConnectedManageQueriesPage, { ManageQueriesPage } from 'pages/queries/ManageQueriesPage/ManageQueriesPage';
@@ -53,6 +53,44 @@ describe('ManageQueriesPage - component', () => {
       const page = mount(Component).find('ManageQueriesPage');
 
       expect(page.find('QueryDetailsSidePanel').length).toEqual(1);
+    });
+
+    it('resets checkedQueryIDs after successfully deleting checked queries', (done) => {
+      const fakeEvt = { preventDefault: noop };
+      const props = {
+        dispatch: () => Promise.resolve(),
+        loadingQueries: false,
+        queries: [queryStub],
+      };
+      const page = mount(<ManageQueriesPage {...props} />);
+
+      page.setState({ checkedQueryIDs: [queryStub.id], showModal: true });
+      page.node.onDeleteQueries(fakeEvt)
+        .then(() => {
+          expect(page.state('showModal')).toEqual(false);
+          expect(page.state('checkedQueryIDs')).toEqual([]);
+          done();
+        })
+        .catch(done);
+    });
+
+    it('does not reset checkedQueryIDs if deleting a checked query is  unsuccessful', (done) => {
+      const fakeEvt = { preventDefault: noop };
+      const props = {
+        dispatch: () => Promise.reject(),
+        loadingQueries: false,
+        queries: [queryStub],
+      };
+      const page = mount(<ManageQueriesPage {...props} />);
+
+      page.setState({ checkedQueryIDs: [queryStub.id], showModal: true });
+      page.node.onDeleteQueries(fakeEvt)
+        .then(() => {
+          expect(page.state('showModal')).toEqual(false);
+          expect(page.state('checkedQueryIDs')).toEqual([queryStub.id]);
+          done();
+        })
+        .catch(done);
     });
   });
 

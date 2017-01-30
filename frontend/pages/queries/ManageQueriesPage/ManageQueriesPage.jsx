@@ -65,7 +65,7 @@ export class ManageQueriesPage extends Component {
       .then(() => {
         dispatch(renderFlash('success', 'Queries successfully deleted.'));
 
-        this.setState({ showModal: false });
+        this.setState({ checkedQueryIDs: [], showModal: false });
 
         return false;
       })
