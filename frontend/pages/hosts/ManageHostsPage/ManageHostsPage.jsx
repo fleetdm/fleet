@@ -167,6 +167,7 @@ export class ManageHostsPage extends Component {
       const { slug } = selectedLabel;
       const nextLocation = slug === 'all-hosts' ? MANAGE_HOSTS : `${MANAGE_HOSTS}/${slug}`;
 
+      dispatch(hostActions.loadAll());
       dispatch(push(nextLocation));
 
       return false;

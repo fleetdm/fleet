@@ -76,6 +76,21 @@ describe('ManageHostsPage - component', () => {
 
       expect(page.find('QuerySidePanel').length).toEqual(1);
     });
+
+    it('fetches all hosts when a label is clicked', () => {
+      const labels = [windowsLabel];
+      const pageProps = { ...props, labels };
+      const Page = mount(<ManageHostsPage {...pageProps} />);
+      const SidePanel = Page.find('HostSidePanel');
+
+      spyOn(hostActions, 'loadAll');
+
+      expect(hostActions.loadAll).toNotHaveBeenCalled();
+
+      SidePanel.find('.panel-group-item__platform--windows').simulate('click');
+
+      expect(hostActions.loadAll).toHaveBeenCalled();
+    });
   });
 
   describe('header', () => {
