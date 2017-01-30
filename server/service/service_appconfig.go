@@ -6,6 +6,7 @@ import (
 	"github.com/kolide/kolide-ose/server/contexts/viewer"
 	"github.com/kolide/kolide-ose/server/kolide"
 	"github.com/kolide/kolide-ose/server/mail"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -34,11 +35,11 @@ func (svc service) NewAppConfig(ctx context.Context, p kolide.AppConfigPayload) 
 	}
 	fromPayload := appConfigFromAppConfigPayload(p, *config)
 	if fromPayload.EnrollSecret == "" {
-		// generate a random string if the user hasn't set one in the form
-		// TODO: actually generate the string. Until there's a UI to
-		// set/view the secret, we need to be ablet o enroll hosts so this value
-		// is hardcoded.
-		rand := "qrsvavgrylfrpher"
+		// generate a random string if the user hasn't set one in the form.
+		rand, err := kolide.RandomText(24)
+		if err != nil {
+			return nil, errors.Wrap(err, "generate enroll secret string")
+		}
 		fromPayload.EnrollSecret = rand
 	}
 	newConfig, err := svc.ds.NewAppConfig(fromPayload)
