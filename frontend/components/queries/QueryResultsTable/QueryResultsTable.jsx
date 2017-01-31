@@ -64,8 +64,9 @@ class QueryResultsTable extends Component {
   }
 
   renderTableHeaderRowData = (column, index) => {
-    const { onFilterAttribute, onSetActiveColumn } = this;
+    const filterable = column === 'hostname' ? 'host_hostname' : column;
     const { activeColumn, resultsFilter } = this.state;
+    const { onFilterAttribute, onSetActiveColumn } = this;
     const filterIconClassName = classnames(`${baseClass}__filter-icon`, {
       [`${baseClass}__filter-icon--is-active`]: activeColumn === column,
     });
@@ -75,9 +76,9 @@ class QueryResultsTable extends Component {
         <span><Icon className={filterIconClassName} name="filter" />{column}</span>
         <InputField
           name={column}
-          onChange={onFilterAttribute(column)}
+          onChange={onFilterAttribute(filterable)}
           onFocus={onSetActiveColumn(column)}
-          value={resultsFilter[column]}
+          value={resultsFilter[filterable]}
         />
       </th>
     );

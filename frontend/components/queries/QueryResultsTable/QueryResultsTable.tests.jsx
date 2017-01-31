@@ -3,6 +3,7 @@ import expect, { createSpy, restoreSpies } from 'expect';
 import { keys } from 'lodash';
 import { mount } from 'enzyme';
 
+import { fillInFormInput } from 'test/helpers';
 import QueryResultsTable from 'components/queries/QueryResultsTable';
 
 const host = {
@@ -44,6 +45,7 @@ const campaignWithQueryResults = {
   ...campaignWithNoQueryResults,
   query_results: [
     { host_hostname: 'dfoihgsx', cwd: '/', directory: '/root' },
+    { host_hostname: 'abc123', cwd: '/', directory: '/root' },
   ],
 };
 
@@ -83,6 +85,16 @@ describe('QueryResultsTable - component', () => {
         expect(tableHeaderText).toInclude(key);
       }
     });
+  });
+
+  it('filters by hostname', () => {
+    const hostnameInputFilter = componentWithQueryResults.find('InputField').find({ name: 'hostname' });
+
+    expect(componentWithQueryResults.find('QueryResultsRow').length).toEqual(2);
+
+    fillInFormInput(hostnameInputFilter, 'abc123');
+
+    expect(componentWithQueryResults.find('QueryResultsRow').length).toEqual(1);
   });
 
   it('calls the onExportQueryResults prop when the export button is clicked', () => {
