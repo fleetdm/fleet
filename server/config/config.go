@@ -90,46 +90,70 @@ type KolideConfig struct {
 // filled into the KolideConfig struct
 func (man Manager) addConfigs() {
 	// MySQL
-	man.addConfigString("mysql.address", "localhost:3306")
-	man.addConfigString("mysql.username", "kolide")
-	man.addConfigString("mysql.password", "kolide")
-	man.addConfigString("mysql.database", "kolide")
+	man.addConfigString("mysql.address", "localhost:3306",
+		"MySQL server address (host:port)")
+	man.addConfigString("mysql.username", "kolide",
+		"MySQL server username")
+	man.addConfigString("mysql.password", "kolide",
+		"MySQL server password (prefer env variable for security)")
+	man.addConfigString("mysql.database", "kolide",
+		"MySQL database name")
 
 	// Redis
-	man.addConfigString("redis.address", "localhost:6379")
-	man.addConfigString("redis.password", "")
+	man.addConfigString("redis.address", "localhost:6379",
+		"Redis server address (host:port)")
+	man.addConfigString("redis.password", "",
+		"Redis server password (prefer env variable for security)")
 
 	// Server
-	man.addConfigString("server.address", "0.0.0.0:8080")
-	man.addConfigString("server.cert", "./tools/osquery/kolide.crt")
-	man.addConfigString("server.key", "./tools/osquery/kolide.key")
-	man.addConfigBool("server.tls", true)
+	man.addConfigString("server.address", "0.0.0.0:8080",
+		"Kolide server address (host:port)")
+	man.addConfigString("server.cert", "./tools/osquery/kolide.crt",
+		"Kolide TLS certificate path")
+	man.addConfigString("server.key", "./tools/osquery/kolide.key",
+		"Kolide TLS key path")
+	man.addConfigBool("server.tls", true,
+		"Enable TLS (required for osqueryd communication)")
 
 	// Auth
-	man.addConfigString("auth.jwt_key", "CHANGEME")
-	man.addConfigInt("auth.bcrypt_cost", 12)
-	man.addConfigInt("auth.salt_key_size", 24)
+	man.addConfigString(
+		"auth.jwt_key", "CHANGEME", "JWT session token key")
+	man.addConfigInt("auth.bcrypt_cost", 12,
+		"Bcrypt iterations")
+	man.addConfigInt("auth.salt_key_size", 24,
+		"Size of salt for passwords")
 
 	// App
-	man.addConfigString("app.web_address", "0.0.0.0:8080")
-	man.addConfigString("app.token_key", "CHANGEME")
-	man.addConfigDuration("app.invite_token_validity_period", 5*24*time.Hour)
-	man.addConfigInt("app.token_key_size", 24)
+	man.addConfigString("app.token_key", "CHANGEME",
+		"Secret key for generating invite and reset tokens")
+	man.addConfigDuration("app.invite_token_validity_period", 5*24*time.Hour,
+		"Duration invite tokens remain valid (i.e. 1h)")
+	man.addConfigInt("app.token_key_size", 24,
+		"Size of generated tokens")
 
 	// Session
-	man.addConfigInt("session.key_size", 64)
-	man.addConfigDuration("session.duration", 24*90*time.Hour)
+	man.addConfigInt("session.key_size", 64,
+		"Size of generated session keys")
+	man.addConfigDuration("session.duration", 24*90*time.Hour,
+		"Duration session keys remain valid (i.e. 24h)")
 
 	// Osquery
-	man.addConfigInt("osquery.node_key_size", 24)
-	man.addConfigString("osquery.status_log_file", "/tmp/osquery_status")
-	man.addConfigString("osquery.result_log_file", "/tmp/osquery_result")
-	man.addConfigDuration("osquery.label_update_interval", 1*time.Hour)
+	man.addConfigInt("osquery.node_key_size", 24,
+		"Size of generated osqueryd node keys")
+	man.addConfigString("osquery.status_log_file", "/tmp/osquery_status",
+		"Path for osqueryd status logs")
+	man.addConfigString("osquery.result_log_file", "/tmp/osquery_result",
+		"Path for osqueryd result logs")
+	man.addConfigDuration("osquery.label_update_interval", 1*time.Hour,
+		"Interval to update host label membership (i.e. 1h)")
 
 	// Logging
-	man.addConfigBool("logging.debug", false)
-	man.addConfigBool("logging.json", false)
-	man.addConfigBool("logging.disable_banner", false)
+	man.addConfigBool("logging.debug", false,
+		"Enable debug logging")
+	man.addConfigBool("logging.json", false,
+		"Log in JSON format")
+	man.addConfigBool("logging.disable_banner", false,
+		"Disable startup banner")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -232,6 +256,10 @@ func (man Manager) addDefault(key string, defVal interface{}) {
 	man.defaults[key] = defVal
 }
 
+func getFlagUsage(key string, usage string) string {
+	return fmt.Sprintf("Env: %s\n\t\t%s", envNameFromConfigKey(key), usage)
+}
+
 // getInterfaceVal is a helper function used by the getConfig* functions to
 // retrieve the config value as interface{}, which will then be cast to the
 // appropriate type by the getConfig* function.
@@ -248,8 +276,8 @@ func (man Manager) getInterfaceVal(key string) interface{} {
 }
 
 // addConfigString adds a string config to the config options
-func (man Manager) addConfigString(key string, defVal string) {
-	man.command.PersistentFlags().String(flagNameFromConfigKey(key), defVal, "Env: "+envNameFromConfigKey(key))
+func (man Manager) addConfigString(key, defVal, usage string) {
+	man.command.PersistentFlags().String(flagNameFromConfigKey(key), defVal, getFlagUsage(key, usage))
 	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key)))
 	man.viper.BindEnv(key, envNameFromConfigKey(key))
 
@@ -269,8 +297,8 @@ func (man Manager) getConfigString(key string) string {
 }
 
 // addConfigInt adds a int config to the config options
-func (man Manager) addConfigInt(key string, defVal int) {
-	man.command.PersistentFlags().Int(flagNameFromConfigKey(key), defVal, "Env: "+envNameFromConfigKey(key))
+func (man Manager) addConfigInt(key string, defVal int, usage string) {
+	man.command.PersistentFlags().Int(flagNameFromConfigKey(key), defVal, getFlagUsage(key, usage))
 	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key)))
 	man.viper.BindEnv(key, envNameFromConfigKey(key))
 
@@ -290,8 +318,8 @@ func (man Manager) getConfigInt(key string) int {
 }
 
 // addConfigBool adds a bool config to the config options
-func (man Manager) addConfigBool(key string, defVal bool) {
-	man.command.PersistentFlags().Bool(flagNameFromConfigKey(key), defVal, "Env: "+envNameFromConfigKey(key))
+func (man Manager) addConfigBool(key string, defVal bool, usage string) {
+	man.command.PersistentFlags().Bool(flagNameFromConfigKey(key), defVal, getFlagUsage(key, usage))
 	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key)))
 	man.viper.BindEnv(key, envNameFromConfigKey(key))
 
@@ -311,8 +339,8 @@ func (man Manager) getConfigBool(key string) bool {
 }
 
 // addConfigDuration adds a duration config to the config options
-func (man Manager) addConfigDuration(key string, defVal time.Duration) {
-	man.command.PersistentFlags().Duration(flagNameFromConfigKey(key), defVal, "Env: "+envNameFromConfigKey(key))
+func (man Manager) addConfigDuration(key string, defVal time.Duration, usage string) {
+	man.command.PersistentFlags().Duration(flagNameFromConfigKey(key), defVal, getFlagUsage(key, usage))
 	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key)))
 	man.viper.BindEnv(key, envNameFromConfigKey(key))
 
