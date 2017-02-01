@@ -21,6 +21,12 @@ const validate = (formData) => {
     errors.logging_type = 'A Logging Type must be selected';
   }
 
+  if (formData.shard) {
+    if (formData.shard < 0 || formData.shard > 100) {
+      errors.shard = 'Shard must be between 0 and 100';
+    }
+  }
+
   const valid = !size(errors);
 
   return { valid, errors };

@@ -157,6 +157,7 @@ export const scheduledQueryStub = {
   query: 'SELECT * FROM users',
   query_id: 5,
   removed: false,
+  shard: 12,
   snapshot: true,
 };
 

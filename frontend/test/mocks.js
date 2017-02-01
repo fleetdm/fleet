@@ -63,6 +63,7 @@ export const validCreateScheduledQueryRequest = (bearerToken, formData) => {
     query_id: Number(formData.query_id),
     removed: true,
     snapshot: false,
+    shard: Number(formData.shard),
   };
 
   return nock('http://localhost:8080', {

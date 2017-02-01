@@ -9,7 +9,7 @@ import InputField from 'components/forms/fields/InputField';
 import validate from 'components/forms/ConfigurePackQueryForm/validate';
 
 const baseClass = 'configure-pack-query-form';
-const fieldNames = ['query_id', 'interval', 'logging_type', 'platform', 'version'];
+const fieldNames = ['query_id', 'interval', 'logging_type', 'platform', 'shard', 'version'];
 const platformOptions = [
   { label: 'All', value: 'all' },
   { label: 'Windows', value: 'windows' },
@@ -89,6 +89,13 @@ class ConfigurePackQueryForm extends Component {
             placeholder="- - -"
             label="Logging"
             wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
+          />
+          <InputField
+            {...fields.shard}
+            inputWrapperClass={`${baseClass}__form-field ${baseClass}__form-field--shard`}
+            placeholder="- - -"
+            label="Shard"
+            type="number"
           />
           <div className={`${baseClass}__btn-wrapper`}>
             <Button className={`${baseClass}__cancel-btn`} onClick={onCancel} variant="inverse">

@@ -56,7 +56,7 @@ class ScheduledQueriesListItem extends Component {
   render () {
     const { checked, disabled, scheduledQuery } = this.props;
     const { onCheck, renderPlatformIcon } = this;
-    const { id, name, interval, version } = scheduledQuery;
+    const { id, name, interval, shard, version } = scheduledQuery;
     const { loggingTypeString } = this;
 
     return (
@@ -73,6 +73,7 @@ class ScheduledQueriesListItem extends Component {
         <td>{interval}</td>
         <td>{renderPlatformIcon()}</td>
         <td>{version ? `${version}+` : 'Any'}</td>
+        <td>{shard}</td>
         <td><Icon name={loggingTypeString()} /></td>
       </tr>
     );

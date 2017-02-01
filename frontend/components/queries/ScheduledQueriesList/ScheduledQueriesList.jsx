@@ -105,6 +105,7 @@ class ScheduledQueriesList extends Component {
               <th>Interval [s]</th>
               <th>Platform</th>
               <th><Icon name="osquery" /> Ver.</th>
+              <th>Shard</th>
               <th>Logging</th>
             </tr>
           </thead>

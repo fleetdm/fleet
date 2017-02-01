@@ -21,6 +21,7 @@ describe('ConfigurePackQueryForm - component', () => {
       itBehavesLikeAFormDropdownElement(form, 'logging_type');
       itBehavesLikeAFormDropdownElement(form, 'platform');
       itBehavesLikeAFormDropdownElement(form, 'version');
+      itBehavesLikeAFormInputElement(form, 'shard');
     });
   });
 
@@ -38,6 +39,7 @@ describe('ConfigurePackQueryForm - component', () => {
       itBehavesLikeAFormDropdownElement(form, 'logging_type');
       itBehavesLikeAFormDropdownElement(form, 'platform');
       itBehavesLikeAFormDropdownElement(form, 'version');
+      itBehavesLikeAFormInputElement(form, 'shard', 'InputField', 12);
 
       form.find('form').simulate('submit');
 
@@ -47,6 +49,7 @@ describe('ConfigurePackQueryForm - component', () => {
         platform: 'all',
         query_id: 1,
         version: '',
+        shard: 12,
       });
     });
   });

@@ -188,7 +188,7 @@ class Kolide extends Base {
       .then((response) => { return response.query; });
   }
 
-  createScheduledQuery = ({ interval, logging_type: loggingType, pack_id: packID, platform, query_id: queryID, version }) => {
+  createScheduledQuery = ({ interval, logging_type: loggingType, pack_id: packID, platform, query_id: queryID, shard, version }) => {
     const removed = loggingType === 'differential';
     const snapshot = loggingType === 'snapshot';
 
@@ -199,6 +199,7 @@ class Kolide extends Base {
       query_id: Number(queryID),
       removed,
       snapshot,
+      shard: Number(shard),
       version,
     };
 

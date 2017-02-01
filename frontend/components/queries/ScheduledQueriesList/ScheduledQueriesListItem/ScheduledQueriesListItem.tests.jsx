@@ -13,6 +13,7 @@ describe('ScheduledQueriesListItem - component', () => {
     const component = mount(<ScheduledQueriesListItem checked={false} onSelect={noop} scheduledQuery={scheduledQueryStub} />);
     expect(component.text()).toInclude(scheduledQueryStub.name);
     expect(component.text()).toInclude(scheduledQueryStub.interval);
+    expect(component.text()).toInclude(scheduledQueryStub.shard);
     expect(component.find('PlatformIcon').length).toEqual(1);
   });
 

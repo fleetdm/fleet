@@ -400,6 +400,7 @@ describe('Kolide - API client', () => {
         pack_id: 1,
         platform: 'darwin',
         query_id: 2,
+        shard: 12,
       };
       const request = validCreateScheduledQueryRequest(bearerToken, formData);
 
