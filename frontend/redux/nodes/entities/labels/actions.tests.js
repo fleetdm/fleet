@@ -1,6 +1,6 @@
-import expect, { restoreSpies, spyOn } from 'expect';
+import expect from 'expect';
+import nock from 'nock';
 
-import * as Kolide from 'kolide';
 import labelActions from 'redux/nodes/entities/labels/actions';
 import { labelStub } from 'test/stubs';
 import { reduxMockStore } from 'test/helpers';
@@ -9,18 +9,17 @@ const defaultLabelState = { loading: false, errors: {}, data: {} };
 const store = { entities: { labels: defaultLabelState } };
 
 describe('Labels - actions', () => {
-  afterEach(restoreSpies);
+  afterEach(() => {
+    nock.cleanAll();
+  });
 
   describe('#silentLoadAll', () => {
     const { silentLoadAll } = labelActions;
 
     describe('successful request', () => {
-      beforeEach(() => {
-        spyOn(Kolide.default.labels, 'loadAll').andReturn(Promise.resolve([labelStub]));
-      });
-
-
       it('does not call the LOAD_REQUEST action', (done) => {
+        nock('http://localhost:8080').get('/api/v1/kolide/labels').reply(200, { labels: [labelStub] });
+
         const mockStore = reduxMockStore(store);
         const expectedActionTypes = ['labels_LOAD_ALL_SUCCESS'];
 
@@ -31,12 +30,19 @@ describe('Labels - actions', () => {
             expect(actionTypes).toEqual(expectedActionTypes);
             done();
           })
-          .catch(done);
+          .catch(() => {
+            const actionTypes = mockStore.getActions().map(a => a.type);
+
+            expect(actionTypes).toEqual(expectedActionTypes);
+            done();
+          });
       });
     });
 
     describe('unsuccessful request', () => {
-      beforeEach(() => {
+      it('does not call the LOAD_REQUEST action', (done) => {
+        const mockStore = reduxMockStore(store);
+        const expectedActionTypes = ['labels_LOAD_FAILURE'];
         const errors = {
           message: {
             message: 'Failed validation',
@@ -44,13 +50,7 @@ describe('Labels - actions', () => {
           },
         };
 
-        spyOn(Kolide.default.labels, 'loadAll').andReturn(Promise.reject([errors]));
-      });
-
-
-      it('does not call the LOAD_REQUEST action', (done) => {
-        const mockStore = reduxMockStore(store);
-        const expectedActionTypes = ['labels_LOAD_FAILURE'];
+        nock('http://localhost:8080').get('/api/v1/kolide/labels').reply(422, { errors });
 
         mockStore.dispatch(silentLoadAll())
           .then(done)

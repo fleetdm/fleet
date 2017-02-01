@@ -207,6 +207,22 @@ const reduxConfig = ({
     };
   };
 
+  const silentLoadAll = (...args) => {
+    return (dispatch) => {
+      return loadAllFunc(...args)
+        .then((response) => {
+          return dispatch(successAction(response, loadAllSuccess));
+        })
+        .catch((response) => {
+          const errorsObject = formatErrorResponse(response);
+
+          dispatch(loadFailure(errorsObject));
+
+          throw errorsObject;
+        });
+    };
+  };
+
   const update = (...args) => {
     return (dispatch) => {
       dispatch(updateRequest);
@@ -233,6 +249,7 @@ const reduxConfig = ({
     destroy,
     load,
     loadAll,
+    silentLoadAll,
     update,
   };
 

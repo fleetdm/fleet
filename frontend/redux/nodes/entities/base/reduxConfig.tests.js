@@ -695,4 +695,81 @@ describe('reduxConfig', () => {
       });
     });
   });
+
+  describe('dispatching the silentLoadAll action', () => {
+    describe('successful loadAll call', () => {
+      const mockStore = reduxMockStore(store);
+      const loadAllFunc = createSpy().andCall(() => {
+        return Promise.resolve([user]);
+      });
+
+      const config = reduxConfig({
+        entityName: 'users',
+        loadAllFunc,
+        schema: schemas.USERS,
+      });
+      const { actions } = config;
+
+      it('calls the loadAllFunc', () => {
+        mockStore.dispatch(actions.silentLoadAll());
+
+        expect(loadAllFunc).toHaveBeenCalled();
+      });
+
+      it('dispatches the correct actions', () => {
+        mockStore.dispatch(actions.silentLoadAll());
+
+        const dispatchedActions = mockStore.getActions();
+        const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
+
+        expect(dispatchedActionTypes).toEqual(['users_LOAD_ALL_SUCCESS']);
+      });
+    });
+
+    describe('unsuccessful loadAll call', () => {
+      const mockStore = reduxMockStore(store);
+      const errors = [
+        {
+          name: 'base',
+          reason: 'Unable to load users',
+        },
+      ];
+      const errorResponse = {
+        message: {
+          message: 'Cannot get users',
+          errors,
+        },
+      };
+      const formattedErrors = formatErrorResponse(errorResponse);
+      const loadAllFunc = createSpy().andCall(() => {
+        return Promise.reject(errorResponse);
+      });
+      const config = reduxConfig({
+        entityName: 'users',
+        loadAllFunc,
+        schema: schemas.USERS,
+      });
+      const { actions } = config;
+
+      it('calls the loadAllFunc', () => {
+        mockStore.dispatch(actions.silentLoadAll());
+
+        expect(loadAllFunc).toHaveBeenCalled();
+      });
+
+      it('dispatches the correct actions', () => {
+        mockStore.dispatch(actions.silentLoadAll());
+
+        const dispatchedActions = mockStore.getActions();
+        const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
+        const loadAllFailureAction = find(dispatchedActions, { type: 'users_LOAD_FAILURE' });
+
+        expect(dispatchedActionTypes).toEqual(['users_LOAD_FAILURE']);
+
+        expect(loadAllFailureAction.payload).toEqual({
+          errors: formattedErrors,
+        });
+      });
+    });
+  });
 });

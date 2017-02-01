@@ -82,12 +82,13 @@ export class ManageHostsPage extends Component {
 
   componentDidMount () {
     const { dispatch } = this.props;
-    const getLabels = () => {
+    const getEntities = () => {
+      dispatch(hostActions.silentLoadAll());
       dispatch(labelActions.silentLoadAll());
       dispatch(silentGetStatusLabelCounts);
     };
 
-    this.interval = global.window.setInterval(getLabels, 5000);
+    this.interval = global.window.setInterval(getEntities, 5000);
 
     return false;
   }
@@ -167,7 +168,6 @@ export class ManageHostsPage extends Component {
       const { slug } = selectedLabel;
       const nextLocation = slug === 'all-hosts' ? MANAGE_HOSTS : `${MANAGE_HOSTS}/${slug}`;
 
-      dispatch(hostActions.loadAll());
       dispatch(push(nextLocation));
 
       return false;
