@@ -3,8 +3,8 @@ package data
 import (
 	"database/sql"
 
-	"github.com/kolide/kolide-ose/server/datastore/internal/appstate"
-	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide/server/datastore/internal/appstate"
+	"github.com/kolide/kolide/server/kolide"
 )
 
 func init() {

@@ -3,7 +3,7 @@ package inmem
 import (
 	"fmt"
 
-	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide/server/kolide"
 )
 
 func (d *Datastore) NewPasswordResetRequest(req *kolide.PasswordResetRequest) (*kolide.PasswordResetRequest, error) {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide/server/kolide"
 )
 
 func (d *Datastore) NewUser(user *kolide.User) (*kolide.User, error) {

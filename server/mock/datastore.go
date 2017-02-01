@@ -4,7 +4,7 @@ package mock
 //go:generate mockimpl -o datastore_invites.go "s *InviteStore" "kolide.InviteStore"
 //go:generate mockimpl -o datastore_appconfig.go "s *AppConfigStore" "kolide.AppConfigStore"
 
-import "github.com/kolide/kolide-ose/server/kolide"
+import "github.com/kolide/kolide/server/kolide"
 
 var _ kolide.Datastore = (*Store)(nil)
 

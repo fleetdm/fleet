@@ -18,10 +18,10 @@ $ vagrant ssh
 
 ## Installing Kolide
 
-To install Kolide, go to the [GitHub Releases Page](https://github.com/kolide/kolide-ose/releases) to select the most recent deb package. You can install it on your host by using:
+To install Kolide, go to the [GitHub Releases Page](https://github.com/kolide/kolide/releases) to select the most recent deb package. You can install it on your host by using:
 
 ```
-$ wget https://github.com/kolide/kolide-ose/releases/download/1.0.0-rc1/kolide_1.0.0-rc1_amd64.deb
+$ wget https://github.com/kolide/kolide/releases/download/1.0.0-rc1/kolide_1.0.0-rc1_amd64.deb
 $ sudo dpkg -i kolide_1.0.0-rc1_amd64.deb
 ```
 

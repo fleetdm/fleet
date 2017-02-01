@@ -5,7 +5,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide/server/kolide"
 )
 
 // NewInvite creates and stores a new invitation in a DB.

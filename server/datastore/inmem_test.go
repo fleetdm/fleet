@@ -3,8 +3,8 @@ package datastore
 import (
 	"testing"
 
-	"github.com/kolide/kolide-ose/server/config"
-	"github.com/kolide/kolide-ose/server/datastore/inmem"
+	"github.com/kolide/kolide/server/config"
+	"github.com/kolide/kolide/server/datastore/inmem"
 	"github.com/stretchr/testify/require"
 )
 

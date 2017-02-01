@@ -1,7 +1,7 @@
 package service
 
 import (
-	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide/server/kolide"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )

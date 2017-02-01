@@ -2,7 +2,7 @@
 
 package mock
 
-import "github.com/kolide/kolide-ose/server/kolide"
+import "github.com/kolide/kolide/server/kolide"
 
 var _ kolide.UserStore = (*UserStore)(nil)
 

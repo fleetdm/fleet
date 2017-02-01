@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
-	"github.com/kolide/kolide-ose/server/config"
-	"github.com/kolide/kolide-ose/server/datastore/inmem"
+	"github.com/kolide/kolide/server/config"
+	"github.com/kolide/kolide/server/datastore/inmem"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )

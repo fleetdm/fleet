@@ -1,6 +1,6 @@
 package inmem
 
-import "github.com/kolide/kolide-ose/server/kolide"
+import "github.com/kolide/kolide/server/kolide"
 
 func (d *Datastore) NewAppConfig(info *kolide.AppConfig) (*kolide.AppConfig, error) {
 	d.mtx.Lock()

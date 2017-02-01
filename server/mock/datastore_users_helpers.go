@@ -1,6 +1,6 @@
 package mock
 
-import "github.com/kolide/kolide-ose/server/kolide"
+import "github.com/kolide/kolide/server/kolide"
 
 func UserByEmailWithUser(u *kolide.User) UserByEmailFunc {
 	return func(email string) (*kolide.User, error) {

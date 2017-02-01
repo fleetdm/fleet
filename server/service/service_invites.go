@@ -4,7 +4,7 @@ import (
 	"encoding/base64"
 	"html/template"
 
-	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide/server/kolide"
 	"golang.org/x/net/context"
 )
 

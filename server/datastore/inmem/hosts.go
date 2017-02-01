@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide/server/kolide"
 	"github.com/patrickmn/sortutil"
 )
 

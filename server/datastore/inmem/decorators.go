@@ -1,6 +1,6 @@
 package inmem
 
-import "github.com/kolide/kolide-ose/server/kolide"
+import "github.com/kolide/kolide/server/kolide"
 
 func (d *Datastore) NewDecorator(decorator *kolide.Decorator) (*kolide.Decorator, error) {
 	d.mtx.Lock()

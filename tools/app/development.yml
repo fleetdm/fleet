@@ -24,4 +24,4 @@ test:
    command:
        - -C
    volumes:
-       - ./:/go/src/github.com/kolide/kolide-ose
+       - ./:/go/src/github.com/kolide/kolide

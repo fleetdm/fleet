@@ -7,10 +7,10 @@ import (
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/go-kit/kit/endpoint"
-	hostctx "github.com/kolide/kolide-ose/server/contexts/host"
-	"github.com/kolide/kolide-ose/server/contexts/token"
-	"github.com/kolide/kolide-ose/server/contexts/viewer"
-	"github.com/kolide/kolide-ose/server/kolide"
+	hostctx "github.com/kolide/kolide/server/contexts/host"
+	"github.com/kolide/kolide/server/contexts/token"
+	"github.com/kolide/kolide/server/contexts/viewer"
+	"github.com/kolide/kolide/server/kolide"
 	"golang.org/x/net/context"
 )
 

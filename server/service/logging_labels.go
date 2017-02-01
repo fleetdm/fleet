@@ -3,7 +3,7 @@ package service
 import (
 	"time"
 
-	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide/server/kolide"
 	"golang.org/x/net/context"
 )
 

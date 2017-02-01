@@ -3,7 +3,7 @@ package inmem
 import (
 	"sort"
 
-	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide/server/kolide"
 )
 
 func (d *Datastore) PackByName(name string) (*kolide.Pack, bool, error) {

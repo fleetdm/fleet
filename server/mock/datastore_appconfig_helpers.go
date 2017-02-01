@@ -1,6 +1,6 @@
 package mock
 
-import "github.com/kolide/kolide-ose/server/kolide"
+import "github.com/kolide/kolide/server/kolide"
 
 func ReturnFakeAppConfig(fake *kolide.AppConfig) AppConfigFunc {
 	return func() (*kolide.AppConfig, error) {

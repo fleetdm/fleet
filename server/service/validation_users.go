@@ -5,8 +5,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/kolide/kolide-ose/server/contexts/viewer"
-	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide/server/contexts/viewer"
+	"github.com/kolide/kolide/server/kolide"
 	"golang.org/x/net/context"
 )
 

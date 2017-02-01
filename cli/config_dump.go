@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 
-	"github.com/kolide/kolide-ose/server/config"
+	"github.com/kolide/kolide/server/config"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"

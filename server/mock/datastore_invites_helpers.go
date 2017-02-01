@@ -1,6 +1,6 @@
 package mock
 
-import "github.com/kolide/kolide-ose/server/kolide"
+import "github.com/kolide/kolide/server/kolide"
 
 func ReturnNewInivite(fake *kolide.Invite) NewInviteFunc {
 	return func(i *kolide.Invite) (*kolide.Invite, error) {

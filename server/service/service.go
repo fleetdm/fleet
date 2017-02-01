@@ -7,8 +7,8 @@ import (
 
 	"github.com/WatchBeam/clock"
 	kitlog "github.com/go-kit/kit/log"
-	"github.com/kolide/kolide-ose/server/config"
-	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide/server/config"
+	"github.com/kolide/kolide/server/kolide"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 

@@ -3,7 +3,7 @@ package kolide
 import (
 	"time"
 
-	"github.com/kolide/kolide-ose/server/websocket"
+	"github.com/kolide/kolide/server/websocket"
 	"golang.org/x/net/context"
 )
 

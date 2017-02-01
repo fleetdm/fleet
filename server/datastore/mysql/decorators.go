@@ -5,7 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide/server/kolide"
 )
 
 func (ds *Datastore) NewDecorator(decorator *kolide.Decorator) (*kolide.Decorator, error) {

@@ -7,8 +7,8 @@ import (
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/kolide/kolide-ose/server/contexts/viewer"
-	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide/server/contexts/viewer"
+	"github.com/kolide/kolide/server/kolide"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )

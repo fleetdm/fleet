@@ -3,7 +3,7 @@ package inmem
 import (
 	"time"
 
-	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide/server/kolide"
 )
 
 func (d *Datastore) SessionByKey(key string) (*kolide.Session, error) {

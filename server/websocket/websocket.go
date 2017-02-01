@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/kolide/kolide-ose/server/contexts/token"
+	"github.com/kolide/kolide/server/contexts/token"
 	"github.com/pkg/errors"
 )
 

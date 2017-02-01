@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/kolide/kolide-ose/server/kolide"
-	"github.com/kolide/kolide-ose/server/test"
+	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/kolide/server/test"
 	"github.com/patrickmn/sortutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

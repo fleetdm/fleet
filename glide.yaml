@@ -1,4 +1,4 @@
-package: github.com/kolide/kolide-ose
+package: github.com/kolide/kolide
 import:
 - package: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c

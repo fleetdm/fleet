@@ -3,7 +3,7 @@ package mysql
 import (
 	"testing"
 
-	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide/server/kolide"
 )
 
 func TestAppendListOptionsToSQL(t *testing.T) {

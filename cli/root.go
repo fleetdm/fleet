@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/kolide/kolide-ose/server/config"
+	"github.com/kolide/kolide/server/config"
 	"github.com/spf13/cobra"
 )
 

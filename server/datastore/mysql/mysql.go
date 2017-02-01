@@ -7,10 +7,10 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/go-kit/kit/log"
 	"github.com/jmoiron/sqlx"
-	"github.com/kolide/kolide-ose/server/config"
-	"github.com/kolide/kolide-ose/server/datastore/mysql/migrations/data"
-	"github.com/kolide/kolide-ose/server/datastore/mysql/migrations/tables"
-	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide/server/config"
+	"github.com/kolide/kolide/server/datastore/mysql/migrations/data"
+	"github.com/kolide/kolide/server/datastore/mysql/migrations/tables"
+	"github.com/kolide/kolide/server/kolide"
 )
 
 const (

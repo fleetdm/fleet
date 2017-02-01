@@ -14,9 +14,9 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
-	"github.com/kolide/kolide-ose/server/config"
-	"github.com/kolide/kolide-ose/server/datastore/inmem"
-	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide/server/config"
+	"github.com/kolide/kolide/server/datastore/inmem"
+	"github.com/kolide/kolide/server/kolide"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )

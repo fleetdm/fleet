@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kolide/kolide-ose/server/kolide"
+	"github.com/kolide/kolide/server/kolide"
 )
 
 func functionName(f func(*testing.T, kolide.Datastore)) string {

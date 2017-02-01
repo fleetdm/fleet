@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
-	hostctx "github.com/kolide/kolide-ose/server/contexts/host"
-	"github.com/kolide/kolide-ose/server/kolide"
-	"github.com/kolide/kolide-ose/server/pubsub"
+	hostctx "github.com/kolide/kolide/server/contexts/host"
+	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/kolide/server/pubsub"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
