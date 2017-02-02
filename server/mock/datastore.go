@@ -3,6 +3,7 @@ package mock
 //go:generate mockimpl -o datastore_users.go "s *UserStore" "kolide.UserStore"
 //go:generate mockimpl -o datastore_invites.go "s *InviteStore" "kolide.InviteStore"
 //go:generate mockimpl -o datastore_appconfig.go "s *AppConfigStore" "kolide.AppConfigStore"
+//go:generate mockimpl -o datastore_licenses.go "s *LicenseStore" "kolide.LicenseStore"
 
 import "github.com/kolide/kolide/server/kolide"
 
@@ -21,6 +22,7 @@ type Store struct {
 	kolide.DecoratorStore
 	kolide.FileIntegrityMonitoringStore
 	kolide.YARAStore
+	LicenseStore
 	InviteStore
 	UserStore
 	AppConfigStore

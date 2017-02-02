@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/WatchBeam/clock"
 	"github.com/kolide/kolide/server/config"
 	"github.com/kolide/kolide/server/contexts/viewer"
 	"github.com/kolide/kolide/server/datastore/inmem"
 	"github.com/kolide/kolide/server/kolide"
+
+	"github.com/WatchBeam/clock"
 	"github.com/kolide/kolide/server/mock"
 	pkg_errors "github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"

@@ -16,4 +16,5 @@ type Service interface {
 	ScheduledQueryService
 	OptionService
 	ImportConfigService
+	LicenseService
 }

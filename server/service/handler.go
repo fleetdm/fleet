@@ -75,6 +75,8 @@ type KolideEndpoints struct {
 	ImportConfig                   endpoint.Endpoint
 	GetCertificate                 endpoint.Endpoint
 	ChangeEmail                    endpoint.Endpoint
+	UpdateLicense                  endpoint.Endpoint
+	GetLicense                     endpoint.Endpoint
 }
 
 // MakeKolideServerEndpoints creates the Kolide API endpoints.
@@ -145,6 +147,8 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		ImportConfig:              authenticatedUser(jwtKey, svc, makeImportConfigEndpoint(svc)),
 		GetCertificate:            authenticatedUser(jwtKey, svc, makeCertificateEndpoint(svc)),
 		ChangeEmail:               authenticatedUser(jwtKey, svc, makeChangeEmailEndpoint(svc)),
+		UpdateLicense:             authenticatedUser(jwtKey, svc, mustBeAdmin(makeUpdateLicenseEndpoint(svc))),
+		GetLicense:                authenticatedUser(jwtKey, svc, mustBeAdmin(makeGetLicenseEndpoint(svc))),
 
 		// Osquery endpoints
 		EnrollAgent:                   makeEnrollAgentEndpoint(svc),
@@ -216,6 +220,8 @@ type kolideHandlers struct {
 	ImportConfig                   http.Handler
 	GetCertificate                 http.Handler
 	ChangeEmail                    http.Handler
+	UpdateLicense                  http.Handler
+	GetLicense                     http.Handler
 }
 
 func makeKolideKitHandlers(ctx context.Context, e KolideEndpoints, opts []kithttp.ServerOption) *kolideHandlers {
@@ -283,6 +289,8 @@ func makeKolideKitHandlers(ctx context.Context, e KolideEndpoints, opts []kithtt
 		ImportConfig:                  newServer(e.ImportConfig, decodeImportConfigRequest),
 		GetCertificate:                newServer(e.GetCertificate, decodeNoParamsRequest),
 		ChangeEmail:                   newServer(e.ChangeEmail, decodeChangeEmailRequest),
+		UpdateLicense:                 newServer(e.UpdateLicense, decodeUpdateLicenseRequest),
+		GetLicense:                    newServer(e.GetLicense, decodeNoParamsRequest),
 	}
 }
 
@@ -389,6 +397,9 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/targets", h.SearchTargets).Methods("POST").Name("search_targets")
 
 	r.Handle("/api/v1/kolide/osquery/config/import", h.ImportConfig).Methods("POST").Name("import_config")
+
+	r.Handle("/api/v1/kolide/license", h.UpdateLicense).Methods("POST").Name("update_license")
+	r.Handle("/api/v1/kolide/license", h.GetLicense).Methods("GET").Name("get_license")
 
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
 	r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST").Name("get_client_config")

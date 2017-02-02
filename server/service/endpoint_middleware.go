@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/go-kit/kit/endpoint"
@@ -57,6 +58,33 @@ func getNodeKey(r interface{}) (string, error) {
 		}
 	}
 	return nodeKeyField.String(), nil
+}
+
+// licensedUser wraps an endpoint and requires that a valid license is present
+// before continuing processing.  If a valid license is not present, a licensing
+// error is returned which is handled in encodeResponse, returning a 403 which
+// the front end will handle and redirect to the license upload page
+func licensedUser(svc kolide.Service, next endpoint.Endpoint) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		lic, err := svc.License(ctx)
+		if err != nil {
+			return nil, licensingError{reason: err.Error()}
+		}
+		if lic.Token == nil {
+			return nil, licensingError{reason: "license not present"}
+		}
+		if lic.Revoked {
+			return nil, licensingError{reason: "license revoked"}
+		}
+		claims, err := lic.Claims()
+		if err != nil {
+			return nil, err
+		}
+		if claims.Expired(time.Now()) {
+			return nil, licensingError{reason: "license expired"}
+		}
+		return next(ctx, request)
+	}
 }
 
 // authenticatedUser wraps an endpoint, requires that the Kolide user is
