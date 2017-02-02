@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import classnames from 'classnames';
 import { connect } from 'react-redux';
 import FileSaver from 'file-saver';
-import { filter, includes, isArray, isEqual, size } from 'lodash';
+import { filter, get, includes, isArray, isEqual } from 'lodash';
 import moment from 'moment';
 import { push } from 'react-router-redux';
 
@@ -293,18 +293,20 @@ export class QueryPage extends Component {
   }
 
   renderResultsTable = () => {
-    const { campaign } = this.state;
+    const { campaign, queryIsRunning } = this.state;
     const { onExportQueryResults } = this;
+    const queryResults = get(campaign, 'query_results', []).length > 0;
+    const loading = queryIsRunning && !queryResults;
     const resultsClasses = classnames(`${baseClass}__results`, 'body-wrap', {
-      [`${baseClass}__results--loading`]: this.socket && !campaign.query_results,
+      [`${baseClass}__results--loading`]: loading,
     });
     let resultBody = '';
 
-    if (!size(campaign) || (!this.socket && !campaign.query_results)) {
+    if (!queryResults && !queryIsRunning) {
       return false;
     }
 
-    if ((!campaign.query_results || campaign.query_results.length < 1) && this.socket) {
+    if (loading) {
       resultBody = <Spinner />;
     } else {
       resultBody = <QueryResultsTable campaign={campaign} onExportQueryResults={onExportQueryResults} />;
