@@ -93,8 +93,8 @@ class RegistrationForm extends Component {
     if (page === 2) {
       return (
         <div className={`${baseClass}__description`}>
-          <p>Set your Organization&apos;s name (eg. Yahoo! Inc)</p>
-          <p>Specify the website URL of your organization (eg. Yahoo.com)</p>
+          <p>Set your organization&apos;s name (eg. Kolide, Inc)</p>
+          <p>(Optional) Set an organization logo to use in the Kolide application. Should be an https URL to an image file (eg. https://kolide.co/logo.png).</p>
         </div>
       );
     }
@@ -102,9 +102,9 @@ class RegistrationForm extends Component {
     if (page === 3) {
       return (
         <div className={`${baseClass}__description`}>
-          <p>Define the base URL which osqueryd clients use to connect and register with Kolide.</p>
+          <p>Define the base URL that clients will use to connect to Kolide.</p>
           <p>
-            <small>Note: Please ensure the URL you choose is accessible to all endpoints that need to communicate with Kolide. Otherwise, they will not be able to correctly register.</small>
+            <small>Note: Please ensure the URL is accessible to all endpoints that will be managed by Kolide. The hostname must match the name on your TLS certificate.</small>
           </p>
         </div>
       );
