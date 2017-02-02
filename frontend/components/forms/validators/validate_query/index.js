@@ -26,9 +26,7 @@ export const validateQuery = (queryText) => {
 
     return validQueryResponse;
   } catch (error) {
-    // FIXME: return invalidQueryResponse(error.message);
-    // when SQL parsing has been fixed.
-    return { valid: true, error: null };
+    return invalidQueryResponse(error.message);
   }
 };
 
