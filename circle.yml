@@ -1,4 +1,9 @@
 machine:
+  environment:
+    PROJECT_NAME: kolide-ose-testing
+    CLUSTER_NAME: ose-testing
+    CLOUDSDK_COMPUTE_ZONE: us-east1-c
+    GOOGLE_APPLICATION_CREDENTIALS: ${HOME}/gcloud-service-key.json
   pre:
     - sudo curl -L -o /usr/bin/docker 'https://s3-external-1.amazonaws.com/circle-downloads/docker-1.9.1-circleci'
     - sudo chmod 0755 /usr/bin/docker
@@ -9,14 +14,17 @@ dependencies:
   pre:
     - docker info
     - docker login -e $DOCKER_HUB_EMAIL -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
-  override:
-    - docker pull redis
-    - docker pull mysql:5.7
-    - docker pull kolide/kolide-builder:1.8
-    - docker run -v $(pwd):/go/src/github.com/kolide/kolide -v /home/ubuntu/.go_workspace/pkg:/go/pkg kolide/kolide-builder:1.8 --deps
+    - ./tools/ci/setup-build-environment.sh
+    - ./tools/ci/download-build-deps.sh
+
   cache_directories:
     - "vendor"
     - "node_modules"
+    - "~/deps"
+    - "/opt/google-cloud-sdk"
+
+  override:
+    - docker run -v $(pwd):/go/src/github.com/kolide/kolide -v /home/ubuntu/.go_workspace/pkg:/go/pkg kolide/kolide-builder:1.8 --deps
 
 test:
   override:
@@ -30,3 +38,9 @@ deployment:
     branch: /.*/
     commands:
       - make docker-build-circle
+      - ./tools/ci/deploy-k8s-testing.sh
+  release:
+    tag: /.*/
+    commands:
+      - make docker-build-circle
+      - make package

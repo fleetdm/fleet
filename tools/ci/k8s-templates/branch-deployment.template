@@ -1,0 +1,77 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  # Kolide {{ .Name }} branch
+  name: kolide-{{ .Name }}
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 2
+  template:
+    metadata:
+      labels:
+          app: kolide-{{ .Name }}
+    spec:
+      imagePullSecrets:
+        - name: kolide-hub
+      containers:
+      - name: kolide-{{ .Name }}
+        image: kolide/kolide:{{ .RevShort }}
+        imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: 250m
+            memory: 250Mi
+          limits:
+            cpu: 500m
+            memory: 500Mi
+        command:
+          - "/kolide"
+          - "serve"
+        env:
+            - name: KOLIDE_MYSQL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                    name: cloudsql.cloudmaster
+                    key: username
+            - name: KOLIDE_SERVER_TLS
+              value: "false"
+            - name: KOLIDE_MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                    name: cloudsql.cloudmaster
+                    key: password
+            - name: KOLIDE_MYSQL_DATABASE
+              value: kolide_{{ .Name }}
+            - name: KOLIDE_REDIS_ADDRESS
+              value: redis-kolide-{{ .Name }}:6379
+        ports:
+        - containerPort: 8080
+      - name: cloudsql-proxy
+        image: b.gcr.io/cloudsql-docker/gce-proxy:1.05
+        command: ["/cloud_sql_proxy", "--dir=/cloudsql",
+                  "-instances=kolide-ose-testing:us-east1:kolidepr01=tcp:3306",
+                  "-credential_file=/secrets/cloudsql/credentials.json"]
+        volumeMounts:
+          - name: cloudsql-oauth-credentials
+            mountPath: /secrets/cloudsql
+            readOnly: true
+          - name: ssl-certs
+            mountPath: /etc/ssl/certs
+        resources:
+          requests:
+            cpu: 100m
+            memory: 250Mi
+          limits:
+            cpu: 500m
+            memory: 500Mi
+      volumes:
+        - name: cloudsql-oauth-credentials
+          secret:
+            secretName: cloudsql-oauth-credentials
+        - name: ssl-certs
+          hostPath:
+            path: /etc/ssl/certs

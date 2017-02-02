@@ -36,6 +36,10 @@ else
 	DOCKER_IMAGE_TAG = dev-${CIRCLE_PR_NUMBER}-${REVSHORT}
 endif
 
+ifdef CIRCLE_TAG
+	DOCKER_IMAGE_TAG = ${CIRCLE_TAG}
+endif
+
 all: build
 
 define HELP_TEXT
@@ -74,6 +78,7 @@ else
 endif
 
 build: export GOGC = off
+build: export CGO_ENABLED=0
 build: .prefix
 	go build -i -o ${OUTPUT} -ldflags "\
 	-X github.com/kolide/kolide/server/version.version=${VERSION} \
