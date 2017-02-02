@@ -4,7 +4,7 @@
 
 Kolide is a state of the art host monitoring platform tailored for security experts. Leveraging Facebook's battle-tested osquery project, Kolide delivers fast answers to big questions. To learn more about the Kolide product, visit [https://kolide.co/product](https://kolide.co/product).
 
-Documentation can be found in the [docs](./docs/) subdirectory of this repository.
+Documentation can be found in the [docs](./docs/README.md) subdirectory of this repository.
 
 [![Kolide](./assets/images/rube.png)](https://kolide.co)
 
