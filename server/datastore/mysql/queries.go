@@ -3,8 +3,6 @@ package mysql
 import (
 	"database/sql"
 
-	"github.com/VividCortex/mysqlerr"
-	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/kolide/kolide/server/kolide"
 	"github.com/pkg/errors"
@@ -27,26 +25,47 @@ func (d *Datastore) QueryByName(name string) (*kolide.Query, bool, error) {
 	return &query, true, nil
 }
 
-// NewQuery creates a Query
+// NewQuery creates a New Query. If a query with the same name was soft-deleted,
+// NewQuery will replace the old one.
 func (d *Datastore) NewQuery(query *kolide.Query) (*kolide.Query, error) {
-	sql := `
-		INSERT INTO queries (
-			name,
-			description,
-			query,
-			saved,
-			author_id
-		) VALUES ( ?, ?, ?, ?, ? )
-	`
-	result, err := d.db.Exec(sql, query.Name, query.Description, query.Query, query.Saved, query.AuthorID)
-	if driverErr, ok := err.(*mysql.MySQLError); ok {
-		if driverErr.Number == mysqlerr.ER_DUP_ENTRY {
-			// TODO: this shouldn't require an ID parameter
-			return nil, alreadyExists("Query", 0)
-		}
+	var (
+		deletedQuery kolide.Query
+		sqlStatement string
+	)
+	err := d.db.Get(&deletedQuery,
+		"SELECT * FROM queries WHERE name = ? AND deleted", query.Name)
+	switch err {
+	case nil:
+		sqlStatement = `
+			REPLACE INTO queries (
+				name,
+				description,
+				query,
+				saved,
+				author_id,
+				deleted
+			) VALUES ( ?, ?, ?, ?, ?, ? )
+		`
+	case sql.ErrNoRows:
+		sqlStatement = `
+			INSERT INTO queries (
+				name,
+				description,
+				query,
+				saved,
+				author_id,
+				deleted
+			) VALUES ( ?, ?, ?, ?, ?, ? )
+		`
+	default:
+		return nil, errors.Wrap(err, "check for existing Query")
 	}
-	if err != nil {
-		return nil, errors.Wrap(err, "inserting new query")
+	deleted := false
+	result, err := d.db.Exec(sqlStatement, query.Name, query.Description, query.Query, query.Saved, query.AuthorID, deleted)
+	if err != nil && isDuplicate(err) {
+		return nil, alreadyExists("Query", deletedQuery.ID)
+	} else if err != nil {
+		return nil, errors.Wrap(err, "creating new Query")
 	}
 
 	id, _ := result.LastInsertId()
