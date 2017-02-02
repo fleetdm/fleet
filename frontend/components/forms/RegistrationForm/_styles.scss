@@ -30,12 +30,9 @@
 
   &__form {
     @include transform(translateY(-85px));
+    @include position(absolute, 49% 0 null null);
     width: 100%;
     height: 470px;
-    position: absolute;
-    top: 50%;
-    left: 0;
-    overflow: hidden;
     box-sizing: border-box;
     padding: 25px 0;
 
@@ -140,7 +137,7 @@
   &__field-wrapper {
     @include transition(left 300ms ease);
     width: 430px;
-    min-height: 400px;
+    min-height: 420px;
     padding-bottom: 75px;
     border-radius: 4px;
     background-color: $bg-light;
@@ -153,14 +150,15 @@
 
     &--admin {
       left: 50%;
+      top: -25px;
     }
 
     &--org {
       left: calc(100% + 184px);
+      top: -40px;
     }
 
     &--kolide {
-      top: 45px;
       left: calc(150% + 184px);
     }
 
