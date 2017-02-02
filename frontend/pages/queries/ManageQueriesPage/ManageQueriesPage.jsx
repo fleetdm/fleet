@@ -203,11 +203,14 @@ export class ManageQueriesPage extends Component {
     }
 
     return (
-      <Modal onExit={onToggleModal}>
+      <Modal
+        title="Delete Query"
+        onExit={onToggleModal}
+      >
         <p>Are you sure you want to delete the selected queries?</p>
-        <div>
-          <Button onClick={onToggleModal} variant="inverse">Cancel</Button>
+        <div className={`${baseClass}__modal-btn-wrap`}>
           <Button onClick={onDeleteQueries} variant="alert">Delete</Button>
+          <Button onClick={onToggleModal} variant="inverse">Cancel</Button>
         </div>
       </Modal>
     );

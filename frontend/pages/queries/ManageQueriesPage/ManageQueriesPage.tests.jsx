@@ -183,7 +183,7 @@ describe('ManageQueriesPage - component', () => {
 
       expect(page.find('Modal').length).toEqual(1);
 
-      page.find('Modal').find('Button').last().simulate('click');
+      page.find('Modal').find('Button').first().simulate('click');
 
       expect(mockStore.getActions()).toInclude({ type: 'queries_DESTROY_REQUEST' });
     });
@@ -206,7 +206,7 @@ describe('ManageQueriesPage - component', () => {
 
       expect(page.find('Modal').length).toEqual(1);
 
-      page.find('Modal').find('Button').first().simulate('click');
+      page.find('Modal').find('Button').last().simulate('click');
 
       expect(mockStore.getActions()).toNotInclude({ type: 'queries_DESTROY_REQUEST' });
     });

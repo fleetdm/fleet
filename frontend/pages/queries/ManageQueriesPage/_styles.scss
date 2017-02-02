@@ -58,5 +58,15 @@
     padding: $base;
     min-height: 90vh;
   }
+
+  &__modal-btn-wrap {
+    @include display(flex);
+    @include flex-direction(row-reverse);
+
+    .button {
+      margin-left: 15px;
+      width: 120px;
+    }
+  }
 }
 
