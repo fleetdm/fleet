@@ -7,7 +7,7 @@ The Kolide application is distributed as a single static binary. This binary ser
 - The Kolide application API endpoints
 - The osquery TLS server API endpoints
 
-All of these are served via a built-in HTTP server, so there is no need for complex web server configurations. Once you've installed the `kolide` binary and it's infrastructure dependencies as illustrated below, refer to the [Running Kolide](./running-kolide.md) documentation for information on how to use and configure the Kolide application.
+All of these are served via a built-in HTTP server, so there is no need for complex web server configurations. Once you've installed the `kolide` binary and it's infrastructure dependencies as illustrated below, refer to the [Configuring The Kolide Binary](./configuring-the-kolide-binary.md) documentation for information on how to use and configure the Kolide application.
 
 ## Installing the Kolide binary
 
@@ -35,8 +35,8 @@ Kolide currently has two infrastructure dependencies in addition to the `kolide`
 
 #### MySQL
 
-Kolide uses MySQL extensively as it's main database. Many cloud providers (such as [AWS](https://aws.amazon.com/rds/mysql/) and [GCP](https://cloud.google.com/sql/)) host reliable MySQL services which you may consider for this purpose. A well supported MySQL [Docker container](https://hub.docker.com/_/mysql/) also exists if you would rather run MySQL in a container. For more information on how to configure the `kolide` binary to use the correct MySQL instance, see the [Running Kolide](./running-kolide.md) document.
+Kolide uses MySQL extensively as it's main database. Many cloud providers (such as [AWS](https://aws.amazon.com/rds/mysql/) and [GCP](https://cloud.google.com/sql/)) host reliable MySQL services which you may consider for this purpose. A well supported MySQL [Docker container](https://hub.docker.com/_/mysql/) also exists if you would rather run MySQL in a container. For more information on how to configure the `kolide` binary to use the correct MySQL instance, see the [Configuring The Kolide Binary](./configuring-the-kolide-binary.md) document.
 
 #### Redis
 
-Kolide uses Redis to ingest and queue the results of distributed queries, cache data, etc. Many cloud providers (such as [AWS](https://aws.amazon.com/elasticache/) and [GCP](https://console.cloud.google.com/launcher/details/click-to-deploy-images/redis)) host reliable Redis services which you may consider for this purpose. A well supported Redis [Docker container](https://hub.docker.com/_/redis/) also exists if you would rather run Redis in a container. For more information on how to configure the `kolide` binary to use the correct Redis instance, see the [Running Kolide](./running-kolide.md) document.
+Kolide uses Redis to ingest and queue the results of distributed queries, cache data, etc. Many cloud providers (such as [AWS](https://aws.amazon.com/elasticache/) and [GCP](https://console.cloud.google.com/launcher/details/click-to-deploy-images/redis)) host reliable Redis services which you may consider for this purpose. A well supported Redis [Docker container](https://hub.docker.com/_/redis/) also exists if you would rather run Redis in a container. For more information on how to configure the `kolide` binary to use the correct Redis instance, see the [Configuring The Kolide Binary](./configuring-the-kolide-binary.md) document.

@@ -106,7 +106,3 @@ mail:
 ```
 
 `localhost:1025` is the default configuration. You can use `kolide config_dump` to see the values which Kolide is using given your configuration.
-
-#### Viewing email content in the terminal
-
-If you're [running Kolide in dev mode](#using-no-external-dependencies), emails will be printed to the terminal instead of being sent via an SMTP server. This may be useful if you want to view the content of all emails that Kolide sends.
