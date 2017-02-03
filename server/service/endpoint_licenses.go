@@ -52,6 +52,22 @@ func makeUpdateLicenseEndpoint(svc kolide.Service) endpoint.Endpoint {
 
 func makeGetLicenseEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		return nil, nil
+		lic, err := svc.License(ctx)
+		if err != nil {
+			return licenseResponse{Err: err}, nil
+		}
+		claims, err := lic.Claims()
+		if err != nil {
+			return licenseResponse{Err: err}, nil
+		}
+		response := licenseResponse{
+			License: license{
+				Expiry:       claims.ExpiresAt,
+				AllowedHosts: claims.HostLimit,
+				Hosts:        lic.HostCount,
+				Token:        *lic.Token,
+			},
+		}
+		return response, nil
 	}
 }
