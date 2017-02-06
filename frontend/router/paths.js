@@ -7,6 +7,7 @@ export default {
   },
   FORGOT_PASSWORD: '/login/forgot',
   HOME: '/',
+  KOLIDE_500: '/500',
   LOGIN: '/login',
   LOGOUT: '/logout',
   MANAGE_HOSTS: '/hosts/manage',
