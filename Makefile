@@ -40,6 +40,10 @@ ifdef CIRCLE_TAG
 	DOCKER_IMAGE_TAG = ${CIRCLE_TAG}
 endif
 
+ifndef MYSQL_PORT_3306_TCP_ADDR
+	MYSQL_PORT_3306_TCP_ADDR = 127.0.0.1
+endif
+
 all: build
 
 define HELP_TEXT
