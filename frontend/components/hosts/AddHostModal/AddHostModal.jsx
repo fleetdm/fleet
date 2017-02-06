@@ -64,7 +64,7 @@ class AddHostModal extends Component {
         <div className={`${baseClass}__manual-install-content`}>
           <ol className={`${baseClass}__install-steps`}>
             <li>
-              <h4><a href="https://docs.kolide.co/using-kolide/master/hosts/adding-hosts.html" target="_blank" rel="noopener noreferrer">Kolide / Osquery - Install Docs <Icon name="external-link" /></a></h4>
+              <h4><a href="https://docs.kolide.co/kolide/current/infrastructure/adding-hosts-to-kolide.html" target="_blank" rel="noopener noreferrer">Kolide / Osquery - Install Docs <Icon name="external-link" /></a></h4>
               <p>In order to install <strong>osquery</strong> on a client you will need the items below:</p>
             </li>
             <li>
