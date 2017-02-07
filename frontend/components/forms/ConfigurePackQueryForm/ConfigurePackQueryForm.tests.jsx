@@ -46,7 +46,7 @@ describe('ConfigurePackQueryForm - component', () => {
       expect(spy).toHaveBeenCalledWith({
         interval: 123,
         logging_type: 'differential',
-        platform: 'all',
+        platform: '',
         query_id: 1,
         version: '',
         shard: 12,

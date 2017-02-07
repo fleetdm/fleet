@@ -160,10 +160,6 @@ export class EditPackPage extends Component {
   }
 
   handleConfigurePackQuerySubmit = (formData) => {
-    if (formData.platform.indexOf('all') !== -1) {
-      formData.platform = '';
-    }
-
     const { create } = scheduledQueryActions;
     const { dispatch, packID } = this.props;
     const scheduledQueryData = {

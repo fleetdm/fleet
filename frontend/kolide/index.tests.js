@@ -83,8 +83,9 @@ describe('Kolide - API client', () => {
       it('calls the appropriate endpoint with the correct parameters', (done) => {
         const description = 'label description';
         const name = 'label name';
+        const platform = 'windows';
         const query = 'SELECT * FROM users';
-        const labelParams = { description, name, query };
+        const labelParams = { description, name, platform, query };
         const request = validCreateLabelRequest(bearerToken, labelParams);
 
         Kolide.setBearerToken(bearerToken);

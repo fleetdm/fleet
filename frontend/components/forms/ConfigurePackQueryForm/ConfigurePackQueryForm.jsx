@@ -11,7 +11,7 @@ import validate from 'components/forms/ConfigurePackQueryForm/validate';
 const baseClass = 'configure-pack-query-form';
 const fieldNames = ['query_id', 'interval', 'logging_type', 'platform', 'shard', 'version'];
 const platformOptions = [
-  { label: 'All', value: 'all' },
+  { label: 'All', value: '' },
   { label: 'Windows', value: 'windows' },
   { label: 'Linux', value: 'linux' },
   { label: 'macOS', value: 'darwin' },

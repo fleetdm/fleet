@@ -83,9 +83,12 @@ export class ManageHostsPage extends Component {
   componentDidMount () {
     const { dispatch } = this.props;
     const getEntities = () => {
-      dispatch(hostActions.silentLoadAll());
-      dispatch(labelActions.silentLoadAll());
-      dispatch(silentGetStatusLabelCounts);
+      dispatch(hostActions.silentLoadAll())
+        .catch(() => false);
+      dispatch(labelActions.silentLoadAll())
+        .catch(() => false);
+      dispatch(silentGetStatusLabelCounts)
+        .catch(() => false);
     };
 
     this.interval = global.window.setInterval(getEntities, 5000);
