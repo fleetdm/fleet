@@ -8,6 +8,19 @@ import (
 	"github.com/pkg/errors"
 )
 
+func (ds *Datastore) RevokeLicense(revoked bool) error {
+	sql := `
+		UPDATE licenses SET
+			revoked = ?
+		WHERE id = 1
+	`
+	_, err := ds.db.Exec(sql, revoked)
+	if err != nil {
+		return errors.Wrap(err, "updating license revoked")
+	}
+	return nil
+}
+
 // LicensePublicKey will insure that a jwt token is signed properly and that we
 // have the public key we need to validate it.  The public key string is returned
 // on success

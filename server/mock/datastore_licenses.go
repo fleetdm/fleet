@@ -12,6 +12,8 @@ type LicenseFunc func() (*kolide.License, error)
 
 type LicensePublicKeyFunc func(tokenString string) (string, error)
 
+type RevokeLicenseFunc func(revoked bool) error
+
 type LicenseStore struct {
 	SaveLicenseFunc        SaveLicenseFunc
 	SaveLicenseFuncInvoked bool
@@ -21,6 +23,9 @@ type LicenseStore struct {
 
 	LicensePublicKeyFunc        LicensePublicKeyFunc
 	LicensePublicKeyFuncInvoked bool
+
+	RevokeLicenseFunc        RevokeLicenseFunc
+	RevokeLicenseFuncInvoked bool
 }
 
 func (s *LicenseStore) SaveLicense(tokenString string, publicKey string) (*kolide.License, error) {
@@ -36,4 +41,9 @@ func (s *LicenseStore) License() (*kolide.License, error) {
 func (s *LicenseStore) LicensePublicKey(tokenString string) (string, error) {
 	s.LicensePublicKeyFuncInvoked = true
 	return s.LicensePublicKeyFunc(tokenString)
+}
+
+func (s *LicenseStore) RevokeLicense(revoked bool) error {
+	s.RevokeLicenseFuncInvoked = true
+	return s.RevokeLicenseFunc(revoked)
 }

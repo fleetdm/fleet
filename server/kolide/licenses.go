@@ -21,6 +21,8 @@ type LicenseStore interface {
 	License() (*License, error)
 	// LicensePublicKey gets the public key associated with this license
 	LicensePublicKey(tokenString string) (string, error)
+	// RevokeLicense sets revoked status of license
+	RevokeLicense(revoked bool) error
 }
 
 type LicenseService interface {

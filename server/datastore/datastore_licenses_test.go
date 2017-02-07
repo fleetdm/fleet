@@ -41,6 +41,12 @@ func testLicense(t *testing.T, ds kolide.Datastore) {
 	require.NotNil(t, license.Token)
 	assert.Equal(t, token, *license.Token)
 
+	err = ds.RevokeLicense(!license.Revoked)
+	require.Nil(t, err)
+	changedLicense, err := ds.License()
+	require.Nil(t, err)
+	assert.NotEqual(t, license.Revoked, changedLicense.Revoked)
+
 	// screw around with the token in random ways and make sure that A) it doesn't
 	// panic and B) returns an error
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))

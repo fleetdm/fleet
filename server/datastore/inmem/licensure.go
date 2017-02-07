@@ -13,3 +13,7 @@ func (ds *Datastore) License() (*kolide.License, error) {
 func (ds *Datastore) LicensePublicKey(string) (string, error) {
 	panic("inmem is being deprecated")
 }
+
+func (ds *Datastore) RevokeLicense(revoked bool) error {
+	panic("inmem is being deprecated")
+}
