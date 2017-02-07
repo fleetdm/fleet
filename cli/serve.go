@@ -2,7 +2,6 @@ package cli
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -131,32 +130,37 @@ the way that the kolide server works.
 				"query_result_store": resultStore,
 			}
 
-			http.Handle("/healthz", prometheus.InstrumentHandler("healthz", healthz(healthCheckers)))
-			http.Handle("/version", prometheus.InstrumentHandler("version", version.Handler()))
-			http.Handle("/assets/", prometheus.InstrumentHandler("static_assets", service.ServeStaticAssets("/assets/")))
-			http.Handle("/metrics", prometheus.InstrumentHandler("metrics", promhttp.Handler()))
-			http.Handle("/api/", apiHandler)
-			http.Handle("/", frontendHandler)
+			r := http.NewServeMux()
+			r.Handle("/healthz", prometheus.InstrumentHandler("healthz", healthz(healthCheckers)))
+			r.Handle("/version", prometheus.InstrumentHandler("version", version.Handler()))
+			r.Handle("/assets/", prometheus.InstrumentHandler("static_assets", service.ServeStaticAssets("/assets/")))
+			r.Handle("/metrics", prometheus.InstrumentHandler("metrics", promhttp.Handler()))
+			r.Handle("/api/", apiHandler)
+			r.Handle("/", frontendHandler)
 
+			srv := &http.Server{
+				Addr:    config.Server.Address,
+				Handler: r,
+			}
 			errs := make(chan error, 2)
 			go func() {
 				if !config.Server.TLS {
 					logger.Log("transport", "http", "address", config.Server.Address, "msg", "listening")
-					errs <- http.ListenAndServe(config.Server.Address, nil)
+					errs <- srv.ListenAndServe()
 				} else {
 					logger.Log("transport", "https", "address", config.Server.Address, "msg", "listening")
-					errs <- http.ListenAndServeTLS(
-						config.Server.Address,
+					errs <- srv.ListenAndServeTLS(
 						config.Server.Cert,
 						config.Server.Key,
-						nil,
 					)
 				}
 			}()
 			go func() {
-				c := make(chan os.Signal)
-				signal.Notify(c, syscall.SIGINT)
-				errs <- fmt.Errorf("%s", <-c)
+				sig := make(chan os.Signal)
+				signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+				<-sig //block on signal
+				ctx, _ = context.WithTimeout(context.Background(), 30*time.Second)
+				errs <- srv.Shutdown(ctx)
 			}()
 
 			logger.Log("terminated", <-errs)
