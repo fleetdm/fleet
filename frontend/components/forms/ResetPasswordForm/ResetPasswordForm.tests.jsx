@@ -7,7 +7,7 @@ import ResetPasswordForm from './ResetPasswordForm';
 import { fillInFormInput } from '../../../test/helpers';
 
 describe('ResetPasswordForm - component', () => {
-  const newPassword = 'my new password';
+  const newPassword = 'p@ssw0rd';
 
   afterEach(restoreSpies);
 
@@ -88,6 +88,24 @@ describe('ResetPasswordForm - component', () => {
     expect(submitSpy).toNotHaveBeenCalled();
     expect(form.state().errors).toInclude({
       new_password_confirmation: 'Passwords Do Not Match',
+    });
+  });
+
+  it('does not submit the form if the password is invalid', () => {
+    const submitSpy = createSpy();
+    const form = mount(<ResetPasswordForm handleSubmit={submitSpy} />);
+    const newPasswordField = form.find({ name: 'new_password' });
+    const newPasswordConfirmationField = form.find({ name: 'new_password_confirmation' });
+    const submitBtn = form.find('button');
+    const invalidPassword = 'invalid';
+
+    fillInFormInput(newPasswordField, invalidPassword);
+    fillInFormInput(newPasswordConfirmationField, invalidPassword);
+    submitBtn.simulate('submit');
+
+    expect(submitSpy).toNotHaveBeenCalled();
+    expect(form.state().errors).toInclude({
+      new_password: 'Password must be at least 7 characters and contain at least 1 letter, 1 number, and 1 symbol',
     });
   });
 });

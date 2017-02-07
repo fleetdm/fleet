@@ -1,5 +1,6 @@
 import { size } from 'lodash';
 import validateEquality from 'components/forms/validators/validate_equality';
+import validPassword from 'components/forms/validators/valid_password';
 
 export default (formData) => {
   const errors = {};
@@ -8,6 +9,10 @@ export default (formData) => {
     new_password: newPassword,
     new_password_confirmation: newPasswordConfirmation,
   } = formData;
+
+  if (newPassword && newPasswordConfirmation && !validPassword(newPassword)) {
+    errors.new_password = 'Password must be at least 7 characters and contain at least 1 letter, 1 number, and 1 symbol';
+  }
 
   if (!oldPassword) {
     errors.old_password = 'Password must be present';

@@ -83,6 +83,23 @@ describe('AdminDetails - form', () => {
       });
     });
 
+    it('validates the password field', () => {
+      const onSubmitSpy = createSpy();
+      form = mount(<AdminDetails handleSubmit={onSubmitSpy} />);
+      const passwordConfirmationField = form.find({ name: 'password_confirmation' }).find('input');
+      const passwordField = form.find({ name: 'password' }).find('input');
+      const htmlForm = form.find('form');
+
+      fillInFormInput(passwordField, 'passw0rd');
+      fillInFormInput(passwordConfirmationField, 'passw0rd');
+      htmlForm.simulate('submit');
+
+      expect(onSubmitSpy).toNotHaveBeenCalled();
+      expect(form.state().errors).toInclude({
+        password: 'Password must be at least 7 characters and contain at least 1 letter, 1 number, and 1 symbol',
+      });
+    });
+
     it('submits the form when valid', () => {
       const onSubmitSpy = createSpy();
       form = mount(<AdminDetails handleSubmit={onSubmitSpy} />);

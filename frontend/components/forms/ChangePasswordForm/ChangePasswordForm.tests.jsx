@@ -33,7 +33,7 @@ describe('ChangePasswordForm - component', () => {
   it('calls the handleSubmit props with form data', () => {
     const handleSubmitSpy = createSpy();
     const form = mount(<ChangePasswordForm handleSubmit={handleSubmitSpy} onCancel={noop} />).find('form');
-    const expectedFormData = { old_password: 'password', new_password: 'new_password', new_password_confirmation: 'new_password' };
+    const expectedFormData = { old_password: 'p@ssw0rd', new_password: 'p@ssw0rd1', new_password_confirmation: 'p@ssw0rd1' };
     const passwordInput = form.find({ name: 'old_password' }).find('input');
     const newPasswordInput = form.find({ name: 'new_password' }).find('input');
     const newPasswordConfirmationInput = form.find({ name: 'new_password_confirmation' }).find('input');
@@ -55,6 +55,28 @@ describe('ChangePasswordForm - component', () => {
     cancelBtn.simulate('click');
 
     expect(onCancelSpy).toHaveBeenCalled();
+  });
+
+  it('does not submit when the new password is invalid', () => {
+    const handleSubmitSpy = createSpy();
+    const component = mount(<ChangePasswordForm handleSubmit={handleSubmitSpy} onCancel={noop} />);
+    const form = component.find('form');
+    const expectedFormData = { old_password: 'p@ssw0rd', new_password: 'new_password', new_password_confirmation: 'new_password' };
+    const passwordInput = form.find({ name: 'old_password' }).find('input');
+    const newPasswordInput = form.find({ name: 'new_password' }).find('input');
+    const newPasswordConfirmationInput = form.find({ name: 'new_password_confirmation' }).find('input');
+
+    fillInFormInput(passwordInput, expectedFormData.old_password);
+    fillInFormInput(newPasswordInput, expectedFormData.new_password);
+    fillInFormInput(newPasswordConfirmationInput, expectedFormData.new_password_confirmation);
+
+    form.simulate('submit');
+
+    expect(handleSubmitSpy).toNotHaveBeenCalled();
+
+    expect(component.state('errors')).toInclude({
+      new_password: 'Password must be at least 7 characters and contain at least 1 letter, 1 number, and 1 symbol',
+    });
   });
 });
 
