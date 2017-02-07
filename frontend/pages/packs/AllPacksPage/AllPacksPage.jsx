@@ -7,6 +7,7 @@ import Button from 'components/buttons/Button';
 import entityGetter from 'redux/utilities/entityGetter';
 import Icon from 'components/icons/Icon';
 import InputField from 'components/forms/fields/InputField';
+import Modal from 'components/modals/Modal';
 import NumberPill from 'components/NumberPill';
 import packActions from 'redux/nodes/entities/packs/actions';
 import PackDetailsSidePanel from 'components/side_panels/PackDetailsSidePanel';
@@ -40,6 +41,7 @@ export class AllPacksPage extends Component {
       allPacksChecked: false,
       checkedPackIDs: [],
       packFilter: '',
+      showModal: false,
     };
   }
 
@@ -84,9 +86,15 @@ export class AllPacksPage extends Component {
 
       return Promise.all(promises)
         .then(() => {
+          let newState = { allPacksChecked: false, checkedPackIDs: [] };
+
           if (actionType === 'delete') {
             dispatch(renderFlash('success', 'Packs successfully deleted.'));
+
+            newState = { ...newState, showModal: false };
           }
+
+          this.setState(newState);
 
           return false;
         })
@@ -132,6 +140,14 @@ export class AllPacksPage extends Component {
     };
 
     dispatch(push(locationObject));
+
+    return false;
+  }
+
+  onToggleModal = () => {
+    const { showModal } = this.state;
+
+    this.setState({ showModal: !showModal });
 
     return false;
   }
@@ -187,7 +203,7 @@ export class AllPacksPage extends Component {
   }
 
   renderCTAs = () => {
-    const { goToNewPackPage, onBulkAction } = this;
+    const { goToNewPackPage, onBulkAction, onToggleModal } = this;
     const btnClass = `${baseClass}__bulk-action-btn`;
     const checkedPackCount = this.state.checkedPackIDs.length;
 
@@ -213,7 +229,7 @@ export class AllPacksPage extends Component {
           </Button>
           <Button
             className={`${btnClass} ${btnClass}--delete`}
-            onClick={onBulkAction('delete')}
+            onClick={onToggleModal}
             variant="unstyled"
           >
             <Icon name="delete-cloud" /> Delete
@@ -224,6 +240,28 @@ export class AllPacksPage extends Component {
 
     return (
       <Button variant="brand" onClick={goToNewPackPage}>CREATE NEW PACK</Button>
+    );
+  }
+
+  renderModal = () => {
+    const { onBulkAction, onToggleModal } = this;
+    const { showModal } = this.state;
+
+    if (!showModal) {
+      return false;
+    }
+
+    return (
+      <Modal
+        title="Delete Packs"
+        onExit={onToggleModal}
+      >
+        <p>Are you sure you want to delete the selected packs?</p>
+        <div className={`${baseClass}__modal-btn-wrap`}>
+          <Button onClick={onBulkAction('delete')} variant="alert">Delete</Button>
+          <Button onClick={onToggleModal} variant="inverse">Cancel</Button>
+        </div>
+      </Modal>
     );
   }
 
@@ -253,6 +291,7 @@ export class AllPacksPage extends Component {
       onSelectPack,
       onFilterPacks,
       renderCTAs,
+      renderModal,
       renderSidePanel,
     } = this;
     const { loadingPacks, selectedPack } = this.props;
@@ -289,6 +328,7 @@ export class AllPacksPage extends Component {
             selectedPack={selectedPack}
           />
         </div>
+        {renderModal()}
         {renderSidePanel()}
       </div>
     );

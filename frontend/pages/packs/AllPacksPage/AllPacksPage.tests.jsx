@@ -143,11 +143,13 @@ describe('AllPacksPage - component', () => {
       expect(dispatchedActions).toInclude({ type: 'packs_UPDATE_REQUEST' });
     });
 
-    it('dispatches the pack destroy function when delete is clicked', () => {
+    it('loads a modal when delete is clicked', () => {
       const mockStore = reduxMockStore(store);
       const Component = connectedComponent(ConnectedAllPacksPage, { mockStore });
       const page = mount(Component).find('AllPacksPage');
       const selectAllPacks = page.find({ name: 'select-all-packs' });
+
+      expect(page.find('Modal').length).toEqual(0);
 
       selectAllPacks.simulate('change');
 
@@ -155,9 +157,53 @@ describe('AllPacksPage - component', () => {
 
       deleteBtn.simulate('click');
 
+      expect(page.find('Modal').length).toEqual(1);
+    });
+
+    it('dispatches the pack destroy action when the modal is confirmed', () => {
+      const mockStore = reduxMockStore(store);
+      const Component = connectedComponent(ConnectedAllPacksPage, { mockStore });
+      const page = mount(Component).find('AllPacksPage');
+      const selectAllPacks = page.find({ name: 'select-all-packs' });
+
+      expect(page.find('Modal').length).toEqual(0);
+
+      selectAllPacks.simulate('change');
+
+      const deleteBtn = page.find('.all-packs-page__bulk-action-btn--delete');
+
+      deleteBtn.simulate('click');
+
+      const modal = page.find('Modal');
+
+      modal.find('Button').first().simulate('click');
+
       const dispatchedActions = mockStore.getActions();
 
       expect(dispatchedActions).toInclude({ type: 'packs_DESTROY_REQUEST' });
+    });
+
+    it('does not dispatch the pack destroy action when the modal is canceled', () => {
+      const mockStore = reduxMockStore(store);
+      const Component = connectedComponent(ConnectedAllPacksPage, { mockStore });
+      const page = mount(Component).find('AllPacksPage');
+      const selectAllPacks = page.find({ name: 'select-all-packs' });
+
+      expect(page.find('Modal').length).toEqual(0);
+
+      selectAllPacks.simulate('change');
+
+      const deleteBtn = page.find('.all-packs-page__bulk-action-btn--delete');
+
+      deleteBtn.simulate('click');
+
+      const modal = page.find('Modal');
+
+      modal.find('Button').last().simulate('click');
+
+      const dispatchedActions = mockStore.getActions();
+
+      expect(dispatchedActions).toNotInclude({ type: 'packs_DESTROY_REQUEST' });
     });
   });
 

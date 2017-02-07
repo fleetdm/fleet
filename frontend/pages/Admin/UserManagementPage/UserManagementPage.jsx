@@ -113,6 +113,7 @@ export class UserManagementPage extends Component {
 
   onEditUser = (user, updatedUser) => {
     const { currentUser, dispatch } = this.props;
+    const { onToggleEditUser } = this;
     const { update } = userActions;
     const updatedAttrs = deepDifference(updatedUser, user);
 
@@ -120,6 +121,7 @@ export class UserManagementPage extends Component {
       return dispatch(updateUser(user, updatedAttrs))
         .then(() => {
           dispatch(renderFlash('success', 'User updated', updateUser(user, user)));
+          onToggleEditUser(user);
 
           return false;
         })
@@ -129,6 +131,7 @@ export class UserManagementPage extends Component {
     return dispatch(update(user, updatedAttrs))
       .then(() => {
         dispatch(renderFlash('success', 'User updated', update(user, user)));
+        onToggleEditUser(user);
 
         return false;
       })
