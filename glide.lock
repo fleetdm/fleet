@@ -1,5 +1,5 @@
-hash: ab1d436e71559ecedf062ac07e6086d96fbcfab9d20854b1b3f78867a6b3a94c
-updated: 2017-01-16T14:44:49.6595886-07:00
+hash: 5deefa10caf7fd7fcbad5c7a7353c5df267c0c784954c4ebabd731b89029f55e
+updated: 2017-02-06T20:16:14.492699067-05:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -27,7 +27,7 @@ imports:
   - internal
   - redis
 - name: github.com/go-kit/kit
-  version: dd9236608629b98d33d4c6681dc3740400c01243
+  version: f66b0e13579bfc5a48b9e2a94b1209c107ea1f41
   subpackages:
   - endpoint
   - log
@@ -138,7 +138,7 @@ imports:
   - assert
   - require
 - name: github.com/VividCortex/mysqlerr
-  version: 93e3dc264d50c8ea98844075ef84224cacdc0c91
+  version: 6c6b55f8796f578c870b7e19bafb16103bc40095
 - name: github.com/WatchBeam/clock
   version: d5a6612f3d9a070b964adc65dbd94c6080458f83
 - name: golang.org/x/crypto
@@ -169,7 +169,7 @@ imports:
 - name: gopkg.in/go-playground/validator.v8
   version: 5f57d2222ad794d0dffb07e664ea05e2ee07d60c
 - name: gopkg.in/natefinch/lumberjack.v2
-  version: 514cbda263a734ae8caac038dadf05f8f3f9f738
+  version: dd45e6a67c53f673bb49ca8a001fd3a63ceb640e
 - name: gopkg.in/yaml.v2
   version: e4d366fc3c7938e2958e662b4258c7a89e1f0e3e
 testImports: []
