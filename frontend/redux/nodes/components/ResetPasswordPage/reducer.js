@@ -6,7 +6,7 @@ import {
 } from './actions';
 
 export const initialState = {
-  error: null,
+  errors: {},
   loading: false,
 };
 
@@ -15,12 +15,12 @@ export default (state = initialState, { type, payload }) => {
     case CLEAR_RESET_PASSWORD_ERRORS:
       return {
         ...state,
-        error: null,
+        errors: {},
       };
     case RESET_PASSWORD_ERROR:
       return {
         ...state,
-        error: payload.error,
+        errors: payload.errors,
         loading: false,
       };
     case RESET_PASSWORD_REQUEST:
@@ -31,7 +31,7 @@ export default (state = initialState, { type, payload }) => {
     case RESET_PASSWORD_SUCCESS:
       return {
         ...state,
-        error: null,
+        errors: {},
         loading: false,
       };
     default:

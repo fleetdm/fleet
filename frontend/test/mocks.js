@@ -347,13 +347,13 @@ export const validRevokeInviteRequest = (bearerToken, invite) => {
   .reply(200, {});
 };
 
-export const invalidResetPasswordRequest = (password, token, error) => {
+export const invalidResetPasswordRequest = (password, token, errorResponse) => {
   return nock('http://localhost:8080')
   .post('/api/v1/kolide/reset_password', JSON.stringify({
     new_password: password,
     password_reset_token: token,
   }))
-  .reply(422, { error });
+  .reply(422, errorResponse);
 };
 
 export const validRunQueryRequest = (bearerToken, data) => {

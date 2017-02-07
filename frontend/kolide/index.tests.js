@@ -595,9 +595,12 @@ describe('Kolide - API client', () => {
     });
 
     it('return errors correctly for unsuccessful requests', (done) => {
-      const error = 'Resource not found';
+      const errorResponse = {
+        message: 'Resource not found',
+        errors: [{ name: 'base', reason: 'Resource not found' }],
+      };
       const passwordResetToken = 'invalid-password-reset-token';
-      const request = invalidResetPasswordRequest(newPassword, passwordResetToken, error);
+      const request = invalidResetPasswordRequest(newPassword, passwordResetToken, errorResponse);
       const formData = {
         new_password: newPassword,
         password_reset_token: passwordResetToken,
@@ -605,10 +608,7 @@ describe('Kolide - API client', () => {
 
       Kolide.resetPassword(formData)
         .then(done)
-        .catch((errorResponse) => {
-          const { response } = errorResponse;
-
-          expect(response).toEqual({ error });
+        .catch(() => {
           expect(request.isDone()).toEqual(true);
           done();
         });

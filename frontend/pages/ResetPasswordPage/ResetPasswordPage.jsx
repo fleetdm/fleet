@@ -1,18 +1,22 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { noop } from 'lodash';
+import { noop, size } from 'lodash';
 import { push } from 'react-router-redux';
 
-import debounce from '../../utilities/debounce';
-import { resetPassword } from '../../redux/nodes/components/ResetPasswordPage/actions';
-import ResetPasswordForm from '../../components/forms/ResetPasswordForm';
-import StackedWhiteBoxes from '../../components/StackedWhiteBoxes';
-import { performRequiredPasswordReset } from '../../redux/nodes/auth/actions';
-import userInterface from '../../interfaces/user';
+import debounce from 'utilities/debounce';
+import { clearResetPasswordErrors, resetPassword } from 'redux/nodes/components/ResetPasswordPage/actions';
+import ResetPasswordForm from 'components/forms/ResetPasswordForm';
+import StackedWhiteBoxes from 'components/StackedWhiteBoxes';
+import { performRequiredPasswordReset } from 'redux/nodes/auth/actions';
+import userInterface from 'interfaces/user';
 
 export class ResetPasswordPage extends Component {
   static propTypes = {
     dispatch: PropTypes.func,
+    errors: PropTypes.shape({
+      base: PropTypes.string,
+      new_password: PropTypes.string,
+    }),
     token: PropTypes.string,
     user: userInterface,
   };
@@ -26,6 +30,16 @@ export class ResetPasswordPage extends Component {
 
     if (!user && !token) {
       return dispatch(push('/login'));
+    }
+
+    return false;
+  }
+
+  onResetErrors = () => {
+    const { dispatch, errors } = this.props;
+
+    if (size(errors)) {
+      dispatch(clearResetPasswordErrors);
     }
 
     return false;
@@ -46,7 +60,8 @@ export class ResetPasswordPage extends Component {
     return dispatch(resetPassword(resetPasswordData))
       .then(() => {
         return dispatch(push('/login'));
-      });
+      })
+      .catch(() => false);
   })
 
   handleLeave = (location) => {
@@ -61,11 +76,13 @@ export class ResetPasswordPage extends Component {
     const passwordUpdateParams = { password };
 
     return dispatch(performRequiredPasswordReset(passwordUpdateParams))
-      .then(() => { return dispatch(push('/')); });
+      .then(() => { return dispatch(push('/')); })
+      .catch(() => false);
   }
 
   render () {
-    const { handleLeave, onSubmit } = this;
+    const { handleLeave, onResetErrors, onSubmit } = this;
+    const { errors } = this.props;
 
     return (
       <StackedWhiteBoxes
@@ -73,7 +90,11 @@ export class ResetPasswordPage extends Component {
         leadText="Create a new password using at least one letter, one numeral and seven characters."
         onLeave={handleLeave}
       >
-        <ResetPasswordForm handleSubmit={onSubmit} />
+        <ResetPasswordForm
+          handleSubmit={onSubmit}
+          onChangeFunc={onResetErrors}
+          serverErrors={errors}
+        />
       </StackedWhiteBoxes>
     );
   }

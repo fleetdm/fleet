@@ -22,12 +22,12 @@ describe('ResetPasswordPage - reducer', () => {
     it('changes the loading state to true', () => {
       const errorState = {
         ...initialState,
-        error: 'Something went wrong',
+        errors: { base: 'Something went wrong' },
       };
 
       expect(reducer(errorState, clearResetPasswordErrors)).toEqual({
         ...errorState,
-        error: null,
+        errors: {},
       });
     });
   });
@@ -45,23 +45,23 @@ describe('ResetPasswordPage - reducer', () => {
     it('changes the loading state to false and errors to null', () => {
       const loadingStateWithError = {
         loading: true,
-        error: 'Something went wrong',
+        errors: { base: 'Something went wrong' },
       };
 
       expect(reducer(loadingStateWithError, resetPasswordSuccess)).toEqual({
         loading: false,
-        error: null,
+        errors: {},
       });
     });
   });
 
   describe('resetPasswordError', () => {
     it('changes the loading state to false and sets the error state', () => {
-      const error = 'There was an error with your request';
+      const errors = { base: 'There was an error with your request' };
 
-      expect(reducer(initialState, resetPasswordError(error))).toEqual({
+      expect(reducer(initialState, resetPasswordError(errors))).toEqual({
         ...initialState,
-        error,
+        errors,
         loading: false,
       });
     });
@@ -98,18 +98,23 @@ describe('ResetPasswordPage - reducer', () => {
         new_password: newPassword,
         password_reset_token: token,
       };
-      const error = 'Something went wrong';
-      const invalidRequest = invalidResetPasswordRequest(newPassword, token, error);
+      const errors = [{ name: 'base', reason: 'Something went wrong' }];
+      const errorResponse = {
+        status: 422,
+        message: 'Something went wrong',
+        errors,
+      };
+      const invalidRequest = invalidResetPasswordRequest(newPassword, token, errorResponse);
       const store = reduxMockStore();
 
       store.dispatch(resetPassword(formData))
         .then(done)
-        .catch((errorResponse) => {
+        .catch(() => {
           const actions = store.getActions();
-          const { response } = errorResponse;
-
-          expect(response).toEqual({ error });
-          expect(actions).toInclude(resetPasswordError(error));
+          expect(actions).toInclude(resetPasswordError({
+            base: 'Something went wrong',
+            http_status: 422,
+          }));
           expect(invalidRequest.isDone()).toEqual(true);
           done();
         });
