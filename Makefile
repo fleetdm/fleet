@@ -143,7 +143,8 @@ generate-dev: .prefix
 	webpack --progress --colors --watch --notify
 
 deps:
-	npm install
+	npm install --no-optional
+	npm shrinkwrap
 	go get github.com/jteeuwen/go-bindata/...
 	go get github.com/Masterminds/glide
 	go get github.com/groob/mockimpl
@@ -182,4 +183,3 @@ package: build
 	mkdir -p build/pkgroot/usr/bin
 	cp build/kolide build/pkgroot/usr/bin
 	docker run --rm -it -v ${PWD}/build/pkgroot:/pkgroot -v ${PWD}/build:/out -e KOLIDE_VERSION="${VERSION}" kolide/fpm
-
