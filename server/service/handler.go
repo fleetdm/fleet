@@ -422,7 +422,7 @@ func WithSetup(svc kolide.Service, logger kitlog.Logger, next http.Handler) http
 		))
 		configRouter.Handle("/api/v1/license", kithttp.NewServer(
 			context.Background(),
-			makePostLicenseEndpoint(svc),
+			makeSetupLicenseEndpoint(svc),
 			decodeLicenseRequest,
 			encodeResponse,
 		))

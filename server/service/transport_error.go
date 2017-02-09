@@ -28,6 +28,14 @@ func baseError(err string) []map[string]string {
 	}
 }
 
+// same as baseError, but replaces "base" with different name.
+func namedError(name string, err string) []map[string]string {
+	return []map[string]string{map[string]string{
+		"name":   name,
+		"reason": err},
+	}
+}
+
 // encode error and status header to the client
 func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	// Unwrap Go-Kit Error
@@ -46,7 +54,7 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	if e, ok := err.(licensingError); ok {
 		le := jsonError{
 			Message: "Licensing Error",
-			Errors:  baseError(e.LicensingError()),
+			Errors:  namedError(e.LicensingError(), "license"),
 		}
 		w.WriteHeader(http.StatusPaymentRequired)
 		enc.Encode(le)

@@ -26,8 +26,9 @@ type LicenseStore interface {
 }
 
 type LicenseService interface {
-	// LicenseClaims returns details of a customer license that determine authorization
-	// to use the Kolide product.
+	// License returns details of a customer license that determine authorization
+	// to use the Kolide product. If the customer has not uploaded a token,
+	// the license Token will be nil.
 	License(ctx context.Context) (*License, error)
 
 	// SaveLicense writes jwt token string to database after performing
