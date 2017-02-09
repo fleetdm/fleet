@@ -151,10 +151,46 @@ const reduxConfig = ({
     };
   };
 
+  const silentCreate = (...args) => {
+    return (dispatch) => {
+      return createFunc(...args)
+        .then((response) => {
+          dispatch(successAction(response, createSuccess));
+
+          return response;
+        })
+        .catch((response) => {
+          const errorsObject = formatErrorResponse(response);
+
+          dispatch(createFailure(errorsObject));
+
+          throw errorsObject;
+        });
+    };
+  };
+
   const destroy = (...args) => {
     return (dispatch) => {
       dispatch(destroyRequest);
 
+      return destroyFunc(...args)
+        .then(() => {
+          const { id: entityID } = args[0];
+
+          return dispatch(destroySuccess(entityID));
+        })
+        .catch((response) => {
+          const errorsObject = formatErrorResponse(response);
+
+          dispatch(destroyFailure(errorsObject));
+
+          throw errorsObject;
+        });
+    };
+  };
+
+  const silentDestroy = (...args) => {
+    return (dispatch) => {
       return destroyFunc(...args)
         .then(() => {
           const { id: entityID } = args[0];
@@ -243,13 +279,34 @@ const reduxConfig = ({
     };
   };
 
+  const silentUpdate = (...args) => {
+    return (dispatch) => {
+      return updateFunc(...args)
+        .then((response) => {
+          dispatch(successAction(response, updateSuccess));
+
+          return response;
+        })
+        .catch((response) => {
+          const errorsObject = formatErrorResponse(response);
+
+          dispatch(updateFailure(errorsObject));
+
+          throw errorsObject;
+        });
+    };
+  };
+
   const actions = {
     clearErrors,
     create,
     destroy,
     load,
     loadAll,
+    silentCreate,
+    silentDestroy,
     silentLoadAll,
+    silentUpdate,
     update,
   };
 

@@ -100,7 +100,7 @@ export class UserManagementPage extends Component {
               return dispatch(renderFlash('success', 'User required to reset password', requirePasswordReset(user, { require: false })));
             });
         case 'revert_invitation':
-          return dispatch(inviteActions.destroy(user))
+          return dispatch(inviteActions.silentDestroy(user))
             .then(() => dispatch(renderFlash('success', 'Invite revoked')))
             .catch(() => dispatch(renderFlash('error', 'Invite could not be revoked')));
         default:
@@ -114,7 +114,7 @@ export class UserManagementPage extends Component {
   onEditUser = (user, updatedUser) => {
     const { currentUser, dispatch } = this.props;
     const { onToggleEditUser } = this;
-    const { update } = userActions;
+    const { silentUpdate } = userActions;
     const updatedAttrs = deepDifference(updatedUser, user);
 
     if (currentUser.id === user.id) {
@@ -128,9 +128,9 @@ export class UserManagementPage extends Component {
         .catch(() => false);
     }
 
-    return dispatch(update(user, updatedAttrs))
+    return dispatch(silentUpdate(user, updatedAttrs))
       .then(() => {
-        dispatch(renderFlash('success', 'User updated', update(user, user)));
+        dispatch(renderFlash('success', 'User updated', silentUpdate(user, user)));
         onToggleEditUser(user);
 
         return false;
@@ -141,7 +141,7 @@ export class UserManagementPage extends Component {
   onInviteUserSubmit = (formData) => {
     const { dispatch } = this.props;
 
-    dispatch(inviteActions.create(formData))
+    dispatch(inviteActions.silentCreate(formData))
       .then(() => {
         dispatch(renderFlash('success', 'User invited'));
 

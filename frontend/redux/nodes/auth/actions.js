@@ -7,7 +7,6 @@ export const CLEAR_AUTH_ERRORS = 'CLEAR_AUTH_ERRORS';
 export const LOGIN_REQUEST = 'LOGIN_REQUEST';
 export const LOGIN_SUCCESS = 'LOGIN_SUCCESS';
 export const LOGIN_FAILURE = 'LOGIN_FAILURE';
-export const UPDATE_USER_REQUEST = 'UPDATE_USER_REQUEST';
 export const UPDATE_USER_SUCCESS = 'UPDATE_USER_SUCCESS';
 export const UPDATE_USER_FAILURE = 'UPDATE_USER_FAILURE';
 export const LOGOUT_REQUEST = 'LOGOUT_REQUEST';
@@ -86,7 +85,6 @@ export const setup = (registrationFormData) => {
       });
   };
 };
-export const updateUserRequest = { type: UPDATE_USER_REQUEST };
 export const updateUserSuccess = (user) => {
   return {
     type: UPDATE_USER_SUCCESS,
@@ -105,9 +103,7 @@ export const updateUserFailure = (errors) => {
 };
 export const updateUser = (targetUser, formData) => {
   return (dispatch) => {
-    dispatch(updateUserRequest);
-
-    return dispatch(userActions.update(targetUser, formData))
+    return dispatch(userActions.silentUpdate(targetUser, formData))
       .then((user) => {
         dispatch(updateUserSuccess(user));
 

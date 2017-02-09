@@ -197,6 +197,80 @@ describe('reduxConfig', () => {
     });
   });
 
+  describe('#silentCreate action', () => {
+    describe('successful create call', () => {
+      const mockStore = reduxMockStore(store);
+      const createFunc = createSpy().andReturn(Promise.resolve([user]));
+
+      const config = reduxConfig({
+        createFunc,
+        entityName: 'users',
+        schema: schemas.USERS,
+      });
+      const { actions } = config;
+
+      it('dispatches the correct actions', (done) => {
+        mockStore.dispatch(actions.silentCreate())
+          .then(() => {
+            const dispatchedActions = mockStore.getActions();
+            const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
+
+            expect(dispatchedActionTypes).toInclude('users_CREATE_SUCCESS');
+            expect(dispatchedActionTypes).toNotInclude('users_CREATE_REQUEST');
+            expect(dispatchedActionTypes).toNotInclude('users_CREATE_FAILURE');
+            done();
+          })
+          .catch(done);
+      });
+    });
+
+    describe('unsuccessful create call', () => {
+      const mockStore = reduxMockStore(store);
+      const errors = [
+        { name: 'first_name',
+          reason: 'is not valid',
+        },
+        { name: 'last_name',
+          reason: 'must be changed or something',
+        },
+      ];
+      const errorResponse = {
+        message: {
+          message: 'Validation Failed',
+          errors,
+        },
+      };
+      const formattedErrors = formatErrorResponse(errorResponse);
+      const createFunc = createSpy().andReturn(Promise.reject(errorResponse));
+      const config = reduxConfig({
+        createFunc,
+        entityName: 'users',
+        schema: schemas.USERS,
+      });
+      const { actions } = config;
+
+      it('dispatches the correct actions', (done) => {
+        mockStore.dispatch(actions.silentCreate())
+          .then(done)
+          .catch(() => {
+            const dispatchedActions = mockStore.getActions();
+            const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
+
+            expect(dispatchedActionTypes).toNotInclude('users_CREATE_REQUEST');
+            expect(dispatchedActionTypes).toNotInclude('users_CREATE_SUCCESS');
+
+            const createFailureAction = find(dispatchedActions, { type: 'users_CREATE_FAILURE' });
+
+            expect(createFailureAction.payload).toEqual({
+              errors: formattedErrors,
+            });
+
+            done();
+          });
+      });
+    });
+  });
+
   describe('dispatching the update action', () => {
     describe('successful update call', () => {
       const mockStore = reduxMockStore(store);
@@ -341,6 +415,84 @@ describe('reduxConfig', () => {
     });
   });
 
+  describe('#silentUpdate', () => {
+    describe('successful call', () => {
+      const mockStore = reduxMockStore(store);
+      const updateFunc = createSpy().andReturn(Promise.resolve([{ ...user, updated: true }]));
+      const config = reduxConfig({
+        updateFunc,
+        entityName: 'users',
+        schema: schemas.USERS,
+      });
+      const { actions } = config;
+
+      it('dispatches the correct actions', (done) => {
+        mockStore.dispatch(actions.silentUpdate())
+          .then(() => {
+            const dispatchedActions = mockStore.getActions();
+            const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
+
+            expect(dispatchedActionTypes).toNotInclude('users_UPDATE_REQUEST');
+            expect(dispatchedActionTypes).toInclude('users_UPDATE_SUCCESS');
+            expect(dispatchedActionTypes).toNotInclude('users_UPDATE_FAILURE');
+
+            done();
+          })
+          .catch(done);
+      });
+    });
+
+    describe('unsuccessful call', () => {
+      describe('unprocessable entitiy', () => {
+        const mockStore = reduxMockStore(store);
+
+        const errors = [
+          { name: 'first_name',
+            reason: 'is not valid',
+          },
+          { name: 'last_name',
+            reason: 'must be changed or something',
+          },
+        ];
+        const errorResponse = {
+          status: 422,
+          message: {
+            message: 'Validation Failed',
+            errors,
+          },
+        };
+        const formattedErrors = formatErrorResponse(errorResponse);
+        const updateFunc = createSpy().andReturn(Promise.reject(errorResponse));
+        const config = reduxConfig({
+          entityName: 'users',
+          schema: schemas.USERS,
+          updateFunc,
+        });
+        const { actions } = config;
+
+        it('dispatches the correct actions', (done) => {
+          mockStore.dispatch(actions.silentUpdate())
+            .then(done)
+            .catch(() => {
+              const dispatchedActions = mockStore.getActions();
+              const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
+
+              expect(dispatchedActionTypes).toNotInclude('users_UPDATE_REQUEST');
+              expect(dispatchedActionTypes).toNotInclude('users_UPDATE_SUCCESS');
+
+              const updateFailureAction = find(dispatchedActions, { type: 'users_UPDATE_FAILURE' });
+
+              expect(updateFailureAction.payload).toEqual({
+                errors: formattedErrors,
+              });
+
+              done();
+            });
+        });
+      });
+    });
+  });
+
   describe('dispatching the destroy action', () => {
     describe('successful destroy call', () => {
       const mockStore = reduxMockStore(store);
@@ -456,6 +608,77 @@ describe('reduxConfig', () => {
         const newState = reducer(initialState, destroyFailureAction);
 
         expect(newState.errors).toEqual(formattedErrors);
+      });
+    });
+  });
+
+  describe('#silentDestroy', () => {
+    describe('successful call', () => {
+      const mockStore = reduxMockStore(store);
+      const destroyFunc = createSpy().andReturn(Promise.resolve());
+      const config = reduxConfig({
+        destroyFunc,
+        entityName: 'invites',
+        schema: schemas.INVITES,
+      });
+      const { actions } = config;
+
+      it('dispatches the correct actions', (done) => {
+        mockStore.dispatch(actions.silentDestroy({ inviteID: invite.id }))
+          .then(() => {
+            const dispatchedActions = mockStore.getActions();
+            const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
+
+            expect(dispatchedActionTypes).toNotInclude('invites_DESTROY_REQUEST');
+            expect(dispatchedActionTypes).toInclude('invites_DESTROY_SUCCESS');
+            expect(dispatchedActionTypes).toNotInclude('invites_DESTROY_FAILURE');
+
+            done();
+          })
+          .catch(done);
+      });
+    });
+
+    describe('unsuccessful call', () => {
+      const mockStore = reduxMockStore(store);
+      const errors = [
+        {
+          name: 'base',
+          reason: 'Unable to create user',
+        },
+      ];
+      const errorResponse = {
+        message: {
+          message: 'Validation Failed',
+          errors,
+        },
+      };
+      const destroyFunc = createSpy().andReturn(Promise.reject(errorResponse));
+      const formattedErrors = formatErrorResponse(errorResponse);
+      const config = reduxConfig({
+        destroyFunc,
+        entityName: 'users',
+        schema: schemas.USERS,
+      });
+      const { actions } = config;
+
+      it('dispatches the correct actions', (done) => {
+        mockStore.dispatch(actions.silentDestroy())
+          .then(done)
+          .catch(() => {
+            const dispatchedActions = mockStore.getActions();
+            const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
+            const destroyFailureAction = find(dispatchedActions, { type: 'users_DESTROY_FAILURE' });
+
+            expect(dispatchedActionTypes).toNotInclude('users_DESTROY_REQUEST');
+            expect(dispatchedActionTypes).toNotInclude('users_DESTROY_SUCCESS');
+
+            expect(destroyFailureAction.payload).toEqual({
+              errors: formattedErrors,
+            });
+
+            done();
+          });
       });
     });
   });

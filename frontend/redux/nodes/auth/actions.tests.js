@@ -121,11 +121,10 @@ describe('Auth - actions', () => {
       const updatedUser = { ...userStub, ...updatedAttrs };
       const mockStore = reduxMockStore(store);
       const expectedActions = [
-        { type: 'UPDATE_USER_REQUEST' },
         { type: 'UPDATE_USER_SUCCESS', payload: { user: updatedUser } },
       ];
 
-      spyOn(userActions, 'update').andReturn(() => Promise.resolve(updatedUser));
+      spyOn(userActions, 'silentUpdate').andReturn(() => Promise.resolve(updatedUser));
 
       return mockStore.dispatch(updateUser(userStub, updatedAttrs))
         .then(() => {

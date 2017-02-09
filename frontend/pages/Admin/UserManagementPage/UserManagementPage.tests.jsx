@@ -184,14 +184,14 @@ describe('UserManagementPage - component', () => {
     });
 
     it('updates a different user with only the updated attributes', () => {
-      spyOn(userActions, 'update').andCallThrough();
+      spyOn(userActions, 'silentUpdate').andCallThrough();
 
       const otherUser = { ...currentUser, id: currentUser.id + 1 };
       const updatedUser = { ...otherUser, ...updatedAttrs };
 
       pageNode.onEditUser(otherUser, updatedUser);
 
-      expect(userActions.update).toHaveBeenCalledWith(otherUser, updatedAttrs);
+      expect(userActions.silentUpdate).toHaveBeenCalledWith(otherUser, updatedAttrs);
     });
   });
 });

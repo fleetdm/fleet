@@ -2,7 +2,6 @@ import expect from 'expect';
 
 import reducer from './reducer';
 import {
-  requirePasswordResetRequest,
   requirePasswordResetFailure,
   requirePasswordResetSuccess,
 } from './actions';
@@ -18,15 +17,6 @@ describe('Users - reducer', () => {
         [user.id]: user,
       },
     };
-
-    it('updates state when request is dispatched', () => {
-      const newState = reducer(initialState, requirePasswordResetRequest);
-
-      expect(newState).toEqual({
-        ...initialState,
-        loading: true,
-      });
-    });
 
     it('updates state when request is successful', () => {
       const initState = {

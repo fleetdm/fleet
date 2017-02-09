@@ -8,7 +8,6 @@ import {
   changePassword,
   enableUser,
   requirePasswordReset,
-  REQUIRE_PASSWORD_RESET_REQUEST,
   REQUIRE_PASSWORD_RESET_FAILURE,
   REQUIRE_PASSWORD_RESET_SUCCESS,
   updateAdmin,
@@ -48,7 +47,6 @@ describe('Users - actions', () => {
             const dispatchedActions = mockStore.getActions();
 
             expect(dispatchedActions).toEqual([
-              config.extendedActions.updateRequest,
               config.extendedActions.updateSuccess({
                 users: {
                   [user.id]: { ...user, enabled: true },
@@ -105,7 +103,6 @@ describe('Users - actions', () => {
             const dispatchedActions = mockStore.getActions();
 
             expect(dispatchedActions).toEqual([
-              config.extendedActions.updateRequest,
               config.extendedActions.updateFailure({ base: 'Unable to enable the user', http_status: 422 }),
             ]);
 
@@ -243,7 +240,6 @@ describe('Users - actions', () => {
             const dispatchedActions = mockStore.getActions();
 
             expect(dispatchedActions).toEqual([
-              config.extendedActions.updateRequest,
               config.extendedActions.updateSuccess({
                 users: {
                   [user.id]: { ...user, admin: true },
@@ -300,7 +296,6 @@ describe('Users - actions', () => {
             const dispatchedActions = mockStore.getActions();
 
             expect(dispatchedActions).toEqual([
-              config.extendedActions.updateRequest,
               config.extendedActions.updateFailure({ base: 'Unable to make the user an admin', http_status: 422 }),
             ]);
 
@@ -333,7 +328,6 @@ describe('Users - actions', () => {
         const mockStore = reduxMockStore(store);
 
         const expectedActions = [
-          { type: REQUIRE_PASSWORD_RESET_REQUEST },
           {
             type: REQUIRE_PASSWORD_RESET_SUCCESS,
             payload: { user: { ...user, force_password_reset: true } },
@@ -386,7 +380,6 @@ describe('Users - actions', () => {
         const mockStore = reduxMockStore(store);
 
         const expectedActions = [
-          { type: REQUIRE_PASSWORD_RESET_REQUEST },
           {
             type: REQUIRE_PASSWORD_RESET_FAILURE,
             payload: { errors: { base: 'Unable to require password reset', http_status: 422 } },
