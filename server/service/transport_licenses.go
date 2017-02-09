@@ -7,7 +7,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func decodeUpdateLicenseRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func decodeLicenseRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	var req licenseRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, err

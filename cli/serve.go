@@ -14,6 +14,7 @@ import (
 	"github.com/kolide/kolide/server/config"
 	"github.com/kolide/kolide/server/datastore/mysql"
 	"github.com/kolide/kolide/server/kolide"
+	license "github.com/kolide/kolide/server/license-checker"
 	"github.com/kolide/kolide/server/mail"
 	"github.com/kolide/kolide/server/pubsub"
 	"github.com/kolide/kolide/server/service"
@@ -72,6 +73,17 @@ the way that the kolide server works.
 				}
 			}
 
+			licenseService := license.NewChecker(
+				ds,
+				"https://kolide.co/api/v0/licenses",
+				license.Logger(logger),
+			)
+
+			err = licenseService.Start()
+			if err != nil {
+				initFatal(err, "initializing license service")
+			}
+
 			var resultStore kolide.QueryResultStore
 			redisPool := pubsub.NewRedisPool(config.Redis.Address, config.Redis.Password)
 			resultStore = pubsub.NewRedisQueryResults(redisPool)
@@ -113,15 +125,21 @@ the way that the kolide server works.
 			{
 				frontendHandler = prometheus.InstrumentHandler("get_frontend", service.ServeFrontend())
 				apiHandler = service.MakeHandler(ctx, svc, config.Auth.JwtKey, httpLogger)
+
+				setupRequired, err := service.RequireSetup(svc)
+				if err != nil {
+					initFatal(err, "fetching setup requirement")
+				}
 				// WithSetup will check if first time setup is required
 				// By performing the same check inside main, we can make server startups
 				// more efficient after the first startup.
-				if service.RequireSetup(svc, logger) {
+				if setupRequired {
 					apiHandler = service.WithSetup(svc, logger, apiHandler)
 					frontendHandler = service.RedirectLoginToSetup(svc, logger, frontendHandler)
 				} else {
 					frontendHandler = service.RedirectSetupToLogin(svc, logger, frontendHandler)
 				}
+
 			}
 
 			// a list of dependencies which could affect the status of the app if unavailable
@@ -164,6 +182,7 @@ the way that the kolide server works.
 			}()
 
 			logger.Log("terminated", <-errs)
+			licenseService.Stop()
 		},
 	}
 

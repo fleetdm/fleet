@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"time"
 
 	"github.com/go-kit/kit/endpoint"
@@ -18,6 +19,8 @@ type license struct {
 	AllowedHosts int       `json:"allowed_hosts"`
 	Hosts        uint      `json:"hosts"`
 	Evaluation   bool      `json:"evaluation"`
+	Revoked      bool      `json:"revoked"`
+	Organization string    `json:"organization"`
 }
 
 type licenseResponse struct {
@@ -27,6 +30,8 @@ type licenseResponse struct {
 
 func (lr licenseResponse) error() error { return lr.Err }
 
+// makeUpdateLicenseEndpoint is used by admins to replace or update
+// licenses.
 func makeUpdateLicenseEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		lr := request.(licenseRequest)
@@ -44,6 +49,8 @@ func makeUpdateLicenseEndpoint(svc kolide.Service) endpoint.Endpoint {
 				Expiry:       claims.ExpiresAt,
 				AllowedHosts: claims.HostLimit,
 				Hosts:        updated.HostCount,
+				Revoked:      updated.Revoked,
+				Organization: claims.OrganizationName,
 			},
 		}
 		return response, nil
@@ -66,6 +73,44 @@ func makeGetLicenseEndpoint(svc kolide.Service) endpoint.Endpoint {
 				AllowedHosts: claims.HostLimit,
 				Hosts:        lic.HostCount,
 				Token:        *lic.Token,
+				Revoked:      lic.Revoked,
+				Organization: claims.OrganizationName,
+			},
+		}
+		return response, nil
+	}
+}
+
+// makePostLicenseEndpoint is only to be used once, if a license is successfully
+// installed we return an error if it is called again.  Note that this endpoint
+// requires no authentication.  Once a license is installed the user will be
+// redirected to login or setup, depending on whether setup is complete or not
+func makePostLicenseEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(licenseRequest)
+		lic, err := svc.License(ctx)
+		if err != nil {
+			return licenseResponse{Err: err}, nil
+		}
+		if lic.Token != nil {
+			return licenseResponse{Err: errors.New("license can only be uploaded once")}, nil
+		}
+		saved, err := svc.SaveLicense(ctx, req.License)
+		if err != nil {
+			return licenseResponse{Err: err}, nil
+		}
+		claims, err := saved.Claims()
+		if err != nil {
+			return licenseResponse{Err: err}, nil
+		}
+		response := licenseResponse{
+			License: license{
+				Token:        *saved.Token,
+				Revoked:      saved.Revoked,
+				Expiry:       claims.ExpiresAt,
+				AllowedHosts: claims.HostLimit,
+				Hosts:        saved.HostCount,
+				Organization: claims.OrganizationName,
 			},
 		}
 		return response, nil

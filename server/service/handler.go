@@ -148,7 +148,7 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		GetCertificate:            authenticatedUser(jwtKey, svc, makeCertificateEndpoint(svc)),
 		ChangeEmail:               authenticatedUser(jwtKey, svc, makeChangeEmailEndpoint(svc)),
 		UpdateLicense:             authenticatedUser(jwtKey, svc, mustBeAdmin(makeUpdateLicenseEndpoint(svc))),
-		GetLicense:                authenticatedUser(jwtKey, svc, mustBeAdmin(makeGetLicenseEndpoint(svc))),
+		GetLicense:                authenticatedUser(jwtKey, svc, makeGetLicenseEndpoint(svc)),
 
 		// Osquery endpoints
 		EnrollAgent:                   makeEnrollAgentEndpoint(svc),
@@ -289,7 +289,7 @@ func makeKolideKitHandlers(ctx context.Context, e KolideEndpoints, opts []kithtt
 		ImportConfig:                  newServer(e.ImportConfig, decodeImportConfigRequest),
 		GetCertificate:                newServer(e.GetCertificate, decodeNoParamsRequest),
 		ChangeEmail:                   newServer(e.ChangeEmail, decodeChangeEmailRequest),
-		UpdateLicense:                 newServer(e.UpdateLicense, decodeUpdateLicenseRequest),
+		UpdateLicense:                 newServer(e.UpdateLicense, decodeLicenseRequest),
 		GetLicense:                    newServer(e.GetLicense, decodeNoParamsRequest),
 	}
 }
@@ -408,8 +408,8 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/osquery/log", h.SubmitLogs).Methods("POST").Name("submit_logs")
 }
 
-// WithSetup is an http middleware that checks if a database user exists.
-// If one does, it serves the API with a setup middleware.
+// WithSetup is an http middleware that checks is setup procedures have been completed.
+// If setup hasn't been completed it serves the API with a setup middleware.
 // If the server is already configured, the default API handler is exposed.
 func WithSetup(svc kolide.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -420,18 +420,28 @@ func WithSetup(svc kolide.Service, logger kitlog.Logger, next http.Handler) http
 			decodeSetupRequest,
 			encodeResponse,
 		))
-
+		configRouter.Handle("/api/v1/license", kithttp.NewServer(
+			context.Background(),
+			makePostLicenseEndpoint(svc),
+			decodeLicenseRequest,
+			encodeResponse,
+		))
 		// whitelist osqueryd endpoints
 		if strings.HasPrefix(r.URL.Path, "/api/v1/osquery") {
 			next.ServeHTTP(w, r)
 			return
 		}
-
-		if RequireSetup(svc, logger) {
-			configRouter.ServeHTTP(w, r)
-		} else {
-			next.ServeHTTP(w, r)
+		requireSetup, err := RequireSetup(svc)
+		if err != nil {
+			logger.Log("msg", "fetching setup info from db", "err", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
+		if requireSetup {
+			configRouter.ServeHTTP(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
 	}
 }
 
@@ -440,37 +450,71 @@ func WithSetup(svc kolide.Service, logger kitlog.Logger, next http.Handler) http
 func RedirectLoginToSetup(svc kolide.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		redirect := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == "/setup" {
+			if r.URL.Path == "/setup" || r.URL.Path == "/license" {
 				next.ServeHTTP(w, r)
 				return
 			}
 			newURL := r.URL
-			newURL.Path = "/setup"
+			license, err := svc.License(context.Background())
+			if err != nil {
+				logger.Log("msg", "fetching license info from db", "err", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			if license.Token == nil {
+				newURL.Path = "/license"
+			} else {
+				newURL.Path = "/setup"
+			}
 			http.Redirect(w, r, newURL.String(), http.StatusTemporaryRedirect)
 		})
-		if RequireSetup(svc, logger) {
-			redirect.ServeHTTP(w, r)
-		} else {
-			RedirectSetupToLogin(svc, logger, next).ServeHTTP(w, r)
+
+		setupRequired, err := RequireSetup(svc)
+		if err != nil {
+			logger.Log("msg", "fetching license info from db", "err", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
+		if setupRequired {
+			redirect.ServeHTTP(w, r)
+			return
+		}
+		RedirectSetupToLogin(svc, logger, next).ServeHTTP(w, r)
 	}
 }
 
-// RequireSetup checks if the service must be configured by an administrator.
-func RequireSetup(svc kolide.Service, logger kitlog.Logger) bool {
-	users, err := svc.ListUsers(context.Background(), kolide.ListOptions{Page: 0, PerPage: 1})
+// RequireSetup checks to see if the service has a license and has been setup.
+// if either of these things has not been done, return true
+func RequireSetup(svc kolide.Service) (bool, error) {
+	ctx := context.Background()
+	license, err := svc.License(ctx)
 	if err != nil {
-		logger.Log("err", err)
-		return false
+		return false, err
 	}
-	return len(users) == 0
+	if license.Token == nil {
+		return true, nil
+	}
+	users, err := svc.ListUsers(ctx, kolide.ListOptions{Page: 0, PerPage: 1})
+	if err != nil {
+		return false, err
+	}
+	if len(users) == 0 {
+		return true, nil
+	}
+	return false, nil
 }
 
-// RedirectSetupToLogin forces the /setup path to be redirected to login. This middleware is used after
+// RedirectSetupToLogin forces the /setup and /license path to be redirected to login. This middleware is used after
 // the app has been setup.
 func RedirectSetupToLogin(svc kolide.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/setup" {
+			newURL := r.URL
+			newURL.Path = "/login"
+			http.Redirect(w, r, newURL.String(), http.StatusTemporaryRedirect)
+			return
+		}
+		if r.URL.Path == "/license" {
 			newURL := r.URL
 			newURL.Path = "/login"
 			http.Redirect(w, r, newURL.String(), http.StatusTemporaryRedirect)

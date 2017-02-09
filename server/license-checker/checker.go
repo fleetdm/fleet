@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	defaultPollFrequency     = time.Hour
+	defaultPollFrequency     = 8 * time.Hour
 	defaultHttpClientTimeout = 10 * time.Second
 )
 
@@ -70,6 +70,7 @@ func PollFrequency(freq time.Duration) Option {
 	}
 	return func(chk *Checker) {
 		chk.ticker = ticker
+		chk.pollFrequency = freq
 	}
 }
 
@@ -83,12 +84,13 @@ func NewChecker(ds kolide.Datastore, licenseEndpointURL string, opts ...Option) 
 		Ticker: time.NewTicker(defaultPollFrequency),
 	}
 	response := &Checker{
-		logger: log.NewNopLogger(),
-		ds:     ds,
-		client: &http.Client{Timeout: defaultHttpClientTimeout},
-		url:    licenseEndpointURL,
-		ticker: defaultTicker,
-		finish: make(chan struct{}),
+		logger:        log.NewNopLogger(),
+		ds:            ds,
+		pollFrequency: defaultPollFrequency,
+		client:        &http.Client{Timeout: defaultHttpClientTimeout},
+		url:           licenseEndpointURL,
+		ticker:        defaultTicker,
+		finish:        make(chan struct{}),
 	}
 	for _, o := range opts {
 		o(response)
@@ -112,6 +114,8 @@ func (cc *Checker) Start() error {
 		wait.Add(1)
 		defer wait.Done()
 		chk.logger.Log("msg", "starting")
+		chk.logger.Log("poll-frequency", cc.pollFrequency, "http-timeout", cc.client.Timeout)
+
 		for {
 			select {
 			case <-chk.finish:

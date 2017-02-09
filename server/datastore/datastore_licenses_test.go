@@ -21,18 +21,27 @@ var token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IjRkOmM1OmRlOmE1OjczOm"
 	"ZWyV-YpuHaWlx-VpTv4c2vQo2eQWTpTH7YdcQ7Mo_5QdN7247qKo_ORTtqLLTjg7BoxB__ydWMhxO" +
 	"QuRJGQAMc0OsZ72uLd7JKzvWpSLFk7mdVk718mweq6X2R0BPKtTc6lYjbPScoTysM2Owe5Hi7A"
 
+var publicKey = `-----BEGIN PUBLIC KEY-----
+ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0ZhY7r6HmifXPtServt4
+ D3MSi8Awe9u132vLf8yzlknvnq+8CSnOPSSbCD+HajvZ6dnNJXjdcAhuZ32ShrH8
+ rEQACEUS8Mh4z8Mo5Nlq1ou0s2JzWCx049kA34jP3u6AiPgpWUf8JRGstTlisxMn
+ H6B7miDs1038gVbN5rk+j+3ALYzllaTnCX3Y0C7f6IW7BjNO/tvFB84/95xfOLEz
+ o2MeFMqkD29hvcrUW+8+fQGJaVLvcEqBDnIEVbCCk8Wnoi48dUE06WHUl6voJecD
+ dW1E6jHcq8PQFK+4bI1gKZVbV4dFGSSMUyD7ov77aWHjxdQe6YEGcSXKzfyMaUtQ
+ vQIDAQAB
+ -----END PUBLIC KEY-----
+ `
+
 func testLicense(t *testing.T, ds kolide.Datastore) {
 	if ds.Name() == "inmem" {
-		t.Skip("inmem is being deprecated")
+		t.Skip("inmem is deprecated")
 	}
+
 	err := ds.MigrateData()
 	require.Nil(t, err)
 	license, err := ds.License()
 	require.Nil(t, err)
 	assert.Nil(t, license.Token)
-
-	publicKey, err := ds.LicensePublicKey(token)
-	require.Nil(t, err)
 
 	_, err = ds.SaveLicense(token, publicKey)
 	require.Nil(t, err)
