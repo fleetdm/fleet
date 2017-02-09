@@ -16,7 +16,7 @@ func (svc service) License(ctx context.Context) (*kolide.License, error) {
 func (svc service) SaveLicense(ctx context.Context, jwtToken string) (*kolide.License, error) {
 	publicKey, err := svc.ds.LicensePublicKey(jwtToken)
 	if err != nil {
-		return nil, err
+		return nil, licensingError{err.Error()}
 	}
 	updated, err := svc.ds.SaveLicense(jwtToken, publicKey)
 	if err != nil {
