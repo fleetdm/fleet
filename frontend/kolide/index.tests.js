@@ -4,13 +4,22 @@ import nock from 'nock';
 import Kolide from 'kolide';
 import helpers from 'kolide/helpers';
 import mocks from 'test/mocks';
-import { configOptionStub, hostStub, packStub, queryStub, userStub, labelStub } from 'test/stubs';
+import {
+  configOptionStub,
+  hostStub,
+  labelStub,
+  licenseStub,
+  packStub,
+  queryStub,
+  userStub,
+} from 'test/stubs';
 
 const {
   invalidForgotPasswordRequest,
   invalidResetPasswordRequest,
   validChangePasswordRequest,
   validCreateLabelRequest,
+  validCreateLicenseRequest,
   validCreatePackRequest,
   validCreateQueryRequest,
   validCreateScheduledQueryRequest,
@@ -25,6 +34,7 @@ const {
   validGetConfigRequest,
   validGetHostsRequest,
   validGetInvitesRequest,
+  validGetLicenseRequest,
   validGetQueriesRequest,
   validGetQueryRequest,
   validGetScheduledQueriesRequest,
@@ -38,6 +48,7 @@ const {
   validRevokeInviteRequest,
   validRunQueryRequest,
   validSetupRequest,
+  validSetupLicenseRequest,
   validStatusLabelsGetCountsRequest,
   validUpdateAdminRequest,
   validUpdateConfigOptionsRequest,
@@ -116,6 +127,119 @@ describe('Kolide - API client', () => {
           })
           .catch(() => {
             throw new Error('Request should have been stubbed');
+          });
+      });
+    });
+  });
+
+  describe('license', () => {
+    const validLicense = licenseStub();
+
+    describe('#create', () => {
+      it('calls the correct endpoint with the correct parameters', (done) => {
+        const jwtToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWV9.TJVA95OrM7E2cBab30RMHrHDcEfxjoYZgeFONFh7HgQ';
+        const request = validCreateLicenseRequest(bearerToken, jwtToken);
+
+        Kolide.setBearerToken(bearerToken);
+        Kolide.license.create(jwtToken)
+          .then(() => {
+            expect(request.isDone()).toEqual(true);
+            done();
+          })
+          .catch(() => {
+            expect(request.isDone()).toEqual(true);
+            done();
+          });
+      });
+
+      it('changes 0 allowed_hosts to Unlimited', (done) => {
+        const jwtToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWV9.TJVA95OrM7E2cBab30RMHrHDcEfxjoYZgeFONFh7HgQ';
+        const unlimitedHosts = { ...validLicense, allowed_hosts: 0 };
+
+        validCreateLicenseRequest(bearerToken, jwtToken, unlimitedHosts);
+
+        Kolide.setBearerToken(bearerToken);
+        Kolide.license.create(jwtToken)
+          .then((response) => {
+            expect(response.allowed_hosts).toEqual('Unlimited', 'Expected there to be unlimited allowed hosts');
+
+            done();
+          })
+          .catch((response) => {
+            expect(response.allowed_hosts).toEqual('Unlimited', 'Expected there to be unlimited allowed hosts');
+            done();
+          });
+      });
+    });
+
+    describe('#load', () => {
+      it('calls the correct endpoint with the correct parameters', (done) => {
+        const request = validGetLicenseRequest(bearerToken);
+
+        Kolide.setBearerToken(bearerToken);
+        Kolide.license.load()
+          .then(() => {
+            expect(request.isDone()).toEqual(true);
+            done();
+          })
+          .catch(() => {
+            expect(request.isDone()).toEqual(true);
+            done();
+          });
+      });
+
+      it('changes 0 allowed_hosts to Unlimited', (done) => {
+        const unlimitedHosts = { ...validLicense, allowed_hosts: 0 };
+
+        validGetLicenseRequest(bearerToken, unlimitedHosts);
+
+        Kolide.setBearerToken(bearerToken);
+        Kolide.license.load()
+          .then((response) => {
+            expect(response.allowed_hosts).toEqual('Unlimited', 'Expected there to be unlimited allowed hosts');
+
+            done();
+          })
+          .catch((response) => {
+            expect(response.allowed_hosts).toEqual('Unlimited', 'Expected there to be unlimited allowed hosts');
+            done();
+          });
+      });
+    });
+
+    describe('#setup', () => {
+      it('calls the correct endpoint with the correct parameters', (done) => {
+        const jwtToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWV9.TJVA95OrM7E2cBab30RMHrHDcEfxjoYZgeFONFh7HgQ';
+        const request = validSetupLicenseRequest(bearerToken, jwtToken);
+
+        Kolide.setBearerToken(bearerToken);
+        Kolide.license.setup(jwtToken)
+          .then(() => {
+            expect(request.isDone()).toEqual(true);
+            done();
+          })
+          .catch(() => {
+            expect(request.isDone()).toEqual(true);
+            done();
+          });
+      });
+
+      it('changes 0 allowed_hosts to Unlimited', (done) => {
+        const jwtToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWV9.TJVA95OrM7E2cBab30RMHrHDcEfxjoYZgeFONFh7HgQ';
+        const unlimitedHosts = { ...validLicense, allowed_hosts: 0 };
+
+        validSetupLicenseRequest(bearerToken, jwtToken, unlimitedHosts);
+
+        Kolide.setBearerToken(bearerToken);
+        Kolide.license.setup(jwtToken)
+          .then((response) => {
+            expect(response.allowed_hosts).toEqual('Unlimited', 'Expected there to be unlimited allowed hosts');
+
+            done();
+          })
+          .catch((response) => {
+            expect(response.allowed_hosts).toEqual('Unlimited', 'Expected there to be unlimited allowed hosts');
+            done();
           });
       });
     });

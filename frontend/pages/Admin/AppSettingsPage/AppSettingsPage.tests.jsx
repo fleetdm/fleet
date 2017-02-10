@@ -2,21 +2,26 @@ import expect from 'expect';
 import { mount } from 'enzyme';
 
 import AppSettingsPage from 'pages/Admin/AppSettingsPage';
+import { flatConfigStub, licenseStub } from 'test/stubs';
 import testHelpers from 'test/helpers';
 
 const { connectedComponent, reduxMockStore } = testHelpers;
+const baseStore = {
+  app: { config: flatConfigStub },
+  auth: { license: licenseStub },
+};
+const storeWithoutSMTPConfig = { ...baseStore, app: { config: { ...flatConfigStub, configured: false } } };
+const storeWithSMTPConfig = { ...baseStore, app: { config: { ...flatConfigStub, configured: true } } };
 
 describe('AppSettingsPage - component', () => {
   it('renders', () => {
-    const mockStore = reduxMockStore({ app: { config: {} } });
+    const mockStore = reduxMockStore(baseStore);
     const page = mount(connectedComponent(AppSettingsPage, { mockStore }));
 
     expect(page.find('AppSettingsPage').length).toEqual(1);
   });
 
   it('renders a warning if SMTP has not been configured', () => {
-    const storeWithoutSMTPConfig = { app: { config: { configured: false } } };
-
     const mockStore = reduxMockStore(storeWithoutSMTPConfig);
     const page = mount(
       connectedComponent(AppSettingsPage, { mockStore })
@@ -30,8 +35,6 @@ describe('AppSettingsPage - component', () => {
   });
 
   it('dismisses the smtp warning when "DISMISS" is clicked', () => {
-    const storeWithoutSMTPConfig = { app: { config: { configured: false } } };
-
     const mockStore = reduxMockStore(storeWithoutSMTPConfig);
     const page = mount(
       connectedComponent(AppSettingsPage, { mockStore })
@@ -46,9 +49,7 @@ describe('AppSettingsPage - component', () => {
   });
 
   it('does not render a warning if SMTP has been configured', () => {
-    const storeWithoutSMTPConfig = { app: { config: { configured: true } } };
-
-    const mockStore = reduxMockStore(storeWithoutSMTPConfig);
+    const mockStore = reduxMockStore(storeWithSMTPConfig);
     const page = mount(
       connectedComponent(AppSettingsPage, { mockStore })
     ).find('AppSettingsPage');

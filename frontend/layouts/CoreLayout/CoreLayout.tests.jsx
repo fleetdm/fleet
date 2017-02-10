@@ -11,7 +11,15 @@ const {
 } = helpers;
 
 describe('CoreLayout - layouts', () => {
-  const store = { app: { config: {} }, auth: { user: userStub }, notifications: {} };
+  const store = {
+    app: { config: {} },
+    auth: { user: userStub },
+    notifications: {},
+    persistentFlash: {
+      showFlash: false,
+      message: '',
+    },
+  };
   const mockStore = reduxMockStore(store);
 
   it('renders the FlashMessage component when notifications are present', () => {
@@ -24,6 +32,10 @@ describe('CoreLayout - layouts', () => {
         alertType: 'success',
         isVisible: true,
         message: 'nice jerb!',
+      },
+      persistentFlash: {
+        showFlash: false,
+        message: '',
       },
     };
     const mockStoreWithNotifications = reduxMockStore(storeWithNotifications);
@@ -42,5 +54,24 @@ describe('CoreLayout - layouts', () => {
 
     expect(appWithFlash.find('FlashMessage').html()).toExist();
     expect(appWithoutFlash.find('FlashMessage').html()).toNotExist();
+  });
+
+  it('renders the PersistentFlash component when showFlash is true', () => {
+    const storeWithPersistentFlash = {
+      ...store,
+      persistentFlash: {
+        showFlash: true,
+        message: 'This is the flash message',
+      },
+    };
+
+    const mockStoreWithPersistentFlash = reduxMockStore(storeWithPersistentFlash);
+
+    const Layout = connectedComponent(CoreLayout, {
+      mockStore: mockStoreWithPersistentFlash,
+    });
+    const MountedLayout = mount(Layout);
+
+    expect(MountedLayout.find('PersistentFlash').length).toEqual(1, 'Expected the Persistent Flash to be on the page');
   });
 });

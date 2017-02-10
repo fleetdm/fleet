@@ -157,13 +157,15 @@ describe('reduxConfig', () => {
       const { actions, reducer } = config;
 
       it('calls the createFunc', () => {
-        mockStore.dispatch(actions.create());
+        mockStore.dispatch(actions.create())
+          .catch(() => false);
 
         expect(createFunc).toHaveBeenCalled();
       });
 
       it('dispatches the correct actions', () => {
-        mockStore.dispatch(actions.create());
+        mockStore.dispatch(actions.create())
+          .catch(() => false);
 
         const dispatchedActions = mockStore.getActions();
         const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
@@ -344,9 +346,8 @@ describe('reduxConfig', () => {
         });
       });
 
-      describe('unprocessable entitiy', () => {
+      describe('unprocessable entity', () => {
         const mockStore = reduxMockStore(store);
-
         const errors = [
           { name: 'first_name',
             reason: 'is not valid',
@@ -374,7 +375,8 @@ describe('reduxConfig', () => {
         const { actions, reducer } = config;
 
         it('calls the updateFunc', () => {
-          mockStore.dispatch(actions.update(user));
+          mockStore.dispatch(actions.update(user))
+            .catch(() => false);
 
           expect(updateFunc).toHaveBeenCalledWith(user);
         });
@@ -573,13 +575,15 @@ describe('reduxConfig', () => {
       const { actions, reducer } = config;
 
       it('calls the createFunc', () => {
-        mockStore.dispatch(actions.destroy());
+        mockStore.dispatch(actions.destroy())
+          .catch(() => false);
 
         expect(destroyFunc).toHaveBeenCalled();
       });
 
       it('dispatches the correct actions', () => {
-        mockStore.dispatch(actions.destroy());
+        mockStore.dispatch(actions.destroy())
+          .catch(() => false);
 
         const dispatchedActions = mockStore.getActions();
         const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
@@ -762,13 +766,15 @@ describe('reduxConfig', () => {
       const { actions, reducer } = config;
 
       it('calls the loadFunc', () => {
-        mockStore.dispatch(actions.load());
+        mockStore.dispatch(actions.load())
+          .catch(() => false);
 
         expect(loadFunc).toHaveBeenCalled();
       });
 
       it('dispatches the correct actions', () => {
-        mockStore.dispatch(actions.load());
+        mockStore.dispatch(actions.load())
+          .catch(() => false);
 
         const dispatchedActions = mockStore.getActions();
         const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
@@ -880,13 +886,15 @@ describe('reduxConfig', () => {
       const { actions, reducer } = config;
 
       it('calls the loadAllFunc', () => {
-        mockStore.dispatch(actions.loadAll());
+        mockStore.dispatch(actions.loadAll())
+          .catch(() => false);
 
         expect(loadAllFunc).toHaveBeenCalled();
       });
 
       it('dispatches the correct actions', () => {
-        mockStore.dispatch(actions.loadAll());
+        mockStore.dispatch(actions.loadAll())
+          .catch(() => false);
 
         const dispatchedActions = mockStore.getActions();
         const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });

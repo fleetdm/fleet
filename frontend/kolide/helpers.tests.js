@@ -1,7 +1,7 @@
 import expect from 'expect';
 import { omit } from 'lodash';
 
-import { configStub } from 'test/stubs';
+import { configStub, licenseStub } from 'test/stubs';
 import helpers from 'kolide/helpers';
 
 const label1 = { id: 1, target_type: 'labels' };
@@ -10,6 +10,25 @@ const host1 = { id: 6, target_type: 'hosts' };
 const host2 = { id: 5, target_type: 'hosts' };
 
 describe('Kolide API - helpers', () => {
+  describe('#parseLicense', () => {
+    const { parseLicense } = helpers;
+    const validLicense = licenseStub();
+
+    it('returns Unlimited when allowed_hosts is 0', () => {
+      const unlimitedLicense = { ...validLicense, allowed_hosts: 0 };
+
+      expect(parseLicense(unlimitedLicense)).toEqual({
+        ...validLicense,
+        allowed_hosts: 'Unlimited',
+      });
+    });
+
+    it('returns the allowed_hosts attribute when not 0', () => {
+      const limitedLicense = { ...validLicense, allowed_hosts: 2 };
+
+      expect(parseLicense(limitedLicense)).toEqual(limitedLicense);
+    });
+  });
   describe('#labelSlug', () => {
     it('creates a slug for the label', () => {
       expect(helpers.labelSlug({ display_text: 'All Hosts' })).toEqual('all-hosts');

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="43px" height="40px" viewBox="0 0 43 40" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 42 (36781) - http://www.bohemiancoding.com/sketch -->
+    <title>sign-up-pencil</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Kolide-Pre-Setup-2" transform="translate(-520.000000, -633.000000)">
+            <g id="Group-4" transform="translate(478.000000, 145.000000)">
+                <g id="Group-2" transform="translate(18.000000, 466.000000)">
+                    <g id="sign-up-pencil" transform="translate(24.000000, 22.000000)">
+                        <path d="M25,0.0005 L25,0.0005 L1.499,0.0005 C0.671,0.0005 0,0.6705 0,1.4985 L0,38.5015 C0,39.3295 0.671,40.0005 1.499,40.0005 L30.502,40.0005 C31.329,40.0005 32,39.3295 32,38.5015 L32,7.0005 L32,7.0005 L25,7.0005 L25,0.0005 Z" id="Fill-1" fill="#4A90E2"></path>
+                        <polygon id="Fill-3" fill="#205492" points="25 7 32 7 25 0"></polygon>
+                        <path d="M20,7 L4,7 C3.448,7 3,6.552 3,6 C3,5.448 3.448,5 4,5 L20,5 C20.552,5 21,5.448 21,6 C21,6.552 20.552,7 20,7" id="Fill-5" fill="#FFFFFF"></path>
+                        <path d="M26,12 L4,12 C3.448,12 3,11.552 3,11 C3,10.448 3.448,10 4,10 L26,10 C26.553,10 27,10.448 27,11 C27,11.552 26.553,12 26,12" id="Fill-7" fill="#FFFFFF"></path>
+                        <path d="M18,17 L4,17 C3.448,17 3,16.552 3,16 C3,15.448 3.448,15 4,15 L18,15 C18.552,15 19,15.448 19,16 C19,16.552 18.552,17 18,17" id="Fill-9" fill="#FFFFFF"></path>
+                        <path d="M10,35 L4,35 C3.448,35 3,34.553 3,34 C3,33.447 3.448,33 4,33 L10,33 C10.552,33 11,33.447 11,34 C11,34.553 10.552,35 10,35" id="Fill-11" fill="#FFFFFF"></path>
+                        <polygon id="Fill-13" fill="#FFFFFF" points="15 29 21 35 15 35"></polygon>
+                        <polygon id="Fill-15" fill="#FFAD00" points="16 28 22 34 38 18 32 12"></polygon>
+                        <path d="M41.584,11.5845 L38.416,8.4155 C37.634,7.6335 36.366,7.6335 35.584,8.4155 L33,11.0005 L39,17.0005 L41.584,14.4155 C42.366,13.6335 42.366,12.3665 41.584,11.5845" id="Fill-17" fill="#FF5850"></path>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

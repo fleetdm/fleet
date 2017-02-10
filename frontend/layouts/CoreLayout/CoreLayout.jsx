@@ -5,7 +5,8 @@ import { logoutUser } from 'redux/nodes/auth/actions';
 import { push } from 'react-router-redux';
 
 import configInterface from 'interfaces/config';
-import FlashMessage from 'components/FlashMessage';
+import FlashMessage from 'components/flash_messages/FlashMessage';
+import PersistentFlash from 'components/flash_messages/PersistentFlash';
 import SiteNavHeader from 'components/side_panels/SiteNavHeader';
 import SiteNavSidePanel from 'components/side_panels/SiteNavSidePanel';
 import userInterface from 'interfaces/user';
@@ -20,6 +21,10 @@ export class CoreLayout extends Component {
     user: userInterface,
     fullWidthFlash: PropTypes.bool,
     notifications: notificationInterface,
+    persistentFlash: PropTypes.shape({
+      showFlash: PropTypes.bool.isRequired,
+      message: PropTypes.string.isRequired,
+    }).isRequired,
   };
 
   onLogoutUser = () => {
@@ -70,7 +75,7 @@ export class CoreLayout extends Component {
   }
 
   render () {
-    const { fullWidthFlash, notifications, children, config, user } = this.props;
+    const { fullWidthFlash, notifications, children, config, persistentFlash, user } = this.props;
     const { onRemoveFlash, onUndoActionClick } = this;
 
     if (!user) return false;
@@ -96,6 +101,7 @@ export class CoreLayout extends Component {
           />
         </nav>
         <div className="core-wrapper">
+          {persistentFlash.showFlash && <PersistentFlash message={persistentFlash.message} />}
           <FlashMessage
             fullWidth={fullWidthFlash}
             notification={notifications}
@@ -114,14 +120,16 @@ const mapStateToProps = (state) => {
     app: { config },
     auth: { user },
     notifications,
+    persistentFlash,
   } = state;
 
   const fullWidthFlash = !user;
 
   return {
-    notifications,
-    fullWidthFlash,
     config,
+    fullWidthFlash,
+    notifications,
+    persistentFlash,
     user,
   };
 };

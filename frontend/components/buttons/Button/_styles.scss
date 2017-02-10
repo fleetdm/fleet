@@ -65,6 +65,12 @@ $base-class: 'button';
     @include button-variant($alert);
   }
 
+  &--muted {
+    @include button-variant(#eceef1, null, $footer-accent);
+
+    color: $footer-accent;
+  }
+
   &--warning {
     @include button-variant($warning);
   }

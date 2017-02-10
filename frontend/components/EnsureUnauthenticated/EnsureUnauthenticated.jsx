@@ -41,9 +41,9 @@ export default (WrappedComponent) => {
     }
 
     render () {
-      const { isLoadingUser } = this.props;
+      const { currentUser, isLoadingUser } = this.props;
 
-      if (isLoadingUser) {
+      if (isLoadingUser || currentUser) {
         return false;
       }
 

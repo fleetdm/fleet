@@ -7,6 +7,7 @@ describe('AppConfigForm - validations', () => {
     org_name: 'The Gnar Co.',
     authentication_type: 'username_password',
     kolide_server_url: 'https://gnar.dog',
+    license: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWV9.TJVA95OrM7E2cBab30RMHrHDcEfxjoYZgeFONFh7HgQ',
     sender_address: 'hi@gnar.dog',
     server: '192.168.99.100',
     port: 1025,
@@ -16,6 +17,34 @@ describe('AppConfigForm - validations', () => {
 
   it('returns a valid object when the form data is valid', () => {
     expect(validate(validFormData)).toEqual({ valid: true, errors: {} });
+  });
+
+  it('validates presense of the license field', () => {
+    const invalidFormData = {
+      ...validFormData,
+      license: '',
+    };
+
+    expect(validate(invalidFormData)).toEqual({
+      valid: false,
+      errors: {
+        license: 'License must be present',
+      },
+    });
+  });
+
+  it('validates the license is a JWT token', () => {
+    const invalidFormData = {
+      ...validFormData,
+      license: 'KFBR392',
+    };
+
+    expect(validate(invalidFormData)).toEqual({
+      valid: false,
+      errors: {
+        license: 'License is not a valid JWT token',
+      },
+    });
   });
 
   it('validates presence of the org_name field', () => {

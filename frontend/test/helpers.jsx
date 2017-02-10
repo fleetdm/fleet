@@ -6,6 +6,7 @@ import { Provider } from 'react-redux';
 import thunk from 'redux-thunk';
 
 import authMiddleware from 'redux/middlewares/auth';
+import nagMessageMiddleware from 'redux/middlewares/nag_message';
 import redirectMiddleware from 'redux/middlewares/redirect';
 
 export const fillInFormInput = (inputComponent, value) => {
@@ -13,7 +14,7 @@ export const fillInFormInput = (inputComponent, value) => {
 };
 
 export const reduxMockStore = (store = {}) => {
-  const middlewares = [thunk, authMiddleware, redirectMiddleware];
+  const middlewares = [thunk, authMiddleware, nagMessageMiddleware, redirectMiddleware];
   const mockStore = configureStore(middlewares);
 
   return mockStore(store);
@@ -45,7 +46,8 @@ export const itBehavesLikeAFormDropdownElement = (form, inputName) => {
 };
 
 export const itBehavesLikeAFormInputElement = (form, inputName, inputType = 'InputField', inputText = 'some text') => {
-  const inputField = form.find({ name: inputName }).find('input');
+  const Input = form.find({ name: inputName });
+  const inputField = inputType === 'textarea' ? Input.find('textarea') : Input.find('input');
 
   expect(inputField.length).toEqual(1);
 

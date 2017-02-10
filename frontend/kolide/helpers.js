@@ -63,6 +63,12 @@ export const formatSelectedTargetsForApi = (selectedTargets, appendID = false) =
   return { hosts, labels };
 };
 
+const parseLicense = (license) => {
+  const allowedHosts = license.allowed_hosts === 0 ? 'Unlimited' : license.allowed_hosts;
+
+  return { ...license, allowed_hosts: allowedHosts };
+};
+
 const setupData = (formData) => {
   const orgInfo = pick(formData, ORG_INFO_ATTRS);
   const adminInfo = pick(formData, ADMIN_ATTRS);
@@ -79,4 +85,11 @@ const setupData = (formData) => {
   };
 };
 
-export default { addGravatarUrlToResource, formatConfigDataForServer, formatSelectedTargetsForApi, labelSlug, setupData };
+export default {
+  addGravatarUrlToResource,
+  formatConfigDataForServer,
+  formatSelectedTargetsForApi,
+  labelSlug,
+  parseLicense,
+  setupData,
+};

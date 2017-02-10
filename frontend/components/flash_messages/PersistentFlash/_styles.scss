@@ -1,0 +1,42 @@
+.wrapper {
+  > div {
+    &.persistent-flash {
+      height: 50px;
+      min-height: 50px;
+      max-height: 50px;
+    }
+  }
+}
+
+.persistent-flash {
+  @include display(flex);
+  @include align-items(center);
+  @include justify-content(center);
+  @include position(fixed, 0 0 null $nav-width);
+  color: $white;
+  padding: $pad-half;
+  z-index: 2;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  background-color: #3d4758;
+  min-width: $min-width;
+
+  @include breakpoint(smalldesk) {
+    left: $nav-tablet-width;
+  }
+
+  &__content {
+    @include flex-grow(1);
+    text-align: center;
+
+    i {
+      color: $alert;
+      font-size: 24px;
+    }
+
+    span {
+      margin-left: 15px;
+      margin-right: 15px;
+    }
+  }
+}
+

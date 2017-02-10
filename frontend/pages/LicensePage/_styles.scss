@@ -1,0 +1,20 @@
+.license-page {
+  @include display(flex);
+  @include justify-content(center);
+  @include flex-direction(column);
+  min-height: calc(100vh - #{$footer-height});
+  position: relative;
+
+  &__logo {
+    @include position(absolute, 15px null null 15px);
+    width: 200px;
+
+    @include breakpoint(tablet) {
+      width: 125px;
+      position: static;
+      display: block;
+      margin: 15px 0 0 15px;
+    }
+  }
+}
+
