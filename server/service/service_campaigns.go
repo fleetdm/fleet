@@ -134,6 +134,44 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 
 	// Loop, pushing updates to results and expected totals
 	for {
+		// Update the expected hosts total (Should happen before
+		// any results are written, to avoid the frontend showing "x of
+		// 0 Hosts Returning y Records")
+		hostIDs, labelIDs, err := svc.ds.DistributedQueryCampaignTargetIDs(campaign.ID)
+		if err != nil {
+			if err = conn.WriteJSONError("error retrieving campaign targets"); err != nil {
+				return
+			}
+		}
+
+		metrics, err := svc.CountHostsInTargets(context.Background(), hostIDs, labelIDs)
+		if err != nil {
+			if err = conn.WriteJSONError("error retrieving target counts"); err != nil {
+				return
+			}
+		}
+
+		totals := targetTotals{
+			Total:           metrics.TotalHosts,
+			Online:          metrics.OnlineHosts,
+			Offline:         metrics.OfflineHosts,
+			MissingInAction: metrics.MissingInActionHosts,
+		}
+		if err = conn.WriteJSONMessage("totals", totals); err != nil {
+			return
+		}
+
+		status.ExpectedResults = totals.Online
+		if status.ActualResults >= status.ExpectedResults {
+			status.Status = campaignStatusFinished
+		}
+		// only write status message if status has changed
+		if lastStatus != status.Status {
+			lastStatus = status.Status
+			if err = conn.WriteJSONMessage("status", status); err != nil {
+				return
+			}
+		}
 		select {
 		case res := <-readChan:
 			// Receive a result and push it over the websocket
@@ -148,43 +186,7 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			}
 
 		case <-time.After(1 * time.Second):
-			// Update the expected hosts total
-			hostIDs, labelIDs, err := svc.ds.DistributedQueryCampaignTargetIDs(campaign.ID)
-			if err != nil {
-				if err = conn.WriteJSONError("error retrieving campaign targets"); err != nil {
-					return
-				}
-			}
-
-			metrics, err := svc.CountHostsInTargets(context.Background(), hostIDs, labelIDs)
-			if err != nil {
-				if err = conn.WriteJSONError("error retrieving target counts"); err != nil {
-					return
-				}
-			}
-
-			totals := targetTotals{
-				Total:           metrics.TotalHosts,
-				Online:          metrics.OnlineHosts,
-				Offline:         metrics.OfflineHosts,
-				MissingInAction: metrics.MissingInActionHosts,
-			}
-			if err = conn.WriteJSONMessage("totals", totals); err != nil {
-				return
-			}
-
-			status.ExpectedResults = totals.Online
-			if status.ActualResults >= status.ExpectedResults {
-				status.Status = campaignStatusFinished
-			}
-			// only write status message if status has changed
-			if lastStatus != status.Status {
-				lastStatus = status.Status
-				if err = conn.WriteJSONMessage("status", status); err != nil {
-					return
-				}
-			}
-
+			// Back to top of loop to update host totals
 		}
 	}
 
