@@ -529,7 +529,7 @@ Third-Party Licenses
 | [json3](https://www.npmjs.com/package/json3) | [MIT](https://opensource.org/licenses/MIT) |
 | [json5](https://www.npmjs.com/package/json5) | [MIT](https://opensource.org/licenses/MIT) |
 | [jsonfile](https://www.npmjs.com/package/jsonfile) | [MIT](https://opensource.org/licenses/MIT) |
-| [jsonify](https://www.npmjs.com/package/jsonify) | [Public Domain](\#) |
+| [jsonify](https://www.npmjs.com/package/jsonify) | [Public Domain](#) |
 | [jsonpointer](https://www.npmjs.com/package/jsonpointer) | [MIT](https://opensource.org/licenses/MIT) |
 | [jsprim](https://www.npmjs.com/package/jsprim) | [MIT](https://opensource.org/licenses/MIT) |
 | [jsx-ast-utils](https://www.npmjs.com/package/jsx-ast-utils) | [MIT](https://opensource.org/licenses/MIT) |
