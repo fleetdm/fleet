@@ -30,7 +30,7 @@ allowed_licenses:
   MPL-2.0:
     https://www.mozilla.org/en-US/MPL/2.0/
   Public Domain:
-    '#'
+    https://wiki.creativecommons.org/wiki/Public_domain
 
   # FreeBSD and BSD-2-Clause refer to the same license
   FreeBSD:
