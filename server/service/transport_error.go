@@ -54,7 +54,7 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	if e, ok := err.(licensingError); ok {
 		le := jsonError{
 			Message: "Licensing Error",
-			Errors:  namedError(e.LicensingError(), "license"),
+			Errors:  namedError("license", e.LicensingError()),
 		}
 		w.WriteHeader(http.StatusPaymentRequired)
 		enc.Encode(le)
