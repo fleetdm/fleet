@@ -1,4 +1,4 @@
-Third-Party Software
+Third-Party Licenses
 ====================
 
 | Name | License |

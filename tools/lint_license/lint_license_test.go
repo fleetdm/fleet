@@ -55,7 +55,7 @@ func TestCheckLicenses(t *testing.T) {
 	}
 }
 
-func TestWriteDependenciesMarkdown(t *testing.T) {
+func TestWriteLicensesMarkdown(t *testing.T) {
 	out := &bytes.Buffer{}
 	config := settings{
 		AllowedLicenses: map[string]string{
@@ -72,7 +72,7 @@ func TestWriteDependenciesMarkdown(t *testing.T) {
 		{Name: "manx", SourceURL: "manx_url", License: "MIT"},
 	}
 
-	err := writeDependenciesMarkdown(config, deps, out)
+	err := writeLicensesMarkdown(config, deps, out)
 	require.Nil(t, err)
 
 	md := out.String()

@@ -21,13 +21,13 @@ import (
 // This script is intended to be run from the root of the Kolide repo. All
 // paths are relative to that directory.
 const configPath = "./tools/lint_license/license_settings.yaml"
-const templatePath = "./tools/lint_license/dependencies.md.tmpl"
-const templateName = "dependencies.md.tmpl"
+const templatePath = "./tools/lint_license/licenses.md.tmpl"
+const templateName = "licenses.md.tmpl"
 const glideLockPath = "./glide.lock"
 const nodeModulesPath = "./node_modules"
 const vendorPath = "./vendor"
 const jsSourceURLBase = "https://www.npmjs.com/package/"
-const generatedMarkdownPath = "./docs/third-party/dependencies.md"
+const generatedMarkdownPath = "./docs/third-party/licenses.md"
 
 // settings defines the config options for this script
 type settings struct {
@@ -250,7 +250,7 @@ func checkLicenses(config settings, deps []dependency) []dependency {
 	return incompatible
 }
 
-func writeDependenciesMarkdown(config settings, deps []dependency, out io.Writer) error {
+func writeLicensesMarkdown(config settings, deps []dependency, out io.Writer) error {
 	funcs := template.FuncMap{
 		"getLicenseURL": func(license string) string {
 			return config.AllowedLicenses[license]
@@ -329,8 +329,8 @@ func main() {
 	}
 	defer out.Close()
 
-	err = writeDependenciesMarkdown(config, append(jsDeps, goDeps...), out)
+	err = writeLicensesMarkdown(config, append(jsDeps, goDeps...), out)
 	if err != nil {
-		log.Fatal("error writing dependencies markdown: ", err)
+		log.Fatal("error writing licenses markdown: ", err)
 	}
 }
