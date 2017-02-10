@@ -1,5 +1,5 @@
-hash: 5deefa10caf7fd7fcbad5c7a7353c5df267c0c784954c4ebabd731b89029f55e
-updated: 2017-02-06T20:16:14.492699067-05:00
+hash: 2e60f99104f57234e2a153d088d23ae4db10245052c3335696e9abe7e9e2064e
+updated: 2017-02-06T20:10:33.182812801-08:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -20,7 +20,7 @@ imports:
 - name: github.com/elazarl/go-bindata-assetfs
   version: 9a6736ed45b44bf3835afeebb3034b57ed329f3e
 - name: github.com/fsnotify/fsnotify
-  version: f12c6236fe7b5cf6bcf30e5935d08cb079d78334
+  version: a904159b9206978bb6d53fcc7a769e5cd726c737
 - name: github.com/garyburd/redigo
   version: 8873b2f1995f59d4bcdd2b0dc9858e2cb9bf0c13
   subpackages:
@@ -36,11 +36,13 @@ imports:
   - metrics/prometheus
   - transport/http
 - name: github.com/go-logfmt/logfmt
-  version: d4327190ff838312623b09bfeb50d7c93c8d9c1d
+  version: 390ab7935ee28ec6b286364bba9b4dd6410cb3d5
 - name: github.com/go-sql-driver/mysql
   version: 3654d25ec346ee8ce71a68431025458d52a38ac0
 - name: github.com/go-stack/stack
   version: 100eb0c0a9c5b306ca2fb4f165df21d80ada4b82
+- name: github.com/go-yaml/yaml
+  version: 4c78c975fe7c825c6d1466c42be594d1d6f3aba6
 - name: github.com/golang/mock
   version: bd3c8e81be01eef76d4b503f5e687d2d1354d2d9
 - name: github.com/golang/protobuf
@@ -50,11 +52,11 @@ imports:
 - name: github.com/gorilla/context
   version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
 - name: github.com/gorilla/mux
-  version: 0b13a922203ebdbfd236c818efcd5ed46097d690
+  version: 392c28fe23e1c45ddba891b0320b3b5df220beea
 - name: github.com/gorilla/websocket
-  version: 1f512fc3f05332ba7117626cdfb4e07474e58e60
+  version: c36f2fe5c330f0ac404b616b96c438b8616b1aaf
 - name: github.com/hashicorp/hcl
-  version: baeb59c710717b06aac1dbe2270e8192ec593244
+  version: 372e8ddaa16fd67e371e9323807d056b799360af
   subpackages:
   - hcl/ast
   - hcl/parser
@@ -74,28 +76,24 @@ imports:
   version: fd703108daeb23d77c124d12978e9b6c4f28f034
 - name: github.com/kolide/goose
   version: 5221ed7545f6b931a24f99d9bd3e7bcf36aee71b
-- name: github.com/kr/fs
-  version: 2788f0dbd16903de03cb8186e5c7d97b69ad387b
 - name: github.com/kr/logfmt
   version: b84e30acd515aadc4b783ad4ff83aff3299bdfe0
 - name: github.com/magiconair/properties
-  version: 61b492c03cf472e0c6419be5899b8e0dc28b1b88
+  version: b3b15ef068fd0b17ddf408a23669f20811d194d2
 - name: github.com/matttproud/golang_protobuf_extensions
   version: c12348ce28de40eed0136aa2b644d0ee0650e56c
   subpackages:
   - pbutil
 - name: github.com/mitchellh/mapstructure
-  version: ca63d7c062ee3c9f34db231e352b60012b4fd0c1
+  version: db1efb556f84b25a0a13a04aad883943538ad2e0
 - name: github.com/patrickmn/sortutil
   version: abeda66eb583fac2d8d98d3d2e6fbd5c67af7947
 - name: github.com/pelletier/go-buffruneio
   version: df1e16fde7fc330a0ca68167c23bf7ed6ac31d6d
 - name: github.com/pelletier/go-toml
-  version: 5a62685873ef617233ab5f1b825a6e4a758e16cf
+  version: d1fa2118c12c44e4f5004da216d1efad10cb4924
 - name: github.com/pkg/errors
-  version: 17b591df37844cde689f4d5813e5cea0927d8dd2
-- name: github.com/pkg/sftp
-  version: a71e8f580e3b622ebff585309160b1cc549ef4d2
+  version: 645ef00459ed84a119197bfb8d8205042c6df63d
 - name: github.com/pmezard/go-difflib
   version: 792786c7400a136282c1664665ae0a8db921c6c2
   subpackages:
@@ -110,26 +108,27 @@ imports:
   subpackages:
   - go
 - name: github.com/prometheus/common
-  version: 9a94032291f2192936512bab367bc45e77990d6a
+  version: dd2f054febf4a6c00f2343686efb775948a8bff4
   subpackages:
   - expfmt
   - internal/bitbucket.org/ww/goautoneg
   - model
 - name: github.com/prometheus/procfs
-  version: abf152e5f3e97f2fafac028d2cc06c1feb87ffa5
+  version: 1878d9fbb537119d24b21ca07effd591627cd160
+- name: github.com/ryanuber/go-license
+  version: 027a317812857d68bb611443b5c08bbe96e88598
 - name: github.com/spf13/afero
-  version: 20500e2abd0d1f4564a499e83d11d6c73cd58c27
+  version: 72b31426848c6ef12a7a8e216708cb0d1530f074
   subpackages:
   - mem
-  - sftp
 - name: github.com/spf13/cast
   version: e31f36ffc91a2ba9ddb72a4b6a607ff9b3d3cb63
 - name: github.com/spf13/cobra
   version: 37c3f8060359192150945916cbc2d72bce804b4d
 - name: github.com/spf13/jwalterweatherman
-  version: 33c24e77fb80341fe7130ee7c594256ff08ccc46
+  version: fa7ca7e836cf3a8bb4ebf799f472c12d7e903d66
 - name: github.com/spf13/pflag
-  version: 103ce5cd2042f2fe629c1957abb64ab3e7f50235
+  version: 9ff6c6923cfffbcd502984b8e0c80539a94968b7
 - name: github.com/spf13/viper
   version: 7fb2782df3d83e0036cc89f461ed0422628776f4
 - name: github.com/stretchr/testify
@@ -146,10 +145,6 @@ imports:
   subpackages:
   - bcrypt
   - blowfish
-  - curve25519
-  - ed25519
-  - ed25519/internal/edwards25519
-  - ssh
 - name: golang.org/x/net
   version: 4d38db76854b199960801a1734443fd02870d7e1
   subpackages:
@@ -160,7 +155,7 @@ imports:
   subpackages:
   - unix
 - name: golang.org/x/text
-  version: d69c40b4be55797923cec7457fac7a244d91a9b6
+  version: 506f9d5c962f284575e88337e7d9296d27e729d3
   subpackages:
   - transform
   - unicode/norm

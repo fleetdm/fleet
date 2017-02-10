@@ -1,0 +1,8 @@
+Third-Party Software
+====================
+
+| Name | License |
+| ---- | ------- |
+{{- range .}}
+| [{{.Name}}]({{.SourceURL}}) | [{{.License}}]({{getLicenseURL .License }}) |
+{{- end -}}

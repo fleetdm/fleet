@@ -64,3 +64,5 @@ import:
   version: master
 - package: github.com/go-kit/kit
   version: ^0.3.0
+- package: github.com/go-yaml/yaml
+- package: github.com/ryanuber/go-license

@@ -67,6 +67,7 @@ define HELP_TEXT
 	make lint-js      - Run the JavaScript linters
 	make lint-scss    - Run the SCSS linters
 	make lint-ts      - Run the TypeScript linters
+	make lint-license - Run the software license linter
 
 
 endef
@@ -104,7 +105,10 @@ lint-scss:
 lint-go:
 	go vet $(shell glide nv)
 
-lint: lint-go lint-js lint-scss lint-ts
+lint-license:
+	go run tools/lint_license/lint_license.go
+
+lint: lint-go lint-js lint-scss lint-ts lint-license
 
 test-go:
 	go test $(shell glide nv)
@@ -147,7 +151,7 @@ deps:
 	go get github.com/jteeuwen/go-bindata/...
 	go get github.com/Masterminds/glide
 	go get github.com/groob/mockimpl
-	glide install
+	glide install --strip-vendor
 
 distclean:
 ifeq ($(OS), Windows_NT)
