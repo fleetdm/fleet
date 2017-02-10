@@ -143,8 +143,7 @@ generate-dev: .prefix
 	webpack --progress --colors --watch --notify
 
 deps:
-	npm install --no-optional
-	npm shrinkwrap
+	yarn
 	go get github.com/jteeuwen/go-bindata/...
 	go get github.com/Masterminds/glide
 	go get github.com/groob/mockimpl

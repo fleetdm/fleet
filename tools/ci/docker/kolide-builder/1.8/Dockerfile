@@ -1,10 +1,6 @@
 FROM golang:1.8-alpine
 MAINTAINER Kolide Developers <engineering@kolide.co>
 
-# path to compiled version of node-sass for alpine
-# https://github.com/sass/node-sass/issues/1589
-ENV SASS_BINARY_PATH=/linux-x64-48_binding.node
-
 RUN apk add --update \
         git \
         nodejs \
@@ -13,9 +9,14 @@ RUN apk add --update \
 		musl-dev \
 		openssl
 
-RUN \
-   go get -u -v github.com/Masterminds/glide && \
-   go get -u -v gopkg.in/alecthomas/gometalinter.v1
+RUN go get -u -v github.com/Masterminds/glide
+
+RUN echo -e 'http://dl-cdn.alpinelinux.org/alpine/edge/main\nhttp://dl-cdn.alpinelinux.org/alpine/edge/community\nhttp://dl-cdn.alpinelinux.org/alpine/edge/testing' > /etc/apk/repositories && \
+  apk add --no-cache yarn
+
+# git must be explicitly instructed to follow redirects for compatibility with
+# gopkg.in
+RUN git config --global http.https://gopkg.in.followRedirects true
 
 COPY rootfs /
 
@@ -25,4 +26,3 @@ WORKDIR  /go/src/github.com/kolide/kolide
 EXPOSE 8080
 
 ENTRYPOINT ["/builder.sh"]
-

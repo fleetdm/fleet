@@ -9,8 +9,8 @@ docker_pull() {
     local_image="/home/ubuntu/deps/$1.tar"
     remote_image=$2
 
-    if [[ -e $local_image ]]; then 
-        docker load -i $local_image; 
+    if [[ -e $local_image ]]; then
+        docker load -i $local_image;
     else
         docker pull "${remote_image}"
         docker save "${remote_image}" > "${local_image}"
@@ -27,7 +27,7 @@ curl_binary() {
     fi
 }
 
-docker_pull "kolide_builder" "kolide/kolide-builder:1.8"
+docker_pull "kolide_builder" "kolide/kolide-builder:1.8-yarn"
 docker_pull "redis" "redis"
 docker_pull "mysql" "mysql:5.7"
 docker_pull "fpm" "kolide/fpm"

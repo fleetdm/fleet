@@ -6,7 +6,7 @@ Building The Code
 To setup a working local development environment, you must install the following minimum toolset:
 
 * [Go](https://golang.org/dl/) (1.8 or greater)
-* [Node.js](https://nodejs.org/en/download/current/) (and npm)
+* [Node.js](https://nodejs.org/en/download/current/) and [Yarn](https://yarnpkg.com/en/docs/install)
 * [GNU Make](https://www.gnu.org/software/make/)
 * [Docker](https://www.docker.com/products/overview#/install_the_platform)
 
