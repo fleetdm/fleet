@@ -31,6 +31,11 @@ const campaignWithNoQueryResults = {
   created_at: '0001-01-01T00:00:00Z',
   deleted: false,
   deleted_at: null,
+  hosts_count: {
+    failed: 0,
+    successful: 0,
+    total: 0,
+  },
   id: 4,
   query_id: 12,
   status: 0,
@@ -47,6 +52,11 @@ const campaignWithQueryResults = {
     { host_hostname: 'dfoihgsx', cwd: '/', directory: '/root' },
     { host_hostname: 'abc123', cwd: '/', directory: '/root' },
   ],
+  hosts_count: {
+    failed: 0,
+    successful: 2,
+    total: 2,
+  },
 };
 
 describe('QueryResultsTable - component', () => {

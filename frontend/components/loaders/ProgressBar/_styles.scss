@@ -1,12 +1,20 @@
 .progress-bar {
-  background-color: $success-light;
+  @include display(flex);
+  background-color: $silver;
   height: 10px;
   overflow: hidden;
 
-  div {
-    background-color: $success;
+  &__progress {
     height: 100%;
     overflow: hidden;
     transition: width 300ms ease-in;
+
+    &--error {
+      background-color: $alert;
+    }
+
+    &--success {
+      background-color: $success;
+    }
   }
 }

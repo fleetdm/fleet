@@ -17,6 +17,28 @@ export const update = (campaign, socketData) => {
       const queryResults = campaign.query_results || [];
       const hosts = campaign.hosts || [];
       const { host, rows } = data;
+      const { hosts_count: hostsCount } = campaign;
+      let newHostsCount;
+
+      if (data.error) {
+        const newFailed = hostsCount.failed + 1;
+        const newTotal = hostsCount.successful + newFailed;
+
+        newHostsCount = {
+          successful: hostsCount.successful,
+          failed: newFailed,
+          total: newTotal,
+        };
+      } else {
+        const newSuccessful = hostsCount.successful + 1;
+        const newTotal = hostsCount.failed + newSuccessful;
+
+        newHostsCount = {
+          successful: newSuccessful,
+          failed: hostsCount.failed,
+          total: newTotal,
+        };
+      }
 
       return resolve({
         ...campaign,
@@ -28,6 +50,7 @@ export const update = (campaign, socketData) => {
           ...queryResults,
           ...rows,
         ],
+        hosts_count: newHostsCount,
       });
     }
 

@@ -170,7 +170,15 @@ describe('QueryPage - component', () => {
   describe('export as csv', () => {
     it('exports the campaign query results in csv format', () => {
       const queryResult = { org_name: 'Kolide', org_url: 'https://kolide.co' };
-      const campaign = { id: 1, query_results: [queryResult] };
+      const campaign = {
+        id: 1,
+        hosts_count: {
+          failed: 0,
+          successful: 1,
+          total: 1,
+        },
+        query_results: [queryResult],
+      };
       const queryResultsCSV = convertToCSV([queryResult]);
       const fileSaveSpy = spyOn(FileSave, 'saveAs');
       const Page = mount(<QueryPage dispatch={noop} selectedOsqueryTable={defaultSelectedOsqueryTable} />);

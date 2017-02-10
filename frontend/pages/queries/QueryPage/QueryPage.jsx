@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import classnames from 'classnames';
 import { connect } from 'react-redux';
 import FileSaver from 'file-saver';
-import { filter, get, includes, isArray, isEqual } from 'lodash';
+import { filter, includes, isArray, isEqual } from 'lodash';
 import moment from 'moment';
 import { push } from 'react-router-redux';
 
@@ -48,7 +48,9 @@ export class QueryPage extends Component {
     super(props);
 
     this.state = {
-      campaign: {},
+      campaign: {
+        hosts_count: { total: 0 },
+      },
       queryIsRunning: false,
       targetsCount: 0,
       targetsError: null,
@@ -295,16 +297,11 @@ export class QueryPage extends Component {
   renderResultsTable = () => {
     const { campaign, queryIsRunning } = this.state;
     const { onExportQueryResults } = this;
-    const queryResults = get(campaign, 'query_results', []).length > 0;
-    const loading = queryIsRunning && !queryResults;
+    const loading = queryIsRunning && !campaign.hosts_count.total;
     const resultsClasses = classnames(`${baseClass}__results`, 'body-wrap', {
       [`${baseClass}__results--loading`]: loading,
     });
     let resultBody = '';
-
-    if (!queryResults && !queryIsRunning) {
-      return false;
-    }
 
     if (loading) {
       resultBody = <Spinner />;

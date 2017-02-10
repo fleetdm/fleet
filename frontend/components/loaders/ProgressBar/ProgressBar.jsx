@@ -7,18 +7,21 @@ const baseClass = 'progress-bar';
 class ProgressBar extends Component {
   static propTypes = {
     className: PropTypes.string,
+    error: PropTypes.number.isRequired,
     max: PropTypes.number.isRequired,
-    value: PropTypes.number.isRequired,
+    success: PropTypes.number.isRequired,
   };
 
   render () {
-    const { className, max, value } = this.props;
-    const percentComplete = `${(round((value / (max || 1)) * 100, 0))}%`;
+    const { className, error, max, success } = this.props;
+    const successPercentComplete = `${(round((success / (max || 1)) * 100, 0))}%`;
+    const errorPercentComplete = `${(round((error / (max || 1)) * 100, 0))}%`;
     const wrapperClassName = classnames(baseClass, className);
 
     return (
       <div className={wrapperClassName}>
-        <div style={{ width: percentComplete }} />
+        <div className={`${baseClass}__progress ${baseClass}__progress--success`} style={{ width: successPercentComplete }} />
+        <div className={`${baseClass}__progress ${baseClass}__progress--error`} style={{ width: errorPercentComplete }} />
       </div>
     );
   }

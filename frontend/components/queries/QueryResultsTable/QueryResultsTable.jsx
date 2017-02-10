@@ -47,18 +47,23 @@ class QueryResultsTable extends Component {
 
   renderProgressDetails = () => {
     const { campaign } = this.props;
+    const { hosts_count: hostsCount } = campaign;
     const totalHostsCount = get(campaign, 'totals.count', 0);
-    const totalHostsReturned = get(campaign, 'hosts.length', 0);
     const totalRowsCount = get(campaign, 'query_results.length', 0);
 
     return (
       <div className={`${baseClass}__progress-details`}>
         <span>
-          <b>{totalHostsReturned}</b>&nbsp;of&nbsp;
+          <b>{hostsCount.total}</b>&nbsp;of&nbsp;
           <b>{totalHostsCount} Hosts</b>&nbsp;Returning&nbsp;
-          <b>{totalRowsCount} Records</b>
+          <b>{totalRowsCount} Records&nbsp;</b>
+          ({hostsCount.failed} failed)
         </span>
-        <ProgressBar max={totalHostsCount} value={totalHostsReturned} />
+        <ProgressBar
+          error={hostsCount.failed}
+          max={totalHostsCount}
+          success={hostsCount.successful}
+        />
       </div>
     );
   }
@@ -126,10 +131,18 @@ class QueryResultsTable extends Component {
       renderTableHeaderRow,
       renderTableRows,
     } = this;
-    const { query_results: queryResults } = campaign;
+    const { hosts_count: hostsCount } = campaign;
 
-    if (!queryResults || !queryResults.length) {
+    if (!hostsCount || !hostsCount.total) {
       return false;
+    }
+
+    if (!hostsCount.successful) {
+      return (
+        <div className={baseClass}>
+          {renderProgressDetails()}
+        </div>
+      );
     }
 
     return (

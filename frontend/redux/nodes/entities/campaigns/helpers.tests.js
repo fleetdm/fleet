@@ -11,6 +11,11 @@ const campaign = {
   query_id: 12,
   status: 0,
   user_id: 1,
+  hosts_count: {
+    successful: 0,
+    failed: 0,
+    total: 0,
+  },
 };
 const campaignWithResults = {
   ...campaign,
@@ -96,6 +101,42 @@ describe('campaign entity - helpers', () => {
       update(campaign, totalsSocketData)
         .then((response) => {
           expect(response.totals).toEqual(totalsSocketData.data);
+          done();
+        })
+        .catch(done);
+    });
+
+    it('increases the successful hosts count and total when the result has no error', (done) => {
+      update(campaign, resultSocketData)
+        .then((response) => {
+          expect(response.hosts_count).toEqual({
+            successful: 1,
+            failed: 0,
+            total: 1,
+          });
+
+          done();
+        })
+        .catch(done);
+    });
+
+    it('increases the failed hosts count and total when the result has an error', (done) => {
+      const resultErrorSocketData = {
+        type: 'result',
+        data: {
+          ...resultSocketData.data,
+          error: 'failed',
+        },
+      };
+
+      update(campaign, resultErrorSocketData)
+        .then((response) => {
+          expect(response.hosts_count).toEqual({
+            successful: 0,
+            failed: 1,
+            total: 1,
+          });
+
           done();
         })
         .catch(done);
