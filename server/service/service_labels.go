@@ -56,3 +56,17 @@ func (svc service) HostIDsForLabel(lid uint) ([]uint, error) {
 	}
 	return ids, nil
 }
+
+func (svc service) ModifyLabel(ctx context.Context, id uint, payload kolide.ModifyLabelPayload) (*kolide.Label, error) {
+	label, err := svc.ds.Label(id)
+	if err != nil {
+		return nil, err
+	}
+	if payload.Name != nil {
+		label.Name = *payload.Name
+	}
+	if payload.Description != nil {
+		label.Description = *payload.Description
+	}
+	return svc.ds.SaveLabel(label)
+}

@@ -224,3 +224,7 @@ func (d *Datastore) ListUniqueHostsInLabels(labels []uint) ([]kolide.Host, error
 
 	return hosts, nil
 }
+
+func (d *Datastore) SaveLabel(label *kolide.Label) (*kolide.Label, error) {
+	panic("inmem is being deprecated")
+}

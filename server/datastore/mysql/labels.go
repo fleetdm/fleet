@@ -314,3 +314,17 @@ func (d *Datastore) SearchLabels(query string, omit ...uint) ([]kolide.Label, er
 	}
 	return matches, nil
 }
+
+func (d *Datastore) SaveLabel(label *kolide.Label) (*kolide.Label, error) {
+	query := `
+		UPDATE labels SET
+			name = ?,
+			description = ?
+		WHERE id = ?
+	`
+	_, err := d.db.Exec(query, label.Name, label.Description, label.ID)
+	if err != nil {
+		return nil, errors.Wrap(err, "saving label")
+	}
+	return label, nil
+}

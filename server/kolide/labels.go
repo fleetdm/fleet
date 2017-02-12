@@ -33,6 +33,9 @@ type LabelStore interface {
 	ListUniqueHostsInLabels(labels []uint) ([]Host, error)
 
 	SearchLabels(query string, omit ...uint) ([]Label, error)
+
+	// SaveLabel allows modification of a label's name and/or description
+	SaveLabel(label *Label) (*Label, error)
 }
 
 type LabelService interface {
@@ -40,9 +43,19 @@ type LabelService interface {
 	GetLabel(ctx context.Context, id uint) (label *Label, err error)
 	NewLabel(ctx context.Context, p LabelPayload) (label *Label, err error)
 	DeleteLabel(ctx context.Context, id uint) (err error)
+
+	// ModifyLabel is used to change editable fields belonging to a Label
+	ModifyLabel(ctx context.Context, id uint, payload ModifyLabelPayload) (*Label, error)
+
 	// HostIDsForLabel returns ids of hosts that belong to the label identified
 	// by lid
 	HostIDsForLabel(lid uint) ([]uint, error)
+}
+
+// ModifyLabelPayload is used to change editable fields for a Label
+type ModifyLabelPayload struct {
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
 }
 
 type LabelPayload struct {

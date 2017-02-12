@@ -6,9 +6,37 @@ import (
 	"github.com/kolide/kolide/server/config"
 	"github.com/kolide/kolide/server/datastore/inmem"
 	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/kolide/server/mock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )
+
+func TestModifyLabel(t *testing.T) {
+	ds := new(mock.Store)
+	ds.LabelFunc = func(id uint) (*kolide.Label, error) {
+		l := &kolide.Label{
+			ID:          id,
+			Name:        "name",
+			Description: "desc",
+		}
+		return l, nil
+	}
+	ds.SaveLabelFunc = func(l *kolide.Label) (*kolide.Label, error) {
+		return l, nil
+	}
+	svc, err := newTestService(ds, nil)
+	require.Nil(t, err)
+	lp := kolide.ModifyLabelPayload{
+		Name:        stringPtr("new name"),
+		Description: stringPtr("new desc"),
+	}
+	l, err := svc.ModifyLabel(context.Background(), uint(1), lp)
+	assert.Equal(t, "new name", l.Name)
+	assert.Equal(t, "new desc", l.Description)
+	assert.True(t, ds.LabelFuncInvoked)
+	assert.True(t, ds.SaveLabelFuncInvoked)
+}
 
 func TestListLabels(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())

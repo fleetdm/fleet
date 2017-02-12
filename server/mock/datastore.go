@@ -4,6 +4,7 @@ package mock
 //go:generate mockimpl -o datastore_invites.go "s *InviteStore" "kolide.InviteStore"
 //go:generate mockimpl -o datastore_appconfig.go "s *AppConfigStore" "kolide.AppConfigStore"
 //go:generate mockimpl -o datastore_licenses.go "s *LicenseStore" "kolide.LicenseStore"
+//go:generate mockimpl -o datastore_labels.go "s *LabelStore" "kolide.LabelStore"
 
 import "github.com/kolide/kolide/server/kolide"
 
@@ -11,7 +12,6 @@ var _ kolide.Datastore = (*Store)(nil)
 
 type Store struct {
 	kolide.HostStore
-	kolide.LabelStore
 	kolide.PackStore
 	kolide.CampaignStore
 	kolide.SessionStore
@@ -26,6 +26,7 @@ type Store struct {
 	InviteStore
 	UserStore
 	AppConfigStore
+	LabelStore
 }
 
 func (m *Store) Drop() error {

@@ -71,4 +71,5 @@ var testFunctions = [...]func(*testing.T, kolide.Datastore){
 	testIdempotentDeleteHost,
 	testChangeEmail,
 	testLicense,
+	testSaveLabel,
 }
