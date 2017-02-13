@@ -48,10 +48,10 @@ func TestDecodeModifyScheduledQueryRequest(t *testing.T) {
 
 		params := r.(modifyScheduledQueryRequest)
 		assert.Equal(t, uint(1), params.ID)
-		assert.Equal(t, uint(5), params.payload.PackID)
-		assert.Equal(t, uint(6), params.payload.QueryID)
+		assert.Equal(t, uint(5), *params.payload.PackID)
+		assert.Equal(t, uint(6), *params.payload.QueryID)
 		assert.Equal(t, true, *params.payload.Removed)
-		assert.Equal(t, uint(60), params.payload.Interval)
+		assert.Equal(t, uint(60), *params.payload.Interval)
 		assert.Equal(t, uint(1), *params.payload.Shard)
 	}).Methods("PATCH")
 

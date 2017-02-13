@@ -78,7 +78,7 @@ func (mw loggingMiddleware) DeleteScheduledQuery(ctx context.Context, id uint) e
 	return err
 }
 
-func (mw loggingMiddleware) ModifyScheduledQuery(ctx context.Context, sq *kolide.ScheduledQuery) (*kolide.ScheduledQuery, error) {
+func (mw loggingMiddleware) ModifyScheduledQuery(ctx context.Context, id uint, p kolide.ScheduledQueryPayload) (*kolide.ScheduledQuery, error) {
 	var (
 		query *kolide.ScheduledQuery
 		err   error
@@ -92,6 +92,6 @@ func (mw loggingMiddleware) ModifyScheduledQuery(ctx context.Context, sq *kolide
 		)
 	}(time.Now())
 
-	query, err = mw.Service.ModifyScheduledQuery(ctx, sq)
+	query, err = mw.Service.ModifyScheduledQuery(ctx, id, p)
 	return query, err
 }

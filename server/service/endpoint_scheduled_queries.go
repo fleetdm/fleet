@@ -127,7 +127,7 @@ func makeScheduleQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
 
 type modifyScheduledQueryRequest struct {
 	ID      uint
-	payload *kolide.ScheduledQuery
+	payload kolide.ScheduledQueryPayload
 }
 
 type modifyScheduledQueryResponse struct {
@@ -141,10 +141,7 @@ func makeModifyScheduledQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(modifyScheduledQueryRequest)
 
-		sq := req.payload
-		sq.ID = req.ID
-
-		sq, err := svc.ModifyScheduledQuery(ctx, sq)
+		sq, err := svc.ModifyScheduledQuery(ctx, req.ID, req.payload)
 		if err != nil {
 			return modifyScheduledQueryResponse{Err: err}, nil
 		}
