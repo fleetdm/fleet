@@ -571,6 +571,7 @@ describe('Kolide - API client', () => {
 
   describe('#getTargets', () => {
     it('correctly parses the response', (done) => {
+      nock.cleanAll();
       const hosts = [];
       const labels = [];
       const query = 'mac';

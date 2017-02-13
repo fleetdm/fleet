@@ -4,9 +4,11 @@ import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
 import { fillInFormInput } from 'test/helpers';
+import targetStub from 'test/target_stub';
 import PackForm from './index';
 
 describe('PackForm - component', () => {
+  beforeEach(targetStub);
   afterEach(restoreSpies);
 
   it('renders the base error', () => {

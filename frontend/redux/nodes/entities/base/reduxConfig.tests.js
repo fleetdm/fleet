@@ -382,7 +382,8 @@ describe('reduxConfig', () => {
         });
 
         it('dispatches the correct actions', () => {
-          mockStore.dispatch(actions.update());
+          mockStore.dispatch(actions.update())
+            .catch(() => false);
 
           const dispatchedActions = mockStore.getActions();
           const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
@@ -983,13 +984,15 @@ describe('reduxConfig', () => {
       const { actions } = config;
 
       it('calls the loadAllFunc', () => {
-        mockStore.dispatch(actions.silentLoadAll());
+        mockStore.dispatch(actions.silentLoadAll())
+          .catch(() => false);
 
         expect(loadAllFunc).toHaveBeenCalled();
       });
 
       it('dispatches the correct actions', () => {
-        mockStore.dispatch(actions.silentLoadAll());
+        mockStore.dispatch(actions.silentLoadAll())
+          .catch(() => false);
 
         const dispatchedActions = mockStore.getActions();
         const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });

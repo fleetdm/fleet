@@ -5,9 +5,23 @@ import { mount } from 'enzyme';
 import { connectedComponent, reduxMockStore } from 'test/helpers';
 import { packStub } from 'test/stubs';
 import ConnectedEditPackPage, { EditPackPage } from 'pages/packs/EditPackPage/EditPackPage';
+import hostActions from 'redux/nodes/entities/hosts/actions';
+import labelActions from 'redux/nodes/entities/labels/actions';
 import packActions from 'redux/nodes/entities/packs/actions';
+import queryActions from 'redux/nodes/entities/queries/actions';
+import scheduledQueryActions from 'redux/nodes/entities/scheduled_queries/actions';
 
 describe('EditPackPage - component', () => {
+  beforeEach(() => {
+    const spyResponse = () => Promise.resolve([]);
+
+    spyOn(hostActions, 'loadAll').andReturn(spyResponse);
+    spyOn(labelActions, 'loadAll').andReturn(spyResponse);
+    spyOn(packActions, 'load').andReturn(spyResponse);
+    spyOn(queryActions, 'loadAll').andReturn(spyResponse);
+    spyOn(scheduledQueryActions, 'loadAll').andReturn(spyResponse);
+  });
+
   afterEach(restoreSpies);
 
   const store = {

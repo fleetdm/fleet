@@ -1,6 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { filter, get, includes, noop, pull } from 'lodash';
+import { filter, get, includes, pull } from 'lodash';
 import { push } from 'react-router-redux';
 
 import Button from 'components/buttons/Button';
@@ -28,7 +28,8 @@ export class ManageQueriesPage extends Component {
   }
 
   static defaultProps = {
-    dispatch: noop,
+    dispatch: () => Promise.resolve(),
+    loadingQueries: false,
   };
 
   constructor (props) {
@@ -45,7 +46,8 @@ export class ManageQueriesPage extends Component {
   componentWillMount() {
     const { dispatch } = this.props;
 
-    dispatch(queryActions.loadAll());
+    dispatch(queryActions.loadAll())
+      .catch(() => false);
 
     return false;
   }

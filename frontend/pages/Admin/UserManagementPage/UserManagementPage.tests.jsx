@@ -6,6 +6,7 @@ import { noop } from 'lodash';
 import * as authActions from 'redux/nodes/auth/actions';
 import { connectedComponent, reduxMockStore } from 'test/helpers';
 import ConnectedUserManagementPage, { UserManagementPage } from 'pages/Admin/UserManagementPage/UserManagementPage';
+import inviteActions from 'redux/nodes/entities/invites/actions';
 import userActions from 'redux/nodes/entities/users/actions';
 
 const currentUser = {
@@ -16,8 +17,6 @@ const currentUser = {
   position: 'Head of Gnar',
   username: 'gnardog',
 };
-const loadUsersAction = { type: 'users_LOAD_REQUEST' };
-const loadInvitesAction = { type: 'invites_LOAD_REQUEST' };
 const store = {
   app: {
     config: {
@@ -52,6 +51,14 @@ const store = {
 };
 
 describe('UserManagementPage - component', () => {
+  beforeEach(() => {
+    spyOn(userActions, 'loadAll')
+      .andReturn(() => Promise.resolve([]));
+
+    spyOn(inviteActions, 'loadAll')
+      .andReturn(() => Promise.resolve([]));
+  });
+
   afterEach(restoreSpies);
 
   describe('rendering', () => {
@@ -156,7 +163,7 @@ describe('UserManagementPage - component', () => {
 
     mount(connectedComponent(ConnectedUserManagementPage, { mockStore }));
 
-    expect(mockStore.getActions()).toInclude(loadUsersAction);
+    expect(userActions.loadAll).toHaveBeenCalled();
   });
 
   it('gets invites on mount', () => {
@@ -164,7 +171,7 @@ describe('UserManagementPage - component', () => {
 
     mount(connectedComponent(ConnectedUserManagementPage, { mockStore }));
 
-    expect(mockStore.getActions()).toInclude(loadInvitesAction);
+    expect(inviteActions.loadAll).toHaveBeenCalled();
   });
 
   describe('updating a user', () => {

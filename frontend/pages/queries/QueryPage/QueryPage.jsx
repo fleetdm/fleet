@@ -44,6 +44,10 @@ export class QueryPage extends Component {
     selectedTargets: PropTypes.arrayOf(targetInterface),
   };
 
+  static defaultProps = {
+    loadingQueries: false,
+  };
+
   constructor (props) {
     super(props);
 

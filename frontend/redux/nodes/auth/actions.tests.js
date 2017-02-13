@@ -187,7 +187,7 @@ describe('Auth - actions', () => {
             expect(Kolide.default.license.setup).toHaveBeenCalledWith(license);
           })
           .catch(() => {
-            expect(Kolide.default.license.create).toHaveBeenCalledWith(license);
+            expect(Kolide.default.license.setup).toHaveBeenCalledWith(license);
           });
       });
 

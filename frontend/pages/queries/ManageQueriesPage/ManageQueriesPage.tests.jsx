@@ -1,10 +1,11 @@
 import React from 'react';
-import expect from 'expect';
+import expect, { spyOn, restoreSpies } from 'expect';
 import { find, noop } from 'lodash';
 import { mount } from 'enzyme';
 
 import ConnectedManageQueriesPage, { ManageQueriesPage } from 'pages/queries/ManageQueriesPage/ManageQueriesPage';
 import { connectedComponent, fillInFormInput, reduxMockStore } from 'test/helpers';
+import queryActions from 'redux/nodes/entities/queries/actions';
 import { queryStub } from 'test/stubs';
 
 const store = {
@@ -24,6 +25,13 @@ const store = {
 };
 
 describe('ManageQueriesPage - component', () => {
+  beforeEach(() => {
+    spyOn(queryActions, 'loadAll')
+      .andReturn(() => Promise.resolve([]));
+  });
+
+  afterEach(restoreSpies);
+
   describe('rendering', () => {
     it('does not render if queries are loading', () => {
       const loadingQueriesStore = {

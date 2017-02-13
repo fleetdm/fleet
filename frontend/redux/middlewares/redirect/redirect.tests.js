@@ -28,7 +28,9 @@ describe('redirect - middleware', () => {
       },
     };
 
-    mockStore.dispatch(errorActionThunk);
+    mockStore.dispatch(errorActionThunk)
+      .catch(() => false);
+
     expect(mockStore.getActions()).toInclude(expectedRedirectAction);
   });
 });

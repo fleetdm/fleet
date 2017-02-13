@@ -1,11 +1,13 @@
 import React from 'react';
-import expect from 'expect';
+import expect, { spyOn, restoreSpies } from 'expect';
 import { find } from 'lodash';
 import { mount } from 'enzyme';
 
 import ConnectedAllPacksPage, { AllPacksPage } from 'pages/packs/AllPacksPage/AllPacksPage';
 import { connectedComponent, fillInFormInput, reduxMockStore } from 'test/helpers';
+import packActions from 'redux/nodes/entities/packs/actions';
 import { packStub } from 'test/stubs';
+import scheduledQueryActions from 'redux/nodes/entities/scheduled_queries/actions';
 
 const store = {
   entities: {
@@ -24,6 +26,13 @@ const store = {
 };
 
 describe('AllPacksPage - component', () => {
+  beforeEach(() => {
+    spyOn(packActions, 'loadAll')
+      .andReturn(() => Promise.resolve([]));
+  });
+
+  afterEach(restoreSpies);
+
   describe('rendering', () => {
     it('does not render when packs are loading', () => {
       const page = mount(<AllPacksPage loadingPacks packs={[packStub]} />);
@@ -228,6 +237,9 @@ describe('AllPacksPage - component', () => {
     });
 
     it('sets the selectedPack prop', () => {
+      spyOn(scheduledQueryActions, 'loadAll')
+        .andReturn(() => Promise.resolve([]));
+
       const mockStore = reduxMockStore(store);
       const props = { location: { query: { selectedPack: packStub.id } } };
       const Component = connectedComponent(ConnectedAllPacksPage, { mockStore, props });

@@ -8,6 +8,7 @@ import labelActions from 'redux/nodes/entities/labels/actions';
 import ConnectedManageHostsPage, { ManageHostsPage } from 'pages/hosts/ManageHostsPage/ManageHostsPage';
 import { connectedComponent, createAceSpy, reduxMockStore, stubbedOsqueryTable } from 'test/helpers';
 import { hostStub } from 'test/stubs';
+import * as manageHostsPageActions from 'redux/nodes/components/ManageHostsPage/actions';
 
 const allHostsLabel = { id: 1, display_text: 'All Hosts', slug: 'all-hosts', type: 'all', count: 22 };
 const windowsLabel = { id: 2, display_text: 'Windows', slug: 'windows', type: 'platform', count: 22 };
@@ -58,8 +59,17 @@ describe('ManageHostsPage - component', () => {
   };
 
   beforeEach(() => {
+    const spyResponse = () => Promise.resolve([]);
+
+    spyOn(hostActions, 'loadAll')
+      .andReturn(spyResponse);
+    spyOn(labelActions, 'loadAll')
+      .andReturn(spyResponse);
+    spyOn(manageHostsPageActions, 'getStatusLabelCounts')
+      .andReturn(spyResponse);
     createAceSpy();
   });
+
   afterEach(restoreSpies);
 
   describe('side panels', () => {
@@ -219,11 +229,18 @@ describe('ManageHostsPage - component', () => {
   describe('Delete a label', () => {
     it('Deleted label after confirmation modal', () => {
       const ownProps = { location: {}, params: { active_label: 'custom-label' } };
-      const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
+      const component = connectedComponent(ConnectedManageHostsPage, {
+        props: ownProps,
+        mockStore,
+      });
       const page = mount(component);
       const deleteBtn = page.find('.manage-hosts__delete-label').find('button');
 
-      spyOn(labelActions, 'destroy').andCallThrough();
+      spyOn(labelActions, 'destroy').andReturn((dispatch) => {
+        dispatch({ type: 'labels_LOAD_REQUEST' });
+
+        return Promise.resolve();
+      });
 
       expect(page.find('Modal').length).toEqual(0);
 
@@ -247,7 +264,11 @@ describe('ManageHostsPage - component', () => {
       const page = mount(component);
       const deleteBtn = page.find('HostDetails').last().find('Button');
 
-      spyOn(hostActions, 'destroy').andCallThrough();
+      spyOn(hostActions, 'destroy').andReturn((dispatch) => {
+        dispatch({ type: 'hosts_LOAD_REQUEST' });
+
+        return Promise.resolve();
+      });
 
       expect(page.find('Modal').length).toEqual(0);
 

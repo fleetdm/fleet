@@ -1,4 +1,5 @@
 import React, { Component, PropTypes } from 'react';
+import { noop } from 'lodash';
 
 import ConfigOptionForm from 'components/forms/ConfigOptionsForm/ConfigOptionForm';
 import configOptionInterface from 'interfaces/config_option';
@@ -17,6 +18,8 @@ class ConfigOptionsForm extends Component {
 
   static defaultProps = {
     errors: {},
+    onRemoveOption: noop,
+    onFormUpdate: noop,
   };
 
   handleFormUpdate = (option) => {

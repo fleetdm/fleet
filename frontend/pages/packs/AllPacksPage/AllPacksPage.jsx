@@ -32,6 +32,7 @@ export class AllPacksPage extends Component {
 
   static defaultProps = {
     dispatch: noop,
+    loadingPacks: false,
   };
 
   constructor (props) {

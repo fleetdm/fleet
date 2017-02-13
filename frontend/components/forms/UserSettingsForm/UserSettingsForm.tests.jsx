@@ -11,8 +11,13 @@ const { fillInFormInput, itBehavesLikeAFormInputElement } = helpers;
 describe('UserSettingsForm - component', () => {
   afterEach(restoreSpies);
 
+  const defaultProps = {
+    handleSubmit: noop,
+    onCancel: noop,
+  };
+
   it('has the correct fields', () => {
-    const form = mount(<UserSettingsForm handleSubmit={noop} />);
+    const form = mount(<UserSettingsForm {...defaultProps} />);
 
     itBehavesLikeAFormInputElement(form, 'email');
     itBehavesLikeAFormInputElement(form, 'name');
@@ -21,7 +26,8 @@ describe('UserSettingsForm - component', () => {
 
   it('calls the handleSubmit props with form data', () => {
     const handleSubmitSpy = createSpy();
-    const form = mount(<UserSettingsForm handleSubmit={handleSubmitSpy} />);
+    const props = { ...defaultProps, handleSubmit: handleSubmitSpy };
+    const form = mount(<UserSettingsForm {...props} />);
     const expectedFormData = { email: 'email@example.com', name: 'Jim Example', username: 'jimmyexamples' };
     const emailInput = form.find({ name: 'email' }).find('input');
     const nameInput = form.find({ name: 'name' }).find('input');
@@ -38,7 +44,8 @@ describe('UserSettingsForm - component', () => {
 
   it('initializes the form with the users data', () => {
     const user = { email: 'email@example.com', name: 'Jim Example', username: 'jimmyexamples' };
-    const form = mount(<UserSettingsForm formData={user} handleSubmit={noop} />);
+    const props = { ...defaultProps, formData: user };
+    const form = mount(<UserSettingsForm {...props} />);
 
     expect(form.state().formData).toEqual(user);
   });

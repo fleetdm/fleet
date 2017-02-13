@@ -56,6 +56,8 @@ export class ManageHostsPage extends Component {
 
   static defaultProps = {
     display: 'Grid',
+    loadingHosts: false,
+    loadingLabels: false,
   };
 
   constructor (props) {

@@ -2,15 +2,15 @@ import React from 'react';
 import expect, { spyOn, restoreSpies } from 'expect';
 import FileSave from 'file-saver';
 import { mount } from 'enzyme';
+import nock from 'nock';
 import { noop } from 'lodash';
 
 import convertToCSV from 'utilities/convert_to_csv';
 import * as queryPageActions from 'redux/nodes/components/QueryPages/actions';
 import helpers from 'test/helpers';
-import kolide from 'kolide';
+import hostActions from 'redux/nodes/entities/hosts/actions';
 import queryActions from 'redux/nodes/entities/queries/actions';
 import ConnectedQueryPage, { QueryPage } from 'pages/queries/QueryPage/QueryPage';
-import { validUpdateQueryRequest } from 'test/mocks';
 import { hostStub } from 'test/stubs';
 
 const { connectedComponent, createAceSpy, fillInFormInput, reduxMockStore } = helpers;
@@ -18,8 +18,37 @@ const { defaultSelectedOsqueryTable } = queryPageActions;
 const locationProp = { params: {}, location: { query: {} } };
 
 describe('QueryPage - component', () => {
-  beforeEach(createAceSpy);
-  afterEach(restoreSpies);
+  beforeEach(() => {
+    createAceSpy();
+
+    spyOn(hostActions, 'loadAll')
+      .andReturn(() => Promise.resolve([]));
+
+    nock('http://localhost:8080')
+      .post('/api/v1/kolide/targets', JSON.stringify({
+        selected: {
+          hosts: [1, 99],
+          labels: [],
+        },
+      }))
+      .reply(200, {
+        targets_count: 1234,
+        targets: [
+          {
+            id: 3,
+            label: 'OS X El Capitan 10.11',
+            name: 'osx-10.11',
+            platform: 'darwin',
+            target_type: 'hosts',
+          },
+        ],
+      });
+  });
+
+  afterEach(() => {
+    nock.cleanAll();
+    restoreSpies();
+  });
 
   const store = {
     components: {
@@ -95,10 +124,8 @@ describe('QueryPage - component', () => {
   });
 
   it('calls the onUpdateQuery prop when the query is updated', () => {
-    spyOn(queryActions, 'update').andCallThrough();
-    const bearerToken = 'abc123';
-    const locationWithQueryProp = { params: { id: 1 }, location: { query: {} } };
     const query = { id: 1, name: 'My query', description: 'My query description', query: 'select * from users' };
+    const locationWithQueryProp = { params: { id: 1 }, location: { query: {} } };
     const mockStoreWithQuery = reduxMockStore({
       components: {
         QueryPages: {
@@ -122,22 +149,17 @@ describe('QueryPage - component', () => {
     const form = page.find('QueryForm');
     const nameInput = form.find({ name: 'name' }).find('input');
     const saveChangesBtn = form.find('li.dropdown-button__option').first().find('Button');
-
-    kolide.setBearerToken(bearerToken);
-    validUpdateQueryRequest(bearerToken, query, {
+    fillInFormInput(nameInput, 'new name');
+    spyOn(queryActions, 'update').andReturn(() => Promise.resolve({
       description: query.description,
       name: 'new name',
       queryText: 'SELECT * FROM users',
-    });
-    fillInFormInput(nameInput, 'new name');
+    }));
 
     form.simulate('submit');
     saveChangesBtn.simulate('click');
 
     expect(queryActions.update).toHaveBeenCalledWith(query, { name: 'new name' });
-    expect(mockStoreWithQuery.getActions()).toInclude({
-      type: 'queries_UPDATE_REQUEST',
-    });
   });
 
   describe('#componentWillReceiveProps', () => {
