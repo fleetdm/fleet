@@ -11,9 +11,8 @@ describe('validPassword', () => {
     const allLetters = 'mypassword';
     const allNumbers = '123456789';
     const allSymbols = '!@#$%^&*()';
-    const containsSpace = 'p@ ssw0rd';
 
-    const invalidPasswords = [tooShort, noSymbols, noLetters, noNumbers, allLetters, allNumbers, allSymbols, containsSpace];
+    const invalidPasswords = [tooShort, noSymbols, noLetters, noNumbers, allLetters, allNumbers, allSymbols];
 
     invalidPasswords.map((password) => {
       return expect(validPassword(password)).toEqual(false, `expected ${password} to not be valid`);
@@ -21,6 +20,10 @@ describe('validPassword', () => {
   });
 
   it('is valid if the password is at least 7 characters and includes a number and a symbol', () => {
-    expect(validPassword('p@ssw0rd')).toEqual(true, 'expected p@ssw0rd to be valid');
+    const validPasswords = ['p@assw0rd', 'This should be v4lid!', 'admin123.', 'pRZ\'bW,6\'6o}HnpL62'];
+
+    validPasswords.map((password) => {
+      return expect(validPassword(password)).toEqual(true, `expected ${password} to be valid`);
+    });
   });
 });
