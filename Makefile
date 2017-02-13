@@ -163,6 +163,11 @@ else
 	rm -f assets/bundle.js
 endif
 
+docker-build-release:
+	docker build -t "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" .
+	docker tag "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" kolide/kolide:latest
+	docker push "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
+	docker push kolide/kolide:latest
 
 docker-build-circle:
 	@echo ">> building docker image"

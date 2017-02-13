@@ -43,5 +43,5 @@ deployment:
   release:
     tag: /.*/
     commands:
-      - make docker-build-circle
+      - make docker-build-release
       - make package

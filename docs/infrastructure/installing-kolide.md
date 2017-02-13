@@ -15,19 +15,71 @@ Because everyone's infrastructure is different, there are a multiple options ava
 
 #### Docker container
 
-If you'd like to run the Kolide server from a supported Docker container, we currently build and publish Docker containers via our CI process for every commit to master. We then run each of these Docker containers as apart of our testing process. At this time, please contact [support@kolide.co](mailto:support@kolide.co) and we will add you to our Docker Hub account so that you can access the private container images. When the Kolide product is out of beta, these containers will be made public.
+Pull the latest Kolide docker image:
+
+```
+docker pull kolide/kolide
+```
+
+For more information on using Kolide, refer to the [Configuring The Kolide Binary](./configuring-the-kolide-binary.md) documentation.
 
 #### Debian Packages (Ubuntu, Debian)
 
-We are currently working on an apt repository where we will upload deb packages of the Kolide application in both a stable and "master" channel. Please check back here for information on this feature.
+Add our GPG key and install the Kolide Apt Repository:
+
+```
+wget -qO - https://dl.kolide.co/archive.key | sudo apt-key add -
+sudo add-apt-repository "deb https://dl.kolide.co/apt jessie main"
+sudo apt-get update
+```
+
+Install Kolide:
+
+```
+sudo apt-get install kolide
+/usr/bin/kolide --help
+```
+
+For more information on using Kolide, refer to the [Configuring The Kolide Binary](./configuring-the-kolide-binary.md) documentation.
 
 #### Yum Packages (CentOS, RHEL, Amazon Linux)
 
-We are currently working on a yum repository where we will upload rpm packages of the Kolide application in both a stable and "master" channel. Please check back here for information on this feature.
+Install the Kolide Yum Repository:
+
+```
+sudo rpm -ivh https://dl.kolide.co/yum/kolide-yum-repo-1.0.0-1.noarch.rpm
+```
+
+Install Kolide:
+
+```
+sudo yum install kolide
+kolide --help
+```
+
+For more information on using Kolide, refer to the [Configuring The Kolide Binary](./configuring-the-kolide-binary.md) documentation.
 
 #### Raw binaries
 
-The `kolide` binary is a single statically linked binary with no dependencies. For users that would like to download the raw binaries for more custom internal distribution, we will be hosting the raw binaries to support this use-case. Please check back here for information on this feature.
+Download the latest raw Kolide binaries:
+
+```
+curl -O https://dl.kolide.co/bin/kolide_latest.zip
+```
+
+Unzip the binaries for your platform:
+
+```
+# For a Darwin compatible binary
+unzip kolide_latest.zip 'darwin/*' -d kolide
+./kolide/darwin/kolide_darwin_amd64 --help
+
+# For a Linux compatible binary
+unzip kolide_latest.zip 'linux/*' -d kolide
+./kolide/linux/kolide_linux_amd64 --help
+```
+
+For more information on using Kolide, refer to the [Configuring The Kolide Binary](./configuring-the-kolide-binary.md) documentation.
 
 ## Infrastructure Dependencies
 
