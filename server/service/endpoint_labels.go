@@ -50,6 +50,7 @@ func labelResponseForLabel(ctx context.Context, svc kolide.Service, label *kolid
 ////////////////////////////////////////////////////////////////////////////////
 // Get Label
 ////////////////////////////////////////////////////////////////////////////////
+
 func makeGetLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(getLabelRequest)
@@ -152,13 +153,17 @@ func makeDeleteLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
 	}
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Modify Label
+////////////////////////////////////////////////////////////////////////////////
+
 type modifyLabelRequest struct {
 	ID      uint
 	payload kolide.ModifyLabelPayload
 }
 
 type modifyLabelResponse struct {
-	Label *kolide.Label `json:"label"`
+	Label labelResponse `json:"label"`
 	Err   error         `json:"error,omitempty"`
 }
 
@@ -171,6 +176,12 @@ func makeModifyLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return modifyLabelResponse{Err: err}, nil
 		}
-		return modifyLabelResponse{Label: label}, err
+
+		labelResp, err := labelResponseForLabel(ctx, svc, label)
+		if err != nil {
+			return modifyLabelResponse{Err: err}, nil
+		}
+
+		return modifyLabelResponse{Label: *labelResp}, err
 	}
 }
