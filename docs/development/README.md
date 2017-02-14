@@ -6,7 +6,7 @@ The Kolide application is a Go API server which serves a React/Redux single-page
 ## Building and contributing code
 
 - For documentation on building the Kolide source code, see the [Building The Code](./building-the-code.md) guide.
-- To learn about how some development practices work within the Kolide application (such as adding database migrations, populating the application with default seed data, etc), see the [Contributing Code](./contributing-code.md) document.
+- To learn about database migrations and populating the application with default seed data, see the [Database Migrations](./database-migrations.md) document.
 
 ## Running tests
 
