@@ -4,14 +4,14 @@
 
 Kolide is a state of the art host monitoring platform tailored for security experts. Leveraging Facebook's battle-tested osquery project, Kolide delivers fast answers to big questions. To learn more about the Kolide product, visit [https://kolide.co/product](https://kolide.co/product).
 
-Documentation can be found in the [docs](./docs/README.md) subdirectory of this repository.
+Documentation for Kolide can be found at [https://docs.kolide.co](https://docs.kolide.co/kolide/current/).
 
 [![Kolide](./assets/images/rube.png)](https://kolide.co)
 
-- Information about using the Kolide web application can be found in the [Application Documentation](./docs/application/README.md).
-- Resources for deploying osquery to hosts, deploying the Kolide server, installing Kolide's infrastructure dependencies, etc. can all be found in the [Infrastructure Documentation](./docs/infrastructure/README.md).
-- If you are interested in accessing the Kolide REST API in order to programmatically interact with your osquery installation, please see the [API Documentation](./docs/api/README.md).
-- Finally, if you're interested in interacting with the Kolide source code, you will find information on modifying and building the code in the [Development Documentation](./docs/development/README.md).
+- Information about using the Kolide web application can be found in the [Application Documentation](https://docs.kolide.co/kolide/current/application/).
+- Resources for deploying osquery to hosts, deploying the Kolide server, installing Kolide's infrastructure dependencies, etc. can all be found in the [Infrastructure Documentation](https://docs.kolide.co/kolide/current/infrastructure/).
+- If you are interested in accessing the Kolide REST API in order to programmatically interact with your osquery installation, please see the [API Documentation](https://docs.kolide.co/kolide/current/api/).
+- Finally, if you're interested in interacting with the Kolide source code, you will find information on modifying and building the code in the [Development Documentation](https://docs.kolide.co/kolide/current/development/).
 
 If you have any questions, please don't hesitate to reach out to [support@kolide.co](mailto:support@kolide.co).
 
