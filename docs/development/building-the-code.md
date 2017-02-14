@@ -60,18 +60,3 @@ make build
 
 It's not necessary to use Make to build the code, but using Make allows us to account for cross-platform differences more effectively than the `go build` tool when writing automated tooling. Use whichever you prefer.
 
-## Managing Go Dependencies with Glide
-
-[Glide](https://github.com/Masterminds/glide#glide-vendor-package-management-for-golang) is a package manager for third party Go libraries. See the ["How It Works"](https://github.com/Masterminds/glide#how-it-works) section in the Glide README for full details.
-
-### Installing the correct versions of dependencies
-
-To install the correct versions of third package libraries, use `glide install`. `glide install` will  use the `glide.lock` file to pull vendored packages from remote vcs.  `make deps` takes care of this step, as well as downloading the latest version of glide for you.
-
-### Adding new dependencies
-
-To add a new dependency, use [`glide get [package name]`](https://github.com/Masterminds/glide#glide-get-package-name)
-
-### Updating dependencies
-
-To update, use [`glide up`](https://github.com/Masterminds/glide#glide-update-aliased-to-up) which will use VCS and `glide.yaml` to figure out the correct updates.
