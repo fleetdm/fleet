@@ -1,6 +1,7 @@
 import { configSuccess } from 'redux/nodes/app/actions';
 import { formatErrorResponse } from 'redux/nodes/entities/base/helpers';
 import Kolide from 'kolide';
+import local from 'utilities/local';
 import userActions from 'redux/nodes/entities/users/actions';
 
 export const CLEAR_AUTH_ERRORS = 'CLEAR_AUTH_ERRORS';
@@ -149,10 +150,17 @@ export const setup = (registrationFormData) => {
   return (dispatch) => {
     return Kolide.setup(registrationFormData)
       .then((response) => {
-        return dispatch(configSuccess({
+        const { token } = response;
+
+        dispatch(configSuccess({
           kolide_server_url: response.kolide_server_url,
           ...response.org_info,
         }));
+
+        local.setItem('auth_token', token);
+        Kolide.setBearerToken(token);
+
+        return dispatch(fetchCurrentUser());
       });
   };
 };

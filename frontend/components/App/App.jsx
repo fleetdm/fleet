@@ -25,13 +25,12 @@ export class App extends Component {
 
     if (!user && !!authToken()) {
       dispatch(fetchCurrentUser())
-        .catch(() => {
-          return false;
-        });
+        .catch(() => false);
     }
 
     if (user) {
-      dispatch(getConfig());
+      dispatch(getConfig())
+        .catch(() => false);
     }
 
     return false;
@@ -41,7 +40,8 @@ export class App extends Component {
     const { dispatch, user } = nextProps;
 
     if (user && this.props.user !== user) {
-      dispatch(getConfig());
+      dispatch(getConfig())
+        .catch(() => false);
     }
   }
 

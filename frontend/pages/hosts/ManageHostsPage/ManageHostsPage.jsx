@@ -73,25 +73,11 @@ export class ManageHostsPage extends Component {
   }
 
   componentWillMount () {
-    const { dispatch } = this.props;
-
-    dispatch(hostActions.loadAll());
-    dispatch(labelActions.loadAll());
-    dispatch(getStatusLabelCounts);
-
-    return false;
+    return this.getEntities();
   }
 
   componentDidMount () {
-    const { dispatch } = this.props;
-    const getEntities = () => {
-      dispatch(hostActions.silentLoadAll())
-        .catch(() => false);
-      dispatch(labelActions.silentLoadAll())
-        .catch(() => false);
-      dispatch(silentGetStatusLabelCounts)
-        .catch(() => false);
-    };
+    const { getEntities } = this;
 
     this.interval = global.window.setInterval(getEntities, 5000);
 
@@ -234,6 +220,21 @@ export class ManageHostsPage extends Component {
 
       return false;
     };
+  }
+
+  getEntities = () => {
+    const { dispatch } = this.props;
+
+    const promises = [
+      dispatch(hostActions.silentLoadAll()),
+      dispatch(labelActions.silentLoadAll()),
+      dispatch(silentGetStatusLabelCounts),
+    ];
+
+    Promise.all(promises)
+      .catch(() => false);
+
+    return false;
   }
 
   toggleAddHostModal = () => {

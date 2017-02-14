@@ -54,10 +54,10 @@ export class RegistrationPage extends Component {
 
   onRegistrationFormSubmit = (formData) => {
     const { dispatch } = this.props;
-    const { LOGIN } = paths;
+    const { MANAGE_HOSTS } = paths;
 
     return dispatch(setup(formData))
-      .then(() => { return dispatch(push(LOGIN)); })
+      .then(() => { return dispatch(push(MANAGE_HOSTS)); })
       .catch(() => { return false; });
   }
 
