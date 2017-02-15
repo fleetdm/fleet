@@ -53,6 +53,7 @@ const {
   validUpdateAdminRequest,
   validUpdateConfigOptionsRequest,
   validUpdateConfigRequest,
+  validUpdateLabelRequest,
   validUpdatePackRequest,
   validUpdateQueryRequest,
   validUpdateUserRequest,
@@ -121,6 +122,23 @@ describe('Kolide - API client', () => {
 
         Kolide.setBearerToken(bearerToken);
         Kolide.labels.destroy(labelStub)
+          .then(() => {
+            expect(request.isDone()).toEqual(true);
+            done();
+          })
+          .catch(() => {
+            throw new Error('Request should have been stubbed');
+          });
+      });
+    });
+
+    describe('#update', () => {
+      it('calls the appropriate endpoint with the correct parameters', (done) => {
+        const params = { name: 'New label name' };
+        const request = validUpdateLabelRequest(bearerToken, labelStub, params);
+
+        Kolide.setBearerToken(bearerToken);
+        Kolide.labels.update(labelStub, params)
           .then(() => {
             expect(request.isDone()).toEqual(true);
             done();

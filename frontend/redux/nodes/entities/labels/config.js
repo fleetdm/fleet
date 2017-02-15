@@ -13,4 +13,5 @@ export default reduxConfig({
     return { ...label, target_type: 'labels' };
   },
   schema,
+  updateFunc: Kolide.labels.update,
 });

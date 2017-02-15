@@ -461,6 +461,16 @@ export const validUpdateConfigOptionsRequest = (bearerToken, updatedOptions) => 
     .reply(200, { options: updatedOptions });
 };
 
+export const validUpdateLabelRequest = (bearerToken, label, params) => {
+  return nock('http://localhost:8080', {
+    reqHeaders: {
+      Authorization: `Bearer ${bearerToken}`,
+    },
+  })
+    .patch(`/api/v1/kolide/labels/${label.id}`, JSON.stringify(params))
+    .reply(200, { label });
+};
+
 export const validUpdatePackRequest = (bearerToken, pack, formData) => {
   return nock('http://localhost:8080', {
     reqHeaders: {
@@ -528,6 +538,7 @@ export default {
   validUpdateAdminRequest,
   validUpdateConfigOptionsRequest,
   validUpdateConfigRequest,
+  validUpdateLabelRequest,
   validUpdatePackRequest,
   validUpdateQueryRequest,
   validUpdateUserRequest,

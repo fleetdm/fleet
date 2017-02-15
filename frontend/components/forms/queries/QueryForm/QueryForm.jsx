@@ -3,7 +3,6 @@ import { size } from 'lodash';
 
 import Button from 'components/buttons/Button';
 import DropdownButton from 'components/buttons/DropdownButton';
-import Dropdown from 'components/forms/fields/Dropdown';
 import Form from 'components/forms/Form';
 import formFieldInterface from 'interfaces/form_field';
 import helpers from 'components/forms/queries/QueryForm/helpers';
@@ -47,7 +46,6 @@ class QueryForm extends Component {
     }).isRequired,
     handleSubmit: PropTypes.func,
     formData: queryInterface,
-    onCancel: PropTypes.func,
     onFetchTargets: PropTypes.func,
     onOsqueryTableSelect: PropTypes.func,
     onRunQuery: PropTypes.func,
@@ -55,14 +53,12 @@ class QueryForm extends Component {
     onTargetSelect: PropTypes.func,
     onUpdate: PropTypes.func,
     queryIsRunning: PropTypes.bool,
-    queryType: PropTypes.string,
     selectedTargets: PropTypes.arrayOf(targetInterface),
     targetsCount: PropTypes.number,
     targetsError: PropTypes.string,
   };
 
   static defaultProps = {
-    queryType: 'query',
     targetsCount: 0,
   };
 
@@ -70,14 +66,6 @@ class QueryForm extends Component {
     super(props);
 
     this.state = { errors: {} };
-  }
-
-  onCancel = (evt) => {
-    evt.preventDefault();
-
-    const { onCancel: handleCancel } = this.props;
-
-    return handleCancel();
   }
 
   onLoad = (editor) => {
@@ -144,9 +132,8 @@ class QueryForm extends Component {
       handleSubmit,
       onStopQuery,
       queryIsRunning,
-      queryType,
     } = this.props;
-    const { onCancel, onRunQuery, onUpdate } = this;
+    const { onRunQuery, onUpdate } = this;
 
     const dropdownBtnOptions = [{
       disabled: !canSaveChanges(fields, formData),
@@ -182,28 +169,6 @@ class QueryForm extends Component {
       );
     }
 
-    if (queryType === 'label') {
-      return (
-        <div className={`${baseClass}__button-wrap`}>
-          <Button
-            className={`${baseClass}__cancel-btn`}
-            onClick={onCancel}
-            variant="inverse"
-          >
-            Cancel
-          </Button>
-          <Button
-            className={`${baseClass}__save-btn`}
-            disabled={!canSaveAsNew(fields, formData)}
-            type="submit"
-            variant="brand"
-          >
-            Save Label
-          </Button>
-        </div>
-      );
-    }
-
     return (
       <div className={`${baseClass}__button-wrap`}>
         {queryIsRunning && <Timer running={queryIsRunning} />}
@@ -221,39 +186,14 @@ class QueryForm extends Component {
     );
   }
 
-  renderPlatformDropdown = () => {
-    const { fields, queryType } = this.props;
-
-    if (queryType !== 'label') {
-      return false;
-    }
-
-    const { platformOptions } = helpers;
-
-    return (
-      <div className="form-field form-field--dropdown">
-        <label className="form-field__label" htmlFor="platform">Platform</label>
-        <Dropdown
-          {...fields.platform}
-          options={platformOptions}
-        />
-      </div>
-    );
-  }
-
   renderTargetsInput = () => {
     const {
       onFetchTargets,
       onTargetSelect,
-      queryType,
       selectedTargets,
       targetsCount,
       targetsError,
     } = this.props;
-
-    if (queryType === 'label') {
-      return false;
-    }
 
 
     return (
@@ -272,12 +212,12 @@ class QueryForm extends Component {
 
   render () {
     const { errors } = this.state;
-    const { baseError, fields, handleSubmit, queryIsRunning, queryType } = this.props;
-    const { onLoad, renderPlatformDropdown, renderButtons, renderTargetsInput } = this;
+    const { baseError, fields, handleSubmit, queryIsRunning } = this.props;
+    const { onLoad, renderButtons, renderTargetsInput } = this;
 
     return (
       <form className={`${baseClass}__wrapper`} onSubmit={handleSubmit}>
-        <h1>{queryType === 'label' ? 'New Label Query' : 'New Query'}</h1>
+        <h1>New Query</h1>
         <KolideAce
           {...fields.query}
           error={fields.query.error || errors.query}
@@ -291,7 +231,7 @@ class QueryForm extends Component {
           {...fields.name}
           error={fields.name.error || errors.name}
           inputClassName={`${baseClass}__query-title`}
-          label={queryType === 'label' ? 'Label title' : 'Query Title'}
+          label="Query Title"
         />
         <InputField
           {...fields.description}
@@ -299,7 +239,6 @@ class QueryForm extends Component {
           label="Description"
           type="textarea"
         />
-        {renderPlatformDropdown()}
         {renderButtons()}
       </form>
     );

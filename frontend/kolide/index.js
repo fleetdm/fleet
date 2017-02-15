@@ -118,6 +118,21 @@ class Kolide extends Base {
           return labels.concat(stubbedLabels);
         });
     },
+    update: (label, updateAttrs) => {
+      const { LABELS } = endpoints;
+      const endpoint = this.endpoint(`${LABELS}/${label.id}`);
+
+      return this.authenticatedPatch(endpoint, JSON.stringify(updateAttrs))
+        .then((response) => {
+          const { label: updatedLabel } = response;
+
+          return {
+            ...updatedLabel,
+            slug: helpers.labelSlug(updatedLabel),
+            type: 'custom',
+          };
+        });
+    },
   }
 
   license = {
