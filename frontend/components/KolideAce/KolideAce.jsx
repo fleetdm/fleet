@@ -3,6 +3,7 @@ import AceEditor from 'react-ace';
 import classnames from 'classnames';
 import 'brace/mode/sql';
 import 'brace/ext/linking';
+import 'brace/ext/language_tools';
 
 import './mode';
 import './theme';
