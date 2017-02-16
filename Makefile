@@ -184,10 +184,3 @@ demo-restore:
 	mysql --binary-mode -u kolide -p \
 		-h ${MYSQL_PORT_3306_TCP_ADDR} kolide \
 		< ./tools/app/demo.sql
-
-package: export GOOS=linux
-package: export CGO_ENABLED=0
-package: build
-	mkdir -p build/pkgroot/usr/bin
-	cp build/kolide build/pkgroot/usr/bin
-	docker run --rm -it -v ${PWD}/build/pkgroot:/pkgroot -v ${PWD}/build:/out -e KOLIDE_VERSION="${VERSION}" kolide/fpm
