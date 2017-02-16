@@ -64,16 +64,25 @@ func TestModifyUserEmail(t *testing.T) {
 		}
 		return config, nil
 	}
+	ms.SaveUserFunc = func(u *kolide.User) error {
+		// verify this isn't changed yet
+		assert.Equal(t, "foo@bar.com", u.Email)
+		// verify is changed per bug 1123
+		assert.Equal(t, "minion", u.Position)
+		return nil
+	}
 	svc, err := newTestService(ms, nil)
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 	payload := kolide.UserPayload{
 		Email:    stringPtr("zip@zap.com"),
 		Password: stringPtr("password"),
+		Position: stringPtr("minion"),
 	}
 	_, err = svc.ModifyUser(ctx, 3, payload)
 	require.Nil(t, err)
 	assert.True(t, ms.PendingEmailChangeFuncInvoked)
+	assert.True(t, ms.SaveUserFuncInvoked)
 
 }
 
@@ -102,6 +111,9 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 		}
 		return config, nil
 	}
+	ms.SaveUserFunc = func(u *kolide.User) error {
+		return nil
+	}
 	svc, err := newTestService(ms, nil)
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
@@ -117,6 +129,7 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 	require.Len(t, *invalid, 1)
 	assert.Equal(t, "cannot be empty if email is changed", (*invalid)[0].reason)
 	assert.False(t, ms.PendingEmailChangeFuncInvoked)
+	assert.False(t, ms.SaveUserFuncInvoked)
 
 }
 
@@ -145,6 +158,9 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 		}
 		return config, nil
 	}
+	ms.SaveUserFunc = func(u *kolide.User) error {
+		return nil
+	}
 	svc, err := newTestService(ms, nil)
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
@@ -160,6 +176,7 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 	require.Len(t, *invalid, 1)
 	assert.Equal(t, "cannot be empty if email is changed", (*invalid)[0].reason)
 	assert.False(t, ms.PendingEmailChangeFuncInvoked)
+	assert.False(t, ms.SaveUserFuncInvoked)
 
 }
 
@@ -188,6 +205,9 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 		}
 		return config, nil
 	}
+	ms.SaveUserFunc = func(u *kolide.User) error {
+		return nil
+	}
 	svc, err := newTestService(ms, nil)
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
@@ -198,6 +218,7 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 	_, err = svc.ModifyUser(ctx, 3, payload)
 	require.Nil(t, err)
 	assert.True(t, ms.PendingEmailChangeFuncInvoked)
+	assert.True(t, ms.SaveUserFuncInvoked)
 
 }
 

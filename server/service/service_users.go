@@ -102,7 +102,6 @@ func (svc service) ModifyUser(ctx context.Context, userID uint, p kolide.UserPay
 		if err != nil {
 			return nil, err
 		}
-		return user, nil
 	}
 
 	if p.Position != nil {
