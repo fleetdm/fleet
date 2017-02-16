@@ -159,7 +159,11 @@ func (svc service) modifyEmailAddress(ctx context.Context, user *kolide.User, em
 }
 
 func (svc service) ChangeUserEmail(ctx context.Context, token string) (string, error) {
-	return svc.ds.ConfirmPendingEmailChange(token)
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return "", errNoContext
+	}
+	return svc.ds.ConfirmPendingEmailChange(vc.UserID(), token)
 }
 
 func (svc service) User(ctx context.Context, id uint) (*kolide.User, error) {

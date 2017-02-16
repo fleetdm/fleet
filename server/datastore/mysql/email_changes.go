@@ -25,7 +25,7 @@ func (ds *Datastore) PendingEmailChange(uid uint, newEmail, token string) error 
 
 // ConfirmPendingEmailChange finds email change record, updates user with new email,
 // then deletes change record if everything succeeds.
-func (ds *Datastore) ConfirmPendingEmailChange(token string) (newEmail string, err error) {
+func (ds *Datastore) ConfirmPendingEmailChange(id uint, token string) (newEmail string, err error) {
 	var (
 		tx      *sqlx.Tx
 		success bool // indicates all db operations success if true
@@ -36,7 +36,7 @@ func (ds *Datastore) ConfirmPendingEmailChange(token string) (newEmail string, e
 		Token    string
 		NewEmail string `db:"new_email"`
 	}{}
-	err = ds.db.Get(&changeRecord, "SELECT * FROM email_changes WHERE token = ?", token)
+	err = ds.db.Get(&changeRecord, "SELECT * FROM email_changes WHERE token = ? AND user_id = ?", token, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", notFound("email change with token")
