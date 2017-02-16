@@ -37,36 +37,6 @@ describe('QueryForm - component', () => {
     expect(inputFields.find({ name: 'description' }).length).toEqual(1);
   });
 
-  it('renders a "stop query" button when a query is running', () => {
-    const form = mount(<QueryForm onTargetSelect={noop} query={query} queryIsRunning queryText={queryText} />);
-    const runQueryBtn = form.find('.query-form__run-query-btn');
-    const stopQueryBtn = form.find('.query-form__stop-query-btn');
-
-    expect(runQueryBtn.length).toEqual(0);
-    expect(stopQueryBtn.length).toEqual(1);
-  });
-
-  it('renders a "run query" button when a query is not running', () => {
-    const form = mount(<QueryForm formData={{ ...query, query: queryText }} onTargetSelect={noop} queryIsRunning={false} />);
-    const runQueryBtn = form.find('.query-form__run-query-btn');
-    const stopQueryBtn = form.find('.query-form__stop-query-btn');
-
-    expect(runQueryBtn.length).toEqual(1);
-    expect(stopQueryBtn.length).toEqual(0);
-  });
-
-  it('calls the onStopQuery prop when the stop query button is clicked', () => {
-    const onStopQuerySpy = createSpy();
-    const form = mount(
-      <QueryForm onStopQuery={onStopQuerySpy} onTargetSelect={noop} formData={query} queryIsRunning queryText={queryText} />
-    );
-    const stopQueryBtn = form.find('.query-form__stop-query-btn');
-
-    stopQueryBtn.simulate('click');
-
-    expect(onStopQuerySpy).toHaveBeenCalled();
-  });
-
   it('validates the query name before saving changes', () => {
     const updateSpy = createSpy();
     const form = mount(<QueryForm formData={{ ...query, query: queryText }} onTargetSelect={noop} onUpdate={updateSpy} />);
@@ -174,15 +144,5 @@ describe('QueryForm - component', () => {
         description: null,
       },
     });
-  });
-
-  it('calls the onRunQuery prop with the query text when "Run Query" is clicked and the form is valid', () => {
-    const onRunQuerySpy = createSpy();
-    const form = mount(<QueryForm formData={{ ...query, query: queryText }} onRunQuery={onRunQuerySpy} onTargetSelect={noop} />);
-    const runQueryBtn = form.find('.query-form__run-query-btn');
-
-    runQueryBtn.simulate('click');
-
-    expect(onRunQuerySpy).toHaveBeenCalledWith(query.query);
   });
 });

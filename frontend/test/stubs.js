@@ -204,8 +204,36 @@ export const userStub = {
   username: 'gnardog',
 };
 
+const queryResultStub = {
+  description: 'root',
+  directory: '/root',
+  gid: '0',
+  gid_signed: '0',
+  groupname: 'root',
+  host_hostname: hostStub.hostname,
+};
+
+export const campaignStub = {
+  hosts: [hostStub, { ...hostStub, id: 100 }],
+  hosts_count: {
+    failed: 0,
+    successful: 2,
+    total: 2,
+  },
+  id: 1,
+  query_id: queryStub.id,
+  query_results: [queryResultStub],
+  totals: {
+    count: 2,
+    missing_in_action: 0,
+    offline: 0,
+    online: 2,
+  },
+};
+
 export default {
   adminUserStub,
+  campaignStub,
   configStub,
   flatConfigStub,
   hostStub,

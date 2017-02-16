@@ -1,13 +1,12 @@
 import React, { Component, PropTypes } from 'react';
 import classnames from 'classnames';
-import { get, keys, omit } from 'lodash';
+import { keys, omit } from 'lodash';
 
 import Button from 'components/buttons/Button';
 import campaignInterface from 'interfaces/campaign';
 import filterArrayByHash from 'utilities/filter_array_by_hash';
 import Icon from 'components/icons/Icon';
 import InputField from 'components/forms/fields/InputField';
-import ProgressBar from 'components/loaders/ProgressBar';
 import QueryResultsRow from 'components/queries/QueryResultsTable/QueryResultsRow';
 
 const baseClass = 'query-results-table';
@@ -43,29 +42,6 @@ class QueryResultsTable extends Component {
     return () => {
       this.setState({ activeColumn });
     };
-  }
-
-  renderProgressDetails = () => {
-    const { campaign } = this.props;
-    const { hosts_count: hostsCount } = campaign;
-    const totalHostsCount = get(campaign, 'totals.count', 0);
-    const totalRowsCount = get(campaign, 'query_results.length', 0);
-
-    return (
-      <div className={`${baseClass}__progress-details`}>
-        <span>
-          <b>{hostsCount.total}</b>&nbsp;of&nbsp;
-          <b>{totalHostsCount} Hosts</b>&nbsp;Returning&nbsp;
-          <b>{totalRowsCount} Records&nbsp;</b>
-          ({hostsCount.failed} failed)
-        </span>
-        <ProgressBar
-          error={hostsCount.failed}
-          max={totalHostsCount}
-          success={hostsCount.successful}
-        />
-      </div>
-    );
   }
 
   renderTableHeaderRowData = (column, index) => {
@@ -127,7 +103,6 @@ class QueryResultsTable extends Component {
   render () {
     const { campaign, onExportQueryResults } = this.props;
     const {
-      renderProgressDetails,
       renderTableHeaderRow,
       renderTableRows,
     } = this;
@@ -139,8 +114,8 @@ class QueryResultsTable extends Component {
 
     if (!hostsCount.successful) {
       return (
-        <div className={baseClass}>
-          {renderProgressDetails()}
+        <div className={`${baseClass} ${baseClass}__no-results`}>
+          <em>No results found</em>
         </div>
       );
     }
@@ -150,11 +125,10 @@ class QueryResultsTable extends Component {
         <Button
           className={`${baseClass}__export-btn`}
           onClick={onExportQueryResults}
-          variant="brand"
+          variant="link"
         >
           Export
         </Button>
-        {renderProgressDetails()}
         <div className={`${baseClass}__table-wrapper`}>
           <table className={`${baseClass}__table`}>
             <thead>

@@ -11,7 +11,7 @@ import helpers from 'test/helpers';
 import hostActions from 'redux/nodes/entities/hosts/actions';
 import queryActions from 'redux/nodes/entities/queries/actions';
 import ConnectedQueryPage, { QueryPage } from 'pages/queries/QueryPage/QueryPage';
-import { hostStub } from 'test/stubs';
+import { hostStub, queryStub } from 'test/stubs';
 
 const { connectedComponent, createAceSpy, fillInFormInput, reduxMockStore } = helpers;
 const { defaultSelectedOsqueryTable } = queryPageActions;
@@ -113,14 +113,14 @@ describe('QueryPage - component', () => {
 
   it('sets targetError in state when the query is run and there are no selected targets', () => {
     const page = mount(connectedComponent(ConnectedQueryPage, { mockStore, props: locationProp }));
-    const form = page.find('QueryForm');
-    const runQueryBtn = form.find('.query-form__run-query-btn');
+    const QueryPageSelectTargets = page.find('QueryPageSelectTargets');
+    const runQueryBtn = page.find('.query-page-select-targets__run-query-btn');
 
-    expect(form.prop('targetsError')).toNotExist();
+    expect(QueryPageSelectTargets.prop('error')).toNotExist();
 
     runQueryBtn.simulate('click');
 
-    expect(form.prop('targetsError')).toEqual('You must select at least one target to run a query');
+    expect(QueryPageSelectTargets.prop('error')).toEqual('You must select at least one target to run a query');
   });
 
   it('calls the onUpdateQuery prop when the query is updated', () => {
@@ -165,11 +165,12 @@ describe('QueryPage - component', () => {
   describe('#componentWillReceiveProps', () => {
     it('resets selected targets and removed the campaign when the hostname changes', () => {
       const queryResult = { org_name: 'Kolide', org_url: 'https://kolide.co' };
-      const campaign = { id: 1, query_results: [queryResult] };
+      const campaign = { id: 1, query_results: [queryResult], hosts_count: { total: 1 } };
       const props = {
         dispatch: noop,
         loadingQueries: false,
         location: { pathname: '/queries/11' },
+        query: { query: 'select * from users' },
         selectedOsqueryTable: defaultSelectedOsqueryTable,
         selectedTargets: [hostStub],
       };
@@ -203,7 +204,7 @@ describe('QueryPage - component', () => {
       };
       const queryResultsCSV = convertToCSV([queryResult]);
       const fileSaveSpy = spyOn(FileSave, 'saveAs');
-      const Page = mount(<QueryPage dispatch={noop} selectedOsqueryTable={defaultSelectedOsqueryTable} />);
+      const Page = mount(<QueryPage dispatch={noop} query={queryStub} selectedOsqueryTable={defaultSelectedOsqueryTable} />);
       const filename = 'query_results.csv';
       const fileStub = new global.window.File([queryResultsCSV], filename, { type: 'text/csv' });
 

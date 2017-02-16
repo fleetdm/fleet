@@ -75,6 +75,10 @@ $base-class: 'button';
     @include button-variant($warning);
   }
 
+  &--link {
+    @include button-variant($link);
+  }
+
   &--inverse {
     @include button-variant($white, $inverse-hover, $brand);
     color: $brand;

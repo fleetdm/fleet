@@ -78,12 +78,6 @@ describe('QueryResultsTable - component', () => {
     expect(componentWithoutQueryResults.html()).toNotExist();
   });
 
-  it('renders a ProgressBar component', () => {
-    expect(
-      componentWithQueryResults.find('ProgressBar').length
-    ).toEqual(1);
-  });
-
   it('sets the column headers to the keys of the query results', () => {
     const queryResultKeys = keys(queryResult.rows[0]);
     const tableHeaderText = componentWithQueryResults.find('thead').text();

@@ -1,6 +1,10 @@
 .query-form {
   &__wrapper {
     padding: $base;
+
+    h1 {
+      margin-bottom: 19px;
+    }
   }
 
   &__query-title,

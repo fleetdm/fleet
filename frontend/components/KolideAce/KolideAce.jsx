@@ -14,6 +14,7 @@ class KolideAce extends Component {
   static propTypes = {
     error: PropTypes.string,
     fontSize: PropTypes.number,
+    label: PropTypes.string,
     name: PropTypes.string,
     onChange: PropTypes.func,
     onLoad: PropTypes.func,
@@ -31,6 +32,18 @@ class KolideAce extends Component {
     wrapEnabled: false,
   };
 
+  renderLabel = () => {
+    const { error, label } = this.props;
+
+    const labelClassName = classnames(`${baseClass}__label`, {
+      [`${baseClass}__label--error`]: error,
+    });
+
+    return (
+      <p className={labelClassName}>{error || label}</p>
+    );
+  }
+
   render () {
     const {
       error,
@@ -44,6 +57,7 @@ class KolideAce extends Component {
       wrapEnabled,
       wrapperClassName,
     } = this.props;
+    const { renderLabel } = this;
 
     const wrapperClass = classnames(wrapperClassName, {
       [`${baseClass}__wrapper--error`]: error,
@@ -51,7 +65,7 @@ class KolideAce extends Component {
 
     return (
       <div className={wrapperClass}>
-        <div className={`${baseClass}__error-field`}>{error}</div>
+        {renderLabel()}
         <AceEditor
           enableBasicAutocompletion
           enableLiveAutocompletion
