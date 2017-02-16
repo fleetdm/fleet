@@ -96,6 +96,17 @@ type permissionError struct {
 	badArgs []invalidArgument
 }
 
+func newPermissionError(name, reason string) permissionError {
+	return permissionError{
+		badArgs: []invalidArgument{
+			invalidArgument{
+				name:   name,
+				reason: reason,
+			},
+		},
+	}
+}
+
 func (e permissionError) Error() string {
 	switch len(e.badArgs) {
 	case 0:

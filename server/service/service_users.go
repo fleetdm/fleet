@@ -125,7 +125,7 @@ func (svc service) modifyEmailAddress(ctx context.Context, user *kolide.User, em
 	if password != nil {
 		err := user.ValidatePassword(*password)
 		if err != nil {
-			return permissionError{message: "incorrect password"}
+			return newPermissionError("password", "incorrect password")
 		}
 	}
 	random, err := kolide.RandomText(svc.config.App.TokenKeySize)
