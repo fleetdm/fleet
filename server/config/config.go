@@ -16,10 +16,15 @@ const (
 
 // MysqlConfig defines configs related to MySQL
 type MysqlConfig struct {
-	Address  string
-	Username string
-	Password string
-	Database string
+	Address    string
+	Username   string
+	Password   string
+	Database   string
+	Cert       string
+	Key        string
+	CA         string
+	ServerName string
+	TLSConfig  string //tls=customValue in DSN
 }
 
 // RedisConfig defines configs related to Redis
@@ -98,6 +103,16 @@ func (man Manager) addConfigs() {
 		"MySQL server password (prefer env variable for security)")
 	man.addConfigString("mysql.database", "kolide",
 		"MySQL database name")
+	man.addConfigString("mysql.tls_certificate", "",
+		"MySQL TLS client certificate")
+	man.addConfigString("mysql.tls_key", "",
+		"MySQL TLS client key")
+	man.addConfigString("mysql.tls_ca", "",
+		"MySQL TLS server CA")
+	man.addConfigString("mysql.tls_server_name", "",
+		"MySQL TLS client key")
+	man.addConfigString("mysql.tls_config", "",
+		"MySQL TLS config value. Use skip-verify, true, false or custom key.")
 
 	// Redis
 	man.addConfigString("redis.address", "localhost:6379",
@@ -163,10 +178,15 @@ func (man Manager) LoadConfig() KolideConfig {
 
 	return KolideConfig{
 		Mysql: MysqlConfig{
-			Address:  man.getConfigString("mysql.address"),
-			Username: man.getConfigString("mysql.username"),
-			Password: man.getConfigString("mysql.password"),
-			Database: man.getConfigString("mysql.database"),
+			Address:    man.getConfigString("mysql.address"),
+			Username:   man.getConfigString("mysql.username"),
+			Password:   man.getConfigString("mysql.password"),
+			Database:   man.getConfigString("mysql.database"),
+			Cert:       man.getConfigString("mysql.tls_certificate"),
+			Key:        man.getConfigString("mysql.tls_key"),
+			CA:         man.getConfigString("mysql.tls_ca"),
+			ServerName: man.getConfigString("mysql.tls_server_name"),
+			TLSConfig:  man.getConfigString("mysql.tls_config"),
 		},
 		Redis: RedisConfig{
 			Address:  man.getConfigString("redis.address"),

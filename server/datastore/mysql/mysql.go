@@ -1,16 +1,21 @@
 package mysql
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"time"
 
 	"github.com/WatchBeam/clock"
 	"github.com/go-kit/kit/log"
+	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/kolide/kolide/server/config"
 	"github.com/kolide/kolide/server/datastore/mysql/migrations/data"
 	"github.com/kolide/kolide/server/datastore/mysql/migrations/tables"
 	"github.com/kolide/kolide/server/kolide"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -37,7 +42,15 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		setOpt(options)
 	}
 
-	db, err := sqlx.Open("mysql", generateMysqlConnectionString(config))
+	if config.TLSConfig != "" {
+		err := registerTLS(config)
+		if err != nil {
+			return nil, errors.Wrap(err, "register TLS config for mysql")
+		}
+	}
+
+	dsn := generateMysqlConnectionString(config)
+	db, err := sqlx.Open("mysql", dsn)
 	if err != nil {
 		return nil, err
 	}
@@ -171,14 +184,49 @@ func appendListOptionsToSQL(sql string, opts kolide.ListOptions) string {
 	return sql
 }
 
+// registerTLS adds client certificate configuration to the mysql connection.
+func registerTLS(config config.MysqlConfig) error {
+	rootCertPool := x509.NewCertPool()
+	pem, err := ioutil.ReadFile(config.CA)
+	if err != nil {
+		return errors.Wrap(err, "read server-ca pem")
+	}
+	if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
+		return errors.New("failed to append PEM.")
+	}
+	clientCert := make([]tls.Certificate, 0, 1)
+	certs, err := tls.LoadX509KeyPair(config.Cert, config.Key)
+	if err != nil {
+		return errors.Wrap(err, "load mysql client cert and key")
+	}
+	clientCert = append(clientCert, certs)
+	cfg := tls.Config{
+		RootCAs:      rootCertPool,
+		Certificates: clientCert,
+	}
+	if config.ServerName != "" {
+		cfg.ServerName = config.ServerName
+	}
+	if err := mysql.RegisterTLSConfig(config.TLSConfig, &cfg); err != nil {
+		return errors.Wrap(err, "register mysql tls config")
+	}
+	return nil
+}
+
 // generateMysqlConnectionString returns a MySQL connection string using the
 // provided configuration.
 func generateMysqlConnectionString(conf config.MysqlConfig) string {
-	return fmt.Sprintf(
+	dsn := fmt.Sprintf(
 		"%s:%s@(%s)/%s?charset=utf8&parseTime=true&loc=UTC",
 		conf.Username,
 		conf.Password,
 		conf.Address,
 		conf.Database,
 	)
+
+	if conf.TLSConfig != "" {
+		dsn = fmt.Sprintf("%s&tls=%s", dsn, conf.TLSConfig)
+	}
+
+	return dsn
 }

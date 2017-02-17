@@ -159,6 +159,71 @@ The password to use when connecting to the MySQL instance.
 		password: kolide
 	```
 
+##### `mysql_tls_ca`
+
+The path to a PEM encoded certificate of MYSQL's CA for client certificate authentication.
+
+- Default value: none
+- Environment variable: `KOLIDE_MYSQL_TLS_CA`
+- Config file format:
+
+	```
+	mysql:
+		ca: /path/to/server-ca.pem
+	```
+
+##### `mysql_tls_certificate`
+
+The path to a PEM encoded certificate use for tls authentication.
+
+- Default value: none
+- Environment variable: `KOLIDE_MYSQL_TLS_CERTIFICATE`
+- Config file format:
+
+	```
+	mysql:
+		cert: /path/to/certificate.pem
+	```
+
+##### `mysql_tls_key`
+
+The path to a PEM encoded private key use for tls authentication.
+
+- Default value: none
+- Environment variable: `KOLIDE_MYSQL_TLS_KEY`
+- Config file format:
+
+	```
+	mysql:
+		key: /path/to/key.pem
+	```
+
+##### `mysql_tls_config`
+
+The tls value in a MYSQL DSN. Can be `true`,`false`,`skip-verify` or the CN value of the certificate.
+
+- Default value: none
+- Environment variable: `KOLIDE_MYSQL_TLS_CONFIG`
+- Config file format:
+
+	```
+	mysql:
+		tlsconfig: true
+	```
+
+##### `mysql_tls_server_name`
+
+The server name or IP address used by the client certificate.
+
+- Default value: none
+- Environment variable: `KOLIDE_MYSQL_TLS_SERVER_NAME`
+- Config file format:
+
+	```
+	mysql:
+		servername: 127.0.0.1
+	```
+
 #### Redis
 
 ##### `redis_address`
