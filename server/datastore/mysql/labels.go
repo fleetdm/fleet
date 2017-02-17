@@ -185,14 +185,13 @@ func (d *Datastore) ListUniqueHostsInLabels(labels []uint) ([]kolide.Host, error
 	}
 
 	sqlStatement := `
-		SELECT h.*
+		SELECT DISTINCT h.*
 		FROM label_query_executions lqe
 		JOIN hosts h
 		ON lqe.host_id = h.id
 		WHERE lqe.label_id IN (?)
 		AND lqe.matches = 1
 		AND NOT h.deleted
-		GROUP BY h.id;
 	`
 	query, args, err := sqlx.In(sqlStatement, labels)
 	if err != nil {

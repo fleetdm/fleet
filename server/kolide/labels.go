@@ -29,7 +29,13 @@ type LabelStore interface {
 	// LabelsForHost returns the labels that the given host is in.
 	ListLabelsForHost(hid uint) ([]Label, error)
 
+	// ListHostsInLabel returns a slice of hosts in the label with the
+	// given ID.
 	ListHostsInLabel(lid uint) ([]Host, error)
+
+	// ListUniqueHostsInLabels returns a slice of all of the hosts in the
+	// given label IDs. A host will only appear once in the results even if
+	// it is in multiple of the provided labels.
 	ListUniqueHostsInLabels(labels []uint) ([]Host, error)
 
 	SearchLabels(query string, omit ...uint) ([]Label, error)
