@@ -17,9 +17,11 @@ func setupMySQL(t *testing.T) (ds *mysql.Datastore, teardown func()) {
 		Username: "kolide",
 		Password: "kolide",
 		Database: "kolide",
-		Address:  "127.0.0.1:3306",
+		// When using docker-compose.yml for local testing
+		Address: "127.0.0.1:3307",
 	}
 
+	// When using Docker link on CI
 	if h, ok := os.LookupEnv("MYSQL_PORT_3306_TCP_ADDR"); ok {
 		config.Address = h + ":3306"
 	}

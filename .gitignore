@@ -21,3 +21,6 @@ tmp/
 
 # operating system artifacts
 .DS_Store
+
+# test mysql server data
+mysqldata/
