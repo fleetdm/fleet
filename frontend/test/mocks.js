@@ -337,6 +337,21 @@ export const validGetScheduledQueriesRequest = (bearerToken, pack) => {
     .reply(200, { scheduled: [scheduledQueryStub] });
 };
 
+export const validUpdateScheduledQueriesRequest = (bearerToken, scheduledQuery, updatedAttrs) => {
+  return nock('http://localhost:8080', {
+    reqHeaders: {
+      Authorization: `Bearer ${bearerToken}`,
+    },
+  })
+    .patch(`/api/v1/kolide/schedule/${scheduledQuery.id}`, JSON.stringify(updatedAttrs))
+    .reply(200, {
+      scheduled: {
+        ...scheduledQuery,
+        ...updatedAttrs,
+      },
+    });
+};
+
 export const validLoginRequest = (bearerToken = 'abc123') => {
   return nock('http://localhost:8080')
   .post('/api/v1/kolide/login')
@@ -541,6 +556,7 @@ export default {
   validUpdateLabelRequest,
   validUpdatePackRequest,
   validUpdateQueryRequest,
+  validUpdateScheduledQueriesRequest,
   validUpdateUserRequest,
   validUser,
 };

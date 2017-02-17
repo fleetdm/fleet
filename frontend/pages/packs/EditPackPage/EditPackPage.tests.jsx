@@ -1,9 +1,10 @@
 import React from 'react';
 import expect, { spyOn, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
+import { noop } from 'lodash';
 
 import { connectedComponent, reduxMockStore } from 'test/helpers';
-import { packStub } from 'test/stubs';
+import { packStub, queryStub, scheduledQueryStub } from 'test/stubs';
 import ConnectedEditPackPage, { EditPackPage } from 'pages/packs/EditPackPage/EditPackPage';
 import hostActions from 'redux/nodes/entities/hosts/actions';
 import labelActions from 'redux/nodes/entities/labels/actions';
@@ -125,6 +126,49 @@ describe('EditPackPage - component', () => {
       pageNode.handlePackFormSubmit(updatedPack);
 
       expect(packActions.update).toHaveBeenCalledWith(packStub, updatedAttrs);
+    });
+  });
+
+  describe('updating a scheduled query', () => {
+    const scheduledQuery = { ...scheduledQueryStub, query_id: queryStub.id };
+    const defaultProps = {
+      allQueries: [queryStub],
+      dispatch: noop,
+      isEdit: true,
+      isLoadingPack: false,
+      isLoadingScheduledQueries: false,
+      pack: packStub,
+      packHosts: [],
+      packID: String(packStub.id),
+      packLabels: [],
+      scheduledQueries: [scheduledQuery],
+    };
+
+    it('de-selects the scheduledQuery when cancel is clicked', () => {
+      const Form = Page => Page.find('ConfigurePackQueryForm');
+      const Page = mount(<EditPackPage {...defaultProps} />).find('EditPackPage');
+      const QueryRow = Page
+        .find('ScheduledQueriesList')
+        .find('ClickableTableRow');
+
+      expect(Page.node.state.selectedScheduledQuery).toNotExist();
+
+      QueryRow.simulate('click');
+
+      expect(Page.node.state.selectedScheduledQuery)
+        .toEqual(scheduledQuery, 'Expected clicking a scheduled query row to set the scheduled query in component state');
+
+      const PageForm = Form(Page);
+
+      expect(PageForm.length)
+        .toEqual(1, 'Expected clicking a scheduled query row to render the ConfigurePackQueryForm component');
+
+      PageForm.find('.configure-pack-query-form__cancel-btn').simulate('click');
+
+      expect(Page.node.state.selectedScheduledQuery).toNotExist();
+
+      expect(Form(Page).length)
+        .toEqual(0, 'Expected clicking Cancel to remove the ConfigurePackQueryForm component');
     });
   });
 });

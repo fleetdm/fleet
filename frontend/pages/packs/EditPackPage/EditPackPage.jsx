@@ -43,6 +43,8 @@ export class EditPackPage extends Component {
     super(props);
 
     this.state = {
+      selectedQuery: null,
+      selectedScheduledQuery: null,
       targetsCount: 0,
     };
   }
@@ -118,10 +120,23 @@ export class EditPackPage extends Component {
     return false;
   }
 
-  onSelectQuery = (query) => {
+  onSelectQuery = (queryID) => {
     const { allQueries } = this.props;
-    const selectedQuery = find(allQueries, { id: Number(query) });
+    const selectedQuery = find(allQueries, { id: Number(queryID) });
     this.setState({ selectedQuery });
+
+    return false;
+  }
+
+  onSelectScheduledQuery = (scheduledQuery) => {
+    const { selectedScheduledQuery } = this.state;
+
+    if (isEqual(scheduledQuery, selectedScheduledQuery)) {
+      this.setState({ selectedScheduledQuery: null, selectedQuery: null });
+    } else {
+      this.onSelectQuery(scheduledQuery.query_id);
+      this.setState({ selectedScheduledQuery: scheduledQuery });
+    }
 
     return false;
   }
@@ -134,6 +149,22 @@ export class EditPackPage extends Component {
     }
 
     return dispatch(push(`/packs/${packID}/edit`));
+  }
+
+  onUpdateScheduledQuery = (formData) => {
+    const { dispatch } = this.props;
+    const { selectedScheduledQuery } = this.state;
+    const { update } = scheduledQueryActions;
+    const updatedAttrs = deepDifference(formData, selectedScheduledQuery);
+
+    dispatch(update(selectedScheduledQuery, updatedAttrs))
+      .then(() => {
+        this.setState({ selectedScheduledQuery: null, selectedQuery: null });
+        dispatch(renderFlash('success', 'Scheduled Query updated!'));
+      })
+      .catch(() => {
+        dispatch(renderFlash('error', 'Unable to update your Scheduled Query.'));
+      });
   }
 
   handlePackFormSubmit = (formData) => {
@@ -164,12 +195,12 @@ export class EditPackPage extends Component {
     const { dispatch, packID } = this.props;
     const scheduledQueryData = {
       ...formData,
-      snapshot: formData.logging_type === 'snapshot',
       pack_id: packID,
     };
 
     dispatch(create(scheduledQueryData))
       .then(() => {
+        this.setState({ selectedScheduledQuery: null, selectedQuery: null });
         dispatch(renderFlash('success', 'Query scheduled!'));
       })
       .catch(() => {
@@ -188,9 +219,11 @@ export class EditPackPage extends Component {
       onCancelEditPack,
       onFetchTargets,
       onSelectQuery,
+      onSelectScheduledQuery,
       onToggleEdit,
+      onUpdateScheduledQuery,
     } = this;
-    const { targetsCount, selectedQuery } = this.state;
+    const { targetsCount, selectedQuery, selectedScheduledQuery } = this.state;
     const {
       allQueries,
       isEdit,
@@ -225,14 +258,18 @@ export class EditPackPage extends Component {
           <ScheduledQueriesListWrapper
             onRemoveScheduledQueries={handleRemoveScheduledQueries}
             onScheduledQueryFormSubmit={handleScheduledQueryFormSubmit}
+            onSelectScheduledQuery={onSelectScheduledQuery}
             scheduledQueries={scheduledQueries}
           />
         </div>
         <ScheduleQuerySidePanel
           onConfigurePackQuerySubmit={handleConfigurePackQuerySubmit}
           allQueries={allQueries}
+          onFormCancel={onSelectScheduledQuery}
           onSelectQuery={onSelectQuery}
+          onUpdateScheduledQuery={onUpdateScheduledQuery}
           selectedQuery={selectedQuery}
+          selectedScheduledQuery={selectedScheduledQuery}
         />
       </div>
     );

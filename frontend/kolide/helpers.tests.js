@@ -1,7 +1,7 @@
 import expect from 'expect';
 import { omit } from 'lodash';
 
-import { configStub, licenseStub } from 'test/stubs';
+import { configStub, licenseStub, scheduledQueryStub } from 'test/stubs';
 import helpers from 'kolide/helpers';
 
 const label1 = { id: 1, target_type: 'labels' };
@@ -72,6 +72,69 @@ describe('Kolide API - helpers', () => {
         formatConfigDataForServer({ domain: 'https://kolide.co' })
       ).toEqual({
         smtp_settings: { domain: 'https://kolide.co' },
+      });
+    });
+  });
+
+  describe('#formatScheduledQueryForServer', () => {
+    const { formatScheduledQueryForServer } = helpers;
+    const scheduledQuery = {
+      ...scheduledQueryStub,
+      logging_type: 'snapshot',
+      pack_id: '3',
+      platform: 'all',
+      query_id: '1',
+      shard: '12',
+    };
+
+    it('sets the correct attributes for the server', () => {
+      expect(formatScheduledQueryForServer(scheduledQuery)).toEqual({
+        ...scheduledQueryStub,
+        pack_id: 3,
+        platform: '',
+        query_id: 1,
+        shard: 12,
+        snapshot: true,
+        removed: false,
+      });
+    });
+  });
+
+  describe('#formatScheduledQueryForClient', () => {
+    const { formatScheduledQueryForClient } = helpers;
+    const scheduledQuery = {
+      ...scheduledQueryStub,
+      platform: '',
+      snapshot: true,
+    };
+
+    it('sets the correct attributes for the server', () => {
+      expect(formatScheduledQueryForClient(scheduledQuery)).toEqual({
+        ...scheduledQueryStub,
+        logging_type: 'snapshot',
+        platform: 'all',
+      });
+    });
+
+    it('sets the logging_type attribute', () => {
+      expect(formatScheduledQueryForClient({ ...scheduledQueryStub, removed: true, snapshot: false })).toEqual({
+        ...scheduledQueryStub,
+        logging_type: 'differential',
+        removed: true,
+        snapshot: false,
+      });
+
+      expect(formatScheduledQueryForClient({ ...scheduledQueryStub, snapshot: true })).toEqual({
+        ...scheduledQueryStub,
+        logging_type: 'snapshot',
+        snapshot: true,
+      });
+
+      expect(formatScheduledQueryForClient({ ...scheduledQueryStub, snapshot: false, removed: false })).toEqual({
+        ...scheduledQueryStub,
+        logging_type: 'differential_ignore_removals',
+        removed: false,
+        snapshot: false,
       });
     });
   });

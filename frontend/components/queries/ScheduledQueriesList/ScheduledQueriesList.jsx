@@ -12,10 +12,11 @@ const baseClass = 'scheduled-queries-list';
 class ScheduledQueriesList extends Component {
   static propTypes = {
     isScheduledQueriesAvailable: PropTypes.bool,
-    onSelectAllQueries: PropTypes.func.isRequired,
+    onCheckAllQueries: PropTypes.func.isRequired,
+    onCheckQuery: PropTypes.func.isRequired,
     onSelectQuery: PropTypes.func.isRequired,
     scheduledQueries: PropTypes.arrayOf(queryInterface).isRequired,
-    selectedScheduledQueryIDs: PropTypes.arrayOf(PropTypes.number).isRequired,
+    checkedScheduledQueryIDs: PropTypes.arrayOf(PropTypes.number).isRequired,
   };
 
   constructor (props) {
@@ -25,23 +26,23 @@ class ScheduledQueriesList extends Component {
   }
 
   isChecked = (scheduledQuery) => {
-    const { selectedScheduledQueryIDs } = this.props;
+    const { checkedScheduledQueryIDs } = this.props;
     const { allQueriesSelected } = this.state;
 
     if (allQueriesSelected) {
       return true;
     }
 
-    return includes(selectedScheduledQueryIDs, scheduledQuery.id);
+    return includes(checkedScheduledQueryIDs, scheduledQuery.id);
   }
 
   handleSelectAllQueries = (shouldSelectAllQueries) => {
-    const { onSelectAllQueries } = this.props;
+    const { onCheckAllQueries } = this.props;
     const { allQueriesSelected } = this.state;
 
     this.setState({ allQueriesSelected: !allQueriesSelected });
 
-    return onSelectAllQueries(shouldSelectAllQueries);
+    return onCheckAllQueries(shouldSelectAllQueries);
   }
 
   renderHelpText = () => {
@@ -83,12 +84,12 @@ class ScheduledQueriesList extends Component {
   }
 
   render () {
-    const { onSelectQuery, scheduledQueries, selectedScheduledQueryIDs } = this.props;
+    const { onCheckQuery, onSelectQuery, scheduledQueries, checkedScheduledQueryIDs } = this.props;
     const { allQueriesSelected } = this.state;
     const { renderHelpText, handleSelectAllQueries } = this;
 
     const wrapperClassName = classnames(`${baseClass}__table`, {
-      [`${baseClass}__table--query-selected`]: size(selectedScheduledQueryIDs),
+      [`${baseClass}__table--query-selected`]: size(checkedScheduledQueryIDs),
     });
 
     return (
@@ -116,6 +117,7 @@ class ScheduledQueriesList extends Component {
                 <QueriesListItem
                   checked={this.isChecked(scheduledQuery)}
                   key={`scheduled-query-${scheduledQuery.id}`}
+                  onCheck={onCheckQuery}
                   onSelect={onSelectQuery}
                   scheduledQuery={scheduledQuery}
                 />

@@ -1,6 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 
 import Checkbox from 'components/forms/fields/Checkbox';
+import ClickableTableRow from 'components/ClickableTableRow';
 import Icon from 'components/icons/Icon';
 import PlatformIcon from 'components/icons/PlatformIcon';
 import { isEqual } from 'lodash';
@@ -10,6 +11,7 @@ class ScheduledQueriesListItem extends Component {
   static propTypes = {
     checked: PropTypes.bool,
     disabled: PropTypes.bool,
+    onCheck: PropTypes.func.isRequired,
     onSelect: PropTypes.func.isRequired,
     scheduledQuery: scheduledQueryInterface.isRequired,
   };
@@ -23,9 +25,15 @@ class ScheduledQueriesListItem extends Component {
   }
 
   onCheck = (value) => {
+    const { onCheck, scheduledQuery } = this.props;
+
+    return onCheck(value, scheduledQuery.id);
+  }
+
+  onSelect = () => {
     const { onSelect, scheduledQuery } = this.props;
 
-    return onSelect(value, scheduledQuery.id);
+    return onSelect(scheduledQuery);
   }
 
   loggingTypeString = () => {
@@ -55,12 +63,11 @@ class ScheduledQueriesListItem extends Component {
 
   render () {
     const { checked, disabled, scheduledQuery } = this.props;
-    const { onCheck, renderPlatformIcon } = this;
     const { id, name, interval, shard, version } = scheduledQuery;
-    const { loggingTypeString } = this;
+    const { loggingTypeString, onCheck, onSelect, renderPlatformIcon } = this;
 
     return (
-      <tr>
+      <ClickableTableRow onClick={onSelect}>
         <td>
           <Checkbox
             disabled={disabled}
@@ -75,7 +82,7 @@ class ScheduledQueriesListItem extends Component {
         <td>{version ? `${version}+` : 'Any'}</td>
         <td>{shard}</td>
         <td><Icon name={loggingTypeString()} /></td>
-      </tr>
+      </ClickableTableRow>
     );
   }
 }

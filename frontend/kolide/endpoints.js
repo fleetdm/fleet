@@ -21,7 +21,8 @@ export default {
   QUERIES: '/v1/kolide/queries',
   RESET_PASSWORD: '/v1/kolide/reset_password',
   RUN_QUERY: '/v1/kolide/queries/run',
-  SCHEDULED_QUERIES: (pack) => {
+  SCHEDULED_QUERIES: '/v1/kolide/schedule',
+  SCHEDULED_QUERY: (pack) => {
     return `/v1/kolide/packs/${pack.id}/scheduled`;
   },
   SETUP: '/v1/setup',

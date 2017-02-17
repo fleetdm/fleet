@@ -11,6 +11,7 @@ import {
   licenseStub,
   packStub,
   queryStub,
+  scheduledQueryStub,
   userStub,
 } from 'test/stubs';
 
@@ -56,6 +57,7 @@ const {
   validUpdateLabelRequest,
   validUpdatePackRequest,
   validUpdateQueryRequest,
+  validUpdateScheduledQueriesRequest,
   validUpdateUserRequest,
   validUser,
 } = mocks;
@@ -455,6 +457,75 @@ describe('Kolide - API client', () => {
     });
   });
 
+  describe('scheduledQueries', () => {
+    describe('#create', () => {
+      it('calls the appropriate endpoint with the correct parameters', (done) => {
+        const formData = {
+          interval: 60,
+          logging_type: 'differential',
+          pack_id: 1,
+          platform: 'darwin',
+          query_id: 2,
+          shard: 12,
+        };
+        const request = validCreateScheduledQueryRequest(bearerToken, formData);
+
+        Kolide.setBearerToken(bearerToken);
+        Kolide.scheduledQueries.create(formData)
+          .then(() => {
+            expect(request.isDone()).toEqual(true);
+            done();
+          })
+          .catch(done);
+      });
+    });
+
+    describe('#destroy', () => {
+      it('calls the appropriate endpoint with the correct parameters', (done) => {
+        const scheduledQuery = { id: 1 };
+        const request = validDestroyScheduledQueryRequest(bearerToken, scheduledQuery);
+
+        Kolide.setBearerToken(bearerToken);
+        Kolide.scheduledQueries.destroy(scheduledQuery)
+          .then(() => {
+            expect(request.isDone()).toEqual(true);
+            done();
+          })
+          .catch(done);
+      });
+    });
+
+    describe('#loadAll', () => {
+      it('calls the appropriate endpoint with the correct parameters', (done) => {
+        const pack = { id: 1 };
+        const request = validGetScheduledQueriesRequest(bearerToken, pack);
+
+        Kolide.setBearerToken(bearerToken);
+        Kolide.scheduledQueries.loadAll(pack)
+          .then(() => {
+            expect(request.isDone()).toEqual(true);
+            done();
+          })
+          .catch(done);
+      });
+    });
+
+    describe('#update', () => {
+      it('calls the appropriate endpoint with the correct parameters', (done) => {
+        const updatedAttrs = { interval: 200 };
+        const request = validUpdateScheduledQueriesRequest(bearerToken, scheduledQueryStub, updatedAttrs);
+
+        Kolide.setBearerToken(bearerToken);
+        Kolide.scheduledQueries.update(scheduledQueryStub, updatedAttrs)
+          .then(() => {
+            expect(request.isDone()).toEqual(true);
+            done();
+          })
+          .catch(done);
+      });
+    });
+  });
+
   describe('users', () => {
     describe('#changePassword', () => {
       it('calls the appropriate endpoint with the correct parameters', (done) => {
@@ -527,58 +598,6 @@ describe('Kolide - API client', () => {
 
       Kolide.setBearerToken(bearerToken);
       Kolide.getInvites()
-        .then(() => {
-          expect(request.isDone()).toEqual(true);
-          done();
-        })
-        .catch(done);
-    });
-  });
-
-  describe('#createScheduledQuery', () => {
-    it('calls the appropriate endpoint with the correct parameters', (done) => {
-      const formData = {
-        interval: 60,
-        logging_type: 'differential',
-        pack_id: 1,
-        platform: 'darwin',
-        query_id: 2,
-        shard: 12,
-      };
-      const request = validCreateScheduledQueryRequest(bearerToken, formData);
-
-      Kolide.setBearerToken(bearerToken);
-      Kolide.createScheduledQuery(formData)
-        .then(() => {
-          expect(request.isDone()).toEqual(true);
-          done();
-        })
-        .catch(done);
-    });
-  });
-
-  describe('#destroyScheduledQuery', () => {
-    it('calls the appropriate endpoint with the correct parameters', (done) => {
-      const scheduledQuery = { id: 1 };
-      const request = validDestroyScheduledQueryRequest(bearerToken, scheduledQuery);
-
-      Kolide.setBearerToken(bearerToken);
-      Kolide.destroyScheduledQuery(scheduledQuery)
-        .then(() => {
-          expect(request.isDone()).toEqual(true);
-          done();
-        })
-        .catch(done);
-    });
-  });
-
-  describe('#getScheduledQueries', () => {
-    it('calls the appropriate endpoint with the correct parameters', (done) => {
-      const pack = { id: 1 };
-      const request = validGetScheduledQueriesRequest(bearerToken, pack);
-
-      Kolide.setBearerToken(bearerToken);
-      Kolide.getScheduledQueries(pack)
         .then(() => {
           expect(request.isDone()).toEqual(true);
           done();

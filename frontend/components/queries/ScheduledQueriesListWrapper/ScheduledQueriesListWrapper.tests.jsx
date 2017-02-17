@@ -1,27 +1,28 @@
 import React from 'react';
 import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
+import { noop } from 'lodash';
 
-import { queryStub, scheduledQueryStub } from 'test/stubs';
+import { scheduledQueryStub } from 'test/stubs';
 import { fillInFormInput } from 'test/helpers';
 import ScheduledQueriesListWrapper from './index';
 
-const allQueries = [queryStub];
 const scheduledQueries = [
   scheduledQueryStub,
   { ...scheduledQueryStub, id: 100, name: 'mac hosts' },
 ];
+const defaultProps = {
+  onRemoveScheduledQueries: noop,
+  onScheduledQueryFormSubmit: noop,
+  onSelectScheduledQuery: noop,
+  scheduledQueries,
+};
 
 describe('ScheduledQueriesListWrapper - component', () => {
   afterEach(restoreSpies);
 
   it('renders the "Remove Query" button when queries have been selected', () => {
-    const component = mount(
-      <ScheduledQueriesListWrapper
-        allQueries={allQueries}
-        scheduledQueries={scheduledQueries}
-      />
-    );
+    const component = mount(<ScheduledQueriesListWrapper {...defaultProps} />);
 
     component.find('Checkbox').last().find('input').simulate('change');
 
@@ -34,15 +35,14 @@ describe('ScheduledQueriesListWrapper - component', () => {
 
   it('calls the onRemoveScheduledQueries prop', () => {
     const spy = createSpy();
-    const component = mount(
-      <ScheduledQueriesListWrapper
-        allQueries={allQueries}
-        onRemoveScheduledQueries={spy}
-        scheduledQueries={[scheduledQueryStub]}
-      />
-    );
+    const props = { ...defaultProps, onRemoveScheduledQueries: spy };
+    const component = mount(<ScheduledQueriesListWrapper {...props} />);
 
-    component.find('Checkbox').last().find('input').simulate('change');
+    component
+      .find('Checkbox')
+      .find({ name: `scheduled-query-checkbox-${scheduledQueryStub.id}` })
+      .find('input')
+      .simulate('change');
 
     const removeQueryBtn = component.find('Button').find({ children: ['Remove ', 'Query'] });
 
@@ -52,12 +52,7 @@ describe('ScheduledQueriesListWrapper - component', () => {
   });
 
   it('filters queries', () => {
-    const component = mount(
-      <ScheduledQueriesListWrapper
-        allQueries={allQueries}
-        scheduledQueries={scheduledQueries}
-      />
-    );
+    const component = mount(<ScheduledQueriesListWrapper {...defaultProps} />);
 
     const searchQueriesInput = component.find({ name: 'search-queries' });
     const QueriesList = component.find('ScheduledQueriesList');
@@ -71,20 +66,15 @@ describe('ScheduledQueriesListWrapper - component', () => {
 
   it('allows selecting all scheduled queries at once', () => {
     const allScheduledQueryIDs = scheduledQueries.map(sq => sq.id);
-    const component = mount(
-      <ScheduledQueriesListWrapper
-        allQueries={allQueries}
-        scheduledQueries={scheduledQueries}
-      />
-    );
+    const component = mount(<ScheduledQueriesListWrapper {...defaultProps} />);
     const selectAllCheckbox = component.find({ name: 'select-all-scheduled-queries' });
 
     selectAllCheckbox.simulate('change');
 
-    expect(component.state('selectedScheduledQueryIDs')).toEqual(allScheduledQueryIDs);
+    expect(component.state('checkedScheduledQueryIDs')).toEqual(allScheduledQueryIDs);
 
     selectAllCheckbox.simulate('change');
 
-    expect(component.state('selectedScheduledQueryIDs')).toEqual([]);
+    expect(component.state('checkedScheduledQueryIDs')).toEqual([]);
   });
 });

@@ -1,4 +1,4 @@
-import { flatMap, kebabCase, pick, size } from 'lodash';
+import { flatMap, kebabCase, omit, pick, size } from 'lodash';
 import md5 from 'js-md5';
 
 const ORG_INFO_ATTRS = ['org_name', 'org_logo_url'];
@@ -69,6 +69,61 @@ const parseLicense = (license) => {
   return { ...license, allowed_hosts: allowedHosts };
 };
 
+export const formatScheduledQueryForServer = (scheduledQuery) => {
+  const {
+    interval,
+    logging_type: loggingType,
+    pack_id: packID,
+    platform,
+    query_id: queryID,
+    shard,
+  } = scheduledQuery;
+  const result = omit(scheduledQuery, ['logging_type']);
+
+  if (platform === 'all') {
+    result.platform = '';
+  }
+
+  if (interval) {
+    result.interval = Number(interval);
+  }
+
+  if (loggingType) {
+    result.removed = loggingType === 'differential';
+    result.snapshot = loggingType === 'snapshot';
+  }
+
+  if (packID) {
+    result.pack_id = Number(packID);
+  }
+
+  if (queryID) {
+    result.query_id = Number(queryID);
+  }
+
+  if (shard) {
+    result.shard = Number(shard);
+  }
+
+  return result;
+};
+
+export const formatScheduledQueryForClient = (scheduledQuery) => {
+  if (scheduledQuery.platform === '') {
+    scheduledQuery.platform = 'all';
+  }
+
+  if (scheduledQuery.snapshot) {
+    scheduledQuery.logging_type = 'snapshot';
+  } else if (scheduledQuery.removed) {
+    scheduledQuery.logging_type = 'differential';
+  } else {
+    scheduledQuery.logging_type = 'differential_ignore_removals';
+  }
+
+  return scheduledQuery;
+};
+
 const setupData = (formData) => {
   const orgInfo = pick(formData, ORG_INFO_ATTRS);
   const adminInfo = pick(formData, ADMIN_ATTRS);
@@ -88,6 +143,8 @@ const setupData = (formData) => {
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
+  formatScheduledQueryForClient,
+  formatScheduledQueryForServer,
   formatSelectedTargetsForApi,
   labelSlug,
   parseLicense,

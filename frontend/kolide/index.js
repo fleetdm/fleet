@@ -177,6 +177,50 @@ class Kolide extends Base {
     },
   }
 
+  scheduledQueries = {
+    create: (formData) => {
+      const { SCHEDULED_QUERIES } = endpoints;
+      const { interval, logging_type: loggingType, pack_id: packID, platform, query_id: queryID, shard, version } = formData;
+      const removed = loggingType === 'differential';
+      const snapshot = loggingType === 'snapshot';
+
+      const params = {
+        interval: Number(interval),
+        pack_id: Number(packID),
+        platform,
+        query_id: Number(queryID),
+        removed,
+        snapshot,
+        shard: Number(shard),
+        version,
+      };
+
+      return this.authenticatedPost(this.endpoint(SCHEDULED_QUERIES), JSON.stringify(params))
+        .then(response => response.scheduled);
+    },
+    destroy: ({ id }) => {
+      const { SCHEDULED_QUERIES } = endpoints;
+      const endpoint = `${this.endpoint(SCHEDULED_QUERIES)}/${id}`;
+
+      return this.authenticatedDelete(endpoint);
+    },
+    loadAll: (pack) => {
+      const { SCHEDULED_QUERY } = endpoints;
+      const scheduledQueryPath = SCHEDULED_QUERY(pack);
+
+      return this.authenticatedGet(this.endpoint(scheduledQueryPath))
+        .then(response => response.scheduled);
+    },
+    update: (scheduledQuery, updatedAttributes) => {
+      const { SCHEDULED_QUERIES } = endpoints;
+      const endpoint = this.endpoint(`${SCHEDULED_QUERIES}/${scheduledQuery.id}`);
+      const params = helpers.formatScheduledQueryForServer(updatedAttributes);
+
+      return this.authenticatedPatch(endpoint, JSON.stringify(params))
+        .then(response => response.scheduled);
+    },
+  }
+
   users = {
     changePassword: (passwordParams) => {
       const { CHANGE_PASSWORD } = endpoints;
@@ -236,25 +280,6 @@ class Kolide extends Base {
       .then((response) => { return response.query; });
   }
 
-  createScheduledQuery = ({ interval, logging_type: loggingType, pack_id: packID, platform, query_id: queryID, shard, version }) => {
-    const removed = loggingType === 'differential';
-    const snapshot = loggingType === 'snapshot';
-
-    const formData = {
-      interval: Number(interval),
-      pack_id: Number(packID),
-      platform,
-      query_id: Number(queryID),
-      removed,
-      snapshot,
-      shard: Number(shard),
-      version,
-    };
-
-    return this.authenticatedPost(this.endpoint('/v1/kolide/schedule'), JSON.stringify(formData))
-      .then(response => response.scheduled);
-  }
-
   destroyQuery = ({ id }) => {
     const { QUERIES } = endpoints;
     const endpoint = `${this.endpoint(QUERIES)}/${id}`;
@@ -265,12 +290,6 @@ class Kolide extends Base {
   destroyPack = ({ id }) => {
     const { PACKS } = endpoints;
     const endpoint = `${this.endpoint(PACKS)}/${id}`;
-
-    return this.authenticatedDelete(endpoint);
-  }
-
-  destroyScheduledQuery = ({ id }) => {
-    const endpoint = `${this.endpoint('/v1/kolide/schedule')}/${id}`;
 
     return this.authenticatedDelete(endpoint);
   }
@@ -395,14 +414,6 @@ class Kolide extends Base {
 
     return this.authenticatedGet(this.endpoint(PACKS))
       .then((response) => { return response.packs; });
-  }
-
-  getScheduledQueries = (pack) => {
-    const { SCHEDULED_QUERIES } = endpoints;
-    const scheduledQueryPath = SCHEDULED_QUERIES(pack);
-
-    return this.authenticatedGet(this.endpoint(scheduledQueryPath))
-      .then(response => response.scheduled);
   }
 
   getUsers = () => {

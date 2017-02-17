@@ -40,6 +40,9 @@ class ConfigurePackQueryForm extends Component {
       platform: formFieldInterface.isRequired,
       version: formFieldInterface.isRequired,
     }).isRequired,
+    formData: PropTypes.shape({
+      id: PropTypes.number,
+    }),
     handleSubmit: PropTypes.func,
     onCancel: PropTypes.func,
   };
@@ -47,14 +50,29 @@ class ConfigurePackQueryForm extends Component {
   onCancel = (evt) => {
     evt.preventDefault();
 
-    const { onCancel: handleCancel } = this.props;
+    const { formData, onCancel: handleCancel } = this.props;
 
-    return handleCancel();
+    return handleCancel(formData);
+  }
+
+  renderCancelButton = () => {
+    const { formData } = this.props;
+    const { onCancel } = this;
+
+    if (!formData.id) {
+      return false;
+    }
+
+    return (
+      <Button className={`${baseClass}__cancel-btn`} onClick={onCancel} variant="inverse">
+        Cancel
+      </Button>
+    );
   }
 
   render () {
     const { fields, handleSubmit } = this.props;
-    const { onCancel } = this;
+    const { renderCancelButton } = this;
 
     return (
       <form className={baseClass} onSubmit={handleSubmit}>
@@ -98,9 +116,7 @@ class ConfigurePackQueryForm extends Component {
             type="number"
           />
           <div className={`${baseClass}__btn-wrapper`}>
-            <Button className={`${baseClass}__cancel-btn`} onClick={onCancel} variant="inverse">
-              Cancel
-            </Button>
+            {renderCancelButton()}
             <Button className={`${baseClass}__submit-btn`} type="submit" variant="brand">
               Save
             </Button>
