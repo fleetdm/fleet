@@ -62,7 +62,7 @@ class ScheduledQueriesSection extends Component {
             return (
               <li key={`scheduled-query-${scheduledQuery.id}`}>
                 <Icon className={`${baseClass}__query-icon`} name="query" />
-                <Link to={`/queries/${scheduledQuery.id}`} className={`${baseClass}__query-name`}>{scheduledQuery.name}</Link>
+                <Link to={`/queries/${scheduledQuery.query_id}`} className={`${baseClass}__query-name`}>{scheduledQuery.name}</Link>
               </li>
             );
           })}
