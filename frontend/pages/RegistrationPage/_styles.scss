@@ -4,6 +4,7 @@
   @include flex-direction(column);
   min-height: calc(100vh - #{$footer-height});
   position: relative;
+  overflow-x: hidden;
 
   &__logo {
     @include position(absolute, 15px null null 15px);
