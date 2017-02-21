@@ -93,30 +93,7 @@ class Kolide extends Base {
       const { LABELS } = endpoints;
 
       return this.authenticatedGet(this.endpoint(LABELS))
-        .then((response) => {
-          const labelTypeForDisplayText = {
-            'All Hosts': 'all',
-            'MS Windows': 'platform',
-            'CentOS Linux': 'platform',
-            'Mac OS X': 'platform',
-            'Ubuntu Linux': 'platform',
-          };
-          const labels = response.labels.map((label) => {
-            return {
-              ...label,
-              slug: helpers.labelSlug(label),
-              type: labelTypeForDisplayText[label.display_text] || 'custom',
-            };
-          });
-          const stubbedLabels = [
-            { id: 'new', display_text: 'NEW', description: '(added in last 24hrs)', slug: 'recently_added', type: 'status', count: 0, statusLabelKey: 'new_count' },
-            { id: 'online', display_text: 'ONLINE', slug: 'online', type: 'status', count: 0, statusLabelKey: 'online_count' },
-            { id: 'offline', display_text: 'OFFLINE', slug: 'offline', type: 'status', count: 0, statusLabelKey: 'offline_count' },
-            { id: 'mia', display_text: 'MIA', description: '(offline > 30 days)', slug: 'mia', type: 'status', count: 0, statusLabelKey: 'mia_count' },
-          ];
-
-          return labels.concat(stubbedLabels);
-        });
+        .then(response => helpers.formatLabelResponse(response));
     },
     update: (label, updateAttrs) => {
       const { LABELS } = endpoints;

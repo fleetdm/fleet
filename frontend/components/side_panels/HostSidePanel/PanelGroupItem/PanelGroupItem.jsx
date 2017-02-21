@@ -12,7 +12,7 @@ class PanelGroupItem extends Component {
   static propTypes = {
     item: PropTypes.shape({
       count: PropTypes.number,
-      description: PropTypes.string,
+      title_description: PropTypes.string,
       display_text: PropTypes.string,
       type: PropTypes.string,
     }).isRequired,
@@ -48,13 +48,13 @@ class PanelGroupItem extends Component {
 
   renderDescription = () => {
     const { item } = this.props;
-    const { description, type } = item;
+    const { title_description: titleDescription, type } = item;
 
-    if (!description || type === 'custom') {
+    if (!titleDescription || type === 'custom') {
       return false;
     }
 
-    return <span className={`${baseClass}__description`}>{description}</span>;
+    return <span className={`${baseClass}__description`}>{titleDescription}</span>;
   }
 
   render () {

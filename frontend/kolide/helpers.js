@@ -26,6 +26,46 @@ const labelSlug = (label) => {
   return kebabCase(lowerDisplayText);
 };
 
+const labelStubs = [
+  {
+    id: 'new',
+    count: 0,
+    display_text: 'NEW',
+    slug: 'recently_added',
+    statusLabelKey: 'new_count',
+    title_description: '(added in last 24hrs)',
+    type: 'status',
+  },
+  {
+    id: 'online',
+    count: 0,
+    description: 'Hosts that have recently checked-in to kolide and are ready to run queries.',
+    display_text: 'ONLINE',
+    slug: 'online',
+    statusLabelKey: 'online_count',
+    type: 'status',
+  },
+  {
+    id: 'offline',
+    count: 0,
+    description: 'Hosts that have not checked-in to kolide recently.',
+    display_text: 'OFFLINE',
+    slug: 'offline',
+    statusLabelKey: 'offline_count',
+    type: 'status',
+  },
+  {
+    id: 'mia',
+    count: 0,
+    description: 'Hosts that have not been seen by Kolide in more than 30 days.',
+    display_text: 'MIA',
+    slug: 'mia',
+    statusLabelKey: 'mia_count',
+    title_description: '(offline > 30 days)',
+    type: 'status',
+  },
+];
+
 const filterTarget = (targetType) => {
   return (target) => {
     return target.target_type === targetType ? [target.id] : [];
@@ -49,6 +89,26 @@ export const formatConfigDataForServer = (config) => {
     ...serverSettings,
     ...smtpSettings,
   };
+};
+
+const formatLabelResponse = (response) => {
+  const labelTypeForDisplayText = {
+    'All Hosts': 'all',
+    'MS Windows': 'platform',
+    'CentOS Linux': 'platform',
+    'Mac OS X': 'platform',
+    'Ubuntu Linux': 'platform',
+  };
+
+  const labels = response.labels.map((label) => {
+    return {
+      ...label,
+      slug: labelSlug(label),
+      type: labelTypeForDisplayText[label.display_text] || 'custom',
+    };
+  });
+
+  return labels.concat(labelStubs);
 };
 
 export const formatSelectedTargetsForApi = (selectedTargets, appendID = false) => {
@@ -143,6 +203,7 @@ const setupData = (formData) => {
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
+  formatLabelResponse,
   formatScheduledQueryForClient,
   formatScheduledQueryForServer,
   formatSelectedTargetsForApi,

@@ -443,25 +443,20 @@ export class ManageHostsPage extends Component {
 
     const hostCount = type === 'status' ? statusLabels[`${statusLabelKey}`] : count;
     const hostsTotalDisplay = hostCount === 1 ? '1 Host Total' : `${hostCount} Hosts Total`;
+    const defaultDescription = 'No description available.';
 
     return (
       <div className={`${baseClass}__header`}>
         {renderDeleteButton()}
-
         <h1 className={`${baseClass}__title`}>
           {renderIcon()}
           <span>{displayText}</span>
         </h1>
-
-        { renderQuery() }
-
-        {description &&
-          <div className={`${baseClass}__description`}>
-            <h2>Description</h2>
-            <p>{description}</p>
-          </div>
-        }
-
+        {renderQuery()}
+        <div className={`${baseClass}__description`}>
+          <h2>Description</h2>
+          <p>{description || <em>{defaultDescription}</em>}</p>
+        </div>
         <div className={`${baseClass}__topper`}>
           <p className={`${baseClass}__host-count`}>{hostsTotalDisplay}</p>
           <Rocker

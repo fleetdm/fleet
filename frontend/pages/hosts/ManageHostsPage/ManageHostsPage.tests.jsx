@@ -224,6 +224,37 @@ describe('ManageHostsPage - component', () => {
         selectedLabel: windowsLabel,
       });
     });
+
+    it('Renders the default description if the selected label does not have a description', () => {
+      const defaultDescription = 'No description available.';
+      const noDescriptionLabel = { ...allHostsLabel, description: undefined };
+      const pageProps = {
+        ...props,
+        selectedLabel: noDescriptionLabel,
+      };
+
+      const Page = mount(<ManageHostsPage {...pageProps} />);
+
+      expect(Page.find('.manage-hosts__header').text())
+        .toInclude(defaultDescription);
+    });
+
+    it('Renders the label description if the selected label has a description', () => {
+      const defaultDescription = 'No description available.';
+      const labelDescription = 'This is the label description';
+      const noDescriptionLabel = { ...allHostsLabel, description: labelDescription };
+      const pageProps = {
+        ...props,
+        selectedLabel: noDescriptionLabel,
+      };
+
+      const Page = mount(<ManageHostsPage {...pageProps} />);
+
+      expect(Page.find('.manage-hosts__header').text())
+        .toInclude(labelDescription);
+      expect(Page.find('.manage-hosts__header').text())
+        .toNotInclude(defaultDescription);
+    });
   });
 
   describe('Edit a label', () => {
