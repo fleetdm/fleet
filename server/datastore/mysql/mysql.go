@@ -187,7 +187,7 @@ func appendListOptionsToSQL(sql string, opts kolide.ListOptions) string {
 // registerTLS adds client certificate configuration to the mysql connection.
 func registerTLS(config config.MysqlConfig) error {
 	rootCertPool := x509.NewCertPool()
-	pem, err := ioutil.ReadFile(config.CA)
+	pem, err := ioutil.ReadFile(config.TLSCA)
 	if err != nil {
 		return errors.Wrap(err, "read server-ca pem")
 	}
@@ -195,7 +195,7 @@ func registerTLS(config config.MysqlConfig) error {
 		return errors.New("failed to append PEM.")
 	}
 	clientCert := make([]tls.Certificate, 0, 1)
-	certs, err := tls.LoadX509KeyPair(config.Cert, config.Key)
+	certs, err := tls.LoadX509KeyPair(config.TLSCert, config.TLSKey)
 	if err != nil {
 		return errors.Wrap(err, "load mysql client cert and key")
 	}
@@ -204,8 +204,8 @@ func registerTLS(config config.MysqlConfig) error {
 		RootCAs:      rootCertPool,
 		Certificates: clientCert,
 	}
-	if config.ServerName != "" {
-		cfg.ServerName = config.ServerName
+	if config.TLSServerName != "" {
+		cfg.ServerName = config.TLSServerName
 	}
 	if err := mysql.RegisterTLSConfig(config.TLSConfig, &cfg); err != nil {
 		return errors.Wrap(err, "register mysql tls config")

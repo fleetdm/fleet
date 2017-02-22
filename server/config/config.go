@@ -16,15 +16,15 @@ const (
 
 // MysqlConfig defines configs related to MySQL
 type MysqlConfig struct {
-	Address    string
-	Username   string
-	Password   string
-	Database   string
-	Cert       string
-	Key        string
-	CA         string
-	ServerName string
-	TLSConfig  string //tls=customValue in DSN
+	Address       string
+	Username      string
+	Password      string
+	Database      string
+	TLSCert       string `yaml:"tls_cert"`
+	TLSKey        string `yaml:"tls_key"`
+	TLSCA         string `yaml:"tls_ca"`
+	TLSServerName string `yaml:"tls_server_name"`
+	TLSConfig     string `yaml:"tls_config"` //tls=customValue in DSN
 }
 
 // RedisConfig defines configs related to Redis
@@ -43,37 +43,37 @@ type ServerConfig struct {
 
 // AuthConfig defines configs related to user authorization
 type AuthConfig struct {
-	JwtKey      string
-	BcryptCost  int
-	SaltKeySize int
+	JwtKey      string `yaml:"jwt_key"`
+	BcryptCost  int    `yaml:"bcrypt_cost"`
+	SaltKeySize int    `yaml:"salt_key_size"`
 }
 
 // AppConfig defines configs related to HTTP
 type AppConfig struct {
-	TokenKeySize              int
-	TokenKey                  string
-	InviteTokenValidityPeriod time.Duration
+	TokenKeySize              int           `yaml:"token_key_size"`
+	TokenKey                  string        `yaml:"token_key"`
+	InviteTokenValidityPeriod time.Duration `yaml:"invite_token_validity_period"`
 }
 
 // SessionConfig defines configs related to user sessions
 type SessionConfig struct {
-	KeySize  int
+	KeySize  int `yaml:"key_size"`
 	Duration time.Duration
 }
 
 // OsqueryConfig defines configs related to osquery
 type OsqueryConfig struct {
-	NodeKeySize         int
-	StatusLogFile       string
-	ResultLogFile       string
-	LabelUpdateInterval time.Duration
+	NodeKeySize         int           `yaml:"node_key_size"`
+	StatusLogFile       string        `yaml:"status_log_file"`
+	ResultLogFile       string        `yaml:"result_log_file"`
+	LabelUpdateInterval time.Duration `yaml:"label_update_interval"`
 }
 
 // LoggingConfig defines configs related to logging
 type LoggingConfig struct {
 	Debug         bool
 	JSON          bool
-	DisableBanner bool
+	DisableBanner bool `yaml:"disable_banner"`
 }
 
 // KolideConfig stores the application configuration. Each subcategory is
@@ -103,14 +103,14 @@ func (man Manager) addConfigs() {
 		"MySQL server password (prefer env variable for security)")
 	man.addConfigString("mysql.database", "kolide",
 		"MySQL database name")
-	man.addConfigString("mysql.tls_certificate", "",
-		"MySQL TLS client certificate")
+	man.addConfigString("mysql.tls_cert", "",
+		"MySQL TLS client certificate path")
 	man.addConfigString("mysql.tls_key", "",
-		"MySQL TLS client key")
+		"MySQL TLS client key path")
 	man.addConfigString("mysql.tls_ca", "",
 		"MySQL TLS server CA")
 	man.addConfigString("mysql.tls_server_name", "",
-		"MySQL TLS client key")
+		"MySQL TLS server name")
 	man.addConfigString("mysql.tls_config", "",
 		"MySQL TLS config value. Use skip-verify, true, false or custom key.")
 
@@ -178,15 +178,15 @@ func (man Manager) LoadConfig() KolideConfig {
 
 	return KolideConfig{
 		Mysql: MysqlConfig{
-			Address:    man.getConfigString("mysql.address"),
-			Username:   man.getConfigString("mysql.username"),
-			Password:   man.getConfigString("mysql.password"),
-			Database:   man.getConfigString("mysql.database"),
-			Cert:       man.getConfigString("mysql.tls_certificate"),
-			Key:        man.getConfigString("mysql.tls_key"),
-			CA:         man.getConfigString("mysql.tls_ca"),
-			ServerName: man.getConfigString("mysql.tls_server_name"),
-			TLSConfig:  man.getConfigString("mysql.tls_config"),
+			Address:       man.getConfigString("mysql.address"),
+			Username:      man.getConfigString("mysql.username"),
+			Password:      man.getConfigString("mysql.password"),
+			Database:      man.getConfigString("mysql.database"),
+			TLSCert:       man.getConfigString("mysql.tls_cert"),
+			TLSKey:        man.getConfigString("mysql.tls_key"),
+			TLSCA:         man.getConfigString("mysql.tls_ca"),
+			TLSServerName: man.getConfigString("mysql.tls_server_name"),
+			TLSConfig:     man.getConfigString("mysql.tls_config"),
 		},
 		Redis: RedisConfig{
 			Address:  man.getConfigString("redis.address"),
