@@ -24,6 +24,15 @@ describe('ScheduledQueriesListItem - component', () => {
     expect(component.find('PlatformIcon').length).toEqual(1);
   });
 
+  it('renders when the platform attribute is null', () => {
+    const scheduledQuery = { ...scheduledQueryStub, platform: null };
+    const component = mount(<ScheduledQueriesListItem checked={false} onSelect={noop} scheduledQuery={scheduledQuery} />);
+    expect(component.text()).toInclude(scheduledQueryStub.name);
+    expect(component.text()).toInclude(scheduledQueryStub.interval);
+    expect(component.text()).toInclude(scheduledQueryStub.shard);
+    expect(component.find('PlatformIcon').length).toEqual(1);
+  });
+
   it('renders a Checkbox component', () => {
     const component = mount(<ScheduledQueriesListItem {...defaultProps} />);
     expect(component.find('Checkbox').length).toEqual(1);
