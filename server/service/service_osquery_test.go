@@ -477,6 +477,7 @@ func TestDetailQueries(t *testing.T) {
 ],
 "kolide_detail_query_os_version": [
     {
+        "platform": "darwin",
         "build": "15G1004",
         "major": "10",
         "minor": "10",

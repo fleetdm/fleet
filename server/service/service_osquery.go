@@ -195,7 +195,6 @@ var detailQueries = map[string]struct {
 				return nil
 			}
 
-			host.Platform = rows[0]["build_platform"]
 			host.OsqueryVersion = rows[0]["version"]
 
 			return nil
@@ -258,6 +257,7 @@ var detailQueries = map[string]struct {
 				host.Build = build
 			}
 
+			host.Platform = rows[0]["platform"]
 			host.PlatformLike = rows[0]["platform_like"]
 			host.CodeName = rows[0]["code_name"]
 			return nil
