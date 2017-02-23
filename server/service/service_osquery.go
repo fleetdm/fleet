@@ -80,7 +80,13 @@ func (svc service) GetClientConfig(ctx context.Context) (*kolide.OsqueryConfig, 
 
 	config := &kolide.OsqueryConfig{
 		Options: options,
-		Packs:   kolide.Packs{},
+		Decorators: kolide.Decorators{
+			Load: []string{
+				"SELECT uuid AS host_uuid FROM system_info;",
+				"SELECT hostname AS hostname FROM system_info;",
+			},
+		},
+		Packs: kolide.Packs{},
 	}
 
 	packs, err := svc.ListPacksForHost(ctx, host.ID)
