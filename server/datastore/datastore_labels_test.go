@@ -298,7 +298,7 @@ func testListHostsInLabel(t *testing.T, db kolide.Datastore) {
 func testBuiltInLabels(t *testing.T, db kolide.Datastore) {
 	require.Nil(t, db.MigrateData())
 
-	hits, err := db.SearchLabels("Mac OS X")
+	hits, err := db.SearchLabels("macOS")
 	require.Nil(t, err)
 	// Should get Mac OS X and All Hosts
 	assert.Equal(t, 2, len(hits))

@@ -96,7 +96,7 @@ const formatLabelResponse = (response) => {
     'All Hosts': 'all',
     'MS Windows': 'platform',
     'CentOS Linux': 'platform',
-    'Mac OS X': 'platform',
+    macOS: 'platform',
     'Ubuntu Linux': 'platform',
   };
 

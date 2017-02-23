@@ -7,10 +7,14 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20161229171615, Down_20161229171615)
+	MigrationClient.AddMigration(Up_20170223171234, Down_20170223171234)
 }
 
-func Up_20161229171615(tx *sql.Tx) error {
+func Up_20170223171234(tx *sql.Tx) error {
+	// Remove the old labels
+	Down_20161229171615(tx)
+
+	// Insert the new labels
 	sql := `
 		INSERT INTO labels (
 			name,
@@ -21,7 +25,7 @@ func Up_20161229171615(tx *sql.Tx) error {
 		) VALUES (?, ?, ?, ?, ?)
 `
 
-	for _, label := range appstate.Labels1() {
+	for _, label := range appstate.Labels2() {
 		_, err := tx.Exec(sql, label.Name, label.Description, label.Query, label.Platform, label.LabelType)
 		if err != nil {
 			return err
@@ -31,18 +35,22 @@ func Up_20161229171615(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20161229171615(tx *sql.Tx) error {
+func Down_20170223171234(tx *sql.Tx) error {
+	// Remove the new labels
 	sql := `
 		DELETE FROM labels
-		WHERE name = ? AND label_type = ? AND query = ?
+		WHERE name = ? AND label_type = ? AND QUERY = ?
 `
 
-	for _, label := range appstate.Labels1() {
+	for _, label := range appstate.Labels2() {
 		_, err := tx.Exec(sql, label.Name, label.LabelType, label.Query)
 		if err != nil {
 			return err
 		}
 	}
+
+	// Insert the old labels
+	Up_20161229171615(tx)
 
 	return nil
 }

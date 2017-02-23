@@ -265,7 +265,7 @@ func (d *Datastore) createDevPacksAndQueries() error {
 }
 
 func (d *Datastore) createBuiltinLabels() error {
-	for _, label := range appstate.Labels() {
+	for _, label := range appstate.Labels2() {
 		label := label
 		_, err := d.NewLabel(&label)
 		if err != nil {
@@ -393,7 +393,7 @@ func (d *Datastore) createDevQueries() error {
 				},
 			},
 			Name:  "dev_query_5",
-			Query: "select 1 from osquery_info where build_platform='darwin'",
+			Query: "select 1 from osquery_info where platform='darwin'",
 		},
 	}
 
@@ -506,7 +506,7 @@ func (d *Datastore) createDevLabels() error {
 			},
 
 			Name:  "dev_label_darwin",
-			Query: "select * from osquery_info where build_platform='darwin'",
+			Query: "select * from osquery_info where platform='darwin'",
 		},
 	}
 
