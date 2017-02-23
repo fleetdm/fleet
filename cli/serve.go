@@ -14,7 +14,7 @@ import (
 	"github.com/kolide/kolide/server/config"
 	"github.com/kolide/kolide/server/datastore/mysql"
 	"github.com/kolide/kolide/server/kolide"
-	license "github.com/kolide/kolide/server/license-checker"
+	"github.com/kolide/kolide/server/license"
 	"github.com/kolide/kolide/server/mail"
 	"github.com/kolide/kolide/server/pubsub"
 	"github.com/kolide/kolide/server/service"
