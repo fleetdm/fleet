@@ -216,7 +216,6 @@ export class ManageHostsPage extends Component {
       .then(() => {
         toggleDeleteLabelModal();
         dispatch(push(MANAGE_HOSTS));
-        dispatch(renderFlash('success', 'Label successfully deleted'));
         return false;
       });
   }

@@ -199,10 +199,6 @@ export class EditPackPage extends Component {
     };
 
     dispatch(create(scheduledQueryData))
-      .then(() => {
-        this.setState({ selectedScheduledQuery: null, selectedQuery: null });
-        dispatch(renderFlash('success', 'Query scheduled!'));
-      })
       .catch(() => {
         dispatch(renderFlash('error', 'Unable to schedule your query.'));
       });

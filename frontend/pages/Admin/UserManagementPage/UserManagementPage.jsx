@@ -143,8 +143,6 @@ export class UserManagementPage extends Component {
 
     dispatch(inviteActions.silentCreate(formData))
       .then(() => {
-        dispatch(renderFlash('success', 'User invited'));
-
         return this.toggleInviteUserModal();
       })
       .catch(() => false);
