@@ -60,22 +60,6 @@
     border-top: 1px solid $accent-light;
   }
 
-  &__more-columns {
-    @include flex-grow(1);
-    font-size: 14px;
-    font-weight: $light;
-    line-height: 1.43;
-    letter-spacing: 0.5px;
-    color: $text-medium;
-  }
-
-  &__show-columns {
-    color: $brand;
-    cursor: pointer;
-    font-size: 14px;
-    line-height: 1.43;
-  }
-
   &__suggestion {
     @include flex-grow(1);
     font-size: 14px;

@@ -9,10 +9,7 @@ import SecondarySidePanelContainer from '../SecondarySidePanelContainer';
 
 import {
   availability,
-  columnsToRender,
   displayTypeForDataType,
-  numAdditionalColumns,
-  shouldShowAllColumns,
 } from './helpers';
 
 const baseClass = 'query-side-panel';
@@ -24,35 +21,12 @@ class QuerySidePanel extends Component {
     selectedOsqueryTable: osqueryTableInterface,
   };
 
-  componentWillMount () {
-    const { selectedOsqueryTable } = this.props;
-    const showAllColumns = shouldShowAllColumns(selectedOsqueryTable);
-
-    this.setState({ showAllColumns });
-  }
-
-  componentWillReceiveProps (nextProps) {
-    const { selectedOsqueryTable } = nextProps;
-
-    if (this.props.selectedOsqueryTable !== selectedOsqueryTable) {
-      const showAllColumns = shouldShowAllColumns(selectedOsqueryTable);
-
-      this.setState({ showAllColumns });
-    }
-
-    return false;
-  }
-
   onSelectTable = (value) => {
     const { onOsqueryTableSelect } = this.props;
 
     onOsqueryTableSelect(value);
 
     return false;
-  }
-
-  onShowAllColumns = () => {
-    this.setState({ showAllColumns: true });
   }
 
   onSuggestedQueryClick = (query) => {
@@ -67,8 +41,7 @@ class QuerySidePanel extends Component {
 
   renderColumns = () => {
     const { selectedOsqueryTable } = this.props;
-    const { showAllColumns } = this.state;
-    const columns = columnsToRender(selectedOsqueryTable, showAllColumns);
+    const columns = selectedOsqueryTable.columns;
     const columnBaseClass = 'query-column-list';
 
     return columns.map((column) => {
@@ -82,23 +55,6 @@ class QuerySidePanel extends Component {
         </li>
       );
     });
-  }
-
-  renderMoreColumns = () => {
-    const { selectedOsqueryTable } = this.props;
-    const { showAllColumns } = this.state;
-    const { onShowAllColumns } = this;
-
-    if (showAllColumns) {
-      return false;
-    }
-
-    return (
-      <div className={`${baseClass}__column-wrapper`}>
-        <span className={`${baseClass}__more-columns`}>{numAdditionalColumns(selectedOsqueryTable)} MORE COLUMNS</span>
-        <button className={`button--unstyled ${baseClass}__show-columns`} onClick={onShowAllColumns}>SHOW</button>
-      </div>
-    );
   }
 
   renderTableSelect = () => {
@@ -122,7 +78,6 @@ class QuerySidePanel extends Component {
   render () {
     const {
       renderColumns,
-      renderMoreColumns,
       renderTableSelect,
     } = this;
     const { selectedOsqueryTable: { description, platform } } = this.props;
@@ -154,7 +109,6 @@ class QuerySidePanel extends Component {
           <ul className={`${baseClass}__column-list`}>
             {renderColumns()}
           </ul>
-          {renderMoreColumns()}
         </div>
       </SecondarySidePanelContainer>
     );

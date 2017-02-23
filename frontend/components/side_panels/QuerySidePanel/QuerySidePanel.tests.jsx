@@ -53,9 +53,4 @@ describe('QuerySidePanel - component', () => {
 
     expect(onOsqueryTableSelect).toHaveBeenCalledWith('groups');
   });
-
-  it('renders a CTA to show more columns', () => {
-    const component = mount(<QuerySidePanel {...props} />);
-    expect(component.text()).toContain('4 MORE COLUMNSSHOW');
-  });
 });

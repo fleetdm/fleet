@@ -9,9 +9,9 @@
   width: $sidepanel-width;
   margin-top: $pad-base;
   margin-left: $pad-base;
-  min-height: 100%;
   border-top-left-radius: 3px;
   padding-top: $pad-base;
+  min-height: calc(100vh - #{$pad-base} - #{$footer-height});
 
   @include breakpoint(smalldesk) {
     width: $sidepanel-tablet-width;

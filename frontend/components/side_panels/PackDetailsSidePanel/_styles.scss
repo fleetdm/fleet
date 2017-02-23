@@ -21,22 +21,6 @@
     display: block;
   }
 
-  &__more-queries-section {
-    @include display(flex);
-    @include justify-content(space-between);
-
-    color: $link;
-    font-size: 16px;
-    text-transform: uppercase;
-
-    button {
-      color: $link;
-      font-size: 16px;
-      font-weight: $normal;
-      text-transform: uppercase;
-    }
-  }
-
   &__pack-icon {
     color: $text-light;
     margin-right: 11px;
