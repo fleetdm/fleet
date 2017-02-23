@@ -130,7 +130,8 @@
 
   &__name,
   &__position {
-    @include ellipsis(170px);
+    @include ellipsis(150px);
+    width: 150px;
     margin: 0;
     float: left;
     text-transform: none;
