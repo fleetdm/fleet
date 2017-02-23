@@ -169,20 +169,20 @@ The path to a PEM encoded certificate of MYSQL's CA for client certificate authe
 
 	```
 	mysql:
-		ca: /path/to/server-ca.pem
+		tls_ca: /path/to/server-ca.pem
 	```
 
-##### `mysql_tls_certificate`
+##### `mysql_tls_cert`
 
 The path to a PEM encoded certificate use for tls authentication.
 
 - Default value: none
-- Environment variable: `KOLIDE_MYSQL_TLS_CERTIFICATE`
+- Environment variable: `KOLIDE_MYSQL_TLS_CERT`
 - Config file format:
 
 	```
 	mysql:
-		cert: /path/to/certificate.pem
+		tls_cert: /path/to/certificate.pem
 	```
 
 ##### `mysql_tls_key`
@@ -195,7 +195,7 @@ The path to a PEM encoded private key use for tls authentication.
 
 	```
 	mysql:
-		key: /path/to/key.pem
+		tls_key: /path/to/key.pem
 	```
 
 ##### `mysql_tls_config`
@@ -208,7 +208,7 @@ The tls value in a MYSQL DSN. Can be `true`,`false`,`skip-verify` or the CN valu
 
 	```
 	mysql:
-		tlsconfig: true
+		tls_config: true
 	```
 
 ##### `mysql_tls_server_name`
