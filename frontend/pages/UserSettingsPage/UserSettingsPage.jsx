@@ -5,6 +5,7 @@ import moment from 'moment';
 
 import Avatar from 'components/Avatar';
 import Button from 'components/buttons/Button';
+import ChangeEmailForm from 'components/forms/ChangeEmailForm';
 import ChangePasswordForm from 'components/forms/ChangePasswordForm';
 import deepDifference from 'utilities/deep_difference';
 import Icon from 'components/icons/Icon';
@@ -35,7 +36,12 @@ export class UserSettingsPage extends Component {
   constructor (props) {
     super(props);
 
-    this.state = { showModal: false };
+    this.state = {
+      pendingEmail: undefined,
+      showEmailModal: false,
+      showPasswordModal: false,
+      updatedUser: {},
+    };
   }
 
   onCancel = (evt) => {
@@ -61,17 +67,28 @@ export class UserSettingsPage extends Component {
   onShowModal = (evt) => {
     evt.preventDefault();
 
-    this.setState({ showModal: true });
+    this.setState({ showPasswordModal: true });
 
     return false;
   }
 
-  onToggleModal = (evt) => {
+  onToggleEmailModal = (updatedUser = {}) => {
+    const { showEmailModal } = this.state;
+
+    this.setState({
+      showEmailModal: !showEmailModal,
+      updatedUser,
+    });
+
+    return false;
+  }
+
+  onTogglePasswordModal = (evt) => {
     evt.preventDefault();
 
-    const { showModal } = this.state;
+    const { showPasswordModal } = this.state;
 
-    this.setState({ showModal: !showModal });
+    this.setState({ showPasswordModal: !showPasswordModal });
 
     return false;
   }
@@ -80,9 +97,19 @@ export class UserSettingsPage extends Component {
     const { dispatch, user } = this.props;
     const updatedUser = deepDifference(formData, user);
 
+    if (updatedUser.email && !updatedUser.password) {
+      return this.onToggleEmailModal(updatedUser);
+    }
+
     return dispatch(updateUser(user, updatedUser))
       .then(() => {
-        return dispatch(renderFlash('success', 'Account updated!'));
+        if (updatedUser.email) {
+          this.setState({ pendingEmail: updatedUser.email });
+        }
+
+        dispatch(renderFlash('success', 'Account updated!'));
+
+        return true;
       })
       .catch(() => false);
   }
@@ -93,29 +120,60 @@ export class UserSettingsPage extends Component {
     return dispatch(userActions.changePassword(user, formData))
       .then(() => {
         dispatch(renderFlash('success', 'Password changed successfully'));
-        this.setState({ showModal: false });
+        this.setState({ showPasswordModal: false });
 
         return false;
       });
   }
 
-  renderModal = () => {
-    const { userErrors } = this.props;
-    const { showModal } = this.state;
-    const { handleSubmitPasswordForm, onToggleModal } = this;
+  renderEmailModal = () => {
+    const { errors } = this.props;
+    const { updatedUser, showEmailModal } = this.state;
+    const { handleSubmit, onToggleEmailModal } = this;
 
-    if (!showModal) {
+    const emailSubmit = (formData) => {
+      handleSubmit(formData)
+        .then((r) => {
+          return r ? onToggleEmailModal() : false;
+        });
+    };
+
+    if (!showEmailModal) {
+      return false;
+    }
+
+    return (
+      <Modal
+        title="To change your email you must supply your password"
+        onExit={onToggleEmailModal}
+      >
+        <ChangeEmailForm
+          formData={updatedUser}
+          handleSubmit={emailSubmit}
+          onCancel={onToggleEmailModal}
+          serverErrors={errors}
+        />
+      </Modal>
+    );
+  }
+
+  renderPasswordModal = () => {
+    const { userErrors } = this.props;
+    const { showPasswordModal } = this.state;
+    const { handleSubmitPasswordForm, onTogglePasswordModal } = this;
+
+    if (!showPasswordModal) {
       return false;
     }
 
     return (
       <Modal
         title="Change Password"
-        onExit={onToggleModal}
+        onExit={onTogglePasswordModal}
       >
         <ChangePasswordForm
           handleSubmit={handleSubmitPasswordForm}
-          onCancel={onToggleModal}
+          onCancel={onTogglePasswordModal}
           serverErrors={userErrors}
         />
       </Modal>
@@ -123,8 +181,16 @@ export class UserSettingsPage extends Component {
   }
 
   render () {
-    const { handleSubmit, onCancel, onLogout, onShowModal, renderModal } = this;
+    const {
+      handleSubmit,
+      onCancel,
+      onLogout,
+      onShowModal,
+      renderEmailModal,
+      renderPasswordModal,
+    } = this;
     const { errors, user } = this.props;
+    const { pendingEmail } = this.state;
 
     if (!user) {
       return false;
@@ -142,6 +208,7 @@ export class UserSettingsPage extends Component {
             formData={user}
             handleSubmit={handleSubmit}
             onCancel={onCancel}
+            pendingEmail={pendingEmail}
             serverErrors={errors}
           />
         </div>
@@ -169,7 +236,8 @@ export class UserSettingsPage extends Component {
             LOGOUT
           </Button>
         </div>
-        {renderModal()}
+        {renderEmailModal()}
+        {renderPasswordModal()}
       </div>
     );
   }

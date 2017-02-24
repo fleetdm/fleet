@@ -292,7 +292,7 @@ const reduxConfig = ({
 
           dispatch(updateFailure(errorsObject));
 
-          throw errorsObject;
+          throw response;
         });
     };
   };

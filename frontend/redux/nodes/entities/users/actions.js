@@ -2,6 +2,7 @@ import Kolide from 'kolide';
 
 import config from 'redux/nodes/entities/users/config';
 import { formatErrorResponse } from 'redux/nodes/entities/base/helpers';
+import { logoutUser, updateUserSuccess } from 'redux/nodes/auth/actions';
 
 const { extendedActions } = config;
 
@@ -39,6 +40,29 @@ export const changePassword = (user, { new_password: newPassword, old_password: 
         dispatch(updateFailure(errorsObject));
 
         throw errorsObject;
+      });
+  };
+};
+
+export const confirmEmailChange = (user, token) => {
+  const { loadRequest, successAction, updateFailure, updateSuccess } = extendedActions;
+
+  return (dispatch) => {
+    dispatch(loadRequest);
+
+    return Kolide.users.confirmEmailChange(user, token)
+      .then((updatedUser) => {
+        dispatch(successAction(updatedUser, updateSuccess));
+        dispatch(updateUserSuccess(updatedUser));
+
+        return updatedUser;
+      })
+      .catch((response) => {
+        const errorsObject = formatErrorResponse(response);
+
+        dispatch(updateFailure(errorsObject));
+
+        return dispatch(logoutUser());
       });
   };
 };
@@ -96,4 +120,11 @@ export const updateAdmin = (user, { admin }) => {
   };
 };
 
-export default { ...config.actions, changePassword, enableUser, requirePasswordReset, updateAdmin };
+export default {
+  ...config.actions,
+  changePassword,
+  confirmEmailChange,
+  enableUser,
+  requirePasswordReset,
+  updateAdmin,
+};

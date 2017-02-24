@@ -204,6 +204,15 @@ class Kolide extends Base {
 
       return this.authenticatedPost(this.endpoint(CHANGE_PASSWORD), JSON.stringify(passwordParams));
     },
+    confirmEmailChange: (user, token) => {
+      const { CONFIRM_EMAIL_CHANGE } = endpoints;
+      const endpoint = this.endpoint(CONFIRM_EMAIL_CHANGE(token));
+
+      return this.authenticatedGet(endpoint)
+        .then((response) => {
+          return { ...user, email: response.new_email };
+        });
+    },
     enable: (user, { enabled }) => {
       const { ENABLE_USER } = endpoints;
 

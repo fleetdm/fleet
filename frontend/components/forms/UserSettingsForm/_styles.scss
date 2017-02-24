@@ -3,6 +3,10 @@
     width: 75%;
   }
 
+  &__email-hint {
+    display: block;
+  }
+
   &__button-wrap {
     width: 75%;
     border-top: 1px solid $accent-medium;

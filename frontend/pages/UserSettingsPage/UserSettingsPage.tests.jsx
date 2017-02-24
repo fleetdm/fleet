@@ -8,18 +8,22 @@ import testHelpers from 'test/helpers';
 import { userStub } from 'test/stubs';
 import * as authActions from 'redux/nodes/auth/actions';
 
-const { connectedComponent, reduxMockStore } = testHelpers;
+const {
+  connectedComponent,
+  fillInFormInput,
+  reduxMockStore,
+} = testHelpers;
 
 describe('UserSettingsPage - component', () => {
   afterEach(restoreSpies);
 
+  const store = { auth: { user: userStub }, entities: { users: {} } };
+  const mockStore = reduxMockStore(store);
+
   it('renders a UserSettingsForm component', () => {
-    const store = { auth: { user: userStub }, entities: { users: {} } };
-    const mockStore = reduxMockStore(store);
+    const Page = mount(connectedComponent(ConnectedPage, { mockStore }));
 
-    const page = mount(connectedComponent(ConnectedPage, { mockStore }));
-
-    expect(page.find('UserSettingsForm').length).toEqual(1);
+    expect(Page.find('UserSettingsForm').length).toEqual(1);
   });
 
   it('renders a UserSettingsForm component', () => {
@@ -45,5 +49,46 @@ describe('UserSettingsPage - component', () => {
     pageNode.handleSubmit(updatedUser);
 
     expect(authActions.updateUser).toHaveBeenCalledWith(userStub, updatedAttrs);
+  });
+
+  describe('changing email address', () => {
+    it('renders the ChangeEmailForm when the user changes their email', () => {
+      const Page = mount(connectedComponent(ConnectedPage, { mockStore }));
+      const UserSettingsForm = Page.find('UserSettingsForm');
+      const emailInput = UserSettingsForm.find({ name: 'email' });
+
+      expect(Page.find('ChangeEmailForm').length).toEqual(0, 'Expected the ChangeEmailForm to not render');
+
+      fillInFormInput(emailInput, 'new@email.org');
+      UserSettingsForm.simulate('submit');
+
+      expect(Page.find('ChangeEmailForm').length).toEqual(1, 'Expected the ChangeEmailForm to render');
+    });
+
+    it('does not render the ChangeEmailForm when the user does not change their email', () => {
+      const Page = mount(connectedComponent(ConnectedPage, { mockStore }));
+      const UserSettingsForm = Page.find('UserSettingsForm');
+      const emailInput = UserSettingsForm.find({ name: 'email' });
+
+      expect(Page.find('ChangeEmailForm').length).toEqual(0, 'Expected the ChangeEmailForm to not render');
+
+      fillInFormInput(emailInput, userStub.email);
+      UserSettingsForm.simulate('submit');
+
+      expect(Page.find('ChangeEmailForm').length).toEqual(0, 'Expected the ChangeEmailForm to not render');
+    });
+
+    it('displays pending email text when the user is pending an email change', () => {
+      const props = { dispatch: noop, user: userStub };
+      const Page = mount(<UserSettingsPage {...props} />);
+      const UserSettingsForm = () => Page.find('UserSettingsForm');
+      const emailHint = () => UserSettingsForm().find('.manage-user__email-hint');
+
+      expect(emailHint().length).toEqual(0, 'Expected the form to not render an email hint');
+
+      Page.setState({ pendingEmail: 'new@email.org' });
+
+      expect(emailHint().length).toEqual(1, 'Expected the form to render an email hint');
+    });
   });
 });

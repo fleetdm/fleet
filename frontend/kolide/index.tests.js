@@ -19,6 +19,7 @@ const {
   invalidForgotPasswordRequest,
   invalidResetPasswordRequest,
   validChangePasswordRequest,
+  validConfirmEmailChangeRequest,
   validCreateLabelRequest,
   validCreateLicenseRequest,
   validCreatePackRequest,
@@ -534,6 +535,23 @@ describe('Kolide - API client', () => {
 
         Kolide.setBearerToken(bearerToken);
         Kolide.users.changePassword(passwordParams)
+          .then(() => {
+            expect(request.isDone()).toEqual(true);
+            done();
+          })
+          .catch(() => {
+            throw new Error('Expected request to have been stubbed');
+          });
+      });
+    });
+
+    describe('#confirmEmailChange', () => {
+      it('calls the appropriate endpoint with the correct parameters', (done) => {
+        const token = 'KFBR392';
+        const request = validConfirmEmailChangeRequest(bearerToken, token);
+
+        Kolide.setBearerToken(bearerToken);
+        Kolide.users.confirmEmailChange(userStub, token)
           .then(() => {
             expect(request.isDone()).toEqual(true);
             done();

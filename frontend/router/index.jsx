@@ -13,6 +13,7 @@ import ConfigOptionsPage from 'pages/config/ConfigOptionsPage';
 import ConfirmInvitePage from 'pages/ConfirmInvitePage';
 import CoreLayout from 'layouts/CoreLayout';
 import EditPackPage from 'pages/packs/EditPackPage';
+import EmailTokenRedirect from 'components/EmailTokenRedirect';
 import LicensePage from 'pages/LicensePage';
 import LoginRoutes from 'components/LoginRoutes';
 import LogoutPage from 'pages/LogoutPage';
@@ -42,6 +43,7 @@ const routes = (
           <Route path="reset" />
         </Route>
         <Route component={AuthenticatedRoutes}>
+          <Route path="email/change/:token" component={EmailTokenRedirect} />
           <Route path="logout" component={LogoutPage} />
           <Route component={CoreLayout}>
             <IndexRedirect to="/hosts/manage" />

@@ -24,6 +24,16 @@ export const validChangePasswordRequest = (bearerToken, params) => {
     .reply(200, {});
 };
 
+export const validConfirmEmailChangeRequest = (bearerToken, token) => {
+  return nock('http://localhost:8080', {
+    reqHeaders: {
+      Authorization: `Bearer ${bearerToken}`,
+    },
+  })
+    .get(`/api/v1/kolide/email/change/${token}`)
+    .reply(200, { new_email: 'new@email.com' });
+};
+
 export const validCreateLabelRequest = (bearerToken, labelParams) => {
   return nock('http://localhost:8080', {
     reqHeaders: {
@@ -518,6 +528,7 @@ export default {
   invalidGetQueryRequest,
   invalidResetPasswordRequest,
   validChangePasswordRequest,
+  validConfirmEmailChangeRequest,
   validCreateLabelRequest,
   validCreateLicenseRequest,
   validCreatePackRequest,

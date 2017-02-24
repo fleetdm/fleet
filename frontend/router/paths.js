@@ -16,4 +16,5 @@ export default {
   NEW_QUERY: '/queries/new',
   RESET_PASSWORD: '/login/reset',
   SETUP: '/setup',
+  USER_SETTINGS: '/settings',
 };

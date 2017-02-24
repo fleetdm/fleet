@@ -18,11 +18,27 @@ class UserSettingsForm extends Component {
       username: formFieldInterface.isRequired,
     }).isRequired,
     handleSubmit: PropTypes.func.isRequired,
+    pendingEmail: PropTypes.string,
     onCancel: PropTypes.func.isRequired,
   };
 
+  renderEmailHint = () => {
+    const { pendingEmail } = this.props;
+
+    if (!pendingEmail) {
+      return undefined;
+    }
+
+    return (
+      <i className={`${baseClass}__email-hint`}>
+        Pending change to <b>{pendingEmail}</b>
+      </i>
+    );
+  }
+
   render () {
     const { fields, handleSubmit, onCancel } = this.props;
+    const { renderEmailHint } = this;
 
     return (
       <form onSubmit={handleSubmit} className={baseClass}>
@@ -34,6 +50,7 @@ class UserSettingsForm extends Component {
         <InputField
           {...fields.email}
           label="Email (required)"
+          hint={renderEmailHint()}
         />
         <InputField
           {...fields.name}
