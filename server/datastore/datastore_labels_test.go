@@ -226,6 +226,15 @@ func testSearchLabels(t *testing.T, db kolide.Datastore) {
 }
 
 func testSearchLabelsLimit(t *testing.T, db kolide.Datastore) {
+	if db.Name() == "inmem" {
+		t.Skip("inmem is being deprecated, test skipped")
+	}
+
+	_, err := db.NewLabel(&kolide.Label{
+		Name:      "All Hosts",
+		LabelType: kolide.LabelTypeBuiltIn,
+	})
+
 	for i := 0; i < 15; i++ {
 		_, err := db.NewLabel(&kolide.Label{
 			Name: fmt.Sprintf("foo-%d", i),
@@ -235,7 +244,7 @@ func testSearchLabelsLimit(t *testing.T, db kolide.Datastore) {
 
 	labels, err := db.SearchLabels("foo")
 	require.Nil(t, err)
-	assert.Len(t, labels, 10)
+	assert.Len(t, labels, 11)
 }
 
 func testListHostsInLabel(t *testing.T, db kolide.Datastore) {

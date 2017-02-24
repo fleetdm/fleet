@@ -217,21 +217,15 @@ func (d *Datastore) searchLabelsWithOmits(query string, omit ...uint) ([]kolide.
 		SELECT *
 		FROM labels
 		WHERE (
-			(
-				MATCH(name) AGAINST(? IN BOOLEAN MODE)
-				AND NOT deleted
-			)
-			OR (
-				label_type=?
-				AND name = 'All Hosts'
-			)
+			MATCH(name) AGAINST(? IN BOOLEAN MODE)
+			AND NOT deleted
 		)
 		AND id NOT IN (?)
 		ORDER BY id ASC
 		LIMIT 10
 	`
 
-	sql, args, err := sqlx.In(sqlStatement, query, kolide.LabelTypeBuiltIn, omit)
+	sql, args, err := sqlx.In(sqlStatement, query, omit)
 	if err != nil {
 		return nil, errors.Wrap(err, "building query for labels with omits")
 	}
@@ -244,7 +238,46 @@ func (d *Datastore) searchLabelsWithOmits(query string, omit ...uint) ([]kolide.
 		return nil, errors.Wrap(err, "selecting labels with omits")
 	}
 
+	matches, err = d.addAllHostsLabelToList(matches, omit...)
+	if err != nil {
+		return nil, errors.Wrap(err, "adding all hosts label to matches")
+	}
+
 	return matches, nil
+}
+
+// When we search labels, we always want to make sure that the All Hosts label
+// is included in the results set. Sometimes it already is and we don't need to
+// add it, sometimes it's not so we explicitly add it.
+func (d *Datastore) addAllHostsLabelToList(labels []kolide.Label, omit ...uint) ([]kolide.Label, error) {
+	sqlStatement := `
+		SELECT *
+		FROM labels
+		WHERE
+		  label_type=?
+			AND name = 'All Hosts'
+		LIMIT 1
+	`
+
+	var allHosts kolide.Label
+	err := d.db.Get(&allHosts, sqlStatement, kolide.LabelTypeBuiltIn)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting all hosts label")
+	}
+
+	for _, omission := range omit {
+		if omission == allHosts.ID {
+			return labels, nil
+		}
+	}
+
+	for _, label := range labels {
+		if label.ID == allHosts.ID {
+			return labels, nil
+		}
+	}
+
+	return append(labels, allHosts), nil
 }
 
 func (d *Datastore) searchLabelsDefault(omit ...uint) ([]kolide.Label, error) {
@@ -276,6 +309,12 @@ func (d *Datastore) searchLabelsDefault(omit ...uint) ([]kolide.Label, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "searching default labels rebound")
 	}
+
+	labels, err = d.addAllHostsLabelToList(labels, omit...)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting all host label")
+	}
+
 	return labels, nil
 }
 
@@ -294,23 +333,23 @@ func (d *Datastore) SearchLabels(query string, omit ...uint) ([]kolide.Label, er
 		SELECT *
 		FROM labels
 		WHERE (
-			(
-				MATCH(name) AGAINST(? IN BOOLEAN MODE)
-				AND NOT deleted
-			)
-			OR (
-				label_type=?
-				AND name = 'All Hosts'
-			)
+			MATCH(name) AGAINST(? IN BOOLEAN MODE)
+			AND NOT deleted
 		)
 		ORDER BY id ASC
 		LIMIT 10
 	`
 	matches := []kolide.Label{}
-	err := d.db.Select(&matches, sqlStatement, query, kolide.LabelTypeBuiltIn)
+	err := d.db.Select(&matches, sqlStatement, query)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting labels for search")
 	}
+
+	matches, err = d.addAllHostsLabelToList(matches, omit...)
+	if err != nil {
+		return nil, errors.Wrap(err, "adding all hosts label to matches")
+	}
+
 	return matches, nil
 }
 
