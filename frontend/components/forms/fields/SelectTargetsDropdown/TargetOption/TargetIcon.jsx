@@ -1,4 +1,5 @@
 import React from 'react';
+import classnames from 'classnames';
 
 import Icon from 'components/icons/Icon';
 import targetInterface from 'interfaces/target';
@@ -16,7 +17,11 @@ const TargetIcon = ({ target }) => {
     return platform === 'darwin' ? 'apple' : platform;
   };
 
-  return <Icon name={iconName()} className={`${baseClass}__icon`} />;
+  const { status } = target;
+
+  const targetClasses = classnames(`${baseClass}__icon`, `${baseClass}__icon--${status}`);
+
+  return <Icon name={iconName()} className={targetClasses} />;
 };
 
 TargetIcon.propTypes = { target: targetInterface.isRequired };

@@ -39,6 +39,12 @@
       border-width: 8px 8px 2.5px;
     }
 
+    &.is-open {
+      .Select-arrow {
+        border-width: 2.5px 8px 8px;
+      }
+    }
+
     .Select-input {
       height: 46px;
       margin: 0 0 0 $pad-base;
@@ -80,7 +86,7 @@
             }
 
             .target-option__add-btn {
-              color: $brand-ultralight;
+              color: $white;
             }
 
             .target-option__count {
