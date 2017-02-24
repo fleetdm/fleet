@@ -8,20 +8,12 @@ $max-width: 2560px;
     @media (max-width: $medium-width) {
       @content;
     }
-  } @else if ($size == lttablet) {
-    @media (max-width: $min-width - 1) {
-      @content;
-    }
-  }  @else if ($size == gttablet) {
-    @media (min-width: $medium-width + 1) {
-      @content;
-    }
   } @else if ($size == ltdesktop) {
     @media (max-width: $desktop-width - 1) {
       @content;
     }
   } @else if ($size == desktop) {
-    @media (min-width: $medium-width) and (max-width: $max-width) {
+    @media (min-width: $medium-width + 1) {
       @content;
     }
   } @else if ($size == smalldesk) {
