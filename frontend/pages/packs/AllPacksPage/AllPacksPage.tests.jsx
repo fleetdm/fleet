@@ -247,5 +247,19 @@ describe('AllPacksPage - component', () => {
 
       expect(page.prop('selectedPack')).toEqual(packStub);
     });
+
+    it('goes to the edit pack edit page when table row is double clicked', () => {
+      const mockStore = reduxMockStore(store);
+      const props = { location: { query: { selectedPack: packStub.id } } };
+      const Component = connectedComponent(ConnectedAllPacksPage, { mockStore, props });
+      const page = mount(Component).find('AllPacksPage');
+      const tableRow = page.find('PacksList').find('.packs-list-row--selected');
+
+      tableRow.simulate('doubleclick');
+
+      const routerChangeAction = find(mockStore.getActions(), { type: '@@router/CALL_HISTORY_METHOD' });
+
+      expect(routerChangeAction.payload).toEqual({ method: 'push', args: [`/packs/${packStub.id}`] });
+    });
   });
 });

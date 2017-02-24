@@ -122,6 +122,14 @@ export class ManageQueriesPage extends Component {
     return false;
   }
 
+  onDblClickQuery = (selectedQuery) => {
+    const { dispatch } = this.props;
+
+    dispatch(push(`/queries/${selectedQuery.id}`));
+
+    return false;
+  }
+
   onToggleModal = () => {
     const { showModal } = this.state;
 
@@ -237,6 +245,7 @@ export class ManageQueriesPage extends Component {
       onCheckAllQueries,
       onCheckQuery,
       onSelectQuery,
+      onDblClickQuery,
       onFilterQueries,
       renderCTAs,
       renderModal,
@@ -275,6 +284,7 @@ export class ManageQueriesPage extends Component {
             onCheckAll={onCheckAllQueries}
             onCheckQuery={onCheckQuery}
             onSelectQuery={onSelectQuery}
+            onDblClickQuery={onDblClickQuery}
             queries={queries}
             selectedQuery={selectedQuery}
           />

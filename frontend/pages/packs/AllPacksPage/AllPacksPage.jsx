@@ -145,6 +145,14 @@ export class AllPacksPage extends Component {
     return false;
   }
 
+  onDoubleClickPack = (selectedPack) => {
+    const { dispatch } = this.props;
+
+    dispatch(push(`/packs/${selectedPack.id}`));
+
+    return false;
+  }
+
   onToggleModal = () => {
     const { showModal } = this.state;
 
@@ -289,6 +297,7 @@ export class AllPacksPage extends Component {
       getPacks,
       onCheckAllPacks,
       onCheckPack,
+      onDoubleClickPack,
       onSelectPack,
       onFilterPacks,
       renderCTAs,
@@ -324,6 +333,7 @@ export class AllPacksPage extends Component {
             className={`${baseClass}__table`}
             onCheckAllPacks={onCheckAllPacks}
             onCheckPack={onCheckPack}
+            onDoubleClickPack={onDoubleClickPack}
             onSelectPack={onSelectPack}
             packs={packs}
             selectedPack={selectedPack}

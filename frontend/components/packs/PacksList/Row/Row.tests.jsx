@@ -22,6 +22,15 @@ describe('PacksList - Row - component', () => {
     expect(spy).toHaveBeenCalledWith(false, packStub.id);
   });
 
+  it('calls the onDoubleClick prop when double clicked', () => {
+    const spy = createSpy();
+    const component = mount(<Row pack={packStub} onDoubleClick={spy} />);
+
+    component.find('ClickableTableRow').simulate('doubleclick');
+
+    expect(spy).toHaveBeenCalledWith(packStub);
+  });
+
   it('outputs host count', () => {
     const packWithHosts = { ...packStub, total_hosts_count: 3 };
     const packWithoutHosts = { ...packStub, total_hosts_count: 0 };

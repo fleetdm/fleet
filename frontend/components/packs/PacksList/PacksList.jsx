@@ -15,6 +15,7 @@ class PacksList extends Component {
     className: PropTypes.string,
     onCheckAllPacks: PropTypes.func.isRequired,
     onCheckPack: PropTypes.func.isRequired,
+    onDoubleClickPack: PropTypes.func,
     onSelectPack: PropTypes.func.isRequired,
     packs: PropTypes.arrayOf(packInterface),
     selectedPack: packInterface,
@@ -43,7 +44,7 @@ class PacksList extends Component {
   }
 
   renderPack = (pack) => {
-    const { checkedPackIDs, onCheckPack, onSelectPack, selectedPack } = this.props;
+    const { checkedPackIDs, onCheckPack, onDoubleClickPack, onSelectPack, selectedPack } = this.props;
     const checked = includes(checkedPackIDs, pack.id);
     const selected = pack.id === selectedPack.id;
 
@@ -53,6 +54,7 @@ class PacksList extends Component {
         key={`pack-row-${pack.id}`}
         onCheck={onCheckPack}
         onSelect={onSelectPack}
+        onDoubleClick={onDoubleClickPack}
         pack={pack}
         selected={selected}
       />

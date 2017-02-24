@@ -14,6 +14,7 @@ class Row extends Component {
   static propTypes = {
     checked: PropTypes.bool,
     onCheck: PropTypes.func,
+    onDoubleClick: PropTypes.func,
     onSelect: PropTypes.func,
     pack: packInterface.isRequired,
     selected: PropTypes.bool,
@@ -33,6 +34,12 @@ class Row extends Component {
     const { onSelect, pack } = this.props;
 
     return onSelect(pack);
+  }
+
+  handleDoubleClick = () => {
+    const { onDoubleClick, pack } = this.props;
+
+    return onDoubleClick(pack);
   }
 
   renderStatusData = () => {
@@ -61,14 +68,14 @@ class Row extends Component {
 
   render () {
     const { checked, pack, selected } = this.props;
-    const { handleChange, handleSelect, renderStatusData } = this;
+    const { handleChange, handleDoubleClick, handleSelect, renderStatusData } = this;
     const updatedTime = moment(pack.updated_at).format('MM/DD/YY');
     const rowClass = classNames(baseClass, {
       [`${baseClass}--selected`]: selected,
     });
 
     return (
-      <ClickableTableRow className={rowClass} onClick={handleSelect}>
+      <ClickableTableRow className={rowClass} onClick={handleSelect} onDoubleClick={handleDoubleClick}>
         <td className={`${baseClass}__td`}>
           <Checkbox
             name={`select-pack-${pack.id}`}

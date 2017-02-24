@@ -160,6 +160,20 @@ describe('ManageQueriesPage - component', () => {
     expect(routerChangeAction.payload).toEqual({ method: 'push', args: [`/queries/${queryStub.id}`] });
   });
 
+  it('goes to the edit query page when table row is double clicked', () => {
+    const mockStore = reduxMockStore(store);
+    const props = { location: { query: { selectedQuery: queryStub.id } } };
+    const Component = connectedComponent(ConnectedManageQueriesPage, { mockStore, props });
+    const page = mount(Component);
+    const tableRow = page.find('QueriesListRow').find('.queries-list-row--selected');
+
+    tableRow.simulate('doubleclick');
+
+    const routerChangeAction = find(mockStore.getActions(), { type: '@@router/CALL_HISTORY_METHOD' });
+
+    expect(routerChangeAction.payload).toEqual({ method: 'push', args: [`/queries/${queryStub.id}`] });
+  });
+
   describe('bulk delete action', () => {
     const queries = [queryStub, { ...queryStub, id: 101, name: 'alpha query' }];
 

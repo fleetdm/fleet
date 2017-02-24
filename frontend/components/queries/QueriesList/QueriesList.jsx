@@ -15,6 +15,7 @@ class QueriesList extends Component {
     onCheckAll: PropTypes.func.isRequired,
     onCheckQuery: PropTypes.func.isRequired,
     onSelectQuery: PropTypes.func.isRequired,
+    onDblClickQuery: PropTypes.func,
     queries: PropTypes.arrayOf(queryInterface).isRequired,
     selectedQuery: queryInterface,
   };
@@ -77,7 +78,7 @@ class QueriesList extends Component {
 
   render () {
     const alphaSort = q => q.name.toLowerCase();
-    const { checkedQueryIDs, onCheckQuery, onSelectQuery, queries, selectedQuery } = this.props;
+    const { checkedQueryIDs, onCheckQuery, onSelectQuery, onDblClickQuery, queries, selectedQuery } = this.props;
     const { allQueriesChecked } = this.state;
     const { renderHelpText, handleCheckAll } = this;
     const sortedQueries = sortBy(queries, [alphaSort]);
@@ -109,6 +110,7 @@ class QueriesList extends Component {
                   key={`query-row-${query.id}`}
                   onCheck={onCheckQuery}
                   onSelect={onSelectQuery}
+                  onDoubleClick={onDblClickQuery}
                   query={query}
                   selected={selectedQuery.id === query.id}
                 />

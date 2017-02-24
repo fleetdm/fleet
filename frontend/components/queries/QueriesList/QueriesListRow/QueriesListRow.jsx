@@ -14,6 +14,7 @@ class QueriesListRow extends Component {
     checked: PropTypes.bool,
     onCheck: PropTypes.func.isRequired,
     onSelect: PropTypes.func.isRequired,
+    onDoubleClick: PropTypes.func,
     query: queryInterface.isRequired,
     selected: PropTypes.bool,
   };
@@ -38,9 +39,15 @@ class QueriesListRow extends Component {
     return handleSelect(query);
   }
 
+  onDblClick = () => {
+    const { onDoubleClick: handleDblClick, query } = this.props;
+
+    return handleDblClick(query);
+  }
+
   render () {
     const { checked, query, selected } = this.props;
-    const { onCheck, onSelect } = this;
+    const { onCheck, onSelect, onDblClick } = this;
     const { author_name: authorName, id, name, updated_at: updatedAt } = query;
     const lastModifiedDate = moment(updatedAt).format('MM/DD/YY');
     const rowClassName = classnames(baseClass, {
@@ -48,7 +55,7 @@ class QueriesListRow extends Component {
     });
 
     return (
-      <ClickableTableRow className={rowClassName} onClick={onSelect}>
+      <ClickableTableRow className={rowClassName} onClick={onSelect} onDoubleClick={onDblClick}>
         <td>
           <Checkbox
             name={`query-checkbox-${id}`}
