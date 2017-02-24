@@ -225,7 +225,6 @@ func TestHostDetailQueries(t *testing.T) {
 }
 
 func TestLabelQueries(t *testing.T) {
-
 	ds, svc, mockClock := setupOsqueryTests(t)
 	ctx := context.Background()
 

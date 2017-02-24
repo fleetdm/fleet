@@ -71,6 +71,8 @@ func removedUnusedNics(tx *sqlx.Tx, host *kolide.Host) error {
 
 func updateNicsForHost(tx *sqlx.Tx, host *kolide.Host) ([]*kolide.NetworkInterface, error) {
 	updatedNics := []*kolide.NetworkInterface{}
+	// id = LAST_INSERT_ID(id) is a fix for the lastinsertid not being set
+	// properly. See comments in https://goo.gl/cwWRXd.
 	sqlStatement := `
 	 	INSERT INTO network_interfaces (
 			host_id,
@@ -92,6 +94,7 @@ func updateNicsForHost(tx *sqlx.Tx, host *kolide.Host) ([]*kolide.NetworkInterfa
 			type
 		) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 		ON DUPLICATE KEY UPDATE
+			id = LAST_INSERT_ID(id),
 			mac = VALUES(mac),
 			broadcast = VALUES(broadcast),
 			ibytes = VALUES(ibytes),

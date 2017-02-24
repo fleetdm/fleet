@@ -1,6 +1,7 @@
 package kolide
 
 type NetworkInterface struct {
+	UpdateCreateTimestamps
 	ID uint `json:"id"`
 	// HostID foreign key establishes one host to many NetworkInterface relationship
 	HostID       uint   `json:"-" db:"host_id"`

@@ -625,3 +625,57 @@ func testMarkHostSeen(t *testing.T, ds kolide.Datastore) {
 		assert.WithinDuration(t, anHourAgo, h1Verify.SeenTime, time.Second)
 	}
 }
+
+func testFlappingNetworkInterfaces(t *testing.T, ds kolide.Datastore) {
+	// See https://github.com/kolide/kolide/issues/1278
+	host, err := ds.NewHost(&kolide.Host{
+		DetailUpdateTime: time.Now(),
+		SeenTime:         time.Now(),
+		NodeKey:          "1",
+		UUID:             "1",
+		HostName:         "foo.local",
+	})
+	require.Nil(t, err)
+	require.NotNil(t, host)
+
+	host.HostName = "bar.local"
+	err = ds.SaveHost(host)
+	require.Nil(t, err)
+
+	host, err = ds.Host(host.ID)
+	require.Nil(t, err)
+	assert.Equal(t, "bar.local", host.HostName)
+
+	host.NetworkInterfaces = []*kolide.NetworkInterface{
+		&kolide.NetworkInterface{
+			HostID:    host.ID,
+			Interface: "en0",
+			IPAddress: "98.99.100.101",
+		},
+	}
+
+	err = ds.SaveHost(host)
+	require.Nil(t, err)
+
+	host, err = ds.AuthenticateHost(host.NodeKey)
+	require.Nil(t, err)
+	assert.Len(t, host.NetworkInterfaces, 1)
+
+	// Simulate osquery returning the same results for the network
+	// interfaces (note it's important that we reset this so that the ID is
+	// 0 before saving)
+	host.NetworkInterfaces = []*kolide.NetworkInterface{
+		&kolide.NetworkInterface{
+			HostID:    host.ID,
+			Interface: "en0",
+			IPAddress: "98.99.100.101",
+		},
+	}
+
+	err = ds.SaveHost(host)
+	require.Nil(t, err)
+
+	host, err = ds.AuthenticateHost(host.NodeKey)
+	require.Nil(t, err)
+	assert.Len(t, host.NetworkInterfaces, 1)
+}
