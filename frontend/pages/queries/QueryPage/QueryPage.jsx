@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import classnames from 'classnames';
 import { connect } from 'react-redux';
 import FileSaver from 'file-saver';
-import { filter, includes, isArray, isEqual } from 'lodash';
+import { clone, filter, includes, isArray, isEqual, merge } from 'lodash';
 import moment from 'moment';
 import { push } from 'react-router-redux';
 
@@ -22,16 +22,21 @@ import QueryPageSelectTargets from 'components/queries/QueryPageSelectTargets';
 import QueryResultsTable from 'components/queries/QueryResultsTable';
 import QuerySidePanel from 'components/side_panels/QuerySidePanel';
 import { renderFlash } from 'redux/nodes/notifications/actions';
+import { toggleSmallNav } from 'redux/nodes/app/actions';
 import { selectOsqueryTable, setSelectedTargets, setSelectedTargetsQuery } from 'redux/nodes/components/QueryPages/actions';
 import targetInterface from 'interfaces/target';
 import validateQuery from 'components/forms/validators/validate_query';
-import Spinner from 'components/loaders/Spinner';
 
 const baseClass = 'query-page';
 const DEFAULT_CAMPAIGN = {
   hosts_count: {
     total: 0,
   },
+};
+
+const QUERY_RESULTS_OPTIONS = {
+  FULL_SCREEN: 'FULL_SCREEN',
+  SHRINKING: 'SHRINKING',
 };
 
 export class QueryPage extends Component {
@@ -61,8 +66,11 @@ export class QueryPage extends Component {
       campaign: DEFAULT_CAMPAIGN,
       queryIsRunning: false,
       queryText: props.query.query,
+      runQueryMilliseconds: 0,
       targetsCount: 0,
       targetsError: null,
+      queryResultsToggle: null,
+      queryPosition: {},
     };
 
     this.csvQueryName = 'Query Results';
@@ -177,9 +185,11 @@ export class QueryPage extends Component {
       .then((campaignResponse) => {
         return Kolide.websockets.queries.run(campaignResponse.id)
           .then((socket) => {
-            this.setState({ campaign: campaignResponse });
-            this.socket = socket;
-            this.setState({ queryIsRunning: true });
+            this.setupDistributedQuery(socket);
+            this.setState({
+              campaign: campaignResponse,
+              queryIsRunning: true,
+            });
 
             this.socket.onmessage = ({ data }) => {
               const socketData = JSON.parse(data);
@@ -196,8 +206,7 @@ export class QueryPage extends Component {
                   const { status } = updatedCampaign;
 
                   if (status === 'finished') {
-                    this.setState({ queryIsRunning: false });
-                    removeSocket();
+                    this.teardownDistributedQuery();
 
                     return false;
                   }
@@ -245,11 +254,9 @@ export class QueryPage extends Component {
   onStopQuery = (evt) => {
     evt.preventDefault();
 
-    const { removeSocket } = this;
+    const { teardownDistributedQuery } = this;
 
-    this.setState({ queryIsRunning: false });
-
-    return removeSocket();
+    return teardownDistributedQuery();
   }
 
   onTargetSelect = (selectedTargets) => {
@@ -273,6 +280,110 @@ export class QueryPage extends Component {
 
     return false;
   };
+
+  onToggleQueryFullScreen = (evt) => {
+    const { document: { body }, window } = global;
+    const { queryResultsToggle, queryPosition } = this.state;
+    const { dispatch } = this.props;
+    window.scrollTo(0, 0);
+    const { parentNode: { parentNode: parent } } = evt.currentTarget;
+    const { parentNode: grandParent } = parent;
+    const rect = parent.getBoundingClientRect();
+
+    const defaultPosition = {
+      top: `${rect.top}px`,
+      left: `${rect.left}px`,
+      right: `${rect.right - rect.left}px`,
+      bottom: `${rect.bottom - rect.top}px`,
+      maxWidth: `${parent.offsetWidth}px`,
+      minWidth: `${parent.offsetWidth}px`,
+      maxHeight: `${parent.offsetHeight}px`,
+      minHeight: `${parent.offsetHeight}px`,
+      position: 'fixed',
+    };
+
+    const resetPosition = {
+      position: 'static',
+      maxWidth: 'auto',
+      minWidth: 'auto',
+      maxHeight: 'auto',
+      minHeight: 'auto',
+      top: 'auto',
+      right: 'auto',
+      bottom: 'auto',
+      left: 'auto',
+    };
+
+    let newPosition = clone(defaultPosition);
+    let newState;
+    let callback;
+
+    if (queryResultsToggle !== QUERY_RESULTS_OPTIONS.FULL_SCREEN) {
+      newState = {
+        queryResultsToggle: QUERY_RESULTS_OPTIONS.FULL_SCREEN,
+        queryPosition: defaultPosition,
+      };
+
+      callback = () => {
+        body.style.overflow = 'hidden';
+        dispatch(toggleSmallNav);
+        merge(parent.style, newPosition);
+        grandParent.style.height = `${newPosition.maxHeight}`;
+      };
+    } else {
+      newState = {
+        queryResultsToggle: QUERY_RESULTS_OPTIONS.SHRINKING,
+      };
+
+      callback = () => {
+        body.style.overflow = 'visible';
+        dispatch(toggleSmallNav);
+        newPosition = queryPosition;
+        merge(parent.style, newPosition);
+        grandParent.style.height = `${newPosition.maxHeight}`;
+
+        window.setTimeout(() => {
+          merge(parent.style, resetPosition);
+        }, 500);
+      };
+    }
+
+    this.setState(newState, callback);
+
+    return false;
+  }
+
+  setupDistributedQuery = (socket) => {
+    this.socket = socket;
+    const update = () => {
+      const { runQueryMilliseconds } = this.state;
+
+      this.setState({ runQueryMilliseconds: runQueryMilliseconds + 1000 });
+    };
+
+    if (!this.runQueryInterval) {
+      this.runQueryInterval = setInterval(update, 1000);
+    }
+
+    return false;
+  }
+
+  teardownDistributedQuery = () => {
+    const { runQueryInterval } = this;
+
+    if (runQueryInterval) {
+      clearInterval(runQueryInterval);
+      this.runQueryInterval = null;
+    }
+
+    this.setState({
+      queryIsRunning: false,
+      runQueryMilliseconds: 0,
+    });
+    this.removeSocket();
+
+    return false;
+  }
 
   destroyCampaign = () => {
     const { campaign } = this.state;
@@ -307,34 +418,48 @@ export class QueryPage extends Component {
   }
 
   renderResultsTable = () => {
-    const { campaign, queryIsRunning } = this.state;
-    const { onExportQueryResults } = this;
+    const {
+      campaign,
+      queryIsRunning,
+      queryResultsToggle,
+      queryText,
+      runQueryMilliseconds,
+    } = this.state;
+    const { onExportQueryResults, onToggleQueryFullScreen, onRunQuery, onStopQuery, onTargetSelect } = this;
     const loading = queryIsRunning && !campaign.hosts_count.total;
+    const isQueryFullScreen = queryResultsToggle === QUERY_RESULTS_OPTIONS.FULL_SCREEN;
+    const isQueryShrinking = queryResultsToggle === QUERY_RESULTS_OPTIONS.SHRINKING;
     const resultsClasses = classnames(`${baseClass}__results`, 'body-wrap', {
       [`${baseClass}__results--loading`]: loading,
+      [`${baseClass}__results--full-screen`]: isQueryFullScreen,
     });
-    let resultBody = '';
 
-    if (!loading && isEqual(campaign, DEFAULT_CAMPAIGN)) {
+    if (isEqual(campaign, DEFAULT_CAMPAIGN)) {
       return false;
-    }
-
-    if (loading) {
-      resultBody = <Spinner />;
-    } else {
-      resultBody = <QueryResultsTable campaign={campaign} onExportQueryResults={onExportQueryResults} />;
     }
 
     return (
       <div className={resultsClasses}>
-        {resultBody}
+        <QueryResultsTable
+          campaign={campaign}
+          onExportQueryResults={onExportQueryResults}
+          isQueryFullScreen={isQueryFullScreen}
+          isQueryShrinking={isQueryShrinking}
+          onToggleQueryFullScreen={onToggleQueryFullScreen}
+          onRunQuery={onRunQuery}
+          onStopQuery={onStopQuery}
+          onTargetSelect={onTargetSelect}
+          query={queryText}
+          queryIsRunning={queryIsRunning}
+          queryTimerMilliseconds={runQueryMilliseconds}
+        />
       </div>
     );
   }
 
   renderTargetsInput = () => {
     const { onFetchTargets, onRunQuery, onStopQuery, onTargetSelect } = this;
-    const { campaign, queryIsRunning, queryText, targetsCount, targetsError } = this.state;
+    const { campaign, queryIsRunning, queryText, targetsCount, targetsError, runQueryMilliseconds } = this.state;
     const { selectedTargets } = this.props;
 
     return (
@@ -349,6 +474,7 @@ export class QueryPage extends Component {
         queryIsRunning={queryIsRunning}
         selectedTargets={selectedTargets}
         targetsCount={targetsCount}
+        queryTimerMilliseconds={runQueryMilliseconds}
       />
     );
   }

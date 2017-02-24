@@ -6,6 +6,7 @@ import {
   configSuccess,
   hideBackgroundImage,
   showBackgroundImage,
+  toggleSmallNav,
   loadConfig,
 } from './actions';
 
@@ -14,12 +15,31 @@ describe('App - reducer', () => {
     expect(reducer(undefined, { type: 'SOME_ACTION' })).toEqual(initialState);
   });
 
+  context('toggleSmallNav action', () => {
+    it('toggles isSmallNav on', () => {
+      expect(reducer(initialState, toggleSmallNav)).toEqual({
+        ...initialState,
+        isSmallNav: true,
+      });
+    });
+
+    it('toggles isSmallNav off', () => {
+      const state = {
+        ...initialState,
+        isSmallNav: true,
+      };
+
+      expect(reducer(state, toggleSmallNav)).toEqual({
+        ...state,
+        isSmallNav: false,
+      });
+    });
+  });
+
   context('showBackgroundImage action', () => {
     it('shows the background image', () => {
       expect(reducer(initialState, showBackgroundImage)).toEqual({
-        config: {},
-        error: {},
-        loading: false,
+        ...initialState,
         showBackgroundImage: true,
       });
     });
@@ -32,9 +52,7 @@ describe('App - reducer', () => {
         showBackgroundImage: true,
       };
       expect(reducer(state, hideBackgroundImage)).toEqual({
-        config: {},
-        error: {},
-        loading: false,
+        ...state,
         showBackgroundImage: false,
       });
     });
@@ -43,10 +61,8 @@ describe('App - reducer', () => {
   context('loadConfig action', () => {
     it('sets the state to loading', () => {
       expect(reducer(initialState, loadConfig)).toEqual({
-        config: {},
-        error: {},
+        ...initialState,
         loading: true,
-        showBackgroundImage: false,
       });
     });
   });
@@ -62,6 +78,7 @@ describe('App - reducer', () => {
         config,
         error: {},
         loading: false,
+        isSmallNav: false,
         showBackgroundImage: false,
       });
     });
@@ -78,6 +95,7 @@ describe('App - reducer', () => {
         config: {},
         error,
         loading: false,
+        isSmallNav: false,
         showBackgroundImage: false,
       });
     });

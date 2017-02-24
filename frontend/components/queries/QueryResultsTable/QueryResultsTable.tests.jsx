@@ -74,8 +74,17 @@ describe('QueryResultsTable - component', () => {
     expect(componentWithQueryResults.length).toEqual(1);
   });
 
-  it('does not return HTML when there are no query results', () => {
-    expect(componentWithoutQueryResults.html()).toNotExist();
+  it('renders a QueryProgressDetails component if Results is Fullscreen', () => {
+    const component = mount(<QueryResultsTable campaign={campaignWithQueryResults} isQueryFullScreen />);
+    const QueryProgressDetails = component.find('QueryProgressDetails');
+
+    expect(QueryProgressDetails.length).toEqual(1, 'QueryProgressDetails did not render');
+  });
+
+  it('doesn\'t render a QueryProgressDetails component if Results isn\'t Fullscreen', () => {
+    const QueryProgressDetails = componentWithQueryResults.find('QueryProgressDetails');
+
+    expect(QueryProgressDetails.length).toEqual(0, 'QueryProgressDetails did not render');
   });
 
   it('sets the column headers to the keys of the query results', () => {
@@ -105,7 +114,7 @@ describe('QueryResultsTable - component', () => {
     const spy = createSpy();
     const component = mount(<QueryResultsTable campaign={campaignWithQueryResults} onExportQueryResults={spy} />);
 
-    const exportBtn = component.find('Button');
+    const exportBtn = component.find('.query-results-table__export-btn');
 
     expect(spy).toNotHaveBeenCalled();
 

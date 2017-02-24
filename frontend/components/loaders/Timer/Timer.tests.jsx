@@ -1,46 +1,24 @@
 import React from 'react';
 import { mount } from 'enzyme';
-import expect, { spyOn, restoreSpies } from 'expect';
+import expect from 'expect';
 
 import Timer from './Timer';
 
 describe('Timer - component', () => {
-  afterEach(restoreSpies);
+  it('renders with proper time', () => {
+    const timer1 = mount(<Timer totalMilliseconds={1000} />);
+    const elem1 = timer1.find('.kolide-timer');
 
-  it('play() and pause() function', () => {
-    const timer = mount(<Timer running={false} />);
+    expect(elem1.text()).toEqual('00:00:01');
 
-    expect(timer.node.interval).toNotExist();
-    timer.setProps({ running: true });
-    expect(timer.node.interval).toExist();
-    timer.setProps({ running: false });
-    expect(timer.node.interval).toNotExist();
-  });
+    const timer2 = mount(<Timer totalMilliseconds={60000} />);
+    const elem2 = timer2.find('.kolide-timer');
 
-  it('should reset after pause', () => {
-    const timer = mount(<Timer running={false} />);
-    const spy = spyOn(timer.node, 'reset').andCallThrough();
+    expect(elem2.text()).toEqual('00:01:00');
 
-    timer.setProps({ running: true });
+    const timer3 = mount(<Timer totalMilliseconds={3600000} />);
+    const elem3 = timer3.find('.kolide-timer');
 
-    expect(spy).toHaveBeenCalled();
-  });
-
-  it('should not reset when stopped', () => {
-    const timer = mount(<Timer running />);
-    const spy = spyOn(timer.node, 'reset').andCallThrough();
-
-    timer.setProps({ running: false });
-
-    expect(spy).toNotHaveBeenCalled();
-  });
-
-  it('should not reset when it continues', () => {
-    const timer = mount(<Timer running />);
-    const spy = spyOn(timer.node, 'reset').andCallThrough();
-
-    timer.setProps({ running: true });
-
-    expect(spy).toNotHaveBeenCalled();
+    expect(elem3.text()).toEqual('01:00:00');
   });
 });

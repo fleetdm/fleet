@@ -12,6 +12,10 @@
     text-align: left;
     border-radius: 0;
 
+    @at-root .site-nav--small & {
+      padding: 0;
+    }
+
     @include breakpoint(smalldesk) {
       padding: 0;
     }
@@ -34,6 +38,10 @@
     border: 1px solid $accent-medium;
     border-radius: 50%;
 
+    @at-root .site-nav--small & {
+      margin: 24px 5px 10px;
+    }
+
     @include breakpoint(smalldesk) {
       margin: 24px 5px 10px;
     }
@@ -49,6 +57,11 @@
     font-weight: $bold;
     display: block;
     color: $text-ultradark;
+
+    @at-root .site-nav--small & {
+      display: none;
+      margin: 24px 0 5px 63px;
+    }
 
     @include breakpoint(smalldesk) {
       display: none;
@@ -68,6 +81,10 @@
       background-color: $success;
     }
 
+    @at-root .site-nav--small & {
+      display: none;
+    }
+
     @include breakpoint(smalldesk) {
       display: none;
     }
@@ -83,6 +100,10 @@
     position: relative;
     line-height: 16px;
 
+    @at-root .site-nav--small & {
+      display: none;
+    }
+
     @include breakpoint(smalldesk) {
       display: none;
     }
@@ -92,6 +113,10 @@
     @include position(absolute, null 0 $pad-small null);
     color: $accent-medium;
     font-size: 9px;
+
+    @at-root .site-nav--small & {
+      display: none;
+    }
 
     @include breakpoint(smalldesk) {
       display: none;

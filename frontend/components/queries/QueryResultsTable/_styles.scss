@@ -1,8 +1,14 @@
 .query-results-table {
+  @include display(flex);
+  @include flex-direction(column);
   background-color: $white;
   padding: $pad-base;
   width: 100%;
   box-sizing: border-box;
+
+  &__button-wrap {
+    @include clearfix;
+  }
 
   &__export-btn {
     float: right;
@@ -14,25 +20,31 @@
     }
   }
 
-  &__no-results {
-    @include display(flex);
-    @include align-items(center);
-    @include justify-content(center);
-  }
-
   &__progress-details {
     display: inline-block;
     width: 378px;
   }
 
   &__table-wrapper {
+    @include display(flex);
+    @include flex-grow(1);
     border: solid 1px $accent-dark;
     border-radius: 3px;
     box-shadow: inset 0 0 8px 0 rgba(0, 0, 0, 0.12);
     overflow: scroll;
-    margin-top: 58px;
-    max-height: 550px;
+    margin-top: 30px;
+    min-height: 400px;
     width: 100%;
+
+    .kolide-spinner {
+      @include align-self(center);
+    }
+
+    .no-results-message {
+      @include flex-grow(1);
+      @include align-self(center);
+      text-align: center;
+    }
   }
 
   &__table {
@@ -77,5 +89,51 @@
         background-color: $bg-light;
       }
     }
+  }
+
+  &--full-screen {
+    animation: growFullScreen 500ms;
+    animation-fill-mode: forwards;
+    border-radius: 3px;
+    box-shadow: 0 0 12px 0 rgba(0, 0, 0, 0.1);
+    border: solid 1px $silver;
+    z-index: 99;
+
+    .query-progress-details__run-btn {
+      display: none;
+    }
+  }
+
+  &--shrinking {
+    animation: shrinkFullScreen 500ms;
+    animation-fill-mode: forwards;
+    z-index: 99;
+  }
+
+  &__fullscreen-btn {
+    float: right;
+    margin-left: 15px;
+  }
+}
+
+@include keyframes(growFullScreen) {
+  100% {
+    top: $pad-half;
+    right: $pad-half;
+    bottom: $pad-half;
+    left: calc(#{$nav-tablet-width} + #{$pad-half});
+    max-width: calc(100vw - #{$nav-tablet-width} - #{$pad-half} - #{$pad-half});
+    max-height: 100vh;
+  }
+}
+
+@include keyframes(shrinkFullScreen) {
+  0% {
+    top: $pad-half;
+    right: auto;
+    bottom: auto;
+    left: $pad-half;
+    max-width: 100vw;
+    max-height: 100vh;
   }
 }

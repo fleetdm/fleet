@@ -10,6 +10,10 @@
   max-width: calc(100% - 258px);
   position: relative;
 
+  &--small {
+    max-width: calc(100% - 73px);
+  }
+
   @include breakpoint(smalldesk) {
     max-width: calc(100% - 73px);
   }
@@ -21,6 +25,11 @@
   box-shadow: 2px 0 8px 0 rgba($black, 0.1);
   box-sizing: border-box;
   width: $nav-width;
+
+  &--small {
+    padding-left: 0;
+    width: $nav-tablet-width;
+  }
 
   @include breakpoint(smalldesk) {
     padding-left: 0;

@@ -8,6 +8,13 @@
     margin-right: $pad-medium;
     vertical-align: sub;
 
+    @at-root .site-nav--small & {
+      display: block;
+      text-align: center;
+      margin-right: 0;
+      line-height: 40px;
+    }
+
     @include breakpoint(smalldesk) {
       display: block;
       text-align: center;
@@ -21,6 +28,10 @@
     vertical-align: middle;
     font-weight: $normal;
     font-size: 14px;
+
+    @at-root .site-nav--small & {
+      display: none;
+    }
 
     @include breakpoint(smalldesk) {
       display: none;
@@ -41,6 +52,10 @@
 
     &:hover {
       color: $text-dark;
+    }
+
+    @at-root .site-nav--small & {
+      height: 50px;
     }
 
     @include breakpoint(smalldesk) {
@@ -66,6 +81,17 @@
         z-index: 1;
       }
 
+      @at-root .site-nav--small & {
+        border-bottom: 6px solid #9a61c6;
+        border-left: 6px solid #9a61c6;
+        padding: 0;
+        border-radius: 0;
+
+        &::before {
+          display: none;
+        }
+      }
+
       @include breakpoint(smalldesk) {
         border-bottom: 6px solid #9a61c6;
         border-left: 6px solid #9a61c6;
@@ -78,11 +104,17 @@
       }
     }
 
-    @include breakpoint(smalldesk) {
-      .site-nav-item__icon {
+    .site-nav-item__icon {
+      @at-root .site-nav--small & {
+        @include transform(translate(-2px, 3px));
+      }
+
+      @include breakpoint(smalldesk) {
         @include transform(translate(-2px, 3px));
       }
     }
+
+
 
     &.site-nav-item--single {
       .site-nav-item__button {
@@ -96,6 +128,10 @@
   &:last-child {
     border-top: 1px solid $accent-light;
     padding-top: 15px;
+
+    @at-root .site-nav--small & {
+      margin-right: 0;
+    }
 
     @include breakpoint(smalldesk) {
       margin-right: 0;
@@ -137,6 +173,10 @@
       top: 50%;
       margin: -3px 0 0 -4px;
 
+      @at-root .site-nav--small & {
+        display: none;
+      }
+
       @include breakpoint(smalldesk) {
         display: none;
       }
@@ -158,6 +198,12 @@
       color: rgba($white, 0.9);
     }
 
+    @at-root .site-nav--small & {
+      text-align: center;
+      padding: 3px 0 9px;
+      height: 44px;
+    }
+
     @include breakpoint(smalldesk) {
       text-align: center;
       padding: 3px 0 9px;
@@ -176,6 +222,10 @@
   }
 
   &__name {
+    @at-root .site-nav--small & {
+      display: none;
+    }
+
     @include breakpoint(desktop) {
       display: inline-block;
     }
@@ -186,6 +236,15 @@
   }
 
   &__icon {
+    @at-root .site-nav--small & {
+      display: inline-block;
+      font-size: 25px;
+
+      .kolidecon {
+        vertical-align: 1px;
+      }
+    }
+
     @include breakpoint(desktop) {
       display: none;
     }
@@ -200,8 +259,12 @@
     }
   }
 
-  @include breakpoint(smalldesk) {
-    &:first-child {
+  &:first-child {
+    @at-root .site-nav--small & {
+      display: none;
+    }
+
+    @include breakpoint(smalldesk) {
       display: none;
     }
   }
@@ -216,6 +279,11 @@
   padding: 0;
   position: relative;
 
+  @at-root .site-nav--small & {
+    @include linear-gradient(to bottom, #9a61c6 0%, $brand 18%, $brand 82%, #9a61c6 100%);
+    box-shadow: none;
+  }
+
   @include breakpoint(smalldesk) {
     @include linear-gradient(to bottom, #9a61c6 0%, $brand 18%, $brand 82%, #9a61c6 100%);
     box-shadow: none;
@@ -225,6 +293,12 @@
     padding: 12px 0;
     margin: 0;
 
+    @at-root .site-nav--small & {
+      padding: 0;
+      text-align: center;
+      width: 100%;
+    }
+
     @include breakpoint(smalldesk) {
       padding: 0;
       text-align: center;
@@ -232,6 +306,10 @@
     }
 
     &--expanded {
+      @at-root .site-nav--small & {
+        display: inline-block;
+      }
+
       @include breakpoint(smalldesk) {
         display: inline-block;
       }

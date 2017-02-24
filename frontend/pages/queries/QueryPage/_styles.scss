@@ -9,10 +9,7 @@
   &__results {
     @include display(flex);
     @include flex-grow(1);
+    position: relative;
     min-height: 400px;
-
-    &--loading {
-      @include align-items(center);
-    }
   }
 }

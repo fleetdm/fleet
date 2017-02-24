@@ -8,6 +8,8 @@ import filterArrayByHash from 'utilities/filter_array_by_hash';
 import Icon from 'components/icons/Icon';
 import InputField from 'components/forms/fields/InputField';
 import QueryResultsRow from 'components/queries/QueryResultsTable/QueryResultsRow';
+import QueryProgressDetails from 'components/queries/QueryProgressDetails';
+import Spinner from 'components/loaders/Spinner';
 
 const baseClass = 'query-results-table';
 
@@ -15,12 +17,22 @@ class QueryResultsTable extends Component {
   static propTypes = {
     campaign: campaignInterface.isRequired,
     onExportQueryResults: PropTypes.func,
+    onToggleQueryFullScreen: PropTypes.func,
+    isQueryFullScreen: PropTypes.bool,
+    isQueryShrinking: PropTypes.bool,
+    onRunQuery: PropTypes.func.isRequired,
+    onStopQuery: PropTypes.func.isRequired,
+    query: PropTypes.string,
+    queryIsRunning: PropTypes.bool,
+    queryTimerMilliseconds: PropTypes.number,
   };
 
   constructor (props) {
     super(props);
 
-    this.state = { resultsFilter: {} };
+    this.state = {
+      resultsFilter: {},
+    };
   }
 
   onFilterAttribute = (attribute) => {
@@ -100,44 +112,93 @@ class QueryResultsTable extends Component {
     });
   }
 
-  render () {
-    const { campaign, onExportQueryResults } = this.props;
+  renderTable = () => {
     const {
       renderTableHeaderRow,
       renderTableRows,
     } = this;
-    const { hosts_count: hostsCount } = campaign;
 
-    if (!hostsCount || !hostsCount.total) {
-      return false;
-    }
+    const { queryIsRunning, campaign } = this.props;
+    const { query_results: queryResults } = campaign;
 
-    if (!hostsCount.successful) {
-      return (
-        <div className={`${baseClass} ${baseClass}__no-results`}>
-          <em>No results found</em>
-        </div>
-      );
+    const loading = queryIsRunning && (!queryResults || !queryResults.length);
+
+    if (loading) {
+      return <Spinner />;
     }
 
     return (
-      <div className={baseClass}>
-        <Button
-          className={`${baseClass}__export-btn`}
-          onClick={onExportQueryResults}
-          variant="link"
-        >
-          Export
-        </Button>
+      <table className={`${baseClass}__table`}>
+        <thead>
+          {renderTableHeaderRow()}
+        </thead>
+        <tbody>
+          {renderTableRows()}
+        </tbody>
+      </table>
+    );
+  }
+
+  render () {
+    const {
+      campaign,
+      onExportQueryResults,
+      isQueryFullScreen,
+      isQueryShrinking,
+      onToggleQueryFullScreen,
+      onRunQuery,
+      onStopQuery,
+      query,
+      queryIsRunning,
+      queryTimerMilliseconds,
+    } = this.props;
+
+    const { renderTable } = this;
+
+    const { hosts_count: hostsCount, query_results: queryResults } = campaign;
+    const hasNoResults = !queryIsRunning && (!hostsCount.successful || (!queryResults || !queryResults.length));
+
+    const resultsTableWrapClass = classnames(baseClass, {
+      [`${baseClass}--full-screen`]: isQueryFullScreen,
+      [`${baseClass}--shrinking`]: isQueryShrinking,
+      [`${baseClass}__no-results`]: hasNoResults,
+    });
+
+    const toggleFullScreenBtnClass = classnames(`${baseClass}__fullscreen-btn`, {
+      [`${baseClass}__fullscreen-btn--active`]: isQueryFullScreen,
+    });
+
+    return (
+      <div className={resultsTableWrapClass}>
+        <header className={`${baseClass}__button-wrap`}>
+          {isQueryFullScreen && <QueryProgressDetails
+            campaign={campaign}
+            onRunQuery={onRunQuery}
+            onStopQuery={onStopQuery}
+            query={query}
+            queryIsRunning={queryIsRunning}
+            className={`${baseClass}__full-screen`}
+            queryTimerMilliseconds={queryTimerMilliseconds}
+          />}
+
+          <Button
+            className={toggleFullScreenBtnClass}
+            onClick={onToggleQueryFullScreen}
+            variant="muted"
+          >
+            <Icon name={isQueryFullScreen ? 'windowed' : 'fullscreen'} />
+          </Button>
+          <Button
+            className={`${baseClass}__export-btn`}
+            onClick={onExportQueryResults}
+            variant="link"
+          >
+            Export
+          </Button>
+        </header>
         <div className={`${baseClass}__table-wrapper`}>
-          <table className={`${baseClass}__table`}>
-            <thead>
-              {renderTableHeaderRow()}
-            </thead>
-            <tbody>
-              {renderTableRows()}
-            </tbody>
-          </table>
+          {hasNoResults && <em className="no-results-message">No results found</em>}
+          {!hasNoResults && renderTable()}
         </div>
       </div>
     );

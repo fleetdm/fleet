@@ -3,6 +3,7 @@ import { connect } from 'react-redux';
 import LoadingBar from 'react-redux-loading-bar';
 import { logoutUser } from 'redux/nodes/auth/actions';
 import { push } from 'react-router-redux';
+import classnames from 'classnames';
 
 import configInterface from 'interfaces/config';
 import FlashMessage from 'components/flash_messages/FlashMessage';
@@ -20,6 +21,7 @@ export class CoreLayout extends Component {
     dispatch: PropTypes.func,
     user: userInterface,
     fullWidthFlash: PropTypes.bool,
+    isSmallNav: PropTypes.bool,
     notifications: notificationInterface,
     persistentFlash: PropTypes.shape({
       showFlash: PropTypes.bool.isRequired,
@@ -75,7 +77,15 @@ export class CoreLayout extends Component {
   }
 
   render () {
-    const { fullWidthFlash, notifications, children, config, persistentFlash, user } = this.props;
+    const {
+      fullWidthFlash,
+      notifications,
+      children,
+      config,
+      persistentFlash,
+      user,
+      isSmallNav,
+    } = this.props;
     const { onRemoveFlash, onUndoActionClick } = this;
 
     if (!user) return false;
@@ -83,10 +93,18 @@ export class CoreLayout extends Component {
     const { onLogoutUser, onNavItemClick } = this;
     const { pathname } = global.window.location;
 
+    const siteNavClasses = classnames('site-nav', {
+      'site-nav--small': isSmallNav,
+    });
+
+    const coreWrapperClasses = classnames('core-wrapper', {
+      'core-wrapper--small': isSmallNav,
+    });
+
     return (
       <div className="app-wrap">
         <LoadingBar />
-        <nav className="site-nav">
+        <nav className={siteNavClasses}>
           <SiteNavHeader
             config={config}
             onLogoutUser={onLogoutUser}
@@ -100,7 +118,7 @@ export class CoreLayout extends Component {
             user={user}
           />
         </nav>
-        <div className="core-wrapper">
+        <div className={coreWrapperClasses}>
           {persistentFlash.showFlash && <PersistentFlash message={persistentFlash.message} />}
           <FlashMessage
             fullWidth={fullWidthFlash}
@@ -117,7 +135,10 @@ export class CoreLayout extends Component {
 
 const mapStateToProps = (state) => {
   const {
-    app: { config },
+    app: {
+      config,
+      isSmallNav,
+    },
     auth: { user },
     notifications,
     persistentFlash,
@@ -128,6 +149,7 @@ const mapStateToProps = (state) => {
   return {
     config,
     fullWidthFlash,
+    isSmallNav,
     notifications,
     persistentFlash,
     user,

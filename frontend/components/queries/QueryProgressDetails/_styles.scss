@@ -1,0 +1,23 @@
+.query-progress-details {
+  @at-root &.query-results-table__full-screen {
+    float: left;
+  }
+
+  &__wrapper {
+    display: inline-block;
+    max-width: 420px;
+
+    em {
+      color: $accent-text;
+      font-size: 0.8em;
+    }
+  }
+
+  &__btn-wrapper {
+    float: right;
+
+    .button {
+      margin-left: 10px;
+    }
+  }
+}

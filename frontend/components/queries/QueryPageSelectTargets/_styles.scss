@@ -2,17 +2,4 @@
   &__wrapper {
     padding: $base;
   }
-
-  &__progress-details {
-    display: inline-block;
-    width: 378px;
-  }
-
-  &__query-btn-wrapper {
-    float: right;
-
-    button {
-      margin-left: 10px;
-    }
-  }
 }

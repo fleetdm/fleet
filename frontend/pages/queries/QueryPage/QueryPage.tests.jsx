@@ -114,7 +114,7 @@ describe('QueryPage - component', () => {
   it('sets targetError in state when the query is run and there are no selected targets', () => {
     const page = mount(connectedComponent(ConnectedQueryPage, { mockStore, props: locationProp }));
     const QueryPageSelectTargets = page.find('QueryPageSelectTargets');
-    const runQueryBtn = page.find('.query-page-select-targets__run-query-btn');
+    const runQueryBtn = page.find('.query-progress-details__run-btn');
 
     expect(QueryPageSelectTargets.prop('error')).toNotExist();
 
@@ -213,9 +213,41 @@ describe('QueryPage - component', () => {
 
       const QueryResultsTable = Page.find('QueryResultsTable');
 
-      QueryResultsTable.find('Button').simulate('click');
+      QueryResultsTable.find('.query-results-table__export-btn').simulate('click');
 
       expect(fileSaveSpy).toHaveBeenCalledWith(fileStub);
+    });
+  });
+
+  describe('toggle full screen results', () => {
+    it('toggles query results table from default to full screen and back', () => {
+      const queryResult = { org_name: 'Kolide', org_url: 'https://kolide.co' };
+      const campaign = {
+        id: 1,
+        hosts_count: {
+          failed: 0,
+          successful: 1,
+          total: 1,
+        },
+        query_results: [queryResult],
+      };
+      const Page = mount(<QueryPage dispatch={noop} query={queryStub} selectedOsqueryTable={defaultSelectedOsqueryTable} />);
+      Page.setState({ campaign });
+
+      const QueryResultsTable = Page.find('QueryResultsTable');
+
+      QueryResultsTable.find('.query-results-table__fullscreen-btn').simulate('click');
+
+      expect(QueryResultsTable.find('.query-results-table__fullscreen-btn--active').length).toEqual(1);
+      expect(QueryResultsTable.find('.query-results-table--full-screen').length).toEqual(1);
+      expect(Page.find('.query-page__results--full-screen').length).toEqual(1);
+
+      QueryResultsTable.find('.query-results-table__fullscreen-btn').simulate('click');
+
+      expect(QueryResultsTable.find('.query-results-table__fullscreen-btn--active').length).toEqual(0);
+      expect(QueryResultsTable.find('.query-results-table--full-screen').length).toEqual(0);
+      expect(QueryResultsTable.find('.query-results-table--shrinking').length).toEqual(1);
+      expect(Page.find('.query-page__results--full-screen').length).toEqual(0);
     });
   });
 });

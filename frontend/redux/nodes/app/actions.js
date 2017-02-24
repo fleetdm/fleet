@@ -8,12 +8,16 @@ export const CONFIG_START = 'CONFIG_START';
 export const CONFIG_SUCCESS = 'CONFIG_SUCCESS';
 export const SHOW_BACKGROUND_IMAGE = 'SHOW_BACKGROUND_IMAGE';
 export const HIDE_BACKGROUND_IMAGE = 'HIDE_BACKGROUND_IMAGE';
+export const TOGGLE_SMALL_NAV = 'TOGGLE_SMALL_NAV';
 
 export const showBackgroundImage = {
   type: SHOW_BACKGROUND_IMAGE,
 };
 export const hideBackgroundImage = {
   type: HIDE_BACKGROUND_IMAGE,
+};
+export const toggleSmallNav = {
+  type: TOGGLE_SMALL_NAV,
 };
 export const configFailure = (error) => {
   return { type: CONFIG_FAILURE, payload: { error } };
