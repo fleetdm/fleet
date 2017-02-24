@@ -12,6 +12,8 @@ class SelectTargetsInput extends Component {
     isLoading: PropTypes.bool,
     menuRenderer: PropTypes.func,
     onClose: PropTypes.func,
+    onOpen: PropTypes.func,
+    onFocus: PropTypes.func,
     onTargetSelect: PropTypes.func,
     onTargetSelectInputChange: PropTypes.func,
     selectedTargets: PropTypes.arrayOf(targetInterface),
@@ -31,6 +33,8 @@ class SelectTargetsInput extends Component {
       isLoading,
       menuRenderer,
       onClose,
+      onOpen,
+      onFocus,
       onTargetSelect,
       onTargetSelectInputChange,
       selectedTargets,
@@ -50,6 +54,8 @@ class SelectTargetsInput extends Component {
         options={targets}
         onChange={onTargetSelect}
         onClose={onClose}
+        onOpen={onOpen}
+        onFocus={onFocus}
         onInputChange={onTargetSelectInputChange}
         placeholder="Label Name, Host Name, IP Address, etc."
         resetValue={[]}

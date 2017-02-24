@@ -37,6 +37,7 @@ class SelectTargetsDropdown extends Component {
       moreInfoTarget: null,
       query: '',
       targets: [],
+      wrapperHeight: 0,
     };
   }
 
@@ -60,7 +61,38 @@ class SelectTargetsDropdown extends Component {
   }
 
   onInputClose = () => {
+    const { document } = global;
+    const coreWrapper = document.querySelector('.core-wrapper');
+
     this.setState({ moreInfoTarget: null, query: '' });
+    coreWrapper.style.height = 'auto';
+
+    return false;
+  }
+
+  onInputFocus = () => {
+    const { document } = global;
+    this.wrapperHeight = document.querySelector('.core-wrapper').scrollHeight;
+
+    return false;
+  }
+
+  onInputOpen = () => {
+    const { document } = global;
+    const { wrapperHeight } = this;
+
+    const lookForOuterMenu = setInterval(() => {
+      if (document.querySelectorAll('.Select-menu-outer')) {
+        clearInterval(lookForOuterMenu);
+        const coreWrapper = document.querySelector('.core-wrapper');
+
+        const currentWrapperHeight = coreWrapper.scrollHeight;
+        if (wrapperHeight < currentWrapperHeight) {
+          console.log(`Grow wrapper by ${currentWrapperHeight - wrapperHeight}px`);
+          coreWrapper.style.height = `${wrapperHeight + (currentWrapperHeight - wrapperHeight) + 15}px`;
+        }
+      }
+    }, 5);
 
     return false;
   }
@@ -168,6 +200,8 @@ class SelectTargetsDropdown extends Component {
       fetchTargets,
       onBackToResults,
       onInputClose,
+      onInputOpen,
+      onInputFocus,
       onTargetSelectMoreInfo,
       renderLabel,
     } = this;
@@ -188,6 +222,8 @@ class SelectTargetsDropdown extends Component {
           isLoading={isLoadingTargets}
           menuRenderer={menuRenderer}
           onClose={onInputClose}
+          onOpen={onInputOpen}
+          onFocus={onInputFocus}
           onTargetSelect={onSelect}
           onTargetSelectInputChange={fetchTargets}
           selectedTargets={selectedTargets}
