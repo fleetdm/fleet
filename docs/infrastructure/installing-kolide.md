@@ -9,6 +9,12 @@ The Kolide application is distributed as a single static binary. This binary ser
 
 All of these are served via a built-in HTTP server, so there is no need for complex web server configurations. Once you've installed the `kolide` binary and it's infrastructure dependencies as illustrated below, refer to the [Configuring The Kolide Binary](./configuring-the-kolide-binary.md) documentation for information on how to use and configure the Kolide application.
 
+## Kolide Quickstart
+
+Kolide provides a [quickstart script](https://github.com/kolide/kolide-quickstart) that is the quickest way to get a demo Kolide instance up and running. For easiest install, see the instructions provided on your [Kolide license page](https://kolide.co/account/product-and-license#quick-start).
+
+Note that the quickstart is not intended to be a production deployment. If you would like a production deployment, please choose one of the methods below.
+
 ## Installing the Kolide binary
 
 Because everyone's infrastructure is different, there are a multiple options available for installing the Kolide binary.
