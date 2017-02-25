@@ -9,10 +9,10 @@ build: kolide-builder
 kolide-builder:
 	# copy node-sass artifacts into rootfs
 	cd $(GO_VERSION) && \
-		docker build -t kolide/kolide-builder:$(GO_VERSION)-yarn .
+		docker build -t kolide/kolide-builder:$(GO_VERSION) .
 
 push:
-		docker push kolide/kolide-builder:$(GO_VERSION)-yarn
+		docker push kolide/kolide-builder:$(GO_VERSION)
 
 clean:
 	rm -rf build
