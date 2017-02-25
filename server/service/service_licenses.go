@@ -22,5 +22,7 @@ func (svc service) SaveLicense(ctx context.Context, jwtToken string) (*kolide.Li
 	if err != nil {
 		return nil, err
 	}
+	// schedule a checkin with the license server.
+	go func() { svc.licenseChecker.RunLicenseCheck(ctx) }()
 	return updated, nil
 }

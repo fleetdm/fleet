@@ -125,3 +125,9 @@ func (l *License) Claims() (*Claims, error) {
 	result.HostCount = int(l.HostCount)
 	return &result, nil
 }
+
+// LicenseChecker allows checking that a license is valid by calling in to
+// a remote URL.
+type LicenseChecker interface {
+	RunLicenseCheck(ctx context.Context)
+}

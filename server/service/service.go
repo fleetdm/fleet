@@ -13,7 +13,7 @@ import (
 )
 
 // NewService creates a new service from the config struct
-func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore, logger kitlog.Logger, kolideConfig config.KolideConfig, mailService kolide.MailService, c clock.Clock) (kolide.Service, error) {
+func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore, logger kitlog.Logger, kolideConfig config.KolideConfig, mailService kolide.MailService, c clock.Clock, checker kolide.LicenseChecker) (kolide.Service, error) {
 	var svc kolide.Service
 
 	logFile := func(path string) io.Writer {
@@ -26,11 +26,12 @@ func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore, logger
 	}
 
 	svc = service{
-		ds:          ds,
-		resultStore: resultStore,
-		logger:      logger,
-		config:      kolideConfig,
-		clock:       c,
+		ds:             ds,
+		resultStore:    resultStore,
+		logger:         logger,
+		config:         kolideConfig,
+		clock:          c,
+		licenseChecker: checker,
 
 		osqueryStatusLogWriter: logFile(kolideConfig.Osquery.StatusLogFile),
 		osqueryResultLogWriter: logFile(kolideConfig.Osquery.ResultLogFile),
@@ -41,11 +42,12 @@ func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore, logger
 }
 
 type service struct {
-	ds          kolide.Datastore
-	resultStore kolide.QueryResultStore
-	logger      kitlog.Logger
-	config      config.KolideConfig
-	clock       clock.Clock
+	ds             kolide.Datastore
+	resultStore    kolide.QueryResultStore
+	logger         kitlog.Logger
+	config         config.KolideConfig
+	clock          clock.Clock
+	licenseChecker kolide.LicenseChecker
 
 	osqueryStatusLogWriter io.Writer
 	osqueryResultLogWriter io.Writer

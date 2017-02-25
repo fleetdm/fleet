@@ -88,7 +88,7 @@ the way that the kolide server works.
 			redisPool := pubsub.NewRedisPool(config.Redis.Address, config.Redis.Password)
 			resultStore = pubsub.NewRedisQueryResults(redisPool)
 
-			svc, err := service.NewService(ds, resultStore, logger, config, mailService, clock.C)
+			svc, err := service.NewService(ds, resultStore, logger, config, mailService, clock.C, licenseService)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}

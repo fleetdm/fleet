@@ -2,15 +2,18 @@ package license
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
 	"github.com/WatchBeam/clock"
 	"github.com/go-kit/kit/log"
 	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/kolide/server/version"
+	"github.com/pkg/errors"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -122,7 +125,7 @@ func (cc *Checker) Start() error {
 				chk.logger.Log("msg", "finishing")
 				return
 			case <-chk.ticker.Chan():
-				updateLicenseRevocation(&chk)
+				chk.RunLicenseCheck(context.Background())
 			}
 		}
 	}(*cc, &wait)
@@ -138,51 +141,73 @@ func (cc *Checker) Stop() {
 	cc.finish = nil
 }
 
-func updateLicenseRevocation(chk *Checker) {
-	chk.logger.Log("msg", "begin license check")
-	defer chk.logger.Log("msg", "ending license check")
-
-	license, err := chk.ds.License()
+// addVersionInfo parses the license URL and adds the current revision of the
+// kolide binary to the query params. The reported revision is set using
+// ldflags by the make command, otherwise defaults to 'unknown'.
+func addVersionInfo(licenseURL string) (*url.URL, error) {
+	ur, err := url.Parse(licenseURL)
 	if err != nil {
-		chk.logger.Log("msg", "couldn't fetch license", "err", err)
+		return nil, errors.Wrapf(err, "license checker failed to parse URL string %q", licenseURL)
+	}
+	revision := version.Version().Revision
+	q := ur.Query()
+	q.Set("version", revision)
+	ur.RawQuery = q.Encode()
+	return ur, nil
+}
+
+func (cc *Checker) RunLicenseCheck(ctx context.Context) {
+	cc.logger.Log("msg", "begin license check")
+	defer cc.logger.Log("msg", "ending license check")
+
+	license, err := cc.ds.License()
+	if err != nil {
+		cc.logger.Log("msg", "couldn't fetch license", "err", err)
 		return
 	}
 	claims, err := license.Claims()
 	if err != nil {
-		chk.logger.Log("msg", "fetching claims", "err", err)
+		cc.logger.Log("msg", "fetching claims", "err", err)
 		return
 	}
-	url := fmt.Sprintf("%s/%s", chk.url, claims.LicenseUUID)
-	resp, err := chk.client.Get(url)
+
+	licenseURL, err := addVersionInfo(fmt.Sprintf("%s/%s", cc.url, claims.LicenseUUID))
 	if err != nil {
-		chk.logger.Log("msg", fmt.Sprintf("fetching %s", url), "err", err)
+		cc.logger.Log("msg", "adding version information to license", "err", err)
+		return
+	}
+
+	resp, err := cc.client.Get(licenseURL.String())
+	if err != nil {
+		cc.logger.Log("msg", fmt.Sprintf("fetching %s", licenseURL.String()), "err", err)
 		return
 	}
 	defer resp.Body.Close()
+
 	switch resp.StatusCode {
 	case http.StatusOK:
 		var revInfo revokeInfo
 		err = json.NewDecoder(resp.Body).Decode(&revInfo)
 		if err != nil {
-			chk.logger.Log("msg", "decoding response", "err", err)
+			cc.logger.Log("msg", "decoding response", "err", err)
 			return
 		}
-		err = chk.ds.RevokeLicense(revInfo.Revoked)
+		err = cc.ds.RevokeLicense(revInfo.Revoked)
 		if err != nil {
-			chk.logger.Log("msg", "revoke status", "err", err)
+			cc.logger.Log("msg", "revoke status", "err", err)
 			return
 		}
 		// success
-		chk.logger.Log("msg", fmt.Sprintf("license revocation status retrieved succesfully, revoked: %t", revInfo.Revoked))
+		cc.logger.Log("msg", fmt.Sprintf("license revocation status retrieved succesfully, revoked: %t", revInfo.Revoked))
 	case http.StatusNotFound:
 		var revInfo revokeError
 		err = json.NewDecoder(resp.Body).Decode(&revInfo)
 		if err != nil {
-			chk.logger.Log("msg", "decoding response", "err", err)
+			cc.logger.Log("msg", "decoding response", "err", err)
 			return
 		}
-		chk.logger.Log("msg", "host response", "err", fmt.Sprintf("status: %d error: %s", revInfo.Status, revInfo.Error))
+		cc.logger.Log("msg", "host response", "err", fmt.Sprintf("status: %d error: %s", revInfo.Status, revInfo.Error))
 	default:
-		chk.logger.Log("msg", "host response", "err", fmt.Sprintf("unexpected response status from host, status %s", resp.Status))
+		cc.logger.Log("msg", "host response", "err", fmt.Sprintf("unexpected response status from host, status %s", resp.Status))
 	}
 }

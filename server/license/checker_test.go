@@ -15,6 +15,8 @@ import (
 	"github.com/kolide/kolide/server/kolide"
 	"github.com/kolide/kolide/server/mock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/net/context"
 )
 
 var tokenString = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IjRkOmM1OmRlOmE1Oj" +
@@ -82,6 +84,7 @@ func TestLicenseFound(t *testing.T) {
 		mockTicker(c.NewTicker(time.Millisecond)),
 	)
 	checker.Start()
+	checker.RunLicenseCheck(context.Background())
 	<-time.After(10 * time.Millisecond)
 	c.AddTime(time.Millisecond)
 	c.AddTime(time.Millisecond)
@@ -92,8 +95,8 @@ func TestLicenseFound(t *testing.T) {
 	// use the  flags from the mock package to indicate function invocation race detector will
 	// complain
 
-	assert.Equal(t, int64(2), atomic.LoadInt64(&licFunInvoked))
-	assert.Equal(t, int64(2), atomic.LoadInt64(&revokeFunInvoked))
+	assert.Equal(t, int64(3), atomic.LoadInt64(&licFunInvoked))
+	assert.Equal(t, int64(3), atomic.LoadInt64(&revokeFunInvoked))
 }
 
 func TestLicenseNotFound(t *testing.T) {
@@ -134,12 +137,13 @@ func TestLicenseNotFound(t *testing.T) {
 		mockTicker(c.NewTicker(time.Millisecond)),
 	)
 	checker.Start()
+	checker.RunLicenseCheck(context.Background())
 	<-time.After(10 * time.Millisecond)
 	c.AddTime(time.Millisecond)
 	<-time.After(10 * time.Millisecond)
 	checker.Stop()
 
-	assert.Equal(t, int64(1), atomic.LoadInt64(&licFunInvoked))
+	assert.Equal(t, int64(2), atomic.LoadInt64(&licFunInvoked))
 	assert.Equal(t, int64(0), atomic.LoadInt64(&revokeFunInvoked))
 }
 
@@ -208,12 +212,13 @@ func TestLicenseTimeout(t *testing.T) {
 		Logger(logger),
 	)
 	checker.Start()
+	checker.RunLicenseCheck(context.Background())
 	<-time.After(10 * time.Millisecond)
 	c.AddTime(time.Millisecond)
 	<-time.After(10 * time.Millisecond)
 	checker.Stop()
 
-	assert.Equal(t, int64(1), atomic.LoadInt64(&licFunInvoked))
+	assert.Equal(t, int64(2), atomic.LoadInt64(&licFunInvoked))
 	assert.Equal(t, int64(0), atomic.LoadInt64(&revokeFunInvoked))
 	match, _ := regexp.MatchString("(Client.Timeout exceeded while awaiting headers)", logger.read())
 	assert.True(t, match)
@@ -221,4 +226,12 @@ func TestLicenseTimeout(t *testing.T) {
 	match, _ = regexp.MatchString("finishing", logger.read())
 	assert.True(t, match)
 
+}
+
+func TestURLAddVersionInfo(t *testing.T) {
+	licenseURL := "https://kolide.co/api/v0/licenses"
+	ur, err := addVersionInfo(licenseURL)
+	require.Nil(t, err)
+	want := licenseURL + "?version=unknown"
+	assert.Equal(t, want, ur.String(), "query params must include version")
 }
