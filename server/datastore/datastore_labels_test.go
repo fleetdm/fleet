@@ -386,3 +386,42 @@ func testSaveLabel(t *testing.T, db kolide.Datastore) {
 	assert.Equal(t, label.Name, saved.Name)
 	assert.Equal(t, label.Description, saved.Description)
 }
+
+func testReplaceDeletedLabel(t *testing.T, db kolide.Datastore) {
+	if db.Name() == "inmem" {
+		t.Skip("inmem is being deprecated, test skipped")
+	}
+
+	label := &kolide.Label{
+		Name:  "my label",
+		Query: "select 1 from processes;",
+	}
+	saved, err := db.NewLabel(label)
+	require.Nil(t, err)
+
+	saved, err = db.Label(saved.ID)
+	require.Nil(t, err)
+	assert.Equal(t, label.Name, saved.Name)
+	assert.Equal(t, label.Description, saved.Description)
+
+	newLabel := &kolide.Label{
+		Name:  "my label",
+		Query: " select * from time",
+	}
+
+	// Replace should fail when label already exists and isn't soft deleted
+	_, err = db.NewLabel(newLabel)
+	require.NotNil(t, err)
+
+	// Now delete label and replace should succeed
+	err = db.DeleteLabel(label.ID)
+	require.Nil(t, err)
+
+	saved, err = db.NewLabel(newLabel)
+	require.Nil(t, err)
+
+	saved, err = db.Label(saved.ID)
+	require.Nil(t, err)
+	assert.Equal(t, newLabel.Name, saved.Name)
+	assert.Equal(t, newLabel.Description, saved.Description)
+}

@@ -73,4 +73,5 @@ var testFunctions = [...]func(*testing.T, kolide.Datastore){
 	testLicense,
 	testSaveLabel,
 	testFlappingNetworkInterfaces,
+	testReplaceDeletedLabel,
 }

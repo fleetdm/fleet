@@ -119,11 +119,17 @@ func (r createLabelResponse) error() error { return r.Err }
 func makeCreateLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createLabelRequest)
+
 		label, err := svc.NewLabel(ctx, req.payload)
+		if err != nil {
+			return createLabelResponse{Err: err}, nil
+		}
+
 		labelResp, err := labelResponseForLabel(ctx, svc, label)
 		if err != nil {
 			return createLabelResponse{Err: err}, nil
 		}
+
 		return createLabelResponse{Label: *labelResp}, nil
 	}
 }

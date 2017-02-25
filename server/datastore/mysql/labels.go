@@ -11,8 +11,25 @@ import (
 
 // NewLabel creates a new kolide.Label
 func (d *Datastore) NewLabel(label *kolide.Label) (*kolide.Label, error) {
-
-	sql := `
+	var (
+		deletedLabel kolide.Label
+		query        string
+	)
+	err := d.db.Get(&deletedLabel,
+		"SELECT * FROM labels WHERE name = ? AND deleted", label.Name)
+	switch err {
+	case nil:
+		query = `
+		REPLACE INTO labels (
+			name,
+			description,
+			query,
+			platform,
+			label_type
+		) VALUES ( ?, ?, ?, ?, ?)
+	`
+	case sql.ErrNoRows:
+		query = `
 		INSERT INTO labels (
 			name,
 			description,
@@ -21,7 +38,10 @@ func (d *Datastore) NewLabel(label *kolide.Label) (*kolide.Label, error) {
 			label_type
 		) VALUES ( ?, ?, ?, ?, ?)
 	`
-	result, err := d.db.Exec(sql, label.Name, label.Description, label.Query, label.Platform, label.LabelType)
+	default:
+		return nil, errors.Wrap(err, "check for existing label")
+	}
+	result, err := d.db.Exec(query, label.Name, label.Description, label.Query, label.Platform, label.LabelType)
 	if err != nil {
 		return nil, errors.Wrap(err, "inserting label")
 	}
