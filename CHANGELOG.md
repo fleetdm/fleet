@@ -1,3 +1,5 @@
+*   Fix an issue that prevented users from replacing deleted labels with a new label of the same name.
+
 *   Improve the reliability of IP and MAC address data in the host cards and table.
 
 *   Add full screen support for distributed query results.
@@ -8,7 +10,7 @@
 
 *   Automatically decorate the status and result logs with the host's UUID and hostname .
 
-*   Fix an issue where Kolide users on Safari were unable to delete queries or packs.
+*   Fix an issue where Kolide users on Safari were unable to delete queries or packs.
 
 *   Improve platform detection accuracy.
 
