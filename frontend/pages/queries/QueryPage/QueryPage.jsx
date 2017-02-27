@@ -344,6 +344,7 @@ export class QueryPage extends Component {
 
         window.setTimeout(() => {
           merge(parent.style, resetPosition);
+          this.setState({ queryResultsToggle: null });
         }, 500);
       };
     }
