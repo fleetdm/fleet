@@ -21,13 +21,13 @@
 
     &--delete {
       i {
-        color: $silver;
+        color: $text-light;
       }
     }
   }
 
   &__pack-count {
-    color: #858495;
+    color: $footer-accent;
     font-size: 14px;
     font-weight: $bold;
     letter-spacing: -0.5px;

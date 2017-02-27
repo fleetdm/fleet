@@ -241,7 +241,7 @@ export class AllPacksPage extends Component {
             onClick={onToggleModal}
             variant="unstyled"
           >
-            <Icon name="delete-cloud" /> Delete
+            <Icon name="trash" /> Delete
           </Button>
         </div>
       );
