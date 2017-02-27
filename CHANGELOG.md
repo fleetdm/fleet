@@ -1,3 +1,5 @@
+## Kolide 1.0.1 (February 27, 2017) ##
+
 *   Fix an issue that prevented users from replacing deleted labels with a new label of the same name.
 
 *   Improve the reliability of IP and MAC address data in the host cards and table.
@@ -8,7 +10,7 @@
 
 *   Reprompt for a password when a user attempts to change their email address.
 
-*   Automatically decorate the status and result logs with the host's UUID and hostname .
+*   Automatically decorate the status and result logs with the host's UUID and hostname.
 
 *   Fix an issue where Kolide users on Safari were unable to delete queries or packs.
 
