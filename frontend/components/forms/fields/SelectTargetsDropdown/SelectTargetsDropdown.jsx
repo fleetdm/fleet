@@ -88,7 +88,6 @@ class SelectTargetsDropdown extends Component {
 
         const currentWrapperHeight = coreWrapper.scrollHeight;
         if (wrapperHeight < currentWrapperHeight) {
-          console.log(`Grow wrapper by ${currentWrapperHeight - wrapperHeight}px`);
           coreWrapper.style.height = `${wrapperHeight + (currentWrapperHeight - wrapperHeight) + 15}px`;
         }
       }

@@ -4,7 +4,9 @@
   background-color: $white;
   padding: $pad-base;
   width: 100%;
+  min-height: calc(500px + (#{$pad-base} * 2));
   box-sizing: border-box;
+  max-height: 75vh;
 
   &__button-wrap {
     @include clearfix;

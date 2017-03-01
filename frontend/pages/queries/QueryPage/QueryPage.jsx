@@ -98,7 +98,10 @@ export class QueryPage extends Component {
   }
 
   componentWillUnmount () {
+    const { dispatch } = this.props;
+
     this.resetCampaignAndTargets();
+    dispatch(toggleSmallNav);
 
     return false;
   }
@@ -296,22 +299,20 @@ export class QueryPage extends Component {
       right: `${rect.right - rect.left}px`,
       bottom: `${rect.bottom - rect.top}px`,
       maxWidth: `${parent.offsetWidth}px`,
-      minWidth: `${parent.offsetWidth}px`,
       maxHeight: `${parent.offsetHeight}px`,
-      minHeight: `${parent.offsetHeight}px`,
       position: 'fixed',
     };
 
     const resetPosition = {
-      position: 'static',
-      maxWidth: 'auto',
-      minWidth: 'auto',
-      maxHeight: 'auto',
-      minHeight: 'auto',
-      top: 'auto',
-      right: 'auto',
-      bottom: 'auto',
-      left: 'auto',
+      position: null,
+      maxWidth: null,
+      minWidth: null,
+      maxHeight: null,
+      minHeight: null,
+      top: null,
+      right: null,
+      bottom: null,
+      left: null,
     };
 
     let newPosition = clone(defaultPosition);
