@@ -1,5 +1,7 @@
 *   Fix issue with Distributed Query Pack results full screen feature that broke the browser scrolling abilities
 
+*   Fix bug in which host counts in the sidebar did not match up with displayed hosts.
+
 ## Kolide 1.0.1 (February 27, 2017) ##
 
 *   Fix an issue that prevented users from replacing deleted labels with a new label of the same name.
