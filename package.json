@@ -72,6 +72,7 @@
     "require-hacker": "^2.1.4",
     "sass-loader": "^4.0.2",
     "select": "^1.0.6",
+    "sockjs-client": "^1.1.2",
     "sqlite-parser": "^1.0.0",
     "style-loader": "^0.13.0",
     "stylus-loader": "1.5.1",

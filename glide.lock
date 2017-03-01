@@ -1,5 +1,5 @@
-hash: 2e60f99104f57234e2a153d088d23ae4db10245052c3335696e9abe7e9e2064e
-updated: 2017-02-06T20:10:33.182812801-08:00
+hash: 23a51e1dbed0a504e02209cd5ef0fbb1bcb894ca7861a818154f7e8fab5fac48
+updated: 2017-02-28T11:03:55.538531823-08:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -66,6 +66,10 @@ imports:
   - json/parser
   - json/scanner
   - json/token
+- name: github.com/igm/sockjs-go
+  version: 1f275fbd3bcc9a21ec90217b80f40db44404410b
+  subpackages:
+  - sockjs
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/jmoiron/sqlx

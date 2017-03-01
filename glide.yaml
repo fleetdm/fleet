@@ -66,3 +66,4 @@ import:
   version: ^0.3.0
 - package: github.com/go-yaml/yaml
 - package: github.com/ryanuber/go-license
+- package: github.com/igm/sockjs-go

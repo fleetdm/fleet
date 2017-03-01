@@ -28,7 +28,7 @@ const campaignWithResults = {
     online: 2,
   },
 };
-const { destroyFunc, update } = helpers;
+const { destroyFunc, updateCampaignState } = helpers;
 const resultSocketData = {
   type: 'result',
   data: {
@@ -39,6 +39,10 @@ const resultSocketData = {
       { feature: 'family', value: '0600' },
     ],
   },
+};
+const statusSocketData = {
+  type: 'status',
+  data: 'finished',
 };
 const totalsSocketData = {
   type: 'totals',
@@ -60,67 +64,56 @@ describe('campaign entity - helpers', () => {
     });
   });
 
-  describe('#update', () => {
-    it('appends query results to the campaign when the campaign has query results', (done) => {
-      update(campaignWithResults, resultSocketData)
-        .then((response) => {
-          expect(response.query_results).toEqual([
-            ...campaignWithResults.query_results,
-            { feature: 'product_name', value: 'Intel Core' },
-            { feature: 'family', value: '0600' },
-          ]);
-          expect(response.hosts).toInclude(host);
-          done();
-        })
-        .catch(done);
+  describe('#updateCampaignState', () => {
+    it('appends query results to the campaign when the campaign has query results', () => {
+      const state = { campaign: campaignWithResults };
+      const updatedState = updateCampaignState(resultSocketData)(state, {});
+
+      expect(updatedState.campaign.query_results).toEqual([
+        ...campaignWithResults.query_results,
+        { feature: 'product_name', value: 'Intel Core' },
+        { feature: 'family', value: '0600' },
+      ]);
+      expect(updatedState.campaign.hosts).toInclude(host);
     });
 
-    it('adds query results to the campaign when the campaign does not have query results', (done) => {
-      update(campaign, resultSocketData)
-        .then((response) => {
-          expect(response.query_results).toEqual([
-            { feature: 'product_name', value: 'Intel Core' },
-            { feature: 'family', value: '0600' },
-          ]);
-          expect(response.hosts).toInclude(host);
-          done();
-        })
-        .catch(done);
+    it('adds query results to the campaign when the campaign does not have query results', () => {
+      const state = { campaign };
+      const updatedState = updateCampaignState(resultSocketData)(state, {});
+
+      expect(updatedState.campaign.query_results).toEqual([
+        { feature: 'product_name', value: 'Intel Core' },
+        { feature: 'family', value: '0600' },
+      ]);
+      expect(updatedState.campaign.hosts).toInclude(host);
     });
 
-    it('updates totals on the campaign when the campaign has totals', (done) => {
-      update(campaignWithResults, totalsSocketData)
-        .then((response) => {
-          expect(response.totals).toEqual(totalsSocketData.data);
-          done();
-        })
-        .catch(done);
+    it('updates totals on the campaign when the campaign has totals', () => {
+      const state = { campaign: campaignWithResults };
+      const updatedState = updateCampaignState(totalsSocketData)(state, {});
+
+      expect(updatedState.campaign.totals).toEqual(totalsSocketData.data);
     });
 
-    it('adds totals to the campaign when the campaign does not have totals', (done) => {
-      update(campaign, totalsSocketData)
-        .then((response) => {
-          expect(response.totals).toEqual(totalsSocketData.data);
-          done();
-        })
-        .catch(done);
+    it('adds totals to the campaign when the campaign does not have totals', () => {
+      const state = { campaign };
+      const updatedState = updateCampaignState(totalsSocketData)(state, {});
+
+      expect(updatedState.campaign.totals).toEqual(totalsSocketData.data);
     });
 
-    it('increases the successful hosts count and total when the result has no error', (done) => {
-      update(campaign, resultSocketData)
-        .then((response) => {
-          expect(response.hosts_count).toEqual({
-            successful: 1,
-            failed: 0,
-            total: 1,
-          });
+    it('increases the successful hosts count and total when the result has no error', () => {
+      const state = { campaign };
+      const updatedState = updateCampaignState(resultSocketData)(state, {});
 
-          done();
-        })
-        .catch(done);
+      expect(updatedState.campaign.hosts_count).toEqual({
+        successful: 1,
+        failed: 0,
+        total: 1,
+      });
     });
 
-    it('increases the failed hosts count and total when the result has an error', (done) => {
+    it('increases the failed hosts count and total when the result has an error', () => {
       const resultErrorSocketData = {
         type: 'result',
         data: {
@@ -129,17 +122,21 @@ describe('campaign entity - helpers', () => {
         },
       };
 
-      update(campaign, resultErrorSocketData)
-        .then((response) => {
-          expect(response.hosts_count).toEqual({
-            successful: 0,
-            failed: 1,
-            total: 1,
-          });
+      const state = { campaign };
+      const updatedState = updateCampaignState(resultErrorSocketData)(state, {});
 
-          done();
-        })
-        .catch(done);
+      expect(updatedState.campaign.hosts_count).toEqual({
+        successful: 0,
+        failed: 1,
+        total: 1,
+      });
+    });
+
+    it('sets the queryIsRunning attribute for status socket data', () => {
+      const state = { campaign };
+      const updatedState = updateCampaignState(statusSocketData)(state, {});
+
+      expect(updatedState.queryIsRunning).toEqual(false);
     });
   });
 });

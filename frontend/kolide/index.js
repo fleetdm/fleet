@@ -1,4 +1,5 @@
 import { get, omit, trim } from 'lodash';
+import SockJS from 'sockjs-client';
 
 import { appendTargetTypeToTargets } from 'redux/nodes/entities/targets/helpers';
 import Base from 'kolide/base';
@@ -239,10 +240,11 @@ class Kolide extends Base {
     queries: {
       run: (campaignID) => {
         return new Promise((resolve) => {
-          const socket = new global.WebSocket(`${this.websocketBaseURL}/v1/kolide/results/${campaignID}`);
+          const socket = new SockJS(`${this.baseURL}/v1/kolide/results`, undefined, {});
 
           socket.onopen = () => {
             socket.send(JSON.stringify({ type: 'auth', data: { token: local.getItem('auth_token') } }));
+            socket.send(JSON.stringify({ type: 'select_campaign', data: { campaign_id: campaignID } }));
           };
 
           return resolve(socket);

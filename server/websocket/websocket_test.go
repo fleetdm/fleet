@@ -2,49 +2,57 @@ package websocket
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/kolide/kolide/server/contexts/token"
-	"github.com/pkg/errors"
+
+	"github.com/igm/sockjs-go/sockjs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestTimeout(t *testing.T) {
-	completed := make(chan struct{})
-	handler := func(w http.ResponseWriter, req *http.Request) {
-		defer func() { completed <- struct{}{} }()
-
-		conn, err := Upgrade(w, req)
-		require.Nil(t, err)
-		defer conn.Close()
-
-		conn.Timeout = 1 * time.Millisecond
-
-		_, err = conn.ReadJSONMessage()
-		assert.NotNil(t, err, "read should timeout and error")
-	}
-
-	// Connect to websocket handler server
-	srv := httptest.NewServer(http.HandlerFunc(handler))
-	u, _ := url.Parse(srv.URL)
-	u.Scheme = "ws"
-	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+// readOpenMessage reads the sockjs open message
+func readOpenMessage(t *testing.T, conn *websocket.Conn) {
+	// Read the open message
+	mType, data, err := conn.ReadMessage()
+	require.Equal(t, websocket.TextMessage, mType)
 	require.Nil(t, err)
-	defer conn.Close()
 
-	select {
-	case <-completed:
-		// Normal
-	case <-time.After(1 * time.Second):
-		t.Error("handler did not complete")
-	}
+	require.Equal(t, []byte("o"), data, "expected sockjs open message")
+}
+
+// readJSONMessage reads a sockjs JSON message
+func readJSONMessage(t *testing.T, conn *websocket.Conn) string {
+	mType, data, err := conn.ReadMessage()
+	require.Nil(t, err)
+	require.Equal(t, websocket.TextMessage, mType)
+
+	assert.Equal(t, "a", string(data[0]), "expected sockjs data frame")
+
+	// Unwrap from sockjs frame
+	d := []string{}
+	err = json.Unmarshal(data[1:], &d)
+	require.Nil(t, err)
+	require.Len(t, d, 1)
+
+	return d[0]
+}
+
+func writeJSONMessage(t *testing.T, conn *websocket.Conn, typ string, data interface{}) {
+	buf, err := json.Marshal(JSONMessage{typ, data})
+	require.Nil(t, err)
+
+	// Wrap in sockjs frame
+	d, err := json.Marshal([]string{string(buf)})
+	require.Nil(t, err)
+
+	// Writes from the client to the server do not include the "a"
+	conn.WriteMessage(websocket.TextMessage, d)
 }
 
 func TestWriteJSONMessage(t *testing.T) {
@@ -74,34 +82,33 @@ func TestWriteJSONMessage(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run("", func(t *testing.T) {
-			handler := func(w http.ResponseWriter, req *http.Request) {
-				conn, err := Upgrade(w, req)
-				require.Nil(t, err)
-				defer conn.Close()
+			handler := sockjs.NewHandler("/test", sockjs.DefaultOptions, func(session sockjs.Session) {
+				defer session.Close(0, "none")
+
+				conn := &Conn{session}
 
 				require.Nil(t, conn.WriteJSONMessage(tt.typ, tt.data))
-			}
+			})
 
-			// Connect to websocket handler server
-			srv := httptest.NewServer(http.HandlerFunc(handler))
+			srv := httptest.NewServer(handler)
 			u, _ := url.Parse(srv.URL)
 			u.Scheme = "ws"
+			u.Path += "/test/123/abcdefghijklmnop/websocket"
+
 			conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 			require.Nil(t, err)
 			defer conn.Close()
+			readOpenMessage(t, conn)
 
 			dataJSON, err := json.Marshal(tt.data)
 			require.Nil(t, err)
 
 			// Ensure we read the correct message
-			mType, data, err := conn.ReadMessage()
-			require.Nil(t, err)
-			assert.Equal(t, websocket.TextMessage, mType)
+			data := readJSONMessage(t, conn)
 			assert.JSONEq(t,
 				fmt.Sprintf(`{"type": "%s", "data": %s}`, tt.typ, dataJSON),
-				string(data),
+				data,
 			)
-
 		})
 	}
 }
@@ -126,34 +133,33 @@ func TestWriteJSONError(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run("", func(t *testing.T) {
-			handler := func(w http.ResponseWriter, req *http.Request) {
-				conn, err := Upgrade(w, req)
-				require.Nil(t, err)
-				defer conn.Close()
+			handler := sockjs.NewHandler("/test", sockjs.DefaultOptions, func(session sockjs.Session) {
+				defer session.Close(0, "none")
+
+				conn := &Conn{session}
 
 				require.Nil(t, conn.WriteJSONError(tt.err))
-			}
+			})
 
-			// Connect to websocket handler server
-			srv := httptest.NewServer(http.HandlerFunc(handler))
+			srv := httptest.NewServer(handler)
 			u, _ := url.Parse(srv.URL)
 			u.Scheme = "ws"
+			u.Path += "/test/123/abcdefghijklmnop/websocket"
+
 			conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 			require.Nil(t, err)
 			defer conn.Close()
+			readOpenMessage(t, conn)
 
 			errJSON, err := json.Marshal(tt.err)
 			require.Nil(t, err)
 
 			// Ensure we read the correct message
-			mType, data, err := conn.ReadMessage()
-			require.Nil(t, err)
-			assert.Equal(t, websocket.TextMessage, mType)
+			data := readJSONMessage(t, conn)
 			assert.JSONEq(t,
 				fmt.Sprintf(`{"type": "error", "data": %s}`, errJSON),
-				string(data),
+				data,
 			)
-
 		})
 	}
 }
@@ -194,12 +200,11 @@ func TestReadJSONMessage(t *testing.T) {
 			require.Nil(t, err)
 
 			completed := make(chan struct{})
-			handler := func(w http.ResponseWriter, req *http.Request) {
+			handler := sockjs.NewHandler("/test", sockjs.DefaultOptions, func(session sockjs.Session) {
+				defer session.Close(0, "none")
 				defer func() { completed <- struct{}{} }()
 
-				conn, err := Upgrade(w, req)
-				require.Nil(t, err)
-				defer conn.Close()
+				conn := &Conn{session}
 
 				msg, err := conn.ReadJSONMessage()
 				if tt.err == nil {
@@ -211,19 +216,21 @@ func TestReadJSONMessage(t *testing.T) {
 
 				assert.Equal(t, tt.typ, msg.Type)
 				assert.EqualValues(t, &dataJSON, msg.Data)
-
-			}
+			})
 
 			// Connect to websocket handler server
-			srv := httptest.NewServer(http.HandlerFunc(handler))
+			srv := httptest.NewServer(handler)
 			u, _ := url.Parse(srv.URL)
 			u.Scheme = "ws"
-			wsConn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+			u.Path += "/test/123/abcdefghijklmnop/websocket"
+
+			conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 			require.Nil(t, err)
-			conn := &Conn{wsConn, defaultTimeout}
 			defer conn.Close()
 
-			require.Nil(t, conn.WriteJSONMessage(tt.typ, tt.data))
+			readOpenMessage(t, conn)
+
+			writeJSONMessage(t, conn, tt.typ, tt.data)
 
 			select {
 			case <-completed:
@@ -239,7 +246,7 @@ func TestReadAuthToken(t *testing.T) {
 	var cases = []struct {
 		typ   string
 		data  authData
-		token token.Token
+		token string
 		err   error
 	}{
 		{
@@ -262,12 +269,11 @@ func TestReadAuthToken(t *testing.T) {
 	for _, tt := range cases {
 		t.Run("", func(t *testing.T) {
 			completed := make(chan struct{})
-			handler := func(w http.ResponseWriter, req *http.Request) {
+			handler := sockjs.NewHandler("/test", sockjs.DefaultOptions, func(session sockjs.Session) {
+				defer session.Close(0, "none")
 				defer func() { completed <- struct{}{} }()
 
-				conn, err := Upgrade(w, req)
-				require.Nil(t, err)
-				defer conn.Close()
+				conn := &Conn{session}
 
 				token, err := conn.ReadAuthToken()
 				if tt.err == nil {
@@ -277,19 +283,22 @@ func TestReadAuthToken(t *testing.T) {
 					return
 				}
 
-				assert.Equal(t, tt.token, token)
-			}
+				assert.EqualValues(t, tt.token, token)
+			})
 
 			// Connect to websocket handler server
-			srv := httptest.NewServer(http.HandlerFunc(handler))
+			srv := httptest.NewServer(handler)
 			u, _ := url.Parse(srv.URL)
 			u.Scheme = "ws"
-			wsConn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+			u.Path += "/test/123/abcdefghijklmnop/websocket"
+
+			conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 			require.Nil(t, err)
-			conn := &Conn{wsConn, defaultTimeout}
 			defer conn.Close()
 
-			require.Nil(t, conn.WriteJSONMessage(tt.typ, tt.data))
+			readOpenMessage(t, conn)
+
+			writeJSONMessage(t, conn, tt.typ, tt.data)
 
 			select {
 			case <-completed:

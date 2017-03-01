@@ -311,6 +311,7 @@ Third-Party Licenses
 | [etag](https://www.npmjs.com/package/etag) | [MIT](https://opensource.org/licenses/MIT) |
 | [event-emitter](https://www.npmjs.com/package/event-emitter) | [MIT](https://opensource.org/licenses/MIT) |
 | [events](https://www.npmjs.com/package/events) | [MIT](https://opensource.org/licenses/MIT) |
+| [eventsource](https://www.npmjs.com/package/eventsource) | [MIT](https://opensource.org/licenses/MIT) |
 | [evp_bytestokey](https://www.npmjs.com/package/evp_bytestokey) | [MIT](https://opensource.org/licenses/MIT) |
 | [exit-hook](https://www.npmjs.com/package/exit-hook) | [MIT](https://opensource.org/licenses/MIT) |
 | [expand-brackets](https://www.npmjs.com/package/expand-brackets) | [MIT](https://opensource.org/licenses/MIT) |
@@ -324,6 +325,7 @@ Third-Party Licenses
 | [extsprintf](https://www.npmjs.com/package/extsprintf) | [MIT](https://opensource.org/licenses/MIT) |
 | [fast-levenshtein](https://www.npmjs.com/package/fast-levenshtein) | [MIT](https://opensource.org/licenses/MIT) |
 | [fastparse](https://www.npmjs.com/package/fastparse) | [MIT](https://opensource.org/licenses/MIT) |
+| [faye-websocket](https://www.npmjs.com/package/faye-websocket) | [MIT](https://opensource.org/licenses/MIT) |
 | [fbjs](https://www.npmjs.com/package/fbjs) | [BSD-3-Clause](https://opensource.org/licenses/BSD-3-Clause) |
 | [figures](https://www.npmjs.com/package/figures) | [MIT](https://opensource.org/licenses/MIT) |
 | [file-entry-cache](https://www.npmjs.com/package/file-entry-cache) | [MIT](https://opensource.org/licenses/MIT) |
@@ -381,6 +383,7 @@ Third-Party Licenses
 | [github.com/gorilla/mux](https://github.com/gorilla/mux) | [NewBSD](https://opensource.org/licenses/BSD-3-Clause) |
 | [github.com/gorilla/websocket](https://github.com/gorilla/websocket) | [FreeBSD](https://opensource.org/licenses/BSD-2-Clause) |
 | [github.com/hashicorp/hcl](https://github.com/hashicorp/hcl) | [MPL-2.0](https://www.mozilla.org/en-US/MPL/2.0/) |
+| [github.com/igm/sockjs-go](https://github.com/igm/sockjs-go) | [NewBSD](https://opensource.org/licenses/BSD-3-Clause) |
 | [github.com/inconshreveable/mousetrap](https://github.com/inconshreveable/mousetrap) | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | [github.com/jmoiron/sqlx](https://github.com/jmoiron/sqlx) | [MIT](https://opensource.org/licenses/MIT) |
 | [github.com/jordan-wright/email](https://github.com/jordan-wright/email) | [MIT](https://opensource.org/licenses/MIT) |
@@ -660,6 +663,7 @@ Third-Party Licenses
 | [onetime](https://www.npmjs.com/package/onetime) | [MIT](https://opensource.org/licenses/MIT) |
 | [optimist](https://www.npmjs.com/package/optimist) | [MIT/X11](https://opensource.org/licenses/MIT) |
 | [optionator](https://www.npmjs.com/package/optionator) | [MIT](https://opensource.org/licenses/MIT) |
+| [original](https://www.npmjs.com/package/original) | [MIT](https://opensource.org/licenses/MIT) |
 | [os-browserify](https://www.npmjs.com/package/os-browserify) | [MIT](https://opensource.org/licenses/MIT) |
 | [os-homedir](https://www.npmjs.com/package/os-homedir) | [MIT](https://opensource.org/licenses/MIT) |
 | [os-locale](https://www.npmjs.com/package/os-locale) | [MIT](https://opensource.org/licenses/MIT) |
@@ -761,6 +765,7 @@ Third-Party Licenses
 | [query-string](https://www.npmjs.com/package/query-string) | [MIT](https://opensource.org/licenses/MIT) |
 | [querystring](https://www.npmjs.com/package/querystring) | [MIT](https://opensource.org/licenses/MIT) |
 | [querystring-es3](https://www.npmjs.com/package/querystring-es3) | [MIT](https://opensource.org/licenses/MIT) |
+| [querystringify](https://www.npmjs.com/package/querystringify) | [MIT](https://opensource.org/licenses/MIT) |
 | [raf](https://www.npmjs.com/package/raf) | [MIT](https://opensource.org/licenses/MIT) |
 | [randomatic](https://www.npmjs.com/package/randomatic) | [MIT](https://opensource.org/licenses/MIT) |
 | [randombytes](https://www.npmjs.com/package/randombytes) | [MIT](https://opensource.org/licenses/MIT) |
@@ -815,6 +820,7 @@ Third-Party Licenses
 | [require-hacker](https://www.npmjs.com/package/require-hacker) | [MIT](https://opensource.org/licenses/MIT) |
 | [require-main-filename](https://www.npmjs.com/package/require-main-filename) | [ISC](https://opensource.org/licenses/ISC) |
 | [require-uncached](https://www.npmjs.com/package/require-uncached) | [MIT](https://opensource.org/licenses/MIT) |
+| [requires-port](https://www.npmjs.com/package/requires-port) | [MIT](https://opensource.org/licenses/MIT) |
 | [resolve](https://www.npmjs.com/package/resolve) | [MIT](https://opensource.org/licenses/MIT) |
 | [resolve-from](https://www.npmjs.com/package/resolve-from) | [MIT](https://opensource.org/licenses/MIT) |
 | [restore-cursor](https://www.npmjs.com/package/restore-cursor) | [MIT](https://opensource.org/licenses/MIT) |
@@ -845,6 +851,7 @@ Third-Party Licenses
 | [slash](https://www.npmjs.com/package/slash) | [MIT](https://opensource.org/licenses/MIT) |
 | [slice-ansi](https://www.npmjs.com/package/slice-ansi) | [MIT](https://opensource.org/licenses/MIT) |
 | [sntp](https://www.npmjs.com/package/sntp) | [BSD](https://opensource.org/licenses/BSD-3-Clause) |
+| [sockjs-client](https://www.npmjs.com/package/sockjs-client) | [MIT](https://opensource.org/licenses/MIT) |
 | [sort-keys](https://www.npmjs.com/package/sort-keys) | [MIT](https://opensource.org/licenses/MIT) |
 | [source-list-map](https://www.npmjs.com/package/source-list-map) | [MIT](https://opensource.org/licenses/MIT) |
 | [source-map](https://www.npmjs.com/package/source-map) | [BSD-3-Clause](https://opensource.org/licenses/BSD-3-Clause) |
@@ -922,6 +929,7 @@ Third-Party Licenses
 | [upper-case](https://www.npmjs.com/package/upper-case) | [MIT](https://opensource.org/licenses/MIT) |
 | [url](https://www.npmjs.com/package/url) | [MIT](https://opensource.org/licenses/MIT) |
 | [url-loader](https://www.npmjs.com/package/url-loader) | [MIT](https://opensource.org/licenses/MIT) |
+| [url-parse](https://www.npmjs.com/package/url-parse) | [MIT](https://opensource.org/licenses/MIT) |
 | [user-home](https://www.npmjs.com/package/user-home) | [MIT](https://opensource.org/licenses/MIT) |
 | [util](https://www.npmjs.com/package/util) | [MIT](https://opensource.org/licenses/MIT) |
 | [util-deprecate](https://www.npmjs.com/package/util-deprecate) | [MIT](https://opensource.org/licenses/MIT) |
@@ -945,6 +953,8 @@ Third-Party Licenses
 | [webpack-hot-middleware](https://www.npmjs.com/package/webpack-hot-middleware) | [MIT](https://opensource.org/licenses/MIT) |
 | [webpack-hot-middleware-example](https://www.npmjs.com/package/webpack-hot-middleware-example) | [MIT](https://opensource.org/licenses/MIT) |
 | [webpack-sources](https://www.npmjs.com/package/webpack-sources) | [MIT](https://opensource.org/licenses/MIT) |
+| [websocket-driver](https://www.npmjs.com/package/websocket-driver) | [MIT](https://opensource.org/licenses/MIT) |
+| [websocket-extensions](https://www.npmjs.com/package/websocket-extensions) | [MIT](https://opensource.org/licenses/MIT) |
 | [whatwg-encoding](https://www.npmjs.com/package/whatwg-encoding) | [WTFPL](http://www.wtfpl.net/txt/copying/) |
 | [whatwg-fetch](https://www.npmjs.com/package/whatwg-fetch) | [MIT](https://opensource.org/licenses/MIT) |
 | [whatwg-url](https://www.npmjs.com/package/whatwg-url) | [MIT](https://opensource.org/licenses/MIT) |

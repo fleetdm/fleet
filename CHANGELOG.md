@@ -1,4 +1,12 @@
-*   Fix issue with Distributed Query Pack results full screen feature that broke the browser scrolling abilities
+*   Fix Distributed Query compatibility with load balancers and Safari.
+
+    Customers running Kolide behind a web balancer lacking support for
+    websockets were unable to use the distributed query feature. Also, in
+    certain circumstances, Safari users with a self-signed cert for Kolide
+    would receive an error. This release add a fallback mechanism from
+    websockets using SockJS for improved compatibility.
+
+*   Fix issue with Distributed Query Pack results full screen feature that broke the browser scrolling abilities.
 
 *   Fix bug in which host counts in the sidebar did not match up with displayed hosts.
 

@@ -4,10 +4,10 @@ package websocket
 
 import (
 	"encoding/json"
-	"net/http"
 	"time"
 
-	"github.com/gorilla/websocket"
+	"github.com/igm/sockjs-go/sockjs"
+
 	"github.com/kolide/kolide/server/contexts/token"
 	"github.com/pkg/errors"
 )
@@ -42,32 +42,20 @@ type JSONMessage struct {
 // Conn is a wrapper for a standard websocket connection with utility methods
 // added for interacting with Kolide specific message types.
 type Conn struct {
-	*websocket.Conn
-	Timeout time.Duration
+	sockjs.Session
 }
 
-// Upgrade is used to upgrade a normal HTTP request to a websocket connection.
-func Upgrade(w http.ResponseWriter, r *http.Request) (*Conn, error) {
-	var upgrader = websocket.Upgrader{
-		HandshakeTimeout: defaultTimeout,
-	}
-
-	conn, err := upgrader.Upgrade(w, r, nil)
+func (c *Conn) WriteJSON(msg JSONMessage) error {
+	buf, err := json.Marshal(msg)
 	if err != nil {
-		return nil, errors.Wrap(err, "upgrading connection")
+		return errors.Wrap(err, "marshalling JSON")
 	}
-
-	conn.SetReadLimit(maxMessageSize)
-
-	return &Conn{conn, defaultTimeout}, nil
+	return errors.Wrap(c.Send(string(buf)), "sending")
 }
 
 // WriteJSONMessage writes the provided data as JSON (using the Message struct),
 // returning any error condition from the connection.
 func (c *Conn) WriteJSONMessage(typ string, data interface{}) error {
-	c.SetWriteDeadline(time.Now().Add(c.Timeout))
-	defer c.SetWriteDeadline(time.Time{})
-
 	return c.WriteJSON(JSONMessage{Type: typ, Data: data})
 }
 
@@ -86,20 +74,14 @@ func (c *Conn) WriteJSONError(data interface{}) error {
 //  	json.Unmarshal(*(msg.Data.(*json.RawMessage)), &foo)
 //  }
 func (c *Conn) ReadJSONMessage() (*JSONMessage, error) {
-	c.SetReadDeadline(time.Now().Add(c.Timeout))
-	defer c.SetReadDeadline(time.Time{})
-
-	mType, data, err := c.ReadMessage()
+	data, err := c.Recv()
 	if err != nil {
 		return nil, errors.Wrap(err, "reading from websocket")
-	}
-	if mType != websocket.TextMessage {
-		return nil, errors.Errorf("unsupported websocket message type: %d", mType)
 	}
 
 	msg := &JSONMessage{Data: &json.RawMessage{}}
 
-	if err := json.Unmarshal(data, msg); err != nil {
+	if err := json.Unmarshal([]byte(data), msg); err != nil {
 		return nil, errors.Wrap(err, "parsing msg json")
 	}
 
