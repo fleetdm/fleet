@@ -207,7 +207,7 @@ func (d *Datastore) RemoveHostFromPack(hid, pid uint) error {
 	return nil
 }
 
-func (d *Datastore) ListHostsInPack(pid uint, opt kolide.ListOptions) ([]*kolide.Host, error) {
+func (d *Datastore) ListHostsInPack(pid uint, opt kolide.ListOptions) ([]uint, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -261,10 +261,15 @@ func (d *Datastore) ListHostsInPack(pid uint, opt kolide.ListOptions) ([]*kolide
 	low, high := d.getLimitOffsetSliceBounds(opt, len(hosts))
 	hosts = hosts[low:high]
 
-	return hosts, nil
+	results := make([]uint, len(hosts), len(hosts))
+	for _, h := range hosts {
+		results = append(results, h.ID)
+	}
+
+	return results, nil
 }
 
-func (d *Datastore) ListExplicitHostsInPack(pid uint, opt kolide.ListOptions) ([]*kolide.Host, error) {
+func (d *Datastore) ListExplicitHostsInPack(pid uint, opt kolide.ListOptions) ([]uint, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -310,5 +315,10 @@ func (d *Datastore) ListExplicitHostsInPack(pid uint, opt kolide.ListOptions) ([
 	low, high := d.getLimitOffsetSliceBounds(opt, len(hosts))
 	hosts = hosts[low:high]
 
-	return hosts, nil
+	results := make([]uint, len(hosts), len(hosts))
+	for _, h := range hosts {
+		results = append(results, h.ID)
+	}
+
+	return results, nil
 }

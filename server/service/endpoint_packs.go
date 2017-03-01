@@ -39,10 +39,6 @@ func packResponseForPack(ctx context.Context, svc kolide.Service, pack kolide.Pa
 	if err != nil {
 		return nil, err
 	}
-	hostIDs := make([]uint, len(hosts), len(hosts))
-	for i, host := range hosts {
-		hostIDs[i] = host.ID
-	}
 	labels, err := svc.ListLabelsForPack(ctx, pack.ID)
 	labelIDs := make([]uint, len(labels), len(labels))
 	for i, label := range labels {
@@ -55,7 +51,7 @@ func packResponseForPack(ctx context.Context, svc kolide.Service, pack kolide.Pa
 		Pack:            pack,
 		QueryCount:      uint(len(queries)),
 		TotalHostsCount: totalHostCount,
-		HostIDs:         hostIDs,
+		HostIDs:         hosts,
 		LabelIDs:        labelIDs,
 	}, nil
 }

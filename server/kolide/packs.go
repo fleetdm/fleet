@@ -41,13 +41,13 @@ type PackStore interface {
 	// an existing pack, both by ID.
 	RemoveHostFromPack(hid uint, pid uint) error
 
-	// ListHostsInPack lists all hosts that are associated with a pack, both
-	// through labels and manual associations.
-	ListHostsInPack(pid uint, opt ListOptions) ([]*Host, error)
+	// ListHostsInPack lists the IDs of all hosts that are associated with a pack,
+	// both through labels and manual associations.
+	ListHostsInPack(pid uint, opt ListOptions) ([]uint, error)
 
-	// ListExplicitHostsInPack lists hosts that have been manually associated
-	// with a query pack.
-	ListExplicitHostsInPack(pid uint, opt ListOptions) ([]*Host, error)
+	// ListExplicitHostsInPack lists the IDs of hosts that have been manually
+	// associated with a query pack.
+	ListExplicitHostsInPack(pid uint, opt ListOptions) ([]uint, error)
 }
 
 // PackService is the service interface for managing query packs.
@@ -87,13 +87,13 @@ type PackService interface {
 	// ListPacksForHost lists the packs that a host should execute.
 	ListPacksForHost(ctx context.Context, hid uint) (packs []*Pack, err error)
 
-	// ListHostsInPack lists all hosts that are associated with a pack, both
-	// through labels and manual associations.
-	ListHostsInPack(ctx context.Context, pid uint, opt ListOptions) (hosts []*Host, err error)
+	// ListHostsInPack lists the IDs of all hosts that are associated with a pack,
+	// both through labels and manual associations.
+	ListHostsInPack(ctx context.Context, pid uint, opt ListOptions) (hosts []uint, err error)
 
-	// ListExplicitHostsInPack lists hosts that have been manually associated
+	// ListExplicitHostsInPack lists the IDs of hosts that have been manually associated
 	// with a query pack.
-	ListExplicitHostsInPack(ctx context.Context, pid uint, opt ListOptions) (hosts []*Host, err error)
+	ListExplicitHostsInPack(ctx context.Context, pid uint, opt ListOptions) (hosts []uint, err error)
 }
 
 // Pack is the structure which represents an osquery query pack.

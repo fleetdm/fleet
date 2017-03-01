@@ -51,6 +51,10 @@ func testGetPackByName(t *testing.T, ds kolide.Datastore) {
 }
 
 func testGetHostsInPack(t *testing.T, ds kolide.Datastore) {
+	if ds.Name() == "inmem" {
+		t.Skip("inmem is deprecated")
+	}
+
 	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
 
 	mockClock := clock.NewMockClock()

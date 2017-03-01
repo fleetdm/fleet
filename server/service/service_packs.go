@@ -108,7 +108,7 @@ func (svc service) ModifyPack(ctx context.Context, id uint, p kolide.PackPayload
 		// lookups to determine whether or not a host is already added
 		existingHosts := map[uint]bool{}
 		for _, host := range hosts {
-			existingHosts[host.ID] = true
+			existingHosts[host] = true
 		}
 
 		// we will also make a constant time lookup map for the desired set of
@@ -216,11 +216,11 @@ func (svc service) RemoveHostFromPack(ctx context.Context, hid, pid uint) error 
 	return svc.ds.RemoveHostFromPack(hid, pid)
 }
 
-func (svc service) ListHostsInPack(ctx context.Context, pid uint, opt kolide.ListOptions) ([]*kolide.Host, error) {
+func (svc service) ListHostsInPack(ctx context.Context, pid uint, opt kolide.ListOptions) ([]uint, error) {
 	return svc.ds.ListHostsInPack(pid, opt)
 }
 
-func (svc service) ListExplicitHostsInPack(ctx context.Context, pid uint, opt kolide.ListOptions) ([]*kolide.Host, error) {
+func (svc service) ListExplicitHostsInPack(ctx context.Context, pid uint, opt kolide.ListOptions) ([]uint, error) {
 	return svc.ds.ListExplicitHostsInPack(pid, opt)
 }
 
@@ -278,7 +278,7 @@ func (svc service) ListPacksForHost(ctx context.Context, hid uint) ([]*kolide.Pa
 		// o(n) iteration to determine whether or not a pack is enabled
 		// in this case, n is len(hostsForPack)
 		for _, host := range hostsForPack {
-			if host.ID == hid {
+			if host == hid {
 				packs = append(packs, pack)
 				break
 			}

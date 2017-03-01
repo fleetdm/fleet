@@ -37,13 +37,13 @@ func (d *Datastore) NewPack(pack *kolide.Pack) (*kolide.Pack, error) {
 	switch err {
 	case nil:
 		query = `
-		REPLACE INTO packs 
+		REPLACE INTO packs
 			( name, description, platform, created_by, disabled, deleted)
 			VALUES ( ?, ?, ?, ?, ?, ?)
 		`
 	case sql.ErrNoRows:
 		query = `
-		INSERT INTO packs 
+		INSERT INTO packs
 			( name, description, platform, created_by, disabled, deleted)
 			VALUES ( ?, ?, ?, ?, ?, ?)
 		`
@@ -213,9 +213,9 @@ func (d *Datastore) RemoveHostFromPack(hid, pid uint) error {
 
 }
 
-func (d *Datastore) ListHostsInPack(pid uint, opt kolide.ListOptions) ([]*kolide.Host, error) {
+func (d *Datastore) ListHostsInPack(pid uint, opt kolide.ListOptions) ([]uint, error) {
 	query := `
-		SELECT DISTINCT h.*
+		SELECT DISTINCT h.id
 		FROM hosts h
 		JOIN pack_targets pt
 		JOIN label_query_executions lqe
@@ -231,16 +231,16 @@ func (d *Datastore) ListHostsInPack(pid uint, opt kolide.ListOptions) ([]*kolide
 		WHERE pt.pack_id = ?
 	`
 
-	hosts := []*kolide.Host{}
+	hosts := []uint{}
 	if err := d.db.Select(&hosts, appendListOptionsToSQL(query, opt), kolide.TargetLabel, kolide.TargetHost, pid); err != nil && err != sql.ErrNoRows {
 		return nil, errors.Wrap(err, "listing hosts in pack")
 	}
 	return hosts, nil
 }
 
-func (d *Datastore) ListExplicitHostsInPack(pid uint, opt kolide.ListOptions) ([]*kolide.Host, error) {
+func (d *Datastore) ListExplicitHostsInPack(pid uint, opt kolide.ListOptions) ([]uint, error) {
 	query := `
-		SELECT DISTINCT h.*
+		SELECT DISTINCT h.id
 		FROM hosts h
 		JOIN pack_targets pt
 		ON (
@@ -249,7 +249,7 @@ func (d *Datastore) ListExplicitHostsInPack(pid uint, opt kolide.ListOptions) ([
 		)
 		WHERE pt.pack_id = ?
 	`
-	hosts := []*kolide.Host{}
+	hosts := []uint{}
 	if err := d.db.Select(&hosts, appendListOptionsToSQL(query, opt), kolide.TargetHost, pid); err != nil && err != sql.ErrNoRows {
 		return nil, errors.Wrap(err, "listing explicit hosts in pack")
 	}

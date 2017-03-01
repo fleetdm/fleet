@@ -200,9 +200,9 @@ func (mw loggingMiddleware) ListPacksForHost(ctx context.Context, hid uint) ([]*
 	return packs, err
 }
 
-func (mw loggingMiddleware) ListHostsInPack(ctx context.Context, pid uint, opt kolide.ListOptions) ([]*kolide.Host, error) {
+func (mw loggingMiddleware) ListHostsInPack(ctx context.Context, pid uint, opt kolide.ListOptions) ([]uint, error) {
 	var (
-		hosts []*kolide.Host
+		hosts []uint
 		err   error
 	)
 
