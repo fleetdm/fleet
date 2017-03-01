@@ -6,19 +6,18 @@ const filterHosts = (hosts, label) => {
     return hosts;
   }
 
-  if (label.id === 'new') {
-    return filter(hosts, h => moment().diff(h.created_at, 'hours') <= 24);
+  if (label.type === 'status' && label.id === 'new') {
+    return filter(hosts, h => moment().diff(moment(h.created_at)) <= moment.duration(24, 'hours'));
   }
 
-  const { host_ids: hostIDs, platform, slug, type } = label;
+  const { host_ids: hostIDs, slug, type } = label;
 
   switch (type) {
     case 'all':
       return hosts;
     case 'status':
       return filter(hosts, { status: slug });
-    case 'platform':
-      return filter(hosts, { platform });
+    case 'platform': // Platform labels are implemented the same as custom labels
     case 'custom':
       return filter(hosts, h => includes(hostIDs, h.id));
     default:
