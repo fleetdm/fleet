@@ -105,18 +105,18 @@ describe('ManageHostsPage - component', () => {
   });
 
   describe('host rendering', () => {
-    it('does not render if hosts are loading', () => {
+    it('renders Spinner while hosts are loading', () => {
       const loadingProps = { ...props, loadingHosts: true };
       const page = mount(<ManageHostsPage {...loadingProps} hosts={[]} selectedLabel={allHostsLabel} />);
 
-      expect(page.html()).toNotExist();
+      expect(page.find('Spinner').length).toEqual(1);
     });
 
-    it('does not render if labels are loading', () => {
+    it('does not render sidebar if labels are loading', () => {
       const loadingProps = { ...props, loadingLabels: true };
       const page = mount(<ManageHostsPage {...loadingProps} hosts={[]} selectedLabel={allHostsLabel} />);
 
-      expect(page.html()).toNotExist();
+      expect(page.find('HostSidePanel').length).toEqual(0);
     });
 
     it('render LonelyHost if no hosts available', () => {
