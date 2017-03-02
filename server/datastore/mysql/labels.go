@@ -241,7 +241,7 @@ func (d *Datastore) searchLabelsWithOmits(query string, omit ...uint) ([]kolide.
 			AND NOT deleted
 		)
 		AND id NOT IN (?)
-		ORDER BY id ASC
+		ORDER BY label_type DESC, id ASC
 		LIMIT 10
 	`
 
@@ -306,6 +306,7 @@ func (d *Datastore) searchLabelsDefault(omit ...uint) ([]kolide.Label, error) {
 	FROM labels
 	WHERE NOT deleted
 	AND id NOT IN (?)
+	ORDER BY label_type DESC, id ASC
 	LIMIT 5
 	`
 
@@ -349,6 +350,10 @@ func (d *Datastore) SearchLabels(query string, omit ...uint) ([]kolide.Label, er
 
 	query += "*"
 
+	// Ordering first by label_type ensures that built-in labels come
+	// first. We will probably need to make a custom ordering function here
+	// if additional label types are added. Ordering next by ID ensures
+	// that the order is always consistent.
 	sqlStatement := `
 		SELECT *
 		FROM labels
@@ -356,7 +361,7 @@ func (d *Datastore) SearchLabels(query string, omit ...uint) ([]kolide.Label, er
 			MATCH(name) AGAINST(? IN BOOLEAN MODE)
 			AND NOT deleted
 		)
-		ORDER BY id ASC
+		ORDER BY label_type DESC, id ASC
 		LIMIT 10
 	`
 	matches := []kolide.Label{}
