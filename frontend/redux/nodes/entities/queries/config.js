@@ -5,11 +5,11 @@ import schemas from 'redux/nodes/entities/base/schemas';
 const { QUERIES: schema } = schemas;
 
 export default new Config({
-  createFunc: Kolide.createQuery,
-  destroyFunc: Kolide.destroyQuery,
+  createFunc: Kolide.queries.create,
+  destroyFunc: Kolide.queries.destroy,
   entityName: 'queries',
-  loadAllFunc: Kolide.getQueries,
-  loadFunc: Kolide.getQuery,
+  loadAllFunc: Kolide.queries.loadAll,
+  loadFunc: Kolide.queries.load,
   schema,
-  updateFunc: Kolide.updateQuery,
+  updateFunc: Kolide.queries.update,
 });

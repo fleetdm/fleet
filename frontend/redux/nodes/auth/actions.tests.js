@@ -1,6 +1,6 @@
 import expect, { restoreSpies, spyOn } from 'expect';
 
-import * as Kolide from 'kolide';
+import Kolide from 'kolide';
 import userActions from 'redux/nodes/entities/users/actions';
 
 import { reduxMockStore } from 'test/helpers';
@@ -30,7 +30,7 @@ describe('Auth - actions', () => {
 
     describe('successful request', () => {
       beforeEach(() => {
-        spyOn(Kolide.default.license, 'create').andReturn(Promise.resolve({ license }));
+        spyOn(Kolide.license, 'create').andReturn(Promise.resolve({ license }));
       });
 
       it('calls the API', () => {
@@ -38,10 +38,10 @@ describe('Auth - actions', () => {
 
         mockStore.dispatch(createLicense({ license }))
           .then(() => {
-            expect(Kolide.default.license.create).toHaveBeenCalledWith(license);
+            expect(Kolide.license.create).toHaveBeenCalledWith(license);
           })
           .catch(() => {
-            expect(Kolide.default.license.create).toHaveBeenCalledWith(license);
+            expect(Kolide.license.create).toHaveBeenCalledWith(license);
           });
       });
 
@@ -82,7 +82,7 @@ describe('Auth - actions', () => {
       };
 
       beforeEach(() => {
-        spyOn(Kolide.default.license, 'create').andReturn(Promise.reject(errorResponse));
+        spyOn(Kolide.license, 'create').andReturn(Promise.reject(errorResponse));
       });
 
       it('calls the API', () => {
@@ -90,10 +90,10 @@ describe('Auth - actions', () => {
 
         mockStore.dispatch(createLicense({ license }))
           .then(() => {
-            expect(Kolide.default.license.create).toHaveBeenCalledWith(license);
+            expect(Kolide.license.create).toHaveBeenCalledWith(license);
           })
           .catch(() => {
-            expect(Kolide.default.license.create).toHaveBeenCalledWith(license);
+            expect(Kolide.license.create).toHaveBeenCalledWith(license);
           });
       });
 
@@ -124,7 +124,7 @@ describe('Auth - actions', () => {
 
     describe('successful request', () => {
       beforeEach(() => {
-        spyOn(Kolide.default.license, 'setup').andReturn(Promise.resolve({ license }));
+        spyOn(Kolide.license, 'setup').andReturn(Promise.resolve({ license }));
       });
 
       it('calls the API', () => {
@@ -132,10 +132,10 @@ describe('Auth - actions', () => {
 
         mockStore.dispatch(setupLicense({ license }))
           .then(() => {
-            expect(Kolide.default.license.setup).toHaveBeenCalledWith(license);
+            expect(Kolide.license.setup).toHaveBeenCalledWith(license);
           })
           .catch(() => {
-            expect(Kolide.default.license.setup).toHaveBeenCalledWith(license);
+            expect(Kolide.license.setup).toHaveBeenCalledWith(license);
           });
       });
 
@@ -176,7 +176,7 @@ describe('Auth - actions', () => {
       };
 
       beforeEach(() => {
-        spyOn(Kolide.default.license, 'setup').andReturn(Promise.reject(errorResponse));
+        spyOn(Kolide.license, 'setup').andReturn(Promise.reject(errorResponse));
       });
 
       it('calls the API', () => {
@@ -184,10 +184,10 @@ describe('Auth - actions', () => {
 
         mockStore.dispatch(setupLicense({ license }))
           .then(() => {
-            expect(Kolide.default.license.setup).toHaveBeenCalledWith(license);
+            expect(Kolide.license.setup).toHaveBeenCalledWith(license);
           })
           .catch(() => {
-            expect(Kolide.default.license.setup).toHaveBeenCalledWith(license);
+            expect(Kolide.license.setup).toHaveBeenCalledWith(license);
           });
       });
 
@@ -218,7 +218,7 @@ describe('Auth - actions', () => {
 
     describe('successful request', () => {
       beforeEach(() => {
-        spyOn(Kolide.default.license, 'load').andReturn(Promise.resolve({ license }));
+        spyOn(Kolide.license, 'load').andReturn(Promise.resolve({ license }));
       });
 
       it('calls the API', () => {
@@ -226,10 +226,10 @@ describe('Auth - actions', () => {
 
         mockStore.dispatch(getLicense())
           .then(() => {
-            expect(Kolide.default.license.load).toHaveBeenCalled();
+            expect(Kolide.license.load).toHaveBeenCalled();
           })
           .catch(() => {
-            expect(Kolide.default.license.load).toHaveBeenCalled();
+            expect(Kolide.license.load).toHaveBeenCalled();
           });
       });
 
@@ -270,7 +270,7 @@ describe('Auth - actions', () => {
       };
 
       beforeEach(() => {
-        spyOn(Kolide.default.license, 'load').andReturn(Promise.reject(errorResponse));
+        spyOn(Kolide.license, 'load').andReturn(Promise.reject(errorResponse));
       });
 
       it('calls the API', () => {
@@ -278,10 +278,10 @@ describe('Auth - actions', () => {
 
         mockStore.dispatch(getLicense())
           .then(() => {
-            expect(Kolide.default.license.load).toHaveBeenCalled();
+            expect(Kolide.license.load).toHaveBeenCalled();
           })
           .catch(() => {
-            expect(Kolide.default.license.load).toHaveBeenCalled();
+            expect(Kolide.license.load).toHaveBeenCalled();
           });
       });
 
@@ -309,7 +309,7 @@ describe('Auth - actions', () => {
   describe('dispatching the perform required password reset action', () => {
     describe('successful request', () => {
       beforeEach(() => {
-        spyOn(Kolide.default, 'performRequiredPasswordReset').andCall(() => {
+        spyOn(Kolide.users, 'performRequiredPasswordReset').andCall(() => {
           return Promise.resolve({ ...user, force_password_reset: false });
         });
       });
@@ -323,7 +323,7 @@ describe('Auth - actions', () => {
 
         return mockStore.dispatch(performRequiredPasswordReset(resetParams))
           .then(() => {
-            expect(Kolide.default.performRequiredPasswordReset).toHaveBeenCalledWith(resetParams);
+            expect(Kolide.users.performRequiredPasswordReset).toHaveBeenCalledWith(resetParams);
           });
       });
 
@@ -362,7 +362,7 @@ describe('Auth - actions', () => {
       const resetParams = { password: 'foobar' };
 
       beforeEach(() => {
-        spyOn(Kolide.default, 'performRequiredPasswordReset').andCall(() => {
+        spyOn(Kolide.users, 'performRequiredPasswordReset').andCall(() => {
           return Promise.reject(errorResponse);
         });
       });
@@ -377,7 +377,7 @@ describe('Auth - actions', () => {
             throw new Error('promise should have failed');
           })
           .catch(() => {
-            expect(Kolide.default.performRequiredPasswordReset).toHaveBeenCalledWith(resetParams);
+            expect(Kolide.users.performRequiredPasswordReset).toHaveBeenCalledWith(resetParams);
           });
       });
 

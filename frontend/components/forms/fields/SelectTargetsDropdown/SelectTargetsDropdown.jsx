@@ -140,7 +140,7 @@ class SelectTargetsDropdown extends Component {
 
     this.setState({ isLoadingTargets: true, query });
 
-    return Kolide.getTargets(query, formatSelectedTargetsForApi(selectedTargets))
+    return Kolide.targets.loadAll(query, formatSelectedTargetsForApi(selectedTargets))
       .then((response) => {
         const {
           targets,

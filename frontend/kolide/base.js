@@ -1,14 +1,5 @@
-import fetch from 'isomorphic-fetch';
-
-import local from '../utilities/local';
-
-const DEFAULT_BODY = JSON.stringify({});
-const REQUEST_METHODS = {
-  DELETE: 'DELETE',
-  GET: 'GET',
-  PATCH: 'PATCH',
-  POST: 'POST',
-};
+import local from 'utilities/local';
+import Request from 'kolide/request';
 
 class Base {
   constructor () {
@@ -18,89 +9,27 @@ class Base {
     this.bearerToken = local.getItem('auth_token');
   }
 
-  static _handleResponse (response, jsonResponse) {
-    if (response.ok) {
-      return jsonResponse;
-    }
+  static post (endpoint, body = {}, headers = {}) {
+    const { POST } = Request.REQUEST_METHODS;
 
-    const error = new Error(response.statusText);
-    error.error = jsonResponse.error;
-    error.message = jsonResponse;
-    error.response = jsonResponse;
-    error.status = response.status;
-
-    throw error;
-  }
-
-  static _sendRequest (endpoint, params) {
-    return fetch(endpoint, params)
-      .then((response) => {
-        return response.json()
-          .then((jsonResponse) => {
-            return Base._handleResponse(response, jsonResponse);
-          });
-      });
+    return Base._request(POST, endpoint, body, headers);
   }
 
   static _deleteRequest (endpoint, headers) {
-    const credentials = 'same-origin';
-    const { DELETE } = REQUEST_METHODS;
-    const requestAttrs = { credentials, method: DELETE, headers };
+    const { DELETE: method } = Request.REQUEST_METHODS;
+    const request = new Request({ endpoint, method, headers });
 
-    return Base._sendRequest(endpoint, requestAttrs);
+    return request.send();
   }
 
-  static _request (method, endpoint, body, overrideHeaders) {
-    const credentials = 'same-origin';
-    const { GET } = REQUEST_METHODS;
-    const headers = {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      ...overrideHeaders,
-    };
+  static _request (method, endpoint, body, headers) {
+    const { GET } = Request.REQUEST_METHODS;
     const requestAttrs = method === GET
-      ? { credentials, method, headers }
-      : { credentials, method, body, headers };
+      ? { endpoint, method, headers }
+      : { endpoint, method, body, headers };
+    const request = new Request(requestAttrs);
 
-    return Base._sendRequest(endpoint, requestAttrs);
-  }
-
-  static post (endpoint, body = {}, overrideHeaders = {}) {
-    const { POST } = REQUEST_METHODS;
-
-    return Base._request(POST, endpoint, body, overrideHeaders);
-  }
-
-  endpoint (pathname) {
-    return this.baseURL + pathname;
-  }
-
-  setBearerToken (bearerToken) {
-    this.bearerToken = bearerToken;
-  }
-
-  authenticatedDelete (endpoint, overrideHeaders = {}) {
-    const headers = this._authenticatedHeaders(overrideHeaders);
-
-    return Base._deleteRequest(endpoint, headers);
-  }
-
-  authenticatedGet (endpoint, overrideHeaders = {}) {
-    const { GET } = REQUEST_METHODS;
-
-    return this._authenticatedRequest(GET, endpoint, {}, overrideHeaders);
-  }
-
-  authenticatedPatch (endpoint, body = {}, overrideHeaders = {}) {
-    const { PATCH } = REQUEST_METHODS;
-
-    return this._authenticatedRequest(PATCH, endpoint, body, overrideHeaders);
-  }
-
-  authenticatedPost (endpoint, body = DEFAULT_BODY, overrideHeaders = {}) {
-    const { POST } = REQUEST_METHODS;
-
-    return this._authenticatedRequest(POST, endpoint, body, overrideHeaders);
+    return request.send();
   }
 
   _authenticatedHeaders = (headers) => {
@@ -114,6 +43,10 @@ class Base {
     const headers = this._authenticatedHeaders(overrideHeaders);
 
     return Base._request(method, endpoint, body, headers);
+  }
+
+  _endpoint (pathname) {
+    return this.baseURL + pathname;
   }
 }
 

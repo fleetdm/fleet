@@ -1,6 +1,6 @@
 import expect, { restoreSpies, spyOn } from 'expect';
 
-import * as Kolide from 'kolide';
+import Kolide from 'kolide';
 
 import { reduxMockStore } from 'test/helpers';
 import { updateUserSuccess } from 'redux/nodes/auth/actions';
@@ -23,7 +23,7 @@ describe('Users - actions', () => {
   describe('enableUser', () => {
     describe('successful request', () => {
       beforeEach(() => {
-        spyOn(Kolide.default.users, 'enable').andCall(() => {
+        spyOn(Kolide.users, 'enable').andCall(() => {
           return Promise.resolve({ ...user, enabled: true });
         });
       });
@@ -35,7 +35,7 @@ describe('Users - actions', () => {
 
         return mockStore.dispatch(enableUser(user, { enabled: true }))
           .then(() => {
-            expect(Kolide.default.users.enable).toHaveBeenCalledWith(user, { enabled: true });
+            expect(Kolide.users.enable).toHaveBeenCalledWith(user, { enabled: true });
           });
       });
 
@@ -75,7 +75,7 @@ describe('Users - actions', () => {
         },
       };
       beforeEach(() => {
-        spyOn(Kolide.default.users, 'enable').andCall(() => {
+        spyOn(Kolide.users, 'enable').andCall(() => {
           return Promise.reject(errorResponse);
         });
       });
@@ -88,7 +88,7 @@ describe('Users - actions', () => {
         mockStore.dispatch(enableUser(user, { enabled: true }))
           .then(done)
           .catch(() => {
-            expect(Kolide.default.users.enable).toHaveBeenCalledWith(user, { enabled: true });
+            expect(Kolide.users.enable).toHaveBeenCalledWith(user, { enabled: true });
 
             done();
           });
@@ -118,7 +118,7 @@ describe('Users - actions', () => {
 
     describe('successful request', () => {
       beforeEach(() => {
-        spyOn(Kolide.default.users, 'changePassword').andCall(() => {
+        spyOn(Kolide.users, 'changePassword').andCall(() => {
           return Promise.resolve({});
         });
       });
@@ -130,7 +130,7 @@ describe('Users - actions', () => {
 
         mockStore.dispatch(changePasswordAction)
           .then(() => {
-            expect(Kolide.default.users.changePassword).toHaveBeenCalledWith(passwordParams);
+            expect(Kolide.users.changePassword).toHaveBeenCalledWith(passwordParams);
             done();
           })
           .catch(done);
@@ -173,7 +173,7 @@ describe('Users - actions', () => {
         },
       };
       beforeEach(() => {
-        spyOn(Kolide.default.users, 'changePassword').andCall(() => {
+        spyOn(Kolide.users, 'changePassword').andCall(() => {
           return Promise.reject(errorResponse);
         });
       });
@@ -186,7 +186,7 @@ describe('Users - actions', () => {
         mockStore.dispatch(changePasswordAction)
           .then(done)
           .catch(() => {
-            expect(Kolide.default.users.changePassword).toHaveBeenCalledWith(passwordParams);
+            expect(Kolide.users.changePassword).toHaveBeenCalledWith(passwordParams);
 
             done();
           });
@@ -217,7 +217,7 @@ describe('Users - actions', () => {
 
     describe('successful request', () => {
       beforeEach(() => {
-        spyOn(Kolide.default.users, 'confirmEmailChange').andCall(() => {
+        spyOn(Kolide.users, 'confirmEmailChange').andCall(() => {
           return Promise.resolve(updatedUser);
         });
       });
@@ -229,7 +229,7 @@ describe('Users - actions', () => {
 
         mockStore.dispatch(confirmEmailChange(user, token))
           .then(() => {
-            expect(Kolide.default.users.confirmEmailChange).toHaveBeenCalledWith(user, token);
+            expect(Kolide.users.confirmEmailChange).toHaveBeenCalledWith(user, token);
             done();
           })
           .catch(done);
@@ -273,10 +273,10 @@ describe('Users - actions', () => {
         },
       };
       beforeEach(() => {
-        spyOn(Kolide.default.users, 'confirmEmailChange').andCall(() => {
+        spyOn(Kolide.users, 'confirmEmailChange').andCall(() => {
           return Promise.reject(errorResponse);
         });
-        spyOn(Kolide.default, 'logout').andCall(() => {
+        spyOn(Kolide.sessions, 'destroy').andCall(() => {
           return Promise.resolve({});
         });
       });
@@ -288,7 +288,7 @@ describe('Users - actions', () => {
 
         mockStore.dispatch(confirmEmailChange(user, token))
           .then(() => {
-            expect(Kolide.default.users.confirmEmailChange).toHaveBeenCalledWith(user, token);
+            expect(Kolide.users.confirmEmailChange).toHaveBeenCalledWith(user, token);
             done();
           })
           .catch(done);
@@ -325,7 +325,7 @@ describe('Users - actions', () => {
   describe('updateAdmin', () => {
     describe('successful request', () => {
       beforeEach(() => {
-        spyOn(Kolide.default.users, 'updateAdmin').andCall(() => {
+        spyOn(Kolide.users, 'updateAdmin').andCall(() => {
           return Promise.resolve({ ...user, admin: true });
         });
       });
@@ -337,7 +337,7 @@ describe('Users - actions', () => {
 
         mockStore.dispatch(updateAdmin(user, { admin: true }))
           .then(() => {
-            expect(Kolide.default.users.updateAdmin).toHaveBeenCalledWith(user, { admin: true });
+            expect(Kolide.users.updateAdmin).toHaveBeenCalledWith(user, { admin: true });
             done();
           })
           .catch(done);
@@ -379,7 +379,7 @@ describe('Users - actions', () => {
         },
       };
       beforeEach(() => {
-        spyOn(Kolide.default.users, 'updateAdmin').andCall(() => {
+        spyOn(Kolide.users, 'updateAdmin').andCall(() => {
           return Promise.reject(errorResponse);
         });
       });
@@ -392,7 +392,7 @@ describe('Users - actions', () => {
         mockStore.dispatch(updateAdmin(user, { admin: true }))
           .then(done)
           .catch(() => {
-            expect(Kolide.default.users.updateAdmin).toHaveBeenCalledWith(user, { admin: true });
+            expect(Kolide.users.updateAdmin).toHaveBeenCalledWith(user, { admin: true });
 
             done();
           });
@@ -419,7 +419,7 @@ describe('Users - actions', () => {
   describe('dispatching the require password reset action', () => {
     describe('successful request', () => {
       beforeEach(() => {
-        spyOn(Kolide.default, 'requirePasswordReset').andCall(() => {
+        spyOn(Kolide.users, 'requirePasswordReset').andCall(() => {
           return Promise.resolve({ ...user, force_password_reset: true });
         });
       });
@@ -431,7 +431,7 @@ describe('Users - actions', () => {
 
         return mockStore.dispatch(requirePasswordReset(user, { require: true }))
           .then(() => {
-            expect(Kolide.default.requirePasswordReset).toHaveBeenCalledWith(user, { require: true });
+            expect(Kolide.users.requirePasswordReset).toHaveBeenCalledWith(user, { require: true });
           });
       });
 
@@ -468,7 +468,7 @@ describe('Users - actions', () => {
       };
 
       beforeEach(() => {
-        spyOn(Kolide.default, 'requirePasswordReset').andCall(() => {
+        spyOn(Kolide.users, 'requirePasswordReset').andCall(() => {
           return Promise.reject(errorResponse);
         });
       });
@@ -483,7 +483,7 @@ describe('Users - actions', () => {
             throw new Error('promise should have failed');
           })
           .catch(() => {
-            expect(Kolide.default.requirePasswordReset).toHaveBeenCalledWith(user, { require: true });
+            expect(Kolide.users.requirePasswordReset).toHaveBeenCalledWith(user, { require: true });
           });
       });
 

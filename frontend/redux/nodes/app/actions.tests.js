@@ -5,7 +5,9 @@ import { configStub } from 'test/stubs';
 import { frontendFormattedConfig } from 'redux/nodes/app/helpers';
 import Kolide from 'kolide';
 import { reduxMockStore } from 'test/helpers';
-import { validGetConfigRequest, validUpdateConfigRequest } from 'test/mocks';
+import mocks from 'test/mocks';
+
+const { config: configMocks } = mocks;
 
 describe('App - actions', () => {
   describe('getConfig action', () => {
@@ -13,7 +15,7 @@ describe('App - actions', () => {
 
     it('calls the api config endpoint', (done) => {
       const bearerToken = 'abc123';
-      const request = validGetConfigRequest(bearerToken);
+      const request = configMocks.loadAll.valid(bearerToken);
 
       Kolide.setBearerToken(bearerToken);
       store.dispatch(getConfig())
@@ -26,7 +28,7 @@ describe('App - actions', () => {
 
     it('dispatches CONFIG_START & CONFIG_SUCCESS actions', (done) => {
       const bearerToken = 'abc123';
-      validGetConfigRequest(bearerToken);
+      configMocks.loadAll.valid(bearerToken);
 
       Kolide.setBearerToken(bearerToken);
       store.dispatch(getConfig())
@@ -48,7 +50,7 @@ describe('App - actions', () => {
 
     it('calls the api update config endpoint', (done) => {
       const bearerToken = 'abc123';
-      const request = validUpdateConfigRequest(bearerToken);
+      const request = configMocks.update.valid(bearerToken);
 
       Kolide.setBearerToken(bearerToken);
       store.dispatch(updateConfig(configFormData))
@@ -61,7 +63,7 @@ describe('App - actions', () => {
 
     it('dispatches CONFIG_START & CONFIG_SUCCESS actions', (done) => {
       const bearerToken = 'abc123';
-      validUpdateConfigRequest(bearerToken);
+      configMocks.update.valid(bearerToken);
 
       Kolide.setBearerToken(bearerToken);
       store.dispatch(updateConfig(configFormData))

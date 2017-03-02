@@ -112,7 +112,7 @@ export const loginFailure = (errors) => {
 export const fetchCurrentUser = () => {
   return (dispatch) => {
     dispatch(loginRequest);
-    return Kolide.me()
+    return Kolide.users.me()
       .then((user) => {
         return dispatch(loginSuccess({ user }));
       })
@@ -129,7 +129,7 @@ export const loginUser = (formData) => {
     return new Promise((resolve, reject) => {
       dispatch(loginRequest);
 
-      return Kolide.loginUser(formData)
+      return Kolide.sessions.create(formData)
         .then((response) => {
           dispatch(loginSuccess(response));
 
@@ -148,7 +148,7 @@ export const loginUser = (formData) => {
 
 export const setup = (registrationFormData) => {
   return (dispatch) => {
-    return Kolide.setup(registrationFormData)
+    return Kolide.account.create(registrationFormData)
       .then((response) => {
         const { token } = response;
 
@@ -212,7 +212,7 @@ export const logoutUser = () => {
   return (dispatch) => {
     dispatch(logoutRequest);
 
-    return Kolide.logout()
+    return Kolide.sessions.destroy()
       .then(() => dispatch(logoutSuccess))
       .catch((error) => {
         dispatch(logoutFailure({ base: 'Unable to log out of your account' }));
@@ -242,7 +242,7 @@ export const performRequiredPasswordReset = (resetParams) => {
   return (dispatch) => {
     dispatch(performRequiredPasswordResetRequest);
 
-    return Kolide.performRequiredPasswordReset(resetParams)
+    return Kolide.users.performRequiredPasswordReset(resetParams)
       .then((updatedUser) => {
         dispatch(performRequiredPasswordResetSuccess(updatedUser));
       })

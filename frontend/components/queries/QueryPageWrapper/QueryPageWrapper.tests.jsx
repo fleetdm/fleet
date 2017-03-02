@@ -5,8 +5,9 @@ import nock from 'nock';
 import { connectedComponent, reduxMockStore } from 'test/helpers';
 import helpers from 'components/queries/QueryPageWrapper/helpers';
 import QueryPageWrapper from 'components/queries/QueryPageWrapper';
-import { validGetQueryRequest } from 'test/mocks';
+import mocks from 'test/mocks';
 
+const { queries: queryMocks } = mocks;
 const bearerToken = 'abc123';
 const storeWithoutQuery = {
   entities: {
@@ -31,7 +32,7 @@ describe('QueryPageWrapper - component', () => {
     const locationProp = { params: { id: queryID } };
 
     it('dispatches an action to get the query when there is no query', () => {
-      validGetQueryRequest(bearerToken, queryID);
+      queryMocks.load.valid(bearerToken, queryID);
 
       const mockStore = reduxMockStore(storeWithoutQuery);
 
@@ -42,7 +43,7 @@ describe('QueryPageWrapper - component', () => {
     });
 
     it('calls the fetchQuery helper function', () => {
-      validGetQueryRequest(bearerToken, queryID);
+      queryMocks.load.valid(bearerToken, queryID);
 
       const fetchQuerySpy = spyOn(helpers, 'fetchQuery');
       const mockStore = reduxMockStore(storeWithoutQuery);

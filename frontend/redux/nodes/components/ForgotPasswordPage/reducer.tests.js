@@ -8,9 +8,9 @@ import {
   forgotPasswordRequestAction,
   forgotPasswordSuccessAction,
   forgotPasswordErrorAction,
-} from './actions';
-import { invalidForgotPasswordRequest, validForgotPasswordRequest } from '../../../../test/mocks';
-import reducer, { initialState } from './reducer';
+} from 'redux/nodes/components/ForgotPasswordPage/actions';
+import userMocks from 'test/mocks/user_mocks';
+import reducer, { initialState } from 'redux/nodes/components/ForgotPasswordPage/reducer';
 
 describe('ForgotPasswordPage - reducer', () => {
   describe('initial state', () => {
@@ -72,7 +72,7 @@ describe('ForgotPasswordPage - reducer', () => {
 
     it('dispatches the appropriate actions when successful', (done) => {
       const formData = { email: 'hi@thegnar.co' };
-      const request = validForgotPasswordRequest();
+      const request = userMocks.forgotPassword.valid();
       const store = mockStore({});
 
       store.dispatch(forgotPasswordAction(formData))
@@ -91,7 +91,7 @@ describe('ForgotPasswordPage - reducer', () => {
       const formData = { email: 'hi@thegnar.co' };
       const error = { name: 'base', reason: 'Something went wrong' };
       const errorResponse = { errors: [error] };
-      const invalidRequest = invalidForgotPasswordRequest(errorResponse);
+      const invalidRequest = userMocks.forgotPassword.invalid(errorResponse);
       const store = mockStore({});
 
       store.dispatch(forgotPasswordAction(formData))

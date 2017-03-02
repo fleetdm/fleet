@@ -87,7 +87,7 @@ export const enableUser = (user, { enabled }) => {
 
 export const requirePasswordReset = (user, { require }) => {
   return (dispatch) => {
-    return Kolide.requirePasswordReset(user, { require })
+    return Kolide.users.requirePasswordReset(user, { require })
       .then((updatedUser) => {
         dispatch(requirePasswordResetSuccess(updatedUser));
 

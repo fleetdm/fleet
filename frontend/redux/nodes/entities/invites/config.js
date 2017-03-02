@@ -5,9 +5,9 @@ import schemas from 'redux/nodes/entities/base/schemas';
 const { INVITES: schema } = schemas;
 
 export default new Config({
-  createFunc: Kolide.inviteUser,
-  destroyFunc: Kolide.revokeInvite,
+  createFunc: Kolide.invites.create,
+  destroyFunc: Kolide.invites.destroy,
   entityName: 'invites',
-  loadAllFunc: Kolide.getInvites,
+  loadAllFunc: Kolide.invites.loadAll,
   schema,
 });

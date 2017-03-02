@@ -23,7 +23,7 @@ export const resetPassword = (formData) => {
   return (dispatch) => {
     dispatch(resetPasswordRequest);
 
-    return Kolide.resetPassword(formData)
+    return Kolide.users.resetPassword(formData)
       .then(() => {
         return dispatch(resetPasswordSuccess);
       })

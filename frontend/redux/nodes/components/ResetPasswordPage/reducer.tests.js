@@ -6,10 +6,10 @@ import {
   resetPasswordRequest,
   resetPasswordSuccess,
   resetPasswordError,
-} from './actions';
-import { invalidResetPasswordRequest, validResetPasswordRequest } from '../../../../test/mocks';
-import reducer, { initialState } from './reducer';
-import { reduxMockStore } from '../../../../test/helpers';
+} from 'redux/nodes/components/ResetPasswordPage/actions';
+import reducer, { initialState } from 'redux/nodes/components/ResetPasswordPage/reducer';
+import { reduxMockStore } from 'test/helpers';
+import userMocks from 'test/mocks/user_mocks';
 
 describe('ResetPasswordPage - reducer', () => {
   describe('initial state', () => {
@@ -76,7 +76,7 @@ describe('ResetPasswordPage - reducer', () => {
         new_password: newPassword,
         password_reset_token: token,
       };
-      const request = validResetPasswordRequest(newPassword, token);
+      const request = userMocks.resetPassword.valid(newPassword, token);
       const store = reduxMockStore();
 
       store.dispatch(resetPassword(formData))
@@ -104,7 +104,7 @@ describe('ResetPasswordPage - reducer', () => {
         message: 'Something went wrong',
         errors,
       };
-      const invalidRequest = invalidResetPasswordRequest(newPassword, token, errorResponse);
+      const invalidRequest = userMocks.resetPassword.invalid(newPassword, token, errorResponse);
       const store = reduxMockStore();
 
       store.dispatch(resetPassword(formData))

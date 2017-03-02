@@ -3,8 +3,10 @@ import nock from 'nock';
 import { find } from 'lodash';
 
 import { reduxMockStore } from 'test/helpers';
-import { validGetQueryRequest, invalidGetQueryRequest } from 'test/mocks';
+import mocks from 'test/mocks';
 import helpers from 'components/queries/QueryPageWrapper/helpers';
+
+const { queries: queryMocks } = mocks;
 
 describe('QueryPageWrapper - helpers', () => {
   afterEach(() => { nock.cleanAll(); });
@@ -21,7 +23,7 @@ describe('QueryPageWrapper - helpers', () => {
 
     context('when the API call is successful', () => {
       it('dispatches a load successful action', (done) => {
-        validGetQueryRequest(bearerToken, queryID);
+        queryMocks.load.valid(bearerToken, queryID);
         const mockStore = reduxMockStore();
 
         fetchQuery(mockStore.dispatch, queryID)
@@ -36,7 +38,7 @@ describe('QueryPageWrapper - helpers', () => {
 
     context('when the API call is unsuccessful', () => {
       it('pushes to the new query page', (done) => {
-        invalidGetQueryRequest(bearerToken, queryID);
+        queryMocks.load.invalid(bearerToken, queryID);
         const mockStore = reduxMockStore();
 
         fetchQuery(mockStore.dispatch, queryID)
@@ -54,7 +56,7 @@ describe('QueryPageWrapper - helpers', () => {
       });
 
       it('renders a flash error message', (done) => {
-        invalidGetQueryRequest(bearerToken, queryID);
+        queryMocks.load.invalid(bearerToken, queryID);
         const mockStore = reduxMockStore();
 
         fetchQuery(mockStore.dispatch, queryID)

@@ -3,9 +3,10 @@ import expect from 'expect';
 import { find } from 'lodash';
 import thunk from 'redux-thunk';
 
-import authMiddleware from '../../middlewares/auth';
-import kolide from '../../../kolide';
-import local from '../../../utilities/local';
+import apiHelpers from 'kolide/helpers';
+import authMiddleware from 'redux/middlewares/auth';
+import kolide from 'kolide';
+import local from 'utilities/local';
 import {
   loginRequest,
   LOGIN_REQUEST,
@@ -14,16 +15,13 @@ import {
   logoutUser,
   LOGOUT_REQUEST,
   LOGOUT_SUCCESS,
-    performRequiredPasswordResetRequest,
+  performRequiredPasswordResetRequest,
   performRequiredPasswordResetSuccess,
   performRequiredPasswordResetFailure,
-} from './actions';
-import reducer, { initialState } from './reducer';
-import {
-  validLoginRequest,
-  validLogoutRequest,
-  validUser,
-} from '../../../test/mocks';
+} from 'redux/nodes/auth/actions';
+import reducer, { initialState } from 'redux/nodes/auth/reducer';
+import { userStub } from 'test/stubs';
+import sessionMocks from 'test/mocks/session_mocks';
 
 describe('Auth - reducer', () => {
   it('sets the initial state', () => {
@@ -42,6 +40,7 @@ describe('Auth - reducer', () => {
   });
 
   context('loginUser action', () => {
+    const bearerToken = 'expected-bearer-token';
     const formData = {
       username: 'username',
       password: 'p@ssw0rd',
@@ -52,14 +51,13 @@ describe('Auth - reducer', () => {
 
 
     it('calls the api login endpoint', (done) => {
-      const expectedBearerToken = 'expected-bearer-token';
-      const loginRequestMock = validLoginRequest(expectedBearerToken);
+      const loginRequestMock = sessionMocks.create.valid(bearerToken, formData);
 
       store.dispatch(loginUser(formData))
         .then(() => {
           const loginSuccessAction = find(store.getActions(), { type: 'LOGIN_SUCCESS' });
 
-          expect(loginSuccessAction.payload.token).toEqual(expectedBearerToken);
+          expect(loginSuccessAction.payload.token).toEqual(bearerToken);
           expect(loginRequestMock.isDone()).toEqual(true);
           done();
         })
@@ -67,42 +65,40 @@ describe('Auth - reducer', () => {
     });
 
     it('returns the authenticated user', (done) => {
-      validLoginRequest();
+      sessionMocks.create.valid(bearerToken, formData);
 
       store.dispatch(loginUser(formData))
         .then((user) => {
-          expect(user).toEqual(validUser);
+          expect(user).toEqual(apiHelpers.addGravatarUrlToResource(userStub));
           done();
         })
         .catch(done);
     });
 
     it('sets the users auth token in local storage', (done) => {
-      const expectedBearerToken = 'expected-bearer-token';
-      validLoginRequest(expectedBearerToken);
+      sessionMocks.create.valid(bearerToken, formData);
 
       store.dispatch(loginUser(formData))
         .then(() => {
-          expect(local.getItem('auth_token')).toEqual(expectedBearerToken);
+          expect(local.getItem('auth_token')).toEqual(bearerToken);
           done();
         })
         .catch(done);
     });
 
     it('sets the api client bearerToken', (done) => {
-      const expectedBearerToken = 'expected-bearer-token';
-      validLoginRequest(expectedBearerToken);
+      sessionMocks.create.valid(bearerToken, formData);
 
       store.dispatch(loginUser(formData))
         .then(() => {
-          expect(kolide.bearerToken).toEqual(expectedBearerToken);
+          expect(kolide.bearerToken).toEqual(bearerToken);
           done();
         })
         .catch(done);
     });
 
     it('dispatches LOGIN_REQUEST and LOGIN_SUCCESS actions', (done) => {
-      validLoginRequest();
+      sessionMocks.create.valid(bearerToken, formData);
 
       store.dispatch(loginUser(formData))
         .then(() => {
@@ -127,7 +123,8 @@ describe('Auth - reducer', () => {
 
 
     it('calls the api logout endpoint', (done) => {
-      const logoutRequestMock = validLogoutRequest(bearerToken);
+      const logoutRequestMock = sessionMocks.destroy.valid(bearerToken);
+
       store.dispatch(logoutUser())
         .then(() => {
           expect(logoutRequestMock.isDone()).toEqual(true);
@@ -137,7 +134,7 @@ describe('Auth - reducer', () => {
     });
 
     it('removes the users auth token from local storage', (done) => {
-      validLogoutRequest(bearerToken);
+      sessionMocks.destroy.valid(bearerToken);
 
       store.dispatch(logoutUser())
         .then(() => {
@@ -148,7 +145,7 @@ describe('Auth - reducer', () => {
     });
 
     it('clears the api client bearerToken', (done) => {
-      validLogoutRequest(bearerToken);
+      sessionMocks.destroy.valid(bearerToken);
 
       store.dispatch(logoutUser())
         .then(() => {
@@ -159,7 +156,7 @@ describe('Auth - reducer', () => {
     });
 
     it('dispatches LOGOUT_REQUEST and LOGOUT_SUCCESS actions', (done) => {
-      validLogoutRequest(bearerToken);
+      sessionMocks.destroy.valid(bearerToken);
 
       store.dispatch(logoutUser())
         .then(() => {

@@ -32,7 +32,7 @@ export const forgotPasswordAction = (formData) => {
   return (dispatch) => {
     dispatch(forgotPasswordRequestAction);
 
-    return Kolide.forgotPassword(formData)
+    return Kolide.users.forgotPassword(formData)
       .then(() => {
         const { email } = formData;
 

@@ -159,7 +159,7 @@ export class ManageHostsPage extends Component {
   }
 
   onFetchCertificate = () => {
-    return Kolide.config.getCertificate()
+    return Kolide.config.loadCertificate()
       .then((certificate) => {
         const filename = `${global.window.location.host}.pem`;
         const file = new global.window.File([certificate], filename, { type: 'application/x-pem-file' });
