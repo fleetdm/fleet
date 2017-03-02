@@ -194,16 +194,11 @@
 
     .Select-value {
       margin-top: 3px;
+      margin-bottom: 3px;
     }
 
     .Select-value-label {
       padding: 0 0 0 1rem;
-    }
-
-    &.has-value {
-      .Select-multi-value-wrapper {
-        padding: 5px 0;
-      }
     }
   }
 }

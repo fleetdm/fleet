@@ -32,7 +32,7 @@
   &.Select {
     .Select-control {
       @include transition(border 150ms ease-in-out, box-shadow 150ms ease-in-out);
-      height: 48px;
+      min-height: 48px;
     }
 
     .Select-arrow {
@@ -42,6 +42,14 @@
     &.is-open {
       .Select-arrow {
         border-width: 2.5px 8px 8px;
+      }
+
+      .Select-arrow-zone {
+        &:hover {
+          .Select-arrow {
+            border-top-color: transparent;
+          }
+        }
       }
     }
 

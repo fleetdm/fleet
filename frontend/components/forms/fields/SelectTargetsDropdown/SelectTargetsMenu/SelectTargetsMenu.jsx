@@ -26,12 +26,22 @@ const SelectTargetsMenuWrapper = (onMoreInfoClick, moreInfoTarget, handleBackToR
 
     const renderTargets = (targetType) => {
       const targets = filter(options, targetFilter(targetType));
+      const targetsOutput = [];
+      const targetTitle = targetType === 'all' ? 'all hosts' : targetType;
+
+      targetsOutput.push(<p className={`${baseClass}__type`} key={`type-${targetType}-key`}>{targetTitle}</p>);
 
       if (targets.length === 0) {
-        return <span className={`${baseClass}__not-found`}>Unable to find any matching {targetType}.</span>;
+        if (targetType === 'all') {
+          return false;
+        }
+
+        targetsOutput.push(<span className={`${baseClass}__not-found`} key={`${targetType}-notfound`}>Unable to find any matching {targetType}.</span>);
+
+        return targetsOutput;
       }
 
-      return targets.map((target, index) => {
+      targetsOutput.push(targets.map((target, index) => {
         const { disabled: isDisabled } = target;
         const isSelected = includes(valueArray, target);
         const isFocused = isEqual(focusedOption, target);
@@ -64,17 +74,16 @@ const SelectTargetsMenuWrapper = (onMoreInfoClick, moreInfoTarget, handleBackToR
             />
           </Option>
         );
-      });
+      }));
+
+      return targetsOutput;
     };
 
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__options`}>
-          <p className={`${baseClass}__type`}>all hosts</p>
           {renderTargets('all')}
-          <p className={`${baseClass}__type`}>labels</p>
           {renderTargets('labels')}
-          <p className={`${baseClass}__type`}>hosts</p>
           {renderTargets('hosts')}
         </div>
         <TargetDetails target={moreInfoTarget} className={`${baseClass}__spotlight`} handleBackToResults={handleBackToResults} />
