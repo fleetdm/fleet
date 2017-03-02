@@ -1,10 +1,10 @@
 import Kolide from 'kolide';
-import reduxConfig from 'redux/nodes/entities/base/reduxConfig';
+import Config from 'redux/nodes/entities/base/config';
 import schemas from 'redux/nodes/entities/base/schemas';
 
 const { PACKS: schema } = schemas;
 
-export default reduxConfig({
+export default new Config({
   createFunc: Kolide.createPack,
   destroyFunc: Kolide.destroyPack,
   entityName: 'packs',

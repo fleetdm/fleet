@@ -28,7 +28,7 @@ class ConfirmInvitePage extends Component {
     const { dispatch } = this.props;
     const { clearErrors } = userActions;
 
-    dispatch(clearErrors);
+    dispatch(clearErrors());
 
     return false;
   }

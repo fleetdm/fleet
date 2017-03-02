@@ -30,15 +30,13 @@ describe('Users - actions', () => {
 
       afterEach(restoreSpies);
 
-      it('calls the API', (done) => {
+      it('calls the API', () => {
         const mockStore = reduxMockStore(store);
 
-        mockStore.dispatch(enableUser(user, { enabled: true }))
+        return mockStore.dispatch(enableUser(user, { enabled: true }))
           .then(() => {
             expect(Kolide.default.users.enable).toHaveBeenCalledWith(user, { enabled: true });
-            done();
-          })
-          .catch(done);
+          });
       });
 
       it('dispatches the correct actions', (done) => {
@@ -49,7 +47,7 @@ describe('Users - actions', () => {
             const dispatchedActions = mockStore.getActions();
 
             expect(dispatchedActions).toEqual([
-              config.extendedActions.updateSuccess({
+              config.actions.updateSuccess({
                 users: {
                   [user.id]: { ...user, enabled: true },
                 },
@@ -105,7 +103,7 @@ describe('Users - actions', () => {
             const dispatchedActions = mockStore.getActions();
 
             expect(dispatchedActions).toEqual([
-              config.extendedActions.updateFailure({ base: 'Unable to enable the user', http_status: 422 }),
+              config.actions.updateFailure({ base: 'Unable to enable the user', http_status: 422 }),
             ]);
 
             done();
@@ -146,8 +144,8 @@ describe('Users - actions', () => {
             const dispatchedActions = mockStore.getActions();
 
             expect(dispatchedActions).toEqual([
-              config.extendedActions.updateRequest,
-              config.extendedActions.updateSuccess({
+              config.actions.updateRequest(),
+              config.actions.updateSuccess({
                 users: {
                   [user.id]: user,
                 },
@@ -203,8 +201,8 @@ describe('Users - actions', () => {
             const dispatchedActions = mockStore.getActions();
 
             expect(dispatchedActions).toEqual([
-              config.extendedActions.updateRequest,
-              config.extendedActions.updateFailure({ base: 'Unable to change password', http_status: 422 }),
+              config.actions.updateRequest(),
+              config.actions.updateFailure({ base: 'Unable to change password', http_status: 422 }),
             ]);
 
             done();
@@ -245,8 +243,8 @@ describe('Users - actions', () => {
             const dispatchedActions = mockStore.getActions();
 
             expect(dispatchedActions).toEqual([
-              config.extendedActions.loadRequest,
-              config.extendedActions.updateSuccess({
+              config.actions.loadRequest(),
+              config.actions.updateSuccess({
                 users: {
                   [user.id]: updatedUser,
                 },
@@ -304,8 +302,8 @@ describe('Users - actions', () => {
             const dispatchedActions = mockStore.getActions();
 
             expect(dispatchedActions).toEqual([
-              config.extendedActions.loadRequest,
-              config.extendedActions.updateFailure({ base: 'Unable to confirm your email address', http_status: 422 }),
+              config.actions.loadRequest(),
+              config.actions.updateFailure({ base: 'Unable to confirm your email address', http_status: 422 }),
               { type: 'LOGOUT_REQUEST' },
               {
                 type: '@@router/CALL_HISTORY_METHOD',
@@ -353,7 +351,7 @@ describe('Users - actions', () => {
             const dispatchedActions = mockStore.getActions();
 
             expect(dispatchedActions).toEqual([
-              config.extendedActions.updateSuccess({
+              config.actions.updateSuccess({
                 users: {
                   [user.id]: { ...user, admin: true },
                 },
@@ -409,7 +407,7 @@ describe('Users - actions', () => {
             const dispatchedActions = mockStore.getActions();
 
             expect(dispatchedActions).toEqual([
-              config.extendedActions.updateFailure({ base: 'Unable to make the user an admin', http_status: 422 }),
+              config.actions.updateFailure({ base: 'Unable to make the user an admin', http_status: 422 }),
             ]);
 
             done();

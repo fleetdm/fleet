@@ -8,9 +8,10 @@ describe('ConfirmInvitePage - component', () => {
   const inviteToken = 'abc123';
   const location = { query: { email: 'hi@gnar.dog', name: 'Gnar Dog' } };
   const params = { invite_token: inviteToken };
+  const mockStore = reduxMockStore({ auth: {}, entities: { users: {} } });
   const component = connectedComponent(ConfirmInvitePage, {
     props: { location, params },
-    mockStore: reduxMockStore({ auth: {}, entities: { users: {} } }),
+    mockStore,
   });
   const page = mount(component);
 
@@ -27,5 +28,13 @@ describe('ConfirmInvitePage - component', () => {
 
   it('renders a ConfirmInviteForm', () => {
     expect(page.find('ConfirmInviteForm').length).toEqual(1);
+  });
+
+  it('clears errors on unmount', () => {
+    page.unmount();
+
+    expect(mockStore.getActions()).toInclude({
+      type: 'users_CLEAR_ERRORS',
+    });
   });
 });

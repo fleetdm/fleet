@@ -1,10 +1,10 @@
 import Kolide from 'kolide';
-import reduxConfig from 'redux/nodes/entities/base/reduxConfig';
+import Config from 'redux/nodes/entities/base/config';
 import schemas from 'redux/nodes/entities/base/schemas';
 
 const { CONFIG_OPTIONS: schema } = schemas;
 
-export default reduxConfig({
+export default new Config({
   entityName: 'config_options',
   loadAllFunc: Kolide.configOptions.loadAll,
   schema,

@@ -159,7 +159,7 @@ export class UserManagementPage extends Component {
     const { usersEditing } = this.state;
     let updatedUsersEditing = [];
 
-    dispatch(userActions.clearErrors);
+    dispatch(userActions.clearErrors());
 
     if (includes(usersEditing, user.id)) {
       updatedUsersEditing = difference(usersEditing, [user.id]);
