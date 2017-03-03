@@ -39,48 +39,6 @@ class Kolide extends Base {
     this.websockets = websocketMethods(this);
   }
 
-  getLabelHosts = () => {
-    // const { LABEL_HOSTS } = endpoints;
-
-    const stubbedResponse = {
-      hosts: [
-        {
-          detail_updated_at: '2016-10-25T16:24:27.679472917-04:00',
-          hostname: 'jmeller-mbp.local',
-          id: 1,
-          ip: '192.168.1.10',
-          mac: '10:11:12:13:14:15',
-          memory: 4145483776,
-          os_version: 'Mac OS X 10.11.6',
-          osquery_version: '2.0.0',
-          platform: 'darwin',
-          status: 'online',
-          updated_at: '0001-01-01T00:00:00Z',
-          uptime: 3600000000000,
-          uuid: '1234-5678-9101',
-        },
-        {
-          detail_updated_at: '2016-10-25T16:24:27.679472917-04:00',
-          hostname: 'Jason Meller\'s Windows Note',
-          id: 2,
-          ip: '192.168.1.11',
-          mac: '0C-BA-8D-45-FD-B9',
-          memory: 4145483776,
-          os_version: 'Windows Vista 0.0.1',
-          osquery_version: '2.0.0',
-          platform: 'windows',
-          status: 'offline',
-          updated_at: '0001-01-01T00:00:00Z',
-          uptime: 3600000000000,
-          uuid: '1234-5678-9101',
-        },
-      ],
-    };
-
-    return Promise.resolve(stubbedResponse)
-      .then((response) => { return response.hosts; });
-  }
-
   authenticatedDelete (endpoint, overrideHeaders = {}) {
     const headers = this._authenticatedHeaders(overrideHeaders);
 
