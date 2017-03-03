@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import { get } from 'lodash';
+import { endsWith, get } from 'lodash';
 import { push } from 'react-router-redux';
 
 import APP_CONSTANTS from 'app_constants';
@@ -9,7 +9,7 @@ const { HTTP_STATUS, PATHS } = APP_CONSTANTS;
 const redirectMiddleware = store => next => (action) => {
   const { type, payload } = action;
 
-  if (type.endsWith('FAILURE')) {
+  if (endsWith(type, 'FAILURE')) {
     const httpStatus = get(payload, 'errors.http_status');
 
     if (HTTP_STATUS.INTERNAL_ERROR.test(httpStatus)) {

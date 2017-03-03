@@ -287,6 +287,7 @@ Third-Party Licenses
 | [es5-ext](https://www.npmjs.com/package/es5-ext) | [MIT](https://opensource.org/licenses/MIT) |
 | [es6-iterator](https://www.npmjs.com/package/es6-iterator) | [MIT](https://opensource.org/licenses/MIT) |
 | [es6-map](https://www.npmjs.com/package/es6-map) | [MIT](https://opensource.org/licenses/MIT) |
+| [es6-object-assign](https://www.npmjs.com/package/es6-object-assign) | [MIT](https://opensource.org/licenses/MIT) |
 | [es6-promise](https://www.npmjs.com/package/es6-promise) | [MIT](https://opensource.org/licenses/MIT) |
 | [es6-set](https://www.npmjs.com/package/es6-set) | [MIT](https://opensource.org/licenses/MIT) |
 | [es6-symbol](https://www.npmjs.com/package/es6-symbol) | [MIT](https://opensource.org/licenses/MIT) |
