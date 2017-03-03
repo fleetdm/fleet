@@ -1,3 +1,6 @@
+*   Add support for rotating the osquery status and result log files by sending
+    a SIGHUP signal to the kolide process.
+
 *   Fix Distributed Query compatibility with load balancers and Safari.
 
     Customers running Kolide behind a web balancer lacking support for

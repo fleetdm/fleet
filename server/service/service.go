@@ -4,6 +4,9 @@ package service
 
 import (
 	"io"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/WatchBeam/clock"
 	kitlog "github.com/go-kit/kit/log"
@@ -16,14 +19,8 @@ import (
 func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore, logger kitlog.Logger, kolideConfig config.KolideConfig, mailService kolide.MailService, c clock.Clock, checker kolide.LicenseChecker) (kolide.Service, error) {
 	var svc kolide.Service
 
-	logFile := func(path string) io.Writer {
-		return &lumberjack.Logger{
-			Filename:   path,
-			MaxSize:    500, // megabytes
-			MaxBackups: 3,
-			MaxAge:     28, //days
-		}
-	}
+	statusWriter := osqueryLogFile(kolideConfig.Osquery.StatusLogFile, logger)
+	resultWriter := osqueryLogFile(kolideConfig.Osquery.ResultLogFile, logger)
 
 	svc = service{
 		ds:             ds,
@@ -33,12 +30,37 @@ func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore, logger
 		clock:          c,
 		licenseChecker: checker,
 
-		osqueryStatusLogWriter: logFile(kolideConfig.Osquery.StatusLogFile),
-		osqueryResultLogWriter: logFile(kolideConfig.Osquery.ResultLogFile),
+		osqueryStatusLogWriter: statusWriter,
+		osqueryResultLogWriter: resultWriter,
 		mailService:            mailService,
 	}
 	svc = validationMiddleware{svc, ds}
 	return svc, nil
+}
+
+// osqueryLogFile creates a log file for osquery status/result logs
+// the logFile can be rotated by sending a `SIGHUP` signal to kolide.
+func osqueryLogFile(path string, appLogger kitlog.Logger) io.Writer {
+	osquerydLogger := &lumberjack.Logger{
+		Filename:   path,
+		MaxSize:    500, // megabytes
+		MaxBackups: 3,
+		MaxAge:     28, //days
+	}
+	appLogger = kitlog.NewContext(appLogger).With("component", "osqueryd-logger")
+
+	sig := make(chan os.Signal)
+	signal.Notify(sig, syscall.SIGHUP)
+	go func() {
+		for {
+			<-sig //block on signal
+			if err := osquerydLogger.Rotate(); err != nil {
+				appLogger.Log("err", err)
+			}
+		}
+	}()
+
+	return osquerydLogger
 }
 
 type service struct {
