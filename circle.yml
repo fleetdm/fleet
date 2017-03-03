@@ -24,6 +24,8 @@ dependencies:
     - "/opt/google-cloud-sdk"
 
   override:
+      # workaround for https://github.com/yarnpkg/yarn/issues/1981
+    - docker run -v $(pwd):/go/src/github.com/kolide/kolide -v /home/ubuntu/.go_workspace/pkg:/go/pkg --entrypoint /usr/bin/yarn kolide/kolide-builder:1.8 add --force node-sass
     - docker run -v $(pwd):/go/src/github.com/kolide/kolide -v /home/ubuntu/.go_workspace/pkg:/go/pkg kolide/kolide-builder:1.8 --deps
 
 test:
