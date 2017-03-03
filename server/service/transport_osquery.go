@@ -1,10 +1,12 @@
 package service
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"net/http"
 
 	"github.com/kolide/kolide/server/kolide"
+	"github.com/pkg/errors"
 
 	"golang.org/x/net/context"
 )
@@ -78,9 +80,19 @@ func decodeSubmitDistributedQueryResultsRequest(ctx context.Context, r *http.Req
 }
 
 func decodeSubmitLogsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	var err error
+	body := r.Body
+	if r.Header.Get("content-encoding") == "gzip" {
+		body, err = gzip.NewReader(body)
+		if err != nil {
+			return nil, errors.Wrap(err, "decoding gzip")
+		}
+		defer body.Close()
+	}
+
 	var req submitLogsRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, err
+	if err = json.NewDecoder(body).Decode(&req); err != nil {
+		return nil, errors.Wrap(err, "decoding JSON")
 	}
 
 	return req, nil
