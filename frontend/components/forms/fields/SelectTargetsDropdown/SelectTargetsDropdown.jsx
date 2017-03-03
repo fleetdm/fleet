@@ -29,20 +29,19 @@ class SelectTargetsDropdown extends Component {
   constructor (props) {
     super(props);
 
-    this.mounted = true;
-
     this.state = {
       isEmpty: false,
       isLoadingTargets: false,
       moreInfoTarget: null,
       query: '',
       targets: [],
-      wrapperHeight: 0,
     };
   }
 
-  componentDidMount () {
+  componentWillMount () {
     this.fetchTargets();
+    this.mounted = true;
+    this.wrapperHeight = 0;
 
     return false;
   }
@@ -106,19 +105,6 @@ class SelectTargetsDropdown extends Component {
         return false;
       }
 
-      const { target_type: targetType } = moreInfoTarget;
-
-      if (targetType.toLowerCase() === 'labels') {
-        return Kolide.getLabelHosts(moreInfoTarget.id)
-          .then((hosts) => {
-            this.setState({
-              moreInfoTarget: { ...moreInfoTarget, hosts },
-            });
-
-            return false;
-          });
-      }
-
       this.setState({ moreInfoTarget });
 
       return false;
@@ -126,12 +112,10 @@ class SelectTargetsDropdown extends Component {
   }
 
   onBackToResults = () => {
-    this.setState({
-      moreInfoTarget: null,
-    });
+    this.setState({ moreInfoTarget: null });
   }
 
-  fetchTargets = (query, selectedTargets = this.props.selectedTargets) => {
+  fetchTargets = (query = '', selectedTargets = this.props.selectedTargets) => {
     const { onFetchTargets } = this.props;
 
     if (!this.mounted) {
@@ -142,26 +126,25 @@ class SelectTargetsDropdown extends Component {
 
     return Kolide.targets.loadAll(query, formatSelectedTargetsForApi(selectedTargets))
       .then((response) => {
-        const {
-          targets,
-        } = response;
+        const { targets } = response;
+        const isEmpty = targets.length === 0;
 
         if (!this.mounted) {
           return false;
         }
 
-        if (targets.length === 0) {
+        if (isEmpty) {
           // We don't want the lib's default "No Results" so we fake it
           targets.push({});
-
-          this.setState({ isEmpty: true });
-        } else {
-          this.setState({ isEmpty: false });
         }
 
         onFetchTargets(query, response);
 
-        this.setState({ isLoadingTargets: false, targets });
+        this.setState({
+          isEmpty,
+          isLoadingTargets: false,
+          targets,
+        });
 
         return query;
       })

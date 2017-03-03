@@ -4,7 +4,7 @@ import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
 import { fillInFormInput } from 'test/helpers';
-import targetStub from 'test/target_stub';
+import targetMock from 'test/target_mock';
 import QueryForm from './index';
 
 const query = {
@@ -16,7 +16,7 @@ const query = {
 const queryText = 'SELECT * FROM users';
 
 describe('QueryForm - component', () => {
-  beforeEach(targetStub);
+  beforeEach(targetMock);
   afterEach(restoreSpies);
 
   it('renders the base error', () => {
