@@ -122,7 +122,7 @@ the way that the kolide server works.
 
 			var apiHandler, frontendHandler http.Handler
 			{
-				frontendHandler = prometheus.InstrumentHandler("get_frontend", service.ServeFrontend())
+				frontendHandler = prometheus.InstrumentHandler("get_frontend", service.ServeFrontend(httpLogger))
 				apiHandler = service.MakeHandler(ctx, svc, config.Auth.JwtKey, httpLogger)
 
 				setupRequired, err := service.RequireSetup(svc)

@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
+	"github.com/go-kit/kit/log"
 )
 
 func newBinaryFileSystem(root string) *assetfs.AssetFS {
@@ -17,26 +18,31 @@ func newBinaryFileSystem(root string) *assetfs.AssetFS {
 	}
 }
 
-func ServeFrontend() http.Handler {
+func ServeFrontend(logger log.Logger) http.Handler {
+	herr := func(w http.ResponseWriter, err string) {
+		logger.Log("err", err)
+		http.Error(w, err, http.StatusInternalServerError)
+		return
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fs := newBinaryFileSystem("/frontend")
 		file, err := fs.Open("templates/react.tmpl")
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			herr(w, "load react template: "+err.Error())
 			return
 		}
 		data, err := ioutil.ReadAll(file)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			herr(w, "read bindata file: "+err.Error())
 			return
 		}
 		t, err := template.New("react").Parse(string(data))
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			herr(w, "create react template: "+err.Error())
 			return
 		}
 		if err := t.Execute(w, nil); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			herr(w, "execute react template: "+err.Error())
 			return
 		}
 	})
