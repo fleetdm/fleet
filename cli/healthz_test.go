@@ -6,15 +6,17 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestHealthz(t *testing.T) {
-	failing := healthz(map[string]interface{}{
+	logger := log.NewNopLogger()
+	failing := healthz(logger, map[string]interface{}{
 		"mock": healthcheckFunc(func() error {
 			return errors.New("health check failed")
 		})})
-	ok := healthz(map[string]interface{}{
+	ok := healthz(logger, map[string]interface{}{
 		"mock": healthcheckFunc(func() error {
 			return nil
 		})})

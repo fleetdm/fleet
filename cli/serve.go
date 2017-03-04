@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"net/http"
 	"os"
 	"os/signal"
@@ -149,7 +148,7 @@ the way that the kolide server works.
 			}
 
 			r := http.NewServeMux()
-			r.Handle("/healthz", prometheus.InstrumentHandler("healthz", healthz(healthCheckers)))
+			r.Handle("/healthz", prometheus.InstrumentHandler("healthz", healthz(httpLogger, healthCheckers)))
 			r.Handle("/version", prometheus.InstrumentHandler("version", version.Handler()))
 			r.Handle("/assets/", prometheus.InstrumentHandler("static_assets", service.ServeStaticAssets("/assets/")))
 			r.Handle("/metrics", prometheus.InstrumentHandler("metrics", promhttp.Handler()))
@@ -192,29 +191,25 @@ the way that the kolide server works.
 // healthz is an http handler which responds with either
 // 200 OK if the server can successfuly communicate with it's backends or
 // 500 if any of the backends are reporting an issue.
-func healthz(deps map[string]interface{}) http.HandlerFunc {
+func healthz(logger kitlog.Logger, deps map[string]interface{}) http.HandlerFunc {
 	type healthChecker interface {
 		HealthCheck() error
 	}
 
+	healthy := true
 	return func(w http.ResponseWriter, r *http.Request) {
-		errs := make(map[string]string)
 		for name, dep := range deps {
 			if hc, ok := dep.(healthChecker); ok {
 				err := hc.HealthCheck()
 				if err != nil {
-					errs[name] = err.Error()
+					logger.Log("err", err, "health-checker", name)
+					healthy = false
 				}
 			}
 		}
 
-		if len(errs) > 0 {
+		if !healthy {
 			w.WriteHeader(http.StatusInternalServerError)
-			enc := json.NewEncoder(w)
-			enc.SetIndent("", "  ")
-			enc.Encode(map[string]interface{}{
-				"errors": errs,
-			})
 		}
 	}
 }
