@@ -41,7 +41,7 @@ describe('TargetDetails - component', () => {
         expect(componentText).toInclude(target.display_text);
         expect(componentText).toInclude(target.host_mac);
         expect(componentText).toInclude(target.host_ip_address);
-        expect(componentText).toInclude('1.00 GB');
+        expect(componentText).toInclude('1.0 GB');
         expect(componentText).toInclude(target.osquery_version);
         expect(componentText).toInclude(target.os_version);
         expect(componentText).toInclude(target.platform);
