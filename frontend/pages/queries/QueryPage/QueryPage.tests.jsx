@@ -51,6 +51,9 @@ describe('QueryPage - component', () => {
   });
 
   const store = {
+    app: {
+      isSmallNav: false,
+    },
     components: {
       QueryPages: {
         queryText: 'SELECT * FROM users',
@@ -127,6 +130,9 @@ describe('QueryPage - component', () => {
     const query = { id: 1, name: 'My query', description: 'My query description', query: 'select * from users' };
     const locationWithQueryProp = { params: { id: 1 }, location: { query: {} } };
     const mockStoreWithQuery = reduxMockStore({
+      app: {
+        isSmallNav: false,
+      },
       components: {
         QueryPages: {
           queryText: 'SELECT * FROM users',

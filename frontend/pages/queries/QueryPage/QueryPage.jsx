@@ -46,6 +46,7 @@ export class QueryPage extends Component {
       base: PropTypes.string,
     }),
     hostIDs: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
+    isSmallNav: PropTypes.bool.isRequired,
     loadingQueries: PropTypes.bool.isRequired,
     location: PropTypes.shape({
       pathname: PropTypes.string,
@@ -98,10 +99,13 @@ export class QueryPage extends Component {
   }
 
   componentWillUnmount () {
-    const { dispatch } = this.props;
+    const { dispatch, isSmallNav } = this.props;
 
     this.resetCampaignAndTargets();
-    dispatch(toggleSmallNav);
+
+    if (isSmallNav) {
+      dispatch(toggleSmallNav);
+    }
 
     return false;
   }
@@ -537,6 +541,7 @@ const mapStateToProps = (state, ownProps) => {
   const query = reduxQuery || queryStub;
   let { selectedTargets } = state.components.QueryPages;
   const { host_ids: hostIDs } = ownProps.location.query;
+  const { isSmallNav } = state.app;
 
   // hostIDs are URL params so they are strings
   if (hostIDs && !queryID) {
@@ -555,6 +560,7 @@ const mapStateToProps = (state, ownProps) => {
   return {
     errors,
     hostIDs,
+    isSmallNav,
     loadingQueries,
     query,
     selectedOsqueryTable,
