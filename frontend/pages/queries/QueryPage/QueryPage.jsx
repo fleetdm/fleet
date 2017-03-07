@@ -210,7 +210,7 @@ export class QueryPage extends Component {
 
               this.setState(campaignHelpers.updateCampaignState(socketData));
 
-              if (socketData.type === 'status' && socketData.data === 'finished') {
+              if (socketData.type === 'status' && socketData.data.status === 'finished') {
                 return this.teardownDistributedQuery();
               }
 
