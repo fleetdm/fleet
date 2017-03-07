@@ -99,8 +99,6 @@ describe('SelectTargetsDropdown - component', () => {
     afterEach(() => restoreSpies());
 
     it('calls the api', () => {
-      nock.cleanAll();
-
       const request = Test.Mocks.targetMock(defaultParams, apiResponseWithTargets);
       const Component = mount(<SelectTargetsDropdown {...defaultProps} />);
       const node = Component.node;
@@ -112,8 +110,6 @@ describe('SelectTargetsDropdown - component', () => {
     });
 
     it('calls the onFetchTargets prop', () => {
-      nock.cleanAll();
-
       const onFetchTargets = createSpy();
       const props = { ...defaultProps, onFetchTargets };
       const Component = mount(<SelectTargetsDropdown {...props} />);
@@ -158,7 +154,7 @@ describe('SelectTargetsDropdown - component', () => {
       const Component = mount(<SelectTargetsDropdown {...defaultProps} />);
       const node = Component.node;
 
-      Test.Mocks.targetMock(defaultParams);
+      Test.Mocks.targetMock({ ...defaultParams, query });
 
       return node.fetchTargets(query)
         .then((q) => {

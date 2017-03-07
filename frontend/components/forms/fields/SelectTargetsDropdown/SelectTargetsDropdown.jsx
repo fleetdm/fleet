@@ -39,9 +39,9 @@ class SelectTargetsDropdown extends Component {
   }
 
   componentWillMount () {
-    this.fetchTargets();
     this.mounted = true;
     this.wrapperHeight = 0;
+    this.fetchTargets();
 
     return false;
   }
