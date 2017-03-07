@@ -1,63 +1,53 @@
-*   Update Host details cards UI
+* Update Host details cards UI
 
-*   Add support for rotating the osquery status and result log files by sending
-    a SIGHUP signal to the kolide process.
+* Add support for rotating the osquery status and result log files by sending a SIGHUP signal to the kolide process.
 
-*   Fix Distributed Query compatibility with load balancers and Safari.
+* Fix Distributed Query compatibility with load balancers and Safari.
 
-    Customers running Kolide behind a web balancer lacking support for
-    websockets were unable to use the distributed query feature. Also, in
-    certain circumstances, Safari users with a self-signed cert for Kolide
-    would receive an error. This release add a fallback mechanism from
-    websockets using SockJS for improved compatibility.
+  Customers running Kolide behind a web balancer lacking support for websockets were unable to use the distributed query feature. Also, in certain circumstances, Safari users with a self-signed cert for Kolide would receive an error. This release add a fallback mechanism from websockets using SockJS for improved compatibility.
 
-*   Fix issue with Distributed Query Pack results full screen feature that broke the browser scrolling abilities.
+* Fix issue with Distributed Query Pack results full screen feature that broke the browser scrolling abilities.
 
-*   Fix bug in which host counts in the sidebar did not match up with displayed hosts.
+* Fix bug in which host counts in the sidebar did not match up with displayed hosts.
 
-## Kolide 1.0.1 (February 27, 2017) ##
+## Kolide 1.0.1 (February 27, 2017)
 
-*   Fix an issue that prevented users from replacing deleted labels with a new label of the same name.
+* Fix an issue that prevented users from replacing deleted labels with a new label of the same name.
 
-*   Improve the reliability of IP and MAC address data in the host cards and table.
+* Improve the reliability of IP and MAC address data in the host cards and table.
 
-*   Add full screen support for distributed query results.
+* Add full screen support for distributed query results.
 
-*   Enable users to double click on queries and packs in a table to see their details.
+* Enable users to double click on queries and packs in a table to see their details.
 
-*   Reprompt for a password when a user attempts to change their email address.
+* Reprompt for a password when a user attempts to change their email address.
 
-*   Automatically decorate the status and result logs with the host's UUID and hostname.
+* Automatically decorate the status and result logs with the host's UUID and hostname.
 
-*   Fix an issue where Kolide users on Safari were unable to delete queries or packs.
+* Fix an issue where Kolide users on Safari were unable to delete queries or packs.
 
-*   Improve platform detection accuracy.
+* Improve platform detection accuracy.
 
-    Previously Kolide was determing platform based on the OS of the system osquery
-    was built on instead of the OS it was running on. Please note: Offline hosts
-    may continue to report an erroneous platform until they check-in with Kolide.
+  Previously Kolide was determing platform based on the OS of the system osquery was built on instead of the OS it was running on. Please note: Offline hosts may continue to report an erroneous platform until they check-in with Kolide.
 
-*   Fix bugs where query links in the pack sidebar pointed to the wrong queries.
+* Fix bugs where query links in the pack sidebar pointed to the wrong queries.
 
-*   Improve MySQL compatibility with stricter configurations.
+* Improve MySQL compatibility with stricter configurations.
 
-*   Allow users to edit the name and description of host labels.
+* Allow users to edit the name and description of host labels.
 
-*   Add basic table autocompletion when typing in the query composer.
+* Add basic table autocompletion when typing in the query composer.
 
-*   Support MySQL client certificate authentication. More details can be found in the [Configuring the Kolide binary docs](https://docs.kolide.co/kolide/1.0.1/infrastructure/configuring-the-kolide-binary.html)
+* Support MySQL client certificate authentication. More details can be found in the [Configuring the Kolide binary docs](https://docs.kolide.co/kolide/1.0.1/infrastructure/configuring-the-kolide-binary.html)
 
-*   Improve security for user-initiated email address changes.
+* Improve security for user-initiated email address changes.
 
-    This improvement ensures that only users who own an email address and are
-    logged in as the user who initiated the change can confirm the new email.
+  This improvement ensures that only users who own an email address and are logged in as the user who initiated the change can confirm the new email.
 
-    Previously it was possible for Administrators to also confirm these changes
-    by clicking the confirmation link.
+  Previously it was possible for Administrators to also confirm these changes by clicking the confirmation link.
 
-*   Fix an issue where the setup form rejects passwords with certain characters.
+* Fix an issue where the setup form rejects passwords with certain characters.
 
-    This change resolves an issue where certain special characters like "."
-    where rejected by the client-side JS that controls the setup form.
+  This change resolves an issue where certain special characters like "." where rejected by the client-side JS that controls the setup form.
 
-*   Automatically login the user once initial setup is completed.
+* Automatically login the user once initial setup is completed.
