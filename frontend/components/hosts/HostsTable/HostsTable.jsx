@@ -38,7 +38,7 @@ class HostsTable extends Component {
       <tr key={`host-${host.id}-table`}>
         <td className={`${baseClass}__hostname`}>{host.hostname}</td>
         <td className={statusClassName}><Icon name={iconClassForLabel(host.status)} /></td>
-        <td><PlatformIcon name={host.platform} /> {host.os_version}</td>
+        <td><PlatformIcon name={host.platform} title={host.os_version} /> {host.os_version}</td>
         <td>{host.osquery_version}</td>
         <td>{host.host_ip_address}</td>
         <td>{host.host_mac}</td>

@@ -40,7 +40,7 @@ class PanelGroupItem extends Component {
     const { item, type } = this.props;
 
     if (type === 'platform') {
-      return <PlatformIcon name={item.display_text} className={`${baseClass}__icon`} />;
+      return <PlatformIcon name={item.display_text} title={item.display_text} className={`${baseClass}__icon`} />;
     }
 
     return <Icon name={iconClassForLabel(item)} className={`${baseClass}__icon`} />;

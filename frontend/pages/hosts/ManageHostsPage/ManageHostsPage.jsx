@@ -395,7 +395,7 @@ export class ManageHostsPage extends Component {
     const { selectedLabel } = this.props;
 
     if (platformIconClass(selectedLabel.display_text)) {
-      return <PlatformIcon name={platformIconClass(selectedLabel.display_text)} />;
+      return <PlatformIcon name={platformIconClass(selectedLabel.display_text)} title={platformIconClass(selectedLabel.display_text)} />;
     }
 
     return <Icon name={iconClassForLabel(selectedLabel)} />;

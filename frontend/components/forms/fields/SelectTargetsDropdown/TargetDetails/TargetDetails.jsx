@@ -83,7 +83,7 @@ class TargetDetails extends Component {
             <tr>
               <th>Platform</th>
               <td>
-                <PlatformIcon name={platform} />
+                <PlatformIcon name={platform} title={platform} />
                 <span className={`${hostBaseClass}__platform-text`}> {platform}</span>
               </td>
             </tr>

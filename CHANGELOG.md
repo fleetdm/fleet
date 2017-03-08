@@ -1,3 +1,5 @@
+*   Show a generic computer icon when when referring to hosts with an unknown platform instead of the text "All"
+
 * When setting the platform for a scheduled query, selecting "All" now clears individually selected platforms.
 
 * Update Host details cards UI
