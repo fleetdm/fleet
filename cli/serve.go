@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"crypto/tls"
 	"net/http"
 	"os"
 	"os/signal"
@@ -156,8 +157,13 @@ the way that the kolide server works.
 			r.Handle("/", frontendHandler)
 
 			srv := &http.Server{
-				Addr:    config.Server.Address,
-				Handler: r,
+				Addr:              config.Server.Address,
+				Handler:           r,
+				ReadTimeout:       25 * time.Second,
+				WriteTimeout:      40 * time.Second,
+				ReadHeaderTimeout: 5 * time.Second,
+				IdleTimeout:       5 * time.Minute,
+				MaxHeaderBytes:    1 << 18, // 0.25 MB (262144 bytes)
 			}
 			errs := make(chan error, 2)
 			go func() {
@@ -166,6 +172,25 @@ the way that the kolide server works.
 					errs <- srv.ListenAndServe()
 				} else {
 					logger.Log("transport", "https", "address", config.Server.Address, "msg", "listening")
+					srv.TLSConfig = &tls.Config{
+						// Causes servers to use Go's default ciphersuite preferences,
+						// which are tuned to avoid attacks. Does nothing on clients.
+						PreferServerCipherSuites: true,
+						// Only use curves which have assembly implementations
+						CurvePreferences: []tls.CurveID{
+							tls.CurveP256,
+							tls.X25519,
+						},
+						MinVersion: tls.VersionTLS12,
+						CipherSuites: []uint16{
+							tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+							tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+							tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+							tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+							tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+							tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+						},
+					}
 					errs <- srv.ListenAndServeTLS(
 						config.Server.Cert,
 						config.Server.Key,
