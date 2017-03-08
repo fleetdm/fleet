@@ -75,4 +75,5 @@ var testFunctions = [...]func(*testing.T, kolide.Datastore){
 	testFlappingNetworkInterfaces,
 	testReplaceDeletedLabel,
 	testMigrationStatus,
+	testUnicode,
 }

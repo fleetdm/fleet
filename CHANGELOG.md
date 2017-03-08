@@ -2,6 +2,8 @@
 
 * Kolide will now warn on startup if there are database migrations not yet completed.
 
+* Kolide now supports emoji, so you can 🔥 to your heart's content.
+
 * When setting the platform for a scheduled query, selecting "All" now clears individually selected platforms.
 
 * Update Host details cards UI
