@@ -38,6 +38,9 @@ func (m *Store) MigrateTables() error {
 func (m *Store) MigrateData() error {
 	return nil
 }
+func (m *Store) MigrationStatus() error {
+	return nil
+}
 func (m *Store) Name() string {
 	return "mock"
 }

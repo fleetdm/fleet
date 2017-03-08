@@ -1,5 +1,5 @@
-hash: 23a51e1dbed0a504e02209cd5ef0fbb1bcb894ca7861a818154f7e8fab5fac48
-updated: 2017-02-28T11:03:55.538531823-08:00
+hash: c1bacfac1e43a7b6cb050afc246e21a426e9781fac4146df1d5571d5c28c4d90
+updated: 2017-03-08T09:05:13.458507954-08:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -79,7 +79,7 @@ imports:
 - name: github.com/jordan-wright/email
   version: fd703108daeb23d77c124d12978e9b6c4f28f034
 - name: github.com/kolide/goose
-  version: 5221ed7545f6b931a24f99d9bd3e7bcf36aee71b
+  version: 4a7848793d4402d338de853019ad72b9a4b3e68e
 - name: github.com/kr/logfmt
   version: b84e30acd515aadc4b783ad4ff83aff3299bdfe0
 - name: github.com/magiconair/properties

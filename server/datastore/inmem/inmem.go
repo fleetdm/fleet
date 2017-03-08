@@ -128,6 +128,10 @@ func (d *Datastore) MigrateData() error {
 	return nil
 }
 
+func (m *Datastore) MigrationStatus() error {
+	return nil
+}
+
 func (d *Datastore) Drop() error {
 	return d.MigrateTables()
 }

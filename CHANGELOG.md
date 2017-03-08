@@ -1,4 +1,6 @@
-*   Show a generic computer icon when when referring to hosts with an unknown platform instead of the text "All"
+* Show a generic computer icon when when referring to hosts with an unknown platform instead of the text "All"
+
+* Kolide will now warn on startup if there are database migrations not yet completed.
 
 * When setting the platform for a scheduled query, selecting "All" now clears individually selected platforms.
 

@@ -24,6 +24,9 @@ type Datastore interface {
 	MigrateTables() error
 	// MigrateData populates built-in data
 	MigrateData() error
+	// MigrationStatus returns nil if migrations are complete, and an error
+	// if migrations need to be run.
+	MigrationStatus() error
 }
 
 // NotFoundError is returned when the datastore resource cannot be found.
