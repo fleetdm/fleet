@@ -7,6 +7,8 @@ import PlatformIcon from 'components/icons/PlatformIcon';
 import { isEmpty, isEqual } from 'lodash';
 import scheduledQueryInterface from 'interfaces/scheduled_query';
 
+const baseClass = 'scheduled-query-list-item';
+
 class ScheduledQueriesListItem extends Component {
   static propTypes = {
     checked: PropTypes.bool,
@@ -55,10 +57,10 @@ class ScheduledQueriesListItem extends Component {
     const platformArr = platform ? platform.split(',') : [];
 
     if (isEmpty(platformArr) || platformArr.includes('all')) {
-      return <PlatformIcon name="" />;
+      return <PlatformIcon name="" className={`${baseClass}__icon`} />;
     }
 
-    return platformArr.map((pltf, idx) => <PlatformIcon name={pltf} key={`${idx}-${pltf}`} />);
+    return platformArr.map((pltf, idx) => <PlatformIcon name={pltf} className={`${baseClass}__icon`} key={`${idx}-${pltf}`} />);
   }
 
   render () {
@@ -67,7 +69,7 @@ class ScheduledQueriesListItem extends Component {
     const { loggingTypeString, onCheck, onSelect, renderPlatformIcon } = this;
 
     return (
-      <ClickableTableRow onClick={onSelect}>
+      <ClickableTableRow onClick={onSelect} className={baseClass}>
         <td>
           <Checkbox
             disabled={disabled}

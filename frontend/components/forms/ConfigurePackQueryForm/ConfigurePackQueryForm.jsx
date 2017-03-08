@@ -1,4 +1,5 @@
 import React, { Component, PropTypes } from 'react';
+import { pull } from 'lodash';
 
 import Icon from 'components/icons/Icon';
 import Button from 'components/buttons/Button';
@@ -32,7 +33,7 @@ const minOsqueryVersionOptions = [
   { label: '2.2.1 +', value: '2.2.1' },
 ];
 
-class ConfigurePackQueryForm extends Component {
+export class ConfigurePackQueryForm extends Component {
   static propTypes = {
     fields: PropTypes.shape({
       interval: formFieldInterface.isRequired,
@@ -55,6 +56,23 @@ class ConfigurePackQueryForm extends Component {
     return handleCancel(formData);
   }
 
+  handlePlatformChoice = (value) => {
+    const { fields: { platform } } = this.props;
+    const valArray = value.split(',');
+
+    // Remove All if another OS is chosen
+    if (valArray.indexOf('') === 0 && valArray.length > 1) {
+      return platform.onChange(pull(valArray, '').join(','));
+    }
+
+    // Remove OS if All is chosen
+    if (valArray.length > 1 && valArray.indexOf('') > -1) {
+      return platform.onChange('');
+    }
+
+    return platform.onChange(value);
+  }
+
   renderCancelButton = () => {
     const { formData } = this.props;
     const { onCancel } = this;
@@ -72,7 +90,7 @@ class ConfigurePackQueryForm extends Component {
 
   render () {
     const { fields, handleSubmit } = this.props;
-    const { renderCancelButton } = this;
+    const { handlePlatformChoice, renderCancelButton } = this;
 
     return (
       <form className={baseClass} onSubmit={handleSubmit}>
@@ -91,6 +109,7 @@ class ConfigurePackQueryForm extends Component {
             options={platformOptions}
             placeholder="- - -"
             label="Platform"
+            onChange={handlePlatformChoice}
             multi
             wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
           />

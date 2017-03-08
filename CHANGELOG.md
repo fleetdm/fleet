@@ -1,3 +1,7 @@
+* When setting the platform for a scheduled query, selecting "All" now clears individually selected platforms.
+
+* Update Host details cards UI
+
 * Lower HTTP timeout settings.
 
   In an effort to provide a more resilient web server, timeouts are more strictly enforced by the Kolide HTTP server (regardless of whether or not you're using the built-in TLS termination). If your Kolide environment is particularly latent and you observe requests timing out, contact us at [help@kolide.co](mailto:help@kolide.co).
