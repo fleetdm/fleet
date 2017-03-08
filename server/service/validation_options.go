@@ -33,21 +33,17 @@ func validateValueMapsToOptionType(opt kolide.Option) error {
 	if !opt.OptionSet() {
 		return nil
 	}
-	val := opt.GetValue()
-	switch opt.Type {
-	case kolide.OptionTypeBool:
-		_, ok := val.(bool)
-		if !ok {
+	switch opt.GetValue().(type) {
+	case int, uint, uint64, float64:
+		if opt.Type != kolide.OptionTypeInt {
 			return errTypeMismatch
 		}
-	case kolide.OptionTypeString:
-		_, ok := val.(string)
-		if !ok {
+	case string:
+		if opt.Type != kolide.OptionTypeString {
 			return errTypeMismatch
 		}
-	case kolide.OptionTypeInt:
-		_, ok := val.(float64) // JSON unmarshaler represents all numbers in float64
-		if !ok {
+	case bool:
+		if opt.Type != kolide.OptionTypeBool {
 			return errTypeMismatch
 		}
 	default:

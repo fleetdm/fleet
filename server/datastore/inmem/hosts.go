@@ -113,7 +113,7 @@ func (d *Datastore) ListHosts(opt kolide.ListOptions) ([]*kolide.Host, error) {
 	return hosts, nil
 }
 
-func (d *Datastore) GenerateHostStatusStatistics(now time.Time) (online, offline, mia, new uint, err error) {
+func (d *Datastore) GenerateHostStatusStatistics(now time.Time, onlineInterval uint) (online, offline, mia, new uint, err error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 

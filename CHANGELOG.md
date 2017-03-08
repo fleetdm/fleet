@@ -1,3 +1,7 @@
+* Improve the mechanism used to calculate whether or not hosts are online.
+
+  Previously, hosts were categorized as "online" if they had been seen within the past 30 minutes. To make the "online" status more representative of reality, hosts are marked "online" if the Kolide server has heard from them within two times the lowest polling interval as described by the Kolide-managed osquery configuration. For example, if you've configured osqueryd to check-in with Kolide every 10 seconds, only hosts that Kolide has heard from within the last 20 seconds will be marked "online".
+
 * Update Host details cards UI
 
 * Add support for rotating the osquery status and result log files by sending a SIGHUP signal to the kolide process.

@@ -40,7 +40,7 @@ type HostStore interface {
 	EnrollHost(osqueryHostId string, nodeKeySize int) (*Host, error)
 	AuthenticateHost(nodeKey string) (*Host, error)
 	MarkHostSeen(host *Host, t time.Time) error
-	GenerateHostStatusStatistics(now time.Time) (online, offline, mia, new uint, err error)
+	GenerateHostStatusStatistics(now time.Time, onlineInterval uint) (online, offline, mia, new uint, err error)
 	SearchHosts(query string, omit ...uint) ([]*Host, error)
 	// DistributedQueriesForHost retrieves the distributed queries that the
 	// given host should run. The result map is a mapping from campaign ID
