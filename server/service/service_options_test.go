@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/kolide/kolide/server/config"
 	"github.com/kolide/kolide/server/datastore/inmem"
@@ -44,7 +45,7 @@ func TestExpectedCheckinInterval(t *testing.T) {
 	require.Equal(t, 10, int(loggerTlsPeriod))
 	interval, err := svc.ExpectedCheckinInterval(ctx)
 	require.Nil(t, err)
-	assert.Equal(t, 10, int(interval))
+	assert.Equal(t, 10*time.Second*expectedCheckinIntervalMultiplier, interval)
 
 	options, err = svc.ModifyOptions(ctx, kolide.OptionRequest{
 		Options: []kolide.Option{
@@ -69,7 +70,7 @@ func TestExpectedCheckinInterval(t *testing.T) {
 	require.Equal(t, 10, int(loggerTlsPeriod))
 	interval, err = svc.ExpectedCheckinInterval(ctx)
 	require.Nil(t, err)
-	assert.Equal(t, 5, int(interval))
+	assert.Equal(t, 5*time.Second*expectedCheckinIntervalMultiplier, interval)
 
 	options, err = svc.ModifyOptions(ctx, kolide.OptionRequest{
 		Options: []kolide.Option{
@@ -94,5 +95,5 @@ func TestExpectedCheckinInterval(t *testing.T) {
 	require.Equal(t, 1, int(loggerTlsPeriod))
 	interval, err = svc.ExpectedCheckinInterval(ctx)
 	require.Nil(t, err)
-	assert.Equal(t, 1, int(interval))
+	assert.Equal(t, time.Second*expectedCheckinIntervalMultiplier, interval)
 }

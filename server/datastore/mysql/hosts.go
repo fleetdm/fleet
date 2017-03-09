@@ -290,7 +290,7 @@ func (d *Datastore) ListHosts(opt kolide.ListOptions) ([]*kolide.Host, error) {
 	return hosts, nil
 }
 
-func (d *Datastore) GenerateHostStatusStatistics(now time.Time, onlineInterval uint) (online, offline, mia, new uint, e error) {
+func (d *Datastore) GenerateHostStatusStatistics(now time.Time, onlineInterval time.Duration) (online, offline, mia, new uint, e error) {
 	sqlStatement := `
 		SELECT (
 			SELECT count(id)
@@ -323,7 +323,7 @@ func (d *Datastore) GenerateHostStatusStatistics(now time.Time, onlineInterval u
 		Online  uint `db:"online"`
 		New     uint `db:"new"`
 	}{}
-	err := d.db.Get(&counts, sqlStatement, now, 2*onlineInterval, now, now, 2*onlineInterval, now, now)
+	err := d.db.Get(&counts, sqlStatement, now, onlineInterval.Seconds(), now, now, onlineInterval.Seconds(), now, now)
 	if err != nil && err != sql.ErrNoRows {
 		e = errors.Wrap(err, "generating host statistics")
 		return

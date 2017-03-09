@@ -23,10 +23,6 @@ const (
 	NewDuration = 24 * time.Hour
 
 	// OfflineDuration if a host hasn't been in communition for this
-	// period it is considered offline.
-	OfflineDuration = 30 * time.Minute
-
-	// OfflineDuration if a host hasn't been in communition for this
 	// period it is considered MIA.
 	MIADuration = 30 * 24 * time.Hour
 )
@@ -40,7 +36,7 @@ type HostStore interface {
 	EnrollHost(osqueryHostId string, nodeKeySize int) (*Host, error)
 	AuthenticateHost(nodeKey string) (*Host, error)
 	MarkHostSeen(host *Host, t time.Time) error
-	GenerateHostStatusStatistics(now time.Time, onlineInterval uint) (online, offline, mia, new uint, err error)
+	GenerateHostStatusStatistics(now time.Time, onlineInterval time.Duration) (online, offline, mia, new uint, err error)
 	SearchHosts(query string, omit ...uint) ([]*Host, error)
 	// DistributedQueriesForHost retrieves the distributed queries that the
 	// given host should run. The result map is a mapping from campaign ID
@@ -147,11 +143,11 @@ func RandomText(keySize int) (string, error) {
 	return base64.StdEncoding.EncodeToString(key), nil
 }
 
-func (h *Host) Status(now time.Time) string {
+func (h *Host) Status(now time.Time, onlineInterval time.Duration) string {
 	switch {
 	case h.SeenTime.Add(MIADuration).Before(now):
 		return StatusMIA
-	case h.SeenTime.Add(OfflineDuration).Before(now):
+	case h.SeenTime.Add(onlineInterval).Before(now):
 		return StatusOffline
 	default:
 		return StatusOnline

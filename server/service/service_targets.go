@@ -2,6 +2,7 @@ package service
 
 import (
 	"github.com/kolide/kolide/server/kolide"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -44,10 +45,15 @@ func (svc service) CountHostsInTargets(ctx context.Context, hostIDs []uint, labe
 
 	result := &kolide.TargetMetrics{}
 
+	onlineInterval, err := svc.ExpectedCheckinInterval(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting expected check-in interval")
+	}
+
 	for _, host := range hosts {
 		if !hostLookup[host.ID] {
 			hostLookup[host.ID] = true
-			switch host.Status(svc.clock.Now().UTC()) {
+			switch host.Status(svc.clock.Now().UTC(), onlineInterval) {
 			case kolide.StatusOnline:
 				result.OnlineHosts++
 			case kolide.StatusOffline:

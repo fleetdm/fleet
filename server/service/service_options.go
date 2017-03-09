@@ -1,10 +1,14 @@
 package service
 
 import (
+	"time"
+
 	"github.com/kolide/kolide/server/kolide"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
+
+const expectedCheckinIntervalMultiplier = 2
 
 func (svc service) GetOptions(ctx context.Context) ([]kolide.Option, error) {
 	opts, err := svc.ds.ListOptions()
@@ -21,7 +25,7 @@ func (svc service) ModifyOptions(ctx context.Context, req kolide.OptionRequest) 
 	return req.Options, nil
 }
 
-func (svc service) ExpectedCheckinInterval(ctx context.Context) (uint, error) {
+func (svc service) ExpectedCheckinInterval(ctx context.Context) (time.Duration, error) {
 	interval := uint(0)
 	found := false
 
@@ -71,9 +75,9 @@ func (svc service) ExpectedCheckinInterval(ctx context.Context) (uint, error) {
 	// if we never found any interval options set, the default distributed
 	// interval is 60, so we use that
 	if !found {
-		return 60, nil
+		interval = 60
 	}
 
 	// return the lowest interval that we found
-	return interval, nil
+	return time.Duration(interval) * time.Second * expectedCheckinIntervalMultiplier, nil
 }

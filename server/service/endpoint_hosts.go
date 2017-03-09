@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/kolide/kolide/server/kolide"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -15,9 +16,13 @@ type hostResponse struct {
 }
 
 func hostResponseForHost(ctx context.Context, svc kolide.Service, host *kolide.Host) (*hostResponse, error) {
+	onlineInterval, err := svc.ExpectedCheckinInterval(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting expected check-in interval")
+	}
 	return &hostResponse{
 		Host:        *host,
-		Status:      host.Status(time.Now()),
+		Status:      host.Status(time.Now(), onlineInterval),
 		DisplayText: host.HostName,
 	}, nil
 }

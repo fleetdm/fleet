@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"golang.org/x/net/context"
 )
@@ -40,7 +41,7 @@ type OptionService interface {
 	// can deduce a minimum amount of time that we should expect to hear from an
 	// osqueryd agent if it is online. This is currently two times the most
 	// frequent check-in interval.
-	ExpectedCheckinInterval(ctx context.Context) (uint, error)
+	ExpectedCheckinInterval(ctx context.Context) (time.Duration, error)
 }
 
 const (

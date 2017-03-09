@@ -50,16 +50,16 @@ func TestHostStatus(t *testing.T) {
 	host := Host{}
 
 	host.SeenTime = mockClock.Now()
-	assert.Equal(t, StatusOnline, host.Status(mockClock.Now()))
+	assert.Equal(t, StatusOnline, host.Status(mockClock.Now(), 60*time.Second))
 
 	host.SeenTime = mockClock.Now().Add(-1 * time.Minute)
-	assert.Equal(t, StatusOnline, host.Status(mockClock.Now()))
+	assert.Equal(t, StatusOnline, host.Status(mockClock.Now(), 60*time.Second))
 
 	host.SeenTime = mockClock.Now().Add(-1 * time.Hour)
-	assert.Equal(t, StatusOffline, host.Status(mockClock.Now()))
+	assert.Equal(t, StatusOffline, host.Status(mockClock.Now(), 60*time.Second))
 
 	host.SeenTime = mockClock.Now().Add(-35 * (24 * time.Hour)) // 35 days
-	assert.Equal(t, StatusMIA, host.Status(mockClock.Now()))
+	assert.Equal(t, StatusMIA, host.Status(mockClock.Now(), 60*time.Second))
 }
 
 func TestHostIsNew(t *testing.T) {

@@ -591,7 +591,7 @@ func testGenerateHostStatusStatistics(t *testing.T, ds kolide.Datastore) {
 
 	// With an online interval of 60, both the host that checked in a minute ago
 	// as well as the host that checked in 30 seconds ago should both be online
-	online, offline, mia, new, err = ds.GenerateHostStatusStatistics(mockClock.Now(), 60)
+	online, offline, mia, new, err = ds.GenerateHostStatusStatistics(mockClock.Now(), 2*time.Minute)
 	assert.Nil(t, err)
 	assert.Equal(t, uint(2), online)
 	assert.Equal(t, uint(1), offline)
@@ -599,7 +599,7 @@ func testGenerateHostStatusStatistics(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, uint(4), new)
 
 	// With an online interval of 10, no hosts should be online
-	online, offline, mia, new, err = ds.GenerateHostStatusStatistics(mockClock.Now(), 10)
+	online, offline, mia, new, err = ds.GenerateHostStatusStatistics(mockClock.Now(), 20*time.Second)
 	assert.Nil(t, err)
 	assert.Equal(t, uint(0), online)
 	assert.Equal(t, uint(3), offline)
@@ -609,7 +609,7 @@ func testGenerateHostStatusStatistics(t *testing.T, ds kolide.Datastore) {
 	// With an online interval of 3600 seconds (60 minutes), the host that checked
 	// in 30 seconds ago, a minute ago, and 60 minutes ago should all appear to be
 	// online
-	online, offline, mia, new, err = ds.GenerateHostStatusStatistics(mockClock.Now(), 60*60)
+	online, offline, mia, new, err = ds.GenerateHostStatusStatistics(mockClock.Now(), 2*time.Hour)
 	assert.Nil(t, err)
 	assert.Equal(t, uint(3), online)
 	assert.Equal(t, uint(0), offline)

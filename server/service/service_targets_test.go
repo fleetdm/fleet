@@ -78,7 +78,7 @@ func TestCountHostsInTargets(t *testing.T) {
 		UUID:     "3",
 	})
 	require.Nil(t, err)
-	require.Nil(t, ds.MarkHostSeen(h3, mockClock.Now().Add(-5*time.Minute)))
+	require.Nil(t, ds.MarkHostSeen(h3, mockClock.Now().Add(-5*time.Second)))
 
 	h4, err := ds.NewHost(&kolide.Host{
 		HostName: "xxx.local",

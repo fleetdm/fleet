@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/kolide/kolide/server/kolide"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -64,12 +65,17 @@ func makeSearchTargetsEndpoint(svc kolide.Service) endpoint.Endpoint {
 			Labels: []labelSearchResult{},
 		}
 
+		onlineInterval, err := svc.ExpectedCheckinInterval(ctx)
+		if err != nil {
+			return searchTargetsResponse{Err: errors.Wrap(err, "getting expected check-in interval")}, nil
+		}
+
 		for _, host := range results.Hosts {
 			targets.Hosts = append(targets.Hosts,
 				hostSearchResult{
 					hostResponse{
 						Host:   host,
-						Status: host.Status(time.Now()),
+						Status: host.Status(time.Now(), onlineInterval),
 					},
 					host.HostName,
 				},
