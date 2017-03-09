@@ -78,6 +78,8 @@ Before running the updated server, perform necessary database migrations:
 kolide prepare db
 ```
 
+Note, if you would like to run this in a script, you can use the `--no-prompt` option to disable prompting before the migrations.
+
 The updated Kolide server should now be ready to run:
 
 ```

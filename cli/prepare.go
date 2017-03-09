@@ -1,6 +1,10 @@
 package cli
 
 import (
+	"bufio"
+	"fmt"
+	"os"
+
 	"github.com/WatchBeam/clock"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/kolide/kolide/server/config"
@@ -27,6 +31,8 @@ To setup kolide infrastructure, use one of the available commands.
 		},
 	}
 
+	noPrompt := false
+
 	var dbCmd = &cobra.Command{
 		Use:   "db",
 		Short: "Given correct database configurations, prepare the databases for use",
@@ -38,6 +44,29 @@ To setup kolide infrastructure, use one of the available commands.
 				initFatal(err, "creating db connection")
 			}
 
+			status, err := ds.MigrationStatus()
+			if err != nil {
+				initFatal(err, "retrieving migration status")
+			}
+
+			switch status {
+			case kolide.AllMigrationsCompleted:
+				fmt.Println("Migrations already completed. Nothing to do.")
+				return
+
+			case kolide.SomeMigrationsCompleted:
+				if !noPrompt {
+					fmt.Printf("################################################################################\n" +
+						"# WARNING:\n" +
+						"#   This will perform Kolide database migrations. Please back up your data before\n" +
+						"#   continuing.\n" +
+						"#\n" +
+						"#   Press Enter to continue, or Control-c to exit.\n" +
+						"################################################################################\n")
+					bufio.NewScanner(os.Stdin).Scan()
+				}
+			}
+
 			if err := ds.MigrateTables(); err != nil {
 				initFatal(err, "migrating db schema")
 			}
@@ -45,8 +74,12 @@ To setup kolide infrastructure, use one of the available commands.
 			if err := ds.MigrateData(); err != nil {
 				initFatal(err, "migrating builtin data")
 			}
+
+			fmt.Println("Migrations completed.")
 		},
 	}
+
+	dbCmd.PersistentFlags().BoolVar(&noPrompt, "no-prompt", false, "disable prompting before migrations (for use in scripts)")
 
 	prepareCmd.AddCommand(dbCmd)
 

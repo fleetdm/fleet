@@ -68,7 +68,13 @@ the way that the kolide server works.
 				initFatal(err, "initializing datastore")
 			}
 
-			if ds.MigrationStatus() != nil {
+			migrationStatus, err := ds.MigrationStatus()
+			if err != nil {
+				initFatal(err, "retrieving migration status")
+			}
+
+			switch migrationStatus {
+			case kolide.SomeMigrationsCompleted:
 				fmt.Printf("################################################################################\n"+
 					"# WARNING:\n"+
 					"#   Your Kolide database is missing required migrations. This is likely to cause\n"+
@@ -77,9 +83,16 @@ the way that the kolide server works.
 					"#   Run `%s prepare db` to perform migrations.\n"+
 					"################################################################################\n",
 					os.Args[0])
-				if config.Logging.Debug {
-					fmt.Println("error: ", err.Error())
-				}
+
+			case kolide.NoMigrationsCompleted:
+				fmt.Printf("################################################################################\n"+
+					"# ERROR:\n"+
+					"#   Your Kolide database is not initialized. Kolide cannot start up.\n"+
+					"#\n"+
+					"#   Run `%s prepare db` to initialize the database.\n"+
+					"################################################################################\n",
+					os.Args[0])
+				os.Exit(1)
 			}
 
 			if initializingDS, ok := ds.(initializer); ok {

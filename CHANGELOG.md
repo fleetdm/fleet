@@ -4,6 +4,10 @@
 
 * Kolide will now warn on startup if there are database migrations not yet completed.
 
+* Kolide will prompt for confirmation before running database migrations.
+
+  To disable this, use `kolide prepare db --no-prompt`.
+
 * Kolide now supports emoji, so you can 🔥 to your heart's content.
 
 * When setting the platform for a scheduled query, selecting "All" now clears individually selected platforms.

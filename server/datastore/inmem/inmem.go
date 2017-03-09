@@ -128,8 +128,8 @@ func (d *Datastore) MigrateData() error {
 	return nil
 }
 
-func (m *Datastore) MigrationStatus() error {
-	return nil
+func (m *Datastore) MigrationStatus() (kolide.MigrationStatus, error) {
+	return 0, nil
 }
 
 func (d *Datastore) Drop() error {

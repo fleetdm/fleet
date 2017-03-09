@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/kolide/kolide/server/kolide"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -13,12 +14,20 @@ func testMigrationStatus(t *testing.T, ds kolide.Datastore) {
 	}
 
 	require.Nil(t, ds.Drop())
-	require.NotNil(t, ds.MigrationStatus())
+
+	status, err := ds.MigrationStatus()
+	require.Nil(t, err)
+	assert.EqualValues(t, kolide.NoMigrationsCompleted, status)
 
 	require.Nil(t, ds.MigrateTables())
-	require.NotNil(t, ds.MigrationStatus())
 
-	// Should return nil with all migrations completed
+	status, err = ds.MigrationStatus()
+	require.Nil(t, err)
+	assert.EqualValues(t, kolide.SomeMigrationsCompleted, status)
+
 	require.Nil(t, ds.MigrateData())
-	require.Nil(t, ds.MigrationStatus())
+
+	status, err = ds.MigrationStatus()
+	require.Nil(t, err)
+	assert.EqualValues(t, kolide.AllMigrationsCompleted, status)
 }

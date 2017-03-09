@@ -26,8 +26,16 @@ type Datastore interface {
 	MigrateData() error
 	// MigrationStatus returns nil if migrations are complete, and an error
 	// if migrations need to be run.
-	MigrationStatus() error
+	MigrationStatus() (MigrationStatus, error)
 }
+
+type MigrationStatus int
+
+const (
+	NoMigrationsCompleted = iota
+	SomeMigrationsCompleted
+	AllMigrationsCompleted
+)
 
 // NotFoundError is returned when the datastore resource cannot be found.
 type NotFoundError interface {

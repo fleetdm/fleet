@@ -49,7 +49,7 @@ copy_db() {
 migrate_kolide_db() {
     dbname=$1
 
-    ./build/kolide prepare db \
+    ./build/kolide prepare db --no-prompt \
         --mysql_address=127.0.0.1:3310 \
         --mysql_database=${dbname} \
         --mysql_username=${CLOUDSQL_USER} \
@@ -63,7 +63,7 @@ deploy_pr() {
     $exec_template -json="$jsn" -template=./tools/ci/k8s-templates/pr-deployment.template > /tmp/deployment.yml
 
     # TODO(@groob):
-    # we have to deploy a new copy of redis for each PR. In the future, 
+    # we have to deploy a new copy of redis for each PR. In the future,
     # it would be nice to deploy a single redis instance and allow multiple DBs to connect.
     $exec_template -json="$jsn" -template=./tools/ci/k8s-templates/redis-pr-service.template > /tmp/redis-service.yml
     $exec_template -json="$jsn" -template=./tools/ci/k8s-templates/redis-pr-deployment.template > /tmp/redis-deployment.yml
@@ -117,7 +117,7 @@ main() {
         migrate_kolide_db "${dbname}"
         deploy_pr
     fi
-    
+
     docker stop $(docker ps -a -q)
 }
 
