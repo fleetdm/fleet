@@ -13,7 +13,9 @@ import debounce from 'utilities/debounce';
 import deepDifference from 'utilities/deep_difference';
 import entityGetter from 'redux/utilities/entityGetter';
 import { formatSelectedTargetsForApi } from 'kolide/helpers';
+import helpers from 'pages/queries/QueryPage/helpers';
 import hostActions from 'redux/nodes/entities/hosts/actions';
+import hostInterface from 'interfaces/host';
 import QueryForm from 'components/forms/queries/QueryForm';
 import osqueryTableInterface from 'interfaces/osquery_table';
 import queryActions from 'redux/nodes/entities/queries/actions';
@@ -52,12 +54,14 @@ export class QueryPage extends Component {
       pathname: PropTypes.string,
     }),
     query: queryInterface,
+    selectedHosts: PropTypes.arrayOf(hostInterface),
     selectedOsqueryTable: osqueryTableInterface,
     selectedTargets: PropTypes.arrayOf(targetInterface),
   };
 
   static defaultProps = {
     loadingQueries: false,
+    selectedHosts: [],
   };
 
   constructor (props) {
@@ -78,21 +82,34 @@ export class QueryPage extends Component {
   }
 
   componentWillMount () {
-    const { dispatch, hostIDs } = this.props;
+    const { dispatch, hostIDs, selectedHosts, selectedTargets } = this.props;
 
     if (hostIDs) {
       dispatch(hostActions.loadAll());
     }
 
+    helpers.selectHosts(dispatch, {
+      hosts: selectedHosts,
+      selectedTargets,
+    });
+
     return false;
   }
 
   componentWillReceiveProps (nextProps) {
-    const nextPathname = nextProps.location.pathname;
+    const { dispatch, location, selectedHosts, selectedTargets } = nextProps;
+    const nextPathname = location.pathname;
     const { pathname } = this.props.location;
 
     if (nextPathname !== pathname) {
       this.resetCampaignAndTargets();
+    }
+
+    if (!isEqual(selectedHosts, this.props.selectedHosts)) {
+      helpers.selectHosts(dispatch, {
+        hosts: selectedHosts,
+        selectedTargets,
+      });
     }
 
     return false;
@@ -539,22 +556,19 @@ const mapStateToProps = (state, ownProps) => {
   const { errors, loading: loadingQueries } = state.entities.queries;
   const queryStub = { description: '', name: '', query: queryText };
   const query = reduxQuery || queryStub;
-  let { selectedTargets } = state.components.QueryPages;
+  const { selectedTargets } = state.components.QueryPages;
   const { host_ids: hostIDs } = ownProps.location.query;
   const { isSmallNav } = state.app;
+  let selectedHosts = [];
 
   // hostIDs are URL params so they are strings
   if (hostIDs && !queryID) {
+    const hostFilter = isArray(hostIDs)
+      ? h => includes(hostIDs, String(h.id))
+      : { id: Number(hostIDs) };
+
     const { entities: hosts } = stateEntities.get('hosts');
-    let hostFilter;
-
-    if (isArray(hostIDs)) {
-      hostFilter = h => includes(hostIDs, String(h.id));
-    } else {
-      hostFilter = { id: Number(hostIDs) };
-    }
-
-    selectedTargets = filter(hosts, hostFilter);
+    selectedHosts = filter(hosts, hostFilter);
   }
 
   return {
@@ -564,6 +578,7 @@ const mapStateToProps = (state, ownProps) => {
     loadingQueries,
     query,
     selectedOsqueryTable,
+    selectedHosts,
     selectedTargets,
   };
 };

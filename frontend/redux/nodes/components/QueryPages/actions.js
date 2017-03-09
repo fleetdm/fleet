@@ -1,6 +1,6 @@
 import { find } from 'lodash';
 
-import { osqueryTables } from '../../../../utilities/osquery_tables';
+import { osqueryTables } from 'utilities/osquery_tables';
 
 export const SELECT_OSQUERY_TABLE = 'SELECT_OSQUERY_TABLE';
 export const SET_QUERY_TEXT = 'SET_QUERY_TEXT';

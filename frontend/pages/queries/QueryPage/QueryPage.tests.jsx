@@ -104,14 +104,35 @@ describe('QueryPage - component', () => {
     });
   });
 
-  it('sets selectedTargets based on host_ids', () => {
+  it('sets selectedTargets in redux based on host_ids', () => {
+    const singleHostMockStore = reduxMockStore(store);
+    const multipleHostMockStore = reduxMockStore(store);
     const singleHostProps = { params: {}, location: { query: { host_ids: String(hostStub.id) } } };
     const multipleHostsProps = { params: {}, location: { query: { host_ids: [String(hostStub.id), '99'] } } };
-    const singleHostPage = mount(connectedComponent(ConnectedQueryPage, { mockStore, props: singleHostProps }));
-    const multipleHostsPage = mount(connectedComponent(ConnectedQueryPage, { mockStore, props: multipleHostsProps }));
 
-    expect(singleHostPage.find('QueryPage').prop('selectedTargets')).toEqual([hostStub]);
-    expect(multipleHostsPage.find('QueryPage').prop('selectedTargets')).toEqual([hostStub, { ...hostStub, id: 99 }]);
+    mount(connectedComponent(ConnectedQueryPage, {
+      mockStore: singleHostMockStore,
+      props: singleHostProps,
+    }));
+
+    mount(connectedComponent(ConnectedQueryPage, {
+      mockStore: multipleHostMockStore,
+      props: multipleHostsProps,
+    }));
+
+    expect(singleHostMockStore.getActions()).toInclude({
+      type: 'SET_SELECTED_TARGETS',
+      payload: {
+        selectedTargets: [hostStub],
+      },
+    });
+
+    expect(multipleHostMockStore.getActions()).toInclude({
+      type: 'SET_SELECTED_TARGETS',
+      payload: {
+        selectedTargets: [hostStub, { ...hostStub, id: 99 }],
+      },
+    });
   });
 
   it('sets targetError in state when the query is run and there are no selected targets', () => {
