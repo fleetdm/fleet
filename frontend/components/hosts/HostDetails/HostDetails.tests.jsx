@@ -1,6 +1,7 @@
 import React from 'react';
 import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
+import { noop } from 'lodash';
 
 import { hostStub } from 'test/stubs';
 import HostDetails from 'components/hosts/HostDetails';
@@ -18,6 +19,7 @@ describe('HostDetails - component', () => {
         host={offlineHost}
         onDestroyHost={destroySpy}
         onQueryHost={querySpy}
+        isLoading={false}
       />
     );
     const btn = offlineComponent.find('Button');
@@ -40,6 +42,7 @@ describe('HostDetails - component', () => {
         host={miaHost}
         onDestroyHost={destroySpy}
         onQueryHost={querySpy}
+        isLoading={false}
       />
     );
     const btn = miaComponent.find('Button');
@@ -62,6 +65,7 @@ describe('HostDetails - component', () => {
         host={onlineHost}
         onDestroyHost={destroySpy}
         onQueryHost={querySpy}
+        isLoading={false}
       />
     );
     const btn = onlineComponent.find('Button');
@@ -72,6 +76,20 @@ describe('HostDetails - component', () => {
 
     expect(destroySpy).toNotHaveBeenCalled();
     expect(querySpy).toHaveBeenCalled();
+  });
+
+  it('renders a spinner while hosts details are loaded', () => {
+    const loadingComponent = mount(
+      <HostDetails
+        host={{ ...hostStub }}
+        onDestroyHost={noop}
+        onQueryHost={noop}
+        isLoading
+      />
+    );
+
+    expect(loadingComponent.find('Circle').length).toEqual(1);
+    expect(loadingComponent.find('.host-details__details-list').length).toEqual(0);
   });
 });
 

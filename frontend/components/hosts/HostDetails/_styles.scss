@@ -3,6 +3,7 @@
   @include flex-direction(column);
   @include flex-grow(1);
   @include flex-basis(250px);
+  justify-content: center;
   background-color: $white;
   border-radius: 3px;
   box-shadow: 0 12px 17px 0 rgba(47, 47, 91, 0.07), 0 3px 8px 0 rgba(0, 0, 0, 0.08), 0 -2px 0 0 rgba(32, 36, 50, 0.04);
@@ -82,6 +83,14 @@
     list-style: none;
     margin: 0 auto;
     padding: 8px 0;
+  }
+
+  &__loader {
+    flex-grow: 1;
+    align-self: center;
+    align-content: center;
+    display: flex;
+    align-items: center;
   }
 
   &__detail {

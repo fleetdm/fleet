@@ -4,6 +4,7 @@ import Button from 'components/buttons/Button';
 import hostInterface from 'interfaces/host';
 import Icon from 'components/icons/Icon';
 import PlatformIcon from 'components/icons/PlatformIcon';
+import CircleLoader from 'components/loaders/Circle';
 import { humanMemory, humanUptime } from './helpers';
 
 const baseClass = 'host-details';
@@ -29,7 +30,7 @@ const ActionButton = ({ host, onDestroyHost, onQueryHost }) => {
   );
 };
 
-const HostDetails = ({ host, onDestroyHost, onQueryHost }) => {
+const HostDetails = ({ host, onDestroyHost, onQueryHost, isLoading }) => {
   const {
     host_cpu: hostCpu,
     host_mac: hostMac,
@@ -46,16 +47,17 @@ const HostDetails = ({ host, onDestroyHost, onQueryHost }) => {
   return (
     <div className={`${baseClass} ${baseClass}--${status}`}>
       <header className={`${baseClass}__header`}>
-        <span className={`${baseClass}__cta-host`}>
+        {!isLoading && <span className={`${baseClass}__cta-host`}>
           <ActionButton host={host} onDestroyHost={onDestroyHost} onQueryHost={onQueryHost} />
-        </span>
+        </span>}
 
-        <p className={`${baseClass}__hostname`}>{hostname}</p>
+        <p className={`${baseClass}__hostname`}>{hostname || 'incoming host'}</p>
       </header>
 
-      <ul className={`${baseClass}__details-list`}>
+      {isLoading && <div className={`${baseClass}__loader`}><CircleLoader /></div>}
+      {!isLoading && <ul className={`${baseClass}__details-list`}>
         <li className={` ${baseClass}__detail ${baseClass}__detail--os`}>
-          {platform && <PlatformIcon name={platform} className={`${baseClass}__icon`} title="Operating System & Version" />}
+          <PlatformIcon name={platform} className={`${baseClass}__icon`} title="Operating System & Version" />
           <span className={`${baseClass}__host-content`}>{osVersion || '--'}</span>
         </li>
 
@@ -88,7 +90,7 @@ const HostDetails = ({ host, onDestroyHost, onQueryHost }) => {
           <Icon name="world" className={`${baseClass}__icon`} title="IP Address" />
           <span className={`${baseClass}__host-content ${baseClass}__host-content--mono`}>{hostIpAddress || '--'}</span>
         </li>
-      </ul>
+      </ul>}
     </div>
   );
 };
@@ -103,6 +105,7 @@ HostDetails.propTypes = {
   host: hostInterface.isRequired,
   onDestroyHost: PropTypes.func.isRequired,
   onQueryHost: PropTypes.func.isRequired,
+  isLoading: PropTypes.bool.isRequired,
 };
 
 export default HostDetails;

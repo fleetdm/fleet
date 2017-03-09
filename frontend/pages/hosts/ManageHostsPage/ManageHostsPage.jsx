@@ -522,12 +522,15 @@ export class ManageHostsPage extends Component {
 
     if (display === 'Grid') {
       return sortedHosts.map((host) => {
+        const isLoading = !host.hostname;
+
         return (
           <HostDetails
             host={host}
             key={`host-${host.id}-details`}
             onDestroyHost={toggleDeleteHostModal}
             onQueryHost={onQueryHost}
+            isLoading={isLoading}
           />
         );
       });
