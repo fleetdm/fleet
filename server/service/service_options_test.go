@@ -53,7 +53,16 @@ func TestExpectedCheckinInterval(t *testing.T) {
 				ID:   distributedIntervalID,
 				Name: "distributed_interval",
 				Value: kolide.OptionValue{
-					Val: 5,
+					Val: 50,
+				},
+				Type:     kolide.OptionTypeInt,
+				ReadOnly: false,
+			},
+			kolide.Option{
+				ID:   loggerTlsPeriodID,
+				Name: "logger_tls_period",
+				Value: kolide.OptionValue{
+					Val: 100,
 				},
 				Type:     kolide.OptionTypeInt,
 				ReadOnly: false,
@@ -66,11 +75,11 @@ func TestExpectedCheckinInterval(t *testing.T) {
 	options, err = svc.GetOptions(ctx)
 	require.Nil(t, err)
 	updateLocalOptionValues(options)
-	require.Equal(t, 5, int(distributedInterval))
-	require.Equal(t, 10, int(loggerTlsPeriod))
+	require.Equal(t, 50, int(distributedInterval))
+	require.Equal(t, 100, int(loggerTlsPeriod))
 	interval, err = svc.ExpectedCheckinInterval(ctx)
 	require.Nil(t, err)
-	assert.Equal(t, 5*time.Second*expectedCheckinIntervalMultiplier, interval)
+	assert.Equal(t, 50*time.Second*expectedCheckinIntervalMultiplier, interval)
 
 	options, err = svc.ModifyOptions(ctx, kolide.OptionRequest{
 		Options: []kolide.Option{
@@ -78,7 +87,7 @@ func TestExpectedCheckinInterval(t *testing.T) {
 				ID:   loggerTlsPeriodID,
 				Name: "logger_tls_period",
 				Value: kolide.OptionValue{
-					Val: 1,
+					Val: 20,
 				},
 				Type:     kolide.OptionTypeInt,
 				ReadOnly: false,
@@ -91,9 +100,35 @@ func TestExpectedCheckinInterval(t *testing.T) {
 	options, err = svc.GetOptions(ctx)
 	require.Nil(t, err)
 	updateLocalOptionValues(options)
-	require.Equal(t, 5, int(distributedInterval))
-	require.Equal(t, 1, int(loggerTlsPeriod))
+	require.Equal(t, 50, int(distributedInterval))
+	require.Equal(t, 20, int(loggerTlsPeriod))
 	interval, err = svc.ExpectedCheckinInterval(ctx)
 	require.Nil(t, err)
-	assert.Equal(t, time.Second*expectedCheckinIntervalMultiplier, interval)
+	assert.Equal(t, 20*time.Second*expectedCheckinIntervalMultiplier, interval)
+
+	// Set the interval low enough to hit the minimum threshold
+	options, err = svc.ModifyOptions(ctx, kolide.OptionRequest{
+		Options: []kolide.Option{
+			kolide.Option{
+				ID:   loggerTlsPeriodID,
+				Name: "logger_tls_period",
+				Value: kolide.OptionValue{
+					Val: 2,
+				},
+				Type:     kolide.OptionTypeInt,
+				ReadOnly: false,
+			},
+		},
+	},
+	)
+	require.Nil(t, err)
+
+	options, err = svc.GetOptions(ctx)
+	require.Nil(t, err)
+	updateLocalOptionValues(options)
+	require.Equal(t, 50, int(distributedInterval))
+	require.Equal(t, 2, int(loggerTlsPeriod))
+	interval, err = svc.ExpectedCheckinInterval(ctx)
+	require.Nil(t, err)
+	assert.Equal(t, minimumExpectedCheckinInterval, interval)
 }

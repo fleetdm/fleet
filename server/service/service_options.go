@@ -9,6 +9,7 @@ import (
 )
 
 const expectedCheckinIntervalMultiplier = 2
+const minimumExpectedCheckinInterval = 10 * time.Second
 
 func (svc service) GetOptions(ctx context.Context) ([]kolide.Option, error) {
 	opts, err := svc.ds.ListOptions()
@@ -78,6 +79,17 @@ func (svc service) ExpectedCheckinInterval(ctx context.Context) (time.Duration, 
 		interval = 60
 	}
 
+	// The interval is multiplied to ensure that we are being generous in
+	// the calculation if the host is a bit slower than the interval to
+	// check in. This prevents flapping of the online status.
+	calculatedInterval := time.Duration(interval) * time.Second * expectedCheckinIntervalMultiplier
+
+	// We use a minimum threshold here to ensure that online status does
+	// not flap when the interval is set very low.
+	if calculatedInterval < minimumExpectedCheckinInterval {
+		calculatedInterval = minimumExpectedCheckinInterval
+	}
+
 	// return the lowest interval that we found
-	return time.Duration(interval) * time.Second * expectedCheckinIntervalMultiplier, nil
+	return calculatedInterval, nil
 }
