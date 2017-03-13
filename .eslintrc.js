@@ -31,6 +31,9 @@ module.exports = {
     'linebreak-style': 0,
     'import/no-named-as-default': 'off',
     'import/no-named-as-default-member': 'off',
+    'import/extensions': 0,
+    'import/no-extraneous-dependencies': 0,
+    'import/no-unresolved': 0,
     'no-underscore-dangle': 0
   },
   settings: {

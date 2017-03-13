@@ -144,7 +144,7 @@ generate-dev: .prefix
 		-o=server/service/bindata.go \
 		frontend/templates/ assets/...
 	go-bindata -pkg=kolide -o=server/kolide/bindata.go server/mail/templates
-	webpack --progress --colors --watch --notify
+	webpack --progress --colors --watch
 
 deps:
 	yarn

@@ -69,6 +69,19 @@ tests:
 # will be used. Usually this license is manually determined from the README or
 # license file. Path should be relative to $GOPATH/github.com/kolide/kolide.
 overrides:
+  # loader-utils package.json says "JSF" but the license is actually MIT. See https://goo.gl/ptgu4y
+  node_modules/css-loader/node_modules/loader-utils:
+    MIT
+  node_modules/extract-text-webpack-plugin/node_modules/loader-utils:
+    MIT
+  node_modules/file-loader/node_modules/loader-utils:
+    MIT
+  node_modules/sass-loader/node_modules/loader-utils:
+    MIT
+  node_modules/style-loader/node_modules/loader-utils:
+    MIT
+  node_modules/url-loader/node_modules/loader-utils:
+    MIT
   node_modules/string-hash:
     CC0-1.0
   node_modules/indexof:
