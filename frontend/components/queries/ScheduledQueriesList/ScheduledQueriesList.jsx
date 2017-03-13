@@ -15,6 +15,7 @@ class ScheduledQueriesList extends Component {
     onCheckAllQueries: PropTypes.func.isRequired,
     onCheckQuery: PropTypes.func.isRequired,
     onSelectQuery: PropTypes.func.isRequired,
+    onDblClickQuery: PropTypes.func.isRequired,
     scheduledQueries: PropTypes.arrayOf(queryInterface).isRequired,
     checkedScheduledQueryIDs: PropTypes.arrayOf(PropTypes.number).isRequired,
   };
@@ -22,7 +23,10 @@ class ScheduledQueriesList extends Component {
   constructor (props) {
     super(props);
 
-    this.state = { allQueriesSelected: false };
+    this.state = {
+      allQueriesSelected: false,
+      selectedQueryRowId: null,
+    };
   }
 
   isChecked = (scheduledQuery) => {
@@ -43,6 +47,20 @@ class ScheduledQueriesList extends Component {
     this.setState({ allQueriesSelected: !allQueriesSelected });
 
     return onCheckAllQueries(shouldSelectAllQueries);
+  }
+
+  handleSelectQuery = (scheduledQuery) => {
+    const { onSelectQuery } = this.props;
+
+    this.setState({ selectedQueryRowId: scheduledQuery.id });
+
+    return onSelectQuery(scheduledQuery);
+  }
+
+  handleDblClickQuery = (scheduledQueryId) => {
+    const { onDblClickQuery } = this.props;
+
+    return onDblClickQuery(scheduledQueryId);
   }
 
   renderHelpText = () => {
@@ -84,9 +102,9 @@ class ScheduledQueriesList extends Component {
   }
 
   render () {
-    const { onCheckQuery, onSelectQuery, scheduledQueries, checkedScheduledQueryIDs } = this.props;
-    const { allQueriesSelected } = this.state;
-    const { renderHelpText, handleSelectAllQueries } = this;
+    const { onCheckQuery, scheduledQueries, checkedScheduledQueryIDs } = this.props;
+    const { allQueriesSelected, selectedQueryRowId } = this.state;
+    const { renderHelpText, handleSelectQuery, handleDblClickQuery, handleSelectAllQueries } = this;
 
     const wrapperClassName = classnames(`${baseClass}__table`, {
       [`${baseClass}__table--query-selected`]: size(checkedScheduledQueryIDs),
@@ -118,7 +136,9 @@ class ScheduledQueriesList extends Component {
                   checked={this.isChecked(scheduledQuery)}
                   key={`scheduled-query-${scheduledQuery.id}`}
                   onCheck={onCheckQuery}
-                  onSelect={onSelectQuery}
+                  onSelect={handleSelectQuery}
+                  onDblClick={handleDblClickQuery}
+                  isSelected={selectedQueryRowId === scheduledQuery.id}
                   scheduledQuery={scheduledQuery}
                 />
               );

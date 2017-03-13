@@ -1,4 +1,5 @@
 import React, { Component, PropTypes } from 'react';
+import classnames from 'classnames';
 
 import Checkbox from 'components/forms/fields/Checkbox';
 import ClickableTableRow from 'components/ClickableTableRow';
@@ -13,13 +14,15 @@ class ScheduledQueriesListItem extends Component {
   static propTypes = {
     checked: PropTypes.bool,
     disabled: PropTypes.bool,
+    isSelected: PropTypes.bool,
     onCheck: PropTypes.func.isRequired,
     onSelect: PropTypes.func.isRequired,
+    onDblClick: PropTypes.func.isRequired,
     scheduledQuery: scheduledQueryInterface.isRequired,
   };
 
-  shouldComponentUpdate (nextProps) {
-    if (isEqual(nextProps, this.props)) {
+  shouldComponentUpdate (nextProps, nextState) {
+    if (isEqual(nextProps, this.props) && isEqual(nextState, this.state)) {
       return false;
     }
 
@@ -36,6 +39,12 @@ class ScheduledQueriesListItem extends Component {
     const { onSelect, scheduledQuery } = this.props;
 
     return onSelect(scheduledQuery);
+  }
+
+  onDblClick = () => {
+    const { onDblClick, scheduledQuery } = this.props;
+
+    return onDblClick(scheduledQuery.query_id);
   }
 
   loggingTypeString = () => {
@@ -64,12 +73,15 @@ class ScheduledQueriesListItem extends Component {
   }
 
   render () {
-    const { checked, disabled, scheduledQuery } = this.props;
+    const { checked, disabled, isSelected, scheduledQuery } = this.props;
     const { id, name, interval, shard, version } = scheduledQuery;
-    const { loggingTypeString, onCheck, onSelect, renderPlatformIcon } = this;
+    const { loggingTypeString, onDblClick, onCheck, onSelect, renderPlatformIcon } = this;
+    const rowClassname = classnames(baseClass, {
+      [`${baseClass}--selected`]: isSelected,
+    });
 
     return (
-      <ClickableTableRow onClick={onSelect} className={baseClass}>
+      <ClickableTableRow onClick={onSelect} onDoubleClick={onDblClick} className={rowClassname}>
         <td>
           <Checkbox
             disabled={disabled}

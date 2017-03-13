@@ -59,4 +59,15 @@ describe('ScheduledQueriesListItem - component', () => {
 
     expect(spy).toHaveBeenCalledWith(scheduledQueryStub);
   });
+
+  it('calls the onDblClick prop when a list item is double clicked', () => {
+    const spy = createSpy();
+    const props = { ...defaultProps, onDblClick: spy };
+    const component = mount(<ScheduledQueriesListItem {...props} />);
+    const tableRow = component.find('ClickableTableRow');
+
+    tableRow.simulate('doubleclick');
+
+    expect(spy).toHaveBeenCalledWith(scheduledQueryStub.query_id);
+  });
 });

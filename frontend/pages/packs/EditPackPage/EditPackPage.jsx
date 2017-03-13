@@ -141,6 +141,12 @@ export class EditPackPage extends Component {
     return false;
   }
 
+  onDblClickScheduledQuery = (scheduledQueryId) => {
+    const { dispatch } = this.props;
+
+    return dispatch(push(`/queries/${scheduledQueryId}`));
+  }
+
   onToggleEdit = () => {
     const { dispatch, isEdit, packID } = this.props;
 
@@ -213,6 +219,7 @@ export class EditPackPage extends Component {
       handleRemoveScheduledQueries,
       handleScheduledQueryFormSubmit,
       onCancelEditPack,
+      onDblClickScheduledQuery,
       onFetchTargets,
       onSelectQuery,
       onSelectScheduledQuery,
@@ -255,6 +262,7 @@ export class EditPackPage extends Component {
             onRemoveScheduledQueries={handleRemoveScheduledQueries}
             onScheduledQueryFormSubmit={handleScheduledQueryFormSubmit}
             onSelectScheduledQuery={onSelectScheduledQuery}
+            onDblClickScheduledQuery={onDblClickScheduledQuery}
             scheduledQueries={scheduledQueries}
           />
         </div>

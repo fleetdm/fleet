@@ -1,5 +1,5 @@
 import React from 'react';
-import expect, { spyOn, restoreSpies } from 'expect';
+import expect, { createSpy, spyOn, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
@@ -169,6 +169,40 @@ describe('EditPackPage - component', () => {
 
       expect(Form(Page).length)
         .toEqual(0, 'Expected clicking Cancel to remove the ConfigurePackQueryForm component');
+    });
+  });
+
+  describe('double clicking a scheduled query', () => {
+    const scheduledQuery = { ...scheduledQueryStub, query_id: queryStub.id };
+    const defaultProps = {
+      allQueries: [queryStub],
+      dispatch: createSpy(),
+      isEdit: true,
+      isLoadingPack: false,
+      isLoadingScheduledQueries: false,
+      pack: packStub,
+      packHosts: [],
+      packID: String(packStub.id),
+      packLabels: [],
+      scheduledQueries: [scheduledQuery],
+    };
+    const pushAction = {
+      type: '@@router/CALL_HISTORY_METHOD',
+      payload: {
+        method: 'push',
+        args: [`/queries/${scheduledQuery.query_id}`],
+      },
+    };
+
+    it('should take user to edit query page', () => {
+      const Page = mount(<EditPackPage {...defaultProps} />).find('EditPackPage');
+      const QueryRow = Page
+        .find('ScheduledQueriesList')
+        .find('ClickableTableRow');
+
+      QueryRow.simulate('doubleclick');
+
+      expect(defaultProps.dispatch).toHaveBeenCalledWith(pushAction);
     });
   });
 });

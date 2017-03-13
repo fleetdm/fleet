@@ -48,6 +48,14 @@ export class ConfigurePackQueryForm extends Component {
     onCancel: PropTypes.func,
   };
 
+  componentWillMount () {
+    const { fields } = this.props;
+
+    if (fields && fields.shared && !fields.shard.value) {
+      fields.shard.value = '';
+    }
+  }
+
   onCancel = (evt) => {
     evt.preventDefault();
 
