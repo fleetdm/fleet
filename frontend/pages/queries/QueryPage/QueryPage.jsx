@@ -117,12 +117,19 @@ export class QueryPage extends Component {
 
   componentWillUnmount () {
     const { dispatch, isSmallNav } = this.props;
+    const { document: { body } } = global;
 
     this.resetCampaignAndTargets();
 
     if (isSmallNav) {
       dispatch(toggleSmallNav);
     }
+
+    if (this.runQueryInterval) {
+      clearInterval(this.runQueryInterval);
+    }
+
+    body.style.overflow = 'visible';
 
     return false;
   }
