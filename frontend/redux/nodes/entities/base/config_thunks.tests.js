@@ -134,10 +134,10 @@ describe('ReduxConfig - thunks', () => {
         schema: schemas.USERS,
       });
       const mockStore = reduxMockStore(store);
+      beforeEach(() => { mockStore.clearActions(); });
+      const params = { id: 1 };
 
       it('calls the destroyFunc', () => {
-        const params = { id: 1 };
-
         return mockStore.dispatch(config.actions.destroy(params))
         .then(() => {
           expect(destroyFunc).toHaveBeenCalledWith(params);
@@ -145,14 +145,13 @@ describe('ReduxConfig - thunks', () => {
       });
 
       it('dispatches the correct actions', () => {
-        return mockStore.dispatch(config.actions.destroy())
+        return mockStore.dispatch(config.actions.destroy(params))
           .then(() => {
             const dispatchedActions = mockStore.getActions();
-            const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
-
-            expect(dispatchedActionTypes).toInclude('users_DESTROY_REQUEST');
-            expect(dispatchedActionTypes).toInclude('users_DESTROY_SUCCESS');
-            expect(dispatchedActionTypes).toNotInclude('users_DESTROY_FAILURE');
+            expect(dispatchedActions).toEqual([
+              { type: 'users_DESTROY_REQUEST' },
+              { type: 'users_DESTROY_SUCCESS', payload: { data: params.id } },
+            ]);
           });
       });
     });
@@ -438,4 +437,3 @@ describe('ReduxConfig - thunks', () => {
     });
   });
 });
-

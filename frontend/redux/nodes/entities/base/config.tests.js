@@ -164,13 +164,13 @@ describe('ReduxConfig - class', () => {
         });
       });
 
-      describe('#destroySuccess', () => {
-        it('sets the data in the payload', () => {
-          const data = { id: 1, name: 'Mike' };
+      describe('#_destroySuccess', () => {
+        it('sets the data in the request', () => {
+          const data = { id: 1 };
 
-          expect(actions.destroySuccess(data)).toEqual({
+          expect(config._destroySuccess(data)()).toEqual({
             type: 'users_DESTROY_SUCCESS',
-            payload: { data },
+            payload: { data: data.id },
           });
         });
       });

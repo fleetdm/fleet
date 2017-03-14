@@ -162,6 +162,7 @@ class BaseConfig {
   }
 
   _genericThunkAction (type, options = {}) {
+    const { TYPES } = BaseConfig;
     const apiCall = this._apiCallForType(type);
 
     return (...args) => {
@@ -172,7 +173,13 @@ class BaseConfig {
 
         return apiCall(...args)
           .then((response) => {
-            const thunk = this._genericSuccess(type);
+            let thunk = this._genericSuccess(type);
+            if (type === TYPES.DESTROY) {
+              // Destroy is a special case in which the API does not return an
+              // object, so we need to generate a thunk that stores the entity
+              // ID for removal from the entity store.
+              thunk = this._destroySuccess(...args);
+            }
 
             dispatch(this.successAction(response, thunk));
 
@@ -223,6 +230,19 @@ class BaseConfig {
       return {
         type: BaseConfig.successActionTypeFor(actionTypes, type),
         payload: { data },
+      };
+    };
+  }
+
+  _destroySuccess (entity) {
+    const { actionTypes } = this;
+
+    return () => {
+      // No data should be returned from a DELETE API call, and instead the
+      // payload should be the ID of the entity deleted.
+      return {
+        type: actionTypes.DESTROY_SUCCESS,
+        payload: { data: entity.id },
       };
     };
   }
