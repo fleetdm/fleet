@@ -1,3 +1,5 @@
+## Kolide 1.0.2 (March 14, 2017)
+
 * Fix an issue adding additional targets when querying a host
 
 * Show loading spinner while newly added Host Details are saved
