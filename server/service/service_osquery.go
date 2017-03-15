@@ -266,6 +266,14 @@ var detailQueries = map[string]struct {
 			host.Platform = rows[0]["platform"]
 			host.PlatformLike = rows[0]["platform_like"]
 			host.CodeName = rows[0]["code_name"]
+
+			// On centos6 there is an osquery bug that leaves
+			// platform empty. Here we workaround.
+			if host.Platform == "" &&
+				strings.Contains(strings.ToLower(rows[0]["name"]), "centos") {
+				host.Platform = "centos"
+			}
+
 			return nil
 		},
 	},
