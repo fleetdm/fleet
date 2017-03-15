@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 
 	"github.com/WatchBeam/clock"
@@ -10,7 +11,6 @@ import (
 	"github.com/kolide/kolide/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 )
 
 func TestListPacks(t *testing.T) {

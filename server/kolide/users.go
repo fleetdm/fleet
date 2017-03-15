@@ -2,13 +2,13 @@ package kolide
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"html/template"
 
 	"golang.org/x/crypto/bcrypt"
-	"golang.org/x/net/context"
 )
 
 // UserStore contains methods for managing users in a datastore

@@ -1,11 +1,11 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/kolide/kolide/server/kolide"
-	"golang.org/x/net/context"
 )
 
 func (mw metricsMiddleware) InviteNewUser(ctx context.Context, payload kolide.InvitePayload) (*kolide.Invite, error) {

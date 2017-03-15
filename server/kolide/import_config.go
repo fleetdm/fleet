@@ -1,11 +1,10 @@
 package kolide
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
-
-	"golang.org/x/net/context"
 )
 
 type ImportConfigService interface {

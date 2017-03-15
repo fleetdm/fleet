@@ -1,6 +1,7 @@
 package license
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -13,7 +14,6 @@ import (
 	"github.com/kolide/kolide/server/kolide"
 	"github.com/kolide/kolide/server/version"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 const (
@@ -99,7 +99,7 @@ func NewChecker(ds kolide.Datastore, licenseEndpointURL string, opts ...Option) 
 		o(response)
 	}
 
-	response.logger = log.NewContext(response.logger).With("component", "license-checker")
+	response.logger = log.With(response.logger, "component", "license-checker")
 	return response
 }
 

@@ -1,10 +1,9 @@
 package pubsub
 
 import (
+	"context"
 	"strconv"
 	"sync"
-
-	"golang.org/x/net/context"
 
 	"github.com/kolide/kolide/server/kolide"
 )

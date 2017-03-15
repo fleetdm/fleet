@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
@@ -8,7 +9,6 @@ import (
 	"github.com/kolide/kolide/server/contexts/token"
 	"github.com/kolide/kolide/server/contexts/viewer"
 	"github.com/kolide/kolide/server/kolide"
-	"golang.org/x/net/context"
 )
 
 // setRequestsContexts updates the request with necessary context values for a request

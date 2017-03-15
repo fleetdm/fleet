@@ -1,11 +1,11 @@
 package service
 
 import (
+	"context"
 	"encoding/base64"
 	"html/template"
 
 	"github.com/kolide/kolide/server/kolide"
-	"golang.org/x/net/context"
 )
 
 func (svc service) InviteNewUser(ctx context.Context, payload kolide.InvitePayload) (*kolide.Invite, error) {

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -10,7 +11,6 @@ import (
 	"github.com/kolide/kolide/server/contexts/viewer"
 	"github.com/kolide/kolide/server/kolide"
 	"github.com/kolide/kolide/server/websocket"
-	"golang.org/x/net/context"
 )
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -1,10 +1,10 @@
 package service
 
 import (
+	"context"
 	"time"
 
 	"github.com/kolide/kolide/server/kolide"
-	"golang.org/x/net/context"
 )
 
 func (mw loggingMiddleware) ModifyLabel(ctx context.Context, id uint, p kolide.ModifyLabelPayload) (*kolide.Label, error) {

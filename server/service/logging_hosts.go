@@ -1,10 +1,10 @@
 package service
 
 import (
+	"context"
 	"time"
 
 	"github.com/kolide/kolide/server/kolide"
-	"golang.org/x/net/context"
 )
 
 func (mw loggingMiddleware) ListHosts(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Host, error) {

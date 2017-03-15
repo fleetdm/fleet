@@ -1,7 +1,7 @@
 package service
 
 import (
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/kolide/kolide/server/kolide"

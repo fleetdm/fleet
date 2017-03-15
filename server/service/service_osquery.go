@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -12,7 +13,6 @@ import (
 	"github.com/kolide/kolide/server/kolide"
 	"github.com/kolide/kolide/server/pubsub"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 type osqueryError struct {

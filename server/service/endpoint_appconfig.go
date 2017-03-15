@@ -1,12 +1,12 @@
 package service
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/kolide/kolide/server/contexts/viewer"
 	"github.com/kolide/kolide/server/kolide"
-	"golang.org/x/net/context"
 )
 
 type appConfigRequest struct {

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -8,7 +9,6 @@ import (
 	"github.com/kolide/kolide/server/kolide"
 	"github.com/kolide/kolide/server/websocket"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString string, hosts []uint, labels []uint) (*kolide.DistributedQueryCampaign, error) {

@@ -1,11 +1,11 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 
 	"github.com/kolide/kolide/server/kolide"
-	"golang.org/x/net/context"
 )
 
 func (mw validationMiddleware) NewAppConfig(ctx context.Context, payload kolide.AppConfigPayload) (*kolide.AppConfig, error) {

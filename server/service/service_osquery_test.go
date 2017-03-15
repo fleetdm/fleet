@@ -2,14 +2,13 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
 	"testing"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/WatchBeam/clock"
 	"github.com/kolide/kolide/server/config"

@@ -1,6 +1,8 @@
 package kolide
 
-import "golang.org/x/net/context"
+import (
+	"context"
+)
 
 // QueryResultStore defines functions for sending and receiving distributed
 // query results over a pub/sub system. It is implemented by structs in package

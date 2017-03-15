@@ -2,9 +2,8 @@ package kolide
 
 import (
 	"bytes"
+	"context"
 	"html/template"
-
-	"golang.org/x/net/context"
 )
 
 // InviteStore contains the methods for

@@ -1,11 +1,11 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 func decodeEnableUserRequest(ctx context.Context, r *http.Request) (interface{}, error) {

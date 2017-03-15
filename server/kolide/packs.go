@@ -1,7 +1,7 @@
 package kolide
 
 import (
-	"golang.org/x/net/context"
+	"context"
 )
 
 // PackStore is the datastore interface for managing query packs.

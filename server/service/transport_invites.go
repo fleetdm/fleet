@@ -1,12 +1,12 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
 
 	"github.com/gorilla/mux"
-	"golang.org/x/net/context"
 )
 
 func decodeCreateInviteRequest(ctx context.Context, r *http.Request) (interface{}, error) {

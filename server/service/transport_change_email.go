@@ -1,10 +1,10 @@
 package service
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"golang.org/x/net/context"
 )
 
 func decodeChangeEmailRequest(ctx context.Context, r *http.Request) (interface{}, error) {

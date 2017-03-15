@@ -1,11 +1,9 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
-
-	kithttp "github.com/go-kit/kit/transport/http"
-	"golang.org/x/net/context"
 )
 
 // erroer interface is implemented by response structs to encode business logic errors
@@ -38,13 +36,6 @@ func namedError(name string, err string) []map[string]string {
 
 // encode error and status header to the client
 func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
-	// Unwrap Go-Kit Error
-	domain := "service"
-	if e, ok := err.(kithttp.Error); ok {
-		err = e.Err
-		domain = e.Domain
-	}
-
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 
@@ -166,15 +157,7 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		return
 	}
 
-	// Other errors
-	switch domain {
-	case kithttp.DomainDecode:
-		w.WriteHeader(http.StatusBadRequest)
-	case kithttp.DomainDo:
-		w.WriteHeader(http.StatusServiceUnavailable)
-	default:
-		w.WriteHeader(http.StatusInternalServerError)
-	}
+	w.WriteHeader(http.StatusInternalServerError)
 	je := jsonError{
 		Message: "Unknown Error",
 		Errors:  baseError(err.Error()),

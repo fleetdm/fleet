@@ -1,11 +1,11 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/kolide/kolide/server/kolide"
-	"golang.org/x/net/context"
 )
 
 func (mw metricsMiddleware) ChangeUserAdmin(ctx context.Context, id uint, isAdmin bool) (*kolide.User, error) {

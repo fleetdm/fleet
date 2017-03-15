@@ -1,10 +1,9 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
-
-	"golang.org/x/net/context"
 )
 
 func decodeSetupRequest(ctx context.Context, r *http.Request) (interface{}, error) {

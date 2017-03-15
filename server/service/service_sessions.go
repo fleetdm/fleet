@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"strings"
@@ -10,7 +11,6 @@ import (
 	"github.com/kolide/kolide/server/contexts/viewer"
 	"github.com/kolide/kolide/server/kolide"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 func (svc service) Login(ctx context.Context, username, password string) (*kolide.User, string, error) {

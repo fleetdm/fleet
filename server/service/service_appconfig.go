@@ -1,13 +1,13 @@
 package service
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/kolide/kolide/server/contexts/viewer"
 	"github.com/kolide/kolide/server/kolide"
 	"github.com/kolide/kolide/server/mail"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 // mailError is set when an error performing mail operations

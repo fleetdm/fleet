@@ -1,9 +1,8 @@
 package service
 
 import (
+	"context"
 	"net/http"
-
-	"golang.org/x/net/context"
 )
 
 func decodeGetHostRequest(ctx context.Context, r *http.Request) (interface{}, error) {

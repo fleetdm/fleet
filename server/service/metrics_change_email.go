@@ -1,10 +1,9 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"time"
-
-	"golang.org/x/net/context"
 )
 
 func (mw metricsMiddleware) ChangeUserEmail(ctx context.Context, token string) (string, error) {

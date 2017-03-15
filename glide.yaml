@@ -64,7 +64,7 @@ import:
 - package: github.com/VividCortex/mysqlerr
   version: master
 - package: github.com/go-kit/kit
-  version: ~0.3.0
+  version: ~0.4.0
 - package: github.com/go-yaml/yaml
 - package: github.com/ryanuber/go-license
 - package: github.com/igm/sockjs-go

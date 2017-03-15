@@ -1,9 +1,10 @@
 package service
 
 import (
+	"context"
+
 	"github.com/go-kit/kit/endpoint"
 	"github.com/kolide/kolide/server/kolide"
-	"golang.org/x/net/context"
 )
 
 type certificateResponse struct {

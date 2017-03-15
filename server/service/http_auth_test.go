@@ -20,7 +20,6 @@ import (
 	"github.com/kolide/kolide/server/kolide"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 )
 
 func TestLogin(t *testing.T) {
@@ -40,7 +39,7 @@ func TestLogin(t *testing.T) {
 	}
 	r := mux.NewRouter()
 	ke := MakeKolideServerEndpoints(svc, "CHANGEME")
-	kh := makeKolideKitHandlers(context.Background(), ke, opts)
+	kh := makeKolideKitHandlers(ke, opts)
 	attachKolideAPIRoutes(r, kh)
 	r.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "index")

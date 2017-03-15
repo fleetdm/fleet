@@ -1,13 +1,13 @@
 package service
 
 import (
+	"context"
 	"testing"
 
 	"github.com/kolide/kolide/server/config"
 	"github.com/kolide/kolide/server/datastore/inmem"
 	"github.com/kolide/kolide/server/kolide"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/net/context"
 )
 
 func TestListHosts(t *testing.T) {

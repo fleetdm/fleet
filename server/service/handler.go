@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
@@ -10,7 +11,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/kolide/kolide/server/kolide"
 	"github.com/prometheus/client_golang/prometheus"
-	"golang.org/x/net/context"
 )
 
 // KolideEndpoints is a collection of RPC endpoints implemented by the Kolide API.
@@ -227,9 +227,9 @@ type kolideHandlers struct {
 	GetLicense                     http.Handler
 }
 
-func makeKolideKitHandlers(ctx context.Context, e KolideEndpoints, opts []kithttp.ServerOption) *kolideHandlers {
+func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *kolideHandlers {
 	newServer := func(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc) http.Handler {
-		return kithttp.NewServer(ctx, e, decodeFn, encodeResponse, opts...)
+		return kithttp.NewServer(e, decodeFn, encodeResponse, opts...)
 	}
 	return &kolideHandlers{
 		Login:                          newServer(e.Login, decodeLoginRequest),
@@ -299,7 +299,7 @@ func makeKolideKitHandlers(ctx context.Context, e KolideEndpoints, opts []kithtt
 }
 
 // MakeHandler creates an HTTP handler for the Kolide server endpoints.
-func MakeHandler(ctx context.Context, svc kolide.Service, jwtKey string, logger kitlog.Logger) http.Handler {
+func MakeHandler(svc kolide.Service, jwtKey string, logger kitlog.Logger) http.Handler {
 	kolideAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			setRequestsContexts(svc, jwtKey),
@@ -312,7 +312,7 @@ func MakeHandler(ctx context.Context, svc kolide.Service, jwtKey string, logger 
 	}
 
 	kolideEndpoints := MakeKolideServerEndpoints(svc, jwtKey)
-	kolideHandlers := makeKolideKitHandlers(ctx, kolideEndpoints, kolideAPIOptions)
+	kolideHandlers := makeKolideKitHandlers(kolideEndpoints, kolideAPIOptions)
 
 	r := mux.NewRouter()
 	attachKolideAPIRoutes(r, kolideHandlers)
@@ -420,13 +420,11 @@ func WithSetup(svc kolide.Service, logger kitlog.Logger, next http.Handler) http
 	return func(w http.ResponseWriter, r *http.Request) {
 		configRouter := http.NewServeMux()
 		configRouter.Handle("/api/v1/setup", kithttp.NewServer(
-			context.Background(),
 			makeSetupEndpoint(svc),
 			decodeSetupRequest,
 			encodeResponse,
 		))
 		configRouter.Handle("/api/v1/license", kithttp.NewServer(
-			context.Background(),
 			makeSetupLicenseEndpoint(svc),
 			decodeLicenseRequest,
 			encodeResponse,

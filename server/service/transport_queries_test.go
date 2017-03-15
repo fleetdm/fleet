@@ -2,14 +2,13 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
-
-	"golang.org/x/net/context"
 )
 
 func TestDecodeCreateQueryRequest(t *testing.T) {

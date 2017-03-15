@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -11,7 +12,6 @@ import (
 	"github.com/kolide/kolide/server/kolide"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 )
 
 func TestSearchTargets(t *testing.T) {

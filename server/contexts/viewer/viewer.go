@@ -3,8 +3,9 @@
 package viewer
 
 import (
+	"context"
+
 	"github.com/kolide/kolide/server/kolide"
-	"golang.org/x/net/context"
 )
 
 type key int

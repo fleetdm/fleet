@@ -3,11 +3,10 @@ package service
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"golang.org/x/net/context"
 
 	"github.com/gorilla/mux"
 	"github.com/kolide/kolide/server/kolide"

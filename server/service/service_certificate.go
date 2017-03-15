@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -10,7 +11,6 @@ import (
 	"net/url"
 
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 // Certificate returns the PEM encoded certificate chain for osqueryd TLS termination.

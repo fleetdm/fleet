@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -12,7 +13,6 @@ import (
 	"github.com/kolide/kolide/server/contexts/token"
 	"github.com/kolide/kolide/server/contexts/viewer"
 	"github.com/kolide/kolide/server/kolide"
-	"golang.org/x/net/context"
 )
 
 var errNoContext = errors.New("context key not set")

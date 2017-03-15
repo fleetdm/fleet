@@ -1,11 +1,10 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
-
-	"golang.org/x/net/context"
 )
 
 func decodeGetInfoAboutSessionRequest(ctx context.Context, r *http.Request) (interface{}, error) {

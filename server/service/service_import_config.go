@@ -1,13 +1,13 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"strconv"
 	"strings"
 
 	"github.com/kolide/kolide/server/contexts/viewer"
 	"github.com/kolide/kolide/server/kolide"
-	"golang.org/x/net/context"
 )
 
 func (svc service) ImportConfig(ctx context.Context, cfg *kolide.ImportConfig) (*kolide.ImportConfigResponse, error) {

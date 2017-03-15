@@ -45,7 +45,6 @@ binary (which you're executing right now). Use the options below to customize
 the way that the kolide server works.
 `,
 		Run: func(cmd *cobra.Command, args []string) {
-			ctx := context.Background()
 			config := configManager.LoadConfig()
 
 			var logger kitlog.Logger
@@ -56,7 +55,7 @@ the way that the kolide server works.
 				} else {
 					logger = kitlog.NewLogfmtLogger(output)
 				}
-				logger = kitlog.NewContext(logger).With("ts", kitlog.DefaultTimestampUTC)
+				logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
 			}
 
 			var ds kolide.Datastore
@@ -143,16 +142,16 @@ the way that the kolide server works.
 				Help:      "Total duration of requests in microseconds.",
 			}, fieldKeys)
 
-			svcLogger := kitlog.NewContext(logger).With("component", "service")
+			svcLogger := kitlog.With(logger, "component", "service")
 			svc = service.NewLoggingService(svc, svcLogger)
 			svc = service.NewMetricsService(svc, requestCount, requestLatency)
 
-			httpLogger := kitlog.NewContext(logger).With("component", "http")
+			httpLogger := kitlog.With(logger, "component", "http")
 
 			var apiHandler, frontendHandler http.Handler
 			{
 				frontendHandler = prometheus.InstrumentHandler("get_frontend", service.ServeFrontend(httpLogger))
-				apiHandler = service.MakeHandler(ctx, svc, config.Auth.JwtKey, httpLogger)
+				apiHandler = service.MakeHandler(svc, config.Auth.JwtKey, httpLogger)
 
 				setupRequired, err := service.RequireSetup(svc)
 				if err != nil {
@@ -229,7 +228,7 @@ the way that the kolide server works.
 				sig := make(chan os.Signal)
 				signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 				<-sig //block on signal
-				ctx, _ = context.WithTimeout(context.Background(), 30*time.Second)
+				ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
 				errs <- srv.Shutdown(ctx)
 			}()
 

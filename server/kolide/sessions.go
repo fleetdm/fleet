@@ -1,9 +1,8 @@
 package kolide
 
 import (
+	"context"
 	"time"
-
-	"golang.org/x/net/context"
 )
 
 // SessionStore is the abstract interface that all session backends must

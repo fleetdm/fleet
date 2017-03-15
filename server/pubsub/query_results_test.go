@@ -1,6 +1,7 @@
 package pubsub
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"reflect"
@@ -13,7 +14,6 @@ import (
 	"github.com/kolide/kolide/server/kolide"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 )
 
 // waitTimeout waits for the waitgroup for the specified max timeout.

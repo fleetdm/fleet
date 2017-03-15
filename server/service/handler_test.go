@@ -9,7 +9,6 @@ import (
 	"github.com/kolide/kolide/server/config"
 	"github.com/kolide/kolide/server/datastore/inmem"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/net/context"
 )
 
 func TestAPIRoutes(t *testing.T) {
@@ -19,11 +18,9 @@ func TestAPIRoutes(t *testing.T) {
 	svc, err := newTestService(ds, nil)
 	assert.Nil(t, err)
 
-	ctx := context.Background()
-
 	r := mux.NewRouter()
 	ke := MakeKolideServerEndpoints(svc, "CHANGEME")
-	kh := makeKolideKitHandlers(ctx, ke, nil)
+	kh := makeKolideKitHandlers(ke, nil)
 	attachKolideAPIRoutes(r, kh)
 	handler := mux.NewRouter()
 	handler.PathPrefix("/").Handler(r)

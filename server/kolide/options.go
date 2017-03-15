@@ -1,13 +1,12 @@
 package kolide
 
 import (
+	"context"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
-
-	"golang.org/x/net/context"
 )
 
 // OptionStore interface describes methods to access datastore

@@ -39,6 +39,7 @@ func testNonAdminUserSetAdmin(t *testing.T, r *testResource) {
 	user, err := r.ds.User("user1")
 	require.Nil(t, err)
 	assert.False(t, user.Admin)
+
 	inJson := `{"admin":true}`
 	buff := bytes.NewBufferString(inJson)
 	path := fmt.Sprintf("/api/v1/kolide/users/%d/admin", user.ID)
@@ -49,9 +50,8 @@ func testNonAdminUserSetAdmin(t *testing.T, r *testResource) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	require.Nil(t, err)
-	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
-	rb := make([]byte, 500)
-	resp.Body.Read(rb)
+	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
+
 	user, err = r.ds.User("user1")
 	require.Nil(t, err)
 	assert.False(t, user.Admin)
@@ -85,6 +85,7 @@ func testNonAdminUserSetEnabled(t *testing.T, r *testResource) {
 	user, err := r.ds.User("user1")
 	require.Nil(t, err)
 	assert.True(t, user.Enabled)
+
 	inJson := `{"enabled":false}`
 	buff := bytes.NewBufferString(inJson)
 	path := fmt.Sprintf("/api/v1/kolide/users/%d/enable", user.ID)
@@ -95,9 +96,8 @@ func testNonAdminUserSetEnabled(t *testing.T, r *testResource) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	require.Nil(t, err)
-	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
-	rb := make([]byte, 500)
-	resp.Body.Read(rb)
+	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
+
 	user, err = r.ds.User("user1")
 	require.Nil(t, err)
 	// shouldn't change

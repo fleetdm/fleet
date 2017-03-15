@@ -1,13 +1,13 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"unicode"
 
 	"github.com/kolide/kolide/server/contexts/viewer"
 	"github.com/kolide/kolide/server/kolide"
-	"golang.org/x/net/context"
 )
 
 type validationMiddleware struct {

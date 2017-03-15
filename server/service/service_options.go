@@ -1,11 +1,11 @@
 package service
 
 import (
+	"context"
 	"time"
 
 	"github.com/kolide/kolide/server/kolide"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 const expectedCheckinIntervalMultiplier = 2

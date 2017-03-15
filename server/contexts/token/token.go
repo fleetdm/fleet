@@ -3,10 +3,9 @@
 package token
 
 import (
+	"context"
 	"net/http"
 	"strings"
-
-	"golang.org/x/net/context"
 )
 
 type key int

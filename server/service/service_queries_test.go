@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 
 	"github.com/kolide/kolide/server/config"
@@ -9,7 +10,6 @@ import (
 	"github.com/kolide/kolide/server/kolide"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 )
 
 func TestListQueries(t *testing.T) {

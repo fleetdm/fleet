@@ -1,11 +1,10 @@
 package pubsub
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/garyburd/redigo/redis"
 	"github.com/kolide/kolide/server/kolide"

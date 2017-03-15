@@ -1,9 +1,8 @@
 package service
 
 import (
+	"context"
 	"time"
-
-	"golang.org/x/net/context"
 )
 
 func (mw loggingMiddleware) ChangeUserEmail(ctx context.Context, token string) (string, error) {

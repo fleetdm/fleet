@@ -1,11 +1,10 @@
 package kolide
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"time"
-
-	"golang.org/x/net/context"
 )
 
 const (

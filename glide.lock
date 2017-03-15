@@ -1,5 +1,5 @@
-hash: c1bacfac1e43a7b6cb050afc246e21a426e9781fac4146df1d5571d5c28c4d90
-updated: 2017-03-08T09:05:13.458507954-08:00
+hash: f3cd6c2e30f6c19975df5373a3fd6132d5672273718275c6ecf4dfbe4993b149
+updated: 2017-03-14T10:36:42.833374871-07:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -27,7 +27,7 @@ imports:
   - internal
   - redis
 - name: github.com/go-kit/kit
-  version: f66b0e13579bfc5a48b9e2a94b1209c107ea1f41
+  version: fadad6fffe0466b19df9efd9acde5c9a52df5fa4
   subpackages:
   - endpoint
   - log

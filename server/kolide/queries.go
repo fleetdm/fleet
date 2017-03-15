@@ -1,6 +1,8 @@
 package kolide
 
-import "golang.org/x/net/context"
+import (
+	"context"
+)
 
 type QueryStore interface {
 	// NewQuery creates a new query object in thie datastore. The returned

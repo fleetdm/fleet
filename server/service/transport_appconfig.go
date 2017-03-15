@@ -1,12 +1,11 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
 	"github.com/kolide/kolide/server/kolide"
-
-	"golang.org/x/net/context"
 )
 
 func decodeModifyAppConfigRequest(ctx context.Context, r *http.Request) (interface{}, error) {

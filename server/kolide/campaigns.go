@@ -1,10 +1,10 @@
 package kolide
 
 import (
+	"context"
 	"time"
 
 	"github.com/kolide/kolide/server/websocket"
-	"golang.org/x/net/context"
 )
 
 // CampaignStore defines the distributed query campaign related datastore

@@ -47,7 +47,7 @@ func osqueryLogFile(path string, appLogger kitlog.Logger) io.Writer {
 		MaxBackups: 3,
 		MaxAge:     28, //days
 	}
-	appLogger = kitlog.NewContext(appLogger).With("component", "osqueryd-logger")
+	appLogger = kitlog.With(appLogger, "component", "osqueryd-logger")
 
 	sig := make(chan os.Signal)
 	signal.Notify(sig, syscall.SIGHUP)

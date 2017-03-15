@@ -1,12 +1,12 @@
 package kolide
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 const (

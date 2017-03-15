@@ -1,11 +1,11 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/kolide/kolide/server/kolide"
-	"golang.org/x/net/context"
 )
 
 func (mw metricsMiddleware) Login(ctx context.Context, username string, password string) (*kolide.User, string, error) {

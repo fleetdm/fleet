@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"html/template"
@@ -9,7 +10,6 @@ import (
 	"github.com/kolide/kolide/server/contexts/viewer"
 	"github.com/kolide/kolide/server/kolide"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 func (svc service) NewUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {

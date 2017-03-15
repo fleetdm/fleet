@@ -1,11 +1,11 @@
 package service
 
 import (
+	"context"
 	"time"
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/kolide/kolide/server/kolide"
-	"golang.org/x/net/context"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
