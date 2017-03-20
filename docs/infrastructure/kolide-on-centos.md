@@ -5,7 +5,7 @@ In this guide, we're going to install Kolide and all of it's application depende
 
 ## Setting up a host
 
-Acquiring an Ubuntu host to use for this guide is largely an exercise for the reader. If you don't have an Ubuntu host readily available, feel free to use [Vagrant](https://www.vagrantup.com/). In a clean, temporary directory, you can run the following to create a vagrant box, start it, and log into it:
+Acquiring a CentOS host to use for this guide is largely an exercise for the reader. If you don't have an CentOS host readily available, feel free to use [Vagrant](https://www.vagrantup.com/). In a clean, temporary directory, you can run the following to create a vagrant box, start it, and log into it:
 
 ```
 $ echo 'Vagrant.configure("2") do |config|
@@ -18,11 +18,11 @@ $ vagrant ssh
 
 ## Installing Kolide
 
-To install Kolide, go to the [GitHub Releases Page](https://github.com/kolide/kolide/releases) to select the most recent deb package. You can install it on your host by using:
+To install Kolide, go to the [Product and License](https://kolide.co/account/product-and-license) section of the Kolide website.
 
 ```
-$ wget https://github.com/kolide/kolide/releases/download/1.0.0-rc1/kolide-1.0.0_rc1-1.x86_64.rpm
-$ sudo rpm -i kolide-1.0.0_rc1-1.x86_64.rpm
+$ sudo rpm -ivh https://dl.kolide.co/yum/kolide-yum-repo-1.0.0-1.noarch.rpm
+$ sudo yum install kolide
 ```
 
 ## Installing and configuring dependencies
@@ -149,7 +149,7 @@ You will need to set the osquery enroll secret and osquery server certificate. I
 
 ![Add New Host](../images/add-new-host-modal.png)
 
-If you select "Fetch Kolide Certificate", your browser will download the appropriate file to your downloads directory (to a file probably called `localhost-8080.pem`). Copy this file to your Ubuntu host at `/var/osquery/server.pem`.
+If you select "Fetch Kolide Certificate", your browser will download the appropriate file to your downloads directory (to a file probably called `localhost-8080.pem`). Copy this file to your CentOS host at `/var/osquery/server.pem`.
 
 You can also select "Reveal Secret" on that modal and the enrollment secret for your Kolide instance will be revealed. Copy that text and create a file with it's contents:
 
@@ -164,7 +164,7 @@ sudo /usr/bin/osqueryd \
   --enroll_secret_path=/var/osquery/enroll_secret \
   --tls_server_certs=/var/osquery/server.pem \
   --tls_hostname=localhost:8080 \
-  --host_identifier=hostname \
+  --host_identifier=uuid \
   --enroll_tls_endpoint=/api/v1/osquery/enroll \
   --config_plugin=tls \
   --config_tls_endpoint=/api/v1/osquery/config \
