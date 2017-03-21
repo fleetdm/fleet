@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	defaultSelectLimit = 1000
+	defaultSelectLimit = 100000
 )
 
 // Datastore is an implementation of kolide.Datastore interface backed by
