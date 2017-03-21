@@ -197,12 +197,12 @@ func (svc service) importScheduledQueries(uid uint, cfg *kolide.ImportConfig, re
 		sq := &kolide.ScheduledQuery{
 			PackID:   pack.ID,
 			QueryID:  query.ID,
-			Interval: queryDetails.Interval,
+			Interval: uint(queryDetails.Interval),
 			Snapshot: queryDetails.Snapshot,
 			Removed:  queryDetails.Removed,
 			Platform: queryDetails.Platform,
 			Version:  queryDetails.Version,
-			Shard:    queryDetails.Shard,
+			Shard:    configInt2Ptr(queryDetails.Shard),
 		}
 		_, err = svc.ds.NewScheduledQuery(sq)
 		if err != nil {
@@ -317,12 +317,12 @@ func (svc service) createQueriesForPack(uid uint, pack *kolide.Pack, details *ko
 		scheduledQuery := &kolide.ScheduledQuery{
 			PackID:   pack.ID,
 			QueryID:  query.ID,
-			Interval: queryDetails.Interval,
+			Interval: uint(queryDetails.Interval),
 			Platform: queryDetails.Platform,
 			Snapshot: queryDetails.Snapshot,
 			Removed:  queryDetails.Removed,
 			Version:  queryDetails.Version,
-			Shard:    queryDetails.Shard,
+			Shard:    configInt2Ptr(queryDetails.Shard),
 		}
 		_, err = svc.ds.NewScheduledQuery(scheduledQuery)
 		if err != nil {
@@ -418,4 +418,12 @@ func (svc service) importOptions(opts kolide.OptionNameToValueMap, resp *kolide.
 		}
 	}
 	return nil
+}
+
+func configInt2Ptr(ci *kolide.OsQueryConfigInt) *uint {
+	if ci == nil {
+		return nil
+	}
+	ui := uint(*ci)
+	return &ui
 }

@@ -1,14 +1,66 @@
 package kolide
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+func TestIntervalUnmarshal(t *testing.T) {
+	scenarios := []struct {
+		name           string
+		testVal        interface{}
+		errExpected    bool
+		expectedResult OsQueryConfigInt
+	}{
+		{"string to uint", "100", false, 100},
+		{"float to uint", float64(123), false, 123},
+		{"nil to zero value int", nil, false, 0},
+		{"invalid string", "hi there", true, 0},
+	}
+	for _, scenario := range scenarios {
+		t.Run(fmt.Sprintf(": %s", scenario.name), func(tt *testing.T) {
+			v, e := unmarshalInteger(scenario.testVal)
+			if scenario.errExpected {
+				assert.NotNil(t, e)
+			} else {
+				require.Nil(t, e)
+				assert.Equal(t, scenario.expectedResult, v)
+			}
+		})
+	}
+}
+
+type importIntTest struct {
+	Val OsQueryConfigInt `json:"val"`
+}
+
+func TestConfigImportInt(t *testing.T) {
+	buff := bytes.NewBufferString(`{"val":"23"}`)
+	var ts importIntTest
+	err := json.NewDecoder(buff).Decode(&ts)
+	assert.Nil(t, err)
+	assert.Equal(t, 23, int(ts.Val))
+
+	buff = bytes.NewBufferString(`{"val":456}`)
+	err = json.NewDecoder(buff).Decode(&ts)
+	assert.Nil(t, err)
+	assert.Equal(t, 456, int(ts.Val))
+
+	buff = bytes.NewBufferString(`{"val":"hi 456"}`)
+	err = json.NewDecoder(buff).Decode(&ts)
+	assert.NotNil(t, err)
+
+}
+
 func TestPackNameMapUnmarshal(t *testing.T) {
+	s2p := func(s string) *string { return &s }
+	u2p := func(ui uint) *OsQueryConfigInt { ci := OsQueryConfigInt(ui); return &ci }
+
 	pnm := PackNameMap{
 		"path": "/this/is/a/path",
 		"details": PackDetails{
@@ -17,8 +69,8 @@ func TestPackNameMapUnmarshal(t *testing.T) {
 					Query:    "select from foo",
 					Interval: 100,
 					Removed:  new(bool),
-					Platform: strptr("linux"),
-					Shard:    new(uint),
+					Platform: s2p("linux"),
+					Shard:    new(OsQueryConfigInt),
 					Snapshot: new(bool),
 				},
 			},
@@ -41,13 +93,13 @@ func TestPackNameMapUnmarshal(t *testing.T) {
 					Query:    "select from foo",
 					Interval: 100,
 					Removed:  new(bool),
-					Platform: strptr("linux"),
-					Shard:    new(uint),
+					Platform: s2p("linux"),
+					Shard:    new(OsQueryConfigInt),
 					Snapshot: new(bool),
 				},
 			},
-			Shard:    uintptr(float64(10)),
-			Version:  strptr("1.0"),
+			Shard:    u2p(10),
+			Version:  s2p("1.0"),
 			Platform: "linux",
 			Discovery: []string{
 				"select from something",
@@ -59,13 +111,13 @@ func TestPackNameMapUnmarshal(t *testing.T) {
 					Query:    "select from bar",
 					Interval: 100,
 					Removed:  new(bool),
-					Platform: strptr("linux"),
-					Shard:    new(uint),
+					Platform: s2p("linux"),
+					Shard:    new(OsQueryConfigInt),
 					Snapshot: new(bool),
 				},
 			},
-			Shard:    uintptr(float64(10)),
-			Version:  strptr("1.0"),
+			Shard:    u2p(10),
+			Version:  s2p("1.0"),
 			Platform: "linux",
 		},
 	}

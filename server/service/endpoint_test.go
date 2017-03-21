@@ -110,6 +110,7 @@ var testFunctions = [...]func(*testing.T, *testResource){
 	testImportConfigMissingExternal,
 	testImportConfigWithMissingGlob,
 	testImportConfigWithGlob,
+	testImportConfigWithIntAsString,
 	testAdminUserSetAdmin,
 	testNonAdminUserSetAdmin,
 	testAdminUserSetEnabled,
