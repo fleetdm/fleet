@@ -8,7 +8,14 @@ type OsqueryService interface {
 	EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string) (nodeKey string, err error)
 	AuthenticateHost(ctx context.Context, nodeKey string) (host *Host, err error)
 	GetClientConfig(ctx context.Context) (config *OsqueryConfig, err error)
-	GetDistributedQueries(ctx context.Context) (queries map[string]string, err error)
+	// GetDistributedQueries retrieves the distributed queries to run for
+	// the host in the provided context. These may be detail queries, label
+	// queries, or user-initiated distributed queries. A map from query
+	// name to query is returned. To enable the osquery "accelerated
+	// checkins" feature, a positive integer (number of seconds to activate
+	// for) should be returned. Returning 0 for this will not activate the
+	// feature.
+	GetDistributedQueries(ctx context.Context) (queries map[string]string, accelerate uint, err error)
 	SubmitDistributedQueryResults(ctx context.Context, results OsqueryDistributedQueryResults, statuses map[string]string) (err error)
 	SubmitStatusLogs(ctx context.Context, logs []OsqueryStatusLog) (err error)
 	SubmitResultLogs(ctx context.Context, logs []OsqueryResultLog) (err error)

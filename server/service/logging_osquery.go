@@ -61,10 +61,11 @@ func (mw loggingMiddleware) GetClientConfig(ctx context.Context) (*kolide.Osquer
 	return config, err
 }
 
-func (mw loggingMiddleware) GetDistributedQueries(ctx context.Context) (map[string]string, error) {
+func (mw loggingMiddleware) GetDistributedQueries(ctx context.Context) (map[string]string, uint, error) {
 	var (
-		queries map[string]string
-		err     error
+		queries    map[string]string
+		err        error
+		accelerate uint
 	)
 
 	defer func(begin time.Time) {
@@ -75,8 +76,8 @@ func (mw loggingMiddleware) GetDistributedQueries(ctx context.Context) (map[stri
 		)
 	}(time.Now())
 
-	queries, err = mw.Service.GetDistributedQueries(ctx)
-	return queries, err
+	queries, accelerate, err = mw.Service.GetDistributedQueries(ctx)
+	return queries, accelerate, err
 }
 
 func (mw loggingMiddleware) SubmitDistributedQueryResults(ctx context.Context, results kolide.OsqueryDistributedQueryResults, statuses map[string]string) error {

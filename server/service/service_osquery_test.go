@@ -237,20 +237,24 @@ func TestLabelQueries(t *testing.T) {
 
 	ctx = hostctx.NewContext(ctx, *host)
 
-	// With a new host, we should get the detail queries
-	queries, err := svc.GetDistributedQueries(ctx)
+	// With a new host, we should get the detail queries (and accelerate
+	// should be turned on so that we can quickly fill labels)
+	queries, acc, err := svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
 	assert.Len(t, queries, len(detailQueries))
+	assert.NotZero(t, acc)
 
 	// Simulate the detail queries being added
 	host.DetailUpdateTime = mockClock.Now().Add(-1 * time.Minute)
 	host.Platform = "darwin"
+	host.HostName = "zwass.local"
 	ds.SaveHost(host)
 	ctx = hostctx.NewContext(ctx, *host)
 
-	queries, err = svc.GetDistributedQueries(ctx)
+	queries, acc, err = svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
+	assert.Zero(t, acc)
 
 	labels := []kolide.Label{
 		kolide.Label{
@@ -281,9 +285,10 @@ func TestLabelQueries(t *testing.T) {
 	}
 
 	// Now we should get the label queries
-	queries, err = svc.GetDistributedQueries(ctx)
+	queries, acc, err = svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 3)
+	assert.Zero(t, acc)
 
 	// Record a query execution
 	err = svc.SubmitDistributedQueryResults(
@@ -301,10 +306,11 @@ func TestLabelQueries(t *testing.T) {
 	assert.Equal(t, "label1", hostLabels[0].Name)
 
 	// Now that query should not be returned
-	queries, err = svc.GetDistributedQueries(ctx)
+	queries, acc, err = svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 2)
 	assert.NotContains(t, queries, "kolide_label_query_1")
+	assert.Zero(t, acc)
 
 	// Advance the time
 	mockClock.AddTime(1*time.Hour + 1*time.Minute)
@@ -315,9 +321,10 @@ func TestLabelQueries(t *testing.T) {
 	ctx = hostctx.NewContext(ctx, *host)
 
 	// Now we should get all the label queries again
-	queries, err = svc.GetDistributedQueries(ctx)
+	queries, acc, err = svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 3)
+	assert.Zero(t, acc)
 
 	// Record a query execution
 	err = svc.SubmitDistributedQueryResults(
@@ -331,9 +338,10 @@ func TestLabelQueries(t *testing.T) {
 	assert.Nil(t, err)
 
 	// Now these should no longer show up in the necessary to run queries
-	queries, err = svc.GetDistributedQueries(ctx)
+	queries, acc, err = svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 1)
+	assert.Zero(t, acc)
 
 	// Verify that labels are set appropriately
 	hostLabels, err = ds.ListLabelsForHost(host.ID)
@@ -446,10 +454,12 @@ func TestDetailQueries(t *testing.T) {
 
 	ctx = hostctx.NewContext(ctx, *host)
 
-	// With a new host, we should get the detail queries
-	queries, err := svc.GetDistributedQueries(ctx)
+	// With a new host, we should get the detail queries (and accelerated
+	// queries)
+	queries, acc, err := svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
 	assert.Len(t, queries, len(detailQueries))
+	assert.NotZero(t, acc)
 
 	resultJSON := `
 {
@@ -557,9 +567,10 @@ func TestDetailQueries(t *testing.T) {
 	host, err = ds.AuthenticateHost(nodeKey)
 	require.Nil(t, err)
 	ctx = hostctx.NewContext(ctx, *host)
-	queries, err = svc.GetDistributedQueries(ctx)
+	queries, acc, err = svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
+	assert.Zero(t, acc)
 
 	// Advance clock and queries should exist again
 	mockClock.AddTime(1*time.Hour + 1*time.Minute)
@@ -570,9 +581,10 @@ func TestDetailQueries(t *testing.T) {
 	require.Nil(t, err)
 
 	ctx = hostctx.NewContext(ctx, *host)
-	queries, err = svc.GetDistributedQueries(ctx)
+	queries, acc, err = svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
 	assert.Len(t, queries, len(detailQueries))
+	assert.Zero(t, acc)
 }
 
 func TestDistributedQueries(t *testing.T) {
@@ -596,10 +608,10 @@ func TestDistributedQueries(t *testing.T) {
 
 	host, err := ds.AuthenticateHost(nodeKey)
 	require.Nil(t, err)
-	err = ds.MarkHostSeen(host, mockClock.Now())
-	require.Nil(t, err)
 
-	ctx = hostctx.NewContext(ctx, *host)
+	host.Platform = "centos"
+	host.HostName = "zwass.local"
+	require.Nil(t, ds.SaveHost(host))
 
 	// Create label
 	n := "foo"
@@ -620,6 +632,7 @@ func TestDistributedQueries(t *testing.T) {
 	require.Nil(t, err)
 	err = ds.MarkHostSeen(host, mockClock.Now())
 	require.Nil(t, err)
+	ctx = hostctx.NewContext(ctx, *host)
 
 	q = "select year, month, day, hour, minutes, seconds from time"
 	campaign, err := svc.NewDistributedQueryCampaign(ctx, q, []uint{}, []uint{label.ID})
@@ -634,10 +647,11 @@ func TestDistributedQueries(t *testing.T) {
 	queryKey := fmt.Sprintf("%s%d", hostDistributedQueryPrefix, campaign.ID)
 
 	// Now we should get the active distributed query
-	queries, err := svc.GetDistributedQueries(ctx)
+	queries, acc, err := svc.GetDistributedQueries(ctx)
 	require.Nil(t, err)
 	assert.Len(t, queries, len(detailQueries)+1)
 	assert.Equal(t, q, queries[queryKey])
+	assert.Zero(t, acc)
 
 	expectedRows := []map[string]string{
 		{
@@ -693,10 +707,11 @@ func TestDistributedQueries(t *testing.T) {
 	require.Nil(t, err)
 
 	// Now the distributed query should be completed and not returned
-	queries, err = svc.GetDistributedQueries(ctx)
+	queries, acc, err = svc.GetDistributedQueries(ctx)
 	require.Nil(t, err)
 	assert.Len(t, queries, len(detailQueries))
 	assert.NotContains(t, queries, queryKey)
+	assert.Zero(t, acc)
 
 	waitComplete.Wait()
 }

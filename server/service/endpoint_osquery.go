@@ -69,19 +69,20 @@ type getDistributedQueriesRequest struct {
 }
 
 type getDistributedQueriesResponse struct {
-	Queries map[string]string `json:"queries"`
-	Err     error             `json:"error,omitempty"`
+	Queries    map[string]string `json:"queries"`
+	Accelerate uint              `json:"accelerate,omitempty"`
+	Err        error             `json:"error,omitempty"`
 }
 
 func (r getDistributedQueriesResponse) error() error { return r.Err }
 
 func makeGetDistributedQueriesEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		queries, err := svc.GetDistributedQueries(ctx)
+		queries, accelerate, err := svc.GetDistributedQueries(ctx)
 		if err != nil {
 			return getDistributedQueriesResponse{Err: err}, nil
 		}
-		return getDistributedQueriesResponse{Queries: queries}, nil
+		return getDistributedQueriesResponse{Queries: queries, Accelerate: accelerate}, nil
 	}
 }
 

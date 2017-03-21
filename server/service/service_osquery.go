@@ -378,10 +378,10 @@ func (svc service) hostDetailQueries(host kolide.Host) map[string]string {
 	return queries
 }
 
-func (svc service) GetDistributedQueries(ctx context.Context) (map[string]string, error) {
+func (svc service) GetDistributedQueries(ctx context.Context) (map[string]string, uint, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
-		return nil, osqueryError{message: "internal error: missing host from request context"}
+		return nil, 0, osqueryError{message: "internal error: missing host from request context"}
 	}
 
 	queries := svc.hostDetailQueries(host)
@@ -390,7 +390,7 @@ func (svc service) GetDistributedQueries(ctx context.Context) (map[string]string
 	cutoff := svc.clock.Now().Add(-svc.config.Osquery.LabelUpdateInterval)
 	labelQueries, err := svc.ds.LabelQueriesForHost(&host, cutoff)
 	if err != nil {
-		return nil, err
+		return nil, 0, osqueryError{message: "retrieving label queries: " + err.Error()}
 	}
 
 	for name, query := range labelQueries {
@@ -399,14 +399,22 @@ func (svc service) GetDistributedQueries(ctx context.Context) (map[string]string
 
 	distributedQueries, err := svc.ds.DistributedQueriesForHost(&host)
 	if err != nil {
-		return nil, osqueryError{message: "retrieving query campaigns: " + err.Error()}
+		return nil, 0, osqueryError{message: "retrieving query campaigns: " + err.Error()}
 	}
 
 	for id, query := range distributedQueries {
 		queries[hostDistributedQueryPrefix+strconv.Itoa(int(id))] = query
 	}
 
-	return queries, nil
+	accelerate := uint(0)
+	if host.HostName == "" && host.Platform == "" {
+		// Assume this host is just enrolling, and accelerate checkins
+		// (to allow for platform restricted labels to run quickly
+		// after platform is retrieved from details)
+		accelerate = 10
+	}
+
+	return queries, accelerate, nil
 }
 
 // ingestDetailQuery takes the results of a detail query and modifies the
