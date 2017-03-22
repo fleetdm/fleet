@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/kolide/kolide/server/contexts/viewer"
 	"github.com/kolide/kolide/server/kolide"
@@ -95,6 +96,10 @@ func (svc service) ModifyAppConfig(ctx context.Context, p kolide.AppConfigPayloa
 	return config, nil
 }
 
+func cleanupURL(url string) string {
+	return strings.TrimRight(strings.Trim(url, " \t\n"), "/")
+}
+
 func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppConfig) *kolide.AppConfig {
 	if p.OrgInfo != nil && p.OrgInfo.OrgLogoURL != nil {
 		config.OrgLogoURL = *p.OrgInfo.OrgLogoURL
@@ -103,7 +108,7 @@ func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppC
 		config.OrgName = *p.OrgInfo.OrgName
 	}
 	if p.ServerSettings != nil && p.ServerSettings.KolideServerURL != nil {
-		config.KolideServerURL = *p.ServerSettings.KolideServerURL
+		config.KolideServerURL = cleanupURL(*p.ServerSettings.KolideServerURL)
 	}
 	if p.ServerSettings != nil && p.ServerSettings.EnrollSecret != nil {
 		config.EnrollSecret = *p.ServerSettings.EnrollSecret

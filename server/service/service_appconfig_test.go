@@ -11,6 +11,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestCleanupURL(t *testing.T) {
+	tests := []struct {
+		in       string
+		expected string
+		name     string
+	}{
+		{"  http://foo.bar.com  ", "http://foo.bar.com", "leading and trailing whitespace"},
+		{"\n http://foo.com \t", "http://foo.com", "whitespace"},
+		{"http://foo.com", "http://foo.com", "noop"},
+		{"http://foo.com/", "http://foo.com", "trailing slash"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(tt *testing.T) {
+			actual := cleanupURL(test.in)
+			assert.Equal(tt, test.expected, actual)
+		})
+	}
+
+}
+
 func TestCreateAppConfig(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
 	require.Nil(t, err)
@@ -42,6 +62,6 @@ func TestCreateAppConfig(t *testing.T) {
 		assert.NotEmpty(t, result.ID)
 		assert.Equal(t, *payload.OrgInfo.OrgLogoURL, result.OrgLogoURL)
 		assert.Equal(t, *payload.OrgInfo.OrgName, result.OrgName)
-		assert.Equal(t, *payload.ServerSettings.KolideServerURL, result.KolideServerURL)
+		assert.Equal(t, "https://acme.co:8080", result.KolideServerURL)
 	}
 }
