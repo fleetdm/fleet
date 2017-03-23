@@ -1,6 +1,15 @@
 export default (admin) => {
   const adminNavItems = [
     {
+      icon: 'config',
+      name: 'Config',
+      location: {
+        regex: /^\/config/,
+        pathname: '/config/options',
+      },
+      subItems: [],
+    },
+    {
       icon: 'admin',
       name: 'Admin',
       location: {
@@ -89,15 +98,6 @@ export default (admin) => {
           },
         },
       ],
-    },
-    {
-      icon: 'config',
-      name: 'Config',
-      location: {
-        regex: /^\/config/,
-        pathname: '/config/options',
-      },
-      subItems: [],
     },
     {
       icon: 'help',
