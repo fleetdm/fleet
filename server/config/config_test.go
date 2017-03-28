@@ -36,7 +36,14 @@ func TestConfigRoundtrip(t *testing.T) {
 			key_v := conf_v.Field(key_index)
 			switch key_v.Interface().(type) {
 			case string:
-				key_v.SetString(v.Elem().Type().Field(conf_index).Name + "_" + conf_v.Type().Field(key_index).Name)
+				switch conf_v.Type().Field(key_index).Name {
+				case "TLSProfile":
+					// we have to explicitly set value for this key as it will only
+					// accept old, intermediate, or modern
+					key_v.SetString(TLSProfileModern)
+				default:
+					key_v.SetString(v.Elem().Type().Field(conf_index).Name + "_" + conf_v.Type().Field(key_index).Name)
+				}
 			case int:
 				key_v.SetInt(int64(conf_index*100 + key_index))
 			case bool:

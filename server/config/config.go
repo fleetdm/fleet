@@ -33,12 +33,20 @@ type RedisConfig struct {
 	Password string
 }
 
+const (
+	TLSProfileKey          = "server.tls_compatibility"
+	TLSProfileModern       = "modern"
+	TLSProfileIntermediate = "intermediate"
+	TLSProfileOld          = "old"
+)
+
 // ServerConfig defines configs related to the Kolide server
 type ServerConfig struct {
-	Address string
-	Cert    string
-	Key     string
-	TLS     bool
+	Address    string
+	Cert       string
+	Key        string
+	TLS        bool
+	TLSProfile string
 }
 
 // AuthConfig defines configs related to user authorization
@@ -129,6 +137,9 @@ func (man Manager) addConfigs() {
 		"Kolide TLS key path")
 	man.addConfigBool("server.tls", true,
 		"Enable TLS (required for osqueryd communication)")
+	man.addConfigString(TLSProfileKey, TLSProfileModern,
+		fmt.Sprintf("TLS security profile choose one of %s, %s or %s",
+			TLSProfileModern, TLSProfileIntermediate, TLSProfileOld))
 
 	// Auth
 	man.addConfigString(
@@ -193,10 +204,11 @@ func (man Manager) LoadConfig() KolideConfig {
 			Password: man.getConfigString("redis.password"),
 		},
 		Server: ServerConfig{
-			Address: man.getConfigString("server.address"),
-			Cert:    man.getConfigString("server.cert"),
-			Key:     man.getConfigString("server.key"),
-			TLS:     man.getConfigBool("server.tls"),
+			Address:    man.getConfigString("server.address"),
+			Cert:       man.getConfigString("server.cert"),
+			Key:        man.getConfigString("server.key"),
+			TLS:        man.getConfigBool("server.tls"),
+			TLSProfile: man.getConfigTLSProfile(),
 		},
 		Auth: AuthConfig{
 			JwtKey:      man.getConfigString("auth.jwt_key"),
@@ -314,6 +326,23 @@ func (man Manager) getConfigString(key string) string {
 	}
 
 	return stringVal
+}
+
+// Custom handling for TLSProfile which can only accept specific values
+// for the argument
+func (man Manager) getConfigTLSProfile() string {
+	ival := man.getInterfaceVal(TLSProfileKey)
+	sval, err := cast.ToStringE(ival)
+	if err != nil {
+		panic(fmt.Sprintf("%s requires a string value: %s", TLSProfileKey, err.Error()))
+	}
+	switch sval {
+	case TLSProfileModern, TLSProfileIntermediate, TLSProfileOld:
+	default:
+		panic(fmt.Sprintf("%s must be one of %s, %s or %s", TLSProfileKey,
+			TLSProfileModern, TLSProfileIntermediate, TLSProfileOld))
+	}
+	return sval
 }
 
 // addConfigInt adds a int config to the config options
