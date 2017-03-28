@@ -78,15 +78,32 @@ func (svc service) GetClientConfig(ctx context.Context) (*kolide.OsqueryConfig, 
 		return nil, osqueryError{message: "internal error: unable to fetch configuration options"}
 	}
 
+	decorators, err := svc.ds.ListDecorators()
+	if err != nil {
+		return nil, osqueryError{message: "internal error: unable to fetch decorators"}
+	}
+	decConfig := kolide.Decorators{
+		Interval: make(map[string][]string),
+	}
+	for _, dec := range decorators {
+		switch dec.Type {
+		case kolide.DecoratorLoad:
+			decConfig.Load = append(decConfig.Load, dec.Query)
+		case kolide.DecoratorAlways:
+			decConfig.Always = append(decConfig.Always, dec.Query)
+		case kolide.DecoratorInterval:
+			key := strconv.Itoa(int(dec.Interval))
+			decConfig.Interval[key] = append(decConfig.Interval[key], dec.Query)
+		default:
+			svc.logger.Log("component", "service", "method", "GetClientConfig", "err",
+				"unknown decorator type")
+		}
+	}
+
 	config := &kolide.OsqueryConfig{
-		Options: options,
-		Decorators: kolide.Decorators{
-			Load: []string{
-				"SELECT uuid AS host_uuid FROM system_info;",
-				"SELECT hostname AS hostname FROM system_info;",
-			},
-		},
-		Packs: kolide.Packs{},
+		Options:    options,
+		Decorators: decConfig,
+		Packs:      kolide.Packs{},
 	}
 
 	packs, err := svc.ListPacksForHost(ctx, host.ID)

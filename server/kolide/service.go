@@ -17,4 +17,5 @@ type Service interface {
 	OptionService
 	ImportConfigService
 	LicenseService
+	DecoratorService
 }

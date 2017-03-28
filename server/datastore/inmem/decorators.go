@@ -2,6 +2,16 @@ package inmem
 
 import "github.com/kolide/kolide/server/kolide"
 
+func (d *Datastore) SaveDecorator(dec *kolide.Decorator) error {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	if _, ok := d.decorators[dec.ID]; !ok {
+		return notFound("Decorator")
+	}
+	d.decorators[dec.ID] = dec
+	return nil
+}
+
 func (d *Datastore) NewDecorator(decorator *kolide.Decorator) (*kolide.Decorator, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
