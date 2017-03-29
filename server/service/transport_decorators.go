@@ -1,10 +1,9 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
-
-	"golang.org/x/net/context"
 )
 
 func decodeNewDecoratorRequest(ctx context.Context, req *http.Request) (interface{}, error) {
