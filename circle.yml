@@ -1,7 +1,7 @@
 machine:
   environment:
     PROJECT_NAME: kolide-ose-testing
-    CLUSTER_NAME: ose-testing
+    CLUSTER_NAME: cluster-1
     CLOUDSDK_COMPUTE_ZONE: us-east1-c
     GOOGLE_APPLICATION_CREDENTIALS: ${HOME}/gcloud-service-key.json
   pre:
