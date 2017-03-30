@@ -57,11 +57,17 @@ func (d *Datastore) SaveScheduledQuery(sq *kolide.ScheduledQuery) (*kolide.Sched
 			SET pack_id = ?, query_id = ?, ` + "`interval`" + ` = ?, snapshot = ?, removed = ?, platform = ?, version = ?, shard = ?
 			WHERE id = ? AND NOT deleted
 	`
-	_, err := d.db.Exec(query, sq.PackID, sq.QueryID, sq.Interval, sq.Snapshot, sq.Removed, sq.Platform, sq.Version, sq.Shard, sq.ID)
+	result, err := d.db.Exec(query, sq.PackID, sq.QueryID, sq.Interval, sq.Snapshot, sq.Removed, sq.Platform, sq.Version, sq.Shard, sq.ID)
 	if err != nil {
 		return nil, errors.Wrap(err, "saving a scheduled query")
 	}
-
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return nil, errors.Wrap(err, "rows affected saving a scheduled query")
+	}
+	if rows == 0 {
+		return nil, notFound("ScheduledQueries").WithID(sq.ID)
+	}
 	return sq, nil
 }
 

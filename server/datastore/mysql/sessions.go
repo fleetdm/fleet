@@ -97,10 +97,16 @@ func (d *Datastore) MarkSessionAccessed(session *kolide.Session) error {
 		accessed_at = ?
 		WHERE id = ?
 	`
-	_, err := d.db.Exec(sqlStatement, d.clock.Now(), session.ID)
+	results, err := d.db.Exec(sqlStatement, d.clock.Now(), session.ID)
 	if err != nil {
 		return errors.Wrap(err, "updating mark session as accessed")
 	}
-
+	rows, err := results.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "rows affected updating mark session accessed")
+	}
+	if rows == 0 {
+		return notFound("Session").WithID(session.ID)
+	}
 	return nil
 }

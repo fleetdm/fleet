@@ -182,7 +182,7 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 		return errors.Wrap(err, "creating transaction")
 	}
 
-	_, err = tx.Exec(sqlStatement,
+	results, err := tx.Exec(sqlStatement,
 		host.DetailUpdateTime,
 		host.NodeKey,
 		host.HostName,
@@ -212,6 +212,15 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 		tx.Rollback()
 		return errors.Wrap(err, "executing main SQL statement")
 	}
+	rowsAffected, err := results.RowsAffected()
+	if err != nil {
+		tx.Rollback()
+		return errors.Wrap(err, "rows affected updating host")
+	}
+	if rowsAffected == 0 {
+		tx.Rollback()
+		return notFound("Host").WithID(host.ID)
+	}
 
 	host.NetworkInterfaces, err = updateNicsForHost(tx, host)
 	if err != nil {
@@ -225,7 +234,7 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 	}
 
 	if needsUpdate := host.ResetPrimaryNetwork(); needsUpdate {
-		_, err = tx.Exec(
+		results, err = tx.Exec(
 			"UPDATE hosts SET primary_ip_id = ? WHERE id = ?",
 			host.PrimaryNetworkInterfaceID,
 			host.ID,
@@ -234,6 +243,15 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 		if err != nil {
 			tx.Rollback()
 			return errors.Wrap(err, "resetting primary network")
+		}
+		rowsAffected, err = results.RowsAffected()
+		if err != nil {
+			tx.Rollback()
+			return errors.Wrap(err, "rows affected resetting primary network")
+		}
+		if rowsAffected == 0 {
+			tx.Rollback()
+			return notFound("Host").WithID(host.ID)
 		}
 	}
 

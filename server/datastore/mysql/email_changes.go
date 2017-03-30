@@ -63,10 +63,19 @@ func (ds *Datastore) ConfirmPendingEmailChange(id uint, token string) (newEmail 
       email = ?
     WHERE id = ?
   `
-	_, err = tx.Exec(query, changeRecord.NewEmail, changeRecord.UserID)
+	results, err := tx.Exec(query, changeRecord.NewEmail, changeRecord.UserID)
 	if err != nil {
 		return "", errors.Wrap(err, "updating user's email")
 	}
+
+	rowsAffected, err := results.RowsAffected()
+	if err != nil {
+		return "", errors.Wrap(err, "fetching affected rows updating user's email")
+	}
+	if rowsAffected == 0 {
+		return "", notFound("User").WithID(changeRecord.UserID)
+	}
+
 	_, err = tx.Exec("DELETE FROM email_changes WHERE id = ?", changeRecord.ID)
 	if err != nil {
 		return "", errors.Wrap(err, "deleting email change")

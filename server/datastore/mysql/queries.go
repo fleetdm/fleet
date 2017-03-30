@@ -81,9 +81,16 @@ func (d *Datastore) SaveQuery(q *kolide.Query) error {
 			SET name = ?, description = ?, query = ?, author_id = ?, saved = ?
 			WHERE id = ? AND NOT deleted
 	`
-	_, err := d.db.Exec(sql, q.Name, q.Description, q.Query, q.AuthorID, q.Saved, q.ID)
+	result, err := d.db.Exec(sql, q.Name, q.Description, q.Query, q.AuthorID, q.Saved, q.ID)
 	if err != nil {
 		return errors.Wrap(err, "updating query")
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "rows affected updating query")
+	}
+	if rows == 0 {
+		return notFound("Query").WithID(q.ID)
 	}
 
 	return nil
@@ -100,7 +107,7 @@ func (d *Datastore) DeleteQueries(ids []uint) (uint, error) {
 	sql := `
 		UPDATE queries
 			SET deleted_at = NOW(), deleted = true
-			WHERE id IN (?)
+			WHERE id IN (?) AND NOT deleted
 	`
 	query, args, err := sqlx.In(sql, ids)
 	if err != nil {

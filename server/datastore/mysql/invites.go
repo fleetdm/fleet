@@ -107,11 +107,18 @@ func (d *Datastore) SaveInvite(i *kolide.Invite) error {
 	   name = ?, position = ?, token = ?
 		 WHERE id = ? AND NOT deleted
 	`
-	_, err := d.db.Exec(sql, i.InvitedBy, i.Email,
+	results, err := d.db.Exec(sql, i.InvitedBy, i.Email,
 		i.Admin, i.Name, i.Position, i.Token, i.ID,
 	)
 	if err != nil {
 		return errors.Wrap(err, "save invite")
+	}
+	rowsAffected, err := results.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "rows affected updating invite")
+	}
+	if rowsAffected == 0 {
+		return notFound("Invite").WithID(i.ID)
 	}
 
 	return nil

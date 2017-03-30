@@ -72,25 +72,23 @@ func (d *Datastore) SavePack(pack *kolide.Pack) error {
 			WHERE id = ? AND NOT deleted
 	`
 
-	_, err := d.db.Exec(query, pack.Name, pack.Platform, pack.Disabled, pack.Description, pack.ID)
-	if err == sql.ErrNoRows {
-		return notFound("Pack").WithID(pack.ID)
-	} else if err != nil {
-		return errors.Wrap(err, "update pack")
+	results, err := d.db.Exec(query, pack.Name, pack.Platform, pack.Disabled, pack.Description, pack.ID)
+	if err != nil {
+		return errors.Wrap(err, "updating pack")
 	}
-
+	rowsAffected, err := results.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "rows affected updating packs")
+	}
+	if rowsAffected == 0 {
+		return notFound("Pack").WithID(pack.ID)
+	}
 	return nil
 }
 
 // DeletePack soft deletes a kolide.Pack so that it won't show up in results
 func (d *Datastore) DeletePack(pid uint) error {
-	err := d.deleteEntity("packs", pid)
-	if err == sql.ErrNoRows {
-		return notFound("Pack").WithID(pid)
-	} else if err != nil {
-		return errors.Wrap(err, "delete pack")
-	}
-	return nil
+	return d.deleteEntity("packs", pid)
 }
 
 // Pack fetch kolide.Pack with matching ID

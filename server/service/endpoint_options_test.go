@@ -11,8 +11,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testGetOptions(t *testing.T, r *testResource) {
+func testOptionNotFound(t *testing.T, r *testResource) {
+	// id 6000 is not an actual option
+	inJson := `{"options":[
+  {"id":6000,"name":"aws_access_key_id","type":"string","value":"foo","read_only":false},
+  {"id":7,"name":"aws_firehose_period","type":"int","value":23,"read_only":false}]}`
+	buff := bytes.NewBufferString(inJson)
+	req, err := http.NewRequest("PATCH", r.server.URL+"/api/v1/kolide/options", buff)
+	require.Nil(t, err)
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.adminToken))
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.Nil(t, err)
+	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+}
 
+func testGetOptions(t *testing.T, r *testResource) {
 	req, err := http.NewRequest("GET", r.server.URL+"/api/v1/kolide/options", nil)
 	require.Nil(t, err)
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.adminToken))

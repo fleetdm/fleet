@@ -49,9 +49,16 @@ func (d *Datastore) SaveDistributedQueryCampaign(camp *kolide.DistributedQueryCa
 		WHERE id = ?
 		AND NOT deleted
 	`
-	_, err := d.db.Exec(sqlStatement, camp.QueryID, camp.Status, camp.UserID, camp.ID)
+	result, err := d.db.Exec(sqlStatement, camp.QueryID, camp.Status, camp.UserID, camp.ID)
 	if err != nil {
 		return errors.Wrap(err, "updating distributed query campaign")
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "rows affected updating distributed query campaign")
+	}
+	if rowsAffected == 0 {
+		return notFound("DistributedQueryCampaign").WithID(camp.ID)
 	}
 
 	return nil

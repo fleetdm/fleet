@@ -11,13 +11,30 @@ import (
 )
 
 func testOptions(t *testing.T, ds kolide.Datastore) {
+	if ds.Name() == "inmem" {
+		t.Skip("inmem is being depracated")
+	}
 	require.Nil(t, ds.MigrateData())
 	// were options pre-loaded?
 	opts, err := ds.ListOptions()
 	require.Nil(t, err)
 	assert.Len(t, opts, len(appstate.Options()))
 
-	opt, err := ds.OptionByName("aws_access_key_id")
+	opt, err := ds.OptionByName("aws_profile_name")
+	require.Nil(t, err)
+	assert.False(t, opt.OptionSet())
+
+	// try to save non-readonly list of options with same values, it should not err out
+	var writableOpts []kolide.Option
+	for _, o := range opts {
+		if !o.ReadOnly {
+			writableOpts = append(writableOpts, o)
+		}
+	}
+	err = ds.SaveOptions(writableOpts)
+	assert.Nil(t, err)
+
+	opt, err = ds.OptionByName("aws_access_key_id")
 	require.Nil(t, err)
 	require.NotNil(t, opt)
 	opt2, err := ds.Option(opt.ID)
@@ -37,9 +54,14 @@ func testOptions(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, err)
 	opt.SetValue(true)
 	err = ds.SaveOptions([]kolide.Option{*opt})
-	require.NotNil(t, err)
+	assert.NotNil(t, err)
+	// check that it didn't change
+	opt, err = ds.OptionByName("disable_distributed")
+	require.Nil(t, err)
+	require.False(t, opt.GetValue().(bool))
 
 	opt, _ = ds.OptionByName("aws_profile_name")
+	oldValue := opt.GetValue()
 	assert.False(t, opt.OptionSet())
 	opt.SetValue("zip")
 	opt2, _ = ds.OptionByName("disable_distributed")
@@ -50,11 +72,14 @@ func testOptions(t *testing.T, ds kolide.Datastore) {
 	// be we want to verify that the whole transaction is rolled back
 	err = ds.SaveOptions(modList)
 	assert.NotNil(t, err)
-	opt, _ = ds.OptionByName("aws_profile_name")
-	assert.False(t, opt.OptionSet())
+
 	opt2, err = ds.OptionByName("disable_distributed")
 	require.Nil(t, err)
 	assert.Equal(t, false, opt2.GetValue())
+	opt, err = ds.OptionByName("aws_profile_name")
+	require.Nil(t, err)
+	assert.Equal(t, oldValue, opt.GetValue())
+
 }
 
 func testOptionsToConfig(t *testing.T, ds kolide.Datastore) {

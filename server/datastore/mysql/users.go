@@ -101,11 +101,18 @@ func (d *Datastore) SaveUser(user *kolide.User) error {
 			position = ?
 		WHERE id = ?
 	`
-	_, err := d.db.Exec(sqlStatement, user.Username, user.Password,
+	result, err := d.db.Exec(sqlStatement, user.Username, user.Password,
 		user.Salt, user.Name, user.Email, user.Admin, user.Enabled,
 		user.AdminForcedPasswordReset, user.GravatarURL, user.Position, user.ID)
 	if err != nil {
 		return errors.Wrap(err, "save user")
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "rows affected save user")
+	}
+	if rows == 0 {
+		return notFound("User").WithID(user.ID)
 	}
 
 	return nil

@@ -44,15 +44,15 @@ func (d *Datastore) SaveOptions(opts []kolide.Option) (err error) {
 	}()
 
 	for _, opt := range opts {
-		result, err := txn.Exec(sqlStatement, opt.Value, opt.ID, opt.Type)
+		resultInfo, err := txn.Exec(sqlStatement, opt.Value, opt.ID, opt.Type)
 		if err != nil {
 			return errors.Wrap(err, "update options")
 		}
-		rowsChanged, err := result.RowsAffected()
+		rowsMatched, err := resultInfo.RowsAffected()
 		if err != nil {
-			return errors.Wrap(err, "option rows affected")
+			return errors.Wrap(err, "update options reading rows matched")
 		}
-		if rowsChanged != 1 {
+		if rowsMatched == 0 {
 			return notFound("Option").WithID(opt.ID)
 		}
 	}

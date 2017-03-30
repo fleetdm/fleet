@@ -106,6 +106,7 @@ var testFunctions = [...]func(*testing.T, *testResource){
 	testGetOptions,
 	testModifyOptions,
 	testModifyOptionsValidationFail,
+	testOptionNotFound,
 	testImportConfig,
 	testImportConfigMissingExternal,
 	testImportConfigWithMissingGlob,

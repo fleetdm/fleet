@@ -14,9 +14,16 @@ func (ds *Datastore) RevokeLicense(revoked bool) error {
 			revoked = ?
 		WHERE id = 1
 	`
-	_, err := ds.db.Exec(sql, revoked)
+	results, err := ds.db.Exec(sql, revoked)
 	if err != nil {
 		return errors.Wrap(err, "updating license revoked")
+	}
+	rowsAffected, err := results.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "rows affected updating license revoked")
+	}
+	if rowsAffected == 0 {
+		return notFound("License").WithID(uint(1))
 	}
 	return nil
 }
@@ -64,9 +71,16 @@ func (ds *Datastore) SaveLicense(token, publicKey string) (*kolide.License, erro
 			` + "`key`" + ` = ?
 		 WHERE id = 1`
 
-	_, err := ds.db.Exec(sqlStatement, token, publicKey)
+	res, err := ds.db.Exec(sqlStatement, token, publicKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "saving license")
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return nil, errors.Wrap(err, "rows affected saving license")
+	}
+	if rowsAffected == 0 {
+		return nil, notFound("License").WithID(uint(1))
 	}
 	result, err := ds.License()
 	if err != nil {

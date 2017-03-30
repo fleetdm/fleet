@@ -30,9 +30,16 @@ func (d *Datastore) SavePasswordResetRequest(req *kolide.PasswordResetRequest) e
 			token = ?
 		WHERE id = ?
 	`
-	_, err := d.db.Exec(sqlStatement, req.ExpiresAt, req.UserID, req.Token, req.ID)
+	result, err := d.db.Exec(sqlStatement, req.ExpiresAt, req.UserID, req.Token, req.ID)
 	if err != nil {
 		return errors.Wrap(err, "updating password reset requests")
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "rows affected updating password reset requests")
+	}
+	if rows == 0 {
+		return notFound("PasswordResetRequest").WithID(req.ID)
 	}
 
 	return nil
