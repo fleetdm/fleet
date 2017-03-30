@@ -15,11 +15,7 @@ type hostResponse struct {
 	DisplayText string `json:"display_text"`
 }
 
-func hostResponseForHost(ctx context.Context, svc kolide.Service, host *kolide.Host) (*hostResponse, error) {
-	onlineInterval, err := svc.ExpectedCheckinInterval(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "getting expected check-in interval")
-	}
+func hostResponseForHost(ctx context.Context, svc kolide.Service, host *kolide.Host, onlineInterval time.Duration) (*hostResponse, error) {
 	return &hostResponse{
 		Host:        *host,
 		Status:      host.Status(time.Now(), onlineInterval),
@@ -50,7 +46,12 @@ func makeGetHostEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return getHostResponse{Err: err}, nil
 		}
 
-		resp, err := hostResponseForHost(ctx, svc, host)
+		onlineInterval, err := svc.ExpectedCheckinInterval(ctx)
+		if err != nil {
+			return nil, errors.Wrap(err, "getting expected check-in interval")
+		}
+
+		resp, err := hostResponseForHost(ctx, svc, host, onlineInterval)
 		if err != nil {
 			return getHostResponse{Err: err}, nil
 		}
@@ -84,9 +85,14 @@ func makeListHostsEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return listHostsResponse{Err: err}, nil
 		}
 
+		onlineInterval, err := svc.ExpectedCheckinInterval(ctx)
+		if err != nil {
+			return nil, errors.Wrap(err, "getting expected check-in interval")
+		}
+
 		hostResponses := make([]hostResponse, len(hosts), len(hosts))
 		for i, host := range hosts {
-			h, err := hostResponseForHost(ctx, svc, host)
+			h, err := hostResponseForHost(ctx, svc, host, onlineInterval)
 			if err != nil {
 				return listHostsResponse{Err: err}, nil
 			}
