@@ -14,5 +14,11 @@ export default (client) => {
       return client.authenticatedPatch(client._endpoint(CONFIG_OPTIONS), JSON.stringify({ options }))
         .then(response => response.options);
     },
+    reset: () => {
+      const { CONFIG_OPTIONS_RESET } = endpoints;
+
+      return client.authenticatedGet(client._endpoint(CONFIG_OPTIONS_RESET))
+        .then(response => response.options);
+    },
   };
 };

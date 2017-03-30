@@ -2,6 +2,7 @@ export default {
   CHANGE_PASSWORD: '/v1/kolide/change_password',
   CONFIG: '/v1/kolide/config',
   CONFIG_OPTIONS: '/v1/kolide/options',
+  CONFIG_OPTIONS_RESET: '/v1/kolide/options/reset',
   CONFIRM_EMAIL_CHANGE: (token) => {
     return `/v1/kolide/email/change/${token}`;
   },

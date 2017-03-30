@@ -8,7 +8,6 @@ import ConfigOptionsForm from 'components/forms/ConfigOptionsForm';
 import Icon from 'components/icons/Icon';
 import configOptionInterface from 'interfaces/config_option';
 import debounce from 'utilities/debounce';
-import defaultConfigOptions from 'pages/config/ConfigOptionsPage/default_config_options';
 import entityGetter from 'redux/utilities/entityGetter';
 import helpers from 'pages/config/ConfigOptionsPage/helpers';
 import { renderFlash } from 'redux/nodes/notifications/actions';
@@ -102,8 +101,17 @@ export class ConfigOptionsPage extends Component {
   }
 
   onResetConfigOptions = () => {
-    this.setState({ configOptions: defaultConfigOptions });
+    const { dispatch } = this.props;
 
+    dispatch(configOptionActions.resetOptions())
+      .then(() => {
+        dispatch(renderFlash('success', 'Options reset to defaults.'));
+        return false;
+      })
+      .catch(() => {
+        dispatch(renderFlash('error', 'Options reset failed.'));
+        return false;
+      });
     return false;
   }
 

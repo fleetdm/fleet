@@ -34,3 +34,13 @@ func makeModifyOptionsEndpoint(svc kolide.Service) endpoint.Endpoint {
 		return optionsResponse{Options: opts}, nil
 	}
 }
+
+func makeResetOptionsEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		options, err := svc.ResetOptions(ctx)
+		if err != nil {
+			return optionsResponse{Err: err}, nil
+		}
+		return optionsResponse{Options: options}, nil
+	}
+}

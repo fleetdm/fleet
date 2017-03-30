@@ -11,6 +11,10 @@ import (
 const expectedCheckinIntervalMultiplier = 2
 const minimumExpectedCheckinInterval = 10 * time.Second
 
+func (svc service) ResetOptions(ctx context.Context) ([]kolide.Option, error) {
+	return svc.ds.ResetOptions()
+}
+
 func (svc service) GetOptions(ctx context.Context) ([]kolide.Option, error) {
 	opts, err := svc.ds.ListOptions()
 	if err != nil {

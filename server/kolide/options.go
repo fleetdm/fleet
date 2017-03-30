@@ -25,6 +25,10 @@ type OptionStore interface {
 	// GetOsqueryConfigOptions returns options in a format that will be the options
 	// section of osquery configuration
 	GetOsqueryConfigOptions() (map[string]interface{}, error)
+	// ResetOptions will reset options to their initial values. This should be used
+	// with caution as it will remove any options or changes to defaults made by
+	// the user. Returns a list of default options.
+	ResetOptions() ([]Option, error)
 }
 
 // OptionService interface describes methods that operate on osquery options
@@ -41,6 +45,8 @@ type OptionService interface {
 	// osqueryd agent if it is online. This is currently two times the most
 	// frequent check-in interval.
 	ExpectedCheckinInterval(ctx context.Context) (time.Duration, error)
+	// ResetOptions resets all options to their default values
+	ResetOptions(ctx context.Context) ([]Option, error)
 }
 
 const (
@@ -113,7 +119,14 @@ func (ov OptionValue) Value() (dv driver.Value, err error) {
 
 // Scan takes db string and turns it into an option type
 func (ov *OptionValue) Scan(src interface{}) error {
-	return json.Unmarshal(src.([]byte), &ov.Val)
+	if err := json.Unmarshal(src.([]byte), &ov.Val); err != nil {
+		return err
+	}
+	switch v := ov.Val.(type) {
+	case float64:
+		ov.Val = int(v)
+	}
+	return nil
 }
 
 // MarshalJSON implements the json.Marshaler interface

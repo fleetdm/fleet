@@ -77,4 +77,5 @@ var testFunctions = [...]func(*testing.T, kolide.Datastore){
 	testMigrationStatus,
 	testUnicode,
 	testCountHostsInTargets,
+	testResetOptions,
 }

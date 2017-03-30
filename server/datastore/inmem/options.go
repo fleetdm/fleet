@@ -7,6 +7,10 @@ import (
 	"github.com/patrickmn/sortutil"
 )
 
+func (d *Datastore) ResetOptions() ([]kolide.Option, error) {
+	panic("inmem is being deprecated")
+}
+
 func (d *Datastore) OptionByName(name string) (*kolide.Option, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
