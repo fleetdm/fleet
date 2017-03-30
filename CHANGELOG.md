@@ -2,6 +2,12 @@
 
   osquery 2.3.2 incorrectly reports an empty value for `platform` on CentOS6 hosts. We added a workaround to properly detect platform in Kolide, and also [submitted a fix](https://github.com/facebook/osquery/pull/3071) to upstream osquery.
 
+* Ensure hosts enroll in labels immediately even when `distributed_interval` is set to a long interval.
+
+* Optimizations reduce the CPU and DB usage of the manage hosts page.
+
+* Manage packs page now loads much quicker when a large number of hosts are enrolled.
+
 ## Kolide 1.0.2 (March 14, 2017)
 
 * Fix an issue adding additional targets when querying a host
