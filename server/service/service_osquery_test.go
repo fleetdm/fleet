@@ -56,8 +56,36 @@ func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
 	assert.Len(t, hosts, 0)
 }
 
-func TestSubmitStatusLogs(t *testing.T) {
+func TestAuthenticateHost(t *testing.T) {
 	ds, svc, mockClock := setupOsqueryTests(t)
+	ctx := context.Background()
+
+	nodeKey, err := svc.EnrollAgent(ctx, "", "host123")
+	require.Nil(t, err)
+
+	mockClock.AddTime(1 * time.Minute)
+
+	host, err := svc.AuthenticateHost(ctx, nodeKey)
+	require.Nil(t, err)
+
+	// Verify that the update time is set appropriately
+	checkHost, err := ds.Host(host.ID)
+	require.Nil(t, err)
+	assert.Equal(t, mockClock.Now(), checkHost.UpdatedAt)
+
+	// Advance clock time and check that seen time is updated
+	mockClock.AddTime(1*time.Minute + 27*time.Second)
+
+	_, err = svc.AuthenticateHost(ctx, nodeKey)
+	require.Nil(t, err)
+
+	checkHost, err = ds.Host(host.ID)
+	require.Nil(t, err)
+	assert.Equal(t, mockClock.Now(), checkHost.UpdatedAt)
+}
+
+func TestSubmitStatusLogs(t *testing.T) {
+	ds, svc, _ := setupOsqueryTests(t)
 	ctx := context.Background()
 
 	_, err := svc.EnrollAgent(ctx, "", "host123")
@@ -67,17 +95,10 @@ func TestSubmitStatusLogs(t *testing.T) {
 	require.Nil(t, err)
 	require.Len(t, hosts, 1)
 	host := hosts[0]
+	ctx = hostctx.NewContext(ctx, *host)
 
 	// Hack to get at the service internals and modify the writer
 	serv := ((svc.(validationMiddleware)).Service).(service)
-
-	// Error due to missing host
-	err = serv.SubmitResultLogs(ctx, []kolide.OsqueryResultLog{})
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "missing host")
-
-	// Add that host
-	ctx = hostctx.NewContext(ctx, *host)
 
 	var statusBuf bytes.Buffer
 	serv.osqueryStatusLogWriter = &statusBuf
@@ -104,25 +125,10 @@ func TestSubmitStatusLogs(t *testing.T) {
 			assert.JSONEq(t, logs[i], line)
 		}
 	}
-
-	// Verify that the update time is set appropriately
-	checkHost, err := ds.Host(host.ID)
-	assert.Nil(t, err)
-	assert.Equal(t, mockClock.Now(), checkHost.UpdatedAt)
-
-	// Advance clock time and check that time is updated on new logs
-	mockClock.AddTime(1 * time.Minute)
-
-	err = serv.SubmitStatusLogs(ctx, []kolide.OsqueryStatusLog{})
-	assert.Nil(t, err)
-
-	checkHost, err = ds.Host(host.ID)
-	assert.Nil(t, err)
-	assert.Equal(t, mockClock.Now(), checkHost.UpdatedAt)
 }
 
 func TestSubmitResultLogs(t *testing.T) {
-	ds, svc, mockClock := setupOsqueryTests(t)
+	ds, svc, _ := setupOsqueryTests(t)
 	ctx := context.Background()
 
 	_, err := svc.EnrollAgent(ctx, "", "host123")
@@ -132,16 +138,10 @@ func TestSubmitResultLogs(t *testing.T) {
 	require.Nil(t, err)
 	require.Len(t, hosts, 1)
 	host := hosts[0]
+	ctx = hostctx.NewContext(ctx, *host)
 
 	// Hack to get at the service internals and modify the writer
 	serv := ((svc.(validationMiddleware)).Service).(service)
-
-	// Error due to missing host
-	err = serv.SubmitResultLogs(ctx, []kolide.OsqueryResultLog{})
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "missing host")
-
-	ctx = hostctx.NewContext(ctx, *host)
 
 	var resultBuf bytes.Buffer
 	serv.osqueryResultLogWriter = &resultBuf
@@ -169,21 +169,6 @@ func TestSubmitResultLogs(t *testing.T) {
 			assert.JSONEq(t, logs[i], line)
 		}
 	}
-
-	// Verify that the update time is set appropriately
-	checkHost, err := ds.Host(host.ID)
-	assert.Nil(t, err)
-	assert.Equal(t, mockClock.Now(), checkHost.UpdatedAt)
-
-	// Advance clock time and check that time is updated on new logs
-	mockClock.AddTime(1 * time.Minute)
-
-	err = serv.SubmitResultLogs(ctx, []kolide.OsqueryResultLog{})
-	assert.Nil(t, err)
-
-	checkHost, err = ds.Host(host.ID)
-	assert.Nil(t, err)
-	assert.Equal(t, mockClock.Now(), checkHost.UpdatedAt)
 }
 
 func TestHostDetailQueries(t *testing.T) {
