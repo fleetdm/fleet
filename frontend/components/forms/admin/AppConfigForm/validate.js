@@ -35,7 +35,9 @@ export default (formData) => {
     errors.org_name = 'Organization Name must be present';
   }
 
-  if (some([smtpSenderAddress, smtpServer, smtpUserName]) || (smtpPassword && smtpPassword !== APP_SETTINGS.FAKE_PASSWORD)) {
+  if (some([smtpSenderAddress, smtpServer, smtpUserName]) ||
+    (smtpPassword && smtpPassword !== APP_SETTINGS.FAKE_PASSWORD) ||
+    (smtpServerPort !== APP_SETTINGS.DEFAULT_SMTP_PORT)) {
     if (!smtpSenderAddress) {
       errors.sender_address = 'SMTP Sender Address must be present';
     }

@@ -10,7 +10,7 @@ describe('AppConfigForm - validations', () => {
     license: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWV9.TJVA95OrM7E2cBab30RMHrHDcEfxjoYZgeFONFh7HgQ',
     sender_address: 'hi@gnar.dog',
     server: '192.168.99.100',
-    port: 1025,
+    port: '1025',
     user_name: 'gnardog',
     password: 'p@ssw0rd',
   };
@@ -146,13 +146,14 @@ describe('AppConfigForm - validations', () => {
       });
     });
 
-    it('does not validate smtp config if only password is present and it is the fake password', () => {
+    it('does not validate smtp config if only password and port are present and they are defaults', () => {
       const formData = {
         ...validFormData,
         user_name: '',
         server: '',
         sender_address: '',
         password: '********',
+        port: '587',
       };
       const invalidFormData = {
         ...validFormData,
@@ -160,6 +161,11 @@ describe('AppConfigForm - validations', () => {
         server: '',
         sender_address: '',
         password: 'newPassword',
+        port: '587',
+      };
+      const missingPortFormData = {
+        ...validFormData,
+        port: '',
       };
 
       expect(validate(formData)).toEqual({
@@ -173,6 +179,13 @@ describe('AppConfigForm - validations', () => {
           sender_address: 'SMTP Sender Address must be present',
           server: 'SMTP Server must be present',
           user_name: 'SMTP Username must be present',
+        },
+      });
+
+      expect(validate(missingPortFormData)).toEqual({
+        valid: false,
+        errors: {
+          server: 'SMTP Server Port must be present',
         },
       });
     });
