@@ -2,6 +2,7 @@ package kolide
 
 import (
 	"context"
+	"time"
 )
 
 type TargetSearchResults struct {
@@ -12,14 +13,15 @@ type TargetSearchResults struct {
 // TargetMetrics contains information about the state
 // of hosts that are tracked by the app
 type TargetMetrics struct {
-	TotalHosts uint
+	TotalHosts uint `db:"total"`
 	// OnlineHosts have updated within the last 30 minutes
-	OnlineHosts uint
+	OnlineHosts uint `db:"online"`
 	// OfflineHosts are hosts that haven't updated in 30 minutes
-	OfflineHosts uint
+	OfflineHosts uint `db:"offline"`
 	// MissingInActionHosts are hosts that haven't had an update for more
 	// than thirty days
-	MissingInActionHosts uint
+	MissingInActionHosts uint `db:"mia"`
+	NewHosts             uint `db:"new"`
 }
 
 type TargetService interface {
@@ -34,6 +36,10 @@ type TargetService interface {
 	// returned uint is the total number of hosts that have been offline for more
 	// than 30 days. (Missing in action)
 	CountHostsInTargets(ctx context.Context, hostIDs []uint, labelIDs []uint) (*TargetMetrics, error)
+}
+
+type TargetStore interface {
+	CountHostsInTargets(hostIDs []uint, labelIDs []uint, now time.Time, onlineInterval time.Duration) (TargetMetrics, error)
 }
 
 type TargetType int

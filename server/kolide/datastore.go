@@ -8,6 +8,7 @@ type Datastore interface {
 	PackStore
 	LabelStore
 	HostStore
+	TargetStore
 	PasswordResetStore
 	SessionStore
 	AppConfigStore

@@ -29,43 +29,15 @@ func (svc service) SearchTargets(ctx context.Context, query string, selectedHost
 }
 
 func (svc service) CountHostsInTargets(ctx context.Context, hostIDs []uint, labelIDs []uint) (*kolide.TargetMetrics, error) {
-	hosts, err := svc.ds.ListUniqueHostsInLabels(labelIDs)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, id := range hostIDs {
-		h, err := svc.ds.Host(id)
-		if err != nil {
-			return nil, err
-		}
-		hosts = append(hosts, *h)
-	}
-
-	hostLookup := map[uint]bool{}
-
-	result := &kolide.TargetMetrics{}
-
 	onlineInterval, err := svc.ExpectedCheckinInterval(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting expected check-in interval")
 	}
 
-	for _, host := range hosts {
-		if !hostLookup[host.ID] {
-			hostLookup[host.ID] = true
-			switch host.Status(svc.clock.Now().UTC(), onlineInterval) {
-			case kolide.StatusOnline:
-				result.OnlineHosts++
-			case kolide.StatusOffline:
-				result.OfflineHosts++
-			case kolide.StatusMIA:
-				result.MissingInActionHosts++
-			}
-		}
+	metrics, err := svc.ds.CountHostsInTargets(hostIDs, labelIDs, svc.clock.Now(), onlineInterval)
+	if err != nil {
+		return nil, err
 	}
 
-	result.TotalHosts = uint(len(hostLookup))
-
-	return result, nil
+	return &metrics, nil
 }

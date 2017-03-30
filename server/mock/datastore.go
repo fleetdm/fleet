@@ -22,6 +22,7 @@ type Store struct {
 	kolide.ScheduledQueryStore
 	kolide.FileIntegrityMonitoringStore
 	kolide.YARAStore
+	kolide.TargetStore
 	LicenseStore
 	InviteStore
 	UserStore

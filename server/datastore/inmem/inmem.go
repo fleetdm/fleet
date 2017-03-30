@@ -39,6 +39,7 @@ type Datastore struct {
 	yaraSignatureGroups             map[uint]*kolide.YARASignatureGroup
 	appConfig                       *kolide.AppConfig
 	config                          *config.KolideConfig
+	kolide.TargetStore
 }
 
 func New(config config.KolideConfig) (*Datastore, error) {

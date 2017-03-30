@@ -27,19 +27,11 @@ func packResponseForPack(ctx context.Context, svc kolide.Service, pack kolide.Pa
 		return nil, err
 	}
 
-	// ListHostsInPack returns hosts which were explicitly set +
-	// the hosts which are part of a packs labels. We want both for the totals,
-	// but only the explicit host ids for the host_id field.
-	allHosts, err := svc.ListHostsInPack(ctx, pack.ID, opts)
-	if err != nil {
-		return nil, err
-	}
-	totalHostCount := uint(len(allHosts))
-
 	hosts, err := svc.ListExplicitHostsInPack(ctx, pack.ID, opts)
 	if err != nil {
 		return nil, err
 	}
+
 	labels, err := svc.ListLabelsForPack(ctx, pack.ID)
 	labelIDs := make([]uint, len(labels), len(labels))
 	for i, label := range labels {
@@ -48,10 +40,16 @@ func packResponseForPack(ctx context.Context, svc kolide.Service, pack kolide.Pa
 	if err != nil {
 		return nil, err
 	}
+
+	hostMetrics, err := svc.CountHostsInTargets(ctx, hosts, labelIDs)
+	if err != nil {
+		return nil, err
+	}
+
 	return &packResponse{
 		Pack:            pack,
 		QueryCount:      uint(len(queries)),
-		TotalHostsCount: totalHostCount,
+		TotalHostsCount: hostMetrics.TotalHosts,
 		HostIDs:         hosts,
 		LabelIDs:        labelIDs,
 	}, nil
