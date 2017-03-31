@@ -4,12 +4,14 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/e-dard/netbug"
 	kitlog "github.com/go-kit/kit/log"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/kolide/kolide/server/config"
@@ -33,6 +35,9 @@ type initializer interface {
 }
 
 func createServeCmd(configManager config.Manager) *cobra.Command {
+	// Whether to enable the debug endpoints
+	debug := false
+
 	serveCmd := &cobra.Command{
 		Use:   "serve",
 		Short: "Launch the kolide server",
@@ -183,6 +188,17 @@ the way that the kolide server works.
 			r.Handle("/api/", apiHandler)
 			r.Handle("/", frontendHandler)
 
+			if debug {
+				// Add debug endpoints with a random
+				// authorization token
+				debugToken, err := kolide.RandomText(24)
+				if err != nil {
+					initFatal(err, "generating debug token")
+				}
+				r.Handle("/debug/", http.StripPrefix("/debug/", netbug.AuthHandler(debugToken)))
+				fmt.Printf("*** Debug mode enabled ***\nAccess the debug endpoints at /debug/?token=%s\n", url.QueryEscape(debugToken))
+			}
+
 			srv := &http.Server{
 				Addr:              config.Server.Address,
 				Handler:           r,
@@ -218,6 +234,8 @@ the way that the kolide server works.
 			licenseService.Stop()
 		},
 	}
+
+	serveCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug endpoints")
 
 	return serveCmd
 }

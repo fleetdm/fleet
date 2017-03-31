@@ -68,3 +68,4 @@ import:
 - package: github.com/go-yaml/yaml
 - package: github.com/ryanuber/go-license
 - package: github.com/igm/sockjs-go
+- package: github.com/e-dard/netbug

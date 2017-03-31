@@ -1,5 +1,5 @@
-hash: f3cd6c2e30f6c19975df5373a3fd6132d5672273718275c6ecf4dfbe4993b149
-updated: 2017-03-14T10:36:42.833374871-07:00
+hash: 08220902abb9783f0474c20495d92f407f4028b56ab95879b867c0dec4aab7cc
+updated: 2017-03-29T10:16:52.853564516-07:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -17,6 +17,8 @@ imports:
   - spew
 - name: github.com/dgrijalva/jwt-go
   version: 01aeca54ebda6e0fbfafd0a524d234159c05ec20
+- name: github.com/e-dard/netbug
+  version: e64d308a0b205c901264e88a10e70d64acb1810d
 - name: github.com/elazarl/go-bindata-assetfs
   version: 9a6736ed45b44bf3835afeebb3034b57ed329f3e
 - name: github.com/fsnotify/fsnotify

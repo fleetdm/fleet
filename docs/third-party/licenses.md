@@ -367,6 +367,7 @@ Third-Party Licenses
 | [github.com/beorn7/perks](https://github.com/beorn7/perks) | [MIT](https://opensource.org/licenses/MIT) |
 | [github.com/davecgh/go-spew](https://github.com/davecgh/go-spew) | [ISC](https://opensource.org/licenses/ISC) |
 | [github.com/dgrijalva/jwt-go](https://github.com/dgrijalva/jwt-go) | [MIT](https://opensource.org/licenses/MIT) |
+| [github.com/e-dard/netbug](https://github.com/e-dard/netbug) | [MIT](https://opensource.org/licenses/MIT) |
 | [github.com/elazarl/go-bindata-assetfs](https://github.com/elazarl/go-bindata-assetfs) | [FreeBSD](https://opensource.org/licenses/BSD-2-Clause) |
 | [github.com/fsnotify/fsnotify](https://github.com/fsnotify/fsnotify) | [NewBSD](https://opensource.org/licenses/BSD-3-Clause) |
 | [github.com/garyburd/redigo](https://github.com/garyburd/redigo) | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) |
