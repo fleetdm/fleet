@@ -32,7 +32,7 @@ const formFields = [
 const Header = ({ showAdvancedOptions }) => {
   const CaratIcon = <Icon name={showAdvancedOptions ? 'downcarat' : 'upcarat'} />;
 
-  return <span>Advanced Options {CaratIcon} <small>You normally don’t need to change these settings they are for special setups.</small></span>;
+  return <span>Advanced Options {CaratIcon} <small>Most users do not need to modify these options.</small></span>;
 };
 
 Header.propTypes = { showAdvancedOptions: PropTypes.bool.isRequired };
@@ -179,7 +179,7 @@ class AppConfigForm extends Component {
             />
             <InputField
               {...fields.org_logo_url}
-              label="Organization Avatar"
+              label="Organization Avatar URL"
             />
           </div>
           <div className={`${baseClass}__details ${baseClass}__avatar-preview`}>
@@ -200,7 +200,7 @@ class AppConfigForm extends Component {
             <div className={`${baseClass}__license-info-row`}>
               <div className={`${baseClass}__license-detail-icon`}><Icon name="single-host" /></div>
               <div className={`${baseClass}__license-detail-text-wrapper`}>
-                <p className={`${baseClass}__license-detail-text`}>{license.hosts}/{license.allowed_hosts} Hosts {hostWarning && <Icon name="warning-filled" />}</p>
+                <p className={`${baseClass}__license-detail-text`}>{license.hosts} Enrolled of {license.allowed_hosts} Hosts {hostWarning && <Icon name="warning-filled" />}</p>
                 {hostWarning && <p className={`${baseClass}__license-detail-warning`}>Exceeding Host Limit</p>}
               </div>
             </div>
@@ -248,7 +248,7 @@ class AppConfigForm extends Component {
             />
           </div>
           <div className={`${baseClass}__details`}>
-            <p>What base URL should <strong>osqueryd</strong> clients user to connect and register with <strong>Kolide</strong>?</p>
+            <p>What base URL should <strong>osqueryd</strong> clients use to connect and register with <strong>Kolide</strong>?</p>
             <p className={`${baseClass}__note`}><strong>Note:</strong> Please ensure the URL you choose is accessible to all endpoints that need to communicate with Kolide, otherwise they will not be able to correctly register.</p>
           </div>
         </div>
@@ -293,14 +293,14 @@ class AppConfigForm extends Component {
           <div className={`${baseClass}__details`}>
             <p>If your mail server requires authentication, you need to specify the authentication type here.</p>
             <p><strong>No Authentication</strong> - Select this if your SMTP is open.</p>
-            <p><strong>Username & Password</strong> - Select this if your SMTP server requires username and password before use.</p>
+            <p><strong>Username & Password</strong> - Select this if your SMTP server requires authentication with a username and password.</p>
           </div>
         </div>
         <div className={`${baseClass}__section`}>
           <h2>Osquery Enrollment Secret</h2>
           <div className={`${baseClass}__inputs`}>
             <p className={`${baseClass}__enroll-secret-label`}>
-              This is the secret that you use to connect Kolide to osquery:
+              This is the secret that you use to enroll osquery agents with Kolide:
               <Button variant="unstyled" onClick={onToggleRevealSecret}>Reveal Secret</Button>
             </p>
             <InputField
@@ -328,4 +328,3 @@ export default Form(AppConfigForm, {
   fields: formFields,
   validate,
 });
-
