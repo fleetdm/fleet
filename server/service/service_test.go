@@ -26,8 +26,9 @@ func TestRotateLoggerSIGHUP(t *testing.T) {
 	// write a log line
 	logFile.Write([]byte("msg1"))
 
-	sig := make(chan os.Signal)
+	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGHUP)
+	defer signal.Reset(syscall.SIGHUP)
 
 	// send SIGHUP to the process
 	err = syscall.Kill(syscall.Getpid(), syscall.SIGHUP)
