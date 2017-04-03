@@ -12,6 +12,27 @@
 
 * Manage packs page now loads much quicker when a large number of hosts are enrolled.
 
+* Fixed bug with the "Reset Options" button.
+
+* Fixed 500 error resulting from saving unchanged options.
+
+* Improved validation for SMTP settings.
+
+* Added command line support for `modern`, `intermediate`, and `old` TLS configuration
+profiles. The profile is set using the following command line argument.
+```
+--server_tls_compatibility=modern
+```
+See https://wiki.mozilla.org/Security/Server_Side_TLS for more information on the different profile options.
+
+* The Options Configuration item in the sidebar is now only available to admin users.
+
+  Previously this item was visible to non-admin users and if selected, a blank options page would be displayed since server side authorization constraints prevent regular users from viewing or changing options.  
+
+* Improved validation for the Kolide server URL supplied in setup and configuration.
+
+* Fixed an issue importing osquery configurations with numeric values represented as strings in JSON.
+
 ## Kolide 1.0.2 (March 14, 2017)
 
 * Fix an issue adding additional targets when querying a host
