@@ -1,3 +1,7 @@
+## Kolide 1.0.2 (April 3, 2017)
+
+* Log rotation is no longer the default setting for Osquery status and results logs. To enable log rotation use the `--osquery_enable_log_rotation` flag.
+
 * Add a debug endpoint for collecting performance statistics and profiles.
 
   When `kolide serve --debug` is used, additional handlers will be started to provide access to profiling tools. These endpoints are authenticated with a randomly generated token that is printed to the Kolide logs at startup. These profiling tools are not intended for general use, but they may be useful when providing performance-related bug reports to the Kolide developers.

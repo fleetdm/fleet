@@ -12,15 +12,21 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/kolide/kolide/server/config"
 	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/kolide/server/logwriter"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 
 // NewService creates a new service from the config struct
 func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore, logger kitlog.Logger, kolideConfig config.KolideConfig, mailService kolide.MailService, c clock.Clock, checker kolide.LicenseChecker) (kolide.Service, error) {
 	var svc kolide.Service
-
-	statusWriter := osqueryLogFile(kolideConfig.Osquery.StatusLogFile, logger)
-	resultWriter := osqueryLogFile(kolideConfig.Osquery.ResultLogFile, logger)
+	statusWriter, err := osqueryLogFile(kolideConfig.Osquery.StatusLogFile, logger, kolideConfig.Osquery.EnableLogRotation)
+	if err != nil {
+		return nil, err
+	}
+	resultWriter, err := osqueryLogFile(kolideConfig.Osquery.ResultLogFile, logger, kolideConfig.Osquery.EnableLogRotation)
+	if err != nil {
+		return nil, err
+	}
 
 	svc = service{
 		ds:             ds,
@@ -39,28 +45,31 @@ func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore, logger
 }
 
 // osqueryLogFile creates a log file for osquery status/result logs
-// the logFile can be rotated by sending a `SIGHUP` signal to kolide.
-func osqueryLogFile(path string, appLogger kitlog.Logger) io.Writer {
-	osquerydLogger := &lumberjack.Logger{
-		Filename:   path,
-		MaxSize:    500, // megabytes
-		MaxBackups: 3,
-		MaxAge:     28, //days
-	}
-	appLogger = kitlog.With(appLogger, "component", "osqueryd-logger")
-
-	sig := make(chan os.Signal)
-	signal.Notify(sig, syscall.SIGHUP)
-	go func() {
-		for {
-			<-sig //block on signal
-			if err := osquerydLogger.Rotate(); err != nil {
-				appLogger.Log("err", err)
-			}
+// the logFile can be rotated by sending a `SIGHUP` signal to kolide if
+// enableRotation is true
+func osqueryLogFile(path string, appLogger kitlog.Logger, enableRotation bool) (io.Writer, error) {
+	if enableRotation {
+		osquerydLogger := &lumberjack.Logger{
+			Filename:   path,
+			MaxSize:    500, // megabytes
+			MaxBackups: 3,
+			MaxAge:     28, //days
 		}
-	}()
-
-	return osquerydLogger
+		appLogger = kitlog.With(appLogger, "component", "osqueryd-logger")
+		sig := make(chan os.Signal)
+		signal.Notify(sig, syscall.SIGHUP)
+		go func() {
+			for {
+				<-sig //block on signal
+				if err := osquerydLogger.Rotate(); err != nil {
+					appLogger.Log("err", err)
+				}
+			}
+		}()
+		return osquerydLogger, nil
+	}
+	// no log rotation
+	return logwriter.New(path)
 }
 
 type service struct {

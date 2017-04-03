@@ -473,6 +473,20 @@ The interval at which Kolide will ask osquery agents to update their results for
 		label_query_update_interval: 30m
 	```
 
+##### `osquery_enable_log_rotation`
+
+This flag will cause the osquery result and status log files to be automatically
+rotated when files reach a size of 500 Mb or an age of 28 days.
+
+- Default value: `false`
+- Environment variable: `KOLIDE_OSQUERY_ENABLE_LOG_ROTATION`
+- Config file format:
+
+  ```
+  osquery:
+     enable_log_rotation: true
+  ```
+
 #### Logging
 
 ##### `logging_debug`
@@ -513,5 +527,3 @@ Whether or not to log the welcome banner.
 	logging:
 		diable_banner: true
 	```
-
-

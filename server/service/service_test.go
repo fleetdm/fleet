@@ -21,7 +21,8 @@ func TestRotateLoggerSIGHUP(t *testing.T) {
 	require.Nil(t, err)
 	defer f.Close()
 
-	logFile := osqueryLogFile(f.Name(), log.NewNopLogger())
+	logFile, err := osqueryLogFile(f.Name(), log.NewNopLogger(), false)
+	require.Nil(t, err)
 
 	// write a log line
 	logFile.Write([]byte("msg1"))

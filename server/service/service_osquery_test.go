@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 	"sync"
 	"testing"
@@ -84,6 +85,12 @@ func TestAuthenticateHost(t *testing.T) {
 	assert.Equal(t, mockClock.Now(), checkHost.UpdatedAt)
 }
 
+type nopCloserWriter struct {
+	io.Writer
+}
+
+func (n *nopCloserWriter) Close() error { return nil }
+
 func TestSubmitStatusLogs(t *testing.T) {
 	ds, svc, _ := setupOsqueryTests(t)
 	ctx := context.Background()
@@ -101,7 +108,7 @@ func TestSubmitStatusLogs(t *testing.T) {
 	serv := ((svc.(validationMiddleware)).Service).(service)
 
 	var statusBuf bytes.Buffer
-	serv.osqueryStatusLogWriter = &statusBuf
+	serv.osqueryStatusLogWriter = &nopCloserWriter{&statusBuf}
 
 	logs := []string{
 		`{"severity":"0","filename":"tls.cpp","line":"216","message":"some message","version":"1.8.2","decorations":{"host_uuid":"uuid_foobar","username":"zwass"}}`,
@@ -144,7 +151,7 @@ func TestSubmitResultLogs(t *testing.T) {
 	serv := ((svc.(validationMiddleware)).Service).(service)
 
 	var resultBuf bytes.Buffer
-	serv.osqueryResultLogWriter = &resultBuf
+	serv.osqueryResultLogWriter = &nopCloserWriter{&resultBuf}
 
 	logs := []string{
 		`{"name":"system_info","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 17:55:15 2016 UTC","unixTime":"1475258115","decorations":{"host_uuid":"some_uuid","username":"zwass"},"columns":{"cpu_brand":"Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz","hostname":"hostimus","physical_memory":"17179869184"},"action":"added"}`,
