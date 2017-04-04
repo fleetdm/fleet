@@ -1,4 +1,4 @@
-## Kolide 1.0.2 (April 3, 2017)
+## Kolide 1.0.3 (April 3, 2017)
 
 * Log rotation is no longer the default setting for Osquery status and results logs. To enable log rotation use the `--osquery_enable_log_rotation` flag.
 
