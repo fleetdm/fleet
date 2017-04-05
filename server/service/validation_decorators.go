@@ -1,8 +1,9 @@
 package service
 
 import (
+	"context"
+
 	"github.com/kolide/kolide/server/kolide"
-	"golang.org/x/net/context"
 )
 
 func validateNewDecoratorType(payload kolide.DecoratorPayload, invalid *invalidArgumentError) {

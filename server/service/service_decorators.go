@@ -1,8 +1,9 @@
 package service
 
 import (
+	"context"
+
 	"github.com/kolide/kolide/server/kolide"
-	"golang.org/x/net/context"
 )
 
 func (svc service) ListDecorators(ctx context.Context) ([]*kolide.Decorator, error) {

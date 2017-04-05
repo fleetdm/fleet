@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 
@@ -13,7 +14,6 @@ import (
 	"github.com/kolide/kolide/server/pubsub"
 	"github.com/kolide/kolide/server/service"
 	"github.com/spf13/cobra"
-	"golang.org/x/net/context"
 )
 
 func createPrepareCmd(configManager config.Manager) *cobra.Command {

@@ -1,10 +1,9 @@
 package kolide
 
 import (
+	"context"
 	"errors"
 	"strings"
-
-	"golang.org/x/net/context"
 )
 
 // DecoratorStore methods to manipulate decorator queries.

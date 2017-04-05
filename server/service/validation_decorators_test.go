@@ -1,13 +1,13 @@
 package service
 
 import (
+	"context"
 	"testing"
 
 	"github.com/kolide/kolide/server/kolide"
 	"github.com/kolide/kolide/server/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 )
 
 var dtPtr = func(t kolide.DecoratorType) *kolide.DecoratorType { return &t }
