@@ -86,6 +86,9 @@ type Host struct {
 	// can be found in the NetworkInterfaces element with the same ip_address.
 	PrimaryNetworkInterfaceID *uint               `json:"primary_ip_id,omitempty" db:"primary_ip_id"`
 	NetworkInterfaces         []*NetworkInterface `json:"network_interfaces" db:"-"`
+	DistributedInterval       uint                `json:"distributed_interval" db:"distributed_interval"`
+	ConfigTLSRefresh          uint                `json:"config_tls_refresh" db:"config_tls_refresh"`
+	LoggerTLSPeriod           uint                `json:"logger_tls_period" db:"logger_tls_period"`
 }
 
 // HostSummary is a structure which represents a data summary about the total

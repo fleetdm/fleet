@@ -13,6 +13,7 @@ import (
 	"github.com/kolide/kolide/server/kolide"
 	"github.com/kolide/kolide/server/pubsub"
 	"github.com/pkg/errors"
+	"github.com/spf13/cast"
 )
 
 type osqueryError struct {
@@ -148,6 +149,32 @@ func (svc service) GetClientConfig(ctx context.Context) (*kolide.OsqueryConfig, 
 		}
 	}
 
+	// Save interval values if they have been updated. Note
+	// config_tls_refresh can only be set in the osquery flags so is
+	// ignored here.
+	saveHost := false
+
+	distributedIntervalVal, ok := config.Options["distributed_interval"]
+	distributedInterval, err := cast.ToUintE(distributedIntervalVal)
+	if ok && err == nil && host.DistributedInterval != distributedInterval {
+		host.DistributedInterval = distributedInterval
+		saveHost = true
+	}
+
+	loggerTLSPeriodVal, ok := config.Options["logger_tls_period"]
+	loggerTLSPeriod, err := cast.ToUintE(loggerTLSPeriodVal)
+	if ok && err == nil && host.LoggerTLSPeriod != loggerTLSPeriod {
+		host.LoggerTLSPeriod = loggerTLSPeriod
+		saveHost = true
+	}
+
+	if saveHost {
+		err := svc.ds.SaveHost(&host)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return config, nil
 }
 
@@ -209,109 +236,6 @@ var detailQueries = map[string]struct {
 	Query      string
 	IngestFunc func(logger log.Logger, host *kolide.Host, rows []map[string]string) error
 }{
-	"osquery_info": {
-		Query: "select * from osquery_info limit 1",
-		IngestFunc: func(logger log.Logger, host *kolide.Host, rows []map[string]string) error {
-			if len(rows) != 1 {
-				logger.Log("component", "service", "method", "IngestFunc", "err",
-					fmt.Sprintf("detail_query_osquery_info expected single result got %d", len(rows)))
-				return nil
-			}
-
-			host.OsqueryVersion = rows[0]["version"]
-
-			return nil
-		},
-	},
-	"system_info": {
-		Query: "select * from system_info limit 1",
-		IngestFunc: func(logger log.Logger, host *kolide.Host, rows []map[string]string) error {
-			if len(rows) != 1 {
-				logger.Log("component", "service", "method", "IngestFunc", "err",
-					fmt.Sprintf("detail_query_system_info expected single result got %d", len(rows)))
-				return nil
-			}
-
-			var err error
-			host.PhysicalMemory, err = strconv.Atoi(rows[0]["physical_memory"])
-			if err != nil {
-				return err
-			}
-			host.HostName = rows[0]["hostname"]
-			host.UUID = rows[0]["uuid"]
-			host.CPUType = rows[0]["cpu_type"]
-			host.CPUSubtype = rows[0]["cpu_subtype"]
-			host.CPUBrand = rows[0]["cpu_brand"]
-			host.CPUPhysicalCores, err = strconv.Atoi(rows[0]["cpu_physical_cores"])
-			if err != nil {
-				return err
-			}
-			host.CPULogicalCores, err = strconv.Atoi(rows[0]["cpu_logical_cores"])
-			if err != nil {
-				return err
-			}
-			host.HardwareVendor = rows[0]["hardware_vendor"]
-			host.HardwareModel = rows[0]["hardware_model"]
-			host.HardwareVersion = rows[0]["hardware_version"]
-			host.HardwareSerial = rows[0]["hardware_serial"]
-			host.ComputerName = rows[0]["computer_name"]
-			return nil
-		},
-	},
-	"os_version": {
-		Query: "select * from os_version limit 1",
-		IngestFunc: func(logger log.Logger, host *kolide.Host, rows []map[string]string) error {
-			if len(rows) != 1 {
-				logger.Log("component", "service", "method", "IngestFunc", "err",
-					fmt.Sprintf("detail_query_os_version expected single result got %d", len(rows)))
-				return nil
-			}
-
-			host.OSVersion = fmt.Sprintf(
-				"%s %s.%s.%s",
-				rows[0]["name"],
-				rows[0]["major"],
-				rows[0]["minor"],
-				rows[0]["patch"],
-			)
-			host.OSVersion = strings.Trim(host.OSVersion, ".")
-
-			if build, ok := rows[0]["build"]; ok {
-				host.Build = build
-			}
-
-			host.Platform = rows[0]["platform"]
-			host.PlatformLike = rows[0]["platform_like"]
-			host.CodeName = rows[0]["code_name"]
-
-			// On centos6 there is an osquery bug that leaves
-			// platform empty. Here we workaround.
-			if host.Platform == "" &&
-				strings.Contains(strings.ToLower(rows[0]["name"]), "centos") {
-				host.Platform = "centos"
-			}
-
-			return nil
-		},
-	},
-	"uptime": {
-		Query: "select * from uptime limit 1",
-		IngestFunc: func(logger log.Logger, host *kolide.Host, rows []map[string]string) error {
-			if len(rows) != 1 {
-				logger.Log("component", "service", "method", "IngestFunc", "err",
-					fmt.Sprintf("detail_query_uptime expected single result got %d", len(rows)))
-				return nil
-			}
-
-			uptimeSeconds, err := strconv.Atoi(rows[0]["total_seconds"])
-			if err != nil {
-				return err
-			}
-			host.Uptime = time.Duration(uptimeSeconds) * time.Second
-
-			return nil
-		},
-	},
 	"network_interface": {
 		Query: `select * from interface_details id join interface_addresses ia
                         on ia.interface = id.interface where broadcast != ""
@@ -370,6 +294,144 @@ var detailQueries = map[string]struct {
 			}
 
 			host.NetworkInterfaces = networkInterfaces
+
+			return nil
+		},
+	},
+	"os_version": {
+		Query: "select * from os_version limit 1",
+		IngestFunc: func(logger log.Logger, host *kolide.Host, rows []map[string]string) error {
+			if len(rows) != 1 {
+				logger.Log("component", "service", "method", "IngestFunc", "err",
+					fmt.Sprintf("detail_query_os_version expected single result got %d", len(rows)))
+				return nil
+			}
+
+			host.OSVersion = fmt.Sprintf(
+				"%s %s.%s.%s",
+				rows[0]["name"],
+				rows[0]["major"],
+				rows[0]["minor"],
+				rows[0]["patch"],
+			)
+			host.OSVersion = strings.Trim(host.OSVersion, ".")
+
+			if build, ok := rows[0]["build"]; ok {
+				host.Build = build
+			}
+
+			host.Platform = rows[0]["platform"]
+			host.PlatformLike = rows[0]["platform_like"]
+			host.CodeName = rows[0]["code_name"]
+
+			// On centos6 there is an osquery bug that leaves
+			// platform empty. Here we workaround.
+			if host.Platform == "" &&
+				strings.Contains(strings.ToLower(rows[0]["name"]), "centos") {
+				host.Platform = "centos"
+			}
+
+			return nil
+		},
+	},
+	"osquery_flags": {
+		// Collect the interval info (used for online status
+		// calculation) from the osquery flags. We typically control
+		// distributed_interval (but it's not required), and typically
+		// do not control config_tls_refresh.
+		Query: `select name, value from osquery_flags where name in ("distributed_interval", "config_tls_refresh", "logger_tls_period")`,
+		IngestFunc: func(logger log.Logger, host *kolide.Host, rows []map[string]string) error {
+			for _, row := range rows {
+				switch row["name"] {
+
+				case "distributed_interval":
+					interval, err := strconv.Atoi(row["value"])
+					if err != nil {
+						return errors.Wrap(err, "parsing distributed_interval")
+					}
+					host.DistributedInterval = uint(interval)
+
+				case "config_tls_refresh":
+					interval, err := strconv.Atoi(row["value"])
+					if err != nil {
+						return errors.Wrap(err, "parsing config_tls_refresh")
+					}
+					host.ConfigTLSRefresh = uint(interval)
+
+				case "logger_tls_period":
+					interval, err := strconv.Atoi(row["value"])
+					if err != nil {
+						return errors.Wrap(err, "parsing logger_tls_period")
+					}
+					host.LoggerTLSPeriod = uint(interval)
+				}
+			}
+			return nil
+		},
+	},
+	"osquery_info": {
+		Query: "select * from osquery_info limit 1",
+		IngestFunc: func(logger log.Logger, host *kolide.Host, rows []map[string]string) error {
+			if len(rows) != 1 {
+				logger.Log("component", "service", "method", "IngestFunc", "err",
+					fmt.Sprintf("detail_query_osquery_info expected single result got %d", len(rows)))
+				return nil
+			}
+
+			host.OsqueryVersion = rows[0]["version"]
+
+			return nil
+		},
+	},
+	"system_info": {
+		Query: "select * from system_info limit 1",
+		IngestFunc: func(logger log.Logger, host *kolide.Host, rows []map[string]string) error {
+			if len(rows) != 1 {
+				logger.Log("component", "service", "method", "IngestFunc", "err",
+					fmt.Sprintf("detail_query_system_info expected single result got %d", len(rows)))
+				return nil
+			}
+
+			var err error
+			host.PhysicalMemory, err = strconv.Atoi(rows[0]["physical_memory"])
+			if err != nil {
+				return err
+			}
+			host.HostName = rows[0]["hostname"]
+			host.UUID = rows[0]["uuid"]
+			host.CPUType = rows[0]["cpu_type"]
+			host.CPUSubtype = rows[0]["cpu_subtype"]
+			host.CPUBrand = rows[0]["cpu_brand"]
+			host.CPUPhysicalCores, err = strconv.Atoi(rows[0]["cpu_physical_cores"])
+			if err != nil {
+				return err
+			}
+			host.CPULogicalCores, err = strconv.Atoi(rows[0]["cpu_logical_cores"])
+			if err != nil {
+				return err
+			}
+			host.HardwareVendor = rows[0]["hardware_vendor"]
+			host.HardwareModel = rows[0]["hardware_model"]
+			host.HardwareVersion = rows[0]["hardware_version"]
+			host.HardwareSerial = rows[0]["hardware_serial"]
+			host.ComputerName = rows[0]["computer_name"]
+			return nil
+		},
+	},
+	"uptime": {
+		Query: "select * from uptime limit 1",
+		IngestFunc: func(logger log.Logger, host *kolide.Host, rows []map[string]string) error {
+			if len(rows) != 1 {
+				logger.Log("component", "service", "method", "IngestFunc", "err",
+					fmt.Sprintf("detail_query_uptime expected single result got %d", len(rows)))
+				return nil
+			}
+
+			uptimeSeconds, err := strconv.Atoi(rows[0]["total_seconds"])
+			if err != nil {
+				return err
+			}
+			host.Uptime = time.Duration(uptimeSeconds) * time.Second
 
 			return nil
 		},

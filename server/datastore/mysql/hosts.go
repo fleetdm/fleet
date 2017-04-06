@@ -173,7 +173,10 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 			platform_like = ?,
 			code_name = ?,
 			cpu_logical_cores = ?,
-			seen_time = ?
+			seen_time = ?,
+			distributed_interval = ?,
+			config_tls_refresh = ?,
+			logger_tls_period = ?
 		WHERE id = ?
 	`
 
@@ -207,6 +210,9 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 		host.CodeName,
 		host.CPULogicalCores,
 		host.SeenTime,
+		host.DistributedInterval,
+		host.ConfigTLSRefresh,
+		host.LoggerTLSPeriod,
 		host.ID)
 	if err != nil {
 		tx.Rollback()

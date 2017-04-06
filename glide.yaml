@@ -42,7 +42,6 @@ import:
   version: fd703108daeb23d77c124d12978e9b6c4f28f034
 - package: github.com/spf13/cobra
 - package: github.com/spf13/viper
-- package: github.com/spf13/cast
 - package: gopkg.in/natefinch/lumberjack.v2
   version: v2.0
 - package: github.com/golang/mock
@@ -69,3 +68,5 @@ import:
 - package: github.com/ryanuber/go-license
 - package: github.com/igm/sockjs-go
 - package: github.com/e-dard/netbug
+- package: github.com/spf13/cast
+  version: ~1.0.0

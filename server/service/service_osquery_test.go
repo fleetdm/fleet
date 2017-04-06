@@ -17,6 +17,7 @@ import (
 	"github.com/kolide/kolide/server/contexts/viewer"
 	"github.com/kolide/kolide/server/datastore/inmem"
 	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/kolide/server/mock"
 	"github.com/kolide/kolide/server/pubsub"
 	"github.com/kolide/kolide/server/test"
 	"github.com/stretchr/testify/assert"
@@ -523,6 +524,20 @@ func TestDetailQueries(t *testing.T) {
         "seconds": "13",
         "total_seconds": "1730893"
     }
+],
+"kolide_detail_query_osquery_flags": [
+    {
+      "name":"config_tls_refresh",
+      "value":"10"
+    },
+    {
+      "name":"distributed_interval",
+      "value":"5"
+    },
+    {
+      "name":"logger_tls_period",
+      "value":"60"
+    }
 ]
 }
 `
@@ -552,6 +567,11 @@ func TestDetailQueries(t *testing.T) {
 
 	// uptime
 	assert.Equal(t, 1730893*time.Second, host.Uptime)
+
+	// osquery_flags
+	assert.Equal(t, uint(10), host.ConfigTLSRefresh)
+	assert.Equal(t, uint(5), host.DistributedInterval)
+	assert.Equal(t, uint(60), host.LoggerTLSPeriod)
 
 	mockClock.AddTime(1 * time.Minute)
 
@@ -766,6 +786,138 @@ func TestOrphanedQueryCampaign(t *testing.T) {
 	campaign, err = ds.DistributedQueryCampaign(campaign.ID)
 	require.Nil(t, err)
 	assert.Equal(t, kolide.QueryComplete, campaign.Status)
+}
+
+func TestUpdateHostIntervals(t *testing.T) {
+	ds := new(mock.Store)
+
+	svc, err := newTestService(ds, nil)
+	require.Nil(t, err)
+
+	ds.ListDecoratorsFunc = func() ([]*kolide.Decorator, error) {
+		return []*kolide.Decorator{}, nil
+	}
+	ds.ListPacksFunc = func(opt kolide.ListOptions) ([]*kolide.Pack, error) {
+		return []*kolide.Pack{}, nil
+	}
+	ds.ListLabelsForHostFunc = func(hid uint) ([]kolide.Label, error) {
+		return []kolide.Label{}, nil
+	}
+
+	var testCases = []struct {
+		initHost       kolide.Host
+		finalHost      kolide.Host
+		configOptions  map[string]interface{}
+		saveHostCalled bool
+	}{
+		// Both updated
+		{
+			kolide.Host{
+				ConfigTLSRefresh: 60,
+			},
+			kolide.Host{
+				DistributedInterval: 11,
+				LoggerTLSPeriod:     33,
+				ConfigTLSRefresh:    60,
+			},
+			map[string]interface{}{
+				"distributed_interval": 11,
+				"logger_tls_period":    33,
+				"logger_plugin":        "tls",
+			},
+			true,
+		},
+		// Only logger_tls_period updated
+		{
+			kolide.Host{
+				DistributedInterval: 11,
+				ConfigTLSRefresh:    60,
+			},
+			kolide.Host{
+				DistributedInterval: 11,
+				LoggerTLSPeriod:     33,
+				ConfigTLSRefresh:    60,
+			},
+			map[string]interface{}{
+				"distributed_interval": 11,
+				"logger_tls_period":    33,
+			},
+			true,
+		},
+		// Only distributed_interval updated
+		{
+			kolide.Host{
+				ConfigTLSRefresh: 60,
+				LoggerTLSPeriod:  33,
+			},
+			kolide.Host{
+				DistributedInterval: 11,
+				LoggerTLSPeriod:     33,
+				ConfigTLSRefresh:    60,
+			},
+			map[string]interface{}{
+				"distributed_interval": 11,
+				"logger_tls_period":    33,
+			},
+			true,
+		},
+		// Kolide not managing distributed_interval
+		{
+			kolide.Host{
+				ConfigTLSRefresh:    60,
+				DistributedInterval: 11,
+			},
+			kolide.Host{
+				DistributedInterval: 11,
+				LoggerTLSPeriod:     33,
+				ConfigTLSRefresh:    60,
+			},
+			map[string]interface{}{
+				"logger_tls_period": 33,
+			},
+			true,
+		},
+		// SaveHost should not be called with no changes
+		{
+			kolide.Host{
+				DistributedInterval: 11,
+				LoggerTLSPeriod:     33,
+				ConfigTLSRefresh:    60,
+			},
+			kolide.Host{
+				DistributedInterval: 11,
+				LoggerTLSPeriod:     33,
+				ConfigTLSRefresh:    60,
+			},
+			map[string]interface{}{
+				"distributed_interval": 11,
+				"logger_tls_period":    33,
+			},
+			false,
+		},
+	}
+
+	for _, tt := range testCases[4:] {
+		t.Run("", func(t *testing.T) {
+			ctx := hostctx.NewContext(context.Background(), tt.initHost)
+
+			ds.GetOsqueryConfigOptionsFunc = func() (map[string]interface{}, error) {
+				return tt.configOptions, nil
+			}
+
+			saveHostCalled := false
+			ds.SaveHostFunc = func(host *kolide.Host) error {
+				saveHostCalled = true
+				assert.Equal(t, tt.finalHost, *host)
+				return nil
+			}
+
+			_, err = svc.GetClientConfig(ctx)
+			require.Nil(t, err)
+			assert.Equal(t, tt.saveHostCalled, saveHostCalled)
+		})
+	}
+
 }
 
 func setupOsqueryTests(t *testing.T) (kolide.Datastore, kolide.Service, *clock.MockClock) {

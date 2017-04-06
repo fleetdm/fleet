@@ -1,5 +1,5 @@
-hash: 08220902abb9783f0474c20495d92f407f4028b56ab95879b867c0dec4aab7cc
-updated: 2017-03-29T10:16:52.853564516-07:00
+hash: 1baa8047c7c6da3ca484e0bfebd881a17181a76ccccbddb2cff087c3f6de97c9
+updated: 2017-04-05T15:21:30.066640809-07:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -128,7 +128,7 @@ imports:
   subpackages:
   - mem
 - name: github.com/spf13/cast
-  version: e31f36ffc91a2ba9ddb72a4b6a607ff9b3d3cb63
+  version: ce135a4ebeee6cfe9a26c93ee0d37825f26113c7
 - name: github.com/spf13/cobra
   version: 37c3f8060359192150945916cbc2d72bce804b4d
 - name: github.com/spf13/jwalterweatherman
