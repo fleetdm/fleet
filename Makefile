@@ -148,9 +148,10 @@ generate-dev: .prefix
 
 deps:
 	yarn
-	go get github.com/jteeuwen/go-bindata/...
-	go get github.com/Masterminds/glide
-	go get github.com/groob/mockimpl
+	go get -u \
+		github.com/jteeuwen/go-bindata/... \
+		github.com/Masterminds/glide \
+		github.com/groob/mockimpl
 	glide install --strip-vendor
 
 distclean:
