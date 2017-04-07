@@ -112,6 +112,13 @@ $base-class: 'panel-group-item';
     .#{$base-class}__icon {
       color: $text-light;
     }
+
+    &--macos {
+      .#{$base-class}__icon {
+        margin-right: 24px;
+        margin-left: 2px;
+      }
+    }
   }
 
   &__custom {
