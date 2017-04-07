@@ -23,7 +23,8 @@ class TargetDetails extends Component {
 
   onlineHosts = (labelBaseClass, count, online) => {
     const offline = count - online;
-    const percentOnline = ((count - offline) / count) * 100;
+    const percentCount = ((count - offline) / count) * 100;
+    const percentOnline = parseFloat(percentCount.toFixed(2));
 
     if (online > 0) {
       return (
