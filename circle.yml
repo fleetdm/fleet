@@ -21,7 +21,7 @@ dependencies:
     - "vendor"
     - "node_modules"
     - "~/deps"
-    - "/opt/google-cloud-sdk"
+    # - "/opt/google-cloud-sdk"
 
   override:
       # workaround for https://github.com/yarnpkg/yarn/issues/1981

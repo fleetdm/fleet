@@ -14,6 +14,7 @@ setup_gcloud() {
     sudo chown -R ubuntu:ubuntu /home/ubuntu/.kube
 }
 
+
 setup_gcloud
 
 # configure slack notification webhooks

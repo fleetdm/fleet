@@ -3,6 +3,7 @@
 REVSHORT="$(git rev-parse --short HEAD)"
 exec_template="/home/ubuntu/deps/exec-template"
 slacktee="/home/ubuntu/deps/slacktee"
+kubectl="/opt/google-cloud-sdk/bin/kubectl"
 
 start_cloudsql_proxy() {
 
@@ -68,11 +69,11 @@ deploy_pr() {
     $exec_template -json="$jsn" -template=./tools/ci/k8s-templates/redis-pr-service.template > /tmp/redis-service.yml
     $exec_template -json="$jsn" -template=./tools/ci/k8s-templates/redis-pr-deployment.template > /tmp/redis-deployment.yml
 
-    kubectl apply -f /tmp/service.yml
-    kubectl apply -f /tmp/deployment.yml
+    sudo $kubectl apply -f /tmp/service.yml
+    sudo $kubectl apply -f /tmp/deployment.yml
 
-    kubectl apply -f /tmp/redis-service.yml
-    kubectl apply -f /tmp/redis-deployment.yml
+    sudo $kubectl apply -f /tmp/redis-service.yml
+    sudo $kubectl apply -f /tmp/redis-deployment.yml
 
     echo "Deployed PR ${CIRCLE_PR_NUMBER}, commit ${CIRCLE_SHA1}" | \
         $slacktee \
@@ -91,8 +92,8 @@ deploy_branch() {
     $exec_template -json="$jsn" -template=./tools/ci/k8s-templates/branch-service.template > /tmp/service.yml
     $exec_template -json="$jsn" -template=./tools/ci/k8s-templates/branch-deployment.template > /tmp/deployment.yml
 
-    kubectl apply -f /tmp/deployment.yml
-    kubectl apply -f /tmp/service.yml
+    sudo $kubectl apply -f /tmp/deployment.yml
+    sudo $kubectl apply -f /tmp/service.yml
 
     echo "Deployed Branch ${branch}, commit ${CIRCLE_SHA1}" | \
         $slacktee \
