@@ -352,19 +352,6 @@ The key size of the salt which is generated when hashing user passwords.
 
 #### App
 
-##### `app_token_key`
-
-Secret key for generating invite and reset tokens.
-
-- Default value: `CHANGEME`
-- Environment variable:	`KOLIDE_APP_TOKEN_KEY`
-- Config file format
-
-	```
-	app:
-		token_key: JVnKw7CaUdJjZwYAqDgUHVYP
-	```
-
 ##### `app_token_key_size`
 
 Size of generated app tokens.
