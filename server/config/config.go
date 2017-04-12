@@ -59,7 +59,6 @@ type AuthConfig struct {
 // AppConfig defines configs related to HTTP
 type AppConfig struct {
 	TokenKeySize              int           `yaml:"token_key_size"`
-	TokenKey                  string        `yaml:"token_key"`
 	InviteTokenValidityPeriod time.Duration `yaml:"invite_token_validity_period"`
 }
 
@@ -220,7 +219,6 @@ func (man Manager) LoadConfig() KolideConfig {
 		},
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),
-			TokenKey:                  man.getConfigString("app.token_key"),
 			InviteTokenValidityPeriod: man.getConfigDuration("app.invite_token_validity_period"),
 		},
 		Session: SessionConfig{
@@ -439,7 +437,7 @@ func (man Manager) loadConfigFile() {
 func TestConfig() KolideConfig {
 	return KolideConfig{
 		App: AppConfig{
-			TokenKey:                  "CHANGEME",
+			TokenKeySize:              24,
 			InviteTokenValidityPeriod: 5 * 24 * time.Hour,
 		},
 		Auth: AuthConfig{
