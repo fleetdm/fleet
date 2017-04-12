@@ -9,6 +9,7 @@ package mock
 //go:generate mockimpl -o datastore_options.go "s *OptionStore" "kolide.OptionStore"
 //go:generate mockimpl -o datastore_packs.go "s *PackStore" "kolide.PackStore"
 //go:generate mockimpl -o datastore_hosts.go "s *HostStore" "kolide.HostStore"
+//go:generate mockimpl -o datastore_identity_providers.go "s *IdentityProviderStore" "kolide.IdentityProviderStore"
 
 import "github.com/kolide/kolide/server/kolide"
 
@@ -32,6 +33,7 @@ type Store struct {
 	OptionStore
 	PackStore
 	UserStore
+	IdentityProviderStore
 }
 
 func (m *Store) Drop() error {

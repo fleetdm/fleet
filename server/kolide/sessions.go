@@ -33,6 +33,9 @@ type SessionStore interface {
 }
 
 type SessionService interface {
+	// SSOLogin handles creating a session for a user who is authenticated by
+	// a SAML identity provider, returning the user and a token on success
+	SSOLogin(ctx context.Context, userId string) (*User, string, error)
 	Login(ctx context.Context, username, password string) (user *User, token string, err error)
 	Logout(ctx context.Context) (err error)
 	DestroySession(ctx context.Context) (err error)

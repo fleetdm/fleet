@@ -13,6 +13,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+func (svc service) SSOLogin(ctx context.Context, userId string) (*kolide.User, string, error) {
+	return nil, "", errors.New("not implemented")
+}
+
 func (svc service) Login(ctx context.Context, username, password string) (*kolide.User, string, error) {
 	user, err := svc.userByEmailOrUsername(username)
 	if _, ok := err.(kolide.NotFoundError); ok {
