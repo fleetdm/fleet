@@ -2,9 +2,8 @@ server:
   cert: "./tools/osquery/kolide.crt"
   key: "./tools/osquery/kolide.key"
 auth:
-  jwt_key: very secure
+  jwt_key: very secure dev setup jwt key
 osquery:
-  enroll_secret: super secure
   result_log_file: /tmp/osquery_result
   status_log_file: /tmp/osquery_status
 logging:

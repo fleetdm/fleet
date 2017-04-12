@@ -51,6 +51,8 @@ spec:
               value: pr_{{ .Number }}_{{ .RevShort }}
             - name: KOLIDE_REDIS_ADDRESS
               value: redis-kolide-pr-{{ .Number }}:6379
+            - name: KOLIDE_AUTH_JWT_KEY
+              value: changeme_fake_jwt_key
         ports:
         - containerPort: 8080
       - name: cloudsql-proxy

@@ -142,8 +142,8 @@ func (man Manager) addConfigs() {
 			TLSProfileModern, TLSProfileIntermediate, TLSProfileOld))
 
 	// Auth
-	man.addConfigString(
-		"auth.jwt_key", "CHANGEME", "JWT session token key")
+	man.addConfigString("auth.jwt_key", "",
+		"JWT session token key (required)")
 	man.addConfigInt("auth.bcrypt_cost", 12,
 		"Bcrypt iterations")
 	man.addConfigInt("auth.salt_key_size", 24,

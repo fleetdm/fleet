@@ -1,3 +1,7 @@
+* Kolide server now requires `--auth_jwt_key` to be specified at startup.
+
+  If no JWT key is provided by the user, the server will print a new suggested random JWT key for use.
+
 * Fix rounding error when showing % of online hosts
 
 ## Kolide 1.0.3 (April 3, 2017)
@@ -33,7 +37,7 @@ See https://wiki.mozilla.org/Security/Server_Side_TLS for more information on th
 
 * The Options Configuration item in the sidebar is now only available to admin users.
 
-  Previously this item was visible to non-admin users and if selected, a blank options page would be displayed since server side authorization constraints prevent regular users from viewing or changing options.  
+  Previously this item was visible to non-admin users and if selected, a blank options page would be displayed since server side authorization constraints prevent regular users from viewing or changing options.
 
 * Improved validation for the Kolide server URL supplied in setup and configuration.
 

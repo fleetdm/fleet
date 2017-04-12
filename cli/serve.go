@@ -99,6 +99,23 @@ the way that the kolide server works.
 				os.Exit(1)
 			}
 
+			if config.Auth.JwtKey == "" {
+				jwtKey, err := kolide.RandomText(24)
+				if err != nil {
+					initFatal(err, "generating sample jwt key")
+				}
+				fmt.Printf("################################################################################\n"+
+					"# ERROR:\n"+
+					"#   A value must be supplied for --auth_jwt_key. This value is used to create\n"+
+					"#   session tokens for users.\n"+
+					"#\n"+
+					"#   Consider using the following randomly generated key:\n"+
+					"#   %s\n"+
+					"################################################################################\n",
+					jwtKey)
+				os.Exit(1)
+			}
+
 			if initializingDS, ok := ds.(initializer); ok {
 				if err := initializingDS.Initialize(); err != nil {
 					initFatal(err, "loading built in data")
