@@ -50,6 +50,17 @@ class QueriesList extends Component {
     return onCheckAll(shouldCheckAllQueries);
   }
 
+  handleCheckQuery = (val, id) => {
+    const { allQueriesChecked } = this.state;
+    const { onCheckQuery } = this.props;
+
+    if (allQueriesChecked) {
+      this.setState({ allQueriesChecked: false });
+    }
+
+    onCheckQuery(val, id);
+  }
+
   renderHelpText = () => {
     const { isQueriesAvailable, queries } = this.props;
 
@@ -78,9 +89,9 @@ class QueriesList extends Component {
 
   render () {
     const alphaSort = q => q.name.toLowerCase();
-    const { checkedQueryIDs, onCheckQuery, onSelectQuery, onDblClickQuery, queries, selectedQuery } = this.props;
+    const { checkedQueryIDs, onSelectQuery, onDblClickQuery, queries, selectedQuery } = this.props;
     const { allQueriesChecked } = this.state;
-    const { renderHelpText, handleCheckAll } = this;
+    const { renderHelpText, handleCheckAll, handleCheckQuery } = this;
     const sortedQueries = sortBy(queries, [alphaSort]);
     const wrapperClassName = classnames(`${baseClass}__table`, {
       [`${baseClass}__table--query-selected`]: size(checkedQueryIDs),
@@ -108,11 +119,11 @@ class QueriesList extends Component {
                 <QueriesListRow
                   checked={this.isChecked(query)}
                   key={`query-row-${query.id}`}
-                  onCheck={onCheckQuery}
+                  onCheck={handleCheckQuery}
                   onSelect={onSelectQuery}
                   onDoubleClick={onDblClickQuery}
                   query={query}
-                  selected={selectedQuery.id === query.id}
+                  selected={allQueriesChecked || selectedQuery.id === query.id}
                 />
               );
             })}
