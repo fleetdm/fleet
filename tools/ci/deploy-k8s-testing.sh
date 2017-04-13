@@ -40,7 +40,8 @@ copy_db() {
         -p${CLOUDSQL_PASS} \
         --user=${CLOUDSQL_USER} \
         -h 127.0.0.1 \
-        --port=3310 kolide_master| \
+        --port=3310 \
+        --set-gtid-purged=OFF kolide_master| \
         mysql -p${CLOUDSQL_PASS} \
         --user=${CLOUDSQL_USER} \
         -h 127.0.0.1 \
@@ -69,11 +70,11 @@ deploy_pr() {
     $exec_template -json="$jsn" -template=./tools/ci/k8s-templates/redis-pr-service.template > /tmp/redis-service.yml
     $exec_template -json="$jsn" -template=./tools/ci/k8s-templates/redis-pr-deployment.template > /tmp/redis-deployment.yml
 
-    sudo $kubectl apply -f /tmp/service.yml
-    sudo $kubectl apply -f /tmp/deployment.yml
+    $kubectl apply -f /tmp/service.yml
+    $kubectl apply -f /tmp/deployment.yml
 
-    sudo $kubectl apply -f /tmp/redis-service.yml
-    sudo $kubectl apply -f /tmp/redis-deployment.yml
+    $kubectl apply -f /tmp/redis-service.yml
+    $kubectl apply -f /tmp/redis-deployment.yml
 
     echo "Deployed PR ${CIRCLE_PR_NUMBER}, commit ${CIRCLE_SHA1}" | \
         $slacktee \
@@ -92,8 +93,8 @@ deploy_branch() {
     $exec_template -json="$jsn" -template=./tools/ci/k8s-templates/branch-service.template > /tmp/service.yml
     $exec_template -json="$jsn" -template=./tools/ci/k8s-templates/branch-deployment.template > /tmp/deployment.yml
 
-    sudo $kubectl apply -f /tmp/deployment.yml
-    sudo $kubectl apply -f /tmp/service.yml
+    $kubectl apply -f /tmp/deployment.yml
+    $kubectl apply -f /tmp/service.yml
 
     echo "Deployed Branch ${branch}, commit ${CIRCLE_SHA1}" | \
         $slacktee \

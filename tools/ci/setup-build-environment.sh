@@ -12,6 +12,7 @@ setup_gcloud() {
     sudo /opt/google-cloud-sdk/bin/gcloud --quiet container clusters get-credentials $CLUSTER_NAME
 
     sudo chown -R ubuntu:ubuntu /home/ubuntu/.kube
+    sudo chown -R ubuntu:ubuntu /home/ubuntu/.config
 }
 
 
