@@ -79,8 +79,9 @@ type packageJSON struct {
 	Version string `json:"version"`
 	// Most packages store license info in 'license'
 	License interface{} `json:"license"`
-	// A few store license info in an array in 'licenses'
-	Licenses []interface{} `json:"licenses"`
+	// A few store license info in an array in 'licenses'. One offender
+	// still puts a string under this key.
+	Licenses interface{} `json:"licenses"`
 }
 
 func extractJSPackageInfo(config settings, path string) (dependency, error) {
@@ -113,8 +114,17 @@ func extractJSPackageInfo(config settings, path string) (dependency, error) {
 	var licObj interface{}
 	if pkg.License != nil {
 		licObj = pkg.License
-	} else if len(pkg.Licenses) > 0 {
-		licObj = pkg.Licenses[0]
+	} else if pkg.Licenses != nil {
+		// Extract possible array or single object from under the
+		// `licenses` key.
+		switch lic := pkg.Licenses.(type) {
+		case []interface{}:
+			if len(lic) > 0 {
+				licObj = lic[0]
+			}
+		default:
+			licObj = pkg.Licenses
+		}
 	}
 
 	switch lic := licObj.(type) {
