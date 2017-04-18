@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
 )
 
 // OptionStore interface describes methods to access datastore
@@ -38,13 +37,6 @@ type OptionService interface {
 	// ModifyOptions will change values of the options in OptionRequest.  Note
 	// passing ReadOnly options will cause an error.
 	ModifyOptions(ctx context.Context, req OptionRequest) ([]Option, error)
-	// ExpectedCheckinInterval returns how often we should expect to hear from a
-	// host. By maintaining a known list of osquery configuration options which
-	// influence the interval that osqueryd hosts check-in to a TLS server, we
-	// can deduce a minimum amount of time that we should expect to hear from an
-	// osqueryd agent if it is online. This is currently two times the most
-	// frequent check-in interval.
-	ExpectedCheckinInterval(ctx context.Context) (time.Duration, error)
 	// ResetOptions resets all options to their default values
 	ResetOptions(ctx context.Context) ([]Option, error)
 }

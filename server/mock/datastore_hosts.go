@@ -26,7 +26,7 @@ type AuthenticateHostFunc func(nodeKey string) (*kolide.Host, error)
 
 type MarkHostSeenFunc func(host *kolide.Host, t time.Time) error
 
-type GenerateHostStatusStatisticsFunc func(now time.Time, onlineInterval time.Duration) (online uint, offline uint, mia uint, new uint, err error)
+type GenerateHostStatusStatisticsFunc func(now time.Time) (online uint, offline uint, mia uint, new uint, err error)
 
 type SearchHostsFunc func(query string, omit ...uint) ([]*kolide.Host, error)
 
@@ -107,9 +107,9 @@ func (s *HostStore) MarkHostSeen(host *kolide.Host, t time.Time) error {
 	return s.MarkHostSeenFunc(host, t)
 }
 
-func (s *HostStore) GenerateHostStatusStatistics(now time.Time, onlineInterval time.Duration) (online uint, offline uint, mia uint, new uint, err error) {
+func (s *HostStore) GenerateHostStatusStatistics(now time.Time) (online uint, offline uint, mia uint, new uint, err error) {
 	s.GenerateHostStatusStatisticsFuncInvoked = true
-	return s.GenerateHostStatusStatisticsFunc(now, onlineInterval)
+	return s.GenerateHostStatusStatisticsFunc(now)
 }
 
 func (s *HostStore) SearchHosts(query string, omit ...uint) ([]*kolide.Host, error) {

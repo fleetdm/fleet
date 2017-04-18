@@ -49,17 +49,3 @@ func (mw metricsMiddleware) ResetOptions(ctx context.Context) ([]kolide.Option, 
 	options, err = mw.Service.ResetOptions(ctx)
 	return options, err
 }
-
-func (mw metricsMiddleware) ExpectedCheckinInterval(ctx context.Context) (time.Duration, error) {
-	var (
-		interval time.Duration
-		err      error
-	)
-	defer func(begin time.Time) {
-		lvs := []string{"method", "ExpectedCheckinInterval", "error", fmt.Sprint(err != nil)}
-		mw.requestCount.With(lvs...).Add(1)
-		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-	interval, err = mw.Service.ExpectedCheckinInterval(ctx)
-	return interval, err
-}

@@ -47,19 +47,43 @@ func TestResetHosts(t *testing.T) {
 func TestHostStatus(t *testing.T) {
 	mockClock := clock.NewMockClock()
 
-	host := Host{}
+	var testCases = []struct {
+		seenTime            time.Time
+		distributedInterval uint
+		configTLSRefresh    uint
+		status              string
+	}{
+		{mockClock.Now().Add(-30 * time.Second), 10, 3600, StatusOnline},
+		{mockClock.Now().Add(-45 * time.Second), 10, 3600, StatusOffline},
+		{mockClock.Now().Add(-30 * time.Second), 3600, 10, StatusOnline},
+		{mockClock.Now().Add(-45 * time.Second), 3600, 10, StatusOffline},
 
-	host.SeenTime = mockClock.Now()
-	assert.Equal(t, StatusOnline, host.Status(mockClock.Now(), 60*time.Second))
+		{mockClock.Now().Add(-70 * time.Second), 60, 60, StatusOnline},
+		{mockClock.Now().Add(-91 * time.Second), 60, 60, StatusOffline},
 
-	host.SeenTime = mockClock.Now().Add(-1 * time.Minute)
-	assert.Equal(t, StatusOnline, host.Status(mockClock.Now(), 60*time.Second))
+		{mockClock.Now().Add(-1 * time.Second), 10, 10, StatusOnline},
+		{mockClock.Now().Add(-1 * time.Minute), 10, 10, StatusOffline},
+		{mockClock.Now().Add(-31 * 24 * time.Hour), 10, 10, StatusMIA},
 
-	host.SeenTime = mockClock.Now().Add(-1 * time.Hour)
-	assert.Equal(t, StatusOffline, host.Status(mockClock.Now(), 60*time.Second))
+		// Ensure behavior is reasonable if we don't have the values
+		{mockClock.Now().Add(-1 * time.Second), 0, 0, StatusOnline},
+		{mockClock.Now().Add(-1 * time.Minute), 0, 0, StatusOffline},
+		{mockClock.Now().Add(-31 * 24 * time.Hour), 0, 0, StatusMIA},
+	}
 
-	host.SeenTime = mockClock.Now().Add(-35 * (24 * time.Hour)) // 35 days
-	assert.Equal(t, StatusMIA, host.Status(mockClock.Now(), 60*time.Second))
+	for _, tt := range testCases {
+		t.Run("", func(t *testing.T) {
+			// Save interval values
+			h := Host{
+				DistributedInterval: tt.distributedInterval,
+				ConfigTLSRefresh:    tt.configTLSRefresh,
+				SeenTime:            tt.seenTime,
+			}
+
+			assert.Equal(t, tt.status, h.Status(mockClock.Now()))
+		})
+	}
+
 }
 
 func TestHostIsNew(t *testing.T) {

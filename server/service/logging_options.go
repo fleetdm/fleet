@@ -41,22 +41,6 @@ func (mw loggingMiddleware) ModifyOptions(ctx context.Context, req kolide.Option
 	return options, err
 }
 
-func (mw loggingMiddleware) ExpectedCheckinInterval(ctx context.Context) (time.Duration, error) {
-	var (
-		interval time.Duration
-		err      error
-	)
-	defer func(begin time.Time) {
-		mw.logger.Log(
-			"method", "ExpectedCheckinInterval",
-			"err", err,
-			"took", time.Since(begin),
-		)
-	}(time.Now())
-	interval, err = mw.Service.ExpectedCheckinInterval(ctx)
-	return interval, err
-}
-
 func (mw loggingMiddleware) ResetOptions(ctx context.Context) ([]kolide.Option, error) {
 	var (
 		options []kolide.Option

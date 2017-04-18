@@ -15,11 +15,7 @@ func (svc service) GetHost(ctx context.Context, id uint) (*kolide.Host, error) {
 }
 
 func (svc service) GetHostSummary(ctx context.Context) (*kolide.HostSummary, error) {
-	onlineInterval, err := svc.ExpectedCheckinInterval(ctx)
-	if err != nil {
-		return nil, err
-	}
-	online, offline, mia, new, err := svc.ds.GenerateHostStatusStatistics(svc.clock.Now(), onlineInterval)
+	online, offline, mia, new, err := svc.ds.GenerateHostStatusStatistics(svc.clock.Now())
 	if err != nil {
 		return nil, err
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/kolide/kolide/server/kolide"
-	"github.com/pkg/errors"
 )
 
 func (svc service) SearchTargets(ctx context.Context, query string, selectedHostIDs []uint, selectedLabelIDs []uint) (*kolide.TargetSearchResults, error) {
@@ -29,12 +28,7 @@ func (svc service) SearchTargets(ctx context.Context, query string, selectedHost
 }
 
 func (svc service) CountHostsInTargets(ctx context.Context, hostIDs []uint, labelIDs []uint) (*kolide.TargetMetrics, error) {
-	onlineInterval, err := svc.ExpectedCheckinInterval(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "getting expected check-in interval")
-	}
-
-	metrics, err := svc.ds.CountHostsInTargets(hostIDs, labelIDs, svc.clock.Now(), onlineInterval)
+	metrics, err := svc.ds.CountHostsInTargets(hostIDs, labelIDs, svc.clock.Now())
 	if err != nil {
 		return nil, err
 	}

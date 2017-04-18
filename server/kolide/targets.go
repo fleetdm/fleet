@@ -10,18 +10,25 @@ type TargetSearchResults struct {
 	Labels []Label
 }
 
-// TargetMetrics contains information about the state
-// of hosts that are tracked by the app
+// TargetMetrics contains information about the online status of a set of
+// hosts.
 type TargetMetrics struct {
+	// TotalHosts is the total hosts in any status. It should equal
+	// OnlineHosts + OfflineHosts + MissingInActionHosts.
 	TotalHosts uint `db:"total"`
-	// OnlineHosts have updated within the last 30 minutes
+	// OnlineHosts is the count of hosts that have checked in within their
+	// expected checkin interval (based on the configuration interval
+	// values, see Host.Status()).
 	OnlineHosts uint `db:"online"`
-	// OfflineHosts are hosts that haven't updated in 30 minutes
+	// OfflineHosts is the count of hosts that have not checked in within
+	// their expected interval.
 	OfflineHosts uint `db:"offline"`
-	// MissingInActionHosts are hosts that haven't had an update for more
-	// than thirty days
+	// MissingInActionHosts is the count of hosts that have not checked in
+	// within the last 30 days.
 	MissingInActionHosts uint `db:"mia"`
-	NewHosts             uint `db:"new"`
+	// NewHosts is the count of hosts that have enrolled in the last 24
+	// hours.
+	NewHosts uint `db:"new"`
 }
 
 type TargetService interface {
@@ -30,16 +37,15 @@ type TargetService interface {
 	// (hosts and label) which match the supplied search query.
 	SearchTargets(ctx context.Context, query string, selectedHostIDs []uint, selectedLabelIDs []uint) (*TargetSearchResults, error)
 
-	// CountHostsInTargets returns the count of hosts in the selected
-	// targets. The first return uint is the total number of hosts in the
-	// targets. The second return uint is the total online hosts. The third
-	// returned uint is the total number of hosts that have been offline for more
-	// than 30 days. (Missing in action)
+	// CountHostsInTargets returns the metrics of the hosts in the provided
+	// label and explicit host IDs.
 	CountHostsInTargets(ctx context.Context, hostIDs []uint, labelIDs []uint) (*TargetMetrics, error)
 }
 
 type TargetStore interface {
-	CountHostsInTargets(hostIDs []uint, labelIDs []uint, now time.Time, onlineInterval time.Duration) (TargetMetrics, error)
+	// CountHostsInTargets returns the metrics of the hosts in the provided
+	// label and explicit host IDs.
+	CountHostsInTargets(hostIDs []uint, labelIDs []uint, now time.Time) (TargetMetrics, error)
 }
 
 type TargetType int

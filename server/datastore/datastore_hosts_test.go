@@ -526,7 +526,7 @@ func testGenerateHostStatusStatistics(t *testing.T, ds kolide.Datastore) {
 
 	mockClock := clock.NewMockClock()
 
-	online, offline, mia, new, err := ds.GenerateHostStatusStatistics(mockClock.Now(), 60)
+	online, offline, mia, new, err := ds.GenerateHostStatusStatistics(mockClock.Now())
 	assert.Nil(t, err)
 	assert.Equal(t, uint(0), online)
 	assert.Equal(t, uint(0), offline)
@@ -534,85 +534,65 @@ func testGenerateHostStatusStatistics(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, uint(0), new)
 
 	// Online
-	_, err = ds.NewHost(&kolide.Host{
+	h, err := ds.NewHost(&kolide.Host{
 		ID:               1,
 		OsqueryHostID:    "1",
-		UUID:             "1",
 		NodeKey:          "1",
 		DetailUpdateTime: mockClock.Now().Add(-30 * time.Second),
 		SeenTime:         mockClock.Now().Add(-30 * time.Second),
-		UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-			CreateTimestamp: kolide.CreateTimestamp{CreatedAt: mockClock.Now()},
-		},
 	})
-	assert.Nil(t, err)
+	require.Nil(t, err)
+	h.DistributedInterval = 15
+	h.ConfigTLSRefresh = 30
+	require.Nil(t, ds.SaveHost(h))
 
 	// Online
-	_, err = ds.NewHost(&kolide.Host{
+	h, err = ds.NewHost(&kolide.Host{
 		ID:               2,
 		OsqueryHostID:    "2",
-		UUID:             "2",
 		NodeKey:          "2",
 		DetailUpdateTime: mockClock.Now().Add(-1 * time.Minute),
 		SeenTime:         mockClock.Now().Add(-1 * time.Minute),
-		UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-			CreateTimestamp: kolide.CreateTimestamp{CreatedAt: mockClock.Now()},
-		},
 	})
-	assert.Nil(t, err)
+	require.Nil(t, err)
+	h.DistributedInterval = 60
+	h.ConfigTLSRefresh = 3600
+	require.Nil(t, ds.SaveHost(h))
 
 	// Offline
-	_, err = ds.NewHost(&kolide.Host{
+	h, err = ds.NewHost(&kolide.Host{
 		ID:               3,
 		OsqueryHostID:    "3",
-		UUID:             "3",
 		NodeKey:          "3",
 		DetailUpdateTime: mockClock.Now().Add(-1 * time.Hour),
 		SeenTime:         mockClock.Now().Add(-1 * time.Hour),
-		UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-			CreateTimestamp: kolide.CreateTimestamp{CreatedAt: mockClock.Now()},
-		},
 	})
-	assert.Nil(t, err)
+	require.Nil(t, err)
+	h.DistributedInterval = 300
+	h.ConfigTLSRefresh = 300
+	require.Nil(t, ds.SaveHost(h))
 
 	// MIA
-	_, err = ds.NewHost(&kolide.Host{
+	h, err = ds.NewHost(&kolide.Host{
 		ID:               4,
 		OsqueryHostID:    "4",
-		UUID:             "4",
 		NodeKey:          "4",
 		DetailUpdateTime: mockClock.Now().Add(-35 * (24 * time.Hour)),
 		SeenTime:         mockClock.Now().Add(-35 * (24 * time.Hour)),
-		UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-			CreateTimestamp: kolide.CreateTimestamp{CreatedAt: mockClock.Now()},
-		},
 	})
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
-	// With an online interval of 60, both the host that checked in a minute ago
-	// as well as the host that checked in 30 seconds ago should both be online
-	online, offline, mia, new, err = ds.GenerateHostStatusStatistics(mockClock.Now(), 2*time.Minute)
+	online, offline, mia, new, err = ds.GenerateHostStatusStatistics(mockClock.Now())
 	assert.Nil(t, err)
 	assert.Equal(t, uint(2), online)
 	assert.Equal(t, uint(1), offline)
 	assert.Equal(t, uint(1), mia)
 	assert.Equal(t, uint(4), new)
 
-	// With an online interval of 10, no hosts should be online
-	online, offline, mia, new, err = ds.GenerateHostStatusStatistics(mockClock.Now(), 20*time.Second)
+	online, offline, mia, new, err = ds.GenerateHostStatusStatistics(mockClock.Now().Add(1 * time.Hour))
 	assert.Nil(t, err)
 	assert.Equal(t, uint(0), online)
 	assert.Equal(t, uint(3), offline)
-	assert.Equal(t, uint(1), mia)
-	assert.Equal(t, uint(4), new)
-
-	// With an online interval of 3600 seconds (60 minutes), the host that checked
-	// in 30 seconds ago, a minute ago, and 60 minutes ago should all appear to be
-	// online
-	online, offline, mia, new, err = ds.GenerateHostStatusStatistics(mockClock.Now(), 2*time.Hour)
-	assert.Nil(t, err)
-	assert.Equal(t, uint(3), online)
-	assert.Equal(t, uint(0), offline)
 	assert.Equal(t, uint(1), mia)
 	assert.Equal(t, uint(4), new)
 }
