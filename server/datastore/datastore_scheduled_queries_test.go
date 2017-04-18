@@ -91,3 +91,31 @@ func testSaveScheduledQuery(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, err)
 	assert.Equal(t, uint(120), queryVerify.Interval)
 }
+
+func testScheduledQueryWithDeletedPack(t *testing.T, ds kolide.Datastore) {
+	// When a pack is soft-deleted, it should not appear in the list of
+	// packs associated with a query.
+
+	if ds.Name() == "inmem" {
+		t.Skip("inmem is being deprecated, test skipped")
+	}
+
+	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
+	query := test.NewQuery(t, ds, "q1", "select 1", user.ID, true)
+	pack := test.NewPack(t, ds, "foobar_pack")
+	test.NewScheduledQuery(t, ds, pack.ID, query.ID, 60, false, false)
+
+	actual, err := ds.Query(query.ID)
+	require.Nil(t, err)
+	assert.Equal(t, "q1", actual.Name)
+	assert.Equal(t, "select 1", actual.Query)
+	assert.Equal(t, []kolide.Pack{*pack}, actual.Packs)
+
+	require.Nil(t, ds.DeletePack(pack.ID))
+
+	actual, err = ds.Query(query.ID)
+	require.Nil(t, err)
+	assert.Equal(t, "q1", actual.Name)
+	assert.Equal(t, "select 1", actual.Query)
+	assert.Empty(t, actual.Packs)
+}

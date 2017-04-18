@@ -39,11 +39,11 @@ func testGetQueryByName(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, err)
 	assert.True(t, ok)
 	assert.Equal(t, "q1", actual.Name)
+	assert.Equal(t, "select * from time", actual.Query)
 
 	actual, ok, err = ds.QueryByName("xxx")
 	assert.Nil(t, err)
 	assert.False(t, ok)
-
 }
 
 func testDeleteQueries(t *testing.T, ds kolide.Datastore) {

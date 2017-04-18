@@ -61,6 +61,7 @@ var testFunctions = [...]func(*testing.T, kolide.Datastore){
 	testOptionsToConfig,
 	testGetPackByName,
 	testGetQueryByName,
+	testScheduledQueryWithDeletedPack,
 	testDecorators,
 	testFileIntegrityMonitoring,
 	testYARAStore,

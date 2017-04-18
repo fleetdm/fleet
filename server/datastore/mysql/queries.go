@@ -188,6 +188,7 @@ func (d *Datastore) loadPacksForQueries(queries []*kolide.Query) error {
 		JOIN scheduled_queries sq
 			ON p.id = sq.pack_id
 		WHERE query_id IN (?)
+		AND NOT p.deleted
 	`
 
 	// Used to map the results

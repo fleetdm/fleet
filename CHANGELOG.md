@@ -1,4 +1,4 @@
-* Improve online status detection.
+* Improved online status detection.
 
   The Kolide server now tracks the `distributed_interval` and `config_tls_refresh` values for each individual host (these can be different if they are set via flagfile and not through Kolide), to ensure that online status is represented as accurately as possible.
 
@@ -6,7 +6,9 @@
 
   If no JWT key is provided by the user, the server will print a new suggested random JWT key for use.
 
-* Fix rounding error when showing % of online hosts
+* Fixed bug in which deleted packs were still displayed on the query sidebar.
+
+* Fixed rounding error when showing % of online hosts.
 
 ## Kolide 1.0.3 (April 3, 2017)
 
