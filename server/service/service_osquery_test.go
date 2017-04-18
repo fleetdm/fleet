@@ -897,7 +897,7 @@ func TestUpdateHostIntervals(t *testing.T) {
 		},
 	}
 
-	for _, tt := range testCases[4:] {
+	for _, tt := range testCases {
 		t.Run("", func(t *testing.T) {
 			ctx := hostctx.NewContext(context.Background(), tt.initHost)
 
