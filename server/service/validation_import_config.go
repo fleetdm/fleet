@@ -93,8 +93,10 @@ func (vm validationMiddleware) validatePacks(cfg *kolide.ImportConfig, argErrs *
 				}
 				// make sure that each glob pack has JSON content
 				for _, p := range cfg.GlobPackNames {
-					if _, ok := cfg.ExternalPacks[p]; !ok {
+					if pd, ok := cfg.ExternalPacks[p]; !ok {
 						argErrs.Appendf("external_packs", "missing content for '%s'", p)
+					} else {
+						vm.validatePackContents(p, pd, argErrs)
 					}
 				}
 				continue
@@ -102,12 +104,24 @@ func (vm validationMiddleware) validatePacks(cfg *kolide.ImportConfig, argErrs *
 			// if value is a string we expect a file path, in this case, the user has to supply the
 			// contents of said file which we store in ExternalPacks, if it's not there we need to
 			// raise an error
-			switch pack.(type) {
+			switch val := pack.(type) {
 			case string:
-				if _, ok := cfg.ExternalPacks[packName]; !ok {
+				if pd, ok := cfg.ExternalPacks[packName]; !ok {
 					argErrs.Appendf("external_packs", "missing content for '%s'", packName)
+				} else {
+					vm.validatePackContents(packName, pd, argErrs)
 				}
+			case kolide.PackDetails:
+				vm.validatePackContents(packName, val, argErrs)
 			}
 		}
+	}
+}
+
+func (vm validationMiddleware) validatePackContents(packName string, pack kolide.PackDetails, argErrs *invalidArgumentError) {
+	switch pack.Platform {
+	case "", "darwin", "freebsd", "windows", "linux", "any", "all":
+	default:
+		argErrs.Appendf("pack", "'%s' is not a valid platform", pack.Platform)
 	}
 }

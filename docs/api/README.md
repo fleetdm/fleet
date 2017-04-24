@@ -35,3 +35,57 @@ Queries, packs, scheduled queries, labels, invites, users, sessions all behave t
 All of these objects are put together and distributed to the appropriate osquery agents at the appropriate time. At this time, the best source of truth for the API is the [HTTP handler file](https://github.com/kolide/kolide/blob/master/server/service/handler.go) in the Go application. The REST API is exposed via a transport layer on top of an RPC service which is implemented using a micro-service library called [Go Kit](https://github.com/go-kit/kit). If using the Kolide API is important to you right now, being familiar with Go Kit would definitely be helpful.
 
 Like it was said above, we have plans to include richer API documentation in the near future, so stay tuned. If using this API is important to you, please contact us at [support@kolide.co](mailto:support@kolide.co) and tell us, so that we can prioritize creating stable API documentation.
+
+### Osquery Configuration Import
+
+You can load packs, queries and other settings from an existing [Osquery configuration file](https://osquery.readthedocs.io/en/stable/deployment/configuration/) by importing the file into Kolide. This can be done posting the stringified contents of the Osquery configuration to the following Kolide endpoint:
+```
+// POST body the value of "config" is JSON that has been converted to a string
+
+{
+  "config": "{\"options\":null,\"schedule\":null,\"packs\":{ ...
+}
+
+// POST endpoint
+
+/api/v1/kolide/osquery/config/import
+```
+We provide [a utility program](https://github.com/kolide/configimporter) that will import the configuration automatically.  
+If you opt to manually import your Osquery configuration you will need to include the contents of externally
+referenced packs in your main Osquery configuration file before posting it to Kolide. If you reference packs
+in a file like the example below, you will need to get the pack from `external_pack.conf`
+and include it in the main configuration.
+```
+// Configuration referencing external pack
+
+{
+  "packs": {
+    "external_pack": "/path/to/external_pack.conf",
+    "internal_stuff": {
+      [...]
+    }
+  }
+}
+```
+```
+// Edited configuration containing the internal pack
+
+{
+  "packs": {
+    "external_pack": {
+      "shard": "10",
+      "queries": {
+        "suid_bins": {
+          "query": "select * from suid_bins;",
+          "interval": "3600"
+        }
+      }
+    }
+    "internal_stuff": {
+      [...]
+    }
+  }
+}
+```
+Once the configuration file and all the external packs it references are consolidated, post the stringified contents of the configuration
+file to Kolide.  

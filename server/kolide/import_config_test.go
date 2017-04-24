@@ -10,6 +10,56 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestConfigUnmarshalling(t *testing.T) {
+	contents := `
+	{
+	"options":null,
+	"schedule":null,
+	"packs":{
+		"internal_stuff":{
+			"discovery":["select pid from processes where name = 'ldap';"],
+			"platform":"linux",
+			"queries":{
+				"active_directory":{
+					"description":"Check each user's active directory cached settings.",
+					"interval":"1200",
+					"query":"select * from ad_config;"
+					}
+				},
+				"version":"1.5.2"
+			},
+			"testing":{
+				"queries":{
+					"suid_bins":{
+						"interval":"3600",
+						"query":"select * from suid_bins;"
+					}
+				},
+				"shard":"10"
+			}
+		},
+		"file_paths":null,
+		"yara":null,
+		"prometheus_targets":null,
+		"decorators":null
+	}
+	`
+
+	conf := ImportConfig{
+		Packs:         make(PackNameMap),
+		ExternalPacks: make(PackNameToPackDetails),
+	}
+
+	err := json.Unmarshal([]byte(contents), &conf)
+	assert.Nil(t, err)
+	require.NotNil(t, conf.Packs["testing"])
+	// platform is not defined in the testing pack, so, per osquery docs
+	// we default to 'all' platforms
+	details, ok := conf.Packs["testing"].(PackDetails)
+	require.True(t, ok)
+	assert.Equal(t, "", details.Platform)
+}
+
 func TestIntervalUnmarshal(t *testing.T) {
 	scenarios := []struct {
 		name           string

@@ -2,8 +2,10 @@ package kolide
 
 import (
 	"encoding/json"
-	"errors"
 	"strconv"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/cast"
 )
 
 var wrongTypeError = errors.New("argument missing or unexpected type")
@@ -29,7 +31,7 @@ func (pnm PackNameMap) UnmarshalJSON(b []byte) error {
 			}
 			pnm[key] = val
 		default:
-			return errors.New("can't unmarshal json")
+			return errors.Errorf("can't unmarshal %s %v", key, val)
 		}
 	}
 	return nil
@@ -69,14 +71,6 @@ func uintptr(v interface{}) (*OsQueryConfigInt, error) {
 	return &i, nil
 }
 
-// Use this when we expext a string value, in this case nil is an error
-func toString(v interface{}) (string, error) {
-	if s, ok := v.(string); ok {
-		return s, nil
-	}
-	return "", wrongTypeError
-}
-
 func unmarshalPackDetails(v map[string]interface{}) (PackDetails, error) {
 	var result PackDetails
 	queries, err := unmarshalQueryDetails(v["queries"])
@@ -87,10 +81,7 @@ func unmarshalPackDetails(v map[string]interface{}) (PackDetails, error) {
 	if err != nil {
 		return result, err
 	}
-	platform, err := toString(v["platform"])
-	if err != nil {
-		return result, err
-	}
+	platform := cast.ToString(v["platform"])
 	shard, err := uintptr(v["shard"])
 	if err != nil {
 		return result, err
@@ -99,7 +90,6 @@ func unmarshalPackDetails(v map[string]interface{}) (PackDetails, error) {
 	if err != nil {
 		return result, err
 	}
-
 	result = PackDetails{
 		Queries:   queries,
 		Shard:     shard,
@@ -120,7 +110,7 @@ func unmarshalDiscovery(val interface{}) ([]string, error) {
 		return result, wrongTypeError
 	}
 	for _, val := range v {
-		query, err := toString(val)
+		query, err := cast.ToStringE(val)
 		if err != nil {
 			return result, err
 		}
@@ -154,7 +144,7 @@ func unmarshalQueryDetail(val interface{}) (QueryDetails, error) {
 	if err != nil {
 		return result, err
 	}
-	query, err := toString(v["query"])
+	query, err := cast.ToStringE(v["query"])
 	if err != nil {
 		return result, err
 	}

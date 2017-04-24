@@ -123,6 +123,7 @@ var testFunctions = [...]func(*testing.T, *testResource){
 	testNewDecoratorFailValidation,
 	testDeleteDecorator,
 	testModifyDecoratorNoChanges,
+	testImportConfigWithInvalidPlatform,
 }
 
 func TestEndpoints(t *testing.T) {
