@@ -19,13 +19,15 @@ If your organization has a robust internal public key infrastructure (PKI) and y
 
 #### Deploy the TLS certificate that osquery will use to communicate with Kolide
 
-To ensure that it is especially difficult to compromise the TLS communication that occurs between the osqueryd agent and the Kolide server, osqueryd requires you to explicitly define the root certificate authority of the Kolide server (PEM-encoded) in the content of a local file. If you are running osqueryd behind a load-balancer which does TLS termination, then you will have to talk to your system administrator about where to find this certificate. If your browser is directly connected to the same web server which your osqueryd clients will be, you can download the certificate [here](http://66.media.tumblr.com/tumblr_lhkx3nKGK71qgzsew.jpg).
+When Kolide uses a self-signed certificate, osquery agents will need a copy of that certificate in order to authenticate the Kolide server. If clients connect directly to the Kolide server, you can download the certificate through the Kolide UI. From the main dashboard (`/hosts/manage`), click "Add New Host" and "Fetch Kolide Certificate". If Kolide is running behind a load-balancer that terminates TLS, you will have to talk to your system administrator about where to find this certificate.
 
-You can specify the path to this certificate with the `--tls_server_certs` flag when you launch osqueryd.
+It is important that the CN of this certificate matches the hostname or IP that osqueryd clients will use to connect.
+
+Specify the path to this certificate with the `--tls_server_certs` flag when you launch osqueryd.
 
 ## Launching osqueryd
 
-Assuming that you are deploying your enrollment secret as the environment variable `OSQUERY_ENROLL_SECRET` and your osquery server certificate is at `/etc/osquery/kolide.crt`, you could copy and paste the following command with the following flags (be sure to replace acme.kolide.co with the hostname for your Kolide installation):
+Assuming that you are deploying your enrollment secret as the environment variable `OSQUERY_ENROLL_SECRET` and your osquery server certificate is at `/etc/osquery/kolide.crt`, you could copy and paste the following command with the following flags (be sure to replace acme.kolide.co with the hostname or IP of your Kolide installation):
 
 ```
 osqueryd
@@ -48,7 +50,7 @@ osqueryd
  --logger_tls_period=10
 ```
 
-If your osquery server certificate is deployed to a path that is not `/etc/osquery/kolide.crt`, then be sure to update the `--tls_server_certs` flag. Similarly, if your enrollment secret is in an environment variable that is not called `OSQUERY_ENROLL_SECRET`, then be sure to update the `--enroll_secret_env` environment variable. If your enroll secret is defined in a local file, specify the file's path with the `--enroll_secret_path` flag instead of using the `--enroll_secret_env` flag.
+If your osquery server certificate is deployed to a path that is not `/etc/osquery/kolide.crt`, be sure to update the `--tls_server_certs` flag. Similarly, if your enrollment secret is in an environment variable that is not called `OSQUERY_ENROLL_SECRET`, then be sure to update the `--enroll_secret_env` environment variable. If your enroll secret is defined in a local file, specify the file's path with the `--enroll_secret_path` flag instead of using the `--enroll_secret_env` flag.
 
 ### Using a flag file to manage flags
 
