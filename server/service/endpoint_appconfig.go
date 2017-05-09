@@ -17,6 +17,7 @@ type appConfigResponse struct {
 	OrgInfo        *kolide.OrgInfo             `json:"org_info,omitemtpy"`
 	ServerSettings *kolide.ServerSettings      `json:"server_settings,omitempty"`
 	SMTPSettings   *kolide.SMTPSettingsPayload `json:"smtp_settings,omitempty"`
+	SSOSettings    *kolide.SSOSettingsPayload  `json:"sso_settings,omitempty"`
 	Err            error                       `json:"error,omitempty"`
 }
 
@@ -33,11 +34,21 @@ func makeGetAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return nil, err
 		}
 		var smtpSettings *kolide.SMTPSettingsPayload
+		var ssoSettings *kolide.SSOSettingsPayload
 		// only admin can see smtp settings
 		if vc.IsAdmin() {
 			smtpSettings = smtpSettingsFromAppConfig(config)
 			if smtpSettings.SMTPPassword != nil {
 				*smtpSettings.SMTPPassword = "********"
+			}
+			ssoSettings = &kolide.SSOSettingsPayload{
+				EntityID:    &config.EntityID,
+				IssuerURI:   &config.IssuerURI,
+				IDPImageURL: &config.IDPImageURL,
+				Metadata:    &config.Metadata,
+				MetadataURL: &config.MetadataURL,
+				IDPName:     &config.IDPName,
+				EnableSSO:   &config.EnableSSO,
 			}
 		}
 		response := appConfigResponse{
@@ -50,6 +61,7 @@ func makeGetAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 				EnrollSecret:    &config.EnrollSecret,
 			},
 			SMTPSettings: smtpSettings,
+			SSOSettings:  ssoSettings,
 		}
 		return response, nil
 	}
@@ -72,6 +84,15 @@ func makeModifyAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 				EnrollSecret:    &config.EnrollSecret,
 			},
 			SMTPSettings: smtpSettingsFromAppConfig(config),
+			SSOSettings: &kolide.SSOSettingsPayload{
+				EntityID:    &config.EntityID,
+				IssuerURI:   &config.IssuerURI,
+				IDPImageURL: &config.IDPImageURL,
+				Metadata:    &config.Metadata,
+				MetadataURL: &config.MetadataURL,
+				IDPName:     &config.IDPName,
+				EnableSSO:   &config.EnableSSO,
+			},
 		}
 		if response.SMTPSettings.SMTPPassword != nil {
 			*response.SMTPSettings.SMTPPassword = "********"

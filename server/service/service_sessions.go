@@ -4,17 +4,101 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"net/url"
 	"strings"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/kolide/kolide/server/contexts/viewer"
 	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/kolide/server/sso"
 	"github.com/pkg/errors"
 )
 
-func (svc service) SSOLogin(ctx context.Context, userId string) (*kolide.User, string, error) {
-	return nil, "", errors.New("not implemented")
+func (svc service) InitiateSSO(ctx context.Context, redirectURL string) (string, error) {
+	appConfig, err := svc.ds.AppConfig()
+	if err != nil {
+		return "", errors.Wrap(err, "InitiateSSO getting app config")
+	}
+
+	metadata, err := getMetadata(appConfig)
+	if err != nil {
+		return "", errors.Wrap(err, "InitiateSSO getting metadata")
+	}
+
+	settings := sso.Settings{
+		Metadata: metadata,
+		// Construct call back url to send to idp
+		AssertionConsumerServiceURL: appConfig.KolideServerURL + "/api/v1/kolide/sso/callback",
+		SessionStore:                svc.ssoSessionStore,
+		OriginalURL:                 redirectURL,
+	}
+
+	// If issuer is not explicitly set, default to host name.
+	var issuer string
+	if appConfig.EntityID == "" {
+		u, err := url.Parse(appConfig.KolideServerURL)
+		if err != nil {
+			return "", errors.Wrap(err, "parsing kolide server url")
+		}
+		issuer = u.Hostname()
+	} else {
+		issuer = appConfig.EntityID
+	}
+	idpURL, err := sso.CreateAuthorizationRequest(&settings, issuer)
+	if err != nil {
+		return "", errors.Wrap(err, "InitiateSSO creating authorization")
+	}
+
+	return idpURL, nil
+}
+
+func getMetadata(config *kolide.AppConfig) (*sso.Metadata, error) {
+	if config.MetadataURL != "" {
+		metadata, err := sso.GetMetadata(config.MetadataURL, 5*time.Second)
+		if err != nil {
+			return nil, err
+		}
+		return metadata, nil
+	}
+	if config.Metadata != "" {
+		metadata, err := sso.ParseMetadata(config.Metadata)
+		if err != nil {
+			return nil, err
+		}
+		return metadata, nil
+	}
+	return nil, errors.Errorf("missing metadata for idp %s", config.IDPName)
+}
+
+func (svc service) CallbackSSO(ctx context.Context, auth kolide.Auth) (*kolide.SSOSession, error) {
+	// The signature and validity of auth response has been checked already in
+	// validation middleware.
+	sess, err := svc.ssoSessionStore.Get(auth.RequestID())
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching sso session in callback")
+	}
+	// Remove session to so that is can't be reused before it expires.
+	err = svc.ssoSessionStore.Expire(auth.RequestID())
+	if err != nil {
+		return nil, errors.Wrap(err, "expiring sso session in callback")
+	}
+	user, err := svc.userByEmailOrUsername(auth.UserID())
+	if err != nil {
+		return nil, errors.Wrap(err, "finding user in sso callback")
+	}
+	token, err := svc.makeSession(user.ID)
+	if err != nil {
+		return nil, errors.Wrap(err, "making user session in sso callback")
+	}
+	result := &kolide.SSOSession{
+		Token:       token,
+		RedirectURL: sess.OriginalURL,
+	}
+	if !strings.HasPrefix(result.RedirectURL, "/") {
+		result.RedirectURL = "/" + result.RedirectURL
+	}
+	return result, nil
 }
 
 func (svc service) Login(ctx context.Context, username, password string) (*kolide.User, string, error) {

@@ -60,6 +60,7 @@ func makeDeleteDecoratorEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		r := request.(deleteDecoratorRequest)
 		err := svc.DeleteDecorator(ctx, r.ID)
+
 		if err != nil {
 			return deleteDecoratorResponse{Err: err}, nil
 		}
@@ -75,5 +76,6 @@ func makeModifyDecoratorEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return decoratorResponse{Err: err}, nil
 		}
 		return decoratorResponse{Decorator: dec}, nil
+
 	}
 }

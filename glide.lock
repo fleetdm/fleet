@@ -1,5 +1,5 @@
-hash: 1baa8047c7c6da3ca484e0bfebd881a17181a76ccccbddb2cff087c3f6de97c9
-updated: 2017-04-05T15:21:30.066640809-07:00
+hash: 7526b737524d134e1aa305fdae1f05ee92ff88c9d5b884b04d0aefcdb5ead7f6
+updated: 2017-05-02T11:10:06.237517785-05:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -7,6 +7,8 @@ imports:
   - parse
 - name: github.com/alecthomas/units
   version: 2efee857e7cfd4f3d0138cc3cbb1b4966962b93a
+- name: github.com/beevik/etree
+  version: cda1c0026246bd095961ef9a3c430e50d0e80fba
 - name: github.com/beorn7/perks
   version: 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
   subpackages:
@@ -78,6 +80,8 @@ imports:
   version: 5f97679e23f75f42b265fec8d3bdb1c8de90b79d
   subpackages:
   - reflectx
+- name: github.com/jonboulle/clockwork
+  version: bcac9884e7502bb2b474c0339d889cb981a2f27f
 - name: github.com/jordan-wright/email
   version: fd703108daeb23d77c124d12978e9b6c4f28f034
 - name: github.com/kolide/goose
@@ -121,6 +125,15 @@ imports:
   - model
 - name: github.com/prometheus/procfs
   version: 1878d9fbb537119d24b21ca07effd591627cd160
+- name: github.com/russellhaering/gosaml2
+  version: 6074095354a9bead88f041558b2150ce47676371
+  subpackages:
+  - types
+- name: github.com/russellhaering/goxmldsig
+  version: eaac44c63fe007124f8f6255b09febc906784981
+  subpackages:
+  - etreeutils
+  - types
 - name: github.com/ryanuber/go-license
   version: 027a317812857d68bb611443b5c08bbe96e88598
 - name: github.com/spf13/afero
@@ -166,7 +179,7 @@ imports:
   - transform
   - unicode/norm
 - name: gopkg.in/alecthomas/kingpin.v2
-  version: e9044be3ab2a8e11d4e1f418d12f0790d57e8d70
+  version: 7f0871f2e17818990e4eed73f9b5c2f429501228
 - name: gopkg.in/go-playground/validator.v8
   version: 5f57d2222ad794d0dffb07e664ea05e2ee07d60c
 - name: gopkg.in/natefinch/lumberjack.v2

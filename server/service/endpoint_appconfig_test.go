@@ -53,6 +53,11 @@ func testModifyAppConfig(t *testing.T, r *testResource) {
 		SMTPEnableTLS:          true,
 		SMTPVerifySSLCerts:     true,
 		SMTPEnableStartTLS:     true,
+		EnableSSO:              true,
+		IDPName:                "idpname",
+		Metadata:               "metadataxxxxxx",
+		IssuerURI:              "http://issuer.idp.com",
+		EntityID:               "kolide",
 	}
 	payload := appConfigPayloadFromAppConfig(config)
 	payload.SMTPTest = new(bool)
@@ -76,6 +81,12 @@ func testModifyAppConfig(t *testing.T, r *testResource) {
 	require.Nil(t, err)
 	// verify email test succeeded
 	assert.True(t, saved.SMTPConfigured)
+	// verify that SSO stuff was saved
+	assert.True(t, saved.EnableSSO)
+	assert.Equal(t, "idpname", saved.IDPName)
+	assert.Equal(t, "metadataxxxxxx", saved.Metadata)
+	assert.Equal(t, "http://issuer.idp.com", saved.IssuerURI)
+	assert.Equal(t, "kolide", saved.EntityID)
 
 }
 
@@ -115,5 +126,13 @@ func appConfigPayloadFromAppConfig(config *kolide.AppConfig) *kolide.AppConfigPa
 			KolideServerURL: &config.KolideServerURL,
 		},
 		SMTPSettings: smtpSettingsFromAppConfig(config),
+		SSOSettings: &kolide.SSOSettingsPayload{
+			EnableSSO:   &config.EnableSSO,
+			IDPName:     &config.IDPName,
+			Metadata:    &config.Metadata,
+			MetadataURL: &config.MetadataURL,
+			IssuerURI:   &config.IssuerURI,
+			EntityID:    &config.EntityID,
+		},
 	}
 }

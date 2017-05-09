@@ -157,7 +157,6 @@ func testNewDecoratorFailType(t *testing.T, r *testResource) {
 	require.Nil(t, err)
 	require.Len(t, errStruct.Errors, 1)
 	assert.Equal(t, "invalid value, must be load, always, or interval", errStruct.Errors[0].Reason)
-
 }
 
 func testNewDecoratorFailValidation(t *testing.T, r *testResource) {

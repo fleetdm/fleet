@@ -8,6 +8,26 @@ import (
 	"github.com/kolide/kolide/server/kolide"
 )
 
+func (mw metricsMiddleware) InitiateSSO(ctx context.Context, relayValue string) (idpURL string, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "InitiateSSO", "error", fmt.Sprint(err != nil)}
+		mw.requestCount.With(lvs...).Add(1)
+		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	idpURL, err = mw.Service.InitiateSSO(ctx, relayValue)
+	return
+}
+
+func (mw metricsMiddleware) CallbackSSO(ctx context.Context, auth kolide.Auth) (sess *kolide.SSOSession, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "CallbackSSO", "error", fmt.Sprint(err != nil)}
+		mw.requestCount.With(lvs...).Add(1)
+		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	sess, err = mw.Service.CallbackSSO(ctx, auth)
+	return
+}
+
 func (mw metricsMiddleware) Login(ctx context.Context, username string, password string) (*kolide.User, string, error) {
 	var (
 		user  *kolide.User

@@ -26,9 +26,9 @@ type AuthenticateHostFunc func(nodeKey string) (*kolide.Host, error)
 
 type MarkHostSeenFunc func(host *kolide.Host, t time.Time) error
 
-type GenerateHostStatusStatisticsFunc func(now time.Time) (online uint, offline uint, mia uint, new uint, err error)
-
 type SearchHostsFunc func(query string, omit ...uint) ([]*kolide.Host, error)
+
+type GenerateHostStatusStatisticsFunc func(now time.Time) (online uint, offline uint, mia uint, new uint, err error)
 
 type DistributedQueriesForHostFunc func(host *kolide.Host) (map[uint]string, error)
 
@@ -57,11 +57,11 @@ type HostStore struct {
 	MarkHostSeenFunc        MarkHostSeenFunc
 	MarkHostSeenFuncInvoked bool
 
-	GenerateHostStatusStatisticsFunc        GenerateHostStatusStatisticsFunc
-	GenerateHostStatusStatisticsFuncInvoked bool
-
 	SearchHostsFunc        SearchHostsFunc
 	SearchHostsFuncInvoked bool
+
+	GenerateHostStatusStatisticsFunc        GenerateHostStatusStatisticsFunc
+	GenerateHostStatusStatisticsFuncInvoked bool
 
 	DistributedQueriesForHostFunc        DistributedQueriesForHostFunc
 	DistributedQueriesForHostFuncInvoked bool
@@ -107,14 +107,14 @@ func (s *HostStore) MarkHostSeen(host *kolide.Host, t time.Time) error {
 	return s.MarkHostSeenFunc(host, t)
 }
 
-func (s *HostStore) GenerateHostStatusStatistics(now time.Time) (online uint, offline uint, mia uint, new uint, err error) {
-	s.GenerateHostStatusStatisticsFuncInvoked = true
-	return s.GenerateHostStatusStatisticsFunc(now)
-}
-
 func (s *HostStore) SearchHosts(query string, omit ...uint) ([]*kolide.Host, error) {
 	s.SearchHostsFuncInvoked = true
 	return s.SearchHostsFunc(query, omit...)
+}
+
+func (s *HostStore) GenerateHostStatusStatistics(now time.Time) (online uint, offline uint, mia uint, new uint, err error) {
+	s.GenerateHostStatusStatisticsFuncInvoked = true
+	return s.GenerateHostStatusStatisticsFunc(now)
 }
 
 func (s *HostStore) DistributedQueriesForHost(host *kolide.Host) (map[uint]string, error) {

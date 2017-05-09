@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -29,6 +30,12 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 		}
 	}
 
+	if page, ok := response.(htmlPage); ok {
+		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
+		_, err := io.WriteString(w, page.html())
+		return err
+	}
+
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	return enc.Encode(response)
@@ -38,6 +45,12 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 // http success status - default is 200 OK
 type statuser interface {
 	status() int
+}
+
+// loads a html page
+type htmlPage interface {
+	html() string
+	error() error
 }
 
 func idFromRequest(r *http.Request, name string) (uint, error) {

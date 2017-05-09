@@ -94,7 +94,7 @@ func setupInviteTest(t *testing.T) (kolide.Service, *mock.Store, *mockMailServic
 		config:      config.TestConfig(),
 		mailService: mailer,
 		clock:       clock.NewMockClock(),
-	}, ms}
+	}, ms, nil}
 	return svc, ms, mailer
 }
 

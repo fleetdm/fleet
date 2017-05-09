@@ -80,5 +80,4 @@ var testFunctions = [...]func(*testing.T, kolide.Datastore){
 	testCountHostsInTargets,
 	testHostStatus,
 	testResetOptions,
-	testIdentityProvider,
 }

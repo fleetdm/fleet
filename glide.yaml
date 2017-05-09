@@ -59,7 +59,7 @@ import:
   - redis
 - package: github.com/jmoiron/sqlx
 - package: github.com/kolide/goose
-  version: master
+  version: 4a7848793d4402d338de853019ad72b9a4b3e68e
 - package: github.com/VividCortex/mysqlerr
   version: master
 - package: github.com/go-kit/kit
@@ -70,3 +70,4 @@ import:
 - package: github.com/e-dard/netbug
 - package: github.com/spf13/cast
   version: ~1.0.0
+- package: github.com/russellhaering/gosaml2

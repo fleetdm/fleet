@@ -10,11 +10,6 @@ import (
 	"github.com/kolide/kolide/server/kolide"
 )
 
-type validationMiddleware struct {
-	kolide.Service
-	ds kolide.Datastore
-}
-
 func (mw validationMiddleware) NewUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
 	invalid := &invalidArgumentError{}
 	if p.Username == nil {

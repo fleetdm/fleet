@@ -112,6 +112,21 @@ type AppConfig struct {
 	SMTPVerifySSLCerts bool `db:"smtp_verify_ssl_certs"`
 	// SMTPEnableStartTLS detects of TLS is enabled on mail server and starts to use it (default true)
 	SMTPEnableStartTLS bool `db:"smtp_enable_start_tls"`
+	// EntityID is a uri that identifies this service provider
+	EntityID string `db:"entity_id"`
+	// IssuerURI is the uri that identifies the identity provider
+	IssuerURI string `db:"issuer_uri"`
+	// IDPImageURL is a link to a logo or other image that is used for UX
+	IDPImageURL string `db:"idp_image_url"`
+	// Metadata contains IDP metadata XML
+	Metadata string `db:"metadata"`
+	// MetadataURL is a URL provided by the IDP which can be used to download
+	// metadata
+	MetadataURL string `db:"metadata_url"`
+	// IDPName is a human freindly name for the IDP
+	IDPName string `db:"idp_name"`
+	// EnableSSO flag to determine whether or not to enable SSO
+	EnableSSO bool `db:"enable_sso"`
 }
 
 // ModifyAppConfigRequest contains application configuration information
@@ -122,6 +137,25 @@ type ModifyAppConfigRequest struct {
 	// will be applied.
 	TestSMTP  bool      `json:"test_smtp"`
 	AppConfig AppConfig `json:"app_config"`
+}
+
+// SSOSettingsPayload wire format for SSO settings
+type SSOSettingsPayload struct {
+	// EntityID is a uri that identifies this service provider
+	EntityID *string `json:"entity_id"`
+	// IssuerURI is the uri that identifies the identity provider
+	IssuerURI *string `json:"issuer_uri"`
+	// IDPImageURL is a link to a logo or other image that is used for UX
+	IDPImageURL *string `json:"idp_image_url"`
+	// Metadata contains IDP metadata XML
+	Metadata *string `json:"metadata"`
+	// MetadataURL is a URL provided by the IDP which can be used to download
+	// metadata
+	MetadataURL *string `json:"metadata_url"`
+	// IDPName is a human freindly name for the IDP
+	IDPName *string `json:"idp_name"`
+	// EnableSSO flag to determine whether or not to enable SSO
+	EnableSSO *bool `json:"enable_sso"`
 }
 
 // SMTPSettingsPayload is part of the AppConfigPayload which defines the wire representation
@@ -165,6 +199,8 @@ type AppConfigPayload struct {
 	SMTPSettings   *SMTPSettingsPayload `json:"smtp_settings"`
 	// SMTPTest is a flag that if set will cause the server to test email configuration
 	SMTPTest *bool `json:"smtp_test,omitempty"`
+	// SSOSettings single sign settings
+	SSOSettings *SSOSettingsPayload `json:"sso_settings"`
 }
 
 // OrgInfo contains general info about the organization using Kolide.

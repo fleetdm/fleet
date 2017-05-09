@@ -32,10 +32,21 @@ type SessionStore interface {
 	MarkSessionAccessed(session *Session) error
 }
 
+type Auth interface {
+	UserID() string
+	RequestID() string
+}
+
 type SessionService interface {
-	// SSOLogin handles creating a session for a user who is authenticated by
-	// a SAML identity provider, returning the user and a token on success
-	SSOLogin(ctx context.Context, userId string) (*User, string, error)
+	// InitiateSSO is used to initiate an SSO session and returns a URL that
+	// can be used in a redirect to the IDP.
+	// Arguments: redirectURL is the URL of the protected resource that the user
+	// was trying to access when they were promted to log in.
+	InitiateSSO(ctx context.Context, redirectURL string) (string, error)
+	// CallbackSSO handles the IDP response.  The original URL the viewer attempted
+	// to access is returned from this function so we can redirect back to the front end and
+	// load the page the viewer originally attempted to access when prompted for login.
+	CallbackSSO(ctx context.Context, auth Auth) (*SSOSession, error)
 	Login(ctx context.Context, username, password string) (user *User, token string, err error)
 	Logout(ctx context.Context) (err error)
 	DestroySession(ctx context.Context) (err error)
@@ -44,6 +55,11 @@ type SessionService interface {
 	GetInfoAboutSession(ctx context.Context, id uint) (session *Session, err error)
 	GetSessionByKey(ctx context.Context, key string) (session *Session, err error)
 	DeleteSession(ctx context.Context, id uint) (err error)
+}
+
+type SSOSession struct {
+	Token       string
+	RedirectURL string
 }
 
 // Session is the model object which represents what an active session is

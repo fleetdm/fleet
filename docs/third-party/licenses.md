@@ -364,6 +364,7 @@ Third-Party Licenses
 | [github.com/WatchBeam/clock](https://github.com/WatchBeam/clock) | [MIT](https://opensource.org/licenses/MIT) |
 | [github.com/alecthomas/template](https://github.com/alecthomas/template) | [NewBSD](https://opensource.org/licenses/BSD-3-Clause) |
 | [github.com/alecthomas/units](https://github.com/alecthomas/units) | [MIT](https://opensource.org/licenses/MIT) |
+| [github.com/beevik/etree](https://github.com/beevik/etree) | [FreeBSD](https://opensource.org/licenses/BSD-2-Clause) |
 | [github.com/beorn7/perks](https://github.com/beorn7/perks) | [MIT](https://opensource.org/licenses/MIT) |
 | [github.com/davecgh/go-spew](https://github.com/davecgh/go-spew) | [ISC](https://opensource.org/licenses/ISC) |
 | [github.com/dgrijalva/jwt-go](https://github.com/dgrijalva/jwt-go) | [MIT](https://opensource.org/licenses/MIT) |
@@ -385,6 +386,7 @@ Third-Party Licenses
 | [github.com/igm/sockjs-go](https://github.com/igm/sockjs-go) | [NewBSD](https://opensource.org/licenses/BSD-3-Clause) |
 | [github.com/inconshreveable/mousetrap](https://github.com/inconshreveable/mousetrap) | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | [github.com/jmoiron/sqlx](https://github.com/jmoiron/sqlx) | [MIT](https://opensource.org/licenses/MIT) |
+| [github.com/jonboulle/clockwork](https://github.com/jonboulle/clockwork) | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | [github.com/jordan-wright/email](https://github.com/jordan-wright/email) | [MIT](https://opensource.org/licenses/MIT) |
 | [github.com/kolide/goose](https://github.com/kolide/goose) | [MIT](https://opensource.org/licenses/MIT) |
 | [github.com/kr/logfmt](https://github.com/kr/logfmt) | [MIT](https://opensource.org/licenses/MIT) |
@@ -400,6 +402,8 @@ Third-Party Licenses
 | [github.com/prometheus/client_model](https://github.com/prometheus/client_model) | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | [github.com/prometheus/common](https://github.com/prometheus/common) | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | [github.com/prometheus/procfs](https://github.com/prometheus/procfs) | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| [github.com/russellhaering/gosaml2](https://github.com/russellhaering/gosaml2) | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| [github.com/russellhaering/goxmldsig](https://github.com/russellhaering/goxmldsig) | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | [github.com/ryanuber/go-license](https://github.com/ryanuber/go-license) | [MIT](https://opensource.org/licenses/MIT) |
 | [github.com/spf13/afero](https://github.com/spf13/afero) | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | [github.com/spf13/cast](https://github.com/spf13/cast) | [MIT](https://opensource.org/licenses/MIT) |

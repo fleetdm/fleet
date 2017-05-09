@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -22,6 +23,7 @@ import (
 	"github.com/kolide/kolide/server/mail"
 	"github.com/kolide/kolide/server/pubsub"
 	"github.com/kolide/kolide/server/service"
+	"github.com/kolide/kolide/server/sso"
 	"github.com/kolide/kolide/server/version"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -136,8 +138,9 @@ the way that the kolide server works.
 			var resultStore kolide.QueryResultStore
 			redisPool := pubsub.NewRedisPool(config.Redis.Address, config.Redis.Password)
 			resultStore = pubsub.NewRedisQueryResults(redisPool)
+			ssoSessionStore := sso.NewSessionStore(redisPool)
 
-			svc, err := service.NewService(ds, resultStore, logger, config, mailService, clock.C, licenseService)
+			svc, err := service.NewService(ds, resultStore, logger, config, mailService, clock.C, licenseService, ssoSessionStore)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
@@ -204,6 +207,22 @@ the way that the kolide server works.
 			r.Handle("/metrics", prometheus.InstrumentHandler("metrics", promhttp.Handler()))
 			r.Handle("/api/", apiHandler)
 			r.Handle("/", frontendHandler)
+			if path, ok := os.LookupEnv("KOLIDE_TEST_PAGE_PATH"); ok {
+				// test that we can load this
+				_, err := ioutil.ReadFile(path)
+				if err != nil {
+					initFatal(err, "loading KOLIDE_TEST_PAGE_PATH")
+				}
+				r.HandleFunc("/test", func(rw http.ResponseWriter, req *http.Request) {
+					testPage, err := ioutil.ReadFile(path)
+					if err != nil {
+						rw.WriteHeader(http.StatusNotFound)
+						return
+					}
+					rw.Write(testPage)
+					rw.WriteHeader(http.StatusOK)
+				})
+			}
 
 			if debug {
 				// Add debug endpoints with a random

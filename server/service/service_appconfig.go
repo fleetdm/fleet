@@ -114,6 +114,30 @@ func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppC
 		config.EnrollSecret = *p.ServerSettings.EnrollSecret
 	}
 
+	if p.SSOSettings != nil {
+		if p.SSOSettings.EnableSSO != nil {
+			config.EnableSSO = *p.SSOSettings.EnableSSO
+		}
+		if p.SSOSettings.EntityID != nil {
+			config.EntityID = *p.SSOSettings.EntityID
+		}
+		if p.SSOSettings.IDPImageURL != nil {
+			config.IDPImageURL = *p.SSOSettings.IDPImageURL
+		}
+		if p.SSOSettings.IDPName != nil {
+			config.IDPName = *p.SSOSettings.IDPName
+		}
+		if p.SSOSettings.IssuerURI != nil {
+			config.IssuerURI = *p.SSOSettings.IssuerURI
+		}
+		if p.SSOSettings.Metadata != nil {
+			config.Metadata = *p.SSOSettings.Metadata
+		}
+		if p.SSOSettings.MetadataURL != nil {
+			config.MetadataURL = *p.SSOSettings.MetadataURL
+		}
+	}
+
 	populateSMTP := func(p *kolide.SMTPSettingsPayload) {
 		if p.SMTPAuthenticationMethod != nil {
 			switch *p.SMTPAuthenticationMethod {

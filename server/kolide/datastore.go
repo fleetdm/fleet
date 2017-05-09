@@ -19,7 +19,6 @@ type Datastore interface {
 	FileIntegrityMonitoringStore
 	YARAStore
 	LicenseStore
-	IdentityProviderStore
 	Name() string
 	Drop() error
 	// MigrateTables creates and migrates the table schemas
