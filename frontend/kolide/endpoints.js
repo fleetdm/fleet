@@ -37,4 +37,5 @@ export default {
   UPDATE_USER_ADMIN: (id) => {
     return `/v1/kolide/users/${id}/admin`;
   },
+  SSO: '/v1/kolide/sso',
 };

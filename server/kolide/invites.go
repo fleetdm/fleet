@@ -50,24 +50,26 @@ type InviteService interface {
 
 // InvitePayload contains fields required to create a new user invite.
 type InvitePayload struct {
-	InvitedBy *uint `json:"invited_by"`
-	Email     *string
-	Admin     *bool
-	Name      *string
-	Position  *string
+	InvitedBy  *uint `json:"invited_by"`
+	Email      *string
+	Admin      *bool
+	Name       *string
+	Position   *string
+	SSOEnabled *bool `json:"sso_enabled"`
 }
 
 // Invite represents an invitation for a user to join Kolide.
 type Invite struct {
 	UpdateCreateTimestamps
 	DeleteFields
-	ID        uint   `json:"id"`
-	InvitedBy uint   `json:"invited_by" db:"invited_by"`
-	Email     string `json:"email"`
-	Admin     bool   `json:"admin"`
-	Name      string `json:"name"`
-	Position  string `json:"position,omitempty"`
-	Token     string `json:"-"`
+	ID         uint   `json:"id"`
+	InvitedBy  uint   `json:"invited_by" db:"invited_by"`
+	Email      string `json:"email"`
+	Admin      bool   `json:"admin"`
+	Name       string `json:"name"`
+	Position   string `json:"position,omitempty"`
+	Token      string `json:"-"`
+	SSOEnabled bool   `json:"sso_enabled" db:"sso_enabled"`
 }
 
 // InviteMailer is used to build an email template for the invite email.

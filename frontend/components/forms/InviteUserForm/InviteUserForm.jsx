@@ -18,6 +18,7 @@ class InviteUserForm extends Component {
     invitedBy: userInterface,
     onCancel: PropTypes.func,
     onSubmit: PropTypes.func,
+    canUseSSO: PropTypes.bool,
   };
 
   constructor (props) {
@@ -28,11 +29,13 @@ class InviteUserForm extends Component {
         admin: null,
         email: null,
         name: null,
+        sso_enabled: null,
       },
       formData: {
         admin: false,
         email: '',
         name: '',
+        sso_enabled: false,
       },
     };
   }
@@ -80,14 +83,14 @@ class InviteUserForm extends Component {
     const valid = this.validate();
 
     if (valid) {
-      const { formData: { admin, email, name } } = this.state;
+      const { formData: { admin, email, name, sso_enabled } } = this.state;
       const { invitedBy, onSubmit } = this.props;
-
       return onSubmit({
         admin,
         email,
         invited_by: invitedBy.id,
         name,
+        sso_enabled,
       });
     }
 
@@ -126,7 +129,7 @@ class InviteUserForm extends Component {
   }
 
   render () {
-    const { errors, formData: { admin, email, name } } = this.state;
+    const { errors, formData: { admin, email, name, ssoEnabled } } = this.state;
     const { onCancel, serverErrors } = this.props;
     const { onFormSubmit, onInputChange, onCheckboxChange } = this;
     const baseError = serverErrors.base;
@@ -162,6 +165,19 @@ class InviteUserForm extends Component {
             Enable Admin
           </Checkbox>
         </div>
+        <div className={`${baseClass}__radio`}>
+          <p className={`${baseClass}__role`}>single sign on</p>
+          <Checkbox
+            name="sso_enabled"
+            onChange={onCheckboxChange('sso_enabled')}
+            value={ssoEnabled}
+            disabled={!this.props.canUseSSO}
+            wrapperClassName={`${baseClass}__invite-admin`}
+          >
+            Enable Single Sign On
+          </Checkbox>
+        </div>
+
         <div className={`${baseClass}__btn-wrap`}>
           <Button className={`${baseClass}__btn`} type="submit" variant="brand">
             Invite

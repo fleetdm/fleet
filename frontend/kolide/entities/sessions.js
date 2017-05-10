@@ -25,5 +25,10 @@ export default (client) => {
 
       return client.authenticatedPost(endpoint);
     },
+    initializeSSO: (url) => {
+      const { SSO } = endpoints;
+      const endpoint = client._endpoint(SSO);
+      return Base.post(endpoint, JSON.stringify({ relay_url: url }));
+    },
   };
 };

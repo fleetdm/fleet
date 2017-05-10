@@ -87,6 +87,10 @@ func (svc service) CallbackSSO(ctx context.Context, auth kolide.Auth) (*kolide.S
 	if err != nil {
 		return nil, errors.Wrap(err, "finding user in sso callback")
 	}
+	// if user is not active they are not authorized to use the application
+	if !user.Enabled || user.Deleted {
+		return nil, errors.New("user authorization failed")
+	}
 	token, err := svc.makeSession(user.ID)
 	if err != nil {
 		return nil, errors.Wrap(err, "making user session in sso callback")
@@ -111,6 +115,10 @@ func (svc service) Login(ctx context.Context, username, password string) (*kolid
 	}
 	if !user.Enabled {
 		return nil, "", authError{reason: "account disabled", clientReason: "account disabled"}
+	}
+	if user.SSOEnabled {
+		const errMessage = "password login not allowed for single sign on users"
+		return nil, "", authError{reason: errMessage, clientReason: errMessage}
 	}
 	if err = user.ValidatePassword(password); err != nil {
 		return nil, "", authError{reason: "bad password"}

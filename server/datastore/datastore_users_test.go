@@ -10,11 +10,11 @@ import (
 
 func testCreateUser(t *testing.T, ds kolide.Datastore) {
 	var createTests = []struct {
-		username, password, email string
-		isAdmin, passwordReset    bool
+		username, password, email   string
+		isAdmin, passwordReset, sso bool
 	}{
-		{"marpaia", "foobar", "mike@kolide.co", true, false},
-		{"jason", "foobar", "jason@kolide.co", true, false},
+		{"marpaia", "foobar", "mike@kolide.co", true, false, true},
+		{"jason", "foobar", "jason@kolide.co", true, false, false},
 	}
 
 	for _, tt := range createTests {
@@ -23,7 +23,8 @@ func testCreateUser(t *testing.T, ds kolide.Datastore) {
 			Password: []byte(tt.password),
 			Admin:    tt.isAdmin,
 			AdminForcedPasswordReset: tt.passwordReset,
-			Email: tt.email,
+			Email:      tt.email,
+			SSOEnabled: tt.sso,
 		}
 		user, err := ds.NewUser(u)
 		assert.Nil(t, err)
@@ -35,6 +36,7 @@ func testCreateUser(t *testing.T, ds kolide.Datastore) {
 		assert.Equal(t, tt.username, verify.Username)
 		assert.Equal(t, tt.email, verify.Email)
 		assert.Equal(t, tt.email, verify.Email)
+		assert.Equal(t, tt.sso, verify.SSOEnabled)
 	}
 }
 

@@ -38,10 +38,21 @@ func (svc service) NewAdminCreatedUser(ctx context.Context, p kolide.UserPayload
 }
 
 func (svc service) newUser(p kolide.UserPayload) (*kolide.User, error) {
+	var ssoEnabled bool
+	// if user is SSO generate a fake password
+	if p.SSOInvite != nil && *p.SSOInvite == true {
+		fakePassword, err := generateRandomText(14)
+		if err != nil {
+			return nil, err
+		}
+		p.Password = &fakePassword
+		ssoEnabled = true
+	}
 	user, err := p.User(svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost)
 	if err != nil {
 		return nil, err
 	}
+	user.SSOEnabled = ssoEnabled
 	user, err = svc.ds.NewUser(user)
 	if err != nil {
 		return nil, err
@@ -192,7 +203,9 @@ func (svc service) setNewPassword(ctx context.Context, user *kolide.User, passwo
 	if err != nil {
 		return errors.Wrap(err, "setting new password")
 	}
-
+	if user.SSOEnabled {
+		return errors.New("set password for single sign on user not allowed")
+	}
 	err = svc.saveUser(user)
 	if err != nil {
 		return errors.Wrap(err, "saving changed password")
@@ -206,7 +219,9 @@ func (svc service) ChangePassword(ctx context.Context, oldPass, newPass string) 
 	if !ok {
 		return errNoContext
 	}
-
+	if vc.User.SSOEnabled {
+		return errors.New("change password for single sign on user not allowed")
+	}
 	if err := vc.User.ValidatePassword(newPass); err == nil {
 		return newInvalidArgumentError("new_password", "cannot reuse old password")
 	}
@@ -229,6 +244,9 @@ func (svc service) ResetPassword(ctx context.Context, token, password string) er
 	user, err := svc.User(ctx, reset.UserID)
 	if err != nil {
 		return errors.Wrap(err, "retrieving user")
+	}
+	if user.SSOEnabled {
+		return errors.New("password reset for single sign on user not allowed")
 	}
 
 	// prevent setting the same password
@@ -261,7 +279,9 @@ func (svc service) PerformRequiredPasswordReset(ctx context.Context, password st
 		return nil, errNoContext
 	}
 	user := vc.User
-
+	if user.SSOEnabled {
+		return nil, errors.New("password reset for single sign on user not allowed")
+	}
 	if !user.AdminForcedPasswordReset {
 		return nil, errors.New("user does not require password reset")
 	}
@@ -288,7 +308,9 @@ func (svc service) RequirePasswordReset(ctx context.Context, uid uint, require b
 	if err != nil {
 		return nil, errors.Wrap(err, "loading user by ID")
 	}
-
+	if user.SSOEnabled {
+		return nil, errors.New("password reset for single sign on user not allowed")
+	}
 	// Require reset on next login
 	user.AdminForcedPasswordReset = require
 	if err := svc.saveUser(user); err != nil {
@@ -309,6 +331,9 @@ func (svc service) RequestPasswordReset(ctx context.Context, email string) error
 	user, err := svc.ds.UserByEmail(email)
 	if err != nil {
 		return err
+	}
+	if user.SSOEnabled {
+		return errors.New("password reset for single sign on user not allowed")
 	}
 
 	random, err := kolide.RandomText(svc.config.App.TokenKeySize)

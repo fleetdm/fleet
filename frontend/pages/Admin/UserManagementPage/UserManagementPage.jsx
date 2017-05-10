@@ -215,6 +215,7 @@ export class UserManagementPage extends Component {
     const { currentUser, inviteErrors } = this.props;
     const { showInviteUserModal } = this.state;
     const { onInviteCancel, onInviteUserSubmit, toggleInviteUserModal } = this;
+    const ssoEnabledForApp = this.props.config.enable_sso;
 
     if (!showInviteUserModal) {
       return false;
@@ -231,6 +232,7 @@ export class UserManagementPage extends Component {
           invitedBy={currentUser}
           onCancel={onInviteCancel}
           onSubmit={onInviteUserSubmit}
+          canUseSSO={ssoEnabledForApp}
         />
       </Modal>
     );

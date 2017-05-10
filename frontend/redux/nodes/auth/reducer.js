@@ -15,6 +15,9 @@ import {
   PERFORM_REQUIRED_PASSWORD_RESET_REQUEST,
   PERFORM_REQUIRED_PASSWORD_RESET_SUCCESS,
   PERFORM_REQUIRED_PASSWORD_RESET_FAILURE,
+  SSO_REDIRECT_REQUEST,
+  SSO_REDIRECT_SUCCESS,
+  SSO_REDIRECT_FAILURE,
 } from './actions';
 
 export const initialState = {
@@ -35,6 +38,7 @@ const reducer = (state = initialState, action) => {
     case LOGIN_REQUEST:
     case LOGOUT_REQUEST:
     case UPDATE_USER_REQUEST:
+    case SSO_REDIRECT_REQUEST:
       return {
         ...state,
         loading: true,
@@ -51,6 +55,13 @@ const reducer = (state = initialState, action) => {
         loading: false,
         user: action.payload.user,
       };
+    case SSO_REDIRECT_SUCCESS:
+      return {
+        ...state,
+        loading: false,
+        ssoRedirectURL: action.payload.ssoRedirectURL,
+      };
+    case SSO_REDIRECT_FAILURE:
     case LICENSE_FAILURE:
     case LOGIN_FAILURE:
       return {

@@ -1,0 +1,69 @@
+.confirm-ssoinvite-page {
+  &__form-section-description {
+    h2 {
+      font-size: 18px;
+      font-weight: $bold;
+      line-height: 1.5;
+      letter-spacing: 0.6px;
+      color: $text-dark;
+      margin: 0;
+      padding: 0;
+
+    }
+
+    p {
+      color: $text-dark;
+      font-size: 14px;
+      font-weight: $light;
+    }
+  }
+
+  &__form-section-wrapper {
+    background-color: $white;
+    border-radius: 4px;
+    box-shadow: 0 0 30px 0 rgba(0, 0, 0, 0.3);
+    box-sizing: border-box;
+    height: 459px;
+    padding: 35px;
+    width: 500px;
+    margin-bottom: 110px;
+  }
+
+  &__form {
+    width: 440px;
+
+    .fields {
+      background-color: $white;
+      border-top-left-radius: 4px;
+      border-top-right-radius: 4px;
+      box-shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.3);
+      box-sizing: border-box;
+      padding: 30px;
+    }
+  }
+
+  &__lead-wrapper {
+    background-color: $white;
+    border-radius: 4px;
+    box-shadow: 0 0 30px 0 rgba(0, 0, 0, 0.3);
+    box-sizing: border-box;
+    margin-bottom: 30px;
+    padding: 35px;
+    width: 500px;
+  }
+
+  &__lead-text {
+    color: $brand;
+    font-size: 18px;
+    font-weight: $light;
+    margin-top: 0;
+    text-align: center;
+  }
+
+  &__sub-lead-text {
+    color: $text-dark;
+    font-size: 14px;
+    font-weight: $light;
+    margin-bottom: 0;
+  }
+}

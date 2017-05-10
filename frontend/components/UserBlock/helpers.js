@@ -11,12 +11,15 @@ const userActionOptions = (isCurrentUser, user, invite) => {
 
   if (invite) return inviteActions;
 
-  return [
+  const result = [
     userEnableAction,
     userPromotionAction,
-    { disabled: false, label: 'Require Password Reset', value: 'reset_password' },
-    { disabled: false, label: 'Modify Details', value: 'modify_details' },
   ];
+  if (!user.sso_enabled) {
+    result.push({ disabled: false, label: 'Require Password Reset', value: 'reset_password' });
+  }
+  result.push({ disabled: false, label: 'Modify Details', value: 'modify_details' });
+  return result;
 };
 
 const userStatusLabel = (user, invite) => {

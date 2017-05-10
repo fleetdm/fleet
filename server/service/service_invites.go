@@ -43,6 +43,9 @@ func (svc service) InviteNewUser(ctx context.Context, payload kolide.InvitePaylo
 	if payload.Name != nil {
 		invite.Name = *payload.Name
 	}
+	if payload.SSOEnabled != nil {
+		invite.SSOEnabled = *payload.SSOEnabled
+	}
 
 	invite, err = svc.ds.NewInvite(invite)
 	if err != nil {

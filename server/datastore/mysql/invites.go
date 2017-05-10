@@ -18,13 +18,13 @@ func (d *Datastore) NewInvite(i *kolide.Invite) (*kolide.Invite, error) {
 	switch err {
 	case nil:
 		sqlStmt = `
-		REPLACE INTO invites ( invited_by, email, admin, name, position, token, deleted)
-		  VALUES ( ?, ?, ?, ?, ?, ?, ?)
+		REPLACE INTO invites ( invited_by, email, admin, name, position, token, deleted, sso_enabled)
+		  VALUES ( ?, ?, ?, ?, ?, ?, ?, ?)
 		`
 	case sql.ErrNoRows:
 		sqlStmt = `
-		INSERT INTO invites ( invited_by, email, admin, name, position, token, deleted)
-		  VALUES ( ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO invites ( invited_by, email, admin, name, position, token, deleted, sso_enabled)
+		  VALUES ( ?, ?, ?, ?, ?, ?, ?, ?)
 		`
 	default:
 		return nil, errors.Wrap(err, "check for existing invite")
@@ -32,7 +32,7 @@ func (d *Datastore) NewInvite(i *kolide.Invite) (*kolide.Invite, error) {
 
 	deleted := false
 	result, err := d.db.Exec(sqlStmt, i.InvitedBy, i.Email, i.Admin,
-		i.Name, i.Position, i.Token, deleted)
+		i.Name, i.Position, i.Token, deleted, i.SSOEnabled)
 	if err != nil && isDuplicate(err) {
 		return nil, alreadyExists("Invite", 0)
 	} else if err != nil {
@@ -104,11 +104,11 @@ func (d *Datastore) InviteByToken(token string) (*kolide.Invite, error) {
 func (d *Datastore) SaveInvite(i *kolide.Invite) error {
 	sql := `
 	UPDATE invites SET invited_by = ?, email = ?, admin = ?,
-	   name = ?, position = ?, token = ?
+	   name = ?, position = ?, token = ?, sso_enabled = ?
 		 WHERE id = ? AND NOT deleted
 	`
 	results, err := d.db.Exec(sql, i.InvitedBy, i.Email,
-		i.Admin, i.Name, i.Position, i.Token, i.ID,
+		i.Admin, i.Name, i.Position, i.Token, i.SSOEnabled, i.ID,
 	)
 	if err != nil {
 		return errors.Wrap(err, "save invite")

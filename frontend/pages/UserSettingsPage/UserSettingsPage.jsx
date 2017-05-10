@@ -196,7 +196,7 @@ export class UserSettingsPage extends Component {
       return false;
     }
 
-    const { admin, updated_at: updatedAt } = user;
+    const { admin, updated_at: updatedAt, sso_enabled: ssoEnabled } = user;
     const roleText = admin ? 'ADMIN' : 'USER';
     const lastUpdatedAt = moment(updatedAt).fromNow();
 
@@ -228,7 +228,7 @@ export class UserSettingsPage extends Component {
             <Icon name="lock-big" />
             <strong>Password</strong>
           </div>
-          <Button onClick={onShowModal} variant="brand" className={`${baseClass}__button`}>
+          <Button onClick={onShowModal} variant="brand" disabled={ssoEnabled} className={`${baseClass}__button`}>
             CHANGE PASSWORD
           </Button>
           <p className={`${baseClass}__last-updated`}>Last changed: {lastUpdatedAt}</p>

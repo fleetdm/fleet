@@ -11,22 +11,23 @@ import (
 // NewUser creates a new user
 func (d *Datastore) NewUser(user *kolide.User) (*kolide.User, error) {
 	sqlStatement := `
-		INSERT INTO users (
-			password,
-			salt,
-			name,
-			username,
-			email,
-			admin,
-			enabled,
-			admin_forced_password_reset,
-			gravatar_url,
-			position
-		) VALUES (?,?,?,?,?,?,?,?,?,?)
-	`
+      INSERT INTO users (
+      	password,
+      	salt,
+      	name,
+      	username,
+      	email,
+      	admin,
+      	enabled,
+      	admin_forced_password_reset,
+      	gravatar_url,
+      	position,
+        sso_enabled
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?)
+      `
 	result, err := d.db.Exec(sqlStatement, user.Password, user.Salt, user.Name,
 		user.Username, user.Email, user.Admin, user.Enabled,
-		user.AdminForcedPasswordReset, user.GravatarURL, user.Position)
+		user.AdminForcedPasswordReset, user.GravatarURL, user.Position, user.SSOEnabled)
 	if err != nil {
 		return nil, errors.Wrap(err, "create new user")
 	}
@@ -88,22 +89,23 @@ func (d *Datastore) UserByID(id uint) (*kolide.User, error) {
 
 func (d *Datastore) SaveUser(user *kolide.User) error {
 	sqlStatement := `
-		UPDATE users SET
-			username = ?,
-			password = ?,
-			salt = ?,
-			name = ?,
-			email = ?,
-			admin = ?,
-			enabled = ?,
-			admin_forced_password_reset = ?,
-			gravatar_url = ?,
-			position = ?
-		WHERE id = ?
-	`
+      UPDATE users SET
+      	username = ?,
+      	password = ?,
+      	salt = ?,
+      	name = ?,
+      	email = ?,
+      	admin = ?,
+      	enabled = ?,
+      	admin_forced_password_reset = ?,
+      	gravatar_url = ?,
+      	position = ?,
+        sso_enabled = ?
+      WHERE id = ?
+      `
 	result, err := d.db.Exec(sqlStatement, user.Username, user.Password,
 		user.Salt, user.Name, user.Email, user.Admin, user.Enabled,
-		user.AdminForcedPasswordReset, user.GravatarURL, user.Position, user.ID)
+		user.AdminForcedPasswordReset, user.GravatarURL, user.Position, user.SSOEnabled, user.ID)
 	if err != nil {
 		return errors.Wrap(err, "save user")
 	}

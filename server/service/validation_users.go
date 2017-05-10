@@ -24,14 +24,17 @@ func (mw validationMiddleware) NewUser(ctx context.Context, p kolide.UserPayload
 		}
 	}
 
-	if p.Password == nil {
-		invalid.Append("password", "missing required argument")
-	} else {
-		if *p.Password == "" {
-			invalid.Append("password", "cannot be empty")
-		}
-		if err := validatePasswordRequirements(*p.Password); err != nil {
-			invalid.Append("password", err.Error())
+	// we don't need a password for single sign on
+	if p.SSOInvite == nil || *p.SSOInvite == false {
+		if p.Password == nil {
+			invalid.Append("password", "missing required argument")
+		} else {
+			if *p.Password == "" {
+				invalid.Append("password", "cannot be empty")
+			}
+			if err := validatePasswordRequirements(*p.Password); err != nil {
+				invalid.Append("password", err.Error())
+			}
 		}
 	}
 

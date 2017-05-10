@@ -58,7 +58,11 @@
                 <table bgcolor="#f4f6fb" height="100px" cellpadding="20px">
                   <tr>
                     <td style="font-family: 'Oxygen', Arial, sans-serif;">
-                      <a href="{{.KolideServerURL}}/login/invites/{{.Token}}?name={{.Name}}&email={{.Email}}">{{.KolideServerURL}}/login/invites/{{.Token}}?name={{.Name}}&email={{.Email}}</a>
+                      {{if .SSOEnabled}}
+                        <a href="{{.KolideServerURL}}/login/ssoinvites/{{.Token}}?name={{.Name}}&email={{.Email}}">{{.KolideServerURL}}/login/ssoinvites/{{.Token}}?name={{.Name}}&email={{.Email}}</a>
+                      {{else}}
+                        <a href="{{.KolideServerURL}}/login/invites/{{.Token}}?name={{.Name}}&email={{.Email}}">{{.KolideServerURL}}/login/invites/{{.Token}}?name={{.Name}}&email={{.Email}}</a>
+                      {{end}}
                     </td>
                   </tr>
                 </table>

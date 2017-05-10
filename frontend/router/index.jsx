@@ -11,6 +11,7 @@ import AuthenticatedAdminRoutes from 'components/AuthenticatedAdminRoutes';
 import AuthenticatedRoutes from 'components/AuthenticatedRoutes';
 import ConfigOptionsPage from 'pages/config/ConfigOptionsPage';
 import ConfirmInvitePage from 'pages/ConfirmInvitePage';
+import ConfirmSSOInvitePage from 'pages/ConfirmSSOInvitePage';
 import CoreLayout from 'layouts/CoreLayout';
 import EditPackPage from 'pages/packs/EditPackPage';
 import EmailTokenRedirect from 'components/EmailTokenRedirect';
@@ -39,6 +40,7 @@ const routes = (
         <Route path="license" component={LicensePage} />
         <Route path="login" component={LoginRoutes}>
           <Route path="invites/:invite_token" component={ConfirmInvitePage} />
+          <Route path="ssoinvites/:invite_token" component={ConfirmSSOInvitePage} />
           <Route path="forgot" />
           <Route path="reset" />
         </Route>

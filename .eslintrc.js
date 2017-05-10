@@ -8,7 +8,8 @@ module.exports = {
   ],
   env: {
     'node': true,
-    'mocha': true
+    'mocha': true,
+    'browser': true
   },
   globals: {
     'expect': false,

@@ -17,13 +17,69 @@ import {
   PERFORM_REQUIRED_PASSWORD_RESET_REQUEST,
   PERFORM_REQUIRED_PASSWORD_RESET_FAILURE,
   PERFORM_REQUIRED_PASSWORD_RESET_SUCCESS,
+  SSO_REDIRECT_REQUEST,
+  SSO_REDIRECT_SUCCESS,
   updateUser,
+  ssoRedirect,
 } from './actions';
 
 const store = { entities: { invites: {}, users: {} } };
 const user = { ...userStub, id: 1, email: 'zwass@kolide.co', force_password_reset: false };
 
 describe('Auth - actions', () => {
+  describe('#ssoRedirect', () => {
+    const ssoURL = 'http://salesforce.idp.com';
+    const relayURL = '/';
+    afterEach(restoreSpies);
+
+    describe('successful request', () => {
+      beforeEach(() => {
+        spyOn(Kolide.sessions, 'initializeSSO').andReturn(Promise.resolve({ url: ssoURL }));
+      });
+
+      it('calls the API', () => {
+        const mockStore = reduxMockStore(store);
+
+        mockStore.dispatch(ssoRedirect(relayURL))
+          .then(() => {
+            expect(Kolide.sessions.toHaveBeenCalledWith(relayURL));
+          })
+          .catch(() => {
+            expect(Kolide.sessions.toHaveBeenCalledWith(relayURL));
+          });
+      });
+
+      it('executes to correct actions', () => {
+        const mockStore = reduxMockStore(store);
+        const actions = [
+          { type: SSO_REDIRECT_REQUEST },
+          { type: SSO_REDIRECT_SUCCESS,
+            payload: { ssoRedirectURL: ssoURL },
+          },
+        ];
+
+        return mockStore.dispatch(ssoRedirect(relayURL))
+          .then(() => {
+            expect(mockStore.getActions()).toEqual(actions);
+          })
+          .catch(() => {
+            expect(mockStore.getActions()).toEqual(actions);
+          });
+      });
+
+      it('retrieves redirect url', () => {
+        const mockStore = reduxMockStore(store);
+        return mockStore.dispatch(ssoRedirect(relayURL))
+          .then((result) => {
+            expect(ssoURL).toEqual(result.payload.ssoRedirectURL);
+          })
+          .catch((result) => {
+            expect(ssoURL).toEqual(result);
+          });
+      });
+    });
+  });
+
   describe('#createLicense', () => {
     const license = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWV9.TJVA95OrM7E2cBab30RMHrHDcEfxjoYZgeFONFh7HgQ';
     afterEach(restoreSpies);
