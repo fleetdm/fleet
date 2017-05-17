@@ -85,6 +85,7 @@ type KolideEndpoints struct {
 	GetLicense                     endpoint.Endpoint
 	InitiateSSO                    endpoint.Endpoint
 	CallbackSSO                    endpoint.Endpoint
+	SSOSettings                    endpoint.Endpoint
 }
 
 // MakeKolideServerEndpoints creates the Kolide API endpoints.
@@ -98,6 +99,7 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		VerifyInvite:   makeVerifyInviteEndpoint(svc),
 		InitiateSSO:    makeInitiateSSOEndpoint(svc),
 		CallbackSSO:    makeCallbackSSOEndpoint(svc),
+		SSOSettings:    makeSSOSettingsEndpoint(svc),
 
 		// Authenticated user endpoints
 		// Each of these endpoints should have exactly one
@@ -246,6 +248,7 @@ type kolideHandlers struct {
 	GetLicense                     http.Handler
 	InitiateSSO                    http.Handler
 	CallbackSSO                    http.Handler
+	SettingsSSO                    http.Handler
 }
 
 func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *kolideHandlers {
@@ -323,6 +326,7 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		GetLicense:                    newServer(e.GetLicense, decodeNoParamsRequest),
 		InitiateSSO:                   newServer(e.InitiateSSO, decodeInitiateSSORequest),
 		CallbackSSO:                   newServer(e.CallbackSSO, decodeCallbackSSORequest),
+		SettingsSSO:                   newServer(e.SSOSettings, decodeNoParamsRequest),
 	}
 }
 
@@ -372,6 +376,7 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/change_password", h.ChangePassword).Methods("POST").Name("change_password")
 	r.Handle("/api/v1/kolide/perform_required_password_reset", h.PerformRequiredPasswordReset).Methods("POST").Name("perform_required_password_reset")
 	r.Handle("/api/v1/kolide/sso", h.InitiateSSO).Methods("POST").Name("intiate_sso")
+	r.Handle("/api/v1/kolide/sso", h.SettingsSSO).Methods("GET").Name("sso_config")
 	r.Handle("/api/v1/kolide/sso/callback", h.CallbackSSO).Methods("POST").Name("callback_sso")
 	r.Handle("/api/v1/kolide/users", h.ListUsers).Methods("GET").Name("list_users")
 	r.Handle("/api/v1/kolide/users", h.CreateUser).Methods("POST").Name("create_user")

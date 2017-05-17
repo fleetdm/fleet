@@ -17,7 +17,24 @@ export default (formData) => {
     server: smtpServer,
     port: smtpServerPort,
     user_name: smtpUserName,
+    enable_sso: enableSSO,
+    metadata,
+    metadata_url: metadataURL,
+    entity_id: entityID,
+    idp_name: idpName,
   } = formData;
+
+  if (enableSSO) {
+    if (!metadata && !metadataURL) {
+      errors.metadata_url = 'Metadata URL must be present';
+    }
+    if (!entityID) {
+      errors.entity_id = 'Entity ID must be present';
+    }
+    if (!idpName) {
+      errors.idp_name = 'Identity Provider Name must be present';
+    }
+  }
 
   if (!kolideServerUrl) {
     errors.kolide_server_url = 'Kolide Server URL must be present';

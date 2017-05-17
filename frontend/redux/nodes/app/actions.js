@@ -50,7 +50,6 @@ export const getConfig = () => {
 export const updateConfig = (configData) => {
   return (dispatch) => {
     dispatch(loadConfig);
-
     return Kolide.config.update(configData)
       .then((config) => {
         const formattedConfig = frontendFormattedConfig(config);

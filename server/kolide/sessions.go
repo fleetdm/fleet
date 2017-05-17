@@ -47,6 +47,9 @@ type SessionService interface {
 	// to access is returned from this function so we can redirect back to the front end and
 	// load the page the viewer originally attempted to access when prompted for login.
 	CallbackSSO(ctx context.Context, auth Auth) (*SSOSession, error)
+	// SSOSettings returns non sensitive single sign on information used before
+	// authentication
+	SSOSettings(ctx context.Context) (*SSOSettings, error)
 	Login(ctx context.Context, username, password string) (user *User, token string, err error)
 	Logout(ctx context.Context) (err error)
 	DestroySession(ctx context.Context) (err error)
@@ -60,6 +63,16 @@ type SessionService interface {
 type SSOSession struct {
 	Token       string
 	RedirectURL string
+}
+
+// SSOSettings SSO information used prior to authentication.
+type SSOSettings struct {
+	// IDPName is a human readable name for the IDP
+	IDPName string `json:"idp_name"`
+	// IDPImageURL https link to a logo image for the IDP.
+	IDPImageURL string `json:"idp_image_url"`
+	// SSOEnabled true if single sign on is enabled.
+	SSOEnabled bool `json:"sso_enabled"`
 }
 
 // Session is the model object which represents what an active session is

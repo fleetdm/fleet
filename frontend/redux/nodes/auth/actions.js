@@ -24,6 +24,9 @@ export const PERFORM_REQUIRED_PASSWORD_RESET_FAILURE = 'PERFORM_REQUIRED_PASSWOR
 export const SSO_REDIRECT_REQUEST = 'SSO_REDIRECT_REQUEST';
 export const SSO_REDIRECT_SUCCESS = 'SSO_REDIRECT_SUCCESS';
 export const SSO_REDIRECT_FAILURE = 'SSO_REDIRECT_FAILURE';
+export const SSO_SETTINGS_REQUEST = 'SSO_SETTINGS_REQUEST';
+export const SSO_SETTINGS_SUCCESS = 'SSO_SETTINGS_SUCCESS';
+export const SSO_SETTINGS_FAILURE = 'SSO_SETTINGS_FAILURE';
 
 export const licenseFailure = (errors) => {
   return {
@@ -153,6 +156,37 @@ export const ssoRedirect = (formData) => {
         return dispatch(ssoRedirectSuccess(response.url));
       }).catch((response) => {
         dispatch(ssoRedirectFailure({ base: 'Unable to authenticate the current user' }));
+        throw response;
+      });
+  };
+};
+
+export const ssoSettingsRequest = { type: SSO_SETTINGS_REQUEST };
+export const ssoSettingsSuccess = (settings) => {
+  return {
+    type: SSO_SETTINGS_SUCCESS,
+    payload: {
+      ssoSettings: settings,
+    },
+  };
+};
+export const ssoSettingsFailure = ({ errors }) => {
+  return {
+    type: SSO_SETTINGS_FAILURE,
+    payload: {
+      errors,
+    },
+  };
+};
+
+export const ssoSettings = () => {
+  return (dispatch) => {
+    dispatch(ssoSettingsRequest);
+    return Kolide.sessions.ssoSettings()
+      .then((response) => {
+        return dispatch(ssoSettingsSuccess(response.settings));
+      }).catch((response) => {
+        dispatch(ssoSettingsFailure({ base: 'Unable to fetch single sign on settings' }));
         throw response;
       });
   };
@@ -293,4 +327,5 @@ export const performRequiredPasswordReset = (resetParams) => {
 
 export default {
   ssoRedirect,
+  ssoSettings,
 };

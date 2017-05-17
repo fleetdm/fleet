@@ -34,6 +34,14 @@
     width: 460px;
   }
 
+  &__sso-btn {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    padding: $base;
+    width: 460px;
+    height: 72px;
+  }
+
   &__forgot-wrap {
     margin-top: $pad-base;
     text-align: right;
@@ -45,5 +53,16 @@
     letter-spacing: 1px;
     text-decoration: none;
     color: $accent-text;
+  }
+
+  &__sso-image {
+    vertical-align: middle;
+    height: 45px;
+    width: 45px;
+    padding-right: 10px;
+  }
+
+  &__sso-legend {
+    vertical-align: middle;
   }
 }

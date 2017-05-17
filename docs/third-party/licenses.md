@@ -792,6 +792,7 @@ Third-Party Licenses
 | [regjsgen](https://www.npmjs.com/package/regjsgen) | [MIT](https://opensource.org/licenses/MIT) |
 | [regjsparser](https://www.npmjs.com/package/regjsparser) | [BSD](https://opensource.org/licenses/BSD-3-Clause) |
 | [relateurl](https://www.npmjs.com/package/relateurl) | [MIT](https://opensource.org/licenses/MIT) |
+| [remove-trailing-separator](https://www.npmjs.com/package/remove-trailing-separator) | [ISC](https://opensource.org/licenses/ISC) |
 | [renderkid](https://www.npmjs.com/package/renderkid) | [MIT](https://opensource.org/licenses/MIT) |
 | [repeat-element](https://www.npmjs.com/package/repeat-element) | [MIT](https://opensource.org/licenses/MIT) |
 | [repeat-string](https://www.npmjs.com/package/repeat-string) | [MIT](https://opensource.org/licenses/MIT) |

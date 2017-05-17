@@ -36,6 +36,12 @@ func testOrgInfo(t *testing.T, ds kolide.Datastore) {
 	info2.SMTPAuthenticationMethod = kolide.AuthMethodCramMD5
 	info2.SMTPVerifySSLCerts = true
 	info2.SMTPEnableStartTLS = true
+	info2.EnableSSO = true
+	info2.EntityID = "kolide"
+	info2.MetadataURL = "https://idp.com/metadata.xml"
+	info2.IssuerURI = "https://idp.issuer.com"
+	info2.IDPName = "My IDP"
+
 	err = ds.SaveAppConfig(info2)
 	require.Nil(t, err)
 

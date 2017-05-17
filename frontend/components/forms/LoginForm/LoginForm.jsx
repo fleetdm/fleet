@@ -8,6 +8,7 @@ import formFieldInterface from 'interfaces/form_field';
 import InputFieldWithIcon from 'components/forms/fields/InputFieldWithIcon';
 import paths from 'router/paths';
 import validate from 'components/forms/LoginForm/validate';
+import ssoSettingsInterface from 'interfaces/ssoSettings';
 import avatar from '../../../../assets/images/avatar.svg';
 
 const baseClass = 'login-form';
@@ -22,10 +23,54 @@ class LoginForm extends Component {
     }).isRequired,
     handleSubmit: PropTypes.func,
     isHidden: PropTypes.bool,
+    ssoSettings: ssoSettingsInterface,
+    handleSSOSignOn: PropTypes.func,
   };
 
+  showLegendWithImage = (image, idpName) => {
+    let legend = 'Single Sign On';
+    if (idpName !== '') {
+      legend = `Sign on with ${idpName}`;
+    }
+    return (
+      <div>
+        <img src={image} alt={idpName} className={`${baseClass}__sso-image`} />
+        <span className={`${baseClass}__sso-legend`}>{legend}</span>
+      </div>
+    );
+  }
+
+  showSingleSignOnButton = () => {
+    const { ssoSettings, handleSSOSignOn } = this.props;
+    const { idp_name: idpName, idp_image_url: imageURL } = ssoSettings;
+    const { showLegendWithImage } = this;
+
+    let legend = 'Single Sign On';
+    if (idpName !== '') {
+      legend = `Sign On With ${idpName}`;
+    }
+    if (imageURL !== '') {
+      legend = showLegendWithImage(imageURL, idpName);
+    }
+
+    return (
+      <Button
+        className={`${baseClass}__sso-btn`}
+        type="button"
+        title="Single Sign On"
+        onClick={handleSSOSignOn}
+      >
+        <div>
+          {legend}
+        </div>
+      </Button>
+    );
+  }
+
   render () {
-    const { baseError, fields, handleSubmit, isHidden } = this.props;
+    const { baseError, fields, handleSubmit, isHidden, ssoSettings } = this.props;
+    const { sso_enabled: ssoEnabled } = ssoSettings;
+    const { showSingleSignOnButton } = this;
 
     const loginFormClass = classnames(
       baseClass,
@@ -61,6 +106,7 @@ class LoginForm extends Component {
         >
           Login
         </Button>
+        { ssoEnabled && showSingleSignOnButton()}
       </form>
     );
   }

@@ -23,7 +23,6 @@ export default (client) => {
       if (get(configData, 'smtp_settings.port')) {
         configData.smtp_settings.port = parseInt(configData.smtp_settings.port, 10);
       }
-
       return client.authenticatedPatch(client._endpoint(CONFIG), JSON.stringify(configData));
     },
   };

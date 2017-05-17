@@ -30,5 +30,10 @@ export default (client) => {
       const endpoint = client._endpoint(SSO);
       return Base.post(endpoint, JSON.stringify({ relay_url: url }));
     },
+    ssoSettings: () => {
+      const { SSO } = endpoints;
+      const endpoint = client._endpoint(SSO);
+      return Base.get(endpoint);
+    },
   };
 };

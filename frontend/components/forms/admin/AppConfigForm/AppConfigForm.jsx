@@ -27,7 +27,8 @@ const baseClass = 'app-config-form';
 const formFields = [
   'authentication_method', 'authentication_type', 'domain', 'enable_ssl_tls', 'enable_start_tls',
   'kolide_server_url', 'license', 'org_logo_url', 'org_name', 'osquery_enroll_secret', 'password',
-  'port', 'sender_address', 'server', 'user_name', 'verify_ssl_certs',
+  'port', 'sender_address', 'server', 'user_name', 'verify_ssl_certs', 'idp_name', 'entity_id',
+  'issuer_uri', 'idp_image_url', 'metadata', 'metadata_url', 'enable_sso',
 ];
 const Header = ({ showAdvancedOptions }) => {
   const CaratIcon = <Icon name={showAdvancedOptions ? 'downcarat' : 'upcarat'} />;
@@ -55,6 +56,13 @@ class AppConfigForm extends Component {
       server: formFieldInterface.isRequired,
       user_name: formFieldInterface.isRequired,
       verify_ssl_certs: formFieldInterface.isRequired,
+      entity_id: formFieldInterface.isRequired,
+      issuer_uri: formFieldInterface.isRequired,
+      idp_image_url: formFieldInterface.isRequired,
+      metadata: formFieldInterface.isRequired,
+      metadata_url: formFieldInterface.isRequired,
+      idp_name: formFieldInterface.isRequired,
+      enable_sso: formFieldInterface.isRequired,
     }).isRequired,
     handleSubmit: PropTypes.func.isRequired,
     handleUpdateLicense: PropTypes.func.isRequired,
@@ -252,6 +260,82 @@ class AppConfigForm extends Component {
             <p className={`${baseClass}__note`}><strong>Note:</strong> Please ensure the URL you choose is accessible to all endpoints that need to communicate with Kolide, otherwise they will not be able to correctly register.</p>
           </div>
         </div>
+
+        <div className={`${baseClass}__section`}>
+          <h2>SAML Single Sign On Options</h2>
+          <div className={`${baseClass}__inputs`}>
+            <InputField
+              {...fields.idp_name}
+              label="Identity Provider Name"
+            />
+          </div>
+          <div className={`${baseClass}__details`}>
+            <p>A required human friendly name for the identity provider that will provide single sign on authentication.</p>
+          </div>
+
+          <div className={`${baseClass}__inputs`}>
+            <InputField
+              {...fields.entity_id}
+              label="Entity ID"
+              hint={<span>The URI you provide here must exactly match the Entity ID field used in identity provider configuration.</span>}
+            />
+          </div>
+          <div className={`${baseClass}__details`}>
+            <p>The required entity ID is a URI that you use to identify <strong>Kolide</strong> when configuring the identity provider.</p>
+          </div>
+
+          <div className={`${baseClass}__inputs`}>
+            <InputField
+              {...fields.issuer_uri}
+              label="Issuer URI"
+            />
+          </div>
+          <div className={`${baseClass}__details`}>
+            <p>The issuer URI supplied by the identity provider.</p>
+          </div>
+
+          <div className={`${baseClass}__inputs`}>
+            <InputField
+              {...fields.idp_image_url}
+              label="IDP Image URL"
+            />
+          </div>
+          <div className={`${baseClass}__details`}>
+            <p>An optional link to an image such as a logo for the identity provider.</p>
+          </div>
+
+          <div className={`${baseClass}__inputs`}>
+            <InputField
+              {...fields.metadata}
+              label="Metadata"
+              type="textarea"
+            />
+          </div>
+          <div className={`${baseClass}__details`}>
+            <p>Metadata provided by the identity provider. Either metadata or a metadata url must be provided.</p>
+          </div>
+
+          <div className={`${baseClass}__inputs`}>
+            <InputField
+              {...fields.metadata_url}
+              label="Metadata URL"
+              hint={<span>If available from the identity provider, this is the preferred means of providing metadata.</span>}
+            />
+          </div>
+          <div className={`${baseClass}__details`}>
+            <p>A URL that references the identity provider metadata.</p>
+          </div>
+
+          <div className={`${baseClass}__inputs`}>
+            <Checkbox
+              {...fields.enable_sso}
+            >
+              Enable Single Sign On
+            </Checkbox>
+          </div>
+
+        </div>
+
         <div className={`${baseClass}__section`}>
           <h2>SMTP Options <small className={`smtp-options smtp-options--${smtpConfigured ? 'configured' : 'notconfigured'}`}>STATUS: <em>{smtpConfigured ? 'CONFIGURED' : 'NOT CONFIGURED'}</em></small></h2>
           <div className={`${baseClass}__inputs`}>

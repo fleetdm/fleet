@@ -10,7 +10,7 @@ func init() {
 
 func Up_20170502143928(tx *sql.Tx) error {
 	_, err := tx.Exec(
-		"ALTER TABLE `kolide`.`app_configs` " +
+		"ALTER TABLE `app_configs` " +
 			"ADD COLUMN `entity_id` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '' AFTER `osquery_enroll_secret`, " +
 			"ADD COLUMN `issuer_uri` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '' AFTER `entity_id`, " +
 			"ADD COLUMN `idp_image_url` VARCHAR(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '' AFTER `issuer_uri`, " +
@@ -24,7 +24,7 @@ func Up_20170502143928(tx *sql.Tx) error {
 
 func Down_20170502143928(tx *sql.Tx) error {
 	_, err := tx.Exec(
-		"ALTER TABLE `kolide`.`app_configs` " +
+		"ALTER TABLE `app_configs` " +
 			"DROP COLUMN `entity_id`, " +
 			"DROP COLUMN `issuer_uri`, " +
 			"DROP COLUMN `idp_image_url`, " +

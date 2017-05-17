@@ -4,7 +4,7 @@ import { size } from 'lodash';
 import { push } from 'react-router-redux';
 
 import AuthenticationFormWrapper from 'components/AuthenticationFormWrapper';
-import { clearAuthErrors, loginUser } from 'redux/nodes/auth/actions';
+import { clearAuthErrors, loginUser, ssoRedirect } from 'redux/nodes/auth/actions';
 import { clearRedirectLocation } from 'redux/nodes/redirectLocation/actions';
 import debounce from 'utilities/debounce';
 import LoginForm from 'components/forms/LoginForm';
@@ -14,6 +14,7 @@ import ResetPasswordPage from 'pages/ResetPasswordPage';
 import paths from 'router/paths';
 import redirectLocationInterface from 'interfaces/redirect_location';
 import userInterface from 'interfaces/user';
+import ssoSettingsInterface from 'interfaces/ssoSettings';
 
 export class LoginPage extends Component {
   static propTypes = {
@@ -27,6 +28,7 @@ export class LoginPage extends Component {
     token: PropTypes.string,
     redirectLocation: redirectLocationInterface,
     user: userInterface,
+    ssoSettings: ssoSettingsInterface,
   };
 
   constructor (props) {
@@ -73,10 +75,25 @@ export class LoginPage extends Component {
       .catch(() => false);
   })
 
+  ssoSignOn = () => {
+    const { dispatch, redirectLocation } = this.props;
+    const { HOME } = paths;
+    let returnToAfterAuth = HOME;
+    if (redirectLocation != null) {
+      returnToAfterAuth = redirectLocation.pathname;
+    }
+
+    dispatch(ssoRedirect(returnToAfterAuth))
+      .then((result) => {
+        window.location.href = result.payload.ssoRedirectURL;
+      })
+      .catch(() => false);
+  }
+
   showLoginForm = () => {
-    const { errors } = this.props;
+    const { errors, ssoSettings } = this.props;
     const { loginVisible } = this.state;
-    const { onChange, onSubmit } = this;
+    const { onChange, onSubmit, ssoSignOn } = this;
 
     return (
       <LoginForm
@@ -84,6 +101,8 @@ export class LoginPage extends Component {
         handleSubmit={onSubmit}
         isHidden={!loginVisible}
         serverErrors={errors}
+        ssoSettings={ssoSettings}
+        handleSSOSignOn={ssoSignOn}
       />
     );
   }
@@ -104,14 +123,16 @@ export class LoginPage extends Component {
 }
 
 const mapStateToProps = (state) => {
-  const { errors, loading, user } = state.auth;
+  const { errors, loading, user, ssoSettings } = state.auth;
   const { redirectLocation } = state;
+
 
   return {
     errors,
     loading,
     redirectLocation,
     user,
+    ssoSettings,
   };
 };
 

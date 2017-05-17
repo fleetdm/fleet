@@ -2,30 +2,30 @@ import React from 'react';
 import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
-
 import LoginForm from './LoginForm';
 import { fillInFormInput } from '../../../test/helpers';
 
 describe('LoginForm - component', () => {
   afterEach(restoreSpies);
+  const settings = { sso_enabled: false };
 
   it('renders the base error', () => {
     const baseError = 'Unable to authenticate the current user';
-    const formWithError = mount(<LoginForm serverErrors={{ base: baseError }} handleSubmit={noop} />);
-    const formWithoutError = mount(<LoginForm handleSubmit={noop} />);
+    const formWithError = mount(<LoginForm serverErrors={{ base: baseError }} handleSubmit={noop} ssoSettings={settings} />);
+    const formWithoutError = mount(<LoginForm handleSubmit={noop} ssoSettings={settings} />);
 
     expect(formWithError.text()).toInclude(baseError);
     expect(formWithoutError.text()).toNotInclude(baseError);
   });
 
   it('renders 2 InputField components', () => {
-    const form = mount(<LoginForm handleSubmit={noop} />);
+    const form = mount(<LoginForm handleSubmit={noop} ssoSettings={settings} />);
 
     expect(form.find('InputFieldWithIcon').length).toEqual(2);
   });
 
   it('updates component state when the username field is changed', () => {
-    const form = mount(<LoginForm handleSubmit={noop} />);
+    const form = mount(<LoginForm handleSubmit={noop} ssoSettings={settings} />);
     const username = 'hi@thegnar.co';
 
     const usernameField = form.find({ name: 'username' });
@@ -36,7 +36,7 @@ describe('LoginForm - component', () => {
   });
 
   it('updates component state when the password field is changed', () => {
-    const form = mount(<LoginForm handleSubmit={noop} />);
+    const form = mount(<LoginForm handleSubmit={noop} ssoSettings={settings} />);
 
     const passwordField = form.find({ name: 'password' });
     fillInFormInput(passwordField, 'hello');
@@ -49,7 +49,7 @@ describe('LoginForm - component', () => {
 
   it('it does not submit the form when the form fields have not been filled out', () => {
     const submitSpy = createSpy();
-    const form = mount(<LoginForm handleSubmit={submitSpy} />);
+    const form = mount(<LoginForm handleSubmit={submitSpy} ssoSettings={settings} />);
     const submitBtn = form.find('button');
 
     submitBtn.simulate('click');
@@ -62,7 +62,8 @@ describe('LoginForm - component', () => {
 
   it('submits the form data when form is submitted', () => {
     const submitSpy = createSpy();
-    const form = mount(<LoginForm handleSubmit={submitSpy} />);
+
+    const form = mount(<LoginForm handleSubmit={submitSpy} ssoSettings={settings} />);
     const usernameField = form.find({ name: 'username' });
     const passwordField = form.find({ name: 'password' });
     const submitBtn = form.find('button');

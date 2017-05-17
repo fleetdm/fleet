@@ -123,6 +123,10 @@ func (svc service) ModifyUser(ctx context.Context, userID uint, p kolide.UserPay
 		user.GravatarURL = *p.GravatarURL
 	}
 
+	if p.SSOEnabled != nil {
+		user.SSOEnabled = *p.SSOEnabled
+	}
+
 	err = svc.saveUser(user)
 	if err != nil {
 		return nil, err

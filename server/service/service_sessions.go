@@ -15,6 +15,19 @@ import (
 	"github.com/pkg/errors"
 )
 
+func (svc service) SSOSettings(ctx context.Context) (*kolide.SSOSettings, error) {
+	appConfig, err := svc.ds.AppConfig()
+	if err != nil {
+		return nil, errors.Wrap(err, "SSOSettings getting app config")
+	}
+	settings := &kolide.SSOSettings{
+		IDPName:     appConfig.IDPName,
+		IDPImageURL: appConfig.IDPImageURL,
+		SSOEnabled:  appConfig.EnableSSO,
+	}
+	return settings, nil
+}
+
 func (svc service) InitiateSSO(ctx context.Context, redirectURL string) (string, error) {
 	appConfig, err := svc.ds.AppConfig()
 	if err != nil {
@@ -90,6 +103,10 @@ func (svc service) CallbackSSO(ctx context.Context, auth kolide.Auth) (*kolide.S
 	// if user is not active they are not authorized to use the application
 	if !user.Enabled || user.Deleted {
 		return nil, errors.New("user authorization failed")
+	}
+	// if the user is not sso enabled they are not authorized
+	if !user.SSOEnabled {
+		return nil, errors.New("user not configured to use sso")
 	}
 	token, err := svc.makeSession(user.ID)
 	if err != nil {

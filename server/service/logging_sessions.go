@@ -59,3 +59,15 @@ func (mw loggingMiddleware) CallbackSSO(ctx context.Context, auth kolide.Auth) (
 	sess, err = mw.Service.CallbackSSO(ctx, auth)
 	return
 }
+
+func (mw loggingMiddleware) SSOSettings(ctx context.Context) (settings *kolide.SSOSettings, err error) {
+	defer func(begin time.Time) {
+		_ = mw.logger.Log(
+			"method", "SSOSettings",
+			"err", err,
+			"took", time.Since(begin),
+		)
+	}(time.Now())
+	settings, err = mw.Service.SSOSettings(ctx)
+	return
+}

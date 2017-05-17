@@ -11,7 +11,7 @@ import (
 func TestSSONotPresent(t *testing.T) {
 	invalid := &invalidArgumentError{}
 	var p kolide.AppConfigPayload
-	validateSSOSettings(p, invalid)
+	validateSSOSettings(p, &kolide.AppConfig{}, invalid)
 	assert.False(t, invalid.HasErrors())
 
 }
@@ -26,7 +26,7 @@ func TestNeedFieldsPresent(t *testing.T) {
 		IDPName:     "onelogin",
 	}
 	p := appConfigPayloadFromAppConfig(&config)
-	validateSSOSettings(*p, invalid)
+	validateSSOSettings(*p, &kolide.AppConfig{}, invalid)
 	assert.False(t, invalid.HasErrors())
 }
 
@@ -39,7 +39,7 @@ func TestMissingMetadata(t *testing.T) {
 		IDPName:   "onelogin",
 	}
 	p := appConfigPayloadFromAppConfig(&config)
-	validateSSOSettings(*p, &invalid)
+	validateSSOSettings(*p, &kolide.AppConfig{}, &invalid)
 	require.True(t, invalid.HasErrors())
 	require.Len(t, invalid, 1)
 	assert.Equal(t, "metadata", invalid[0].name)

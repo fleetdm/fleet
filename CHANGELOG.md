@@ -1,3 +1,5 @@
+* Added SAML single sign on support.
+
 * Improved online status detection.
 
   The Kolide server now tracks the `distributed_interval` and `config_tls_refresh` values for each individual host (these can be different if they are set via flagfile and not through Kolide), to ensure that online status is represented as accurately as possible.

@@ -9,11 +9,11 @@ func init() {
 }
 
 func Up_20170509132100(tx *sql.Tx) error {
-	_, err := tx.Exec("ALTER TABLE `kolide`.`users` ADD COLUMN `sso_enabled` TINYINT NOT NULL DEFAULT FALSE AFTER `position`;")
+	_, err := tx.Exec("ALTER TABLE `users` ADD COLUMN `sso_enabled` TINYINT NOT NULL DEFAULT FALSE AFTER `position`;")
 	return err
 }
 
 func Down_20170509132100(tx *sql.Tx) error {
-	_, err := tx.Exec("ALTER TABLE `kolide`.`users` DROP COLUMN `sso_enabled` ;")
+	_, err := tx.Exec("ALTER TABLE `users` DROP COLUMN `sso_enabled` ;")
 	return err
 }

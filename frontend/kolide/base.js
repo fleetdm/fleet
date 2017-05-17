@@ -15,6 +15,11 @@ class Base {
     return Base._request(POST, endpoint, body, headers);
   }
 
+  static get (endpoint, overrideHeaders = {}) {
+    const { GET } = Request.REQUEST_METHODS;
+    return Base._request(GET, endpoint, {}, overrideHeaders);
+  }
+
   static _deleteRequest (endpoint, headers) {
     const { DELETE: method } = Request.REQUEST_METHODS;
     const request = new Request({ endpoint, method, headers });

@@ -18,6 +18,14 @@ var (
 )
 
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	// The has to happen first, if an error happens we'll redirect to an error
+	// page and the error will be logged
+	if page, ok := response.(htmlPage); ok {
+		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
+		_, err := io.WriteString(w, page.html())
+		return err
+	}
+
 	if e, ok := response.(errorer); ok && e.error() != nil {
 		encodeError(ctx, e.error(), w)
 		return nil
@@ -28,12 +36,6 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 		if e.status() == http.StatusNoContent {
 			return nil
 		}
-	}
-
-	if page, ok := response.(htmlPage); ok {
-		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-		_, err := io.WriteString(w, page.html())
-		return err
 	}
 
 	enc := json.NewEncoder(w)

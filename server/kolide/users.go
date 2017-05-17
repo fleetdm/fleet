@@ -117,6 +117,7 @@ type UserPayload struct {
 	Position    *string `json:"position"`
 	InviteToken *string `json:"invite_token"`
 	SSOInvite   *bool   `json:"sso_invite"`
+	SSOEnabled  *bool   `json:"sso_enabled"`
 }
 
 // User creates a user from payload.
@@ -140,6 +141,9 @@ func (p UserPayload) User(keySize, cost int) (*User, error) {
 	}
 	if p.Position != nil {
 		user.Position = *p.Position
+	}
+	if p.SSOEnabled != nil {
+		user.SSOEnabled = *p.SSOEnabled
 	}
 
 	return user, nil

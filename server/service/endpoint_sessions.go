@@ -245,3 +245,20 @@ func makeCallbackSSOEndpoint(svc kolide.Service) endpoint.Endpoint {
 		return resp, nil
 	}
 }
+
+type ssoSettingsResponse struct {
+	Settings *kolide.SSOSettings `json:"settings,omitempty"`
+	Err      error               `json:"error,omitempty"`
+}
+
+func (r ssoSettingsResponse) error() error { return r.Err }
+
+func makeSSOSettingsEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, unused interface{}) (interface{}, error) {
+		settings, err := svc.SSOSettings(ctx)
+		if err != nil {
+			return ssoSettingsResponse{Err: err}, nil
+		}
+		return ssoSettingsResponse{Settings: settings}, nil
+	}
+}
