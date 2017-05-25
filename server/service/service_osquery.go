@@ -39,9 +39,16 @@ func (svc service) AuthenticateHost(ctx context.Context, nodeKey string) (*kolid
 
 	host, err := svc.ds.AuthenticateHost(nodeKey)
 	if err != nil {
-		return nil, osqueryError{
-			message:     "authentication error: " + err.Error(),
-			nodeInvalid: true,
+		switch err.(type) {
+		case kolide.NotFoundError:
+			return nil, osqueryError{
+				message:     "authentication error: invalid node key: " + nodeKey,
+				nodeInvalid: true,
+			}
+		default:
+			return nil, osqueryError{
+				message: "authentication error: " + err.Error(),
+			}
 		}
 	}
 

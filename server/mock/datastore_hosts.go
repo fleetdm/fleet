@@ -21,7 +21,6 @@ type HostFunc func(id uint) (*kolide.Host, error)
 type ListHostsFunc func(opt kolide.ListOptions) ([]*kolide.Host, error)
 
 type EnrollHostFunc func(osqueryHostId string, nodeKeySize int) (*kolide.Host, error)
-
 type AuthenticateHostFunc func(nodeKey string) (*kolide.Host, error)
 
 type MarkHostSeenFunc func(host *kolide.Host, t time.Time) error

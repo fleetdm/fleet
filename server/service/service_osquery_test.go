@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -932,4 +933,53 @@ func setupOsqueryTests(t *testing.T) (kolide.Datastore, kolide.Service, *clock.M
 	require.Nil(t, err)
 
 	return ds, svc, mockClock
+}
+
+type notFoundError struct{}
+
+func (e notFoundError) Error() string {
+	return "not found"
+}
+
+func (e notFoundError) IsNotFound() bool {
+	return true
+}
+
+func TestAuthenticationErrors(t *testing.T) {
+	ms := new(mock.Store)
+	ms.MarkHostSeenFunc = func(*kolide.Host, time.Time) error {
+		return nil
+	}
+	ms.AuthenticateHostFunc = func(nodeKey string) (*kolide.Host, error) {
+		return nil, nil
+	}
+
+	svc, err := newTestService(ms, nil)
+	require.Nil(t, err)
+	ctx := context.Background()
+
+	_, err = svc.AuthenticateHost(ctx, "")
+	require.NotNil(t, err)
+	require.True(t, err.(osqueryError).NodeInvalid())
+
+	_, err = svc.AuthenticateHost(ctx, "foo")
+	require.Nil(t, err)
+
+	// return not found error
+	ms.AuthenticateHostFunc = func(nodeKey string) (*kolide.Host, error) {
+		return nil, notFoundError{}
+	}
+
+	_, err = svc.AuthenticateHost(ctx, "foo")
+	require.NotNil(t, err)
+	require.True(t, err.(osqueryError).NodeInvalid())
+
+	// return other error
+	ms.AuthenticateHostFunc = func(nodeKey string) (*kolide.Host, error) {
+		return nil, errors.New("foo")
+	}
+
+	_, err = svc.AuthenticateHost(ctx, "foo")
+	require.NotNil(t, err)
+	require.False(t, err.(osqueryError).NodeInvalid())
 }
