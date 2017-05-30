@@ -1,0 +1,55 @@
+.decorator-rows {
+  background-color: $white;
+  border: 1px solid $accent-dark;
+  border-radius: 3px;
+  box-shadow: inset 0 0 8px 0 rgba(0, 0, 0, 0.12);
+  box-sizing: border-box;
+
+  &__table {
+    border-collapse: collapse;
+    width: 100%;
+    border-radius: 3px;
+
+    thead {
+      height: 50px;
+      background-color: $bg-medium;
+      box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.12);
+
+      .form-field {
+        margin: 0;
+      }
+
+      th {
+        font-size: 14px;
+        font-weight: $bold;
+        letter-spacing: -0.5px;
+        text-align: left;
+        color: $link;
+        padding: 15px 10px;
+
+        &:nth-child(1) {
+          border-top-left-radius: 3px;
+          width: 20px;
+        }
+
+        &:last-child {
+          border-top-right-radius: 3px;
+        }
+      }
+    }
+
+    tbody {
+      td {
+        padding: 0 10px;
+        margin: 0;
+        border-bottom: 1px solid $accent-light;
+
+        &:nth-child(1) {
+          text-align: center;
+          vertical-align: middle;
+        }
+      }
+    }
+  }
+
+}

@@ -1,0 +1,39 @@
+.decorator-form {
+  &__wrapper {
+    padding: $base;
+
+    h1 {
+      margin-bottom: 19px;
+    }
+  }
+
+  &__dropdown {
+    width: 200px;
+  }
+
+  &__name {
+    width: 300px;
+  }
+
+  &__button-wrap {
+    text-align: right;
+  }
+
+  &__inputs {
+    width: 100%;
+    float: left;
+    padding: 0;
+    box-sizing: border-box;
+
+  }
+
+  &__form-btn {
+    padding: inherit $base;
+    margin-left: 10px;
+    margin-top: 30px;
+
+    &--submit {
+      float: right;
+    }
+  }
+}

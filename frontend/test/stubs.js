@@ -231,6 +231,15 @@ export const campaignStub = {
   },
 };
 
+export const decoratorStub = {
+  id: 1,
+  query: 'SELECT version FROM osquery_info;',
+  type: 'load',
+  interval: 0,
+  built_in: 0,
+  name: 'foo',
+};
+
 export default {
   adminUserStub,
   campaignStub,
@@ -243,4 +252,5 @@ export default {
   queryStub,
   scheduledQueryStub,
   userStub,
+  decoratorStub,
 };

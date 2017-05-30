@@ -100,6 +100,32 @@ export default (admin) => {
       ],
     },
     {
+      icon: 'decorator',
+      name: 'Decorators',
+      location: {
+        pathname: '/decorators/manage',
+        regex: /^\/decorators/,
+      },
+      subItems: [
+        {
+          icon: 'decorator',
+          name: 'Manage Decorators',
+          location: {
+            pathname: '/decorators/manage',
+            regex: /\/decorators\/manage/,
+          },
+        },
+        {
+          icon: 'pencil',
+          name: 'New Decorator',
+          location: {
+            regex: /\/decorators\/new/,
+            pathname: '/decorators/new',
+          },
+        },
+      ],
+    },
+    {
       icon: 'help',
       name: 'Help',
       location: {

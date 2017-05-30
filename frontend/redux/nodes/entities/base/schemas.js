@@ -10,6 +10,7 @@ const queriesSchema = new Schema('queries');
 const scheduledQueriesSchema = new Schema('scheduled_queries');
 const targetsSchema = new Schema('targets');
 const usersSchema = new Schema('users');
+const decoratorsSchema = new Schema('decorators');
 
 export default {
   CAMPAIGNS: campaignsSchema,
@@ -22,4 +23,5 @@ export default {
   SCHEDULED_QUERIES: scheduledQueriesSchema,
   TARGETS: targetsSchema,
   USERS: usersSchema,
+  DECORATORS: decoratorsSchema,
 };

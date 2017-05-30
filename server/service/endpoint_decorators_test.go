@@ -39,6 +39,7 @@ func setupDecoratorTest(r *testResource) {
 
 func testModifyDecorator(t *testing.T, r *testResource) {
 	dec := &kolide.Decorator{
+		Name:  "foo",
 		Type:  kolide.DecoratorLoad,
 		Query: "select foo from bar;",
 	}
@@ -46,6 +47,8 @@ func testModifyDecorator(t *testing.T, r *testResource) {
 	require.Nil(t, err)
 	buffer := bytes.NewBufferString(`{
 	"payload": {
+      "type": "always",
+      "name": "bar",
 			"query": "select baz from boom;"
 		}
 	}`)
@@ -61,6 +64,8 @@ func testModifyDecorator(t *testing.T, r *testResource) {
 	require.Nil(t, err)
 	require.NotNil(t, decResp.Decorator)
 	assert.Equal(t, "select baz from boom;", decResp.Decorator.Query)
+	assert.Equal(t, kolide.DecoratorAlways, decResp.Decorator.Type)
+	assert.Equal(t, "bar", decResp.Decorator.Name)
 }
 
 // This test verifies that we can submit the same payload twice without
@@ -74,7 +79,7 @@ func testModifyDecoratorNoChanges(t *testing.T, r *testResource) {
 	require.Nil(t, err)
 	buffer := bytes.NewBufferString(`{
 	"payload": {
-	    "decorator_type": "load",
+	    "type": "load",
 			"query": "select foo from bar;"
 		}
 	}`)
@@ -114,7 +119,7 @@ func testNewDecorator(t *testing.T, r *testResource) {
 	buffer := bytes.NewBufferString(
 		`{
 		 "payload": {
-			"decorator_type": "load",
+			"type": "load",
 			"query": "select x from y;"
 			}
 		}`)
@@ -139,7 +144,7 @@ func testNewDecoratorFailType(t *testing.T, r *testResource) {
 	buffer := bytes.NewBufferString(
 		`{
 		 "payload": {
-			"decorator_type": "zip",
+			"type": "zip",
 			"query": "select x from y;"
 			}
 		}`)
@@ -163,7 +168,7 @@ func testNewDecoratorFailValidation(t *testing.T, r *testResource) {
 	buffer := bytes.NewBufferString(
 		`{
 			"payload": {
-				"decorator_type": "interval",
+				"type": "interval",
 				"query": "select x from y;",
 				"interval": 3601
 			}

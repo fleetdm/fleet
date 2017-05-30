@@ -29,6 +29,9 @@ import Kolide404 from 'pages/Kolide404';
 import Kolide500 from 'pages/Kolide500';
 import store from 'redux/store';
 import UserSettingsPage from 'pages/UserSettingsPage';
+import DecoratorPage from 'pages/decorators/DecoratorPage';
+import ManageDecoratorsPage from 'pages/decorators/ManageDecoratorsPage';
+import DecoratorsPageWrapper from 'components/decorators/DecoratorsPageWrapper';
 
 const history = syncHistoryWithStore(browserHistory, store);
 
@@ -58,6 +61,11 @@ const routes = (
             </Route>
             <Route path="hosts">
               <Route path="manage" component={ManageHostsPage} />
+            </Route>
+            <Route path="decorators" component={DecoratorsPageWrapper}>
+              <Route path="manage" component={ManageDecoratorsPage} />
+              <Route path="new" component={DecoratorPage} />
+              <Route path=":id" component={DecoratorPage} />
             </Route>
             <Route path="packs" component={PackPageWrapper}>
               <Route path="manage" component={AllPacksPage} />

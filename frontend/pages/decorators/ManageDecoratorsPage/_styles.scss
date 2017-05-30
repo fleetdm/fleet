@@ -1,0 +1,33 @@
+.manage-decorators-page {
+  &__wrapper {
+    padding: $base;
+    min-height: 90vh;
+  }
+
+  &__title {
+    margin: 0 0 20px;
+  }
+
+  &__buttons {
+    @include flex-grow(1);
+  }
+
+  &__top-buttons {
+    @include display(flex);
+    float: right;
+
+    .form-field {
+      margin: 0;
+    }
+  }
+
+  &__modal-btn-wrap {
+    @include display(flex);
+    @include flex-direction(row-reverse);
+
+    .button {
+      margin-left: 15px;
+      width: 120px;
+    }
+  }
+}

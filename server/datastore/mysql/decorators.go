@@ -11,12 +11,14 @@ import (
 func (ds *Datastore) SaveDecorator(dec *kolide.Decorator) error {
 	sqlStatement :=
 		"UPDATE decorators SET " +
+			"`name` = ?, " +
 			"`query` = ?, " +
 			"`type` = ?, " +
 			"`interval` = ? " +
 			"WHERE id = ?"
 	_, err := ds.db.Exec(
 		sqlStatement,
+		dec.Name,
 		dec.Query,
 		dec.Type,
 		dec.Interval,
@@ -31,11 +33,12 @@ func (ds *Datastore) SaveDecorator(dec *kolide.Decorator) error {
 func (ds *Datastore) NewDecorator(decorator *kolide.Decorator) (*kolide.Decorator, error) {
 	sqlStatement :=
 		"INSERT INTO decorators (" +
+			"`name`," +
 			"`query`," +
 			"`type`," +
 			"`interval` ) " +
-			"VALUES (?, ?, ?)"
-	result, err := ds.db.Exec(sqlStatement, decorator.Query, decorator.Type, decorator.Interval)
+			"VALUES (?, ?, ?, ?)"
+	result, err := ds.db.Exec(sqlStatement, decorator.Name, decorator.Query, decorator.Type, decorator.Interval)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating decorator")
 	}
@@ -81,6 +84,7 @@ func (ds *Datastore) ListDecorators() ([]*kolide.Decorator, error) {
 	sqlStatement := `
     SELECT *
       FROM decorators
+      ORDER by built_in DESC, name ASC
   `
 	var results []*kolide.Decorator
 	err := ds.db.Select(&results, sqlStatement)

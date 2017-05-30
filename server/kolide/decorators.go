@@ -94,7 +94,9 @@ func (dt *DecoratorType) UnmarshalJSON(data []byte) error {
 // Decorator contains information about a decorator query.
 type Decorator struct {
 	UpdateCreateTimestamps
-	ID   uint          `json:"id"`
+	ID uint `json:"id"`
+	// Name is an optional human friendly name for the decorator
+	Name string        `json:"name"`
 	Type DecoratorType `json:"type"`
 	// Interval note this is only pertinent for DecoratorInterval type.
 	Interval uint   `json:"interval"`
@@ -105,7 +107,8 @@ type Decorator struct {
 
 type DecoratorPayload struct {
 	ID            uint           `json:"id"`
-	DecoratorType *DecoratorType `json:"decorator_type"`
+	Name          *string        `json:"name"`
+	DecoratorType *DecoratorType `json:"type"`
 	Interval      *uint          `json:"interval"`
 	Query         *string        `json:"query"`
 }

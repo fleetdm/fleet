@@ -38,4 +38,5 @@ export default {
     return `/v1/kolide/users/${id}/admin`;
   },
   SSO: '/v1/kolide/sso',
+  DECORATORS: '/v1/kolide/decorators',
 };

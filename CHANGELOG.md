@@ -1,3 +1,5 @@
+* Added support for Osquery decorators. 
+
 * Added SAML single sign on support.
 
 * Improved online status detection.

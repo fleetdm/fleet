@@ -8,11 +8,11 @@ import (
 
 func validateNewDecoratorType(payload kolide.DecoratorPayload, invalid *invalidArgumentError) {
 	if payload.DecoratorType == nil {
-		invalid.Append("decorator_type", "missing required argument")
+		invalid.Append("type", "missing required argument")
 		return
 	}
 	if *payload.DecoratorType == kolide.DecoratorUndefined {
-		invalid.Append("decorator_type", "invalid value, must be load, always, or interval")
+		invalid.Append("type", "invalid value, must be load, always, or interval")
 		return
 	}
 	if *payload.DecoratorType == kolide.DecoratorInterval {
@@ -49,7 +49,7 @@ func (mw validationMiddleware) validateModifyDecoratorType(payload kolide.Decora
 	if payload.DecoratorType != nil {
 
 		if *payload.DecoratorType == kolide.DecoratorUndefined {
-			invalid.Append("decorator_type", "invalid value, must be load, always, or interval")
+			invalid.Append("type", "invalid value, must be load, always, or interval")
 			return nil
 		}
 		if *payload.DecoratorType == kolide.DecoratorInterval {
