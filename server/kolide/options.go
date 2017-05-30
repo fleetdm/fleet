@@ -14,13 +14,13 @@ type OptionStore interface {
 	// values fails validation none of the writes will succeed. Note only option
 	// values are written.  Other option fields are created in migration and do
 	// not change. Attempting to write ReadOnly options will cause an error.
-	SaveOptions(opts []Option) error
+	SaveOptions(opts []Option, args ...OptionalArg) error
 	// Options returns all options
 	ListOptions() ([]Option, error)
 	// Option return an option by ID
 	Option(id uint) (*Option, error)
 	// OptionByName returns an option uniquely identified by name
-	OptionByName(name string) (*Option, error)
+	OptionByName(name string, args ...OptionalArg) (*Option, error)
 	// GetOsqueryConfigOptions returns options in a format that will be the options
 	// section of osquery configuration
 	GetOsqueryConfigOptions() (map[string]interface{}, error)

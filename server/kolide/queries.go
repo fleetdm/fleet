@@ -7,7 +7,7 @@ import (
 type QueryStore interface {
 	// NewQuery creates a new query object in thie datastore. The returned
 	// query should have the ID updated.
-	NewQuery(query *Query) (*Query, error)
+	NewQuery(query *Query, opts ...OptionalArg) (*Query, error)
 	// SaveQuery saves changes to an existing query object.
 	SaveQuery(query *Query) error
 	// DeleteQuery (soft) deletes an existing query object.
@@ -24,7 +24,7 @@ type QueryStore interface {
 	ListQueries(opt ListOptions) ([]*Query, error)
 	// QueryByName looks up a query by name, the second bool is true if a query
 	// by the name exists.
-	QueryByName(name string) (*Query, bool, error)
+	QueryByName(name string, opts ...OptionalArg) (*Query, bool, error)
 }
 
 type QueryService interface {

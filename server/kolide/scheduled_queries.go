@@ -5,7 +5,7 @@ import (
 )
 
 type ScheduledQueryStore interface {
-	NewScheduledQuery(sq *ScheduledQuery) (*ScheduledQuery, error)
+	NewScheduledQuery(sq *ScheduledQuery, opts ...OptionalArg) (*ScheduledQuery, error)
 	SaveScheduledQuery(sq *ScheduledQuery) (*ScheduledQuery, error)
 	DeleteScheduledQuery(id uint) error
 	ScheduledQuery(id uint) (*ScheduledQuery, error)

@@ -55,6 +55,15 @@ func New(config config.KolideConfig) (*Datastore, error) {
 	return ds, nil
 }
 
+type imemTransactionStub struct{}
+
+func (im *imemTransactionStub) Rollback() error { return nil }
+func (im *imemTransactionStub) Commit() error   { return nil }
+
+func (d *Datastore) Begin() (kolide.Transaction, error) {
+	return &imemTransactionStub{}, nil
+}
+
 func (d *Datastore) Name() string {
 	return "inmem"
 }

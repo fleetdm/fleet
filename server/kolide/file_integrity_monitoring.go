@@ -4,7 +4,7 @@ type FIMSections map[string][]string
 
 type FileIntegrityMonitoringStore interface {
 	// NewFIMSection creates a named group of file paths
-	NewFIMSection(path *FIMSection) (*FIMSection, error)
+	NewFIMSection(path *FIMSection, opts ...OptionalArg) (*FIMSection, error)
 	// FIMSections returns all named file sections
 	FIMSections() (FIMSections, error)
 }

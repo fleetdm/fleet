@@ -8,14 +8,15 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (d *Datastore) PackByName(name string) (*kolide.Pack, bool, error) {
+func (d *Datastore) PackByName(name string, opts ...kolide.OptionalArg) (*kolide.Pack, bool, error) {
+	db := d.getTransaction(opts)
 	sqlStatement := `
 		SELECT *
 			FROM packs
 			WHERE name = ? AND NOT deleted
 	`
 	var pack kolide.Pack
-	err := d.db.Get(&pack, sqlStatement, name)
+	err := db.Get(&pack, sqlStatement, name)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, false, nil
@@ -27,12 +28,13 @@ func (d *Datastore) PackByName(name string) (*kolide.Pack, bool, error) {
 }
 
 // NewPack creates a new Pack
-func (d *Datastore) NewPack(pack *kolide.Pack) (*kolide.Pack, error) {
+func (d *Datastore) NewPack(pack *kolide.Pack, opts ...kolide.OptionalArg) (*kolide.Pack, error) {
+	db := d.getTransaction(opts)
 	var (
 		deletedPack kolide.Pack
 		query       string
 	)
-	err := d.db.Get(&deletedPack,
+	err := db.Get(&deletedPack,
 		"SELECT * FROM packs WHERE name = ? AND deleted", pack.Name)
 	switch err {
 	case nil:
@@ -52,7 +54,7 @@ func (d *Datastore) NewPack(pack *kolide.Pack) (*kolide.Pack, error) {
 	}
 
 	deleted := false
-	result, err := d.db.Exec(query, pack.Name, pack.Description, pack.Platform, pack.CreatedBy, pack.Disabled, deleted)
+	result, err := db.Exec(query, pack.Name, pack.Description, pack.Platform, pack.CreatedBy, pack.Disabled, deleted)
 	if err != nil && isDuplicate(err) {
 		return nil, alreadyExists("Pack", deletedPack.ID)
 	} else if err != nil {
@@ -117,13 +119,15 @@ func (d *Datastore) ListPacks(opt kolide.ListOptions) ([]*kolide.Pack, error) {
 }
 
 // AddLabelToPack associates a kolide.Label with a kolide.Pack
-func (d *Datastore) AddLabelToPack(lid uint, pid uint) error {
+func (d *Datastore) AddLabelToPack(lid uint, pid uint, opts ...kolide.OptionalArg) error {
+	db := d.getTransaction(opts)
+
 	query := `
 		INSERT INTO pack_targets ( pack_id,	type, target_id )
 			VALUES ( ?, ?, ? )
 			ON DUPLICATE KEY UPDATE id=id
 	`
-	_, err := d.db.Exec(query, pid, kolide.TargetLabel, lid)
+	_, err := db.Exec(query, pid, kolide.TargetLabel, lid)
 	if err != nil {
 		return errors.Wrap(err, "adding label to pack")
 	}

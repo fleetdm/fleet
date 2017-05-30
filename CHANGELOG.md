@@ -1,4 +1,6 @@
-* Added support for Osquery decorators. 
+* Added feature that allows users to import existing Osquery configuration files using the [configimporter](https://github.com/kolide/configimporter) utility.
+
+* Added support for Osquery decorators.
 
 * Added SAML single sign on support.
 

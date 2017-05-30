@@ -7,27 +7,19 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (d *Datastore) NewYARASignatureGroup(ysg *kolide.YARASignatureGroup) (sg *kolide.YARASignatureGroup, err error) {
-	var success bool
-	txn, err := d.db.Begin()
-	if err != nil {
-		return nil, errors.Wrap(err, "new yara signature group begin transaction")
-	}
-	defer func() {
-		if success {
-			if err = txn.Commit(); err == nil {
-				return
-			}
-		}
-		txn.Rollback()
-	}()
+func (d *Datastore) NewYARASignatureGroup(ysg *kolide.YARASignatureGroup, opts ...kolide.OptionalArg) (sg *kolide.YARASignatureGroup, err error) {
+	dbTx := d.getTransaction(opts)
+
 	sqlStatement := `
     INSERT INTO yara_signatures (
       signature_name
     ) VALUES( ? )
   `
 	var result sql.Result
-	result, err = txn.Exec(sqlStatement, ysg.SignatureName)
+	result, err = dbTx.Exec(sqlStatement, ysg.SignatureName)
+	if isDuplicate(err) {
+		return nil, alreadyExists("yara signature", 0)
+	}
 	if err != nil {
 		return nil, errors.Wrap(err, "inserting new yara signature group")
 	}
@@ -41,16 +33,17 @@ func (d *Datastore) NewYARASignatureGroup(ysg *kolide.YARASignatureGroup) (sg *k
   `
 
 	for _, path := range ysg.Paths {
-		_, err = txn.Exec(sqlStatement, path, ysg.ID)
+		_, err = dbTx.Exec(sqlStatement, path, ysg.ID)
 		if err != nil {
 			return nil, errors.Wrap(err, "inserting new signature path")
 		}
 	}
-	success = true
 	return ysg, nil
 }
 
-func (d *Datastore) NewYARAFilePath(fileSectionName, sigGroupName string) error {
+func (d *Datastore) NewYARAFilePath(fileSectionName, sigGroupName string, opts ...kolide.OptionalArg) error {
+	dbTx := d.getTransaction(opts)
+
 	sqlStatement := `
     INSERT INTO yara_file_paths (
       file_integrity_monitoring_id,
@@ -70,7 +63,10 @@ func (d *Datastore) NewYARAFilePath(fileSectionName, sigGroupName string) error 
       )
     )
   `
-	_, err := d.db.Exec(sqlStatement, fileSectionName, sigGroupName)
+	_, err := dbTx.Exec(sqlStatement, fileSectionName, sigGroupName)
+	if isDuplicate(err) {
+		return alreadyExists("yara file path", 0)
+	}
 	if err != nil {
 		return errors.Wrap(err, "inserting yara file path")
 	}

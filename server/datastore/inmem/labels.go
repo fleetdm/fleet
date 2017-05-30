@@ -11,7 +11,7 @@ import (
 	"github.com/patrickmn/sortutil"
 )
 
-func (d *Datastore) NewLabel(label *kolide.Label) (*kolide.Label, error) {
+func (d *Datastore) NewLabel(label *kolide.Label, opts ...kolide.OptionalArg) (*kolide.Label, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	newLabel := *label

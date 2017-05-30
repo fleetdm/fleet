@@ -8,10 +8,10 @@ type YARAFilePaths map[string][]string
 type YARAStore interface {
 	// NewYARASignatureGroup creates a new mapping of a name to
 	// a group of YARA signatures
-	NewYARASignatureGroup(*YARASignatureGroup) (*YARASignatureGroup, error)
+	NewYARASignatureGroup(ysg *YARASignatureGroup, opts ...OptionalArg) (*YARASignatureGroup, error)
 	// NewYARAFilePath maps a named set of files to one or more
 	// groups of YARA signatures
-	NewYARAFilePath(fileSectionName, sigGroupName string) error
+	NewYARAFilePath(fileSectionName, sigGroupName string, opts ...OptionalArg) error
 	// YARASection creates the osquery configuration YARA section
 	YARASection() (*YARASection, error)
 }

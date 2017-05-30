@@ -11,7 +11,7 @@ func (d *Datastore) ResetOptions() ([]kolide.Option, error) {
 	panic("inmem is being deprecated")
 }
 
-func (d *Datastore) OptionByName(name string) (*kolide.Option, error) {
+func (d *Datastore) OptionByName(name string, args ...kolide.OptionalArg) (*kolide.Option, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	for _, opt := range d.options {
@@ -28,7 +28,7 @@ type optPair struct {
 	existingOpt *kolide.Option
 }
 
-func (d *Datastore) SaveOptions(opts []kolide.Option) error {
+func (d *Datastore) SaveOptions(opts []kolide.Option, args ...kolide.OptionalArg) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	var validPairs []optPair

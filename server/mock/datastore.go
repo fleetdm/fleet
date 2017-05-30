@@ -49,3 +49,12 @@ func (m *Store) MigrationStatus() (kolide.MigrationStatus, error) {
 func (m *Store) Name() string {
 	return "mock"
 }
+
+type mockTransaction struct{}
+
+func (m *mockTransaction) Commit() error   { return nil }
+func (m *mockTransaction) Rollback() error { return nil }
+
+func (m *Store) Begin() (kolide.Transaction, error) {
+	return &mockTransaction{}, nil
+}

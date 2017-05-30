@@ -7,7 +7,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (d *Datastore) NewScheduledQuery(sq *kolide.ScheduledQuery) (*kolide.ScheduledQuery, error) {
+func (d *Datastore) NewScheduledQuery(sq *kolide.ScheduledQuery, opts ...kolide.OptionalArg) (*kolide.ScheduledQuery, error) {
+	db := d.getTransaction(opts)
 	query := `
 	    INSERT INTO scheduled_queries (
 			pack_id,
@@ -20,7 +21,7 @@ func (d *Datastore) NewScheduledQuery(sq *kolide.ScheduledQuery) (*kolide.Schedu
 			shard
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		`
-	result, err := d.db.Exec(query, sq.PackID, sq.QueryID, sq.Snapshot, sq.Removed, sq.Interval, sq.Platform, sq.Version, sq.Shard)
+	result, err := db.Exec(query, sq.PackID, sq.QueryID, sq.Snapshot, sq.Removed, sq.Interval, sq.Platform, sq.Version, sq.Shard)
 	if err != nil {
 		return nil, errors.Wrap(err, "inserting scheduled query")
 	}
@@ -34,7 +35,7 @@ func (d *Datastore) NewScheduledQuery(sq *kolide.ScheduledQuery) (*kolide.Schedu
 		Name  string
 	}{}
 
-	err = d.db.Select(&metadata, query, sq.QueryID)
+	err = db.Select(&metadata, query, sq.QueryID)
 	if err != nil && err == sql.ErrNoRows {
 		return nil, notFound("Query").WithID(sq.QueryID)
 	} else if err != nil {

@@ -8,6 +8,7 @@ import (
 )
 
 type importRequest struct {
+	DryRun bool `json:"dry_run"`
 	// Config contains a JSON osquery config supplied by the end user
 	Config string `json:"config"`
 	// ExternalPackConfigs contains a map of external Pack configs keyed by

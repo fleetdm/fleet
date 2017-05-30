@@ -7,7 +7,7 @@ import (
 // PackStore is the datastore interface for managing query packs.
 type PackStore interface {
 	// NewPack creates a new pack in the datastore.
-	NewPack(pack *Pack) (*Pack, error)
+	NewPack(pack *Pack, opts ...OptionalArg) (*Pack, error)
 
 	// SavePack updates an existing pack in the datastore.
 	SavePack(pack *Pack) error
@@ -22,10 +22,10 @@ type PackStore interface {
 	ListPacks(opt ListOptions) ([]*Pack, error)
 	// PackByName fetches pack if it exists, if the pack
 	// exists the bool return value is true
-	PackByName(name string) (*Pack, bool, error)
+	PackByName(name string, opts ...OptionalArg) (*Pack, bool, error)
 
 	// AddLabelToPack adds an existing label to an existing pack, both by ID.
-	AddLabelToPack(lid, pid uint) error
+	AddLabelToPack(lid, pid uint, opts ...OptionalArg) error
 
 	// RemoveLabelFromPack removes an existing label from it's association with
 	// an existing pack, both by ID.

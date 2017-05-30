@@ -2,7 +2,7 @@ package inmem
 
 import "github.com/kolide/kolide/server/kolide"
 
-func (d *Datastore) NewYARASignatureGroup(ysg *kolide.YARASignatureGroup) (*kolide.YARASignatureGroup, error) {
+func (d *Datastore) NewYARASignatureGroup(ysg *kolide.YARASignatureGroup, opts ...kolide.OptionalArg) (*kolide.YARASignatureGroup, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	ysg.ID = d.nextID(ysg)
@@ -10,7 +10,7 @@ func (d *Datastore) NewYARASignatureGroup(ysg *kolide.YARASignatureGroup) (*koli
 	return ysg, nil
 }
 
-func (d *Datastore) NewYARAFilePath(fileSectionName, sigGroupName string) error {
+func (d *Datastore) NewYARAFilePath(fileSectionName, sigGroupName string, opts ...kolide.OptionalArg) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	d.yaraFilePaths[fileSectionName] = append(d.yaraFilePaths[fileSectionName], sigGroupName)

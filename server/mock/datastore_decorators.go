@@ -6,15 +6,15 @@ import "github.com/kolide/kolide/server/kolide"
 
 var _ kolide.DecoratorStore = (*DecoratorStore)(nil)
 
-type NewDecoratorFunc func(decorator *kolide.Decorator) (*kolide.Decorator, error)
+type NewDecoratorFunc func(decorator *kolide.Decorator, opts ...kolide.OptionalArg) (*kolide.Decorator, error)
 
 type DeleteDecoratorFunc func(id uint) error
 
 type DecoratorFunc func(id uint) (*kolide.Decorator, error)
 
-type ListDecoratorsFunc func() ([]*kolide.Decorator, error)
+type ListDecoratorsFunc func(opts ...kolide.OptionalArg) ([]*kolide.Decorator, error)
 
-type SaveDecoratorFunc func(dec *kolide.Decorator) error
+type SaveDecoratorFunc func(dec *kolide.Decorator, opts ...kolide.OptionalArg) error
 
 type DecoratorStore struct {
 	NewDecoratorFunc        NewDecoratorFunc
@@ -33,9 +33,9 @@ type DecoratorStore struct {
 	SaveDecoratorFuncInvoked bool
 }
 
-func (s *DecoratorStore) NewDecorator(decorator *kolide.Decorator) (*kolide.Decorator, error) {
+func (s *DecoratorStore) NewDecorator(decorator *kolide.Decorator, opts ...kolide.OptionalArg) (*kolide.Decorator, error) {
 	s.NewDecoratorFuncInvoked = true
-	return s.NewDecoratorFunc(decorator)
+	return s.NewDecoratorFunc(decorator, opts...)
 }
 
 func (s *DecoratorStore) DeleteDecorator(id uint) error {
@@ -48,12 +48,12 @@ func (s *DecoratorStore) Decorator(id uint) (*kolide.Decorator, error) {
 	return s.DecoratorFunc(id)
 }
 
-func (s *DecoratorStore) ListDecorators() ([]*kolide.Decorator, error) {
+func (s *DecoratorStore) ListDecorators(opts ...kolide.OptionalArg) ([]*kolide.Decorator, error) {
 	s.ListDecoratorsFuncInvoked = true
-	return s.ListDecoratorsFunc()
+	return s.ListDecoratorsFunc(opts...)
 }
 
-func (s *DecoratorStore) SaveDecorator(dec *kolide.Decorator) error {
+func (s *DecoratorStore) SaveDecorator(dec *kolide.Decorator, opts ...kolide.OptionalArg) error {
 	s.SaveDecoratorFuncInvoked = true
-	return s.SaveDecoratorFunc(dec)
+	return s.SaveDecoratorFunc(dec, opts...)
 }

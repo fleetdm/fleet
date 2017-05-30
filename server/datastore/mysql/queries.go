@@ -8,14 +8,15 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (d *Datastore) QueryByName(name string) (*kolide.Query, bool, error) {
+func (d *Datastore) QueryByName(name string, opts ...kolide.OptionalArg) (*kolide.Query, bool, error) {
+	db := d.getTransaction(opts)
 	sqlStatement := `
 		SELECT *
 			FROM queries
 			WHERE name = ? AND NOT deleted
 	`
 	var query kolide.Query
-	err := d.db.Get(&query, sqlStatement, name)
+	err := db.Get(&query, sqlStatement, name)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, false, nil
@@ -27,12 +28,13 @@ func (d *Datastore) QueryByName(name string) (*kolide.Query, bool, error) {
 
 // NewQuery creates a New Query. If a query with the same name was soft-deleted,
 // NewQuery will replace the old one.
-func (d *Datastore) NewQuery(query *kolide.Query) (*kolide.Query, error) {
+func (d *Datastore) NewQuery(query *kolide.Query, opts ...kolide.OptionalArg) (*kolide.Query, error) {
+	db := d.getTransaction(opts)
 	var (
 		deletedQuery kolide.Query
 		sqlStatement string
 	)
-	err := d.db.Get(&deletedQuery,
+	err := db.Get(&deletedQuery,
 		"SELECT * FROM queries WHERE name = ? AND deleted", query.Name)
 	switch err {
 	case nil:
@@ -61,7 +63,7 @@ func (d *Datastore) NewQuery(query *kolide.Query) (*kolide.Query, error) {
 		return nil, errors.Wrap(err, "check for existing Query")
 	}
 	deleted := false
-	result, err := d.db.Exec(sqlStatement, query.Name, query.Description, query.Query, query.Saved, query.AuthorID, deleted)
+	result, err := db.Exec(sqlStatement, query.Name, query.Description, query.Query, query.Saved, query.AuthorID, deleted)
 	if err != nil && isDuplicate(err) {
 		return nil, alreadyExists("Query", deletedQuery.ID)
 	} else if err != nil {

@@ -15,6 +15,7 @@ func decodeImportConfigRequest(ctx context.Context, r *http.Request) (interface{
 	}
 	// Unmarshal main config
 	conf := kolide.ImportConfig{
+		DryRun:        req.DryRun,
 		Packs:         make(kolide.PackNameMap),
 		ExternalPacks: make(kolide.PackNameToPackDetails),
 	}

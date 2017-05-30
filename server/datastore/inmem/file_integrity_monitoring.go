@@ -4,7 +4,7 @@ import (
 	"github.com/kolide/kolide/server/kolide"
 )
 
-func (d *Datastore) NewFIMSection(fp *kolide.FIMSection) (*kolide.FIMSection, error) {
+func (d *Datastore) NewFIMSection(fp *kolide.FIMSection, opts ...kolide.OptionalArg) (*kolide.FIMSection, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	fp.ID = d.nextID(fp)

@@ -78,14 +78,15 @@ func (d *Datastore) ResetOptions() (opts []kolide.Option, err error) {
 	return opts, nil
 }
 
-func (d *Datastore) OptionByName(name string) (*kolide.Option, error) {
+func (d *Datastore) OptionByName(name string, args ...kolide.OptionalArg) (*kolide.Option, error) {
+	db := d.getTransaction(args)
 	sqlStatement := `
 			SELECT *
 			FROM options
 			WHERE name = ?
 		`
 	var option kolide.Option
-	if err := d.db.Get(&option, sqlStatement, name); err != nil {
+	if err := db.Get(&option, sqlStatement, name); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, notFound("Option")
 		}
@@ -94,28 +95,17 @@ func (d *Datastore) OptionByName(name string) (*kolide.Option, error) {
 	return &option, nil
 }
 
-func (d *Datastore) SaveOptions(opts []kolide.Option) (err error) {
+func (d *Datastore) SaveOptions(opts []kolide.Option, args ...kolide.OptionalArg) (err error) {
+	db := d.getTransaction(args)
+
 	sqlStatement := `
 		UPDATE options
 		SET value = ?
 		WHERE id = ? AND type = ? AND NOT read_only
 	`
-	txn, err := d.db.Begin()
-	if err != nil {
-		return errors.Wrap(err, "update options begin transaction")
-	}
-	var success bool
-	defer func() {
-		if success {
-			if err = txn.Commit(); err == nil {
-				return
-			}
-		}
-		txn.Rollback()
-	}()
 
 	for _, opt := range opts {
-		resultInfo, err := txn.Exec(sqlStatement, opt.Value, opt.ID, opt.Type)
+		resultInfo, err := db.Exec(sqlStatement, opt.Value, opt.ID, opt.Type)
 		if err != nil {
 			return errors.Wrap(err, "update options")
 		}
@@ -127,10 +117,6 @@ func (d *Datastore) SaveOptions(opts []kolide.Option) (err error) {
 			return notFound("Option").WithID(opt.ID)
 		}
 	}
-	// If all the updates succeed, set the success flag, this will cause the
-	// function we defined in defer to commit the transaction. Otherwise, all
-	// changes will be rolled back
-	success = true
 	return err
 }
 

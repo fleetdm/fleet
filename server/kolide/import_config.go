@@ -40,6 +40,8 @@ const (
 	OptionReadonly                     = "option_readonly"
 	OptionUnknown                      = "option_unknown"
 	QueryDuplicate                     = "duplicate_query"
+	FIMDuplicate                       = "duplicate_fim"
+	YARADuplicate                      = "duplicate_yara"
 	Unsupported                        = "unsupported"
 )
 
@@ -156,6 +158,8 @@ type PackNameToPackDetails map[string]PackDetails
 // documentation has further details.
 // See https://osquery.readthedocs.io/en/stable/deployment/configuration/
 type ImportConfig struct {
+	// DryRun if true an import will be attempted, and if successful will be completely rolled back
+	DryRun bool
 	// Options is a map of option name to a value which can be an int,
 	// bool, or string.
 	Options OptionNameToValueMap `json:"options"`

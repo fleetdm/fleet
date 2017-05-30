@@ -6,7 +6,7 @@ import (
 	"github.com/kolide/kolide/server/kolide"
 )
 
-func (d *Datastore) PackByName(name string) (*kolide.Pack, bool, error) {
+func (d *Datastore) PackByName(name string, opts ...kolide.OptionalArg) (*kolide.Pack, bool, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	for _, p := range d.packs {
@@ -17,7 +17,7 @@ func (d *Datastore) PackByName(name string) (*kolide.Pack, bool, error) {
 	return nil, false, nil
 }
 
-func (d *Datastore) NewPack(pack *kolide.Pack) (*kolide.Pack, error) {
+func (d *Datastore) NewPack(pack *kolide.Pack, opts ...kolide.OptionalArg) (*kolide.Pack, error) {
 	newPack := *pack
 
 	for _, q := range d.packs {
@@ -111,7 +111,7 @@ func (d *Datastore) ListPacks(opt kolide.ListOptions) ([]*kolide.Pack, error) {
 	return packs, nil
 }
 
-func (d *Datastore) AddLabelToPack(lid, pid uint) error {
+func (d *Datastore) AddLabelToPack(lid, pid uint, opts ...kolide.OptionalArg) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 

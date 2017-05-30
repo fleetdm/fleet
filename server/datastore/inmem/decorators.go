@@ -2,7 +2,7 @@ package inmem
 
 import "github.com/kolide/kolide/server/kolide"
 
-func (d *Datastore) SaveDecorator(dec *kolide.Decorator) error {
+func (d *Datastore) SaveDecorator(dec *kolide.Decorator, opts ...kolide.OptionalArg) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if _, ok := d.decorators[dec.ID]; !ok {
@@ -12,7 +12,7 @@ func (d *Datastore) SaveDecorator(dec *kolide.Decorator) error {
 	return nil
 }
 
-func (d *Datastore) NewDecorator(decorator *kolide.Decorator) (*kolide.Decorator, error) {
+func (d *Datastore) NewDecorator(decorator *kolide.Decorator, opts ...kolide.OptionalArg) (*kolide.Decorator, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	decorator.ID = d.nextID(decorator)
@@ -39,7 +39,7 @@ func (d *Datastore) Decorator(id uint) (*kolide.Decorator, error) {
 	return nil, notFound("Decorator").WithID(id)
 }
 
-func (d *Datastore) ListDecorators() ([]*kolide.Decorator, error) {
+func (d *Datastore) ListDecorators(opts ...kolide.OptionalArg) ([]*kolide.Decorator, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	var result []*kolide.Decorator

@@ -795,7 +795,7 @@ func TestUpdateHostIntervals(t *testing.T) {
 	svc, err := newTestService(ds, nil)
 	require.Nil(t, err)
 
-	ds.ListDecoratorsFunc = func() ([]*kolide.Decorator, error) {
+	ds.ListDecoratorsFunc = func(opt ...kolide.OptionalArg) ([]*kolide.Decorator, error) {
 		return []*kolide.Decorator{}, nil
 	}
 	ds.ListPacksFunc = func(opt kolide.ListOptions) ([]*kolide.Pack, error) {

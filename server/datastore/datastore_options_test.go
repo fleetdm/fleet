@@ -62,7 +62,6 @@ func testOptions(t *testing.T, ds kolide.Datastore) {
 	require.False(t, opt.GetValue().(bool))
 
 	opt, _ = ds.OptionByName("aws_profile_name")
-	oldValue := opt.GetValue()
 	assert.False(t, opt.OptionSet())
 	opt.SetValue("zip")
 	opt2, _ = ds.OptionByName("disable_distributed")
@@ -71,15 +70,19 @@ func testOptions(t *testing.T, ds kolide.Datastore) {
 	modList := []kolide.Option{*opt, *opt2}
 	// The aws access key option can be saved but because the disable_events can't
 	// be we want to verify that the whole transaction is rolled back
-	err = ds.SaveOptions(modList)
+	tx, err := ds.Begin()
+	require.Nil(t, err)
+	err = ds.SaveOptions(modList, kolide.HasTransaction(tx))
 	assert.NotNil(t, err)
+	err = tx.Rollback()
+	require.Nil(t, err)
 
 	opt2, err = ds.OptionByName("disable_distributed")
 	require.Nil(t, err)
 	assert.Equal(t, false, opt2.GetValue())
 	opt, err = ds.OptionByName("aws_profile_name")
 	require.Nil(t, err)
-	assert.Equal(t, oldValue, opt.GetValue())
+	assert.False(t, opt.OptionSet())
 
 }
 

@@ -69,7 +69,8 @@ func TestImportFilePaths(t *testing.T) {
 		ImportStatusBySection: make(map[kolide.ImportSection]*kolide.ImportStatus),
 	}
 	svc := createServiceMockForImport(t)
-	err := svc.importFIMSections(cfg, resp)
+	tx, _ := svc.ds.Begin()
+	err := svc.importFIMSections(cfg, resp, tx)
 	require.Nil(t, err)
 	assert.Equal(t, 2, resp.Status(kolide.FilePathsSection).ImportCount)
 	sections, err := svc.ds.FIMSections()
@@ -105,7 +106,8 @@ func TestImportDecorators(t *testing.T) {
 		ImportStatusBySection: make(map[kolide.ImportSection]*kolide.ImportStatus),
 	}
 	svc := createServiceMockForImport(t)
-	err := svc.importDecorators(cfg, resp)
+	tx, _ := svc.ds.Begin()
+	err := svc.importDecorators(cfg, resp, tx)
 	require.Nil(t, err)
 	assert.Equal(t, 5, resp.Status(kolide.DecoratorsSection).ImportCount)
 	dec, err := svc.ds.ListDecorators()
@@ -165,8 +167,8 @@ func TestImportScheduledQueries(t *testing.T) {
 	}
 	_, err = svc.ds.NewQuery(noskipQuery)
 	require.Nil(t, err)
-
-	err = svc.importScheduledQueries(user.ID, cfg, resp)
+	tx, _ := svc.ds.Begin()
+	err = svc.importScheduledQueries(user.ID, cfg, resp, tx)
 	require.Nil(t, err)
 	_, ok, err := svc.ds.QueryByName("q1")
 	require.Nil(t, err)
@@ -188,7 +190,8 @@ func TestOptionsImportConfig(t *testing.T) {
 		ImportStatusBySection: make(map[kolide.ImportSection]*kolide.ImportStatus),
 	}
 	svc := createServiceMockForImport(t)
-	err := svc.importOptions(opts, resp)
+	tx, _ := svc.ds.Begin()
+	err := svc.importOptions(opts, resp, tx)
 	require.Nil(t, err)
 	status := resp.Status(kolide.OptionsSection)
 	require.NotNil(t, status)
@@ -216,13 +219,14 @@ func TestOptionsImportConfigWithSkips(t *testing.T) {
 		ImportStatusBySection: make(map[kolide.ImportSection]*kolide.ImportStatus),
 	}
 	svc := createServiceMockForImport(t)
+	tx, _ := svc.ds.Begin()
 	// set option val, it should be skipped
 	opt, err := svc.ds.OptionByName("aws_firehose_period")
 	require.Nil(t, err)
 	opt.SetValue(23)
 	err = svc.ds.SaveOptions([]kolide.Option{*opt})
 	require.Nil(t, err)
-	err = svc.importOptions(opts, resp)
+	err = svc.importOptions(opts, resp, tx)
 	require.Nil(t, err)
 	status := resp.Status(kolide.OptionsSection)
 	require.NotNil(t, status)
@@ -236,6 +240,7 @@ func TestOptionsImportConfigWithSkips(t *testing.T) {
 
 func TestPacksImportConfig(t *testing.T) {
 	svc := createServiceMockForImport(t)
+	tx, _ := svc.ds.Begin()
 
 	p := &kolide.Pack{
 		Name: "dup",
@@ -320,7 +325,7 @@ func TestPacksImportConfig(t *testing.T) {
 	packs, err := importConfig.CollectPacks()
 	require.Nil(t, err)
 	assert.Len(t, packs, 4)
-	err = svc.importPacks(user.ID, &importConfig, resp)
+	err = svc.importPacks(user.ID, &importConfig, resp, tx)
 	require.Nil(t, err)
 	queries, err := svc.ds.ListQueries(kolide.ListOptions{})
 	require.Nil(t, err)

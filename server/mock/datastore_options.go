@@ -6,13 +6,13 @@ import "github.com/kolide/kolide/server/kolide"
 
 var _ kolide.OptionStore = (*OptionStore)(nil)
 
-type SaveOptionsFunc func(opts []kolide.Option) error
+type SaveOptionsFunc func(opts []kolide.Option, args ...kolide.OptionalArg) error
 
 type ListOptionsFunc func() ([]kolide.Option, error)
 
 type OptionFunc func(id uint) (*kolide.Option, error)
 
-type OptionByNameFunc func(name string) (*kolide.Option, error)
+type OptionByNameFunc func(name string, args ...kolide.OptionalArg) (*kolide.Option, error)
 
 type GetOsqueryConfigOptionsFunc func() (map[string]interface{}, error)
 
@@ -38,9 +38,9 @@ type OptionStore struct {
 	ResetOptionsFuncInvoked bool
 }
 
-func (s *OptionStore) SaveOptions(opts []kolide.Option) error {
+func (s *OptionStore) SaveOptions(opts []kolide.Option, args ...kolide.OptionalArg) error {
 	s.SaveOptionsFuncInvoked = true
-	return s.SaveOptionsFunc(opts)
+	return s.SaveOptionsFunc(opts, args...)
 }
 
 func (s *OptionStore) ListOptions() ([]kolide.Option, error) {
@@ -53,9 +53,9 @@ func (s *OptionStore) Option(id uint) (*kolide.Option, error) {
 	return s.OptionFunc(id)
 }
 
-func (s *OptionStore) OptionByName(name string) (*kolide.Option, error) {
+func (s *OptionStore) OptionByName(name string, args ...kolide.OptionalArg) (*kolide.Option, error) {
 	s.OptionByNameFuncInvoked = true
-	return s.OptionByNameFunc(name)
+	return s.OptionByNameFunc(name, args...)
 }
 
 func (s *OptionStore) GetOsqueryConfigOptions() (map[string]interface{}, error) {

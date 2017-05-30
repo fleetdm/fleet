@@ -10,7 +10,7 @@ import (
 
 var _ kolide.LabelStore = (*LabelStore)(nil)
 
-type NewLabelFunc func(Label *kolide.Label) (*kolide.Label, error)
+type NewLabelFunc func(Label *kolide.Label, opts ...kolide.OptionalArg) (*kolide.Label, error)
 
 type DeleteLabelFunc func(lid uint) error
 
@@ -67,9 +67,9 @@ type LabelStore struct {
 	SaveLabelFuncInvoked bool
 }
 
-func (s *LabelStore) NewLabel(Label *kolide.Label) (*kolide.Label, error) {
+func (s *LabelStore) NewLabel(Label *kolide.Label, opts ...kolide.OptionalArg) (*kolide.Label, error) {
 	s.NewLabelFuncInvoked = true
-	return s.NewLabelFunc(Label)
+	return s.NewLabelFunc(Label, opts...)
 }
 
 func (s *LabelStore) DeleteLabel(lid uint) error {

@@ -6,7 +6,7 @@ import "github.com/kolide/kolide/server/kolide"
 
 var _ kolide.PackStore = (*PackStore)(nil)
 
-type NewPackFunc func(pack *kolide.Pack) (*kolide.Pack, error)
+type NewPackFunc func(pack *kolide.Pack, opts ...kolide.OptionalArg) (*kolide.Pack, error)
 
 type SavePackFunc func(pack *kolide.Pack) error
 
@@ -16,9 +16,9 @@ type PackFunc func(pid uint) (*kolide.Pack, error)
 
 type ListPacksFunc func(opt kolide.ListOptions) ([]*kolide.Pack, error)
 
-type PackByNameFunc func(name string) (*kolide.Pack, bool, error)
+type PackByNameFunc func(name string, opts ...kolide.OptionalArg) (*kolide.Pack, bool, error)
 
-type AddLabelToPackFunc func(lid uint, pid uint) error
+type AddLabelToPackFunc func(lid uint, pid uint, opts ...kolide.OptionalArg) error
 
 type RemoveLabelFromPackFunc func(lid uint, pid uint) error
 
@@ -73,9 +73,9 @@ type PackStore struct {
 	ListExplicitHostsInPackFuncInvoked bool
 }
 
-func (s *PackStore) NewPack(pack *kolide.Pack) (*kolide.Pack, error) {
+func (s *PackStore) NewPack(pack *kolide.Pack, opts ...kolide.OptionalArg) (*kolide.Pack, error) {
 	s.NewPackFuncInvoked = true
-	return s.NewPackFunc(pack)
+	return s.NewPackFunc(pack, opts...)
 }
 
 func (s *PackStore) SavePack(pack *kolide.Pack) error {
@@ -98,14 +98,14 @@ func (s *PackStore) ListPacks(opt kolide.ListOptions) ([]*kolide.Pack, error) {
 	return s.ListPacksFunc(opt)
 }
 
-func (s *PackStore) PackByName(name string) (*kolide.Pack, bool, error) {
+func (s *PackStore) PackByName(name string, opts ...kolide.OptionalArg) (*kolide.Pack, bool, error) {
 	s.PackByNameFuncInvoked = true
-	return s.PackByNameFunc(name)
+	return s.PackByNameFunc(name, opts...)
 }
 
-func (s *PackStore) AddLabelToPack(lid uint, pid uint) error {
+func (s *PackStore) AddLabelToPack(lid uint, pid uint, opts ...kolide.OptionalArg) error {
 	s.AddLabelToPackFuncInvoked = true
-	return s.AddLabelToPackFunc(lid, pid)
+	return s.AddLabelToPackFunc(lid, pid, opts...)
 }
 
 func (s *PackStore) RemoveLabelFromPack(lid uint, pid uint) error {
