@@ -11,7 +11,7 @@ import decoratorInterface from 'interfaces/decorators';
 import entityGetter from 'redux/utilities/entityGetter';
 import { renderFlash } from 'redux/nodes/notifications/actions';
 import paths from 'router/paths';
-import { pull, get } from 'lodash';
+import { pull, get, isEmpty } from 'lodash';
 
 
 const baseClass = 'manage-decorators-page';
@@ -239,7 +239,8 @@ export class ManageDecoratorsPage extends Component {
 
 const mapStateToProps = (state, { location }) => {
   const decoratorEntities = entityGetter(state).get('decorators');
-  const { entities: decorators } = decoratorEntities;
+  let { entities: decorators } = decoratorEntities;
+  decorators = decorators.filter((decorator) => { return !isEmpty(decorator); });
   const selectedDecoratorID = get(location, 'query.selectedDecorator');
   const selectedDecorator = selectedDecoratorID && decoratorEntities.findBy({ id: selectedDecoratorID });
   return { decorators, selectedDecorator };

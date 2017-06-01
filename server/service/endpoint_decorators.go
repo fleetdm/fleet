@@ -8,7 +8,7 @@ import (
 )
 
 type listDecoratorResponse struct {
-	Decorators []*kolide.Decorator `json:"decorators,omitempty"`
+	Decorators []*kolide.Decorator `json:"decorators"`
 	Err        error               `json:"error,omitempty"`
 }
 
