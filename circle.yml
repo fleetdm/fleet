@@ -46,4 +46,3 @@ deployment:
     tag: /.*/
     commands:
       - make docker-build-release
-      - make package
