@@ -1,3 +1,5 @@
+## Kolide 1.0.4 (Jun 1, 2017)
+
 * Added feature that allows users to import existing Osquery configuration files using the [configimporter](https://github.com/kolide/configimporter) utility.
 
 * Added support for Osquery decorators.
@@ -15,6 +17,10 @@
 * Fixed bug in which deleted packs were still displayed on the query sidebar.
 
 * Fixed rounding error when showing % of online hosts.
+
+* Removed --app_token_key flag.
+
+* Fixed issue where heavily loaded database caused host authentication failures.
 
 ## Kolide 1.0.3 (April 3, 2017)
 
