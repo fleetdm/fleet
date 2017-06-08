@@ -29,6 +29,16 @@ func (e osqueryError) NodeInvalid() bool {
 	return e.nodeInvalid
 }
 
+// Sometimes osquery gives us empty string where we expect an integer.
+// We change the to "0" so it can be handled by the appropriate string to
+// integer conversion function, as these will err on ""
+func emptyToZero(val string) string {
+	if val == "" {
+		return "0"
+	}
+	return val
+}
+
 func (svc service) AuthenticateHost(ctx context.Context, nodeKey string) (*kolide.Host, error) {
 	if nodeKey == "" {
 		return nil, osqueryError{
@@ -261,40 +271,40 @@ var detailQueries = map[string]struct {
 				nic.MAC = row["mac"]
 				nic.IPAddress = row["address"]
 				nic.Broadcast = row["broadcast"]
-				if nic.IBytes, err = strconv.ParseInt(row["ibytes"], 10, 64); err != nil {
+				if nic.IBytes, err = strconv.ParseInt(emptyToZero(row["ibytes"]), 10, 64); err != nil {
 					return err
 				}
-				if nic.IErrors, err = strconv.ParseInt(row["ierrors"], 10, 64); err != nil {
+				if nic.IErrors, err = strconv.ParseInt(emptyToZero(row["ierrors"]), 10, 64); err != nil {
 					return err
 				}
 				nic.Interface = row["interface"]
-				if nic.IPackets, err = strconv.ParseInt(row["ipackets"], 10, 64); err != nil {
+				if nic.IPackets, err = strconv.ParseInt(emptyToZero(row["ipackets"]), 10, 64); err != nil {
 					return err
 				}
 				// Optional last_change
 				if lastChange, ok := row["last_change"]; ok {
-					if nic.LastChange, err = strconv.ParseInt(lastChange, 10, 64); err != nil {
+					if nic.LastChange, err = strconv.ParseInt(emptyToZero(lastChange), 10, 64); err != nil {
 						return err
 					}
 				}
 				nic.Mask = row["mask"]
-				if nic.Metric, err = strconv.Atoi(row["metric"]); err != nil {
+				if nic.Metric, err = strconv.Atoi(emptyToZero(row["metric"])); err != nil {
 					return err
 				}
-				if nic.MTU, err = strconv.Atoi(row["mtu"]); err != nil {
+				if nic.MTU, err = strconv.Atoi(emptyToZero(row["mtu"])); err != nil {
 					return err
 				}
-				if nic.OBytes, err = strconv.ParseInt(row["obytes"], 10, 64); err != nil {
+				if nic.OBytes, err = strconv.ParseInt(emptyToZero(row["obytes"]), 10, 64); err != nil {
 					return err
 				}
-				if nic.OErrors, err = strconv.ParseInt(row["oerrors"], 10, 64); err != nil {
+				if nic.OErrors, err = strconv.ParseInt(emptyToZero(row["oerrors"]), 10, 64); err != nil {
 					return err
 				}
-				if nic.OPackets, err = strconv.ParseInt(row["opackets"], 10, 64); err != nil {
+				if nic.OPackets, err = strconv.ParseInt(emptyToZero(row["opackets"]), 10, 64); err != nil {
 					return err
 				}
 				nic.PointToPoint = row["point_to_point"]
-				if nic.Type, err = strconv.Atoi(row["type"]); err != nil {
+				if nic.Type, err = strconv.Atoi(emptyToZero(row["type"])); err != nil {
 					return err
 				}
 				networkInterfaces = append(networkInterfaces, &nic)
@@ -352,21 +362,21 @@ var detailQueries = map[string]struct {
 				switch row["name"] {
 
 				case "distributed_interval":
-					interval, err := strconv.Atoi(row["value"])
+					interval, err := strconv.Atoi(emptyToZero(row["value"]))
 					if err != nil {
 						return errors.Wrap(err, "parsing distributed_interval")
 					}
 					host.DistributedInterval = uint(interval)
 
 				case "config_tls_refresh":
-					interval, err := strconv.Atoi(row["value"])
+					interval, err := strconv.Atoi(emptyToZero(row["value"]))
 					if err != nil {
 						return errors.Wrap(err, "parsing config_tls_refresh")
 					}
 					host.ConfigTLSRefresh = uint(interval)
 
 				case "logger_tls_period":
-					interval, err := strconv.Atoi(row["value"])
+					interval, err := strconv.Atoi(emptyToZero(row["value"]))
 					if err != nil {
 						return errors.Wrap(err, "parsing logger_tls_period")
 					}
@@ -400,7 +410,7 @@ var detailQueries = map[string]struct {
 			}
 
 			var err error
-			host.PhysicalMemory, err = strconv.Atoi(rows[0]["physical_memory"])
+			host.PhysicalMemory, err = strconv.Atoi(emptyToZero(rows[0]["physical_memory"]))
 			if err != nil {
 				return err
 			}
@@ -409,11 +419,11 @@ var detailQueries = map[string]struct {
 			host.CPUType = rows[0]["cpu_type"]
 			host.CPUSubtype = rows[0]["cpu_subtype"]
 			host.CPUBrand = rows[0]["cpu_brand"]
-			host.CPUPhysicalCores, err = strconv.Atoi(rows[0]["cpu_physical_cores"])
+			host.CPUPhysicalCores, err = strconv.Atoi(emptyToZero(rows[0]["cpu_physical_cores"]))
 			if err != nil {
 				return err
 			}
-			host.CPULogicalCores, err = strconv.Atoi(rows[0]["cpu_logical_cores"])
+			host.CPULogicalCores, err = strconv.Atoi(emptyToZero(rows[0]["cpu_logical_cores"]))
 			if err != nil {
 				return err
 			}
@@ -434,7 +444,7 @@ var detailQueries = map[string]struct {
 				return nil
 			}
 
-			uptimeSeconds, err := strconv.Atoi(rows[0]["total_seconds"])
+			uptimeSeconds, err := strconv.Atoi(emptyToZero(rows[0]["total_seconds"]))
 			if err != nil {
 				return err
 			}
@@ -525,7 +535,7 @@ func (svc service) ingestDetailQuery(host *kolide.Host, name string, rows []map[
 // ingestLabelQuery records the results of label queries run by a host
 func (svc service) ingestLabelQuery(host kolide.Host, query string, rows []map[string]string, results map[uint]bool) error {
 	trimmedQuery := strings.TrimPrefix(query, hostLabelQueryPrefix)
-	trimmedQueryNum, err := strconv.Atoi(trimmedQuery)
+	trimmedQueryNum, err := strconv.Atoi(emptyToZero(trimmedQuery))
 	if err != nil {
 		return errors.Wrap(err, "converting query from string to int")
 	}
@@ -540,7 +550,7 @@ func (svc service) ingestLabelQuery(host kolide.Host, query string, rows []map[s
 func (svc service) ingestDistributedQuery(host kolide.Host, name string, rows []map[string]string, failed bool) error {
 	trimmedQuery := strings.TrimPrefix(name, hostDistributedQueryPrefix)
 
-	campaignID, err := strconv.Atoi(trimmedQuery)
+	campaignID, err := strconv.Atoi(emptyToZero(trimmedQuery))
 	if err != nil {
 		return osqueryError{message: "unable to parse campaign ID: " + trimmedQuery}
 	}

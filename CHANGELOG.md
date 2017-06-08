@@ -22,6 +22,8 @@
 
 * Fixed issue where heavily loaded database caused host authentication failures.
 
+* Fixed issue where osquery sends empty strings for integer values in log results. 
+
 ## Kolide 1.0.3 (April 3, 2017)
 
 * Log rotation is no longer the default setting for Osquery status and results logs. To enable log rotation use the `--osquery_enable_log_rotation` flag.
