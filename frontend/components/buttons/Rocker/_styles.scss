@@ -2,7 +2,7 @@
   box-shadow: 0 0 9px 0 rgba(72, 81, 109, 0.1);
 
   &__button {
-    @include transform(translateY(-19px));
+    transform: translateY(-19px);
     position: relative;
     cursor: pointer;
     width: 180px;
@@ -13,6 +13,11 @@
     padding: 0 2px;
     background: transparent;
     border: 0;
+    overflow: visible;
+
+    @media all and (-ms-high-contrast: none), (-ms-high-contrast: active) {
+      transform: translateY(1px);
+    }
 
     &--checked > .kolide-rocker__switch--left {
       span {

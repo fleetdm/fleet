@@ -5,7 +5,7 @@ import Checkbox from 'components/forms/fields/Checkbox';
 import ClickableTableRow from 'components/ClickableTableRow';
 import Icon from 'components/icons/Icon';
 import PlatformIcon from 'components/icons/PlatformIcon';
-import { isEmpty, isEqual } from 'lodash';
+import { includes, isEmpty, isEqual } from 'lodash';
 import scheduledQueryInterface from 'interfaces/scheduled_query';
 
 const baseClass = 'scheduled-query-list-item';
@@ -65,7 +65,7 @@ class ScheduledQueriesListItem extends Component {
     const { scheduledQuery: { platform } } = this.props;
     const platformArr = platform ? platform.split(',') : [];
 
-    if (isEmpty(platformArr) || platformArr.includes('all')) {
+    if (isEmpty(platformArr) || includes(platformArr, 'all')) {
       return <PlatformIcon name="all" title="All Platforms" className={`${baseClass}__icon`} />;
     }
 

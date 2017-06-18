@@ -19,10 +19,10 @@
         @include transform(rotate(45deg));
         @include position(absolute, 50% null null 50%);
         box-sizing: border-box;
-        display: table;
+        display: block;
         width: 7px;
         height: 13px;
-        margin: -8px 0 0 -4px;
+        margin: -8px 0 0 -3px;
         border: 2px solid $white;
         border-top: 0;
         border-left: 0;

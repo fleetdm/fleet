@@ -4,4 +4,14 @@
   @include justify-content(center);
   @include flex-grow(1);
   padding: $base 0;
+
+  &__logo {
+    width: 286px;
+    height: 69px;
+    margin: 0 auto;
+  }
+
+  @media all and (-ms-high-contrast: none), (-ms-high-contrast: active) {
+    height: calc(100vh - #{$footer-height});
+  }
 }

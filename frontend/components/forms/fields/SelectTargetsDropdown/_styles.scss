@@ -164,12 +164,12 @@
     .Select-value-icon {
       border: 0;
       float: right;
-      visibility: hidden;
       position: relative;
       line-height: 34px;
       width: 25px;
       padding: 0;
       margin: 0 5px;
+      text-indent: -999em;
 
       &::after {
         @extend %kolidecon;
@@ -182,6 +182,8 @@
         visibility: visible;
         font-size: 20px;
         color: $accent-dark;
+        display: block;
+        text-indent: 0;
       }
 
       &:hover {
