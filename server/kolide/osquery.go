@@ -21,8 +21,11 @@ type OsqueryService interface {
 	SubmitResultLogs(ctx context.Context, logs []OsqueryResultLog) (err error)
 }
 
+// OsqueryDistributedQueryResults represents the format of the results of an
+// osquery distributed query.
 type OsqueryDistributedQueryResults map[string][]map[string]string
 
+// QueryContent is the format of a query stanza in an osquery configuration.
 type QueryContent struct {
 	Query       string  `json:"query"`
 	Description string  `json:"description,omitempty"`
@@ -34,8 +37,10 @@ type QueryContent struct {
 	Shard       *uint   `json:"shard,omitempty"`
 }
 
+// Queries is a helper which represents the format of a set of queries in a pack.
 type Queries map[string]QueryContent
 
+// PackContent is the format of an osquery query pack.
 type PackContent struct {
 	Platform  string   `json:"platform,omitempty"`
 	Version   string   `json:"version,omitempty"`
@@ -44,20 +49,26 @@ type PackContent struct {
 	Queries   Queries  `json:"queries"`
 }
 
+// Packs is a helper which represents the format of a list of osquery query packs.
 type Packs map[string]PackContent
 
+// Decorators is the format of the decorator configuration in an osquery config.
 type Decorators struct {
 	Load     []string            `json:"load,omitempty"`
 	Always   []string            `json:"always,omitempty"`
 	Interval map[string][]string `json:"interval,omitempty"`
 }
 
+// OsqueryConfig is a struct that can be serialized into a valid osquery config
+// using Go's JSON tooling.
 type OsqueryConfig struct {
 	Options    map[string]interface{} `json:"options"`
 	Decorators Decorators             `json:"decorators,omitempty"`
 	Packs      Packs                  `json:"packs,omitempty"`
 }
 
+// OsqueryResultLog is the format of an osquery result log (ie: a differential
+// or snapshot query).
 type OsqueryResultLog struct {
 	Name           string `json:"name"`
 	HostIdentifier string `json:"hostIdentifier"`
@@ -71,6 +82,7 @@ type OsqueryResultLog struct {
 	Decorations map[string]string   `json:"decorations"`
 }
 
+// OsqueryStatusLog is the format of an osquery status log.
 type OsqueryStatusLog struct {
 	Severity    string            `json:"severity"`
 	Filename    string            `json:"filename"`
