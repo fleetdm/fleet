@@ -696,6 +696,10 @@ func TestDetailQueries(t *testing.T) {
       "value":"10"
     },
     {
+      "name":"config_refresh",
+      "value":"9"
+    },
+    {
       "name":"distributed_interval",
       "value":"5"
     },

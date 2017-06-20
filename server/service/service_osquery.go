@@ -356,8 +356,9 @@ var detailQueries = map[string]struct {
 		// calculation) from the osquery flags. We typically control
 		// distributed_interval (but it's not required), and typically
 		// do not control config_tls_refresh.
-		Query: `select name, value from osquery_flags where name in ("distributed_interval", "config_tls_refresh", "logger_tls_period")`,
+		Query: `select name, value from osquery_flags where name in ("distributed_interval", "config_tls_refresh", "config_refresh", "logger_tls_period")`,
 		IngestFunc: func(logger log.Logger, host *kolide.Host, rows []map[string]string) error {
+			var configTLSRefresh, configRefresh uint
 			for _, row := range rows {
 				switch row["name"] {
 
@@ -369,11 +370,22 @@ var detailQueries = map[string]struct {
 					host.DistributedInterval = uint(interval)
 
 				case "config_tls_refresh":
+					// Prior to osquery 2.4.6, the flag was
+					// called `config_tls_refresh`.
 					interval, err := strconv.Atoi(emptyToZero(row["value"]))
 					if err != nil {
 						return errors.Wrap(err, "parsing config_tls_refresh")
 					}
-					host.ConfigTLSRefresh = uint(interval)
+					configTLSRefresh = uint(interval)
+
+				case "config_refresh":
+					// After 2.4.6 `config_tls_refresh` was
+					// aliased to `config_refresh`.
+					interval, err := strconv.Atoi(emptyToZero(row["value"]))
+					if err != nil {
+						return errors.Wrap(err, "parsing config_refresh")
+					}
+					configRefresh = uint(interval)
 
 				case "logger_tls_period":
 					interval, err := strconv.Atoi(emptyToZero(row["value"]))
@@ -383,6 +395,17 @@ var detailQueries = map[string]struct {
 					host.LoggerTLSPeriod = uint(interval)
 				}
 			}
+
+			// Since the `config_refresh` flag existed prior to
+			// 2.4.6 and had a different meaning, we prefer
+			// `config_tls_refresh` if it was set, and use
+			// `config_refresh` as a fallback.
+			if configTLSRefresh != 0 {
+				host.ConfigTLSRefresh = configTLSRefresh
+			} else {
+				host.ConfigTLSRefresh = configRefresh
+			}
+
 			return nil
 		},
 	},
