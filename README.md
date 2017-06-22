@@ -1,8 +1,8 @@
-# Kolide Fleet [![CircleCI](https://circleci.com/gh/kolide/kolide.svg?style=svg&circle-token=2573c239b7f18967040d2dec95ca5f71cfc90693)](https://circleci.com/gh/kolide/kolide)
+# Kolide Fleet [![CircleCI](https://circleci.com/gh/kolide/fleet.svg?style=svg&circle-token=2573c239b7f18967040d2dec95ca5f71cfc90693)](https://circleci.com/gh/kolide/fleet)
 
 ### Effective Endpoint Security. At Any Scale.
 
-Kolide is a state of the art host monitoring platform tailored for security experts. Leveraging Facebook's battle-tested osquery project, Kolide delivers fast answers to big questions. To learn more about the Kolide product, visit [https://kolide.co/product](https://kolide.co/product).
+Kolide Fleet is a state of the art host monitoring platform tailored for security experts. Leveraging Facebook's battle-tested osquery project, Kolide delivers fast answers to big questions. To learn more about the Kolide product, visit [https://kolide.co/product](https://kolide.co/product).
 
 Documentation for Kolide can be found at [https://docs.kolide.co](https://docs.kolide.co/kolide/current/).
 
