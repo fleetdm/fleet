@@ -9,7 +9,7 @@ Usage: builder.sh [args]
 ### Caching pkg folder
 If you're repeatedly testing the build on a development machine, it makes sense to mount the `$GOPATH/pkg` along with your source.
 ```
-docker run --rm -it -v (pwd):/go/src/github.com/kolide/kolide-ose -v $GOPATH/pkg:/go/pkg kolide-builder -T
+docker run --rm -it -v (pwd):/go/src/github.com/kolide/fleet -v $GOPATH/pkg:/go/pkg kolide-builder -T
 ```
 The first time the container runs, `go install` will compile all the dependencies under `$GOPATH/pkg/linux_amd64/...` making future test runs faster.
 

@@ -5,7 +5,7 @@ package host
 import (
 	"context"
 
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/kolide"
 )
 
 type key int

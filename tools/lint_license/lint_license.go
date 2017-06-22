@@ -58,12 +58,12 @@ type dependency struct {
 }
 
 // absolutePath concatenates the provided path onto
-// $GOPATH/src/github.com/kolide/kolide
+// $GOPATH/src/github.com/kolide/fleet
 func absolutePath(path string) string {
-	return filepath.Join(os.Getenv("GOPATH"), "src/github.com/kolide/kolide", path)
+	return filepath.Join(os.Getenv("GOPATH"), "src/github.com/kolide/fleet", path)
 }
 
-// relativePath strips the leading $GOPATH/src/github.com/kolide/kolide from
+// relativePath strips the leading $GOPATH/src/github.com/kolide/fleet from
 // the provided path. If it fails, the original path is returned.
 func relativePath(path string) string {
 	rel, err := filepath.Rel(absolutePath(""), path)

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kolide/kolide/server/contexts/viewer"
-	"github.com/kolide/kolide/server/kolide"
-	"github.com/kolide/kolide/server/websocket"
+	"github.com/kolide/fleet/server/contexts/viewer"
+	"github.com/kolide/fleet/server/kolide"
+	"github.com/kolide/fleet/server/websocket"
 	"github.com/pkg/errors"
 )
 

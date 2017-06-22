@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/kolide"
 )
 
 func (mw validationMiddleware) NewAppConfig(ctx context.Context, payload kolide.AppConfigPayload) (*kolide.AppConfig, error) {

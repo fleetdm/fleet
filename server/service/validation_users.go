@@ -6,8 +6,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/kolide/kolide/server/contexts/viewer"
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/contexts/viewer"
+	"github.com/kolide/fleet/server/kolide"
 )
 
 func (mw validationMiddleware) NewUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/garyburd/redigo/redis"
-	"github.com/kolide/kolide/server/pubsub"
+	"github.com/kolide/fleet/server/pubsub"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

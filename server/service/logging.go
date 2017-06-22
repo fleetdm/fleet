@@ -2,7 +2,7 @@ package service
 
 import (
 	kitlog "github.com/go-kit/kit/log"
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/kolide"
 )
 
 // logging middleware logs the service actions

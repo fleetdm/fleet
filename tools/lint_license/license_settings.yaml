@@ -51,7 +51,7 @@ allowed_licenses:
 # Packages that are detected as dependencies because they have a package.json,
 # but are actually tests for their parent directories. These packages are
 # covered under the license of their parent directory, and will not be listed
-# as dependencies. Path should be relative to $GOPATH/github.com/kolide/kolide.
+# as dependencies. Path should be relative to $GOPATH/github.com/kolide/fleet.
 tests:
   ? node_modules/in-publish/test
   ? node_modules/readdirp/examples
@@ -67,7 +67,7 @@ tests:
 
 # Packages for which automatic license detection fails. The given license type
 # will be used. Usually this license is manually determined from the README or
-# license file. Path should be relative to $GOPATH/github.com/kolide/kolide.
+# license file. Path should be relative to $GOPATH/github.com/kolide/fleet.
 overrides:
   # loader-utils package.json says "JSF" but the license is actually MIT. See https://goo.gl/ptgu4y
   node_modules/css-loader/node_modules/loader-utils:

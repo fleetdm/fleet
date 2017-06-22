@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/kolide"
 )
 
 func (d *Datastore) NewDistributedQueryCampaign(camp *kolide.DistributedQueryCampaign) (*kolide.DistributedQueryCampaign, error) {

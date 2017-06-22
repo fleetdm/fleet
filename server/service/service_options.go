@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/kolide"
 )
 
 func (svc service) ResetOptions(ctx context.Context) ([]kolide.Option, error) {

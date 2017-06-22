@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
-	"github.com/kolide/kolide/server/kolide"
-	"github.com/kolide/kolide/server/test"
+	"github.com/kolide/fleet/server/kolide"
+	"github.com/kolide/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -632,7 +632,7 @@ func testMarkHostSeen(t *testing.T, ds kolide.Datastore) {
 }
 
 func testFlappingNetworkInterfaces(t *testing.T, ds kolide.Datastore) {
-	// See https://github.com/kolide/kolide/issues/1278
+	// See https://github.com/kolide/fleet/issues/1278
 	host, err := ds.NewHost(&kolide.Host{
 		DetailUpdateTime: time.Now(),
 		SeenTime:         time.Now(),

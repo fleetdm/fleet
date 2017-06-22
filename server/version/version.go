@@ -10,7 +10,7 @@ import (
 // info vars
 // set at build time with ldflags
 // example:
-// go build -ldflags "-X github.com/kolide/kolide/version.version=1.0.0-development"
+// go build -ldflags "-X github.com/kolide/fleet/version.version=1.0.0-development"
 var (
 	version   = "unknown"
 	branch    = "unknown"

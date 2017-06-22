@@ -1,6 +1,6 @@
 package appstate
 
-import "github.com/kolide/kolide/server/kolide"
+import "github.com/kolide/fleet/server/kolide"
 
 // Labels is the set of builtin labels that should be populated in the
 // datastore

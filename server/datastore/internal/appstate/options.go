@@ -1,6 +1,6 @@
 package appstate
 
-import "github.com/kolide/kolide/server/kolide"
+import "github.com/kolide/fleet/server/kolide"
 
 // Options is the set of builtin osquery options that should be populated in
 // the datastore

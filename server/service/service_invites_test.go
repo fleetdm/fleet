@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
-	"github.com/kolide/kolide/server/config"
-	"github.com/kolide/kolide/server/kolide"
-	"github.com/kolide/kolide/server/mock"
+	"github.com/kolide/fleet/server/config"
+	"github.com/kolide/fleet/server/kolide"
+	"github.com/kolide/fleet/server/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

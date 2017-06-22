@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/kolide"
 )
 
 func (mw metricsMiddleware) ChangeUserAdmin(ctx context.Context, id uint, isAdmin bool) (*kolide.User, error) {

@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"github.com/kolide/kolide/server/contexts/viewer"
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/contexts/viewer"
+	"github.com/kolide/fleet/server/kolide"
 )
 
 func (svc service) ListQueries(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Query, error) {

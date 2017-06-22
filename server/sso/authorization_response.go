@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/xml"
 
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/kolide"
 	"github.com/pkg/errors"
 )
 

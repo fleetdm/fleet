@@ -17,7 +17,7 @@ func TestPathFunctions(t *testing.T) {
 
 	gopath := "/gopath"
 	os.Setenv("GOPATH", gopath)
-	expectedPrefix := filepath.Join(gopath, "src/github.com/kolide/kolide")
+	expectedPrefix := filepath.Join(gopath, "src/github.com/kolide/fleet")
 	assert.Equal(t, filepath.Join(expectedPrefix, "foo/bar"), absolutePath("foo/bar"))
 
 	assert.Equal(t, "foo/bar/baz", relativePath(absolutePath("foo/bar/baz")))

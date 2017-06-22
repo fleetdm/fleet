@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/kolide"
 )
 
 func decodeModifyAppConfigRequest(ctx context.Context, r *http.Request) (interface{}, error) {

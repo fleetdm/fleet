@@ -9,9 +9,9 @@ import (
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/kolide/kolide/server/contexts/viewer"
-	"github.com/kolide/kolide/server/kolide"
-	"github.com/kolide/kolide/server/sso"
+	"github.com/kolide/fleet/server/contexts/viewer"
+	"github.com/kolide/fleet/server/kolide"
+	"github.com/kolide/fleet/server/sso"
 	"github.com/pkg/errors"
 )
 

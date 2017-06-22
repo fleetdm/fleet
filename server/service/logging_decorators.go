@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/kolide"
 )
 
 func (mw loggingMiddleware) ListDecorators(ctx context.Context) ([]*kolide.Decorator, error) {

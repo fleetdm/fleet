@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/go-kit/kit/endpoint"
-	"github.com/kolide/kolide/server/contexts/viewer"
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/contexts/viewer"
+	"github.com/kolide/fleet/server/kolide"
 )
 
 type appConfigRequest struct {

@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/kolide"
 )
 
 type inmemQueryResults struct {

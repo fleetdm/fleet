@@ -86,12 +86,12 @@ build: export GOGC = off
 build: export CGO_ENABLED=0
 build: .prefix
 	go build -i -o ${OUTPUT} -ldflags "\
-	-X github.com/kolide/kolide/server/version.version=${VERSION} \
-	-X github.com/kolide/kolide/server/version.branch=${BRANCH} \
-	-X github.com/kolide/kolide/server/version.revision=${REVISION} \
-	-X github.com/kolide/kolide/server/version.buildDate=${NOW} \
-	-X github.com/kolide/kolide/server/version.buildUser=${USER} \
-	-X github.com/kolide/kolide/server/version.goVersion=${GOVERSION}"
+	-X github.com/kolide/fleet/server/version.version=${VERSION} \
+	-X github.com/kolide/fleet/server/version.branch=${BRANCH} \
+	-X github.com/kolide/fleet/server/version.revision=${REVISION} \
+	-X github.com/kolide/fleet/server/version.buildDate=${NOW} \
+	-X github.com/kolide/fleet/server/version.buildUser=${USER} \
+	-X github.com/kolide/fleet/server/version.goVersion=${GOVERSION}"
 
 lint-js:
 	eslint frontend --ext .js,.jsx

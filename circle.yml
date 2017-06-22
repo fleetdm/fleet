@@ -25,14 +25,14 @@ dependencies:
 
   override:
       # workaround for https://github.com/yarnpkg/yarn/issues/1981
-    - docker run -v $(pwd):/go/src/github.com/kolide/kolide -v /home/ubuntu/.go_workspace/pkg:/go/pkg --entrypoint /usr/bin/yarn kolide/kolide-builder:1.8 add --force node-sass
-    - docker run -v $(pwd):/go/src/github.com/kolide/kolide -v /home/ubuntu/.go_workspace/pkg:/go/pkg kolide/kolide-builder:1.8 --deps
+    - docker run -v $(pwd):/go/src/github.com/kolide/fleet -v /home/ubuntu/.go_workspace/pkg:/go/pkg --entrypoint /usr/bin/yarn kolide/kolide-builder:1.8 add --force node-sass
+    - docker run -v $(pwd):/go/src/github.com/kolide/fleet -v /home/ubuntu/.go_workspace/pkg:/go/pkg kolide/kolide-builder:1.8 --deps
 
 test:
   override:
       - docker run -d --name redis redis
       - docker run -d --name mysql -e MYSQL_ROOT_PASSWORD=toor -e MYSQL_DATABASE=kolide -e MYSQL_USER=kolide -e MYSQL_PASSWORD=kolide mysql:5.7
-      - docker run --link redis:redis --link mysql:mysql -e MYSQL_TEST=true -e REDIS_TEST=true -v $(pwd):/go/src/github.com/kolide/kolide -v /home/ubuntu/.go_workspace/pkg:/go/pkg kolide/kolide-builder:1.8 --build
+      - docker run --link redis:redis --link mysql:mysql -e MYSQL_TEST=true -e REDIS_TEST=true -v $(pwd):/go/src/github.com/kolide/fleet -v /home/ubuntu/.go_workspace/pkg:/go/pkg kolide/kolide-builder:1.8 --build
       - ./tools/ci/verify-dependencies-docs.sh
       - docker stop $(docker ps -a -q)
 

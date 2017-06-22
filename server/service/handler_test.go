@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
-	"github.com/kolide/kolide/server/config"
-	"github.com/kolide/kolide/server/datastore/inmem"
+	"github.com/kolide/fleet/server/config"
+	"github.com/kolide/fleet/server/datastore/inmem"
 	"github.com/stretchr/testify/assert"
 )
 

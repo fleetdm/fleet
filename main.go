@@ -5,7 +5,7 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/kolide/kolide/cli"
+	"github.com/kolide/fleet/cli"
 )
 
 func init() {

@@ -10,7 +10,7 @@ package mock
 //go:generate mockimpl -o datastore_packs.go "s *PackStore" "kolide.PackStore"
 //go:generate mockimpl -o datastore_hosts.go "s *HostStore" "kolide.HostStore"
 
-import "github.com/kolide/kolide/server/kolide"
+import "github.com/kolide/fleet/server/kolide"
 
 var _ kolide.Datastore = (*Store)(nil)
 

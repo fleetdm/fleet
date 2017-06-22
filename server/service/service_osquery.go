@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
-	hostctx "github.com/kolide/kolide/server/contexts/host"
-	"github.com/kolide/kolide/server/kolide"
-	"github.com/kolide/kolide/server/pubsub"
+	hostctx "github.com/kolide/fleet/server/contexts/host"
+	"github.com/kolide/fleet/server/kolide"
+	"github.com/kolide/fleet/server/pubsub"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 )

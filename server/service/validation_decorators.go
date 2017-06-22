@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/kolide"
 )
 
 func validateNewDecoratorType(payload kolide.DecoratorPayload, invalid *invalidArgumentError) {

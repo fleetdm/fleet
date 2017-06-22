@@ -5,8 +5,8 @@ import (
 
 	"github.com/WatchBeam/clock"
 	kitlog "github.com/go-kit/kit/log"
-	"github.com/kolide/kolide/server/config"
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/config"
+	"github.com/kolide/fleet/server/kolide"
 	"github.com/stretchr/testify/require"
 )
 

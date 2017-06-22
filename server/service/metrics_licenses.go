@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/kolide"
 )
 
 func (mw metricsMiddleware) SaveLicense(ctx context.Context, jwtToken string) (*kolide.License, error) {

@@ -4,7 +4,7 @@ VERSION="$(git describe --tags --always --dirty)"
 GPG_PATH="/Users/${USER}/.gnupg"
 
 build_binaries() {
-    cd $GOPATH/src/github.com/kolide/kolide
+    cd $GOPATH/src/github.com/kolide/fleet
     make generate
 
     GOOS=darwin CGO_ENABLED=0 make build

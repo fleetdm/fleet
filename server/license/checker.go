@@ -11,8 +11,8 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/go-kit/kit/log"
-	"github.com/kolide/kolide/server/kolide"
-	"github.com/kolide/kolide/server/version"
+	"github.com/kolide/fleet/server/kolide"
+	"github.com/kolide/fleet/server/version"
 	"github.com/pkg/errors"
 )
 

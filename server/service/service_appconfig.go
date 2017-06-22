@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kolide/kolide/server/contexts/viewer"
-	"github.com/kolide/kolide/server/kolide"
-	"github.com/kolide/kolide/server/mail"
+	"github.com/kolide/fleet/server/contexts/viewer"
+	"github.com/kolide/fleet/server/kolide"
+	"github.com/kolide/fleet/server/mail"
 	"github.com/pkg/errors"
 )
 

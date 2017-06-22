@@ -10,7 +10,7 @@ The Kolide application is powered by a Go API server which serves three types of
 Only osquery agents should interact with the osquery API, but we'd like to support the eventual use of the Kolide API extensively. The API is not very well documented at all right now, but we have plans to:
 
 - Generate and publish detailed documentation via a tool built using [test2doc](https://github.com/adams-sarah/test2doc) (or something competitive).
-- Release a JavaScript Kolide API client library (which would be derived from the [current](https://github.com/kolide/kolide/blob/master/frontend/kolide/index.js) JavaScript API client).
+- Release a JavaScript Kolide API client library (which would be derived from the [current](https://github.com/kolide/fleet/blob/master/frontend/kolide/index.js) JavaScript API client).
 - Commit to a stable, standardized API format that we can commit to supporting.
 
 ## Current API
@@ -32,7 +32,7 @@ Each set of objects follows a similar REST access pattern.
 
 Queries, packs, scheduled queries, labels, invites, users, sessions all behave this way. Some objects, like invites, have additional HTTP methods for additional functionality. Some objects, such as scheduled queries, are merely a relationship between two other objects (in this case, a query and a pack) with some details attached.
 
-All of these objects are put together and distributed to the appropriate osquery agents at the appropriate time. At this time, the best source of truth for the API is the [HTTP handler file](https://github.com/kolide/kolide/blob/master/server/service/handler.go) in the Go application. The REST API is exposed via a transport layer on top of an RPC service which is implemented using a micro-service library called [Go Kit](https://github.com/go-kit/kit). If using the Kolide API is important to you right now, being familiar with Go Kit would definitely be helpful.
+All of these objects are put together and distributed to the appropriate osquery agents at the appropriate time. At this time, the best source of truth for the API is the [HTTP handler file](https://github.com/kolide/fleet/blob/master/server/service/handler.go) in the Go application. The REST API is exposed via a transport layer on top of an RPC service which is implemented using a micro-service library called [Go Kit](https://github.com/go-kit/kit). If using the Kolide API is important to you right now, being familiar with Go Kit would definitely be helpful.
 
 Like it was said above, we have plans to include richer API documentation in the near future, so stay tuned. If using this API is important to you, please contact us at [support@kolide.co](mailto:support@kolide.co) and tell us, so that we can prioritize creating stable API documentation.
 
@@ -50,7 +50,7 @@ You can load packs, queries and other settings from an existing [Osquery configu
 
 /api/v1/kolide/osquery/config/import
 ```
-We provide [a utility program](https://github.com/kolide/configimporter) that will import the configuration automatically.  
+We provide [a utility program](https://github.com/kolide/configimporter) that will import the configuration automatically.
 If you opt to manually import your Osquery configuration you will need to include the contents of externally
 referenced packs in your main Osquery configuration file before posting it to Kolide. If you reference packs
 in a file like the example below, you will need to get the pack from `external_pack.conf`
@@ -88,4 +88,4 @@ and include it in the main configuration.
 }
 ```
 Once the configuration file and all the external packs it references are consolidated, post the stringified contents of the configuration
-file to Kolide.  
+file to Kolide.

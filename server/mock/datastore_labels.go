@@ -5,7 +5,7 @@ package mock
 import (
 	"time"
 
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/kolide"
 )
 
 var _ kolide.LabelStore = (*LabelStore)(nil)

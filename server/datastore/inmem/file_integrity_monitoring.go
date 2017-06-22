@@ -1,7 +1,7 @@
 package inmem
 
 import (
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/kolide"
 )
 
 func (d *Datastore) NewFIMSection(fp *kolide.FIMSection, opts ...kolide.OptionalArg) (*kolide.FIMSection, error) {

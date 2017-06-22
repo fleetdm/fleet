@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"github.com/kolide/kolide/server/kolide"
-	"github.com/kolide/kolide/server/sso"
+	"github.com/kolide/fleet/server/kolide"
+	"github.com/kolide/fleet/server/sso"
 	"github.com/pkg/errors"
 )
 

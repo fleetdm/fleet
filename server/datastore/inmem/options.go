@@ -3,7 +3,7 @@ package inmem
 import (
 	"fmt"
 
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/kolide"
 	"github.com/patrickmn/sortutil"
 )
 

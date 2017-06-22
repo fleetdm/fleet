@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kolide/kolide/server/config"
-	"github.com/kolide/kolide/server/datastore/internal/appstate"
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/config"
+	"github.com/kolide/fleet/server/datastore/internal/appstate"
+	"github.com/kolide/fleet/server/kolide"
 	"github.com/patrickmn/sortutil"
 )
 

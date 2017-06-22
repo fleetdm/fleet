@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/kolide"
 	"github.com/pkg/errors"
 )
 

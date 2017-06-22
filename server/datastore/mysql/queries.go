@@ -4,7 +4,7 @@ import (
 	"database/sql"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/kolide"
 	"github.com/pkg/errors"
 )
 

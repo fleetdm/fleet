@@ -5,8 +5,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/kolide/kolide/server/datastore/internal/appstate"
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/datastore/internal/appstate"
+	"github.com/kolide/fleet/server/kolide"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

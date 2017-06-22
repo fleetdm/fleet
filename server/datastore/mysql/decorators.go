@@ -5,7 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/kolide"
 )
 
 func (ds *Datastore) SaveDecorator(dec *kolide.Decorator, opts ...kolide.OptionalArg) error {

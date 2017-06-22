@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/kolide"
 )
 
 func (mw loggingMiddleware) ListPacks(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Pack, error) {

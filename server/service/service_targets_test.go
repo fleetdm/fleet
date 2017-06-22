@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kolide/kolide/server/config"
-	"github.com/kolide/kolide/server/datastore/inmem"
-	"github.com/kolide/kolide/server/kolide"
+	"github.com/kolide/fleet/server/config"
+	"github.com/kolide/fleet/server/datastore/inmem"
+	"github.com/kolide/fleet/server/kolide"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

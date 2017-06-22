@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kolide/kolide/server/datastore/internal/appstate"
+	"github.com/kolide/fleet/server/datastore/internal/appstate"
 )
 
 func init() {

@@ -1,6 +1,6 @@
 package inmem
 
-import "github.com/kolide/kolide/server/kolide"
+import "github.com/kolide/fleet/server/kolide"
 
 func (ds *Datastore) SaveLicense(token, key string) (*kolide.License, error) {
 	panic("inmem is being deprecated")
