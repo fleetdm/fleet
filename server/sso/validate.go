@@ -113,7 +113,7 @@ func (v *validator) ValidateSignature(auth kolide.Auth) (kolide.Auth, error) {
 	// We've verified that the response hasn't been tampered with at this point
 	signedDoc := etree.NewDocument()
 	signedDoc.SetRoot(signed)
-	buffer, err := doc.WriteToBytes()
+	buffer, err := signedDoc.WriteToBytes()
 	if err != nil {
 		return nil, errors.Wrap(err, "creating signed doc buffer")
 	}
@@ -132,7 +132,6 @@ func (v *validator) validateSignature(elt *etree.Element) (*etree.Element, error
 		// If entire doc is signed, success, we're done.
 		return validated, nil
 	}
-
 	if err == dsig.ErrMissingSignature {
 		// If entire document is not signed find signed assertions, remove assertions
 		// that are not signed.
