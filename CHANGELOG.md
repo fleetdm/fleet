@@ -1,3 +1,7 @@
+* Fixed issue that caused ADFS single sign on to fail on certain SAML request ID's. 
+
+* Fixed issue validating signatures in nested SAML assertions.
+
 ## Kolide 1.0.4 (Jun 1, 2017)
 
 * Added feature that allows users to import existing Osquery configuration files using the [configimporter](https://github.com/kolide/configimporter) utility.
@@ -22,7 +26,7 @@
 
 * Fixed issue where heavily loaded database caused host authentication failures.
 
-* Fixed issue where osquery sends empty strings for integer values in log results. 
+* Fixed issue where osquery sends empty strings for integer values in log results.
 
 ## Kolide 1.0.3 (April 3, 2017)
 

@@ -1,6 +1,7 @@
 package sso
 
 import (
+	"crypto/rand"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/xml"
@@ -164,4 +165,24 @@ func (v *validator) validateAssertionSignature(elt *etree.Element) error {
 		return nil
 	}
 	return etreeutils.NSFindIterate(elt, "urn:oasis:names:tc:SAML:2.0:assertion", "Assertion", validateAssertion)
+}
+
+const (
+	idSize     = 16
+	idAlphabet = `1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ`
+)
+
+// There isn't anything in the SAML spec that tells us what is valid inside an ID
+// other than expecting that it has to be unique and valid XML. ADFS blows up on '=' in the ID,
+// so we are using an alphabet that we know works.
+func generateSAMLValidID() (string, error) {
+	randomBytes := make([]byte, idSize)
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		return "", err
+	}
+	for i := 0; i < idSize; i++ {
+		randomBytes[i] = idAlphabet[randomBytes[i]%byte(len(idAlphabet))]
+	}
+	return string(randomBytes), nil
 }

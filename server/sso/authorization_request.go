@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/kolide/fleet/server/kolide"
 	"github.com/pkg/errors"
 )
 
@@ -39,7 +38,7 @@ func CreateAuthorizationRequest(settings *Settings, issuer string, options ...fu
 	if settings.Metadata == nil {
 		return "", errors.New("missing settings metadata")
 	}
-	requestID, err := kolide.RandomText(16)
+	requestID, err := generateSAMLValidID()
 	if err != nil {
 		return "", errors.Wrap(err, "creating auth request id")
 	}
@@ -57,7 +56,6 @@ func CreateAuthorizationRequest(settings *Settings, issuer string, options ...fu
 		AssertionConsumerServiceURL: settings.AssertionConsumerServiceURL,
 		Destination:                 destinationURL,
 		IssueInstant:                time.Now().UTC().Format("2006-01-02T15:04:05Z"),
-		ProtocolBinding:             RedirectBinding,
 		Version:                     samlVersion,
 		ProviderName:                "Kolide",
 		Issuer: Issuer{

@@ -14,7 +14,7 @@ imports:
   subpackages:
   - quantile
 - name: github.com/davecgh/go-spew
-  version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
+  version: adab96458c51a58dc1783b3335dcce5461522e75
   subpackages:
   - spew
 - name: github.com/dgrijalva/jwt-go
@@ -151,7 +151,7 @@ imports:
 - name: github.com/spf13/viper
   version: 7fb2782df3d83e0036cc89f461ed0422628776f4
 - name: github.com/stretchr/testify
-  version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0
+  version: 05e8a0eda380579888eb53c394909df027f06991
   subpackages:
   - assert
   - require

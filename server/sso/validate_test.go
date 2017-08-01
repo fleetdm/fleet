@@ -174,3 +174,16 @@ func TestVerifyInvalidSignatureGoogleResponse(t *testing.T) {
 	_, err = validator.ValidateSignature(auth)
 	require.NotNil(t, err)
 }
+
+// validate id's are unique and that I didn't screw up my maths
+func TestIDGenerator(t *testing.T) {
+	idTable := make(map[string]struct{})
+	for i := 0; i < 100; i++ {
+		id, err := generateSAMLValidID()
+		require.Nil(t, err)
+		assert.Subset(t, []byte(idAlphabet), []byte(id))
+		_, ok := idTable[id]
+		assert.False(t, ok)
+		idTable[id] = struct{}{}
+	}
+}
