@@ -1,4 +1,6 @@
-* Fixed issue that caused ADFS single sign on to fail on certain SAML request ID's. 
+* Fixed issue where user menu did not work on Firefox browser
+
+* Fixed issue cause SSO to fail for ADFS
 
 * Fixed issue validating signatures in nested SAML assertions.
 

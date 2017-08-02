@@ -35,7 +35,8 @@ module.exports = {
     'import/extensions': 0,
     'import/no-extraneous-dependencies': 0,
     'import/no-unresolved': 0,
-    'no-underscore-dangle': 0
+    'no-underscore-dangle': 0,
+    'jsx-a11y/no-static-element-interactions': 'off'
   },
   settings: {
     'import/resolver': {

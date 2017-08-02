@@ -84,7 +84,7 @@ class SiteNavHeader extends Component {
 
     return (
       <header className={headerBaseClass}>
-        <button className={headerToggleClass} onClick={toggleUserMenu} ref={setHeaderNav}>
+        <div className={headerToggleClass} onClick={toggleUserMenu} ref={setHeaderNav}>
           <div className={`${headerBaseClass}__org`}>
             <OrgLogoIcon className={`${headerBaseClass}__logo`} src={orgLogoURL} />
             <h1 className={`${headerBaseClass}__org-name`}>{orgName}</h1>
@@ -99,7 +99,7 @@ class SiteNavHeader extends Component {
             onNavItemClick={onNavItemClick}
             user={user}
           />
-        </button>
+        </div>
       </header>
     );
   }
