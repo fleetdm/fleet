@@ -12,7 +12,7 @@ type AuthnRequest struct {
 	SAMLSIG                     string                 `xml:"xmlns:samlsig,attr,omitempty"`
 	ID                          string                 `xml:"ID,attr"`
 	Version                     string                 `xml:"Version,attr"`
-	ProtocolBinding             string                 `xml:"ProtocolBinding,attr"`
+	ProtocolBinding             string                 `xml:"ProtocolBinding,attr,omitempty"`
 	AssertionConsumerServiceURL string                 `xml:"AssertionConsumerServiceURL,attr"`
 	Destination                 string                 `xml:"Destination,attr"`
 	IssueInstant                string                 `xml:"IssueInstant,attr"`
