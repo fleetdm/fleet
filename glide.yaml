@@ -52,7 +52,6 @@ import:
   - prometheus
 - package: github.com/patrickmn/sortutil
 - package: github.com/stretchr/testify
-  version: ^1.1.4
 - package: github.com/garyburd/redigo
   version: ^1.0.0
   subpackages:
@@ -71,3 +70,5 @@ import:
 - package: github.com/spf13/cast
   version: ~1.0.0
 - package: github.com/russellhaering/gosaml2
+- package: github.com/kolide/agent-api
+  repo: git@github.com:kolide/agent-api.git

@@ -4,10 +4,11 @@ MAINTAINER Kolide Developers <engineering@kolide.co>
 RUN apk add --update \
         git \
         nodejs \
-		bash \
-		alpine-sdk \
-		musl-dev \
-		openssl
+	bash \
+	alpine-sdk \
+	musl-dev \
+	openssl \
+	openssh-client
 
 RUN go get -u -v github.com/Masterminds/glide
 

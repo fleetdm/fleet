@@ -375,7 +375,7 @@ Third-Party Licenses
 | [github.com/go-kit/kit](https://github.com/go-kit/kit) | [MIT](https://opensource.org/licenses/MIT) |
 | [github.com/go-logfmt/logfmt](https://github.com/go-logfmt/logfmt) | [MIT](https://opensource.org/licenses/MIT) |
 | [github.com/go-sql-driver/mysql](https://github.com/go-sql-driver/mysql) | [MPL-2.0](https://www.mozilla.org/en-US/MPL/2.0/) |
-| [github.com/go-stack/stack](https://github.com/go-stack/stack) | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| [github.com/go-stack/stack](https://github.com/go-stack/stack) | [MIT](https://opensource.org/licenses/MIT) |
 | [github.com/go-yaml/yaml](https://github.com/go-yaml/yaml) | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | [github.com/golang/mock](https://github.com/golang/mock) | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | [github.com/golang/protobuf](https://github.com/golang/protobuf) | [NewBSD](https://opensource.org/licenses/BSD-3-Clause) |
@@ -388,13 +388,13 @@ Third-Party Licenses
 | [github.com/jmoiron/sqlx](https://github.com/jmoiron/sqlx) | [MIT](https://opensource.org/licenses/MIT) |
 | [github.com/jonboulle/clockwork](https://github.com/jonboulle/clockwork) | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | [github.com/jordan-wright/email](https://github.com/jordan-wright/email) | [MIT](https://opensource.org/licenses/MIT) |
+| [github.com/kolide/agent-api](https://github.com/kolide/agent-api) | [Kolide](https://kolide.com) |
 | [github.com/kolide/goose](https://github.com/kolide/goose) | [MIT](https://opensource.org/licenses/MIT) |
 | [github.com/kr/logfmt](https://github.com/kr/logfmt) | [MIT](https://opensource.org/licenses/MIT) |
 | [github.com/magiconair/properties](https://github.com/magiconair/properties) | [FreeBSD](https://opensource.org/licenses/BSD-2-Clause) |
 | [github.com/matttproud/golang_protobuf_extensions](https://github.com/matttproud/golang_protobuf_extensions) | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | [github.com/mitchellh/mapstructure](https://github.com/mitchellh/mapstructure) | [MIT](https://opensource.org/licenses/MIT) |
 | [github.com/patrickmn/sortutil](https://github.com/patrickmn/sortutil) | [MIT](https://opensource.org/licenses/MIT) |
-| [github.com/pelletier/go-buffruneio](https://github.com/pelletier/go-buffruneio) | [MIT](https://opensource.org/licenses/MIT) |
 | [github.com/pelletier/go-toml](https://github.com/pelletier/go-toml) | [MIT](https://opensource.org/licenses/MIT) |
 | [github.com/pkg/errors](https://github.com/pkg/errors) | [FreeBSD](https://opensource.org/licenses/BSD-2-Clause) |
 | [github.com/pmezard/go-difflib](https://github.com/pmezard/go-difflib) | [FreeBSD](https://opensource.org/licenses/BSD-2-Clause) |

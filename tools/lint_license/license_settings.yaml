@@ -47,6 +47,9 @@ allowed_licenses:
   BSD:
     https://opensource.org/licenses/BSD-3-Clause
 
+  # Dependencies developed by Kolide and not explicitly licensed to the public
+  Kolide:
+    https://kolide.com
 
 # Packages that are detected as dependencies because they have a package.json,
 # but are actually tests for their parent directories. These packages are
@@ -131,3 +134,5 @@ overrides:
     ISC
   vendor/github.com/go-sql-driver/mysql:
     MPL-2.0
+  vendor/github.com/kolide/agent-api:
+    Kolide

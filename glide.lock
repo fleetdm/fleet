@@ -1,5 +1,5 @@
-hash: 7526b737524d134e1aa305fdae1f05ee92ff88c9d5b884b04d0aefcdb5ead7f6
-updated: 2017-05-02T11:10:06.237517785-05:00
+hash: a437c9ca450b1cec9e2b7ad815179956279cb459a594d3c6fb80937f11ddede7
+updated: 2017-08-10T12:15:43.00289563-07:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -8,13 +8,13 @@ imports:
 - name: github.com/alecthomas/units
   version: 2efee857e7cfd4f3d0138cc3cbb1b4966962b93a
 - name: github.com/beevik/etree
-  version: cda1c0026246bd095961ef9a3c430e50d0e80fba
+  version: 15a30b44cfd6c5a16a7ddfe271bf146aaf2d3195
 - name: github.com/beorn7/perks
   version: 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
   subpackages:
   - quantile
 - name: github.com/davecgh/go-spew
-  version: adab96458c51a58dc1783b3335dcce5461522e75
+  version: 04cdfd42973bb9c8589fd6a731800cf222fde1a9
   subpackages:
   - spew
 - name: github.com/dgrijalva/jwt-go
@@ -22,11 +22,11 @@ imports:
 - name: github.com/e-dard/netbug
   version: e64d308a0b205c901264e88a10e70d64acb1810d
 - name: github.com/elazarl/go-bindata-assetfs
-  version: 9a6736ed45b44bf3835afeebb3034b57ed329f3e
+  version: 30f82fa23fd844bd5bb1e5f216db87fd77b5eb43
 - name: github.com/fsnotify/fsnotify
-  version: a904159b9206978bb6d53fcc7a769e5cd726c737
+  version: 4da3e2cfbabc9f751898f250b49f2439785783a1
 - name: github.com/garyburd/redigo
-  version: 8873b2f1995f59d4bcdd2b0dc9858e2cb9bf0c13
+  version: 433969511232c397de61b1442f9fd49ec06ae9ba
   subpackages:
   - internal
   - redis
@@ -44,11 +44,11 @@ imports:
 - name: github.com/go-sql-driver/mysql
   version: 3654d25ec346ee8ce71a68431025458d52a38ac0
 - name: github.com/go-stack/stack
-  version: 100eb0c0a9c5b306ca2fb4f165df21d80ada4b82
+  version: 817915b46b97fd7bb80e8ab6b69f01a53ac3eebf
 - name: github.com/go-yaml/yaml
-  version: 4c78c975fe7c825c6d1466c42be594d1d6f3aba6
+  version: 25c4ec802a7d637f88d584ab26798e94ad14c13b
 - name: github.com/golang/mock
-  version: bd3c8e81be01eef76d4b503f5e687d2d1354d2d9
+  version: 13f360950a79f5864a972c786a10a50e44b69541
 - name: github.com/golang/protobuf
   version: c3cefd437628a0b7d31b34fe44b3a7a540e98527
   subpackages:
@@ -56,11 +56,11 @@ imports:
 - name: github.com/gorilla/context
   version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
 - name: github.com/gorilla/mux
-  version: 392c28fe23e1c45ddba891b0320b3b5df220beea
+  version: ac112f7d75a0714af1bd86ab17749b31f7809640
 - name: github.com/gorilla/websocket
-  version: c36f2fe5c330f0ac404b616b96c438b8616b1aaf
+  version: a69d9f6de432e2c6b296a947d8a5ee88f68522cf
 - name: github.com/hashicorp/hcl
-  version: 372e8ddaa16fd67e371e9323807d056b799360af
+  version: 392dba7d905ed5d04a5794ba89f558b27e2ba1ca
   subpackages:
   - hcl/ast
   - hcl/parser
@@ -77,33 +77,34 @@ imports:
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/jmoiron/sqlx
-  version: 5f97679e23f75f42b265fec8d3bdb1c8de90b79d
+  version: d9bd385d68c068f1fabb5057e3dedcbcbb039d0f
   subpackages:
   - reflectx
 - name: github.com/jonboulle/clockwork
   version: bcac9884e7502bb2b474c0339d889cb981a2f27f
 - name: github.com/jordan-wright/email
   version: fd703108daeb23d77c124d12978e9b6c4f28f034
+- name: github.com/kolide/agent-api
+  version: 7fa34da2e8903787c7a5a3a14fb91892680add1b
+  repo: git@github.com:kolide/agent-api.git
 - name: github.com/kolide/goose
   version: 4a7848793d4402d338de853019ad72b9a4b3e68e
 - name: github.com/kr/logfmt
   version: b84e30acd515aadc4b783ad4ff83aff3299bdfe0
 - name: github.com/magiconair/properties
-  version: b3b15ef068fd0b17ddf408a23669f20811d194d2
+  version: be5ece7dd465ab0765a9682137865547526d1dfb
 - name: github.com/matttproud/golang_protobuf_extensions
   version: c12348ce28de40eed0136aa2b644d0ee0650e56c
   subpackages:
   - pbutil
 - name: github.com/mitchellh/mapstructure
-  version: db1efb556f84b25a0a13a04aad883943538ad2e0
+  version: d0303fe809921458f417bcf828397a65db30a7e4
 - name: github.com/patrickmn/sortutil
   version: abeda66eb583fac2d8d98d3d2e6fbd5c67af7947
-- name: github.com/pelletier/go-buffruneio
-  version: df1e16fde7fc330a0ca68167c23bf7ed6ac31d6d
 - name: github.com/pelletier/go-toml
-  version: d1fa2118c12c44e4f5004da216d1efad10cb4924
+  version: 69d355db5304c0f7f809a2edc054553e7142f016
 - name: github.com/pkg/errors
-  version: 645ef00459ed84a119197bfb8d8205042c6df63d
+  version: c605e284fe17294bda444b34710735b29d1a9d90
 - name: github.com/pmezard/go-difflib
   version: 792786c7400a136282c1664665ae0a8db921c6c2
   subpackages:
@@ -114,51 +115,53 @@ imports:
   - prometheus
   - prometheus/promhttp
 - name: github.com/prometheus/client_model
-  version: fa8ad6fec33561be4280a8f0514318c79d7f6cb6
+  version: 6f3806018612930941127f2a7c6c453ba2c527d2
   subpackages:
   - go
 - name: github.com/prometheus/common
-  version: dd2f054febf4a6c00f2343686efb775948a8bff4
+  version: 61f87aac8082fa8c3c5655c7608d7478d46ac2ad
   subpackages:
   - expfmt
   - internal/bitbucket.org/ww/goautoneg
   - model
 - name: github.com/prometheus/procfs
-  version: 1878d9fbb537119d24b21ca07effd591627cd160
+  version: e645f4e5aaa8506fc71d6edbc5c4ff02c04c46f2
+  subpackages:
+  - xfs
 - name: github.com/russellhaering/gosaml2
-  version: 6074095354a9bead88f041558b2150ce47676371
+  version: 24fc04268654e4581f98de45f69b7f9aa6e4da1a
   subpackages:
   - types
 - name: github.com/russellhaering/goxmldsig
-  version: eaac44c63fe007124f8f6255b09febc906784981
+  version: 605161228693b2efadce55323c9c661a40c5fbaa
   subpackages:
   - etreeutils
   - types
 - name: github.com/ryanuber/go-license
-  version: 027a317812857d68bb611443b5c08bbe96e88598
+  version: 9c9d2aca2d1a36bd73b496ebd2fd14fea6aca9a2
 - name: github.com/spf13/afero
-  version: 72b31426848c6ef12a7a8e216708cb0d1530f074
+  version: 9be650865eab0c12963d8753212f4f9c66cdcf12
   subpackages:
   - mem
 - name: github.com/spf13/cast
   version: ce135a4ebeee6cfe9a26c93ee0d37825f26113c7
 - name: github.com/spf13/cobra
-  version: 37c3f8060359192150945916cbc2d72bce804b4d
+  version: b26b538f693051ac6518e65672de3144ce3fbedc
 - name: github.com/spf13/jwalterweatherman
-  version: fa7ca7e836cf3a8bb4ebf799f472c12d7e903d66
+  version: 0efa5202c04663c757d84f90f5219c1250baf94f
 - name: github.com/spf13/pflag
-  version: 9ff6c6923cfffbcd502984b8e0c80539a94968b7
+  version: e57e3eeb33f795204c1ca35f56c44f83227c6e66
 - name: github.com/spf13/viper
-  version: 7fb2782df3d83e0036cc89f461ed0422628776f4
+  version: 25b30aa063fc18e48662b86996252eabdcf2f0c7
 - name: github.com/stretchr/testify
-  version: 05e8a0eda380579888eb53c394909df027f06991
+  version: 890a5c3458b43e6104ff5da8dfa139d013d77544
   subpackages:
   - assert
   - require
 - name: github.com/VividCortex/mysqlerr
   version: 6c6b55f8796f578c870b7e19bafb16103bc40095
 - name: github.com/WatchBeam/clock
-  version: d5a6612f3d9a070b964adc65dbd94c6080458f83
+  version: ac3776ffbf764bc40bda24e84184146865d0a46d
 - name: golang.org/x/crypto
   version: bc89c496413265e715159bdc8478ee9a92fdc265
   subpackages:
@@ -174,14 +177,14 @@ imports:
   subpackages:
   - unix
 - name: golang.org/x/text
-  version: 506f9d5c962f284575e88337e7d9296d27e729d3
+  version: b19bf474d317b857955b12035d2c5acb57ce8b01
   subpackages:
   - transform
   - unicode/norm
 - name: gopkg.in/alecthomas/kingpin.v2
-  version: 7f0871f2e17818990e4eed73f9b5c2f429501228
+  version: 1087e65c9441605df944fb12c33f0fe7072d18ca
 - name: gopkg.in/go-playground/validator.v8
-  version: 5f57d2222ad794d0dffb07e664ea05e2ee07d60c
+  version: 5f1438d3fca68893a817e4a66806cea46a9e4ebf
 - name: gopkg.in/natefinch/lumberjack.v2
   version: dd45e6a67c53f673bb49ca8a001fd3a63ceb640e
 - name: gopkg.in/yaml.v2
