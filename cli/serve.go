@@ -19,6 +19,7 @@ import (
 	"github.com/kolide/fleet/server/config"
 	"github.com/kolide/fleet/server/datastore/mysql"
 	"github.com/kolide/fleet/server/kolide"
+	"github.com/kolide/fleet/server/launcher"
 	"github.com/kolide/fleet/server/license"
 	"github.com/kolide/fleet/server/mail"
 	"github.com/kolide/fleet/server/pubsub"
@@ -144,6 +145,9 @@ the way that the kolide server works.
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
+			// Instantiate a gRPC service to handle launcher requests.
+			launcher := launcher.New(svc, logger)
+			defer launcher.GracefulStop()
 
 			go func() {
 				ticker := time.NewTicker(1 * time.Hour)
@@ -201,12 +205,14 @@ the way that the kolide server works.
 			}
 
 			r := http.NewServeMux()
+
 			r.Handle("/healthz", prometheus.InstrumentHandler("healthz", healthz(httpLogger, healthCheckers)))
 			r.Handle("/version", prometheus.InstrumentHandler("version", version.Handler()))
 			r.Handle("/assets/", prometheus.InstrumentHandler("static_assets", service.ServeStaticAssets("/assets/")))
 			r.Handle("/metrics", prometheus.InstrumentHandler("metrics", promhttp.Handler()))
 			r.Handle("/api/", apiHandler)
 			r.Handle("/", frontendHandler)
+
 			if path, ok := os.LookupEnv("KOLIDE_TEST_PAGE_PATH"); ok {
 				// test that we can load this
 				_, err := ioutil.ReadFile(path)
@@ -237,7 +243,7 @@ the way that the kolide server works.
 
 			srv := &http.Server{
 				Addr:              config.Server.Address,
-				Handler:           r,
+				Handler:           launcher.Handler(r),
 				ReadTimeout:       25 * time.Second,
 				WriteTimeout:      40 * time.Second,
 				ReadHeaderTimeout: 5 * time.Second,
@@ -308,7 +314,9 @@ func healthz(logger kitlog.Logger, deps map[string]interface{}) http.HandlerFunc
 // profile is 'modern'.
 // See https://wiki.mozilla.org/Security/Server_Side_TLS
 func getTLSConfig(profile string) *tls.Config {
-	cfg := tls.Config{PreferServerCipherSuites: true}
+	cfg := tls.Config{
+		PreferServerCipherSuites: true,
+	}
 
 	switch profile {
 	case config.TLSProfileModern:

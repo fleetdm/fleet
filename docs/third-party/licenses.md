@@ -390,6 +390,7 @@ Third-Party Licenses
 | [github.com/jordan-wright/email](https://github.com/jordan-wright/email) | [MIT](https://opensource.org/licenses/MIT) |
 | [github.com/kolide/agent-api](https://github.com/kolide/agent-api) | [Kolide](https://kolide.com) |
 | [github.com/kolide/goose](https://github.com/kolide/goose) | [MIT](https://opensource.org/licenses/MIT) |
+| [github.com/kolide/osquery-go](https://github.com/kolide/osquery-go) | [MIT](https://opensource.org/licenses/MIT) |
 | [github.com/kr/logfmt](https://github.com/kr/logfmt) | [MIT](https://opensource.org/licenses/MIT) |
 | [github.com/magiconair/properties](https://github.com/magiconair/properties) | [FreeBSD](https://opensource.org/licenses/BSD-2-Clause) |
 | [github.com/matttproud/golang_protobuf_extensions](https://github.com/matttproud/golang_protobuf_extensions) | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) |
@@ -411,6 +412,7 @@ Third-Party Licenses
 | [github.com/spf13/jwalterweatherman](https://github.com/spf13/jwalterweatherman) | [MIT](https://opensource.org/licenses/MIT) |
 | [github.com/spf13/pflag](https://github.com/spf13/pflag) | [NewBSD](https://opensource.org/licenses/BSD-3-Clause) |
 | [github.com/spf13/viper](https://github.com/spf13/viper) | [MIT](https://opensource.org/licenses/MIT) |
+| [github.com/stretchr/objx](https://github.com/stretchr/objx) | [MIT](https://opensource.org/licenses/MIT) |
 | [github.com/stretchr/testify](https://github.com/stretchr/testify) | [MIT](https://opensource.org/licenses/MIT) |
 | [glob](https://www.npmjs.com/package/glob) | [ISC](https://opensource.org/licenses/ISC) |
 | [glob-base](https://www.npmjs.com/package/glob-base) | [MIT](https://opensource.org/licenses/MIT) |
@@ -424,6 +426,8 @@ Third-Party Licenses
 | [golang.org/x/sys](https://golang.org/x/sys) | [NewBSD](https://opensource.org/licenses/BSD-3-Clause) |
 | [golang.org/x/text](https://golang.org/x/text) | [NewBSD](https://opensource.org/licenses/BSD-3-Clause) |
 | [gonzales-pe](https://www.npmjs.com/package/gonzales-pe) | [MIT](https://opensource.org/licenses/MIT) |
+| [google.golang.org/genproto](https://google.golang.org/genproto) | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| [google.golang.org/grpc](https://google.golang.org/grpc) | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | [gopkg.in/alecthomas/kingpin.v2](https://gopkg.in/alecthomas/kingpin.v2) | [MIT](https://opensource.org/licenses/MIT) |
 | [gopkg.in/go-playground/validator.v8](https://gopkg.in/go-playground/validator.v8) | [MIT](https://opensource.org/licenses/MIT) |
 | [gopkg.in/natefinch/lumberjack.v2](https://gopkg.in/natefinch/lumberjack.v2) | [MIT](https://opensource.org/licenses/MIT) |

@@ -23,10 +23,6 @@ import:
   subpackages:
   - bcrypt
   - blowfish
-- package: golang.org/x/net
-  version: 4d38db76854b199960801a1734443fd02870d7e1
-  subpackages:
-  - context
 - package: golang.org/x/sys
   version: a646d33e2ee3172a661fc09bca23bb4889a41bc8
   subpackages:
@@ -52,6 +48,9 @@ import:
   - prometheus
 - package: github.com/patrickmn/sortutil
 - package: github.com/stretchr/testify
+  version: 05e8a0eda380579888eb53c394909df027f06991
+  subpackages:
+  - mock
 - package: github.com/garyburd/redigo
   version: ^1.0.0
   subpackages:
@@ -70,5 +69,15 @@ import:
 - package: github.com/spf13/cast
   version: ~1.0.0
 - package: github.com/russellhaering/gosaml2
+- package: google.golang.org/grpc
+  version: ^1.5.1
 - package: github.com/kolide/agent-api
   repo: git@github.com:kolide/agent-api.git
+- package: github.com/kolide/osquery-go
+  subpackages:
+  - plugin/distributed
+  - plugin/logger
+- package: google.golang.org/genproto
+  subpackages:
+  - googleapis/rpc/status
+- package: github.com/stretchr/objx
