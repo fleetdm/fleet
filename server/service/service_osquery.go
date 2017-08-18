@@ -89,6 +89,25 @@ func (svc service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 	return host.NodeKey, nil
 }
 
+func (svc service) getFIMConfig(ctx context.Context, cfg *kolide.OsqueryConfig) (*kolide.OsqueryConfig, error) {
+	fimConfig, err := svc.GetFIM(ctx)
+	if err != nil {
+		return nil, osqueryError{message: "internal error: unable to fetch FIM configuration"}
+	}
+	if cfg.Schedule == nil {
+		cfg.Schedule = make(map[string]kolide.QueryContent)
+	}
+	removed := false
+	// file events scheduled query is required to run file integrity monitors
+	cfg.Schedule["file_events"] = kolide.QueryContent{
+		Query:    "SELECT * FROM file_events;",
+		Interval: fimConfig.Interval,
+		Removed:  &removed,
+	}
+	cfg.FilePaths = fimConfig.FilePaths
+	return cfg, nil
+}
+
 func (svc service) GetClientConfig(ctx context.Context) (*kolide.OsqueryConfig, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
@@ -192,7 +211,7 @@ func (svc service) GetClientConfig(ctx context.Context) (*kolide.OsqueryConfig, 
 		}
 	}
 
-	return config, nil
+	return svc.getFIMConfig(ctx, config)
 }
 
 // If osqueryWriters are based on bufio we want to flush after a batch of

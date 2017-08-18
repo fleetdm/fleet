@@ -35,4 +35,11 @@ func testFileIntegrityMonitoring(t *testing.T, ds kolide.Datastore) {
 	assert.Len(t, actual, 2)
 	assert.Len(t, actual["fp1"], 3)
 	assert.Len(t, actual["fp2"], 2)
+
+	err = ds.ClearFIMSections()
+	require.Nil(t, err)
+	fs, err := ds.FIMSections()
+	assert.Nil(t, err)
+	assert.Len(t, fs, 0)
+
 }

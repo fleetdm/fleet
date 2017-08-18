@@ -127,6 +127,8 @@ type AppConfig struct {
 	IDPName string `db:"idp_name"`
 	// EnableSSO flag to determine whether or not to enable SSO
 	EnableSSO bool `db:"enable_sso"`
+	// FIMInterval defines the interval when file integrity checks will occurr
+	FIMInterval int `db:"fim_interval"`
 }
 
 // ModifyAppConfigRequest contains application configuration information

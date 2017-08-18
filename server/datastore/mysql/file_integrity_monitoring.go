@@ -41,6 +41,12 @@ func (d *Datastore) NewFIMSection(fp *kolide.FIMSection, opts ...kolide.Optional
 	return fp, nil
 }
 
+func (d *Datastore) ClearFIMSections() error {
+	sqlStatement := "DELETE FROM file_integrity_monitorings"
+	_, err := d.db.Exec(sqlStatement)
+	return err
+}
+
 func (d *Datastore) FIMSections() (kolide.FIMSections, error) {
 	sqlStatement := `
     SELECT fim.section_name, mf.file FROM

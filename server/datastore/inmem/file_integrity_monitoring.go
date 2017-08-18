@@ -21,3 +21,7 @@ func (d *Datastore) FIMSections() (kolide.FIMSections, error) {
 	}
 	return result, nil
 }
+
+func (d *Datastore) ClearFIMSections() error {
+	panic("inmem is being deprecated")
+}

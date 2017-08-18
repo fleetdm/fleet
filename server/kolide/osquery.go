@@ -62,9 +62,13 @@ type Decorators struct {
 // OsqueryConfig is a struct that can be serialized into a valid osquery config
 // using Go's JSON tooling.
 type OsqueryConfig struct {
-	Options    map[string]interface{} `json:"options"`
-	Decorators Decorators             `json:"decorators,omitempty"`
-	Packs      Packs                  `json:"packs,omitempty"`
+	Schedule   map[string]QueryContent `json:"schedule,omitempty"`
+	Options    map[string]interface{}  `json:"options"`
+	Decorators Decorators              `json:"decorators,omitempty"`
+	Packs      Packs                   `json:"packs,omitempty"`
+	// FilePaths contains named collections of file paths used for
+	// FIM (File Integrity Monitoring)
+	FilePaths FIMSections `json:"file_paths,omitempty"`
 }
 
 // OsqueryResultLog is the format of an osquery result log (ie: a differential

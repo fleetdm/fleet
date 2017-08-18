@@ -18,4 +18,5 @@ type Service interface {
 	ImportConfigService
 	LicenseService
 	DecoratorService
+	FileIntegrityMonitoringService
 }

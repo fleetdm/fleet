@@ -86,6 +86,8 @@ type KolideEndpoints struct {
 	InitiateSSO                    endpoint.Endpoint
 	CallbackSSO                    endpoint.Endpoint
 	SSOSettings                    endpoint.Endpoint
+	GetFIM                         endpoint.Endpoint
+	ModifyFIM                      endpoint.Endpoint
 }
 
 // MakeKolideServerEndpoints creates the Kolide API endpoints.
@@ -167,6 +169,8 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		ChangeEmail:               authenticatedUser(jwtKey, svc, makeChangeEmailEndpoint(svc)),
 		UpdateLicense:             authenticatedUser(jwtKey, svc, mustBeAdmin(makeUpdateLicenseEndpoint(svc))),
 		GetLicense:                authenticatedUser(jwtKey, svc, makeGetLicenseEndpoint(svc)),
+		GetFIM:                    authenticatedUser(jwtKey, svc, makeGetFIMEndpoint(svc)),
+		ModifyFIM:                 authenticatedUser(jwtKey, svc, makeModifyFIMEndpoint(svc)),
 
 		// Osquery endpoints
 		EnrollAgent:                   makeEnrollAgentEndpoint(svc),
@@ -249,6 +253,8 @@ type kolideHandlers struct {
 	InitiateSSO                    http.Handler
 	CallbackSSO                    http.Handler
 	SettingsSSO                    http.Handler
+	ModifyFIM                      http.Handler
+	GetFIM                         http.Handler
 }
 
 func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *kolideHandlers {
@@ -327,6 +333,8 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		InitiateSSO:                   newServer(e.InitiateSSO, decodeInitiateSSORequest),
 		CallbackSSO:                   newServer(e.CallbackSSO, decodeCallbackSSORequest),
 		SettingsSSO:                   newServer(e.SSOSettings, decodeNoParamsRequest),
+		ModifyFIM:                     newServer(e.ModifyFIM, decodeModifyFIMRequest),
+		GetFIM:                        newServer(e.GetFIM, decodeNoParamsRequest),
 	}
 }
 
@@ -434,6 +442,9 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/host_summary", h.GetHostSummary).Methods("GET").Name("get_host_summary")
 	r.Handle("/api/v1/kolide/hosts/{id}", h.GetHost).Methods("GET").Name("get_host")
 	r.Handle("/api/v1/kolide/hosts/{id}", h.DeleteHost).Methods("DELETE").Name("delete_host")
+
+	r.Handle("/api/v1/kolide/fim", h.GetFIM).Methods("GET").Name("get_fim")
+	r.Handle("/api/v1/kolide/fim", h.ModifyFIM).Methods("PATCH").Name("post_fim")
 
 	r.Handle("/api/v1/kolide/options", h.GetOptions).Methods("GET").Name("get_options")
 	r.Handle("/api/v1/kolide/options", h.ModifyOptions).Methods("PATCH").Name("modify_options")

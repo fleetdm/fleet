@@ -972,6 +972,17 @@ func TestUpdateHostIntervals(t *testing.T) {
 	ds.ListLabelsForHostFunc = func(hid uint) ([]kolide.Label, error) {
 		return []kolide.Label{}, nil
 	}
+	ds.AppConfigFunc = func() (*kolide.AppConfig, error) {
+		return &kolide.AppConfig{FIMInterval: 400}, nil
+	}
+	ds.FIMSectionsFunc = func() (kolide.FIMSections, error) {
+		sections := kolide.FIMSections{
+			"etc": []string{
+				"/etc/%%",
+			},
+		}
+		return sections, nil
+	}
 
 	var testCases = []struct {
 		initHost       kolide.Host
@@ -1067,6 +1078,8 @@ func TestUpdateHostIntervals(t *testing.T) {
 	}
 
 	for _, tt := range testCases {
+		ds.FIMSectionsFuncInvoked = false
+
 		t.Run("", func(t *testing.T) {
 			ctx := hostctx.NewContext(context.Background(), tt.initHost)
 
@@ -1081,9 +1094,22 @@ func TestUpdateHostIntervals(t *testing.T) {
 				return nil
 			}
 
-			_, err = svc.GetClientConfig(ctx)
+			cfg, err := svc.GetClientConfig(ctx)
 			require.Nil(t, err)
 			assert.Equal(t, tt.saveHostCalled, saveHostCalled)
+			require.True(t, ds.FIMSectionsFuncInvoked)
+			require.Condition(t, func() bool {
+				_, ok := cfg.Schedule["file_events"]
+				return ok
+			})
+			assert.Equal(t, 400, int(cfg.Schedule["file_events"].Interval))
+			assert.Equal(t, "SELECT * FROM file_events;", cfg.Schedule["file_events"].Query)
+			require.NotNil(t, cfg.FilePaths)
+			require.Condition(t, func() bool {
+				_, ok := cfg.FilePaths["etc"]
+				return ok
+			})
+			assert.Len(t, cfg.FilePaths["etc"], 1)
 		})
 	}
 
