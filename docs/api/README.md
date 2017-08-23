@@ -36,6 +36,90 @@ All of these objects are put together and distributed to the appropriate osquery
 
 Like it was said above, we have plans to include richer API documentation in the near future, so stay tuned. If using this API is important to you, please contact us at [support@kolide.co](mailto:support@kolide.co) and tell us, so that we can prioritize creating stable API documentation.
 
+### File Integrity Monitoring
+
+[File Integrity Monitoring](https://osquery.readthedocs.io/en/stable/deployment/file-integrity-monitoring/) can be configured using cURL as illustrated in
+the following example. The user must first log in to get an authorization token. This token
+must be supplied in the authorization headers of subsequent requests to view or change the FIM configuration.
+```shell
+# Step 1 Log in
+curl -X "POST" "https://localhost:8080/api/v1/kolide/login" \
+     -H "Content-Type: text/plain; charset=utf-8" \
+     -d $'{
+"username": "admin",
+"password": "supersecret"
+}'
+## Login Response
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Date: Thu, 17 Aug 2017 22:38:33 GMT
+Content-Length: 604
+Connection: close
+
+{
+  "user": {
+    "created_at": "2017-08-17T22:00:32Z",
+    "updated_at": "2017-08-17T22:00:32Z",
+    "deleted_at": null,
+    "deleted": false,
+    "id": 1,
+    "username": "admin",
+    "name": "",
+    "email": "admin@acme.com",
+    "admin": true,
+    "enabled": true,
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "sso_enabled": false
+  },
+  "token": "faketoken"
+}
+
+# Step 2 Upload FIM configuration
+curl -X "PATCH" "https://localhost:8080/api/v1/kolide/fim" \
+     -H "Authorization: Bearer faketoken" \
+     -H "Content-Type: text/plain; charset=utf-8" \
+     -d $'{
+  "interval": 500,
+  "file_paths": {
+    "etc": [
+      "/etc/%%"
+    ],
+    "users": [
+      "/Users/%/Library/%%",
+      "/Users/%/Documents/%%"
+    ],
+    "usr": [
+      "/usr/bin/%%"
+    ]
+  }
+}'
+
+## Upload FIM Response
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Date: Thu, 17 Aug 2017 22:39:26 GMT
+Content-Length: 3
+Connection: close
+
+{}
+
+## View current FIM
+curl "https://localhost:8080/api/v1/kolide/fim" \
+     -H "Authorization: Bearer faketoken"
+```
+The FIM configuration supplied in each PATCH request replaces the existing FIM configuration. In order to completely
+disable FIM send a PATCH request with an empty set of file paths.
+```shell
+curl -X "PATCH" "https://localhost:8080/api/v1/kolide/fim" \
+     -H "Authorization: Bearer faketoken" \
+     -H "Content-Type: text/plain; charset=utf-8" \
+     -d $'{
+  "interval": 500
+}'
+```
+
+
 ### Osquery Configuration Import
 
 You can load packs, queries and other settings from an existing [Osquery configuration file](https://osquery.readthedocs.io/en/stable/deployment/configuration/) by importing the file into Kolide. This can be done posting the stringified contents of the Osquery configuration to the following Kolide endpoint:

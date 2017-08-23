@@ -1,3 +1,5 @@
+* Added FIM support 
+
 * Fixed issue where user menu did not work on Firefox browser
 
 * Fixed issue cause SSO to fail for ADFS
