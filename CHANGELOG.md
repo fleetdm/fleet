@@ -1,5 +1,9 @@
 * Added FIM support 
 
+* Title on query page correctly reflects new or edit mode. 
+
+* Fixed issue on new query page where last query would be submitted instead of current.
+
 * Fixed issue where user menu did not work on Firefox browser
 
 * Fixed issue cause SSO to fail for ADFS

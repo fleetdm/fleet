@@ -57,6 +57,7 @@ export class QueryPage extends Component {
     selectedHosts: PropTypes.arrayOf(hostInterface),
     selectedOsqueryTable: osqueryTableInterface,
     selectedTargets: PropTypes.arrayOf(targetInterface),
+    title: PropTypes.string,
   };
 
   static defaultProps = {
@@ -97,9 +98,11 @@ export class QueryPage extends Component {
   }
 
   componentWillReceiveProps (nextProps) {
-    const { dispatch, location, selectedHosts, selectedTargets } = nextProps;
+    const { dispatch, location, query, selectedHosts, selectedTargets } = nextProps;
     const nextPathname = location.pathname;
     const { pathname } = this.props.location;
+    const { query: queryText } = query;
+    this.setState({ queryText });
 
     if (nextPathname !== pathname) {
       this.resetCampaignAndTargets();
@@ -519,6 +522,7 @@ export class QueryPage extends Component {
       loadingQueries,
       query,
       selectedOsqueryTable,
+      title,
     } = this.props;
 
     if (loadingQueries) {
@@ -540,6 +544,7 @@ export class QueryPage extends Component {
               queryIsRunning={queryIsRunning}
               serverErrors={errors}
               selectedOsqueryTable={selectedOsqueryTable}
+              title={title}
             />
           </div>
           {renderTargetsInput()}
@@ -566,6 +571,7 @@ const mapStateToProps = (state, ownProps) => {
   const { selectedTargets } = state.components.QueryPages;
   const { host_ids: hostIDs } = ownProps.location.query;
   const { isSmallNav } = state.app;
+  const title = queryID ? 'Edit Query' : 'New Query';
   let selectedHosts = [];
 
   // hostIDs are URL params so they are strings
@@ -587,6 +593,7 @@ const mapStateToProps = (state, ownProps) => {
     selectedOsqueryTable,
     selectedHosts,
     selectedTargets,
+    title,
   };
 };
 

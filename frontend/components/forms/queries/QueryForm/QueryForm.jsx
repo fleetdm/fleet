@@ -45,6 +45,7 @@ class QueryForm extends Component {
     onOsqueryTableSelect: PropTypes.func,
     onUpdate: PropTypes.func,
     queryIsRunning: PropTypes.bool,
+    title: PropTypes.string,
   };
 
   static defaultProps = {
@@ -135,13 +136,13 @@ class QueryForm extends Component {
   }
 
   render () {
-    const { baseError, fields, handleSubmit, queryIsRunning } = this.props;
+    const { baseError, fields, handleSubmit, queryIsRunning, title } = this.props;
     const { errors } = this.state;
     const { onLoad, renderButtons } = this;
 
     return (
       <form className={`${baseClass}__wrapper`} onSubmit={handleSubmit}>
-        <h1>New Query</h1>
+        <h1>{title}</h1>
         {baseError && <div className="form__base-error">{baseError}</div>}
         <InputField
           {...fields.name}
