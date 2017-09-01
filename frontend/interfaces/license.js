@@ -6,5 +6,4 @@ export default PropTypes.shape({
   ]),
   expiry: PropTypes.string,
   hosts: PropTypes.number,
-  license: PropTypes.string,
 });

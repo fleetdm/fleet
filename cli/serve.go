@@ -20,7 +20,6 @@ import (
 	"github.com/kolide/fleet/server/datastore/mysql"
 	"github.com/kolide/fleet/server/kolide"
 	"github.com/kolide/fleet/server/launcher"
-	"github.com/kolide/fleet/server/license"
 	"github.com/kolide/fleet/server/mail"
 	"github.com/kolide/fleet/server/pubsub"
 	"github.com/kolide/fleet/server/service"
@@ -125,23 +124,12 @@ the way that the kolide server works.
 				}
 			}
 
-			licenseService := license.NewChecker(
-				ds,
-				"https://kolide.co/api/v0/licenses",
-				license.Logger(logger),
-			)
-
-			err = licenseService.Start()
-			if err != nil {
-				initFatal(err, "initializing license service")
-			}
-
 			var resultStore kolide.QueryResultStore
 			redisPool := pubsub.NewRedisPool(config.Redis.Address, config.Redis.Password)
 			resultStore = pubsub.NewRedisQueryResults(redisPool)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
 
-			svc, err := service.NewService(ds, resultStore, logger, config, mailService, clock.C, licenseService, ssoSessionStore)
+			svc, err := service.NewService(ds, resultStore, logger, config, mailService, clock.C, ssoSessionStore)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
@@ -274,7 +262,6 @@ the way that the kolide server works.
 			}()
 
 			logger.Log("terminated", <-errs)
-			licenseService.Stop()
 		},
 	}
 

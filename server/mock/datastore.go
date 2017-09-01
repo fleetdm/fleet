@@ -3,7 +3,6 @@ package mock
 //go:generate mockimpl -o datastore_users.go "s *UserStore" "kolide.UserStore"
 //go:generate mockimpl -o datastore_invites.go "s *InviteStore" "kolide.InviteStore"
 //go:generate mockimpl -o datastore_appconfig.go "s *AppConfigStore" "kolide.AppConfigStore"
-//go:generate mockimpl -o datastore_licenses.go "s *LicenseStore" "kolide.LicenseStore"
 //go:generate mockimpl -o datastore_labels.go "s *LabelStore" "kolide.LabelStore"
 //go:generate mockimpl -o datastore_decorators.go "s *DecoratorStore" "kolide.DecoratorStore"
 //go:generate mockimpl -o datastore_options.go "s *OptionStore" "kolide.OptionStore"
@@ -29,7 +28,6 @@ type Store struct {
 	HostStore
 	InviteStore
 	LabelStore
-	LicenseStore
 	OptionStore
 	PackStore
 	UserStore

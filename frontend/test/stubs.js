@@ -136,21 +136,6 @@ export const labelStub = {
   target_type: 'labels',
 };
 
-export const licenseStub = () => {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-
-  return {
-    token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWV9.TJVA95OrM7E2cBab30RMHrHDcEfxjoYZgeFONFh7HgQ',
-    expiry: tomorrow.toISOString(),
-    allowed_hosts: 100,
-    hosts: 70,
-    evaluation: false,
-    revoked: false,
-    organization: 'Kolide',
-  };
-};
-
 export const packStub = {
   created_at: '0001-01-01T00:00:00Z',
   updated_at: '0001-01-01T00:00:00Z',
@@ -247,7 +232,6 @@ export default {
   flatConfigStub,
   hostStub,
   labelStub,
-  licenseStub,
   packStub,
   queryStub,
   scheduledQueryStub,

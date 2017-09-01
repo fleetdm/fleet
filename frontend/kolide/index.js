@@ -6,7 +6,6 @@ import configOptionMethods from 'kolide/entities/config_options';
 import hostMethods from 'kolide/entities/hosts';
 import inviteMethods from 'kolide/entities/invites';
 import labelMethods from 'kolide/entities/labels';
-import licenseMethods from 'kolide/entities/licenses';
 import packMethods from 'kolide/entities/packs';
 import queryMethods from 'kolide/entities/queries';
 import scheduledQueryMethods from 'kolide/entities/scheduled_queries';
@@ -29,7 +28,6 @@ class Kolide extends Base {
     this.hosts = hostMethods(this);
     this.invites = inviteMethods(this);
     this.labels = labelMethods(this);
-    this.license = licenseMethods(this);
     this.packs = packMethods(this);
     this.queries = queryMethods(this);
     this.scheduledQueries = scheduledQueryMethods(this);

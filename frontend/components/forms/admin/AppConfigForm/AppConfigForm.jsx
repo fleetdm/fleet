@@ -1,5 +1,4 @@
 import React, { Component, PropTypes } from 'react';
-import moment from 'moment';
 
 import Button from 'components/buttons/Button';
 import Checkbox from 'components/forms/fields/Checkbox';
@@ -8,12 +7,9 @@ import Form from 'components/forms/Form';
 import formFieldInterface from 'interfaces/form_field';
 import Icon from 'components/icons/Icon';
 import InputField from 'components/forms/fields/InputField';
-import licenseInterface from 'interfaces/license';
 import OrgLogoIcon from 'components/icons/OrgLogoIcon';
 import Slider from 'components/forms/fields/Slider';
 import validate from 'components/forms/admin/AppConfigForm/validate';
-
-import key from '../../../../../assets/images/key.svg';
 
 const authMethodOptions = [
   { label: 'Plain', value: 'authmethod_plain' },
@@ -26,7 +22,7 @@ const authTypeOptions = [
 const baseClass = 'app-config-form';
 const formFields = [
   'authentication_method', 'authentication_type', 'domain', 'enable_ssl_tls', 'enable_start_tls',
-  'kolide_server_url', 'license', 'org_logo_url', 'org_name', 'osquery_enroll_secret', 'password',
+  'kolide_server_url', 'org_logo_url', 'org_name', 'osquery_enroll_secret', 'password',
   'port', 'sender_address', 'server', 'user_name', 'verify_ssl_certs', 'idp_name', 'entity_id',
   'issuer_uri', 'idp_image_url', 'metadata', 'metadata_url', 'enable_sso',
 ];
@@ -47,7 +43,6 @@ class AppConfigForm extends Component {
       enable_ssl_tls: formFieldInterface.isRequired,
       enable_start_tls: formFieldInterface.isRequired,
       kolide_server_url: formFieldInterface.isRequired,
-      license: formFieldInterface.isRequired,
       org_logo_url: formFieldInterface.isRequired,
       org_name: formFieldInterface.isRequired,
       password: formFieldInterface.isRequired,
@@ -65,8 +60,6 @@ class AppConfigForm extends Component {
       enable_sso: formFieldInterface.isRequired,
     }).isRequired,
     handleSubmit: PropTypes.func.isRequired,
-    handleUpdateLicense: PropTypes.func.isRequired,
-    license: licenseInterface.isRequired,
     smtpConfigured: PropTypes.bool.isRequired,
   };
 
@@ -74,14 +67,6 @@ class AppConfigForm extends Component {
     super(props);
 
     this.state = { revealSecret: false, showAdvancedOptions: false };
-  }
-
-  onResetLicense = (evt) => {
-    evt.preventDefault();
-
-    const { fields, license } = this.props;
-
-    return fields.license.onChange(license.token);
   }
 
   onToggleAdvancedOptions = (evt) => {
@@ -102,14 +87,6 @@ class AppConfigForm extends Component {
     this.setState({ revealSecret: !revealSecret });
 
     return false;
-  }
-
-  onUpdateLicense = (evt) => {
-    evt.preventDefault();
-
-    const { fields, handleUpdateLicense } = this.props;
-
-    return handleUpdateLicense(fields.license.value);
   }
 
   renderAdvancedOptions = () => {
@@ -168,13 +145,9 @@ class AppConfigForm extends Component {
   }
 
   render () {
-    const { fields, handleSubmit, license, smtpConfigured } = this.props;
-    const { onToggleAdvancedOptions, onResetLicense, onToggleRevealSecret, onUpdateLicense, renderAdvancedOptions, renderSmtpSection } = this;
+    const { fields, handleSubmit, smtpConfigured } = this.props;
+    const { onToggleAdvancedOptions, onToggleRevealSecret, renderAdvancedOptions, renderSmtpSection } = this;
     const { revealSecret, showAdvancedOptions } = this.state;
-    const expiryMoment = license && moment(license.expiry);
-    const hostWarning = license.hosts > license.allowed_hosts;
-    const expiryWarning = expiryMoment && expiryMoment.diff(moment(), 'days') <= 2;
-    const timeToExpiration = expiryMoment.toNow(true);
 
     return (
       <form className={baseClass} onSubmit={handleSubmit}>
@@ -193,57 +166,6 @@ class AppConfigForm extends Component {
           <div className={`${baseClass}__details ${baseClass}__avatar-preview`}>
             <OrgLogoIcon src={fields.org_logo_url.value} />
             <p>Avatar Preview</p>
-          </div>
-        </div>
-        <div className={`${baseClass}__section`}>
-          <h2>Kolide License</h2>
-          <div className={`${baseClass}__license-info`}>
-            <div className={`${baseClass}__license-info-row`}>
-              <div className={`${baseClass}__license-detail-icon`}><Icon name="business" /></div>
-              <div className={`${baseClass}__license-detail-text-wrapper`}>
-                <p className={`${baseClass}__license-detail-text`}>{license.organization}</p>
-                {hostWarning && <p className={`${baseClass}__license-detail-warning`}>Exceeding Host Limit</p>}
-              </div>
-            </div>
-            <div className={`${baseClass}__license-info-row`}>
-              <div className={`${baseClass}__license-detail-icon`}><Icon name="single-host" /></div>
-              <div className={`${baseClass}__license-detail-text-wrapper`}>
-                <p className={`${baseClass}__license-detail-text`}>{license.hosts} Enrolled of {license.allowed_hosts} Hosts {hostWarning && <Icon name="warning-filled" />}</p>
-                {hostWarning && <p className={`${baseClass}__license-detail-warning`}>Exceeding Host Limit</p>}
-              </div>
-            </div>
-            <div className={`${baseClass}__license-info-row`}>
-              <div className={`${baseClass}__license-detail-icon`}><Icon name="clock" /></div>
-              <div className={`${baseClass}__license-detail-text-wrapper`}>
-                <p className={`${baseClass}__license-detail-text`}>{timeToExpiration} {expiryWarning && <Icon name="warning-filled" />}</p>
-                {expiryWarning && <p className={`${baseClass}__license-detail-warning`}>Subscription Expiring Soon!</p>}
-              </div>
-            </div>
-          </div>
-          <div className={`${baseClass}__license-form`}>
-            <h3><img alt="License String" src={key} />License String</h3>
-            <a href="https://www.kolide.co/account" rel="noopener noreferrer" target="_blank">
-              View License Options <Icon name="external-link" />
-            </a>
-            <InputField
-              {...fields.license}
-              inputClassName={`${baseClass}__license-input`}
-              type="textarea"
-            />
-            <Button
-              className={`${baseClass}__license-btn ${baseClass}__license-btn--reset`}
-              onClick={onResetLicense}
-              variant="muted"
-            >
-              CANCEL
-            </Button>
-            <Button
-              className={`${baseClass}__license-btn ${baseClass}__license-btn--save`}
-              onClick={onUpdateLicense}
-              variant="success"
-            >
-              SAVE CHANGES
-            </Button>
           </div>
         </div>
         <div className={`${baseClass}__section`}>

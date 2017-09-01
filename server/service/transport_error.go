@@ -39,19 +39,6 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 
-	type licensingError interface {
-		LicensingError() string
-	}
-	if e, ok := err.(licensingError); ok {
-		le := jsonError{
-			Message: "Licensing Error",
-			Errors:  namedError("license", e.LicensingError()),
-		}
-		w.WriteHeader(http.StatusPaymentRequired)
-		enc.Encode(le)
-		return
-	}
-
 	type validationError interface {
 		error
 		Invalid() []map[string]string

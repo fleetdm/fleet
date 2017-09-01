@@ -81,8 +81,6 @@ type KolideEndpoints struct {
 	ImportConfig                   endpoint.Endpoint
 	GetCertificate                 endpoint.Endpoint
 	ChangeEmail                    endpoint.Endpoint
-	UpdateLicense                  endpoint.Endpoint
-	GetLicense                     endpoint.Endpoint
 	InitiateSSO                    endpoint.Endpoint
 	CallbackSSO                    endpoint.Endpoint
 	SSOSettings                    endpoint.Endpoint
@@ -167,8 +165,6 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		ImportConfig:              authenticatedUser(jwtKey, svc, makeImportConfigEndpoint(svc)),
 		GetCertificate:            authenticatedUser(jwtKey, svc, makeCertificateEndpoint(svc)),
 		ChangeEmail:               authenticatedUser(jwtKey, svc, makeChangeEmailEndpoint(svc)),
-		UpdateLicense:             authenticatedUser(jwtKey, svc, mustBeAdmin(makeUpdateLicenseEndpoint(svc))),
-		GetLicense:                authenticatedUser(jwtKey, svc, makeGetLicenseEndpoint(svc)),
 		GetFIM:                    authenticatedUser(jwtKey, svc, makeGetFIMEndpoint(svc)),
 		ModifyFIM:                 authenticatedUser(jwtKey, svc, makeModifyFIMEndpoint(svc)),
 
@@ -248,8 +244,6 @@ type kolideHandlers struct {
 	ImportConfig                   http.Handler
 	GetCertificate                 http.Handler
 	ChangeEmail                    http.Handler
-	UpdateLicense                  http.Handler
-	GetLicense                     http.Handler
 	InitiateSSO                    http.Handler
 	CallbackSSO                    http.Handler
 	SettingsSSO                    http.Handler
@@ -328,8 +322,6 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		ImportConfig:                  newServer(e.ImportConfig, decodeImportConfigRequest),
 		GetCertificate:                newServer(e.GetCertificate, decodeNoParamsRequest),
 		ChangeEmail:                   newServer(e.ChangeEmail, decodeChangeEmailRequest),
-		UpdateLicense:                 newServer(e.UpdateLicense, decodeLicenseRequest),
-		GetLicense:                    newServer(e.GetLicense, decodeNoParamsRequest),
 		InitiateSSO:                   newServer(e.InitiateSSO, decodeInitiateSSORequest),
 		CallbackSSO:                   newServer(e.CallbackSSO, decodeCallbackSSORequest),
 		SettingsSSO:                   newServer(e.SSOSettings, decodeNoParamsRequest),
@@ -454,9 +446,6 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 
 	r.Handle("/api/v1/kolide/osquery/config/import", h.ImportConfig).Methods("POST").Name("import_config")
 
-	r.Handle("/api/v1/kolide/license", h.UpdateLicense).Methods("POST").Name("update_license")
-	r.Handle("/api/v1/kolide/license", h.GetLicense).Methods("GET").Name("get_license")
-
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
 	r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST").Name("get_client_config")
 	r.Handle("/api/v1/osquery/distributed/read", h.GetDistributedQueries).Methods("POST").Name("get_distributed_queries")
@@ -473,11 +462,6 @@ func WithSetup(svc kolide.Service, logger kitlog.Logger, next http.Handler) http
 		configRouter.Handle("/api/v1/setup", kithttp.NewServer(
 			makeSetupEndpoint(svc),
 			decodeSetupRequest,
-			encodeResponse,
-		))
-		configRouter.Handle("/api/v1/license", kithttp.NewServer(
-			makeSetupLicenseEndpoint(svc),
-			decodeLicenseRequest,
 			encodeResponse,
 		))
 		// whitelist osqueryd endpoints
@@ -504,28 +488,18 @@ func WithSetup(svc kolide.Service, logger kitlog.Logger, next http.Handler) http
 func RedirectLoginToSetup(svc kolide.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		redirect := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == "/setup" || r.URL.Path == "/license" {
+			if r.URL.Path == "/setup" {
 				next.ServeHTTP(w, r)
 				return
 			}
 			newURL := r.URL
-			license, err := svc.License(context.Background())
-			if err != nil {
-				logger.Log("msg", "fetching license info from db", "err", err)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			if license.Token == nil {
-				newURL.Path = "/license"
-			} else {
-				newURL.Path = "/setup"
-			}
+			newURL.Path = "/setup"
 			http.Redirect(w, r, newURL.String(), http.StatusTemporaryRedirect)
 		})
 
 		setupRequired, err := RequireSetup(svc)
 		if err != nil {
-			logger.Log("msg", "fetching license info from db", "err", err)
+			logger.Log("msg", "fetching setupinfo from db", "err", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -537,17 +511,9 @@ func RedirectLoginToSetup(svc kolide.Service, logger kitlog.Logger, next http.Ha
 	}
 }
 
-// RequireSetup checks to see if the service has a license and has been setup.
-// if either of these things has not been done, return true
+// RequireSetup checks to see if the service has been setup.
 func RequireSetup(svc kolide.Service) (bool, error) {
 	ctx := context.Background()
-	license, err := svc.License(ctx)
-	if err != nil {
-		return false, err
-	}
-	if license.Token == nil {
-		return true, nil
-	}
 	users, err := svc.ListUsers(ctx, kolide.ListOptions{Page: 0, PerPage: 1})
 	if err != nil {
 		return false, err
@@ -558,17 +524,11 @@ func RequireSetup(svc kolide.Service) (bool, error) {
 	return false, nil
 }
 
-// RedirectSetupToLogin forces the /setup and /license path to be redirected to login. This middleware is used after
+// RedirectSetupToLogin forces the /setup path to be redirected to login. This middleware is used after
 // the app has been setup.
 func RedirectSetupToLogin(svc kolide.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/setup" {
-			newURL := r.URL
-			newURL.Path = "/login"
-			http.Redirect(w, r, newURL.String(), http.StatusTemporaryRedirect)
-			return
-		}
-		if r.URL.Path == "/license" {
 			newURL := r.URL
 			newURL.Path = "/login"
 			http.Redirect(w, r, newURL.String(), http.StatusTemporaryRedirect)

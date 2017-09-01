@@ -4,7 +4,6 @@ import configOptions from 'test/mocks/config_option_mocks';
 import hosts from 'test/mocks/host_mocks';
 import invites from 'test/mocks/invite_mocks';
 import labels from 'test/mocks/label_mocks';
-import licenses from 'test/mocks/license_mocks';
 import packs from 'test/mocks/pack_mocks';
 import queries from 'test/mocks/query_mocks';
 import scheduledQueries from 'test/mocks/scheduled_query_mocks';
@@ -21,7 +20,6 @@ export default {
   hosts,
   invites,
   labels,
-  licenses,
   packs,
   queries,
   scheduledQueries,

@@ -1,8 +1,5 @@
 import {
   CLEAR_AUTH_ERRORS,
-  LICENSE_FAILURE,
-  LICENSE_REQUEST,
-  LICENSE_SUCCESS,
   LOGIN_FAILURE,
   LOGIN_REQUEST,
   LOGIN_SUCCESS,
@@ -24,7 +21,6 @@ import {
 } from './actions';
 
 export const initialState = {
-  license: {},
   loading: false,
   errors: {},
   user: null,
@@ -39,7 +35,6 @@ const reducer = (state = initialState, action) => {
         ...state,
         errors: {},
       };
-    case LICENSE_REQUEST:
     case LOGIN_REQUEST:
     case LOGOUT_REQUEST:
     case UPDATE_USER_REQUEST:
@@ -55,12 +50,6 @@ const reducer = (state = initialState, action) => {
         loading: false,
         ssoSettings: action.payload.ssoSettings,
       };
-    case LICENSE_SUCCESS:
-      return {
-        ...state,
-        loading: false,
-        license: action.payload.license,
-      };
     case LOGIN_SUCCESS:
       return {
         ...state,
@@ -75,7 +64,6 @@ const reducer = (state = initialState, action) => {
       };
     case SSO_REDIRECT_FAILURE:
     case SSO_SETTINGS_FAILURE:
-    case LICENSE_FAILURE:
     case LOGIN_FAILURE:
       return {
         ...state,

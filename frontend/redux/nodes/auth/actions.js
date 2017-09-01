@@ -5,9 +5,6 @@ import local from 'utilities/local';
 import userActions from 'redux/nodes/entities/users/actions';
 
 export const CLEAR_AUTH_ERRORS = 'CLEAR_AUTH_ERRORS';
-export const LICENSE_REQUEST = 'LICENSE_REQUEST';
-export const LICENSE_SUCCESS = 'LICENSE_SUCCESS';
-export const LICENSE_FAILURE = 'LICENSE_FAILURE';
 export const LOGIN_REQUEST = 'LOGIN_REQUEST';
 export const LOGIN_SUCCESS = 'LOGIN_SUCCESS';
 export const LOGIN_FAILURE = 'LOGIN_FAILURE';
@@ -27,74 +24,6 @@ export const SSO_REDIRECT_FAILURE = 'SSO_REDIRECT_FAILURE';
 export const SSO_SETTINGS_REQUEST = 'SSO_SETTINGS_REQUEST';
 export const SSO_SETTINGS_SUCCESS = 'SSO_SETTINGS_SUCCESS';
 export const SSO_SETTINGS_FAILURE = 'SSO_SETTINGS_FAILURE';
-
-export const licenseFailure = (errors) => {
-  return {
-    type: LICENSE_FAILURE,
-    payload: { errors },
-  };
-};
-export const licenseRequest = { type: LICENSE_REQUEST };
-export const licenseSuccess = (license) => {
-  return {
-    type: LICENSE_SUCCESS,
-    payload: { license },
-  };
-};
-export const setupLicense = ({ license }) => {
-  return (dispatch) => {
-    dispatch(licenseRequest);
-
-    return Kolide.license.setup(license)
-      .then((response) => {
-        dispatch(licenseSuccess(response));
-
-        return response;
-      })
-      .catch((response) => {
-        const errorsObject = formatErrorResponse(response);
-        dispatch(licenseFailure(errorsObject));
-
-        throw response;
-      });
-  };
-};
-export const createLicense = ({ license }) => {
-  return (dispatch) => {
-    dispatch(licenseRequest);
-
-    return Kolide.license.create(license)
-      .then((response) => {
-        dispatch(licenseSuccess(response));
-
-        return response;
-      })
-      .catch((response) => {
-        const errorsObject = formatErrorResponse(response);
-        dispatch(licenseFailure(errorsObject));
-
-        throw response;
-      });
-  };
-};
-export const getLicense = () => {
-  return (dispatch) => {
-    dispatch(licenseRequest);
-
-    return Kolide.license.load()
-      .then((license) => {
-        dispatch(licenseSuccess(license));
-
-        return license;
-      })
-      .catch((response) => {
-        const errorsObject = formatErrorResponse(response);
-        dispatch(licenseFailure(errorsObject));
-
-        throw response;
-      });
-  };
-};
 
 export const clearAuthErrors = { type: CLEAR_AUTH_ERRORS };
 export const loginRequest = { type: LOGIN_REQUEST };

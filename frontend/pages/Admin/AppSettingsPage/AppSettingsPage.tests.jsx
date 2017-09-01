@@ -1,25 +1,18 @@
-import expect, { spyOn, restoreSpies } from 'expect';
+import expect, { restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 
-import * as authActions from 'redux/nodes/auth/actions';
 import AppSettingsPage from 'pages/Admin/AppSettingsPage';
-import { flatConfigStub, licenseStub } from 'test/stubs';
+import { flatConfigStub } from 'test/stubs';
 import testHelpers from 'test/helpers';
 
 const { connectedComponent, reduxMockStore } = testHelpers;
 const baseStore = {
   app: { config: flatConfigStub },
-  auth: { license: licenseStub() },
 };
 const storeWithoutSMTPConfig = { ...baseStore, app: { config: { ...flatConfigStub, configured: false } } };
 const storeWithSMTPConfig = { ...baseStore, app: { config: { ...flatConfigStub, configured: true } } };
 
 describe('AppSettingsPage - component', () => {
-  beforeEach(() => {
-    spyOn(authActions, 'getLicense')
-      .andReturn(() => Promise.resolve({}));
-  });
-
   afterEach(restoreSpies);
 
   it('renders', () => {

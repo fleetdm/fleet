@@ -20,7 +20,7 @@ import (
 // NewService creates a new service from the config struct
 func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore,
 	logger kitlog.Logger, kolideConfig config.KolideConfig, mailService kolide.MailService,
-	c clock.Clock, checker kolide.LicenseChecker, sso sso.SessionStore) (kolide.Service, error) {
+	c clock.Clock, sso sso.SessionStore) (kolide.Service, error) {
 	var svc kolide.Service
 	statusWriter, err := osqueryLogFile(kolideConfig.Osquery.StatusLogFile, logger, kolideConfig.Osquery.EnableLogRotation)
 	if err != nil {
@@ -32,12 +32,11 @@ func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore,
 	}
 
 	svc = service{
-		ds:             ds,
-		resultStore:    resultStore,
-		logger:         logger,
-		config:         kolideConfig,
-		clock:          c,
-		licenseChecker: checker,
+		ds:          ds,
+		resultStore: resultStore,
+		logger:      logger,
+		config:      kolideConfig,
+		clock:       c,
 
 		osqueryStatusLogWriter: statusWriter,
 		osqueryResultLogWriter: resultWriter,
@@ -77,12 +76,11 @@ func osqueryLogFile(path string, appLogger kitlog.Logger, enableRotation bool) (
 }
 
 type service struct {
-	ds             kolide.Datastore
-	resultStore    kolide.QueryResultStore
-	logger         kitlog.Logger
-	config         config.KolideConfig
-	clock          clock.Clock
-	licenseChecker kolide.LicenseChecker
+	ds          kolide.Datastore
+	resultStore kolide.QueryResultStore
+	logger      kitlog.Logger
+	config      config.KolideConfig
+	clock       clock.Clock
 
 	osqueryStatusLogWriter io.Writer
 	osqueryResultLogWriter io.Writer

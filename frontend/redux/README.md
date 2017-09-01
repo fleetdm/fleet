@@ -54,7 +54,7 @@ located on specific pages such as the login page.
 
 ### Auth State
 
-Auth state contains data on the current user and the organization's license.
+Auth state contains data on the current user.
 
 ### Component State
 
@@ -69,12 +69,6 @@ packs, etc. They follow a similar configuration that can be found [here](./nodes
 
 The notifications state contains data that informs the rendering of flash
 messages.
-
-### Persistent Flash State
-
-When an organization's license expires or is over-enrolled we render a specific
-type of flash message that cannot be dismissed. The information regarding this
-flash message is stored in persistent flash state.
 
 ### Redirect Location State
 

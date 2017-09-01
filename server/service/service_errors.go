@@ -77,19 +77,6 @@ func (e authError) AuthError() string {
 	return "username or email and password do not match"
 }
 
-// licensingError occurs when the user license is expired, invalid, or revoked
-type licensingError struct {
-	reason string
-}
-
-func (e licensingError) LicensingError() string {
-	return e.reason
-}
-
-func (e licensingError) Error() string {
-	return e.reason
-}
-
 // permissionError, set when user is authenticated, but not allowed to perform action
 type permissionError struct {
 	message string

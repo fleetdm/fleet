@@ -1,12 +1,10 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { omit, size } from 'lodash';
+import { size } from 'lodash';
 
 import AppConfigForm from 'components/forms/admin/AppConfigForm';
 import configInterface from 'interfaces/config';
-import { createLicense, getLicense } from 'redux/nodes/auth/actions';
 import deepDifference from 'utilities/deep_difference';
-import licenseInterface from 'interfaces/license';
 import { renderFlash } from 'redux/nodes/notifications/actions';
 import SmtpWarning from 'components/SmtpWarning';
 import { updateConfig } from 'redux/nodes/app/actions';
@@ -18,22 +16,12 @@ class AppSettingsPage extends Component {
     appConfig: configInterface,
     dispatch: PropTypes.func.isRequired,
     error: PropTypes.object, // eslint-disable-line react/forbid-prop-types
-    license: licenseInterface,
-    loadingLicense: PropTypes.bool,
   };
 
   constructor (props) {
     super(props);
 
     this.state = { showSmtpWarning: true };
-  }
-
-  componentWillMount () {
-    const { dispatch } = this.props;
-
-    dispatch(getLicense());
-
-    return false;
   }
 
   onDismissSmtpWarning = () => {
@@ -44,8 +32,7 @@ class AppSettingsPage extends Component {
 
   onFormSubmit = (formData) => {
     const { appConfig, dispatch } = this.props;
-    const appConfigFormData = omit(formData, ['license']);
-    const diff = deepDifference(appConfigFormData, appConfig);
+    const diff = deepDifference(formData, appConfig);
 
     dispatch(updateConfig(diff))
       .then(() => {
@@ -64,36 +51,18 @@ class AppSettingsPage extends Component {
     return false;
   }
 
-  onUpdateLicense = (license) => {
-    const { dispatch, license: licenseProp } = this.props;
-
-    if (license === licenseProp.token) {
-      return false;
-    }
-
-    dispatch(createLicense({ license }))
-      .then(() => {
-        dispatch(renderFlash('success', 'License updated!'));
-
-        return false;
-      })
-      .catch(() => false);
-
-    return false;
-  }
-
   render () {
-    const { appConfig, error, license, loadingLicense } = this.props;
-    const { onDismissSmtpWarning, onFormSubmit, onUpdateLicense } = this;
+    const { appConfig, error } = this.props;
+    const { onDismissSmtpWarning, onFormSubmit } = this;
     const { showSmtpWarning } = this.state;
     const { configured: smtpConfigured } = appConfig;
     const shouldShowWarning = !smtpConfigured && showSmtpWarning;
 
-    if (!size(appConfig) || loadingLicense) {
+    if (!size(appConfig)) {
       return false;
     }
 
-    const formData = { ...appConfig, license: license.token };
+    const formData = { ...appConfig };
 
     return (
       <div className={`${baseClass} body-wrap`}>
@@ -105,8 +74,6 @@ class AppSettingsPage extends Component {
         <AppConfigForm
           formData={formData}
           handleSubmit={onFormSubmit}
-          handleUpdateLicense={onUpdateLicense}
-          license={license}
           serverErrors={error}
           smtpConfigured={smtpConfigured}
         />
@@ -115,11 +82,10 @@ class AppSettingsPage extends Component {
   }
 }
 
-const mapStateToProps = ({ app, auth }) => {
+const mapStateToProps = ({ app }) => {
   const { config: appConfig, error } = app;
-  const { license, loading: loadingLicense } = auth;
 
-  return { appConfig, error, license, loadingLicense };
+  return { appConfig, error };
 };
 
 export default connect(mapStateToProps)(AppSettingsPage);

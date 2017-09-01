@@ -128,12 +128,6 @@ export const formatSelectedTargetsForApi = (selectedTargets, appendID = false) =
   return { hosts, labels };
 };
 
-const parseLicense = (license) => {
-  const allowedHosts = license.allowed_hosts === 0 ? 'Unlimited' : license.allowed_hosts;
-
-  return { ...license, allowed_hosts: allowedHosts };
-};
-
 export const formatScheduledQueryForServer = (scheduledQuery) => {
   const {
     interval,
@@ -213,6 +207,5 @@ export default {
   formatScheduledQueryForServer,
   formatSelectedTargetsForApi,
   labelSlug,
-  parseLicense,
   setupData,
 };

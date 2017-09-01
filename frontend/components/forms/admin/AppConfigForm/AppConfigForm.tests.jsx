@@ -5,23 +5,14 @@ import { noop } from 'lodash';
 
 import AppConfigForm from 'components/forms/admin/AppConfigForm';
 import { itBehavesLikeAFormInputElement } from 'test/helpers';
-import { licenseStub } from 'test/stubs';
 
 describe('AppConfigForm - form', () => {
   const defaultProps = {
     formData: { org_name: 'Kolide' },
     handleSubmit: noop,
-    handleUpdateLicense: noop,
-    license: licenseStub(),
     smtpConfigured: false,
   };
   const form = mount(<AppConfigForm {...defaultProps} />);
-
-  describe('License input', () => {
-    it('renders an input field', () => {
-      itBehavesLikeAFormInputElement(form, 'license', 'textarea');
-    });
-  });
 
   describe('Organization Name input', () => {
     it('renders an input field', () => {

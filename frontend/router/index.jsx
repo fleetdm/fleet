@@ -15,7 +15,6 @@ import ConfirmSSOInvitePage from 'pages/ConfirmSSOInvitePage';
 import CoreLayout from 'layouts/CoreLayout';
 import EditPackPage from 'pages/packs/EditPackPage';
 import EmailTokenRedirect from 'components/EmailTokenRedirect';
-import LicensePage from 'pages/LicensePage';
 import LoginRoutes from 'components/LoginRoutes';
 import LogoutPage from 'pages/LogoutPage';
 import ManageHostsPage from 'pages/hosts/ManageHostsPage';
@@ -40,7 +39,6 @@ const routes = (
     <Router history={history}>
       <Route path="/" component={App}>
         <Route path="setup" component={RegistrationPage} />
-        <Route path="license" component={LicensePage} />
         <Route path="login" component={LoginRoutes}>
           <Route path="invites/:invite_token" component={ConfirmInvitePage} />
           <Route path="ssoinvites/:invite_token" component={ConfirmSSOInvitePage} />
