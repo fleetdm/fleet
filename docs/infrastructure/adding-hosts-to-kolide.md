@@ -1,8 +1,84 @@
 # Adding Hosts To Kolide
 
-To use Kolide, you must install the open source osquery tool on the hosts which you wish to monitor. You can find various ways to install osquery on a variety of platforms at https://osquery.io/downloads.
+Kolide Fleet is powered by the open source osquery tool. To connect a host to Kolide Fleet, you have two general options. You can install the osquery binaries on your hosts via the packages distributed at https://osquery.io/downloads or you can use the [Kolide Osquery Launcher](https://github.com/kolide/launcher). The Launcher is a light wrapper that aims to make running and deploying osquery easier by adding a few features and minimizing the configuration infterace. Some features of The Launcher are:
 
-Once you have installed osquery, you need to do two things:
+- Secure autoupdates to the latest stable osqueryd
+- Remote communication via a strongly-typed, versioned, modern gRPC server API
+- a curated `kolide_best_practices` table which includes a curated set of standards for the modern enterprise
+
+The Launcher also contains robust tooling to help you generate packages for your environment that are designed to work together with Kolide Fleet. For specific documentation on using Launcher with Fleet, see the section below called "Kolide Osquery Launcher".
+
+If you'd like to use the native osqueryd binaries to connect to Kolide, this is enabled by using osquery's TLS API plugins that are principally documented on the official osquery wiki: http://osquery.readthedocs.io/en/stable/deployment/remote/. These plugins are very customizable and thus have a large configuration surface. Configuring osqueryd to communicate with Kolide is documented below in the "Native Osquery TLS Plugins" section.
+
+## Kolide Osquery Launcher
+
+#### Setting up a Launcher environment
+
+It's helpful to have a local build of the Launcher and it's included package building tools when reasoning about connecting the Launcher to Fleet. Both Launcher and Fleet have a similar repository interface that should be familiar.
+
+If you have installed Go, but have never used it before (ie: you have not configured a `$GOPATH` environment variable), then there's good news: you don't need to do this anymore. By default, the Go compiler now looks in `~/go` for your Go source code. So, let's clone the launcher directory where it's supposed to go:
+
+```
+mkdir -p $GOPATH/src/github.com/kolide
+cd $GOPATH/src/github.com/kolide
+git clone git@github.com:kolide/launcher.git
+cd launcher
+```
+
+Once you're in the root of the repository (and you have a recent Go toolchain installed), you can follow the directions included with the Launcher repository:
+
+```
+make deps
+make generate
+make test
+make
+./build/launcher --help
+```
+
+#### Connecting a single Launcher to Fleet
+
+To directly execute the launcher binary without having to mess with packages, invoke the binary with just a few flags:
+
+- `--hostname`: the hostname of the gRPC server for your environment
+- `--root_directory`: the location of the local database, pidfiles, etc.
+- `--enroll_secret`: the enroll secret you generated above for your environment
+
+```
+./build/launcher \
+  --hostname=fleet.acme.net:443 \
+  --root_directory=/var/kolide-fleet \
+  --enroll_secret=32IeN3QLgckHUmMD3iW40kyLdNJcGzP5
+```
+
+You may also need to define the `--insecure` and/or `--insecure_grpc` flag. If you're running Fleet locally, include `--insecure` because your TLS certificate will not be signed by a valid CA.
+
+#### Generating packages
+
+The Launcher also provides easy, robust tooling for creating packages that you can distribute across your
+
+```
+$ make package-builder
+$ ./build/package-builder make \
+  --hostname=fleet.acme.net:443 \
+  --enroll_secret=32IeN3QLgckHUmMD3iW40kyLdNJcGzP5
+```
+
+As you can see, to generate a Launcher package, you need only call `package-builder make` with two command-line arguments:
+
+- `--hostname`: the hostname of the gRPC server for your environment
+- `--enroll_secret`: the enroll secret you generated above for your environment
+
+You can also add the `--mac_package_signing_key` flag to define the name of the macOS package signing key name that you'd like to use to sign the macOS packages. For example:
+
+```
+--mac_package_signing_key="Developer ID Installer: Acme Inc (ABCDEF123456)"
+```
+
+If you want to generate a package for local testing, you can call `package-builder make` with the `--insecure` flag as well and the auto-run command in the resultant packages will include `--insecure` as well.
+
+## Native Osquery TLS Plugins
+
+You can find various ways to install osquery on a variety of platforms at https://osquery.io/downloads. Once you have installed osquery, you need to do two things:
 
 #### Set an environment variable with an agent enrollment secret
 
@@ -14,7 +90,7 @@ The enrollment secret is a value that osquery uses to ensure a level of confiden
 The value of the environment variable or content of the file should be a secret shared between the osqueryd client and the Kolide server. This is basically osqueryd's passphrase which it uses to authenticate with Kolide, convincing Kolide that it is actually one of your hosts. The passphrase could be whatever you'd like, but it would be prudent to have the passphrase long, complex, mixed-case, etc. When you launch the Kolide server, you should specify this same value.
 
 If you use an environment variable for this, you can specify it with the `--enroll_secret_env` flag when you launch osqueryd. If you use a local file for this, you can specify it's path with the `--enroll_secret_path` flag.
-
+s
 If your organization has a robust internal public key infrastructure (PKI) and you already deploy TLS client certificates to each host to uniquely identify them, then osquery supports an advanced authentication mechanism which takes advantage of this. Please contact [help@kolide.co](mailto:help@kolide.co) for assistance with this option.
 
 #### Deploy the TLS certificate that osquery will use to communicate with Kolide
