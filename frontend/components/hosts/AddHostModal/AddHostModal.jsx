@@ -65,22 +65,12 @@ class AddHostModal extends Component {
           <ol className={`${baseClass}__install-steps`}>
             <li>
               <h4><a href="https://docs.kolide.co/kolide/current/infrastructure/adding-hosts-to-kolide.html" target="_blank" rel="noopener noreferrer">Kolide / Osquery - Install Docs <Icon name="external-link" /></a></h4>
-              <p>In order to install <strong>osquery</strong> on a client you will need the items below:</p>
-            </li>
-            <li>
-              <h4>Download Osquery Package and Certificate</h4>
-              <p>Osquery requires the same TLS certificate that Kolide is using in order to authenticate. You can fetch the certificate below:</p>
-              <p className={`${baseClass}__download-cert`}>
-                <Button variant="unstyled" onClick={onFetchCertificate}>
-                  <img src={certificate} role="presentation" />
-                  <span>Fetch Kolide Certificate</span>
-                </Button>
-              </p>
+              <p>In order to install <strong>osquery</strong> on a client you will need the following information:</p>
             </li>
             <li>
               <h4>Retrieve Osquery Enroll Secret</h4>
               <p>
-                When prompted, enter the provided secret code into <strong>osqueryd</strong>:
+                The following is your enroll secret:
                 <a href="#revealSecret" onClick={toggleSecret} className={`${baseClass}__reveal-secret`}>{revealSecret ? 'Hide' : 'Reveal'} Secret</a>
               </p>
               <div className={`${baseClass}__secret-wrapper`}>
@@ -96,6 +86,16 @@ class AddHostModal extends Component {
                 </Button>
               </div>
 
+            </li>
+            <li>
+              <h4>Download Server Certificate (Optional)</h4>
+              <p>If you use the native osquery TLS plugins, Osquery requires the same TLS certificate that Kolide is using in order to authenticate. You can fetch the certificate below:</p>
+              <p className={`${baseClass}__download-cert`}>
+                <Button variant="unstyled" onClick={onFetchCertificate}>
+                  <img src={certificate} role="presentation" />
+                  <span>Fetch Kolide Certificate</span>
+                </Button>
+              </p>
             </li>
           </ol>
         </div>
