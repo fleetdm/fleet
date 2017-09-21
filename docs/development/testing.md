@@ -96,7 +96,7 @@ go tool cover -func=./server/server.cover
 
 #### Testing email using MailHog
 
-To intercept sent emails while running a Kolide development environment, make sure that you've set the SMTP address to `<docker host ip>:1025` and leave the username and password blank. Then, visit `<docker host ip>:8025` in a web browser to view the [MailHog](https://github.com/mailhog/MailHog) UI.
+To intercept sent emails while running a Fleet development environment, make sure that you've set the SMTP address to `<docker host ip>:1025` and leave the username and password blank. Then, visit `<docker host ip>:8025` in a web browser to view the [MailHog](https://github.com/mailhog/MailHog) UI.
 
 For example, if docker is running natively on your `localhost`, then your mail settings should look something like:
 
@@ -105,4 +105,4 @@ mail:
   address: localhost:1025
 ```
 
-`localhost:1025` is the default configuration. You can use `kolide config_dump` to see the values which Kolide is using given your configuration.
+`localhost:1025` is the default configuration. You can use `kolide config_dump` to see the values which Fleet is using given your configuration.

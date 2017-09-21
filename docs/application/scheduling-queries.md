@@ -1,7 +1,7 @@
 Scheduling Queries
 ==================
 
-As discussed in the [Running Queries Documentation](./running-queries.md), you can use the Kolide application to create, execute, and save osquery queries. You can organize these queries into "Query Packs". To view all saved packs and perhaps create a new pack, select "Manage Packs" from the "Packs" sidebar. Packs are usually organized by the general class of instrumentation that you're trying to perform.
+As discussed in the [Running Queries Documentation](./running-queries.md), you can use the Fleet application to create, execute, and save osquery queries. You can organize these queries into "Query Packs". To view all saved packs and perhaps create a new pack, select "Manage Packs" from the "Packs" sidebar. Packs are usually organized by the general class of instrumentation that you're trying to perform.
 
 ![Manage Packs](../images/manage-packs.png)
 

@@ -1,21 +1,21 @@
 API Documentation
 =================
 
-The Kolide application is powered by a Go API server which serves three types of endpoints:
+Kolide Fleet is powered by a Go API server which serves three types of endpoints:
 
 - Endpoints starting with `/api/v1/osquery/` are osquery TLS server API endpoints. All of these endpoints are used for talking to osqueryd agents and that's it.
-- Endpoints starting with `/api/v1/kolide/` are endpoints to interact with the Kolide data model (packs, queries, scheduled queries, labels, hosts, etc) as well as application endpoints (configuring settings, logging in, session management, etc).
+- Endpoints starting with `/api/v1/kolide/` are endpoints to interact with the Fleet data model (packs, queries, scheduled queries, labels, hosts, etc) as well as application endpoints (configuring settings, logging in, session management, etc).
 - All other endpoints are served the React single page application bundle. The React app uses React Router to determine whether or not the URI is a valid route and what to do.
 
-Only osquery agents should interact with the osquery API, but we'd like to support the eventual use of the Kolide API extensively. The API is not very well documented at all right now, but we have plans to:
+Only osquery agents should interact with the osquery API, but we'd like to support the eventual use of the Fleet API extensively. The API is not very well documented at all right now, but we have plans to:
 
 - Generate and publish detailed documentation via a tool built using [test2doc](https://github.com/adams-sarah/test2doc) (or something competitive).
-- Release a JavaScript Kolide API client library (which would be derived from the [current](https://github.com/kolide/fleet/blob/master/frontend/kolide/index.js) JavaScript API client).
+- Release a JavaScript Fleet API client library (which would be derived from the [current](https://github.com/kolide/fleet/blob/master/frontend/kolide/index.js) JavaScript API client).
 - Commit to a stable, standardized API format that we can commit to supporting.
 
 ## Current API
 
-The general idea with the current API is that there are many entities throughout the Kolide application, such as:
+The general idea with the current API is that there are many entities throughout the Fleet application, such as:
 
 - Queries
 - Packs
@@ -119,10 +119,10 @@ curl -X "PATCH" "https://localhost:8080/api/v1/kolide/fim" \
 }'
 ```
 
-
 ### Osquery Configuration Import
 
-You can load packs, queries and other settings from an existing [Osquery configuration file](https://osquery.readthedocs.io/en/stable/deployment/configuration/) by importing the file into Kolide. This can be done posting the stringified contents of the Osquery configuration to the following Kolide endpoint:
+You can load packs, queries and other settings from an existing [Osquery configuration file](https://osquery.readthedocs.io/en/stable/deployment/configuration/) by importing the file into Fleet. This can be done posting the stringified contents of the Osquery configuration to the following Fleet endpoint:
+
 ```
 // POST body the value of "config" is JSON that has been converted to a string
 
@@ -134,11 +134,13 @@ You can load packs, queries and other settings from an existing [Osquery configu
 
 /api/v1/kolide/osquery/config/import
 ```
+
 We provide [a utility program](https://github.com/kolide/configimporter) that will import the configuration automatically.
 If you opt to manually import your Osquery configuration you will need to include the contents of externally
-referenced packs in your main Osquery configuration file before posting it to Kolide. If you reference packs
+referenced packs in your main Osquery configuration file before posting it to Fleet. If you reference packs
 in a file like the example below, you will need to get the pack from `external_pack.conf`
 and include it in the main configuration.
+
 ```
 // Configuration referencing external pack
 
@@ -151,6 +153,7 @@ and include it in the main configuration.
   }
 }
 ```
+
 ```
 // Edited configuration containing the internal pack
 
@@ -171,5 +174,5 @@ and include it in the main configuration.
   }
 }
 ```
-Once the configuration file and all the external packs it references are consolidated, post the stringified contents of the configuration
-file to Kolide.
+
+Once the configuration file and all the external packs it references are consolidated, post the stringified contents of the configuration file to Fleet.

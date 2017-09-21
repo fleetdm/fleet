@@ -5,7 +5,7 @@ Database Migrations
 
 Database schemas are managed by a series of migrations defined in go code. We use a customized version of the Goose migrations tool to handle these migrations.
 
-Note: Once committed to the Kolide repo, table migrations should be considered immutable. Any changes to an existing table should take place in a new migration executing ALTERs.
+Note: Once committed to the Fleet repo, table migrations should be considered immutable. Any changes to an existing table should take place in a new migration executing ALTERs.
 
 From the project root run the following shell commands:
 

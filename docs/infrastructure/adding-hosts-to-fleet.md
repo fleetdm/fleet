@@ -1,4 +1,4 @@
-# Adding Hosts To Kolide
+# Adding Hosts To Fleet
 
 Kolide Fleet is powered by the open source osquery tool. To connect a host to Kolide Fleet, you have two general options. You can install the osquery binaries on your hosts via the packages distributed at https://osquery.io/downloads or you can use the [Kolide Osquery Launcher](https://github.com/kolide/launcher). The Launcher is a light wrapper that aims to make running and deploying osquery easier by adding a few features and minimizing the configuration infterace. Some features of The Launcher are:
 
@@ -8,7 +8,7 @@ Kolide Fleet is powered by the open source osquery tool. To connect a host to Ko
 
 The Launcher also contains robust tooling to help you generate packages for your environment that are designed to work together with Kolide Fleet. For specific documentation on using Launcher with Fleet, see the section below called "Kolide Osquery Launcher".
 
-If you'd like to use the native osqueryd binaries to connect to Kolide, this is enabled by using osquery's TLS API plugins that are principally documented on the official osquery wiki: http://osquery.readthedocs.io/en/stable/deployment/remote/. These plugins are very customizable and thus have a large configuration surface. Configuring osqueryd to communicate with Kolide is documented below in the "Native Osquery TLS Plugins" section.
+If you'd like to use the native osqueryd binaries to connect to Fleet, this is enabled by using osquery's TLS API plugins that are principally documented on the official osquery wiki: http://osquery.readthedocs.io/en/stable/deployment/remote/. These plugins are very customizable and thus have a large configuration surface. Configuring osqueryd to communicate with Fleet is documented below in the "Native Osquery TLS Plugins" section.
 
 ## Kolide Osquery Launcher
 
@@ -87,15 +87,15 @@ The enrollment secret is a value that osquery uses to ensure a level of confiden
 - an value of an environment variable (a common name is `OSQUERY_ENROLL_SECRET`)
 - the content of a local file (a common path is `/etc/osquery/enrollment_secret`)
 
-The value of the environment variable or content of the file should be a secret shared between the osqueryd client and the Kolide server. This is basically osqueryd's passphrase which it uses to authenticate with Kolide, convincing Kolide that it is actually one of your hosts. The passphrase could be whatever you'd like, but it would be prudent to have the passphrase long, complex, mixed-case, etc. When you launch the Kolide server, you should specify this same value.
+The value of the environment variable or content of the file should be a secret shared between the osqueryd client and the Fleet server. This is basically osqueryd's passphrase which it uses to authenticate with Fleet, convincing Fleet that it is actually one of your hosts. The passphrase could be whatever you'd like, but it would be prudent to have the passphrase long, complex, mixed-case, etc. When you launch the Fleet server, you should specify this same value.
 
 If you use an environment variable for this, you can specify it with the `--enroll_secret_env` flag when you launch osqueryd. If you use a local file for this, you can specify it's path with the `--enroll_secret_path` flag.
 s
 If your organization has a robust internal public key infrastructure (PKI) and you already deploy TLS client certificates to each host to uniquely identify them, then osquery supports an advanced authentication mechanism which takes advantage of this. Please contact [help@kolide.co](mailto:help@kolide.co) for assistance with this option.
 
-#### Deploy the TLS certificate that osquery will use to communicate with Kolide
+#### Deploy the TLS certificate that osquery will use to communicate with Fleet
 
-When Kolide uses a self-signed certificate, osquery agents will need a copy of that certificate in order to authenticate the Kolide server. If clients connect directly to the Kolide server, you can download the certificate through the Kolide UI. From the main dashboard (`/hosts/manage`), click "Add New Host" and "Fetch Kolide Certificate". If Kolide is running behind a load-balancer that terminates TLS, you will have to talk to your system administrator about where to find this certificate.
+When Fleet uses a self-signed certificate, osquery agents will need a copy of that certificate in order to authenticate the Fleet server. If clients connect directly to the Fleet server, you can download the certificate through the Fleet UI. From the main dashboard (`/hosts/manage`), click "Add New Host" and "Fetch Kolide Certificate". If Fleet is running behind a load-balancer that terminates TLS, you will have to talk to your system administrator about where to find this certificate.
 
 It is important that the CN of this certificate matches the hostname or IP that osqueryd clients will use to connect.
 
@@ -103,13 +103,13 @@ Specify the path to this certificate with the `--tls_server_certs` flag when you
 
 ## Launching osqueryd
 
-Assuming that you are deploying your enrollment secret as the environment variable `OSQUERY_ENROLL_SECRET` and your osquery server certificate is at `/etc/osquery/kolide.crt`, you could copy and paste the following command with the following flags (be sure to replace acme.kolide.co with the hostname or IP of your Kolide installation):
+Assuming that you are deploying your enrollment secret as the environment variable `OSQUERY_ENROLL_SECRET` and your osquery server certificate is at `/etc/osquery/kolide.crt`, you could copy and paste the following command with the following flags (be sure to replace kolide.acme.net with the hostname or IP of your Fleet installation):
 
 ```
 osqueryd
  --enroll_secret_env=OSQUERY_ENROLL_SECRET
  --tls_server_certs=/etc/osquery/kolide.crt
- --tls_hostname=acme.kolide.co
+ --tls_hostname=kolide.acme.net
  --host_identifier=hostname
  --enroll_tls_endpoint=/api/v1/osquery/enroll
  --config_plugin=tls
@@ -138,20 +138,20 @@ osqueryd --flagfile=/etc/osquery/kolide.flags
 
 ## Enrolling multiple macOS hosts
 
-If you're managing an enterprise environment with multiple Mac devices, you likely have an enterprise deployment tool like [Munki](https://www.munki.org/munki/) or [Jamf Pro](https://www.jamf.com/products/jamf-pro/) to deliver software to your mac fleet. You can deploy osqueryd and enroll all your macs into Kolide using your software management tool of choice.
+If you're managing an enterprise environment with multiple Mac devices, you likely have an enterprise deployment tool like [Munki](https://www.munki.org/munki/) or [Jamf Pro](https://www.jamf.com/products/jamf-pro/) to deliver software to your mac fleet. You can deploy osqueryd and enroll all your macs into Fleet using your software management tool of choice.
 
 First, [download](https://osquery.io/downloads/) and import the osquery package into your software management repository. You can also use the community supported [autopkg recipe](https://github.com/autopkg/keeleysam-recipes/tree/master/osquery)
 to keep osqueryd updated.
 
-Next, you will have to create an enrollment package to get osqueryd running and talking to Kolide. Specifically, you'll have to create a custom package because you have to provide specific information about your Kolide deployment. To make this as easy as possible, we've created a Makefile to help you build a macOS enrollment package.
+Next, you will have to create an enrollment package to get osqueryd running and talking to Fleet. Specifically, you'll have to create a custom package because you have to provide specific information about your Fleet deployment. To make this as easy as possible, we've created a Makefile to help you build a macOS enrollment package.
 
-First, download the Kolide repository from GitHub and navigate to the `tools/mac` directory of the repository.
+First, download the Fleet repository from GitHub and navigate to the `tools/mac` directory of the repository.
 
-Next, you'll have to edit the `config.mk` file. You'll find all of the necessary information by clicking "Add New Host" in your kolide server.
+Next, you'll have to edit the `config.mk` file. You'll find all of the necessary information by clicking "Add New Host" in your Fleet server.
 
- - Set the `KOLIDE_HOSTNAME` variable to the FQDN of your Kolide server.
- - Set the `ENROLL_SECRET` variable to the enroll secret you got from Kolide.
- - Paste the contents of the Kolide TLS certificate after the following line:
+ - Set the `KOLIDE_HOSTNAME` variable to the FQDN of your Fleet server.
+ - Set the `ENROLL_SECRET` variable to the enroll secret you got from Fleet.
+ - Paste the contents of the Fleet TLS certificate after the following line:
       ```
       define KOLIDE_TLS_CERTIFICATE
       ```

@@ -1,7 +1,7 @@
-Kolide on Ubuntu
-================
+Kolide Fleet on Ubuntu
+======================
 
-In this guide, we're going to install Kolide and all of it's application dependencies on an Ubuntu 16.04 LTS server. Once we have Kolide up and running, we're going to install osquery on that same Ubuntu 16.04 host and enroll it in Kolide. This should give you a good understanding of both how to install Kolide as well as how to install and configure osquery such that it can communicate with Kolide.
+In this guide, we're going to install Kolide Fleet and all of it's application dependencies on an Ubuntu 16.04 LTS server. Once we have Fleet up and running, we're going to install osquery on that same Ubuntu 16.04 host and enroll it in Fleet. This should give you a good understanding of both how to install Fleet as well as how to install and configure osquery such that it can communicate with Fleet.
 
 ## Setting up a host
 
@@ -16,9 +16,9 @@ $ vagrant up
 $ vagrant ssh
 ```
 
-## Installing Kolide
+## Installing Fleet
 
-To install Kolide, go to the [Product and License](https://kolide.co/account/product-and-license) section of the Kolide website.
+To install Fleet, run the following:
 
 ```
 $ wget -qO - https://dl.kolide.co/archive.key | sudo apt-key add -
@@ -68,9 +68,9 @@ $ sudo redis-server &
 
 Note that this isn't a very robust way to run a Redis server. Digital Ocean has written a very nice [community tutorial](https://www.digitalocean.com/community/tutorials/how-to-install-and-configure-redis-on-ubuntu-16-04) on installing and running Redis in a more productionalized way.
 
-## Running the Kolide server
+## Running the Fleet server
 
-Now that we have installed Kolide, MySQL, and Redis, we are ready to launch Kolide! First, we must "prepare" the database. We do this via `kolide prepare db`:
+Now that we have installed Fleet, MySQL, and Redis, we are ready to launch Fleet! First, we must "prepare" the database. We do this via `kolide prepare db`:
 
 ```
 $ /usr/bin/kolide prepare db \
@@ -93,7 +93,7 @@ OK    20161229171615_InsertBuiltinLabels.go
 goose: no migrations to run. current version: 20161229171615
 ```
 
-Before we can run the server, we need to generate some TLS keying material. If you already have tooling for generating valid TLS certificates, then you are encouraged to use that instead. You will need a TLS certificate and key for running the Kolide server. If you'd like to generate self-signed certificates, you can do this via:
+Before we can run the server, we need to generate some TLS keying material. If you already have tooling for generating valid TLS certificates, then you are encouraged to use that instead. You will need a TLS certificate and key for running the Fleet server. If you'd like to generate self-signed certificates, you can do this via:
 
 ```
 $ openssl genrsa -out /tmp/server.key 4096
@@ -121,11 +121,11 @@ $ /usr/bin/kolide serve \
   --logging_json
 ```
 
-Now, if you go to [https://localhost:8080](https://localhost:8080) in your local browser, you should be redirected to [https://localhost:8080/setup](https://localhost:8080/setup) where you can create your first Kolide user account.
+Now, if you go to [https://localhost:8080](https://localhost:8080) in your local browser, you should be redirected to [https://localhost:8080/setup](https://localhost:8080/setup) where you can create your first Fleet user account.
 
 ## Installing and running osquery
 
-> Note that this whole process is outlined in more detail in the [Adding Hosts To Kolide](./adding-hosts-to-kolide.md) document. The steps are repeated here for the sake of a continuous tutorial.
+> Note that this whole process is outlined in more detail in the [Adding Hosts To Fleet](./adding-hosts-to-fleet.md) document. The steps are repeated here for the sake of a continuous tutorial.
 
 To install osquery on Ubuntu, you can run the following:
 
@@ -136,13 +136,13 @@ $ sudo apt-get update
 $ sudo apt-get install osquery
 ```
 
-You will need to set the osquery enroll secret and osquery server certificate. If you head over to the manage hosts page on your Kolide instance (which should be [https://localhost:8080/hosts/manage](https://localhost:8080/hosts/manage)), you should be able to click "Add New Hosts" and see a modal like the following:
+You will need to set the osquery enroll secret and osquery server certificate. If you head over to the manage hosts page on your Fleet instance (which should be [https://localhost:8080/hosts/manage](https://localhost:8080/hosts/manage)), you should be able to click "Add New Hosts" and see a modal like the following:
 
 ![Add New Host](../images/add-new-host-modal.png)
 
 If you select "Fetch Kolide Certificate", your browser will download the appropriate file to your downloads directory (to a file probably called `localhost-8080.pem`). Copy this file to your Ubuntu host at `/var/osquery/server.pem`.
 
-You can also select "Reveal Secret" on that modal and the enrollment secret for your Kolide instance will be revealed. Copy that text and create a file with it's contents:
+You can also select "Reveal Secret" on that modal and the enrollment secret for your Fleet instance will be revealed. Copy that text and create a file with it's contents:
 
 ```
 $ echo 'LQWzGg9+/yaxxcBUMY7VruDGsJRYULw8' > /var/osquery/enroll_secret
@@ -171,4 +171,4 @@ sudo /usr/bin/osqueryd \
   --logger_tls_period=10
 ```
 
-If you go back to [https://localhost:8080/hosts/manage](https://localhost:8080/hosts/manage), you should have a host successfully enrolled in Kolide! For information on how to further use the Kolide application, see the [Application Documentation](../application/README.md).
+If you go back to [https://localhost:8080/hosts/manage](https://localhost:8080/hosts/manage), you should have a host successfully enrolled in Fleet! For information on how to further use the Fleet application, see the [Application Documentation](../application/README.md).

@@ -27,14 +27,14 @@ Once you `docker-compose up` and are running the databases, you can build the co
 kolide prepare db
 ```
 
-## Running Kolide using Docker development infrastructure
+## Running Fleet using Docker development infrastructure
 
-To start the Kolide server backed by the Docker development infrasturcture, run the Kolide binary as follows:
+To start the Fleet server backed by the Docker development infrasturcture, run the Fleet binary as follows:
 
 ```
 kolide serve
 ```
 
-By default, Kolide will try to connect to servers running on default ports on localhost.
+By default, Fleet will try to connect to servers running on default ports on localhost.
 
-If you're using Docker via [Docker Toolbox](https://www.docker.com/products/docker-toolbox), you may have to modify the default values use the output of `docker-machine ip` instead of `localhost`. There is an example configuration file included in this repository to make this process easier for you.  Use the `--config` flag of the Kolide binary to specify the path to your config. See `kolide --help` for more options.
+If you're using Docker via [Docker Toolbox](https://www.docker.com/products/docker-toolbox), you may have to modify the default values use the output of `docker-machine ip` instead of `localhost`. There is an example configuration file included in this repository to make this process easier for you.  Use the `--config` flag of the Fleet binary to specify the path to your config. See `kolide --help` for more options.

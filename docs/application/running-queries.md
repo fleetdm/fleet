@@ -1,7 +1,7 @@
 Running Queries
 ===============
 
-The Kolide application allows you to query hosts which you have installed osquery on. To run a new query, use the "Query" sidebar and select "New Query". From this page, you can compose your query, view SQL table documentation via the sidebar, select arbitrary hosts (or groups of hosts), and execute your query. As results are returned, they will populate the interface in real time. You can use the integrated filtering tool to perform useful initial analytics and easily export the entire dataset for offline analysis.
+The Fleet application allows you to query hosts which you have installed osquery on. To run a new query, use the "Query" sidebar and select "New Query". From this page, you can compose your query, view SQL table documentation via the sidebar, select arbitrary hosts (or groups of hosts), and execute your query. As results are returned, they will populate the interface in real time. You can use the integrated filtering tool to perform useful initial analytics and easily export the entire dataset for offline analysis.
 
 ![Distributed new query with local filter](../images/distributed-new-query-with-local-filter.png)
 

@@ -13,7 +13,7 @@ To setup a working local development environment, you must install the following
 
 If you're using MacOS or Linux, Make should be installed by default. If you are using Windows, you will need to install it separately.
 
-Once you have those minimum requirements, you will need to install Kolide's dependent libraries. To do this, run the following:
+Once you have those minimum requirements, you will need to install Fleet's dependent libraries. To do this, run the following:
 
 ```
 make deps
@@ -38,7 +38,7 @@ make generate
 
 Normally, `make generate` takes the JavaScript code, bundles it into a single bundle via Webpack, and inlines that bundle into a generated Go source file so that all of the frontend code can be statically compiled into the binary. When you build the code after running `make generate`, all of that JavaScript is included in the binary.
 
-This makes deploying Kolide a dream, since you only have to worry about a single static binary. If you are working on frontend code, it is likely that you don't want to have to manually re-run `make generate` and `make build` every time you edit JavaScript and CSS in order to see your changes in the browser. To solve this problem, before you build the Kolide binary, run the following command instead of `make generate`:
+This makes deploying Fleet a dream, since you only have to worry about a single static binary. If you are working on frontend code, it is likely that you don't want to have to manually re-run `make generate` and `make build` every time you edit JavaScript and CSS in order to see your changes in the browser. To solve this problem, before you build the Fleet binary, run the following command instead of `make generate`:
 
 ```
 make generate-dev

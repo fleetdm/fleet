@@ -1,25 +1,25 @@
 Configuring The Kolide Binary
 =============================
 
-For information on how to run the `kolide` binary, detailed usage information can be found by running `kolide --help`. This document is a more detailed version of the information presented in the help output text. If you prefer to use a CLI instead of a web browser, we hope that you like the binary interface to the Kolide application!
+For information on how to run the `kolide` binary, detailed usage information can be found by running `kolide --help`. This document is a more detailed version of the information presented in the help output text. If you prefer to use a CLI instead of a web browser, we hope that you like the binary interface to the Fleet application!
 
 ## High-level configuration overview
 
-To get the most out of running the Kolide server, it is helpful to establish a mutual understanding of what the desired architecture looks like and what it's trying to accomplish.
+To get the most out of running the Fleet server, it is helpful to establish a mutual understanding of what the desired architecture looks like and what it's trying to accomplish.
 
-Your Kolide server's two main purposes are:
+Your Fleet server's two main purposes are:
 
 - To serve as your [osquery TLS server](https://osquery.readthedocs.io/en/stable/deployment/remote/)
-- To serve the [Kolide web application](https://kolide.co/product), which allows you to manage osquery configuration, query hosts, perform interesting analytics, etc.
+- To serve the [Fleet web application](https://kolide.com/fleet), which allows you to manage osquery configuration, query hosts, perform interesting analytics, etc.
 
-The Kolide server allows you persist configuration, manage users, etc. Thus, it needs a database. Kolide uses MySQL and requires you to supply configurations to connect to a MySQL server. Kolide also uses Redis to perform some more high-speed data access action throughout the lifecycle of the application (for example, distributed query result ingestion). Thus, Kolide also requires that you supply Redis connention configurations.
+The Fleet server allows you persist configuration, manage users, etc. Thus, it needs a database. Fleet uses MySQL and requires you to supply configurations to connect to a MySQL server. Fleet also uses Redis to perform some more high-speed data access action throughout the lifecycle of the application (for example, distributed query result ingestion). Thus, Fleet also requires that you supply Redis connention configurations.
 
-Since Kolide is a web application, when you run Koldie there are some other configurations that are worth defining, such as:
+Since Fleet is a web application, when you run Koldie there are some other configurations that are worth defining, such as:
 
-- The TLS certificates that Kolide should use to terminate TLS.
+- The TLS certificates that Fleet should use to terminate TLS.
 - The [JWT](https://jwt.io/) Key which is used to sign and verify session tokens.
 
-Since Kolide is an osquery TLS server, you are also able to define configurations that can customize your experience there, such as:
+Since Fleet is an osquery TLS server, you are also able to define configurations that can customize your experience there, such as:
 
 - The destination of the osquery status and result logs on the local filesystem
 - Various details about the refresh/check-in intervals for your hosts
@@ -43,7 +43,7 @@ In order of precedence, options can be specified via:
 - Environment variables
 - Command-line flags
 
-For example, all of the following ways of launching Kolide are equivalent:
+For example, all of the following ways of launching Fleet are equivalent:
 
 #### Using only CLI flags
 
@@ -109,7 +109,7 @@ Basically, just capitalize the option and prepend `KOLIDE_` to it in order to ge
 
 ##### `mysql_address`
 
-The address of the MySQL server which Kolide should connect to. Include the hostname and port.
+The address of the MySQL server which Fleet should connect to. Include the hostname and port.
 
 - Default value: `localhost:3306`
 - Environment variable: `KOLIDE_MYSQL_ADDRESS`
@@ -122,7 +122,7 @@ The address of the MySQL server which Kolide should connect to. Include the host
 
 ##### `mysql_database`
 
-The name of the MySQL database which Kolide will use.
+The name of the MySQL database which Fleet will use.
 
 - Default value: `kolide`
 - Environment variable: `KOLIDE_MYSQL_DATABASE`
@@ -313,7 +313,7 @@ Whether or not the server should be served over TLS.
 
 ##### `auth_jwt_key`
 
-The [JWT](https://jwt.io/) key to use when signing and validating session keys. If this value is not specified the Kolide server will fail to start and a randomly generated key will be provided for use.
+The [JWT](https://jwt.io/) key to use when signing and validating session keys. If this value is not specified the Fleet server will fail to start and a randomly generated key will be provided for use.
 
 - Default value: None
 - Environment variable: `KOLIDE_AUTH_JWT_KEY`
@@ -449,7 +449,7 @@ The path which osquery result logs will be logged to.
 
 ##### `osquery_label_update_interval`
 
-The interval at which Kolide will ask osquery agents to update their results for label queries.
+The interval at which Fleet will ask osquery agents to update their results for label queries.
 
 - Default value: `1h`
 - Environment variable: `KOLIDE_OSQUERY_LABEL_UPDATE_INTERVAL`
