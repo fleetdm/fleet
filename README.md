@@ -14,9 +14,3 @@ Documentation for Kolide can be found at [https://docs.kolide.co](https://docs.k
 - Finally, if you're interested in interacting with the Kolide source code, you will find information on modifying and building the code in the [Development Documentation](https://docs.kolide.co/kolide/current/development/).
 
 If you have any questions, please don't hesitate to reach out to [support@kolide.co](mailto:support@kolide.co).
-
-## About Kolide
-
-Our philosophy is to enable everyone to defend themselves against cyber threats of increasing sophistication. We accomplish this by codifying our expertise in products that improve the utility and effectiveness of open-source security software and encourage trustworthy, community-supported detection and response.
-
-[![Team](./assets/images/team.png)](https://kolide.co/company)
