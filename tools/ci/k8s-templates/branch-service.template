@@ -6,8 +6,8 @@ metadata:
     prometheus.io/path: "/metrics"
     prometheus.io/port: "8080"
   labels:
-    app: kolide-{{ .Name }}
-  name: {{ .Name }}-kolide-kolide-net
+    app: fleet-{{ .Name }}
+  name: {{ .Name }}-fleet-kolide-net
   namespace: default
 spec:
   ports:
@@ -15,5 +15,5 @@ spec:
     protocol: TCP
     targetPort: 8080
   selector:
-    app: kolide-{{ .Name }}
+    app: fleet-{{ .Name }}
   sessionAffinity: None

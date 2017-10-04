@@ -24,7 +24,7 @@ start_cloudsql_proxy() {
     sleep 5
 }
 
-# clones kolide_master into kolide_prNum_revshort
+# clones fleet_master into kolide_prNum_revshort
 copy_db() {
     dbname=$1
 
@@ -41,17 +41,17 @@ copy_db() {
         --user=${CLOUDSQL_USER} \
         -h 127.0.0.1 \
         --port=3310 \
-        --set-gtid-purged=OFF kolide_master| \
+        --set-gtid-purged=OFF fleet_master| \
         mysql -p${CLOUDSQL_PASS} \
         --user=${CLOUDSQL_USER} \
         -h 127.0.0.1 \
         --port=3310 $dbname
 }
 
-migrate_kolide_db() {
+migrate_fleet_db() {
     dbname=$1
 
-    ./build/kolide prepare db --no-prompt \
+    ./build/fleet prepare db --no-prompt \
         --mysql_address=127.0.0.1:3310 \
         --mysql_database=${dbname} \
         --mysql_username=${CLOUDSQL_USER} \
@@ -79,8 +79,8 @@ deploy_pr() {
     echo "Deployed PR ${CIRCLE_PR_NUMBER}, commit ${CIRCLE_SHA1}" | \
         $slacktee \
         -c engineering \
-        --title "${CIRCLE_PR_NUMBER}.kolide.kolide.net"  \
-        --link "https://${CIRCLE_PR_NUMBER}.kolide.kolide.net" \
+        --title "${CIRCLE_PR_NUMBER}.fleet.kolide.net"  \
+        --link "https://${CIRCLE_PR_NUMBER}.fleet.kolide.net" \
         -m full \
         -a good \
         -p
@@ -99,8 +99,8 @@ deploy_branch() {
     echo "Deployed Branch ${branch}, commit ${CIRCLE_SHA1}" | \
         $slacktee \
         -c engineering \
-        --title "${branch}.kolide.kolide.net"  \
-        --link "https://${branch}.kolide.kolide.net" \
+        --title "${branch}.fleet.kolide.net"  \
+        --link "https://${branch}.fleet.kolide.net" \
         -m full \
         -a good \
         -p
@@ -110,13 +110,13 @@ main() {
     start_cloudsql_proxy
 
     if [ -z ${CIRCLE_PR_NUMBER} ]; then
-        dbname="kolide_master"
-        migrate_kolide_db "${dbname}"
+        dbname="fleet_master"
+        migrate_fleet_db "${dbname}"
         deploy_branch "master"
     else
         dbname="pr_${CIRCLE_PR_NUMBER}_${REVSHORT}"
         copy_db "${dbname}"
-        migrate_kolide_db "${dbname}"
+        migrate_fleet_db "${dbname}"
         deploy_pr
     fi
 

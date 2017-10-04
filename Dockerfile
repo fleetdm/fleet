@@ -2,8 +2,8 @@ FROM alpine:3.4
 MAINTAINER Kolide Developers <engineering@kolide.co>
 
 RUN apk --update add \
-    ca-certificates 
+    ca-certificates
 
-COPY ./build/kolide /kolide
+COPY ./build/fleet /fleet
 
-CMD ["/kolide", "serve"]
+CMD ["/fleet", "serve"]

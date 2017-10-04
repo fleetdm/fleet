@@ -27,7 +27,7 @@ curl_binary() {
     fi
 }
 
-docker_pull "kolide_builder" "kolide/kolide-builder:1.8"
+docker_pull "fleet_builder" "kolide/fleet-builder:1.8"
 docker_pull "redis" "redis"
 docker_pull "mysql" "mysql:5.7"
 docker_pull "fpm" "kolide/fpm"

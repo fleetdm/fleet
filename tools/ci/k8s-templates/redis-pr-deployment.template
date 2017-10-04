@@ -2,14 +2,14 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
-      name: redis-kolide-pr-{{ .Number }}
-  name: redis-kolide-pr-{{ .Number }}
+      name: redis-fleet-pr-{{ .Number }}
+  name: redis-fleet-pr-{{ .Number }}
 spec:
   replicas: 1
   template:
     metadata:
       labels:
-          app: redis-kolide-pr-{{ .Number }}
+          app: redis-fleet-pr-{{ .Number }}
     spec:
       containers:
       - name: redis

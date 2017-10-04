@@ -1,13 +1,13 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  # Kolide pr-{{ .Number }} branch
-  name: kolide-pr-{{ .Number }}
+  # Fleet pr-{{ .Number }} branch
+  name: fleet-pr-{{ .Number }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: kolide-pr-{{ .Number }}
+      app: fleet-pr-{{ .Number }}
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -16,13 +16,13 @@ spec:
   template:
     metadata:
       labels:
-          app: kolide-pr-{{ .Number }}
+          app: fleet-pr-{{ .Number }}
     spec:
       imagePullSecrets:
         - name: kolide-hub
       containers:
-      - name: kolide-pr-{{ .Number }}
-        image: kolide/kolide:dev-{{ .Number }}-{{ .RevShort }}
+      - name: fleet-pr-{{ .Number }}
+        image: kolide/fleet:dev-{{ .Number }}-{{ .RevShort }}
         imagePullPolicy: Always
         resources:
           requests:
@@ -32,7 +32,7 @@ spec:
             cpu: 500m
             memory: 500Mi
         command:
-          - "/kolide"
+          - "/fleet"
           - "serve"
         env:
             - name: KOLIDE_MYSQL_USERNAME
@@ -50,7 +50,7 @@ spec:
             - name: KOLIDE_MYSQL_DATABASE
               value: pr_{{ .Number }}_{{ .RevShort }}
             - name: KOLIDE_REDIS_ADDRESS
-              value: redis-kolide-pr-{{ .Number }}:6379
+              value: redis-fleet-pr-{{ .Number }}:6379
             - name: KOLIDE_AUTH_JWT_KEY
               value: changeme_fake_jwt_key
         ports:

@@ -2,14 +2,14 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app: redis-kolide-pr-{{ .Number }}
-  name: redis-kolide-pr-{{ .Number }}
+    app: redis-fleet-pr-{{ .Number }}
+  name: redis-fleet-pr-{{ .Number }}
 spec:
   ports:
   - port: 6379
     protocol: TCP
     targetPort: 6379
   selector:
-    app: redis-kolide-pr-{{ .Number }}
+    app: redis-fleet-pr-{{ .Number }}
   sessionAffinity: None
 

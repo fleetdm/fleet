@@ -1,8 +1,8 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  # Kolide {{ .Name }} branch
-  name: kolide-{{ .Name }}
+  # Fleet {{ .Name }} branch
+  name: fleet-{{ .Name }}
 spec:
   replicas: 1
   strategy:
@@ -13,13 +13,13 @@ spec:
   template:
     metadata:
       labels:
-          app: kolide-{{ .Name }}
+          app: fleet-{{ .Name }}
     spec:
       imagePullSecrets:
         - name: kolide-hub
       containers:
-      - name: kolide-{{ .Name }}
-        image: kolide/kolide:{{ .RevShort }}
+      - name: fleet-{{ .Name }}
+        image: kolide/fleet:{{ .RevShort }}
         imagePullPolicy: Always
         resources:
           requests:
@@ -29,7 +29,7 @@ spec:
             cpu: 500m
             memory: 500Mi
         command:
-          - "/kolide"
+          - "/fleet"
           - "serve"
         env:
             - name: KOLIDE_MYSQL_USERNAME
@@ -45,9 +45,9 @@ spec:
                     name: cloudsql.cloudmaster
                     key: password
             - name: KOLIDE_MYSQL_DATABASE
-              value: kolide_{{ .Name }}
+              value: fleet_{{ .Name }}
             - name: KOLIDE_REDIS_ADDRESS
-              value: redis-kolide-{{ .Name }}:6379
+              value: redis-fleet-{{ .Name }}:6379
             - name: KOLIDE_AUTH_JWT_KEY
               value: changeme_fake_jwt_key
         ports:

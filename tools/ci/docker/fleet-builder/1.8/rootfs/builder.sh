@@ -10,7 +10,7 @@ Usage: ${base} [args]
   -D,--deps             : Build dependencies
   -B,--build            : Build a release
   -T,--test             : Run 'make test'
-  make [option]         : Run any kolide Makefile command
+  make [option]         : Run any fleet Makefile command
 EOUSAGE
 }
 
