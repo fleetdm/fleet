@@ -1,7 +1,7 @@
-Configuring The Kolide Binary
+Configuring The Fleet Binary
 =============================
 
-For information on how to run the `kolide` binary, detailed usage information can be found by running `kolide --help`. This document is a more detailed version of the information presented in the help output text. If you prefer to use a CLI instead of a web browser, we hope that you like the binary interface to the Fleet application!
+For information on how to run the `fleet` binary, detailed usage information can be found by running `fleet --help`. This document is a more detailed version of the information presented in the help output text. If you prefer to use a CLI instead of a web browser, we hope that you like the binary interface to the Fleet application!
 
 ## High-level configuration overview
 
@@ -26,12 +26,12 @@ Since Fleet is an osquery TLS server, you are also able to define configurations
 
 ## Commands
 
-The `kolide` binary contains several "commands". Similarly to how `git` has many commands (`git status`, `git commit`, etc), the `kolide` binary accepts the following commands:
+The `fleet` binary contains several "commands". Similarly to how `git` has many commands (`git status`, `git commit`, etc), the `fleet` binary accepts the following commands:
 
-- `kolide prepare db`
-- `kolide serve`
-- `kolide version`
-- `kolide config_dump`
+- `fleet prepare db`
+- `fleet serve`
+- `fleet version`
+- `fleet config_dump`
 
 ## Options
 
@@ -48,7 +48,7 @@ For example, all of the following ways of launching Fleet are equivalent:
 #### Using only CLI flags
 
 ```
-$ /usr/bin/kolide serve \
+$ /usr/bin/fleet serve \
   --mysql_address=127.0.0.1:3306 \
   --mysql_database=kolide \
   --mysql_username=root \
@@ -70,7 +70,7 @@ $ KOLIDE_MYSQL_ADDRESS=127.0.0.1:3306 \
   KOLIDE_SERVER_CERT=/tmp/server.cert \
   KOLIDE_SERVER_KEY=/tmp/server.key \
   KOLIDE_LOGGING_JSON=true \
-  /usr/bin/kolide serve
+  /usr/bin/fleet serve
 ```
 
 #### Using a config file
@@ -90,7 +90,7 @@ server:
 logging:
   json: true
 ' > /tmp/kolide.yml
-$ kolide serve --config /tmp/kolide.yml
+$ fleet serve --config /tmp/kolide.yml
 ```
 
 ### What are the options?
@@ -228,7 +228,7 @@ The server name or IP address used by the client certificate.
 
 ##### `redis_address`
 
-The address of the Redis server which Kolide should connect to. Include the hostname and port.
+The address of the Redis server which Fleet should connect to. Include the hostname and port.
 
 - Default value: `localhost:3306`
 - Default value: `localhost:6379`

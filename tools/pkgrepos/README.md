@@ -14,7 +14,8 @@ GPG keys in your keyring.
 1. Download the Google Storage bucket locally.
 
 ```
-gsutil cp -r gs://dl.kolide.co/ /Users/$user/kolide_packages/
+mkdir -p ~/kolide_packages
+gsutil cp -r gs://dl.kolide.co/ ~/kolide_packages/
 ```
 
 2. Import keys to GPG keyring. Run this command by mounting the `~/.gnupg` folder into the `kolide/fpm` docker container. The gnupg version on your mac is probably different and the keyring format is not compatible with the one in the container. The permissions on .gnupg should be 700 and the files in the .gnupg directory need to be 600.
@@ -49,10 +50,10 @@ You will be prompted for the GPG password several times by the rpm/deb packaging
 Example:
 
 ```
-cp build/kolide-1.0.4-1.x86_64.rpm ~/kolide_packages/yum/
-cp build/kolide_1.0.4_amd64.deb ~/kolide_packages/deb
-cp build/kolide_1.0.4.zip ~/kolide_packages/bin
-cp build/kolide_latest.zip ~/kolide_packages/bin/kolide_latest.zip
+cp build/fleet-1.0.4-1.x86_64.rpm ~/kolide_packages/yum/
+cp build/fleet_1.0.4_amd64.deb ~/kolide_packages/deb/
+cp build/fleet_1.0.4.zip ~/kolide_packages/bin/
+cp build/fleet_latest.zip ~/kolide_packages/bin/
 ```
 
 5. Run the `update-package-repos` script. The script will update/sign the metadata for the local yum/apt repos. You will be prompted for the GPG key password again during this step so have it ready.

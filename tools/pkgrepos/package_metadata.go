@@ -109,7 +109,7 @@ func getMetadata(repoPath, current string) (*metadata, error) {
 	// add current release docker hub link
 	p := pkg{
 		Kind: "docker",
-		Name: "kolide/kolide:" + current,
+		Name: "kolide/fleet:" + current,
 	}
 	m.Current = append(m.Current, p)
 	return &m, nil

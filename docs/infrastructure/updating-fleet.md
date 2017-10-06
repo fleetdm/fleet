@@ -29,7 +29,7 @@ Step 2 is performed automatically, so no further action is necessary.
 Pull the latest Fleet docker image:
 
 ```
-docker pull kolide/kolide
+docker pull kolide/fleet
 ```
 
 #### Debian Packages (Ubuntu, Debian)
@@ -37,7 +37,7 @@ docker pull kolide/kolide
 Update Fleet through the Apt repository (the repository should have been added during initial install):
 
 ```
-sudo apt-get update && sudo apt-get install kolide
+sudo apt-get update && sudo apt-get install fleet
 ```
 
 #### Yum Packages (CentOS, RHEL, Amazon Linux)
@@ -45,7 +45,7 @@ sudo apt-get update && sudo apt-get install kolide
 Update Fleet through the Yum respository (the repository should have been added during initial install):
 
 ```
-sudo yum update kolide
+sudo yum update fleet
 ```
 
 #### Raw binaries
@@ -53,19 +53,19 @@ sudo yum update kolide
 Download the latest raw Fleet binaries:
 
 ```
-curl -O https://dl.kolide.co/bin/kolide_latest.zip
+curl -O https://dl.kolide.co/bin/fleet_latest.zip
 ```
 
 Unzip the binaries for your platform:
 
 ```
 # For a Darwin compatible binary
-unzip kolide_latest.zip 'darwin/*' -d kolide
-./kolide/darwin/kolide_darwin_amd64 --help
+unzip fleet_latest.zip 'darwin/*' -d fleet
+./fleet/darwin/fleet_darwin_amd64 --help
 
 # For a Linux compatible binary
-unzip kolide_latest.zip 'linux/*' -d kolide
-./kolide/linux/kolide_linux_amd64 --help
+unzip fleet_latest.zip 'linux/*' -d fleet
+./fleet/linux/fleet_linux_amd64 --help
 ```
 
 Replace the existing Fleet binary with the newly unzipped binary.
@@ -75,7 +75,7 @@ Replace the existing Fleet binary with the newly unzipped binary.
 Before running the updated server, perform necessary database migrations:
 
 ```
-kolide prepare db
+fleet prepare db
 ```
 
 Note, if you would like to run this in a script, you can use the `--no-prompt` option to disable prompting before the migrations.
@@ -83,5 +83,5 @@ Note, if you would like to run this in a script, you can use the `--no-prompt` o
 The updated Fleet server should now be ready to run:
 
 ```
-kolide serve
+fleet serve
 ```

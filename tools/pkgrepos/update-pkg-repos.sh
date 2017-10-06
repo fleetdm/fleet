@@ -30,8 +30,8 @@ update_apt_repo() {
         -v "${LOCAL_REPO_PATH}/aptly.conf:/root/.aptly.conf" aptly
 
     # replace "debian" repo with updated snapshot
-    rm -rf "${LOCAL_REPO_PATH}/apt" 
-    mv "${LOCAL_REPO_PATH}/aptly/public" "${LOCAL_REPO_PATH}/apt" 
+    rm -rf "${LOCAL_REPO_PATH}/apt"
+    mv "${LOCAL_REPO_PATH}/aptly/public" "${LOCAL_REPO_PATH}/apt"
 }
 
 

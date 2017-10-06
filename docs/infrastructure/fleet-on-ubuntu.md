@@ -24,7 +24,7 @@ To install Fleet, run the following:
 $ wget -qO - https://dl.kolide.co/archive.key | sudo apt-key add -
 $ sudo add-apt-repository "deb https://dl.kolide.co/apt jessie main"
 $ sudo apt-get update
-$ sudo apt-get install kolide
+$ sudo apt-get install fleet
 ```
 
 ## Installing and configuring dependencies
@@ -70,10 +70,10 @@ Note that this isn't a very robust way to run a Redis server. Digital Ocean has 
 
 ## Running the Fleet server
 
-Now that we have installed Fleet, MySQL, and Redis, we are ready to launch Fleet! First, we must "prepare" the database. We do this via `kolide prepare db`:
+Now that we have installed Fleet, MySQL, and Redis, we are ready to launch Fleet! First, we must "prepare" the database. We do this via `fleet prepare db`:
 
 ```
-$ /usr/bin/kolide prepare db \
+$ /usr/bin/fleet prepare db \
     --mysql_address=127.0.0.1:3306 \
     --mysql_database=kolide \
     --mysql_username=root \
@@ -107,10 +107,10 @@ You should now have three new files in `/tmp`:
 - `/tmp/server.key`
 - `/tmp/server.csr`
 
-Now we are ready to run the server! We do this via `kolide serve`:
+Now we are ready to run the server! We do this via `fleet serve`:
 
 ```
-$ /usr/bin/kolide serve \
+$ /usr/bin/fleet serve \
   --mysql_address=127.0.0.1:3306 \
   --mysql_database=kolide \
   --mysql_username=root \

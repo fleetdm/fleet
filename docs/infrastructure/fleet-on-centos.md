@@ -22,7 +22,7 @@ To install Fleet, run the following:
 
 ```
 $ sudo rpm -ivh https://dl.kolide.co/yum/kolide-yum-repo-1.0.0-1.noarch.rpm
-$ sudo yum install kolide
+$ sudo yum install fleet
 ```
 
 ## Installing and configuring dependencies
@@ -81,10 +81,10 @@ $ sudo service redis start
 
 ## Running the Fleet server
 
-Now that we have installed Fleet, MySQL, and Redis, we are ready to launch Fleet! First, we must "prepare" the database. We do this via `kolide prepare db`:
+Now that we have installed Fleet, MySQL, and Redis, we are ready to launch Fleet! First, we must "prepare" the database. We do this via `fleet prepare db`:
 
 ```
-$ /usr/bin/kolide prepare db \
+$ /usr/bin/fleet prepare db \
     --mysql_address=127.0.0.1:3306 \
     --mysql_database=kolide \
     --mysql_username=root \
@@ -118,10 +118,10 @@ You should now have three new files in `/tmp`:
 - `/tmp/server.key`
 - `/tmp/server.csr`
 
-Now we are ready to run the server! We do this via `kolide serve`:
+Now we are ready to run the server! We do this via `fleet serve`:
 
 ```
-$ /usr/bin/kolide serve \
+$ /usr/bin/fleet serve \
   --mysql_address=127.0.0.1:3306 \
   --mysql_database=kolide \
   --mysql_username=root \
