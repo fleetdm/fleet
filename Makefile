@@ -76,8 +76,6 @@ define HELP_TEXT
 	make lint-js      - Run the JavaScript linters
 	make lint-scss    - Run the SCSS linters
 	make lint-ts      - Run the TypeScript linters
-	make lint-license - Run the software license linter
-
 
 endef
 
@@ -109,10 +107,7 @@ lint-scss:
 lint-go:
 	go vet $(shell glide nv)
 
-lint-license:
-	go run tools/lint_license/lint_license.go
-
-lint: lint-go lint-js lint-scss lint-ts lint-license
+lint: lint-go lint-js lint-scss lint-ts
 
 test-go:
 	go test $(shell glide nv)
