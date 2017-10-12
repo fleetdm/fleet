@@ -1,15 +1,22 @@
-package cli
+package main
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
+	"time"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/kolide/fleet/server/config"
 	"github.com/spf13/cobra"
 )
 
-// Launch is the entrypoint that sets up and runs the Kolide commands.
-func Launch() {
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
+// Launch is the entrypoint that sets up and runs the Fleet commands.
+func main() {
 	rootCmd := createRootCmd()
 
 	configManager := config.NewManager(rootCmd)
@@ -33,10 +40,9 @@ func initFatal(err error, message string) {
 func createRootCmd() *cobra.Command {
 	// rootCmd represents the base command when called without any subcommands
 	var rootCmd = &cobra.Command{
-		Use:   "kolide",
+		Use:   "fleet",
 		Short: "osquery management and orchestration",
-		Long: `
-osquery management and orchestration
+		Long: `Kolide Fleet (https://kolide.com/fleet)
 
 Configurable Options:
 

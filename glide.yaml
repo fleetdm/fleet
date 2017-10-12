@@ -1,5 +1,9 @@
 package: github.com/kolide/fleet
 import:
+- package: github.com/kolide/kit
+  repo: git@github.com:kolide/kit.git
+  subpackages:
+  - version
 - package: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
   subpackages:

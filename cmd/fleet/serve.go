@@ -1,4 +1,4 @@
-package cli
+package main
 
 import (
 	"context"
@@ -24,7 +24,7 @@ import (
 	"github.com/kolide/fleet/server/pubsub"
 	"github.com/kolide/fleet/server/service"
 	"github.com/kolide/fleet/server/sso"
-	"github.com/kolide/fleet/server/version"
+	"github.com/kolide/kit/version"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
@@ -42,14 +42,14 @@ func createServeCmd(configManager config.Manager) *cobra.Command {
 
 	serveCmd := &cobra.Command{
 		Use:   "serve",
-		Short: "Launch the kolide server",
+		Short: "Launch the Fleet server",
 		Long: `
-Launch the kolide server
+Launch the Fleet server
 
-Use kolide serve to run the main HTTPS server. The Kolide server bundles
+Use fleet serve to run the main HTTPS server. The Fleet server bundles
 together all static assets and dependent libraries into a statically linked go
 binary (which you're executing right now). Use the options below to customize
-the way that the kolide server works.
+the way that the Fleet server works.
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			config := configManager.LoadConfig()
@@ -83,8 +83,8 @@ the way that the kolide server works.
 			case kolide.SomeMigrationsCompleted:
 				fmt.Printf("################################################################################\n"+
 					"# WARNING:\n"+
-					"#   Your Kolide database is missing required migrations. This is likely to cause\n"+
-					"#   errors in Kolide.\n"+
+					"#   Your Fleet database is missing required migrations. This is likely to cause\n"+
+					"#   errors in Fleet.\n"+
 					"#\n"+
 					"#   Run `%s prepare db` to perform migrations.\n"+
 					"################################################################################\n",
@@ -93,7 +93,7 @@ the way that the kolide server works.
 			case kolide.NoMigrationsCompleted:
 				fmt.Printf("################################################################################\n"+
 					"# ERROR:\n"+
-					"#   Your Kolide database is not initialized. Kolide cannot start up.\n"+
+					"#   Your Fleet database is not initialized. Fleet cannot start up.\n"+
 					"#\n"+
 					"#   Run `%s prepare db` to initialize the database.\n"+
 					"################################################################################\n",

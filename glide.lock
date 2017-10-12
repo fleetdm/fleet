@@ -1,5 +1,5 @@
-hash: a580dd48772ffed8168170ef7c7874e1dbe74f2288d44613378367e05d8ec722
-updated: 2017-08-13T10:48:17.061574863-05:00
+hash: 50aef4de2679ec2dab8998862af276111be16e0e53d73018fae85cc896f9da8f
+updated: 2017-10-06T17:42:16.1040243-06:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -53,7 +53,10 @@ imports:
   version: c3cefd437628a0b7d31b34fe44b3a7a540e98527
   subpackages:
   - proto
+  - ptypes
   - ptypes/any
+  - ptypes/duration
+  - ptypes/timestamp
 - name: github.com/gorilla/context
   version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
 - name: github.com/gorilla/mux
@@ -90,6 +93,11 @@ imports:
   repo: git@github.com:kolide/agent-api.git
 - name: github.com/kolide/goose
   version: 4a7848793d4402d338de853019ad72b9a4b3e68e
+- name: github.com/kolide/kit
+  version: a2a44361a9498eabc6814e96c5a6f378305b771e
+  repo: git@github.com:kolide/kit.git
+  subpackages:
+  - version
 - name: github.com/kolide/osquery-go
   version: 5419715d060ff8c2e1b7f6ff5a8127ac2ce3fbdc
   subpackages:
@@ -203,11 +211,12 @@ imports:
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: b8669c35455183da6d5c474ea6e72fbf55183274
+  version: f92cdcd7dcdc69e81b2d7b338479a19a8723cfa3
   subpackages:
   - codes
+  - connectivity
   - credentials
-  - grpclb/grpc_lb_v1
+  - grpclb/grpc_lb_v1/messages
   - grpclog
   - internal
   - keepalive

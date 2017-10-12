@@ -44,6 +44,15 @@ ifndef MYSQL_PORT_3306_TCP_ADDR
 	MYSQL_PORT_3306_TCP_ADDR = 127.0.0.1
 endif
 
+KIT_VERSION = "\
+	-X github.com/kolide/fleet/vendor/github.com/kolide/kit/version.appName=${APP_NAME} \
+	-X github.com/kolide/fleet/vendor/github.com/kolide/kit/version.version=${VERSION} \
+	-X github.com/kolide/fleet/vendor/github.com/kolide/kit/version.branch=${BRANCH} \
+	-X github.com/kolide/fleet/vendor/github.com/kolide/kit/version.revision=${REVISION} \
+	-X github.com/kolide/fleet/vendor/github.com/kolide/kit/version.buildDate=${NOW} \
+	-X github.com/kolide/fleet/vendor/github.com/kolide/kit/version.buildUser=${USER} \
+	-X github.com/kolide/fleet/vendor/github.com/kolide/kit/version.goVersion=${GOVERSION}"
+
 all: build
 
 define HELP_TEXT
@@ -85,13 +94,8 @@ endif
 build: export GOGC = off
 build: export CGO_ENABLED=0
 build: .prefix
-	go build -i -o ${OUTPUT} -ldflags "\
-	-X github.com/kolide/fleet/server/version.version=${VERSION} \
-	-X github.com/kolide/fleet/server/version.branch=${BRANCH} \
-	-X github.com/kolide/fleet/server/version.revision=${REVISION} \
-	-X github.com/kolide/fleet/server/version.buildDate=${NOW} \
-	-X github.com/kolide/fleet/server/version.buildUser=${USER} \
-	-X github.com/kolide/fleet/server/version.goVersion=${GOVERSION}"
+	$(eval APP_NAME = fleet)
+	go build -i -o ${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
 
 lint-js:
 	eslint frontend --ext .js,.jsx

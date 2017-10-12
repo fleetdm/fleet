@@ -1,4 +1,4 @@
-package cli
+package main
 
 import (
 	"bufio"
@@ -20,11 +20,11 @@ func createPrepareCmd(configManager config.Manager) *cobra.Command {
 
 	var prepareCmd = &cobra.Command{
 		Use:   "prepare",
-		Short: "Subcommands for initializing kolide infrastructure",
+		Short: "Subcommands for initializing Fleet infrastructure",
 		Long: `
-Subcommands for initializing kolide infrastructure
+Subcommands for initializing Fleet infrastructure
 
-To setup kolide infrastructure, use one of the available commands.
+To setup Fleet infrastructure, use one of the available commands.
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.Help()
@@ -58,7 +58,7 @@ To setup kolide infrastructure, use one of the available commands.
 				if !noPrompt {
 					fmt.Printf("################################################################################\n" +
 						"# WARNING:\n" +
-						"#   This will perform Kolide database migrations. Please back up your data before\n" +
+						"#   This will perform Fleet database migrations. Please back up your data before\n" +
 						"#   continuing.\n" +
 						"#\n" +
 						"#   Press Enter to continue, or Control-c to exit.\n" +

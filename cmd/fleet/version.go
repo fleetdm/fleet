@@ -1,8 +1,8 @@
-package cli
+package main
 
 import (
 	"github.com/kolide/fleet/server/config"
-	"github.com/kolide/fleet/server/version"
+	"github.com/kolide/kit/version"
 	"github.com/spf13/cobra"
 )
 
@@ -13,7 +13,7 @@ func createVersionCmd(configManager config.Manager) *cobra.Command {
 	)
 	var versionCmd = &cobra.Command{
 		Use:   "version",
-		Short: "Print kolide version",
+		Short: "Print Fleet version",
 		Long: `
 Print version information and related build info`,
 		Run: func(cmd *cobra.Command, args []string) {
