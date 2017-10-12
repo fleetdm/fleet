@@ -130,7 +130,7 @@ export default (admin) => {
       name: 'Help',
       location: {
         regex: /^\/help/,
-        pathname: 'https://docs.kolide.co/kolide/current/',
+        pathname: 'https://github.com/kolide/fleet/blob/master/docs/README.md',
       },
       subItems: [],
     },

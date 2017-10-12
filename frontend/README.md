@@ -5,7 +5,7 @@ The Kolide front-end is a Single Page Application using React and Redux.
 ## Running the Kolide web app
 
 For details instruction on building and serving the Kolide web application
-consult the [Development Documentation](https://docs.kolide.co/kolide/current/development/index.html)
+consult the [Development Documentation](./development/README.md)
 
 ## Directory Structure
 
