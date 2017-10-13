@@ -77,24 +77,13 @@ func (s loggingMiddleware) PublishResults(ctx context.Context, req *pb.ResultCol
 	return s.next.PublishResults(ctx, req)
 }
 
-func (s loggingMiddleware) HotConfigure(req *pb.AgentApiRequest, svr pb.Api_HotConfigureServer) (err error) {
+func (s loggingMiddleware) CheckHealth(ctx context.Context, coll *pb.AgentApiRequest) (resp *pb.HealthCheckResponse, err error) {
 	defer func(begin time.Time) {
 		s.logger.Log(
-			"method", "HotConfigure",
+			"method", "CheckHealth",
 			"err", err,
 			"took", time.Since(begin),
 		)
 	}(time.Now())
-	return s.next.HotConfigure(req, svr)
-}
-
-func (s loggingMiddleware) HotlineBling(svr pb.Api_HotlineBlingServer) (err error) {
-	defer func(begin time.Time) {
-		s.logger.Log(
-			"method", "HotlineBling",
-			"err", err,
-			"took", time.Since(begin),
-		)
-	}(time.Now())
-	return s.next.HotlineBling(svr)
+	return s.next.CheckHealth(ctx, coll)
 }

@@ -1,0 +1,101 @@
+[[constraint]]
+  branch = "master"
+  name = "github.com/VividCortex/mysqlerr"
+
+[[constraint]]
+  name = "github.com/WatchBeam/clock"
+
+[[constraint]]
+  name = "github.com/beevik/etree"
+
+[[constraint]]
+  name = "github.com/dgrijalva/jwt-go"
+
+[[constraint]]
+  name = "github.com/e-dard/netbug"
+
+[[constraint]]
+  name = "github.com/elazarl/go-bindata-assetfs"
+
+[[constraint]]
+  name = "github.com/garyburd/redigo"
+  version = "1.0.0"
+
+[[constraint]]
+  name = "github.com/go-kit/kit"
+  version = "0.6.0"
+
+[[constraint]]
+  name = "github.com/go-sql-driver/mysql"
+
+[[constraint]]
+  name = "github.com/gorilla/mux"
+
+[[constraint]]
+  name = "github.com/gorilla/websocket"
+
+[[constraint]]
+  name = "github.com/igm/sockjs-go"
+
+[[constraint]]
+  name = "github.com/jmoiron/sqlx"
+
+[[constraint]]
+  name = "github.com/kolide/agent-api"
+  source = "git@github.com:kolide/agent-api.git"
+  branch = "master"
+
+[[constraint]]
+  name = "github.com/kolide/goose"
+  branch = "master"
+
+[[constraint]]
+  name = "github.com/kolide/kit"
+  source = "git@github.com:kolide/kit.git"
+
+[[constraint]]
+  name = "github.com/patrickmn/sortutil"
+
+[[constraint]]
+  name = "github.com/pkg/errors"
+
+[[constraint]]
+  name = "github.com/prometheus/client_golang"
+  version = "0.8.0"
+
+[[constraint]]
+  name = "github.com/russellhaering/gosaml2"
+
+[[constraint]]
+  name = "github.com/russellhaering/goxmldsig"
+
+[[constraint]]
+  name = "github.com/spf13/cast"
+  version = "~1.0.0"
+
+[[constraint]]
+  name = "github.com/spf13/cobra"
+
+[[constraint]]
+  name = "github.com/spf13/viper"
+
+[[constraint]]
+  name = "github.com/stretchr/testify"
+  branch = "master"
+
+[[constraint]]
+  name = "golang.org/x/crypto"
+
+[[constraint]]
+  name = "golang.org/x/net"
+
+[[constraint]]
+  name = "google.golang.org/grpc"
+  version = "1.5.1"
+
+[[constraint]]
+  name = "gopkg.in/natefinch/lumberjack.v2"
+  version = "2.0.0"
+
+[[constraint]]
+  name = "gopkg.in/yaml.v2"

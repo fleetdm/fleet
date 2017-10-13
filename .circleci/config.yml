@@ -8,11 +8,11 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - vendor-cache-{{ .Branch }}-{{ checksum "glide.lock" }}
+            - vendor-cache-{{ .Branch }}-{{ checksum "Gopkg.lock" }}
             - vendor-cache-{{ .Branch }}
             - vendor-cache
 
-      - run: 
+      - run:
           name: "fix node-sass"
           command: |
             yarn remove node-sass
@@ -20,7 +20,7 @@ jobs:
 
       - run: make deps
       - save_cache:
-          key: vendor-cache-{{ .Branch }}-{{ checksum "glide.lock" }}
+          key: vendor-cache-{{ .Branch }}-{{ checksum "Gopkg.lock" }}
           paths:
             - vendor
       - save_cache:

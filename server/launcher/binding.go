@@ -172,12 +172,6 @@ func (b *agentBinding) PublishResults(ctx context.Context, coll *pb.ResultCollec
 	return &pb.AgentApiResponse{}, nil
 }
 
-// HotConfigure pushed configurations
-func (b *agentBinding) HotConfigure(in *pb.AgentApiRequest, svr pb.Api_HotConfigureServer) error {
-	return errNotImplmented
-}
-
-// HotlineBling this would be live query push to agent
-func (b *agentBinding) HotlineBling(svr pb.Api_HotlineBlingServer) error {
-	return errNotImplmented
+func (svc *agentBinding) CheckHealth(ctx context.Context, coll *pb.AgentApiRequest) (*pb.HealthCheckResponse, error) {
+	return nil, errNotImplmented
 }

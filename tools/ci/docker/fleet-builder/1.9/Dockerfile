@@ -74,7 +74,7 @@ RUN apk add --update \
 	openssh-client
 
 
-RUN go get -u -v github.com/Masterminds/glide
+RUN go get -u -v github.com/golang/dep/cmd/dep
 
 # git must be explicitly instructed to follow redirects for compatibility with
 # gopkg.in

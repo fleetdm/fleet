@@ -69,15 +69,9 @@ func (s authMiddleware) PublishResults(ctx context.Context, req *pb.ResultCollec
 	return s.next.PublishResults(authCtx, req)
 }
 
-func (s authMiddleware) HotConfigure(req *pb.AgentApiRequest, svr pb.Api_HotConfigureServer) (err error) {
-	if _, _, err := s.authenticateHost(context.Background(), req.NodeKey); err != nil {
-		return err
-	}
-	return s.next.HotConfigure(req, svr)
-}
-
-func (s authMiddleware) HotlineBling(svr pb.Api_HotlineBlingServer) (err error) {
-	return s.next.HotlineBling(svr)
+func (s authMiddleware) CheckHealth(ctx context.Context, coll *pb.AgentApiRequest) (*pb.HealthCheckResponse, error) {
+	// there should not be any auth
+	return s.next.CheckHealth(ctx, coll)
 }
 
 type auth struct {
