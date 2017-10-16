@@ -15,14 +15,14 @@ ifneq ($(OS), Windows_NT)
 	endif
 
 	# The output binary name is different on Windows, so we're explicit here
-	OUTPUT = build/fleet
+	OUTPUT = fleet
 
 	# To populate version metadata, we use unix tools to get certain data
 	GOVERSION = $(shell go version | awk '{print $$3}')
 	NOW	= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 else
 	# The output binary name is different on Windows, so we're explicit here
-	OUTPUT = build/fleet.exe
+	OUTPUT = fleet.exe
 
 	# To populate version metadata, we use windows tools to get the certain data
 	GOVERSION_CMD = "(go version).Split()[2]"
@@ -86,14 +86,19 @@ help:
 ifeq ($(OS), Windows_NT)
 	if not exist build mkdir build
 else
-	mkdir -p build
+	mkdir -p build/linux
+	mkdir -p build/darwin
 endif
 
-build: export GOGC = off
-build: export CGO_ENABLED=0
-build: .prefix
+.pre-build:
+	$(eval GOGC = off)
+	$(eval CGO_ENABLED = 0)
+
+.pre-fleet:
 	$(eval APP_NAME = fleet)
-	go build -i -o ${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
+
+build: .prefix .pre-build .pre-fleet
+	go build -i -o build/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
 
 lint-js:
 	eslint frontend --ext .js,.jsx
@@ -164,6 +169,7 @@ else
 endif
 
 docker-build-release:
+	GOOS=linux go build -i -o build/linux/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
 	docker build -t "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" .
 	docker tag "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" kolide/fleet:latest
 	docker push "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
@@ -171,6 +177,7 @@ docker-build-release:
 
 docker-build-circle:
 	@echo ">> building docker image"
+	GOOS=linux go build -i -o build/linux/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
 	docker build -t "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" .
 	docker push "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
 
