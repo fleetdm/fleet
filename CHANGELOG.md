@@ -1,6 +1,16 @@
-* Added FIM support 
+## Kolide Fleet 1.0.5 (Oct 17, 2017)
 
-* Title on query page correctly reflects new or edit mode. 
+* Renamed the binary from kolide to fleet
+
+* Add support for Kolide Launcher managed osquery nodes
+
+* Remove license requirements
+
+* Updated documentation link in the sidebar to point to public GitHub documentation
+
+* Added FIM support
+
+* Title on query page correctly reflects new or edit mode.
 
 * Fixed issue on new query page where last query would be submitted instead of current.
 
