@@ -168,7 +168,7 @@ else
 	rm -f assets/bundle.js
 endif
 
-docker-build-release:
+docker-build-release: .pre-fleet
 	GOOS=linux go build -i -o build/linux/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
 	docker build -t "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" .
 	docker tag "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" kolide/fleet:latest
