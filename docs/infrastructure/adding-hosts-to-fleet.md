@@ -46,7 +46,7 @@ To directly execute the launcher binary without having to mess with packages, in
 ```
 ./build/launcher \
   --hostname=fleet.acme.net:443 \
-  --root_directory=/var/kolide-fleet \
+  --root_directory=$(mktemp -d) \
   --enroll_secret=32IeN3QLgckHUmMD3iW40kyLdNJcGzP5
 ```
 
