@@ -191,3 +191,12 @@ demo-restore:
 	mysql --binary-mode -u kolide -p \
 		-h ${MYSQL_PORT_3306_TCP_ADDR} kolide \
 		< ./tools/app/demo.sql
+
+binary-bundle:
+	rm -rf build/binary-bundle
+	mkdir -p build/binary-bundle/linux
+	mkdir -p build/binary-bundle/darwin
+	GOOS=linux go build -i -o build/binary-bundle/linux/${OUTPUT}_linux_amd64 -ldflags ${KIT_VERSION} ./cmd/fleet
+	GOOS=darwin go build -i -o build/binary-bundle/darwin/${OUTPUT}_darwin_amd64 -ldflags ${KIT_VERSION} ./cmd/fleet
+	cd build/binary-bundle && zip -r "fleet_${VERSION}.zip" darwin/ linux/
+	cp build/binary-bundle/fleet_${VERSION}.zip build/binary-bundle/fleet_lastest.zip
