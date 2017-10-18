@@ -27,42 +27,6 @@ docker pull kolide/fleet
 
 For more information on using Fleet, refer to the [Configuring The Fleet Binary](./configuring-the-fleet-binary.md) documentation.
 
-#### Debian Packages (Ubuntu, Debian)
-
-Add our GPG key and install the Kolide Apt Repository:
-
-```
-wget -qO - https://dl.kolide.co/archive.key | sudo apt-key add -
-sudo add-apt-repository "deb https://dl.kolide.co/apt jessie main"
-sudo apt-get update
-```
-
-Install Fleet:
-
-```
-sudo apt-get install fleet
-/usr/bin/fleet --help
-```
-
-For more information on using Fleet, refer to the [Configuring The Fleet Binary](./configuring-the-fleet-binary.md) documentation.
-
-#### Yum Packages (CentOS, RHEL, Amazon Linux)
-
-Install the Kolide Yum Repository:
-
-```
-sudo rpm -ivh https://dl.kolide.co/yum/kolide-yum-repo-1.0.0-1.noarch.rpm
-```
-
-Install Fleet:
-
-```
-sudo yum install fleet
-fleet --help
-```
-
-For more information on using Fleet, refer to the [Configuring The Fleet Binary](./configuring-the-fleet-binary.md) documentation.
-
 #### Raw binaries
 
 Download the latest raw Fleet binaries:

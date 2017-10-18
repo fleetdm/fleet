@@ -32,22 +32,6 @@ Pull the latest Fleet docker image:
 docker pull kolide/fleet
 ```
 
-#### Debian Packages (Ubuntu, Debian)
-
-Update Fleet through the Apt repository (the repository should have been added during initial install):
-
-```
-sudo apt-get update && sudo apt-get install fleet
-```
-
-#### Yum Packages (CentOS, RHEL, Amazon Linux)
-
-Update Fleet through the Yum respository (the repository should have been added during initial install):
-
-```
-sudo yum update fleet
-```
-
 #### Raw binaries
 
 Download the latest raw Fleet binaries:

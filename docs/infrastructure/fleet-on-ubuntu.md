@@ -21,10 +21,9 @@ $ vagrant ssh
 To install Fleet, run the following:
 
 ```
-$ wget -qO - https://dl.kolide.co/archive.key | sudo apt-key add -
-$ sudo add-apt-repository "deb https://dl.kolide.co/apt jessie main"
-$ sudo apt-get update
-$ sudo apt-get install fleet
+$ wget https://dl.kolide.co/bin/fleet_latest.zip
+$ unzip fleet_latest.zip 'linux/*' -d fleet
+$ sudo cp fleet/linux/fleet /usr/bin/fleet
 ```
 
 ## Installing and configuring dependencies

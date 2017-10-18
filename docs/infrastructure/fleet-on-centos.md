@@ -21,8 +21,9 @@ $ vagrant ssh
 To install Fleet, run the following:
 
 ```
-$ sudo rpm -ivh https://dl.kolide.co/yum/kolide-yum-repo-1.0.0-1.noarch.rpm
-$ sudo yum install fleet
+$ wget https://dl.kolide.co/bin/fleet_latest.zip
+$ unzip fleet_latest.zip 'linux/*' -d fleet
+$ sudo cp fleet/linux/fleet /usr/bin/fleet
 ```
 
 ## Installing and configuring dependencies
