@@ -42,7 +42,6 @@
 
 [[constraint]]
   name = "github.com/kolide/agent-api"
-  source = "git@github.com:kolide/agent-api.git"
   branch = "master"
 
 [[constraint]]
@@ -51,8 +50,7 @@
 
 [[constraint]]
   name = "github.com/kolide/kit"
-  source = "git@github.com:kolide/kit.git"
-
+  
 [[constraint]]
   name = "github.com/patrickmn/sortutil"
 

@@ -34,8 +34,8 @@
 [[projects]]
   name = "github.com/dgrijalva/jwt-go"
   packages = ["."]
-  revision = "d2709f9f1f31ebcda9651b03077758c1f3a0018c"
-  version = "v3.0.0"
+  revision = "dbeaa9332f19a944acb5736b4456cfcc02140e29"
+  version = "v3.1.0"
 
 [[projects]]
   branch = "master"
@@ -58,8 +58,8 @@
 [[projects]]
   name = "github.com/garyburd/redigo"
   packages = ["internal","redis"]
-  revision = "433969511232c397de61b1442f9fd49ec06ae9ba"
-  version = "v1.1.0"
+  revision = "34a326de1fea52965fa5ad664d3fc7163dd4b0a1"
+  version = "v1.2.0"
 
 [[projects]]
   name = "github.com/go-kit/kit"
@@ -113,7 +113,7 @@
   branch = "master"
   name = "github.com/hashicorp/hcl"
   packages = [".","hcl/ast","hcl/parser","hcl/scanner","hcl/strconv","hcl/token","json/parser","json/scanner","json/token"]
-  revision = "42e33e2d55a0ff1d6263f738896ea8c13571a8d0"
+  revision = "23c074d0eceb2b8a5bfdbb271ab780cde70f05a8"
 
 [[projects]]
   name = "github.com/igm/sockjs-go"
@@ -144,7 +144,6 @@
   name = "github.com/kolide/agent-api"
   packages = ["."]
   revision = "f81f25bd36a2e73a762d4a5192d698bae06a7161"
-  source = "git@github.com:kolide/agent-api.git"
 
 [[projects]]
   branch = "master"
@@ -156,8 +155,7 @@
   branch = "master"
   name = "github.com/kolide/kit"
   packages = ["version"]
-  revision = "19dfff12e00e1d46d30636b9150ca5b9f9f05325"
-  source = "git@github.com:kolide/kit.git"
+  revision = "566c8f56a6ff7daba204818fbab0f2cb854b3310"
 
 [[projects]]
   branch = "master"
@@ -181,7 +179,7 @@
   branch = "master"
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
-  revision = "d0303fe809921458f417bcf828397a65db30a7e4"
+  revision = "06020f85339e21b2478f756a78e295255ffa4d6a"
 
 [[projects]]
   branch = "master"
@@ -229,7 +227,7 @@
   branch = "master"
   name = "github.com/prometheus/procfs"
   packages = [".","xfs"]
-  revision = "e645f4e5aaa8506fc71d6edbc5c4ff02c04c46f2"
+  revision = "a6e9df898b1336106c743392c48ee0b71f5c4efa"
 
 [[projects]]
   branch = "master"
@@ -259,7 +257,7 @@
   branch = "master"
   name = "github.com/spf13/cobra"
   packages = ["."]
-  revision = "7cd9cc6d44d35f623b0893afc3adc7b4513eeaf8"
+  revision = "7b2c5ac9fc04fc5efafb60700713d4fa609b777b"
 
 [[projects]]
   branch = "master"
@@ -289,31 +287,31 @@
   branch = "master"
   name = "github.com/stretchr/testify"
   packages = ["assert","mock","require"]
-  revision = "890a5c3458b43e6104ff5da8dfa139d013d77544"
+  revision = "2aa2c176b9dab406a6970f6a55f513e8a8c8b18f"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["bcrypt","blowfish"]
-  revision = "9419663f5a44be8b34ca85f08abc5fe1be11f8a3"
+  revision = "541b9d50ad47e36efd8fb423e938e59ff1691f68"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = ["context","http2","http2/hpack","idna","internal/timeseries","lex/httplex","trace"]
-  revision = "a04bdaca5b32abe1c069418fb7088ae607de5bd0"
+  revision = "aabf50738bcdd9b207582cbe796b59ed65d56680"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "43eea11bc92608addb41b8a406b0407495c106f6"
+  revision = "8dbc5d05d6edcc104950cc299a1ce6641235bc86"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/text"
   packages = ["collate","collate/build","internal/colltab","internal/gen","internal/tag","internal/triegen","internal/ucd","language","secure/bidirule","transform","unicode/bidi","unicode/cldr","unicode/norm","unicode/rangetable"]
-  revision = "825fc78a2fd6fa0a5447e300189e3219e05e1f25"
+  revision = "c01e4764d870b77f8abe5096ee19ad20d80e8075"
 
 [[projects]]
   branch = "master"
@@ -342,6 +340,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "1517eca23ced1d92beb3d6ce40f2233c64fce1e8ac7f8c661e59ce0a9e614bf8"
+  inputs-digest = "a7e35edc607087f07c0bba174f1c9d02bf5a616d5f488de2a569e03bab69de68"
   solver-name = "gps-cdcl"
   solver-version = 1
