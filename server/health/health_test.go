@@ -1,4 +1,4 @@
-package main
+package health
 
 import (
 	"errors"
@@ -8,15 +8,39 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestHealthz(t *testing.T) {
+func TestCheckHealth(t *testing.T) {
+	checkers := map[string]Checker{
+		"fail": fail{},
+		"pass": Nop(),
+	}
+
+	healthy := CheckHealth(log.NewNopLogger(), checkers)
+	require.False(t, healthy)
+
+	checkers = map[string]Checker{
+		"pass": Nop(),
+	}
+	healthy = CheckHealth(log.NewNopLogger(), checkers)
+	require.True(t, healthy)
+}
+
+type fail struct{}
+
+func (c fail) HealthCheck() error {
+	return errors.New("fail")
+}
+
+func TestHealthzHandler(t *testing.T) {
 	logger := log.NewNopLogger()
-	failing := healthz(logger, map[string]interface{}{
+	failing := Handler(logger, map[string]Checker{
 		"mock": healthcheckFunc(func() error {
 			return errors.New("health check failed")
 		})})
-	ok := healthz(logger, map[string]interface{}{
+
+	ok := Handler(logger, map[string]Checker{
 		"mock": healthcheckFunc(func() error {
 			return nil
 		})})

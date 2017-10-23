@@ -18,6 +18,7 @@ import (
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/kolide/fleet/server/config"
 	"github.com/kolide/fleet/server/datastore/mysql"
+	"github.com/kolide/fleet/server/health"
 	"github.com/kolide/fleet/server/kolide"
 	"github.com/kolide/fleet/server/launcher"
 	"github.com/kolide/fleet/server/mail"
@@ -186,15 +187,25 @@ the way that the Fleet server works.
 
 			}
 
-			// a list of dependencies which could affect the status of the app if unavailable
-			healthCheckers := map[string]interface{}{
-				"datastore":          ds,
-				"query_result_store": resultStore,
+			healthCheckers := make(map[string]health.Checker)
+			{
+				// a list of dependencies which could affect the status of the app if unavailable.
+				deps := map[string]interface{}{
+					"datastore":          ds,
+					"query_result_store": resultStore,
+				}
+
+				// convert all dependencies to health.Checker if they implement the healthz methods.
+				for name, dep := range deps {
+					if hc, ok := dep.(health.Checker); ok {
+						healthCheckers[name] = hc
+					}
+				}
 			}
 
 			r := http.NewServeMux()
 
-			r.Handle("/healthz", prometheus.InstrumentHandler("healthz", healthz(httpLogger, healthCheckers)))
+			r.Handle("/healthz", prometheus.InstrumentHandler("healthz", health.Handler(httpLogger, healthCheckers)))
 			r.Handle("/version", prometheus.InstrumentHandler("version", version.Handler()))
 			r.Handle("/assets/", prometheus.InstrumentHandler("static_assets", service.ServeStaticAssets("/assets/")))
 			r.Handle("/metrics", prometheus.InstrumentHandler("metrics", promhttp.Handler()))
@@ -268,32 +279,6 @@ the way that the Fleet server works.
 	serveCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug endpoints")
 
 	return serveCmd
-}
-
-// healthz is an http handler which responds with either
-// 200 OK if the server can successfuly communicate with it's backends or
-// 500 if any of the backends are reporting an issue.
-func healthz(logger kitlog.Logger, deps map[string]interface{}) http.HandlerFunc {
-	type healthChecker interface {
-		HealthCheck() error
-	}
-
-	healthy := true
-	return func(w http.ResponseWriter, r *http.Request) {
-		for name, dep := range deps {
-			if hc, ok := dep.(healthChecker); ok {
-				err := hc.HealthCheck()
-				if err != nil {
-					logger.Log("err", err, "health-checker", name)
-					healthy = false
-				}
-			}
-		}
-
-		if !healthy {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-	}
 }
 
 // Support for TLS security profiles, we set up the TLS configuation based on
