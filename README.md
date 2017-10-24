@@ -13,4 +13,4 @@ Documentation for Kolide can be found on [GitHub](./docs/README.md).
 - If you are interested in accessing the Kolide REST API in order to programmatically interact with your osquery installation, please see the [API Documentation](./docs/api/README.md).
 - Finally, if you're interested in interacting with the Kolide source code, you will find information on modifying and building the code in the [Development Documentation](./docs/development/README.md).
 
-If you have any questions, please don't hesitate to reach out to create a [GitHub Issue](https://github.com/kolide/fleet].
+If you have any questions, please don't hesitate to reach out to create a [GitHub Issue](https://github.com/kolide/fleet).
