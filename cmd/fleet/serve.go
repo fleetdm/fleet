@@ -29,6 +29,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
 )
 
 type initializer interface {
@@ -134,9 +135,6 @@ the way that the Fleet server works.
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
-			// Instantiate a gRPC service to handle launcher requests.
-			launcher := launcher.New(svc, logger)
-			defer launcher.GracefulStop()
 
 			go func() {
 				ticker := time.NewTicker(1 * time.Hour)
@@ -201,7 +199,11 @@ the way that the Fleet server works.
 						healthCheckers[name] = hc
 					}
 				}
+
 			}
+
+			// Instantiate a gRPC service to handle launcher requests.
+			launcher := launcher.New(svc, logger, grpc.NewServer(), healthCheckers)
 
 			r := http.NewServeMux()
 
@@ -269,7 +271,10 @@ the way that the Fleet server works.
 				<-sig //block on signal
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				defer cancel()
-				errs <- srv.Shutdown(ctx)
+				errs <- func() error {
+					launcher.GracefulStop()
+					return srv.Shutdown(ctx)
+				}()
 			}()
 
 			logger.Log("terminated", <-errs)

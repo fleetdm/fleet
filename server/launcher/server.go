@@ -5,10 +5,12 @@ import (
 	"net/http"
 	"strings"
 
-	kitlog "github.com/go-kit/kit/log"
-	pb "github.com/kolide/agent-api"
-	"github.com/kolide/fleet/server/kolide"
+	"github.com/go-kit/kit/log"
+	launcher "github.com/kolide/launcher/service"
 	grpc "google.golang.org/grpc"
+
+	"github.com/kolide/fleet/server/health"
+	"github.com/kolide/fleet/server/kolide"
 )
 
 // Handler extends the grpc.Server, providing Handler that allows us to serve
@@ -17,25 +19,36 @@ type Handler struct {
 	*grpc.Server
 }
 
-// New creates a gRPC server to handler remote requests from launcher.
-func New(svc kolide.OsqueryService, logger kitlog.Logger, opts ...grpc.ServerOption) *Handler {
-	binding := newAgentBinding(svc)
-	binding = newAuthMiddleware(svc)(binding)
-	binding = newLoggingMiddleware(logger)(binding)
-
-	server := grpc.NewServer(opts...)
-	pb.RegisterApiServer(server, binding)
-	return &Handler{server}
+// New creates a gRPC server to handle remote requests from launcher.
+func New(
+	tls kolide.OsqueryService,
+	logger log.Logger,
+	grpcServer *grpc.Server,
+	healthCheckers map[string]health.Checker,
+) *Handler {
+	var svc launcher.KolideService
+	{
+		svc = &launcherWrapper{
+			tls:            tls,
+			logger:         logger,
+			healthCheckers: healthCheckers,
+		}
+		svc = launcher.LoggingMiddleware(logger)(svc)
+	}
+	endpoints := launcher.MakeServerEndpoints(svc)
+	server := launcher.NewGRPCServer(endpoints, logger)
+	launcher.RegisterGRPCServer(grpcServer, server)
+	return &Handler{grpcServer}
 }
 
 // Handler will route gRPC traffic to the gRPC server, other http traffic
 // will be routed to normal http handler functions.
-func (hgprc *Handler) Handler(h http.Handler) http.Handler {
+func (hgprc *Handler) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.ProtoMajor == 2 && strings.Contains(r.Header.Get("Content-Type"), "application/grpc") {
 			hgprc.ServeHTTP(w, r)
 		} else {
-			h.ServeHTTP(w, r)
+			next.ServeHTTP(w, r)
 		}
 	})
 }

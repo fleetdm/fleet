@@ -41,10 +41,6 @@
   name = "github.com/jmoiron/sqlx"
 
 [[constraint]]
-  name = "github.com/kolide/agent-api"
-  branch = "master"
-
-[[constraint]]
   name = "github.com/kolide/goose"
   branch = "master"
 
