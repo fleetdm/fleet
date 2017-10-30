@@ -14,7 +14,7 @@ Your Fleet server's two main purposes are:
 
 The Fleet server allows you persist configuration, manage users, etc. Thus, it needs a database. Fleet uses MySQL and requires you to supply configurations to connect to a MySQL server. Fleet also uses Redis to perform some more high-speed data access action throughout the lifecycle of the application (for example, distributed query result ingestion). Thus, Fleet also requires that you supply Redis connention configurations.
 
-Since Fleet is a web application, when you run Koldie there are some other configurations that are worth defining, such as:
+Since Fleet is a web application, when you run Fleet there are some other configurations that are worth defining, such as:
 
 - The TLS certificates that Fleet should use to terminate TLS.
 - The [JWT](https://jwt.io/) Key which is used to sign and verify session tokens.
