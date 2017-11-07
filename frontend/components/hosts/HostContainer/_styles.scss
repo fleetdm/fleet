@@ -1,0 +1,49 @@
+.host-container {
+  &--no-hosts {
+    width: 440px;
+    margin: 35px auto;
+    font-size: 15px;
+    font-weight: $normal;
+    line-height: 2;
+    letter-spacing: normal;
+    color: rgba(32, 37, 50, 0.66);
+
+    h1 {
+      font-size: 32px;
+      font-weight: $normal;
+      line-height: normal;
+      letter-spacing: normal;
+      color: #48c586;
+    }
+
+    h2 {
+      font-size: 16px;
+      font-weight: $bold;
+      line-height: 1.5;
+      letter-spacing: -0.5px;
+      color: rgba(32, 37, 50, 0.66);
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+  }
+
+  &__no-hosts-contact {
+    text-align: right;
+    margin-top: 30px;
+
+    p {
+      margin: 0;
+    }
+  }
+
+  &--grid {
+    @include display(flex);
+    @include justify-content(space-around);
+    @include flex-wrap(wrap);
+    @include align-content(center);
+    margin: 0 auto;
+  }
+}

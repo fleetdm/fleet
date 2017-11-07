@@ -1,0 +1,132 @@
+.host-pagination {
+  &__pager-wrap {
+    flex-basis: 100%;
+    margin: 50px 0 115px;
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  &__pagination {
+    margin: 0 25px 0 0;
+    padding: 0;
+    font-family: 'Oxygen', 'Helvetica Neue', 'Helvetica', 'Roboto', 'Arial', sans-serif;
+
+    .rc-pagination-prev,
+    .rc-pagination-next,
+    .rc-pagination-item {
+      border: 1px solid $success;
+      font-size: 15px;
+      box-sizing: border-box;
+      border-radius: 3px;
+
+      a {
+        color: $success;
+        font-weight: bold;
+      }
+    }
+
+    .rc-pagination-prev {
+      a {
+        &::after {
+          @extend %kolidecon;
+          content: '\f006';
+        }
+      }
+    }
+
+    .rc-pagination-next {
+      a {
+        &::after {
+          @extend %kolidecon;
+          content: '\f008';
+        }
+      }
+    }
+
+    .rc-pagination-item {
+      border: 0;
+
+      &:hover {
+        background-color: $success-light;
+
+        a {
+          color: $white;
+        }
+      }
+    }
+
+    .rc-pagination-jump-prev,
+    .rc-pagination-jump-next {
+      &::after {
+        color: $success;
+      }
+
+      &:hover {
+        &::after {
+          font-size: 22px;
+          line-height: 20px;
+        }
+      }
+    }
+
+    .rc-pagination-disabled {
+      opacity: 0.25;
+    }
+
+    .rc-pagination-item-active {
+      background-color: $success;
+
+      a {
+        color: $white;
+      }
+    }
+  }
+
+  &__pager-count {
+    flex-basis: 100%;
+    margin: 15px 0 0;
+    display: flex;
+  }
+
+  &__count-select {
+    width: 90px;
+    margin-right: 15px;
+
+    .Select-control {
+      border-color: $success;
+      border-radius: 3px;
+      height: 30px;
+
+      @at-root .Select.is-focused#{&} {
+        border-color: $success;
+      }
+    }
+
+    .Select-value {
+      box-shadow: none;
+    }
+
+    &.Select--single {
+      > .Select-control {
+        .Select-value {
+          line-height: 30px;
+          border: 0;
+        }
+      }
+    }
+
+    .Select-input {
+      height: 30px;
+    }
+
+    .Select-option {
+      &.is-focused {
+        background-color: $success;
+      }
+    }
+  }
+
+  &__pager-range {
+    margin: 0;
+  }
+}
