@@ -1,0 +1,14 @@
+apiVersion: v1/alpha
+kind: decorators
+spec:
+  decorators:
+    - name: hostname
+      query: select hostname from system_info;
+      type: interval
+      interval: 10
+    - name: uuid
+      query: select uuid from osquery_info;
+      type: load
+    - name: instance_id
+      query: select instance_id from osquery_info;
+      type: load

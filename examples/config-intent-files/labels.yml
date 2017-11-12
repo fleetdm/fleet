@@ -1,0 +1,26 @@
+apiVersion: v1/alpha
+kind: labels
+spec:
+  labels:
+    - name: all_hosts
+      query: select 1;
+    - name: macs
+      query: select 1 from os_version where platform = "darwin";
+    - name: ubuntu
+      query: select 1 from os_version where platform = "ubuntu";
+    - name: centos
+      query: select 1 from os_version where platform = "centos";
+    - name: windows
+      query: select 1 from os_version where platform = "windows";
+    - name: pending_updates
+      query: SELECT value from plist where path = "/Library/Preferences/ManagedInstalls.plist" and key = "PendingUpdateCount" and value > "0";
+      platforms:
+        - darwin
+    - name: slack_not_running
+      query: >
+        SELECT * from system_info
+        WHERE NOT EXISTS (
+          SELECT *
+          FROM processes
+          WHERE name LIKE "%Slack%"
+        );

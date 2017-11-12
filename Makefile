@@ -97,8 +97,16 @@ endif
 .pre-fleet:
 	$(eval APP_NAME = fleet)
 
-build: .prefix .pre-build .pre-fleet
+.pre-fleetctl:
+	$(eval APP_NAME = fleetctl)
+
+build: fleet
+
+fleet: .prefix .pre-build .pre-fleet
 	go build -i -o build/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
+
+fleetctl: .prefix .pre-build .pre-fleetctl
+	go build -i -o build/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
 
 lint-js:
 	eslint frontend --ext .js,.jsx

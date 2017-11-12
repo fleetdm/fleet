@@ -1,0 +1,14 @@
+apiVersion: v1/alpha
+kind: fim
+spec:
+  fim:
+    interval: 500
+    groups:
+      - name: etc
+        paths:
+          - /etc/%%
+      - name: users
+        paths:
+          - /Users/%/Library/%%
+          - /Users/%/Documents/%%
+

@@ -1,0 +1,9 @@
+apiVersion: v1/alpha
+kind: config
+spec:
+  config:
+    - distributed_interval: 3
+    - distributed_tls_max_attempts: 3
+    - logger_plugin: tls
+    - logger_tls_endpoint: /api/v1/osquery/log
+    - logger_tls_period: 10
