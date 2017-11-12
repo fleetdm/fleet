@@ -14,7 +14,7 @@ class LoginSuccessfulPage extends Component {
       <div className={baseClass}>
         <Icon name="success-check" className={`${baseClass}__icon`} />
         <p className={`${baseClass}__text`}>Login successful</p>
-        <p className={`${baseClass}__sub-text`}>Taking you to the Kolide application...</p>
+        <p className={`${baseClass}__sub-text`}>Taking you to the Fleet UI...</p>
       </div>
     );
   }
