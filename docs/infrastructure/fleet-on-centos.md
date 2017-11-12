@@ -33,8 +33,8 @@ $ sudo cp fleet/linux/fleet /usr/bin/fleet
 To install the MySQL server files, run the following:
 
 ```
-$ wget http://repo.mysql.com/mysql-community-release-el7-5.noarch.rpm
-$ sudo rpm -i mysql-community-release-el7-5.noarch.rpm
+$ wget https://repo.mysql.com/mysql57-community-release-el7.rpm
+$ sudo rpm -i mysql57-community-release-el7.rpm
 $ sudo yum update
 $ sudo yum install mysql-server
 ```
