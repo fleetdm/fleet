@@ -38,7 +38,8 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "    fleetctl query    - run a query across your fleet\n")
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "    fleetctl apply    - apply a set of osquery configurations\n")
-	fmt.Fprintf(os.Stderr, "    fleetctl edit    - edit your complete configuration in an ephemeral editor\n")
+	fmt.Fprintf(os.Stderr, "    fleetctl edit     - edit your complete configuration in an ephemeral editor\n")
+	fmt.Fprintf(os.Stderr, "    fleetctl config   - modify how and which Fleet server to connect to\n")
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "    fleetctl help     - get help on how to define an intent type\n")
 	fmt.Fprintf(os.Stderr, "    fleetctl version  - print full version information\n")
@@ -66,6 +67,8 @@ func main() {
 	case "new":
 		run = runNoop
 	case "apply":
+		run = runNoop
+	case "config":
 		run = runNoop
 	case "help":
 		run = runNoop
