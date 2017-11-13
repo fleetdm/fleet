@@ -25,8 +25,8 @@ func walk(f *os.File) func(path string, info os.FileInfo, err error) error {
 }
 
 func main() {
-	inputDir := "./examples/config-intent-files"
-	outputFile := "./examples/config-intent.yml"
+	inputDir := "./examples/config-many-files.yml"
+	outputFile := "./examples/config-single-file.yml"
 
 	if err := os.Truncate(outputFile, 0); err != nil {
 		log.Fatal(err)

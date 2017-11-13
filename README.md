@@ -9,6 +9,7 @@ Documentation for Kolide can be found on [GitHub](./docs/README.md).
 [![Kolide](./assets/images/rube.png)](https://kolide.com/fleet)
 
 - Information about using the Kolide web application can be found in the [Application Documentation](./docs/application/README.md).
+- If you're interested in using the new `fleetctl` CLI to manage your osquery fleet, see the [CLI Documentation](./docs/cli/README.md).
 - Resources for deploying osquery to hosts, deploying the Kolide server, installing Kolide's infrastructure dependencies, etc. can all be found in the [Infrastructure Documentation](./docs/infrastructure/README.md).
 - If you are interested in accessing the Kolide REST API in order to programmatically interact with your osquery installation, please see the [API Documentation](./docs/api/README.md).
 - Finally, if you're interested in interacting with the Kolide source code, you will find information on modifying and building the code in the [Development Documentation](./docs/development/README.md).
