@@ -1,3 +1,5 @@
+* Added pagination to the Host browser pages for increased performance.
+
 * Fixed bug rendering hosts when clock speed cannot be parsed.
 
 ## Kolide Fleet 1.0.5 (Oct 17, 2017)
