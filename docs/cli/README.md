@@ -112,8 +112,8 @@ All of these files can be concatonated together into [one file](../../examples/c
 The following file describes configuration options to pass to the osquery instance. All other configuration data will be over-written by the application of this file.
 
 ```yaml
-apiVersion: v1/alpha
-kind: config
+apiVersion: k8s.kolide.com/v1alpha1
+kind: OsqueryOptions
 spec:
   config:
     - distributed_interval: 3
@@ -128,8 +128,8 @@ spec:
 The following file describes logging decorators that should be applied on osquery instances. All other decorator data will be over-written by the application of this file.
 
 ```yaml
-apiVersion: v1/alpha
-kind: decorators
+apiVersion: k8s.kolide.com/v1alpha1
+kind: OsqueryDecorators
 spec:
   decorators:
     - name: hostname
@@ -149,8 +149,8 @@ spec:
 The following file describes the configuration for osqueryd's file integrity monitoring system. All other FIM configuration will be over-written by the application of this file.
 
 ```yaml
-apiVersion: v1/alpha
-kind: fim
+apiVersion: k8s.kolide.com/v1alpha1
+kind: OsqueryFIM
 spec:
   fim:
     interval: 500
@@ -169,8 +169,8 @@ spec:
 The following file describes the labels which hosts should be automatically grouped into. All other label data will be over-written by the application of this file.
 
 ```yaml
-apiVersion: v1/alpha
-kind: labels
+apiVersion: k8s.kolide.com/v1alpha1
+kind: OsqueryLabels
 spec:
   labels:
     - name: all_hosts
@@ -202,8 +202,8 @@ spec:
 For especially long or complex queries, you may want to define one query in one file. Continued edits and applications to this file will update the query as long as the `metadata.name` does not change. If you want to change the name of a query, you must first create a new query with the new name and then delete the query with the old name. Make sure the old query name is not defined in any packs before deleting it or an error will occur.
 
 ```yaml
-apiVersion: v1/alpha
-kind: query
+apiVersion: k8s.kolide.com/v1alpha1
+kind: OsqueryQuery
 metadata:
   - name: processes
 spec:
@@ -213,8 +213,8 @@ spec:
 For many cases, however, defining many queries in a single file is sufficient. This syntax is easy to use, but can make some operations like renaming and deleting queries more arduous.
 
 ```yaml
-apiVersion: v1/alpha
-kind: queries
+apiVersion: k8s.kolide.com/v1alpha1
+kind: OsqueryQueries
 spec:
   queries:
     - name: launcher_version
@@ -237,8 +237,8 @@ spec:
 To define query packs, you reference queries defined elsewhere by name. This is why the "name" of a query is so important. You can define many of these packs in many files.
 
 ```yaml
-apiVersion: v1/alpha
-kind: pack
+apiVersion: k8s.kolide.com/v1alpha1
+kind: OsqueryPack
 metadata:
   name: osquery_monitoring
 spec:

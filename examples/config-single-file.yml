@@ -1,5 +1,5 @@
-apiVersion: v1/alpha
-kind: config
+apiVersion: k8s.kolide.com/v1alpha1
+kind: OsqueryOptions
 spec:
   config:
     - distributed_interval: 3
@@ -8,8 +8,8 @@ spec:
     - logger_tls_endpoint: /api/v1/osquery/log
     - logger_tls_period: 10
 ---
-apiVersion: v1/alpha
-kind: decorators
+apiVersion: k8s.kolide.com/v1alpha1
+kind: OsqueryDecorators
 spec:
   decorators:
     - name: hostname
@@ -23,8 +23,8 @@ spec:
       query: select instance_id from osquery_info;
       type: load
 ---
-apiVersion: v1/alpha
-kind: fim
+apiVersion: k8s.kolide.com/v1alpha1
+kind: OsqueryFIM
 spec:
   fim:
     interval: 500
@@ -38,8 +38,8 @@ spec:
           - /Users/%/Documents/%%
 
 ---
-apiVersion: v1/alpha
-kind: labels
+apiVersion: k8s.kolide.com/v1alpha1
+kind: OsqueryLabels
 spec:
   labels:
     - name: all_hosts
@@ -65,8 +65,8 @@ spec:
           WHERE name LIKE "%Slack%"
         );
 ---
-apiVersion: v1/alpha
-kind: pack
+apiVersion: k8s.kolide.com/v1alpha1
+kind: OsqueryPack
 metadata:
   name: osquery_monitoring
 spec:
@@ -87,15 +87,15 @@ spec:
       removed: false
       description: A heartbeat counter that reports general performance (CPU, memory) and version.
 ---
-apiVersion: v1/alpha
-kind: query
+apiVersion: k8s.kolide.com/v1alpha1
+kind: OsqueryQuery
 metadata:
   - name: processes
 spec:
   query: select * from processes;
 ---
-apiVersion: v1/alpha
-kind: queries
+apiVersion: k8s.kolide.com/v1alpha1
+kind: OsqueryQueries
 spec:
   queries:
     - name: launcher_version
