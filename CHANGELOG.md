@@ -1,3 +1,5 @@
+* Fixed bug rendering hosts when clock speed cannot be parsed.
+
 ## Kolide Fleet 1.0.5 (Oct 17, 2017)
 
 * Renamed the binary from kolide to fleet
