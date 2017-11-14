@@ -15,6 +15,7 @@ func decodeEnrollAgentRequest(ctx context.Context, r *http.Request) (interface{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, err
 	}
+	defer r.Body.Close()
 
 	return req, nil
 }
@@ -24,6 +25,7 @@ func decodeGetClientConfigRequest(ctx context.Context, r *http.Request) (interfa
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, err
 	}
+	defer r.Body.Close()
 
 	return req, nil
 }
@@ -33,6 +35,7 @@ func decodeGetDistributedQueriesRequest(ctx context.Context, r *http.Request) (i
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, err
 	}
+	defer r.Body.Close()
 
 	return req, nil
 }
@@ -58,6 +61,7 @@ func decodeSubmitDistributedQueryResultsRequest(ctx context.Context, r *http.Req
 	if err := json.NewDecoder(r.Body).Decode(&shim); err != nil {
 		return nil, err
 	}
+	defer r.Body.Close()
 
 	results := kolide.OsqueryDistributedQueryResults{}
 	for query, raw := range shim.Results {
@@ -93,6 +97,7 @@ func decodeSubmitLogsRequest(ctx context.Context, r *http.Request) (interface{},
 	if err = json.NewDecoder(body).Decode(&req); err != nil {
 		return nil, errors.Wrap(err, "decoding JSON")
 	}
+	defer r.Body.Close()
 
 	return req, nil
 }
