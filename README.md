@@ -4,7 +4,7 @@
 
 Kolide Fleet is a state of the art host monitoring platform tailored for security experts. Leveraging Facebook's battle-tested osquery project, Kolide delivers fast answers to big questions. To learn more about the Kolide Fleet, visit [https://kolide.com/fleet](https://kolide.com/fleet).
 
-Documentation for Kolide can be found on [GitHub](./docs/README.md).
+Documentation for Kolide Fleet can be found on [GitHub](./docs/README.md).
 
 [![Kolide](./assets/images/rube.png)](https://kolide.com/fleet)
 
