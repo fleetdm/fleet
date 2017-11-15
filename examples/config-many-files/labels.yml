@@ -1,3 +1,4 @@
+---
 apiVersion: k8s.kolide.com/v1alpha1
 kind: OsqueryLabels
 spec:

@@ -1,3 +1,4 @@
+---
 apiVersion: k8s.kolide.com/v1alpha1
 kind: OsqueryPack
 metadata:
@@ -7,15 +8,15 @@ spec:
     labels:
       - all_hosts
   queries:
+    - name: osquery_version
+      interval: 7200
+      snapshot: true
     - name: osquery_schedule
       interval: 7200
       removed: false
-      description: Report performance publisher health and track event counters.
     - name: osquery_events
       interval: 86400
       removed: false
-      description: Report event publisher health and track event counters.
     - name: oquery_info
       interval: 600
       removed: false
-      description: A heartbeat counter that reports general performance (CPU, memory) and version.

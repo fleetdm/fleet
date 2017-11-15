@@ -1,3 +1,4 @@
+---
 apiVersion: k8s.kolide.com/v1alpha1
 kind: OsqueryFIM
 spec:
@@ -11,4 +12,3 @@ spec:
         paths:
           - /Users/%/Library/%%
           - /Users/%/Documents/%%
-

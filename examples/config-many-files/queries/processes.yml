@@ -1,6 +1,0 @@
-apiVersion: k8s.kolide.com/v1alpha1
-kind: OsqueryQuery
-metadata:
-  - name: processes
-spec:
-  query: select * from processes;
