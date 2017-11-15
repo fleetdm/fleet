@@ -1,3 +1,5 @@
+* Fixed bug in which default query was run instead of entered query.
+
 * Added pagination to the Host browser pages for increased performance.
 
 * Fixed bug rendering hosts when clock speed cannot be parsed.

@@ -98,11 +98,9 @@ export class QueryPage extends Component {
   }
 
   componentWillReceiveProps (nextProps) {
-    const { dispatch, location, query, selectedHosts, selectedTargets } = nextProps;
+    const { dispatch, location, selectedHosts, selectedTargets } = nextProps;
     const nextPathname = location.pathname;
     const { pathname } = this.props.location;
-    const { query: queryText } = query;
-    this.setState({ queryText });
 
     if (nextPathname !== pathname) {
       this.resetCampaignAndTargets();
