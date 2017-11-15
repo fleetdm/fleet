@@ -3,10 +3,11 @@ package logwriter
 
 import (
 	"bufio"
-	"errors"
 	"io"
 	"os"
 	"sync"
+
+	"github.com/pkg/errors"
 )
 
 type logWriter struct {
@@ -29,8 +30,16 @@ func New(path string) (io.WriteCloser, error) {
 func (l *logWriter) Write(b []byte) (int, error) {
 	l.mtx.Lock()
 	defer l.mtx.Unlock()
-	if l.buff == nil {
-		return 0, errors.New("can't write to a closed file")
+	if l.buff == nil || l.file == nil {
+		return 0, errors.New("logwriter: can't write to closed file")
+	}
+	if _, statErr := os.Stat(l.file.Name()); os.IsNotExist(statErr) {
+		f, err := os.OpenFile(l.file.Name(), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+		if err != nil {
+			return 0, errors.Wrapf(err, "create file for logWriter %s", l.file.Name())
+		}
+		l.file = f
+		l.buff = bufio.NewWriter(f)
 	}
 	return l.buff.Write(b)
 }
