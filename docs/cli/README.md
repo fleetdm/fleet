@@ -12,7 +12,7 @@ This CLI is largely just a proposal and large sections (if not most) of this do 
 Inspiration for the `fleetctl` command-line experience as well as the file format has been principally derived from the [Kubernetes](https://kubernetes.io/) container orchestration tool. This is for a few reasons:
 
 - Format Familiarity: At Kolide, we love Kubernetes and we think it is the future of production infrastructure management. We believe that many of the people that use this interface to manage Fleet will also be Kubernetes operators. By using a familiar command-line interface and file format, the cognitive overhead can be reduced since the operator is already familiar with how these tools work and behave.
-- Established Best Practices: Kubernetes deployments can easily become very complex. Because of this, Kubernetes operators have an established set of best practices that they often follow when writing and maintaining config files. Some of these best practices and tips are documented on the [official Kubernetes website](https://kubernetes.io/docs/concepts/configuration/overview/#general-config-tips) and some are documented by [the community](https://www.mirantis.com/blog/introduction-to-yaml-creating-a-kubernetes-deployment/). Since the file format and workflow is so similar, we can make re-use these best practices when managing Fleet configurations as well.
+- Established Best Practices: Kubernetes deployments can easily become very complex. Because of this, Kubernetes operators have an established set of best practices that they often follow when writing and maintaining config files. Some of these best practices and tips are documented on the [official Kubernetes website](https://kubernetes.io/docs/concepts/configuration/overview/#general-config-tips) and some are documented by [the community](https://www.mirantis.com/blog/introduction-to-yaml-creating-a-kubernetes-deployment/). Since the file format and workflow is so similar, we can re-use these best practices when managing Fleet configurations.
 
 ## `fleetctl` - The CLI
 
@@ -78,7 +78,7 @@ fleetctl apply -f ./fleet.yml --context=staging,production
 
 ## Configuration File Format
 
-A Fleet configuration is defined using one or more declarative "messages" using yaml syntax. Each message can live in it's own file or you can miltiple in one file, each seperated by `---`. Each file/message contains a few required top-level keys:
+A Fleet configuration is defined using one or more declarative "messages" in yaml syntax. Each message can live in it's own file or multiple in one file, each separated by `---`. Each file/message contains a few required top-level keys:
 
 - `apiVersion` - the API version of the file/request
 - `spec` - the "data" of the request
@@ -93,7 +93,7 @@ When you reason about how to manage these config files, consider following the [
 - Group related objects into a single file whenever it makes sense. One file is often easier to manage than several. See the [config-single-file.yml](../../examples/config-single-file.yml) file as an example of this syntax.
 - Don’t specify default values unnecessarily – simple and minimal configs will reduce errors.
 
-All of these files can be concatonated together into [one file](../../examples/config-single-file.yml) (seperated by `---`), or they can be in [individual files with a directory structure](../../examples/config-many-files) like the following:
+All of these files can be concatenated together into [one file](../../examples/config-single-file.yml) (seperated by `---`), or they can be in [individual files with a directory structure](../../examples/config-many-files) like the following:
 
 ```
 |-- config.yml
@@ -109,7 +109,7 @@ All of these files can be concatonated together into [one file](../../examples/c
 
 ### Osquery Configuration Options
 
-The following file describes configuration options to pass to the osquery instance. All other configuration data will be over-written by the application of this file.
+The following file describes configuration options passed to the osquery instance. All other configuration data will be over-written by the application of this file.
 
 ```yaml
 apiVersion: k8s.kolide.com/v1alpha1
@@ -234,7 +234,7 @@ spec:
 
 ### Query Packs
 
-To define query packs, you reference queries defined elsewhere by name. This is why the "name" of a query is so important. You can define many of these packs in many files.
+To define query packs, reference queries defined elsewhere by name. This is why the "name" of a query is so important. You can define many of these packs in many files.
 
 ```yaml
 apiVersion: k8s.kolide.com/v1alpha1
