@@ -62,7 +62,10 @@ func TestGetMetadata(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(metadata))
 	}))
-	settings, err := GetMetadata(ts.URL, 2*time.Second)
+	client := &http.Client{
+		Timeout: 2 * time.Second,
+	}
+	settings, err := GetMetadata(ts.URL, client)
 	require.Nil(t, err)
 	assert.Equal(t, "http://www.okta.com/exka4zkf6dxm8pF220h7", settings.EntityID)
 	assert.Len(t, settings.IDPSSODescriptor.NameIDFormats, 2)

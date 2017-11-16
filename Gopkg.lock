@@ -159,7 +159,7 @@
 [[projects]]
   branch = "master"
   name = "github.com/kolide/kit"
-  packages = ["version"]
+  packages = ["logutil","version"]
   revision = "566c8f56a6ff7daba204818fbab0f2cb854b3310"
 
 [[projects]]
@@ -351,6 +351,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c4fd9d0e72067244e44c5d04e91a4af2830b38e3609e8984aa24e1c1337286c2"
+  inputs-digest = "5877e27609b4ef9a90b6400074eed01a3702ac3a2afc8b3c5fe1eb76ca3a6592"
   solver-name = "gps-cdcl"
   solver-version = 1

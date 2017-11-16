@@ -34,7 +34,7 @@ func (svc service) InitiateSSO(ctx context.Context, redirectURL string) (string,
 		return "", errors.Wrap(err, "InitiateSSO getting app config")
 	}
 
-	metadata, err := getMetadata(appConfig)
+	metadata, err := svc.getMetadata(appConfig)
 	if err != nil {
 		return "", errors.Wrap(err, "InitiateSSO getting metadata")
 	}
@@ -66,9 +66,9 @@ func (svc service) InitiateSSO(ctx context.Context, redirectURL string) (string,
 	return idpURL, nil
 }
 
-func getMetadata(config *kolide.AppConfig) (*sso.Metadata, error) {
+func (svc service) getMetadata(config *kolide.AppConfig) (*sso.Metadata, error) {
 	if config.MetadataURL != "" {
-		metadata, err := sso.GetMetadata(config.MetadataURL, 5*time.Second)
+		metadata, err := sso.GetMetadata(config.MetadataURL, svc.metaDataClient)
 		if err != nil {
 			return nil, err
 		}

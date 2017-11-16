@@ -4,7 +4,6 @@ import (
 	"encoding/xml"
 	"io/ioutil"
 	"net/http"
-	"time"
 
 	"github.com/pkg/errors"
 
@@ -44,7 +43,6 @@ type SingleSignOnService struct {
 
 const (
 	PasswordProtectedTransport = "urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport"
-	PostBinding                = "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
 	RedirectBinding            = "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
 )
 
@@ -71,12 +69,11 @@ func ParseMetadata(metadata string) (*Metadata, error) {
 // IDP via a remote URL. metadataURL is the location where the metadata is located
 // and timeout defines how long to wait to get a response form the metadata
 // server.
-func GetMetadata(metadataURL string, timeout time.Duration) (*Metadata, error) {
+func GetMetadata(metadataURL string, client *http.Client) (*Metadata, error) {
 	request, err := http.NewRequest(http.MethodGet, metadataURL, nil)
 	if err != nil {
 		return nil, err
 	}
-	client := http.Client{Timeout: timeout}
 	resp, err := client.Do(request)
 	if err != nil {
 		return nil, err

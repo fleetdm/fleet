@@ -4,9 +4,11 @@ package service
 
 import (
 	"io"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/WatchBeam/clock"
 	kitlog "github.com/go-kit/kit/log"
@@ -14,7 +16,7 @@ import (
 	"github.com/kolide/fleet/server/kolide"
 	"github.com/kolide/fleet/server/logwriter"
 	"github.com/kolide/fleet/server/sso"
-	lumberjack "gopkg.in/natefinch/lumberjack.v2"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 // NewService creates a new service from the config struct
@@ -42,6 +44,9 @@ func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore,
 		osqueryResultLogWriter: resultWriter,
 		mailService:            mailService,
 		ssoSessionStore:        sso,
+		metaDataClient: &http.Client{
+			Timeout: 5 * time.Second,
+		},
 	}
 	svc = validationMiddleware{svc, ds, sso}
 	return svc, nil
@@ -87,6 +92,7 @@ type service struct {
 
 	mailService     kolide.MailService
 	ssoSessionStore sso.SessionStore
+	metaDataClient  *http.Client
 }
 
 func (s service) SendEmail(mail kolide.Email) error {
