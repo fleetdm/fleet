@@ -98,7 +98,6 @@ All of these files can be concatenated together into [one file](../../examples/c
 ```
 |-- config.yml
 |-- decorators.yml
-|-- fim.yml
 |-- labels.yml
 |-- packs
 |   `-- osquery-monitoring.yml
@@ -114,11 +113,31 @@ apiVersion: k8s.kolide.com/v1alpha1
 kind: OsqueryOptions
 spec:
   config:
-    - distributed_interval: 3
-    - distributed_tls_max_attempts: 3
-    - logger_plugin: tls
-    - logger_tls_endpoint: /api/v1/osquery/log
-    - logger_tls_period: 10
+    distributed_interval: 3
+    distributed_tls_max_attempts: 3
+    logger_plugin: tls
+    logger_tls_endpoint: /api/v1/osquery/log
+    logger_tls_period: 10
+  overrides:
+    # Note configs in overrides take precedence over base configs
+    platforms:
+      darwin:
+        disable_tables: chrome_extensions
+        docker_socket: /var/run/docker.sock
+        logger_tls_period: 60
+        fim:
+          interval: 500
+          groups:
+            - name: etc
+              paths:
+                - /etc/%%
+            - name: users
+              paths:
+                - /Users/%/Library/%%
+                - /Users/%/Documents/%%
+      linux:
+        schedule_timeout: 60
+        docker_socket: /etc/run/docker.sock
 ```
 
 ### Osquery Logging Decorators
@@ -139,26 +158,6 @@ kind: OsqueryQuery
 spec:
   name: hostname
   query: select hostname from system_info;
-```
-
-### File Integrity Monitoring
-
-The following file describes the configuration for osqueryd's file integrity monitoring system. All other FIM configuration will be over-written by the application of this file.
-
-```yaml
-apiVersion: k8s.kolide.com/v1alpha1
-kind: OsqueryFIM
-spec:
-  fim:
-    interval: 500
-    groups:
-      - name: etc
-        paths:
-          - /etc/%%
-      - name: users
-        paths:
-          - /Users/%/Library/%%
-          - /Users/%/Documents/%%
 ```
 
 ### Host Labels
