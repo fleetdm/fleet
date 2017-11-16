@@ -102,9 +102,7 @@ All of these files can be concatenated together into [one file](../../examples/c
 |-- labels.yml
 |-- packs
 |   `-- osquery-monitoring.yml
-`-- queries
-    |-- processes.yml
-    `-- queries.yml
+`-- queries.yml
 ```
 
 ### Osquery Configuration Options
@@ -125,23 +123,22 @@ spec:
 
 ### Osquery Logging Decorators
 
-The following file describes logging decorators that should be applied on osquery instances. All other decorator data will be over-written by the application of this file.
+The following file describes logging decorators that should be applied on osquery instances. A decorator should reference an osquery query by name. Both of these resources can be included in the same file as such:
 
 ```yaml
+---
 apiVersion: k8s.kolide.com/v1alpha1
-kind: OsqueryDecorators
+kind: OsqueryDecorator
 spec:
-  decorators:
-    - name: hostname
-      query: select hostname from system_info;
-      type: interval
-      interval: 10
-    - name: uuid
-      query: select uuid from osquery_info;
-      type: load
-    - name: instance_id
-      query: select instance_id from osquery_info;
-      type: load
+  query: hostname
+  type: interval
+  interval: 10
+---
+apiVersion: k8s.kolide.com/v1/alpha1
+kind: OsqueryQuery
+spec:
+  name: hostname
+  query: select hostname from system_info;
 ```
 
 ### File Integrity Monitoring
@@ -166,35 +163,27 @@ spec:
 
 ### Host Labels
 
-The following file describes the labels which hosts should be automatically grouped into. All other label data will be over-written by the application of this file.
+The following file describes the labels which hosts should be automatically grouped into. The label resource should reference the query by name. Both of these resources can be included in the same file as such:
 
 ```yaml
+---
 apiVersion: k8s.kolide.com/v1alpha1
-kind: OsqueryLabels
+kind: OsqueryLabel
 spec:
-  labels:
-    - name: all_hosts
-      query: select 1;
-    - name: macs
-      query: select 1 from os_version where platform = "darwin";
-    - name: ubuntu
-      query: select 1 from os_version where platform = "ubuntu";
-    - name: centos
-      query: select 1 from os_version where platform = "centos";
-    - name: windows
-      query: select 1 from os_version where platform = "windows";
-    - name: pending_updates
-      query: SELECT value from plist where path = "/Library/Preferences/ManagedInstalls.plist" and key = "PendingUpdateCount" and value > "0";
-      platforms:
-        - darwin
-    - name: slack_not_running
-      query: >
-        SELECT * from system_info
-        WHERE NOT EXISTS (
-          SELECT *
-          FROM processes
-          WHERE name LIKE "%Slack%"
-        );
+  name: slack_not_running
+  query: slack_not_running
+---
+apiVersion: k8s.kolide.com/v1/alpha1
+kind: OsqueryQuery
+spec:
+  name: slack_not_running
+  query: >
+    SELECT * from system_info
+    WHERE NOT EXISTS (
+      SELECT *
+      FROM processes
+      WHERE name LIKE "%Slack%"
+    );
 ```
 
 ### Osquery Queries
@@ -204,10 +193,9 @@ For especially long or complex queries, you may want to define one query in one 
 ```yaml
 apiVersion: k8s.kolide.com/v1alpha1
 kind: OsqueryQuery
-metadata:
+spec:
   name: docker_processes
   descriptions: The docker containers processes that are running on a system.
-spec:
   query: select * from docker_container_processes;
   support:
     osquery: 2.9.0
@@ -222,10 +210,9 @@ To define multiple queries in a file, concatenate multiple `OsqueryQuery` resour
 ---
 apiVersion: k8s.kolide.com/v1alpha1
 kind: OsqueryQuery
-metadata:
+spec:
   name: osquery_version
   description: The version of the Launcher and Osquery process
-spec:
   query: select launcher.version, osquery.version from kolide_launcher_info launcher, osquery_info osquery;
   support:
     launcher: 0.3.0
@@ -233,26 +220,23 @@ spec:
 ---
 apiVersion: k8s.kolide.com/v1alpha1
 kind: OsqueryQuery
-metadata:
+spec:
   name: osquery_schedule
   description: Report performance stats for each file in the query schedule.
-spec:
   query: select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;
 ---
 apiVersion: k8s.kolide.com/v1alpha1
 kind: OsqueryQuery
-metadata:
+spec:
   name: osquery_info
   description: A heartbeat counter that reports general performance (CPU, memory) and version.
-spec:
   query: select i.*, p.resident_size, p.user_time, p.system_time, time.minutes as counter from osquery_info i, processes p, time where p.pid = i.pid;
 ---
 apiVersion: k8s.kolide.com/v1alpha1
 kind: OsqueryQuery
-metadata:
+spec:
   name: osquery_events
   description: Report event publisher health and track event counters.
-spec:
   query: select name, publisher, type, subscriptions, events, active from osquery_events;
 ```
 
@@ -263,23 +247,26 @@ To define query packs, reference queries defined elsewhere by name. This is why 
 ```yaml
 apiVersion: k8s.kolide.com/v1alpha1
 kind: OsqueryPack
-metadata:
-  name: osquery_monitoring
 spec:
+  name: osquery_monitoring
   targets:
     labels:
       - all_hosts
   queries:
-    - name: osquery_version
+    - query: osquery_version
+      name: osquery_version_differential
+      interval: 7200
+    - query: osquery_version
+      name: osquery_version_snapshot
       interval: 7200
       snapshot: true
-    - name: osquery_schedule
+    - query: osquery_schedule
       interval: 7200
       removed: false
-    - name: osquery_events
+    - query: osquery_events
       interval: 86400
       removed: false
-    - name: oquery_info
+    - query: oquery_info
       interval: 600
       removed: false
 ```

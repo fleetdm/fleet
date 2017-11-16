@@ -1,27 +1,42 @@
 ---
 apiVersion: k8s.kolide.com/v1alpha1
-kind: OsqueryLabels
+kind: OsqueryLabel
 spec:
-  labels:
-    - name: all_hosts
-      query: select 1;
-    - name: macs
-      query: select 1 from os_version where platform = "darwin";
-    - name: ubuntu
-      query: select 1 from os_version where platform = "ubuntu";
-    - name: centos
-      query: select 1 from os_version where platform = "centos";
-    - name: windows
-      query: select 1 from os_version where platform = "windows";
-    - name: pending_updates
-      query: SELECT value from plist where path = "/Library/Preferences/ManagedInstalls.plist" and key = "PendingUpdateCount" and value > "0";
-      platforms:
-        - darwin
-    - name: slack_not_running
-      query: >
-        SELECT * from system_info
-        WHERE NOT EXISTS (
-          SELECT *
-          FROM processes
-          WHERE name LIKE "%Slack%"
-        );
+  name: all_hosts
+  query: always_true
+---
+apiVersion: k8s.kolide.com/v1alpha1
+kind: OsqueryLabel
+spec:
+  name: macs
+  query: darwin_hosts
+---
+apiVersion: k8s.kolide.com/v1alpha1
+kind: OsqueryLabel
+spec:
+  name: ubuntu
+  query: ubuntu_hosts
+---
+apiVersion: k8s.kolide.com/v1alpha1
+kind: OsqueryLabel
+spec:
+  name: centos
+  query: centos_hosts
+---
+apiVersion: k8s.kolide.com/v1alpha1
+kind: OsqueryLabel
+spec:
+  name: windows
+  query: windows_hosts
+---
+apiVersion: k8s.kolide.com/v1alpha1
+kind: OsqueryLabel
+spec:
+  query: pending_updates
+  platforms:
+    - darwin
+---
+apiVersion: k8s.kolide.com/v1alpha1
+kind: OsqueryLabel
+spec:
+  query: slack_not_running

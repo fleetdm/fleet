@@ -1,15 +1,18 @@
 ---
 apiVersion: k8s.kolide.com/v1alpha1
-kind: OsqueryDecorators
+kind: OsqueryDecorator
 spec:
-  decorators:
-    - name: hostname
-      query: select hostname from system_info;
-      type: interval
-      interval: 10
-    - name: uuid
-      query: select uuid from osquery_info;
-      type: load
-    - name: instance_id
-      query: select instance_id from osquery_info;
-      type: load
+  query: hostname
+  type: interval
+  interval: 10
+---
+apiVersion: k8s.kolide.com/v1alpha1
+kind: OsqueryDecorator
+spec:
+  query: uuid
+  type: load
+---
+apiVersion: k8s.kolide.com/v1alpha
+kind: OsqueryDecorator
+  query: instance_id
+  type: load
