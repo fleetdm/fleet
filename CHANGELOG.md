@@ -1,8 +1,10 @@
-* Fixed bug in which default query was run instead of entered query.
+* Fixed a bug where SAML client would create too many HTTP connections. (#1587)
 
-* Added pagination to the Host browser pages for increased performance.
+* Fixed bug in which default query was run instead of entered query. (#1611)
 
-* Fixed bug rendering hosts when clock speed cannot be parsed.
+* Added pagination to the Host browser pages for increased performance. (#1594)
+
+* Fixed bug rendering hosts when clock speed cannot be parsed. (#1604)
 
 ## Kolide Fleet 1.0.5 (Oct 17, 2017)
 
