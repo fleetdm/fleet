@@ -1,0 +1,56 @@
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: fleet-webserver
+  labels:
+    app: fleet-webserver
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fleet-webserver
+  template:
+    metadata:
+      labels:
+        app: fleet-webserver
+    spec:
+      volumes:
+        - name: fleet-tls
+          secret:
+            secretName: fleet-tls
+      containers:
+      - name: fleet-webserver
+        image: kolide/fleet:1.0.5
+        command: ["fleet", "serve"]
+        ports:
+          - containerPort: 443
+        volumeMounts:
+          - name: fleet-tls
+            mountPath: "/secrets/fleet-tls"
+            readOnly: true
+        env:
+          - name: KOLIDE_MYSQL_ADDRESS
+            value: fleet-database-mysql:3306
+          - name: KOLIDE_MYSQL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: fleet-database-mysql
+                key: mysql-password
+          - name: KOLIDE_REDIS_ADDRESS
+            value: fleet-cache-redis-ha:6379
+          - name: KOLIDE_REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: fleet-cache-redis
+                key: redis-password
+          - name: KOLIDE_AUTH_JWT_KEY
+            valueFrom:
+              secretKeyRef:
+                name: fleet-server-auth-key
+                key: fleet-server-auth-key
+          - name: KOLIDE_SERVER_ADDRESS
+            value: "0.0.0.0:443"
+          - name: KOLIDE_SERVER_CERT
+            value: "/secrets/fleet-tls/tls.crt"
+          - name: KOLIDE_SERVER_KEY
+            value: "/secrets/fleet-tls/tls.key"
