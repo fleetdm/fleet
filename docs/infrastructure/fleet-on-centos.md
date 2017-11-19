@@ -23,7 +23,7 @@ To install Fleet, run the following:
 ```
 $ wget https://dl.kolide.co/bin/fleet_latest.zip
 $ unzip fleet_latest.zip 'linux/*' -d fleet
-$ sudo cp fleet/linux/fleet /usr/bin/fleet
+$ sudo cp fleet/linux/fleet* /usr/bin/fleet
 ```
 
 ## Installing and configuring dependencies
