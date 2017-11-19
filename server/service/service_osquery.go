@@ -236,10 +236,9 @@ func (svc service) SubmitStatusLogs(ctx context.Context, logs []kolide.OsquerySt
 	return nil
 }
 
-func (svc service) SubmitResultLogs(ctx context.Context, logs []kolide.OsqueryResultLog) error {
+func (svc service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage) error {
 	for _, log := range logs {
-		err := json.NewEncoder(svc.osqueryResultLogWriter).Encode(log)
-		if err != nil {
+		if _, err := svc.osqueryResultLogWriter.Write(append(log, '\n')); err != nil {
 			return osqueryError{message: "error writing result log: " + err.Error()}
 		}
 	}

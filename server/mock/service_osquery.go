@@ -4,6 +4,7 @@ package mock
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/kolide/fleet/server/kolide"
 )
@@ -22,7 +23,7 @@ type SubmitDistributedQueryResultsFunc func(ctx context.Context, results kolide.
 
 type SubmitStatusLogsFunc func(ctx context.Context, logs []kolide.OsqueryStatusLog) (err error)
 
-type SubmitResultLogsFunc func(ctx context.Context, logs []kolide.OsqueryResultLog) (err error)
+type SubmitResultLogsFunc func(ctx context.Context, logs []json.RawMessage) (err error)
 
 type TLSService struct {
 	EnrollAgentFunc        EnrollAgentFunc
@@ -77,7 +78,7 @@ func (s *TLSService) SubmitStatusLogs(ctx context.Context, logs []kolide.Osquery
 	return s.SubmitStatusLogsFunc(ctx, logs)
 }
 
-func (s *TLSService) SubmitResultLogs(ctx context.Context, logs []kolide.OsqueryResultLog) (err error) {
+func (s *TLSService) SubmitResultLogs(ctx context.Context, logs []json.RawMessage) (err error) {
 	s.SubmitResultLogsFuncInvoked = true
 	return s.SubmitResultLogsFunc(ctx, logs)
 }

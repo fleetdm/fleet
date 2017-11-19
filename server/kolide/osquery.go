@@ -2,6 +2,7 @@ package kolide
 
 import (
 	"context"
+	"encoding/json"
 )
 
 type OsqueryService interface {
@@ -18,7 +19,7 @@ type OsqueryService interface {
 	GetDistributedQueries(ctx context.Context) (queries map[string]string, accelerate uint, err error)
 	SubmitDistributedQueryResults(ctx context.Context, results OsqueryDistributedQueryResults, statuses map[string]string) (err error)
 	SubmitStatusLogs(ctx context.Context, logs []OsqueryStatusLog) (err error)
-	SubmitResultLogs(ctx context.Context, logs []OsqueryResultLog) (err error)
+	SubmitResultLogs(ctx context.Context, logs []json.RawMessage) (err error)
 }
 
 // OsqueryDistributedQueryResults represents the format of the results of an
@@ -69,21 +70,6 @@ type OsqueryConfig struct {
 	// FilePaths contains named collections of file paths used for
 	// FIM (File Integrity Monitoring)
 	FilePaths FIMSections `json:"file_paths,omitempty"`
-}
-
-// OsqueryResultLog is the format of an osquery result log (ie: a differential
-// or snapshot query).
-type OsqueryResultLog struct {
-	Name           string `json:"name"`
-	HostIdentifier string `json:"hostIdentifier"`
-	UnixTime       string `json:"unixTime"`
-	CalendarTime   string `json:"calendarTime"`
-	// Columns stores the columns of differential queries
-	Columns map[string]string `json:"columns,omitempty"`
-	// Snapshot stores the rows and columns of snapshot queries
-	Snapshot    []map[string]string `json:"snapshot,omitempty"`
-	Action      string              `json:"action"`
-	Decorations map[string]string   `json:"decorations"`
 }
 
 // OsqueryStatusLog is the format of an osquery status log.

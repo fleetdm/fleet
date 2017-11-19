@@ -112,13 +112,9 @@ func (svc *launcherWrapper) PublishLogs(ctx context.Context, nodeKey string, log
 		err = svc.tls.SubmitStatusLogs(newCtx, statuses)
 		return "", "", false, errors.Wrap(err, "submit status logs from launcher")
 	case logger.LogTypeSnapshot, logger.LogTypeString:
-		var results []kolide.OsqueryResultLog
+		var results []json.RawMessage
 		for _, log := range logs {
-			var result kolide.OsqueryResultLog
-			if err := json.Unmarshal([]byte(log), &result); err != nil {
-				return "", "", false, errors.Wrap(err, "unmarshaling result log")
-			}
-			results = append(results, result)
+			results = append(results, []byte(log))
 		}
 		err = svc.tls.SubmitResultLogs(newCtx, results)
 		return "", "", false, errors.Wrap(err, "submit result logs from launcher")

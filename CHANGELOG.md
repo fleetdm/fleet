@@ -1,3 +1,7 @@
+## Kolide Fleet 1.0.6 (TBD, 2017)
+
+* Fixed bugs that caused logs to sometimes be ommited from the logwriter. (#1636, #1617)
+
 * Fixed a bug where SAML client would create too many HTTP connections. (#1587)
 
 * Fixed bug in which default query was run instead of entered query. (#1611)

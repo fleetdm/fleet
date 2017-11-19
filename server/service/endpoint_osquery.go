@@ -148,7 +148,7 @@ func makeSubmitLogsEndpoint(svc kolide.Service) endpoint.Endpoint {
 			}
 
 		case "result":
-			var results []kolide.OsqueryResultLog
+			var results []json.RawMessage
 			if err := json.Unmarshal(req.Data, &results); err != nil {
 				err = osqueryError{message: "unmarshalling result logs: " + err.Error()}
 				break

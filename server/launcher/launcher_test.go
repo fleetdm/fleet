@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/go-kit/kit/log"
@@ -148,7 +149,7 @@ func newTLSService(t *testing.T) *mock.TLSService {
 		SubmitStatusLogsFunc: func(ctx context.Context, logs []kolide.OsqueryStatusLog) (err error) {
 			return
 		},
-		SubmitResultLogsFunc: func(ctx context.Context, logs []kolide.OsqueryResultLog) (err error) {
+		SubmitResultLogsFunc: func(ctx context.Context, logs []json.RawMessage) (err error) {
 			return
 		},
 	}
