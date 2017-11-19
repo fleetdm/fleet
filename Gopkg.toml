@@ -93,3 +93,8 @@
 
 [[constraint]]
   name = "gopkg.in/yaml.v2"
+
+
+[[constraint]]
+  name = "github.com/kolide/launcher"
+  branch = "master"
