@@ -19,7 +19,7 @@ Find the file you created in the migrations directory and edit it. You can then 
 
 ``` bash
 make build
-build/kolide prepare db
+build/fleet prepare db
 ```
 
 ## Populating the database with default data

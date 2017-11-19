@@ -1,7 +1,7 @@
 Working With Osquery Logs
 =========================
 
-The `kolide` binary accepts two flags:
+The `fleet` binary accepts two flags:
 
 - `--osquery_result_log_file`: Path for osqueryd result logs (default: `/tmp/osquery_result`)
 - `--osquery_status_log_file`: Path for osqueryd status logs (default `/tmp/osquery_status`)

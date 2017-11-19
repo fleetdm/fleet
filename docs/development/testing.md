@@ -105,4 +105,4 @@ mail:
   address: localhost:1025
 ```
 
-`localhost:1025` is the default configuration. You can use `kolide config_dump` to see the values which Fleet is using given your configuration.
+`localhost:1025` is the default configuration. You can use `fleet config_dump` to see the values which Fleet is using given your configuration.
