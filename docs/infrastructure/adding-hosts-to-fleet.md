@@ -1,6 +1,6 @@
 # Adding Hosts To Fleet
 
-Kolide Fleet is powered by the open source osquery tool. To connect a host to Kolide Fleet, you have two general options. You can install the osquery binaries on your hosts via the packages distributed at https://osquery.io/downloads or you can use the [Kolide Osquery Launcher](https://github.com/kolide/launcher). The Launcher is a light wrapper that aims to make running and deploying osquery easier by adding a few features and minimizing the configuration infterace. Some features of The Launcher are:
+Kolide Fleet is powered by the open source osquery tool. To connect a host to Kolide Fleet, you have two general options. You can install the osquery binaries on your hosts via the packages distributed at https://osquery.io/downloads or you can use the [Kolide Osquery Launcher](https://github.com/kolide/launcher). The Launcher is a light wrapper that aims to make running and deploying osquery easier by adding a few features and minimizing the configuration interface. Some features of The Launcher are:
 
 - Secure autoupdates to the latest stable osqueryd
 - Remote communication via a strongly-typed, versioned, modern gRPC server API
