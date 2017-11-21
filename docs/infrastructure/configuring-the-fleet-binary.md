@@ -230,7 +230,6 @@ The server name or IP address used by the client certificate.
 
 The address of the Redis server which Fleet should connect to. Include the hostname and port.
 
-- Default value: `localhost:3306`
 - Default value: `localhost:6379`
 - Environment variable: `KOLIDE_REDIS_ADDRESS`
 - Config file format:
