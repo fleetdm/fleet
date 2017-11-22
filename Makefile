@@ -200,7 +200,7 @@ demo-restore:
 		-h ${MYSQL_PORT_3306_TCP_ADDR} kolide \
 		< ./tools/app/demo.sql
 
-binary-bundle:
+binary-bundle: generate
 	rm -rf build/binary-bundle
 	mkdir -p build/binary-bundle/linux
 	mkdir -p build/binary-bundle/darwin
