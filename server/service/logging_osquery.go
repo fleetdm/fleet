@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"time"
 
-	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/kolide/fleet/server/kolide"
 )
 
@@ -18,7 +17,6 @@ func (mw loggingMiddleware) EnrollAgent(ctx context.Context, enrollSecret string
 	defer func(begin time.Time) {
 		_ = mw.logger.Log(
 			"method", "EnrollAgent",
-			"ip_addr", ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string),
 			"err", err,
 			"took", time.Since(begin),
 		)
@@ -37,7 +35,6 @@ func (mw loggingMiddleware) AuthenticateHost(ctx context.Context, nodeKey string
 	defer func(begin time.Time) {
 		_ = mw.logger.Log(
 			"method", "AuthenticateHost",
-			"ip_addr", ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string),
 			"err", err,
 			"took", time.Since(begin),
 		)
@@ -56,7 +53,6 @@ func (mw loggingMiddleware) GetClientConfig(ctx context.Context) (*kolide.Osquer
 	defer func(begin time.Time) {
 		_ = mw.logger.Log(
 			"method", "GetClientConfig",
-			"ip_addr", ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string),
 			"err", err,
 			"took", time.Since(begin),
 		)
@@ -76,7 +72,6 @@ func (mw loggingMiddleware) GetDistributedQueries(ctx context.Context) (map[stri
 	defer func(begin time.Time) {
 		_ = mw.logger.Log(
 			"method", "GetDistributedQueries",
-			"ip_addr", ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string),
 			"err", err,
 			"took", time.Since(begin),
 		)
@@ -94,7 +89,6 @@ func (mw loggingMiddleware) SubmitDistributedQueryResults(ctx context.Context, r
 	defer func(begin time.Time) {
 		_ = mw.logger.Log(
 			"method", "SubmitDistributedQueryResults",
-			"ip_addr", ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string),
 			"err", err,
 			"took", time.Since(begin),
 		)
@@ -112,7 +106,6 @@ func (mw loggingMiddleware) SubmitStatusLogs(ctx context.Context, logs []kolide.
 	defer func(begin time.Time) {
 		_ = mw.logger.Log(
 			"method", "SubmitStatusLogs",
-			"ip_addr", ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string),
 			"err", err,
 			"took", time.Since(begin),
 		)
@@ -130,7 +123,6 @@ func (mw loggingMiddleware) SubmitResultLogs(ctx context.Context, logs []json.Ra
 	defer func(begin time.Time) {
 		_ = mw.logger.Log(
 			"method", "SubmitResultLogs",
-			"ip_addr", ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string),
 			"err", err,
 			"took", time.Since(begin),
 		)

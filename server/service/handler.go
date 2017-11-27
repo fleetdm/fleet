@@ -334,7 +334,6 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 func MakeHandler(svc kolide.Service, jwtKey string, logger kitlog.Logger) http.Handler {
 	kolideAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
-			kithttp.PopulateRequestContext, // populate the request context with common fields
 			setRequestsContexts(svc, jwtKey),
 		),
 		kithttp.ServerErrorLogger(logger),
