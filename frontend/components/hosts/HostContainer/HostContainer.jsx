@@ -36,9 +36,8 @@ class HostContainer extends Component {
         </ul>
 
         <div className={`${baseClass}__no-hosts-contact`}>
-          <p>Still having trouble? Want to talk to a human?</p>
-          <p>Contact Kolide Support:</p>
-          <p><a href="mailto:support@kolide.co">support@kolide.co</a></p>
+          <p>Still having trouble?</p>
+          <p><a href="https://github.com/kolide/fleet/issues">File a Github issue</a>.</p>
         </div>
       </div>
     );

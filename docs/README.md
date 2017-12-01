@@ -9,4 +9,4 @@ Welcome to the Kolide documentation.
 - If you are interested in accessing the Kolide REST API in order to programmatically interact with your osquery installation, please see the [API Documentation](./api/README.md).
 - Finally, if you're interested in interacting with the Kolide source code, you will find information on modifying and building the code in the [Development Documentation](./development/README.md).
 
-If you have any questions, please don't hesitate to reach out to [support@kolide.co](mailto:support@kolide.co).
+If you have any questions, please don't hesitate to [File a GitHub issue](https://github.com/kolide/fleet/issues) or [join us on Slack](https://osquery-slack.herokuapp.com/). You can find us in the `#kolide` channel.
