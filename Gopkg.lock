@@ -142,7 +142,7 @@
   branch = "master"
   name = "github.com/jmoiron/sqlx"
   packages = [".","reflectx"]
-  revision = "3379e5993990b1f927fc8db926485e6f6becf2d2"
+  revision = "99f3ad6d85ae53d0fecf788ab62d0e9734b3c117"
 
 [[projects]]
   name = "github.com/jonboulle/clockwork"
@@ -166,7 +166,7 @@
   branch = "master"
   name = "github.com/kolide/launcher"
   packages = ["service","service/internal/launcherproto","service/uuid"]
-  revision = "e883d8ec777ddc1f85b535e5a2c97841253f4bd1"
+  revision = "4b93ec1bd7ab0eaa302ddcfa8ed554950de8f38e"
 
 [[projects]]
   branch = "master"
@@ -304,37 +304,37 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["bcrypt","blowfish"]
-  revision = "9f005a07e0d31d45e6656d241bb5c0f2efd4bc94"
+  revision = "94eea52f7b742c7cbe0b03b22f0c4c8631ece122"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = ["context","http2","http2/hpack","idna","internal/timeseries","lex/httplex","trace"]
-  revision = "9dfe39835686865bff950a07b394c12a98ddc811"
+  revision = "a8b9294777976932365dabb6640cf1468d95c70f"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "0dd5e194bbf5eb84a39666eb4c98a4d007e4203a"
+  revision = "8b4580aae2a0dd0c231a45d3ccb8434ff533b840"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/text"
   packages = ["collate","collate/build","internal/colltab","internal/gen","internal/tag","internal/triegen","internal/ucd","language","secure/bidirule","transform","unicode/bidi","unicode/cldr","unicode/norm","unicode/rangetable"]
-  revision = "88f656faf3f37f690df1a32515b479415e1a6769"
+  revision = "75cc3cad82b5f47d3fb229ddda8c5167da14f294"
 
 [[projects]]
   branch = "master"
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
-  revision = "11c7f9e547da6db876260ce49ea7536985904c9b"
+  revision = "7f0da29060c682909f650ad8ed4e515bd74fa12a"
 
 [[projects]]
+  branch = "master"
   name = "google.golang.org/grpc"
-  packages = [".","balancer","codes","connectivity","credentials","grpclb/grpc_lb_v1/messages","grpclog","internal","keepalive","metadata","naming","peer","resolver","stats","status","tap","transport"]
-  revision = "401e0e00e4bb830a10496d64cd95e068c5bf50de"
-  version = "v1.7.3"
+  packages = [".","balancer","balancer/roundrobin","codes","connectivity","credentials","encoding","grpclb/grpc_lb_v1/messages","grpclog","internal","keepalive","metadata","naming","peer","resolver","resolver/dns","resolver/manual","resolver/passthrough","stats","status","tap","transport"]
+  revision = "a4bf341022f076582fc2e9a802ce170a8938f81d"
 
 [[projects]]
   name = "gopkg.in/natefinch/lumberjack.v2"
@@ -351,6 +351,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a5afa2e01ce23562070c247d37726984a051bf4f3ebc6337a5409c66b4d8da98"
+  inputs-digest = "8bca5e6fdea71d7fa8f4251ba35e18142490728a17e4aa5de66cf8fd23d9c798"
   solver-name = "gps-cdcl"
   solver-version = 1

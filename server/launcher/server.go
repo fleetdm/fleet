@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/go-kit/kit/log"
+	kithttp "github.com/go-kit/kit/transport/http"
 	launcher "github.com/kolide/launcher/service"
 	grpc "google.golang.org/grpc"
 
@@ -46,7 +47,9 @@ func New(
 func (hgprc *Handler) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.ProtoMajor == 2 && strings.Contains(r.Header.Get("Content-Type"), "application/grpc") {
-			hgprc.ServeHTTP(w, r)
+			ctx := r.Context()
+			ctx = kithttp.PopulateRequestContext(ctx, r)
+			hgprc.ServeHTTP(w, r.WithContext(ctx))
 		} else {
 			next.ServeHTTP(w, r)
 		}

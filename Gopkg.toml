@@ -85,7 +85,7 @@
 
 [[constraint]]
   name = "google.golang.org/grpc"
-  version = "1.5.1"
+  branch = "master"
 
 [[constraint]]
   name = "gopkg.in/natefinch/lumberjack.v2"
