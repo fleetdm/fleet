@@ -80,7 +80,7 @@ func TestLogin(t *testing.T) {
 		}
 
 		// test sessions
-		testUser, _ := users[tt.username]
+		testUser := users[tt.username]
 
 		params := loginRequest{
 			Username: tt.username,

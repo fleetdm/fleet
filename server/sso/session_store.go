@@ -54,9 +54,6 @@ func (s *store) create(requestID, originalURL, metadata string, lifetimeSecs uin
 		return err
 	}
 	_, err = conn.Do("SETEX", requestID, lifetimeSecs, writer.String())
-	if err != nil {
-		return err
-	}
 	return err
 }
 

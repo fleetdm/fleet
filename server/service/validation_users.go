@@ -25,7 +25,7 @@ func (mw validationMiddleware) NewUser(ctx context.Context, p kolide.UserPayload
 	}
 
 	// we don't need a password for single sign on
-	if p.SSOInvite == nil || *p.SSOInvite == false {
+	if p.SSOInvite == nil || !*p.SSOInvite {
 		if p.Password == nil {
 			invalid.Append("password", "missing required argument")
 		} else {

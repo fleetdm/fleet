@@ -62,11 +62,7 @@ func removedUnusedNics(tx *sqlx.Tx, host *kolide.Host) error {
 
 	sql = tx.Rebind(sql)
 	_, err = tx.Exec(sql, args...)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func updateNicsForHost(tx *sqlx.Tx, host *kolide.Host) ([]*kolide.NetworkInterface, error) {
@@ -405,11 +401,7 @@ func (d *Datastore) getNetInterfacesForHost(host *kolide.Host) error {
 		SELECT * FROM network_interfaces
 		WHERE host_id = ?
 	`
-	if err := d.db.Select(&host.NetworkInterfaces, sqlStatement, host.ID); err != nil {
-		return err
-	}
-
-	return nil
+	return d.db.Select(&host.NetworkInterfaces, sqlStatement, host.ID)
 }
 
 // EnrollHost enrolls a host

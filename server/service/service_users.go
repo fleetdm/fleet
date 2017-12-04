@@ -40,7 +40,7 @@ func (svc service) NewAdminCreatedUser(ctx context.Context, p kolide.UserPayload
 func (svc service) newUser(p kolide.UserPayload) (*kolide.User, error) {
 	var ssoEnabled bool
 	// if user is SSO generate a fake password
-	if p.SSOInvite != nil && *p.SSOInvite == true {
+	if p.SSOInvite != nil && *p.SSOInvite {
 		fakePassword, err := generateRandomText(14)
 		if err != nil {
 			return nil, err
@@ -165,11 +165,7 @@ func (svc service) modifyEmailAddress(ctx context.Context, user *kolide.User, em
 			KolideServerURL: template.URL(config.KolideServerURL),
 		},
 	}
-	err = svc.mailService.SendEmail(changeEmail)
-	if err != nil {
-		return err
-	}
-	return nil
+	return svc.mailService.SendEmail(changeEmail)
 }
 
 func (svc service) ChangeUserEmail(ctx context.Context, token string) (string, error) {
@@ -371,12 +367,7 @@ func (svc service) RequestPasswordReset(ctx context.Context, email string) error
 		},
 	}
 
-	err = svc.mailService.SendEmail(resetEmail)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return svc.mailService.SendEmail(resetEmail)
 }
 
 // saves user in datastore.

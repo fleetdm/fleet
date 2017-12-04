@@ -39,8 +39,7 @@ type dbfunctions interface {
 }
 
 func (d *Datastore) getTransaction(opts []kolide.OptionalArg) dbfunctions {
-	var result dbfunctions
-	result = d.db
+	var result dbfunctions = d.db
 	for _, opt := range opts {
 		switch t := opt().(type) {
 		case dbfunctions:
@@ -111,19 +110,11 @@ func (d *Datastore) Name() string {
 }
 
 func (d *Datastore) MigrateTables() error {
-	if err := tables.MigrationClient.Up(d.db.DB, ""); err != nil {
-		return err
-	}
-
-	return nil
+	return tables.MigrationClient.Up(d.db.DB, "")
 }
 
 func (d *Datastore) MigrateData() error {
-	if err := data.MigrationClient.Up(d.db.DB, ""); err != nil {
-		return err
-	}
-
-	return nil
+	return data.MigrationClient.Up(d.db.DB, "")
 }
 
 func (d *Datastore) MigrationStatus() (kolide.MigrationStatus, error) {

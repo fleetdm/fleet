@@ -22,7 +22,6 @@ func ServeFrontend(logger log.Logger) http.Handler {
 	herr := func(w http.ResponseWriter, err string) {
 		logger.Log("err", err)
 		http.Error(w, err, http.StatusInternalServerError)
-		return
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fs := newBinaryFileSystem("/frontend")

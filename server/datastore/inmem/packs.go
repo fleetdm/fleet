@@ -260,13 +260,7 @@ func (d *Datastore) ListHostsInPack(pid uint, opt kolide.ListOptions) ([]uint, e
 	// Apply limit/offset
 	low, high := d.getLimitOffsetSliceBounds(opt, len(hosts))
 	hosts = hosts[low:high]
-
-	results := make([]uint, len(hosts), len(hosts))
-	for _, h := range hosts {
-		results = append(results, h.ID)
-	}
-
-	return results, nil
+	return extractHostIDs(hosts), nil
 }
 
 func (d *Datastore) ListExplicitHostsInPack(pid uint, opt kolide.ListOptions) ([]uint, error) {
@@ -314,11 +308,14 @@ func (d *Datastore) ListExplicitHostsInPack(pid uint, opt kolide.ListOptions) ([
 	// Apply limit/offset
 	low, high := d.getLimitOffsetSliceBounds(opt, len(hosts))
 	hosts = hosts[low:high]
+	return extractHostIDs(hosts), nil
+}
 
-	results := make([]uint, len(hosts), len(hosts))
-	for _, h := range hosts {
-		results = append(results, h.ID)
+func extractHostIDs(hosts []*kolide.Host) []uint {
+	ids := make([]uint, len(hosts))
+	for i, h := range hosts {
+		ids[i] = h.ID
 	}
 
-	return results, nil
+	return ids
 }

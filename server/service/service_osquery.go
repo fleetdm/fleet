@@ -170,7 +170,7 @@ func (svc service) GetClientConfig(ctx context.Context) (*kolide.OsqueryConfig, 
 				Version:  query.Version,
 			}
 
-			if query.Snapshot != nil && *query.Snapshot == true {
+			if query.Snapshot != nil && *query.Snapshot {
 				queryContent.Snapshot = query.Snapshot
 			}
 

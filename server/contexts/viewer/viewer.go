@@ -104,13 +104,10 @@ func (v Viewer) CanPerformActions() bool {
 // IsUserID returns true if the given user id the same as the user which is
 // represented by this ViewerContext
 func (v Viewer) IsUserID(id uint) bool {
-	if v.UserID() == id {
-		return true
-	}
-	return false
+	return v.UserID() == id
 }
 
-// CanPerformReadActionsOnUser returns a bool indicating the current user's
+// CanPerformReadActionOnUser returns a bool indicating the current user's
 // ability to perform read actions on the given user
 func (v Viewer) CanPerformReadActionOnUser(uid uint) bool {
 	if v.User != nil {

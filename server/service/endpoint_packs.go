@@ -33,7 +33,7 @@ func packResponseForPack(ctx context.Context, svc kolide.Service, pack kolide.Pa
 	}
 
 	labels, err := svc.ListLabelsForPack(ctx, pack.ID)
-	labelIDs := make([]uint, len(labels), len(labels))
+	labelIDs := make([]uint, len(labels))
 	for i, label := range labels {
 		labelIDs[i] = label.ID
 	}
@@ -113,7 +113,7 @@ func makeListPacksEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return getPackResponse{Err: err}, nil
 		}
 
-		resp := listPacksResponse{Packs: make([]packResponse, len(packs), len(packs))}
+		resp := listPacksResponse{Packs: make([]packResponse, len(packs))}
 		for i, pack := range packs {
 			packResp, err := packResponseForPack(ctx, svc, *pack)
 			if err != nil {

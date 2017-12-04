@@ -131,11 +131,7 @@ func (d *Datastore) MigrateData() error {
 		SMTPVerifySSLCerts: true,
 	}
 
-	if err := d.createBuiltinLabels(); err != nil {
-		return err
-	}
-
-	return nil
+	return d.createBuiltinLabels()
 }
 
 func (m *Datastore) MigrationStatus() (kolide.MigrationStatus, error) {
@@ -271,11 +267,7 @@ func (d *Datastore) createDevPacksAndQueries() error {
 		PackID:   pack2.ID,
 		Interval: 60,
 	})
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (d *Datastore) createBuiltinLabels() error {
@@ -489,10 +481,7 @@ func (d *Datastore) createDevOrgInfo() error {
 		SMTPEnableStartTLS:     true,
 	}
 	_, err := d.NewAppConfig(devOrgInfo)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (d *Datastore) createDevLabels() error {
