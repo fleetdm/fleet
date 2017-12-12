@@ -118,7 +118,7 @@ func TestSubmitStatusLogs(t *testing.T) {
 	}
 	logJSON := fmt.Sprintf("[%s]", strings.Join(logs, ","))
 
-	var status []kolide.OsqueryStatusLog
+	var status []json.RawMessage
 	err = json.Unmarshal([]byte(logJSON), &status)
 	require.Nil(t, err)
 

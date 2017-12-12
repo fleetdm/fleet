@@ -87,28 +87,10 @@ func (svc *launcherWrapper) PublishLogs(ctx context.Context, nodeKey string, log
 
 	switch logType {
 	case logger.LogTypeStatus:
-		var statuses []kolide.OsqueryStatusLog
+		var statuses []json.RawMessage
 		for _, log := range logs {
-			// StatusLog handles osquery logging messages
-			var statusLog = struct {
-				Severity string `json:"s"`
-				Filename string `json:"f"`
-				Line     string `json:"i"`
-				Message  string `json:"m"`
-			}{}
-
-			if err := json.Unmarshal([]byte(log), &statusLog); err != nil {
-				return "", "", false, errors.Wrap(err, "decode status log from launcher")
-			}
-
-			statuses = append(statuses, kolide.OsqueryStatusLog{
-				Severity: statusLog.Severity,
-				Filename: statusLog.Filename,
-				Line:     statusLog.Line,
-				Message:  statusLog.Message,
-			})
+			statuses = append(statuses, []byte(log))
 		}
-
 		err = svc.tls.SubmitStatusLogs(newCtx, statuses)
 		return "", "", false, errors.Wrap(err, "submit status logs from launcher")
 	case logger.LogTypeSnapshot, logger.LogTypeString:

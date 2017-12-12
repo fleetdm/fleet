@@ -21,7 +21,7 @@ type GetDistributedQueriesFunc func(ctx context.Context) (queries map[string]str
 
 type SubmitDistributedQueryResultsFunc func(ctx context.Context, results kolide.OsqueryDistributedQueryResults, statuses map[string]string) (err error)
 
-type SubmitStatusLogsFunc func(ctx context.Context, logs []kolide.OsqueryStatusLog) (err error)
+type SubmitStatusLogsFunc func(ctx context.Context, logs []json.RawMessage) (err error)
 
 type SubmitResultLogsFunc func(ctx context.Context, logs []json.RawMessage) (err error)
 
@@ -73,7 +73,7 @@ func (s *TLSService) SubmitDistributedQueryResults(ctx context.Context, results 
 	return s.SubmitDistributedQueryResultsFunc(ctx, results, statuses)
 }
 
-func (s *TLSService) SubmitStatusLogs(ctx context.Context, logs []kolide.OsqueryStatusLog) (err error) {
+func (s *TLSService) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) (err error) {
 	s.SubmitStatusLogsFuncInvoked = true
 	return s.SubmitStatusLogsFunc(ctx, logs)
 }

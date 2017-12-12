@@ -18,7 +18,7 @@ type OsqueryService interface {
 	// feature.
 	GetDistributedQueries(ctx context.Context) (queries map[string]string, accelerate uint, err error)
 	SubmitDistributedQueryResults(ctx context.Context, results OsqueryDistributedQueryResults, statuses map[string]string) (err error)
-	SubmitStatusLogs(ctx context.Context, logs []OsqueryStatusLog) (err error)
+	SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) (err error)
 	SubmitResultLogs(ctx context.Context, logs []json.RawMessage) (err error)
 }
 
@@ -70,14 +70,4 @@ type OsqueryConfig struct {
 	// FilePaths contains named collections of file paths used for
 	// FIM (File Integrity Monitoring)
 	FilePaths FIMSections `json:"file_paths,omitempty"`
-}
-
-// OsqueryStatusLog is the format of an osquery status log.
-type OsqueryStatusLog struct {
-	Severity    string            `json:"severity"`
-	Filename    string            `json:"filename"`
-	Line        string            `json:"line"`
-	Message     string            `json:"message"`
-	Version     string            `json:"version"`
-	Decorations map[string]string `json:"decorations"`
 }

@@ -220,10 +220,9 @@ type flusher interface {
 	Flush() error
 }
 
-func (svc service) SubmitStatusLogs(ctx context.Context, logs []kolide.OsqueryStatusLog) error {
+func (svc service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) error {
 	for _, log := range logs {
-		err := json.NewEncoder(svc.osqueryStatusLogWriter).Encode(log)
-		if err != nil {
+		if _, err := svc.osqueryStatusLogWriter.Write(append(log, '\n')); err != nil {
 			return osqueryError{message: "error writing status log: " + err.Error()}
 		}
 	}

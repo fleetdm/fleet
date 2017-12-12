@@ -105,7 +105,7 @@ func (mw loggingMiddleware) SubmitDistributedQueryResults(ctx context.Context, r
 	return err
 }
 
-func (mw loggingMiddleware) SubmitStatusLogs(ctx context.Context, logs []kolide.OsqueryStatusLog) error {
+func (mw loggingMiddleware) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) error {
 	var (
 		err error
 	)

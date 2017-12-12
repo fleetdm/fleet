@@ -146,7 +146,7 @@ func newTLSService(t *testing.T) *mock.TLSService {
 			return
 		},
 
-		SubmitStatusLogsFunc: func(ctx context.Context, logs []kolide.OsqueryStatusLog) (err error) {
+		SubmitStatusLogsFunc: func(ctx context.Context, logs []json.RawMessage) (err error) {
 			return
 		},
 		SubmitResultLogsFunc: func(ctx context.Context, logs []json.RawMessage) (err error) {
