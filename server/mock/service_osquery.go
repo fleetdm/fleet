@@ -15,7 +15,7 @@ type EnrollAgentFunc func(ctx context.Context, enrollSecret string, hostIdentifi
 
 type AuthenticateHostFuncI func(ctx context.Context, nodeKey string) (host *kolide.Host, err error)
 
-type GetClientConfigFunc func(ctx context.Context) (config *kolide.OsqueryConfig, err error)
+type GetClientConfigFunc func(ctx context.Context) (config map[string]interface{}, err error)
 
 type GetDistributedQueriesFunc func(ctx context.Context) (queries map[string]string, accelerate uint, err error)
 
@@ -58,7 +58,7 @@ func (s *TLSService) AuthenticateHost(ctx context.Context, nodeKey string) (host
 	return s.AuthenticateHostFunc(ctx, nodeKey)
 }
 
-func (s *TLSService) GetClientConfig(ctx context.Context) (config *kolide.OsqueryConfig, err error) {
+func (s *TLSService) GetClientConfig(ctx context.Context) (config map[string]interface{}, err error) {
 	s.GetClientConfigFuncInvoked = true
 	return s.GetClientConfigFunc(ctx)
 }

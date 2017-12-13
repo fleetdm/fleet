@@ -113,31 +113,55 @@ apiVersion: k8s.kolide.com/v1alpha1
 kind: OsqueryOptions
 spec:
   config:
-    distributed_interval: 3
-    distributed_tls_max_attempts: 3
-    logger_plugin: tls
-    logger_tls_endpoint: /api/v1/osquery/log
-    logger_tls_period: 10
+    options:
+      distributed_interval: 3
+      distributed_tls_max_attempts: 3
+      logger_plugin: tls
+      logger_tls_endpoint: /api/v1/osquery/log
+      logger_tls_period: 10
   overrides:
-    # Note configs in overrides take precedence over base configs
+    # Note configs in overrides take precedence over the default config defined
+    # under the config key above. With this config file, the base config would
+    # only be used for Windows hosts, while Mac and Linux hosts would pull
+    # these overrides.
     platforms:
       darwin:
-        disable_tables: chrome_extensions
-        docker_socket: /var/run/docker.sock
-        logger_tls_period: 60
-        fim:
-          interval: 500
-          groups:
-            - name: etc
-              paths:
-                - /etc/%%
-            - name: users
-              paths:
-                - /Users/%/Library/%%
-                - /Users/%/Documents/%%
+        options:
+          distributed_interval: 10
+          distributed_tls_max_attempts: 10
+          logger_plugin: tls
+          logger_tls_endpoint: /api/v1/osquery/log
+          logger_tls_period: 300
+          disable_tables: chrome_extensions
+          docker_socket: /var/run/docker.sock
+        file_paths:
+          users:
+            - /Users/%/Library/%%
+            - /Users/%/Documents/%%
+          etc:
+            - /etc/%%
       linux:
-        schedule_timeout: 60
-        docker_socket: /etc/run/docker.sock
+        options:
+          distributed_interval: 10
+          distributed_tls_max_attempts: 3
+          logger_plugin: tls
+          logger_tls_endpoint: /api/v1/osquery/log
+          logger_tls_period: 60
+          schedule_timeout: 60
+          docker_socket: /etc/run/docker.sock
+        file_paths:
+          homes:
+            - /root/.ssh/%%
+            - /home/%/.ssh/%%
+          etc:
+            - /etc/%%
+          tmp:
+            - /tmp/%%
+        exclude_paths:
+          homes:
+            - /home/not_to_monitor/.ssh/%%
+          tmp:
+            - /tmp/too_many_events/
 ```
 
 ### Osquery Logging Decorators
@@ -145,7 +169,6 @@ spec:
 The following file describes logging decorators that should be applied on osquery instances. A decorator should reference an osquery query by name. Both of these resources can be included in the same file as such:
 
 ```yaml
----
 apiVersion: k8s.kolide.com/v1alpha1
 kind: OsqueryDecorator
 spec:
@@ -165,7 +188,6 @@ spec:
 The following file describes the labels which hosts should be automatically grouped into. The label resource should reference the query by name. Both of these resources can be included in the same file as such:
 
 ```yaml
----
 apiVersion: k8s.kolide.com/v1alpha1
 kind: OsqueryLabel
 spec:
@@ -206,7 +228,6 @@ spec:
 To define multiple queries in a file, concatenate multiple `OsqueryQuery` resources together in a single file with `---`. For example, consider a file that you might store at `queries/osquery_monitoring.yml`:
 
 ```yaml
----
 apiVersion: k8s.kolide.com/v1alpha1
 kind: OsqueryQuery
 spec:

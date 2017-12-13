@@ -40,6 +40,7 @@ type Datastore struct {
 	appConfig                       *kolide.AppConfig
 	config                          *config.KolideConfig
 	kolide.TargetStore
+	kolide.OsqueryOptionsStore
 }
 
 func New(config config.KolideConfig) (*Datastore, error) {

@@ -8,7 +8,7 @@ import (
 type OsqueryService interface {
 	EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string) (nodeKey string, err error)
 	AuthenticateHost(ctx context.Context, nodeKey string) (host *Host, err error)
-	GetClientConfig(ctx context.Context) (config *OsqueryConfig, err error)
+	GetClientConfig(ctx context.Context) (config map[string]interface{}, err error)
 	// GetDistributedQueries retrieves the distributed queries to run for
 	// the host in the provided context. These may be detail queries, label
 	// queries, or user-initiated distributed queries. A map from query
@@ -58,18 +58,6 @@ type Decorators struct {
 	Load     []string            `json:"load,omitempty"`
 	Always   []string            `json:"always,omitempty"`
 	Interval map[string][]string `json:"interval,omitempty"`
-}
-
-// OsqueryConfig is a struct that can be serialized into a valid osquery config
-// using Go's JSON tooling.
-type OsqueryConfig struct {
-	Schedule   map[string]QueryContent `json:"schedule,omitempty"`
-	Options    map[string]interface{}  `json:"options"`
-	Decorators Decorators              `json:"decorators,omitempty"`
-	Packs      Packs                   `json:"packs,omitempty"`
-	// FilePaths contains named collections of file paths used for
-	// FIM (File Integrity Monitoring)
-	FilePaths FIMSections `json:"file_paths,omitempty"`
 }
 
 // OsqueryStatusLog is the format of an osquery status log.

@@ -79,4 +79,7 @@ var testFunctions = [...]func(*testing.T, kolide.Datastore){
 	testCountHostsInTargets,
 	testHostStatus,
 	testResetOptions,
+	testApplyOsqueryOptions,
+	testApplyOsqueryOptionsNoOverrides,
+	testOsqueryOptionsForHost,
 }

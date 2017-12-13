@@ -48,9 +48,9 @@ func (mw loggingMiddleware) AuthenticateHost(ctx context.Context, nodeKey string
 	return host, err
 }
 
-func (mw loggingMiddleware) GetClientConfig(ctx context.Context) (*kolide.OsqueryConfig, error) {
+func (mw loggingMiddleware) GetClientConfig(ctx context.Context) (map[string]interface{}, error) {
 	var (
-		config *kolide.OsqueryConfig
+		config map[string]interface{}
 		err    error
 	)
 

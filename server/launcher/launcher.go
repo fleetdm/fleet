@@ -45,10 +45,10 @@ func (svc *launcherWrapper) RequestConfig(ctx context.Context, nodeKey string) (
 		return "", false, errors.Wrap(err, "get config for launcher")
 	}
 
-	// Launcher manages plugins so remove them from configuration if they exist.
-	for _, optionName := range []string{"distributed_plugin", "logger_plugin"} {
-		if _, ok := config.Options[optionName]; ok {
-			delete(config.Options, optionName)
+	if options, ok := config["options"].(map[string]interface{}); ok {
+		// Launcher manages plugins so remove them from configuration if they exist.
+		for _, optionName := range []string{"distributed_plugin", "logger_plugin"} {
+			delete(options, optionName)
 		}
 	}
 

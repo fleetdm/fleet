@@ -9,6 +9,8 @@ package mock
 //go:generate mockimpl -o datastore_packs.go "s *PackStore" "kolide.PackStore"
 //go:generate mockimpl -o datastore_hosts.go "s *HostStore" "kolide.HostStore"
 //go:generate mockimpl -o datastore_fim.go "s *FileIntegrityMonitoringStore" "kolide.FileIntegrityMonitoringStore"
+//go:generate mockimpl -o datastore_osquery_options.go "s *OsqueryOptionsStore" "kolide.OsqueryOptionsStore"
+//go:generate mockimpl -o datastore_scheduled_queries.go "s *ScheduledQueryStore" "kolide.ScheduledQueryStore"
 
 import "github.com/kolide/fleet/server/kolide"
 
@@ -19,9 +21,10 @@ type Store struct {
 	kolide.SessionStore
 	kolide.PasswordResetStore
 	kolide.QueryStore
-	kolide.ScheduledQueryStore
 	kolide.YARAStore
 	kolide.TargetStore
+	ScheduledQueryStore
+	OsqueryOptionsStore
 	FileIntegrityMonitoringStore
 	AppConfigStore
 	DecoratorStore

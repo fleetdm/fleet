@@ -67,6 +67,12 @@
   version = "v1.3.0"
 
 [[projects]]
+  name = "github.com/ghodss/yaml"
+  packages = ["."]
+  revision = "0ca9ea5df5451ffdf184b4428c902747c2c11cd7"
+  version = "v1.0.0"
+
+[[projects]]
   name = "github.com/go-kit/kit"
   packages = ["endpoint","log","log/level","metrics","metrics/internal/lv","metrics/prometheus","transport/grpc","transport/http"]
   revision = "4dc7be5d2d12881735283bcab7352178e190fc71"
@@ -166,7 +172,7 @@
   branch = "master"
   name = "github.com/kolide/launcher"
   packages = ["service","service/internal/launcherproto","service/uuid"]
-  revision = "4b93ec1bd7ab0eaa302ddcfa8ed554950de8f38e"
+  revision = "9f53adbf07cbf4222885118c3aa599edcbc37dab"
 
 [[projects]]
   branch = "master"
@@ -322,7 +328,7 @@
   branch = "master"
   name = "golang.org/x/text"
   packages = ["collate","collate/build","internal/colltab","internal/gen","internal/tag","internal/triegen","internal/ucd","language","secure/bidirule","transform","unicode/bidi","unicode/cldr","unicode/norm","unicode/rangetable"]
-  revision = "75cc3cad82b5f47d3fb229ddda8c5167da14f294"
+  revision = "57961680700a5336d15015c8c50686ca5ba362a4"
 
 [[projects]]
   branch = "master"
@@ -331,10 +337,10 @@
   revision = "7f0da29060c682909f650ad8ed4e515bd74fa12a"
 
 [[projects]]
-  branch = "master"
   name = "google.golang.org/grpc"
   packages = [".","balancer","balancer/roundrobin","codes","connectivity","credentials","encoding","grpclb/grpc_lb_v1/messages","grpclog","internal","keepalive","metadata","naming","peer","resolver","resolver/dns","resolver/manual","resolver/passthrough","stats","status","tap","transport"]
-  revision = "a4bf341022f076582fc2e9a802ce170a8938f81d"
+  revision = "be077907e29fdb945d351e4284eb5361e7f8924e"
+  version = "v1.8.1"
 
 [[projects]]
   name = "gopkg.in/natefinch/lumberjack.v2"
@@ -351,6 +357,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "8bca5e6fdea71d7fa8f4251ba35e18142490728a17e4aa5de66cf8fd23d9c798"
+  inputs-digest = "eb90a37f82621ce0e2e040bd1f3ade7ef48913bb559c95f9c34f4929d7324990"
   solver-name = "gps-cdcl"
   solver-version = 1

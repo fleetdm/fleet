@@ -20,7 +20,6 @@ import (
 	"github.com/kolide/fleet/server/kolide"
 	"github.com/kolide/fleet/server/mock"
 	"github.com/kolide/fleet/server/pubsub"
-	"github.com/kolide/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -351,92 +350,105 @@ func TestLabelQueries(t *testing.T) {
 }
 
 func TestGetClientConfig(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	require.Nil(t, err)
-	require.Nil(t, ds.MigrateData())
-
-	mockClock := clock.NewMockClock()
-
-	svc, err := newTestServiceWithClock(ds, nil, mockClock)
-	assert.Nil(t, err)
-
-	ctx := context.Background()
-
-	hosts, err := ds.ListHosts(kolide.ListOptions{})
-	require.Nil(t, err)
-	require.Len(t, hosts, 0)
-
-	_, err = svc.EnrollAgent(ctx, "", "user.local")
-	assert.Nil(t, err)
-
-	hosts, err = ds.ListHosts(kolide.ListOptions{})
-	require.Nil(t, err)
-	require.Len(t, hosts, 1)
-	host := hosts[0]
-
-	ctx = hostctx.NewContext(ctx, *host)
-
-	// with no queries, packs, labels, etc. verify the state of a fresh host
-	// asking for a config
-	config, err := svc.GetClientConfig(ctx)
-	require.Nil(t, err)
-	assert.NotNil(t, config)
-	val, ok := config.Options["disable_distributed"]
-	require.True(t, ok)
-	disabled, ok := val.(bool)
-	require.True(t, ok)
-	assert.False(t, disabled)
-	val, ok = config.Options["pack_delimiter"]
-	require.True(t, ok)
-	delim, ok := val.(string)
-	require.True(t, ok)
-	assert.Equal(t, "/", delim)
-
-	// this will be greater than 0 if we ever start inserting an administration
-	// pack
-	assert.Len(t, config.Packs, 0)
-
-	// let's populate the database with some info
-
-	infoQuery := &kolide.Query{
-		Name:  "Info",
-		Query: "select * from osquery_info;",
+	ds := new(mock.Store)
+	ds.ListDecoratorsFunc = func(opt ...kolide.OptionalArg) ([]*kolide.Decorator, error) {
+		return []*kolide.Decorator{}, nil
 	}
-	infoQueryInterval := uint(60)
-	infoQuery, err = ds.NewQuery(infoQuery)
-	assert.Nil(t, err)
-
-	monitoringPack := &kolide.Pack{
-		Name: "monitoring",
+	ds.ListPacksFunc = func(opt kolide.ListOptions) ([]*kolide.Pack, error) {
+		return []*kolide.Pack{}, nil
 	}
-	_, err = ds.NewPack(monitoringPack)
-	assert.Nil(t, err)
-
-	test.NewScheduledQuery(t, ds, monitoringPack.ID, infoQuery.ID, infoQueryInterval, false, false)
-
-	mysqlLabel := &kolide.Label{
-		Name:  "MySQL Monitoring",
-		Query: "select pid from processes where name = 'mysqld';",
+	ds.ListLabelsForHostFunc = func(hid uint) ([]kolide.Label, error) {
+		return []kolide.Label{
+			{ID: 1, Name: "foo_label"},
+		}, nil
 	}
-	mysqlLabel, err = ds.NewLabel(mysqlLabel)
-	assert.Nil(t, err)
+	ds.ListLabelsForPackFunc = func(pid uint) ([]*kolide.Label, error) {
+		switch pid {
+		case 1, 2:
+			return []*kolide.Label{
+				{ID: 1, Name: "foo_label"},
+			}, nil
+		default:
+			return []*kolide.Label{}, nil
+		}
+	}
+	ds.ListExplicitHostsInPackFunc = func(pid uint, opt kolide.ListOptions) ([]uint, error) {
+		switch pid {
+		case 4:
+			return []uint{1}, nil
+		default:
+			return []uint{}, nil
+		}
+	}
+	ds.ListScheduledQueriesInPackFunc = func(pid uint, opt kolide.ListOptions) ([]*kolide.ScheduledQuery, error) {
+		tru := true
+		switch pid {
+		case 1:
+			return []*kolide.ScheduledQuery{
+				{Name: "time", Query: "select * from time", Interval: 30},
+			}, nil
+		case 4:
+			return []*kolide.ScheduledQuery{
+				{Name: "foobar", Query: "select 3", Interval: 20},
+				{Name: "froobing", Query: "select 'guacamole'", Interval: 60, Snapshot: &tru},
+			}, nil
+		default:
+			return []*kolide.ScheduledQuery{}, nil
+		}
+	}
+	ds.OptionsForPlatformFunc = func(platform string) (json.RawMessage, error) {
+		return json.RawMessage(`{"options":{
+				"distributed_interval": 11,
+				"logger_tls_period":    33
+			}}`), nil
+	}
+	ds.SaveHostFunc = func(host *kolide.Host) error {
+		return nil
+	}
 
-	err = ds.AddLabelToPack(mysqlLabel.ID, monitoringPack.ID)
-	assert.Nil(t, err)
+	svc, err := newTestService(ds, nil)
+	require.Nil(t, err)
 
-	err = ds.RecordLabelQueryExecutions(
-		host,
-		map[uint]bool{mysqlLabel.ID: true},
-		mockClock.Now(),
+	ctx := hostctx.NewContext(context.Background(), kolide.Host{ID: 1})
+
+	expectedOptions := map[string]interface{}{
+		"distributed_interval": float64(11),
+		"logger_tls_period":    float64(33),
+	}
+
+	// No packs loaded yet
+	conf, err := svc.GetClientConfig(ctx)
+	require.Nil(t, err)
+	assert.Equal(t, map[string]interface{}{"options": expectedOptions}, conf)
+
+	// Now add packs
+	ds.ListPacksFunc = func(opt kolide.ListOptions) ([]*kolide.Pack, error) {
+		return []*kolide.Pack{
+			{ID: 1, Name: "pack_by_label"},
+			{ID: 2, Name: "disabled_pack", Disabled: true},
+			{ID: 3, Name: "not_matching_pack"},
+			{ID: 4, Name: "pack_by_explicit_host"},
+		}, nil
+	}
+
+	conf, err = svc.GetClientConfig(ctx)
+	require.Nil(t, err)
+	assert.Equal(t, expectedOptions, conf["options"])
+	assert.JSONEq(t, `{
+		"pack_by_explicit_host": {
+			"queries": {
+				"foobar":{"query":"select 3","interval":20},
+				"froobing":{"query":"select 'guacamole'","interval":60,"snapshot":true}
+			}
+		},
+		"pack_by_label": {
+			"queries":{
+				"time":{"query":"select * from time","interval":30}
+			}
+		}
+	}`,
+		string(conf["packs"].(json.RawMessage)),
 	)
-	assert.Nil(t, err)
-
-	// with a minimal setup of packs, labels, and queries, will our host get the
-	// pack
-	config, err = svc.GetClientConfig(ctx)
-	require.Nil(t, err)
-	assert.Len(t, config.Packs, 1)
-	assert.Len(t, config.Packs["monitoring"].Queries, 1)
 }
 
 func TestDetailQueriesWithEmptyStrings(t *testing.T) {
@@ -975,22 +987,11 @@ func TestUpdateHostIntervals(t *testing.T) {
 	ds.ListLabelsForHostFunc = func(hid uint) ([]kolide.Label, error) {
 		return []kolide.Label{}, nil
 	}
-	ds.AppConfigFunc = func() (*kolide.AppConfig, error) {
-		return &kolide.AppConfig{FIMInterval: 400}, nil
-	}
-	ds.FIMSectionsFunc = func() (kolide.FIMSections, error) {
-		sections := kolide.FIMSections{
-			"etc": []string{
-				"/etc/%%",
-			},
-		}
-		return sections, nil
-	}
 
 	var testCases = []struct {
 		initHost       kolide.Host
 		finalHost      kolide.Host
-		configOptions  map[string]interface{}
+		configOptions  json.RawMessage
 		saveHostCalled bool
 	}{
 		// Both updated
@@ -1003,11 +1004,11 @@ func TestUpdateHostIntervals(t *testing.T) {
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
 			},
-			map[string]interface{}{
+			json.RawMessage(`{"options": {
 				"distributed_interval": 11,
 				"logger_tls_period":    33,
-				"logger_plugin":        "tls",
-			},
+				"logger_plugin":        "tls"
+			}}`),
 			true,
 		},
 		// Only logger_tls_period updated
@@ -1021,10 +1022,10 @@ func TestUpdateHostIntervals(t *testing.T) {
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
 			},
-			map[string]interface{}{
+			json.RawMessage(`{"options": {
 				"distributed_interval": 11,
-				"logger_tls_period":    33,
-			},
+				"logger_tls_period":    33
+			}}`),
 			true,
 		},
 		// Only distributed_interval updated
@@ -1038,10 +1039,10 @@ func TestUpdateHostIntervals(t *testing.T) {
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
 			},
-			map[string]interface{}{
+			json.RawMessage(`{"options": {
 				"distributed_interval": 11,
-				"logger_tls_period":    33,
-			},
+				"logger_tls_period":    33
+			}}`),
 			true,
 		},
 		// Kolide not managing distributed_interval
@@ -1055,9 +1056,9 @@ func TestUpdateHostIntervals(t *testing.T) {
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
 			},
-			map[string]interface{}{
-				"logger_tls_period": 33,
-			},
+			json.RawMessage(`{"options":{
+				"logger_tls_period": 33
+			}}`),
 			true,
 		},
 		// SaveHost should not be called with no changes
@@ -1072,21 +1073,19 @@ func TestUpdateHostIntervals(t *testing.T) {
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
 			},
-			map[string]interface{}{
+			json.RawMessage(`{"options":{
 				"distributed_interval": 11,
-				"logger_tls_period":    33,
-			},
+				"logger_tls_period":    33
+			}}`),
 			false,
 		},
 	}
 
 	for _, tt := range testCases {
-		ds.FIMSectionsFuncInvoked = false
-
 		t.Run("", func(t *testing.T) {
 			ctx := hostctx.NewContext(context.Background(), tt.initHost)
 
-			ds.GetOsqueryConfigOptionsFunc = func() (map[string]interface{}, error) {
+			ds.OptionsForPlatformFunc = func(platform string) (json.RawMessage, error) {
 				return tt.configOptions, nil
 			}
 
@@ -1097,22 +1096,9 @@ func TestUpdateHostIntervals(t *testing.T) {
 				return nil
 			}
 
-			cfg, err := svc.GetClientConfig(ctx)
+			_, err := svc.GetClientConfig(ctx)
 			require.Nil(t, err)
 			assert.Equal(t, tt.saveHostCalled, saveHostCalled)
-			require.True(t, ds.FIMSectionsFuncInvoked)
-			require.Condition(t, func() bool {
-				_, ok := cfg.Schedule["file_events"]
-				return ok
-			})
-			assert.Equal(t, 400, int(cfg.Schedule["file_events"].Interval))
-			assert.Equal(t, "SELECT * FROM file_events;", cfg.Schedule["file_events"].Query)
-			require.NotNil(t, cfg.FilePaths)
-			require.Condition(t, func() bool {
-				_, ok := cfg.FilePaths["etc"]
-				return ok
-			})
-			assert.Len(t, cfg.FilePaths["etc"], 1)
 		})
 	}
 
