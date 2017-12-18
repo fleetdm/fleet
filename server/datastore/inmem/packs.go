@@ -190,7 +190,7 @@ func (d *Datastore) RemoveLabelFromPack(lid, pid uint) error {
 
 func (d *Datastore) RemoveHostFromPack(hid, pid uint) error {
 	d.mtx.Lock()
-	d.mtx.Unlock()
+	defer d.mtx.Unlock()
 
 	var hostsToDelete []uint
 
