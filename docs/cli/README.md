@@ -110,7 +110,7 @@ The following file describes configuration options passed to the osquery instanc
 
 ```yaml
 apiVersion: k8s.kolide.com/v1alpha1
-kind: OsqueryOptions
+kind: Options
 spec:
   config:
     distributed_interval: 3
@@ -146,18 +146,18 @@ The following file describes logging decorators that should be applied on osquer
 
 ```yaml
 ---
+apiVersion: k8s.kolide.com/v1/alpha1
+kind: Query
+spec:
+  name: hostname
+  query: select hostname from system_info
+---
 apiVersion: k8s.kolide.com/v1alpha1
-kind: OsqueryDecorator
+kind: Decorator
 spec:
   query: hostname
   type: interval
   interval: 10
----
-apiVersion: k8s.kolide.com/v1/alpha1
-kind: OsqueryDecorator
-spec:
-  name: hostname
-  query: select hostname from system_info;
 ```
 
 ### Host Labels
@@ -166,14 +166,8 @@ The following file describes the labels which hosts should be automatically grou
 
 ```yaml
 ---
-apiVersion: k8s.kolide.com/v1alpha1
-kind: OsqueryLabel
-spec:
-  name: slack_not_running
-  query: slack_not_running
----
 apiVersion: k8s.kolide.com/v1/alpha1
-kind: OsqueryLabel
+kind: Query
 spec:
   name: slack_not_running
   query: >
@@ -183,6 +177,12 @@ spec:
       FROM processes
       WHERE name LIKE "%Slack%"
     );
+---
+apiVersion: k8s.kolide.com/v1alpha1
+kind: Label
+spec:
+  name: slack_not_running
+  query: slack_not_running
 ```
 
 ### Osquery Queries
@@ -191,7 +191,7 @@ For especially long or complex queries, you may want to define one query in one 
 
 ```yaml
 apiVersion: k8s.kolide.com/v1alpha1
-kind: OsqueryQuery
+kind: Query
 spec:
   name: docker_processes
   descriptions: The docker containers processes that are running on a system.
@@ -203,12 +203,12 @@ spec:
       - darwin
 ```
 
-To define multiple queries in a file, concatenate multiple `OsqueryQuery` resources together in a single file with `---`. For example, consider a file that you might store at `queries/osquery_monitoring.yml`:
+To define multiple queries in a file, concatenate multiple `Query` resources together in a single file with `---`. For example, consider a file that you might store at `queries/osquery_monitoring.yml`:
 
 ```yaml
 ---
 apiVersion: k8s.kolide.com/v1alpha1
-kind: OsqueryQuery
+kind: Query
 spec:
   name: osquery_version
   description: The version of the Launcher and Osquery process
@@ -218,21 +218,21 @@ spec:
     osquery: 2.9.0
 ---
 apiVersion: k8s.kolide.com/v1alpha1
-kind: OsqueryQuery
+kind: Query
 spec:
   name: osquery_schedule
   description: Report performance stats for each file in the query schedule.
   query: select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;
 ---
 apiVersion: k8s.kolide.com/v1alpha1
-kind: OsqueryQuery
+kind: Query
 spec:
   name: osquery_info
   description: A heartbeat counter that reports general performance (CPU, memory) and version.
   query: select i.*, p.resident_size, p.user_time, p.system_time, time.minutes as counter from osquery_info i, processes p, time where p.pid = i.pid;
 ---
 apiVersion: k8s.kolide.com/v1alpha1
-kind: OsqueryQuery
+kind: Query
 spec:
   name: osquery_events
   description: Report event publisher health and track event counters.
@@ -245,7 +245,7 @@ To define query packs, reference queries defined elsewhere by name. This is why 
 
 ```yaml
 apiVersion: k8s.kolide.com/v1alpha1
-kind: OsqueryPack
+kind: Pack
 spec:
   name: osquery_monitoring
   targets:
