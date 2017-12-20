@@ -59,7 +59,7 @@ define HELP_TEXT
 
   Makefile commands
 
-	make deps         - Install depedent programs and libraries
+	make deps         - Install dependent programs and libraries
 	make generate     - Generate and bundle required code
 	make generate-dev - Generate and bundle required code in a watch loop
 	make distclean    - Delete all build artifacts
