@@ -234,6 +234,7 @@ func testSearchLabelsLimit(t *testing.T, db kolide.Datastore) {
 		Name:      "All Hosts",
 		LabelType: kolide.LabelTypeBuiltIn,
 	})
+	require.Nil(t, err)
 
 	for i := 0; i < 15; i++ {
 		_, err := db.NewLabel(&kolide.Label{
