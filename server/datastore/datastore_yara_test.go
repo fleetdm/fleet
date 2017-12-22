@@ -88,7 +88,7 @@ func testYARATransactions(t *testing.T, ds kolide.Datastore) {
 	yaraSection, err := ds.YARASection()
 	require.Nil(t, err)
 	require.NotNil(t, yaraSection)
-	// there shouldn't be any file paths because we rolled back the transaciton
+	// there shouldn't be any file paths because we rolled back the transaction
 	require.Len(t, yaraSection.FilePaths, 0)
 
 	// try it again

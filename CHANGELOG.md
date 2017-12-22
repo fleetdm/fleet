@@ -2,7 +2,7 @@
 
 * Added remote IP in the logs for all osqueryd/launcher requests. (#1653)
 
-* Fixed bugs that caused logs to sometimes be ommited from the logwriter. (#1636, #1617)
+* Fixed bugs that caused logs to sometimes be omitted from the logwriter. (#1636, #1617)
 
 * Fixed a bug where request bodies were not being explicitly closed. (#1613)
 
@@ -163,7 +163,7 @@ See https://wiki.mozilla.org/Security/Server_Side_TLS for more information on th
 
 * Improve platform detection accuracy.
 
-  Previously Kolide was determing platform based on the OS of the system osquery was built on instead of the OS it was running on. Please note: Offline hosts may continue to report an erroneous platform until they check-in with Kolide.
+  Previously Kolide was determining platform based on the OS of the system osquery was built on instead of the OS it was running on. Please note: Offline hosts may continue to report an erroneous platform until they check-in with Kolide.
 
 * Fix bugs where query links in the pack sidebar pointed to the wrong queries.
 

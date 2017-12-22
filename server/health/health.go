@@ -15,7 +15,7 @@ type Checker interface {
 
 // Handler returns an http.Handler that checks the status of all the dependencies.
 // Handler responds with either:
-// 200 OK if the server can successfuly communicate with it's backends or
+// 200 OK if the server can successfully communicate with it's backends or
 // 500 if any of the backends are reporting an issue.
 func Handler(logger log.Logger, checkers map[string]Checker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

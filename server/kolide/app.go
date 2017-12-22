@@ -123,11 +123,11 @@ type AppConfig struct {
 	// MetadataURL is a URL provided by the IDP which can be used to download
 	// metadata
 	MetadataURL string `db:"metadata_url"`
-	// IDPName is a human freindly name for the IDP
+	// IDPName is a human friendly name for the IDP
 	IDPName string `db:"idp_name"`
 	// EnableSSO flag to determine whether or not to enable SSO
 	EnableSSO bool `db:"enable_sso"`
-	// FIMInterval defines the interval when file integrity checks will occurr
+	// FIMInterval defines the interval when file integrity checks will occur
 	FIMInterval int `db:"fim_interval"`
 }
 
@@ -154,7 +154,7 @@ type SSOSettingsPayload struct {
 	// MetadataURL is a URL provided by the IDP which can be used to download
 	// metadata
 	MetadataURL *string `json:"metadata_url"`
-	// IDPName is a human freindly name for the IDP
+	// IDPName is a human friendly name for the IDP
 	IDPName *string `json:"idp_name"`
 	// EnableSSO flag to determine whether or not to enable SSO
 	EnableSSO *bool `json:"enable_sso"`

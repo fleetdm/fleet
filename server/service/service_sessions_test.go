@@ -45,7 +45,7 @@ func TestAuthenticate(t *testing.T) {
 			user := tt.user
 			ctx := context.Background()
 			loggedIn, token, err := svc.Login(ctx, tt.username, tt.password)
-			require.Nil(st, err, "login unsuccesful")
+			require.Nil(st, err, "login unsuccessful")
 			assert.Equal(st, user.ID, loggedIn.ID)
 			assert.NotEmpty(st, token)
 

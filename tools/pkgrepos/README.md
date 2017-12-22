@@ -69,7 +69,7 @@ go run package_metadata.go -repo /Users/$me/kolide_packages/ -git-tag=1.0.4
  ```
 
 7. Create a git commit commit with the updated package repos.
-The repo building scripts can be flaky, and occasionaly it's useful to use a `--reset HARD` flag with git to retry building the release.
+The repo building scripts can be flaky, and occasionally it's useful to use a `--reset HARD` flag with git to retry building the release.
 
 8. Push the release to gcloud. Pushing will override the contents of the gcs bucket and the release will be immediately available.
 

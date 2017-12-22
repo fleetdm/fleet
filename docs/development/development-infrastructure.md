@@ -29,7 +29,7 @@ fleet prepare db
 
 ## Running Fleet using Docker development infrastructure
 
-To start the Fleet server backed by the Docker development infrasturcture, run the Fleet binary as follows:
+To start the Fleet server backed by the Docker development infrastructure, run the Fleet binary as follows:
 
 ```
 fleet serve

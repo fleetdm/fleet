@@ -16,7 +16,7 @@ type logWriter struct {
 	mtx  sync.Mutex
 }
 
-// New creates a logwriter, path refers to file that will recieve log content
+// New creates a logwriter, path refers to file that will receive log content
 func New(path string) (io.WriteCloser, error) {
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
 	if err != nil {
