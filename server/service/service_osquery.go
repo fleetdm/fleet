@@ -168,6 +168,12 @@ func (svc service) GetClientConfig(ctx context.Context) (*kolide.OsqueryConfig, 
 				Interval: query.Interval,
 				Platform: query.Platform,
 				Version:  query.Version,
+				Removed:  query.Removed,
+				Shard:    query.Shard,
+			}
+
+			if query.Removed != nil {
+				queryContent.Removed = query.Removed
 			}
 
 			if query.Snapshot != nil && *query.Snapshot {

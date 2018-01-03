@@ -1,3 +1,5 @@
+* Fixed bug in which shard and removed keys are dropped in query packs returned to osquery clients.
+
 ## Kolide Fleet 1.0.6 (Dec 4, 2017)
 
 * Added remote IP in the logs for all osqueryd/launcher requests. (#1653)
