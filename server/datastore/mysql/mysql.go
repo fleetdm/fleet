@@ -282,3 +282,16 @@ func generateMysqlConnectionString(conf config.MysqlConfig) string {
 
 	return dsn
 }
+
+// isForeignKeyError checks if the provided error is a MySQL child foreign key
+// error (Error #1452)
+func isChildForeignKeyError(err error) bool {
+	mysqlErr, ok := err.(*mysql.MySQLError)
+	if !ok {
+		return false
+	}
+
+	// https://dev.mysql.com/doc/refman/5.7/en/error-messages-server.html#error_er_no_referenced_row_2
+	const ER_NO_REFERENCED_ROW_2 = 1452
+	return mysqlErr.Number == ER_NO_REFERENCED_ROW_2
+}

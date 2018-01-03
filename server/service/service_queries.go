@@ -5,7 +5,52 @@ import (
 
 	"github.com/kolide/fleet/server/contexts/viewer"
 	"github.com/kolide/fleet/server/kolide"
+	"github.com/pkg/errors"
 )
+
+func queryFromSpec(spec *kolide.QuerySpec) *kolide.Query {
+	return &kolide.Query{
+		Name:        spec.Name,
+		Description: spec.Description,
+		Query:       spec.Query,
+	}
+}
+
+func specFromQuery(query *kolide.Query) *kolide.QuerySpec {
+	return &kolide.QuerySpec{
+		Name:        query.Name,
+		Description: query.Description,
+		Query:       query.Query,
+	}
+}
+
+func (svc service) ApplyQuerySpecs(ctx context.Context, specs []*kolide.QuerySpec) error {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return errors.New("user must be authenticated to apply queries")
+	}
+
+	queries := []*kolide.Query{}
+	for _, spec := range specs {
+		queries = append(queries, queryFromSpec(spec))
+	}
+
+	err := svc.ds.ApplyQueries(vc.UserID(), queries)
+	return errors.Wrap(err, "applying queries")
+}
+
+func (svc service) GetQuerySpecs(ctx context.Context) ([]*kolide.QuerySpec, error) {
+	queries, err := svc.ds.ListQueries(kolide.ListOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "getting queries")
+	}
+
+	specs := []*kolide.QuerySpec{}
+	for _, query := range queries {
+		specs = append(specs, specFromQuery(query))
+	}
+	return specs, nil
+}
 
 func (svc service) ListQueries(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Query, error) {
 	return svc.ds.ListQueries(opt)

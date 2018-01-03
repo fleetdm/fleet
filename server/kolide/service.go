@@ -15,7 +15,6 @@ type Service interface {
 	TargetService
 	ScheduledQueryService
 	OptionService
-	ImportConfigService
 	DecoratorService
 	FileIntegrityMonitoringService
 }

@@ -107,11 +107,6 @@ var testFunctions = [...]func(*testing.T, *testResource){
 	testModifyOptions,
 	testModifyOptionsValidationFail,
 	testOptionNotFound,
-	testImportConfig,
-	testImportConfigMissingExternal,
-	testImportConfigWithMissingGlob,
-	testImportConfigWithGlob,
-	testImportConfigWithIntAsString,
 	testAdminUserSetAdmin,
 	testNonAdminUserSetAdmin,
 	testAdminUserSetEnabled,
@@ -123,7 +118,6 @@ var testFunctions = [...]func(*testing.T, *testResource){
 	testNewDecoratorFailValidation,
 	testDeleteDecorator,
 	testModifyDecoratorNoChanges,
-	testImportConfigWithInvalidPlatform,
 }
 
 func TestEndpoints(t *testing.T) {

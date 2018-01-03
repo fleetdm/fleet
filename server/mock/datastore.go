@@ -11,6 +11,7 @@ package mock
 //go:generate mockimpl -o datastore_fim.go "s *FileIntegrityMonitoringStore" "kolide.FileIntegrityMonitoringStore"
 //go:generate mockimpl -o datastore_osquery_options.go "s *OsqueryOptionsStore" "kolide.OsqueryOptionsStore"
 //go:generate mockimpl -o datastore_scheduled_queries.go "s *ScheduledQueryStore" "kolide.ScheduledQueryStore"
+//go:generate mockimpl -o datastore_queries.go "s *QueryStore" "kolide.QueryStore"
 
 import "github.com/kolide/fleet/server/kolide"
 
@@ -20,7 +21,6 @@ type Store struct {
 	kolide.CampaignStore
 	kolide.SessionStore
 	kolide.PasswordResetStore
-	kolide.QueryStore
 	kolide.YARAStore
 	kolide.TargetStore
 	ScheduledQueryStore
@@ -34,6 +34,7 @@ type Store struct {
 	OptionStore
 	PackStore
 	UserStore
+	QueryStore
 }
 
 func (m *Store) Drop() error {

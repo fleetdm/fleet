@@ -4,9 +4,185 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/kolide/fleet/server/kolide"
 	"github.com/pkg/errors"
 )
+
+func (d *Datastore) ApplyPackSpecs(specs []*kolide.PackSpec) (err error) {
+	tx, err := d.db.Beginx()
+	if err != nil {
+		return errors.Wrap(err, "begin ApplyPackSpec transaction")
+	}
+
+	defer func() {
+		if err != nil {
+			rbErr := tx.Rollback()
+			// It seems possible that there might be a case in
+			// which the error we are dealing with here was thrown
+			// by the call to tx.Commit(), and the docs suggest
+			// this call would then result in sql.ErrTxDone.
+			if rbErr != nil && rbErr != sql.ErrTxDone {
+				panic(fmt.Sprintf("got err '%s' rolling back after err '%s'", rbErr, err))
+			}
+		}
+	}()
+
+	for _, spec := range specs {
+		err = applyPackSpec(tx, spec)
+		if err != nil {
+			return errors.Wrapf(err, "applying pack '%s'", spec.Name)
+		}
+	}
+
+	err = tx.Commit()
+	return errors.Wrap(err, "commit transaction")
+}
+
+func applyPackSpec(tx *sqlx.Tx, spec *kolide.PackSpec) error {
+	// Insert/update pack
+	query := `
+		INSERT INTO packs (name, description, platform)
+		VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+			name = VALUES(name),
+			description = VALUES(description),
+			platform = VALUES(platform),
+			deleted = false
+	`
+	if _, err := tx.Exec(query, spec.Name, spec.Description, spec.Platform); err != nil {
+		return errors.Wrap(err, "insert/update pack")
+	}
+
+	// Get Pack ID
+	// This is necessary because MySQL last_insert_id does not return a value
+	// if no update was made.
+	var packID uint
+	query = "SELECT id FROM packs WHERE name = ?"
+	if err := tx.Get(&packID, query, spec.Name); err != nil {
+		return errors.Wrap(err, "getting pack ID")
+	}
+
+	// Delete existing scheduled queries for pack
+	query = "DELETE FROM scheduled_queries WHERE pack_id = ?"
+	if _, err := tx.Exec(query, packID); err != nil {
+		return errors.Wrap(err, "delete existing scheduled queries")
+	}
+
+	// Insert new scheduled queries for pack
+	for _, q := range spec.Queries {
+		query = `
+			INSERT INTO scheduled_queries (
+				pack_id, query_name, name, description, ` + "`interval`" + `,
+				snapshot, removed, shard, platform, version
+			)
+			VALUES (
+				?, ?, ?, ?, ?,
+				?, ?, ?, ?, ?
+			)
+		`
+		_, err := tx.Exec(query,
+			packID, q.QueryName, q.Name, q.Description, q.Interval,
+			q.Snapshot, q.Removed, q.Shard, q.Platform, q.Version,
+		)
+		switch {
+		case isChildForeignKeyError(err):
+			return errors.Errorf("cannot schedule unknown query '%s'", q.QueryName)
+		case err != nil:
+			return errors.Wrapf(err, "adding query %s referencing %s", q.Name, q.QueryName)
+		}
+	}
+
+	// Delete existing targets
+	query = "DELETE FROM pack_targets WHERE pack_id = ?"
+	if _, err := tx.Exec(query, packID); err != nil {
+		return errors.Wrap(err, "delete existing targets")
+	}
+
+	// Insert targets
+	for _, l := range spec.Targets.Labels {
+		query = `
+			INSERT INTO pack_targets (pack_id, type, target_id)
+			VALUES (?, ?, (SELECT id FROM labels WHERE name = ?))
+		`
+		if _, err := tx.Exec(query, packID, kolide.TargetLabel, l); err != nil {
+			return errors.Wrap(err, "adding label to pack")
+		}
+	}
+
+	return nil
+}
+
+func (d *Datastore) GetPackSpecs() (specs []*kolide.PackSpec, err error) {
+	tx, err := d.db.Beginx()
+	if err != nil {
+		return nil, errors.Wrap(err, "begin GetPackSpecs transaction")
+	}
+
+	defer func() {
+		if err != nil {
+			rbErr := tx.Rollback()
+			// It seems possible that there might be a case in
+			// which the error we are dealing with here was thrown
+			// by the call to tx.Commit(), and the docs suggest
+			// this call would then result in sql.ErrTxDone.
+			if rbErr != nil && rbErr != sql.ErrTxDone {
+				panic(fmt.Sprintf("got err '%s' rolling back after err '%s'", rbErr, err))
+			}
+		}
+	}()
+
+	// Get basic specs
+	query := "SELECT id, name, description, platform FROM packs"
+	if err := tx.Select(&specs, query); err != nil {
+		fmt.Println(err)
+		return nil, errors.Wrap(err, "get packs")
+	}
+
+	// Load targets
+	for _, spec := range specs {
+		query = `
+SELECT l.name
+FROM labels l JOIN pack_targets pt
+WHERE pack_id = ? AND pt.type = ? AND pt.target_id = l.id
+`
+		if err := tx.Select(&spec.Targets.Labels, query, spec.ID, kolide.TargetLabel); err != nil {
+			return nil, errors.Wrap(err, "get pack targets")
+		}
+	}
+
+	// query = `
+	// 	INSERT INTO scheduled_queries (
+	// 		pack_id, query_name, name, description, ` + "`interval`" + `,
+	// 		snapshot, removed, shard, platform, version
+	// 	)
+	// 	VALUES (
+	// 		?, ?, ?, ?, ?,
+	// 		?, ?, ?, ?, ?
+	// 	)
+	// `
+
+	// Load queries
+	for _, spec := range specs {
+		query = `
+SELECT
+query_name, name, description, ` + "`interval`" + `,
+snapshot, removed, shard, platform, version
+FROM scheduled_queries
+WHERE pack_id = ?
+`
+		if err := tx.Select(&spec.Queries, query, spec.ID); err != nil {
+			return nil, errors.Wrap(err, "get pack queries")
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, errors.Wrap(err, "commit transaction")
+	}
+
+	return specs, nil
+}
 
 func (d *Datastore) PackByName(name string, opts ...kolide.OptionalArg) (*kolide.Pack, bool, error) {
 	db := d.getTransaction(opts)
@@ -40,21 +216,21 @@ func (d *Datastore) NewPack(pack *kolide.Pack, opts ...kolide.OptionalArg) (*kol
 	case nil:
 		query = `
 		REPLACE INTO packs
-			( name, description, platform, created_by, disabled, deleted)
-			VALUES ( ?, ?, ?, ?, ?, ?)
+			( name, description, platform, disabled, deleted)
+			VALUES ( ?, ?, ?, ?, ?)
 		`
 	case sql.ErrNoRows:
 		query = `
 		INSERT INTO packs
-			( name, description, platform, created_by, disabled, deleted)
-			VALUES ( ?, ?, ?, ?, ?, ?)
+			( name, description, platform, disabled, deleted)
+			VALUES ( ?, ?, ?, ?, ?)
 		`
 	default:
 		return nil, errors.Wrap(err, "check for existing pack")
 	}
 
 	deleted := false
-	result, err := db.Exec(query, pack.Name, pack.Description, pack.Platform, pack.CreatedBy, pack.Disabled, deleted)
+	result, err := db.Exec(query, pack.Name, pack.Description, pack.Platform, pack.Disabled, deleted)
 	if err != nil && isDuplicate(err) {
 		return nil, alreadyExists("Pack", deletedPack.ID)
 	} else if err != nil {

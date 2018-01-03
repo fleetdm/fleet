@@ -2,14 +2,75 @@ package datastore
 
 import (
 	"fmt"
+	"sort"
 	"testing"
 
 	"github.com/kolide/fleet/server/kolide"
 	"github.com/kolide/fleet/server/test"
-	"github.com/patrickmn/sortutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func testApplyQueries(t *testing.T, ds kolide.Datastore) {
+	zwass := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
+	groob := test.NewUser(t, ds, "Victor", "groob", "victor@kolide.co", true)
+	expectedQueries := []*kolide.Query{
+		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
+		{Name: "bar", Description: "do some bars", Query: "select baz from bar"},
+	}
+
+	// Zach creates some queries
+	err := ds.ApplyQueries(zwass.ID, expectedQueries)
+	require.Nil(t, err)
+
+	queries, err := ds.ListQueries(kolide.ListOptions{})
+	require.Nil(t, err)
+	require.Len(t, queries, len(expectedQueries))
+	for i, q := range queries {
+		comp := expectedQueries[i]
+		assert.Equal(t, comp.Name, q.Name)
+		assert.Equal(t, comp.Description, q.Description)
+		assert.Equal(t, comp.Query, q.Query)
+		assert.Equal(t, zwass.ID, q.AuthorID)
+	}
+
+	// Victor modifies a query (but also pushes the same version of the
+	// first query)
+	expectedQueries[1].Query = "not really a valid query ;)"
+	err = ds.ApplyQueries(groob.ID, expectedQueries)
+	require.Nil(t, err)
+
+	queries, err = ds.ListQueries(kolide.ListOptions{})
+	require.Nil(t, err)
+	require.Len(t, queries, len(expectedQueries))
+	for i, q := range queries {
+		comp := expectedQueries[i]
+		assert.Equal(t, comp.Name, q.Name)
+		assert.Equal(t, comp.Description, q.Description)
+		assert.Equal(t, comp.Query, q.Query)
+		assert.Equal(t, groob.ID, q.AuthorID)
+	}
+
+	// Zach adds a third query (but does not re-apply the others)
+	expectedQueries = append(expectedQueries,
+		&kolide.Query{Name: "trouble", Description: "Look out!", Query: "select * from time"},
+	)
+	err = ds.ApplyQueries(zwass.ID, []*kolide.Query{expectedQueries[2]})
+	require.Nil(t, err)
+
+	queries, err = ds.ListQueries(kolide.ListOptions{})
+	require.Nil(t, err)
+	require.Len(t, queries, len(expectedQueries))
+	for i, q := range queries {
+		comp := expectedQueries[i]
+		assert.Equal(t, comp.Name, q.Name)
+		assert.Equal(t, comp.Description, q.Description)
+		assert.Equal(t, comp.Query, q.Query)
+	}
+	assert.Equal(t, groob.ID, queries[0].AuthorID)
+	assert.Equal(t, groob.ID, queries[1].AuthorID)
+	assert.Equal(t, zwass.ID, queries[2].AuthorID)
+}
 
 func testDeleteQuery(t *testing.T, ds kolide.Datastore) {
 	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
@@ -137,51 +198,133 @@ func testListQuery(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, 10, len(results))
 }
 
-func checkPacks(t *testing.T, expected []kolide.Pack, actual []kolide.Pack) {
-	sortutil.AscByField(expected, "ID")
-	sortutil.AscByField(actual, "ID")
-	assert.Equal(t, expected, actual)
-}
-
 func testLoadPacksForQueries(t *testing.T, ds kolide.Datastore) {
-	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
-
-	q1 := test.NewQuery(t, ds, "q1", "select * from time", user.ID, true)
-	q2 := test.NewQuery(t, ds, "q2", "select * from osquery_info", user.ID, true)
-
-	p1 := test.NewPack(t, ds, "p1")
-	p2 := test.NewPack(t, ds, "p2")
-	p3 := test.NewPack(t, ds, "p3")
-
-	var err error
-
-	test.NewScheduledQuery(t, ds, p2.ID, q1.ID, 60, false, false)
-
-	q1, err = ds.Query(q1.ID)
+	zwass := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
+	queries := []*kolide.Query{
+		{Name: "q1", Query: "select * from time"},
+		{Name: "q2", Query: "select * from osquery_info"},
+	}
+	err := ds.ApplyQueries(zwass.ID, queries)
 	require.Nil(t, err)
-	q2, err = ds.Query(q2.ID)
-	require.Nil(t, err)
-	checkPacks(t, []kolide.Pack{*p2}, q1.Packs)
-	checkPacks(t, []kolide.Pack{}, q2.Packs)
 
-	test.NewScheduledQuery(t, ds, p1.ID, q2.ID, 60, false, false)
-	test.NewScheduledQuery(t, ds, p3.ID, q2.ID, 60, false, false)
+	specs := []*kolide.PackSpec{
+		&kolide.PackSpec{Name: "p1"},
+		&kolide.PackSpec{Name: "p2"},
+		&kolide.PackSpec{Name: "p3"},
+	}
+	err = ds.ApplyPackSpecs(specs)
+	require.Nil(t, err)
 
-	q1, err = ds.Query(q1.ID)
+	q0, exists, err := ds.QueryByName(queries[0].Name)
 	require.Nil(t, err)
-	q2, err = ds.Query(q2.ID)
-	require.Nil(t, err)
-	checkPacks(t, []kolide.Pack{*p2}, q1.Packs)
-	checkPacks(t, []kolide.Pack{*p1, *p3}, q2.Packs)
+	require.True(t, exists)
+	assert.Empty(t, q0.Packs)
 
-	test.NewScheduledQuery(t, ds, p3.ID, q1.ID, 60, false, false)
+	q1, exists, err := ds.QueryByName(queries[1].Name)
+	require.Nil(t, err)
+	require.True(t, exists)
+	assert.Empty(t, q1.Packs)
 
-	q1, err = ds.Query(q1.ID)
+	specs = []*kolide.PackSpec{
+		&kolide.PackSpec{
+			Name: "p2",
+			Queries: []kolide.PackSpecQuery{
+				kolide.PackSpecQuery{
+					QueryName: queries[0].Name,
+					Interval:  60,
+				},
+			},
+		},
+	}
+	err = ds.ApplyPackSpecs(specs)
 	require.Nil(t, err)
-	q2, err = ds.Query(q2.ID)
+
+	q0, exists, err = ds.QueryByName(queries[0].Name)
 	require.Nil(t, err)
-	checkPacks(t, []kolide.Pack{*p2, *p3}, q1.Packs)
-	checkPacks(t, []kolide.Pack{*p1, *p3}, q2.Packs)
+	require.True(t, exists)
+	if assert.Len(t, q0.Packs, 1) {
+		assert.Equal(t, "p2", q0.Packs[0].Name)
+	}
+
+	q1, exists, err = ds.QueryByName(queries[1].Name)
+	require.Nil(t, err)
+	require.True(t, exists)
+	assert.Empty(t, q1.Packs)
+
+	specs = []*kolide.PackSpec{
+		&kolide.PackSpec{
+			Name: "p1",
+			Queries: []kolide.PackSpecQuery{
+				kolide.PackSpecQuery{
+					QueryName: queries[1].Name,
+					Interval:  60,
+				},
+			},
+		},
+		&kolide.PackSpec{
+			Name: "p3",
+			Queries: []kolide.PackSpecQuery{
+				kolide.PackSpecQuery{
+					QueryName: queries[1].Name,
+					Interval:  60,
+				},
+			},
+		},
+	}
+	err = ds.ApplyPackSpecs(specs)
+	require.Nil(t, err)
+
+	q0, exists, err = ds.QueryByName(queries[0].Name)
+	require.Nil(t, err)
+	require.True(t, exists)
+	if assert.Len(t, q0.Packs, 1) {
+		assert.Equal(t, "p2", q0.Packs[0].Name)
+	}
+
+	q1, exists, err = ds.QueryByName(queries[1].Name)
+	require.Nil(t, err)
+	require.True(t, exists)
+	if assert.Len(t, q1.Packs, 2) {
+		sort.Slice(q1.Packs, func(i, j int) bool { return q1.Packs[i].Name < q1.Packs[j].Name })
+		assert.Equal(t, "p1", q1.Packs[0].Name)
+		assert.Equal(t, "p3", q1.Packs[1].Name)
+	}
+
+	specs = []*kolide.PackSpec{
+		&kolide.PackSpec{
+			Name: "p3",
+			Queries: []kolide.PackSpecQuery{
+				kolide.PackSpecQuery{
+					QueryName: queries[0].Name,
+					Interval:  60,
+				},
+				kolide.PackSpecQuery{
+					QueryName: queries[1].Name,
+					Interval:  60,
+				},
+			},
+		},
+	}
+	err = ds.ApplyPackSpecs(specs)
+	require.Nil(t, err)
+
+	q0, exists, err = ds.QueryByName(queries[0].Name)
+	require.Nil(t, err)
+	require.True(t, exists)
+	if assert.Len(t, q0.Packs, 2) {
+		sort.Slice(q0.Packs, func(i, j int) bool { return q0.Packs[i].Name < q0.Packs[j].Name })
+		assert.Equal(t, "p2", q0.Packs[0].Name)
+		assert.Equal(t, "p3", q0.Packs[1].Name)
+	}
+
+	q1, exists, err = ds.QueryByName(queries[1].Name)
+	require.Nil(t, err)
+	require.True(t, exists)
+	if assert.Len(t, q1.Packs, 2) {
+		sort.Slice(q1.Packs, func(i, j int) bool { return q1.Packs[i].Name < q1.Packs[j].Name })
+		assert.Equal(t, "p1", q1.Packs[0].Name)
+		assert.Equal(t, "p3", q1.Packs[1].Name)
+	}
 }
 
 func testDuplicateNewQuery(t *testing.T, ds kolide.Datastore) {

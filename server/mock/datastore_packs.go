@@ -6,6 +6,10 @@ import "github.com/kolide/fleet/server/kolide"
 
 var _ kolide.PackStore = (*PackStore)(nil)
 
+type ApplyPackSpecsFunc func(specs []*kolide.PackSpec) error
+
+type GetPackSpecsFunc func() ([]*kolide.PackSpec, error)
+
 type NewPackFunc func(pack *kolide.Pack, opts ...kolide.OptionalArg) (*kolide.Pack, error)
 
 type SavePackFunc func(pack *kolide.Pack) error
@@ -33,6 +37,12 @@ type ListHostsInPackFunc func(pid uint, opt kolide.ListOptions) ([]uint, error)
 type ListExplicitHostsInPackFunc func(pid uint, opt kolide.ListOptions) ([]uint, error)
 
 type PackStore struct {
+	ApplyPackSpecsFunc        ApplyPackSpecsFunc
+	ApplyPackSpecsFuncInvoked bool
+
+	GetPackSpecsFunc        GetPackSpecsFunc
+	GetPackSpecsFuncInvoked bool
+
 	NewPackFunc        NewPackFunc
 	NewPackFuncInvoked bool
 
@@ -71,6 +81,16 @@ type PackStore struct {
 
 	ListExplicitHostsInPackFunc        ListExplicitHostsInPackFunc
 	ListExplicitHostsInPackFuncInvoked bool
+}
+
+func (s *PackStore) ApplyPackSpecs(specs []*kolide.PackSpec) error {
+	s.ApplyPackSpecsFuncInvoked = true
+	return s.ApplyPackSpecsFunc(specs)
+}
+
+func (s *PackStore) GetPackSpecs() ([]*kolide.PackSpec, error) {
+	s.GetPackSpecsFuncInvoked = true
+	return s.GetPackSpecsFunc()
 }
 
 func (s *PackStore) NewPack(pack *kolide.Pack, opts ...kolide.OptionalArg) (*kolide.Pack, error) {

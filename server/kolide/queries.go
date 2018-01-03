@@ -2,9 +2,19 @@ package kolide
 
 import (
 	"context"
+	"strings"
+
+	"github.com/pkg/errors"
+
+	"github.com/ghodss/yaml"
 )
 
 type QueryStore interface {
+	// ApplyQueries applies a list of queries (likely from a yaml file) to
+	// the datastore. Existing queries are updated, and new queries are
+	// created.
+	ApplyQueries(authorID uint, queries []*Query) error
+
 	// NewQuery creates a new query object in thie datastore. The returned
 	// query should have the ID updated.
 	NewQuery(query *Query, opts ...OptionalArg) (*Query, error)
@@ -28,6 +38,12 @@ type QueryStore interface {
 }
 
 type QueryService interface {
+	// ApplyQuerySpecs applies a list of queries (creating or updating
+	// them as necessary)
+	ApplyQuerySpecs(ctx context.Context, specs []*QuerySpec) error
+	// GetQuerySpecs gets the YAML file representing all the stored queries.
+	GetQuerySpecs(ctx context.Context) ([]*QuerySpec, error)
+
 	// ListQueries returns a list of saved queries. Note only saved queries
 	// should be returned (those that are created for distributed queries
 	// but not saved should not be returned).
@@ -63,4 +79,64 @@ type Query struct {
 	// Packs is loaded when retrieving queries, but is stored in a join
 	// table in the MySQL backend.
 	Packs []Pack `json:"packs" db:"-"`
+}
+
+const (
+	QueryKind = "Query"
+)
+
+type QueryObject struct {
+	ObjectMetadata
+	Spec QuerySpec `json:"spec"`
+}
+
+type QuerySpec struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Query       string `json:"query"`
+}
+
+func LoadQueriesFromYaml(yml string) ([]*Query, error) {
+	queries := []*Query{}
+	for _, s := range strings.Split(yml, "---") {
+		s = strings.TrimSpace(s)
+		if len(s) == 0 {
+			continue
+		}
+
+		var q QueryObject
+		err := yaml.Unmarshal([]byte(s), &q)
+		if err != nil {
+			return nil, errors.Wrap(err, "unmarshal yaml")
+		}
+		queries = append(queries,
+			&Query{Name: q.Spec.Name, Description: q.Spec.Description, Query: q.Spec.Query},
+		)
+	}
+
+	return queries, nil
+}
+
+func WriteQueriesToYaml(queries []*Query) (string, error) {
+	ymlStrings := []string{}
+	for _, q := range queries {
+		qYaml := QueryObject{
+			ObjectMetadata: ObjectMetadata{
+				ApiVersion: ApiVersion,
+				Kind:       QueryKind,
+			},
+			Spec: QuerySpec{
+				Name:        q.Name,
+				Description: q.Description,
+				Query:       q.Query,
+			},
+		}
+		yml, err := yaml.Marshal(qYaml)
+		if err != nil {
+			return "", errors.Wrap(err, "marshal YAML")
+		}
+		ymlStrings = append(ymlStrings, string(yml))
+	}
+
+	return strings.Join(ymlStrings, "---\n"), nil
 }

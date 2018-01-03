@@ -6,6 +6,9 @@ import (
 
 // PackStore is the datastore interface for managing query packs.
 type PackStore interface {
+	ApplyPackSpecs(specs []*PackSpec) error
+	GetPackSpecs() ([]*PackSpec, error)
+
 	// NewPack creates a new pack in the datastore.
 	NewPack(pack *Pack, opts ...OptionalArg) (*Pack, error)
 
@@ -104,7 +107,6 @@ type Pack struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Platform    string `json:"platform"`
-	CreatedBy   uint   `json:"created_by" db:"created_by"`
 	Disabled    bool   `json:"disabled"`
 }
 
@@ -116,6 +118,31 @@ type PackPayload struct {
 	Disabled    *bool   `json:"disabled"`
 	HostIDs     *[]uint `json:"host_ids"`
 	LabelIDs    *[]uint `json:"label_ids"`
+}
+
+type PackSpec struct {
+	ID          uint
+	Name        string          `json:"name"`
+	Description string          `json:"description"`
+	Platform    string          `json:"platform"`
+	Targets     PackSpecTargets `json:"targets"`
+	Queries     []PackSpecQuery `json:"queries"`
+}
+
+type PackSpecTargets struct {
+	Labels []string `json:"labels"`
+}
+
+type PackSpecQuery struct {
+	QueryName   string  `json:"query" db:"query_name"`
+	Name        string  `json:"name"`
+	Description string  `json:"description"`
+	Interval    uint    `json:"interval"`
+	Snapshot    *bool   `json:"snapshot,omitempty"`
+	Removed     *bool   `json:"removed,omitempty"`
+	Shard       *uint   `json:"shard,omitempty"`
+	Platform    *string `json:"platform,omitempty"`
+	Version     *string `json:"version,omitempty"`
 }
 
 // PackTarget associates a pack with either a host or a label

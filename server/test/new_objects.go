@@ -128,17 +128,3 @@ func NewUser(t *testing.T, ds kolide.Datastore, name, username, email string, ad
 
 	return u
 }
-
-func NewScheduledQuery(t *testing.T, ds kolide.Datastore, pid, qid, interval uint, snapshot, removed bool) *kolide.ScheduledQuery {
-	sq, err := ds.NewScheduledQuery(&kolide.ScheduledQuery{
-		PackID:   pid,
-		QueryID:  qid,
-		Interval: interval,
-		Snapshot: &snapshot,
-		Removed:  &removed,
-	})
-	require.Nil(t, err)
-	require.NotZero(t, sq.ID)
-
-	return sq
-}

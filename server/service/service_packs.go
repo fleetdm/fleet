@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 
-	"github.com/kolide/fleet/server/contexts/viewer"
 	"github.com/kolide/fleet/server/kolide"
 )
 
@@ -32,13 +31,6 @@ func (svc service) NewPack(ctx context.Context, p kolide.PackPayload) (*kolide.P
 
 	if p.Disabled != nil {
 		pack.Disabled = *p.Disabled
-	}
-
-	vc, ok := viewer.FromContext(ctx)
-	if ok {
-		if createdBy := vc.UserID(); createdBy != uint(0) {
-			pack.CreatedBy = createdBy
-		}
 	}
 
 	_, err := svc.ds.NewPack(&pack)

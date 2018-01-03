@@ -51,11 +51,7 @@ type KolideEndpoints struct {
 	CreatePack                     endpoint.Endpoint
 	ModifyPack                     endpoint.Endpoint
 	DeletePack                     endpoint.Endpoint
-	ScheduleQuery                  endpoint.Endpoint
 	GetScheduledQueriesInPack      endpoint.Endpoint
-	GetScheduledQuery              endpoint.Endpoint
-	ModifyScheduledQuery           endpoint.Endpoint
-	DeleteScheduledQuery           endpoint.Endpoint
 	EnrollAgent                    endpoint.Endpoint
 	GetClientConfig                endpoint.Endpoint
 	GetDistributedQueries          endpoint.Endpoint
@@ -78,7 +74,6 @@ type KolideEndpoints struct {
 	GetOptions                     endpoint.Endpoint
 	ModifyOptions                  endpoint.Endpoint
 	ResetOptions                   endpoint.Endpoint
-	ImportConfig                   endpoint.Endpoint
 	GetCertificate                 endpoint.Endpoint
 	ChangeEmail                    endpoint.Endpoint
 	InitiateSSO                    endpoint.Endpoint
@@ -140,11 +135,7 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		CreatePack:                authenticatedUser(jwtKey, svc, makeCreatePackEndpoint(svc)),
 		ModifyPack:                authenticatedUser(jwtKey, svc, makeModifyPackEndpoint(svc)),
 		DeletePack:                authenticatedUser(jwtKey, svc, makeDeletePackEndpoint(svc)),
-		ScheduleQuery:             authenticatedUser(jwtKey, svc, makeScheduleQueryEndpoint(svc)),
 		GetScheduledQueriesInPack: authenticatedUser(jwtKey, svc, makeGetScheduledQueriesInPackEndpoint(svc)),
-		GetScheduledQuery:         authenticatedUser(jwtKey, svc, makeGetScheduledQueryEndpoint(svc)),
-		ModifyScheduledQuery:      authenticatedUser(jwtKey, svc, makeModifyScheduledQueryEndpoint(svc)),
-		DeleteScheduledQuery:      authenticatedUser(jwtKey, svc, makeDeleteScheduledQueryEndpoint(svc)),
 		GetHost:                   authenticatedUser(jwtKey, svc, makeGetHostEndpoint(svc)),
 		ListHosts:                 authenticatedUser(jwtKey, svc, makeListHostsEndpoint(svc)),
 		GetHostSummary:            authenticatedUser(jwtKey, svc, makeGetHostSummaryEndpoint(svc)),
@@ -162,7 +153,6 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		GetOptions:                authenticatedUser(jwtKey, svc, mustBeAdmin(makeGetOptionsEndpoint(svc))),
 		ModifyOptions:             authenticatedUser(jwtKey, svc, mustBeAdmin(makeModifyOptionsEndpoint(svc))),
 		ResetOptions:              authenticatedUser(jwtKey, svc, mustBeAdmin(makeResetOptionsEndpoint(svc))),
-		ImportConfig:              authenticatedUser(jwtKey, svc, makeImportConfigEndpoint(svc)),
 		GetCertificate:            authenticatedUser(jwtKey, svc, makeCertificateEndpoint(svc)),
 		ChangeEmail:               authenticatedUser(jwtKey, svc, makeChangeEmailEndpoint(svc)),
 		GetFIM:                    authenticatedUser(jwtKey, svc, makeGetFIMEndpoint(svc)),
@@ -214,11 +204,7 @@ type kolideHandlers struct {
 	CreatePack                     http.Handler
 	ModifyPack                     http.Handler
 	DeletePack                     http.Handler
-	ScheduleQuery                  http.Handler
 	GetScheduledQueriesInPack      http.Handler
-	GetScheduledQuery              http.Handler
-	ModifyScheduledQuery           http.Handler
-	DeleteScheduledQuery           http.Handler
 	EnrollAgent                    http.Handler
 	GetClientConfig                http.Handler
 	GetDistributedQueries          http.Handler
@@ -241,7 +227,6 @@ type kolideHandlers struct {
 	GetOptions                     http.Handler
 	ModifyOptions                  http.Handler
 	ResetOptions                   http.Handler
-	ImportConfig                   http.Handler
 	GetCertificate                 http.Handler
 	ChangeEmail                    http.Handler
 	InitiateSSO                    http.Handler
@@ -292,11 +277,7 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		CreatePack:                    newServer(e.CreatePack, decodeCreatePackRequest),
 		ModifyPack:                    newServer(e.ModifyPack, decodeModifyPackRequest),
 		DeletePack:                    newServer(e.DeletePack, decodeDeletePackRequest),
-		ScheduleQuery:                 newServer(e.ScheduleQuery, decodeScheduleQueryRequest),
 		GetScheduledQueriesInPack:     newServer(e.GetScheduledQueriesInPack, decodeGetScheduledQueriesInPackRequest),
-		GetScheduledQuery:             newServer(e.GetScheduledQuery, decodeGetScheduledQueryRequest),
-		ModifyScheduledQuery:          newServer(e.ModifyScheduledQuery, decodeModifyScheduledQueryRequest),
-		DeleteScheduledQuery:          newServer(e.DeleteScheduledQuery, decodeDeleteScheduledQueryRequest),
 		EnrollAgent:                   newServer(e.EnrollAgent, decodeEnrollAgentRequest),
 		GetClientConfig:               newServer(e.GetClientConfig, decodeGetClientConfigRequest),
 		GetDistributedQueries:         newServer(e.GetDistributedQueries, decodeGetDistributedQueriesRequest),
@@ -319,7 +300,6 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		GetOptions:                    newServer(e.GetOptions, decodeNoParamsRequest),
 		ModifyOptions:                 newServer(e.ModifyOptions, decodeModifyOptionsRequest),
 		ResetOptions:                  newServer(e.ResetOptions, decodeNoParamsRequest),
-		ImportConfig:                  newServer(e.ImportConfig, decodeImportConfigRequest),
 		GetCertificate:                newServer(e.GetCertificate, decodeNoParamsRequest),
 		ChangeEmail:                   newServer(e.ChangeEmail, decodeChangeEmailRequest),
 		InitiateSSO:                   newServer(e.InitiateSSO, decodeInitiateSSORequest),
@@ -416,10 +396,6 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/packs/{id}", h.ModifyPack).Methods("PATCH").Name("modify_pack")
 	r.Handle("/api/v1/kolide/packs/{id}", h.DeletePack).Methods("DELETE").Name("delete_pack")
 	r.Handle("/api/v1/kolide/packs/{id}/scheduled", h.GetScheduledQueriesInPack).Methods("GET").Name("get_scheduled_queries_in_pack")
-	r.Handle("/api/v1/kolide/schedule", h.ScheduleQuery).Methods("POST").Name("schedule_query")
-	r.Handle("/api/v1/kolide/schedule/{id}", h.GetScheduledQuery).Methods("GET").Name("get_scheduled_query")
-	r.Handle("/api/v1/kolide/schedule/{id}", h.ModifyScheduledQuery).Methods("PATCH").Name("modify_scheduled_query")
-	r.Handle("/api/v1/kolide/schedule/{id}", h.DeleteScheduledQuery).Methods("DELETE").Name("delete_scheduled_query")
 	r.Handle("/api/v1/kolide/labels/{id}", h.GetLabel).Methods("GET").Name("get_label")
 	r.Handle("/api/v1/kolide/labels", h.ListLabels).Methods("GET").Name("list_labels")
 	r.Handle("/api/v1/kolide/labels", h.CreateLabel).Methods("POST").Name("create_label")
@@ -444,8 +420,6 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/options/reset", h.ResetOptions).Methods("GET").Name("reset_options")
 
 	r.Handle("/api/v1/kolide/targets", h.SearchTargets).Methods("POST").Name("search_targets")
-
-	r.Handle("/api/v1/kolide/osquery/config/import", h.ImportConfig).Methods("POST").Name("import_config")
 
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
 	r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST").Name("get_client_config")

@@ -158,7 +158,7 @@ func (d *Datastore) loadPacksForQueries(queries []*kolide.Query) error {
 	for _, q := range queries {
 		q.Packs = make([]kolide.Pack, 0)
 		for _, sq := range d.scheduledQueries {
-			if sq.QueryID == q.ID {
+			if sq.QueryName == q.Name {
 				q.Packs = append(q.Packs, *d.packs[sq.PackID])
 			}
 		}
