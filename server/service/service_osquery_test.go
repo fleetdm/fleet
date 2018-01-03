@@ -382,14 +382,16 @@ func TestGetClientConfig(t *testing.T) {
 	}
 	ds.ListScheduledQueriesInPackFunc = func(pid uint, opt kolide.ListOptions) ([]*kolide.ScheduledQuery, error) {
 		tru := true
+		fals := false
+		fortytwo := uint(42)
 		switch pid {
 		case 1:
 			return []*kolide.ScheduledQuery{
-				{Name: "time", Query: "select * from time", Interval: 30},
+				{Name: "time", Query: "select * from time", Interval: 30, Removed: &fals},
 			}, nil
 		case 4:
 			return []*kolide.ScheduledQuery{
-				{Name: "foobar", Query: "select 3", Interval: 20},
+				{Name: "foobar", Query: "select 3", Interval: 20, Shard: &fortytwo},
 				{Name: "froobing", Query: "select 'guacamole'", Interval: 60, Snapshot: &tru},
 			}, nil
 		default:
@@ -437,13 +439,13 @@ func TestGetClientConfig(t *testing.T) {
 	assert.JSONEq(t, `{
 		"pack_by_explicit_host": {
 			"queries": {
-				"foobar":{"query":"select 3","interval":20},
+				"foobar":{"query":"select 3","interval":20,"shard":42},
 				"froobing":{"query":"select 'guacamole'","interval":60,"snapshot":true}
 			}
 		},
 		"pack_by_label": {
 			"queries":{
-				"time":{"query":"select * from time","interval":30}
+				"time":{"query":"select * from time","interval":30,"removed":false}
 			}
 		}
 	}`,
