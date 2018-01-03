@@ -9,14 +9,13 @@ type OsqueryOptionsStore interface {
 }
 
 type OsqueryOptionsService interface {
-	ApplyOptionsYaml(yml string) error
-	GetOptionsYaml() (string, error)
+	ApplyOptionsSpec(spec *OptionsSpec) error
+	GetOptionsSpec() (*OptionsSpec, error)
 }
 
-type OptionsYaml struct {
-	ApiVersion string      `json:"apiVersion"`
-	Kind       string      `json:"kind"`
-	Spec       OptionsSpec `json:"spec"`
+type OptionsObject struct {
+	ObjectMetadata
+	Spec OptionsSpec `json:"spec"`
 }
 
 type OptionsSpec struct {
@@ -29,7 +28,7 @@ type OptionsOverrides struct {
 }
 
 const (
-	OptionsSpecKind = "OsqueryOptions"
+	OptionsKind = "Options"
 )
 
 // OptionOverrideType is used to designate which override type a given set of

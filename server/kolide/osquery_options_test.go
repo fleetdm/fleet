@@ -99,7 +99,7 @@ spec:
   ]
 }`
 
-	var foo OptionsYaml
+	var foo OptionsObject
 	err := yaml.Unmarshal(y, &foo)
 
 	require.Nil(t, err)
