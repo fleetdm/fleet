@@ -50,7 +50,7 @@ Note that when you run `make generate-dev`, Webpack will be watching the JavaScr
 
 After you run `make generate-dev`, run `make build` to build the binary, launch the binary and you'll be able to refresh the browser whenever you edit and save frontend code.
 
-## Compiling the Kolide binary
+## Compiling the Fleet binary
 
 Use `go build` to build the application code. For your convenience, a make command is included which builds the code:
 
