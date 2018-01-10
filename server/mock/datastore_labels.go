@@ -10,7 +10,9 @@ import (
 
 var _ kolide.LabelStore = (*LabelStore)(nil)
 
-type NewLabelFunc func(Label *kolide.Label, opts ...kolide.OptionalArg) (*kolide.Label, error)
+type ApplyLabelSpecsFunc func(specs []*kolide.LabelSpec) error
+
+type GetLabelSpecsFunc func() ([]*kolide.LabelSpec, error)
 
 type DeleteLabelFunc func(lid uint) error
 
@@ -30,11 +32,12 @@ type ListUniqueHostsInLabelsFunc func(labels []uint) ([]kolide.Host, error)
 
 type SearchLabelsFunc func(query string, omit ...uint) ([]kolide.Label, error)
 
-type SaveLabelFunc func(label *kolide.Label) (*kolide.Label, error)
-
 type LabelStore struct {
-	NewLabelFunc        NewLabelFunc
-	NewLabelFuncInvoked bool
+	ApplyLabelSpecsFunc        ApplyLabelSpecsFunc
+	ApplyLabelSpecsFuncInvoked bool
+
+	GetLabelSpecsFunc        GetLabelSpecsFunc
+	GetLabelSpecsFuncInvoked bool
 
 	DeleteLabelFunc        DeleteLabelFunc
 	DeleteLabelFuncInvoked bool
@@ -62,14 +65,16 @@ type LabelStore struct {
 
 	SearchLabelsFunc        SearchLabelsFunc
 	SearchLabelsFuncInvoked bool
-
-	SaveLabelFunc        SaveLabelFunc
-	SaveLabelFuncInvoked bool
 }
 
-func (s *LabelStore) NewLabel(Label *kolide.Label, opts ...kolide.OptionalArg) (*kolide.Label, error) {
-	s.NewLabelFuncInvoked = true
-	return s.NewLabelFunc(Label, opts...)
+func (s *LabelStore) ApplyLabelSpecs(specs []*kolide.LabelSpec) error {
+	s.ApplyLabelSpecsFuncInvoked = true
+	return s.ApplyLabelSpecsFunc(specs)
+}
+
+func (s *LabelStore) GetLabelSpecs() ([]*kolide.LabelSpec, error) {
+	s.GetLabelSpecsFuncInvoked = true
+	return s.GetLabelSpecsFunc()
 }
 
 func (s *LabelStore) DeleteLabel(lid uint) error {
@@ -115,9 +120,4 @@ func (s *LabelStore) ListUniqueHostsInLabels(labels []uint) ([]kolide.Host, erro
 func (s *LabelStore) SearchLabels(query string, omit ...uint) ([]kolide.Label, error) {
 	s.SearchLabelsFuncInvoked = true
 	return s.SearchLabelsFunc(query, omit...)
-}
-
-func (s *LabelStore) SaveLabel(label *kolide.Label) (*kolide.Label, error) {
-	s.SaveLabelFuncInvoked = true
-	return s.SaveLabelFunc(label)
 }

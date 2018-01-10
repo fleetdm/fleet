@@ -2,31 +2,8 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 )
-
-func decodeCreatePackRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	var req createPackRequest
-	if err := json.NewDecoder(r.Body).Decode(&req.payload); err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-func decodeModifyPackRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
-	if err != nil {
-		return nil, err
-	}
-	var req modifyPackRequest
-	if err := json.NewDecoder(r.Body).Decode(&req.payload); err != nil {
-		return nil, err
-	}
-	req.ID = id
-	return req, nil
-}
 
 func decodeDeletePackRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	id, err := idFromRequest(r, "id")

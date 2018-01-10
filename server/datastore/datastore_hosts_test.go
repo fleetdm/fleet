@@ -411,10 +411,12 @@ func testDistributedQueriesForHost(t *testing.T, ds kolide.Datastore) {
 	assert.Empty(t, queries)
 
 	// Create a label
-	l1, err := ds.NewLabel(&kolide.Label{
+	l1 := kolide.LabelSpec{
+		ID:    1,
 		Name:  "label foo",
 		Query: "query1",
-	})
+	}
+	err = ds.ApplyLabelSpecs([]*kolide.LabelSpec{&l1})
 	require.Nil(t, err)
 
 	// Add hosts to label

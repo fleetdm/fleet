@@ -136,7 +136,7 @@ func (svc service) GetClientConfig(ctx context.Context) (map[string]interface{},
 		config["decorators"] = json.RawMessage(decJSON)
 	}
 
-	packs, err := svc.ListPacksForHost(ctx, host.ID)
+	packs, err := svc.ds.ListPacksForHost(host.ID)
 	if err != nil {
 		return nil, osqueryError{message: "database error: " + err.Error()}
 	}

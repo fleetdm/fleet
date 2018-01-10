@@ -103,39 +103,6 @@ func makeListLabelsEndpoint(svc kolide.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Create Label
-////////////////////////////////////////////////////////////////////////////////
-
-type createLabelRequest struct {
-	payload kolide.LabelPayload
-}
-
-type createLabelResponse struct {
-	Label labelResponse `json:"label"`
-	Err   error         `json:"error,omitempty"`
-}
-
-func (r createLabelResponse) error() error { return r.Err }
-
-func makeCreateLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(createLabelRequest)
-
-		label, err := svc.NewLabel(ctx, req.payload)
-		if err != nil {
-			return createLabelResponse{Err: err}, nil
-		}
-
-		labelResp, err := labelResponseForLabel(ctx, svc, label)
-		if err != nil {
-			return createLabelResponse{Err: err}, nil
-		}
-
-		return createLabelResponse{Label: *labelResp}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Delete Label
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -157,38 +124,5 @@ func makeDeleteLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return deleteLabelResponse{Err: err}, nil
 		}
 		return deleteLabelResponse{}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Modify Label
-////////////////////////////////////////////////////////////////////////////////
-
-type modifyLabelRequest struct {
-	ID      uint
-	payload kolide.ModifyLabelPayload
-}
-
-type modifyLabelResponse struct {
-	Label labelResponse `json:"label"`
-	Err   error         `json:"error,omitempty"`
-}
-
-func (r modifyLabelResponse) error() error { return r.Err }
-
-func makeModifyLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(modifyLabelRequest)
-		label, err := svc.ModifyLabel(ctx, req.ID, req.payload)
-		if err != nil {
-			return modifyLabelResponse{Err: err}, nil
-		}
-
-		labelResp, err := labelResponseForLabel(ctx, svc, label)
-		if err != nil {
-			return modifyLabelResponse{Err: err}, nil
-		}
-
-		return modifyLabelResponse{Label: *labelResp}, err
 	}
 }

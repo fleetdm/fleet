@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/kolide/fleet/server/kolide"
+	"github.com/kolide/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -14,10 +15,15 @@ func testUnicode(t *testing.T, ds kolide.Datastore) {
 		t.Skip("inmem is being deprecated, test skipped")
 	}
 
-	label, err := ds.NewLabel(&kolide.Label{Name: "測試"})
+	l1 := kolide.LabelSpec{
+		ID:    1,
+		Name:  "測試",
+		Query: "query foo",
+	}
+	err := ds.ApplyLabelSpecs([]*kolide.LabelSpec{&l1})
 	require.Nil(t, err)
 
-	label, err = ds.Label(label.ID)
+	label, err := ds.Label(l1.ID)
 	require.Nil(t, err)
 	assert.Equal(t, "測試", label.Name)
 
@@ -35,10 +41,10 @@ func testUnicode(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, err)
 
 	user, err = ds.User(user.Username)
+	require.Nil(t, err)
 	assert.Equal(t, "🍱", user.Username)
 
-	pack, err := ds.NewPack(&kolide.Pack{Name: "👨🏾‍🚒"})
-	require.Nil(t, err)
+	pack := test.NewPack(t, ds, "👨🏾‍🚒")
 
 	pack, err = ds.Pack(pack.ID)
 	assert.Equal(t, "👨🏾‍🚒", pack.Name)

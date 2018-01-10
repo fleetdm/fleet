@@ -1,6 +1,7 @@
 package datastore
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/WatchBeam/clock"
@@ -11,14 +12,10 @@ import (
 )
 
 func testDeletePack(t *testing.T, ds kolide.Datastore) {
-	pack := &kolide.Pack{
-		Name: "foo",
-	}
-	_, err := ds.NewPack(pack)
-	assert.Nil(t, err)
+	pack := test.NewPack(t, ds, "foo")
 	assert.NotEqual(t, uint(0), pack.ID)
 
-	pack, err = ds.Pack(pack.ID)
+	pack, err := ds.Pack(pack.ID)
 	require.Nil(t, err)
 
 	err = ds.DeletePack(pack.ID)
@@ -30,11 +27,7 @@ func testDeletePack(t *testing.T, ds kolide.Datastore) {
 }
 
 func testGetPackByName(t *testing.T, ds kolide.Datastore) {
-	pack := &kolide.Pack{
-		Name: "foo",
-	}
-	_, err := ds.NewPack(pack)
-	assert.Nil(t, err)
+	pack := test.NewPack(t, ds, "foo")
 	assert.NotEqual(t, uint(0), pack.ID)
 
 	pack, ok, err := ds.PackByName(pack.Name)
@@ -50,27 +43,63 @@ func testGetPackByName(t *testing.T, ds kolide.Datastore) {
 
 }
 
-func testGetHostsInPack(t *testing.T, ds kolide.Datastore) {
+func testListPacks(t *testing.T, ds kolide.Datastore) {
+	p1 := &kolide.PackSpec{
+		ID:   1,
+		Name: "foo_pack",
+	}
+	p2 := &kolide.PackSpec{
+		ID:   2,
+		Name: "bar_pack",
+	}
+	err := ds.ApplyPackSpecs([]*kolide.PackSpec{p1})
+	require.Nil(t, err)
+
+	packs, err := ds.ListPacks(kolide.ListOptions{})
+	require.Nil(t, err)
+	assert.Len(t, packs, 1)
+
+	err = ds.ApplyPackSpecs([]*kolide.PackSpec{p1, p2})
+	require.Nil(t, err)
+
+	packs, err = ds.ListPacks(kolide.ListOptions{})
+	require.Nil(t, err)
+	assert.Len(t, packs, 2)
+
+	fmt.Println(packs[0], packs[1])
+}
+
+func testListHostsInPack(t *testing.T, ds kolide.Datastore) {
 	if ds.Name() == "inmem" {
 		t.Skip("inmem is deprecated")
 	}
 
 	mockClock := clock.NewMockClock()
 
-	p1, err := ds.NewPack(&kolide.Pack{
+	l1 := kolide.LabelSpec{
+		ID:   1,
 		Name: "foo",
-	})
+	}
+	err := ds.ApplyLabelSpecs([]*kolide.LabelSpec{&l1})
 	require.Nil(t, err)
 
-	l1, err := ds.NewLabel(&kolide.Label{
-		Name: "foo",
-	})
-	require.Nil(t, err)
-
-	err = ds.AddLabelToPack(l1.ID, p1.ID)
+	p1 := &kolide.PackSpec{
+		ID:   1,
+		Name: "foo_pack",
+		Targets: kolide.PackSpecTargets{
+			Labels: []string{
+				l1.Name,
+			},
+		},
+	}
+	err = ds.ApplyPackSpecs([]*kolide.PackSpec{p1})
 	require.Nil(t, err)
 
 	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", mockClock.Now())
+
+	hostsInPack, err := ds.ListHostsInPack(p1.ID, kolide.ListOptions{})
+	require.Nil(t, err)
+	require.Len(t, hostsInPack, 0)
 
 	err = ds.RecordLabelQueryExecutions(
 		h1,
@@ -79,7 +108,7 @@ func testGetHostsInPack(t *testing.T, ds kolide.Datastore) {
 	)
 	require.Nil(t, err)
 
-	hostsInPack, err := ds.ListHostsInPack(p1.ID, kolide.ListOptions{})
+	hostsInPack, err = ds.ListHostsInPack(p1.ID, kolide.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, hostsInPack, 1)
 
@@ -99,38 +128,29 @@ func testGetHostsInPack(t *testing.T, ds kolide.Datastore) {
 	hostsInPack, err = ds.ListHostsInPack(p1.ID, kolide.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, hostsInPack, 2)
-
-	h3 := test.NewHost(t, ds, "h3.local", "10.10.10.3", "3", "3", mockClock.Now())
-
-	err = ds.AddHostToPack(h3.ID, p1.ID)
-	require.Nil(t, err)
-
-	hostsInPack, err = ds.ListHostsInPack(p1.ID, kolide.ListOptions{})
-	require.Nil(t, err)
-	require.Len(t, hostsInPack, 3)
-
-	explicitHostsInPack, err = ds.ListExplicitHostsInPack(p1.ID, kolide.ListOptions{})
-	require.Nil(t, err)
-	require.Len(t, explicitHostsInPack, 1)
 }
 
 func testAddLabelToPackTwice(t *testing.T, ds kolide.Datastore) {
-	l1 := test.NewLabel(t, ds, "l1", "select 1;")
-	p1 := test.NewPack(t, ds, "p1")
+	l1 := kolide.LabelSpec{
+		ID:    1,
+		Name:  "l1",
+		Query: "select 1",
+	}
+	err := ds.ApplyLabelSpecs([]*kolide.LabelSpec{&l1})
+	require.Nil(t, err)
 
-	err := ds.AddLabelToPack(l1.ID, p1.ID)
-	assert.Nil(t, err)
-
-	labels, err := ds.ListLabelsForPack(p1.ID)
-	assert.Nil(t, err)
-	assert.Len(t, labels, 1)
-
-	err = ds.AddLabelToPack(l1.ID, p1.ID)
-	assert.Nil(t, err)
-
-	labels, err = ds.ListLabelsForPack(p1.ID)
-	assert.Nil(t, err)
-	assert.Len(t, labels, 1)
+	p1 := &kolide.PackSpec{
+		ID:   1,
+		Name: "pack1",
+		Targets: kolide.PackSpecTargets{
+			Labels: []string{
+				l1.Name,
+				l1.Name,
+			},
+		},
+	}
+	err = ds.ApplyPackSpecs([]*kolide.PackSpec{p1})
+	require.NotNil(t, err)
 }
 
 func testApplyPackSpecRoundtrip(t *testing.T, ds kolide.Datastore) {
@@ -143,9 +163,22 @@ func testApplyPackSpecRoundtrip(t *testing.T, ds kolide.Datastore) {
 	err := ds.ApplyQueries(zwass.ID, queries)
 	require.Nil(t, err)
 
-	test.NewLabel(t, ds, "foo", "select * from foo")
-	test.NewLabel(t, ds, "bar", "select * from bar")
-	test.NewLabel(t, ds, "bing", "select * from bing")
+	labels := []*kolide.LabelSpec{
+		&kolide.LabelSpec{
+			Name:  "foo",
+			Query: "select * from foo",
+		},
+		&kolide.LabelSpec{
+			Name:  "bar",
+			Query: "select * from bar",
+		},
+		&kolide.LabelSpec{
+			Name:  "bing",
+			Query: "select * from bing",
+		},
+	}
+	err = ds.ApplyLabelSpecs(labels)
+	require.Nil(t, err)
 
 	boolPtr := func(b bool) *bool { return &b }
 	uintPtr := func(x uint) *uint { return &x }
@@ -196,7 +229,6 @@ func testApplyPackSpecRoundtrip(t *testing.T, ds kolide.Datastore) {
 
 func testApplyPackSpecMissingQueries(t *testing.T, ds kolide.Datastore) {
 	// Do not define queries mentioned in spec
-
 	specs := []*kolide.PackSpec{
 		&kolide.PackSpec{
 			ID:   1,
@@ -217,5 +249,174 @@ func testApplyPackSpecMissingQueries(t *testing.T, ds kolide.Datastore) {
 	err := ds.ApplyPackSpecs(specs)
 	if assert.NotNil(t, err) {
 		assert.Contains(t, err.Error(), "unknown query 'bar'")
+	}
+}
+
+func testListLabelsForPack(t *testing.T, ds kolide.Datastore) {
+	labelSpecs := []*kolide.LabelSpec{
+		&kolide.LabelSpec{
+			Name:  "foo",
+			Query: "select * from foo",
+		},
+		&kolide.LabelSpec{
+			Name:  "bar",
+			Query: "select * from bar",
+		},
+		&kolide.LabelSpec{
+			Name:  "bing",
+			Query: "select * from bing",
+		},
+	}
+	err := ds.ApplyLabelSpecs(labelSpecs)
+	require.Nil(t, err)
+
+	specs := []*kolide.PackSpec{
+		&kolide.PackSpec{
+			ID:   1,
+			Name: "test_pack",
+			Targets: kolide.PackSpecTargets{
+				Labels: []string{
+					"foo",
+					"bar",
+					"bing",
+				},
+			},
+		},
+		&kolide.PackSpec{
+			ID:   2,
+			Name: "test 2",
+			Targets: kolide.PackSpecTargets{
+				Labels: []string{
+					"bing",
+				},
+			},
+		},
+		&kolide.PackSpec{
+			ID:   3,
+			Name: "test 3",
+		},
+	}
+	err = ds.ApplyPackSpecs(specs)
+	require.Nil(t, err)
+
+	labels, err := ds.ListLabelsForPack(specs[0].ID)
+	require.Nil(t, err)
+	assert.Len(t, labels, 3)
+
+	labels, err = ds.ListLabelsForPack(specs[1].ID)
+	require.Nil(t, err)
+	assert.Len(t, labels, 1)
+	assert.Equal(t, "bing", labels[0].Name)
+
+	labels, err = ds.ListLabelsForPack(specs[2].ID)
+	require.Nil(t, err)
+	assert.Len(t, labels, 0)
+}
+
+func testListPacksForHost(t *testing.T, ds kolide.Datastore) {
+	if ds.Name() == "inmem" {
+		t.Skip("inmem is deprecated")
+	}
+
+	mockClock := clock.NewMockClock()
+
+	l1 := &kolide.LabelSpec{
+		ID:   1,
+		Name: "foo",
+	}
+	l2 := &kolide.LabelSpec{
+		ID:   2,
+		Name: "bar",
+	}
+	err := ds.ApplyLabelSpecs([]*kolide.LabelSpec{l1, l2})
+	require.Nil(t, err)
+
+	p1 := &kolide.PackSpec{
+		ID:   1,
+		Name: "foo_pack",
+		Targets: kolide.PackSpecTargets{
+			Labels: []string{
+				l1.Name,
+				l2.Name,
+			},
+		},
+	}
+	p2 := &kolide.PackSpec{
+		ID:   2,
+		Name: "shmoo_pack",
+		Targets: kolide.PackSpecTargets{
+			Labels: []string{
+				l2.Name,
+			},
+		},
+	}
+	err = ds.ApplyPackSpecs([]*kolide.PackSpec{p1, p2})
+	require.Nil(t, err)
+
+	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", mockClock.Now())
+
+	packs, err := ds.ListPacksForHost(h1.ID)
+	require.Nil(t, err)
+	require.Len(t, packs, 0)
+
+	err = ds.RecordLabelQueryExecutions(
+		h1,
+		map[uint]bool{l1.ID: true},
+		mockClock.Now(),
+	)
+	require.Nil(t, err)
+
+	packs, err = ds.ListPacksForHost(h1.ID)
+	require.Nil(t, err)
+	if assert.Len(t, packs, 1) {
+		assert.Equal(t, "foo_pack", packs[0].Name)
+	}
+
+	err = ds.RecordLabelQueryExecutions(
+		h1,
+		map[uint]bool{l1.ID: false, l2.ID: true},
+		mockClock.Now(),
+	)
+	require.Nil(t, err)
+
+	packs, err = ds.ListPacksForHost(h1.ID)
+	require.Nil(t, err)
+	assert.Len(t, packs, 2)
+
+	err = ds.RecordLabelQueryExecutions(
+		h1,
+		map[uint]bool{l1.ID: true, l2.ID: true},
+		mockClock.Now(),
+	)
+	require.Nil(t, err)
+
+	packs, err = ds.ListPacksForHost(h1.ID)
+	require.Nil(t, err)
+	assert.Len(t, packs, 2)
+
+	h2 := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", mockClock.Now())
+
+	err = ds.RecordLabelQueryExecutions(
+		h2,
+		map[uint]bool{l2.ID: true},
+		mockClock.Now(),
+	)
+	require.Nil(t, err)
+
+	packs, err = ds.ListPacksForHost(h1.ID)
+	require.Nil(t, err)
+	assert.Len(t, packs, 2)
+
+	err = ds.RecordLabelQueryExecutions(
+		h1,
+		map[uint]bool{l2.ID: false},
+		mockClock.Now(),
+	)
+	require.Nil(t, err)
+
+	packs, err = ds.ListPacksForHost(h1.ID)
+	require.Nil(t, err)
+	if assert.Len(t, packs, 1) {
+		assert.Equal(t, "foo_pack", packs[0].Name)
 	}
 }

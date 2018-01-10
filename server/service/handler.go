@@ -48,8 +48,6 @@ type KolideEndpoints struct {
 	CreateDistributedQueryCampaign endpoint.Endpoint
 	GetPack                        endpoint.Endpoint
 	ListPacks                      endpoint.Endpoint
-	CreatePack                     endpoint.Endpoint
-	ModifyPack                     endpoint.Endpoint
 	DeletePack                     endpoint.Endpoint
 	GetScheduledQueriesInPack      endpoint.Endpoint
 	EnrollAgent                    endpoint.Endpoint
@@ -59,9 +57,7 @@ type KolideEndpoints struct {
 	SubmitLogs                     endpoint.Endpoint
 	GetLabel                       endpoint.Endpoint
 	ListLabels                     endpoint.Endpoint
-	CreateLabel                    endpoint.Endpoint
 	DeleteLabel                    endpoint.Endpoint
-	ModifyLabel                    endpoint.Endpoint
 	ListDecorators                 endpoint.Endpoint
 	NewDecorator                   endpoint.Endpoint
 	ModifyDecorator                endpoint.Endpoint
@@ -132,8 +128,6 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		CreateDistributedQueryCampaign: authenticatedUser(jwtKey, svc, makeCreateDistributedQueryCampaignEndpoint(svc)),
 		GetPack:                   authenticatedUser(jwtKey, svc, makeGetPackEndpoint(svc)),
 		ListPacks:                 authenticatedUser(jwtKey, svc, makeListPacksEndpoint(svc)),
-		CreatePack:                authenticatedUser(jwtKey, svc, makeCreatePackEndpoint(svc)),
-		ModifyPack:                authenticatedUser(jwtKey, svc, makeModifyPackEndpoint(svc)),
 		DeletePack:                authenticatedUser(jwtKey, svc, makeDeletePackEndpoint(svc)),
 		GetScheduledQueriesInPack: authenticatedUser(jwtKey, svc, makeGetScheduledQueriesInPackEndpoint(svc)),
 		GetHost:                   authenticatedUser(jwtKey, svc, makeGetHostEndpoint(svc)),
@@ -142,9 +136,7 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		DeleteHost:                authenticatedUser(jwtKey, svc, makeDeleteHostEndpoint(svc)),
 		GetLabel:                  authenticatedUser(jwtKey, svc, makeGetLabelEndpoint(svc)),
 		ListLabels:                authenticatedUser(jwtKey, svc, makeListLabelsEndpoint(svc)),
-		CreateLabel:               authenticatedUser(jwtKey, svc, makeCreateLabelEndpoint(svc)),
 		DeleteLabel:               authenticatedUser(jwtKey, svc, makeDeleteLabelEndpoint(svc)),
-		ModifyLabel:               authenticatedUser(jwtKey, svc, makeModifyLabelEndpoint(svc)),
 		ListDecorators:            authenticatedUser(jwtKey, svc, makeListDecoratorsEndpoint(svc)),
 		NewDecorator:              authenticatedUser(jwtKey, svc, makeNewDecoratorEndpoint(svc)),
 		ModifyDecorator:           authenticatedUser(jwtKey, svc, makeModifyDecoratorEndpoint(svc)),
@@ -201,8 +193,6 @@ type kolideHandlers struct {
 	CreateDistributedQueryCampaign http.Handler
 	GetPack                        http.Handler
 	ListPacks                      http.Handler
-	CreatePack                     http.Handler
-	ModifyPack                     http.Handler
 	DeletePack                     http.Handler
 	GetScheduledQueriesInPack      http.Handler
 	EnrollAgent                    http.Handler
@@ -212,9 +202,7 @@ type kolideHandlers struct {
 	SubmitLogs                     http.Handler
 	GetLabel                       http.Handler
 	ListLabels                     http.Handler
-	CreateLabel                    http.Handler
 	DeleteLabel                    http.Handler
-	ModifyLabel                    http.Handler
 	ListDecorators                 http.Handler
 	NewDecorator                   http.Handler
 	ModifyDecorator                http.Handler
@@ -274,8 +262,6 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		CreateDistributedQueryCampaign: newServer(e.CreateDistributedQueryCampaign, decodeCreateDistributedQueryCampaignRequest),
 		GetPack:                       newServer(e.GetPack, decodeGetPackRequest),
 		ListPacks:                     newServer(e.ListPacks, decodeListPacksRequest),
-		CreatePack:                    newServer(e.CreatePack, decodeCreatePackRequest),
-		ModifyPack:                    newServer(e.ModifyPack, decodeModifyPackRequest),
 		DeletePack:                    newServer(e.DeletePack, decodeDeletePackRequest),
 		GetScheduledQueriesInPack:     newServer(e.GetScheduledQueriesInPack, decodeGetScheduledQueriesInPackRequest),
 		EnrollAgent:                   newServer(e.EnrollAgent, decodeEnrollAgentRequest),
@@ -285,9 +271,7 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		SubmitLogs:                    newServer(e.SubmitLogs, decodeSubmitLogsRequest),
 		GetLabel:                      newServer(e.GetLabel, decodeGetLabelRequest),
 		ListLabels:                    newServer(e.ListLabels, decodeListLabelsRequest),
-		CreateLabel:                   newServer(e.CreateLabel, decodeCreateLabelRequest),
 		DeleteLabel:                   newServer(e.DeleteLabel, decodeDeleteLabelRequest),
-		ModifyLabel:                   newServer(e.ModifyLabel, decodeModifyLabelRequest),
 		ListDecorators:                newServer(e.ListDecorators, decodeNoParamsRequest),
 		NewDecorator:                  newServer(e.NewDecorator, decodeNewDecoratorRequest),
 		ModifyDecorator:               newServer(e.ModifyDecorator, decodeModifyDecoratorRequest),
@@ -392,15 +376,11 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 
 	r.Handle("/api/v1/kolide/packs/{id}", h.GetPack).Methods("GET").Name("get_pack")
 	r.Handle("/api/v1/kolide/packs", h.ListPacks).Methods("GET").Name("list_packs")
-	r.Handle("/api/v1/kolide/packs", h.CreatePack).Methods("POST").Name("create_pack")
-	r.Handle("/api/v1/kolide/packs/{id}", h.ModifyPack).Methods("PATCH").Name("modify_pack")
 	r.Handle("/api/v1/kolide/packs/{id}", h.DeletePack).Methods("DELETE").Name("delete_pack")
 	r.Handle("/api/v1/kolide/packs/{id}/scheduled", h.GetScheduledQueriesInPack).Methods("GET").Name("get_scheduled_queries_in_pack")
 	r.Handle("/api/v1/kolide/labels/{id}", h.GetLabel).Methods("GET").Name("get_label")
 	r.Handle("/api/v1/kolide/labels", h.ListLabels).Methods("GET").Name("list_labels")
-	r.Handle("/api/v1/kolide/labels", h.CreateLabel).Methods("POST").Name("create_label")
 	r.Handle("/api/v1/kolide/labels/{id}", h.DeleteLabel).Methods("DELETE").Name("delete_label")
-	r.Handle("/api/v1/kolide/labels/{id}", h.ModifyLabel).Methods("PATCH").Name("modify_label")
 
 	r.Handle("/api/v1/kolide/decorators", h.ListDecorators).Methods("GET").Name("list_decorators")
 	r.Handle("/api/v1/kolide/decorators", h.NewDecorator).Methods("POST").Name("create_decorator")

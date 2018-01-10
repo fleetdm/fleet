@@ -47,6 +47,7 @@ type Datastore struct {
 	kolide.QueryStore
 	kolide.PackStore
 	kolide.ScheduledQueryStore
+	kolide.LabelStore
 }
 
 func New(config config.KolideConfig) (*Datastore, error) {
@@ -138,7 +139,7 @@ func (d *Datastore) MigrateData() error {
 		SMTPVerifySSLCerts: true,
 	}
 
-	return d.createBuiltinLabels()
+	return nil
 }
 
 func (m *Datastore) MigrationStatus() (kolide.MigrationStatus, error) {
@@ -159,10 +160,6 @@ func (d *Datastore) Initialize() error {
 	}
 
 	if err := d.createDevQueries(); err != nil {
-		return err
-	}
-
-	if err := d.createDevLabels(); err != nil {
 		return err
 	}
 
@@ -250,18 +247,6 @@ func (d *Datastore) createDevPacksAndQueries() error {
 	}
 
 	return err
-}
-
-func (d *Datastore) createBuiltinLabels() error {
-	for _, label := range appstate.Labels2() {
-		label := label
-		_, err := d.NewLabel(&label)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // Bootstrap a few users when using the in-memory database.
@@ -464,44 +449,4 @@ func (d *Datastore) createDevOrgInfo() error {
 	}
 	_, err := d.NewAppConfig(devOrgInfo)
 	return err
-}
-
-func (d *Datastore) createDevLabels() error {
-	labels := []kolide.Label{
-		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
-					CreatedAt: time.Date(2016, time.October, 27, 8, 31, 16, 0, time.UTC),
-				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
-					UpdatedAt: time.Date(2016, time.October, 27, 8, 31, 16, 0, time.UTC),
-				},
-			},
-			Name:  "dev_label_apache",
-			Query: "select * from processes where name like '%Apache%'",
-		},
-		{
-			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
-				CreateTimestamp: kolide.CreateTimestamp{
-					CreatedAt: time.Now().Add(-1 * time.Hour),
-				},
-				UpdateTimestamp: kolide.UpdateTimestamp{
-					UpdatedAt: time.Now(),
-				},
-			},
-
-			Name:  "dev_label_darwin",
-			Query: "select * from osquery_info where platform='darwin'",
-		},
-	}
-
-	for _, label := range labels {
-		label := label
-		_, err := d.NewLabel(&label)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }

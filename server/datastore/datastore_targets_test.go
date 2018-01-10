@@ -43,19 +43,18 @@ func testCountHostsInTargets(t *testing.T, ds kolide.Datastore) {
 	const thirtyDaysAndAMinuteAgo = -1 * (30*24*60 + 1)
 	h6 := initHost(mockClock.Now().Add(thirtyDaysAndAMinuteAgo*time.Minute), 3600, 3600)
 
-	l1, err := ds.NewLabel(&kolide.Label{
+	l1 := kolide.LabelSpec{
+		ID:    1,
 		Name:  "label foo",
 		Query: "query foo",
-	})
-	require.Nil(t, err)
-	require.NotZero(t, l1.ID)
-
-	l2, err := ds.NewLabel(&kolide.Label{
+	}
+	l2 := kolide.LabelSpec{
+		ID:    2,
 		Name:  "label bar",
-		Query: "query foo",
-	})
+		Query: "query bar",
+	}
+	err := ds.ApplyLabelSpecs([]*kolide.LabelSpec{&l1, &l2})
 	require.Nil(t, err)
-	require.NotZero(t, l2.ID)
 
 	for _, h := range []*kolide.Host{h1, h2, h3, h6} {
 		err = ds.RecordLabelQueryExecutions(h, map[uint]bool{l1.ID: true}, mockClock.Now())

@@ -8,9 +8,19 @@ import (
 func (d *Datastore) ListScheduledQueriesInPack(id uint, opts kolide.ListOptions) ([]*kolide.ScheduledQuery, error) {
 	query := `
 		SELECT
-			sq.id, sq.pack_id, sq.name, sq.query_name, q.query,
-			sq.description, sq.interval, sq.snapshot, sq.removed, sq.platform,
-			sq.version, sq.shard
+			sq.id,
+			sq.pack_id,
+			COALESCE(sq.name, q.name) AS name,
+			sq.query_name,
+			COALESCE(sq.description, '') AS description,
+			sq.interval,
+			sq.snapshot,
+			sq.removed,
+			COALESCE(sq.platform, '') AS platform,
+			sq.version,
+			sq.shard,
+			q.query,
+			q.id AS query_id
 		FROM scheduled_queries sq
 		JOIN queries q
 		ON sq.query_name = q.name

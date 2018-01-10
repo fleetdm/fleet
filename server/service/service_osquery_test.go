@@ -219,19 +219,33 @@ func TestHostDetailQueries(t *testing.T) {
 	}
 }
 
+func TestGetDistributedQueriesMissingHost(t *testing.T) {
+	svc, err := newTestService(&mock.Store{}, nil)
+	require.Nil(t, err)
+
+	_, _, err = svc.GetDistributedQueries(context.Background())
+	require.NotNil(t, err)
+	assert.Contains(t, err.Error(), "missing host")
+}
+
 func TestLabelQueries(t *testing.T) {
-	ds, svc, mockClock := setupOsqueryTests(t)
-	ctx := context.Background()
-
-	_, err := svc.EnrollAgent(ctx, "", "host123")
+	mockClock := clock.NewMockClock()
+	ds := new(mock.Store)
+	svc, err := newTestServiceWithClock(ds, nil, mockClock)
 	require.Nil(t, err)
 
-	hosts, err := ds.ListHosts(kolide.ListOptions{})
-	require.Nil(t, err)
-	require.Len(t, hosts, 1)
-	host := hosts[0]
+	ds.LabelQueriesForHostFunc = func(host *kolide.Host, cutoff time.Time) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	ds.DistributedQueriesForHostFunc = func(host *kolide.Host) (map[uint]string, error) {
+		return map[uint]string{}, nil
+	}
+	ds.SaveHostFunc = func(host *kolide.Host) error {
+		return nil
+	}
 
-	ctx = hostctx.NewContext(ctx, *host)
+	host := &kolide.Host{}
+	ctx := hostctx.NewContext(context.Background(), *host)
 
 	// With a new host, we should get the detail queries (and accelerate
 	// should be turned on so that we can quickly fill labels)
@@ -244,7 +258,6 @@ func TestLabelQueries(t *testing.T) {
 	host.DetailUpdateTime = mockClock.Now().Add(-1 * time.Minute)
 	host.Platform = "darwin"
 	host.HostName = "zwass.local"
-	ds.SaveHost(host)
 	ctx = hostctx.NewContext(ctx, *host)
 
 	queries, acc, err = svc.GetDistributedQueries(ctx)
@@ -252,32 +265,12 @@ func TestLabelQueries(t *testing.T) {
 	assert.Len(t, queries, 0)
 	assert.Zero(t, acc)
 
-	labels := []kolide.Label{
-		kolide.Label{
-			Name:     "label1",
-			Query:    "query1",
-			Platform: "darwin",
-		},
-		kolide.Label{
-			Name:     "label2",
-			Query:    "query2",
-			Platform: "darwin",
-		},
-		kolide.Label{
-			Name:     "label3",
-			Query:    "query3",
-			Platform: "darwin,linux",
-		},
-		kolide.Label{
-			Name:     "label4",
-			Query:    "query4",
-			Platform: "linux",
-		},
-	}
-
-	for _, label := range labels {
-		_, err := ds.NewLabel(&label)
-		assert.Nil(t, err)
+	ds.LabelQueriesForHostFunc = func(host *kolide.Host, cutoff time.Time) (map[string]string, error) {
+		return map[string]string{
+			"label1": "query1",
+			"label2": "query2",
+			"label3": "query3",
+		}, nil
 	}
 
 	// Now we should get the label queries
@@ -285,6 +278,16 @@ func TestLabelQueries(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, queries, 3)
 	assert.Zero(t, acc)
+
+	var gotHost *kolide.Host
+	var gotResults map[uint]bool
+	var gotTime time.Time
+	ds.RecordLabelQueryExecutionsFunc = func(host *kolide.Host, results map[uint]bool, t time.Time) error {
+		gotHost = host
+		gotResults = results
+		gotTime = t
+		return nil
+	}
 
 	// Record a query execution
 	err = svc.SubmitDistributedQueryResults(
@@ -295,32 +298,13 @@ func TestLabelQueries(t *testing.T) {
 		map[string]string{},
 	)
 	assert.Nil(t, err)
+	assert.Equal(t, host, gotHost)
+	assert.Equal(t, mockClock.Now(), gotTime)
+	if assert.Len(t, gotResults, 1) {
+		assert.Equal(t, true, gotResults[1])
+	}
 
-	// Verify that labels are set appropriately
-	hostLabels, err := ds.ListLabelsForHost(host.ID)
-	assert.Len(t, hostLabels, 1)
-	assert.Equal(t, "label1", hostLabels[0].Name)
-
-	// Now that query should not be returned
-	queries, acc, err = svc.GetDistributedQueries(ctx)
-	assert.Nil(t, err)
-	assert.Len(t, queries, 2)
-	assert.NotContains(t, queries, "kolide_label_query_1")
-	assert.Zero(t, acc)
-
-	// Advance the time
-	mockClock.AddTime(1*time.Hour + 1*time.Minute)
-
-	// Keep the host details fresh
-	host.DetailUpdateTime = mockClock.Now().Add(-1 * time.Minute)
-	ds.SaveHost(host)
-	ctx = hostctx.NewContext(ctx, *host)
-
-	// Now we should get all the label queries again
-	queries, acc, err = svc.GetDistributedQueries(ctx)
-	assert.Nil(t, err)
-	assert.Len(t, queries, 3)
-	assert.Zero(t, acc)
+	mockClock.AddTime(1 * time.Second)
 
 	// Record a query execution
 	err = svc.SubmitDistributedQueryResults(
@@ -332,20 +316,11 @@ func TestLabelQueries(t *testing.T) {
 		map[string]string{},
 	)
 	assert.Nil(t, err)
-
-	// Now these should no longer show up in the necessary to run queries
-	queries, acc, err = svc.GetDistributedQueries(ctx)
-	assert.Nil(t, err)
-	assert.Len(t, queries, 1)
-	assert.Zero(t, acc)
-
-	// Verify that labels are set appropriately
-	hostLabels, err = ds.ListLabelsForHost(host.ID)
-	assert.Len(t, hostLabels, 2)
-	expectLabelNames := map[string]bool{"label1": true, "label2": true}
-	for _, label := range hostLabels {
-		assert.Contains(t, expectLabelNames, label.Name)
-		delete(expectLabelNames, label.Name)
+	assert.Equal(t, host, gotHost)
+	assert.Equal(t, mockClock.Now(), gotTime)
+	if assert.Len(t, gotResults, 2) {
+		assert.Equal(t, true, gotResults[2])
+		assert.Equal(t, false, gotResults[3])
 	}
 }
 
@@ -354,31 +329,8 @@ func TestGetClientConfig(t *testing.T) {
 	ds.ListDecoratorsFunc = func(opt ...kolide.OptionalArg) ([]*kolide.Decorator, error) {
 		return []*kolide.Decorator{}, nil
 	}
-	ds.ListPacksFunc = func(opt kolide.ListOptions) ([]*kolide.Pack, error) {
+	ds.ListPacksForHostFunc = func(hid uint) ([]*kolide.Pack, error) {
 		return []*kolide.Pack{}, nil
-	}
-	ds.ListLabelsForHostFunc = func(hid uint) ([]kolide.Label, error) {
-		return []kolide.Label{
-			{ID: 1, Name: "foo_label"},
-		}, nil
-	}
-	ds.ListLabelsForPackFunc = func(pid uint) ([]*kolide.Label, error) {
-		switch pid {
-		case 1, 2:
-			return []*kolide.Label{
-				{ID: 1, Name: "foo_label"},
-			}, nil
-		default:
-			return []*kolide.Label{}, nil
-		}
-	}
-	ds.ListExplicitHostsInPackFunc = func(pid uint, opt kolide.ListOptions) ([]uint, error) {
-		switch pid {
-		case 4:
-			return []uint{1}, nil
-		default:
-			return []uint{}, nil
-		}
 	}
 	ds.ListScheduledQueriesInPackFunc = func(pid uint, opt kolide.ListOptions) ([]*kolide.ScheduledQuery, error) {
 		tru := true
@@ -411,7 +363,8 @@ func TestGetClientConfig(t *testing.T) {
 	svc, err := newTestService(ds, nil)
 	require.Nil(t, err)
 
-	ctx := hostctx.NewContext(context.Background(), kolide.Host{ID: 1})
+	ctx1 := hostctx.NewContext(context.Background(), kolide.Host{ID: 1})
+	ctx2 := hostctx.NewContext(context.Background(), kolide.Host{ID: 2})
 
 	expectedOptions := map[string]interface{}{
 		"distributed_interval": float64(11),
@@ -419,30 +372,54 @@ func TestGetClientConfig(t *testing.T) {
 	}
 
 	// No packs loaded yet
-	conf, err := svc.GetClientConfig(ctx)
+	conf, err := svc.GetClientConfig(ctx1)
+	require.Nil(t, err)
+	assert.Equal(t, map[string]interface{}{"options": expectedOptions}, conf)
+
+	conf, err = svc.GetClientConfig(ctx2)
 	require.Nil(t, err)
 	assert.Equal(t, map[string]interface{}{"options": expectedOptions}, conf)
 
 	// Now add packs
-	ds.ListPacksFunc = func(opt kolide.ListOptions) ([]*kolide.Pack, error) {
-		return []*kolide.Pack{
-			{ID: 1, Name: "pack_by_label"},
-			{ID: 2, Name: "disabled_pack", Disabled: true},
-			{ID: 3, Name: "not_matching_pack"},
-			{ID: 4, Name: "pack_by_explicit_host"},
-		}, nil
+	ds.ListPacksForHostFunc = func(hid uint) ([]*kolide.Pack, error) {
+		switch hid {
+		case 1:
+			return []*kolide.Pack{
+				{ID: 1, Name: "pack_by_label"},
+				{ID: 4, Name: "pack_by_other_label"},
+			}, nil
+
+		case 2:
+			return []*kolide.Pack{
+				{ID: 1, Name: "pack_by_label"},
+			}, nil
+		}
+		return []*kolide.Pack{}, nil
 	}
 
-	conf, err = svc.GetClientConfig(ctx)
+	conf, err = svc.GetClientConfig(ctx1)
 	require.Nil(t, err)
 	assert.Equal(t, expectedOptions, conf["options"])
 	assert.JSONEq(t, `{
-		"pack_by_explicit_host": {
+		"pack_by_other_label": {
 			"queries": {
 				"foobar":{"query":"select 3","interval":20,"shard":42},
 				"froobing":{"query":"select 'guacamole'","interval":60,"snapshot":true}
 			}
 		},
+		"pack_by_label": {
+			"queries":{
+				"time":{"query":"select * from time","interval":30,"removed":false}
+			}
+		}
+	}`,
+		string(conf["packs"].(json.RawMessage)),
+	)
+
+	conf, err = svc.GetClientConfig(ctx2)
+	require.Nil(t, err)
+	assert.Equal(t, expectedOptions, conf["options"])
+	assert.JSONEq(t, `{
 		"pack_by_label": {
 			"queries":{
 				"time":{"query":"select * from time","interval":30,"removed":false}
@@ -785,71 +762,97 @@ func TestDetailQueries(t *testing.T) {
 	assert.Zero(t, acc)
 }
 
-func TestDistributedQueries(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	require.Nil(t, err)
-
-	_, err = ds.NewAppConfig(&kolide.AppConfig{EnrollSecret: ""})
-	require.Nil(t, err)
-
+func TestNewDistributedQueryCampaign(t *testing.T) {
 	mockClock := clock.NewMockClock()
-
-	rs := pubsub.NewInmemQueryResults()
-
-	svc, err := newTestServiceWithClock(ds, rs, mockClock)
+	ds := new(mock.Store)
+	svc, err := newTestServiceWithClock(ds, nil, mockClock)
 	require.Nil(t, err)
 
-	ctx := context.Background()
+	ds.LabelQueriesForHostFunc = func(host *kolide.Host, cutoff time.Time) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	ds.DistributedQueriesForHostFunc = func(host *kolide.Host) (map[uint]string, error) {
+		return map[uint]string{}, nil
+	}
+	ds.SaveHostFunc = func(host *kolide.Host) error {
+		return nil
+	}
+	var gotQuery *kolide.Query
+	ds.NewQueryFunc = func(query *kolide.Query, opts ...kolide.OptionalArg) (*kolide.Query, error) {
+		gotQuery = query
+		query.ID = 42
+		return query, nil
+	}
+	var gotCampaign *kolide.DistributedQueryCampaign
+	ds.NewDistributedQueryCampaignFunc = func(camp *kolide.DistributedQueryCampaign) (*kolide.DistributedQueryCampaign, error) {
+		gotCampaign = camp
+		camp.ID = 21
+		return camp, nil
+	}
+	var gotTargets []*kolide.DistributedQueryCampaignTarget
+	ds.NewDistributedQueryCampaignTargetFunc = func(target *kolide.DistributedQueryCampaignTarget) (*kolide.DistributedQueryCampaignTarget, error) {
+		gotTargets = append(gotTargets, target)
+		return target, nil
+	}
 
-	nodeKey, err := svc.EnrollAgent(ctx, "", "host123")
-	require.Nil(t, err)
-
-	host, err := ds.AuthenticateHost(nodeKey)
-	require.Nil(t, err)
-
-	host.Platform = "centos"
-	host.HostName = "zwass.local"
-	require.Nil(t, ds.SaveHost(host))
-
-	// Create label
-	n := "foo"
-	q := "select * from foo;"
-	label, err := svc.NewLabel(ctx, kolide.LabelPayload{
-		Name:  &n,
-		Query: &q,
-	})
-	require.Nil(t, err)
-
-	// Record match with label
-	ctx = viewer.NewContext(ctx, viewer.Viewer{
+	viewerCtx := viewer.NewContext(context.Background(), viewer.Viewer{
 		User: &kolide.User{
 			ID: 0,
 		},
 	})
-	err = ds.RecordLabelQueryExecutions(host, map[uint]bool{label.ID: true}, mockClock.Now())
+	q := "select year, month, day, hour, minutes, seconds from time"
+	campaign, err := svc.NewDistributedQueryCampaign(viewerCtx, q, []uint{2}, []uint{1})
 	require.Nil(t, err)
-	err = ds.MarkHostSeen(host, mockClock.Now())
-	require.Nil(t, err)
-	ctx = hostctx.NewContext(ctx, *host)
+	assert.Equal(t, gotQuery.ID, gotCampaign.QueryID)
+	assert.Equal(t, []*kolide.DistributedQueryCampaignTarget{
+		&kolide.DistributedQueryCampaignTarget{
+			Type: kolide.TargetHost,
+			DistributedQueryCampaignID: campaign.ID,
+			TargetID:                   2,
+		},
+		&kolide.DistributedQueryCampaignTarget{
+			Type: kolide.TargetLabel,
+			DistributedQueryCampaignID: campaign.ID,
+			TargetID:                   1,
+		},
+	}, gotTargets,
+	)
+}
 
-	q = "select year, month, day, hour, minutes, seconds from time"
-	campaign, err := svc.NewDistributedQueryCampaign(ctx, q, []uint{}, []uint{label.ID})
+func TestDistributedQueryResults(t *testing.T) {
+	mockClock := clock.NewMockClock()
+	ds := new(mock.Store)
+	rs := pubsub.NewInmemQueryResults()
+	svc, err := newTestServiceWithClock(ds, rs, mockClock)
 	require.Nil(t, err)
 
-	// Manually set the campaign to running (so that it shows up when
-	// requesting queries)
-	campaign.Status = kolide.QueryRunning
-	err = ds.SaveDistributedQueryCampaign(campaign)
-	require.Nil(t, err)
+	campaign := &kolide.DistributedQueryCampaign{ID: 42}
 
-	queryKey := fmt.Sprintf("%s%d", hostDistributedQueryPrefix, campaign.ID)
+	ds.LabelQueriesForHostFunc = func(host *kolide.Host, cutoff time.Time) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	ds.SaveHostFunc = func(host *kolide.Host) error {
+		return nil
+	}
+	ds.DistributedQueriesForHostFunc = func(host *kolide.Host) (map[uint]string, error) {
+		return map[uint]string{campaign.ID: "select * from time"}, nil
+	}
+	var gotExecution *kolide.DistributedQueryExecution
+	ds.NewDistributedQueryExecutionFunc = func(exec *kolide.DistributedQueryExecution) (*kolide.DistributedQueryExecution, error) {
+		gotExecution = exec
+		return exec, nil
+	}
+
+	host := &kolide.Host{ID: 1}
+	hostCtx := hostctx.NewContext(context.Background(), *host)
 
 	// Now we should get the active distributed query
-	queries, acc, err := svc.GetDistributedQueries(ctx)
+	queries, acc, err := svc.GetDistributedQueries(hostCtx)
 	require.Nil(t, err)
 	assert.Len(t, queries, len(detailQueries)+1)
-	assert.Equal(t, q, queries[queryKey])
-	assert.Zero(t, acc)
+	queryKey := fmt.Sprintf("%s%d", hostDistributedQueryPrefix, campaign.ID)
+	assert.Equal(t, "select * from time", queries[queryKey])
+	assert.NotZero(t, acc)
 
 	expectedRows := []map[string]string{
 		{
@@ -866,7 +869,7 @@ func TestDistributedQueries(t *testing.T) {
 	}
 
 	// TODO use service method
-	readChan, err := rs.ReadChannel(ctx, *campaign)
+	readChan, err := rs.ReadChannel(context.Background(), *campaign)
 	require.Nil(t, err)
 
 	// We need to listen for the result in a separate thread to prevent the
@@ -901,17 +904,11 @@ func TestDistributedQueries(t *testing.T) {
 	// this test.
 	time.Sleep(10 * time.Millisecond)
 
-	err = svc.SubmitDistributedQueryResults(ctx, results, map[string]string{})
+	err = svc.SubmitDistributedQueryResults(hostCtx, results, map[string]string{})
 	require.Nil(t, err)
-
-	// Now the distributed query should be completed and not returned
-	queries, acc, err = svc.GetDistributedQueries(ctx)
-	require.Nil(t, err)
-	assert.Len(t, queries, len(detailQueries))
-	assert.NotContains(t, queries, queryKey)
-	assert.Zero(t, acc)
-
-	waitComplete.Wait()
+	assert.Equal(t, campaign.ID, gotExecution.DistributedQueryCampaignID)
+	assert.Equal(t, host.ID, gotExecution.HostID)
+	assert.Equal(t, kolide.ExecutionSucceeded, gotExecution.Status)
 }
 
 func TestOrphanedQueryCampaign(t *testing.T) {
@@ -983,11 +980,8 @@ func TestUpdateHostIntervals(t *testing.T) {
 	ds.ListDecoratorsFunc = func(opt ...kolide.OptionalArg) ([]*kolide.Decorator, error) {
 		return []*kolide.Decorator{}, nil
 	}
-	ds.ListPacksFunc = func(opt kolide.ListOptions) ([]*kolide.Pack, error) {
+	ds.ListPacksForHostFunc = func(hid uint) ([]*kolide.Pack, error) {
 		return []*kolide.Pack{}, nil
-	}
-	ds.ListLabelsForHostFunc = func(hid uint) ([]kolide.Label, error) {
-		return []kolide.Label{}, nil
 	}
 
 	var testCases = []struct {

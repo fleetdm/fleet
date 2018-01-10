@@ -6,14 +6,11 @@ import (
 
 // PackStore is the datastore interface for managing query packs.
 type PackStore interface {
+	// ApplyPackSpecs applies a list of PackSpecs to the datastore,
+	// creating and updating packs as necessary.
 	ApplyPackSpecs(specs []*PackSpec) error
+	// GetPackSpecs returns all of the stored PackSpecs.
 	GetPackSpecs() ([]*PackSpec, error)
-
-	// NewPack creates a new pack in the datastore.
-	NewPack(pack *Pack, opts ...OptionalArg) (*Pack, error)
-
-	// SavePack updates an existing pack in the datastore.
-	SavePack(pack *Pack) error
 
 	// DeletePack deletes a pack record from the datastore.
 	DeletePack(pid uint) error
@@ -27,25 +24,14 @@ type PackStore interface {
 	// exists the bool return value is true
 	PackByName(name string, opts ...OptionalArg) (*Pack, bool, error)
 
-	// AddLabelToPack adds an existing label to an existing pack, both by ID.
-	AddLabelToPack(lid, pid uint, opts ...OptionalArg) error
-
-	// RemoveLabelFromPack removes an existing label from it's association with
-	// an existing pack, both by ID.
-	RemoveLabelFromPack(lid, pid uint) error
-
 	// ListLabelsForPack lists all labels that are associated with a pack.
 	ListLabelsForPack(pid uint) ([]*Label, error)
 
-	// AddHostToPack adds an existing host to an existing pack, both by ID.
-	AddHostToPack(hid uint, pid uint) error
+	// ListPacksForHost lists the packs that a host should execute.
+	ListPacksForHost(hid uint) (packs []*Pack, err error)
 
-	// RemoveHostFromPack removes an existing host from it's association with
-	// an existing pack, both by ID.
-	RemoveHostFromPack(hid uint, pid uint) error
-
-	// ListHostsInPack lists the IDs of all hosts that are associated with a pack,
-	// both through labels and manual associations.
+	// ListHostsInPack lists the IDs of all hosts that are associated with a pack
+	// through labels.
 	ListHostsInPack(pid uint, opt ListOptions) ([]uint, error)
 
 	// ListExplicitHostsInPack lists the IDs of hosts that have been manually
@@ -55,37 +41,23 @@ type PackStore interface {
 
 // PackService is the service interface for managing query packs.
 type PackService interface {
+	// ApplyPackSpecs applies a list of PackSpecs to the datastore,
+	// creating and updating packs as necessary.
+	ApplyPackSpecs(ctx context.Context, specs []*PackSpec) error
+	// GetPackSpecs returns all of the stored PackSpecs.
+	GetPackSpecs(ctx context.Context) ([]*PackSpec, error)
+
 	// ListPacks lists all packs in the application.
 	ListPacks(ctx context.Context, opt ListOptions) (packs []*Pack, err error)
 
 	// GetPack retrieves a pack by ID.
 	GetPack(ctx context.Context, id uint) (pack *Pack, err error)
 
-	// NewPack creates a new pack in the datastore.
-	NewPack(ctx context.Context, p PackPayload) (pack *Pack, err error)
-
-	// ModifyPack modifies an existing pack in the datastore.
-	ModifyPack(ctx context.Context, id uint, p PackPayload) (pack *Pack, err error)
-
 	// DeletePack deletes a pack record from the datastore.
 	DeletePack(ctx context.Context, id uint) (err error)
 
-	// AddLabelToPack adds an existing label to an existing pack, both by ID.
-	AddLabelToPack(ctx context.Context, lid, pid uint) (err error)
-
-	// RemoveLabelFromPack removes an existing label from it's association with
-	// an existing pack, both by ID.
-	RemoveLabelFromPack(ctx context.Context, lid, pid uint) (err error)
-
 	// ListLabelsForPack lists all labels that are associated with a pack.
 	ListLabelsForPack(ctx context.Context, pid uint) (labels []*Label, err error)
-
-	// AddHostToPack adds an existing host to an existing pack, both by ID.
-	AddHostToPack(ctx context.Context, hid, pid uint) (err error)
-
-	// RemoveHostFromPack removes an existing host from it's association with
-	// an existing pack, both by ID.
-	RemoveHostFromPack(ctx context.Context, hid, pid uint) (err error)
 
 	// ListPacksForHost lists the packs that a host should execute.
 	ListPacksForHost(ctx context.Context, hid uint) (packs []*Pack, err error)

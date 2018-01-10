@@ -25,13 +25,12 @@ func NewQuery(t *testing.T, ds kolide.Datastore, name, q string, authorID uint, 
 }
 
 func NewPack(t *testing.T, ds kolide.Datastore, name string) *kolide.Pack {
-	pack, err := ds.NewPack(&kolide.Pack{
-		Name: name,
-	})
+	err := ds.ApplyPackSpecs([]*kolide.PackSpec{&kolide.PackSpec{Name: name}})
 	require.Nil(t, err)
 
 	// Loading gives us the timestamps
-	pack, err = ds.Pack(pack.ID)
+	pack, ok, err := ds.PackByName(name)
+	require.True(t, ok)
 	require.Nil(t, err)
 
 	return pack
@@ -102,15 +101,6 @@ func NewHost(t *testing.T, ds kolide.Datastore, name, ip, key, uuid string, now 
 	require.Nil(t, ds.MarkHostSeen(h, now))
 
 	return h
-}
-
-func NewLabel(t *testing.T, ds kolide.Datastore, name, query string) *kolide.Label {
-	l, err := ds.NewLabel(&kolide.Label{Name: name, Query: query})
-
-	require.Nil(t, err)
-	require.NotZero(t, l.ID)
-
-	return l
 }
 
 func NewUser(t *testing.T, ds kolide.Datastore, name, username, email string, admin bool) *kolide.User {

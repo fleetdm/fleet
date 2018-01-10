@@ -18,6 +18,7 @@ type ScheduledQuery struct {
 	ID          uint    `json:"id"`
 	PackID      uint    `json:"pack_id" db:"pack_id"`
 	Name        string  `json:"name"`
+	QueryID     uint    `json:"query_id" db:"query_id"`
 	QueryName   string  `json:"query_name" db:"query_name"`
 	Query       string  `json:"query"` // populated via a join on queries
 	Description string  `json:"description"`
