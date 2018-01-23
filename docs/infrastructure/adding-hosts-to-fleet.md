@@ -110,7 +110,7 @@ osqueryd
  --enroll_secret_env=OSQUERY_ENROLL_SECRET
  --tls_server_certs=/etc/osquery/kolide.crt
  --tls_hostname=kolide.acme.net
- --host_identifier=hostname
+ --host_identifier=uuid
  --enroll_tls_endpoint=/api/v1/osquery/enroll
  --config_plugin=tls
  --config_tls_endpoint=/api/v1/osquery/config
