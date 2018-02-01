@@ -8,7 +8,7 @@ Documentation for Fleet can be found on [GitHub](./docs/README.md).
 
 [![Kolide](./assets/images/rube.png)](https://kolide.com/fleet)
 
-## To Start Using Fleet
+## Using Fleet
 
 #### The Web UI
 
@@ -16,7 +16,7 @@ Information about using the Kolide web application can be found in the [Applicat
 
 #### The CLI
 
-If you're interested in learning about the new `fleetctl` CLI and flexible osquery deployment file format, see the [CLI Documentation](./docs/cli/README.md).
+If you're interested in learning about the (under development) `fleetctl` CLI and flexible osquery deployment file format, see the [CLI Documentation](./docs/cli/README.md).
 
 #### Deploying Osquery and Fleet
 
@@ -26,10 +26,23 @@ Resources for deploying osquery to hosts, deploying the Fleet server, installing
 
 If you are interested in accessing the Fleet REST API in order to programmatically interact with your osquery installation, please see the [API Documentation](./docs/api/README.md).
 
-## To Start Developing Fleet
+## Developing Fleet
 
 #### Development Documentation
 
 If you're interested in interacting with the Kolide source code, you will find information on modifying and building the code in the [Development Documentation](./docs/development/README.md).
 
 If you have any questions, please create a [GitHub Issue](https://github.com/kolide/fleet/issues/new).
+
+## Community
+
+#### Chat
+
+Please join us in the #kolide channel on [osquery Slack](https://osquery-slack.herokuapp.com/).
+
+#### Community Projects
+
+Below are some projects created by Kolide community members. Please submit a pull request if you'd like your project featured.
+
+- [davidrecordon/terraform-aws-kolide-fleet](https://github.com/davidrecordon/terraform-aws-kolide-fleet) - Deploy Fleet into AWS using Terraform.
+- [deeso/fleet-deployment](https://github.com/deeso/fleet-deployment) - Install Fleet on a Ubuntu box.
