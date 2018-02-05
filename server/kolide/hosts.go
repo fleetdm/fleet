@@ -5,6 +5,8 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"time"
+        "net"
+        "strings"
 )
 
 const (
@@ -132,6 +134,18 @@ func (h *Host) ResetPrimaryNetwork() bool {
 	// nics are in descending order of IO
 	// so we default to the most active nic
 	if len(h.NetworkInterfaces) > 0 {
+                // Check IPv4 address
+		for _, nic := range h.NetworkInterfaces {
+                        if strings.Index(nic.IPAddress, "127.") == 0 {
+                            continue
+                        }
+                        var isIpAddress = net.ParseIP(nic.IPAddress)
+                        if isIpAddress.To4() != nil {
+                            h.PrimaryNetworkInterfaceID = &nic.ID
+                            return true
+                        }
+		}
+                // return IPv6 or other nic in place of IPv4
 		h.PrimaryNetworkInterfaceID = &h.NetworkInterfaces[0].ID
 		return true
 	}

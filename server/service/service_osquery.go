@@ -277,9 +277,12 @@ var detailQueries = map[string]struct {
 	IngestFunc func(logger log.Logger, host *kolide.Host, rows []map[string]string) error
 }{
 	"network_interface": {
-		Query: `select * from interface_details id join interface_addresses ia
-                        on ia.interface = id.interface where broadcast != ""
-                        order by (ibytes + obytes) desc`,
+		Query: `select ia.interface, address, mask, broadcast, point_to_point,
+                               id.interface, mac, id.type, mtu, metric, ipackets, opackets,
+                               ibytes, obytes, ierrors, oerrors, idrops, odrops, last_change
+                        from interface_details id join interface_addresses ia
+                               on ia.interface = id.interface where length(mac) > 0
+                               order by (ibytes + obytes) desc`,
 		IngestFunc: func(logger log.Logger, host *kolide.Host, rows []map[string]string) (err error) {
 			if len(rows) == 0 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",
@@ -295,14 +298,14 @@ var detailQueries = map[string]struct {
 				nic.IPAddress = row["address"]
 				nic.Broadcast = row["broadcast"]
 				if nic.IBytes, err = strconv.ParseInt(emptyToZero(row["ibytes"]), 10, 64); err != nil {
-					return err
+					nic.IBytes = -1
 				}
 				if nic.IErrors, err = strconv.ParseInt(emptyToZero(row["ierrors"]), 10, 64); err != nil {
-					return err
+					nic.IErrors = -1
 				}
 				nic.Interface = row["interface"]
 				if nic.IPackets, err = strconv.ParseInt(emptyToZero(row["ipackets"]), 10, 64); err != nil {
-					return err
+					nic.IPackets = -1
 				}
 				// Optional last_change
 				if lastChange, ok := row["last_change"]; ok {
@@ -318,13 +321,13 @@ var detailQueries = map[string]struct {
 					return err
 				}
 				if nic.OBytes, err = strconv.ParseInt(emptyToZero(row["obytes"]), 10, 64); err != nil {
-					return err
+					nic.OBytes = -1
 				}
 				if nic.OErrors, err = strconv.ParseInt(emptyToZero(row["oerrors"]), 10, 64); err != nil {
-					return err
+					nic.OErrors = -1
 				}
 				if nic.OPackets, err = strconv.ParseInt(emptyToZero(row["opackets"]), 10, 64); err != nil {
-					return err
+					nic.OPackets = -1
 				}
 				nic.PointToPoint = row["point_to_point"]
 				if nic.Type, err = strconv.Atoi(emptyToZero(row["type"])); err != nil {
