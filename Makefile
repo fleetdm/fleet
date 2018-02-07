@@ -161,7 +161,7 @@ generate-dev: .prefix
 deps:
 	yarn
 	go get -u \
-		github.com/jteeuwen/go-bindata/... \
+		github.com/kolide/go-bindata/... \
 		github.com/golang/dep/cmd/dep \
 		github.com/groob/mockimpl
 	dep ensure -vendor-only
