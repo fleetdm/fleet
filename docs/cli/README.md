@@ -97,7 +97,6 @@ All of these files can be concatenated together into [one file](../../examples/c
 
 ```
 |-- config.yml
-|-- decorators.yml
 |-- labels.yml
 |-- packs
 |   `-- osquery-monitoring.yml
@@ -119,6 +118,14 @@ spec:
       logger_plugin: tls
       logger_tls_endpoint: /api/v1/osquery/log
       logger_tls_period: 10
+    decorators:
+      load:
+        - "SELECT version FROM osquery_info"
+        - "SELECT uuid AS host_uuid FROM system_info"
+      always:
+        - "SELECT user AS username FROM logged_in_users WHERE user <> '' ORDER BY time LIMIT 1"
+      interval:
+        3600: "SELECT total_seconds AS uptime FROM uptime"
   overrides:
     # Note configs in overrides take precedence over the default config defined
     # under the config key above. With this config file, the base config would
@@ -140,6 +147,7 @@ spec:
             - /Users/%/Documents/%%
           etc:
             - /etc/%%
+
       linux:
         options:
           distributed_interval: 10
@@ -162,25 +170,12 @@ spec:
             - /home/not_to_monitor/.ssh/%%
           tmp:
             - /tmp/too_many_events/
-```
-
-### Osquery Logging Decorators
-
-The following file describes logging decorators that should be applied on osquery instances. A decorator should reference an osquery query by name. Both of these resources can be included in the same file as such:
-
-```yaml
-apiVersion: k8s.kolide.com/v1alpha1
-kind: OsqueryDecorator
-spec:
-  query: hostname
-  type: interval
-  interval: 10
----
-apiVersion: k8s.kolide.com/v1/alpha1
-kind: OsqueryQuery
-spec:
-  name: hostname
-  query: select hostname from system_info;
+        decorators:
+          load:
+            - "SELECT * FROM cpuid"
+            - "SELECT * FROM docker_info"
+          interval:
+            3600: "SELECT total_seconds AS uptime FROM uptime"
 ```
 
 ### Host Labels
