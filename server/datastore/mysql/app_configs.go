@@ -52,9 +52,11 @@ func (d *Datastore) SaveAppConfig(info *kolide.AppConfig) error {
       metadata,
       metadata_url,
       idp_name,
-      enable_sso
+      enable_sso,
+      fim_interval,
+      fim_file_accesses
     )
-    VALUES( 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
+    VALUES( 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
     ON DUPLICATE KEY UPDATE
       org_name = VALUES(org_name),
       org_logo_url = VALUES(org_logo_url),
@@ -78,7 +80,9 @@ func (d *Datastore) SaveAppConfig(info *kolide.AppConfig) error {
       metadata = VALUES(metadata),
       metadata_url = VALUES(metadata_url),
       idp_name = VALUES(idp_name),
-      enable_sso = VALUES(enable_sso)
+      enable_sso = VALUES(enable_sso),
+      fim_interval = VALUES(fim_interval),
+      fim_file_accesses = VALUES(fim_file_accesses)
     `
 
 	_, err := d.db.Exec(insertStatement,
@@ -105,6 +109,8 @@ func (d *Datastore) SaveAppConfig(info *kolide.AppConfig) error {
 		info.MetadataURL,
 		info.IDPName,
 		info.EnableSSO,
+		info.FIMInterval,
+		info.FIMFileAccesses,
 	)
 
 	return err
