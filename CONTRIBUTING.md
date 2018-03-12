@@ -10,4 +10,4 @@ When filing an issue, make sure to answer these five questions:
 
 Sensitive security-related issues should be reported to
 [security@kolide.co](mailto:security@kolide.co) before a public issue is made.
-vailable at http://contributor-covenant.org/version/1/4.
+
