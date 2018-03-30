@@ -1,4 +1,14 @@
+## Kolide Fleet 1.0.7 (Mar 30, 2018)
+
+* Support FileAccesses in FIM configuration.
+
+* Populate network interfaces on windows hosts in host view.
+
+* Add flags for configuring MySQL connection pooling limits.
+
 * Fixed bug in which shard and removed keys are dropped in query packs returned to osquery clients.
+
+* Fixed handling of status logs with unexpected fields.
 
 ## Kolide Fleet 1.0.6 (Dec 4, 2017)
 
