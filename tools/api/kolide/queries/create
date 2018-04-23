@@ -1,0 +1,10 @@
+#!/bin/bash
+source $FLEET_ENV_PATH
+endpoint="api/v1/kolide/queries"
+jq -n \
+  --arg name "$1" \
+  --arg query "$2" \
+  '.name = $name 
+  |.query = $query 
+  '|\
+  curl $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$endpoint" -d@- 
