@@ -17,7 +17,7 @@ type OsqueryService interface {
 	// for) should be returned. Returning 0 for this will not activate the
 	// feature.
 	GetDistributedQueries(ctx context.Context) (queries map[string]string, accelerate uint, err error)
-	SubmitDistributedQueryResults(ctx context.Context, results OsqueryDistributedQueryResults, statuses map[string]string) (err error)
+	SubmitDistributedQueryResults(ctx context.Context, results OsqueryDistributedQueryResults, statuses map[string]OsqueryStatus) (err error)
 	SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) (err error)
 	SubmitResultLogs(ctx context.Context, logs []json.RawMessage) (err error)
 }
@@ -25,6 +25,15 @@ type OsqueryService interface {
 // OsqueryDistributedQueryResults represents the format of the results of an
 // osquery distributed query.
 type OsqueryDistributedQueryResults map[string][]map[string]string
+
+// OsqueryStatus represents osquery status codes (0 = success, nonzero =
+// failure)
+type OsqueryStatus int
+
+const (
+	// StatusOK is the success code returned by osquery
+	StatusOK OsqueryStatus = 0
+)
 
 // QueryContent is the format of a query stanza in an osquery configuration.
 type QueryContent struct {

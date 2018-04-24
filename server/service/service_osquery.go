@@ -657,7 +657,7 @@ func (svc service) ingestDistributedQuery(host kolide.Host, name string, rows []
 	return nil
 }
 
-func (svc service) SubmitDistributedQueryResults(ctx context.Context, results kolide.OsqueryDistributedQueryResults, statuses map[string]string) error {
+func (svc service) SubmitDistributedQueryResults(ctx context.Context, results kolide.OsqueryDistributedQueryResults, statuses map[string]kolide.OsqueryStatus) error {
 	host, ok := hostctx.FromContext(ctx)
 
 	if !ok {
@@ -678,7 +678,7 @@ func (svc service) SubmitDistributedQueryResults(ctx context.Context, results ko
 			// osquery docs say any nonzero (string) value for
 			// status indicates a query error
 			status, ok := statuses[query]
-			failed := ok && status != "0"
+			failed := (ok && status != kolide.StatusOK)
 			err = svc.ingestDistributedQuery(host, query, rows, failed)
 		default:
 			err = osqueryError{message: "unknown query prefix: " + query}

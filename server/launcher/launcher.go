@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
 
 	"github.com/go-kit/kit/log"
 	"github.com/kolide/osquery-go/plugin/distributed"
@@ -114,10 +113,10 @@ func (svc *launcherWrapper) PublishResults(ctx context.Context, nodeKey string, 
 	}
 
 	osqueryResults := make(kolide.OsqueryDistributedQueryResults, len(results))
-	statuses := make(map[string]string, len(results))
+	statuses := make(map[string]kolide.OsqueryStatus, len(results))
 
 	for _, result := range results {
-		statuses[result.QueryName] = strconv.Itoa(result.Status)
+		statuses[result.QueryName] = kolide.OsqueryStatus(result.Status)
 		osqueryResults[result.QueryName] = result.Rows
 	}
 

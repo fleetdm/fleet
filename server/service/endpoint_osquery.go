@@ -93,7 +93,7 @@ func makeGetDistributedQueriesEndpoint(svc kolide.Service) endpoint.Endpoint {
 type submitDistributedQueryResultsRequest struct {
 	NodeKey  string                                `json:"node_key"`
 	Results  kolide.OsqueryDistributedQueryResults `json:"queries"`
-	Statuses map[string]string                     `json:"statuses"`
+	Statuses map[string]kolide.OsqueryStatus       `json:"statuses"`
 }
 
 type submitDistributedQueryResultsResponse struct {
