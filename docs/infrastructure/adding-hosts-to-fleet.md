@@ -12,28 +12,7 @@ If you'd like to use the native osqueryd binaries to connect to Fleet, this is e
 
 ## Kolide Osquery Launcher
 
-#### Setting up a Launcher environment
-
-It's helpful to have a local build of the Launcher and it's included package building tools when reasoning about connecting the Launcher to Fleet. Both Launcher and Fleet have a similar repository interface that should be familiar.
-
-If you have installed Go, but have never used it before (ie: you have not configured a `$GOPATH` environment variable), then there's good news: you don't need to do this anymore. By default, the Go compiler now looks in `~/go` for your Go source code. So, let's clone the launcher directory where it's supposed to go:
-
-```
-mkdir -p $GOPATH/src/github.com/kolide
-cd $GOPATH/src/github.com/kolide
-git clone git@github.com:kolide/launcher.git
-cd launcher
-```
-
-Once you're in the root of the repository (and you have a recent Go toolchain installed), you can follow the directions included with the Launcher repository:
-
-```
-make deps
-make generate
-make test
-make
-./build/launcher --help
-```
+We provide compiled releases of the launcher for all supported platforms. Those can be found [here](https://github.com/kolide/launcher/releases). But if you’d like to compile from source, the instructions are [here](https://github.com/kolide/fleet/tree/master/docs/development).
 
 #### Connecting a single Launcher to Fleet
 
