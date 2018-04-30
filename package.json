@@ -41,7 +41,7 @@
     "moment": "^2.15.1",
     "nock": "^8.0.0",
     "node-bourbon": "^4.2.8",
-    "node-sass": "^4.5.0",
+    "node-sass": "^4.8.3",
     "normalizr": "^2.2.1",
     "proxy-middleware": "^0.15.0",
     "rc-pagination": "^1.12.10",
