@@ -1,42 +1,42 @@
 ---
-apiVersion: k8s.kolide.com/v1alpha1
+apiVersion: kolide.com/v1alpha1
 kind: OsqueryLabel
 spec:
   name: all_hosts
   query: always_true
 ---
-apiVersion: k8s.kolide.com/v1alpha1
+apiVersion: kolide.com/v1alpha1
 kind: OsqueryLabel
 spec:
   name: macs
   query: darwin_hosts
 ---
-apiVersion: k8s.kolide.com/v1alpha1
+apiVersion: kolide.com/v1alpha1
 kind: OsqueryLabel
 spec:
   name: ubuntu
   query: ubuntu_hosts
 ---
-apiVersion: k8s.kolide.com/v1alpha1
+apiVersion: kolide.com/v1alpha1
 kind: OsqueryLabel
 spec:
   name: centos
   query: centos_hosts
 ---
-apiVersion: k8s.kolide.com/v1alpha1
+apiVersion: kolide.com/v1alpha1
 kind: OsqueryLabel
 spec:
   name: windows
   query: windows_hosts
 ---
-apiVersion: k8s.kolide.com/v1alpha1
+apiVersion: kolide.com/v1alpha1
 kind: OsqueryLabel
 spec:
   query: pending_updates
   platforms:
     - darwin
 ---
-apiVersion: k8s.kolide.com/v1alpha1
+apiVersion: kolide.com/v1alpha1
 kind: OsqueryLabel
 spec:
   query: slack_not_running

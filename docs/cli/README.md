@@ -50,30 +50,17 @@ Find more information at https://kolide.com/fleet
 ### Workflow
 
 ```bash
-# Make sure you're currently using the current server (in this case: staging)
-fleetctl config set-context staging
+# Make sure you're currently using the current server (in this case: production linux hosts)
+fleetctl config set-context production-linux
 
 # Edit the config file (or files) for your Fleet instance (or one of them) and apply the file
-vim fleet-staging.yml
-fleetctl apply -f ./fleet-staging.yml
+vim fleet-linux.yml
+fleetctl apply -f ./fleet-linux.yml
 
 # Commit the changes to an upstream source tree
-git add fleet-staging.yml
-git commit -m "new changes to staging fleet instance"
+git add fleet-linux.yml
+git commit -m "new changes to osquery production linux configuration"
 git push
-```
-
-Alternatively, you can specify the context as a flag for easy use in parallel scripts or instances where you may have many Fleet environments:
-
-```bash
-# Edit your Fleet config file
-vim fleet.yml
-
-# First apply the configuration to your staging environment for testing
-fleetctl apply -f ./fleet.yml --context=staging
-
-# Apply the configuration to both staging and production at the same time
-fleetctl apply -f ./fleet.yml --context=staging,production
 ```
 
 ## Configuration File Format
@@ -108,7 +95,7 @@ All of these files can be concatenated together into [one file](../../examples/c
 The following file describes configuration options passed to the osquery instance. All other configuration data will be over-written by the application of this file.
 
 ```yaml
-apiVersion: k8s.kolide.com/v1alpha1
+apiVersion: kolide.com/v1alpha1
 kind: OsqueryOptions
 spec:
   config:
@@ -183,13 +170,13 @@ spec:
 The following file describes the labels which hosts should be automatically grouped into. The label resource should reference the query by name. Both of these resources can be included in the same file as such:
 
 ```yaml
-apiVersion: k8s.kolide.com/v1alpha1
+apiVersion: kolide.com/v1alpha1
 kind: OsqueryLabel
 spec:
   name: slack_not_running
   query: slack_not_running
 ---
-apiVersion: k8s.kolide.com/v1/alpha1
+apiVersion: kolide.com/v1/alpha1
 kind: OsqueryQuery
 spec:
   name: slack_not_running
@@ -207,7 +194,7 @@ spec:
 For especially long or complex queries, you may want to define one query in one file. Continued edits and applications to this file will update the query as long as the `metadata.name` does not change. If you want to change the name of a query, you must first create a new query with the new name and then delete the query with the old name. Make sure the old query name is not defined in any packs before deleting it or an error will occur.
 
 ```yaml
-apiVersion: k8s.kolide.com/v1alpha1
+apiVersion: kolide.com/v1alpha1
 kind: OsqueryQuery
 spec:
   name: docker_processes
@@ -223,7 +210,7 @@ spec:
 To define multiple queries in a file, concatenate multiple `OsqueryQuery` resources together in a single file with `---`. For example, consider a file that you might store at `queries/osquery_monitoring.yml`:
 
 ```yaml
-apiVersion: k8s.kolide.com/v1alpha1
+apiVersion: kolide.com/v1alpha1
 kind: OsqueryQuery
 spec:
   name: osquery_version
@@ -233,21 +220,21 @@ spec:
     launcher: 0.3.0
     osquery: 2.9.0
 ---
-apiVersion: k8s.kolide.com/v1alpha1
+apiVersion: kolide.com/v1alpha1
 kind: OsqueryQuery
 spec:
   name: osquery_schedule
   description: Report performance stats for each file in the query schedule.
   query: select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;
 ---
-apiVersion: k8s.kolide.com/v1alpha1
+apiVersion: kolide.com/v1alpha1
 kind: OsqueryQuery
 spec:
   name: osquery_info
   description: A heartbeat counter that reports general performance (CPU, memory) and version.
   query: select i.*, p.resident_size, p.user_time, p.system_time, time.minutes as counter from osquery_info i, processes p, time where p.pid = i.pid;
 ---
-apiVersion: k8s.kolide.com/v1alpha1
+apiVersion: kolide.com/v1alpha1
 kind: OsqueryQuery
 spec:
   name: osquery_events
@@ -260,7 +247,7 @@ spec:
 To define query packs, reference queries defined elsewhere by name. This is why the "name" of a query is so important. You can define many of these packs in many files.
 
 ```yaml
-apiVersion: k8s.kolide.com/v1alpha1
+apiVersion: kolide.com/v1alpha1
 kind: OsqueryPack
 spec:
   name: osquery_monitoring
