@@ -23,29 +23,27 @@ func main() {
 
 	app.Commands = []cli.Command{
 		cli.Command{
-			Name:        "create",
-			Usage:       "Create resources",
+			Name:        "query",
+			Usage:       "run a query across your fleet",
 			Subcommands: []cli.Command{},
 		},
 		cli.Command{
-			Name:        "get",
-			Usage:       "Get and list resources",
+			Name:        "apply",
+			Usage:       "apply a set of osquery configurations",
 			Subcommands: []cli.Command{},
 		},
 		cli.Command{
-			Name:        "put",
-			Usage:       "Create or update resources",
+			Name:        "edit",
+			Usage:       "edit your complete configuration in an ephemeral editor",
 			Subcommands: []cli.Command{},
 		},
 		cli.Command{
-			Name:        "delete",
-			Usage:       "Delete resources",
-			Subcommands: []cli.Command{},
-		},
-		cli.Command{
-			Name:        "ensure",
-			Usage:       "Ensures the state of resources",
-			Subcommands: []cli.Command{},
+			Name:  "config",
+			Usage: "modify how and which Fleet server to connect to",
+			Subcommands: []cli.Command{
+				loginCommand(),
+				setupCommand(),
+			},
 		},
 	}
 

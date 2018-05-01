@@ -9,6 +9,7 @@ type PackStore interface {
 	// ApplyPackSpecs applies a list of PackSpecs to the datastore,
 	// creating and updating packs as necessary.
 	ApplyPackSpecs(specs []*PackSpec) error
+
 	// GetPackSpecs returns all of the stored PackSpecs.
 	GetPackSpecs() ([]*PackSpec, error)
 
@@ -20,6 +21,7 @@ type PackStore interface {
 
 	// ListPacks lists all packs in the datastore.
 	ListPacks(opt ListOptions) ([]*Pack, error)
+
 	// PackByName fetches pack if it exists, if the pack
 	// exists the bool return value is true
 	PackByName(name string, opts ...OptionalArg) (*Pack, bool, error)
@@ -44,6 +46,7 @@ type PackService interface {
 	// ApplyPackSpecs applies a list of PackSpecs to the datastore,
 	// creating and updating packs as necessary.
 	ApplyPackSpecs(ctx context.Context, specs []*PackSpec) error
+
 	// GetPackSpecs returns all of the stored PackSpecs.
 	GetPackSpecs(ctx context.Context) ([]*PackSpec, error)
 
