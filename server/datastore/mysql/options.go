@@ -72,7 +72,7 @@ func (d *Datastore) ResetOptions() (opts []kolide.Option, err error) {
 	}
 	err = txn.Commit()
 	if err != nil {
-		return nil, errors.Wrap(err, "commiting reset options")
+		return nil, errors.Wrap(err, "committing reset options")
 	}
 
 	return opts, nil

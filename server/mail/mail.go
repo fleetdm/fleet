@@ -54,7 +54,8 @@ func getMessageBody(e kolide.Email) ([]byte, error) {
 	mime := `MIME-version: 1.0;` + "\r\n"
 	content := `Content-Type: text/html; charset="UTF-8";` + "\r\n"
 	subject := "Subject: " + e.Subject + "\r\n"
-	msg := []byte(subject + mime + content + "\r\n" + string(body) + "\r\n")
+	from := "From: " + e.Config.SMTPSenderAddress + "\r\n"
+	msg := []byte(subject + from + mime + content + "\r\n" + string(body) + "\r\n")
 	return msg, nil
 }
 

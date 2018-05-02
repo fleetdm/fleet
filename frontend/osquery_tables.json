@@ -79,7 +79,7 @@
      {"description": "The name of the class.","name": "class","options": {},"type": "TEXT_TYPE"},
      {"description": "Relative path to the class or instance.","name": "relative_path","options": {},"type": "TEXT_TYPE"}
     ],
-    "description": "WMI CommandLineEventConsumer, which can be used for persistance on Windows. https://www.blackhat.com/docs/us-15/materials/us-15-Graeber-Abusing-Windows-Management-Instrumentation-WMI-To-Build-A-Persistent%20Asynchronous-And-Fileless-Backdoor-wp.pdf",
+    "description": "WMI CommandLineEventConsumer, which can be used for persistence on Windows. https://www.blackhat.com/docs/us-15/materials/us-15-Graeber-Abusing-Windows-Management-Instrumentation-WMI-To-Build-A-Persistent%20Asynchronous-And-Fileless-Backdoor-wp.pdf",
     "examples": [
      "select filter,consumer,query,command_line_template from wmi_filter_consumer_binding wcb join wmi_cli_event_consumers wcec on consumer = wcec.__relpath join wmi_event_filters wef on wef.__relpath = wcb.filter;"
     ],
@@ -135,7 +135,7 @@
      {"description": "The name of the class.","name": "class","options": {},"type": "TEXT_TYPE"},
      {"description": "Relative path to the class or instance.","name": "relative_path","options": {},"type": "TEXT_TYPE"}
     ],
-    "description": "WMI ActiveScriptEventConsumer, which can be used for persistance on Windows. https://www.blackhat.com/docs/us-15/materials/us-15-Graeber-Abusing-Windows-Management-Instrumentation-WMI-To-Build-A-Persistent%20Asynchronous-And-Fileless-Backdoor-wp.pdf",
+    "description": "WMI ActiveScriptEventConsumer, which can be used for persistence on Windows. https://www.blackhat.com/docs/us-15/materials/us-15-Graeber-Abusing-Windows-Management-Instrumentation-WMI-To-Build-A-Persistent%20Asynchronous-And-Fileless-Backdoor-wp.pdf",
     "examples": [
      "select filter,consumer,query,scripting_engine,script_text from wmi_filter_consumer_binding wcb join wmi_script_event_consumers wsec on consumer = wsec.__relpath join wmi_event_filters wef on wef.__relpath = wcb.filter;"
     ],
@@ -188,7 +188,7 @@
     "blacklisted": false,
     "columns": [
      {"description": "The local owner of authorized_keys file","name": "uid","options": {"additional": true},"type": "BIGINT_TYPE"},
-     {"description": "algorithim of key","name": "algorithm","options": {},"type": "TEXT_TYPE"},
+     {"description": "algorithm of key","name": "algorithm","options": {},"type": "TEXT_TYPE"},
      {"description": "parsed authorized keys line","name": "key","options": {},"type": "TEXT_TYPE"},
      {"description": "Path to the authorized_keys file","name": "key_file","options": {},"type": "TEXT_TYPE"}
     ],
@@ -1220,7 +1220,7 @@
      {"description": "Platform information.","name": "platform_info","options": {},"type": "BIGINT_TYPE"},
      {"description": "Performance setting for the processor.","name": "perf_ctl","options": {},"type": "BIGINT_TYPE"},
      {"description": "Performance status for the processor.","name": "perf_status","options": {},"type": "BIGINT_TYPE"},
-     {"description": "Bitfield controling enabled features.","name": "feature_control","options": {},"type": "BIGINT_TYPE"},
+     {"description": "Bitfield controlling enabled features.","name": "feature_control","options": {},"type": "BIGINT_TYPE"},
      {"description": "Run Time Average Power Limiting power limit.","name": "rapl_power_limit","options": {},"type": "BIGINT_TYPE"},
      {"description": "Run Time Average Power Limiting energy status.","name": "rapl_energy_status","options": {},"type": "BIGINT_TYPE"},
      {"description": "Run Time Average Power Limiting power units.","name": "rapl_power_units","options": {},"type": "BIGINT_TYPE"}
@@ -1911,7 +1911,7 @@
     "columns": [
      {"description": "Daemon or agent service name","name": "label","options": {},"type": "TEXT_TYPE"},
      {"description": "Name of the override key","name": "key","options": {},"type": "TEXT_TYPE"},
-     {"description": "Overriden value","name": "value","options": {},"type": "TEXT_TYPE"},
+     {"description": "Overridden value","name": "value","options": {},"type": "TEXT_TYPE"},
      {"description": "User ID applied to the override, 0 applies to all","name": "uid","options": {},"type": "BIGINT_TYPE"},
      {"description": "Path to daemon or agent plist","name": "path","options": {},"type": "TEXT_TYPE"}
     ],
@@ -2084,7 +2084,7 @@
      {"description": "Real user ID of the user process using the file","name": "uid","options": {},"type": "BIGINT_TYPE"},
      {"description": "Effective user ID of the process using the file","name": "euid","options": {},"type": "BIGINT_TYPE"},
      {"description": "Real group ID of the process using the file","name": "gid","options": {},"type": "BIGINT_TYPE"},
-     {"description": "Effective group ID of the processs using the file","name": "egid","options": {},"type": "BIGINT_TYPE"},
+     {"description": "Effective group ID of the processes using the file","name": "egid","options": {},"type": "BIGINT_TYPE"},
      {"description": "Indicates the mode of the file","name": "mode","options": {},"type": "BIGINT_TYPE"},
      {"description": "User ID of the owner of the file","name": "owner_uid","options": {},"type": "BIGINT_TYPE"},
      {"description": "Group ID of the owner of the file","name": "owner_gid","options": {},"type": "BIGINT_TYPE"},

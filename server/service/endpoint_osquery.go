@@ -93,7 +93,7 @@ func makeGetDistributedQueriesEndpoint(svc kolide.Service) endpoint.Endpoint {
 type submitDistributedQueryResultsRequest struct {
 	NodeKey  string                                `json:"node_key"`
 	Results  kolide.OsqueryDistributedQueryResults `json:"queries"`
-	Statuses map[string]string                     `json:"statuses"`
+	Statuses map[string]kolide.OsqueryStatus       `json:"statuses"`
 }
 
 type submitDistributedQueryResultsResponse struct {
@@ -136,7 +136,7 @@ func makeSubmitLogsEndpoint(svc kolide.Service) endpoint.Endpoint {
 		var err error
 		switch req.LogType {
 		case "status":
-			var statuses []kolide.OsqueryStatusLog
+			var statuses []json.RawMessage
 			if err := json.Unmarshal(req.Data, &statuses); err != nil {
 				err = osqueryError{message: "unmarshalling status logs: " + err.Error()}
 				break

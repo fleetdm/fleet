@@ -97,7 +97,7 @@ func TestDecodeSubmitDistributedQueryResultsRequest(t *testing.T) {
 			},
 			"id3": {},
 		}, params.Results)
-		assert.Equal(t, map[string]string{"id1": "0", "id3": "1"}, params.Statuses)
+		assert.Equal(t, map[string]kolide.OsqueryStatus{"id1": 0, "id3": 1}, params.Statuses)
 	}).Methods("POST")
 
 	// Note we explicitly test the case that requires using the shim
@@ -115,7 +115,7 @@ func TestDecodeSubmitDistributedQueryResultsRequest(t *testing.T) {
           ],
           "id3": ""
         },
-        "statuses": {"id1": "0", "id3": "1"}
+        "statuses": {"id1": 0, "id3": "1"}
     }`))
 
 	router.ServeHTTP(

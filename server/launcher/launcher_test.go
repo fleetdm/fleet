@@ -66,7 +66,7 @@ func TestLauncherPublishResults(t *testing.T) {
 	tls.SubmitDistributedQueryResultsFunc = func(
 		ctx context.Context,
 		results kolide.OsqueryDistributedQueryResults,
-		statuses map[string]string) (err error) {
+		statuses map[string]kolide.OsqueryStatus) (err error) {
 		assert.Equal(t, results["query"][0], result)
 		return nil
 	}
@@ -144,12 +144,12 @@ func newTLSService(t *testing.T) *mock.TLSService {
 		SubmitDistributedQueryResultsFunc: func(
 			ctx context.Context,
 			results kolide.OsqueryDistributedQueryResults,
-			statuses map[string]string,
+			statuses map[string]kolide.OsqueryStatus,
 		) (err error) {
 			return
 		},
 
-		SubmitStatusLogsFunc: func(ctx context.Context, logs []kolide.OsqueryStatusLog) (err error) {
+		SubmitStatusLogsFunc: func(ctx context.Context, logs []json.RawMessage) (err error) {
 			return
 		},
 		SubmitResultLogsFunc: func(ctx context.Context, logs []json.RawMessage) (err error) {

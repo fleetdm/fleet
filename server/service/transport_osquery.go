@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/kolide/fleet/server/kolide"
 	"github.com/pkg/errors"
@@ -54,7 +55,7 @@ func decodeSubmitDistributedQueryResultsRequest(ctx context.Context, r *http.Req
 	type distributedQueryResultsShim struct {
 		NodeKey  string                     `json:"node_key"`
 		Results  map[string]json.RawMessage `json:"queries"`
-		Statuses map[string]string          `json:"statuses"`
+		Statuses map[string]interface{}     `json:"statuses"`
 	}
 
 	var shim distributedQueryResultsShim
@@ -73,10 +74,29 @@ func decodeSubmitDistributedQueryResultsRequest(ctx context.Context, r *http.Req
 		results[query] = queryResults
 	}
 
+	// Statuses were represented by strings in osquery < 3.0 and now
+	// integers in osquery > 3.0. Massage to string for compatibility with
+	// the service definition.
+	statuses := map[string]kolide.OsqueryStatus{}
+	for query, status := range shim.Statuses {
+		switch s := status.(type) {
+		case string:
+			sint, err := strconv.Atoi(s)
+			if err != nil {
+				return nil, errors.Wrap(err, "parse status to int")
+			}
+			statuses[query] = kolide.OsqueryStatus(sint)
+		case float64:
+			statuses[query] = kolide.OsqueryStatus(s)
+		default:
+			return nil, errors.Errorf("query status should be string or number, got %T", s)
+		}
+	}
+
 	req := submitDistributedQueryResultsRequest{
 		NodeKey:  shim.NodeKey,
 		Results:  results,
-		Statuses: shim.Statuses,
+		Statuses: statuses,
 	}
 
 	return req, nil

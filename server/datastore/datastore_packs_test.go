@@ -1,7 +1,6 @@
 package datastore
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/WatchBeam/clock"
@@ -65,8 +64,6 @@ func testListPacks(t *testing.T, ds kolide.Datastore) {
 	packs, err = ds.ListPacks(kolide.ListOptions{})
 	require.Nil(t, err)
 	assert.Len(t, packs, 2)
-
-	fmt.Println(packs[0], packs[1])
 }
 
 func testListHostsInPack(t *testing.T, ds kolide.Datastore) {

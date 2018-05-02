@@ -17,14 +17,23 @@ type OsqueryService interface {
 	// for) should be returned. Returning 0 for this will not activate the
 	// feature.
 	GetDistributedQueries(ctx context.Context) (queries map[string]string, accelerate uint, err error)
-	SubmitDistributedQueryResults(ctx context.Context, results OsqueryDistributedQueryResults, statuses map[string]string) (err error)
-	SubmitStatusLogs(ctx context.Context, logs []OsqueryStatusLog) (err error)
+	SubmitDistributedQueryResults(ctx context.Context, results OsqueryDistributedQueryResults, statuses map[string]OsqueryStatus) (err error)
+	SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) (err error)
 	SubmitResultLogs(ctx context.Context, logs []json.RawMessage) (err error)
 }
 
 // OsqueryDistributedQueryResults represents the format of the results of an
 // osquery distributed query.
 type OsqueryDistributedQueryResults map[string][]map[string]string
+
+// OsqueryStatus represents osquery status codes (0 = success, nonzero =
+// failure)
+type OsqueryStatus int
+
+const (
+	// StatusOK is the success code returned by osquery
+	StatusOK OsqueryStatus = 0
+)
 
 // QueryContent is the format of a query stanza in an osquery configuration.
 type QueryContent struct {
@@ -60,12 +69,14 @@ type Decorators struct {
 	Interval map[string][]string `json:"interval,omitempty"`
 }
 
-// OsqueryStatusLog is the format of an osquery status log.
-type OsqueryStatusLog struct {
-	Severity    string            `json:"severity"`
-	Filename    string            `json:"filename"`
-	Line        string            `json:"line"`
-	Message     string            `json:"message"`
-	Version     string            `json:"version"`
-	Decorations map[string]string `json:"decorations"`
+// OsqueryConfig is a struct that can be serialized into a valid osquery config
+// using Go's JSON tooling.
+type OsqueryConfig struct {
+	Schedule   map[string]QueryContent `json:"schedule,omitempty"`
+	Options    map[string]interface{}  `json:"options"`
+	Decorators Decorators              `json:"decorators,omitempty"`
+	Packs      Packs                   `json:"packs,omitempty"`
+	// FilePaths contains named collections of file paths used for
+	// FIM (File Integrity Monitoring)
+	FilePaths FIMSections `json:"file_paths,omitempty"`
 }

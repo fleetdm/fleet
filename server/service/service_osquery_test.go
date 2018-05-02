@@ -117,7 +117,7 @@ func TestSubmitStatusLogs(t *testing.T) {
 	}
 	logJSON := fmt.Sprintf("[%s]", strings.Join(logs, ","))
 
-	var status []kolide.OsqueryStatusLog
+	var status []json.RawMessage
 	err = json.Unmarshal([]byte(logJSON), &status)
 	require.Nil(t, err)
 
@@ -295,7 +295,7 @@ func TestLabelQueries(t *testing.T) {
 		map[string][]map[string]string{
 			hostLabelQueryPrefix + "1": {{"col1": "val1"}},
 		},
-		map[string]string{},
+		map[string]kolide.OsqueryStatus{},
 	)
 	assert.Nil(t, err)
 	assert.Equal(t, host, gotHost)
@@ -313,7 +313,7 @@ func TestLabelQueries(t *testing.T) {
 			hostLabelQueryPrefix + "2": {{"col1": "val1"}},
 			hostLabelQueryPrefix + "3": {},
 		},
-		map[string]string{},
+		map[string]kolide.OsqueryStatus{},
 	)
 	assert.Nil(t, err)
 	assert.Equal(t, host, gotHost)
@@ -542,7 +542,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	require.Nil(t, err)
 
 	// Verify that results are ingested properly
-	svc.SubmitDistributedQueryResults(ctx, results, map[string]string{})
+	svc.SubmitDistributedQueryResults(ctx, results, map[string]kolide.OsqueryStatus{})
 
 	// Make sure the result saved to the datastore
 	host, err = ds.AuthenticateHost(nodeKey)
@@ -582,7 +582,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	// Advance clock and queries should exist again
 	mockClock.AddTime(1*time.Hour + 1*time.Minute)
 
-	err = svc.SubmitDistributedQueryResults(ctx, kolide.OsqueryDistributedQueryResults{}, map[string]string{})
+	err = svc.SubmitDistributedQueryResults(ctx, kolide.OsqueryDistributedQueryResults{}, map[string]kolide.OsqueryStatus{})
 	require.Nil(t, err)
 	host, err = ds.AuthenticateHost(nodeKey)
 	require.Nil(t, err)
@@ -710,7 +710,7 @@ func TestDetailQueries(t *testing.T) {
 	require.Nil(t, err)
 
 	// Verify that results are ingested properly
-	svc.SubmitDistributedQueryResults(ctx, results, map[string]string{})
+	svc.SubmitDistributedQueryResults(ctx, results, map[string]kolide.OsqueryStatus{})
 
 	// Make sure the result saved to the datastore
 	host, err = ds.AuthenticateHost(nodeKey)
@@ -750,7 +750,7 @@ func TestDetailQueries(t *testing.T) {
 	// Advance clock and queries should exist again
 	mockClock.AddTime(1*time.Hour + 1*time.Minute)
 
-	err = svc.SubmitDistributedQueryResults(ctx, kolide.OsqueryDistributedQueryResults{}, map[string]string{})
+	err = svc.SubmitDistributedQueryResults(ctx, kolide.OsqueryDistributedQueryResults{}, map[string]kolide.OsqueryStatus{})
 	require.Nil(t, err)
 	host, err = ds.AuthenticateHost(nodeKey)
 	require.Nil(t, err)
@@ -904,7 +904,7 @@ func TestDistributedQueryResults(t *testing.T) {
 	// this test.
 	time.Sleep(10 * time.Millisecond)
 
-	err = svc.SubmitDistributedQueryResults(hostCtx, results, map[string]string{})
+	err = svc.SubmitDistributedQueryResults(hostCtx, results, map[string]kolide.OsqueryStatus{})
 	require.Nil(t, err)
 	assert.Equal(t, campaign.ID, gotExecution.DistributedQueryCampaignID)
 	assert.Equal(t, host.ID, gotExecution.HostID)
@@ -962,7 +962,7 @@ func TestOrphanedQueryCampaign(t *testing.T) {
 
 	// Submit results
 	ctx = hostctx.NewContext(context.Background(), *host)
-	err = svc.SubmitDistributedQueryResults(ctx, results, map[string]string{})
+	err = svc.SubmitDistributedQueryResults(ctx, results, map[string]kolide.OsqueryStatus{})
 	require.Nil(t, err)
 
 	// The campaign should be set to completed because it is orphaned

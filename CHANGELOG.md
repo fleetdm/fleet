@@ -1,8 +1,20 @@
+## Kolide Fleet 1.0.7 (Mar 30, 2018)
+
+* Support FileAccesses in FIM configuration.
+
+* Populate network interfaces on windows hosts in host view.
+
+* Add flags for configuring MySQL connection pooling limits.
+
+* Fixed bug in which shard and removed keys are dropped in query packs returned to osquery clients.
+
+* Fixed handling of status logs with unexpected fields.
+
 ## Kolide Fleet 1.0.6 (Dec 4, 2017)
 
 * Added remote IP in the logs for all osqueryd/launcher requests. (#1653)
 
-* Fixed bugs that caused logs to sometimes be ommited from the logwriter. (#1636, #1617)
+* Fixed bugs that caused logs to sometimes be omitted from the logwriter. (#1636, #1617)
 
 * Fixed a bug where request bodies were not being explicitly closed. (#1613)
 
@@ -163,7 +175,7 @@ See https://wiki.mozilla.org/Security/Server_Side_TLS for more information on th
 
 * Improve platform detection accuracy.
 
-  Previously Kolide was determing platform based on the OS of the system osquery was built on instead of the OS it was running on. Please note: Offline hosts may continue to report an erroneous platform until they check-in with Kolide.
+  Previously Kolide was determining platform based on the OS of the system osquery was built on instead of the OS it was running on. Please note: Offline hosts may continue to report an erroneous platform until they check-in with Kolide.
 
 * Fix bugs where query links in the pack sidebar pointed to the wrong queries.
 

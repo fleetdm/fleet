@@ -13,7 +13,7 @@ var wrongTypeError = errors.New("argument missing or unexpected type")
 // UnmarshalJSON custom unmarshaling for PackNameMap will determine whether
 // the pack section of an osquery config file refers to a file path, or
 // pack details.  Pack details are unmarshalled into into PackDetails structure
-// as oppossed to nested map[string]interface{}
+// as opposed to nested map[string]interface{}
 func (pnm PackNameMap) UnmarshalJSON(b []byte) error {
 	var temp map[string]interface{}
 	err := json.Unmarshal(b, &temp)

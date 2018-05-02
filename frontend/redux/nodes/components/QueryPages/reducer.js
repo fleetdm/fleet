@@ -7,7 +7,7 @@ import {
 } from './actions';
 
 export const initialState = {
-  queryText: 'SELECT * FROM users u JOIN groups g WHERE u.gid = g.gid',
+  queryText: 'SELECT * FROM osquery_info',
   selectedOsqueryTable: defaultSelectedOsqueryTable,
   selectedTargets: [],
   selectedTargetsQuery: '',

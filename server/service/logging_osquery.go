@@ -87,7 +87,7 @@ func (mw loggingMiddleware) GetDistributedQueries(ctx context.Context) (map[stri
 	return queries, accelerate, err
 }
 
-func (mw loggingMiddleware) SubmitDistributedQueryResults(ctx context.Context, results kolide.OsqueryDistributedQueryResults, statuses map[string]string) error {
+func (mw loggingMiddleware) SubmitDistributedQueryResults(ctx context.Context, results kolide.OsqueryDistributedQueryResults, statuses map[string]kolide.OsqueryStatus) error {
 	var (
 		err error
 	)
@@ -105,7 +105,7 @@ func (mw loggingMiddleware) SubmitDistributedQueryResults(ctx context.Context, r
 	return err
 }
 
-func (mw loggingMiddleware) SubmitStatusLogs(ctx context.Context, logs []kolide.OsqueryStatusLog) error {
+func (mw loggingMiddleware) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) error {
 	var (
 		err error
 	)

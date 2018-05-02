@@ -583,7 +583,7 @@ func TestRequirePasswordReset(t *testing.T) {
 			// Log user in
 			if tt.Enabled {
 				_, _, err = svc.Login(ctx, tt.Username, tt.PlaintextPassword)
-				require.Nil(t, err, "login unsuccesful")
+				require.Nil(t, err, "login unsuccessful")
 				sessions, err = svc.GetInfoAboutSessionsForUser(ctx, user.ID)
 				require.Nil(t, err)
 				require.Len(t, sessions, 1, "user should have one session")

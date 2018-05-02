@@ -56,7 +56,7 @@ type ImportStatus struct {
 	// SkipCount count of items that are skipped.  The reasons for the omissions
 	// can be found in Warnings.
 	SkipCount int `json:"skip_count"`
-	// Warnings groups catagories of warnings with one or more detail messages.
+	// Warnings groups categories of warnings with one or more detail messages.
 	Warnings map[WarningType][]string `json:"warnings"`
 	// Messages contains an entry for each import attempt.
 	Messages []string `json:"messages"`

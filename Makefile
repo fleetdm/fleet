@@ -59,7 +59,7 @@ define HELP_TEXT
 
   Makefile commands
 
-	make deps         - Install depedent programs and libraries
+	make deps         - Install dependent programs and libraries
 	make generate     - Generate and bundle required code
 	make generate-dev - Generate and bundle required code in a watch loop
 	make distclean    - Delete all build artifacts
@@ -161,7 +161,7 @@ generate-dev: .prefix
 deps:
 	yarn
 	go get -u \
-		github.com/jteeuwen/go-bindata/... \
+		github.com/kolide/go-bindata/... \
 		github.com/golang/dep/cmd/dep \
 		github.com/groob/mockimpl
 	dep ensure -vendor-only
@@ -180,6 +180,8 @@ docker-build-release: .pre-fleet
 	GOOS=linux go build -i -o build/linux/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
 	docker build -t "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" .
 	docker tag "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" kolide/fleet:latest
+
+docker-push-release: docker-build-release
 	docker push "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
 	docker push kolide/fleet:latest
 
@@ -200,11 +202,11 @@ demo-restore:
 		-h ${MYSQL_PORT_3306_TCP_ADDR} kolide \
 		< ./tools/app/demo.sql
 
-binary-bundle: generate
+binary-bundle: generate .pre-fleet
 	rm -rf build/binary-bundle
 	mkdir -p build/binary-bundle/linux
 	mkdir -p build/binary-bundle/darwin
 	GOOS=linux go build -i -o build/binary-bundle/linux/${OUTPUT}_linux_amd64 -ldflags ${KIT_VERSION} ./cmd/fleet
 	GOOS=darwin go build -i -o build/binary-bundle/darwin/${OUTPUT}_darwin_amd64 -ldflags ${KIT_VERSION} ./cmd/fleet
 	cd build/binary-bundle && zip -r "fleet_${VERSION}.zip" darwin/ linux/
-	cp build/binary-bundle/fleet_${VERSION}.zip build/binary-bundle/fleet_lastest.zip
+	cp build/binary-bundle/fleet_${VERSION}.zip build/binary-bundle/fleet_latest.zip

@@ -12,28 +12,7 @@ If you'd like to use the native osqueryd binaries to connect to Fleet, this is e
 
 ## Kolide Osquery Launcher
 
-#### Setting up a Launcher environment
-
-It's helpful to have a local build of the Launcher and it's included package building tools when reasoning about connecting the Launcher to Fleet. Both Launcher and Fleet have a similar repository interface that should be familiar.
-
-If you have installed Go, but have never used it before (ie: you have not configured a `$GOPATH` environment variable), then there's good news: you don't need to do this anymore. By default, the Go compiler now looks in `~/go` for your Go source code. So, let's clone the launcher directory where it's supposed to go:
-
-```
-mkdir -p $GOPATH/src/github.com/kolide
-cd $GOPATH/src/github.com/kolide
-git clone git@github.com:kolide/launcher.git
-cd launcher
-```
-
-Once you're in the root of the repository (and you have a recent Go toolchain installed), you can follow the directions included with the Launcher repository:
-
-```
-make deps
-make generate
-make test
-make
-./build/launcher --help
-```
+We provide compiled releases of the launcher for all supported platforms. Those can be found [here](https://github.com/kolide/launcher/releases). But if you’d like to compile from source, the instructions are [here](https://github.com/kolide/fleet/tree/master/docs/development).
 
 #### Connecting a single Launcher to Fleet
 
@@ -91,7 +70,7 @@ The value of the environment variable or content of the file should be a secret 
 
 If you use an environment variable for this, you can specify it with the `--enroll_secret_env` flag when you launch osqueryd. If you use a local file for this, you can specify it's path with the `--enroll_secret_path` flag.
 s
-If your organization has a robust internal public key infrastructure (PKI) and you already deploy TLS client certificates to each host to uniquely identify them, then osquery supports an advanced authentication mechanism which takes advantage of this. Please contact [help@kolide.co](mailto:help@kolide.co) for assistance with this option.
+If your organization has a robust internal public key infrastructure (PKI) and you already deploy TLS client certificates to each host to uniquely identify them, then osquery supports an advanced authentication mechanism which takes advantage of this. For assitance, please file a [Github issue](https://github.com/kolide/fleet/issues/new) or contact us on [osquery Slack](https://osquery-slack.herokuapp.com/).
 
 #### Deploy the TLS certificate that osquery will use to communicate with Fleet
 
@@ -110,7 +89,7 @@ osqueryd
  --enroll_secret_env=OSQUERY_ENROLL_SECRET
  --tls_server_certs=/etc/osquery/kolide.crt
  --tls_hostname=kolide.acme.net
- --host_identifier=hostname
+ --host_identifier=uuid
  --enroll_tls_endpoint=/api/v1/osquery/enroll
  --config_plugin=tls
  --config_tls_endpoint=/api/v1/osquery/config

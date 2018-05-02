@@ -11,11 +11,16 @@ import (
 )
 
 func TestGetFIMService(t *testing.T) {
+	fileAccessesString := "[\"etc\", \"home\", \"cassandra\"]"
+	fileAccessStringValue := []string{"etc", "home", "cassandra"}
+	fimIntervalTestValue := 500 //300 is the default value
+
 	ds := &mock.Store{
 		AppConfigStore: mock.AppConfigStore{
 			AppConfigFunc: func() (*kolide.AppConfig, error) {
 				config := &kolide.AppConfig{
-					FIMInterval: 300,
+					FIMInterval: fimIntervalTestValue,
+					FIMFileAccesses: fileAccessesString,
 				}
 				return config, nil
 			},
@@ -38,18 +43,24 @@ func TestGetFIMService(t *testing.T) {
 	resp, err := svc.GetFIM(context.Background())
 	require.Nil(t, err)
 	require.NotNil(t, resp)
-	assert.Equal(t, resp.Interval, uint(300))
+	assert.Equal(t, resp.Interval, uint(fimIntervalTestValue))
+	assert.Equal(t, resp.FileAccesses, fileAccessStringValue)
 	paths, ok := resp.FilePaths["etc"]
 	require.True(t, ok)
 	assert.Len(t, paths, 2)
 }
 
 func TestUpdateFIM(t *testing.T) {
+	fileAccessesString := "[\"etc\", \"home\", \"cassandra\"]"
+	fileAccessStringValue := []string{"etc", "home", "cassandra"}
+	fimIntervalTestValue := 500 //300 is the default value
+
 	ds := &mock.Store{
 		AppConfigStore: mock.AppConfigStore{
 			AppConfigFunc: func() (*kolide.AppConfig, error) {
 				config := &kolide.AppConfig{
-					FIMInterval: 300,
+					FIMInterval: fimIntervalTestValue,
+					FIMFileAccesses: fileAccessesString,
 				}
 				return config, nil
 			},
@@ -71,7 +82,8 @@ func TestUpdateFIM(t *testing.T) {
 		ds: ds,
 	}
 	fim := kolide.FIMConfig{
-		Interval: uint(300),
+		Interval: uint(fimIntervalTestValue),
+		FileAccesses: fileAccessStringValue,
 		FilePaths: kolide.FIMSections{
 			"etc": []string{
 				"/etc/config/%%",
