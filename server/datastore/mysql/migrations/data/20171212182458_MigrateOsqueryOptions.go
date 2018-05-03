@@ -3,6 +3,8 @@ package data
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"strconv"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/reflectx"
@@ -15,21 +17,14 @@ func init() {
 }
 
 type configForExport struct {
-	Options   map[string]interface{} `json:"options"`
-	FilePaths map[string][]string    `json:"file_paths,omitempty"`
-}
-
-type yamlObjForExport struct {
-	ApiVersion string        `json:"apiVersion"`
-	Kind       string        `json:"kind"`
-	Spec       specForExport `json:"spec"`
-}
-
-type specForExport struct {
-	Config json.RawMessage `json:"config"`
+	Options    map[string]interface{} `json:"options"`
+	FilePaths  map[string][]string    `json:"file_paths,omitempty"`
+	Decorators kolide.Decorators      `json:"decorators"`
 }
 
 func Up_20171212182458(tx *sql.Tx) error {
+	// Migrate pre fleetctl osquery options to the new osquery options
+	// formats.
 	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
 
 	// Get basic osquery options
@@ -70,10 +65,39 @@ func Up_20171212182458(tx *sql.Tx) error {
 		fimConfig[sectionName] = append(fimConfig[sectionName], fileName)
 	}
 
+	query = `
+		SELECT *
+		FROM decorators
+		ORDER by built_in DESC, name ASC
+	`
+	var decorators []*kolide.Decorator
+	err = txx.Select(&decorators, query)
+	if err != nil {
+		return errors.Wrap(err, "retrieving decorators")
+	}
+
+	decConfig := kolide.Decorators{
+		Interval: make(map[string][]string),
+	}
+	for _, dec := range decorators {
+		switch dec.Type {
+		case kolide.DecoratorLoad:
+			decConfig.Load = append(decConfig.Load, dec.Query)
+		case kolide.DecoratorAlways:
+			decConfig.Always = append(decConfig.Always, dec.Query)
+		case kolide.DecoratorInterval:
+			key := strconv.Itoa(int(dec.Interval))
+			decConfig.Interval[key] = append(decConfig.Interval[key], dec.Query)
+		default:
+			fmt.Printf("Unable to migrate decorator. Please migrate manually: '%s'\n", dec.Query)
+		}
+	}
+
 	// Create config JSON
 	config := configForExport{
-		Options:   optConfig,
-		FilePaths: fimConfig,
+		Options:    optConfig,
+		FilePaths:  fimConfig,
+		Decorators: decConfig,
 	}
 	confJSON, err := json.Marshal(config)
 	if err != nil {

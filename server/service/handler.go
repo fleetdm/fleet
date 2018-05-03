@@ -58,10 +58,6 @@ type KolideEndpoints struct {
 	GetLabel                       endpoint.Endpoint
 	ListLabels                     endpoint.Endpoint
 	DeleteLabel                    endpoint.Endpoint
-	ListDecorators                 endpoint.Endpoint
-	NewDecorator                   endpoint.Endpoint
-	ModifyDecorator                endpoint.Endpoint
-	DeleteDecorator                endpoint.Endpoint
 	GetHost                        endpoint.Endpoint
 	DeleteHost                     endpoint.Endpoint
 	ListHosts                      endpoint.Endpoint
@@ -137,10 +133,6 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		GetLabel:                  authenticatedUser(jwtKey, svc, makeGetLabelEndpoint(svc)),
 		ListLabels:                authenticatedUser(jwtKey, svc, makeListLabelsEndpoint(svc)),
 		DeleteLabel:               authenticatedUser(jwtKey, svc, makeDeleteLabelEndpoint(svc)),
-		ListDecorators:            authenticatedUser(jwtKey, svc, makeListDecoratorsEndpoint(svc)),
-		NewDecorator:              authenticatedUser(jwtKey, svc, makeNewDecoratorEndpoint(svc)),
-		ModifyDecorator:           authenticatedUser(jwtKey, svc, makeModifyDecoratorEndpoint(svc)),
-		DeleteDecorator:           authenticatedUser(jwtKey, svc, makeDeleteDecoratorEndpoint(svc)),
 		SearchTargets:             authenticatedUser(jwtKey, svc, makeSearchTargetsEndpoint(svc)),
 		GetOptions:                authenticatedUser(jwtKey, svc, mustBeAdmin(makeGetOptionsEndpoint(svc))),
 		ModifyOptions:             authenticatedUser(jwtKey, svc, mustBeAdmin(makeModifyOptionsEndpoint(svc))),
@@ -203,10 +195,6 @@ type kolideHandlers struct {
 	GetLabel                       http.Handler
 	ListLabels                     http.Handler
 	DeleteLabel                    http.Handler
-	ListDecorators                 http.Handler
-	NewDecorator                   http.Handler
-	ModifyDecorator                http.Handler
-	DeleteDecorator                http.Handler
 	GetHost                        http.Handler
 	DeleteHost                     http.Handler
 	ListHosts                      http.Handler
@@ -272,10 +260,6 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		GetLabel:                      newServer(e.GetLabel, decodeGetLabelRequest),
 		ListLabels:                    newServer(e.ListLabels, decodeListLabelsRequest),
 		DeleteLabel:                   newServer(e.DeleteLabel, decodeDeleteLabelRequest),
-		ListDecorators:                newServer(e.ListDecorators, decodeNoParamsRequest),
-		NewDecorator:                  newServer(e.NewDecorator, decodeNewDecoratorRequest),
-		ModifyDecorator:               newServer(e.ModifyDecorator, decodeModifyDecoratorRequest),
-		DeleteDecorator:               newServer(e.DeleteDecorator, decodeDeleteDecoratorRequest),
 		GetHost:                       newServer(e.GetHost, decodeGetHostRequest),
 		DeleteHost:                    newServer(e.DeleteHost, decodeDeleteHostRequest),
 		ListHosts:                     newServer(e.ListHosts, decodeListHostsRequest),
@@ -381,11 +365,6 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/labels/{id}", h.GetLabel).Methods("GET").Name("get_label")
 	r.Handle("/api/v1/kolide/labels", h.ListLabels).Methods("GET").Name("list_labels")
 	r.Handle("/api/v1/kolide/labels/{id}", h.DeleteLabel).Methods("DELETE").Name("delete_label")
-
-	r.Handle("/api/v1/kolide/decorators", h.ListDecorators).Methods("GET").Name("list_decorators")
-	r.Handle("/api/v1/kolide/decorators", h.NewDecorator).Methods("POST").Name("create_decorator")
-	r.Handle("/api/v1/kolide/decorators/{id}", h.ModifyDecorator).Methods("PATCH").Name("modify_decorator")
-	r.Handle("/api/v1/kolide/decorators/{id}", h.DeleteDecorator).Methods("DELETE").Name("delete_decorator")
 
 	r.Handle("/api/v1/kolide/hosts", h.ListHosts).Methods("GET").Name("list_hosts")
 	r.Handle("/api/v1/kolide/host_summary", h.GetHostSummary).Methods("GET").Name("get_host_summary")

@@ -1,38 +1,13 @@
 package kolide
 
 import (
-	"context"
 	"errors"
 	"strings"
 )
 
-// DecoratorStore methods to manipulate decorator queries.
-// See https://osquery.readthedocs.io/en/stable/deployment/configuration/
-type DecoratorStore interface {
-	// NewDecorator creates a decorator query.
-	NewDecorator(decorator *Decorator, opts ...OptionalArg) (*Decorator, error)
-	// DeleteDecorator removes a decorator query.
-	DeleteDecorator(id uint) error
-	// Decorator retrieves a decorator query with supplied ID.
-	Decorator(id uint) (*Decorator, error)
-	// ListDecorators returns all decorator queries.
-	ListDecorators(opts ...OptionalArg) ([]*Decorator, error)
-	// SaveDecorator updates an existing decorator
-	SaveDecorator(dec *Decorator, opts ...OptionalArg) error
-}
-
-// DecoratorService exposes decorators data so it can be manipulated by
-// end users
-type DecoratorService interface {
-	// ListDecorators returns decorators
-	ListDecorators(ctx context.Context) ([]*Decorator, error)
-	// DeleteDecorator removes an existing decorator if it is not built-in
-	DeleteDecorator(ctx context.Context, id uint) error
-	// NewDecorator creates a new decorator
-	NewDecorator(ctx context.Context, payload DecoratorPayload) (*Decorator, error)
-	// ModifyDecorator updates an existing decorator
-	ModifyDecorator(ctx context.Context, payload DecoratorPayload) (*Decorator, error)
-}
+// DEPRECATED
+// Decorators are now stored as JSON in the config, so these types are only
+// useful for migrating existing Fleet installations.
 
 // DecoratorType refers to the allowable types of decorator queries.
 // See https://osquery.readthedocs.io/en/stable/deployment/configuration/

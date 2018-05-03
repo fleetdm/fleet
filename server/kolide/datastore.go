@@ -15,7 +15,6 @@ type Datastore interface {
 	InviteStore
 	ScheduledQueryStore
 	OptionStore
-	DecoratorStore
 	FileIntegrityMonitoringStore
 	YARAStore
 	OsqueryOptionsStore

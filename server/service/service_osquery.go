@@ -106,36 +106,6 @@ func (svc service) GetClientConfig(ctx context.Context) (map[string]interface{},
 		return nil, osqueryError{message: "internal error: parsing base configuration: " + err.Error()}
 	}
 
-	decorators, err := svc.ds.ListDecorators()
-	if err != nil {
-		return nil, osqueryError{message: "internal error: unable to fetch decorators: " + err.Error()}
-	}
-	decConfig := kolide.Decorators{
-		Interval: make(map[string][]string),
-	}
-	for _, dec := range decorators {
-		switch dec.Type {
-		case kolide.DecoratorLoad:
-			decConfig.Load = append(decConfig.Load, dec.Query)
-		case kolide.DecoratorAlways:
-			decConfig.Always = append(decConfig.Always, dec.Query)
-		case kolide.DecoratorInterval:
-			key := strconv.Itoa(int(dec.Interval))
-			decConfig.Interval[key] = append(decConfig.Interval[key], dec.Query)
-		default:
-			svc.logger.Log("component", "service", "method", "GetClientConfig", "err",
-				"unknown decorator type")
-		}
-	}
-
-	if len(decConfig.Interval) > 0 || len(decConfig.Always) > 0 || len(decConfig.Load) > 0 {
-		decJSON, err := json.Marshal(decConfig)
-		if err != nil {
-			return nil, osqueryError{message: "internal error: marshal decorator JSON: " + err.Error()}
-		}
-		config["decorators"] = json.RawMessage(decJSON)
-	}
-
 	packs, err := svc.ds.ListPacksForHost(host.ID)
 	if err != nil {
 		return nil, osqueryError{message: "database error: " + err.Error()}
