@@ -1,3 +1,9 @@
+## Kolide Fleet 1.0.8 (May 3, 2018)
+
+* Osquery 3.0+ compatibility!
+
+* Include RFC822 From header in emails (for email authentication)
+
 ## Kolide Fleet 1.0.7 (Mar 30, 2018)
 
 * Support FileAccesses in FIM configuration.
