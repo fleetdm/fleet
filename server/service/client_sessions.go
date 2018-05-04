@@ -2,7 +2,6 @@ package service
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/pkg/errors"
@@ -18,29 +17,29 @@ func (c *Client) Login(email, password string) (string, error) {
 
 	response, err := c.Do("POST", "/api/v1/kolide/login", params)
 	if err != nil {
-		return "", errors.Wrap(err, "error making request")
+		return "", errors.Wrap(err, "POST /api/v1/kolide/login")
 	}
 	defer response.Body.Close()
 
 	switch response.StatusCode {
 	case http.StatusNotFound:
-		return "", notSetup()
+		return "", notSetupErr{}
 	case http.StatusUnauthorized:
-		return "", invalidLogin()
+		return "", invalidLoginErr{}
 	}
 
 	if response.StatusCode != http.StatusOK {
-		return "", errors.Errorf("Received HTTP %d instead of HTTP 200", response.StatusCode)
+		return "", errors.Errorf("login got HTTP %d, expected 200", response.StatusCode)
 	}
 
 	var responseBody loginResponse
 	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
-		return "", errors.Wrap(err, "error decoding HTTP response body")
+		return "", errors.Wrap(err, "decode login response")
 	}
 
 	if responseBody.Err != nil {
-		return "", errors.Wrap(err, "error setting up fleet instance")
+		return "", errors.Errorf("login: %s", responseBody.Err)
 	}
 
 	return responseBody.Token, nil
@@ -50,27 +49,22 @@ func (c *Client) Login(email, password string) (string, error) {
 func (c *Client) Logout() error {
 	response, err := c.AuthenticatedDo("POST", "/api/v1/kolide/logout", nil)
 	if err != nil {
-		return errors.Wrap(err, "error making request")
+		return errors.Wrap(err, "POST /api/v1/kolide/logout")
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return errors.Errorf("Received HTTP %d instead of HTTP 200", response.StatusCode)
-	}
-
-	responeBytes, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return errors.Wrap(err, "error reading response body")
+		return errors.Errorf("logout got HTTP %d, expected 200", response.StatusCode)
 	}
 
 	var responseBody logoutResponse
-	err = json.Unmarshal(responeBytes, &responseBody)
+	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
-		return errors.Wrap(err, "error decoding HTTP response body")
+		return errors.Wrap(err, "decode logout response")
 	}
 
 	if responseBody.Err != nil {
-		return errors.Wrap(err, "error logging out of Fleet")
+		return errors.Errorf("logout: %s", responseBody.Err)
 	}
 
 	return nil

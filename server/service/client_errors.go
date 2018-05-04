@@ -10,17 +10,11 @@ type setupAlreadyErr struct {
 }
 
 func (e setupAlreadyErr) Error() string {
-	return e.reason
+	return "Kolide Fleet has already been setup"
 }
 
 func (e setupAlreadyErr) SetupAlready() bool {
 	return true
-}
-
-func setupAlready() error {
-	return setupAlreadyErr{
-		reason: "Kolide Fleet has already been setup",
-	}
 }
 
 type InvalidLoginErr interface {
@@ -33,17 +27,11 @@ type invalidLoginErr struct {
 }
 
 func (e invalidLoginErr) Error() string {
-	return e.reason
+	return "The credentials supplied were invalid"
 }
 
 func (e invalidLoginErr) InvalidLogin() bool {
 	return true
-}
-
-func invalidLogin() error {
-	return invalidLoginErr{
-		reason: "The credentials supplied were invalid",
-	}
 }
 
 type NotSetupErr interface {
@@ -56,15 +44,9 @@ type notSetupErr struct {
 }
 
 func (e notSetupErr) Error() string {
-	return e.reason
+	return "The Kolide Fleet instance is not set up yet"
 }
 
 func (e notSetupErr) NotSetup() bool {
 	return true
-}
-
-func notSetup() error {
-	return notSetupErr{
-		reason: "The Kolide Fleet instance is not setup yet",
-	}
 }

@@ -27,28 +27,28 @@ func (c *Client) Setup(email, password, org string) (string, error) {
 
 	response, err := c.Do("POST", "/api/v1/setup", params)
 	if err != nil {
-		return "", errors.Wrap(err, "error making request")
+		return "", errors.Wrap(err, "POST /api/v1/setup")
 	}
 	defer response.Body.Close()
 
 	// If setup has already been completed, Kolide Fleet will not serve the
 	// setup route, which will cause the request to 404
 	if response.StatusCode == http.StatusNotFound {
-		return "", setupAlready()
+		return "", setupAlreadyErr{}
 	}
 
 	if response.StatusCode != http.StatusOK {
-		return "", errors.Errorf("Received HTTP %d instead of HTTP 200", response.StatusCode)
+		return "", errors.Errorf("setup got HTTP %d, expected 200", response.StatusCode)
 	}
 
 	var responseBody setupResponse
 	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
-		return "", errors.Wrap(err, "error decoding HTTP response body")
+		return "", errors.Wrap(err, "decode setup response")
 	}
 
 	if responseBody.Err != nil {
-		return "", errors.Wrap(err, "error setting up fleet instance")
+		return "", errors.Errorf("setup: %s", responseBody.Err)
 	}
 
 	return *responseBody.Token, nil
