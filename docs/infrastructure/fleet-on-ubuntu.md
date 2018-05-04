@@ -23,7 +23,7 @@ To install Fleet, run the following:
 ```
 $ wget https://dl.kolide.co/bin/fleet_latest.zip
 $ unzip fleet_latest.zip 'linux/*' -d fleet
-$ sudo cp fleet/linux/fleet /usr/bin/fleet
+$ sudo cp fleet/linux/fleet_linux_amd64 /usr/bin/fleet
 ```
 
 ## Installing and configuring dependencies
@@ -36,7 +36,7 @@ To install the MySQL server files, run the following:
 $ sudo apt-get install mysql-server -y
 ```
 
-When asked for MySQL's root password, enter `toor` for the sake of this tutorial if you are having trouble thinking of a better password for the MySQL root user.
+When asked for MySQL's root password, enter `toor` for the sake of this tutorial if you are having trouble thinking of a better password for the MySQL root user. If you decide to set your own password, be mindful that you will need to substitute it every time `toor` is used in this document. 
 
 After installing `mysql-server`, the `mysqld` server should be running. You can verify this by running the following:
 
@@ -81,18 +81,9 @@ $ /usr/bin/fleet prepare db \
 
 The output should look like:
 
-```
-OK    20161118193812_CreateTableAppConfigs.go
-OK    20161118211713_CreateTableDistributedQueryCampaignTargets.go
-...
-OK    20170124230432_CreateTableEmailChanges.go
-goose: no migrations to run. current version: 20170124230432
-OK    20161223115449_InsertOsqueryOptions.go
-OK    20161229171615_InsertBuiltinLabels.go
-goose: no migrations to run. current version: 20161229171615
-```
+`Migrations completed`
 
-Before we can run the server, we need to generate some TLS keying material. If you already have tooling for generating valid TLS certificates, then you are encouraged to use that instead. You will need a TLS certificate and key for running the Fleet server. If you'd like to generate self-signed certificates, you can do this via:
+Before we can run the server, we need to generate some TLS keying material. If you already have tooling for generating valid TLS certificates, then you are encouraged to use that instead. You will need a TLS certificate and key for running the Fleet server. If you'd like to generate self-signed certificates, you can do this via the following steps (note - you will be asked for severl bits of information, including name, contact info, and location, in order to generate the certificate):
 
 ```
 $ openssl genrsa -out /tmp/server.key 4096
@@ -119,6 +110,7 @@ $ /usr/bin/fleet serve \
   --server_key=/tmp/server.key \
   --logging_json
 ```
+You will be prompted to add a value for `--auth_jwt_key`. A randomly generated key will be suggested, you can simply add the flag with the sugested key.
 
 Now, if you go to [https://localhost:8080](https://localhost:8080) in your local browser, you should be redirected to [https://localhost:8080/setup](https://localhost:8080/setup) where you can create your first Fleet user account.
 
