@@ -122,6 +122,11 @@ $ /usr/bin/fleet serve \
 
 Now, if you go to [https://localhost:8080](https://localhost:8080) in your local browser, you should be redirected to [https://localhost:8080/setup](https://localhost:8080/setup) where you can create your first Fleet user account.
 
+## Running Fleet with systemd
+
+See [systemd](./systemd.md) for documentation on running fleet as a background process and managing the fleet server logs.
+
+
 ## Installing and running osquery
 
 > Note that this whole process is outlined in more detail in the [Adding Hosts To Fleet](./adding-hosts-to-fleet.md) document. The steps are repeated here for the sake of a continuous tutorial.
@@ -129,11 +134,14 @@ Now, if you go to [https://localhost:8080](https://localhost:8080) in your local
 To install osquery on Ubuntu, you can run the following:
 
 ```
-$ sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 1484120AC4E9F8A1A577AEEE97A80C63C9D8B80B
-$ sudo add-apt-repository "deb [arch=amd64] https://osquery-packages.s3.amazonaws.com/xenial xenial main"
+$ export OSQUERY_KEY=1484120AC4E9F8A1A577AEEE97A80C63C9D8B80B
+$ sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys $OSQUERY_KEY
+$ sudo add-apt-repository 'deb [arch=amd64] https://pkg.osquery.io/deb deb main'
 $ sudo apt-get update
 $ sudo apt-get install osquery
 ```
+
+If you're having trouble with the above steps, check the official [downloads](https://osquery.io/downloads) link for a direct download of the .deb. 
 
 You will need to set the osquery enroll secret and osquery server certificate. If you head over to the manage hosts page on your Fleet instance (which should be [https://localhost:8080/hosts/manage](https://localhost:8080/hosts/manage)), you should be able to click "Add New Hosts" and see a modal like the following:
 
