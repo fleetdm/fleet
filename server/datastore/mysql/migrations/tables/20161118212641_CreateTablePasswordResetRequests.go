@@ -12,9 +12,9 @@ func Up_20161118212641(tx *sql.Tx) error {
 	_, err := tx.Exec(
 		"CREATE TABLE `password_reset_requests` (" +
 			"`id` int(10) unsigned NOT NULL AUTO_INCREMENT," +
+			"`expires_at` timestamp NOT NULL," +
 			"`created_at` timestamp DEFAULT CURRENT_TIMESTAMP," +
 			"`updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
-			"`expires_at` timestamp NOT NULL DEFAULT '1970-01-01 00:00:01'," +
 			"`user_id` int(10) unsigned NOT NULL," +
 			"`token` varchar(1024) NOT NULL," +
 			"PRIMARY KEY (`id`)" +
