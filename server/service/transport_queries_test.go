@@ -58,17 +58,17 @@ func TestDecodeModifyQueryRequest(t *testing.T) {
 
 func TestDecodeDeleteQueryRequest(t *testing.T) {
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/kolide/queries/{id}", func(writer http.ResponseWriter, request *http.Request) {
+	router.HandleFunc("/api/v1/kolide/queries/{name}", func(writer http.ResponseWriter, request *http.Request) {
 		r, err := decodeDeleteQueryRequest(context.Background(), request)
 		assert.Nil(t, err)
 
 		params := r.(deleteQueryRequest)
-		assert.Equal(t, uint(1), params.ID)
+		assert.Equal(t, "qwerty", params.Name)
 	}).Methods("DELETE")
 
 	router.ServeHTTP(
 		httptest.NewRecorder(),
-		httptest.NewRequest("DELETE", "/api/v1/kolide/queries/1", nil),
+		httptest.NewRequest("DELETE", "/api/v1/kolide/queries/qwerty", nil),
 	)
 }
 

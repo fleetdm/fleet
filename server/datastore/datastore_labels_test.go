@@ -436,6 +436,7 @@ func testApplyLabelSpecsRoundtrip(t *testing.T, ds kolide.Datastore) {
 	}
 	err := ds.ApplyLabelSpecs(expectedSpecs)
 	require.Nil(t, err)
+
 	specs, err := ds.GetLabelSpecs()
 	require.Nil(t, err)
 	assert.Equal(t, expectedSpecs, specs)

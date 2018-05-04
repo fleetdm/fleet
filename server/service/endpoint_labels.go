@@ -107,7 +107,7 @@ func makeListLabelsEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type deleteLabelRequest struct {
-	ID uint
+	Name string
 }
 
 type deleteLabelResponse struct {
@@ -119,7 +119,7 @@ func (r deleteLabelResponse) error() error { return r.Err }
 func makeDeleteLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(deleteLabelRequest)
-		err := svc.DeleteLabel(ctx, req.ID)
+		err := svc.DeleteLabel(ctx, req.Name)
 		if err != nil {
 			return deleteLabelResponse{Err: err}, nil
 		}

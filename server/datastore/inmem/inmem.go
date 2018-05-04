@@ -40,14 +40,9 @@ type Datastore struct {
 	appConfig                       *kolide.AppConfig
 	config                          *config.KolideConfig
 
-	// Embedded interfaces to avoid implementing new methods for (now
+	// Embedded interface to avoid implementing new methods for (now
 	// deprecated) inmem.
-	kolide.TargetStore
-	kolide.OsqueryOptionsStore
-	kolide.QueryStore
-	kolide.PackStore
-	kolide.ScheduledQueryStore
-	kolide.LabelStore
+	kolide.Datastore
 }
 
 func New(config config.KolideConfig) (*Datastore, error) {

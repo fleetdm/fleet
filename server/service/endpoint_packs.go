@@ -130,7 +130,7 @@ func makeListPacksEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type deletePackRequest struct {
-	ID uint
+	Name string
 }
 
 type deletePackResponse struct {
@@ -142,7 +142,7 @@ func (r deletePackResponse) error() error { return r.Err }
 func makeDeletePackEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(deletePackRequest)
-		err := svc.DeletePack(ctx, req.ID)
+		err := svc.DeletePack(ctx, req.Name)
 		if err != nil {
 			return deletePackResponse{Err: err}, nil
 		}

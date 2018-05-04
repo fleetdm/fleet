@@ -192,8 +192,8 @@ func (d *Datastore) PackByName(name string, opts ...kolide.OptionalArg) (*kolide
 }
 
 // DeletePack soft deletes a kolide.Pack so that it won't show up in results
-func (d *Datastore) DeletePack(pid uint) error {
-	return d.deleteEntity("packs", pid)
+func (d *Datastore) DeletePack(name string) error {
+	return d.deleteEntityByName("packs", name)
 }
 
 // Pack fetch kolide.Pack with matching ID

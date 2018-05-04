@@ -7,12 +7,12 @@ import (
 )
 
 func decodeDeleteLabelRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	name, err := nameFromRequest(r, "name")
 	if err != nil {
 		return nil, err
 	}
 	var req deleteLabelRequest
-	req.ID = id
+	req.Name = name
 	return req, nil
 }
 

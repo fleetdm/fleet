@@ -68,6 +68,15 @@ func idFromRequest(r *http.Request, name string) (uint, error) {
 	return uint(uid), nil
 }
 
+func nameFromRequest(r *http.Request, varName string) (string, error) {
+	vars := mux.Vars(r)
+	name, ok := vars[varName]
+	if !ok {
+		return "", errBadRoute
+	}
+	return name, nil
+}
+
 // default number of items to include per page
 const defaultPerPage = 20
 

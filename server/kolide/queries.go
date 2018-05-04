@@ -20,8 +20,8 @@ type QueryStore interface {
 	NewQuery(query *Query, opts ...OptionalArg) (*Query, error)
 	// SaveQuery saves changes to an existing query object.
 	SaveQuery(query *Query) error
-	// DeleteQuery (soft) deletes an existing query object.
-	DeleteQuery(qid uint) error
+	// DeleteQuery deletes an existing query object.
+	DeleteQuery(name string) error
 	// DeleteQueries (soft) deletes the existing query objects with the
 	// provided IDs. The number of deleted queries is returned along with
 	// any error.
@@ -51,7 +51,7 @@ type QueryService interface {
 	GetQuery(ctx context.Context, id uint) (*Query, error)
 	NewQuery(ctx context.Context, p QueryPayload) (*Query, error)
 	ModifyQuery(ctx context.Context, id uint, p QueryPayload) (*Query, error)
-	DeleteQuery(ctx context.Context, id uint) error
+	DeleteQuery(ctx context.Context, name string) error
 	// DeleteQueries (soft) deletes the existing query objects with the
 	// provided IDs. The number of deleted queries is returned along with
 	// any error.

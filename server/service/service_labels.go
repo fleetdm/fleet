@@ -22,8 +22,8 @@ func (svc service) GetLabel(ctx context.Context, id uint) (*kolide.Label, error)
 	return svc.ds.Label(id)
 }
 
-func (svc service) DeleteLabel(ctx context.Context, id uint) error {
-	return svc.ds.DeleteLabel(id)
+func (svc service) DeleteLabel(ctx context.Context, name string) error {
+	return svc.ds.DeleteLabel(name)
 }
 
 func (svc service) HostIDsForLabel(lid uint) ([]uint, error) {

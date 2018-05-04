@@ -43,7 +43,7 @@ func (mw loggingMiddleware) GetPack(ctx context.Context, id uint) (*kolide.Pack,
 	return pack, err
 }
 
-func (mw loggingMiddleware) DeletePack(ctx context.Context, id uint) error {
+func (mw loggingMiddleware) DeletePack(ctx context.Context, name string) error {
 	var (
 		err error
 	)
@@ -56,7 +56,7 @@ func (mw loggingMiddleware) DeletePack(ctx context.Context, id uint) error {
 		)
 	}(time.Now())
 
-	err = mw.Service.DeletePack(ctx, id)
+	err = mw.Service.DeletePack(ctx, name)
 	return err
 }
 

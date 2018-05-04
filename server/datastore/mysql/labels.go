@@ -72,9 +72,9 @@ func (d *Datastore) GetLabelSpecs() ([]*kolide.LabelSpec, error) {
 	return specs, nil
 }
 
-// DeleteLabel soft deletes a kolide.Label
-func (d *Datastore) DeleteLabel(lid uint) error {
-	return d.deleteEntity("labels", lid)
+// DeleteLabel deletes a kolide.Label
+func (d *Datastore) DeleteLabel(name string) error {
+	return d.deleteEntityByName("labels", name)
 }
 
 // Label returns a kolide.Label identified by  lid if one exists

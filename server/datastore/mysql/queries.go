@@ -157,8 +157,8 @@ func (d *Datastore) SaveQuery(q *kolide.Query) error {
 }
 
 // DeleteQuery soft deletes Query identified by Query.ID
-func (d *Datastore) DeleteQuery(qid uint) error {
-	return d.deleteEntity("queries", qid)
+func (d *Datastore) DeleteQuery(name string) error {
+	return d.deleteEntityByName("queries", name)
 }
 
 // DeleteQueries (soft) deletes the existing query objects with the provided

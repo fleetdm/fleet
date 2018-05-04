@@ -49,18 +49,6 @@ func (d *Datastore) SaveQuery(query *kolide.Query) error {
 	return nil
 }
 
-func (d *Datastore) DeleteQuery(qid uint) error {
-	d.mtx.Lock()
-	defer d.mtx.Unlock()
-
-	if _, ok := d.queries[qid]; !ok {
-		return notFound("Query").WithID(qid)
-	}
-
-	delete(d.queries, qid)
-	return nil
-}
-
 // DeleteQueries (soft) deletes the existing query objects with the provided
 // IDs. The number of deleted queries is returned along with any error.
 func (d *Datastore) DeleteQueries(ids []uint) (uint, error) {

@@ -43,7 +43,7 @@ func (mw loggingMiddleware) GetLabel(ctx context.Context, id uint) (*kolide.Labe
 	return label, err
 }
 
-func (mw loggingMiddleware) DeleteLabel(ctx context.Context, id uint) error {
+func (mw loggingMiddleware) DeleteLabel(ctx context.Context, name string) error {
 	var (
 		err error
 	)
@@ -56,6 +56,6 @@ func (mw loggingMiddleware) DeleteLabel(ctx context.Context, id uint) error {
 		)
 	}(time.Now())
 
-	err = mw.Service.DeleteLabel(ctx, id)
+	err = mw.Service.DeleteLabel(ctx, name)
 	return err
 }

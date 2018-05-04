@@ -22,8 +22,8 @@ func (svc service) GetPack(ctx context.Context, id uint) (*kolide.Pack, error) {
 	return svc.ds.Pack(id)
 }
 
-func (svc service) DeletePack(ctx context.Context, id uint) error {
-	return svc.ds.DeletePack(id)
+func (svc service) DeletePack(ctx context.Context, name string) error {
+	return svc.ds.DeletePack(name)
 }
 
 func (svc service) ListLabelsForPack(ctx context.Context, pid uint) ([]*kolide.Label, error) {

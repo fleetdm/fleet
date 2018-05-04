@@ -54,27 +54,3 @@ func TestGetPack(t *testing.T) {
 
 	assert.Equal(t, pack.ID, packVerify.ID)
 }
-
-func TestDeletePack(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	assert.Nil(t, err)
-
-	svc, err := newTestService(ds, nil)
-	assert.Nil(t, err)
-
-	ctx := context.Background()
-
-	pack := &kolide.Pack{
-		Name: "foo",
-	}
-	_, err = ds.NewPack(pack)
-	assert.Nil(t, err)
-	assert.NotZero(t, pack.ID)
-
-	err = svc.DeletePack(ctx, pack.ID)
-	assert.Nil(t, err)
-
-	queries, err := ds.ListPacks(kolide.ListOptions{})
-	assert.Nil(t, err)
-	assert.Len(t, queries, 0)
-}

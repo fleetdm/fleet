@@ -386,7 +386,7 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/queries", h.ListQueries).Methods("GET").Name("list_queries")
 	r.Handle("/api/v1/kolide/queries", h.CreateQuery).Methods("POST").Name("create_query")
 	r.Handle("/api/v1/kolide/queries/{id}", h.ModifyQuery).Methods("PATCH").Name("modify_query")
-	r.Handle("/api/v1/kolide/queries/{id}", h.DeleteQuery).Methods("DELETE").Name("delete_query")
+	r.Handle("/api/v1/kolide/queries/{name}", h.DeleteQuery).Methods("DELETE").Name("delete_query")
 	r.Handle("/api/v1/kolide/queries/delete", h.DeleteQueries).Methods("POST").Name("delete_queries")
 	r.Handle("/api/v1/kolide/queries/spec", h.ApplyQuerySpecs).Methods("POST").Name("apply_query_specs")
 	r.Handle("/api/v1/kolide/queries/spec", h.GetQuerySpecs).Methods("GET").Name("get_query_specs")
@@ -394,14 +394,14 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 
 	r.Handle("/api/v1/kolide/packs/{id}", h.GetPack).Methods("GET").Name("get_pack")
 	r.Handle("/api/v1/kolide/packs", h.ListPacks).Methods("GET").Name("list_packs")
-	r.Handle("/api/v1/kolide/packs/{id}", h.DeletePack).Methods("DELETE").Name("delete_pack")
+	r.Handle("/api/v1/kolide/packs/{name}", h.DeletePack).Methods("DELETE").Name("delete_pack")
 	r.Handle("/api/v1/kolide/packs/{id}/scheduled", h.GetScheduledQueriesInPack).Methods("GET").Name("get_scheduled_queries_in_pack")
 	r.Handle("/api/v1/kolide/packs/spec", h.ApplyPackSpecs).Methods("POST").Name("apply_pack_specs")
 	r.Handle("/api/v1/kolide/packs/spec", h.GetPackSpecs).Methods("GET").Name("get_pack_specs")
 
 	r.Handle("/api/v1/kolide/labels/{id}", h.GetLabel).Methods("GET").Name("get_label")
 	r.Handle("/api/v1/kolide/labels", h.ListLabels).Methods("GET").Name("list_labels")
-	r.Handle("/api/v1/kolide/labels/{id}", h.DeleteLabel).Methods("DELETE").Name("delete_label")
+	r.Handle("/api/v1/kolide/labels/{name}", h.DeleteLabel).Methods("DELETE").Name("delete_label")
 	r.Handle("/api/v1/kolide/labels/spec", h.ApplyLabelSpecs).Methods("POST").Name("apply_label_specs")
 	r.Handle("/api/v1/kolide/labels/spec", h.GetLabelSpecs).Methods("GET").Name("get_label_specs")
 

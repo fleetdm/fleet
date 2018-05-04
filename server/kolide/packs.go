@@ -14,7 +14,7 @@ type PackStore interface {
 	GetPackSpecs() ([]*PackSpec, error)
 
 	// DeletePack deletes a pack record from the datastore.
-	DeletePack(pid uint) error
+	DeletePack(name string) error
 
 	// Pack retrieves a pack from the datastore by ID.
 	Pack(pid uint) (*Pack, error)
@@ -57,7 +57,7 @@ type PackService interface {
 	GetPack(ctx context.Context, id uint) (pack *Pack, err error)
 
 	// DeletePack deletes a pack record from the datastore.
-	DeletePack(ctx context.Context, id uint) (err error)
+	DeletePack(ctx context.Context, name string) (err error)
 
 	// ListLabelsForPack lists all labels that are associated with a pack.
 	ListLabelsForPack(ctx context.Context, pid uint) (labels []*Label, err error)

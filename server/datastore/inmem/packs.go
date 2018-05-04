@@ -49,19 +49,6 @@ func (d *Datastore) SavePack(pack *kolide.Pack) error {
 	return nil
 }
 
-func (d *Datastore) DeletePack(pid uint) error {
-	d.mtx.Lock()
-	defer d.mtx.Unlock()
-
-	if _, ok := d.packs[pid]; !ok {
-		return notFound("Pack").WithID(pid)
-	}
-
-	delete(d.packs, pid)
-
-	return nil
-}
-
 func (d *Datastore) Pack(id uint) (*kolide.Pack, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()

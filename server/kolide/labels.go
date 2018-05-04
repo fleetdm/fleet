@@ -13,7 +13,7 @@ type LabelStore interface {
 	GetLabelSpecs() ([]*LabelSpec, error)
 
 	// Label methods
-	DeleteLabel(lid uint) error
+	DeleteLabel(name string) error
 	Label(lid uint) (*Label, error)
 	ListLabels(opt ListOptions) ([]*Label, error)
 
@@ -54,7 +54,8 @@ type LabelService interface {
 
 	ListLabels(ctx context.Context, opt ListOptions) (labels []*Label, err error)
 	GetLabel(ctx context.Context, id uint) (label *Label, err error)
-	DeleteLabel(ctx context.Context, id uint) (err error)
+
+	DeleteLabel(ctx context.Context, name string) (err error)
 
 	// HostIDsForLabel returns ids of hosts that belong to the label identified
 	// by lid

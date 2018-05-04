@@ -115,8 +115,8 @@ func (svc service) ModifyQuery(ctx context.Context, id uint, p kolide.QueryPaylo
 	return query, nil
 }
 
-func (svc service) DeleteQuery(ctx context.Context, id uint) error {
-	return svc.ds.DeleteQuery(id)
+func (svc service) DeleteQuery(ctx context.Context, name string) error {
+	return svc.ds.DeleteQuery(name)
 }
 
 func (svc service) DeleteQueries(ctx context.Context, ids []uint) (uint, error) {

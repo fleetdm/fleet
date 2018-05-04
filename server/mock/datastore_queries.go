@@ -12,7 +12,7 @@ type NewQueryFunc func(query *kolide.Query, opts ...kolide.OptionalArg) (*kolide
 
 type SaveQueryFunc func(query *kolide.Query) error
 
-type DeleteQueryFunc func(qid uint) error
+type DeleteQueryFunc func(name string) error
 
 type DeleteQueriesFunc func(ids []uint) (uint, error)
 
@@ -63,9 +63,9 @@ func (s *QueryStore) SaveQuery(query *kolide.Query) error {
 	return s.SaveQueryFunc(query)
 }
 
-func (s *QueryStore) DeleteQuery(qid uint) error {
+func (s *QueryStore) DeleteQuery(name string) error {
 	s.DeleteQueryFuncInvoked = true
-	return s.DeleteQueryFunc(qid)
+	return s.DeleteQueryFunc(name)
 }
 
 func (s *QueryStore) DeleteQueries(ids []uint) (uint, error) {

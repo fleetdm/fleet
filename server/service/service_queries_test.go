@@ -117,28 +117,3 @@ func TestModifyQuery(t *testing.T) {
 	assert.Equal(t, query.ID, queryVerify.ID)
 	assert.Equal(t, "bar", queryVerify.Name)
 }
-
-func TestDeleteQuery(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	assert.Nil(t, err)
-
-	svc, err := newTestService(ds, nil)
-	assert.Nil(t, err)
-
-	ctx := context.Background()
-
-	query := &kolide.Query{
-		Name:  "foo",
-		Query: "select * from time;",
-	}
-	query, err = ds.NewQuery(query)
-	assert.Nil(t, err)
-	assert.NotZero(t, query.ID)
-
-	err = svc.DeleteQuery(ctx, query.ID)
-	assert.Nil(t, err)
-
-	queries, err := ds.ListQueries(kolide.ListOptions{})
-	assert.Nil(t, err)
-	assert.Len(t, queries, 0)
-}

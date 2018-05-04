@@ -121,7 +121,7 @@ func makeModifyQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type deleteQueryRequest struct {
-	ID uint
+	Name string
 }
 
 type deleteQueryResponse struct {
@@ -133,7 +133,7 @@ func (r deleteQueryResponse) error() error { return r.Err }
 func makeDeleteQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(deleteQueryRequest)
-		err := svc.DeleteQuery(ctx, req.ID)
+		err := svc.DeleteQuery(ctx, req.Name)
 		if err != nil {
 			return deleteQueryResponse{Err: err}, nil
 		}

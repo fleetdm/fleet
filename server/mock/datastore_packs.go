@@ -10,7 +10,7 @@ type ApplyPackSpecsFunc func(specs []*kolide.PackSpec) error
 
 type GetPackSpecsFunc func() ([]*kolide.PackSpec, error)
 
-type DeletePackFunc func(pid uint) error
+type DeletePackFunc func(name string) error
 
 type PackFunc func(pid uint) (*kolide.Pack, error)
 
@@ -68,9 +68,9 @@ func (s *PackStore) GetPackSpecs() ([]*kolide.PackSpec, error) {
 	return s.GetPackSpecsFunc()
 }
 
-func (s *PackStore) DeletePack(pid uint) error {
+func (s *PackStore) DeletePack(name string) error {
 	s.DeletePackFuncInvoked = true
-	return s.DeletePackFunc(pid)
+	return s.DeletePackFunc(name)
 }
 
 func (s *PackStore) Pack(pid uint) (*kolide.Pack, error) {
