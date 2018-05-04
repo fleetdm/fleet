@@ -1,7 +1,7 @@
 CLI Documentation
 =================
 
-Kolide Fleet provides a server which allows you to manage and orchestrate an osquery deployment across of a set of workstations and servers. For certain use-cases, it makes sense to maintain the configuration and data of an osquery deployment in source-controlled files. It is also desireable to be able to manage these files with a familiar command-line tool. To facilitate this, we are working on an experimental CLI called `fleetctl`.
+Kolide Fleet provides a server which allows you to manage and orchestrate an osquery deployment across of a set of workstations and servers. For certain use-cases, it makes sense to maintain the configuration and data of an osquery deployment in source-controlled files. It is also desirable to be able to manage these files with a familiar command-line tool. To facilitate this, we are working on an experimental CLI called `fleetctl`.
 
 ### Warning: In Progress
 
@@ -18,7 +18,7 @@ Inspiration for the `fleetctl` command-line experience as well as the file forma
 
 The `fleetctl` tool is heavily inspired by the [`kubectl`](https://kubernetes.io/docs/user-guide/kubectl-overview/) tool. If you are familiar with `kubectl`, this will all feel very familiar to you. If not, some further explanation would likely be helpful.
 
-Fleet exposes the aspects of an osquery deployment as a set of "objects". Objects may be a query, a pack, a set of configuration options, etc. The documentaiton for [Declarative Management of Kubernetes Objects Using Configuration Files](https://kubernetes.io/docs/tutorials/object-management-kubectl/declarative-object-management-configuration/) says the following about the object lifecycle:
+Fleet exposes the aspects of an osquery deployment as a set of "objects". Objects may be a query, a pack, a set of configuration options, etc. The documentation for [Declarative Management of Kubernetes Objects Using Configuration Files](https://kubernetes.io/docs/tutorials/object-management-kubectl/declarative-object-management-configuration/) says the following about the object lifecycle:
 
 > Objects can be created, updated, and deleted by storing multiple object configuration files in a directory and using `kubectl apply` to recursively create and update those objects as needed.
 
