@@ -50,30 +50,17 @@ Find more information at https://kolide.com/fleet
 ### Workflow
 
 ```bash
-# Make sure you're currently using the current server (in this case: staging)
-fleetctl config set-context staging
+# Make sure you're currently using the current server (in this case: production linux hosts)
+fleetctl config set-context production-linux
 
 # Edit the config file (or files) for your Fleet instance (or one of them) and apply the file
-vim fleet-staging.yml
-fleetctl apply -f ./fleet-staging.yml
+vim fleet-linux.yml
+fleetctl apply -f ./fleet-linux.yml
 
 # Commit the changes to an upstream source tree
-git add fleet-staging.yml
-git commit -m "new changes to staging fleet instance"
+git add fleet-linux.yml
+git commit -m "new changes to osquery production linux configuration"
 git push
-```
-
-Alternatively, you can specify the context as a flag for easy use in parallel scripts or instances where you may have many Fleet environments:
-
-```bash
-# Edit your Fleet config file
-vim fleet.yml
-
-# First apply the configuration to your staging environment for testing
-fleetctl apply -f ./fleet.yml --context=staging
-
-# Apply the configuration to both staging and production at the same time
-fleetctl apply -f ./fleet.yml --context=staging,production
 ```
 
 ## Configuration File Format
@@ -93,11 +80,10 @@ When you reason about how to manage these config files, consider following the [
 - Group related objects into a single file whenever it makes sense. One file is often easier to manage than several. See the [config-single-file.yml](../../examples/config-single-file.yml) file as an example of this syntax.
 - Don’t specify default values unnecessarily – simple and minimal configs will reduce errors.
 
-All of these files can be concatenated together into [one file](../../examples/config-single-file.yml) (separated by `---`), or they can be in [individual files with a directory structure](../../examples/config-many-files) like the following:
+All of these files can be concatenated together into [one file](../../examples/config-single-file.yml) (seperated by `---`), or they can be in [individual files with a directory structure](../../examples/config-many-files) like the following:
 
 ```
 |-- config.yml
-|-- decorators.yml
 |-- labels.yml
 |-- packs
 |   `-- osquery-monitoring.yml
@@ -109,55 +95,74 @@ All of these files can be concatenated together into [one file](../../examples/c
 The following file describes configuration options passed to the osquery instance. All other configuration data will be over-written by the application of this file.
 
 ```yaml
-apiVersion: k8s.kolide.com/v1alpha1
-kind: Options
+apiVersion: kolide.com/v1alpha1
+kind: OsqueryOptions
 spec:
   config:
-    distributed_interval: 3
-    distributed_tls_max_attempts: 3
-    logger_plugin: tls
-    logger_tls_endpoint: /api/v1/osquery/log
-    logger_tls_period: 10
+    options:
+      distributed_interval: 3
+      distributed_tls_max_attempts: 3
+      logger_plugin: tls
+      logger_tls_endpoint: /api/v1/osquery/log
+      logger_tls_period: 10
+    decorators:
+      load:
+        - "SELECT version FROM osquery_info"
+        - "SELECT uuid AS host_uuid FROM system_info"
+      always:
+        - "SELECT user AS username FROM logged_in_users WHERE user <> '' ORDER BY time LIMIT 1"
+      interval:
+        3600: "SELECT total_seconds AS uptime FROM uptime"
   overrides:
-    # Note configs in overrides take precedence over base configs
+    # Note configs in overrides take precedence over the default config defined
+    # under the config key above. With this config file, the base config would
+    # only be used for Windows hosts, while Mac and Linux hosts would pull
+    # these overrides.
     platforms:
       darwin:
-        disable_tables: chrome_extensions
-        docker_socket: /var/run/docker.sock
-        logger_tls_period: 60
-        fim:
-          interval: 500
-          groups:
-            - name: etc
-              paths:
-                - /etc/%%
-            - name: users
-              paths:
-                - /Users/%/Library/%%
-                - /Users/%/Documents/%%
+        options:
+          distributed_interval: 10
+          distributed_tls_max_attempts: 10
+          logger_plugin: tls
+          logger_tls_endpoint: /api/v1/osquery/log
+          logger_tls_period: 300
+          disable_tables: chrome_extensions
+          docker_socket: /var/run/docker.sock
+        file_paths:
+          users:
+            - /Users/%/Library/%%
+            - /Users/%/Documents/%%
+          etc:
+            - /etc/%%
+
       linux:
-        schedule_timeout: 60
-        docker_socket: /etc/run/docker.sock
-```
-
-### Osquery Logging Decorators
-
-The following file describes logging decorators that should be applied on osquery instances. A decorator should reference an osquery query by name. Both of these resources can be included in the same file as such:
-
-```yaml
----
-apiVersion: k8s.kolide.com/v1/alpha1
-kind: Query
-spec:
-  name: hostname
-  query: select hostname from system_info
----
-apiVersion: k8s.kolide.com/v1alpha1
-kind: Decorator
-spec:
-  query: hostname
-  type: interval
-  interval: 10
+        options:
+          distributed_interval: 10
+          distributed_tls_max_attempts: 3
+          logger_plugin: tls
+          logger_tls_endpoint: /api/v1/osquery/log
+          logger_tls_period: 60
+          schedule_timeout: 60
+          docker_socket: /etc/run/docker.sock
+        file_paths:
+          homes:
+            - /root/.ssh/%%
+            - /home/%/.ssh/%%
+          etc:
+            - /etc/%%
+          tmp:
+            - /tmp/%%
+        exclude_paths:
+          homes:
+            - /home/not_to_monitor/.ssh/%%
+          tmp:
+            - /tmp/too_many_events/
+        decorators:
+          load:
+            - "SELECT * FROM cpuid"
+            - "SELECT * FROM docker_info"
+          interval:
+            3600: "SELECT total_seconds AS uptime FROM uptime"
 ```
 
 ### Host Labels
@@ -165,9 +170,14 @@ spec:
 The following file describes the labels which hosts should be automatically grouped into. The label resource should reference the query by name. Both of these resources can be included in the same file as such:
 
 ```yaml
+apiVersion: kolide.com/v1alpha1
+kind: OsqueryLabel
+spec:
+  name: slack_not_running
+  query: slack_not_running
 ---
-apiVersion: k8s.kolide.com/v1/alpha1
-kind: Query
+apiVersion: kolide.com/v1/alpha1
+kind: OsqueryQuery
 spec:
   name: slack_not_running
   query: >
@@ -177,12 +187,6 @@ spec:
       FROM processes
       WHERE name LIKE "%Slack%"
     );
----
-apiVersion: k8s.kolide.com/v1alpha1
-kind: Label
-spec:
-  name: slack_not_running
-  query: slack_not_running
 ```
 
 ### Osquery Queries
@@ -190,8 +194,8 @@ spec:
 For especially long or complex queries, you may want to define one query in one file. Continued edits and applications to this file will update the query as long as the `metadata.name` does not change. If you want to change the name of a query, you must first create a new query with the new name and then delete the query with the old name. Make sure the old query name is not defined in any packs before deleting it or an error will occur.
 
 ```yaml
-apiVersion: k8s.kolide.com/v1alpha1
-kind: Query
+apiVersion: kolide.com/v1alpha1
+kind: OsqueryQuery
 spec:
   name: docker_processes
   descriptions: The docker containers processes that are running on a system.
@@ -203,12 +207,11 @@ spec:
       - darwin
 ```
 
-To define multiple queries in a file, concatenate multiple `Query` resources together in a single file with `---`. For example, consider a file that you might store at `queries/osquery_monitoring.yml`:
+To define multiple queries in a file, concatenate multiple `OsqueryQuery` resources together in a single file with `---`. For example, consider a file that you might store at `queries/osquery_monitoring.yml`:
 
 ```yaml
----
-apiVersion: k8s.kolide.com/v1alpha1
-kind: Query
+apiVersion: kolide.com/v1alpha1
+kind: OsqueryQuery
 spec:
   name: osquery_version
   description: The version of the Launcher and Osquery process
@@ -217,22 +220,22 @@ spec:
     launcher: 0.3.0
     osquery: 2.9.0
 ---
-apiVersion: k8s.kolide.com/v1alpha1
-kind: Query
+apiVersion: kolide.com/v1alpha1
+kind: OsqueryQuery
 spec:
   name: osquery_schedule
   description: Report performance stats for each file in the query schedule.
   query: select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;
 ---
-apiVersion: k8s.kolide.com/v1alpha1
-kind: Query
+apiVersion: kolide.com/v1alpha1
+kind: OsqueryQuery
 spec:
   name: osquery_info
   description: A heartbeat counter that reports general performance (CPU, memory) and version.
   query: select i.*, p.resident_size, p.user_time, p.system_time, time.minutes as counter from osquery_info i, processes p, time where p.pid = i.pid;
 ---
-apiVersion: k8s.kolide.com/v1alpha1
-kind: Query
+apiVersion: kolide.com/v1alpha1
+kind: OsqueryQuery
 spec:
   name: osquery_events
   description: Report event publisher health and track event counters.
@@ -244,8 +247,8 @@ spec:
 To define query packs, reference queries defined elsewhere by name. This is why the "name" of a query is so important. You can define many of these packs in many files.
 
 ```yaml
-apiVersion: k8s.kolide.com/v1alpha1
-kind: Pack
+apiVersion: kolide.com/v1alpha1
+kind: OsqueryPack
 spec:
   name: osquery_monitoring
   targets:
