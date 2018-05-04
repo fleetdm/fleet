@@ -1,6 +1,9 @@
 package kolide
 
-import "encoding/json"
+import (
+	"context"
+	"encoding/json"
+)
 
 type OsqueryOptionsStore interface {
 	ApplyOptions(options *OptionsSpec) error
@@ -9,8 +12,8 @@ type OsqueryOptionsStore interface {
 }
 
 type OsqueryOptionsService interface {
-	ApplyOptionsSpec(spec *OptionsSpec) error
-	GetOptionsSpec() (*OptionsSpec, error)
+	ApplyOptionsSpec(ctx context.Context, spec *OptionsSpec) error
+	GetOptionsSpec(ctx context.Context) (*OptionsSpec, error)
 }
 
 type OptionsObject struct {

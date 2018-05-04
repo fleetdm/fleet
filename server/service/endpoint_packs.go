@@ -149,3 +149,49 @@ func makeDeletePackEndpoint(svc kolide.Service) endpoint.Endpoint {
 		return deletePackResponse{}, nil
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Apply Pack Specs
+////////////////////////////////////////////////////////////////////////////////
+
+type applyPackSpecsRequest struct {
+	Specs []*kolide.PackSpec `json:"specs"`
+}
+
+type applyPackSpecsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r applyPackSpecsResponse) error() error { return r.Err }
+
+func makeApplyPackSpecsEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(applyPackSpecsRequest)
+		err := svc.ApplyPackSpecs(ctx, req.Specs)
+		if err != nil {
+			return applyPackSpecsResponse{Err: err}, nil
+		}
+		return applyPackSpecsResponse{}, nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get Pack Specs
+////////////////////////////////////////////////////////////////////////////////
+
+type getPackSpecsResponse struct {
+	Specs []*kolide.PackSpec `json:"specs"`
+	Err   error              `json:"error,omitempty"`
+}
+
+func (r getPackSpecsResponse) error() error { return r.Err }
+
+func makeGetPackSpecsEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		specs, err := svc.GetPackSpecs(ctx)
+		if err != nil {
+			return getPackSpecsResponse{Err: err}, nil
+		}
+		return getPackSpecsResponse{Specs: specs}, nil
+	}
+}

@@ -6,7 +6,7 @@ import (
 )
 
 type LabelStore interface {
-	// ApplyLabelSpes applies a list of LabelSpecs to the datastore,
+	// ApplyLabelSpecs applies a list of LabelSpecs to the datastore,
 	// creating and updating labels as necessary.
 	ApplyLabelSpecs(specs []*LabelSpec) error
 	// GetLabelSpecs returns all of the stored LabelSpecs.
@@ -46,7 +46,7 @@ type LabelStore interface {
 }
 
 type LabelService interface {
-	// ApplyLabelSpes applies a list of LabelSpecs to the datastore,
+	// ApplyLabelSpecs applies a list of LabelSpecs to the datastore,
 	// creating and updating labels as necessary.
 	ApplyLabelSpecs(ctx context.Context, specs []*LabelSpec) error
 	// GetLabelSpecs returns all of the stored LabelSpecs.

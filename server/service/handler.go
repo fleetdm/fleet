@@ -45,11 +45,15 @@ type KolideEndpoints struct {
 	ModifyQuery                    endpoint.Endpoint
 	DeleteQuery                    endpoint.Endpoint
 	DeleteQueries                  endpoint.Endpoint
+	ApplyQuerySpecs                endpoint.Endpoint
+	GetQuerySpecs                  endpoint.Endpoint
 	CreateDistributedQueryCampaign endpoint.Endpoint
 	GetPack                        endpoint.Endpoint
 	ListPacks                      endpoint.Endpoint
 	DeletePack                     endpoint.Endpoint
 	GetScheduledQueriesInPack      endpoint.Endpoint
+	ApplyPackSpecs                 endpoint.Endpoint
+	GetPackSpecs                   endpoint.Endpoint
 	EnrollAgent                    endpoint.Endpoint
 	GetClientConfig                endpoint.Endpoint
 	GetDistributedQueries          endpoint.Endpoint
@@ -58,6 +62,8 @@ type KolideEndpoints struct {
 	GetLabel                       endpoint.Endpoint
 	ListLabels                     endpoint.Endpoint
 	DeleteLabel                    endpoint.Endpoint
+	ApplyLabelSpecs                endpoint.Endpoint
+	GetLabelSpecs                  endpoint.Endpoint
 	GetHost                        endpoint.Endpoint
 	DeleteHost                     endpoint.Endpoint
 	ListHosts                      endpoint.Endpoint
@@ -66,6 +72,8 @@ type KolideEndpoints struct {
 	GetOptions                     endpoint.Endpoint
 	ModifyOptions                  endpoint.Endpoint
 	ResetOptions                   endpoint.Endpoint
+	ApplyOsqueryOptionsSpec        endpoint.Endpoint
+	GetOsqueryOptionsSpec          endpoint.Endpoint
 	GetCertificate                 endpoint.Endpoint
 	ChangeEmail                    endpoint.Endpoint
 	InitiateSSO                    endpoint.Endpoint
@@ -121,11 +129,15 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		ModifyQuery:                    authenticatedUser(jwtKey, svc, makeModifyQueryEndpoint(svc)),
 		DeleteQuery:                    authenticatedUser(jwtKey, svc, makeDeleteQueryEndpoint(svc)),
 		DeleteQueries:                  authenticatedUser(jwtKey, svc, makeDeleteQueriesEndpoint(svc)),
+		ApplyQuerySpecs:                authenticatedUser(jwtKey, svc, makeApplyQuerySpecsEndpoint(svc)),
+		GetQuerySpecs:                  authenticatedUser(jwtKey, svc, makeGetQuerySpecsEndpoint(svc)),
 		CreateDistributedQueryCampaign: authenticatedUser(jwtKey, svc, makeCreateDistributedQueryCampaignEndpoint(svc)),
 		GetPack:                   authenticatedUser(jwtKey, svc, makeGetPackEndpoint(svc)),
 		ListPacks:                 authenticatedUser(jwtKey, svc, makeListPacksEndpoint(svc)),
 		DeletePack:                authenticatedUser(jwtKey, svc, makeDeletePackEndpoint(svc)),
 		GetScheduledQueriesInPack: authenticatedUser(jwtKey, svc, makeGetScheduledQueriesInPackEndpoint(svc)),
+		ApplyPackSpecs:            authenticatedUser(jwtKey, svc, makeApplyPackSpecsEndpoint(svc)),
+		GetPackSpecs:              authenticatedUser(jwtKey, svc, makeGetPackSpecsEndpoint(svc)),
 		GetHost:                   authenticatedUser(jwtKey, svc, makeGetHostEndpoint(svc)),
 		ListHosts:                 authenticatedUser(jwtKey, svc, makeListHostsEndpoint(svc)),
 		GetHostSummary:            authenticatedUser(jwtKey, svc, makeGetHostSummaryEndpoint(svc)),
@@ -133,10 +145,14 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		GetLabel:                  authenticatedUser(jwtKey, svc, makeGetLabelEndpoint(svc)),
 		ListLabels:                authenticatedUser(jwtKey, svc, makeListLabelsEndpoint(svc)),
 		DeleteLabel:               authenticatedUser(jwtKey, svc, makeDeleteLabelEndpoint(svc)),
+		ApplyLabelSpecs:           authenticatedUser(jwtKey, svc, makeApplyLabelSpecsEndpoint(svc)),
+		GetLabelSpecs:             authenticatedUser(jwtKey, svc, makeGetLabelSpecsEndpoint(svc)),
 		SearchTargets:             authenticatedUser(jwtKey, svc, makeSearchTargetsEndpoint(svc)),
 		GetOptions:                authenticatedUser(jwtKey, svc, mustBeAdmin(makeGetOptionsEndpoint(svc))),
 		ModifyOptions:             authenticatedUser(jwtKey, svc, mustBeAdmin(makeModifyOptionsEndpoint(svc))),
 		ResetOptions:              authenticatedUser(jwtKey, svc, mustBeAdmin(makeResetOptionsEndpoint(svc))),
+		ApplyOsqueryOptionsSpec:   authenticatedUser(jwtKey, svc, makeApplyOsqueryOptionsSpecEndpoint(svc)),
+		GetOsqueryOptionsSpec:     authenticatedUser(jwtKey, svc, makeGetOsqueryOptionsSpecEndpoint(svc)),
 		GetCertificate:            authenticatedUser(jwtKey, svc, makeCertificateEndpoint(svc)),
 		ChangeEmail:               authenticatedUser(jwtKey, svc, makeChangeEmailEndpoint(svc)),
 		GetFIM:                    authenticatedUser(jwtKey, svc, makeGetFIMEndpoint(svc)),
@@ -182,11 +198,15 @@ type kolideHandlers struct {
 	ModifyQuery                    http.Handler
 	DeleteQuery                    http.Handler
 	DeleteQueries                  http.Handler
+	ApplyQuerySpecs                http.Handler
+	GetQuerySpecs                  http.Handler
 	CreateDistributedQueryCampaign http.Handler
 	GetPack                        http.Handler
 	ListPacks                      http.Handler
 	DeletePack                     http.Handler
 	GetScheduledQueriesInPack      http.Handler
+	ApplyPackSpecs                 http.Handler
+	GetPackSpecs                   http.Handler
 	EnrollAgent                    http.Handler
 	GetClientConfig                http.Handler
 	GetDistributedQueries          http.Handler
@@ -195,6 +215,8 @@ type kolideHandlers struct {
 	GetLabel                       http.Handler
 	ListLabels                     http.Handler
 	DeleteLabel                    http.Handler
+	ApplyLabelSpecs                http.Handler
+	GetLabelSpecs                  http.Handler
 	GetHost                        http.Handler
 	DeleteHost                     http.Handler
 	ListHosts                      http.Handler
@@ -203,6 +225,8 @@ type kolideHandlers struct {
 	GetOptions                     http.Handler
 	ModifyOptions                  http.Handler
 	ResetOptions                   http.Handler
+	ApplyOsqueryOptionsspec        http.Handler
+	GetOsqueryOptionsspec          http.Handler
 	GetCertificate                 http.Handler
 	ChangeEmail                    http.Handler
 	InitiateSSO                    http.Handler
@@ -247,11 +271,15 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		ModifyQuery:                    newServer(e.ModifyQuery, decodeModifyQueryRequest),
 		DeleteQuery:                    newServer(e.DeleteQuery, decodeDeleteQueryRequest),
 		DeleteQueries:                  newServer(e.DeleteQueries, decodeDeleteQueriesRequest),
+		ApplyQuerySpecs:                newServer(e.ApplyQuerySpecs, decodeApplyQuerySpecsRequest),
+		GetQuerySpecs:                  newServer(e.GetQuerySpecs, decodeNoParamsRequest),
 		CreateDistributedQueryCampaign: newServer(e.CreateDistributedQueryCampaign, decodeCreateDistributedQueryCampaignRequest),
 		GetPack:                       newServer(e.GetPack, decodeGetPackRequest),
 		ListPacks:                     newServer(e.ListPacks, decodeListPacksRequest),
 		DeletePack:                    newServer(e.DeletePack, decodeDeletePackRequest),
 		GetScheduledQueriesInPack:     newServer(e.GetScheduledQueriesInPack, decodeGetScheduledQueriesInPackRequest),
+		ApplyPackSpecs:                newServer(e.ApplyPackSpecs, decodeApplyPackSpecsRequest),
+		GetPackSpecs:                  newServer(e.GetPackSpecs, decodeNoParamsRequest),
 		EnrollAgent:                   newServer(e.EnrollAgent, decodeEnrollAgentRequest),
 		GetClientConfig:               newServer(e.GetClientConfig, decodeGetClientConfigRequest),
 		GetDistributedQueries:         newServer(e.GetDistributedQueries, decodeGetDistributedQueriesRequest),
@@ -260,6 +288,8 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		GetLabel:                      newServer(e.GetLabel, decodeGetLabelRequest),
 		ListLabels:                    newServer(e.ListLabels, decodeListLabelsRequest),
 		DeleteLabel:                   newServer(e.DeleteLabel, decodeDeleteLabelRequest),
+		ApplyLabelSpecs:               newServer(e.ApplyLabelSpecs, decodeApplyLabelSpecsRequest),
+		GetLabelSpecs:                 newServer(e.GetLabelSpecs, decodeNoParamsRequest),
 		GetHost:                       newServer(e.GetHost, decodeGetHostRequest),
 		DeleteHost:                    newServer(e.DeleteHost, decodeDeleteHostRequest),
 		ListHosts:                     newServer(e.ListHosts, decodeListHostsRequest),
@@ -268,6 +298,8 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		GetOptions:                    newServer(e.GetOptions, decodeNoParamsRequest),
 		ModifyOptions:                 newServer(e.ModifyOptions, decodeModifyOptionsRequest),
 		ResetOptions:                  newServer(e.ResetOptions, decodeNoParamsRequest),
+		ApplyOsqueryOptionsspec:       newServer(e.ApplyOsqueryOptionsSpec, decodeApplyOsqueryOptionsSpecRequest),
+		GetOsqueryOptionsspec:         newServer(e.GetOsqueryOptionsSpec, decodeNoParamsRequest),
 		GetCertificate:                newServer(e.GetCertificate, decodeNoParamsRequest),
 		ChangeEmail:                   newServer(e.ChangeEmail, decodeChangeEmailRequest),
 		InitiateSSO:                   newServer(e.InitiateSSO, decodeInitiateSSORequest),
@@ -356,15 +388,22 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/queries/{id}", h.ModifyQuery).Methods("PATCH").Name("modify_query")
 	r.Handle("/api/v1/kolide/queries/{id}", h.DeleteQuery).Methods("DELETE").Name("delete_query")
 	r.Handle("/api/v1/kolide/queries/delete", h.DeleteQueries).Methods("POST").Name("delete_queries")
+	r.Handle("/api/v1/kolide/queries/spec", h.ApplyQuerySpecs).Methods("POST").Name("apply_query_specs")
+	r.Handle("/api/v1/kolide/queries/spec", h.GetQuerySpecs).Methods("GET").Name("get_query_specs")
 	r.Handle("/api/v1/kolide/queries/run", h.CreateDistributedQueryCampaign).Methods("POST").Name("create_distributed_query_campaign")
 
 	r.Handle("/api/v1/kolide/packs/{id}", h.GetPack).Methods("GET").Name("get_pack")
 	r.Handle("/api/v1/kolide/packs", h.ListPacks).Methods("GET").Name("list_packs")
 	r.Handle("/api/v1/kolide/packs/{id}", h.DeletePack).Methods("DELETE").Name("delete_pack")
 	r.Handle("/api/v1/kolide/packs/{id}/scheduled", h.GetScheduledQueriesInPack).Methods("GET").Name("get_scheduled_queries_in_pack")
+	r.Handle("/api/v1/kolide/packs/spec", h.ApplyPackSpecs).Methods("POST").Name("apply_pack_specs")
+	r.Handle("/api/v1/kolide/packs/spec", h.GetPackSpecs).Methods("GET").Name("get_pack_specs")
+
 	r.Handle("/api/v1/kolide/labels/{id}", h.GetLabel).Methods("GET").Name("get_label")
 	r.Handle("/api/v1/kolide/labels", h.ListLabels).Methods("GET").Name("list_labels")
 	r.Handle("/api/v1/kolide/labels/{id}", h.DeleteLabel).Methods("DELETE").Name("delete_label")
+	r.Handle("/api/v1/kolide/labels/spec", h.ApplyLabelSpecs).Methods("POST").Name("apply_label_specs")
+	r.Handle("/api/v1/kolide/labels/spec", h.GetLabelSpecs).Methods("GET").Name("get_label_specs")
 
 	r.Handle("/api/v1/kolide/hosts", h.ListHosts).Methods("GET").Name("list_hosts")
 	r.Handle("/api/v1/kolide/host_summary", h.GetHostSummary).Methods("GET").Name("get_host_summary")
@@ -377,6 +416,8 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/options", h.GetOptions).Methods("GET").Name("get_options")
 	r.Handle("/api/v1/kolide/options", h.ModifyOptions).Methods("PATCH").Name("modify_options")
 	r.Handle("/api/v1/kolide/options/reset", h.ResetOptions).Methods("GET").Name("reset_options")
+	r.Handle("/api/v1/kolide/osquery_options/spec", h.ApplyOsqueryOptionsspec).Methods("POST").Name("apply_osquery_options_spec")
+	r.Handle("/api/v1/kolide/osquery_options/spec", h.GetOsqueryOptionsspec).Methods("GET").Name("get_osquery_options_spec")
 
 	r.Handle("/api/v1/kolide/targets", h.SearchTargets).Methods("POST").Name("search_targets")
 

@@ -126,3 +126,49 @@ func makeDeleteLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
 		return deleteLabelResponse{}, nil
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Apply Label Specs
+////////////////////////////////////////////////////////////////////////////////
+
+type applyLabelSpecsRequest struct {
+	Specs []*kolide.LabelSpec `json:"specs"`
+}
+
+type applyLabelSpecsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r applyLabelSpecsResponse) error() error { return r.Err }
+
+func makeApplyLabelSpecsEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(applyLabelSpecsRequest)
+		err := svc.ApplyLabelSpecs(ctx, req.Specs)
+		if err != nil {
+			return applyLabelSpecsResponse{Err: err}, nil
+		}
+		return applyLabelSpecsResponse{}, nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get Label Specs
+////////////////////////////////////////////////////////////////////////////////
+
+type getLabelSpecsResponse struct {
+	Specs []*kolide.LabelSpec `json:"specs"`
+	Err   error               `json:"error,omitempty"`
+}
+
+func (r getLabelSpecsResponse) error() error { return r.Err }
+
+func makeGetLabelSpecsEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		specs, err := svc.GetLabelSpecs(ctx)
+		if err != nil {
+			return getLabelSpecsResponse{Err: err}, nil
+		}
+		return getLabelSpecsResponse{Specs: specs}, nil
+	}
+}

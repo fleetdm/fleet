@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 )
 
@@ -31,4 +32,13 @@ func decodeListPacksRequest(ctx context.Context, r *http.Request) (interface{}, 
 		return nil, err
 	}
 	return listPacksRequest{ListOptions: opt}, nil
+}
+
+func decodeApplyPackSpecsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	var req applyPackSpecsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, err
+	}
+	return req, nil
+
 }
