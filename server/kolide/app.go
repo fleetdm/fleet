@@ -209,14 +209,14 @@ type AppConfigPayload struct {
 
 // OrgInfo contains general info about the organization using Kolide.
 type OrgInfo struct {
-	OrgName    *string `json:"org_name"`
-	OrgLogoURL *string `json:"org_logo_url"`
+	OrgName    *string `json:"org_name,omitempty"`
+	OrgLogoURL *string `json:"org_logo_url,omitempty"`
 }
 
 // ServerSettings contains general settings about the kolide App.
 type ServerSettings struct {
-	KolideServerURL *string `json:"kolide_server_url"`
-	EnrollSecret    *string `json:"osquery_enroll_secret"`
+	KolideServerURL *string `json:"kolide_server_url,omitempty"`
+	EnrollSecret    *string `json:"osquery_enroll_secret,omitempty"`
 }
 
 type OrderDirection int

@@ -10,8 +10,8 @@ import (
 type setupRequest struct {
 	Admin           *kolide.UserPayload `json:"admin"`
 	OrgInfo         *kolide.OrgInfo     `json:"org_info"`
-	KolideServerURL *string             `json:"kolide_server_url"`
-	EnrollSecret    *string             `json:"osquery_enroll_secret"`
+	KolideServerURL *string             `json:"kolide_server_url,omitempty"`
+	EnrollSecret    *string             `json:"osquery_enroll_secret,omitempty"`
 }
 
 type setupResponse struct {

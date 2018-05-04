@@ -107,17 +107,17 @@ type User struct {
 
 // UserPayload is used to modify an existing user
 type UserPayload struct {
-	Username    *string `json:"username"`
-	Name        *string `json:"name"`
-	Email       *string `json:"email"`
-	Admin       *bool   `json:"admin"`
-	Enabled     *bool   `json:"enabled"`
-	Password    *string `json:"password"`
-	GravatarURL *string `json:"gravatar_url"`
-	Position    *string `json:"position"`
-	InviteToken *string `json:"invite_token"`
-	SSOInvite   *bool   `json:"sso_invite"`
-	SSOEnabled  *bool   `json:"sso_enabled"`
+	Username    *string `json:"username,omitempty"`
+	Name        *string `json:"name,omitempty"`
+	Email       *string `json:"email,omitempty"`
+	Admin       *bool   `json:"admin,omitempty"`
+	Enabled     *bool   `json:"enabled,omitempty"`
+	Password    *string `json:"password,omitempty"`
+	GravatarURL *string `json:"gravatar_url,omitempty"`
+	Position    *string `json:"position,omitempty"`
+	InviteToken *string `json:"invite_token,omitempty"`
+	SSOInvite   *bool   `json:"sso_invite,omitempty"`
+	SSOEnabled  *bool   `json:"sso_enabled,omitempty"`
 }
 
 // User creates a user from payload.
