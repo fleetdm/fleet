@@ -13,7 +13,7 @@ import (
 // Fleet instance.
 func (c *Client) ApplyPackSpecs(specs []*kolide.PackSpec) error {
 	req := applyPackSpecsRequest{Specs: specs}
-	response, err := c.Do("POST", "/api/v1/kolide/spec/packs", req)
+	response, err := c.AuthenticatedDo("POST", "/api/v1/kolide/spec/packs", req)
 	if err != nil {
 		return errors.Wrap(err, "POST /api/v1/kolide/spec/packs")
 	}
@@ -37,9 +37,8 @@ func (c *Client) ApplyPackSpecs(specs []*kolide.PackSpec) error {
 }
 
 // GetPackSpecs retrieves the list of all Packs.
-func (c *Client) GetPackSpecs(specs []*kolide.PackSpec) ([]*kolide.PackSpec, error) {
-	req := applyPackSpecsRequest{Specs: specs}
-	response, err := c.Do("GET", "/api/v1/kolide/spec/packs", req)
+func (c *Client) GetPackSpecs() ([]*kolide.PackSpec, error) {
+	response, err := c.AuthenticatedDo("GET", "/api/v1/kolide/spec/packs", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "GET /api/v1/kolide/spec/packs")
 	}
@@ -65,7 +64,7 @@ func (c *Client) GetPackSpecs(specs []*kolide.PackSpec) ([]*kolide.PackSpec, err
 // DeletePack deletes the pack with the matching name.
 func (c *Client) DeletePack(name string) error {
 	verb, path := "DELETE", "/api/v1/kolide/packs/"+url.QueryEscape(name)
-	response, err := c.Do(verb, path, nil)
+	response, err := c.AuthenticatedDo(verb, path, nil)
 	if err != nil {
 		return errors.Wrapf(err, "%s %s", verb, path)
 	}
