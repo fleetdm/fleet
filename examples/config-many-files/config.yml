@@ -1,6 +1,6 @@
 ---
-apiVersion: kolide.com/v1alpha1
-kind: OsqueryOptions
+apiVersion: v1
+kind: options
 spec:
   config:
     options:

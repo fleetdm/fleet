@@ -22,9 +22,15 @@ func main() {
 	}
 
 	app.Commands = []cli.Command{
+		applyCommand(),
 		setupCommand(),
 		loginCommand(),
 		logoutCommand(),
+		cli.Command{
+			Name:        "get",
+			Usage:       "Get/list resources",
+			Subcommands: []cli.Command{},
+		},
 		cli.Command{
 			Name:  "config",
 			Usage: "Modify how and which Fleet server to connect to",

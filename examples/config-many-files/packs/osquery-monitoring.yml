@@ -1,6 +1,6 @@
 ---
-apiVersion: kolide.com/v1alpha1
-kind: OsqueryPack
+apiVersion: v1
+kind: pack
 spec:
   name: osquery_monitoring
   targets:
