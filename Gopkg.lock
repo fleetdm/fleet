@@ -236,6 +236,12 @@
   version = "v1.7.6"
 
 [[projects]]
+  name = "github.com/mattn/go-runewidth"
+  packages = ["."]
+  revision = "9e777a8366cce605130a531d2cd6363d07ad7317"
+  version = "v0.0.2"
+
+[[projects]]
   name = "github.com/matttproud/golang_protobuf_extensions"
   packages = ["pbutil"]
   revision = "3247c84500bff8d9fb6d579d800f20b3e091582c"
@@ -246,6 +252,12 @@
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
   revision = "00c29f56e2386353d58c599509e8dc3801b0d716"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/olekukonko/tablewriter"
+  packages = ["."]
+  revision = "d4647c9c7a84d847478d890b816b7d8b62b0b279"
 
 [[projects]]
   branch = "master"
@@ -310,8 +322,8 @@
 [[projects]]
   name = "github.com/russellhaering/gosaml2"
   packages = ["types"]
-  revision = "23b0b0ca2f48c03b6d7ec6c655aca00fc1347571"
-  version = "v0.1.0"
+  revision = "92a858215ef3d0c79a0b08d0537ddbba1c735626"
+  version = "v0.3.0"
 
 [[projects]]
   name = "github.com/russellhaering/goxmldsig"
@@ -478,6 +490,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "2b7babe1fc3d3841dc91705e55ba4fde4541a24d49ae79ac7286c84a87f04919"
+  inputs-digest = "94ea8fd96cb424a92a046f6e26d1ecc6ecbbd8d0ca1b6e52852973666ce7ab7f"
   solver-name = "gps-cdcl"
   solver-version = 1

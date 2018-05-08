@@ -28,9 +28,13 @@ func main() {
 		loginCommand(),
 		logoutCommand(),
 		cli.Command{
-			Name:        "get",
-			Usage:       "Get/list resources",
-			Subcommands: []cli.Command{},
+			Name:  "get",
+			Usage: "Get/list resources",
+			Subcommands: []cli.Command{
+				getQueriesCommand(),
+				getPacksCommand(),
+				getLabelsCommand(),
+			},
 		},
 		cli.Command{
 			Name:  "config",
