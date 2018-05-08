@@ -150,7 +150,7 @@ func testAddLabelToPackTwice(t *testing.T, ds kolide.Datastore) {
 	require.NotNil(t, err)
 }
 
-func testApplyPackSpecRoundtrip(t *testing.T, ds kolide.Datastore) {
+func setupPackSpecsTest(t *testing.T, ds kolide.Datastore) []*kolide.PackSpec {
 	zwass := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
 	queries := []*kolide.Query{
 		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
@@ -180,7 +180,7 @@ func testApplyPackSpecRoundtrip(t *testing.T, ds kolide.Datastore) {
 	boolPtr := func(b bool) *bool { return &b }
 	uintPtr := func(x uint) *uint { return &x }
 	stringPtr := func(s string) *string { return &s }
-	specs := []*kolide.PackSpec{
+	expectedSpecs := []*kolide.PackSpec{
 		&kolide.PackSpec{
 			ID:   1,
 			Name: "test_pack",
@@ -215,13 +215,27 @@ func testApplyPackSpecRoundtrip(t *testing.T, ds kolide.Datastore) {
 		},
 	}
 
-	err = ds.ApplyPackSpecs(specs)
+	err = ds.ApplyPackSpecs(expectedSpecs)
 	require.Nil(t, err)
+	return expectedSpecs
+}
+
+func testApplyPackSpecRoundtrip(t *testing.T, ds kolide.Datastore) {
+	expectedSpecs := setupPackSpecsTest(t, ds)
 
 	gotSpec, err := ds.GetPackSpecs()
-
 	require.Nil(t, err)
-	assert.Equal(t, specs, gotSpec)
+	assert.Equal(t, expectedSpecs, gotSpec)
+}
+
+func testGetPackSpec(t *testing.T, ds kolide.Datastore) {
+	expectedSpecs := setupPackSpecsTest(t, ds)
+
+	for _, s := range expectedSpecs {
+		spec, err := ds.GetPackSpec(s.Name)
+		require.Nil(t, err)
+		assert.Equal(t, s, spec)
+	}
 }
 
 func testApplyPackSpecMissingQueries(t *testing.T, ds kolide.Datastore) {

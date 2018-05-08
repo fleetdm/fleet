@@ -11,6 +11,8 @@ type LabelStore interface {
 	ApplyLabelSpecs(specs []*LabelSpec) error
 	// GetLabelSpecs returns all of the stored LabelSpecs.
 	GetLabelSpecs() ([]*LabelSpec, error)
+	// GetLabelSpec returns the spec for the named label.
+	GetLabelSpec(name string) (*LabelSpec, error)
 
 	// Label methods
 	DeleteLabel(name string) error
@@ -51,6 +53,8 @@ type LabelService interface {
 	ApplyLabelSpecs(ctx context.Context, specs []*LabelSpec) error
 	// GetLabelSpecs returns all of the stored LabelSpecs.
 	GetLabelSpecs(ctx context.Context) ([]*LabelSpec, error)
+	// GetLabelSpec gets the spec for the label with the given name.
+	GetLabelSpec(ctx context.Context, name string) (*LabelSpec, error)
 
 	ListLabels(ctx context.Context, opt ListOptions) (labels []*Label, err error)
 	GetLabel(ctx context.Context, id uint) (label *Label, err error)

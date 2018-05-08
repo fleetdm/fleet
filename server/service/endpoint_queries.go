@@ -212,3 +212,25 @@ func makeGetQuerySpecsEndpoint(svc kolide.Service) endpoint.Endpoint {
 		return getQuerySpecsResponse{Specs: specs}, nil
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Get Query Spec
+////////////////////////////////////////////////////////////////////////////////
+
+type getQuerySpecResponse struct {
+	Spec *kolide.QuerySpec `json:"specs,omitempty"`
+	Err  error             `json:"error,omitempty"`
+}
+
+func (r getQuerySpecResponse) error() error { return r.Err }
+
+func makeGetQuerySpecEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(getGenericSpecRequest)
+		spec, err := svc.GetQuerySpec(ctx, req.Name)
+		if err != nil {
+			return getQuerySpecResponse{Err: err}, nil
+		}
+		return getQuerySpecResponse{Spec: spec}, nil
+	}
+}

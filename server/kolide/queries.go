@@ -43,6 +43,8 @@ type QueryService interface {
 	ApplyQuerySpecs(ctx context.Context, specs []*QuerySpec) error
 	// GetQuerySpecs gets the YAML file representing all the stored queries.
 	GetQuerySpecs(ctx context.Context) ([]*QuerySpec, error)
+	// GetQuerySpec gets the spec for the query with the given name.
+	GetQuerySpec(ctx context.Context, name string) (*QuerySpec, error)
 
 	// ListQueries returns a list of saved queries. Note only saved queries
 	// should be returned (those that are created for distributed queries

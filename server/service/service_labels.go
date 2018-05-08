@@ -14,6 +14,10 @@ func (svc service) GetLabelSpecs(ctx context.Context) ([]*kolide.LabelSpec, erro
 	return svc.ds.GetLabelSpecs()
 }
 
+func (svc service) GetLabelSpec(ctx context.Context, name string) (*kolide.LabelSpec, error) {
+	return svc.ds.GetLabelSpec(name)
+}
+
 func (svc service) ListLabels(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Label, error) {
 	return svc.ds.ListLabels(opt)
 }

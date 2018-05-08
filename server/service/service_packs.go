@@ -14,6 +14,10 @@ func (svc service) GetPackSpecs(ctx context.Context) ([]*kolide.PackSpec, error)
 	return svc.ds.GetPackSpecs()
 }
 
+func (svc service) GetPackSpec(ctx context.Context, name string) (*kolide.PackSpec, error) {
+	return svc.ds.GetPackSpec(name)
+}
+
 func (svc service) ListPacks(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Pack, error) {
 	return svc.ds.ListPacks(opt)
 }

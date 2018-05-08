@@ -150,3 +150,17 @@ func listOptionsFromRequest(r *http.Request) (kolide.ListOptions, error) {
 func decodeNoParamsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	return nil, nil
 }
+
+type getGenericSpecRequest struct {
+	Name string
+}
+
+func decodeGetGenericSpecRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	name, err := nameFromRequest(r, "name")
+	if err != nil {
+		return nil, err
+	}
+	var req getGenericSpecRequest
+	req.Name = name
+	return req, nil
+}

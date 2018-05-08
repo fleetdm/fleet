@@ -80,6 +80,8 @@ var testFunctions = [...]func(*testing.T, kolide.Datastore){
 	testApplyQueries,
 	testApplyPackSpecRoundtrip,
 	testApplyPackSpecMissingQueries,
+	testGetPackSpec,
 	testApplyLabelSpecsRoundtrip,
+	testGetLabelSpec,
 	testListLabelsForPack,
 }

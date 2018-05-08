@@ -72,6 +72,24 @@ func (d *Datastore) GetLabelSpecs() ([]*kolide.LabelSpec, error) {
 	return specs, nil
 }
 
+func (d *Datastore) GetLabelSpec(name string) (*kolide.LabelSpec, error) {
+	var specs []*kolide.LabelSpec
+	query := `
+SELECT name, description, query, platform, label_type
+FROM labels
+WHERE name = ?
+`
+	if err := d.db.Select(&specs, query, name); err != nil {
+		return nil, errors.Wrap(err, "get label")
+	}
+
+	if len(specs) != 1 {
+		return nil, errors.Errorf("expected 1 label row, got %d", len(specs))
+	}
+
+	return specs[0], nil
+}
+
 // DeleteLabel deletes a kolide.Label
 func (d *Datastore) DeleteLabel(name string) error {
 	return d.deleteEntityByName("labels", name)

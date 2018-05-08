@@ -52,6 +52,17 @@ func (svc service) GetQuerySpecs(ctx context.Context) ([]*kolide.QuerySpec, erro
 	return specs, nil
 }
 
+func (svc service) GetQuerySpec(ctx context.Context, name string) (*kolide.QuerySpec, error) {
+	query, ok, err := svc.ds.QueryByName(name)
+	if !ok {
+		return nil, errors.Errorf("no query with name %s", name)
+	}
+	if err != nil {
+		return nil, errors.Wrap(err, "get query by name")
+	}
+	return specFromQuery(query), nil
+}
+
 func (svc service) ListQueries(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Query, error) {
 	return svc.ds.ListQueries(opt)
 }

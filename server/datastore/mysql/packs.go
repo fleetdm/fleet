@@ -172,6 +172,67 @@ WHERE pack_id = ?
 	return specs, nil
 }
 
+func (d *Datastore) GetPackSpec(name string) (spec *kolide.PackSpec, err error) {
+	tx, err := d.db.Beginx()
+	if err != nil {
+		return nil, errors.Wrap(err, "begin GetPackSpecs transaction")
+	}
+
+	defer func() {
+		if err != nil {
+			rbErr := tx.Rollback()
+			// It seems possible that there might be a case in
+			// which the error we are dealing with here was thrown
+			// by the call to tx.Commit(), and the docs suggest
+			// this call would then result in sql.ErrTxDone.
+			if rbErr != nil && rbErr != sql.ErrTxDone {
+				panic(fmt.Sprintf("got err '%s' rolling back after err '%s'", rbErr, err))
+			}
+		}
+	}()
+
+	// Get basic spec
+	var specs []*kolide.PackSpec
+	query := "SELECT id, name, description, platform FROM packs WHERE name = ?"
+	if err := tx.Select(&specs, query, name); err != nil {
+		return nil, errors.Wrap(err, "get packs")
+	}
+	if len(specs) != 1 {
+		return nil, errors.Errorf("expected 1 pack row, got %d", len(specs))
+	}
+
+	spec = specs[0]
+
+	// Load targets
+	query = `
+SELECT l.name
+FROM labels l JOIN pack_targets pt
+WHERE pack_id = ? AND pt.type = ? AND pt.target_id = l.id
+`
+	if err := tx.Select(&spec.Targets.Labels, query, spec.ID, kolide.TargetLabel); err != nil {
+		return nil, errors.Wrap(err, "get pack targets")
+	}
+
+	// Load queries
+	query = `
+SELECT
+query_name, name, description, ` + "`interval`" + `,
+snapshot, removed, shard, platform, version
+FROM scheduled_queries
+WHERE pack_id = ?
+`
+	if err := tx.Select(&spec.Queries, query, spec.ID); err != nil {
+		return nil, errors.Wrap(err, "get pack queries")
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, errors.Wrap(err, "commit transaction")
+	}
+
+	return spec, nil
+}
+
 func (d *Datastore) PackByName(name string, opts ...kolide.OptionalArg) (*kolide.Pack, bool, error) {
 	db := d.getTransaction(opts)
 	sqlStatement := `

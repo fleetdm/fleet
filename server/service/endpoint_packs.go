@@ -195,3 +195,25 @@ func makeGetPackSpecsEndpoint(svc kolide.Service) endpoint.Endpoint {
 		return getPackSpecsResponse{Specs: specs}, nil
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Get Pack Spec
+////////////////////////////////////////////////////////////////////////////////
+
+type getPackSpecResponse struct {
+	Spec *kolide.PackSpec `json:"specs,omitempty"`
+	Err  error            `json:"error,omitempty"`
+}
+
+func (r getPackSpecResponse) error() error { return r.Err }
+
+func makeGetPackSpecEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(getGenericSpecRequest)
+		spec, err := svc.GetPackSpec(ctx, req.Name)
+		if err != nil {
+			return getPackSpecResponse{Err: err}, nil
+		}
+		return getPackSpecResponse{Spec: spec}, nil
+	}
+}

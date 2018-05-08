@@ -9,9 +9,10 @@ type PackStore interface {
 	// ApplyPackSpecs applies a list of PackSpecs to the datastore,
 	// creating and updating packs as necessary.
 	ApplyPackSpecs(specs []*PackSpec) error
-
 	// GetPackSpecs returns all of the stored PackSpecs.
 	GetPackSpecs() ([]*PackSpec, error)
+	// GetPackSpec returns the spec for the named pack.
+	GetPackSpec(name string) (*PackSpec, error)
 
 	// DeletePack deletes a pack record from the datastore.
 	DeletePack(name string) error
@@ -46,9 +47,10 @@ type PackService interface {
 	// ApplyPackSpecs applies a list of PackSpecs to the datastore,
 	// creating and updating packs as necessary.
 	ApplyPackSpecs(ctx context.Context, specs []*PackSpec) error
-
 	// GetPackSpecs returns all of the stored PackSpecs.
 	GetPackSpecs(ctx context.Context) ([]*PackSpec, error)
+	// GetPackSpec gets the spec for the pack with the given name.
+	GetPackSpec(ctx context.Context, name string) (*PackSpec, error)
 
 	// ListPacks lists all packs in the application.
 	ListPacks(ctx context.Context, opt ListOptions) (packs []*Pack, err error)

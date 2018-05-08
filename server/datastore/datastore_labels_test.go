@@ -412,7 +412,7 @@ func testChangeLabelDetails(t *testing.T, db kolide.Datastore) {
 	assert.Equal(t, label.Name, saved.Name)
 }
 
-func testApplyLabelSpecsRoundtrip(t *testing.T, ds kolide.Datastore) {
+func setupLabelSpecsTest(t *testing.T, ds kolide.Datastore) []*kolide.LabelSpec {
 	expectedSpecs := []*kolide.LabelSpec{
 		&kolide.LabelSpec{
 			Name:        "foo",
@@ -436,6 +436,22 @@ func testApplyLabelSpecsRoundtrip(t *testing.T, ds kolide.Datastore) {
 	}
 	err := ds.ApplyLabelSpecs(expectedSpecs)
 	require.Nil(t, err)
+
+	return expectedSpecs
+}
+
+func testGetLabelSpec(t *testing.T, ds kolide.Datastore) {
+	expectedSpecs := setupLabelSpecsTest(t, ds)
+
+	for _, s := range expectedSpecs {
+		spec, err := ds.GetLabelSpec(s.Name)
+		require.Nil(t, err)
+		assert.Equal(t, s, spec)
+	}
+}
+
+func testApplyLabelSpecsRoundtrip(t *testing.T, ds kolide.Datastore) {
+	expectedSpecs := setupLabelSpecsTest(t, ds)
 
 	specs, err := ds.GetLabelSpecs()
 	require.Nil(t, err)
