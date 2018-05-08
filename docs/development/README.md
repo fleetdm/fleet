@@ -3,6 +3,10 @@ Development Documentation
 
 The Fleet application is a Go API server which serves a React/Redux single-page application for the frontend. The development documentation contains documents on the following topics:
 
+## Frequently Asked Questions
+
+For FAQs on common Fleet problems, see the [FAQ](./faq.md).
+
 ## Building and contributing code
 
 - For documentation on building the Fleet source code, see the [Building The Code](./building-the-code.md) guide.

@@ -1,11 +1,11 @@
 CLI Documentation
 =================
 
-Kolide Fleet provides a server which allows you to manage and orchestrate an osquery deployment across of a set of workstations and servers. For certain use-cases, it makes sense to maintain the configuration and data of an osquery deployment in source-controlled files. It is also desirable to be able to manage these files with a familiar command-line tool. To facilitate this, we are working on an experimental CLI called `fleetctl`.
+Kolide Fleet provides a server which allows you to manage and orchestrate an osquery deployment across of a set of workstations and servers. For certain use-cases, it makes sense to maintain the configuration and data of an osquery deployment in source-controlled files. It is also desirable to be able to manage these files with a familiar command-line tool. To facilitate this, Kolide is working on an experimental CLI called `fleetctl`.
 
 ### Warning: In Progress
 
-This CLI is largely just a proposal and large sections (if not most) of this do not work. The objective user-experience is documented here so that contributors working on this feature can share documentation with the community to gather feedback.
+This CLI is currently under active development and many of the APIs and CLIs are in flux. The objective user-experience is documented here so that contributors working on this feature can share documentation with the community to gather feedback.
 
 ## Inspiration
 
@@ -27,24 +27,29 @@ Similarly, Fleet objects can be created, updated, and deleted by storing multipl
 ### Help Output
 
 ```
-$ fleetctl --help
-fleetctl controls an instance of the Kolide Fleet osquery fleet manager.
+NAME:
+   fleetctl - The CLI for operating Kolide Fleet
 
-Find more information at https://kolide.com/fleet
+USAGE:
+   fleetctl [global options] command [command options] [arguments...]
 
-  Usage:
-    fleetctl [command] [flags]
+VERSION:
+   2.0.0-rc1
 
+COMMANDS:
+     query    Run an osquery distributed query
+     apply    Apply files to declaratively manage osquery configurations
+     delete   Specify files to delete
+     setup    Setup a Kolide Fleet instance
+     login    Login to Kolide Fleet
+     logout   Logout of Kolide Fleet
+     get      Get/list resources
+     config   Modify how and which Fleet server to connect to
+     help, h  Shows a list of commands or help for one command
 
-  Commands:
-    fleetctl query    - run a query across your fleet
-
-    fleetctl apply    - apply a set of osquery configurations
-    fleetctl edit     - edit your complete configuration in an ephemeral editor
-    fleetctl config   - modify how and which Fleet server to connect to
-
-    fleetctl help     - get help on how to define an intent type
-    fleetctl version  - print full version information
+GLOBAL OPTIONS:
+   --help, -h     show help
+   --version, -v  print the version
 ```
 
 ### Workflow
