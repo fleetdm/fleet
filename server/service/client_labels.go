@@ -70,6 +70,11 @@ func (c *Client) DeleteLabel(name string) error {
 	}
 	defer response.Body.Close()
 
+	switch response.StatusCode {
+	case http.StatusNotFound:
+		return notFoundErr{}
+	}
+
 	if response.StatusCode != http.StatusOK {
 		return errors.Errorf("get label spec got HTTP %d, expected 200", response.StatusCode)
 	}

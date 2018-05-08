@@ -23,6 +23,7 @@ func main() {
 
 	app.Commands = []cli.Command{
 		applyCommand(),
+		deleteCommand(),
 		setupCommand(),
 		loginCommand(),
 		logoutCommand(),
