@@ -46,3 +46,9 @@ Below are some projects created by Kolide community members. Please submit a pul
 
 - [davidrecordon/terraform-aws-kolide-fleet](https://github.com/davidrecordon/terraform-aws-kolide-fleet) - Deploy Fleet into AWS using Terraform.
 - [deeso/fleet-deployment](https://github.com/deeso/fleet-deployment) - Install Fleet on a Ubuntu box.
+
+## Kolide Cloud
+
+Looking for the quickest way to try out osquery on your fleet? Not sure which queries to run? Don't want to manage your own data pipeline?
+
+Try our [osquery SaaS platform](https://kolide.com) providing insights, alerting, fleet management and user-driven security tools. We also support advanced aggregation of osquery results for power users. Get started immediately, and your first 10 hosts are free.
