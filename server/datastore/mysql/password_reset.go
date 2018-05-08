@@ -8,8 +8,8 @@ import (
 func (d *Datastore) NewPasswordResetRequest(req *kolide.PasswordResetRequest) (*kolide.PasswordResetRequest, error) {
 	sqlStatement := `
 		INSERT INTO password_reset_requests
-		( user_id, token)
-		VALUES (?,?)
+		( user_id, token, expires_at)
+		VALUES (?,?, NOW())
 	`
 	response, err := d.db.Exec(sqlStatement, req.UserID, req.Token)
 	if err != nil {

@@ -135,6 +135,11 @@ $ /usr/bin/fleet serve \
 
 Now, if you go to [https://localhost:8080](https://localhost:8080) in your local browser, you should be redirected to [https://localhost:8080/setup](https://localhost:8080/setup) where you can create your first Fleet user account.
 
+## Running Fleet with systemd
+
+See [systemd](./systemd.md) for documentation on running fleet as a background process and managing the fleet server logs.
+
+
 ## Installing and running osquery
 
 > Note that this whole process is outlined in more detail in the [Adding Hosts To Fleet](./adding-hosts-to-fleet.md) document. The steps are repeated here for the sake of a continuous tutorial.
