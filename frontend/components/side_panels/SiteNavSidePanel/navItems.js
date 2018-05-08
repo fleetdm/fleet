@@ -1,15 +1,6 @@
 export default (admin) => {
   const adminNavItems = [
     {
-      icon: 'config',
-      name: 'Config',
-      location: {
-        regex: /^\/config/,
-        pathname: '/config/options',
-      },
-      subItems: [],
-    },
-    {
       icon: 'admin',
       name: 'Admin',
       location: {
@@ -95,32 +86,6 @@ export default (admin) => {
           location: {
             regex: /\/packs\/new/,
             pathname: '/packs/new',
-          },
-        },
-      ],
-    },
-    {
-      icon: 'decorator',
-      name: 'Decorators',
-      location: {
-        pathname: '/decorators/manage',
-        regex: /^\/decorators/,
-      },
-      subItems: [
-        {
-          icon: 'decorator',
-          name: 'Manage Decorators',
-          location: {
-            pathname: '/decorators/manage',
-            regex: /\/decorators\/manage/,
-          },
-        },
-        {
-          icon: 'pencil',
-          name: 'New Decorator',
-          location: {
-            regex: /\/decorators\/new/,
-            pathname: '/decorators/new',
           },
         },
       ],

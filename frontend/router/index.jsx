@@ -9,7 +9,6 @@ import AllPacksPage from 'pages/packs/AllPacksPage';
 import App from 'components/App';
 import AuthenticatedAdminRoutes from 'components/AuthenticatedAdminRoutes';
 import AuthenticatedRoutes from 'components/AuthenticatedRoutes';
-import ConfigOptionsPage from 'pages/config/ConfigOptionsPage';
 import ConfirmInvitePage from 'pages/ConfirmInvitePage';
 import ConfirmSSOInvitePage from 'pages/ConfirmSSOInvitePage';
 import CoreLayout from 'layouts/CoreLayout';
@@ -28,9 +27,6 @@ import Kolide404 from 'pages/Kolide404';
 import Kolide500 from 'pages/Kolide500';
 import store from 'redux/store';
 import UserSettingsPage from 'pages/UserSettingsPage';
-import DecoratorPage from 'pages/decorators/DecoratorPage';
-import ManageDecoratorsPage from 'pages/decorators/ManageDecoratorsPage';
-import DecoratorsPageWrapper from 'components/decorators/DecoratorsPageWrapper';
 
 const history = syncHistoryWithStore(browserHistory, store);
 
@@ -54,16 +50,8 @@ const routes = (
               <Route path="users" component={AdminUserManagementPage} />
               <Route path="settings" component={AdminAppSettingsPage} />
             </Route>
-            <Route path="config">
-              <Route path="options" component={ConfigOptionsPage} />
-            </Route>
             <Route path="hosts">
               <Route path="manage" component={ManageHostsPage} />
-            </Route>
-            <Route path="decorators" component={DecoratorsPageWrapper}>
-              <Route path="manage" component={ManageDecoratorsPage} />
-              <Route path="new" component={DecoratorPage} />
-              <Route path=":id" component={DecoratorPage} />
             </Route>
             <Route path="packs" component={PackPageWrapper}>
               <Route path="manage" component={AllPacksPage} />
