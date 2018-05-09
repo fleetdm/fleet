@@ -113,3 +113,39 @@ func (mw loggingMiddleware) ListHostsInPack(ctx context.Context, pid uint, opt k
 	hosts, err = mw.Service.ListHostsInPack(ctx, pid, opt)
 	return hosts, err
 }
+
+func (mw loggingMiddleware) GetPackSpec(ctx context.Context, name string) (spec *kolide.PackSpec, err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "GetPackSpec",
+			"err", err,
+			"took", time.Since(begin),
+		)
+	}(time.Now())
+	spec, err = mw.Service.GetPackSpec(ctx, name)
+	return spec, err
+}
+
+func (mw loggingMiddleware) GetPackSpecs(ctx context.Context) (specs []*kolide.PackSpec, err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "GetPackSpecs",
+			"err", err,
+			"took", time.Since(begin),
+		)
+	}(time.Now())
+	specs, err = mw.Service.GetPackSpecs(ctx)
+	return specs, err
+}
+
+func (mw loggingMiddleware) ApplyPackSpecs(ctx context.Context, specs []*kolide.PackSpec) (err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "ApplyPackSpecs",
+			"err", err,
+			"took", time.Since(begin),
+		)
+	}(time.Now())
+	err = mw.Service.ApplyPackSpecs(ctx, specs)
+	return err
+}
