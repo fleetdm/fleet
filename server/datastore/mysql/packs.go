@@ -197,7 +197,10 @@ func (d *Datastore) GetPackSpec(name string) (spec *kolide.PackSpec, err error) 
 	if err := tx.Select(&specs, query, name); err != nil {
 		return nil, errors.Wrap(err, "get packs")
 	}
-	if len(specs) != 1 {
+	if len(specs) == 0 {
+		return nil, notFound("Pack").WithName(name)
+	}
+	if len(specs) > 1 {
 		return nil, errors.Errorf("expected 1 pack row, got %d", len(specs))
 	}
 

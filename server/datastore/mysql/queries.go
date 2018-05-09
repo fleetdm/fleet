@@ -61,7 +61,7 @@ func (d *Datastore) ApplyQueries(authorID uint, queries []*kolide.Query) (err er
 	return errors.Wrap(err, "commit ApplyQueries transaction")
 }
 
-func (d *Datastore) QueryByName(name string, opts ...kolide.OptionalArg) (*kolide.Query, bool, error) {
+func (d *Datastore) QueryByName(name string, opts ...kolide.OptionalArg) (*kolide.Query, error) {
 	db := d.getTransaction(opts)
 	sqlStatement := `
 		SELECT *
@@ -72,16 +72,16 @@ func (d *Datastore) QueryByName(name string, opts ...kolide.OptionalArg) (*kolid
 	err := db.Get(&query, sqlStatement, name)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, false, nil
+			return nil, notFound("Query").WithName(name)
 		}
-		return nil, false, errors.Wrap(err, "selecting query by name")
+		return nil, errors.Wrap(err, "selecting query by name")
 	}
 
 	if err := d.loadPacksForQueries([]*kolide.Query{&query}); err != nil {
-		return nil, false, errors.Wrap(err, "loading packs for query")
+		return nil, errors.Wrap(err, "loading packs for query")
 	}
 
-	return &query, true, nil
+	return &query, nil
 }
 
 // NewQuery creates a New Query. If a query with the same name was soft-deleted,

@@ -20,7 +20,7 @@ type QueryFunc func(id uint) (*kolide.Query, error)
 
 type ListQueriesFunc func(opt kolide.ListOptions) ([]*kolide.Query, error)
 
-type QueryByNameFunc func(name string, opts ...kolide.OptionalArg) (*kolide.Query, bool, error)
+type QueryByNameFunc func(name string, opts ...kolide.OptionalArg) (*kolide.Query, error)
 
 type QueryStore struct {
 	ApplyQueriesFunc        ApplyQueriesFunc
@@ -83,7 +83,7 @@ func (s *QueryStore) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, error
 	return s.ListQueriesFunc(opt)
 }
 
-func (s *QueryStore) QueryByName(name string, opts ...kolide.OptionalArg) (*kolide.Query, bool, error) {
+func (s *QueryStore) QueryByName(name string, opts ...kolide.OptionalArg) (*kolide.Query, error) {
 	s.QueryByNameFuncInvoked = true
 	return s.QueryByNameFunc(name, opts...)
 }

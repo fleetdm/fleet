@@ -96,15 +96,14 @@ func testDeleteQuery(t *testing.T, ds kolide.Datastore) {
 func testGetQueryByName(t *testing.T, ds kolide.Datastore) {
 	user := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
 	test.NewQuery(t, ds, "q1", "select * from time", user.ID, true)
-	actual, ok, err := ds.QueryByName("q1")
+	actual, err := ds.QueryByName("q1")
 	require.Nil(t, err)
-	assert.True(t, ok)
 	assert.Equal(t, "q1", actual.Name)
 	assert.Equal(t, "select * from time", actual.Query)
 
-	actual, ok, err = ds.QueryByName("xxx")
+	actual, err = ds.QueryByName("xxx")
 	assert.Nil(t, err)
-	assert.False(t, ok)
+	assert.True(t, kolide.IsNotFound(err))
 }
 
 func testDeleteQueries(t *testing.T, ds kolide.Datastore) {
@@ -215,14 +214,12 @@ func testLoadPacksForQueries(t *testing.T, ds kolide.Datastore) {
 	err = ds.ApplyPackSpecs(specs)
 	require.Nil(t, err)
 
-	q0, exists, err := ds.QueryByName(queries[0].Name)
+	q0, err := ds.QueryByName(queries[0].Name)
 	require.Nil(t, err)
-	require.True(t, exists)
 	assert.Empty(t, q0.Packs)
 
-	q1, exists, err := ds.QueryByName(queries[1].Name)
+	q1, err := ds.QueryByName(queries[1].Name)
 	require.Nil(t, err)
-	require.True(t, exists)
 	assert.Empty(t, q1.Packs)
 
 	specs = []*kolide.PackSpec{
@@ -239,16 +236,14 @@ func testLoadPacksForQueries(t *testing.T, ds kolide.Datastore) {
 	err = ds.ApplyPackSpecs(specs)
 	require.Nil(t, err)
 
-	q0, exists, err = ds.QueryByName(queries[0].Name)
+	q0, err = ds.QueryByName(queries[0].Name)
 	require.Nil(t, err)
-	require.True(t, exists)
 	if assert.Len(t, q0.Packs, 1) {
 		assert.Equal(t, "p2", q0.Packs[0].Name)
 	}
 
-	q1, exists, err = ds.QueryByName(queries[1].Name)
+	q1, err = ds.QueryByName(queries[1].Name)
 	require.Nil(t, err)
-	require.True(t, exists)
 	assert.Empty(t, q1.Packs)
 
 	specs = []*kolide.PackSpec{
@@ -274,16 +269,14 @@ func testLoadPacksForQueries(t *testing.T, ds kolide.Datastore) {
 	err = ds.ApplyPackSpecs(specs)
 	require.Nil(t, err)
 
-	q0, exists, err = ds.QueryByName(queries[0].Name)
+	q0, err = ds.QueryByName(queries[0].Name)
 	require.Nil(t, err)
-	require.True(t, exists)
 	if assert.Len(t, q0.Packs, 1) {
 		assert.Equal(t, "p2", q0.Packs[0].Name)
 	}
 
-	q1, exists, err = ds.QueryByName(queries[1].Name)
+	q1, err = ds.QueryByName(queries[1].Name)
 	require.Nil(t, err)
-	require.True(t, exists)
 	if assert.Len(t, q1.Packs, 2) {
 		sort.Slice(q1.Packs, func(i, j int) bool { return q1.Packs[i].Name < q1.Packs[j].Name })
 		assert.Equal(t, "p1", q1.Packs[0].Name)
@@ -308,18 +301,16 @@ func testLoadPacksForQueries(t *testing.T, ds kolide.Datastore) {
 	err = ds.ApplyPackSpecs(specs)
 	require.Nil(t, err)
 
-	q0, exists, err = ds.QueryByName(queries[0].Name)
+	q0, err = ds.QueryByName(queries[0].Name)
 	require.Nil(t, err)
-	require.True(t, exists)
 	if assert.Len(t, q0.Packs, 2) {
 		sort.Slice(q0.Packs, func(i, j int) bool { return q0.Packs[i].Name < q0.Packs[j].Name })
 		assert.Equal(t, "p2", q0.Packs[0].Name)
 		assert.Equal(t, "p3", q0.Packs[1].Name)
 	}
 
-	q1, exists, err = ds.QueryByName(queries[1].Name)
+	q1, err = ds.QueryByName(queries[1].Name)
 	require.Nil(t, err)
-	require.True(t, exists)
 	if assert.Len(t, q1.Packs, 2) {
 		sort.Slice(q1.Packs, func(i, j int) bool { return q1.Packs[i].Name < q1.Packs[j].Name })
 		assert.Equal(t, "p1", q1.Packs[0].Name)

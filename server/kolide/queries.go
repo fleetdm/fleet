@@ -32,9 +32,8 @@ type QueryStore interface {
 	// ListQueries returns a list of queries with the provided sorting and
 	// paging options. Associated packs should also be loaded.
 	ListQueries(opt ListOptions) ([]*Query, error)
-	// QueryByName looks up a query by name, the second bool is true if a query
-	// by the name exists.
-	QueryByName(name string, opts ...OptionalArg) (*Query, bool, error)
+	// QueryByName looks up a query by name.
+	QueryByName(name string, opts ...OptionalArg) (*Query, error)
 }
 
 type QueryService interface {

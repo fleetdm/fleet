@@ -26,17 +26,6 @@ func (d *Datastore) NewQuery(query *kolide.Query, opts ...kolide.OptionalArg) (*
 	return &newQuery, nil
 }
 
-func (d *Datastore) QueryByName(name string, opts ...kolide.OptionalArg) (*kolide.Query, bool, error) {
-	d.mtx.Lock()
-	defer d.mtx.Unlock()
-	for _, q := range d.queries {
-		if name == q.Name {
-			return q, true, nil
-		}
-	}
-	return nil, false, nil
-}
-
 func (d *Datastore) SaveQuery(query *kolide.Query) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()

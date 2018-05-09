@@ -44,6 +44,14 @@ type NotFoundError interface {
 	IsNotFound() bool
 }
 
+func IsNotFound(err error) bool {
+	e, ok := err.(NotFoundError)
+	if !ok {
+		return false
+	}
+	return e.IsNotFound()
+}
+
 // AlreadyExists is returned when creating a datastore resource that already
 // exists.
 type AlreadyExistsError interface {
