@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/kolide/fleet/server/service"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 func loginCommand() cli.Command {
@@ -14,9 +16,13 @@ func loginCommand() cli.Command {
 		flPassword string
 	)
 	return cli.Command{
-		Name:      "login",
-		Usage:     "Login to Kolide Fleet",
-		UsageText: `fleetctl login [options]`,
+		Name:  "login",
+		Usage: "Login to Kolide Fleet",
+		UsageText: `
+fleetctl login [options]
+
+Interactively prompts for email and password if not specified in the flags or environment variables.
+`,
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
@@ -32,13 +38,32 @@ func loginCommand() cli.Command {
 				EnvVar:      "PASSWORD",
 				Value:       "",
 				Destination: &flPassword,
-				Usage:       "The password to use to login",
+				Usage:       "The password to use to login (recommended to use interactive entry)",
 			},
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)
 			if err != nil {
 				return err
+			}
+
+			// Allow interactive entry to discourage passwords in
+			// CLI history.
+			if flEmail == "" {
+				fmt.Println("Log in using the standard Fleet credentials.")
+				fmt.Print("Email: ")
+				_, err := fmt.Scanln(&flEmail)
+				if err != nil {
+					return errors.Wrap(err, "error reading email")
+				}
+			}
+			if flPassword == "" {
+				fmt.Print("Password: ")
+				passBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+				if err != nil {
+					return errors.Wrap(err, "error reading password")
+				}
+				flPassword = string(passBytes)
 			}
 
 			token, err := fleet.Login(flEmail, flPassword)

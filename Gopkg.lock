@@ -322,8 +322,8 @@
 [[projects]]
   name = "github.com/russellhaering/gosaml2"
   packages = ["types"]
-  revision = "92a858215ef3d0c79a0b08d0537ddbba1c735626"
-  version = "v0.3.0"
+  revision = "4f381189230874b6542a39d68f3f89dfd66f969d"
+  version = "v0.3.1"
 
 [[projects]]
   name = "github.com/russellhaering/goxmldsig"
@@ -393,7 +393,8 @@
   name = "golang.org/x/crypto"
   packages = [
     "bcrypt",
-    "blowfish"
+    "blowfish",
+    "ssh/terminal"
   ]
   revision = "613d6eafa307c6881a737a3c35c0e312e8d3a8c5"
 
@@ -415,7 +416,10 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
-  packages = ["unix"]
+  packages = [
+    "unix",
+    "windows"
+  ]
   revision = "78d5f264b493f125018180c204871ecf58a2dce1"
 
 [[projects]]
@@ -490,6 +494,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "94ea8fd96cb424a92a046f6e26d1ecc6ecbbd8d0ca1b6e52852973666ce7ab7f"
+  inputs-digest = "e61dcd8fb2f8ecad4fe6728754c2e73e3f52d59029f49598087978f4a8092a25"
   solver-name = "gps-cdcl"
   solver-version = 1
