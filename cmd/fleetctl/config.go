@@ -13,6 +13,10 @@ import (
 	"github.com/urfave/cli"
 )
 
+const (
+	configFilePerms = 0600
+)
+
 type configFile struct {
 	Contexts map[string]Context `json:"contexts"`
 }
@@ -49,7 +53,7 @@ func makeConfigIfNotExists(fp string) error {
 		}
 	}
 
-	_, err := os.OpenFile(fp, os.O_RDONLY|os.O_CREATE, 0600)
+	_, err := os.OpenFile(fp, os.O_RDONLY|os.O_CREATE, configFilePerms)
 	return err
 }
 
@@ -75,7 +79,7 @@ func writeConfig(fp string, c configFile) error {
 		return err
 	}
 
-	return ioutil.WriteFile(fp, b, 0400)
+	return ioutil.WriteFile(fp, b, configFilePerms)
 }
 
 func getConfigValue(c *cli.Context, key string) (interface{}, error) {
