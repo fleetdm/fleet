@@ -9,9 +9,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-// ApplyPackSpecs sends the list of Packs to be applied (upserted) to the
+// ApplyPacks sends the list of Packs to be applied (upserted) to the
 // Fleet instance.
-func (c *Client) ApplyPackSpecs(specs []*kolide.PackSpec) error {
+func (c *Client) ApplyPacks(specs []*kolide.PackSpec) error {
 	req := applyPackSpecsRequest{Specs: specs}
 	response, err := c.AuthenticatedDo("POST", "/api/v1/kolide/spec/packs", req)
 	if err != nil {
@@ -36,8 +36,39 @@ func (c *Client) ApplyPackSpecs(specs []*kolide.PackSpec) error {
 	return nil
 }
 
-// GetPackSpecs retrieves the list of all Packs.
-func (c *Client) GetPackSpecs() ([]*kolide.PackSpec, error) {
+// GetPack retrieves information about a pack
+func (c *Client) GetPack(name string) (*kolide.PackSpec, error) {
+	verb, path := "GET", "/api/v1/kolide/spec/packs/"+url.QueryEscape(name)
+	response, err := c.AuthenticatedDo(verb, path, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "GET /api/v1/kolide/spec/packs")
+	}
+	defer response.Body.Close()
+
+	switch response.StatusCode {
+	case http.StatusNotFound:
+		return nil, notFoundErr{}
+	}
+
+	if response.StatusCode != http.StatusOK {
+		return nil, errors.Errorf("get pack spec got HTTP %d, expected 200", response.StatusCode)
+	}
+
+	var responseBody getPackSpecResponse
+	err = json.NewDecoder(response.Body).Decode(&responseBody)
+	if err != nil {
+		return nil, errors.Wrap(err, "decode get pack spec response")
+	}
+
+	if responseBody.Err != nil {
+		return nil, errors.Errorf("get pack spec: %s", responseBody.Err)
+	}
+
+	return responseBody.Spec, nil
+}
+
+// GetPacks retrieves the list of all Packs.
+func (c *Client) GetPacks() ([]*kolide.PackSpec, error) {
 	response, err := c.AuthenticatedDo("GET", "/api/v1/kolide/spec/packs", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "GET /api/v1/kolide/spec/packs")

@@ -9,9 +9,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-// ApplyQuerySpecs sends the list of Queries to be applied (upserted) to the
+// ApplyQueries sends the list of Queries to be applied (upserted) to the
 // Fleet instance.
-func (c *Client) ApplyQuerySpecs(specs []*kolide.QuerySpec) error {
+func (c *Client) ApplyQueries(specs []*kolide.QuerySpec) error {
 	req := applyQuerySpecsRequest{Specs: specs}
 	response, err := c.AuthenticatedDo("POST", "/api/v1/kolide/spec/queries", req)
 	if err != nil {
@@ -36,8 +36,39 @@ func (c *Client) ApplyQuerySpecs(specs []*kolide.QuerySpec) error {
 	return nil
 }
 
-// GetQuerySpecs retrieves the list of all Queries.
-func (c *Client) GetQuerySpecs() ([]*kolide.QuerySpec, error) {
+// GetQuery retrieves the list of all Queries.
+func (c *Client) GetQuery(name string) (*kolide.QuerySpec, error) {
+	verb, path := "GET", "/api/v1/kolide/spec/queries/"+url.QueryEscape(name)
+	response, err := c.AuthenticatedDo(verb, path, nil)
+	if err != nil {
+		return nil, errors.Wrapf(err, "%s %s", verb, path)
+	}
+	defer response.Body.Close()
+
+	switch response.StatusCode {
+	case http.StatusNotFound:
+		return nil, notFoundErr{}
+	}
+
+	if response.StatusCode != http.StatusOK {
+		return nil, errors.Errorf("get query spec got HTTP %d, expected 200", response.StatusCode)
+	}
+
+	var responseBody getQuerySpecResponse
+	err = json.NewDecoder(response.Body).Decode(&responseBody)
+	if err != nil {
+		return nil, errors.Wrap(err, "decode get query spec response")
+	}
+
+	if responseBody.Err != nil {
+		return nil, errors.Errorf("get query spec: %s", responseBody.Err)
+	}
+
+	return responseBody.Spec, nil
+}
+
+// GetQueries retrieves the list of all Queries.
+func (c *Client) GetQueries() ([]*kolide.QuerySpec, error) {
 	response, err := c.AuthenticatedDo("GET", "/api/v1/kolide/spec/queries", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "GET /api/v1/kolide/spec/queries")

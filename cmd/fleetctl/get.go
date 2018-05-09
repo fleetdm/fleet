@@ -4,10 +4,18 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/ghodss/yaml"
+	"github.com/kolide/fleet/server/kolide"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 )
+
+type specGeneric struct {
+	Kind    string      `json:"kind"`
+	Version string      `json:"apiVersion"`
+	Spec    interface{} `json:"spec"`
+}
 
 func defaultTable() *tablewriter.Table {
 	table := tablewriter.NewWriter(os.Stdout)
@@ -34,7 +42,7 @@ func getQueriesCommand() cli.Command {
 
 			// if name wasn't provided, list all queries
 			if name == "" {
-				queries, err := fleet.GetQuerySpecs()
+				queries, err := fleet.GetQueries()
 				if err != nil {
 					return errors.Wrap(err, "could not list queries")
 				}
@@ -61,7 +69,23 @@ func getQueriesCommand() cli.Command {
 
 				return nil
 			} else {
-				fmt.Println("[+] Getting information on a specific query is not currently supported")
+				query, err := fleet.GetQuery(name)
+				if err != nil {
+					return err
+				}
+
+				spec := specGeneric{
+					Kind:    "query",
+					Version: kolide.ApiVersion,
+					Spec:    query,
+				}
+
+				b, err := yaml.Marshal(spec)
+				if err != nil {
+					return err
+				}
+
+				fmt.Print(string(b))
 				return nil
 			}
 		},
@@ -87,7 +111,7 @@ func getPacksCommand() cli.Command {
 
 			// if name wasn't provided, list all packs
 			if name == "" {
-				packs, err := fleet.GetPackSpecs()
+				packs, err := fleet.GetPacks()
 				if err != nil {
 					return errors.Wrap(err, "could not list packs")
 				}
@@ -114,7 +138,23 @@ func getPacksCommand() cli.Command {
 
 				return nil
 			} else {
-				fmt.Println("[+] Getting information on a specific pack is not currently supported")
+				pack, err := fleet.GetPack(name)
+				if err != nil {
+					return err
+				}
+
+				spec := specGeneric{
+					Kind:    "pack",
+					Version: kolide.ApiVersion,
+					Spec:    pack,
+				}
+
+				b, err := yaml.Marshal(spec)
+				if err != nil {
+					return err
+				}
+
+				fmt.Print(string(b))
 				return nil
 			}
 		},
@@ -140,7 +180,7 @@ func getLabelsCommand() cli.Command {
 
 			// if name wasn't provided, list all labels
 			if name == "" {
-				labels, err := fleet.GetLabelSpecs()
+				labels, err := fleet.GetLabels()
 				if err != nil {
 					return errors.Wrap(err, "could not list labels")
 				}
@@ -168,7 +208,24 @@ func getLabelsCommand() cli.Command {
 
 				return nil
 			} else {
-				fmt.Println("[+] Getting information on a specific label is not currently supported")
+				label, err := fleet.GetLabel(name)
+				if err != nil {
+					return err
+				}
+
+				spec := specGeneric{
+					Kind:    "label",
+					Version: kolide.ApiVersion,
+					Spec:    label,
+				}
+
+				b, err := yaml.Marshal(spec)
+				if err != nil {
+					return err
+				}
+
+				fmt.Print(string(b))
+
 				return nil
 			}
 		},

@@ -9,9 +9,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-// ApplyLabelSpecs sends the list of Labels to be applied (upserted) to the
+// ApplyLabels sends the list of Labels to be applied (upserted) to the
 // Fleet instance.
-func (c *Client) ApplyLabelSpecs(specs []*kolide.LabelSpec) error {
+func (c *Client) ApplyLabels(specs []*kolide.LabelSpec) error {
 	req := applyLabelSpecsRequest{Specs: specs}
 	response, err := c.AuthenticatedDo("POST", "/api/v1/kolide/spec/labels", req)
 	if err != nil {
@@ -36,8 +36,39 @@ func (c *Client) ApplyLabelSpecs(specs []*kolide.LabelSpec) error {
 	return nil
 }
 
-// GetLabelSpecs retrieves the list of all Labels.
-func (c *Client) GetLabelSpecs() ([]*kolide.LabelSpec, error) {
+// GetLabel retrieves information about a label by name
+func (c *Client) GetLabel(name string) (*kolide.LabelSpec, error) {
+	verb, path := "GET", "/api/v1/kolide/spec/labels/"+url.QueryEscape(name)
+	response, err := c.AuthenticatedDo(verb, path, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "GET /api/v1/kolide/spec/labels")
+	}
+	defer response.Body.Close()
+
+	switch response.StatusCode {
+	case http.StatusNotFound:
+		return nil, notFoundErr{}
+	}
+
+	if response.StatusCode != http.StatusOK {
+		return nil, errors.Errorf("get label spec got HTTP %d, expected 200", response.StatusCode)
+	}
+
+	var responseBody getLabelSpecResponse
+	err = json.NewDecoder(response.Body).Decode(&responseBody)
+	if err != nil {
+		return nil, errors.Wrap(err, "decode get label spec response")
+	}
+
+	if responseBody.Err != nil {
+		return nil, errors.Errorf("get label spec: %s", responseBody.Err)
+	}
+
+	return responseBody.Spec, nil
+}
+
+// GetLabels retrieves the list of all Labels.
+func (c *Client) GetLabels() ([]*kolide.LabelSpec, error) {
 	response, err := c.AuthenticatedDo("GET", "/api/v1/kolide/spec/labels", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "GET /api/v1/kolide/spec/labels")

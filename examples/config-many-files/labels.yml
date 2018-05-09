@@ -2,36 +2,7 @@
 apiVersion: v1
 kind: label
 spec:
-  name: all_hosts
-  query: always_true
----
-apiVersion: v1
-kind: label
-spec:
-  name: macs
-  query: darwin_hosts
----
-apiVersion: v1
-kind: label
-spec:
-  name: ubuntu
-  query: ubuntu_hosts
----
-apiVersion: v1
-kind: label
-spec:
-  name: centos
-  query: centos_hosts
----
-apiVersion: v1
-kind: label
-spec:
-  name: windows
-  query: windows_hosts
----
-apiVersion: v1
-kind: label
-spec:
+  name: pending_updates
   query: pending_updates
   platforms:
     - darwin
@@ -39,4 +10,5 @@ spec:
 apiVersion: v1
 kind: label
 spec:
+  name: slack_not_running
   query: slack_not_running

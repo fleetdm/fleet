@@ -134,21 +134,21 @@ func applyCommand() cli.Command {
 			}
 
 			if len(specs.Queries) > 0 {
-				if err := fleet.ApplyQuerySpecs(specs.Queries); err != nil {
+				if err := fleet.ApplyQueries(specs.Queries); err != nil {
 					return errors.Wrap(err, "applying queries")
 				}
 				fmt.Printf("[+] applied %d queries\n", len(specs.Queries))
 			}
 
 			if len(specs.Labels) > 0 {
-				if err := fleet.ApplyLabelSpecs(specs.Labels); err != nil {
+				if err := fleet.ApplyLabels(specs.Labels); err != nil {
 					return errors.Wrap(err, "applying labels")
 				}
 				fmt.Printf("[+] applied %d labels\n", len(specs.Labels))
 			}
 
 			if len(specs.Packs) > 0 {
-				if err := fleet.ApplyPackSpecs(specs.Packs); err != nil {
+				if err := fleet.ApplyPacks(specs.Packs); err != nil {
 					return errors.Wrap(err, "applying packs")
 				}
 				fmt.Printf("[+] applied %d packs\n", len(specs.Packs))

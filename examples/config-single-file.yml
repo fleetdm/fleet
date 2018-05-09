@@ -70,36 +70,7 @@ spec:
 apiVersion: v1
 kind: label
 spec:
-  name: all_hosts
-  query: always_true
----
-apiVersion: v1
-kind: label
-spec:
-  name: macs
-  query: darwin_hosts
----
-apiVersion: v1
-kind: label
-spec:
-  name: ubuntu
-  query: ubuntu_hosts
----
-apiVersion: v1
-kind: label
-spec:
-  name: centos
-  query: centos_hosts
----
-apiVersion: v1
-kind: label
-spec:
-  name: windows
-  query: windows_hosts
----
-apiVersion: v1
-kind: label
-spec:
+  query: name
   query: pending_updates
   platforms:
     - darwin
@@ -107,15 +78,13 @@ spec:
 apiVersion: v1
 kind: label
 spec:
+  name: slack_not_running
   query: slack_not_running
 ---
 apiVersion: v1
 kind: pack
 spec:
   name: osquery_monitoring
-  targets:
-    labels:
-      - all_hosts
   queries:
     - query: osquery_version
       name: osquery_version_snapshot
