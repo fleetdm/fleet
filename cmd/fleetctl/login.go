@@ -31,14 +31,14 @@ Interactively prompts for email and password if not specified in the flags or en
 				EnvVar:      "EMAIL",
 				Value:       "",
 				Destination: &flEmail,
-				Usage:       "The email to use to login",
+				Usage:       "Email to use to log in",
 			},
 			cli.StringFlag{
 				Name:        "password",
 				EnvVar:      "PASSWORD",
 				Value:       "",
 				Destination: &flPassword,
-				Usage:       "The password to use to login (recommended to use interactive entry)",
+				Usage:       "Password to use to log in (recommended to use interactive entry)",
 			},
 		},
 		Action: func(c *cli.Context) error {

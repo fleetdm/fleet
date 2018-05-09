@@ -33,7 +33,7 @@ func configFlag() cli.Flag {
 		Name:   "config",
 		Value:  fmt.Sprintf("%s/.fleet/config", env.String("HOME", "~/")),
 		EnvVar: "CONFIG",
-		Usage:  "The path to the Fleet config file",
+		Usage:  "Path to the Fleet config file",
 	}
 }
 
@@ -42,7 +42,7 @@ func contextFlag() cli.Flag {
 		Name:   "context",
 		Value:  "default",
 		EnvVar: "CONTEXT",
-		Usage:  "The Fleet config context",
+		Usage:  "Name of Fleet config context to use",
 	}
 }
 
@@ -193,21 +193,21 @@ func configSetCommand() cli.Command {
 				EnvVar:      "ADDRESS",
 				Value:       "",
 				Destination: &flAddress,
-				Usage:       "The address of the Fleet API",
+				Usage:       "Address of the Fleet server",
 			},
 			cli.StringFlag{
 				Name:        "email",
 				EnvVar:      "EMAIL",
 				Value:       "",
 				Destination: &flEmail,
-				Usage:       "The email to use when connecting to the Fleet API",
+				Usage:       "Email to use when connecting to the Fleet server",
 			},
 			cli.StringFlag{
 				Name:        "token",
 				EnvVar:      "TOKEN",
 				Value:       "",
 				Destination: &flToken,
-				Usage:       "The Fleet API token",
+				Usage:       "Fleet API token",
 			},
 			cli.BoolFlag{
 				Name:        "ignore-tls",
