@@ -20,7 +20,11 @@ func (c *Client) ApplyLabels(specs []*kolide.LabelSpec) error {
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return errors.Errorf("apply label spec got HTTP %d, expected 200", response.StatusCode)
+		return errors.Errorf(
+			"apply labels received status %d %s",
+			response.StatusCode,
+			extractServerErrorText(response.Body),
+		)
 	}
 
 	var responseBody applyLabelSpecsResponse
@@ -49,9 +53,12 @@ func (c *Client) GetLabel(name string) (*kolide.LabelSpec, error) {
 	case http.StatusNotFound:
 		return nil, notFoundErr{}
 	}
-
 	if response.StatusCode != http.StatusOK {
-		return nil, errors.Errorf("get label spec got HTTP %d, expected 200", response.StatusCode)
+		return nil, errors.Errorf(
+			"get label received status %d %s",
+			response.StatusCode,
+			extractServerErrorText(response.Body),
+		)
 	}
 
 	var responseBody getLabelSpecResponse
@@ -76,7 +83,11 @@ func (c *Client) GetLabels() ([]*kolide.LabelSpec, error) {
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return nil, errors.Errorf("get label spec got HTTP %d, expected 200", response.StatusCode)
+		return nil, errors.Errorf(
+			"get labels received status %d %s",
+			response.StatusCode,
+			extractServerErrorText(response.Body),
+		)
 	}
 
 	var responseBody getLabelSpecsResponse
@@ -105,9 +116,12 @@ func (c *Client) DeleteLabel(name string) error {
 	case http.StatusNotFound:
 		return notFoundErr{}
 	}
-
 	if response.StatusCode != http.StatusOK {
-		return errors.Errorf("get label spec got HTTP %d, expected 200", response.StatusCode)
+		return errors.Errorf(
+			"delete label received status %d %s",
+			response.StatusCode,
+			extractServerErrorText(response.Body),
+		)
 	}
 
 	var responseBody deleteLabelResponse

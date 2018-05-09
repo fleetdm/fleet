@@ -36,6 +36,13 @@ func (c *Client) Setup(email, password, org string) (string, error) {
 	if response.StatusCode == http.StatusNotFound {
 		return "", setupAlreadyErr{}
 	}
+	if response.StatusCode != http.StatusOK {
+		return "", errors.Errorf(
+			"setup received status %d %s",
+			response.StatusCode,
+			extractServerErrorText(response.Body),
+		)
+	}
 
 	if response.StatusCode != http.StatusOK {
 		return "", errors.Errorf("setup got HTTP %d, expected 200", response.StatusCode)

@@ -20,7 +20,11 @@ func (c *Client) ApplyPacks(specs []*kolide.PackSpec) error {
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return errors.Errorf("apply pack spec got HTTP %d, expected 200", response.StatusCode)
+		return errors.Errorf(
+			"apply packs received status %d %s",
+			response.StatusCode,
+			extractServerErrorText(response.Body),
+		)
 	}
 
 	var responseBody applyPackSpecsResponse
@@ -49,9 +53,12 @@ func (c *Client) GetPack(name string) (*kolide.PackSpec, error) {
 	case http.StatusNotFound:
 		return nil, notFoundErr{}
 	}
-
 	if response.StatusCode != http.StatusOK {
-		return nil, errors.Errorf("get pack spec got HTTP %d, expected 200", response.StatusCode)
+		return nil, errors.Errorf(
+			"get pack received status %d %s",
+			response.StatusCode,
+			extractServerErrorText(response.Body),
+		)
 	}
 
 	var responseBody getPackSpecResponse
@@ -76,7 +83,11 @@ func (c *Client) GetPacks() ([]*kolide.PackSpec, error) {
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return nil, errors.Errorf("get pack spec got HTTP %d, expected 200", response.StatusCode)
+		return nil, errors.Errorf(
+			"get packs received status %d %s",
+			response.StatusCode,
+			extractServerErrorText(response.Body),
+		)
 	}
 
 	var responseBody getPackSpecsResponse
@@ -105,9 +116,12 @@ func (c *Client) DeletePack(name string) error {
 	case http.StatusNotFound:
 		return notFoundErr{}
 	}
-
 	if response.StatusCode != http.StatusOK {
-		return errors.Errorf("get pack spec got HTTP %d, expected 200", response.StatusCode)
+		return errors.Errorf(
+			"delete pack received status %d %s",
+			response.StatusCode,
+			extractServerErrorText(response.Body),
+		)
 	}
 
 	var responseBody deletePackResponse

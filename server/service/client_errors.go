@@ -1,5 +1,10 @@
 package service
 
+import (
+	"encoding/json"
+	"io"
+)
+
 type SetupAlreadyErr interface {
 	SetupAlready() bool
 	Error() string
@@ -58,4 +63,26 @@ func (e notFoundErr) Error() string {
 
 func (n notFoundErr) NotFound() bool {
 	return true
+}
+
+type serverError struct {
+	Message string `json:"message"`
+	Errors  []struct {
+		Name   string `json:"name"`
+		Reason string `json:"reason"`
+	} `json:"errors"`
+}
+
+func extractServerErrorText(body io.Reader) string {
+	var serverErr serverError
+	if err := json.NewDecoder(body).Decode(&serverErr); err != nil {
+		return "unknown"
+	}
+
+	errText := serverErr.Message
+	if len(serverErr.Errors) > 0 {
+		errText += ": " + serverErr.Errors[0].Reason
+	}
+
+	return errText
 }

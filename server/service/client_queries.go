@@ -20,7 +20,11 @@ func (c *Client) ApplyQueries(specs []*kolide.QuerySpec) error {
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return errors.Errorf("apply query spec got HTTP %d, expected 200", response.StatusCode)
+		return errors.Errorf(
+			"apply queries received status %d %s",
+			response.StatusCode,
+			extractServerErrorText(response.Body),
+		)
 	}
 
 	var responseBody applyQuerySpecsResponse
@@ -49,9 +53,12 @@ func (c *Client) GetQuery(name string) (*kolide.QuerySpec, error) {
 	case http.StatusNotFound:
 		return nil, notFoundErr{}
 	}
-
 	if response.StatusCode != http.StatusOK {
-		return nil, errors.Errorf("get query spec got HTTP %d, expected 200", response.StatusCode)
+		return nil, errors.Errorf(
+			"get query received status %d %s",
+			response.StatusCode,
+			extractServerErrorText(response.Body),
+		)
 	}
 
 	var responseBody getQuerySpecResponse
@@ -76,7 +83,11 @@ func (c *Client) GetQueries() ([]*kolide.QuerySpec, error) {
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return nil, errors.Errorf("get query spec got HTTP %d, expected 200", response.StatusCode)
+		return nil, errors.Errorf(
+			"get queries received status %d %s",
+			response.StatusCode,
+			extractServerErrorText(response.Body),
+		)
 	}
 
 	var responseBody getQuerySpecsResponse
@@ -105,9 +116,12 @@ func (c *Client) DeleteQuery(name string) error {
 	case http.StatusNotFound:
 		return notFoundErr{}
 	}
-
 	if response.StatusCode != http.StatusOK {
-		return errors.Errorf("get query spec got HTTP %d, expected 200", response.StatusCode)
+		return errors.Errorf(
+			"delete query received status %d %s",
+			response.StatusCode,
+			extractServerErrorText(response.Body),
+		)
 	}
 
 	var responseBody deleteQueryResponse

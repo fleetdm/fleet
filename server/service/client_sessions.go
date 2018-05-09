@@ -27,9 +27,12 @@ func (c *Client) Login(email, password string) (string, error) {
 	case http.StatusUnauthorized:
 		return "", invalidLoginErr{}
 	}
-
 	if response.StatusCode != http.StatusOK {
-		return "", errors.Errorf("login got HTTP %d, expected 200", response.StatusCode)
+		return "", errors.Errorf(
+			"login received status %d %s",
+			response.StatusCode,
+			extractServerErrorText(response.Body),
+		)
 	}
 
 	var responseBody loginResponse
@@ -54,7 +57,11 @@ func (c *Client) Logout() error {
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return errors.Errorf("logout got HTTP %d, expected 200", response.StatusCode)
+		return errors.Errorf(
+			"logout received status %d %s",
+			response.StatusCode,
+			extractServerErrorText(response.Body),
+		)
 	}
 
 	var responseBody logoutResponse
