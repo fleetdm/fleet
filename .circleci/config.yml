@@ -12,12 +12,6 @@ jobs:
             - vendor-cache-{{ .Branch }}
             - vendor-cache
 
-      - run:
-          name: "fix node-sass"
-          command: |
-            yarn remove node-sass
-            yarn add node-sass@latest
-
       - run: make deps
       - save_cache:
           key: vendor-cache-{{ .Branch }}-{{ checksum "Gopkg.lock" }}
