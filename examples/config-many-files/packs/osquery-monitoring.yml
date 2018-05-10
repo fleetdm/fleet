@@ -17,6 +17,6 @@ spec:
     - query: osquery_events
       interval: 86400
       removed: false
-    - query: oquery_info
+    - query: osquery_info
       interval: 600
       removed: false
