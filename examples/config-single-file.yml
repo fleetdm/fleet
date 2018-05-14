@@ -70,7 +70,7 @@ spec:
 apiVersion: v1
 kind: label
 spec:
-  query: name
+  name: pending_updates
   query: pending_updates
   platforms:
     - darwin

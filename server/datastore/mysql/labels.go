@@ -51,6 +51,9 @@ func (d *Datastore) ApplyLabelSpecs(specs []*kolide.LabelSpec) (err error) {
 	}
 
 	for _, s := range specs {
+		if s.Name == "" {
+			return errors.New("label name must not be empty")
+		}
 		_, err := stmt.Exec(s.Name, s.Description, s.Query, s.Platform, s.LabelType)
 		if err != nil {
 			return errors.Wrap(err, "exec ApplyLabelSpecs insert")

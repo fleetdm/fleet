@@ -51,6 +51,9 @@ func (d *Datastore) ApplyQueries(authorID uint, queries []*kolide.Query) (err er
 	}
 
 	for _, q := range queries {
+		if q.Name == "" {
+			return errors.New("query name must not be empty")
+		}
 		_, err := stmt.Exec(q.Name, q.Description, q.Query, authorID)
 		if err != nil {
 			return errors.Wrap(err, "exec ApplyQueries insert")

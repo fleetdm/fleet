@@ -40,6 +40,9 @@ func (d *Datastore) ApplyPackSpecs(specs []*kolide.PackSpec) (err error) {
 }
 
 func applyPackSpec(tx *sqlx.Tx, spec *kolide.PackSpec) error {
+	if spec.Name == "" {
+		return errors.New("pack name must not be empty")
+	}
 	// Insert/update pack
 	query := `
 		INSERT INTO packs (name, description, platform)
