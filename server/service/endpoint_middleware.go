@@ -94,6 +94,9 @@ func authViewer(ctx context.Context, jwtKey string, bearerToken token.Token, svc
 	if err != nil {
 		return nil, authError{reason: err.Error()}
 	}
+	if jwtToken.Valid != true {
+		return nil, authError{reason: "invalid jwt token"}
+	}
 	claims, ok := jwtToken.Claims.(jwt.MapClaims)
 	if !ok {
 		return nil, authError{reason: "no jwt claims"}
