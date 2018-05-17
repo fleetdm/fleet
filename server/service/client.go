@@ -13,10 +13,11 @@ import (
 )
 
 type Client struct {
-	addr    string
-	baseURL *url.URL
-	token   string
-	http    *http.Client
+	addr               string
+	baseURL            *url.URL
+	token              string
+	http               *http.Client
+	insecureSkipVerify bool
 }
 
 func NewClient(addr string, insecureSkipVerify bool) (*Client, error) {
@@ -36,9 +37,10 @@ func NewClient(addr string, insecureSkipVerify bool) (*Client, error) {
 	}
 
 	return &Client{
-		addr:    addr,
-		baseURL: baseURL,
-		http:    httpClient,
+		addr:               addr,
+		baseURL:            baseURL,
+		http:               httpClient,
+		insecureSkipVerify: insecureSkipVerify,
 	}, nil
 }
 

@@ -420,3 +420,23 @@ func (d *Datastore) SearchLabels(query string, omit ...uint) ([]kolide.Label, er
 
 	return matches, nil
 }
+
+func (d *Datastore) LabelIDsByName(labels []string) ([]uint, error) {
+	sqlStatement := `
+		SELECT id FROM labels
+		WHERE name IN (?)
+	`
+
+	sql, args, err := sqlx.In(sqlStatement, labels)
+	if err != nil {
+		return nil, errors.Wrap(err, "building query to get host IDs")
+	}
+
+	var hostIDs []uint
+	if err := d.db.Select(&hostIDs, sql, args...); err != nil {
+		return nil, errors.Wrap(err, "get host IDs")
+	}
+
+	return hostIDs, nil
+
+}

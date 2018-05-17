@@ -45,6 +45,9 @@ type LabelStore interface {
 	ListUniqueHostsInLabels(labels []uint) ([]Host, error)
 
 	SearchLabels(query string, omit ...uint) ([]Label, error)
+
+	// LabelIDsByName Retrieve the IDs associated with the given labels
+	LabelIDsByName(labels []string) ([]uint, error)
 }
 
 type LabelService interface {

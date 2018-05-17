@@ -32,6 +32,8 @@ type GenerateHostStatusStatisticsFunc func(now time.Time) (online uint, offline 
 
 type DistributedQueriesForHostFunc func(host *kolide.Host) (map[uint]string, error)
 
+type HostIDsByNameFunc func(hostnames []string) ([]uint, error)
+
 type HostStore struct {
 	NewHostFunc        NewHostFunc
 	NewHostFuncInvoked bool
@@ -65,6 +67,9 @@ type HostStore struct {
 
 	DistributedQueriesForHostFunc        DistributedQueriesForHostFunc
 	DistributedQueriesForHostFuncInvoked bool
+
+	HostIDsByNameFunc        HostIDsByNameFunc
+	HostIDsByNameFuncInvoked bool
 }
 
 func (s *HostStore) NewHost(host *kolide.Host) (*kolide.Host, error) {
@@ -120,4 +125,9 @@ func (s *HostStore) GenerateHostStatusStatistics(now time.Time) (online uint, of
 func (s *HostStore) DistributedQueriesForHost(host *kolide.Host) (map[uint]string, error) {
 	s.DistributedQueriesForHostFuncInvoked = true
 	return s.DistributedQueriesForHostFunc(host)
+}
+
+func (s *HostStore) HostIDsByName(hostnames []string) ([]uint, error) {
+	s.HostIDsByNameFuncInvoked = true
+	return s.HostIDsByNameFunc(hostnames)
 }

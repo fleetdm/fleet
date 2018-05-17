@@ -50,6 +50,8 @@ type HostStore interface {
 	// given host should run. The result map is a mapping from campaign ID
 	// to query text.
 	DistributedQueriesForHost(host *Host) (map[uint]string, error)
+	// HostIDsByName Retrieve the IDs associated with the given hostnames
+	HostIDsByName(hostnames []string) ([]uint, error)
 }
 
 type HostService interface {

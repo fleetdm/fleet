@@ -27,6 +27,7 @@ func main() {
 		setupCommand(),
 		loginCommand(),
 		logoutCommand(),
+		queryCommand(),
 		cli.Command{
 			Name:  "get",
 			Usage: "Get/list resources",

@@ -34,6 +34,8 @@ type ListUniqueHostsInLabelsFunc func(labels []uint) ([]kolide.Host, error)
 
 type SearchLabelsFunc func(query string, omit ...uint) ([]kolide.Label, error)
 
+type LabelIDsByNameFunc func(labels []string) ([]uint, error)
+
 type LabelStore struct {
 	ApplyLabelSpecsFunc        ApplyLabelSpecsFunc
 	ApplyLabelSpecsFuncInvoked bool
@@ -70,6 +72,9 @@ type LabelStore struct {
 
 	SearchLabelsFunc        SearchLabelsFunc
 	SearchLabelsFuncInvoked bool
+
+	LabelIDsByNameFunc        LabelIDsByNameFunc
+	LabelIDsByNameFuncInvoked bool
 }
 
 func (s *LabelStore) ApplyLabelSpecs(specs []*kolide.LabelSpec) error {
@@ -130,4 +135,9 @@ func (s *LabelStore) ListUniqueHostsInLabels(labels []uint) ([]kolide.Host, erro
 func (s *LabelStore) SearchLabels(query string, omit ...uint) ([]kolide.Label, error) {
 	s.SearchLabelsFuncInvoked = true
 	return s.SearchLabelsFunc(query, omit...)
+}
+
+func (s *LabelStore) LabelIDsByName(labels []string) ([]uint, error) {
+	s.LabelIDsByNameFuncInvoked = true
+	return s.LabelIDsByNameFunc(labels)
 }

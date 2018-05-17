@@ -464,3 +464,12 @@ func testApplyLabelSpecsRoundtrip(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, err)
 	assert.Equal(t, expectedSpecs, specs)
 }
+
+func testLabelIDsByName(t *testing.T, ds kolide.Datastore) {
+	setupLabelSpecsTest(t, ds)
+
+	labels, err := ds.LabelIDsByName([]string{"foo", "bar", "bing"})
+	require.Nil(t, err)
+	sort.Slice(labels, func(i, j int) bool { return labels[i] < labels[j] })
+	assert.Equal(t, []uint{1, 2, 3}, labels)
+}
