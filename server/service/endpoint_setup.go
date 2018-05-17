@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/kolide/fleet/server/kolide"
+	"github.com/pkg/errors"
 )
 
 type setupRequest struct {
@@ -51,6 +52,14 @@ func makeSetupEndpoint(svc kolide.Service) endpoint.Endpoint {
 		// creating the user should be the last action. If there's a user
 		// present and other errors occur, the setup endpoint closes.
 		if req.Admin != nil {
+			if *req.Admin.Email == "" {
+				err := errors.Errorf("admin email cannot be empty")
+				return setupResponse{Err: err}, nil
+			}
+			if *req.Admin.Password == "" {
+				err := errors.Errorf("admin password cannot be empty")
+				return setupResponse{Err: err}, nil
+			}
 			admin, err = svc.NewAdminCreatedUser(ctx, *req.Admin)
 			if err != nil {
 				return setupResponse{Err: err}, nil

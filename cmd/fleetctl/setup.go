@@ -49,6 +49,12 @@ func setupCommand() cli.Command {
 				return err
 			}
 
+			if flEmail == "" {
+				return errors.Errorf("Email of the admin user to create must be provided")
+			}
+			if flPassword == "" {
+				return errors.Errorf("Password for the admin user to create must be provided")
+			}
 			token, err := fleet.Setup(flEmail, flPassword, flOrgName)
 			if err != nil {
 				switch err.(type) {
