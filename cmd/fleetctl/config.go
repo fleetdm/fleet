@@ -22,10 +22,10 @@ type configFile struct {
 }
 
 type Context struct {
-	Address   string `json:"address"`
-	Email     string `json:"email"`
-	Token     string `json:"token"`
-	IgnoreTLS bool   `json:"ignore_tls"`
+	Address       string `json:"address"`
+	Email         string `json:"email"`
+	Token         string `json:"token"`
+	TLSSkipVerify bool   `json:"tls-skip-verify"`
 }
 
 func configFlag() cli.Flag {
@@ -113,8 +113,8 @@ func getConfigValue(c *cli.Context, key string) (interface{}, error) {
 		return currentContext.Email, nil
 	case "token":
 		return currentContext.Token, nil
-	case "ignore_tls":
-		if currentContext.IgnoreTLS {
+	case "tls-skip-verify":
+		if currentContext.TLSSkipVerify {
 			return true, nil
 		} else {
 			return false, nil
@@ -155,12 +155,12 @@ func setConfigValue(c *cli.Context, key, value string) error {
 		currentContext.Email = value
 	case "token":
 		currentContext.Token = value
-	case "ignore_tls":
+	case "tls-skip-verify":
 		boolValue, err := strconv.ParseBool(value)
 		if err != nil {
 			return errors.Wrapf(err, "error parsing %q as bool", value)
 		}
-		currentContext.IgnoreTLS = boolValue
+		currentContext.TLSSkipVerify = boolValue
 	default:
 		return fmt.Errorf("%q is an invalid option", key)
 	}
@@ -176,10 +176,10 @@ func setConfigValue(c *cli.Context, key, value string) error {
 
 func configSetCommand() cli.Command {
 	var (
-		flAddress   string
-		flEmail     string
-		flToken     string
-		flIgnoreTLS bool
+		flAddress       string
+		flEmail         string
+		flToken         string
+		flTLSSkipVerify bool
 	)
 	return cli.Command{
 		Name:      "set",
@@ -210,10 +210,10 @@ func configSetCommand() cli.Command {
 				Usage:       "Fleet API token",
 			},
 			cli.BoolFlag{
-				Name:        "ignore-tls",
-				EnvVar:      "IGNORE_TLS",
-				Destination: &flIgnoreTLS,
-				Usage:       "Whether or not to ignore the validity of the Fleet TLS certificate",
+				Name:        "tls-skip-verify",
+				EnvVar:      "INSECURE",
+				Destination: &flTLSSkipVerify,
+				Usage:       "Skip TLS certificate validation",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -243,12 +243,12 @@ func configSetCommand() cli.Command {
 				fmt.Printf("[+] Set the token config key to %q in the %q context\n", flToken, c.String("context"))
 			}
 
-			if flIgnoreTLS {
+			if flTLSSkipVerify {
 				set = true
-				if err := setConfigValue(c, "ignore_tls", "true"); err != nil {
-					return errors.Wrap(err, "error setting ignore_tls")
+				if err := setConfigValue(c, "tls-skip-verify", "true"); err != nil {
+					return errors.Wrap(err, "error setting tls-skip-verify")
 				}
-				fmt.Printf("[+] Set the ignore_tls config key to \"true\" in the %q context\n", c.String("context"))
+				fmt.Printf("[+] Set the tls-skip-verify config key to \"true\" in the %q context\n", c.String("context"))
 			}
 
 			if !set {
@@ -278,7 +278,7 @@ func configGetCommand() cli.Command {
 
 			// validate key
 			switch key {
-			case "address", "email", "token", "ignore_tls":
+			case "address", "email", "token", "tls-skip-verify":
 			default:
 				return cli.ShowCommandHelp(c, "get")
 			}
