@@ -2,10 +2,10 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/kolide/fleet/server/kolide"
 	"github.com/pkg/errors"
-	"encoding/json"
 )
 
 func (svc service) GetFIM(ctx context.Context) (*kolide.FIMConfig, error) {
@@ -26,8 +26,8 @@ func (svc service) GetFIM(ctx context.Context) (*kolide.FIMConfig, error) {
 	}
 
 	result := &kolide.FIMConfig{
-		Interval:  uint(config.FIMInterval),
-		FilePaths: paths,
+		Interval:     uint(config.FIMInterval),
+		FilePaths:    paths,
 		FileAccesses: arr,
 	}
 	return result, nil

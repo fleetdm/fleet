@@ -19,7 +19,7 @@ func TestGetFIMService(t *testing.T) {
 		AppConfigStore: mock.AppConfigStore{
 			AppConfigFunc: func() (*kolide.AppConfig, error) {
 				config := &kolide.AppConfig{
-					FIMInterval: fimIntervalTestValue,
+					FIMInterval:     fimIntervalTestValue,
 					FIMFileAccesses: fileAccessesString,
 				}
 				return config, nil
@@ -59,7 +59,7 @@ func TestUpdateFIM(t *testing.T) {
 		AppConfigStore: mock.AppConfigStore{
 			AppConfigFunc: func() (*kolide.AppConfig, error) {
 				config := &kolide.AppConfig{
-					FIMInterval: fimIntervalTestValue,
+					FIMInterval:     fimIntervalTestValue,
 					FIMFileAccesses: fileAccessesString,
 				}
 				return config, nil
@@ -82,7 +82,7 @@ func TestUpdateFIM(t *testing.T) {
 		ds: ds,
 	}
 	fim := kolide.FIMConfig{
-		Interval: uint(fimIntervalTestValue),
+		Interval:     uint(fimIntervalTestValue),
 		FileAccesses: fileAccessStringValue,
 		FilePaths: kolide.FIMSections{
 			"etc": []string{
