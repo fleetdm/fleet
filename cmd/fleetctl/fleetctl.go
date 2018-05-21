@@ -35,6 +35,7 @@ func main() {
 				getQueriesCommand(),
 				getPacksCommand(),
 				getLabelsCommand(),
+				getOptionsCommand(),
 			},
 		},
 		cli.Command{

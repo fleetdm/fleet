@@ -436,8 +436,8 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/options", h.GetOptions).Methods("GET").Name("get_options")
 	r.Handle("/api/v1/kolide/options", h.ModifyOptions).Methods("PATCH").Name("modify_options")
 	r.Handle("/api/v1/kolide/options/reset", h.ResetOptions).Methods("GET").Name("reset_options")
-	r.Handle("/api/v1/kolide/osquery_options/spec", h.ApplyOsqueryOptionsSpec).Methods("POST").Name("apply_osquery_options_spec")
-	r.Handle("/api/v1/kolide/osquery_options/spec", h.GetOsqueryOptionsSpec).Methods("GET").Name("get_osquery_options_spec")
+	r.Handle("/api/v1/kolide/spec/osquery_options", h.ApplyOsqueryOptionsSpec).Methods("POST").Name("apply_osquery_options_spec")
+	r.Handle("/api/v1/kolide/spec/osquery_options", h.GetOsqueryOptionsSpec).Methods("GET").Name("get_osquery_options_spec")
 
 	r.Handle("/api/v1/kolide/targets", h.SearchTargets).Methods("POST").Name("search_targets")
 

@@ -154,6 +154,14 @@ func applyCommand() cli.Command {
 				fmt.Printf("[+] applied %d packs\n", len(specs.Packs))
 			}
 
+			if specs.Options != nil {
+				if err := fleet.ApplyOptions(specs.Options); err != nil {
+					return errors.Wrap(err, "applying options")
+				}
+				fmt.Printf("[+] applied options\n")
+
+			}
+
 			return nil
 		},
 	}

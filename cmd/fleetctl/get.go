@@ -231,3 +231,40 @@ func getLabelsCommand() cli.Command {
 		},
 	}
 }
+
+func getOptionsCommand() cli.Command {
+	return cli.Command{
+		Name:  "options",
+		Usage: "Retrieve the osquery configuration",
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			options, err := fleet.GetOptions()
+			if err != nil {
+				return err
+			}
+
+			spec := specGeneric{
+				Kind:    "options",
+				Version: kolide.ApiVersion,
+				Spec:    options,
+			}
+
+			b, err := yaml.Marshal(spec)
+			if err != nil {
+				return err
+			}
+
+			fmt.Print(string(b))
+			return nil
+
+		},
+	}
+}
