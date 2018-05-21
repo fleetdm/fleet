@@ -98,12 +98,12 @@ type PackPayload struct {
 }
 
 type PackSpec struct {
-	ID          uint
+	ID          uint            `json:"id,omitempty"`
 	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	Platform    string          `json:"platform"`
-	Targets     PackSpecTargets `json:"targets"`
-	Queries     []PackSpecQuery `json:"queries"`
+	Description string          `json:"description,omitempty"`
+	Platform    string          `json:"platform,omitempty"`
+	Targets     PackSpecTargets `json:"targets,omitempty"`
+	Queries     []PackSpecQuery `json:"queries,omitempty"`
 }
 
 type PackSpecTargets struct {

@@ -46,6 +46,7 @@ func main() {
 				configGetCommand(),
 			},
 		},
+		convertCommand(),
 	}
 
 	app.RunAndExitOnError()
