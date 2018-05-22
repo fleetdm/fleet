@@ -63,6 +63,7 @@ Interactively prompts for email and password if not specified in the flags or en
 				if err != nil {
 					return errors.Wrap(err, "error reading password")
 				}
+				fmt.Println()
 				flPassword = string(passBytes)
 			}
 

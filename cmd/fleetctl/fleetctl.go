@@ -36,6 +36,7 @@ func main() {
 				getPacksCommand(),
 				getLabelsCommand(),
 				getOptionsCommand(),
+				getEnrollSecretCommand(),
 			},
 		},
 		cli.Command{

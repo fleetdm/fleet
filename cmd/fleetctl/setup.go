@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/kolide/fleet/server/service"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 func setupCommand() cli.Command {
@@ -33,7 +35,7 @@ func setupCommand() cli.Command {
 				EnvVar:      "PASSWORD",
 				Value:       "",
 				Destination: &flPassword,
-				Usage:       "Password for the admin user",
+				Usage:       "Password for the admin user (recommended to use interactive entry)",
 			},
 			cli.StringFlag{
 				Name:        "org-name",
@@ -53,8 +55,15 @@ func setupCommand() cli.Command {
 				return errors.Errorf("Email of the admin user to create must be provided")
 			}
 			if flPassword == "" {
-				return errors.Errorf("Password for the admin user to create must be provided")
+				fmt.Print("Password: ")
+				passBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+				if err != nil {
+					return errors.Wrap(err, "error reading password")
+				}
+				fmt.Println()
+				flPassword = string(passBytes)
 			}
+
 			token, err := fleet.Setup(flEmail, flPassword, flOrgName)
 			if err != nil {
 				switch err.(type) {

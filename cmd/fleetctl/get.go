@@ -264,7 +264,35 @@ func getOptionsCommand() cli.Command {
 
 			fmt.Print(string(b))
 			return nil
+		},
+	}
+}
 
+func getEnrollSecretCommand() cli.Command {
+	return cli.Command{
+		Name:  "enroll-secret",
+		Usage: "Retrieve the osquery enroll secret",
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			settings, err := fleet.GetServerSettings()
+			if err != nil {
+				return err
+			}
+			if settings == nil {
+				return errors.New("error: server setting were nil")
+			}
+
+			fmt.Println(*settings.EnrollSecret)
+
+			return nil
 		},
 	}
 }
