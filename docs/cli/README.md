@@ -3,10 +3,6 @@ CLI Documentation
 
 Kolide Fleet provides a server which allows you to manage and orchestrate an osquery deployment across of a set of workstations and servers. For certain use-cases, it makes sense to maintain the configuration and data of an osquery deployment in source-controlled files. It is also desirable to be able to manage these files with a familiar command-line tool. To facilitate this, Kolide is working on an experimental CLI called `fleetctl`.
 
-### Warning: In Progress
-
-This CLI is currently under active development and many of the APIs and CLIs are in flux. The objective user-experience is documented here so that contributors working on this feature can share documentation with the community to gather feedback.
-
 ## Inspiration
 
 Inspiration for the `fleetctl` command-line experience as well as the file format has been principally derived from the [Kubernetes](https://kubernetes.io/) container orchestration tool. This is for a few reasons:

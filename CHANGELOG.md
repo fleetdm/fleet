@@ -1,3 +1,40 @@
+## Kolide Fleet 2.0.0 (currently preparing for release)
+
+The primary new addition in Fleet 2 is the new `fleetctl` CLI and file-format, which dramatically increases the flexibility and control that administrators have over their osquery deployment. The CLI and the file format are documented [in the Fleet documentation](https://github.com/kolide/fleet/blob/master/docs/cli/README.md).
+
+### New Features
+
+* New `fleetctl` CLI for managing your entire osquery workflow via CLI, API, and source controlled files!
+  * You can use `fleetctl` to manage osquery packs, queries, labels, and configuration.
+
+* In addition to the CLI, Fleet 2.0.0 introduces a new file format for articulating labels, queries, packs, options, etc. This format is designed for composability, enabling more effective sharing and re-use of intelligence.
+
+```yaml
+apiVersion: v1
+kind: query
+spec:
+  name: pending_updates
+  query: >
+    select value
+    from plist
+    where
+      path = "/Library/Preferences/ManagedInstalls.plist" and
+      key = "PendingUpdateCount" and
+      value > "0";
+```
+
+* Run live osquery queries against arbitrary subsets of your infrastructure via the `fleetctl query` command.
+
+* Use `fleetctl setup`, `fleetctl login`, and `fleetctl logout` to manage the authentication life-cycle via the CLI.
+
+* Use `fleetctl get`, `fleetctl apply`, and `fleetctl delete` to manage the state of your Fleet data.
+
+* Manage any osquery option you want and set platform-specific overrides with the `fleetctl` CLI and file format.
+
+### Upgrade Plan
+
+* Managing osquery options via the UI has been removed in favor of the more flexible solution provided by the CLI. If you have customized your osquery options with Fleet, there is [a database migration](server/datastore/mysql/migrations/data/20171212182458_MigrateOsqueryOptions.go) which will port your existing data into the new format when you run `fleet prepare db`. To download your osquery options after migrating your database, run `fleetctl get options > options.yaml`. Further modifications to your options should occur in this file and it should be applied with `fleetctl apply -f ./options.yaml`.
+
 ## Kolide Fleet 1.0.8 (May 3, 2018)
 
 * Osquery 3.0+ compatibility!

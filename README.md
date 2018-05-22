@@ -12,7 +12,7 @@ Documentation for Fleet can be found on [GitHub](./docs/README.md).
 
 #### The CLI
 
-If you're interested in learning about the (under development) `fleetctl` CLI and flexible osquery deployment file format, see the [CLI Documentation](./docs/cli/README.md).
+If you're interested in learning about the `fleetctl` CLI and flexible osquery deployment file format, see the [CLI Documentation](./docs/cli/README.md).
 
 #### Deploying Osquery and Fleet
 

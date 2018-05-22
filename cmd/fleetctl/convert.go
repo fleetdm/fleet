@@ -109,6 +109,12 @@ func convertCommand() cli.Command {
 				if err != nil {
 					return err
 				}
+			} else {
+				return packErr
+			}
+
+			if specs == nil {
+				return errors.New("could not parse files")
 			}
 
 			for _, pack := range specs.Packs {
