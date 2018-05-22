@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"net/url"
 
 	"github.com/kolide/fleet/server/kolide"
@@ -31,7 +31,7 @@ func validateKolideServerURL(urlString string) error {
 		return err
 	}
 	if serverURL.Scheme != "https" {
-		return fmt.Errorf("url scheme must be https")
+		return errors.New("url scheme must be https")
 	}
 	return nil
 }

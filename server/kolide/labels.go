@@ -6,9 +6,16 @@ import (
 )
 
 type LabelStore interface {
+	// ApplyLabelSpecs applies a list of LabelSpecs to the datastore,
+	// creating and updating labels as necessary.
+	ApplyLabelSpecs(specs []*LabelSpec) error
+	// GetLabelSpecs returns all of the stored LabelSpecs.
+	GetLabelSpecs() ([]*LabelSpec, error)
+	// GetLabelSpec returns the spec for the named label.
+	GetLabelSpec(name string) (*LabelSpec, error)
+
 	// Label methods
-	NewLabel(Label *Label, opts ...OptionalArg) (*Label, error)
-	DeleteLabel(lid uint) error
+	DeleteLabel(name string) error
 	Label(lid uint) (*Label, error)
 	ListLabels(opt ListOptions) ([]*Label, error)
 
@@ -39,28 +46,27 @@ type LabelStore interface {
 
 	SearchLabels(query string, omit ...uint) ([]Label, error)
 
-	// SaveLabel allows modification of a label's name and/or description
-	SaveLabel(label *Label) (*Label, error)
+	// LabelIDsByName Retrieve the IDs associated with the given labels
+	LabelIDsByName(labels []string) ([]uint, error)
 }
 
 type LabelService interface {
+	// ApplyLabelSpecs applies a list of LabelSpecs to the datastore,
+	// creating and updating labels as necessary.
+	ApplyLabelSpecs(ctx context.Context, specs []*LabelSpec) error
+	// GetLabelSpecs returns all of the stored LabelSpecs.
+	GetLabelSpecs(ctx context.Context) ([]*LabelSpec, error)
+	// GetLabelSpec gets the spec for the label with the given name.
+	GetLabelSpec(ctx context.Context, name string) (*LabelSpec, error)
+
 	ListLabels(ctx context.Context, opt ListOptions) (labels []*Label, err error)
 	GetLabel(ctx context.Context, id uint) (label *Label, err error)
-	NewLabel(ctx context.Context, p LabelPayload) (label *Label, err error)
-	DeleteLabel(ctx context.Context, id uint) (err error)
 
-	// ModifyLabel is used to change editable fields belonging to a Label
-	ModifyLabel(ctx context.Context, id uint, payload ModifyLabelPayload) (*Label, error)
+	DeleteLabel(ctx context.Context, name string) (err error)
 
 	// HostIDsForLabel returns ids of hosts that belong to the label identified
 	// by lid
 	HostIDsForLabel(lid uint) ([]uint, error)
-}
-
-// ModifyLabelPayload is used to change editable fields for a Label
-type ModifyLabelPayload struct {
-	Name        *string `json:"name"`
-	Description *string `json:"description"`
 }
 
 type LabelPayload struct {
@@ -98,4 +104,13 @@ type LabelQueryExecution struct {
 	Matches   bool
 	LabelID   uint
 	HostID    uint
+}
+
+type LabelSpec struct {
+	ID          uint
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Query       string    `json:"query"`
+	Platform    string    `json:"platform,omitempty"`
+	LabelType   LabelType `json:"label_type" db:"label_type"`
 }

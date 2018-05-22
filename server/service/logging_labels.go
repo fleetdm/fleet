@@ -7,24 +7,6 @@ import (
 	"github.com/kolide/fleet/server/kolide"
 )
 
-func (mw loggingMiddleware) ModifyLabel(ctx context.Context, id uint, p kolide.ModifyLabelPayload) (*kolide.Label, error) {
-	var (
-		label *kolide.Label
-		err   error
-	)
-
-	defer func(begin time.Time) {
-		mw.logger.Log(
-			"method", "ModifyLabel",
-			"err", err,
-			"took", time.Since(begin),
-		)
-	}(time.Now())
-
-	label, err = mw.Service.ModifyLabel(ctx, id, p)
-	return label, err
-}
-
 func (mw loggingMiddleware) ListLabels(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Label, error) {
 	var (
 		labels []*kolide.Label
@@ -61,25 +43,7 @@ func (mw loggingMiddleware) GetLabel(ctx context.Context, id uint) (*kolide.Labe
 	return label, err
 }
 
-func (mw loggingMiddleware) NewLabel(ctx context.Context, p kolide.LabelPayload) (*kolide.Label, error) {
-	var (
-		label *kolide.Label
-		err   error
-	)
-
-	defer func(begin time.Time) {
-		_ = mw.logger.Log(
-			"method", "NewLabel",
-			"err", err,
-			"took", time.Since(begin),
-		)
-	}(time.Now())
-
-	label, err = mw.Service.NewLabel(ctx, p)
-	return label, err
-}
-
-func (mw loggingMiddleware) DeleteLabel(ctx context.Context, id uint) error {
+func (mw loggingMiddleware) DeleteLabel(ctx context.Context, name string) error {
 	var (
 		err error
 	)
@@ -92,6 +56,42 @@ func (mw loggingMiddleware) DeleteLabel(ctx context.Context, id uint) error {
 		)
 	}(time.Now())
 
-	err = mw.Service.DeleteLabel(ctx, id)
+	err = mw.Service.DeleteLabel(ctx, name)
+	return err
+}
+
+func (mw loggingMiddleware) GetLabelSpec(ctx context.Context, name string) (spec *kolide.LabelSpec, err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "GetLabelSpec",
+			"err", err,
+			"took", time.Since(begin),
+		)
+	}(time.Now())
+	spec, err = mw.Service.GetLabelSpec(ctx, name)
+	return spec, err
+}
+
+func (mw loggingMiddleware) GetLabelSpecs(ctx context.Context) (specs []*kolide.LabelSpec, err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "GetLabelSpecs",
+			"err", err,
+			"took", time.Since(begin),
+		)
+	}(time.Now())
+	specs, err = mw.Service.GetLabelSpecs(ctx)
+	return specs, err
+}
+
+func (mw loggingMiddleware) ApplyLabelSpecs(ctx context.Context, specs []*kolide.LabelSpec) (err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "ApplyLabelSpecs",
+			"err", err,
+			"took", time.Since(begin),
+		)
+	}(time.Now())
+	err = mw.Service.ApplyLabelSpecs(ctx, specs)
 	return err
 }

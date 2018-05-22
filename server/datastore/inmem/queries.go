@@ -26,17 +26,6 @@ func (d *Datastore) NewQuery(query *kolide.Query, opts ...kolide.OptionalArg) (*
 	return &newQuery, nil
 }
 
-func (d *Datastore) QueryByName(name string, opts ...kolide.OptionalArg) (*kolide.Query, bool, error) {
-	d.mtx.Lock()
-	defer d.mtx.Unlock()
-	for _, q := range d.queries {
-		if name == q.Name {
-			return q, true, nil
-		}
-	}
-	return nil, false, nil
-}
-
 func (d *Datastore) SaveQuery(query *kolide.Query) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
@@ -46,18 +35,6 @@ func (d *Datastore) SaveQuery(query *kolide.Query) error {
 	}
 
 	d.queries[query.ID] = query
-	return nil
-}
-
-func (d *Datastore) DeleteQuery(qid uint) error {
-	d.mtx.Lock()
-	defer d.mtx.Unlock()
-
-	if _, ok := d.queries[qid]; !ok {
-		return notFound("Query").WithID(qid)
-	}
-
-	delete(d.queries, qid)
 	return nil
 }
 
@@ -158,7 +135,7 @@ func (d *Datastore) loadPacksForQueries(queries []*kolide.Query) error {
 	for _, q := range queries {
 		q.Packs = make([]kolide.Pack, 0)
 		for _, sq := range d.scheduledQueries {
-			if sq.QueryID == q.ID {
+			if sq.QueryName == q.Name {
 				q.Packs = append(q.Packs, *d.packs[sq.PackID])
 			}
 		}

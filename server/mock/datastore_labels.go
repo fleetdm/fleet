@@ -10,9 +10,13 @@ import (
 
 var _ kolide.LabelStore = (*LabelStore)(nil)
 
-type NewLabelFunc func(Label *kolide.Label, opts ...kolide.OptionalArg) (*kolide.Label, error)
+type ApplyLabelSpecsFunc func(specs []*kolide.LabelSpec) error
 
-type DeleteLabelFunc func(lid uint) error
+type GetLabelSpecsFunc func() ([]*kolide.LabelSpec, error)
+
+type GetLabelSpecFunc func(name string) (*kolide.LabelSpec, error)
+
+type DeleteLabelFunc func(name string) error
 
 type LabelFunc func(lid uint) (*kolide.Label, error)
 
@@ -30,11 +34,17 @@ type ListUniqueHostsInLabelsFunc func(labels []uint) ([]kolide.Host, error)
 
 type SearchLabelsFunc func(query string, omit ...uint) ([]kolide.Label, error)
 
-type SaveLabelFunc func(label *kolide.Label) (*kolide.Label, error)
+type LabelIDsByNameFunc func(labels []string) ([]uint, error)
 
 type LabelStore struct {
-	NewLabelFunc        NewLabelFunc
-	NewLabelFuncInvoked bool
+	ApplyLabelSpecsFunc        ApplyLabelSpecsFunc
+	ApplyLabelSpecsFuncInvoked bool
+
+	GetLabelSpecsFunc        GetLabelSpecsFunc
+	GetLabelSpecsFuncInvoked bool
+
+	GetLabelSpecFunc        GetLabelSpecFunc
+	GetLabelSpecFuncInvoked bool
 
 	DeleteLabelFunc        DeleteLabelFunc
 	DeleteLabelFuncInvoked bool
@@ -63,18 +73,28 @@ type LabelStore struct {
 	SearchLabelsFunc        SearchLabelsFunc
 	SearchLabelsFuncInvoked bool
 
-	SaveLabelFunc        SaveLabelFunc
-	SaveLabelFuncInvoked bool
+	LabelIDsByNameFunc        LabelIDsByNameFunc
+	LabelIDsByNameFuncInvoked bool
 }
 
-func (s *LabelStore) NewLabel(Label *kolide.Label, opts ...kolide.OptionalArg) (*kolide.Label, error) {
-	s.NewLabelFuncInvoked = true
-	return s.NewLabelFunc(Label, opts...)
+func (s *LabelStore) ApplyLabelSpecs(specs []*kolide.LabelSpec) error {
+	s.ApplyLabelSpecsFuncInvoked = true
+	return s.ApplyLabelSpecsFunc(specs)
 }
 
-func (s *LabelStore) DeleteLabel(lid uint) error {
+func (s *LabelStore) GetLabelSpecs() ([]*kolide.LabelSpec, error) {
+	s.GetLabelSpecsFuncInvoked = true
+	return s.GetLabelSpecsFunc()
+}
+
+func (s *LabelStore) GetLabelSpec(name string) (*kolide.LabelSpec, error) {
+	s.GetLabelSpecFuncInvoked = true
+	return s.GetLabelSpecFunc(name)
+}
+
+func (s *LabelStore) DeleteLabel(name string) error {
 	s.DeleteLabelFuncInvoked = true
-	return s.DeleteLabelFunc(lid)
+	return s.DeleteLabelFunc(name)
 }
 
 func (s *LabelStore) Label(lid uint) (*kolide.Label, error) {
@@ -117,7 +137,7 @@ func (s *LabelStore) SearchLabels(query string, omit ...uint) ([]kolide.Label, e
 	return s.SearchLabelsFunc(query, omit...)
 }
 
-func (s *LabelStore) SaveLabel(label *kolide.Label) (*kolide.Label, error) {
-	s.SaveLabelFuncInvoked = true
-	return s.SaveLabelFunc(label)
+func (s *LabelStore) LabelIDsByName(labels []string) ([]uint, error) {
+	s.LabelIDsByNameFuncInvoked = true
+	return s.LabelIDsByNameFunc(labels)
 }

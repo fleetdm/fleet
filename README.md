@@ -10,13 +10,9 @@ Documentation for Fleet can be found on [GitHub](./docs/README.md).
 
 ## Using Fleet
 
-#### The Web UI
-
-Information about using the Kolide web application can be found in the [Application Documentation](./docs/application/README.md).
-
 #### The CLI
 
-If you're interested in learning about the (under development) `fleetctl` CLI and flexible osquery deployment file format, see the [CLI Documentation](./docs/cli/README.md).
+If you're interested in learning about the `fleetctl` CLI and flexible osquery deployment file format, see the [CLI Documentation](./docs/cli/README.md).
 
 #### Deploying Osquery and Fleet
 
@@ -25,6 +21,10 @@ Resources for deploying osquery to hosts, deploying the Fleet server, installing
 #### Accessing The Fleet API
 
 If you are interested in accessing the Fleet REST API in order to programmatically interact with your osquery installation, please see the [API Documentation](./docs/api/README.md).
+
+#### The Web Dashboard
+
+Information about using the Kolide web dashboard can be found in the [Dashboard Documentation](./docs/dashboard/README.md).
 
 ## Developing Fleet
 
@@ -38,7 +38,7 @@ If you have any questions, please create a [GitHub Issue](https://github.com/kol
 
 #### Chat
 
-Please join us in the #kolide channel on [osquery Slack](https://osquery-slack.herokuapp.com/).
+Please join us in the #kolide channel on [Osquery Slack](https://osquery-slack.herokuapp.com/).
 
 #### Community Projects
 
@@ -46,3 +46,9 @@ Below are some projects created by Kolide community members. Please submit a pul
 
 - [davidrecordon/terraform-aws-kolide-fleet](https://github.com/davidrecordon/terraform-aws-kolide-fleet) - Deploy Fleet into AWS using Terraform.
 - [deeso/fleet-deployment](https://github.com/deeso/fleet-deployment) - Install Fleet on a Ubuntu box.
+
+## Kolide Cloud
+
+Looking for the quickest way to try out osquery on your fleet? Not sure which queries to run? Don't want to manage your own data pipeline?
+
+Try our [osquery SaaS platform](https://kolide.com/?utm_source=oss&utm_medium=readme&utm_campaign=fleet) providing insights, alerting, fleet management and user-driven security tools. We also support advanced aggregation of osquery results for power users. Get started immediately, and your first 10 hosts are free.

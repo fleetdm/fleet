@@ -15,6 +15,10 @@ The Fleet server has a few dependencies. To learn more about installing the Flee
 
 ## Managing a Fleet server
 
-Running the Fleet server is a relatively simple process. We're prepared a brief guide to help you manage and maintain your Fleet server. Check out the guide for setting up and running [Fleet on Ubuntu](./fleet-on-ubuntu.md) and [Fleet on CentOS](./fleet-on-centos.md).
+We're prepared a brief guide to help you manage and maintain your Fleet server. Check out the guide for setting up and running [Fleet on Ubuntu](./fleet-on-ubuntu.md) and [Fleet on CentOS](./fleet-on-centos.md).
 
 For more information, you can also read the [Configuring The Fleet Binary](./configuring-the-fleet-binary.md) guide for information on how to configure and customize Fleet for your organization.
+
+## Working with osquery logs
+
+Fleet allows users to schedule queries, curate packs, and generate a lot of osquery logs. For more information on how you can access these logs as well as examples on what you can do with them, see the [Working With Osquery Logs](./working-with-osquery-logs.md) documentation.

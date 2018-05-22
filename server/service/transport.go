@@ -68,6 +68,15 @@ func idFromRequest(r *http.Request, name string) (uint, error) {
 	return uint(uid), nil
 }
 
+func nameFromRequest(r *http.Request, varName string) (string, error) {
+	vars := mux.Vars(r)
+	name, ok := vars[varName]
+	if !ok {
+		return "", errBadRoute
+	}
+	return name, nil
+}
+
 // default number of items to include per page
 const defaultPerPage = 20
 
@@ -140,4 +149,18 @@ func listOptionsFromRequest(r *http.Request) (kolide.ListOptions, error) {
 
 func decodeNoParamsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	return nil, nil
+}
+
+type getGenericSpecRequest struct {
+	Name string
+}
+
+func decodeGetGenericSpecRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	name, err := nameFromRequest(r, "name")
+	if err != nil {
+		return nil, err
+	}
+	var req getGenericSpecRequest
+	req.Name = name
+	return req, nil
 }

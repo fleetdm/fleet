@@ -34,7 +34,7 @@ func TestLauncherRequestConfig(t *testing.T) {
 	require.Nil(t, err)
 	assert.True(t, tls.AuthenticateHostFuncInvoked)
 	assert.False(t, invalid)
-	assert.Equal(t, `{"options":{"key":"value"},"decorators":{}}`, config)
+	assert.JSONEq(t, `{"options":{"key":"value"},"decorators":{"deco":"foobar"}}`, config)
 }
 
 func TestLauncherRequestQueries(t *testing.T) {
@@ -122,10 +122,13 @@ func newTLSService(t *testing.T) *mock.TLSService {
 		},
 		GetClientConfigFunc: func(
 			ctx context.Context,
-		) (config *kolide.OsqueryConfig, err error) {
-			return &kolide.OsqueryConfig{
-				Options: map[string]interface{}{
+		) (config map[string]interface{}, err error) {
+			return map[string]interface{}{
+				"options": map[string]interface{}{
 					"key": "value",
+				},
+				"decorators": map[string]interface{}{
+					"deco": "foobar",
 				},
 			}, nil
 		},

@@ -675,3 +675,23 @@ func (d *Datastore) DistributedQueriesForHost(host *kolide.Host) (map[uint]strin
 
 	return results, nil
 }
+
+func (d *Datastore) HostIDsByName(hostnames []string) ([]uint, error) {
+	sqlStatement := `
+		SELECT id FROM hosts
+		WHERE host_name IN (?)
+	`
+
+	sql, args, err := sqlx.In(sqlStatement, hostnames)
+	if err != nil {
+		return nil, errors.Wrap(err, "building query to get host IDs")
+	}
+
+	var hostIDs []uint
+	if err := d.db.Select(&hostIDs, sql, args...); err != nil {
+		return nil, errors.Wrap(err, "get host IDs")
+	}
+
+	return hostIDs, nil
+
+}

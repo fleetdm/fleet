@@ -15,9 +15,9 @@ type Datastore interface {
 	InviteStore
 	ScheduledQueryStore
 	OptionStore
-	DecoratorStore
 	FileIntegrityMonitoringStore
 	YARAStore
+	OsqueryOptionsStore
 	Name() string
 	Drop() error
 	// MigrateTables creates and migrates the table schemas
@@ -42,6 +42,14 @@ const (
 type NotFoundError interface {
 	error
 	IsNotFound() bool
+}
+
+func IsNotFound(err error) bool {
+	e, ok := err.(NotFoundError)
+	if !ok {
+		return false
+	}
+	return e.IsNotFound()
 }
 
 // AlreadyExists is returned when creating a datastore resource that already

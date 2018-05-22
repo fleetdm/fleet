@@ -104,14 +104,6 @@ func (d *Datastore) RecordLabelQueryExecutions(host *kolide.Host, results map[ui
 	return nil
 }
 
-func (d *Datastore) DeleteLabel(lid uint) error {
-	d.mtx.Lock()
-	delete(d.labels, lid)
-	d.mtx.Unlock()
-
-	return nil
-}
-
 func (d *Datastore) Label(lid uint) (*kolide.Label, error) {
 	d.mtx.Lock()
 	label, ok := d.labels[lid]

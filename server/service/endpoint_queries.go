@@ -121,7 +121,7 @@ func makeModifyQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type deleteQueryRequest struct {
-	ID uint
+	Name string
 }
 
 type deleteQueryResponse struct {
@@ -133,7 +133,7 @@ func (r deleteQueryResponse) error() error { return r.Err }
 func makeDeleteQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(deleteQueryRequest)
-		err := svc.DeleteQuery(ctx, req.ID)
+		err := svc.DeleteQuery(ctx, req.Name)
 		if err != nil {
 			return deleteQueryResponse{Err: err}, nil
 		}
@@ -164,5 +164,73 @@ func makeDeleteQueriesEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return deleteQueriesResponse{Err: err}, nil
 		}
 		return deleteQueriesResponse{Deleted: deleted}, nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Apply Query Specs
+////////////////////////////////////////////////////////////////////////////////
+
+type applyQuerySpecsRequest struct {
+	Specs []*kolide.QuerySpec `json:"specs"`
+}
+
+type applyQuerySpecsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r applyQuerySpecsResponse) error() error { return r.Err }
+
+func makeApplyQuerySpecsEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(applyQuerySpecsRequest)
+		err := svc.ApplyQuerySpecs(ctx, req.Specs)
+		if err != nil {
+			return applyQuerySpecsResponse{Err: err}, nil
+		}
+		return applyQuerySpecsResponse{}, nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get Query Specs
+////////////////////////////////////////////////////////////////////////////////
+
+type getQuerySpecsResponse struct {
+	Specs []*kolide.QuerySpec `json:"specs"`
+	Err   error               `json:"error,omitempty"`
+}
+
+func (r getQuerySpecsResponse) error() error { return r.Err }
+
+func makeGetQuerySpecsEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		specs, err := svc.GetQuerySpecs(ctx)
+		if err != nil {
+			return getQuerySpecsResponse{Err: err}, nil
+		}
+		return getQuerySpecsResponse{Specs: specs}, nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get Query Spec
+////////////////////////////////////////////////////////////////////////////////
+
+type getQuerySpecResponse struct {
+	Spec *kolide.QuerySpec `json:"specs,omitempty"`
+	Err  error             `json:"error,omitempty"`
+}
+
+func (r getQuerySpecResponse) error() error { return r.Err }
+
+func makeGetQuerySpecEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(getGenericSpecRequest)
+		spec, err := svc.GetQuerySpec(ctx, req.Name)
+		if err != nil {
+			return getQuerySpecResponse{Err: err}, nil
+		}
+		return getQuerySpecResponse{Spec: spec}, nil
 	}
 }

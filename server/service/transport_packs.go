@@ -6,35 +6,13 @@ import (
 	"net/http"
 )
 
-func decodeCreatePackRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	var req createPackRequest
-	if err := json.NewDecoder(r.Body).Decode(&req.payload); err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-func decodeModifyPackRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
-	if err != nil {
-		return nil, err
-	}
-	var req modifyPackRequest
-	if err := json.NewDecoder(r.Body).Decode(&req.payload); err != nil {
-		return nil, err
-	}
-	req.ID = id
-	return req, nil
-}
-
 func decodeDeletePackRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	name, err := nameFromRequest(r, "name")
 	if err != nil {
 		return nil, err
 	}
 	var req deletePackRequest
-	req.ID = id
+	req.Name = name
 	return req, nil
 }
 
@@ -54,4 +32,13 @@ func decodeListPacksRequest(ctx context.Context, r *http.Request) (interface{}, 
 		return nil, err
 	}
 	return listPacksRequest{ListOptions: opt}, nil
+}
+
+func decodeApplyPackSpecsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	var req applyPackSpecsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, err
+	}
+	return req, nil
+
 }

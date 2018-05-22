@@ -2,7 +2,6 @@ import Base from 'kolide/base';
 import Request from 'kolide/request';
 import accountMethods from 'kolide/entities/account';
 import configMethods from 'kolide/entities/config';
-import configOptionMethods from 'kolide/entities/config_options';
 import hostMethods from 'kolide/entities/hosts';
 import inviteMethods from 'kolide/entities/invites';
 import labelMethods from 'kolide/entities/labels';
@@ -14,7 +13,6 @@ import statusLabelMethods from 'kolide/entities/status_labels';
 import targetMethods from 'kolide/entities/targets';
 import userMethods from 'kolide/entities/users';
 import websocketMethods from 'kolide/websockets';
-import decoratorMethods from 'kolide/entities/decorators';
 
 const DEFAULT_BODY = JSON.stringify({});
 
@@ -24,7 +22,6 @@ class Kolide extends Base {
 
     this.account = accountMethods(this);
     this.config = configMethods(this);
-    this.configOptions = configOptionMethods(this);
     this.hosts = hostMethods(this);
     this.invites = inviteMethods(this);
     this.labels = labelMethods(this);
@@ -36,7 +33,6 @@ class Kolide extends Base {
     this.targets = targetMethods(this);
     this.users = userMethods(this);
     this.websockets = websocketMethods(this);
-    this.decorators = decoratorMethods(this);
   }
 
   authenticatedDelete (endpoint, overrideHeaders = {}) {

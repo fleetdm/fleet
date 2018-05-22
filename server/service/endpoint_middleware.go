@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"reflect"
 
 	jwt "github.com/dgrijalva/jwt-go"
@@ -12,6 +10,7 @@ import (
 	"github.com/kolide/fleet/server/contexts/token"
 	"github.com/kolide/fleet/server/contexts/viewer"
 	"github.com/kolide/fleet/server/kolide"
+	"github.com/pkg/errors"
 )
 
 var errNoContext = errors.New("context key not set")
@@ -88,12 +87,15 @@ func authenticatedUser(jwtKey string, svc kolide.Service, next endpoint.Endpoint
 func authViewer(ctx context.Context, jwtKey string, bearerToken token.Token, svc kolide.Service) (*viewer.Viewer, error) {
 	jwtToken, err := jwt.Parse(string(bearerToken), func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			return nil, errors.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}
 		return []byte(jwtKey), nil
 	})
 	if err != nil {
 		return nil, authError{reason: err.Error()}
+	}
+	if jwtToken.Valid != true {
+		return nil, authError{reason: "invalid jwt token"}
 	}
 	claims, ok := jwtToken.Claims.(jwt.MapClaims)
 	if !ok {

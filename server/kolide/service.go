@@ -9,13 +9,12 @@ type Service interface {
 	QueryService
 	CampaignService
 	OsqueryService
+	OsqueryOptionsService
 	HostService
 	AppConfigService
 	InviteService
 	TargetService
 	ScheduledQueryService
 	OptionService
-	ImportConfigService
-	DecoratorService
 	FileIntegrityMonitoringService
 }

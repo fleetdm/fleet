@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/kolide/fleet/server/contexts/viewer"
@@ -27,7 +27,7 @@ func makeGetAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		vc, ok := viewer.FromContext(ctx)
 		if !ok {
-			return nil, fmt.Errorf("could not fetch user")
+			return nil, errors.New("could not fetch user")
 		}
 		config, err := svc.AppConfig(ctx)
 		if err != nil {

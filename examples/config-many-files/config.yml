@@ -1,30 +1,68 @@
 ---
-apiVersion: k8s.kolide.com/v1alpha1
-kind: OsqueryOptions
+apiVersion: v1
+kind: options
 spec:
   config:
-    distributed_interval: 3
-    distributed_tls_max_attempts: 3
-    logger_plugin: tls
-    logger_tls_endpoint: /api/v1/osquery/log
-    logger_tls_period: 10
+    options:
+      distributed_interval: 3
+      distributed_tls_max_attempts: 3
+      logger_plugin: tls
+      logger_tls_endpoint: /api/v1/osquery/log
+      logger_tls_period: 10
+    decorators:
+      load:
+        - "SELECT version FROM osquery_info"
+        - "SELECT uuid AS host_uuid FROM system_info"
+      always:
+        - "SELECT user AS username FROM logged_in_users WHERE user <> '' ORDER BY time LIMIT 1"
+      interval:
+        3600: "SELECT total_seconds AS uptime FROM uptime"
   overrides:
-    # Note configs in overrides take precedence over base configs
+    # Note configs in overrides take precedence over the default config defined
+    # under the config key above. With this config file, the base config would
+    # only be used for Windows hosts, while Mac and Linux hosts would pull
+    # these overrides.
     platforms:
       darwin:
-        disable_tables: chrome_extensions
-        docker_socket: /var/run/docker.sock
-        logger_tls_period: 60
-        fim:
-          interval: 500
-          groups:
-            - name: etc
-              paths:
-                - /etc/%%
-            - name: users
-              paths:
-                - /Users/%/Library/%%
-                - /Users/%/Documents/%%
+        options:
+          distributed_interval: 10
+          distributed_tls_max_attempts: 10
+          logger_plugin: tls
+          logger_tls_endpoint: /api/v1/osquery/log
+          logger_tls_period: 300
+          disable_tables: chrome_extensions
+          docker_socket: /var/run/docker.sock
+        file_paths:
+          users:
+            - /Users/%/Library/%%
+            - /Users/%/Documents/%%
+          etc:
+            - /etc/%%
       linux:
-        schedule_timeout: 60
-        docker_socket: /etc/run/docker.sock
+        options:
+          distributed_interval: 10
+          distributed_tls_max_attempts: 3
+          logger_plugin: tls
+          logger_tls_endpoint: /api/v1/osquery/log
+          logger_tls_period: 60
+          schedule_timeout: 60
+          docker_socket: /etc/run/docker.sock
+        file_paths:
+          homes:
+            - /root/.ssh/%%
+            - /home/%/.ssh/%%
+          etc:
+            - /etc/%%
+          tmp:
+            - /tmp/%%
+        exclude_paths:
+          homes:
+            - /home/not_to_monitor/.ssh/%%
+          tmp:
+            - /tmp/too_many_events/
+        decorators:
+          load:
+            - "SELECT * FROM cpuid"
+            - "SELECT * FROM docker_info"
+          interval:
+            3600: "SELECT total_seconds AS uptime FROM uptime"

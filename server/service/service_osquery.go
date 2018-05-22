@@ -89,69 +89,29 @@ func (svc service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 	return host.NodeKey, nil
 }
 
-func (svc service) getFIMConfig(ctx context.Context, cfg *kolide.OsqueryConfig) (*kolide.OsqueryConfig, error) {
-	fimConfig, err := svc.GetFIM(ctx)
-	if err != nil {
-		return nil, osqueryError{message: "internal error: unable to fetch FIM configuration"}
-	}
-	if cfg.Schedule == nil {
-		cfg.Schedule = make(map[string]kolide.QueryContent)
-	}
-	removed := false
-	// file events scheduled query is required to run file integrity monitors
-	cfg.Schedule["file_events"] = kolide.QueryContent{
-		Query:    "SELECT * FROM file_events;",
-		Interval: fimConfig.Interval,
-		Removed:  &removed,
-	}
-	cfg.FilePaths = fimConfig.FilePaths
-	return cfg, nil
-}
-
-func (svc service) GetClientConfig(ctx context.Context) (*kolide.OsqueryConfig, error) {
+func (svc service) GetClientConfig(ctx context.Context) (map[string]interface{}, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return nil, osqueryError{message: "internal error: missing host from request context"}
 	}
 
-	options, err := svc.ds.GetOsqueryConfigOptions()
+	baseConfig, err := svc.ds.OptionsForPlatform(host.Platform)
 	if err != nil {
-		return nil, osqueryError{message: "internal error: unable to fetch configuration options"}
+		return nil, osqueryError{message: "internal error: fetching base config: " + err.Error()}
 	}
 
-	decorators, err := svc.ds.ListDecorators()
+	var config map[string]interface{}
+	err = json.Unmarshal(baseConfig, &config)
 	if err != nil {
-		return nil, osqueryError{message: "internal error: unable to fetch decorators"}
-	}
-	decConfig := kolide.Decorators{
-		Interval: make(map[string][]string),
-	}
-	for _, dec := range decorators {
-		switch dec.Type {
-		case kolide.DecoratorLoad:
-			decConfig.Load = append(decConfig.Load, dec.Query)
-		case kolide.DecoratorAlways:
-			decConfig.Always = append(decConfig.Always, dec.Query)
-		case kolide.DecoratorInterval:
-			key := strconv.Itoa(int(dec.Interval))
-			decConfig.Interval[key] = append(decConfig.Interval[key], dec.Query)
-		default:
-			svc.logger.Log("component", "service", "method", "GetClientConfig", "err",
-				"unknown decorator type")
-		}
+		return nil, osqueryError{message: "internal error: parsing base configuration: " + err.Error()}
 	}
 
-	config := &kolide.OsqueryConfig{
-		Options:    options,
-		Decorators: decConfig,
-		Packs:      kolide.Packs{},
-	}
-
-	packs, err := svc.ListPacksForHost(ctx, host.ID)
+	packs, err := svc.ds.ListPacksForHost(host.ID)
 	if err != nil {
 		return nil, osqueryError{message: "database error: " + err.Error()}
 	}
 
+	packConfig := kolide.Packs{}
 	for _, pack := range packs {
 		// first, we must figure out what queries are in this pack
 		queries, err := svc.ds.ListScheduledQueriesInPack(pack.ID, kolide.ListOptions{})
@@ -184,11 +144,19 @@ func (svc service) GetClientConfig(ctx context.Context) (*kolide.OsqueryConfig, 
 		}
 
 		// finally, we add the pack to the client config struct with all of
-		// the packs queries
-		config.Packs[pack.Name] = kolide.PackContent{
+		// the pack's queries
+		packConfig[pack.Name] = kolide.PackContent{
 			Platform: pack.Platform,
 			Queries:  configQueries,
 		}
+	}
+
+	if len(packConfig) > 0 {
+		packJSON, err := json.Marshal(packConfig)
+		if err != nil {
+			return nil, osqueryError{message: "internal error: marshal pack JSON: " + err.Error()}
+		}
+		config["packs"] = json.RawMessage(packJSON)
 	}
 
 	// Save interval values if they have been updated. Note
@@ -196,18 +164,20 @@ func (svc service) GetClientConfig(ctx context.Context) (*kolide.OsqueryConfig, 
 	// ignored here.
 	saveHost := false
 
-	distributedIntervalVal, ok := config.Options["distributed_interval"]
-	distributedInterval, err := cast.ToUintE(distributedIntervalVal)
-	if ok && err == nil && host.DistributedInterval != distributedInterval {
-		host.DistributedInterval = distributedInterval
-		saveHost = true
-	}
+	if options, ok := config["options"].(map[string]interface{}); ok {
+		distributedIntervalVal, ok := options["distributed_interval"]
+		distributedInterval, err := cast.ToUintE(distributedIntervalVal)
+		if ok && err == nil && host.DistributedInterval != distributedInterval {
+			host.DistributedInterval = distributedInterval
+			saveHost = true
+		}
 
-	loggerTLSPeriodVal, ok := config.Options["logger_tls_period"]
-	loggerTLSPeriod, err := cast.ToUintE(loggerTLSPeriodVal)
-	if ok && err == nil && host.LoggerTLSPeriod != loggerTLSPeriod {
-		host.LoggerTLSPeriod = loggerTLSPeriod
-		saveHost = true
+		loggerTLSPeriodVal, ok := options["logger_tls_period"]
+		loggerTLSPeriod, err := cast.ToUintE(loggerTLSPeriodVal)
+		if ok && err == nil && host.LoggerTLSPeriod != loggerTLSPeriod {
+			host.LoggerTLSPeriod = loggerTLSPeriod
+			saveHost = true
+		}
 	}
 
 	if saveHost {
@@ -217,7 +187,7 @@ func (svc service) GetClientConfig(ctx context.Context) (*kolide.OsqueryConfig, 
 		}
 	}
 
-	return svc.getFIMConfig(ctx, config)
+	return config, nil
 }
 
 // If osqueryWriters are based on bufio we want to flush after a batch of

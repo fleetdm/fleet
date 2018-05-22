@@ -11,6 +11,20 @@ import (
 	"github.com/pkg/errors"
 )
 
+func (svc service) NewDistributedQueryCampaignByNames(ctx context.Context, queryString string, hosts []string, labels []string) (*kolide.DistributedQueryCampaign, error) {
+	hostIDs, err := svc.ds.HostIDsByName(hosts)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding host IDs")
+	}
+
+	labelIDs, err := svc.ds.LabelIDsByName(labels)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding label IDs")
+	}
+
+	return svc.NewDistributedQueryCampaign(ctx, queryString, hostIDs, labelIDs)
+}
+
 func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString string, hosts []uint, labels []uint) (*kolide.DistributedQueryCampaign, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
@@ -121,8 +135,8 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	status := campaignStatus{
 		Status: campaignStatusPending,
 	}
-
-	lastStatus := status.Status
+	lastStatus := status
+	lastTotals := targetTotals{}
 
 	// to improve performance of the frontend rendering the results table, we
 	// add the "host_hostname" field to every row.
@@ -157,8 +171,11 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			Offline:         metrics.OfflineHosts,
 			MissingInAction: metrics.MissingInActionHosts,
 		}
-		if err = conn.WriteJSONMessage("totals", totals); err != nil {
-			return
+		if lastTotals != totals {
+			lastTotals = totals
+			if err = conn.WriteJSONMessage("totals", totals); err != nil {
+				return
+			}
 		}
 
 		status.ExpectedResults = totals.Online
@@ -166,8 +183,8 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			status.Status = campaignStatusFinished
 		}
 		// only write status message if status has changed
-		if lastStatus != status.Status {
-			lastStatus = status.Status
+		if lastStatus != status {
+			lastStatus = status
 			if err = conn.WriteJSONMessage("status", status); err != nil {
 				return
 			}

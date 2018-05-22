@@ -1,6 +1,5 @@
 import account from 'test/mocks/account_mocks';
 import config from 'test/mocks/config_mocks';
-import configOptions from 'test/mocks/config_option_mocks';
 import hosts from 'test/mocks/host_mocks';
 import invites from 'test/mocks/invite_mocks';
 import labels from 'test/mocks/label_mocks';
@@ -16,7 +15,6 @@ import users from 'test/mocks/user_mocks';
 export default {
   account,
   config,
-  configOptions,
   hosts,
   invites,
   labels,

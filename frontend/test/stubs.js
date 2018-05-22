@@ -6,13 +6,6 @@ export const adminUserStub = {
   username: 'gnardog',
 };
 
-export const configOptionStub = {
-  id: 1,
-  name: 'config_option_name',
-  value: 'config option value',
-  read_only: false,
-};
-
 export const configStub = {
   org_info: {
     org_name: 'Kolide',
@@ -216,15 +209,6 @@ export const campaignStub = {
   },
 };
 
-export const decoratorStub = {
-  id: 1,
-  query: 'SELECT version FROM osquery_info;',
-  type: 'load',
-  interval: 0,
-  built_in: 0,
-  name: 'foo',
-};
-
 export default {
   adminUserStub,
   campaignStub,
@@ -236,5 +220,4 @@ export default {
   queryStub,
   scheduledQueryStub,
   userStub,
-  decoratorStub,
 };

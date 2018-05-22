@@ -39,35 +39,34 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 	assert.Nil(t, err)
 	assert.Empty(t, queries)
 
-	newLabels := []kolide.Label{
+	newLabels := []*kolide.LabelSpec{
 		// Note these are intentionally out of order
-		kolide.Label{
+		&kolide.LabelSpec{
+			ID:       1,
 			Name:     "label3",
 			Query:    "query3",
 			Platform: "darwin",
 		},
-		kolide.Label{
+		&kolide.LabelSpec{
+			ID:    2,
 			Name:  "label1",
 			Query: "query1",
 		},
-		kolide.Label{
+		&kolide.LabelSpec{
+			ID:       3,
 			Name:     "label2",
 			Query:    "query2",
 			Platform: "darwin",
 		},
-		kolide.Label{
+		&kolide.LabelSpec{
+			ID:       4,
 			Name:     "label4",
 			Query:    "query4",
 			Platform: "darwin",
 		},
 	}
-
-	for _, label := range newLabels {
-		var newLabel *kolide.Label
-		newLabel, err = db.NewLabel(&label)
-		assert.Nil(t, err)
-		assert.NotZero(t, newLabel.ID)
-	}
+	err = db.ApplyLabelSpecs(newLabels)
+	require.Nil(t, err)
 
 	expectQueries := map[string]string{
 		"1": "query3",
@@ -141,66 +140,87 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 }
 
 func testManagingLabelsOnPacks(t *testing.T, ds kolide.Datastore) {
-	monitoringPack := &kolide.Pack{
-		Name: "monitoring",
+	pack := &kolide.PackSpec{
+		ID:   1,
+		Name: "pack1",
 	}
-	_, err := ds.NewPack(monitoringPack)
+	err := ds.ApplyPackSpecs([]*kolide.PackSpec{pack})
 	require.Nil(t, err)
 
-	mysqlLabel := &kolide.Label{
+	labels, err := ds.ListLabelsForPack(pack.ID)
+	require.Nil(t, err)
+	assert.Len(t, labels, 0)
+
+	mysqlLabel := &kolide.LabelSpec{
+		ID:    1,
 		Name:  "MySQL Monitoring",
 		Query: "select pid from processes where name = 'mysqld';",
 	}
-	mysqlLabel, err = ds.NewLabel(mysqlLabel)
+	err = ds.ApplyLabelSpecs([]*kolide.LabelSpec{mysqlLabel})
 	require.Nil(t, err)
 
-	err = ds.AddLabelToPack(mysqlLabel.ID, monitoringPack.ID)
+	pack.Targets = kolide.PackSpecTargets{
+		Labels: []string{
+			mysqlLabel.Name,
+		},
+	}
+	err = ds.ApplyPackSpecs([]*kolide.PackSpec{pack})
 	require.Nil(t, err)
 
-	labels, err := ds.ListLabelsForPack(monitoringPack.ID)
+	labels, err = ds.ListLabelsForPack(pack.ID)
 	require.Nil(t, err)
 	if assert.Len(t, labels, 1) {
 		assert.Equal(t, "MySQL Monitoring", labels[0].Name)
 	}
 
-	osqueryLabel := &kolide.Label{
+	osqueryLabel := &kolide.LabelSpec{
+		ID:    2,
 		Name:  "Osquery Monitoring",
 		Query: "select pid from processes where name = 'osqueryd';",
 	}
-	osqueryLabel, err = ds.NewLabel(osqueryLabel)
+	err = ds.ApplyLabelSpecs([]*kolide.LabelSpec{mysqlLabel, osqueryLabel})
 	require.Nil(t, err)
 
-	err = ds.AddLabelToPack(osqueryLabel.ID, monitoringPack.ID)
+	pack.Targets = kolide.PackSpecTargets{
+		Labels: []string{
+			mysqlLabel.Name,
+			osqueryLabel.Name,
+		},
+	}
+	err = ds.ApplyPackSpecs([]*kolide.PackSpec{pack})
 	require.Nil(t, err)
 
-	labels, err = ds.ListLabelsForPack(monitoringPack.ID)
+	labels, err = ds.ListLabelsForPack(pack.ID)
 	require.Nil(t, err)
 	assert.Len(t, labels, 2)
-
 }
 
 func testSearchLabels(t *testing.T, db kolide.Datastore) {
-	_, err := db.NewLabel(&kolide.Label{
-		Name: "foo",
-	})
+	specs := []*kolide.LabelSpec{
+		&kolide.LabelSpec{
+			ID:   1,
+			Name: "foo",
+		},
+		&kolide.LabelSpec{
+			ID:   2,
+			Name: "bar",
+		},
+		&kolide.LabelSpec{
+			ID:   3,
+			Name: "foo-bar",
+		},
+		&kolide.LabelSpec{
+			ID:        4,
+			Name:      "All Hosts",
+			LabelType: kolide.LabelTypeBuiltIn,
+		},
+	}
+	err := db.ApplyLabelSpecs(specs)
 	require.Nil(t, err)
 
-	_, err = db.NewLabel(&kolide.Label{
-		Name: "bar",
-	})
+	all, err := db.Label(specs[3].ID)
 	require.Nil(t, err)
-
-	l3, err := db.NewLabel(&kolide.Label{
-		Name: "foo-bar",
-	})
-	require.Nil(t, err)
-
-	all, err := db.NewLabel(&kolide.Label{
-		Name:      "All Hosts",
-		LabelType: kolide.LabelTypeBuiltIn,
-	})
-	require.Nil(t, err)
-	all, err = db.Label(all.ID)
+	l3, err := db.Label(specs[2].ID)
 	require.Nil(t, err)
 
 	// We once threw errors when the search query was empty. Verify that we
@@ -230,16 +250,18 @@ func testSearchLabelsLimit(t *testing.T, db kolide.Datastore) {
 		t.Skip("inmem is being deprecated, test skipped")
 	}
 
-	_, err := db.NewLabel(&kolide.Label{
+	all := &kolide.LabelSpec{
 		Name:      "All Hosts",
 		LabelType: kolide.LabelTypeBuiltIn,
-	})
+	}
+	err := db.ApplyLabelSpecs([]*kolide.LabelSpec{all})
 	require.Nil(t, err)
 
 	for i := 0; i < 15; i++ {
-		_, err := db.NewLabel(&kolide.Label{
-			Name: fmt.Sprintf("foo-%d", i),
-		})
+		l := &kolide.LabelSpec{
+			Name: fmt.Sprintf("foo%d", i),
+		}
+		err := db.ApplyLabelSpecs([]*kolide.LabelSpec{l})
 		require.Nil(t, err)
 	}
 
@@ -279,12 +301,13 @@ func testListHostsInLabel(t *testing.T, db kolide.Datastore) {
 	})
 	require.Nil(t, err)
 
-	l1, err := db.NewLabel(&kolide.Label{
+	l1 := &kolide.LabelSpec{
+		ID:    1,
 		Name:  "label foo",
 		Query: "query1",
-	})
+	}
+	err = db.ApplyLabelSpecs([]*kolide.LabelSpec{l1})
 	require.Nil(t, err)
-	require.NotZero(t, l1.ID)
 
 	{
 
@@ -332,19 +355,18 @@ func testListUniqueHostsInLabels(t *testing.T, db kolide.Datastore) {
 		hosts = append(hosts, h)
 	}
 
-	l1, err := db.NewLabel(&kolide.Label{
+	l1 := kolide.LabelSpec{
+		ID:    1,
 		Name:  "label foo",
 		Query: "query1",
-	})
-	require.Nil(t, err)
-	require.NotZero(t, l1.ID)
-
-	l2, err := db.NewLabel(&kolide.Label{
+	}
+	l2 := kolide.LabelSpec{
+		ID:    2,
 		Name:  "label bar",
 		Query: "query2",
-	})
+	}
+	err := db.ApplyLabelSpecs([]*kolide.LabelSpec{&l1, &l2})
 	require.Nil(t, err)
-	require.NotZero(t, l2.ID)
 
 	for i := 0; i < 3; i++ {
 		err = db.RecordLabelQueryExecutions(hosts[i], map[uint]bool{l1.ID: true}, time.Now())
@@ -366,63 +388,88 @@ func testListUniqueHostsInLabels(t *testing.T, db kolide.Datastore) {
 
 }
 
-func testSaveLabel(t *testing.T, db kolide.Datastore) {
+func testChangeLabelDetails(t *testing.T, db kolide.Datastore) {
 	if db.Name() == "inmem" {
 		t.Skip("inmem is being deprecated")
 	}
-	label := &kolide.Label{
+
+	label := kolide.LabelSpec{
+		ID:          1,
 		Name:        "my label",
 		Description: "a label",
-		Query:       "select 1 from processes;",
+		Query:       "select 1 from processes",
 		Platform:    "darwin",
 	}
-	label, err := db.NewLabel(label)
+	err := db.ApplyLabelSpecs([]*kolide.LabelSpec{&label})
 	require.Nil(t, err)
-	label.Name = "changed name"
+
 	label.Description = "changed description"
-	_, err = db.SaveLabel(label)
+	err = db.ApplyLabelSpecs([]*kolide.LabelSpec{&label})
 	require.Nil(t, err)
+
 	saved, err := db.Label(label.ID)
 	require.Nil(t, err)
 	assert.Equal(t, label.Name, saved.Name)
-	assert.Equal(t, label.Description, saved.Description)
 }
 
-func testReplaceDeletedLabel(t *testing.T, db kolide.Datastore) {
-	if db.Name() == "inmem" {
-		t.Skip("inmem is being deprecated, test skipped")
+func setupLabelSpecsTest(t *testing.T, ds kolide.Datastore) []*kolide.LabelSpec {
+	expectedSpecs := []*kolide.LabelSpec{
+		&kolide.LabelSpec{
+			Name:        "foo",
+			Query:       "select * from foo",
+			Description: "foo description",
+			Platform:    "darwin",
+		},
+		&kolide.LabelSpec{
+			Name:  "bar",
+			Query: "select * from bar",
+		},
+		&kolide.LabelSpec{
+			Name:  "bing",
+			Query: "select * from bing",
+		},
+		&kolide.LabelSpec{
+			Name:      "All Hosts",
+			Query:     "SELECT 1",
+			LabelType: kolide.LabelTypeBuiltIn,
+		},
 	}
+	err := ds.ApplyLabelSpecs(expectedSpecs)
+	require.Nil(t, err)
 
-	label := &kolide.Label{
-		Name:  "my label",
-		Query: "select 1 from processes;",
+	return expectedSpecs
+}
+
+func testGetLabelSpec(t *testing.T, ds kolide.Datastore) {
+	expectedSpecs := setupLabelSpecsTest(t, ds)
+
+	for _, s := range expectedSpecs {
+		spec, err := ds.GetLabelSpec(s.Name)
+		require.Nil(t, err)
+		assert.Equal(t, s, spec)
 	}
-	saved, err := db.NewLabel(label)
+}
+
+func testApplyLabelSpecsRoundtrip(t *testing.T, ds kolide.Datastore) {
+	expectedSpecs := setupLabelSpecsTest(t, ds)
+
+	specs, err := ds.GetLabelSpecs()
 	require.Nil(t, err)
+	assert.Equal(t, expectedSpecs, specs)
 
-	saved, err = db.Label(saved.ID)
+	// Should be idempotent
+	err = ds.ApplyLabelSpecs(expectedSpecs)
 	require.Nil(t, err)
-	assert.Equal(t, label.Name, saved.Name)
-	assert.Equal(t, label.Description, saved.Description)
-
-	newLabel := &kolide.Label{
-		Name:  "my label",
-		Query: " select * from time",
-	}
-
-	// Replace should fail when label already exists and isn't soft deleted
-	_, err = db.NewLabel(newLabel)
-	require.NotNil(t, err)
-
-	// Now delete label and replace should succeed
-	err = db.DeleteLabel(label.ID)
+	specs, err = ds.GetLabelSpecs()
 	require.Nil(t, err)
+	assert.Equal(t, expectedSpecs, specs)
+}
 
-	saved, err = db.NewLabel(newLabel)
-	require.Nil(t, err)
+func testLabelIDsByName(t *testing.T, ds kolide.Datastore) {
+	setupLabelSpecsTest(t, ds)
 
-	saved, err = db.Label(saved.ID)
+	labels, err := ds.LabelIDsByName([]string{"foo", "bar", "bing"})
 	require.Nil(t, err)
-	assert.Equal(t, newLabel.Name, saved.Name)
-	assert.Equal(t, newLabel.Description, saved.Description)
+	sort.Slice(labels, func(i, j int) bool { return labels[i] < labels[j] })
+	assert.Equal(t, []uint{1, 2, 3}, labels)
 }

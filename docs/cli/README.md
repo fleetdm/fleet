@@ -1,11 +1,7 @@
 CLI Documentation
 =================
 
-Kolide Fleet provides a server which allows you to manage and orchestrate an osquery deployment across of a set of workstations and servers. For certain use-cases, it makes sense to maintain the configuration and data of an osquery deployment in source-controlled files. It is also desirable to be able to manage these files with a familiar command-line tool. To facilitate this, we are working on an experimental CLI called `fleetctl`.
-
-### Warning: In Progress
-
-This CLI is largely just a proposal and large sections (if not most) of this do not work. The objective user-experience is documented here so that contributors working on this feature can share documentation with the community to gather feedback.
+Kolide Fleet provides a server which allows you to manage and orchestrate an osquery deployment across of a set of workstations and servers. For certain use-cases, it makes sense to maintain the configuration and data of an osquery deployment in source-controlled files. It is also desirable to be able to manage these files with a familiar command-line tool. To facilitate this, Kolide is working on an experimental CLI called `fleetctl`.
 
 ## Inspiration
 
@@ -27,24 +23,29 @@ Similarly, Fleet objects can be created, updated, and deleted by storing multipl
 ### Help Output
 
 ```
-$ fleetctl --help
-fleetctl controls an instance of the Kolide Fleet osquery fleet manager.
+NAME:
+   fleetctl - The CLI for operating Kolide Fleet
 
-Find more information at https://kolide.com/fleet
+USAGE:
+   fleetctl [global options] command [command options] [arguments...]
 
-  Usage:
-    fleetctl [command] [flags]
+VERSION:
+   2.0.0-rc1
 
+COMMANDS:
+     query    Run an osquery distributed query
+     apply    Apply files to declaratively manage osquery configurations
+     delete   Specify files to delete
+     setup    Setup a Kolide Fleet instance
+     login    Login to Kolide Fleet
+     logout   Logout of Kolide Fleet
+     get      Get/list resources
+     config   Modify how and which Fleet server to connect to
+     help, h  Shows a list of commands or help for one command
 
-  Commands:
-    fleetctl query    - run a query across your fleet
-
-    fleetctl apply    - apply a set of osquery configurations
-    fleetctl edit     - edit your complete configuration in an ephemeral editor
-    fleetctl config   - modify how and which Fleet server to connect to
-
-    fleetctl help     - get help on how to define an intent type
-    fleetctl version  - print full version information
+GLOBAL OPTIONS:
+   --help, -h     show help
+   --version, -v  print the version
 ```
 
 ### Workflow
@@ -95,8 +96,8 @@ All of these files can be concatenated together into [one file](../../examples/c
 The following file describes configuration options passed to the osquery instance. All other configuration data will be over-written by the application of this file.
 
 ```yaml
-apiVersion: kolide.com/v1alpha1
-kind: OsqueryOptions
+apiVersion: v1
+kind: options
 spec:
   config:
     options:
@@ -170,14 +171,14 @@ spec:
 The following file describes the labels which hosts should be automatically grouped into. The label resource should reference the query by name. Both of these resources can be included in the same file as such:
 
 ```yaml
-apiVersion: kolide.com/v1alpha1
-kind: OsqueryLabel
+apiVersion: v1
+kind: label
 spec:
   name: slack_not_running
   query: slack_not_running
 ---
 apiVersion: kolide.com/v1/alpha1
-kind: OsqueryQuery
+kind: query
 spec:
   name: slack_not_running
   query: >
@@ -194,8 +195,8 @@ spec:
 For especially long or complex queries, you may want to define one query in one file. Continued edits and applications to this file will update the query as long as the `metadata.name` does not change. If you want to change the name of a query, you must first create a new query with the new name and then delete the query with the old name. Make sure the old query name is not defined in any packs before deleting it or an error will occur.
 
 ```yaml
-apiVersion: kolide.com/v1alpha1
-kind: OsqueryQuery
+apiVersion: v1
+kind: query
 spec:
   name: docker_processes
   descriptions: The docker containers processes that are running on a system.
@@ -207,11 +208,11 @@ spec:
       - darwin
 ```
 
-To define multiple queries in a file, concatenate multiple `OsqueryQuery` resources together in a single file with `---`. For example, consider a file that you might store at `queries/osquery_monitoring.yml`:
+To define multiple queries in a file, concatenate multiple `query` resources together in a single file with `---`. For example, consider a file that you might store at `queries/osquery_monitoring.yml`:
 
 ```yaml
-apiVersion: kolide.com/v1alpha1
-kind: OsqueryQuery
+apiVersion: v1
+kind: query
 spec:
   name: osquery_version
   description: The version of the Launcher and Osquery process
@@ -220,22 +221,22 @@ spec:
     launcher: 0.3.0
     osquery: 2.9.0
 ---
-apiVersion: kolide.com/v1alpha1
-kind: OsqueryQuery
+apiVersion: v1
+kind: query
 spec:
   name: osquery_schedule
   description: Report performance stats for each file in the query schedule.
   query: select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;
 ---
-apiVersion: kolide.com/v1alpha1
-kind: OsqueryQuery
+apiVersion: v1
+kind: query
 spec:
   name: osquery_info
   description: A heartbeat counter that reports general performance (CPU, memory) and version.
   query: select i.*, p.resident_size, p.user_time, p.system_time, time.minutes as counter from osquery_info i, processes p, time where p.pid = i.pid;
 ---
-apiVersion: kolide.com/v1alpha1
-kind: OsqueryQuery
+apiVersion: v1
+kind: query
 spec:
   name: osquery_events
   description: Report event publisher health and track event counters.
@@ -247,8 +248,8 @@ spec:
 To define query packs, reference queries defined elsewhere by name. This is why the "name" of a query is so important. You can define many of these packs in many files.
 
 ```yaml
-apiVersion: kolide.com/v1alpha1
-kind: OsqueryPack
+apiVersion: v1
+kind: pack
 spec:
   name: osquery_monitoring
   targets:

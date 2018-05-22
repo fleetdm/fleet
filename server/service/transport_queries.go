@@ -28,12 +28,12 @@ func decodeModifyQueryRequest(ctx context.Context, r *http.Request) (interface{}
 }
 
 func decodeDeleteQueryRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	name, err := nameFromRequest(r, "name")
 	if err != nil {
 		return nil, err
 	}
 	var req deleteQueryRequest
-	req.ID = id
+	req.Name = name
 	return req, nil
 }
 
@@ -61,4 +61,13 @@ func decodeListQueriesRequest(ctx context.Context, r *http.Request) (interface{}
 		return nil, err
 	}
 	return listQueriesRequest{ListOptions: opt}, nil
+}
+
+func decodeApplyQuerySpecsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	var req applyQuerySpecsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, err
+	}
+	return req, nil
+
 }

@@ -6,21 +6,13 @@ import (
 	"net/http"
 )
 
-func decodeCreateLabelRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	var req createLabelRequest
-	if err := json.NewDecoder(r.Body).Decode(&req.payload); err != nil {
-		return nil, err
-	}
-	return req, nil
-}
-
 func decodeDeleteLabelRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	name, err := nameFromRequest(r, "name")
 	if err != nil {
 		return nil, err
 	}
 	var req deleteLabelRequest
-	req.ID = id
+	req.Name = name
 	return req, nil
 }
 
@@ -42,16 +34,11 @@ func decodeListLabelsRequest(ctx context.Context, r *http.Request) (interface{},
 	return listLabelsRequest{ListOptions: opt}, nil
 }
 
-func decodeModifyLabelRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
-	if err != nil {
+func decodeApplyLabelSpecsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	var req applyLabelSpecsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, err
 	}
-	var resp modifyLabelRequest
-	err = json.NewDecoder(r.Body).Decode(&resp.payload)
-	if err != nil {
-		return nil, err
-	}
-	resp.ID = id
-	return resp, nil
+	return req, nil
+
 }

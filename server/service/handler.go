@@ -15,77 +15,76 @@ import (
 
 // KolideEndpoints is a collection of RPC endpoints implemented by the Kolide API.
 type KolideEndpoints struct {
-	Login                          endpoint.Endpoint
-	Logout                         endpoint.Endpoint
-	ForgotPassword                 endpoint.Endpoint
-	ResetPassword                  endpoint.Endpoint
-	Me                             endpoint.Endpoint
-	ChangePassword                 endpoint.Endpoint
-	CreateUser                     endpoint.Endpoint
-	GetUser                        endpoint.Endpoint
-	ListUsers                      endpoint.Endpoint
-	ModifyUser                     endpoint.Endpoint
-	AdminUser                      endpoint.Endpoint
-	EnableUser                     endpoint.Endpoint
-	RequirePasswordReset           endpoint.Endpoint
-	PerformRequiredPasswordReset   endpoint.Endpoint
-	GetSessionsForUserInfo         endpoint.Endpoint
-	DeleteSessionsForUser          endpoint.Endpoint
-	GetSessionInfo                 endpoint.Endpoint
-	DeleteSession                  endpoint.Endpoint
-	GetAppConfig                   endpoint.Endpoint
-	ModifyAppConfig                endpoint.Endpoint
-	CreateInvite                   endpoint.Endpoint
-	ListInvites                    endpoint.Endpoint
-	DeleteInvite                   endpoint.Endpoint
-	VerifyInvite                   endpoint.Endpoint
-	GetQuery                       endpoint.Endpoint
-	ListQueries                    endpoint.Endpoint
-	CreateQuery                    endpoint.Endpoint
-	ModifyQuery                    endpoint.Endpoint
-	DeleteQuery                    endpoint.Endpoint
-	DeleteQueries                  endpoint.Endpoint
-	CreateDistributedQueryCampaign endpoint.Endpoint
-	GetPack                        endpoint.Endpoint
-	ListPacks                      endpoint.Endpoint
-	CreatePack                     endpoint.Endpoint
-	ModifyPack                     endpoint.Endpoint
-	DeletePack                     endpoint.Endpoint
-	ScheduleQuery                  endpoint.Endpoint
-	GetScheduledQueriesInPack      endpoint.Endpoint
-	GetScheduledQuery              endpoint.Endpoint
-	ModifyScheduledQuery           endpoint.Endpoint
-	DeleteScheduledQuery           endpoint.Endpoint
-	EnrollAgent                    endpoint.Endpoint
-	GetClientConfig                endpoint.Endpoint
-	GetDistributedQueries          endpoint.Endpoint
-	SubmitDistributedQueryResults  endpoint.Endpoint
-	SubmitLogs                     endpoint.Endpoint
-	GetLabel                       endpoint.Endpoint
-	ListLabels                     endpoint.Endpoint
-	CreateLabel                    endpoint.Endpoint
-	DeleteLabel                    endpoint.Endpoint
-	ModifyLabel                    endpoint.Endpoint
-	ListDecorators                 endpoint.Endpoint
-	NewDecorator                   endpoint.Endpoint
-	ModifyDecorator                endpoint.Endpoint
-	DeleteDecorator                endpoint.Endpoint
-	GetHost                        endpoint.Endpoint
-	DeleteHost                     endpoint.Endpoint
-	ListHosts                      endpoint.Endpoint
-	GetHostSummary                 endpoint.Endpoint
-	SearchTargets                  endpoint.Endpoint
-	GetOptions                     endpoint.Endpoint
-	ModifyOptions                  endpoint.Endpoint
-	ResetOptions                   endpoint.Endpoint
-	ImportConfig                   endpoint.Endpoint
-	GetCertificate                 endpoint.Endpoint
-	ChangeEmail                    endpoint.Endpoint
-	InitiateSSO                    endpoint.Endpoint
-	CallbackSSO                    endpoint.Endpoint
-	SSOSettings                    endpoint.Endpoint
-	GetFIM                         endpoint.Endpoint
-	ModifyFIM                      endpoint.Endpoint
+	Login                                 endpoint.Endpoint
+	Logout                                endpoint.Endpoint
+	ForgotPassword                        endpoint.Endpoint
+	ResetPassword                         endpoint.Endpoint
+	Me                                    endpoint.Endpoint
+	ChangePassword                        endpoint.Endpoint
+	CreateUser                            endpoint.Endpoint
+	GetUser                               endpoint.Endpoint
+	ListUsers                             endpoint.Endpoint
+	ModifyUser                            endpoint.Endpoint
+	AdminUser                             endpoint.Endpoint
+	EnableUser                            endpoint.Endpoint
+	RequirePasswordReset                  endpoint.Endpoint
+	PerformRequiredPasswordReset          endpoint.Endpoint
+	GetSessionsForUserInfo                endpoint.Endpoint
+	DeleteSessionsForUser                 endpoint.Endpoint
+	GetSessionInfo                        endpoint.Endpoint
+	DeleteSession                         endpoint.Endpoint
+	GetAppConfig                          endpoint.Endpoint
+	ModifyAppConfig                       endpoint.Endpoint
+	CreateInvite                          endpoint.Endpoint
+	ListInvites                           endpoint.Endpoint
+	DeleteInvite                          endpoint.Endpoint
+	VerifyInvite                          endpoint.Endpoint
+	GetQuery                              endpoint.Endpoint
+	ListQueries                           endpoint.Endpoint
+	CreateQuery                           endpoint.Endpoint
+	ModifyQuery                           endpoint.Endpoint
+	DeleteQuery                           endpoint.Endpoint
+	DeleteQueries                         endpoint.Endpoint
+	ApplyQuerySpecs                       endpoint.Endpoint
+	GetQuerySpecs                         endpoint.Endpoint
+	GetQuerySpec                          endpoint.Endpoint
+	CreateDistributedQueryCampaign        endpoint.Endpoint
+	CreateDistributedQueryCampaignByNames endpoint.Endpoint
+	GetPack                               endpoint.Endpoint
+	ListPacks                             endpoint.Endpoint
+	DeletePack                            endpoint.Endpoint
+	GetScheduledQueriesInPack             endpoint.Endpoint
+	ApplyPackSpecs                        endpoint.Endpoint
+	GetPackSpecs                          endpoint.Endpoint
+	GetPackSpec                           endpoint.Endpoint
+	EnrollAgent                           endpoint.Endpoint
+	GetClientConfig                       endpoint.Endpoint
+	GetDistributedQueries                 endpoint.Endpoint
+	SubmitDistributedQueryResults         endpoint.Endpoint
+	SubmitLogs                            endpoint.Endpoint
+	GetLabel                              endpoint.Endpoint
+	ListLabels                            endpoint.Endpoint
+	DeleteLabel                           endpoint.Endpoint
+	ApplyLabelSpecs                       endpoint.Endpoint
+	GetLabelSpecs                         endpoint.Endpoint
+	GetLabelSpec                          endpoint.Endpoint
+	GetHost                               endpoint.Endpoint
+	DeleteHost                            endpoint.Endpoint
+	ListHosts                             endpoint.Endpoint
+	GetHostSummary                        endpoint.Endpoint
+	SearchTargets                         endpoint.Endpoint
+	GetOptions                            endpoint.Endpoint
+	ModifyOptions                         endpoint.Endpoint
+	ResetOptions                          endpoint.Endpoint
+	ApplyOsqueryOptionsSpec               endpoint.Endpoint
+	GetOsqueryOptionsSpec                 endpoint.Endpoint
+	GetCertificate                        endpoint.Endpoint
+	ChangeEmail                           endpoint.Endpoint
+	InitiateSSO                           endpoint.Endpoint
+	CallbackSSO                           endpoint.Endpoint
+	SSOSettings                           endpoint.Endpoint
+	GetFIM                                endpoint.Endpoint
+	ModifyFIM                             endpoint.Endpoint
 }
 
 // MakeKolideServerEndpoints creates the Kolide API endpoints.
@@ -118,51 +117,50 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		RequirePasswordReset: authenticatedUser(jwtKey, svc, mustBeAdmin(makeRequirePasswordResetEndpoint(svc))),
 		// PerformRequiredPasswordReset needs only to authenticate the
 		// logged in user
-		PerformRequiredPasswordReset:   authenticatedUser(jwtKey, svc, makePerformRequiredPasswordResetEndpoint(svc)),
-		GetSessionsForUserInfo:         authenticatedUser(jwtKey, svc, canReadUser(makeGetInfoAboutSessionsForUserEndpoint(svc))),
-		DeleteSessionsForUser:          authenticatedUser(jwtKey, svc, canModifyUser(makeDeleteSessionsForUserEndpoint(svc))),
-		GetSessionInfo:                 authenticatedUser(jwtKey, svc, mustBeAdmin(makeGetInfoAboutSessionEndpoint(svc))),
-		DeleteSession:                  authenticatedUser(jwtKey, svc, mustBeAdmin(makeDeleteSessionEndpoint(svc))),
-		GetAppConfig:                   authenticatedUser(jwtKey, svc, canPerformActions(makeGetAppConfigEndpoint(svc))),
-		ModifyAppConfig:                authenticatedUser(jwtKey, svc, mustBeAdmin(makeModifyAppConfigEndpoint(svc))),
-		CreateInvite:                   authenticatedUser(jwtKey, svc, mustBeAdmin(makeCreateInviteEndpoint(svc))),
-		ListInvites:                    authenticatedUser(jwtKey, svc, mustBeAdmin(makeListInvitesEndpoint(svc))),
-		DeleteInvite:                   authenticatedUser(jwtKey, svc, mustBeAdmin(makeDeleteInviteEndpoint(svc))),
-		GetQuery:                       authenticatedUser(jwtKey, svc, makeGetQueryEndpoint(svc)),
-		ListQueries:                    authenticatedUser(jwtKey, svc, makeListQueriesEndpoint(svc)),
-		CreateQuery:                    authenticatedUser(jwtKey, svc, makeCreateQueryEndpoint(svc)),
-		ModifyQuery:                    authenticatedUser(jwtKey, svc, makeModifyQueryEndpoint(svc)),
-		DeleteQuery:                    authenticatedUser(jwtKey, svc, makeDeleteQueryEndpoint(svc)),
-		DeleteQueries:                  authenticatedUser(jwtKey, svc, makeDeleteQueriesEndpoint(svc)),
-		CreateDistributedQueryCampaign: authenticatedUser(jwtKey, svc, makeCreateDistributedQueryCampaignEndpoint(svc)),
+		PerformRequiredPasswordReset:          authenticatedUser(jwtKey, svc, makePerformRequiredPasswordResetEndpoint(svc)),
+		GetSessionsForUserInfo:                authenticatedUser(jwtKey, svc, canReadUser(makeGetInfoAboutSessionsForUserEndpoint(svc))),
+		DeleteSessionsForUser:                 authenticatedUser(jwtKey, svc, canModifyUser(makeDeleteSessionsForUserEndpoint(svc))),
+		GetSessionInfo:                        authenticatedUser(jwtKey, svc, mustBeAdmin(makeGetInfoAboutSessionEndpoint(svc))),
+		DeleteSession:                         authenticatedUser(jwtKey, svc, mustBeAdmin(makeDeleteSessionEndpoint(svc))),
+		GetAppConfig:                          authenticatedUser(jwtKey, svc, canPerformActions(makeGetAppConfigEndpoint(svc))),
+		ModifyAppConfig:                       authenticatedUser(jwtKey, svc, mustBeAdmin(makeModifyAppConfigEndpoint(svc))),
+		CreateInvite:                          authenticatedUser(jwtKey, svc, mustBeAdmin(makeCreateInviteEndpoint(svc))),
+		ListInvites:                           authenticatedUser(jwtKey, svc, mustBeAdmin(makeListInvitesEndpoint(svc))),
+		DeleteInvite:                          authenticatedUser(jwtKey, svc, mustBeAdmin(makeDeleteInviteEndpoint(svc))),
+		GetQuery:                              authenticatedUser(jwtKey, svc, makeGetQueryEndpoint(svc)),
+		ListQueries:                           authenticatedUser(jwtKey, svc, makeListQueriesEndpoint(svc)),
+		CreateQuery:                           authenticatedUser(jwtKey, svc, makeCreateQueryEndpoint(svc)),
+		ModifyQuery:                           authenticatedUser(jwtKey, svc, makeModifyQueryEndpoint(svc)),
+		DeleteQuery:                           authenticatedUser(jwtKey, svc, makeDeleteQueryEndpoint(svc)),
+		DeleteQueries:                         authenticatedUser(jwtKey, svc, makeDeleteQueriesEndpoint(svc)),
+		ApplyQuerySpecs:                       authenticatedUser(jwtKey, svc, makeApplyQuerySpecsEndpoint(svc)),
+		GetQuerySpecs:                         authenticatedUser(jwtKey, svc, makeGetQuerySpecsEndpoint(svc)),
+		GetQuerySpec:                          authenticatedUser(jwtKey, svc, makeGetQuerySpecEndpoint(svc)),
+		CreateDistributedQueryCampaign:        authenticatedUser(jwtKey, svc, makeCreateDistributedQueryCampaignEndpoint(svc)),
+		CreateDistributedQueryCampaignByNames: authenticatedUser(jwtKey, svc, makeCreateDistributedQueryCampaignByNamesEndpoint(svc)),
 		GetPack:                   authenticatedUser(jwtKey, svc, makeGetPackEndpoint(svc)),
 		ListPacks:                 authenticatedUser(jwtKey, svc, makeListPacksEndpoint(svc)),
-		CreatePack:                authenticatedUser(jwtKey, svc, makeCreatePackEndpoint(svc)),
-		ModifyPack:                authenticatedUser(jwtKey, svc, makeModifyPackEndpoint(svc)),
 		DeletePack:                authenticatedUser(jwtKey, svc, makeDeletePackEndpoint(svc)),
-		ScheduleQuery:             authenticatedUser(jwtKey, svc, makeScheduleQueryEndpoint(svc)),
 		GetScheduledQueriesInPack: authenticatedUser(jwtKey, svc, makeGetScheduledQueriesInPackEndpoint(svc)),
-		GetScheduledQuery:         authenticatedUser(jwtKey, svc, makeGetScheduledQueryEndpoint(svc)),
-		ModifyScheduledQuery:      authenticatedUser(jwtKey, svc, makeModifyScheduledQueryEndpoint(svc)),
-		DeleteScheduledQuery:      authenticatedUser(jwtKey, svc, makeDeleteScheduledQueryEndpoint(svc)),
+		ApplyPackSpecs:            authenticatedUser(jwtKey, svc, makeApplyPackSpecsEndpoint(svc)),
+		GetPackSpecs:              authenticatedUser(jwtKey, svc, makeGetPackSpecsEndpoint(svc)),
+		GetPackSpec:               authenticatedUser(jwtKey, svc, makeGetPackSpecEndpoint(svc)),
 		GetHost:                   authenticatedUser(jwtKey, svc, makeGetHostEndpoint(svc)),
 		ListHosts:                 authenticatedUser(jwtKey, svc, makeListHostsEndpoint(svc)),
 		GetHostSummary:            authenticatedUser(jwtKey, svc, makeGetHostSummaryEndpoint(svc)),
 		DeleteHost:                authenticatedUser(jwtKey, svc, makeDeleteHostEndpoint(svc)),
 		GetLabel:                  authenticatedUser(jwtKey, svc, makeGetLabelEndpoint(svc)),
 		ListLabels:                authenticatedUser(jwtKey, svc, makeListLabelsEndpoint(svc)),
-		CreateLabel:               authenticatedUser(jwtKey, svc, makeCreateLabelEndpoint(svc)),
 		DeleteLabel:               authenticatedUser(jwtKey, svc, makeDeleteLabelEndpoint(svc)),
-		ModifyLabel:               authenticatedUser(jwtKey, svc, makeModifyLabelEndpoint(svc)),
-		ListDecorators:            authenticatedUser(jwtKey, svc, makeListDecoratorsEndpoint(svc)),
-		NewDecorator:              authenticatedUser(jwtKey, svc, makeNewDecoratorEndpoint(svc)),
-		ModifyDecorator:           authenticatedUser(jwtKey, svc, makeModifyDecoratorEndpoint(svc)),
-		DeleteDecorator:           authenticatedUser(jwtKey, svc, makeDeleteDecoratorEndpoint(svc)),
+		ApplyLabelSpecs:           authenticatedUser(jwtKey, svc, makeApplyLabelSpecsEndpoint(svc)),
+		GetLabelSpecs:             authenticatedUser(jwtKey, svc, makeGetLabelSpecsEndpoint(svc)),
+		GetLabelSpec:              authenticatedUser(jwtKey, svc, makeGetLabelSpecEndpoint(svc)),
 		SearchTargets:             authenticatedUser(jwtKey, svc, makeSearchTargetsEndpoint(svc)),
 		GetOptions:                authenticatedUser(jwtKey, svc, mustBeAdmin(makeGetOptionsEndpoint(svc))),
 		ModifyOptions:             authenticatedUser(jwtKey, svc, mustBeAdmin(makeModifyOptionsEndpoint(svc))),
 		ResetOptions:              authenticatedUser(jwtKey, svc, mustBeAdmin(makeResetOptionsEndpoint(svc))),
-		ImportConfig:              authenticatedUser(jwtKey, svc, makeImportConfigEndpoint(svc)),
+		ApplyOsqueryOptionsSpec:   authenticatedUser(jwtKey, svc, makeApplyOsqueryOptionsSpecEndpoint(svc)),
+		GetOsqueryOptionsSpec:     authenticatedUser(jwtKey, svc, makeGetOsqueryOptionsSpecEndpoint(svc)),
 		GetCertificate:            authenticatedUser(jwtKey, svc, makeCertificateEndpoint(svc)),
 		ChangeEmail:               authenticatedUser(jwtKey, svc, makeChangeEmailEndpoint(svc)),
 		GetFIM:                    authenticatedUser(jwtKey, svc, makeGetFIMEndpoint(svc)),
@@ -178,77 +176,76 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 }
 
 type kolideHandlers struct {
-	Login                          http.Handler
-	Logout                         http.Handler
-	ForgotPassword                 http.Handler
-	ResetPassword                  http.Handler
-	Me                             http.Handler
-	ChangePassword                 http.Handler
-	CreateUser                     http.Handler
-	GetUser                        http.Handler
-	ListUsers                      http.Handler
-	ModifyUser                     http.Handler
-	AdminUser                      http.Handler
-	EnableUser                     http.Handler
-	RequirePasswordReset           http.Handler
-	PerformRequiredPasswordReset   http.Handler
-	GetSessionsForUserInfo         http.Handler
-	DeleteSessionsForUser          http.Handler
-	GetSessionInfo                 http.Handler
-	DeleteSession                  http.Handler
-	GetAppConfig                   http.Handler
-	ModifyAppConfig                http.Handler
-	CreateInvite                   http.Handler
-	ListInvites                    http.Handler
-	DeleteInvite                   http.Handler
-	VerifyInvite                   http.Handler
-	GetQuery                       http.Handler
-	ListQueries                    http.Handler
-	CreateQuery                    http.Handler
-	ModifyQuery                    http.Handler
-	DeleteQuery                    http.Handler
-	DeleteQueries                  http.Handler
-	CreateDistributedQueryCampaign http.Handler
-	GetPack                        http.Handler
-	ListPacks                      http.Handler
-	CreatePack                     http.Handler
-	ModifyPack                     http.Handler
-	DeletePack                     http.Handler
-	ScheduleQuery                  http.Handler
-	GetScheduledQueriesInPack      http.Handler
-	GetScheduledQuery              http.Handler
-	ModifyScheduledQuery           http.Handler
-	DeleteScheduledQuery           http.Handler
-	EnrollAgent                    http.Handler
-	GetClientConfig                http.Handler
-	GetDistributedQueries          http.Handler
-	SubmitDistributedQueryResults  http.Handler
-	SubmitLogs                     http.Handler
-	GetLabel                       http.Handler
-	ListLabels                     http.Handler
-	CreateLabel                    http.Handler
-	DeleteLabel                    http.Handler
-	ModifyLabel                    http.Handler
-	ListDecorators                 http.Handler
-	NewDecorator                   http.Handler
-	ModifyDecorator                http.Handler
-	DeleteDecorator                http.Handler
-	GetHost                        http.Handler
-	DeleteHost                     http.Handler
-	ListHosts                      http.Handler
-	GetHostSummary                 http.Handler
-	SearchTargets                  http.Handler
-	GetOptions                     http.Handler
-	ModifyOptions                  http.Handler
-	ResetOptions                   http.Handler
-	ImportConfig                   http.Handler
-	GetCertificate                 http.Handler
-	ChangeEmail                    http.Handler
-	InitiateSSO                    http.Handler
-	CallbackSSO                    http.Handler
-	SettingsSSO                    http.Handler
-	ModifyFIM                      http.Handler
-	GetFIM                         http.Handler
+	Login                                 http.Handler
+	Logout                                http.Handler
+	ForgotPassword                        http.Handler
+	ResetPassword                         http.Handler
+	Me                                    http.Handler
+	ChangePassword                        http.Handler
+	CreateUser                            http.Handler
+	GetUser                               http.Handler
+	ListUsers                             http.Handler
+	ModifyUser                            http.Handler
+	AdminUser                             http.Handler
+	EnableUser                            http.Handler
+	RequirePasswordReset                  http.Handler
+	PerformRequiredPasswordReset          http.Handler
+	GetSessionsForUserInfo                http.Handler
+	DeleteSessionsForUser                 http.Handler
+	GetSessionInfo                        http.Handler
+	DeleteSession                         http.Handler
+	GetAppConfig                          http.Handler
+	ModifyAppConfig                       http.Handler
+	CreateInvite                          http.Handler
+	ListInvites                           http.Handler
+	DeleteInvite                          http.Handler
+	VerifyInvite                          http.Handler
+	GetQuery                              http.Handler
+	ListQueries                           http.Handler
+	CreateQuery                           http.Handler
+	ModifyQuery                           http.Handler
+	DeleteQuery                           http.Handler
+	DeleteQueries                         http.Handler
+	ApplyQuerySpecs                       http.Handler
+	GetQuerySpecs                         http.Handler
+	GetQuerySpec                          http.Handler
+	CreateDistributedQueryCampaign        http.Handler
+	CreateDistributedQueryCampaignByNames http.Handler
+	GetPack                               http.Handler
+	ListPacks                             http.Handler
+	DeletePack                            http.Handler
+	GetScheduledQueriesInPack             http.Handler
+	ApplyPackSpecs                        http.Handler
+	GetPackSpecs                          http.Handler
+	GetPackSpec                           http.Handler
+	EnrollAgent                           http.Handler
+	GetClientConfig                       http.Handler
+	GetDistributedQueries                 http.Handler
+	SubmitDistributedQueryResults         http.Handler
+	SubmitLogs                            http.Handler
+	GetLabel                              http.Handler
+	ListLabels                            http.Handler
+	DeleteLabel                           http.Handler
+	ApplyLabelSpecs                       http.Handler
+	GetLabelSpecs                         http.Handler
+	GetLabelSpec                          http.Handler
+	GetHost                               http.Handler
+	DeleteHost                            http.Handler
+	ListHosts                             http.Handler
+	GetHostSummary                        http.Handler
+	SearchTargets                         http.Handler
+	GetOptions                            http.Handler
+	ModifyOptions                         http.Handler
+	ResetOptions                          http.Handler
+	ApplyOsqueryOptionsSpec               http.Handler
+	GetOsqueryOptionsSpec                 http.Handler
+	GetCertificate                        http.Handler
+	ChangeEmail                           http.Handler
+	InitiateSSO                           http.Handler
+	CallbackSSO                           http.Handler
+	SettingsSSO                           http.Handler
+	ModifyFIM                             http.Handler
+	GetFIM                                http.Handler
 }
 
 func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *kolideHandlers {
@@ -256,47 +253,48 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		return kithttp.NewServer(e, decodeFn, encodeResponse, opts...)
 	}
 	return &kolideHandlers{
-		Login:                          newServer(e.Login, decodeLoginRequest),
-		Logout:                         newServer(e.Logout, decodeNoParamsRequest),
-		ForgotPassword:                 newServer(e.ForgotPassword, decodeForgotPasswordRequest),
-		ResetPassword:                  newServer(e.ResetPassword, decodeResetPasswordRequest),
-		Me:                             newServer(e.Me, decodeNoParamsRequest),
-		ChangePassword:                 newServer(e.ChangePassword, decodeChangePasswordRequest),
-		CreateUser:                     newServer(e.CreateUser, decodeCreateUserRequest),
-		GetUser:                        newServer(e.GetUser, decodeGetUserRequest),
-		ListUsers:                      newServer(e.ListUsers, decodeListUsersRequest),
-		ModifyUser:                     newServer(e.ModifyUser, decodeModifyUserRequest),
-		RequirePasswordReset:           newServer(e.RequirePasswordReset, decodeRequirePasswordResetRequest),
-		PerformRequiredPasswordReset:   newServer(e.PerformRequiredPasswordReset, decodePerformRequiredPasswordResetRequest),
-		EnableUser:                     newServer(e.EnableUser, decodeEnableUserRequest),
-		AdminUser:                      newServer(e.AdminUser, decodeAdminUserRequest),
-		GetSessionsForUserInfo:         newServer(e.GetSessionsForUserInfo, decodeGetInfoAboutSessionsForUserRequest),
-		DeleteSessionsForUser:          newServer(e.DeleteSessionsForUser, decodeDeleteSessionsForUserRequest),
-		GetSessionInfo:                 newServer(e.GetSessionInfo, decodeGetInfoAboutSessionRequest),
-		DeleteSession:                  newServer(e.DeleteSession, decodeDeleteSessionRequest),
-		GetAppConfig:                   newServer(e.GetAppConfig, decodeNoParamsRequest),
-		ModifyAppConfig:                newServer(e.ModifyAppConfig, decodeModifyAppConfigRequest),
-		CreateInvite:                   newServer(e.CreateInvite, decodeCreateInviteRequest),
-		ListInvites:                    newServer(e.ListInvites, decodeListInvitesRequest),
-		DeleteInvite:                   newServer(e.DeleteInvite, decodeDeleteInviteRequest),
-		VerifyInvite:                   newServer(e.VerifyInvite, decodeVerifyInviteRequest),
-		GetQuery:                       newServer(e.GetQuery, decodeGetQueryRequest),
-		ListQueries:                    newServer(e.ListQueries, decodeListQueriesRequest),
-		CreateQuery:                    newServer(e.CreateQuery, decodeCreateQueryRequest),
-		ModifyQuery:                    newServer(e.ModifyQuery, decodeModifyQueryRequest),
-		DeleteQuery:                    newServer(e.DeleteQuery, decodeDeleteQueryRequest),
-		DeleteQueries:                  newServer(e.DeleteQueries, decodeDeleteQueriesRequest),
-		CreateDistributedQueryCampaign: newServer(e.CreateDistributedQueryCampaign, decodeCreateDistributedQueryCampaignRequest),
+		Login:                                 newServer(e.Login, decodeLoginRequest),
+		Logout:                                newServer(e.Logout, decodeNoParamsRequest),
+		ForgotPassword:                        newServer(e.ForgotPassword, decodeForgotPasswordRequest),
+		ResetPassword:                         newServer(e.ResetPassword, decodeResetPasswordRequest),
+		Me:                                    newServer(e.Me, decodeNoParamsRequest),
+		ChangePassword:                        newServer(e.ChangePassword, decodeChangePasswordRequest),
+		CreateUser:                            newServer(e.CreateUser, decodeCreateUserRequest),
+		GetUser:                               newServer(e.GetUser, decodeGetUserRequest),
+		ListUsers:                             newServer(e.ListUsers, decodeListUsersRequest),
+		ModifyUser:                            newServer(e.ModifyUser, decodeModifyUserRequest),
+		RequirePasswordReset:                  newServer(e.RequirePasswordReset, decodeRequirePasswordResetRequest),
+		PerformRequiredPasswordReset:          newServer(e.PerformRequiredPasswordReset, decodePerformRequiredPasswordResetRequest),
+		EnableUser:                            newServer(e.EnableUser, decodeEnableUserRequest),
+		AdminUser:                             newServer(e.AdminUser, decodeAdminUserRequest),
+		GetSessionsForUserInfo:                newServer(e.GetSessionsForUserInfo, decodeGetInfoAboutSessionsForUserRequest),
+		DeleteSessionsForUser:                 newServer(e.DeleteSessionsForUser, decodeDeleteSessionsForUserRequest),
+		GetSessionInfo:                        newServer(e.GetSessionInfo, decodeGetInfoAboutSessionRequest),
+		DeleteSession:                         newServer(e.DeleteSession, decodeDeleteSessionRequest),
+		GetAppConfig:                          newServer(e.GetAppConfig, decodeNoParamsRequest),
+		ModifyAppConfig:                       newServer(e.ModifyAppConfig, decodeModifyAppConfigRequest),
+		CreateInvite:                          newServer(e.CreateInvite, decodeCreateInviteRequest),
+		ListInvites:                           newServer(e.ListInvites, decodeListInvitesRequest),
+		DeleteInvite:                          newServer(e.DeleteInvite, decodeDeleteInviteRequest),
+		VerifyInvite:                          newServer(e.VerifyInvite, decodeVerifyInviteRequest),
+		GetQuery:                              newServer(e.GetQuery, decodeGetQueryRequest),
+		ListQueries:                           newServer(e.ListQueries, decodeListQueriesRequest),
+		CreateQuery:                           newServer(e.CreateQuery, decodeCreateQueryRequest),
+		ModifyQuery:                           newServer(e.ModifyQuery, decodeModifyQueryRequest),
+		DeleteQuery:                           newServer(e.DeleteQuery, decodeDeleteQueryRequest),
+		DeleteQueries:                         newServer(e.DeleteQueries, decodeDeleteQueriesRequest),
+		ApplyQuerySpecs:                       newServer(e.ApplyQuerySpecs, decodeApplyQuerySpecsRequest),
+		GetQuerySpecs:                         newServer(e.GetQuerySpecs, decodeNoParamsRequest),
+		GetQuerySpec:                          newServer(e.GetQuerySpec, decodeGetGenericSpecRequest),
+		CreateDistributedQueryCampaign:        newServer(e.CreateDistributedQueryCampaign, decodeCreateDistributedQueryCampaignRequest),
+		CreateDistributedQueryCampaignByNames: newServer(e.CreateDistributedQueryCampaignByNames, decodeCreateDistributedQueryCampaignByNamesRequest),
 		GetPack:                       newServer(e.GetPack, decodeGetPackRequest),
 		ListPacks:                     newServer(e.ListPacks, decodeListPacksRequest),
-		CreatePack:                    newServer(e.CreatePack, decodeCreatePackRequest),
-		ModifyPack:                    newServer(e.ModifyPack, decodeModifyPackRequest),
 		DeletePack:                    newServer(e.DeletePack, decodeDeletePackRequest),
-		ScheduleQuery:                 newServer(e.ScheduleQuery, decodeScheduleQueryRequest),
 		GetScheduledQueriesInPack:     newServer(e.GetScheduledQueriesInPack, decodeGetScheduledQueriesInPackRequest),
-		GetScheduledQuery:             newServer(e.GetScheduledQuery, decodeGetScheduledQueryRequest),
-		ModifyScheduledQuery:          newServer(e.ModifyScheduledQuery, decodeModifyScheduledQueryRequest),
-		DeleteScheduledQuery:          newServer(e.DeleteScheduledQuery, decodeDeleteScheduledQueryRequest),
+		ApplyPackSpecs:                newServer(e.ApplyPackSpecs, decodeApplyPackSpecsRequest),
+		GetPackSpecs:                  newServer(e.GetPackSpecs, decodeNoParamsRequest),
+		GetPackSpec:                   newServer(e.GetPackSpec, decodeGetGenericSpecRequest),
 		EnrollAgent:                   newServer(e.EnrollAgent, decodeEnrollAgentRequest),
 		GetClientConfig:               newServer(e.GetClientConfig, decodeGetClientConfigRequest),
 		GetDistributedQueries:         newServer(e.GetDistributedQueries, decodeGetDistributedQueriesRequest),
@@ -304,13 +302,10 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		SubmitLogs:                    newServer(e.SubmitLogs, decodeSubmitLogsRequest),
 		GetLabel:                      newServer(e.GetLabel, decodeGetLabelRequest),
 		ListLabels:                    newServer(e.ListLabels, decodeListLabelsRequest),
-		CreateLabel:                   newServer(e.CreateLabel, decodeCreateLabelRequest),
 		DeleteLabel:                   newServer(e.DeleteLabel, decodeDeleteLabelRequest),
-		ModifyLabel:                   newServer(e.ModifyLabel, decodeModifyLabelRequest),
-		ListDecorators:                newServer(e.ListDecorators, decodeNoParamsRequest),
-		NewDecorator:                  newServer(e.NewDecorator, decodeNewDecoratorRequest),
-		ModifyDecorator:               newServer(e.ModifyDecorator, decodeModifyDecoratorRequest),
-		DeleteDecorator:               newServer(e.DeleteDecorator, decodeDeleteDecoratorRequest),
+		ApplyLabelSpecs:               newServer(e.ApplyLabelSpecs, decodeApplyLabelSpecsRequest),
+		GetLabelSpecs:                 newServer(e.GetLabelSpecs, decodeNoParamsRequest),
+		GetLabelSpec:                  newServer(e.GetLabelSpec, decodeGetGenericSpecRequest),
 		GetHost:                       newServer(e.GetHost, decodeGetHostRequest),
 		DeleteHost:                    newServer(e.DeleteHost, decodeDeleteHostRequest),
 		ListHosts:                     newServer(e.ListHosts, decodeListHostsRequest),
@@ -319,7 +314,8 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		GetOptions:                    newServer(e.GetOptions, decodeNoParamsRequest),
 		ModifyOptions:                 newServer(e.ModifyOptions, decodeModifyOptionsRequest),
 		ResetOptions:                  newServer(e.ResetOptions, decodeNoParamsRequest),
-		ImportConfig:                  newServer(e.ImportConfig, decodeImportConfigRequest),
+		ApplyOsqueryOptionsSpec:       newServer(e.ApplyOsqueryOptionsSpec, decodeApplyOsqueryOptionsSpecRequest),
+		GetOsqueryOptionsSpec:         newServer(e.GetOsqueryOptionsSpec, decodeNoParamsRequest),
 		GetCertificate:                newServer(e.GetCertificate, decodeNoParamsRequest),
 		ChangeEmail:                   newServer(e.ChangeEmail, decodeChangeEmailRequest),
 		InitiateSSO:                   newServer(e.InitiateSSO, decodeInitiateSSORequest),
@@ -406,30 +402,28 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/queries", h.ListQueries).Methods("GET").Name("list_queries")
 	r.Handle("/api/v1/kolide/queries", h.CreateQuery).Methods("POST").Name("create_query")
 	r.Handle("/api/v1/kolide/queries/{id}", h.ModifyQuery).Methods("PATCH").Name("modify_query")
-	r.Handle("/api/v1/kolide/queries/{id}", h.DeleteQuery).Methods("DELETE").Name("delete_query")
+	r.Handle("/api/v1/kolide/queries/{name}", h.DeleteQuery).Methods("DELETE").Name("delete_query")
 	r.Handle("/api/v1/kolide/queries/delete", h.DeleteQueries).Methods("POST").Name("delete_queries")
+	r.Handle("/api/v1/kolide/spec/queries", h.ApplyQuerySpecs).Methods("POST").Name("apply_query_specs")
+	r.Handle("/api/v1/kolide/spec/queries", h.GetQuerySpecs).Methods("GET").Name("get_query_specs")
+	r.Handle("/api/v1/kolide/spec/queries/{name}", h.GetQuerySpec).Methods("GET").Name("get_query_spec")
 	r.Handle("/api/v1/kolide/queries/run", h.CreateDistributedQueryCampaign).Methods("POST").Name("create_distributed_query_campaign")
+	r.Handle("/api/v1/kolide/queries/run_by_names", h.CreateDistributedQueryCampaignByNames).Methods("POST").Name("create_distributed_query_campaign_by_names")
 
 	r.Handle("/api/v1/kolide/packs/{id}", h.GetPack).Methods("GET").Name("get_pack")
 	r.Handle("/api/v1/kolide/packs", h.ListPacks).Methods("GET").Name("list_packs")
-	r.Handle("/api/v1/kolide/packs", h.CreatePack).Methods("POST").Name("create_pack")
-	r.Handle("/api/v1/kolide/packs/{id}", h.ModifyPack).Methods("PATCH").Name("modify_pack")
-	r.Handle("/api/v1/kolide/packs/{id}", h.DeletePack).Methods("DELETE").Name("delete_pack")
+	r.Handle("/api/v1/kolide/packs/{name}", h.DeletePack).Methods("DELETE").Name("delete_pack")
 	r.Handle("/api/v1/kolide/packs/{id}/scheduled", h.GetScheduledQueriesInPack).Methods("GET").Name("get_scheduled_queries_in_pack")
-	r.Handle("/api/v1/kolide/schedule", h.ScheduleQuery).Methods("POST").Name("schedule_query")
-	r.Handle("/api/v1/kolide/schedule/{id}", h.GetScheduledQuery).Methods("GET").Name("get_scheduled_query")
-	r.Handle("/api/v1/kolide/schedule/{id}", h.ModifyScheduledQuery).Methods("PATCH").Name("modify_scheduled_query")
-	r.Handle("/api/v1/kolide/schedule/{id}", h.DeleteScheduledQuery).Methods("DELETE").Name("delete_scheduled_query")
+	r.Handle("/api/v1/kolide/spec/packs", h.ApplyPackSpecs).Methods("POST").Name("apply_pack_specs")
+	r.Handle("/api/v1/kolide/spec/packs", h.GetPackSpecs).Methods("GET").Name("get_pack_specs")
+	r.Handle("/api/v1/kolide/spec/packs/{name}", h.GetPackSpec).Methods("GET").Name("get_pack_spec")
+
 	r.Handle("/api/v1/kolide/labels/{id}", h.GetLabel).Methods("GET").Name("get_label")
 	r.Handle("/api/v1/kolide/labels", h.ListLabels).Methods("GET").Name("list_labels")
-	r.Handle("/api/v1/kolide/labels", h.CreateLabel).Methods("POST").Name("create_label")
-	r.Handle("/api/v1/kolide/labels/{id}", h.DeleteLabel).Methods("DELETE").Name("delete_label")
-	r.Handle("/api/v1/kolide/labels/{id}", h.ModifyLabel).Methods("PATCH").Name("modify_label")
-
-	r.Handle("/api/v1/kolide/decorators", h.ListDecorators).Methods("GET").Name("list_decorators")
-	r.Handle("/api/v1/kolide/decorators", h.NewDecorator).Methods("POST").Name("create_decorator")
-	r.Handle("/api/v1/kolide/decorators/{id}", h.ModifyDecorator).Methods("PATCH").Name("modify_decorator")
-	r.Handle("/api/v1/kolide/decorators/{id}", h.DeleteDecorator).Methods("DELETE").Name("delete_decorator")
+	r.Handle("/api/v1/kolide/labels/{name}", h.DeleteLabel).Methods("DELETE").Name("delete_label")
+	r.Handle("/api/v1/kolide/spec/labels", h.ApplyLabelSpecs).Methods("POST").Name("apply_label_specs")
+	r.Handle("/api/v1/kolide/spec/labels", h.GetLabelSpecs).Methods("GET").Name("get_label_specs")
+	r.Handle("/api/v1/kolide/spec/labels/{name}", h.GetLabelSpec).Methods("GET").Name("get_label_spec")
 
 	r.Handle("/api/v1/kolide/hosts", h.ListHosts).Methods("GET").Name("list_hosts")
 	r.Handle("/api/v1/kolide/host_summary", h.GetHostSummary).Methods("GET").Name("get_host_summary")
@@ -442,10 +436,10 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/options", h.GetOptions).Methods("GET").Name("get_options")
 	r.Handle("/api/v1/kolide/options", h.ModifyOptions).Methods("PATCH").Name("modify_options")
 	r.Handle("/api/v1/kolide/options/reset", h.ResetOptions).Methods("GET").Name("reset_options")
+	r.Handle("/api/v1/kolide/spec/osquery_options", h.ApplyOsqueryOptionsSpec).Methods("POST").Name("apply_osquery_options_spec")
+	r.Handle("/api/v1/kolide/spec/osquery_options", h.GetOsqueryOptionsSpec).Methods("GET").Name("get_osquery_options_spec")
 
 	r.Handle("/api/v1/kolide/targets", h.SearchTargets).Methods("POST").Name("search_targets")
-
-	r.Handle("/api/v1/kolide/osquery/config/import", h.ImportConfig).Methods("POST").Name("import_config")
 
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
 	r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST").Name("get_client_config")

@@ -2,13 +2,69 @@ package mysql
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/kolide/fleet/server/kolide"
 	"github.com/pkg/errors"
 )
 
-func (d *Datastore) QueryByName(name string, opts ...kolide.OptionalArg) (*kolide.Query, bool, error) {
+func (d *Datastore) ApplyQueries(authorID uint, queries []*kolide.Query) (err error) {
+	tx, err := d.db.Begin()
+	if err != nil {
+		return errors.Wrap(err, "begin ApplyQueries transaction")
+	}
+
+	defer func() {
+		if err != nil {
+			rbErr := tx.Rollback()
+			// It seems possible that there might be a case in
+			// which the error we are dealing with here was thrown
+			// by the call to tx.Commit(), and the docs suggest
+			// this call would then result in sql.ErrTxDone.
+			if rbErr != nil && rbErr != sql.ErrTxDone {
+				panic(fmt.Sprintf("got err '%s' rolling back after err '%s'", rbErr, err))
+			}
+		}
+	}()
+
+	sql := `
+		INSERT INTO queries (
+			name,
+			description,
+			query,
+			author_id,
+			saved,
+			deleted
+		) VALUES ( ?, ?, ?, ?, true, false )
+		ON DUPLICATE KEY UPDATE
+			name = VALUES(name),
+			description = VALUES(description),
+			query = VALUES(query),
+			author_id = VALUES(author_id),
+			saved = VALUES(saved),
+			deleted = VALUES(deleted)
+	`
+	stmt, err := tx.Prepare(sql)
+	if err != nil {
+		return errors.Wrap(err, "prepare ApplyQueries insert")
+	}
+
+	for _, q := range queries {
+		if q.Name == "" {
+			return errors.New("query name must not be empty")
+		}
+		_, err := stmt.Exec(q.Name, q.Description, q.Query, authorID)
+		if err != nil {
+			return errors.Wrap(err, "exec ApplyQueries insert")
+		}
+	}
+
+	err = tx.Commit()
+	return errors.Wrap(err, "commit ApplyQueries transaction")
+}
+
+func (d *Datastore) QueryByName(name string, opts ...kolide.OptionalArg) (*kolide.Query, error) {
 	db := d.getTransaction(opts)
 	sqlStatement := `
 		SELECT *
@@ -19,11 +75,16 @@ func (d *Datastore) QueryByName(name string, opts ...kolide.OptionalArg) (*kolid
 	err := db.Get(&query, sqlStatement, name)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, false, nil
+			return nil, notFound("Query").WithName(name)
 		}
-		return nil, false, errors.Wrap(err, "selecting query by name")
+		return nil, errors.Wrap(err, "selecting query by name")
 	}
-	return &query, true, nil
+
+	if err := d.loadPacksForQueries([]*kolide.Query{&query}); err != nil {
+		return nil, errors.Wrap(err, "loading packs for query")
+	}
+
+	return &query, nil
 }
 
 // NewQuery creates a New Query. If a query with the same name was soft-deleted,
@@ -99,8 +160,8 @@ func (d *Datastore) SaveQuery(q *kolide.Query) error {
 }
 
 // DeleteQuery soft deletes Query identified by Query.ID
-func (d *Datastore) DeleteQuery(qid uint) error {
-	return d.deleteEntity("queries", qid)
+func (d *Datastore) DeleteQuery(name string) error {
+	return d.deleteEntityByName("queries", name)
 }
 
 // DeleteQueries (soft) deletes the existing query objects with the provided
@@ -175,7 +236,6 @@ func (d *Datastore) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, error)
 	}
 
 	return results, nil
-
 }
 
 // loadPacksForQueries loads the packs associated with the provided queries
@@ -185,31 +245,31 @@ func (d *Datastore) loadPacksForQueries(queries []*kolide.Query) error {
 	}
 
 	sql := `
-		SELECT p.*, sq.query_id AS query_id
+		SELECT p.*, sq.query_name AS query_name
 		FROM packs p
 		JOIN scheduled_queries sq
 			ON p.id = sq.pack_id
-		WHERE query_id IN (?)
+		WHERE query_name IN (?)
 		AND NOT p.deleted
 	`
 
 	// Used to map the results
-	id_queries := map[uint]*kolide.Query{}
+	name_queries := map[string]*kolide.Query{}
 	// Used for the IN clause
-	ids := []uint{}
+	names := []string{}
 	for _, q := range queries {
 		q.Packs = make([]kolide.Pack, 0)
-		ids = append(ids, q.ID)
-		id_queries[q.ID] = q
+		names = append(names, q.Name)
+		name_queries[q.Name] = q
 	}
 
-	query, args, err := sqlx.In(sql, ids)
+	query, args, err := sqlx.In(sql, names)
 	if err != nil {
 		return errors.Wrap(err, "building query in load packs for queries")
 	}
 
 	rows := []struct {
-		QueryID uint `db:"query_id"`
+		QueryName string `db:"query_name"`
 		kolide.Pack
 	}{}
 
@@ -219,7 +279,7 @@ func (d *Datastore) loadPacksForQueries(queries []*kolide.Query) error {
 	}
 
 	for _, row := range rows {
-		q := id_queries[row.QueryID]
+		q := name_queries[row.QueryName]
 		q.Packs = append(q.Packs, row.Pack)
 	}
 

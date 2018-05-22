@@ -45,8 +45,18 @@ func testDistributedQueryCampaign(t *testing.T, ds kolide.Datastore) {
 	h2 := test.NewHost(t, ds, "bar.local", "192.168.1.11", "2", "2", mockClock.Now().Add(-1*time.Hour))
 	h3 := test.NewHost(t, ds, "baz.local", "192.168.1.12", "3", "3", mockClock.Now().Add(-13*time.Minute))
 
-	l1 := test.NewLabel(t, ds, "label foo", "query foo")
-	l2 := test.NewLabel(t, ds, "label bar", "query foo")
+	l1 := kolide.LabelSpec{
+		ID:    1,
+		Name:  "label foo",
+		Query: "query foo",
+	}
+	l2 := kolide.LabelSpec{
+		ID:    2,
+		Name:  "label bar",
+		Query: "query bar",
+	}
+	err := ds.ApplyLabelSpecs([]*kolide.LabelSpec{&l1, &l2})
+	require.Nil(t, err)
 
 	checkTargets(t, ds, campaign.ID, []uint{}, []uint{})
 

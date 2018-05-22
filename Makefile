@@ -100,7 +100,7 @@ endif
 .pre-fleetctl:
 	$(eval APP_NAME = fleetctl)
 
-build: fleet
+build: fleet fleetctl
 
 fleet: .prefix .pre-build .pre-fleet
 	go build -i -o build/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet

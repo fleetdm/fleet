@@ -2,6 +2,7 @@ package datastore
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"testing"
 	"time"
@@ -411,10 +412,12 @@ func testDistributedQueriesForHost(t *testing.T, ds kolide.Datastore) {
 	assert.Empty(t, queries)
 
 	// Create a label
-	l1, err := ds.NewLabel(&kolide.Label{
+	l1 := kolide.LabelSpec{
+		ID:    1,
 		Name:  "label foo",
 		Query: "query1",
-	})
+	}
+	err = ds.ApplyLabelSpecs([]*kolide.LabelSpec{&l1})
 	require.Nil(t, err)
 
 	// Add hosts to label
@@ -683,4 +686,23 @@ func testFlappingNetworkInterfaces(t *testing.T, ds kolide.Datastore) {
 	host, err = ds.AuthenticateHost(host.NodeKey)
 	require.Nil(t, err)
 	assert.Len(t, host.NetworkInterfaces, 1)
+}
+
+func testHostIDsByName(t *testing.T, ds kolide.Datastore) {
+	for i := 0; i < 10; i++ {
+		_, err := ds.NewHost(&kolide.Host{
+			DetailUpdateTime: time.Now(),
+			SeenTime:         time.Now(),
+			OsqueryHostID:    fmt.Sprintf("host%d", i),
+			NodeKey:          fmt.Sprintf("%d", i),
+			UUID:             fmt.Sprintf("%d", i),
+			HostName:         fmt.Sprintf("foo.%d.local", i),
+		})
+		require.Nil(t, err)
+	}
+
+	hosts, err := ds.HostIDsByName([]string{"foo.2.local", "foo.1.local", "foo.5.local"})
+	require.Nil(t, err)
+	sort.Slice(hosts, func(i, j int) bool { return hosts[i] < hosts[j] })
+	assert.Equal(t, hosts, []uint{2, 3, 6})
 }

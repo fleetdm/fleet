@@ -45,6 +45,10 @@ type CampaignStore interface {
 // methods
 type CampaignService interface {
 	// NewDistributedQueryCampaign creates a new distributed query campaign
+	// with the provided query and host/label targets (specified by name).
+	NewDistributedQueryCampaignByNames(ctx context.Context, queryString string, hosts []string, labels []string) (*DistributedQueryCampaign, error)
+
+	// NewDistributedQueryCampaign creates a new distributed query campaign
 	// with the provided query and host/label targets
 	NewDistributedQueryCampaign(ctx context.Context, queryString string, hosts []uint, labels []uint) (*DistributedQueryCampaign, error)
 

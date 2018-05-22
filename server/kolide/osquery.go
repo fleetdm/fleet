@@ -8,7 +8,7 @@ import (
 type OsqueryService interface {
 	EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string) (nodeKey string, err error)
 	AuthenticateHost(ctx context.Context, nodeKey string) (host *Host, err error)
-	GetClientConfig(ctx context.Context) (config *OsqueryConfig, err error)
+	GetClientConfig(ctx context.Context) (config map[string]interface{}, err error)
 	// GetDistributedQueries retrieves the distributed queries to run for
 	// the host in the provided context. These may be detail queries, label
 	// queries, or user-initiated distributed queries. A map from query
@@ -47,8 +47,15 @@ type QueryContent struct {
 	Shard       *uint   `json:"shard,omitempty"`
 }
 
+type PermissiveQueryContent struct {
+	QueryContent
+	Interval interface{} `json:"interval"`
+}
+
 // Queries is a helper which represents the format of a set of queries in a pack.
 type Queries map[string]QueryContent
+
+type PermissiveQueries map[string]PermissiveQueryContent
 
 // PackContent is the format of an osquery query pack.
 type PackContent struct {
@@ -59,8 +66,18 @@ type PackContent struct {
 	Queries   Queries  `json:"queries"`
 }
 
+type PermissivePackContent struct {
+	Platform  string            `json:"platform,omitempty"`
+	Version   string            `json:"version,omitempty"`
+	Shard     uint              `json:"shard,omitempty"`
+	Discovery []string          `json:"discovery,omitempty"`
+	Queries   PermissiveQueries `json:"queries"`
+}
+
 // Packs is a helper which represents the format of a list of osquery query packs.
 type Packs map[string]PackContent
+
+type PermissivePacks map[string]PermissivePackContent
 
 // Decorators is the format of the decorator configuration in an osquery config.
 type Decorators struct {
@@ -79,4 +96,9 @@ type OsqueryConfig struct {
 	// FilePaths contains named collections of file paths used for
 	// FIM (File Integrity Monitoring)
 	FilePaths FIMSections `json:"file_paths,omitempty"`
+}
+
+type PermissiveOsqueryConfig struct {
+	OsqueryConfig
+	Packs PermissivePacks `jsoon:"packs,omitempty"`
 }

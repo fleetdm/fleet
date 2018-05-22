@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -9,53 +10,94 @@ import (
 	"github.com/pkg/errors"
 )
 
-// NewLabel creates a new kolide.Label
-func (d *Datastore) NewLabel(label *kolide.Label, opts ...kolide.OptionalArg) (*kolide.Label, error) {
-	db := d.getTransaction(opts)
-	var (
-		deletedLabel kolide.Label
-		query        string
-	)
-	err := db.Get(&deletedLabel,
-		"SELECT * FROM labels WHERE name = ? AND deleted", label.Name)
-	switch err {
-	case nil:
-		query = `
-		REPLACE INTO labels (
-			name,
-			description,
-			query,
-			platform,
-			label_type
-		) VALUES ( ?, ?, ?, ?, ?)
-	`
-	case sql.ErrNoRows:
-		query = `
+func (d *Datastore) ApplyLabelSpecs(specs []*kolide.LabelSpec) (err error) {
+	tx, err := d.db.Beginx()
+	if err != nil {
+		return errors.Wrap(err, "begin ApplyLabelSpecs transaction")
+	}
+
+	defer func() {
+		if err != nil {
+			rbErr := tx.Rollback()
+			// It seems possible that there might be a case in
+			// which the error we are dealing with here was thrown
+			// by the call to tx.Commit(), and the docs suggest
+			// this call would then result in sql.ErrTxDone.
+			if rbErr != nil && rbErr != sql.ErrTxDone {
+				panic(fmt.Sprintf("got err '%s' rolling back after err '%s'", rbErr, err))
+			}
+		}
+	}()
+
+	sql := `
 		INSERT INTO labels (
 			name,
 			description,
 			query,
 			platform,
 			label_type
-		) VALUES ( ?, ?, ?, ?, ?)
+		) VALUES ( ?, ?, ?, ?, ? )
+		ON DUPLICATE KEY UPDATE
+			name = VALUES(name),
+			description = VALUES(description),
+			query = VALUES(query),
+			platform = VALUES(platform),
+			label_type = VALUES(label_type),
+			deleted = false
 	`
-	default:
-		return nil, errors.Wrap(err, "check for existing label")
-	}
-	result, err := db.Exec(query, label.Name, label.Description, label.Query, label.Platform, label.LabelType)
+	stmt, err := tx.Prepare(sql)
 	if err != nil {
-		return nil, errors.Wrap(err, "inserting label")
+		return errors.Wrap(err, "prepare ApplyLabelSpecs insert")
 	}
 
-	id, _ := result.LastInsertId()
-	label.ID = uint(id)
-	return label, nil
+	for _, s := range specs {
+		if s.Name == "" {
+			return errors.New("label name must not be empty")
+		}
+		_, err := stmt.Exec(s.Name, s.Description, s.Query, s.Platform, s.LabelType)
+		if err != nil {
+			return errors.Wrap(err, "exec ApplyLabelSpecs insert")
+		}
+	}
 
+	err = tx.Commit()
+	return errors.Wrap(err, "commit ApplyLabelSpecs transaction")
 }
 
-// DeleteLabel soft deletes a kolide.Label
-func (d *Datastore) DeleteLabel(lid uint) error {
-	return d.deleteEntity("labels", lid)
+func (d *Datastore) GetLabelSpecs() ([]*kolide.LabelSpec, error) {
+	var specs []*kolide.LabelSpec
+	// Get basic specs
+	query := "SELECT name, description, query, platform, label_type FROM labels"
+	if err := d.db.Select(&specs, query); err != nil {
+		return nil, errors.Wrap(err, "get labels")
+	}
+
+	return specs, nil
+}
+
+func (d *Datastore) GetLabelSpec(name string) (*kolide.LabelSpec, error) {
+	var specs []*kolide.LabelSpec
+	query := `
+SELECT name, description, query, platform, label_type
+FROM labels
+WHERE name = ?
+`
+	if err := d.db.Select(&specs, query, name); err != nil {
+		return nil, errors.Wrap(err, "get label")
+	}
+	if len(specs) == 0 {
+		return nil, notFound("Label").WithName(name)
+	}
+	if len(specs) > 1 {
+		return nil, errors.Errorf("expected 1 label row, got %d", len(specs))
+	}
+
+	return specs[0], nil
+}
+
+// DeleteLabel deletes a kolide.Label
+func (d *Datastore) DeleteLabel(name string) error {
+	return d.deleteEntityByName("labels", name)
 }
 
 // Label returns a kolide.Label identified by  lid if one exists
@@ -379,16 +421,22 @@ func (d *Datastore) SearchLabels(query string, omit ...uint) ([]kolide.Label, er
 	return matches, nil
 }
 
-func (d *Datastore) SaveLabel(label *kolide.Label) (*kolide.Label, error) {
-	query := `
-		UPDATE labels SET
-			name = ?,
-			description = ?
-		WHERE id = ?
+func (d *Datastore) LabelIDsByName(labels []string) ([]uint, error) {
+	sqlStatement := `
+		SELECT id FROM labels
+		WHERE name IN (?)
 	`
-	_, err := d.db.Exec(query, label.Name, label.Description, label.ID)
+
+	sql, args, err := sqlx.In(sqlStatement, labels)
 	if err != nil {
-		return nil, errors.Wrap(err, "saving label")
+		return nil, errors.Wrap(err, "building query to get host IDs")
 	}
-	return label, nil
+
+	var hostIDs []uint
+	if err := d.db.Select(&hostIDs, sql, args...); err != nil {
+		return nil, errors.Wrap(err, "get host IDs")
+	}
+
+	return hostIDs, nil
+
 }
