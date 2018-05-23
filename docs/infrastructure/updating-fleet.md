@@ -14,24 +14,6 @@ As with any enterprise software update, it's a good idea to back up your MySQL d
 
 Follow the binary update instructions corresponding to the original installation method used to install Fleet.
 
-#### Kolide quickstart script
-
-The quickstart script will automatically update and migrate Fleet when run. In the `kolide-quickstart` directory:
-
-```
-./demo.sh up
-```
-
-Step 2 is performed automatically, so no further action is necessary.
-
-#### Docker container
-
-Pull the latest Fleet docker image:
-
-```
-docker pull kolide/fleet
-```
-
 #### Raw binaries
 
 Download the latest raw Fleet binaries:
@@ -45,14 +27,22 @@ Unzip the binaries for your platform:
 ```
 # For a Darwin compatible binary
 unzip fleet_latest.zip 'darwin/*' -d fleet
-./fleet/darwin/fleet_darwin_amd64 --help
+./fleet/darwin/fleet --help
 
 # For a Linux compatible binary
 unzip fleet_latest.zip 'linux/*' -d fleet
-./fleet/linux/fleet_linux_amd64 --help
+./fleet/linux/fleet --help
 ```
 
 Replace the existing Fleet binary with the newly unzipped binary.
+
+#### Docker container
+
+Pull the latest Fleet docker image:
+
+```
+docker pull kolide/fleet
+```
 
 ## Running database migrations
 
