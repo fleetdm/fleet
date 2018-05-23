@@ -202,11 +202,21 @@ demo-restore:
 		-h ${MYSQL_PORT_3306_TCP_ADDR} kolide \
 		< ./tools/app/demo.sql
 
-binary-bundle: generate .pre-fleet
+.pre-binary-bundle:
 	rm -rf build/binary-bundle
 	mkdir -p build/binary-bundle/linux
 	mkdir -p build/binary-bundle/darwin
-	GOOS=linux go build -i -o build/binary-bundle/linux/${OUTPUT}_linux_amd64 -ldflags ${KIT_VERSION} ./cmd/fleet
-	GOOS=darwin go build -i -o build/binary-bundle/darwin/${OUTPUT}_darwin_amd64 -ldflags ${KIT_VERSION} ./cmd/fleet
-	cd build/binary-bundle && zip -r "fleet_${VERSION}.zip" darwin/ linux/
+
+xp-fleet: .pre-binary-bundle .pre-fleet generate
+	GOOS=linux go build -i -o build/binary-bundle/linux/fleet -ldflags ${KIT_VERSION} ./cmd/fleet
+	GOOS=darwin go build -i -o build/binary-bundle/darwin/fleet -ldflags ${KIT_VERSION} ./cmd/fleet
+	GOOS=windows go build -i -o build/binary-bundle/windows/fleet.exe -ldflags ${KIT_VERSION} ./cmd/fleet
+
+xp-fleetctl: .pre-binary-bundle .pre-fleetctl generate
+	GOOS=linux go build -i -o build/binary-bundle/linux/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
+	GOOS=darwin go build -i -o build/binary-bundle/darwin/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
+	GOOS=windows go build -i -o build/binary-bundle/windows/fleetctl.exe -ldflags ${KIT_VERSION} ./cmd/fleetctl
+
+binary-bundle: xp-fleet xp-fleetctl
+	cd build/binary-bundle && zip -r "fleet_${VERSION}.zip" darwin/ linux/ windows/
 	cp build/binary-bundle/fleet_${VERSION}.zip build/binary-bundle/fleet_latest.zip
