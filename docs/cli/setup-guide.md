@@ -35,8 +35,8 @@ $ fleetctl config set --address https://localhost:8080 --tls-skip-verify
 Now, if you were connecting to a Fleet instance for real, you wouldn't want to skip TLS certificate verification, so you might run something like:
 
 ```
-$ fleetctl config set --address https://fleet.osquery.tools
-[+] Set the address config key to "https://fleet.osquery.tools" in the "default" context
+$ fleetctl config set --address https://fleet.corp.example.com
+[+] Set the address config key to "https://fleet.corp.example.com" in the "default" context
 ```
 
 ## `fleetctl setup`
@@ -152,8 +152,8 @@ Now run a live query again. You should notice results coming back more quickly.
 If you have an existing Fleet instance (version 2.0.0 or above), then simply run `fleet login` (after configuring your local CLI context):
 
 ```
-$ fleetctl config set --address https://fleet.osquery.tools
-[+] Set the address config key to "https://fleet.osquery.tools" in the "default" context
+$ fleetctl config set --address https://fleet.corp.example.com
+[+] Set the address config key to "https://fleet.corp.example.com" in the "default" context
 
 $ fleetctl login
 Log in using the standard Fleet credentials.
