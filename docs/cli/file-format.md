@@ -25,105 +25,6 @@ All of these files can be concatenated together into [one file](../../examples/c
 `-- queries.yml
 ```
 
-## Osquery Configuration Options
-
-The following file describes configuration options passed to the osquery instance. All other configuration data will be over-written by the application of this file.
-
-```yaml
-apiVersion: v1
-kind: options
-spec:
-  config:
-    options:
-      distributed_interval: 3
-      distributed_tls_max_attempts: 3
-      logger_plugin: tls
-      logger_tls_endpoint: /api/v1/osquery/log
-      logger_tls_period: 10
-    decorators:
-      load:
-        - "SELECT version FROM osquery_info"
-        - "SELECT uuid AS host_uuid FROM system_info"
-      always:
-        - "SELECT user AS username FROM logged_in_users WHERE user <> '' ORDER BY time LIMIT 1"
-      interval:
-        3600: "SELECT total_seconds AS uptime FROM uptime"
-  overrides:
-    # Note configs in overrides take precedence over the default config defined
-    # under the config key above. With this config file, the base config would
-    # only be used for Windows hosts, while Mac and Linux hosts would pull
-    # these overrides.
-    platforms:
-      darwin:
-        options:
-          distributed_interval: 10
-          distributed_tls_max_attempts: 10
-          logger_plugin: tls
-          logger_tls_endpoint: /api/v1/osquery/log
-          logger_tls_period: 300
-          disable_tables: chrome_extensions
-          docker_socket: /var/run/docker.sock
-        file_paths:
-          users:
-            - /Users/%/Library/%%
-            - /Users/%/Documents/%%
-          etc:
-            - /etc/%%
-
-      linux:
-        options:
-          distributed_interval: 10
-          distributed_tls_max_attempts: 3
-          logger_plugin: tls
-          logger_tls_endpoint: /api/v1/osquery/log
-          logger_tls_period: 60
-          schedule_timeout: 60
-          docker_socket: /etc/run/docker.sock
-        file_paths:
-          homes:
-            - /root/.ssh/%%
-            - /home/%/.ssh/%%
-          etc:
-            - /etc/%%
-          tmp:
-            - /tmp/%%
-        exclude_paths:
-          homes:
-            - /home/not_to_monitor/.ssh/%%
-          tmp:
-            - /tmp/too_many_events/
-        decorators:
-          load:
-            - "SELECT * FROM cpuid"
-            - "SELECT * FROM docker_info"
-          interval:
-            3600: "SELECT total_seconds AS uptime FROM uptime"
-```
-
-## Host Labels
-
-The following file describes the labels which hosts should be automatically grouped into. The label resource should reference the query by name. Both of these resources can be included in the same file as such:
-
-```yaml
-apiVersion: v1
-kind: label
-spec:
-  name: slack_not_running
-  query: slack_not_running
----
-apiVersion: v1
-kind: query
-spec:
-  name: slack_not_running
-  query: >
-    SELECT * from system_info
-    WHERE NOT EXISTS (
-      SELECT *
-      FROM processes
-      WHERE name LIKE "%Slack%"
-    );
-```
-
 ## Osquery Queries
 
 For especially long or complex queries, you may want to define one query in one file. Continued edits and applications to this file will update the query as long as the `metadata.name` does not change. If you want to change the name of a query, you must first create a new query with the new name and then delete the query with the old name. Make sure the old query name is not defined in any packs before deleting it or an error will occur.
@@ -206,4 +107,97 @@ spec:
     - query: oquery_info
       interval: 600
       removed: false
+```
+
+## Host Labels
+
+The following file describes the labels which hosts should be automatically grouped into. The label resource should include the actual SQL query so that the label is self-contained:
+
+```yaml
+apiVersion: v1
+kind: label
+spec:
+  name: slack_not_running
+  query: >
+    SELECT * from system_info
+    WHERE NOT EXISTS (
+      SELECT *
+      FROM processes
+      WHERE name LIKE "%Slack%"
+    );
+```
+
+## Osquery Configuration Options
+
+The following file describes configuration options passed to the osquery instance. All other configuration data will be over-written by the application of this file.
+
+```yaml
+apiVersion: v1
+kind: options
+spec:
+  config:
+    options:
+      distributed_interval: 3
+      distributed_tls_max_attempts: 3
+      logger_plugin: tls
+      logger_tls_endpoint: /api/v1/osquery/log
+      logger_tls_period: 10
+    decorators:
+      load:
+        - "SELECT version FROM osquery_info"
+        - "SELECT uuid AS host_uuid FROM system_info"
+      always:
+        - "SELECT user AS username FROM logged_in_users WHERE user <> '' ORDER BY time LIMIT 1"
+      interval:
+        3600: "SELECT total_seconds AS uptime FROM uptime"
+  overrides:
+    # Note configs in overrides take precedence over the default config defined
+    # under the config key above. With this config file, the base config would
+    # only be used for Windows hosts, while Mac and Linux hosts would pull
+    # these overrides.
+    platforms:
+      darwin:
+        options:
+          distributed_interval: 10
+          distributed_tls_max_attempts: 10
+          logger_plugin: tls
+          logger_tls_endpoint: /api/v1/osquery/log
+          logger_tls_period: 300
+          disable_tables: chrome_extensions
+          docker_socket: /var/run/docker.sock
+        file_paths:
+          users:
+            - /Users/%/Library/%%
+            - /Users/%/Documents/%%
+          etc:
+            - /etc/%%
+
+      linux:
+        options:
+          distributed_interval: 10
+          distributed_tls_max_attempts: 3
+          logger_plugin: tls
+          logger_tls_endpoint: /api/v1/osquery/log
+          logger_tls_period: 60
+          schedule_timeout: 60
+          docker_socket: /etc/run/docker.sock
+        file_paths:
+          homes:
+            - /root/.ssh/%%
+            - /home/%/.ssh/%%
+          etc:
+            - /etc/%%
+          tmp:
+            - /tmp/%%
+        exclude_paths:
+          homes:
+            - /home/not_to_monitor/.ssh/%%
+          tmp:
+            - /tmp/too_many_events/
+        decorators:
+          load:
+            - "SELECT * FROM cpuid"
+            - "SELECT * FROM docker_info"
+          interval:
+            3600: "SELECT total_seconds AS uptime FROM uptime"
 ```
