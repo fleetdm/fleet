@@ -111,7 +111,7 @@ spec:
   name: slack_not_running
   query: slack_not_running
 ---
-apiVersion: kolide.com/v1/alpha1
+apiVersion: v1
 kind: query
 spec:
   name: slack_not_running
