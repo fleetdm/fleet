@@ -272,7 +272,7 @@ func registerTLS(config config.MysqlConfig) error {
 // provided configuration.
 func generateMysqlConnectionString(conf config.MysqlConfig) string {
 	dsn := fmt.Sprintf(
-		"%s:%s@(%s)/%s?charset=utf8mb4&parseTime=true&loc=UTC&clientFoundRows=true",
+		"%s:%s@(%s)/%s?charset=utf8mb4&parseTime=true&loc=UTC&clientFoundRows=true&allowNativePasswords=true",
 		conf.Username,
 		conf.Password,
 		conf.Address,
