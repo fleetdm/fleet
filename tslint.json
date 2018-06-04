@@ -1,8 +1,9 @@
 {
-  "extends": ["tslint:recommended", "tslint-react" ],
+  "extends": ["tslint:recommended", "tslint-react"],
   "rules": {
     "member-access": false,
     "no-var-requires": false,
-    "quotemark": [true, "single", "avoid-escape"]
+    "quotemark": [true, "single", "avoid-escape"],
+    "no-empty-interface": false
   }
 }

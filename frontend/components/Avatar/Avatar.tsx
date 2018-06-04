@@ -11,12 +11,12 @@ interface IAvatarInterface {
   user: IAvatarUserInterface;
 }
 
-interface IAvatarState {}
+interface IAvatarState { }
 
 const baseClass = 'avatar';
 
 class Avatar extends React.Component<IAvatarInterface, IAvatarState> {
-  render (): JSX.Element {
+  render(): JSX.Element {
     const { className, size, user } = this.props;
     const isSmall = size && size.toLowerCase() === 'small';
     const avatarClasses = classnames(baseClass, className, {

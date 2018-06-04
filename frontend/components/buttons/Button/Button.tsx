@@ -33,7 +33,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
 
   inputs: Inputs = {};
 
-  componentDidMount () {
+  componentDidMount() {
     const { autofocus } = this.props;
     const { inputs: { button } } = this;
 
@@ -64,7 +64,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
     return false;
   }
 
-  render () {
+  render() {
     const { handleClick, setRef } = this;
     const { block, children, className, disabled, size, tabIndex, type, title, variant } = this.props;
     const fullClassName = classnames(baseClass, `${baseClass}--${variant}`, className, {
