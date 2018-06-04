@@ -43,7 +43,11 @@ func (h *LiveQueryResultsHandler) Results() <-chan kolide.DistributedQueryResult
 
 // Totals returns the current metadata of hosts targeted by the query
 func (h *LiveQueryResultsHandler) Totals() *targetTotals {
-	return h.totals.Load().(*targetTotals)
+	t := h.totals.Load()
+	if t != nil {
+		return t.(*targetTotals)
+	}
+	return nil
 }
 
 func (h *LiveQueryResultsHandler) Status() *campaignStatus {
