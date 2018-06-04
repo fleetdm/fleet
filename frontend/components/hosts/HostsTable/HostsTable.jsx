@@ -7,14 +7,24 @@ import PlatformIcon from 'components/icons/PlatformIcon';
 import hostInterface from 'interfaces/host';
 import iconClassForLabel from 'utilities/icon_class_for_label';
 
+import { humanLastSeen } from '../HostDetails/helpers';
+
 const baseClass = 'hosts-table';
 
 const ActionButton = ({ host, onDestroyHost, onQueryHost }) => {
   if (host.status === 'online') {
-    return <Button onClick={onQueryHost(host)} variant="unstyled"><Icon name="query" /></Button>;
+    return (
+      <Button onClick={onQueryHost(host)} variant="unstyled">
+        <Icon name="query" />
+      </Button>
+    );
   }
 
-  return <Button onClick={onDestroyHost(host)} variant="unstyled"><Icon name="trash" /></Button>;
+  return (
+    <Button onClick={onDestroyHost(host)} variant="unstyled">
+      <Icon name="trash" />
+    </Button>
+  );
 };
 
 ActionButton.propTypes = {
@@ -30,24 +40,51 @@ class HostsTable extends Component {
     onQueryHost: PropTypes.func,
   };
 
+  lastSeenTime = (status, seenTime) => {
+    if (status !== 'online') {
+      return `Last Seen: ${humanLastSeen(seenTime)} UTC`;
+    }
+
+    return 'Online';
+  };
+
   renderHost = (host) => {
     const { onDestroyHost, onQueryHost } = this.props;
-    const statusClassName = classnames(`${baseClass}__status`, `${baseClass}__status--${host.status}`);
+    const statusClassName = classnames(
+      `${baseClass}__status`,
+      `${baseClass}__status--${host.status}`
+    );
 
     return (
       <tr key={`host-${host.id}-table`}>
-        <td className={`${baseClass}__hostname`}>{host.hostname}</td>
-        <td className={statusClassName}><Icon name={iconClassForLabel(host.status)} /></td>
-        <td><PlatformIcon name={host.platform} title={host.os_version} /> {host.os_version}</td>
+        <td
+          className={`${baseClass}__hostname`}
+          title={this.lastSeenTime(host.status, host.seen_time)}
+        >
+          {host.hostname}
+        </td>
+        <td className={statusClassName}>
+          <Icon name={iconClassForLabel(host.status)} />
+        </td>
+        <td>
+          <PlatformIcon name={host.platform} title={host.os_version} />{' '}
+          {host.os_version}
+        </td>
         <td>{host.osquery_version}</td>
         <td>{host.host_ip_address}</td>
         <td>{host.host_mac}</td>
-        <td><ActionButton host={host} onDestroyHost={onDestroyHost} onQueryHost={onQueryHost} /></td>
+        <td>
+          <ActionButton
+            host={host}
+            onDestroyHost={onDestroyHost}
+            onQueryHost={onQueryHost}
+          />
+        </td>
       </tr>
     );
-  }
+  };
 
-  render () {
+  render() {
     const { hosts } = this.props;
     const { renderHost } = this;
 

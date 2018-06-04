@@ -17,6 +17,10 @@ export const humanUptime = (uptimeInNanoseconds) => {
   return moment.duration(milliseconds, 'milliseconds').humanize();
 };
 
+export const humanLastSeen = (lastSeen) => {
+  return moment(lastSeen).format('YYYY-MM-DD HH:mm:ss');
+};
+
 export const humanMemory = (bytes) => {
   return `${inGigaBytes(bytes)} GB`;
 };
