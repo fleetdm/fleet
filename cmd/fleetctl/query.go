@@ -19,8 +19,8 @@ type resultOutput struct {
 
 func queryCommand() cli.Command {
 	var (
-		flFilename, flHosts, flLabels, flQuery string
-		flDebug                                bool
+		flHosts, flLabels, flQuery string
+		flDebug                    bool
 	)
 	return cli.Command{
 		Name:      "query",
@@ -29,13 +29,6 @@ func queryCommand() cli.Command {
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
-			cli.StringFlag{
-				Name:        "f",
-				EnvVar:      "FILENAME",
-				Value:       "",
-				Destination: &flFilename,
-				Usage:       "A file to apply",
-			},
 			cli.StringFlag{
 				Name:        "hosts",
 				EnvVar:      "HOSTS",
