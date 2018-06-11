@@ -56,7 +56,10 @@ func makeGetClientConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return getClientConfigResponse{Err: err}, nil
 		}
-		return getClientConfigResponse{Config: config}, nil
+
+		// We return the config here explicitly because osquery exepects the
+		// response for configs to be at the top-level of the JSON response
+		return config, nil
 	}
 }
 
