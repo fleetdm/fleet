@@ -23,8 +23,8 @@
   version = "1.0.0"
 
 [[constraint]]
-  name = "github.com/garyburd/redigo"
-  version = "1.4.0"
+  name = "github.com/gomodule/redigo"
+  version = "2.0.0"
 
 [[constraint]]
   name = "github.com/go-kit/kit"

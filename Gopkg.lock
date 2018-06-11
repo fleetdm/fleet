@@ -73,15 +73,6 @@
   version = "v1.4.7"
 
 [[projects]]
-  name = "github.com/garyburd/redigo"
-  packages = [
-    "internal",
-    "redis"
-  ]
-  revision = "a69d19351219b6dd56f274f96d85a7014a2ec34e"
-  version = "v1.6.0"
-
-[[projects]]
   name = "github.com/ghodss/yaml"
   packages = ["."]
   revision = "0ca9ea5df5451ffdf184b4428c902747c2c11cd7"
@@ -131,6 +122,15 @@
   ]
   revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
   version = "v1.1.0"
+
+[[projects]]
+  name = "github.com/gomodule/redigo"
+  packages = [
+    "internal",
+    "redis"
+  ]
+  revision = "9c11da706d9b7902c6da69c592f75637793fe121"
+  version = "v2.0.0"
 
 [[projects]]
   name = "github.com/google/uuid"
@@ -518,6 +518,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "814581eac74f8110241b3cfb693b245364d99ca14c58b8f2afd51f423867168d"
+  inputs-digest = "955fd47824b6af4291d6a6cde5b57f9713cc335179bf453150255f5d34111bad"
   solver-name = "gps-cdcl"
   solver-version = 1
