@@ -23,7 +23,8 @@ To install Fleet, run the following:
 ```
 $ wget https://dl.kolide.co/bin/fleet_latest.zip
 $ unzip fleet_latest.zip 'linux/*' -d fleet
-$ sudo cp fleet/linux/fleet_linux_amd64 /usr/bin/fleet
+$ sudo cp fleet/linux/fleet /usr/bin/fleet
+$ sudo cp fleet/linux/fleetctl /usr/bin/fleetctl
 ```
 
 ## Installing and configuring dependencies
@@ -144,7 +145,7 @@ If you select "Fetch Kolide Certificate", your browser will download the appropr
 You can also select "Reveal Secret" on that modal and the enrollment secret for your Fleet instance will be revealed. Copy that text and create a file with it's contents:
 
 ```
-$ echo 'LQWzGg9+/yaxxcBUMY7VruDGsJRYULw8' > /var/osquery/enroll_secret
+$ echo 'LQWzGg9+/yaxxcBUMY7VruDGsJRYULw8' | sudo tee /var/osquery/enroll_secret
 ```
 
 Now you're ready to run the `osqueryd` binary:
