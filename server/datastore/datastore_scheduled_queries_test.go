@@ -75,3 +75,45 @@ func testListScheduledQueriesInPack(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, err)
 	require.Len(t, gotQueries, 3)
 }
+
+func testNewScheduledQuery(t *testing.T, ds kolide.Datastore) {
+	u1 := test.NewUser(t, ds, "Admin", "admin", "admin@kolide.co", true)
+	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)
+	p1 := test.NewPack(t, ds, "baz")
+
+	query, err := ds.NewScheduledQuery(&kolide.ScheduledQuery{
+		PackID:  p1.ID,
+		QueryID: q1.ID,
+	})
+	require.Nil(t, err)
+	assert.Equal(t, "foo", query.Name)
+	assert.Equal(t, "select * from time;", query.Query)
+}
+
+func testScheduledQuery(t *testing.T, ds kolide.Datastore) {
+	u1 := test.NewUser(t, ds, "Admin", "admin", "admin@kolide.co", true)
+	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)
+	p1 := test.NewPack(t, ds, "baz")
+	sq1 := test.NewScheduledQuery(t, ds, p1.ID, q1.ID, 60, false, false)
+
+	query, err := ds.ScheduledQuery(sq1.ID)
+	require.Nil(t, err)
+	assert.Equal(t, uint(60), query.Interval)
+}
+
+func testDeleteScheduledQuery(t *testing.T, ds kolide.Datastore) {
+	u1 := test.NewUser(t, ds, "Admin", "admin", "admin@kolide.co", true)
+	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)
+	p1 := test.NewPack(t, ds, "baz")
+	sq1 := test.NewScheduledQuery(t, ds, p1.ID, q1.ID, 60, false, false)
+
+	query, err := ds.ScheduledQuery(sq1.ID)
+	require.Nil(t, err)
+	assert.Equal(t, uint(60), query.Interval)
+
+	err = ds.DeleteScheduledQuery(sq1.ID)
+	require.Nil(t, err)
+
+	_, err = ds.ScheduledQuery(sq1.ID)
+	require.NotNil(t, err)
+}

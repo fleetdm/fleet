@@ -42,7 +42,7 @@ export default {
     valid: (bearerToken, pack) => {
       return createRequestMock({
         bearerToken,
-        endpoint: `/api/v1/kolide/packs/${pack.id}`,
+        endpoint: `/api/v1/kolide/packs/id/${pack.id}`,
         method: 'delete',
         response: {},
       });

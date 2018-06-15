@@ -30,6 +30,9 @@ func (d *Datastore) deleteEntityByName(dbTable string, name string) error {
 	deleteStmt := fmt.Sprintf("DELETE FROM %s WHERE name = ?", dbTable)
 	result, err := d.db.Exec(deleteStmt, name)
 	if err != nil {
+		if isMySQLForeignKey(err) {
+			return foreignKey(dbTable, name)
+		}
 		return errors.Wrap(err, fmt.Sprintf("delete %s", dbTable))
 	}
 	rows, _ := result.RowsAffected()

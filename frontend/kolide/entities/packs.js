@@ -25,7 +25,7 @@ export default (client) => {
     },
     destroy: ({ id }) => {
       const { PACKS } = endpoints;
-      const endpoint = `${client._endpoint(PACKS)}/${id}`;
+      const endpoint = `${client._endpoint(PACKS)}/id/${id}`;
 
       return client.authenticatedDelete(endpoint);
     },

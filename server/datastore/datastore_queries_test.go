@@ -102,7 +102,7 @@ func testGetQueryByName(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, "select * from time", actual.Query)
 
 	actual, err = ds.QueryByName("xxx")
-	assert.Nil(t, err)
+	assert.Error(t, err)
 	assert.True(t, kolide.IsNotFound(err))
 }
 

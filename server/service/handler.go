@@ -44,16 +44,24 @@ type KolideEndpoints struct {
 	CreateQuery                           endpoint.Endpoint
 	ModifyQuery                           endpoint.Endpoint
 	DeleteQuery                           endpoint.Endpoint
+	DeleteQueryByID                       endpoint.Endpoint
 	DeleteQueries                         endpoint.Endpoint
 	ApplyQuerySpecs                       endpoint.Endpoint
 	GetQuerySpecs                         endpoint.Endpoint
 	GetQuerySpec                          endpoint.Endpoint
 	CreateDistributedQueryCampaign        endpoint.Endpoint
 	CreateDistributedQueryCampaignByNames endpoint.Endpoint
+	CreatePack                            endpoint.Endpoint
+	ModifyPack                            endpoint.Endpoint
 	GetPack                               endpoint.Endpoint
 	ListPacks                             endpoint.Endpoint
 	DeletePack                            endpoint.Endpoint
+	DeletePackByID                        endpoint.Endpoint
 	GetScheduledQueriesInPack             endpoint.Endpoint
+	ScheduleQuery                         endpoint.Endpoint
+	GetScheduledQuery                     endpoint.Endpoint
+	ModifyScheduledQuery                  endpoint.Endpoint
+	DeleteScheduledQuery                  endpoint.Endpoint
 	ApplyPackSpecs                        endpoint.Endpoint
 	GetPackSpecs                          endpoint.Endpoint
 	GetPackSpec                           endpoint.Endpoint
@@ -132,39 +140,47 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		CreateQuery:                           authenticatedUser(jwtKey, svc, makeCreateQueryEndpoint(svc)),
 		ModifyQuery:                           authenticatedUser(jwtKey, svc, makeModifyQueryEndpoint(svc)),
 		DeleteQuery:                           authenticatedUser(jwtKey, svc, makeDeleteQueryEndpoint(svc)),
+		DeleteQueryByID:                       authenticatedUser(jwtKey, svc, makeDeleteQueryByIDEndpoint(svc)),
 		DeleteQueries:                         authenticatedUser(jwtKey, svc, makeDeleteQueriesEndpoint(svc)),
 		ApplyQuerySpecs:                       authenticatedUser(jwtKey, svc, makeApplyQuerySpecsEndpoint(svc)),
 		GetQuerySpecs:                         authenticatedUser(jwtKey, svc, makeGetQuerySpecsEndpoint(svc)),
 		GetQuerySpec:                          authenticatedUser(jwtKey, svc, makeGetQuerySpecEndpoint(svc)),
 		CreateDistributedQueryCampaign:        authenticatedUser(jwtKey, svc, makeCreateDistributedQueryCampaignEndpoint(svc)),
 		CreateDistributedQueryCampaignByNames: authenticatedUser(jwtKey, svc, makeCreateDistributedQueryCampaignByNamesEndpoint(svc)),
-		GetPack:                   authenticatedUser(jwtKey, svc, makeGetPackEndpoint(svc)),
-		ListPacks:                 authenticatedUser(jwtKey, svc, makeListPacksEndpoint(svc)),
-		DeletePack:                authenticatedUser(jwtKey, svc, makeDeletePackEndpoint(svc)),
-		GetScheduledQueriesInPack: authenticatedUser(jwtKey, svc, makeGetScheduledQueriesInPackEndpoint(svc)),
-		ApplyPackSpecs:            authenticatedUser(jwtKey, svc, makeApplyPackSpecsEndpoint(svc)),
-		GetPackSpecs:              authenticatedUser(jwtKey, svc, makeGetPackSpecsEndpoint(svc)),
-		GetPackSpec:               authenticatedUser(jwtKey, svc, makeGetPackSpecEndpoint(svc)),
-		GetHost:                   authenticatedUser(jwtKey, svc, makeGetHostEndpoint(svc)),
-		ListHosts:                 authenticatedUser(jwtKey, svc, makeListHostsEndpoint(svc)),
-		GetHostSummary:            authenticatedUser(jwtKey, svc, makeGetHostSummaryEndpoint(svc)),
-		DeleteHost:                authenticatedUser(jwtKey, svc, makeDeleteHostEndpoint(svc)),
-		GetLabel:                  authenticatedUser(jwtKey, svc, makeGetLabelEndpoint(svc)),
-		ListLabels:                authenticatedUser(jwtKey, svc, makeListLabelsEndpoint(svc)),
-		DeleteLabel:               authenticatedUser(jwtKey, svc, makeDeleteLabelEndpoint(svc)),
-		ApplyLabelSpecs:           authenticatedUser(jwtKey, svc, makeApplyLabelSpecsEndpoint(svc)),
-		GetLabelSpecs:             authenticatedUser(jwtKey, svc, makeGetLabelSpecsEndpoint(svc)),
-		GetLabelSpec:              authenticatedUser(jwtKey, svc, makeGetLabelSpecEndpoint(svc)),
-		SearchTargets:             authenticatedUser(jwtKey, svc, makeSearchTargetsEndpoint(svc)),
-		GetOptions:                authenticatedUser(jwtKey, svc, mustBeAdmin(makeGetOptionsEndpoint(svc))),
-		ModifyOptions:             authenticatedUser(jwtKey, svc, mustBeAdmin(makeModifyOptionsEndpoint(svc))),
-		ResetOptions:              authenticatedUser(jwtKey, svc, mustBeAdmin(makeResetOptionsEndpoint(svc))),
-		ApplyOsqueryOptionsSpec:   authenticatedUser(jwtKey, svc, makeApplyOsqueryOptionsSpecEndpoint(svc)),
-		GetOsqueryOptionsSpec:     authenticatedUser(jwtKey, svc, makeGetOsqueryOptionsSpecEndpoint(svc)),
-		GetCertificate:            authenticatedUser(jwtKey, svc, makeCertificateEndpoint(svc)),
-		ChangeEmail:               authenticatedUser(jwtKey, svc, makeChangeEmailEndpoint(svc)),
-		GetFIM:                    authenticatedUser(jwtKey, svc, makeGetFIMEndpoint(svc)),
-		ModifyFIM:                 authenticatedUser(jwtKey, svc, makeModifyFIMEndpoint(svc)),
+		CreatePack:                            authenticatedUser(jwtKey, svc, makeCreatePackEndpoint(svc)),
+		ModifyPack:                            authenticatedUser(jwtKey, svc, makeModifyPackEndpoint(svc)),
+		GetPack:                               authenticatedUser(jwtKey, svc, makeGetPackEndpoint(svc)),
+		ListPacks:                             authenticatedUser(jwtKey, svc, makeListPacksEndpoint(svc)),
+		DeletePack:                            authenticatedUser(jwtKey, svc, makeDeletePackEndpoint(svc)),
+		DeletePackByID:                        authenticatedUser(jwtKey, svc, makeDeletePackByIDEndpoint(svc)),
+		GetScheduledQueriesInPack:             authenticatedUser(jwtKey, svc, makeGetScheduledQueriesInPackEndpoint(svc)),
+		ScheduleQuery:                         authenticatedUser(jwtKey, svc, makeScheduleQueryEndpoint(svc)),
+		GetScheduledQuery:                     authenticatedUser(jwtKey, svc, makeGetScheduledQueryEndpoint(svc)),
+		ModifyScheduledQuery:                  authenticatedUser(jwtKey, svc, makeModifyScheduledQueryEndpoint(svc)),
+		DeleteScheduledQuery:                  authenticatedUser(jwtKey, svc, makeDeleteScheduledQueryEndpoint(svc)),
+		ApplyPackSpecs:                        authenticatedUser(jwtKey, svc, makeApplyPackSpecsEndpoint(svc)),
+		GetPackSpecs:                          authenticatedUser(jwtKey, svc, makeGetPackSpecsEndpoint(svc)),
+		GetPackSpec:                           authenticatedUser(jwtKey, svc, makeGetPackSpecEndpoint(svc)),
+		GetHost:                               authenticatedUser(jwtKey, svc, makeGetHostEndpoint(svc)),
+		ListHosts:                             authenticatedUser(jwtKey, svc, makeListHostsEndpoint(svc)),
+		GetHostSummary:                        authenticatedUser(jwtKey, svc, makeGetHostSummaryEndpoint(svc)),
+		DeleteHost:                            authenticatedUser(jwtKey, svc, makeDeleteHostEndpoint(svc)),
+		GetLabel:                              authenticatedUser(jwtKey, svc, makeGetLabelEndpoint(svc)),
+		ListLabels:                            authenticatedUser(jwtKey, svc, makeListLabelsEndpoint(svc)),
+		DeleteLabel:                           authenticatedUser(jwtKey, svc, makeDeleteLabelEndpoint(svc)),
+		ApplyLabelSpecs:                       authenticatedUser(jwtKey, svc, makeApplyLabelSpecsEndpoint(svc)),
+		GetLabelSpecs:                         authenticatedUser(jwtKey, svc, makeGetLabelSpecsEndpoint(svc)),
+		GetLabelSpec:                          authenticatedUser(jwtKey, svc, makeGetLabelSpecEndpoint(svc)),
+		SearchTargets:                         authenticatedUser(jwtKey, svc, makeSearchTargetsEndpoint(svc)),
+		GetOptions:                            authenticatedUser(jwtKey, svc, mustBeAdmin(makeGetOptionsEndpoint(svc))),
+		ModifyOptions:                         authenticatedUser(jwtKey, svc, mustBeAdmin(makeModifyOptionsEndpoint(svc))),
+		ResetOptions:                          authenticatedUser(jwtKey, svc, mustBeAdmin(makeResetOptionsEndpoint(svc))),
+		ApplyOsqueryOptionsSpec:               authenticatedUser(jwtKey, svc, makeApplyOsqueryOptionsSpecEndpoint(svc)),
+		GetOsqueryOptionsSpec:                 authenticatedUser(jwtKey, svc, makeGetOsqueryOptionsSpecEndpoint(svc)),
+		GetCertificate:                        authenticatedUser(jwtKey, svc, makeCertificateEndpoint(svc)),
+		ChangeEmail:                           authenticatedUser(jwtKey, svc, makeChangeEmailEndpoint(svc)),
+		GetFIM:                                authenticatedUser(jwtKey, svc, makeGetFIMEndpoint(svc)),
+		ModifyFIM:                             authenticatedUser(jwtKey, svc, makeModifyFIMEndpoint(svc)),
 
 		// Osquery endpoints
 		EnrollAgent:                   makeEnrollAgentEndpoint(svc),
@@ -205,16 +221,24 @@ type kolideHandlers struct {
 	CreateQuery                           http.Handler
 	ModifyQuery                           http.Handler
 	DeleteQuery                           http.Handler
+	DeleteQueryByID                       http.Handler
 	DeleteQueries                         http.Handler
 	ApplyQuerySpecs                       http.Handler
 	GetQuerySpecs                         http.Handler
 	GetQuerySpec                          http.Handler
 	CreateDistributedQueryCampaign        http.Handler
 	CreateDistributedQueryCampaignByNames http.Handler
+	CreatePack                            http.Handler
+	ModifyPack                            http.Handler
 	GetPack                               http.Handler
 	ListPacks                             http.Handler
 	DeletePack                            http.Handler
+	DeletePackByID                        http.Handler
 	GetScheduledQueriesInPack             http.Handler
+	ScheduleQuery                         http.Handler
+	GetScheduledQuery                     http.Handler
+	ModifyScheduledQuery                  http.Handler
+	DeleteScheduledQuery                  http.Handler
 	ApplyPackSpecs                        http.Handler
 	GetPackSpecs                          http.Handler
 	GetPackSpec                           http.Handler
@@ -282,47 +306,55 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		CreateQuery:                           newServer(e.CreateQuery, decodeCreateQueryRequest),
 		ModifyQuery:                           newServer(e.ModifyQuery, decodeModifyQueryRequest),
 		DeleteQuery:                           newServer(e.DeleteQuery, decodeDeleteQueryRequest),
+		DeleteQueryByID:                       newServer(e.DeleteQueryByID, decodeDeleteQueryByIDRequest),
 		DeleteQueries:                         newServer(e.DeleteQueries, decodeDeleteQueriesRequest),
 		ApplyQuerySpecs:                       newServer(e.ApplyQuerySpecs, decodeApplyQuerySpecsRequest),
 		GetQuerySpecs:                         newServer(e.GetQuerySpecs, decodeNoParamsRequest),
 		GetQuerySpec:                          newServer(e.GetQuerySpec, decodeGetGenericSpecRequest),
 		CreateDistributedQueryCampaign:        newServer(e.CreateDistributedQueryCampaign, decodeCreateDistributedQueryCampaignRequest),
 		CreateDistributedQueryCampaignByNames: newServer(e.CreateDistributedQueryCampaignByNames, decodeCreateDistributedQueryCampaignByNamesRequest),
-		GetPack:                       newServer(e.GetPack, decodeGetPackRequest),
-		ListPacks:                     newServer(e.ListPacks, decodeListPacksRequest),
-		DeletePack:                    newServer(e.DeletePack, decodeDeletePackRequest),
-		GetScheduledQueriesInPack:     newServer(e.GetScheduledQueriesInPack, decodeGetScheduledQueriesInPackRequest),
-		ApplyPackSpecs:                newServer(e.ApplyPackSpecs, decodeApplyPackSpecsRequest),
-		GetPackSpecs:                  newServer(e.GetPackSpecs, decodeNoParamsRequest),
-		GetPackSpec:                   newServer(e.GetPackSpec, decodeGetGenericSpecRequest),
-		EnrollAgent:                   newServer(e.EnrollAgent, decodeEnrollAgentRequest),
-		GetClientConfig:               newServer(e.GetClientConfig, decodeGetClientConfigRequest),
-		GetDistributedQueries:         newServer(e.GetDistributedQueries, decodeGetDistributedQueriesRequest),
-		SubmitDistributedQueryResults: newServer(e.SubmitDistributedQueryResults, decodeSubmitDistributedQueryResultsRequest),
-		SubmitLogs:                    newServer(e.SubmitLogs, decodeSubmitLogsRequest),
-		GetLabel:                      newServer(e.GetLabel, decodeGetLabelRequest),
-		ListLabels:                    newServer(e.ListLabels, decodeListLabelsRequest),
-		DeleteLabel:                   newServer(e.DeleteLabel, decodeDeleteLabelRequest),
-		ApplyLabelSpecs:               newServer(e.ApplyLabelSpecs, decodeApplyLabelSpecsRequest),
-		GetLabelSpecs:                 newServer(e.GetLabelSpecs, decodeNoParamsRequest),
-		GetLabelSpec:                  newServer(e.GetLabelSpec, decodeGetGenericSpecRequest),
-		GetHost:                       newServer(e.GetHost, decodeGetHostRequest),
-		DeleteHost:                    newServer(e.DeleteHost, decodeDeleteHostRequest),
-		ListHosts:                     newServer(e.ListHosts, decodeListHostsRequest),
-		GetHostSummary:                newServer(e.GetHostSummary, decodeNoParamsRequest),
-		SearchTargets:                 newServer(e.SearchTargets, decodeSearchTargetsRequest),
-		GetOptions:                    newServer(e.GetOptions, decodeNoParamsRequest),
-		ModifyOptions:                 newServer(e.ModifyOptions, decodeModifyOptionsRequest),
-		ResetOptions:                  newServer(e.ResetOptions, decodeNoParamsRequest),
-		ApplyOsqueryOptionsSpec:       newServer(e.ApplyOsqueryOptionsSpec, decodeApplyOsqueryOptionsSpecRequest),
-		GetOsqueryOptionsSpec:         newServer(e.GetOsqueryOptionsSpec, decodeNoParamsRequest),
-		GetCertificate:                newServer(e.GetCertificate, decodeNoParamsRequest),
-		ChangeEmail:                   newServer(e.ChangeEmail, decodeChangeEmailRequest),
-		InitiateSSO:                   newServer(e.InitiateSSO, decodeInitiateSSORequest),
-		CallbackSSO:                   newServer(e.CallbackSSO, decodeCallbackSSORequest),
-		SettingsSSO:                   newServer(e.SSOSettings, decodeNoParamsRequest),
-		ModifyFIM:                     newServer(e.ModifyFIM, decodeModifyFIMRequest),
-		GetFIM:                        newServer(e.GetFIM, decodeNoParamsRequest),
+		CreatePack:                            newServer(e.CreatePack, decodeCreatePackRequest),
+		ModifyPack:                            newServer(e.ModifyPack, decodeModifyPackRequest),
+		GetPack:                               newServer(e.GetPack, decodeGetPackRequest),
+		ListPacks:                             newServer(e.ListPacks, decodeListPacksRequest),
+		DeletePack:                            newServer(e.DeletePack, decodeDeletePackRequest),
+		DeletePackByID:                        newServer(e.DeletePackByID, decodeDeletePackByIDRequest),
+		GetScheduledQueriesInPack:             newServer(e.GetScheduledQueriesInPack, decodeGetScheduledQueriesInPackRequest),
+		ScheduleQuery:                         newServer(e.ScheduleQuery, decodeScheduleQueryRequest),
+		GetScheduledQuery:                     newServer(e.GetScheduledQuery, decodeGetScheduledQueryRequest),
+		ModifyScheduledQuery:                  newServer(e.ModifyScheduledQuery, decodeModifyScheduledQueryRequest),
+		DeleteScheduledQuery:                  newServer(e.DeleteScheduledQuery, decodeDeleteScheduledQueryRequest),
+		ApplyPackSpecs:                        newServer(e.ApplyPackSpecs, decodeApplyPackSpecsRequest),
+		GetPackSpecs:                          newServer(e.GetPackSpecs, decodeNoParamsRequest),
+		GetPackSpec:                           newServer(e.GetPackSpec, decodeGetGenericSpecRequest),
+		EnrollAgent:                           newServer(e.EnrollAgent, decodeEnrollAgentRequest),
+		GetClientConfig:                       newServer(e.GetClientConfig, decodeGetClientConfigRequest),
+		GetDistributedQueries:                 newServer(e.GetDistributedQueries, decodeGetDistributedQueriesRequest),
+		SubmitDistributedQueryResults:         newServer(e.SubmitDistributedQueryResults, decodeSubmitDistributedQueryResultsRequest),
+		SubmitLogs:                            newServer(e.SubmitLogs, decodeSubmitLogsRequest),
+		GetLabel:                              newServer(e.GetLabel, decodeGetLabelRequest),
+		ListLabels:                            newServer(e.ListLabels, decodeListLabelsRequest),
+		DeleteLabel:                           newServer(e.DeleteLabel, decodeDeleteLabelRequest),
+		ApplyLabelSpecs:                       newServer(e.ApplyLabelSpecs, decodeApplyLabelSpecsRequest),
+		GetLabelSpecs:                         newServer(e.GetLabelSpecs, decodeNoParamsRequest),
+		GetLabelSpec:                          newServer(e.GetLabelSpec, decodeGetGenericSpecRequest),
+		GetHost:                               newServer(e.GetHost, decodeGetHostRequest),
+		DeleteHost:                            newServer(e.DeleteHost, decodeDeleteHostRequest),
+		ListHosts:                             newServer(e.ListHosts, decodeListHostsRequest),
+		GetHostSummary:                        newServer(e.GetHostSummary, decodeNoParamsRequest),
+		SearchTargets:                         newServer(e.SearchTargets, decodeSearchTargetsRequest),
+		GetOptions:                            newServer(e.GetOptions, decodeNoParamsRequest),
+		ModifyOptions:                         newServer(e.ModifyOptions, decodeModifyOptionsRequest),
+		ResetOptions:                          newServer(e.ResetOptions, decodeNoParamsRequest),
+		ApplyOsqueryOptionsSpec:               newServer(e.ApplyOsqueryOptionsSpec, decodeApplyOsqueryOptionsSpecRequest),
+		GetOsqueryOptionsSpec:                 newServer(e.GetOsqueryOptionsSpec, decodeNoParamsRequest),
+		GetCertificate:                        newServer(e.GetCertificate, decodeNoParamsRequest),
+		ChangeEmail:                           newServer(e.ChangeEmail, decodeChangeEmailRequest),
+		InitiateSSO:                           newServer(e.InitiateSSO, decodeInitiateSSORequest),
+		CallbackSSO:                           newServer(e.CallbackSSO, decodeCallbackSSORequest),
+		SettingsSSO:                           newServer(e.SSOSettings, decodeNoParamsRequest),
+		ModifyFIM:                             newServer(e.ModifyFIM, decodeModifyFIMRequest),
+		GetFIM:                                newServer(e.GetFIM, decodeNoParamsRequest),
 	}
 }
 
@@ -403,6 +435,7 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/queries", h.CreateQuery).Methods("POST").Name("create_query")
 	r.Handle("/api/v1/kolide/queries/{id}", h.ModifyQuery).Methods("PATCH").Name("modify_query")
 	r.Handle("/api/v1/kolide/queries/{name}", h.DeleteQuery).Methods("DELETE").Name("delete_query")
+	r.Handle("/api/v1/kolide/queries/id/{id}", h.DeleteQueryByID).Methods("DELETE").Name("delete_query_by_id")
 	r.Handle("/api/v1/kolide/queries/delete", h.DeleteQueries).Methods("POST").Name("delete_queries")
 	r.Handle("/api/v1/kolide/spec/queries", h.ApplyQuerySpecs).Methods("POST").Name("apply_query_specs")
 	r.Handle("/api/v1/kolide/spec/queries", h.GetQuerySpecs).Methods("GET").Name("get_query_specs")
@@ -410,10 +443,17 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/queries/run", h.CreateDistributedQueryCampaign).Methods("POST").Name("create_distributed_query_campaign")
 	r.Handle("/api/v1/kolide/queries/run_by_names", h.CreateDistributedQueryCampaignByNames).Methods("POST").Name("create_distributed_query_campaign_by_names")
 
+	r.Handle("/api/v1/kolide/packs", h.CreatePack).Methods("POST").Name("create_pack")
+	r.Handle("/api/v1/kolide/packs/{id}", h.ModifyPack).Methods("PATCH").Name("modify_pack")
 	r.Handle("/api/v1/kolide/packs/{id}", h.GetPack).Methods("GET").Name("get_pack")
 	r.Handle("/api/v1/kolide/packs", h.ListPacks).Methods("GET").Name("list_packs")
 	r.Handle("/api/v1/kolide/packs/{name}", h.DeletePack).Methods("DELETE").Name("delete_pack")
+	r.Handle("/api/v1/kolide/packs/id/{id}", h.DeletePackByID).Methods("DELETE").Name("delete_pack_by_id")
 	r.Handle("/api/v1/kolide/packs/{id}/scheduled", h.GetScheduledQueriesInPack).Methods("GET").Name("get_scheduled_queries_in_pack")
+	r.Handle("/api/v1/kolide/schedule", h.ScheduleQuery).Methods("POST").Name("schedule_query")
+	r.Handle("/api/v1/kolide/schedule/{id}", h.GetScheduledQuery).Methods("GET").Name("get_scheduled_query")
+	r.Handle("/api/v1/kolide/schedule/{id}", h.ModifyScheduledQuery).Methods("PATCH").Name("modify_scheduled_query")
+	r.Handle("/api/v1/kolide/schedule/{id}", h.DeleteScheduledQuery).Methods("DELETE").Name("delete_scheduled_query")
 	r.Handle("/api/v1/kolide/spec/packs", h.ApplyPackSpecs).Methods("POST").Name("apply_pack_specs")
 	r.Handle("/api/v1/kolide/spec/packs", h.GetPackSpecs).Methods("GET").Name("get_pack_specs")
 	r.Handle("/api/v1/kolide/spec/packs/{name}", h.GetPackSpec).Methods("GET").Name("get_pack_spec")

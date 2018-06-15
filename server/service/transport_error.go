@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+
+	"github.com/kolide/fleet/server/kolide"
+	"github.com/pkg/errors"
 )
 
 // erroer interface is implemented by response structs to encode business logic errors
@@ -77,6 +80,16 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		}
 		w.WriteHeader(http.StatusForbidden)
 		enc.Encode(pe)
+		return
+	}
+
+	if kolide.IsForeignKey(errors.Cause(err)) {
+		ve := jsonError{
+			Message: "Validation Failed",
+			Errors:  baseError(err.Error()),
+		}
+		w.WriteHeader(http.StatusForbidden)
+		enc.Encode(ve)
 		return
 	}
 

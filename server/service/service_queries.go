@@ -127,6 +127,15 @@ func (svc service) DeleteQuery(ctx context.Context, name string) error {
 	return svc.ds.DeleteQuery(name)
 }
 
+func (svc service) DeleteQueryByID(ctx context.Context, id uint) error {
+	query, err := svc.ds.Query(id)
+	if err != nil {
+		return errors.Wrap(err, "lookup query by ID")
+	}
+
+	return errors.Wrap(svc.ds.DeleteQuery(query.Name), "delete query")
+}
+
 func (svc service) DeleteQueries(ctx context.Context, ids []uint) (uint, error) {
 	return svc.ds.DeleteQueries(ids)
 }

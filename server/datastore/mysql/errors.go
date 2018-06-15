@@ -80,3 +80,32 @@ func isDuplicate(err error) bool {
 	}
 	return false
 }
+
+type foreignKeyError struct {
+	Name         string
+	ResourceType string
+}
+
+func foreignKey(kind string, name string) error {
+	return &foreignKeyError{
+		Name:         name,
+		ResourceType: kind,
+	}
+}
+
+func (e *foreignKeyError) Error() string {
+	return fmt.Sprintf("the operation violates a foreign key constraint on %s: %s", e.ResourceType, e.Name)
+}
+
+func (e *foreignKeyError) IsForeignKey() bool {
+	return true
+}
+
+func isMySQLForeignKey(err error) bool {
+	if driverErr, ok := err.(*mysql.MySQLError); ok {
+		if driverErr.Number == mysqlerr.ER_ROW_IS_REFERENCED_2 {
+			return true
+		}
+	}
+	return false
+}

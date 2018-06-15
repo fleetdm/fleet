@@ -142,6 +142,31 @@ func makeDeleteQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Delete Query By ID
+////////////////////////////////////////////////////////////////////////////////
+
+type deleteQueryByIDRequest struct {
+	ID uint
+}
+
+type deleteQueryByIDResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteQueryByIDResponse) error() error { return r.Err }
+
+func makeDeleteQueryByIDEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(deleteQueryByIDRequest)
+		err := svc.DeleteQueryByID(ctx, req.ID)
+		if err != nil {
+			return deleteQueryByIDResponse{Err: err}, nil
+		}
+		return deleteQueryByIDResponse{}, nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Delete Queries
 ////////////////////////////////////////////////////////////////////////////////
 

@@ -53,6 +53,8 @@ type QueryService interface {
 	NewQuery(ctx context.Context, p QueryPayload) (*Query, error)
 	ModifyQuery(ctx context.Context, id uint, p QueryPayload) (*Query, error)
 	DeleteQuery(ctx context.Context, name string) error
+	// For backwards compatibility with UI
+	DeleteQueryByID(ctx context.Context, id uint) error
 	// DeleteQueries (soft) deletes the existing query objects with the
 	// provided IDs. The number of deleted queries is returned along with
 	// any error.

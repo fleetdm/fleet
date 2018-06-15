@@ -59,4 +59,19 @@ type AlreadyExistsError interface {
 	IsExists() bool
 }
 
+// ForeignKeyError is returned when the operation fails due to foreign key
+// constraints.
+type ForeignKeyError interface {
+	error
+	IsForeignKey() bool
+}
+
+func IsForeignKey(err error) bool {
+	e, ok := err.(ForeignKeyError)
+	if !ok {
+		return false
+	}
+	return e.IsForeignKey()
+}
+
 type OptionalArg func() interface{}

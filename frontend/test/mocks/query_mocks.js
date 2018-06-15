@@ -27,7 +27,7 @@ export default {
     valid: (bearerToken, { id }) => {
       return createRequestMock({
         bearerToken,
-        endpoint: `/api/v1/kolide/queries/${id}`,
+        endpoint: `/api/v1/kolide/queries/id/${id}`,
         method: 'delete',
         response: {},
       });
@@ -87,4 +87,3 @@ export default {
     },
   },
 };
-

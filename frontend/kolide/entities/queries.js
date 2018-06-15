@@ -9,8 +9,9 @@ export default (client) => {
         .then(response => response.query);
     },
     destroy: ({ id }) => {
+      console.log('foobar');
       const { QUERIES } = endpoints;
-      const endpoint = `${client._endpoint(QUERIES)}/${id}`;
+      const endpoint = `${client._endpoint(QUERIES)}/id/${id}`;
 
       return client.authenticatedDelete(endpoint);
     },

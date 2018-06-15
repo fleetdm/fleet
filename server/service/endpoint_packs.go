@@ -126,6 +126,75 @@ func makeListPacksEndpoint(svc kolide.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Create Pack
+////////////////////////////////////////////////////////////////////////////////
+
+type createPackRequest struct {
+	payload kolide.PackPayload
+}
+
+type createPackResponse struct {
+	Pack packResponse `json:"pack,omitempty"`
+	Err  error        `json:"error,omitempty"`
+}
+
+func (r createPackResponse) error() error { return r.Err }
+
+func makeCreatePackEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(createPackRequest)
+		pack, err := svc.NewPack(ctx, req.payload)
+		if err != nil {
+			return createPackResponse{Err: err}, nil
+		}
+
+		resp, err := packResponseForPack(ctx, svc, *pack)
+		if err != nil {
+			return createPackResponse{Err: err}, nil
+		}
+
+		return createPackResponse{
+			Pack: *resp,
+		}, nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Modify Pack
+////////////////////////////////////////////////////////////////////////////////
+
+type modifyPackRequest struct {
+	ID      uint
+	payload kolide.PackPayload
+}
+
+type modifyPackResponse struct {
+	Pack packResponse `json:"pack,omitempty"`
+	Err  error        `json:"error,omitempty"`
+}
+
+func (r modifyPackResponse) error() error { return r.Err }
+
+func makeModifyPackEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(modifyPackRequest)
+		pack, err := svc.ModifyPack(ctx, req.ID, req.payload)
+		if err != nil {
+			return modifyPackResponse{Err: err}, nil
+		}
+
+		resp, err := packResponseForPack(ctx, svc, *pack)
+		if err != nil {
+			return modifyPackResponse{Err: err}, nil
+		}
+
+		return modifyPackResponse{
+			Pack: *resp,
+		}, nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Delete Pack
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -147,6 +216,31 @@ func makeDeletePackEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return deletePackResponse{Err: err}, nil
 		}
 		return deletePackResponse{}, nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Delete Pack By ID
+////////////////////////////////////////////////////////////////////////////////
+
+type deletePackByIDRequest struct {
+	ID uint
+}
+
+type deletePackByIDResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deletePackByIDResponse) error() error { return r.Err }
+
+func makeDeletePackByIDEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(deletePackByIDRequest)
+		err := svc.DeletePackByID(ctx, req.ID)
+		if err != nil {
+			return deletePackByIDResponse{Err: err}, nil
+		}
+		return deletePackByIDResponse{}, nil
 	}
 }
 

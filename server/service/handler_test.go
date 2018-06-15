@@ -135,6 +135,17 @@ func TestAPIRoutes(t *testing.T) {
 		},
 		{
 			verb: "POST",
+			uri:  "/api/v1/kolide/schedule",
+		},
+		{
+			verb: "DELETE",
+			uri:  "/api/v1/kolide/schedule/1",
+		},
+		{
+			verb: "PATCH",
+			uri:  "/api/v1/kolide/schedule/1",
+		}, {
+			verb: "POST",
 			uri:  "/api/v1/osquery/enroll",
 		},
 		{
