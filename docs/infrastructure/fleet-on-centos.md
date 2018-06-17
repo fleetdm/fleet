@@ -23,7 +23,7 @@ To install Fleet, run the following:
 ```
 $ wget https://dl.kolide.co/bin/fleet_latest.zip
 $ unzip fleet_latest.zip 'linux/*' -d fleet
-$ sudo cp fleet/linux/fleet* /usr/bin/fleet
+$ sudo cp fleet/linux/fleet* /usr/bin/
 ```
 
 ## Installing and configuring dependencies
@@ -45,20 +45,41 @@ To start the MySQL service:
 $ sudo systemctl start mysqld
 ```
 
-Let's set a password for the MySQL root user.
+Let's set a password for the MySQL root user. 
+MySQL creates an initial temporary root password which you can find in  ```/var/log/mysqld.log``` you will need this password to change the root password.
+
+Connect to MySQL  
+```
+$ mysql -u root -p
+```
+When prompted enter in the temporary password from ```/var/log/mysqld.log```
+
+Change root password, in this case we will use `toor?Fl33t` as default password validation requires a more complex password.
 
 For MySQL 5.7.6 and newer, use the following command:
 
 ```
-echo 'ALTER USER "root"@"localhost" IDENTIFIED BY "toor";' | mysql -u root
+mysql> ALTER USER "root"@"localhost" IDENTIFIED BY "toor?Fl33t";
 ```
 
 For MySQL 5.7.5 and older, use:
 
 ```
-echo 'SET PASSWORD FOR "root"@"localhost" = PASSWORD("toor");' | mysql -u root
+mysql> SET PASSWORD FOR "root"@"localhost" = PASSWORD("toor?Fl33t");
 ```
-
+Now issue the command
+```
+mysql> flush privileges;
+```
+And exit MySQL
+```
+mysql> exit
+```
+Stop MySQL and start again  
+```
+$ sudo mysqld stop  
+$ sudo systemctl start mysqld
+```
 It's also worth creating a MySQL database for us to use at this point. Run the following to create the `kolide` database in MySQL. Note that you will be prompted for the password you created above.
 
 ```
@@ -89,20 +110,13 @@ $ /usr/bin/fleet prepare db \
     --mysql_address=127.0.0.1:3306 \
     --mysql_database=kolide \
     --mysql_username=root \
-    --mysql_password=toor
+    --mysql_password=toor?Fl33t
 ```
 
 The output should look like:
 
 ```
-OK    20161118193812_CreateTableAppConfigs.go
-OK    20161118211713_CreateTableDistributedQueryCampaignTargets.go
-...
-OK    20170124230432_CreateTableEmailChanges.go
-goose: no migrations to run. current version: 20170124230432
-OK    20161223115449_InsertOsqueryOptions.go
-OK    20161229171615_InsertBuiltinLabels.go
-goose: no migrations to run. current version: 20161229171615
+Migrations completed.
 ```
 
 Before we can run the server, we need to generate some TLS keying material. If you already have tooling for generating valid TLS certificates, then you are encouraged to use that instead. You will need a TLS certificate and key for running the Fleet server. If you'd like to generate self-signed certificates, you can do this via:
@@ -132,6 +146,7 @@ $ /usr/bin/fleet serve \
   --server_key=/tmp/server.key \
   --logging_json
 ```
+You will be prompted to add a value for ```--auth_jwt_key```. A randomly generated key will be suggested, you can simply add the flag with the suggested key.
 
 Now, if you go to [https://localhost:8080](https://localhost:8080) in your local browser, you should be redirected to [https://localhost:8080/setup](https://localhost:8080/setup) where you can create your first Fleet user account.
 
@@ -160,7 +175,7 @@ If you select "Fetch Kolide Certificate", your browser will download the appropr
 You can also select "Reveal Secret" on that modal and the enrollment secret for your Fleet instance will be revealed. Copy that text and create a file with it's contents:
 
 ```
-$ echo 'LQWzGg9+/yaxxcBUMY7VruDGsJRYULw8' > /var/osquery/enroll_secret
+$ echo 'LQWzGg9+/yaxxcBUMY7VruDGsJRYULw8' | sudo tee /var/osquery/enroll_secret
 ```
 
 Now you're ready to run the `osqueryd` binary:
