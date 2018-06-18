@@ -16,6 +16,10 @@ type GetLabelSpecsFunc func() ([]*kolide.LabelSpec, error)
 
 type GetLabelSpecFunc func(name string) (*kolide.LabelSpec, error)
 
+type NewLabelFunc func(Label *kolide.Label, opts ...kolide.OptionalArg) (*kolide.Label, error)
+
+type SaveLabelFunc func(label *kolide.Label) (*kolide.Label, error)
+
 type DeleteLabelFunc func(name string) error
 
 type LabelFunc func(lid uint) (*kolide.Label, error)
@@ -45,6 +49,12 @@ type LabelStore struct {
 
 	GetLabelSpecFunc        GetLabelSpecFunc
 	GetLabelSpecFuncInvoked bool
+
+	NewLabelFunc        NewLabelFunc
+	NewLabelFuncInvoked bool
+
+	SaveLabelFunc        SaveLabelFunc
+	SaveLabelFuncInvoked bool
 
 	DeleteLabelFunc        DeleteLabelFunc
 	DeleteLabelFuncInvoked bool
@@ -90,6 +100,16 @@ func (s *LabelStore) GetLabelSpecs() ([]*kolide.LabelSpec, error) {
 func (s *LabelStore) GetLabelSpec(name string) (*kolide.LabelSpec, error) {
 	s.GetLabelSpecFuncInvoked = true
 	return s.GetLabelSpecFunc(name)
+}
+
+func (s *LabelStore) NewLabel(Label *kolide.Label, opts ...kolide.OptionalArg) (*kolide.Label, error) {
+	s.NewLabelFuncInvoked = true
+	return s.NewLabelFunc(Label, opts...)
+}
+
+func (s *LabelStore) SaveLabel(label *kolide.Label) (*kolide.Label, error) {
+	s.SaveLabelFuncInvoked = true
+	return s.SaveLabelFunc(label)
 }
 
 func (s *LabelStore) DeleteLabel(name string) error {

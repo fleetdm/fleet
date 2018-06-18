@@ -95,6 +95,64 @@ WHERE name = ?
 	return specs[0], nil
 }
 
+// NewLabel creates a new kolide.Label
+func (d *Datastore) NewLabel(label *kolide.Label, opts ...kolide.OptionalArg) (*kolide.Label, error) {
+	db := d.getTransaction(opts)
+	var (
+		deletedLabel kolide.Label
+		query        string
+	)
+	err := db.Get(&deletedLabel,
+		"SELECT * FROM labels WHERE name = ? AND deleted", label.Name)
+	switch err {
+	case nil:
+		query = `
+		REPLACE INTO labels (
+			name,
+			description,
+			query,
+			platform,
+			label_type
+		) VALUES ( ?, ?, ?, ?, ?)
+	`
+	case sql.ErrNoRows:
+		query = `
+		INSERT INTO labels (
+			name,
+			description,
+			query,
+			platform,
+			label_type
+		) VALUES ( ?, ?, ?, ?, ?)
+	`
+	default:
+		return nil, errors.Wrap(err, "check for existing label")
+	}
+	result, err := db.Exec(query, label.Name, label.Description, label.Query, label.Platform, label.LabelType)
+	if err != nil {
+		return nil, errors.Wrap(err, "inserting label")
+	}
+
+	id, _ := result.LastInsertId()
+	label.ID = uint(id)
+	return label, nil
+
+}
+
+func (d *Datastore) SaveLabel(label *kolide.Label) (*kolide.Label, error) {
+	query := `
+		UPDATE labels SET
+			name = ?,
+			description = ?
+		WHERE id = ?
+	`
+	_, err := d.db.Exec(query, label.Name, label.Description, label.ID)
+	if err != nil {
+		return nil, errors.Wrap(err, "saving label")
+	}
+	return label, nil
+}
+
 // DeleteLabel deletes a kolide.Label
 func (d *Datastore) DeleteLabel(name string) error {
 	return d.deleteEntityByName("labels", name)

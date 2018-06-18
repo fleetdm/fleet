@@ -473,3 +473,22 @@ func testLabelIDsByName(t *testing.T, ds kolide.Datastore) {
 	sort.Slice(labels, func(i, j int) bool { return labels[i] < labels[j] })
 	assert.Equal(t, []uint{1, 2, 3}, labels)
 }
+
+func testSaveLabel(t *testing.T, db kolide.Datastore) {
+	label := &kolide.Label{
+		Name:        "my label",
+		Description: "a label",
+		Query:       "select 1 from processes;",
+		Platform:    "darwin",
+	}
+	label, err := db.NewLabel(label)
+	require.Nil(t, err)
+	label.Name = "changed name"
+	label.Description = "changed description"
+	_, err = db.SaveLabel(label)
+	require.Nil(t, err)
+	saved, err := db.Label(label.ID)
+	require.Nil(t, err)
+	assert.Equal(t, label.Name, saved.Name)
+	assert.Equal(t, label.Description, saved.Description)
+}

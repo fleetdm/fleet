@@ -7,6 +7,42 @@ import (
 	"github.com/kolide/fleet/server/kolide"
 )
 
+func (mw loggingMiddleware) NewLabel(ctx context.Context, p kolide.LabelPayload) (*kolide.Label, error) {
+	var (
+		label *kolide.Label
+		err   error
+	)
+
+	defer func(begin time.Time) {
+		_ = mw.logger.Log(
+			"method", "NewLabel",
+			"err", err,
+			"took", time.Since(begin),
+		)
+	}(time.Now())
+
+	label, err = mw.Service.NewLabel(ctx, p)
+	return label, err
+}
+
+func (mw loggingMiddleware) ModifyLabel(ctx context.Context, id uint, p kolide.ModifyLabelPayload) (*kolide.Label, error) {
+	var (
+		label *kolide.Label
+		err   error
+	)
+
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "ModifyLabel",
+			"err", err,
+			"took", time.Since(begin),
+		)
+	}(time.Now())
+
+	label, err = mw.Service.ModifyLabel(ctx, id, p)
+	return label, err
+}
+
 func (mw loggingMiddleware) ListLabels(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Label, error) {
 	var (
 		labels []*kolide.Label

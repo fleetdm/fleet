@@ -15,6 +15,8 @@ type LabelStore interface {
 	GetLabelSpec(name string) (*LabelSpec, error)
 
 	// Label methods
+	NewLabel(Label *Label, opts ...OptionalArg) (*Label, error)
+	SaveLabel(label *Label) (*Label, error)
 	DeleteLabel(name string) error
 	Label(lid uint) (*Label, error)
 	ListLabels(opt ListOptions) ([]*Label, error)
@@ -59,6 +61,8 @@ type LabelService interface {
 	// GetLabelSpec gets the spec for the label with the given name.
 	GetLabelSpec(ctx context.Context, name string) (*LabelSpec, error)
 
+	NewLabel(ctx context.Context, p LabelPayload) (label *Label, err error)
+	ModifyLabel(ctx context.Context, id uint, payload ModifyLabelPayload) (*Label, error)
 	ListLabels(ctx context.Context, opt ListOptions) (labels []*Label, err error)
 	GetLabel(ctx context.Context, id uint) (label *Label, err error)
 
@@ -67,6 +71,12 @@ type LabelService interface {
 	// HostIDsForLabel returns ids of hosts that belong to the label identified
 	// by lid
 	HostIDsForLabel(lid uint) ([]uint, error)
+}
+
+// ModifyLabelPayload is used to change editable fields for a Label
+type ModifyLabelPayload struct {
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
 }
 
 type LabelPayload struct {

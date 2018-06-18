@@ -70,6 +70,8 @@ type KolideEndpoints struct {
 	GetDistributedQueries                 endpoint.Endpoint
 	SubmitDistributedQueryResults         endpoint.Endpoint
 	SubmitLogs                            endpoint.Endpoint
+	CreateLabel                           endpoint.Endpoint
+	ModifyLabel                           endpoint.Endpoint
 	GetLabel                              endpoint.Endpoint
 	ListLabels                            endpoint.Endpoint
 	DeleteLabel                           endpoint.Endpoint
@@ -165,6 +167,8 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		ListHosts:                             authenticatedUser(jwtKey, svc, makeListHostsEndpoint(svc)),
 		GetHostSummary:                        authenticatedUser(jwtKey, svc, makeGetHostSummaryEndpoint(svc)),
 		DeleteHost:                            authenticatedUser(jwtKey, svc, makeDeleteHostEndpoint(svc)),
+		CreateLabel:                           authenticatedUser(jwtKey, svc, makeCreateLabelEndpoint(svc)),
+		ModifyLabel:                           authenticatedUser(jwtKey, svc, makeModifyLabelEndpoint(svc)),
 		GetLabel:                              authenticatedUser(jwtKey, svc, makeGetLabelEndpoint(svc)),
 		ListLabels:                            authenticatedUser(jwtKey, svc, makeListLabelsEndpoint(svc)),
 		DeleteLabel:                           authenticatedUser(jwtKey, svc, makeDeleteLabelEndpoint(svc)),
@@ -247,6 +251,8 @@ type kolideHandlers struct {
 	GetDistributedQueries                 http.Handler
 	SubmitDistributedQueryResults         http.Handler
 	SubmitLogs                            http.Handler
+	CreateLabel                           http.Handler
+	ModifyLabel                           http.Handler
 	GetLabel                              http.Handler
 	ListLabels                            http.Handler
 	DeleteLabel                           http.Handler
@@ -332,6 +338,8 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		GetDistributedQueries:                 newServer(e.GetDistributedQueries, decodeGetDistributedQueriesRequest),
 		SubmitDistributedQueryResults:         newServer(e.SubmitDistributedQueryResults, decodeSubmitDistributedQueryResultsRequest),
 		SubmitLogs:                            newServer(e.SubmitLogs, decodeSubmitLogsRequest),
+		CreateLabel:                           newServer(e.CreateLabel, decodeCreateLabelRequest),
+		ModifyLabel:                           newServer(e.ModifyLabel, decodeModifyLabelRequest),
 		GetLabel:                              newServer(e.GetLabel, decodeGetLabelRequest),
 		ListLabels:                            newServer(e.ListLabels, decodeListLabelsRequest),
 		DeleteLabel:                           newServer(e.DeleteLabel, decodeDeleteLabelRequest),
@@ -458,6 +466,8 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/spec/packs", h.GetPackSpecs).Methods("GET").Name("get_pack_specs")
 	r.Handle("/api/v1/kolide/spec/packs/{name}", h.GetPackSpec).Methods("GET").Name("get_pack_spec")
 
+	r.Handle("/api/v1/kolide/labels", h.CreateLabel).Methods("POST").Name("create_label")
+	r.Handle("/api/v1/kolide/labels/{id}", h.ModifyLabel).Methods("PATCH").Name("modify_label")
 	r.Handle("/api/v1/kolide/labels/{id}", h.GetLabel).Methods("GET").Name("get_label")
 	r.Handle("/api/v1/kolide/labels", h.ListLabels).Methods("GET").Name("list_labels")
 	r.Handle("/api/v1/kolide/labels/{name}", h.DeleteLabel).Methods("DELETE").Name("delete_label")

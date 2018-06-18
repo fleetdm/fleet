@@ -18,6 +18,48 @@ func (svc service) GetLabelSpec(ctx context.Context, name string) (*kolide.Label
 	return svc.ds.GetLabelSpec(name)
 }
 
+func (svc service) NewLabel(ctx context.Context, p kolide.LabelPayload) (*kolide.Label, error) {
+	label := &kolide.Label{}
+
+	if p.Name == nil {
+		return nil, newInvalidArgumentError("name", "missing required argument")
+	}
+	label.Name = *p.Name
+
+	if p.Query == nil {
+		return nil, newInvalidArgumentError("query", "missing required argument")
+	}
+	label.Query = *p.Query
+
+	if p.Platform != nil {
+		label.Platform = *p.Platform
+	}
+
+	if p.Description != nil {
+		label.Description = *p.Description
+	}
+
+	label, err := svc.ds.NewLabel(label)
+	if err != nil {
+		return nil, err
+	}
+	return label, nil
+}
+
+func (svc service) ModifyLabel(ctx context.Context, id uint, payload kolide.ModifyLabelPayload) (*kolide.Label, error) {
+	label, err := svc.ds.Label(id)
+	if err != nil {
+		return nil, err
+	}
+	if payload.Name != nil {
+		label.Name = *payload.Name
+	}
+	if payload.Description != nil {
+		label.Description = *payload.Description
+	}
+	return svc.ds.SaveLabel(label)
+}
+
 func (svc service) ListLabels(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Label, error) {
 	return svc.ds.ListLabels(opt)
 }
