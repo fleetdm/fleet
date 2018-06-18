@@ -1,3 +1,19 @@
+## Kolide Fleet 2.0.0 RC2 (June 18, 2018)
+
+* Fix errors when creating and modifying packs, queries and labels in UI.
+
+* Fix an issue with the schema of returned config JSON.
+
+* Handle newlines when converting query packs with fleetctl convert.
+
+* Add last seen time hover tooltip in Fleet UI.
+
+* Fix a null pointer error when live querying via fleetctl.
+
+* Explicitly set timezone in MySQL connection (improves timestamp consistency).
+
+* Allow native password auth for MySQL (improves compatibility with Amazon RDS).
+
 ## Kolide Fleet 2.0.0 (currently preparing for release)
 
 The primary new addition in Fleet 2 is the new `fleetctl` CLI and file-format, which dramatically increases the flexibility and control that administrators have over their osquery deployment. The CLI and the file format are documented [in the Fleet documentation](https://github.com/kolide/fleet/blob/master/docs/cli/README.md).
