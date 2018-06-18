@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -99,18 +100,24 @@ func convertCommand() cli.Command {
 				return err
 			}
 
+			// Remove any literal newlines (because they are not
+			// valid JSON but osquery accepts them) and replace
+			// with \n so that we get them in the YAML output where
+			// they are allowed.
+			re := regexp.MustCompile(`\W*\\\n`)
+			b = re.ReplaceAll(b, []byte(`\n`))
+
 			var specs *specGroup
 
 			var pack kolide.PermissivePackContent
-			packErr := json.Unmarshal(b, &pack)
-			if packErr == nil {
-				base := filepath.Base(flFilename)
-				specs, err = specGroupFromPack(strings.TrimSuffix(base, filepath.Ext(base)), pack)
-				if err != nil {
-					return err
-				}
-			} else {
-				return packErr
+			if err := json.Unmarshal(b, &pack); err != nil {
+				return err
+			}
+
+			base := filepath.Base(flFilename)
+			specs, err = specGroupFromPack(strings.TrimSuffix(base, filepath.Ext(base)), pack)
+			if err != nil {
+				return err
 			}
 
 			if specs == nil {
