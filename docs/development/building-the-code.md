@@ -1,7 +1,11 @@
 Building The Code
 =================
 
-## Installing build dependencies
+## Building the Code
+
+Checkout this repository to `$GOPATH/src/github.com/kolide/fleet`. If you're new to Go and you don't know about `$GOPATH`, then check out the repo to `$HOME/go/src/github.com/kolide/fleet`. You will also need to install Go (1.9 or greater).
+
+* [Go Documentation: Workspaces](https://golang.org/doc/code.html#Workspaces)
 
 To setup a working local development environment, you must install the following minimum toolset:
 
@@ -10,21 +14,15 @@ To setup a working local development environment, you must install the following
 * [GNU Make](https://www.gnu.org/software/make/)
 * [Docker](https://www.docker.com/products/overview#/install_the_platform)
 
-
 If you're using MacOS or Linux, Make should be installed by default. If you are using Windows, you will need to install it separately.
 
-Once you have those minimum requirements, you will need to install Fleet's dependent libraries. To do this, run the following:
+Once you have those minimum requirements, you will need to install Fleet's dependent libraries. To do this, run the following from the root of the repository:
 
 ```
 make deps
 ```
 
 When pulling in new revisions to your working source tree, it may be necessary to re-run `make deps` if a new Go or JavaScript dependency was added.
-
-
-```
-make generate
-```
 
 ## Generating the packaged JavaScript
 
