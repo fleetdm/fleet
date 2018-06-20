@@ -89,7 +89,7 @@ spec:
   name: osquery_monitoring
   targets:
     labels:
-      - all_hosts
+      - All Hosts
   queries:
     - query: osquery_version
       name: osquery_version_differential
