@@ -1,3 +1,13 @@
+## Kolide Fleet 2.0.0 RC3 (June 21, 2018)
+
+* Fix a bug where duplicate queries were being created in the same pack but only one was ever delivered to osquery. A migration was added to delete duplicate queries in packs created by the UI.
+  * It is possible to schedule the same query with different options in one pack, but only via the CLI.
+  * If you thought you were relying on this functionality via the UI, note that duplicate queries will be deleted when you run migrations as apart of a cleanup fix. Please check your configurations and make sure to create any double-scheduled queries via the CLI moving forward.
+
+* Fix a bug in which packs created in UI could not be loaded by fleetctl.
+
+* Fix a bug where deleting a query would not delete it from the packs that the query was scheduled in.
+
 ## Kolide Fleet 2.0.0 RC2 (June 18, 2018)
 
 * Fix errors when creating and modifying packs, queries and labels in UI.
