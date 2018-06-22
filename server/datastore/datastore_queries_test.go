@@ -227,6 +227,7 @@ func testLoadPacksForQueries(t *testing.T, ds kolide.Datastore) {
 			Name: "p2",
 			Queries: []kolide.PackSpecQuery{
 				kolide.PackSpecQuery{
+					Name:      "q0",
 					QueryName: queries[0].Name,
 					Interval:  60,
 				},
@@ -288,10 +289,12 @@ func testLoadPacksForQueries(t *testing.T, ds kolide.Datastore) {
 			Name: "p3",
 			Queries: []kolide.PackSpecQuery{
 				kolide.PackSpecQuery{
+					Name:      "q0",
 					QueryName: queries[0].Name,
 					Interval:  60,
 				},
 				kolide.PackSpecQuery{
+					Name:      "q1",
 					QueryName: queries[1].Name,
 					Interval:  60,
 				},

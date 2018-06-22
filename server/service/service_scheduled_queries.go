@@ -16,6 +16,16 @@ func (svc service) GetScheduledQuery(ctx context.Context, id uint) (*kolide.Sche
 }
 
 func (svc service) ScheduleQuery(ctx context.Context, sq *kolide.ScheduledQuery) (*kolide.ScheduledQuery, error) {
+	// Fill in the name with query name if it is unset (because the UI
+	// doesn't provide a way to set it)
+	if sq.Name == "" {
+		query, err := svc.ds.Query(sq.QueryID)
+		if err != nil {
+			return nil, errors.Wrap(err, "lookup name for query")
+		}
+		sq.Name = query.Name
+		sq.QueryName = query.Name
+	}
 	return svc.ds.NewScheduledQuery(sq)
 }
 

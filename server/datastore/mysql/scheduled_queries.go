@@ -12,13 +12,13 @@ func (d *Datastore) ListScheduledQueriesInPack(id uint, opts kolide.ListOptions)
 		SELECT
 			sq.id,
 			sq.pack_id,
-			COALESCE(sq.name, q.name) AS name,
+			sq.name,
 			sq.query_name,
-			COALESCE(sq.description, '') AS description,
+			sq.description,
 			sq.interval,
 			sq.snapshot,
 			sq.removed,
-			COALESCE(sq.platform, '') AS platform,
+			sq.platform,
 			sq.version,
 			sq.shard,
 			q.query,
@@ -47,6 +47,7 @@ func (d *Datastore) NewScheduledQuery(sq *kolide.ScheduledQuery, opts ...kolide.
 	query := `
 		INSERT INTO scheduled_queries (
 			query_name,
+			name,
 			pack_id,
 			snapshot,
 			removed,
@@ -55,11 +56,11 @@ func (d *Datastore) NewScheduledQuery(sq *kolide.ScheduledQuery, opts ...kolide.
 			version,
 			shard
 		)
-		SELECT name, ?, ?, ?, ?, ?, ?, ?
+		SELECT name, ?, ?, ?, ?, ?, ?, ?, ?
 		FROM queries
 		WHERE id = ?
 		`
-	result, err := db.Exec(query, sq.PackID, sq.Snapshot, sq.Removed, sq.Interval, sq.Platform, sq.Version, sq.Shard, sq.QueryID)
+	result, err := db.Exec(query, sq.Name, sq.PackID, sq.Snapshot, sq.Removed, sq.Interval, sq.Platform, sq.Version, sq.Shard, sq.QueryID)
 	if err != nil {
 		return nil, errors.Wrap(err, "inserting scheduled query")
 	}
@@ -128,7 +129,7 @@ func (d *Datastore) ScheduledQuery(id uint) (*kolide.ScheduledQuery, error) {
 			sq.version,
 			sq.shard,
 			sq.query_name,
-			COALESCE(sq.description, '') AS description,
+			sq.description,
 			q.query,
 			q.name,
 			q.id AS query_id

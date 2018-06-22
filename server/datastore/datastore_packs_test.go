@@ -194,6 +194,7 @@ func setupPackSpecsTest(t *testing.T, ds kolide.Datastore) []*kolide.PackSpec {
 			Queries: []kolide.PackSpecQuery{
 				kolide.PackSpecQuery{
 					QueryName:   queries[0].Name,
+					Name:        "q0",
 					Description: "test_foo",
 					Interval:    42,
 				},
@@ -204,6 +205,7 @@ func setupPackSpecsTest(t *testing.T, ds kolide.Datastore) []*kolide.PackSpec {
 					Snapshot:  boolPtr(true),
 				},
 				kolide.PackSpecQuery{
+					Name:      "q2",
 					QueryName: queries[1].Name,
 					Interval:  600,
 					Removed:   boolPtr(false),

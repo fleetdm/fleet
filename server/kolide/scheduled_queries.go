@@ -29,12 +29,12 @@ type ScheduledQuery struct {
 	QueryID     uint    `json:"query_id" db:"query_id"`
 	QueryName   string  `json:"query_name" db:"query_name"`
 	Query       string  `json:"query"` // populated via a join on queries
-	Description string  `json:"description"`
+	Description string  `json:"description,omitempty"`
 	Interval    uint    `json:"interval"`
 	Snapshot    *bool   `json:"snapshot"`
 	Removed     *bool   `json:"removed"`
-	Platform    *string `json:"platform"`
-	Version     *string `json:"version"`
+	Platform    *string `json:"platform,omitempty"`
+	Version     *string `json:"version,omitempty"`
 	Shard       *uint   `json:"shard"`
 }
 

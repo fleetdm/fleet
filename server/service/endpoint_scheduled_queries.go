@@ -56,8 +56,8 @@ type getScheduledQueryRequest struct {
 }
 
 type getScheduledQueryResponse struct {
-	Scheduled scheduledQueryResponse `json:"scheduled,omitempty"`
-	Err       error                  `json:"error,omitempty"`
+	Scheduled *scheduledQueryResponse `json:"scheduled,omitempty"`
+	Err       error                   `json:"error,omitempty"`
 }
 
 func (r getScheduledQueryResponse) error() error { return r.Err }
@@ -72,7 +72,7 @@ func makeGetScheduledQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
 		}
 
 		return getScheduledQueryResponse{
-			Scheduled: scheduledQueryResponse{
+			Scheduled: &scheduledQueryResponse{
 				ScheduledQuery: *sq,
 			},
 		}, nil
@@ -95,9 +95,11 @@ type scheduleQueryRequest struct {
 }
 
 type scheduleQueryResponse struct {
-	Scheduled scheduledQueryResponse `json:"scheduled"`
-	Err       error                  `json:"error,omitempty"`
+	Scheduled *scheduledQueryResponse `json:"scheduled,omitempty"`
+	Err       error                   `json:"error,omitempty"`
 }
+
+func (r scheduleQueryResponse) error() error { return r.Err }
 
 func makeScheduleQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
@@ -116,7 +118,7 @@ func makeScheduleQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if err != nil {
 			return scheduleQueryResponse{Err: err}, nil
 		}
-		return scheduleQueryResponse{Scheduled: scheduledQueryResponse{
+		return scheduleQueryResponse{Scheduled: &scheduledQueryResponse{
 			ScheduledQuery: *scheduled,
 		}}, nil
 	}
@@ -132,8 +134,8 @@ type modifyScheduledQueryRequest struct {
 }
 
 type modifyScheduledQueryResponse struct {
-	Scheduled scheduledQueryResponse `json:"scheduled,omitempty"`
-	Err       error                  `json:"error,omitempty"`
+	Scheduled *scheduledQueryResponse `json:"scheduled,omitempty"`
+	Err       error                   `json:"error,omitempty"`
 }
 
 func (r modifyScheduledQueryResponse) error() error { return r.Err }
@@ -148,7 +150,7 @@ func makeModifyScheduledQueryEndpoint(svc kolide.Service) endpoint.Endpoint {
 		}
 
 		return modifyScheduledQueryResponse{
-			Scheduled: scheduledQueryResponse{
+			Scheduled: &scheduledQueryResponse{
 				ScheduledQuery: *sq,
 			},
 		}, nil
