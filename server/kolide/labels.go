@@ -67,6 +67,8 @@ type LabelService interface {
 	GetLabel(ctx context.Context, id uint) (label *Label, err error)
 
 	DeleteLabel(ctx context.Context, name string) (err error)
+	// DeleteLabelByID is for backwards compatibility with the UI
+	DeleteLabelByID(ctx context.Context, id uint) (err error)
 
 	// HostIDsForLabel returns ids of hosts that belong to the label identified
 	// by lid

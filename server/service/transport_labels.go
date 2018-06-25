@@ -16,6 +16,16 @@ func decodeDeleteLabelRequest(ctx context.Context, r *http.Request) (interface{}
 	return req, nil
 }
 
+func decodeDeleteLabelByIDRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	id, err := idFromRequest(r, "id")
+	if err != nil {
+		return nil, err
+	}
+	var req deleteLabelByIDRequest
+	req.ID = id
+	return req, nil
+}
+
 func decodeGetLabelRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	id, err := idFromRequest(r, "id")
 	if err != nil {

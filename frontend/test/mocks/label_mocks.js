@@ -16,7 +16,7 @@ export default {
     valid: (bearerToken, label) => {
       return createRequestMock({
         bearerToken,
-        endpoint: `/api/v1/kolide/labels/${label.id}`,
+        endpoint: `/api/v1/kolide/labels/id/${label.id}`,
         method: 'delete',
         response: {},
       });

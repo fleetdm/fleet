@@ -72,6 +72,14 @@ func (svc service) DeleteLabel(ctx context.Context, name string) error {
 	return svc.ds.DeleteLabel(name)
 }
 
+func (svc service) DeleteLabelByID(ctx context.Context, id uint) error {
+	label, err := svc.ds.Label(id)
+	if err != nil {
+		return err
+	}
+	return svc.ds.DeleteLabel(label.Name)
+}
+
 func (svc service) HostIDsForLabel(lid uint) ([]uint, error) {
 	hosts, err := svc.ds.ListHostsInLabel(lid)
 	if err != nil {

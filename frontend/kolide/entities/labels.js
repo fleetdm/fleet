@@ -19,7 +19,7 @@ export default (client) => {
     },
     destroy: (label) => {
       const { LABELS } = endpoints;
-      const endpoint = client._endpoint(`${LABELS}/${label.id}`);
+      const endpoint = client._endpoint(`${LABELS}/id/${label.id}`);
 
       return client.authenticatedDelete(endpoint);
     },
