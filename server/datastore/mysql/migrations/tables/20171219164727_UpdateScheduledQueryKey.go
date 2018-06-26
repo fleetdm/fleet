@@ -29,6 +29,15 @@ func Up_20171219164727(tx *sql.Tx) error {
 		return errors.Wrap(err, "populating query_name column")
 	}
 
+	// Clear out any scheduled queries that didn't correspond to a query
+	query = `
+		DELETE FROM scheduled_queries
+		WHERE query_name IS NULL
+	`
+	if _, err := tx.Exec(query); err != nil {
+		return errors.Wrap(err, "clear invalid scheduled queries")
+	}
+
 	// Add not null constraint
 	query = `
 		ALTER TABLE scheduled_queries
