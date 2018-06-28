@@ -19,9 +19,10 @@ spec:
         3600: "SELECT total_seconds AS uptime FROM uptime"
   overrides:
     # Note configs in overrides take precedence over the default config defined
-    # under the config key above. With this config file, the base config would
-    # only be used for Windows hosts, while Mac and Linux hosts would pull
-    # these overrides.
+    # under the config key above. Hosts receive overrides based on the platform
+    # returned by `SELECT platform FROM os_version`. In this example, the base
+    # config would be used for Windows and CentOS hosts, while Mac and Ubuntu
+    # hosts would receive their respective overrides.
     platforms:
       darwin:
         options:
@@ -38,7 +39,7 @@ spec:
             - /Users/%/Documents/%%
           etc:
             - /etc/%%
-      linux:
+      ubuntu:
         options:
           distributed_interval: 10
           distributed_tls_max_attempts: 3
