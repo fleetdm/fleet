@@ -104,7 +104,7 @@ func convertCommand() cli.Command {
 			// valid JSON but osquery accepts them) and replace
 			// with \n so that we get them in the YAML output where
 			// they are allowed.
-			re := regexp.MustCompile(`\W*\\\n`)
+			re := regexp.MustCompile(`\s*\\\n`)
 			b = re.ReplaceAll(b, []byte(`\n`))
 
 			var specs *specGroup
