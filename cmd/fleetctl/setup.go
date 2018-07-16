@@ -62,6 +62,17 @@ func setupCommand() cli.Command {
 				}
 				fmt.Println()
 				flPassword = string(passBytes)
+
+				fmt.Print("Confirm Password: ")
+				passBytes, err = terminal.ReadPassword(int(os.Stdin.Fd()))
+				if err != nil {
+					return errors.Wrap(err, "error reading password confirmation")
+				}
+				fmt.Println()
+				if flPassword != string(passBytes) {
+					return errors.New("passwords do not match")
+				}
+
 			}
 
 			token, err := fleet.Setup(flEmail, flPassword, flOrgName)
