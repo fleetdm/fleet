@@ -42,7 +42,7 @@ Interactively prompts for email and password if not specified in the flags or en
 			},
 		},
 		Action: func(c *cli.Context) error {
-			fleet, err := clientFromCLI(c)
+			fleet, err := unauthenticatedClientFromCLI(c)
 			if err != nil {
 				return err
 			}
