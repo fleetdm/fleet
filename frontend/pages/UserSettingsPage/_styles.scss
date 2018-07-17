@@ -69,4 +69,49 @@
     border-bottom: 1px solid $accent-medium;
     margin: 0 0 35px;
   }
+
+  &__reveal-secret {
+    float: right;
+    text-decoration: none;
+  }
+
+  &__secret-label {
+    font-size: 15px;
+    font-weight: $normal;
+    line-height: 1.6;
+    letter-spacing: normal;
+    color: rgba(32, 37, 50, 0.66);
+    margin: 0;
+  }
+
+  &__secret-wrapper {
+    position: relative;
+  }
+
+  &__secret-copy-icon {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    font-size: 18px;
+    color: $link;
+
+    &:active {
+      top: 8px;
+    }
+  }
+
+  &__secret-input {
+    input {
+      border-radius: 2px;
+      background-color: $bg-medium;
+      border-color: $bg-medium;
+      color: $link;
+      padding-right: 36px;
+      font-family: 'SourceCodePro', $monospace;
+
+      &[type="password"] {
+        letter-spacing: 3px;
+      }
+    }
+  }
 }

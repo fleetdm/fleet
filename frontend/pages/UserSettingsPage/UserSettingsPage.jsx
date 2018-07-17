@@ -2,6 +2,12 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { goBack } from 'react-router-redux';
 import moment from 'moment';
+import { authToken } from 'utilities/local';
+import {
+  copyText,
+  COPY_TEXT_SUCCESS,
+  COPY_TEXT_ERROR,
+} from 'utilities/copy_text';
 
 import Avatar from 'components/Avatar';
 import Button from 'components/buttons/Button';
@@ -9,6 +15,7 @@ import ChangeEmailForm from 'components/forms/ChangeEmailForm';
 import ChangePasswordForm from 'components/forms/ChangePasswordForm';
 import deepDifference from 'utilities/deep_difference';
 import Icon from 'components/icons/Icon';
+import InputField from 'components/forms/fields/InputField';
 import { logoutUser, updateUser } from 'redux/nodes/auth/actions';
 import Modal from 'components/modals/Modal';
 import { renderFlash } from 'redux/nodes/notifications/actions';
@@ -33,7 +40,7 @@ export class UserSettingsPage extends Component {
     }),
   };
 
-  constructor (props) {
+  constructor(props) {
     super(props);
 
     this.state = {
@@ -52,7 +59,7 @@ export class UserSettingsPage extends Component {
     dispatch(goBack());
 
     return false;
-  }
+  };
 
   onLogout = (evt) => {
     evt.preventDefault();
@@ -62,7 +69,7 @@ export class UserSettingsPage extends Component {
     dispatch(logoutUser());
 
     return false;
-  }
+  };
 
   onShowModal = (evt) => {
     evt.preventDefault();
@@ -70,7 +77,15 @@ export class UserSettingsPage extends Component {
     this.setState({ showPasswordModal: true });
 
     return false;
-  }
+  };
+
+  onShowApiTokenModal = (evt) => {
+    evt.preventDefault();
+
+    this.setState({ showApiTokenModal: true });
+
+    return false;
+  };
 
   onToggleEmailModal = (updatedUser = {}) => {
     const { showEmailModal } = this.state;
@@ -81,7 +96,7 @@ export class UserSettingsPage extends Component {
     });
 
     return false;
-  }
+  };
 
   onTogglePasswordModal = (evt) => {
     evt.preventDefault();
@@ -91,7 +106,41 @@ export class UserSettingsPage extends Component {
     this.setState({ showPasswordModal: !showPasswordModal });
 
     return false;
-  }
+  };
+
+  onToggleApiTokenModal = (evt) => {
+    evt.preventDefault();
+
+    const { showApiTokenModal } = this.state;
+
+    this.setState({ showApiTokenModal: !showApiTokenModal });
+
+    return false;
+  };
+
+  onToggleSecret = (evt) => {
+    evt.preventDefault();
+
+    const { revealSecret } = this.state;
+
+    this.setState({ revealSecret: !revealSecret });
+    return false;
+  };
+
+  onCopySecret = (elementClass) => {
+    return (evt) => {
+      evt.preventDefault();
+
+      const { dispatch } = this.props;
+
+      if (copyText(elementClass)) {
+        dispatch(renderFlash('success', COPY_TEXT_SUCCESS));
+      } else {
+        this.setState({ revealSecret: true });
+        dispatch(renderFlash('error', COPY_TEXT_ERROR));
+      }
+    };
+  };
 
   handleSubmit = (formData) => {
     const { dispatch, user } = this.props;
@@ -112,19 +161,18 @@ export class UserSettingsPage extends Component {
         return true;
       })
       .catch(() => false);
-  }
+  };
 
   handleSubmitPasswordForm = (formData) => {
     const { dispatch, user } = this.props;
 
-    return dispatch(userActions.changePassword(user, formData))
-      .then(() => {
-        dispatch(renderFlash('success', 'Password changed successfully'));
-        this.setState({ showPasswordModal: false });
+    return dispatch(userActions.changePassword(user, formData)).then(() => {
+      dispatch(renderFlash('success', 'Password changed successfully'));
+      this.setState({ showPasswordModal: false });
 
-        return false;
-      });
-  }
+      return false;
+    });
+  };
 
   renderEmailModal = () => {
     const { errors } = this.props;
@@ -132,10 +180,9 @@ export class UserSettingsPage extends Component {
     const { handleSubmit, onToggleEmailModal } = this;
 
     const emailSubmit = (formData) => {
-      handleSubmit(formData)
-        .then((r) => {
-          return r ? onToggleEmailModal() : false;
-        });
+      handleSubmit(formData).then((r) => {
+        return r ? onToggleEmailModal() : false;
+      });
     };
 
     if (!showEmailModal) {
@@ -155,7 +202,7 @@ export class UserSettingsPage extends Component {
         />
       </Modal>
     );
-  }
+  };
 
   renderPasswordModal = () => {
     const { userErrors } = this.props;
@@ -167,10 +214,7 @@ export class UserSettingsPage extends Component {
     }
 
     return (
-      <Modal
-        title="Change Password"
-        onExit={onTogglePasswordModal}
-      >
+      <Modal title="Change Password" onExit={onTogglePasswordModal}>
         <ChangePasswordForm
           handleSubmit={handleSubmitPasswordForm}
           onCancel={onTogglePasswordModal}
@@ -178,16 +222,63 @@ export class UserSettingsPage extends Component {
         />
       </Modal>
     );
-  }
+  };
 
-  render () {
+  renderApiTokenModal = () => {
+    const { showApiTokenModal, revealSecret } = this.state;
+    const { onToggleApiTokenModal, onCopySecret, onToggleSecret } = this;
+
+    if (!showApiTokenModal) {
+      return false;
+    }
+
+    return (
+      <Modal title="Get API Token" onExit={onToggleApiTokenModal}>
+        <p className={`${baseClass}__secret-label`}>
+          The following is your API Token:
+          <a
+            href="#revealSecret"
+            onClick={onToggleSecret}
+            className={`${baseClass}__reveal-secret`}
+          >
+            {revealSecret ? 'Hide' : 'Reveal'} Token
+          </a>
+        </p>
+        <div className={`${baseClass}__secret-wrapper`}>
+          <InputField
+            disabled
+            inputWrapperClass={`${baseClass}__secret-input`}
+            name="osqueryd-secret"
+            type={revealSecret ? 'text' : 'password'}
+            value={authToken()}
+          />
+          <Button
+            variant="unstyled"
+            className={`${baseClass}__secret-copy-icon`}
+            onClick={onCopySecret(`.${baseClass}__secret-input`)}
+          >
+            <Icon name="clipboard" />
+          </Button>
+        </div>
+        <div className={`${baseClass}__button-wrap`}>
+          <Button onClick={onToggleApiTokenModal} variant="success">
+            Return To App
+          </Button>
+        </div>
+      </Modal>
+    );
+  };
+
+  render() {
     const {
       handleSubmit,
       onCancel,
       onLogout,
       onShowModal,
+      onShowApiTokenModal,
       renderEmailModal,
       renderPasswordModal,
+      renderApiTokenModal,
     } = this;
     const { errors, user } = this.props;
     const { pendingEmail } = this.state;
@@ -217,8 +308,18 @@ export class UserSettingsPage extends Component {
 
           <div className={`${baseClass}__change-avatar`}>
             <Avatar user={user} className={`${baseClass}__avatar`} />
-            <a href="http://en.gravatar.com/emails/">Change Photo at Gravatar</a>
+            <a href="http://en.gravatar.com/emails/">
+              Change Photo at Gravatar
+            </a>
           </div>
+
+          <Button
+            onClick={onShowApiTokenModal}
+            variant="brand"
+            className={`${baseClass}__button`}
+          >
+            GET API TOKEN
+          </Button>
 
           <div className={`${baseClass}__more-info-detail`}>
             <Icon name="username" />
@@ -228,16 +329,28 @@ export class UserSettingsPage extends Component {
             <Icon name="lock-big" />
             <strong>Password</strong>
           </div>
-          <Button onClick={onShowModal} variant="brand" disabled={ssoEnabled} className={`${baseClass}__button`}>
+          <Button
+            onClick={onShowModal}
+            variant="brand"
+            disabled={ssoEnabled}
+            className={`${baseClass}__button`}
+          >
             CHANGE PASSWORD
           </Button>
-          <p className={`${baseClass}__last-updated`}>Last changed: {lastUpdatedAt}</p>
-          <Button onClick={onLogout} variant="alert" className={`${baseClass}__button`}>
+          <p className={`${baseClass}__last-updated`}>
+            Last changed: {lastUpdatedAt}
+          </p>
+          <Button
+            onClick={onLogout}
+            variant="alert"
+            className={`${baseClass}__button`}
+          >
             LOGOUT
           </Button>
         </div>
         {renderEmailModal()}
         {renderPasswordModal()}
+        {renderApiTokenModal()}
       </div>
     );
   }

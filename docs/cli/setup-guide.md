@@ -1,6 +1,8 @@
 # Setting Up Fleet via the CLI
 
-In this document, I'm going to walk through how to setup and configure Kolide Fleet using just the CLI (which in-turn uses the Go API client). This document will hopefully illustrate:
+This document walks through setting up and configuring Fleet via the CLI. If you already have a running fleet instance, skip ahead to [Logging In To An Existing Fleet Instance](#logging-in-to-an-existing-fleet-instance) to configure the `fleetctl` CLI.
+
+This guide illustrates:
 
 - A minimal CLI workflow for managing an osquery fleet
 - The set of API interactions that are required if you want to perform remote, automated management of a Fleet instance
@@ -147,9 +149,9 @@ fleetctl apply -f ./options.yaml
 
 Now run a live query again. You should notice results coming back more quickly.
 
-## Logging In To An Existing Fleet Instance
+# Logging In To An Existing Fleet Instance
 
-If you have an existing Fleet instance (version 2.0.0 or above), then simply run `fleet login` (after configuring your local CLI context):
+If you have an existing Fleet instance (version 2.0.0 or above), then simply run `fleetctl login` (after configuring your local CLI context):
 
 ```
 $ fleetctl config set --address https://fleet.corp.example.com
@@ -163,3 +165,21 @@ Password:
 ```
 
 Once your local context is configured, you can use the above `fleetctl` normally. See `fleetctl --help` for more information.
+
+## Logging In with SAML (SSO) Authentication
+
+Users that authenticate to Fleet via SSO should retrieve their API token from the UI and set it manually in their `fleetctl` configuration (instead of logging in via `fleetctl login`).
+
+1. Go to the "Account Settings" page in Fleet (https://fleet.corp.example.com/settings). Click the "Get API Token" button to bring up a modal with the API token.
+
+2. Set the API token in the `~/.fleet/config` file. The file should look like the following:
+
+```
+contexts:
+  default:
+    address: https://fleet.corp.example.com
+    email: example@example.com
+    token: your_token_here
+```
+
+Note the token can also be set with `fleetctl config set --token`, but this may leak the token into a user's shell history.

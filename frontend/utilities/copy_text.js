@@ -27,4 +27,7 @@ export const copyText = (elementSelector) => {
   return true;
 };
 
-export default { copyText };
+export const COPY_TEXT_SUCCESS = 'Text copied to clipboard';
+export const COPY_TEXT_ERROR = 'Text not copied. Please copy manually.';
+
+export default copyText;
