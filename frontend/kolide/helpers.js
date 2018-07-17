@@ -174,10 +174,18 @@ export const formatScheduledQueryForClient = (scheduledQuery) => {
 
   if (scheduledQuery.snapshot) {
     scheduledQuery.logging_type = 'snapshot';
-  } else if (scheduledQuery.removed) {
-    scheduledQuery.logging_type = 'differential';
   } else {
-    scheduledQuery.logging_type = 'differential_ignore_removals';
+    scheduledQuery.snapshot = false;
+    if (scheduledQuery.removed === false) {
+      scheduledQuery.logging_type = 'differential_ignore_removals';
+    } else {
+      // If both are unset, we should default to differential (like osquery does)
+      scheduledQuery.logging_type = 'differential';
+    }
+  }
+
+  if (scheduledQuery.shard === null) {
+    scheduledQuery.shard = undefined;
   }
 
   return scheduledQuery;
