@@ -84,7 +84,7 @@
       left: 0;
       z-index: 1;
       font-size: 15px;
-      color: #fff;
+      color: #3f64ed;
       letter-spacing: 0.6px;
       display: block;
       text-align: center;
@@ -117,7 +117,7 @@
     }
 
     &--right {
-      @include linear-gradient(-180deg, #9651ca 81%, #6e3c93 100%);
+      @include linear-gradient(-180deg, #eaedfb 81%, #aab3bd 100%);
       right: 2px;
 
       span {
@@ -126,8 +126,8 @@
       }
 
       &::after {
-        background-color: #ae6ddf;
-        border: solid 1px #9651ca;
+        background-color: #ffffff;
+        border: solid 1px #d4d8df;
         border-radius: 1px 2px 2px 1px;
         right: 0;
         bottom: 3px;
