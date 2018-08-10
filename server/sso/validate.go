@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/xml"
+	"strings"
 	"time"
 
 	"github.com/beevik/etree"
@@ -43,7 +44,7 @@ func NewValidator(metadata string, opts ...func(v *validator)) (Validator, error
 	}
 	var idpCertStore dsig.MemoryX509CertificateStore
 	for _, key := range v.metadata.IDPSSODescriptor.KeyDescriptors {
-		certData, err := base64.StdEncoding.DecodeString(key.KeyInfo.X509Data.X509Certificate.Data)
+		certData, err := base64.StdEncoding.DecodeString(strings.TrimSpace(key.KeyInfo.X509Data.X509Certificate.Data))
 		if err != nil {
 			return nil, errors.Wrap(err, "decoding idp x509 cert")
 		}
