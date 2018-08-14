@@ -1,3 +1,27 @@
+## Kolide Fleet 2.0.0 RC4 (August 14, 2018)
+
+* Expose the API token (to be used with fleetctl) in the UI.
+
+* Update autocompletion values in the query editor.
+
+* Fix a longstanding bug that caused pack targets to sometimes update incorrectly in the UI.
+
+* Fix a bug that prevented deletion of labels in the UI.
+
+* Fix error some users encountered when migrating packs (due to deleted scheduled queries).
+
+* Update favicon and UI styles.
+
+* Handle newlines in pack JSON with `fleetctl convert`.
+
+* Improve UX of fleetctl tool.
+
+* Fix a bug in which the UI displayed the incorrect logging type for scheduled queries.
+
+* Add support for SAML providers with whitespace in the X509 certificate.
+
+* Fix targeting of packs to individual hosts in the UI.
+
 ## Kolide Fleet 2.0.0 RC3 (June 21, 2018)
 
 * Fix a bug where duplicate queries were being created in the same pack but only one was ever delivered to osquery. A migration was added to delete duplicate queries in packs created by the UI.
