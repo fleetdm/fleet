@@ -1,6 +1,5 @@
 import { omit } from 'lodash';
 
-import deepDifference from 'utilities/deep_difference';
 import endpoints from 'kolide/endpoints';
 import helpers from 'kolide/helpers';
 
@@ -48,7 +47,7 @@ export default (client) => {
       const updatePackEndpoint = `${client.baseURL}${PACKS}/${pack.id}`;
       const packTargets = helpers.formatSelectedTargetsForApi(targets, true);
       const packWithoutTargets = omit(updatedPack, 'targets');
-      const packParams = deepDifference({ ...packWithoutTargets, ...packTargets }, pack);
+      const packParams = { ...packWithoutTargets, ...packTargets };
 
       return client.authenticatedPatch(updatePackEndpoint, JSON.stringify(packParams))
         .then(response => response.pack);

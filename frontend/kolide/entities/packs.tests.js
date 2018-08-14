@@ -3,7 +3,7 @@ import nock from 'nock';
 
 import Kolide from 'kolide';
 import mocks from 'test/mocks';
-import { hostStub, packStub } from 'test/stubs';
+import { hostStub, labelStub, packStub } from 'test/stubs';
 
 const { packs: packMocks } = mocks;
 
@@ -78,24 +78,20 @@ describe('Kolide - API client (packs)', () => {
 
   describe('#update', () => {
     it('sends the host and/or label ids if packs are changed', () => {
-      const targets = [hostStub];
-      const updatePackParams = { name: 'New Pack Name', host_ids: [hostStub.id] };
-      const request = packMocks.update.valid(bearerToken, packStub, updatePackParams);
+      const label2 = { ...labelStub, id: 2 };
+      const host2 = { ...hostStub, id: 2 };
+      const pack = { ...packStub, host_ids: [host2.id], label_ids: [label2.id] };
+      const targets = [host2, label2, hostStub, labelStub];
+      const updatePackParams = {
+        name: 'New Pack Name',
+        host_ids: [host2.id, hostStub.id],
+        label_ids: [label2.id, labelStub.id],
+      };
+      const request = packMocks.update.valid(bearerToken, pack, updatePackParams);
       const updatedPack = { name: 'New Pack Name', targets };
 
       Kolide.setBearerToken(bearerToken);
-      return Kolide.packs.update(packStub, updatedPack)
-        .then(() => {
-          expect(request.isDone()).toEqual(true);
-        });
-    });
-
-    it('does not send the host or label ids if packs are not changed', () => {
-      const updatePackParams = { name: 'New Pack Name' };
-      const request = packMocks.update.valid(bearerToken, packStub, updatePackParams);
-
-      Kolide.setBearerToken(bearerToken);
-      return Kolide.packs.update(packStub, updatePackParams)
+      return Kolide.packs.update(pack, updatedPack)
         .then(() => {
           expect(request.isDone()).toEqual(true);
         });
