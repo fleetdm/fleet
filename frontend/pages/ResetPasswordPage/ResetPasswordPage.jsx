@@ -102,11 +102,12 @@ export class ResetPasswordPage extends Component {
 
 const mapStateToProps = (state) => {
   const { ResetPasswordPage: componentState } = state.components;
-  const { user } = state.auth;
+  const { user, errors } = state.auth;
 
   return {
     ...componentState,
     user,
+    errors,
   };
 };
 
