@@ -9,10 +9,6 @@ The Fleet application is distributed as a single static binary. This binary serv
 
 All of these are served via a built-in HTTP server, so there is no need for complex web server configurations. Once you've installed the `fleet` binary and it's infrastructure dependencies as illustrated below, refer to the [Configuring The Fleet Binary](./configuring-the-fleet-binary.md) documentation for information on how to use and configure the Fleet application.
 
-## Fleet Quickstart
-
-Kolide provides a [quickstart script](https://github.com/kolide/kolide-quickstart) that is the quickest way to get a demo Fleet instance up and running. Note that the quickstart is not intended to be a production deployment. If you would like a production deployment, please choose one of the methods below.
-
 ## Installing the Fleet binary
 
 Because everyone's infrastructure is different, there are a multiple options available for installing the Fleet binary.
