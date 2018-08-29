@@ -100,4 +100,17 @@
       }
     }
   }
+  &__toggle-view {
+    .kolidecon {
+      width: 24px;
+      height: 24px;
+      margin-left: 12px;
+      fill: $accent-dark;
+    }
+    &--active{
+      .kolidecon {
+        fill: $link;
+      }
+    }
+  }
 }

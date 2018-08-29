@@ -4,6 +4,7 @@ import { connect } from 'react-redux';
 import FileSaver from 'file-saver';
 import { push } from 'react-router-redux';
 import { isEqual, orderBy, slice, sortBy } from 'lodash';
+import classNames from 'classnames';
 
 import Kolide from 'kolide';
 import AddHostModal from 'components/hosts/AddHostModal';
@@ -16,7 +17,6 @@ import LabelForm from 'components/forms/LabelForm';
 import Modal from 'components/modals/Modal';
 import PlatformIcon from 'components/icons/PlatformIcon';
 import QuerySidePanel from 'components/side_panels/QuerySidePanel';
-import Rocker from 'components/buttons/Rocker';
 import labelInterface from 'interfaces/label';
 import hostInterface from 'interfaces/host';
 import osqueryTableInterface from 'interfaces/osquery_table';
@@ -248,10 +248,12 @@ export class ManageHostsPage extends Component {
       });
   }
 
-  onToggleDisplay = (val) => {
+  onToggleDisplay = (event) => {
+    event.preventDefault();
     const { dispatch } = this.props;
+    const value = event.currentTarget.dataset.value;
 
-    dispatch(setDisplay(val));
+    dispatch(setDisplay(value));
 
     return false;
   }
@@ -501,12 +503,6 @@ export class ManageHostsPage extends Component {
 
     const { count, description, display_text: displayText, statusLabelKey, type } = selectedLabel;
     const { onToggleDisplay } = this;
-    const buttonOptions = {
-      rightIcon: 'grid-select',
-      rightText: 'Grid',
-      leftIcon: 'list-select',
-      leftText: 'List',
-    };
 
     const hostCount = type === 'status' ? statusLabels[`${statusLabelKey}`] : count;
     const hostsTotalDisplay = hostCount === 1 ? '1 Host Total' : `${hostCount} Hosts Total`;
@@ -526,11 +522,22 @@ export class ManageHostsPage extends Component {
         </div>
         <div className={`${baseClass}__topper`}>
           <p className={`${baseClass}__host-count`}>{hostsTotalDisplay}</p>
-          <Rocker
-            onChange={onToggleDisplay}
-            options={buttonOptions}
-            value={display}
-          />
+          <a
+            onClick={onToggleDisplay}
+            className={classNames(`${baseClass}__toggle-view`, {
+              [`${baseClass}__toggle-view--active`]: display === 'List',
+            })}
+            data-value="List"
+          >{<svg viewBox="0 0 24 24" className="kolidecon"><path d="M9 4h11a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zm0 7h11a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-1a1 1 0 0 1 1-1zm0 7h11a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-1a1 1 0 0 1 1-1zm-4.5 3a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm0-7a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm0-7a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z" fillRule="evenodd" /></svg>}
+          </a>
+          <a
+            onClick={onToggleDisplay}
+            className={classNames(`${baseClass}__toggle-view`, {
+              [`${baseClass}__toggle-view--active`]: display === 'Grid',
+            })}
+            data-value="Grid"
+          >{<svg viewBox="0 0 24 24" className="kolidecon"><path d="M5 15v4h4v-4H5zm-1-2h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1zm11 2v4h4v-4h-4zm-1-2h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-6a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1zm1-8v4h4V5h-4zm-1-2h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM5 5v4h4V5H5zM4 3h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" fillRule="nonzero" /></svg>}
+          </a>
         </div>
       </div>
     );
