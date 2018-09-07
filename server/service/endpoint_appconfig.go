@@ -105,6 +105,7 @@ func smtpSettingsFromAppConfig(config *kolide.AppConfig) *kolide.SMTPSettingsPay
 	authType := config.SMTPAuthenticationType.String()
 	authMethod := config.SMTPAuthenticationMethod.String()
 	return &kolide.SMTPSettingsPayload{
+		SMTPEnabled:              &config.SMTPConfigured,
 		SMTPConfigured:           &config.SMTPConfigured,
 		SMTPSenderAddress:        &config.SMTPSenderAddress,
 		SMTPServer:               &config.SMTPServer,

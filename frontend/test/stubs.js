@@ -27,7 +27,6 @@ export const configStub = {
     authentication_method: 'authmethod_plain',
     verify_ssl_certs: true,
     enable_start_tls: true,
-    email_enabled: false,
   },
 };
 
@@ -47,7 +46,6 @@ export const flatConfigStub = {
   authentication_method: 'authmethod_plain',
   verify_ssl_certs: true,
   enable_start_tls: true,
-  email_enabled: false,
 };
 
 export const hostStub = {

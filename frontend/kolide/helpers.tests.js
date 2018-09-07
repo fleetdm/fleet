@@ -25,6 +25,7 @@ describe('Kolide API - helpers', () => {
       kolide_server_url: '',
       configured: false,
       domain: '',
+      smtp_enabled: true,
       sender_address: '',
       server: '',
       port: 587,
@@ -35,7 +36,6 @@ describe('Kolide API - helpers', () => {
       authentication_method: 'authmethod_plain',
       verify_ssl_certs: true,
       enable_start_tls: true,
-      email_enabled: false,
     };
 
     it('splits config into categories for the server', () => {

@@ -1,8 +1,4 @@
-import { size, some } from 'lodash';
-
-import APP_CONSTANTS from 'app_constants';
-
-const { APP_SETTINGS } = APP_CONSTANTS;
+import { size } from 'lodash';
 
 export default (formData) => {
   const errors = {};
@@ -10,6 +6,7 @@ export default (formData) => {
     authentication_type: authType,
     kolide_server_url: kolideServerUrl,
     org_name: orgName,
+    enable_smtp: enableSMTP,
     password: smtpPassword,
     sender_address: smtpSenderAddress,
     server: smtpServer,
@@ -42,9 +39,7 @@ export default (formData) => {
     errors.org_name = 'Organization Name must be present';
   }
 
-  if (some([smtpSenderAddress, smtpServer, smtpUserName]) ||
-    (smtpPassword && smtpPassword !== APP_SETTINGS.FAKE_PASSWORD) ||
-    (smtpServerPort !== APP_SETTINGS.DEFAULT_SMTP_PORT)) {
+  if (enableSMTP) {
     if (!smtpSenderAddress) {
       errors.sender_address = 'SMTP Sender Address must be present';
     }

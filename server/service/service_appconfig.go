@@ -84,10 +84,15 @@ func (svc service) ModifyAppConfig(ctx context.Context, p kolide.AppConfigPayloa
 	config := appConfigFromAppConfigPayload(p, *oldAppConfig)
 
 	if p.SMTPSettings != nil {
-		if err = svc.SendTestEmail(ctx, config); err != nil {
-			return nil, err
+		enabled := p.SMTPSettings.SMTPEnabled
+		if (enabled == nil && oldAppConfig.SMTPConfigured) || (enabled != nil && *enabled) {
+			if err = svc.SendTestEmail(ctx, config); err != nil {
+				return nil, err
+			}
+			config.SMTPConfigured = true
+		} else if enabled != nil && !*enabled {
+			config.SMTPConfigured = false
 		}
-		config.SMTPConfigured = true
 	}
 
 	if err := svc.ds.SaveAppConfig(config); err != nil {

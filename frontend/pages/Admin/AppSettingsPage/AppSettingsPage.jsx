@@ -62,7 +62,7 @@ class AppSettingsPage extends Component {
       return false;
     }
 
-    const formData = { ...appConfig };
+    const formData = { ...appConfig, enable_smtp: smtpConfigured };
 
     return (
       <div className={`${baseClass} body-wrap`}>

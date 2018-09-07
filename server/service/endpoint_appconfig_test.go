@@ -61,6 +61,7 @@ func testModifyAppConfig(t *testing.T, r *testResource) {
 	}
 	payload := appConfigPayloadFromAppConfig(config)
 	payload.SMTPTest = new(bool)
+	*payload.SMTPSettings.SMTPEnabled = true
 
 	var buffer bytes.Buffer
 	err := json.NewEncoder(&buffer).Encode(payload)

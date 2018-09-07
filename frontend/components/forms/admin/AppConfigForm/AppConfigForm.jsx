@@ -24,7 +24,7 @@ const formFields = [
   'authentication_method', 'authentication_type', 'domain', 'enable_ssl_tls', 'enable_start_tls',
   'kolide_server_url', 'org_logo_url', 'org_name', 'osquery_enroll_secret', 'password',
   'port', 'sender_address', 'server', 'user_name', 'verify_ssl_certs', 'idp_name', 'entity_id',
-  'issuer_uri', 'idp_image_url', 'metadata', 'metadata_url', 'enable_sso',
+  'issuer_uri', 'idp_image_url', 'metadata', 'metadata_url', 'enable_sso', 'enable_smtp',
 ];
 const Header = ({ showAdvancedOptions }) => {
   const CaratIcon = <Icon name={showAdvancedOptions ? 'downcarat' : 'upcarat'} />;
@@ -58,6 +58,7 @@ class AppConfigForm extends Component {
       metadata_url: formFieldInterface.isRequired,
       idp_name: formFieldInterface.isRequired,
       enable_sso: formFieldInterface.isRequired,
+      enable_smtp: formFieldInterface.isRequired,
     }).isRequired,
     handleSubmit: PropTypes.func.isRequired,
     smtpConfigured: PropTypes.bool.isRequired,
@@ -185,6 +186,15 @@ class AppConfigForm extends Component {
 
         <div className={`${baseClass}__section`}>
           <h2>SAML Single Sign On Options</h2>
+
+          <div className={`${baseClass}__inputs`}>
+            <Checkbox
+              {...fields.enable_sso}
+            >
+              Enable Single Sign On
+            </Checkbox>
+          </div>
+
           <div className={`${baseClass}__inputs`}>
             <InputField
               {...fields.idp_name}
@@ -248,18 +258,18 @@ class AppConfigForm extends Component {
             <p>A URL that references the identity provider metadata.</p>
           </div>
 
-          <div className={`${baseClass}__inputs`}>
-            <Checkbox
-              {...fields.enable_sso}
-            >
-              Enable Single Sign On
-            </Checkbox>
-          </div>
-
         </div>
 
         <div className={`${baseClass}__section`}>
           <h2>SMTP Options <small className={`smtp-options smtp-options--${smtpConfigured ? 'configured' : 'notconfigured'}`}>STATUS: <em>{smtpConfigured ? 'CONFIGURED' : 'NOT CONFIGURED'}</em></small></h2>
+          <div className={`${baseClass}__inputs`}>
+            <Checkbox
+              {...fields.enable_smtp}
+            >
+              Enable SMTP
+            </Checkbox>
+          </div>
+
           <div className={`${baseClass}__inputs`}>
             <InputField
               {...fields.sender_address}
@@ -282,7 +292,7 @@ class AppConfigForm extends Component {
             <Checkbox
               {...fields.enable_ssl_tls}
             >
-              User SSL/TLS to connect (recommended)
+              Use SSL/TLS to connect (recommended)
             </Checkbox>
           </div>
           <div className={`${baseClass}__details`}>

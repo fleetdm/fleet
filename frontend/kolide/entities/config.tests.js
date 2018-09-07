@@ -44,7 +44,6 @@ describe('Kolide - API client (config)', () => {
         authentication_method: 'authmethod_plain',
         verify_ssl_certs: true,
         enable_start_tls: true,
-        email_enabled: false,
       };
       const configData = helpers.formatConfigDataForServer(formData);
       const request = configMocks.update.valid(bearerToken, configData);

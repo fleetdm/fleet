@@ -165,6 +165,9 @@ type SSOSettingsPayload struct {
 // SMTPSettingsPayload is part of the AppConfigPayload which defines the wire representation
 // of the app config endpoints
 type SMTPSettingsPayload struct {
+	// SMTPEnabled indicates whether the user has selected that SMTP is
+	// enabled in the UI.
+	SMTPEnabled *bool `json:"enable_smtp"`
 	// SMTPConfigured is a flag that indicates if smtp has been successfully
 	// tested with the settings provided by an admin user.
 	SMTPConfigured *bool `json:"configured"`

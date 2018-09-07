@@ -8,6 +8,7 @@ describe('AppConfigForm - validations', () => {
     authentication_type: 'username_password',
     kolide_server_url: 'https://gnar.dog',
     sender_address: 'hi@gnar.dog',
+    enable_smtp: true,
     server: '192.168.99.100',
     port: '1025',
     user_name: 'gnardog',
@@ -117,9 +118,10 @@ describe('AppConfigForm - validations', () => {
       });
     });
 
-    it('does not validate smtp config if only password and port are present and they are defaults', () => {
+    it('does not validate smtp config if smtp not enabled', () => {
       const formData = {
         ...validFormData,
+        enable_smtp: false,
         user_name: '',
         server: '',
         sender_address: '',
