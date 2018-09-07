@@ -106,9 +106,11 @@ func queryCommand() cli.Command {
 				select {
 				case hostResult := <-res.Results():
 					out := resultOutput{hostResult.Host.HostName, hostResult.Rows}
+					s.Stop()
 					if err := json.NewEncoder(os.Stdout).Encode(out); err != nil {
 						fmt.Fprintf(os.Stderr, "Error writing output: %s\n", err)
 					}
+					s.Start()
 
 				case err := <-res.Errors():
 					fmt.Fprintf(os.Stderr, "Error talking to server: %s\n", err.Error())
@@ -135,13 +137,16 @@ func queryCommand() cli.Command {
 						return nil
 					}
 
+					msg := fmt.Sprintf(" %.f%% responded (%.f%% online) | %d/%d targeted hosts (%d/%d online)", percentTotal, percentOnline, responded, total, responded, online)
 					if !flQuiet {
-						s.Suffix = fmt.Sprintf(
-							"  %.f%% responded (%.f%% online) | %d/%d targeted hosts (%d/%d online)",
-							percentTotal, percentOnline,
-							responded, total,
-							responded, online,
-						)
+						s.Suffix = msg
+					}
+					if total == responded {
+						s.Stop()
+						if !flQuiet {
+							fmt.Fprintf(os.Stderr, msg+"\n")
+						}
+						return nil
 					}
 				}
 			}
