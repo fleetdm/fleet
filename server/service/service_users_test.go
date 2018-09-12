@@ -86,6 +86,39 @@ func TestModifyUserEmail(t *testing.T) {
 
 }
 
+func TestModifyUserCannotUpdateAdminEnabled(t *testing.T) {
+	// The modify user function should not be able to update the admin or
+	// enabled status of a user. These should only be updated explicitly
+	// through the ChangeUserAdmin and ChangeUserEnabled functions.
+	user := &kolide.User{
+		ID:      3,
+		Admin:   false,
+		Email:   "foo@bar.com",
+		Enabled: true,
+	}
+	user.SetPassword("password", 10, 10)
+	ms := new(mock.Store)
+	ms.UserByIDFunc = func(id uint) (*kolide.User, error) {
+		return user, nil
+	}
+	ms.SaveUserFunc = func(u *kolide.User) error {
+		assert.Equal(t, false, u.Admin, "should not be able to update admin status!")
+		assert.Equal(t, true, u.Enabled, "should not be able to update enabled status!")
+		return nil
+	}
+	svc, err := newTestService(ms, nil)
+	ctx := context.Background()
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+	payload := kolide.UserPayload{
+		Admin:   boolPtr(true),
+		Enabled: boolPtr(false),
+	}
+	_, err = svc.ModifyUser(ctx, 3, payload)
+	require.Nil(t, err)
+	assert.True(t, ms.SaveUserFuncInvoked)
+
+}
+
 func TestModifyUserEmailNoPassword(t *testing.T) {
 	user := &kolide.User{
 		ID:      3,
