@@ -92,14 +92,6 @@ func (svc service) ModifyUser(ctx context.Context, userID uint, p kolide.UserPay
 
 	// the method assumes that the correct authorization
 	// has been validated higher up the stack
-	if p.Admin != nil {
-		user.Admin = *p.Admin
-	}
-
-	if p.Enabled != nil {
-		user.Enabled = *p.Enabled
-	}
-
 	if p.Username != nil {
 		user.Username = *p.Username
 	}
