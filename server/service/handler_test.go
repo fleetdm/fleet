@@ -223,7 +223,7 @@ func TestModifyUserPermissions(t *testing.T) {
 	)
 	ms := new(mock.Store)
 	ms.SessionByKeyFunc = func(key string) (*kolide.Session, error) {
-		return &kolide.Session{AccessedAt: time.Now(), UserID: uid}, nil
+		return &kolide.Session{AccessedAt: time.Now(), UserID: uid, ID: 1}, nil
 	}
 	ms.DestroySessionFunc = func(session *kolide.Session) error {
 		return nil

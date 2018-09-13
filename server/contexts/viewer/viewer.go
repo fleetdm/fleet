@@ -30,15 +30,6 @@ type Viewer struct {
 	Session *kolide.Session
 }
 
-// IsAdmin indicates whether or not the current user can perform administrative
-// actions.
-func (v Viewer) IsAdmin() bool {
-	if v.User != nil {
-		return v.User.Admin && v.User.Enabled
-	}
-	return false
-}
-
 // UserID is a helper that enables quick access to the user ID of the current
 // user.
 func (v Viewer) UserID() uint {
@@ -54,7 +45,7 @@ func (v Viewer) Username() string {
 	if v.User != nil {
 		return v.User.Username
 	}
-	return "none"
+	return ""
 }
 
 // FullName is a helper that enables quick access to the full name of the
@@ -63,7 +54,7 @@ func (v Viewer) FullName() string {
 	if v.User != nil {
 		return v.User.Name
 	}
-	return "none"
+	return ""
 }
 
 // SessionID returns the current user's session ID
@@ -72,6 +63,12 @@ func (v Viewer) SessionID() uint {
 		return v.Session.ID
 	}
 	return 0
+}
+
+// IsUserID returns true if the given user id the same as the user which is
+// represented by this ViewerContext
+func (v Viewer) IsUserID(id uint) bool {
+	return v.UserID() == id
 }
 
 // IsLoggedIn determines whether or not the current VC is attached to a user
@@ -101,10 +98,13 @@ func (v Viewer) CanPerformActions() bool {
 	return false
 }
 
-// IsUserID returns true if the given user id the same as the user which is
-// represented by this ViewerContext
-func (v Viewer) IsUserID(id uint) bool {
-	return v.UserID() == id
+// CanPerformAdminActions indicates whether or not the current user can perform
+// administrative actions.
+func (v Viewer) CanPerformAdminActions() bool {
+	if v.User != nil {
+		return v.CanPerformActions() && v.User.Admin
+	}
+	return false
 }
 
 // CanPerformReadActionOnUser returns a bool indicating the current user's
@@ -120,10 +120,17 @@ func (v Viewer) CanPerformReadActionOnUser(uid uint) bool {
 // ability to perform write actions on the given user
 func (v Viewer) CanPerformWriteActionOnUser(uid uint) bool {
 	if v.User != nil {
-		// By not requiring v.CanPerformActions() here, we allow the
-		// user to update their password when they are in the forced
-		// password reset state.
-		return v.IsUserID(uid) || v.IsAdmin()
+		return (v.IsLoggedIn() && v.IsUserID(uid)) || v.CanPerformAdminActions()
+	}
+	return false
+}
+
+// CanPerformPasswordReset returns a bool indicating the current user's
+// ability to perform a password reset (in the case they have been required by
+// the admin).
+func (v Viewer) CanPerformPasswordReset() bool {
+	if v.User != nil {
+		return v.IsLoggedIn() && v.User.AdminForcedPasswordReset
 	}
 	return false
 }

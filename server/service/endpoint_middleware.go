@@ -126,7 +126,7 @@ func mustBeAdmin(next endpoint.Endpoint) endpoint.Endpoint {
 		if !ok {
 			return nil, errNoContext
 		}
-		if !vc.IsAdmin() {
+		if !vc.CanPerformAdminActions() {
 			return nil, permissionError{message: "must be an admin"}
 		}
 		return next(ctx, request)
@@ -169,6 +169,19 @@ func canModifyUser(next endpoint.Endpoint) endpoint.Endpoint {
 		uid := requestUserIDFromContext(ctx)
 		if !vc.CanPerformWriteActionOnUser(uid) {
 			return nil, permissionError{message: "no write permissions on user"}
+		}
+		return next(ctx, request)
+	}
+}
+
+func canPerformPasswordReset(next endpoint.Endpoint) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		vc, ok := viewer.FromContext(ctx)
+		if !ok {
+			return nil, errNoContext
+		}
+		if !vc.CanPerformPasswordReset() {
+			return nil, permissionError{message: "cannot reset password"}
 		}
 		return next(ctx, request)
 	}
