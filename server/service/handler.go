@@ -118,7 +118,7 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey string) KolideEndpoint
 		RequirePasswordReset: authenticatedUser(jwtKey, svc, mustBeAdmin(makeRequirePasswordResetEndpoint(svc))),
 		// PerformRequiredPasswordReset needs only to authenticate the
 		// logged in user
-		PerformRequiredPasswordReset:   authenticatedUser(jwtKey, svc, makePerformRequiredPasswordResetEndpoint(svc)),
+		PerformRequiredPasswordReset:   authenticatedUser(jwtKey, svc, canPerformPasswordReset(makePerformRequiredPasswordResetEndpoint(svc))),
 		GetSessionsForUserInfo:         authenticatedUser(jwtKey, svc, canReadUser(makeGetInfoAboutSessionsForUserEndpoint(svc))),
 		DeleteSessionsForUser:          authenticatedUser(jwtKey, svc, canModifyUser(makeDeleteSessionsForUserEndpoint(svc))),
 		GetSessionInfo:                 authenticatedUser(jwtKey, svc, mustBeAdmin(makeGetInfoAboutSessionEndpoint(svc))),

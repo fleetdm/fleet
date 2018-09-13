@@ -108,7 +108,7 @@ func passwordRequiredForEmailChange(ctx context.Context, uid uint, invalid *inva
 		return true
 	}
 	// if an admin is changing another users email no password needed
-	if vc.IsAdmin() {
+	if vc.CanPerformAdminActions() {
 		return false
 	}
 	// should never get here because a non admin can't change the email of another
