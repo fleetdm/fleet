@@ -1,13 +1,19 @@
 package service
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/go-kit/kit/log"
 	"github.com/gorilla/mux"
 	"github.com/kolide/fleet/server/config"
 	"github.com/kolide/fleet/server/datastore/inmem"
+	"github.com/kolide/fleet/server/kolide"
+	"github.com/kolide/fleet/server/mock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -209,4 +215,113 @@ func TestAPIRoutes(t *testing.T) {
 			assert.NotEqual(st, 404, recorder.Code)
 		})
 	}
+}
+
+func TestModifyUserPermissions(t *testing.T) {
+	var (
+		admin, enabled bool
+		uid            uint
+	)
+	ms := new(mock.Store)
+	ms.SessionByKeyFunc = func(key string) (*kolide.Session, error) {
+		return &kolide.Session{AccessedAt: time.Now(), UserID: uid}, nil
+	}
+	ms.DestroySessionFunc = func(session *kolide.Session) error {
+		return nil
+	}
+	ms.MarkSessionAccessedFunc = func(session *kolide.Session) error {
+		return nil
+	}
+	ms.UserByIDFunc = func(id uint) (*kolide.User, error) {
+		return &kolide.User{ID: id, Enabled: enabled, Admin: admin}, nil
+	}
+	ms.SaveUserFunc = func(u *kolide.User) error {
+		// Return an error so that the endpoint returns
+		return errors.New("foo")
+	}
+
+	svc, err := newTestService(ms, nil)
+	assert.Nil(t, err)
+
+	handler := MakeHandler(svc, "CHANGEME", log.NewNopLogger())
+
+	testCases := []struct {
+		ActingUserID      uint
+		ActingUserAdmin   bool
+		ActingUserEnabled bool
+		TargetUserID      uint
+		Authorized        bool
+	}{
+		// Disabled regular user
+		{
+			ActingUserID:      1,
+			ActingUserAdmin:   false,
+			ActingUserEnabled: false,
+			TargetUserID:      1,
+			Authorized:        false,
+		},
+		// Enabled regular user acting on self
+		{
+			ActingUserID:      1,
+			ActingUserAdmin:   false,
+			ActingUserEnabled: true,
+			TargetUserID:      1,
+			Authorized:        true,
+		},
+		// Enabled regular user acting on other
+		{
+			ActingUserID:      2,
+			ActingUserAdmin:   false,
+			ActingUserEnabled: true,
+			TargetUserID:      1,
+			Authorized:        false,
+		},
+		// Disabled admin user
+		{
+			ActingUserID:      1,
+			ActingUserAdmin:   true,
+			ActingUserEnabled: false,
+			TargetUserID:      1,
+			Authorized:        false,
+		},
+		// Enabled admin user acting on self
+		{
+			ActingUserID:      1,
+			ActingUserAdmin:   true,
+			ActingUserEnabled: true,
+			TargetUserID:      1,
+			Authorized:        true,
+		},
+		// Enabled admin user acting on other
+		{
+			ActingUserID:      2,
+			ActingUserAdmin:   true,
+			ActingUserEnabled: true,
+			TargetUserID:      1,
+			Authorized:        true,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run("", func(t *testing.T) {
+			// Set user params
+			uid = tt.ActingUserID
+			admin, enabled = tt.ActingUserAdmin, tt.ActingUserEnabled
+
+			recorder := httptest.NewRecorder()
+			path := fmt.Sprintf("/api/v1/kolide/users/%d", tt.TargetUserID)
+			request := httptest.NewRequest("PATCH", path, bytes.NewBufferString("{}"))
+			// Bearer token generated with session key CHANGEME on jwt.io
+			request.Header.Add("Authorization", "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzZXNzaW9uX2tleSI6ImZsb29wIn0.ukCPTFvgSJrXbHH2QeAMx3EKwoMh1OmhP3xXxy5I-Wk")
+
+			handler.ServeHTTP(recorder, request)
+			if tt.Authorized {
+				assert.NotEqual(t, 403, recorder.Code)
+			} else {
+				assert.Equal(t, 403, recorder.Code)
+			}
+
+		})
+	}
+
 }
