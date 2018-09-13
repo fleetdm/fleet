@@ -12,16 +12,17 @@ package mock
 //go:generate mockimpl -o datastore_scheduled_queries.go "s *ScheduledQueryStore" "kolide.ScheduledQueryStore"
 //go:generate mockimpl -o datastore_queries.go "s *QueryStore" "kolide.QueryStore"
 //go:generate mockimpl -o datastore_campaigns.go "s *CampaignStore" "kolide.CampaignStore"
+//go:generate mockimpl -o datastore_sessions.go "s *SessionStore" "kolide.SessionStore"
 
 import "github.com/kolide/fleet/server/kolide"
 
 var _ kolide.Datastore = (*Store)(nil)
 
 type Store struct {
-	kolide.SessionStore
 	kolide.PasswordResetStore
 	kolide.YARAStore
 	kolide.TargetStore
+	SessionStore
 	CampaignStore
 	ScheduledQueryStore
 	OsqueryOptionsStore
