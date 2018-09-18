@@ -1,3 +1,13 @@
+-## Kolide Fleet 2.0.0 RC5 (Sep 18, 2018)
+
+* Fix a security vulnerability that would allow a non-admin user to elevate privileges to admin level.
+
+* Fix a security vulnerability that would allow a non-admin user to modify other user's details.
+
+* Reduce the information that could be gained by an admin user trying to port scan the network through the SMTP configuration.
+
+* Refactor and add testing to authorization code.
+
 ## Kolide Fleet 2.0.0 RC4 (August 14, 2018)
 
 * Expose the API token (to be used with fleetctl) in the UI.
