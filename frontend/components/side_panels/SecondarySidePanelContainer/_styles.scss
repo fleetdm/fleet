@@ -1,15 +1,11 @@
 .secondary-side-panel-container {
   @include align-self(stretch);
   background-color: $white;
-  border-left: 1px solid $border-medium;
-  border-top: 1px solid $border-medium;
-  box-shadow: -2px 0 8px 0 rgba($black, 0.1);
   box-sizing: border-box;
+  border-left: 1px solid $border-medium;
   overflow: auto;
   width: $sidepanel-width;
-  margin-top: $pad-base;
   margin-left: $pad-base;
-  border-top-left-radius: 3px;
   padding-top: $pad-base;
   min-height: calc(100vh - #{$pad-base} - #{$footer-height});
 

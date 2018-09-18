@@ -32,7 +32,6 @@ $base-class: 'panel-group-item';
   color: $text-medium;
   text-align: left;
   padding: 0 $pad-large;
-  border-radius: 4px;
 
   &__flexy {
     @include display(flex);

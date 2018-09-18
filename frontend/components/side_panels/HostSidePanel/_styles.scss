@@ -5,7 +5,6 @@
     line-height: 2.25;
     letter-spacing: 0.5px;
     padding: 0 30px;
-    border-radius: 4px;
     width: 100%;
     text-align: left;
 
@@ -20,7 +19,7 @@
 
   &__wrapper {
     color: $text-medium;
-    padding: 0 7px;
+    padding: 0;
 
     .input-icon-field {
       margin-top: 0;

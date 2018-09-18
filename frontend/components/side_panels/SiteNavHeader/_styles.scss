@@ -134,9 +134,7 @@
   overflow: hidden;
   opacity: 0;
   box-sizing: border-box;
-  border-radius: 4px;
-  background-color: #443a6b;
-  box-shadow: 1px 6px 15px 0 rgba(0, 0, 0, 0.2);
+  background-color: $brand-dark;
   border: solid 1px rgba(73, 143, 226, 0.6);
 
   &--open {

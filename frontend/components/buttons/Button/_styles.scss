@@ -13,7 +13,6 @@ $base-class: 'button';
   }
 
   background-color: $color;
-  box-shadow: 0 2px 0 $shadow, 0 3px 5px 0 rgba($black, 0.15);
 
   &.#{$base-class}--disabled {
     &:hover {
@@ -38,7 +37,6 @@ $base-class: 'button';
   text-decoration: none;
   text-transform: uppercase;
   letter-spacing: 1px;
-  border-radius: 2px;
   font-size: $medium;
   font-family: 'Oxygen', $helvetica;
   font-weight: $bold;
@@ -83,7 +81,7 @@ $base-class: 'button';
     @include button-variant($white, $inverse-hover, $brand);
     color: $brand;
     border: 1px solid $brand;
-    border-bottom-color: $white;
+    border-bottom-color: $brand;
 
     &:active {
       border-bottom-color: $brand;
