@@ -147,8 +147,19 @@ func (m mailService) sendMail(e kolide.Email, msg []byte) error {
 
 // dialTimeout sets a timeout on net.Dial to prevent email from attempting to
 // send indefinitely.
-func dialTimeout(addr string) (*smtp.Client, error) {
-	conn, err := net.DialTimeout("tcp", addr, 15*time.Second)
+func dialTimeout(addr string) (client *smtp.Client, err error) {
+	// Ensure that errors are always returned after at least 5s to
+	// eliminate (some) timing attacks (in which a malicious user tries to
+	// port scan using the email functionality in Fleet)
+	c := time.After(5 * time.Second)
+	defer func() {
+		if err != nil {
+			// Wait until timer has elapsed to return anything
+			<-c
+		}
+	}()
+
+	conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
 	if err != nil {
 		return nil, errors.Wrap(err, "dialing with timeout")
 	}
@@ -156,5 +167,17 @@ func dialTimeout(addr string) (*smtp.Client, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "split host port")
 	}
-	return smtp.NewClient(conn, host)
+
+	// Set a deadline to ensure we time out quickly when there is a TCP
+	// server listening but it's not an SMTP server (otherwise this seems
+	// to time out in 20s)
+	_ = conn.SetDeadline(time.Now().Add(2 * time.Second))
+	client, err = smtp.NewClient(conn, host)
+	if err != nil {
+		return nil, errors.New("SMTP connection error")
+	}
+	// Clear deadlines
+	_ = conn.SetDeadline(time.Time{})
+
+	return client, nil
 }
