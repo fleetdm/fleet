@@ -1,3 +1,13 @@
+## Kolide Fleet 1.0.9 (Sep 18, 2018)
+
+* Fix a security vulnerability that would allow a non-admin user to elevate privileges to admin level.
+
+* Fix a security vulnerability that would allow a non-admin user to modify other user's details.
+
+* Reduce the information that could be gained by an admin user trying to port scan the network through the SMTP configuration.
+
+* Refactor and add testing to authorization code.
+
 ## Kolide Fleet 1.0.8 (May 3, 2018)
 
 * Osquery 3.0+ compatibility!
