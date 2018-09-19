@@ -85,23 +85,23 @@ Specify the path to this certificate with the `--tls_server_certs` flag when you
 Assuming that you are deploying your enrollment secret as the environment variable `OSQUERY_ENROLL_SECRET` and your osquery server certificate is at `/etc/osquery/kolide.crt`, you could copy and paste the following command with the following flags (be sure to replace kolide.acme.net with the hostname or IP of your Fleet installation):
 
 ```
-osqueryd
- --enroll_secret_env=OSQUERY_ENROLL_SECRET
- --tls_server_certs=/etc/osquery/kolide.crt
- --tls_hostname=kolide.acme.net
- --host_identifier=uuid
- --enroll_tls_endpoint=/api/v1/osquery/enroll
- --config_plugin=tls
- --config_tls_endpoint=/api/v1/osquery/config
- --config_tls_refresh=10
- --disable_distributed=false
- --distributed_plugin=tls
- --distributed_interval=10
- --distributed_tls_max_attempts=3
- --distributed_tls_read_endpoint=/api/v1/osquery/distributed/read
- --distributed_tls_write_endpoint=/api/v1/osquery/distributed/write
- --logger_plugin=tls
- --logger_tls_endpoint=/api/v1/osquery/log
+sudo osqueryd \
+ --enroll_secret_env=OSQUERY_ENROLL_SECRET \
+ --tls_server_certs=/etc/osquery/kolide.crt \
+ --tls_hostname=kolide.acme.net \
+ --host_identifier=uuid \
+ --enroll_tls_endpoint=/api/v1/osquery/enroll \
+ --config_plugin=tls \
+ --config_tls_endpoint=/api/v1/osquery/config \
+ --config_tls_refresh=10 \
+ --disable_distributed=false \
+ --distributed_plugin=tls \
+ --distributed_interval=10 \
+ --distributed_tls_max_attempts=3 \
+ --distributed_tls_read_endpoint=/api/v1/osquery/distributed/read \
+ --distributed_tls_write_endpoint=/api/v1/osquery/distributed/write \
+ --logger_plugin=tls \
+ --logger_tls_endpoint=/api/v1/osquery/log \
  --logger_tls_period=10
 ```
 
