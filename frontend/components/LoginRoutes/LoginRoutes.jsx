@@ -1,7 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 
-import { hideBackgroundImage, showBackgroundImage } from 'redux/nodes/app/actions';
+import { hideBackgroundImage } from 'redux/nodes/app/actions';
 import { ssoSettings } from 'redux/nodes/auth/actions';
 import LoginPage from 'pages/LoginPage';
 import Footer from 'components/Footer';
@@ -22,7 +22,7 @@ export class LoginRoutes extends Component {
     dispatch(ssoSettings())
       .catch(() => false);
 
-    dispatch(showBackgroundImage);
+    dispatch(hideBackgroundImage);
   }
 
   componentWillUnmount () {

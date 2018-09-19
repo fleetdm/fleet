@@ -5,4 +5,5 @@
   @include justify-content(center);
   position: relative;
   min-height: calc(100vh - #{$footer-height});
+  background-color: $white;
 }

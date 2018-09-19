@@ -1,6 +1,5 @@
 .logout-form {
   @include align-self(center);
-  box-shadow: 0 5px 30px 0 rgba($black, 0.3);
   width: 460px;
 
   &__container {
@@ -8,8 +7,6 @@
     @include align-items(center);
     @include flex-direction(column);
     background-color: $white;
-    border-top-left-radius: 4px;
-    border-top-right-radius: 4px;
     box-sizing: border-box;
     padding: 30px;
     width: 460px;

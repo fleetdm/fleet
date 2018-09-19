@@ -1,7 +1,6 @@
 .login-form {
   @include transition(all 300ms ease-in);
   @include transform(scale(1));
-  box-shadow: 0 5px 30px 0 rgba($black, 0.3);
   margin-top: -260px;
   opacity: 1;
   width: 460px;
@@ -16,8 +15,8 @@
     @include display(flex);
     align-items: center;
     background-color: $white;
-    border-top-left-radius: 4px;
-    border-top-right-radius: 4px;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
@@ -28,8 +27,7 @@
   }
 
   &__submit-btn {
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
+    border-radius: 2px;
     padding: $base;
     width: 460px;
   }

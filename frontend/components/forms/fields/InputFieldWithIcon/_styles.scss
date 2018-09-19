@@ -20,8 +20,8 @@
   }
 
   &__input {
-    border: 0;
-    border-bottom: 2px solid $brand-ultralight;
+    border: 2px;
+    border-bottom: 2px solid $brand;
     padding: 0 30px 8px 0;
     font-size: 20px;
     text-indent: 1px;
@@ -72,7 +72,7 @@
     color: $accent-text;
 
     code {
-      color: $brand-light;
+      color: $brand;
       background-color: $accent-light;
       padding: 2px;
       font-family: 'SourceCodePro', $monospace;

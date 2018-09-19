@@ -9,7 +9,6 @@ import InputFieldWithIcon from 'components/forms/fields/InputFieldWithIcon';
 import paths from 'router/paths';
 import validate from 'components/forms/LoginForm/validate';
 import ssoSettingsInterface from 'interfaces/ssoSettings';
-import avatar from '../../../../assets/images/avatar.svg';
 
 const baseClass = 'login-form';
 const formFields = ['username', 'password'];
@@ -80,7 +79,6 @@ class LoginForm extends Component {
     return (
       <form onSubmit={handleSubmit} className={loginFormClass}>
         <div className={`${baseClass}__container`}>
-          <img alt="Avatar" src={avatar} />
           {baseError && <div className="form__base-error">{baseError}</div>}
           <InputFieldWithIcon
             {...fields.username}
