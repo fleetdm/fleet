@@ -3,8 +3,10 @@ package service
 import (
 	"bytes"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -20,7 +22,7 @@ type Client struct {
 	insecureSkipVerify bool
 }
 
-func NewClient(addr string, insecureSkipVerify bool) (*Client, error) {
+func NewClient(addr string, insecureSkipVerify bool, rootCA string) (*Client, error) {
 	if !strings.HasPrefix(addr, "https://") {
 		return nil, errors.New("Addrress must start with https://")
 	}
@@ -30,9 +32,33 @@ func NewClient(addr string, insecureSkipVerify bool) (*Client, error) {
 		return nil, errors.Wrap(err, "parsing URL")
 	}
 
+	rootCAPool, err := x509.SystemCertPool()
+	if err != nil {
+		return nil, errors.Wrap(err, "loading system cert pool")
+	}
+
+	if rootCA != "" {
+		// set up empty cert pool
+		rootCAPool = x509.NewCertPool()
+
+		// read in the root cert file specified in the context
+		certs, err := ioutil.ReadFile(rootCA)
+		if err != nil {
+			return nil, errors.Wrap(err, "reading root CA")
+		}
+
+		// add certs to new cert pool
+		if ok := rootCAPool.AppendCertsFromPEM(certs); !ok {
+			return nil, errors.Wrap(err, "adding root CA")
+		}
+	}
+
 	httpClient := &http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: insecureSkipVerify},
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: insecureSkipVerify,
+				RootCAs:            rootCAPool,
+			},
 		},
 	}
 

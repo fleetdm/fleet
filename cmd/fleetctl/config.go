@@ -26,6 +26,7 @@ type Context struct {
 	Email         string `json:"email"`
 	Token         string `json:"token"`
 	TLSSkipVerify bool   `json:"tls-skip-verify"`
+	RootCA        string `json:"rootca"`
 }
 
 func configFlag() cli.Flag {
@@ -113,6 +114,8 @@ func getConfigValue(c *cli.Context, key string) (interface{}, error) {
 		return currentContext.Email, nil
 	case "token":
 		return currentContext.Token, nil
+	case "rootca":
+		return currentContext.RootCA, nil
 	case "tls-skip-verify":
 		if currentContext.TLSSkipVerify {
 			return true, nil
@@ -155,6 +158,8 @@ func setConfigValue(c *cli.Context, key, value string) error {
 		currentContext.Email = value
 	case "token":
 		currentContext.Token = value
+	case "rootca":
+		currentContext.RootCA = value
 	case "tls-skip-verify":
 		boolValue, err := strconv.ParseBool(value)
 		if err != nil {
@@ -180,6 +185,7 @@ func configSetCommand() cli.Command {
 		flEmail         string
 		flToken         string
 		flTLSSkipVerify bool
+		flRootCA        string
 	)
 	return cli.Command{
 		Name:      "set",
@@ -214,6 +220,13 @@ func configSetCommand() cli.Command {
 				EnvVar:      "INSECURE",
 				Destination: &flTLSSkipVerify,
 				Usage:       "Skip TLS certificate validation",
+			},
+			cli.StringFlag{
+				Name:        "rootca",
+				EnvVar:      "ROOTCA",
+				Value:       "",
+				Destination: &flRootCA,
+				Usage:       "Specify RootCA chain used to communicate with fleet",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -251,6 +264,14 @@ func configSetCommand() cli.Command {
 				fmt.Printf("[+] Set the tls-skip-verify config key to \"true\" in the %q context\n", c.String("context"))
 			}
 
+			if flRootCA != "" {
+				set = true
+				if err := setConfigValue(c, "rootca", flRootCA); err != nil {
+					return errors.Wrap(err, "error setting rootca")
+				}
+				fmt.Printf("[+] Set the rootca config key to %q in the %q context\n", flRootCA, c.String("context"))
+			}
+
 			if !set {
 				return cli.ShowCommandHelp(c, "set")
 			}
@@ -278,7 +299,7 @@ func configGetCommand() cli.Command {
 
 			// validate key
 			switch key {
-			case "address", "email", "token", "tls-skip-verify":
+			case "address", "email", "token", "tls-skip-verify", "rootca":
 			default:
 				return cli.ShowCommandHelp(c, "get")
 			}

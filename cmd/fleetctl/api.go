@@ -27,7 +27,7 @@ func unauthenticatedClientFromCLI(c *cli.Context) (*service.Client, error) {
 		return nil, errors.New("set the Fleet API address with: fleetctl config set --address https://localhost:8080")
 	}
 
-	fleet, err := service.NewClient(cc.Address, cc.TLSSkipVerify)
+	fleet, err := service.NewClient(cc.Address, cc.TLSSkipVerify, cc.RootCA)
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating Fleet API client handler")
 	}
