@@ -14,7 +14,7 @@ func (d *Datastore) deleteEntity(dbTable string, id uint) error {
 	`, dbTable)
 	result, err := d.db.Exec(deleteStmt, d.clock.Now(), id)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("delete %s", dbTable))
+		return errors.Wrapf(err, "delete %s", dbTable)
 	}
 	rows, _ := result.RowsAffected()
 	if rows != 1 {
@@ -33,7 +33,7 @@ func (d *Datastore) deleteEntityByName(dbTable string, name string) error {
 		if isMySQLForeignKey(err) {
 			return foreignKey(dbTable, name)
 		}
-		return errors.Wrap(err, fmt.Sprintf("delete %s", dbTable))
+		return errors.Wrapf(err, "delete %s", dbTable)
 	}
 	rows, _ := result.RowsAffected()
 	if rows != 1 {

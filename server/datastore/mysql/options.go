@@ -2,7 +2,6 @@ package mysql
 
 import (
 	"database/sql"
-	"fmt"
 
 	"github.com/kolide/fleet/server/datastore/internal/appstate"
 	"github.com/kolide/fleet/server/kolide"
@@ -23,7 +22,7 @@ func (d *Datastore) ResetOptions() (opts []kolide.Option, err error) {
 	defer func() {
 		if err != nil {
 			if txErr := txn.Rollback(); txErr != nil {
-				err = errors.Wrap(err, fmt.Sprintf("reset options failed, transaction rollback failed with error: %s", txErr))
+				err = errors.Wrapf(err, "reset options failed, transaction rollback failed with error: %s", txErr)
 			}
 		}
 	}()
