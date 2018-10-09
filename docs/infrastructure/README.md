@@ -9,7 +9,7 @@ Kolide Fleet is an infrastructure instrumentation application which has it's own
 - To add hosts to Fleet, you will need to provide a minimum set of configuration to the osquery agent on each host. These configurations are defined in the aforementioned [Adding Hosts To Fleet](./adding-hosts-to-fleet.md) document. If you'd like to further customize the osquery configurations and options, this can be done via fleetctl. You can find more documentation on this feature in the [fleetctl documentation](../cli/file-format.md#osquery-configuration-options).
 - To manage osquery configurations at your organization, we strongly suggest using some form of configuration management tooling. For more information on configuration management, see the [Managing Osquery Configurations](./managing-osquery-configurations.md) document.
 
-## Installing Fleet and it's dependencies
+## Installing Fleet and its dependencies
 
 The Fleet server has a few dependencies. To learn more about installing the Fleet server and it's dependencies, see the [Installing Fleet](./installing-fleet.md) guide.
 
