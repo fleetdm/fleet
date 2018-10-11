@@ -12,7 +12,7 @@ func NewQuery(t *testing.T, ds kolide.Datastore, name, q string, authorID uint, 
 	query, err := ds.NewQuery(&kolide.Query{
 		Name:     name,
 		Query:    q,
-		AuthorID: authorID,
+		AuthorID: &authorID,
 		Saved:    saved,
 	})
 	require.Nil(t, err)

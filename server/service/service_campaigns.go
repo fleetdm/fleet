@@ -25,6 +25,10 @@ func (svc service) NewDistributedQueryCampaignByNames(ctx context.Context, query
 	return svc.NewDistributedQueryCampaign(ctx, queryString, hostIDs, labelIDs)
 }
 
+func uintPtr(n uint) *uint {
+	return &n
+}
+
 func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString string, hosts []uint, labels []uint) (*kolide.DistributedQueryCampaign, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
@@ -35,7 +39,7 @@ func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 		Name:     fmt.Sprintf("distributed_%s_%d", vc.Username(), time.Now().Unix()),
 		Query:    queryString,
 		Saved:    false,
-		AuthorID: vc.UserID(),
+		AuthorID: uintPtr(vc.UserID()),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "new query")

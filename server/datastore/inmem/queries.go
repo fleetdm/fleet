@@ -71,7 +71,7 @@ func (d *Datastore) Query(id uint) (*kolide.Query, error) {
 		return nil, notFound("Query").WithID(id)
 	}
 
-	query.AuthorName = d.getUserNameByID(query.AuthorID)
+	query.AuthorName = d.getUserNameByID(*query.AuthorID)
 
 	if err := d.loadPacksForQueries([]*kolide.Query{query}); err != nil {
 		return nil, errors.Wrap(err, "error fetching query by id")
@@ -95,7 +95,7 @@ func (d *Datastore) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, error)
 	for _, k := range keys {
 		q := d.queries[uint(k)]
 		if q.Saved {
-			q.AuthorName = d.getUserNameByID(q.AuthorID)
+			q.AuthorName = d.getUserNameByID(*q.AuthorID)
 			queries = append(queries, q)
 		}
 	}

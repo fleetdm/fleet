@@ -31,7 +31,7 @@ func testApplyQueries(t *testing.T, ds kolide.Datastore) {
 		assert.Equal(t, comp.Name, q.Name)
 		assert.Equal(t, comp.Description, q.Description)
 		assert.Equal(t, comp.Query, q.Query)
-		assert.Equal(t, zwass.ID, q.AuthorID)
+		assert.Equal(t, &zwass.ID, q.AuthorID)
 	}
 
 	// Victor modifies a query (but also pushes the same version of the
@@ -48,7 +48,7 @@ func testApplyQueries(t *testing.T, ds kolide.Datastore) {
 		assert.Equal(t, comp.Name, q.Name)
 		assert.Equal(t, comp.Description, q.Description)
 		assert.Equal(t, comp.Query, q.Query)
-		assert.Equal(t, groob.ID, q.AuthorID)
+		assert.Equal(t, &groob.ID, q.AuthorID)
 	}
 
 	// Zach adds a third query (but does not re-apply the others)
@@ -67,9 +67,9 @@ func testApplyQueries(t *testing.T, ds kolide.Datastore) {
 		assert.Equal(t, comp.Description, q.Description)
 		assert.Equal(t, comp.Query, q.Query)
 	}
-	assert.Equal(t, groob.ID, queries[0].AuthorID)
-	assert.Equal(t, groob.ID, queries[1].AuthorID)
-	assert.Equal(t, zwass.ID, queries[2].AuthorID)
+	assert.Equal(t, &groob.ID, queries[0].AuthorID)
+	assert.Equal(t, &groob.ID, queries[1].AuthorID)
+	assert.Equal(t, &zwass.ID, queries[2].AuthorID)
 }
 
 func testDeleteQuery(t *testing.T, ds kolide.Datastore) {
@@ -78,7 +78,7 @@ func testDeleteQuery(t *testing.T, ds kolide.Datastore) {
 	query := &kolide.Query{
 		Name:     "foo",
 		Query:    "bar",
-		AuthorID: user.ID,
+		AuthorID: &user.ID,
 	}
 	query, err := ds.NewQuery(query)
 	require.Nil(t, err)
@@ -150,7 +150,7 @@ func testSaveQuery(t *testing.T, ds kolide.Datastore) {
 	query := &kolide.Query{
 		Name:     "foo",
 		Query:    "bar",
-		AuthorID: user.ID,
+		AuthorID: &user.ID,
 	}
 	query, err := ds.NewQuery(query)
 	require.Nil(t, err)
@@ -177,7 +177,7 @@ func testListQuery(t *testing.T, ds kolide.Datastore) {
 			Name:     fmt.Sprintf("name%02d", i),
 			Query:    fmt.Sprintf("query%02d", i),
 			Saved:    true,
-			AuthorID: user.ID,
+			AuthorID: &user.ID,
 		})
 		require.Nil(t, err)
 	}
@@ -187,7 +187,7 @@ func testListQuery(t *testing.T, ds kolide.Datastore) {
 		Name:     "unsaved",
 		Query:    "select * from time",
 		Saved:    false,
-		AuthorID: user.ID,
+		AuthorID: &user.ID,
 	})
 	require.Nil(t, err)
 
@@ -326,7 +326,7 @@ func testDuplicateNewQuery(t *testing.T, ds kolide.Datastore) {
 	q1, err := ds.NewQuery(&kolide.Query{
 		Name:     "foo",
 		Query:    "select * from time;",
-		AuthorID: user.ID,
+		AuthorID: &user.ID,
 	})
 	require.Nil(t, err)
 	assert.NotZero(t, q1.ID)

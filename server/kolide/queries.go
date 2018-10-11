@@ -4,9 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/ghodss/yaml"
+	"github.com/pkg/errors"
 )
 
 type QueryStore interface {
@@ -75,7 +74,7 @@ type Query struct {
 	Description string `json:"description"`
 	Query       string `json:"query"`
 	Saved       bool   `json:"saved"`
-	AuthorID    uint   `json:"author_id" db:"author_id"`
+	AuthorID    *uint  `json:"author_id" db:"author_id"`
 	// AuthorName is retrieved with a join to the users table in the MySQL
 	// backend (using AuthorID)
 	AuthorName string `json:"author_name" db:"author_name"`
