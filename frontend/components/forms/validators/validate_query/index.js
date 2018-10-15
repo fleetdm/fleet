@@ -1,8 +1,8 @@
 import sqliteParser from 'sqlite-parser';
 import { includes, some } from 'lodash';
 
-const BLACKLISTED_ACTIONS = ['insert', 'create'];
-const invalidQueryErrorMessage = 'Cannot INSERT or CREATE in osquery queries';
+const BLACKLISTED_ACTIONS = ['create'];
+const invalidQueryErrorMessage = 'Cannot CREATE in osquery queries';
 const invalidQueryResponse = (message) => {
   return { valid: false, error: message };
 };
@@ -31,4 +31,3 @@ export const validateQuery = (queryText) => {
 };
 
 export default validateQuery;
-

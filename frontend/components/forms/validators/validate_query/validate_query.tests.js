@@ -17,9 +17,9 @@ const validQueries = [
     "and p.key = 'SUFeedURL' and feed_url like 'http://%') feeds left outer " +
     "join preferences p2 on p2.path = app_path || '/Info.plist' where " +
     "(p2.key = 'CFBundleShortVersionString' OR coalesce(p2.key, '') = '')",
+  'INSERT INTO users (name) values ("Mike")',
 ];
 const createQuery = 'CREATE TABLE users (LastName varchar(255))';
-const insertQuery = 'INSERT INTO users (name) values ("Mike")';
 
 describe('validateQuery', () => {
   it('rejects malformed queries', () => {
@@ -41,13 +41,7 @@ describe('validateQuery', () => {
   it('rejects create queries', () => {
     const { error, valid } = validateQuery(createQuery);
     expect(valid).toEqual(false);
-    expect(error).toEqual('Cannot INSERT or CREATE in osquery queries');
-  });
-
-  it('rejects insert queries', () => {
-    const { error, valid } = validateQuery(insertQuery);
-    expect(valid).toEqual(false);
-    expect(error).toEqual('Cannot INSERT or CREATE in osquery queries');
+    expect(error).toEqual('Cannot CREATE in osquery queries');
   });
 
   it('accepts valid queries', () => {
