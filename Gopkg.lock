@@ -258,11 +258,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:d6129e133b70b92b56622c3dff97f60275cd4b14bf93186d6a3699f945efc942"
+  digest = "1:661bb15786ab7964ac6afa1b9709fe3005961d11462c5615bd744c815caa6542"
   name = "github.com/kolide/goose"
   packages = ["."]
   pruneopts = "UT"
-  revision = "4a7848793d4402d338de853019ad72b9a4b3e68e"
+  revision = "7aebd1deb5abbf22308aae6c55eac771f4c6bd35"
 
 [[projects]]
   branch = "master"
