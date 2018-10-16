@@ -1,4 +1,21 @@
--## Kolide Fleet 2.0.0 RC5 (Sep 18, 2018)
+## Kolide Fleet 2.0.0 (Oct 16, 2018)
+
+* Stable release of Fleet 2.0.
+
+* Support custom certificate authorities in fleetctl client.
+
+* Add support for MySQL 8 authentication methods.
+
+* Allow INSERT queries in editor.
+
+* Update UI styles.
+
+* Fix a bug causing migration errors in certain environments.
+
+See changelogs for release candidates below to get full differences from 1.0.9
+to 2.0.0.
+
+## Kolide Fleet 2.0.0 RC5 (Sep 18, 2018)
 
 * Fix a security vulnerability that would allow a non-admin user to elevate privileges to admin level.
 
