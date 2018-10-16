@@ -31,6 +31,8 @@ const minOsqueryVersionOptions = [
   { label: '2.1.2 +', value: '2.1.2' },
   { label: '2.2.0 +', value: '2.2.0' },
   { label: '2.2.1 +', value: '2.2.1' },
+  { label: '3.2.6 +', value: '3.2.6' },
+  { label: '3.3.1 +', value: '3.3.1' },
 ];
 
 export class ConfigurePackQueryForm extends Component {
