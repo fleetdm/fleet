@@ -7,7 +7,6 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/kolide/fleet/server/kolide"
-	"github.com/patrickmn/sortutil"
 	"github.com/pkg/errors"
 )
 
@@ -303,8 +302,16 @@ func (d *Datastore) ListHosts(opt kolide.ListOptions) ([]*kolide.Host, error) {
 		return nil, errors.Wrap(err, "list hosts")
 	}
 
-	if err := d.getNetInterfacesForHosts(hosts); err != nil {
-		return nil, err
+	if opt.PerPage == 0 || (opt.Page == 0 && uint(len(hosts)) < opt.PerPage) {
+		// If all hosts, we can use the optimized network interface retrieval function
+		if err := d.getNetInterfacesForAllHosts(hosts); err != nil {
+			return nil, err
+		}
+
+	} else {
+		if err := d.getNetInterfacesForHosts(hosts); err != nil {
+			return nil, err
+		}
 	}
 
 	return hosts, nil
@@ -383,7 +390,35 @@ func (d *Datastore) getNetInterfacesForHosts(hosts []*kolide.Host) error {
 		return errors.Wrap(err, "select nics for hosts, rebound query")
 	}
 
-	sortutil.AscByField(hosts, "ID")
+	for _, host := range hosts {
+		for i := 0; i < len(nics); i++ {
+			if host.ID == nics[i].HostID {
+				host.NetworkInterfaces = append(host.NetworkInterfaces, nics[i])
+			}
+		}
+	}
+
+	return nil
+}
+
+// When we know we're loading the network interfaces for all hosts, we can skip
+// the IN clause and load them all. This allows us to load net interfaces
+// without error for larger sets of hosts.
+func (d *Datastore) getNetInterfacesForAllHosts(hosts []*kolide.Host) error {
+	if len(hosts) == 0 {
+		return nil
+	}
+
+	sqlStatement := `
+		SELECT *
+		FROM network_interfaces
+		ORDER BY host_id ASC
+	`
+	nics := []*kolide.NetworkInterface{}
+	err := d.db.Select(&nics, sqlStatement)
+	if err != nil {
+		return errors.Wrap(err, "select nics for all hosts")
+	}
 
 	for _, host := range hosts {
 		for i := 0; i < len(nics); i++ {

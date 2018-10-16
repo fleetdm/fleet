@@ -208,6 +208,17 @@ func testListHost(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, "en1", hosts2[1].NetworkInterfaces[1].Interface)
 	assert.Equal(t, "en2", hosts2[3].NetworkInterfaces[0].Interface)
 
+	// Test with logic for only a few hosts
+	hosts2, err = ds.ListHosts(kolide.ListOptions{PerPage: 4, Page: 0})
+	require.Nil(t, err)
+	assert.Equal(t, 4, len(hosts2))
+
+	require.Equal(t, 2, len(hosts2[1].NetworkInterfaces))
+	require.Equal(t, 0, len(hosts2[2].NetworkInterfaces))
+	require.Equal(t, 1, len(hosts2[3].NetworkInterfaces))
+	assert.Equal(t, "en1", hosts2[1].NetworkInterfaces[1].Interface)
+	assert.Equal(t, "en2", hosts2[3].NetworkInterfaces[0].Interface)
+
 	err = ds.DeleteHost(hosts[0].ID)
 	require.Nil(t, err)
 	hosts2, err = ds.ListHosts(kolide.ListOptions{})
