@@ -224,6 +224,32 @@ The server name or IP address used by the client certificate.
 		servername: 127.0.0.1
 	```
 
+##### `mysql_max_open_conns`
+
+Maximum open connections to database
+
+- Default value: 50
+- Environment variable: `KOLIDE_MYSQL_MAX_OPEN_CONNS`
+- Config file format:
+
+	```
+	mysql:
+		max_open_conns: 50
+	```
+
+##### `mysql_max_idle_conns`
+
+Maximum idle connections to database. This value should be equal to or less than `mysql_max_open_conns`
+
+- Default value: 50
+- Environment variable: `KOLIDE_MYSQL_MAX_IDLE_CONNS`
+- Config file format:
+
+	```
+	mysql:
+		max_idle_conns: 50
+	```
+
 #### Redis
 
 ##### `redis_address`

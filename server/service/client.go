@@ -24,7 +24,7 @@ type Client struct {
 
 func NewClient(addr string, insecureSkipVerify bool, rootCA string) (*Client, error) {
 	if !strings.HasPrefix(addr, "https://") {
-		return nil, errors.New("Addrress must start with https://")
+		return nil, errors.New("Address must start with https://")
 	}
 
 	baseURL, err := url.Parse(addr)
