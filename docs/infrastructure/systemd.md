@@ -10,6 +10,7 @@ Description=Kolide Fleet
 After=network.target
 
 [Service]
+LimitNOFILE=8192
 ExecStart=/usr/local/bin/fleet serve \
   --mysql_address=127.0.0.1:3306 \
   --mysql_database=kolide \
