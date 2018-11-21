@@ -3,13 +3,14 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/kolide/fleet/server/kolide"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -74,7 +75,11 @@ func nameFromRequest(r *http.Request, varName string) (string, error) {
 	if !ok {
 		return "", errBadRoute
 	}
-	return name, nil
+	unescaped, err := url.PathUnescape(name)
+	if err != nil {
+		return "", errors.Wrap(err, "unescape name in path")
+	}
+	return unescaped, nil
 }
 
 // default number of items to include per page

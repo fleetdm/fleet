@@ -42,7 +42,7 @@ func (c *Client) ApplyQueries(specs []*kolide.QuerySpec) error {
 
 // GetQuery retrieves the list of all Queries.
 func (c *Client) GetQuery(name string) (*kolide.QuerySpec, error) {
-	verb, path := "GET", "/api/v1/kolide/spec/queries/"+url.QueryEscape(name)
+	verb, path := "GET", "/api/v1/kolide/spec/queries/"+url.PathEscape(name)
 	response, err := c.AuthenticatedDo(verb, path, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "%s %s", verb, path)
@@ -105,7 +105,7 @@ func (c *Client) GetQueries() ([]*kolide.QuerySpec, error) {
 
 // DeleteQuery deletes the query with the matching name.
 func (c *Client) DeleteQuery(name string) error {
-	verb, path := "DELETE", "/api/v1/kolide/queries/"+url.QueryEscape(name)
+	verb, path := "DELETE", "/api/v1/kolide/queries/"+url.PathEscape(name)
 	response, err := c.AuthenticatedDo(verb, path, nil)
 	if err != nil {
 		return errors.Wrapf(err, "%s %s", verb, path)
