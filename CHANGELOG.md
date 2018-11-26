@@ -1,3 +1,9 @@
+## Kolide Fleet 2.0.1 (Nov 26, 2018)
+
+* Fix a bug in which deleted queries appeared in pack specs returned by fleetctl.
+
+* Fix a bug getting entities with spaces in the name.
+
 ## Kolide Fleet 2.0.0 (Oct 16, 2018)
 
 * Stable release of Fleet 2.0.
