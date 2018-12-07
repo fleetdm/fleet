@@ -33,7 +33,7 @@ You may also need to define the `--insecure` and/or `--insecure_grpc` flag. If y
 
 #### Generating packages
 
-The Launcher also provides easy, robust tooling for creating packages that you can distribute across your
+The Launcher also provides easy, robust tooling for creating packages that you can distribute across your fleet:
 
 ```
 $ make package-builder
