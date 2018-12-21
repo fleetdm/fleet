@@ -150,22 +150,18 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		}
 	}
 
-	// Loop, pushing updates to results and expected totals
-	for {
-		// Update the expected hosts total (Should happen before
-		// any results are written, to avoid the frontend showing "x of
-		// 0 Hosts Returning y Records")
+	updateStatus := func() error {
 		hostIDs, labelIDs, err := svc.ds.DistributedQueryCampaignTargetIDs(campaign.ID)
 		if err != nil {
 			if err = conn.WriteJSONError("error retrieving campaign targets"); err != nil {
-				return
+				return errors.New("retrieve campaign targets")
 			}
 		}
 
 		metrics, err := svc.CountHostsInTargets(context.Background(), hostIDs, labelIDs)
 		if err != nil {
 			if err = conn.WriteJSONError("error retrieving target counts"); err != nil {
-				return
+				return errors.New("retrieve target counts")
 			}
 		}
 
@@ -178,7 +174,7 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		if lastTotals != totals {
 			lastTotals = totals
 			if err = conn.WriteJSONMessage("totals", totals); err != nil {
-				return
+				return errors.New("write totals")
 			}
 		}
 
@@ -190,9 +186,26 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		if lastStatus != status {
 			lastStatus = status
 			if err = conn.WriteJSONMessage("status", status); err != nil {
-				return
+				return errors.New("write status")
 			}
 		}
+
+		return nil
+	}
+
+	if err := updateStatus(); err != nil {
+		svc.logger.Log("msg", "error updating status", "err", err)
+		return
+	}
+
+	// Push status updates every 5 seconds at most
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	// Loop, pushing updates to results and expected totals
+	for {
+		// Update the expected hosts total (Should happen before
+		// any results are written, to avoid the frontend showing "x of
+		// 0 Hosts Returning y Records")
 		select {
 		case res := <-readChan:
 			// Receive a result and push it over the websocket
@@ -206,8 +219,12 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 				status.ActualResults++
 			}
 
-		case <-time.After(1 * time.Second):
-			// Back to top of loop to update host totals
+		case <-ticker.C:
+			// Update status
+			if err := updateStatus(); err != nil {
+				svc.logger.Log("msg", "error updating status", "err", err)
+				return
+			}
 		}
 	}
 
