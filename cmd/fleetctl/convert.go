@@ -43,6 +43,8 @@ func specGroupFromPack(name string, inputPack kolide.PermissivePackContent) (*sp
 			interval = uint(u64)
 		case uint:
 			interval = i
+		case float64:
+			interval = uint(i)
 		}
 
 		specs.Queries = append(specs.Queries, spec)
