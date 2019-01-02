@@ -10,12 +10,12 @@ import (
 
 // Setup attempts to setup the current Fleet instance. If setup is successful,
 // an auth token is returned.
-func (c *Client) Setup(email, password, org string) (string, error) {
+func (c *Client) Setup(email, username, password, org string) (string, error) {
 	t := true
 	params := setupRequest{
 		Admin: &kolide.UserPayload{
 			Admin:    &t,
-			Username: &email,
+			Username: &username,
 			Email:    &email,
 			Password: &password,
 		},
