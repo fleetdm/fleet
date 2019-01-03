@@ -36,6 +36,7 @@ func main() {
 				getPacksCommand(),
 				getLabelsCommand(),
 				getOptionsCommand(),
+				getHostsCommand(),
 				getEnrollSecretCommand(),
 			},
 		},
