@@ -1,5 +1,5 @@
 .progress-bar {
-  @include display(flex);
+  display: flex;
   background-color: $silver;
   height: 10px;
   overflow: hidden;

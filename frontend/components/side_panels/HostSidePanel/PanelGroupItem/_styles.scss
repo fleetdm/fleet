@@ -23,7 +23,7 @@ $base-class: 'panel-group-item';
 }
 
 .#{$base-class} {
-  @include transition(color 75ms ease-in-out, background 75ms ease-in-out);
+  transition: color 75ms ease-in-out, background 75ms ease-in-out;
   width: 100%;
   font-size: 16px;
   line-height: 2.25;
@@ -34,19 +34,19 @@ $base-class: 'panel-group-item';
   padding: 0 $pad-large;
 
   &__flexy {
-    @include display(flex);
-    @include align-items(center);
+    display: flex;
+    align-items: center;
   }
 
   &__icon {
-    @include transition(color 75ms ease-in-out);
+    transition: color 75ms ease-in-out;
     margin-right: 23px;
     font-size: 18px;
   }
 
   &__name {
     @include ellipsis(80%);
-    @include flex-grow(1);
+    flex-grow: 1;
   }
 
   &__description {
@@ -56,7 +56,7 @@ $base-class: 'panel-group-item';
   }
 
   &__count {
-    @include transition(color 75ms ease-in-out);
+    transition: color 75ms ease-in-out;
     font-weight: $bold;
     text-align: right;
     font-size: 14px;

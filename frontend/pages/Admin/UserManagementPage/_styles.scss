@@ -31,8 +31,8 @@
   }
 
   &__users {
-    @include display(flex);
-    @include flex-wrap(wrap);
+    display: flex;
+    flex-wrap: wrap;
     clear: both;
   }
 

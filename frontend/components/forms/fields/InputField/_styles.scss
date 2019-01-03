@@ -1,5 +1,5 @@
 .input-field {
-  @include transition(border 150ms ease-in-out, box-shadow 150ms ease-in-out);
+  transition: border 150ms ease-in-out, box-shadow 150ms ease-in-out;
   line-height: 34px;
   background-color: $white;
   border: solid 1px $accent-medium;
@@ -10,7 +10,7 @@
   box-sizing: border-box;
   height: 40px;
 
-  @include placeholder {
+  ::placeholder {
     color: $accent-text;
   }
 
@@ -26,7 +26,7 @@
   }
 
   &--error {
-    @include transition(background 150ms ease-in-out, color 150ms ease-in-out);
+    transition: background 150ms ease-in-out, color 150ms ease-in-out;
     border-color: $alert;
     background-color: $alert-light;
     color: $white;

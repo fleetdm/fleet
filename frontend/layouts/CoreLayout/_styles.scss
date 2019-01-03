@@ -1,10 +1,10 @@
 .app-wrap {
-  @include display(flex);
+  display: flex;
   min-height: calc(100vh - #{$footer-height});
 }
 
 .core-wrapper {
-  @include flex-grow(1);
+  flex-grow: 1;
   margin: 0;
   padding: 0 0 0 $pad-base;
   max-width: calc(100% - 258px);

@@ -31,7 +31,7 @@
 
   &.Select {
     .Select-control {
-      @include transition(border 150ms ease-in-out, box-shadow 150ms ease-in-out);
+      transition: border 150ms ease-in-out, box-shadow 150ms ease-in-out;
       min-height: 48px;
     }
 
@@ -173,8 +173,8 @@
 
       &::after {
         @extend %kolidecon;
-        @include transition(color 150ms ease-in-out);
-        @include transform(translate(-50%, -50%));
+        transition: color 150ms ease-in-out;
+        transform: translate(-50%, -50%);
         content: '\f036';
         position: absolute;
         top: 50%;

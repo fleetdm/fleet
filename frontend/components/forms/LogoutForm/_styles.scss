@@ -1,11 +1,11 @@
 .logout-form {
-  @include align-self(center);
+  align-self: center;
   width: 460px;
 
   &__container {
-    @include display(flex);
-    @include align-items(center);
-    @include flex-direction(column);
+    display: flex;
+    align-items: center;
+    flex-direction: column;
     background-color: $white;
     box-sizing: border-box;
     padding: 30px;

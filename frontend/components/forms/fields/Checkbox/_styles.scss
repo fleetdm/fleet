@@ -16,8 +16,8 @@
       }
 
       &::before {
-        @include transform(rotate(45deg));
         @include position(absolute, 50% null null 50%);
+        transform: rotate(45deg);
         box-sizing: border-box;
         display: block;
         width: 7px;
@@ -34,12 +34,12 @@
   &__tick {
     @include size(20px);
     @include position(absolute, 50% null null 0);
-    @include transform(translateY(-10px));
+    transform: translateY(-10px);
     display: inline-block;
 
     &::after {
-      @include transition(border 75ms ease-in-out, background 75ms ease-in-out);
       @include size(20px);
+      transition: border 75ms ease-in-out, background 75ms ease-in-out;
       border-radius: 2px;
       border: solid 2px $border-medium;
       content: '';

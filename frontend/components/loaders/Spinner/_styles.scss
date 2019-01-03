@@ -1,39 +1,39 @@
 .kolide-spinner {
-  @include animation(sk-rotateplane 2.4s infinite ease-in-out);
   @include size(64px);
+  animation: sk-rotateplane 2.4s infinite ease-in-out;
   background-color: #ae6ddf;
   border-radius: 5px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, .2);
   margin: 30px auto;
 }
 
-@include keyframes(sk-rotateplane) {
+@keyframes sk-rotateplane {
   0% {
-    @include transform(perspective(120px) rotateX(0deg) rotateY(0deg));
+    transform: perspective(120px) rotateX(0deg) rotateY(0deg);
   }
 
   20% {
-    @include transform(perspective(120px) rotateX(-180.1deg) rotateY(0deg));
+    transform: perspective(120px) rotateX(-180.1deg) rotateY(0deg);
     background: #ff5850;
   }
 
   40% {
-    @include transform(perspective(120px) rotateX(-180deg) rotateY(-179.9deg));
+    transform: perspective(120px) rotateX(-180deg) rotateY(-179.9deg);
     background: #ffad00;
   }
 
   60% {
-    @include transform(perspective(120px) rotateX(0deg) rotateY(0deg));
+    transform: perspective(120px) rotateX(0deg) rotateY(0deg);
     background: #4fd061;
   }
 
   80% {
-    @include transform(perspective(120px) rotateX(-180.1deg) rotateY(0deg));
+    transform: perspective(120px) rotateX(-180.1deg) rotateY(0deg);
     background: #4a90e2;
   }
 
   100% {
-    @include transform(perspective(120px) rotateX(-180deg) rotateY(-179.9deg));
+    transform: perspective(120px) rotateX(-180deg) rotateY(-179.9deg);
     background: #ae6ddf;
   }
 }

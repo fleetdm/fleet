@@ -1,7 +1,7 @@
 .change-email-form {
   &__btn-wrap {
-    @include display(flex);
-    @include flex-direction(row-reverse);
+    display: flex;
+    flex-direction: row-reverse;
   }
 
   &__btn {

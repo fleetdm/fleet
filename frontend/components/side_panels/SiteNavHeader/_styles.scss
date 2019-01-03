@@ -2,7 +2,7 @@
   position: relative;
 
   &__button {
-    @include transition(background 150ms $ease-in-quad);
+    transition: background 150ms $ease-in-quad;
     cursor: pointer;
     padding: $pad-large $pad-medium 0;
     position: relative;
@@ -22,8 +22,8 @@
   }
 
   &__org {
-    @include transition(border 150ms $ease-in-quad);
     @include clearfix;
+    transition: border 150ms $ease-in-quad;
     position: relative;
     z-index: 2;
     border-bottom: 1px solid $accent-light;
@@ -191,7 +191,7 @@
     padding: 14px 0;
 
     a {
-      @include transition(opacity 75ms $ease-in-quad, background 75ms $ease-in-quad);
+      transition: opacity 75ms $ease-in-quad, background 75ms $ease-in-quad;
       color: $white;
       display: block;
       text-decoration: none;

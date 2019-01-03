@@ -1,7 +1,7 @@
 .registration-breadcrumbs {
-  @include display(flex);
-  @include justify-content(space-between);
-  @include align-content(center);
+  display: flex;
+  justify-content: space-between;
+  align-content: center;
   width: 665px;
   height: 125px;
   margin: 0 auto;

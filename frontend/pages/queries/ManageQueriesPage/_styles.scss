@@ -5,7 +5,7 @@
   }
 
   &__ctas {
-    @include flex-grow(1);
+    flex-grow: 1;
     text-align: right;
   }
 
@@ -19,7 +19,7 @@
   }
 
   &__filter-and-cta {
-    @include display(flex);
+    display: flex;
     margin-bottom: $pad-small;
 
     .form-field {
@@ -34,7 +34,7 @@
   }
 
   &__filter-queries {
-    @include flex-grow(1);
+    flex-grow: 1;
     position: relative;
 
     .input-field {
@@ -60,8 +60,8 @@
   }
 
   &__modal-btn-wrap {
-    @include display(flex);
-    @include flex-direction(row-reverse);
+    display: flex;
+    flex-direction: row-reverse;
 
     .button {
       margin-left: 15px;

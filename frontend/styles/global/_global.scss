@@ -89,13 +89,13 @@ a {
 }
 
 .has-sidebar {
-  @include display(flex);
+  display: flex;
   height: 100%;
 
   > * {
     &:first-child {
-      @include flex-grow(1);
-      @include align-self(flex-start);
+      flex-grow: 1;
+      align-self: flex-start;
       margin-right: 0;
     }
   }

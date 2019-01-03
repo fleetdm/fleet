@@ -1,7 +1,7 @@
 .registration-page {
-  @include display(flex);
-  @include justify-content(center);
-  @include flex-direction(column);
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
   min-height: calc(100vh - #{$footer-height});
   position: relative;
   overflow-x: hidden;

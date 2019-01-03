@@ -1,7 +1,7 @@
 .smtp-warning {
-  @include display(flex);
-  @include justify-content(space-between);
-  @include align-items(flex-start);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   background-color: $alert;
   color: $white;
   padding: 15px 20px;
@@ -21,7 +21,7 @@
   }
 
   &__text {
-    @include flex-grow(1);
+    flex-grow: 1;
     line-height: 20px;
   }
 

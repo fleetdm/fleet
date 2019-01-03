@@ -1,5 +1,5 @@
 .lonely-host {
-  @include display(flex);
+  display: flex;
   padding: 16px 8px;
 
   &__add-host-btn {

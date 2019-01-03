@@ -1,5 +1,5 @@
 .input-with-icon {
-  @include placeholder {
+  ::placeholder {
     color: $accent-text;
     opacity: 1;
   }

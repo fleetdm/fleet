@@ -31,7 +31,7 @@
     color: $text-dark;
     font-weight: $light;
 
-    @include placeholder {
+    ::placeholder {
       color: $accent-text;
     }
 

@@ -42,7 +42,7 @@
 
   &__modal_container {
     @include position(absolute, 50% null null 50%);
-    @include transform(translate(-50%, -50%));
+    transform: translate(-50%, -50%);
     background-color: $white;
     width: 600px;
     z-index: 3;

@@ -62,14 +62,14 @@
   }
 
   &__topper {
-    @include display(flex);
-    @include align-items(flex-end);
+    display: flex;
+    align-items: flex-end;
     border-bottom: solid 1px $accent-light;
     padding-bottom: 10px;
   }
 
   &__host-count {
-    @include flex-grow(1);
+    flex-grow: 1;
     font-size: 14px;
     font-weight: $light;
     letter-spacing: 0.9px;
@@ -85,8 +85,8 @@
   }
 
   &__modal-buttons {
-    @include display(flex);
-    @include flex-direction(row-reverse);
+    display: flex;
+    flex-direction: row-reverse;
 
     .button--alert {
       margin-left: 10px;
@@ -100,6 +100,7 @@
       }
     }
   }
+
   &__toggle-view {
     .kolidecon {
       width: 24px;
@@ -107,7 +108,8 @@
       margin-left: 12px;
       fill: $accent-dark;
     }
-    &--active{
+
+    &--active {
       .kolidecon {
         fill: $link;
       }

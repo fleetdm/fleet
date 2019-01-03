@@ -1,5 +1,5 @@
 .ellipsis-menu {
-  @include user-select(none);
+  user-select: none;
   display: inline-block;
   position: absolute;
 

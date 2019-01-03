@@ -53,8 +53,8 @@
 
       &::after {
         @extend %kolidecon;
-        @include transition(color 150ms ease-in-out);
-        @include transform(translate(-50%, -50%));
+        transition: color 150ms ease-in-out;
+        transform: translate(-50%, -50%);
         content: '\f036';
         position: absolute;
         top: 50%;
@@ -167,14 +167,14 @@
 
   &.Select--multi {
     .Select-control {
-      @include display(flex);
-      @include align-items(center);
+      display: flex;
+      align-items: center;
       height: auto;
       min-height: 40px;
     }
 
     .Select-multi-value-wrapper {
-      @include flex-grow(1);
+      flex-grow: 1;
     }
 
     .Select-arrow-zone {

@@ -26,9 +26,9 @@ $base-class: 'button';
 }
 
 .#{$base-class} {
-  @include user-select(none);
-  @include transition(color 150ms ease-in-out, background 150ms ease-in-out, top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out);
   @include button-variant($link);
+  user-select: none;
+  transition: color 150ms ease-in-out, background 150ms ease-in-out, top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out;
   position: relative;
   height: 38px;
   text-align: center;

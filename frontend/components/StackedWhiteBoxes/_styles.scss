@@ -1,21 +1,21 @@
 .stacked-white-boxes {
   @include position(absolute, null null null 50%);
-  @include transition(all 300ms ease-in);
+  transition: transform 300ms ease-in;
   margin: 75px 0 0 -262px;
   width: 524px;
 
   &--loading {
-    @include transform(scale(1.3));
+    transform: scale(1.3);
     opacity: 0;
   }
 
   &--loaded {
-    @include transform(scale(1));
+    transform: scale(1);
     opacity: 1;
   }
 
   &--leaving {
-    @include transform(scale(1.3));
+    transform: scale(1.3);
     opacity: 0;
   }
 
@@ -55,7 +55,7 @@
     width: 100%;
 
     &-link {
-      @include transition(color 150ms ease-in-out);
+      transition: color 150ms ease-in-out;
       color: $text-light;
       text-decoration: none;
       position: absolute;

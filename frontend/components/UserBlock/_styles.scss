@@ -1,5 +1,5 @@
 .user-block {
-  @include transition(all 300ms ease-in-out);
+  transition: border 300ms ease-in-out, background-color 300ms ease-in-out;
   background-color: $white;
   display: inline-block;
   height: 440px;
@@ -20,7 +20,7 @@
   }
 
   &__header {
-    @include transition(all 300ms ease-in-out);
+  transition: color 300ms ease-in-out, background-color 300ms ease-in-out;
     background-color: $bg-light;
     border-bottom: 1px solid $accent-light;
     color: $text-ultradark;
@@ -73,7 +73,7 @@
 
   &__avatar {
     @include size(100px);
-    @include transition(all 300ms ease-in-out);
+    transition: border 300ms ease-in-out;
     border: 1px solid $text-medium;
     filter: none;
     display: block;
@@ -92,7 +92,7 @@
   }
 
   &__status-label {
-    @include transition(color 300ms ease-in-out);
+    transition: color 300ms ease-in-out;
     float: left;
     font-weight: $bold;
     font-size: $medium;
@@ -101,7 +101,7 @@
   }
 
   &__status-text {
-    @include transition(color 300ms ease-in-out);
+    transition: color 300ms ease-in-out;
     float: right;
     text-transform: uppercase;
     font-weight: $light;
@@ -122,7 +122,7 @@
   }
 
   &__username {
-    @include transition(color 300ms ease-in-out);
+    transition: color 300ms ease-in-out;
     color: $text-medium;
     font-size: $medium;
     text-transform: uppercase;
@@ -154,7 +154,7 @@
   }
 
   &__email {
-    @include transition(all 300ms ease-in-out);
+    transition: color 300ms ease-in-out;
     color: $link;
     font-size: $small;
     line-height: $larger;

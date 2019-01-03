@@ -1,13 +1,13 @@
 .logout-page {
-  @include display(flex);
-  @include align-items(center);
-  @include justify-content(center);
-  @include flex-direction(column);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
   position: relative;
   height: calc(100vh - #{$footer-height});
 
   &__tab {
-    @include align-self(center);
+    align-self: center;
     background-color: $white;
     height: 30px;
     margin-top: 20px;

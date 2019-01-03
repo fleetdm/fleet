@@ -1,12 +1,12 @@
 .user-registration {
-  @include display(flex);
-  @include align-content(center);
-  @include justify-content(center);
-  @include flex-grow(1);
+  display: flex;
+  align-content: center;
+  justify-content: center;
+  flex-grow: 1;
 
   &__container {
-    @include align-self(center);
     @include size(500px 520px);
+    align-self: center;
     border-radius: 4px;
     background-color: $bg-light;
     box-shadow: 0 0 30px 0 rgba(0, 0, 0, 0.3);
@@ -29,15 +29,15 @@
   }
 
   &__form {
-    @include transform(translateY(-85px));
     @include position(absolute, 49% 0 null null);
+    transform: translateY(-85px);
     width: 100%;
     height: 470px;
     box-sizing: border-box;
     padding: 25px 0;
 
     @include breakpoint(tablet) {
-      @include transform(translateY(-100px));
+      transform: translateY(-100px);
     }
 
     &--step1-complete {
@@ -135,7 +135,7 @@
   }
 
   &__field-wrapper {
-    @include transition(left 300ms ease);
+    transition: left 300ms ease;
     width: 430px;
     min-height: 420px;
     padding-bottom: 75px;

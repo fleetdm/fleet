@@ -1,8 +1,8 @@
 .auth-form-wrapper {
-  @include display(flex);
-  @include flex-direction(column);
-  @include justify-content(center);
-  @include flex-grow(1);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex-grow: 1;
   padding: $base 0;
 
   &__logo {

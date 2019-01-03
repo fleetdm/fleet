@@ -54,14 +54,14 @@
   }
 
   &__column-wrapper {
-    @include display(flex);
+    display: flex;
     margin: 0 0 15px;
     padding-top: $pad-half;
     border-top: 1px solid $accent-light;
   }
 
   &__suggestion {
-    @include flex-grow(1);
+    flex-grow: 1;
     font-size: 14px;
     line-height: 1.71;
     letter-spacing: 0.5px;
@@ -70,7 +70,7 @@
   }
 
   &__load-suggestion {
-    @include align-self(center);
+    align-self: center;
     padding: 1px 5px;
     margin: 0 0 0 10px;
   }
@@ -78,9 +78,9 @@
 
 .query-column-list {
   &__item {
-    @include display(flex);
-    @include align-items(center);
-    @include justify-content(space-between);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     border-top: 1px solid $accent-light;
     color: $text-dark;
     font-size: px-to-rem(14);
@@ -103,7 +103,7 @@
   }
 
   &__description {
-    @include flex-grow(1);
+    flex-grow: 1;
     text-align: right;
   }
 

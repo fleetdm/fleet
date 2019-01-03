@@ -65,7 +65,7 @@
   }
 
   &__import {
-    @include user-select(none);
+    user-select: none;
     font-size: 14px;
     font-weight: $light;
     line-height: 1.71;

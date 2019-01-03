@@ -1,14 +1,14 @@
 .query-page {
   @at-root .has-sidebar > &__content {
-    @include display(flex);
-    @include flex-direction(column);
-    @include align-self(stretch);
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
     margin-bottom: $pad-base;
   }
 
   &__results {
-    @include display(flex);
-    @include flex-grow(1);
+    display: flex;
+    flex-grow: 1;
     position: relative;
     min-height: 400px;
   }

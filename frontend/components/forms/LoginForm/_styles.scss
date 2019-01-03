@@ -1,24 +1,23 @@
 .login-form {
-  @include transition(all 300ms ease-in);
-  @include transform(scale(1));
+  transition: transform 300ms ease-in;
+  transform: scale(1);
   margin-top: -260px;
   opacity: 1;
   width: 460px;
   align-self: center;
 
   &--hidden {
-    @include transform(scale(1.3));
+    transform: scale(1.3);
     opacity: 0;
   }
 
   &__container {
-    @include display(flex);
+    display: flex;
     align-items: center;
     background-color: $white;
     border-top-left-radius: 0;
     border-top-right-radius: 0;
     box-sizing: border-box;
-    display: flex;
     flex-direction: column;
     padding: 30px;
     width: 460px;

@@ -8,9 +8,9 @@
   }
 
   &__wrapper {
-    @include display(flex);
-    @include align-items(stretch);
-    @include align-content(stretch);
+    display: flex;
+    align-items: stretch;
+    align-content: stretch;
     cursor: default;
   }
 
@@ -24,13 +24,13 @@
   }
 
   &__add-btn {
-    @include transition(color 0ms);
+    transition: color 0ms;
     color: $success;
     font-size: $base;
   }
 
   &__target-content {
-    @include flex-grow(1);
+    flex-grow: 1;
     text-align: left;
   }
 

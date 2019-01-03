@@ -35,8 +35,8 @@
   }
 
   &__search-create-section {
-    @include display(flex);
-    @include justify-content(space-between);
+    display: flex;
+    justify-content: space-between;
 
     input {
       &[name='pack-filter'] {
@@ -62,8 +62,8 @@
   }
 
   &__modal-btn-wrap {
-    @include display(flex);
-    @include flex-direction(row-reverse);
+    display: flex;
+    flex-direction: row-reverse;
 
     .button {
       margin-left: 15px;

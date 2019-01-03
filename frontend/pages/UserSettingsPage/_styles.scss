@@ -1,13 +1,13 @@
 .user-settings {
-  @include display(flex);
+  display: flex;
 
   h1 {
     margin: 0 0 30px;
   }
 
   &__manage {
-    @include flex-grow(1);
-    @include align-self(flex-start);
+    flex-grow: 1;
+    align-self: flex-start;
     padding: 30px;
     min-width: 542px;
   }
@@ -108,7 +108,7 @@
       padding-right: 36px;
       font-family: 'SourceCodePro', $monospace;
 
-      &[type="password"] {
+      &[type='password'] {
         letter-spacing: 3px;
       }
     }

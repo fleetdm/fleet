@@ -1,5 +1,5 @@
 .footer {
-  @include align-items(center);
+  align-items: center;
   background-color: $footer-bg;
   height: $footer-height;
   text-align: center;

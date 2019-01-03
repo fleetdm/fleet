@@ -1,5 +1,5 @@
 .scheduled-queries-list-wrapper {
-  @include flex-grow(1);
+  flex-grow: 1;
   padding: $pad-small $pad-base;
   margin-bottom: $base;
 
