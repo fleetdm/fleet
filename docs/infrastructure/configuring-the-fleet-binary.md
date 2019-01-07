@@ -334,6 +334,20 @@ Whether or not the server should be served over TLS.
 		tls: false
 	```
 
+##### `server_tls_compatibility`
+
+Configures the TLS settings for compatibility with various user agents. Options are `modern`, `intermediate`, and `old`. These correspond to the compatibility levels [defined by the Mozilla OpSec team](https://wiki.mozilla.org/Security/Server_Side_TLS)
+
+- Default value: `modern`
+- Environment variable: `KOLIDE_SERVER_TLS_COMPATIBILITY`
+- Config file format:
+
+	```
+	server:
+		tls_compatibility: intermediate
+	```
+
+
 #### Auth
 
 ##### `auth_jwt_key`
