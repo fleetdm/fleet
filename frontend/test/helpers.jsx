@@ -70,17 +70,24 @@ export const createAceSpy = () => {
     getSession: () => {
       return {
         getMarkers: noop,
+        selection: {
+          on: noop,
+        },
         setAnnotations: noop,
         setMode: noop,
         setUseWrapMode: noop,
+        setValue: noop,
       };
     },
     handleOptions: noop,
     handleMarkers: noop,
+    navigateFileEnd: noop,
     on: noop,
     renderer: {
       setShowGutter: noop,
+      setScrollMargin: noop,
     },
+    resize: noop,
     session: {
       on: noop,
       selection: {
@@ -132,4 +139,3 @@ export default {
   reduxMockStore,
   stubbedOsqueryTable,
 };
-

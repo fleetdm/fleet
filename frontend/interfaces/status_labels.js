@@ -1,4 +1,4 @@
-import { PropTypes } from 'react';
+import PropTypes from 'prop-types';
 
 export default PropTypes.shape({
   loading_counts: PropTypes.bool,

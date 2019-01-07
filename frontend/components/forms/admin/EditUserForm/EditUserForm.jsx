@@ -1,4 +1,5 @@
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import Checkbox from 'components/forms/fields/Checkbox';
 import Button from 'components/buttons/Button';
 import Form from 'components/forms/Form';

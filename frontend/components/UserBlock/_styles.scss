@@ -20,7 +20,7 @@
   }
 
   &__header {
-  transition: color 300ms ease-in-out, background-color 300ms ease-in-out;
+    transition: color 300ms ease-in-out, background-color 300ms ease-in-out;
     background-color: $bg-light;
     border-bottom: 1px solid $accent-light;
     color: $text-ultradark;

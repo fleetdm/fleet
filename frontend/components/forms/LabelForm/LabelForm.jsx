@@ -1,4 +1,5 @@
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 
 import Button from 'components/buttons/Button';
 import Dropdown from 'components/forms/fields/Dropdown';

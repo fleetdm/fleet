@@ -1,4 +1,5 @@
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 
 import hostInterface from 'interfaces/host';
 import labelInterface from 'interfaces/label';

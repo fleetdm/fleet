@@ -1,4 +1,5 @@
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import { isEqual, omit, values } from 'lodash';
 
 import queryResultInterface from 'interfaces/query_result';

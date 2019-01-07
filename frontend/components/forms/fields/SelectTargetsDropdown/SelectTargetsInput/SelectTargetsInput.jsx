@@ -1,4 +1,5 @@
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import { difference } from 'lodash';
 import Select from 'react-select';
 import 'react-select/dist/react-select.css';

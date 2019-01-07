@@ -1,4 +1,5 @@
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import { pull } from 'lodash';
 
 import Icon from 'components/icons/Icon';

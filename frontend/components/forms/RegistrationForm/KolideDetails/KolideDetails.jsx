@@ -1,4 +1,5 @@
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 
 import Form from 'components/forms/Form';
 import formFieldInterface from 'interfaces/form_field';

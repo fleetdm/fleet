@@ -1,4 +1,5 @@
-import React, { PropTypes } from 'react';
+import React from 'react';
+import PropTypes from 'prop-types';
 
 import ConfigurePackQueryForm from 'components/forms/ConfigurePackQueryForm';
 import queryInterface from 'interfaces/query';
