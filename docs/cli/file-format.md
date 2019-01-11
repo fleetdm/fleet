@@ -155,7 +155,8 @@ spec:
     # under the config key above. Hosts receive overrides based on the platform
     # returned by `SELECT platform FROM os_version`. In this example, the base
     # config would be used for Windows and CentOS hosts, while Mac and Ubuntu
-    # hosts would receive their respective overrides.
+    # hosts would receive their respective overrides. Note, these overrides are
+    # NOT merged with the top level configuration.
     platforms:
       darwin:
         options:
