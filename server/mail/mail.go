@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/smtp"
+	"strings"
 	"time"
 
 	"github.com/kolide/fleet/server/kolide"
@@ -70,6 +71,35 @@ func (m mailService) SendEmail(e kolide.Email) error {
 	return m.sendMail(e, msg)
 }
 
+type loginauth struct {
+	username string
+	password string
+}
+
+func LoginAuth(username, password string) smtp.Auth {
+	return &loginauth{username: username, password: password}
+}
+
+func (l *loginauth) Start(serverInfo *smtp.ServerInfo) (proto string, toServer []byte, err error) {
+	return "LOGIN", nil, nil
+}
+
+func (l *loginauth) Next(fromServer []byte, more bool) (toServer []byte, err error) {
+	if !more {
+		return nil, nil
+	}
+
+	prompt := strings.TrimSpace(string(fromServer))
+	switch prompt {
+	case "Username:":
+		return []byte(l.username), nil
+	case "Password:":
+		return []byte(l.password), nil
+	default:
+		return nil, errors.New("unexpected LOGIN prompt from server")
+	}
+}
+
 func smtpAuth(e kolide.Email) (smtp.Auth, error) {
 	if e.Config.SMTPAuthenticationType != kolide.AuthTypeUserNamePassword {
 		return nil, nil
@@ -80,6 +110,8 @@ func smtpAuth(e kolide.Email) (smtp.Auth, error) {
 		auth = smtp.CRAMMD5Auth(e.Config.SMTPUserName, e.Config.SMTPPassword)
 	case kolide.AuthMethodPlain:
 		auth = smtp.PlainAuth("", e.Config.SMTPUserName, e.Config.SMTPPassword, e.Config.SMTPServer)
+	case kolide.AuthMethodLogin:
+		auth = LoginAuth(e.Config.SMTPUserName, e.Config.SMTPPassword)
 	default:
 		return nil, fmt.Errorf("unknown SMTP auth type '%d'", e.Config.SMTPAuthenticationMethod)
 	}

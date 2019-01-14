@@ -30,6 +30,7 @@ type AppConfigService interface {
 // SMTPAuthMethod
 const (
 	AuthMethodNameCramMD5        = "authmethod_cram_md5"
+	AuthMethodNameLogin          = "authmethod_login"
 	AuthMethodNamePlain          = "authmethod_plain"
 	AuthTypeNameUserNamePassword = "authtype_username_password"
 	AuthTypeNameNone             = "authtype_none"
@@ -58,6 +59,7 @@ type SMTPAuthMethod int
 const (
 	AuthMethodPlain SMTPAuthMethod = iota
 	AuthMethodCramMD5
+	AuthMethodLogin
 )
 
 func (m SMTPAuthMethod) String() string {
@@ -66,6 +68,8 @@ func (m SMTPAuthMethod) String() string {
 		return AuthMethodNamePlain
 	case AuthMethodCramMD5:
 		return AuthMethodNameCramMD5
+	case AuthMethodLogin:
+		return AuthMethodNameLogin
 	default:
 		return ""
 	}

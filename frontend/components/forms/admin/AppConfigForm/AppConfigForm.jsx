@@ -15,6 +15,7 @@ import validate from 'components/forms/admin/AppConfigForm/validate';
 const authMethodOptions = [
   { label: 'Plain', value: 'authmethod_plain' },
   { label: 'Cram MD5', value: 'authmethod_cram_md5' },
+  { label: 'Login', value: 'authmethod_login' },
 ];
 const authTypeOptions = [
   { label: 'Username and Password', value: 'authtype_username_password' },

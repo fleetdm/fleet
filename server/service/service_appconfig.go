@@ -150,6 +150,8 @@ func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppC
 				config.SMTPAuthenticationMethod = kolide.AuthMethodCramMD5
 			case kolide.AuthMethodNamePlain:
 				config.SMTPAuthenticationMethod = kolide.AuthMethodPlain
+			case kolide.AuthMethodNameLogin:
+				config.SMTPAuthenticationMethod = kolide.AuthMethodLogin
 			default:
 				panic("unknown SMTP AuthMethod: " + *p.SMTPAuthenticationMethod)
 			}
