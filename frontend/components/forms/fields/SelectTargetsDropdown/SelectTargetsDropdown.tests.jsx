@@ -8,6 +8,8 @@ import SelectTargetsDropdown from 'components/forms/fields/SelectTargetsDropdown
 import Test from 'test';
 
 describe('SelectTargetsDropdown - component', () => {
+  beforeEach(() => Test.Mocks.targetMock().persist());
+
   const defaultProps = {
     disabled: false,
     label: 'Select Targets',
@@ -21,8 +23,6 @@ describe('SelectTargetsDropdown - component', () => {
   afterEach(() => nock.cleanAll());
 
   it('sets default state', () => {
-    Test.Mocks.targetMock();
-
     expect(DefaultComponent.state()).toEqual({
       isEmpty: false,
       isLoadingTargets: false,
@@ -33,8 +33,6 @@ describe('SelectTargetsDropdown - component', () => {
   });
 
   describe('rendering', () => {
-    beforeEach(() => Test.Mocks.targetMock());
-
     it('renders', () => {
       expect(DefaultComponent.length).toEqual(1, 'Expected component to render');
     });
@@ -99,9 +97,12 @@ describe('SelectTargetsDropdown - component', () => {
     afterEach(() => restoreSpies());
 
     it('calls the api', () => {
-      const request = Test.Mocks.targetMock(defaultParams, apiResponseWithTargets);
+      nock.cleanAll();
+      Test.Mocks.targetMock(defaultParams, apiResponseWithTargets);
       const Component = mount(<SelectTargetsDropdown {...defaultProps} />);
-      const node = Component.node;
+      const node = Component.instance();
+
+      const request = Test.Mocks.targetMock(defaultParams, apiResponseWithTargets);
 
       return node.fetchTargets()
         .then(() => {
@@ -110,12 +111,13 @@ describe('SelectTargetsDropdown - component', () => {
     });
 
     it('calls the onFetchTargets prop', () => {
+      nock.cleanAll();
+      Test.Mocks.targetMock(defaultParams, apiResponseWithTargets).persist();
       const onFetchTargets = createSpy();
       const props = { ...defaultProps, onFetchTargets };
       const Component = mount(<SelectTargetsDropdown {...props} />);
-      const node = Component.node;
+      const node = Component.instance();
 
-      Test.Mocks.targetMock(defaultParams, apiResponseWithTargets);
 
       return node.fetchTargets()
         .then(() => {
@@ -127,7 +129,7 @@ describe('SelectTargetsDropdown - component', () => {
       const onFetchTargets = createSpy();
       const props = { ...defaultProps, onFetchTargets };
       const Component = mount(<SelectTargetsDropdown {...props} />);
-      const node = Component.node;
+      const node = Component.instance();
 
       node.mounted = false;
 
@@ -137,7 +139,7 @@ describe('SelectTargetsDropdown - component', () => {
 
     it('sets state correctly when no targets are returned', () => {
       const Component = mount(<SelectTargetsDropdown {...defaultProps} />);
-      const node = Component.node;
+      const node = Component.instance();
 
       Test.Mocks.targetMock(defaultParams, apiResponseWithoutTargets);
 
@@ -152,7 +154,7 @@ describe('SelectTargetsDropdown - component', () => {
     it('returns the query', () => {
       const query = 'select * from users';
       const Component = mount(<SelectTargetsDropdown {...defaultProps} />);
-      const node = Component.node;
+      const node = Component.instance();
 
       Test.Mocks.targetMock({ ...defaultParams, query });
 

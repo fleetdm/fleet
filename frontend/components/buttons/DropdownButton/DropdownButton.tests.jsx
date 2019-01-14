@@ -17,7 +17,7 @@ describe('DropdownButton - component', () => {
       </DropdownButton>
     );
 
-    component.find('.dropdown-button').simulate('click');
+    component.find('button.dropdown-button').simulate('click');
     expect(component.state().isOpen).toEqual(true);
 
     component.find('li.dropdown-button__option').last().find('Button').simulate('click');

@@ -112,14 +112,14 @@ describe('ManageHostsPage - component', () => {
           hosts={[hostStub, offlineHost]}
           selectedLabel={allHostsLabel}
         />
-      ).node;
+      ).instance();
       const offlineHostsLabelPageNode = mount(
         <ManageHostsPage
           {...props}
           hosts={[hostStub, offlineHost]}
           selectedLabel={offlineHostsLabel}
         />
-      ).node;
+      ).instance();
 
       expect(allHostsLabelPageNode.filterAllHosts([hostStub, offlineHost], allHostsLabel)).toEqual([hostStub, offlineHost]);
       expect(offlineHostsLabelPageNode.filterAllHosts([hostStub, offlineHost], offlineHostsLabel)).toEqual([offlineHost]);
@@ -292,9 +292,9 @@ describe('ManageHostsPage - component', () => {
     it('Open the Add Host modal from sidebar', () => {
       const page = mount(<ManageHostsPage {...props} hosts={[]} selectedLabel={allHostsLabel} />);
       const addNewHost = page.find('.host-side-panel__add-hosts');
-      addNewHost.simulate('click');
+      addNewHost.hostNodes().simulate('click');
 
-      expect(page.find('AddHostModal').length).toEqual(1);
+      expect(page.find('AddHostModal').length).toBeGreaterThan(0);
     });
 
     it('Open the Add Host modal from Lonely Host', () => {

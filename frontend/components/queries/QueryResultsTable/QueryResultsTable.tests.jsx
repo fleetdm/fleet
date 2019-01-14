@@ -118,7 +118,7 @@ describe('QueryResultsTable - component', () => {
 
     expect(spy).toNotHaveBeenCalled();
 
-    exportBtn.simulate('click');
+    exportBtn.hostNodes().simulate('click');
 
     expect(spy).toHaveBeenCalled();
   });

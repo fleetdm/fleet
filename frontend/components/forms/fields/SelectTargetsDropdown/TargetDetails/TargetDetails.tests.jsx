@@ -55,7 +55,7 @@ describe('TargetDetails - component', () => {
         const onlineIcon = Icon.find('.host-target__icon--online');
         const offlineIcon = Icon.find('.host-target__icon--offline');
 
-        expect(onlineIcon.length).toEqual(1, 'Expected the online icon to render');
+        expect(onlineIcon.length).toBeGreaterThan(0, 'Expected the online icon to render');
         expect(offlineIcon.length).toEqual(0, 'Expected the offline icon to not render');
       });
 
@@ -67,7 +67,7 @@ describe('TargetDetails - component', () => {
         const offlineIcon = Icon.find('.host-target__icon--offline');
 
         expect(onlineIcon.length).toEqual(0, 'Expected the online icon to not render');
-        expect(offlineIcon.length).toEqual(1, 'Expected the offline icon to render');
+        expect(offlineIcon.length).toBeGreaterThan(0, 'Expected the offline icon to render');
       });
     });
 

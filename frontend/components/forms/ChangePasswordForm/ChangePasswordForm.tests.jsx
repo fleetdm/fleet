@@ -21,9 +21,9 @@ describe('ChangePasswordForm - component', () => {
 
   it('renders the password fields as HTML password fields', () => {
     const form = mount(<ChangePasswordForm handleSubmit={noop} onCancel={noop} />);
-    const passwordField = form.find({ name: 'old_password' });
-    const newPasswordField = form.find({ name: 'new_password' });
-    const newPasswordConfirmationField = form.find({ name: 'new_password_confirmation' });
+    const passwordField = form.find('input[name="old_password"]');
+    const newPasswordField = form.find('input[name="new_password"]');
+    const newPasswordConfirmationField = form.find('input[name="new_password_confirmation"]');
 
     expect(passwordField.prop('type')).toEqual('password');
     expect(newPasswordField.prop('type')).toEqual('password');
@@ -79,4 +79,3 @@ describe('ChangePasswordForm - component', () => {
     });
   });
 });
-

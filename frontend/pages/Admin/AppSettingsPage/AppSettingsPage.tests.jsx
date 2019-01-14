@@ -39,7 +39,7 @@ describe('AppSettingsPage - component', () => {
     const mockStore = reduxMockStore(storeWithoutSMTPConfig);
     const page = mount(
       connectedComponent(AppSettingsPage, { mockStore })
-    ).find('AppSettingsPage');
+    );
 
     const smtpWarning = page.find('SmtpWarning');
     const dismissButton = smtpWarning.find('Button').first();

@@ -33,8 +33,8 @@ describe('QueryForm - component', () => {
     const inputFields = form.find('InputField');
 
     expect(inputFields.length).toEqual(2);
-    expect(inputFields.find({ name: 'name' }).length).toEqual(1);
-    expect(inputFields.find({ name: 'description' }).length).toEqual(1);
+    expect(inputFields.find({ name: 'name' }).length).toBeGreaterThan(0);
+    expect(inputFields.find({ name: 'description' }).length).toBeGreaterThan(0);
   });
 
   it('validates the query name before saving changes', () => {
@@ -45,7 +45,7 @@ describe('QueryForm - component', () => {
 
     fillInFormInput(nameInput, '');
 
-    const saveDropButton = form.find('.query-form__save');
+    const saveDropButton = form.find('.query-form__save').hostNodes();
 
     saveDropButton.simulate('click');
     form.find('li').first().find('Button').simulate('click');
@@ -61,7 +61,7 @@ describe('QueryForm - component', () => {
 
     fillInFormInput(nameInput, 'New query name');
 
-    const saveDropButton = form.find('.query-form__save');
+    const saveDropButton = form.find('.query-form__save').hostNodes();
 
     saveDropButton.simulate('click');
     form.find('li').first().find('Button').simulate('click');
@@ -76,15 +76,17 @@ describe('QueryForm - component', () => {
   it('enables the Save Changes button when the name input changes', () => {
     const form = mount(<QueryForm formData={{ ...query, query: queryText }} onTargetSelect={noop} />);
     const inputFields = form.find('InputField');
-    const nameInput = inputFields.find({ name: 'name' });
-    const saveChangesOption = form.find('li.dropdown-button__option').first().find('Button');
+    const nameInput = inputFields.find('input[name="name"]');
+    let saveChangesOption = form.find('li.dropdown-button__option').first().find('Button');
 
     expect(saveChangesOption.props()).toInclude({
       disabled: true,
     });
 
     fillInFormInput(nameInput, 'New query name');
+    nameInput.simulate('change', { target: { value: 'New query name' } });
 
+    saveChangesOption = form.find('li.dropdown-button__option').first().find('Button');
     expect(saveChangesOption.props()).toNotInclude({
       disabled: true,
     });
@@ -94,7 +96,7 @@ describe('QueryForm - component', () => {
     const form = mount(<QueryForm formData={{ ...query, query: queryText }} onTargetSelect={noop} />);
     const inputFields = form.find('InputField');
     const descriptionInput = inputFields.find({ name: 'description' });
-    const saveChangesOption = form.find('li.dropdown-button__option').first().find('Button');
+    let saveChangesOption = form.find('li.dropdown-button__option').first().find('Button');
 
     expect(saveChangesOption.props()).toInclude({
       disabled: true,
@@ -102,6 +104,7 @@ describe('QueryForm - component', () => {
 
     fillInFormInput(descriptionInput, 'New query description');
 
+    saveChangesOption = form.find('li.dropdown-button__option').first().find('Button');
     expect(saveChangesOption.props()).toNotInclude({
       disabled: true,
     });

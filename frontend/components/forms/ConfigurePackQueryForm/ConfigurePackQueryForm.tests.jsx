@@ -45,13 +45,13 @@ describe('ConfigurePackQueryForm - component', () => {
     );
 
     it("doesn't allow All when other options are chosen", () => {
-      form.node.handlePlatformChoice(',windows');
+      form.instance().handlePlatformChoice(',windows');
 
       expect(onChangeSpy).toHaveBeenCalledWith('windows');
     });
 
     it("doesn't allow other options when All is chosen", () => {
-      form.node.handlePlatformChoice('darwin,linux,');
+      form.instance().handlePlatformChoice('darwin,linux,');
 
       expect(onChangeSpy).toHaveBeenCalledWith('');
     });
@@ -106,7 +106,7 @@ describe('ConfigurePackQueryForm - component', () => {
       );
 
       expect(CancelButton(NewScheduledQueryForm).length).toEqual(0);
-      expect(CancelButton(UpdateScheduledQueryForm).length).toEqual(1);
+      expect(CancelButton(UpdateScheduledQueryForm).length).toBeGreaterThan(0);
     });
 
     it('calls the onCancel prop when the cancel Button is clicked', () => {
@@ -119,7 +119,7 @@ describe('ConfigurePackQueryForm - component', () => {
         />
       );
 
-      CancelButton(UpdateScheduledQueryForm).simulate('click');
+      CancelButton(UpdateScheduledQueryForm).hostNodes().simulate('click');
 
       expect(spy).toHaveBeenCalledWith(scheduledQueryStub);
     });

@@ -23,7 +23,7 @@ describe('PacksList - component', () => {
     const spy = createSpy();
     const component = mount(<PacksList {...props} onCheckAllPacks={spy} packs={[packStub]} />);
 
-    component.find({ name: 'select-all-packs' }).simulate('change');
+    component.find({ name: 'select-all-packs' }).hostNodes().simulate('change');
 
     expect(spy).toHaveBeenCalledWith(true);
   });
@@ -33,7 +33,7 @@ describe('PacksList - component', () => {
     const component = mount(<PacksList {...props} onCheckPack={spy} packs={[packStub]} />);
     const packCheckbox = component.find({ name: `select-pack-${packStub.id}` });
 
-    packCheckbox.simulate('change');
+    packCheckbox.hostNodes().simulate('change');
 
     expect(spy).toHaveBeenCalledWith(true, packStub.id);
   });

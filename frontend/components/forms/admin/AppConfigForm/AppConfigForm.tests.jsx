@@ -64,7 +64,7 @@ describe('AppConfigForm - form', () => {
 
   describe('SMTP user password input', () => {
     it('renders an HTML password input', () => {
-      const passwordField = form.find({ name: 'password' });
+      const passwordField = form.find('input[name="password"]');
 
       expect(passwordField.prop('type')).toEqual('password');
     });
@@ -83,7 +83,7 @@ describe('AppConfigForm - form', () => {
     it('renders advanced options when "Advanced Options" is clicked', () => {
       form.find('.app-config-form__show-options').simulate('click');
 
-      expect(form.find({ name: 'domain' }).length).toEqual(1);
+      expect(form.find({ name: 'domain' }).hostNodes().length).toEqual(1);
       expect(form.find('Slider').length).toEqual(2);
     });
   });

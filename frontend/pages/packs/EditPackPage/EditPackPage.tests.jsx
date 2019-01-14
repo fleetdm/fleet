@@ -121,7 +121,7 @@ describe('EditPackPage - component', () => {
         scheduledQueries: [],
       };
 
-      const pageNode = mount(<EditPackPage {...props} pack={packStub} />).node;
+      const pageNode = mount(<EditPackPage {...props} pack={packStub} />).instance();
 
       pageNode.handlePackFormSubmit(updatedPack);
 
@@ -146,16 +146,16 @@ describe('EditPackPage - component', () => {
 
     it('de-selects the scheduledQuery when cancel is clicked', () => {
       const Form = Page => Page.find('ConfigurePackQueryForm');
-      const Page = mount(<EditPackPage {...defaultProps} />).find('EditPackPage');
+      const Page = mount(<EditPackPage {...defaultProps} />);
       const QueryRow = Page
         .find('ScheduledQueriesList')
         .find('ClickableTableRow');
 
-      expect(Page.node.state.selectedScheduledQuery).toNotExist();
+      expect(Page.instance().state.selectedScheduledQuery).toNotExist();
 
       QueryRow.simulate('click');
 
-      expect(Page.node.state.selectedScheduledQuery)
+      expect(Page.state().selectedScheduledQuery)
         .toEqual(scheduledQuery, 'Expected clicking a scheduled query row to set the scheduled query in component state');
 
       const PageForm = Form(Page);
@@ -163,9 +163,9 @@ describe('EditPackPage - component', () => {
       expect(PageForm.length)
         .toEqual(1, 'Expected clicking a scheduled query row to render the ConfigurePackQueryForm component');
 
-      PageForm.find('.configure-pack-query-form__cancel-btn').simulate('click');
+      PageForm.find('.configure-pack-query-form__cancel-btn').hostNodes().simulate('click');
 
-      expect(Page.node.state.selectedScheduledQuery).toNotExist();
+      expect(Page.state().selectedScheduledQuery).toNotExist();
 
       expect(Form(Page).length)
         .toEqual(0, 'Expected clicking Cancel to remove the ConfigurePackQueryForm component');

@@ -1,4 +1,11 @@
+import { configure } from 'enzyme';
+import Adapter from 'enzyme-adapter-react-16';
+import nock from 'nock';
 import jsdom from 'jsdom';
+
+nock.disableNetConnect()
+
+configure({ adapter: new Adapter() });
 
 const doc = jsdom.jsdom(
   `<!doctype html>

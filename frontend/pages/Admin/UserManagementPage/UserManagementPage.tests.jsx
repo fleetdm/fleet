@@ -177,7 +177,7 @@ describe('UserManagementPage - component', () => {
   describe('updating a user', () => {
     const dispatch = () => Promise.resolve();
     const props = { dispatch, config: {}, currentUser, invites: [], users: [currentUser] };
-    const pageNode = mount(<UserManagementPage {...props} />).node;
+    const pageNode = mount(<UserManagementPage {...props} />).instance();
     const updatedAttrs = { name: 'Updated Name' };
 
     it('updates the current user with only the updated attributes', () => {

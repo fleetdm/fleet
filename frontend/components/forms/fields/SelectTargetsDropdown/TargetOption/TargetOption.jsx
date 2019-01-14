@@ -53,8 +53,8 @@ class TargetOption extends Component {
       renderTargetDetail,
     } = this;
     const wrapperClassName = classnames(`${baseClass}__wrapper`, {
-      '--is-label': targetType === 'labels',
-      '--is-host': targetType === 'hosts',
+      'is-label': targetType === 'labels',
+      'is-host': targetType === 'hosts',
     });
 
     return (

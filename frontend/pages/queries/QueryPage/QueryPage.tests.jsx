@@ -137,13 +137,14 @@ describe('QueryPage - component', () => {
 
   it('sets targetError in state when the query is run and there are no selected targets', () => {
     const page = mount(connectedComponent(ConnectedQueryPage, { mockStore, props: locationProp }));
-    const QueryPageSelectTargets = page.find('QueryPageSelectTargets');
     const runQueryBtn = page.find('.query-progress-details__run-btn');
+    let QueryPageSelectTargets = page.find('QueryPageSelectTargets');
 
     expect(QueryPageSelectTargets.prop('error')).toNotExist();
 
-    runQueryBtn.simulate('click');
+    runQueryBtn.hostNodes().simulate('click');
 
+    QueryPageSelectTargets = page.find('QueryPageSelectTargets');
     expect(QueryPageSelectTargets.prop('error')).toEqual('You must select at least one target to run a query');
   });
 
@@ -202,7 +203,7 @@ describe('QueryPage - component', () => {
         selectedTargets: [hostStub],
       };
       const Page = mount(<QueryPage {...props} />);
-      const PageNode = Page.node;
+      const PageNode = Page.instance();
 
       spyOn(PageNode, 'destroyCampaign');
       spyOn(PageNode, 'removeSocket');
@@ -236,11 +237,11 @@ describe('QueryPage - component', () => {
       const fileStub = new global.window.File([queryResultsCSV], filename, { type: 'text/csv' });
 
       Page.setState({ campaign });
-      Page.node.socket = {};
+      Page.instance().socket = {};
 
       const QueryResultsTable = Page.find('QueryResultsTable');
 
-      QueryResultsTable.find('.query-results-table__export-btn').simulate('click');
+      QueryResultsTable.find('.query-results-table__export-btn').hostNodes().simulate('click');
 
       expect(fileSaveSpy).toHaveBeenCalledWith(fileStub);
     });
@@ -261,16 +262,18 @@ describe('QueryPage - component', () => {
       const Page = mount(<QueryPage dispatch={noop} query={queryStub} selectedOsqueryTable={defaultSelectedOsqueryTable} />);
       Page.setState({ campaign });
 
-      const QueryResultsTable = Page.find('QueryResultsTable');
+      let QueryResultsTable = Page.find('QueryResultsTable');
 
-      QueryResultsTable.find('.query-results-table__fullscreen-btn').simulate('click');
+      QueryResultsTable.find('.query-results-table__fullscreen-btn').hostNodes().simulate('click');
 
-      expect(QueryResultsTable.find('.query-results-table__fullscreen-btn--active').length).toEqual(1);
+      QueryResultsTable = Page.find('QueryResultsTable');
+      expect(QueryResultsTable.find('.query-results-table__fullscreen-btn--active').length).toBeGreaterThan(0);
       expect(QueryResultsTable.find('.query-results-table--full-screen').length).toEqual(1);
       expect(Page.find('.query-page__results--full-screen').length).toEqual(1);
 
-      QueryResultsTable.find('.query-results-table__fullscreen-btn').simulate('click');
+      QueryResultsTable.find('.query-results-table__fullscreen-btn').hostNodes().simulate('click');
 
+      QueryResultsTable = Page.find('QueryResultsTable');
       expect(QueryResultsTable.find('.query-results-table__fullscreen-btn--active').length).toEqual(0);
       expect(QueryResultsTable.find('.query-results-table--full-screen').length).toEqual(0);
       expect(QueryResultsTable.find('.query-results-table--shrinking').length).toEqual(1);

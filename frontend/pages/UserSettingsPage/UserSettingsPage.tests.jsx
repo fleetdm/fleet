@@ -42,7 +42,7 @@ describe('UserSettingsPage - component', () => {
 
     const dispatch = () => Promise.resolve();
     const props = { dispatch, user: userStub };
-    const pageNode = mount(<UserSettingsPage {...props} />).node;
+    const pageNode = mount(<UserSettingsPage {...props} />).instance();
     const updatedAttrs = { name: 'Updated Name' };
     const updatedUser = { ...userStub, ...updatedAttrs };
 

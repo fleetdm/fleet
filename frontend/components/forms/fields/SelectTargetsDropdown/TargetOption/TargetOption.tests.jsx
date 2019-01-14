@@ -12,13 +12,13 @@ describe('TargetOption - component', () => {
   it('renders a label option for label targets', () => {
     const count = 5;
     const component = mount(<TargetOption onMoreInfoClick={noop} target={{ ...labelStub, count }} />);
-    expect(component.find('.--is-label').length).toEqual(1);
+    expect(component.find('.is-label').length).toEqual(1);
     expect(component.text()).toContain(`${count} hosts`);
   });
 
   it('renders a host option for host targets', () => {
     const component = mount(<TargetOption onMoreInfoClick={noop} target={{ ...hostStub, platform: 'windows' }} />);
-    expect(component.find('.--is-host').length).toEqual(1);
+    expect(component.find('.is-host').length).toEqual(1);
     expect(component.find('i.kolidecon-windows').length).toEqual(1);
     expect(component.text()).toContain(hostStub.host_ip_address);
   });

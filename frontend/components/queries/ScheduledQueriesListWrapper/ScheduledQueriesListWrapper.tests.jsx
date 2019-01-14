@@ -30,7 +30,7 @@ describe('ScheduledQueriesListWrapper - component', () => {
     const removeQueryBtn = component.find('Button').find({ children: ['Remove ', 'Query'] });
 
     expect(addQueryBtn.length).toEqual(0);
-    expect(removeQueryBtn.length).toEqual(1);
+    expect(removeQueryBtn.length).toBeGreaterThan(0);
   });
 
   it('calls the onRemoveScheduledQueries prop', () => {
@@ -46,7 +46,7 @@ describe('ScheduledQueriesListWrapper - component', () => {
 
     const removeQueryBtn = component.find('Button').find({ children: ['Remove ', 'Query'] });
 
-    removeQueryBtn.simulate('click');
+    removeQueryBtn.hostNodes().simulate('click');
 
     expect(spy).toHaveBeenCalledWith([scheduledQueryStub.id]);
   });
@@ -55,12 +55,13 @@ describe('ScheduledQueriesListWrapper - component', () => {
     const component = mount(<ScheduledQueriesListWrapper {...defaultProps} />);
 
     const searchQueriesInput = component.find({ name: 'search-queries' });
-    const QueriesList = component.find('ScheduledQueriesList');
+    let QueriesList = component.find('ScheduledQueriesList');
 
     expect(QueriesList.prop('scheduledQueries')).toEqual(scheduledQueries);
 
     fillInFormInput(searchQueriesInput, 'something that does not match');
 
+    QueriesList = component.find('ScheduledQueriesList');
     expect(QueriesList.prop('scheduledQueries')).toEqual([]);
   });
 
@@ -69,11 +70,11 @@ describe('ScheduledQueriesListWrapper - component', () => {
     const component = mount(<ScheduledQueriesListWrapper {...defaultProps} />);
     const selectAllCheckbox = component.find({ name: 'select-all-scheduled-queries' });
 
-    selectAllCheckbox.simulate('change');
+    selectAllCheckbox.hostNodes().simulate('change');
 
     expect(component.state('checkedScheduledQueryIDs')).toEqual(allScheduledQueryIDs);
 
-    selectAllCheckbox.simulate('change');
+    selectAllCheckbox.hostNodes().simulate('change');
 
     expect(component.state('checkedScheduledQueryIDs')).toEqual([]);
   });

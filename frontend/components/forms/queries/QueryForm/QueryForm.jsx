@@ -172,6 +172,6 @@ class QueryForm extends Component {
 }
 
 export default Form(QueryForm, {
-  fields: ['description', 'name', 'platform', 'query'],
+  fields: ['description', 'name', 'query'],
   validate,
 });

@@ -39,11 +39,8 @@ describe('UserBlock - component', () => {
     const props = { ...defaultUserProps, onToggleEditUser: spy };
     const component = mount(<UserBlock {...props} />);
 
-    const dropdownField = component.find('Select').findWhere(s => s.prop('name') === 'user-action-dropdown-select');
-    const dropdownInputNode = dropdownField.find('input');
-
-    fillInFormInput(dropdownInputNode, 'Modify Details');
-    dropdownField.find('.Select-option').first().simulate('mousedown');
+    component.find('.Select-control').simulate('keyDown', { keyCode: 40 });
+    component.find('[aria-label="Modify Details"]').simulate('mousedown');
 
     expect(spy).toHaveBeenCalledWith(userStub);
   });
@@ -53,11 +50,8 @@ describe('UserBlock - component', () => {
     const props = { ...defaultUserProps, onSelect: spy };
     const component = mount(<UserBlock {...props} />);
 
-    const dropdownField = component.find('Select').findWhere(s => s.prop('name') === 'user-action-dropdown-select');
-    const dropdownInputNode = dropdownField.find('input');
-
-    fillInFormInput(dropdownInputNode, 'Promote User');
-    dropdownField.find('.Select-option').first().simulate('mousedown');
+    component.find('.Select-control').simulate('keyDown', { keyCode: 40 });
+    component.find('[aria-label="Promote User"]').simulate('mousedown');
 
     expect(spy).toHaveBeenCalledWith(userStub, 'promote_user');
   });
@@ -68,11 +62,8 @@ describe('UserBlock - component', () => {
     const props = { ...defaultUserProps, onSelect: spy, user: adminUser };
     const component = mount(<UserBlock {...props} />);
 
-    const dropdownField = component.find('Select').findWhere(s => s.prop('name') === 'user-action-dropdown-select');
-    const dropdownInputNode = dropdownField.find('input');
-
-    fillInFormInput(dropdownInputNode, 'Demote User');
-    dropdownField.find('.Select-option').first().simulate('mousedown');
+    component.find('.Select-control').simulate('keyDown', { keyCode: 40 });
+    component.find('[aria-label="Demote User"]').simulate('mousedown');
 
     expect(spy).toHaveBeenCalledWith(adminUser, 'demote_user');
   });
@@ -82,11 +73,8 @@ describe('UserBlock - component', () => {
     const props = { ...defaultUserProps, onSelect: spy };
     const component = mount(<UserBlock {...props} />);
 
-    const dropdownField = component.find('Select').findWhere(s => s.prop('name') === 'user-action-dropdown-select');
-    const dropdownInputNode = dropdownField.find('input');
-
-    fillInFormInput(dropdownInputNode, 'Disable Account');
-    dropdownField.find('.Select-option').first().simulate('mousedown');
+    component.find('.Select-control').simulate('keyDown', { keyCode: 40 });
+    component.find('[aria-label="Disable Account"]').simulate('mousedown');
 
     expect(spy).toHaveBeenCalledWith(userStub, 'disable_account');
   });
@@ -97,11 +85,8 @@ describe('UserBlock - component', () => {
     const props = { ...defaultUserProps, onSelect: spy, user: disabledUser };
     const component = mount(<UserBlock {...props} />);
 
-    const dropdownField = component.find('Select').findWhere(s => s.prop('name') === 'user-action-dropdown-select');
-    const dropdownInputNode = dropdownField.find('input');
-
-    fillInFormInput(dropdownInputNode, 'Enable Account');
-    dropdownField.find('.Select-option').first().simulate('mousedown');
+    component.find('.Select-control').simulate('keyDown', { keyCode: 40 });
+    component.find('[aria-label="Enable Account"]').simulate('mousedown');
 
     expect(spy).toHaveBeenCalledWith(disabledUser, 'enable_account');
   });
@@ -111,11 +96,8 @@ describe('UserBlock - component', () => {
     const props = { ...defaultUserProps, onSelect: spy };
     const component = mount(<UserBlock {...props} />);
 
-    const dropdownField = component.find('Select').findWhere(s => s.prop('name') === 'user-action-dropdown-select');
-    const dropdownInputNode = dropdownField.find('input');
-
-    fillInFormInput(dropdownInputNode, 'Require Password Reset');
-    dropdownField.find('.Select-option').first().simulate('mousedown');
+    component.find('.Select-control').simulate('keyDown', { keyCode: 40 });
+    component.find('[aria-label="Require Password Reset"]').simulate('mousedown');
 
     expect(spy).toHaveBeenCalledWith(userStub, 'reset_password');
   });

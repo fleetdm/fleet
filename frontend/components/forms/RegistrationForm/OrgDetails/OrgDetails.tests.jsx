@@ -14,7 +14,7 @@ describe('OrgDetails - form', () => {
       const form = mount(<OrgDetails handleSubmit={noop} />);
       const orgNameField = form.find({ name: 'org_name' });
 
-      expect(orgNameField.length).toEqual(1);
+      expect(orgNameField.length).toBeGreaterThan(0);
     });
 
     it('updates state when the field changes', () => {
@@ -32,7 +32,7 @@ describe('OrgDetails - form', () => {
       const form = mount(<OrgDetails handleSubmit={noop} />);
       const orgLogoField = form.find({ name: 'org_logo_url' });
 
-      expect(orgLogoField.length).toEqual(1);
+      expect(orgLogoField.length).toBeGreaterThan(0);
     });
 
     it('updates state when the field changes', () => {
@@ -90,4 +90,3 @@ describe('OrgDetails - form', () => {
     });
   });
 });
-

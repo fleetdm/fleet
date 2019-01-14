@@ -14,7 +14,7 @@ describe('KolideDetails - form', () => {
       const form = mount(<KolideDetails handleSubmit={noop} />);
       const kolideWebAddressField = form.find({ name: 'kolide_server_url' });
 
-      expect(kolideWebAddressField.length).toEqual(1);
+      expect(kolideWebAddressField.length).toBeGreaterThan(0);
     });
 
     it('updates state when the field changes', () => {
@@ -67,4 +67,3 @@ describe('KolideDetails - form', () => {
     });
   });
 });
-

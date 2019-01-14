@@ -17,7 +17,7 @@ describe('PacksList - Row - component', () => {
     const spy = createSpy();
     const component = mount(<Row checked onCheck={spy} pack={packStub} />);
 
-    component.find({ name: `select-pack-${packStub.id}` }).simulate('change');
+    component.find({ name: `select-pack-${packStub.id}` }).hostNodes().simulate('change');
 
     expect(spy).toHaveBeenCalledWith(false, packStub.id);
   });
@@ -43,4 +43,3 @@ describe('PacksList - Row - component', () => {
     expect(hostCountWithout.text()).toEqual(0);
   });
 });
-

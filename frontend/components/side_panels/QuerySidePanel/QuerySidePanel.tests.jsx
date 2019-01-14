@@ -49,7 +49,7 @@ describe('QuerySidePanel - component', () => {
 
   it('calls the onOsqueryTableSelect prop when a new table is selected in the dropdown', () => {
     const component = mount(<QuerySidePanel {...props} />);
-    component.node.onSelectTable('groups');
+    component.instance().onSelectTable('groups');
 
     expect(onOsqueryTableSelect).toHaveBeenCalledWith('groups');
   });
