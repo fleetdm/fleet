@@ -21,6 +21,7 @@ func queryCommand() cli.Command {
 	var (
 		flHosts, flLabels, flQuery string
 		flDebug, flQuiet, flExit   bool
+		flTimeout                  time.Duration
 	)
 	return cli.Command{
 		Name:      "query",
@@ -53,7 +54,7 @@ func queryCommand() cli.Command {
 				Name:        "exit",
 				EnvVar:      "EXIT",
 				Destination: &flExit,
-				Usage:       "Exit when 100% of online hosts have results returned", 
+				Usage:       "Exit when 100% of online hosts have results returned",
 			},
 			cli.StringFlag{
 				Name:        "query",
@@ -67,6 +68,12 @@ func queryCommand() cli.Command {
 				EnvVar:      "DEBUG",
 				Destination: &flDebug,
 				Usage:       "Whether or not to enable debug logging",
+			},
+			cli.DurationFlag{
+				Name:        "timeout",
+				EnvVar:      "TIMEOUT",
+				Destination: &flTimeout,
+				Usage:       "How long to run query before exiting (10s, 1h, etc.)",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -102,8 +109,17 @@ func queryCommand() cli.Command {
 				s.Start()
 			}
 
+			var timeoutChan <-chan time.Time
+			if flTimeout > 0 {
+				timeoutChan = time.After(flTimeout)
+			} else {
+				// Channel that never fires
+				timeoutChan = make(chan time.Time)
+			}
+
 			for {
 				select {
+				// Print a result
 				case hostResult := <-res.Results():
 					out := resultOutput{hostResult.Host.HostName, hostResult.Rows}
 					s.Stop()
@@ -112,11 +128,12 @@ func queryCommand() cli.Command {
 					}
 					s.Start()
 
+				// Print an error
 				case err := <-res.Errors():
 					fmt.Fprintf(os.Stderr, "Error talking to server: %s\n", err.Error())
 
+				// Update status message on interval
 				case <-tick.C:
-					// Print status message to stderr
 					status := res.Status()
 					totals := res.Totals()
 					var percentTotal, percentOnline float64
@@ -144,10 +161,18 @@ func queryCommand() cli.Command {
 					if total == responded {
 						s.Stop()
 						if !flQuiet {
-							fmt.Fprintf(os.Stderr, msg+"\n")
+							fmt.Fprintln(os.Stderr, msg)
 						}
 						return nil
 					}
+
+				// Check for timeout expiring
+				case <-timeoutChan:
+					s.Stop()
+					if !flQuiet {
+						fmt.Fprintln(os.Stderr, s.Suffix+"\nStopped by timeout")
+					}
+					return nil
 				}
 			}
 		},
