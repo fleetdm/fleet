@@ -65,6 +65,9 @@ export const itBehavesLikeAFormInputElement = (form, inputName, inputType = 'Inp
 export const createAceSpy = () => {
   return spyOn(global.window.ace, 'edit').andReturn({
     $options: {},
+    commands: {
+      addCommand: noop,
+    },
     getValue: () => { return 'Hello world'; },
     getSession: () => {
       return {

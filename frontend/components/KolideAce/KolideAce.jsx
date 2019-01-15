@@ -15,10 +15,11 @@ class KolideAce extends Component {
   static propTypes = {
     error: PropTypes.string,
     fontSize: PropTypes.number,
+    handleSubmit: PropTypes.func.isRequired,
     label: PropTypes.string,
     name: PropTypes.string,
-    onChange: PropTypes.func,
-    onLoad: PropTypes.func,
+    onChange: PropTypes.func.isRequired,
+    onLoad: PropTypes.func.isRequired,
     value: PropTypes.string,
     readOnly: PropTypes.bool,
     showGutter: PropTypes.bool,
@@ -49,6 +50,7 @@ class KolideAce extends Component {
     const {
       error,
       fontSize,
+      handleSubmit,
       name,
       onChange,
       onLoad,
@@ -86,6 +88,11 @@ class KolideAce extends Component {
           value={value}
           width="100%"
           wrapEnabled={wrapEnabled}
+          commands={[{
+            name: 'commandName',
+            bindKey: { win: 'Ctrl-Enter', mac: 'Ctrl-Enter' },
+            exec: handleSubmit,
+          }]}
         />
       </div>
     );

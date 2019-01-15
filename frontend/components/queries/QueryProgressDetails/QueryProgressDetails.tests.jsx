@@ -127,19 +127,17 @@ describe('QueryProgressDetails - component', () => {
   describe('running a query', () => {
     it('calls the onRunQuery prop with the query text', () => {
       const spy = createSpy();
-      const query = 'select * from groups';
       const props = {
         ...defaultProps,
         campaign: campaignStub,
         onRunQuery: spy,
-        query,
       };
       const Component = mount(<QueryProgressDetails {...props} />);
       const RunQueryButton = Component.find('.query-progress-details__run-btn');
 
       RunQueryButton.hostNodes().simulate('click');
 
-      expect(spy).toHaveBeenCalledWith(query);
+      expect(spy).toHaveBeenCalled();
     });
   });
 

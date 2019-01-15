@@ -41,10 +41,11 @@ class QueryForm extends Component {
       name: formFieldInterface.isRequired,
       query: formFieldInterface.isRequired,
     }).isRequired,
-    handleSubmit: PropTypes.func,
+    handleSubmit: PropTypes.func.isRequired,
     formData: queryInterface,
-    onOsqueryTableSelect: PropTypes.func,
-    onUpdate: PropTypes.func,
+    onOsqueryTableSelect: PropTypes.func.isRequired,
+    onRunQuery: PropTypes.func.isRequired,
+    onUpdate: PropTypes.func.isRequired,
     queryIsRunning: PropTypes.bool,
     title: PropTypes.string,
   };
@@ -137,7 +138,7 @@ class QueryForm extends Component {
   }
 
   render () {
-    const { baseError, fields, handleSubmit, queryIsRunning, title } = this.props;
+    const { baseError, fields, handleSubmit, onRunQuery, queryIsRunning, title } = this.props;
     const { errors } = this.state;
     const { onLoad, renderButtons } = this;
 
@@ -158,6 +159,7 @@ class QueryForm extends Component {
           onLoad={onLoad}
           readOnly={queryIsRunning}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
+          handleSubmit={onRunQuery}
         />
         <InputField
           {...fields.description}
