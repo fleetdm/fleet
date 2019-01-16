@@ -22,3 +22,7 @@ For more information, you can also read the [Configuring The Fleet Binary](./con
 ## Working with osquery logs
 
 Fleet allows users to schedule queries, curate packs, and generate a lot of osquery logs. For more information on how you can access these logs as well as examples on what you can do with them, see the [Working With Osquery Logs](./working-with-osquery-logs.md) documentation.
+
+## Security
+
+Fleet developers have documented how Fleet handles the [OWASP Top 10](./owasp-top-10.md).
