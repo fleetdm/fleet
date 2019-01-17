@@ -56,7 +56,8 @@ $ /usr/bin/fleet serve \
   --redis_address=127.0.0.1:6379 \
   --server_cert=/tmp/server.cert \
   --server_key=/tmp/server.key \
-  --logging_json
+  --logging_json \
+  --auth_jwt_key=changeme
 ```
 
 #### Using only environment variables
@@ -70,6 +71,7 @@ $ KOLIDE_MYSQL_ADDRESS=127.0.0.1:3306 \
   KOLIDE_SERVER_CERT=/tmp/server.cert \
   KOLIDE_SERVER_KEY=/tmp/server.key \
   KOLIDE_LOGGING_JSON=true \
+  KOLIDE_AUTH_JWT_KEY=changeme \
   /usr/bin/fleet serve
 ```
 
@@ -89,6 +91,8 @@ server:
   key: /tmp/server.key
 logging:
   json: true
+auth:
+  jwt_key: changeme
 ' > /tmp/kolide.yml
 $ fleet serve --config /tmp/kolide.yml
 ```
