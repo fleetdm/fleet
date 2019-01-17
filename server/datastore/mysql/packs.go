@@ -74,6 +74,10 @@ func applyPackSpec(tx *sqlx.Tx, spec *kolide.PackSpec) error {
 
 	// Insert new scheduled queries for pack
 	for _, q := range spec.Queries {
+		// Default to query name if scheduled query name is not specified.
+		if q.Name == "" {
+			q.Name = q.QueryName
+		}
 		query = `
 			INSERT INTO scheduled_queries (
 				pack_id, query_name, name, description, ` + "`interval`" + `,

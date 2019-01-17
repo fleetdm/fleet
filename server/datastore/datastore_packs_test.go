@@ -265,6 +265,32 @@ func testApplyPackSpecMissingQueries(t *testing.T, ds kolide.Datastore) {
 	}
 }
 
+func testApplyPackSpecMissingName(t *testing.T, ds kolide.Datastore) {
+	setupPackSpecsTest(t, ds)
+
+	specs := []*kolide.PackSpec{
+		&kolide.PackSpec{
+			Name: "test2",
+			Targets: kolide.PackSpecTargets{
+				Labels: []string{},
+			},
+			Queries: []kolide.PackSpecQuery{
+				kolide.PackSpecQuery{
+					QueryName: "foo",
+					Interval:  600,
+				},
+			},
+		},
+	}
+	err := ds.ApplyPackSpecs(specs)
+	require.NoError(t, err)
+
+	// Query name should have been copied into name field
+	spec, err := ds.GetPackSpec("test2")
+	require.NoError(t, err)
+	assert.Equal(t, "foo", spec.Queries[0].Name)
+}
+
 func testListLabelsForPack(t *testing.T, ds kolide.Datastore) {
 	labelSpecs := []*kolide.LabelSpec{
 		&kolide.LabelSpec{
