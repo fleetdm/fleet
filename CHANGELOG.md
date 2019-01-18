@@ -1,3 +1,25 @@
+## Kolide Fleet 2.0.2 (Jan 17, 2019)
+
+* Improve performance of `fleetctl query` with high host counts.
+
+* Add `fleetctl get hosts` command to retrieve a list of enrolled hosts.
+
+* Add support for Login SMTP authentication method (Used by Office365).
+
+* Add `--timeout` flag to `fleetctl query`.
+
+* Add query editor support for control-return shortcut to run query.
+
+* Allow preselection of hosts by UUID in query page URL parameters.
+
+* Allow username to be specified in `fleetctl setup`. Default behavior remains to use email as username.
+
+* Fix conversion of integers in `fleetctl convert`.
+
+* Upgrade major Javascript dependencies.
+
+* Fix a bug in which query name had to be specified in pack yaml.
+
 ## Kolide Fleet 2.0.1 (Nov 26, 2018)
 
 * Fix a bug in which deleted queries appeared in pack specs returned by fleetctl.
