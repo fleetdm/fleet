@@ -41,24 +41,24 @@ func getNodeKey(r interface{}) (string, error) {
 	v := reflect.ValueOf(r)
 	if v.Kind() != reflect.Struct {
 		return "", osqueryError{
-			message: "request type is not struct. This is likely a Kolide programmer error.",
+			message: "request type is not struct. This is likely a Fleet programmer error.",
 		}
 	}
 	nodeKeyField := v.FieldByName("NodeKey")
 	if !nodeKeyField.IsValid() {
 		return "", osqueryError{
-			message: "request struct missing NodeKey. This is likely a Kolide programmer error.",
+			message: "request struct missing NodeKey. This is likely a Fleet programmer error.",
 		}
 	}
 	if nodeKeyField.Kind() != reflect.String {
 		return "", osqueryError{
-			message: "NodeKey is not a string. This is likely a Kolide programmer error.",
+			message: "NodeKey is not a string. This is likely a Fleet programmer error.",
 		}
 	}
 	return nodeKeyField.String(), nil
 }
 
-// authenticatedUser wraps an endpoint, requires that the Kolide user is
+// authenticatedUser wraps an endpoint, requires that the Fleet user is
 // authenticated, and populates the context with a Viewer struct for that user.
 func authenticatedUser(jwtKey string, svc kolide.Service, next endpoint.Endpoint) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {

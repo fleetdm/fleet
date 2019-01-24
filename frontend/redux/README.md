@@ -1,6 +1,6 @@
-# Kolide Redux Implementation
+# Fleet Redux Implementation
 
-Kolide uses [`Redux`](http://redux.js.org) for application state management.
+Fleet uses [`Redux`](http://redux.js.org) for application state management.
 React components themselves can manage state, but Redux makes it easy to share
 state throughout the app by being the single source of truth (such as keeping track of the entities returned by the API).
 
@@ -47,7 +47,7 @@ The shape of the application's Redux state is as follows:
 ### App State
 
 App state contains information about the general app setup and information. It
-contains a `config` object with data on the user's organization and Kolide
+contains a `config` object with data on the user's organization and Fleet
 setup. Additionally, the app state in Redux controls rendering the side
 navigation as a mobile view, and displaying the Kolide jagged background image
 located on specific pages such as the login page.

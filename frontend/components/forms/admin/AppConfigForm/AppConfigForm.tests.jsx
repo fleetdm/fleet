@@ -26,7 +26,7 @@ describe('AppConfigForm - form', () => {
     });
   });
 
-  describe('Kolide App URL input', () => {
+  describe('Fleet App URL input', () => {
     it('renders an input field', () => {
       itBehavesLikeAFormInputElement(form, 'kolide_server_url');
     });

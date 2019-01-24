@@ -46,7 +46,7 @@ func (d *Datastore) NewInvite(i *kolide.Invite) (*kolide.Invite, error) {
 
 }
 
-// ListInvites lists all invites in the Kolide database. Supply query options
+// ListInvites lists all invites in the Fleet database. Supply query options
 // using the opt parameter. See kolide.ListOptions
 func (d *Datastore) ListInvites(opt kolide.ListOptions) ([]*kolide.Invite, error) {
 

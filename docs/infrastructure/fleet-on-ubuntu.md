@@ -37,7 +37,7 @@ To install the MySQL server files, run the following:
 $ sudo apt-get install mysql-server -y
 ```
 
-When asked for MySQL's root password, enter `toor` for the sake of this tutorial if you are having trouble thinking of a better password for the MySQL root user. If you decide to set your own password, be mindful that you will need to substitute it every time `toor` is used in this document. 
+When asked for MySQL's root password, enter `toor` for the sake of this tutorial if you are having trouble thinking of a better password for the MySQL root user. If you decide to set your own password, be mindful that you will need to substitute it every time `toor` is used in this document.
 
 After installing `mysql-server`, the `mysqld` server should be running. You can verify this by running the following:
 
@@ -134,13 +134,13 @@ $ sudo apt-get update
 $ sudo apt-get install osquery
 ```
 
-If you're having trouble with the above steps, check the official [downloads](https://osquery.io/downloads) link for a direct download of the .deb. 
+If you're having trouble with the above steps, check the official [downloads](https://osquery.io/downloads) link for a direct download of the .deb.
 
 You will need to set the osquery enroll secret and osquery server certificate. If you head over to the manage hosts page on your Fleet instance (which should be [https://localhost:8080/hosts/manage](https://localhost:8080/hosts/manage)), you should be able to click "Add New Hosts" and see a modal like the following:
 
 ![Add New Host](../images/add-new-host-modal.png)
 
-If you select "Fetch Kolide Certificate", your browser will download the appropriate file to your downloads directory (to a file probably called `localhost-8080.pem`). Copy this file to your Ubuntu host at `/var/osquery/server.pem`.
+If you select "Fetch Fleet Certificate", your browser will download the appropriate file to your downloads directory (to a file probably called `localhost-8080.pem`). Copy this file to your Ubuntu host at `/var/osquery/server.pem`.
 
 You can also select "Reveal Secret" on that modal and the enrollment secret for your Fleet instance will be revealed. Copy that text and create a file with it's contents:
 

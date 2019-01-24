@@ -34,7 +34,7 @@ type InviteStore interface {
 // InviteService contains methods for a service which deals with
 // user invites.
 type InviteService interface {
-	// InviteNewUser creates an invite for a new user to join Kolide.
+	// InviteNewUser creates an invite for a new user to join Fleet.
 	InviteNewUser(ctx context.Context, payload InvitePayload) (invite *Invite, err error)
 
 	// DeleteInvite removes an invite.
@@ -58,7 +58,7 @@ type InvitePayload struct {
 	SSOEnabled *bool `json:"sso_enabled"`
 }
 
-// Invite represents an invitation for a user to join Kolide.
+// Invite represents an invitation for a user to join Fleet.
 type Invite struct {
 	UpdateCreateTimestamps
 	DeleteFields

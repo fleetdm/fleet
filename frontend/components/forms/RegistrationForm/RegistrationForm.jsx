@@ -85,7 +85,7 @@ class RegistrationForm extends Component {
     if (page === 1) {
       return (
         <div className={`${baseClass}__description`}>
-          <p>Additional admins can be designated within the Kolide App</p>
+          <p>Additional admins can be designated within the Fleet App</p>
           <p>Passwords must include 7 characters, at least 1 number (eg. 0-9) and at least 1 symbol (eg. ^&*#)</p>
         </div>
       );
@@ -95,7 +95,7 @@ class RegistrationForm extends Component {
       return (
         <div className={`${baseClass}__description`}>
           <p>Set your organization&apos;s name (eg. Kolide, Inc)</p>
-          <p>(Optional) Set an organization logo to use in the Kolide application. Should be an https URL to an image file (eg. https://kolide.co/logo.png).</p>
+          <p>(Optional) Set an organization logo to use in the Fleet application. Should be an https URL to an image file (eg. https://kolide.co/logo.png).</p>
         </div>
       );
     }
@@ -103,9 +103,9 @@ class RegistrationForm extends Component {
     if (page === 3) {
       return (
         <div className={`${baseClass}__description`}>
-          <p>Define the base URL that clients will use to connect to Kolide.</p>
+          <p>Define the base URL that clients will use to connect to Fleet.</p>
           <p>
-            <small>Note: Please ensure the URL is accessible to all endpoints that will be managed by Kolide. The hostname must match the name on your TLS certificate.</small>
+            <small>Note: Please ensure the URL is accessible to all endpoints that will be managed by Fleet. The hostname must match the name on your TLS certificate.</small>
           </p>
         </div>
       );

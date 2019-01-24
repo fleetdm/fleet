@@ -1,6 +1,6 @@
 package kolide
 
-// Datastore combines all the interfaces in the Kolide DAL
+// Datastore combines all the interfaces in the Fleet DAL
 type Datastore interface {
 	UserStore
 	QueryStore

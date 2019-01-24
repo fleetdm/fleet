@@ -60,7 +60,7 @@ class ConfirmInvitePage extends Component {
             Welcome to the party, {inviteFormData.email}!
           </p>
           <p className={`${baseClass}__sub-lead-text`}>
-            Please take a moment to fill out the following information before we take you into <b>Kolide</b>
+            Please take a moment to fill out the following information before we take you into <b>Fleet</b>
           </p>
         </div>
         <div className={`${baseClass}__form-section-wrapper`}>

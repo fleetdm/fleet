@@ -1,4 +1,4 @@
-// Package mail provides implementations of the Kolide MailService
+// Package mail provides implementations of the Fleet MailService
 package mail
 
 import (

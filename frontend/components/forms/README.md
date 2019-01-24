@@ -1,6 +1,6 @@
-# Kolide Forms
+# Fleet Forms
 
-Kolide Forms leverage the [Form Higher Order Component](./Form.jsx) to simplify implementation and state management. As a user fills out a form, the Form HOC collects the form data in state. When the form is submitted, the Form HOC calls the provided client-side validation function with the form data and, if valid, then calls the `handleSubmit` prop with the form data. If the client-side validation function returns errors, those errors are stored in the Form HOC state and displayed in the form input where the input name matches the error key.
+Fleet Forms leverage the [Form Higher Order Component](./Form.jsx) to simplify implementation and state management. As a user fills out a form, the Form HOC collects the form data in state. When the form is submitted, the Form HOC calls the provided client-side validation function with the form data and, if valid, then calls the `handleSubmit` prop with the form data. If the client-side validation function returns errors, those errors are stored in the Form HOC state and displayed in the form input where the input name matches the error key.
 
 The Form HOC takes 3 parameters:
 

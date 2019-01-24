@@ -1,15 +1,15 @@
-# Kolide Front-End
+# Fleet Front-End
 
-The Kolide front-end is a Single Page Application using React and Redux.
+The Fleet front-end is a Single Page Application using React and Redux.
 
-## Running the Kolide web app
+## Running the Fleet web app
 
-For details instruction on building and serving the Kolide web application
+For details instruction on building and serving the Fleet web application
 consult the [Development Documentation](./development/README.md)
 
 ## Directory Structure
 
-Component directories in the Kolide front-end application encapsulate the entire
+Component directories in the Fleet front-end application encapsulate the entire
 component, including files for the component, helper functions, styles, and tests. The
 typical directory structure for a component is as follows:
 
@@ -47,7 +47,7 @@ parent components to render data and handle user interactions.
 
 ### [interfaces](./interfaces)
 
-Files in the interfaces directory are used to specify the PropTypes for a reusable Kolide
+Files in the interfaces directory are used to specify the PropTypes for a reusable Fleet
 entity. This is designed to DRY up the code and increase re-usability. These
 interfaces are imported into component files and implemented when defining the
 component's PropTypes.
@@ -59,7 +59,7 @@ found at the [API client documentation page](./kolide/README.md).
 
 ### [layouts](https://github.com/kolide/kolide/tree/master/frontend/layouts)
 
-The Kolide application has only 1 layout, the [Core Layout](./layouts/CoreLayout/CoreLayout.jsx).
+The Fleet application has only 1 layout, the [Core Layout](./layouts/CoreLayout/CoreLayout.jsx).
 The Layout is rendered from the [router](./router/index.jsx) and are used to set up the general app UI (header, sidebar) and render child components.
 The child components rendered by the layout are typically page components.
 
@@ -71,7 +71,7 @@ redux and pass that data to child components (located in the [components
 directory](./components). As
 connected components, Pages are also used to dispatch actions. Actions
 dispatched from Pages are intended to update redux state and oftentimes include
-making a call to the Kolide API.
+making a call to the Fleet API.
 
 ### [redux](./redux)
 
@@ -113,8 +113,8 @@ etc.
 
 ## Forms
 
-For details on creating a Kolide form visit the [Kolide Form Documentation](./components/forms/README.md).
+For details on creating a Fleet form visit the [Fleet Form Documentation](./components/forms/README.md).
 
 ## API Client
 
-For details on the Kolide API Client visit the [Kolide API Client Documentation](./kolide/README.md).
+For details on the Fleet API Client visit the [Fleet API Client Documentation](./kolide/README.md).

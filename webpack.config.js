@@ -15,7 +15,7 @@ var plugins = [
     template: 'frontend/templates/react.ejs'
   }),
   new WebpackNotifierPlugin({
-    title: "Kolide",
+    title: "Fleet",
     contentImage: path.resolve("./assets/images/kolide-logo.svg"),
     excludeWarnings: true
   })

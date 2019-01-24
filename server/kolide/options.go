@@ -142,7 +142,7 @@ type Option struct {
 	Type OptionType `json:"type"`
 	// Value of the option which may be nil, bool, int, or string.
 	Value OptionValue `json:"value"`
-	// ReadOnly if true, this option is required for Kolide to function
+	// ReadOnly if true, this option is required for Fleet to function
 	// properly and cannot be modified by the end user
 	ReadOnly bool `json:"read_only" db:"read_only"`
 }

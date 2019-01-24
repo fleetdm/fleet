@@ -20,7 +20,7 @@ const SmtpWarning = ({ className, onDismiss, onResolve, shouldShowWarning }) => 
         <Icon name="warning-filled" />
         <span className={`${baseClass}__label`}>Warning!</span>
       </div>
-      <span className={`${baseClass}__text`}>Email is not currently configured in Kolide. Many features rely on email to work.</span>
+      <span className={`${baseClass}__text`}>Email is not currently configured in Fleet. Many features rely on email to work.</span>
       {onDismiss && <Button onClick={onDismiss} variant="unstyled">Dismiss</Button>}
       {onResolve && <Button onClick={onResolve} variant="unstyled">Resolve</Button>}
     </div>

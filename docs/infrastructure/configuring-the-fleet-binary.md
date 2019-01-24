@@ -286,7 +286,7 @@ The password to use when connecting to the Redis instance.
 
 ##### `server_address`
 
-The address to serve the Kolide webserver.
+The address to serve the Fleet webserver.
 
 - Default value: `0.0.0.0:8080`
 - Environment variable: `KOLIDE_SERVER_ADDRESS`

@@ -67,7 +67,7 @@ func (m *SMTPTestMailer) Message() ([]byte, error) {
 }
 
 type PasswordResetMailer struct {
-	// URL for the Kolide application
+	// URL for the Fleet application
 	KolideServerURL template.URL
 	// Token password reset token
 	Token string

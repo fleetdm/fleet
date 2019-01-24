@@ -32,7 +32,7 @@ export default (formData) => {
   }
 
   if (!kolideServerUrl) {
-    errors.kolide_server_url = 'Kolide Server URL must be present';
+    errors.kolide_server_url = 'Fleet Server URL must be present';
   }
 
   if (!orgName) {

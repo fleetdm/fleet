@@ -61,7 +61,7 @@ func (svc service) SendTestEmail(ctx context.Context, config *kolide.AppConfig) 
 	}
 
 	testMail := kolide.Email{
-		Subject: "Hello from Kolide",
+		Subject: "Hello from Fleet",
 		To:      []string{vc.User.Email},
 		Mailer: &kolide.SMTPTestMailer{
 			KolideServerURL: config.KolideServerURL,

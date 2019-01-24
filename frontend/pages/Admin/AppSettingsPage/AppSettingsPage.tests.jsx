@@ -32,7 +32,7 @@ describe('AppSettingsPage - component', () => {
 
     expect(smtpWarning.length).toEqual(1);
     expect(smtpWarning.find('Icon').length).toEqual(1);
-    expect(smtpWarning.text()).toInclude('Email is not currently configured in Kolide');
+    expect(smtpWarning.text()).toInclude('Email is not currently configured in Fleet');
   });
 
   it('dismisses the smtp warning when "DISMISS" is clicked', () => {

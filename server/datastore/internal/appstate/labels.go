@@ -43,7 +43,7 @@ func Labels2() []kolide.Label {
 		{
 			Name:        "All Hosts",
 			Query:       "select 1;",
-			Description: "All hosts which have enrolled in Kolide",
+			Description: "All hosts which have enrolled in Fleet",
 			LabelType:   kolide.LabelTypeBuiltIn,
 		},
 		{

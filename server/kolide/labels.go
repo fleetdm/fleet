@@ -94,7 +94,7 @@ type LabelType uint
 const (
 	// LabelTypeRegular is for user created labels that can be modified.
 	LabelTypeRegular LabelType = iota
-	// LabelTypeBuiltIn is for labels built into Kolide that cannot be
+	// LabelTypeBuiltIn is for labels built into Fleet that cannot be
 	// modified by users.
 	LabelTypeBuiltIn
 )

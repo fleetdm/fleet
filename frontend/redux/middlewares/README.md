@@ -1,6 +1,6 @@
-# Kolide Redux Middleware
+# Fleet Redux Middleware
 
-The Kolide Redux Middleware handles actions before they hit the reducers. The
+The Fleet Redux Middleware handles actions before they hit the reducers. The
 current middleware does the following:
 
 ## [Authentication Middleware](./auth.js)

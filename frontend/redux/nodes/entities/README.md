@@ -1,6 +1,6 @@
-# Kolide Redux Entities
+# Fleet Redux Entities
 
-Redux entities are all configured similarly in Kolide. They start with the same initial
+Redux entities are all configured similarly in Fleet. They start with the same initial
 state, and contain the same default actions (each action namespaced to the
 entity name). Some entities extend the default configuration but for the most
 part entities are configured as follows:

@@ -1,8 +1,8 @@
-# Configs and Tools for Testing Kolide
+# Configs and Tools for Testing Fleet
 
-The files in this directory are intended to assist with Kolide development.
+The files in this directory are intended to assist with Fleet development.
 
-* `docker-compose.yml`: This docker-compose file helps with starting `osqueryd` instances for testing Kolide. More on this [below](#testing-with-containerized-osqueryd).
+* `docker-compose.yml`: This docker-compose file helps with starting `osqueryd` instances for testing Fleet. More on this [below](#testing-with-containerized-osqueryd).
 
 * `example_config.json`: An example config file with insecure default passwords. Useful for testing in a local dev environment, but should /never/ be used in production.
 
@@ -15,21 +15,21 @@ The files in this directory are intended to assist with Kolide development.
 
 ## Testing with containerized osqueryd
 
-Using Docker enables us to rapidly spin up and down pre-configured `osqueryd` instances for testing Kolide. Currently we have container images for Ubuntu14 and Centos7 osquery installations.
+Using Docker enables us to rapidly spin up and down pre-configured `osqueryd` instances for testing Fleet. Currently we have container images for Ubuntu14 and Centos7 osquery installations.
 
 ### Setup
 
 Docker and docker-compose are the only dependencies. The necessary container images will be pulled from Docker Cloud on first run.
 
-Before using the following commands, set the environment variable `LOCALHOST` to the public IP (127.0.0.1 will not work) of the docker host machine. This will allow the containers to connect to the local Kolide server. You will also need to
+Before using the following commands, set the environment variable `LOCALHOST` to the public IP (127.0.0.1 will not work) of the docker host machine. This will allow the containers to connect to the local Fleet server. You will also need to
 set `KOLIDE_OSQUERY_VERSION` to either `1.8.2` or `latest` (currently 2.1.2) to indicate which version of osquery that you want to run on your
 containers.
 
-You will also need to set the environment variable `ENROLL_SECRET` to the value of your kolide enroll secret(configured during the app setup or in the app config UI).
+You will also need to set the environment variable `ENROLL_SECRET` to the value of your Fleet enroll secret (available on the manage hosts page, or via `fleetctl get enroll-secret`).
 
 ### Running osqueryd
 
-The osqueryd instances are configured to use the TLS plugins at `$LOCALHOST:8080`. Using the `example_config.json` in this directory should configure Kolide with the appropriate settings for these `osqueryd` containers to connect.
+The osqueryd instances are configured to use the TLS plugins at `$LOCALHOST:8080`. Using the `example_config.json` in this directory should configure Fleet with the appropriate settings for these `osqueryd` containers to connect.
 
 To start one instance each of Centos and Ubuntu `osqueryd`, use:
 
@@ -97,4 +97,4 @@ There will be two osqueryd processes, you'll probably be interested in the child
 ```
 kill -3 <pid>
 ```
-The core file should be in your current working directory on the container. 
+The core file should be in your current working directory on the container.

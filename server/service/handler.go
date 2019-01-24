@@ -370,7 +370,7 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 	}
 }
 
-// MakeHandler creates an HTTP handler for the Kolide server endpoints.
+// MakeHandler creates an HTTP handler for the Fleet server endpoints.
 func MakeHandler(svc kolide.Service, jwtKey string, logger kitlog.Logger) http.Handler {
 	kolideAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(

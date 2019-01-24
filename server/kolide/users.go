@@ -29,7 +29,7 @@ type UserStore interface {
 	ConfirmPendingEmailChange(userID uint, token string) (string, error)
 }
 
-// UserService contains methods for managing a Kolide User.
+// UserService contains methods for managing a Fleet User.
 type UserService interface {
 	// NewUser creates a new User from a request Payload.
 	NewUser(ctx context.Context, p UserPayload) (user *User, err error)

@@ -149,7 +149,7 @@ func (svc service) modifyEmailAddress(ctx context.Context, user *kolide.User, em
 		return err
 	}
 	changeEmail := kolide.Email{
-		Subject: "Confirm Kolide Email Change",
+		Subject: "Confirm Fleet Email Change",
 		To:      []string{email},
 		Config:  config,
 		Mailer: &kolide.ChangeEmailMailer{
@@ -350,7 +350,7 @@ func (svc service) RequestPasswordReset(ctx context.Context, email string) error
 	}
 
 	resetEmail := kolide.Email{
-		Subject: "Reset Your Kolide Password",
+		Subject: "Reset Your Fleet Password",
 		To:      []string{user.Email},
 		Config:  config,
 		Mailer: &kolide.PasswordResetMailer{

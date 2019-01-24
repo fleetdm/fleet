@@ -13,7 +13,7 @@ type AppConfigStore interface {
 }
 
 // AppConfigService provides methods for configuring
-// the Kolide application
+// the Fleet application
 type AppConfigService interface {
 	NewAppConfig(ctx context.Context, p AppConfigPayload) (info *AppConfig, err error)
 	AppConfig(ctx context.Context) (info *AppConfig, err error)
@@ -75,8 +75,8 @@ func (m SMTPAuthMethod) String() string {
 	}
 }
 
-// AppConfig holds configuration about the Kolide application.
-// AppConfig data can be managed by a Kolide API user.
+// AppConfig holds configuration about the Fleet application.
+// AppConfig data can be managed by a Fleet API user.
 type AppConfig struct {
 	ID              uint
 	OrgName         string `db:"org_name"`
@@ -92,9 +92,9 @@ type AppConfig struct {
 	// tested with the settings provided by an admin user.
 	SMTPConfigured bool `db:"smtp_configured"`
 	// SMTPSenderAddress is the email address that will appear in emails sent
-	// from Kolide
+	// from Fleet
 	SMTPSenderAddress string `db:"smtp_sender_address"`
-	// SMTPServer is the host name of the SMTP server Kolide will use to send mail
+	// SMTPServer is the host name of the SMTP server Fleet will use to send mail
 	SMTPServer string `db:"smtp_server"`
 	// SMTPPort port SMTP server will use
 	SMTPPort uint `db:"smtp_port"`
@@ -176,9 +176,9 @@ type SMTPSettingsPayload struct {
 	// tested with the settings provided by an admin user.
 	SMTPConfigured *bool `json:"configured"`
 	// SMTPSenderAddress is the email address that will appear in emails sent
-	// from Kolide
+	// from Fleet
 	SMTPSenderAddress *string `json:"sender_address"`
-	// SMTPServer is the host name of the SMTP server Kolide will use to send mail
+	// SMTPServer is the host name of the SMTP server Fleet will use to send mail
 	SMTPServer *string `json:"server"`
 	// SMTPPort port SMTP server will use
 	SMTPPort *uint `json:"port"`
@@ -214,7 +214,7 @@ type AppConfigPayload struct {
 	SSOSettings *SSOSettingsPayload `json:"sso_settings"`
 }
 
-// OrgInfo contains general info about the organization using Kolide.
+// OrgInfo contains general info about the organization using Fleet.
 type OrgInfo struct {
 	OrgName    *string `json:"org_name,omitempty"`
 	OrgLogoURL *string `json:"org_logo_url,omitempty"`

@@ -63,7 +63,7 @@ class AddHostModal extends Component {
     return (
       <div className={baseClass}>
         <p>
-          Follow the instructions below to add hosts to your Kolide Instance.
+          Follow the instructions below to add hosts to your Fleet Instance.
         </p>
 
         <div className={`${baseClass}__manual-install-header`}>
@@ -83,7 +83,7 @@ class AddHostModal extends Component {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Kolide / Osquery - Install Docs <Icon name="external-link" />
+                  Fleet / Osquery - Install Docs <Icon name="external-link" />
                 </a>
               </h4>
               <p>
@@ -124,13 +124,13 @@ class AddHostModal extends Component {
               <h4>Download Server Certificate (Optional)</h4>
               <p>
                 If you use the native osquery TLS plugins, Osquery requires the
-                same TLS certificate that Kolide is using in order to
+                same TLS certificate that Fleet is using in order to
                 authenticate. You can fetch the certificate below:
               </p>
               <p className={`${baseClass}__download-cert`}>
                 <Button variant="unstyled" onClick={onFetchCertificate}>
                   <img src={certificate} role="presentation" />
-                  <span>Fetch Kolide Certificate</span>
+                  <span>Fetch Fleet Certificate</span>
                 </Button>
               </p>
             </li>
