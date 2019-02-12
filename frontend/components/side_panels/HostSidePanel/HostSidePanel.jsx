@@ -41,7 +41,9 @@ class HostSidePanel extends Component {
     const { onFilterLabels } = this;
     const allHostLabels = filter(labels, { type: 'all' });
     const hostStatusLabels = filter(labels, { type: 'status' });
-    const hostPlatformLabels = filter(labels, { type: 'platform' });
+    const hostPlatformLabels = filter(labels, (label) => {
+      return label.type === 'platform' && label.count > 0;
+    });
     const customLabels = filter(labels, (label) => {
       const lowerDisplayText = label.display_text.toLowerCase();
 
@@ -78,7 +80,7 @@ class HostSidePanel extends Component {
           selectedLabel={selectedLabel}
           type="platform"
         />
-        <hr className={`${baseClass}__hr`} />
+        {hostPlatformLabels.length > 0 && <hr className={`${baseClass}__hr`} />}
         <div className={`${baseClass}__panel-group-item`}>
           <Icon name="label" />
           <span className="title">LABELS</span>
