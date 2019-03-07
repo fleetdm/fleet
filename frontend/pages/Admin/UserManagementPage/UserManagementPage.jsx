@@ -291,6 +291,7 @@ export class UserManagementPage extends Component {
               className={`${baseClass}__add-user-btn`}
               disabled={!config.configured}
               onClick={toggleInviteUserModal}
+              title={config.configured ? 'Add User' : 'Email must be configured to add users'}
             >
               Add User
             </Button>
