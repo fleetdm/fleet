@@ -159,7 +159,7 @@ sudo /usr/bin/osqueryd \
   --enroll_tls_endpoint=/api/v1/osquery/enroll \
   --config_plugin=tls \
   --config_tls_endpoint=/api/v1/osquery/config \
-  --config_tls_refresh=10 \
+  --config_refresh=10 \
   --disable_distributed=false \
   --distributed_plugin=tls \
   --distributed_interval=3 \
