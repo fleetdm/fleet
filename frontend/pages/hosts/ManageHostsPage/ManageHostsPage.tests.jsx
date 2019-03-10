@@ -139,10 +139,10 @@ describe('ManageHostsPage - component', () => {
       expect(page.find('LabelForm').length).toEqual(1);
     });
 
-    it('displays "New Label Query" as the query form header', () => {
+    it('displays "New Label" as the query form header', () => {
       const page = mount(component);
 
-      expect(page.find('LabelForm').text()).toInclude('New Label Query');
+      expect(page.find('LabelForm').text()).toInclude('New Label');
     });
   });
 

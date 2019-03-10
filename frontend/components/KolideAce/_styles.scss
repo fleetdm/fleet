@@ -22,4 +22,19 @@
       }
     }
   }
+
+  &__hint {
+    font-size: 14px;
+    font-weight: $normal;
+    line-height: 1.57;
+    letter-spacing: 1px;
+    color: $accent-text;
+
+    code {
+      color: $brand;
+      background-color: $accent-light;
+      padding: 2px;
+      font-family: 'SourceCodePro', $monospace;
+    }
+  }
 }

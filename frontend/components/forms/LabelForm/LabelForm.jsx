@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
+import { noop } from 'lodash';
 
 import Button from 'components/buttons/Button';
 import Dropdown from 'components/forms/fields/Dropdown';
@@ -51,23 +52,28 @@ class LabelForm extends Component {
   render () {
     const { baseError, fields, handleSubmit, isEdit, onCancel } = this.props;
     const { onLoad } = this;
-    const headerText = isEdit ? 'Edit Label' : 'New Label Query';
+    const headerText = isEdit ? 'Edit Label' : 'New Label';
     const saveBtnText = isEdit ? 'Update Label' : 'Save Label';
+    const aceHintText = isEdit ? 'Label queries are immutable. To change the query, delete this label and create a new one.' : '';
 
     return (
       <form className={`${baseClass}__wrapper`} onSubmit={handleSubmit}>
         <h1>{headerText}</h1>
         <KolideAce
           {...fields.query}
+          label="SQL"
           onLoad={onLoad}
           readOnly={isEdit}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
+          hint={<span>{aceHintText}</span>}
+          handleSubmit={noop}
         />
+
         {baseError && <div className="form__base-error">{baseError}</div>}
         <InputField
           {...fields.name}
           inputClassName={`${baseClass}__label-title`}
-          label="Label title"
+          label="Name"
         />
         <InputField
           {...fields.description}
@@ -107,4 +113,3 @@ export default Form(LabelForm, {
   fields: ['description', 'name', 'platform', 'query'],
   validate,
 });
-

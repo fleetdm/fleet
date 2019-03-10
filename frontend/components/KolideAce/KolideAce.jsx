@@ -25,6 +25,7 @@ class KolideAce extends Component {
     showGutter: PropTypes.bool,
     wrapEnabled: PropTypes.bool,
     wrapperClassName: PropTypes.string,
+    hint: PropTypes.string,
   };
 
   static defaultProps = {
@@ -46,6 +47,16 @@ class KolideAce extends Component {
     );
   }
 
+  renderHint = () => {
+    const { hint } = this.props;
+
+    if (hint) {
+      return <span className={`${baseClass}__hint`}>{hint}</span>;
+    }
+
+    return false;
+  }
+
   render () {
     const {
       error,
@@ -60,7 +71,7 @@ class KolideAce extends Component {
       wrapEnabled,
       wrapperClassName,
     } = this.props;
-    const { renderLabel } = this;
+    const { renderLabel, renderHint } = this;
 
     const wrapperClass = classnames(wrapperClassName, {
       [`${baseClass}__wrapper--error`]: error,
@@ -94,6 +105,7 @@ class KolideAce extends Component {
             exec: handleSubmit,
           }]}
         />
+        {renderHint()}
       </div>
     );
   }
