@@ -113,7 +113,9 @@ func queryCommand() cli.Command {
 			if flTimeout > 0 {
 				timeoutChan = time.After(flTimeout)
 			} else {
-				// Channel that never fires
+				// Channel that never fires (so that we can
+				// read from the channel in the below select
+				// statement without panicking)
 				timeoutChan = make(chan time.Time)
 			}
 

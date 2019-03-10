@@ -101,12 +101,16 @@ func (c *Client) LiveQuery(query string, labels []string, hosts []string) (*Live
 	if err != nil {
 		return nil, errors.Wrap(err, "upgrade live query result websocket")
 	}
+	// Cannot defer connection closing here because we need it to remain
+	// open for the goroutine below. Manually close for the couple of error
+	// cases below until we enter that goroutine.
 
 	err = conn.WriteJSON(ws.JSONMessage{
 		Type: "auth",
 		Data: map[string]interface{}{"token": c.token},
 	})
 	if err != nil {
+		_ = conn.Close()
 		return nil, errors.Wrap(err, "auth for results")
 	}
 
@@ -115,6 +119,7 @@ func (c *Client) LiveQuery(query string, labels []string, hosts []string) (*Live
 		Data: map[string]interface{}{"campaign_id": responseBody.Campaign.ID},
 	})
 	if err != nil {
+		_ = conn.Close()
 		return nil, errors.Wrap(err, "auth for results")
 	}
 
