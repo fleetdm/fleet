@@ -4,7 +4,7 @@
 --debug
 --tls_dump=true
 
---tls_hostname=dockerhost:8080
+--tls_hostname=host.docker.internal:8080
 --tls_server_certs=/etc/osquery/kolide.crt
 
 --enroll_secret_env=ENROLL_SECRET

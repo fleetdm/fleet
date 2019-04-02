@@ -7,8 +7,6 @@ services:
     volumes:
       - ./kolide.crt:/etc/osquery/kolide.crt
       - ./example_osquery.flags:/etc/osquery/osquery.flags
-    extra_hosts:
-      - "dockerhost:${LOCALHOST}"
     environment:
       ENROLL_SECRET: "${ENROLL_SECRET}"
     command: osqueryd --flagfile=/etc/osquery/osquery.flags
@@ -22,8 +20,6 @@ services:
     volumes:
       - ./kolide.crt:/etc/osquery/kolide.crt
       - ./example_osquery.flags:/etc/osquery/osquery.flags
-    extra_hosts:
-      - "dockerhost:${LOCALHOST}"
     environment:
       ENROLL_SECRET: "${ENROLL_SECRET}"
     command: osqueryd --flagfile=/etc/osquery/osquery.flags
@@ -37,8 +33,6 @@ services:
     volumes:
       - ./kolide.crt:/etc/osquery/kolide.crt
       - ./example_osquery.flags:/etc/osquery/osquery.flags
-    extra_hosts:
-      - "dockerhost:${LOCALHOST}"
     environment:
       ENROLL_SECRET: "${ENROLL_SECRET}"
     command: osqueryd --flagfile=/etc/osquery/osquery.flags
@@ -52,8 +46,6 @@ services:
     volumes:
       - ./kolide.crt:/etc/osquery/kolide.crt
       - ./example_osquery.flags:/etc/osquery/osquery.flags
-    extra_hosts:
-      - "dockerhost:${LOCALHOST}"
     environment:
       ENROLL_SECRET: "${ENROLL_SECRET}"
     command: osqueryd --flagfile=/etc/osquery/osquery.flags
