@@ -1,31 +1,31 @@
 package service
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"testing"
 	"time"
 
 	"github.com/go-kit/kit/log"
+	"github.com/kolide/fleet/server/logging"
 	"github.com/stretchr/testify/require"
 )
 
-// TestRotateLoggerSIGHUP verifies that the osqueryd logfile
-// is rotated by sending a SIGHUP signal.
+// TestRotateLoggerSIGHUP verifies that the osqueryd logfile is rotated by
+// sending a SIGHUP signal.
 func TestRotateLoggerSIGHUP(t *testing.T) {
 	filePrefix := "kolide-log-rotate-test"
 	f, err := ioutil.TempFile("/tmp", filePrefix)
 	require.Nil(t, err)
-	defer f.Close()
+	defer os.Remove(f.Name())
 
-	logFile, err := osqueryLogFile(f.Name(), log.NewNopLogger(), false)
-	require.Nil(t, err)
+	logFile, err := logging.NewFilesystemLogWriter(f.Name(), log.NewNopLogger(), true)
 
 	// write a log line
-	logFile.Write([]byte("msg1"))
+	logFile.Write([]json.RawMessage{json.RawMessage("msg1")})
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGHUP)
@@ -42,24 +42,9 @@ func TestRotateLoggerSIGHUP(t *testing.T) {
 
 	// write a new log line and verify that the original file includes
 	// the new log line but not any of the old ones.
-	logFile.Write([]byte("msg2"))
+	logFile.Write([]json.RawMessage{json.RawMessage("msg2")})
 	logMsg, err := ioutil.ReadFile(f.Name())
 	require.Nil(t, err)
 
-	// TODO @groob
-	// the test should require.Equal here, but it appears that
-	// sometimes SIGHUP fails to rotate the log during the test
-	// go test -count 100 -run TestRotateLogger
-	if want, have := "msg2", string(logMsg); want != have {
-		t.Logf("expected %q, got %q\n", want, have)
-	}
-
-	// cleanup
-	files, err := ioutil.ReadDir("/tmp")
-	require.Nil(t, err)
-	for _, file := range files {
-		if strings.HasPrefix(file.Name(), filePrefix) {
-			os.Remove("/tmp/" + file.Name())
-		}
-	}
+	require.Equal(t, "msg2", string(logMsg))
 }

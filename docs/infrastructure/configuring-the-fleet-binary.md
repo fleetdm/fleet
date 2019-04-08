@@ -464,31 +464,6 @@ The size of the node key which is negotiated with `osqueryd` clients.
 		node_key_size: 36
 	```
 
-##### `osquery_status_log_file`
-
-The path which osquery status logs will be logged to.
-
-- Default value: `/tmp/osquery_status`
-- Environment variable: `KOLIDE_OSQUERY_STATUS_LOG_FILE`
-- Config file format:
-
-	```
-	osquery:
-		status_log_file: /var/log/osquery/status.log
-	```
-
-##### `osquery_result_log_file`
-
-The path which osquery result logs will be logged to.
-
-- Default value: `/tmp/osquery_result`
-- Environment variable: `KOLIDE_OSQUERY_RESULT_LOG_FILE`
-- Config file format:
-
-	```
-	osquery:
-		result_log_file: /var/log/osquery/result.log
-	```
 
 ##### `osquery_label_update_interval`
 
@@ -503,7 +478,69 @@ The interval at which Fleet will ask osquery agents to update their results for 
 		label_query_update_interval: 30m
 	```
 
+##### `osquery_status_log_plugin`
+
+Which log output plugin should be used for osquery status logs received from clients.
+
+Options are `filesystem` and `firehose`.
+
+- Default value: `filesystem`
+- Environment variable: `KOLIDE_OSQUERY_STATUS_LOG_PLUGIN`
+- Config file format:
+
+	```
+	osquery:
+		status_log_plugin: firehose
+	```
+
+##### `osquery_result_log_plugin`
+
+Which log output plugin should be used for osquery result logs received from clients.
+
+Options are `filesystem` and `firehose`.
+
+- Default value: `filesystem`
+- Environment variable: `KOLIDE_OSQUERY_RESULT_LOG_PLUGIN`
+- Config file format:
+
+	```
+	osquery:
+		result_log_plugin: firehose
+	```
+
+##### `osquery_status_log_file`
+
+DEPRECATED: Use fileystem_status_log_file.
+
+The path which osquery status logs will be logged to.
+
+- Default value: `/tmp/osquery_status`
+- Environment variable: `KOLIDE_OSQUERY_STATUS_LOG_FILE`
+- Config file format:
+
+	```
+	osquery:
+		status_log_file: /var/log/osquery/status.log
+	```
+
+##### `osquery_result_log_file`
+
+DEPRECATED: Use fileystem_result_log_file.
+
+The path which osquery result logs will be logged to.
+
+- Default value: `/tmp/osquery_result`
+- Environment variable: `KOLIDE_OSQUERY_RESULT_LOG_FILE`
+- Config file format:
+
+	```
+	osquery:
+		result_log_file: /var/log/osquery/result.log
+	```
+
 ##### `osquery_enable_log_rotation`
+
+DEPRECATED: Use fileystem_enable_log_rotation.
 
 This flag will cause the osquery result and status log files to be automatically
 rotated when files reach a size of 500 Mb or an age of 28 days.
@@ -517,7 +554,7 @@ rotated when files reach a size of 500 Mb or an age of 28 days.
      enable_log_rotation: true
   ```
 
-#### Logging
+#### Logging (Fleet server logging)
 
 ##### `logging_debug`
 
@@ -556,4 +593,130 @@ Whether or not to log the welcome banner.
 	```
 	logging:
 		diable_banner: true
+	```
+
+#### Filesystem
+
+##### `filesystem_status_log_file`
+
+This flag only has effect if `osquery_status_log_plugin` is set to `filesystem` (the default value).
+
+The path which osquery status logs will be logged to.
+
+- Default value: `/tmp/osquery_status`
+- Environment variable: `KOLIDE_FILESYSTEM_STATUS_LOG_FILE`
+- Config file format:
+
+	```
+	filesystem:
+		status_log_file: /var/log/osquery/status.log
+	```
+
+##### `filesystem_result_log_file`
+
+This flag only has effect if `osquery_result_log_plugin` is set to `filesystem` (the default value).
+
+The path which osquery result logs will be logged to.
+
+- Default value: `/tmp/osquery_result`
+- Environment variable: `KOLIDE_FILESYSTEM_RESULT_LOG_FILE`
+- Config file format:
+
+	```
+	filesystem:
+		result_log_file: /var/log/osquery/result.log
+	```
+
+##### `filesystem_enable_log_rotation`
+
+This flag only has effect if `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `filesystem` (the default value).
+
+This flag will cause the osquery result and status log files to be automatically
+rotated when files reach a size of 500 Mb or an age of 28 days.
+
+- Default value: `false`
+- Environment variable: `KOLIDE_FILESYSTEM_ENABLE_LOG_ROTATION`
+- Config file format:
+
+  ```
+  filesystem:
+     enable_log_rotation: true
+  ```
+
+#### Firehose
+
+##### `firehose_region`
+
+This flag only has effect if `osquery_status_log_plugin` is set to `firehose`.
+
+AWS region to use for Firehose connection
+
+- Default value: none
+- Environment variable: `KOLIDE_FIREHOSE_REGION`
+- Config file format:
+
+	```
+	firehose:
+		region: aws-east-2
+	```
+
+##### `firehose_access_key_id`
+
+This flag only has effect if `osquery_status_log_plugin` is set to `firehose`.
+
+AWS access key ID to use for Firehose authentication.
+
+- Default value: none
+- Environment variable: `KOLIDE_FIREHOSE_ACCESS_KEY_ID`
+- Config file format:
+
+	```
+	firehose:
+		access_key_id: aws-east-2
+	```
+
+##### `firehose_secret_access_key`
+
+This flag only has effect if `osquery_status_log_plugin` is set to `firehose`.
+
+AWS secret access key to use for Firehose authentication.
+
+- Default value: none
+- Environment variable: `KOLIDE_FIREHOSE_SECRET_ACCESS_KEY`
+- Config file format:
+
+	```
+	firehose:
+		secret_access_key: aws-east-2
+	```
+
+
+##### `firehose_status_stream`
+
+This flag only has effect if `osquery_status_log_plugin` is set to `firehose`.
+
+Name of the Firehose stream to write osquery status logs received from clients.
+
+- Default value: none
+- Environment variable: `KOLIDE_FIREHOSE_STATUS_STREAM`
+- Config file format:
+
+	```
+	firehose:
+		status_stream: osquery_status
+	```
+
+##### `firehose_result_stream`
+
+This flag only has effect if `osquery_result_log_plugin` is set to `firehose`.
+
+Name of the Firehose stream to write osquery result logs received from clients.
+
+- Default value: none
+- Environment variable: `KOLIDE_FIREHOSE_RESULT_STREAM`
+- Config file format:
+
+	```
+	firehose:
+		result_stream: osquery_result
 	```

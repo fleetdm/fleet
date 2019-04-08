@@ -1,12 +1,10 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"strings"
 	"sync"
 	"testing"
@@ -18,6 +16,7 @@ import (
 	"github.com/kolide/fleet/server/contexts/viewer"
 	"github.com/kolide/fleet/server/datastore/inmem"
 	"github.com/kolide/fleet/server/kolide"
+	"github.com/kolide/fleet/server/logging"
 	"github.com/kolide/fleet/server/mock"
 	"github.com/kolide/fleet/server/pubsub"
 	"github.com/stretchr/testify/assert"
@@ -86,11 +85,14 @@ func TestAuthenticateHost(t *testing.T) {
 	assert.Equal(t, mockClock.Now(), checkHost.UpdatedAt)
 }
 
-type nopCloserWriter struct {
-	io.Writer
+type testJSONLogger struct {
+	logs []json.RawMessage
 }
 
-func (n *nopCloserWriter) Close() error { return nil }
+func (n *testJSONLogger) Write(logs []json.RawMessage) error {
+	n.logs = logs
+	return nil
+}
 
 func TestSubmitStatusLogs(t *testing.T) {
 	ds, svc, _ := setupOsqueryTests(t)
@@ -108,8 +110,8 @@ func TestSubmitStatusLogs(t *testing.T) {
 	// Hack to get at the service internals and modify the writer
 	serv := ((svc.(validationMiddleware)).Service).(service)
 
-	var statusBuf bytes.Buffer
-	serv.osqueryStatusLogWriter = &nopCloserWriter{&statusBuf}
+	testLogger := &testJSONLogger{}
+	serv.osqueryLogWriter = &logging.OsqueryLogger{Status: testLogger}
 
 	logs := []string{
 		`{"severity":"0","filename":"tls.cpp","line":"216","message":"some message","version":"1.8.2","decorations":{"host_uuid":"uuid_foobar","username":"zwass"}}`,
@@ -124,15 +126,7 @@ func TestSubmitStatusLogs(t *testing.T) {
 	err = serv.SubmitStatusLogs(ctx, status)
 	assert.Nil(t, err)
 
-	statusJSON := statusBuf.String()
-	statusJSON = strings.TrimRight(statusJSON, "\n")
-	statusLines := strings.Split(statusJSON, "\n")
-
-	if assert.Equal(t, len(logs), len(statusLines)) {
-		for i, line := range statusLines {
-			assert.JSONEq(t, logs[i], line)
-		}
-	}
+	assert.Equal(t, status, testLogger.logs)
 }
 
 func TestSubmitResultLogs(t *testing.T) {
@@ -151,15 +145,15 @@ func TestSubmitResultLogs(t *testing.T) {
 	// Hack to get at the service internals and modify the writer
 	serv := ((svc.(validationMiddleware)).Service).(service)
 
-	var resultBuf bytes.Buffer
-	serv.osqueryResultLogWriter = &nopCloserWriter{&resultBuf}
+	testLogger := &testJSONLogger{}
+	serv.osqueryLogWriter = &logging.OsqueryLogger{Result: testLogger}
 
 	logs := []string{
 		`{"name":"system_info","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 17:55:15 2016 UTC","unixTime":"1475258115","decorations":{"host_uuid":"some_uuid","username":"zwass"},"columns":{"cpu_brand":"Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz","hostname":"hostimus","physical_memory":"17179869184"},"action":"added"}`,
 		`{"name":"encrypted","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 21:19:15 2016 UTC","unixTime":"1475270355","decorations":{"host_uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEB","username":"zwass"},"columns":{"encrypted":"1","name":"\/dev\/disk1","type":"AES-XTS","uid":"","user_uuid":"","uuid":"some_uuid"},"action":"added"}`,
 		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"time","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":"1484078931","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
 		`{"diffResults":{"removed":[{"address":"127.0.0.1","hostnames":"kl.groob.io"}],"added":""},"name":"pack\/test\/hosts","hostIdentifier":"FA01680E-98CA-5557-8F59-7716ECFEE964","calendarTime":"Sun Nov 19 00:02:08 2017 UTC","unixTime":"1511049728","epoch":"0","counter":"10","decorations":{"host_uuid":"FA01680E-98CA-5557-8F59-7716ECFEE964","hostname":"kl.groob.io"}}`,
-		// fleet will accept anything in the "data" field of an log request.
+		// fleet will accept anything in the "data" field of a log request.
 		`{"unknown":{"foo": [] }}`,
 	}
 	logJSON := fmt.Sprintf("[%s]", strings.Join(logs, ","))
@@ -171,15 +165,7 @@ func TestSubmitResultLogs(t *testing.T) {
 	err = serv.SubmitResultLogs(ctx, results)
 	assert.Nil(t, err)
 
-	resultJSON := resultBuf.String()
-	resultJSON = strings.TrimRight(resultJSON, "\n")
-	resultLines := strings.Split(resultJSON, "\n")
-
-	if assert.Equal(t, len(logs), len(resultLines)) {
-		for i, line := range resultLines {
-			assert.JSONEq(t, logs[i], line)
-		}
-	}
+	assert.Equal(t, results, testLogger.logs)
 }
 
 func TestHostDetailQueries(t *testing.T) {

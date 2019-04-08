@@ -1,13 +1,32 @@
-Working With Osquery Logs
-=========================
+# Working With Osquery Logs
 
-The `fleet` binary accepts two flags:
+Osquery agents are typically configured to send logs to the Fleet server (`--logger_plugin=tls`). This is not a requirement, and any other logger plugin can be used even when osquery clients are connecting to the Fleet server to retrieve configuration or run live queries. See the [osquery logging documentation](https://osquery.readthedocs.io/en/stable/deployment/logging/) for more about configuring logging on the agent.
 
-- `--osquery_result_log_file`: Path for osqueryd result logs (default: `/tmp/osquery_result`)
-- `--osquery_status_log_file`: Path for osqueryd status logs (default `/tmp/osquery_status`)
+If `--logger_plugin=tls` is used with osquery clients, the following configuration can be applied on the Fleet server for handling the incoming logs.
 
-You can also configure the path which logs are written via environment variables or a config file. See the documentation on [Configuring The Fleet Binary](../infrastructure/configuring-the-fleet-binary.md) for more information on this.
+## Osquery Logging Plugins
 
-As the Fleet server ingests logs from osquery, it will write them to the paths described using the above flags. You are encouraged to forward these logs into your company's log aggregation/alerting pipeline directly. For more information on configuring various systems to ingest osquery logs, consider reviewing the [Log Aggregation](https://osquery.readthedocs.io/en/stable/deployment/log-aggregation/) documentation on the official osquery wiki.
+Fleet supports the following logging plugins for osquery logs:
 
-As the Fleet application grows, we are going to expand this feature based on customer feedback. If you would like direct integrations with a specific third-party application, please let us know by [filing an issue on github](https://github.com/kolide/fleet/issues) or [joining us on Slack](https://osquery-slack.herokuapp.com/).
+- [Filesystem](#filesystem) - Logs are written to the local Fleet server filesystem.
+- [Firehose](#firehose) - Logs are written to AWS Firehose streams.
+
+To set the osquery logging plugins, use the `--osquery_result_log_plugin` and `--osquery_status_log_plugin` flags (or [equivalents for environment variables or configuration files](../infrastructure/configuring-the-fleet-binary.md#options)).
+
+### Filesystem
+
+The default logging plugin.
+
+- Plugin name: `filesystem`
+- Flag namespace: [filesystem](../infrastructure/configuring-the-fleet-binary.md#filesystem)
+
+With the filesystem plugin, osquery result and/or status logs are written to the local filesystem on the Fleet server. This is typically used with a log forwarding agent on the Fleet server that will push the logs into a logging pipeline. Note that if multiple load-balanced Fleet servers are used, the logs will be load-balanced across those servers (not duplicated).
+
+### Firehose
+
+- Plugin name: `firehose`
+- Flag namespace: [firehose](../infrastructure/configuring-the-fleet-binary.md#firehose)
+
+With the Firehose plugin, osquery result and/or status logs are written to [AWS Firehose](https://aws.amazon.com/kinesis/data-firehose/) streams. This is a very good method for aggregating osquery logs into AWS S3 storage.
+
+Note that Firehose logging has limits [discussed in the documentation](https://docs.aws.amazon.com/firehose/latest/dev/limits.html). When Fleet encounters logs that are too big for Firehose, notifications will be output in the Fleet logs and those logs _will not_ be sent to Firehose.

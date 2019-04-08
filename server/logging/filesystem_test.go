@@ -1,48 +1,52 @@
-package logwriter
+package logging
 
 import (
 	"crypto/rand"
+	"encoding/json"
 	"io/ioutil"
 	"os"
 	"path"
 	"testing"
 
+	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 
 func TestLogger(t *testing.T) {
 	tempPath, err := ioutil.TempDir("", "test")
 	require.Nil(t, err)
-	fileName := path.Join(tempPath, "logwriter")
-	lgr, err := New(fileName)
+	fileName := path.Join(tempPath, "filesystemLogWriter")
+	lgr, err := NewFilesystemLogWriter(fileName, log.NewNopLogger(), false)
 	require.Nil(t, err)
 	defer os.Remove(fileName)
 
-	randInput := make([]byte, 512)
-	rand.Read(randInput)
-
-	for i := 0; i < 100; i++ {
-		n, err := lgr.Write(randInput)
-		require.Nil(t, err)
-		assert.Equal(t, 512, n)
+	var logs []json.RawMessage
+	for i := 0; i < 50; i++ {
+		randInput := make([]byte, 512)
+		rand.Read(randInput)
+		logs = append(logs, randInput)
 	}
 
-	err = lgr.Close()
+	for i := 0; i < 100; i++ {
+		err := lgr.Write(logs)
+		require.Nil(t, err)
+	}
+
+	err = lgr.writer.Close()
 	assert.Nil(t, err)
 
 	// can't write to a closed logger
-	_, err = lgr.Write(randInput)
+	err = lgr.Write(logs)
 	assert.NotNil(t, err)
 
 	// call close twice noop
-	err = lgr.Close()
+	err = lgr.writer.Close()
 	assert.Nil(t, err)
 
 	info, err := os.Stat(fileName)
 	require.Nil(t, err)
-	assert.Equal(t, int64(51200), info.Size())
+	assert.Equal(t, int64(512*50*100), info.Size())
 
 }
 
@@ -51,19 +55,23 @@ func BenchmarkLogger(b *testing.B) {
 	if err != nil {
 		b.Fatal("temp dir failed", err)
 	}
-	fileName := path.Join(tempPath, "logwriter")
-	lgr, err := New(fileName)
+	fileName := path.Join(tempPath, "filesystemLogWriter")
+	lgr, err := NewFilesystemLogWriter(fileName, log.NewNopLogger(), false)
 	if err != nil {
 		b.Fatal("new failed ", err)
 	}
 	defer os.Remove(fileName)
 
-	randInput := make([]byte, 512)
-	rand.Read(randInput)
+	var logs []json.RawMessage
+	for i := 0; i < 50; i++ {
+		randInput := make([]byte, 512)
+		rand.Read(randInput)
+		logs = append(logs, randInput)
+	}
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, err := lgr.Write(randInput)
+		err := lgr.Write(logs)
 		if err != nil {
 			b.Fatal("write failed ", err)
 		}
@@ -71,7 +79,7 @@ func BenchmarkLogger(b *testing.B) {
 
 	b.StopTimer()
 
-	lgr.Close()
+	lgr.writer.Close()
 }
 
 func BenchmarkLumberjack(b *testing.B) {
@@ -80,26 +88,28 @@ func BenchmarkLumberjack(b *testing.B) {
 		b.Fatal("temp dir failed", err)
 	}
 	fileName := path.Join(tempPath, "lumberjack")
-	lgr := &lumberjack.Logger{
-		Filename:   fileName,
-		MaxSize:    500, // megabytes
-		MaxBackups: 3,
-		MaxAge:     28, //days
+	lgr, err := NewFilesystemLogWriter(fileName, log.NewNopLogger(), true)
+	if err != nil {
+		b.Fatal("new failed ", err)
 	}
 	defer os.Remove(fileName)
 
-	randInput := make([]byte, 512)
-	rand.Read(randInput)
+	var logs []json.RawMessage
+	for i := 0; i < 50; i++ {
+		randInput := make([]byte, 512)
+		rand.Read(randInput)
+		logs = append(logs, randInput)
+	}
 	// first lumberjack write opens file so we count that as part of initialization
 	// just to make sure we're comparing apples to apples with our logger
-	_, err = lgr.Write(randInput)
+	err = lgr.Write(logs)
 	if err != nil {
 		b.Fatal("first write failed ", err)
 	}
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, err := lgr.Write(randInput)
+		err := lgr.Write(logs)
 		if err != nil {
 			b.Fatal("write failed ", err)
 		}
@@ -107,5 +117,5 @@ func BenchmarkLumberjack(b *testing.B) {
 
 	b.StopTimer()
 
-	lgr.Close()
+	lgr.writer.Close()
 }

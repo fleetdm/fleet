@@ -25,6 +25,48 @@
   revision = "b08e6b4da7ea8c03e0f0c47fd549d801f52a3019"
 
 [[projects]]
+  digest = "1:cf631dc4e20acdb26b06281aa6d36329da78e1d9ce94cc0a2e204366c08ce0ae"
+  name = "github.com/aws/aws-sdk-go"
+  packages = [
+    "aws",
+    "aws/awserr",
+    "aws/awsutil",
+    "aws/client",
+    "aws/client/metadata",
+    "aws/corehandlers",
+    "aws/credentials",
+    "aws/credentials/ec2rolecreds",
+    "aws/credentials/endpointcreds",
+    "aws/credentials/processcreds",
+    "aws/credentials/stscreds",
+    "aws/csm",
+    "aws/defaults",
+    "aws/ec2metadata",
+    "aws/endpoints",
+    "aws/request",
+    "aws/session",
+    "aws/signer/v4",
+    "internal/ini",
+    "internal/sdkio",
+    "internal/sdkrand",
+    "internal/sdkuri",
+    "internal/shareddefaults",
+    "private/protocol",
+    "private/protocol/json/jsonutil",
+    "private/protocol/jsonrpc",
+    "private/protocol/query",
+    "private/protocol/query/queryutil",
+    "private/protocol/rest",
+    "private/protocol/xml/xmlutil",
+    "service/firehose",
+    "service/firehose/firehoseiface",
+    "service/sts",
+  ]
+  pruneopts = "UT"
+  revision = "4e871608b534ce2562c8330cf41d001db1c5d7d3"
+  version = "v1.19.8"
+
+[[projects]]
   digest = "1:86849cd97161572bcdb705e0f6b986d0a250faa6b64c52f8a2a27199d0e16dee"
   name = "github.com/beevik/etree"
   packages = ["."]
@@ -236,6 +278,13 @@
   pruneopts = "UT"
   revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
   version = "v1.0"
+
+[[projects]]
+  digest = "1:bb81097a5b62634f3e9fec1014657855610c82d19b9a40c17612e32651e35dca"
+  name = "github.com/jmespath/go-jmespath"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "c2b33e84"
 
 [[projects]]
   branch = "master"
@@ -661,6 +710,10 @@
   input-imports = [
     "github.com/VividCortex/mysqlerr",
     "github.com/WatchBeam/clock",
+    "github.com/aws/aws-sdk-go/aws",
+    "github.com/aws/aws-sdk-go/aws/credentials",
+    "github.com/aws/aws-sdk-go/aws/session",
+    "github.com/aws/aws-sdk-go/service/firehose/firehoseiface",
     "github.com/beevik/etree",
     "github.com/briandowns/spinner",
     "github.com/dgrijalva/jwt-go",
