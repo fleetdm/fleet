@@ -1,3 +1,17 @@
+## Kolide Fleet 2.1.0 (Apr 9, 2019)
+
+* Add capability to log osquery status and results to AWS Firehose. Note that this deprecated some existing logging configuration (`--osquery_status_log_file` and `--osquery_result_log_file`). Existing configurations will continue to work, but will be removed at some point.
+
+* Automatically clean up "incoming hosts" that do not complete enrollment.
+
+* Fix bug with SSO requests that caused issues with some IdPs.
+
+* Hide built-in platform labels that have no hosts.
+
+* Fix references to Fleet documentation in emails.
+
+* Minor improvements to UI in places where editing objects is disabled.
+
 ## Kolide Fleet 2.0.2 (Jan 17, 2019)
 
 * Improve performance of `fleetctl query` with high host counts.
