@@ -26,6 +26,8 @@ type AuthenticateHostFunc func(nodeKey string) (*kolide.Host, error)
 
 type MarkHostSeenFunc func(host *kolide.Host, t time.Time) error
 
+type CleanupIncomingHostsFunc func(t time.Time) error
+
 type SearchHostsFunc func(query string, omit ...uint) ([]*kolide.Host, error)
 
 type GenerateHostStatusStatisticsFunc func(now time.Time) (online uint, offline uint, mia uint, new uint, err error)
@@ -58,6 +60,9 @@ type HostStore struct {
 
 	MarkHostSeenFunc        MarkHostSeenFunc
 	MarkHostSeenFuncInvoked bool
+
+	CleanupIncomingHostsFunc        CleanupIncomingHostsFunc
+	CleanupIncomingHostsFuncInvoked bool
 
 	SearchHostsFunc        SearchHostsFunc
 	SearchHostsFuncInvoked bool
@@ -110,6 +115,11 @@ func (s *HostStore) AuthenticateHost(nodeKey string) (*kolide.Host, error) {
 func (s *HostStore) MarkHostSeen(host *kolide.Host, t time.Time) error {
 	s.MarkHostSeenFuncInvoked = true
 	return s.MarkHostSeenFunc(host, t)
+}
+
+func (s *HostStore) CleanupIncomingHosts(t time.Time) error {
+	s.CleanupIncomingHostsFuncInvoked = true
+	return s.CleanupIncomingHostsFunc(t)
 }
 
 func (s *HostStore) SearchHosts(query string, omit ...uint) ([]*kolide.Host, error) {

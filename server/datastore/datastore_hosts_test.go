@@ -645,6 +645,50 @@ func testMarkHostSeen(t *testing.T, ds kolide.Datastore) {
 	}
 }
 
+func testCleanupIncomingHosts(t *testing.T, ds kolide.Datastore) {
+	mockClock := clock.NewMockClock()
+
+	h1, err := ds.NewHost(&kolide.Host{
+		ID:               1,
+		OsqueryHostID:    "1",
+		UUID:             "1",
+		NodeKey:          "1",
+		DetailUpdateTime: mockClock.Now(),
+		SeenTime:         mockClock.Now(),
+	})
+	require.Nil(t, err)
+
+	h2, err := ds.NewHost(&kolide.Host{
+		ID:               2,
+		OsqueryHostID:    "2",
+		UUID:             "2",
+		NodeKey:          "2",
+		HostName:         "foobar",
+		OsqueryVersion:   "3.2.3",
+		DetailUpdateTime: mockClock.Now(),
+		SeenTime:         mockClock.Now(),
+	})
+	require.Nil(t, err)
+
+	err = ds.CleanupIncomingHosts(mockClock.Now().UTC())
+	assert.Nil(t, err)
+
+	// Both hosts should still exist because they are new
+	_, err = ds.Host(h1.ID)
+	assert.Nil(t, err)
+	_, err = ds.Host(h2.ID)
+	assert.Nil(t, err)
+
+	err = ds.CleanupIncomingHosts(mockClock.Now().Add(6 * time.Minute).UTC())
+	assert.Nil(t, err)
+
+	// Now only the host with details should exist
+	_, err = ds.Host(h1.ID)
+	assert.NotNil(t, err)
+	_, err = ds.Host(h2.ID)
+	assert.Nil(t, err)
+}
+
 func testFlappingNetworkInterfaces(t *testing.T, ds kolide.Datastore) {
 	// See https://github.com/kolide/fleet/issues/1278
 	host, err := ds.NewHost(&kolide.Host{

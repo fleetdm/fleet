@@ -163,6 +163,7 @@ the way that the Fleet server works.
 				ticker := time.NewTicker(1 * time.Hour)
 				for {
 					ds.CleanupDistributedQueryCampaigns(time.Now())
+					ds.CleanupIncomingHosts(time.Now())
 					<-ticker.C
 				}
 			}()

@@ -43,6 +43,14 @@ type HostStore interface {
 	AuthenticateHost(nodeKey string) (*Host, error)
 	MarkHostSeen(host *Host, t time.Time) error
 	SearchHosts(query string, omit ...uint) ([]*Host, error)
+	// CleanupIncomingHosts deletes hosts that have enrolled but never
+	// updated their status details. This clears dead "incoming hosts" that
+	// never complete their registration.
+	//
+	// A host is considered incoming if both the hostname and
+	// osquery_version fields are empty. This means that multiple different
+	// osquery queries failed to populate details.
+	CleanupIncomingHosts(now time.Time) error
 	// GenerateHostStatusStatistics retrieves the count of online, offline,
 	// MIA and new hosts.
 	GenerateHostStatusStatistics(now time.Time) (online, offline, mia, new uint, err error)

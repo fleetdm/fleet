@@ -317,6 +317,19 @@ func (d *Datastore) ListHosts(opt kolide.ListOptions) ([]*kolide.Host, error) {
 	return hosts, nil
 }
 
+func (d *Datastore) CleanupIncomingHosts(now time.Time) error {
+	sqlStatement := `
+		DELETE FROM hosts
+		WHERE host_name = '' AND osquery_version = ''
+		AND created_at < (? - INTERVAL 5 MINUTE)
+	`
+	if _, err := d.db.Exec(sqlStatement, now); err != nil {
+		return errors.Wrap(err, "cleanup incoming hosts")
+	}
+
+	return nil
+}
+
 func (d *Datastore) GenerateHostStatusStatistics(now time.Time) (online, offline, mia, new uint, e error) {
 	// The logic in this function should remain synchronized with
 	// host.Status and CountHostsInTargets
