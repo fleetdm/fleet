@@ -114,20 +114,26 @@ func getDestinationURL(settings *Settings) (string, error) {
 // See SAML Bindings http://docs.oasis-open.org/security/saml/v2.0/saml-bindings-2.0-os.pdf
 // Section 3.4.4.1
 func deflate(xmlBuffer *bytes.Buffer) (string, error) {
+	// Gzip
 	var deflated bytes.Buffer
 	writer, err := flate.NewWriter(&deflated, flate.DefaultCompression)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "create flate writer")
 	}
-	defer writer.Close()
 	n, err := writer.Write(xmlBuffer.Bytes())
 	if n != xmlBuffer.Len() {
+		_ = writer.Close()
 		return "", errors.New("incomplete write during compression")
 	}
 	if err != nil {
+		_ = writer.Close()
 		return "", errors.Wrap(err, "compressing auth request")
 	}
-	writer.Flush()
+	if err := writer.Close(); err != nil {
+		return "", errors.Wrap(err, "close flate writer")
+	}
+
+	// Base64
 	encbuff := deflated.Bytes()
 	encoded := base64.StdEncoding.EncodeToString(encbuff)
 	return encoded, nil
