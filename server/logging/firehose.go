@@ -75,6 +75,10 @@ func (f *firehoseLogWriter) Write(logs []json.RawMessage) error {
 	var records []*firehose.Record
 	totalBytes := 0
 	for _, log := range logs {
+		// Add newline because Firehose does not output each record on
+		// a separate line.
+		log = append(log, '\n')
+
 		// We don't really have a good option for what to do with logs
 		// that are too big for Firehose. This behavior is consistent
 		// with osquery's behavior in the Firehose logger plugin, and

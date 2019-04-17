@@ -61,6 +61,8 @@ type flusher interface {
 // Write writes the provided logs to the filesystem
 func (l *filesystemLogWriter) Write(logs []json.RawMessage) error {
 	for _, log := range logs {
+		// Add newline to separate logs in output file
+		log = append(log, '\n')
 		if _, err := l.writer.Write(log); err != nil {
 			return errors.Wrap(err, "writing log")
 		}

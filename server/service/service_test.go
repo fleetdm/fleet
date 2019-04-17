@@ -46,5 +46,5 @@ func TestRotateLoggerSIGHUP(t *testing.T) {
 	logMsg, err := ioutil.ReadFile(f.Name())
 	require.Nil(t, err)
 
-	require.Equal(t, "msg2", string(logMsg))
+	require.Equal(t, "msg2\n", string(logMsg))
 }

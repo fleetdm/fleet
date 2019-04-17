@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestLogger(t *testing.T) {
+func TestFilesystemLogger(t *testing.T) {
 	tempPath, err := ioutil.TempDir("", "test")
 	require.Nil(t, err)
 	fileName := path.Join(tempPath, "filesystemLogWriter")
@@ -21,14 +21,20 @@ func TestLogger(t *testing.T) {
 	require.Nil(t, err)
 	defer os.Remove(fileName)
 
+	var (
+		batches  = 50
+		logCount = 100
+		logSize  = 512
+	)
+
 	var logs []json.RawMessage
-	for i := 0; i < 50; i++ {
-		randInput := make([]byte, 512)
+	for i := 0; i < logCount; i++ {
+		randInput := make([]byte, logSize)
 		rand.Read(randInput)
 		logs = append(logs, randInput)
 	}
 
-	for i := 0; i < 100; i++ {
+	for i := 0; i < batches; i++ {
 		err := lgr.Write(logs)
 		require.Nil(t, err)
 	}
@@ -46,11 +52,12 @@ func TestLogger(t *testing.T) {
 
 	info, err := os.Stat(fileName)
 	require.Nil(t, err)
-	assert.Equal(t, int64(512*50*100), info.Size())
+	// + 1 below is for newlines that should be appended to each log
+	assert.Equal(t, int64(batches*logCount*(logSize+1)), info.Size())
 
 }
 
-func BenchmarkLogger(b *testing.B) {
+func BenchmarkFilesystemLogger(b *testing.B) {
 	tempPath, err := ioutil.TempDir("", "test")
 	if err != nil {
 		b.Fatal("temp dir failed", err)

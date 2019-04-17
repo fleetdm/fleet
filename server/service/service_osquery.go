@@ -191,9 +191,6 @@ func (svc service) GetClientConfig(ctx context.Context) (map[string]interface{},
 }
 
 func (svc service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) error {
-	for _, log := range logs {
-		log = append(log, '\n')
-	}
 	if err := svc.osqueryLogWriter.Status.Write(logs); err != nil {
 		return osqueryError{message: "error writing status logs: " + err.Error()}
 	}
@@ -201,9 +198,6 @@ func (svc service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage)
 }
 
 func (svc service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage) error {
-	for _, log := range logs {
-		log = append(log, '\n')
-	}
 	if err := svc.osqueryLogWriter.Result.Write(logs); err != nil {
 		return osqueryError{message: "error writing result logs: " + err.Error()}
 	}

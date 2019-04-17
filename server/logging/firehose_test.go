@@ -20,6 +20,11 @@ var (
 		json.RawMessage(`{"flim": "flam"}`),
 		json.RawMessage(`{"jim": "jom"}`),
 	}
+	logsWithNewlines = []json.RawMessage{
+		json.RawMessage(`{"foo": "bar"}` + "\n"),
+		json.RawMessage(`{"flim": "flam"}` + "\n"),
+		json.RawMessage(`{"jim": "jom"}` + "\n"),
+	}
 )
 
 func makeFirehoseWriterWithMock(client firehoseiface.FirehoseAPI, stream string) *firehoseLogWriter {
@@ -55,7 +60,7 @@ func TestFirehoseRetryableFailure(t *testing.T) {
 	callCount := 0
 	putFunc := func(input *firehose.PutRecordBatchInput) (*firehose.PutRecordBatchOutput, error) {
 		callCount += 1
-		assert.Equal(t, logs, getLogsFromInput(input))
+		assert.Equal(t, logsWithNewlines, getLogsFromInput(input))
 		assert.Equal(t, "foobar", *input.DeliveryStreamName)
 		if callCount < 3 {
 			return nil, awserr.New(firehose.ErrCodeServiceUnavailableException, "", nil)
@@ -76,7 +81,7 @@ func TestFirehoseNormalPut(t *testing.T) {
 	callCount := 0
 	putFunc := func(input *firehose.PutRecordBatchInput) (*firehose.PutRecordBatchOutput, error) {
 		callCount += 1
-		assert.Equal(t, logs, getLogsFromInput(input))
+		assert.Equal(t, logsWithNewlines, getLogsFromInput(input))
 		assert.Equal(t, "foobar", *input.DeliveryStreamName)
 		return &firehose.PutRecordBatchOutput{FailedPutCount: aws.Int64(0)}, nil
 	}
@@ -94,7 +99,7 @@ func TestFirehoseSomeFailures(t *testing.T) {
 	call3 := func(input *firehose.PutRecordBatchInput) (*firehose.PutRecordBatchOutput, error) {
 		// final invocation
 		callCount += 1
-		assert.Equal(t, logs[1:2], getLogsFromInput(input))
+		assert.Equal(t, logsWithNewlines[1:2], getLogsFromInput(input))
 		return &firehose.PutRecordBatchOutput{
 			FailedPutCount: aws.Int64(0),
 		}, nil
@@ -104,7 +109,7 @@ func TestFirehoseSomeFailures(t *testing.T) {
 		// Set to invoke call3 next time
 		f.PutRecordBatchFunc = call3
 		callCount += 1
-		assert.Equal(t, logs[1:], getLogsFromInput(input))
+		assert.Equal(t, logsWithNewlines[1:], getLogsFromInput(input))
 		return &firehose.PutRecordBatchOutput{
 			FailedPutCount: aws.Int64(1),
 			RequestResponses: []*firehose.PutRecordBatchResponseEntry{
@@ -122,7 +127,7 @@ func TestFirehoseSomeFailures(t *testing.T) {
 		// Use call2 function for next call
 		f.PutRecordBatchFunc = call2
 		callCount += 1
-		assert.Equal(t, logs, getLogsFromInput(input))
+		assert.Equal(t, logsWithNewlines, getLogsFromInput(input))
 		return &firehose.PutRecordBatchOutput{
 			FailedPutCount: aws.Int64(1),
 			RequestResponses: []*firehose.PutRecordBatchResponseEntry{
@@ -151,7 +156,7 @@ func TestFirehoseFailAllRecords(t *testing.T) {
 
 	f.PutRecordBatchFunc = func(input *firehose.PutRecordBatchInput) (*firehose.PutRecordBatchOutput, error) {
 		callCount += 1
-		assert.Equal(t, logs, getLogsFromInput(input))
+		assert.Equal(t, logsWithNewlines, getLogsFromInput(input))
 		if callCount < 3 {
 			return &firehose.PutRecordBatchOutput{
 				FailedPutCount: aws.Int64(1),
@@ -187,7 +192,7 @@ func TestFirehoseRecordTooBig(t *testing.T) {
 	callCount := 0
 	putFunc := func(input *firehose.PutRecordBatchInput) (*firehose.PutRecordBatchOutput, error) {
 		callCount += 1
-		assert.Equal(t, logs[1:], getLogsFromInput(input))
+		assert.Equal(t, logsWithNewlines[1:], getLogsFromInput(input))
 		assert.Equal(t, "foobar", *input.DeliveryStreamName)
 		return &firehose.PutRecordBatchOutput{FailedPutCount: aws.Int64(0)}, nil
 	}
