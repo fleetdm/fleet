@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"net"
-	"strings"
 	"time"
 )
 
@@ -120,48 +119,50 @@ type HostSummary struct {
 	NewCount     uint `json:"new_count"`
 }
 
-// ResetPrimaryNetwork will determine if the PrimaryNetworkInterfaceID
-// needs to change.  If it has not been set, it will default to the interface
-// with the most IO.  If it doesn't match an existing nic (as in the nic got changed)
-// is will be reset.  If there are not any nics, it will be set to nil.  In any
-// case if it changes, this function will return true, indicating that the
-// change should be written back to the database
+// ResetPrimaryNetwork determines the primary network interface by picking the
+// first non-loopback/link-local interface in the network interfaces list.
+// These networks should be ordered by I/O activity (before calling this
+// function), so it will effectively pick the most active interface. If no
+// interface exists, the ID will be set to nil. If only loopback or link-local
+// interfaces exist, the most active of those will be set. The function returns
+// a boolean indicating whether the primary interface was changed.
 func (h *Host) ResetPrimaryNetwork() bool {
-	if h.PrimaryNetworkInterfaceID != nil {
-		// This *may* happen if other details of the host are fetched before network_interfaces
-		if len(h.NetworkInterfaces) == 0 {
-			h.PrimaryNetworkInterfaceID = nil
-			return true
-		}
-		for _, nic := range h.NetworkInterfaces {
-			if *h.PrimaryNetworkInterfaceID == nic.ID {
-				return false
-			}
-		}
+	oldID := h.PrimaryNetworkInterfaceID
+
+	h.resetPrimaryNetwork()
+
+	if h.PrimaryNetworkInterfaceID != nil && oldID != nil {
+		return *h.PrimaryNetworkInterfaceID != *oldID
+	} else {
+		return h.PrimaryNetworkInterfaceID != oldID
+	}
+}
+
+func (h *Host) resetPrimaryNetwork() {
+	if len(h.NetworkInterfaces) == 0 {
 		h.PrimaryNetworkInterfaceID = nil
+		return
 	}
 
-	// nics are in descending order of IO
-	// so we default to the most active nic
-	if len(h.NetworkInterfaces) > 0 {
-		// Check IPv4 address
-		for _, nic := range h.NetworkInterfaces {
-			if strings.Index(nic.IPAddress, "127.") == 0 {
-				continue
-			}
-			var isIpAddress = net.ParseIP(nic.IPAddress)
-			if isIpAddress.To4() != nil {
-				h.PrimaryNetworkInterfaceID = &nic.ID
-				return true
-			}
+	for _, nic := range h.NetworkInterfaces {
+		ip := net.ParseIP(nic.IPAddress)
+		if ip == nil {
+			continue
 		}
-		// return IPv6 or other nic in place of IPv4
-		h.PrimaryNetworkInterfaceID = &h.NetworkInterfaces[0].ID
-		return true
+
+		// Skip link-local and loopback interfaces
+		if ip.IsLinkLocalUnicast() || ip.IsLoopback() {
+			continue
+		}
+
+		// Choose first allowed interface
+		h.PrimaryNetworkInterfaceID = &nic.ID
+		return
 	}
 
-	return false
-
+	// If no interfaces qualify, still pick the first interface so that we
+	// show something.
+	h.PrimaryNetworkInterfaceID = &h.NetworkInterfaces[0].ID
 }
 
 // RandomText returns a stdEncoded string of
