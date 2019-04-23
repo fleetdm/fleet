@@ -65,7 +65,7 @@ class UserBlock extends Component {
   }
 
   render () {
-    const { isEditing, isInvite, user, userErrors } = this.props;
+    const { isEditing, isInvite, user, userErrors, isCurrentUser } = this.props;
     const {
       admin,
       email,
@@ -131,6 +131,7 @@ class UserBlock extends Component {
       return (
         <div className={userWrapperClass}>
           <EditUserForm
+            isCurrentUser={isCurrentUser}
             onCancel={onToggleEditing}
             handleSubmit={onEditUser}
             formData={user}

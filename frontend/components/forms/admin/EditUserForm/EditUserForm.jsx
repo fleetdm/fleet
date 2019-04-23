@@ -11,6 +11,7 @@ const fieldNames = ['email', 'name', 'position', 'username', 'sso_enabled'];
 
 class EditUserForm extends Component {
   static propTypes = {
+    isCurrentUser: PropTypes.bool.isRequired,
     onCancel: PropTypes.func,
     handleSubmit: PropTypes.func,
     fields: PropTypes.shape({
@@ -23,7 +24,7 @@ class EditUserForm extends Component {
   };
 
   render () {
-    const { fields, handleSubmit, onCancel } = this.props;
+    const { fields, handleSubmit, onCancel, isCurrentUser } = this.props;
 
     return (
       <form className={baseClass} onSubmit={handleSubmit}>
@@ -52,6 +53,7 @@ class EditUserForm extends Component {
           {...fields.email}
           inputWrapperClass={`${baseClass}__input-wrap`}
           label="Email"
+          disabled={isCurrentUser}
           labelClassName={`${baseClass}__label`}
           inputClassName={`${baseClass}__input ${baseClass}__input--email`}
         />
