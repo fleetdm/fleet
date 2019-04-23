@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -486,11 +487,12 @@ func (man Manager) loadConfigFile() {
 	man.viper.SetConfigFile(configFile)
 	err := man.viper.ReadInConfig()
 
-	fmt.Println("Using config file: ", man.viper.ConfigFileUsed())
-
 	if err != nil {
-		panic("Error reading config: " + err.Error())
+		fmt.Println("Error loading config file:", err)
+		os.Exit(1)
 	}
+
+	fmt.Println("Using config file: ", man.viper.ConfigFileUsed())
 }
 
 // TestConfig returns a barebones configuration suitable for use in tests.
