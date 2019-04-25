@@ -108,6 +108,10 @@ export class QueryPage extends Component {
       this.resetCampaignAndTargets();
     }
 
+    if (nextProps.query) {
+      this.setState({ queryText: nextProps.query.query });
+    }
+
     if (!isEqual(selectedHosts, this.props.selectedHosts)) {
       helpers.selectHosts(dispatch, {
         hosts: selectedHosts,
