@@ -1,3 +1,17 @@
+## Kolide Fleet 2.1.1 (Apr 25, 2019)
+
+* Automatically pull AWS STS credentials for Firehose logging if they are not specified in config.
+
+* Fix bug in which log output did not include newlines separating characters.
+
+* Fix bug in which the default live query was run when navigating to a query by URL.
+
+* Update logic for setting primary NIC to ignore link-local or loopback interfaces.
+
+* Disable editing of logged in user email in admin panel (instead, use the "Account Settings" menu in top left).
+
+* Fix a panic resulting from an invalid config file path.
+
 ## Kolide Fleet 2.1.0 (Apr 9, 2019)
 
 * Add capability to log osquery status and results to AWS Firehose. Note that this deprecated some existing logging configuration (`--osquery_status_log_file` and `--osquery_result_log_file`). Existing configurations will continue to work, but will be removed at some point.
