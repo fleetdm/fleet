@@ -16,25 +16,9 @@ Follow the binary update instructions corresponding to the original installation
 
 #### Raw binaries
 
-Download the latest raw Fleet binaries:
+Download and unzip the Fleet binaries from [github.com/kolide/fleet/releases](https://github.com/kolide/fleet/releases).
 
-```
-curl -O https://dl.kolide.co/bin/fleet_latest.zip
-```
-
-Unzip the binaries for your platform:
-
-```
-# For a Darwin compatible binary
-unzip fleet_latest.zip 'darwin/*' -d fleet
-./fleet/darwin/fleet --help
-
-# For a Linux compatible binary
-unzip fleet_latest.zip 'linux/*' -d fleet
-./fleet/linux/fleet --help
-```
-
-Replace the existing Fleet binary with the newly unzipped binary.
+Replace the existing Fleet binary with the appropriate binary for your platform.
 
 #### Docker container
 
