@@ -187,3 +187,10 @@ func TestIDGenerator(t *testing.T) {
 		idTable[id] = struct{}{}
 	}
 }
+
+func TestIDPrefix(t *testing.T) {
+	// Ensure ID comes with the appropriate prefix
+	id, err := generateSAMLValidID()
+	require.Nil(t, err)
+	assert.Equal(t, idPrefix, id[:2])
+}

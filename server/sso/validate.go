@@ -169,13 +169,17 @@ func (v *validator) validateAssertionSignature(elt *etree.Element) error {
 }
 
 const (
+	idPrefix   = "id"
 	idSize     = 16
 	idAlphabet = `1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ`
 )
 
-// There isn't anything in the SAML spec that tells us what is valid inside an ID
-// other than expecting that it has to be unique and valid XML. ADFS blows up on '=' in the ID,
-// so we are using an alphabet that we know works.
+// There isn't anything in the SAML spec that tells us what is valid inside an
+// ID other than expecting that it has to be unique and valid XML. ADFS blows
+// up on '=' in the ID, so we are using an alphabet that we know works.
+//
+// Azure IdP requires that the ID begin with a character so we use the constant
+// prefix.
 func generateSAMLValidID() (string, error) {
 	randomBytes := make([]byte, idSize)
 	_, err := rand.Read(randomBytes)
@@ -185,5 +189,5 @@ func generateSAMLValidID() (string, error) {
 	for i := 0; i < idSize; i++ {
 		randomBytes[i] = idAlphabet[randomBytes[i]%byte(len(idAlphabet))]
 	}
-	return string(randomBytes), nil
+	return idPrefix + string(randomBytes), nil
 }
