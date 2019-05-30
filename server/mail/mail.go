@@ -74,13 +74,26 @@ func (m mailService) SendEmail(e kolide.Email) error {
 type loginauth struct {
 	username string
 	password string
+	host     string
 }
 
-func LoginAuth(username, password string) smtp.Auth {
-	return &loginauth{username: username, password: password}
+func LoginAuth(username, password, host string) smtp.Auth {
+	return &loginauth{username: username, password: password, host: host}
 }
 
-func (l *loginauth) Start(serverInfo *smtp.ServerInfo) (proto string, toServer []byte, err error) {
+func isLocalhost(name string) bool {
+	return name == "localhost" || name == "127.0.0.1" || name == "::1"
+}
+
+func (l *loginauth) Start(server *smtp.ServerInfo) (proto string, toServer []byte, err error) {
+	if !server.TLS && !isLocalhost(server.Name) {
+		return "", nil, errors.New("unencrypted connection")
+	}
+
+	if server.Name != l.host {
+		return "", nil, errors.New("wrong host name")
+	}
+
 	return "LOGIN", nil, nil
 }
 
@@ -111,7 +124,7 @@ func smtpAuth(e kolide.Email) (smtp.Auth, error) {
 	case kolide.AuthMethodPlain:
 		auth = smtp.PlainAuth("", e.Config.SMTPUserName, e.Config.SMTPPassword, e.Config.SMTPServer)
 	case kolide.AuthMethodLogin:
-		auth = LoginAuth(e.Config.SMTPUserName, e.Config.SMTPPassword)
+		auth = LoginAuth(e.Config.SMTPUserName, e.Config.SMTPPassword, e.Config.SMTPServer)
 	default:
 		return nil, fmt.Errorf("unknown SMTP auth type '%d'", e.Config.SMTPAuthenticationMethod)
 	}
