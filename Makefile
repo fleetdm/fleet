@@ -218,4 +218,4 @@ xp-fleetctl: .pre-binary-bundle .pre-fleetctl generate
 
 binary-bundle: xp-fleet xp-fleetctl
 	cd build/binary-bundle && zip -r "fleet_${VERSION}.zip" darwin/ linux/ windows/
-	cp build/binary-bundle/fleet_${VERSION}.zip build/binary-bundle/fleet_latest.zip
+	cp build/binary-bundle/fleet_${VERSION}.zip build/binary-bundle/fleet.zip

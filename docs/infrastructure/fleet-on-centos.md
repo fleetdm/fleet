@@ -21,8 +21,8 @@ $ vagrant ssh
 To install Fleet, run the following:
 
 ```
-$ wget https://dl.kolide.co/bin/fleet_latest.zip
-$ unzip fleet_latest.zip 'linux/*' -d fleet
+$ wget https://github.com/kolide/fleet/releases/latest/download/fleet.zip
+$ unzip fleet.zip 'linux/*' -d fleet
 $ sudo cp fleet/linux/fleet* /usr/bin/
 ```
 
@@ -45,10 +45,10 @@ To start the MySQL service:
 $ sudo systemctl start mysqld
 ```
 
-Let's set a password for the MySQL root user. 
+Let's set a password for the MySQL root user.
 MySQL creates an initial temporary root password which you can find in  ```/var/log/mysqld.log``` you will need this password to change the root password.
 
-Connect to MySQL  
+Connect to MySQL
 ```
 $ mysql -u root -p
 ```
@@ -75,9 +75,9 @@ And exit MySQL
 ```
 mysql> exit
 ```
-Stop MySQL and start again  
+Stop MySQL and start again
 ```
-$ sudo mysqld stop  
+$ sudo mysqld stop
 $ sudo systemctl start mysqld
 ```
 It's also worth creating a MySQL database for us to use at this point. Run the following to create the `kolide` database in MySQL. Note that you will be prompted for the password you created above.

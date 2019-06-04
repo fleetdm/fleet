@@ -28,18 +28,18 @@ For more information on using Fleet, refer to the [Configuring The Fleet Binary]
 Download the latest raw Fleet binaries:
 
 ```
-curl -O https://dl.kolide.co/bin/fleet_latest.zip
+curl -O https://github.com/kolide/fleet/releases/latest/download/fleet.zip
 ```
 
 Unzip the binaries for your platform:
 
 ```
 # For a Darwin compatible binary
-unzip fleet_latest.zip 'darwin/*' -d fleet
+unzip fleet.zip 'darwin/*' -d fleet
 ./fleet/darwin/fleet_darwin_amd64 --help
 
 # For a Linux compatible binary
-unzip fleet_latest.zip 'linux/*' -d fleet
+unzip fleet.zip 'linux/*' -d fleet
 ./fleet/linux/fleet_linux_amd64 --help
 ```
 
