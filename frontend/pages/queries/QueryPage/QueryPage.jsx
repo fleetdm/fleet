@@ -64,6 +64,7 @@ export class QueryPage extends Component {
 
   static defaultProps = {
     loadingQueries: false,
+    query: { description: '', name: '', query: 'SELECT * FROM osquery_info' },
     selectedHosts: [],
   };
 
@@ -73,7 +74,6 @@ export class QueryPage extends Component {
     this.state = {
       campaign: DEFAULT_CAMPAIGN,
       queryIsRunning: false,
-      queryText: props.query.query,
       runQueryMilliseconds: 0,
       targetsCount: 0,
       targetsError: null,
@@ -106,10 +106,6 @@ export class QueryPage extends Component {
 
     if (nextPathname !== pathname) {
       this.resetCampaignAndTargets();
-    }
-
-    if (nextProps.query) {
-      this.setState({ queryText: nextProps.query.query });
     }
 
     if (!isEqual(selectedHosts, this.props.selectedHosts)) {
@@ -199,8 +195,10 @@ export class QueryPage extends Component {
 
   onRunQuery = debounce(() => {
     const { queryText } = this.state;
+    const { query } = this.props.query;
+    const sql = queryText || query;
     const { dispatch, selectedTargets } = this.props;
-    const { error } = validateQuery(queryText);
+    const { error } = validateQuery(sql);
 
     if (!selectedTargets.length) {
       this.setState({ targetsError: 'You must select at least one target to run a query' });
@@ -220,7 +218,7 @@ export class QueryPage extends Component {
     removeSocket();
     destroyCampaign();
 
-    Kolide.queries.run({ query: queryText, selected })
+    Kolide.queries.run({ query: sql, selected })
       .then((campaignResponse) => {
         return Kolide.websockets.queries.run(campaignResponse.id)
           .then((socket) => {
@@ -565,11 +563,9 @@ export class QueryPage extends Component {
 const mapStateToProps = (state, ownProps) => {
   const stateEntities = entityGetter(state);
   const { id: queryID } = ownProps.params;
-  const reduxQuery = entityGetter(state).get('queries').findBy({ id: queryID });
-  const { queryText, selectedOsqueryTable } = state.components.QueryPages;
+  const query = entityGetter(state).get('queries').findBy({ id: queryID });
+  const { selectedOsqueryTable } = state.components.QueryPages;
   const { errors, loading: loadingQueries } = state.entities.queries;
-  const queryStub = { description: '', name: '', query: queryText };
-  const query = reduxQuery || queryStub;
   const { selectedTargets } = state.components.QueryPages;
   const { host_ids: hostIDs, host_uuids: hostUUIDs } = ownProps.location.query;
   const { isSmallNav } = state.app;
