@@ -1,10 +1,10 @@
-import React, { Component } from 'react';
+import React, { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import AceEditor from 'react-ace';
 import { connect } from 'react-redux';
 import FileSaver from 'file-saver';
 import { push } from 'react-router-redux';
-import { isEqual, orderBy, slice, sortBy } from 'lodash';
+import { orderBy, slice, sortBy } from 'lodash';
 import classNames from 'classnames';
 
 import Kolide from 'kolide';
@@ -37,8 +37,9 @@ import helpers from './helpers';
 
 const NEW_LABEL_HASH = '#new_label';
 const baseClass = 'manage-hosts';
+const hostCountNoReload = 100;
 
-export class ManageHostsPage extends Component {
+export class ManageHostsPage extends PureComponent {
   static propTypes = {
     dispatch: PropTypes.func,
     display: PropTypes.oneOf(['Grid', 'List']),
@@ -68,7 +69,6 @@ export class ManageHostsPage extends Component {
     this.state = {
       allHostCount: 0,
       currentPaginationPage: 0,
-      hostsLoading: false,
       hostsPerPage: 20,
       isEditLabel: false,
       labelQueryText: '',
@@ -81,39 +81,16 @@ export class ManageHostsPage extends Component {
     };
   }
 
-  componentWillMount () {
-    const { dispatch } = this.props;
-
-    dispatch(hostActions.loadAll());
-    this.buildSortedHosts();
-
-    return this.getEntities();
-  }
-
   componentDidMount () {
     const { getEntities } = this;
+    const { hosts } = this.props;
+    const silent = hosts.length > 0;
 
-    this.interval = global.window.setInterval(getEntities, 5000);
-
-    return false;
-  }
-
-  shouldComponentUpdate (nextProps, nextState) {
-    if (isEqual(nextProps, this.props) && isEqual(nextState, this.state)) {
-      return false;
-    }
-
-    this.buildSortedHosts(nextProps, nextState);
-    return true;
+    return getEntities(silent);
   }
 
   componentWillUnmount () {
-    if (this.interval) {
-      global.window.clearInterval(this.interval);
-
-      this.interval = null;
-    }
-
+    this.clearHostUpdates();
     return false;
   }
 
@@ -199,7 +176,6 @@ export class ManageHostsPage extends Component {
 
       this.setState({
         currentPaginationPage: 0,
-        hostsLoading: true,
       });
 
       return false;
@@ -217,7 +193,6 @@ export class ManageHostsPage extends Component {
   onPaginationChange = (page) => {
     this.setState({
       currentPaginationPage: page - 1,
-      hostsLoading: true,
     });
 
     scrollToTop();
@@ -229,7 +204,6 @@ export class ManageHostsPage extends Component {
     this.setState({
       currentPaginationPage: 0,
       hostsPerPage: Number(option.value),
-      hostsLoading: true,
       showHostContainerSpinner: true,
     });
 
@@ -288,24 +262,38 @@ export class ManageHostsPage extends Component {
     };
   }
 
-  getEntities = () => {
+  getEntities = (silent = true) => {
     const { dispatch } = this.props;
 
-    const promises = [
+    const promises = silent ? [
       dispatch(hostActions.silentLoadAll()),
       dispatch(labelActions.silentLoadAll()),
       dispatch(silentGetStatusLabelCounts),
+    ] : [
+      dispatch(hostActions.loadAll()),
+      dispatch(labelActions.loadAll()),
+      dispatch(getStatusLabelCounts),
     ];
 
-    Promise.all(promises)
-      .catch(() => false);
+    const after = () => {
+      if (this.props.hosts.length < hostCountNoReload) {
+        this.timeout = setTimeout(this.getEntities, 5000);
+      }
+    };
 
-    return false;
+    return Promise.all(promises).then(after).catch(after);
   }
 
-  buildSortedHosts = (nextProps, nextState) => {
+  clearHostUpdates () {
+    if (this.timeout) {
+      global.window.clearTimeout(this.timeout);
+      this.timeout = null;
+    }
+  }
+
+  buildSortedHosts = () => {
     const { filterAllHosts, sortHosts } = this;
-    const { currentPaginationPage, hostsPerPage } = nextState || this.state;
+    const { currentPaginationPage, hostsPerPage } = this.state;
     const { hosts, selectedLabel } = this.props;
 
     const sortedHosts = sortHosts(filterAllHosts(hosts, selectedLabel));
@@ -315,11 +303,7 @@ export class ManageHostsPage extends Component {
 
     const pagedHosts = slice(sortedHosts, fromIndex, toIndex);
 
-    this.setState({
-      allHostCount: sortedHosts.length,
-      hostsLoading: false,
-      pagedHosts,
-    });
+    return pagedHosts;
   }
 
   filterAllHosts = (hosts, selectedLabel) => {
@@ -636,8 +620,10 @@ export class ManageHostsPage extends Component {
       toggleAddHostModal,
       toggleDeleteHostModal,
     } = this;
-    const { display, isAddLabel, loadingLabels, loadingHosts, selectedLabel } = this.props;
-    const { allHostCount, currentPaginationPage, hostsPerPage, hostsLoading, isEditLabel, pagedHosts } = this.state;
+    const { hosts, display, isAddLabel, loadingLabels, loadingHosts, selectedLabel } = this.props;
+    const { currentPaginationPage, hostsPerPage, isEditLabel } = this.state;
+
+    const pagedHosts = this.buildSortedHosts();
 
     return (
       <div className="has-sidebar">
@@ -651,13 +637,13 @@ export class ManageHostsPage extends Component {
                 hosts={pagedHosts}
                 selectedLabel={selectedLabel}
                 displayType={display}
-                loadingHosts={hostsLoading || loadingHosts}
+                loadingHosts={loadingHosts}
                 toggleAddHostModal={toggleAddHostModal}
                 toggleDeleteHostModal={toggleDeleteHostModal}
                 onQueryHost={onQueryHost}
               />
-              {!(hostsLoading || loadingHosts) && <HostPagination
-                allHostCount={allHostCount}
+              {!loadingHosts && <HostPagination
+                allHostCount={hosts.length}
                 currentPage={currentPaginationPage}
                 hostsPerPage={hostsPerPage}
                 onPaginationChange={onPaginationChange}
