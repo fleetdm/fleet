@@ -6,7 +6,7 @@ import (
 )
 
 type OsqueryService interface {
-	EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string) (nodeKey string, err error)
+	EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (nodeKey string, err error)
 	AuthenticateHost(ctx context.Context, nodeKey string) (host *Host, err error)
 	GetClientConfig(ctx context.Context) (config map[string]interface{}, err error)
 	// GetDistributedQueries retrieves the distributed queries to run for

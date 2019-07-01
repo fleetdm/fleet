@@ -212,7 +212,7 @@ func TestAuthenticatedHost(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	goodNodeKey, err := svc.EnrollAgent(ctx, "foobarbaz", "host123")
+	goodNodeKey, err := svc.EnrollAgent(ctx, "foobarbaz", "host123", nil)
 	assert.Nil(t, err)
 	require.NotEmpty(t, goodNodeKey)
 

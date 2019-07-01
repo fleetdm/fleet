@@ -11,7 +11,7 @@ import (
 
 var _ kolide.OsqueryService = (*TLSService)(nil)
 
-type EnrollAgentFunc func(ctx context.Context, enrollSecret string, hostIdentifier string) (nodeKey string, err error)
+type EnrollAgentFunc func(ctx context.Context, enrollSecret string, hostIdentifier string, hostDetails map[string](map[string]string)) (nodeKey string, err error)
 
 type AuthenticateHostFuncI func(ctx context.Context, nodeKey string) (host *kolide.Host, err error)
 
@@ -48,9 +48,9 @@ type TLSService struct {
 	SubmitResultLogsFuncInvoked bool
 }
 
-func (s *TLSService) EnrollAgent(ctx context.Context, enrollSecret string, hostIdentifier string) (nodeKey string, err error) {
+func (s *TLSService) EnrollAgent(ctx context.Context, enrollSecret string, hostIdentifier string, hostDetails map[string](map[string]string)) (nodeKey string, err error) {
 	s.EnrollAgentFuncInvoked = true
-	return s.EnrollAgentFunc(ctx, enrollSecret, hostIdentifier)
+	return s.EnrollAgentFunc(ctx, enrollSecret, hostIdentifier, hostDetails)
 }
 
 func (s *TLSService) AuthenticateHost(ctx context.Context, nodeKey string) (host *kolide.Host, err error) {

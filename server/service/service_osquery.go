@@ -71,7 +71,7 @@ func (svc service) AuthenticateHost(ctx context.Context, nodeKey string) (*kolid
 	return host, nil
 }
 
-func (svc service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string) (string, error) {
+func (svc service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
 	config, err := svc.ds.AppConfig()
 	if err != nil {
 		return "", osqueryError{message: "getting enroll secret: " + err.Error(), nodeInvalid: true}
@@ -84,6 +84,26 @@ func (svc service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 	host, err := svc.ds.EnrollHost(hostIdentifier, svc.config.Osquery.NodeKeySize)
 	if err != nil {
 		return "", osqueryError{message: "enrollment failed: " + err.Error(), nodeInvalid: true}
+	}
+
+	// Save enrollment details if provided
+	save := false
+	if r, ok := hostDetails["os_version"]; ok {
+		detailQueries["os_version"].IngestFunc(svc.logger, host, []map[string]string{r})
+		save = true
+	}
+	if r, ok := hostDetails["osquery_info"]; ok {
+		detailQueries["osquery_info"].IngestFunc(svc.logger, host, []map[string]string{r})
+		save = true
+	}
+	if r, ok := hostDetails["system_info"]; ok {
+		detailQueries["system_info"].IngestFunc(svc.logger, host, []map[string]string{r})
+		save = true
+	}
+	if save {
+		if err := svc.ds.SaveHost(host); err != nil {
+			return "", osqueryError{message: "saving host details: " + err.Error(), nodeInvalid: true}
+		}
 	}
 
 	return host.NodeKey, nil

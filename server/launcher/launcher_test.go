@@ -106,6 +106,7 @@ func newTLSService(t *testing.T) *mock.TLSService {
 			ctx context.Context,
 			enrollSecret string,
 			hostIdentifier string,
+			hostDetails map[string](map[string]string),
 		) (nodeKey string, err error) {
 			nodeKey = "noop"
 			return

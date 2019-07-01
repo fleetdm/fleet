@@ -31,7 +31,7 @@ func TestEnrollAgent(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 0)
 
-	nodeKey, err := svc.EnrollAgent(ctx, "", "host123")
+	nodeKey, err := svc.EnrollAgent(ctx, "", "host123", nil)
 	require.Nil(t, err)
 	assert.NotEmpty(t, nodeKey)
 
@@ -48,7 +48,7 @@ func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 0)
 
-	nodeKey, err := svc.EnrollAgent(ctx, "not_correct", "host123")
+	nodeKey, err := svc.EnrollAgent(ctx, "not_correct", "host123", nil)
 	assert.NotNil(t, err)
 	assert.Empty(t, nodeKey)
 
@@ -57,11 +57,43 @@ func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
 	assert.Len(t, hosts, 0)
 }
 
+func TestEnrollAgentDetails(t *testing.T) {
+	ds, svc, _ := setupOsqueryTests(t)
+	ctx := context.Background()
+
+	details := map[string](map[string]string){
+		"osquery_info": {"version": "2.12.0"},
+		"system_info":  {"hostname": "zwass.local", "uuid": "froobling_uuid"},
+		"os_version": {
+			"name":     "Mac OS X",
+			"major":    "10",
+			"minor":    "14",
+			"patch":    "5",
+			"platform": "darwin",
+		},
+		"foo": {"foo": "bar"},
+	}
+	nodeKey, err := svc.EnrollAgent(ctx, "", "host123", details)
+	require.Nil(t, err)
+	assert.NotEmpty(t, nodeKey)
+
+	hosts, err := ds.ListHosts(kolide.ListOptions{})
+	require.Nil(t, err)
+	require.Len(t, hosts, 1)
+
+	h := hosts[0]
+	assert.Equal(t, "Mac OS X 10.14.5", h.OSVersion)
+	assert.Equal(t, "darwin", h.Platform)
+	assert.Equal(t, "2.12.0", h.OsqueryVersion)
+	assert.Equal(t, "zwass.local", h.HostName)
+	assert.Equal(t, "froobling_uuid", h.UUID)
+}
+
 func TestAuthenticateHost(t *testing.T) {
 	ds, svc, mockClock := setupOsqueryTests(t)
 	ctx := context.Background()
 
-	nodeKey, err := svc.EnrollAgent(ctx, "", "host123")
+	nodeKey, err := svc.EnrollAgent(ctx, "", "host123", nil)
 	require.Nil(t, err)
 
 	mockClock.AddTime(1 * time.Minute)
@@ -98,7 +130,7 @@ func TestSubmitStatusLogs(t *testing.T) {
 	ds, svc, _ := setupOsqueryTests(t)
 	ctx := context.Background()
 
-	_, err := svc.EnrollAgent(ctx, "", "host123")
+	_, err := svc.EnrollAgent(ctx, "", "host123", nil)
 	require.Nil(t, err)
 
 	hosts, err := ds.ListHosts(kolide.ListOptions{})
@@ -133,7 +165,7 @@ func TestSubmitResultLogs(t *testing.T) {
 	ds, svc, _ := setupOsqueryTests(t)
 	ctx := context.Background()
 
-	_, err := svc.EnrollAgent(ctx, "", "host123")
+	_, err := svc.EnrollAgent(ctx, "", "host123", nil)
 	require.Nil(t, err)
 
 	hosts, err := ds.ListHosts(kolide.ListOptions{})
@@ -455,7 +487,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	ds, svc, mockClock := setupOsqueryTests(t)
 	ctx := context.Background()
 
-	nodeKey, err := svc.EnrollAgent(ctx, "", "host123")
+	nodeKey, err := svc.EnrollAgent(ctx, "", "host123", nil)
 	assert.Nil(t, err)
 
 	host, err := ds.AuthenticateHost(nodeKey)
@@ -619,7 +651,7 @@ func TestDetailQueries(t *testing.T) {
 	ds, svc, mockClock := setupOsqueryTests(t)
 	ctx := context.Background()
 
-	nodeKey, err := svc.EnrollAgent(ctx, "", "host123")
+	nodeKey, err := svc.EnrollAgent(ctx, "", "host123", nil)
 	assert.Nil(t, err)
 
 	host, err := ds.AuthenticateHost(nodeKey)
@@ -946,7 +978,7 @@ func TestOrphanedQueryCampaign(t *testing.T) {
 
 	ctx := context.Background()
 
-	nodeKey, err := svc.EnrollAgent(ctx, "", "host123")
+	nodeKey, err := svc.EnrollAgent(ctx, "", "host123", nil)
 	require.Nil(t, err)
 
 	host, err := ds.AuthenticateHost(nodeKey)

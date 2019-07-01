@@ -13,8 +13,9 @@ import (
 ////////////////////////////////////////////////////////////////////////////////
 
 type enrollAgentRequest struct {
-	EnrollSecret   string `json:"enroll_secret"`
-	HostIdentifier string `json:"host_identifier"`
+	EnrollSecret   string                         `json:"enroll_secret"`
+	HostIdentifier string                         `json:"host_identifier"`
+	HostDetails    map[string](map[string]string) `json:"host_details"`
 }
 
 type enrollAgentResponse struct {
@@ -27,7 +28,7 @@ func (r enrollAgentResponse) error() error { return r.Err }
 func makeEnrollAgentEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(enrollAgentRequest)
-		nodeKey, err := svc.EnrollAgent(ctx, req.EnrollSecret, req.HostIdentifier)
+		nodeKey, err := svc.EnrollAgent(ctx, req.EnrollSecret, req.HostIdentifier, req.HostDetails)
 		if err != nil {
 			return enrollAgentResponse{Err: err}, nil
 		}

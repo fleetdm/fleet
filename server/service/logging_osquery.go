@@ -10,7 +10,7 @@ import (
 	"github.com/kolide/fleet/server/kolide"
 )
 
-func (mw loggingMiddleware) EnrollAgent(ctx context.Context, enrollSecret string, hostIdentifier string) (string, error) {
+func (mw loggingMiddleware) EnrollAgent(ctx context.Context, enrollSecret string, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
 	var (
 		nodeKey string
 		err     error
@@ -25,7 +25,7 @@ func (mw loggingMiddleware) EnrollAgent(ctx context.Context, enrollSecret string
 		)
 	}(time.Now())
 
-	nodeKey, err = mw.Service.EnrollAgent(ctx, enrollSecret, hostIdentifier)
+	nodeKey, err = mw.Service.EnrollAgent(ctx, enrollSecret, hostIdentifier, hostDetails)
 	return nodeKey, err
 }
 
