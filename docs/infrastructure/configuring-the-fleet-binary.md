@@ -510,7 +510,7 @@ Options are `filesystem` and `firehose`.
 
 ##### `osquery_status_log_file`
 
-DEPRECATED: Use fileystem_status_log_file.
+DEPRECATED: Use filesystem_status_log_file.
 
 The path which osquery status logs will be logged to.
 
@@ -525,7 +525,7 @@ The path which osquery status logs will be logged to.
 
 ##### `osquery_result_log_file`
 
-DEPRECATED: Use fileystem_result_log_file.
+DEPRECATED: Use filesystem_result_log_file.
 
 The path which osquery result logs will be logged to.
 
