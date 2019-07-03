@@ -331,9 +331,8 @@ func (d *Datastore) ListUniqueHostsInLabels(labels []uint) ([]kolide.Host, error
 }
 
 func (d *Datastore) searchLabelsWithOmits(query string, omit ...uint) ([]kolide.Label, error) {
-	if len(query) > 0 {
-		query += "*"
-	}
+	transformedQuery := transformQuery(query)
+
 	sqlStatement := `
 		SELECT *
 		FROM labels
@@ -346,7 +345,7 @@ func (d *Datastore) searchLabelsWithOmits(query string, omit ...uint) ([]kolide.
 		LIMIT 10
 	`
 
-	sql, args, err := sqlx.In(sqlStatement, query, omit)
+	sql, args, err := sqlx.In(sqlStatement, transformedQuery, omit)
 	if err != nil {
 		return nil, errors.Wrap(err, "building query for labels with omits")
 	}
@@ -442,14 +441,13 @@ func (d *Datastore) searchLabelsDefault(omit ...uint) ([]kolide.Label, error) {
 
 // SearchLabels performs wildcard searches on kolide.Label name
 func (d *Datastore) SearchLabels(query string, omit ...uint) ([]kolide.Label, error) {
-	if query == "" {
+	transformedQuery := transformQuery(query)
+	if !queryMinLength(transformedQuery) {
 		return d.searchLabelsDefault(omit...)
 	}
 	if len(omit) > 0 {
 		return d.searchLabelsWithOmits(query, omit...)
 	}
-
-	query += "*"
 
 	// Ordering first by label_type ensures that built-in labels come
 	// first. We will probably need to make a custom ordering function here
@@ -466,7 +464,7 @@ func (d *Datastore) SearchLabels(query string, omit ...uint) ([]kolide.Label, er
 		LIMIT 10
 	`
 	matches := []kolide.Label{}
-	err := d.db.Select(&matches, sqlStatement, query)
+	err := d.db.Select(&matches, sqlStatement, transformedQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting labels for search")
 	}

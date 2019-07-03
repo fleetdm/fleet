@@ -540,11 +540,7 @@ func (d *Datastore) MarkHostSeen(host *kolide.Host, t time.Time) error {
 }
 
 func (d *Datastore) searchHostsWithOmits(query string, omit ...uint) ([]*kolide.Host, error) {
-	hostnameQuery := query
-	if len(hostnameQuery) > 0 {
-		hostnameQuery += "*"
-	}
-
+	hostnameQuery := transformQuery(query)
 	ipQuery := `"` + query + `"`
 
 	sqlStatement :=
@@ -630,15 +626,13 @@ func (d *Datastore) searchHostsDefault(omit ...uint) ([]*kolide.Host, error) {
 // SearchHosts find hosts by query containing an IP address or a host name. Optionally
 // pass a list of IDs to omit from the search
 func (d *Datastore) SearchHosts(query string, omit ...uint) ([]*kolide.Host, error) {
-	if query == "" {
+	hostnameQuery := transformQuery(query)
+	if !queryMinLength(hostnameQuery) {
 		return d.searchHostsDefault(omit...)
 	}
 	if len(omit) > 0 {
 		return d.searchHostsWithOmits(query, omit...)
 	}
-
-	hostnameQuery := query
-	hostnameQuery += "*"
 
 	// Needs quotes to avoid each . marking a word boundary
 	ipQuery := `"` + query + `"`
