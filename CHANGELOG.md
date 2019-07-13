@@ -1,3 +1,9 @@
+## Kolide Fleet 2.1.2 (May 30, 2019)
+
+* Prevent sending of SMTP credentials over insecure connection
+
+* Prefix generated SAML IDs with 'id' (improves compatibility with some IdPs)
+
 ## Kolide Fleet 2.1.1 (Apr 25, 2019)
 
 * Automatically pull AWS STS credentials for Firehose logging if they are not specified in config.
