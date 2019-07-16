@@ -1,3 +1,15 @@
+## Kolide Fleet 2.2.0 (Jul 16, 2019)
+
+* Add GCP PubSub logging plugin. Thanks to Michael Samuel for adding this capability.
+
+* Improved escaping for target search in live query interface. It is now easier to target hosts with + and - characters in the name.
+
+* Server and browser performance improvements by reduced loading of hosts in frontend. Host status will only update on page load when over 100 hosts are present.
+
+* Utilize details sent by osquery in enrollment request to more quickly display details of new hosts. Also fixes a bug in which hosts could not complete enrollment if certain platform-dependent options were used.
+
+* Fix a bug in which the default query runs after targets are edited.
+
 ## Kolide Fleet 2.1.2 (May 30, 2019)
 
 * Prevent sending of SMTP credentials over insecure connection
