@@ -211,14 +211,14 @@ func (svc service) GetClientConfig(ctx context.Context) (map[string]interface{},
 }
 
 func (svc service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) error {
-	if err := svc.osqueryLogWriter.Status.Write(logs); err != nil {
+	if err := svc.osqueryLogWriter.Status.Write(ctx, logs); err != nil {
 		return osqueryError{message: "error writing status logs: " + err.Error()}
 	}
 	return nil
 }
 
 func (svc service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage) error {
-	if err := svc.osqueryLogWriter.Result.Write(logs); err != nil {
+	if err := svc.osqueryLogWriter.Result.Write(ctx, logs); err != nil {
 		return osqueryError{message: "error writing result logs: " + err.Error()}
 	}
 	return nil
@@ -575,8 +575,8 @@ func (svc service) ingestDistributedQuery(host kolide.Host, name string, rows []
 	// Write the results to the pubsub store
 	res := kolide.DistributedQueryResult{
 		DistributedQueryCampaignID: uint(campaignID),
-		Host: host,
-		Rows: rows,
+		Host:                       host,
+		Rows:                       rows,
 	}
 	if failed {
 		// osquery errors are not currently helpful, but we should fix
@@ -612,9 +612,9 @@ func (svc service) ingestDistributedQuery(host kolide.Host, name string, rows []
 		status = kolide.ExecutionFailed
 	}
 	exec := &kolide.DistributedQueryExecution{
-		HostID: host.ID,
+		HostID:                     host.ID,
 		DistributedQueryCampaignID: uint(campaignID),
-		Status: status,
+		Status:                     status,
 	}
 
 	_, err = svc.ds.NewDistributedQueryExecution(exec)

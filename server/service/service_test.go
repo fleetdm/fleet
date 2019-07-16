@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"os"
@@ -17,6 +18,7 @@ import (
 // TestRotateLoggerSIGHUP verifies that the osqueryd logfile is rotated by
 // sending a SIGHUP signal.
 func TestRotateLoggerSIGHUP(t *testing.T) {
+	ctx := context.Background()
 	filePrefix := "kolide-log-rotate-test"
 	f, err := ioutil.TempFile("/tmp", filePrefix)
 	require.Nil(t, err)
@@ -25,7 +27,7 @@ func TestRotateLoggerSIGHUP(t *testing.T) {
 	logFile, err := logging.NewFilesystemLogWriter(f.Name(), log.NewNopLogger(), true)
 
 	// write a log line
-	logFile.Write([]json.RawMessage{json.RawMessage("msg1")})
+	logFile.Write(ctx, []json.RawMessage{json.RawMessage("msg1")})
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGHUP)
@@ -42,7 +44,7 @@ func TestRotateLoggerSIGHUP(t *testing.T) {
 
 	// write a new log line and verify that the original file includes
 	// the new log line but not any of the old ones.
-	logFile.Write([]json.RawMessage{json.RawMessage("msg2")})
+	logFile.Write(ctx, []json.RawMessage{json.RawMessage("msg2")})
 	logMsg, err := ioutil.ReadFile(f.Name())
 	require.Nil(t, err)
 

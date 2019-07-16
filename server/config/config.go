@@ -98,6 +98,13 @@ type FirehoseConfig struct {
 	ResultStream    string `yaml:"result_stream"`
 }
 
+// PubSubConfig defines configs the for Google PubSub logging plugin
+type PubSubConfig struct {
+	Project     string
+	StatusTopic string `yaml:"status_topic"`
+	ResultTopic string `yaml:"result_topic"`
+}
+
 // FilesystemConfig defines configs for the Filesystem logging plugin
 type FilesystemConfig struct {
 	StatusLogFile     string `yaml:"status_log_file"`
@@ -119,6 +126,7 @@ type KolideConfig struct {
 	Osquery    OsqueryConfig
 	Logging    LoggingConfig
 	Firehose   FirehoseConfig
+	PubSub     PubSubConfig
 	Filesystem FilesystemConfig
 }
 
@@ -221,6 +229,11 @@ func (man Manager) addConfigs() {
 	man.addConfigString("firehose.result_stream", "",
 		"Firehose stream name for result logs")
 
+	// PubSub
+	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
+	man.addConfigString("pubsub.status_topic", "", "PubSub topic for status logs")
+	man.addConfigString("pubsub.result_topic", "", "PubSub topic for result logs")
+
 	// Filesystem
 	man.addConfigString("filesystem.status_log_file", "/tmp/osquery_status",
 		"Log file path to use for status logs")
@@ -293,6 +306,11 @@ func (man Manager) LoadConfig() KolideConfig {
 			SecretAccessKey: man.getConfigString("firehose.secret_access_key"),
 			StatusStream:    man.getConfigString("firehose.status_stream"),
 			ResultStream:    man.getConfigString("firehose.result_stream"),
+		},
+		PubSub: PubSubConfig{
+			Project:     man.getConfigString("pubsub.project"),
+			StatusTopic: man.getConfigString("pubsub.status_topic"),
+			ResultTopic: man.getConfigString("pubsub.result_topic"),
 		},
 		Filesystem: FilesystemConfig{
 			StatusLogFile:     man.getConfigString("filesystem.status_log_file"),

@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"io/ioutil"
@@ -14,6 +15,7 @@ import (
 )
 
 func TestFilesystemLogger(t *testing.T) {
+	ctx := context.Background()
 	tempPath, err := ioutil.TempDir("", "test")
 	require.Nil(t, err)
 	fileName := path.Join(tempPath, "filesystemLogWriter")
@@ -35,7 +37,7 @@ func TestFilesystemLogger(t *testing.T) {
 	}
 
 	for i := 0; i < batches; i++ {
-		err := lgr.Write(logs)
+		err := lgr.Write(ctx, logs)
 		require.Nil(t, err)
 	}
 
@@ -43,7 +45,7 @@ func TestFilesystemLogger(t *testing.T) {
 	assert.Nil(t, err)
 
 	// can't write to a closed logger
-	err = lgr.Write(logs)
+	err = lgr.Write(ctx, logs)
 	assert.NotNil(t, err)
 
 	// call close twice noop
@@ -58,6 +60,7 @@ func TestFilesystemLogger(t *testing.T) {
 }
 
 func BenchmarkFilesystemLogger(b *testing.B) {
+	ctx := context.Background()
 	tempPath, err := ioutil.TempDir("", "test")
 	if err != nil {
 		b.Fatal("temp dir failed", err)
@@ -78,7 +81,7 @@ func BenchmarkFilesystemLogger(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		err := lgr.Write(logs)
+		err := lgr.Write(ctx, logs)
 		if err != nil {
 			b.Fatal("write failed ", err)
 		}
@@ -90,6 +93,7 @@ func BenchmarkFilesystemLogger(b *testing.B) {
 }
 
 func BenchmarkLumberjack(b *testing.B) {
+	ctx := context.Background()
 	tempPath, err := ioutil.TempDir("", "test")
 	if err != nil {
 		b.Fatal("temp dir failed", err)
@@ -109,14 +113,14 @@ func BenchmarkLumberjack(b *testing.B) {
 	}
 	// first lumberjack write opens file so we count that as part of initialization
 	// just to make sure we're comparing apples to apples with our logger
-	err = lgr.Write(logs)
+	err = lgr.Write(ctx, logs)
 	if err != nil {
 		b.Fatal("first write failed ", err)
 	}
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		err := lgr.Write(logs)
+		err := lgr.Write(ctx, logs)
 		if err != nil {
 			b.Fatal("write failed ", err)
 		}

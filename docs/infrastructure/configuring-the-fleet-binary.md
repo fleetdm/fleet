@@ -482,7 +482,7 @@ The interval at which Fleet will ask osquery agents to update their results for 
 
 Which log output plugin should be used for osquery status logs received from clients.
 
-Options are `filesystem` and `firehose`.
+Options are `filesystem`, `firehose`, and 'pubsub'.
 
 - Default value: `filesystem`
 - Environment variable: `KOLIDE_OSQUERY_STATUS_LOG_PLUGIN`
@@ -497,7 +497,7 @@ Options are `filesystem` and `firehose`.
 
 Which log output plugin should be used for osquery result logs received from clients.
 
-Options are `filesystem` and `firehose`.
+Options are `filesystem`, `firehose`, and 'pubsub'.
 
 - Default value: `filesystem`
 - Environment variable: `KOLIDE_OSQUERY_RESULT_LOG_PLUGIN`
@@ -720,3 +720,55 @@ Name of the Firehose stream to write osquery result logs received from clients.
 	firehose:
 		result_stream: osquery_result
 	```
+
+#### PubSub
+
+### `pubsub_project`
+
+This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
+
+The identifier of the Google Cloud project containing the pubsub topics to
+publish logs to.
+
+Note that the pubsub plugin uses [Application Default Credentials (ADCs)](https://cloud.google.com/docs/authentication/production)
+for authentication with the service.
+
+- Default value: none
+- Environment variable: `KOLIDE_PUBSUB_PROJECT`
+- Config file format:
+
+  ```
+  pubsub:
+    project: my-gcp-project
+  ```
+
+### `pubsub_result_topic`
+
+This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
+
+The identifier of the pubsub topic that client results will be published to.
+
+- Default value: none
+- Environment variable: `KOLIDE_PUBSUB_RESULT_TOPIC`
+- Config file format:
+
+  ```
+  pubsub:
+    result_topic: osquery_result
+  ```
+
+### `pubsub_status_topic`
+
+This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
+
+The identifier of the pubsub topic that osquery status logs will be published to.
+
+- Default value: none
+- Environment variable: `KOLIDE_PUBSUB_STATUS_TOPIC`
+- Config file format:
+
+  ```
+  pubsub:
+    status_topic: osquery_status
+  ```
+

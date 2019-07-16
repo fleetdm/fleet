@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -44,6 +45,7 @@ func getLogsFromInput(input *firehose.PutRecordBatchInput) []json.RawMessage {
 }
 
 func TestFirehoseNonRetryableFailure(t *testing.T) {
+	ctx := context.Background()
 	callCount := 0
 	putFunc := func(*firehose.PutRecordBatchInput) (*firehose.PutRecordBatchOutput, error) {
 		callCount += 1
@@ -51,12 +53,13 @@ func TestFirehoseNonRetryableFailure(t *testing.T) {
 	}
 	f := &mock.FirehoseMock{PutRecordBatchFunc: putFunc}
 	writer := makeFirehoseWriterWithMock(f, "foobar")
-	err := writer.Write(logs)
+	err := writer.Write(ctx, logs)
 	assert.Error(t, err)
 	assert.Equal(t, 1, callCount)
 }
 
 func TestFirehoseRetryableFailure(t *testing.T) {
+	ctx := context.Background()
 	callCount := 0
 	putFunc := func(input *firehose.PutRecordBatchInput) (*firehose.PutRecordBatchOutput, error) {
 		callCount += 1
@@ -72,12 +75,13 @@ func TestFirehoseRetryableFailure(t *testing.T) {
 	}
 	f := &mock.FirehoseMock{PutRecordBatchFunc: putFunc}
 	writer := makeFirehoseWriterWithMock(f, "foobar")
-	err := writer.Write(logs)
+	err := writer.Write(ctx, logs)
 	assert.Error(t, err)
 	assert.Equal(t, 3, callCount)
 }
 
 func TestFirehoseNormalPut(t *testing.T) {
+	ctx := context.Background()
 	callCount := 0
 	putFunc := func(input *firehose.PutRecordBatchInput) (*firehose.PutRecordBatchOutput, error) {
 		callCount += 1
@@ -87,12 +91,13 @@ func TestFirehoseNormalPut(t *testing.T) {
 	}
 	f := &mock.FirehoseMock{PutRecordBatchFunc: putFunc}
 	writer := makeFirehoseWriterWithMock(f, "foobar")
-	err := writer.Write(logs)
+	err := writer.Write(ctx, logs)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, callCount)
 }
 
 func TestFirehoseSomeFailures(t *testing.T) {
+	ctx := context.Background()
 	f := &mock.FirehoseMock{}
 	callCount := 0
 
@@ -145,12 +150,13 @@ func TestFirehoseSomeFailures(t *testing.T) {
 	}
 	f.PutRecordBatchFunc = call1
 	writer := makeFirehoseWriterWithMock(f, "foobar")
-	err := writer.Write(logs)
+	err := writer.Write(ctx, logs)
 	assert.NoError(t, err)
 	assert.Equal(t, 3, callCount)
 }
 
 func TestFirehoseFailAllRecords(t *testing.T) {
+	ctx := context.Background()
 	f := &mock.FirehoseMock{}
 	callCount := 0
 
@@ -180,12 +186,13 @@ func TestFirehoseFailAllRecords(t *testing.T) {
 	}
 
 	writer := makeFirehoseWriterWithMock(f, "foobar")
-	err := writer.Write(logs)
+	err := writer.Write(ctx, logs)
 	assert.Error(t, err)
 	assert.Equal(t, 3, callCount)
 }
 
 func TestFirehoseRecordTooBig(t *testing.T) {
+	ctx := context.Background()
 	newLogs := make([]json.RawMessage, len(logs))
 	copy(newLogs, logs)
 	logs[0] = make(json.RawMessage, firehoseMaxSizeOfRecord+1, firehoseMaxSizeOfRecord+1)
@@ -198,12 +205,13 @@ func TestFirehoseRecordTooBig(t *testing.T) {
 	}
 	f := &mock.FirehoseMock{PutRecordBatchFunc: putFunc}
 	writer := makeFirehoseWriterWithMock(f, "foobar")
-	err := writer.Write(logs)
+	err := writer.Write(ctx, logs)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, callCount)
 }
 
 func TestFirehoseSplitBatchBySize(t *testing.T) {
+	ctx := context.Background()
 	// Make each record just under 1 MB so that it takes 3 total batches of
 	// just under 4 MB each
 	logs := make([]json.RawMessage, 12)
@@ -219,12 +227,13 @@ func TestFirehoseSplitBatchBySize(t *testing.T) {
 	}
 	f := &mock.FirehoseMock{PutRecordBatchFunc: putFunc}
 	writer := makeFirehoseWriterWithMock(f, "foobar")
-	err := writer.Write(logs)
+	err := writer.Write(ctx, logs)
 	assert.NoError(t, err)
 	assert.Equal(t, 3, callCount)
 }
 
 func TestFirehoseSplitBatchByCount(t *testing.T) {
+	ctx := context.Background()
 	logs := make([]json.RawMessage, 2000)
 	for i := 0; i < len(logs); i++ {
 		logs[i] = json.RawMessage(`{}`)
@@ -238,7 +247,7 @@ func TestFirehoseSplitBatchByCount(t *testing.T) {
 	}
 	f := &mock.FirehoseMock{PutRecordBatchFunc: putFunc}
 	writer := makeFirehoseWriterWithMock(f, "foobar")
-	err := writer.Write(logs)
+	err := writer.Write(ctx, logs)
 	assert.NoError(t, err)
 	assert.Equal(t, 4, callCount)
 }

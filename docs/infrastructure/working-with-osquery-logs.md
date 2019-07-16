@@ -10,6 +10,7 @@ Fleet supports the following logging plugins for osquery logs:
 
 - [Filesystem](#filesystem) - Logs are written to the local Fleet server filesystem.
 - [Firehose](#firehose) - Logs are written to AWS Firehose streams.
+- [PubSub](#pubsub) - Logs are written to Google Cloud PubSub topics.
 
 To set the osquery logging plugins, use the `--osquery_result_log_plugin` and `--osquery_status_log_plugin` flags (or [equivalents for environment variables or configuration files](../infrastructure/configuring-the-fleet-binary.md#options)).
 
@@ -30,3 +31,12 @@ With the filesystem plugin, osquery result and/or status logs are written to the
 With the Firehose plugin, osquery result and/or status logs are written to [AWS Firehose](https://aws.amazon.com/kinesis/data-firehose/) streams. This is a very good method for aggregating osquery logs into AWS S3 storage.
 
 Note that Firehose logging has limits [discussed in the documentation](https://docs.aws.amazon.com/firehose/latest/dev/limits.html). When Fleet encounters logs that are too big for Firehose, notifications will be output in the Fleet logs and those logs _will not_ be sent to Firehose.
+
+### PubSub
+
+- Plugin name: `pubsub`
+- Flag namespace: [pubsub](../infrastructure/configuring-the-fleet-binary.md#pubsub)
+
+With the PubSub plugin, osquery result and/or status logs are written to [PubSub](https://cloud.google.com/pubsub/) topics.
+
+Note that messages over 10MB will be dropped, with a notification sent to the fleet logs, as these can never be processed by PubSub.

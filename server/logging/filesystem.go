@@ -2,6 +2,7 @@ package logging
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -59,7 +60,7 @@ type flusher interface {
 }
 
 // Write writes the provided logs to the filesystem
-func (l *filesystemLogWriter) Write(logs []json.RawMessage) error {
+func (l *filesystemLogWriter) Write(ctx context.Context, logs []json.RawMessage) error {
 	for _, log := range logs {
 		// Add newline to separate logs in output file
 		log = append(log, '\n')

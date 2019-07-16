@@ -44,6 +44,15 @@ func New(config config.KolideConfig, logger log.Logger) (*OsqueryLogger, error) 
 		if err != nil {
 			return nil, errors.Wrap(err, "create firehose status logger")
 		}
+	case "pubsub":
+		status, err = NewPubSubLogWriter(
+			config.PubSub.Project,
+			config.PubSub.StatusTopic,
+			logger,
+		)
+		if err != nil {
+			return nil, errors.Wrap(err, "create pubsub status logger")
+		}
 	default:
 		return nil, errors.Errorf(
 			"unknown status log plugin: %s", config.Osquery.StatusLogPlugin,
@@ -74,6 +83,15 @@ func New(config config.KolideConfig, logger log.Logger) (*OsqueryLogger, error) 
 		)
 		if err != nil {
 			return nil, errors.Wrap(err, "create firehose result logger")
+		}
+	case "pubsub":
+		result, err = NewPubSubLogWriter(
+			config.PubSub.Project,
+			config.PubSub.ResultTopic,
+			logger,
+		)
+		if err != nil {
+			return nil, errors.Wrap(err, "create pubsub result logger")
 		}
 	default:
 		return nil, errors.Errorf(

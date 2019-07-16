@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"context"
 	"encoding/json"
 	"math"
 	"time"
@@ -78,7 +79,7 @@ func (f *firehoseLogWriter) validateStream() error {
 	return nil
 }
 
-func (f *firehoseLogWriter) Write(logs []json.RawMessage) error {
+func (f *firehoseLogWriter) Write(ctx context.Context, logs []json.RawMessage) error {
 	var records []*firehose.Record
 	totalBytes := 0
 	for _, log := range logs {
