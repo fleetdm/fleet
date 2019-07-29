@@ -1,10 +1,10 @@
 version: 2
 jobs:
-  build-go1.9:
+  build-go:
     docker:
-        - image: kolide/fleet-builder:1.9
+      - image: golang:1.12
     working_directory: /go/src/github.com/kolide/fleet
-    steps: &steps
+    steps: &stepsgo
       - checkout
       - restore_cache:
           keys:
@@ -12,7 +12,7 @@ jobs:
             - vendor-cache-{{ .Branch }}
             - vendor-cache
 
-      - run: make deps
+      - run: make deps-go
       - save_cache:
           key: vendor-cache-{{ .Branch }}-{{ checksum "Gopkg.lock" }}
           paths:
@@ -25,13 +25,24 @@ jobs:
           key: vendor-cache
           paths:
             - vendor
-
-      - run: make generate
-      - run: make test
+      - run: make generate-go
+      - run: make lint-go
+      - run: make test-go
       - run: make build
+
+  build-js:
+    docker:
+      - image: node:10.16.0
+    steps: &stepsjs
+      - checkout
+      - run: make deps-js
+      - run: make generate-js
+      - run: make lint-js
+      - run: make test-js
 
 workflows:
   version: 2
   build:
     jobs:
-      - build-go1.9
+      - build-go
+      - build-js

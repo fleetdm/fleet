@@ -60,7 +60,9 @@ define HELP_TEXT
   Makefile commands
 
 	make deps         - Install dependent programs and libraries
-	make generate     - Generate and bundle required code
+	make generate     - Generate and bundle required all code
+	make generate-go  - Generate and bundle required go code
+	make generate-js  - Generate and bundle required js code
 	make generate-dev - Generate and bundle required code in a watch loop
 	make distclean    - Delete all build artifacts
 
@@ -139,8 +141,12 @@ test-js:
 
 test: lint test-go test-js
 
-generate: .prefix
+generate: generate-js generate-go
+
+generate-js: .prefix
 	NODE_ENV=production webpack --progress --colors
+
+generate-go: .prefix
 	go-bindata -pkg=service \
 		-o=server/service/bindata.go \
 		frontend/templates/ assets/...
@@ -158,8 +164,12 @@ generate-dev: .prefix
 	go-bindata -pkg=kolide -o=server/kolide/bindata.go server/mail/templates
 	webpack --progress --colors --watch
 
-deps:
+deps: deps-js deps-go
+
+deps-js:
 	yarn
+
+deps-go:
 	go get -u \
 		github.com/kolide/go-bindata/... \
 		github.com/golang/dep/cmd/dep \
