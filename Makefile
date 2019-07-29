@@ -130,7 +130,6 @@ test-go:
 analyze-go:
 	go test -race -cover ./...
 
-
 test-js: export NODE_PATH = ./frontend
 test-js:
 	_mocha --compilers js:babel-core/register,tsx:typescript-require  \
@@ -151,7 +150,6 @@ generate-go: .prefix
 		-o=server/service/bindata.go \
 		frontend/templates/ assets/...
 	go-bindata -pkg=kolide -o=server/kolide/bindata.go server/mail/templates
-
 
 # we first generate the webpack bundle so that bindata knows to watch the
 # output bundle file. then, generate debug bindata source file. finally, we

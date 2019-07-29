@@ -3,6 +3,12 @@ jobs:
   build-go:
     docker:
       - image: golang:1.12
+      - image: mysql:5.7
+        environment:
+          MYSQL_ROOT_PASSWORD: toor
+          MYSQL_DATABASE: kolide
+          MYSQL_USER: kolide
+          MYSQL_PASSWORD: kolide
     working_directory: /go/src/github.com/kolide/fleet
     steps: &stepsgo
       - checkout
@@ -27,7 +33,7 @@ jobs:
             - vendor
       - run: make generate-go
       - run: make lint-go
-      - run: make test-go
+      - run: MYSQL_TEST=1 MYSQL_PORT_3306_TCP_ADDR=127.0.0.1 make test-go
       - run: make build
 
   build-js:
