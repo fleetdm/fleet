@@ -1,5 +1,5 @@
 {
-  "extends": ["tslint:recommended", "tslint-react"],
+  "extends": ["tslint:recommended", "tslint-react", "tslint-eslint-rules"],
   "rules": {
     "member-access": false,
     "no-var-requires": false,

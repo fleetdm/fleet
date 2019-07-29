@@ -157,12 +157,12 @@ generate-go: .prefix
 # output bundle file. then, generate debug bindata source file. finally, we
 # run webpack in watch mode to continuously re-generate the bundle
 generate-dev: .prefix
-	webpack --progress --colors
+	NODE_ENV=development webpack --progress --colors
 	go-bindata -debug -pkg=service \
 		-o=server/service/bindata.go \
 		frontend/templates/ assets/...
 	go-bindata -pkg=kolide -o=server/kolide/bindata.go server/mail/templates
-	webpack --progress --colors --watch
+	NODE_ENV=development webpack --progress --colors --watch
 
 deps: deps-js deps-go
 
