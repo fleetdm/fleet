@@ -3,6 +3,7 @@ jobs:
   build-go:
     docker:
       - image: golang:1.12
+      - image: redis:5.0
       - image: mysql:5.7
         environment:
           MYSQL_ROOT_PASSWORD: toor
@@ -33,7 +34,7 @@ jobs:
             - vendor
       - run: make generate-go
       - run: make lint-go
-      - run: MYSQL_TEST=1 MYSQL_PORT_3306_TCP_ADDR=127.0.0.1 make test-go
+      - run: MYSQL_TEST=1 MYSQL_PORT_3306_TCP_ADDR=127.0.0.1 REDIS_TEST=1 make test-go
       - run: make build
 
   build-js:
