@@ -20,6 +20,10 @@
   border-bottom: solid 1px #c38dec;
 }
 
+.ace-kolide.ace_autocomplete .ace_content {
+    padding-left: 0px;
+}
+
 .ace-kolide .ace_content {
   padding-left: 6px;
   height: 100% !important;
@@ -54,6 +58,11 @@
   color: #aeafad
 }
 
+/* Hide cursor in read-only mode */
+.ace-kolide .ace_hidden-cursors {
+  opacity:0
+}
+
 .ace-kolide .ace_marker-layer .ace_selection {
   background: rgba(74, 144, 226, 0.13);
 }
@@ -71,26 +80,12 @@
   border: 1px solid #d1d1d1
 }
 
-.ace-kolide .ace_marker-layer .ace_active-line {
-  background: #eaedfb;
-  border-radius: 2px;
-  top: 2px !important;
-  right: 2px !important;
-  left: 2px !important;
-  height: 20px !important;
-}
-
 .ace-kolide .ace_marker-layer .ace_selected-word {
   border: 1px solid #d6d6d6
 }
 
 .ace-kolide .ace_invisible {
   color: #d1d1d1
-}
-
-.ace-kolide .ace_line {
-  /*line-height: 24px;*/
-  /*height: auto !important;*/
 }
 
 .ace-kolide .ace_keyword {
@@ -183,4 +178,3 @@
 .ace-kolide .ace_indent-guide {
   background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAACCAYAAACZgbYnAAAAE0lEQVQImWP4////f4bdu3f/BwAlfgctduB85QAAAABJRU5ErkJggg==) right repeat-y
 }
-

@@ -414,12 +414,12 @@ export class ManageHostsPage extends PureComponent {
       <Modal
         title="Delete Label"
         onExit={toggleDeleteLabelModal}
-        className={`${baseClass}__modal`}
+        className={`${baseClass}_delete-label__modal`}
       >
         <p>Are you sure you wish to delete this label?</p>
-        <div>
-          <Button onClick={toggleDeleteLabelModal} variant="inverse">Cancel</Button>
+        <div className={`${baseClass}__modal-buttons`}>
           <Button onClick={onDeleteLabel} variant="alert">Delete</Button>
+          <Button onClick={toggleDeleteLabelModal} variant="inverse">Cancel</Button>
         </div>
       </Modal>
     );
