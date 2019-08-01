@@ -1,6 +1,6 @@
 import React from 'react';
 import expect, { createSpy, restoreSpies } from 'expect';
-import { mount } from 'enzyme';
+import { mount, shallow } from 'enzyme';
 import { noop } from 'lodash';
 
 import { scheduledQueryStub } from 'test/stubs';
@@ -34,7 +34,7 @@ describe('ScheduledQueriesListItem - component', () => {
   });
 
   it('renders a Checkbox component', () => {
-    const component = mount(<ScheduledQueriesListItem {...defaultProps} />);
+    const component = shallow(<ScheduledQueriesListItem {...defaultProps} />);
     expect(component.find('Checkbox').length).toEqual(1);
   });
 
@@ -52,7 +52,7 @@ describe('ScheduledQueriesListItem - component', () => {
   it('calls the onSelect prop when a list item is selected', () => {
     const spy = createSpy();
     const props = { ...defaultProps, onSelect: spy };
-    const component = mount(<ScheduledQueriesListItem {...props} />);
+    const component = shallow(<ScheduledQueriesListItem {...props} />);
     const tableRow = component.find('ClickableTableRow');
 
     tableRow.simulate('click');
@@ -63,11 +63,39 @@ describe('ScheduledQueriesListItem - component', () => {
   it('calls the onDblClick prop when a list item is double clicked', () => {
     const spy = createSpy();
     const props = { ...defaultProps, onDblClick: spy };
-    const component = mount(<ScheduledQueriesListItem {...props} />);
+    const component = shallow(<ScheduledQueriesListItem {...props} />);
     const tableRow = component.find('ClickableTableRow');
 
     tableRow.simulate('doubleclick');
 
     expect(spy).toHaveBeenCalledWith(scheduledQueryStub.query_id);
+  });
+
+  describe('renders the appropriate query type icon', () => {
+    const query = { ...scheduledQueryStub, removed: null };
+    const props = { ...defaultProps, scheduledQuery: query };
+    let component = shallow(<ScheduledQueriesListItem {...props} />);
+
+    expect(component.find('Icon').last().props().name).toEqual('camera');
+
+    query.snapshot = false;
+    query.removed = false;
+    component = shallow(<ScheduledQueriesListItem {...props} />);
+    expect(component.find('Icon').last().props().name).toEqual('bold-plus');
+
+    query.snapshot = false;
+    query.removed = null;
+    component = shallow(<ScheduledQueriesListItem {...props} />);
+    expect(component.find('Icon').last().props().name).toEqual('plus-minus');
+
+    query.snapshot = false;
+    query.removed = true;
+    component = shallow(<ScheduledQueriesListItem {...props} />);
+    expect(component.find('Icon').last().props().name).toEqual('plus-minus');
+
+    query.snapshot = null;
+    query.removed = true;
+    component = shallow(<ScheduledQueriesListItem {...props} />);
+    expect(component.find('Icon').last().props().name).toEqual('plus-minus');
   });
 });

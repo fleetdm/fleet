@@ -55,7 +55,8 @@ class ScheduledQueriesListItem extends Component {
       return 'camera';
     }
 
-    if (removed) {
+    // Default is differential with removals, so we treat null as removed = true
+    if (removed !== false) {
       return 'plus-minus';
     }
 
@@ -103,4 +104,3 @@ class ScheduledQueriesListItem extends Component {
 }
 
 export default ScheduledQueriesListItem;
-
