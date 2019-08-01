@@ -82,11 +82,11 @@ Specify the path to this certificate with the `--tls_server_certs` flag when you
 
 ## Launching osqueryd
 
-Assuming that you are deploying your enrollment secret as the environment variable `OSQUERY_ENROLL_SECRET` and your osquery server certificate is at `/etc/osquery/kolide.crt`, you could copy and paste the following command with the following flags (be sure to replace kolide.acme.net with the hostname or IP of your Fleet installation):
+Assuming that you are deploying your enrollment secret in the file `/etc/osquery/enroll_secret` and your osquery server certificate is at `/etc/osquery/kolide.crt`, you could copy and paste the following command with the following flags (be sure to replace `kolide.acme.net` with the hostname or IP of your Fleet installation):
 
 ```
 sudo osqueryd \
- --enroll_secret_env=OSQUERY_ENROLL_SECRET \
+ --enroll_secret_path=/etc/osquery/enroll_secret \
  --tls_server_certs=/etc/osquery/kolide.crt \
  --tls_hostname=kolide.acme.net \
  --host_identifier=uuid \
