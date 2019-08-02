@@ -155,6 +155,7 @@ func (svc service) modifyEmailAddress(ctx context.Context, user *kolide.User, em
 		Mailer: &kolide.ChangeEmailMailer{
 			Token:           token,
 			KolideServerURL: template.URL(config.KolideServerURL),
+			AssetURL:        getAssetURL(),
 		},
 	}
 	return svc.mailService.SendEmail(changeEmail)
@@ -355,6 +356,7 @@ func (svc service) RequestPasswordReset(ctx context.Context, email string) error
 		Config:  config,
 		Mailer: &kolide.PasswordResetMailer{
 			KolideServerURL: template.URL(config.KolideServerURL),
+			AssetURL:        getAssetURL(),
 			Token:           token,
 		},
 	}

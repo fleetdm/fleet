@@ -3,7 +3,9 @@
 package service
 
 import (
+	"html/template"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/WatchBeam/clock"
@@ -12,6 +14,7 @@ import (
 	"github.com/kolide/fleet/server/kolide"
 	"github.com/kolide/fleet/server/logging"
 	"github.com/kolide/fleet/server/sso"
+	"github.com/kolide/kit/version"
 	"github.com/pkg/errors"
 )
 
@@ -69,4 +72,17 @@ type validationMiddleware struct {
 	kolide.Service
 	ds              kolide.Datastore
 	ssoSessionStore sso.SessionStore
+}
+
+// getAssetURL gets the URL prefix used for retrieving assets from Github. This
+// function will determine the appropriate version to use, and create a URL
+// prefix for retrieving assets from that tag.
+func getAssetURL() template.URL {
+	v := version.Version().Version
+	tag := strings.Split(v, "-")[0]
+	if tag == "unknown" {
+		tag = "master"
+	}
+
+	return template.URL("https://github.com/kolide/fleet/blob/" + tag)
 }

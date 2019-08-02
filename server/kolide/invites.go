@@ -76,6 +76,7 @@ type Invite struct {
 type InviteMailer struct {
 	*Invite
 	KolideServerURL   template.URL
+	AssetURL          template.URL
 	InvitedByUsername string
 	OrgName           string
 }

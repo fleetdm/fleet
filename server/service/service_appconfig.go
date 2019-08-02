@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"html/template"
 	"strings"
 
 	"github.com/kolide/fleet/server/contexts/viewer"
@@ -64,7 +65,8 @@ func (svc service) SendTestEmail(ctx context.Context, config *kolide.AppConfig) 
 		Subject: "Hello from Fleet",
 		To:      []string{vc.User.Email},
 		Mailer: &kolide.SMTPTestMailer{
-			KolideServerURL: config.KolideServerURL,
+			KolideServerURL: template.URL(config.KolideServerURL),
+			AssetURL:        getAssetURL(),
 		},
 		Config: config,
 	}
