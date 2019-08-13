@@ -11,6 +11,10 @@ import (
 	"github.com/urfave/cli"
 )
 
+const (
+	yamlFlagName = "yaml"
+)
+
 type specGeneric struct {
 	Kind    string      `json:"kind"`
 	Version string      `json:"apiVersion"`
@@ -23,6 +27,13 @@ func defaultTable() *tablewriter.Table {
 	return table
 }
 
+func yamlFlag() cli.BoolFlag {
+	return cli.BoolFlag{
+		Name:  yamlFlagName,
+		Usage: "Output packs in yaml format",
+	}
+}
+
 func getQueriesCommand() cli.Command {
 	return cli.Command{
 		Name:    "queries",
@@ -31,6 +42,7 @@ func getQueriesCommand() cli.Command {
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
+			yamlFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)
@@ -45,6 +57,24 @@ func getQueriesCommand() cli.Command {
 				queries, err := fleet.GetQueries()
 				if err != nil {
 					return errors.Wrap(err, "could not list queries")
+				}
+
+				if c.Bool(yamlFlagName) {
+					for _, query := range queries {
+						spec := specGeneric{
+							Kind:    "query",
+							Version: kolide.ApiVersion,
+							Spec:    query,
+						}
+
+						b, err := yaml.Marshal(spec)
+						if err != nil {
+							return err
+						}
+
+						fmt.Printf("---\n%s", string(b))
+					}
+					return nil
 				}
 
 				if len(queries) == 0 {
@@ -100,6 +130,7 @@ func getPacksCommand() cli.Command {
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
+			yamlFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)
@@ -114,6 +145,24 @@ func getPacksCommand() cli.Command {
 				packs, err := fleet.GetPacks()
 				if err != nil {
 					return errors.Wrap(err, "could not list packs")
+				}
+
+				if c.Bool(yamlFlagName) {
+					for _, pack := range packs {
+						spec := specGeneric{
+							Kind:    "pack",
+							Version: kolide.ApiVersion,
+							Spec:    pack,
+						}
+
+						b, err := yaml.Marshal(spec)
+						if err != nil {
+							return err
+						}
+
+						fmt.Printf("---\n%s", string(b))
+					}
+					return nil
 				}
 
 				if len(packs) == 0 {
@@ -169,6 +218,7 @@ func getLabelsCommand() cli.Command {
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
+			yamlFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)
@@ -183,6 +233,24 @@ func getLabelsCommand() cli.Command {
 				labels, err := fleet.GetLabels()
 				if err != nil {
 					return errors.Wrap(err, "could not list labels")
+				}
+
+				if c.Bool(yamlFlagName) {
+					for _, label := range labels {
+						spec := specGeneric{
+							Kind:    "label",
+							Version: kolide.ApiVersion,
+							Spec:    label,
+						}
+
+						b, err := yaml.Marshal(spec)
+						if err != nil {
+							return err
+						}
+
+						fmt.Printf("---\n%s", string(b))
+					}
+					return nil
 				}
 
 				if len(labels) == 0 {
