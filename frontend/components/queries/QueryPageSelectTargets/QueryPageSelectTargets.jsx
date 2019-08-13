@@ -20,6 +20,7 @@ class QueryPageSelectTargets extends Component {
     selectedTargets: PropTypes.arrayOf(targetInterface),
     targetsCount: PropTypes.number,
     queryTimerMilliseconds: PropTypes.number,
+    disableRun: PropTypes.bool,
   };
 
   render () {
@@ -34,6 +35,7 @@ class QueryPageSelectTargets extends Component {
       onStopQuery,
       queryIsRunning,
       queryTimerMilliseconds,
+      disableRun,
     } = this.props;
 
     return (
@@ -44,6 +46,7 @@ class QueryPageSelectTargets extends Component {
           onStopQuery={onStopQuery}
           queryIsRunning={queryIsRunning}
           queryTimerMilliseconds={queryTimerMilliseconds}
+          disableRun={disableRun}
         />
         <SelectTargetsDropdown
           error={error}

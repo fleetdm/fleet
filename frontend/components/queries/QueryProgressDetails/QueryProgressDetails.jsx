@@ -9,7 +9,7 @@ import Timer from 'components/loaders/Timer';
 
 const baseClass = 'query-progress-details';
 
-const QueryProgressDetails = ({ campaign, className, onRunQuery, onStopQuery, queryIsRunning, queryTimerMilliseconds }) => {
+const QueryProgressDetails = ({ campaign, className, onRunQuery, onStopQuery, queryIsRunning, queryTimerMilliseconds, disableRun }) => {
   const { hosts_count: hostsCount } = campaign;
   const totalHostsCount = get(campaign, ['totals', 'count'], 0);
   const totalRowsCount = get(campaign, ['query_results', 'length'], 0);
@@ -20,6 +20,7 @@ const QueryProgressDetails = ({ campaign, className, onRunQuery, onStopQuery, qu
         className={`${baseClass}__run-btn`}
         onClick={onRunQuery}
         variant="success"
+        disabled={disableRun}
       >
         Run
       </Button>
@@ -75,6 +76,7 @@ QueryProgressDetails.propTypes = {
   onStopQuery: PropTypes.func.isRequired,
   queryIsRunning: PropTypes.bool,
   queryTimerMilliseconds: PropTypes.number,
+  disableRun: PropTypes.bool,
 };
 
 export default QueryProgressDetails;

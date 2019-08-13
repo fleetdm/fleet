@@ -1,0 +1,12 @@
+import endpoints from 'kolide/endpoints';
+
+export default (client) => {
+  return {
+    result_store: () => {
+      const { STATUS_RESULT_STORE } = endpoints;
+      const endpoint = client.baseURL + STATUS_RESULT_STORE;
+
+      return client.authenticatedGet(endpoint);
+    },
+  };
+};

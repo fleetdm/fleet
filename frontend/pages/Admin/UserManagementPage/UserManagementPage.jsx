@@ -14,7 +14,7 @@ import InviteUserForm from 'components/forms/InviteUserForm';
 import Modal from 'components/modals/Modal';
 import paths from 'router/paths';
 import { renderFlash } from 'redux/nodes/notifications/actions';
-import SmtpWarning from 'components/SmtpWarning';
+import WarningBanner from 'components/WarningBanner';
 import { updateUser } from 'redux/nodes/auth/actions';
 import userActions from 'redux/nodes/entities/users/actions';
 import UserBlock from 'components/UserBlock';
@@ -249,7 +249,8 @@ export class UserManagementPage extends Component {
 
     return (
       <div className={`${baseClass}__smtp-warning-wrapper`}>
-        <SmtpWarning
+        <WarningBanner
+          message="Email is not currently configured in Fleet. User management features require email."
           onResolve={goToAppConfigPage}
           shouldShowWarning={!config.configured}
         />

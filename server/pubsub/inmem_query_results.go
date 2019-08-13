@@ -60,3 +60,7 @@ func (im *inmemQueryResults) ReadChannel(ctx context.Context, query kolide.Distr
 	}()
 	return channel, nil
 }
+
+func (im *inmemQueryResults) HealthCheck() error {
+	return nil
+}

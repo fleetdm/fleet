@@ -13,6 +13,7 @@ import statusLabelMethods from 'kolide/entities/status_labels';
 import targetMethods from 'kolide/entities/targets';
 import userMethods from 'kolide/entities/users';
 import websocketMethods from 'kolide/websockets';
+import statusMethods from 'kolide/status';
 
 const DEFAULT_BODY = JSON.stringify({});
 
@@ -33,6 +34,7 @@ class Kolide extends Base {
     this.targets = targetMethods(this);
     this.users = userMethods(this);
     this.websockets = websocketMethods(this);
+    this.status = statusMethods(this);
   }
 
   authenticatedDelete (endpoint, overrideHeaders = {}) {

@@ -34,4 +34,5 @@ export default {
     return `/v1/kolide/users/${id}/admin`;
   },
   SSO: '/v1/kolide/sso',
+  STATUS_RESULT_STORE: '/v1/kolide/status/result_store',
 };

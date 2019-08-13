@@ -17,4 +17,5 @@ type Service interface {
 	ScheduledQueryService
 	OptionService
 	FileIntegrityMonitoringService
+	StatusService
 }

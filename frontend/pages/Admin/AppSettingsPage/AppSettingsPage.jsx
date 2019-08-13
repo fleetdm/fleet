@@ -7,7 +7,7 @@ import AppConfigForm from 'components/forms/admin/AppConfigForm';
 import configInterface from 'interfaces/config';
 import deepDifference from 'utilities/deep_difference';
 import { renderFlash } from 'redux/nodes/notifications/actions';
-import SmtpWarning from 'components/SmtpWarning';
+import WarningBanner from 'components/WarningBanner';
 import { updateConfig } from 'redux/nodes/app/actions';
 
 export const baseClass = 'app-settings';
@@ -68,7 +68,8 @@ class AppSettingsPage extends Component {
     return (
       <div className={`${baseClass} body-wrap`}>
         <h1>App Settings</h1>
-        <SmtpWarning
+        <WarningBanner
+          message="Email is not currently configured in Fleet. Many features rely on email to work."
           onDismiss={onDismissSmtpWarning}
           shouldShowWarning={shouldShowWarning}
         />

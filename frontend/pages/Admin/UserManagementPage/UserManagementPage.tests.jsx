@@ -136,8 +136,8 @@ describe('UserManagementPage - component', () => {
         mockStore: configuredMockStore,
       }));
 
-      expect(notConfiguredPage.find('SmtpWarning').html()).toExist();
-      expect(configuredPage.find('SmtpWarning').html()).toNotExist();
+      expect(notConfiguredPage.find('WarningBanner').html()).toExist();
+      expect(configuredPage.find('WarningBanner').html()).toNotExist();
     });
   });
 
@@ -146,7 +146,7 @@ describe('UserManagementPage - component', () => {
     const mockStore = reduxMockStore(notConfiguredStore);
     const page = mount(connectedComponent(ConnectedUserManagementPage, { mockStore }));
 
-    const smtpWarning = page.find('SmtpWarning');
+    const smtpWarning = page.find('WarningBanner');
 
     smtpWarning.find('Button').simulate('click');
 

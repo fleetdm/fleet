@@ -28,7 +28,7 @@ describe('AppSettingsPage - component', () => {
       connectedComponent(AppSettingsPage, { mockStore })
     ).find('AppSettingsPage');
 
-    const smtpWarning = page.find('SmtpWarning');
+    const smtpWarning = page.find('WarningBanner');
 
     expect(smtpWarning.length).toEqual(1);
     expect(smtpWarning.find('Icon').length).toEqual(1);
@@ -41,12 +41,12 @@ describe('AppSettingsPage - component', () => {
       connectedComponent(AppSettingsPage, { mockStore })
     );
 
-    const smtpWarning = page.find('SmtpWarning');
+    const smtpWarning = page.find('WarningBanner');
     const dismissButton = smtpWarning.find('Button').first();
 
     dismissButton.simulate('click');
 
-    expect(page.find('SmtpWarning').html()).toNotExist();
+    expect(page.find('WarningBanner').html()).toNotExist();
   });
 
   it('does not render a warning if SMTP has been configured', () => {
@@ -55,6 +55,6 @@ describe('AppSettingsPage - component', () => {
       connectedComponent(AppSettingsPage, { mockStore })
     ).find('AppSettingsPage');
 
-    expect(page.find('SmtpWarning').html()).toNotExist();
+    expect(page.find('WarningBanner').html()).toNotExist();
   });
 });
