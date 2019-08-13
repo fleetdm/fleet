@@ -10,28 +10,16 @@ jobs:
           MYSQL_DATABASE: kolide
           MYSQL_USER: kolide
           MYSQL_PASSWORD: kolide
-    working_directory: /go/src/github.com/kolide/fleet
     steps: &stepsgo
       - checkout
       - restore_cache:
           keys:
-            - vendor-cache-{{ .Branch }}-{{ checksum "Gopkg.lock" }}
-            - vendor-cache-{{ .Branch }}
-            - vendor-cache
-
+            - go-mod-cache-v1-{{ checksum "go.sum" }}
       - run: make deps-go
       - save_cache:
-          key: vendor-cache-{{ .Branch }}-{{ checksum "Gopkg.lock" }}
+          key: go-mod-cache-v1-{{ checksum "go.sum" }}
           paths:
-            - vendor
-      - save_cache:
-          key: vendor-cache-{{ .Branch }}
-          paths:
-            - vendor
-      - save_cache:
-          key: vendor-cache
-          paths:
-            - vendor
+            - /go/pkg/mod
       - run: make generate-go
       - run: make lint-go
       - run: MYSQL_TEST=1 MYSQL_PORT_3306_TCP_ADDR=127.0.0.1 REDIS_TEST=1 make test-go

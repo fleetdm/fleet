@@ -1,5 +1,7 @@
 .PHONY: build
 
+export GO111MODULE=on
+
 PATH := $(GOPATH)/bin:$(shell npm bin):$(PATH)
 VERSION = $(shell git describe --tags --always --dirty)
 BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
@@ -168,11 +170,11 @@ deps-js:
 	yarn
 
 deps-go:
-	go get -u \
+	GO111MODULE=off go get -u \
 		github.com/kolide/go-bindata/... \
 		github.com/golang/dep/cmd/dep \
 		github.com/groob/mockimpl
-	dep ensure -vendor-only
+	go mod download
 
 distclean:
 ifeq ($(OS), Windows_NT)
