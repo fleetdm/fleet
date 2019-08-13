@@ -67,12 +67,13 @@ func TestDecodeModifyScheduledQueryRequest(t *testing.T) {
 		assert.Equal(t, uint(6), *params.payload.QueryID)
 		assert.Equal(t, true, *params.payload.Removed)
 		assert.Equal(t, uint(60), *params.payload.Interval)
-		assert.Equal(t, uint(1), *params.payload.Shard)
+		assert.Equal(t, true, params.payload.Shard.Valid)
+		assert.Equal(t, int64(1), params.payload.Shard.Int64)
 	}).Methods("PATCH")
 
 	var body bytes.Buffer
 	body.Write([]byte(`{
-        "pack_id": 5,
+	        "pack_id": 5,
 		"query_id": 6,
 		"removed": true,
 		"interval": 60,

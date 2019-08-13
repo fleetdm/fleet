@@ -64,7 +64,12 @@ func (svc service) ModifyScheduledQuery(ctx context.Context, id uint, p kolide.S
 	}
 
 	if p.Shard != nil {
-		sq.Shard = p.Shard
+		if p.Shard.Valid {
+			val := uint(p.Shard.Int64)
+			sq.Shard = &val
+		} else {
+			sq.Shard = nil
+		}
 	}
 
 	return svc.ds.SaveScheduledQuery(sq)

@@ -271,6 +271,14 @@
   version = "v1.2.0"
 
 [[projects]]
+  digest = "1:a4b04b5314d49a67ad022fa7693453ee2b823ab99314f52fa3930ed31085dfef"
+  name = "github.com/guregu/null"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "80515d440932108546bcade467bb7d6968e812e2"
+  version = "v3.4.0"
+
+[[projects]]
   digest = "1:67474f760e9ac3799f740db2c489e6423a4cde45520673ec123ac831ad849cb8"
   name = "github.com/hashicorp/golang-lru"
   packages = ["simplelru"]
@@ -858,6 +866,7 @@
     "github.com/gomodule/redigo/redis",
     "github.com/gorilla/mux",
     "github.com/gorilla/websocket",
+    "github.com/guregu/null",
     "github.com/igm/sockjs-go/sockjs",
     "github.com/jmoiron/sqlx",
     "github.com/jmoiron/sqlx/reflectx",

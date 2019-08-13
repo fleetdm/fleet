@@ -2,6 +2,8 @@ package kolide
 
 import (
 	"context"
+
+	"github.com/guregu/null"
 )
 
 type ScheduledQueryStore interface {
@@ -39,12 +41,12 @@ type ScheduledQuery struct {
 }
 
 type ScheduledQueryPayload struct {
-	PackID   *uint   `json:"pack_id"`
-	QueryID  *uint   `json:"query_id"`
-	Interval *uint   `json:"interval"`
-	Snapshot *bool   `json:"snapshot"`
-	Removed  *bool   `json:"removed"`
-	Platform *string `json:"platform"`
-	Version  *string `json:"version"`
-	Shard    *uint   `json:"shard"`
+	PackID   *uint     `json:"pack_id"`
+	QueryID  *uint     `json:"query_id"`
+	Interval *uint     `json:"interval"`
+	Snapshot *bool     `json:"snapshot"`
+	Removed  *bool     `json:"removed"`
+	Platform *string   `json:"platform"`
+	Version  *string   `json:"version"`
+	Shard    *null.Int `json:"shard"`
 }
