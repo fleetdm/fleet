@@ -1,3 +1,20 @@
+## Kolide Fleet 2.3.0 (Aug 14, 2019)
+
+### This is a security release.
+
+* Security: Upgrade Go to 1.12.8 to fix CVE-2019-9512, CVE-2019-9514, and CVE-2019-14809.
+
+* Add capability to export packs, labels, and queries as yaml in `fleetctl get` with the `--yaml` flag. Include queries with a pack using `--with-queries`.
+
+* Modify email templates to load image assets from Github CDN rather than Fleet server (fixes broken images in emails when Fleet server is not accessible from email clients).
+
+* Add warning in query UI when Redis is not functioning.
+
+* Fix minor bugs in frontend handling of scheduled queries.
+
+* Minor styling changes to frontend.
+
+
 ## Kolide Fleet 2.2.0 (Jul 16, 2019)
 
 * Add GCP PubSub logging plugin. Thanks to Michael Samuel for adding this capability.
