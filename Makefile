@@ -47,13 +47,13 @@ ifndef MYSQL_PORT_3306_TCP_ADDR
 endif
 
 KIT_VERSION = "\
-	-X github.com/kolide/fleet/vendor/github.com/kolide/kit/version.appName=${APP_NAME} \
-	-X github.com/kolide/fleet/vendor/github.com/kolide/kit/version.version=${VERSION} \
-	-X github.com/kolide/fleet/vendor/github.com/kolide/kit/version.branch=${BRANCH} \
-	-X github.com/kolide/fleet/vendor/github.com/kolide/kit/version.revision=${REVISION} \
-	-X github.com/kolide/fleet/vendor/github.com/kolide/kit/version.buildDate=${NOW} \
-	-X github.com/kolide/fleet/vendor/github.com/kolide/kit/version.buildUser=${USER} \
-	-X github.com/kolide/fleet/vendor/github.com/kolide/kit/version.goVersion=${GOVERSION}"
+	-X github.com/kolide/kit/version.appName=${APP_NAME} \
+	-X github.com/kolide/kit/version.version=${VERSION} \
+	-X github.com/kolide/kit/version.branch=${BRANCH} \
+	-X github.com/kolide/kit/version.revision=${REVISION} \
+	-X github.com/kolide/kit/version.buildDate=${NOW} \
+	-X github.com/kolide/kit/version.buildUser=${USER} \
+	-X github.com/kolide/kit/version.goVersion=${GOVERSION}"
 
 all: build
 
