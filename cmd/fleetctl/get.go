@@ -12,7 +12,8 @@ import (
 )
 
 const (
-	yamlFlagName = "yaml"
+	yamlFlagName        = "yaml"
+	withQueriesFlagName = "with-queries"
 )
 
 type specGeneric struct {
@@ -32,6 +33,48 @@ func yamlFlag() cli.BoolFlag {
 		Name:  yamlFlagName,
 		Usage: "Output packs in yaml format",
 	}
+}
+
+func printQuery(query *kolide.QuerySpec, yamlSeparator bool) error {
+	spec := specGeneric{
+		Kind:    "query",
+		Version: kolide.ApiVersion,
+		Spec:    query,
+	}
+
+	b, err := yaml.Marshal(spec)
+	if err != nil {
+		return err
+	}
+
+	sep := ""
+	if yamlSeparator {
+		sep = "---\n"
+	}
+
+	fmt.Printf("%s%s", sep, string(b))
+	return nil
+}
+
+func printPack(pack *kolide.PackSpec, yamlSeparator bool) error {
+	spec := specGeneric{
+		Kind:    "pack",
+		Version: kolide.ApiVersion,
+		Spec:    pack,
+	}
+
+	b, err := yaml.Marshal(spec)
+	if err != nil {
+		return err
+	}
+
+	sep := ""
+	if yamlSeparator {
+		sep = "---\n"
+	}
+
+	fmt.Printf("%s%s", sep, string(b))
+	return nil
 }
 
 func getQueriesCommand() cli.Command {
@@ -61,19 +104,11 @@ func getQueriesCommand() cli.Command {
 
 				if c.Bool(yamlFlagName) {
 					for _, query := range queries {
-						spec := specGeneric{
-							Kind:    "query",
-							Version: kolide.ApiVersion,
-							Spec:    query,
+						if err := printQuery(query, true); err != nil {
+							return errors.Wrap(err, "unable to print query")
 						}
-
-						b, err := yaml.Marshal(spec)
-						if err != nil {
-							return err
-						}
-
-						fmt.Printf("---\n%s", string(b))
 					}
+
 					return nil
 				}
 
@@ -104,18 +139,10 @@ func getQueriesCommand() cli.Command {
 					return err
 				}
 
-				spec := specGeneric{
-					Kind:    "query",
-					Version: kolide.ApiVersion,
-					Spec:    query,
+				if err := printQuery(query, false); err != nil {
+					return errors.Wrap(err, "unable to print query")
 				}
 
-				b, err := yaml.Marshal(spec)
-				if err != nil {
-					return err
-				}
-
-				fmt.Print(string(b))
 				return nil
 			}
 		},
@@ -131,6 +158,10 @@ func getPacksCommand() cli.Command {
 			configFlag(),
 			contextFlag(),
 			yamlFlag(),
+			cli.BoolFlag{
+				Name:  withQueriesFlagName,
+				Usage: "Output queries included in pack(s) too",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)
@@ -139,6 +170,41 @@ func getPacksCommand() cli.Command {
 			}
 
 			name := c.Args().First()
+			shouldPrintQueries := c.Bool(withQueriesFlagName)
+			queriesToPrint := make(map[string]bool)
+
+			addQueries := func(pack *kolide.PackSpec) {
+				if shouldPrintQueries {
+					for _, q := range pack.Queries {
+						queriesToPrint[q.QueryName] = true
+					}
+				}
+			}
+
+			printQueries := func() error {
+				if !shouldPrintQueries {
+					return nil
+				}
+
+				queries, err := fleet.GetQueries()
+				if err != nil {
+					return errors.Wrap(err, "could not list queries")
+				}
+
+				// Getting all queries then filtering is usually faster than getting
+				// one query at a time.
+				for _, query := range queries {
+					if !queriesToPrint[query.Name] {
+						continue
+					}
+
+					if err := printQuery(query, true); err != nil {
+						return errors.Wrap(err, "unable to print query")
+					}
+				}
+
+				return nil
+			}
 
 			// if name wasn't provided, list all packs
 			if name == "" {
@@ -149,20 +215,14 @@ func getPacksCommand() cli.Command {
 
 				if c.Bool(yamlFlagName) {
 					for _, pack := range packs {
-						spec := specGeneric{
-							Kind:    "pack",
-							Version: kolide.ApiVersion,
-							Spec:    pack,
+						if err := printPack(pack, true); err != nil {
+							return errors.Wrap(err, "unable to print pack")
 						}
 
-						b, err := yaml.Marshal(spec)
-						if err != nil {
-							return err
-						}
-
-						fmt.Printf("---\n%s", string(b))
+						addQueries(pack)
 					}
-					return nil
+
+					return printQueries()
 				}
 
 				if len(packs) == 0 {
@@ -192,19 +252,13 @@ func getPacksCommand() cli.Command {
 					return err
 				}
 
-				spec := specGeneric{
-					Kind:    "pack",
-					Version: kolide.ApiVersion,
-					Spec:    pack,
+				addQueries(pack)
+
+				if err := printPack(pack, shouldPrintQueries); err != nil {
+					return errors.Wrap(err, "unable to print pack")
 				}
 
-				b, err := yaml.Marshal(spec)
-				if err != nil {
-					return err
-				}
-
-				fmt.Print(string(b))
-				return nil
+				return printQueries()
 			}
 		},
 	}
