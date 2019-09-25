@@ -52,8 +52,8 @@ func validateSSOSettings(p kolide.AppConfigPayload, existing *kolide.AppConfig, 
 					invalid.Append("idp_name", "required")
 				}
 			} else {
-				if len(*p.SSOSettings.IDPName) < 5 {
-					invalid.Append("idp_name", "must be 5 or more characters")
+				if len(*p.SSOSettings.IDPName) < 4 {
+					invalid.Append("idp_name", "must be 4 or more characters")
 				}
 			}
 		}
