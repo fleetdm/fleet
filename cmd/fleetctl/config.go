@@ -27,6 +27,7 @@ type Context struct {
 	Token         string `json:"token"`
 	TLSSkipVerify bool   `json:"tls-skip-verify"`
 	RootCA        string `json:"rootca"`
+	URLPrefix     string `json:"url-prefix"`
 }
 
 func configFlag() cli.Flag {
@@ -122,6 +123,8 @@ func getConfigValue(c *cli.Context, key string) (interface{}, error) {
 		} else {
 			return false, nil
 		}
+	case "url-prefix":
+		return currentContext.URLPrefix, nil
 	default:
 		return nil, fmt.Errorf("%q is an invalid key", key)
 	}
@@ -166,6 +169,8 @@ func setConfigValue(c *cli.Context, key, value string) error {
 			return errors.Wrapf(err, "error parsing %q as bool", value)
 		}
 		currentContext.TLSSkipVerify = boolValue
+	case "url-prefix":
+		currentContext.URLPrefix = value
 	default:
 		return fmt.Errorf("%q is an invalid option", key)
 	}
@@ -186,6 +191,7 @@ func configSetCommand() cli.Command {
 		flToken         string
 		flTLSSkipVerify bool
 		flRootCA        string
+		flURLPrefix     string
 	)
 	return cli.Command{
 		Name:      "set",
@@ -227,6 +233,13 @@ func configSetCommand() cli.Command {
 				Value:       "",
 				Destination: &flRootCA,
 				Usage:       "Specify RootCA chain used to communicate with fleet",
+			},
+			cli.StringFlag{
+				Name:        "url-prefix",
+				EnvVar:      "URL_PREFIX",
+				Value:       "",
+				Destination: &flURLPrefix,
+				Usage:       "Specify URL Prefix to use with Fleet server (copy from server configuration)",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -270,6 +283,14 @@ func configSetCommand() cli.Command {
 					return errors.Wrap(err, "error setting rootca")
 				}
 				fmt.Printf("[+] Set the rootca config key to %q in the %q context\n", flRootCA, c.String("context"))
+			}
+
+			if flURLPrefix != "" {
+				set = true
+				if err := setConfigValue(c, "url-prefix", flURLPrefix); err != nil {
+					return errors.Wrap(err, "error setting URL Prefix")
+				}
+				fmt.Printf("[+] Set the url-prefix config key to %q in the %q context\n", flURLPrefix, c.String("context"))
 			}
 
 			if !set {

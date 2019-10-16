@@ -4,6 +4,7 @@ import classnames from 'classnames';
 
 import Avatar from 'components/Avatar';
 import Icon from 'components/icons/Icon';
+import PATHS from 'router/paths';
 
 class UserMenu extends Component {
   static propTypes = {
@@ -39,7 +40,7 @@ class UserMenu extends Component {
 
         <nav className={`${toggleBaseClass}__nav`}>
           <ul className={`${toggleBaseClass}__nav-list`}>
-            <li className={`${toggleBaseClass}__nav-item`}><a href="#settings" onClick={onNavItemClick('/settings')}><Icon name="user-settings" /><span>Account Settings</span></a></li>
+            <li className={`${toggleBaseClass}__nav-item`}><a href="#settings" onClick={onNavItemClick(PATHS.USER_SETTINGS)}><Icon name="user-settings" /><span>Account Settings</span></a></li>
             <li className={`${toggleBaseClass}__nav-item`}><a href="#logout" onClick={onLogout}><Icon name="logout" /><span>Log Out</span></a></li>
           </ul>
         </nav>

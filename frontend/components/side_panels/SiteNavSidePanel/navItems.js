@@ -1,27 +1,30 @@
+import PATHS from 'router/paths';
+import URL_PREFIX from 'router/url_prefix';
+
 export default (admin) => {
   const adminNavItems = [
     {
       icon: 'admin',
       name: 'Admin',
       location: {
-        regex: /^\/admin/,
-        pathname: '/admin/users',
+        regex: new RegExp(`^${URL_PREFIX}/admin/`),
+        pathname: PATHS.ADMIN_USERS,
       },
       subItems: [
         {
           icon: 'admin',
           name: 'Manage Users',
           location: {
-            regex: /\/admin\/users/,
-            pathname: '/admin/users',
+            regex: new RegExp(`^${PATHS.ADMIN_USERS}`),
+            pathname: PATHS.ADMIN_USERS,
           },
         },
         {
           icon: 'user-settings',
           name: 'App Settings',
           location: {
-            regex: /\/admin\/settings/,
-            pathname: '/admin/settings',
+            regex: new RegExp(`^${PATHS.ADMIN_SETTINGS}`),
+            pathname: PATHS.ADMIN_SETTINGS,
           },
         },
       ],
@@ -33,8 +36,8 @@ export default (admin) => {
       icon: 'hosts',
       name: 'Hosts',
       location: {
-        regex: /^\/hosts/,
-        pathname: '/hosts/manage',
+        regex: new RegExp(`^${URL_PREFIX}/hosts/`),
+        pathname: PATHS.MANAGE_HOSTS,
       },
       subItems: [],
     },
@@ -42,24 +45,24 @@ export default (admin) => {
       icon: 'query',
       name: 'Query',
       location: {
-        regex: /^\/queries/,
-        pathname: '/queries/manage',
+        regex: new RegExp(`^${URL_PREFIX}/queries/`),
+        pathname: PATHS.MANAGE_QUERIES,
       },
       subItems: [
         {
           icon: 'query',
           name: 'Manage Queries',
           location: {
-            regex: /\/queries\/manage/,
-            pathname: '/queries/manage',
+            regex: new RegExp(`^${PATHS.MANAGE_QUERIES}`),
+            pathname: PATHS.MANAGE_QUERIES,
           },
         },
         {
           icon: 'pencil',
           name: 'New Query',
           location: {
-            regex: /\/queries\/new/,
-            pathname: '/queries/new',
+            regex: new RegExp(`^${PATHS.NEW_QUERY}`),
+            pathname: PATHS.NEW_QUERY,
           },
         },
       ],
@@ -68,24 +71,24 @@ export default (admin) => {
       icon: 'packs',
       name: 'Packs',
       location: {
-        regex: /^\/packs/,
-        pathname: '/packs/manage',
+        regex: new RegExp(`^${URL_PREFIX}/packs/`),
+        pathname: PATHS.MANAGE_PACKS,
       },
       subItems: [
         {
           icon: 'packs',
           name: 'Manage Packs',
           location: {
-            regex: /\/packs\/manage/,
-            pathname: '/packs/manage',
+            regex: new RegExp(`^${PATHS.MANAGE_PACKS}`),
+            pathname: PATHS.MANAGE_PACKS,
           },
         },
         {
           icon: 'pencil',
           name: 'New Pack',
           location: {
-            regex: /\/packs\/new/,
-            pathname: '/packs/new',
+            regex: new RegExp(`^${PATHS.NEW_PACK}`),
+            pathname: PATHS.NEW_PACK,
           },
         },
       ],

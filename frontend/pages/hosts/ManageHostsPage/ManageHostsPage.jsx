@@ -28,7 +28,7 @@ import hostActions from 'redux/nodes/entities/hosts/actions';
 import labelActions from 'redux/nodes/entities/labels/actions';
 import { renderFlash } from 'redux/nodes/notifications/actions';
 import entityGetter from 'redux/utilities/entityGetter';
-import paths from 'router/paths';
+import PATHS from 'router/paths';
 import deepDifference from 'utilities/deep_difference';
 import iconClassForLabel from 'utilities/icon_class_for_label';
 import platformIconClass from 'utilities/platform_icon_class';
@@ -99,7 +99,7 @@ export class ManageHostsPage extends PureComponent {
 
     const { dispatch } = this.props;
 
-    dispatch(push(`/hosts/manage${NEW_LABEL_HASH}`));
+    dispatch(push(`${PATHS.MANAGE_HOSTS}${NEW_LABEL_HASH}`));
 
     return false;
   }
@@ -107,7 +107,7 @@ export class ManageHostsPage extends PureComponent {
   onCancelAddLabel = () => {
     const { dispatch } = this.props;
 
-    dispatch(push('/hosts/manage'));
+    dispatch(push(PATHS.MANAGE_HOSTS));
 
     return false;
   }
@@ -168,7 +168,7 @@ export class ManageHostsPage extends PureComponent {
       evt.preventDefault();
 
       const { dispatch } = this.props;
-      const { MANAGE_HOSTS } = paths;
+      const { MANAGE_HOSTS } = PATHS;
       const { slug } = selectedLabel;
       const nextLocation = slug === 'all-hosts' ? MANAGE_HOSTS : `${MANAGE_HOSTS}/${slug}`;
 
@@ -217,7 +217,7 @@ export class ManageHostsPage extends PureComponent {
 
     return dispatch(labelActions.create(formData))
       .then(() => {
-        dispatch(push('/hosts/manage'));
+        dispatch(push(PATHS.MANAGE_HOSTS));
 
         return false;
       });
@@ -236,7 +236,7 @@ export class ManageHostsPage extends PureComponent {
   onDeleteLabel = () => {
     const { toggleDeleteLabelModal } = this;
     const { dispatch, selectedLabel } = this.props;
-    const { MANAGE_HOSTS } = paths;
+    const { MANAGE_HOSTS } = PATHS;
 
     return dispatch(labelActions.destroy(selectedLabel))
       .then(() => {
@@ -251,7 +251,7 @@ export class ManageHostsPage extends PureComponent {
       evt.preventDefault();
 
       const { dispatch } = this.props;
-      const { NEW_QUERY } = paths;
+      const { NEW_QUERY } = PATHS;
 
       dispatch(push({
         pathname: NEW_QUERY,

@@ -75,7 +75,7 @@ type Invite struct {
 // InviteMailer is used to build an email template for the invite email.
 type InviteMailer struct {
 	*Invite
-	KolideServerURL   template.URL
+	BaseURL           template.URL
 	AssetURL          template.URL
 	InvitedByUsername string
 	OrgName           string

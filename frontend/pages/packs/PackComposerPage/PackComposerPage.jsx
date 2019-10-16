@@ -7,6 +7,7 @@ import { push } from 'react-router-redux';
 import packActions from 'redux/nodes/entities/packs/actions';
 import PackForm from 'components/forms/packs/PackForm';
 import PackInfoSidePanel from 'components/side_panels/PackInfoSidePanel';
+import PATHS from 'router/paths';
 
 const baseClass = 'pack-composer';
 
@@ -39,7 +40,7 @@ export class PackComposerPage extends Component {
   visitPackPage = (packID) => {
     const { dispatch } = this.props;
 
-    dispatch(push(`/packs/${packID}`));
+    dispatch(push(PATHS.PACK({ id: packID })));
 
     return false;
   }

@@ -38,7 +38,7 @@ func TestLogin(t *testing.T) {
 		),
 	}
 	r := mux.NewRouter()
-	ke := MakeKolideServerEndpoints(svc, "CHANGEME")
+	ke := MakeKolideServerEndpoints(svc, "CHANGEME", "")
 	kh := makeKolideKitHandlers(ke, opts)
 	attachKolideAPIRoutes(r, kh)
 	r.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

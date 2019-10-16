@@ -25,7 +25,7 @@ func TestAPIRoutes(t *testing.T) {
 	assert.Nil(t, err)
 
 	r := mux.NewRouter()
-	ke := MakeKolideServerEndpoints(svc, "CHANGEME")
+	ke := MakeKolideServerEndpoints(svc, "CHANGEME", "")
 	kh := makeKolideKitHandlers(ke, nil)
 	attachKolideAPIRoutes(r, kh)
 	handler := mux.NewRouter()
@@ -242,7 +242,7 @@ func TestModifyUserPermissions(t *testing.T) {
 	svc, err := newTestService(ms, nil)
 	assert.Nil(t, err)
 
-	handler := MakeHandler(svc, "CHANGEME", log.NewNopLogger())
+	handler := MakeHandler(svc, config.KolideConfig{Auth: config.AuthConfig{JwtKey: "CHANGEME"}}, log.NewNopLogger())
 
 	testCases := []struct {
 		ActingUserID      uint

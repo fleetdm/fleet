@@ -30,6 +30,7 @@ import { toggleSmallNav } from 'redux/nodes/app/actions';
 import { selectOsqueryTable, setSelectedTargets, setSelectedTargetsQuery } from 'redux/nodes/components/QueryPages/actions';
 import targetInterface from 'interfaces/target';
 import validateQuery from 'components/forms/validators/validate_query';
+import PATHS from 'router/paths';
 
 const baseClass = 'query-page';
 const DEFAULT_CAMPAIGN = {
@@ -280,7 +281,7 @@ export class QueryPage extends Component {
 
     return dispatch(queryActions.create(formData))
       .then((query) => {
-        dispatch(push(`/queries/${query.id}`));
+        dispatch(push(PATHS.EDIT_QUERY(query)));
       })
       .catch(() => false);
   })

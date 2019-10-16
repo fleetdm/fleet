@@ -10,6 +10,7 @@ import ResetPasswordForm from 'components/forms/ResetPasswordForm';
 import StackedWhiteBoxes from 'components/StackedWhiteBoxes';
 import { performRequiredPasswordReset } from 'redux/nodes/auth/actions';
 import userInterface from 'interfaces/user';
+import PATHS from 'router/paths';
 
 export class ResetPasswordPage extends Component {
   static propTypes = {
@@ -30,7 +31,7 @@ export class ResetPasswordPage extends Component {
     const { dispatch, token, user } = this.props;
 
     if (!user && !token) {
-      return dispatch(push('/login'));
+      return dispatch(push(PATHS.LOGIN));
     }
 
     return false;
@@ -59,9 +60,7 @@ export class ResetPasswordPage extends Component {
     };
 
     return dispatch(resetPassword(resetPasswordData))
-      .then(() => {
-        return dispatch(push('/login'));
-      })
+      .then(() => { return dispatch(push(PATHS.LOGIN)); })
       .catch(() => false);
   })
 
@@ -77,7 +76,7 @@ export class ResetPasswordPage extends Component {
     const passwordUpdateParams = { password };
 
     return dispatch(performRequiredPasswordReset(passwordUpdateParams))
-      .then(() => { return dispatch(push('/')); })
+      .then(() => { return dispatch(push(PATHS.HOME)); })
       .catch(() => false);
   }
 

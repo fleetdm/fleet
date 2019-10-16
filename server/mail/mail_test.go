@@ -66,7 +66,7 @@ func testSMTPPlainAuth(t *testing.T, mailer kolide.MailService) {
 			SMTPSenderAddress:        "kolide@kolide.com",
 		},
 		Mailer: &kolide.SMTPTestMailer{
-			KolideServerURL: "https://localhost:8080",
+			BaseURL: "https://localhost:8080",
 		},
 	}
 
@@ -92,7 +92,7 @@ func testSMTPSkipVerify(t *testing.T, mailer kolide.MailService) {
 			SMTPSenderAddress:        "kolide@kolide.com",
 		},
 		Mailer: &kolide.SMTPTestMailer{
-			KolideServerURL: "https://localhost:8080",
+			BaseURL: "https://localhost:8080",
 		},
 	}
 
@@ -114,7 +114,7 @@ func testSMTPNoAuth(t *testing.T, mailer kolide.MailService) {
 			SMTPSenderAddress:      "kolide@kolide.com",
 		},
 		Mailer: &kolide.SMTPTestMailer{
-			KolideServerURL: "https://localhost:8080",
+			BaseURL: "https://localhost:8080",
 		},
 	}
 
@@ -136,7 +136,7 @@ func testMailTest(t *testing.T, mailer kolide.MailService) {
 			SMTPSenderAddress:      "kolide@kolide.com",
 		},
 		Mailer: &kolide.SMTPTestMailer{
-			KolideServerURL: "https://localhost:8080",
+			BaseURL: "https://localhost:8080",
 		},
 	}
 	err := Test(mailer, mail)

@@ -194,9 +194,9 @@ func falseIfNil(b *bool) bool {
 }
 
 type ChangeEmailMailer struct {
-	KolideServerURL template.URL
-	AssetURL        template.URL
-	Token           string
+	BaseURL  template.URL
+	AssetURL template.URL
+	Token    string
 }
 
 func (cem *ChangeEmailMailer) Message() ([]byte, error) {

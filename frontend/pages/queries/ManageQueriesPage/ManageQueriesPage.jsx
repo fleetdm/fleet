@@ -11,7 +11,7 @@ import Modal from 'components/modals/Modal';
 import NumberPill from 'components/NumberPill';
 import Icon from 'components/icons/Icon';
 import PackInfoSidePanel from 'components/side_panels/PackInfoSidePanel';
-import paths from 'router/paths';
+import PATHS from 'router/paths';
 import QueryDetailsSidePanel from 'components/side_panels/QueryDetailsSidePanel';
 import QueriesList from 'components/queries/QueriesList';
 import queryActions from 'redux/nodes/entities/queries/actions';
@@ -114,7 +114,7 @@ export class ManageQueriesPage extends Component {
   onSelectQuery = (selectedQuery) => {
     const { dispatch } = this.props;
     const locationObject = {
-      pathname: '/queries/manage',
+      pathname: PATHS.MANAGE_QUERIES,
       query: { selectedQuery: selectedQuery.id },
     };
 
@@ -126,7 +126,7 @@ export class ManageQueriesPage extends Component {
   onDblClickQuery = (selectedQuery) => {
     const { dispatch } = this.props;
 
-    dispatch(push(`/queries/${selectedQuery.id}`));
+    dispatch(push(PATHS.EDIT_QUERY(selectedQuery)));
 
     return false;
   }
@@ -162,7 +162,7 @@ export class ManageQueriesPage extends Component {
 
   goToNewQueryPage = () => {
     const { dispatch } = this.props;
-    const { NEW_QUERY } = paths;
+    const { NEW_QUERY } = PATHS;
 
     dispatch(push(NEW_QUERY));
 
@@ -171,7 +171,7 @@ export class ManageQueriesPage extends Component {
 
   goToEditQueryPage = (query) => {
     const { dispatch } = this.props;
-    const { EDIT_QUERY } = paths;
+    const { EDIT_QUERY } = PATHS;
 
     dispatch(push(EDIT_QUERY(query)));
 
@@ -308,4 +308,3 @@ const mapStateToProps = (state, { location }) => {
 };
 
 export default connect(mapStateToProps)(ManageQueriesPage);
-

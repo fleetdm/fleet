@@ -9,8 +9,8 @@ import (
 
 func TestTemplateProcessor(t *testing.T) {
 	mailer := PasswordResetMailer{
-		KolideServerURL: "https://localhost.com:8080",
-		Token:           "12345",
+		BaseURL: "https://localhost.com:8080",
+		Token:   "12345",
 	}
 
 	out, err := mailer.Message()

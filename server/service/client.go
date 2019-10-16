@@ -17,12 +17,13 @@ import (
 type Client struct {
 	addr               string
 	baseURL            *url.URL
+	urlPrefix          string
 	token              string
 	http               *http.Client
 	insecureSkipVerify bool
 }
 
-func NewClient(addr string, insecureSkipVerify bool, rootCA string) (*Client, error) {
+func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string) (*Client, error) {
 	if !strings.HasPrefix(addr, "https://") {
 		return nil, errors.New("Address must start with https://")
 	}
@@ -67,6 +68,7 @@ func NewClient(addr string, insecureSkipVerify bool, rootCA string) (*Client, er
 		baseURL:            baseURL,
 		http:               httpClient,
 		insecureSkipVerify: insecureSkipVerify,
+		urlPrefix:          urlPrefix,
 	}, nil
 }
 
@@ -124,6 +126,6 @@ func (c *Client) SetToken(t string) {
 
 func (c *Client) url(path string) *url.URL {
 	u := *c.baseURL
-	u.Path = path
+	u.Path = c.urlPrefix + path
 	return &u
 }

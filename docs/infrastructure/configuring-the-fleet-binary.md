@@ -351,6 +351,21 @@ Configures the TLS settings for compatibility with various user agents. Options 
 		tls_compatibility: intermediate
 	```
 
+##### `server_url_prefix`
+
+Sets a URL prefix to use when serving the Fleet API and frontend. Prefixes should be in the form `/apps/fleet` (no trailing slash).
+
+Note that some other configurations may need to be changed when modifying the URL prefix. In particular, URLs that are provided to osquery via flagfile, the configuration served by Fleet, the URL prefix used by `fleetctl`, and the redirect URL set with an SSO Identity Provider.
+
+- Default value: Empty (no prefix set)
+- Environment variable: `KOLIDE_SERVER_URL_PREFIX`
+- Config file format:
+
+	```
+	server:
+		url_prefix: /apps/fleet
+	```
+
 
 #### Auth
 
@@ -771,4 +786,3 @@ The identifier of the pubsub topic that osquery status logs will be published to
   pubsub:
     status_topic: osquery_status
   ```
-

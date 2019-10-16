@@ -59,9 +59,9 @@
                   <tr>
                     <td style="font-family: 'Oxygen', Arial, sans-serif;">
                       {{if .SSOEnabled}}
-                        <a href="{{.KolideServerURL}}/login/ssoinvites/{{.Token}}?name={{.Name}}&email={{.Email}}">{{.KolideServerURL}}/login/ssoinvites/{{.Token}}?name={{.Name}}&email={{.Email}}</a>
+                        <a href="{{.BaseURL}}/login/ssoinvites/{{.Token}}?name={{.Name}}&email={{.Email}}">{{.BaseURL}}/login/ssoinvites/{{.Token}}?name={{.Name}}&email={{.Email}}</a>
                       {{else}}
-                        <a href="{{.KolideServerURL}}/login/invites/{{.Token}}?name={{.Name}}&email={{.Email}}">{{.KolideServerURL}}/login/invites/{{.Token}}?name={{.Name}}&email={{.Email}}</a>
+                        <a href="{{.BaseURL}}/login/invites/{{.Token}}?name={{.Name}}&email={{.Email}}">{{.BaseURL}}/login/invites/{{.Token}}?name={{.Name}}&email={{.Email}}</a>
                       {{end}}
                     </td>
                   </tr>

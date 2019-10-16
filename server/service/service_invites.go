@@ -67,7 +67,7 @@ func (svc service) InviteNewUser(ctx context.Context, payload kolide.InvitePaylo
 		Config:  config,
 		Mailer: &kolide.InviteMailer{
 			Invite:            invite,
-			KolideServerURL:   template.URL(config.KolideServerURL),
+			BaseURL:           template.URL(config.KolideServerURL + svc.config.Server.URLPrefix),
 			AssetURL:          getAssetURL(),
 			OrgName:           config.OrgName,
 			InvitedByUsername: invitedBy,

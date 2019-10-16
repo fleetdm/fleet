@@ -65,8 +65,8 @@ func (svc service) SendTestEmail(ctx context.Context, config *kolide.AppConfig) 
 		Subject: "Hello from Fleet",
 		To:      []string{vc.User.Email},
 		Mailer: &kolide.SMTPTestMailer{
-			KolideServerURL: template.URL(config.KolideServerURL),
-			AssetURL:        getAssetURL(),
+			BaseURL:  template.URL(config.KolideServerURL + svc.config.Server.URLPrefix),
+			AssetURL: getAssetURL(),
 		},
 		Config: config,
 	}

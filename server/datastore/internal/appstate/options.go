@@ -21,8 +21,6 @@ func Options() []struct {
 		// raise an error
 		{"disable_distributed", false, kolide.OptionTypeBool, kolide.ReadOnly},
 		{"distributed_plugin", "tls", kolide.OptionTypeString, kolide.ReadOnly},
-		{"distributed_tls_read_endpoint", "/api/v1/osquery/distributed/read", kolide.OptionTypeString, kolide.ReadOnly},
-		{"distributed_tls_write_endpoint", "/api/v1/osquery/distributed/write", kolide.OptionTypeString, kolide.ReadOnly},
 		{"pack_delimiter", "/", kolide.OptionTypeString, kolide.ReadOnly},
 		// These options may be modified by an admin user
 		{"aws_access_key_id", nil, kolide.OptionTypeString, kolide.NotReadOnly},

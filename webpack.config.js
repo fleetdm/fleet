@@ -56,7 +56,16 @@ var config  = {
     noParse: /node_modules\/sqlite-parser\/dist\/sqlite-parser-min.js/,
     rules: [
       { test: /\.(png|gif)$/, use: { loader: 'url-loader?name=[name]@[hash].[ext]&limit=6000' } },
-      { test: /\.(pdf|ico|jpg|svg|eot|otf|woff|ttf|mp4|webm)$/, use: { loader: 'file-loader?name=[name]@[hash].[ext]' } },
+      {
+        test: /\.(pdf|ico|jpg|svg|eot|otf|woff|woff2|ttf|mp4|webm)$/,
+        use: {
+          loader: 'file-loader',
+          options: {
+            name: '[name]@[hash].[ext]',
+            useRelativePath: true,
+          },
+        },
+      },
       { test: /\.tsx?$/, exclude: /node_modules/, use: { loader: 'ts-loader' } },
       {
         test: /\.scss$/,
@@ -65,6 +74,7 @@ var config  = {
           {
             loader: MiniCssExtractPlugin.loader,
             options: {
+              publicPath: './',
               hmr: process.env.NODE_ENV == 'development',
             },
           },

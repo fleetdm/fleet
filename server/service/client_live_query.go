@@ -96,7 +96,7 @@ func (c *Client) LiveQuery(query string, labels []string, hosts []string) (*Live
 
 	wssURL := *c.baseURL
 	wssURL.Scheme = "wss"
-	wssURL.Path = "/api/v1/kolide/results/websocket"
+	wssURL.Path = c.urlPrefix + "/api/v1/kolide/results/websocket"
 	conn, _, err := dialer.Dial(wssURL.String(), nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "upgrade live query result websocket")

@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"regexp"
+	"strings"
 	"syscall"
 	"time"
 
@@ -27,11 +29,14 @@ import (
 	"github.com/kolide/fleet/server/service"
 	"github.com/kolide/fleet/server/sso"
 	"github.com/kolide/kit/version"
+	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 )
+
+var allowedURLPrefixRegexp = regexp.MustCompile("^(?:/[a-zA-Z0-9_.~-]+)+$")
 
 type initializer interface {
 	// Initialize is used to populate a datastore with
@@ -68,6 +73,7 @@ the way that the Fleet server works.
 				logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
 			}
 
+			// Check for deprecated config options.
 			if config.Osquery.StatusLogFile != "" {
 				level.Info(logger).Log(
 					"DEPRECATED", "use filesystem.status_log_file.",
@@ -88,6 +94,21 @@ the way that the Fleet server works.
 					"msg", "using osquery.enable_log_rotation value for filesystem.result_log_file",
 				)
 				config.Filesystem.EnableLogRotation = config.Osquery.EnableLogRotation
+			}
+
+			if len(config.Server.URLPrefix) > 0 {
+				// Massage provided prefix to match expected format
+				config.Server.URLPrefix = strings.TrimSuffix(config.Server.URLPrefix, "/")
+				if len(config.Server.URLPrefix) > 0 && !strings.HasPrefix(config.Server.URLPrefix, "/") {
+					config.Server.URLPrefix = "/" + config.Server.URLPrefix
+				}
+
+				if !allowedURLPrefixRegexp.MatchString(config.Server.URLPrefix) {
+					initFatal(
+						errors.Errorf("prefix must match regexp \"%s\"", allowedURLPrefixRegexp.String()),
+						"setting server URL prefix",
+					)
+				}
 			}
 
 			var ds kolide.Datastore
@@ -190,8 +211,8 @@ the way that the Fleet server works.
 
 			var apiHandler, frontendHandler http.Handler
 			{
-				frontendHandler = prometheus.InstrumentHandler("get_frontend", service.ServeFrontend(httpLogger))
-				apiHandler = service.MakeHandler(svc, config.Auth.JwtKey, httpLogger)
+				frontendHandler = prometheus.InstrumentHandler("get_frontend", service.ServeFrontend(config.Server.URLPrefix, httpLogger))
+				apiHandler = service.MakeHandler(svc, config, httpLogger)
 
 				setupRequired, err := service.RequireSetup(svc)
 				if err != nil {
@@ -202,9 +223,9 @@ the way that the Fleet server works.
 				// more efficient after the first startup.
 				if setupRequired {
 					apiHandler = service.WithSetup(svc, logger, apiHandler)
-					frontendHandler = service.RedirectLoginToSetup(svc, logger, frontendHandler)
+					frontendHandler = service.RedirectLoginToSetup(svc, logger, frontendHandler, config.Server.URLPrefix)
 				} else {
-					frontendHandler = service.RedirectSetupToLogin(svc, logger, frontendHandler)
+					frontendHandler = service.RedirectSetupToLogin(svc, logger, frontendHandler, config.Server.URLPrefix)
 				}
 
 			}
@@ -229,14 +250,13 @@ the way that the Fleet server works.
 			// Instantiate a gRPC service to handle launcher requests.
 			launcher := launcher.New(svc, logger, grpc.NewServer(), healthCheckers)
 
-			r := http.NewServeMux()
-
-			r.Handle("/healthz", prometheus.InstrumentHandler("healthz", health.Handler(httpLogger, healthCheckers)))
-			r.Handle("/version", prometheus.InstrumentHandler("version", version.Handler()))
-			r.Handle("/assets/", prometheus.InstrumentHandler("static_assets", service.ServeStaticAssets("/assets/")))
-			r.Handle("/metrics", prometheus.InstrumentHandler("metrics", promhttp.Handler()))
-			r.Handle("/api/", apiHandler)
-			r.Handle("/", frontendHandler)
+			rootMux := http.NewServeMux()
+			rootMux.Handle("/healthz", prometheus.InstrumentHandler("healthz", health.Handler(httpLogger, healthCheckers)))
+			rootMux.Handle("/version", prometheus.InstrumentHandler("version", version.Handler()))
+			rootMux.Handle("/assets/", prometheus.InstrumentHandler("static_assets", service.ServeStaticAssets("/assets/")))
+			rootMux.Handle("/metrics", prometheus.InstrumentHandler("metrics", promhttp.Handler()))
+			rootMux.Handle("/api/", apiHandler)
+			rootMux.Handle("/", frontendHandler)
 
 			if path, ok := os.LookupEnv("KOLIDE_TEST_PAGE_PATH"); ok {
 				// test that we can load this
@@ -244,7 +264,7 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "loading KOLIDE_TEST_PAGE_PATH")
 				}
-				r.HandleFunc("/test", func(rw http.ResponseWriter, req *http.Request) {
+				rootMux.HandleFunc("/test", func(rw http.ResponseWriter, req *http.Request) {
 					testPage, err := ioutil.ReadFile(path)
 					if err != nil {
 						rw.WriteHeader(http.StatusNotFound)
@@ -262,13 +282,20 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "generating debug token")
 				}
-				r.Handle("/debug/", http.StripPrefix("/debug/", netbug.AuthHandler(debugToken)))
+				rootMux.Handle("/debug/", http.StripPrefix("/debug/", netbug.AuthHandler(debugToken)))
 				fmt.Printf("*** Debug mode enabled ***\nAccess the debug endpoints at /debug/?token=%s\n", url.QueryEscape(debugToken))
+			}
+
+			if len(config.Server.URLPrefix) > 0 {
+
+				prefixMux := http.NewServeMux()
+				prefixMux.Handle(config.Server.URLPrefix+"/", http.StripPrefix(config.Server.URLPrefix, rootMux))
+				rootMux = prefixMux
 			}
 
 			srv := &http.Server{
 				Addr:              config.Server.Address,
-				Handler:           launcher.Handler(r),
+				Handler:           launcher.Handler(rootMux),
 				ReadTimeout:       25 * time.Second,
 				WriteTimeout:      40 * time.Second,
 				ReadHeaderTimeout: 5 * time.Second,

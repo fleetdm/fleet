@@ -19,6 +19,7 @@ import ScheduledQueriesListWrapper from 'components/queries/ScheduledQueriesList
 import { renderFlash } from 'redux/nodes/notifications/actions';
 import scheduledQueryActions from 'redux/nodes/entities/scheduled_queries/actions';
 import stateEntityGetter from 'redux/utilities/entityGetter';
+import PATHS from 'router/paths';
 
 const baseClass = 'edit-pack-page';
 
@@ -110,7 +111,7 @@ export class EditPackPage extends Component {
       return false;
     }
 
-    return dispatch(push(`/packs/${packID}`));
+    return dispatch(push(PATHS.PACK({ id: packID })));
   }
 
   onFetchTargets = (query, targetsResponse) => {
@@ -145,17 +146,17 @@ export class EditPackPage extends Component {
   onDblClickScheduledQuery = (scheduledQueryId) => {
     const { dispatch } = this.props;
 
-    return dispatch(push(`/queries/${scheduledQueryId}`));
+    return dispatch(push(PATHS.EDIT_QUERY({ id: scheduledQueryId })));
   }
 
   onToggleEdit = () => {
     const { dispatch, isEdit, packID } = this.props;
 
     if (isEdit) {
-      return dispatch(push(`/packs/${packID}`));
+      return dispatch(push(PATHS.PACK({ id: packID })));
     }
 
-    return dispatch(push(`/packs/${packID}/edit`));
+    return dispatch(push(PATHS.EDIT_PACK({ id: packID })));
   }
 
   onUpdateScheduledQuery = (formData) => {

@@ -1,11 +1,13 @@
 import local from 'utilities/local';
 import Request from 'kolide/request';
+import URL_PREFIX from 'router/url_prefix';
+
 
 class Base {
   constructor () {
     const { origin } = global.window.location;
 
-    this.baseURL = `${origin}/api`;
+    this.baseURL = `${origin}${URL_PREFIX}/api`;
     this.bearerToken = local.getItem('auth_token');
   }
 

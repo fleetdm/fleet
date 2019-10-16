@@ -57,7 +57,7 @@ func setupEndpointTest(t *testing.T) *testResource {
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 	jwtKey := "CHANGEME"
 
-	routes := MakeHandler(svc, jwtKey, logger)
+	routes := MakeHandler(svc, config.KolideConfig{Auth: config.AuthConfig{JwtKey: jwtKey}}, logger)
 
 	test.server = httptest.NewServer(routes)
 

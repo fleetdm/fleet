@@ -49,8 +49,8 @@ type PasswordResetRequest struct {
 // SMTPTestMailer is used to build an email message that will be used as
 // a test message when testing SMTP configuration
 type SMTPTestMailer struct {
-	KolideServerURL template.URL
-	AssetURL        template.URL
+	BaseURL  template.URL
+	AssetURL template.URL
 }
 
 func (m *SMTPTestMailer) Message() ([]byte, error) {
@@ -68,8 +68,8 @@ func (m *SMTPTestMailer) Message() ([]byte, error) {
 }
 
 type PasswordResetMailer struct {
-	// URL for the Fleet application
-	KolideServerURL template.URL
+	// Base URL to use for Fleet endpoints
+	BaseURL template.URL
 	// URL for loading image assets
 	AssetURL template.URL
 	// Token password reset token

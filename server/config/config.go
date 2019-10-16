@@ -50,6 +50,7 @@ type ServerConfig struct {
 	Key        string
 	TLS        bool
 	TLSProfile string
+	URLPrefix  string `yaml:"url_prefix"`
 }
 
 // AuthConfig defines configs related to user authorization
@@ -173,6 +174,8 @@ func (man Manager) addConfigs() {
 	man.addConfigString(TLSProfileKey, TLSProfileModern,
 		fmt.Sprintf("TLS security profile choose one of %s, %s or %s",
 			TLSProfileModern, TLSProfileIntermediate, TLSProfileOld))
+	man.addConfigString("server.url_prefix", "",
+		"URL prefix used on server and frontend endpoints")
 
 	// Auth
 	man.addConfigString("auth.jwt_key", "",
@@ -272,6 +275,7 @@ func (man Manager) LoadConfig() KolideConfig {
 			Key:        man.getConfigString("server.key"),
 			TLS:        man.getConfigBool("server.tls"),
 			TLSProfile: man.getConfigTLSProfile(),
+			URLPrefix:  man.getConfigString("server.url_prefix"),
 		},
 		Auth: AuthConfig{
 			JwtKey:      man.getConfigString("auth.jwt_key"),

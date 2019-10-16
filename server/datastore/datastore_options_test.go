@@ -90,8 +90,7 @@ func testOptionsToConfig(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, ds.MigrateData())
 	resp, err := ds.GetOsqueryConfigOptions()
 	require.Nil(t, err)
-	assert.Len(t, resp, 10)
-	assert.Equal(t, "/api/v1/osquery/distributed/read", resp["distributed_tls_read_endpoint"])
+	assert.Len(t, resp, 8)
 	opt, _ := ds.OptionByName("aws_profile_name")
 	assert.False(t, opt.OptionSet())
 	opt.SetValue("zip")
@@ -99,7 +98,7 @@ func testOptionsToConfig(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, err)
 	resp, err = ds.GetOsqueryConfigOptions()
 	require.Nil(t, err)
-	assert.Len(t, resp, 11)
+	assert.Len(t, resp, 9)
 	assert.Equal(t, "zip", resp["aws_profile_name"])
 }
 

@@ -10,6 +10,10 @@ node_modules
 assets/bundle*.*
 assets/*@*.svg
 assets/*@*.png
+assets/*@*.eot
+assets/*@*.woff
+assets/*@*.woff2
+assets/*@*.ttf
 frontend/templates/react.tmpl
 bindata.go
 *.cover

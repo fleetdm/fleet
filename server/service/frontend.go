@@ -18,7 +18,7 @@ func newBinaryFileSystem(root string) *assetfs.AssetFS {
 	}
 }
 
-func ServeFrontend(logger log.Logger) http.Handler {
+func ServeFrontend(urlPrefix string, logger log.Logger) http.Handler {
 	herr := func(w http.ResponseWriter, err string) {
 		logger.Log("err", err)
 		http.Error(w, err, http.StatusInternalServerError)
@@ -40,7 +40,7 @@ func ServeFrontend(logger log.Logger) http.Handler {
 			herr(w, "create react template: "+err.Error())
 			return
 		}
-		if err := t.Execute(w, nil); err != nil {
+		if err := t.Execute(w, struct{ URLPrefix string }{urlPrefix}); err != nil {
 			herr(w, "execute react template: "+err.Error())
 			return
 		}

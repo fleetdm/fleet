@@ -42,7 +42,7 @@ func (svc service) InitiateSSO(ctx context.Context, redirectURL string) (string,
 	settings := sso.Settings{
 		Metadata: metadata,
 		// Construct call back url to send to idp
-		AssertionConsumerServiceURL: appConfig.KolideServerURL + "/api/v1/kolide/sso/callback",
+		AssertionConsumerServiceURL: appConfig.KolideServerURL + svc.config.Server.URLPrefix + "/api/v1/kolide/sso/callback",
 		SessionStore:                svc.ssoSessionStore,
 		OriginalURL:                 redirectURL,
 	}
@@ -117,7 +117,7 @@ func (svc service) CallbackSSO(ctx context.Context, auth kolide.Auth) (*kolide.S
 		RedirectURL: sess.OriginalURL,
 	}
 	if !strings.HasPrefix(result.RedirectURL, "/") {
-		result.RedirectURL = "/" + result.RedirectURL
+		result.RedirectURL = svc.config.Server.URLPrefix + result.RedirectURL
 	}
 	return result, nil
 }

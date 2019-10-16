@@ -207,7 +207,7 @@ func (r callbackSSOResponse) error() error { return r.Err }
 // If html is present we return a web page
 func (r callbackSSOResponse) html() string { return r.content }
 
-func makeCallbackSSOEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeCallbackSSOEndpoint(svc kolide.Service, urlPrefix string) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		authResponse := request.(kolide.Auth)
 		session, err := svc.CallbackSSO(ctx, authResponse)
@@ -216,7 +216,7 @@ func makeCallbackSSOEndpoint(svc kolide.Service) endpoint.Endpoint {
 			// redirect to login page on front end if there was some problem,
 			// errors should still be logged
 			session = &kolide.SSOSession{
-				RedirectURL: "/login",
+				RedirectURL: urlPrefix + "/login",
 				Token:       "",
 			}
 			resp.Err = err
