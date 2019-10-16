@@ -12,12 +12,14 @@ describe('redux app node - helpers', () => {
         org_info: orgInfo,
         server_settings: serverSettings,
         smtp_settings: smtpSettings,
+        host_expiry_settings: hostExpirySettings,
       } = configStub;
 
       expect(frontendFormattedConfig(configStub)).toEqual({
         ...orgInfo,
         ...serverSettings,
         ...smtpSettings,
+        ...hostExpirySettings,
       });
     });
   });

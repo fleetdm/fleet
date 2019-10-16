@@ -36,6 +36,8 @@ describe('Kolide API - helpers', () => {
       authentication_method: 'authmethod_plain',
       verify_ssl_certs: true,
       enable_start_tls: true,
+      host_expiry_enabled: false,
+      host_expiry_window: 0,
     };
 
     it('splits config into categories for the server', () => {
@@ -53,6 +55,13 @@ describe('Kolide API - helpers', () => {
         formatConfigDataForServer({ domain: 'https://kolide.co' })
       ).toEqual({
         smtp_settings: { domain: 'https://kolide.co' },
+      });
+      expect(
+        formatConfigDataForServer({ host_expiry_window: '12' })
+      ).toEqual({
+        host_expiry_settings: {
+          host_expiry_window: 12,
+        },
       });
     });
   });

@@ -4,7 +4,7 @@ services:
     image: mysql:5.7
     volumes:
       - .:/tmp
-    command: mysqld --datadir=/tmp/mysqldata --slow_query_log=1 --log_output=TABLE --log-queries-not-using-indexes
+    command: mysqld --datadir=/tmp/mysqldata --slow_query_log=1 --log_output=TABLE --log-queries-not-using-indexes --event-scheduler=ON
     environment:
       MYSQL_ROOT_PASSWORD: toor
       MYSQL_DATABASE: kolide
@@ -15,7 +15,7 @@ services:
 
   mysql_test:
     image: mysql:5.7
-    command: mysqld --datadir=/tmpfs  --slow_query_log=1 --log_output=TABLE --log-queries-not-using-indexes
+    command: mysqld --datadir=/tmpfs  --slow_query_log=1 --log_output=TABLE --log-queries-not-using-indexes --event-scheduler=ON
     tmpfs: /tmpfs
     environment:
       MYSQL_ROOT_PASSWORD: toor

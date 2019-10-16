@@ -23,10 +23,10 @@ const authTypeOptions = [
 ];
 const baseClass = 'app-config-form';
 const formFields = [
-  'authentication_method', 'authentication_type', 'domain', 'enable_ssl_tls', 'enable_start_tls',
-  'kolide_server_url', 'org_logo_url', 'org_name', 'osquery_enroll_secret', 'password',
-  'port', 'sender_address', 'server', 'user_name', 'verify_ssl_certs', 'idp_name', 'entity_id',
-  'issuer_uri', 'idp_image_url', 'metadata', 'metadata_url', 'enable_sso', 'enable_smtp',
+  'authentication_method', 'authentication_type', 'domain', 'enable_ssl_tls', 'enable_start_tls', 'kolide_server_url',
+  'org_logo_url', 'org_name', 'osquery_enroll_secret', 'password', 'port', 'sender_address',
+  'server', 'user_name', 'verify_ssl_certs', 'idp_name', 'entity_id', 'issuer_uri', 'idp_image_url',
+  'metadata', 'metadata_url', 'enable_sso', 'enable_smtp', 'host_expiry_enabled', 'host_expiry_window',
 ];
 const Header = ({ showAdvancedOptions }) => {
   const CaratIcon = <Icon name={showAdvancedOptions ? 'downcarat' : 'upcarat'} />;
@@ -61,6 +61,8 @@ class AppConfigForm extends Component {
       idp_name: formFieldInterface.isRequired,
       enable_sso: formFieldInterface.isRequired,
       enable_smtp: formFieldInterface.isRequired,
+      host_expiry_enabled: formFieldInterface.isRequired,
+      host_expiry_window: formFieldInterface.isRequired,
     }).isRequired,
     handleSubmit: PropTypes.func.isRequired,
     smtpConfigured: PropTypes.bool.isRequired,
@@ -107,6 +109,8 @@ class AppConfigForm extends Component {
             <InputField {...fields.domain} label="Domain" />
             <Slider {...fields.verify_ssl_certs} label="Verify SSL Certs?" />
             <Slider {...fields.enable_start_tls} label="Enable STARTTLS?" />
+            <Slider {...fields.host_expiry_enabled} label="Host Expiry" />
+            <InputField {...fields.host_expiry_window} disabled={!fields.host_expiry_enabled.value} label="Host Expiry Window" />
           </div>
         </div>
 
@@ -114,6 +118,8 @@ class AppConfigForm extends Component {
           <p><strong>Domain</strong> - If you need to specify a HELO domain, you can do it here <em className="hint hint--brand">(Default: <strong>Blank</strong>)</em></p>
           <p><strong>Verify SSL Certs</strong> - Turn this off (not recommended) if you use a self-signed certificate <em className="hint hint--brand">(Default: <strong>On</strong>)</em></p>
           <p><strong>Enable STARTTLS</strong> - Detects if STARTTLS is enabled in your SMTP server and starts to use it. <em className="hint hint--brand">(Default: <strong>On</strong>)</em></p>
+          <p><strong>Host Expiry</strong> - When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days. <em className="hint hint--brand">(Default: <strong>Off</strong>)</em></p>
+          <p><strong>Host Expiry Window</strong> - If a host has not communicated with Fleet in the specified number of days, it will be removed.</p>
         </div>
       </div>
     );

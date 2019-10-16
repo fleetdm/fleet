@@ -28,6 +28,10 @@ export const configStub = {
     verify_ssl_certs: true,
     enable_start_tls: true,
   },
+  host_expiry_settings: {
+    host_expiry_enabled: false,
+    host_expiry_window: 0,
+  },
 };
 
 export const flatConfigStub = {
@@ -46,6 +50,8 @@ export const flatConfigStub = {
   authentication_method: 'authmethod_plain',
   verify_ssl_certs: true,
   enable_start_tls: true,
+  host_expiry_enabled: false,
+  host_expiry_window: 0,
 };
 
 export const hostStub = {

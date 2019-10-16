@@ -7,6 +7,8 @@ export default PropTypes.shape({
   domain: PropTypes.string,
   enable_ssl_tls: PropTypes.bool,
   enable_start_tls: PropTypes.bool,
+  host_expiry_enabled: PropTypes.bool,
+  host_expiry_window: PropTypes.number,
   kolide_server_url: PropTypes.string,
   org_logo_url: PropTypes.string,
   org_name: PropTypes.string,

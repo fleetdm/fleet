@@ -17,6 +17,8 @@ export default (formData) => {
     metadata_url: metadataURL,
     entity_id: entityID,
     idp_name: idpName,
+    host_expiry_enabled: hostExpiryEnabled,
+    host_expiry_window: hostExpiryWindow = 0,
   } = formData;
 
   if (enableSSO) {
@@ -60,6 +62,12 @@ export default (formData) => {
       if (!smtpPassword) {
         errors.password = 'SMTP Password must be present';
       }
+    }
+  }
+
+  if (hostExpiryEnabled) {
+    if (isNaN(hostExpiryWindow) || Number(hostExpiryWindow) <= 0) {
+      errors.host_expiry_window = 'Host Expiry Window must be a positive number';
     }
   }
 

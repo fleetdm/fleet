@@ -83,17 +83,24 @@ export const formatConfigDataForServer = (config) => {
   const ssoSettingsAttrs = pick(config, ['entity_id', 'issuer_uri', 'idp_image_url', 'metadata',
     'metadata_url', 'idp_name', 'enable_sso',
   ]);
+  const hostExpirySettingsAttrs = pick(config, ['host_expiry_enabled', 'host_expiry_window']);
 
   const orgInfo = size(orgInfoAttrs) && { org_info: orgInfoAttrs };
   const serverSettings = size(serverSettingsAttrs) && { server_settings: serverSettingsAttrs };
   const smtpSettings = size(smtpSettingsAttrs) && { smtp_settings: smtpSettingsAttrs };
   const ssoSettings = size(ssoSettingsAttrs) && { sso_settings: ssoSettingsAttrs };
+  const hostExpirySettings = size(hostExpirySettingsAttrs) && { host_expiry_settings: hostExpirySettingsAttrs };
+
+  if (hostExpirySettings) {
+    hostExpirySettings.host_expiry_settings.host_expiry_window = Number(hostExpirySettings.host_expiry_settings.host_expiry_window);
+  }
 
   return {
     ...orgInfo,
     ...serverSettings,
     ...smtpSettings,
     ...ssoSettings,
+    ...hostExpirySettings,
   };
 };
 

@@ -39,6 +39,8 @@ func testGetAppConfig(t *testing.T, r *testResource) {
 	require.NotNil(t, *configInfo.OrgInfo)
 	assert.Equal(t, "Kolide", *configInfo.OrgInfo.OrgName)
 	assert.Equal(t, "http://foo.bar/image.png", *configInfo.OrgInfo.OrgLogoURL)
+	assert.False(t, *configInfo.HostExpirySettings.HostExpiryEnabled)
+	assert.Equal(t, 0, *configInfo.HostExpirySettings.HostExpiryWindow)
 
 }
 
@@ -58,6 +60,8 @@ func testModifyAppConfig(t *testing.T, r *testResource) {
 		Metadata:               "metadataxxxxxx",
 		IssuerURI:              "http://issuer.idp.com",
 		EntityID:               "kolide",
+		HostExpiryEnabled:      true,
+		HostExpiryWindow:       42,
 	}
 	payload := appConfigPayloadFromAppConfig(config)
 	payload.SMTPTest = new(bool)
@@ -80,14 +84,17 @@ func testModifyAppConfig(t *testing.T, r *testResource) {
 	assert.Equal(t, config.OrgName, *respBody.OrgInfo.OrgName)
 	saved, err := r.ds.AppConfig()
 	require.Nil(t, err)
-	// verify email test succeeded
+	// verify email configuration succeeded
 	assert.True(t, saved.SMTPConfigured)
-	// verify that SSO stuff was saved
+	// verify that SSO settings were saved
 	assert.True(t, saved.EnableSSO)
 	assert.Equal(t, "idpname", saved.IDPName)
 	assert.Equal(t, "metadataxxxxxx", saved.Metadata)
 	assert.Equal(t, "http://issuer.idp.com", saved.IssuerURI)
 	assert.Equal(t, "kolide", saved.EntityID)
+	// verify that host expiry settings were saved
+	assert.True(t, saved.HostExpiryEnabled)
+	assert.Equal(t, 42, saved.HostExpiryWindow)
 
 }
 
@@ -134,6 +141,10 @@ func appConfigPayloadFromAppConfig(config *kolide.AppConfig) *kolide.AppConfigPa
 			MetadataURL: &config.MetadataURL,
 			IssuerURI:   &config.IssuerURI,
 			EntityID:    &config.EntityID,
+		},
+		HostExpirySettings: &kolide.HostExpirySettings{
+			HostExpiryEnabled: &config.HostExpiryEnabled,
+			HostExpiryWindow:  &config.HostExpiryWindow,
 		},
 	}
 }

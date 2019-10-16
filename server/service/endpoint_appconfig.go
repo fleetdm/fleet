@@ -14,11 +14,12 @@ type appConfigRequest struct {
 }
 
 type appConfigResponse struct {
-	OrgInfo        *kolide.OrgInfo             `json:"org_info,omitemtpy"`
-	ServerSettings *kolide.ServerSettings      `json:"server_settings,omitempty"`
-	SMTPSettings   *kolide.SMTPSettingsPayload `json:"smtp_settings,omitempty"`
-	SSOSettings    *kolide.SSOSettingsPayload  `json:"sso_settings,omitempty"`
-	Err            error                       `json:"error,omitempty"`
+	OrgInfo            *kolide.OrgInfo             `json:"org_info,omitemtpy"`
+	ServerSettings     *kolide.ServerSettings      `json:"server_settings,omitempty"`
+	SMTPSettings       *kolide.SMTPSettingsPayload `json:"smtp_settings,omitempty"`
+	SSOSettings        *kolide.SSOSettingsPayload  `json:"sso_settings,omitempty"`
+	HostExpirySettings *kolide.HostExpirySettings  `json:"host_expiry_settings,omitempty"`
+	Err                error                       `json:"error,omitempty"`
 }
 
 func (r appConfigResponse) error() error { return r.Err }
@@ -35,7 +36,8 @@ func makeGetAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 		}
 		var smtpSettings *kolide.SMTPSettingsPayload
 		var ssoSettings *kolide.SSOSettingsPayload
-		// only admin can see smtp settings
+		var hostExpirySettings *kolide.HostExpirySettings
+		// only admin can see smtp, sso, and host expiry settings
 		if vc.CanPerformAdminActions() {
 			smtpSettings = smtpSettingsFromAppConfig(config)
 			if smtpSettings.SMTPPassword != nil {
@@ -50,6 +52,10 @@ func makeGetAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 				IDPName:     &config.IDPName,
 				EnableSSO:   &config.EnableSSO,
 			}
+			hostExpirySettings = &kolide.HostExpirySettings{
+				HostExpiryEnabled: &config.HostExpiryEnabled,
+				HostExpiryWindow:  &config.HostExpiryWindow,
+			}
 		}
 		response := appConfigResponse{
 			OrgInfo: &kolide.OrgInfo{
@@ -60,8 +66,9 @@ func makeGetAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 				KolideServerURL: &config.KolideServerURL,
 				EnrollSecret:    &config.EnrollSecret,
 			},
-			SMTPSettings: smtpSettings,
-			SSOSettings:  ssoSettings,
+			SMTPSettings:       smtpSettings,
+			SSOSettings:        ssoSettings,
+			HostExpirySettings: hostExpirySettings,
 		}
 		return response, nil
 	}
@@ -92,6 +99,10 @@ func makeModifyAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 				MetadataURL: &config.MetadataURL,
 				IDPName:     &config.IDPName,
 				EnableSSO:   &config.EnableSSO,
+			},
+			HostExpirySettings: &kolide.HostExpirySettings{
+				HostExpiryEnabled: &config.HostExpiryEnabled,
+				HostExpiryWindow:  &config.HostExpiryWindow,
 			},
 		}
 		if response.SMTPSettings.SMTPPassword != nil {

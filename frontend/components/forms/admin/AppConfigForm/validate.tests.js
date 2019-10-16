@@ -13,6 +13,8 @@ describe('AppConfigForm - validations', () => {
     port: '1025',
     user_name: 'gnardog',
     password: 'p@ssw0rd',
+    host_expiry_enabled: true,
+    host_expiry_window: '42',
   };
 
   it('returns a valid object when the form data is valid', () => {
@@ -172,6 +174,32 @@ describe('AppConfigForm - validations', () => {
       };
 
       expect(validate(formData)).toEqual({ valid: true, errors: {} });
+    });
+  });
+
+  describe('host expiry settings', () => {
+    it('does not validate missing expiry window', () => {
+      const formData = {
+        ...validFormData,
+      };
+      delete formData.host_expiry_window;
+      expect(validate(formData)).toEqual({ valid: false, errors: { host_expiry_window: 'Host Expiry Window must be a positive number' } });
+    });
+
+    it('does not validate NaN expiry window', () => {
+      const formData = {
+        ...validFormData,
+        host_expiry_window: 'abcd',
+      };
+      expect(validate(formData)).toEqual({ valid: false, errors: { host_expiry_window: 'Host Expiry Window must be a positive number' } });
+    });
+
+    it('does not validate negative expiry window', () => {
+      const formData = {
+        ...validFormData,
+        host_expiry_window: '-21',
+      };
+      expect(validate(formData)).toEqual({ valid: false, errors: { host_expiry_window: 'Host Expiry Window must be a positive number' } });
     });
   });
 });

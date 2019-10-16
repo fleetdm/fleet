@@ -135,6 +135,11 @@ type AppConfig struct {
 	FIMInterval int `db:"fim_interval"`
 	// FIMFileAccess defines the FIMSections which will be monitored for file access events as a JSON formatted array
 	FIMFileAccesses string `db:"fim_file_accesses"`
+
+	// HostExpiryEnabled defines whether automatic host cleanup is enabled.
+	HostExpiryEnabled bool `db:"host_expiry_enabled"`
+	// HostExpiryWindow defines a number in days after which a host will be removed if it has not communicated with Fleet.
+	HostExpiryWindow int `db:"host_expiry_window"`
 }
 
 // ModifyAppConfigRequest contains application configuration information
@@ -205,9 +210,10 @@ type SMTPSettingsPayload struct {
 // AppConfigPayload contains request/response format of
 // the AppConfig endpoints.
 type AppConfigPayload struct {
-	OrgInfo        *OrgInfo             `json:"org_info"`
-	ServerSettings *ServerSettings      `json:"server_settings"`
-	SMTPSettings   *SMTPSettingsPayload `json:"smtp_settings"`
+	OrgInfo            *OrgInfo             `json:"org_info"`
+	ServerSettings     *ServerSettings      `json:"server_settings"`
+	SMTPSettings       *SMTPSettingsPayload `json:"smtp_settings"`
+	HostExpirySettings *HostExpirySettings  `json:"host_expiry_settings"`
 	// SMTPTest is a flag that if set will cause the server to test email configuration
 	SMTPTest *bool `json:"smtp_test,omitempty"`
 	// SSOSettings single sign settings
@@ -224,6 +230,12 @@ type OrgInfo struct {
 type ServerSettings struct {
 	KolideServerURL *string `json:"kolide_server_url,omitempty"`
 	EnrollSecret    *string `json:"osquery_enroll_secret,omitempty"`
+}
+
+// HostExpirySettings contains settings pertaining to automatic host expiry.
+type HostExpirySettings struct {
+	HostExpiryEnabled *bool `json:"host_expiry_enabled,omitempty"`
+	HostExpiryWindow  *int  `json:"host_expiry_window,omitempty"`
 }
 
 type OrderDirection int

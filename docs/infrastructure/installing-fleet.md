@@ -55,6 +55,8 @@ Fleet uses MySQL extensively as it's main database. Many cloud providers (such a
 
 Fleet requires at least MySQL version 5.7.
 
+For host expiry configuration, the [event scheduler](https://dev.mysql.com/doc/refman/5.7/en/events-overview.html) must be enabled. This can be enabled via the command line, configuration file, or a user with the required privileges.
+
 #### Redis
 
 Fleet uses Redis to ingest and queue the results of distributed queries, cache data, etc. Many cloud providers (such as [AWS](https://aws.amazon.com/elasticache/) and [GCP](https://console.cloud.google.com/launcher/details/click-to-deploy-images/redis)) host reliable Redis services which you may consider for this purpose. A well supported Redis [Docker container](https://hub.docker.com/_/redis/) also exists if you would rather run Redis in a container. For more information on how to configure the `fleet` binary to use the correct Redis instance, see the [Configuring The Fleet Binary](./configuring-the-fleet-binary.md) document.

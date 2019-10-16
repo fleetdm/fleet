@@ -145,6 +145,15 @@ func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppC
 		}
 	}
 
+	if p.HostExpirySettings != nil {
+		if p.HostExpirySettings.HostExpiryEnabled != nil {
+			config.HostExpiryEnabled = *p.HostExpirySettings.HostExpiryEnabled
+		}
+		if p.HostExpirySettings.HostExpiryWindow != nil {
+			config.HostExpiryWindow = *p.HostExpirySettings.HostExpiryWindow
+		}
+	}
+
 	populateSMTP := func(p *kolide.SMTPSettingsPayload) {
 		if p.SMTPAuthenticationMethod != nil {
 			switch *p.SMTPAuthenticationMethod {
