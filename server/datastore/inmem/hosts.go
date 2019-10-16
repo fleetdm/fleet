@@ -216,7 +216,7 @@ func (d *Datastore) SearchHosts(query string, omit ...uint) ([]*kolide.Host, err
 			break
 		}
 
-		if strings.Contains(h.HostName, query) && !omitLookup[h.ID] {
+		if (strings.Contains(h.HostName, query) || strings.Contains(h.UUID, query)) && !omitLookup[h.ID] {
 			results = append(results, h)
 			continue
 		}

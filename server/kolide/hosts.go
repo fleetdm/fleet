@@ -80,7 +80,7 @@ type Host struct {
 	SeenTime         time.Time     `json:"seen_time" db:"seen_time"`                  // Time that the host was last "seen"
 	NodeKey          string        `json:"-" db:"node_key"`
 	HostName         string        `json:"hostname" db:"host_name"` // there is a fulltext index on this field
-	UUID             string        `json:"uuid"`
+	UUID             string        `json:"uuid" db:"uuid"`          // there is a fulltext index on this field
 	Platform         string        `json:"platform"`
 	OsqueryVersion   string        `json:"osquery_version" db:"osquery_version"`
 	OSVersion        string        `json:"os_version" db:"os_version"`
