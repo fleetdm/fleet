@@ -1,7 +1,7 @@
 import expect, { restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 
-import AppSettingsPage from 'pages/Admin/AppSettingsPage';
+import AppSettingsPage from 'pages/admin/AppSettingsPage';
 import { flatConfigStub } from 'test/stubs';
 import testHelpers from 'test/helpers';
 

@@ -3,8 +3,8 @@ import { browserHistory, IndexRedirect, IndexRoute, Route, Router } from 'react-
 import { Provider } from 'react-redux';
 import { syncHistoryWithStore } from 'react-router-redux';
 
-import AdminAppSettingsPage from 'pages/Admin/AppSettingsPage';
-import AdminUserManagementPage from 'pages/Admin/UserManagementPage';
+import AdminAppSettingsPage from 'pages/admin/AppSettingsPage';
+import AdminUserManagementPage from 'pages/admin/UserManagementPage';
 import AllPacksPage from 'pages/packs/AllPacksPage';
 import App from 'components/App';
 import AuthenticatedAdminRoutes from 'components/AuthenticatedAdminRoutes';
