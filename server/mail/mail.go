@@ -179,7 +179,12 @@ func (m mailService) sendMail(e kolide.Email, msg []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "getting client data")
 	}
+
 	_, err = writer.Write(msg)
+	if err != nil {
+		return errors.Wrap(err, "failed to write")
+	}
+
 	if err = writer.Close(); err != nil {
 		return errors.Wrap(err, "failed to close writer")
 	}
