@@ -1,3 +1,13 @@
+## Kolide Fleet 2.4.0 (Nov 12, 2019)
+
+* Add `--server_url_prefix` flag to configure a URL prefix to prepend on all Fleet URLs. This can be useful to run fleet behind a reverse-proxy on a hostname shared with other services.
+
+* Add option to automatically expire hosts that have not checked in within a certain number of days. Configure this in the "Advanced Options" of "App Settings" in the browser UI.
+
+* Add ability to search for hosts by UUID when targeting queries.
+
+* Allow SAML IdP name to be as short as 4 characters.
+
 ## Kolide Fleet 2.3.0 (Aug 14, 2019)
 
 ### This is a security release.
