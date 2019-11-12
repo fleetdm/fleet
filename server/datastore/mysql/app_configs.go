@@ -42,13 +42,29 @@ func (d *Datastore) isEventSchedulerEnabled() (bool, error) {
 }
 
 func (d *Datastore) ManageHostExpiryEvent(hostExpiryEnabled bool, hostExpiryWindow int) error {
-	if !hostExpiryEnabled {
-		_, err := d.db.Exec("DROP EVENT IF EXISTS host_expiry")
-		return err
+	var err error
+	hostExpiryConfig := struct {
+		Window int `db:"host_expiry_window"`
+	}{}
+	if err = d.db.Get(&hostExpiryConfig, "SELECT host_expiry_window from app_configs LIMIT 1"); err != nil {
+		return errors.Wrap(err, "get expiry window setting")
 	}
 
-	_, err := d.db.Exec(fmt.Sprintf("CREATE EVENT IF NOT EXISTS host_expiry ON SCHEDULE EVERY 1 HOUR ON COMPLETION PRESERVE DO DELETE FROM hosts WHERE seen_time < DATE_SUB(NOW(), INTERVAL %d DAY)", hostExpiryWindow))
-	return err
+	shouldUpdateWindow := hostExpiryEnabled && hostExpiryConfig.Window != hostExpiryWindow
+
+	if !hostExpiryEnabled || shouldUpdateWindow {
+		if _, err := d.db.Exec("DROP EVENT IF EXISTS host_expiry"); err != nil {
+			return errors.Wrap(err, "drop existing host_expiry event")
+		}
+	}
+
+	if shouldUpdateWindow {
+		sql := fmt.Sprintf("CREATE EVENT IF NOT EXISTS host_expiry ON SCHEDULE EVERY 1 HOUR ON COMPLETION PRESERVE DO DELETE FROM hosts WHERE seen_time < DATE_SUB(NOW(), INTERVAL %d DAY)", hostExpiryWindow)
+		if _, err := d.db.Exec(sql); err != nil {
+			return errors.Wrap(err, "create new host_expiry event")
+		}
+	}
+	return nil
 }
 
 func (d *Datastore) SaveAppConfig(info *kolide.AppConfig) error {
