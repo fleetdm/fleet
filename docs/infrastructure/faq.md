@@ -25,7 +25,8 @@ Expecting results, but not seeing anything in the logs?
 - Try scheduling a query that always returns results (eg. `SELECT * FROM time`).
 - Check whether the query is scheduled in differential mode. If so, new results will only be logged when the result set changes.
 - Ensure that the query is scheduled to run on the intended platforms, and that the tables queried are supported by those platforms.
-- Look at the status logs provided by osquery. These are available on the filesystem of the Fleet server at the path configurable by [`--osquery_status_log_file`](./configuring-the-fleet-binary.md#osquery_status_log_file). This defaults to `/tmp/osquery_status`.
+- Use live query to `SELECT * FROM osquery_schedule` to check whether the query has been scheduled on the host.
+- Look at the status logs provided by osquery. In a standard configuration these are available on the filesystem of the Fleet server at the path configurable by [`--filesystem_status_log_file`](./configuring-the-fleet-binary.md#filesystem_status_log_file). This defaults to `/tmp/osquery_status`. The host will output a status log each time it executes the query.
 
 ## Why aren’t my live queries being logged?
 
