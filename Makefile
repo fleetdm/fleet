@@ -188,10 +188,12 @@ endif
 
 docker-build-release: xp-fleet xp-fleetctl
 	docker build -t "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" .
+	docker tag "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" kolide/fleet:${VERSION}
 	docker tag "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" kolide/fleet:latest
 
 docker-push-release: docker-build-release
 	docker push "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
+	docker push kolide/fleet:${VERSION}
 	docker push kolide/fleet:latest
 
 docker-build-circle:
