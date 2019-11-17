@@ -42,3 +42,7 @@ make test
 make
 ./build/launcher --help
 ```
+
+## Releasing Fleet
+
+The release process for Fleet is documented in [release.md](./release.md).
