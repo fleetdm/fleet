@@ -21,10 +21,9 @@ Using Docker enables us to rapidly spin up and down pre-configured `osqueryd` in
 
 Docker and docker-compose are the only dependencies. The necessary container images will be pulled from Docker Cloud on first run.
 
-Set `KOLIDE_OSQUERY_VERSION` to either `1.8.2` or `latest` (currently 2.1.2) to indicate which version of osquery that you want to run on your
-containers.
+Set the environment variable `ENROLL_SECRET` to the value of your Fleet enroll secret (available on the manage hosts page, or via `fleetctl get enroll-secret`).
 
-You will also need to set the environment variable `ENROLL_SECRET` to the value of your Fleet enroll secret (available on the manage hosts page, or via `fleetctl get enroll-secret`).
+(Optionally) Set `KOLIDE_OSQUERY_VERSION` if you want to run an osquery container besides `latest`.
 
 ### Running osqueryd
 
