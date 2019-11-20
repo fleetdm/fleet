@@ -190,7 +190,7 @@ func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppC
 			config.SMTPEnableTLS = *p.SMTPEnableTLS
 		}
 
-		if p.SMTPPassword != nil {
+		if p.SMTPPassword != nil && *p.SMTPPassword != "********" {
 			config.SMTPPassword = *p.SMTPPassword
 		}
 

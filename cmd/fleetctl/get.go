@@ -419,6 +419,42 @@ func getEnrollSecretCommand() cli.Command {
 	}
 }
 
+func getAppConfigCommand() cli.Command {
+	return cli.Command{
+		Name:  "config",
+		Usage: "Retrieve the Fleet configuration",
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			config, err := fleet.GetAppConfig()
+			if err != nil {
+				return err
+			}
+
+			spec := specGeneric{
+				Kind:    "config",
+				Version: kolide.ApiVersion,
+				Spec:    config,
+			}
+
+			b, err := yaml.Marshal(spec)
+			if err != nil {
+				return err
+			}
+
+			fmt.Print(string(b))
+			return nil
+		},
+	}
+}
+
 func getHostsCommand() cli.Command {
 	return cli.Command{
 		Name:    "hosts",

@@ -19,10 +19,11 @@ type specMetadata struct {
 }
 
 type specGroup struct {
-	Queries []*kolide.QuerySpec
-	Packs   []*kolide.PackSpec
-	Labels  []*kolide.LabelSpec
-	Options *kolide.OptionsSpec
+	Queries   []*kolide.QuerySpec
+	Packs     []*kolide.PackSpec
+	Labels    []*kolide.LabelSpec
+	Options   *kolide.OptionsSpec
+	AppConfig *kolide.AppConfigPayload
 }
 
 func specGroupFromBytes(b []byte) (*specGroup, error) {
@@ -78,6 +79,17 @@ func specGroupFromBytes(b []byte) (*specGroup, error) {
 				return nil, errors.Wrap(err, "unmarshaling option spec")
 			}
 			specs.Options = optionSpec
+
+		case "config":
+			if specs.AppConfig != nil {
+				return nil, errors.New("config defined twice in the same file")
+			}
+
+			var appConfigSpec *kolide.AppConfigPayload
+			if err := yaml.Unmarshal(s.Spec, &appConfigSpec); err != nil {
+				return nil, errors.Wrap(err, "unmarshaling config spec")
+			}
+			specs.AppConfig = appConfigSpec
 
 		default:
 			return nil, errors.Errorf("unknown kind %q", s.Kind)
@@ -159,6 +171,13 @@ func applyCommand() cli.Command {
 					return errors.Wrap(err, "applying options")
 				}
 				fmt.Printf("[+] applied options\n")
+			}
+
+			if specs.AppConfig != nil {
+				if err := fleet.ApplyAppConfig(specs.AppConfig); err != nil {
+					return errors.Wrap(err, "applying fleet config")
+				}
+				fmt.Printf("[+] applied fleet config\n")
 
 			}
 

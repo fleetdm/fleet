@@ -203,3 +203,54 @@ spec:
           interval:
             3600: "SELECT total_seconds AS uptime FROM uptime"
 ```
+## Fleet Configuration Options
+The following file describes configuration options applied to the Fleet instance.
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  host_expiry_settings:
+    host_expiry_enabled: true
+    host_expiry_window: 10
+  org_info:
+    org_logo_url: "https://example.org/logo.png"
+    org_name: Example Org
+  server_settings:
+    kolide_server_url: https://fleet.example.org:8080
+    osquery_enroll_secret: supersekretsecret
+  smtp_settings:
+    authentication_method: authmethod_plain
+    authentication_type: authtype_username_password
+    domain: example.org
+    enable_smtp: true
+    enable_ssl_tls: true
+    enable_start_tls: true
+    password: supersekretsmtppass
+    port: 587
+    sender_address: fleet@example.org
+    server: mail.example.org
+    user_name: test_user
+    verify_ssl_certs: true
+  sso_settings:
+    enable_sso: false
+    entity_id: 1234567890
+    idp_image_url: https://idp.example.org/logo.png
+    idp_name: IDP Vendor 1
+    issuer_uri: https://idp.example.org/SAML2/SSO/POST
+    metadata: "<md:EntityDescriptor entityID="https://idp.example.org/SAML2"> ... /md:EntityDescriptor>"
+    metadata_url: https://idp.example.org/idp-meta.xml
+```
+### SMTP Authentication
+
+**Warning:** Be careful not to store your SMTP credentials in source control. It is recommended to set the password through the web UI or `fleetctl` and then remove the line from the checked in version. Fleet will leave the password as-is if the field is missing from the applied configuration.
+
+The following options are available when configuring SMTP authentication:
+
+- `smtp_settings.authentication_type`
+  - `authtype_none` - use this if your SMTP server is open
+  - `authtype_username_password` - use this if your SMTP server requires authentication with a username and password
+- `smtp_settings.authentication_method` - required with authentication type `authtype_username_password`
+  - `authmethod_cram_md5`
+  - `authmethod_login`
+  - `authmethod_plain`

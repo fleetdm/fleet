@@ -38,6 +38,7 @@ func main() {
 				getOptionsCommand(),
 				getHostsCommand(),
 				getEnrollSecretCommand(),
+				getAppConfigCommand(),
 			},
 		},
 		cli.Command{
