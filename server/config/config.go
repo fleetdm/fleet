@@ -17,6 +17,7 @@ const (
 
 // MysqlConfig defines configs related to MySQL
 type MysqlConfig struct {
+	Protocol      string
 	Address       string
 	Username      string
 	Password      string
@@ -135,6 +136,8 @@ type KolideConfig struct {
 // filled into the KolideConfig struct
 func (man Manager) addConfigs() {
 	// MySQL
+	man.addConfigString("mysql.protocol", "tcp",
+		"MySQL server communication protocol (tcp,unix,...)")
 	man.addConfigString("mysql.address", "localhost:3306",
 		"MySQL server address (host:port)")
 	man.addConfigString("mysql.username", "kolide",
@@ -253,6 +256,7 @@ func (man Manager) LoadConfig() KolideConfig {
 
 	return KolideConfig{
 		Mysql: MysqlConfig{
+			Protocol:      man.getConfigString("mysql.protocol"),
 			Address:       man.getConfigString("mysql.address"),
 			Username:      man.getConfigString("mysql.username"),
 			Password:      man.getConfigString("mysql.password"),
