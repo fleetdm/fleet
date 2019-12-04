@@ -77,7 +77,10 @@ func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 			return nil, errors.Wrap(err, "adding label target")
 		}
 	}
-
+	campaign.Metrics, err = svc.ds.CountHostsInTargets(hosts, labels, time.Now())
+	if err != nil {
+		return nil, errors.Wrap(err, "counting hosts")
+	}
 	return campaign, nil
 }
 

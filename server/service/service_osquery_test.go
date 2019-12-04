@@ -848,6 +848,9 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 		return target, nil
 	}
 
+	ds.CountHostsInTargetsFunc = func(hostIDs, labelIDs []uint, now time.Time) (kolide.TargetMetrics, error) {
+		return kolide.TargetMetrics{}, nil
+	}
 	viewerCtx := viewer.NewContext(context.Background(), viewer.Viewer{
 		User: &kolide.User{
 			ID: 0,
@@ -859,12 +862,12 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 	assert.Equal(t, gotQuery.ID, gotCampaign.QueryID)
 	assert.Equal(t, []*kolide.DistributedQueryCampaignTarget{
 		&kolide.DistributedQueryCampaignTarget{
-			Type:                       kolide.TargetHost,
+			Type: kolide.TargetHost,
 			DistributedQueryCampaignID: campaign.ID,
 			TargetID:                   2,
 		},
 		&kolide.DistributedQueryCampaignTarget{
-			Type:                       kolide.TargetLabel,
+			Type: kolide.TargetLabel,
 			DistributedQueryCampaignID: campaign.ID,
 			TargetID:                   1,
 		},

@@ -4,19 +4,27 @@ import (
 	"context"
 	"time"
 
+	"github.com/kolide/fleet/server/contexts/viewer"
 	"github.com/kolide/fleet/server/kolide"
 )
 
 func (mw loggingMiddleware) NewPack(ctx context.Context, p kolide.PackPayload) (*kolide.Pack, error) {
 	var (
-		pack *kolide.Pack
-		err  error
+		pack         *kolide.Pack
+		loggedInUser = "unauthenticated"
+		err          error
 	)
+
+	if vc, ok := viewer.FromContext(ctx); ok {
+
+		loggedInUser = vc.Username()
+	}
 
 	defer func(begin time.Time) {
 		_ = mw.logger.Log(
 			"method", "NewPack",
 			"err", err,
+			"user", loggedInUser,
 			"took", time.Since(begin),
 		)
 	}(time.Now())
@@ -27,14 +35,21 @@ func (mw loggingMiddleware) NewPack(ctx context.Context, p kolide.PackPayload) (
 
 func (mw loggingMiddleware) ModifyPack(ctx context.Context, id uint, p kolide.PackPayload) (*kolide.Pack, error) {
 	var (
-		pack *kolide.Pack
-		err  error
+		pack         *kolide.Pack
+		loggedInUser = "unauthenticated"
+		err          error
 	)
+
+	if vc, ok := viewer.FromContext(ctx); ok {
+
+		loggedInUser = vc.Username()
+	}
 
 	defer func(begin time.Time) {
 		_ = mw.logger.Log(
 			"method", "ModifyPack",
 			"err", err,
+			"user", loggedInUser,
 			"took", time.Since(begin),
 		)
 	}(time.Now())
@@ -81,17 +96,23 @@ func (mw loggingMiddleware) GetPack(ctx context.Context, id uint) (*kolide.Pack,
 
 func (mw loggingMiddleware) DeletePack(ctx context.Context, name string) error {
 	var (
-		err error
+		loggedInUser = "unauthenticated"
+		err          error
 	)
+
+	if vc, ok := viewer.FromContext(ctx); ok {
+
+		loggedInUser = vc.Username()
+	}
 
 	defer func(begin time.Time) {
 		_ = mw.logger.Log(
 			"method", "DeletePack",
 			"err", err,
+			"user", loggedInUser,
 			"took", time.Since(begin),
 		)
 	}(time.Now())
-
 	err = mw.Service.DeletePack(ctx, name)
 	return err
 }
@@ -243,10 +264,20 @@ func (mw loggingMiddleware) GetPackSpecs(ctx context.Context) (specs []*kolide.P
 }
 
 func (mw loggingMiddleware) ApplyPackSpecs(ctx context.Context, specs []*kolide.PackSpec) (err error) {
+	var (
+		loggedInUser = "unauthenticated"
+	)
+
+	if vc, ok := viewer.FromContext(ctx); ok {
+
+		loggedInUser = vc.Username()
+	}
+
 	defer func(begin time.Time) {
-		mw.logger.Log(
+		_ = mw.logger.Log(
 			"method", "ApplyPackSpecs",
 			"err", err,
+			"user", loggedInUser,
 			"took", time.Since(begin),
 		)
 	}(time.Now())

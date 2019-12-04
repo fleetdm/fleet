@@ -74,6 +74,7 @@ const (
 type DistributedQueryCampaign struct {
 	UpdateCreateTimestamps
 	DeleteFields
+	Metrics TargetMetrics
 	ID      uint                   `json:"id"`
 	QueryID uint                   `json:"query_id" db:"query_id"`
 	Status  DistributedQueryStatus `json:"status"`

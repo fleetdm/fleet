@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/kolide/fleet/server/contexts/viewer"
 	"github.com/kolide/fleet/server/kolide"
 )
 
@@ -20,10 +21,19 @@ func (mw loggingMiddleware) GetOptionsSpec(ctx context.Context) (spec *kolide.Op
 }
 
 func (mw loggingMiddleware) ApplyOptionsSpec(ctx context.Context, spec *kolide.OptionsSpec) (err error) {
+	var (
+		loggedInUser = "unauthenticated"
+	)
+
+	if vc, ok := viewer.FromContext(ctx); ok {
+
+		loggedInUser = vc.Username()
+	}
 	defer func(begin time.Time) {
 		mw.logger.Log(
 			"method", "ApplyOptionsSpec",
 			"err", err,
+			"user", loggedInUser,
 			"took", time.Since(begin),
 		)
 	}(time.Now())

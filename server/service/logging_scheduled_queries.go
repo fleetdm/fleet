@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/kolide/fleet/server/contexts/viewer"
 	"github.com/kolide/fleet/server/kolide"
 )
 
@@ -43,16 +44,24 @@ func (mw loggingMiddleware) GetScheduledQuery(ctx context.Context, id uint) (*ko
 	return query, err
 }
 
+//these ones too
 func (mw loggingMiddleware) ScheduleQuery(ctx context.Context, sq *kolide.ScheduledQuery) (*kolide.ScheduledQuery, error) {
 	var (
-		query *kolide.ScheduledQuery
-		err   error
+		query        *kolide.ScheduledQuery
+		err          error
+		loggedInUser = "unauthenticated"
 	)
+
+	if vc, ok := viewer.FromContext(ctx); ok {
+
+		loggedInUser = vc.Username()
+	}
 
 	defer func(begin time.Time) {
 		_ = mw.logger.Log(
 			"method", "ScheduleQuery",
 			"err", err,
+			"user", loggedInUser,
 			"took", time.Since(begin),
 		)
 	}(time.Now())
@@ -63,13 +72,20 @@ func (mw loggingMiddleware) ScheduleQuery(ctx context.Context, sq *kolide.Schedu
 
 func (mw loggingMiddleware) DeleteScheduledQuery(ctx context.Context, id uint) error {
 	var (
-		err error
+		err          error
+		loggedInUser = "unauthenticated"
 	)
+
+	if vc, ok := viewer.FromContext(ctx); ok {
+
+		loggedInUser = vc.Username()
+	}
 
 	defer func(begin time.Time) {
 		_ = mw.logger.Log(
 			"method", "DeleteScheduledQuery",
 			"err", err,
+			"user", loggedInUser,
 			"took", time.Since(begin),
 		)
 	}(time.Now())
@@ -80,14 +96,21 @@ func (mw loggingMiddleware) DeleteScheduledQuery(ctx context.Context, id uint) e
 
 func (mw loggingMiddleware) ModifyScheduledQuery(ctx context.Context, id uint, p kolide.ScheduledQueryPayload) (*kolide.ScheduledQuery, error) {
 	var (
-		query *kolide.ScheduledQuery
-		err   error
+		query        *kolide.ScheduledQuery
+		err          error
+		loggedInUser = "unauthenticated"
 	)
+
+	if vc, ok := viewer.FromContext(ctx); ok {
+
+		loggedInUser = vc.Username()
+	}
 
 	defer func(begin time.Time) {
 		_ = mw.logger.Log(
 			"method", "ModifyScheduledQuery",
 			"err", err,
+			"user", loggedInUser,
 			"took", time.Since(begin),
 		)
 	}(time.Now())

@@ -21,7 +21,7 @@ var _ kolide.Datastore = (*Store)(nil)
 type Store struct {
 	kolide.PasswordResetStore
 	kolide.YARAStore
-	kolide.TargetStore
+	TargetStore
 	SessionStore
 	CampaignStore
 	ScheduledQueryStore

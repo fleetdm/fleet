@@ -4,19 +4,27 @@ import (
 	"context"
 	"time"
 
+	"github.com/kolide/fleet/server/contexts/viewer"
 	"github.com/kolide/fleet/server/kolide"
 )
 
 func (mw loggingMiddleware) NewLabel(ctx context.Context, p kolide.LabelPayload) (*kolide.Label, error) {
 	var (
-		label *kolide.Label
-		err   error
+		label        *kolide.Label
+		err          error
+		loggedInUser = "unauthenticated"
 	)
+
+	if vc, ok := viewer.FromContext(ctx); ok {
+
+		loggedInUser = vc.Username()
+	}
 
 	defer func(begin time.Time) {
 		_ = mw.logger.Log(
 			"method", "NewLabel",
 			"err", err,
+			"user", loggedInUser,
 			"took", time.Since(begin),
 		)
 	}(time.Now())
@@ -27,14 +35,21 @@ func (mw loggingMiddleware) NewLabel(ctx context.Context, p kolide.LabelPayload)
 
 func (mw loggingMiddleware) ModifyLabel(ctx context.Context, id uint, p kolide.ModifyLabelPayload) (*kolide.Label, error) {
 	var (
-		label *kolide.Label
-		err   error
+		label        *kolide.Label
+		err          error
+		loggedInUser = "unauthenticated"
 	)
+
+	if vc, ok := viewer.FromContext(ctx); ok {
+
+		loggedInUser = vc.Username()
+	}
 
 	defer func(begin time.Time) {
 		mw.logger.Log(
 			"method", "ModifyLabel",
 			"err", err,
+			"user", loggedInUser,
 			"took", time.Since(begin),
 		)
 	}(time.Now())
@@ -81,13 +96,20 @@ func (mw loggingMiddleware) GetLabel(ctx context.Context, id uint) (*kolide.Labe
 
 func (mw loggingMiddleware) DeleteLabel(ctx context.Context, name string) error {
 	var (
-		err error
+		err          error
+		loggedInUser = "unauthenticated"
 	)
+
+	if vc, ok := viewer.FromContext(ctx); ok {
+
+		loggedInUser = vc.Username()
+	}
 
 	defer func(begin time.Time) {
 		_ = mw.logger.Log(
 			"method", "DeleteLabel",
 			"err", err,
+			"user", loggedInUser,
 			"took", time.Since(begin),
 		)
 	}(time.Now())
@@ -121,10 +143,20 @@ func (mw loggingMiddleware) GetLabelSpecs(ctx context.Context) (specs []*kolide.
 }
 
 func (mw loggingMiddleware) ApplyLabelSpecs(ctx context.Context, specs []*kolide.LabelSpec) (err error) {
+	var (
+		loggedInUser = "unauthenticated"
+	)
+
+	if vc, ok := viewer.FromContext(ctx); ok {
+
+		loggedInUser = vc.Username()
+	}
+
 	defer func(begin time.Time) {
 		mw.logger.Log(
 			"method", "ApplyLabelSpecs",
 			"err", err,
+			"user", loggedInUser,
 			"took", time.Since(begin),
 		)
 	}(time.Now())
