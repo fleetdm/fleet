@@ -3,7 +3,7 @@ package kolide
 import (
 	"context"
 
-	"github.com/guregu/null"
+	"gopkg.in/guregu/null.v3"
 )
 
 type ScheduledQueryStore interface {

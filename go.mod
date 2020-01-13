@@ -21,7 +21,6 @@ require (
 	github.com/google/uuid v0.0.0-20161128191214-064e2069ce9c // indirect
 	github.com/gorilla/mux v1.6.2
 	github.com/gorilla/websocket v1.2.0
-	github.com/guregu/null v3.4.0+incompatible
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/hashicorp/hcl v0.0.0-20180404174102-ef8a98b0bbce // indirect
 	github.com/igm/sockjs-go v0.0.0-20171030210102-c8a8c6429d10
@@ -64,6 +63,7 @@ require (
 	google.golang.org/api v0.3.2 // indirect
 	google.golang.org/grpc v1.19.0
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
+	gopkg.in/guregu/null.v3 v3.4.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3
 	gopkg.in/yaml.v2 v2.2.2
 )
