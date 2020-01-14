@@ -44,7 +44,10 @@ func NewValidator(metadata string, opts ...func(v *validator)) (Validator, error
 	}
 	var idpCertStore dsig.MemoryX509CertificateStore
 	for _, key := range v.metadata.IDPSSODescriptor.KeyDescriptors {
-		certData, err := base64.StdEncoding.DecodeString(strings.TrimSpace(key.KeyInfo.X509Data.X509Certificate.Data))
+		if len(key.KeyInfo.X509Data.X509Certificates) == 0 {
+			return nil, errors.New("missing x509 cert")
+		}
+		certData, err := base64.StdEncoding.DecodeString(strings.TrimSpace(key.KeyInfo.X509Data.X509Certificates[0].Data))
 		if err != nil {
 			return nil, errors.Wrap(err, "decoding idp x509 cert")
 		}
