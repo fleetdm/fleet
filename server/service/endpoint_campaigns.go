@@ -39,9 +39,9 @@ func makeCreateDistributedQueryCampaignEndpoint(svc kolide.Service) endpoint.End
 		req := request.(createDistributedQueryCampaignRequest)
 		campaign, err := svc.NewDistributedQueryCampaign(ctx, req.Query, req.Selected.Hosts, req.Selected.Labels)
 		if err != nil {
-			return createQueryResponse{Err: err}, nil
+			return createDistributedQueryCampaignResponse{Err: err}, nil
 		}
-		return createDistributedQueryCampaignResponse{campaign, nil}, nil
+		return createDistributedQueryCampaignResponse{Campaign: campaign}, nil
 	}
 }
 
@@ -64,9 +64,9 @@ func makeCreateDistributedQueryCampaignByNamesEndpoint(svc kolide.Service) endpo
 		req := request.(createDistributedQueryCampaignByNamesRequest)
 		campaign, err := svc.NewDistributedQueryCampaignByNames(ctx, req.Query, req.Selected.Hosts, req.Selected.Labels)
 		if err != nil {
-			return createQueryResponse{Err: err}, nil
+			return createDistributedQueryCampaignResponse{Err: err}, nil
 		}
-		return createDistributedQueryCampaignResponse{campaign, nil}, nil
+		return createDistributedQueryCampaignResponse{Campaign: campaign}, nil
 	}
 }
 

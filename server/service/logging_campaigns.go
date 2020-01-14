@@ -20,12 +20,16 @@ func (mw loggingMiddleware) NewDistributedQueryCampaign(ctx context.Context, que
 		loggedInUser = vc.Username()
 	}
 	defer func(begin time.Time) {
+		var numHosts uint = 0
+		if campaign != nil {
+			numHosts = campaign.Metrics.TotalHosts
+		}
 		_ = mw.logger.Log(
 			"method", "NewDistributedQueryCampaign",
 			"err", err,
 			"user", loggedInUser,
 			"sql", queryString,
-			"numHosts", campaign.Metrics.TotalHosts,
+			"numHosts", numHosts,
 			"took", time.Since(begin),
 		)
 	}(time.Now())
@@ -44,11 +48,15 @@ func (mw loggingMiddleware) NewDistributedQueryCampaignByNames(ctx context.Conte
 		loggedInUser = vc.Username()
 	}
 	defer func(begin time.Time) {
+		var numHosts uint = 0
+		if campaign != nil {
+			numHosts = campaign.Metrics.TotalHosts
+		}
 		_ = mw.logger.Log(
 			"method", "NewDistributedQueryCampaignByNames",
 			"err", err,
 			"user", loggedInUser,
-			"numHosts", campaign.Metrics.TotalHosts,
+			"numHosts", numHosts,
 			"took", time.Since(begin),
 		)
 	}(time.Now())
