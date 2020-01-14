@@ -427,7 +427,10 @@ func (man Manager) getConfigTLSProfile() string {
 		panic(fmt.Sprintf("%s requires a string value: %s", TLSProfileKey, err.Error()))
 	}
 	switch sval {
-	case TLSProfileModern, TLSProfileIntermediate, TLSProfileOld:
+	case TLSProfileModern, TLSProfileIntermediate:
+		// no error
+	case TLSProfileOld:
+		fmt.Println(`WARNING: TLS profile "old" has been deprecated and will soon be removed. If you rely on this feature, please open an issue on GitHub.`)
 	default:
 		panic(fmt.Sprintf("%s must be one of %s, %s or %s", TLSProfileKey,
 			TLSProfileModern, TLSProfileIntermediate, TLSProfileOld))
