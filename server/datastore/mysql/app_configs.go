@@ -3,6 +3,8 @@ package mysql
 import (
 	"fmt"
 
+	"github.com/VividCortex/mysqlerr"
+	"github.com/go-sql-driver/mysql"
 	"github.com/kolide/fleet/server/kolide"
 	"github.com/pkg/errors"
 )
@@ -54,7 +56,9 @@ func (d *Datastore) ManageHostExpiryEvent(hostExpiryEnabled bool, hostExpiryWind
 
 	if !hostExpiryEnabled || shouldUpdateWindow {
 		if _, err := d.db.Exec("DROP EVENT IF EXISTS host_expiry"); err != nil {
-			return errors.Wrap(err, "drop existing host_expiry event")
+			if driverErr, ok := err.(*mysql.MySQLError); !ok || driverErr.Number != mysqlerr.ER_DBACCESS_DENIED_ERROR {
+				return errors.Wrap(err, "drop existing host_expiry event")
+			}
 		}
 	}
 
