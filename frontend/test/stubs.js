@@ -13,6 +13,7 @@ export const configStub = {
   },
   server_settings: {
     kolide_server_url: '',
+    live_query_disabled: false,
   },
   smtp_settings: {
     configured: false,
@@ -52,6 +53,7 @@ export const flatConfigStub = {
   enable_start_tls: true,
   host_expiry_enabled: false,
   host_expiry_window: 0,
+  live_query_disabled: false,
 };
 
 export const hostStub = {

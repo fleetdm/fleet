@@ -816,9 +816,21 @@ func TestDetailQueries(t *testing.T) {
 }
 
 func TestNewDistributedQueryCampaign(t *testing.T) {
+	ds := &mock.Store{
+		AppConfigStore: mock.AppConfigStore{
+			AppConfigFunc: func() (*kolide.AppConfig, error) {
+				config := &kolide.AppConfig{}
+				return config, nil
+			},
+		},
+	}
+	rs := &mock.QueryResultStore{
+		HealthCheckFunc: func() error {
+			return nil
+		},
+	}
 	mockClock := clock.NewMockClock()
-	ds := new(mock.Store)
-	svc, err := newTestServiceWithClock(ds, nil, mockClock)
+	svc, err := newTestServiceWithClock(ds, rs, mockClock)
 	require.Nil(t, err)
 
 	ds.LabelQueriesForHostFunc = func(host *kolide.Host, cutoff time.Time) (map[string]string, error) {

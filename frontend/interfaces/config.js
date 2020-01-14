@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 
 export default PropTypes.shape({
+  live_query_disabled: PropTypes.bool,
   authentication_method: PropTypes.string,
   authentication_type: PropTypes.string,
   configured: PropTypes.bool,

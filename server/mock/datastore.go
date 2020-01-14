@@ -11,6 +11,7 @@ package mock
 //go:generate mockimpl -o datastore_osquery_options.go "s *OsqueryOptionsStore" "kolide.OsqueryOptionsStore"
 //go:generate mockimpl -o datastore_scheduled_queries.go "s *ScheduledQueryStore" "kolide.ScheduledQueryStore"
 //go:generate mockimpl -o datastore_queries.go "s *QueryStore" "kolide.QueryStore"
+//go:generate mockimpl -o datastore_query_results.go "s *QueryResultStore" "kolide.QueryResultStore"
 //go:generate mockimpl -o datastore_campaigns.go "s *CampaignStore" "kolide.CampaignStore"
 //go:generate mockimpl -o datastore_sessions.go "s *SessionStore" "kolide.SessionStore"
 
@@ -35,6 +36,7 @@ type Store struct {
 	PackStore
 	UserStore
 	QueryStore
+	QueryResultStore
 }
 
 func (m *Store) Drop() error {

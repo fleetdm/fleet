@@ -98,6 +98,7 @@ type KolideEndpoints struct {
 	GetFIM                                endpoint.Endpoint
 	ModifyFIM                             endpoint.Endpoint
 	StatusResultStore                     endpoint.Endpoint
+	StatusLiveQuery                       endpoint.Endpoint
 }
 
 // MakeKolideServerEndpoints creates the Kolide API endpoints.
@@ -192,6 +193,7 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string) Kol
 
 		// Authenticated status endpoints
 		StatusResultStore: authenticatedUser(jwtKey, svc, makeStatusResultStoreEndpoint(svc)),
+		StatusLiveQuery:   authenticatedUser(jwtKey, svc, makeStatusLiveQueryEndpoint(svc)),
 
 		// Osquery endpoints
 		EnrollAgent:                   makeEnrollAgentEndpoint(svc),
@@ -285,6 +287,7 @@ type kolideHandlers struct {
 	ModifyFIM                             http.Handler
 	GetFIM                                http.Handler
 	StatusResultStore                     http.Handler
+	StatusLiveQuery                       http.Handler
 }
 
 func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *kolideHandlers {
@@ -374,6 +377,7 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		ModifyFIM:                             newServer(e.ModifyFIM, decodeModifyFIMRequest),
 		GetFIM:                                newServer(e.GetFIM, decodeNoParamsRequest),
 		StatusResultStore:                     newServer(e.StatusResultStore, decodeNoParamsRequest),
+		StatusLiveQuery:                       newServer(e.StatusLiveQuery, decodeNoParamsRequest),
 	}
 }
 
@@ -504,6 +508,7 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/targets", h.SearchTargets).Methods("POST").Name("search_targets")
 
 	r.Handle("/api/v1/kolide/status/result_store", h.StatusResultStore).Methods("GET").Name("status_result_store")
+	r.Handle("/api/v1/kolide/status/live_query", h.StatusLiveQuery).Methods("GET").Name("status_live_query")
 
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
 	r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST").Name("get_client_config")

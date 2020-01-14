@@ -93,8 +93,8 @@ export class QueryPage extends Component {
       dispatch(hostActions.loadAll());
     }
 
-    Kolide.status.result_store().catch((response) => {
-      this.setState({ resultStoreError: response.message.errors[0].reason });
+    Kolide.status.live_query().catch((response) => {
+      this.setState({ liveQueryError: response.message.errors[0].reason });
     });
 
     helpers.selectHosts(dispatch, {
@@ -451,14 +451,14 @@ export class QueryPage extends Component {
     return false;
   }
 
-  renderResultStoreWarning = () => {
-    const { resultStoreError } = this.state;
+  renderLiveQueryWarning = () => {
+    const { liveQueryError } = this.state;
 
-    if (!resultStoreError) {
+    if (!liveQueryError) {
       return false;
     }
 
-    const message = `Live query disabled due to Redis error: ${resultStoreError}`;
+    const message = `Live query disabled due to error: ${liveQueryError}`;
 
     return (
       <WarningBanner labelText="Warning!" className={`${baseClass}__warning`} message={message} shouldShowWarning />
@@ -505,7 +505,7 @@ export class QueryPage extends Component {
 
   renderTargetsInput = () => {
     const { onFetchTargets, onRunQuery, onStopQuery, onTargetSelect } = this;
-    const { campaign, queryIsRunning, targetsCount, targetsError, runQueryMilliseconds, resultStoreError } = this.state;
+    const { campaign, queryIsRunning, targetsCount, targetsError, runQueryMilliseconds, liveQueryError } = this.state;
     const { selectedTargets } = this.props;
 
     return (
@@ -520,7 +520,7 @@ export class QueryPage extends Component {
         selectedTargets={selectedTargets}
         targetsCount={targetsCount}
         queryTimerMilliseconds={runQueryMilliseconds}
-        disableRun={resultStoreError !== undefined}
+        disableRun={liveQueryError !== undefined}
       />
     );
   }
@@ -536,7 +536,7 @@ export class QueryPage extends Component {
       onUpdateQuery,
       renderResultsTable,
       renderTargetsInput,
-      renderResultStoreWarning,
+      renderLiveQueryWarning,
     } = this;
     const { queryIsRunning } = this.state;
     const {
@@ -569,7 +569,7 @@ export class QueryPage extends Component {
               title={title}
             />
           </div>
-          {renderResultStoreWarning()}
+          {renderLiveQueryWarning()}
           {renderTargetsInput()}
           {renderResultsTable()}
         </div>

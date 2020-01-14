@@ -160,6 +160,8 @@ func (r *redisQueryResults) HealthCheck() error {
 	conn := r.pool.Get()
 	defer conn.Close()
 
-	_, err := conn.Do("PING")
-	return err
+	if _, err := conn.Do("PING"); err != nil {
+		return errors.Wrap(err, "reading from redis")
+	}
+	return nil
 }

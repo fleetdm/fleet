@@ -41,6 +41,7 @@ func testGetAppConfig(t *testing.T, r *testResource) {
 	assert.Equal(t, "http://foo.bar/image.png", *configInfo.OrgInfo.OrgLogoURL)
 	assert.False(t, *configInfo.HostExpirySettings.HostExpiryEnabled)
 	assert.Equal(t, 0, *configInfo.HostExpirySettings.HostExpiryWindow)
+	assert.False(t, *configInfo.ServerSettings.LiveQueryDisabled)
 
 }
 
@@ -62,6 +63,7 @@ func testModifyAppConfig(t *testing.T, r *testResource) {
 		EntityID:               "kolide",
 		HostExpiryEnabled:      true,
 		HostExpiryWindow:       42,
+		LiveQueryDisabled:     true,
 	}
 	payload := appConfigPayloadFromAppConfig(config)
 	payload.SMTPTest = new(bool)
@@ -95,6 +97,8 @@ func testModifyAppConfig(t *testing.T, r *testResource) {
 	// verify that host expiry settings were saved
 	assert.True(t, saved.HostExpiryEnabled)
 	assert.Equal(t, 42, saved.HostExpiryWindow)
+	//verify that live query disabled setting was saved
+	assert.True(t, saved.LiveQueryDisabled)
 
 }
 
@@ -131,7 +135,8 @@ func appConfigPayloadFromAppConfig(config *kolide.AppConfig) *kolide.AppConfigPa
 			OrgName:    &config.OrgName,
 		},
 		ServerSettings: &kolide.ServerSettings{
-			KolideServerURL: &config.KolideServerURL,
+			KolideServerURL:    &config.KolideServerURL,
+			LiveQueryDisabled: &config.LiveQueryDisabled,
 		},
 		SMTPSettings: smtpSettingsFromAppConfig(config),
 		SSOSettings: &kolide.SSOSettingsPayload{

@@ -27,6 +27,7 @@ const formFields = [
   'org_logo_url', 'org_name', 'osquery_enroll_secret', 'password', 'port', 'sender_address',
   'server', 'user_name', 'verify_ssl_certs', 'idp_name', 'entity_id', 'issuer_uri', 'idp_image_url',
   'metadata', 'metadata_url', 'enable_sso', 'enable_smtp', 'host_expiry_enabled', 'host_expiry_window',
+  'live_query_disabled',
 ];
 const Header = ({ showAdvancedOptions }) => {
   const CaratIcon = <Icon name={showAdvancedOptions ? 'downcarat' : 'upcarat'} />;
@@ -63,6 +64,7 @@ class AppConfigForm extends Component {
       enable_smtp: formFieldInterface.isRequired,
       host_expiry_enabled: formFieldInterface.isRequired,
       host_expiry_window: formFieldInterface.isRequired,
+      live_query_disabled: formFieldInterface.isRequired,
     }).isRequired,
     handleSubmit: PropTypes.func.isRequired,
     smtpConfigured: PropTypes.bool.isRequired,
@@ -111,6 +113,7 @@ class AppConfigForm extends Component {
             <Slider {...fields.enable_start_tls} label="Enable STARTTLS?" />
             <Slider {...fields.host_expiry_enabled} label="Host Expiry" />
             <InputField {...fields.host_expiry_window} disabled={!fields.host_expiry_enabled.value} label="Host Expiry Window" />
+            <Slider {...fields.live_query_disabled} label="Disable Live Queries?" />
           </div>
         </div>
 
@@ -120,6 +123,7 @@ class AppConfigForm extends Component {
           <p><strong>Enable STARTTLS</strong> - Detects if STARTTLS is enabled in your SMTP server and starts to use it. <em className="hint hint--brand">(Default: <strong>On</strong>)</em></p>
           <p><strong>Host Expiry</strong> - When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days. <em className="hint hint--brand">(Default: <strong>Off</strong>)</em></p>
           <p><strong>Host Expiry Window</strong> - If a host has not communicated with Fleet in the specified number of days, it will be removed.</p>
+          <p><strong>Disable Live Queries</strong> - When enabled, disables the ability to run live queries (ad hoc queries executed via the UI or fleetctl). <em className="hint hint--brand">(Default: <strong>Off</strong>)</em></p>
         </div>
       </div>
     );

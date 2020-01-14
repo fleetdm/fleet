@@ -48,7 +48,8 @@ func TestCreateAppConfig(t *testing.T) {
 					OrgName:    stringPtr("Acme"),
 				},
 				ServerSettings: &kolide.ServerSettings{
-					KolideServerURL: stringPtr("https://acme.co:8080/"),
+					KolideServerURL:    stringPtr("https://acme.co:8080/"),
+					LiveQueryDisabled: boolPtr(true),
 				},
 			},
 		},
@@ -63,5 +64,6 @@ func TestCreateAppConfig(t *testing.T) {
 		assert.Equal(t, *payload.OrgInfo.OrgLogoURL, result.OrgLogoURL)
 		assert.Equal(t, *payload.OrgInfo.OrgName, result.OrgName)
 		assert.Equal(t, "https://acme.co:8080", result.KolideServerURL)
+		assert.Equal(t, *payload.ServerSettings.LiveQueryDisabled, result.LiveQueryDisabled)
 	}
 }

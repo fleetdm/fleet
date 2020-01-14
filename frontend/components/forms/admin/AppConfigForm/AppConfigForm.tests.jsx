@@ -86,7 +86,7 @@ describe('AppConfigForm - form', () => {
 
     it('renders advanced options when "Advanced Options" is clicked', () => {
       expect(form.find({ name: 'domain' }).hostNodes().length).toEqual(1);
-      expect(form.find('Slider').length).toEqual(3);
+      expect(form.find('Slider').length).toEqual(4);
     });
 
     it('disables host expiry window by default', () => {
@@ -101,6 +101,11 @@ describe('AppConfigForm - form', () => {
       const InputField = form.find({ name: 'host_expiry_window' });
       const inputElement = InputField.find('input');
       expect(inputElement.hasClass('input-field--disabled')).toBe(false);
+    });
+
+    it('renders live query disabled input', () => {
+      form.find({ name: 'live_query_disabled' });
+      expect(form.length).toEqual(1);
     });
   });
 });

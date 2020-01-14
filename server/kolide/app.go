@@ -140,6 +140,9 @@ type AppConfig struct {
 	HostExpiryEnabled bool `db:"host_expiry_enabled"`
 	// HostExpiryWindow defines a number in days after which a host will be removed if it has not communicated with Fleet.
 	HostExpiryWindow int `db:"host_expiry_window"`
+
+	// LiveQueryDisabled defines whether live queries are disabled.
+	LiveQueryDisabled bool `db:"live_query_disabled"`
 }
 
 // ModifyAppConfigRequest contains application configuration information
@@ -228,8 +231,9 @@ type OrgInfo struct {
 
 // ServerSettings contains general settings about the kolide App.
 type ServerSettings struct {
-	KolideServerURL *string `json:"kolide_server_url,omitempty"`
-	EnrollSecret    *string `json:"osquery_enroll_secret,omitempty"`
+	KolideServerURL    *string `json:"kolide_server_url,omitempty"`
+	EnrollSecret       *string `json:"osquery_enroll_secret,omitempty"`
+	LiveQueryDisabled  *bool   `json:"live_query_disabled,omitempty"`
 }
 
 // HostExpirySettings contains settings pertaining to automatic host expiry.

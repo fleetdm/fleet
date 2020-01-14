@@ -120,6 +120,9 @@ func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppC
 	if p.ServerSettings != nil && p.ServerSettings.EnrollSecret != nil {
 		config.EnrollSecret = *p.ServerSettings.EnrollSecret
 	}
+	if p.ServerSettings != nil && p.ServerSettings.LiveQueryDisabled != nil {
+		config.LiveQueryDisabled = *p.ServerSettings.LiveQueryDisabled
+	}
 
 	if p.SSOSettings != nil {
 		if p.SSOSettings.EnableSSO != nil {

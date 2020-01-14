@@ -38,6 +38,7 @@ describe('Kolide API - helpers', () => {
       enable_start_tls: true,
       host_expiry_enabled: false,
       host_expiry_window: 0,
+      live_query_disabled: false,
     };
 
     it('splits config into categories for the server', () => {

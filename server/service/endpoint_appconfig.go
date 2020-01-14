@@ -63,8 +63,9 @@ func makeGetAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 				OrgLogoURL: &config.OrgLogoURL,
 			},
 			ServerSettings: &kolide.ServerSettings{
-				KolideServerURL: &config.KolideServerURL,
-				EnrollSecret:    &config.EnrollSecret,
+				KolideServerURL:    &config.KolideServerURL,
+				EnrollSecret:       &config.EnrollSecret,
+				LiveQueryDisabled: &config.LiveQueryDisabled,
 			},
 			SMTPSettings:       smtpSettings,
 			SSOSettings:        ssoSettings,
@@ -87,8 +88,9 @@ func makeModifyAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 				OrgLogoURL: &config.OrgLogoURL,
 			},
 			ServerSettings: &kolide.ServerSettings{
-				KolideServerURL: &config.KolideServerURL,
-				EnrollSecret:    &config.EnrollSecret,
+				KolideServerURL:    &config.KolideServerURL,
+				EnrollSecret:       &config.EnrollSecret,
+				LiveQueryDisabled: &config.LiveQueryDisabled,
 			},
 			SMTPSettings: smtpSettingsFromAppConfig(config),
 			SSOSettings: &kolide.SSOSettingsPayload{

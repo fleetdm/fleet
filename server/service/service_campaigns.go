@@ -30,6 +30,10 @@ func uintPtr(n uint) *uint {
 }
 
 func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString string, hosts []uint, labels []uint) (*kolide.DistributedQueryCampaign, error) {
+	if err := svc.StatusLiveQuery(ctx); err != nil {
+		return nil, err
+	}
+
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil, errNoContext
@@ -57,7 +61,7 @@ func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 	// Add host targets
 	for _, hid := range hosts {
 		_, err = svc.ds.NewDistributedQueryCampaignTarget(&kolide.DistributedQueryCampaignTarget{
-			Type: kolide.TargetHost,
+			Type:                       kolide.TargetHost,
 			DistributedQueryCampaignID: campaign.ID,
 			TargetID:                   hid,
 		})
@@ -69,7 +73,7 @@ func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 	// Add label targets
 	for _, lid := range labels {
 		_, err = svc.ds.NewDistributedQueryCampaignTarget(&kolide.DistributedQueryCampaignTarget{
-			Type: kolide.TargetLabel,
+			Type:                       kolide.TargetLabel,
 			DistributedQueryCampaignID: campaign.ID,
 			TargetID:                   lid,
 		})
