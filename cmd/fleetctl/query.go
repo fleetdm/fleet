@@ -19,9 +19,9 @@ type resultOutput struct {
 
 func queryCommand() cli.Command {
 	var (
-		flHosts, flLabels, flQuery string
-		flDebug, flQuiet, flExit   bool
-		flTimeout                  time.Duration
+		flHosts, flLabels, flQuery, flQueryName string
+		flDebug, flQuiet, flExit                bool
+		flTimeout                               time.Duration
 	)
 	return cli.Command{
 		Name:      "query",
@@ -63,6 +63,13 @@ func queryCommand() cli.Command {
 				Destination: &flQuery,
 				Usage:       "Query to run",
 			},
+			cli.StringFlag{
+				Name:        "query-name",
+				EnvVar:      "QUERYNAME",
+				Value:       "",
+				Destination: &flQueryName,
+				Usage:       "Name of saved query to run",
+			},
 			cli.BoolFlag{
 				Name:        "debug",
 				EnvVar:      "DEBUG",
@@ -86,8 +93,20 @@ func queryCommand() cli.Command {
 				return errors.New("No hosts or labels targeted")
 			}
 
+			if flQuery != "" && flQueryName != "" {
+				return fmt.Errorf("--query and --query-name must not be provided together")
+			}
+
+			if flQueryName != "" {
+				q, err := fleet.GetQuery(flQueryName)
+				if err != nil {
+					return fmt.Errorf("Query '%s' not found", flQueryName)
+				}
+				flQuery = q.Query
+			}
+
 			if flQuery == "" {
-				return errors.New("No query specified")
+				return fmt.Errorf("Query must be specified with --query or --query-name")
 			}
 
 			hosts := strings.Split(flHosts, ",")
