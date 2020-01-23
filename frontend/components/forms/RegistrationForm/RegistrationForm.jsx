@@ -103,10 +103,7 @@ class RegistrationForm extends Component {
     if (page === 3) {
       return (
         <div className={`${baseClass}__description`}>
-          <p>Define the base URL that clients will use to connect to Fleet.</p>
-          <p>
-            <small>Note: Please ensure the URL is accessible to all endpoints that will be managed by Fleet. The hostname must match the name on your TLS certificate.</small>
-          </p>
+          <p>Define the base URL of this Fleet instance.</p>
         </div>
       );
     }

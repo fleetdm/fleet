@@ -191,8 +191,7 @@ class AppConfigForm extends Component {
             />
           </div>
           <div className={`${baseClass}__details`}>
-            <p>What base URL should <strong>osqueryd</strong> clients use to connect and register with <strong>Fleet</strong>?</p>
-            <p className={`${baseClass}__note`}><strong>Note:</strong> Please ensure the URL you choose is accessible to all endpoints that need to communicate with Fleet, otherwise they will not be able to correctly register.</p>
+            <p>The base URL of this instance for use in <strong>Fleet</strong> links.</p>
           </div>
         </div>
 
