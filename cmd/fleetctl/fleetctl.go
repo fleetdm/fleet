@@ -50,6 +50,7 @@ func main() {
 			},
 		},
 		convertCommand(),
+		goqueryCommand(),
 	}
 
 	app.RunAndExitOnError()

@@ -24,3 +24,30 @@ Fleet exposes the aspects of an osquery deployment as a set of "objects". Object
 > Objects can be created, updated, and deleted by storing multiple object configuration files in a directory and using `kubectl apply` to recursively create and update those objects as needed.
 
 Similarly, Fleet objects can be created, updated, and deleted by storing multiple object configuration files in a directory and using `fleetctl apply` to recursively create and update those objects as needed.
+
+### Using goquery with `fleetctl`
+
+Fleet and `fleetctl` have built in support for [goquery](https://github.com/AbGuthrie/goquery).
+
+Use `fleetctl goquery` to open up the goquery console. When used with Fleet, goquery can connect using either a hostname or UUID.
+
+```
+$ ./build/fleetctl get hosts
++--------------------------------------+--------------+----------+---------+
+|                 UUID                 |   HOSTNAME   | PLATFORM | STATUS  |
++--------------------------------------+--------------+----------+---------+
+| 192343D5-0000-0000-B85B-58F656BED4C7 | 6523f89187f8 | centos   | online  |
++--------------------------------------+--------------+----------+---------+
+$ ./build/fleetctl goquery
+goquery> .connect 6523f89187f8
+Verified Host(6523f89187f8) Exists.
+.
+goquery | 6523f89187f8:> .query select unix_time from time
+...
+------------------------------
+| host_hostname | unix_time  |
+------------------------------
+| 6523f89187f8  | 1579842569 |
+------------------------------
+goquery | 6523f89187f8:>
+```

@@ -719,6 +719,10 @@ func (d *Datastore) DistributedQueriesForHost(host *kolide.Host) (map[uint]strin
 }
 
 func (d *Datastore) HostIDsByName(hostnames []string) ([]uint, error) {
+	if len(hostnames) == 0 {
+		return []uint{}, nil
+	}
+
 	sqlStatement := `
 		SELECT id FROM hosts
 		WHERE host_name IN (?)

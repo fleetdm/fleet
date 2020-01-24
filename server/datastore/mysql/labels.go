@@ -478,6 +478,10 @@ func (d *Datastore) SearchLabels(query string, omit ...uint) ([]kolide.Label, er
 }
 
 func (d *Datastore) LabelIDsByName(labels []string) ([]uint, error) {
+	if len(labels) == 0 {
+		return []uint{}, nil
+	}
+
 	sqlStatement := `
 		SELECT id FROM labels
 		WHERE name IN (?)
@@ -485,14 +489,14 @@ func (d *Datastore) LabelIDsByName(labels []string) ([]uint, error) {
 
 	sql, args, err := sqlx.In(sqlStatement, labels)
 	if err != nil {
-		return nil, errors.Wrap(err, "building query to get host IDs")
+		return nil, errors.Wrap(err, "building query to get label IDs")
 	}
 
-	var hostIDs []uint
-	if err := d.db.Select(&hostIDs, sql, args...); err != nil {
-		return nil, errors.Wrap(err, "get host IDs")
+	var labelIDs []uint
+	if err := d.db.Select(&labelIDs, sql, args...); err != nil {
+		return nil, errors.Wrap(err, "get label IDs")
 	}
 
-	return hostIDs, nil
+	return labelIDs, nil
 
 }
