@@ -1,3 +1,23 @@
+## Kolide Fleet 2.5.0 (Jan 26, 2020)
+
+* Add `fleetctl goquery` command to bring up the github.com/AbGuthrie/goquery CLI.
+
+* Add ability to disable live queries in web UI and `fleetctl`.
+
+* Add `--query-name` option to `fleetctl query`. This allows using the SQL from a saved query.
+
+* Add `--mysql-protocol` flag to allow connection to MySQL by domain socket.
+
+* Improve server logging. Add logging for creation of live queries. Add username information to logging for other endpoints.
+
+* Allow CREATE queries in the web UI.
+
+* Fix a bug in which `fleetctl query` would exit before any results were returned when latency to the Fleet server was high.
+
+* Fix an error initializing the Fleet database when MySQL does not have event permissions.
+
+* Deprecate "old" TLS profile.
+
 ## Kolide Fleet 2.4.0 (Nov 12, 2019)
 
 * Add `--server_url_prefix` flag to configure a URL prefix to prepend on all Fleet URLs. This can be useful to run fleet behind a reverse-proxy on a hostname shared with other services.
