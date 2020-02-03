@@ -1,12 +1,17 @@
 # Kolide Fleet [![CircleCI](https://circleci.com/gh/kolide/fleet/tree/master.svg?style=svg)](https://circleci.com/gh/kolide/fleet/tree/master)
 
-### Effective Endpoint Security. At Any Scale.
-
-Kolide Fleet is a state of the art host monitoring platform tailored for security experts. Leveraging Facebook's battle-tested osquery project, Fleet delivers fast answers to big questions. To learn more about Fleet, visit [https://kolide.com/fleet](https://kolide.com/fleet).
+Fleet is the most widely used open-source osquery Fleet manager. Deploying osquery with Fleet enables live queries, and effective management of osquery infrastructure.
 
 Documentation for Fleet can be found on [GitHub](./docs/README.md).
 
-[![Kolide](./assets/images/rube.png)](https://kolide.com/fleet)
+**Fleet Dashboard**
+![Screenshot of dashboard](./assets/images/dashboard-screenshot.png)
+
+**Live Queries**
+![Screenshot of live query interface](./assets/images/query-screenshot.png)
+
+**Scheduled Query/Pack Editor**
+![Screenshot of pack editor](./assets/images/pack-screenshot.png)
 
 ## Using Fleet
 
@@ -53,3 +58,5 @@ Below are some projects created by Kolide community members. Please submit a pul
 Looking for the quickest way to try out osquery on your fleet? Not sure which queries to run? Don't want to manage your own data pipeline?
 
 Try our [osquery SaaS platform](https://kolide.com/?utm_source=oss&utm_medium=readme&utm_campaign=fleet) providing insights, alerting, fleet management and user-driven security tools. We also support advanced aggregation of osquery results for power users. Get started with your 30-day free trial [today](https://k2.kolide.com/signup?utm_source=oss&utm_medium=readme&utm_campaign=fleet).
+
+[![Rube](./assets/images/rube.png)](https://kolide.com/fleet)
