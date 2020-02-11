@@ -149,6 +149,7 @@ func testIdempotentDeleteHost(t *testing.T, ds kolide.Datastore) {
 	require.NotNil(t, host)
 	id := host.ID
 	err = ds.DeleteHost(host.ID)
+	assert.Nil(t, err)
 
 	host, err = ds.Host(host.ID)
 	assert.NotNil(t, err)

@@ -35,6 +35,7 @@ func testUnicode(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, err)
 
 	host, err = ds.Host(host.ID)
+	require.Nil(t, err)
 	assert.Equal(t, "🍌", host.HostName)
 
 	user, err := ds.NewUser(&kolide.User{Username: "🍱", Password: []byte{}})
@@ -47,5 +48,6 @@ func testUnicode(t *testing.T, ds kolide.Datastore) {
 	pack := test.NewPack(t, ds, "👨🏾‍🚒")
 
 	pack, err = ds.Pack(pack.ID)
+	require.Nil(t, err)
 	assert.Equal(t, "👨🏾‍🚒", pack.Name)
 }
