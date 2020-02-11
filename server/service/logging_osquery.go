@@ -20,6 +20,7 @@ func (mw loggingMiddleware) EnrollAgent(ctx context.Context, enrollSecret string
 		_ = mw.logger.Log(
 			"method", "EnrollAgent",
 			"ip_addr", ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string),
+			"x_for_ip_addr", ctx.Value(kithttp.ContextKeyRequestXForwardedFor).(string),
 			"err", err,
 			"took", time.Since(begin),
 		)
@@ -39,6 +40,7 @@ func (mw loggingMiddleware) AuthenticateHost(ctx context.Context, nodeKey string
 		_ = mw.logger.Log(
 			"method", "AuthenticateHost",
 			"ip_addr", ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string),
+			"x_for_ip_addr", ctx.Value(kithttp.ContextKeyRequestXForwardedFor).(string),
 			"err", err,
 			"took", time.Since(begin),
 		)
@@ -58,6 +60,7 @@ func (mw loggingMiddleware) GetClientConfig(ctx context.Context) (map[string]int
 		_ = mw.logger.Log(
 			"method", "GetClientConfig",
 			"ip_addr", ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string),
+			"x_for_ip_addr", ctx.Value(kithttp.ContextKeyRequestXForwardedFor).(string),
 			"err", err,
 			"took", time.Since(begin),
 		)
@@ -78,6 +81,7 @@ func (mw loggingMiddleware) GetDistributedQueries(ctx context.Context) (map[stri
 		_ = mw.logger.Log(
 			"method", "GetDistributedQueries",
 			"ip_addr", ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string),
+			"x_for_ip_addr", ctx.Value(kithttp.ContextKeyRequestXForwardedFor).(string),
 			"err", err,
 			"took", time.Since(begin),
 		)
@@ -96,6 +100,7 @@ func (mw loggingMiddleware) SubmitDistributedQueryResults(ctx context.Context, r
 		_ = mw.logger.Log(
 			"method", "SubmitDistributedQueryResults",
 			"ip_addr", ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string),
+			"x_for_ip_addr", ctx.Value(kithttp.ContextKeyRequestXForwardedFor).(string),
 			"err", err,
 			"took", time.Since(begin),
 		)
@@ -114,6 +119,7 @@ func (mw loggingMiddleware) SubmitStatusLogs(ctx context.Context, logs []json.Ra
 		_ = mw.logger.Log(
 			"method", "SubmitStatusLogs",
 			"ip_addr", ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string),
+			"x_for_ip_addr", ctx.Value(kithttp.ContextKeyRequestXForwardedFor).(string),
 			"err", err,
 			"took", time.Since(begin),
 		)
@@ -132,6 +138,7 @@ func (mw loggingMiddleware) SubmitResultLogs(ctx context.Context, logs []json.Ra
 		_ = mw.logger.Log(
 			"method", "SubmitResultLogs",
 			"ip_addr", ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string),
+			"x_for_ip_addr", ctx.Value(kithttp.ContextKeyRequestXForwardedFor).(string),
 			"err", err,
 			"took", time.Since(begin),
 		)
