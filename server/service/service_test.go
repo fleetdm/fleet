@@ -25,6 +25,7 @@ func TestRotateLoggerSIGHUP(t *testing.T) {
 	defer os.Remove(f.Name())
 
 	logFile, err := logging.NewFilesystemLogWriter(f.Name(), log.NewNopLogger(), true)
+	require.Nil(t, err)
 
 	// write a log line
 	logFile.Write(ctx, []json.RawMessage{json.RawMessage("msg1")})

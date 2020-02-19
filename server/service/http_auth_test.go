@@ -132,6 +132,7 @@ func TestLogin(t *testing.T) {
 
 		// ensure that our user's session was deleted from the store
 		sessions, err = ds.ListSessionsForUser(testUser.ID)
+		assert.Nil(t, err)
 		assert.Len(t, sessions, 0)
 	}
 }

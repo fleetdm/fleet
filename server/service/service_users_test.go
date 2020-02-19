@@ -72,6 +72,7 @@ func TestModifyUserEmail(t *testing.T) {
 		return nil
 	}
 	svc, err := newTestService(ms, nil)
+	require.Nil(t, err)
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 	payload := kolide.UserPayload{
@@ -107,6 +108,7 @@ func TestModifyUserCannotUpdateAdminEnabled(t *testing.T) {
 		return nil
 	}
 	svc, err := newTestService(ms, nil)
+	require.Nil(t, err)
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 	payload := kolide.UserPayload{
@@ -148,6 +150,7 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 		return nil
 	}
 	svc, err := newTestService(ms, nil)
+	require.Nil(t, err)
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 	payload := kolide.UserPayload{
@@ -195,6 +198,7 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 		return nil
 	}
 	svc, err := newTestService(ms, nil)
+	require.Nil(t, err)
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 	payload := kolide.UserPayload{
@@ -242,6 +246,7 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 		return nil
 	}
 	svc, err := newTestService(ms, nil)
+	require.Nil(t, err)
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 	payload := kolide.UserPayload{
@@ -674,6 +679,7 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 			session, err := ds.NewSession(&kolide.Session{
 				UserID: user.ID,
 			})
+			require.Nil(t, err)
 			ctx = viewer.NewContext(ctx, viewer.Viewer{User: user, Session: session})
 
 			// should error when reset not required

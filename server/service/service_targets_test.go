@@ -70,6 +70,7 @@ func TestSearchWithOmit(t *testing.T) {
 		Name:  "label foo",
 		Query: "query foo",
 	})
+	require.Nil(t, err)
 
 	{
 		results, err := svc.SearchTargets(ctx, "foo", nil, nil)
