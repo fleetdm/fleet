@@ -75,13 +75,14 @@ type SessionConfig struct {
 
 // OsqueryConfig defines configs related to osquery
 type OsqueryConfig struct {
-	NodeKeySize         int           `yaml:"node_key_size"`
-	StatusLogPlugin     string        `yaml:"status_log_plugin"`
-	ResultLogPlugin     string        `yaml:"result_log_plugin"`
-	LabelUpdateInterval time.Duration `yaml:"label_update_interval"`
-	StatusLogFile       string        `yaml:"status_log_file"`
-	ResultLogFile       string        `yaml:"result_log_file"`
-	EnableLogRotation   bool          `yaml:"enable_log_rotation"`
+	NodeKeySize          int           `yaml:"node_key_size"`
+	StatusLogPlugin      string        `yaml:"status_log_plugin"`
+	ResultLogPlugin      string        `yaml:"result_log_plugin"`
+	LabelUpdateInterval  time.Duration `yaml:"label_update_interval"`
+	DetailUpdateInterval time.Duration `yaml:"detail_update_interval"`
+	StatusLogFile        string        `yaml:"status_log_file"`
+	ResultLogFile        string        `yaml:"result_log_file"`
+	EnableLogRotation    bool          `yaml:"enable_log_rotation"`
 }
 
 // LoggingConfig defines configs related to logging
@@ -211,6 +212,8 @@ func (man Manager) addConfigs() {
 		"Log plugin to use for result logs")
 	man.addConfigDuration("osquery.label_update_interval", 1*time.Hour,
 		"Interval to update host label membership (i.e. 1h)")
+	man.addConfigDuration("osquery.detail_update_interval", 1*time.Hour,
+		"Interval to update host details (i.e. 1h)")
 	man.addConfigString("osquery.status_log_file", "",
 		"(DEPRECATED: Use filesystem.status_log_file) Path for osqueryd status logs")
 	man.addConfigString("osquery.result_log_file", "",
@@ -295,13 +298,14 @@ func (man Manager) LoadConfig() KolideConfig {
 			Duration: man.getConfigDuration("session.duration"),
 		},
 		Osquery: OsqueryConfig{
-			NodeKeySize:         man.getConfigInt("osquery.node_key_size"),
-			StatusLogPlugin:     man.getConfigString("osquery.status_log_plugin"),
-			ResultLogPlugin:     man.getConfigString("osquery.result_log_plugin"),
-			StatusLogFile:       man.getConfigString("osquery.status_log_file"),
-			ResultLogFile:       man.getConfigString("osquery.result_log_file"),
-			LabelUpdateInterval: man.getConfigDuration("osquery.label_update_interval"),
-			EnableLogRotation:   man.getConfigBool("osquery.enable_log_rotation"),
+			NodeKeySize:          man.getConfigInt("osquery.node_key_size"),
+			StatusLogPlugin:      man.getConfigString("osquery.status_log_plugin"),
+			ResultLogPlugin:      man.getConfigString("osquery.result_log_plugin"),
+			StatusLogFile:        man.getConfigString("osquery.status_log_file"),
+			ResultLogFile:        man.getConfigString("osquery.result_log_file"),
+			LabelUpdateInterval:  man.getConfigDuration("osquery.label_update_interval"),
+			DetailUpdateInterval: man.getConfigDuration("osquery.detail_update_interval"),
+			EnableLogRotation:    man.getConfigBool("osquery.enable_log_rotation"),
 		},
 		Logging: LoggingConfig{
 			Debug:         man.getConfigBool("logging.debug"),
@@ -542,10 +546,11 @@ func TestConfig() KolideConfig {
 			Duration: 24 * 90 * time.Hour,
 		},
 		Osquery: OsqueryConfig{
-			NodeKeySize:         24,
-			StatusLogPlugin:     "filesystem",
-			ResultLogPlugin:     "filesystem",
-			LabelUpdateInterval: 1 * time.Hour,
+			NodeKeySize:          24,
+			StatusLogPlugin:      "filesystem",
+			ResultLogPlugin:      "filesystem",
+			LabelUpdateInterval:  1 * time.Hour,
+			DetailUpdateInterval: 1 * time.Hour,
 		},
 		Logging: LoggingConfig{
 			Debug:         true,

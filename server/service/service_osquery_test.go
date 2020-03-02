@@ -219,7 +219,7 @@ func TestHostDetailQueries(t *testing.T) {
 		UUID:             "test_uuid",
 	}
 
-	svc := service{clock: mockClock}
+	svc := service{clock: mockClock, config: config.TestConfig()}
 
 	queries := svc.hostDetailQueries(host)
 	assert.Empty(t, queries)
@@ -874,12 +874,12 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 	assert.Equal(t, gotQuery.ID, gotCampaign.QueryID)
 	assert.Equal(t, []*kolide.DistributedQueryCampaignTarget{
 		&kolide.DistributedQueryCampaignTarget{
-			Type: kolide.TargetHost,
+			Type:                       kolide.TargetHost,
 			DistributedQueryCampaignID: campaign.ID,
 			TargetID:                   2,
 		},
 		&kolide.DistributedQueryCampaignTarget{
-			Type: kolide.TargetLabel,
+			Type:                       kolide.TargetLabel,
 			DistributedQueryCampaignID: campaign.ID,
 			TargetID:                   1,
 		},

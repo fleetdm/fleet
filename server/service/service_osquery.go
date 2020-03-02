@@ -472,15 +472,11 @@ var detailQueries = map[string]struct {
 	},
 }
 
-// detailUpdateInterval determines how often the detail queries should be
-// updated
-const detailUpdateInterval = 1 * time.Hour
-
 // hostDetailQueries returns the map of queries that should be executed by
 // osqueryd to fill in the host details
 func (svc service) hostDetailQueries(host kolide.Host) map[string]string {
 	queries := make(map[string]string)
-	if host.DetailUpdateTime.After(svc.clock.Now().Add(-detailUpdateInterval)) {
+	if host.DetailUpdateTime.After(svc.clock.Now().Add(-svc.config.Osquery.DetailUpdateInterval)) {
 		// No need to update already fresh details
 		return queries
 	}

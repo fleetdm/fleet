@@ -484,13 +484,30 @@ The size of the node key which is negotiated with `osqueryd` clients.
 
 The interval at which Fleet will ask osquery agents to update their results for label queries.
 
+Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
+
 - Default value: `1h`
 - Environment variable: `KOLIDE_OSQUERY_LABEL_UPDATE_INTERVAL`
 - Config file format:
 
 	```
 	osquery:
-		label_query_update_interval: 30m
+		label_update_interval: 30m
+	```
+
+##### `osquery_detail_update_interval`
+
+The interval at which Fleet will ask osquery agents to update host details (such as uptime, hostname, network interfaces, etc.)
+
+Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
+
+- Default value: `1h`
+- Environment variable: `KOLIDE_OSQUERY_DETAIL_UPDATE_INTERVAL`
+- Config file format:
+
+	```
+	osquery:
+		detail_update_interval: 30m
 	```
 
 ##### `osquery_status_log_plugin`
