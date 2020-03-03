@@ -25,6 +25,34 @@ All of these files can be concatenated together into [one file](../../examples/c
 `-- queries.yml
 ```
 
+## Convert Osquery JSON
+
+`fleetctl` includes easy tooling to convert osquery pack JSON into the
+`fleetctl` format. Use `fleetctl convert` with a path to the pack file:
+
+```
+$ fleetctl convert -f test.json
+---
+apiVersion: v1
+kind: pack
+spec:
+  name: test
+  queries:
+  - description: "this is a test query"
+    interval: 10
+    name: processes
+    query: processes
+    removed: false
+  targets:
+    labels: null
+---
+apiVersion: v1
+kind: query
+spec:
+  name: processes
+  query: select * from processes
+```
+
 ## Osquery Queries
 
 For especially long or complex queries, you may want to define one query in one file. Continued edits and applications to this file will update the query as long as the `metadata.name` does not change. If you want to change the name of a query, you must first create a new query with the new name and then delete the query with the old name. Make sure the old query name is not defined in any packs before deleting it or an error will occur.
