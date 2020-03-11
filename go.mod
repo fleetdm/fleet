@@ -11,6 +11,7 @@ require (
 	github.com/aws/aws-sdk-go v1.26.8
 	github.com/beevik/etree v1.1.0
 	github.com/briandowns/spinner v0.0.0-20170614154858-48dbb65d7bd5
+	github.com/cenkalti/backoff/v4 v4.0.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/e-dard/netbug v0.0.0-20151029172837-e64d308a0b20
 	github.com/elazarl/go-bindata-assetfs v1.0.0

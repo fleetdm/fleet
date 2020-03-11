@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/go-kit/kit/log"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -48,6 +49,41 @@ func (d *Datastore) getTransaction(opts []kolide.OptionalArg) dbfunctions {
 		}
 	}
 	return result
+}
+
+type txFn func(*sqlx.Tx) error
+
+// withRetryTxx provides a common way to commit/rollback a txFn wrapped in a retry with exponential backoff
+func (d *Datastore) withRetryTxx(fn txFn) (err error) {
+	operation := func() error {
+		tx, err := d.db.Beginx()
+		if err != nil {
+			return errors.Wrap(err, "creating transaction")
+		}
+
+		defer func() {
+			if p := recover(); p != nil {
+				tx.Rollback()
+				panic(p)
+			}
+		}()
+
+		err = fn(tx)
+		if err != nil {
+			rbErr := tx.Rollback()
+			if rbErr != nil && rbErr != sql.ErrTxDone {
+				panic(fmt.Sprintf("got err '%s' rolling back after err '%s'", rbErr, err))
+			}
+		} else {
+			err = tx.Commit()
+		}
+
+		return errors.Wrap(err, "committing transaction")
+	}
+
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxElapsedTime = 5 * time.Second
+	return backoff.Retry(operation, bo)
 }
 
 // New creates an MySQL datastore.

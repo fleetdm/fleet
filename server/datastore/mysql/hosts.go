@@ -174,93 +174,79 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 			logger_tls_period = ?
 		WHERE id = ?
 	`
-
-	tx, err := d.db.Beginx()
-	if err != nil {
-		return errors.Wrap(err, "creating transaction")
-	}
-
-	results, err := tx.Exec(sqlStatement,
-		host.DetailUpdateTime,
-		host.NodeKey,
-		host.HostName,
-		host.UUID,
-		host.Platform,
-		host.OsqueryVersion,
-		host.OSVersion,
-		host.Uptime,
-		host.PhysicalMemory,
-		host.CPUType,
-		host.CPUSubtype,
-		host.CPUBrand,
-		host.CPUPhysicalCores,
-		host.HardwareVendor,
-		host.HardwareModel,
-		host.HardwareVersion,
-		host.HardwareSerial,
-		host.ComputerName,
-		host.PrimaryNetworkInterfaceID,
-		host.Build,
-		host.PlatformLike,
-		host.CodeName,
-		host.CPULogicalCores,
-		host.SeenTime,
-		host.DistributedInterval,
-		host.ConfigTLSRefresh,
-		host.LoggerTLSPeriod,
-		host.ID)
-	if err != nil {
-		tx.Rollback()
-		return errors.Wrap(err, "executing main SQL statement")
-	}
-	rowsAffected, err := results.RowsAffected()
-	if err != nil {
-		tx.Rollback()
-		return errors.Wrap(err, "rows affected updating host")
-	}
-	if rowsAffected == 0 {
-		tx.Rollback()
-		return notFound("Host").WithID(host.ID)
-	}
-
-	host.NetworkInterfaces, err = updateNicsForHost(tx, host)
-	if err != nil {
-		tx.Rollback()
-		return errors.Wrap(err, "updating nics")
-	}
-
-	if err = removedUnusedNics(tx, host); err != nil {
-		tx.Rollback()
-		return errors.Wrap(err, "removing unused nics")
-	}
-
-	if needsUpdate := host.ResetPrimaryNetwork(); needsUpdate {
-		results, err = tx.Exec(
-			"UPDATE hosts SET primary_ip_id = ? WHERE id = ?",
+	err := d.withRetryTxx(func(tx *sqlx.Tx) error {
+		results, err := tx.Exec(sqlStatement,
+			host.DetailUpdateTime,
+			host.NodeKey,
+			host.HostName,
+			host.UUID,
+			host.Platform,
+			host.OsqueryVersion,
+			host.OSVersion,
+			host.Uptime,
+			host.PhysicalMemory,
+			host.CPUType,
+			host.CPUSubtype,
+			host.CPUBrand,
+			host.CPUPhysicalCores,
+			host.HardwareVendor,
+			host.HardwareModel,
+			host.HardwareVersion,
+			host.HardwareSerial,
+			host.ComputerName,
 			host.PrimaryNetworkInterfaceID,
-			host.ID,
-		)
-
+			host.Build,
+			host.PlatformLike,
+			host.CodeName,
+			host.CPULogicalCores,
+			host.SeenTime,
+			host.DistributedInterval,
+			host.ConfigTLSRefresh,
+			host.LoggerTLSPeriod,
+			host.ID)
 		if err != nil {
-			tx.Rollback()
-			return errors.Wrap(err, "resetting primary network")
+			return errors.Wrap(err, "executing main SQL statement")
 		}
-		rowsAffected, err = results.RowsAffected()
+		rowsAffected, err := results.RowsAffected()
 		if err != nil {
-			tx.Rollback()
-			return errors.Wrap(err, "rows affected resetting primary network")
+			return errors.Wrap(err, "rows affected updating host")
 		}
 		if rowsAffected == 0 {
-			tx.Rollback()
 			return notFound("Host").WithID(host.ID)
 		}
-	}
 
-	if err = tx.Commit(); err != nil {
-		tx.Rollback()
-		return errors.Wrap(err, "committing transaction")
-	}
-	return nil
+		host.NetworkInterfaces, err = updateNicsForHost(tx, host)
+		if err != nil {
+			return errors.Wrap(err, "updating nics")
+		}
+
+		if err = removedUnusedNics(tx, host); err != nil {
+			return errors.Wrap(err, "removing unused nics")
+		}
+
+		if needsUpdate := host.ResetPrimaryNetwork(); needsUpdate {
+			results, err = tx.Exec(
+				"UPDATE hosts SET primary_ip_id = ? WHERE id = ?",
+				host.PrimaryNetworkInterfaceID,
+				host.ID,
+			)
+
+			if err != nil {
+				return errors.Wrap(err, "resetting primary network")
+			}
+			rowsAffected, err = results.RowsAffected()
+			if err != nil {
+				return errors.Wrap(err, "rows affected resetting primary network")
+			}
+			if rowsAffected == 0 {
+				return notFound("Host").WithID(host.ID)
+			}
+		}
+
+		return nil
+	})
+
+	return err
 }
 
 func (d *Datastore) DeleteHost(hid uint) error {

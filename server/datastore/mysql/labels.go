@@ -2,7 +2,6 @@ package mysql
 
 import (
 	"database/sql"
-	"fmt"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -11,25 +10,8 @@ import (
 )
 
 func (d *Datastore) ApplyLabelSpecs(specs []*kolide.LabelSpec) (err error) {
-	tx, err := d.db.Beginx()
-	if err != nil {
-		return errors.Wrap(err, "begin ApplyLabelSpecs transaction")
-	}
-
-	defer func() {
-		if err != nil {
-			rbErr := tx.Rollback()
-			// It seems possible that there might be a case in
-			// which the error we are dealing with here was thrown
-			// by the call to tx.Commit(), and the docs suggest
-			// this call would then result in sql.ErrTxDone.
-			if rbErr != nil && rbErr != sql.ErrTxDone {
-				panic(fmt.Sprintf("got err '%s' rolling back after err '%s'", rbErr, err))
-			}
-		}
-	}()
-
-	sql := `
+	err = d.withRetryTxx(func(tx *sqlx.Tx) error {
+		sql := `
 		INSERT INTO labels (
 			name,
 			description,
@@ -45,23 +27,25 @@ func (d *Datastore) ApplyLabelSpecs(specs []*kolide.LabelSpec) (err error) {
 			label_type = VALUES(label_type),
 			deleted = false
 	`
-	stmt, err := tx.Prepare(sql)
-	if err != nil {
-		return errors.Wrap(err, "prepare ApplyLabelSpecs insert")
-	}
-
-	for _, s := range specs {
-		if s.Name == "" {
-			return errors.New("label name must not be empty")
-		}
-		_, err := stmt.Exec(s.Name, s.Description, s.Query, s.Platform, s.LabelType)
+		stmt, err := tx.Prepare(sql)
 		if err != nil {
-			return errors.Wrap(err, "exec ApplyLabelSpecs insert")
+			return errors.Wrap(err, "prepare ApplyLabelSpecs insert")
 		}
-	}
 
-	err = tx.Commit()
-	return errors.Wrap(err, "commit ApplyLabelSpecs transaction")
+		for _, s := range specs {
+			if s.Name == "" {
+				return errors.New("label name must not be empty")
+			}
+			_, err := stmt.Exec(s.Name, s.Description, s.Query, s.Platform, s.LabelType)
+			if err != nil {
+				return errors.Wrap(err, "exec ApplyLabelSpecs insert")
+			}
+		}
+
+		return nil
+	})
+
+	return errors.Wrap(err, "ApplyLabelSpecs transaction")
 }
 
 func (d *Datastore) GetLabelSpecs() ([]*kolide.LabelSpec, error) {
