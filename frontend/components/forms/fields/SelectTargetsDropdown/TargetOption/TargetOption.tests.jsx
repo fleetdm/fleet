@@ -20,7 +20,7 @@ describe('TargetOption - component', () => {
     const component = mount(<TargetOption onMoreInfoClick={noop} target={{ ...hostStub, platform: 'windows' }} />);
     expect(component.find('.is-host').length).toEqual(1);
     expect(component.find('i.kolidecon-windows').length).toEqual(1);
-    expect(component.text()).toContain(hostStub.host_ip_address);
+    expect(component.text()).toContain(hostStub.primary_ip);
   });
 
   it('calls the onSelect prop when + icon button is clicked', () => {

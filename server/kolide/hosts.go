@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"net"
 	"time"
 )
 
@@ -110,7 +109,9 @@ type Host struct {
 	// PrimaryNetworkInterfaceID if present indicates to primary network for the host, the details of which
 	// can be found in the NetworkInterfaces element with the same ip_address.
 	PrimaryNetworkInterfaceID *uint               `json:"primary_ip_id,omitempty" db:"primary_ip_id"`
-	NetworkInterfaces         []*NetworkInterface `json:"network_interfaces" db:"-"`
+	NetworkInterfaces         []*NetworkInterface `json:"-" db:"-"`
+	PrimaryIP                 string              `json:"primary_ip" db:"primary_ip"`
+	PrimaryMac                string              `json:"primary_mac" db:"primary_mac"`
 	DistributedInterval       uint                `json:"distributed_interval" db:"distributed_interval"`
 	ConfigTLSRefresh          uint                `json:"config_tls_refresh" db:"config_tls_refresh"`
 	LoggerTLSPeriod           uint                `json:"logger_tls_period" db:"logger_tls_period"`
@@ -126,52 +127,6 @@ type HostSummary struct {
 	OfflineCount uint `json:"offline_count"`
 	MIACount     uint `json:"mia_count"`
 	NewCount     uint `json:"new_count"`
-}
-
-// ResetPrimaryNetwork determines the primary network interface by picking the
-// first non-loopback/link-local interface in the network interfaces list.
-// These networks should be ordered by I/O activity (before calling this
-// function), so it will effectively pick the most active interface. If no
-// interface exists, the ID will be set to nil. If only loopback or link-local
-// interfaces exist, the most active of those will be set. The function returns
-// a boolean indicating whether the primary interface was changed.
-func (h *Host) ResetPrimaryNetwork() bool {
-	oldID := h.PrimaryNetworkInterfaceID
-
-	h.resetPrimaryNetwork()
-
-	if h.PrimaryNetworkInterfaceID != nil && oldID != nil {
-		return *h.PrimaryNetworkInterfaceID != *oldID
-	} else {
-		return h.PrimaryNetworkInterfaceID != oldID
-	}
-}
-
-func (h *Host) resetPrimaryNetwork() {
-	if len(h.NetworkInterfaces) == 0 {
-		h.PrimaryNetworkInterfaceID = nil
-		return
-	}
-
-	for _, nic := range h.NetworkInterfaces {
-		ip := net.ParseIP(nic.IPAddress)
-		if ip == nil {
-			continue
-		}
-
-		// Skip link-local and loopback interfaces
-		if ip.IsLinkLocalUnicast() || ip.IsLoopback() {
-			continue
-		}
-
-		// Choose first allowed interface
-		h.PrimaryNetworkInterfaceID = &nic.ID
-		return
-	}
-
-	// If no interfaces qualify, still pick the first interface so that we
-	// show something.
-	h.PrimaryNetworkInterfaceID = &h.NetworkInterfaces[0].ID
 }
 
 // RandomText returns a stdEncoded string of

@@ -72,8 +72,8 @@ class HostsTable extends Component {
           {host.os_version}
         </td>
         <td>{host.osquery_version}</td>
-        <td>{host.host_ip_address}</td>
-        <td>{host.host_mac}</td>
+        <td>{host.primary_ip}</td>
+        <td>{host.primary_mac}</td>
         <td>
           <ActionButton
             host={host}

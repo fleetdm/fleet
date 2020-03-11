@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/go-kit/kit/log"
 	"github.com/kolide/fleet/server/config"
 	hostctx "github.com/kolide/fleet/server/contexts/host"
 	"github.com/kolide/fleet/server/contexts/viewer"
@@ -845,6 +846,51 @@ func TestDetailQueries(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, queries, len(detailQueries))
 	assert.Zero(t, acc)
+}
+
+func TestDetailQueryNetworkInterfaces(t *testing.T) {
+	var initialHost kolide.Host
+	host := initialHost
+
+	ingest := detailQueries["network_interface"].IngestFunc
+
+	assert.NoError(t, ingest(log.NewNopLogger(), &host, nil))
+	assert.Equal(t, initialHost, host)
+
+	var rows []map[string]string
+	require.NoError(t, json.Unmarshal([]byte(`
+[
+  {"address":"127.0.0.1","mac":"00:00:00:00:00:00"},
+  {"address":"::1","mac":"00:00:00:00:00:00"},
+  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00"},
+  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b"},
+  {"address":"192.168.1.3","mac":"f4:5d:79:93:58:5b"},
+  {"address":"fe80::241a:9aff:fe60:d80a%awdl0","mac":"27:1b:aa:60:e8:0a"},
+  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00"}
+]`),
+		&rows,
+	))
+
+	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
+	assert.Equal(t, "192.168.1.3", host.PrimaryIP)
+	assert.Equal(t, "f4:5d:79:93:58:5b", host.PrimaryMac)
+
+	// Only local/loopback
+	require.NoError(t, json.Unmarshal([]byte(`
+[
+  {"address":"127.0.0.1","mac":"00:00:00:00:00:00"},
+  {"address":"::1","mac":"00:00:00:00:00:00"},
+  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00"},
+  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b"},
+  {"address":"fe80::241a:9aff:fe60:d80a%awdl0","mac":"27:1b:aa:60:e8:0a"},
+  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00"}
+]`),
+		&rows,
+	))
+
+	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
+	assert.Equal(t, "127.0.0.1", host.PrimaryIP)
+	assert.Equal(t, "00:00:00:00:00:00", host.PrimaryMac)
 }
 
 func TestNewDistributedQueryCampaign(t *testing.T) {

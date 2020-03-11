@@ -27,8 +27,8 @@ describe('TargetDetails - component', () => {
       it('renders target information', () => {
         const target = {
           display_text: 'display_text',
-          host_mac: 'host_mac',
-          host_ip_address: 'host_ip_address',
+          primary_mac: 'host_mac',
+          primary_ip: 'host_ip_address',
           memory: 1074000000, // 1 GB memory
           osquery_version: 'osquery_version',
           os_version: 'os_version',
@@ -39,8 +39,8 @@ describe('TargetDetails - component', () => {
         const componentText = Component.text();
 
         expect(componentText).toInclude(target.display_text);
-        expect(componentText).toInclude(target.host_mac);
-        expect(componentText).toInclude(target.host_ip_address);
+        expect(componentText).toInclude(target.primary_mac);
+        expect(componentText).toInclude(target.primary_ip);
         expect(componentText).toInclude('1.0 GB');
         expect(componentText).toInclude(target.osquery_version);
         expect(componentText).toInclude(target.os_version);

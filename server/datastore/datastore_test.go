@@ -74,7 +74,6 @@ var testFunctions = [...]func(*testing.T, kolide.Datastore){
 	testIdempotentDeleteHost,
 	testChangeEmail,
 	testChangeLabelDetails,
-	testFlappingNetworkInterfaces,
 	testMigrationStatus,
 	testUnicode,
 	testCountHostsInTargets,

@@ -25,7 +25,7 @@ class TargetOption extends Component {
     const { target } = this.props;
     const {
       count,
-      host_ip_address: hostIpAddress,
+      primary_ip: hostIpAddress,
       target_type: targetType,
     } = target;
 

@@ -38,109 +38,6 @@ func (d *Datastore) NewHost(host *kolide.Host) (*kolide.Host, error) {
 	return host, nil
 }
 
-func removedUnusedNics(tx *sqlx.Tx, host *kolide.Host) error {
-	if len(host.NetworkInterfaces) == 0 {
-		_, err := tx.Exec(`DELETE FROM network_interfaces WHERE host_id = ?`, host.ID)
-		return err
-	}
-	// Remove nics not associated with host
-	sqlStatement := fmt.Sprintf(`
-			DELETE FROM network_interfaces
-			WHERE host_id = %d AND id NOT IN (?)
-		`, host.ID)
-
-	list := []uint{}
-	for _, nic := range host.NetworkInterfaces {
-		list = append(list, nic.ID)
-	}
-
-	sql, args, err := sqlx.In(sqlStatement, list)
-	if err != nil {
-		return err
-	}
-
-	sql = tx.Rebind(sql)
-	_, err = tx.Exec(sql, args...)
-	return err
-}
-
-func updateNicsForHost(tx *sqlx.Tx, host *kolide.Host) ([]*kolide.NetworkInterface, error) {
-	updatedNics := []*kolide.NetworkInterface{}
-	// id = LAST_INSERT_ID(id) is a fix for the lastinsertid not being set
-	// properly. See comments in https://goo.gl/cwWRXd.
-	sqlStatement := `
-	 	INSERT INTO network_interfaces (
-			host_id,
-			mac,
-			ip_address,
-			broadcast,
-			ibytes,
-			interface,
-			ipackets,
-			last_change,
-			mask,
-			metric,
-			mtu,
-			obytes,
-			ierrors,
-			oerrors,
-			opackets,
-			point_to_point,
-			type
-		) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-		ON DUPLICATE KEY UPDATE
-			id = LAST_INSERT_ID(id),
-			mac = VALUES(mac),
-			broadcast = VALUES(broadcast),
-			ibytes = VALUES(ibytes),
-			ipackets = VALUES(ipackets),
-			last_change = VALUES(last_change),
-			mask = VALUES(mask),
-			metric = VALUES(metric),
-			mtu = VALUES(mtu),
-			obytes = VALUES(obytes),
-			ierrors = VALUES(ierrors),
-			oerrors = VALUES(oerrors),
-			opackets = VALUES(opackets),
-			point_to_point = VALUES(point_to_point),
-			type = VALUES(type)
-	 `
-	for _, nic := range host.NetworkInterfaces {
-		nic.HostID = host.ID
-		result, err := tx.Exec(sqlStatement,
-			nic.HostID,
-			nic.MAC,
-			nic.IPAddress,
-			nic.Broadcast,
-			nic.IBytes,
-			nic.Interface,
-			nic.IPackets,
-			nic.LastChange,
-			nic.Mask,
-			nic.Metric,
-			nic.MTU,
-			nic.OBytes,
-			nic.IErrors,
-			nic.OErrors,
-			nic.OPackets,
-			nic.PointToPoint,
-			nic.Type,
-		)
-
-		if err != nil {
-			return nil, err
-		}
-		nicID, _ := result.LastInsertId()
-		// if row was updated there is no LastInsertID
-		if nicID != 0 {
-			nic.ID = uint(nicID)
-		}
-		updatedNics = append(updatedNics, nic)
-	}
-
-	return updatedNics, nil
-}
-
 // TODO needs test
 func (d *Datastore) SaveHost(host *kolide.Host) error {
 	sqlStatement := `
@@ -163,7 +60,6 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 			hardware_version = ?,
 			hardware_serial = ?,
 			computer_name = ?,
-			primary_ip_id = ?,
 			build = ?,
 			platform_like = ?,
 			code_name = ?,
@@ -173,85 +69,49 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 			config_tls_refresh = ?,
 			logger_tls_period = ?,
 			additional = COALESCE(?, additional),
-			enroll_secret_name = ?
+			enroll_secret_name = ?,
+			primary_ip = ?,
+			primary_mac = ?
 		WHERE id = ?
 	`
-	err := d.withRetryTxx(func(tx *sqlx.Tx) error {
-		results, err := tx.Exec(sqlStatement,
-			host.DetailUpdateTime,
-			host.NodeKey,
-			host.HostName,
-			host.UUID,
-			host.Platform,
-			host.OsqueryVersion,
-			host.OSVersion,
-			host.Uptime,
-			host.PhysicalMemory,
-			host.CPUType,
-			host.CPUSubtype,
-			host.CPUBrand,
-			host.CPUPhysicalCores,
-			host.HardwareVendor,
-			host.HardwareModel,
-			host.HardwareVersion,
-			host.HardwareSerial,
-			host.ComputerName,
-			host.PrimaryNetworkInterfaceID,
-			host.Build,
-			host.PlatformLike,
-			host.CodeName,
-			host.CPULogicalCores,
-			host.SeenTime,
-			host.DistributedInterval,
-			host.ConfigTLSRefresh,
-			host.LoggerTLSPeriod,
-			host.Additional,
-			host.EnrollSecretName,
-			host.ID,
-		)
-		if err != nil {
-			return errors.Wrap(err, "executing main SQL statement")
-		}
-		rowsAffected, err := results.RowsAffected()
-		if err != nil {
-			return errors.Wrap(err, "rows affected updating host")
-		}
-		if rowsAffected == 0 {
-			return notFound("Host").WithID(host.ID)
-		}
+	_, err := d.db.Exec(sqlStatement,
+		host.DetailUpdateTime,
+		host.NodeKey,
+		host.HostName,
+		host.UUID,
+		host.Platform,
+		host.OsqueryVersion,
+		host.OSVersion,
+		host.Uptime,
+		host.PhysicalMemory,
+		host.CPUType,
+		host.CPUSubtype,
+		host.CPUBrand,
+		host.CPUPhysicalCores,
+		host.HardwareVendor,
+		host.HardwareModel,
+		host.HardwareVersion,
+		host.HardwareSerial,
+		host.ComputerName,
+		host.Build,
+		host.PlatformLike,
+		host.CodeName,
+		host.CPULogicalCores,
+		host.SeenTime,
+		host.DistributedInterval,
+		host.ConfigTLSRefresh,
+		host.LoggerTLSPeriod,
+		host.Additional,
+		host.EnrollSecretName,
+		host.PrimaryIP,
+		host.PrimaryMac,
+		host.ID,
+	)
+	if err != nil {
+		return errors.Wrapf(err, "save host with id %d", host.ID)
+	}
 
-		host.NetworkInterfaces, err = updateNicsForHost(tx, host)
-		if err != nil {
-			return errors.Wrap(err, "updating nics")
-		}
-
-		if err = removedUnusedNics(tx, host); err != nil {
-			return errors.Wrap(err, "removing unused nics")
-		}
-
-		if needsUpdate := host.ResetPrimaryNetwork(); needsUpdate {
-			results, err = tx.Exec(
-				"UPDATE hosts SET primary_ip_id = ? WHERE id = ?",
-				host.PrimaryNetworkInterfaceID,
-				host.ID,
-			)
-
-			if err != nil {
-				return errors.Wrap(err, "resetting primary network")
-			}
-			rowsAffected, err = results.RowsAffected()
-			if err != nil {
-				return errors.Wrap(err, "rows affected resetting primary network")
-			}
-			if rowsAffected == 0 {
-				return notFound("Host").WithID(host.ID)
-			}
-		}
-
-		return nil
-	})
-
-	return err
+	return nil
 }
 
 func (d *Datastore) DeleteHost(hid uint) error {
@@ -273,12 +133,7 @@ func (d *Datastore) Host(id uint) (*kolide.Host, error) {
 		return nil, errors.Wrap(err, "getting host by id")
 	}
 
-	if err := d.getNetInterfacesForHost(host); err != nil {
-		return nil, err
-	}
-
 	return host, nil
-
 }
 
 func (d *Datastore) ListHosts(opt kolide.ListOptions) ([]*kolide.Host, error) {
@@ -290,18 +145,6 @@ func (d *Datastore) ListHosts(opt kolide.ListOptions) ([]*kolide.Host, error) {
 	hosts := []*kolide.Host{}
 	if err := d.db.Select(&hosts, sqlStatement); err != nil {
 		return nil, errors.Wrap(err, "list hosts")
-	}
-
-	if opt.PerPage == 0 || (opt.Page == 0 && uint(len(hosts)) < opt.PerPage) {
-		// If all hosts, we can use the optimized network interface retrieval function
-		if err := d.getNetInterfacesForAllHosts(hosts); err != nil {
-			return nil, err
-		}
-
-	} else {
-		if err := d.getNetInterfacesForHosts(hosts); err != nil {
-			return nil, err
-		}
 	}
 
 	return hosts, nil
@@ -351,95 +194,6 @@ func (d *Datastore) GenerateHostStatusStatistics(now time.Time) (online, offline
 	online = counts.Online
 	new = counts.New
 	return online, offline, mia, new, nil
-}
-
-// Optimized network interface fetch for sets of hosts.  Instead of looping
-// through hosts and doing a select for each host to get nics, we get all
-// nics at once, so 2 db calls, and then assign nics to hosts here.
-func (d *Datastore) getNetInterfacesForHosts(hosts []*kolide.Host) error {
-	if len(hosts) == 0 {
-		return nil
-	}
-
-	sqlStatement := `
-		SELECT *
-		FROM network_interfaces
-		WHERE host_id IN (:hosts)
-		ORDER BY host_id ASC
-	`
-	hostIDs := make([]uint, len(hosts))
-
-	for _, host := range hosts {
-		hostIDs = append(hostIDs, host.ID)
-	}
-
-	arg := map[string]interface{}{
-		"hosts": hostIDs,
-	}
-	query, args, err := sqlx.Named(sqlStatement, arg)
-	if err != nil {
-		return errors.Wrap(err, "select nics for hosts, named query")
-	}
-
-	query, args, err = sqlx.In(query, args...)
-	if err != nil {
-		return errors.Wrap(err, "select nics for hosts, in query")
-	}
-
-	query = d.db.Rebind(query)
-	nics := []*kolide.NetworkInterface{}
-	err = d.db.Select(&nics, query, args...)
-	if err != nil {
-		return errors.Wrap(err, "select nics for hosts, rebound query")
-	}
-
-	for _, host := range hosts {
-		for i := 0; i < len(nics); i++ {
-			if host.ID == nics[i].HostID {
-				host.NetworkInterfaces = append(host.NetworkInterfaces, nics[i])
-			}
-		}
-	}
-
-	return nil
-}
-
-// When we know we're loading the network interfaces for all hosts, we can skip
-// the IN clause and load them all. This allows us to load net interfaces
-// without error for larger sets of hosts.
-func (d *Datastore) getNetInterfacesForAllHosts(hosts []*kolide.Host) error {
-	if len(hosts) == 0 {
-		return nil
-	}
-
-	sqlStatement := `
-		SELECT *
-		FROM network_interfaces
-		ORDER BY host_id ASC
-	`
-	nics := []*kolide.NetworkInterface{}
-	err := d.db.Select(&nics, sqlStatement)
-	if err != nil {
-		return errors.Wrap(err, "select nics for all hosts")
-	}
-
-	for _, host := range hosts {
-		for i := 0; i < len(nics); i++ {
-			if host.ID == nics[i].HostID {
-				host.NetworkInterfaces = append(host.NetworkInterfaces, nics[i])
-			}
-		}
-	}
-
-	return nil
-}
-
-func (d *Datastore) getNetInterfacesForHost(host *kolide.Host) error {
-	sqlStatement := `
-		SELECT * FROM network_interfaces
-		WHERE host_id = ?
-	`
-	return d.db.Select(&host.NetworkInterfaces, sqlStatement, host.ID)
 }
 
 // EnrollHost enrolls a host
@@ -536,10 +290,6 @@ func (d *Datastore) AuthenticateHost(nodeKey string) (*kolide.Host, error) {
 		}
 	}
 
-	if err := d.getNetInterfacesForHost(host); err != nil {
-		return nil, errors.Wrap(err, "getting interfaces")
-	}
-
 	return host, nil
 }
 
@@ -573,14 +323,8 @@ func (d *Datastore) searchHostsWithOmits(query string, omit ...uint) ([]*kolide.
 				SELECT id
 				FROM hosts
 				WHERE
-				MATCH(host_name, uuid) AGAINST(? IN BOOLEAN MODE)
-			)
-		OR
-			id IN (
-				SELECT host_id
-				FROM network_interfaces
-				WHERE
-				MATCH(ip_address) AGAINST(? IN BOOLEAN MODE)
+				MATCH (host_name, uuid) AGAINST (? IN BOOLEAN MODE)
+				OR MATCH (primary_ip, primary_mac) AGAINST (? IN BOOLEAN MODE)
 			)
 		)
 		AND NOT deleted
@@ -599,10 +343,6 @@ func (d *Datastore) searchHostsWithOmits(query string, omit ...uint) ([]*kolide.
 	err = d.db.Select(&hosts, sql, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "searching hosts rebound")
-	}
-
-	if err := d.getNetInterfacesForHosts(hosts); err != nil {
-		return nil, errors.Wrap(err, "getting network interfaces for hosts")
 	}
 
 	return hosts, nil
@@ -637,9 +377,6 @@ func (d *Datastore) searchHostsDefault(omit ...uint) ([]*kolide.Host, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "searching default hosts rebound")
 	}
-	if err := d.getNetInterfacesForHosts(hosts); err != nil {
-		return nil, errors.Wrap(err, "getting network interfaces for default search hosts")
-	}
 	return hosts, nil
 }
 
@@ -667,14 +404,8 @@ func (d *Datastore) SearchHosts(query string, omit ...uint) ([]*kolide.Host, err
 				SELECT id
 				FROM hosts
 				WHERE
-				MATCH(host_name, uuid) AGAINST(? IN BOOLEAN MODE)
-			)
-		OR
-			id IN (
-				SELECT host_id
-				FROM network_interfaces
-				WHERE
-				MATCH(ip_address) AGAINST(? IN BOOLEAN MODE)
+				MATCH (host_name, uuid) AGAINST (? IN BOOLEAN MODE)
+				OR MATCH (primary_ip, primary_mac) AGAINST (? IN BOOLEAN MODE)
 			)
 		)
 		AND NOT deleted
@@ -684,10 +415,6 @@ func (d *Datastore) SearchHosts(query string, omit ...uint) ([]*kolide.Host, err
 
 	if err := d.db.Select(&hosts, sqlStatement, hostQuery, ipQuery); err != nil {
 		return nil, errors.Wrap(err, "searching hosts")
-	}
-
-	if err := d.getNetInterfacesForHosts(hosts); err != nil {
-		return nil, errors.Wrap(err, "getting interfaces")
 	}
 
 	return hosts, nil

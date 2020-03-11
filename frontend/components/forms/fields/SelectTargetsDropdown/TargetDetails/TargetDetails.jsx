@@ -40,8 +40,8 @@ class TargetDetails extends Component {
     const { className, handleBackToResults, target } = this.props;
     const {
       display_text: displayText,
-      host_mac: hostMac,
-      host_ip_address: hostIpAddress,
+      primary_mac: hostMac,
+      primary_ip: hostIpAddress,
       memory,
       osquery_version: osqueryVersion,
       os_version: osVersion,

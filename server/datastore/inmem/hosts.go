@@ -34,13 +34,6 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 		return notFound("Host").WithID(host.ID)
 	}
 
-	for _, nic := range host.NetworkInterfaces {
-		if nic.ID == 0 {
-			nic.ID = d.nextID(nic)
-		}
-		nic.HostID = host.ID
-	}
-	host.ResetPrimaryNetwork()
 	d.hosts[host.ID] = host
 	return nil
 }

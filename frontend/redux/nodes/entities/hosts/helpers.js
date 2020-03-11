@@ -1,9 +1,6 @@
 import { find } from 'lodash';
 
 export const parseEntityFunc = (host) => {
-  const { network_interfaces: networkInterfaces } = host;
-  const networkInterface = networkInterfaces && find(networkInterfaces, { id: host.primary_ip_id });
-
   let hostCpuOutput = null;
   if (host) {
     let clockSpeedOutput = null;
@@ -25,11 +22,6 @@ export const parseEntityFunc = (host) => {
     host_cpu: hostCpuOutput,
     target_type: 'hosts',
   };
-
-  if (networkInterface) {
-    additionalAttrs.host_ip_address = networkInterface.address;
-    additionalAttrs.host_mac = networkInterface.mac;
-  }
 
   return {
     ...host,

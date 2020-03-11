@@ -140,7 +140,7 @@ const HostDetails = ({ host, onDestroyHost, onQueryHost, isLoading }) => {
             <span
               className={`${baseClass}__host-content ${baseClass}__host-content--mono`}
             >
-              {host.host_mac ? host.host_mac.toUpperCase() : '--'}
+              {host.primary_mac ? host.primary_mac.toUpperCase() : '--'}
             </span>
           </li>
 
@@ -153,7 +153,7 @@ const HostDetails = ({ host, onDestroyHost, onQueryHost, isLoading }) => {
             <span
               className={`${baseClass}__host-content ${baseClass}__host-content--mono`}
             >
-              {host.host_ip_address || '--'}
+              {host.primary_ip || '--'}
             </span>
           </li>
         </ul>

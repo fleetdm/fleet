@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -256,9 +257,7 @@ var detailQueries = map[string]struct {
 	IngestFunc func(logger log.Logger, host *kolide.Host, rows []map[string]string) error
 }{
 	"network_interface": {
-		Query: `select ia.interface, address, mask, broadcast, point_to_point,
-                               id.interface, mac, id.type, mtu, metric, ipackets, opackets,
-                               ibytes, obytes, ierrors, oerrors, idrops, odrops, last_change
+		Query: `select address, mac
                         from interface_details id join interface_addresses ia
                                on ia.interface = id.interface where length(mac) > 0
                                order by (ibytes + obytes) desc`,
@@ -268,55 +267,29 @@ var detailQueries = map[string]struct {
 					"detail_query_network_interface expected 1 or more results")
 				return nil
 			}
-			networkInterfaces := []*kolide.NetworkInterface{}
 
 			for _, row := range rows {
-				nic := kolide.NetworkInterface{}
+				ip := net.ParseIP(row["address"])
+				if ip == nil {
+					continue
+				}
 
-				nic.MAC = row["mac"]
-				nic.IPAddress = row["address"]
-				nic.Broadcast = row["broadcast"]
-				if nic.IBytes, err = strconv.ParseInt(emptyToZero(row["ibytes"]), 10, 64); err != nil {
-					nic.IBytes = -1
+				// Skip link-local and loopback interfaces
+				if ip.IsLinkLocalUnicast() || ip.IsLoopback() {
+					continue
 				}
-				if nic.IErrors, err = strconv.ParseInt(emptyToZero(row["ierrors"]), 10, 64); err != nil {
-					nic.IErrors = -1
-				}
-				nic.Interface = row["interface"]
-				if nic.IPackets, err = strconv.ParseInt(emptyToZero(row["ipackets"]), 10, 64); err != nil {
-					nic.IPackets = -1
-				}
-				// Optional last_change
-				if lastChange, ok := row["last_change"]; ok {
-					if nic.LastChange, err = strconv.ParseInt(emptyToZero(lastChange), 10, 64); err != nil {
-						return err
-					}
-				}
-				nic.Mask = row["mask"]
-				if nic.Metric, err = strconv.Atoi(emptyToZero(row["metric"])); err != nil {
-					return err
-				}
-				if nic.MTU, err = strconv.Atoi(emptyToZero(row["mtu"])); err != nil {
-					return err
-				}
-				if nic.OBytes, err = strconv.ParseInt(emptyToZero(row["obytes"]), 10, 64); err != nil {
-					nic.OBytes = -1
-				}
-				if nic.OErrors, err = strconv.ParseInt(emptyToZero(row["oerrors"]), 10, 64); err != nil {
-					nic.OErrors = -1
-				}
-				if nic.OPackets, err = strconv.ParseInt(emptyToZero(row["opackets"]), 10, 64); err != nil {
-					nic.OPackets = -1
-				}
-				nic.PointToPoint = row["point_to_point"]
-				if nic.Type, err = strconv.Atoi(emptyToZero(row["type"])); err != nil {
-					return err
-				}
-				networkInterfaces = append(networkInterfaces, &nic)
+
+				// Rows are ordered by traffic, so we will get the most active
+				// interface by iterating in order
+				host.PrimaryIP = row["address"]
+				host.PrimaryMac = row["mac"]
+				return nil
 			}
 
-			host.NetworkInterfaces = networkInterfaces
-
+			// If only link-local and loopback found, still use the first
+			// interface.
+			host.PrimaryIP = rows[0]["address"]
+			host.PrimaryMac = rows[0]["mac"]
 			return nil
 		},
 	},
