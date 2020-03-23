@@ -21,7 +21,7 @@ import (
 // NewService creates a new service from the config struct
 func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore,
 	logger kitlog.Logger, config config.KolideConfig, mailService kolide.MailService,
-	c clock.Clock, sso sso.SessionStore) (kolide.Service, error) {
+	c clock.Clock, sso sso.SessionStore, lq kolide.LiveQueryStore) (kolide.Service, error) {
 	var svc kolide.Service
 
 	osqueryLogger, err := logging.New(config, logger)
@@ -32,6 +32,7 @@ func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore,
 	svc = service{
 		ds:               ds,
 		resultStore:      resultStore,
+		liveQueryStore:   lq,
 		logger:           logger,
 		config:           config,
 		clock:            c,
@@ -47,11 +48,12 @@ func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore,
 }
 
 type service struct {
-	ds          kolide.Datastore
-	resultStore kolide.QueryResultStore
-	logger      kitlog.Logger
-	config      config.KolideConfig
-	clock       clock.Clock
+	ds             kolide.Datastore
+	resultStore    kolide.QueryResultStore
+	liveQueryStore kolide.LiveQueryStore
+	logger         kitlog.Logger
+	config         config.KolideConfig
+	clock          clock.Clock
 
 	osqueryLogWriter *logging.OsqueryLogger
 

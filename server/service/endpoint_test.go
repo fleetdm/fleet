@@ -51,7 +51,7 @@ func setupEndpointTest(t *testing.T) *testResource {
 		SMTPEnableStartTLS:     true,
 	}
 	test.ds.NewAppConfig(devOrgInfo)
-	svc, _ := newTestService(test.ds, nil)
+	svc, _ := newTestService(test.ds, nil, nil)
 	svc = endpointService{svc}
 	createTestUsers(t, test.ds)
 	logger := kitlog.NewLogfmtLogger(os.Stdout)

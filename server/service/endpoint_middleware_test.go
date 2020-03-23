@@ -202,7 +202,7 @@ func TestGetNodeKey(t *testing.T) {
 
 func TestAuthenticatedHost(t *testing.T) {
 	ds := new(mock.Store)
-	svc, err := newTestService(ds, nil)
+	svc, err := newTestService(ds, nil, nil)
 	require.Nil(t, err)
 
 	expectedHost := kolide.Host{HostName: "foo!"}

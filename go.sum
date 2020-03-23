@@ -107,7 +107,6 @@ github.com/hashicorp/hcl v0.0.0-20180404174102-ef8a98b0bbce/go.mod h1:oZtUIOe8dh
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
 github.com/igm/sockjs-go v0.0.0-20171030210102-c8a8c6429d10 h1:ljduAgNABiE73f+bVVeuHh9V4FA2KaZcnjkI8Bcbj7Y=
 github.com/igm/sockjs-go v0.0.0-20171030210102-c8a8c6429d10/go.mod h1:Yu6pvqjNniWNJe07LPObeCG6R77Qc97C6Kss0roF8tU=
-github.com/igm/sockjs-go v1.0.0 h1:aTn8ZoamuYOVPoRVKzi2r9x3GPi+kVG2nMs5eFZlDiU=
 github.com/igm/sockjs-go v3.0.0+incompatible h1:4w5ztbp2brVLJYz+o3u0m7+zmuup6eZ/Fr1ehbJOsBo=
 github.com/igm/sockjs-go/v3 v3.0.0 h1:4wLoB9WCnQ8RI87cmqUH778ACDFVmRpkKRCWBeuc+Ww=
 github.com/igm/sockjs-go/v3 v3.0.0/go.mod h1:UqchsOjeagIBFHvd+RZpLaVRbCwGilEC08EDHsD1jYE=
@@ -225,6 +224,7 @@ github.com/spf13/pflag v1.0.1/go.mod h1:DYY7MBk1bdzusC3SYhjObp+wFpr4gzcvqqNjLnIn
 github.com/spf13/viper v1.0.2 h1:Ncr3ZIuJn322w2k1qmzXDnkLAdQMlJqBa9kfAH+irso=
 github.com/spf13/viper v1.0.2/go.mod h1:A8kyI5cUJhb8N+3pkfONlcEcZbueH6nhAm0Fq7SrnBM=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
+github.com/stretchr/objx v0.1.1 h1:2vfRuCMp5sSVIDSqO8oNnWJq7mPa6KVP3iPIwFBuy8A=
 github.com/stretchr/objx v0.1.1/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.2.2 h1:bSDNvY7ZPG5RlJ8otE/7V6gMiyenm9RtJ7IUVIAoJ1w=
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=

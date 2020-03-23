@@ -10,14 +10,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTestService(ds kolide.Datastore, rs kolide.QueryResultStore) (kolide.Service, error) {
+func newTestService(ds kolide.Datastore, rs kolide.QueryResultStore, lq kolide.LiveQueryStore) (kolide.Service, error) {
 	mailer := &mockMailService{SendEmailFn: func(e kolide.Email) error { return nil }}
-	return NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), mailer, clock.C, nil)
+	return NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), mailer, clock.C, nil, lq)
 }
 
-func newTestServiceWithClock(ds kolide.Datastore, rs kolide.QueryResultStore, c clock.Clock) (kolide.Service, error) {
+func newTestServiceWithClock(ds kolide.Datastore, rs kolide.QueryResultStore, lq kolide.LiveQueryStore, c clock.Clock) (kolide.Service, error) {
 	mailer := &mockMailService{SendEmailFn: func(e kolide.Email) error { return nil }}
-	return NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), mailer, c, nil)
+	return NewService(ds, rs, kitlog.NewNopLogger(), config.TestConfig(), mailer, c, nil, lq)
 }
 
 func createTestAppConfig(t *testing.T, ds kolide.Datastore) *kolide.AppConfig {

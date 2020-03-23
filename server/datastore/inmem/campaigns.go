@@ -72,23 +72,6 @@ func (d *Datastore) NewDistributedQueryCampaignTarget(target *kolide.Distributed
 	return target, nil
 }
 
-func (d *Datastore) NewDistributedQueryExecution(exec *kolide.DistributedQueryExecution) (*kolide.DistributedQueryExecution, error) {
-	d.mtx.Lock()
-	defer d.mtx.Unlock()
-
-	for _, e := range d.distributedQueryExecutions {
-		if exec.HostID == e.HostID && exec.DistributedQueryCampaignID == e.DistributedQueryCampaignID {
-			fmt.Printf("%+v -- %+v\n", exec, d.distributedQueryExecutions)
-			return exec, alreadyExists("DistributedQueryExecution", exec.HostID)
-		}
-	}
-
-	exec.ID = d.nextID(exec)
-	d.distributedQueryExecutions[exec.ID] = *exec
-
-	return exec, nil
-}
-
 func (d *Datastore) CleanupDistributedQueryCampaigns(now time.Time) (expired uint, deleted uint, err error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
@@ -103,14 +86,5 @@ func (d *Datastore) CleanupDistributedQueryCampaigns(now time.Time) (expired uin
 		}
 	}
 
-	// Now delete executions for expired campaigns
-	for id, e := range d.distributedQueryExecutions {
-		c, ok := d.distributedQueryCampaigns[e.DistributedQueryCampaignID]
-		if !ok || c.Status == kolide.QueryComplete {
-			delete(d.distributedQueryExecutions, id)
-			deleted++
-		}
-	}
-
-	return expired, deleted, nil
+	return expired, 0, nil
 }

@@ -25,7 +25,6 @@ require (
 	github.com/gorilla/websocket v1.4.2
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/hashicorp/hcl v0.0.0-20180404174102-ef8a98b0bbce // indirect
-	github.com/igm/sockjs-go v0.0.0-20171030210102-c8a8c6429d10
 	github.com/igm/sockjs-go/v3 v3.0.0
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jmoiron/sqlx v0.0.0-20180406164412-2aeb6a910c2b

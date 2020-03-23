@@ -3,8 +3,10 @@ package service
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
+	"github.com/igm/sockjs-go/sockjs"
 	"github.com/kolide/fleet/server/contexts/viewer"
 	"github.com/kolide/fleet/server/kolide"
 	"github.com/kolide/fleet/server/websocket"
@@ -81,6 +83,17 @@ func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 			return nil, errors.Wrap(err, "adding label target")
 		}
 	}
+
+	hostIDs, err := svc.ds.HostIDsInTargets(hosts, labels)
+	if err != nil {
+		return nil, errors.Wrap(err, "get target IDs")
+	}
+
+	err = svc.liveQueryStore.RunQuery(strconv.Itoa(int(campaign.ID)), queryString, hostIDs)
+	if err != nil {
+		return nil, errors.Wrap(err, "run query")
+	}
+
 	campaign.Metrics, err = svc.ds.CountHostsInTargets(hosts, labels, time.Now())
 	if err != nil {
 		return nil, errors.Wrap(err, "counting hosts")
@@ -114,11 +127,6 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		return
 	}
 
-	if campaign.Status != kolide.QueryWaiting {
-		conn.WriteJSONError(fmt.Sprintf("campaign %d not running", campaignID))
-		return
-	}
-
 	// Setting status to running will cause the query to be returned to the
 	// targets when they check in for their queries
 	campaign.Status = kolide.QueryRunning
@@ -133,6 +141,7 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	defer func() {
 		campaign.Status = kolide.QueryComplete
 		svc.ds.SaveDistributedQueryCampaign(campaign)
+		svc.liveQueryStore.StopQuery(strconv.Itoa(int(campaign.ID)))
 	}()
 
 	// Open the channel from which we will receive incoming query results
@@ -157,14 +166,13 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		}
 	}
 
-	updateStatus := func() error {
-		hostIDs, labelIDs, err := svc.ds.DistributedQueryCampaignTargetIDs(campaign.ID)
-		if err != nil {
-			if err = conn.WriteJSONError("error retrieving campaign targets"); err != nil {
-				return errors.New("retrieve campaign targets")
-			}
-		}
+	hostIDs, labelIDs, err := svc.ds.DistributedQueryCampaignTargetIDs(campaign.ID)
+	if err != nil {
+		conn.WriteJSONError("error retrieving campaign targets: " + err.Error())
+		return
+	}
 
+	updateStatus := func() error {
 		metrics, err := svc.CountHostsInTargets(context.Background(), hostIDs, labelIDs)
 		if err != nil {
 			if err = conn.WriteJSONError("error retrieving target counts"); err != nil {
@@ -227,6 +235,11 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			}
 
 		case <-ticker.C:
+			if conn.GetSessionState() == sockjs.SessionClosed {
+				// return and stop sending the query if the session was closed
+				// by the client
+				return
+			}
 			// Update status
 			if err := updateStatus(); err != nil {
 				svc.logger.Log("msg", "error updating status", "err", err)
@@ -234,5 +247,4 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			}
 		}
 	}
-
 }

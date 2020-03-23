@@ -14,7 +14,7 @@ func TestGetLabel(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
 	assert.Nil(t, err)
 
-	svc, err := newTestService(ds, nil)
+	svc, err := newTestService(ds, nil, nil)
 	assert.Nil(t, err)
 
 	ctx := context.Background()

@@ -24,6 +24,7 @@ import (
 	"github.com/kolide/fleet/server/health"
 	"github.com/kolide/fleet/server/kolide"
 	"github.com/kolide/fleet/server/launcher"
+	"github.com/kolide/fleet/server/live_query"
 	"github.com/kolide/fleet/server/mail"
 	"github.com/kolide/fleet/server/pubsub"
 	"github.com/kolide/fleet/server/service"
@@ -170,12 +171,12 @@ the way that the Fleet server works.
 				}
 			}
 
-			var resultStore kolide.QueryResultStore
 			redisPool := pubsub.NewRedisPool(config.Redis.Address, config.Redis.Password)
-			resultStore = pubsub.NewRedisQueryResults(redisPool)
+			resultStore := pubsub.NewRedisQueryResults(redisPool)
+			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
 
-			svc, err := service.NewService(ds, resultStore, logger, config, mailService, clock.C, ssoSessionStore)
+			svc, err := service.NewService(ds, resultStore, logger, config, mailService, clock.C, ssoSessionStore, liveQueryStore)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}

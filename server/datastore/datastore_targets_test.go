@@ -34,7 +34,6 @@ func testCountHostsInTargets(t *testing.T, ds kolide.Datastore) {
 		return h
 	}
 
-	// Checks in every
 	h1 := initHost(mockClock.Now().Add(-1*time.Second), 10, 60)
 	h2 := initHost(mockClock.Now().Add(-1*time.Hour), 30, 7200)
 	h3 := initHost(mockClock.Now().Add(-5*time.Second), 20, 20)
@@ -176,4 +175,81 @@ func testHostStatus(t *testing.T, ds kolide.Datastore) {
 			assert.Equal(t, tt.metrics, metrics)
 		})
 	}
+}
+
+func testHostIDsInTargets(t *testing.T, ds kolide.Datastore) {
+	if ds.Name() == "inmem" {
+		t.Skip("inmem is being deprecated, test skipped")
+	}
+
+	hostCount := 0
+	initHost := func() *kolide.Host {
+		hostCount += 1
+		h, err := ds.NewHost(&kolide.Host{
+			OsqueryHostID:    strconv.Itoa(hostCount),
+			NodeKey:          strconv.Itoa(hostCount),
+			DetailUpdateTime: time.Now(),
+			SeenTime:         time.Now(),
+		})
+		require.Nil(t, err)
+		return h
+	}
+
+	h1 := initHost()
+	h2 := initHost()
+	h3 := initHost()
+	h4 := initHost()
+	h5 := initHost()
+	h6 := initHost()
+
+	l1 := kolide.LabelSpec{
+		ID:    1,
+		Name:  "label foo",
+		Query: "query foo",
+	}
+	l2 := kolide.LabelSpec{
+		ID:    2,
+		Name:  "label bar",
+		Query: "query bar",
+	}
+	err := ds.ApplyLabelSpecs([]*kolide.LabelSpec{&l1, &l2})
+	require.Nil(t, err)
+
+	for _, h := range []*kolide.Host{h1, h2, h3, h6} {
+		err = ds.RecordLabelQueryExecutions(h, map[uint]bool{l1.ID: true}, time.Now())
+		assert.Nil(t, err)
+	}
+
+	for _, h := range []*kolide.Host{h3, h4, h5} {
+		err = ds.RecordLabelQueryExecutions(h, map[uint]bool{l2.ID: true}, time.Now())
+		assert.Nil(t, err)
+	}
+
+	ids, err := ds.HostIDsInTargets(nil, []uint{l1.ID, l2.ID})
+	require.Nil(t, err)
+	assert.Equal(t, []uint{1, 2, 3, 4, 5, 6}, ids)
+
+	ids, err = ds.HostIDsInTargets([]uint{h1.ID}, nil)
+	require.Nil(t, err)
+	assert.Equal(t, []uint{1}, ids)
+
+	ids, err = ds.HostIDsInTargets([]uint{h1.ID}, []uint{l1.ID})
+	require.Nil(t, err)
+	assert.Equal(t, []uint{1, 2, 3, 6}, ids)
+
+	ids, err = ds.HostIDsInTargets([]uint{4}, []uint{l1.ID})
+	require.Nil(t, err)
+	assert.Equal(t, []uint{1, 2, 3, 4, 6}, ids)
+
+	ids, err = ds.HostIDsInTargets([]uint{4}, []uint{l2.ID})
+	require.Nil(t, err)
+	assert.Equal(t, []uint{3, 4, 5}, ids)
+
+	ids, err = ds.HostIDsInTargets([]uint{}, []uint{l2.ID})
+	require.Nil(t, err)
+	assert.Equal(t, []uint{3, 4, 5}, ids)
+
+	ids, err = ds.HostIDsInTargets([]uint{1, 6}, []uint{l2.ID})
+	require.Nil(t, err)
+	assert.Equal(t, []uint{1, 3, 4, 5, 6}, ids)
 }

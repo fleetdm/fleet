@@ -108,28 +108,6 @@ func (d *Datastore) NewDistributedQueryCampaignTarget(target *kolide.Distributed
 	return target, nil
 }
 
-func (d *Datastore) NewDistributedQueryExecution(exec *kolide.DistributedQueryExecution) (*kolide.DistributedQueryExecution, error) {
-	sqlStatement := `
-		INSERT INTO distributed_query_executions (
-			host_id,
-			distributed_query_campaign_id,
-			status,
-			error,
-			execution_duration
-		) VALUES (?,?,?,?,?)
-	`
-	result, err := d.db.Exec(sqlStatement, exec.HostID, exec.DistributedQueryCampaignID,
-		exec.Status, exec.Error, exec.ExecutionDuration)
-	if err != nil {
-		return nil, errors.Wrap(err, "insert distributed campaign target")
-	}
-
-	id, _ := result.LastInsertId()
-	exec.ID = uint(id)
-
-	return exec, nil
-}
-
 func (d *Datastore) CleanupDistributedQueryCampaigns(now time.Time) (expired uint, deleted uint, err error) {
 	// First expire old waiting and running campaigns
 	sqlStatement := `

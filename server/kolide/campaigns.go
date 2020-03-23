@@ -25,10 +25,6 @@ type CampaignStore interface {
 	// distributed query campaign
 	NewDistributedQueryCampaignTarget(target *DistributedQueryCampaignTarget) (*DistributedQueryCampaignTarget, error)
 
-	// NewDistributedQueryCampaignExecution records a new execution for a
-	// distributed query campaign
-	NewDistributedQueryExecution(exec *DistributedQueryExecution) (*DistributedQueryExecution, error)
-
 	// CleanupDistributedQueryCampaigns will clean and trim metadata for
 	// old distributed query campaigns. Any campaign in the QueryWaiting
 	// state will be moved to QueryComplete after one minute. Any campaign
@@ -113,15 +109,4 @@ type DistributedQueryResult struct {
 	// that we can't use the error interface here because something
 	// implementing that interface may not (un)marshal properly
 	Error *string `json:"error"`
-}
-
-// DistributedQueryExecution is the metadata associated with a distributed
-// query execution on a single host.
-type DistributedQueryExecution struct {
-	ID                         uint
-	HostID                     uint `db:"host_id"`
-	DistributedQueryCampaignID uint `db:"distributed_query_campaign_id"`
-	Status                     DistributedQueryExecutionStatus
-	Error                      string
-	ExecutionDuration          time.Duration `db:"execution_duration"`
 }

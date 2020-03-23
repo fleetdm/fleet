@@ -75,16 +75,6 @@ func AddLabelToCampaign(t *testing.T, ds kolide.Datastore, campaignID, labelID u
 	require.Nil(t, err)
 }
 
-func NewExecution(t *testing.T, ds kolide.Datastore, campaignID uint, hostID uint) *kolide.DistributedQueryExecution {
-	execution, err := ds.NewDistributedQueryExecution(&kolide.DistributedQueryExecution{
-		HostID: hostID,
-		DistributedQueryCampaignID: campaignID,
-	})
-	require.Nil(t, err)
-
-	return execution
-}
-
 func NewHost(t *testing.T, ds kolide.Datastore, name, ip, key, uuid string, now time.Time) *kolide.Host {
 	osqueryHostID, _ := kolide.RandomText(10)
 	h, err := ds.NewHost(&kolide.Host{

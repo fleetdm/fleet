@@ -22,7 +22,7 @@ func TestAuthenticatedUser(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
 	require.Nil(t, err)
 	createTestUsers(t, ds)
-	svc, err := newTestService(ds, nil)
+	svc, err := newTestService(ds, nil, nil)
 	assert.Nil(t, err)
 	admin1, err := ds.User("admin1")
 	assert.Nil(t, err)
@@ -71,7 +71,7 @@ func TestModifyUserEmail(t *testing.T) {
 		assert.Equal(t, "minion", u.Position)
 		return nil
 	}
-	svc, err := newTestService(ms, nil)
+	svc, err := newTestService(ms, nil, nil)
 	require.Nil(t, err)
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
@@ -107,7 +107,7 @@ func TestModifyUserCannotUpdateAdminEnabled(t *testing.T) {
 		assert.Equal(t, true, u.Enabled, "should not be able to update enabled status!")
 		return nil
 	}
-	svc, err := newTestService(ms, nil)
+	svc, err := newTestService(ms, nil, nil)
 	require.Nil(t, err)
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
@@ -149,7 +149,7 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 	ms.SaveUserFunc = func(u *kolide.User) error {
 		return nil
 	}
-	svc, err := newTestService(ms, nil)
+	svc, err := newTestService(ms, nil, nil)
 	require.Nil(t, err)
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
@@ -197,7 +197,7 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 	ms.SaveUserFunc = func(u *kolide.User) error {
 		return nil
 	}
-	svc, err := newTestService(ms, nil)
+	svc, err := newTestService(ms, nil, nil)
 	require.Nil(t, err)
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
@@ -245,7 +245,7 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 	ms.SaveUserFunc = func(u *kolide.User) error {
 		return nil
 	}
-	svc, err := newTestService(ms, nil)
+	svc, err := newTestService(ms, nil, nil)
 	require.Nil(t, err)
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
@@ -337,7 +337,7 @@ func TestRequestPasswordReset(t *testing.T) {
 
 func TestCreateUser(t *testing.T) {
 	ds, _ := inmem.New(config.TestConfig())
-	svc, _ := newTestService(ds, nil)
+	svc, _ := newTestService(ds, nil, nil)
 	invites := setupInvites(t, ds, []string{"admin2@example.com"})
 	ctx := context.Background()
 
@@ -468,7 +468,7 @@ func setupInvites(t *testing.T, ds kolide.Datastore, emails []string) map[string
 
 func TestChangePassword(t *testing.T) {
 	ds, _ := inmem.New(config.TestConfig())
-	svc, _ := newTestService(ds, nil)
+	svc, _ := newTestService(ds, nil, nil)
 	users := createTestUsers(t, ds)
 	var passwordChangeTests = []struct {
 		user        kolide.User
@@ -539,7 +539,7 @@ func TestChangePassword(t *testing.T) {
 
 func TestResetPassword(t *testing.T) {
 	ds, _ := inmem.New(config.TestConfig())
-	svc, _ := newTestService(ds, nil)
+	svc, _ := newTestService(ds, nil, nil)
 	createTestUsers(t, ds)
 	var passwordResetTests = []struct {
 		token       string
@@ -605,7 +605,7 @@ func TestResetPassword(t *testing.T) {
 func TestRequirePasswordReset(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
 	require.Nil(t, err)
-	svc, err := newTestService(ds, nil)
+	svc, err := newTestService(ds, nil, nil)
 	require.Nil(t, err)
 
 	createTestUsers(t, ds)
@@ -653,7 +653,7 @@ func TestRequirePasswordReset(t *testing.T) {
 func TestPerformRequiredPasswordReset(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
 	require.Nil(t, err)
-	svc, err := newTestService(ds, nil)
+	svc, err := newTestService(ds, nil, nil)
 	require.Nil(t, err)
 
 	createTestUsers(t, ds)

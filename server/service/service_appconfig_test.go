@@ -32,7 +32,7 @@ func TestCleanupURL(t *testing.T) {
 
 func TestCreateAppConfig(t *testing.T) {
 	ds := new(mock.Store)
-	svc, err := newTestService(ds, nil)
+	svc, err := newTestService(ds, nil, nil)
 	require.Nil(t, err)
 
 	ds.AppConfigFunc = func() (*kolide.AppConfig, error) {

@@ -513,13 +513,13 @@ func (svc service) GetDistributedQueries(ctx context.Context) (map[string]string
 		queries[hostLabelQueryPrefix+name] = query
 	}
 
-	distributedQueries, err := svc.ds.DistributedQueriesForHost(&host)
+	liveQueries, err := svc.liveQueryStore.QueriesForHost(host.ID)
 	if err != nil {
-		return nil, 0, osqueryError{message: "retrieving query campaigns: " + err.Error()}
+		return nil, 0, osqueryError{message: "retrieve live queries: " + err.Error()}
 	}
 
-	for id, query := range distributedQueries {
-		queries[hostDistributedQueryPrefix+strconv.Itoa(int(id))] = query
+	for name, query := range liveQueries {
+		queries[hostDistributedQueryPrefix+name] = query
 	}
 
 	accelerate := uint(0)
@@ -603,26 +603,28 @@ func (svc service) ingestDistributedQuery(host kolide.Host, name string, rows []
 			return osqueryError{message: "loading orphaned campaign: " + err.Error()}
 		}
 
-		campaign.Status = kolide.QueryComplete
-		if err := svc.ds.SaveDistributedQueryCampaign(campaign); err != nil {
-			return osqueryError{message: "closing orphaned campaign: " + err.Error()}
+		if campaign.Status == kolide.QueryWaiting &&
+			campaign.CreatedAt.Before(svc.clock.Now().Add(-1*time.Minute)) {
+			// Give the client one minute to connect before considering the
+			// campaign orphaned
+			return osqueryError{message: "campaign waiting for listener"}
+		}
+
+		if campaign.Status != kolide.QueryComplete {
+			campaign.Status = kolide.QueryComplete
+			if err := svc.ds.SaveDistributedQueryCampaign(campaign); err != nil {
+				return osqueryError{message: "closing orphaned campaign: " + err.Error()}
+			}
+		}
+
+		if err := svc.liveQueryStore.StopQuery(strconv.Itoa(int(campaignID))); err != nil {
+			return osqueryError{message: "stopping orphaned campaign: " + err.Error()}
 		}
 	}
 
-	// Record execution of the query
-	status := kolide.ExecutionSucceeded
-	if failed {
-		status = kolide.ExecutionFailed
-	}
-	exec := &kolide.DistributedQueryExecution{
-		HostID:                     host.ID,
-		DistributedQueryCampaignID: uint(campaignID),
-		Status:                     status,
-	}
-
-	_, err = svc.ds.NewDistributedQueryExecution(exec)
+	err = svc.liveQueryStore.QueryCompletedByHost(strconv.Itoa(int(campaignID)), host.ID)
 	if err != nil {
-		return osqueryError{message: "recording execution: " + err.Error()}
+		return osqueryError{message: "record query completion: " + err.Error()}
 	}
 
 	return nil

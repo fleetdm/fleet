@@ -17,7 +17,7 @@ func TestSearchTargets(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
 	require.Nil(t, err)
 
-	svc, err := newTestService(ds, nil)
+	svc, err := newTestService(ds, nil, nil)
 	require.Nil(t, err)
 
 	ctx := context.Background()
@@ -47,7 +47,7 @@ func TestSearchWithOmit(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
 	require.Nil(t, err)
 
-	svc, err := newTestService(ds, nil)
+	svc, err := newTestService(ds, nil, nil)
 	require.Nil(t, err)
 
 	ctx := context.Background()
@@ -98,7 +98,7 @@ func TestSearchHostsInLabels(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
 	require.Nil(t, err)
 
-	svc, err := newTestService(ds, nil)
+	svc, err := newTestService(ds, nil, nil)
 	require.Nil(t, err)
 
 	ctx := context.Background()
@@ -147,7 +147,7 @@ func TestSearchResultsLimit(t *testing.T) {
 	ds, err := inmem.New(config.TestConfig())
 	require.Nil(t, err)
 
-	svc, err := newTestService(ds, nil)
+	svc, err := newTestService(ds, nil, nil)
 	require.Nil(t, err)
 
 	ctx := context.Background()

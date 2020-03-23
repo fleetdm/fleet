@@ -86,10 +86,6 @@ func testCleanupDistributedQueryCampaigns(t *testing.T, ds kolide.Datastore) {
 	c1 := test.NewCampaign(t, ds, query.ID, kolide.QueryWaiting, mockClock.Now())
 	c2 := test.NewCampaign(t, ds, query.ID, kolide.QueryRunning, mockClock.Now())
 
-	h1 := test.NewHost(t, ds, "1", "", "1", "1", mockClock.Now())
-	h2 := test.NewHost(t, ds, "2", "", "2", "2", mockClock.Now())
-	h3 := test.NewHost(t, ds, "3", "", "3", "3", mockClock.Now())
-
 	// Cleanup and verify that nothing changed (because time has not
 	// advanced)
 	expired, deleted, err := ds.CleanupDistributedQueryCampaigns(mockClock.Now())
@@ -111,11 +107,6 @@ func testCleanupDistributedQueryCampaigns(t *testing.T, ds kolide.Datastore) {
 	}
 
 	// Add some executions
-	test.NewExecution(t, ds, c1.ID, h1.ID)
-	test.NewExecution(t, ds, c1.ID, h2.ID)
-	test.NewExecution(t, ds, c2.ID, h1.ID)
-	test.NewExecution(t, ds, c2.ID, h2.ID)
-	test.NewExecution(t, ds, c2.ID, h3.ID)
 
 	mockClock.AddTime(1*time.Minute + 1*time.Second)
 

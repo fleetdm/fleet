@@ -56,3 +56,42 @@ func (d *Datastore) CountHostsInTargets(hostIDs []uint, labelIDs []uint, now tim
 
 	return res, nil
 }
+
+func (d *Datastore) HostIDsInTargets(hostIDs []uint, labelIDs []uint) ([]uint, error) {
+	if len(hostIDs) == 0 && len(labelIDs) == 0 {
+		// No need to query if no targets selected
+		return []uint{}, nil
+	}
+
+	sql := `
+		SELECT DISTINCT id
+		FROM hosts
+		WHERE (id IN (?) OR (id IN (SELECT host_id FROM label_query_executions WHERE label_id IN (?) AND matches = 1)))
+		ORDER BY id ASC
+`
+
+	// Using -1 in the ID slices for the IN clause allows us to include the
+	// IN clause even if we have no IDs to use. -1 will not match the
+	// auto-increment IDs, and will also allow us to use the same query in
+	// all situations (no need to remove the clause when there are no values)
+	queryLabelIDs := []int{-1}
+	for _, id := range labelIDs {
+		queryLabelIDs = append(queryLabelIDs, int(id))
+	}
+	queryHostIDs := []int{-1}
+	for _, id := range hostIDs {
+		queryHostIDs = append(queryHostIDs, int(id))
+	}
+
+	query, args, err := sqlx.In(sql, queryHostIDs, queryLabelIDs)
+	if err != nil {
+		return nil, errors.Wrap(err, "sqlx.In HostIDsInTargets")
+	}
+
+	var res []uint
+	err = d.db.Select(&res, query, args...)
+	if err != nil {
+		return nil, errors.Wrap(err, "sqlx.Get HostIDsInTargets")
+	}
+	return res, nil
+}
