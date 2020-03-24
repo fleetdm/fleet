@@ -1,3 +1,13 @@
+## Kolide Fleet 2.6.0 (Mar 24, 2020)
+
+* Add server logging for X-Forwarded-For header.
+
+* Add `--osquery_detail_update_interval` to set interval of host detail updates.
+  Set this (along with `--osquery_label_update_interval`) to a longer interval
+  to reduce server load in large deployments.
+
+* Fix MySQL deadlock errors by adding retries and backoff to transactions.
+
 ## Kolide Fleet 2.5.0 (Jan 26, 2020)
 
 * Add `fleetctl goquery` command to bring up the github.com/AbGuthrie/goquery CLI.
