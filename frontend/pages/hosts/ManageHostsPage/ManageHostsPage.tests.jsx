@@ -157,17 +157,17 @@ describe('ManageHostsPage - component', () => {
       const page = mount(component);
 
       expect(page.find('HostSidePanel').props()).toInclude({
-        selectedLabel: allHostsLabel,
+        selectedFilter: 'all-hosts',
       });
     });
 
     it('Displays the windows label as the active label', () => {
-      const ownProps = { location: {}, params: { active_label: 'windows' } };
+      const ownProps = { location: {}, params: { active_label: 'labels/4' } };
       const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
       const page = mount(component);
 
       expect(page.find('HostSidePanel').props()).toInclude({
-        selectedLabel: windowsLabel,
+        selectedFilter: 'labels/4',
       });
     });
 

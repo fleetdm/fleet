@@ -12,8 +12,8 @@ const host2 = { id: 5, target_type: 'hosts' };
 describe('Kolide API - helpers', () => {
   describe('#labelSlug', () => {
     it('creates a slug for the label', () => {
-      expect(helpers.labelSlug({ display_text: 'All Hosts' })).toEqual('all-hosts');
-      expect(helpers.labelSlug({ display_text: 'windows' })).toEqual('windows');
+      expect(helpers.labelSlug({ name: 'All Hosts' })).toEqual('all-hosts');
+      expect(helpers.labelSlug({ id: 7 })).toEqual('labels/7');
     });
   });
 

@@ -7,7 +7,7 @@ import (
 	"github.com/kolide/fleet/server/kolide"
 )
 
-func (mw loggingMiddleware) ListHosts(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Host, error) {
+func (mw loggingMiddleware) ListHosts(ctx context.Context, opt kolide.HostListOptions) ([]*kolide.Host, error) {
 	var (
 		hosts []*kolide.Host
 		err   error

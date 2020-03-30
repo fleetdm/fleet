@@ -311,7 +311,7 @@ func testListHostsInLabel(t *testing.T, db kolide.Datastore) {
 
 	{
 
-		hosts, err := db.ListHostsInLabel(l1.ID)
+		hosts, err := db.ListHostsInLabel(l1.ID, kolide.ListOptions{})
 		require.Nil(t, err)
 		assert.Len(t, hosts, 0)
 	}
@@ -322,7 +322,7 @@ func testListHostsInLabel(t *testing.T, db kolide.Datastore) {
 	}
 
 	{
-		hosts, err := db.ListHostsInLabel(l1.ID)
+		hosts, err := db.ListHostsInLabel(l1.ID, kolide.ListOptions{})
 		require.Nil(t, err)
 		assert.Len(t, hosts, 3)
 	}

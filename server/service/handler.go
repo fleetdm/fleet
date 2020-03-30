@@ -77,6 +77,7 @@ type KolideEndpoints struct {
 	ModifyLabel                           endpoint.Endpoint
 	GetLabel                              endpoint.Endpoint
 	ListLabels                            endpoint.Endpoint
+	ListHostsInLabel                      endpoint.Endpoint
 	DeleteLabel                           endpoint.Endpoint
 	DeleteLabelByID                       endpoint.Endpoint
 	ApplyLabelSpecs                       endpoint.Endpoint
@@ -174,6 +175,7 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string) Kol
 		ModifyLabel:                           authenticatedUser(jwtKey, svc, makeModifyLabelEndpoint(svc)),
 		GetLabel:                              authenticatedUser(jwtKey, svc, makeGetLabelEndpoint(svc)),
 		ListLabels:                            authenticatedUser(jwtKey, svc, makeListLabelsEndpoint(svc)),
+		ListHostsInLabel:                      authenticatedUser(jwtKey, svc, makeListHostsInLabelEndpoint(svc)),
 		DeleteLabel:                           authenticatedUser(jwtKey, svc, makeDeleteLabelEndpoint(svc)),
 		DeleteLabelByID:                       authenticatedUser(jwtKey, svc, makeDeleteLabelByIDEndpoint(svc)),
 		ApplyLabelSpecs:                       authenticatedUser(jwtKey, svc, makeApplyLabelSpecsEndpoint(svc)),
@@ -260,6 +262,7 @@ type kolideHandlers struct {
 	ModifyLabel                           http.Handler
 	GetLabel                              http.Handler
 	ListLabels                            http.Handler
+	ListHostsInLabel                      http.Handler
 	DeleteLabel                           http.Handler
 	DeleteLabelByID                       http.Handler
 	ApplyLabelSpecs                       http.Handler
@@ -347,6 +350,7 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		ModifyLabel:                           newServer(e.ModifyLabel, decodeModifyLabelRequest),
 		GetLabel:                              newServer(e.GetLabel, decodeGetLabelRequest),
 		ListLabels:                            newServer(e.ListLabels, decodeListLabelsRequest),
+		ListHostsInLabel:                      newServer(e.ListHostsInLabel, decodeListHostsInLabelRequest),
 		DeleteLabel:                           newServer(e.DeleteLabel, decodeDeleteLabelRequest),
 		DeleteLabelByID:                       newServer(e.DeleteLabelByID, decodeDeleteLabelByIDRequest),
 		ApplyLabelSpecs:                       newServer(e.ApplyLabelSpecs, decodeApplyLabelSpecsRequest),
@@ -475,6 +479,7 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/labels/{id}", h.ModifyLabel).Methods("PATCH").Name("modify_label")
 	r.Handle("/api/v1/kolide/labels/{id}", h.GetLabel).Methods("GET").Name("get_label")
 	r.Handle("/api/v1/kolide/labels", h.ListLabels).Methods("GET").Name("list_labels")
+	r.Handle("/api/v1/kolide/labels/{id}/hosts", h.ListHostsInLabel).Methods("GET").Name("list_hosts_in_label")
 	r.Handle("/api/v1/kolide/labels/{name}", h.DeleteLabel).Methods("DELETE").Name("delete_label")
 	r.Handle("/api/v1/kolide/labels/id/{id}", h.DeleteLabelByID).Methods("DELETE").Name("delete_label_by_id")
 	r.Handle("/api/v1/kolide/spec/labels", h.ApplyLabelSpecs).Methods("POST").Name("apply_label_specs")

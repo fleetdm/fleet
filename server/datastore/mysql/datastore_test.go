@@ -13,7 +13,7 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 	}
 
 	actual := appendListOptionsToSQL(sql, opts)
-	expected := "SELECT * FROM app_configs ORDER BY name ASC LIMIT 100000"
+	expected := "SELECT * FROM app_configs ORDER BY name ASC LIMIT 1000000"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
 	}
@@ -21,7 +21,7 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 	sql = "SELECT * FROM app_configs"
 	opts.OrderDirection = kolide.OrderDescending
 	actual = appendListOptionsToSQL(sql, opts)
-	expected = "SELECT * FROM app_configs ORDER BY name DESC LIMIT 100000"
+	expected = "SELECT * FROM app_configs ORDER BY name DESC LIMIT 1000000"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
 	}
@@ -48,7 +48,7 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 	opts = kolide.ListOptions{}
 	sql = "SELECT * FROM app_configs"
 	actual = appendListOptionsToSQL(sql, opts)
-	expected = "SELECT * FROM app_configs LIMIT 100000"
+	expected = "SELECT * FROM app_configs LIMIT 1000000"
 
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)

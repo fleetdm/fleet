@@ -6,7 +6,7 @@ import (
 	"github.com/kolide/fleet/server/kolide"
 )
 
-func (svc service) ListHosts(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Host, error) {
+func (svc service) ListHosts(ctx context.Context, opt kolide.HostListOptions) ([]*kolide.Host, error) {
 	return svc.ds.ListHosts(opt)
 }
 

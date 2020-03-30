@@ -8,22 +8,28 @@ import (
 	"time"
 )
 
+type HostStatus string
+
 const (
 	// StatusOnline host is active.
-	StatusOnline = "online"
+	StatusOnline = HostStatus("online")
 
 	// StatusOffline no communication with host for OfflineDuration.
-	StatusOffline = "offline"
+	StatusOffline = HostStatus("offline")
 
 	// StatusMIA no communication with host for MIADuration.
-	StatusMIA = "mia"
+	StatusMIA = HostStatus("mia")
+
+	// StatusNew means the host has enrolled in the interval defined by
+	// NewDuration. It is independent of offline and online.
+	StatusNew = HostStatus("new")
 
 	// NewDuration if a host has been created within this time period it's
 	// considered new.
 	NewDuration = 24 * time.Hour
 
-	// OfflineDuration if a host hasn't been in communition for this
-	// period it is considered MIA.
+	// OfflineDuration if a host hasn't been in communication for this period it
+	// is considered MIA.
 	MIADuration = 30 * 24 * time.Hour
 
 	// OnlineIntervalBuffer is the additional time in seconds to add to the
@@ -39,8 +45,8 @@ type HostStore interface {
 	SaveHost(host *Host) error
 	DeleteHost(hid uint) error
 	Host(id uint) (*Host, error)
-	ListHosts(opt ListOptions) ([]*Host, error)
 	EnrollHost(osqueryHostId, nodeKey, secretName string) (*Host, error)
+	ListHosts(opt HostListOptions) ([]*Host, error)
 	// AuthenticateHost authenticates and returns host metadata by node key.
 	// This method should not return the host "additional" information as this
 	// is not typically necessary for the operations performed by the osquery
@@ -68,10 +74,16 @@ type HostStore interface {
 }
 
 type HostService interface {
-	ListHosts(ctx context.Context, opt ListOptions) (hosts []*Host, err error)
+	ListHosts(ctx context.Context, opt HostListOptions) (hosts []*Host, err error)
 	GetHost(ctx context.Context, id uint) (host *Host, err error)
 	GetHostSummary(ctx context.Context) (summary *HostSummary, err error)
 	DeleteHost(ctx context.Context, id uint) (err error)
+}
+
+type HostListOptions struct {
+	ListOptions
+
+	StatusFilter HostStatus
 }
 
 type Host struct {
@@ -142,7 +154,7 @@ func RandomText(keySize int) (string, error) {
 }
 
 // Status calculates the online status of the host
-func (h *Host) Status(now time.Time) string {
+func (h *Host) Status(now time.Time) HostStatus {
 	// The logic in this function should remain synchronized with
 	// GenerateHostStatusStatistics and CountHostsInTargets
 

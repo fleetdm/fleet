@@ -18,7 +18,7 @@ class HostSidePanel extends Component {
     onAddLabelClick: PropTypes.func,
     onAddHostClick: PropTypes.func,
     onLabelClick: PropTypes.func,
-    selectedLabel: labelInterface,
+    selectedFilter: PropTypes.string,
     statusLabels: statusLabelsInterface,
   };
 
@@ -36,7 +36,7 @@ class HostSidePanel extends Component {
   }
 
   render () {
-    const { labels, onAddHostClick, onAddLabelClick, onLabelClick, selectedLabel, statusLabels } = this.props;
+    const { labels, onAddHostClick, onAddLabelClick, onLabelClick, selectedFilter, statusLabels } = this.props;
     const { labelFilter } = this.state;
     const { onFilterLabels } = this;
     const allHostLabels = filter(labels, { type: 'all' });
@@ -56,7 +56,7 @@ class HostSidePanel extends Component {
         <PanelGroup
           groupItems={allHostLabels}
           onLabelClick={onLabelClick}
-          selectedLabel={selectedLabel}
+          selectedFilter={selectedFilter}
           type="all-hosts"
         />
 
@@ -70,14 +70,14 @@ class HostSidePanel extends Component {
           groupItems={hostStatusLabels}
           onLabelClick={onLabelClick}
           statusLabels={statusLabels}
-          selectedLabel={selectedLabel}
+          selectedFilter={selectedFilter}
           type="status"
         />
         <hr className={`${baseClass}__hr`} />
         <PanelGroup
           groupItems={hostPlatformLabels}
           onLabelClick={onLabelClick}
-          selectedLabel={selectedLabel}
+          selectedFilter={selectedFilter}
           type="platform"
         />
         {hostPlatformLabels.length > 0 && <hr className={`${baseClass}__hr`} />}
@@ -98,7 +98,7 @@ class HostSidePanel extends Component {
         <PanelGroup
           groupItems={customLabels}
           onLabelClick={onLabelClick}
-          selectedLabel={selectedLabel}
+          selectedFilter={selectedFilter}
           type="label"
         />
         <hr className={`${baseClass}__hr`} />

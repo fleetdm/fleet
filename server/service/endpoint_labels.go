@@ -33,18 +33,13 @@ func labelResponseForLabel(ctx context.Context, svc kolide.Service, label *kolid
 	if err != nil {
 		return nil, err
 	}
-	hosts, err := svc.HostIDsForLabel(label.ID)
-	if err != nil {
-		return nil, err
-	}
 	return &labelResponse{
-		*label,
-		label.Name,
-		metrics.TotalHosts,
-		metrics.OnlineHosts,
-		metrics.OfflineHosts,
-		metrics.MissingInActionHosts,
-		hosts,
+		Label:           *label,
+		DisplayText:     label.Name,
+		Count:           metrics.TotalHosts,
+		Online:          metrics.OnlineHosts,
+		Offline:         metrics.OfflineHosts,
+		MissingInAction: metrics.MissingInActionHosts,
 	}, nil
 }
 
@@ -165,6 +160,36 @@ func makeListLabelsEndpoint(svc kolide.Service) endpoint.Endpoint {
 			resp.Labels = append(resp.Labels, *labelResp)
 		}
 		return resp, nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// List Hosts in Label
+////////////////////////////////////////////////////////////////////////////////
+
+type listHostsInLabelRequest struct {
+	ID          uint
+	ListOptions kolide.ListOptions
+}
+
+func makeListHostsInLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(listHostsInLabelRequest)
+		hosts, err := svc.ListHostsInLabel(ctx, req.ID, req.ListOptions)
+		if err != nil {
+			return listLabelsResponse{Err: err}, nil
+		}
+
+		hostResponses := make([]HostResponse, len(hosts))
+		for i, host := range hosts {
+			h, err := hostResponseForHost(ctx, svc, &host)
+			if err != nil {
+				return listHostsResponse{Err: err}, nil
+			}
+
+			hostResponses[i] = *h
+		}
+		return listHostsResponse{Hosts: hostResponses}, nil
 	}
 }
 

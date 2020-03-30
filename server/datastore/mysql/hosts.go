@@ -136,14 +136,30 @@ func (d *Datastore) Host(id uint) (*kolide.Host, error) {
 	return host, nil
 }
 
-func (d *Datastore) ListHosts(opt kolide.ListOptions) ([]*kolide.Host, error) {
-	sqlStatement := `
+func (d *Datastore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error) {
+	sql := `
 		SELECT * FROM hosts
 		WHERE NOT deleted
 	`
-	sqlStatement = appendListOptionsToSQL(sqlStatement, opt)
+	var params []interface{}
+	switch opt.StatusFilter {
+	case "new":
+		sql += "AND DATE_ADD(created_at, INTERVAL 1 DAY) >= ?"
+		params = append(params, time.Now())
+	case "online":
+		sql += fmt.Sprintf("AND DATE_ADD(seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ?", kolide.OnlineIntervalBuffer)
+		params = append(params, time.Now())
+	case "offline":
+		sql += fmt.Sprintf("AND DATE_ADD(seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(seen_time, INTERVAL 30 DAY) >= ?", kolide.OnlineIntervalBuffer)
+		params = append(params, time.Now(), time.Now())
+	case "mia":
+		sql += "AND DATE_ADD(seen_time, INTERVAL 30 DAY) <= ?"
+		params = append(params, time.Now())
+	}
+	sql = appendListOptionsToSQL(sql, opt.ListOptions)
+
 	hosts := []*kolide.Host{}
-	if err := d.db.Select(&hosts, sqlStatement); err != nil {
+	if err := d.db.Select(&hosts, sql, params...); err != nil {
 		return nil, errors.Wrap(err, "list hosts")
 	}
 

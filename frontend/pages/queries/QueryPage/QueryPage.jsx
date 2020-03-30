@@ -15,7 +15,6 @@ import deepDifference from 'utilities/deep_difference';
 import entityGetter from 'redux/utilities/entityGetter';
 import { formatSelectedTargetsForApi } from 'kolide/helpers';
 import helpers from 'pages/queries/QueryPage/helpers';
-import hostActions from 'redux/nodes/entities/hosts/actions';
 import hostInterface from 'interfaces/host';
 import WarningBanner from 'components/WarningBanner';
 import QueryForm from 'components/forms/queries/QueryForm';
@@ -87,11 +86,7 @@ export class QueryPage extends Component {
   }
 
   componentWillMount () {
-    const { dispatch, hostIDs, hostUUIDs, selectedHosts, selectedTargets } = this.props;
-
-    if (((hostIDs && hostIDs.length) || (hostUUIDs && hostUUIDs.length)) > 0) {
-      dispatch(hostActions.loadAll());
-    }
+    const { dispatch, selectedHosts, selectedTargets } = this.props;
 
     Kolide.status.live_query().catch((response) => {
       this.setState({ liveQueryError: response.message.errors[0].reason });
@@ -106,19 +101,12 @@ export class QueryPage extends Component {
   }
 
   componentWillReceiveProps (nextProps) {
-    const { dispatch, location, selectedHosts, selectedTargets } = nextProps;
+    const { location } = nextProps;
     const nextPathname = location.pathname;
     const { pathname } = this.props.location;
 
     if (nextPathname !== pathname) {
       this.resetCampaignAndTargets();
-    }
-
-    if (!isEqual(selectedHosts, this.props.selectedHosts)) {
-      helpers.selectHosts(dispatch, {
-        hosts: selectedHosts,
-        selectedTargets,
-      });
     }
 
     return false;

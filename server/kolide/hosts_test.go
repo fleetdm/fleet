@@ -15,7 +15,7 @@ func TestHostStatus(t *testing.T) {
 		seenTime            time.Time
 		distributedInterval uint
 		configTLSRefresh    uint
-		status              string
+		status              HostStatus
 	}{
 		{mockClock.Now().Add(-30 * time.Second), 10, 3600, StatusOnline},
 		{mockClock.Now().Add(-45 * time.Second), 10, 3600, StatusOffline},

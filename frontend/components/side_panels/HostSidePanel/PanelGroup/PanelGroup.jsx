@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
-import { isEqual, noop } from 'lodash';
+import { noop } from 'lodash';
 
 import labelInterface from 'interfaces/label';
 import PanelGroupItem from 'components/side_panels/HostSidePanel/PanelGroupItem';
@@ -10,7 +10,7 @@ class PanelGroup extends Component {
   static propTypes = {
     groupItems: PropTypes.arrayOf(labelInterface),
     onLabelClick: PropTypes.func,
-    selectedLabel: labelInterface,
+    selectedFilter: PropTypes.string,
     statusLabels: statusLabelsInterface,
     type: PropTypes.string,
   };
@@ -22,11 +22,11 @@ class PanelGroup extends Component {
   renderGroupItem = (item) => {
     const {
       onLabelClick,
-      selectedLabel,
+      selectedFilter,
       statusLabels,
       type,
     } = this.props;
-    const selected = isEqual(selectedLabel, item);
+    const selected = item.slug === selectedFilter || type === selectedFilter;
 
     return (
       <PanelGroupItem

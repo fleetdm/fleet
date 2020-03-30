@@ -61,7 +61,7 @@ func (d *Datastore) Host(id uint) (*kolide.Host, error) {
 	return host, nil
 }
 
-func (d *Datastore) ListHosts(opt kolide.ListOptions) ([]*kolide.Host, error) {
+func (d *Datastore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -94,13 +94,13 @@ func (d *Datastore) ListHosts(opt kolide.ListOptions) ([]*kolide.Host, error) {
 			"mac":                "PrimaryMAC",
 			"ip":                 "PrimaryIP",
 		}
-		if err := sortResults(hosts, opt, fields); err != nil {
+		if err := sortResults(hosts, opt.ListOptions, fields); err != nil {
 			return nil, err
 		}
 	}
 
 	// Apply limit/offset
-	low, high := d.getLimitOffsetSliceBounds(opt, len(hosts))
+	low, high := d.getLimitOffsetSliceBounds(opt.ListOptions, len(hosts))
 	hosts = hosts[low:high]
 
 	return hosts, nil

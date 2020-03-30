@@ -21,7 +21,8 @@ describe('Kolide - API client (labels)', () => {
       const name = 'label name';
       const platform = 'windows';
       const query = 'SELECT * FROM users';
-      const labelParams = { description, name, platform, query };
+      const id = 3;
+      const labelParams = { description, name, platform, query, id };
       const request = labelMocks.create.valid(bearerToken, labelParams);
 
       Kolide.setBearerToken(bearerToken);
@@ -31,7 +32,7 @@ describe('Kolide - API client (labels)', () => {
           expect(labelResponse).toEqual({
             ...labelParams,
             display_text: name,
-            slug: 'label-name',
+            slug: `labels/${id}`,
             type: 'custom',
           });
         });

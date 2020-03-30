@@ -39,7 +39,7 @@ type LabelStore interface {
 
 	// ListHostsInLabel returns a slice of hosts in the label with the
 	// given ID.
-	ListHostsInLabel(lid uint) ([]Host, error)
+	ListHostsInLabel(lid uint, opt ListOptions) ([]Host, error)
 
 	// ListUniqueHostsInLabels returns a slice of all of the hosts in the
 	// given label IDs. A host will only appear once in the results even if
@@ -69,6 +69,10 @@ type LabelService interface {
 	DeleteLabel(ctx context.Context, name string) (err error)
 	// DeleteLabelByID is for backwards compatibility with the UI
 	DeleteLabelByID(ctx context.Context, id uint) (err error)
+
+	// ListHostsInLabel returns a slice of hosts in the label with the
+	// given ID.
+	ListHostsInLabel(ctx context.Context, lid uint, opt ListOptions) ([]Host, error)
 
 	// HostIDsForLabel returns ids of hosts that belong to the label identified
 	// by lid

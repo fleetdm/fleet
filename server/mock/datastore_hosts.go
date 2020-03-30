@@ -18,7 +18,7 @@ type DeleteHostFunc func(hid uint) error
 
 type HostFunc func(id uint) (*kolide.Host, error)
 
-type ListHostsFunc func(opt kolide.ListOptions) ([]*kolide.Host, error)
+type ListHostsFunc func(opt kolide.HostListOptions) ([]*kolide.Host, error)
 
 type EnrollHostFunc func(osqueryHostId, nodeKey, secretName string) (*kolide.Host, error)
 
@@ -97,7 +97,7 @@ func (s *HostStore) Host(id uint) (*kolide.Host, error) {
 	return s.HostFunc(id)
 }
 
-func (s *HostStore) ListHosts(opt kolide.ListOptions) ([]*kolide.Host, error) {
+func (s *HostStore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error) {
 	s.ListHostsFuncInvoked = true
 	return s.ListHostsFunc(opt)
 }

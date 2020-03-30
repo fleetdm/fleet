@@ -8,11 +8,25 @@ export default (client) => {
 
       return client.authenticatedDelete(endpoint);
     },
-    loadAll: () => {
-      const { HOSTS } = endpoints;
+    loadAll: (page = 1, perPage = 100, selected = '') => {
+      const { HOSTS, LABEL_HOSTS } = endpoints;
+      const pagination = `page=${page - 1}&per_page=${perPage}&order_key=host_name`;
 
-      return client.authenticatedGet(client._endpoint(HOSTS))
-        .then(response => response.hosts);
+      let endpoint = '';
+      const labelPrefix = 'labels/';
+      if (selected.startsWith(labelPrefix)) {
+        const lid = selected.substr(labelPrefix.length);
+        endpoint = `${LABEL_HOSTS(lid)}?${pagination}`;
+      } else {
+        let selectedFilter = '';
+        if (selected === 'new' || selected === 'online' || selected === 'offline' || selected === 'mia') {
+          selectedFilter = `&status=${selected}`;
+        }
+        endpoint = `${HOSTS}?${pagination}${selectedFilter}`;
+      }
+     
+      return client.authenticatedGet(client._endpoint(endpoint))
+                   .then((response) => { return response.hosts; });
     },
   };
 };

@@ -603,7 +603,7 @@ func getHostsCommand() cli.Command {
 					host.Host.UUID,
 					host.DisplayText,
 					host.Host.Platform,
-					host.Status,
+					string(host.Status),
 				})
 			}
 

@@ -146,28 +146,28 @@ func testListHost(t *testing.T, ds kolide.Datastore) {
 		hosts = append(hosts, host)
 	}
 
-	hosts2, err := ds.ListHosts(kolide.ListOptions{})
+	hosts2, err := ds.ListHosts(kolide.HostListOptions{})
 	require.Nil(t, err)
 	assert.Equal(t, len(hosts), len(hosts2))
 
 	// Test with logic for only a few hosts
-	hosts2, err = ds.ListHosts(kolide.ListOptions{PerPage: 4, Page: 0})
+	hosts2, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{PerPage: 4, Page: 0}})
 	require.Nil(t, err)
 	assert.Equal(t, 4, len(hosts2))
 
 	err = ds.DeleteHost(hosts[0].ID)
 	require.Nil(t, err)
-	hosts2, err = ds.ListHosts(kolide.ListOptions{})
+	hosts2, err = ds.ListHosts(kolide.HostListOptions{})
 	require.Nil(t, err)
 	assert.Equal(t, len(hosts)-1, len(hosts2))
 
-	hosts, err = ds.ListHosts(kolide.ListOptions{})
+	hosts, err = ds.ListHosts(kolide.HostListOptions{})
 	require.Nil(t, err)
 	require.Equal(t, len(hosts2), len(hosts))
 
 	err = ds.SaveHost(hosts[0])
 	require.Nil(t, err)
-	hosts2, err = ds.ListHosts(kolide.ListOptions{})
+	hosts2, err = ds.ListHosts(kolide.HostListOptions{})
 	require.Nil(t, err)
 	require.Equal(t, hosts[0].ID, hosts2[0].ID)
 }

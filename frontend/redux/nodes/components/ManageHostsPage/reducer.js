@@ -3,16 +3,20 @@ import {
   GET_STATUS_LABEL_COUNTS_SUCCESS,
   LOAD_STATUS_LABEL_COUNTS,
   SET_DISPLAY,
+  SET_PAGINATION,
 } from './actions';
 
 export const initialState = {
   display: 'Grid',
+  page: 1,
+  perPage: 100,
   status_labels: {
     errors: {},
     loading_counts: false,
     online_count: 0,
     offline_count: 0,
     mia_count: 0,
+    total_count: 0,
   },
 };
 
@@ -48,6 +52,12 @@ export default (state = initialState, { type, payload }) => {
       return {
         ...state,
         display: payload.display,
+      };
+    case SET_PAGINATION:
+      return {
+        ...state,
+        page: payload.page,
+        perPage: payload.perPage,
       };
     default:
       return state;

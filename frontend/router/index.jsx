@@ -53,6 +53,8 @@ const routes = (
             </Route>
             <Route path="hosts">
               <Route path="manage" component={ManageHostsPage} />
+              <Route path="manage/labels/:label_id" component={ManageHostsPage} />
+              <Route path="manage/:active_label" component={ManageHostsPage} />
             </Route>
             <Route path="packs" component={PackPageWrapper}>
               <Route path="manage" component={AllPacksPage} />
@@ -61,9 +63,6 @@ const routes = (
                 <IndexRoute component={EditPackPage} />
                 <Route path="edit" component={EditPackPage} />
               </Route>
-            </Route>
-            <Route path="hosts">
-              <Route path="manage(/:active_label)" component={ManageHostsPage} />
             </Route>
             <Route path="queries" component={QueryPageWrapper}>
               <Route path="manage" component={ManageQueriesPage} />

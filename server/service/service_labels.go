@@ -80,8 +80,12 @@ func (svc service) DeleteLabelByID(ctx context.Context, id uint) error {
 	return svc.ds.DeleteLabel(label.Name)
 }
 
+func (svc service) ListHostsInLabel(ctx context.Context, lid uint, opt kolide.ListOptions) ([]kolide.Host, error) {
+	return svc.ds.ListHostsInLabel(lid, opt)
+}
+
 func (svc service) HostIDsForLabel(lid uint) ([]uint, error) {
-	hosts, err := svc.ds.ListHostsInLabel(lid)
+	hosts, err := svc.ds.ListHostsInLabel(lid, kolide.ListOptions{})
 	if err != nil {
 		return nil, err
 	}

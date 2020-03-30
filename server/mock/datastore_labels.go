@@ -32,7 +32,7 @@ type RecordLabelQueryExecutionsFunc func(host *kolide.Host, results map[uint]boo
 
 type ListLabelsForHostFunc func(hid uint) ([]kolide.Label, error)
 
-type ListHostsInLabelFunc func(lid uint) ([]kolide.Host, error)
+type ListHostsInLabelFunc func(lid uint, opt kolide.ListOptions) ([]kolide.Host, error)
 
 type ListUniqueHostsInLabelsFunc func(labels []uint) ([]kolide.Host, error)
 
@@ -142,9 +142,9 @@ func (s *LabelStore) ListLabelsForHost(hid uint) ([]kolide.Label, error) {
 	return s.ListLabelsForHostFunc(hid)
 }
 
-func (s *LabelStore) ListHostsInLabel(lid uint) ([]kolide.Host, error) {
+func (s *LabelStore) ListHostsInLabel(lid uint, opt kolide.ListOptions) ([]kolide.Host, error) {
 	s.ListHostsInLabelFuncInvoked = true
-	return s.ListHostsInLabelFunc(lid)
+	return s.ListHostsInLabelFunc(lid, opt)
 }
 
 func (s *LabelStore) ListUniqueHostsInLabels(labels []uint) ([]kolide.Host, error) {

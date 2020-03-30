@@ -13,8 +13,8 @@ import (
 // rendering in the UI.
 type HostResponse struct {
 	kolide.Host
-	Status      string `json:"status"`
-	DisplayText string `json:"display_text"`
+	Status      kolide.HostStatus `json:"status"`
+	DisplayText string            `json:"display_text"`
 }
 
 func hostResponseForHost(ctx context.Context, svc kolide.Service, host *kolide.Host) (*HostResponse, error) {
@@ -64,7 +64,7 @@ func makeGetHostEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type listHostsRequest struct {
-	ListOptions kolide.ListOptions
+	ListOptions kolide.HostListOptions
 }
 
 type listHostsResponse struct {

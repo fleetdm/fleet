@@ -4,7 +4,7 @@ import AceEditor from 'react-ace';
 import { connect } from 'react-redux';
 import FileSaver from 'file-saver';
 import { push } from 'react-router-redux';
-import { orderBy, slice, sortBy } from 'lodash';
+import { sortBy } from 'lodash';
 import classNames from 'classnames';
 
 import Kolide from 'kolide';
@@ -24,7 +24,11 @@ import osqueryTableInterface from 'interfaces/osquery_table';
 import statusLabelsInterface from 'interfaces/status_labels';
 import enrollSecretInterface from 'interfaces/enroll_secret';
 import { selectOsqueryTable } from 'redux/nodes/components/QueryPages/actions';
-import { getStatusLabelCounts, setDisplay, silentGetStatusLabelCounts } from 'redux/nodes/components/ManageHostsPage/actions';
+import {
+  getStatusLabelCounts,
+  setDisplay,
+  setPagination,
+} from 'redux/nodes/components/ManageHostsPage/actions';
 import hostActions from 'redux/nodes/entities/hosts/actions';
 import labelActions from 'redux/nodes/entities/labels/actions';
 import { renderFlash } from 'redux/nodes/notifications/actions';
@@ -38,7 +42,6 @@ import helpers from './helpers';
 
 const NEW_LABEL_HASH = '#new_label';
 const baseClass = 'manage-hosts';
-const hostCountNoReload = 100;
 
 export class ManageHostsPage extends PureComponent {
   static propTypes = {
@@ -53,13 +56,18 @@ export class ManageHostsPage extends PureComponent {
     loadingHosts: PropTypes.bool.isRequired,
     loadingLabels: PropTypes.bool.isRequired,
     enrollSecret: enrollSecretInterface,
+    selectedFilter: PropTypes.string,
     selectedLabel: labelInterface,
     selectedOsqueryTable: osqueryTableInterface,
     statusLabels: statusLabelsInterface,
+    page: PropTypes.number,
+    perPage: PropTypes.number,
   };
 
   static defaultProps = {
     display: 'Grid',
+    page: 1,
+    perPage: 100,
     loadingHosts: false,
     loadingLabels: false,
   };
@@ -68,9 +76,6 @@ export class ManageHostsPage extends PureComponent {
     super(props);
 
     this.state = {
-      allHostCount: 0,
-      currentPaginationPage: 0,
-      hostsPerPage: 20,
       isEditLabel: false,
       labelQueryText: '',
       pagedHosts: [],
@@ -83,11 +88,9 @@ export class ManageHostsPage extends PureComponent {
   }
 
   componentDidMount () {
-    const { getEntities } = this;
-    const { hosts } = this.props;
-    const silent = hosts.length > 0;
+    const { dispatch, page, perPage, selectedFilter } = this.props;
 
-    return getEntities(silent);
+    dispatch(setPagination(page, perPage, selectedFilter));
   }
 
   componentWillUnmount () {
@@ -167,18 +170,16 @@ export class ManageHostsPage extends PureComponent {
   onLabelClick = (selectedLabel) => {
     return (evt) => {
       evt.preventDefault();
-
-      const { dispatch } = this.props;
+      
+      const { dispatch, perPage } = this.props;
       const { MANAGE_HOSTS } = PATHS;
-      const { slug } = selectedLabel;
-      const nextLocation = slug === 'all-hosts' ? MANAGE_HOSTS : `${MANAGE_HOSTS}/${slug}`;
+      const { slug, type } = selectedLabel;
+      const nextLocation = type === 'all' ? MANAGE_HOSTS : `${MANAGE_HOSTS}/${slug}`;
 
       dispatch(push(nextLocation));
 
-      this.setState({
-        currentPaginationPage: 0,
-      });
-
+      dispatch(setPagination(1, perPage, selectedLabel.slug));
+      
       return false;
     };
   }
@@ -192,22 +193,10 @@ export class ManageHostsPage extends PureComponent {
   }
 
   onPaginationChange = (page) => {
-    this.setState({
-      currentPaginationPage: page - 1,
-    });
+    const { dispatch, selectedFilter, perPage } = this.props;
 
-    scrollToTop();
-
-    return true;
-  }
-
-  onPerPageChange = (option) => {
-    this.setState({
-      currentPaginationPage: 0,
-      hostsPerPage: Number(option.value),
-      showHostContainerSpinner: true,
-    });
-
+    dispatch(setPagination(page, perPage, selectedFilter));
+    
     scrollToTop();
 
     return true;
@@ -263,48 +252,11 @@ export class ManageHostsPage extends PureComponent {
     };
   }
 
-  getEntities = (silent = true) => {
-    const { dispatch } = this.props;
-
-    const promises = silent ? [
-      dispatch(hostActions.silentLoadAll()),
-      dispatch(labelActions.silentLoadAll()),
-      dispatch(silentGetStatusLabelCounts),
-    ] : [
-      dispatch(hostActions.loadAll()),
-      dispatch(labelActions.loadAll()),
-      dispatch(getStatusLabelCounts),
-    ];
-
-    const after = () => {
-      if (this.props.hosts.length < hostCountNoReload) {
-        this.timeout = setTimeout(this.getEntities, 5000);
-      }
-    };
-
-    return Promise.all(promises).then(after).catch(after);
-  }
-
   clearHostUpdates () {
     if (this.timeout) {
       global.window.clearTimeout(this.timeout);
       this.timeout = null;
     }
-  }
-
-  buildSortedHosts = () => {
-    const { filterAllHosts, sortHosts } = this;
-    const { currentPaginationPage, hostsPerPage } = this.state;
-    const { hosts, selectedLabel } = this.props;
-
-    const sortedHosts = sortHosts(filterAllHosts(hosts, selectedLabel));
-
-    const fromIndex = currentPaginationPage * hostsPerPage;
-    const toIndex = fromIndex + hostsPerPage;
-
-    const pagedHosts = slice(sortedHosts, fromIndex, toIndex);
-
-    return pagedHosts;
   }
 
   filterAllHosts = (hosts, selectedLabel) => {
@@ -314,10 +266,7 @@ export class ManageHostsPage extends PureComponent {
   }
 
   sortHosts = (hosts) => {
-    const alphaHosts = sortBy(hosts, (h) => { return h.hostname; });
-    const orderedHosts = orderBy(alphaHosts, 'status', 'desc');
-
-    return orderedHosts;
+    return sortBy(hosts, (h) => { return h.hostname; });
   }
 
   toggleAddHostModal = () => {
@@ -481,7 +430,7 @@ export class ManageHostsPage extends PureComponent {
   renderHeader = () => {
     const { renderIcon, renderQuery, renderDeleteButton } = this;
     const { display, isAddLabel, selectedLabel, statusLabels } = this.props;
-
+    
     if (!selectedLabel || isAddLabel) {
       return false;
     }
@@ -575,7 +524,7 @@ export class ManageHostsPage extends PureComponent {
     const {
       isAddLabel,
       labels,
-      selectedLabel,
+      selectedFilter,
       selectedOsqueryTable,
       statusLabels,
     } = this.props;
@@ -597,7 +546,7 @@ export class ManageHostsPage extends PureComponent {
           onAddHostClick={onAddHostClick}
           onAddLabelClick={onAddLabelClick}
           onLabelClick={onLabelClick}
-          selectedLabel={selectedLabel}
+          selectedFilter={selectedFilter}
           statusLabels={statusLabels}
         />
       );
@@ -609,7 +558,6 @@ export class ManageHostsPage extends PureComponent {
   render () {
     const {
       onQueryHost,
-      onPerPageChange,
       onPaginationChange,
       renderForm,
       renderHeader,
@@ -620,11 +568,46 @@ export class ManageHostsPage extends PureComponent {
       toggleAddHostModal,
       toggleDeleteHostModal,
     } = this;
-    const { hosts, display, isAddLabel, loadingLabels, loadingHosts, selectedLabel } = this.props;
-    const { currentPaginationPage, hostsPerPage, isEditLabel } = this.state;
+    const {
+      page,
+      perPage,
+      hosts,
+      display,
+      isAddLabel,
+      loadingLabels,
+      loadingHosts,
+      selectedLabel,
+      statusLabels,
+    } = this.props;
+    const { isEditLabel } = this.state;
 
-    const pagedHosts = this.buildSortedHosts();
+    const sortedHosts = this.sortHosts(hosts);
+    
 
+    let hostCount = 0;
+    if (hostCount === 0) {
+      switch (selectedLabel ? selectedLabel.id : '') {
+        case 'all-hosts':
+          hostCount = statusLabels.total_count;
+          break;
+        case 'new':
+          hostCount = statusLabels.new_count;
+          break;
+        case 'online':
+          hostCount = statusLabels.online_count;
+          break;
+        case 'offline':
+          hostCount = statusLabels.offline_count;
+          break;
+        case 'mia':
+          hostCount = statusLabels.mia_count;
+          break;
+        default:
+          hostCount = selectedLabel ? selectedLabel.count : 0;
+          break;
+      }
+    }
+    
     return (
       <div className="has-sidebar">
         {renderForm()}
@@ -634,7 +617,7 @@ export class ManageHostsPage extends PureComponent {
             {renderHeader()}
             <div className={`${baseClass}__list ${baseClass}__list--${display.toLowerCase()}`}>
               <HostContainer
-                hosts={pagedHosts}
+                hosts={sortedHosts}
                 selectedLabel={selectedLabel}
                 displayType={display}
                 loadingHosts={loadingHosts}
@@ -643,11 +626,10 @@ export class ManageHostsPage extends PureComponent {
                 onQueryHost={onQueryHost}
               />
               {!loadingHosts && <HostPagination
-                allHostCount={hosts.length}
-                currentPage={currentPaginationPage}
-                hostsPerPage={hostsPerPage}
+                allHostCount={hostCount}
+                currentPage={page}
+                hostsPerPage={perPage}
                 onPaginationChange={onPaginationChange}
-                onPerPageChange={onPerPageChange}
               />}
             </div>
           </div>
@@ -663,14 +645,17 @@ export class ManageHostsPage extends PureComponent {
 }
 
 const mapStateToProps = (state, { location, params }) => {
-  const activeLabelSlug = params.active_label || 'all-hosts';
-  const { display, status_labels: statusLabels } = state.components.ManageHostsPage;
+  const { active_label: activeLabel, label_id: labelID } = params;
+  const activeLabelSlug = activeLabel || 'all-hosts';
+  const selectedFilter = labelID ? `labels/${labelID}` : activeLabelSlug;
+  
+  const { display, status_labels: statusLabels, page, perPage } = state.components.ManageHostsPage;
   const { entities: hosts } = entityGetter(state).get('hosts');
   const labelEntities = entityGetter(state).get('labels');
   const { entities: labels } = labelEntities;
   const isAddLabel = location.hash === NEW_LABEL_HASH;
   const selectedLabel = labelEntities.findBy(
-    { slug: activeLabelSlug },
+    { slug: selectedFilter },
     { ignoreCase: true },
   );
   const { selectedOsqueryTable } = state.components.QueryPages;
@@ -679,6 +664,9 @@ const mapStateToProps = (state, { location, params }) => {
   const enrollSecret = state.app.enrollSecret;
 
   return {
+    selectedFilter,
+    page,
+    perPage,
     display,
     hosts,
     isAddLabel,

@@ -15,7 +15,7 @@ export default {
     valid: (bearerToken) => {
       return createRequestMock({
         bearerToken,
-        endpoint: '/api/v1/kolide/hosts',
+        endpoint: '/api/v1/kolide/hosts?page=0&per_page=100&order_key=host_name',
         method: 'get',
         response: { hosts: [] },
       });

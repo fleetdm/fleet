@@ -266,8 +266,8 @@ func (d *Datastore) ListLabelsForHost(hid uint) ([]kolide.Label, error) {
 
 // ListHostsInLabel returns a list of kolide.Host that are associated
 // with kolide.Label referened by Label ID
-func (d *Datastore) ListHostsInLabel(lid uint) ([]kolide.Host, error) {
-	sqlStatement := `
+func (d *Datastore) ListHostsInLabel(lid uint, opt kolide.ListOptions) ([]kolide.Host, error) {
+	sql := `
 		SELECT h.*
 		FROM label_query_executions lqe
 		JOIN hosts h
@@ -276,8 +276,9 @@ func (d *Datastore) ListHostsInLabel(lid uint) ([]kolide.Host, error) {
 		AND lqe.matches = 1
 		AND NOT h.deleted
 	`
+	sql = appendListOptionsToSQL(sql, opt)
 	hosts := []kolide.Host{}
-	err := d.db.Select(&hosts, sqlStatement, lid)
+	err := d.db.Select(&hosts, sql, lid)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting label query executions")
 	}

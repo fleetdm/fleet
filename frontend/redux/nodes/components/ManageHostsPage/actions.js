@@ -1,11 +1,14 @@
 import Kolide from 'kolide';
 import { formatErrorResponse } from 'redux/nodes/entities/base/helpers';
+import hostActions from 'redux/nodes/entities/hosts/actions';
+import labelActions from 'redux/nodes/entities/labels/actions';
 
 // Action Types
 export const GET_STATUS_LABEL_COUNTS_FAILURE = 'GET_STATUS_LABEL_COUNTS_FAILURE';
 export const GET_STATUS_LABEL_COUNTS_SUCCESS = 'GET_STATUS_LABEL_COUNTS_SUCCESS';
 export const LOAD_STATUS_LABEL_COUNTS = 'LOAD_STATUS_LABEL_COUNTS';
 export const SET_DISPLAY = 'SET_DISPLAY';
+export const SET_PAGINATION = 'SET_PAGINATION';
 
 // Actions
 export const loadStatusLabelCounts = { type: LOAD_STATUS_LABEL_COUNTS };
@@ -56,6 +59,27 @@ export const getStatusLabelCounts = (dispatch) => {
     });
 };
 
+export const setPaginationSuccess = (page, perPage, selectedLabel) => {
+  return {
+    type: SET_PAGINATION,
+    payload: {
+      page,
+      perPage,
+      selectedLabel,
+    },
+  };
+};
+
+export const setPagination = (page, perPage, selectedLabel) => (dispatch) => {
+  const promises = [
+    dispatch(hostActions.loadAll(page, perPage, selectedLabel)),
+    dispatch(labelActions.silentLoadAll()),
+    dispatch(silentGetStatusLabelCounts),
+  ];
+
+  Promise.all(promises).then(dispatch(setPaginationSuccess(page, perPage, selectedLabel)));
+};
+
 export const setDisplay = (display) => {
   return {
     type: SET_DISPLAY,
@@ -65,4 +89,4 @@ export const setDisplay = (display) => {
   };
 };
 
-export default { getStatusLabelCounts, setDisplay, silentGetStatusLabelCounts };
+export default { getStatusLabelCounts, setDisplay, setPagination, silentGetStatusLabelCounts };

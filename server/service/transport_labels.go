@@ -44,6 +44,18 @@ func decodeListLabelsRequest(ctx context.Context, r *http.Request) (interface{},
 	return listLabelsRequest{ListOptions: opt}, nil
 }
 
+func decodeListHostsInLabelRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	id, err := idFromRequest(r, "id")
+	if err != nil {
+		return nil, err
+	}
+	opt, err := listOptionsFromRequest(r)
+	if err != nil {
+		return nil, err
+	}
+	return listHostsInLabelRequest{ID: id, ListOptions: opt}, nil
+}
+
 func decodeApplyLabelSpecsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	var req applyLabelSpecsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

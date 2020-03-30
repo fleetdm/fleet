@@ -19,7 +19,7 @@ func TestListHosts(t *testing.T) {
 
 	ctx := context.Background()
 
-	hosts, err := svc.ListHosts(ctx, kolide.ListOptions{})
+	hosts, err := svc.ListHosts(ctx, kolide.HostListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 0)
 
@@ -28,7 +28,7 @@ func TestListHosts(t *testing.T) {
 	})
 	assert.Nil(t, err)
 
-	hosts, err = svc.ListHosts(ctx, kolide.ListOptions{})
+	hosts, err = svc.ListHosts(ctx, kolide.HostListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 1)
 }
@@ -72,7 +72,7 @@ func TestDeleteHost(t *testing.T) {
 	err = svc.DeleteHost(ctx, host.ID)
 	assert.Nil(t, err)
 
-	hosts, err := ds.ListHosts(kolide.ListOptions{})
+	hosts, err := ds.ListHosts(kolide.HostListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 0)
 

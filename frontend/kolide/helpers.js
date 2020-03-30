@@ -1,4 +1,4 @@
-import { flatMap, kebabCase, omit, pick, size } from 'lodash';
+import { flatMap, omit, pick, size } from 'lodash';
 import md5 from 'js-md5';
 
 const ORG_INFO_ATTRS = ['org_name', 'org_logo_url'];
@@ -17,13 +17,13 @@ export const addGravatarUrlToResource = (resource) => {
 };
 
 const labelSlug = (label) => {
-  const { display_text: displayText } = label;
+  const { id, name } = label;
 
-  if (!displayText) return undefined;
+  if (name === 'All Hosts') {
+    return 'all-hosts';
+  }
 
-  const lowerDisplayText = displayText.toLowerCase();
-
-  return kebabCase(lowerDisplayText);
+  return `labels/${id}`
 };
 
 const labelStubs = [
@@ -31,7 +31,7 @@ const labelStubs = [
     id: 'new',
     count: 0,
     display_text: 'NEW',
-    slug: 'recently_added',
+    slug: 'new',
     statusLabelKey: 'new_count',
     title_description: '(added in last 24hrs)',
     type: 'status',
