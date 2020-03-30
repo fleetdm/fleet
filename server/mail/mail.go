@@ -2,13 +2,16 @@
 package mail
 
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
+	"html/template"
 	"net"
 	"net/smtp"
 	"strings"
 	"time"
 
+	"github.com/kolide/fleet/server/bindata"
 	"github.com/kolide/fleet/server/kolide"
 	"github.com/pkg/errors"
 )
@@ -230,4 +233,39 @@ func dialTimeout(addr string) (client *smtp.Client, err error) {
 	_ = conn.SetDeadline(time.Time{})
 
 	return client, nil
+}
+
+// SMTPTestMailer is used to build an email message that will be used as
+// a test message when testing SMTP configuration
+type SMTPTestMailer struct {
+	BaseURL  template.URL
+	AssetURL template.URL
+}
+
+func (m *SMTPTestMailer) Message() ([]byte, error) {
+	t, err := getTemplate("server/mail/templates/smtp_setup.html")
+	if err != nil {
+		return nil, err
+	}
+
+	var msg bytes.Buffer
+	if err = t.Execute(&msg, m); err != nil {
+		return nil, err
+	}
+
+	return msg.Bytes(), nil
+}
+
+func getTemplate(templatePath string) (*template.Template, error) {
+	templateData, err := bindata.Asset(templatePath)
+	if err != nil {
+		return nil, err
+	}
+
+	t, err := template.New("email_template").Parse(string(templateData))
+	if err != nil {
+		return nil, err
+	}
+
+	return t, nil
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/kolide/fleet/server/kolide"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type mockMailer struct{}
@@ -65,7 +66,7 @@ func testSMTPPlainAuth(t *testing.T, mailer kolide.MailService) {
 			SMTPServer:               "localhost",
 			SMTPSenderAddress:        "kolide@kolide.com",
 		},
-		Mailer: &kolide.SMTPTestMailer{
+		Mailer: &SMTPTestMailer{
 			BaseURL: "https://localhost:8080",
 		},
 	}
@@ -91,7 +92,7 @@ func testSMTPSkipVerify(t *testing.T, mailer kolide.MailService) {
 			SMTPServer:               "localhost",
 			SMTPSenderAddress:        "kolide@kolide.com",
 		},
-		Mailer: &kolide.SMTPTestMailer{
+		Mailer: &SMTPTestMailer{
 			BaseURL: "https://localhost:8080",
 		},
 	}
@@ -113,7 +114,7 @@ func testSMTPNoAuth(t *testing.T, mailer kolide.MailService) {
 			SMTPServer:             "localhost",
 			SMTPSenderAddress:      "kolide@kolide.com",
 		},
-		Mailer: &kolide.SMTPTestMailer{
+		Mailer: &SMTPTestMailer{
 			BaseURL: "https://localhost:8080",
 		},
 	}
@@ -135,11 +136,22 @@ func testMailTest(t *testing.T, mailer kolide.MailService) {
 			SMTPServer:             "localhost",
 			SMTPSenderAddress:      "kolide@kolide.com",
 		},
-		Mailer: &kolide.SMTPTestMailer{
+		Mailer: &SMTPTestMailer{
 			BaseURL: "https://localhost:8080",
 		},
 	}
 	err := Test(mailer, mail)
 	assert.Nil(t, err)
 
+}
+
+func TestTemplateProcessor(t *testing.T) {
+	mailer := PasswordResetMailer{
+		BaseURL: "https://localhost.com:8080",
+		Token:   "12345",
+	}
+
+	out, err := mailer.Message()
+	require.Nil(t, err)
+	assert.NotNil(t, out)
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/kolide/fleet/server/contexts/viewer"
 	"github.com/kolide/fleet/server/kolide"
+	"github.com/kolide/fleet/server/mail"
 	"github.com/pkg/errors"
 )
 
@@ -152,7 +153,7 @@ func (svc service) modifyEmailAddress(ctx context.Context, user *kolide.User, em
 		Subject: "Confirm Fleet Email Change",
 		To:      []string{email},
 		Config:  config,
-		Mailer: &kolide.ChangeEmailMailer{
+		Mailer: &mail.ChangeEmailMailer{
 			Token:    token,
 			BaseURL:  template.URL(config.KolideServerURL + svc.config.Server.URLPrefix),
 			AssetURL: getAssetURL(),
@@ -354,7 +355,7 @@ func (svc service) RequestPasswordReset(ctx context.Context, email string) error
 		Subject: "Reset Your Fleet Password",
 		To:      []string{user.Email},
 		Config:  config,
-		Mailer: &kolide.PasswordResetMailer{
+		Mailer: &mail.PasswordResetMailer{
 			BaseURL:  template.URL(config.KolideServerURL + svc.config.Server.URLPrefix),
 			AssetURL: getAssetURL(),
 			Token:    token,

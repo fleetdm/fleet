@@ -7,13 +7,14 @@ import (
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/go-kit/kit/log"
+	"github.com/kolide/fleet/server/bindata"
 )
 
 func newBinaryFileSystem(root string) *assetfs.AssetFS {
 	return &assetfs.AssetFS{
-		Asset:     Asset,
-		AssetDir:  AssetDir,
-		AssetInfo: AssetInfo,
+		Asset:     bindata.Asset,
+		AssetDir:  bindata.AssetDir,
+		AssetInfo: bindata.AssetInfo,
 		Prefix:    root,
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"html/template"
 
 	"github.com/kolide/fleet/server/kolide"
+	"github.com/kolide/fleet/server/mail"
 )
 
 func (svc service) InviteNewUser(ctx context.Context, payload kolide.InvitePayload) (*kolide.Invite, error) {
@@ -65,7 +66,7 @@ func (svc service) InviteNewUser(ctx context.Context, payload kolide.InvitePaylo
 		Subject: "You are Invited to Fleet",
 		To:      []string{invite.Email},
 		Config:  config,
-		Mailer: &kolide.InviteMailer{
+		Mailer: &mail.InviteMailer{
 			Invite:            invite,
 			BaseURL:           template.URL(config.KolideServerURL + svc.config.Server.URLPrefix),
 			AssetURL:          getAssetURL(),

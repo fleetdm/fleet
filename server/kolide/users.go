@@ -1,12 +1,10 @@
 package kolide
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"html/template"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -191,23 +189,4 @@ func falseIfNil(b *bool) bool {
 		return false
 	}
 	return *b
-}
-
-type ChangeEmailMailer struct {
-	BaseURL  template.URL
-	AssetURL template.URL
-	Token    string
-}
-
-func (cem *ChangeEmailMailer) Message() ([]byte, error) {
-	t, err := getTemplate("server/mail/templates/change_email_confirmation.html")
-	if err != nil {
-		return nil, err
-	}
-	var msg bytes.Buffer
-	err = t.Execute(&msg, cem)
-	if err != nil {
-		return nil, err
-	}
-	return msg.Bytes(), nil
 }

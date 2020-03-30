@@ -16,6 +16,7 @@ assets/*@*.woff2
 assets/*@*.ttf
 frontend/templates/react.tmpl
 bindata.go
+server/bindata/generated.go
 *.cover
 *.test
 *.log

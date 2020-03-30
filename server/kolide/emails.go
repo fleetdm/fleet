@@ -1,8 +1,6 @@
 package kolide
 
 import (
-	"bytes"
-	"html/template"
 	"time"
 )
 
@@ -44,61 +42,4 @@ type PasswordResetRequest struct {
 	ExpiresAt time.Time `db:"expires_at"`
 	UserID    uint      `db:"user_id"`
 	Token     string
-}
-
-// SMTPTestMailer is used to build an email message that will be used as
-// a test message when testing SMTP configuration
-type SMTPTestMailer struct {
-	BaseURL  template.URL
-	AssetURL template.URL
-}
-
-func (m *SMTPTestMailer) Message() ([]byte, error) {
-	t, err := getTemplate("server/mail/templates/smtp_setup.html")
-	if err != nil {
-		return nil, err
-	}
-
-	var msg bytes.Buffer
-	if err = t.Execute(&msg, m); err != nil {
-		return nil, err
-	}
-
-	return msg.Bytes(), nil
-}
-
-type PasswordResetMailer struct {
-	// Base URL to use for Fleet endpoints
-	BaseURL template.URL
-	// URL for loading image assets
-	AssetURL template.URL
-	// Token password reset token
-	Token string
-}
-
-func (r PasswordResetMailer) Message() ([]byte, error) {
-	t, err := getTemplate("server/mail/templates/password_reset.html")
-	if err != nil {
-		return nil, err
-	}
-
-	var msg bytes.Buffer
-	if err = t.Execute(&msg, r); err != nil {
-		return nil, err
-	}
-	return msg.Bytes(), nil
-}
-
-func getTemplate(templatePath string) (*template.Template, error) {
-	templateData, err := Asset(templatePath)
-	if err != nil {
-		return nil, err
-	}
-
-	t, err := template.New("email_template").Parse(string(templateData))
-	if err != nil {
-		return nil, err
-	}
-
-	return t, nil
 }

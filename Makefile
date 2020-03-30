@@ -107,10 +107,10 @@ endif
 build: fleet fleetctl
 
 fleet: .prefix .pre-build .pre-fleet
-	go build -i -o build/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
+	go build -tags full -i -o build/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
 
 fleetctl: .prefix .pre-build .pre-fleetctl
-	go build -i -o build/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
+	go build -tags full -i -o build/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
 
 lint-js:
 	yarn run eslint frontend --ext .js,.jsx
@@ -127,10 +127,10 @@ lint-go:
 lint: lint-go lint-js lint-scss lint-ts
 
 test-go:
-	go test ./...
+	go test -tags full ./...
 
 analyze-go:
-	go test -race -cover ./...
+	go test -tags full -race -cover ./...
 
 test-js: export NODE_PATH = ./frontend
 test-js:
@@ -148,20 +148,18 @@ generate-js: .prefix
 	NODE_ENV=production webpack --progress --colors
 
 generate-go: .prefix
-	go-bindata -pkg=service \
-		-o=server/service/bindata.go \
-		frontend/templates/ assets/...
-	go-bindata -pkg=kolide -o=server/kolide/bindata.go server/mail/templates
+	go-bindata -pkg=bindata -tags full \
+		-o=server/bindata/generated.go \
+		frontend/templates/ assets/... server/mail/templates
 
 # we first generate the webpack bundle so that bindata knows to watch the
 # output bundle file. then, generate debug bindata source file. finally, we
 # run webpack in watch mode to continuously re-generate the bundle
 generate-dev: .prefix
 	NODE_ENV=development webpack --progress --colors
-	go-bindata -debug -pkg=service \
-		-o=server/service/bindata.go \
-		frontend/templates/ assets/...
-	go-bindata -pkg=kolide -o=server/kolide/bindata.go server/mail/templates
+	go-bindata -debug -pkg=bindata -tags full \
+		-o=server/bindata/generated.go \
+		frontend/templates/ assets/... server/mail/templates
 	NODE_ENV=development webpack --progress --colors --watch
 
 deps: deps-js deps-go
@@ -219,14 +217,14 @@ demo-restore:
 	mkdir -p build/binary-bundle/darwin
 
 xp-fleet: .pre-binary-bundle .pre-fleet generate
-	GOOS=linux go build -i -o build/binary-bundle/linux/fleet -ldflags ${KIT_VERSION} ./cmd/fleet
-	GOOS=darwin go build -i -o build/binary-bundle/darwin/fleet -ldflags ${KIT_VERSION} ./cmd/fleet
-	GOOS=windows go build -i -o build/binary-bundle/windows/fleet.exe -ldflags ${KIT_VERSION} ./cmd/fleet
+	GOOS=linux go build -tags full -i -o build/binary-bundle/linux/fleet -ldflags ${KIT_VERSION} ./cmd/fleet
+	GOOS=darwin go build -tags full -i -o build/binary-bundle/darwin/fleet -ldflags ${KIT_VERSION} ./cmd/fleet
+	GOOS=windows go build -tags full -i -o build/binary-bundle/windows/fleet.exe -ldflags ${KIT_VERSION} ./cmd/fleet
 
 xp-fleetctl: .pre-binary-bundle .pre-fleetctl generate
-	GOOS=linux go build -i -o build/binary-bundle/linux/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
-	GOOS=darwin go build -i -o build/binary-bundle/darwin/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
-	GOOS=windows go build -i -o build/binary-bundle/windows/fleetctl.exe -ldflags ${KIT_VERSION} ./cmd/fleetctl
+	GOOS=linux go build -tags full -i -o build/binary-bundle/linux/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
+	GOOS=darwin go build -tags full -i -o build/binary-bundle/darwin/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
+	GOOS=windows go build -tags full -i -o build/binary-bundle/windows/fleetctl.exe -ldflags ${KIT_VERSION} ./cmd/fleetctl
 
 binary-bundle: xp-fleet xp-fleetctl
 	cd build/binary-bundle && zip -r "fleet_${VERSION}.zip" darwin/ linux/ windows/
