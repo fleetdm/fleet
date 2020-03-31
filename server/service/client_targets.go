@@ -47,7 +47,7 @@ func (c *Client) SearchTargets(query string, selectedHostIDs, selectedLabelIDs [
 
 	hosts := make([]kolide.Host, len(responseBody.Targets.Hosts))
 	for i, h := range responseBody.Targets.Hosts {
-		hosts[i] = h.hostResponse.Host
+		hosts[i] = h.HostResponse.Host
 	}
 
 	labels := make([]kolide.Label, len(responseBody.Targets.Labels))

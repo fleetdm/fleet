@@ -8,7 +8,7 @@ import (
 )
 
 // GetHosts retrieves the list of all Hosts
-func (c *Client) GetHosts() ([]hostResponse, error) {
+func (c *Client) GetHosts() ([]HostResponse, error) {
 	response, err := c.AuthenticatedDo("GET", "/api/v1/kolide/hosts", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "GET /api/v1/kolide/hosts")

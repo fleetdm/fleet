@@ -21,7 +21,7 @@ type searchTargetsRequest struct {
 }
 
 type hostSearchResult struct {
-	hostResponse
+	HostResponse
 	DisplayText string `json:"display_text"`
 }
 
@@ -67,7 +67,7 @@ func makeSearchTargetsEndpoint(svc kolide.Service) endpoint.Endpoint {
 		for _, host := range results.Hosts {
 			targets.Hosts = append(targets.Hosts,
 				hostSearchResult{
-					hostResponse{
+					HostResponse{
 						Host:   host,
 						Status: host.Status(time.Now()),
 					},

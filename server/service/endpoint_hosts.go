@@ -8,14 +8,17 @@ import (
 	"github.com/kolide/fleet/server/kolide"
 )
 
-type hostResponse struct {
+// HostResponse is the response struct that contains the full host information
+// along with the host online status and the "display text" to be used when
+// rendering in the UI.
+type HostResponse struct {
 	kolide.Host
 	Status      string `json:"status"`
 	DisplayText string `json:"display_text"`
 }
 
-func hostResponseForHost(ctx context.Context, svc kolide.Service, host *kolide.Host) (*hostResponse, error) {
-	return &hostResponse{
+func hostResponseForHost(ctx context.Context, svc kolide.Service, host *kolide.Host) (*HostResponse, error) {
+	return &HostResponse{
 		Host:        *host,
 		Status:      host.Status(time.Now()),
 		DisplayText: host.HostName,
@@ -31,7 +34,7 @@ type getHostRequest struct {
 }
 
 type getHostResponse struct {
-	Host *hostResponse `json:"host"`
+	Host *HostResponse `json:"host"`
 	Err  error         `json:"error,omitempty"`
 }
 
@@ -65,7 +68,7 @@ type listHostsRequest struct {
 }
 
 type listHostsResponse struct {
-	Hosts []hostResponse `json:"hosts"`
+	Hosts []HostResponse `json:"hosts"`
 	Err   error          `json:"error,omitempty"`
 }
 
@@ -79,7 +82,7 @@ func makeListHostsEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return listHostsResponse{Err: err}, nil
 		}
 
-		hostResponses := make([]hostResponse, len(hosts))
+		hostResponses := make([]HostResponse, len(hosts))
 		for i, host := range hosts {
 			h, err := hostResponseForHost(ctx, svc, host)
 			if err != nil {
