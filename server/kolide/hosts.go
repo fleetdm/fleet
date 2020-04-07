@@ -65,10 +65,6 @@ type HostStore interface {
 	// GenerateHostStatusStatistics retrieves the count of online, offline,
 	// MIA and new hosts.
 	GenerateHostStatusStatistics(now time.Time) (online, offline, mia, new uint, err error)
-	// DistributedQueriesForHost retrieves the distributed queries that the
-	// given host should run. The result map is a mapping from campaign ID
-	// to query text.
-	DistributedQueriesForHost(host *Host) (map[uint]string, error)
 	// HostIDsByName Retrieve the IDs associated with the given hostnames
 	HostIDsByName(hostnames []string) ([]uint, error)
 }
@@ -95,6 +91,7 @@ type Host struct {
 	// a GUID or a Host Name, but in either case, it MUST be unique
 	OsqueryHostID    string        `json:"-" db:"osquery_host_id"`
 	DetailUpdateTime time.Time     `json:"detail_updated_at" db:"detail_update_time"` // Time that the host details were last updated
+	LabelUpdateTime  time.Time     `json:"label_updated_at" db:"label_update_time"`   // Time that the host details were last updated
 	SeenTime         time.Time     `json:"seen_time" db:"seen_time"`                  // Time that the host was last "seen"
 	NodeKey          string        `json:"-" db:"node_key"`
 	HostName         string        `json:"hostname" db:"host_name"` // there is a fulltext index on this field

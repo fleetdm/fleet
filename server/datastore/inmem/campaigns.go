@@ -72,7 +72,7 @@ func (d *Datastore) NewDistributedQueryCampaignTarget(target *kolide.Distributed
 	return target, nil
 }
 
-func (d *Datastore) CleanupDistributedQueryCampaigns(now time.Time) (expired uint, deleted uint, err error) {
+func (d *Datastore) CleanupDistributedQueryCampaigns(now time.Time) (expired uint, err error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -86,5 +86,5 @@ func (d *Datastore) CleanupDistributedQueryCampaigns(now time.Time) (expired uin
 		}
 	}
 
-	return expired, 0, nil
+	return expired, nil
 }

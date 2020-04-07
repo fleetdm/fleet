@@ -75,6 +75,17 @@ func AddLabelToCampaign(t *testing.T, ds kolide.Datastore, campaignID, labelID u
 	require.Nil(t, err)
 }
 
+func AddAllHostsLabel(t *testing.T, ds kolide.Datastore) {
+	_, err := ds.NewLabel(
+		&kolide.Label{
+			Name:      "All Hosts",
+			Query:     "select 1",
+			LabelType: kolide.LabelTypeBuiltIn,
+		},
+	)
+	require.Nil(t, err)
+}
+
 func NewHost(t *testing.T, ds kolide.Datastore, name, ip, key, uuid string, now time.Time) *kolide.Host {
 	osqueryHostID, _ := kolide.RandomText(10)
 	h, err := ds.NewHost(&kolide.Host{
@@ -82,6 +93,7 @@ func NewHost(t *testing.T, ds kolide.Datastore, name, ip, key, uuid string, now 
 		NodeKey:          key,
 		UUID:             uuid,
 		DetailUpdateTime: now,
+		LabelUpdateTime:  now,
 		SeenTime:         now,
 		OsqueryHostID:    osqueryHostID,
 	})

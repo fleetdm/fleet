@@ -30,6 +30,7 @@ func testUnicode(t *testing.T, ds kolide.Datastore) {
 	host, err := ds.NewHost(&kolide.Host{
 		HostName:         "🍌",
 		DetailUpdateTime: time.Now(),
+		LabelUpdateTime:  time.Now(),
 		SeenTime:         time.Now(),
 	})
 	require.Nil(t, err)

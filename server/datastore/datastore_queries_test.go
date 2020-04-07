@@ -12,6 +12,8 @@ import (
 )
 
 func testApplyQueries(t *testing.T, ds kolide.Datastore) {
+	test.AddAllHostsLabel(t, ds)
+
 	zwass := test.NewUser(t, ds, "Zach", "zwass", "zwass@kolide.co", true)
 	groob := test.NewUser(t, ds, "Victor", "groob", "victor@kolide.co", true)
 	expectedQueries := []*kolide.Query{

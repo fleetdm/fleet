@@ -10,6 +10,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/kolide/fleet/server/kolide"
+	"github.com/kolide/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -42,6 +43,7 @@ var enrollTests = []struct {
 func testSaveHosts(t *testing.T, ds kolide.Datastore) {
 	host, err := ds.NewHost(&kolide.Host{
 		DetailUpdateTime: time.Now(),
+		LabelUpdateTime:  time.Now(),
 		SeenTime:         time.Now(),
 		NodeKey:          "1",
 		UUID:             "1",
@@ -92,6 +94,7 @@ func testSaveHosts(t *testing.T, ds kolide.Datastore) {
 func testDeleteHost(t *testing.T, ds kolide.Datastore) {
 	host, err := ds.NewHost(&kolide.Host{
 		DetailUpdateTime: time.Now(),
+		LabelUpdateTime:  time.Now(),
 		SeenTime:         time.Now(),
 		NodeKey:          "1",
 		UUID:             "1",
@@ -110,6 +113,7 @@ func testDeleteHost(t *testing.T, ds kolide.Datastore) {
 func testIdempotentDeleteHost(t *testing.T, ds kolide.Datastore) {
 	host, err := ds.NewHost(&kolide.Host{
 		DetailUpdateTime: time.Now(),
+		LabelUpdateTime:  time.Now(),
 		SeenTime:         time.Now(),
 		NodeKey:          "1",
 		UUID:             "1",
@@ -133,6 +137,7 @@ func testListHost(t *testing.T, ds kolide.Datastore) {
 	for i := 0; i < 10; i++ {
 		host, err := ds.NewHost(&kolide.Host{
 			DetailUpdateTime: time.Now(),
+			LabelUpdateTime:  time.Now(),
 			SeenTime:         time.Now(),
 			OsqueryHostID:    strconv.Itoa(i),
 			NodeKey:          fmt.Sprintf("%d", i),
@@ -173,6 +178,7 @@ func testListHost(t *testing.T, ds kolide.Datastore) {
 }
 
 func testEnrollHost(t *testing.T, ds kolide.Datastore) {
+	test.AddAllHostsLabel(t, ds)
 	var hosts []*kolide.Host
 	for _, tt := range enrollTests {
 		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, "default")
@@ -185,6 +191,7 @@ func testEnrollHost(t *testing.T, ds kolide.Datastore) {
 }
 
 func testAuthenticateHost(t *testing.T, ds kolide.Datastore) {
+	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
 		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, "default")
 		require.Nil(t, err)
@@ -205,6 +212,7 @@ func testSearchHosts(t *testing.T, ds kolide.Datastore) {
 	_, err := ds.NewHost(&kolide.Host{
 		OsqueryHostID:    "1234",
 		DetailUpdateTime: time.Now(),
+		LabelUpdateTime:  time.Now(),
 		SeenTime:         time.Now(),
 		NodeKey:          "1",
 		UUID:             "1",
@@ -215,6 +223,7 @@ func testSearchHosts(t *testing.T, ds kolide.Datastore) {
 	h2, err := ds.NewHost(&kolide.Host{
 		OsqueryHostID:    "5679",
 		DetailUpdateTime: time.Now(),
+		LabelUpdateTime:  time.Now(),
 		SeenTime:         time.Now(),
 		NodeKey:          "2",
 		UUID:             "2",
@@ -225,6 +234,7 @@ func testSearchHosts(t *testing.T, ds kolide.Datastore) {
 	h3, err := ds.NewHost(&kolide.Host{
 		OsqueryHostID:    "99999",
 		DetailUpdateTime: time.Now(),
+		LabelUpdateTime:  time.Now(),
 		SeenTime:         time.Now(),
 		NodeKey:          "3",
 		UUID:             "abc-def-ghi",
@@ -288,6 +298,7 @@ func testSearchHostsLimit(t *testing.T, ds kolide.Datastore) {
 	for i := 0; i < 15; i++ {
 		_, err := ds.NewHost(&kolide.Host{
 			DetailUpdateTime: time.Now(),
+			LabelUpdateTime:  time.Now(),
 			SeenTime:         time.Now(),
 			OsqueryHostID:    fmt.Sprintf("host%d", i),
 			NodeKey:          fmt.Sprintf("%d", i),
@@ -323,6 +334,7 @@ func testGenerateHostStatusStatistics(t *testing.T, ds kolide.Datastore) {
 		OsqueryHostID:    "1",
 		NodeKey:          "1",
 		DetailUpdateTime: mockClock.Now().Add(-30 * time.Second),
+		LabelUpdateTime:  mockClock.Now().Add(-30 * time.Second),
 		SeenTime:         mockClock.Now().Add(-30 * time.Second),
 	})
 	require.Nil(t, err)
@@ -336,6 +348,7 @@ func testGenerateHostStatusStatistics(t *testing.T, ds kolide.Datastore) {
 		OsqueryHostID:    "2",
 		NodeKey:          "2",
 		DetailUpdateTime: mockClock.Now().Add(-1 * time.Minute),
+		LabelUpdateTime:  mockClock.Now().Add(-1 * time.Minute),
 		SeenTime:         mockClock.Now().Add(-1 * time.Minute),
 	})
 	require.Nil(t, err)
@@ -349,6 +362,7 @@ func testGenerateHostStatusStatistics(t *testing.T, ds kolide.Datastore) {
 		OsqueryHostID:    "3",
 		NodeKey:          "3",
 		DetailUpdateTime: mockClock.Now().Add(-1 * time.Hour),
+		LabelUpdateTime:  mockClock.Now().Add(-1 * time.Hour),
 		SeenTime:         mockClock.Now().Add(-1 * time.Hour),
 	})
 	require.Nil(t, err)
@@ -362,6 +376,7 @@ func testGenerateHostStatusStatistics(t *testing.T, ds kolide.Datastore) {
 		OsqueryHostID:    "4",
 		NodeKey:          "4",
 		DetailUpdateTime: mockClock.Now().Add(-35 * (24 * time.Hour)),
+		LabelUpdateTime:  mockClock.Now().Add(-35 * (24 * time.Hour)),
 		SeenTime:         mockClock.Now().Add(-35 * (24 * time.Hour)),
 	})
 	require.Nil(t, err)
@@ -393,6 +408,7 @@ func testMarkHostSeen(t *testing.T, ds kolide.Datastore) {
 		UUID:             "1",
 		NodeKey:          "1",
 		DetailUpdateTime: aDayAgo,
+		LabelUpdateTime:  aDayAgo,
 		SeenTime:         aDayAgo,
 	})
 	assert.Nil(t, err)
@@ -424,6 +440,7 @@ func testCleanupIncomingHosts(t *testing.T, ds kolide.Datastore) {
 		UUID:             "1",
 		NodeKey:          "1",
 		DetailUpdateTime: mockClock.Now(),
+		LabelUpdateTime:  mockClock.Now(),
 		SeenTime:         mockClock.Now(),
 	})
 	require.Nil(t, err)
@@ -436,6 +453,7 @@ func testCleanupIncomingHosts(t *testing.T, ds kolide.Datastore) {
 		HostName:         "foobar",
 		OsqueryVersion:   "3.2.3",
 		DetailUpdateTime: mockClock.Now(),
+		LabelUpdateTime:  mockClock.Now(),
 		SeenTime:         mockClock.Now(),
 	})
 	require.Nil(t, err)
@@ -463,6 +481,7 @@ func testHostIDsByName(t *testing.T, ds kolide.Datastore) {
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewHost(&kolide.Host{
 			DetailUpdateTime: time.Now(),
+			LabelUpdateTime:  time.Now(),
 			SeenTime:         time.Now(),
 			OsqueryHostID:    fmt.Sprintf("host%d", i),
 			NodeKey:          fmt.Sprintf("%d", i),
@@ -482,6 +501,7 @@ func testHostAdditional(t *testing.T, ds kolide.Datastore) {
 	_, err := ds.NewHost(&kolide.Host{
 		DetailUpdateTime: time.Now(),
 		SeenTime:         time.Now(),
+		LabelUpdateTime:  time.Now(),
 		OsqueryHostID:    "foobar",
 		NodeKey:          "nodekey",
 		UUID:             "uuid",

@@ -88,10 +88,9 @@ func testCleanupDistributedQueryCampaigns(t *testing.T, ds kolide.Datastore) {
 
 	// Cleanup and verify that nothing changed (because time has not
 	// advanced)
-	expired, deleted, err := ds.CleanupDistributedQueryCampaigns(mockClock.Now())
+	expired, err := ds.CleanupDistributedQueryCampaigns(mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(0), expired)
-	assert.Equal(t, uint(0), deleted)
 
 	{
 		retrieved, err := ds.DistributedQueryCampaign(c1.ID)
@@ -112,10 +111,9 @@ func testCleanupDistributedQueryCampaigns(t *testing.T, ds kolide.Datastore) {
 
 	// Cleanup and verify that the campaign was expired and executions
 	// deleted appropriately
-	expired, deleted, err = ds.CleanupDistributedQueryCampaigns(mockClock.Now())
+	expired, err = ds.CleanupDistributedQueryCampaigns(mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(1), expired)
-	assert.Equal(t, uint(2), deleted)
 	{
 		// c1 should now be complete
 		retrieved, err := ds.DistributedQueryCampaign(c1.ID)
@@ -134,10 +132,9 @@ func testCleanupDistributedQueryCampaigns(t *testing.T, ds kolide.Datastore) {
 
 	// Cleanup and verify that the campaign was expired and executions
 	// deleted appropriately
-	expired, deleted, err = ds.CleanupDistributedQueryCampaigns(mockClock.Now())
+	expired, err = ds.CleanupDistributedQueryCampaigns(mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(1), expired)
-	assert.Equal(t, uint(3), deleted)
 	{
 		retrieved, err := ds.DistributedQueryCampaign(c1.ID)
 		require.Nil(t, err)

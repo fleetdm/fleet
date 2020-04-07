@@ -15,6 +15,7 @@ func (d *Datastore) NewHost(host *kolide.Host) (*kolide.Host, error) {
 	INSERT INTO hosts (
 		osquery_host_id,
 		detail_update_time,
+		label_update_time,
 		node_key,
 		host_name,
 		uuid,
@@ -25,11 +26,23 @@ func (d *Datastore) NewHost(host *kolide.Host) (*kolide.Host, error) {
 		physical_memory,
 		seen_time
 	)
-	VALUES( ?,?,?,?,?,?,?,?,?,?,? )
+	VALUES( ?,?,?,?,?,?,?,?,?,?,?,? )
 	`
-	result, err := d.db.Exec(sqlStatement, host.OsqueryHostID, host.DetailUpdateTime,
-		host.NodeKey, host.HostName, host.UUID, host.Platform, host.OsqueryVersion,
-		host.OSVersion, host.Uptime, host.PhysicalMemory, host.SeenTime)
+	result, err := d.db.Exec(
+		sqlStatement,
+		host.OsqueryHostID,
+		host.DetailUpdateTime,
+		host.LabelUpdateTime,
+		host.NodeKey,
+		host.HostName,
+		host.UUID,
+		host.Platform,
+		host.OsqueryVersion,
+		host.OSVersion,
+		host.Uptime,
+		host.PhysicalMemory,
+		host.SeenTime,
+	)
 	if err != nil {
 		return nil, errors.Wrap(err, "new host")
 	}
@@ -43,6 +56,7 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 	sqlStatement := `
 		UPDATE hosts SET
 			detail_update_time = ?,
+			label_update_time = ?,
 			node_key = ?,
 			host_name = ?,
 			uuid = ?,
@@ -76,6 +90,7 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 	`
 	_, err := d.db.Exec(sqlStatement,
 		host.DetailUpdateTime,
+		host.LabelUpdateTime,
 		host.NodeKey,
 		host.HostName,
 		host.UUID,
@@ -218,23 +233,23 @@ func (d *Datastore) EnrollHost(osqueryHostID, nodeKey, secretName string) (*koli
 		return nil, fmt.Errorf("missing osquery host identifier")
 	}
 
-	detailUpdateTime := time.Unix(0, 0).Add(24 * time.Hour)
+	zeroTime := time.Unix(0, 0).Add(24 * time.Hour)
 	sqlInsert := `
 		INSERT INTO hosts (
 			detail_update_time,
+			label_update_time,
 			osquery_host_id,
 			seen_time,
 			node_key,
 			enroll_secret_name
-		) VALUES (?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			node_key = VALUES(node_key),
 			deleted = FALSE
 	`
 
 	var result sql.Result
-
-	result, err := d.db.Exec(sqlInsert, detailUpdateTime, osqueryHostID, time.Now().UTC(), nodeKey, secretName)
+	result, err := d.db.Exec(sqlInsert, zeroTime, zeroTime, osqueryHostID, time.Now().UTC(), nodeKey, secretName)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "inserting")
@@ -248,6 +263,11 @@ func (d *Datastore) EnrollHost(osqueryHostID, nodeKey, secretName string) (*koli
 	err = d.db.Get(host, sqlSelect, id)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting the host to return")
+	}
+
+	_, err = d.db.Exec(`INSERT INTO label_membership (host_id, label_id) VALUES (?, (SELECT id FROM labels WHERE name = 'All Hosts' AND label_type = 1))`, id)
+	if err != nil {
+		return nil, errors.Wrap(err, "insert new host into all hosts label")
 	}
 
 	return host, nil
@@ -435,50 +455,6 @@ func (d *Datastore) SearchHosts(query string, omit ...uint) ([]*kolide.Host, err
 
 	return hosts, nil
 
-}
-
-func (d *Datastore) DistributedQueriesForHost(host *kolide.Host) (map[uint]string, error) {
-	sqlStatement := `
-		SELECT DISTINCT dqc.id, q.query
-		FROM distributed_query_campaigns dqc
-		JOIN distributed_query_campaign_targets dqct
-		    ON (dqc.id = dqct.distributed_query_campaign_id)
-		LEFT JOIN label_query_executions lqe
-		    ON (dqct.type = ? AND dqct.target_id = lqe.label_id AND lqe.matches)
-		LEFT JOIN hosts h
-		    ON ((dqct.type = ? AND lqe.host_id = h.id) OR (dqct.type = ? AND dqct.target_id = h.id))
-		LEFT JOIN distributed_query_executions dqe
-		    ON (h.id = dqe.host_id AND dqc.id = dqe.distributed_query_campaign_id)
-		JOIN queries q
-		    ON (dqc.query_id = q.id)
-		WHERE dqe.status IS NULL AND dqc.status = ? AND h.id = ?
-			AND NOT q.deleted
-			AND NOT dqc.deleted
- `
-	rows, err := d.db.Query(sqlStatement, kolide.TargetLabel, kolide.TargetLabel,
-		kolide.TargetHost, kolide.QueryRunning, host.ID)
-	if err != nil {
-		return nil, errors.Wrap(err, "finding distributed queries for host")
-	}
-	defer rows.Close()
-
-	results := map[uint]string{}
-
-	for rows.Next() {
-		var (
-			id    uint
-			query string
-		)
-		err = rows.Scan(&id, &query)
-		if err != nil {
-			return nil, errors.Wrap(err, "scanning query results")
-		}
-
-		results[id] = query
-
-	}
-
-	return results, nil
 }
 
 func (d *Datastore) HostIDsByName(hostnames []string) ([]uint, error) {

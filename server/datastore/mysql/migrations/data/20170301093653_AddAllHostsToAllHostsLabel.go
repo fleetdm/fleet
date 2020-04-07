@@ -14,14 +14,12 @@ func init() {
 func Up_20170301093653(tx *sql.Tx) error {
 	// Insert any host not currently in 'All Hosts' label into the label
 	_, err := tx.Exec(`
-		INSERT IGNORE INTO label_query_executions (
+		INSERT IGNORE INTO label_membership (
                         host_id,
-                        label_id,
-                        matches
+                        label_id
                 ) SELECT
                 id as host_id,
-                (SELECT id as label_id FROM labels WHERE name = 'All Hosts' AND label_type = ?),
-                true as matches
+                (SELECT id as label_id FROM labels WHERE name = 'All Hosts' AND label_type = ?)
                 FROM hosts
 `,
 		kolide.LabelTypeBuiltIn)

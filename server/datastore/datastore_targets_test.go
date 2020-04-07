@@ -7,6 +7,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/kolide/fleet/server/kolide"
+	"github.com/kolide/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,6 +25,7 @@ func testCountHostsInTargets(t *testing.T, ds kolide.Datastore) {
 		h, err := ds.NewHost(&kolide.Host{
 			OsqueryHostID:       strconv.Itoa(hostCount),
 			DetailUpdateTime:    mockClock.Now(),
+			LabelUpdateTime:     mockClock.Now(),
 			SeenTime:            mockClock.Now(),
 			NodeKey:             strconv.Itoa(hostCount),
 			DistributedInterval: distributedInterval,
@@ -119,6 +121,8 @@ func testCountHostsInTargets(t *testing.T, ds kolide.Datastore) {
 }
 
 func testHostStatus(t *testing.T, ds kolide.Datastore) {
+	test.AddAllHostsLabel(t, ds)
+
 	if ds.Name() == "inmem" {
 		t.Skip("inmem is being deprecated, test skipped")
 	}
@@ -189,6 +193,7 @@ func testHostIDsInTargets(t *testing.T, ds kolide.Datastore) {
 			OsqueryHostID:    strconv.Itoa(hostCount),
 			NodeKey:          strconv.Itoa(hostCount),
 			DetailUpdateTime: time.Now(),
+			LabelUpdateTime:  time.Now(),
 			SeenTime:         time.Now(),
 		})
 		require.Nil(t, err)

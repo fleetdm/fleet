@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"database/sql"
+	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -177,21 +178,27 @@ func (d *Datastore) ListLabels(opt kolide.ListOptions) ([]*kolide.Label, error) 
 }
 
 func (d *Datastore) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (map[string]string, error) {
-	sqlStatment := `
-			SELECT l.id, l.query
-			FROM labels l
-			WHERE (l.platform = ? OR l.platform = '')
-			AND NOT l.deleted
-			AND l.id NOT IN /* subtract the set of executions that are recent enough */
-			(
-			  SELECT l.id
-			  FROM labels l
-			  JOIN label_query_executions lqe
-			  ON lqe.label_id = l.id
-			  WHERE lqe.host_id = ? AND lqe.updated_at > ?
-			)
-	`
-	rows, err := d.db.Query(sqlStatment, host.Platform, host.ID, cutoff)
+	var rows *sql.Rows
+	var err error
+	if host.LabelUpdateTime.Before(cutoff) {
+		// Retrieve all labels (with matching platform) for this host
+		sql := `
+			SELECT id, query
+			FROM labels
+			WHERE platform = ? OR platform = ''`
+		rows, err = d.db.Query(sql, host.Platform)
+	} else {
+		// Retrieve all labels (with matching platform) iff there is a label
+		// that has been created since this host last reported label query
+		// executions
+		sql := `
+			SELECT id, query
+			FROM labels
+			WHERE ((SELECT max(created_at) FROM labels WHERE platform = ? OR platform = '') > ?)
+			AND (platform = ? OR platform = '')`
+		rows, err = d.db.Query(sql, host.Platform, host.LabelUpdateTime, host.Platform)
+	}
+
 	if err != nil && err != sql.ErrNoRows {
 		return nil, errors.Wrap(err, "selecting label queries for host")
 	}
@@ -214,31 +221,54 @@ func (d *Datastore) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (ma
 }
 
 func (d *Datastore) RecordLabelQueryExecutions(host *kolide.Host, results map[uint]bool, updated time.Time) error {
-	sqlStatement := `
-	INSERT INTO label_query_executions (updated_at, matches, label_id, host_id) VALUES
-
-	`
+	// Loop through results, collecting which labels we need to insert/update,
+	// and which we need to delete
 	vals := []interface{}{}
-	bindvars := ""
+	bindvars := []string{}
+	removes := []uint{}
 
-	for labelID, result := range results {
-		if bindvars != "" {
-			bindvars += ","
+	for labelID, matches := range results {
+		if matches {
+			// Add/update row
+			bindvars = append(bindvars, "(?,?,?)")
+			vals = append(vals, updated, labelID, host.ID)
+		} else {
+			// Delete row
+			removes = append(removes, labelID)
 		}
-		bindvars += "(?,?,?,?)"
-		vals = append(vals, updated, result, labelID, host.ID)
 	}
 
-	sqlStatement += bindvars
-	sqlStatement += `
-		ON DUPLICATE KEY UPDATE
-		updated_at = VALUES(updated_at),
-		matches = VALUES(matches)
-	`
+	// Complete inserts if necessary
+	if len(vals) > 0 {
+		sql := `
+			INSERT INTO label_membership (updated_at, label_id, host_id) VALUES
+		`
+		sql += strings.Join(bindvars, ",") +
+			`
+			ON DUPLICATE KEY UPDATE
+			updated_at = VALUES(updated_at)
+		`
 
-	_, err := d.db.Exec(sqlStatement, vals...)
-	if err != nil {
-		return errors.Wrap(err, "inserting label query execution")
+		_, err := d.db.Exec(sql, vals...)
+		if err != nil {
+			return errors.Wrap(err, "insert label query executions")
+		}
+	}
+
+	// Complete deletions if necessary
+	if len(removes) > 0 {
+		sql := `
+			DELETE FROM label_membership WHERE host_id = ? AND label_id IN (?)
+		`
+		query, args, err := sqlx.In(sql, host.ID, removes)
+		if err != nil {
+			return errors.Wrap(err, "IN for DELETE FROM label_membership")
+		}
+		query = d.db.Rebind(query)
+		_, err = d.db.Exec(query, args...)
+		if err != nil {
+			return errors.Wrap(err, "delete label query executions")
+		}
 	}
 
 	return nil
@@ -247,11 +277,9 @@ func (d *Datastore) RecordLabelQueryExecutions(host *kolide.Host, results map[ui
 // ListLabelsForHost returns a list of kolide.Label for a given host id.
 func (d *Datastore) ListLabelsForHost(hid uint) ([]kolide.Label, error) {
 	sqlStatement := `
-		SELECT labels.* from labels, label_query_executions lqe
-		WHERE lqe.host_id = ?
-		AND lqe.label_id = labels.id
-		AND lqe.matches
-		AND NOT labels.deleted
+		SELECT labels.* from labels JOIN label_membership lm
+		WHERE lm.host_id = ?
+		AND lm.label_id = labels.id
 	`
 
 	labels := []kolide.Label{}
@@ -269,12 +297,10 @@ func (d *Datastore) ListLabelsForHost(hid uint) ([]kolide.Label, error) {
 func (d *Datastore) ListHostsInLabel(lid uint, opt kolide.ListOptions) ([]kolide.Host, error) {
 	sql := `
 		SELECT h.*
-		FROM label_query_executions lqe
+		FROM label_membership lm
 		JOIN hosts h
-		ON lqe.host_id = h.id
-		WHERE lqe.label_id = ?
-		AND lqe.matches = 1
-		AND NOT h.deleted
+		ON lm.host_id = h.id
+		WHERE lm.label_id = ?
 	`
 	sql = appendListOptionsToSQL(sql, opt)
 	hosts := []kolide.Host{}
@@ -292,12 +318,10 @@ func (d *Datastore) ListUniqueHostsInLabels(labels []uint) ([]kolide.Host, error
 
 	sqlStatement := `
 		SELECT DISTINCT h.*
-		FROM label_query_executions lqe
+		FROM label_membership lm
 		JOIN hosts h
-		ON lqe.host_id = h.id
-		WHERE lqe.label_id IN (?)
-		AND lqe.matches = 1
-		AND NOT h.deleted
+		ON lm.host_id = h.id
+		WHERE lm.label_id IN (?)
 	`
 	query, args, err := sqlx.In(sqlStatement, labels)
 	if err != nil {

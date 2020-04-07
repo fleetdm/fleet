@@ -407,14 +407,13 @@ func (d *Datastore) ListPacksForHost(hid uint) ([]*kolide.Pack, error) {
 		FROM
 		((SELECT p.* FROM packs p
 		JOIN pack_targets pt
-		JOIN label_query_executions lqe
+		JOIN label_membership lm
 		ON (
 		  p.id = pt.pack_id
-		  AND pt.target_id = lqe.label_id
+		  AND pt.target_id = lm.label_id
 		  AND pt.type = ?
-		  AND lqe.matches
 		)
-		WHERE lqe.host_id = ? AND NOT p.disabled)
+		WHERE lm.host_id = ? AND NOT p.disabled)
 		UNION ALL
 		(SELECT p.*
 		FROM packs p
@@ -435,11 +434,10 @@ func (d *Datastore) ListHostsInPack(pid uint, opt kolide.ListOptions) ([]uint, e
 		SELECT DISTINCT h.id
 		FROM hosts h
 		JOIN pack_targets pt
-		JOIN label_query_executions lqe
+		JOIN label_membership lm
 		ON (
-		  pt.target_id = lqe.label_id
-		  AND lqe.host_id = h.id
-		  AND lqe.matches
+		  pt.target_id = lm.label_id
+		  AND lm.host_id = h.id
 		  AND pt.type = ?
 		) OR (
 		  pt.target_id = h.id

@@ -20,7 +20,7 @@ type DistributedQueryCampaignTargetIDsFunc func(id uint) (hostIDs []uint, labelI
 
 type NewDistributedQueryCampaignTargetFunc func(target *kolide.DistributedQueryCampaignTarget) (*kolide.DistributedQueryCampaignTarget, error)
 
-type CleanupDistributedQueryCampaignsFunc func(now time.Time) (expired uint, deleted uint, err error)
+type CleanupDistributedQueryCampaignsFunc func(now time.Time) (expired uint, err error)
 
 type CampaignStore struct {
 	NewDistributedQueryCampaignFunc        NewDistributedQueryCampaignFunc
@@ -67,7 +67,7 @@ func (s *CampaignStore) NewDistributedQueryCampaignTarget(target *kolide.Distrib
 	return s.NewDistributedQueryCampaignTargetFunc(target)
 }
 
-func (s *CampaignStore) CleanupDistributedQueryCampaigns(now time.Time) (expired uint, deleted uint, err error) {
+func (s *CampaignStore) CleanupDistributedQueryCampaigns(now time.Time) (expired uint, err error) {
 	s.CleanupDistributedQueryCampaignsFuncInvoked = true
 	return s.CleanupDistributedQueryCampaignsFunc(now)
 }

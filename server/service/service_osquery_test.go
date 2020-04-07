@@ -349,6 +349,7 @@ func TestLabelQueries(t *testing.T) {
 		map[string]kolide.OsqueryStatus{},
 	)
 	assert.Nil(t, err)
+	host.LabelUpdateTime = mockClock.Now()
 	assert.Equal(t, host, gotHost)
 	assert.Equal(t, mockClock.Now(), gotTime)
 	if assert.Len(t, gotResults, 1) {
@@ -367,6 +368,7 @@ func TestLabelQueries(t *testing.T) {
 		map[string]kolide.OsqueryStatus{},
 	)
 	assert.Nil(t, err)
+	host.LabelUpdateTime = mockClock.Now()
 	assert.Equal(t, host, gotHost)
 	assert.Equal(t, mockClock.Now(), gotTime)
 	if assert.Len(t, gotResults, 2) {

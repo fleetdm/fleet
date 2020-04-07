@@ -8,11 +8,13 @@ import (
 	"time"
 
 	"github.com/kolide/fleet/server/kolide"
+	"github.com/kolide/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func testLabels(t *testing.T, db kolide.Datastore) {
+	test.AddAllHostsLabel(t, db)
 	hosts := []kolide.Host{}
 	var host *kolide.Host
 	var err error
@@ -21,45 +23,38 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 		require.Nil(t, err, "enrollment should succeed")
 		hosts = append(hosts, *host)
 	}
+	host.Platform = "darwin"
+	require.NoError(t, db.SaveHost(host))
 
 	baseTime := time.Now()
 
-	// No queries should be returned before labels or queries added
+	// Only 'All Hosts' query should be returned
 	queries, err := db.LabelQueriesForHost(host, baseTime)
 	assert.Nil(t, err)
-	assert.Empty(t, queries)
+	assert.Len(t, queries, 1)
 
-	// No labels should match
+	// Only 'All Hosts' label should be returned
 	labels, err := db.ListLabelsForHost(host.ID)
 	assert.Nil(t, err)
-	assert.Empty(t, labels)
-
-	// No queries should be returned before labels added
-	queries, err = db.LabelQueriesForHost(host, baseTime)
-	assert.Nil(t, err)
-	assert.Empty(t, queries)
+	assert.Len(t, labels, 1)
 
 	newLabels := []*kolide.LabelSpec{
 		// Note these are intentionally out of order
 		&kolide.LabelSpec{
-			ID:       1,
 			Name:     "label3",
 			Query:    "query3",
 			Platform: "darwin",
 		},
 		&kolide.LabelSpec{
-			ID:    2,
 			Name:  "label1",
 			Query: "query1",
 		},
 		&kolide.LabelSpec{
-			ID:       3,
 			Name:     "label2",
 			Query:    "query2",
 			Platform: "darwin",
 		},
 		&kolide.LabelSpec{
-			ID:       4,
 			Name:     "label4",
 			Query:    "query4",
 			Platform: "darwin",
@@ -69,10 +64,11 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 	require.Nil(t, err)
 
 	expectQueries := map[string]string{
-		"1": "query3",
-		"2": "query1",
-		"3": "query2",
-		"4": "query4",
+		"1": "select 1",
+		"2": "query3",
+		"3": "query1",
+		"4": "query2",
+		"5": "query4",
 	}
 
 	host.Platform = "darwin"
@@ -85,33 +81,54 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 	// No labels should match with no results yet
 	labels, err = db.ListLabelsForHost(host.ID)
 	assert.Nil(t, err)
-	assert.Empty(t, labels)
+	assert.Len(t, labels, 1)
 
 	// Record a query execution
-	err = db.RecordLabelQueryExecutions(host, map[uint]bool{1: true}, baseTime)
+	err = db.RecordLabelQueryExecutions(host, map[uint]bool{1: true, 2: false, 3: true, 4: false, 5: false}, baseTime)
 	assert.Nil(t, err)
 
-	// Use a 10 minute interval, so the query we just added should show up
-	queries, err = db.LabelQueriesForHost(host, time.Now().Add(-(10 * time.Minute)))
-	assert.Nil(t, err)
-	delete(expectQueries, "1")
-	assert.Equal(t, expectQueries, queries)
+	host, err = db.Host(host.ID)
+	require.NoError(t, err)
+	host.LabelUpdateTime = baseTime
 
-	// Record an old query execution -- Shouldn't change the return
-	err = db.RecordLabelQueryExecutions(host, map[uint]bool{2: true}, baseTime.Add(-1*time.Hour))
+	// Now no queries should be returned
+	queries, err = db.LabelQueriesForHost(host, baseTime.Add(-1*time.Minute))
 	assert.Nil(t, err)
-	queries, err = db.LabelQueriesForHost(host, time.Now().Add(-(10 * time.Minute)))
-	assert.Nil(t, err)
-	assert.Equal(t, expectQueries, queries)
+	assert.Len(t, queries, 0)
 
-	// Record a newer execution for that query and another
-	err = db.RecordLabelQueryExecutions(host, map[uint]bool{2: false, 3: true}, baseTime)
-	assert.Nil(t, err)
+	// Ensure enough gap in created_at
+	time.Sleep(2 * time.Second)
 
-	// Now these should no longer show up in the necessary to run queries
-	delete(expectQueries, "2")
-	delete(expectQueries, "3")
-	queries, err = db.LabelQueriesForHost(host, time.Now().Add(-(10 * time.Minute)))
+	// A new label targeting another platform should not effect the labels for
+	// this host
+	err = db.ApplyLabelSpecs([]*kolide.LabelSpec{
+		&kolide.LabelSpec{
+			Name:     "label5",
+			Platform: "not-matching",
+			Query:    "query5",
+		},
+	})
+	require.NoError(t, err)
+	queries, err = db.LabelQueriesForHost(host, baseTime.Add(-1*time.Minute))
+	assert.Nil(t, err)
+	assert.Len(t, queries, 0)
+
+	// If a new label is added, all labels should be returned
+	err = db.ApplyLabelSpecs([]*kolide.LabelSpec{
+		&kolide.LabelSpec{
+			Name:     "label6",
+			Platform: "",
+			Query:    "query6",
+		},
+	})
+	require.NoError(t, err)
+	expectQueries["7"] = "query6"
+	queries, err = db.LabelQueriesForHost(host, baseTime.Add(-1*time.Minute))
+	assert.Nil(t, err)
+	assert.Len(t, queries, 6)
+
+	// After expiration, all queries should be returned
+	queries, err = db.LabelQueriesForHost(host, baseTime.Add((2 * time.Minute)))
 	assert.Nil(t, err)
 	assert.Equal(t, expectQueries, queries)
 
@@ -121,8 +138,8 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 	if assert.Len(t, labels, 2) {
 		labelNames := []string{labels[0].Name, labels[1].Name}
 		sort.Strings(labelNames)
-		assert.Equal(t, "label2", labelNames[0])
-		assert.Equal(t, "label3", labelNames[1])
+		assert.Equal(t, "All Hosts", labelNames[0])
+		assert.Equal(t, "label1", labelNames[1])
 	}
 
 	// A host that hasn't executed any label queries should still be asked
@@ -130,13 +147,13 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 	hosts[0].Platform = "darwin"
 	queries, err = db.LabelQueriesForHost(&hosts[0], time.Now())
 	assert.Nil(t, err)
-	assert.Len(t, queries, 4)
+	assert.Len(t, queries, 6)
 
-	// There should still be no labels returned for a host that never
-	// executed any label queries
+	// Only the 'All Hosts' label should apply for a host with no labels
+	// executed.
 	labels, err = db.ListLabelsForHost(hosts[0].ID)
 	assert.Nil(t, err)
-	assert.Empty(t, labels)
+	assert.Len(t, labels, 1)
 }
 
 func testManagingLabelsOnPacks(t *testing.T, ds kolide.Datastore) {
@@ -273,6 +290,7 @@ func testSearchLabelsLimit(t *testing.T, db kolide.Datastore) {
 func testListHostsInLabel(t *testing.T, db kolide.Datastore) {
 	h1, err := db.NewHost(&kolide.Host{
 		DetailUpdateTime: time.Now(),
+		LabelUpdateTime:  time.Now(),
 		SeenTime:         time.Now(),
 		OsqueryHostID:    "1",
 		NodeKey:          "1",
@@ -283,6 +301,7 @@ func testListHostsInLabel(t *testing.T, db kolide.Datastore) {
 
 	h2, err := db.NewHost(&kolide.Host{
 		DetailUpdateTime: time.Now(),
+		LabelUpdateTime:  time.Now(),
 		SeenTime:         time.Now(),
 		OsqueryHostID:    "2",
 		NodeKey:          "2",
@@ -293,6 +312,7 @@ func testListHostsInLabel(t *testing.T, db kolide.Datastore) {
 
 	h3, err := db.NewHost(&kolide.Host{
 		DetailUpdateTime: time.Now(),
+		LabelUpdateTime:  time.Now(),
 		SeenTime:         time.Now(),
 		OsqueryHostID:    "3",
 		NodeKey:          "3",
@@ -344,6 +364,7 @@ func testListUniqueHostsInLabels(t *testing.T, db kolide.Datastore) {
 	for i := 0; i < 4; i++ {
 		h, err := db.NewHost(&kolide.Host{
 			DetailUpdateTime: time.Now(),
+			LabelUpdateTime:  time.Now(),
 			SeenTime:         time.Now(),
 			OsqueryHostID:    strconv.Itoa(i),
 			NodeKey:          strconv.Itoa(i),

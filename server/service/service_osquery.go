@@ -669,6 +669,7 @@ func (svc service) SubmitDistributedQueryResults(ctx context.Context, results ko
 	}
 
 	if len(labelResults) > 0 {
+		host.LabelUpdateTime = svc.clock.Now()
 		err = svc.ds.RecordLabelQueryExecutions(&host, labelResults, svc.clock.Now())
 		if err != nil {
 			return osqueryError{message: "failed to save labels: " + err.Error()}

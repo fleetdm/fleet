@@ -26,7 +26,7 @@ func (d *Datastore) CountHostsInTargets(hostIDs []uint, labelIDs []uint, now tim
 			COALESCE(SUM(CASE WHEN DATE_ADD(seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
 			COALESCE(SUM(CASE WHEN DATE_ADD(created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new
 		FROM hosts h
-		WHERE (id IN (?) OR (id IN (SELECT DISTINCT host_id FROM label_query_executions WHERE label_id IN (?) AND matches = 1)))
+		WHERE (id IN (?) OR (id IN (SELECT DISTINCT host_id FROM label_membership WHERE label_id IN (?))))
 		AND NOT deleted
 `, kolide.OnlineIntervalBuffer, kolide.OnlineIntervalBuffer)
 
@@ -66,7 +66,7 @@ func (d *Datastore) HostIDsInTargets(hostIDs []uint, labelIDs []uint) ([]uint, e
 	sql := `
 		SELECT DISTINCT id
 		FROM hosts
-		WHERE (id IN (?) OR (id IN (SELECT host_id FROM label_query_executions WHERE label_id IN (?) AND matches = 1)))
+		WHERE (id IN (?) OR (id IN (SELECT host_id FROM label_membership WHERE label_id IN (?))))
 		ORDER BY id ASC
 `
 

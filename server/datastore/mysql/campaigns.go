@@ -108,8 +108,8 @@ func (d *Datastore) NewDistributedQueryCampaignTarget(target *kolide.Distributed
 	return target, nil
 }
 
-func (d *Datastore) CleanupDistributedQueryCampaigns(now time.Time) (expired uint, deleted uint, err error) {
-	// First expire old waiting and running campaigns
+func (d *Datastore) CleanupDistributedQueryCampaigns(now time.Time) (expired uint, err error) {
+	// Expire old waiting/running campaigns
 	sqlStatement := `
 		UPDATE distributed_query_campaigns
 		SET status = ?
@@ -120,33 +120,13 @@ func (d *Datastore) CleanupDistributedQueryCampaigns(now time.Time) (expired uin
 		kolide.QueryWaiting, now.Add(-1*time.Minute),
 		kolide.QueryRunning, now.Add(-24*time.Hour))
 	if err != nil {
-		return expired, deleted, errors.Wrap(err, "updating distributed query campaign")
+		return 0, errors.Wrap(err, "updating distributed query campaign")
 	}
 
 	exp, err := result.RowsAffected()
 	if err != nil {
-		return expired, deleted, errors.Wrap(err, "rows effected updating distributed query campaign")
-	}
-	expired = uint(exp)
-
-	// Now delete executions for expired campaigns
-	sqlStatement = `
-		DELETE dqe
-		FROM distributed_query_executions dqe
-		JOIN distributed_query_campaigns dqc
-		ON dqe.distributed_query_campaign_id = dqc.id
-		WHERE dqc.status = ?
-	`
-	result, err = d.db.Exec(sqlStatement, kolide.QueryComplete)
-	if err != nil {
-		return expired, deleted, errors.Wrap(err, "deleting distributed campaign executions")
+		return 0, errors.Wrap(err, "rows effected updating distributed query campaign")
 	}
 
-	del, err := result.RowsAffected()
-	if err != nil {
-		return expired, deleted, errors.Wrap(err, "rows effected deleting distributed campaign")
-	}
-	deleted = uint(del)
-
-	return expired, deleted, nil
+	return uint(exp), nil
 }
