@@ -402,9 +402,15 @@ export class ManageHostsPage extends PureComponent {
 
   renderQuery = () => {
     const { selectedLabel } = this.props;
-    const { label_type: labelType, query } = selectedLabel;
+    const { slug, label_type: labelType, label_membership_type: membershipType, query } = selectedLabel;
 
-    if (!query || labelType === 1) {
+    if (membershipType === 'manual' && labelType !== 'builtin') {
+      return (
+        <h4 title="Manage manual labels with fleetctl">Manually managed</h4>
+      );
+    }
+   
+    if (!query || slug === 'all-hosts') {
       return false;
     }
 

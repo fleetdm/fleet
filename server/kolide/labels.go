@@ -3,6 +3,8 @@ package kolide
 import (
 	"context"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 type LabelStore interface {
@@ -103,15 +105,73 @@ const (
 	LabelTypeBuiltIn
 )
 
+func (t LabelType) MarshalJSON() ([]byte, error) {
+	switch t {
+	case LabelTypeRegular:
+		return []byte(`"regular"`), nil
+	case LabelTypeBuiltIn:
+		return []byte(`"builtin"`), nil
+	default:
+		return nil, errors.Errorf("invalid LabelType: %d", t)
+	}
+}
+
+func (t *LabelType) UnmarshalJSON(b []byte) error {
+	switch string(b) {
+	case `"regular"`:
+		*t = LabelTypeRegular
+	case `"builtin"`:
+		*t = LabelTypeBuiltIn
+	default:
+		return errors.Errorf("invalid LabelType: %s", string(b))
+	}
+	return nil
+}
+
+// LabelMembershipType sets how the membership of the label is determined.
+type LabelMembershipType uint
+
+const (
+	// LabelTypeDynamic indicates that the label is populated dynamically (by
+	// the execution of a label query).
+	LabelMembershipTypeDynamic LabelMembershipType = iota
+	// LabelTypeManual indicates that the label is populated manually.
+	LabelMembershipTypeManual
+)
+
+func (t LabelMembershipType) MarshalJSON() ([]byte, error) {
+	switch t {
+	case LabelMembershipTypeDynamic:
+		return []byte(`"dynamic"`), nil
+	case LabelMembershipTypeManual:
+		return []byte(`"manual"`), nil
+	default:
+		return nil, errors.Errorf("invalid LabelMembershipType: %d", t)
+	}
+}
+
+func (t *LabelMembershipType) UnmarshalJSON(b []byte) error {
+	switch string(b) {
+	case `"dynamic"`:
+		*t = LabelMembershipTypeDynamic
+	case `"manual"`:
+		*t = LabelMembershipTypeManual
+	default:
+		return errors.Errorf("invalid LabelMembershipType: %s", string(b))
+	}
+	return nil
+}
+
 type Label struct {
 	UpdateCreateTimestamps
 	DeleteFields
-	ID          uint      `json:"id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	Query       string    `json:"query"`
-	Platform    string    `json:"platform"`
-	LabelType   LabelType `json:"label_type" db:"label_type"`
+	ID                  uint                `json:"id"`
+	Name                string              `json:"name"`
+	Description         string              `json:"description"`
+	Query               string              `json:"query"`
+	Platform            string              `json:"platform"`
+	LabelType           LabelType           `json:"label_type" db:"label_type"`
+	LabelMembershipType LabelMembershipType `json:"label_membership_type" db:"label_membership_type"`
 }
 
 type LabelQueryExecution struct {
@@ -123,10 +183,12 @@ type LabelQueryExecution struct {
 }
 
 type LabelSpec struct {
-	ID          uint
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	Query       string    `json:"query"`
-	Platform    string    `json:"platform,omitempty"`
-	LabelType   LabelType `json:"label_type" db:"label_type"`
+	ID                  uint
+	Name                string              `json:"name"`
+	Description         string              `json:"description"`
+	Query               string              `json:"query"`
+	Platform            string              `json:"platform,omitempty"`
+	LabelType           LabelType           `json:"label_type,omitempty" db:"label_type"`
+	LabelMembershipType LabelMembershipType `json:"label_membership_type" db:"label_membership_type"`
+	Hosts               []string            `json:"hosts,omitempty"`
 }

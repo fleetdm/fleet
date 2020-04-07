@@ -28,10 +28,10 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 
 	baseTime := time.Now()
 
-	// Only 'All Hosts' query should be returned
+	// No labels to check
 	queries, err := db.LabelQueriesForHost(host, baseTime)
 	assert.Nil(t, err)
-	assert.Len(t, queries, 1)
+	assert.Len(t, queries, 0)
 
 	// Only 'All Hosts' label should be returned
 	labels, err := db.ListLabelsForHost(host.ID)
@@ -64,7 +64,6 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 	require.Nil(t, err)
 
 	expectQueries := map[string]string{
-		"1": "select 1",
 		"2": "query3",
 		"3": "query1",
 		"4": "query2",
@@ -125,7 +124,7 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 	expectQueries["7"] = "query6"
 	queries, err = db.LabelQueriesForHost(host, baseTime.Add(-1*time.Minute))
 	assert.Nil(t, err)
-	assert.Len(t, queries, 6)
+	assert.Len(t, queries, 5)
 
 	// After expiration, all queries should be returned
 	queries, err = db.LabelQueriesForHost(host, baseTime.Add((2 * time.Minute)))
@@ -147,7 +146,7 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 	hosts[0].Platform = "darwin"
 	queries, err = db.LabelQueriesForHost(&hosts[0], time.Now())
 	assert.Nil(t, err)
-	assert.Len(t, queries, 6)
+	assert.Len(t, queries, 5)
 
 	// Only the 'All Hosts' label should apply for a host with no labels
 	// executed.
@@ -434,6 +433,19 @@ func testChangeLabelDetails(t *testing.T, db kolide.Datastore) {
 }
 
 func setupLabelSpecsTest(t *testing.T, ds kolide.Datastore) []*kolide.LabelSpec {
+	for i := 0; i < 1000; i++ {
+		_, err := ds.NewHost(&kolide.Host{
+			DetailUpdateTime: time.Now(),
+			LabelUpdateTime:  time.Now(),
+			SeenTime:         time.Now(),
+			OsqueryHostID:    strconv.Itoa(i),
+			NodeKey:          strconv.Itoa(i),
+			UUID:             strconv.Itoa(i),
+			HostName:         strconv.Itoa(i),
+		})
+		require.Nil(t, err)
+	}
+
 	expectedSpecs := []*kolide.LabelSpec{
 		&kolide.LabelSpec{
 			Name:        "foo",
@@ -450,9 +462,17 @@ func setupLabelSpecsTest(t *testing.T, ds kolide.Datastore) []*kolide.LabelSpec 
 			Query: "select * from bing",
 		},
 		&kolide.LabelSpec{
-			Name:      "All Hosts",
-			Query:     "SELECT 1",
-			LabelType: kolide.LabelTypeBuiltIn,
+			Name:                "All Hosts",
+			Query:               "SELECT 1",
+			LabelType:           kolide.LabelTypeBuiltIn,
+			LabelMembershipType: kolide.LabelMembershipTypeManual,
+		},
+		&kolide.LabelSpec{
+			Name:                "Manual Label",
+			LabelMembershipType: kolide.LabelMembershipTypeManual,
+			Hosts: []string{
+				"1", "2", "3", "4",
+			},
 		},
 	}
 	err := ds.ApplyLabelSpecs(expectedSpecs)

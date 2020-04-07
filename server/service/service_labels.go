@@ -4,9 +4,19 @@ import (
 	"context"
 
 	"github.com/kolide/fleet/server/kolide"
+	"github.com/pkg/errors"
 )
 
 func (svc service) ApplyLabelSpecs(ctx context.Context, specs []*kolide.LabelSpec) error {
+	for _, spec := range specs {
+		if spec.LabelMembershipType == kolide.LabelMembershipTypeDynamic && len(spec.Hosts) > 0 {
+			return errors.Errorf("label %s is declared as dynamic but contains `hosts` key", spec.Name)
+		}
+		if spec.LabelMembershipType == kolide.LabelMembershipTypeManual && spec.Hosts == nil {
+			// Hosts list doesn't need to contain anything, but it should at least not be nil.
+			return errors.Errorf("label %s is declared as manual but contains not `hosts key`", spec.Name)
+		}
+	}
 	return svc.ds.ApplyLabelSpecs(specs)
 }
 

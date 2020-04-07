@@ -155,6 +155,22 @@ spec:
     );
 ```
 
+Labels can also be "manually managed". When defining the label, reference hosts
+by hostname:
+
+```yaml
+apiVersion: v1
+kind: label
+spec:
+  name: Manually Managed Example
+  label_membership_type: manual
+  hosts:
+    - hostname1
+    - hostname2
+    - hostname3
+```
+
+
 ## Osquery Configuration Options
 
 The following file describes options returned to osqueryd when it checks for configuration. See the [osquery documentation](https://osquery.readthedocs.io/en/stable/deployment/configuration/#options) for the available options. Existing options will be over-written by the application of this file.

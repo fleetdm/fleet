@@ -265,7 +265,7 @@ func (d *Datastore) EnrollHost(osqueryHostID, nodeKey, secretName string) (*koli
 		return nil, errors.Wrap(err, "getting the host to return")
 	}
 
-	_, err = d.db.Exec(`INSERT INTO label_membership (host_id, label_id) VALUES (?, (SELECT id FROM labels WHERE name = 'All Hosts' AND label_type = 1))`, id)
+	_, err = d.db.Exec(`INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, (SELECT id FROM labels WHERE name = 'All Hosts' AND label_type = 1))`, id)
 	if err != nil {
 		return nil, errors.Wrap(err, "insert new host into all hosts label")
 	}

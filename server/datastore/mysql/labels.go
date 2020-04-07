@@ -18,14 +18,16 @@ func (d *Datastore) ApplyLabelSpecs(specs []*kolide.LabelSpec) (err error) {
 			description,
 			query,
 			platform,
-			label_type
-		) VALUES ( ?, ?, ?, ?, ? )
+			label_type,
+			label_membership_type
+		) VALUES ( ?, ?, ?, ?, ? , ?)
 		ON DUPLICATE KEY UPDATE
 			name = VALUES(name),
 			description = VALUES(description),
 			query = VALUES(query),
 			platform = VALUES(platform),
 			label_type = VALUES(label_type),
+			label_membership_type = VALUES(label_membership_type),
 			deleted = false
 	`
 		stmt, err := tx.Prepare(sql)
@@ -37,9 +39,53 @@ func (d *Datastore) ApplyLabelSpecs(specs []*kolide.LabelSpec) (err error) {
 			if s.Name == "" {
 				return errors.New("label name must not be empty")
 			}
-			_, err := stmt.Exec(s.Name, s.Description, s.Query, s.Platform, s.LabelType)
+			_, err := stmt.Exec(s.Name, s.Description, s.Query, s.Platform, s.LabelType, s.LabelMembershipType)
 			if err != nil {
 				return errors.Wrap(err, "exec ApplyLabelSpecs insert")
+			}
+
+			if s.LabelType == kolide.LabelTypeBuiltIn ||
+				s.LabelMembershipType != kolide.LabelMembershipTypeManual {
+				// No need to update membership
+				continue
+			}
+
+			var labelID uint
+			sql = `
+SELECT id from labels WHERE name = ?
+`
+			err = tx.Get(&labelID, sql, s.Name)
+			if err != nil {
+				return errors.Wrap(err, "get label ID")
+			}
+
+			sql = `
+DELETE FROM label_membership WHERE label_id = ?
+`
+			_, err = tx.Exec(sql, labelID)
+			if err != nil {
+				return errors.Wrap(err, "clear membership for ID")
+			}
+
+			if len(s.Hosts) == 0 {
+				continue
+			}
+
+			// Split hostnames into batches to avoid parameter limit in MySQL.
+			for _, hostnames := range batchHostnames(s.Hosts) {
+				// Use ignore because duplicate hostnames could appear in
+				// different batches and would result in duplicate key errors.
+				sql = `
+INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT ?, id FROM hosts where host_name IN (?))
+`
+				sql, args, err := sqlx.In(sql, labelID, hostnames)
+				if err != nil {
+					return errors.Wrap(err, "build membership IN statement")
+				}
+				_, err = tx.Exec(sql, args...)
+				if err != nil {
+					return errors.Wrap(err, "execute membership INSERT")
+				}
 			}
 		}
 
@@ -49,12 +95,37 @@ func (d *Datastore) ApplyLabelSpecs(specs []*kolide.LabelSpec) (err error) {
 	return errors.Wrap(err, "ApplyLabelSpecs transaction")
 }
 
+func batchHostnames(hostnames []string) [][]string {
+	// Split hostnames into batches so that they can all be inserted without
+	// overflowing the MySQL max number of parameters (somewhere around 65,000
+	// but not well documented). Algorithm from
+	// https://github.com/golang/go/wiki/SliceTricks#batching-with-minimal-allocation
+	const batchSize = 50000 // Large, but well under the undocumented limit
+	batches := make([][]string, 0, (len(hostnames)+batchSize-1)/batchSize)
+
+	for batchSize < len(hostnames) {
+		hostnames, batches = hostnames[batchSize:], append(batches, hostnames[0:batchSize:batchSize])
+	}
+	batches = append(batches, hostnames)
+	return batches
+}
+
 func (d *Datastore) GetLabelSpecs() ([]*kolide.LabelSpec, error) {
 	var specs []*kolide.LabelSpec
 	// Get basic specs
-	query := "SELECT name, description, query, platform, label_type FROM labels"
+	query := "SELECT name, description, query, platform, label_type, label_membership_type FROM labels"
 	if err := d.db.Select(&specs, query); err != nil {
 		return nil, errors.Wrap(err, "get labels")
+	}
+
+	for _, spec := range specs {
+		if spec.LabelType != kolide.LabelTypeBuiltIn &&
+			spec.LabelMembershipType == kolide.LabelMembershipTypeManual {
+			err := d.getLabelHostnames(spec)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	return specs, nil
@@ -63,7 +134,7 @@ func (d *Datastore) GetLabelSpecs() ([]*kolide.LabelSpec, error) {
 func (d *Datastore) GetLabelSpec(name string) (*kolide.LabelSpec, error) {
 	var specs []*kolide.LabelSpec
 	query := `
-SELECT name, description, query, platform, label_type
+SELECT name, description, query, platform, label_type, label_membership_type
 FROM labels
 WHERE name = ?
 `
@@ -77,7 +148,34 @@ WHERE name = ?
 		return nil, errors.Errorf("expected 1 label row, got %d", len(specs))
 	}
 
-	return specs[0], nil
+	spec := specs[0]
+	if spec.LabelType != kolide.LabelTypeBuiltIn &&
+		spec.LabelMembershipType == kolide.LabelMembershipTypeManual {
+		err := d.getLabelHostnames(spec)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return spec, nil
+}
+
+func (d *Datastore) getLabelHostnames(label *kolide.LabelSpec) error {
+	sql := `
+		SELECT host_name
+		FROM hosts
+		WHERE id IN
+		(
+			SELECT host_id
+			FROM label_membership
+			WHERE label_id = (SELECT id FROM labels WHERE name = ?)
+		)
+	`
+	err := d.db.Select(&label.Hosts, sql, label.Name)
+	if err != nil {
+		return errors.Wrap(err, "get hostnames for label")
+	}
+	return nil
 }
 
 // NewLabel creates a new kolide.Label
@@ -97,8 +195,9 @@ func (d *Datastore) NewLabel(label *kolide.Label, opts ...kolide.OptionalArg) (*
 			description,
 			query,
 			platform,
-			label_type
-		) VALUES ( ?, ?, ?, ?, ?)
+			label_type,
+			label_membership_type
+		) VALUES ( ?, ?, ?, ?, ?, ?)
 	`
 	case sql.ErrNoRows:
 		query = `
@@ -107,13 +206,22 @@ func (d *Datastore) NewLabel(label *kolide.Label, opts ...kolide.OptionalArg) (*
 			description,
 			query,
 			platform,
-			label_type
-		) VALUES ( ?, ?, ?, ?, ?)
+			label_type,
+			label_membership_type
+		) VALUES ( ?, ?, ?, ?, ?, ?)
 	`
 	default:
 		return nil, errors.Wrap(err, "check for existing label")
 	}
-	result, err := db.Exec(query, label.Name, label.Description, label.Query, label.Platform, label.LabelType)
+	result, err := db.Exec(
+		query,
+		label.Name,
+		label.Description,
+		label.Query,
+		label.Platform,
+		label.LabelType,
+		label.LabelMembershipType,
+	)
 	if err != nil {
 		return nil, errors.Wrap(err, "inserting label")
 	}
@@ -185,8 +293,10 @@ func (d *Datastore) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (ma
 		sql := `
 			SELECT id, query
 			FROM labels
-			WHERE platform = ? OR platform = ''`
-		rows, err = d.db.Query(sql, host.Platform)
+			WHERE platform = ? OR platform = ''
+			AND label_membership_type = ?
+`
+		rows, err = d.db.Query(sql, host.Platform, kolide.LabelMembershipTypeDynamic)
 	} else {
 		// Retrieve all labels (with matching platform) iff there is a label
 		// that has been created since this host last reported label query
@@ -195,8 +305,16 @@ func (d *Datastore) LabelQueriesForHost(host *kolide.Host, cutoff time.Time) (ma
 			SELECT id, query
 			FROM labels
 			WHERE ((SELECT max(created_at) FROM labels WHERE platform = ? OR platform = '') > ?)
-			AND (platform = ? OR platform = '')`
-		rows, err = d.db.Query(sql, host.Platform, host.LabelUpdateTime, host.Platform)
+			AND (platform = ? OR platform = '')
+			AND label_membership_type = ?
+`
+		rows, err = d.db.Query(
+			sql,
+			host.Platform,
+			host.LabelUpdateTime,
+			host.Platform,
+			kolide.LabelMembershipTypeDynamic,
+		)
 	}
 
 	if err != nil && err != sql.ErrNoRows {

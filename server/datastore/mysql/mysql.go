@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	defaultSelectLimit = 100000
+	defaultSelectLimit = 1000000
 )
 
 var (
