@@ -70,7 +70,7 @@ The value of the environment variable or content of the file should be a secret 
 
 If you use an environment variable for this, you can specify it with the `--enroll_secret_env` flag when you launch osqueryd. If you use a local file for this, you can specify it's path with the `--enroll_secret_path` flag.
 s
-If your organization has a robust internal public key infrastructure (PKI) and you already deploy TLS client certificates to each host to uniquely identify them, then osquery supports an advanced authentication mechanism which takes advantage of this. For assitance, please file a [Github issue](https://github.com/kolide/fleet/issues/new) or contact us on [osquery Slack](https://osquery-slack.herokuapp.com/).
+If your organization has a robust internal public key infrastructure (PKI) and you already deploy TLS client certificates to each host to uniquely identify them, then osquery supports an advanced authentication mechanism which takes advantage of this. Fleet can be fronted with a proxy that will perform the TLS client authentication.
 
 #### Deploy the TLS certificate that osquery will use to communicate with Fleet
 
