@@ -14,7 +14,7 @@ type appConfigRequest struct {
 }
 
 type appConfigResponse struct {
-	OrgInfo            *kolide.OrgInfo             `json:"org_info,omitemtpy"`
+	OrgInfo            *kolide.OrgInfo             `json:"org_info,omitempty"`
 	ServerSettings     *kolide.ServerSettings      `json:"server_settings,omitempty"`
 	SMTPSettings       *kolide.SMTPSettingsPayload `json:"smtp_settings,omitempty"`
 	SSOSettings        *kolide.SSOSettingsPayload  `json:"sso_settings,omitempty"`
@@ -63,8 +63,8 @@ func makeGetAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 				OrgLogoURL: &config.OrgLogoURL,
 			},
 			ServerSettings: &kolide.ServerSettings{
-				KolideServerURL:    &config.KolideServerURL,
-				EnrollSecret:       &config.EnrollSecret,
+				KolideServerURL:   &config.KolideServerURL,
+				EnrollSecret:      &config.EnrollSecret,
 				LiveQueryDisabled: &config.LiveQueryDisabled,
 			},
 			SMTPSettings:       smtpSettings,
@@ -88,8 +88,8 @@ func makeModifyAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 				OrgLogoURL: &config.OrgLogoURL,
 			},
 			ServerSettings: &kolide.ServerSettings{
-				KolideServerURL:    &config.KolideServerURL,
-				EnrollSecret:       &config.EnrollSecret,
+				KolideServerURL:   &config.KolideServerURL,
+				EnrollSecret:      &config.EnrollSecret,
 				LiveQueryDisabled: &config.LiveQueryDisabled,
 			},
 			SMTPSettings: smtpSettingsFromAppConfig(config),
