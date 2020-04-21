@@ -7,15 +7,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"reflect"
-	"runtime"
-	"strings"
 	"testing"
 
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/kolide/fleet/server/config"
 	"github.com/kolide/fleet/server/datastore/inmem"
 	"github.com/kolide/fleet/server/kolide"
+	"github.com/kolide/fleet/server/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -93,12 +91,6 @@ func setupEndpointTest(t *testing.T) *testResource {
 	return test
 }
 
-func functionName(f func(*testing.T, *testResource)) string {
-	fullName := runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
-	elements := strings.Split(fullName, ".")
-	return elements[len(elements)-1]
-}
-
 var testFunctions = [...]func(*testing.T, *testResource){
 	testGetAppConfig,
 	testModifyAppConfig,
@@ -113,7 +105,7 @@ func TestEndpoints(t *testing.T) {
 	for _, f := range testFunctions {
 		r := setupEndpointTest(t)
 		defer r.server.Close()
-		t.Run(functionName(f), func(t *testing.T) {
+		t.Run(test.FunctionName(f), func(t *testing.T) {
 			f(t, r)
 		})
 	}

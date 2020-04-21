@@ -9,6 +9,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/kolide/fleet/server/config"
 	"github.com/kolide/fleet/server/datastore/mysql"
+	"github.com/kolide/fleet/server/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -48,7 +49,7 @@ func TestMySQL(t *testing.T) {
 
 	for _, f := range testFunctions {
 
-		t.Run(functionName(f), func(t *testing.T) {
+		t.Run(test.FunctionName(f), func(t *testing.T) {
 			defer func() { require.Nil(t, ds.Drop()) }()
 			require.Nil(t, ds.MigrateTables())
 			f(t, ds)

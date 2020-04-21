@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/kolide/fleet/server/kolide"
+	"github.com/kolide/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -43,7 +44,7 @@ func TestRedis(t *testing.T) {
 	defer teardown()
 
 	for _, f := range testFunctions {
-		t.Run(functionName(f), func(t *testing.T) {
+		t.Run(test.FunctionName(f), func(t *testing.T) {
 			f(t, store)
 		})
 	}
@@ -51,7 +52,7 @@ func TestRedis(t *testing.T) {
 
 func TestInmem(t *testing.T) {
 	for _, f := range testFunctions {
-		t.Run(functionName(f), func(t *testing.T) {
+		t.Run(test.FunctionName(f), func(t *testing.T) {
 			t.Parallel()
 			store := NewInmemQueryResults()
 			f(t, store)

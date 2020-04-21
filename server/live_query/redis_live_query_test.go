@@ -3,13 +3,11 @@ package live_query
 import (
 	"fmt"
 	"os"
-	"reflect"
-	"runtime"
-	"strings"
 	"testing"
 
 	"github.com/kolide/fleet/server/kolide"
 	"github.com/kolide/fleet/server/pubsub"
+	"github.com/kolide/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +18,7 @@ func TestRedisLiveQuery(t *testing.T) {
 	}
 
 	for _, f := range testFunctions {
-		t.Run(functionName(f), func(t *testing.T) {
+		t.Run(test.FunctionName(f), func(t *testing.T) {
 			store, teardown := setupRedisLiveQuery(t)
 			defer teardown()
 			f(t, store)
@@ -32,12 +30,6 @@ var testFunctions = [...]func(*testing.T, kolide.LiveQueryStore){
 	testRedisLiveQuery,
 	testRedisLiveQueryNoTargets,
 	testRedisLiveQueryStopQuery,
-}
-
-func functionName(f interface{}) string {
-	fullName := runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
-	elements := strings.Split(fullName, ".")
-	return elements[len(elements)-1]
 }
 
 func setupRedisLiveQuery(t *testing.T) (store *redisLiveQuery, teardown func()) {

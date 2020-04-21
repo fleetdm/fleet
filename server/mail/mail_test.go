@@ -2,12 +2,10 @@ package mail
 
 import (
 	"os"
-	"reflect"
-	"runtime"
-	"strings"
 	"testing"
 
 	"github.com/kolide/fleet/server/kolide"
+	"github.com/kolide/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -26,12 +24,6 @@ func getMailer() kolide.MailService {
 	return NewService()
 }
 
-func functionName(f func(*testing.T, kolide.MailService)) string {
-	fullName := runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
-	elements := strings.Split(fullName, ".")
-	return elements[len(elements)-1]
-}
-
 var testFunctions = [...]func(*testing.T, kolide.MailService){
 	testSMTPPlainAuth,
 	testSMTPSkipVerify,
@@ -43,7 +35,7 @@ func TestMail(t *testing.T) {
 	for _, f := range testFunctions {
 		r := getMailer()
 
-		t.Run(functionName(f), func(t *testing.T) {
+		t.Run(test.FunctionName(f), func(t *testing.T) {
 			f(t, r)
 		})
 	}
