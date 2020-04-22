@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
+	"regexp"
 	"time"
 
 	"github.com/WatchBeam/clock"
@@ -23,6 +24,10 @@ import (
 
 const (
 	defaultSelectLimit = 100000
+)
+
+var (
+	columnCharsRegexp = regexp.MustCompile(`[^\w-]`)
 )
 
 // Datastore is an implementation of kolide.Datastore interface backed by
@@ -249,14 +254,19 @@ func (d *Datastore) log(msg string) {
 	d.logger.Log("comp", d.Name(), "msg", msg)
 }
 
+func sanitizeColumn(col string) string {
+	return columnCharsRegexp.ReplaceAllString(col, "")
+}
+
 func appendListOptionsToSQL(sql string, opts kolide.ListOptions) string {
 	if opts.OrderKey != "" {
 		direction := "ASC"
 		if opts.OrderDirection == kolide.OrderDescending {
 			direction = "DESC"
 		}
+		orderKey := sanitizeColumn(opts.OrderKey)
 
-		sql = fmt.Sprintf("%s ORDER BY %s %s", sql, opts.OrderKey, direction)
+		sql = fmt.Sprintf("%s ORDER BY %s %s", sql, orderKey, direction)
 	}
 	// REVIEW: If caller doesn't supply a limit apply a default limit of 1000
 	// to insure that an unbounded query with many results doesn't consume too
