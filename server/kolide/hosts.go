@@ -67,6 +67,10 @@ type HostStore interface {
 	GenerateHostStatusStatistics(now time.Time) (online, offline, mia, new uint, err error)
 	// HostIDsByName Retrieve the IDs associated with the given hostnames
 	HostIDsByName(hostnames []string) ([]uint, error)
+	// HostByIdentifier returns one host matching the provided identifier.
+	// Possible matches can be on osquery_host_identifier, node_key, UUID, or
+	// hostname.
+	HostByIdentifier(identifier string) (*Host, error)
 }
 
 type HostService interface {
@@ -74,6 +78,10 @@ type HostService interface {
 	GetHost(ctx context.Context, id uint) (host *Host, err error)
 	GetHostSummary(ctx context.Context) (summary *HostSummary, err error)
 	DeleteHost(ctx context.Context, id uint) (err error)
+	// HostByIdentifier returns one host matching the provided identifier.
+	// Possible matches can be on osquery_host_identifier, node_key, UUID, or
+	// hostname.
+	HostByIdentifier(ctx context.Context, identifier string) (*Host, error)
 }
 
 type HostListOptions struct {

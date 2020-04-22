@@ -84,6 +84,7 @@ type KolideEndpoints struct {
 	GetLabelSpecs                         endpoint.Endpoint
 	GetLabelSpec                          endpoint.Endpoint
 	GetHost                               endpoint.Endpoint
+	HostByIdentifier                      endpoint.Endpoint
 	DeleteHost                            endpoint.Endpoint
 	ListHosts                             endpoint.Endpoint
 	GetHostSummary                        endpoint.Endpoint
@@ -168,6 +169,7 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string) Kol
 		GetPackSpecs:                          authenticatedUser(jwtKey, svc, makeGetPackSpecsEndpoint(svc)),
 		GetPackSpec:                           authenticatedUser(jwtKey, svc, makeGetPackSpecEndpoint(svc)),
 		GetHost:                               authenticatedUser(jwtKey, svc, makeGetHostEndpoint(svc)),
+		HostByIdentifier:                      authenticatedUser(jwtKey, svc, makeHostByIdentifierEndpoint(svc)),
 		ListHosts:                             authenticatedUser(jwtKey, svc, makeListHostsEndpoint(svc)),
 		GetHostSummary:                        authenticatedUser(jwtKey, svc, makeGetHostSummaryEndpoint(svc)),
 		DeleteHost:                            authenticatedUser(jwtKey, svc, makeDeleteHostEndpoint(svc)),
@@ -269,6 +271,7 @@ type kolideHandlers struct {
 	GetLabelSpecs                         http.Handler
 	GetLabelSpec                          http.Handler
 	GetHost                               http.Handler
+	HostByIdentifier                      http.Handler
 	DeleteHost                            http.Handler
 	ListHosts                             http.Handler
 	GetHostSummary                        http.Handler
@@ -357,6 +360,7 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		GetLabelSpecs:                         newServer(e.GetLabelSpecs, decodeNoParamsRequest),
 		GetLabelSpec:                          newServer(e.GetLabelSpec, decodeGetGenericSpecRequest),
 		GetHost:                               newServer(e.GetHost, decodeGetHostRequest),
+		HostByIdentifier:                      newServer(e.HostByIdentifier, decodeHostByIdentifierRequest),
 		DeleteHost:                            newServer(e.DeleteHost, decodeDeleteHostRequest),
 		ListHosts:                             newServer(e.ListHosts, decodeListHostsRequest),
 		GetHostSummary:                        newServer(e.GetHostSummary, decodeNoParamsRequest),
@@ -489,6 +493,7 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/hosts", h.ListHosts).Methods("GET").Name("list_hosts")
 	r.Handle("/api/v1/kolide/host_summary", h.GetHostSummary).Methods("GET").Name("get_host_summary")
 	r.Handle("/api/v1/kolide/hosts/{id}", h.GetHost).Methods("GET").Name("get_host")
+	r.Handle("/api/v1/kolide/hosts/identifier/{identifier}", h.HostByIdentifier).Methods("GET").Name("host_by_identifier")
 	r.Handle("/api/v1/kolide/hosts/{id}", h.DeleteHost).Methods("DELETE").Name("delete_host")
 
 	r.Handle("/api/v1/kolide/spec/osquery_options", h.ApplyOsqueryOptionsSpec).Methods("POST").Name("apply_osquery_options_spec")

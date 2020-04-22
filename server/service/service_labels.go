@@ -94,6 +94,10 @@ func (svc service) ListHostsInLabel(ctx context.Context, lid uint, opt kolide.Li
 	return svc.ds.ListHostsInLabel(lid, opt)
 }
 
+func (svc service) ListLabelsForHost(ctx context.Context, hid uint) ([]kolide.Label, error) {
+	return svc.ds.ListLabelsForHost(hid)
+}
+
 func (svc service) HostIDsForLabel(lid uint) ([]uint, error) {
 	hosts, err := svc.ds.ListHostsInLabel(lid, kolide.ListOptions{})
 	if err != nil {

@@ -33,3 +33,31 @@ func (c *Client) GetHosts() ([]HostResponse, error) {
 
 	return responseBody.Hosts, nil
 }
+
+// HostByIdentifier retrieves a host by the uuid, osquery_host_id, hostname, or
+// node_key.
+func (c *Client) HostByIdentifier(identifier string) (*HostResponse, error) {
+	response, err := c.AuthenticatedDo("GET", "/api/v1/kolide/hosts/identifier/"+identifier, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "GET /api/v1/kolide/hosts/identifier")
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		return nil, errors.Errorf(
+			"get host by identifier received status %d %s",
+			response.StatusCode,
+			extractServerErrorText(response.Body),
+		)
+	}
+	var responseBody getHostResponse
+	err = json.NewDecoder(response.Body).Decode(&responseBody)
+	if err != nil {
+		return nil, errors.Wrap(err, "decode host response")
+	}
+	if responseBody.Err != nil {
+		return nil, errors.Errorf("get host by identifier: %s", responseBody.Err)
+	}
+
+	return responseBody.Host, nil
+}

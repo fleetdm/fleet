@@ -575,43 +575,57 @@ func getHostsCommand() cli.Command {
 				return err
 			}
 
-			hosts, err := fleet.GetHosts()
-			if err != nil {
-				return errors.Wrap(err, "could not list hosts")
-			}
+			identifier := c.Args().First()
 
-			if len(hosts) == 0 {
-				fmt.Println("no hosts found")
-				return nil
-			}
-
-			if c.Bool(jsonFlagName) || c.Bool(yamlFlagName) {
-				for _, host := range hosts {
-					err = printHost(c, &host.Host)
-					if err != nil {
-						return err
-					}
+			if identifier == "" {
+				hosts, err := fleet.GetHosts()
+				if err != nil {
+					return errors.Wrap(err, "could not list hosts")
 				}
-				return nil
+
+				if len(hosts) == 0 {
+					fmt.Println("no hosts found")
+					return nil
+				}
+
+				if c.Bool(jsonFlagName) || c.Bool(yamlFlagName) {
+					for _, host := range hosts {
+						err = printHost(c, &host.Host)
+						if err != nil {
+							return err
+						}
+					}
+					return nil
+				}
+
+				// Default to printing as table
+				data := [][]string{}
+
+				for _, host := range hosts {
+					data = append(data, []string{
+						host.Host.UUID,
+						host.DisplayText,
+						host.Host.Platform,
+						string(host.Status),
+					})
+				}
+
+				table := defaultTable()
+				table.SetHeader([]string{"uuid", "hostname", "platform", "status"})
+				table.AppendBulk(data)
+				table.Render()
+			} else {
+				host, err := fleet.HostByIdentifier(identifier)
+				if err != nil {
+					return errors.Wrap(err, "could not get host")
+				}
+				b, err := yaml.Marshal(host)
+				if err != nil {
+					return err
+				}
+
+				fmt.Print(string(b))
 			}
-
-			// Default to printing as table
-			data := [][]string{}
-
-			for _, host := range hosts {
-				data = append(data, []string{
-					host.Host.UUID,
-					host.DisplayText,
-					host.Host.Platform,
-					string(host.Status),
-				})
-			}
-
-			table := defaultTable()
-			table.SetHeader([]string{"uuid", "hostname", "platform", "status"})
-			table.AppendBulk(data)
-			table.Render()
-
 			return nil
 		},
 	}

@@ -76,6 +76,9 @@ type LabelService interface {
 	// given ID.
 	ListHostsInLabel(ctx context.Context, lid uint, opt ListOptions) ([]Host, error)
 
+	// LabelsForHost returns the labels that the given host is in.
+	ListLabelsForHost(ctx context.Context, hid uint) ([]Label, error)
+
 	// HostIDsForLabel returns ids of hosts that belong to the label identified
 	// by lid
 	HostIDsForLabel(lid uint) ([]uint, error)

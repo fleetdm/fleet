@@ -500,6 +500,7 @@ func testHostIDsByName(t *testing.T, ds kolide.Datastore) {
 func testHostAdditional(t *testing.T, ds kolide.Datastore) {
 	_, err := ds.NewHost(&kolide.Host{
 		DetailUpdateTime: time.Now(),
+		LabelUpdateTime:  time.Now(),
 		SeenTime:         time.Now(),
 		LabelUpdateTime:  time.Now(),
 		OsqueryHostID:    "foobar",
@@ -566,4 +567,42 @@ func testHostAdditional(t *testing.T, ds kolide.Datastore) {
 	h, err = ds.Host(h.ID)
 	require.Nil(t, err)
 	assert.Equal(t, additional, *h.Additional)
+}
+
+func testHostByIdentifier(t *testing.T, ds kolide.Datastore) {
+	for i := 1; i <= 10; i++ {
+		_, err := ds.NewHost(&kolide.Host{
+			DetailUpdateTime: time.Now(),
+			LabelUpdateTime:  time.Now(),
+			SeenTime:         time.Now(),
+			OsqueryHostID:    fmt.Sprintf("osquery_host_id_%d", i),
+			NodeKey:          fmt.Sprintf("node_key_%d", i),
+			UUID:             fmt.Sprintf("uuid_%d", i),
+			HostName:         fmt.Sprintf("hostname_%d", i),
+		})
+		require.Nil(t, err)
+	}
+
+	var (
+		h   *kolide.Host
+		err error
+	)
+	h, err = ds.HostByIdentifier("uuid_1")
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), h.ID)
+
+	h, err = ds.HostByIdentifier("osquery_host_id_2")
+	require.NoError(t, err)
+	assert.Equal(t, uint(2), h.ID)
+
+	h, err = ds.HostByIdentifier("node_key_4")
+	require.NoError(t, err)
+	assert.Equal(t, uint(4), h.ID)
+
+	h, err = ds.HostByIdentifier("hostname_7")
+	require.NoError(t, err)
+	assert.Equal(t, uint(7), h.ID)
+
+	h, err = ds.HostByIdentifier("foobar")
+	require.Error(t, err)
 }

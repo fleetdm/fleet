@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/kolide/fleet/server/kolide"
+	"github.com/pkg/errors"
 )
 
 // HostResponse is the response struct that contains the full host information
@@ -15,6 +16,7 @@ type HostResponse struct {
 	kolide.Host
 	Status      kolide.HostStatus `json:"status"`
 	DisplayText string            `json:"display_text"`
+	Labels      []kolide.Label    `json:"labels,omitempty"`
 }
 
 func hostResponseForHost(ctx context.Context, svc kolide.Service, host *kolide.Host) (*HostResponse, error) {
@@ -23,6 +25,20 @@ func hostResponseForHost(ctx context.Context, svc kolide.Service, host *kolide.H
 		Status:      host.Status(time.Now()),
 		DisplayText: host.HostName,
 	}, nil
+}
+
+func addLabelsToHost(ctx context.Context, svc kolide.Service, host *kolide.Host) (*HostResponse, error) {
+	labels, err := svc.ListLabelsForHost(ctx, host.ID)
+	if err != nil {
+		return nil, errors.Wrap(err, "list labels for host")
+	}
+	return &HostResponse{
+		Host:        *host,
+		Status:      host.Status(time.Now()),
+		DisplayText: host.HostName,
+		Labels:      labels,
+	}, nil
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -49,6 +65,33 @@ func makeGetHostEndpoint(svc kolide.Service) endpoint.Endpoint {
 		}
 
 		resp, err := hostResponseForHost(ctx, svc, host)
+		if err != nil {
+			return getHostResponse{Err: err}, nil
+		}
+
+		return getHostResponse{
+			Host: resp,
+		}, nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get Host
+////////////////////////////////////////////////////////////////////////////////
+
+type hostByIdentifierRequest struct {
+	Identifier string `json:"identifier"`
+}
+
+func makeHostByIdentifierEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(hostByIdentifierRequest)
+		host, err := svc.HostByIdentifier(ctx, req.Identifier)
+		if err != nil {
+			return getHostResponse{Err: err}, nil
+		}
+
+		resp, err := addLabelsToHost(ctx, svc, host)
 		if err != nil {
 			return getHostResponse{Err: err}, nil
 		}

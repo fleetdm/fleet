@@ -284,6 +284,7 @@ func (d *Datastore) AuthenticateHost(nodeKey string) (*kolide.Host, error) {
 			deleted_at,
 			deleted,
 			detail_update_time,
+			label_update_time,
 			node_key,
 			host_name,
 			uuid,
@@ -479,4 +480,19 @@ func (d *Datastore) HostIDsByName(hostnames []string) ([]uint, error) {
 
 	return hostIDs, nil
 
+}
+
+func (d *Datastore) HostByIdentifier(identifier string) (*kolide.Host, error) {
+	sql := `
+		SELECT * FROM hosts
+		WHERE ? IN (host_name, osquery_host_id, node_key, uuid)
+		LIMIT 1
+	`
+	host := &kolide.Host{}
+	err := d.db.Get(host, sql, identifier)
+	if err != nil {
+		return nil, errors.Wrap(err, "get host by identifier")
+	}
+
+	return host, nil
 }
