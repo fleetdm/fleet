@@ -15,7 +15,7 @@ func (mw loggingMiddleware) GetOptions(ctx context.Context) ([]kolide.Option, er
 	)
 
 	defer func(begin time.Time) {
-		mw.logger.Log(
+		_ = mw.loggerDebug(err).Log(
 			"method", "GetOptions",
 			"err", err,
 			"took", time.Since(begin),
@@ -38,7 +38,7 @@ func (mw loggingMiddleware) ModifyOptions(ctx context.Context, req kolide.Option
 	}
 
 	defer func(begin time.Time) {
-		mw.logger.Log(
+		_ = mw.loggerInfo(err).Log(
 			"method", "ModifyOptions",
 			"err", err,
 			"user", loggedInUser,
@@ -55,7 +55,7 @@ func (mw loggingMiddleware) ResetOptions(ctx context.Context) ([]kolide.Option, 
 		err     error
 	)
 	defer func(begin time.Time) {
-		mw.logger.Log(
+		_ = mw.loggerInfo(err).Log(
 			"method", "ResetOptions",
 			"err", err,
 			"took", time.Since(begin),

@@ -21,7 +21,7 @@ func (mw loggingMiddleware) NewLabel(ctx context.Context, p kolide.LabelPayload)
 	}
 
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerInfo(err).Log(
 			"method", "NewLabel",
 			"err", err,
 			"user", loggedInUser,
@@ -46,7 +46,7 @@ func (mw loggingMiddleware) ModifyLabel(ctx context.Context, id uint, p kolide.M
 	}
 
 	defer func(begin time.Time) {
-		mw.logger.Log(
+		_ = mw.loggerInfo(err).Log(
 			"method", "ModifyLabel",
 			"err", err,
 			"user", loggedInUser,
@@ -65,7 +65,7 @@ func (mw loggingMiddleware) ListLabels(ctx context.Context, opt kolide.ListOptio
 	)
 
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerDebug(err).Log(
 			"method", "ListLabels",
 			"err", err,
 			"took", time.Since(begin),
@@ -83,7 +83,7 @@ func (mw loggingMiddleware) GetLabel(ctx context.Context, id uint) (*kolide.Labe
 	)
 
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerDebug(err).Log(
 			"method", "GetLabel",
 			"err", err,
 			"took", time.Since(begin),
@@ -106,7 +106,7 @@ func (mw loggingMiddleware) DeleteLabel(ctx context.Context, name string) error 
 	}
 
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerInfo(err).Log(
 			"method", "DeleteLabel",
 			"err", err,
 			"user", loggedInUser,
@@ -120,7 +120,7 @@ func (mw loggingMiddleware) DeleteLabel(ctx context.Context, name string) error 
 
 func (mw loggingMiddleware) GetLabelSpec(ctx context.Context, name string) (spec *kolide.LabelSpec, err error) {
 	defer func(begin time.Time) {
-		mw.logger.Log(
+		_ = mw.loggerDebug(err).Log(
 			"method", "GetLabelSpec",
 			"err", err,
 			"took", time.Since(begin),
@@ -132,7 +132,7 @@ func (mw loggingMiddleware) GetLabelSpec(ctx context.Context, name string) (spec
 
 func (mw loggingMiddleware) GetLabelSpecs(ctx context.Context) (specs []*kolide.LabelSpec, err error) {
 	defer func(begin time.Time) {
-		mw.logger.Log(
+		_ = mw.loggerDebug(err).Log(
 			"method", "GetLabelSpecs",
 			"err", err,
 			"took", time.Since(begin),
@@ -153,7 +153,7 @@ func (mw loggingMiddleware) ApplyLabelSpecs(ctx context.Context, specs []*kolide
 	}
 
 	defer func(begin time.Time) {
-		mw.logger.Log(
+		_ = mw.loggerInfo(err).Log(
 			"method", "ApplyLabelSpecs",
 			"err", err,
 			"user", loggedInUser,

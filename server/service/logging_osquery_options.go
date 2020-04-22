@@ -10,7 +10,7 @@ import (
 
 func (mw loggingMiddleware) GetOptionsSpec(ctx context.Context) (spec *kolide.OptionsSpec, err error) {
 	defer func(begin time.Time) {
-		mw.logger.Log(
+		_ = mw.loggerDebug(err).Log(
 			"method", "GetOptionsSpec",
 			"err", err,
 			"took", time.Since(begin),
@@ -30,7 +30,7 @@ func (mw loggingMiddleware) ApplyOptionsSpec(ctx context.Context, spec *kolide.O
 		loggedInUser = vc.Username()
 	}
 	defer func(begin time.Time) {
-		mw.logger.Log(
+		_ = mw.loggerDebug(err).Log(
 			"method", "ApplyOptionsSpec",
 			"err", err,
 			"user", loggedInUser,

@@ -19,7 +19,7 @@ func (mw loggingMiddleware) InviteNewUser(ctx context.Context, payload kolide.In
 		return nil, errNoContext
 	}
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerInfo(err).Log(
 			"method", "InviteNewUser",
 			"created_by", vc.Username(),
 			"err", err,
@@ -40,7 +40,7 @@ func (mw loggingMiddleware) DeleteInvite(ctx context.Context, id uint) error {
 		return errNoContext
 	}
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerInfo(err).Log(
 			"method", "DeleteInvite",
 			"deleted_by", vc.Username(),
 			"err", err,
@@ -61,7 +61,7 @@ func (mw loggingMiddleware) ListInvites(ctx context.Context, opt kolide.ListOpti
 		return nil, errNoContext
 	}
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerInfo(err).Log(
 			"method", "Invites",
 			"called_by", vc.Username(),
 			"err", err,
@@ -78,7 +78,7 @@ func (mw loggingMiddleware) VerifyInvite(ctx context.Context, token string) (*ko
 		invite *kolide.Invite
 	)
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerInfo(err).Log(
 			"method", "VerifyInvite",
 			"token", token,
 			"err", err,

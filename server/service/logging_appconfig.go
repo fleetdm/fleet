@@ -14,7 +14,7 @@ func (mw loggingMiddleware) NewAppConfig(ctx context.Context, p kolide.AppConfig
 	)
 
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerDebug(err).Log(
 			"method", "NewAppConfig",
 			"err", err,
 			"took", time.Since(begin),
@@ -32,7 +32,7 @@ func (mw loggingMiddleware) AppConfig(ctx context.Context) (*kolide.AppConfig, e
 	)
 
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerDebug(err).Log(
 			"method", "AppConfig",
 			"err", err,
 			"took", time.Since(begin),
@@ -50,7 +50,7 @@ func (mw loggingMiddleware) ModifyAppConfig(ctx context.Context, p kolide.AppCon
 	)
 
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerDebug(err).Log(
 			"method", "ModifyAppConfig",
 			"err", err,
 			"took", time.Since(begin),

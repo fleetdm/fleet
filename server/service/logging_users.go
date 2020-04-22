@@ -22,7 +22,7 @@ func (mw loggingMiddleware) ChangeUserAdmin(ctx context.Context, id uint, isAdmi
 	}
 
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerInfo(err).Log(
 			"method", "ChangeUserAdmin",
 			"user", userName,
 			"changed_by", loggedInUser,
@@ -53,7 +53,7 @@ func (mw loggingMiddleware) ChangeUserEnabled(ctx context.Context, id uint, isEn
 	}
 
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerInfo(err).Log(
 			"method", "ChangeUserEnabled",
 			"user", userName,
 			"changed_by", loggedInUser,
@@ -84,7 +84,7 @@ func (mw loggingMiddleware) NewAdminCreatedUser(ctx context.Context, p kolide.Us
 	}
 
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerInfo(err).Log(
 			"method", "NewAdminCreatedUser",
 			"user", username,
 			"created_by", loggedInUser,
@@ -113,7 +113,7 @@ func (mw loggingMiddleware) ListUsers(ctx context.Context, opt kolide.ListOption
 	}
 
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerInfo(err).Log(
 			"method", "ListUsers",
 			"user", username,
 			"err", err,
@@ -138,7 +138,7 @@ func (mw loggingMiddleware) RequirePasswordReset(ctx context.Context, uid uint, 
 	}
 
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerInfo(err).Log(
 			"method", "RequirePasswordReset",
 			"user", username,
 			"err", err,
@@ -165,7 +165,7 @@ func (mw loggingMiddleware) NewUser(ctx context.Context, p kolide.UserPayload) (
 	}
 
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerInfo(err).Log(
 			"method", "NewUser",
 			"user", username,
 			"created_by", loggedInUser,
@@ -195,7 +195,7 @@ func (mw loggingMiddleware) ModifyUser(ctx context.Context, userID uint, p kolid
 	}
 
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerInfo(err).Log(
 			"method", "ModifyUser",
 			"user", username,
 			"modified_by", vc.Username(),
@@ -221,7 +221,7 @@ func (mw loggingMiddleware) User(ctx context.Context, id uint) (*kolide.User, er
 	)
 
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerInfo(err).Log(
 			"method", "User",
 			"user", username,
 			"err", err,
@@ -245,7 +245,7 @@ func (mw loggingMiddleware) AuthenticatedUser(ctx context.Context) (*kolide.User
 	)
 
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerInfo(err).Log(
 			"method", "User",
 			"user", username,
 			"err", err,
@@ -272,7 +272,7 @@ func (mw loggingMiddleware) ChangePassword(ctx context.Context, oldPass, newPass
 	}
 
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerInfo(err).Log(
 			"method", "ChangePassword",
 			"err", err,
 			"requested_by", requestedBy,
@@ -288,7 +288,7 @@ func (mw loggingMiddleware) ResetPassword(ctx context.Context, token, password s
 	var err error
 
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerInfo(err).Log(
 			"method", "ResetPassword",
 			"err", err,
 			"took", time.Since(begin),
@@ -310,7 +310,7 @@ func (mw loggingMiddleware) RequestPasswordReset(ctx context.Context, email stri
 	}
 
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerInfo(err).Log(
 			"method", "RequestPasswordReset",
 			"email", email,
 			"err", err,
@@ -333,7 +333,7 @@ func (mw loggingMiddleware) PerformRequiredPasswordReset(ctx context.Context, pa
 		resetBy = vc.Username()
 	}
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerInfo(err).Log(
 			"method", "PerformRequiredPasswordReset",
 			"err", err,
 			"reset_by", resetBy,

@@ -7,26 +7,26 @@ import (
 	"github.com/kolide/fleet/server/kolide"
 )
 
-func (lm loggingMiddleware) GetFIM(ctx context.Context) (cfg *kolide.FIMConfig, err error) {
+func (mw loggingMiddleware) GetFIM(ctx context.Context) (cfg *kolide.FIMConfig, err error) {
 	defer func(begin time.Time) {
-		lm.logger.Log(
+		_ = mw.loggerDebug(err).Log(
 			"method", "GetFIM",
 			"err", err,
 			"took", time.Since(begin),
 		)
 	}(time.Now())
-	cfg, err = lm.Service.GetFIM(ctx)
+	cfg, err = mw.Service.GetFIM(ctx)
 	return cfg, err
 }
 
-func (lm loggingMiddleware) ModifyFIM(ctx context.Context, fim kolide.FIMConfig) (err error) {
+func (mw loggingMiddleware) ModifyFIM(ctx context.Context, fim kolide.FIMConfig) (err error) {
 	defer func(begin time.Time) {
-		lm.logger.Log(
+		_ = mw.loggerInfo(err).Log(
 			"method", "ModifyFIM",
 			"err", err,
 			"took", time.Since(begin),
 		)
 	}(time.Now())
-	err = lm.Service.ModifyFIM(ctx, fim)
+	err = mw.Service.ModifyFIM(ctx, fim)
 	return err
 }

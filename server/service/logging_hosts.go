@@ -14,7 +14,7 @@ func (mw loggingMiddleware) ListHosts(ctx context.Context, opt kolide.ListOption
 	)
 
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerDebug(err).Log(
 			"method", "ListHosts",
 			"err", err,
 			"took", time.Since(begin),
@@ -32,7 +32,7 @@ func (mw loggingMiddleware) GetHost(ctx context.Context, id uint) (*kolide.Host,
 	)
 
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerDebug(err).Log(
 			"method", "GetHost",
 			"err", err,
 			"took", time.Since(begin),
@@ -50,7 +50,7 @@ func (mw loggingMiddleware) GetHostSummary(ctx context.Context) (*kolide.HostSum
 	)
 
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerDebug(err).Log(
 			"method", "GetHostSummary",
 			"err", err,
 			"took", time.Since(begin),
@@ -67,7 +67,7 @@ func (mw loggingMiddleware) DeleteHost(ctx context.Context, id uint) error {
 	)
 
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
+		_ = mw.loggerInfo(err).Log(
 			"method", "DeleteHost",
 			"err", err,
 			"took", time.Since(begin),
