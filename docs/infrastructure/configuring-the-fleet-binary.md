@@ -689,12 +689,14 @@ AWS region to use for Firehose connection
 
 	```
 	firehose:
-		region: aws-east-2
+		region: ca-central-1
 	```
 
 ##### `firehose_access_key_id`
 
-This flag only has effect if `osquery_status_log_plugin` is set to `firehose`.
+This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_plugin` are set to `firehose`.
+
+If `firehose_access_key_id` and `firehose_secret_access_key` are omitted, Fleet will try to use [AWS STS](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html) credentials.
 
 AWS access key ID to use for Firehose authentication.
 
@@ -704,12 +706,12 @@ AWS access key ID to use for Firehose authentication.
 
 	```
 	firehose:
-		access_key_id: aws-east-2
+		access_key_id: AKIAIOSFODNN7EXAMPLE
 	```
 
 ##### `firehose_secret_access_key`
 
-This flag only has effect if `osquery_status_log_plugin` is set to `firehose`.
+This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_plugin` are set to `firehose`.
 
 AWS secret access key to use for Firehose authentication.
 
@@ -719,7 +721,7 @@ AWS secret access key to use for Firehose authentication.
 
 	```
 	firehose:
-		secret_access_key: aws-east-2
+		secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 	```
 
 
