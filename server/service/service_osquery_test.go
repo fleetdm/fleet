@@ -201,6 +201,12 @@ func TestSubmitResultLogs(t *testing.T) {
 }
 
 func TestHostDetailQueries(t *testing.T) {
+	ds := new(mock.Store)
+	additional := json.RawMessage(`{"foobar": "select foo", "bim": "bam"}`)
+	ds.AppConfigFunc = func() (*kolide.AppConfig, error) {
+		return &kolide.AppConfig{AdditionalQueries: &additional}, nil
+	}
+
 	mockClock := clock.NewMockClock()
 	host := kolide.Host{
 		ID: 1,
@@ -219,22 +225,25 @@ func TestHostDetailQueries(t *testing.T) {
 		UUID:             "test_uuid",
 	}
 
-	svc := service{clock: mockClock, config: config.TestConfig()}
+	svc := service{clock: mockClock, config: config.TestConfig(), ds: ds}
 
-	queries := svc.hostDetailQueries(host)
-	assert.Empty(t, queries)
+	queries, err := svc.hostDetailQueries(host)
+	assert.Nil(t, err)
+	assert.Empty(t, queries, 0)
 
 	// Advance the time
 	mockClock.AddTime(1*time.Hour + 1*time.Minute)
 
-	queries = svc.hostDetailQueries(host)
-	assert.Len(t, queries, len(detailQueries))
+	queries, err = svc.hostDetailQueries(host)
+	assert.Nil(t, err)
+	assert.Len(t, queries, len(detailQueries)+2)
 	for name, _ := range queries {
 		assert.True(t,
-			strings.HasPrefix(name, hostDetailQueryPrefix),
-			fmt.Sprintf("%s not prefixed with %s", name, hostDetailQueryPrefix),
+			strings.HasPrefix(name, hostDetailQueryPrefix) || strings.HasPrefix(name, hostAdditionalQueryPrefix),
 		)
 	}
+	assert.Equal(t, "bam", queries[hostAdditionalQueryPrefix+"bim"])
+	assert.Equal(t, "select foo", queries[hostAdditionalQueryPrefix+"foobar"])
 }
 
 func TestGetDistributedQueriesMissingHost(t *testing.T) {
@@ -260,6 +269,9 @@ func TestLabelQueries(t *testing.T) {
 	}
 	ds.SaveHostFunc = func(host *kolide.Host) error {
 		return nil
+	}
+	ds.AppConfigFunc = func() (*kolide.AppConfig, error) {
+		return &kolide.AppConfig{}, nil
 	}
 
 	host := &kolide.Host{}
@@ -909,6 +921,9 @@ func TestDistributedQueryResults(t *testing.T) {
 	ds.NewDistributedQueryExecutionFunc = func(exec *kolide.DistributedQueryExecution) (*kolide.DistributedQueryExecution, error) {
 		gotExecution = exec
 		return exec, nil
+	}
+	ds.AppConfigFunc = func() (*kolide.AppConfig, error) {
+		return &kolide.AppConfig{}, nil
 	}
 
 	host := &kolide.Host{ID: 1}

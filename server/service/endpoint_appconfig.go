@@ -19,6 +19,7 @@ type appConfigResponse struct {
 	SMTPSettings       *kolide.SMTPSettingsPayload `json:"smtp_settings,omitempty"`
 	SSOSettings        *kolide.SSOSettingsPayload  `json:"sso_settings,omitempty"`
 	HostExpirySettings *kolide.HostExpirySettings  `json:"host_expiry_settings,omitempty"`
+	HostSettings       *kolide.HostSettings        `json:"host_settings,omitempty"`
 	Err                error                       `json:"error,omitempty"`
 }
 
@@ -70,6 +71,9 @@ func makeGetAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 			SMTPSettings:       smtpSettings,
 			SSOSettings:        ssoSettings,
 			HostExpirySettings: hostExpirySettings,
+			HostSettings: &kolide.HostSettings{
+				AdditionalQueries: config.AdditionalQueries,
+			},
 		}
 		return response, nil
 	}

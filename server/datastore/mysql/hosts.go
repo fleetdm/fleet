@@ -171,7 +171,8 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 			seen_time = ?,
 			distributed_interval = ?,
 			config_tls_refresh = ?,
-			logger_tls_period = ?
+			logger_tls_period = ?,
+			additional = COALESCE(?, additional)
 		WHERE id = ?
 	`
 	err := d.withRetryTxx(func(tx *sqlx.Tx) error {
@@ -203,7 +204,9 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 			host.DistributedInterval,
 			host.ConfigTLSRefresh,
 			host.LoggerTLSPeriod,
-			host.ID)
+			host.Additional,
+			host.ID,
+		)
 		if err != nil {
 			return errors.Wrap(err, "executing main SQL statement")
 		}
@@ -486,7 +489,40 @@ func (d *Datastore) EnrollHost(osqueryHostID string, nodeKeySize int) (*kolide.H
 
 func (d *Datastore) AuthenticateHost(nodeKey string) (*kolide.Host, error) {
 	sqlStatement := `
-		SELECT *
+		SELECT
+			id,
+			osquery_host_id,
+			created_at,
+			updated_at,
+			deleted_at,
+			deleted,
+			detail_update_time,
+			node_key,
+			host_name,
+			uuid,
+			platform,
+			osquery_version,
+			os_version,
+			build,
+			platform_like,
+			code_name,
+			uptime,
+			physical_memory,
+			cpu_type,
+			cpu_subtype,
+			cpu_brand,
+			cpu_physical_cores,
+			cpu_logical_cores,
+			hardware_vendor,
+			hardware_model,
+			hardware_version,
+			hardware_serial,
+			computer_name,
+			primary_ip_id,
+			seen_time,
+			distributed_interval,
+			logger_tls_period,
+			config_tls_refresh
 		FROM hosts
 		WHERE node_key = ? AND NOT deleted
 		LIMIT 1

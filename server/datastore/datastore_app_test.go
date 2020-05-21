@@ -1,6 +1,7 @@
 package datastore
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/kolide/fleet/server/kolide"
@@ -52,4 +53,25 @@ func testOrgInfo(t *testing.T, ds kolide.Datastore) {
 	info4, err := ds.NewAppConfig(info3)
 	assert.Nil(t, err)
 	assert.Equal(t, info3, info4)
+}
+
+func testAdditionalQueries(t *testing.T, ds kolide.Datastore) {
+	additional := json.RawMessage("not valid json")
+	info := &kolide.AppConfig{
+		OrgName:           "Kolide",
+		OrgLogoURL:        "localhost:8080/logo.png",
+		AdditionalQueries: &additional,
+	}
+
+	_, err := ds.NewAppConfig(info)
+	assert.NotNil(t, err)
+
+	additional = json.RawMessage(`{}`)
+	info, err = ds.NewAppConfig(info)
+	assert.Nil(t, err)
+
+	additional = json.RawMessage(`{"foo": "bar"}`)
+	info, err = ds.NewAppConfig(info)
+	assert.Nil(t, err)
+	assert.JSONEq(t, `{"foo":"bar"}`, string(*info.AdditionalQueries))
 }

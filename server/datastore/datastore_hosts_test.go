@@ -1,6 +1,7 @@
 package datastore
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -72,12 +73,17 @@ func testSaveHosts(t *testing.T, ds kolide.Datastore) {
 		},
 	}
 
+	additionalJSON := json.RawMessage(`{"foobar": "bim"}`)
+	host.Additional = &additionalJSON
+
 	err = ds.SaveHost(host)
 	require.Nil(t, err)
 
 	host, err = ds.Host(host.ID)
 	require.Nil(t, err)
 	require.NotNil(t, host)
+	require.NotNil(t, host.Additional)
+	assert.Equal(t, additionalJSON, *host.Additional)
 	require.Equal(t, 2, len(host.NetworkInterfaces))
 	primaryNicID := host.NetworkInterfaces[0].ID
 	host.PrimaryNetworkInterfaceID = &primaryNicID
@@ -766,4 +772,74 @@ func testHostIDsByName(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, err)
 	sort.Slice(hosts, func(i, j int) bool { return hosts[i] < hosts[j] })
 	assert.Equal(t, hosts, []uint{2, 3, 6})
+}
+
+func testHostAdditional(t *testing.T, ds kolide.Datastore) {
+	_, err := ds.NewHost(&kolide.Host{
+		DetailUpdateTime: time.Now(),
+		SeenTime:         time.Now(),
+		OsqueryHostID:    "foobar",
+		NodeKey:          "nodekey",
+		UUID:             "uuid",
+		HostName:         "foobar.local",
+	})
+	require.Nil(t, err)
+
+	h, err := ds.AuthenticateHost("nodekey")
+	require.Nil(t, err)
+	assert.Equal(t, "foobar.local", h.HostName)
+	assert.Nil(t, h.Additional)
+
+	// Additional not yet set
+	h, err = ds.Host(h.ID)
+	require.Nil(t, err)
+	assert.Nil(t, h.Additional)
+
+	// Add additional
+	additional := json.RawMessage(`{"additional": "result"}`)
+	h.Additional = &additional
+	err = ds.SaveHost(h)
+	require.Nil(t, err)
+
+	h, err = ds.AuthenticateHost("nodekey")
+	require.Nil(t, err)
+	assert.Equal(t, "foobar.local", h.HostName)
+	assert.Nil(t, h.Additional)
+
+	h, err = ds.Host(h.ID)
+	require.Nil(t, err)
+	assert.Equal(t, additional, *h.Additional)
+
+	// Update besides additional. Additional should be unchanged.
+	h, err = ds.AuthenticateHost("nodekey")
+	require.Nil(t, err)
+	h.HostName = "baz.local"
+	err = ds.SaveHost(h)
+	require.Nil(t, err)
+
+	h, err = ds.AuthenticateHost("nodekey")
+	require.Nil(t, err)
+	assert.Equal(t, "baz.local", h.HostName)
+	assert.Nil(t, h.Additional)
+
+	h, err = ds.Host(h.ID)
+	require.Nil(t, err)
+	assert.Equal(t, additional, *h.Additional)
+
+	// Update additional
+	additional = json.RawMessage(`{"other": "additional"}`)
+	h, err = ds.AuthenticateHost("nodekey")
+	require.Nil(t, err)
+	h.Additional = &additional
+	err = ds.SaveHost(h)
+	require.Nil(t, err)
+
+	h, err = ds.AuthenticateHost("nodekey")
+	require.Nil(t, err)
+	assert.Equal(t, "baz.local", h.HostName)
+	assert.Nil(t, h.Additional)
+
+	h, err = ds.Host(h.ID)
+	require.Nil(t, err)
+	assert.Equal(t, additional, *h.Additional)
 }

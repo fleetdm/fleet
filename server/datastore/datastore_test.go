@@ -17,6 +17,7 @@ func functionName(f func(*testing.T, kolide.Datastore)) string {
 
 var testFunctions = [...]func(*testing.T, kolide.Datastore){
 	testOrgInfo,
+	testAdditionalQueries,
 	testCreateInvite,
 	testInviteByEmail,
 	testInviteByToken,
@@ -93,4 +94,5 @@ var testFunctions = [...]func(*testing.T, kolide.Datastore){
 	testGetLabelSpec,
 	testLabelIDsByName,
 	testListLabelsForPack,
+	testHostAdditional,
 }

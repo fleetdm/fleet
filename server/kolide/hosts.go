@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"net"
 	"time"
 )
@@ -39,6 +40,10 @@ type HostStore interface {
 	Host(id uint) (*Host, error)
 	ListHosts(opt ListOptions) ([]*Host, error)
 	EnrollHost(osqueryHostId string, nodeKeySize int) (*Host, error)
+	// AuthenticateHost authenticates and returns host metadata by node key.
+	// This method should not return the host "additional" information as this
+	// is not typically necessary for the operations performed by the osquery
+	// endpoints.
 	AuthenticateHost(nodeKey string) (*Host, error)
 	MarkHostSeen(host *Host, t time.Time) error
 	SearchHosts(query string, omit ...uint) ([]*Host, error)
@@ -107,6 +112,7 @@ type Host struct {
 	DistributedInterval       uint                `json:"distributed_interval" db:"distributed_interval"`
 	ConfigTLSRefresh          uint                `json:"config_tls_refresh" db:"config_tls_refresh"`
 	LoggerTLSPeriod           uint                `json:"logger_tls_period" db:"logger_tls_period"`
+	Additional                *json.RawMessage    `json:"additional,omitempty" db:"additional"`
 }
 
 // HostSummary is a structure which represents a data summary about the total

@@ -157,7 +157,7 @@ spec:
 
 ## Osquery Configuration Options
 
-The following file describes configuration options passed to the osquery instance. All other configuration data will be over-written by the application of this file.
+The following file describes options returned to osqueryd when it checks for configuration. See the [osquery documentation](https://osquery.readthedocs.io/en/stable/deployment/configuration/#options) for the available options. Existing options will be over-written by the application of this file.
 
 ```yaml
 apiVersion: v1
@@ -232,7 +232,7 @@ spec:
             3600: "SELECT total_seconds AS uptime FROM uptime"
 ```
 ## Fleet Configuration Options
-The following file describes configuration options applied to the Fleet instance.
+The following file describes configuration options applied to the Fleet server.
 
 ```yaml
 apiVersion: v1
@@ -241,6 +241,15 @@ spec:
   host_expiry_settings:
     host_expiry_enabled: true
     host_expiry_window: 10
+  host_settings:
+    # "additional" information to collect from hosts along with the host
+    # details. This information will be updated at the same time as other host
+    # details and is returned by the API when host objects are returned. Users
+    # must take care to keep the data returned by these queries small in
+    # order to mitigate potential performance impacts on the Fleet server.
+    additional_queries:
+      time: select * from time
+      macs: select mac from interface_details
   org_info:
     org_logo_url: "https://example.org/logo.png"
     org_name: Example Org

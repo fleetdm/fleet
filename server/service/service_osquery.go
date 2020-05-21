@@ -233,6 +233,10 @@ const hostLabelQueryPrefix = "kolide_label_query_"
 // provided as a detail query.
 const hostDetailQueryPrefix = "kolide_detail_query_"
 
+// hostAdditionalQueryPrefix is appended before the query name when a query is
+// provided as an additional query (additional info for hosts to retrieve).
+const hostAdditionalQueryPrefix = "kolide_additional_query_"
+
 // hostDistributedQueryPrefix is appended before the query name when a query is
 // run from a distributed query campaign
 const hostDistributedQueryPrefix = "kolide_distributed_query_"
@@ -474,17 +478,37 @@ var detailQueries = map[string]struct {
 
 // hostDetailQueries returns the map of queries that should be executed by
 // osqueryd to fill in the host details
-func (svc service) hostDetailQueries(host kolide.Host) map[string]string {
+func (svc service) hostDetailQueries(host kolide.Host) (map[string]string, error) {
 	queries := make(map[string]string)
 	if host.DetailUpdateTime.After(svc.clock.Now().Add(-svc.config.Osquery.DetailUpdateInterval)) {
 		// No need to update already fresh details
-		return queries
+		return queries, nil
 	}
 
 	for name, query := range detailQueries {
 		queries[hostDetailQueryPrefix+name] = query.Query
 	}
-	return queries
+
+	// Get additional queries
+	config, err := svc.ds.AppConfig()
+	if err != nil {
+		return nil, osqueryError{message: "get additional queries: " + err.Error()}
+	}
+	if config.AdditionalQueries == nil {
+		// No additional queries set
+		return queries, nil
+	}
+
+	var additionalQueries map[string]string
+	if err := json.Unmarshal(*config.AdditionalQueries, &additionalQueries); err != nil {
+		return nil, osqueryError{message: "unmarshal additional queries: " + err.Error()}
+	}
+
+	for name, query := range additionalQueries {
+		queries[hostAdditionalQueryPrefix+name] = query
+	}
+
+	return queries, nil
 }
 
 func (svc service) GetDistributedQueries(ctx context.Context) (map[string]string, uint, error) {
@@ -493,7 +517,10 @@ func (svc service) GetDistributedQueries(ctx context.Context) (map[string]string
 		return nil, 0, osqueryError{message: "internal error: missing host from request context"}
 	}
 
-	queries := svc.hostDetailQueries(host)
+	queries, err := svc.hostDetailQueries(host)
+	if err != nil {
+		return nil, 0, err
+	}
 
 	// Retrieve the label queries that should be updated
 	cutoff := svc.clock.Now().Add(-svc.config.Osquery.LabelUpdateInterval)
@@ -629,12 +656,17 @@ func (svc service) SubmitDistributedQueryResults(ctx context.Context, results ko
 	}
 
 	var err error
-	detailUpdated := false
+	detailUpdated := false // Whether detail or additional was updated
+	additionalResults := make(kolide.OsqueryDistributedQueryResults)
 	labelResults := map[uint]bool{}
 	for query, rows := range results {
 		switch {
 		case strings.HasPrefix(query, hostDetailQueryPrefix):
 			err = svc.ingestDetailQuery(&host, query, rows)
+			detailUpdated = true
+		case strings.HasPrefix(query, hostAdditionalQueryPrefix):
+			name := strings.TrimPrefix(query, hostAdditionalQueryPrefix)
+			additionalResults[name] = rows
 			detailUpdated = true
 		case strings.HasPrefix(query, hostLabelQueryPrefix):
 			err = svc.ingestLabelQuery(host, query, rows, labelResults)
@@ -663,6 +695,12 @@ func (svc service) SubmitDistributedQueryResults(ctx context.Context, results ko
 
 	if detailUpdated {
 		host.DetailUpdateTime = svc.clock.Now()
+		additionalJSON, err := json.Marshal(additionalResults)
+		if err != nil {
+			return osqueryError{message: "failed to marshal additional: " + err.Error()}
+		}
+		additional := json.RawMessage(additionalJSON)
+		host.Additional = &additional
 	}
 
 	if len(labelResults) > 0 || detailUpdated {

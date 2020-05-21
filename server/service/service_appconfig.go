@@ -157,6 +157,12 @@ func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppC
 		}
 	}
 
+	if settings := p.HostSettings; settings != nil {
+		if settings.AdditionalQueries != nil {
+			config.AdditionalQueries = settings.AdditionalQueries
+		}
+	}
+
 	populateSMTP := func(p *kolide.SMTPSettingsPayload) {
 		if p.SMTPAuthenticationMethod != nil {
 			switch *p.SMTPAuthenticationMethod {

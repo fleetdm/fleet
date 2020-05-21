@@ -2,6 +2,7 @@ package kolide
 
 import (
 	"context"
+	"encoding/json"
 )
 
 // AppConfigStore contains method for saving and retrieving
@@ -143,6 +144,10 @@ type AppConfig struct {
 
 	// LiveQueryDisabled defines whether live queries are disabled.
 	LiveQueryDisabled bool `db:"live_query_disabled"`
+
+	// AdditionalQueries is the set of additional queries that should be run
+	// when collecting details from hosts.
+	AdditionalQueries *json.RawMessage `db:"additional_queries"`
 }
 
 // ModifyAppConfigRequest contains application configuration information
@@ -217,6 +222,7 @@ type AppConfigPayload struct {
 	ServerSettings     *ServerSettings      `json:"server_settings"`
 	SMTPSettings       *SMTPSettingsPayload `json:"smtp_settings"`
 	HostExpirySettings *HostExpirySettings  `json:"host_expiry_settings"`
+	HostSettings       *HostSettings        `json:"host_settings"`
 	// SMTPTest is a flag that if set will cause the server to test email configuration
 	SMTPTest *bool `json:"smtp_test,omitempty"`
 	// SSOSettings single sign settings
@@ -231,15 +237,19 @@ type OrgInfo struct {
 
 // ServerSettings contains general settings about the kolide App.
 type ServerSettings struct {
-	KolideServerURL    *string `json:"kolide_server_url,omitempty"`
-	EnrollSecret       *string `json:"osquery_enroll_secret,omitempty"`
-	LiveQueryDisabled  *bool   `json:"live_query_disabled,omitempty"`
+	KolideServerURL   *string `json:"kolide_server_url,omitempty"`
+	EnrollSecret      *string `json:"osquery_enroll_secret,omitempty"`
+	LiveQueryDisabled *bool   `json:"live_query_disabled,omitempty"`
 }
 
 // HostExpirySettings contains settings pertaining to automatic host expiry.
 type HostExpirySettings struct {
 	HostExpiryEnabled *bool `json:"host_expiry_enabled,omitempty"`
 	HostExpiryWindow  *int  `json:"host_expiry_window,omitempty"`
+}
+
+type HostSettings struct {
+	AdditionalQueries *json.RawMessage `json:"additional_queries"`
 }
 
 type OrderDirection int
