@@ -269,7 +269,8 @@ func (d *Datastore) Label(lid uint) (*kolide.Label, error) {
 // ListLabels returns all labels limited or sorted  by kolide.ListOptions
 func (d *Datastore) ListLabels(opt kolide.ListOptions) ([]*kolide.Label, error) {
 	query := `
-		SELECT * FROM labels WHERE NOT deleted
+		SELECT *, (SELECT COUNT(1) FROM label_membership WHERE label_id = id) AS host_count
+		FROM labels WHERE NOT deleted
 	`
 	query = appendListOptionsToSQL(query, opt)
 	labels := []*kolide.Label{}
@@ -461,7 +462,7 @@ func (d *Datastore) searchLabelsWithOmits(query string, omit ...uint) ([]kolide.
 	transformedQuery := transformQuery(query)
 
 	sqlStatement := `
-		SELECT *
+		SELECT *, (SELECT COUNT(1) FROM label_membership WHERE label_id = id) AS host_count
 		FROM labels
 		WHERE (
 			MATCH(name) AGAINST(? IN BOOLEAN MODE)
@@ -498,7 +499,7 @@ func (d *Datastore) searchLabelsWithOmits(query string, omit ...uint) ([]kolide.
 // add it, sometimes it's not so we explicitly add it.
 func (d *Datastore) addAllHostsLabelToList(labels []kolide.Label, omit ...uint) ([]kolide.Label, error) {
 	sqlStatement := `
-		SELECT *
+		SELECT *, (SELECT COUNT(1) FROM label_membership WHERE label_id = id) AS host_count
 		FROM labels
 		WHERE
 		  label_type=?
@@ -529,10 +530,11 @@ func (d *Datastore) addAllHostsLabelToList(labels []kolide.Label, omit ...uint) 
 
 func (d *Datastore) searchLabelsDefault(omit ...uint) ([]kolide.Label, error) {
 	sqlStatement := `
-	SELECT *
+	SELECT *, (SELECT COUNT(1) FROM label_membership WHERE label_id = id) AS host_count
 	FROM labels
 	WHERE NOT deleted
 	AND id NOT IN (?)
+	GROUP BY id
 	ORDER BY label_type DESC, id ASC
 	LIMIT 5
 	`
@@ -581,7 +583,7 @@ func (d *Datastore) SearchLabels(query string, omit ...uint) ([]kolide.Label, er
 	// if additional label types are added. Ordering next by ID ensures
 	// that the order is always consistent.
 	sqlStatement := `
-		SELECT *
+		SELECT *, (SELECT COUNT(1) FROM label_membership WHERE label_id = id) AS host_count
 		FROM labels
 		WHERE (
 			MATCH(name) AGAINST(? IN BOOLEAN MODE)

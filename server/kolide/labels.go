@@ -175,6 +175,7 @@ type Label struct {
 	Platform            string              `json:"platform"`
 	LabelType           LabelType           `json:"label_type" db:"label_type"`
 	LabelMembershipType LabelMembershipType `json:"label_membership_type" db:"label_membership_type"`
+	HostCount           int                 `json:"host_count" db:"host_count"`
 }
 
 type LabelQueryExecution struct {

@@ -13,12 +13,9 @@ type getLabelRequest struct {
 
 type labelResponse struct {
 	kolide.Label
-	DisplayText     string `json:"display_text"`
-	Count           uint   `json:"count"`
-	Online          uint   `json:"online"`
-	Offline         uint   `json:"offline"`
-	MissingInAction uint   `json:"missing_in_action"`
-	HostIDs         []uint `json:"host_ids"`
+	DisplayText string `json:"display_text"`
+	Count       int    `json:"count"`
+	HostIDs     []uint `json:"host_ids"`
 }
 
 type getLabelResponse struct {
@@ -29,17 +26,10 @@ type getLabelResponse struct {
 func (r getLabelResponse) error() error { return r.Err }
 
 func labelResponseForLabel(ctx context.Context, svc kolide.Service, label *kolide.Label) (*labelResponse, error) {
-	metrics, err := svc.CountHostsInTargets(ctx, nil, []uint{label.ID})
-	if err != nil {
-		return nil, err
-	}
 	return &labelResponse{
-		Label:           *label,
-		DisplayText:     label.Name,
-		Count:           metrics.TotalHosts,
-		Online:          metrics.OnlineHosts,
-		Offline:         metrics.OfflineHosts,
-		MissingInAction: metrics.MissingInActionHosts,
+		Label:       *label,
+		DisplayText: label.Name,
+		Count:       label.HostCount,
 	}, nil
 }
 

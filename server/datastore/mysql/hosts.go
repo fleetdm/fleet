@@ -356,13 +356,8 @@ func (d *Datastore) searchHostsWithOmits(query string, omit ...uint) ([]*kolide.
 		FROM hosts
 		WHERE
 		(
-			id IN (
-				SELECT id
-				FROM hosts
-				WHERE
-				MATCH (host_name, uuid) AGAINST (? IN BOOLEAN MODE)
-				OR MATCH (primary_ip, primary_mac) AGAINST (? IN BOOLEAN MODE)
-			)
+			MATCH (host_name, uuid) AGAINST (? IN BOOLEAN MODE)
+			OR MATCH (primary_ip, primary_mac) AGAINST (? IN BOOLEAN MODE)
 		)
 		AND NOT deleted
 		AND id NOT IN (?)
@@ -437,13 +432,8 @@ func (d *Datastore) SearchHosts(query string, omit ...uint) ([]*kolide.Host, err
 		FROM hosts
 		WHERE
 		(
-			id IN (
-				SELECT id
-				FROM hosts
-				WHERE
-				MATCH (host_name, uuid) AGAINST (? IN BOOLEAN MODE)
-				OR MATCH (primary_ip, primary_mac) AGAINST (? IN BOOLEAN MODE)
-			)
+			MATCH (host_name, uuid) AGAINST (? IN BOOLEAN MODE)
+			OR MATCH (primary_ip, primary_mac) AGAINST (? IN BOOLEAN MODE)
 		)
 		AND NOT deleted
 		LIMIT 10

@@ -4,6 +4,7 @@ import { difference } from 'lodash';
 import Select from 'react-select';
 import 'react-select/dist/react-select.css';
 
+import debounce from 'utilities/debounce';
 import targetInterface from 'interfaces/target';
 
 class SelectTargetsInput extends Component {
@@ -27,6 +28,12 @@ class SelectTargetsInput extends Component {
     return difference(options, selectedTargets);
   }
 
+  handleInputChange = debounce((query) => {
+    const { onTargetSelectInputChange } = this.props;
+    onTargetSelectInputChange(query);
+  },
+  { leading: false, trailing: true })
+
   render () {
     const {
       className,
@@ -37,10 +44,11 @@ class SelectTargetsInput extends Component {
       onOpen,
       onFocus,
       onTargetSelect,
-      onTargetSelectInputChange,
       selectedTargets,
       targets,
     } = this.props;
+
+    const { handleInputChange } = this;
 
     return (
       <Select
@@ -57,7 +65,7 @@ class SelectTargetsInput extends Component {
         onClose={onClose}
         onOpen={onOpen}
         onFocus={onFocus}
-        onInputChange={onTargetSelectInputChange}
+        onInputChange={handleInputChange}
         placeholder="Label Name, Host Name, IP Address, etc."
         resetValue={[]}
         scrollMenuIntoView={false}
