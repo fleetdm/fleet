@@ -19,11 +19,12 @@ type specMetadata struct {
 }
 
 type specGroup struct {
-	Queries   []*kolide.QuerySpec
-	Packs     []*kolide.PackSpec
-	Labels    []*kolide.LabelSpec
-	Options   *kolide.OptionsSpec
-	AppConfig *kolide.AppConfigPayload
+	Queries      []*kolide.QuerySpec
+	Packs        []*kolide.PackSpec
+	Labels       []*kolide.LabelSpec
+	Options      *kolide.OptionsSpec
+	AppConfig    *kolide.AppConfigPayload
+	EnrollSecret *kolide.EnrollSecretSpec
 }
 
 func specGroupFromBytes(b []byte) (*specGroup, error) {
@@ -90,6 +91,17 @@ func specGroupFromBytes(b []byte) (*specGroup, error) {
 				return nil, errors.Wrap(err, "unmarshaling config spec")
 			}
 			specs.AppConfig = appConfigSpec
+
+		case "enroll_secret":
+			if specs.AppConfig != nil {
+				return nil, errors.New("enroll_secret defined twice in the same file")
+			}
+
+			var enrollSecretSpec *kolide.EnrollSecretSpec
+			if err := yaml.Unmarshal(s.Spec, &enrollSecretSpec); err != nil {
+				return nil, errors.Wrap(err, "unmarshaling enroll secret spec")
+			}
+			specs.EnrollSecret = enrollSecretSpec
 
 		default:
 			return nil, errors.Errorf("unknown kind %q", s.Kind)
@@ -178,6 +190,14 @@ func applyCommand() cli.Command {
 					return errors.Wrap(err, "applying fleet config")
 				}
 				fmt.Printf("[+] applied fleet config\n")
+
+			}
+
+			if specs.EnrollSecret != nil {
+				if err := fleet.ApplyEnrollSecretSpec(specs.EnrollSecret); err != nil {
+					return errors.Wrap(err, "applying enroll secrets")
+				}
+				fmt.Printf("[+] applied enroll secrets\n")
 
 			}
 

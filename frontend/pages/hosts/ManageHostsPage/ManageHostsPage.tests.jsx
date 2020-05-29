@@ -56,6 +56,7 @@ describe('ManageHostsPage - component', () => {
     loadingLabels: false,
     selectedOsqueryTable: stubbedOsqueryTable,
     statusLabels: {},
+    enrollSecret: [],
   };
 
   beforeEach(() => {

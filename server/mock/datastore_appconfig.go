@@ -12,6 +12,12 @@ type AppConfigFunc func() (*kolide.AppConfig, error)
 
 type SaveAppConfigFunc func(info *kolide.AppConfig) error
 
+type VerifyEnrollSecretFunc func(secret string) (string, error)
+
+type ApplyEnrollSecretSpecFunc func(spec *kolide.EnrollSecretSpec) error
+
+type GetEnrollSecretSpecFunc func() (*kolide.EnrollSecretSpec, error)
+
 type AppConfigStore struct {
 	NewAppConfigFunc        NewAppConfigFunc
 	NewAppConfigFuncInvoked bool
@@ -21,6 +27,15 @@ type AppConfigStore struct {
 
 	SaveAppConfigFunc        SaveAppConfigFunc
 	SaveAppConfigFuncInvoked bool
+
+	VerifyEnrollSecretFunc        VerifyEnrollSecretFunc
+	VerifyEnrollSecretFuncInvoked bool
+
+	ApplyEnrollSecretSpecFunc        ApplyEnrollSecretSpecFunc
+	ApplyEnrollSecretSpecFuncInvoked bool
+
+	GetEnrollSecretSpecFunc        GetEnrollSecretSpecFunc
+	GetEnrollSecretSpecFuncInvoked bool
 }
 
 func (s *AppConfigStore) NewAppConfig(info *kolide.AppConfig) (*kolide.AppConfig, error) {
@@ -36,4 +51,19 @@ func (s *AppConfigStore) AppConfig() (*kolide.AppConfig, error) {
 func (s *AppConfigStore) SaveAppConfig(info *kolide.AppConfig) error {
 	s.SaveAppConfigFuncInvoked = true
 	return s.SaveAppConfigFunc(info)
+}
+
+func (s *AppConfigStore) VerifyEnrollSecret(secret string) (string, error) {
+	s.VerifyEnrollSecretFuncInvoked = true
+	return s.VerifyEnrollSecretFunc(secret)
+}
+
+func (s *AppConfigStore) ApplyEnrollSecretSpec(spec *kolide.EnrollSecretSpec) error {
+	s.ApplyEnrollSecretSpecFuncInvoked = true
+	return s.ApplyEnrollSecretSpecFunc(spec)
+}
+
+func (s *AppConfigStore) GetEnrollSecretSpec() (*kolide.EnrollSecretSpec, error) {
+	s.GetEnrollSecretSpecFuncInvoked = true
+	return s.GetEnrollSecretSpecFunc()
 }

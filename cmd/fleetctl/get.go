@@ -392,8 +392,9 @@ func getOptionsCommand() cli.Command {
 
 func getEnrollSecretCommand() cli.Command {
 	return cli.Command{
-		Name:  "enroll-secret",
-		Usage: "Retrieve the osquery enroll secret",
+		Name:    "enroll_secret",
+		Aliases: []string{"enroll_secrets", "enroll-secret", "enroll-secrets"},
+		Usage:   "Retrieve the osquery enroll secrets",
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
@@ -404,16 +405,23 @@ func getEnrollSecretCommand() cli.Command {
 				return err
 			}
 
-			settings, err := fleet.GetServerSettings()
+			secrets, err := fleet.GetEnrollSecretSpec()
 			if err != nil {
 				return err
 			}
-			if settings == nil {
-				return errors.New("error: server setting were nil")
+
+			spec := specGeneric{
+				Kind:    "enroll_secret",
+				Version: kolide.ApiVersion,
+				Spec:    secrets,
 			}
 
-			fmt.Println(*settings.EnrollSecret)
+			b, err := yaml.Marshal(spec)
+			if err != nil {
+				return err
+			}
 
+			fmt.Print(string(b))
 			return nil
 		},
 	}

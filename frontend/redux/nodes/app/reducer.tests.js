@@ -2,12 +2,15 @@ import expect from 'expect';
 
 import reducer, { initialState } from './reducer';
 import {
+  loadConfig,
   configFailure,
   configSuccess,
+  loadEnrollSecret,
+  enrollSecretFailure,
+  enrollSecretSuccess,
   hideBackgroundImage,
   showBackgroundImage,
   toggleSmallNav,
-  loadConfig,
 } from './actions';
 
 describe('App - reducer', () => {
@@ -76,6 +79,7 @@ describe('App - reducer', () => {
       };
       expect(reducer(loadingConfigState, configSuccess(config))).toEqual({
         config,
+        enrollSecret: [],
         error: {},
         loading: false,
         isSmallNav: false,
@@ -92,6 +96,52 @@ describe('App - reducer', () => {
         loading: true,
       };
       expect(reducer(loadingConfigState, configFailure(error))).toEqual({
+        config: {},
+        enrollSecret: [],
+        error,
+        loading: false,
+        isSmallNav: false,
+        showBackgroundImage: false,
+      });
+    });
+  });
+
+  context('loadEnrollSecret action', () => {
+    it('sets the state to loading', () => {
+      expect(reducer(initialState, loadEnrollSecret)).toEqual({
+        ...initialState,
+        loading: true,
+      });
+    });
+  });
+
+  context('enrollSecretSuccess action', () => {
+    it('sets the enrollSecret in state', () => {
+      const enrollSecret = [{ name: 'Kolide' }];
+      const loadingEnrollSecretState = {
+        ...initialState,
+        loading: true,
+      };
+      expect(reducer(loadingEnrollSecretState, enrollSecretSuccess(enrollSecret))).toEqual({
+        enrollSecret,
+        config: {},
+        error: {},
+        loading: false,
+        isSmallNav: false,
+        showBackgroundImage: false,
+      });
+    });
+  });
+
+  context('enrollSecretFailure action', () => {
+    it('sets the error in state', () => {
+      const error = 'Unable to get enrollSecret';
+      const loadingEnrollSecretState = {
+        ...initialState,
+        loading: true,
+      };
+      expect(reducer(loadingEnrollSecretState, enrollSecretFailure(error))).toEqual({
+        enrollSecret: [],
         config: {},
         error,
         loading: false,

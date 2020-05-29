@@ -6,6 +6,9 @@ import { frontendFormattedConfig } from 'redux/nodes/app/helpers';
 export const CONFIG_FAILURE = 'CONFIG_FAILURE';
 export const CONFIG_START = 'CONFIG_START';
 export const CONFIG_SUCCESS = 'CONFIG_SUCCESS';
+export const ENROLL_SECRET_FAILURE = 'ENROLL_SECRET_FAILURE';
+export const ENROLL_SECRET_START = 'ENROLL_SECRET_START';
+export const ENROLL_SECRET_SUCCESS = 'ENROLL_SECRET_SUCCESS';
 export const SHOW_BACKGROUND_IMAGE = 'SHOW_BACKGROUND_IMAGE';
 export const HIDE_BACKGROUND_IMAGE = 'HIDE_BACKGROUND_IMAGE';
 export const TOGGLE_SMALL_NAV = 'TOGGLE_SMALL_NAV';
@@ -25,6 +28,13 @@ export const configFailure = (error) => {
 export const loadConfig = { type: CONFIG_START };
 export const configSuccess = (data) => {
   return { type: CONFIG_SUCCESS, payload: { data } };
+};
+export const enrollSecretFailure = (error) => {
+  return { type: ENROLL_SECRET_FAILURE, payload: { error } };
+};
+export const loadEnrollSecret = { type: ENROLL_SECRET_START };
+export const enrollSecretSuccess = (data) => {
+  return { type: ENROLL_SECRET_SUCCESS, payload: { data } };
 };
 export const getConfig = () => {
   return (dispatch) => {
@@ -62,6 +72,25 @@ export const updateConfig = (configData) => {
         const formattedErrors = formatApiErrors(error);
 
         dispatch(configFailure(formattedErrors));
+
+        throw formattedErrors;
+      });
+  };
+};
+export const getEnrollSecret = () => {
+  return (dispatch) => {
+    dispatch(loadEnrollSecret);
+
+    return Kolide.config.loadEnrollSecret()
+      .then((secret) => {
+        dispatch(enrollSecretSuccess(secret.specs.secrets));
+
+        return secret;
+      })
+      .catch((error) => {
+        const formattedErrors = formatApiErrors(error);
+
+        dispatch(enrollSecretFailure(formattedErrors));
 
         throw formattedErrors;
       });

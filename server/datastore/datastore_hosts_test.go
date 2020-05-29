@@ -16,28 +16,27 @@ import (
 )
 
 var enrollTests = []struct {
-	uuid, hostname, platform string
-	nodeKeySize              int
+	uuid, hostname, platform, nodeKey string
 }{
 	0: {uuid: "6D14C88F-8ECF-48D5-9197-777647BF6B26",
-		hostname:    "web.kolide.co",
-		platform:    "linux",
-		nodeKeySize: 12,
+		hostname: "web.kolide.co",
+		platform: "linux",
+		nodeKey:  "key0",
 	},
 	1: {uuid: "B998C0EB-38CE-43B1-A743-FBD7A5C9513B",
-		hostname:    "mail.kolide.co",
-		platform:    "linux",
-		nodeKeySize: 10,
+		hostname: "mail.kolide.co",
+		platform: "linux",
+		nodeKey:  "key1",
 	},
 	2: {uuid: "008F0688-5311-4C59-86EE-00C2D6FC3EC2",
-		hostname:    "home.kolide.co",
-		platform:    "darwin",
-		nodeKeySize: 25,
+		hostname: "home.kolide.co",
+		platform: "darwin",
+		nodeKey:  "key2",
 	},
 	3: {uuid: "uuid123",
-		hostname:    "fakehostname",
-		platform:    "darwin",
-		nodeKeySize: 1,
+		hostname: "fakehostname",
+		platform: "darwin",
+		nodeKey:  "key3",
 	},
 }
 
@@ -259,7 +258,7 @@ func testListHost(t *testing.T, ds kolide.Datastore) {
 func testEnrollHost(t *testing.T, ds kolide.Datastore) {
 	var hosts []*kolide.Host
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollHost(tt.uuid, tt.nodeKeySize)
+		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, "default")
 		require.Nil(t, err)
 
 		hosts = append(hosts, h)
@@ -271,7 +270,7 @@ func testEnrollHost(t *testing.T, ds kolide.Datastore) {
 
 func testAuthenticateHost(t *testing.T, ds kolide.Datastore) {
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollHost(tt.uuid, tt.nodeKeySize)
+		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, "default")
 		require.Nil(t, err)
 
 		returned, err := ds.AuthenticateHost(h.NodeKey)

@@ -255,7 +255,6 @@ spec:
     org_name: Example Org
   server_settings:
     kolide_server_url: https://fleet.example.org:8080
-    osquery_enroll_secret: supersekretsecret
   smtp_settings:
     authentication_method: authmethod_plain
     authentication_type: authtype_username_password
@@ -291,3 +290,25 @@ The following options are available when configuring SMTP authentication:
   - `authmethod_cram_md5`
   - `authmethod_login`
   - `authmethod_plain`
+
+## Enroll Secrets
+
+The following file shows how to configure enroll secrets. Note that secrets can be changed or made inactive, but not deleted. Hosts may not enroll with inactive secrets.
+
+The name of the enroll secret used to authenticate is stored with the host and is included with API results.
+
+```yaml
+apiVersion: v1
+kind: enroll_secret
+spec:
+  secrets:
+  - active: true
+    name: default
+    secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
+  - active: true
+    name: new_one
+    secret: reallyworks
+  - active: false
+    name: inactive_secret
+    secret: thissecretwontwork!
+```

@@ -17,7 +17,7 @@ func testLabels(t *testing.T, db kolide.Datastore) {
 	var host *kolide.Host
 	var err error
 	for i := 0; i < 10; i++ {
-		host, err = db.EnrollHost(string(i), 10)
+		host, err = db.EnrollHost(string(i), string(i), "default")
 		require.Nil(t, err, "enrollment should succeed")
 		hosts = append(hosts, *host)
 	}

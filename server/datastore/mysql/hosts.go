@@ -172,7 +172,8 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 			distributed_interval = ?,
 			config_tls_refresh = ?,
 			logger_tls_period = ?,
-			additional = COALESCE(?, additional)
+			additional = COALESCE(?, additional),
+			enroll_secret_name = ?
 		WHERE id = ?
 	`
 	err := d.withRetryTxx(func(tx *sqlx.Tx) error {
@@ -205,6 +206,7 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 			host.ConfigTLSRefresh,
 			host.LoggerTLSPeriod,
 			host.Additional,
+			host.EnrollSecretName,
 			host.ID,
 		)
 		if err != nil {
@@ -260,7 +262,6 @@ func (d *Datastore) DeleteHost(hid uint) error {
 	return nil
 }
 
-// TODO needs test
 func (d *Datastore) Host(id uint) (*kolide.Host, error) {
 	sqlStatement := `
 		SELECT * FROM hosts
@@ -442,24 +443,20 @@ func (d *Datastore) getNetInterfacesForHost(host *kolide.Host) error {
 }
 
 // EnrollHost enrolls a host
-func (d *Datastore) EnrollHost(osqueryHostID string, nodeKeySize int) (*kolide.Host, error) {
+func (d *Datastore) EnrollHost(osqueryHostID, nodeKey, secretName string) (*kolide.Host, error) {
 	if osqueryHostID == "" {
 		return nil, fmt.Errorf("missing osquery host identifier")
 	}
 
 	detailUpdateTime := time.Unix(0, 0).Add(24 * time.Hour)
-	nodeKey, err := kolide.RandomText(nodeKeySize)
-	if err != nil {
-		return nil, errors.Wrap(err, "generating random text")
-	}
-
 	sqlInsert := `
 		INSERT INTO hosts (
 			detail_update_time,
 			osquery_host_id,
 			seen_time,
-			node_key
-		) VALUES (?, ?, ?, ?)
+			node_key,
+			enroll_secret_name
+		) VALUES (?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			node_key = VALUES(node_key),
 			deleted = FALSE
@@ -467,7 +464,7 @@ func (d *Datastore) EnrollHost(osqueryHostID string, nodeKeySize int) (*kolide.H
 
 	var result sql.Result
 
-	result, err = d.db.Exec(sqlInsert, detailUpdateTime, osqueryHostID, time.Now().UTC(), nodeKey)
+	result, err := d.db.Exec(sqlInsert, detailUpdateTime, osqueryHostID, time.Now().UTC(), nodeKey, secretName)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "inserting")
@@ -522,7 +519,8 @@ func (d *Datastore) AuthenticateHost(nodeKey string) (*kolide.Host, error) {
 			seen_time,
 			distributed_interval,
 			logger_tls_period,
-			config_tls_refresh
+			config_tls_refresh,
+			enroll_secret_name
 		FROM hosts
 		WHERE node_key = ? AND NOT deleted
 		LIMIT 1

@@ -11,6 +11,11 @@ describe('AppConfigForm - form', () => {
     formData: { org_name: 'Kolide' },
     handleSubmit: noop,
     smtpConfigured: false,
+    enrollSecret: [
+      { name: 'foo', secret: 'foo_secret', active: true },
+      { name: 'bar', secret: 'bar_secret', active: true },
+      { name: 'inactive', secret: 'inactive', active: false },
+    ],
   };
   const form = mount(<AppConfigForm {...defaultProps} />);
 
@@ -73,6 +78,13 @@ describe('AppConfigForm - form', () => {
       itBehavesLikeAFormInputElement(form, 'password');
     });
   });
+
+  describe('Enroll Secret', () => {
+    it('renders enroll secrets table', () => {
+      expect(form.find('EnrollSecretTable').length).toEqual(1);
+    });
+  });
+
 
   it('does not render advanced options by default', () => {
     expect(form.find({ name: 'domain' }).length).toEqual(0);

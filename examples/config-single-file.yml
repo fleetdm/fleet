@@ -69,6 +69,20 @@ spec:
             3600: "SELECT total_seconds AS uptime FROM uptime"
 ---
 apiVersion: v1
+kind: enroll_secret
+spec:
+  secrets:
+  - active: true
+    name: default
+    secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
+  - active: true
+    name: new_one
+    secret: reallyworks
+  - active: false
+    name: inactive_secret
+    secret: thissecretwontwork!
+---
+apiVersion: v1
 kind: label
 spec:
   name: pending_updates

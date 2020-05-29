@@ -36,6 +36,8 @@ type KolideEndpoints struct {
 	DeleteSession                         endpoint.Endpoint
 	GetAppConfig                          endpoint.Endpoint
 	ModifyAppConfig                       endpoint.Endpoint
+	ApplyEnrollSecretSpec                 endpoint.Endpoint
+	GetEnrollSecretSpec                   endpoint.Endpoint
 	CreateInvite                          endpoint.Endpoint
 	ListInvites                           endpoint.Endpoint
 	DeleteInvite                          endpoint.Endpoint
@@ -138,6 +140,8 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string) Kol
 		DeleteSession:                         authenticatedUser(jwtKey, svc, mustBeAdmin(makeDeleteSessionEndpoint(svc))),
 		GetAppConfig:                          authenticatedUser(jwtKey, svc, canPerformActions(makeGetAppConfigEndpoint(svc))),
 		ModifyAppConfig:                       authenticatedUser(jwtKey, svc, mustBeAdmin(makeModifyAppConfigEndpoint(svc))),
+		ApplyEnrollSecretSpec:                 authenticatedUser(jwtKey, svc, mustBeAdmin(makeApplyEnrollSecretSpecEndpoint(svc))),
+		GetEnrollSecretSpec:                   authenticatedUser(jwtKey, svc, canPerformActions(makeGetEnrollSecretSpecEndpoint(svc))),
 		CreateInvite:                          authenticatedUser(jwtKey, svc, mustBeAdmin(makeCreateInviteEndpoint(svc))),
 		ListInvites:                           authenticatedUser(jwtKey, svc, mustBeAdmin(makeListInvitesEndpoint(svc))),
 		DeleteInvite:                          authenticatedUser(jwtKey, svc, mustBeAdmin(makeDeleteInviteEndpoint(svc))),
@@ -225,6 +229,8 @@ type kolideHandlers struct {
 	DeleteSession                         http.Handler
 	GetAppConfig                          http.Handler
 	ModifyAppConfig                       http.Handler
+	ApplyEnrollSecretSpec                 http.Handler
+	GetEnrollSecretSpec                   http.Handler
 	CreateInvite                          http.Handler
 	ListInvites                           http.Handler
 	DeleteInvite                          http.Handler
@@ -315,6 +321,8 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		DeleteSession:                         newServer(e.DeleteSession, decodeDeleteSessionRequest),
 		GetAppConfig:                          newServer(e.GetAppConfig, decodeNoParamsRequest),
 		ModifyAppConfig:                       newServer(e.ModifyAppConfig, decodeModifyAppConfigRequest),
+		ApplyEnrollSecretSpec:                 newServer(e.ApplyEnrollSecretSpec, decodeApplyEnrollSecretSpecRequest),
+		GetEnrollSecretSpec:                   newServer(e.GetEnrollSecretSpec, decodeNoParamsRequest),
 		CreateInvite:                          newServer(e.CreateInvite, decodeCreateInviteRequest),
 		ListInvites:                           newServer(e.ListInvites, decodeListInvitesRequest),
 		DeleteInvite:                          newServer(e.DeleteInvite, decodeDeleteInviteRequest),
@@ -446,6 +454,8 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/config/certificate", h.GetCertificate).Methods("GET").Name("get_certificate")
 	r.Handle("/api/v1/kolide/config", h.GetAppConfig).Methods("GET").Name("get_app_config")
 	r.Handle("/api/v1/kolide/config", h.ModifyAppConfig).Methods("PATCH").Name("modify_app_config")
+	r.Handle("/api/v1/kolide/spec/enroll_secret", h.ApplyEnrollSecretSpec).Methods("POST").Name("apply_enroll_secret_spec")
+	r.Handle("/api/v1/kolide/spec/enroll_secret", h.GetEnrollSecretSpec).Methods("GET").Name("get_enroll_secret_spec")
 	r.Handle("/api/v1/kolide/invites", h.CreateInvite).Methods("POST").Name("create_invite")
 	r.Handle("/api/v1/kolide/invites", h.ListInvites).Methods("GET").Name("list_invites")
 	r.Handle("/api/v1/kolide/invites/{id}", h.DeleteInvite).Methods("DELETE").Name("delete_invite")

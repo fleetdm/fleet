@@ -34,12 +34,14 @@ const (
 )
 
 type HostStore interface {
+	// NewHost is deprecated and will be removed. Hosts should always be
+	// enrolled via EnrollHost.
 	NewHost(host *Host) (*Host, error)
 	SaveHost(host *Host) error
 	DeleteHost(hid uint) error
 	Host(id uint) (*Host, error)
 	ListHosts(opt ListOptions) ([]*Host, error)
-	EnrollHost(osqueryHostId string, nodeKeySize int) (*Host, error)
+	EnrollHost(osqueryHostId, nodeKey, secretName string) (*Host, error)
 	// AuthenticateHost authenticates and returns host metadata by node key.
 	// This method should not return the host "additional" information as this
 	// is not typically necessary for the operations performed by the osquery
@@ -113,6 +115,7 @@ type Host struct {
 	ConfigTLSRefresh          uint                `json:"config_tls_refresh" db:"config_tls_refresh"`
 	LoggerTLSPeriod           uint                `json:"logger_tls_period" db:"logger_tls_period"`
 	Additional                *json.RawMessage    `json:"additional,omitempty" db:"additional"`
+	EnrollSecretName          string              `json:"enroll_secret_name" db:"enroll_secret_name"`
 }
 
 // HostSummary is a structure which represents a data summary about the total

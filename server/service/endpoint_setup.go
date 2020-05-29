@@ -42,9 +42,6 @@ func makeSetupEndpoint(svc kolide.Service) endpoint.Endpoint {
 		if req.KolideServerURL != nil {
 			configPayload.ServerSettings.KolideServerURL = req.KolideServerURL
 		}
-		if req.EnrollSecret != nil {
-			configPayload.ServerSettings.EnrollSecret = req.EnrollSecret
-		}
 		config, err = svc.NewAppConfig(ctx, configPayload)
 		if err != nil {
 			return setupResponse{Err: err}, nil
@@ -81,7 +78,6 @@ func makeSetupEndpoint(svc kolide.Service) endpoint.Endpoint {
 				OrgLogoURL: &config.OrgLogoURL,
 			},
 			KolideServerURL: &config.KolideServerURL,
-			EnrollSecret:    &config.EnrollSecret,
 			Token:           token,
 		}, nil
 	}

@@ -72,18 +72,25 @@ func (svc service) AuthenticateHost(ctx context.Context, nodeKey string) (*kolid
 }
 
 func (svc service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
-	config, err := svc.ds.AppConfig()
+	secretName, err := svc.ds.VerifyEnrollSecret(enrollSecret)
 	if err != nil {
-		return "", osqueryError{message: "getting enroll secret: " + err.Error(), nodeInvalid: true}
+		return "", osqueryError{
+			message:     "enroll failed: " + err.Error(),
+			nodeInvalid: true,
+		}
 	}
 
-	if enrollSecret != config.EnrollSecret {
-		return "", osqueryError{message: "invalid enroll secret", nodeInvalid: true}
+	nodeKey, err := kolide.RandomText(svc.config.Osquery.NodeKeySize)
+	if err != nil {
+		return "", osqueryError{
+			message:     "generate node key failed: " + err.Error(),
+			nodeInvalid: true,
+		}
 	}
 
-	host, err := svc.ds.EnrollHost(hostIdentifier, svc.config.Osquery.NodeKeySize)
+	host, err := svc.ds.EnrollHost(hostIdentifier, nodeKey, secretName)
 	if err != nil {
-		return "", osqueryError{message: "enrollment failed: " + err.Error(), nodeInvalid: true}
+		return "", osqueryError{message: "save enroll failed: " + err.Error(), nodeInvalid: true}
 	}
 
 	// Save enrollment details if provided

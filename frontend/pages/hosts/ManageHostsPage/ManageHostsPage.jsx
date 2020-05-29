@@ -22,6 +22,7 @@ import labelInterface from 'interfaces/label';
 import hostInterface from 'interfaces/host';
 import osqueryTableInterface from 'interfaces/osquery_table';
 import statusLabelsInterface from 'interfaces/status_labels';
+import enrollSecretInterface from 'interfaces/enroll_secret';
 import { selectOsqueryTable } from 'redux/nodes/components/QueryPages/actions';
 import { getStatusLabelCounts, setDisplay, silentGetStatusLabelCounts } from 'redux/nodes/components/ManageHostsPage/actions';
 import hostActions from 'redux/nodes/entities/hosts/actions';
@@ -51,7 +52,7 @@ export class ManageHostsPage extends PureComponent {
     labels: PropTypes.arrayOf(labelInterface),
     loadingHosts: PropTypes.bool.isRequired,
     loadingLabels: PropTypes.bool.isRequired,
-    osqueryEnrollSecret: PropTypes.string,
+    enrollSecret: enrollSecretInterface,
     selectedLabel: labelInterface,
     selectedOsqueryTable: osqueryTableInterface,
     statusLabels: statusLabelsInterface,
@@ -356,7 +357,7 @@ export class ManageHostsPage extends PureComponent {
   renderAddHostModal = () => {
     const { onFetchCertificate, toggleAddHostModal } = this;
     const { showAddHostModal } = this.state;
-    const { dispatch, osqueryEnrollSecret } = this.props;
+    const { enrollSecret } = this.props;
 
     if (!showAddHostModal) {
       return false;
@@ -369,10 +370,9 @@ export class ManageHostsPage extends PureComponent {
         className={`${baseClass}__invite-modal`}
       >
         <AddHostModal
-          dispatch={dispatch}
           onFetchCertificate={onFetchCertificate}
           onReturnToApp={toggleAddHostModal}
-          osqueryEnrollSecret={osqueryEnrollSecret}
+          enrollSecret={enrollSecret}
         />
       </Modal>
     );
@@ -676,7 +676,7 @@ const mapStateToProps = (state, { location, params }) => {
   const { selectedOsqueryTable } = state.components.QueryPages;
   const { errors: labelErrors, loading: loadingLabels } = state.entities.labels;
   const { loading: loadingHosts } = state.entities.hosts;
-  const { osquery_enroll_secret: osqueryEnrollSecret } = state.app.config;
+  const enrollSecret = state.app.enrollSecret;
 
   return {
     display,
@@ -686,7 +686,7 @@ const mapStateToProps = (state, { location, params }) => {
     labels,
     loadingHosts,
     loadingLabels,
-    osqueryEnrollSecret,
+    enrollSecret,
     selectedLabel,
     selectedOsqueryTable,
     statusLabels,

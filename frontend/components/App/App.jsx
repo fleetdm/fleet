@@ -6,7 +6,7 @@ import classnames from 'classnames';
 
 import { authToken } from 'utilities/local';
 import { fetchCurrentUser } from 'redux/nodes/auth/actions';
-import { getConfig } from 'redux/nodes/app/actions';
+import { getConfig, getEnrollSecret } from 'redux/nodes/app/actions';
 import userInterface from 'interfaces/user';
 
 export class App extends Component {
@@ -32,6 +32,8 @@ export class App extends Component {
     if (user) {
       dispatch(getConfig())
         .catch(() => false);
+      dispatch(getEnrollSecret())
+        .catch(() => false);
     }
 
     return false;
@@ -42,6 +44,8 @@ export class App extends Component {
 
     if (user && this.props.user !== user) {
       dispatch(getConfig())
+        .catch(() => false);
+      dispatch(getEnrollSecret())
         .catch(() => false);
     }
   }

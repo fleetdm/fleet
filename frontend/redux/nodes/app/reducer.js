@@ -2,6 +2,9 @@ import {
   CONFIG_FAILURE,
   CONFIG_START,
   CONFIG_SUCCESS,
+  ENROLL_SECRET_FAILURE,
+  ENROLL_SECRET_START,
+  ENROLL_SECRET_SUCCESS,
   HIDE_BACKGROUND_IMAGE,
   SHOW_BACKGROUND_IMAGE,
   TOGGLE_SMALL_NAV,
@@ -9,6 +12,7 @@ import {
 
 export const initialState = {
   config: {},
+  enrollSecret: [],
   error: {},
   isSmallNav: false,
   loading: false,
@@ -30,6 +34,24 @@ const reducer = (state = initialState, { type, payload }) => {
         loading: false,
       };
     case CONFIG_FAILURE:
+      return {
+        ...state,
+        error: payload.error,
+        loading: false,
+      };
+    case ENROLL_SECRET_START:
+      return {
+        ...state,
+        loading: true,
+      };
+    case ENROLL_SECRET_SUCCESS:
+      return {
+        ...state,
+        enrollSecret: payload.data,
+        error: {},
+        loading: false,
+      };
+    case ENROLL_SECRET_FAILURE:
       return {
         ...state,
         error: payload.error,

@@ -16,6 +16,11 @@ export default (client) => {
       return client.authenticatedGet(endpoint)
         .then(response => global.window.atob(response.certificate_chain));
     },
+    loadEnrollSecret: () => {
+      const endpoint = client._endpoint('/v1/kolide/spec/enroll_secret');
+
+      return client.authenticatedGet(endpoint);
+    },
     update: (formData) => {
       const { CONFIG } = endpoints;
       const configData = helpers.formatConfigDataForServer(formData);

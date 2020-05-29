@@ -24,42 +24,66 @@ import (
 )
 
 func TestEnrollAgent(t *testing.T) {
-	ds, svc, _ := setupOsqueryTests(t)
-	ctx := context.Background()
+	ds := new(mock.Store)
+	ds.VerifyEnrollSecretFunc = func(secret string) (string, error) {
+		switch secret {
+		case "valid_secret":
+			return "valid", nil
+		default:
+			return "", errors.New("not found")
+		}
+	}
+	ds.EnrollHostFunc = func(osqueryHostId, nodeKey, secretName string) (*kolide.Host, error) {
+		return &kolide.Host{
+			OsqueryHostID: osqueryHostId, NodeKey: nodeKey, EnrollSecretName: secretName,
+		}, nil
+	}
 
-	hosts, err := ds.ListHosts(kolide.ListOptions{})
-	assert.Nil(t, err)
-	assert.Len(t, hosts, 0)
+	svc, err := newTestService(ds, nil)
+	require.Nil(t, err)
 
-	nodeKey, err := svc.EnrollAgent(ctx, "", "host123", nil)
+	nodeKey, err := svc.EnrollAgent(context.Background(), "valid_secret", "host123", nil)
 	require.Nil(t, err)
 	assert.NotEmpty(t, nodeKey)
-
-	hosts, err = ds.ListHosts(kolide.ListOptions{})
-	assert.Nil(t, err)
-	assert.Len(t, hosts, 1)
 }
 
 func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
-	ds, svc, _ := setupOsqueryTests(t)
-	ctx := context.Background()
+	ds := new(mock.Store)
+	ds.VerifyEnrollSecretFunc = func(secret string) (string, error) {
+		switch secret {
+		case "valid_secret":
+			return "valid", nil
+		default:
+			return "", errors.New("not found")
+		}
+	}
 
-	hosts, err := ds.ListHosts(kolide.ListOptions{})
-	assert.Nil(t, err)
-	assert.Len(t, hosts, 0)
+	svc, err := newTestService(ds, nil)
+	require.Nil(t, err)
 
-	nodeKey, err := svc.EnrollAgent(ctx, "not_correct", "host123", nil)
+	nodeKey, err := svc.EnrollAgent(context.Background(), "not_correct", "host123", nil)
 	assert.NotNil(t, err)
 	assert.Empty(t, nodeKey)
-
-	hosts, err = ds.ListHosts(kolide.ListOptions{})
-	assert.Nil(t, err)
-	assert.Len(t, hosts, 0)
 }
 
 func TestEnrollAgentDetails(t *testing.T) {
-	ds, svc, _ := setupOsqueryTests(t)
-	ctx := context.Background()
+	ds := new(mock.Store)
+	ds.VerifyEnrollSecretFunc = func(secret string) (string, error) {
+		return "valid", nil
+	}
+	ds.EnrollHostFunc = func(osqueryHostId, nodeKey, secretName string) (*kolide.Host, error) {
+		return &kolide.Host{
+			OsqueryHostID: osqueryHostId, NodeKey: nodeKey, EnrollSecretName: secretName,
+		}, nil
+	}
+	var gotHost *kolide.Host
+	ds.SaveHostFunc = func(host *kolide.Host) error {
+		gotHost = host
+		return nil
+	}
+
+	svc, err := newTestService(ds, nil)
+	require.Nil(t, err)
 
 	details := map[string](map[string]string){
 		"osquery_info": {"version": "2.12.0"},
@@ -73,48 +97,51 @@ func TestEnrollAgentDetails(t *testing.T) {
 		},
 		"foo": {"foo": "bar"},
 	}
-	nodeKey, err := svc.EnrollAgent(ctx, "", "host123", details)
+	nodeKey, err := svc.EnrollAgent(context.Background(), "", "host123", details)
 	require.Nil(t, err)
 	assert.NotEmpty(t, nodeKey)
 
-	hosts, err := ds.ListHosts(kolide.ListOptions{})
-	require.Nil(t, err)
-	require.Len(t, hosts, 1)
-
-	h := hosts[0]
-	assert.Equal(t, "Mac OS X 10.14.5", h.OSVersion)
-	assert.Equal(t, "darwin", h.Platform)
-	assert.Equal(t, "2.12.0", h.OsqueryVersion)
-	assert.Equal(t, "zwass.local", h.HostName)
-	assert.Equal(t, "froobling_uuid", h.UUID)
+	assert.Equal(t, "Mac OS X 10.14.5", gotHost.OSVersion)
+	assert.Equal(t, "darwin", gotHost.Platform)
+	assert.Equal(t, "2.12.0", gotHost.OsqueryVersion)
+	assert.Equal(t, "zwass.local", gotHost.HostName)
+	assert.Equal(t, "froobling_uuid", gotHost.UUID)
+	assert.Equal(t, "valid", gotHost.EnrollSecretName)
 }
 
 func TestAuthenticateHost(t *testing.T) {
-	ds, svc, mockClock := setupOsqueryTests(t)
-	ctx := context.Background()
-
-	nodeKey, err := svc.EnrollAgent(ctx, "", "host123", nil)
+	ds := new(mock.Store)
+	svc, err := newTestService(ds, nil)
 	require.Nil(t, err)
 
-	mockClock.AddTime(1 * time.Minute)
+	var gotKey string
+	host := kolide.Host{HostName: "foobar"}
+	ds.AuthenticateHostFunc = func(key string) (*kolide.Host, error) {
+		gotKey = key
+		return &host, nil
+	}
+	ds.MarkHostSeenFunc = func(host *kolide.Host, t time.Time) error {
+		return nil
+	}
 
-	host, err := svc.AuthenticateHost(ctx, nodeKey)
+	h, err := svc.AuthenticateHost(context.Background(), "test")
+	require.Nil(t, err)
+	assert.Equal(t, "test", gotKey)
+	assert.True(t, ds.MarkHostSeenFuncInvoked)
+	assert.Equal(t, host, *h)
+}
+
+func TestAuthenticateHostFailure(t *testing.T) {
+	ds := new(mock.Store)
+	svc, err := newTestService(ds, nil)
 	require.Nil(t, err)
 
-	// Verify that the update time is set appropriately
-	checkHost, err := ds.Host(host.ID)
-	require.Nil(t, err)
-	assert.Equal(t, mockClock.Now(), checkHost.UpdatedAt)
+	ds.AuthenticateHostFunc = func(key string) (*kolide.Host, error) {
+		return nil, errors.New("not found")
+	}
 
-	// Advance clock time and check that seen time is updated
-	mockClock.AddTime(1*time.Minute + 27*time.Second)
-
-	_, err = svc.AuthenticateHost(ctx, nodeKey)
-	require.Nil(t, err)
-
-	checkHost, err = ds.Host(host.ID)
-	require.Nil(t, err)
-	assert.Equal(t, mockClock.Now(), checkHost.UpdatedAt)
+	_, err = svc.AuthenticateHost(context.Background(), "test")
+	require.NotNil(t, err)
 }
 
 type testJSONLogger struct {
@@ -127,17 +154,9 @@ func (n *testJSONLogger) Write(ctx context.Context, logs []json.RawMessage) erro
 }
 
 func TestSubmitStatusLogs(t *testing.T) {
-	ds, svc, _ := setupOsqueryTests(t)
-	ctx := context.Background()
-
-	_, err := svc.EnrollAgent(ctx, "", "host123", nil)
+	ds := new(mock.Store)
+	svc, err := newTestService(ds, nil)
 	require.Nil(t, err)
-
-	hosts, err := ds.ListHosts(kolide.ListOptions{})
-	require.Nil(t, err)
-	require.Len(t, hosts, 1)
-	host := hosts[0]
-	ctx = hostctx.NewContext(ctx, *host)
 
 	// Hack to get at the service internals and modify the writer
 	serv := ((svc.(validationMiddleware)).Service).(service)
@@ -155,6 +174,8 @@ func TestSubmitStatusLogs(t *testing.T) {
 	err = json.Unmarshal([]byte(logJSON), &status)
 	require.Nil(t, err)
 
+	host := kolide.Host{}
+	ctx := hostctx.NewContext(context.Background(), host)
 	err = serv.SubmitStatusLogs(ctx, status)
 	assert.Nil(t, err)
 
@@ -162,17 +183,9 @@ func TestSubmitStatusLogs(t *testing.T) {
 }
 
 func TestSubmitResultLogs(t *testing.T) {
-	ds, svc, _ := setupOsqueryTests(t)
-	ctx := context.Background()
-
-	_, err := svc.EnrollAgent(ctx, "", "host123", nil)
+	ds := new(mock.Store)
+	svc, err := newTestService(ds, nil)
 	require.Nil(t, err)
-
-	hosts, err := ds.ListHosts(kolide.ListOptions{})
-	require.Nil(t, err)
-	require.Len(t, hosts, 1)
-	host := hosts[0]
-	ctx = hostctx.NewContext(ctx, *host)
 
 	// Hack to get at the service internals and modify the writer
 	serv := ((svc.(validationMiddleware)).Service).(service)
@@ -194,6 +207,8 @@ func TestSubmitResultLogs(t *testing.T) {
 	err = json.Unmarshal([]byte(logJSON), &results)
 	require.Nil(t, err)
 
+	host := kolide.Host{}
+	ctx := hostctx.NewContext(context.Background(), host)
 	err = serv.SubmitResultLogs(ctx, results)
 	assert.Nil(t, err)
 
@@ -496,16 +511,23 @@ func TestGetClientConfig(t *testing.T) {
 }
 
 func TestDetailQueriesWithEmptyStrings(t *testing.T) {
-	ds, svc, mockClock := setupOsqueryTests(t)
-	ctx := context.Background()
-
-	nodeKey, err := svc.EnrollAgent(ctx, "", "host123", nil)
-	assert.Nil(t, err)
-
-	host, err := ds.AuthenticateHost(nodeKey)
+	ds := new(mock.Store)
+	mockClock := clock.NewMockClock()
+	svc, err := newTestServiceWithClock(ds, nil, mockClock)
 	require.Nil(t, err)
 
-	ctx = hostctx.NewContext(ctx, *host)
+	host := kolide.Host{}
+	ctx := hostctx.NewContext(context.Background(), host)
+
+	ds.AppConfigFunc = func() (*kolide.AppConfig, error) {
+		return &kolide.AppConfig{}, nil
+	}
+	ds.LabelQueriesForHostFunc = func(*kolide.Host, time.Time) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	ds.DistributedQueriesForHostFunc = func(*kolide.Host) (map[uint]string, error) {
+		return map[uint]string{}, nil
+	}
 
 	// With a new host, we should get the detail queries (and accelerated
 	// queries)
@@ -606,39 +628,41 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	err = json.Unmarshal([]byte(resultJSON), &results)
 	require.Nil(t, err)
 
+	var gotHost *kolide.Host
+	ds.SaveHostFunc = func(host *kolide.Host) error {
+		gotHost = host
+		return nil
+	}
+
 	// Verify that results are ingested properly
 	svc.SubmitDistributedQueryResults(ctx, results, map[string]kolide.OsqueryStatus{})
 
-	// Make sure the result saved to the datastore
-	host, err = ds.AuthenticateHost(nodeKey)
-	require.Nil(t, err)
-
 	// osquery_info
-	assert.Equal(t, "darwin", host.Platform)
-	assert.Equal(t, "1.8.2", host.OsqueryVersion)
+	assert.Equal(t, "darwin", gotHost.Platform)
+	assert.Equal(t, "1.8.2", gotHost.OsqueryVersion)
 
 	// system_info
-	assert.Equal(t, 17179869184, host.PhysicalMemory)
-	assert.Equal(t, "computer.local", host.HostName)
-	assert.Equal(t, "uuid", host.UUID)
+	assert.Equal(t, 17179869184, gotHost.PhysicalMemory)
+	assert.Equal(t, "computer.local", gotHost.HostName)
+	assert.Equal(t, "uuid", gotHost.UUID)
 
 	// os_version
-	assert.Equal(t, "Mac OS X 10.10.6", host.OSVersion)
+	assert.Equal(t, "Mac OS X 10.10.6", gotHost.OSVersion)
 
 	// uptime
-	assert.Equal(t, 1730893*time.Second, host.Uptime)
+	assert.Equal(t, 1730893*time.Second, gotHost.Uptime)
 
 	// osquery_flags
-	assert.Equal(t, uint(0), host.ConfigTLSRefresh)
-	assert.Equal(t, uint(0), host.DistributedInterval)
-	assert.Equal(t, uint(0), host.LoggerTLSPeriod)
+	assert.Equal(t, uint(0), gotHost.ConfigTLSRefresh)
+	assert.Equal(t, uint(0), gotHost.DistributedInterval)
+	assert.Equal(t, uint(0), gotHost.LoggerTLSPeriod)
 
+	host.HostName = "computer.local"
+	host.DetailUpdateTime = mockClock.Now()
 	mockClock.AddTime(1 * time.Minute)
 
 	// Now no detail queries should be required
-	host, err = ds.AuthenticateHost(nodeKey)
-	require.Nil(t, err)
-	ctx = hostctx.NewContext(ctx, *host)
+	ctx = hostctx.NewContext(context.Background(), host)
 	queries, acc, err = svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
@@ -647,12 +671,6 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	// Advance clock and queries should exist again
 	mockClock.AddTime(1*time.Hour + 1*time.Minute)
 
-	err = svc.SubmitDistributedQueryResults(ctx, kolide.OsqueryDistributedQueryResults{}, map[string]kolide.OsqueryStatus{})
-	require.Nil(t, err)
-	host, err = ds.AuthenticateHost(nodeKey)
-	require.Nil(t, err)
-
-	ctx = hostctx.NewContext(ctx, *host)
 	queries, acc, err = svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
 	assert.Len(t, queries, len(detailQueries))
@@ -660,16 +678,23 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 }
 
 func TestDetailQueries(t *testing.T) {
-	ds, svc, mockClock := setupOsqueryTests(t)
-	ctx := context.Background()
-
-	nodeKey, err := svc.EnrollAgent(ctx, "", "host123", nil)
-	assert.Nil(t, err)
-
-	host, err := ds.AuthenticateHost(nodeKey)
+	ds := new(mock.Store)
+	mockClock := clock.NewMockClock()
+	svc, err := newTestServiceWithClock(ds, nil, mockClock)
 	require.Nil(t, err)
 
-	ctx = hostctx.NewContext(ctx, *host)
+	host := kolide.Host{}
+	ctx := hostctx.NewContext(context.Background(), host)
+
+	ds.AppConfigFunc = func() (*kolide.AppConfig, error) {
+		return &kolide.AppConfig{}, nil
+	}
+	ds.LabelQueriesForHostFunc = func(*kolide.Host, time.Time) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	ds.DistributedQueriesForHostFunc = func(*kolide.Host) (map[uint]string, error) {
+		return map[uint]string{}, nil
+	}
 
 	// With a new host, we should get the detail queries (and accelerated
 	// queries)
@@ -774,39 +799,40 @@ func TestDetailQueries(t *testing.T) {
 	err = json.Unmarshal([]byte(resultJSON), &results)
 	require.Nil(t, err)
 
+	var gotHost *kolide.Host
+	ds.SaveHostFunc = func(host *kolide.Host) error {
+		gotHost = host
+		return nil
+	}
 	// Verify that results are ingested properly
 	svc.SubmitDistributedQueryResults(ctx, results, map[string]kolide.OsqueryStatus{})
 
-	// Make sure the result saved to the datastore
-	host, err = ds.AuthenticateHost(nodeKey)
-	require.Nil(t, err)
-
 	// osquery_info
-	assert.Equal(t, "darwin", host.Platform)
-	assert.Equal(t, "1.8.2", host.OsqueryVersion)
+	assert.Equal(t, "darwin", gotHost.Platform)
+	assert.Equal(t, "1.8.2", gotHost.OsqueryVersion)
 
 	// system_info
-	assert.Equal(t, 17179869184, host.PhysicalMemory)
-	assert.Equal(t, "computer.local", host.HostName)
-	assert.Equal(t, "uuid", host.UUID)
+	assert.Equal(t, 17179869184, gotHost.PhysicalMemory)
+	assert.Equal(t, "computer.local", gotHost.HostName)
+	assert.Equal(t, "uuid", gotHost.UUID)
 
 	// os_version
-	assert.Equal(t, "Mac OS X 10.10.6", host.OSVersion)
+	assert.Equal(t, "Mac OS X 10.10.6", gotHost.OSVersion)
 
 	// uptime
-	assert.Equal(t, 1730893*time.Second, host.Uptime)
+	assert.Equal(t, 1730893*time.Second, gotHost.Uptime)
 
 	// osquery_flags
-	assert.Equal(t, uint(10), host.ConfigTLSRefresh)
-	assert.Equal(t, uint(5), host.DistributedInterval)
-	assert.Equal(t, uint(60), host.LoggerTLSPeriod)
+	assert.Equal(t, uint(10), gotHost.ConfigTLSRefresh)
+	assert.Equal(t, uint(5), gotHost.DistributedInterval)
+	assert.Equal(t, uint(60), gotHost.LoggerTLSPeriod)
 
+	host.HostName = "computer.local"
+	host.DetailUpdateTime = mockClock.Now()
 	mockClock.AddTime(1 * time.Minute)
 
 	// Now no detail queries should be required
-	host, err = ds.AuthenticateHost(nodeKey)
-	require.Nil(t, err)
-	ctx = hostctx.NewContext(ctx, *host)
+	ctx = hostctx.NewContext(ctx, host)
 	queries, acc, err = svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
@@ -815,12 +841,6 @@ func TestDetailQueries(t *testing.T) {
 	// Advance clock and queries should exist again
 	mockClock.AddTime(1*time.Hour + 1*time.Minute)
 
-	err = svc.SubmitDistributedQueryResults(ctx, kolide.OsqueryDistributedQueryResults{}, map[string]kolide.OsqueryStatus{})
-	require.Nil(t, err)
-	host, err = ds.AuthenticateHost(nodeKey)
-	require.Nil(t, err)
-
-	ctx = hostctx.NewContext(ctx, *host)
 	queries, acc, err = svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
 	assert.Len(t, queries, len(detailQueries))
@@ -995,63 +1015,49 @@ func TestDistributedQueryResults(t *testing.T) {
 }
 
 func TestOrphanedQueryCampaign(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	require.Nil(t, err)
-
-	_, err = ds.NewAppConfig(&kolide.AppConfig{EnrollSecret: ""})
-	require.Nil(t, err)
-
+	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
 
 	svc, err := newTestService(ds, rs)
 	require.Nil(t, err)
 
-	ctx := context.Background()
+	ds.DistributedQueryCampaignFunc = func(id uint) (*kolide.DistributedQueryCampaign, error) {
+		return &kolide.DistributedQueryCampaign{ID: 1}, nil
+	}
+	ds.NewDistributedQueryExecutionFunc = func(*kolide.DistributedQueryExecution) (*kolide.DistributedQueryExecution, error) {
+		return nil, nil
+	}
 
-	nodeKey, err := svc.EnrollAgent(ctx, "", "host123", nil)
-	require.Nil(t, err)
+	savedCampaign := &kolide.DistributedQueryCampaign{}
+	ds.SaveDistributedQueryCampaignFunc = func(campaign *kolide.DistributedQueryCampaign) error {
+		savedCampaign = campaign
+		return nil
+	}
 
-	host, err := ds.AuthenticateHost(nodeKey)
-	require.Nil(t, err)
-
-	ctx = viewer.NewContext(context.Background(), viewer.Viewer{
-		User: &kolide.User{
-			ID: 0,
-		},
-	})
-	q := "select year, month, day, hour, minutes, seconds from time"
-	campaign, err := svc.NewDistributedQueryCampaign(ctx, q, []uint{}, []uint{})
-	require.Nil(t, err)
-
-	campaign.Status = kolide.QueryRunning
-	err = ds.SaveDistributedQueryCampaign(campaign)
-	require.Nil(t, err)
-
-	queryKey := fmt.Sprintf("%s%d", hostDistributedQueryPrefix, campaign.ID)
-
+	// Submit results
+	queryKey := hostDistributedQueryPrefix + "1"
 	expectedRows := []map[string]string{
-		{
-			"year":    "2016",
-			"month":   "11",
-			"day":     "11",
-			"hour":    "6",
-			"minutes": "12",
-			"seconds": "10",
+		map[string]string{
+			"foo": "bar",
+		},
+		map[string]string{
+			"baz": "boom",
 		},
 	}
+	host := kolide.Host{HostName: "the fooer"}
 	results := map[string][]map[string]string{
 		queryKey: expectedRows,
 	}
 
-	// Submit results
-	ctx = hostctx.NewContext(context.Background(), *host)
+	ctx := context.Background()
+	ctx = hostctx.NewContext(context.Background(), host)
 	err = svc.SubmitDistributedQueryResults(ctx, results, map[string]kolide.OsqueryStatus{})
 	require.Nil(t, err)
 
-	// The campaign should be set to completed because it is orphaned
-	campaign, err = ds.DistributedQueryCampaign(campaign.ID)
-	require.Nil(t, err)
-	assert.Equal(t, kolide.QueryComplete, campaign.Status)
+	// Ensure that status is changed to completed when there is no listener for
+	// results.
+	require.NotNil(t, savedCampaign)
+	assert.Equal(t, kolide.QueryComplete, savedCampaign.Status)
 }
 
 func TestUpdateHostIntervals(t *testing.T) {
@@ -1182,9 +1188,6 @@ func TestUpdateHostIntervals(t *testing.T) {
 
 func setupOsqueryTests(t *testing.T) (kolide.Datastore, kolide.Service, *clock.MockClock) {
 	ds, err := inmem.New(config.TestConfig())
-	require.Nil(t, err)
-
-	_, err = ds.NewAppConfig(&kolide.AppConfig{EnrollSecret: ""})
 	require.Nil(t, err)
 
 	mockClock := clock.NewMockClock()

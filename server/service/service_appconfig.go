@@ -36,18 +36,31 @@ func (svc service) NewAppConfig(ctx context.Context, p kolide.AppConfigPayload) 
 		return nil, err
 	}
 	fromPayload := appConfigFromAppConfigPayload(p, *config)
-	if fromPayload.EnrollSecret == "" {
-		// generate a random string if the user hasn't set one in the form.
-		rand, err := kolide.RandomText(24)
-		if err != nil {
-			return nil, errors.Wrap(err, "generate enroll secret string")
-		}
-		fromPayload.EnrollSecret = rand
-	}
+
 	newConfig, err := svc.ds.NewAppConfig(fromPayload)
 	if err != nil {
 		return nil, err
 	}
+
+	// Set up a default enroll secret
+	secret, err := kolide.RandomText(24)
+	if err != nil {
+		return nil, errors.Wrap(err, "generate enroll secret string")
+	}
+	spec := &kolide.EnrollSecretSpec{
+		Secrets: []kolide.EnrollSecret{
+			kolide.EnrollSecret{
+				Name:   "default",
+				Secret: secret,
+				Active: true,
+			},
+		},
+	}
+	err = svc.ds.ApplyEnrollSecretSpec(spec)
+	if err != nil {
+		return nil, errors.Wrap(err, "save enroll secret")
+	}
+
 	return newConfig, nil
 }
 
@@ -116,9 +129,6 @@ func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppC
 	}
 	if p.ServerSettings != nil && p.ServerSettings.KolideServerURL != nil {
 		config.KolideServerURL = cleanupURL(*p.ServerSettings.KolideServerURL)
-	}
-	if p.ServerSettings != nil && p.ServerSettings.EnrollSecret != nil {
-		config.EnrollSecret = *p.ServerSettings.EnrollSecret
 	}
 	if p.ServerSettings != nil && p.ServerSettings.LiveQueryDisabled != nil {
 		config.LiveQueryDisabled = *p.ServerSettings.LiveQueryDisabled
@@ -228,4 +238,12 @@ func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppC
 		populateSMTP(p.SMTPSettings)
 	}
 	return &config
+}
+
+func (svc service) ApplyEnrollSecretSpec(ctx context.Context, spec *kolide.EnrollSecretSpec) error {
+	return svc.ds.ApplyEnrollSecretSpec(spec)
+}
+
+func (svc service) GetEnrollSecretSpec(ctx context.Context) (*kolide.EnrollSecretSpec, error) {
+	return svc.ds.GetEnrollSecretSpec()
 }

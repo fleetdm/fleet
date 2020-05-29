@@ -4,9 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/kolide/fleet/server/config"
-	"github.com/kolide/fleet/server/datastore/inmem"
 	"github.com/kolide/fleet/server/kolide"
+	"github.com/kolide/fleet/server/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -32,12 +31,14 @@ func TestCleanupURL(t *testing.T) {
 }
 
 func TestCreateAppConfig(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	require.Nil(t, err)
-	require.Nil(t, ds.MigrateData())
-
+	ds := new(mock.Store)
 	svc, err := newTestService(ds, nil)
 	require.Nil(t, err)
+
+	ds.AppConfigFunc = func() (*kolide.AppConfig, error) {
+		return &kolide.AppConfig{}, nil
+	}
+
 	var appConfigTests = []struct {
 		configPayload kolide.AppConfigPayload
 	}{
@@ -48,7 +49,7 @@ func TestCreateAppConfig(t *testing.T) {
 					OrgName:    stringPtr("Acme"),
 				},
 				ServerSettings: &kolide.ServerSettings{
-					KolideServerURL:    stringPtr("https://acme.co:8080/"),
+					KolideServerURL:   stringPtr("https://acme.co:8080/"),
 					LiveQueryDisabled: boolPtr(true),
 				},
 			},
@@ -56,14 +57,30 @@ func TestCreateAppConfig(t *testing.T) {
 	}
 
 	for _, tt := range appConfigTests {
-		result, err := svc.NewAppConfig(context.Background(), tt.configPayload)
+		var result *kolide.AppConfig
+		ds.NewAppConfigFunc = func(config *kolide.AppConfig) (*kolide.AppConfig, error) {
+			result = config
+			return config, nil
+		}
+
+		var gotSecretSpec *kolide.EnrollSecretSpec
+		ds.ApplyEnrollSecretSpecFunc = func(spec *kolide.EnrollSecretSpec) error {
+			gotSecretSpec = spec
+			return nil
+		}
+
+		_, err := svc.NewAppConfig(context.Background(), tt.configPayload)
 		require.Nil(t, err)
 
 		payload := tt.configPayload
-		assert.NotEmpty(t, result.ID)
 		assert.Equal(t, *payload.OrgInfo.OrgLogoURL, result.OrgLogoURL)
 		assert.Equal(t, *payload.OrgInfo.OrgName, result.OrgName)
 		assert.Equal(t, "https://acme.co:8080", result.KolideServerURL)
 		assert.Equal(t, *payload.ServerSettings.LiveQueryDisabled, result.LiveQueryDisabled)
+
+		// Ensure enroll secret was set
+		require.NotNil(t, gotSecretSpec)
+		require.Len(t, gotSecretSpec.Secrets, 1)
+		assert.Len(t, gotSecretSpec.Secrets[0].Secret, 32)
 	}
 }

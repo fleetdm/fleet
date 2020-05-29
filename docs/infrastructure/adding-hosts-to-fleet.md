@@ -20,7 +20,8 @@ To directly execute the launcher binary without having to mess with packages, in
 
 - `--hostname`: the hostname of the gRPC server for your environment
 - `--root_directory`: the location of the local database, pidfiles, etc.
-- `--enroll_secret`: the enroll secret you generated above for your environment
+- `--enroll_secret`: the enroll secret to authenticate hosts with Fleet
+  (retrieve from Fleet UI or `fleetctl get enroll_secret`)
 
 ```
 ./build/launcher \
@@ -45,7 +46,8 @@ $ ./build/package-builder make \
 As you can see, to generate a Launcher package, you need only call `package-builder make` with two command-line arguments:
 
 - `--hostname`: the hostname of the gRPC server for your environment
-- `--enroll_secret`: the enroll secret you generated above for your environment
+- `--enroll_secret`: the enroll secret to authenticate hosts with Fleet
+  (retrieve from Fleet UI or `fleetctl get enroll_secret`)
 
 You can also add the `--mac_package_signing_key` flag to define the name of the macOS package signing key name that you'd like to use to sign the macOS packages. For example:
 
@@ -61,7 +63,7 @@ You can find various ways to install osquery on a variety of platforms at https:
 
 #### Set an environment variable with an agent enrollment secret
 
-The enrollment secret is a value that osquery uses to ensure a level of confidence that the host running osquery is actually a host that you would like to hear from. There are a few ways you can set the enrollment secret on the hosts which you control. You can either set the value as:
+The enrollment secret is a value that osquery provides to authenticate with Fleet. There are a few ways you can set the enrollment secret on the hosts which you control. You can either set the value as:
 
 - an value of an environment variable (a common name is `OSQUERY_ENROLL_SECRET`)
 - the content of a local file (a common path is `/etc/osquery/enrollment_secret`)
@@ -69,7 +71,10 @@ The enrollment secret is a value that osquery uses to ensure a level of confiden
 The value of the environment variable or content of the file should be a secret shared between the osqueryd client and the Fleet server. This is basically osqueryd's passphrase which it uses to authenticate with Fleet, convincing Fleet that it is actually one of your hosts. The passphrase could be whatever you'd like, but it would be prudent to have the passphrase long, complex, mixed-case, etc. When you launch the Fleet server, you should specify this same value.
 
 If you use an environment variable for this, you can specify it with the `--enroll_secret_env` flag when you launch osqueryd. If you use a local file for this, you can specify it's path with the `--enroll_secret_path` flag.
-s
+
+To retrieve the enroll secret, use the "Add New Host" dialog in the Fleet UI or
+`fleetctl get enroll_secret`).
+
 If your organization has a robust internal public key infrastructure (PKI) and you already deploy TLS client certificates to each host to uniquely identify them, then osquery supports an advanced authentication mechanism which takes advantage of this. Fleet can be fronted with a proxy that will perform the TLS client authentication.
 
 #### Deploy the TLS certificate that osquery will use to communicate with Fleet
@@ -140,3 +145,11 @@ Note that osqueryd requires a full certificate chain, even for certificates whic
 Once you've configured the `config.mk` file with the correct variables, you can run `make` in the `tools/mac` directory. Running `make` will create a new `kolide-enroll.pkg` file which you can import into your software repository and deploy to your mac fleet.
 
 The enrollment package must installed after the osqueryd package, and will install a LaunchDaemon to keep the osqueryd process running.
+
+## Multiple Enroll Secrets
+
+Multiple enroll secrets can be set to allow different groups of hosts to
+authenticate with Fleet. When a host enrolls, the corresponding enroll secret is
+recorded and can be used to segment hosts.
+
+To set the enroll secret, use the `fleetctl` tool to apply an [enroll secret spec](../cli/file-format.md#enroll-secrets) 

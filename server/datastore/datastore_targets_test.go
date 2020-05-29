@@ -126,7 +126,7 @@ func testHostStatus(t *testing.T, ds kolide.Datastore) {
 
 	mockClock := clock.NewMockClock()
 
-	h, err := ds.EnrollHost("1", 24)
+	h, err := ds.EnrollHost("1", "key1", "default")
 	require.Nil(t, err)
 
 	// Make host no longer appear new

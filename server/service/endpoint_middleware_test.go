@@ -3,12 +3,16 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/kolide/fleet/server/config"
+	hostctx "github.com/kolide/fleet/server/contexts/host"
 	"github.com/kolide/fleet/server/contexts/viewer"
 	"github.com/kolide/fleet/server/datastore/inmem"
 	"github.com/kolide/fleet/server/kolide"
+	"github.com/kolide/fleet/server/mock"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -197,24 +201,35 @@ func TestGetNodeKey(t *testing.T) {
 }
 
 func TestAuthenticatedHost(t *testing.T) {
-	ds, err := inmem.New(config.TestConfig())
-	require.Nil(t, err)
-	_, err = ds.NewAppConfig(&kolide.AppConfig{EnrollSecret: "foobarbaz"})
-	require.Nil(t, err)
+	ds := new(mock.Store)
 	svc, err := newTestService(ds, nil)
 	require.Nil(t, err)
+
+	expectedHost := kolide.Host{HostName: "foo!"}
+	goodNodeKey := "foo bar baz bing bang boom"
+
+	ds.AuthenticateHostFunc = func(secret string) (*kolide.Host, error) {
+		switch secret {
+		case goodNodeKey:
+			return &expectedHost, nil
+		default:
+			return nil, errors.New("no host found")
+
+		}
+	}
+	ds.MarkHostSeenFunc = func(host *kolide.Host, t time.Time) error {
+		return nil
+	}
 
 	endpoint := authenticatedHost(
 		svc,
 		func(ctx context.Context, request interface{}) (interface{}, error) {
+			host, ok := hostctx.FromContext(ctx)
+			assert.True(t, ok)
+			assert.Equal(t, expectedHost, host)
 			return nil, nil
 		},
 	)
-
-	ctx := context.Background()
-	goodNodeKey, err := svc.EnrollAgent(ctx, "foobarbaz", "host123", nil)
-	assert.Nil(t, err)
-	require.NotEmpty(t, goodNodeKey)
 
 	var authenticatedHostTests = []struct {
 		nodeKey   string

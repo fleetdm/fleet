@@ -136,17 +136,12 @@ func (d *Datastore) GenerateHostStatusStatistics(now time.Time) (online, offline
 	return online, offline, mia, new, nil
 }
 
-func (d *Datastore) EnrollHost(osQueryHostID string, nodeKeySize int) (*kolide.Host, error) {
+func (d *Datastore) EnrollHost(osQueryHostID, nodeKey, secretName string) (*kolide.Host, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
 	if osQueryHostID == "" {
 		return nil, errors.New("missing host identifier from osquery for host enrollment")
-	}
-
-	nodeKey, err := kolide.RandomText(nodeKeySize)
-	if err != nil {
-		return nil, err
 	}
 
 	host := kolide.Host{

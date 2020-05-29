@@ -3,6 +3,7 @@ package kolide
 import (
 	"context"
 	"encoding/json"
+	"time"
 )
 
 // AppConfigStore contains method for saving and retrieving
@@ -11,6 +12,16 @@ type AppConfigStore interface {
 	NewAppConfig(info *AppConfig) (*AppConfig, error)
 	AppConfig() (*AppConfig, error)
 	SaveAppConfig(info *AppConfig) error
+
+	// VerifyEnrollSecret checks that the provided secret matches an active
+	// enroll secret. If it is successfully matched, the name of the secret is
+	// returned. Otherwise an error is returned.
+	VerifyEnrollSecret(secret string) (string, error)
+	// ApplyEnrollSecretSpec adds and updates the enroll secrets specified in
+	// the spec.
+	ApplyEnrollSecretSpec(spec *EnrollSecretSpec) error
+	// GetEnrollSecretSpec gets the spec for the current enroll secrets.
+	GetEnrollSecretSpec() (*EnrollSecretSpec, error)
 }
 
 // AppConfigService provides methods for configuring
@@ -20,6 +31,12 @@ type AppConfigService interface {
 	AppConfig(ctx context.Context) (info *AppConfig, err error)
 	ModifyAppConfig(ctx context.Context, p AppConfigPayload) (info *AppConfig, err error)
 	SendTestEmail(ctx context.Context, config *AppConfig) error
+
+	// ApplyEnrollSecretSpec adds and updates the enroll secrets specified in
+	// the spec.
+	ApplyEnrollSecretSpec(ctx context.Context, spec *EnrollSecretSpec) error
+	// GetEnrollSecretSpec gets the spec for the current enroll secrets.
+	GetEnrollSecretSpec(ctx context.Context) (*EnrollSecretSpec, error)
 
 	// Certificate returns the PEM encoded certificate chain for osqueryd TLS termination.
 	// For cases where the connection is self-signed, the server will attempt to
@@ -83,11 +100,6 @@ type AppConfig struct {
 	OrgName         string `db:"org_name"`
 	OrgLogoURL      string `db:"org_logo_url"`
 	KolideServerURL string `db:"kolide_server_url"`
-
-	// EnrollSecret is the config value that must be given by osqueryd hosts
-	// on enrollment.
-	// See https://osquery.readthedocs.io/en/stable/deployment/remote/#remote-authentication
-	EnrollSecret string `db:"osquery_enroll_secret"`
 
 	// SMTPConfigured is a flag that indicates if smtp has been successfully
 	// tested with the settings provided by an admin user.
@@ -238,7 +250,6 @@ type OrgInfo struct {
 // ServerSettings contains general settings about the kolide App.
 type ServerSettings struct {
 	KolideServerURL   *string `json:"kolide_server_url,omitempty"`
-	EnrollSecret      *string `json:"osquery_enroll_secret,omitempty"`
 	LiveQueryDisabled *bool   `json:"live_query_disabled,omitempty"`
 }
 
@@ -271,4 +282,24 @@ type ListOptions struct {
 	OrderKey string
 	// Direction of ordering
 	OrderDirection OrderDirection
+}
+
+// EnrollSecret contains information about an enroll secret, name, and active
+// status. Enroll secrets are used for osquery authentication.
+type EnrollSecret struct {
+	// Name is the name assigned to the secret
+	Name string `json:"name" db:"name"`
+	// Secret is the actual secret key.
+	Secret string `json:"secret" db:"secret"`
+	// Active determines whether the secret is currently allowed to be used for
+	// authentication.
+	Active bool `json:"active" db:"active"`
+	// CreatedAt is the time this enroll secret was first added.
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+}
+
+// EnrollSecretSpec is the fleetctl spec type for enroll secrets.
+type EnrollSecretSpec struct {
+	// Secrets is the list of enroll secrets.
+	Secrets []EnrollSecret `json:"secrets"`
 }

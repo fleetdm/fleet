@@ -7,10 +7,22 @@ import testHelpers from 'test/helpers';
 
 const { connectedComponent, reduxMockStore } = testHelpers;
 const baseStore = {
-  app: { config: flatConfigStub },
+  app: { config: flatConfigStub, enrollSecret: [] },
 };
-const storeWithoutSMTPConfig = { ...baseStore, app: { config: { ...flatConfigStub, configured: false } } };
-const storeWithSMTPConfig = { ...baseStore, app: { config: { ...flatConfigStub, configured: true } } };
+const storeWithoutSMTPConfig = {
+  ...baseStore,
+  app: {
+    config: { ...flatConfigStub, configured: false },
+    enrollSecret: [],
+  },
+};
+const storeWithSMTPConfig = {
+  ...baseStore,
+  app: {
+    config: { ...flatConfigStub, configured: true },
+    enrollSecret: [],
+  },
+};
 
 describe('AppSettingsPage - component', () => {
   afterEach(restoreSpies);

@@ -15,3 +15,12 @@ func decodeModifyAppConfigRequest(ctx context.Context, r *http.Request) (interfa
 	}
 	return appConfigRequest{Payload: payload}, nil
 }
+
+func decodeApplyEnrollSecretSpecRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	var req applyEnrollSecretSpecRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, err
+	}
+	return req, nil
+
+}

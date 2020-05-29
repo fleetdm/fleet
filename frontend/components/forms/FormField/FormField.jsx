@@ -10,7 +10,7 @@ class FormField extends Component {
     className: PropTypes.string,
     error: PropTypes.string,
     hint: PropTypes.oneOfType([PropTypes.array, PropTypes.node, PropTypes.string]),
-    label: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
+    label: PropTypes.oneOfType([PropTypes.array, PropTypes.string, PropTypes.node]),
     name: PropTypes.string,
     type: PropTypes.string,
   };

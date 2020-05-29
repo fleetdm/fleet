@@ -20,7 +20,7 @@ type HostFunc func(id uint) (*kolide.Host, error)
 
 type ListHostsFunc func(opt kolide.ListOptions) ([]*kolide.Host, error)
 
-type EnrollHostFunc func(osqueryHostId string, nodeKeySize int) (*kolide.Host, error)
+type EnrollHostFunc func(osqueryHostId, nodeKey, secretName string) (*kolide.Host, error)
 
 type AuthenticateHostFunc func(nodeKey string) (*kolide.Host, error)
 
@@ -102,9 +102,9 @@ func (s *HostStore) ListHosts(opt kolide.ListOptions) ([]*kolide.Host, error) {
 	return s.ListHostsFunc(opt)
 }
 
-func (s *HostStore) EnrollHost(osqueryHostId string, nodeKeySize int) (*kolide.Host, error) {
+func (s *HostStore) EnrollHost(osqueryHostId, nodeKey, secretName string) (*kolide.Host, error) {
 	s.EnrollHostFuncInvoked = true
-	return s.EnrollHostFunc(osqueryHostId, nodeKeySize)
+	return s.EnrollHostFunc(osqueryHostId, nodeKey, secretName)
 }
 
 func (s *HostStore) AuthenticateHost(nodeKey string) (*kolide.Host, error) {

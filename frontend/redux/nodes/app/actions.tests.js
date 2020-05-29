@@ -1,6 +1,14 @@
 import expect from 'expect';
 
-import { CONFIG_START, CONFIG_SUCCESS, getConfig, updateConfig } from 'redux/nodes/app/actions';
+import {
+  CONFIG_START,
+  CONFIG_SUCCESS,
+  ENROLL_SECRET_START,
+  ENROLL_SECRET_SUCCESS,
+  getConfig,
+  updateConfig,
+  getEnrollSecret,
+} from 'redux/nodes/app/actions';
 import { configStub } from 'test/stubs';
 import { frontendFormattedConfig } from 'redux/nodes/app/helpers';
 import Kolide from 'kolide';
@@ -73,6 +81,40 @@ describe('App - actions', () => {
 
           expect(actions).toInclude(CONFIG_START);
           expect(actions).toInclude(CONFIG_SUCCESS);
+          done();
+        })
+        .catch(done);
+    });
+  });
+
+  describe('getEnrollSecret action', () => {
+    const store = reduxMockStore({});
+
+    it('calls the api enrollSecret endpoint', (done) => {
+      const bearerToken = 'abc123';
+      const request = configMocks.loadAll.valid(bearerToken);
+
+      Kolide.setBearerToken(bearerToken);
+      store.dispatch(getEnrollSecret())
+        .then(() => {
+          expect(request.isDone()).toEqual(true);
+          done();
+        })
+        .catch(done);
+    });
+
+    it('dispatches ENROLLSECRET_START & ENROLLSECRET_SUCCESS actions', (done) => {
+      const bearerToken = 'abc123';
+      configMocks.loadAll.valid(bearerToken);
+
+      Kolide.setBearerToken(bearerToken);
+      store.dispatch(getEnrollSecret())
+        .then(() => {
+          const actions = store.getActions()
+            .map((action) => { return action.type; });
+
+          expect(actions).toInclude(ENROLL_SECRET_START);
+          expect(actions).toInclude(ENROLL_SECRET_SUCCESS);
           done();
         })
         .catch(done);

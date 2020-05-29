@@ -5,6 +5,7 @@ import { size } from 'lodash';
 
 import AppConfigForm from 'components/forms/admin/AppConfigForm';
 import configInterface from 'interfaces/config';
+import enrollSecretInterface from 'interfaces/enroll_secret';
 import deepDifference from 'utilities/deep_difference';
 import { renderFlash } from 'redux/nodes/notifications/actions';
 import WarningBanner from 'components/WarningBanner';
@@ -17,6 +18,7 @@ class AppSettingsPage extends Component {
     appConfig: configInterface,
     dispatch: PropTypes.func.isRequired,
     error: PropTypes.object, // eslint-disable-line react/forbid-prop-types
+    enrollSecret: enrollSecretInterface,
   };
 
   constructor (props) {
@@ -53,7 +55,7 @@ class AppSettingsPage extends Component {
   }
 
   render () {
-    const { appConfig, error } = this.props;
+    const { appConfig, error, enrollSecret } = this.props;
     const { onDismissSmtpWarning, onFormSubmit } = this;
     const { showSmtpWarning } = this.state;
     const { configured: smtpConfigured } = appConfig;
@@ -78,6 +80,7 @@ class AppSettingsPage extends Component {
           handleSubmit={onFormSubmit}
           serverErrors={error}
           smtpConfigured={smtpConfigured}
+          enrollSecret={enrollSecret}
         />
       </div>
     );
@@ -85,9 +88,9 @@ class AppSettingsPage extends Component {
 }
 
 const mapStateToProps = ({ app }) => {
-  const { config: appConfig, error } = app;
+  const { config: appConfig, error, enrollSecret } = app;
 
-  return { appConfig, error };
+  return { appConfig, error, enrollSecret };
 };
 
 export default connect(mapStateToProps)(AppSettingsPage);

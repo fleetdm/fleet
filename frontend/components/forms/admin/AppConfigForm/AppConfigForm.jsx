@@ -6,6 +6,8 @@ import Checkbox from 'components/forms/fields/Checkbox';
 import Dropdown from 'components/forms/fields/Dropdown';
 import Form from 'components/forms/Form';
 import formFieldInterface from 'interfaces/form_field';
+import enrollSecretInterface from 'interfaces/enroll_secret';
+import EnrollSecretTable from 'components/config/EnrollSecretTable';
 import Icon from 'components/icons/Icon';
 import InputField from 'components/forms/fields/InputField';
 import OrgLogoIcon from 'components/icons/OrgLogoIcon';
@@ -66,6 +68,7 @@ class AppConfigForm extends Component {
       host_expiry_window: formFieldInterface.isRequired,
       live_query_disabled: formFieldInterface.isRequired,
     }).isRequired,
+    enrollSecret: enrollSecretInterface.isRequired,
     handleSubmit: PropTypes.func.isRequired,
     smtpConfigured: PropTypes.bool.isRequired,
   };
@@ -73,7 +76,7 @@ class AppConfigForm extends Component {
   constructor (props) {
     super(props);
 
-    this.state = { revealSecret: false, showAdvancedOptions: false };
+    this.state = { showAdvancedOptions: false };
   }
 
   onToggleAdvancedOptions = (evt) => {
@@ -82,16 +85,6 @@ class AppConfigForm extends Component {
     const { showAdvancedOptions } = this.state;
 
     this.setState({ showAdvancedOptions: !showAdvancedOptions });
-
-    return false;
-  }
-
-  onToggleRevealSecret = (evt) => {
-    evt.preventDefault();
-
-    const { revealSecret } = this.state;
-
-    this.setState({ revealSecret: !revealSecret });
 
     return false;
   }
@@ -158,9 +151,9 @@ class AppConfigForm extends Component {
   }
 
   render () {
-    const { fields, handleSubmit, smtpConfigured } = this.props;
-    const { onToggleAdvancedOptions, onToggleRevealSecret, renderAdvancedOptions, renderSmtpSection } = this;
-    const { revealSecret, showAdvancedOptions } = this.state;
+    const { fields, handleSubmit, smtpConfigured, enrollSecret } = this.props;
+    const { onToggleAdvancedOptions, renderAdvancedOptions, renderSmtpSection } = this;
+    const { showAdvancedOptions } = this.state;
 
     return (
       <form className={baseClass} onSubmit={handleSubmit}>
@@ -324,16 +317,12 @@ class AppConfigForm extends Component {
           </div>
         </div>
         <div className={`${baseClass}__section`}>
-          <h2>Osquery Enrollment Secret</h2>
+          <h2>Osquery Enrollment Secrets</h2>
           <div className={`${baseClass}__inputs`}>
             <p className={`${baseClass}__enroll-secret-label`}>
-              This is the secret that you use to enroll osquery agents with Fleet:
-              <Button variant="unstyled" onClick={onToggleRevealSecret}>Reveal Secret</Button>
+              Manage secrets with <code>fleetctl</code>. Active secrets:
             </p>
-            <InputField
-              {...fields.osquery_enroll_secret}
-              type={revealSecret ? 'input' : 'password'}
-            />
+            <EnrollSecretTable secrets={enrollSecret} />
           </div>
         </div>
         <div className={`${baseClass}__section`}>
