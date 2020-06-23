@@ -28,19 +28,7 @@ func main() {
 		loginCommand(),
 		logoutCommand(),
 		queryCommand(),
-		cli.Command{
-			Name:  "get",
-			Usage: "Get/list resources",
-			Subcommands: []cli.Command{
-				getQueriesCommand(),
-				getPacksCommand(),
-				getLabelsCommand(),
-				getOptionsCommand(),
-				getHostsCommand(),
-				getEnrollSecretCommand(),
-				getAppConfigCommand(),
-			},
-		},
+		getCommand(),
 		cli.Command{
 			Name:  "config",
 			Usage: "Modify how and which Fleet server to connect to",
