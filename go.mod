@@ -25,6 +25,7 @@ require (
 	github.com/gorilla/websocket v1.4.2
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/hashicorp/hcl v0.0.0-20180404174102-ef8a98b0bbce // indirect
+	github.com/igm/sockjs-go v3.0.0+incompatible
 	github.com/igm/sockjs-go/v3 v3.0.0
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jmoiron/sqlx v0.0.0-20180406164412-2aeb6a910c2b
@@ -45,7 +46,6 @@ require (
 	github.com/prometheus/client_golang v0.9.3-0.20190127221311-3c4408c8b829
 	github.com/russellhaering/gosaml2 v0.3.1
 	github.com/russellhaering/goxmldsig v0.0.0-20180430223755-7acd5e4a6ef7
-	github.com/satori/go.uuid v1.2.0 // indirect
 	github.com/spf13/afero v1.1.0 // indirect
 	github.com/spf13/cast v1.2.0
 	github.com/spf13/cobra v0.0.2
@@ -63,5 +63,4 @@ require (
 	gopkg.in/guregu/null.v3 v3.4.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3
 	gopkg.in/yaml.v2 v2.2.2
-	honnef.co/go/tools v0.0.0-20190106161140-3f1c8253044a
 )

@@ -38,7 +38,7 @@ describe('Kolide - API client (hosts)', () => {
           expect(request.isDone()).toEqual(true);
         });
     });
-    
+
     it('calls the label endpoint when used with label filter', () => {
       const request = createRequestMock({
         bearerToken,

@@ -502,7 +502,6 @@ func testHostAdditional(t *testing.T, ds kolide.Datastore) {
 		DetailUpdateTime: time.Now(),
 		LabelUpdateTime:  time.Now(),
 		SeenTime:         time.Now(),
-		LabelUpdateTime:  time.Now(),
 		OsqueryHostID:    "foobar",
 		NodeKey:          "nodekey",
 		UUID:             "uuid",

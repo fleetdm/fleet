@@ -603,9 +603,8 @@ func (svc service) ingestDistributedQuery(host kolide.Host, name string, rows []
 			return osqueryError{message: "loading orphaned campaign: " + err.Error()}
 		}
 
-		if campaign.Status == kolide.QueryWaiting &&
-			campaign.CreatedAt.Before(svc.clock.Now().Add(-1*time.Minute)) {
-			// Give the client one minute to connect before considering the
+		if campaign.CreatedAt.Before(svc.clock.Now().Add(5 * time.Second)) {
+			// Give the client 5 seconds to connect before considering the
 			// campaign orphaned
 			return osqueryError{message: "campaign waiting for listener"}
 		}

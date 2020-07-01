@@ -36,8 +36,8 @@ func decodeListHostsRequest(ctx context.Context, r *http.Request) (interface{}, 
 	opt, err := listOptionsFromRequest(r)
 	hopt := kolide.HostListOptions{ListOptions: opt}
 	status := r.URL.Query().Get("status")
-	switch status {
-	case "new", "online", "offline", "mia":
+	switch kolide.HostStatus(status) {
+	case kolide.StatusNew, kolide.StatusOnline, kolide.StatusOffline, kolide.StatusMIA:
 		hopt.StatusFilter = kolide.HostStatus(status)
 	case "":
 		// No error when unset

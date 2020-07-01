@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/igm/sockjs-go/sockjs"
+	"github.com/igm/sockjs-go/v3/sockjs"
 	"github.com/kolide/fleet/server/contexts/viewer"
 	"github.com/kolide/fleet/server/kolide"
 	"github.com/kolide/fleet/server/websocket"
@@ -127,6 +127,14 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		return
 	}
 
+	// Open the channel from which we will receive incoming query results
+	// (probably from the redis pubsub implementation)
+	readChan, err := svc.resultStore.ReadChannel(context.Background(), *campaign)
+	if err != nil {
+		conn.WriteJSONError(fmt.Sprintf("cannot open read channel for campaign %d ", campaignID))
+		return
+	}
+
 	// Setting status to running will cause the query to be returned to the
 	// targets when they check in for their queries
 	campaign.Status = kolide.QueryRunning
@@ -140,17 +148,9 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	// this campaign.
 	defer func() {
 		campaign.Status = kolide.QueryComplete
-		svc.ds.SaveDistributedQueryCampaign(campaign)
-		svc.liveQueryStore.StopQuery(strconv.Itoa(int(campaign.ID)))
+		_ = svc.ds.SaveDistributedQueryCampaign(campaign)
+		_ = svc.liveQueryStore.StopQuery(strconv.Itoa(int(campaign.ID)))
 	}()
-
-	// Open the channel from which we will receive incoming query results
-	// (probably from the redis pubsub implementation)
-	readChan, err := svc.resultStore.ReadChannel(context.Background(), *campaign)
-	if err != nil {
-		conn.WriteJSONError(fmt.Sprintf("cannot open read channel for campaign %d ", campaignID))
-		return
-	}
 
 	status := campaignStatus{
 		Status: campaignStatusPending,
@@ -209,7 +209,7 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	}
 
 	if err := updateStatus(); err != nil {
-		svc.logger.Log("msg", "error updating status", "err", err)
+		_ = svc.logger.Log("msg", "error updating status", "err", err)
 		return
 	}
 
@@ -228,8 +228,13 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			case kolide.DistributedQueryResult:
 				mapHostnameRows(res.Host.HostName, res.Rows)
 				err = conn.WriteJSONMessage("result", res)
+				if errors.Cause(err) == sockjs.ErrSessionNotOpen {
+					// return and stop sending the query if the session was closed
+					// by the client
+					return
+				}
 				if err != nil {
-					svc.logger.Log("msg", "error writing to channel", "err", err)
+					_ = svc.logger.Log("msg", "error writing to channel", "err", err)
 				}
 				status.ActualResults++
 			}

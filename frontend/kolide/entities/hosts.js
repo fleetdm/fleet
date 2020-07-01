@@ -24,9 +24,9 @@ export default (client) => {
         }
         endpoint = `${HOSTS}?${pagination}${selectedFilter}`;
       }
-     
+
       return client.authenticatedGet(client._endpoint(endpoint))
-                   .then((response) => { return response.hosts; });
+        .then((response) => { return response.hosts; });
     },
   };
 };

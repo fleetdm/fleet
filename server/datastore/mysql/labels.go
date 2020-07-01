@@ -20,7 +20,7 @@ func (d *Datastore) ApplyLabelSpecs(specs []*kolide.LabelSpec) (err error) {
 			platform,
 			label_type,
 			label_membership_type
-		) VALUES ( ?, ?, ?, ?, ? , ?)
+		) VALUES ( ?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			name = VALUES(name),
 			description = VALUES(description),
@@ -54,8 +54,7 @@ func (d *Datastore) ApplyLabelSpecs(specs []*kolide.LabelSpec) (err error) {
 			sql = `
 SELECT id from labels WHERE name = ?
 `
-			err = tx.Get(&labelID, sql, s.Name)
-			if err != nil {
+			if err := tx.Get(&labelID, sql, s.Name); err != nil {
 				return errors.Wrap(err, "get label ID")
 			}
 
@@ -121,8 +120,7 @@ func (d *Datastore) GetLabelSpecs() ([]*kolide.LabelSpec, error) {
 	for _, spec := range specs {
 		if spec.LabelType != kolide.LabelTypeBuiltIn &&
 			spec.LabelMembershipType == kolide.LabelMembershipTypeManual {
-			err := d.getLabelHostnames(spec)
-			if err != nil {
+			if err := d.getLabelHostnames(spec); err != nil {
 				return nil, err
 			}
 		}

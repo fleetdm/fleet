@@ -170,7 +170,7 @@ export class ManageHostsPage extends PureComponent {
   onLabelClick = (selectedLabel) => {
     return (evt) => {
       evt.preventDefault();
-      
+
       const { dispatch, perPage } = this.props;
       const { MANAGE_HOSTS } = PATHS;
       const { slug, type } = selectedLabel;
@@ -179,7 +179,7 @@ export class ManageHostsPage extends PureComponent {
       dispatch(push(nextLocation));
 
       dispatch(setPagination(1, perPage, selectedLabel.slug));
-      
+
       return false;
     };
   }
@@ -196,7 +196,7 @@ export class ManageHostsPage extends PureComponent {
     const { dispatch, selectedFilter, perPage } = this.props;
 
     dispatch(setPagination(page, perPage, selectedFilter));
-    
+
     scrollToTop();
 
     return true;
@@ -409,7 +409,7 @@ export class ManageHostsPage extends PureComponent {
         <h4 title="Manage manual labels with fleetctl">Manually managed</h4>
       );
     }
-   
+
     if (!query || slug === 'all-hosts') {
       return false;
     }
@@ -436,7 +436,7 @@ export class ManageHostsPage extends PureComponent {
   renderHeader = () => {
     const { renderIcon, renderQuery, renderDeleteButton } = this;
     const { display, isAddLabel, selectedLabel, statusLabels } = this.props;
-    
+
     if (!selectedLabel || isAddLabel) {
       return false;
     }
@@ -588,7 +588,7 @@ export class ManageHostsPage extends PureComponent {
     const { isEditLabel } = this.state;
 
     const sortedHosts = this.sortHosts(hosts);
-    
+
 
     let hostCount = 0;
     if (hostCount === 0) {
@@ -613,7 +613,7 @@ export class ManageHostsPage extends PureComponent {
           break;
       }
     }
-    
+
     return (
       <div className="has-sidebar">
         {renderForm()}
@@ -654,7 +654,7 @@ const mapStateToProps = (state, { location, params }) => {
   const { active_label: activeLabel, label_id: labelID } = params;
   const activeLabelSlug = activeLabel || 'all-hosts';
   const selectedFilter = labelID ? `labels/${labelID}` : activeLabelSlug;
-  
+
   const { display, status_labels: statusLabels, page, perPage } = state.components.ManageHostsPage;
   const { entities: hosts } = entityGetter(state).get('hosts');
   const labelEntities = entityGetter(state).get('labels');

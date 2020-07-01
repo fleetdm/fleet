@@ -1,5 +1,3 @@
-import { find } from 'lodash';
-
 export const parseEntityFunc = (host) => {
   let hostCpuOutput = null;
   if (host) {

@@ -85,7 +85,7 @@ export const hostStub = {
   hardware_serial: 'None',
   computer_name: '52883a0ba916',
   primary_ip: '172.19.0.8',
-  primary_mac: '02:42:ac:13:00:08', 
+  primary_mac: '02:42:ac:13:00:08',
   status: 'online',
   display_text: '52883a0ba916',
   target_type: 'hosts',

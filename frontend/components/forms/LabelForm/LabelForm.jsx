@@ -23,6 +23,8 @@ class LabelForm extends Component {
       query: formFieldInterface.isRequired,
     }).isRequired,
     formData: PropTypes.shape({
+      type: PropTypes.string,
+      label_type: PropTypes.string,
       label_membership_type: PropTypes.string,
     }),
     handleSubmit: PropTypes.func.isRequired,
@@ -68,7 +70,7 @@ class LabelForm extends Component {
         </form>
       );
     }
-   
+
     return (
       <form className={`${baseClass}__wrapper`} onSubmit={handleSubmit}>
         <h1>{headerText}</h1>
@@ -81,7 +83,7 @@ class LabelForm extends Component {
           hint={aceHintText}
           handleSubmit={noop}
         />
-       )}
+        )}
 
         {baseError && <div className="form__base-error">{baseError}</div>}
         <InputField
@@ -102,7 +104,7 @@ class LabelForm extends Component {
             {...fields.platform}
             options={helpers.platformOptions}
           />
-         </div>)}
+        </div>)}
         <div className={`${baseClass}__button-wrap`}>
           <Button
             className={`${baseClass}__cancel-btn`}

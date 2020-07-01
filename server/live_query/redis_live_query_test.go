@@ -5,7 +5,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/kolide/fleet/server/kolide"
 	"github.com/kolide/fleet/server/pubsub"
 	"github.com/kolide/fleet/server/test"
 	"github.com/stretchr/testify/assert"
@@ -14,7 +13,7 @@ import (
 
 func TestRedisLiveQuery(t *testing.T) {
 	if _, ok := os.LookupEnv("REDIS_TEST"); !ok {
-		t.SkipNow()
+		t.Skip("Redis tests not requested. Skipping.")
 	}
 
 	for _, f := range testFunctions {
@@ -24,12 +23,6 @@ func TestRedisLiveQuery(t *testing.T) {
 			f(t, store)
 		})
 	}
-}
-
-var testFunctions = [...]func(*testing.T, kolide.LiveQueryStore){
-	testRedisLiveQuery,
-	testRedisLiveQueryNoTargets,
-	testRedisLiveQueryStopQuery,
 }
 
 func setupRedisLiveQuery(t *testing.T) (store *redisLiveQuery, teardown func()) {
@@ -45,7 +38,7 @@ func setupRedisLiveQuery(t *testing.T) (store *redisLiveQuery, teardown func()) 
 	store = NewRedisLiveQuery(pubsub.NewRedisPool(addr, password))
 
 	_, err := store.pool.Get().Do("PING")
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	teardown = func() {
 		store.pool.Get().Do("FLUSHDB")
@@ -55,75 +48,38 @@ func setupRedisLiveQuery(t *testing.T) (store *redisLiveQuery, teardown func()) 
 	return store, teardown
 }
 
-func testRedisLiveQueryNoTargets(t *testing.T, store kolide.LiveQueryStore) {
-	assert.Error(t, store.RunQuery("test", "select 1", []uint{}))
-}
+func TestMapBitfield(t *testing.T) {
+	// empty
+	assert.Equal(t, []byte{}, mapBitfield(nil))
+	assert.Equal(t, []byte{}, mapBitfield([]uint{}))
 
-func testRedisLiveQueryStopQuery(t *testing.T, store kolide.LiveQueryStore) {
-	require.NoError(t, store.RunQuery("test", "select 1", []uint{1, 3}))
-	require.NoError(t, store.RunQuery("test2", "select 2", []uint{1, 3}))
-	require.NoError(t, store.StopQuery("test"))
+	// one byte
+	assert.Equal(t, []byte("\x80"), mapBitfield([]uint{0}))
+	assert.Equal(t, []byte("\x40"), mapBitfield([]uint{1}))
+	assert.Equal(t, []byte("\xc0"), mapBitfield([]uint{0, 1}))
 
-	queries, err := store.QueriesForHost(1)
-	assert.NoError(t, err)
-	assert.Len(t, queries, 1)
-}
+	assert.Equal(t, []byte("\x08"), mapBitfield([]uint{4}))
+	assert.Equal(t, []byte("\xf8"), mapBitfield([]uint{0, 1, 2, 3, 4}))
+	assert.Equal(t, []byte("\xff"), mapBitfield([]uint{0, 1, 2, 3, 4, 5, 6, 7}))
 
-func testRedisLiveQuery(t *testing.T, store kolide.LiveQueryStore) {
-	queries, err := store.QueriesForHost(1)
-	assert.NoError(t, err)
-	assert.Len(t, queries, 0)
-	queries, err = store.QueriesForHost(3)
-	assert.NoError(t, err)
-	assert.Len(t, queries, 0)
+	// two bytes
+	assert.Equal(t, []byte("\x00\x80"), mapBitfield([]uint{8}))
+	assert.Equal(t, []byte("\xff\x80"), mapBitfield([]uint{0, 1, 2, 3, 4, 5, 6, 7, 8}))
 
-	assert.NoError(t, store.RunQuery("test", "select 1", []uint{1, 3}))
-	assert.NoError(t, store.RunQuery("test2", "select 2", []uint{3}))
-	assert.NoError(t, store.RunQuery("test3", "select 3", []uint{1}))
-	assert.NoError(t, store.RunQuery("test4", "select 4", []uint{4}))
-
-	queries, err = store.QueriesForHost(1)
-	assert.NoError(t, err)
-	assert.Equal(t,
-		map[string]string{
-			"test":  "select 1",
-			"test3": "select 3",
-		},
-		queries,
+	// more bytes
+	assert.Equal(
+		t,
+		[]byte("\xff\x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00 "),
+		mapBitfield([]uint{0, 1, 2, 3, 4, 5, 6, 7, 8, 170}),
 	)
-	queries, err = store.QueriesForHost(2)
-	assert.NoError(t, err)
-	assert.Len(t, queries, 0)
-	queries, err = store.QueriesForHost(3)
-	assert.NoError(t, err)
-	assert.Equal(t,
-		map[string]string{
-			"test":  "select 1",
-			"test2": "select 2",
-		},
-		queries,
+	assert.Equal(
+		t,
+		[]byte("\xff\x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00@\x00\x00\x00\x00\x00\x00 "),
+		mapBitfield([]uint{0, 1, 2, 3, 4, 5, 6, 7, 8, 113, 170}),
 	)
-
-	assert.NoError(t, store.QueryCompletedByHost("test", 1))
-	assert.NoError(t, store.QueryCompletedByHost("test2", 3))
-
-	queries, err = store.QueriesForHost(1)
-	assert.NoError(t, err)
-	assert.Equal(t,
-		map[string]string{
-			"test3": "select 3",
-		},
-		queries,
-	)
-	queries, err = store.QueriesForHost(2)
-	assert.NoError(t, err)
-	assert.Len(t, queries, 0)
-	queries, err = store.QueriesForHost(3)
-	assert.NoError(t, err)
-	assert.Equal(t,
-		map[string]string{
-			"test": "select 1",
-		},
-		queries,
+	assert.Equal(
+		t,
+		[]byte("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01"),
+		mapBitfield([]uint{79}),
 	)
 }

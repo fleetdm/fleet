@@ -3,41 +3,86 @@ package live_query
 import (
 	"testing"
 
+	"github.com/kolide/fleet/server/kolide"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestMapBitfield(t *testing.T) {
-	// empty
-	assert.Equal(t, []byte{}, mapBitfield(nil))
-	assert.Equal(t, []byte{}, mapBitfield([]uint{}))
+var testFunctions = [...]func(*testing.T, kolide.LiveQueryStore){
+	testLiveQuery,
+	testLiveQueryNoTargets,
+	testLiveQueryStopQuery,
+}
 
-	// one byte
-	assert.Equal(t, []byte("\x80"), mapBitfield([]uint{0}))
-	assert.Equal(t, []byte("\x40"), mapBitfield([]uint{1}))
-	assert.Equal(t, []byte("\xc0"), mapBitfield([]uint{0, 1}))
+func testLiveQuery(t *testing.T, store kolide.LiveQueryStore) {
+	queries, err := store.QueriesForHost(1)
+	assert.NoError(t, err)
+	assert.Len(t, queries, 0)
+	queries, err = store.QueriesForHost(3)
+	assert.NoError(t, err)
+	assert.Len(t, queries, 0)
 
-	assert.Equal(t, []byte("\x08"), mapBitfield([]uint{4}))
-	assert.Equal(t, []byte("\xf8"), mapBitfield([]uint{0, 1, 2, 3, 4}))
-	assert.Equal(t, []byte("\xff"), mapBitfield([]uint{0, 1, 2, 3, 4, 5, 6, 7}))
+	assert.NoError(t, store.RunQuery("test", "select 1", []uint{1, 3}))
+	assert.NoError(t, store.RunQuery("test2", "select 2", []uint{3}))
+	assert.NoError(t, store.RunQuery("test3", "select 3", []uint{1}))
+	assert.NoError(t, store.RunQuery("test4", "select 4", []uint{4}))
 
-	// two bytes
-	assert.Equal(t, []byte("\x00\x80"), mapBitfield([]uint{8}))
-	assert.Equal(t, []byte("\xff\x80"), mapBitfield([]uint{0, 1, 2, 3, 4, 5, 6, 7, 8}))
-
-	// more bytes
-	assert.Equal(
-		t,
-		[]byte("\xff\x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00 "),
-		mapBitfield([]uint{0, 1, 2, 3, 4, 5, 6, 7, 8, 170}),
+	queries, err = store.QueriesForHost(1)
+	assert.NoError(t, err)
+	assert.Equal(t,
+		map[string]string{
+			"test":  "select 1",
+			"test3": "select 3",
+		},
+		queries,
 	)
-	assert.Equal(
-		t,
-		[]byte("\xff\x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00@\x00\x00\x00\x00\x00\x00 "),
-		mapBitfield([]uint{0, 1, 2, 3, 4, 5, 6, 7, 8, 113, 170}),
+	queries, err = store.QueriesForHost(2)
+	assert.NoError(t, err)
+	assert.Len(t, queries, 0)
+	queries, err = store.QueriesForHost(3)
+	assert.NoError(t, err)
+	assert.Equal(t,
+		map[string]string{
+			"test":  "select 1",
+			"test2": "select 2",
+		},
+		queries,
 	)
-	assert.Equal(
-		t,
-		[]byte("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01"),
-		mapBitfield([]uint{79}),
+
+	assert.NoError(t, store.QueryCompletedByHost("test", 1))
+	assert.NoError(t, store.QueryCompletedByHost("test2", 3))
+
+	queries, err = store.QueriesForHost(1)
+	assert.NoError(t, err)
+	assert.Equal(t,
+		map[string]string{
+			"test3": "select 3",
+		},
+		queries,
 	)
+	queries, err = store.QueriesForHost(2)
+	assert.NoError(t, err)
+	assert.Len(t, queries, 0)
+	queries, err = store.QueriesForHost(3)
+	assert.NoError(t, err)
+	assert.Equal(t,
+		map[string]string{
+			"test": "select 1",
+		},
+		queries,
+	)
+}
+
+func testLiveQueryNoTargets(t *testing.T, store kolide.LiveQueryStore) {
+	assert.Error(t, store.RunQuery("test", "select 1", []uint{}))
+}
+
+func testLiveQueryStopQuery(t *testing.T, store kolide.LiveQueryStore) {
+	require.NoError(t, store.RunQuery("test", "select 1", []uint{1, 3}))
+	require.NoError(t, store.RunQuery("test2", "select 2", []uint{1, 3}))
+	require.NoError(t, store.StopQuery("test"))
+
+	queries, err := store.QueriesForHost(1)
+	require.NoError(t, err)
+	assert.Len(t, queries, 1)
 }

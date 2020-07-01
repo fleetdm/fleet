@@ -6,16 +6,15 @@ const { actions } = config;
 
 export const LOAD_PAGINATED = 'LOAD_PAGINATED';
 
-export const loadPaginated = ({perPage, page}) => {
+export const loadPaginated = () => {
   const { loadRequest } = actions;
   return (dispatch) => {
     dispatch(loadRequest());
 
-    return Kolide.hosts
+    return Kolide.hosts;
   };
 };
 
 export default {
   ...actions,
-  
 };

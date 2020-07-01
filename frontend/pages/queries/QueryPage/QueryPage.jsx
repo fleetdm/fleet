@@ -49,8 +49,6 @@ export class QueryPage extends Component {
     errors: PropTypes.shape({
       base: PropTypes.string,
     }),
-    hostIDs: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
-    hostUUIDs: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
     isSmallNav: PropTypes.bool.isRequired,
     loadingQueries: PropTypes.bool.isRequired,
     location: PropTypes.shape({
@@ -595,8 +593,6 @@ const mapStateToProps = (state, ownProps) => {
 
   return {
     errors,
-    hostIDs,
-    hostUUIDs,
     isSmallNav,
     loadingQueries,
     query,

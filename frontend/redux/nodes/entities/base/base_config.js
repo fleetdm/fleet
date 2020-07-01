@@ -226,7 +226,7 @@ class BaseConfig {
   _genericSuccess (type) {
     const { actionTypes } = this;
 
-    
+
     return (data) => {
       return {
         type: BaseConfig.successActionTypeFor(actionTypes, type),
@@ -274,7 +274,7 @@ class BaseConfig {
     if (!isArray(result) && parseEntityFunc) {
       throw new Error('parseEntityFunc must be called on an array. Use the parseApiResponseFunc to format the response correctly.');
     }
-    
+
     result = parseEntityFunc
       ? result.map(r => parseEntityFunc(r))
       : result;

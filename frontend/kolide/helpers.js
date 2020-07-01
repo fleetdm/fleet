@@ -23,7 +23,7 @@ const labelSlug = (label) => {
     return 'all-hosts';
   }
 
-  return `labels/${id}`
+  return `labels/${id}`;
 };
 
 const labelStubs = [
