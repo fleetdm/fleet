@@ -74,7 +74,7 @@ class LoginForm extends Component {
 
     const loginFormClass = classnames(
       baseClass,
-      { [`${baseClass}--hidden`]: isHidden }
+      { [`${baseClass}--hidden`]: isHidden },
     );
 
     return (

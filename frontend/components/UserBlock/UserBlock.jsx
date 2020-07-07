@@ -83,7 +83,7 @@ class UserBlock extends Component {
     const userWrapperClass = classnames(
       baseClass,
       { [`${baseClass}--invited`]: isInvite },
-      { [`${baseClass}--disabled`]: !enabled && !isInvite }
+      { [`${baseClass}--disabled`]: !enabled && !isInvite },
     );
 
     const userHeaderClass = classnames(
@@ -91,40 +91,40 @@ class UserBlock extends Component {
       { [`${baseClass}__header--admin`]: admin },
       { [`${baseClass}__header--user`]: !admin },
       { [`${baseClass}__header--invited`]: isInvite },
-      { [`${baseClass}__header--disabled`]: !enabled && !isInvite }
+      { [`${baseClass}__header--disabled`]: !enabled && !isInvite },
     );
 
     const userAvatarClass = classnames(
       `${baseClass}__avatar`,
-      { [`${baseClass}__avatar--enabled`]: enabled }
+      { [`${baseClass}__avatar--enabled`]: enabled },
     );
 
     const userStatusLabelClass = classnames(
       `${baseClass}__status-label`,
-      { [`${baseClass}__status-label--admin`]: admin }
+      { [`${baseClass}__status-label--admin`]: admin },
     );
 
     const userStatusTextClass = classnames(
       `${baseClass}__status-text`,
       { [`${baseClass}__status-text--invited`]: isInvite },
       { [`${baseClass}__status-text--enabled`]: enabled },
-      { [`${baseClass}__status-text--disabled`]: !enabled && !isInvite }
+      { [`${baseClass}__status-text--disabled`]: !enabled && !isInvite },
     );
 
     const userUsernameClass = classnames(
       `${baseClass}__username`,
       { [`${baseClass}__username--enabled`]: enabled },
-      { [`${baseClass}__username--hidden`]: !username }
+      { [`${baseClass}__username--hidden`]: !username },
     );
 
     const userPositionClass = classnames(
       `${baseClass}__position`,
-      { [`${baseClass}__position--hidden`]: !position }
+      { [`${baseClass}__position--hidden`]: !position },
     );
 
     const userEmailClass = classnames(
       `${baseClass}__email`,
-      { [`${baseClass}__email--disabled`]: !enabled }
+      { [`${baseClass}__email--disabled`]: !enabled },
     );
 
     if (isEditing) {

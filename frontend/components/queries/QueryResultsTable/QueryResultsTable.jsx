@@ -101,13 +101,9 @@ class QueryResultsTable extends Component {
     const { resultsFilter } = this.state;
     const filteredQueryResults = filterArrayByHash(queryResults, resultsFilter);
 
-    return filteredQueryResults.map((queryResult, index) => {
+    return filteredQueryResults.map((queryResult) => {
       return (
-        <QueryResultsRow
-          index={index}
-          key={`qrtr-${index}`}
-          queryResult={queryResult}
-        />
+        <QueryResultsRow queryResult={queryResult} />
       );
     });
   }

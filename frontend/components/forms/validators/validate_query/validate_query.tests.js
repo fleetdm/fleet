@@ -23,12 +23,12 @@ const validQueries = [
 
 describe('validateQuery', () => {
   it('rejects malformed queries', () => {
-    for (const query of malformedQueries) {
+    malformedQueries.forEach((query) => {
       const { error, valid } = validateQuery(query);
 
       expect(valid).toEqual(false);
       expect(error).toMatch(/Syntax error found near .+/);
-    }
+    });
   });
 
   it('rejects blank queries', () => {
@@ -39,10 +39,10 @@ describe('validateQuery', () => {
   });
 
   it('accepts valid queries', () => {
-    for (const query of validQueries) {
+    validQueries.forEach((query) => {
       const { error, valid } = validateQuery(query);
       expect(valid).toEqual(true, query);
       expect(error).toNotExist();
-    }
+    });
   });
 });

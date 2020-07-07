@@ -84,14 +84,14 @@ class InviteUserForm extends Component {
     const valid = this.validate();
 
     if (valid) {
-      const { formData: { admin, email, name, sso_enabled } } = this.state;
+      const { formData: { admin, email, name, sso_enabled: ssoEnabled } } = this.state;
       const { invitedBy, onSubmit } = this.props;
       return onSubmit({
         admin,
         email,
         invited_by: invitedBy.id,
         name,
-        sso_enabled,
+        sso_enabled: ssoEnabled,
       });
     }
 

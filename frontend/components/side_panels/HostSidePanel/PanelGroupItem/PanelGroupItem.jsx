@@ -12,10 +12,11 @@ const baseClass = 'panel-group-item';
 class PanelGroupItem extends Component {
   static propTypes = {
     item: PropTypes.shape({
-      count: PropTypes.number,
+      count: PropTypes.number.isRequired,
       title_description: PropTypes.string,
-      display_text: PropTypes.string,
-      type: PropTypes.string,
+      display_text: PropTypes.string.isRequired,
+      type: PropTypes.string.isRequired,
+      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
     }).isRequired,
     onLabelClick: PropTypes.func,
     isSelected: PropTypes.bool,
@@ -73,7 +74,7 @@ class PanelGroupItem extends Component {
       `${baseClass}__${type.toLowerCase()}--${displayText.toLowerCase().replace(' ', '-')}`,
       {
         [`${baseClass}--selected`]: isSelected,
-      }
+      },
     );
 
     return (

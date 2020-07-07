@@ -14,7 +14,7 @@ describe('ConfigurePackQueryForm - component', () => {
     const form = mount(
       <DefaultConfigurePackQueryForm
         handleSubmit={noop}
-      />
+      />,
     );
 
     it('updates form state', () => {
@@ -41,7 +41,7 @@ describe('ConfigurePackQueryForm - component', () => {
         fields={fieldsObj}
         handleSubmit={noop}
         formData={{ query_id: 1 }}
-      />
+      />,
     );
 
     it("doesn't allow All when other options are chosen", () => {
@@ -63,7 +63,7 @@ describe('ConfigurePackQueryForm - component', () => {
       <DefaultConfigurePackQueryForm
         handleSubmit={spy}
         formData={{ query_id: 1 }}
-      />
+      />,
     );
 
     it('submits the form with the form data', () => {
@@ -95,14 +95,14 @@ describe('ConfigurePackQueryForm - component', () => {
           formData={{ query_id: 1 }}
           handleSubmit={noop}
           onCancel={noop}
-        />
+        />,
       );
       const UpdateScheduledQueryForm = mount(
         <DefaultConfigurePackQueryForm
           formData={scheduledQueryStub}
           handleSubmit={noop}
           onCancel={noop}
-        />
+        />,
       );
 
       expect(CancelButton(NewScheduledQueryForm).length).toEqual(0);
@@ -116,7 +116,7 @@ describe('ConfigurePackQueryForm - component', () => {
           formData={scheduledQueryStub}
           handleSubmit={noop}
           onCancel={spy}
-        />
+        />,
       );
 
       CancelButton(UpdateScheduledQueryForm).hostNodes().simulate('click');

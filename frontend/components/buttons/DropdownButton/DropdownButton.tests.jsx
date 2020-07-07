@@ -14,7 +14,7 @@ describe('DropdownButton - component', () => {
     const component = mount(
       <DropdownButton options={dropdownOptions}>
         New Button
-      </DropdownButton>
+      </DropdownButton>,
     );
 
     component.find('button.dropdown-button').simulate('click');

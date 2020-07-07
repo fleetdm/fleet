@@ -20,7 +20,7 @@ describe('Checkbox - component', () => {
         name="checkbox"
         onChange={onCheckedComponentChangeSpy}
         value
-      />
+      />,
     ).find('input');
 
     const uncheckedComponent = mount(
@@ -28,7 +28,7 @@ describe('Checkbox - component', () => {
         name="checkbox"
         onChange={onUncheckedComponentChangeSpy}
         value={false}
-      />
+      />,
     ).find('input');
 
     checkedComponent.simulate('change');

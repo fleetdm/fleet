@@ -14,6 +14,7 @@ class UserMenu extends Component {
     user: PropTypes.shape({
       gravatarURL: PropTypes.string,
       name: PropTypes.string,
+      username: PropTypes.string.isRequired,
       position: PropTypes.string,
     }).isRequired,
   };
@@ -29,7 +30,7 @@ class UserMenu extends Component {
     const toggleBaseClass = 'user-menu-toggle';
     const userMenuClass = classnames(
       toggleBaseClass,
-      { [`${toggleBaseClass}--open`]: isOpened }
+      { [`${toggleBaseClass}--open`]: isOpened },
     );
 
     return (

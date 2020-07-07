@@ -19,7 +19,7 @@ class FormField extends Component {
     const { error, label, name } = this.props;
     const labelWrapperClasses = classnames(
       `${baseClass}__label`,
-      { [`${baseClass}__label--error`]: error }
+      { [`${baseClass}__label--error`]: error },
     );
 
     if (!label) {

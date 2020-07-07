@@ -12,7 +12,7 @@ describe('PanelGroup - component', () => {
   ];
 
   const component = mount(
-    <PanelGroup groupItems={validPanelGroupItems} />
+    <PanelGroup groupItems={validPanelGroupItems} />,
   );
 
   it('renders a PanelGroupItem for each group item', () => {

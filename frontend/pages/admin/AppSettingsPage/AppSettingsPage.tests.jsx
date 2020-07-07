@@ -37,7 +37,7 @@ describe('AppSettingsPage - component', () => {
   it('renders a warning if SMTP has not been configured', () => {
     const mockStore = reduxMockStore(storeWithoutSMTPConfig);
     const page = mount(
-      connectedComponent(AppSettingsPage, { mockStore })
+      connectedComponent(AppSettingsPage, { mockStore }),
     ).find('AppSettingsPage');
 
     const smtpWarning = page.find('WarningBanner');
@@ -50,7 +50,7 @@ describe('AppSettingsPage - component', () => {
   it('dismisses the smtp warning when "DISMISS" is clicked', () => {
     const mockStore = reduxMockStore(storeWithoutSMTPConfig);
     const page = mount(
-      connectedComponent(AppSettingsPage, { mockStore })
+      connectedComponent(AppSettingsPage, { mockStore }),
     );
 
     const smtpWarning = page.find('WarningBanner');
@@ -64,7 +64,7 @@ describe('AppSettingsPage - component', () => {
   it('does not render a warning if SMTP has been configured', () => {
     const mockStore = reduxMockStore(storeWithSMTPConfig);
     const page = mount(
-      connectedComponent(AppSettingsPage, { mockStore })
+      connectedComponent(AppSettingsPage, { mockStore }),
     ).find('AppSettingsPage');
 
     expect(page.find('WarningBanner').html()).toNotExist();

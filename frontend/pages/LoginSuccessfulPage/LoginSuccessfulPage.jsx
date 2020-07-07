@@ -1,14 +1,9 @@
 import React, { Component } from 'react';
-import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 
 import Icon from 'components/icons/Icon';
 
 class LoginSuccessfulPage extends Component {
-  static propTypes = {
-    dispatch: PropTypes.func.isRequired,
-  };
-
   render () {
     const baseClass = 'login-success';
     return (

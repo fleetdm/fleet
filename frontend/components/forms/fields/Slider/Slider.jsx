@@ -11,12 +11,12 @@ const Slider = (props) => {
 
   const sliderBtnClass = classnames(
     baseClass,
-    { [`${baseClass}--active`]: value }
+    { [`${baseClass}--active`]: value },
   );
 
   const sliderDotClass = classnames(
     `${baseClass}__dot`,
-    { [`${baseClass}__dot--active`]: value }
+    { [`${baseClass}__dot--active`]: value },
   );
 
   const handleClick = (evt) => {

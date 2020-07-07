@@ -59,7 +59,7 @@ class SiteNavSidePanel extends Component {
       {
         [`${navItemBaseClass}--active`]: active,
         [`${navItemBaseClass}--single`]: subItems.length === 0,
-      }
+      },
     );
 
     return (
@@ -100,7 +100,7 @@ class SiteNavSidePanel extends Component {
 
     const baseSubItemItemClass = classnames(
       `${baseSubItemClass}`,
-      { [`${baseSubItemClass}--active`]: active }
+      { [`${baseSubItemClass}--active`]: active },
     );
 
     return (
@@ -128,7 +128,7 @@ class SiteNavSidePanel extends Component {
 
     const subItemListClasses = classnames(
       `${baseSubItemsClass}__list`,
-      { [`${baseSubItemsClass}__list--expanded`]: showSubItems }
+      { [`${baseSubItemsClass}__list--expanded`]: showSubItems },
     );
 
     if (!subItems.length) return false;

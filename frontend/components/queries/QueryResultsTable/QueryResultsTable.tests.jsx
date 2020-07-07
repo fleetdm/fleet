@@ -63,10 +63,10 @@ describe('QueryResultsTable - component', () => {
   afterEach(restoreSpies);
 
   const componentWithoutQueryResults = mount(
-    <QueryResultsTable campaign={campaignWithNoQueryResults} />
+    <QueryResultsTable campaign={campaignWithNoQueryResults} />,
   );
   const componentWithQueryResults = mount(
-    <QueryResultsTable campaign={campaignWithQueryResults} />
+    <QueryResultsTable campaign={campaignWithQueryResults} />,
   );
 
   it('renders', () => {

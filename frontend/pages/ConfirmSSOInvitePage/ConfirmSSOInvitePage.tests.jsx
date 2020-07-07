@@ -18,7 +18,7 @@ describe('ConfirmInvitePage - component', () => {
   it('renders', () => {
     expect(page.length).toEqual(1);
     expect(
-      page.find('ConfirmInvitePage').prop('inviteFormData')
+      page.find('ConfirmInvitePage').prop('inviteFormData'),
     ).toEqual({
       email: 'hi@gnar.dog',
       invite_token: inviteToken,

@@ -60,7 +60,7 @@ class AddHostModal extends Component {
               </p>
               <p className={`${baseClass}__download-cert`}>
                 <Button variant="unstyled" onClick={onFetchCertificate}>
-                  <img src={certificate} role="presentation" />
+                  <img src={certificate} alt="" />
                   <span>Fetch Fleet Certificate</span>
                 </Button>
               </p>

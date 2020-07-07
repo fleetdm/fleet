@@ -18,7 +18,7 @@ describe('AuthenticatedAdminRoutes - layout', () => {
     const storeWithoutAdminUser = { auth: { user } };
     const mockStore = reduxMockStore(storeWithoutAdminUser);
     mount(
-      connectedComponent(ConnectedAdminRoutes, { mockStore })
+      connectedComponent(ConnectedAdminRoutes, { mockStore }),
     );
 
     expect(mockStore.getActions()).toInclude(redirectToHomeAction);
@@ -29,7 +29,7 @@ describe('AuthenticatedAdminRoutes - layout', () => {
     const storeWithAdminUser = { auth: { user } };
     const mockStore = reduxMockStore(storeWithAdminUser);
     mount(
-      connectedComponent(ConnectedAdminRoutes, { mockStore })
+      connectedComponent(ConnectedAdminRoutes, { mockStore }),
     );
 
     expect(mockStore.getActions()).toNotInclude(redirectToHomeAction);

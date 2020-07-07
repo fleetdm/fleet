@@ -52,9 +52,9 @@ describe('ReduxConfig - thunks', () => {
       it('calls the createFunc', () => {
         const params = { first_name: 'Mike' };
         return mockStore.dispatch(config.actions.create(params))
-        .then(() => {
-          expect(createFunc).toHaveBeenCalledWith(params);
-        });
+          .then(() => {
+            expect(createFunc).toHaveBeenCalledWith(params);
+          });
       });
 
       it('dispatches the correct actions', () => {
@@ -139,9 +139,9 @@ describe('ReduxConfig - thunks', () => {
 
       it('calls the destroyFunc', () => {
         return mockStore.dispatch(config.actions.destroy(params))
-        .then(() => {
-          expect(destroyFunc).toHaveBeenCalledWith(params);
-        });
+          .then(() => {
+            expect(destroyFunc).toHaveBeenCalledWith(params);
+          });
       });
 
       it('dispatches the correct actions', () => {
@@ -217,9 +217,9 @@ describe('ReduxConfig - thunks', () => {
         const params = { id: 1 };
 
         return mockStore.dispatch(config.actions.load(params))
-        .then(() => {
-          expect(loadFunc).toHaveBeenCalledWith(params);
-        });
+          .then(() => {
+            expect(loadFunc).toHaveBeenCalledWith(params);
+          });
       });
 
       it('dispatches the correct actions', () => {
@@ -296,9 +296,9 @@ describe('ReduxConfig - thunks', () => {
         const params = { id: 1 };
 
         return mockStore.dispatch(config.actions.loadAll(params))
-        .then(() => {
-          expect(loadAllFunc).toHaveBeenCalledWith(params);
-        });
+          .then(() => {
+            expect(loadAllFunc).toHaveBeenCalledWith(params);
+          });
       });
 
       it('dispatches the correct actions', () => {
@@ -375,9 +375,9 @@ describe('ReduxConfig - thunks', () => {
         const params = { id: 1 };
 
         return mockStore.dispatch(config.actions.update(params))
-        .then(() => {
-          expect(updateFunc).toHaveBeenCalledWith(params);
-        });
+          .then(() => {
+            expect(updateFunc).toHaveBeenCalledWith(params);
+          });
       });
 
       it('dispatches the correct actions', () => {

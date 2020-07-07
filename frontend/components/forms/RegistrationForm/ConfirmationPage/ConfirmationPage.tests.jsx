@@ -20,7 +20,7 @@ describe('ConfirmationPage - form', () => {
       <ConfirmationPage
         formData={formData}
         handleSubmit={noop}
-      />
+      />,
     );
 
     expect(form.text()).toInclude(formData.username);
@@ -35,7 +35,7 @@ describe('ConfirmationPage - form', () => {
       <ConfirmationPage
         formData={formData}
         handleSubmit={handleSubmitSpy}
-      />
+      />,
     );
     const htmlForm = form.find('form');
 

@@ -16,7 +16,7 @@ describe('EditPackFormWrapper - component', () => {
         onCancelEditPack={noop}
         onEditPack={noop}
         pack={packStub}
-      />
+      />,
     );
 
     expect(component.find('EditPackForm').length).toEqual(0);
@@ -29,7 +29,7 @@ describe('EditPackFormWrapper - component', () => {
         onCancelEditPack={noop}
         onEditPack={noop}
         pack={packStub}
-      />
+      />,
     );
 
     expect(component.find('EditPackForm').length).toEqual(1);
@@ -43,7 +43,7 @@ describe('EditPackFormWrapper - component', () => {
         onCancelEditPack={noop}
         onEditPack={spy}
         pack={packStub}
-      />
+      />,
     );
     const editBtn = component.find('Button');
 

@@ -75,12 +75,12 @@ class SiteNavHeader extends Component {
     const headerToggleClass = classnames(
       `${headerBaseClass}__button`,
       'button',
-      'button--unstyled'
+      'button--unstyled',
     );
 
     const userStatusClass = classnames(
       `${headerBaseClass}__user-status`,
-      { [`${headerBaseClass}__user-status--enabled`]: enabled }
+      { [`${headerBaseClass}__user-status--enabled`]: enabled },
     );
 
     return (

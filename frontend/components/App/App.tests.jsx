@@ -15,7 +15,7 @@ describe('App - component', () => {
   const store = { app: {}, auth: {}, notifications: {} };
   const mockStore = reduxMockStore(store);
   const component = mount(
-    connectedComponent(ConnectedApp, { mockStore })
+    connectedComponent(ConnectedApp, { mockStore }),
   );
 
   afterEach(() => {

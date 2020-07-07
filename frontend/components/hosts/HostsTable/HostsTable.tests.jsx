@@ -18,7 +18,7 @@ describe('HostsTable - component', () => {
         hosts={[offlineHost]}
         onDestroyHost={destroySpy}
         onQueryHost={querySpy}
-      />
+      />,
     );
     const btn = offlineComponent.find('Button');
 
@@ -40,7 +40,7 @@ describe('HostsTable - component', () => {
         hosts={[miaHost]}
         onDestroyHost={destroySpy}
         onQueryHost={querySpy}
-      />
+      />,
     );
     const btn = miaComponent.find('Button');
 
@@ -62,7 +62,7 @@ describe('HostsTable - component', () => {
         hosts={[onlineHost]}
         onDestroyHost={destroySpy}
         onQueryHost={querySpy}
-      />
+      />,
     );
     const btn = onlineComponent.find('Button');
 

@@ -95,12 +95,12 @@ class QuerySidePanel extends Component {
         <div className={`${baseClass}__os-availability`}>
           <h2 className={`${baseClass}__header`}>OS Availability</h2>
           <ul className={`${baseClass}__platforms`}>
-            {platformArr.map((os, idx) => {
+            {platformArr.map((os) => {
               if (os.type === 'all') {
-                return <li key={idx}><Icon name="hosts" /> {os.display_text}</li>;
+                return <li key={os.type}><Icon name="hosts" /> {os.display_text}</li>;
               }
 
-              return <li key={idx}><PlatformIcon name={os.display_text} title={os.display_text} /> {os.display_text}</li>;
+              return <li key={os.type}><PlatformIcon name={os.display_text} title={os.display_text} /> {os.display_text}</li>;
             })}
           </ul>
         </div>

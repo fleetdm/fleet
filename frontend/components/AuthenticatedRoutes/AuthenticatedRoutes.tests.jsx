@@ -75,7 +75,7 @@ describe('AuthenticatedRoutes - component', () => {
         <AuthenticatedRoutes>
           <div>{renderedText}</div>
         </AuthenticatedRoutes>
-      </Provider>
+      </Provider>,
     );
 
     expect(component.text()).toEqual(renderedText);
@@ -89,7 +89,7 @@ describe('AuthenticatedRoutes - component', () => {
         <AuthenticatedRoutes>
           <div>{renderedText}</div>
         </AuthenticatedRoutes>
-      </Provider>
+      </Provider>,
     );
 
     expect(mockStore.getActions()).toInclude(redirectToPasswordResetAction);
@@ -103,7 +103,7 @@ describe('AuthenticatedRoutes - component', () => {
         <AuthenticatedRoutes>
           <div>{renderedText}</div>
         </AuthenticatedRoutes>
-      </Provider>
+      </Provider>,
     );
 
     expect(mockStore.getActions()).toInclude(redirectToLoginAction);
@@ -118,7 +118,7 @@ describe('AuthenticatedRoutes - component', () => {
         <AuthenticatedRoutes>
           <div>{renderedText}</div>
         </AuthenticatedRoutes>
-      </Provider>
+      </Provider>,
     );
 
     expect(mockStore.getActions()).toNotInclude(redirectToLoginAction);

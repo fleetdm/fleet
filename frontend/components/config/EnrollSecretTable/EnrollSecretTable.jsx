@@ -91,7 +91,6 @@ class EnrollSecretRow extends Component {
       </div>
     );
   }
-
 }
 
 class EnrollSecretTable extends Component {
@@ -110,12 +109,11 @@ class EnrollSecretTable extends Component {
     return (
       <div className={baseClass}>
         {activeSecrets.map(({ name, secret }) =>
-          <EnrollSecretRow key={name} name={name} secret={secret} />
-         )}
+          <EnrollSecretRow key={name} name={name} secret={secret} />,
+        )}
       </div>
     );
   }
-
 }
 
 export default EnrollSecretTable;

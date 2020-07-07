@@ -6,7 +6,6 @@ import gopher from '../../../assets/images/500.svg';
 const baseClass = 'kolide-500';
 
 class Kolide404 extends Component {
-
   render () {
     return (
       <div className={baseClass}>
@@ -21,7 +20,7 @@ class Kolide404 extends Component {
           <p>Something went wrong on our end.</p>
           <p>We have alerted the engineers and they are working on a solution.</p>
           <div className="gopher-container">
-            <img src={gopher} role="presentation" />
+            <img src={gopher} alt="" />
             <p>Need assistance? <a href="https://github.com/kolide/fleet/issues">File an issue</a>.</p>
           </div>
         </main>

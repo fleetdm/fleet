@@ -71,7 +71,7 @@ class ScheduledQueriesListItem extends Component {
       return <PlatformIcon name="all" title="All Platforms" className={`${baseClass}__icon`} />;
     }
 
-    return platformArr.map((pltf, idx) => <PlatformIcon name={pltf} title={pltf} className={`${baseClass}__icon`} key={`${idx}-${pltf}`} />);
+    return platformArr.map(pltf => <PlatformIcon name={pltf} title={pltf} className={`${baseClass}__icon`} key={pltf} />);
   }
 
   render () {

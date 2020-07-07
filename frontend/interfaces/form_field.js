@@ -5,7 +5,7 @@ export default PropTypes.shape({
   name: PropTypes.string,
   onChange: PropTypes.func,
   value: PropTypes.oneOfType(
-    [PropTypes.array, PropTypes.bool, PropTypes.number, PropTypes.string]
+    [PropTypes.array, PropTypes.bool, PropTypes.number, PropTypes.string],
   ),
 });
 

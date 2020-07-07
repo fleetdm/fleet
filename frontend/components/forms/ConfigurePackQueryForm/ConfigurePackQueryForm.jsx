@@ -43,6 +43,7 @@ export class ConfigurePackQueryForm extends Component {
       logging_type: formFieldInterface.isRequired,
       platform: formFieldInterface.isRequired,
       version: formFieldInterface.isRequired,
+      shard: formFieldInterface.isRequired,
     }).isRequired,
     formData: PropTypes.shape({
       id: PropTypes.number,
@@ -54,7 +55,7 @@ export class ConfigurePackQueryForm extends Component {
   componentWillMount () {
     const { fields } = this.props;
 
-    if (fields && fields.shared && !fields.shard.value) {
+    if (fields && fields.shard && !fields.shard.value) {
       fields.shard.value = '';
     }
   }

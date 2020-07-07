@@ -30,7 +30,7 @@ describe('TargetOption - component', () => {
         onMoreInfoClick={noop}
         onSelect={onSelectSpy}
         target={hostStub}
-      />
+      />,
     );
     component.find('.target-option__add-btn').simulate('click');
     expect(onSelectSpy).toHaveBeenCalled();
@@ -45,7 +45,7 @@ describe('TargetOption - component', () => {
       <TargetOption
         onMoreInfoClick={onMoreInfoClick}
         target={hostStub}
-      />
+      />,
     );
     component.find('.target-option__target-content').simulate('click');
     expect(onMoreInfoClickSpy).toHaveBeenCalled();

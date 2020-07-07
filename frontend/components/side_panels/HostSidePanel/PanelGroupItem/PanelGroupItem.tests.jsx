@@ -26,19 +26,19 @@ describe('PanelGroupItem - component', () => {
   };
 
   const labelComponent = mount(
-    <PanelGroupItem item={validPanelGroupItem} statusLabels={statusLabels} />
+    <PanelGroupItem item={validPanelGroupItem} statusLabels={statusLabels} />,
   );
 
   const platformComponent = mount(
-    <PanelGroupItem item={validPanelGroupItem} statusLabels={statusLabels} type="platform" />
+    <PanelGroupItem item={validPanelGroupItem} statusLabels={statusLabels} type="platform" />,
   );
 
   const statusLabelComponent = mount(
-    <PanelGroupItem item={validStatusGroupItem} statusLabels={statusLabels} type="status" />
+    <PanelGroupItem item={validStatusGroupItem} statusLabels={statusLabels} type="status" />,
   );
 
   const loadingStatusLabelComponent = mount(
-    <PanelGroupItem item={validStatusGroupItem} statusLabels={loadingStatusLabels} type="status" />
+    <PanelGroupItem item={validStatusGroupItem} statusLabels={loadingStatusLabels} type="status" />,
   );
 
   it('renders the appropriate icon', () => {

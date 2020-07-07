@@ -61,7 +61,7 @@ class StackedWhiteBoxes extends Component {
     if (previousLocation) {
       window.setTimeout(
         () => { onLeave(previousLocation); },
-        300
+        300,
       );
     }
 
@@ -109,7 +109,7 @@ class StackedWhiteBoxes extends Component {
         [`${baseClass}--loading`]: isLoading,
         [`${baseClass}--loaded`]: isLoaded,
         [`${baseClass}--leaving`]: isLeaving,
-      }
+      },
     );
 
     return (

@@ -20,7 +20,7 @@ describe('ScheduledQueriesList - component', () => {
         onSelectQuery={noop}
         scheduledQueries={scheduledQueries}
         selectedScheduledQueryIDs={[]}
-      />
+      />,
     );
 
     expect(component.find('ScheduledQueriesListItem').length).toEqual(2);
@@ -35,7 +35,7 @@ describe('ScheduledQueriesList - component', () => {
         onSelectQuery={noop}
         scheduledQueries={[]}
         selectedScheduledQueryIDs={[]}
-      />
+      />,
     );
 
     expect(component.text()).toInclude('No queries matched your search criteria');
@@ -49,7 +49,7 @@ describe('ScheduledQueriesList - component', () => {
         onSelectQuery={noop}
         scheduledQueries={[]}
         selectedScheduledQueryIDs={[]}
-      />
+      />,
     );
 
     expect(component.text()).toInclude("First let's add a query");

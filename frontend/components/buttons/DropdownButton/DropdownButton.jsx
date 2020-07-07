@@ -19,7 +19,7 @@ export class DropdownButton extends Component {
         disabled: PropTypes.bool,
         label: PropTypes.string,
         onClick: PropTypes.func,
-      })
+      }),
     ).isRequired,
     size: PropTypes.string,
     tabIndex: PropTypes.number,

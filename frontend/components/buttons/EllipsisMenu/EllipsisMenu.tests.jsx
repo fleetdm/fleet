@@ -9,7 +9,7 @@ describe('EllipsisMenu - component', () => {
     const component = mount(
       <EllipsisMenu>
         <span>EllipsisMenu Children</span>
-      </EllipsisMenu>
+      </EllipsisMenu>,
     );
 
     expect(component.state().showChildren).toEqual(false);

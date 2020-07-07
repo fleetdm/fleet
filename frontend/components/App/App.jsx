@@ -55,7 +55,7 @@ export class App extends Component {
 
     const wrapperStyles = classnames(
       'wrapper',
-      { 'wrapper--background': showBackgroundImage }
+      { 'wrapper--background': showBackgroundImage },
     );
 
     return (

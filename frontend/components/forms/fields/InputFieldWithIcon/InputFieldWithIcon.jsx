@@ -26,7 +26,7 @@ class InputFieldWithIcon extends InputField {
 
     const labelClasses = classnames(
       `${baseClass}__label`,
-      { [`${baseClass}__label--hidden`]: !value }
+      { [`${baseClass}__label--hidden`]: !value },
     );
 
     if (error) {
@@ -55,13 +55,13 @@ class InputFieldWithIcon extends InputField {
       'input-with-icon',
       className,
       { [`${baseClass}__input--error`]: error },
-      { [`${baseClass}__input--password`]: type === 'password' && value }
+      { [`${baseClass}__input--password`]: type === 'password' && value },
     );
 
     const iconClasses = classnames(
       `${baseClass}__icon`,
       { [`${baseClass}__icon--error`]: error },
-      { [`${baseClass}__icon--active`]: value }
+      { [`${baseClass}__icon--active`]: value },
     );
 
     return (

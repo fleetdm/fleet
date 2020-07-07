@@ -47,18 +47,18 @@ describe('Kolide API - helpers', () => {
         org_info: { org_name: 'The Gnar Co' },
       });
       expect(
-        formatConfigDataForServer({ org_name: 'The Gnar Co', kolide_server_url: 'https://example.com' })
+        formatConfigDataForServer({ org_name: 'The Gnar Co', kolide_server_url: 'https://example.com' }),
       ).toEqual({
         org_info: { org_name: 'The Gnar Co' },
         server_settings: { kolide_server_url: 'https://example.com' },
       });
       expect(
-        formatConfigDataForServer({ domain: 'https://kolide.co' })
+        formatConfigDataForServer({ domain: 'https://kolide.co' }),
       ).toEqual({
         smtp_settings: { domain: 'https://kolide.co' },
       });
       expect(
-        formatConfigDataForServer({ host_expiry_window: '12' })
+        formatConfigDataForServer({ host_expiry_window: '12' }),
       ).toEqual({
         host_expiry_settings: {
           host_expiry_window: 12,

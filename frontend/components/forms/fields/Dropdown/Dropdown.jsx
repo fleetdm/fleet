@@ -50,7 +50,7 @@ class Dropdown extends Component {
     const labelWrapperClasses = classnames(
       `${baseClass}__label`,
       labelClassName,
-      { [`${baseClass}__label--error`]: error }
+      { [`${baseClass}__label--error`]: error },
     );
 
     if (!label) {

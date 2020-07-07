@@ -112,14 +112,14 @@ describe('ManageHostsPage - component', () => {
           {...props}
           hosts={[hostStub, offlineHost]}
           selectedLabel={allHostsLabel}
-        />
+        />,
       ).instance();
       const offlineHostsLabelPageNode = mount(
         <ManageHostsPage
           {...props}
           hosts={[hostStub, offlineHost]}
           selectedLabel={offlineHostsLabel}
-        />
+        />,
       ).instance();
 
       expect(allHostsLabelPageNode.filterAllHosts([hostStub, offlineHost], allHostsLabel)).toEqual([hostStub, offlineHost]);

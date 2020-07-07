@@ -148,17 +148,17 @@ class RegistrationForm extends Component {
 
     const adminDetailsClass = classnames(
       `${baseClass}__field-wrapper`,
-      `${baseClass}__field-wrapper--admin`
+      `${baseClass}__field-wrapper--admin`,
     );
 
     const orgDetailsClass = classnames(
       `${baseClass}__field-wrapper`,
-      `${baseClass}__field-wrapper--org`
+      `${baseClass}__field-wrapper--org`,
     );
 
     const kolideDetailsClass = classnames(
       `${baseClass}__field-wrapper`,
-      `${baseClass}__field-wrapper--kolide`
+      `${baseClass}__field-wrapper--kolide`,
     );
 
     const formSectionClasses = classnames(
@@ -170,7 +170,7 @@ class RegistrationForm extends Component {
         [`${baseClass}__form--step2-complete`]: page > 2,
         [`${baseClass}__form--step3-active`]: page === 3,
         [`${baseClass}__form--step3-complete`]: page > 3,
-      }
+      },
     );
 
     return (

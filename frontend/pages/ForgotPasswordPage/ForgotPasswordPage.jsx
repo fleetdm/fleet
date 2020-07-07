@@ -62,7 +62,7 @@ export class ForgotPasswordPage extends Component {
             <p className={`${baseClass}__text`}>
               An email was sent to
               <span className={`${baseClass}__email`}> {email}</span>.
-               Click the link on the email to proceed with the password reset process.
+              Click the link on the email to proceed with the password reset process.
             </p>
           </div>
           <div className={`${baseClass}__button`}>

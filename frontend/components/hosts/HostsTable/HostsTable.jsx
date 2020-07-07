@@ -53,7 +53,7 @@ class HostsTable extends Component {
     const { onDestroyHost, onQueryHost } = this.props;
     const statusClassName = classnames(
       `${baseClass}__status`,
-      `${baseClass}__status--${host.status}`
+      `${baseClass}__status--${host.status}`,
     );
 
     return (

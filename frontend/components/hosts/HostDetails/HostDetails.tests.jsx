@@ -20,7 +20,7 @@ describe('HostDetails - component', () => {
         onDestroyHost={destroySpy}
         onQueryHost={querySpy}
         isLoading={false}
-      />
+      />,
     );
     const btn = offlineComponent.find('Button');
 
@@ -43,7 +43,7 @@ describe('HostDetails - component', () => {
         onDestroyHost={destroySpy}
         onQueryHost={querySpy}
         isLoading={false}
-      />
+      />,
     );
     const btn = miaComponent.find('Button');
 
@@ -66,7 +66,7 @@ describe('HostDetails - component', () => {
         onDestroyHost={destroySpy}
         onQueryHost={querySpy}
         isLoading={false}
-      />
+      />,
     );
     const btn = onlineComponent.find('Button');
 
@@ -85,7 +85,7 @@ describe('HostDetails - component', () => {
         onDestroyHost={noop}
         onQueryHost={noop}
         isLoading
-      />
+      />,
     );
 
     expect(loadingComponent.find('Circle').length).toEqual(1);

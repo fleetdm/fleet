@@ -1,12 +1,10 @@
 import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { isEqual, omit, values } from 'lodash';
+import { isEqual, omit } from 'lodash';
 
 import queryResultInterface from 'interfaces/query_result';
 
 class QueryResultsRow extends Component {
   static propTypes = {
-    index: PropTypes.number.isRequired,
     queryResult: queryResultInterface.isRequired,
   };
 
@@ -15,16 +13,15 @@ class QueryResultsRow extends Component {
   }
 
   render () {
-    const { index, queryResult } = this.props;
+    const { queryResult } = this.props;
     const { host_hostname: hostHostname } = queryResult;
-    const queryAttrs = omit(queryResult, ['host_hostname']);
-    const queryAttrValues = values(queryAttrs);
+    const queryColumns = omit(queryResult, ['host_hostname']);
 
     return (
       <tr>
         <td>{hostHostname}</td>
-        {queryAttrValues.map((attribute, i) => {
-          return <td key={`query-results-table-row-${index}-${i}`}>{attribute}</td>;
+        {Object.keys(queryColumns).map((col) => {
+          return <td key={col}>{queryColumns[col]}</td>;
         })}
       </tr>
     );
