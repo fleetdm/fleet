@@ -1,4 +1,4 @@
-# Kolide Fleet [![CircleCI](https://circleci.com/gh/kolide/fleet/tree/master.svg?style=svg)](https://circleci.com/gh/kolide/fleet/tree/master)
+# Kolide Fleet [![CircleCI](https://circleci.com/gh/kolide/fleet/tree/master.svg?style=svg)](https://circleci.com/gh/kolide/fleet/tree/master) [![Go Report Card](https://goreportcard.com/badge/github.com/kolide/fleet)](https://goreportcard.com/report/github.com/kolide/fleet)
 
 Fleet is the most widely used open-source osquery Fleet manager. Deploying osquery with Fleet enables live queries, and effective management of osquery infrastructure.
 
