@@ -108,8 +108,6 @@ export const createAceSpy = () => {
 };
 
 export const stubbedOsqueryTable = {
-  attributes: {},
-  blacklisted: false,
   columns: [
     { description: 'User ID', name: 'uid', options: { index: true }, type: 'BIGINT_TYPE' },
     { description: 'Group ID (unsigned)', name: 'gid', options: {}, type: 'BIGINT_TYPE' },
@@ -122,15 +120,13 @@ export const stubbedOsqueryTable = {
     { description: "User's UUID (Apple)", name: 'uuid', options: {}, type: 'TEXT_TYPE' },
   ],
   description: 'Local system users.',
-  examples: [
-    'select * from users where uid = 1000',
-    "select * from users where username = 'root'",
-    'select count(*) from users u, user_groups ug where u.uid = ug.uid',
-  ],
-  foreign_keys: [],
-  function: 'genUsers',
   name: 'users',
-  profile: {},
+  platforms: [
+    'darwin',
+    'linux',
+    'windows',
+    'freebsd',
+  ],
 };
 
 export default {

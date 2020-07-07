@@ -8,10 +8,7 @@ import Icon from 'components/icons/Icon';
 import PlatformIcon from 'components/icons/PlatformIcon';
 import SecondarySidePanelContainer from '../SecondarySidePanelContainer';
 
-import {
-  availability,
-  displayTypeForDataType,
-} from './helpers';
+import displayTypeForDataType from './helpers';
 
 const baseClass = 'query-side-panel';
 
@@ -81,13 +78,12 @@ class QuerySidePanel extends Component {
       renderColumns,
       renderTableSelect,
     } = this;
-    const { selectedOsqueryTable: { description, platform } } = this.props;
-    const platformArr = availability(platform);
+    const { selectedOsqueryTable: { description, platforms } } = this.props;
 
     return (
       <SecondarySidePanelContainer className={baseClass}>
         <div className={`${baseClass}__choose-table`}>
-          <h2 className={`${baseClass}__header`}>Choose a Table</h2>
+          <h2 className={`${baseClass}__header`}>Table Documentation</h2>
           {renderTableSelect()}
           <p className={`${baseClass}__description`}>{description}</p>
         </div>
@@ -95,12 +91,12 @@ class QuerySidePanel extends Component {
         <div className={`${baseClass}__os-availability`}>
           <h2 className={`${baseClass}__header`}>OS Availability</h2>
           <ul className={`${baseClass}__platforms`}>
-            {platformArr.map((os) => {
-              if (os.type === 'all') {
-                return <li key={os.type}><Icon name="hosts" /> {os.display_text}</li>;
+            {platforms.map((platform) => {
+              if (platform === 'all') {
+                return <li key={platform}><Icon name="hosts" /> {platform}</li>;
               }
 
-              return <li key={os.type}><PlatformIcon name={os.display_text} title={os.display_text} /> {os.display_text}</li>;
+              return <li key={platform}><PlatformIcon name={platform} title={platform} /> {platform}</li>;
             })}
           </ul>
         </div>

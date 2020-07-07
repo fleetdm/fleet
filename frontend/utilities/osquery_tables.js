@@ -1,23 +1,10 @@
-import { flatten, map, flatMap, sortBy } from 'lodash';
+import { flatMap, sortBy } from 'lodash';
 import osqueryTablesJSON from '../osquery_tables.json';
 
-const appendPlatformKeyToTables = (parsedTables) => {
-  return map(parsedTables, (platform) => {
-    return platform.tables.map((table) => {
-      table.platform = platform.key;
-
-      return table;
-    });
-  });
-};
-
 export const normalizeTables = (tablesJSON) => {
-  const { tables: parsedTables } = typeof tablesJSON === 'object' ? tablesJSON : JSON.parse(tablesJSON);
-  const tablesWithPlatformKey = appendPlatformKeyToTables(parsedTables);
-
-  const flattenedTables = flatten(tablesWithPlatformKey);
-
-  return sortBy(flattenedTables, (table) => { return table.name; });
+  // osquery JSON needs less parsing than it used to
+  const parsedTables = typeof tablesJSON === 'object' ? tablesJSON : JSON.parse(tablesJSON);
+  return sortBy(parsedTables, (table) => { return table.name; });
 };
 
 export const osqueryTables = normalizeTables(osqueryTablesJSON);
