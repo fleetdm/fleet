@@ -51,7 +51,7 @@
     "redux-thunk": "2.3.0",
     "require-hacker": "2.1.4",
     "select": "1.1.2",
-    "sockjs-client": "1.1.5",
+    "sockjs-client": "^1.4.0",
     "sqlite-parser": "1.0.1",
     "whatwg-fetch": "0.11.1",
     "when": "3.7.8"

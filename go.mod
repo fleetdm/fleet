@@ -22,10 +22,11 @@ require (
 	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/google/uuid v0.0.0-20161128191214-064e2069ce9c // indirect
 	github.com/gorilla/mux v1.6.2
-	github.com/gorilla/websocket v1.2.0
+	github.com/gorilla/websocket v1.4.2
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/hashicorp/hcl v0.0.0-20180404174102-ef8a98b0bbce // indirect
 	github.com/igm/sockjs-go v0.0.0-20171030210102-c8a8c6429d10
+	github.com/igm/sockjs-go/v3 v3.0.0
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jmoiron/sqlx v0.0.0-20180406164412-2aeb6a910c2b
 	github.com/kolide/goose v0.0.0-20181015214854-7aebd1deb5ab
@@ -52,7 +53,7 @@ require (
 	github.com/spf13/jwalterweatherman v0.0.0-20180109140146-7c0cea34c8ec // indirect
 	github.com/spf13/pflag v1.0.1 // indirect
 	github.com/spf13/viper v1.0.2
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.5.1
 	github.com/urfave/cli v1.20.0
 	go.opencensus.io v0.20.2 // indirect
 	golang.org/x/crypto v0.0.0-20191002192127-34f69633bfdc

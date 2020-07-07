@@ -11,7 +11,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/igm/sockjs-go/sockjs"
+	"github.com/igm/sockjs-go/v3/sockjs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
