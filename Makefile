@@ -134,7 +134,7 @@ analyze-go:
 
 test-js: export NODE_PATH = ./frontend
 test-js:
-	_mocha --compilers js:babel-core/register,tsx:typescript-require  \
+	_mocha --compilers js:babel-core/register \
 		--recursive "frontend/**/*.tests.js*" \
 		--require ignore-styles \
 		--require "frontend/.test.setup.js" \
