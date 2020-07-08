@@ -4,12 +4,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"regexp"
 	"strings"
 
 	"github.com/ghodss/yaml"
 	"github.com/kolide/fleet/server/kolide"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
+)
+
+var (
+	yamlSeparator = regexp.MustCompile(`(?m:^---[\t ]*)`)
 )
 
 type specMetadata struct {
@@ -34,11 +39,7 @@ func specGroupFromBytes(b []byte) (*specGroup, error) {
 		Labels:  []*kolide.LabelSpec{},
 	}
 
-	for _, spec := range strings.Split(string(b), "---") {
-		if strings.TrimSpace(spec) == "" {
-			continue
-		}
-
+	for _, spec := range splitYaml(string(b)) {
 		var s specMetadata
 		if err := yaml.Unmarshal([]byte(spec), &s); err != nil {
 			return nil, err
