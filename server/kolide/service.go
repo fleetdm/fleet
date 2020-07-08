@@ -15,7 +15,5 @@ type Service interface {
 	InviteService
 	TargetService
 	ScheduledQueryService
-	OptionService
-	FileIntegrityMonitoringService
 	StatusService
 }

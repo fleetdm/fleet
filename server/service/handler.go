@@ -87,9 +87,6 @@ type KolideEndpoints struct {
 	ListHosts                             endpoint.Endpoint
 	GetHostSummary                        endpoint.Endpoint
 	SearchTargets                         endpoint.Endpoint
-	GetOptions                            endpoint.Endpoint
-	ModifyOptions                         endpoint.Endpoint
-	ResetOptions                          endpoint.Endpoint
 	ApplyOsqueryOptionsSpec               endpoint.Endpoint
 	GetOsqueryOptionsSpec                 endpoint.Endpoint
 	GetCertificate                        endpoint.Endpoint
@@ -97,8 +94,6 @@ type KolideEndpoints struct {
 	InitiateSSO                           endpoint.Endpoint
 	CallbackSSO                           endpoint.Endpoint
 	SSOSettings                           endpoint.Endpoint
-	GetFIM                                endpoint.Endpoint
-	ModifyFIM                             endpoint.Endpoint
 	StatusResultStore                     endpoint.Endpoint
 	StatusLiveQuery                       endpoint.Endpoint
 }
@@ -185,15 +180,10 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string) Kol
 		GetLabelSpecs:                         authenticatedUser(jwtKey, svc, makeGetLabelSpecsEndpoint(svc)),
 		GetLabelSpec:                          authenticatedUser(jwtKey, svc, makeGetLabelSpecEndpoint(svc)),
 		SearchTargets:                         authenticatedUser(jwtKey, svc, makeSearchTargetsEndpoint(svc)),
-		GetOptions:                            authenticatedUser(jwtKey, svc, mustBeAdmin(makeGetOptionsEndpoint(svc))),
-		ModifyOptions:                         authenticatedUser(jwtKey, svc, mustBeAdmin(makeModifyOptionsEndpoint(svc))),
-		ResetOptions:                          authenticatedUser(jwtKey, svc, mustBeAdmin(makeResetOptionsEndpoint(svc))),
 		ApplyOsqueryOptionsSpec:               authenticatedUser(jwtKey, svc, makeApplyOsqueryOptionsSpecEndpoint(svc)),
 		GetOsqueryOptionsSpec:                 authenticatedUser(jwtKey, svc, makeGetOsqueryOptionsSpecEndpoint(svc)),
 		GetCertificate:                        authenticatedUser(jwtKey, svc, makeCertificateEndpoint(svc)),
 		ChangeEmail:                           authenticatedUser(jwtKey, svc, makeChangeEmailEndpoint(svc)),
-		GetFIM:                                authenticatedUser(jwtKey, svc, makeGetFIMEndpoint(svc)),
-		ModifyFIM:                             authenticatedUser(jwtKey, svc, makeModifyFIMEndpoint(svc)),
 
 		// Authenticated status endpoints
 		StatusResultStore: authenticatedUser(jwtKey, svc, makeStatusResultStoreEndpoint(svc)),
@@ -280,9 +270,6 @@ type kolideHandlers struct {
 	ListHosts                             http.Handler
 	GetHostSummary                        http.Handler
 	SearchTargets                         http.Handler
-	GetOptions                            http.Handler
-	ModifyOptions                         http.Handler
-	ResetOptions                          http.Handler
 	ApplyOsqueryOptionsSpec               http.Handler
 	GetOsqueryOptionsSpec                 http.Handler
 	GetCertificate                        http.Handler
@@ -290,8 +277,6 @@ type kolideHandlers struct {
 	InitiateSSO                           http.Handler
 	CallbackSSO                           http.Handler
 	SettingsSSO                           http.Handler
-	ModifyFIM                             http.Handler
-	GetFIM                                http.Handler
 	StatusResultStore                     http.Handler
 	StatusLiveQuery                       http.Handler
 }
@@ -372,9 +357,6 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		ListHosts:                             newServer(e.ListHosts, decodeListHostsRequest),
 		GetHostSummary:                        newServer(e.GetHostSummary, decodeNoParamsRequest),
 		SearchTargets:                         newServer(e.SearchTargets, decodeSearchTargetsRequest),
-		GetOptions:                            newServer(e.GetOptions, decodeNoParamsRequest),
-		ModifyOptions:                         newServer(e.ModifyOptions, decodeModifyOptionsRequest),
-		ResetOptions:                          newServer(e.ResetOptions, decodeNoParamsRequest),
 		ApplyOsqueryOptionsSpec:               newServer(e.ApplyOsqueryOptionsSpec, decodeApplyOsqueryOptionsSpecRequest),
 		GetOsqueryOptionsSpec:                 newServer(e.GetOsqueryOptionsSpec, decodeNoParamsRequest),
 		GetCertificate:                        newServer(e.GetCertificate, decodeNoParamsRequest),
@@ -382,8 +364,6 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		InitiateSSO:                           newServer(e.InitiateSSO, decodeInitiateSSORequest),
 		CallbackSSO:                           newServer(e.CallbackSSO, decodeCallbackSSORequest),
 		SettingsSSO:                           newServer(e.SSOSettings, decodeNoParamsRequest),
-		ModifyFIM:                             newServer(e.ModifyFIM, decodeModifyFIMRequest),
-		GetFIM:                                newServer(e.GetFIM, decodeNoParamsRequest),
 		StatusResultStore:                     newServer(e.StatusResultStore, decodeNoParamsRequest),
 		StatusLiveQuery:                       newServer(e.StatusLiveQuery, decodeNoParamsRequest),
 	}
@@ -506,12 +486,6 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/hosts/{id}", h.GetHost).Methods("GET").Name("get_host")
 	r.Handle("/api/v1/kolide/hosts/{id}", h.DeleteHost).Methods("DELETE").Name("delete_host")
 
-	r.Handle("/api/v1/kolide/fim", h.GetFIM).Methods("GET").Name("get_fim")
-	r.Handle("/api/v1/kolide/fim", h.ModifyFIM).Methods("PATCH").Name("post_fim")
-
-	r.Handle("/api/v1/kolide/options", h.GetOptions).Methods("GET").Name("get_options")
-	r.Handle("/api/v1/kolide/options", h.ModifyOptions).Methods("PATCH").Name("modify_options")
-	r.Handle("/api/v1/kolide/options/reset", h.ResetOptions).Methods("GET").Name("reset_options")
 	r.Handle("/api/v1/kolide/spec/osquery_options", h.ApplyOsqueryOptionsSpec).Methods("POST").Name("apply_osquery_options_spec")
 	r.Handle("/api/v1/kolide/spec/osquery_options", h.GetOsqueryOptionsSpec).Methods("GET").Name("get_osquery_options_spec")
 

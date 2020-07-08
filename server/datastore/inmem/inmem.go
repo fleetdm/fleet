@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/kolide/fleet/server/config"
-	"github.com/kolide/fleet/server/datastore/internal/appstate"
 	"github.com/kolide/fleet/server/kolide"
 	"github.com/patrickmn/sortutil"
 )
@@ -32,11 +31,6 @@ type Datastore struct {
 	distributedQueryExecutions      map[uint]kolide.DistributedQueryExecution
 	distributedQueryCampaigns       map[uint]kolide.DistributedQueryCampaign
 	distributedQueryCampaignTargets map[uint]kolide.DistributedQueryCampaignTarget
-	options                         map[uint]*kolide.Option
-	decorators                      map[uint]*kolide.Decorator
-	filePaths                       map[uint]*kolide.FIMSection
-	yaraFilePaths                   kolide.YARAFilePaths
-	yaraSignatureGroups             map[uint]*kolide.YARASignatureGroup
 	appConfig                       *kolide.AppConfig
 	config                          *config.KolideConfig
 
@@ -105,27 +99,11 @@ func (d *Datastore) MigrateTables() error {
 	d.distributedQueryExecutions = make(map[uint]kolide.DistributedQueryExecution)
 	d.distributedQueryCampaigns = make(map[uint]kolide.DistributedQueryCampaign)
 	d.distributedQueryCampaignTargets = make(map[uint]kolide.DistributedQueryCampaignTarget)
-	d.options = make(map[uint]*kolide.Option)
-	d.decorators = make(map[uint]*kolide.Decorator)
-	d.filePaths = make(map[uint]*kolide.FIMSection)
-	d.yaraFilePaths = make(kolide.YARAFilePaths)
-	d.yaraSignatureGroups = make(map[uint]*kolide.YARASignatureGroup)
 
 	return nil
 }
 
 func (d *Datastore) MigrateData() error {
-	for _, initData := range appstate.Options() {
-		opt := kolide.Option{
-			Name:     initData.Name,
-			Value:    kolide.OptionValue{Val: initData.Value},
-			Type:     initData.Type,
-			ReadOnly: initData.ReadOnly,
-		}
-		opt.ID = d.nextID(opt)
-		d.options[opt.ID] = &opt
-	}
-
 	d.appConfig = &kolide.AppConfig{
 		ID:                 1,
 		SMTPEnableTLS:      true,

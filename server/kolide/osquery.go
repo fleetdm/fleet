@@ -78,27 +78,3 @@ type PermissivePackContent struct {
 type Packs map[string]PackContent
 
 type PermissivePacks map[string]PermissivePackContent
-
-// Decorators is the format of the decorator configuration in an osquery config.
-type Decorators struct {
-	Load     []string            `json:"load,omitempty"`
-	Always   []string            `json:"always,omitempty"`
-	Interval map[string][]string `json:"interval,omitempty"`
-}
-
-// OsqueryConfig is a struct that can be serialized into a valid osquery config
-// using Go's JSON tooling.
-type OsqueryConfig struct {
-	Schedule   map[string]QueryContent `json:"schedule,omitempty"`
-	Options    map[string]interface{}  `json:"options"`
-	Decorators Decorators              `json:"decorators,omitempty"`
-	Packs      Packs                   `json:"packs,omitempty"`
-	// FilePaths contains named collections of file paths used for
-	// FIM (File Integrity Monitoring)
-	FilePaths FIMSections `json:"file_paths,omitempty"`
-}
-
-type PermissiveOsqueryConfig struct {
-	OsqueryConfig
-	Packs PermissivePacks `jsoon:"packs,omitempty"`
-}

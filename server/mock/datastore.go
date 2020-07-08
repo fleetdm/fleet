@@ -21,18 +21,15 @@ var _ kolide.Datastore = (*Store)(nil)
 
 type Store struct {
 	kolide.PasswordResetStore
-	kolide.YARAStore
 	TargetStore
 	SessionStore
 	CampaignStore
 	ScheduledQueryStore
 	OsqueryOptionsStore
-	FileIntegrityMonitoringStore
 	AppConfigStore
 	HostStore
 	InviteStore
 	LabelStore
-	OptionStore
 	PackStore
 	UserStore
 	QueryStore

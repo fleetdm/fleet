@@ -14,9 +14,6 @@ type Datastore interface {
 	AppConfigStore
 	InviteStore
 	ScheduledQueryStore
-	OptionStore
-	FileIntegrityMonitoringStore
-	YARAStore
 	OsqueryOptionsStore
 	Name() string
 	Drop() error
