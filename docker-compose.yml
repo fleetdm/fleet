@@ -35,3 +35,15 @@ services:
     image: redis:3.2.4
     ports:
       - "6379:6379"
+
+  # CAdvisor container allows monitoring other containers. Useful for
+  # development.
+  cadvisor:
+    image: google/cadvisor:latest
+    ports:
+      - "5678:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
