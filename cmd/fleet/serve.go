@@ -71,6 +71,11 @@ the way that the Fleet server works.
 				} else {
 					logger = kitlog.NewLogfmtLogger(output)
 				}
+				if config.Logging.Debug {
+					logger = level.NewFilter(logger, level.AllowDebug())
+				} else {
+					logger = level.NewFilter(logger, level.AllowInfo())
+				}
 				logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
 			}
 
