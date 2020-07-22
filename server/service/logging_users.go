@@ -213,54 +213,6 @@ func (mw loggingMiddleware) ModifyUser(ctx context.Context, userID uint, p kolid
 	return user, err
 }
 
-func (mw loggingMiddleware) User(ctx context.Context, id uint) (*kolide.User, error) {
-	var (
-		user     *kolide.User
-		err      error
-		username = "none"
-	)
-
-	defer func(begin time.Time) {
-		_ = mw.loggerInfo(err).Log(
-			"method", "User",
-			"user", username,
-			"err", err,
-			"took", time.Since(begin),
-		)
-	}(time.Now())
-
-	user, err = mw.Service.User(ctx, id)
-
-	if user != nil {
-		username = user.Username
-	}
-	return user, err
-}
-
-func (mw loggingMiddleware) AuthenticatedUser(ctx context.Context) (*kolide.User, error) {
-	var (
-		user     *kolide.User
-		err      error
-		username = "none"
-	)
-
-	defer func(begin time.Time) {
-		_ = mw.loggerInfo(err).Log(
-			"method", "User",
-			"user", username,
-			"err", err,
-			"took", time.Since(begin),
-		)
-	}(time.Now())
-
-	user, err = mw.Service.AuthenticatedUser(ctx)
-
-	if user != nil {
-		username = user.Username
-	}
-	return user, err
-}
-
 func (mw loggingMiddleware) ChangePassword(ctx context.Context, oldPass, newPass string) error {
 	var (
 		requestedBy = "unauthenticated"
