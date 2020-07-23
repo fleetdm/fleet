@@ -1,3 +1,27 @@
+## Kolide Fleet 3.0.0 (Jul 23, 2020)
+
+* Backend performance overhaul. The Fleet server can now handle hundreds of thousands of connected hosts.
+
+* Pagination implemented in the web UI. This makes the UI usable for any host count supported by the backend.
+
+* Add capability to collect "additional" information from hosts. Additional queries can be set to be updated along with the host detail queries. This additional information is returned by the API.
+
+* Removed extraneous network interface information to optimize server performance. Users that require this information can use the additional queries functionality to retrieve it.
+
+* Add "manual" labels implementation. Static labels can be set by providing a list of hostnames with `fleetctl`.
+
+* Add JSON output for `fleetctl get` commands.
+
+* Add `fleetctl get host` to retrieve details for a single host.
+
+* Update table schema for osquery 4.4.0.
+
+* Add support for multiple enroll secrets.
+
+* Logging verbosity reduced by default. Logs are now much less noisy.
+
+* Fix import of github.com/kolide/fleet Go packages for consumers outside of this repository.
+
 ## Kolide Fleet 2.6.0 (Mar 24, 2020)
 
 * Add server logging for X-Forwarded-For header.
