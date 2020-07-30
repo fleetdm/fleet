@@ -117,6 +117,7 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 
 	db.SetMaxIdleConns(config.MaxIdleConns)
 	db.SetMaxOpenConns(config.MaxOpenConns)
+	db.SetConnMaxLifetime(time.Second * time.Duration(config.ConnMaxLifetime))
 
 	var dbError error
 	for attempt := 0; attempt < options.maxAttempts; attempt++ {
