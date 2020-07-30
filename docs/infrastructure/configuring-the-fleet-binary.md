@@ -281,6 +281,18 @@ The password to use when connecting to the Redis instance.
 	redis:
 		password: foobar
 	```
+##### `redis_database`
+
+The database to use when connecting to the Redis instance.
+
+- Default value: `0`
+- Environment variable: `KOLIDE_REDIS_DATABASE`
+- Config file format:
+
+  ```
+  redis:
+    database: 14
+  ```
 
 #### Server
 

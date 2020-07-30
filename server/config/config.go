@@ -35,6 +35,7 @@ type MysqlConfig struct {
 type RedisConfig struct {
 	Address  string
 	Password string
+	Database int
 }
 
 const (
@@ -165,6 +166,8 @@ func (man Manager) addConfigs() {
 		"Redis server address (host:port)")
 	man.addConfigString("redis.password", "",
 		"Redis server password (prefer env variable for security)")
+	man.addConfigInt("redis.database", 0,
+		"Redis server database number")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -275,6 +278,7 @@ func (man Manager) LoadConfig() KolideConfig {
 		Redis: RedisConfig{
 			Address:  man.getConfigString("redis.address"),
 			Password: man.getConfigString("redis.password"),
+			Database: man.getConfigInt("redis.database"),
 		},
 		Server: ServerConfig{
 			Address:    man.getConfigString("server.address"),

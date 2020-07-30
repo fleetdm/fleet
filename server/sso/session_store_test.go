@@ -17,12 +17,13 @@ func newPool(t *testing.T) *redis.Pool {
 		var (
 			addr     = "127.0.0.1:6379"
 			password = ""
+			database = 0
 		)
 		if a, ok := os.LookupEnv("REDIS_PORT_6379_TCP_ADDR"); ok {
 			addr = fmt.Sprintf("%s:6379", a)
 		}
 
-		p := pubsub.NewRedisPool(addr, password)
+		p := pubsub.NewRedisPool(addr, password, database)
 		_, err := p.Get().Do("PING")
 		require.Nil(t, err)
 		return p

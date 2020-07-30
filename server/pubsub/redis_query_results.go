@@ -19,13 +19,13 @@ type redisQueryResults struct {
 var _ kolide.QueryResultStore = &redisQueryResults{}
 
 // NewRedisPool creates a Redis connection pool using the provided server
-// address and password.
-func NewRedisPool(server, password string) *redis.Pool {
+// address, password and database.
+func NewRedisPool(server, password string, database int) *redis.Pool {
 	return &redis.Pool{
 		MaxIdle:     3,
 		IdleTimeout: 240 * time.Second,
 		Dial: func() (redis.Conn, error) {
-			c, err := redis.Dial("tcp", server)
+			c, err := redis.Dial("tcp", server, redis.DialDatabase(database))
 			if err != nil {
 				return nil, err
 			}
