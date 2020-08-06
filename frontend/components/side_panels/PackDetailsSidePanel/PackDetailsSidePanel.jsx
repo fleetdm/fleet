@@ -8,6 +8,7 @@ import ScheduledQueriesSection from 'components/side_panels/PackDetailsSidePanel
 import scheduledQueryInterface from 'interfaces/scheduled_query';
 import SecondarySidePanelContainer from 'components/side_panels/SecondarySidePanelContainer';
 import Slider from 'components/forms/fields/Slider';
+import PATHS from 'router/paths';
 
 const baseClass = 'pack-details-side-panel';
 
@@ -42,7 +43,7 @@ const PackDetailsSidePanel = ({ onUpdateSelectedPack, pack, scheduledQueries = [
         onChange={updatePackStatus}
         value={!disabled}
       />
-      <Link className={`${baseClass}__edit-pack-link button button--inverse`} to={`/packs/${pack.id}`}>
+      <Link className={`${baseClass}__edit-pack-link button button--inverse`} to={PATHS.PACK({ id: pack.id })}>
         Edit Pack
       </Link>
       <Description pack={pack} />
