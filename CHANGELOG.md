@@ -1,3 +1,15 @@
+## Fleet 3.1.0 (Aug 06, 2020)
+
+* Add configuration option to set Redis database (`--redis_database`).
+
+* Add configuration option to set MySQL connection max lifetime (`--mysql_conn_max_lifetime`).
+
+* Add support for printing a single enroll secret by name.
+
+* Fix bug with label_type in older fleetctl yaml syntax.
+
+* Fix bug with URL prefix and Edit Pack button. 
+
 ## Kolide Fleet 3.0.0 (Jul 23, 2020)
 
 * Backend performance overhaul. The Fleet server can now handle hundreds of thousands of connected hosts.
