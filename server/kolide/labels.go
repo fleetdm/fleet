@@ -121,9 +121,9 @@ func (t LabelType) MarshalJSON() ([]byte, error) {
 
 func (t *LabelType) UnmarshalJSON(b []byte) error {
 	switch string(b) {
-	case `"regular"`:
+	case `"regular"`, "0":
 		*t = LabelTypeRegular
-	case `"builtin"`:
+	case `"builtin"`, "1":
 		*t = LabelTypeBuiltIn
 	default:
 		return errors.Errorf("invalid LabelType: %s", string(b))
