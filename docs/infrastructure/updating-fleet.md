@@ -46,7 +46,13 @@ docker pull kolide/fleet
 
 ## Running database migrations
 
-Before running the updated server, perform necessary database migrations:
+Before running the updated server, perform necessary database migrations. It is always advised to back up the database before running migrations.
+
+Database migrations in Fleet are intended to be run while the server is offline. Osquery is designed to be resilient to short downtime from the server, so no data will be lost from `osqueryd` clients in this process. Even on large Fleet installations, downtime during migrations is usually only seconds to minutes.
+
+First, take the existing servers offline.
+
+Run database migrations:
 
 ```
 fleet prepare db
@@ -54,7 +60,7 @@ fleet prepare db
 
 Note, if you would like to run this in a script, you can use the `--no-prompt` option to disable prompting before the migrations.
 
-The updated Fleet server should now be ready to run:
+Start new Fleet server instances:
 
 ```
 fleet serve
