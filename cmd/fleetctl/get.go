@@ -118,7 +118,7 @@ func printPack(c *cli.Context, pack *kolide.PackSpec) error {
 
 func printOption(c *cli.Context, option *kolide.OptionsSpec) error {
 	spec := specGeneric{
-		Kind:    "option",
+		Kind:    "options",
 		Version: kolide.ApiVersion,
 		Spec:    option,
 	}

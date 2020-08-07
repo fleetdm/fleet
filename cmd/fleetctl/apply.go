@@ -78,7 +78,7 @@ func specGroupFromBytes(b []byte) (*specGroup, error) {
 
 			var optionSpec *kolide.OptionsSpec
 			if err := yaml.Unmarshal(s.Spec, &optionSpec); err != nil {
-				return nil, errors.Wrap(err, "unmarshaling option spec")
+				return nil, errors.Wrap(err, "unmarshaling options spec")
 			}
 			specs.Options = optionSpec
 
