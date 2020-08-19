@@ -17,18 +17,18 @@ const (
 
 // MysqlConfig defines configs related to MySQL
 type MysqlConfig struct {
-	Protocol      	string
-	Address       	string
-	Username      	string
-	Password      	string
-	Database      	string
-	TLSCert       	string `yaml:"tls_cert"`
-	TLSKey        	string `yaml:"tls_key"`
-	TLSCA         	string `yaml:"tls_ca"`
-	TLSServerName 	string `yaml:"tls_server_name"`
-	TLSConfig     	string `yaml:"tls_config"` //tls=customValue in DSN
-	MaxOpenConns  	int    `yaml:"max_open_conns"`
-	MaxIdleConns  	int    `yaml:"max_idle_conns"`
+	Protocol        string
+	Address         string
+	Username        string
+	Password        string
+	Database        string
+	TLSCert         string `yaml:"tls_cert"`
+	TLSKey          string `yaml:"tls_key"`
+	TLSCA           string `yaml:"tls_ca"`
+	TLSServerName   string `yaml:"tls_server_name"`
+	TLSConfig       string `yaml:"tls_config"` //tls=customValue in DSN
+	MaxOpenConns    int    `yaml:"max_open_conns"`
+	MaxIdleConns    int    `yaml:"max_idle_conns"`
 	ConnMaxLifetime int    `yaml:"conn_max_lifetime"`
 }
 
@@ -96,11 +96,22 @@ type LoggingConfig struct {
 
 // FirehoseConfig defines configs for the AWS Firehose logging plugin
 type FirehoseConfig struct {
-	Region          string
-	AccessKeyID     string `yaml:"access_key_id"`
-	SecretAccessKey string `yaml:"secret_access_key"`
-	StatusStream    string `yaml:"status_stream"`
-	ResultStream    string `yaml:"result_stream"`
+	Region           string
+	AccessKeyID      string `yaml:"access_key_id"`
+	SecretAccessKey  string `yaml:"secret_access_key"`
+	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
+	StatusStream     string `yaml:"status_stream"`
+	ResultStream     string `yaml:"result_stream"`
+}
+
+// KinesisConfig defines configs for the AWS Kinesis logging plugin
+type KinesisConfig struct {
+	Region           string
+	AccessKeyID      string `yaml:"access_key_id"`
+	SecretAccessKey  string `yaml:"secret_access_key"`
+	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
+	StatusStream     string `yaml:"status_stream"`
+	ResultStream     string `yaml:"result_stream"`
 }
 
 // PubSubConfig defines configs the for Google PubSub logging plugin
@@ -131,6 +142,7 @@ type KolideConfig struct {
 	Osquery    OsqueryConfig
 	Logging    LoggingConfig
 	Firehose   FirehoseConfig
+	Kinesis    KinesisConfig
 	PubSub     PubSubConfig
 	Filesystem FilesystemConfig
 }
@@ -238,10 +250,23 @@ func (man Manager) addConfigs() {
 	man.addConfigString("firehose.region", "", "AWS Region to use")
 	man.addConfigString("firehose.access_key_id", "", "Access Key ID for AWS authentication")
 	man.addConfigString("firehose.secret_access_key", "", "Secret Access Key for AWS authentication")
+	man.addConfigString("firehose.sts_assume_role_arn", "",
+		"ARN of role to assume for AWS")
 	man.addConfigString("firehose.status_stream", "",
 		"Firehose stream name for status logs")
 	man.addConfigString("firehose.result_stream", "",
 		"Firehose stream name for result logs")
+
+	// Kinesis
+	man.addConfigString("kinesis.region", "", "AWS Region to use")
+	man.addConfigString("kinesis.access_key_id", "", "Access Key ID for AWS authentication")
+	man.addConfigString("kinesis.secret_access_key", "", "Secret Access Key for AWS authentication")
+	man.addConfigString("kinesis.sts_assume_role_arn", "",
+		"ARN of role to assume for AWS")
+	man.addConfigString("kinesis.status_stream", "",
+		"Kinesis stream name for status logs")
+	man.addConfigString("kinesis.result_stream", "",
+		"Kinesis stream name for result logs")
 
 	// PubSub
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
@@ -264,19 +289,19 @@ func (man Manager) LoadConfig() KolideConfig {
 
 	return KolideConfig{
 		Mysql: MysqlConfig{
-			Protocol:      		man.getConfigString("mysql.protocol"),
-			Address:       		man.getConfigString("mysql.address"),
-			Username:      		man.getConfigString("mysql.username"),
-			Password:      		man.getConfigString("mysql.password"),
-			Database:      		man.getConfigString("mysql.database"),
-			TLSCert:       		man.getConfigString("mysql.tls_cert"),
-			TLSKey:        		man.getConfigString("mysql.tls_key"),
-			TLSCA:         		man.getConfigString("mysql.tls_ca"),
-			TLSServerName: 		man.getConfigString("mysql.tls_server_name"),
-			TLSConfig:     		man.getConfigString("mysql.tls_config"),
-			MaxOpenConns:  		man.getConfigInt("mysql.max_open_conns"),
-			MaxIdleConns:  		man.getConfigInt("mysql.max_idle_conns"),
-			ConnMaxLifetime:	man.getConfigInt("mysql.conn_max_lifetime"),
+			Protocol:        man.getConfigString("mysql.protocol"),
+			Address:         man.getConfigString("mysql.address"),
+			Username:        man.getConfigString("mysql.username"),
+			Password:        man.getConfigString("mysql.password"),
+			Database:        man.getConfigString("mysql.database"),
+			TLSCert:         man.getConfigString("mysql.tls_cert"),
+			TLSKey:          man.getConfigString("mysql.tls_key"),
+			TLSCA:           man.getConfigString("mysql.tls_ca"),
+			TLSServerName:   man.getConfigString("mysql.tls_server_name"),
+			TLSConfig:       man.getConfigString("mysql.tls_config"),
+			MaxOpenConns:    man.getConfigInt("mysql.max_open_conns"),
+			MaxIdleConns:    man.getConfigInt("mysql.max_idle_conns"),
+			ConnMaxLifetime: man.getConfigInt("mysql.conn_max_lifetime"),
 		},
 		Redis: RedisConfig{
 			Address:  man.getConfigString("redis.address"),
@@ -320,11 +345,20 @@ func (man Manager) LoadConfig() KolideConfig {
 			DisableBanner: man.getConfigBool("logging.disable_banner"),
 		},
 		Firehose: FirehoseConfig{
-			Region:          man.getConfigString("firehose.region"),
-			AccessKeyID:     man.getConfigString("firehose.access_key_id"),
-			SecretAccessKey: man.getConfigString("firehose.secret_access_key"),
-			StatusStream:    man.getConfigString("firehose.status_stream"),
-			ResultStream:    man.getConfigString("firehose.result_stream"),
+			Region:           man.getConfigString("firehose.region"),
+			AccessKeyID:      man.getConfigString("firehose.access_key_id"),
+			SecretAccessKey:  man.getConfigString("firehose.secret_access_key"),
+			StsAssumeRoleArn: man.getConfigString("firehose.sts_assume_role_arn"),
+			StatusStream:     man.getConfigString("firehose.status_stream"),
+			ResultStream:     man.getConfigString("firehose.result_stream"),
+		},
+		Kinesis: KinesisConfig{
+			Region:           man.getConfigString("kinesis.region"),
+			AccessKeyID:      man.getConfigString("kinesis.access_key_id"),
+			SecretAccessKey:  man.getConfigString("kinesis.secret_access_key"),
+			StatusStream:     man.getConfigString("kinesis.status_stream"),
+			ResultStream:     man.getConfigString("kinesis.result_stream"),
+			StsAssumeRoleArn: man.getConfigString("kinesis.sts_assume_role_arn"),
 		},
 		PubSub: PubSubConfig{
 			Project:     man.getConfigString("pubsub.project"),

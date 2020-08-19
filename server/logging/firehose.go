@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/firehose"
 	"github.com/aws/aws-sdk-go/service/firehose/firehoseiface"
@@ -34,7 +35,7 @@ type firehoseLogWriter struct {
 	logger log.Logger
 }
 
-func NewFirehoseLogWriter(region, id, secret, stream string, logger log.Logger) (*firehoseLogWriter, error) {
+func NewFirehoseLogWriter(region, id, secret, stsAssumeRoleArn, stream string, logger log.Logger) (*firehoseLogWriter, error) {
 	conf := &aws.Config{
 		Region: &region,
 	}
@@ -48,6 +49,17 @@ func NewFirehoseLogWriter(region, id, secret, stream string, logger log.Logger) 
 	sess, err := session.NewSession(conf)
 	if err != nil {
 		return nil, errors.Wrap(err, "create Firehose client")
+	}
+
+	if stsAssumeRoleArn != "" {
+		creds := stscreds.NewCredentials(sess, stsAssumeRoleArn)
+		conf.Credentials = creds
+
+		sess, err = session.NewSession(conf)
+
+		if err != nil {
+			return nil, errors.Wrap(err, "create Firehose client")
+		}
 	}
 	client := firehose.New(sess)
 

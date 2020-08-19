@@ -26,7 +26,7 @@ func Up_20200504120000(tx *sql.Tx) error {
 	if err != nil {
 		errors.Wrap(err, "add additional_queries column")
 	}
-	
+
 	return nil
 }
 

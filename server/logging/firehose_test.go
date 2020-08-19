@@ -195,7 +195,7 @@ func TestFirehoseRecordTooBig(t *testing.T) {
 	ctx := context.Background()
 	newLogs := make([]json.RawMessage, len(logs))
 	copy(newLogs, logs)
-	logs[0] = make(json.RawMessage, firehoseMaxSizeOfRecord+1, firehoseMaxSizeOfRecord+1)
+	newLogs[0] = make(json.RawMessage, firehoseMaxSizeOfRecord+1, firehoseMaxSizeOfRecord+1)
 	callCount := 0
 	putFunc := func(input *firehose.PutRecordBatchInput) (*firehose.PutRecordBatchOutput, error) {
 		callCount += 1
@@ -205,7 +205,7 @@ func TestFirehoseRecordTooBig(t *testing.T) {
 	}
 	f := &mock.FirehoseMock{PutRecordBatchFunc: putFunc}
 	writer := makeFirehoseWriterWithMock(f, "foobar")
-	err := writer.Write(ctx, logs)
+	err := writer.Write(ctx, newLogs)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, callCount)
 }

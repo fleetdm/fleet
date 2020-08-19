@@ -19,12 +19,12 @@ func testCreateUser(t *testing.T, ds kolide.Datastore) {
 
 	for _, tt := range createTests {
 		u := &kolide.User{
-			Username: tt.username,
-			Password: []byte(tt.password),
-			Admin:    tt.isAdmin,
+			Username:                 tt.username,
+			Password:                 []byte(tt.password),
+			Admin:                    tt.isAdmin,
 			AdminForcedPasswordReset: tt.passwordReset,
-			Email:      tt.email,
-			SSOEnabled: tt.sso,
+			Email:                    tt.email,
+			SSOEnabled:               tt.sso,
 		}
 		user, err := ds.NewUser(u)
 		assert.Nil(t, err)
@@ -65,11 +65,11 @@ func createTestUsers(t *testing.T, ds kolide.Datastore) []*kolide.User {
 	var users []*kolide.User
 	for _, tt := range createTests {
 		u := &kolide.User{
-			Username: tt.username,
-			Password: []byte(tt.password),
-			Admin:    tt.isAdmin,
+			Username:                 tt.username,
+			Password:                 []byte(tt.password),
+			Admin:                    tt.isAdmin,
 			AdminForcedPasswordReset: tt.passwordReset,
-			Email: tt.email,
+			Email:                    tt.email,
 		}
 
 		user, err := ds.NewUser(u)

@@ -539,7 +539,7 @@ Setting this to a higher value can reduce baseline load on the Fleet server in l
 
 Which log output plugin should be used for osquery status logs received from clients.
 
-Options are `filesystem`, `firehose`, and 'pubsub'.
+Options are `filesystem`, `firehose`, `kinesis`, `pubsub`, and `stdout`.
 
 - Default value: `filesystem`
 - Environment variable: `KOLIDE_OSQUERY_STATUS_LOG_PLUGIN`
@@ -554,7 +554,7 @@ Options are `filesystem`, `firehose`, and 'pubsub'.
 
 Which log output plugin should be used for osquery result logs received from clients.
 
-Options are `filesystem`, `firehose`, and 'pubsub'.
+Options are `filesystem`, `firehose`, `kinesis`, `pubsub`, and `stdout`.
 
 - Default value: `filesystem`
 - Environment variable: `KOLIDE_OSQUERY_RESULT_LOG_PLUGIN`
@@ -749,6 +749,21 @@ AWS secret access key to use for Firehose authentication.
 		secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 	```
 
+##### `firehose_sts_assume_role_arn`
+
+This flag only has effect if `osquery_status_log_plugin` or
+`osquery_result_log_plugin` are set to `firehose`.
+
+AWS STS role ARN to use for Firehose authentication.
+
+- Default value: none
+- Environment variable: `KOLIDE_FIREHOSE_STS_ASSUME_ROLE_ARN`
+- Config file format:
+
+	```
+	firehose:
+		sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+	```
 
 ##### `firehose_status_stream`
 
@@ -765,6 +780,12 @@ Name of the Firehose stream to write osquery status logs received from clients.
 		status_stream: osquery_status
 	```
 
+The IAM role used to send to Firehose must allow the following permissions on
+the stream listed:
+
+* `firehose:DescribeDeliveryStream`
+* `firehose:PutRecordBatch`
+
 ##### `firehose_result_stream`
 
 This flag only has effect if `osquery_result_log_plugin` is set to `firehose`.
@@ -779,6 +800,124 @@ Name of the Firehose stream to write osquery result logs received from clients.
 	firehose:
 		result_stream: osquery_result
 	```
+
+The IAM role used to send to Firehose must allow the following permissions on
+the stream listed:
+
+* `firehose:DescribeDeliveryStream`
+* `firehose:PutRecordBatch`
+
+#### Kinesis
+
+##### `kinesis_region`
+
+This flag only has effect if `osquery_status_log_plugin` is set to `kinesis`.
+
+AWS region to use for Kinesis connection
+
+- Default value: none
+- Environment variable: `KOLIDE_KINESIS_REGION`
+- Config file format:
+
+	```
+	kinesis:
+		region: ca-central-1
+	```
+
+##### `kinesis_access_key_id`
+
+This flag only has effect if `osquery_status_log_plugin` or
+`osquery_result_log_plugin` are set to `kinesis`.
+
+If `kinesis_access_key_id` and `kinesis_secret_access_key` are omitted, Fleet
+will try to use
+[AWS STS](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html)
+credentials.
+
+AWS access key ID to use for Kinesis authentication.
+
+- Default value: none
+- Environment variable: `KOLIDE_KINESIS_ACCESS_KEY_ID`
+- Config file format:
+
+	```
+	kinesis:
+		access_key_id: AKIAIOSFODNN7EXAMPLE
+	```
+
+##### `kinesis_secret_access_key`
+
+This flag only has effect if `osquery_status_log_plugin` or
+`osquery_result_log_plugin` are set to `kinesis`.
+
+AWS secret access key to use for Kinesis authentication.
+
+- Default value: none
+- Environment variable: `KOLIDE_KINESIS_SECRET_ACCESS_KEY`
+- Config file format:
+
+	```
+	kinesis:
+		secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+	```
+
+##### `kinesis_sts_assume_role_arn`
+
+This flag only has effect if `osquery_status_log_plugin` or
+`osquery_result_log_plugin` are set to `kinesis`.
+
+AWS STS role ARN to use for Kinesis authentication.
+
+- Default value: none
+- Environment variable: `KOLIDE_KINESIS_STS_ASSUME_ROLE_ARN`
+- Config file format:
+
+	```
+	kinesis:
+		sts_assume_role_arn: arn:aws:iam::1234567890:role/kinesis-role
+	```
+
+##### `kinesis_status_stream`
+
+This flag only has effect if `osquery_status_log_plugin` is set to `kinesis`.
+
+Name of the Kinesis stream to write osquery status logs received from clients.
+
+- Default value: none
+- Environment variable: `KOLIDE_KINESIS_STATUS_STREAM`
+- Config file format:
+
+	```
+	kinesis:
+		status_stream: osquery_status
+	```
+
+The IAM role used to send to Kinesis must allow the following permissions on
+the stream listed:
+
+* `kinesis:DescribeStream`
+* `kinesis:PutRecords`
+
+##### `kinesis_result_stream`
+
+This flag only has effect if `osquery_result_log_plugin` is set to `kinesis`.
+
+Name of the Kinesis stream to write osquery result logs received from clients.
+
+- Default value: none
+- Environment variable: `KOLIDE_KINESIS_RESULT_STREAM`
+- Config file format:
+
+	```
+	kinesis:
+		result_stream: osquery_result
+	```
+
+The IAM role used to send to Kinesis must allow the following permissions on
+the stream listed:
+
+* `kinesis:DescribeStream`
+* `kinesis:PutRecords`
 
 #### PubSub
 

@@ -50,9 +50,9 @@ func CreateAuthorizationRequest(settings *Settings, issuer string, options ...fu
 		XMLName: xml.Name{
 			Local: "samlp:AuthnRequest",
 		},
-		ID:    requestID,
-		SAMLP: "urn:oasis:names:tc:SAML:2.0:protocol",
-		SAML:  "urn:oasis:names:tc:SAML:2.0:assertion",
+		ID:                          requestID,
+		SAMLP:                       "urn:oasis:names:tc:SAML:2.0:protocol",
+		SAML:                        "urn:oasis:names:tc:SAML:2.0:assertion",
 		AssertionConsumerServiceURL: settings.AssertionConsumerServiceURL,
 		Destination:                 destinationURL,
 		IssueInstant:                time.Now().UTC().Format("2006-01-02T15:04:05Z"),

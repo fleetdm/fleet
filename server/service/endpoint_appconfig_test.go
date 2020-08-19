@@ -63,7 +63,7 @@ func testModifyAppConfig(t *testing.T, r *testResource) {
 		EntityID:               "kolide",
 		HostExpiryEnabled:      true,
 		HostExpiryWindow:       42,
-		LiveQueryDisabled:     true,
+		LiveQueryDisabled:      true,
 	}
 	payload := appConfigPayloadFromAppConfig(config)
 	payload.SMTPTest = new(bool)
@@ -135,7 +135,7 @@ func appConfigPayloadFromAppConfig(config *kolide.AppConfig) *kolide.AppConfigPa
 			OrgName:    &config.OrgName,
 		},
 		ServerSettings: &kolide.ServerSettings{
-			KolideServerURL:    &config.KolideServerURL,
+			KolideServerURL:   &config.KolideServerURL,
 			LiveQueryDisabled: &config.LiveQueryDisabled,
 		},
 		SMTPSettings: smtpSettingsFromAppConfig(config),
