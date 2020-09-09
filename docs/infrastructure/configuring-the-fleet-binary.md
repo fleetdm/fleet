@@ -649,7 +649,7 @@ Whether or not to log the welcome banner.
 
 	```
 	logging:
-		diable_banner: true
+		disable_banner: true
 	```
 
 #### Filesystem
