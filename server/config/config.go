@@ -123,9 +123,10 @@ type PubSubConfig struct {
 
 // FilesystemConfig defines configs for the Filesystem logging plugin
 type FilesystemConfig struct {
-	StatusLogFile     string `yaml:"status_log_file"`
-	ResultLogFile     string `yaml:"result_log_file"`
-	EnableLogRotation bool   `yaml:"enable_log_rotation"`
+	StatusLogFile        string `yaml:"status_log_file"`
+	ResultLogFile        string `yaml:"result_log_file"`
+	EnableLogRotation    bool   `yaml:"enable_log_rotation"`
+	EnableLogCompression bool   `yaml:"enable_log_compression"`
 }
 
 // KolideConfig stores the application configuration. Each subcategory is
@@ -280,6 +281,8 @@ func (man Manager) addConfigs() {
 		"Log file path to use for result logs")
 	man.addConfigBool("filesystem.enable_log_rotation", false,
 		"Enable automatic rotation for osquery log files")
+	man.addConfigBool("filesystem.enable_log_compression", false,
+		"Enable compression for the rotated osquery log files")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -366,9 +369,10 @@ func (man Manager) LoadConfig() KolideConfig {
 			ResultTopic: man.getConfigString("pubsub.result_topic"),
 		},
 		Filesystem: FilesystemConfig{
-			StatusLogFile:     man.getConfigString("filesystem.status_log_file"),
-			ResultLogFile:     man.getConfigString("filesystem.result_log_file"),
-			EnableLogRotation: man.getConfigBool("filesystem.enable_log_rotation"),
+			StatusLogFile:        man.getConfigString("filesystem.status_log_file"),
+			ResultLogFile:        man.getConfigString("filesystem.result_log_file"),
+			EnableLogRotation:    man.getConfigBool("filesystem.enable_log_rotation"),
+			EnableLogCompression: man.getConfigBool("filesystem.enable_log_compression"),
 		},
 	}
 }

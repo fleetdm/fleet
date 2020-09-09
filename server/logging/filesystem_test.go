@@ -19,7 +19,7 @@ func TestFilesystemLogger(t *testing.T) {
 	tempPath, err := ioutil.TempDir("", "test")
 	require.Nil(t, err)
 	fileName := path.Join(tempPath, "filesystemLogWriter")
-	lgr, err := NewFilesystemLogWriter(fileName, log.NewNopLogger(), false)
+	lgr, err := NewFilesystemLogWriter(fileName, log.NewNopLogger(), false, false)
 	require.Nil(t, err)
 	defer os.Remove(fileName)
 
@@ -66,7 +66,7 @@ func BenchmarkFilesystemLogger(b *testing.B) {
 		b.Fatal("temp dir failed", err)
 	}
 	fileName := path.Join(tempPath, "filesystemLogWriter")
-	lgr, err := NewFilesystemLogWriter(fileName, log.NewNopLogger(), false)
+	lgr, err := NewFilesystemLogWriter(fileName, log.NewNopLogger(), false, false)
 	if err != nil {
 		b.Fatal("new failed ", err)
 	}
@@ -93,13 +93,21 @@ func BenchmarkFilesystemLogger(b *testing.B) {
 }
 
 func BenchmarkLumberjack(b *testing.B) {
+	benchLumberjack(b, false)
+}
+
+func BenchmarkLumberjackWithCompression(b *testing.B) {
+	benchLumberjack(b, true)
+}
+
+func benchLumberjack(b *testing.B, compression bool) {
 	ctx := context.Background()
 	tempPath, err := ioutil.TempDir("", "test")
 	if err != nil {
 		b.Fatal("temp dir failed", err)
 	}
 	fileName := path.Join(tempPath, "lumberjack")
-	lgr, err := NewFilesystemLogWriter(fileName, log.NewNopLogger(), true)
+	lgr, err := NewFilesystemLogWriter(fileName, log.NewNopLogger(), true, compression)
 	if err != nil {
 		b.Fatal("new failed ", err)
 	}

@@ -700,6 +700,21 @@ rotated when files reach a size of 500 Mb or an age of 28 days.
      enable_log_rotation: true
   ```
 
+##### `filesystem_enable_log_compression`
+
+This flag only has effect if `filesystem_enable_log_rotation` is set to `true`.
+
+This flag will cause the rotated logs to be compressed with gzip.
+
+- Default value: `false`
+- Environment variable: `KOLIDE_FILESYSTEM_ENABLE_LOG_COMPRESSION`
+- Config file format:
+
+  ```
+  filesystem:
+     enable_log_compression: true
+  ```
+
 #### Firehose
 
 ##### `firehose_region`

@@ -20,10 +20,10 @@ type filesystemLogWriter struct {
 	writer io.WriteCloser
 }
 
-// NewFilesystemLogWriter creates a log file for osquery status/result logs the
-// logFile can be rotated by sending a `SIGHUP` signal to kolide if
+// NewFilesystemLogWriter creates a log file for osquery status/result logs.
+// The logFile can be rotated by sending a `SIGHUP` signal to Fleet if
 // enableRotation is true
-func NewFilesystemLogWriter(path string, appLogger log.Logger, enableRotation bool) (*filesystemLogWriter, error) {
+func NewFilesystemLogWriter(path string, appLogger log.Logger, enableRotation bool, enableCompression bool) (*filesystemLogWriter, error) {
 	if enableRotation {
 		// Use lumberjack logger that supports rotation
 		osquerydLogger := &lumberjack.Logger{
@@ -31,6 +31,7 @@ func NewFilesystemLogWriter(path string, appLogger log.Logger, enableRotation bo
 			MaxSize:    500, // megabytes
 			MaxBackups: 3,
 			MaxAge:     28, //days
+			Compress:   enableCompression,
 		}
 		appLogger = log.With(appLogger, "component", "osqueryd-logger")
 		sig := make(chan os.Signal)

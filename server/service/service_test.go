@@ -24,7 +24,7 @@ func TestRotateLoggerSIGHUP(t *testing.T) {
 	require.Nil(t, err)
 	defer os.Remove(f.Name())
 
-	logFile, err := logging.NewFilesystemLogWriter(f.Name(), log.NewNopLogger(), true)
+	logFile, err := logging.NewFilesystemLogWriter(f.Name(), log.NewNopLogger(), true, false)
 	require.Nil(t, err)
 
 	// write a log line
