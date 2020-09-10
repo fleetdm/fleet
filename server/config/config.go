@@ -43,7 +43,6 @@ const (
 	TLSProfileKey          = "server.tls_compatibility"
 	TLSProfileModern       = "modern"
 	TLSProfileIntermediate = "intermediate"
-	TLSProfileOld          = "old"
 )
 
 // ServerConfig defines configs related to the Fleet server
@@ -194,8 +193,8 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("server.tls", true,
 		"Enable TLS (required for osqueryd communication)")
 	man.addConfigString(TLSProfileKey, TLSProfileModern,
-		fmt.Sprintf("TLS security profile choose one of %s, %s or %s",
-			TLSProfileModern, TLSProfileIntermediate, TLSProfileOld))
+		fmt.Sprintf("TLS security profile choose one of %s or %s",
+			TLSProfileModern, TLSProfileIntermediate))
 	man.addConfigString("server.url_prefix", "",
 		"URL prefix used on server and frontend endpoints")
 
@@ -477,12 +476,9 @@ func (man Manager) getConfigTLSProfile() string {
 	}
 	switch sval {
 	case TLSProfileModern, TLSProfileIntermediate:
-		// no error
-	case TLSProfileOld:
-		fmt.Println(`WARNING: TLS profile "old" has been deprecated and will soon be removed. If you rely on this feature, please open an issue on GitHub.`)
 	default:
-		panic(fmt.Sprintf("%s must be one of %s, %s or %s", TLSProfileKey,
-			TLSProfileModern, TLSProfileIntermediate, TLSProfileOld))
+		panic(fmt.Sprintf("%s must be one of %s or %s", TLSProfileKey,
+			TLSProfileModern, TLSProfileIntermediate))
 	}
 	return sval
 }
