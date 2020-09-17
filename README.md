@@ -43,7 +43,7 @@ If you have any questions, please create a [GitHub Issue](https://github.com/kol
 
 #### Chat
 
-Please join us in the #kolide channel on [Osquery Slack](https://osquery-slack.herokuapp.com/).
+Please join us in the #kolide channel on [Osquery Slack](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/).
 
 #### Community Projects
 

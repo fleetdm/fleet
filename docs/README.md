@@ -9,4 +9,4 @@ Welcome to the documentation for the Kolide Fleet osquery fleet manager.
 - Architecturally significant decisions are documented in the [Architecture Documentation](./architecture/README.md).
 - Finally, if you're interested in interacting with the Fleet source code, you will find information on modifying and building the code in the [Development Documentation](./development/README.md).
 
-If you have any questions, please don't hesitate to [File a GitHub issue](https://github.com/kolide/fleet/issues) or [join us on Slack](https://osquery-slack.herokuapp.com/). You can find us in the `#kolide` channel.
+If you have any questions, please don't hesitate to [File a GitHub issue](https://github.com/kolide/fleet/issues) or [join us on Slack](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/). You can find us in the `#kolide` channel.
