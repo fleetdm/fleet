@@ -28,7 +28,7 @@ For more information on using Fleet, refer to the [Configuring The Fleet Binary]
 Download the latest raw Fleet binaries:
 
 ```
-curl -O https://github.com/kolide/fleet/releases/latest/download/fleet.zip
+curl -LO https://github.com/kolide/fleet/releases/latest/download/fleet.zip
 ```
 
 Unzip the binaries for your platform:
