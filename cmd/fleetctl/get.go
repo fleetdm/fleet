@@ -616,12 +616,13 @@ func getHostsCommand() cli.Command {
 						host.Host.UUID,
 						host.DisplayText,
 						host.Host.Platform,
+						host.OsqueryVersion,
 						string(host.Status),
 					})
 				}
 
 				table := defaultTable()
-				table.SetHeader([]string{"uuid", "hostname", "platform", "status"})
+				table.SetHeader([]string{"uuid", "hostname", "platform", "osquery_version", "status"})
 				table.AppendBulk(data)
 				table.Render()
 			} else {
