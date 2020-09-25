@@ -107,10 +107,10 @@ endif
 build: fleet fleetctl
 
 fleet: .prefix .pre-build .pre-fleet
-	CGO_ENABLED=0 go build -tags full -i -o build/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
+	CGO_ENABLED=0 go build -tags full -o build/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
 
 fleetctl: .prefix .pre-build .pre-fleetctl
-	CGO_ENABLED=0 go build -tags full -i -o build/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
+	CGO_ENABLED=0 go build -tags full -o build/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
 
 lint-js:
 	yarn run eslint frontend --ext .js,.jsx
@@ -196,7 +196,7 @@ docker-push-release: docker-build-release
 
 docker-build-circle:
 	@echo ">> building docker image"
-	CGO_ENABLED=0 GOOS=linux go build -i -o build/linux/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
+	CGO_ENABLED=0 GOOS=linux go build -o build/linux/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
 	docker build -t "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" .
 	docker push "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
 
@@ -217,14 +217,14 @@ demo-restore:
 	mkdir -p build/binary-bundle/darwin
 
 xp-fleet: .pre-binary-bundle .pre-fleet generate
-	CGO_ENABLED=0 GOOS=linux go build -tags full -i -o build/binary-bundle/linux/fleet -ldflags ${KIT_VERSION} ./cmd/fleet
-	CGO_ENABLED=0 GOOS=darwin go build -tags full -i -o build/binary-bundle/darwin/fleet -ldflags ${KIT_VERSION} ./cmd/fleet
-	CGO_ENABLED=0 GOOS=windows go build -tags full -i -o build/binary-bundle/windows/fleet.exe -ldflags ${KIT_VERSION} ./cmd/fleet
+	CGO_ENABLED=0 GOOS=linux go build -tags full -o build/binary-bundle/linux/fleet -ldflags ${KIT_VERSION} ./cmd/fleet
+	CGO_ENABLED=0 GOOS=darwin go build -tags full -o build/binary-bundle/darwin/fleet -ldflags ${KIT_VERSION} ./cmd/fleet
+	CGO_ENABLED=0 GOOS=windows go build -tags full -o build/binary-bundle/windows/fleet.exe -ldflags ${KIT_VERSION} ./cmd/fleet
 
 xp-fleetctl: .pre-binary-bundle .pre-fleetctl generate
-	CGO_ENABLED=0 GOOS=linux go build -tags full -i -o build/binary-bundle/linux/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
-	CGO_ENABLED=0 GOOS=darwin go build -tags full -i -o build/binary-bundle/darwin/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
-	CGO_ENABLED=0 GOOS=windows go build -tags full -i -o build/binary-bundle/windows/fleetctl.exe -ldflags ${KIT_VERSION} ./cmd/fleetctl
+	CGO_ENABLED=0 GOOS=linux go build -tags full -o build/binary-bundle/linux/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
+	CGO_ENABLED=0 GOOS=darwin go build -tags full -o build/binary-bundle/darwin/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
+	CGO_ENABLED=0 GOOS=windows go build -tags full -o build/binary-bundle/windows/fleetctl.exe -ldflags ${KIT_VERSION} ./cmd/fleetctl
 
 binary-bundle: xp-fleet xp-fleetctl
 	cd build/binary-bundle && zip -r "fleet_${VERSION}.zip" darwin/ linux/ windows/
