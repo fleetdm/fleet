@@ -3,6 +3,7 @@ package logging
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math"
 	"math/rand"
 	"time"
@@ -104,7 +105,7 @@ func (k *kinesisLogWriter) Write(ctx context.Context, logs []json.RawMessage) er
 	for _, log := range logs {
 		// Evenly distribute logs across shards by assigning each
 		// kinesis.PutRecordsRequestEntry a random partition key.
-		partitionKey := string(k.rand.Intn(256))
+		partitionKey := fmt.Sprint(k.rand.Intn(256))
 
 		// We don't really have a good option for what to do with logs
 		// that are too big for Kinesis. This behavior is consistent
