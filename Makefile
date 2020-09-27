@@ -221,7 +221,7 @@ xp-fleet: .pre-binary-bundle .pre-fleet generate
 	CGO_ENABLED=0 GOOS=darwin go build -tags full -o build/binary-bundle/darwin/fleet -ldflags ${KIT_VERSION} ./cmd/fleet
 	CGO_ENABLED=0 GOOS=windows go build -tags full -o build/binary-bundle/windows/fleet.exe -ldflags ${KIT_VERSION} ./cmd/fleet
 
-xp-fleetctl: .pre-binary-bundle .pre-fleetctl generate
+xp-fleetctl: .pre-binary-bundle .pre-fleetctl generate-go
 	CGO_ENABLED=0 GOOS=linux go build -tags full -o build/binary-bundle/linux/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
 	CGO_ENABLED=0 GOOS=darwin go build -tags full -o build/binary-bundle/darwin/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
 	CGO_ENABLED=0 GOOS=windows go build -tags full -o build/binary-bundle/windows/fleetctl.exe -ldflags ${KIT_VERSION} ./cmd/fleetctl
