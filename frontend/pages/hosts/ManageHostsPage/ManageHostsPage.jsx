@@ -328,7 +328,7 @@ export class ManageHostsPage extends PureComponent {
   }
 
   renderDeleteHostModal = () => {
-    const { showDeleteHostModal } = this.state;
+    const { showDeleteHostModal, selectedHost } = this.state;
     const { toggleDeleteHostModal, onDestroyHost } = this;
 
     if (!showDeleteHostModal) {
@@ -341,7 +341,7 @@ export class ManageHostsPage extends PureComponent {
         onExit={toggleDeleteHostModal(null)}
         className={`${baseClass}__modal`}
       >
-        <p>This action will delete the host from your Fleet instance.</p>
+        <p>This action will delete the host <strong>{selectedHost.hostname}</strong> from your Fleet instance.</p>
         <p>If the host comes back online it will automatically re-enroll. To prevent the host from re-enrolling please disable or uninstall osquery on the host.</p>
         <div className={`${baseClass}__modal-buttons`}>
           <Button onClick={onDestroyHost} variant="alert">Delete</Button>
