@@ -37,6 +37,7 @@ type RedisConfig struct {
 	Address  string
 	Password string
 	Database int
+	UseTLS   bool `yaml:"use_tls"`
 }
 
 const (
@@ -182,6 +183,7 @@ func (man Manager) addConfigs() {
 		"Redis server password (prefer env variable for security)")
 	man.addConfigInt("redis.database", 0,
 		"Redis server database number")
+	man.addConfigBool("redis.use_tls", false, "Redis server enable TLS")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -309,6 +311,7 @@ func (man Manager) LoadConfig() KolideConfig {
 			Address:  man.getConfigString("redis.address"),
 			Password: man.getConfigString("redis.password"),
 			Database: man.getConfigInt("redis.database"),
+			UseTLS:   man.getConfigBool("redis.use_tls"),
 		},
 		Server: ServerConfig{
 			Address:    man.getConfigString("server.address"),

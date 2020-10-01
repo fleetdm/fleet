@@ -30,13 +30,14 @@ func setupRedisLiveQuery(t *testing.T) (store *redisLiveQuery, teardown func()) 
 		addr     = "127.0.0.1:6379"
 		password = ""
 		database = 0
+		useTLS   = false
 	)
 
 	if a, ok := os.LookupEnv("REDIS_PORT_6379_TCP_ADDR"); ok {
 		addr = fmt.Sprintf("%s:6379", a)
 	}
 
-	store = NewRedisLiveQuery(pubsub.NewRedisPool(addr, password, database))
+	store = NewRedisLiveQuery(pubsub.NewRedisPool(addr, password, database, useTLS))
 
 	_, err := store.pool.Get().Do("PING")
 	require.NoError(t, err)

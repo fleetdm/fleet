@@ -20,12 +20,12 @@ var _ kolide.QueryResultStore = &redisQueryResults{}
 
 // NewRedisPool creates a Redis connection pool using the provided server
 // address, password and database.
-func NewRedisPool(server, password string, database int) *redis.Pool {
+func NewRedisPool(server, password string, database int, useTLS bool) *redis.Pool {
 	return &redis.Pool{
 		MaxIdle:     3,
 		IdleTimeout: 240 * time.Second,
 		Dial: func() (redis.Conn, error) {
-			c, err := redis.Dial("tcp", server, redis.DialDatabase(database))
+			c, err := redis.Dial("tcp", server, redis.DialDatabase(database), redis.DialUseTLS(useTLS))
 			if err != nil {
 				return nil, err
 			}

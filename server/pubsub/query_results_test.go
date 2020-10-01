@@ -65,13 +65,14 @@ func setupRedis(t *testing.T) (store *redisQueryResults, teardown func()) {
 		addr     = "127.0.0.1:6379"
 		password = ""
 		database = 0
+		useTLS   = false
 	)
 
 	if a, ok := os.LookupEnv("REDIS_PORT_6379_TCP_ADDR"); ok {
 		addr = fmt.Sprintf("%s:6379", a)
 	}
 
-	store = NewRedisQueryResults(NewRedisPool(addr, password, database))
+	store = NewRedisQueryResults(NewRedisPool(addr, password, database, useTLS))
 
 	_, err := store.pool.Get().Do("PING")
 	require.Nil(t, err)
