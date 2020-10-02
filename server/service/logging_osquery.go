@@ -21,6 +21,7 @@ func (mw loggingMiddleware) EnrollAgent(ctx context.Context, enrollSecret string
 			"method", "EnrollAgent",
 			"ip_addr", ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string),
 			"x_for_ip_addr", ctx.Value(kithttp.ContextKeyRequestXForwardedFor).(string),
+			"host_identifier", hostIdentifier,
 			"err", err,
 			"took", time.Since(begin),
 		)
