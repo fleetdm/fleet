@@ -111,7 +111,7 @@ type Host struct {
 	PlatformLike     string        `json:"platform_like" db:"platform_like"`
 	CodeName         string        `json:"code_name" db:"code_name"`
 	Uptime           time.Duration `json:"uptime"`
-	PhysicalMemory   int           `json:"memory" sql:"type:bigint" db:"physical_memory"`
+	PhysicalMemory   int64         `json:"memory" sql:"type:bigint" db:"physical_memory"`
 	// system_info fields
 	CPUType          string `json:"cpu_type" db:"cpu_type"`
 	CPUSubtype       string `json:"cpu_subtype" db:"cpu_subtype"`

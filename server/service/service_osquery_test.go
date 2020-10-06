@@ -650,7 +650,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	assert.Equal(t, "1.8.2", gotHost.OsqueryVersion)
 
 	// system_info
-	assert.Equal(t, 17179869184, gotHost.PhysicalMemory)
+	assert.Equal(t, int64(17179869184), gotHost.PhysicalMemory)
 	assert.Equal(t, "computer.local", gotHost.HostName)
 	assert.Equal(t, "uuid", gotHost.UUID)
 
@@ -820,7 +820,7 @@ func TestDetailQueries(t *testing.T) {
 	assert.Equal(t, "1.8.2", gotHost.OsqueryVersion)
 
 	// system_info
-	assert.Equal(t, 17179869184, gotHost.PhysicalMemory)
+	assert.Equal(t, int64(17179869184), gotHost.PhysicalMemory)
 	assert.Equal(t, "computer.local", gotHost.HostName)
 	assert.Equal(t, "uuid", gotHost.UUID)
 

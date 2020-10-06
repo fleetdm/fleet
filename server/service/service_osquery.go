@@ -411,7 +411,7 @@ var detailQueries = map[string]struct {
 			}
 
 			var err error
-			host.PhysicalMemory, err = strconv.Atoi(emptyToZero(rows[0]["physical_memory"]))
+			host.PhysicalMemory, err = strconv.ParseInt(emptyToZero(rows[0]["physical_memory"]), 10, 64)
 			if err != nil {
 				return err
 			}
