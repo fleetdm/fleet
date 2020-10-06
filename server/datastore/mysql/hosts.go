@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jmoiron/sqlx"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
@@ -287,44 +288,74 @@ func (d *Datastore) EnrollHost(osqueryHostID, nodeKey, secretName string) (*koli
 		return nil, fmt.Errorf("missing osquery host identifier")
 	}
 
-	zeroTime := time.Unix(0, 0).Add(24 * time.Hour)
-	sqlInsert := `
-		INSERT INTO hosts (
-			detail_update_time,
-			label_update_time,
-			osquery_host_id,
-			seen_time,
-			node_key,
-			enroll_secret_name
-		) VALUES (?, ?, ?, ?, ?, ?)
-		ON DUPLICATE KEY UPDATE
-			node_key = VALUES(node_key)
-	`
+	var host kolide.Host
+	err := d.withRetryTxx(func(tx *sqlx.Tx) error {
+		zeroTime := time.Unix(0, 0).Add(24 * time.Hour)
 
-	var result sql.Result
-	result, err := d.db.Exec(sqlInsert, zeroTime, zeroTime, osqueryHostID, time.Now().UTC(), nodeKey, secretName)
+		var id int64
+		err := tx.Get(&host, `SELECT id, last_enroll_time FROM hosts WHERE osquery_host_id = ?`, osqueryHostID)
+		if err != nil {
+			// Create new host record
+			sqlInsert := `
+				INSERT INTO hosts (
+					detail_update_time,
+					label_update_time,
+					osquery_host_id,
+					seen_time,
+					node_key,
+					enroll_secret_name
+				) VALUES (?, ?, ?, ?, ?, ?)
+			`
+			result, err := tx.Exec(sqlInsert, zeroTime, zeroTime, osqueryHostID, time.Now().UTC(), nodeKey, secretName)
+
+			if err != nil {
+				return errors.Wrap(err, "insert host")
+			}
+
+			id, _ = result.LastInsertId()
+		} else {
+			// Prevent hosts from enrolling too often with the same identifier.
+			// Prior to adding this we saw many hosts (probably VMs) with the
+			// same identifier competing for enrollment and causing perf issues.
+			if time.Since(host.LastEnrollTime) < kolide.HostEnrollCooldown {
+				return backoff.Permanent(fmt.Errorf("host identified by %s enrolling too often", osqueryHostID))
+			}
+			id = int64(host.ID)
+			// Update existing host record
+			sqlUpdate := `
+				UPDATE hosts
+				SET node_key = ?,
+				enroll_secret_name = ?,
+				last_enroll_time = NOW()
+				WHERE osquery_host_id = ?
+			`
+			_, err := tx.Exec(sqlUpdate, nodeKey, secretName, osqueryHostID)
+
+			if err != nil {
+				return errors.Wrap(err, "update host")
+			}
+		}
+
+		sqlSelect := `
+			SELECT * FROM hosts WHERE id = ? LIMIT 1
+		`
+		err = tx.Get(&host, sqlSelect, id)
+		if err != nil {
+			return errors.Wrap(err, "getting the host to return")
+		}
+
+		_, err = tx.Exec(`INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, (SELECT id FROM labels WHERE name = 'All Hosts' AND label_type = 1))`, id)
+		if err != nil {
+			return errors.Wrap(err, "insert new host into all hosts label")
+		}
+
+		return nil
+	})
 
 	if err != nil {
-		return nil, errors.Wrap(err, "inserting")
+		return nil, err
 	}
-
-	id, _ := result.LastInsertId()
-	sqlSelect := `
-		SELECT * FROM hosts WHERE id = ? LIMIT 1
-	`
-	host := &kolide.Host{}
-	err = d.db.Get(host, sqlSelect, id)
-	if err != nil {
-		return nil, errors.Wrap(err, "getting the host to return")
-	}
-
-	_, err = d.db.Exec(`INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, (SELECT id FROM labels WHERE name = 'All Hosts' AND label_type = 1))`, id)
-	if err != nil {
-		return nil, errors.Wrap(err, "insert new host into all hosts label")
-	}
-
-	return host, nil
-
+	return &host, nil
 }
 
 func (d *Datastore) AuthenticateHost(nodeKey string) (*kolide.Host, error) {
