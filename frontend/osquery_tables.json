@@ -301,6 +301,194 @@
     ]
   },
   {
+    "name":"apparmor_events",
+    "description":"Track AppArmor events.",
+    "url":"https://github.com/osquery/osquery/blob/master/specs/linux/apparmor_events.table",
+    "platforms":[
+      "linux"
+    ],
+    "evented":true,
+    "cacheable":false,
+    "columns":[
+      {
+        "name":"type",
+        "description":"Event type",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"message",
+        "description":"Raw audit message",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"time",
+        "description":"Time of execution in UNIX time",
+        "type":"bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"uptime",
+        "description":"Time of execution in system uptime",
+        "type":"bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"eid",
+        "description":"Event ID",
+        "type":"text",
+        "hidden":true,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"apparmor",
+        "description":"Apparmor Status like ALLOWED, DENIED etc.",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"operation",
+        "description":"Permission requested by the process",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"parent",
+        "description":"Parent process PID",
+        "type":"unsigned_bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"profile",
+        "description":"Apparmor profile name",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"name",
+        "description":"Process name",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"pid",
+        "description":"Process ID",
+        "type":"unsigned_bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"comm",
+        "description":"Command-line name of the command that was used to invoke the analyzed process",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"denied_mask",
+        "description":"Denied permissions for the process",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"capname",
+        "description":"Capability requested by the process",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"fsuid",
+        "description":"Filesystem user ID",
+        "type":"unsigned_bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"ouid",
+        "description":"Object owner's user ID",
+        "type":"unsigned_bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"capability",
+        "description":"Capability number",
+        "type":"bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"requested_mask",
+        "description":"Requested access mask",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"info",
+        "description":"Additional information",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"error",
+        "description":"Error information",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"namespace",
+        "description":"AppArmor namespace",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"label",
+        "description":"AppArmor label",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      }
+    ]
+  },
+  {
     "name":"apparmor_profiles",
     "description":"Track active AppArmor profiles.",
     "url":"https://github.com/osquery/osquery/blob/master/specs/linux/apparmor_profiles.table",
@@ -1416,6 +1604,42 @@
     ]
   },
   {
+    "name":"background_activities_moderator",
+    "description":"Background Activities Moderator (BAM) tracks application execution.",
+    "url":"https://github.com/osquery/osquery/blob/master/specs/windows/background_activities_moderator.table",
+    "platforms":[
+      "windows"
+    ],
+    "evented":false,
+    "cacheable":false,
+    "columns":[
+      {
+        "name":"path",
+        "description":"Application file path.",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"last_execution_time",
+        "description":"Most recent time application was executed.",
+        "type":"integer",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"sid",
+        "description":"User SID.",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      }
+    ]
+  },
+  {
     "name":"battery",
     "description":"Provides information about the internal battery of a Macbook.",
     "url":"https://github.com/osquery/osquery/blob/master/specs/darwin/battery.table",
@@ -2295,8 +2519,8 @@
       },
       {
         "name":"chassis_types",
-        "description":"The type of chassis, such as Desktop or Laptop.",
-        "type":"integer",
+        "description":"A comma-separated list of chassis types, such as Desktop or Laptop.",
+        "type":"text",
         "hidden":false,
         "required":false,
         "index":false
@@ -2334,9 +2558,9 @@
         "index":false
       },
       {
-        "name":"security_status",
-        "description":"The physical status of the chassis such as breached, not breached, etc.",
-        "type":"integer",
+        "name":"security_breach",
+        "description":"The physical status of the chassis such as Breach Successful, Breach Attempted, etc.",
+        "type":"text",
         "hidden":false,
         "required":false,
         "index":false
@@ -3475,7 +3699,7 @@
         "index":false
       },
       {
-        "name":"certificate_version",
+        "name":"version",
         "description":"Version Number",
         "type":"integer",
         "hidden":false,
@@ -3531,7 +3755,7 @@
         "index":false
       },
       {
-        "name":"certificate_policies",
+        "name":"policies",
         "description":"Certificate Policies",
         "type":"text",
         "hidden":false,
@@ -3579,7 +3803,7 @@
         "index":false
       },
       {
-        "name":"certificate_has_expired",
+        "name":"has_expired",
         "description":"1 if the certificate has expired, 0 otherwise",
         "type":"integer",
         "hidden":false,
@@ -3619,7 +3843,7 @@
         "index":false
       },
       {
-        "name":"certificate_pem",
+        "name":"pem",
         "description":"Certificate PEM format",
         "type":"text",
         "hidden":false,
@@ -4390,6 +4614,42 @@
         "name":"description",
         "description":"The OS's description of the disk.",
         "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      }
+    ]
+  },
+  {
+    "name":"dns_cache",
+    "description":"Enumerate the DNS cache using the undocumented DnsGetCacheDataTable function in dnsapi.dll.",
+    "url":"https://github.com/osquery/osquery/blob/master/specs/windows/dns_cache.table",
+    "platforms":[
+      "windows"
+    ],
+    "evented":false,
+    "cacheable":false,
+    "columns":[
+      {
+        "name":"name",
+        "description":"DNS record name",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"type",
+        "description":"DNS record type",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"flags",
+        "description":"DNS record flags",
+        "type":"integer",
         "hidden":false,
         "required":false,
         "index":false
@@ -7250,6 +7510,14 @@
       {
         "name":"file_id",
         "description":"file ID",
+        "type":"text",
+        "hidden":true,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"file_version",
+        "description":"File version",
         "type":"text",
         "hidden":true,
         "required":false,
@@ -11688,7 +11956,7 @@
       },
       {
         "name":"check_array_progress",
-        "description":"Progress of the resync activity",
+        "description":"Progress of the check array activity",
         "type":"text",
         "hidden":false,
         "required":false,
@@ -11696,7 +11964,7 @@
       },
       {
         "name":"check_array_finish",
-        "description":"Estimated duration of resync activity",
+        "description":"Estimated duration of the check array activity",
         "type":"text",
         "hidden":false,
         "required":false,
@@ -11704,7 +11972,7 @@
       },
       {
         "name":"check_array_speed",
-        "description":"Speed of resync activity",
+        "description":"Speed of the check array activity",
         "type":"text",
         "hidden":false,
         "required":false,
@@ -13252,7 +13520,7 @@
       {
         "name":"install_date",
         "description":"The install date of the OS.",
-        "type":"text",
+        "type":"bigint",
         "hidden":true,
         "required":false,
         "index":false
@@ -16017,7 +16285,7 @@
       },
       {
         "name":"cpu_type",
-        "description":"A 64bit pid that is never reused. Returns -1 if we couldn't gather them from the system.",
+        "description":"Indicates the specific processor designed for installation.",
         "type":"integer",
         "hidden":false,
         "required":false,
@@ -16025,7 +16293,7 @@
       },
       {
         "name":"cpu_subtype",
-        "description":"The 64bit parent pid that is never reused. Returns -1 if we couldn't gather them from the system.",
+        "description":"Indicates the specific processor on which an entry may be used.",
         "type":"integer",
         "hidden":false,
         "required":false,
@@ -17627,6 +17895,50 @@
         "name":"history_file",
         "description":"Path to the .*_history for this user",
         "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      }
+    ]
+  },
+  {
+    "name":"shimcache",
+    "description":"Application Compatibility Cache, contains artifacts of execution.",
+    "url":"https://github.com/osquery/osquery/blob/master/specs/windows/shimcache.table",
+    "platforms":[
+      "windows"
+    ],
+    "evented":false,
+    "cacheable":false,
+    "columns":[
+      {
+        "name":"entry",
+        "description":"Execution order.",
+        "type":"integer",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"path",
+        "description":"This is the path to the executed file.",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"modified_time",
+        "description":"File Modified time.",
+        "type":"integer",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"execution_flag",
+        "description":"Boolean Execution flag, 1 for execution, 0 for no execution, -1 for missing (this flag does not exist on Windows 10 and higher).",
+        "type":"integer",
         "hidden":false,
         "required":false,
         "index":false
@@ -19557,7 +19869,7 @@
       {
         "name":"driver_date",
         "description":"The date listed on the installed driver.",
-        "type":"text",
+        "type":"bigint",
         "hidden":false,
         "required":false,
         "index":false
@@ -20325,6 +20637,130 @@
     ]
   },
   {
+    "name":"windows_eventlog",
+    "description":"Table for querying all recorded Windows event logs.",
+    "url":"https://github.com/osquery/osquery/blob/master/specs/windows/windows_eventlog.table",
+    "platforms":[
+      "windows"
+    ],
+    "evented":false,
+    "cacheable":false,
+    "columns":[
+      {
+        "name":"channel",
+        "description":"Source or channel of the event",
+        "type":"text",
+        "hidden":false,
+        "required":true,
+        "index":false
+      },
+      {
+        "name":"datetime",
+        "description":"System time at which the event occurred",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"task",
+        "description":"Task value associated with the event",
+        "type":"integer",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"level",
+        "description":"Severity level associated with the event",
+        "type":"integer",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"provider_name",
+        "description":"Provider name of the event",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"provider_guid",
+        "description":"Provider guid of the event",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"eventid",
+        "description":"Event ID of the event",
+        "type":"integer",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"keywords",
+        "description":"A bitmask of the keywords defined in the event",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"data",
+        "description":"Data associated with the event",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"pid",
+        "description":"Process ID which emitted the event record",
+        "type":"integer",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"tid",
+        "description":"Thread ID which emitted the event record",
+        "type":"integer",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"time_range",
+        "description":"System time to selectively filter the events",
+        "type":"text",
+        "hidden":true,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"timestamp",
+        "description":"Timestamp to selectively filter the events",
+        "type":"text",
+        "hidden":true,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"xpath",
+        "description":"The custom query to filter events",
+        "type":"text",
+        "hidden":true,
+        "required":true,
+        "index":false
+      }
+    ]
+  },
+  {
     "name":"windows_events",
     "description":"Windows Event logs.",
     "url":"https://github.com/osquery/osquery/blob/master/specs/windows/windows_events.table",
@@ -21032,6 +21468,14 @@
         "index":false
       },
       {
+        "name":"sigrule",
+        "description":"Signature strings used",
+        "type":"text",
+        "hidden":true,
+        "required":false,
+        "index":false
+      },
+      {
         "name":"strings",
         "description":"Matching strings",
         "type":"text",
@@ -21044,6 +21488,14 @@
         "description":"Matching tags",
         "type":"text",
         "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"sigurl",
+        "description":"Signature url",
+        "type":"text",
+        "hidden":true,
         "required":false,
         "index":false
       }
