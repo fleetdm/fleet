@@ -603,10 +603,10 @@ func (svc service) ingestDistributedQuery(host kolide.Host, name string, rows []
 			return osqueryError{message: "loading orphaned campaign: " + err.Error()}
 		}
 
-		if campaign.CreatedAt.Before(svc.clock.Now().Add(5 * time.Second)) {
+		if campaign.CreatedAt.After(svc.clock.Now().Add(-5 * time.Second)) {
 			// Give the client 5 seconds to connect before considering the
 			// campaign orphaned
-			return osqueryError{message: "campaign waiting for listener"}
+			return osqueryError{message: "campaign waiting for listener (please retry)"}
 		}
 
 		if campaign.Status != kolide.QueryComplete {
@@ -619,6 +619,9 @@ func (svc service) ingestDistributedQuery(host kolide.Host, name string, rows []
 		if err := svc.liveQueryStore.StopQuery(strconv.Itoa(int(campaignID))); err != nil {
 			return osqueryError{message: "stopping orphaned campaign: " + err.Error()}
 		}
+
+		// No need to record query completion in this case
+		return nil
 	}
 
 	err = svc.liveQueryStore.QueryCompletedByHost(strconv.Itoa(int(campaignID)), host.ID)

@@ -49,13 +49,13 @@ func (im *inmemQueryResults) WriteResult(result kolide.DistributedQueryResult) e
 	return nil
 }
 
-func (im *inmemQueryResults) ReadChannel(ctx context.Context, query kolide.DistributedQueryCampaign) (<-chan interface{}, error) {
-	channel := im.getChannel(query.ID)
+func (im *inmemQueryResults) ReadChannel(ctx context.Context, campaign kolide.DistributedQueryCampaign) (<-chan interface{}, error) {
+	channel := im.getChannel(campaign.ID)
 	go func() {
 		<-ctx.Done()
 		close(channel)
 		im.channelMutex.Lock()
-		delete(im.resultChannels, query.ID)
+		delete(im.resultChannels, campaign.ID)
 		im.channelMutex.Unlock()
 	}()
 	return channel, nil
