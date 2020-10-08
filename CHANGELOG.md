@@ -1,3 +1,31 @@
+## Fleet 3.2.0 (Aug 08, 2020)
+
+* Add `stdout` logging plugin.
+
+* Add AWS `kinesis` logging plugin.
+
+* Add compression option for `filesystem` logging plugin.
+
+* Add support for Redis TLS connections.
+
+* Add osquery host identifier to EnrollAgent logs.
+
+* Add osquery version information to output of `fleetctl get hosts`.
+
+* Add hostname to UI delete host confirmation modal.
+
+* Update osquery schema to 4.5.0.
+
+* Update osquery versions available in schedule query UI.
+
+* Update MySQL driver.
+
+* Remove support for (previously deprecated) `old` TLS profile.
+
+* Fix cleanup of queries in bad state. This should resolve issues in which users experienced old live queries repeatedly returned to hosts. 
+
+* Fix output kind of `fleetctl get options`
+
 ## Fleet 3.1.0 (Aug 06, 2020)
 
 * Add configuration option to set Redis database (`--redis_database`).
