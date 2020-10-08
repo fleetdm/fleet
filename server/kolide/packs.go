@@ -130,6 +130,10 @@ type Pack struct {
 	Disabled    bool   `json:"disabled"`
 }
 
+const (
+	PackKind = "pack"
+)
+
 // PackPayload is the struct which is used to create/update packs.
 type PackPayload struct {
 	Name        *string `json:"name"`

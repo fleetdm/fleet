@@ -84,7 +84,7 @@ type Query struct {
 }
 
 const (
-	QueryKind = "Query"
+	QueryKind = "query"
 )
 
 type QueryObject struct {

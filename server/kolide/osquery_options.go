@@ -31,7 +31,7 @@ type OptionsOverrides struct {
 }
 
 const (
-	OptionsKind = "Options"
+	OptionsKind = "options"
 )
 
 // OptionOverrideType is used to designate which override type a given set of

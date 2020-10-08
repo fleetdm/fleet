@@ -178,6 +178,10 @@ type Label struct {
 	HostCount           int                 `json:"host_count" db:"host_count"`
 }
 
+const (
+	LabelKind = "label"
+)
+
 type LabelQueryExecution struct {
 	ID        uint
 	UpdatedAt time.Time

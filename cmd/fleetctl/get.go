@@ -64,7 +64,7 @@ func printYaml(spec interface{}) error {
 
 func printLabel(c *cli.Context, label *kolide.LabelSpec) error {
 	spec := specGeneric{
-		Kind:    "label",
+		Kind:    kolide.LabelKind,
 		Version: kolide.ApiVersion,
 		Spec:    label,
 	}
@@ -82,7 +82,7 @@ func printLabel(c *cli.Context, label *kolide.LabelSpec) error {
 
 func printQuery(c *cli.Context, query *kolide.QuerySpec) error {
 	spec := specGeneric{
-		Kind:    "query",
+		Kind:    kolide.QueryKind,
 		Version: kolide.ApiVersion,
 		Spec:    query,
 	}
@@ -100,7 +100,7 @@ func printQuery(c *cli.Context, query *kolide.QuerySpec) error {
 
 func printPack(c *cli.Context, pack *kolide.PackSpec) error {
 	spec := specGeneric{
-		Kind:    "pack",
+		Kind:    kolide.PackKind,
 		Version: kolide.ApiVersion,
 		Spec:    pack,
 	}
@@ -118,7 +118,7 @@ func printPack(c *cli.Context, pack *kolide.PackSpec) error {
 
 func printOption(c *cli.Context, option *kolide.OptionsSpec) error {
 	spec := specGeneric{
-		Kind:    "options",
+		Kind:    kolide.OptionsKind,
 		Version: kolide.ApiVersion,
 		Spec:    option,
 	}
@@ -136,7 +136,7 @@ func printOption(c *cli.Context, option *kolide.OptionsSpec) error {
 
 func printSecret(c *cli.Context, secret *kolide.EnrollSecretSpec) error {
 	spec := specGeneric{
-		Kind:    "enroll_secret",
+		Kind:    kolide.EnrollSecretKind,
 		Version: kolide.ApiVersion,
 		Spec:    secret,
 	}
@@ -164,7 +164,7 @@ func printSecret(c *cli.Context, secret *kolide.EnrollSecretSpec) error {
 
 func printHost(c *cli.Context, host *kolide.Host) error {
 	spec := specGeneric{
-		Kind:    "host",
+		Kind:    kolide.HostKind,
 		Version: kolide.ApiVersion,
 		Spec:    host,
 	}
@@ -182,7 +182,7 @@ func printHost(c *cli.Context, host *kolide.Host) error {
 
 func printConfig(c *cli.Context, config *kolide.AppConfigPayload) error {
 	spec := specGeneric{
-		Kind:    "config",
+		Kind:    kolide.AppConfigKind,
 		Version: kolide.ApiVersion,
 		Spec:    config,
 	}

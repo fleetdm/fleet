@@ -133,8 +133,8 @@ func convertCommand() cli.Command {
 				}
 
 				meta := specMetadata{
-					Kind:    "pack",
-					Version: "v1",
+					Kind:    kolide.PackKind,
+					Version: kolide.ApiVersion,
 					Spec:    spec,
 				}
 
@@ -154,8 +154,8 @@ func convertCommand() cli.Command {
 				}
 
 				meta := specMetadata{
-					Kind:    "query",
-					Version: "v1",
+					Kind:    kolide.QueryKind,
+					Version: kolide.ApiVersion,
 					Spec:    spec,
 				}
 

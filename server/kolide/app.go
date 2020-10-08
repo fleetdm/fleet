@@ -162,6 +162,10 @@ type AppConfig struct {
 	AdditionalQueries *json.RawMessage `db:"additional_queries"`
 }
 
+const (
+	AppConfigKind = "config"
+)
+
 // ModifyAppConfigRequest contains application configuration information
 // sent from front end and used to change app config elements.
 type ModifyAppConfigRequest struct {
@@ -297,6 +301,10 @@ type EnrollSecret struct {
 	// CreatedAt is the time this enroll secret was first added.
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
+
+const (
+	EnrollSecretKind = "enroll_secret"
+)
 
 // EnrollSecretSpec is the fleetctl spec type for enroll secrets.
 type EnrollSecretSpec struct {

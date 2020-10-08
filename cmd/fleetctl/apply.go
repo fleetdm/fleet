@@ -49,58 +49,60 @@ func specGroupFromBytes(b []byte) (*specGroup, error) {
 			return nil, errors.Errorf("no spec field on %q document", s.Kind)
 		}
 
-		switch strings.ToLower(s.Kind) {
-		case "query":
+		kind := strings.ToLower(s.Kind)
+
+		switch kind {
+		case kolide.QueryKind:
 			var querySpec *kolide.QuerySpec
 			if err := yaml.Unmarshal(s.Spec, &querySpec); err != nil {
-				return nil, errors.Wrap(err, "unmarshaling query spec")
+				return nil, errors.Wrap(err, "unmarshaling "+kind+" spec")
 			}
 			specs.Queries = append(specs.Queries, querySpec)
 
-		case "pack":
+		case kolide.PackKind:
 			var packSpec *kolide.PackSpec
 			if err := yaml.Unmarshal(s.Spec, &packSpec); err != nil {
-				return nil, errors.Wrap(err, "unmarshaling pack spec")
+				return nil, errors.Wrap(err, "unmarshaling "+kind+" spec")
 			}
 			specs.Packs = append(specs.Packs, packSpec)
 
-		case "label":
+		case kolide.LabelKind:
 			var labelSpec *kolide.LabelSpec
 			if err := yaml.Unmarshal(s.Spec, &labelSpec); err != nil {
-				return nil, errors.Wrap(err, "unmarshaling label spec")
+				return nil, errors.Wrap(err, "unmarshaling "+kind+" spec")
 			}
 			specs.Labels = append(specs.Labels, labelSpec)
 
-		case "options":
+		case kolide.OptionsKind:
 			if specs.Options != nil {
 				return nil, errors.New("options defined twice in the same file")
 			}
 
 			var optionSpec *kolide.OptionsSpec
 			if err := yaml.Unmarshal(s.Spec, &optionSpec); err != nil {
-				return nil, errors.Wrap(err, "unmarshaling options spec")
+				return nil, errors.Wrap(err, "unmarshaling "+kind+" spec")
 			}
 			specs.Options = optionSpec
 
-		case "config":
+		case kolide.AppConfigKind:
 			if specs.AppConfig != nil {
 				return nil, errors.New("config defined twice in the same file")
 			}
 
 			var appConfigSpec *kolide.AppConfigPayload
 			if err := yaml.Unmarshal(s.Spec, &appConfigSpec); err != nil {
-				return nil, errors.Wrap(err, "unmarshaling config spec")
+				return nil, errors.Wrap(err, "unmarshaling "+kind+" spec")
 			}
 			specs.AppConfig = appConfigSpec
 
-		case "enroll_secret":
+		case kolide.EnrollSecretKind:
 			if specs.AppConfig != nil {
 				return nil, errors.New("enroll_secret defined twice in the same file")
 			}
 
 			var enrollSecretSpec *kolide.EnrollSecretSpec
 			if err := yaml.Unmarshal(s.Spec, &enrollSecretSpec); err != nil {
-				return nil, errors.Wrap(err, "unmarshaling enroll secret spec")
+				return nil, errors.Wrap(err, "unmarshaling "+kind+" spec")
 			}
 			specs.EnrollSecret = enrollSecretSpec
 

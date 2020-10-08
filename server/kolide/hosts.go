@@ -136,6 +136,10 @@ type Host struct {
 	EnrollSecretName          string              `json:"enroll_secret_name" db:"enroll_secret_name"`
 }
 
+const (
+	HostKind = "host"
+)
+
 // HostSummary is a structure which represents a data summary about the total
 // set of hosts in the database. This structure is returned by the HostService
 // method GetHostSummary
