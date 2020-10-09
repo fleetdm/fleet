@@ -1,11 +1,12 @@
+---
 version: '2'
 services:
   mysql:
     image: mysql:5.7
     volumes:
-      - .:/tmp
+      - mysql-persistent-volume:/tmp
     command: mysqld --datadir=/tmp/mysqldata --slow_query_log=1 --log_output=TABLE --log-queries-not-using-indexes --event-scheduler=ON
-    environment:
+    environment: &mysql-default-environment
       MYSQL_ROOT_PASSWORD: toor
       MYSQL_DATABASE: kolide
       MYSQL_USER: kolide
@@ -17,11 +18,7 @@ services:
     image: mysql:5.7
     command: mysqld --datadir=/tmpfs  --slow_query_log=1 --log_output=TABLE --log-queries-not-using-indexes --event-scheduler=ON
     tmpfs: /tmpfs
-    environment:
-      MYSQL_ROOT_PASSWORD: toor
-      MYSQL_DATABASE: kolide
-      MYSQL_USER: kolide
-      MYSQL_PASSWORD: kolide
+    environment: *mysql-default-environment
     ports:
       - "3307:3306"
 
@@ -47,3 +44,6 @@ services:
       - /var/run:/var/run:rw
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
+
+volumes:
+  mysql-persistent-volume:

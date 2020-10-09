@@ -1,55 +1,43 @@
-
+---
 version: '2'
+
+x-default-settings:
+  volumes: &default-volumes
+    - ./kolide.crt:/etc/osquery/kolide.crt
+    - ./example_osquery.flags:/etc/osquery/osquery.flags
+  environment: &default-environment
+    ENROLL_SECRET: "${ENROLL_SECRET:?ENROLL_SECRET must be set for server authentication}"
+  command: &default-command osqueryd --flagfile=/etc/osquery/osquery.flags --tls_hostname=${FLEET_SERVER:-host.docker.internal:8080}
+  ulimits: &default-ulimits
+    core:
+      hard:  1000000000
+      soft:  1000000000
 
 services:
   ubuntu14-osquery:
     image: "kolide/osquery:${KOLIDE_OSQUERY_VERSION}"
-    volumes:
-      - ./kolide.crt:/etc/osquery/kolide.crt
-      - ./example_osquery.flags:/etc/osquery/osquery.flags
-    environment:
-      ENROLL_SECRET: "${ENROLL_SECRET}"
-    command: osqueryd --flagfile=/etc/osquery/osquery.flags
-    ulimits:
-      core:
-        hard:  1000000000
-        soft:  1000000000
+    volumes: *default-volumes
+    environment: *default-environment
+    command: *default-command
+    ulimits: *default-ulimits
 
   ubuntu16-osquery:
     image: "kolide/ubuntu16-osquery:${KOLIDE_OSQUERY_VERSION}"
-    volumes:
-      - ./kolide.crt:/etc/osquery/kolide.crt
-      - ./example_osquery.flags:/etc/osquery/osquery.flags
-    environment:
-      ENROLL_SECRET: "${ENROLL_SECRET}"
-    command: osqueryd --flagfile=/etc/osquery/osquery.flags
-    ulimits:
-      core:
-        hard:  1000000000
-        soft:  1000000000
+    volumes: *default-volumes
+    environment: *default-environment
+    command: *default-command
+    ulimits: *default-ulimits
 
   centos7-osquery:
     image: "kolide/centos7-osquery:${KOLIDE_OSQUERY_VERSION}"
-    volumes:
-      - ./kolide.crt:/etc/osquery/kolide.crt
-      - ./example_osquery.flags:/etc/osquery/osquery.flags
-    environment:
-      ENROLL_SECRET: "${ENROLL_SECRET}"
-    command: osqueryd --flagfile=/etc/osquery/osquery.flags
-    ulimits:
-      core:
-        hard:  1000000000
-        soft:  1000000000
+    volumes: *default-volumes
+    environment: *default-environment
+    command: *default-command
+    ulimits: *default-ulimits
 
   centos6-osquery:
     image: "kolide/centos6-osquery:${KOLIDE_OSQUERY_VERSION}"
-    volumes:
-      - ./kolide.crt:/etc/osquery/kolide.crt
-      - ./example_osquery.flags:/etc/osquery/osquery.flags
-    environment:
-      ENROLL_SECRET: "${ENROLL_SECRET}"
-    command: osqueryd --flagfile=/etc/osquery/osquery.flags
-    ulimits:
-      core:
-        hard:  1000000000
-        soft:  1000000000
+    volumes: *default-volumes
+    environment: *default-environment
+    command: *default-command
+    ulimits: *default-ulimits

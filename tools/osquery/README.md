@@ -25,14 +25,25 @@ Set the environment variable `ENROLL_SECRET` to the value of your Fleet enroll s
 
 (Optionally) Set `KOLIDE_OSQUERY_VERSION` if you want to run an osquery container besides `latest`.
 
+(Optionally) Set `FLEET_SERVER` if you want to connect to a fleet server
+besides `host.docker.internal:8080`.
+
 ### Running osqueryd
 
 The osqueryd instances are configured to use the TLS plugins at `host.docker.internal:8080`. Using the `example_osquery.flags` in this directory should configure Fleet with the appropriate settings for these `osqueryd` containers to connect.
 
-To start one instance each of Centos and Ubuntu `osqueryd`, use:
+To start one instance each of Centos 6, Centos 7, Ubuntu 14, and Ubuntu 16
+`osqueryd`, use:
 
 ```
 docker-compose up
+```
+
+Linux users should use the overrides (which add DNS entries for
+`host.docker.internal` based on the `DOCKER_HOST` env var):
+
+```
+docker-compose -f docker-compose.yml -f docker-compose.linux-overrides.yml up
 ```
 
 The logs will be displayed on the host shell. Note that `docker-compose up` will reuse containers (so the state of `osqueryd` will be maintained across calls). To remove the containers and start from a fresh state on the next call to `up`, use:
