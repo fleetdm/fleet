@@ -40,19 +40,19 @@ func (mw metricsMiddleware) ChangeUserEnabled(ctx context.Context, id uint, isEn
 	return user, err
 }
 
-func (mw metricsMiddleware) NewUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
+func (mw metricsMiddleware) CreateUserWithInvite(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
 	var (
 		user *kolide.User
 		err  error
 	)
 
 	defer func(begin time.Time) {
-		lvs := []string{"method", "NewUser", "error", fmt.Sprint(err != nil)}
+		lvs := []string{"method", "CreateUserWithInvite", "error", fmt.Sprint(err != nil)}
 		mw.requestCount.With(lvs...).Add(1)
 		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	user, err = mw.Service.NewUser(ctx, p)
+	user, err = mw.Service.CreateUserWithInvite(ctx, p)
 	return user, err
 }
 

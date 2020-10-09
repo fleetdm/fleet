@@ -70,7 +70,7 @@ func (mw loggingMiddleware) ChangeUserEnabled(ctx context.Context, id uint, isEn
 	return user, err
 }
 
-func (mw loggingMiddleware) NewAdminCreatedUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
+func (mw loggingMiddleware) CreateUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
 	var (
 		user         *kolide.User
 		err          error
@@ -85,7 +85,7 @@ func (mw loggingMiddleware) NewAdminCreatedUser(ctx context.Context, p kolide.Us
 
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(
-			"method", "NewAdminCreatedUser",
+			"method", "CreateUser",
 			"user", username,
 			"created_by", loggedInUser,
 			"err", err,
@@ -93,7 +93,7 @@ func (mw loggingMiddleware) NewAdminCreatedUser(ctx context.Context, p kolide.Us
 		)
 	}(time.Now())
 
-	user, err = mw.Service.NewAdminCreatedUser(ctx, p)
+	user, err = mw.Service.CreateUser(ctx, p)
 	if user != nil {
 		username = user.Username
 	}
@@ -151,7 +151,7 @@ func (mw loggingMiddleware) RequirePasswordReset(ctx context.Context, uid uint, 
 
 }
 
-func (mw loggingMiddleware) NewUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
+func (mw loggingMiddleware) CreateUserWithInvite(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
 	var (
 		user         *kolide.User
 		err          error
@@ -166,7 +166,7 @@ func (mw loggingMiddleware) NewUser(ctx context.Context, p kolide.UserPayload) (
 
 	defer func(begin time.Time) {
 		_ = mw.loggerInfo(err).Log(
-			"method", "NewUser",
+			"method", "CreateUserWithInvite",
 			"user", username,
 			"created_by", loggedInUser,
 			"err", err,
@@ -174,7 +174,7 @@ func (mw loggingMiddleware) NewUser(ctx context.Context, p kolide.UserPayload) (
 		)
 	}(time.Now())
 
-	user, err = mw.Service.NewUser(ctx, p)
+	user, err = mw.Service.CreateUserWithInvite(ctx, p)
 
 	if user != nil {
 		username = user.Username

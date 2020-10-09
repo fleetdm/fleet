@@ -115,7 +115,7 @@ To setup Fleet infrastructure, use one of the available commands.
 				initFatal(err, "creating service")
 			}
 
-			_, err = svc.NewAdminCreatedUser(context.Background(), admin)
+			_, err = svc.CreateUser(context.Background(), admin)
 			if err != nil {
 				initFatal(err, "saving new user")
 			}

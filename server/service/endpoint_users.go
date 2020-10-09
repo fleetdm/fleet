@@ -9,7 +9,7 @@ import (
 )
 
 ////////////////////////////////////////////////////////////////////////////////
-// Create User
+// Create User With Invite
 ////////////////////////////////////////////////////////////////////////////////
 
 type createUserRequest struct {
@@ -23,10 +23,25 @@ type createUserResponse struct {
 
 func (r createUserResponse) error() error { return r.Err }
 
+func makeCreateUserWithInviteEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(createUserRequest)
+		user, err := svc.CreateUserWithInvite(ctx, req.payload)
+		if err != nil {
+			return createUserResponse{Err: err}, nil
+		}
+		return createUserResponse{User: user}, nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Create User
+////////////////////////////////////////////////////////////////////////////////
+
 func makeCreateUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createUserRequest)
-		user, err := svc.NewUser(ctx, req.payload)
+		user, err := svc.CreateUser(ctx, req.payload)
 		if err != nil {
 			return createUserResponse{Err: err}, nil
 		}

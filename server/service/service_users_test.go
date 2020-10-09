@@ -335,13 +335,13 @@ func TestRequestPasswordReset(t *testing.T) {
 	}
 }
 
-func TestCreateUser(t *testing.T) {
+func TestCreateUserWithInvite(t *testing.T) {
 	ds, _ := inmem.New(config.TestConfig())
 	svc, _ := newTestService(ds, nil, nil)
 	invites := setupInvites(t, ds, []string{"admin2@example.com"})
 	ctx := context.Background()
 
-	var createUserTests = []struct {
+	var newUserTests = []struct {
 		Username           *string
 		Password           *string
 		Email              *string
@@ -400,7 +400,7 @@ func TestCreateUser(t *testing.T) {
 		},
 	}
 
-	for _, tt := range createUserTests {
+	for _, tt := range newUserTests {
 		t.Run("", func(t *testing.T) {
 			payload := kolide.UserPayload{
 				Username:    tt.Username,
@@ -409,7 +409,7 @@ func TestCreateUser(t *testing.T) {
 				Admin:       tt.Admin,
 				InviteToken: tt.InviteToken,
 			}
-			user, err := svc.NewUser(ctx, payload)
+			user, err := svc.CreateUserWithInvite(ctx, payload)
 			if tt.wantErr != nil {
 				require.Equal(t, tt.wantErr.Error(), err.Error())
 			}

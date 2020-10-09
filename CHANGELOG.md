@@ -24,7 +24,7 @@
 
 * Fix cleanup of queries in bad state. This should resolve issues in which users experienced old live queries repeatedly returned to hosts. 
 
-* Fix output kind of `fleetctl get options`
+* Fix output kind of `fleetctl get options`.
 
 ## Fleet 3.1.0 (Aug 06, 2020)
 

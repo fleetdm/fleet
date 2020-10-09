@@ -10,7 +10,7 @@ import (
 	"github.com/kolide/fleet/server/kolide"
 )
 
-func (mw validationMiddleware) NewUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
+func (mw validationMiddleware) CreateUserWithInvite(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
 	invalid := &invalidArgumentError{}
 	if p.Username == nil {
 		invalid.Append("username", "missing required argument")
@@ -57,7 +57,51 @@ func (mw validationMiddleware) NewUser(ctx context.Context, p kolide.UserPayload
 	if invalid.HasErrors() {
 		return nil, invalid
 	}
-	return mw.Service.NewUser(ctx, p)
+	return mw.Service.CreateUserWithInvite(ctx, p)
+}
+
+func (mw validationMiddleware) CreateUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
+	invalid := &invalidArgumentError{}
+	if p.Username == nil {
+		invalid.Append("username", "missing required argument username")
+	} else {
+		if *p.Username == "" {
+			invalid.Append("username", "username cannot be empty")
+		}
+
+		if strings.Contains(*p.Username, "@") {
+			invalid.Append("username", "'@' character not allowed in usernames")
+		}
+	}
+
+	// we don't need a password for single sign on
+	if (p.SSOInvite == nil || !*p.SSOInvite) && (p.SSOEnabled == nil || !*p.SSOEnabled) {
+		if p.Password == nil {
+			invalid.Append("password", "missing required argument password")
+		} else {
+			if *p.Password == "" {
+				invalid.Append("password", "password cannot be empty")
+			}
+			// Skip password validation in the case of admin created users
+		}
+	}
+
+	if p.Email == nil {
+		invalid.Append("email", "missing required argument email")
+	} else {
+		if *p.Email == "" {
+			invalid.Append("email", "email cannot be empty")
+		}
+	}
+
+	if p.InviteToken != nil {
+		invalid.Append("invite_token", "invite_token should not be specified with admin user creation")
+	}
+
+	if invalid.HasErrors() {
+		return nil, invalid
+	}
+	return mw.Service.CreateUser(ctx, p)
 }
 
 func (mw validationMiddleware) ModifyUser(ctx context.Context, userID uint, p kolide.UserPayload) (*kolide.User, error) {
