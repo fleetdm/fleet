@@ -87,7 +87,8 @@ type HostService interface {
 type HostListOptions struct {
 	ListOptions
 
-	StatusFilter HostStatus
+	AdditionalFilters []string
+	StatusFilter      HostStatus
 }
 
 type Host struct {

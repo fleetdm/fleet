@@ -152,9 +152,62 @@ func (d *Datastore) Host(id uint) (*kolide.Host, error) {
 }
 
 func (d *Datastore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error) {
-	sql := `
-		SELECT * FROM hosts
-	`
+	sql := `SELECT id,
+        osquery_host_id, 
+        created_at, 
+        updated_at, 
+        detail_update_time, 
+        node_key, 
+        host_name, 
+        uuid, 
+        platform, 
+        osquery_version, 
+        os_version, 
+        build, 
+        platform_like, 
+        code_name, 
+        uptime, 
+        physical_memory, 
+        cpu_type, 
+        cpu_subtype, 
+        cpu_brand, 
+        cpu_physical_cores, 
+        cpu_logical_cores, 
+        hardware_vendor, 
+        hardware_model, 
+        hardware_version, 
+        hardware_serial, 
+        computer_name, 
+        primary_ip_id, 
+        seen_time, 
+        distributed_interval, 
+        logger_tls_period, 
+        config_tls_refresh, 
+        primary_ip, 
+        primary_mac, 
+        label_update_time, 
+        enroll_secret_name,
+		`
+
+	// Filter additional info by extracting into a new json object
+	if len(opt.AdditionalFilters) > 0 {
+		sql += `JSON_OBJECT(
+			`
+		for _, field := range opt.AdditionalFilters {
+			sql += fmt.Sprintf(`'%s', JSON_EXTRACT(additional, '$."%s"'), `, field, field)
+		}
+		sql = sql[:len(sql)-2]
+		sql += `
+		    ) AS additional
+		    `
+	} else {
+		sql += `
+		additional
+		`
+	}
+
+	sql += `FROM hosts
+    `
 	var params []interface{}
 	switch opt.StatusFilter {
 	case "new":

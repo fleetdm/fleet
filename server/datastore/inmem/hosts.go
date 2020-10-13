@@ -1,6 +1,7 @@
 package inmem
 
 import (
+	"encoding/json"
 	"errors"
 	"sort"
 	"strings"
@@ -102,6 +103,33 @@ func (d *Datastore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error
 	// Apply limit/offset
 	low, high := d.getLimitOffsetSliceBounds(opt.ListOptions, len(hosts))
 	hosts = hosts[low:high]
+
+	// Filter additional info
+	if len(opt.AdditionalFilters) > 0 {
+		fieldsWanted := map[string]interface{}{}
+		for _, field := range opt.AdditionalFilters {
+			fieldsWanted[field] = true
+		}
+		for i, host := range hosts {
+			addInfo := map[string]interface{}{}
+			if err := json.Unmarshal(*host.Additional, &addInfo); err != nil {
+				return nil, err
+			}
+
+			for k := range addInfo {
+				if _, ok := fieldsWanted[k]; !ok {
+					delete(addInfo, k)
+				}
+			}
+			addInfoJSON := json.RawMessage{}
+			addInfoJSON, err := json.Marshal(addInfo)
+			if err != nil {
+				return nil, err
+			}
+			host.Additional = &addInfoJSON
+			hosts[i] = host
+		}
+	}
 
 	return hosts, nil
 }
