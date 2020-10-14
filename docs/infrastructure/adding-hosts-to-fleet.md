@@ -31,10 +31,21 @@ mkdir .osquery
   --enroll_secret=32IeN3QLgckHUmMD3iW40kyLdNJcGzP5
 ```
 
-You may also need to define the `--insecure` and/or `--insecure_grpc` flag. If you're running Fleet locally, include `--insecure` because your TLS certificate will not be signed by a valid CA.
+You may also need to define the `--insecure` and/or `--insecure_grpc` flag.
 
 <!-- TODO: When is --insecure_grpc needed? -->
-<!-- TODO: split docs into quickstart vs. prod, then include --insecure in quickstart for easier copy+pasting -->
+
+<!-- TODO: pull prod-focused example above out into deployment docs, then only include one example (the local one) with --insecure for easier copy+pasting during quickstart -->
+
+If you're running Fleet locally, include `--insecure` because your TLS certificate will not be signed by a valid CA:
+```
+mkdir .osquery
+./build/launcher \
+  --hostname=localhost:8412 \
+  --root_directory=.osquery \
+  --enroll_secret=32IeN3QLgckHUmMD3iW40kyLdNJcGzP5
+  --insecure
+```
 
 #### Generating packages
 
