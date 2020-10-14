@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
+import FileSaver from 'file-saver';
 
 import Button from 'components/buttons/Button';
 import enrollSecretInterface from 'interfaces/enroll_secret';
@@ -35,6 +36,20 @@ class EnrollSecretRow extends Component {
     return false;
   }
 
+  onDownloadSecret = (evt) => {
+    evt.preventDefault();
+
+    const { secret } = this.props;
+
+    const filename = 'secret.txt';
+    const file = new global.window.File([secret], filename);
+    
+    FileSaver.saveAs(file);
+
+    return false;
+  }
+
+  
   onToggleSecret = (evt) => {
     evt.preventDefault();
 
@@ -47,7 +62,7 @@ class EnrollSecretRow extends Component {
   renderLabel = () => {
     const { name } = this.props;
     const { showSecret, copyMessage } = this.state;
-    const { onCopySecret, onToggleSecret } = this;
+    const { onCopySecret, onDownloadSecret, onToggleSecret } = this;
 
     return (
       <span>
@@ -61,6 +76,16 @@ class EnrollSecretRow extends Component {
           >
             <Icon name="clipboard" />
           </Button>
+          |
+          <a
+            href="#"
+            variant="unstyled"
+            className={`${baseClass}__secret-download-icon`}
+            onClick={onDownloadSecret}
+          >
+            Download
+          </a>
+          |
           <a
             href="#showSecret"
             onClick={onToggleSecret}

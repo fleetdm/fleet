@@ -158,7 +158,7 @@ export class ManageHostsPage extends PureComponent {
   onFetchCertificate = () => {
     return Kolide.config.loadCertificate()
       .then((certificate) => {
-        const filename = `${global.window.location.host}.pem`;
+        const filename = 'fleet.pem';
         const file = new global.window.File([certificate], filename, { type: 'application/x-pem-file' });
 
         FileSaver.saveAs(file);
@@ -306,7 +306,7 @@ export class ManageHostsPage extends PureComponent {
   renderAddHostModal = () => {
     const { onFetchCertificate, toggleAddHostModal } = this;
     const { showAddHostModal } = this.state;
-    const { enrollSecret } = this.props;
+    const { enrollSecret, config } = this.props;
 
     if (!showAddHostModal) {
       return false;
@@ -322,6 +322,7 @@ export class ManageHostsPage extends PureComponent {
           onFetchCertificate={onFetchCertificate}
           onReturnToApp={toggleAddHostModal}
           enrollSecret={enrollSecret}
+          config={config}
         />
       </Modal>
     );
@@ -668,6 +669,7 @@ const mapStateToProps = (state, { location, params }) => {
   const { errors: labelErrors, loading: loadingLabels } = state.entities.labels;
   const { loading: loadingHosts } = state.entities.hosts;
   const enrollSecret = state.app.enrollSecret;
+  const config = state.app.config;
 
   return {
     selectedFilter,
@@ -684,6 +686,7 @@ const mapStateToProps = (state, { location, params }) => {
     selectedLabel,
     selectedOsqueryTable,
     statusLabels,
+    config,
   };
 };
 

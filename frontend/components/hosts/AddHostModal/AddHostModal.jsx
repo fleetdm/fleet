@@ -1,7 +1,9 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
+import FileSaver from 'file-saver';
 
 import Button from 'components/buttons/Button';
+import configInterface from 'interfaces/config';
 import enrollSecretInterface from 'interfaces/enroll_secret';
 import EnrollSecretTable from 'components/config/EnrollSecretTable';
 import Icon from 'components/icons/Icon';
@@ -9,61 +11,115 @@ import certificate from '../../../../assets/images/osquery-certificate.svg';
 
 const baseClass = 'add-host-modal';
 
+
 class AddHostModal extends Component {
   static propTypes = {
     onFetchCertificate: PropTypes.func,
     onReturnToApp: PropTypes.func,
     enrollSecret: enrollSecretInterface,
+    config: configInterface,
   };
 
+  
+  
   render() {
     const {
+      config,
       onFetchCertificate,
       onReturnToApp,
       enrollSecret,
     } = this.props;
 
+    let tlsHostname = config.kolide_server_url;
+    try {
+      const serverUrl = new URL(config.kolide_server_url);
+      tlsHostname = serverUrl.hostname;
+      if (serverUrl.port) {
+        tlsHostname += `:${serverUrl.port}`;
+      }
+    } catch (e) {
+      if (!(e instanceof TypeError)) {
+        throw e;
+      }
+    }
+    
+    const flagfileContent = `--enroll_secret_path=secret.txt
+--tls_server_certs=fleet.pem
+--tls_hostname=${tlsHostname}
+--host_identifier=uuid
+--enroll_tls_endpoint=/api/v1/osquery/enroll
+--config_plugin=tls
+--config_tls_endpoint=/api/v1/osquery/config
+--config_refresh=10
+--disable_distributed=false
+--distributed_plugin=tls
+--distributed_interval=10
+--distributed_tls_max_attempts=3
+--distributed_tls_read_endpoint=/api/v1/osquery/distributed/read
+--distributed_tls_write_endpoint=/api/v1/osquery/distributed/write
+--logger_plugin=tls
+--logger_tls_endpoint=/api/v1/osquery/log
+--logger_tls_period=10`;
+
+    const onDownloadFlagfile = (evt) => {
+      evt.preventDefault();
+
+      const filename = 'flagfile.txt';
+      const file = new global.window.File([flagfileContent], filename);
+      
+      FileSaver.saveAs(file);
+
+      return false;
+    };
+    
     return (
       <div className={baseClass}>
-        <p>
-          Follow the instructions below to add hosts to your Fleet Instance.
-        </p>
-
         <div className={`${baseClass}__manual-install-content`}>
+          <div className={`${baseClass}__documentation-link`}>
+            <h4>
+              <a
+                href="https://github.com/kolide/fleet/blob/master/docs/infrastructure/adding-hosts-to-fleet.md"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Add Hosts Documentation <Icon name="external-link" />
+              </a>
+            </h4>
+          </div>
           <ol className={`${baseClass}__install-steps`}>
             <li>
-              <h4>
-                <a
-                  href="https://github.com/kolide/fleet/blob/master/docs/infrastructure/adding-hosts-to-fleet.md"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Fleet / Osquery - Install Docs <Icon name="external-link" />
-                </a>
-              </h4>
-            </li>
-            <li>
-              <h4>Osquery Enroll Secret</h4>
+              <h4>1. Enroll Secret</h4>
               <p>
-                Provide osquery with one of the following active enroll secrets:
+                Provide an active enroll secret to allow osquery to authenticate with the Fleet server:
               </p>
               <div className={`${baseClass}__secret-wrapper`}>
                 <EnrollSecretTable secrets={enrollSecret} />
               </div>
             </li>
             <li>
-              <h4>Download Server Certificate (Optional)</h4>
+              <h4>2. Server Certificate</h4>
               <p>
-                If you use the native osquery TLS plugins, Osquery requires the
-                same TLS certificate that Fleet is using in order to
-                authenticate. You can fetch the certificate below:
+                Provide the TLS certificate used by the Fleet server to enable secure connections from osquery:
               </p>
-              <p className={`${baseClass}__download-cert`}>
-                <Button variant="unstyled" onClick={onFetchCertificate}>
-                  <img src={certificate} alt="" />
-                  <span>Fetch Fleet Certificate</span>
-                </Button>
+              <p>
+                <a href="#downloadCertificate" onClick={onFetchCertificate}>Download Certificate</a>
               </p>
+            </li>
+            <li>
+              <h4>3. Flagfile</h4>
+              <p>
+                If using the enroll secret and server certificate downloaded above, use the generated flagfile. In some configurations, modifications may need to be made: 
+              </p>
+              <p>
+                <a href="#downloadFlagfile" onClick={onDownloadFlagfile}>Download Flagfile</a>
+              </p>
+            </li>
+            <li>
+              <h4>4. Run Osquery</h4>
+              <p>
+                Run osquery from the directory containing the above files (may require sudo or Run as Administrator privileges):
+              </p>
+              <pre>osqueryd --flagfile=flagfile.txt --verbose</pre>
             </li>
           </ol>
         </div>
