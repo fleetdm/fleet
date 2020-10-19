@@ -2,33 +2,59 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import FileSaver from 'file-saver';
 
+import Kolide from 'kolide';
 import Button from 'components/buttons/Button';
 import configInterface from 'interfaces/config';
 import enrollSecretInterface from 'interfaces/enroll_secret';
 import EnrollSecretTable from 'components/config/EnrollSecretTable';
 import Icon from 'components/icons/Icon';
-import certificate from '../../../../assets/images/osquery-certificate.svg';
 
 const baseClass = 'add-host-modal';
 
 
 class AddHostModal extends Component {
   static propTypes = {
-    onFetchCertificate: PropTypes.func,
     onReturnToApp: PropTypes.func,
     enrollSecret: enrollSecretInterface,
     config: configInterface,
   };
 
+  constructor(props) {
+    super(props);
+    this.state = { fetchCertificateError: undefined };
+  }
+
+  componentDidMount() {
+    Kolide.config.loadCertificate()
+      .then((certificate) => {
+        this.setState({ certificate });
+      })
+      .catch(() => {
+        this.setState({ fetchCertificateError: 'Failed to load certificate. Is Fleet App URL configured properly?' });
+      });
+  }
+
+  onFetchCertificate = (evt) => {
+    evt.preventDefault();
+
+    const { certificate } = this.state;
+
+    const filename = 'fleet.pem';
+    const file = new global.window.File([certificate], filename, { type: 'application/x-pem-file' });
   
+    FileSaver.saveAs(file);
   
+    return false;
+  }
+
   render() {
     const {
       config,
-      onFetchCertificate,
       onReturnToApp,
       enrollSecret,
     } = this.props;
+
+    const { fetchCertificateError } = this.state;
 
     let tlsHostname = config.kolide_server_url;
     try {
@@ -42,7 +68,7 @@ class AddHostModal extends Component {
         throw e;
       }
     }
-    
+  
     const flagfileContent = `--enroll_secret_path=secret.txt
 --tls_server_certs=fleet.pem
 --tls_hostname=${tlsHostname}
@@ -102,7 +128,10 @@ class AddHostModal extends Component {
                 Provide the TLS certificate used by the Fleet server to enable secure connections from osquery:
               </p>
               <p>
-                <a href="#downloadCertificate" onClick={onFetchCertificate}>Download Certificate</a>
+                { fetchCertificateError
+                  ? <span className={`${baseClass}__error`}>{fetchCertificateError}</span>
+                  : <a href="#downloadCertificate" onClick={this.onFetchCertificate}>Download Certificate</a>
+                }
               </p>
             </li>
             <li>

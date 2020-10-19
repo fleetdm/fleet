@@ -155,18 +155,6 @@ export class ManageHostsPage extends PureComponent {
       .catch(() => false);
   }
 
-  onFetchCertificate = () => {
-    return Kolide.config.loadCertificate()
-      .then((certificate) => {
-        const filename = 'fleet.pem';
-        const file = new global.window.File([certificate], filename, { type: 'application/x-pem-file' });
-
-        FileSaver.saveAs(file);
-
-        return false;
-      });
-  }
-
   onLabelClick = (selectedLabel) => {
     return (evt) => {
       evt.preventDefault();
@@ -304,7 +292,7 @@ export class ManageHostsPage extends PureComponent {
   }
 
   renderAddHostModal = () => {
-    const { onFetchCertificate, toggleAddHostModal } = this;
+    const { toggleAddHostModal } = this;
     const { showAddHostModal } = this.state;
     const { enrollSecret, config } = this.props;
 
@@ -319,7 +307,6 @@ export class ManageHostsPage extends PureComponent {
         className={`${baseClass}__invite-modal`}
       >
         <AddHostModal
-          onFetchCertificate={onFetchCertificate}
           onReturnToApp={toggleAddHostModal}
           enrollSecret={enrollSecret}
           config={config}
