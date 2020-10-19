@@ -41,9 +41,9 @@ class AddHostModal extends Component {
 
     const filename = 'fleet.pem';
     const file = new global.window.File([certificate], filename, { type: 'application/x-pem-file' });
-  
+
     FileSaver.saveAs(file);
-  
+
     return false;
   }
 
@@ -68,7 +68,7 @@ class AddHostModal extends Component {
         throw e;
       }
     }
-  
+
     const flagfileContent = `--enroll_secret_path=secret.txt
 --tls_server_certs=fleet.pem
 --tls_hostname=${tlsHostname}
@@ -92,12 +92,12 @@ class AddHostModal extends Component {
 
       const filename = 'flagfile.txt';
       const file = new global.window.File([flagfileContent], filename);
-      
+
       FileSaver.saveAs(file);
 
       return false;
     };
-    
+
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__manual-install-content`}>
@@ -137,7 +137,7 @@ class AddHostModal extends Component {
             <li>
               <h4>3. Flagfile</h4>
               <p>
-                If using the enroll secret and server certificate downloaded above, use the generated flagfile. In some configurations, modifications may need to be made: 
+                If using the enroll secret and server certificate downloaded above, use the generated flagfile. In some configurations, modifications may need to be made:
               </p>
               <p>
                 <a href="#downloadFlagfile" onClick={onDownloadFlagfile}>Download Flagfile</a>

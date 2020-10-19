@@ -43,13 +43,13 @@ class EnrollSecretRow extends Component {
 
     const filename = 'secret.txt';
     const file = new global.window.File([secret], filename);
-    
+
     FileSaver.saveAs(file);
 
     return false;
   }
 
-  
+
   onToggleSecret = (evt) => {
     evt.preventDefault();
 
@@ -78,7 +78,7 @@ class EnrollSecretRow extends Component {
           </Button>
           |
           <a
-            href="#"
+            href="#onDownloadSecret"
             variant="unstyled"
             className={`${baseClass}__secret-download-icon`}
             onClick={onDownloadSecret}

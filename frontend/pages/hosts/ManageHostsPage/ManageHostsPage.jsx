@@ -2,14 +2,13 @@ import React, { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import AceEditor from 'react-ace';
 import { connect } from 'react-redux';
-import FileSaver from 'file-saver';
 import { push } from 'react-router-redux';
 import { sortBy } from 'lodash';
 import classNames from 'classnames';
 
-import Kolide from 'kolide';
 import AddHostModal from 'components/hosts/AddHostModal';
 import Button from 'components/buttons/Button';
+import configInterface from 'interfaces/config';
 import HostContainer from 'components/hosts/HostContainer';
 import HostPagination from 'components/hosts/HostPagination';
 import HostSidePanel from 'components/side_panels/HostSidePanel';
@@ -45,6 +44,7 @@ const baseClass = 'manage-hosts';
 
 export class ManageHostsPage extends PureComponent {
   static propTypes = {
+    config: configInterface,
     dispatch: PropTypes.func,
     display: PropTypes.oneOf(['Grid', 'List']),
     hosts: PropTypes.arrayOf(hostInterface),
