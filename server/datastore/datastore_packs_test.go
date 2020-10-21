@@ -215,6 +215,41 @@ func setupPackSpecsTest(t *testing.T, ds kolide.Datastore) []*kolide.PackSpec {
 				},
 			},
 		},
+		&kolide.PackSpec{
+			ID:       2,
+			Name:     "test_pack_disabled",
+			Disabled: true,
+			Targets: kolide.PackSpecTargets{
+				Labels: []string{
+					"foo",
+					"bar",
+					"bing",
+				},
+			},
+			Queries: []kolide.PackSpecQuery{
+				kolide.PackSpecQuery{
+					QueryName:   queries[0].Name,
+					Name:        "q0",
+					Description: "test_foo",
+					Interval:    42,
+				},
+				kolide.PackSpecQuery{
+					QueryName: queries[0].Name,
+					Name:      "foo_snapshot",
+					Interval:  600,
+					Snapshot:  boolPtr(true),
+				},
+				kolide.PackSpecQuery{
+					Name:      "q2",
+					QueryName: queries[1].Name,
+					Interval:  600,
+					Removed:   boolPtr(false),
+					Shard:     uintPtr(73),
+					Platform:  stringPtr("foobar"),
+					Version:   stringPtr("0.0.0.0.0.1"),
+				},
+			},
+		},
 	}
 
 	err = ds.ApplyPackSpecs(expectedSpecs)

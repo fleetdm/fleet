@@ -149,6 +149,7 @@ type PackSpec struct {
 	Name        string          `json:"name"`
 	Description string          `json:"description,omitempty"`
 	Platform    string          `json:"platform,omitempty"`
+	Disabled    bool            `json:"disabled"`
 	Targets     PackSpecTargets `json:"targets,omitempty"`
 	Queries     []PackSpecQuery `json:"queries,omitempty"`
 }

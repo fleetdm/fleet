@@ -115,6 +115,7 @@ apiVersion: v1
 kind: pack
 spec:
   name: osquery_monitoring
+  disabled: false
   targets:
     labels:
       - All Hosts

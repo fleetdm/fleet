@@ -29,15 +29,16 @@ func applyPackSpec(tx *sqlx.Tx, spec *kolide.PackSpec) error {
 	}
 	// Insert/update pack
 	query := `
-		INSERT INTO packs (name, description, platform)
-		VALUES (?, ?, ?)
+		INSERT INTO packs (name, description, platform, disabled)
+		VALUES (?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			name = VALUES(name),
 			description = VALUES(description),
 			platform = VALUES(platform),
+			disabled = VALUES(disabled),
 			deleted = false
 	`
-	if _, err := tx.Exec(query, spec.Name, spec.Description, spec.Platform); err != nil {
+	if _, err := tx.Exec(query, spec.Name, spec.Description, spec.Platform, spec.Disabled); err != nil {
 		return errors.Wrap(err, "insert/update pack")
 	}
 
@@ -107,7 +108,7 @@ func applyPackSpec(tx *sqlx.Tx, spec *kolide.PackSpec) error {
 func (d *Datastore) GetPackSpecs() (specs []*kolide.PackSpec, err error) {
 	err = d.withRetryTxx(func(tx *sqlx.Tx) error {
 		// Get basic specs
-		query := "SELECT id, name, description, platform FROM packs"
+		query := "SELECT id, name, description, platform, disabled FROM packs"
 		if err := tx.Select(&specs, query); err != nil {
 			return errors.Wrap(err, "get packs")
 		}
@@ -152,7 +153,7 @@ func (d *Datastore) GetPackSpec(name string) (spec *kolide.PackSpec, err error) 
 	err = d.withRetryTxx(func(tx *sqlx.Tx) error {
 		// Get basic spec
 		var specs []*kolide.PackSpec
-		query := "SELECT id, name, description, platform FROM packs WHERE name = ?"
+		query := "SELECT id, name, description, platform, disabled FROM packs WHERE name = ?"
 		if err := tx.Select(&specs, query, name); err != nil {
 			return errors.Wrap(err, "get packs")
 		}
