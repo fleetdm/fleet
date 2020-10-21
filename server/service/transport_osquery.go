@@ -121,3 +121,25 @@ func decodeSubmitLogsRequest(ctx context.Context, r *http.Request) (interface{},
 
 	return req, nil
 }
+
+func decodeCarveBeginRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	defer r.Body.Close()
+
+	var req carveBeginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, errors.Wrap(err, "decoding JSON")
+	}
+
+	return req, nil
+}
+
+func decodeCarveBlockRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	defer r.Body.Close()
+
+	var req carveBlockRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, errors.Wrap(err, "decoding JSON")
+	}
+
+	return req, nil
+}

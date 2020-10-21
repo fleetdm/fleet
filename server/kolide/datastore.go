@@ -15,6 +15,7 @@ type Datastore interface {
 	InviteStore
 	ScheduledQueryStore
 	OsqueryOptionsStore
+	CarveStore
 	Name() string
 	Drop() error
 	// MigrateTables creates and migrates the table schemas

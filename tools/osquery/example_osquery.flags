@@ -23,3 +23,7 @@
 --logger_plugin=tls
 --logger_tls_endpoint=/api/v1/osquery/log
 --logger_tls_period=10
+
+--disable_carver=false
+--carver_start_endpoint=/api/v1/osquery/carve/begin
+--carver_continue_endpoint=/api/v1/osquery/carve/block

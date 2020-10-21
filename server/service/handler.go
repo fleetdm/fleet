@@ -74,6 +74,8 @@ type KolideEndpoints struct {
 	GetDistributedQueries                 endpoint.Endpoint
 	SubmitDistributedQueryResults         endpoint.Endpoint
 	SubmitLogs                            endpoint.Endpoint
+	CarveBegin                            endpoint.Endpoint
+	CarveBlock                            endpoint.Endpoint
 	CreateLabel                           endpoint.Endpoint
 	ModifyLabel                           endpoint.Endpoint
 	GetLabel                              endpoint.Endpoint
@@ -201,6 +203,11 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string) Kol
 		GetDistributedQueries:         authenticatedHost(svc, makeGetDistributedQueriesEndpoint(svc)),
 		SubmitDistributedQueryResults: authenticatedHost(svc, makeSubmitDistributedQueryResultsEndpoint(svc)),
 		SubmitLogs:                    authenticatedHost(svc, makeSubmitLogsEndpoint(svc)),
+		CarveBegin:                    authenticatedHost(svc, makeCarveBeginEndpoint(svc)),
+		// For some reason osquery does not provide a node key with the block
+		// data. Instead the carve session ID should be verified in the service
+		// method.
+		CarveBlock: makeCarveBlockEndpoint(svc),
 	}
 }
 
@@ -263,6 +270,8 @@ type kolideHandlers struct {
 	GetDistributedQueries                 http.Handler
 	SubmitDistributedQueryResults         http.Handler
 	SubmitLogs                            http.Handler
+	CarveBegin                            http.Handler
+	CarveBlock                            http.Handler
 	CreateLabel                           http.Handler
 	ModifyLabel                           http.Handler
 	GetLabel                              http.Handler
@@ -353,6 +362,8 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		GetDistributedQueries:                 newServer(e.GetDistributedQueries, decodeGetDistributedQueriesRequest),
 		SubmitDistributedQueryResults:         newServer(e.SubmitDistributedQueryResults, decodeSubmitDistributedQueryResultsRequest),
 		SubmitLogs:                            newServer(e.SubmitLogs, decodeSubmitLogsRequest),
+		CarveBegin:                            newServer(e.CarveBegin, decodeCarveBeginRequest),
+		CarveBlock:                            newServer(e.CarveBlock, decodeCarveBlockRequest),
 		CreateLabel:                           newServer(e.CreateLabel, decodeCreateLabelRequest),
 		ModifyLabel:                           newServer(e.ModifyLabel, decodeModifyLabelRequest),
 		GetLabel:                              newServer(e.GetLabel, decodeGetLabelRequest),
@@ -514,6 +525,8 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/osquery/distributed/read", h.GetDistributedQueries).Methods("POST").Name("get_distributed_queries")
 	r.Handle("/api/v1/osquery/distributed/write", h.SubmitDistributedQueryResults).Methods("POST").Name("submit_distributed_query_results")
 	r.Handle("/api/v1/osquery/log", h.SubmitLogs).Methods("POST").Name("submit_logs")
+	r.Handle("/api/v1/osquery/carve/begin", h.CarveBegin).Methods("POST").Name("carve_begin")
+	r.Handle("/api/v1/osquery/carve/block", h.CarveBlock).Methods("POST").Name("carve_block")
 }
 
 // WithSetup is an http middleware that checks is setup procedures have been completed.
