@@ -23,6 +23,17 @@ class AdminDetails extends Component {
     handleSubmit: PropTypes.func.isRequired,
   };
 
+  componentDidUpdate(prevProps) {
+    if (this.props.currentPage && this.props.currentPage !== prevProps.currentPage) {
+      // Component has a transition duration of 300ms set in
+      // RegistrationForm/_styles.scss. We need to wait 300ms before
+      // calling .focus() to preserve smooth transition.
+      setTimeout(() => {
+        this.firstInput.input.focus();
+      }, 300);
+    }
+  }
+
   render () {
     const { className, currentPage, fields, handleSubmit } = this.props;
     const tabIndex = currentPage ? 1 : -1;
@@ -36,6 +47,7 @@ class AdminDetails extends Component {
             placeholder="Username"
             tabIndex={tabIndex}
             autofocus={currentPage}
+            ref={(input) => { this.firstInput = input; }}
           />
           <InputFieldWithIcon
             {...fields.password}
