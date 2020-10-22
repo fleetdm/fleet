@@ -122,7 +122,6 @@ type PackService interface {
 // Pack is the structure which represents an osquery query pack.
 type Pack struct {
 	UpdateCreateTimestamps
-	DeleteFields
 	ID          uint   `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`

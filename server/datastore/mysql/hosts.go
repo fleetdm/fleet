@@ -130,7 +130,7 @@ func (d *Datastore) SaveHost(host *kolide.Host) error {
 }
 
 func (d *Datastore) DeleteHost(hid uint) error {
-	_, err := d.db.Exec("DELETE FROM hosts WHERE id = ?", hid)
+	err := d.deleteEntity("hosts", hid)
 	if err != nil {
 		return errors.Wrapf(err, "deleting host with id %d", hid)
 	}
@@ -140,7 +140,7 @@ func (d *Datastore) DeleteHost(hid uint) error {
 func (d *Datastore) Host(id uint) (*kolide.Host, error) {
 	sqlStatement := `
 		SELECT * FROM hosts
-		WHERE id = ? AND NOT deleted LIMIT 1
+		WHERE id = ? LIMIT 1
 	`
 	host := &kolide.Host{}
 	err := d.db.Get(host, sqlStatement, id)
@@ -154,7 +154,6 @@ func (d *Datastore) Host(id uint) (*kolide.Host, error) {
 func (d *Datastore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error) {
 	sql := `
 		SELECT * FROM hosts
-		WHERE NOT deleted
 	`
 	var params []interface{}
 	switch opt.StatusFilter {
@@ -244,8 +243,7 @@ func (d *Datastore) EnrollHost(osqueryHostID, nodeKey, secretName string) (*koli
 			enroll_secret_name
 		) VALUES (?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
-			node_key = VALUES(node_key),
-			deleted = FALSE
+			node_key = VALUES(node_key)
 	`
 
 	var result sql.Result
@@ -281,8 +279,6 @@ func (d *Datastore) AuthenticateHost(nodeKey string) (*kolide.Host, error) {
 			osquery_host_id,
 			created_at,
 			updated_at,
-			deleted_at,
-			deleted,
 			detail_update_time,
 			label_update_time,
 			node_key,
@@ -313,7 +309,7 @@ func (d *Datastore) AuthenticateHost(nodeKey string) (*kolide.Host, error) {
 			config_tls_refresh,
 			enroll_secret_name
 		FROM hosts
-		WHERE node_key = ? AND NOT deleted
+		WHERE node_key = ?
 		LIMIT 1
 	`
 
@@ -359,7 +355,6 @@ func (d *Datastore) searchHostsWithOmits(query string, omit ...uint) ([]*kolide.
 			MATCH (host_name, uuid) AGAINST (? IN BOOLEAN MODE)
 			OR MATCH (primary_ip, primary_mac) AGAINST (? IN BOOLEAN MODE)
 		)
-		AND NOT deleted
 		AND id NOT IN (?)
 		LIMIT 10
 	`
@@ -383,8 +378,7 @@ func (d *Datastore) searchHostsWithOmits(query string, omit ...uint) ([]*kolide.
 func (d *Datastore) searchHostsDefault(omit ...uint) ([]*kolide.Host, error) {
 	sqlStatement := `
 	SELECT * FROM hosts
-	WHERE NOT deleted
-	AND id NOT IN (?)
+	WHERE id NOT in (?)
 	ORDER BY seen_time DESC
 	LIMIT 5
 	`
@@ -392,7 +386,7 @@ func (d *Datastore) searchHostsDefault(omit ...uint) ([]*kolide.Host, error) {
 	var in interface{}
 	{
 		// use -1 if there are no values to omit.
-		//Avoids empty args error for `sqlx.In`
+		// Avoids empty args error for `sqlx.In`
 		in = omit
 		if len(omit) == 0 {
 			in = -1
@@ -435,7 +429,6 @@ func (d *Datastore) SearchHosts(query string, omit ...uint) ([]*kolide.Host, err
 			MATCH (host_name, uuid) AGAINST (? IN BOOLEAN MODE)
 			OR MATCH (primary_ip, primary_mac) AGAINST (? IN BOOLEAN MODE)
 		)
-		AND NOT deleted
 		LIMIT 10
 	`
 	hosts := []*kolide.Host{}

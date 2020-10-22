@@ -21,9 +21,8 @@ type QueryStore interface {
 	SaveQuery(query *Query) error
 	// DeleteQuery deletes an existing query object.
 	DeleteQuery(name string) error
-	// DeleteQueries (soft) deletes the existing query objects with the
-	// provided IDs. The number of deleted queries is returned along with
-	// any error.
+	// DeleteQueries deletes the existing query objects with the provided IDs.
+	// The number of deleted queries is returned along with any error.
 	DeleteQueries(ids []uint) (uint, error)
 	// Query returns the query associated with the provided ID. Associated
 	// packs should also be loaded.
@@ -54,9 +53,8 @@ type QueryService interface {
 	DeleteQuery(ctx context.Context, name string) error
 	// For backwards compatibility with UI
 	DeleteQueryByID(ctx context.Context, id uint) error
-	// DeleteQueries (soft) deletes the existing query objects with the
-	// provided IDs. The number of deleted queries is returned along with
-	// any error.
+	// DeleteQueries deletes the existing query objects with the provided IDs.
+	// The number of deleted queries is returned along with any error.
 	DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 }
 
@@ -68,7 +66,6 @@ type QueryPayload struct {
 
 type Query struct {
 	UpdateCreateTimestamps
-	DeleteFields
 	ID          uint   `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`

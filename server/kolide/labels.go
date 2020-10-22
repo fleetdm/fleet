@@ -167,7 +167,6 @@ func (t *LabelMembershipType) UnmarshalJSON(b []byte) error {
 
 type Label struct {
 	UpdateCreateTimestamps
-	DeleteFields
 	ID                  uint                `json:"id"`
 	Name                string              `json:"name"`
 	Description         string              `json:"description"`

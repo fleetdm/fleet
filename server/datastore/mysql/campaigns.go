@@ -30,7 +30,7 @@ func (d *Datastore) NewDistributedQueryCampaign(camp *kolide.DistributedQueryCam
 
 func (d *Datastore) DistributedQueryCampaign(id uint) (*kolide.DistributedQueryCampaign, error) {
 	sql := `
-		SELECT * FROM distributed_query_campaigns WHERE id = ? AND NOT deleted
+		SELECT * FROM distributed_query_campaigns WHERE id = ?
 	`
 	campaign := &kolide.DistributedQueryCampaign{}
 	if err := d.db.Get(campaign, sql, id); err != nil {
@@ -47,7 +47,6 @@ func (d *Datastore) SaveDistributedQueryCampaign(camp *kolide.DistributedQueryCa
 			status = ?,
 			user_id = ?
 		WHERE id = ?
-		AND NOT deleted
 	`
 	result, err := d.db.Exec(sqlStatement, camp.QueryID, camp.Status, camp.UserID, camp.ID)
 	if err != nil {

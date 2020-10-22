@@ -59,8 +59,6 @@ export const flatConfigStub = {
 export const hostStub = {
   created_at: '2017-01-10T19:18:55Z',
   updated_at: '2017-01-10T20:13:52Z',
-  deleted_at: null,
-  deleted: false,
   id: 1,
   detail_updated_at: '2017-01-10T20:01:48Z',
   seen_time: '2017-01-10T20:13:54Z',
@@ -95,8 +93,6 @@ export const hostStub = {
 export const labelStub = {
   created_at: '2017-01-16T23:11:01Z',
   updated_at: '2017-01-16T23:11:01Z',
-  deleted_at: null,
-  deleted: false,
   id: 1,
   name: 'All Hosts',
   description: '',
@@ -116,8 +112,6 @@ export const labelStub = {
 export const packStub = {
   created_at: '0001-01-01T00:00:00Z',
   updated_at: '0001-01-01T00:00:00Z',
-  deleted_at: null,
-  deleted: false,
   id: 3,
   name: 'Pack Name',
   description: 'Pack Description',
@@ -130,8 +124,6 @@ export const packStub = {
 
 export const queryStub = {
   created_at: '2016-10-17T07:06:00Z',
-  deleted: false,
-  deleted_at: null,
   description: '',
   differential: false,
   id: 1,

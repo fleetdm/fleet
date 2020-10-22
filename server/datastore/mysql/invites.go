@@ -8,31 +8,15 @@ import (
 	"github.com/pkg/errors"
 )
 
-// NewInvite generates a new invitation
+// NewInvite generates a new invitation.
 func (d *Datastore) NewInvite(i *kolide.Invite) (*kolide.Invite, error) {
-	var (
-		deletedInvite kolide.Invite
-		sqlStmt       string
-	)
-	err := d.db.Get(&deletedInvite, "SELECT * FROM invites WHERE email = ? AND deleted", i.Email)
-	switch err {
-	case nil:
-		sqlStmt = `
-		REPLACE INTO invites ( invited_by, email, admin, name, position, token, deleted, sso_enabled)
-		  VALUES ( ?, ?, ?, ?, ?, ?, ?, ?)
-		`
-	case sql.ErrNoRows:
-		sqlStmt = `
-		INSERT INTO invites ( invited_by, email, admin, name, position, token, deleted, sso_enabled)
-		  VALUES ( ?, ?, ?, ?, ?, ?, ?, ?)
-		`
-	default:
-		return nil, errors.Wrap(err, "check for existing invite")
-	}
+	sqlStmt := `
+	INSERT INTO invites ( invited_by, email, admin, name, position, token, sso_enabled)
+	  VALUES ( ?, ?, ?, ?, ?, ?, ?)
+	`
 
-	deleted := false
 	result, err := d.db.Exec(sqlStmt, i.InvitedBy, i.Email, i.Admin,
-		i.Name, i.Position, i.Token, deleted, i.SSOEnabled)
+		i.Name, i.Position, i.Token, i.SSOEnabled)
 	if err != nil && isDuplicate(err) {
 		return nil, alreadyExists("Invite", 0)
 	} else if err != nil {
@@ -43,7 +27,6 @@ func (d *Datastore) NewInvite(i *kolide.Invite) (*kolide.Invite, error) {
 	i.ID = uint(id)
 
 	return i, nil
-
 }
 
 // ListInvites lists all invites in the Fleet database. Supply query options
@@ -52,7 +35,7 @@ func (d *Datastore) ListInvites(opt kolide.ListOptions) ([]*kolide.Invite, error
 
 	invites := []*kolide.Invite{}
 
-	query := appendListOptionsToSQL("SELECT * FROM invites WHERE NOT deleted", opt)
+	query := appendListOptionsToSQL("SELECT * FROM invites", opt)
 	err := d.db.Select(&invites, query)
 	if err == sql.ErrNoRows {
 		return nil, notFound("Invite")
@@ -65,7 +48,7 @@ func (d *Datastore) ListInvites(opt kolide.ListOptions) ([]*kolide.Invite, error
 // Invite returns Invite identified by id.
 func (d *Datastore) Invite(id uint) (*kolide.Invite, error) {
 	var invite kolide.Invite
-	err := d.db.Get(&invite, "SELECT * FROM invites WHERE id = ? AND NOT deleted", id)
+	err := d.db.Get(&invite, "SELECT * FROM invites WHERE id = ?", id)
 	if err == sql.ErrNoRows {
 		return nil, notFound("Invite").WithID(id)
 	} else if err != nil {
@@ -77,7 +60,7 @@ func (d *Datastore) Invite(id uint) (*kolide.Invite, error) {
 // InviteByEmail finds an Invite with a particular email, if one exists.
 func (d *Datastore) InviteByEmail(email string) (*kolide.Invite, error) {
 	var invite kolide.Invite
-	err := d.db.Get(&invite, "SELECT * FROM invites WHERE email = ? AND NOT deleted", email)
+	err := d.db.Get(&invite, "SELECT * FROM invites WHERE email = ?", email)
 	if err == sql.ErrNoRows {
 		return nil, notFound("Invite").
 			WithMessage(fmt.Sprintf("with email %s", email))
@@ -90,7 +73,7 @@ func (d *Datastore) InviteByEmail(email string) (*kolide.Invite, error) {
 // InviteByToken finds an Invite with a particular token, if one exists.
 func (d *Datastore) InviteByToken(token string) (*kolide.Invite, error) {
 	var invite kolide.Invite
-	err := d.db.Get(&invite, "SELECT * FROM invites WHERE token = ? AND NOT deleted", token)
+	err := d.db.Get(&invite, "SELECT * FROM invites WHERE token = ?", token)
 	if err == sql.ErrNoRows {
 		return nil, notFound("Invite").
 			WithMessage(fmt.Sprintf("with token %s", token))
@@ -105,7 +88,7 @@ func (d *Datastore) SaveInvite(i *kolide.Invite) error {
 	sql := `
 	UPDATE invites SET invited_by = ?, email = ?, admin = ?,
 	   name = ?, position = ?, token = ?, sso_enabled = ?
-		 WHERE id = ? AND NOT deleted
+		 WHERE id = ?
 	`
 	results, err := d.db.Exec(sql, i.InvitedBy, i.Email,
 		i.Admin, i.Name, i.Position, i.Token, i.SSOEnabled, i.ID,

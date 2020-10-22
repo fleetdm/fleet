@@ -68,10 +68,7 @@ func (d *Datastore) NewSession(session *kolide.Session) (*kolide.Session, error)
 }
 
 func (d *Datastore) DestroySession(session *kolide.Session) error {
-	sqlStatement := `
-		DELETE FROM sessions WHERE id = ?
-	`
-	_, err := d.db.Exec(sqlStatement, session.ID)
+	err := d.deleteEntity("sessions", session.ID)
 	if err != nil {
 		return errors.Wrap(err, "deleting session")
 	}
