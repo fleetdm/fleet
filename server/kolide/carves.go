@@ -1,14 +1,26 @@
 package kolide
 
+import "context"
+
 type CarveStore interface {
 	NewCarve(metadata *CarveMetadata) (*CarveMetadata, error)
+	ListCarves(opt ListOptions) ([]*CarveMetadata, error)
 	CarveBySessionId(sessionId string) (*CarveMetadata, error)
-	NewBlock(metadtaId int64, blockId int, data []byte) error
+	NewBlock(metadataId int64, blockId int, data []byte) error
+	GetBlock(metadataId int64, blockId int) ([]byte, error)
+}
+
+type CarveService interface {
+	CarveBegin(ctx context.Context, payload CarveBeginPayload) (*CarveMetadata, error)
+	CarveBlock(ctx context.Context, payload CarveBlockPayload) error
+	ListCarves(ctx context.Context, opt ListOptions) ([]*CarveMetadata, error)
 }
 
 type CarveMetadata struct {
 	// ID is the DB auto-increment ID for the carve.
 	ID int64 `json:"id" db:"id"`
+	// HostId is the ID of the host that initiated the carve.
+	HostId uint `json:"host_id" db:"host_id"`
 	// BlockCount is the number of blocks in the carve.
 	BlockCount int `json:"block_count" db:"block_count"`
 	// BlcokSize is the size of each block in the carve.
@@ -26,4 +38,19 @@ type CarveMetadata struct {
 	// This value is not stored directly, but generated from the carve_blocks
 	// table.
 	MaxBlock int `json:"max_block" db:"max_block"`
+}
+
+type CarveBeginPayload struct {
+	BlockCount int
+	BlockSize  int
+	CarveSize  int
+	CarveId    string
+	RequestId  string
+}
+
+type CarveBlockPayload struct {
+	SessionId string
+	RequestId string
+	BlockId   int
+	Data      string
 }

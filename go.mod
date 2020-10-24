@@ -23,7 +23,7 @@ require (
 	github.com/go-kit/kit v0.8.0
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/gomodule/redigo v2.0.0+incompatible
-	github.com/google/uuid v0.0.0-20161128191214-064e2069ce9c // indirect
+	github.com/google/uuid v0.0.0-20161128191214-064e2069ce9c
 	github.com/gorilla/mux v1.6.2
 	github.com/gorilla/websocket v1.4.2
 	github.com/gosuri/uilive v0.0.4

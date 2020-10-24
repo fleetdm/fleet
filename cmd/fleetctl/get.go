@@ -210,6 +210,7 @@ func getCommand() cli.Command {
 			getHostsCommand(),
 			getEnrollSecretCommand(),
 			getAppConfigCommand(),
+			getCarvesCommand(),
 		},
 	}
 }
@@ -639,6 +640,36 @@ func getHostsCommand() cli.Command {
 
 				fmt.Print(string(b))
 			}
+			return nil
+		},
+	}
+}
+
+func getCarvesCommand() cli.Command {
+	return cli.Command{
+		Name:  "carves",
+		Usage: "Retrieve the file carving sessions",
+		Flags: []cli.Flag{
+			jsonFlag(),
+			yamlFlag(),
+			configFlag(),
+			contextFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			carves, err := fleet.ListCarves(kolide.ListOptions{})
+			if err != nil {
+				return err
+			}
+
+			for _, c := range carves {
+				fmt.Printf("%+v\n", c)
+			}
+
 			return nil
 		},
 	}

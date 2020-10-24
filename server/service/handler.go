@@ -101,6 +101,7 @@ type KolideEndpoints struct {
 	SSOSettings                           endpoint.Endpoint
 	StatusResultStore                     endpoint.Endpoint
 	StatusLiveQuery                       endpoint.Endpoint
+	ListCarves                            endpoint.Endpoint
 }
 
 // MakeKolideServerEndpoints creates the Kolide API endpoints.
@@ -192,6 +193,7 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string) Kol
 		GetOsqueryOptionsSpec:                 authenticatedUser(jwtKey, svc, makeGetOsqueryOptionsSpecEndpoint(svc)),
 		GetCertificate:                        authenticatedUser(jwtKey, svc, makeCertificateEndpoint(svc)),
 		ChangeEmail:                           authenticatedUser(jwtKey, svc, makeChangeEmailEndpoint(svc)),
+		ListCarves:                            authenticatedUser(jwtKey, svc, makeListCarvesEndpoint(svc)),
 
 		// Authenticated status endpoints
 		StatusResultStore: authenticatedUser(jwtKey, svc, makeStatusResultStoreEndpoint(svc)),
@@ -297,6 +299,7 @@ type kolideHandlers struct {
 	SettingsSSO                           http.Handler
 	StatusResultStore                     http.Handler
 	StatusLiveQuery                       http.Handler
+	ListCarves                            http.Handler
 }
 
 func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *kolideHandlers {
@@ -389,6 +392,7 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		SettingsSSO:                           newServer(e.SSOSettings, decodeNoParamsRequest),
 		StatusResultStore:                     newServer(e.StatusResultStore, decodeNoParamsRequest),
 		StatusLiveQuery:                       newServer(e.StatusLiveQuery, decodeNoParamsRequest),
+		ListCarves:                            newServer(e.ListCarves, decodeListCarvesRequest),
 	}
 }
 
@@ -519,6 +523,8 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 
 	r.Handle("/api/v1/kolide/status/result_store", h.StatusResultStore).Methods("GET").Name("status_result_store")
 	r.Handle("/api/v1/kolide/status/live_query", h.StatusLiveQuery).Methods("GET").Name("status_live_query")
+
+	r.Handle("/api/v1/kolide/carves", h.ListCarves).Methods("GET").Name("list_carves")
 
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
 	r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST").Name("get_client_config")

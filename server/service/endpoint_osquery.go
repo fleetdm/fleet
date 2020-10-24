@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/kolide/fleet/server/kolide"
 )
@@ -168,80 +167,5 @@ func makeSubmitLogsEndpoint(svc kolide.Service) endpoint.Endpoint {
 		}
 
 		return submitLogsResponse{Err: err}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Begin File Carve
-////////////////////////////////////////////////////////////////////////////////
-
-type carveBeginRequest struct {
-	NodeKey    string `json:"node_key"`
-	BlockCount int    `json:"block_count"`
-	BlockSize  int    `json:"block_size"`
-	CarveSize  int    `json:"carve_size"`
-	CarveId    string `json:"carve_id"`
-	RequestId  string `json:"request_id"`
-}
-
-type carveBeginResponse struct {
-	SessionId string `json:"session_id"`
-	Success   bool   `json:"success,omitempty"`
-	Err       error  `json:"error,omitempty"`
-}
-
-func (r carveBeginResponse) error() error { return r.Err }
-
-func makeCarveBeginEndpoint(svc kolide.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(carveBeginRequest)
-		_ = req
-
-		spew.Dump(req)
-		// TODO call some method
-		id := "foobar"
-		var err error
-
-		if err != nil {
-			return carveBeginResponse{Err: err}, nil
-		}
-
-		return carveBeginResponse{SessionId: id, Success: true}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Receive Block for File Carve
-////////////////////////////////////////////////////////////////////////////////
-
-type carveBlockRequest struct {
-	NodeKey   string `json:"node_key"`
-	BlockId   int    `json:"block_id"`
-	SessionId string `json:"session_id"`
-	RequestId string `json:"request_id"`
-	Data      string `json:"data"`
-}
-
-type carveBlockResponse struct {
-	Success bool  `json:"success,omitempty"`
-	Err     error `json:"error,omitempty"`
-}
-
-func (r carveBlockResponse) error() error { return r.Err }
-
-func makeCarveBlockEndpoint(svc kolide.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(carveBlockRequest)
-		_ = req
-		spew.Dump(req)
-
-		// TODO call method
-		var err error
-
-		if err != nil {
-			return carveBlockResponse{Err: err}, nil
-		}
-
-		return carveBlockResponse{Success: true}, nil
 	}
 }

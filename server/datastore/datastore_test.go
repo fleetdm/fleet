@@ -86,4 +86,6 @@ var testFunctions = [...]func(*testing.T, kolide.Datastore){
 	testListLabelsForPack,
 	testHostAdditional,
 	testCarveMetadata,
+	testCarveBlocks,
+	testCarveListCarves,
 }
