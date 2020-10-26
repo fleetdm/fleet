@@ -77,6 +77,34 @@ func (d *Datastore) CarveBySessionId(sessionId string) (*kolide.CarveMetadata, e
 	return &metadata, nil
 }
 
+func (d *Datastore) CarveByName(name string) (*kolide.CarveMetadata, error) {
+	// Selecting max_block should be very efficient because MySQL is able to use
+	// the index metadata and optimizes away the SELECT.
+	sql := `
+		SELECT
+			id,
+			host_id,
+			created_at,
+			name,
+			block_count,
+			block_size,
+			carve_size,
+			carve_id,
+			request_id,
+			session_id,
+			(SELECT COALESCE(MAX(block_id), -1) FROM carve_blocks WHERE metadata_id = cm.id) AS max_block
+		FROM carve_metadata cm
+		WHERE name = ?
+`
+
+	var metadata kolide.CarveMetadata
+	if err := d.db.Get(&metadata, sql, name); err != nil {
+		return nil, errors.Wrap(err, "get carve by name")
+	}
+
+	return &metadata, nil
+}
+
 func (d *Datastore) ListCarves(opt kolide.ListOptions) ([]*kolide.CarveMetadata, error) {
 	// Selecting max_block should be very efficient because MySQL is able to use
 	// the index metadata and optimizes away the SELECT.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/google/uuid"
 	hostctx "github.com/kolide/fleet/server/contexts/host"
@@ -46,6 +47,7 @@ func (svc service) CarveBegin(ctx context.Context, payload kolide.CarveBeginPayl
 	}
 
 	carve := &kolide.CarveMetadata{
+		Name:       fmt.Sprintf("%s-%s-%s", host.HostName, time.Now().Format(time.RFC3339), payload.RequestId),
 		HostId:     host.ID,
 		BlockCount: payload.BlockCount,
 		BlockSize:  payload.BlockSize,
@@ -98,6 +100,19 @@ func (svc service) CarveBlock(ctx context.Context, payload kolide.CarveBlockPayl
 
 func (svc service) ListCarves(ctx context.Context, opt kolide.ListOptions) ([]*kolide.CarveMetadata, error) {
 	return svc.ds.ListCarves(opt)
+}
+
+func (svc service) GetCarveReader(ctx context.Context, name string) (io.Reader, error) {
+	metadata, err := svc.ds.CarveByName(name)
+	if err != nil {
+		return nil, errors.Wrap(err, "get carve by name")
+	}
+
+	if !metadata.BlocksComplete() {
+		return nil, fmt.Errorf("carve awaiting completion")
+	}
+
+	return newCarveReader(*metadata, svc.ds), nil
 }
 
 type carveReader struct {

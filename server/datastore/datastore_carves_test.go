@@ -54,13 +54,18 @@ func testCarveMetadata(t *testing.T, ds kolide.Datastore) {
 	carve, err = ds.CarveBySessionId(expectedCarve.SessionId)
 	require.NoError(t, err)
 	assert.Equal(t, expectedCarve, carve)
+
+	// Get by name also
+	carve, err = ds.CarveByName(expectedCarve.Name)
+	require.NoError(t, err)
+	assert.Equal(t, expectedCarve, carve)
 }
 
 func testCarveBlocks(t *testing.T, ds kolide.Datastore) {
 	h := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
 
-	blockCount := 25
-	blockSize := 30
+	blockCount := int64(25)
+	blockSize := int64(30)
 	carve := &kolide.CarveMetadata{
 		HostId:     h.ID,
 		Name:       "foobar",
@@ -77,7 +82,7 @@ func testCarveBlocks(t *testing.T, ds kolide.Datastore) {
 
 	// Randomly generate and insert blocks
 	expectedBlocks := make([][]byte, blockCount)
-	for i := 0; i < blockCount; i++ {
+	for i := int64(0); i < blockCount; i++ {
 		block := make([]byte, blockSize)
 		_, err := rand.Read(block)
 		require.NoError(t, err, "generate block")
@@ -88,7 +93,7 @@ func testCarveBlocks(t *testing.T, ds kolide.Datastore) {
 	}
 
 	// Verify retrieved blocks match inserted blocks
-	for i := 0; i < blockCount; i++ {
+	for i := int64(0); i < blockCount; i++ {
 		data, err := ds.GetBlock(carve.ID, i)
 		require.NoError(t, err, "get block %d %v", i, expectedBlocks[i])
 		assert.Equal(t, expectedBlocks[i], data)

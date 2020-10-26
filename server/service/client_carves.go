@@ -2,6 +2,8 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/kolide/fleet/server/kolide"
@@ -40,4 +42,25 @@ func (c *Client) ListCarves(opt kolide.ListOptions) ([]*kolide.CarveMetadata, er
 	}
 
 	return carves, nil
+}
+
+// ListCarves lists the file carving sessions
+func (c *Client) DownloadCarve(name string) (io.Reader, error) {
+	path := fmt.Sprintf("/api/v1/kolide/carves/%s/download", name)
+	response, err := c.AuthenticatedDo("GET", path, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "GET "+path)
+	}
+	//defer response.Body.Close()
+	// TODO figure out responsibility for closing
+
+	if response.StatusCode != http.StatusOK {
+		return nil, errors.Errorf(
+			"download carve received status %d %s",
+			response.StatusCode,
+			extractServerErrorText(response.Body),
+		)
+	}
+
+	return response.Body, nil
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 
@@ -647,8 +648,9 @@ func getHostsCommand() cli.Command {
 
 func getCarvesCommand() cli.Command {
 	return cli.Command{
-		Name:  "carves",
-		Usage: "Retrieve the file carving sessions",
+		Name:    "carves",
+		Aliases: []string{"carve"},
+		Usage:   "Retrieve the file carving sessions",
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
@@ -659,6 +661,19 @@ func getCarvesCommand() cli.Command {
 				return err
 			}
 
+			name := c.Args().First()
+
+			if len(name) > 0 {
+				reader, err := fleet.DownloadCarve(name)
+				if err != nil {
+					return err
+				}
+
+				io.Copy(os.Stdout, reader)
+
+				return nil
+			}
+
 			carves, err := fleet.ListCarves(kolide.ListOptions{})
 			if err != nil {
 				return err
@@ -667,15 +682,14 @@ func getCarvesCommand() cli.Command {
 			data := [][]string{}
 			for _, c := range carves {
 				data = append(data, []string{
-					fmt.Sprint(c.ID),
-					fmt.Sprint(c.HostId),
+					fmt.Sprint(c.Name),
 					c.RequestId,
 					fmt.Sprint(c.CarveSize),
 				})
 			}
 
 			table := defaultTable()
-			table.SetHeader([]string{"id", "host_id", "request_id", "carve_size"})
+			table.SetHeader([]string{"name", "request_id", "carve_size"})
 			table.AppendBulk(data)
 			table.Render()
 

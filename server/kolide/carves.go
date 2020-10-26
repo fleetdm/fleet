@@ -2,6 +2,7 @@ package kolide
 
 import (
 	"context"
+	"io"
 	"time"
 )
 
@@ -9,6 +10,7 @@ type CarveStore interface {
 	NewCarve(metadata *CarveMetadata) (*CarveMetadata, error)
 	ListCarves(opt ListOptions) ([]*CarveMetadata, error)
 	CarveBySessionId(sessionId string) (*CarveMetadata, error)
+	CarveByName(name string) (*CarveMetadata, error)
 	NewBlock(metadataId int64, blockId int64, data []byte) error
 	GetBlock(metadataId int64, blockId int64) ([]byte, error)
 }
@@ -17,6 +19,7 @@ type CarveService interface {
 	CarveBegin(ctx context.Context, payload CarveBeginPayload) (*CarveMetadata, error)
 	CarveBlock(ctx context.Context, payload CarveBlockPayload) error
 	ListCarves(ctx context.Context, opt ListOptions) ([]*CarveMetadata, error)
+	GetCarveReader(ctx context.Context, name string) (io.Reader, error)
 }
 
 type CarveMetadata struct {
@@ -45,6 +48,10 @@ type CarveMetadata struct {
 	// This value is not stored directly, but generated from the carve_blocks
 	// table.
 	MaxBlock int64 `json:"max_block" db:"max_block"`
+}
+
+func (m *CarveMetadata) BlocksComplete() bool {
+	return m.MaxBlock == m.BlockCount-1
 }
 
 type CarveBeginPayload struct {

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"io"
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/kolide/fleet/server/kolide"
@@ -120,5 +121,32 @@ func makeListCarvesEndpoint(svc kolide.Service) endpoint.Endpoint {
 			resp.Carves = append(resp.Carves, carveResponse{*carve})
 		}
 		return resp, nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Download Carve
+////////////////////////////////////////////////////////////////////////////////
+
+type downloadCarveRequest struct {
+	Name string
+}
+
+type downloadCarveResponse struct {
+	Reader io.Reader `json:"-"`
+	Err    error     `json:"error,omitempty"`
+}
+
+func (r downloadCarveResponse) error() error { return r.Err }
+
+func makeDownloadCarveEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(downloadCarveRequest)
+		reader, err := svc.GetCarveReader(ctx, req.Name)
+		if err != nil {
+			return downloadCarveResponse{Err: err}, nil
+		}
+
+		return downloadCarveResponse{Reader: reader}, nil
 	}
 }
