@@ -34,6 +34,7 @@ type Store struct {
 	UserStore
 	QueryStore
 	QueryResultStore
+	CarveStore
 }
 
 func (m *Store) Drop() error {

@@ -13,9 +13,9 @@ import (
 
 type carveBeginRequest struct {
 	NodeKey    string `json:"node_key"`
-	BlockCount int    `json:"block_count"`
-	BlockSize  int    `json:"block_size"`
-	CarveSize  int    `json:"carve_size"`
+	BlockCount int64  `json:"block_count"`
+	BlockSize  int64  `json:"block_size"`
+	CarveSize  int64  `json:"carve_size"`
 	CarveId    string `json:"carve_id"`
 	RequestId  string `json:"request_id"`
 }
@@ -55,10 +55,10 @@ func makeCarveBeginEndpoint(svc kolide.Service) endpoint.Endpoint {
 
 type carveBlockRequest struct {
 	NodeKey   string `json:"node_key"`
-	BlockId   int    `json:"block_id"`
+	BlockId   int64  `json:"block_id"`
 	SessionId string `json:"session_id"`
 	RequestId string `json:"request_id"`
-	Data      string `json:"data"`
+	Data      []byte `json:"data"`
 }
 
 type carveBlockResponse struct {

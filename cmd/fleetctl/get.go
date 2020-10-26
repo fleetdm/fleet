@@ -650,8 +650,6 @@ func getCarvesCommand() cli.Command {
 		Name:  "carves",
 		Usage: "Retrieve the file carving sessions",
 		Flags: []cli.Flag{
-			jsonFlag(),
-			yamlFlag(),
 			configFlag(),
 			contextFlag(),
 		},
@@ -666,9 +664,20 @@ func getCarvesCommand() cli.Command {
 				return err
 			}
 
+			data := [][]string{}
 			for _, c := range carves {
-				fmt.Printf("%+v\n", c)
+				data = append(data, []string{
+					fmt.Sprint(c.ID),
+					fmt.Sprint(c.HostId),
+					c.RequestId,
+					fmt.Sprint(c.CarveSize),
+				})
 			}
+
+			table := defaultTable()
+			table.SetHeader([]string{"id", "host_id", "request_id", "carve_size"})
+			table.AppendBulk(data)
+			table.Render()
 
 			return nil
 		},

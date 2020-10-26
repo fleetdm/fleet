@@ -43,6 +43,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.8 // indirect
 	github.com/mattn/go-sqlite3 v1.11.0 // indirect
 	github.com/mitchellh/mapstructure v0.0.0-20180220230111-00c29f56e238 // indirect
+	github.com/mixer/clock v0.0.0-20200713181918-dd2ce6ac2af6
 	github.com/olekukonko/tablewriter v0.0.0-20180506121414-d4647c9c7a84
 	github.com/patrickmn/sortutil v0.0.0-20120526081524-abeda66eb583
 	github.com/pelletier/go-toml v1.1.0 // indirect

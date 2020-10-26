@@ -10,6 +10,7 @@ import (
 func (d *Datastore) NewCarve(metadata *kolide.CarveMetadata) (*kolide.CarveMetadata, error) {
 	sql := `INSERT INTO carve_metadata (
 		host_id,
+		name,
 		block_count,
 		block_size,
 		carve_size,
@@ -23,12 +24,14 @@ func (d *Datastore) NewCarve(metadata *kolide.CarveMetadata) (*kolide.CarveMetad
 		?,
 		?,
 		?,
+		?,
 		?
 	)`
 
 	result, err := d.db.Exec(
 		sql,
 		metadata.HostId,
+		metadata.Name,
 		metadata.BlockCount,
 		metadata.BlockSize,
 		metadata.CarveSize,
@@ -53,6 +56,8 @@ func (d *Datastore) CarveBySessionId(sessionId string) (*kolide.CarveMetadata, e
 		SELECT
 			id,
 			host_id,
+			created_at,
+			name,
 			block_count,
 			block_size,
 			carve_size,
@@ -79,6 +84,8 @@ func (d *Datastore) ListCarves(opt kolide.ListOptions) ([]*kolide.CarveMetadata,
 		SELECT
 			id,
 			host_id,
+			created_at,
+			name,
 			block_count,
 			block_size,
 			carve_size,
@@ -97,7 +104,7 @@ func (d *Datastore) ListCarves(opt kolide.ListOptions) ([]*kolide.CarveMetadata,
 	return carves, nil
 }
 
-func (d *Datastore) NewBlock(metadataId int64, blockId int, data []byte) error {
+func (d *Datastore) NewBlock(metadataId int64, blockId int64, data []byte) error {
 	sql := `
 		INSERT INTO carve_blocks (
 			metadata_id,
@@ -116,7 +123,7 @@ func (d *Datastore) NewBlock(metadataId int64, blockId int, data []byte) error {
 	return nil
 }
 
-func (d *Datastore) GetBlock(metadataId int64, blockId int) ([]byte, error) {
+func (d *Datastore) GetBlock(metadataId int64, blockId int64) ([]byte, error) {
 	sql := `
 		SELECT data
 		FROM carve_blocks

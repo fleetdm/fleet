@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bmizerany/assert"
 	"github.com/kolide/fleet/server/kolide"
 	"github.com/kolide/fleet/server/test"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,6 +16,7 @@ func testCarveMetadata(t *testing.T, ds kolide.Datastore) {
 
 	expectedCarve := &kolide.CarveMetadata{
 		HostId:     h.ID,
+		Name:       "foobar",
 		BlockCount: 10,
 		BlockSize:  12,
 		CarveSize:  123,
@@ -30,6 +31,7 @@ func testCarveMetadata(t *testing.T, ds kolide.Datastore) {
 	expectedCarve.MaxBlock = -1
 
 	carve, err := ds.CarveBySessionId(expectedCarve.SessionId)
+	expectedCarve.CreatedAt = carve.CreatedAt // Ignore created_at field
 	require.NoError(t, err)
 	assert.Equal(t, expectedCarve, carve)
 
@@ -61,6 +63,7 @@ func testCarveBlocks(t *testing.T, ds kolide.Datastore) {
 	blockSize := 30
 	carve := &kolide.CarveMetadata{
 		HostId:     h.ID,
+		Name:       "foobar",
 		BlockCount: blockCount,
 		BlockSize:  blockSize,
 		CarveSize:  blockCount * blockSize,
@@ -98,6 +101,7 @@ func testCarveListCarves(t *testing.T, ds kolide.Datastore) {
 
 	expectedCarve := &kolide.CarveMetadata{
 		HostId:     h.ID,
+		Name:       "foobar",
 		BlockCount: 10,
 		BlockSize:  12,
 		CarveSize:  113,
@@ -116,6 +120,7 @@ func testCarveListCarves(t *testing.T, ds kolide.Datastore) {
 
 	expectedCarve2 := &kolide.CarveMetadata{
 		HostId:     h.ID,
+		Name:       "foobar2",
 		BlockCount: 42,
 		BlockSize:  13,
 		CarveSize:  42 * 13,
@@ -131,5 +136,8 @@ func testCarveListCarves(t *testing.T, ds kolide.Datastore) {
 
 	carves, err := ds.ListCarves(kolide.ListOptions{})
 	require.NoError(t, err)
+	// Ignore created_at timestamps
+	expectedCarve.CreatedAt = carves[0].CreatedAt
+	expectedCarve2.CreatedAt = carves[1].CreatedAt
 	assert.Equal(t, []*kolide.CarveMetadata{expectedCarve, expectedCarve2}, carves)
 }

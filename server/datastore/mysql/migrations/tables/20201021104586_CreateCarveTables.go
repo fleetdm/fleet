@@ -15,6 +15,7 @@ func Up_20201021104586(tx *sql.Tx) error {
 		id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
 		host_id INT UNSIGNED NOT NULL,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		name VARCHAR(255),
 		block_count INT UNSIGNED NOT NULL,
 		block_size INT UNSIGNED NOT NULL,
 		carve_size BIGINT UNSIGNED NOT NULL,
@@ -22,6 +23,7 @@ func Up_20201021104586(tx *sql.Tx) error {
 		request_id VARCHAR(64) NOT NULL,
 		session_id VARCHAR(64) NOT NULL,
 		UNIQUE KEY idx_session_id (session_id),
+		UNIQUE KEY idx_name (name),
 		FOREIGN KEY (host_id) REFERENCES hosts (id) ON DELETE CASCADE
 	)`); err != nil {
 		return errors.Wrap(err, "create carve_metadata")
