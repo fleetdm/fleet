@@ -3,7 +3,7 @@ Building The Code
 
 ## Building the Code
 
-Checkout this repository.
+Clone this repository.
 
 To setup a working local development environment, you must install the following minimum toolset:
 
