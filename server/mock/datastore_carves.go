@@ -12,6 +12,8 @@ type ListCarvesFunc func(opt kolide.ListOptions) ([]*kolide.CarveMetadata, error
 
 type CarveBySessionIdFunc func(sessionId string) (*kolide.CarveMetadata, error)
 
+type CarveByNameFunc func(name string) (*kolide.CarveMetadata, error)
+
 type NewBlockFunc func(metadataId int64, blockId int64, data []byte) error
 
 type GetBlockFunc func(metadataId int64, blockId int64) ([]byte, error)
@@ -25,6 +27,10 @@ type CarveStore struct {
 
 	CarveBySessionIdFunc        CarveBySessionIdFunc
 	CarveBySessionIdFuncInvoked bool
+
+	CarveByNameFunc        CarveByNameFunc
+	CarveByNameFuncInvoked bool
+
 
 	NewBlockFunc        NewBlockFunc
 	NewBlockFuncInvoked bool
@@ -47,6 +53,12 @@ func (s *CarveStore) CarveBySessionId(sessionId string) (*kolide.CarveMetadata, 
 	s.CarveBySessionIdFuncInvoked = true
 	return s.CarveBySessionIdFunc(sessionId)
 }
+
+func (s *CarveStore) CarveByName(name string) (*kolide.CarveMetadata, error) {
+	s.CarveByNameFuncInvoked = true
+	return s.CarveByNameFunc(name)
+}
+
 
 func (s *CarveStore) NewBlock(metadataId int64, blockId int64, data []byte) error {
 	s.NewBlockFuncInvoked = true

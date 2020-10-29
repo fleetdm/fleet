@@ -682,14 +682,15 @@ func getCarvesCommand() cli.Command {
 			data := [][]string{}
 			for _, c := range carves {
 				data = append(data, []string{
-					fmt.Sprint(c.Name),
+					c.Name,
 					c.RequestId,
-					fmt.Sprint(c.CarveSize),
+					strconv.FormatInt(c.CarveSize, 10),
+					fmt.Sprintf("%d%%", int64((float64(c.MaxBlock+1) / float64(c.BlockCount))*100)),
 				})
 			}
 
 			table := defaultTable()
-			table.SetHeader([]string{"name", "request_id", "carve_size"})
+			table.SetHeader([]string{"name", "request_id", "carve_size", "completion"})
 			table.AppendBulk(data)
 			table.Render()
 

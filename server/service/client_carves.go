@@ -44,7 +44,7 @@ func (c *Client) ListCarves(opt kolide.ListOptions) ([]*kolide.CarveMetadata, er
 	return carves, nil
 }
 
-// ListCarves lists the file carving sessions
+// ListCarves lists the file carving sessio
 func (c *Client) DownloadCarve(name string) (io.Reader, error) {
 	path := fmt.Sprintf("/api/v1/kolide/carves/%s/download", name)
 	response, err := c.AuthenticatedDo("GET", path, nil)

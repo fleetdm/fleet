@@ -14,12 +14,17 @@ import (
 	"github.com/pkg/errors"
 )
 
+// httpClient interface allows the HTTP methods to be mocked.
+type httpClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
 type Client struct {
 	addr               string
 	baseURL            *url.URL
 	urlPrefix          string
 	token              string
-	http               *http.Client
+	http               httpClient
 	insecureSkipVerify bool
 }
 

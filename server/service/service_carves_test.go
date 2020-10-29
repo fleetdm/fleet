@@ -45,6 +45,7 @@ func TestCarveBegin(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, metadata.SessionId)
 	metadata.SessionId = "" // Clear this before comparison
+	metadata.Name = "" // Clear this before comparison
 	assert.Equal(t, expectedMetadata, *metadata)
 }
 
@@ -356,6 +357,102 @@ func TestCarveCarveBlock(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, ms.NewBlockFuncInvoked)
 }
+
+func TestCarveGetBlock(t *testing.T) {
+	sessionId := "foobar"
+	metadata := &kolide.CarveMetadata{
+		ID:         2,
+		HostId:     3,
+		BlockCount: 23,
+		BlockSize:  64,
+		CarveSize:  23 * 64,
+		RequestId:  "carve_request",
+		SessionId:  sessionId,
+		MaxBlock:   3,
+	}
+	ms := new(mock.Store)
+	svc := service{ds: ms}
+	ms.CarveByNameFunc = func(name string) (*kolide.CarveMetadata, error) {
+		assert.Equal(t, "foobar", name)
+		return metadata, nil
+	}
+	ms.GetBlockFunc = func(metadataId int64, blockId int64) ([]byte, error) {
+		assert.Equal(t, metadata.ID, metadataId)
+		assert.Equal(t, int64(3), blockId)
+		return []byte("foobar"), nil
+	}
+
+	data, err := svc.GetBlock(context.Background(), "foobar", 3)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("foobar"), data)
+}
+
+func TestCarveGetBlockCarveByNameError(t *testing.T) {
+	ms := new(mock.Store)
+	svc := service{ds: ms}
+	ms.CarveByNameFunc = func(name string) (*kolide.CarveMetadata, error) {
+		return nil, fmt.Errorf("ouch!")
+	}
+	_, err := svc.GetBlock(context.Background(), "foobar", 3)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ouch!")
+}
+
+func TestCarveGetBlockNotAvailableError(t *testing.T) {
+	sessionId := "foobar"
+	metadata := &kolide.CarveMetadata{
+		ID:         2,
+		HostId:     3,
+		BlockCount: 23,
+		BlockSize:  64,
+		CarveSize:  23 * 64,
+		RequestId:  "carve_request",
+		SessionId:  sessionId,
+		MaxBlock:   3,
+	}
+	ms := new(mock.Store)
+	svc := service{ds: ms}
+	ms.CarveByNameFunc = func(name string) (*kolide.CarveMetadata, error) {
+		assert.Equal(t, "foobar", name)
+		return metadata, nil
+	}
+
+	// Block requested is great than max block
+	_, err := svc.GetBlock(context.Background(), "foobar", 7)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not yet available")
+}
+
+func TestCarveGetBlockGetBlockError(t *testing.T) {
+	sessionId := "foobar"
+	metadata := &kolide.CarveMetadata{
+		ID:         2,
+		HostId:     3,
+		BlockCount: 23,
+		BlockSize:  64,
+		CarveSize:  23 * 64,
+		RequestId:  "carve_request",
+		SessionId:  sessionId,
+		MaxBlock:   3,
+	}
+	ms := new(mock.Store)
+	svc := service{ds: ms}
+	ms.CarveByNameFunc = func(name string) (*kolide.CarveMetadata, error) {
+		assert.Equal(t, "foobar", name)
+		return metadata, nil
+	}
+	ms.GetBlockFunc = func(metadataId int64, blockId int64) ([]byte, error) {
+		assert.Equal(t, metadata.ID, metadataId)
+		assert.Equal(t, int64(3), blockId)
+		return nil, fmt.Errorf("yow!!")
+	}
+
+	// Block requested is great than max block
+	_, err := svc.GetBlock(context.Background(), "foobar", 3)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "yow!!")
+}
+
 
 func TestCarveReaderEmptyRead(t *testing.T) {
 	ms := new(mock.Store)

@@ -102,6 +102,25 @@ func (svc service) ListCarves(ctx context.Context, opt kolide.ListOptions) ([]*k
 	return svc.ds.ListCarves(opt)
 }
 
+func (svc service) GetBlock(ctx context.Context, name string, blockId int64) ([]byte, error) {
+	metadata, err := svc.ds.CarveByName(name)
+	if err != nil {
+		return nil, errors.Wrap(err, "get carve by name")
+	}
+
+	if blockId > metadata.MaxBlock {
+		return nil, fmt.Errorf("block %d not yet available", blockId)
+	}
+
+	data, err := svc.ds.GetBlock(metadata.ID, blockId)
+	if err != nil {
+		return nil, errors.Wrapf(err, "get block %d", blockId)
+	}
+
+	return data, nil
+}
+
+
 func (svc service) GetCarveReader(ctx context.Context, name string) (io.Reader, error) {
 	metadata, err := svc.ds.CarveByName(name)
 	if err != nil {
