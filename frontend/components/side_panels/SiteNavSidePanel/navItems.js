@@ -27,6 +27,16 @@ export default (admin) => {
             pathname: PATHS.ADMIN_SETTINGS,
           },
         },
+        {
+          // No such icon now. SiteNavSidePanel does not display
+          // icons for subItems
+          icon: 'osquery-options',
+          name: 'Osquery Options',
+          location: {
+            regex: new RegExp(`^${PATHS.ADMIN_OSQUERY}`),
+            pathname: PATHS.ADMIN_OSQUERY,
+          },
+        },
       ],
     },
   ];
