@@ -1,46 +1,39 @@
 import expect from 'expect';
-import { LOCATION_CHANGE } from 'react-router-redux';
 
-import reducer, { initialState } from './reducer';
-import {
-  hideFlash,
-  renderFlash,
-} from './actions';
+import reducer from './reducer';
 
-describe('Notifications - reducer', () => {
-  it('Updates state with notification info when RENDER_FLASH is dispatched', () => {
-    const undoAction = { type: 'UNDO' };
-    const newState = reducer(initialState, renderFlash('success', 'You did it!', undoAction));
+describe('Errors - reducer', () => {
+  it('Updates state with errors object when an action that has a payload with an errors object is dispatched', () => {
+    const payload = {
+      errors: {
+        base: "inserting pack: Error 1136: Column count doesn't match value count at row 1",
+        http_status: 500,
+      },
+    };
+    const packsCreateFailureAction = { type: 'packs_CREATE_FAILURE', payload };
+    const initialState = {
+      errors: null,
+    };
+    const newState = reducer(initialState, packsCreateFailureAction);
 
     expect(newState).toEqual({
-      alertType: 'success',
-      isVisible: true,
-      message: 'You did it!',
-      undoAction,
+      errors: {
+        base: "inserting pack: Error 1136: Column count doesn't match value count at row 1",
+        http_status: 500,
+      },
     });
   });
 
-  it('Updates state to hide notifications when HIDE_FLASH is dispatched', () => {
-    const stateWithFlashDisplayed = reducer(initialState, renderFlash('success', 'You did it!'));
-    const newState = reducer(stateWithFlashDisplayed, hideFlash);
-
+  it('Updates state by setting errors to null when the RESET_ERRORS action is dipatched', () => {
+    const errorsState = {
+      errors: {
+        base: "inserting pack: Error 1136: Column count doesn't match value count at row 1",
+        http_status: 500,
+      },
+    };
+    const newState = reducer(errorsState, { type: 'RESET_ERRORS' });
     expect(newState).toEqual({
-      alertType: null,
-      isVisible: false,
-      message: null,
-      undoAction: null,
-    });
-  });
-
-  it('Updates state to hide notifications during location change', () => {
-    const stateWithFlashDisplayed = reducer(initialState, renderFlash('success', 'You did it!'));
-    const newState = reducer(stateWithFlashDisplayed, { type: LOCATION_CHANGE });
-
-    expect(newState).toEqual({
-      alertType: null,
-      isVisible: false,
-      message: null,
-      undoAction: null,
+      errors: null,
     });
   });
 });
