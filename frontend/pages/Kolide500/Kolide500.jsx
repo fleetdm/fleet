@@ -91,7 +91,7 @@ class Kolide500 extends Component {
 }
 
 const mapStateToProps = (state) => {
-  const { errors } = state.errors;
+  const { errors } = state.errors500;
   return {
     errors,
   };

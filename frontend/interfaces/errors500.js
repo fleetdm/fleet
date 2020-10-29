@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 
 export default PropTypes.shape({
-  http_request: PropTypes.number,
+  http_status: PropTypes.number,
   base: PropTypes.string,
 });
