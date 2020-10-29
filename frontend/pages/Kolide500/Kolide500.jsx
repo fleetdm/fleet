@@ -79,7 +79,8 @@ class Kolide500 extends Component {
           <h2>Error 500</h2>
           <p>Something went wrong on our end.</p>
           {renderError()}
-          <p>Need assistance? <a href="https://github.com/kolide/fleet/issues">File an issue</a>.</p>
+          <p>Please file an issue if you believe this is a bug.</p>
+          <a href="https://github.com/kolide/fleet/issues">File an issue</a>
           <div className="gopher-container">
             <img src={gopher} alt="" />
           </div>
