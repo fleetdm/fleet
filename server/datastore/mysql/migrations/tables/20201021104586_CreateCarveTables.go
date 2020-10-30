@@ -32,7 +32,7 @@ func Up_20201021104586(tx *sql.Tx) error {
 	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS carve_blocks (
 		metadata_id INT UNSIGNED NOT NULL,
 		block_id INT NOT NULL,
-		data BLOB,
+		data LONGBLOB,
 		PRIMARY KEY (metadata_id, block_id),
 		FOREIGN KEY (metadata_id) REFERENCES carve_metadata (id) ON DELETE CASCADE
 	)`); err != nil {

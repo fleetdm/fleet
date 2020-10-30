@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"io"
+	"fmt"
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/kolide/fleet/server/kolide"
@@ -80,22 +80,54 @@ func makeCarveBlockEndpoint(svc kolide.Service) endpoint.Endpoint {
 			Data:      req.Data,
 		}
 
+		fmt.Printf("carving %d\n", req.BlockId)
+
 		err := svc.CarveBlock(ctx, payload)
 		if err != nil {
+			fmt.Println(err)
 			return carveBlockResponse{Err: err}, nil
 		}
+
 
 		return carveBlockResponse{Success: true}, nil
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// List Carves
+// Get Carve By Name
 ////////////////////////////////////////////////////////////////////////////////
 
 type carveResponse struct {
 	kolide.CarveMetadata
 }
+
+type getCarveByNameRequest struct {
+	Name string
+}
+
+type getCarveResponse struct {
+	Carve carveResponse `json:"carve"`
+	Err    error           `json:"error,omitempty"`
+}
+
+func (r getCarveResponse) error() error { return r.Err }
+
+func makeGetCarveByNameEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(getCarveByNameRequest)
+		carve, err := svc.GetCarveByName(ctx, req.Name)
+		if err != nil {
+			return getCarveResponse{Err: err}, nil
+		}
+
+		return getCarveResponse{Carve:carveResponse{*carve}}, nil
+
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// List Carves
+////////////////////////////////////////////////////////////////////////////////
 
 type listCarvesRequest struct {
 	ListOptions kolide.ListOptions
@@ -125,28 +157,29 @@ func makeListCarvesEndpoint(svc kolide.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Download Carve
+// Get Carve Block
 ////////////////////////////////////////////////////////////////////////////////
 
-type downloadCarveRequest struct {
+type getCarveBlockRequest struct {
 	Name string
+	BlockId int64
 }
 
-type downloadCarveResponse struct {
-	Reader io.Reader `json:"-"`
+type getCarveBlockResponse struct {
+	Data []byte `json:"data"`
 	Err    error     `json:"error,omitempty"`
 }
 
-func (r downloadCarveResponse) error() error { return r.Err }
+func (r getCarveBlockResponse) error() error { return r.Err }
 
-func makeDownloadCarveEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeGetCarveBlockEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(downloadCarveRequest)
-		reader, err := svc.GetCarveReader(ctx, req.Name)
+		req := request.(getCarveBlockRequest)
+		data, err := svc.GetBlock(ctx, req.Name, req.BlockId)
 		if err != nil {
-			return downloadCarveResponse{Err: err}, nil
+			return getCarveBlockResponse{Err: err}, nil
 		}
 
-		return downloadCarveResponse{Reader: reader}, nil
+		return getCarveBlockResponse{Data: data}, nil
 	}
 }

@@ -243,7 +243,7 @@ func getQueriesCommand() cli.Command {
 				}
 
 				if len(queries) == 0 {
-					fmt.Println("no queries found")
+					fmt.Println("No queries found")
 					return nil
 				}
 
@@ -366,7 +366,7 @@ func getPacksCommand() cli.Command {
 				}
 
 				if len(packs) == 0 {
-					fmt.Println("no packs found")
+					fmt.Println("No packs found")
 					return nil
 				}
 
@@ -441,7 +441,7 @@ func getLabelsCommand() cli.Command {
 				}
 
 				if len(labels) == 0 {
-					fmt.Println("no labels found")
+					fmt.Println("No labels found")
 					return nil
 				}
 
@@ -598,7 +598,7 @@ func getHostsCommand() cli.Command {
 				}
 
 				if len(hosts) == 0 {
-					fmt.Println("no hosts found")
+					fmt.Println("No hosts found")
 					return nil
 				}
 
@@ -678,6 +678,12 @@ func getCarvesCommand() cli.Command {
 			if err != nil {
 				return err
 			}
+
+				if len(carves) == 0 {
+					fmt.Println("No carves found")
+					return nil
+				}
+
 
 			data := [][]string{}
 			for _, c := range carves {

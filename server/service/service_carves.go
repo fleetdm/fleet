@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/google/uuid"
@@ -98,6 +97,10 @@ func (svc service) CarveBlock(ctx context.Context, payload kolide.CarveBlockPayl
 	return nil
 }
 
+func (svc service) GetCarveByName(ctx context.Context, name string) (*kolide.CarveMetadata, error) {
+	return svc.ds.CarveByName(name)
+}
+
 func (svc service) ListCarves(ctx context.Context, opt kolide.ListOptions) ([]*kolide.CarveMetadata, error) {
 	return svc.ds.ListCarves(opt)
 }
@@ -121,66 +124,3 @@ func (svc service) GetBlock(ctx context.Context, name string, blockId int64) ([]
 }
 
 
-func (svc service) GetCarveReader(ctx context.Context, name string) (io.Reader, error) {
-	metadata, err := svc.ds.CarveByName(name)
-	if err != nil {
-		return nil, errors.Wrap(err, "get carve by name")
-	}
-
-	if !metadata.BlocksComplete() {
-		return nil, fmt.Errorf("carve awaiting completion")
-	}
-
-	return newCarveReader(*metadata, svc.ds), nil
-}
-
-type carveReader struct {
-	metadata  kolide.CarveMetadata
-	ds        kolide.Datastore
-	bytesRead int64
-	curBlock  int64
-	buffer    []byte
-}
-
-func newCarveReader(metadata kolide.CarveMetadata, ds kolide.Datastore) *carveReader {
-	return &carveReader{
-		metadata:  metadata,
-		ds:        ds,
-		bytesRead: 0,
-		curBlock:  0,
-	}
-}
-
-func (r *carveReader) Read(p []byte) (n int, err error) {
-	if len(p) == 0 {
-		return 0, nil
-	}
-
-	if r.bytesRead >= r.metadata.CarveSize {
-		return 0, io.EOF
-	}
-
-	// Load data from the database if necessary
-	if len(r.buffer) == 0 {
-		var err error
-		r.buffer, err = r.ds.GetBlock(r.metadata.ID, r.curBlock)
-		if err != nil {
-			return 0, errors.Wrapf(err, "get block %d", r.curBlock)
-		}
-		r.curBlock++
-	}
-
-	// Calculate length we can copy
-	copyLen := len(p)
-	if copyLen > len(r.buffer) {
-		copyLen = len(r.buffer)
-	}
-
-	// Perform copy and clear copied contents from buffer
-	copy(p, r.buffer[:copyLen])
-	r.buffer = r.buffer[copyLen:]
-
-	r.bytesRead += int64(copyLen)
-
-	return copyLen, nil
-}

@@ -3,8 +3,6 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/pkg/errors"
@@ -32,6 +30,14 @@ func decodeCarveBlockRequest(ctx context.Context, r *http.Request) (interface{},
 	return req, nil
 }
 
+func decodeGetCarveByNameRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	name, err := nameFromRequest(r, "name")
+	if err != nil {
+		return nil, err
+	}
+	return getCarveByNameRequest{Name: name}, nil
+}
+
 func decodeListCarvesRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	opt, err := listOptionsFromRequest(r)
 	if err != nil {
@@ -40,26 +46,15 @@ func decodeListCarvesRequest(ctx context.Context, r *http.Request) (interface{},
 	return listCarvesRequest{ListOptions: opt}, nil
 }
 
-func decodeDownloadCarveRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func decodeGetCarveBlockRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	name, err := nameFromRequest(r, "name")
 	if err != nil {
 		return nil, err
 	}
-	return downloadCarveRequest{Name: name}, nil
+	blockId, err := idFromRequest(r, "id")
+	if err != nil {
+		return nil, err
+	}
+	return getCarveBlockRequest{Name: name, BlockId: int64(blockId)}, nil
 }
 
-func encodeDownloadCarveResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	if e, ok := response.(errorer); ok && e.error() != nil {
-		encodeError(ctx, e.error(), w)
-		return nil
-	}
-
-	resp, ok := response.(downloadCarveResponse)
-	if !ok {
-		encodeError(ctx, fmt.Errorf("expected carve response"), w)
-		return nil
-	}
-
-	_, err := io.Copy(w, resp.Reader)
-	return err
-}
