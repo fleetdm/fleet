@@ -5,7 +5,7 @@ export default (client) => {
   return {
     loadAll: () => {
       const { OSQUERY_OPTIONS } = endpoints;
-
+      
       return client.authenticatedGet(client._endpoint(OSQUERY_OPTIONS));
     },
     update: (formData) => {
