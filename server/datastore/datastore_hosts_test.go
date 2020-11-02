@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"testing"
 	"time"
+	"strings"
 
 	"github.com/WatchBeam/clock"
 	"github.com/kolide/fleet/server/kolide"
@@ -206,6 +207,17 @@ func testAuthenticateHost(t *testing.T, ds kolide.Datastore) {
 
 	_, err = ds.AuthenticateHost("")
 	assert.NotNil(t, err)
+}
+
+func testAuthenticateHostCaseSensitive(t *testing.T, ds kolide.Datastore) {
+	test.AddAllHostsLabel(t, ds)
+	for _, tt := range enrollTests {
+		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, "default")
+		require.Nil(t, err)
+
+		_, err = ds.AuthenticateHost(strings.ToUpper(h.NodeKey))
+		require.Error(t, err, "node key authentication should be case sensitive")
+	}
 }
 
 func testSearchHosts(t *testing.T, ds kolide.Datastore) {
