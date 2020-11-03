@@ -5,6 +5,13 @@
   width: 60%;
   padding-right: 40px;
 
+  &__header {
+    font-size: 16px;
+    margin: 15px 0;
+    display: inline-block;
+    color: $text-dark;
+  }
+
   &__button-wrap {
     text-align: right;
 
