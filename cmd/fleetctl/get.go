@@ -661,15 +661,22 @@ func getCarvesCommand() cli.Command {
 				return err
 			}
 
-			name := c.Args().First()
+			idString := c.Args().First()
 
-			if len(name) > 0 {
-				reader, err := fleet.DownloadCarve(name)
+			if len(idString) > 0 {
+				id, err := strconv.ParseInt(idString, 10, 64)
+				if err != nil {
+					return errors.Wrap(err, "unable to parse carve ID as int")
+				}
+
+				reader, err := fleet.DownloadCarve(id)
 				if err != nil {
 					return err
 				}
 
-				io.Copy(os.Stdout, reader)
+				if _, err := io.Copy(os.Stdout, reader); err != nil {
+					return errors.Wrap(err, "download carve contents")
+				}
 
 				return nil
 			}
@@ -679,24 +686,24 @@ func getCarvesCommand() cli.Command {
 				return err
 			}
 
-				if len(carves) == 0 {
-					fmt.Println("No carves found")
-					return nil
-				}
-
+			if len(carves) == 0 {
+				fmt.Println("No carves found")
+				return nil
+			}
 
 			data := [][]string{}
 			for _, c := range carves {
 				data = append(data, []string{
-					c.Name,
+					strconv.FormatInt(c.ID, 10),
+					c.CreatedAt.Local().String(),
 					c.RequestId,
 					strconv.FormatInt(c.CarveSize, 10),
-					fmt.Sprintf("%d%%", int64((float64(c.MaxBlock+1) / float64(c.BlockCount))*100)),
+					fmt.Sprintf("%d%%", int64((float64(c.MaxBlock+1)/float64(c.BlockCount))*100)),
 				})
 			}
 
 			table := defaultTable()
-			table.SetHeader([]string{"name", "request_id", "carve_size", "completion"})
+			table.SetHeader([]string{"id", "created_at", "request_id", "carve_size", "completion"})
 			table.AppendBulk(data)
 			table.Render()
 

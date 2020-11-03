@@ -51,7 +51,7 @@ func decodeGetCarveBlockRequest(ctx context.Context, r *http.Request) (interface
 	if err != nil {
 		return nil, err
 	}
-	blockId, err := idFromRequest(r, "id")
+	blockId, err := idFromRequest(r, "block_id")
 	if err != nil {
 		return nil, err
 	}

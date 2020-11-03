@@ -60,9 +60,9 @@ require (
 	github.com/stretchr/testify v1.5.1
 	github.com/urfave/cli v1.22.4
 	go.opencensus.io v0.20.2 // indirect
-	golang.org/x/crypto v0.0.0-20191002192127-34f69633bfdc
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a // indirect
-	golang.org/x/sys v0.0.0-20200122134326-e047566fdf82 // indirect
+	golang.org/x/tools v0.0.0-20201102212025-f46e4245211d // indirect
 	google.golang.org/api v0.3.2 // indirect
 	google.golang.org/grpc v1.19.0
 	gopkg.in/guregu/null.v3 v3.4.0

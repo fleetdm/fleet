@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 
 	"github.com/kolide/fleet/server/kolide"
 	"github.com/pkg/errors"
@@ -38,16 +37,17 @@ func (c *Client) ListCarves(opt kolide.ListOptions) ([]*kolide.CarveMetadata, er
 
 	carves := []*kolide.CarveMetadata{}
 	for _, carve := range responseBody.Carves {
-		carves = append(carves, &carve)
+		c := carve
+		carves = append(carves, &c)
 	}
 
 	return carves, nil
 }
 
-func (c *Client) getCarveBlock(name string, blockId int64) ([]byte, error) {
+func (c *Client) getCarveBlock(carveId, blockId int64) ([]byte, error) {
 	path := fmt.Sprintf(
-		"/api/v1/kolide/carves/%s/block/%d",
-		url.PathEscape(name),
+		"/api/v1/kolide/carves/%d/block/%d",
+		carveId,
 		blockId,
 	)
 	response, err := c.AuthenticatedDo("GET", path, nil)
@@ -105,7 +105,7 @@ func (r *carveReader)  Read(p []byte) (n int, err error) {
 	// Load data from API if necessary
 	if len(r.buffer) == 0 {
 		var err error
-		r.buffer, err = r.client.getCarveBlock(r.carve.Name, r.curBlock)
+		r.buffer, err = r.client.getCarveBlock(r.carve.ID, r.curBlock)
 		if err != nil {
 			return 0, errors.Wrapf(err, "get block %d", r.curBlock)
 		}
@@ -128,8 +128,8 @@ func (r *carveReader)  Read(p []byte) (n int, err error) {
 }
 
 // ListCarves lists the file carving sessio
-func (c *Client) DownloadCarve(name string) (io.Reader, error) {
-	path := fmt.Sprintf("/api/v1/kolide/carves/%s", name)
+func (c *Client) DownloadCarve(id int64) (io.Reader, error) {
+	path := fmt.Sprintf("/api/v1/kolide/carves/%d", id)
 	response, err := c.AuthenticatedDo("GET", path, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "GET %s", path)
