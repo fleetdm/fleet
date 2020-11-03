@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -12,15 +11,11 @@ import (
 	"github.com/urfave/cli"
 )
 
-type resultOutput struct {
-	HostIdentifier string              `json:"host"`
-	Rows           []map[string]string `json:"rows"`
-}
 
 func queryCommand() cli.Command {
 	var (
 		flHosts, flLabels, flQuery, flQueryName string
-		flDebug, flQuiet, flExit                bool
+		flDebug, flQuiet, flExit, flPretty      bool
 		flTimeout                               time.Duration
 	)
 	return cli.Command{
@@ -76,6 +71,12 @@ func queryCommand() cli.Command {
 				Destination: &flDebug,
 				Usage:       "Whether or not to enable debug logging",
 			},
+			cli.BoolFlag{
+				Name:        "pretty",
+				EnvVar:      "PRETTY",
+				Destination: &flPretty,
+				Usage:       "Enable pretty-printing",
+			},
 			cli.DurationFlag{
 				Name:        "timeout",
 				EnvVar:      "TIMEOUT",
@@ -107,6 +108,13 @@ func queryCommand() cli.Command {
 
 			if flQuery == "" {
 				return fmt.Errorf("Query must be specified with --query or --query-name")
+			}
+
+			var output outputWriter
+			if flPretty {
+				output = newPrettyWriter()
+			} else {
+				output = newJsonWriter()
 			}
 
 			hosts := strings.Split(flHosts, ",")
@@ -142,11 +150,12 @@ func queryCommand() cli.Command {
 				select {
 				// Print a result
 				case hostResult := <-res.Results():
-					out := resultOutput{hostResult.Host.HostName, hostResult.Rows}
 					s.Stop()
-					if err := json.NewEncoder(os.Stdout).Encode(out); err != nil {
-						fmt.Fprintf(os.Stderr, "Error writing output: %s\n", err)
+
+					if err := output.WriteResult(hostResult); err != nil {
+						fmt.Fprintf(os.Stderr, "Error writing result: %s\n", err)
 					}
+
 					s.Start()
 
 				// Print an error
