@@ -9,7 +9,7 @@ import (
 )
 
 func (d *Datastore) NewCarve(metadata *kolide.CarveMetadata) (*kolide.CarveMetadata, error) {
-	sql := `INSERT INTO carve_metadata (
+	stmt := `INSERT INTO carve_metadata (
 		host_id,
 		name,
 		block_count,
@@ -30,7 +30,7 @@ func (d *Datastore) NewCarve(metadata *kolide.CarveMetadata) (*kolide.CarveMetad
 	)`
 
 	result, err := d.db.Exec(
-		sql,
+		stmt,
 		metadata.HostId,
 		metadata.Name,
 		metadata.BlockCount,
@@ -50,6 +50,20 @@ func (d *Datastore) NewCarve(metadata *kolide.CarveMetadata) (*kolide.CarveMetad
 	return metadata, nil
 }
 
+func (d *Datastore) SaveCarve(carve *kolide.CarveMetadata) error {
+	stmt := `
+		UPDATE carve_metadata SET
+			status = ?
+		WHERE id = ?
+	`
+	if _, err := d.db.Exec(stmt, carve.Status, carve.ID); err != nil {
+		return errors.Wrap(err, "save carve by id")
+	}
+
+	return nil
+
+}
+
 const carveSelectFields = `
 			id,
 			host_id,
@@ -61,6 +75,7 @@ const carveSelectFields = `
 			carve_id,
 			request_id,
 			session_id,
+			status,
 			(SELECT COALESCE(MAX(block_id), -1) FROM carve_blocks WHERE metadata_id = id) AS max_block
 `
 

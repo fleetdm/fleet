@@ -23,6 +23,7 @@ func testCarveMetadata(t *testing.T, ds kolide.Datastore) {
 		CarveId:    "carve_id",
 		RequestId:  "request_id",
 		SessionId:  "session_id",
+		Status: kolide.CarveStatusInProgress,
 	}
 
 	expectedCarve, err := ds.NewCarve(expectedCarve)
@@ -69,6 +70,42 @@ func testCarveMetadata(t *testing.T, ds kolide.Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, expectedCarve, carve)
 }
+
+func testCarveSaveCarve(t *testing.T, ds kolide.Datastore) {
+	h := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
+
+	expectedCarve := &kolide.CarveMetadata{
+		HostId:     h.ID,
+		Name:       "foobar",
+		BlockCount: 10,
+		BlockSize:  12,
+		CarveSize:  123,
+		CarveId:    "carve_id",
+		RequestId:  "request_id",
+		SessionId:  "session_id",
+		Status: kolide.CarveStatusInProgress,
+	}
+
+	expectedCarve, err := ds.NewCarve(expectedCarve)
+	require.NoError(t, err)
+	assert.NotEqual(t, 0, expectedCarve.ID)
+	expectedCarve.MaxBlock = -1
+
+	carve, err := ds.Carve(expectedCarve.ID)
+	expectedCarve.CreatedAt = carve.CreatedAt // Ignore created_at field
+	require.NoError(t, err)
+	assert.Equal(t, expectedCarve, carve)
+
+	expectedCarve.Status = kolide.CarveStatusCompleted
+	err = ds.SaveCarve(expectedCarve)
+	require.NoError(t, err)
+
+	carve, err = ds.Carve(expectedCarve.ID)
+	expectedCarve.CreatedAt = carve.CreatedAt // Ignore created_at field
+	require.NoError(t, err)
+	assert.Equal(t, expectedCarve, carve)
+}
+
 
 func testCarveBlocks(t *testing.T, ds kolide.Datastore) {
 	h := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())

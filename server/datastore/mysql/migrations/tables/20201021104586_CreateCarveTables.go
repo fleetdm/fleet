@@ -2,8 +2,10 @@ package tables
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/pkg/errors"
+	"github.com/kolide/fleet/server/kolide"
 )
 
 func init() {
@@ -11,7 +13,9 @@ func init() {
 }
 
 func Up_20201021104586(tx *sql.Tx) error {
-	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS carve_metadata (
+	if _, err := tx.Exec(
+		fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS carve_metadata (
 		id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
 		host_id INT UNSIGNED NOT NULL,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -22,10 +26,12 @@ func Up_20201021104586(tx *sql.Tx) error {
 		carve_id VARCHAR(64) NOT NULL,
 		request_id VARCHAR(64) NOT NULL,
 		session_id VARCHAR(64) NOT NULL,
+		status INT DEFAULT %d,
 		UNIQUE KEY idx_session_id (session_id),
 		UNIQUE KEY idx_name (name),
 		FOREIGN KEY (host_id) REFERENCES hosts (id) ON DELETE CASCADE
-	)`); err != nil {
+		)`, kolide.CarveStatusInProgress),
+	); err != nil {
 		return errors.Wrap(err, "create carve_metadata")
 	}
 
@@ -37,6 +43,12 @@ func Up_20201021104586(tx *sql.Tx) error {
 		FOREIGN KEY (metadata_id) REFERENCES carve_metadata (id) ON DELETE CASCADE
 	)`); err != nil {
 		return errors.Wrap(err, "create carve_blocks")
+	}
+
+	if _, err := tx.Exec(`ALTER TABLE app_configs
+		ADD COLUMN carve_expiry_window INT NOT NULL DEFAULT 86400
+	`); err != nil {
+		return errors.Wrap(err, "add carve_expiry_window to app_configs")
 	}
 
 	return nil
