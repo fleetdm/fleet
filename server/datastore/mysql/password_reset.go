@@ -46,11 +46,7 @@ func (d *Datastore) SavePasswordResetRequest(req *kolide.PasswordResetRequest) e
 }
 
 func (d *Datastore) DeletePasswordResetRequest(req *kolide.PasswordResetRequest) error {
-
-	sqlStatement := `
-		DELETE FROM password_reset_requests WHERE id = ?
-	`
-	_, err := d.db.Exec(sqlStatement, req.ID)
+	err := d.deleteEntity("password_reset_requests", req.ID)
 	if err != nil {
 		return errors.Wrap(err, "deleting from password reset request")
 	}

@@ -59,7 +59,6 @@ type InvitePayload struct {
 // Invite represents an invitation for a user to join Fleet.
 type Invite struct {
 	UpdateCreateTimestamps
-	DeleteFields
 	ID         uint   `json:"id"`
 	InvitedBy  uint   `json:"invited_by" db:"invited_by"`
 	Email      string `json:"email"`

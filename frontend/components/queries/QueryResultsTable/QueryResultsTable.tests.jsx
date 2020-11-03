@@ -29,8 +29,6 @@ const queryResult = {
 
 const campaignWithNoQueryResults = {
   created_at: '0001-01-01T00:00:00Z',
-  deleted: false,
-  deleted_at: null,
   hosts_count: {
     failed: 0,
     successful: 0,

@@ -101,7 +101,7 @@ func (svc service) CallbackSSO(ctx context.Context, auth kolide.Auth) (*kolide.S
 		return nil, errors.Wrap(err, "finding user in sso callback")
 	}
 	// if user is not active they are not authorized to use the application
-	if !user.Enabled || user.Deleted {
+	if !user.Enabled {
 		return nil, errors.New("user authorization failed")
 	}
 	// if the user is not sso enabled they are not authorized

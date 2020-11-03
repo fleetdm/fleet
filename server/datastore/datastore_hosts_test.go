@@ -110,28 +110,6 @@ func testDeleteHost(t *testing.T, ds kolide.Datastore) {
 	assert.NotNil(t, err)
 }
 
-func testIdempotentDeleteHost(t *testing.T, ds kolide.Datastore) {
-	host, err := ds.NewHost(&kolide.Host{
-		DetailUpdateTime: time.Now(),
-		LabelUpdateTime:  time.Now(),
-		SeenTime:         time.Now(),
-		NodeKey:          "1",
-		UUID:             "1",
-		HostName:         "foo.local",
-	})
-	require.Nil(t, err)
-	require.NotNil(t, host)
-	id := host.ID
-	err = ds.DeleteHost(host.ID)
-	assert.Nil(t, err)
-
-	host, err = ds.Host(host.ID)
-	assert.NotNil(t, err)
-
-	err = ds.DeleteHost(id)
-	assert.Nil(t, err)
-}
-
 func testListHost(t *testing.T, ds kolide.Datastore) {
 	hosts := []*kolide.Host{}
 	for i := 0; i < 10; i++ {

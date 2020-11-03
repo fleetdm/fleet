@@ -15,7 +15,13 @@ cd server/datastore/mysql/migrations/tables
 goose create AddColumnFooToUsers
 ```
 
-Find the file you created in the migrations directory and edit it. You can then update the database by running the following shell commands:
+Find the file you created in the migrations directory and edit it:
+
+* delete the import line for goose: `github.com/pressly/goose`
+* change `goose.AddMigration(...)` to `MigrationClient.AddMigration(...)`
+* add your migration code
+
+You can then update the database by running the following shell commands:
 
 ``` bash
 make build

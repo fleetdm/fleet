@@ -24,7 +24,6 @@ type ScheduledQueryService interface {
 
 type ScheduledQuery struct {
 	UpdateCreateTimestamps
-	DeleteFields
 	ID          uint    `json:"id"`
 	PackID      uint    `json:"pack_id" db:"pack_id"`
 	Name        string  `json:"name"`
