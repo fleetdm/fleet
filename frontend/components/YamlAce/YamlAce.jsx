@@ -50,6 +50,7 @@ class YamlAce extends Component {
       <div className={wrapperClass}>
         {renderLabel()}
         <AceEditor
+          className={baseClass}
           mode="yaml"
           theme="kolide"
           width="100%"

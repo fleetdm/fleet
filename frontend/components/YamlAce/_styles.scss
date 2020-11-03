@@ -23,4 +23,22 @@
     }
   }
 
+  // Added to remove the "popping" effect when the editor first loads.
+  min-height: 408px;
+
+  .ace_gutter-layer {
+    min-height: 408px;
+  }
+
+  .ace_line {
+    min-height: 24px;
+  }
+
+  .ace_gutter-cell {
+    min-height: 24px;
+  }
+
+  .ace_fold-widget {
+    min-height: 24px;
+  }
 }
