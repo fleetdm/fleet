@@ -54,7 +54,7 @@ class YamlAce extends Component {
           theme="kolide"
           width="100%"
           minLines={2}
-          maxLines={50}
+          maxLines={60}
           editorProps={{ $blockScrolling: Infinity }}
           value={value}
           tabSize={2}
