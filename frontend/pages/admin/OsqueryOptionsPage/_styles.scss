@@ -1,7 +1,39 @@
 .osquery-options {
-    padding: 30px;
+  padding: 30px;
 
-    h1 {
-      margin: 0 0 22px;
+  h1 {
+    margin: 0 0 22px;
+  }
+
+  p {
+    font-size: 16px;
+    margin: 15px 0;
+    display: inline-block;
+    color: $text-dark;
+  }
+
+  a {
+    margin: 0 0 20px 0;
+  }
+
+  &__form-wrapper {
+    display: flex;
+  }
+
+  &__form-details {
+    margin-top: 133px;
+    width: 40%;
+
+    p {
+      font-size: 15px;
+      font-weight: $normal;
+      line-height: 1.6;
+      letter-spacing: 0.5px;
+      color: $text-dark;
     }
+  }
+
+  i {
+    margin-left: 8px;
+  }
 }
