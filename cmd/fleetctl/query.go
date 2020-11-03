@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"io/ioutil"
 
 	"github.com/briandowns/spinner"
 	"github.com/urfave/cli"
@@ -124,9 +125,10 @@ func queryCommand() cli.Command {
 			// https://godoc.org/github.com/briandowns/spinner#pkg-variables
 			s := spinner.New(spinner.CharSets[24], 200*time.Millisecond)
 			s.Writer = os.Stderr
-			if !flQuiet {
-				s.Start()
+			if flQuiet {
+				s.Writer = ioutil.Discard
 			}
+			s.Start()
 
 			var timeoutChan <-chan time.Time
 			if flTimeout > 0 {
@@ -176,9 +178,7 @@ func queryCommand() cli.Command {
 					}
 
 					msg := fmt.Sprintf(" %.f%% responded (%.f%% online) | %d/%d targeted hosts (%d/%d online)", percentTotal, percentOnline, responded, total, responded, online)
-					if !flQuiet {
-						s.Suffix = msg
-					}
+					s.Suffix = msg
 					if total == responded && status != nil {
 						s.Stop()
 						if !flQuiet {
