@@ -7,9 +7,10 @@ import (
 
 type CarveStore interface {
 	NewCarve(metadata *CarveMetadata) (*CarveMetadata, error)
-	ListCarves(opt ListOptions) ([]*CarveMetadata, error)
+	Carve(carveId int64) (*CarveMetadata, error)
 	CarveBySessionId(sessionId string) (*CarveMetadata, error)
 	CarveByName(name string) (*CarveMetadata, error)
+	ListCarves(opt ListOptions) ([]*CarveMetadata, error)
 	NewBlock(carveId, blockId int64, data []byte) error
 	GetBlock(carveId, blockId int64) ([]byte, error)
 }
@@ -17,9 +18,9 @@ type CarveStore interface {
 type CarveService interface {
 	CarveBegin(ctx context.Context, payload CarveBeginPayload) (*CarveMetadata, error)
 	CarveBlock(ctx context.Context, payload CarveBlockPayload) error
-	GetCarveByName(ctx context.Context, name string) (*CarveMetadata, error)
+	GetCarve(ctx context.Context, id int64) (*CarveMetadata, error)
 	ListCarves(ctx context.Context, opt ListOptions) ([]*CarveMetadata, error)
-	GetBlock(ctx context.Context, name string, blockId int64) ([]byte, error)
+	GetBlock(ctx context.Context, carveId, blockId int64) ([]byte, error)
 }
 
 type CarveMetadata struct {

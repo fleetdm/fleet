@@ -97,16 +97,16 @@ func (svc service) CarveBlock(ctx context.Context, payload kolide.CarveBlockPayl
 	return nil
 }
 
-func (svc service) GetCarveByName(ctx context.Context, name string) (*kolide.CarveMetadata, error) {
-	return svc.ds.CarveByName(name)
+func (svc service) GetCarve(ctx context.Context, id int64) (*kolide.CarveMetadata, error) {
+	return svc.ds.Carve(id)
 }
 
 func (svc service) ListCarves(ctx context.Context, opt kolide.ListOptions) ([]*kolide.CarveMetadata, error) {
 	return svc.ds.ListCarves(opt)
 }
 
-func (svc service) GetBlock(ctx context.Context, name string, blockId int64) ([]byte, error) {
-	metadata, err := svc.ds.CarveByName(name)
+func (svc service) GetBlock(ctx context.Context, carveId, blockId int64) ([]byte, error) {
+	metadata, err := svc.ds.Carve(carveId)
 	if err != nil {
 		return nil, errors.Wrap(err, "get carve by name")
 	}

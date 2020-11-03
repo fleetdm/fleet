@@ -102,7 +102,7 @@ type KolideEndpoints struct {
 	StatusResultStore                     endpoint.Endpoint
 	StatusLiveQuery                       endpoint.Endpoint
 	ListCarves                            endpoint.Endpoint
-	GetCarveByName                            endpoint.Endpoint
+	GetCarve                            endpoint.Endpoint
 	GetCarveBlock                         endpoint.Endpoint
 }
 
@@ -196,7 +196,7 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string) Kol
 		GetCertificate:                        authenticatedUser(jwtKey, svc, makeCertificateEndpoint(svc)),
 		ChangeEmail:                           authenticatedUser(jwtKey, svc, makeChangeEmailEndpoint(svc)),
 		ListCarves:                            authenticatedUser(jwtKey, svc, makeListCarvesEndpoint(svc)),
-		GetCarveByName:                            authenticatedUser(jwtKey, svc, makeGetCarveByNameEndpoint(svc)),
+		GetCarve:                            authenticatedUser(jwtKey, svc, makeGetCarveEndpoint(svc)),
 		GetCarveBlock:                         authenticatedUser(jwtKey, svc, makeGetCarveBlockEndpoint(svc)),
 
 		// Authenticated status endpoints
@@ -304,7 +304,7 @@ type kolideHandlers struct {
 	StatusResultStore                     http.Handler
 	StatusLiveQuery                       http.Handler
 	ListCarves                            http.Handler
-	GetCarveByName                            http.Handler
+	GetCarve                            http.Handler
 	GetCarveBlock                         http.Handler
 }
 
@@ -399,7 +399,7 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		StatusResultStore:                     newServer(e.StatusResultStore, decodeNoParamsRequest),
 		StatusLiveQuery:                       newServer(e.StatusLiveQuery, decodeNoParamsRequest),
 		ListCarves:                            newServer(e.ListCarves, decodeListCarvesRequest),
-		GetCarveByName:                            newServer(e.GetCarveByName, decodeGetCarveByNameRequest),
+		GetCarve:                            newServer(e.GetCarve, decodeGetCarveRequest),
 		GetCarveBlock:                            newServer(e.GetCarveBlock, decodeGetCarveBlockRequest),
 	}
 }
@@ -533,8 +533,8 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/status/live_query", h.StatusLiveQuery).Methods("GET").Name("status_live_query")
 
 	r.Handle("/api/v1/kolide/carves", h.ListCarves).Methods("GET").Name("list_carves")
-	r.Handle("/api/v1/kolide/carves/{name}", h.GetCarveByName).Methods("GET").Name("get_carve_by_name")
-	r.Handle("/api/v1/kolide/carves/{name}/block/{id}", h.GetCarveBlock).Methods("GET").Name("get_carve_block")
+	r.Handle("/api/v1/kolide/carves/{id}", h.GetCarve).Methods("GET").Name("get_carve")
+	r.Handle("/api/v1/kolide/carves/{id}/block/{block_id}", h.GetCarveBlock).Methods("GET").Name("get_carve_block")
 
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
 	r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST").Name("get_client_config")

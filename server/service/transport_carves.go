@@ -30,12 +30,12 @@ func decodeCarveBlockRequest(ctx context.Context, r *http.Request) (interface{},
 	return req, nil
 }
 
-func decodeGetCarveByNameRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	name, err := nameFromRequest(r, "name")
+func decodeGetCarveRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	id, err := idFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
-	return getCarveByNameRequest{Name: name}, nil
+	return getCarveRequest{ID: int64(id)}, nil
 }
 
 func decodeListCarvesRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -47,7 +47,7 @@ func decodeListCarvesRequest(ctx context.Context, r *http.Request) (interface{},
 }
 
 func decodeGetCarveBlockRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	name, err := nameFromRequest(r, "name")
+	id, err := idFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
@@ -55,6 +55,6 @@ func decodeGetCarveBlockRequest(ctx context.Context, r *http.Request) (interface
 	if err != nil {
 		return nil, err
 	}
-	return getCarveBlockRequest{Name: name, BlockId: int64(blockId)}, nil
+	return getCarveBlockRequest{ID: int64(id), BlockId: int64(blockId)}, nil
 }
 

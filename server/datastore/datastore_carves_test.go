@@ -35,6 +35,11 @@ func testCarveMetadata(t *testing.T, ds kolide.Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, expectedCarve, carve)
 
+	carve, err = ds.Carve(expectedCarve.ID)
+	expectedCarve.CreatedAt = carve.CreatedAt // Ignore created_at field
+	require.NoError(t, err)
+	assert.Equal(t, expectedCarve, carve)
+
 	// Check for increment of max block
 
 	err = ds.NewBlock(carve.ID, 0, nil)
@@ -42,6 +47,10 @@ func testCarveMetadata(t *testing.T, ds kolide.Datastore) {
 	expectedCarve.MaxBlock = 0
 
 	carve, err = ds.CarveBySessionId(expectedCarve.SessionId)
+	require.NoError(t, err)
+	assert.Equal(t, expectedCarve, carve)
+
+	carve, err = ds.Carve(expectedCarve.ID)
 	require.NoError(t, err)
 	assert.Equal(t, expectedCarve, carve)
 

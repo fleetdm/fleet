@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/kolide/fleet/server/kolide"
@@ -80,11 +79,8 @@ func makeCarveBlockEndpoint(svc kolide.Service) endpoint.Endpoint {
 			Data:      req.Data,
 		}
 
-		fmt.Printf("carving %d\n", req.BlockId)
-
 		err := svc.CarveBlock(ctx, payload)
 		if err != nil {
-			fmt.Println(err)
 			return carveBlockResponse{Err: err}, nil
 		}
 
@@ -94,33 +90,29 @@ func makeCarveBlockEndpoint(svc kolide.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Get Carve By Name
+// Get Carve
 ////////////////////////////////////////////////////////////////////////////////
 
-type carveResponse struct {
-	kolide.CarveMetadata
-}
-
-type getCarveByNameRequest struct {
-	Name string
+type getCarveRequest struct {
+	ID int64
 }
 
 type getCarveResponse struct {
-	Carve carveResponse `json:"carve"`
+	Carve kolide.CarveMetadata `json:"carve"`
 	Err    error           `json:"error,omitempty"`
 }
 
 func (r getCarveResponse) error() error { return r.Err }
 
-func makeGetCarveByNameEndpoint(svc kolide.Service) endpoint.Endpoint {
+func makeGetCarveEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(getCarveByNameRequest)
-		carve, err := svc.GetCarveByName(ctx, req.Name)
+		req := request.(getCarveRequest)
+		carve, err := svc.GetCarve(ctx, req.ID)
 		if err != nil {
 			return getCarveResponse{Err: err}, nil
 		}
 
-		return getCarveResponse{Carve:carveResponse{*carve}}, nil
+		return getCarveResponse{Carve:*carve}, nil
 
 	}
 }
@@ -134,7 +126,7 @@ type listCarvesRequest struct {
 }
 
 type listCarvesResponse struct {
-	Carves []carveResponse `json:"carves"`
+	Carves []kolide.CarveMetadata `json:"carves"`
 	Err    error           `json:"error,omitempty"`
 }
 
@@ -150,7 +142,7 @@ func makeListCarvesEndpoint(svc kolide.Service) endpoint.Endpoint {
 
 		resp := listCarvesResponse{}
 		for _, carve := range carves {
-			resp.Carves = append(resp.Carves, carveResponse{*carve})
+			resp.Carves = append(resp.Carves, *carve)
 		}
 		return resp, nil
 	}
@@ -161,7 +153,7 @@ func makeListCarvesEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type getCarveBlockRequest struct {
-	Name string
+	ID int64
 	BlockId int64
 }
 
@@ -175,7 +167,7 @@ func (r getCarveBlockResponse) error() error { return r.Err }
 func makeGetCarveBlockEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(getCarveBlockRequest)
-		data, err := svc.GetBlock(ctx, req.Name, req.BlockId)
+		data, err := svc.GetBlock(ctx, req.ID, req.BlockId)
 		if err != nil {
 			return getCarveBlockResponse{Err: err}, nil
 		}

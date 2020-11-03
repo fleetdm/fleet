@@ -38,8 +38,7 @@ func (c *Client) ListCarves(opt kolide.ListOptions) ([]*kolide.CarveMetadata, er
 
 	carves := []*kolide.CarveMetadata{}
 	for _, carve := range responseBody.Carves {
-		c := carve.CarveMetadata
-		carves = append(carves, &c)
+		carves = append(carves, &carve)
 	}
 
 	return carves, nil
@@ -154,7 +153,7 @@ func (c *Client) DownloadCarve(name string) (io.Reader, error) {
 		return nil, errors.Errorf("get carve by name: %s", responseBody.Err)
 	}
 
-	reader := newCarveReader(responseBody.Carve.CarveMetadata, c)
+	reader := newCarveReader(responseBody.Carve, c)
 
 	return reader, nil
 }
