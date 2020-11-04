@@ -3,9 +3,7 @@ Building The Code
 
 ## Building the Code
 
-Checkout this repository to `$GOPATH/src/github.com/kolide/fleet`. If you're new to Go and you don't know about `$GOPATH`, then check out the repo to `$HOME/go/src/github.com/kolide/fleet`. You will also need to install Go (1.9 or greater).
-
-* [Go Documentation: Workspaces](https://golang.org/doc/code.html#Workspaces)
+Clone this repository.
 
 To setup a working local development environment, you must install the following minimum toolset:
 

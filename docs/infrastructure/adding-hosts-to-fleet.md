@@ -18,19 +18,34 @@ We provide compiled releases of the launcher for all supported platforms. Those 
 
 To directly execute the launcher binary without having to mess with packages, invoke the binary with just a few flags:
 
-- `--hostname`: the hostname of the gRPC server for your environment
-- `--root_directory`: the location of the local database, pidfiles, etc.
+- `--hostname`: the hostname of Fleet (aka the gRPC server for your environment)
+- `--root_directory`: the location for osquery's local database, pidfiles, etc.
 - `--enroll_secret`: the enroll secret to authenticate hosts with Fleet
   (retrieve from Fleet UI or `fleetctl get enroll_secret`)
 
 ```
+mkdir .osquery
 ./build/launcher \
   --hostname=fleet.acme.net:443 \
-  --root_directory=$(mktemp -d) \
+  --root_directory=.osquery \
   --enroll_secret=32IeN3QLgckHUmMD3iW40kyLdNJcGzP5
 ```
 
-You may also need to define the `--insecure` and/or `--insecure_grpc` flag. If you're running Fleet locally, include `--insecure` because your TLS certificate will not be signed by a valid CA.
+You may also need to define the `--insecure` and/or `--insecure_grpc` flag.
+
+<!-- TODO: When is --insecure_grpc needed? -->
+
+<!-- TODO: pull prod-focused example above out into deployment docs, then only include one example (the local one) with --insecure for easier copy+pasting during quickstart -->
+
+If you're running Fleet locally, include `--insecure` because your TLS certificate will not be signed by a valid CA:
+```
+mkdir .osquery
+./build/launcher \
+  --hostname=localhost:8412 \
+  --root_directory=.osquery \
+  --enroll_secret=32IeN3QLgckHUmMD3iW40kyLdNJcGzP5
+  --insecure
+```
 
 #### Generating packages
 
