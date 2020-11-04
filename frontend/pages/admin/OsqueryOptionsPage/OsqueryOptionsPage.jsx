@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { noop } from 'lodash';
 
-import { getOsqueryOptions, updateOsqueryOptions } from 'redux/nodes/osquery/actions';
+import osqueryOptionsActions from 'redux/nodes/osquery/actions';
 import validateYaml from 'components/forms/validators/validate_yaml';
 import OsqueryOptionsForm from 'components/forms/admin/OsqueryOptionsForm';
 import Icon from 'components/icons/Icon';
@@ -13,7 +13,7 @@ const yaml = require('js-yaml');
 
 const baseClass = 'osquery-options';
 
-class OsqueryOptionsPage extends Component {
+export class OsqueryOptionsPage extends Component {
   static propTypes = {
     options: PropTypes.object, // eslint-disable-line react/forbid-prop-types
     dispatch: PropTypes.func,
@@ -25,7 +25,7 @@ class OsqueryOptionsPage extends Component {
 
   componentDidMount() {
     const { dispatch } = this.props;
-    dispatch(getOsqueryOptions())
+    dispatch(osqueryOptionsActions.getOsqueryOptions())
       .catch(() => false);
   }
 
@@ -39,7 +39,7 @@ class OsqueryOptionsPage extends Component {
       return false;
     }
 
-    dispatch(updateOsqueryOptions(formData))
+    dispatch(osqueryOptionsActions.updateOsqueryOptions(formData))
       .then(() => {
         dispatch(renderFlash('success', 'Osquery options updated!'));
 

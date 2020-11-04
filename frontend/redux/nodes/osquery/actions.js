@@ -51,3 +51,8 @@ export const updateOsqueryOptions = (osqueryOptionsData) => {
       });
   };
 };
+
+export default {
+  getOsqueryOptions,
+  updateOsqueryOptions,
+};
