@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"testing"
 	"time"
+	"strings"
 
 	"github.com/WatchBeam/clock"
 	"github.com/kolide/fleet/server/kolide"
@@ -110,29 +111,7 @@ func testDeleteHost(t *testing.T, ds kolide.Datastore) {
 	assert.NotNil(t, err)
 }
 
-func testIdempotentDeleteHost(t *testing.T, ds kolide.Datastore) {
-	host, err := ds.NewHost(&kolide.Host{
-		DetailUpdateTime: time.Now(),
-		LabelUpdateTime:  time.Now(),
-		SeenTime:         time.Now(),
-		NodeKey:          "1",
-		UUID:             "1",
-		HostName:         "foo.local",
-	})
-	require.Nil(t, err)
-	require.NotNil(t, host)
-	id := host.ID
-	err = ds.DeleteHost(host.ID)
-	assert.Nil(t, err)
-
-	host, err = ds.Host(host.ID)
-	assert.NotNil(t, err)
-
-	err = ds.DeleteHost(id)
-	assert.Nil(t, err)
-}
-
-func testListHost(t *testing.T, ds kolide.Datastore) {
+func testListHosts(t *testing.T, ds kolide.Datastore) {
 	hosts := []*kolide.Host{}
 	for i := 0; i < 10; i++ {
 		host, err := ds.NewHost(&kolide.Host{
@@ -177,6 +156,41 @@ func testListHost(t *testing.T, ds kolide.Datastore) {
 	require.Equal(t, hosts[0].ID, hosts2[0].ID)
 }
 
+func testListHostsStatus(t *testing.T, ds kolide.Datastore) {
+	for i := 0; i < 10; i++ {
+		_, err := ds.NewHost(&kolide.Host{
+			DetailUpdateTime: time.Now(),
+			LabelUpdateTime:  time.Now(),
+			SeenTime:         time.Now().Add(-time.Duration(i) *time.Minute),
+			OsqueryHostID:    strconv.Itoa(i),
+			NodeKey:          fmt.Sprintf("%d", i),
+			UUID:             fmt.Sprintf("%d", i),
+			HostName:         fmt.Sprintf("foo.local%d", i),
+		})
+		assert.Nil(t, err)
+		if err != nil {
+			return
+		}
+	}
+
+	hosts, err := ds.ListHosts(kolide.HostListOptions{StatusFilter: "online"})
+	require.Nil(t, err)
+	assert.Equal(t, 1, len(hosts))
+
+	hosts, err = ds.ListHosts(kolide.HostListOptions{StatusFilter: "offline"})
+	require.Nil(t, err)
+	assert.Equal(t, 9, len(hosts))
+
+	hosts, err = ds.ListHosts(kolide.HostListOptions{StatusFilter: "mia"})
+	require.Nil(t, err)
+	assert.Equal(t, 0, len(hosts))
+
+	hosts, err = ds.ListHosts(kolide.HostListOptions{StatusFilter: "new"})
+	require.Nil(t, err)
+	assert.Equal(t, 10, len(hosts))
+}
+
+
 func testEnrollHost(t *testing.T, ds kolide.Datastore) {
 	test.AddAllHostsLabel(t, ds)
 	var hosts []*kolide.Host
@@ -206,6 +220,17 @@ func testAuthenticateHost(t *testing.T, ds kolide.Datastore) {
 
 	_, err = ds.AuthenticateHost("")
 	assert.NotNil(t, err)
+}
+
+func testAuthenticateHostCaseSensitive(t *testing.T, ds kolide.Datastore) {
+	test.AddAllHostsLabel(t, ds)
+	for _, tt := range enrollTests {
+		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, "default")
+		require.Nil(t, err)
+
+		_, err = ds.AuthenticateHost(strings.ToUpper(h.NodeKey))
+		require.Error(t, err, "node key authentication should be case sensitive")
+	}
 }
 
 func testSearchHosts(t *testing.T, ds kolide.Datastore) {

@@ -29,15 +29,15 @@ func applyPackSpec(tx *sqlx.Tx, spec *kolide.PackSpec) error {
 	}
 	// Insert/update pack
 	query := `
-		INSERT INTO packs (name, description, platform)
-		VALUES (?, ?, ?)
+		INSERT INTO packs (name, description, platform, disabled)
+		VALUES (?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			name = VALUES(name),
 			description = VALUES(description),
 			platform = VALUES(platform),
-			deleted = false
+			disabled = VALUES(disabled)
 	`
-	if _, err := tx.Exec(query, spec.Name, spec.Description, spec.Platform); err != nil {
+	if _, err := tx.Exec(query, spec.Name, spec.Description, spec.Platform, spec.Disabled); err != nil {
 		return errors.Wrap(err, "insert/update pack")
 	}
 
@@ -107,7 +107,7 @@ func applyPackSpec(tx *sqlx.Tx, spec *kolide.PackSpec) error {
 func (d *Datastore) GetPackSpecs() (specs []*kolide.PackSpec, err error) {
 	err = d.withRetryTxx(func(tx *sqlx.Tx) error {
 		// Get basic specs
-		query := "SELECT id, name, description, platform FROM packs"
+		query := "SELECT id, name, description, platform, disabled FROM packs"
 		if err := tx.Select(&specs, query); err != nil {
 			return errors.Wrap(err, "get packs")
 		}
@@ -152,7 +152,7 @@ func (d *Datastore) GetPackSpec(name string) (spec *kolide.PackSpec, err error) 
 	err = d.withRetryTxx(func(tx *sqlx.Tx) error {
 		// Get basic spec
 		var specs []*kolide.PackSpec
-		query := "SELECT id, name, description, platform FROM packs WHERE name = ?"
+		query := "SELECT id, name, description, platform, disabled FROM packs WHERE name = ?"
 		if err := tx.Select(&specs, query, name); err != nil {
 			return errors.Wrap(err, "get packs")
 		}
@@ -202,7 +202,7 @@ func (d *Datastore) PackByName(name string, opts ...kolide.OptionalArg) (*kolide
 	sqlStatement := `
 		SELECT *
 			FROM packs
-			WHERE name = ? AND NOT deleted
+			WHERE name = ?
 	`
 	var pack kolide.Pack
 	err := db.Get(&pack, sqlStatement, name)
@@ -219,35 +219,16 @@ func (d *Datastore) PackByName(name string, opts ...kolide.OptionalArg) (*kolide
 // NewPack creates a new Pack
 func (d *Datastore) NewPack(pack *kolide.Pack, opts ...kolide.OptionalArg) (*kolide.Pack, error) {
 	db := d.getTransaction(opts)
-	var (
-		deletedPack kolide.Pack
-		query       string
-	)
-	err := db.Get(&deletedPack,
-		"SELECT * FROM packs WHERE name = ? AND deleted", pack.Name)
-	switch err {
-	case nil:
-		query = `
-		REPLACE INTO packs
-			( name, description, platform, disabled, deleted)
-			VALUES ( ?, ?, ?, ?, ?)
-		`
-	case sql.ErrNoRows:
-		query = `
-		INSERT INTO packs
-			( name, description, platform, disabled, deleted)
-			VALUES ( ?, ?, ?, ?, ?)
-		`
-	default:
-		return nil, errors.Wrap(err, "check for existing pack")
-	}
 
-	deleted := false
-	result, err := db.Exec(query, pack.Name, pack.Description, pack.Platform, pack.Disabled, deleted)
-	if err != nil && isDuplicate(err) {
-		return nil, alreadyExists("Pack", deletedPack.ID)
-	} else if err != nil {
-		return nil, errors.Wrap(err, "creating new pack")
+	query := `
+	INSERT INTO packs
+		(name, description, platform, disabled)
+		VALUES ( ?, ?, ?, ?, ?)
+	`
+
+	result, err := db.Exec(query, pack.Name, pack.Description, pack.Platform, pack.Disabled)
+	if err != nil {
+		return nil, errors.Wrap(err, "inserting pack")
 	}
 
 	id, _ := result.LastInsertId()
@@ -260,7 +241,7 @@ func (d *Datastore) SavePack(pack *kolide.Pack) error {
 	query := `
 			UPDATE packs
 			SET name = ?, platform = ?, disabled = ?, description = ?
-			WHERE id = ? AND NOT deleted
+			WHERE id = ?
 	`
 
 	results, err := d.db.Exec(query, pack.Name, pack.Platform, pack.Disabled, pack.Description, pack.ID)
@@ -277,14 +258,14 @@ func (d *Datastore) SavePack(pack *kolide.Pack) error {
 	return nil
 }
 
-// DeletePack soft deletes a kolide.Pack so that it won't show up in results
+// DeletePack deletes a kolide.Pack so that it won't show up in results.
 func (d *Datastore) DeletePack(name string) error {
 	return d.deleteEntityByName("packs", name)
 }
 
 // Pack fetch kolide.Pack with matching ID
 func (d *Datastore) Pack(pid uint) (*kolide.Pack, error) {
-	query := `SELECT * FROM packs WHERE id = ? AND NOT deleted`
+	query := `SELECT * FROM packs WHERE id = ?`
 	pack := &kolide.Pack{}
 	err := d.db.Get(pack, query, pid)
 	if err == sql.ErrNoRows {
@@ -298,7 +279,7 @@ func (d *Datastore) Pack(pid uint) (*kolide.Pack, error) {
 
 // ListPacks returns all kolide.Pack records limited and sorted by kolide.ListOptions
 func (d *Datastore) ListPacks(opt kolide.ListOptions) ([]*kolide.Pack, error) {
-	query := `SELECT * FROM packs WHERE NOT deleted`
+	query := `SELECT * FROM packs`
 	packs := []*kolide.Pack{}
 	err := d.db.Select(&packs, appendListOptionsToSQL(query, opt))
 	if err != nil && err != sql.ErrNoRows {
@@ -389,7 +370,6 @@ func (d *Datastore) ListLabelsForPack(pid uint) ([]*kolide.Label, error) {
 		pt.type = ?
 			AND
 		pt.pack_id = ?
-	AND NOT l.deleted
 	`
 
 	labels := []*kolide.Label{}

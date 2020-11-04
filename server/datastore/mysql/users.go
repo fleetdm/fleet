@@ -40,7 +40,7 @@ func (d *Datastore) NewUser(user *kolide.User) (*kolide.User, error) {
 func (d *Datastore) findUser(searchCol string, searchVal interface{}) (*kolide.User, error) {
 	sqlStatement := fmt.Sprintf(
 		"SELECT * FROM users "+
-			"WHERE %s = ? AND NOT deleted LIMIT 1",
+			"WHERE %s = ? LIMIT 1",
 		searchCol,
 	)
 
@@ -66,7 +66,7 @@ func (d *Datastore) User(username string) (*kolide.User, error) {
 // kolide.ListOptions
 func (d *Datastore) ListUsers(opt kolide.ListOptions) ([]*kolide.User, error) {
 	sqlStatement := `
-		SELECT * FROM users WHERE NOT deleted
+		SELECT * FROM users
 	`
 	sqlStatement = appendListOptionsToSQL(sqlStatement, opt)
 	users := []*kolide.User{}

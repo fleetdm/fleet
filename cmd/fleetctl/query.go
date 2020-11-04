@@ -1,26 +1,22 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"strings"
 	"time"
+	"io/ioutil"
 
 	"github.com/briandowns/spinner"
 	"github.com/urfave/cli"
 )
 
-type resultOutput struct {
-	HostIdentifier string              `json:"host"`
-	Rows           []map[string]string `json:"rows"`
-}
 
 func queryCommand() cli.Command {
 	var (
 		flHosts, flLabels, flQuery, flQueryName string
-		flDebug, flQuiet, flExit                bool
+		flDebug, flQuiet, flExit, flPretty      bool
 		flTimeout                               time.Duration
 	)
 	return cli.Command{
@@ -76,6 +72,12 @@ func queryCommand() cli.Command {
 				Destination: &flDebug,
 				Usage:       "Whether or not to enable debug logging",
 			},
+			cli.BoolFlag{
+				Name:        "pretty",
+				EnvVar:      "PRETTY",
+				Destination: &flPretty,
+				Usage:       "Enable pretty-printing",
+			},
 			cli.DurationFlag{
 				Name:        "timeout",
 				EnvVar:      "TIMEOUT",
@@ -109,6 +111,13 @@ func queryCommand() cli.Command {
 				return fmt.Errorf("Query must be specified with --query or --query-name")
 			}
 
+			var output outputWriter
+			if flPretty {
+				output = newPrettyWriter()
+			} else {
+				output = newJsonWriter()
+			}
+
 			hosts := strings.Split(flHosts, ",")
 			labels := strings.Split(flLabels, ",")
 
@@ -124,9 +133,10 @@ func queryCommand() cli.Command {
 			// https://godoc.org/github.com/briandowns/spinner#pkg-variables
 			s := spinner.New(spinner.CharSets[24], 200*time.Millisecond)
 			s.Writer = os.Stderr
-			if !flQuiet {
-				s.Start()
+			if flQuiet {
+				s.Writer = ioutil.Discard
 			}
+			s.Start()
 
 			var timeoutChan <-chan time.Time
 			if flTimeout > 0 {
@@ -142,11 +152,12 @@ func queryCommand() cli.Command {
 				select {
 				// Print a result
 				case hostResult := <-res.Results():
-					out := resultOutput{hostResult.Host.HostName, hostResult.Rows}
 					s.Stop()
-					if err := json.NewEncoder(os.Stdout).Encode(out); err != nil {
-						fmt.Fprintf(os.Stderr, "Error writing output: %s\n", err)
+
+					if err := output.WriteResult(hostResult); err != nil {
+						fmt.Fprintf(os.Stderr, "Error writing result: %s\n", err)
 					}
+
 					s.Start()
 
 				// Print an error
@@ -176,9 +187,7 @@ func queryCommand() cli.Command {
 					}
 
 					msg := fmt.Sprintf(" %.f%% responded (%.f%% online) | %d/%d targeted hosts (%d/%d online)", percentTotal, percentOnline, responded, total, responded, online)
-					if !flQuiet {
-						s.Suffix = msg
-					}
+					s.Suffix = msg
 					if total == responded && status != nil {
 						s.Stop()
 						if !flQuiet {

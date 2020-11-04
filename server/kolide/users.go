@@ -87,7 +87,6 @@ type UserService interface {
 // User is the model struct which represents a kolide user
 type User struct {
 	UpdateCreateTimestamps
-	DeleteFields
 	ID                       uint   `json:"id"`
 	Username                 string `json:"username"`
 	Password                 []byte `json:"-"`

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/ghodss/yaml"
 	"github.com/kolide/fleet/server/kolide"
@@ -374,11 +375,12 @@ func getPacksCommand() cli.Command {
 						pack.Name,
 						pack.Platform,
 						pack.Description,
+						strconv.FormatBool(pack.Disabled),
 					})
 				}
 
 				table := defaultTable()
-				table.SetHeader([]string{"name", "platform", "description"})
+				table.SetHeader([]string{"name", "platform", "description", "disabled"})
 				table.AppendBulk(data)
 				table.Render()
 

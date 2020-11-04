@@ -20,8 +20,6 @@ export FLEET_ENV_PATH=/Users/victor/fleet_env
   "user": {
     "created_at": "2018-04-10T02:07:46Z",
     "updated_at": "2018-04-10T02:07:46Z",
-    "deleted_at": null,
-    "deleted": false,
     "id": 1,
     "username": "admin",
     "name": "admin",
@@ -50,8 +48,6 @@ export FLEET_ENV_PATH=/Users/victor/fleet_env
   "query": {
     "created_at": "0001-01-01T00:00:00Z",
     "updated_at": "0001-01-01T00:00:00Z",
-    "deleted_at": null,
-    "deleted": false,
     "id": 4,
     "name": "system_info",
     "description": "",

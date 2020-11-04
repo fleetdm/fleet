@@ -27,8 +27,7 @@ func (d *Datastore) ApplyLabelSpecs(specs []*kolide.LabelSpec) (err error) {
 			query = VALUES(query),
 			platform = VALUES(platform),
 			label_type = VALUES(label_type),
-			label_membership_type = VALUES(label_membership_type),
-			deleted = false
+			label_membership_type = VALUES(label_membership_type)
 	`
 		stmt, err := tx.Prepare(sql)
 		if err != nil {
@@ -179,38 +178,16 @@ func (d *Datastore) getLabelHostnames(label *kolide.LabelSpec) error {
 // NewLabel creates a new kolide.Label
 func (d *Datastore) NewLabel(label *kolide.Label, opts ...kolide.OptionalArg) (*kolide.Label, error) {
 	db := d.getTransaction(opts)
-	var (
-		deletedLabel kolide.Label
-		query        string
-	)
-	err := db.Get(&deletedLabel,
-		"SELECT * FROM labels WHERE name = ? AND deleted", label.Name)
-	switch err {
-	case nil:
-		query = `
-		REPLACE INTO labels (
-			name,
-			description,
-			query,
-			platform,
-			label_type,
-			label_membership_type
-		) VALUES ( ?, ?, ?, ?, ?, ?)
+	query := `
+	INSERT INTO labels (
+		name,
+		description,
+		query,
+		platform,
+		label_type,
+		label_membership_type
+	) VALUES ( ?, ?, ?, ?, ?, ?)
 	`
-	case sql.ErrNoRows:
-		query = `
-		INSERT INTO labels (
-			name,
-			description,
-			query,
-			platform,
-			label_type,
-			label_membership_type
-		) VALUES ( ?, ?, ?, ?, ?, ?)
-	`
-	default:
-		return nil, errors.Wrap(err, "check for existing label")
-	}
 	result, err := db.Exec(
 		query,
 		label.Name,
@@ -249,11 +226,11 @@ func (d *Datastore) DeleteLabel(name string) error {
 	return d.deleteEntityByName("labels", name)
 }
 
-// Label returns a kolide.Label identified by  lid if one exists
+// Label returns a kolide.Label identified by lid if one exists.
 func (d *Datastore) Label(lid uint) (*kolide.Label, error) {
 	sql := `
 		SELECT * FROM labels
-			WHERE id = ? AND NOT deleted
+			WHERE id = ?
 	`
 	label := &kolide.Label{}
 
@@ -264,11 +241,11 @@ func (d *Datastore) Label(lid uint) (*kolide.Label, error) {
 	return label, nil
 }
 
-// ListLabels returns all labels limited or sorted  by kolide.ListOptions
+// ListLabels returns all labels limited or sorted by kolide.ListOptions.
 func (d *Datastore) ListLabels(opt kolide.ListOptions) ([]*kolide.Label, error) {
 	query := `
 		SELECT *, (SELECT COUNT(1) FROM label_membership WHERE label_id = id) AS host_count
-		FROM labels WHERE NOT deleted
+		FROM labels
 	`
 	query = appendListOptionsToSQL(query, opt)
 	labels := []*kolide.Label{}
@@ -464,7 +441,6 @@ func (d *Datastore) searchLabelsWithOmits(query string, omit ...uint) ([]kolide.
 		FROM labels
 		WHERE (
 			MATCH(name) AGAINST(? IN BOOLEAN MODE)
-			AND NOT deleted
 		)
 		AND id NOT IN (?)
 		ORDER BY label_type DESC, id ASC
@@ -530,8 +506,7 @@ func (d *Datastore) searchLabelsDefault(omit ...uint) ([]kolide.Label, error) {
 	sqlStatement := `
 	SELECT *, (SELECT COUNT(1) FROM label_membership WHERE label_id = id) AS host_count
 	FROM labels
-	WHERE NOT deleted
-	AND id NOT IN (?)
+	WHERE id NOT IN (?)
 	GROUP BY id
 	ORDER BY label_type DESC, id ASC
 	LIMIT 5
@@ -540,7 +515,7 @@ func (d *Datastore) searchLabelsDefault(omit ...uint) ([]kolide.Label, error) {
 	var in interface{}
 	{
 		// use -1 if there are no values to omit.
-		//Avoids empty args error for `sqlx.In`
+		// Avoids empty args error for `sqlx.In`
 		in = omit
 		if len(omit) == 0 {
 			in = -1
@@ -585,7 +560,6 @@ func (d *Datastore) SearchLabels(query string, omit ...uint) ([]kolide.Label, er
 		FROM labels
 		WHERE (
 			MATCH(name) AGAINST(? IN BOOLEAN MODE)
-			AND NOT deleted
 		)
 		ORDER BY label_type DESC, id ASC
 		LIMIT 10
