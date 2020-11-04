@@ -80,7 +80,13 @@ class Kolide500 extends Component {
           <p>Something went wrong on our end.</p>
           {renderError()}
           <p>Please file an issue if you believe this is a bug.</p>
-          <a href="https://github.com/kolide/fleet/issues">File an issue</a>
+          <a
+            href="https://github.com/fleetdm/fleet/issues"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            File an issue
+          </a>
           <div className="gopher-container">
             <img src={gopher} alt="" />
           </div>
