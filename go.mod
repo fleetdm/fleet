@@ -23,6 +23,7 @@ require (
 	github.com/google/uuid v0.0.0-20161128191214-064e2069ce9c // indirect
 	github.com/gorilla/mux v1.6.2
 	github.com/gorilla/websocket v1.4.2
+	github.com/gosuri/uilive v0.0.4
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/hashicorp/hcl v0.0.0-20180404174102-ef8a98b0bbce // indirect
 	github.com/igm/sockjs-go v3.0.0+incompatible

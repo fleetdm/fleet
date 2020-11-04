@@ -118,7 +118,23 @@ func testEnrollSecrets(t *testing.T, ds kolide.Datastore) {
 	name, err = ds.VerifyEnrollSecret("two_secret")
 	assert.NoError(t, err)
 	assert.Equal(t, "two", name)
+}
 
+func testEnrollSecretsCaseSensitive(t *testing.T, ds kolide.Datastore) {
+	err := ds.ApplyEnrollSecretSpec(
+		&kolide.EnrollSecretSpec{
+			Secrets: []kolide.EnrollSecret{
+				kolide.EnrollSecret{Name: "one", Secret: "one_secret", Active: true},
+				kolide.EnrollSecret{Name: "two", Secret: "two_secret", Active: false},
+			},
+		},
+	)
+	require.NoError(t, err)
+
+	_, err = ds.VerifyEnrollSecret("one_secret")
+	assert.NoError(t, err, "enroll secret should match with matching case")
+	_, err = ds.VerifyEnrollSecret("One_Secret")
+	assert.Error(t, err, "enroll secret with different case should not verify")
 }
 
 func testEnrollSecretRoundtrip(t *testing.T, ds kolide.Datastore) {
