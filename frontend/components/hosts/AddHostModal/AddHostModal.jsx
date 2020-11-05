@@ -88,7 +88,8 @@ class AddHostModal extends Component {
 --logger_tls_period=10
 --disable_carver=false
 --carver_start_endpoint=/api/v1/osquery/carve/begin
---carver_continue_endpoint=/api/v1/osquery/carve/block`;
+--carver_continue_endpoint=/api/v1/osquery/carve/block
+--carver_block_size=2000000`;
 
     const onDownloadFlagfile = (evt) => {
       evt.preventDefault();
