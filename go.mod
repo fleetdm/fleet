@@ -10,9 +10,11 @@ require (
 	github.com/WatchBeam/clock v0.0.0-20170901150240-b08e6b4da7ea
 	github.com/aws/aws-sdk-go v1.26.8
 	github.com/beevik/etree v1.1.0
+	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869
 	github.com/briandowns/spinner v0.0.0-20170614154858-48dbb65d7bd5
 	github.com/cenkalti/backoff/v4 v4.0.0
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
+	github.com/davecgh/go-spew v1.1.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/e-dard/netbug v0.0.0-20151029172837-e64d308a0b20
 	github.com/elazarl/go-bindata-assetfs v1.0.0
@@ -21,7 +23,7 @@ require (
 	github.com/go-kit/kit v0.8.0
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/gomodule/redigo v2.0.0+incompatible
-	github.com/google/uuid v0.0.0-20161128191214-064e2069ce9c // indirect
+	github.com/google/uuid v0.0.0-20161128191214-064e2069ce9c
 	github.com/gorilla/mux v1.6.2
 	github.com/gorilla/websocket v1.4.2
 	github.com/gosuri/uilive v0.0.4
@@ -41,6 +43,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.8 // indirect
 	github.com/mattn/go-sqlite3 v1.11.0 // indirect
 	github.com/mitchellh/mapstructure v0.0.0-20180220230111-00c29f56e238 // indirect
+	github.com/mixer/clock v0.0.0-20200713181918-dd2ce6ac2af6
 	github.com/olekukonko/tablewriter v0.0.0-20180506121414-d4647c9c7a84
 	github.com/patrickmn/sortutil v0.0.0-20120526081524-abeda66eb583
 	github.com/pelletier/go-toml v1.1.0 // indirect
@@ -57,9 +60,9 @@ require (
 	github.com/stretchr/testify v1.5.1
 	github.com/urfave/cli v1.22.4
 	go.opencensus.io v0.20.2 // indirect
-	golang.org/x/crypto v0.0.0-20191002192127-34f69633bfdc
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a // indirect
-	golang.org/x/sys v0.0.0-20200122134326-e047566fdf82 // indirect
+	golang.org/x/tools v0.0.0-20201102212025-f46e4245211d // indirect
 	google.golang.org/api v0.3.2 // indirect
 	google.golang.org/grpc v1.19.0
 	gopkg.in/guregu/null.v3 v3.4.0

@@ -64,7 +64,7 @@ func (c *Client) LiveQuery(query string, labels []string, hosts []string) (*Live
 		Query:    query,
 		Selected: distributedQueryCampaignTargetsByNames{Labels: labels, Hosts: hosts},
 	}
-	response, err := c.AuthenticatedDo("POST", "/api/v1/kolide/queries/run_by_names", req)
+	response, err := c.AuthenticatedDo("POST", "/api/v1/kolide/queries/run_by_names", "", req)
 	if err != nil {
 		return nil, errors.Wrap(err, "POST /api/v1/kolide/queries/run_by_names")
 	}

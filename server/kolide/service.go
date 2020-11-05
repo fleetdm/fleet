@@ -16,4 +16,5 @@ type Service interface {
 	TargetService
 	ScheduledQueryService
 	StatusService
+	CarveService
 }

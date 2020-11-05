@@ -74,6 +74,8 @@ type KolideEndpoints struct {
 	GetDistributedQueries                 endpoint.Endpoint
 	SubmitDistributedQueryResults         endpoint.Endpoint
 	SubmitLogs                            endpoint.Endpoint
+	CarveBegin                            endpoint.Endpoint
+	CarveBlock                            endpoint.Endpoint
 	CreateLabel                           endpoint.Endpoint
 	ModifyLabel                           endpoint.Endpoint
 	GetLabel                              endpoint.Endpoint
@@ -99,6 +101,9 @@ type KolideEndpoints struct {
 	SSOSettings                           endpoint.Endpoint
 	StatusResultStore                     endpoint.Endpoint
 	StatusLiveQuery                       endpoint.Endpoint
+	ListCarves                            endpoint.Endpoint
+	GetCarve                            endpoint.Endpoint
+	GetCarveBlock                         endpoint.Endpoint
 }
 
 // MakeKolideServerEndpoints creates the Kolide API endpoints.
@@ -190,6 +195,9 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string) Kol
 		GetOsqueryOptionsSpec:                 authenticatedUser(jwtKey, svc, makeGetOsqueryOptionsSpecEndpoint(svc)),
 		GetCertificate:                        authenticatedUser(jwtKey, svc, makeCertificateEndpoint(svc)),
 		ChangeEmail:                           authenticatedUser(jwtKey, svc, makeChangeEmailEndpoint(svc)),
+		ListCarves:                            authenticatedUser(jwtKey, svc, makeListCarvesEndpoint(svc)),
+		GetCarve:                            authenticatedUser(jwtKey, svc, makeGetCarveEndpoint(svc)),
+		GetCarveBlock:                         authenticatedUser(jwtKey, svc, makeGetCarveBlockEndpoint(svc)),
 
 		// Authenticated status endpoints
 		StatusResultStore: authenticatedUser(jwtKey, svc, makeStatusResultStoreEndpoint(svc)),
@@ -201,6 +209,11 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string) Kol
 		GetDistributedQueries:         authenticatedHost(svc, makeGetDistributedQueriesEndpoint(svc)),
 		SubmitDistributedQueryResults: authenticatedHost(svc, makeSubmitDistributedQueryResultsEndpoint(svc)),
 		SubmitLogs:                    authenticatedHost(svc, makeSubmitLogsEndpoint(svc)),
+		CarveBegin:                    authenticatedHost(svc, makeCarveBeginEndpoint(svc)),
+		// For some reason osquery does not provide a node key with the block
+		// data. Instead the carve session ID should be verified in the service
+		// method.
+		CarveBlock: makeCarveBlockEndpoint(svc),
 	}
 }
 
@@ -263,6 +276,8 @@ type kolideHandlers struct {
 	GetDistributedQueries                 http.Handler
 	SubmitDistributedQueryResults         http.Handler
 	SubmitLogs                            http.Handler
+	CarveBegin                            http.Handler
+	CarveBlock                            http.Handler
 	CreateLabel                           http.Handler
 	ModifyLabel                           http.Handler
 	GetLabel                              http.Handler
@@ -288,6 +303,9 @@ type kolideHandlers struct {
 	SettingsSSO                           http.Handler
 	StatusResultStore                     http.Handler
 	StatusLiveQuery                       http.Handler
+	ListCarves                            http.Handler
+	GetCarve                            http.Handler
+	GetCarveBlock                         http.Handler
 }
 
 func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *kolideHandlers {
@@ -353,6 +371,8 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		GetDistributedQueries:                 newServer(e.GetDistributedQueries, decodeGetDistributedQueriesRequest),
 		SubmitDistributedQueryResults:         newServer(e.SubmitDistributedQueryResults, decodeSubmitDistributedQueryResultsRequest),
 		SubmitLogs:                            newServer(e.SubmitLogs, decodeSubmitLogsRequest),
+		CarveBegin:                            newServer(e.CarveBegin, decodeCarveBeginRequest),
+		CarveBlock:                            newServer(e.CarveBlock, decodeCarveBlockRequest),
 		CreateLabel:                           newServer(e.CreateLabel, decodeCreateLabelRequest),
 		ModifyLabel:                           newServer(e.ModifyLabel, decodeModifyLabelRequest),
 		GetLabel:                              newServer(e.GetLabel, decodeGetLabelRequest),
@@ -378,6 +398,9 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		SettingsSSO:                           newServer(e.SSOSettings, decodeNoParamsRequest),
 		StatusResultStore:                     newServer(e.StatusResultStore, decodeNoParamsRequest),
 		StatusLiveQuery:                       newServer(e.StatusLiveQuery, decodeNoParamsRequest),
+		ListCarves:                            newServer(e.ListCarves, decodeListCarvesRequest),
+		GetCarve:                            newServer(e.GetCarve, decodeGetCarveRequest),
+		GetCarveBlock:                            newServer(e.GetCarveBlock, decodeGetCarveBlockRequest),
 	}
 }
 
@@ -509,11 +532,17 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/status/result_store", h.StatusResultStore).Methods("GET").Name("status_result_store")
 	r.Handle("/api/v1/kolide/status/live_query", h.StatusLiveQuery).Methods("GET").Name("status_live_query")
 
+	r.Handle("/api/v1/kolide/carves", h.ListCarves).Methods("GET").Name("list_carves")
+	r.Handle("/api/v1/kolide/carves/{id}", h.GetCarve).Methods("GET").Name("get_carve")
+	r.Handle("/api/v1/kolide/carves/{id}/block/{block_id}", h.GetCarveBlock).Methods("GET").Name("get_carve_block")
+
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
 	r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST").Name("get_client_config")
 	r.Handle("/api/v1/osquery/distributed/read", h.GetDistributedQueries).Methods("POST").Name("get_distributed_queries")
 	r.Handle("/api/v1/osquery/distributed/write", h.SubmitDistributedQueryResults).Methods("POST").Name("submit_distributed_query_results")
 	r.Handle("/api/v1/osquery/log", h.SubmitLogs).Methods("POST").Name("submit_logs")
+	r.Handle("/api/v1/osquery/carve/begin", h.CarveBegin).Methods("POST").Name("carve_begin")
+	r.Handle("/api/v1/osquery/carve/block", h.CarveBlock).Methods("POST").Name("carve_block")
 }
 
 // WithSetup is an http middleware that checks is setup procedures have been completed.

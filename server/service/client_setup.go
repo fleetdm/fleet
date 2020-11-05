@@ -25,7 +25,7 @@ func (c *Client) Setup(email, username, password, org string) (string, error) {
 		KolideServerURL: &c.addr,
 	}
 
-	response, err := c.Do("POST", "/api/v1/setup", params)
+	response, err := c.Do("POST", "/api/v1/setup", "", params)
 	if err != nil {
 		return "", errors.Wrap(err, "POST /api/v1/setup")
 	}

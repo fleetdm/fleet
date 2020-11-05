@@ -13,7 +13,7 @@ import (
 // Fleet instance.
 func (c *Client) ApplyLabels(specs []*kolide.LabelSpec) error {
 	req := applyLabelSpecsRequest{Specs: specs}
-	response, err := c.AuthenticatedDo("POST", "/api/v1/kolide/spec/labels", req)
+	response, err := c.AuthenticatedDo("POST", "/api/v1/kolide/spec/labels", "", req)
 	if err != nil {
 		return errors.Wrap(err, "POST /api/v1/kolide/spec/labels")
 	}
@@ -43,7 +43,7 @@ func (c *Client) ApplyLabels(specs []*kolide.LabelSpec) error {
 // GetLabel retrieves information about a label by name
 func (c *Client) GetLabel(name string) (*kolide.LabelSpec, error) {
 	verb, path := "GET", "/api/v1/kolide/spec/labels/"+url.PathEscape(name)
-	response, err := c.AuthenticatedDo(verb, path, nil)
+	response, err := c.AuthenticatedDo(verb, path, "", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "GET /api/v1/kolide/spec/labels")
 	}
@@ -76,7 +76,7 @@ func (c *Client) GetLabel(name string) (*kolide.LabelSpec, error) {
 
 // GetLabels retrieves the list of all Labels.
 func (c *Client) GetLabels() ([]*kolide.LabelSpec, error) {
-	response, err := c.AuthenticatedDo("GET", "/api/v1/kolide/spec/labels", nil)
+	response, err := c.AuthenticatedDo("GET", "/api/v1/kolide/spec/labels", "", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "GET /api/v1/kolide/spec/labels")
 	}
@@ -106,7 +106,7 @@ func (c *Client) GetLabels() ([]*kolide.LabelSpec, error) {
 // DeleteLabel deletes the label with the matching name.
 func (c *Client) DeleteLabel(name string) error {
 	verb, path := "DELETE", "/api/v1/kolide/labels/"+url.PathEscape(name)
-	response, err := c.AuthenticatedDo(verb, path, nil)
+	response, err := c.AuthenticatedDo(verb, path, "", nil)
 	if err != nil {
 		return errors.Wrapf(err, "%s %s", verb, path)
 	}

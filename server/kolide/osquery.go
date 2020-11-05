@@ -20,6 +20,7 @@ type OsqueryService interface {
 	SubmitDistributedQueryResults(ctx context.Context, results OsqueryDistributedQueryResults, statuses map[string]OsqueryStatus) (err error)
 	SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) (err error)
 	SubmitResultLogs(ctx context.Context, logs []json.RawMessage) (err error)
+	//CarveBegin(ctx context.Context)
 }
 
 // OsqueryDistributedQueryResults represents the format of the results of an

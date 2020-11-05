@@ -13,7 +13,7 @@ import (
 // Fleet instance.
 func (c *Client) ApplyQueries(specs []*kolide.QuerySpec) error {
 	req := applyQuerySpecsRequest{Specs: specs}
-	response, err := c.AuthenticatedDo("POST", "/api/v1/kolide/spec/queries", req)
+	response, err := c.AuthenticatedDo("POST", "/api/v1/kolide/spec/queries", "", req)
 	if err != nil {
 		return errors.Wrap(err, "POST /api/v1/kolide/spec/queries")
 	}
@@ -43,7 +43,7 @@ func (c *Client) ApplyQueries(specs []*kolide.QuerySpec) error {
 // GetQuery retrieves the list of all Queries.
 func (c *Client) GetQuery(name string) (*kolide.QuerySpec, error) {
 	verb, path := "GET", "/api/v1/kolide/spec/queries/"+url.PathEscape(name)
-	response, err := c.AuthenticatedDo(verb, path, nil)
+	response, err := c.AuthenticatedDo(verb, path, "", nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "%s %s", verb, path)
 	}
@@ -76,7 +76,7 @@ func (c *Client) GetQuery(name string) (*kolide.QuerySpec, error) {
 
 // GetQueries retrieves the list of all Queries.
 func (c *Client) GetQueries() ([]*kolide.QuerySpec, error) {
-	response, err := c.AuthenticatedDo("GET", "/api/v1/kolide/spec/queries", nil)
+	response, err := c.AuthenticatedDo("GET", "/api/v1/kolide/spec/queries", "", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "GET /api/v1/kolide/spec/queries")
 	}
@@ -106,7 +106,7 @@ func (c *Client) GetQueries() ([]*kolide.QuerySpec, error) {
 // DeleteQuery deletes the query with the matching name.
 func (c *Client) DeleteQuery(name string) error {
 	verb, path := "DELETE", "/api/v1/kolide/queries/"+url.PathEscape(name)
-	response, err := c.AuthenticatedDo(verb, path, nil)
+	response, err := c.AuthenticatedDo(verb, path, "", nil)
 	if err != nil {
 		return errors.Wrapf(err, "%s %s", verb, path)
 	}

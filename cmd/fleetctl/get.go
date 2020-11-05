@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"io"
 
 	"github.com/ghodss/yaml"
 	"github.com/kolide/fleet/server/kolide"
@@ -17,6 +18,9 @@ const (
 	yamlFlagName        = "yaml"
 	jsonFlagName        = "json"
 	withQueriesFlagName = "with-queries"
+	expiredFlagName     = "expired"
+	outfileFlagName     = "outfile"
+	stdoutFlagName      = "stdout"
 )
 
 type specGeneric struct {
@@ -210,6 +214,8 @@ func getCommand() cli.Command {
 			getHostsCommand(),
 			getEnrollSecretCommand(),
 			getAppConfigCommand(),
+			getCarveCommand(),
+			getCarvesCommand(),
 		},
 	}
 }
@@ -241,7 +247,7 @@ func getQueriesCommand() cli.Command {
 				}
 
 				if len(queries) == 0 {
-					fmt.Println("no queries found")
+					fmt.Println("No queries found")
 					return nil
 				}
 
@@ -364,7 +370,7 @@ func getPacksCommand() cli.Command {
 				}
 
 				if len(packs) == 0 {
-					fmt.Println("no packs found")
+					fmt.Println("No packs found")
 					return nil
 				}
 
@@ -439,7 +445,7 @@ func getLabelsCommand() cli.Command {
 				}
 
 				if len(labels) == 0 {
-					fmt.Println("no labels found")
+					fmt.Println("No labels found")
 					return nil
 				}
 
@@ -596,7 +602,7 @@ func getHostsCommand() cli.Command {
 				}
 
 				if len(hosts) == 0 {
-					fmt.Println("no hosts found")
+					fmt.Println("No hosts found")
 					return nil
 				}
 
@@ -643,3 +649,141 @@ func getHostsCommand() cli.Command {
 		},
 	}
 }
+
+func getCarvesCommand() cli.Command {
+	return cli.Command{
+		Name:    "carves",
+		Usage:   "Retrieve the file carving sessions",
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+			cli.BoolFlag{
+				Name:  expiredFlagName,
+				Usage: "Include expired carves",
+			},
+		},
+		Action: func(c *cli.Context) error {
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			expired := c.Bool(expiredFlagName)
+
+			carves, err := fleet.ListCarves(kolide.CarveListOptions{Expired: expired})
+			if err != nil {
+				return err
+			}
+
+			if len(carves) == 0 {
+				fmt.Println("No carves found")
+				return nil
+			}
+
+			data := [][]string{}
+			for _, c := range carves {
+				completion := fmt.Sprintf(
+					"%d%%",
+					int64((float64(c.MaxBlock+1)/float64(c.BlockCount))*100),
+				)
+				if c.Expired {
+					completion = "Expired"
+				}
+
+				data = append(data, []string{
+					strconv.FormatInt(c.ID, 10),
+					c.CreatedAt.Local().String(),
+					c.RequestId,
+					strconv.FormatInt(c.CarveSize, 10),
+					completion,
+				})
+			}
+
+			table := defaultTable()
+			table.SetHeader([]string{"id", "created_at", "request_id", "carve_size", "completion"})
+			table.AppendBulk(data)
+			table.Render()
+
+			return nil
+		},
+	}
+}
+
+
+func getCarveCommand() cli.Command {
+	return cli.Command{
+		Name:    "carve",
+		Usage:   "Retrieve details for a carve by ID",
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+			cli.BoolFlag{
+				Name:  stdoutFlagName,
+				Usage: "Print carve contents to stdout",
+			},
+			cli.StringFlag{
+				Name:  outfileFlagName,
+				Usage: "Download carve contents to specified file path",
+			},
+		},
+		Action: func(c *cli.Context) error {
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			idString := c.Args().First()
+
+			if idString == "" {
+				return errors.Errorf("must provide carve ID as first argument")
+			}
+
+			id, err := strconv.ParseInt(idString, 10, 64)
+			if err != nil {
+				return errors.Wrap(err, "unable to parse carve ID as int")
+			}
+
+			outFile := c.String(outfileFlagName)
+			stdout := c.Bool(stdoutFlagName)
+
+			if stdout && outFile != "" {
+				return errors.Errorf("-stdout and -outfile must not be specified together")
+			}
+
+			if stdout || outFile != "" {
+				out := os.Stdout
+				if outFile != "" {
+					f, err := os.OpenFile(outFile, os.O_CREATE|os.O_WRONLY, 0666)
+					if err != nil {
+						return errors.Wrap(err, "open out file")
+					}
+					defer f.Close()
+					out = f
+				}
+
+				reader, err := fleet.DownloadCarve(id)
+				if err != nil {
+					return err
+				}
+
+				if _, err := io.Copy(out, reader); err != nil {
+					return errors.Wrap(err, "download carve contents")
+				}
+
+				return nil
+			}
+
+			carve, err := fleet.GetCarve(id)
+			if err != nil {
+				return err
+			}
+
+			if err := printYaml(carve); err != nil {
+				return errors.Wrap(err, "print carve yaml")
+			}
+
+			return nil
+		},
+	}
+}
+
