@@ -15,7 +15,7 @@ package mock
 //go:generate mockimpl -o datastore_campaigns.go "s *CampaignStore" "kolide.CampaignStore"
 //go:generate mockimpl -o datastore_sessions.go "s *SessionStore" "kolide.SessionStore"
 
-import "github.com/kolide/fleet/server/kolide"
+import "github.com/fleetdm/fleet/server/kolide"
 
 var _ kolide.Datastore = (*Store)(nil)
 

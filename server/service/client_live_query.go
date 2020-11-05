@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/kolide/fleet/server/kolide"
-	ws "github.com/kolide/fleet/server/websocket"
+	"github.com/fleetdm/fleet/server/kolide"
+	ws "github.com/fleetdm/fleet/server/websocket"
 
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"

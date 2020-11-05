@@ -3,7 +3,7 @@ package data
 import (
 	"database/sql"
 
-	"github.com/kolide/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/kolide"
 )
 
 func init() {

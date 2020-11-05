@@ -9,8 +9,8 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
-	"github.com/kolide/fleet/server/config"
-	"github.com/kolide/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/config"
+	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/prometheus/client_golang/prometheus"
 )
 

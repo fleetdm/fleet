@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/kolide/fleet/server/config"
+	"github.com/fleetdm/fleet/server/config"
 	"github.com/kolide/kit/version"
 	"github.com/spf13/cobra"
 )

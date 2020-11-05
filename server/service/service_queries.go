@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"github.com/kolide/fleet/server/contexts/viewer"
-	"github.com/kolide/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/contexts/viewer"
+	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/pkg/errors"
 )
 

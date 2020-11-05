@@ -5,8 +5,8 @@ import (
 	"encoding/base64"
 	"html/template"
 
-	"github.com/kolide/fleet/server/kolide"
-	"github.com/kolide/fleet/server/mail"
+	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/mail"
 )
 
 func (svc service) InviteNewUser(ctx context.Context, payload kolide.InvitePayload) (*kolide.Invite, error) {

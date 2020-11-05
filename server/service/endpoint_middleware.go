@@ -6,10 +6,10 @@ import (
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/go-kit/kit/endpoint"
-	hostctx "github.com/kolide/fleet/server/contexts/host"
-	"github.com/kolide/fleet/server/contexts/token"
-	"github.com/kolide/fleet/server/contexts/viewer"
-	"github.com/kolide/fleet/server/kolide"
+	hostctx "github.com/fleetdm/fleet/server/contexts/host"
+	"github.com/fleetdm/fleet/server/contexts/token"
+	"github.com/fleetdm/fleet/server/contexts/viewer"
+	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/pkg/errors"
 )
 

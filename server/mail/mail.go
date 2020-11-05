@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kolide/fleet/server/bindata"
-	"github.com/kolide/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/bindata"
+	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/pkg/errors"
 )
 

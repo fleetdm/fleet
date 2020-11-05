@@ -8,11 +8,11 @@ import (
 
 	"github.com/WatchBeam/clock"
 	kitlog "github.com/go-kit/kit/log"
-	"github.com/kolide/fleet/server/config"
-	"github.com/kolide/fleet/server/datastore/mysql"
-	"github.com/kolide/fleet/server/kolide"
-	"github.com/kolide/fleet/server/pubsub"
-	"github.com/kolide/fleet/server/service"
+	"github.com/fleetdm/fleet/server/config"
+	"github.com/fleetdm/fleet/server/datastore/mysql"
+	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/pubsub"
+	"github.com/fleetdm/fleet/server/service"
 	"github.com/spf13/cobra"
 )
 
