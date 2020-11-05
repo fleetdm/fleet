@@ -19,7 +19,7 @@ Follow the binary update instructions corresponding to the original installation
 Download the latest raw Fleet binaries:
 
 ```
-curl -O https://github.com/kolide/fleet/releases/latest/download/fleet.zip
+curl -O https://github.com/fleetdm/fleet/releases/latest/download/fleet.zip
 ```
 
 Unzip the binaries for your platform:
@@ -41,7 +41,7 @@ Replace the existing Fleet binary with the newly unzipped binary.
 Pull the latest Fleet docker image:
 
 ```
-docker pull kolide/fleet
+docker pull fleetdm/fleet
 ```
 
 ## Running database migrations

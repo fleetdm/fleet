@@ -18,7 +18,7 @@ Because everyone's infrastructure is different, there are a multiple options ava
 Pull the latest Fleet docker image:
 
 ```
-docker pull kolide/fleet
+docker pull fleetdm/fleet
 ```
 
 For more information on using Fleet, refer to the [Configuring The Fleet Binary](./configuring-the-fleet-binary.md) documentation.
@@ -28,7 +28,7 @@ For more information on using Fleet, refer to the [Configuring The Fleet Binary]
 Download the latest raw Fleet binaries:
 
 ```
-curl -LO https://github.com/kolide/fleet/releases/latest/download/fleet.zip
+curl -LO https://github.com/fleetdm/fleet/releases/latest/download/fleet.zip
 ```
 
 Unzip the binaries for your platform:
