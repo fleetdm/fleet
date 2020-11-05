@@ -1,0 +1,44 @@
+.yaml-ace {
+  &__label {
+    font-size: 16px;
+    font-weight: $bold;
+    font-style: normal;
+    font-stretch: normal;
+    letter-spacing: -0.5px;
+    color: $text-dark;
+    display: block;
+    margin-bottom: 4px;
+    min-height: 25px;
+
+    &--error {
+      color: $alert;
+    }
+  }
+
+  &__wrapper {
+    &--error {
+      .ace-kolide {
+        border: 1px solid $alert;
+      }
+    }
+  }
+
+  // Added to remove the "popping" effect when the editor first loads.
+  min-height: 408px;
+
+  .ace_gutter-layer {
+    min-height: 408px;
+  }
+
+  .ace_line {
+    min-height: 24px;
+  }
+
+  .ace_gutter-cell {
+    min-height: 24px;
+  }
+
+  .ace_fold-widget {
+    min-height: 24px;
+  }
+}

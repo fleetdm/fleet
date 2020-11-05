@@ -4,6 +4,7 @@ export default {
   CONFIRM_EMAIL_CHANGE: (token) => {
     return `/v1/kolide/email/change/${token}`;
   },
+  OSQUERY_OPTIONS: '/v1/kolide/spec/osquery_options',
   ENABLE_USER: (id) => {
     return `/v1/kolide/users/${id}/enable`;
   },

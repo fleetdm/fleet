@@ -3,6 +3,7 @@ import URL_PREFIX from 'router/url_prefix';
 export default {
   ADMIN_USERS: `${URL_PREFIX}/admin/users`,
   ADMIN_SETTINGS: `${URL_PREFIX}/admin/settings`,
+  ADMIN_OSQUERY: `${URL_PREFIX}/admin/osquery`,
   ALL_PACKS: `${URL_PREFIX}/packs/all`,
   EDIT_PACK: (pack) => {
     return `${URL_PREFIX}/packs/${pack.id}/edit`;
