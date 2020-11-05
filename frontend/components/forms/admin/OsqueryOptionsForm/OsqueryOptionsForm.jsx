@@ -40,8 +40,8 @@ class OsqueryOptionsForm extends Component {
 
     return (
       <form onSubmit={handleSubmit} className={baseClass}>
-        <p className={`${baseClass}__header`}>The YAML code editor bellow allows for control over osquery configuration options.
-          Options specificied in the code editory will over-write existing osquery options.
+        <p className={`${baseClass}__header`}>The YAML code editor allows control over osquery configuration options.
+          Options specified in the code editor below will overwrite existing osquery options.
         </p>
         <YamlAce
           {...fields.osquery_options}

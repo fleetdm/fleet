@@ -75,7 +75,7 @@ export class OsqueryOptionsPage extends Component {
             <p>This file describes options returned to osqueryd when it checks for configuration.</p>
             <p>See Fleet documentation for an example file that includes the overrides option.</p>
             <a
-              href="https://github.com/kolide/fleet/blob/master/docs/cli/file-format.md#osquery-configuration-options"
+              href="https://github.com/fleetdm/fleet/blob/master/docs/cli/file-format.md#osquery-configuration-options"
               target="_blank"
               rel="noreferrer"
               className="button button--muted"
@@ -83,7 +83,7 @@ export class OsqueryOptionsPage extends Component {
               GO TO FLEET DOCS
               <Icon name="right-arrow" />
             </a>
-            <p>See Osquery documentation for all available options.</p>
+            <p>See osquery documentation for all available options.</p>
             <a
               href="https://osquery.readthedocs.io/en/stable/deployment/configuration/#options"
               target="_blank"

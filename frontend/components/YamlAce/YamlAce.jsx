@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import AceEditor from 'react-ace';
 import classnames from 'classnames';
 
-import './mode';
+import "ace-builds/src-noconflict/mode-yaml";
 
 const baseClass = 'yaml-ace';
 
@@ -55,7 +55,7 @@ class YamlAce extends Component {
           theme="kolide"
           width="100%"
           minLines={2}
-          maxLines={60}
+          maxLines={17}
           editorProps={{ $blockScrolling: Infinity }}
           value={value}
           tabSize={2}
