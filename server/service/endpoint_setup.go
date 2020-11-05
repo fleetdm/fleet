@@ -57,7 +57,7 @@ func makeSetupEndpoint(svc kolide.Service) endpoint.Endpoint {
 				err := errors.Errorf("admin password cannot be empty")
 				return setupResponse{Err: err}, nil
 			}
-			admin, err = svc.NewAdminCreatedUser(ctx, *req.Admin)
+			admin, err = svc.CreateUser(ctx, *req.Admin)
 			if err != nil {
 				return setupResponse{Err: err}, nil
 			}

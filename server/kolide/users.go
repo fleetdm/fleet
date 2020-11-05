@@ -29,12 +29,13 @@ type UserStore interface {
 
 // UserService contains methods for managing a Fleet User.
 type UserService interface {
-	// NewUser creates a new User from a request Payload.
-	NewUser(ctx context.Context, p UserPayload) (user *User, err error)
+	// CreateUserWithInvite creates a new User from a request payload when there is
+	// already an existing invitation.
+	CreateUserWithInvite(ctx context.Context, p UserPayload) (user *User, err error)
 
-	// NewAdminCreatedUser allows an admin to create a new user without
-	// first creating and validating invite tokens.
-	NewAdminCreatedUser(ctx context.Context, p UserPayload) (user *User, err error)
+	// CreateUser allows an admin to create a new user without first creating
+	// and validating invite tokens.
+	CreateUser(ctx context.Context, p UserPayload) (user *User, err error)
 
 	// User returns a valid User given a User ID.
 	User(ctx context.Context, id uint) (user *User, err error)
@@ -104,17 +105,18 @@ type User struct {
 
 // UserPayload is used to modify an existing user
 type UserPayload struct {
-	Username    *string `json:"username,omitempty"`
-	Name        *string `json:"name,omitempty"`
-	Email       *string `json:"email,omitempty"`
-	Admin       *bool   `json:"admin,omitempty"`
-	Enabled     *bool   `json:"enabled,omitempty"`
-	Password    *string `json:"password,omitempty"`
-	GravatarURL *string `json:"gravatar_url,omitempty"`
-	Position    *string `json:"position,omitempty"`
-	InviteToken *string `json:"invite_token,omitempty"`
-	SSOInvite   *bool   `json:"sso_invite,omitempty"`
-	SSOEnabled  *bool   `json:"sso_enabled,omitempty"`
+	Username                 *string `json:"username,omitempty"`
+	Name                     *string `json:"name,omitempty"`
+	Email                    *string `json:"email,omitempty"`
+	Admin                    *bool   `json:"admin,omitempty"`
+	Enabled                  *bool   `json:"enabled,omitempty"`
+	Password                 *string `json:"password,omitempty"`
+	GravatarURL              *string `json:"gravatar_url,omitempty"`
+	Position                 *string `json:"position,omitempty"`
+	InviteToken              *string `json:"invite_token,omitempty"`
+	SSOInvite                *bool   `json:"sso_invite,omitempty"`
+	SSOEnabled               *bool   `json:"sso_enabled,omitempty"`
+	AdminForcedPasswordReset *bool   `json:"admin_forced_password_reset,omitempty"`
 }
 
 // User creates a user from payload.
@@ -141,6 +143,9 @@ func (p UserPayload) User(keySize, cost int) (*User, error) {
 	}
 	if p.SSOEnabled != nil {
 		user.SSOEnabled = *p.SSOEnabled
+	}
+	if p.AdminForcedPasswordReset != nil {
+		user.AdminForcedPasswordReset = *p.AdminForcedPasswordReset
 	}
 
 	return user, nil

@@ -22,6 +22,7 @@ type KolideEndpoints struct {
 	ResetPassword                         endpoint.Endpoint
 	Me                                    endpoint.Endpoint
 	ChangePassword                        endpoint.Endpoint
+	CreateUserWithInvite                  endpoint.Endpoint
 	CreateUser                            endpoint.Endpoint
 	GetUser                               endpoint.Endpoint
 	ListUsers                             endpoint.Endpoint
@@ -103,15 +104,15 @@ type KolideEndpoints struct {
 // MakeKolideServerEndpoints creates the Kolide API endpoints.
 func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string) KolideEndpoints {
 	return KolideEndpoints{
-		Login:          makeLoginEndpoint(svc),
-		Logout:         makeLogoutEndpoint(svc),
-		ForgotPassword: makeForgotPasswordEndpoint(svc),
-		ResetPassword:  makeResetPasswordEndpoint(svc),
-		CreateUser:     makeCreateUserEndpoint(svc),
-		VerifyInvite:   makeVerifyInviteEndpoint(svc),
-		InitiateSSO:    makeInitiateSSOEndpoint(svc),
-		CallbackSSO:    makeCallbackSSOEndpoint(svc, urlPrefix),
-		SSOSettings:    makeSSOSettingsEndpoint(svc),
+		Login:                makeLoginEndpoint(svc),
+		Logout:               makeLogoutEndpoint(svc),
+		ForgotPassword:       makeForgotPasswordEndpoint(svc),
+		ResetPassword:        makeResetPasswordEndpoint(svc),
+		CreateUserWithInvite: makeCreateUserWithInviteEndpoint(svc),
+		VerifyInvite:         makeVerifyInviteEndpoint(svc),
+		InitiateSSO:          makeInitiateSSOEndpoint(svc),
+		CallbackSSO:          makeCallbackSSOEndpoint(svc, urlPrefix),
+		SSOSettings:          makeSSOSettingsEndpoint(svc),
 
 		// Authenticated user endpoints
 		// Each of these endpoints should have exactly one
@@ -128,6 +129,7 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string) Kol
 		AdminUser:            authenticatedUser(jwtKey, svc, mustBeAdmin(makeAdminUserEndpoint(svc))),
 		EnableUser:           authenticatedUser(jwtKey, svc, mustBeAdmin(makeEnableUserEndpoint(svc))),
 		RequirePasswordReset: authenticatedUser(jwtKey, svc, mustBeAdmin(makeRequirePasswordResetEndpoint(svc))),
+		CreateUser:           authenticatedUser(jwtKey, svc, mustBeAdmin(makeCreateUserEndpoint(svc))),
 		// PerformRequiredPasswordReset needs only to authenticate the
 		// logged in user
 		PerformRequiredPasswordReset:          authenticatedUser(jwtKey, svc, canPerformPasswordReset(makePerformRequiredPasswordResetEndpoint(svc))),
@@ -209,6 +211,7 @@ type kolideHandlers struct {
 	ResetPassword                         http.Handler
 	Me                                    http.Handler
 	ChangePassword                        http.Handler
+	CreateUserWithInvite                  http.Handler
 	CreateUser                            http.Handler
 	GetUser                               http.Handler
 	ListUsers                             http.Handler
@@ -298,6 +301,7 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		ResetPassword:                         newServer(e.ResetPassword, decodeResetPasswordRequest),
 		Me:                                    newServer(e.Me, decodeNoParamsRequest),
 		ChangePassword:                        newServer(e.ChangePassword, decodeChangePasswordRequest),
+		CreateUserWithInvite:                  newServer(e.CreateUserWithInvite, decodeCreateUserRequest),
 		CreateUser:                            newServer(e.CreateUser, decodeCreateUserRequest),
 		GetUser:                               newServer(e.GetUser, decodeGetUserRequest),
 		ListUsers:                             newServer(e.ListUsers, decodeListUsersRequest),
@@ -427,7 +431,8 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/kolide/sso", h.SettingsSSO).Methods("GET").Name("sso_config")
 	r.Handle("/api/v1/kolide/sso/callback", h.CallbackSSO).Methods("POST").Name("callback_sso")
 	r.Handle("/api/v1/kolide/users", h.ListUsers).Methods("GET").Name("list_users")
-	r.Handle("/api/v1/kolide/users", h.CreateUser).Methods("POST").Name("create_user")
+	r.Handle("/api/v1/kolide/users", h.CreateUserWithInvite).Methods("POST").Name("create_user_with_invite")
+	r.Handle("/api/v1/kolide/users/admin", h.CreateUser).Methods("POST").Name("create_user")
 	r.Handle("/api/v1/kolide/users/{id}", h.GetUser).Methods("GET").Name("get_user")
 	r.Handle("/api/v1/kolide/users/{id}", h.ModifyUser).Methods("PATCH").Name("modify_user")
 	r.Handle("/api/v1/kolide/users/{id}/enable", h.EnableUser).Methods("POST").Name("enable_user")

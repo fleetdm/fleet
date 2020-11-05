@@ -13,7 +13,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (svc service) NewUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
+func (svc service) CreateUserWithInvite(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
 	invite, err := svc.VerifyInvite(ctx, *p.InviteToken)
 	if err != nil {
 		return nil, err
@@ -34,17 +34,17 @@ func (svc service) NewUser(ctx context.Context, p kolide.UserPayload) (*kolide.U
 	return user, nil
 }
 
-func (svc service) NewAdminCreatedUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
+func (svc service) CreateUser(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
 	return svc.newUser(p)
 }
 
 func (svc service) newUser(p kolide.UserPayload) (*kolide.User, error) {
 	var ssoEnabled bool
 	// if user is SSO generate a fake password
-	if p.SSOInvite != nil && *p.SSOInvite {
+	if (p.SSOInvite != nil && *p.SSOInvite) || (p.SSOEnabled != nil && *p.SSOEnabled) {
 		fakePassword, err := generateRandomText(14)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "generate stand-in password")
 		}
 		p.Password = &fakePassword
 		ssoEnabled = true
