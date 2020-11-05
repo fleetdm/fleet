@@ -12,7 +12,7 @@ If you'd like to use the native osqueryd binaries to connect to Fleet, this is e
 
 ## Kolide Osquery Launcher
 
-We provide compiled releases of the launcher for all supported platforms. Those can be found [here](https://github.com/kolide/launcher/releases). But if you’d like to compile from source, the instructions are [here](https://github.com/kolide/fleet/tree/master/docs/development).
+We provide compiled releases of the launcher for all supported platforms. Those can be found [here](https://github.com/kolide/launcher/releases). But if you’d like to compile from source, the instructions are [here](https://github.com/fleetdm/fleet/tree/master/docs/development).
 
 #### Connecting a single Launcher to Fleet
 

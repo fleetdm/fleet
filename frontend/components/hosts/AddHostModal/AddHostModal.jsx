@@ -108,7 +108,7 @@ class AddHostModal extends Component {
           <div className={`${baseClass}__documentation-link`}>
             <h4>
               <a
-                href="https://github.com/kolide/fleet/blob/master/docs/infrastructure/adding-hosts-to-fleet.md"
+                href="https://github.com/fleetdm/fleet/blob/master/docs/infrastructure/adding-hosts-to-fleet.md"
                 target="_blank"
                 rel="noopener noreferrer"
               >

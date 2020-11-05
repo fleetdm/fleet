@@ -38,7 +38,7 @@ class HostContainer extends Component {
 
         <div className={`${baseClass}__no-hosts-contact`}>
           <p>Still having trouble?</p>
-          <p><a href="https://github.com/kolide/fleet/issues">File a Github issue</a>.</p>
+          <p><a href="https://github.com/fleetdm/fleet/issues">File a Github issue</a>.</p>
         </div>
       </div>
     );

@@ -21,7 +21,7 @@ class Kolide404 extends Component {
           <p>Might we recommend going back on your browser or visiting the <a href="/">home page?</a></p>
           <div className="gopher-container">
             <img src={gopher} alt="" />
-            <p>Need assistance? <a href="https://github.com/kolide/fleet/issues">File an issue</a>.</p>
+            <p>Need assistance? <a href="https://github.com/fleetdm/fleet/issues">File an issue</a>.</p>
           </div>
         </main>
       </div>
