@@ -1,3 +1,5 @@
+:tada: Announcing the transition of Fleet to a new independent entity! Please check out [our announcement](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) to understand what is happening with Fleet and our commitment to improving the product.
+
 # Fleet [![CircleCI](https://circleci.com/gh/fleetdm/fleet/tree/master.svg?style=svg)](https://circleci.com/gh/fleetdm/fleet/tree/master) [![Go Report Card](https://goreportcard.com/badge/github.com/fleetdm/fleet)](https://goreportcard.com/report/github.com/fleetdm/fleet)
 
 Fleet is the most widely used open source osquery manager.  Deploying osquery with Fleet enables programmable live queries, streaming logs, and effective management of osquery across 50,000+ servers, containers, and laptops.  It's especially useful for talking to multiple devices at the same time.
@@ -35,7 +37,7 @@ Information about using the web dashboard can be found in the [Dashboard Documen
 
 ## Developing Fleet
 
-Organizations large and small use osquery with Fleet every day to stay secure and compliant. That’s good news, since it means there are lots of other developers and security practicioners talking about Fleet, dreaming up features, and contributing patches. Let’s stop reinventing the wheel and build the future of device management together.
+Organizations large and small use osquery with Fleet every day to stay secure and compliant. That’s good news, since it means there are lots of other developers and security practitioners talking about Fleet, dreaming up features, and contributing patches. Let’s stop reinventing the wheel and build the future of device management together.
 
 #### Development Documentation
 
