@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import AceEditor from 'react-ace';
 import classnames from 'classnames';
 
-import "ace-builds/src-noconflict/mode-yaml";
+import 'ace-builds/src-noconflict/mode-yaml';
 
 const baseClass = 'yaml-ace';
 
