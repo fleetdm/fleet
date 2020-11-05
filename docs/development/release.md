@@ -48,4 +48,4 @@ Upload the `fleet.zip` binary bundle and click "Publish Release".
 make docker-push-release
 ```
 
-6. Announce the release in the #kolide channel of [osquery Slack](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/).
+6. Announce the release in the #fleet channel of [osquery Slack](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/).
