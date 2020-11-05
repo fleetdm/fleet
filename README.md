@@ -58,5 +58,3 @@ Below are some projects created by Fleet community members. Please submit a pull
 - [deeso/fleet-deployment](https://github.com/deeso/fleet-deployment) - Install Fleet on a Ubuntu box.
 - [gjyoung1974/kolide-fleet-chart](https://github.com/gjyoung1974/kolide-fleet-chart) - Kubernetes Helm chart for deploying Fleet.
 
-
-[![Rube](./assets/images/rube.png)](https://kolide.com/fleet)
