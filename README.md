@@ -6,6 +6,9 @@ Fleet is a Go app. You can run it on your own hardware or deploy it in any cloud
 
 Documentation for Fleet can be found on [GitHub](./docs/README.md).
 
+![banner-fleet-cloud-city](https://user-images.githubusercontent.com/618009/98254443-eaf21100-1f41-11eb-9e2c-63a0545601f3.jpg)
+
+<!-- todo: update screenshots
 **Fleet Dashboard**
 ![Screenshot of dashboard](./assets/images/dashboard-screenshot.png)
 
@@ -14,6 +17,7 @@ Documentation for Fleet can be found on [GitHub](./docs/README.md).
 
 **Scheduled Query/Pack Editor**
 ![Screenshot of pack editor](./assets/images/pack-screenshot.png)
+-->
 
 ## Using Fleet
 
