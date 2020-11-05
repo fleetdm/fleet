@@ -23,6 +23,10 @@ For more information, you can also read the [Configuring The Fleet Binary](./con
 
 Fleet allows users to schedule queries, curate packs, and generate a lot of osquery logs. For more information on how you can access these logs as well as examples on what you can do with them, see the [Working With Osquery Logs](./working-with-osquery-logs.md) documentation.
 
+## File Carving
+
+Learn how to work with the osquery file carving functionality to extract file contents in the [File Carving](./file-carving.md) documentation.
+
 ## Troubleshooting & FAQ
 
 Check out the [Frequently Asked Questions](./faq.md), which include troubleshooting steps for the most common issues experience by Fleet users.
