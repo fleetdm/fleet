@@ -46,14 +46,14 @@
     margin-left: 10px;
     padding: 20px;
     box-sizing: border-box;
-
+    
     h4 {
       font-size: 16px;
       font-weight: $bold;
       line-height: 1.5;
       letter-spacing: -0.5px;
       color: rgba(32, 37, 50, 0.66);
-      margin: 40px 0 0;
+      margin: 10px 0 0;
 
       .kolidecon {
         margin-left: 5px;
@@ -75,6 +75,12 @@
     }
   }
 
+  &__documentation-link {
+    h4 {
+      margin: 0;
+    }
+  }
+  
   &__install-steps {
     margin: 0;
     padding: 0;
@@ -134,4 +140,14 @@
       color: $link;
     }
   }
+
+  pre, code {
+    background-color: #f9f9f9;
+  }
+
+  &__error {
+    color: $alert;
+  }
+
 }
+

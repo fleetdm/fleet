@@ -7,7 +7,7 @@ import hostActions from 'redux/nodes/entities/hosts/actions';
 import labelActions from 'redux/nodes/entities/labels/actions';
 import ConnectedManageHostsPage, { ManageHostsPage } from 'pages/hosts/ManageHostsPage/ManageHostsPage';
 import { connectedComponent, createAceSpy, reduxMockStore, stubbedOsqueryTable } from 'test/helpers';
-import { hostStub } from 'test/stubs';
+import { hostStub, configStub } from 'test/stubs';
 import * as manageHostsPageActions from 'redux/nodes/components/ManageHostsPage/actions';
 
 const allHostsLabel = { id: 1, display_text: 'All Hosts', slug: 'all-hosts', type: 'all', count: 22 };
@@ -49,6 +49,7 @@ const mockStore = reduxMockStore({
 
 describe('ManageHostsPage - component', () => {
   const props = {
+    config: configStub,
     dispatch: noop,
     hosts: [],
     labels: [],

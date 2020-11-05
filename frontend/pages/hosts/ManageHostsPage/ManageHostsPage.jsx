@@ -2,14 +2,13 @@ import React, { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import AceEditor from 'react-ace';
 import { connect } from 'react-redux';
-import FileSaver from 'file-saver';
 import { push } from 'react-router-redux';
 import { sortBy } from 'lodash';
 import classNames from 'classnames';
 
-import Kolide from 'kolide';
 import AddHostModal from 'components/hosts/AddHostModal';
 import Button from 'components/buttons/Button';
+import configInterface from 'interfaces/config';
 import HostContainer from 'components/hosts/HostContainer';
 import HostPagination from 'components/hosts/HostPagination';
 import HostSidePanel from 'components/side_panels/HostSidePanel';
@@ -45,6 +44,7 @@ const baseClass = 'manage-hosts';
 
 export class ManageHostsPage extends PureComponent {
   static propTypes = {
+    config: configInterface,
     dispatch: PropTypes.func,
     display: PropTypes.oneOf(['Grid', 'List']),
     hosts: PropTypes.arrayOf(hostInterface),
@@ -153,18 +153,6 @@ export class ManageHostsPage extends PureComponent {
         return false;
       })
       .catch(() => false);
-  }
-
-  onFetchCertificate = () => {
-    return Kolide.config.loadCertificate()
-      .then((certificate) => {
-        const filename = `${global.window.location.host}.pem`;
-        const file = new global.window.File([certificate], filename, { type: 'application/x-pem-file' });
-
-        FileSaver.saveAs(file);
-
-        return false;
-      });
   }
 
   onLabelClick = (selectedLabel) => {
@@ -304,9 +292,9 @@ export class ManageHostsPage extends PureComponent {
   }
 
   renderAddHostModal = () => {
-    const { onFetchCertificate, toggleAddHostModal } = this;
+    const { toggleAddHostModal } = this;
     const { showAddHostModal } = this.state;
-    const { enrollSecret } = this.props;
+    const { enrollSecret, config } = this.props;
 
     if (!showAddHostModal) {
       return false;
@@ -319,9 +307,9 @@ export class ManageHostsPage extends PureComponent {
         className={`${baseClass}__invite-modal`}
       >
         <AddHostModal
-          onFetchCertificate={onFetchCertificate}
           onReturnToApp={toggleAddHostModal}
           enrollSecret={enrollSecret}
+          config={config}
         />
       </Modal>
     );
@@ -668,6 +656,7 @@ const mapStateToProps = (state, { location, params }) => {
   const { errors: labelErrors, loading: loadingLabels } = state.entities.labels;
   const { loading: loadingHosts } = state.entities.hosts;
   const enrollSecret = state.app.enrollSecret;
+  const config = state.app.config;
 
   return {
     selectedFilter,
@@ -684,6 +673,7 @@ const mapStateToProps = (state, { location, params }) => {
     selectedLabel,
     selectedOsqueryTable,
     statusLabels,
+    config,
   };
 };
 
