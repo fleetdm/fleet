@@ -8,7 +8,7 @@ BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
 REVISION = $(shell git rev-parse HEAD)
 REVSHORT = $(shell git rev-parse --short HEAD)
 USER = $(shell whoami)
-DOCKER_IMAGE_NAME = kolide/fleet
+DOCKER_IMAGE_NAME = fleetdm/fleet
 
 ifneq ($(OS), Windows_NT)
 	# If on macOS, set the shell to bash explicitly
