@@ -1,12 +1,8 @@
 package service
 
 import (
-	"bytes"
 	"context"
-	"crypto/rand"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"testing"
 
 	hostctx "github.com/kolide/fleet/server/contexts/host"
@@ -372,8 +368,8 @@ func TestCarveGetBlock(t *testing.T) {
 	}
 	ms := new(mock.Store)
 	svc := service{ds: ms}
-	ms.CarveByNameFunc = func(name string) (*kolide.CarveMetadata, error) {
-		assert.Equal(t, "foobar", name)
+	ms.CarveFunc = func(carveId int64) (*kolide.CarveMetadata, error) {
+		assert.Equal(t, metadata.ID, carveId)
 		return metadata, nil
 	}
 	ms.GetBlockFunc = func(metadataId int64, blockId int64) ([]byte, error) {
@@ -382,20 +378,9 @@ func TestCarveGetBlock(t *testing.T) {
 		return []byte("foobar"), nil
 	}
 
-	data, err := svc.GetBlock(context.Background(), "foobar", 3)
+	data, err := svc.GetBlock(context.Background(), metadata.ID, 3)
 	require.NoError(t, err)
 	assert.Equal(t, []byte("foobar"), data)
-}
-
-func TestCarveGetBlockCarveByNameError(t *testing.T) {
-	ms := new(mock.Store)
-	svc := service{ds: ms}
-	ms.CarveByNameFunc = func(name string) (*kolide.CarveMetadata, error) {
-		return nil, fmt.Errorf("ouch!")
-	}
-	_, err := svc.GetBlock(context.Background(), "foobar", 3)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "ouch!")
 }
 
 func TestCarveGetBlockNotAvailableError(t *testing.T) {
@@ -412,13 +397,13 @@ func TestCarveGetBlockNotAvailableError(t *testing.T) {
 	}
 	ms := new(mock.Store)
 	svc := service{ds: ms}
-	ms.CarveByNameFunc = func(name string) (*kolide.CarveMetadata, error) {
-		assert.Equal(t, "foobar", name)
+	ms.CarveFunc = func(carveId int64) (*kolide.CarveMetadata, error) {
+		assert.Equal(t, metadata.ID, carveId)
 		return metadata, nil
 	}
 
 	// Block requested is great than max block
-	_, err := svc.GetBlock(context.Background(), "foobar", 7)
+	_, err := svc.GetBlock(context.Background(), metadata.ID, 7)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not yet available")
 }
@@ -437,8 +422,8 @@ func TestCarveGetBlockGetBlockError(t *testing.T) {
 	}
 	ms := new(mock.Store)
 	svc := service{ds: ms}
-	ms.CarveByNameFunc = func(name string) (*kolide.CarveMetadata, error) {
-		assert.Equal(t, "foobar", name)
+	ms.CarveFunc = func(carveId int64) (*kolide.CarveMetadata, error) {
+		assert.Equal(t, metadata.ID, carveId)
 		return metadata, nil
 	}
 	ms.GetBlockFunc = func(metadataId int64, blockId int64) ([]byte, error) {
@@ -448,93 +433,9 @@ func TestCarveGetBlockGetBlockError(t *testing.T) {
 	}
 
 	// Block requested is great than max block
-	_, err := svc.GetBlock(context.Background(), "foobar", 3)
+	_, err := svc.GetBlock(context.Background(), metadata.ID, 3)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "yow!!")
 }
 
 
-func TestCarveReaderEmptyRead(t *testing.T) {
-	ms := new(mock.Store)
-	metadata := kolide.CarveMetadata{}
-
-	reader := newCarveReader(metadata, ms)
-
-	var p []byte
-	n, err := reader.Read(p)
-	require.NoError(t, err)
-	assert.Equal(t, 0, n)
-}
-
-func TestCarveReaderSimpleRead(t *testing.T) {
-	expectedData := []byte("this is some sample data")
-
-	ms := new(mock.Store)
-	metadata := kolide.CarveMetadata{
-		ID:         42,
-		BlockCount: 1,
-		BlockSize:  8096,
-		CarveSize:  int64(len(expectedData)),
-	}
-	ms.GetBlockFunc = func(metadataId int64, blockId int64) ([]byte, error) {
-		assert.Equal(t, metadata.ID, metadataId)
-		assert.Equal(t, int64(0), blockId)
-		return expectedData, nil
-	}
-
-	reader := newCarveReader(metadata, ms)
-
-	data, err := ioutil.ReadAll(reader)
-	require.NoError(t, err)
-	assert.Equal(t, expectedData, data)
-}
-
-func TestCarveReaderError(t *testing.T) {
-	ms := new(mock.Store)
-	metadata := kolide.CarveMetadata{
-		ID:         42,
-		BlockCount: 1,
-		BlockSize:  8096,
-		CarveSize:  32,
-	}
-	ms.GetBlockFunc = func(metadataId int64, blockId int64) ([]byte, error) {
-		assert.Equal(t, metadata.ID, metadataId)
-		assert.Equal(t, int64(0), blockId)
-		return nil, fmt.Errorf("fail")
-	}
-
-	reader := newCarveReader(metadata, ms)
-
-	_, err := ioutil.ReadAll(reader)
-	require.Error(t, err)
-}
-
-func TestCarveReaderMultiRead(t *testing.T) {
-	expectedData := make([]byte, 1024*1024)
-	_, err := rand.Read(expectedData)
-	require.NoError(t, err)
-
-	ms := new(mock.Store)
-	metadata := kolide.CarveMetadata{
-		ID:         42,
-		BlockCount: 16384,
-		BlockSize:  64,
-		CarveSize:  int64(len(expectedData)),
-	}
-	ms.GetBlockFunc = func(metadataId int64, blockId int64) ([]byte, error) {
-		assert.Equal(t, metadata.ID, metadataId)
-		assert.Less(t, blockId, metadata.BlockCount)
-		// Return data in appropriately sized chunks
-		return expectedData[blockId*metadata.BlockSize : (blockId+1)*metadata.BlockSize], nil
-	}
-
-	reader := newCarveReader(metadata, ms)
-
-	dataBuf := &bytes.Buffer{}
-	// Size chunkBuf so that it is smaller than the block chunk size
-	chunkBuf := make([]byte, 13)
-	n, err := io.CopyBuffer(dataBuf, reader, chunkBuf)
-	require.NoError(t, err)
-	assert.Equal(t, int64(len(expectedData)), n)
-	assert.Equal(t, expectedData, dataBuf.Bytes())
-}

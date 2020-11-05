@@ -41,12 +41,6 @@ func Up_20201021104586(tx *sql.Tx) error {
 		return errors.Wrap(err, "create carve_blocks")
 	}
 
-	if _, err := tx.Exec(`ALTER TABLE app_configs
-		ADD COLUMN carve_expiry_window INT NOT NULL DEFAULT 86400
-	`); err != nil {
-		return errors.Wrap(err, "add carve_expiry_window to app_configs")
-	}
-
 	return nil
 }
 

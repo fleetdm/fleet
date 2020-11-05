@@ -1,6 +1,6 @@
 # File Carving with Fleet
 
-Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from osquery agents, returning the full contents to Fleet.  
+Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from osquery agents, returning the full contents to Fleet.
 
 ## Configuration
 
@@ -34,12 +34,12 @@ File carves are initiated with osquery queries. Issue a query to the `carves` ta
 For example, to extract the `/etc/hosts` file on a host with hostname `mac-workstation`:
 
 ```
-fleetctl query --hosts mac-workstation --query SELECT * FROM carves WHERE carve = 1 AND path = "/etc/hosts"'
+fleetctl query --hosts mac-workstation --query 'SELECT * FROM carves WHERE carve = 1 AND path = "/etc/hosts"'
 ```
 
 The standard osquery file globbing syntax is also supported to carve entire directories or more:
 ```
-fleetctl query --hosts mac-workstation --query SELECT * FROM carves WHERE carve = 1 AND path LIKE "/etc/%%"'
+fleetctl query --hosts mac-workstation --query 'SELECT * FROM carves WHERE carve = 1 AND path LIKE "/etc/%%"'
 ```
 
 ### Retrieving Carves
@@ -75,8 +75,10 @@ Osquery can report on the status of carves through queries to the `carves` table
 The details provided by
 
 ```
-fleetctl query --hosts 'mac-workstation' --query SELECT * FROM carves WHERE carve = 1 AND path = "/etc/hosts"'
+fleetctl query --labels 'All Hosts' --query 'SELECT * FROM carves'
 ```
+
+can be helpful to debug carving problems.
 
 ### Ensure  `carver_block_size` is set appropriately
 
