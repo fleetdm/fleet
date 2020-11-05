@@ -25,6 +25,20 @@ func testDeletePack(t *testing.T, ds kolide.Datastore) {
 	assert.NotNil(t, err)
 }
 
+func testNewPack(t *testing.T, ds kolide.Datastore) {
+	pack := &kolide.Pack{
+		Name: "foo",
+	}
+
+	pack, err := ds.NewPack(pack)
+	require.NoError(t, err)
+	assert.NotEqual(t, uint(0), pack.ID)
+
+	pack, err = ds.Pack(pack.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "foo", pack.Name)
+}
+
 func testGetPackByName(t *testing.T, ds kolide.Datastore) {
 	pack := test.NewPack(t, ds, "foo")
 	assert.NotEqual(t, uint(0), pack.ID)

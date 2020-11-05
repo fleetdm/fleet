@@ -223,7 +223,7 @@ func (d *Datastore) NewPack(pack *kolide.Pack, opts ...kolide.OptionalArg) (*kol
 	query := `
 	INSERT INTO packs
 		(name, description, platform, disabled)
-		VALUES ( ?, ?, ?, ?, ?)
+		VALUES ( ?, ?, ?, ? )
 	`
 
 	result, err := db.Exec(query, pack.Name, pack.Description, pack.Platform, pack.Disabled)
