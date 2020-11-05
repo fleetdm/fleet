@@ -42,8 +42,7 @@ rm -rf tmp
 ### Clone and build depenencies
 
 ```
-mkdir -p ~/go/src/github.com/kolide/
-git clone https://github.com/kolide/fleet.git
+git clone https://github.com/fleetdm/fleet.git
 cd fleet
 make deps
 make generate

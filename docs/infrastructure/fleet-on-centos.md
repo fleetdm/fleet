@@ -21,7 +21,7 @@ $ vagrant ssh
 To install Fleet, run the following:
 
 ```
-$ wget https://github.com/kolide/fleet/releases/latest/download/fleet.zip
+$ wget https://github.com/fleetdm/fleet/releases/latest/download/fleet.zip
 $ unzip fleet.zip 'linux/*' -d fleet
 $ sudo cp fleet/linux/fleet* /usr/bin/
 ```

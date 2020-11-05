@@ -10,7 +10,7 @@ Kolide Fleet is powered by a Go API server which serves three types of endpoints
 Only osquery agents should interact with the osquery API, but we'd like to support the eventual use of the Fleet API extensively. The API is not very well documented at all right now, but we have plans to:
 
 - Generate and publish detailed documentation via a tool built using [test2doc](https://github.com/adams-sarah/test2doc) (or similar).
-- Release a JavaScript Fleet API client library (which would be derived from the [current](https://github.com/kolide/fleet/blob/master/frontend/kolide/index.js) JavaScript API client).
+- Release a JavaScript Fleet API client library (which would be derived from the [current](https://github.com/fleetdm/fleet/blob/master/frontend/kolide/index.js) JavaScript API client).
 - Commit to a stable, standardized API format.
 
 ## Fleetctl
@@ -36,4 +36,4 @@ Each set of objects follows a similar REST access pattern.
 
 Queries, packs, scheduled queries, labels, invites, users, sessions all behave this way. Some objects, like invites, have additional HTTP methods for additional functionality. Some objects, such as scheduled queries, are merely a relationship between two other objects (in this case, a query and a pack) with some details attached.
 
-All of these objects are put together and distributed to the appropriate osquery agents at the appropriate time. At this time, the best source of truth for the API is the [HTTP handler file](https://github.com/kolide/fleet/blob/master/server/service/handler.go) in the Go application. The REST API is exposed via a transport layer on top of an RPC service which is implemented using a micro-service library called [Go Kit](https://github.com/go-kit/kit). If using the Fleet API is important to you right now, being familiar with Go Kit would definitely be helpful.
+All of these objects are put together and distributed to the appropriate osquery agents at the appropriate time. At this time, the best source of truth for the API is the [HTTP handler file](https://github.com/fleetdm/fleet/blob/master/server/service/handler.go) in the Go application. The REST API is exposed via a transport layer on top of an RPC service which is implemented using a micro-service library called [Go Kit](https://github.com/go-kit/kit). If using the Fleet API is important to you right now, being familiar with Go Kit would definitely be helpful.
