@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/pkg/errors"
+	"github.com/kolide/fleet/server/kolide"
 )
 
 func decodeCarveBeginRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -43,7 +44,17 @@ func decodeListCarvesRequest(ctx context.Context, r *http.Request) (interface{},
 	if err != nil {
 		return nil, err
 	}
-	return listCarvesRequest{ListOptions: opt}, nil
+	copt := kolide.CarveListOptions{ListOptions: opt}
+	expired := r.URL.Query().Get("expired")
+	switch expired {
+	case "1", "true":
+		copt.Expired = true
+	case "0", "":
+		copt.Expired = false
+	default:
+		return nil, errors.Errorf("invalid expired value %s", expired)
+	}
+	return listCarvesRequest{ListOptions: copt}, nil
 }
 
 func decodeGetCarveBlockRequest(ctx context.Context, r *http.Request) (interface{}, error) {

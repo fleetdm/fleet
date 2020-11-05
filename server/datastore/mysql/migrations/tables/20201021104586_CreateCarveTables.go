@@ -2,10 +2,8 @@ package tables
 
 import (
 	"database/sql"
-	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/kolide/fleet/server/kolide"
 )
 
 func init() {
@@ -13,8 +11,7 @@ func init() {
 }
 
 func Up_20201021104586(tx *sql.Tx) error {
-	if _, err := tx.Exec(
-		fmt.Sprintf(`
+	if _, err := tx.Exec(`
 		CREATE TABLE IF NOT EXISTS carve_metadata (
 		id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
 		host_id INT UNSIGNED NOT NULL,
@@ -26,12 +23,11 @@ func Up_20201021104586(tx *sql.Tx) error {
 		carve_id VARCHAR(64) NOT NULL,
 		request_id VARCHAR(64) NOT NULL,
 		session_id VARCHAR(64) NOT NULL,
-		status INT DEFAULT %d,
+		expired TINYINT DEFAULT 0,
 		UNIQUE KEY idx_session_id (session_id),
 		UNIQUE KEY idx_name (name),
 		FOREIGN KEY (host_id) REFERENCES hosts (id) ON DELETE CASCADE
-		)`, kolide.CarveStatusInProgress),
-	); err != nil {
+	)`); err != nil {
 		return errors.Wrap(err, "create carve_metadata")
 	}
 

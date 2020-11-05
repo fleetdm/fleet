@@ -122,7 +122,7 @@ func makeGetCarveEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type listCarvesRequest struct {
-	ListOptions kolide.ListOptions
+	ListOptions kolide.CarveListOptions
 }
 
 type listCarvesResponse struct {

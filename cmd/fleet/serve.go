@@ -191,6 +191,7 @@ the way that the Fleet server works.
 				for {
 					ds.CleanupDistributedQueryCampaigns(time.Now())
 					ds.CleanupIncomingHosts(time.Now())
+					ds.CleanupCarves(time.Now())
 					<-ticker.C
 				}
 			}()

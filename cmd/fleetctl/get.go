@@ -18,6 +18,7 @@ const (
 	yamlFlagName        = "yaml"
 	jsonFlagName        = "json"
 	withQueriesFlagName = "with-queries"
+	expiredFlagName = "expired"
 )
 
 type specGeneric struct {
@@ -654,6 +655,11 @@ func getCarvesCommand() cli.Command {
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
+			cli.BoolFlag{
+				Name:  expiredFlagName,
+				Usage: "Include expired carves",
+			},
+
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)
@@ -681,7 +687,9 @@ func getCarvesCommand() cli.Command {
 				return nil
 			}
 
-			carves, err := fleet.ListCarves(kolide.ListOptions{})
+			expired := c.Bool(expiredFlagName)
+
+			carves, err := fleet.ListCarves(kolide.CarveListOptions{Expired: expired})
 			if err != nil {
 				return err
 			}
@@ -693,12 +701,20 @@ func getCarvesCommand() cli.Command {
 
 			data := [][]string{}
 			for _, c := range carves {
+				completion := fmt.Sprintf(
+					"%d%%",
+					int64((float64(c.MaxBlock+1)/float64(c.BlockCount))*100),
+				)
+				if c.Expired {
+					completion = "Expired"
+				}
+
 				data = append(data, []string{
 					strconv.FormatInt(c.ID, 10),
 					c.CreatedAt.Local().String(),
 					c.RequestId,
 					strconv.FormatInt(c.CarveSize, 10),
-					fmt.Sprintf("%d%%", int64((float64(c.MaxBlock+1)/float64(c.BlockCount))*100)),
+					completion,
 				})
 			}
 

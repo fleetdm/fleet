@@ -21,7 +21,7 @@ func (c *Client) SearchTargets(query string, selectedHostIDs, selectedLabelIDs [
 		},
 	}
 
-	response, err := c.AuthenticatedDo("POST", "/api/v1/kolide/targets", req)
+	response, err := c.AuthenticatedDo("POST", "/api/v1/kolide/targets", "", req)
 	if err != nil {
 		return nil, errors.Wrap(err, "POST /api/v1/kolide/targets")
 	}

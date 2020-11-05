@@ -101,7 +101,7 @@ func (svc service) GetCarve(ctx context.Context, id int64) (*kolide.CarveMetadat
 	return svc.ds.Carve(id)
 }
 
-func (svc service) ListCarves(ctx context.Context, opt kolide.ListOptions) ([]*kolide.CarveMetadata, error) {
+func (svc service) ListCarves(ctx context.Context, opt kolide.CarveListOptions) ([]*kolide.CarveMetadata, error) {
 	return svc.ds.ListCarves(opt)
 }
 
@@ -109,6 +109,10 @@ func (svc service) GetBlock(ctx context.Context, carveId, blockId int64) ([]byte
 	metadata, err := svc.ds.Carve(carveId)
 	if err != nil {
 		return nil, errors.Wrap(err, "get carve by name")
+	}
+
+	if metadata.Expired {
+		return nil, fmt.Errorf("cannot get block for expired carve")
 	}
 
 	if blockId > metadata.MaxBlock {

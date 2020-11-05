@@ -77,7 +77,7 @@ func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string) (
 	}, nil
 }
 
-func (c *Client) doWithHeaders(verb, path string, params interface{}, headers map[string]string) (*http.Response, error) {
+func (c *Client) doWithHeaders(verb, path, rawQuery string, params interface{}, headers map[string]string) (*http.Response, error) {
 	var bodyBytes []byte
 	var err error
 	if params != nil {
@@ -89,7 +89,7 @@ func (c *Client) doWithHeaders(verb, path string, params interface{}, headers ma
 
 	request, err := http.NewRequest(
 		verb,
-		c.url(path).String(),
+		c.url(path, rawQuery).String(),
 		bytes.NewBuffer(bodyBytes),
 	)
 	if err != nil {
@@ -102,16 +102,16 @@ func (c *Client) doWithHeaders(verb, path string, params interface{}, headers ma
 	return c.http.Do(request)
 }
 
-func (c *Client) Do(verb, path string, params interface{}) (*http.Response, error) {
+func (c *Client) Do(verb, path, rawQuery string, params interface{}) (*http.Response, error) {
 	headers := map[string]string{
 		"Content-type": "application/json",
 		"Accept":       "application/json",
 	}
 
-	return c.doWithHeaders(verb, path, params, headers)
+	return c.doWithHeaders(verb, path, rawQuery, params, headers)
 }
 
-func (c *Client) AuthenticatedDo(verb, path string, params interface{}) (*http.Response, error) {
+func (c *Client) AuthenticatedDo(verb, path, rawQuery string, params interface{}) (*http.Response, error) {
 	if c.token == "" {
 		return nil, errors.New("authentication token is empty")
 	}
@@ -122,15 +122,16 @@ func (c *Client) AuthenticatedDo(verb, path string, params interface{}) (*http.R
 		"Authorization": fmt.Sprintf("Bearer %s", c.token),
 	}
 
-	return c.doWithHeaders(verb, path, params, headers)
+	return c.doWithHeaders(verb, path, rawQuery, params, headers)
 }
 
 func (c *Client) SetToken(t string) {
 	c.token = t
 }
 
-func (c *Client) url(path string) *url.URL {
+func (c *Client) url(path, rawQuery string) *url.URL {
 	u := *c.baseURL
 	u.Path = c.urlPrefix + path
+	u.RawQuery = rawQuery
 	return &u
 }
