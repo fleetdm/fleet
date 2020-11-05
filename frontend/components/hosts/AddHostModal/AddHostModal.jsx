@@ -85,7 +85,10 @@ class AddHostModal extends Component {
 --distributed_tls_write_endpoint=/api/v1/osquery/distributed/write
 --logger_plugin=tls
 --logger_tls_endpoint=/api/v1/osquery/log
---logger_tls_period=10`;
+--logger_tls_period=10
+--disable_carver=false
+--carver_start_endpoint=/api/v1/osquery/carve/begin
+--carver_continue_endpoint=/api/v1/osquery/carve/block`;
 
     const onDownloadFlagfile = (evt) => {
       evt.preventDefault();

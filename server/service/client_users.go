@@ -11,7 +11,7 @@ import (
 // CreateUser creates a new user, skipping the invitation process.
 func (c *Client) CreateUser(p kolide.UserPayload) error {
 	verb, path := "POST", "/api/v1/kolide/users/admin"
-	response, err := c.AuthenticatedDo(verb, path, p)
+	response, err := c.AuthenticatedDo(verb, path, "", p)
 	if err != nil {
 		return errors.Wrapf(err, "%s %s", verb, path)
 	}

@@ -49,6 +49,34 @@ func (c *Client) ListCarves(opt kolide.CarveListOptions) ([]*kolide.CarveMetadat
 	return carves, nil
 }
 
+func (c *Client) GetCarve(carveId int64) (*kolide.CarveMetadata, error) {
+	endpoint := fmt.Sprintf("/api/v1/kolide/carves/%d", carveId)
+	response, err := c.AuthenticatedDo("GET", endpoint, "", nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "GET "+endpoint)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		return nil, errors.Errorf(
+			"get carve received status %d %s",
+			response.StatusCode,
+			extractServerErrorText(response.Body),
+		)
+	}
+	var responseBody getCarveResponse
+	err = json.NewDecoder(response.Body).Decode(&responseBody)
+	if err != nil {
+		return nil, errors.Wrap(err, "decode carve response")
+	}
+	if responseBody.Err != nil {
+		return nil, errors.Errorf("get carve: %s", responseBody.Err)
+	}
+
+	return &responseBody.Carve, nil
+}
+
+
 func (c *Client) getCarveBlock(carveId, blockId int64) ([]byte, error) {
 	path := fmt.Sprintf(
 		"/api/v1/kolide/carves/%d/block/%d",
