@@ -9,12 +9,19 @@ To setup a working local development environment, you must install the following
 
 * [Go](https://golang.org/dl/) (1.9 or greater)
 * [Node.js](https://nodejs.org/en/download/current/) and [Yarn](https://yarnpkg.com/en/docs/install)
-* [GNU Make](https://www.gnu.org/software/make/)
+* [GNU Make](https://www.gnu.org/software/make/) (probably already installed if you're on macOS/Linux)
 * [Docker](https://www.docker.com/products/overview#/install_the_platform)
 
-If you're using MacOS or Linux, Make should be installed by default. If you are using Windows, you will need to install it separately.
+> #### New to the Go language?
+> 
+> After installing Go, your $GOPATH will probably need a little freshening up.  To take care of this automatically every time a new terminal is opened, add this to your shell startup script (`~/.profile`):
+> ```bash
+> # Allow go-bindata and other Go stuff to work properly (e.g. for Fleet/osquery)
+> # More info: https://golang.org/doc/gopath_code.html#GOPATH
+> export PATH=$PATH:$(go env GOPATH)/bin
+> ```
 
-Once you have those minimum requirements, you will need to install Fleet's dependent libraries. To do this, run the following from the root of the repository:
+Once you have those minimum requirements, you will need to install Fleet's dependencies. To do this, run the following from the root of the repository:
 
 ```
 make deps
