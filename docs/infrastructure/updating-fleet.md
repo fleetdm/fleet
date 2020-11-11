@@ -60,6 +60,10 @@ fleet prepare db
 
 Note, if you would like to run this in a script, you can use the `--no-prompt` option to disable prompting before the migrations.
 
+`Error creating db connection`
+
+TODO If you get the above error...
+
 Start new Fleet server instances:
 
 ```
