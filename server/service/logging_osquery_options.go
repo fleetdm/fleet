@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/kolide/fleet/server/contexts/viewer"
-	"github.com/kolide/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/contexts/viewer"
+	"github.com/fleetdm/fleet/server/kolide"
 )
 
 func (mw loggingMiddleware) GetOptionsSpec(ctx context.Context) (spec *kolide.OptionsSpec, err error) {

@@ -1,5 +1,5 @@
 FROM alpine
-MAINTAINER Kolide Developers <engineering@kolide.co>
+MAINTAINER Fleet Developers <engineering@fleetdm.com>
 
 RUN apk --update add ca-certificates
 

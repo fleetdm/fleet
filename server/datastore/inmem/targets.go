@@ -3,7 +3,7 @@ package inmem
 import (
 	"time"
 
-	"github.com/kolide/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/kolide"
 )
 
 func (d *Datastore) CountHostsInTargets(hostIDs, labelIDs []uint, now time.Time) (kolide.TargetMetrics, error) {

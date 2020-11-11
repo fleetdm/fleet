@@ -5,8 +5,8 @@ import (
 	"errors"
 
 	"github.com/go-kit/kit/endpoint"
-	"github.com/kolide/fleet/server/contexts/viewer"
-	"github.com/kolide/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/contexts/viewer"
+	"github.com/fleetdm/fleet/server/kolide"
 )
 
 type appConfigRequest struct {

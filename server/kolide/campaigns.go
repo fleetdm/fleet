@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/kolide/fleet/server/websocket"
+	"github.com/fleetdm/fleet/server/websocket"
 )
 
 // CampaignStore defines the distributed query campaign related datastore

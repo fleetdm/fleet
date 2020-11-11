@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/kolide/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/pkg/errors"
 )
 

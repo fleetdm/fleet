@@ -6,7 +6,7 @@ import (
 	"github.com/VividCortex/mysqlerr"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
-	"github.com/kolide/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/pkg/errors"
 )
 

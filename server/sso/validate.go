@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/beevik/etree"
-	"github.com/kolide/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/pkg/errors"
 	gosamltypes "github.com/russellhaering/gosaml2/types"
 	dsig "github.com/russellhaering/goxmldsig"

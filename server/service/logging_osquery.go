@@ -7,7 +7,7 @@ import (
 
 	kithttp "github.com/go-kit/kit/transport/http"
 
-	"github.com/kolide/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/kolide"
 )
 
 func (mw loggingMiddleware) EnrollAgent(ctx context.Context, enrollSecret string, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {

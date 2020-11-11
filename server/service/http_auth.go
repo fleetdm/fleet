@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/kolide/fleet/server/contexts/token"
-	"github.com/kolide/fleet/server/contexts/viewer"
-	"github.com/kolide/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/contexts/token"
+	"github.com/fleetdm/fleet/server/contexts/viewer"
+	"github.com/fleetdm/fleet/server/kolide"
 )
 
 // setRequestsContexts updates the request with necessary context values for a request

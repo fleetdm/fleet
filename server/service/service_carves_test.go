@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"testing"
 
-	hostctx "github.com/kolide/fleet/server/contexts/host"
-	"github.com/kolide/fleet/server/kolide"
-	"github.com/kolide/fleet/server/mock"
+	hostctx "github.com/fleetdm/fleet/server/contexts/host"
+	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

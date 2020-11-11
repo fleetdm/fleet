@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kolide/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/stretchr/testify/assert"
 )
 

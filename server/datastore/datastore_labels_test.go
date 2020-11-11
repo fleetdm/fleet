@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kolide/fleet/server/kolide"
-	"github.com/kolide/fleet/server/test"
+	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

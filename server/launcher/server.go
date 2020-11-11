@@ -10,8 +10,8 @@ import (
 	launcher "github.com/kolide/launcher/service"
 	grpc "google.golang.org/grpc"
 
-	"github.com/kolide/fleet/server/health"
-	"github.com/kolide/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/health"
+	"github.com/fleetdm/fleet/server/kolide"
 )
 
 // Handler extends the grpc.Server, providing Handler that allows us to serve

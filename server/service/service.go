@@ -10,10 +10,10 @@ import (
 
 	"github.com/WatchBeam/clock"
 	kitlog "github.com/go-kit/kit/log"
-	"github.com/kolide/fleet/server/config"
-	"github.com/kolide/fleet/server/kolide"
-	"github.com/kolide/fleet/server/logging"
-	"github.com/kolide/fleet/server/sso"
+	"github.com/fleetdm/fleet/server/config"
+	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/logging"
+	"github.com/fleetdm/fleet/server/sso"
 	"github.com/kolide/kit/version"
 	"github.com/pkg/errors"
 )
@@ -86,5 +86,5 @@ func getAssetURL() template.URL {
 		tag = "master"
 	}
 
-	return template.URL("https://github.com/kolide/fleet/blob/" + tag)
+	return template.URL("https://github.com/fleetdm/fleet/blob/" + tag)
 }

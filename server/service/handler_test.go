@@ -10,10 +10,10 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/gorilla/mux"
-	"github.com/kolide/fleet/server/config"
-	"github.com/kolide/fleet/server/datastore/inmem"
-	"github.com/kolide/fleet/server/kolide"
-	"github.com/kolide/fleet/server/mock"
+	"github.com/fleetdm/fleet/server/config"
+	"github.com/fleetdm/fleet/server/datastore/inmem"
+	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/mock"
 	"github.com/stretchr/testify/assert"
 )
 

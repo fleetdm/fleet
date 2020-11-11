@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"github.com/kolide/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/kolide"
 )
 
 func (svc service) ListHosts(ctx context.Context, opt kolide.HostListOptions) ([]*kolide.Host, error) {

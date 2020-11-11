@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/kolide/fleet/server/config"
-	"github.com/kolide/fleet/server/datastore/inmem"
-	"github.com/kolide/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/config"
+	"github.com/fleetdm/fleet/server/datastore/inmem"
+	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/stretchr/testify/assert"
 )
 

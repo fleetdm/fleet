@@ -1,4 +1,4 @@
-module github.com/kolide/fleet
+module github.com/fleetdm/fleet
 
 go 1.12
 

@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/pkg/errors"
-	"github.com/kolide/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/kolide"
 )
 
 func decodeCarveBeginRequest(ctx context.Context, r *http.Request) (interface{}, error) {
