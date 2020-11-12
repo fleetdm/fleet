@@ -16,6 +16,8 @@ git push origin <VERSION>
 make binary-bundle
 ```
 
+Make note of the SHA256 checksum output at the end of this build command to paste into the release documentation on GitHub.
+
 4. Create a new release on the [GitHub releases page](https://github.com/fleetdm/fleet/releases). Select the newly pushed tag (GitHub should say "Existing tag"). Use the version number as the release title. Use the below template for the release description (replace items in <> with the appropriate values):
 
 ````
@@ -25,7 +27,7 @@ make binary-bundle
 
 ### Upgrading
 
-Please visit our [update guide](https://github.com/fleetdm/fleet/blob/master/docs/infrastructure/updating-fleet.md) for upgrade instructions.
+Please visit our [update guide](https://github.com/fleetdm/fleet/blob/master/docs/infrastructure/updating-fleet.md** for upgrade instructions.
 
 ### Documentation
 
@@ -33,14 +35,17 @@ Documentation for this release can be found at https://github.com/fleetdm/fleet/
 
 ### Binary Checksum
 
+**SHA256**
 ```
-sha256sum fleet.zip
 <HASH VALUE>  fleet.zip
+<HASH VALUE>  fleetctl-linux.tar.gz
+<HASH VALUE>  fleetctl-macos.tar.gz
+<HASH VALUE>  fleetctl-windows.tar.gz
 ```
 
 ````
 
-Upload the `fleet.zip` binary bundle and click "Publish Release".
+Upload the `fleet.zip` binary bundle along with the `fleetctl-*.tar.gz` for each platform and click "Publish Release".
 
 5. Push the new version to Docker Hub (ensure working tree is clean because this will effect the version string built into the binary):
 
