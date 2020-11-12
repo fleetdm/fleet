@@ -8,12 +8,12 @@ In this guide, we're going to install Kolide Fleet and all of it's application d
 Acquiring a CentOS host to use for this guide is largely an exercise for the reader. If you don't have an CentOS host readily available, feel free to use [Vagrant](https://www.vagrantup.com/). In a clean, temporary directory, you can run the following to create a vagrant box, start it, and log into it:
 
 ```
-$ echo 'Vagrant.configure("2") do |config|
+echo 'Vagrant.configure("2") do |config|
   config.vm.box = "bento/centos-7.1"
   config.vm.network "forwarded_port", guest: 8080, host: 8080
 end' > Vagrantfile
-$ vagrant up
-$ vagrant ssh
+vagrant up
+vagrant ssh
 ```
 
 ## Installing Fleet
@@ -21,9 +21,9 @@ $ vagrant ssh
 To install Fleet, run the following:
 
 ```
-$ wget https://github.com/fleetdm/fleet/releases/latest/download/fleet.zip
-$ unzip fleet.zip 'linux/*' -d fleet
-$ sudo cp fleet/linux/fleet* /usr/bin/
+wget https://github.com/fleetdm/fleet/releases/latest/download/fleet.zip
+unzip fleet.zip 'linux/*' -d fleet
+sudo cp fleet/linux/fleet* /usr/bin/
 ```
 
 ## Installing and configuring dependencies
@@ -33,16 +33,16 @@ $ sudo cp fleet/linux/fleet* /usr/bin/
 To install the MySQL server files, run the following:
 
 ```
-$ wget https://repo.mysql.com/mysql57-community-release-el7.rpm
-$ sudo rpm -i mysql57-community-release-el7.rpm
-$ sudo yum update
-$ sudo yum install mysql-server
+wget https://repo.mysql.com/mysql57-community-release-el7.rpm
+sudo rpm -i mysql57-community-release-el7.rpm
+sudo yum update
+sudo yum install mysql-server
 ```
 
 To start the MySQL service:
 
 ```
-$ sudo systemctl start mysqld
+sudo systemctl start mysqld
 ```
 
 Let's set a password for the MySQL root user.
@@ -50,7 +50,7 @@ MySQL creates an initial temporary root password which you can find in  ```/var/
 
 Connect to MySQL
 ```
-$ mysql -u root -p
+mysql -u root -p
 ```
 When prompted enter in the temporary password from ```/var/log/mysqld.log```
 
@@ -77,13 +77,13 @@ mysql> exit
 ```
 Stop MySQL and start again
 ```
-$ sudo mysqld stop
-$ sudo systemctl start mysqld
+sudo mysqld stop
+sudo systemctl start mysqld
 ```
 It's also worth creating a MySQL database for us to use at this point. Run the following to create the `kolide` database in MySQL. Note that you will be prompted for the password you created above.
 
 ```
-$ echo 'CREATE DATABASE kolide;' | mysql -u root -p
+echo 'CREATE DATABASE kolide;' | mysql -u root -p
 ```
 
 ### Redis
@@ -91,14 +91,14 @@ $ echo 'CREATE DATABASE kolide;' | mysql -u root -p
 To install the Redis server files, run the following:
 
 ```
-$ sudo rpm -Uvh http://dl.fedoraproject.org/pub/epel/6/i386/epel-release-6-8.noarch.rpm
-$ sudo yum install redis
+sudo rpm -Uvh http://dl.fedoraproject.org/pub/epel/6/i386/epel-release-6-8.noarch.rpm
+sudo yum install redis
 ```
 
 To start the Redis server in the background, you can run the following:
 
 ```
-$ sudo service redis start
+sudo service redis start
 ```
 
 ## Running the Fleet server
@@ -106,11 +106,11 @@ $ sudo service redis start
 Now that we have installed Fleet, MySQL, and Redis, we are ready to launch Fleet! First, we must "prepare" the database. We do this via `fleet prepare db`:
 
 ```
-$ /usr/bin/fleet prepare db \
-    --mysql_address=127.0.0.1:3306 \
-    --mysql_database=kolide \
-    --mysql_username=root \
-    --mysql_password=toor?Fl33t
+/usr/bin/fleet prepare db \
+  --mysql_address=127.0.0.1:3306 \
+  --mysql_database=kolide \
+  --mysql_username=root \
+  --mysql_password=toor?Fl33t
 ```
 
 The output should look like:
@@ -122,9 +122,9 @@ Migrations completed.
 Before we can run the server, we need to generate some TLS keying material. If you already have tooling for generating valid TLS certificates, then you are encouraged to use that instead. You will need a TLS certificate and key for running the Fleet server. If you'd like to generate self-signed certificates, you can do this via:
 
 ```
-$ openssl genrsa -out /tmp/server.key 4096
-$ openssl req -new -key /tmp/server.key -out /tmp/server.csr
-$ openssl x509 -req -days 366 -in /tmp/server.csr -signkey /tmp/server.key -out /tmp/server.cert
+openssl genrsa -out /tmp/server.key 4096
+openssl req -new -key /tmp/server.key -out /tmp/server.csr
+openssl x509 -req -days 366 -in /tmp/server.csr -signkey /tmp/server.key -out /tmp/server.cert
 ```
 
 You should now have three new files in `/tmp`:
@@ -136,7 +136,7 @@ You should now have three new files in `/tmp`:
 Now we are ready to run the server! We do this via `fleet serve`:
 
 ```
-$ /usr/bin/fleet serve \
+/usr/bin/fleet serve \
   --mysql_address=127.0.0.1:3306 \
   --mysql_database=kolide \
   --mysql_username=root \
@@ -162,8 +162,8 @@ See [systemd](./systemd.md) for documentation on running fleet as a background p
 To install osquery on CentOS, you can run the following:
 
 ```
-$ sudo rpm -ivh https://osquery-packages.s3.amazonaws.com/centos7/noarch/osquery-s3-centos7-repo-1-0.0.noarch.rpm
-$ sudo yum install osquery
+sudo rpm -ivh https://osquery-packages.s3.amazonaws.com/centos7/noarch/osquery-s3-centos7-repo-1-0.0.noarch.rpm
+sudo yum install osquery
 ```
 
 You will need to set the osquery enroll secret and osquery server certificate. If you head over to the manage hosts page on your Fleet instance (which should be [https://localhost:8080/hosts/manage](https://localhost:8080/hosts/manage)), you should be able to click "Add New Hosts" and see a modal like the following:
@@ -175,7 +175,7 @@ If you select "Fetch Kolide Certificate", your browser will download the appropr
 You can also select "Reveal Secret" on that modal and the enrollment secret for your Fleet instance will be revealed. Copy that text and create a file with it's contents:
 
 ```
-$ echo 'LQWzGg9+/yaxxcBUMY7VruDGsJRYULw8' | sudo tee /var/osquery/enroll_secret
+echo 'LQWzGg9+/yaxxcBUMY7VruDGsJRYULw8' | sudo tee /var/osquery/enroll_secret
 ```
 
 Now you're ready to run the `osqueryd` binary:

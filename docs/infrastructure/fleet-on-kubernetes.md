@@ -121,7 +121,7 @@ kubectl apply -f ./examples/kubernetes/fleet-deployment.yml
 You should be able to get an instance of the webserver running via `kubectl get pods` and you should see the following logs:
 
 ```
-$ kubectl logs fleet-webserver-9bb45dd66-zxnbq
+kubectl logs fleet-webserver-9bb45dd66-zxnbq
 ts=2017-11-16T02:48:38.440578433Z component=service method=ListUsers user=none err=null took=2.350435ms
 ts=2017-11-16T02:48:38.441148166Z transport=https address=0.0.0.0:443 msg=listening
 ```

@@ -29,7 +29,7 @@ At this point, the MySQL database doesn't have any users in it. Because of this,
 Now, since our Fleet instance is local in this tutorial, we didn't get a valid TLS certificate, so we need to run the following to configure our Fleet context:
 
 ```
-$ fleetctl config set --address https://localhost:8080 --tls-skip-verify
+fleetctl config set --address https://localhost:8080 --tls-skip-verify
 [+] Set the address config key to "https://localhost:8080" in the "default" context
 [+] Set the tls-skip-verify config key to "true" in the "default" context
 ```
@@ -37,7 +37,7 @@ $ fleetctl config set --address https://localhost:8080 --tls-skip-verify
 Now, if you were connecting to a Fleet instance for real, you wouldn't want to skip TLS certificate verification, so you might run something like:
 
 ```
-$ fleetctl config set --address https://fleet.corp.example.com
+fleetctl config set --address https://fleet.corp.example.com
 [+] Set the address config key to "https://fleet.corp.example.com" in the "default" context
 ```
 
@@ -46,7 +46,7 @@ $ fleetctl config set --address https://fleet.corp.example.com
 Now that we've configured our local CLI context, lets go ahead and create our admin account:
 
 ```
-$ fleetctl setup --email mike@arpaia.co
+fleetctl setup --email mike@arpaia.co
 Password:
 [+] Fleet setup successful and context configured!
 ```
@@ -60,7 +60,7 @@ For the sake of this tutorial, I'm going to be using Kolide's osquery launcher t
 To get your osquery enroll secret, run the following:
 
 ```
-$ fleetctl get enroll-secret
+fleetctl get enroll-secret
 E7P6zs9D0mvY7ct08weZ7xvLtQfGYrdC
 ```
 
@@ -68,7 +68,7 @@ You need to use this secret to connect a host. If you're running Fleet locally, 
 
 ```
 launcher \
-  --hostname localhost:8080 \
+   --hostname localhost:8080 \
   --enroll_secret E7P6zs9D0mvY7ct08weZ7xvLtQfGYrdC \
   --root_directory=$(mktemp -d) \
   --insecure
@@ -79,7 +79,7 @@ launcher \
 To run a simple query against all hosts, you might run something like the following:
 
 ```
-$ fleetctl query --query 'select * from osquery_info;' --labels='All Hosts' > results.json
+fleetctl query --query 'select * from osquery_info;' --labels='All Hosts' > results.json
 ⠂  100% responded (100% online) | 1/1 targeted hosts (1/1 online)
 ^C
 ```
@@ -154,10 +154,10 @@ Now run a live query again. You should notice results coming back more quickly.
 If you have an existing Fleet instance (version 2.0.0 or above), then simply run `fleetctl login` (after configuring your local CLI context):
 
 ```
-$ fleetctl config set --address https://fleet.corp.example.com
+fleetctl config set --address https://fleet.corp.example.com
 [+] Set the address config key to "https://fleet.corp.example.com" in the "default" context
 
-$ fleetctl login
+fleetctl login
 Log in using the standard Fleet credentials.
 Email: mike@arpaia.co
 Password:

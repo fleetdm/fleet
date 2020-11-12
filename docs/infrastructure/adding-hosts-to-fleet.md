@@ -41,10 +41,10 @@ If you're running Fleet locally, include `--insecure` because your TLS certifica
 ```
 mkdir .osquery
 ./build/launcher \
-  --hostname=localhost:8412 \
-  --root_directory=.osquery \
-  --enroll_secret=32IeN3QLgckHUmMD3iW40kyLdNJcGzP5
-  --insecure
+    --hostname=localhost:8412 \
+    --root_directory=.osquery \
+    --enroll_secret=32IeN3QLgckHUmMD3iW40kyLdNJcGzP5
+    --insecure
 ```
 
 #### Generating packages
@@ -52,8 +52,8 @@ mkdir .osquery
 The Launcher also provides easy, robust tooling for creating packages that you can distribute across your fleet:
 
 ```
-$ make package-builder
-$ ./build/package-builder make \
+make package-builder
+./build/package-builder make \
   --hostname=fleet.acme.net:443 \
   --enroll_secret=32IeN3QLgckHUmMD3iW40kyLdNJcGzP5
 ```
