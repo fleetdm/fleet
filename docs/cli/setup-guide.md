@@ -68,7 +68,7 @@ You need to use this secret to connect a host. If you're running Fleet locally, 
 
 ```
 launcher \
-   --hostname localhost:8080 \
+  --hostname localhost:8080 \
   --enroll_secret E7P6zs9D0mvY7ct08weZ7xvLtQfGYrdC \
   --root_directory=$(mktemp -d) \
   --insecure
