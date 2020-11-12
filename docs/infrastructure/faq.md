@@ -69,7 +69,7 @@ The next step is to make sure the credentials for the database match what is exp
 If you're successful connecting to the database and still receive a database connection error, you may need to specify your database credentials when running `fleet prepare db`. It's encouraged to put your database credentials in environment variables or a config file.
 
 ```
-/fleet prepare db \
+fleet prepare db \
     --mysql_address=<database_address> \
     --mysql_database=<database_name> \
     --mysql_username=<username> \
