@@ -31,7 +31,7 @@ All of these files can be concatenated together into [one file](../../examples/c
 `fleetctl` format. Use `fleetctl convert` with a path to the pack file:
 
 ```
-$ fleetctl convert -f test.json
+fleetctl convert -f test.json
 ---
 apiVersion: v1
 kind: pack

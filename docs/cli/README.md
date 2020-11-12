@@ -32,13 +32,13 @@ Fleet and `fleetctl` have built in support for [goquery](https://github.com/AbGu
 Use `fleetctl goquery` to open up the goquery console. When used with Fleet, goquery can connect using either a hostname or UUID.
 
 ```
-$ ./build/fleetctl get hosts
+./build/fleetctl get hosts
 +--------------------------------------+--------------+----------+---------+
 |                 UUID                 |   HOSTNAME   | PLATFORM | STATUS  |
 +--------------------------------------+--------------+----------+---------+
 | 192343D5-0000-0000-B85B-58F656BED4C7 | 6523f89187f8 | centos   | online  |
 +--------------------------------------+--------------+----------+---------+
-$ ./build/fleetctl goquery
+./build/fleetctl goquery
 goquery> .connect 6523f89187f8
 Verified Host(6523f89187f8) Exists.
 .
