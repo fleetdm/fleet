@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/kolide/fleet/server/sso"
+	"github.com/fleetdm/fleet/server/sso"
 	"github.com/pkg/errors"
 )
 

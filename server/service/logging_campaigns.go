@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/kolide/fleet/server/contexts/viewer"
-	"github.com/kolide/fleet/server/kolide"
-	"github.com/kolide/fleet/server/websocket"
+	"github.com/fleetdm/fleet/server/contexts/viewer"
+	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/websocket"
 )
 
 func (mw loggingMiddleware) NewDistributedQueryCampaign(ctx context.Context, queryString string, hosts []uint, labels []uint) (*kolide.DistributedQueryCampaign, error) {

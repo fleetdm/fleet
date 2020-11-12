@@ -8,8 +8,8 @@ import (
 	gqconfig "github.com/AbGuthrie/goquery/v2/config"
 	gqhosts "github.com/AbGuthrie/goquery/v2/hosts"
 	gqmodels "github.com/AbGuthrie/goquery/v2/models"
-	"github.com/kolide/fleet/server/kolide"
-	"github.com/kolide/fleet/server/service"
+	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/service"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 )

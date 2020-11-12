@@ -8,7 +8,7 @@ import (
 	"io"
 
 	"github.com/ghodss/yaml"
-	"github.com/kolide/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"

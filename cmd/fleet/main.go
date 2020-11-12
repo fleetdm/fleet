@@ -7,7 +7,7 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/kolide/fleet/server/config"
+	"github.com/fleetdm/fleet/server/config"
 	"github.com/spf13/cobra"
 )
 

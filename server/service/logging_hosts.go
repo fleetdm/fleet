@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/kolide/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/kolide"
 )
 
 func (mw loggingMiddleware) ListHosts(ctx context.Context, opt kolide.HostListOptions) ([]*kolide.Host, error) {

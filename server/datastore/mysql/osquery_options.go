@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/go-kit/kit/log/level"
-	"github.com/kolide/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/pkg/errors"
 )
 

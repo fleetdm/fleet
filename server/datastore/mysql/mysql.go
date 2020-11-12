@@ -15,10 +15,10 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
-	"github.com/kolide/fleet/server/config"
-	"github.com/kolide/fleet/server/datastore/mysql/migrations/data"
-	"github.com/kolide/fleet/server/datastore/mysql/migrations/tables"
-	"github.com/kolide/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/config"
+	"github.com/fleetdm/fleet/server/datastore/mysql/migrations/data"
+	"github.com/fleetdm/fleet/server/datastore/mysql/migrations/tables"
+	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/pkg/errors"
 )
 

@@ -1,6 +1,6 @@
 package mock
 
-import "github.com/kolide/fleet/server/kolide"
+import "github.com/fleetdm/fleet/server/kolide"
 
 func ReturnNewInivite(fake *kolide.Invite) NewInviteFunc {
 	return func(i *kolide.Invite) (*kolide.Invite, error) {

@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
-	"github.com/kolide/fleet/server/logging"
+	"github.com/fleetdm/fleet/server/logging"
 	"github.com/stretchr/testify/require"
 )
 

@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	hostctx "github.com/kolide/fleet/server/contexts/host"
-	"github.com/kolide/fleet/server/kolide"
+	hostctx "github.com/fleetdm/fleet/server/contexts/host"
+	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/pkg/errors"
 )
 

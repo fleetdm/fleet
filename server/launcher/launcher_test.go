@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/go-kit/kit/log"
-	"github.com/kolide/fleet/server/health"
-	"github.com/kolide/fleet/server/kolide"
-	"github.com/kolide/fleet/server/mock"
+	"github.com/fleetdm/fleet/server/health"
+	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/mock"
 	"github.com/kolide/osquery-go/plugin/distributed"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

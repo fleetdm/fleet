@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/kolide/fleet/server/service"
+	"github.com/fleetdm/fleet/server/service"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 	"golang.org/x/crypto/ssh/terminal"

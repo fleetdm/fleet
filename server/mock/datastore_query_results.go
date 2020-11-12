@@ -5,7 +5,7 @@ package mock
 import (
 	"context"
 
-	"github.com/kolide/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/kolide"
 )
 
 var _ kolide.QueryResultStore = (*QueryResultStore)(nil)

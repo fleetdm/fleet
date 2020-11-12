@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/firehose"
 	"github.com/aws/aws-sdk-go/service/firehose/firehoseiface"
 	"github.com/go-kit/kit/log"
-	"github.com/kolide/fleet/server/logging/mock"
+	"github.com/fleetdm/fleet/server/logging/mock"
 	"github.com/stretchr/testify/assert"
 )
 

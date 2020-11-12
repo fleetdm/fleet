@@ -5,7 +5,7 @@ package mock
 import (
 	"encoding/json"
 
-	"github.com/kolide/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/kolide"
 )
 
 var _ kolide.OsqueryOptionsStore = (*OsqueryOptionsStore)(nil)

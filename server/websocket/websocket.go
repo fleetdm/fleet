@@ -8,7 +8,7 @@ import (
 
 	"github.com/igm/sockjs-go/v3/sockjs"
 
-	"github.com/kolide/fleet/server/contexts/token"
+	"github.com/fleetdm/fleet/server/contexts/token"
 	"github.com/pkg/errors"
 )
 
