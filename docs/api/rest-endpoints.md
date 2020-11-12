@@ -13,6 +13,7 @@ Parameters
 | page                    | integer | query | Page number of the results to fetch.                                                     |
 | per_page                | integer | query | Results per page.                                                                        |
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                          |
+| status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.|
 | additional_info_filters | string  | query | A comma delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](https://github.com/fleetdm/fleet/blob/master/docs/cli/file-format.md#fleet-configuration-options) for an example configuration with hosts' additional information.|
 
 Example
