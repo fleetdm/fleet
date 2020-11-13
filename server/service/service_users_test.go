@@ -338,7 +338,7 @@ func TestRequestPasswordReset(t *testing.T) {
 func TestCreateUserWithInvite(t *testing.T) {
 	ds, _ := inmem.New(config.TestConfig())
 	svc, _ := newTestService(ds, nil, nil)
-	invites := setupInvites(t, ds, []string{"admin2@example.com"})
+	invites := setupInvites(t, ds, []string{"admin2@example.com", "admin3@example.com"})
 	ctx := context.Background()
 
 	var newUserTests = []struct {
@@ -390,13 +390,12 @@ func TestCreateUserWithInvite(t *testing.T) {
 			wantErr:            &invalidArgumentError{{name: "invite_token", reason: "Invite token has expired."}},
 		},
 		{
-			Username:           stringPtr("@admin2"),
+			Username:           stringPtr("admin3@example.com"),
 			Password:           stringPtr("foobarbaz1234!"),
-			Email:              stringPtr("admin2@example.com"),
+			Email:              stringPtr("admin3@example.com"),
 			NeedsPasswordReset: boolPtr(true),
 			Admin:              boolPtr(false),
-			InviteToken:        &invites["admin2@example.com"].Token,
-			wantErr:            &invalidArgumentError{invalidArgument{name: "username", reason: "'@' character not allowed in usernames"}},
+			InviteToken:        &invites["admin3@example.com"].Token,
 		},
 	}
 
@@ -411,13 +410,11 @@ func TestCreateUserWithInvite(t *testing.T) {
 			}
 			user, err := svc.CreateUserWithInvite(ctx, payload)
 			if tt.wantErr != nil {
-				require.Equal(t, tt.wantErr.Error(), err.Error())
-			}
-			if err != nil {
-				// skip rest of the test if error is not nil
+				require.Error(t, err)
+				assert.Equal(t, tt.wantErr.Error(), err.Error())
 				return
 			}
-
+			require.NoError(t, err)
 			assert.NotZero(t, user.ID)
 
 			err = user.ValidatePassword(*tt.Password)
