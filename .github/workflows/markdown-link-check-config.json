@@ -1,7 +1,8 @@
 {
     "ignorePatterns": [
         {
-            "pattern": "localhost"
+            "localhost": "localhost",
+            "osquery-downloads": "osquery.io/downloads"
         }
     ],
     "retryOn429": true,
