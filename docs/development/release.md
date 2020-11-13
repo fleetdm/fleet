@@ -27,7 +27,7 @@ Make note of the SHA256 checksum output at the end of this build command to past
 
 ### Upgrading
 
-Please visit our [update guide](https://github.com/fleetdm/fleet/blob/master/docs/infrastructure/updating-fleet.md** for upgrade instructions.
+Please visit our [update guide](https://github.com/fleetdm/fleet/blob/master/docs/infrastructure/updating-fleet.md) for upgrade instructions.
 
 ### Documentation
 
