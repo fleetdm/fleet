@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
-	"strings"
 
 	"github.com/WatchBeam/clock"
 	"github.com/kolide/fleet/server/kolide"
@@ -156,12 +156,49 @@ func testListHosts(t *testing.T, ds kolide.Datastore) {
 	require.Equal(t, hosts[0].ID, hosts2[0].ID)
 }
 
+func testListHostsFilterAdditional(t *testing.T, ds kolide.Datastore) {
+	h, err := ds.NewHost(&kolide.Host{
+		DetailUpdateTime: time.Now(),
+		LabelUpdateTime:  time.Now(),
+		SeenTime:         time.Now(),
+		OsqueryHostID:    "foobar",
+		NodeKey:          "nodekey",
+		UUID:             "uuid",
+		HostName:         "foobar.local",
+	})
+	require.Nil(t, err)
+
+	// Add additional
+	additional := json.RawMessage(`{"field1": "v1", "field2": "v2"}`)
+	h.Additional = &additional
+	err = ds.SaveHost(h)
+	require.Nil(t, err)
+
+	additional = json.RawMessage(`{"field1": "v1", "field2": "v2"}`)
+	hosts, err := ds.ListHosts(kolide.HostListOptions{})
+	require.Nil(t, err)
+	assert.Equal(t, additional, *hosts[0].Additional)
+
+	hosts, err = ds.ListHosts(kolide.HostListOptions{AdditionalFilters: []string{"field1", "field2"}})
+	require.Nil(t, err)
+	assert.Equal(t, additional, *hosts[0].Additional)
+
+	hosts, err = ds.ListHosts(kolide.HostListOptions{})
+	require.Nil(t, err)
+	assert.Equal(t, additional, *hosts[0].Additional)
+
+	additional = json.RawMessage(`{"field1": "v1", "missing": null}`)
+	hosts, err = ds.ListHosts(kolide.HostListOptions{AdditionalFilters: []string{"field1", "missing"}})
+	require.Nil(t, err)
+	assert.Equal(t, additional, *hosts[0].Additional)
+}
+
 func testListHostsStatus(t *testing.T, ds kolide.Datastore) {
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewHost(&kolide.Host{
 			DetailUpdateTime: time.Now(),
 			LabelUpdateTime:  time.Now(),
-			SeenTime:         time.Now().Add(-time.Duration(i) *time.Minute),
+			SeenTime:         time.Now().Add(-time.Duration(i) * time.Minute),
 			OsqueryHostID:    strconv.Itoa(i),
 			NodeKey:          fmt.Sprintf("%d", i),
 			UUID:             fmt.Sprintf("%d", i),
@@ -189,7 +226,6 @@ func testListHostsStatus(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, err)
 	assert.Equal(t, 10, len(hosts))
 }
-
 
 func testEnrollHost(t *testing.T, ds kolide.Datastore) {
 	test.AddAllHostsLabel(t, ds)
