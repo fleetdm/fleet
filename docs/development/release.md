@@ -1,7 +1,7 @@
 Releasing Fleet
 ===============
 
-1. Update the [CHANGELOG](/CHANGELOG.md) with the changes that have been made since the last Fleet release.
+1. Update the [CHANGELOG](/../../CHANGELOG.md) with the changes that have been made since the last Fleet release.
 
 2. Tag and push the new release in Git:
 
