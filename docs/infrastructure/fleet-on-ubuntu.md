@@ -171,4 +171,4 @@ sudo /usr/bin/osqueryd \
   --logger_tls_period=10
 ```
 
-If you go back to [https://localhost:8080/hosts/manage](https://localhost:8080/hosts/manage), you should have a host successfully enrolled in Fleet! For information on how to further use the Fleet application, see the [Application Documentation](../application/README.md).
+If you go back to [https://localhost:8080/hosts/manage](https://localhost:8080/hosts/manage), you should have a host successfully enrolled in Fleet!
