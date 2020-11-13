@@ -189,12 +189,15 @@ func (d *Datastore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error
         enroll_secret_name,
 		`
 
-	// Filter additional info by extracting into a new json object
+	var params []interface{}
+
+	// Filter additional info by extracting into a new json object.
 	if len(opt.AdditionalFilters) > 0 {
 		sql += `JSON_OBJECT(
 			`
 		for _, field := range opt.AdditionalFilters {
-			sql += fmt.Sprintf(`'%s', JSON_EXTRACT(additional, '$."%s"'), `, field, field)
+			sql += fmt.Sprintf(`?, JSON_EXTRACT(additional, ?), `)
+			params = append(params, field, fmt.Sprintf(`$."%s"`, field))
 		}
 		sql = sql[:len(sql)-2]
 		sql += `
@@ -208,7 +211,6 @@ func (d *Datastore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error
 
 	sql += `FROM hosts
     `
-	var params []interface{}
 	switch opt.StatusFilter {
 	case "new":
 		sql += "WHERE DATE_ADD(created_at, INTERVAL 1 DAY) >= ?"
