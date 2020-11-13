@@ -5,12 +5,12 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/fleetdm/fleet/server/config"
+	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/go-kit/kit/endpoint"
 	kitlog "github.com/go-kit/kit/log"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
-	"github.com/fleetdm/fleet/server/config"
-	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -102,7 +102,7 @@ type KolideEndpoints struct {
 	StatusResultStore                     endpoint.Endpoint
 	StatusLiveQuery                       endpoint.Endpoint
 	ListCarves                            endpoint.Endpoint
-	GetCarve                            endpoint.Endpoint
+	GetCarve                              endpoint.Endpoint
 	GetCarveBlock                         endpoint.Endpoint
 }
 
@@ -196,7 +196,7 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string) Kol
 		GetCertificate:                        authenticatedUser(jwtKey, svc, makeCertificateEndpoint(svc)),
 		ChangeEmail:                           authenticatedUser(jwtKey, svc, makeChangeEmailEndpoint(svc)),
 		ListCarves:                            authenticatedUser(jwtKey, svc, makeListCarvesEndpoint(svc)),
-		GetCarve:                            authenticatedUser(jwtKey, svc, makeGetCarveEndpoint(svc)),
+		GetCarve:                              authenticatedUser(jwtKey, svc, makeGetCarveEndpoint(svc)),
 		GetCarveBlock:                         authenticatedUser(jwtKey, svc, makeGetCarveBlockEndpoint(svc)),
 
 		// Authenticated status endpoints
@@ -304,7 +304,7 @@ type kolideHandlers struct {
 	StatusResultStore                     http.Handler
 	StatusLiveQuery                       http.Handler
 	ListCarves                            http.Handler
-	GetCarve                            http.Handler
+	GetCarve                              http.Handler
 	GetCarveBlock                         http.Handler
 }
 
@@ -399,8 +399,8 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		StatusResultStore:                     newServer(e.StatusResultStore, decodeNoParamsRequest),
 		StatusLiveQuery:                       newServer(e.StatusLiveQuery, decodeNoParamsRequest),
 		ListCarves:                            newServer(e.ListCarves, decodeListCarvesRequest),
-		GetCarve:                            newServer(e.GetCarve, decodeGetCarveRequest),
-		GetCarveBlock:                            newServer(e.GetCarveBlock, decodeGetCarveBlockRequest),
+		GetCarve:                              newServer(e.GetCarve, decodeGetCarveRequest),
+		GetCarveBlock:                         newServer(e.GetCarveBlock, decodeGetCarveBlockRequest),
 	}
 }
 
@@ -423,11 +423,12 @@ func MakeHandler(svc kolide.Service, config config.KolideConfig, logger kitlog.L
 
 	r := mux.NewRouter()
 	attachKolideAPIRoutes(r, kolideHandlers)
-	addMetrics(r)
-
+	// Results endpoint is handled different due to websockets use
 	r.PathPrefix("/api/v1/kolide/results/").
 		Handler(makeStreamDistributedQueryCampaignResultsHandler(svc, config.Auth.JwtKey, logger)).
 		Name("distributed_query_results")
+
+	addMetrics(r)
 
 	return r
 }
@@ -439,7 +440,6 @@ func addMetrics(r *mux.Router) {
 		return nil
 	}
 	r.Walk(walkFn)
-
 }
 
 func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {

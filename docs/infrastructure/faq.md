@@ -62,9 +62,7 @@ This could be caused by a mismatched connection limit between the Fleet server a
 
 ## How do I monitor a Fleet server?
 
-Fleet provides a `/healthz` endpoint. If you query it with `curl` it will return an HTTP Status code. `200 OK` means everything is alright. `500 Internal Server Error` means Fleet is having trouble communicating with MySQL or Redis. Check the Fleet logs for additional details.
-
-The `/metrics` endpoint exposes data ready to be ingested by Prometheus.
+Fleet provides standard interfaces for monitoring and alerting. See the [Monitoring & Alerting](./monitoring-alerting.md) documentation for details.
 
 ## Why is the "Add User" button disabled?
 
