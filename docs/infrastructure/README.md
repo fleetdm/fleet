@@ -11,13 +11,15 @@ Kolide Fleet is an infrastructure instrumentation application which has it's own
 
 ## Installing Fleet and its dependencies
 
-The Fleet server has a few dependencies. To learn more about installing the Fleet server and it's dependencies, see the [Installing Fleet](./installing-fleet.md) guide.
+The Fleet server has a few infrastructure dependencies. To learn more about installing the Fleet server and it's dependencies, see the [Installing Fleet](./installing-fleet.md) guide.
 
 ## Managing a Fleet server
 
 We're prepared a brief guide to help you manage and maintain your Fleet server. Check out the guide for setting up and running [Fleet on Ubuntu](./fleet-on-ubuntu.md) and [Fleet on CentOS](./fleet-on-centos.md).
 
 For more information, you can also read the [Configuring The Fleet Binary](./configuring-the-fleet-binary.md) guide for information on how to configure and customize Fleet for your organization.
+
+Once the Fleet server is installed and configured, take a look at the [Monitoring & Alerting](./monitoring-alerting.md) documentation.
 
 ## Working with osquery logs
 

@@ -45,5 +45,12 @@ services:
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
 
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./tools/app/prometheus.yml:/etc/prometheus/prometheus.yml
+
 volumes:
   mysql-persistent-volume:
