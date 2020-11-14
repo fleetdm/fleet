@@ -13,20 +13,23 @@ const supportedPlatforms = [
     TYPE: 'Windows_NT',
     ARCHITECTURE: 'x64',
     TARGET: 'fleetctl-windows.tar.gz',
+    BINARY_NAME: 'fleetctl.exe',
   },
   {
     TYPE: 'Linux',
     ARCHITECTURE: 'x64',
     TARGET: 'fleetctl-linux.tar.gz',
+    BINARY_NAME: 'fleetctl',
   },
   {
     TYPE: 'Darwin',
     ARCHITECTURE: 'x64',
     TARGET: 'fleetctl-macos.tar.gz',
+    BINARY_NAME: 'fleetctl',
   },
 ];
 
-const getPlatform = () => {
+const getPlatformMetadata = () => {
   const type = os.type();
   const architecture = os.arch();
 
@@ -36,7 +39,7 @@ const getPlatform = () => {
       type === supportedPlatform.TYPE &&
         architecture === supportedPlatform.ARCHITECTURE
     ) {
-      return supportedPlatform.TARGET;
+      return supportedPlatform;
     }
   }
 
@@ -49,10 +52,10 @@ const getPlatform = () => {
 };
 
 const getBinary = () => {
-  const target = getPlatform();
+  const metadata = getPlatformMetadata();
   // the url for this binary is constructed from values in `package.json`
-  const url = `${downloadUrl}/${version}/${target}`;
-  return new Binary('fleetctl', url);
+  const url = `${downloadUrl}/${version}/${metadata.TARGET}`;
+  return new Binary(metadata.BINARY_NAME, url);
 };
 
 const run = () => {
