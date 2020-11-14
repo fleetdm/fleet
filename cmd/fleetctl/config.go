@@ -8,7 +8,6 @@ import (
 	"strconv"
 
 	"github.com/ghodss/yaml"
-	"github.com/kolide/kit/env"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 )
@@ -31,9 +30,14 @@ type Context struct {
 }
 
 func configFlag() cli.Flag {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		homeDir = "~"
+	}
+	defaultConfigPath := filepath.Join(homeDir, ".fleet", "config")
 	return cli.StringFlag{
 		Name:   "config",
-		Value:  fmt.Sprintf("%s/.fleet/config", env.String("HOME", "~/")),
+		Value:  defaultConfigPath,
 		EnvVar: "CONFIG",
 		Usage:  "Path to the Fleet config file",
 	}
