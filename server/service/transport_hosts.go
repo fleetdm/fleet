@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/pkg/errors"
@@ -47,6 +48,11 @@ func decodeListHostsRequest(ctx context.Context, r *http.Request) (interface{}, 
 	}
 	if err != nil {
 		return nil, err
+	}
+
+	additionalInfoFiltersString := r.URL.Query().Get("additional_info_filters")
+	if additionalInfoFiltersString != "" {
+		hopt.AdditionalFilters = strings.Split(additionalInfoFiltersString, ",")
 	}
 	return listHostsRequest{ListOptions: hopt}, nil
 }
