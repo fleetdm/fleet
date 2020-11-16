@@ -63,3 +63,4 @@ make build
 
 It's not necessary to use Make to build the code, but using Make allows us to account for cross-platform differences more effectively than the `go build` tool when writing automated tooling. Use whichever you prefer.
 
+Once you're successful in building the code, head to the [development infrastrucutre](../development/development-infrastructure.md) to use the local development Docker Compose infrastructure to run Fleet locally.
