@@ -237,13 +237,13 @@ Default response
 ```
 *******
 
-### Reset password
+<!-- ### Reset password
 
 `POST /api/v1/kolide/reset_password`
 
 #### Parameters
 
-<!— TODO —>
+TODO
 
 #### Example
 
@@ -251,14 +251,14 @@ Default response
 
 ##### Request body
 
-<!— TODO —>
+TODO
 
 ##### Default response
 
 `Status: 200`
 
-<!— TODO —>
-*******
+TODO
+******* -->
 
 ### Change password
 
@@ -478,7 +478,7 @@ Default response
 ```
 *******
 
-### Callback SSO
+<!-- ### Callback SSO
 
 `POST /api/v1/kolide/sso/callback`
 
@@ -488,10 +488,10 @@ Default response
 
 ##### Request body
 
-<!— TODO —>
+TODO
 
 ##### Default response
 
 `Status: 200`
 
-<!— TODO —>
+TODO -->
