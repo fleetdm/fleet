@@ -8,6 +8,10 @@ import (
 	"github.com/urfave/cli"
 )
 
+const (
+	defaultFileMode = 0600
+)
+
 func init() {
 	rand.Seed(time.Now().UnixNano())
 }
@@ -31,7 +35,7 @@ func main() {
 		getCommand(),
 		cli.Command{
 			Name:  "config",
-			Usage: "Modify how and which Fleet server to connect to",
+			Usage: "Modify Fleet server connection settings",
 			Subcommands: []cli.Command{
 				configSetCommand(),
 				configGetCommand(),
@@ -40,6 +44,7 @@ func main() {
 		convertCommand(),
 		goqueryCommand(),
 		userCommand(),
+		debugCommand(),
 	}
 
 	app.RunAndExitOnError()
