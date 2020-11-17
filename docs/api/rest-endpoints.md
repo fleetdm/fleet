@@ -6,7 +6,7 @@
 
 `GET /api/v1/kolide/hosts`
 
-Parameters
+#### Parameters
 
 | Name                    | Type    | In    | Description                                                                              |
 |-------------------------|---------|-------|------------------------------------------------------------------------------------------|
@@ -16,9 +16,23 @@ Parameters
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.|
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](https://github.com/fleetdm/fleet/blob/master/docs/cli/file-format.md#fleet-configuration-options) for an example configuration with hosts' additional information.|
 
-Example
+#### Example
 
 `GET /api/v1/kolide/hosts?page=0&per_page=100&order_key=host_name`
+
+Request query parameters
+
+```
+{
+  "page": 0,
+  "per_page": 100,
+  "order_key": "host_name",
+}
+```
+
+Default response
+
+`Status: 200`
 
 ```
 {
@@ -100,3 +114,374 @@ Example
   ]
 }
 ```
+
+## Entrance
+
+### Log in
+
+`POST /api/v1/kolide/login`
+
+#### Parameters
+
+| Name                    | Type    | In    | Description                                       |
+|-------------------------|---------|-------|---------------------------------------------------|
+| username                | string  | body  | **Required**. The email of the user.              |
+| password                | string  | body  | **Required**. The plain text password of the user.|
+
+#### Example
+
+`POST /api/v1/kolide/login`
+
+##### Request body
+
+```
+{
+  username: "janedoe@example.com"
+  passsword: "VArCjNW7CfsxGp67"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "user": {
+    "created_at": "2020-11-13T22:57:12Z",
+    "updated_at": "2020-11-13T22:57:12Z",
+    "id": 1,
+    "username": "jane",
+    "name": "",
+    "email": "janedoe@example.com",
+    "admin": true,
+    "enabled": true,
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "sso_enabled": false
+  },
+  "token": "{your token}"
+}
+
+```
+
+### Log out
+
+`POST /api/v1/kolide/logout`
+
+#### Parameters
+
+| Name                    | Type    | In     | Description                                                               |
+|-------------------------|---------|--------|---------------------------------------------------------------------------|
+| authorization           | string  | header | **Required**. The token received from the `kolide/login` response object. |
+
+#### Example
+
+`POST /api/v1/kolide/logout`
+
+##### Request header
+
+```
+{
+  "authentication": "Bearer {your token}"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### Forgot password
+
+`POST /api/v1/kolide/forgot_password`
+
+#### Parameters
+
+| Name                    | Type    | In     | Description                                                               |
+|-------------------------|---------|--------|---------------------------------------------------------------------------|
+| email                   | string  | body   | **Required**. The email of the user requesting the reset password link.   |
+
+#### Example
+
+`POST /api/v1/kolide/logout`
+
+##### Request body
+
+```
+{
+  "email": "janedoe@example.com"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+##### Unknown error
+
+`Status: 500`
+
+```
+{
+  "message": "Unknown Error",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "email not configured",
+    }
+  ]
+}
+```
+
+### Reset password
+
+`POST /api/v1/kolide/reset_password`
+
+#### Parameters
+
+<!— TODO —>
+
+#### Example
+
+`POST /api/v1/kolide/reset_password`
+
+##### Request body
+
+<!— TODO —>
+
+##### Default response
+
+`Status: 200`
+
+<!— TODO —>
+
+### Change password
+
+`POST /api/v1/kolide/change_password`
+
+#### Parameters
+
+| Name                    | Type    | In       | Description                                                                 |
+|-------------------------|---------|----------|-----------------------------------------------------------------------------|
+| authorization           | string  | header   | **Required**. The token received from the `kolide/login` response object.   |
+| old_password            | string  | body     | **Required**. The user's old password.                                      |
+| new_password            | string  | body     | **Required**. The user's new password.                                      |
+
+#### Example
+
+`POST /api/v1/kolide/change_password`
+
+##### Request header
+
+```
+{
+  "authentication": "Bearer {your token}"
+}
+```
+
+##### Request body
+
+```
+{
+  "old_password": "VArCjNW7CfsxGp67",
+  "new_password": "zGq7mCLA6z4PzArC",
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+##### Validation failed
+
+`Status: 422 Unprocessable entity`
+
+```
+{
+  "message": "Validation Failed",
+  "errors": [
+    {
+      "name": "old_password",
+      "reason": "old password does not match"
+    }
+  ]
+}
+```
+
+### Me
+
+`POST /api/v1/kolide/me`
+
+#### Parameters
+
+| Name                    | Type    | In       | Description                                                                 |
+|-------------------------|---------|----------|-----------------------------------------------------------------------------|
+| authorization           | string  | header   | **Required**. The token received from the `kolide/login` response object.   |
+
+#### Example
+
+`POST /api/v1/kolide/me`
+
+##### Request header
+
+```
+{
+  "authentication": "Bearer {your token}"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "user": {
+    "created_at": "2020-11-13T22:57:12Z",
+    "updated_at": "2020-11-16T23:49:41Z",
+    "id": 1,
+    "username": "jane",
+    "name": "",
+    "email": "janedoe@example.com",
+    "admin": true,
+    "enabled": true,
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "sso_enabled": false
+  }
+}
+```
+
+### Perform required password reset
+
+`POST /api/v1/kolide/perform_require_password_reset`
+
+#### Parameters
+
+| Name                    | Type    | In       | Description                                                                 |
+|-------------------------|---------|----------|-----------------------------------------------------------------------------|
+| authorization           | string  | header   | **Required**. The token received from the `kolide/login` response object.   |
+
+#### Example
+
+`POST /api/v1/kolide/perform_required_password_reset`
+
+##### Request header
+
+```
+{
+  "authentication": "Bearer {your token}"
+}
+```
+
+##### Request body
+
+```
+{
+  "new_password": "sdPz8CV5YhzH47nK"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "user": {
+    "created_at": "2020-11-13T22:57:12Z",
+    "updated_at": "2020-11-17T00:09:23Z",
+    "id": 1,
+    "username": "jane",
+    "name": "",
+    "email": "janedoe@example.com",
+    "admin": true,
+    "enabled": true,
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "sso_enabled": false
+  }
+}
+```
+
+### SSO config
+
+`GET /api/v1/kolide/sso`
+
+#### Parameters
+
+| Name                    | Type    | In       | Description                                                                 |
+|-------------------------|---------|----------|-----------------------------------------------------------------------------|
+| relay_url               | string  | body     | **Required**. The relative url to be navigated to after succesful sign in.  |
+
+#### Example
+
+`GET /api/v1/kolide/sso`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "settings": {
+    "idp_name": "",
+    "idp_image_url": "",
+    "sso_enabled": false
+  }
+}
+```
+
+### Initiate SSO
+
+`POST /api/v1/kolide/sso`
+
+#### Example
+
+`POST /api/v1/kolide/sso`
+
+##### Request body
+
+```
+{
+  "relay_url": "/hosts/manage"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+##### Unknown error
+
+`Status: 500`
+
+```
+{
+  "message": "Unknown Error",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "InitiateSSO getting metadata: Get \"https://idp.example.org/idp-meta.xml\": dial tcp: lookup idp.example.org on [2001:558:feed::1]:53: no such host"
+    }
+  ]
+}
+```
+
+### Callback SSO
+
+`POST /api/v1/kolide/sso/callback`
+
+#### Example
+
+`POST /api/v1/kolide/sso/callback`
+
+##### Request body
+
+<!— TODO —>
+
+##### Default response
+
+`Status: 200`
+
+<!— TODO —>
