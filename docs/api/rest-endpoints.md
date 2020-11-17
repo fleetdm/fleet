@@ -114,6 +114,7 @@ Default response
   ]
 }
 ```
+*******
 
 ## Entrance
 
@@ -125,8 +126,8 @@ Default response
 
 | Name                    | Type    | In    | Description                                       |
 |-------------------------|---------|-------|---------------------------------------------------|
-| username                | string  | body  | **Required**. The email of the user.              |
-| password                | string  | body  | **Required**. The plain text password of the user.|
+| username                | string  | body  | **Required**. The user's email.              |
+| password                | string  | body  | **Required**. The user's plain text password.|
 
 #### Example
 
@@ -164,6 +165,7 @@ Default response
 }
 
 ```
+*******
 
 ### Log out
 
@@ -190,6 +192,7 @@ Default response
 ##### Default response
 
 `Status: 200`
+*******
 
 ### Forgot password
 
@@ -232,6 +235,7 @@ Default response
   ]
 }
 ```
+*******
 
 ### Reset password
 
@@ -254,6 +258,7 @@ Default response
 `Status: 200`
 
 <!— TODO —>
+*******
 
 ### Change password
 
@@ -307,6 +312,7 @@ Default response
   ]
 }
 ```
+*******
 
 ### Me
 
@@ -351,6 +357,7 @@ Default response
   }
 }
 ```
+*******
 
 ### Perform required password reset
 
@@ -403,6 +410,7 @@ Default response
   }
 }
 ```
+*******
 
 ### SSO config
 
@@ -431,6 +439,7 @@ Default response
   }
 }
 ```
+*******
 
 ### Initiate SSO
 
@@ -467,6 +476,7 @@ Default response
   ]
 }
 ```
+*******
 
 ### Callback SSO
 
