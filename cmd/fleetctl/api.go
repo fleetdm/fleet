@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"runtime"
 
 	"github.com/fleetdm/fleet/server/service"
 	"github.com/pkg/errors"
@@ -25,6 +26,10 @@ func unauthenticatedClientFromCLI(c *cli.Context) (*service.Client, error) {
 
 	if cc.Address == "" {
 		return nil, errors.New("set the Fleet API address with: fleetctl config set --address https://localhost:8080")
+	}
+
+	if runtime.GOOS == "windows" && cc.RootCA == "" && !cc.TLSSkipVerify {
+		return nil, errors.New("Windows clients must configure rootca (secure) or tls-skip-verify (insecure)")
 	}
 
 	fleet, err := service.NewClient(cc.Address, cc.TLSSkipVerify, cc.RootCA, cc.URLPrefix)

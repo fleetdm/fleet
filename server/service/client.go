@@ -38,24 +38,23 @@ func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string) (
 		return nil, errors.Wrap(err, "parsing URL")
 	}
 
-	rootCAPool, err := x509.SystemCertPool()
-	if err != nil {
-		return nil, errors.Wrap(err, "loading system cert pool")
-	}
-
+	rootCAPool := x509.NewCertPool()
 	if rootCA != "" {
-		// set up empty cert pool
-		rootCAPool = x509.NewCertPool()
-
 		// read in the root cert file specified in the context
 		certs, err := ioutil.ReadFile(rootCA)
 		if err != nil {
 			return nil, errors.Wrap(err, "reading root CA")
 		}
 
-		// add certs to new cert pool
+		// add certs to pool
 		if ok := rootCAPool.AppendCertsFromPEM(certs); !ok {
 			return nil, errors.Wrap(err, "adding root CA")
+		}
+	} else if !insecureSkipVerify {
+		// Use only the system certs (doesn't work on Windows)
+		rootCAPool, err = x509.SystemCertPool()
+		if err != nil {
+			return nil, errors.Wrap(err, "loading system cert pool")
 		}
 	}
 
