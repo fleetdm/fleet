@@ -90,6 +90,10 @@ One way to hack around this is to use a simulated mailserver like [Mailhog](http
 
 No. Currently, Fleet is only available as open-source software.
 
+## Has anyone stress tested Fleet?
+
+TODO
+
 ## How do I get support for working with Fleet?
 
 For bug reports, please use the [Github issue tracker](https://github.com/fleetdm/fleet/issues).
