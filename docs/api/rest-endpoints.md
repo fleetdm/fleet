@@ -1,32 +1,54 @@
 # Fleet REST API endpoints
 
-## Hosts
+## Authentication
 
-### List hosts
+Making authenticated requests to the Fleet server requires that you are granted permission to access data. The Fleet Authentication API enables you to receive an authorization token. The typical steps to making an authenticated API request is outlined below.
 
-`GET /api/v1/kolide/hosts`
+First, utilize the `/login` endpoint to receive an authentication token.
 
-#### Parameters
+`POST /api/v1/kolide/login`
 
-| Name                    | Type    | In    | Description                                                                              |
-|-------------------------|---------|-------|------------------------------------------------------------------------------------------|
-| page                    | integer | query | Page number of the results to fetch.                                                     |
-| per_page                | integer | query | Results per page.                                                                        |
-| order_key               | string  | query | What to order results by. Can be any column in the hosts table.                          |
-| status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.|
-| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](https://github.com/fleetdm/fleet/blob/master/docs/cli/file-format.md#fleet-configuration-options) for an example configuration with hosts' additional information.|
-
-#### Example
-
-`GET /api/v1/kolide/hosts?page=0&per_page=100&order_key=host_name`
-
-Request query parameters
+Request body
 
 ```
 {
-  "page": 0,
-  "per_page": 100,
-  "order_key": "host_name",
+  username: "janedoe@example.com"
+  passsword: "VArCjNW7CfsxGp67"
+}
+```
+
+Default response
+
+`Status: 200`
+
+```
+{
+  "user": {
+    "created_at": "2020-11-13T22:57:12Z",
+    "updated_at": "2020-11-13T22:57:12Z",
+    "id": 1,
+    "username": "jane",
+    "name": "",
+    "email": "janedoe@example.com",
+    "admin": true,
+    "enabled": true,
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "sso_enabled": false
+  },
+  "token": "{your token}"
+}
+```
+
+Then, use the token returned from the `/login` endpoint to authenticate further API requests. The example below utilizes the `/hosts` endpoint.
+
+`GET /api/v1/kolide/hosts`
+
+Request header
+
+```
+{
+  "authentication": "Bearer {your token}"
 }
 ```
 
@@ -114,11 +136,10 @@ Default response
   ]
 }
 ```
-*******
-
-## Entrance
 
 ### Log in
+
+Authenticates the user with the specified credentials. Use the token returned from this endpoint to authenticate further API requests.
 
 `POST /api/v1/kolide/login`
 
@@ -163,19 +184,15 @@ Default response
   },
   "token": "{your token}"
 }
-
 ```
 *******
 
+
 ### Log out
 
+Logs out the authenticated user.
+
 `POST /api/v1/kolide/logout`
-
-#### Parameters
-
-| Name                    | Type    | In     | Description                                                               |
-|-------------------------|---------|--------|---------------------------------------------------------------------------|
-| authorization           | string  | header | **Required**. The token received from the `kolide/login` response object. |
 
 #### Example
 
@@ -194,7 +211,10 @@ Default response
 `Status: 200`
 *******
 
+
 ### Forgot password
+
+Sends a password reset email to the specified email. Requires that SMTP is configured for your Fleet server.
 
 `POST /api/v1/kolide/forgot_password`
 
@@ -206,7 +226,7 @@ Default response
 
 #### Example
 
-`POST /api/v1/kolide/logout`
+`POST /api/v1/kolide/forgot_password`
 
 ##### Request body
 
@@ -237,38 +257,17 @@ Default response
 ```
 *******
 
-<!-- ### Reset password
-
-`POST /api/v1/kolide/reset_password`
-
-#### Parameters
-
-TODO
-
-#### Example
-
-`POST /api/v1/kolide/reset_password`
-
-##### Request body
-
-TODO
-
-##### Default response
-
-`Status: 200`
-
-TODO
-******* -->
 
 ### Change password
 
 `POST /api/v1/kolide/change_password`
 
+Changes the password for the authenticated user.
+
 #### Parameters
 
 | Name                    | Type    | In       | Description                                                                 |
 |-------------------------|---------|----------|-----------------------------------------------------------------------------|
-| authorization           | string  | header   | **Required**. The token received from the `kolide/login` response object.   |
 | old_password            | string  | body     | **Required**. The user's old password.                                      |
 | new_password            | string  | body     | **Required**. The user's new password.                                      |
 
@@ -314,15 +313,12 @@ TODO
 ```
 *******
 
+
 ### Me
 
+Retrieves the user data for the authenticated user.
+
 `POST /api/v1/kolide/me`
-
-#### Parameters
-
-| Name                    | Type    | In       | Description                                                                 |
-|-------------------------|---------|----------|-----------------------------------------------------------------------------|
-| authorization           | string  | header   | **Required**. The token received from the `kolide/login` response object.   |
 
 #### Example
 
@@ -359,15 +355,12 @@ TODO
 ```
 *******
 
+
 ### Perform required password reset
 
+Resets the password of the authenticated user. Requires that `force_password_reset` is set to `true` prior to the request.
+
 `POST /api/v1/kolide/perform_require_password_reset`
-
-#### Parameters
-
-| Name                    | Type    | In       | Description                                                                 |
-|-------------------------|---------|----------|-----------------------------------------------------------------------------|
-| authorization           | string  | header   | **Required**. The token received from the `kolide/login` response object.   |
 
 #### Example
 
@@ -412,15 +405,12 @@ TODO
 ```
 *******
 
+
 ### SSO config
 
+Gets the current SSO configuration.
+
 `GET /api/v1/kolide/sso`
-
-#### Parameters
-
-| Name                    | Type    | In       | Description                                                                 |
-|-------------------------|---------|----------|-----------------------------------------------------------------------------|
-| relay_url               | string  | body     | **Required**. The relative url to be navigated to after succesful sign in.  |
 
 #### Example
 
@@ -433,7 +423,7 @@ TODO
 ```
 {
   "settings": {
-    "idp_name": "",
+    "idp_name": "IDP Vendor 1",
     "idp_image_url": "",
     "sso_enabled": false
   }
@@ -441,9 +431,16 @@ TODO
 ```
 *******
 
+
 ### Initiate SSO
 
 `POST /api/v1/kolide/sso`
+
+#### Parameters
+
+| Name                    | Type    | In       | Description                                                                 |
+|-------------------------|---------|----------|-----------------------------------------------------------------------------|
+| relay_url               | string  | body     | **Required**. The relative url to be navigated to after succesful sign in.  |
 
 #### Example
 
@@ -478,20 +475,119 @@ TODO
 ```
 *******
 
-<!-- ### Callback SSO
 
-`POST /api/v1/kolide/sso/callback`
+## Hosts
+
+### List hosts
+
+`GET /api/v1/kolide/hosts`
+
+#### Parameters
+
+| Name                    | Type    | In    | Description                                                                              |
+|-------------------------|---------|-------|------------------------------------------------------------------------------------------|
+| page                    | integer | query | Page number of the results to fetch.                                                     |
+| per_page                | integer | query | Results per page.                                                                        |
+| order_key               | string  | query | What to order results by. Can be any column in the hosts table.                          |
+| status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.|
+| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](https://github.com/fleetdm/fleet/blob/master/docs/cli/file-format.md#fleet-configuration-options) for an example configuration with hosts' additional information.|
 
 #### Example
 
-`POST /api/v1/kolide/sso/callback`
+`GET /api/v1/kolide/hosts?page=0&per_page=100&order_key=host_name`
 
-##### Request body
+##### Request query parameters
 
-TODO
+```
+{
+  "page": 0,
+  "per_page": 100,
+  "order_key": "host_name",
+}
+```
 
 ##### Default response
 
 `Status: 200`
 
-TODO -->
+```
+{
+  "hosts": [
+    {
+      "created_at": "2020-11-05T05:09:44Z",
+      "updated_at": "2020-11-05T06:03:39Z",
+      "id": 1,
+      "detail_updated_at": "2020-11-05T05:09:45Z",
+      "label_updated_at": "2020-11-05T05:14:51Z",
+      "seen_time": "2020-11-05T06:03:39Z",
+      "hostname": "2ceca32fe484",
+      "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
+      "platform": "centos",
+      "osquery_version": "2.7.0",
+      "os_version": "CentOS Linux 7",
+      "build": "",
+      "platform_like": "rhel fedora",
+      "code_name": "",
+      "uptime": 8305000000000,
+      "memory": 2084032512,
+      "cpu_type": "6",
+      "cpu_subtype": "142",
+      "cpu_brand": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
+      "cpu_physical_cores": 4,
+      "cpu_logical_cores": 4,
+      "hardware_vendor": "",
+      "hardware_model": "",
+      "hardware_version": "",
+      "hardware_serial": "",
+      "computer_name": "2ceca32fe484",
+      "primary_ip": "",
+      "primary_mac": "",
+      "distributed_interval": 10,
+      "config_tls_refresh": 10,
+      "logger_tls_period": 8,
+      "additional": {},
+      "enroll_secret_name": "default",
+      "status": "offline",
+      "display_text": "2ceca32fe484"
+    },
+    {
+      "created_at": "2020-11-05T05:09:44Z",
+      "updated_at": "2020-11-05T06:03:39Z",
+      "id": 2,
+      "detail_updated_at": "2020-11-05T05:09:45Z",
+      "label_updated_at": "2020-11-05T05:14:52Z",
+      "seen_time": "2020-11-05T06:03:40Z",
+      "hostname": "4cc885c20110",
+      "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
+      "platform": "centos",
+      "osquery_version": "2.7.0",
+      "os_version": "CentOS 6.8.0",
+      "build": "",
+      "platform_like": "rhel",
+      "code_name": "",
+      "uptime": 8305000000000,
+      "memory": 2084032512,
+      "cpu_type": "6",
+      "cpu_subtype": "142",
+      "cpu_brand": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
+      "cpu_physical_cores": 4,
+      "cpu_logical_cores": 4,
+      "hardware_vendor": "",
+      "hardware_model": "",
+      "hardware_version": "",
+      "hardware_serial": "",
+      "computer_name": "4cc885c20110",
+      "primary_ip": "",
+      "primary_mac": "",
+      "distributed_interval": 10,
+      "config_tls_refresh": 10,
+      "logger_tls_period": 8,
+      "additional": {},
+      "enroll_secret_name": "default",
+      "status": "offline",
+      "display_text": "4cc885c20110"
+    },
+  ]
+}
+```
+*******
