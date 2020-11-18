@@ -2,10 +2,8 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/http/pprof"
-	"os"
 
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/contexts/token"
@@ -51,8 +49,6 @@ func MakeDebugHandler(svc kolide.Service, config config.KolideConfig, logger kit
 	r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	r.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	r.PathPrefix("/debug/pprof/").HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		token := token.FromHTTPRequest(req)
-		fmt.Fprintf(os.Stderr, "%v -- %+v\n", token, req)
 		pprof.Index(rw, req)
 	})
 
