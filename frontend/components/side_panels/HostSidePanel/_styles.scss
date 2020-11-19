@@ -1,7 +1,7 @@
 .host-side-panel {
   &__add-label-btn {
     color: $success;
-    font-weight: $normal;
+    font-weight: $regular;
     line-height: 2.25;
     letter-spacing: 0.5px;
     padding: 0 30px;
@@ -84,7 +84,7 @@
 
     span {
       font-size: 16px;
-      font-weight: $normal;
+      font-weight: $regular;
       line-height: normal;
       letter-spacing: -0.5px;
       color: $link;

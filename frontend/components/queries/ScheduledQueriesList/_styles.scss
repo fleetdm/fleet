@@ -83,7 +83,7 @@
 
         &:nth-child(3) {
           font-size: 14px;
-          font-weight: $normal;
+          font-weight: $regular;
           line-height: 2.71;
           letter-spacing: -0.5px;
           color: $text-ultradark;
@@ -93,7 +93,7 @@
         &:nth-child(5),
         &:nth-child(6) {
           font-size: 14px;
-          font-weight: $normal;
+          font-weight: $regular;
           line-height: 2.71;
           letter-spacing: -0.5px;
           text-align: center;
@@ -124,7 +124,7 @@
     h1 {
       color: $text-dark;
       font-size: 24px;
-      font-weight: $light;
+      font-weight: $regular;
       line-height: 1.96;
       letter-spacing: -0.5px;
       margin: 0;
@@ -135,13 +135,13 @@
       line-height: 2;
       letter-spacing: -0.4px;
       color: $text-dark;
-      font-weight: $light;
+      font-weight: $regular;
       margin: 0;
     }
 
     p {
       font-size: 16px;
-      font-weight: $normal;
+      font-weight: $regular;
       line-height: 2.5;
       color: $text-dark;
       margin: 0;
@@ -156,7 +156,7 @@
     li {
       margin-left: 15px;
       font-size: 16px;
-      font-weight: $normal;
+      font-weight: $regular;
       line-height: 2.5;
       color: $text-dark;
     }

@@ -4,7 +4,7 @@
 
   &__back {
     color: $text-dark;
-    font-size: $xsmall;
+    font-size: $xx-small;
     display: none;
 
     @include breakpoint(ltdesktop) {
@@ -80,7 +80,7 @@
 
   &__labels-list {
     font-size: $small;
-    font-weight: $normal;
+    font-weight: $regular;
     line-height: 1.85;
     letter-spacing: 0.5px;
     color: $text-medium;
@@ -133,7 +133,7 @@
     margin: $pad-xsmall 0;
     letter-spacing: 0.4px;
     font-size: $small;
-    font-weight: $normal;
+    font-weight: $regular;
   }
 
   &__hosts-count {
@@ -155,7 +155,7 @@
 
   &__description {
     font-size: $pad-medium;
-    font-weight: $normal;
+    font-weight: $regular;
     line-height: 1.71;
     color: $text-dark;
     margin: 0 0 $pad-small;

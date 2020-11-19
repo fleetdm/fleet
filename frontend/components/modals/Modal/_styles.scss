@@ -23,7 +23,7 @@
       @include size(30px);
       line-height: 30px;
       color: $text-medium;
-      font-size: $larger;
+      font-size: $x-large;
 
       &:hover {
         color: $alert-light;
@@ -33,7 +33,7 @@
 
   &__header {
     font-size: 24px;
-    font-weight: $normal;
+    font-weight: $regular;
     line-height: normal;
     letter-spacing: -0.5px;
     text-align: left;

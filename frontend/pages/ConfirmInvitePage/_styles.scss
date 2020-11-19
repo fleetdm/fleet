@@ -13,7 +13,7 @@
     p {
       color: $text-dark;
       font-size: 14px;
-      font-weight: $light;
+      font-weight: $regular;
     }
   }
 
@@ -54,7 +54,7 @@
   &__lead-text {
     color: $brand;
     font-size: 18px;
-    font-weight: $light;
+    font-weight: $regular;
     margin-top: 0;
     text-align: center;
   }
@@ -62,7 +62,7 @@
   &__sub-lead-text {
     color: $text-dark;
     font-size: 14px;
-    font-weight: $light;
+    font-weight: $regular;
     margin-bottom: 0;
   }
 }

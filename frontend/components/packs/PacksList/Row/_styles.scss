@@ -49,7 +49,7 @@
 
   &__status-text {
     color: $text-ultradark;
-    font-weight: $normal;
+    font-weight: $regular;
     margin-left: 10px;
 
     @include breakpoint(smalldesk) {
