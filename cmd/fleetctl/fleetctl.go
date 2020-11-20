@@ -45,6 +45,7 @@ func main() {
 		goqueryCommand(),
 		userCommand(),
 		debugCommand(),
+		previewCommand(),
 	}
 
 	app.RunAndExitOnError()

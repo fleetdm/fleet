@@ -1,3 +1,27 @@
+## Fleet 3.4.0 (Nov 18, 2020)
+
+* Add NPM installer for `fleetctl`. Install via `npm install -g osquery-fleetctl`.
+
+* Add `fleetctl preview` command to start a local test instance of the Fleet server with Docker.
+
+* Add `fleetctl debug` commands and API endpoints for debugging server performance.
+
+* Add additional_info_filters parameter to get hosts API endpoint for filtering returned additional_info.
+
+* Updated package import paths from github.com/kolide/fleet to github.com/fleetdm/fleet.
+
+* Add first of the Fleet REST API documentation.
+
+* Add documentation on monitoring with Prometheus.
+
+* Add documentation to FAQ for debugging database connection errors.
+
+* Fix fleetctl Windows compatibility issues.
+
+* Fix a bug preventing usernames from containing the @ symbol.
+
+* Fix a bug in 3.3.0 in which there was an unexpected database migration warning.
+
 ## Fleet 3.3.0 (Nov 05, 2020)
 
 With this release, Fleet has moved to the new github.com/fleetdm/fleet
