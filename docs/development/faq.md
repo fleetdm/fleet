@@ -27,7 +27,7 @@ First, in the Fleet UI, navigate to the App Settings page under Admin. Then, in 
 
 Visit [locahost:8025](http://localhost:8025) to view Mailhog's admin interface which will display all emails sent using the simulated mail server.
 
-## Adding fake hosts for testing
+## Adding hosts for testing
 
 The `osquery` directory contains a docker-compose.yml and additional configuration files to start containerized osquery agents. 
 
