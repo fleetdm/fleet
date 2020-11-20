@@ -11,8 +11,8 @@ body {
   color: $text-ultradark;
   padding: 0;
   margin: 0;
-  font-family: 'Oxygen', sans-serif;
-  font-size: $base;
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: $medium;
   line-height: 1.6;
   min-width: $medium-width;
   height: 100%;
@@ -36,7 +36,7 @@ h3 {
 
 h1 {
   font-size: 24px;
-  font-weight: $light;
+  font-weight: $regular;
   letter-spacing: -0.5px;
   color: $text-dark;
   margin: 0;
@@ -108,7 +108,7 @@ a {
 input,
 textarea,
 button {
-  font-family: 'Oxygen', sans-serif;
+  font-family: 'Nunito Sans', sans-serif;
 
   &:-webkit-autofill {
     -webkit-box-shadow: 0 0 0 1000px #fff inset;

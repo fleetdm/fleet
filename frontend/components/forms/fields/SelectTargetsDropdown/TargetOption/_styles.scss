@@ -18,7 +18,7 @@
   &__add-btn {
     line-height: 34px;
     font-size: $small;
-    font-weight: $normal;
+    font-weight: $regular;
     text-transform: none;
     padding: 0 $pad-half;
   }
@@ -26,7 +26,7 @@
   &__add-btn {
     transition: color 0ms;
     color: $success;
-    font-size: $base;
+    font-size: $medium;
   }
 
   &__target-content {
@@ -74,7 +74,7 @@
 
   &__label-host {
     color: $link;
-    font-size: $base;
+    font-size: $medium;
     margin-left: $pad-half;
   }
 
@@ -96,7 +96,7 @@
   }
 
   &__target-icon {
-    font-size: $base;
+    font-size: $medium;
     color: $text-medium;
     margin-right: $pad-xsmall;
   }

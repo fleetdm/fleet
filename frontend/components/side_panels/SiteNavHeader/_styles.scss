@@ -128,7 +128,7 @@
   height: 0;
   width: 239px;
   position: absolute;
-  left: $base;
+  left: $pad-base;
   padding: 0;
   z-index: 2;
   overflow: hidden;
@@ -166,7 +166,7 @@
   }
 
   &__position {
-    font-weight: $normal;
+    font-weight: $regular;
     color: rgba(255, 255, 255, 0.6);
 
     em {
@@ -186,7 +186,7 @@
 
   &__nav-item {
     font-size: 15px;
-    font-weight: $normal;
+    font-weight: $regular;
     letter-spacing: 0.5px;
     padding: 14px 0;
 

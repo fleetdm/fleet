@@ -25,7 +25,7 @@
 
   &__targets-count {
     font-size: $small;
-    margin-left: $xsmall;
+    margin-left: $pad-xsmall;
     color: $brand;
   }
 
@@ -195,7 +195,7 @@
 
     .Select-value-label {
       font-size: 16px;
-      font-weight: $normal;
+      font-weight: $regular;
       color: $text-dark;
       padding: 0 0 0 $pad-medium;
       line-height: 34px;

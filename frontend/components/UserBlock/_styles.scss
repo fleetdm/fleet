@@ -57,8 +57,8 @@
     padding: 0;
     text-transform: uppercase;
     letter-spacing: 1px;
-    font-weight: $light;
-    font-size: $base;
+    font-weight: $regular;
+    font-size: $medium;
   }
 
   &__details {
@@ -104,7 +104,7 @@
     transition: color 300ms ease-in-out;
     float: right;
     text-transform: uppercase;
-    font-weight: $light;
+    font-weight: $regular;
     font-size: $medium;
     letter-spacing: 1px;
 
@@ -126,7 +126,7 @@
     color: $text-medium;
     font-size: $medium;
     text-transform: uppercase;
-    line-height: $larger;
+    line-height: $x-large;
     margin: 0;
     letter-spacing: 1px;
 
@@ -142,11 +142,11 @@
   &__position {
     @include ellipsis;
     font-size: $small;
-    line-height: $larger;
+    line-height: $x-large;
     margin: 0;
     letter-spacing: 0.5px;
     color: $text-ultradark;
-    font-weight: $light;
+    font-weight: $regular;
 
     &--hidden {
       display: none;
@@ -157,7 +157,7 @@
     transition: color 300ms ease-in-out;
     color: $link;
     font-size: $small;
-    line-height: $larger;
+    line-height: $x-large;
     margin: 0;
 
     &--disabled {
@@ -166,8 +166,8 @@
   }
 
   &__last-seen {
-    font-size: $mini;
-    line-height: $larger;
+    font-size: $x-small;
+    line-height: $x-large;
     margin: 0;
     color: $text-medium;
   }

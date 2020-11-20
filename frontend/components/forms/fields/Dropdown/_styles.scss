@@ -2,7 +2,7 @@
   &__label {
     display: block;
     font-size: 16px;
-    font-weight: $light;
+    font-weight: $regular;
     color: $text-dark;
     margin-bottom: $pad-xsmall;
 
@@ -74,7 +74,7 @@
 
     .Select-value-label {
       font-size: 16px;
-      font-weight: $normal;
+      font-weight: $regular;
       color: $text-dark;
       line-height: 28px;
     }

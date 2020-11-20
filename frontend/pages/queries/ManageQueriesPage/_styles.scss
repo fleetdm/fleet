@@ -1,7 +1,7 @@
 .manage-queries-page {
   &__delete-queries-btn {
     font-size: 15px;
-    font-weight: $normal;
+    font-weight: $regular;
   }
 
   &__ctas {
@@ -55,7 +55,7 @@
   }
 
   &__wrapper {
-    padding: $base;
+    padding: $pad-base;
     min-height: 90vh;
   }
 

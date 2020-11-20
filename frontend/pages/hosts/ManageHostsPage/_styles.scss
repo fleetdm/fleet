@@ -50,7 +50,7 @@
     h2 {
       text-transform: uppercase;
       color: $text-dark;
-      font-weight: $light;
+      font-weight: $regular;
       font-size: 16px;
     }
 
@@ -71,7 +71,7 @@
   &__host-count {
     flex-grow: 1;
     font-size: 14px;
-    font-weight: $light;
+    font-weight: $regular;
     letter-spacing: 0.9px;
     color: $text-dark;
     margin: 0;

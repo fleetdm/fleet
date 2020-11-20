@@ -5,7 +5,7 @@
     button {
       color: $link;
       font-size: 15px;
-      font-weight: $normal;
+      font-weight: $regular;
       float: right;
       height: 23px;
       letter-spacing: -0.5px;
@@ -84,7 +84,7 @@
 
     p {
       font-size: 15px;
-      font-weight: $normal;
+      font-weight: $regular;
       line-height: 1.6;
       letter-spacing: 0.5px;
       color: $text-dark;
@@ -162,7 +162,7 @@
     .slide-wrapper {
       .slider-option {
         font-size: 18px;
-        font-weight: $light;
+        font-weight: $regular;
         letter-spacing: 1.3px;
         text-align: left;
         vertical-align: text-bottom;

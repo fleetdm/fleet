@@ -1,12 +1,12 @@
 .target-list {
   &__type {
     background-color: $bg-medium;
-    line-height: $larger;
-    padding: 0 $base;
+    line-height: $x-large;
+    padding: 0 $pad-base;
     margin: 0;
     text-transform: uppercase;
-    font-weight: $light;
-    font-size: $mini;
+    font-weight: $regular;
+    font-size: $x-small;
     color: $text-dark;
     letter-spacing: 0.5px;
   }

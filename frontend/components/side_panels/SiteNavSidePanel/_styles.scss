@@ -26,7 +26,7 @@
   &__name {
     text-decoration: none;
     vertical-align: middle;
-    font-weight: $normal;
+    font-weight: $regular;
     font-size: 14px;
 
     @at-root .site-nav--small & {
@@ -190,7 +190,7 @@
     cursor: pointer;
     padding: 9px 0 9px 60px;
     font-size: 13px;
-    font-weight: $light;
+    font-weight: $regular;
     width: 100%;
     text-align: left;
 
