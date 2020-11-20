@@ -2,7 +2,11 @@
 
 ## Authentication
 
-Making authenticated requests to the Fleet server requires that you are granted permission to access data. The Fleet Authentication API enables you to receive an authorization token. The typical steps to making an authenticated API request is outlined below.
+Making authenticated requests to the Fleet server requires that you are granted permission to access data. The Fleet Authentication API enables you to receive an authorization token. 
+
+All Fleet API requests are authenticated unless noted in the documentation. This means that almost all Fleet API requests will require sending the authentication token in the request header.
+
+The typical steps to making an authenticated API request are outlined below.
 
 First, utilize the `/login` endpoint to receive an authentication token.
 
@@ -198,14 +202,6 @@ Logs out the authenticated user.
 
 `POST /api/v1/kolide/logout`
 
-##### Request header
-
-```
-{
-  "authentication": "Bearer {your token}"
-}
-```
-
 ##### Default response
 
 `Status: 200`
@@ -275,14 +271,6 @@ Changes the password for the authenticated user.
 
 `POST /api/v1/kolide/change_password`
 
-##### Request header
-
-```
-{
-  "authentication": "Bearer {your token}"
-}
-```
-
 ##### Request body
 
 ```
@@ -324,14 +312,6 @@ Retrieves the user data for the authenticated user.
 
 `POST /api/v1/kolide/me`
 
-##### Request header
-
-```
-{
-  "authentication": "Bearer {your token}"
-}
-```
-
 ##### Default response
 
 `Status: 200`
@@ -365,14 +345,6 @@ Resets the password of the authenticated user. Requires that `force_password_res
 #### Example
 
 `POST /api/v1/kolide/perform_required_password_reset`
-
-##### Request header
-
-```
-{
-  "authentication": "Bearer {your token}"
-}
-```
 
 ##### Request body
 
