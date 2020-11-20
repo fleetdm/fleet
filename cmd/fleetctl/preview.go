@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/pkg/errors"
@@ -40,7 +41,7 @@ This command will create a directory fleet-preview in the current working direct
 			if _, err := os.Stat(
 				filepath.Join(previewDirectory, "docker-compose.yml"),
 			); err != nil {
-				fmt.Println("Downloading dependencies into", previewDirectory)
+				fmt.Printf("Downloading dependencies into %s...\n", previewDirectory)
 				if err := downloadFiles(); err != nil {
 					return errors.Wrap(err, "Error downloading dependencies")
 				}
@@ -57,12 +58,13 @@ This command will create a directory fleet-preview in the current working direct
 				return errors.Errorf("Failed to run docker-compose")
 			}
 
+			fmt.Println("Waiting for server to start up...")
+			fmt.Println("Note: You can safely ignore the browser warning \"Your connection is not private\". Click through this warning using the \"Advanced\" option.")
 			if err := waitStartup(); err != nil {
 				return errors.Wrap(err, "wait for server startup")
 			}
 
 			fmt.Println("Fleet is now available at https://localhost:8412.")
-			fmt.Println("Note: You can safely ignore the browser warning \"Your connection is not private\". Click through this warning using the \"Advanced\" option.")
 
 			return nil
 		},
@@ -148,12 +150,15 @@ func unzip(r *zip.Reader) error {
 }
 
 func waitStartup() error {
-	fmt.Println("Waiting for server to start up...")
+	retryStrategy := backoff.NewExponentialBackOff()
+	retryStrategy.MaxInterval = 1 * time.Second
+
 	client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
 	}
+
 	if err := backoff.Retry(
 		func() error {
 			resp, err := client.Get("https://localhost:8412/healthz")
@@ -165,7 +170,7 @@ func waitStartup() error {
 			}
 			return nil
 		},
-		backoff.NewExponentialBackOff(),
+		retryStrategy,
 	); err != nil {
 		return errors.Wrap(err, "checking server health")
 	}
