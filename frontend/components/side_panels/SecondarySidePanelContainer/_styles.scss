@@ -7,7 +7,7 @@
   width: $sidepanel-width;
   margin-left: $pad-base;
   padding-top: $pad-base;
-  min-height: calc(100vh - #{$pad-base} - #{$footer-height});
+  min-height: calc(100vh - #{$pad-base});
 
   @include breakpoint(smalldesk) {
     width: $sidepanel-tablet-width;

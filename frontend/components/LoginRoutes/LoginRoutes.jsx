@@ -5,7 +5,6 @@ import { connect } from 'react-redux';
 import { hideBackgroundImage } from 'redux/nodes/app/actions';
 import { ssoSettings } from 'redux/nodes/auth/actions';
 import LoginPage from 'pages/LoginPage';
-import Footer from 'components/Footer';
 
 export class LoginRoutes extends Component {
   static propTypes = {
@@ -50,7 +49,6 @@ export class LoginRoutes extends Component {
             isForgotPassPage={isForgotPassPage}
             isResetPassPage={isResetPassPage}
           />}
-        <Footer />
       </div>
     );
   }

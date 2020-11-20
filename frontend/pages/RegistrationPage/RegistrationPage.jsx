@@ -10,9 +10,8 @@ import RegistrationForm from 'components/forms/RegistrationForm';
 import { setup } from 'redux/nodes/auth/actions';
 import { showBackgroundImage } from 'redux/nodes/app/actions';
 import EnsureUnauthenticated from 'components/EnsureUnauthenticated';
-import Footer from 'components/Footer';
 
-import kolideLogo from '../../../assets/images/kolide-logo-condensed.svg';
+import fleetLogoText from '../../../assets/images/fleet-logo-text-black.svg';
 
 export class RegistrationPage extends Component {
   static propTypes = {
@@ -81,12 +80,11 @@ export class RegistrationPage extends Component {
       <div className="registration-page">
         <img
           alt="Kolide"
-          src={kolideLogo}
+          src={fleetLogoText}
           className="registration-page__logo"
         />
         <Breadcrumbs onClick={onSetPage} page={page} pageProgress={pageProgress} />
         <RegistrationForm page={page} onNextPage={onNextPage} onSubmit={onRegistrationFormSubmit} />
-        <Footer />
       </div>
     );
   }

@@ -12,6 +12,6 @@
   }
 
   @media all and (-ms-high-contrast: none), (-ms-high-contrast: active) {
-    height: calc(100vh - #{$footer-height});
+    height: 100vh;
   }
 }

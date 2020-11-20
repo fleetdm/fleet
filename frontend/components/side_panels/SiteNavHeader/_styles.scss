@@ -32,11 +32,9 @@
   }
 
   &__logo {
-    @include size(42px);
+    @include size(24px);
     float: left;
-    margin-right: 10px;
-    border: 1px solid $accent-medium;
-    border-radius: 50%;
+    margin-right: 24px;
 
     @at-root .site-nav--small & {
       margin: 24px 5px 10px;
