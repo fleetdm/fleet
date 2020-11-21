@@ -71,10 +71,10 @@ class Kolide500 extends Component {
       <div className={baseClass}>
         <header className="primary-header">
           <a href="/">
-            <img className="primary-header__logo" src={fleetLogoText} alt="Kolide" />
+            <img className="primary-header__logo" src={fleetLogoText} alt="Fleet logo" />
           </a>
         </header>
-        <img className="background-image" src={backgroundImg}></img>
+        <img className="background-image" src={backgroundImg} alt="500 background" />
         <main>
           <h1>500: Oh, something went wrong.</h1>
           <p>Please file an issue if you believe this is a bug.</p>

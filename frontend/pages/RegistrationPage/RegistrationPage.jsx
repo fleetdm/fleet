@@ -79,7 +79,7 @@ export class RegistrationPage extends Component {
     return (
       <div className="registration-page">
         <img
-          alt="Kolide"
+          alt="Fleet logo"
           src={fleetLogoText}
           className="registration-page__logo"
         />
