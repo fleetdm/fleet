@@ -5,8 +5,8 @@ import { noop } from 'lodash';
 import { resetErrors } from 'redux/nodes/errors500/actions';
 import errorsInterface from 'interfaces/errors500';
 
-import kolideLogo from '../../../assets/images/kolide-logo-condensed.svg';
-import gopher from '../../../assets/images/500.svg';
+import fleetLogoText from '../../../assets/images/fleet-logo-text-white.svg';
+import backgroundImg from '../../../assets/images/500.svg';
 
 const baseClass = 'kolide-500';
 
@@ -71,15 +71,14 @@ class Kolide500 extends Component {
       <div className={baseClass}>
         <header className="primary-header">
           <a href="/">
-            <img className="primary-header__logo" src={kolideLogo} alt="Kolide" />
+            <img className="primary-header__logo" src={fleetLogoText} alt="Fleet logo" />
           </a>
         </header>
+        <img className="background-image" src={backgroundImg} alt="500 background" />
         <main>
-          <h1>Uh oh!</h1>
-          <h2>Error 500</h2>
-          <p>Something went wrong on our end.</p>
-          {renderError()}
+          <h1>500: Oh, something went wrong.</h1>
           <p>Please file an issue if you believe this is a bug.</p>
+          {renderError()}
           <a
             href="https://github.com/fleetdm/fleet/issues"
             target="_blank"
@@ -87,9 +86,6 @@ class Kolide500 extends Component {
           >
             File an issue
           </a>
-          <div className="gopher-container">
-            <img src={gopher} alt="" />
-          </div>
         </main>
       </div>
     );

@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 
-import kolideLogo from '../../../../assets/images/kolide-logo.svg';
+import fleetLogo from '../../../../assets/images/fleet-logo.svg';
 
 class OrgLogoIcon extends Component {
   static propTypes = {
@@ -10,13 +10,13 @@ class OrgLogoIcon extends Component {
   };
 
   static defaultProps = {
-    src: kolideLogo,
+    src: fleetLogo,
   };
 
   constructor (props) {
     super(props);
 
-    this.state = { imageSrc: kolideLogo };
+    this.state = { imageSrc: fleetLogo };
   }
 
   componentWillMount () {
@@ -44,7 +44,7 @@ class OrgLogoIcon extends Component {
     const { imageSrc } = this.state;
     const { unchangedSourceProp } = this;
 
-    if (unchangedSourceProp(nextProps) && (imageSrc === kolideLogo)) {
+    if (unchangedSourceProp(nextProps) && (imageSrc === fleetLogo)) {
       return false;
     }
 
@@ -52,7 +52,7 @@ class OrgLogoIcon extends Component {
   }
 
   onError = () => {
-    this.setState({ imageSrc: kolideLogo });
+    this.setState({ imageSrc: fleetLogo });
 
     return false;
   }

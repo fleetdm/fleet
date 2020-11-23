@@ -2,7 +2,7 @@
   display: flex;
   justify-content: center;
   flex-direction: column;
-  min-height: calc(100vh - #{$footer-height});
+  min-height: 100vh;
   position: relative;
   overflow-x: hidden;
 

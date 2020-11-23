@@ -4,6 +4,6 @@
   flex-direction: column;
   justify-content: center;
   position: relative;
-  min-height: calc(100vh - #{$footer-height});
+  min-height: 100vh;
   background-color: $white;
 }

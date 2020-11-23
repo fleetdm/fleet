@@ -1,6 +1,6 @@
 .app-wrap {
   display: flex;
-  min-height: calc(100vh - #{$footer-height});
+  min-height: 100vh;
 }
 
 .core-wrapper {
