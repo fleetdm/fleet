@@ -2,7 +2,7 @@ import React from 'react';
 import expect from 'expect';
 import { mount } from 'enzyme';
 
-import feetLogo from '../../../../assets/images/fleet-logo.svg';
+import fleetLogo from '../../../../assets/images/fleet-logo.svg';
 import OrgLogoIcon from './OrgLogoIcon';
 
 describe('OrgLogoIcon - component', () => {
