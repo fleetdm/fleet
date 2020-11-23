@@ -9,7 +9,7 @@ describe('OrgLogoIcon - component', () => {
   it('renders the Kolide Logo by default', () => {
     const component = mount(<OrgLogoIcon />);
 
-    expect(component.state('imageSrc')).toEqual(feetLogo);
+    expect(component.state('imageSrc')).toEqual(fleetLogo);
   });
 
   it('renders the image source when it is valid', () => {
