@@ -10,7 +10,7 @@ const { color } = mocha.reporters.base;
 function Reporter(runner) {
   mocha.reporters.Spec.call(this, runner);
 
-  runner.on('fail', function(test, err){
+  runner.on('fail', (test, err) => {
     const lines = StackTraceParser.parse(err.stack);
     const line = lines.find(l => l.file.includes('.tests.js'));
     if (line) {
