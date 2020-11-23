@@ -134,7 +134,9 @@ analyze-go:
 
 test-js: export NODE_PATH = ./frontend
 test-js:
-	_mocha --compilers js:babel-core/register \
+	_mocha \
+		--require babel-core/register \
+		--reporter frontend/test/reporter.js \
 		--recursive "frontend/**/*.tests.js*" \
 		--require ignore-styles \
 		--require "frontend/.test.setup.js" \

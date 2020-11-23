@@ -149,12 +149,10 @@ class SelectTargetsDropdown extends Component {
 
         return query;
       })
-      .catch((error) => {
+      .catch(() => {
         if (this.mounted) {
           this.setState({ isLoadingTargets: false });
         }
-
-        throw error;
       });
   }
 

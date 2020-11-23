@@ -52,15 +52,14 @@ describe('Kolide - API client (labels)', () => {
   });
 
   describe('#update', () => {
-    it('calls the appropriate endpoint with the correct parameters', (done) => {
+    it('calls the appropriate endpoint with the correct parameters', () => {
       const params = { name: 'New label name' };
       const request = labelMocks.update.valid(bearerToken, labelStub, params);
 
       Kolide.setBearerToken(bearerToken);
-      Kolide.labels.update(labelStub, params)
+      return Kolide.labels.update(labelStub, params)
         .then(() => {
           expect(request.isDone()).toEqual(true);
-          done();
         })
         .catch(() => {
           throw new Error('Request should have been stubbed');

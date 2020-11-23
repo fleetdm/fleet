@@ -68,7 +68,7 @@ describe('RegistrationPage - component', () => {
     expect(page.find('RegistrationForm').length).toEqual(1);
   });
 
-  it('sets the page # to 1', () => {
+  it('sets the page number to 1', () => {
     const page = mount(<RegistrationPage />);
 
     expect(page.state()).toInclude({ page: 1 });

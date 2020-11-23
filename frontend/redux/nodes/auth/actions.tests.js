@@ -36,10 +36,10 @@ describe('Auth - actions', () => {
 
         mockStore.dispatch(ssoRedirect(relayURL))
           .then(() => {
-            expect(Kolide.sessions.toHaveBeenCalledWith(relayURL));
+            expect(Kolide.sessions.initializeSSO).toHaveBeenCalledWith(relayURL);
           })
           .catch(() => {
-            expect(Kolide.sessions.toHaveBeenCalledWith(relayURL));
+            expect(Kolide.sessions.initializeSSO).toHaveBeenCalledWith(relayURL);
           });
       });
 
