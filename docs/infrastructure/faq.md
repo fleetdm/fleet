@@ -94,6 +94,10 @@ No. Currently, Fleet is only available as open-source software.
 
 Fleet has been stress tested to 150,000 online hosts and 400,000 total enrolled hosts. There are numerous production deployments in the thousands in the tens of thousands of hosts range, and there are production deployments in the high tens of thousands of hosts range.
 
+## How often do labels refresh? Is the refresh frequency configurable?
+
+The update frequency for labels is configurable with the [--osquery_label_update_interval](https://github.com/fleetdm/fleet/blob/master/docs/infrastructure/configuring-the-fleet-binary.md#osquery_label_update_interval) flag (default 1 hour).
+
 ## How do I get support for working with Fleet?
 
 For bug reports, please use the [Github issue tracker](https://github.com/fleetdm/fleet/issues).
