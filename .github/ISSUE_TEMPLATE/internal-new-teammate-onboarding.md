@@ -1,6 +1,6 @@
 ---
 name: Internal - New teammate onboarding
-about: Onboarding tasks
+about: Onboard a new Fleet team member to the company
 title: ''
 labels: ''
 assignees: ''
