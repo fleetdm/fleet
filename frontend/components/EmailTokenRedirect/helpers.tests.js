@@ -23,11 +23,11 @@ describe('EmailTokenRedirect - helpers', () => {
           .andReturn(Promise.resolve({ ...userStub, email: 'new@email.com' }));
       });
 
-      it('pushes the user to the settings page', (done) => {
+      it('pushes the user to the settings page', () => {
         const mockStore = reduxMockStore(authStore);
         const { dispatch } = mockStore;
 
-        confirmEmailChange(dispatch, userStub, token)
+        return confirmEmailChange(dispatch, userStub, token)
           .then(() => {
             const dispatchedActions = mockStore.getActions();
 
@@ -38,10 +38,7 @@ describe('EmailTokenRedirect - helpers', () => {
                 args: ['/settings'],
               },
             });
-
-            done();
-          })
-          .catch(done);
+          });
       });
     });
 
@@ -65,12 +62,12 @@ describe('EmailTokenRedirect - helpers', () => {
           .andReturn(Promise.reject(errorResponse));
       });
 
-      it('pushes the user to the login page', (done) => {
+      it('pushes the user to the login page', () => {
         const mockStore = reduxMockStore(authStore);
         const { dispatch } = mockStore;
 
-        confirmEmailChange(dispatch, userStub, token)
-          .then(done)
+        return confirmEmailChange(dispatch, userStub, token)
+          .then()
           .catch(() => {
             const dispatchedActions = mockStore.getActions();
 
@@ -81,8 +78,6 @@ describe('EmailTokenRedirect - helpers', () => {
                 args: ['/login'],
               },
             });
-
-            done();
           });
       });
     });

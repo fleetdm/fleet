@@ -23,7 +23,7 @@ describe('Breadcrumbs - component', () => {
     expect(page3Btn.prop('className')).toNotInclude('registration-breadcrumbs__page--active');
   });
 
-  it('calls the onClick prop with the page # when clicked', () => {
+  it('calls the onClick prop with the page number when clicked', () => {
     const onClickSpy = createSpy();
     const component = mount(<Breadcrumbs page={1} onClick={onClickSpy} />);
     const page1Btn = component.find('button.registration-breadcrumbs__page--1');
