@@ -21,7 +21,7 @@
     z-index: 2;
     border-radius: 2px;
     background-color: $white;
-    border: solid 1px $accent-medium;
+    border: solid 1px $ui-borders;
 
     &--opened {
       display: inline-block;
@@ -32,7 +32,7 @@
     display: block;
 
     .button {
-      color: $text-dark;
+      color: $core-dark-blue-grey;
       text-transform: none;
       text-align: left;
       font-weight: $regular;
@@ -46,7 +46,7 @@
       letter-spacing: -0.5px;
 
       &:hover {
-        background-color: $brand-light;
+        background-color: $core-blue;
         color: $white;
       }
     }

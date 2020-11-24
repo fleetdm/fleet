@@ -10,8 +10,8 @@
     font-weight: $regular;
     line-height: 2.4;
     letter-spacing: 0.8px;
-    color: $text-dark;
-    border-bottom: dashed 1px $accent-dark;
+    color: $core-dark-blue-grey;
+    border-bottom: solid 1px $ui-borders;
     margin: 0 0 15px;
 
     a {
@@ -29,7 +29,7 @@
       font-weight: $regular;
       line-height: 1.6;
       letter-spacing: 0.5px;
-      color: $text-dark;
+      color: $core-dark-blue-grey;
     }
   }
 }

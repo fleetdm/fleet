@@ -27,7 +27,7 @@
     text-decoration: none;
     vertical-align: middle;
     font-weight: $regular;
-    font-size: 14px;
+    font-size: $x-small;
 
     @at-root .site-nav--small & {
       display: none;
@@ -42,7 +42,7 @@
     transition: color 200ms ease-in-out;
     line-height: 40px;
     position: relative;
-    color: $text-dark;
+    color: $white;
     cursor: pointer;
     font-size: $small;
     letter-spacing: 0.5px;
@@ -51,7 +51,7 @@
     text-align: left;
 
     &:hover {
-      color: $text-dark;
+      color: $core-dark-blue-grey;
     }
 
     @at-root .site-nav--small & {
@@ -65,25 +65,25 @@
 
   &--active {
     .site-nav-item__button {
-      color: $brand;
       border-bottom: 0;
+      background-color: $core-black;
 
       &:hover {
-        color: $brand-dark;
+        color: $core-blue;
       }
 
       &::before {
-        @include position(absolute, 0 null null 0);
+        @include position(absolute, 0 0 null null);
         content: '';
-        width: 6px;
+        width: 3px;
         height: 55px;
-        background-color: $brand;
+        background-color: $core-blue;
         z-index: 1;
       }
 
       @at-root .site-nav--small & {
-        border-bottom: 6px solid $brand;
-        border-left: 6px solid $brand;
+        border-bottom: 6px solid $core-blue;
+        border-left: 6px solid $core-blue;
         padding: 0;
         border-radius: 0;
 
@@ -93,8 +93,8 @@
       }
 
       @include breakpoint(smalldesk) {
-        border-bottom: 6px solid $brand;
-        border-left: 6px solid $brand;
+        border-bottom: 6px solid $core-blue;
+        border-left: 6px solid $core-blue;
         padding: 0;
         border-radius: 0;
 
@@ -102,6 +102,10 @@
           display: none;
         }
       }
+    }
+
+    .site-nav-item__name {
+      font-weight: $bold;
     }
 
     .site-nav-item__icon {
@@ -126,7 +130,7 @@
   }
 
   &:last-child {
-    border-top: 1px solid $accent-light;
+    border-top: 1px solid $ui-borders;
     padding-top: 15px;
 
     @at-root .site-nav--small & {
@@ -272,21 +276,21 @@
 
 .site-sub-items {
   transition: width 100ms ease-in-out;
-  background-color: $brand;
+  background-color: $core-blue;
   font-size: 13px;
   margin: 0;
   padding: 0;
   position: relative;
 
   @at-root .site-nav--small & {
-    background-color: $brand 18%;
-    background-image: linear-gradient(to bottom, $brand 18%, $brand 82%);
+    background-color: $core-blue 18%;
+    background-image: linear-gradient(to bottom, $core-blue 18%, $core-blue 82%);
     box-shadow: none;
   }
 
   @include breakpoint(smalldesk) {
-    background-color: $brand 18%;
-    background-image: linear-gradient(to bottom, $brand 18%, $brand 82%);
+    background-color: $core-blue 18%;
+    background-image: linear-gradient(to bottom, $core-blue 18%, $core-blue 82%);
     box-shadow: none;
   }
 

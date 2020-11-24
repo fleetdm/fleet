@@ -5,12 +5,12 @@
   margin-top: 20px;
 
   thead {
-    background-color: $bg-medium;
-    border-bottom: 1px solid $accent-medium;
+    background-color: $core-light-blue-grey;
+    border-bottom: 1px solid $ui-borders;
   }
 
   &__th {
-    color: $link;
+    color: $core-purple;
     font-size: 14px;
     padding: 14px;
     text-align: center;
@@ -37,6 +37,6 @@
   &__empty-table {
     text-align: center;
     font-size: 18px;
-    color: $text-ultradark;
+    color: $core-black;
   }
 }

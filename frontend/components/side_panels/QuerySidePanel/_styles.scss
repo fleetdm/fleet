@@ -7,8 +7,8 @@
     font-size: 16px;
     font-weight: $bold;
     letter-spacing: -0.5px;
-    color: $text-medium;
-    border-bottom: solid 1px $accent-light;
+    color: $core-dark-blue-grey;
+    border-bottom: solid 1px $ui-borders;
   }
 
   &__choose-table {
@@ -23,7 +23,7 @@
     font-size: 14px;
     line-height: 1.43;
     letter-spacing: 0.5px;
-    color: $text-light;
+    color: $core-medium-blue-grey;
     margin: 0;
   }
 
@@ -31,7 +31,7 @@
     font-size: 14px;
     line-height: 2.29;
     letter-spacing: 0.5px;
-    color: $text-light;
+    color: $core-medium-blue-grey;
     list-style: none;
     margin: 0 0 24px;
     padding: 0;
@@ -57,7 +57,7 @@
     display: flex;
     margin: 0 0 15px;
     padding-top: $pad-half;
-    border-top: 1px solid $accent-light;
+    border-top: 1px solid $ui-borders;
   }
 
   &__suggestion {
@@ -66,7 +66,7 @@
     line-height: 1.71;
     letter-spacing: 0.5px;
     text-align: left;
-    color: $text-light;
+    color: $core-medium-blue-grey;
   }
 
   &__load-suggestion {
@@ -81,8 +81,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-top: 1px solid $accent-light;
-    color: $text-dark;
+    border-top: 1px solid $ui-borders;
+    color: $core-dark-blue-grey;
     font-size: px-to-rem(14);
     padding-bottom: $pad-half;
     padding-top: $pad-half;
@@ -95,7 +95,7 @@
   &__name {
     line-height: 28px;
     border-radius: 3px;
-    background-color: $accent-light;
+    background-color: $ui-light-grey;
     border: solid 1px #dce2f7;
     color: #858495;
     padding: 0 13px;
@@ -110,7 +110,7 @@
   &__type {
     font-size: 14px;
     letter-spacing: 0.7px;
-    color: $text-medium;
+    color: $core-dark-blue-grey;
   }
 
   &__help {

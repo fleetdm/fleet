@@ -9,34 +9,46 @@
     color: rgba(32, 37, 50, 0.66);
 
     h1 {
-      font-size: 32px;
+      font-size: $large;
       font-weight: $regular;
       line-height: normal;
       letter-spacing: normal;
-      color: #48c586;
+      color: $core-black;
     }
 
     h2 {
-      font-size: 16px;
+      font-size: $x-small;
       font-weight: $bold;
       line-height: 1.5;
       letter-spacing: -0.5px;
-      color: rgba(32, 37, 50, 0.66);
+      color: $core-black;
     }
 
     ul {
       margin: 0;
       padding-left: 20px;
+      color: $core-black;
     }
   }
 
   &__no-hosts-contact {
-    text-align: right;
+    text-align: left;
     margin-top: 30px;
 
     p {
+      color: $core-black;
+      font-weight: $bold;
+      font-size: $x-small;
       margin: 0;
     }
+
+    a {
+      color: $core-blue;
+      font-weight: $regular;
+      font-size: $x-small;
+      text-decoration: none;
+    }
+    
   }
 
   &--grid {

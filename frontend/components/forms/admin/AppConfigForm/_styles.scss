@@ -3,7 +3,7 @@
     font-size: 15px;
 
     button {
-      color: $link;
+      color: $core-purple;
       font-size: 15px;
       font-weight: $regular;
       float: right;
@@ -13,7 +13,7 @@
     }
 
     input {
-      color: $link;
+      color: $core-purple;
     }
   }
 
@@ -26,7 +26,7 @@
       font-weight: $bold;
       line-height: 3.2;
       letter-spacing: 0.6px;
-      color: $text-dark;
+      color: $core-dark-blue-grey;
       padding-left: 15px;
 
       em {
@@ -87,14 +87,14 @@
       font-weight: $regular;
       line-height: 1.6;
       letter-spacing: 0.5px;
-      color: $text-dark;
+      color: $core-dark-blue-grey;
     }
 
     .hint {
-      color: $text-medium;
+      color: $core-dark-blue-grey;
 
       &--brand {
-        color: $brand;
+        color: $core-blue;
       }
     }
   }
@@ -106,11 +106,11 @@
       border-radius: 80px;
       height: 160px;
       width: 160px;
-      border: 1px solid $accent-medium;
+      border: 1px solid $ui-borders;
     }
 
     p {
-      color: $link;
+      color: $core-purple;
       font-size: 18px;
       font-weight: $bold;
       margin-top: 0;
@@ -118,14 +118,14 @@
   }
 
   &__show-options {
-    color: $text-dark;
+    color: $core-dark-blue-grey;
   }
 
   &__smtp-section {
     @include clearfix;
     border-radius: 2px;
-    background-color: $bg-medium;
-    border: solid 1px $accent-medium;
+    background-color: $core-medium-blue-grey;
+    border: solid 1px $ui-borders;
     padding: 30px;
 
     .form-field {
@@ -137,7 +137,7 @@
         font-weight: $bold;
         letter-spacing: 0.6px;
         text-align: right;
-        color: $text-dark;
+        color: $core-dark-blue-grey;
         width: 32%;
         margin: 0;
         line-height: 40px;
@@ -168,11 +168,11 @@
         vertical-align: text-bottom;
 
         &--off {
-          color: $text-light;
+          color: $core-medium-blue-grey;
         }
 
         &--on {
-          color: $brand;
+          color: $core-blue;
         }
       }
 

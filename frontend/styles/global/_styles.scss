@@ -38,7 +38,7 @@
     }
 
     &::before {
-      border-color: transparent $text-medium transparent transparent;
+      border-color: transparent $core-dark-blue-grey transparent transparent;
       border-width: 16px;
       right: 99%;
       top: 22px;
@@ -55,7 +55,7 @@
     }
 
     &::before {
-      border-color: transparent transparent transparent $text-medium;
+      border-color: transparent transparent transparent $core-dark-blue-grey;
       border-width: 16px;
       left: 99%;
       top: 22px;

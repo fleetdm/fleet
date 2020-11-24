@@ -8,7 +8,8 @@
     position: relative;
     display: block;
     width: 100%;
-    color: $text-ultradark;
+    color: $white;
+    background-color: $core-dark-blue-grey;
     text-align: left;
     border-radius: 0;
 
@@ -26,7 +27,7 @@
     transition: border 150ms $ease-in-quad;
     position: relative;
     z-index: 2;
-    border-bottom: 1px solid $accent-light;
+    border-bottom: 1px solid $ui-borders;
     padding-bottom: $pad-medium;
     max-height: 100px;
   }
@@ -54,7 +55,7 @@
     text-transform: none;
     font-weight: $bold;
     display: block;
-    color: $text-ultradark;
+    color: $white;
 
     @at-root .site-nav--small & {
       display: none;
@@ -109,7 +110,7 @@
 
   &__carat {
     @include position(absolute, null 0 $pad-small null);
-    color: $accent-medium;
+    color: $ui-medium-grey;
     font-size: 9px;
 
     @at-root .site-nav--small & {
@@ -132,7 +133,7 @@
   overflow: hidden;
   opacity: 0;
   box-sizing: border-box;
-  background-color: $brand-dark;
+  background-color: $core-blue;
   border: solid 1px rgba(73, 143, 226, 0.6);
 
   &--open {
@@ -144,7 +145,7 @@
   &__avatar {
     @include size(42px);
     float: left;
-    border: solid 1px $accent-medium;
+    border: solid 1px $ui-borders;
     border-radius: 50%;
     margin: 0 10px 0 $pad-medium;
   }
@@ -216,7 +217,7 @@
 
       a {
         &:hover {
-          background-color: $link;
+          background-color: $core-purple;
         }
       }
     }

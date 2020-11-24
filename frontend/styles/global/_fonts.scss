@@ -18,6 +18,16 @@
        url('../assets/fonts/nunito-sans/Nunito-Sans-Bold.woff') format('woff'),
        url('../assets/fonts/nunito-sans/Nunito-Sans-Bold.ttf') format('truetype'),
 }
+@font-face {
+  font-family: 'Nunito Sans';
+  font-style: italic;
+  font-weight: 400;
+  src: url('../assets/fonts/nunito-sans/Nunito-Sans-Regular-Italic.eot');
+  src: local(''),
+       url('../assets/fonts/nunito-sans/Nunito-Sans-Regular-Italic.eot?#iefix') format('embedded-opentype'),
+       url('../assets/fonts/nunito-sans/Nunito-Sans-Regular-Italic.woff') format('woff'),
+       url('../assets/fonts/nunito-sans/Nunito-Sans-Regular-Italic.ttf') format('truetype'),
+}
 
 @font-face {
   font-family: 'kolidecons';

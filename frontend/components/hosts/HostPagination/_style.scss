@@ -14,13 +14,13 @@
     .rc-pagination-prev,
     .rc-pagination-next,
     .rc-pagination-item {
-      border: 1px solid $success;
+      border: 1px solid $core-medium-blue-grey;
       font-size: 15px;
       box-sizing: border-box;
       border-radius: 3px;
 
       a {
-        color: $success;
+        color: $core-medium-blue-grey;
         font-weight: bold;
       }
     }
@@ -47,7 +47,7 @@
       border: 0;
 
       &:hover {
-        background-color: $success-light;
+        background-color: $core-medium-blue-grey;
 
         a {
           color: $white;
@@ -58,7 +58,7 @@
     .rc-pagination-jump-prev,
     .rc-pagination-jump-next {
       &::after {
-        color: $success;
+        color: $core-medium-blue-grey;
       }
 
       &:hover {
@@ -74,7 +74,7 @@
     }
 
     .rc-pagination-item-active {
-      background-color: $success;
+      background-color: $core-medium-blue-grey;
 
       a {
         color: $white;
@@ -93,12 +93,12 @@
     margin-right: 15px;
 
     .Select-control {
-      border-color: $success;
+      border-color: $core-medium-blue-grey;
       border-radius: 3px;
       height: 30px;
 
       @at-root .Select.is-focused#{&} {
-        border-color: $success;
+        border-color: $core-medium-blue-grey;
       }
     }
 
@@ -121,7 +121,7 @@
 
     .Select-option {
       &.is-focused {
-        background-color: $success;
+        background-color: $core-medium-blue-grey;
       }
     }
   }

@@ -1,5 +1,5 @@
-$gradient-start: $brand-dark;
-$gradient-end: $brand;
+$gradient-start: $core-blue;
+$gradient-end: $core-blue;
 $inverse-hover: #fafbff;
 $base-class: 'button';
 
@@ -26,7 +26,7 @@ $base-class: 'button';
 }
 
 .#{$base-class} {
-  @include button-variant($link);
+  @include button-variant($core-purple);
   user-select: none;
   transition: color 150ms ease-in-out, background 150ms ease-in-out, top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out;
   position: relative;
@@ -37,8 +37,8 @@ $base-class: 'button';
   text-decoration: none;
   text-transform: uppercase;
   letter-spacing: 1px;
-  border-radius: 0;
-  font-size: $medium;
+  border-radius: 4px;
+  font-size: $small;
   font-family: 'Nunito Sans', sans-serif;
   font-weight: $bold;
   display: inline-block;
@@ -53,7 +53,7 @@ $base-class: 'button';
   }
 
   &--brand {
-    @include button-variant($brand);
+    @include button-variant($core-blue);
   }
 
   &--success {
@@ -65,9 +65,9 @@ $base-class: 'button';
   }
 
   &--muted {
-    @include button-variant(#eceef1, null, $footer-accent);
+    @include button-variant(#eceef1, null, $core-darkest-blue-grey);
 
-    color: $footer-accent;
+    color: $core-darkest-blue-grey;
   }
 
   &--warning {
@@ -75,24 +75,24 @@ $base-class: 'button';
   }
 
   &--link {
-    @include button-variant($link);
+    @include button-variant($core-purple);
   }
 
   &--inverse {
-    @include button-variant($white, $inverse-hover, $brand);
-    color: $brand;
-    border: 1px solid $brand;
-    border-bottom-color: $brand;
+    @include button-variant($white, $inverse-hover, $core-blue);
+    color: $core-blue;
+    border: 2px solid $core-blue;
+    border-bottom-color: $core-blue;
 
     &:active {
-      border-bottom-color: $brand;
+      border-bottom-color: $core-blue;
     }
   }
 
   &--inverse-alert {
     @include button-variant($white, $inverse-hover, $alert);
     color: $alert;
-    border: 1px solid $alert;
+    border: 2px solid $alert;
     border-bottom-color: $white;
 
     &:active {
@@ -141,7 +141,7 @@ $base-class: 'button';
     @include button-variant(transparent);
     border: 0;
     box-shadow: none;
-    color: $text-dark;
+    color: $core-dark-blue-grey;
     cursor: pointer;
     margin: 0;
     padding: 0;

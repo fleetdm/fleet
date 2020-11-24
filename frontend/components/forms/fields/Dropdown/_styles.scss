@@ -3,7 +3,7 @@
     display: block;
     font-size: 16px;
     font-weight: $regular;
-    color: $text-dark;
+    color: $core-dark-blue-grey;
     margin-bottom: $pad-xsmall;
 
     &--error {
@@ -29,8 +29,9 @@
 
 .Select {
   .Select-control {
-    border: 1px solid $accent-medium;
-    border-radius: 2px;
+    border: 1px solid $ui-borders;
+    background-color: $ui-light-grey;
+    border-radius: 4px;
     height: 40px;
   }
 
@@ -38,8 +39,8 @@
     font-size: $medium;
     border-radius: 2px;
     background-color: #fff;
-    box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.12), 0 2px 0 0 #b8c2e3;
-    border: solid 1px #b8c2e3;
+    box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.12), 0 2px 0 0 $ui-medium-grey;
+    border: solid 1px $ui-borders;
 
     .Select-value-icon {
       border: 0;
@@ -61,13 +62,13 @@
         left: 50%;
         visibility: visible;
         font-size: 16px;
-        color: $accent-dark;
+        color: $ui-medium-grey;
         text-indent: 0;
       }
 
       &:hover {
         &::after {
-          color: $accent-text;
+          color: $core-medium-blue-grey;
         }
       }
     }
@@ -75,7 +76,7 @@
     .Select-value-label {
       font-size: 16px;
       font-weight: $regular;
-      color: $text-dark;
+      color: $core-dark-blue-grey;
       line-height: 28px;
     }
   }
@@ -89,12 +90,12 @@
   }
 
   .Select-arrow {
-    border-top-color: $brand;
+    border-top-color: $core-blue;
   }
 
   &.is-focused {
     .Select-control {
-      border: 1px solid $brand;
+      border: 1px solid $core-blue;
     }
 
     &:not(.is-open) {
@@ -109,7 +110,7 @@
     &.is-pseudo-focused > .Select-control {
       .Select-value {
         .Select-value-label {
-          color: $text-dark;
+          color: $core-dark-blue-grey;
           font-size: 16px;
         }
       }
@@ -125,26 +126,26 @@
   .Select-menu-outer {
     margin-top: 2px;
     box-shadow: 0 1px 3px 1px rgba($black, 0.05);
-    border: solid 1px $accent-light;
+    border: solid 1px $ui-borders;
     border-radius: 2px;
     z-index: 6;
   }
 
   .Select-option {
-    color: $text-dark;
+    color: $core-dark-blue-grey;
     font-size: $medium;
 
     &.is-focused {
-      background-color: $brand;
+      background-color: $core-blue;
       color: $white;
 
       .Select-icon {
-        color: $brand-ultralight;
+        color: $core-blue-ultralight;
       }
     }
 
     &.is-disabled {
-      color: $silver;
+      color: $ui-medium-grey;
 
       .Select-icon {
         visibility: hidden;
@@ -154,12 +155,12 @@
   }
 
   .Select-icon {
-    color: $accent-medium;
+    color: $ui-medium-grey;
   }
 
   .Select-placeholder {
-    color: $accent-text;
-    font-size: 16px;
+    color: $core-medium-blue-grey;
+    font-size: $small;
     line-height: 40px;
     padding: 0 12px;
     box-sizing: border-box;
@@ -183,11 +184,11 @@
 
     .Select-option {
       &.is-disabled {
-        color: $text-dark;
+        color: $core-dark-blue-grey;
         cursor: default;
 
         &.is-focused {
-          background-color: $brand;
+          background-color: $core-blue;
           color: $white;
         }
       }

@@ -7,7 +7,7 @@
   flex-grow: 1;
   margin: 0;
   padding: 0 0 0 $pad-base;
-  max-width: calc(100% - 258px);
+  max-width: calc(100% - 217px);
   position: relative;
 
   &--small {
@@ -20,8 +20,8 @@
 }
 
 .site-nav {
-  background-color: #f4f7fb;
-  border-right: 1px solid $border-medium;
+  background: $core-gradient;
+  border-right: 1px solid $ui-borders;
   box-sizing: border-box;
   width: $nav-width;
 
