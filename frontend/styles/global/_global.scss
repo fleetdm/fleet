@@ -112,7 +112,7 @@ button {
 
   &:-webkit-autofill {
     -webkit-box-shadow: 0 0 0 1000px #fff inset;
-    -webkit-text-fill-color: $core-dark-blue-grey-2 !important; //sass-lint:disable-line no-important
+    -webkit-text-fill-color: $core-dark-blue-grey !important; //sass-lint:disable-line no-important
   }
 }
 

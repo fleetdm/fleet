@@ -32,11 +32,11 @@
   }
 
   &--mia {
-    border-top: 6px solid $core-dark-blue-grey-2;
+    border-top: 6px solid $core-dark-blue-grey;
 
     .host-details__status,
     .host-details__hostname {
-      color: $core-dark-blue-grey-2;
+      color: $core-dark-blue-grey;
     }
   }
 
@@ -51,7 +51,7 @@
 
     span {
       display: block;
-      color: $core-dark-blue-grey-2;
+      color: $core-dark-blue-grey;
       font-size: 13px;
       letter-spacing: 0;
     }
@@ -101,7 +101,7 @@
     text-align: center;
 
     .kolidecon {
-      color: $core-dark-blue-grey-2;
+      color: $core-dark-blue-grey;
       font-size: 23px;
       display: block;
       margin-bottom: 5px;

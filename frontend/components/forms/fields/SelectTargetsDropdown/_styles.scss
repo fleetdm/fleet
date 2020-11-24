@@ -7,7 +7,7 @@
     font-style: normal;
     font-stretch: normal;
     letter-spacing: -0.5px;
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
     display: block;
     margin-bottom: 4px;
     text-align: right;
@@ -180,14 +180,14 @@
         left: 50%;
         visibility: visible;
         font-size: 20px;
-        color: $ui-light-grey-2;
+        color: $ui-medium-grey;
         display: block;
         text-indent: 0;
       }
 
       &:hover {
         &::after {
-          color: $core-dark-blue-grey-1;
+          color: $core-medium-blue-grey;
         }
       }
     }
@@ -195,7 +195,7 @@
     .Select-value-label {
       font-size: 16px;
       font-weight: $regular;
-      color: $core-dark-blue-grey-2;
+      color: $core-dark-blue-grey;
       padding: 0 0 0 $pad-medium;
       line-height: 34px;
     }
@@ -204,7 +204,7 @@
   .Select-clear {
     font-size: 28px;
     margin-right: 10px;
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
 
     &:hover {
       color: $alert;
@@ -222,7 +222,7 @@
           content: '\f049';
           font-size: 180px;
           margin-top: -90px;
-          color: $ui-light-grey-2;
+          color: $ui-medium-grey;
         }
       }
     }

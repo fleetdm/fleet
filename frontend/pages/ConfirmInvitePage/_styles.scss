@@ -5,13 +5,13 @@
       font-weight: $bold;
       line-height: 0.72;
       letter-spacing: 0.6px;
-      color: $core-dark-blue-grey-2;
+      color: $core-dark-blue-grey;
       margin: 0;
       padding: 0;
     }
 
     p {
-      color: $core-dark-blue-grey-2;
+      color: $core-dark-blue-grey;
       font-size: 14px;
       font-weight: $regular;
     }
@@ -60,7 +60,7 @@
   }
 
   &__sub-lead-text {
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
     font-size: 14px;
     font-weight: $regular;
     margin-bottom: 0;

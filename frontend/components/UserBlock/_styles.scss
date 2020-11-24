@@ -46,7 +46,7 @@
     }
 
     &--disabled {
-      background-color: $core-dark-blue-grey-1;
+      background-color: $core-medium-blue-grey;
       color: $core-black;
     }
   }
@@ -74,7 +74,7 @@
   &__avatar {
     @include size(100px);
     transition: border 300ms ease-in-out;
-    border: 1px solid $core-dark-blue-grey-2;
+    border: 1px solid $core-dark-blue-grey;
     filter: none;
     display: block;
     margin: 0 auto;
@@ -117,13 +117,13 @@
     }
 
     &--disabled {
-      color: $core-dark-blue-grey-2;
+      color: $core-dark-blue-grey;
     }
   }
 
   &__username {
     transition: color 300ms ease-in-out;
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
     font-size: $medium;
     text-transform: uppercase;
     line-height: $x-large;
@@ -161,7 +161,7 @@
     margin: 0;
 
     &--disabled {
-      color: $core-dark-blue-grey-2;
+      color: $core-dark-blue-grey;
     }
   }
 
@@ -169,7 +169,7 @@
     font-size: $x-small;
     line-height: $x-large;
     margin: 0;
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
   }
 }
 

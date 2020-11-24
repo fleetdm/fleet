@@ -22,7 +22,7 @@
     .button {
       @include size(30px);
       line-height: 30px;
-      color: $core-dark-blue-grey-2;
+      color: $core-dark-blue-grey;
       font-size: $x-large;
 
       &:hover {

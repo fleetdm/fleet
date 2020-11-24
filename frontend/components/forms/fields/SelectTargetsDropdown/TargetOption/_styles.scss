@@ -35,7 +35,7 @@
   }
 
   &__count {
-    background-color: $core-dark-blue-grey-2;
+    background-color: $core-dark-blue-grey;
     border-radius: $border-radius;
     color: $white;
     font-size: 13px;
@@ -45,13 +45,13 @@
   }
 
   &__delimeter {
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
     font-weight: $bold;
     margin: 0 $pad-xsmall;
   }
 
   &__icon {
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
     font-size: $small;
 
     &--online {
@@ -63,12 +63,12 @@
     }
 
     &--mia {
-      color: $core-dark-blue-grey-2;
+      color: $core-dark-blue-grey;
     }
   }
 
   &__ip {
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
     font-size: $small;
   }
 
@@ -79,7 +79,7 @@
   }
 
   &__label-label {
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
     font-size: 14px;
     margin-left: $pad-half;
 
@@ -97,7 +97,7 @@
 
   &__target-icon {
     font-size: $medium;
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
     margin-right: $pad-xsmall;
   }
 

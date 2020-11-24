@@ -8,7 +8,7 @@
     right: 6px;
     top: 28px;
     font-size: 18px;
-    color: $core-dark-blue-grey-1;
+    color: $core-medium-blue-grey;
 
     &--active {
       color: $core-blue;
@@ -28,11 +28,11 @@
     position: relative;
     width: 100%;
     box-sizing: border-box;
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
     font-weight: $regular;
 
     ::placeholder {
-      color: $core-dark-blue-grey-1;
+      color: $core-medium-blue-grey;
     }
 
     &:focus {
@@ -69,11 +69,11 @@
     font-weight: $regular;
     line-height: 1.57;
     letter-spacing: 1px;
-    color: $core-dark-blue-grey-1;
+    color: $core-medium-blue-grey;
 
     code {
       color: $core-blue;
-      background-color: $ui-light-grey-1;
+      background-color: $ui-light-grey;
       padding: 2px;
       font-family: 'SourceCodePro', $monospace;
     }

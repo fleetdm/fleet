@@ -9,7 +9,7 @@
     display: block;
     width: 100%;
     color: $white;
-    background-color: $core-dark-blue-grey-2;
+    background-color: $core-dark-blue-grey;
     text-align: left;
     border-radius: 0;
 
@@ -110,7 +110,7 @@
 
   &__carat {
     @include position(absolute, null 0 $pad-small null);
-    color: $ui-light-grey-2;
+    color: $ui-medium-grey;
     font-size: 9px;
 
     @at-root .site-nav--small & {

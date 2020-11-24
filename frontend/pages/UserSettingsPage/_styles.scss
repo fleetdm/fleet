@@ -47,10 +47,10 @@
   &__more-info-detail {
     line-height: 50px;
     border-top: 1px solid $ui-borders;
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
 
     .kolidecon {
-      color: $ui-light-grey-2;
+      color: $ui-medium-grey;
       font-size: 18px;
       margin-right: 11px;
     }
@@ -64,7 +64,7 @@
     font-size: 13px;
     line-height: 40px;
     letter-spacing: 0.5px;
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
     border-bottom: 1px solid $ui-borders;
     margin: 0 0 35px;
   }

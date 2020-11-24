@@ -8,7 +8,7 @@
     font-weight: $bold;
 
     .kolidecon {
-      color: $core-dark-blue-grey-1;
+      color: $core-medium-blue-grey;
       margin-right: 6px;
     }
   }
@@ -17,7 +17,7 @@
     font-size: 16px;
     font-weight: $bold;
     letter-spacing: -0.5px;
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
     border-bottom: solid 1px $ui-borders;
     padding: 0 0 4px;
     margin: 0 0 6px;
@@ -27,7 +27,7 @@
     font-size: 14px;
     font-weight: $regular;
     line-height: 1.71;
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
   }
 
   &__query-preview {
@@ -51,7 +51,7 @@
   &__pack-item {
     .kolidecon {
       margin-right: 12px;
-      color: $core-dark-blue-grey-2;
+      color: $core-dark-blue-grey;
     }
   }
 

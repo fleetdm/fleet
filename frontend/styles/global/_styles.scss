@@ -38,7 +38,7 @@
     }
 
     &::before {
-      border-color: transparent $core-dark-blue-grey-2 transparent transparent;
+      border-color: transparent $core-dark-blue-grey transparent transparent;
       border-width: 16px;
       right: 99%;
       top: 22px;
@@ -55,7 +55,7 @@
     }
 
     &::before {
-      border-color: transparent transparent transparent $core-dark-blue-grey-2;
+      border-color: transparent transparent transparent $core-dark-blue-grey;
       border-width: 16px;
       left: 99%;
       top: 22px;

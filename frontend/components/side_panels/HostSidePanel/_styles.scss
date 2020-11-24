@@ -1,7 +1,7 @@
 .host-side-panel {
   &__add-label-btn {
     color: $white;
-    background-color: $core-dark-blue-grey-1;
+    background-color: $core-medium-blue-grey;
     font-weight: $regular;
     line-height: 2.25;
     letter-spacing: 0.5px;
@@ -19,7 +19,7 @@
   }
 
   &__wrapper {
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
     padding: 0;
 
     .input-icon-field {
@@ -36,7 +36,7 @@
   }
 
   &__hr {
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
     margin: $pad-base $pad-auto;
     width: 80%;
     height: 1px;
@@ -46,7 +46,7 @@
 
   &__panel-group-item {
     background-color: $white;
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
     padding: $pad-half $pad-large;
 
     &--filter {
@@ -57,7 +57,7 @@
         top: calc(#{$pad-half} + 8px);
         left: calc(#{$pad-large} + 10px);
         font-size: 22px;
-        color: $core-dark-blue-grey-1;
+        color: $core-medium-blue-grey;
       }
     }
 

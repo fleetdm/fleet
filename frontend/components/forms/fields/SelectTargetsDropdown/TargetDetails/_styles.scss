@@ -3,7 +3,7 @@
   padding: $pad-large;
 
   &__back {
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
     font-size: $xx-small;
     display: none;
 
@@ -35,7 +35,7 @@
   }
 
   &__icon {
-    color: $core-dark-blue-grey-1;
+    color: $core-medium-blue-grey;
     margin-right: $pad-small;
     width: 21px;
 
@@ -73,7 +73,7 @@
     font-size: $small;
     font-weight: $bold;
     letter-spacing: 0.9px;
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
     text-transform: uppercase;
     margin: 0;
   }
@@ -83,7 +83,7 @@
     font-weight: $regular;
     line-height: 1.85;
     letter-spacing: 0.5px;
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
     list-style: none;
     margin: 0;
     padding: 0;
@@ -124,7 +124,7 @@
   }
 
   &__icon {
-    color: $core-dark-blue-grey-1;
+    color: $core-medium-blue-grey;
     margin-right: $pad-small;
     width: 21px;
   }
@@ -138,7 +138,7 @@
 
   &__hosts-count {
     font-weight: $bold;
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
 
     strong {
       min-width: 21px;
@@ -157,7 +157,7 @@
     font-size: $pad-medium;
     font-weight: $regular;
     line-height: 1.71;
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
     margin: 0 0 $pad-small;
   }
 }
@@ -174,7 +174,7 @@
     th {
       font-weight: $bold;
       line-height: 2.3;
-      color: $core-dark-blue-grey-2;
+      color: $core-dark-blue-grey;
       padding-right: $pad-half;
     }
   }

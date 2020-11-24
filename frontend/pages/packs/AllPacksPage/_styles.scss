@@ -21,13 +21,13 @@
 
     &--delete {
       i {
-        color: $core-dark-blue-grey-1;
+        color: $core-medium-blue-grey;
       }
     }
   }
 
   &__pack-count {
-    color: $core-dark-blue-grey-3;
+    color: $core-darkest-blue-grey;
     font-size: 14px;
     font-weight: $bold;
     letter-spacing: -0.5px;
@@ -56,7 +56,7 @@
 
   &__table {
     border-collapse: collapse;
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
     font-size: $small;
     width: 100%;
   }

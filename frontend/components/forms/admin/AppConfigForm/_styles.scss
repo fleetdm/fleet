@@ -26,7 +26,7 @@
       font-weight: $bold;
       line-height: 3.2;
       letter-spacing: 0.6px;
-      color: $core-dark-blue-grey-2;
+      color: $core-dark-blue-grey;
       padding-left: 15px;
 
       em {
@@ -87,11 +87,11 @@
       font-weight: $regular;
       line-height: 1.6;
       letter-spacing: 0.5px;
-      color: $core-dark-blue-grey-2;
+      color: $core-dark-blue-grey;
     }
 
     .hint {
-      color: $core-dark-blue-grey-2;
+      color: $core-dark-blue-grey;
 
       &--brand {
         color: $core-blue;
@@ -118,13 +118,13 @@
   }
 
   &__show-options {
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
   }
 
   &__smtp-section {
     @include clearfix;
     border-radius: 2px;
-    background-color: $core-dark-blue-grey-1;
+    background-color: $core-medium-blue-grey;
     border: solid 1px $ui-borders;
     padding: 30px;
 
@@ -137,7 +137,7 @@
         font-weight: $bold;
         letter-spacing: 0.6px;
         text-align: right;
-        color: $core-dark-blue-grey-2;
+        color: $core-dark-blue-grey;
         width: 32%;
         margin: 0;
         line-height: 40px;
@@ -168,7 +168,7 @@
         vertical-align: text-bottom;
 
         &--off {
-          color: $core-dark-blue-grey-1;
+          color: $core-medium-blue-grey;
         }
 
         &--on {

@@ -65,9 +65,9 @@ $base-class: 'button';
   }
 
   &--muted {
-    @include button-variant(#eceef1, null, $core-dark-blue-grey-3);
+    @include button-variant(#eceef1, null, $core-darkest-blue-grey);
 
-    color: $core-dark-blue-grey-3;
+    color: $core-darkest-blue-grey;
   }
 
   &--warning {
@@ -141,7 +141,7 @@ $base-class: 'button';
     @include button-variant(transparent);
     border: 0;
     box-shadow: none;
-    color: $core-dark-blue-grey-2;
+    color: $core-dark-blue-grey;
     cursor: pointer;
     margin: 0;
     padding: 0;

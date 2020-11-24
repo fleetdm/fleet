@@ -15,10 +15,10 @@
 
   tr {
     border-bottom: 1px solid $ui-borders;
-  }
 
-  tr:last-child {
-    border-bottom: none;
+    &:last-child {
+      border-bottom: 0;
+    }
   }
 
   thead {
