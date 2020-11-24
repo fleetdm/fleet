@@ -1,5 +1,4 @@
 import React from 'react';
-import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
@@ -7,9 +6,7 @@ import ConfirmInviteForm from 'components/forms/ConfirmInviteForm';
 import { fillInFormInput } from 'test/helpers';
 
 describe('ConfirmInviteForm - component', () => {
-  afterEach(restoreSpies);
-
-  const handleSubmitSpy = createSpy();
+  const handleSubmitSpy = jest.fn();
   const inviteToken = 'abc123';
   const formData = { invite_token: inviteToken };
   const form = mount(<ConfirmInviteForm formData={formData} handleSubmit={handleSubmitSpy} />);
@@ -29,8 +26,8 @@ describe('ConfirmInviteForm - component', () => {
     const formWithError = mount(<ConfirmInviteForm serverErrors={{ base: baseError }} handleSubmit={noop} />);
     const formWithoutError = mount(<ConfirmInviteForm handleSubmit={noop} />);
 
-    expect(formWithError.text()).toInclude(baseError);
-    expect(formWithoutError.text()).toNotInclude(baseError);
+    expect(formWithError.text()).toContain(baseError);
+    expect(formWithoutError.text()).not.toContain(baseError);
   });
 
   it('calls the handleSubmit prop with the invite_token when valid', () => {
@@ -53,14 +50,14 @@ describe('ConfirmInviteForm - component', () => {
     it('changes form state on change', () => {
       fillInFormInput(nameInput, 'Gnar Dog');
 
-      expect(form.state().formData).toInclude({ name: 'Gnar Dog' });
+      expect(form.state().formData).toMatchObject({ name: 'Gnar Dog' });
     });
 
     it('validates the field must be present', () => {
       fillInFormInput(nameInput, '');
       form.find('button').simulate('click');
 
-      expect(form.state().errors).toInclude({ name: 'Full name must be present' });
+      expect(form.state().errors).toMatchObject({ name: 'Full name must be present' });
     });
   });
 
@@ -68,14 +65,14 @@ describe('ConfirmInviteForm - component', () => {
     it('changes form state on change', () => {
       fillInFormInput(usernameInput, 'gnardog');
 
-      expect(form.state().formData).toInclude({ username: 'gnardog' });
+      expect(form.state().formData).toMatchObject({ username: 'gnardog' });
     });
 
     it('validates the field must be present', () => {
       fillInFormInput(usernameInput, '');
       submitBtn.simulate('click');
 
-      expect(form.state().errors).toInclude({ username: 'Username must be present' });
+      expect(form.state().errors).toMatchObject({ username: 'Username must be present' });
     });
   });
 
@@ -83,14 +80,14 @@ describe('ConfirmInviteForm - component', () => {
     it('changes form state on change', () => {
       fillInFormInput(passwordInput, 'p@ssw0rd');
 
-      expect(form.state().formData).toInclude({ password: 'p@ssw0rd' });
+      expect(form.state().formData).toMatchObject({ password: 'p@ssw0rd' });
     });
 
     it('validates the field must be present', () => {
       fillInFormInput(passwordInput, '');
       form.find('button').simulate('click');
 
-      expect(form.state().errors).toInclude({ password: 'Password must be present' });
+      expect(form.state().errors).toMatchObject({ password: 'Password must be present' });
     });
   });
 
@@ -98,7 +95,7 @@ describe('ConfirmInviteForm - component', () => {
     it('changes form state on change', () => {
       fillInFormInput(passwordConfirmationInput, 'p@ssw0rd');
 
-      expect(form.state().formData).toInclude({ password_confirmation: 'p@ssw0rd' });
+      expect(form.state().formData).toMatchObject({ password_confirmation: 'p@ssw0rd' });
     });
 
     it('validates the password_confirmation matches the password', () => {
@@ -106,7 +103,7 @@ describe('ConfirmInviteForm - component', () => {
       fillInFormInput(passwordConfirmationInput, 'another-password');
       form.find('button').simulate('click');
 
-      expect(form.state().errors).toInclude({
+      expect(form.state().errors).toMatchObject({
         password_confirmation: 'Password confirmation does not match password',
       });
     });
@@ -115,7 +112,7 @@ describe('ConfirmInviteForm - component', () => {
       fillInFormInput(passwordConfirmationInput, '');
       form.find('button').simulate('click');
 
-      expect(form.state().errors).toInclude({ password_confirmation: 'Password confirmation must be present' });
+      expect(form.state().errors).toMatchObject({ password_confirmation: 'Password confirmation must be present' });
     });
   });
 });

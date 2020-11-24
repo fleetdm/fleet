@@ -1,5 +1,4 @@
 import React from 'react';
-import expect, { spyOn, restoreSpies } from 'expect';
 import { find } from 'lodash';
 import { mount } from 'enzyme';
 
@@ -27,17 +26,15 @@ const store = {
 
 describe('AllPacksPage - component', () => {
   beforeEach(() => {
-    spyOn(packActions, 'loadAll')
-      .andReturn(() => Promise.resolve([]));
+    jest.spyOn(packActions, 'loadAll')
+      .mockImplementation(() => () => Promise.resolve([]));
   });
-
-  afterEach(restoreSpies);
 
   describe('rendering', () => {
     it('does not render when packs are loading', () => {
       const page = mount(<AllPacksPage loadingPacks packs={[packStub]} />);
 
-      expect(page.html()).toNotExist();
+      expect(page.html()).toBeFalsy();
     });
 
     it('renders a PacksList component', () => {
@@ -73,37 +70,43 @@ describe('AllPacksPage - component', () => {
     expect(page.instance().getPacks().length).toEqual(1);
   });
 
-  it('updates checkedPackIDs in state when the select all packs Checkbox is toggled', () => {
-    const page = mount(<AllPacksPage packs={[packStub]} />);
-    let selectAllPacks = page.find({ name: 'select-all-packs' }).hostNodes();
+  it(
+    'updates checkedPackIDs in state when the select all packs Checkbox is toggled',
+    () => {
+      const page = mount(<AllPacksPage packs={[packStub]} />);
+      let selectAllPacks = page.find({ name: 'select-all-packs' }).hostNodes();
 
-    expect(page.state('checkedPackIDs')).toEqual([]);
+      expect(page.state('checkedPackIDs')).toEqual([]);
 
-    selectAllPacks.simulate('change');
+      selectAllPacks.simulate('change');
 
-    expect(page.state('checkedPackIDs')).toEqual([packStub.id]);
+      expect(page.state('checkedPackIDs')).toEqual([packStub.id]);
 
-    selectAllPacks = page.find({ name: 'select-all-packs' }).hostNodes();
-    selectAllPacks.simulate('change');
+      selectAllPacks = page.find({ name: 'select-all-packs' }).hostNodes();
+      selectAllPacks.simulate('change');
 
-    expect(page.state('checkedPackIDs')).toEqual([]);
-  });
+      expect(page.state('checkedPackIDs')).toEqual([]);
+    },
+  );
 
-  it('updates checkedPackIDs in state when a pack row Checkbox is toggled', () => {
-    const page = mount(<AllPacksPage packs={[packStub]} />);
-    let selectPack = page.find({ name: `select-pack-${packStub.id}` }).hostNodes();
+  it(
+    'updates checkedPackIDs in state when a pack row Checkbox is toggled',
+    () => {
+      const page = mount(<AllPacksPage packs={[packStub]} />);
+      let selectPack = page.find({ name: `select-pack-${packStub.id}` }).hostNodes();
 
-    expect(page.state('checkedPackIDs')).toEqual([]);
+      expect(page.state('checkedPackIDs')).toEqual([]);
 
-    selectPack.simulate('change');
+      selectPack.simulate('change');
 
-    expect(page.state('checkedPackIDs')).toEqual([packStub.id]);
+      expect(page.state('checkedPackIDs')).toEqual([packStub.id]);
 
-    selectPack = page.find({ name: `select-pack-${packStub.id}` }).hostNodes();
-    selectPack.simulate('change');
+      selectPack = page.find({ name: `select-pack-${packStub.id}` }).hostNodes();
+      selectPack.simulate('change');
 
-    expect(page.state('checkedPackIDs')).toEqual([]);
-  });
+      expect(page.state('checkedPackIDs')).toEqual([]);
+    },
+  );
 
   describe('bulk actions', () => {
     const packs = [packStub, { ...packStub, id: 101, name: 'My unique pack name' }];
@@ -134,7 +137,7 @@ describe('AllPacksPage - component', () => {
 
       const dispatchedActions = mockStore.getActions();
 
-      expect(dispatchedActions).toInclude({ type: 'packs_UPDATE_REQUEST' });
+      expect(dispatchedActions).toContainEqual({ type: 'packs_UPDATE_REQUEST' });
     });
 
     it('dispatches the pack update function when enable is clicked', () => {
@@ -151,7 +154,7 @@ describe('AllPacksPage - component', () => {
 
       const dispatchedActions = mockStore.getActions();
 
-      expect(dispatchedActions).toInclude({ type: 'packs_UPDATE_REQUEST' });
+      expect(dispatchedActions).toContainEqual({ type: 'packs_UPDATE_REQUEST' });
     });
 
     it('loads a modal when delete is clicked', () => {
@@ -191,31 +194,34 @@ describe('AllPacksPage - component', () => {
 
       const dispatchedActions = mockStore.getActions();
 
-      expect(dispatchedActions).toInclude({ type: 'packs_DESTROY_REQUEST' });
+      expect(dispatchedActions).toContainEqual({ type: 'packs_DESTROY_REQUEST' });
     });
 
-    it('does not dispatch the pack destroy action when the modal is canceled', () => {
-      const mockStore = reduxMockStore(store);
-      const Component = connectedComponent(ConnectedAllPacksPage, { mockStore });
-      const page = mount(Component);
-      const selectAllPacks = page.find({ name: 'select-all-packs' });
+    it(
+      'does not dispatch the pack destroy action when the modal is canceled',
+      () => {
+        const mockStore = reduxMockStore(store);
+        const Component = connectedComponent(ConnectedAllPacksPage, { mockStore });
+        const page = mount(Component);
+        const selectAllPacks = page.find({ name: 'select-all-packs' });
 
-      expect(page.find('Modal').length).toEqual(0);
+        expect(page.find('Modal').length).toEqual(0);
 
-      selectAllPacks.hostNodes().simulate('change');
+        selectAllPacks.hostNodes().simulate('change');
 
-      const deleteBtn = page.find('.all-packs-page__bulk-action-btn--delete').hostNodes();
+        const deleteBtn = page.find('.all-packs-page__bulk-action-btn--delete').hostNodes();
 
-      deleteBtn.simulate('click');
+        deleteBtn.simulate('click');
 
-      const modal = page.find('Modal');
+        const modal = page.find('Modal');
 
-      modal.find('Button').last().simulate('click');
+        modal.find('Button').last().simulate('click');
 
-      const dispatchedActions = mockStore.getActions();
+        const dispatchedActions = mockStore.getActions();
 
-      expect(dispatchedActions).toNotInclude({ type: 'packs_DESTROY_REQUEST' });
-    });
+        expect(dispatchedActions).not.toContainEqual({ type: 'packs_DESTROY_REQUEST' });
+      },
+    );
   });
 
   describe('selecting a pack', () => {
@@ -225,7 +231,7 @@ describe('AllPacksPage - component', () => {
       const page = mount(Component).find('AllPacksPage');
       const firstRow = page.find('Row').last();
 
-      expect(page.prop('selectedPack')).toNotExist();
+      expect(page.prop('selectedPack')).toBeFalsy();
 
       firstRow.find('ClickableTableRow').last().simulate('click');
 
@@ -239,8 +245,8 @@ describe('AllPacksPage - component', () => {
     });
 
     it('sets the selectedPack prop', () => {
-      spyOn(scheduledQueryActions, 'loadAll')
-        .andReturn(() => Promise.resolve([]));
+      jest.spyOn(scheduledQueryActions, 'loadAll')
+        .mockImplementation(() => () => Promise.resolve([]));
 
       const mockStore = reduxMockStore(store);
       const props = { location: { query: { selectedPack: packStub.id } } };
@@ -250,18 +256,21 @@ describe('AllPacksPage - component', () => {
       expect(page.prop('selectedPack')).toEqual(packStub);
     });
 
-    it('goes to the edit pack edit page when table row is double clicked', () => {
-      const mockStore = reduxMockStore(store);
-      const props = { location: { query: { selectedPack: packStub.id } } };
-      const Component = connectedComponent(ConnectedAllPacksPage, { mockStore, props });
-      const page = mount(Component).find('AllPacksPage');
-      const tableRow = page.find('PacksList').find('.packs-list-row--selected');
+    it(
+      'goes to the edit pack edit page when table row is double clicked',
+      () => {
+        const mockStore = reduxMockStore(store);
+        const props = { location: { query: { selectedPack: packStub.id } } };
+        const Component = connectedComponent(ConnectedAllPacksPage, { mockStore, props });
+        const page = mount(Component).find('AllPacksPage');
+        const tableRow = page.find('PacksList').find('.packs-list-row--selected');
 
-      tableRow.hostNodes().simulate('doubleclick');
+        tableRow.hostNodes().simulate('doubleclick');
 
-      const routerChangeAction = find(mockStore.getActions(), { type: '@@router/CALL_HISTORY_METHOD' });
+        const routerChangeAction = find(mockStore.getActions(), { type: '@@router/CALL_HISTORY_METHOD' });
 
-      expect(routerChangeAction.payload).toEqual({ method: 'push', args: [`/packs/${packStub.id}`] });
-    });
+        expect(routerChangeAction.payload).toEqual({ method: 'push', args: [`/packs/${packStub.id}`] });
+      },
+    );
   });
 });

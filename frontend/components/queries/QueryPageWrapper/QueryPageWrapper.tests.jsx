@@ -1,4 +1,3 @@
-import expect, { spyOn, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import nock from 'nock';
 
@@ -23,7 +22,6 @@ describe('QueryPageWrapper - component', () => {
   });
 
   afterEach(() => {
-    restoreSpies();
     nock.cleanAll();
   });
 
@@ -39,20 +37,18 @@ describe('QueryPageWrapper - component', () => {
       mount(connectedComponent(QueryPageWrapper, { mockStore, props: locationProp }));
 
       const dispatchedActions = mockStore.getActions().map((action) => { return action.type; });
-      expect(dispatchedActions).toInclude('queries_LOAD_REQUEST');
+      expect(dispatchedActions).toContainEqual('queries_LOAD_REQUEST');
     });
 
     it('calls the fetchQuery helper function', () => {
       queryMocks.load.valid(bearerToken, queryID);
 
-      const fetchQuerySpy = spyOn(helpers, 'fetchQuery');
+      const fetchQuerySpy = jest.spyOn(helpers, 'fetchQuery');
       const mockStore = reduxMockStore(storeWithoutQuery);
 
       mount(connectedComponent(QueryPageWrapper, { mockStore, props: locationProp }));
 
       expect(fetchQuerySpy).toHaveBeenCalled();
-
-      restoreSpies();
     });
   });
 });

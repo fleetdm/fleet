@@ -1,5 +1,4 @@
 import React from 'react';
-import expect from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
@@ -92,7 +91,7 @@ describe('AppConfigForm - form', () => {
   });
 
   describe('Advanced options', () => {
-    before(() => {
+    beforeAll(() => {
       form.find('.app-config-form__show-options').simulate('click');
     });
 

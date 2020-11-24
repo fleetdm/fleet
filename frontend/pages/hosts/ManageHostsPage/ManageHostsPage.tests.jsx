@@ -1,5 +1,4 @@
 import React from 'react';
-import expect, { spyOn, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
@@ -63,16 +62,14 @@ describe('ManageHostsPage - component', () => {
   beforeEach(() => {
     const spyResponse = () => Promise.resolve([]);
 
-    spyOn(hostActions, 'loadAll')
-      .andReturn(spyResponse);
-    spyOn(labelActions, 'loadAll')
-      .andReturn(spyResponse);
-    spyOn(manageHostsPageActions, 'getStatusLabelCounts')
-      .andReturn(spyResponse);
+    jest.spyOn(hostActions, 'loadAll')
+      .mockImplementation(() => spyResponse);
+    jest.spyOn(labelActions, 'loadAll')
+      .mockImplementation(() => spyResponse);
+    jest.spyOn(manageHostsPageActions, 'getStatusLabelCounts')
+      .mockImplementation(() => spyResponse);
     createAceSpy();
   });
-
-  afterEach(restoreSpies);
 
   describe('side panels', () => {
     it('renders a HostSidePanel when not adding a new label', () => {
@@ -91,18 +88,18 @@ describe('ManageHostsPage - component', () => {
   });
 
   describe('header', () => {
-    it('displays "1 Host Total" when there is 1 host', () => {
+    it('displays "1 host" when there is 1 host', () => {
       const oneHostLabel = { ...allHostsLabel, count: 1 };
       const page = mount(<ManageHostsPage {...props} selectedLabel={oneHostLabel} />);
 
-      expect(page.text()).toInclude('1 host');
+      expect(page.text()).toContain('1 host');
     });
 
     it('displays "#{count} Hosts Total" when there are more than 1 host', () => {
       const oneHostLabel = { ...allHostsLabel, count: 2 };
       const page = mount(<ManageHostsPage {...props} selectedLabel={oneHostLabel} />);
 
-      expect(page.text()).toInclude('2 hosts');
+      expect(page.text()).toContain('2 hosts');
     });
   });
 
@@ -130,7 +127,6 @@ describe('ManageHostsPage - component', () => {
 
   describe('Adding a new label', () => {
     beforeEach(() => createAceSpy());
-    afterEach(restoreSpies);
 
     const ownProps = { location: { hash: '#new_label' }, params: {} };
     const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
@@ -144,20 +140,19 @@ describe('ManageHostsPage - component', () => {
     it('displays "New Label" as the query form header', () => {
       const page = mount(component);
 
-      expect(page.find('LabelForm').text()).toInclude('New Label');
+      expect(page.find('LabelForm').text()).toContain('New Label');
     });
   });
 
   describe('Active label', () => {
     beforeEach(() => createAceSpy());
-    afterEach(restoreSpies);
 
     it('Displays the all hosts label as the active label by default', () => {
       const ownProps = { location: {}, params: {} };
       const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
       const page = mount(component);
 
-      expect(page.find('HostSidePanel').props()).toInclude({
+      expect(page.find('HostSidePanel').props()).toMatchObject({
         selectedFilter: 'all-hosts',
       });
     });
@@ -167,41 +162,47 @@ describe('ManageHostsPage - component', () => {
       const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
       const page = mount(component);
 
-      expect(page.find('HostSidePanel').props()).toInclude({
+      expect(page.find('HostSidePanel').props()).toMatchObject({
         selectedFilter: 'labels/4',
       });
     });
 
-    it('Renders the default description if the selected label does not have a description', () => {
-      const defaultDescription = 'No description available.';
-      const noDescriptionLabel = { ...allHostsLabel, description: undefined };
-      const pageProps = {
-        ...props,
-        selectedLabel: noDescriptionLabel,
-      };
+    it(
+      'Renders the default description if the selected label does not have a description',
+      () => {
+        const defaultDescription = 'No description available.';
+        const noDescriptionLabel = { ...allHostsLabel, description: undefined };
+        const pageProps = {
+          ...props,
+          selectedLabel: noDescriptionLabel,
+        };
 
-      const Page = mount(<ManageHostsPage {...pageProps} />);
+        const Page = mount(<ManageHostsPage {...pageProps} />);
 
-      expect(Page.find('.manage-hosts__header').text())
-        .toInclude(defaultDescription);
-    });
+        expect(Page.find('.manage-hosts__header').text())
+          .toContain(defaultDescription);
+      },
+    );
 
-    it('Renders the label description if the selected label has a description', () => {
-      const defaultDescription = 'No description available.';
-      const labelDescription = 'This is the label description';
-      const noDescriptionLabel = { ...allHostsLabel, description: labelDescription };
-      const pageProps = {
-        ...props,
-        selectedLabel: noDescriptionLabel,
-      };
+    it(
+      'Renders the label description if the selected label has a description',
+      () => {
+        const defaultDescription = 'No description available.';
+        const labelDescription = 'This is the label description';
+        const noDescriptionLabel = { ...allHostsLabel, description: labelDescription };
+        const pageProps = {
+          ...props,
+          selectedLabel: noDescriptionLabel,
+        };
 
-      const Page = mount(<ManageHostsPage {...pageProps} />);
+        const Page = mount(<ManageHostsPage {...pageProps} />);
 
-      expect(Page.find('.manage-hosts__header').text())
-        .toInclude(labelDescription);
-      expect(Page.find('.manage-hosts__header').text())
-        .toNotInclude(defaultDescription);
-    });
+        expect(Page.find('.manage-hosts__header').text())
+          .toContain(labelDescription);
+        expect(Page.find('.manage-hosts__header').text())
+          .not.toContain(defaultDescription);
+      },
+    );
   });
 
   describe('Edit a label', () => {
@@ -241,7 +242,7 @@ describe('ManageHostsPage - component', () => {
         .find('Button')
         .last();
 
-      spyOn(labelActions, 'destroy').andReturn((dispatch) => {
+      jest.spyOn(labelActions, 'destroy').mockImplementation(() => (dispatch) => {
         dispatch({ type: 'labels_LOAD_REQUEST' });
 
         return Promise.resolve();
@@ -269,7 +270,7 @@ describe('ManageHostsPage - component', () => {
       const page = mount(component);
       const deleteBtn = page.find('ActionButton').last().find('Button');
 
-      spyOn(hostActions, 'destroy').andReturn((dispatch) => {
+      jest.spyOn(hostActions, 'destroy').mockImplementation(() => (dispatch) => {
         dispatch({ type: 'hosts_LOAD_REQUEST' });
 
         return Promise.resolve();

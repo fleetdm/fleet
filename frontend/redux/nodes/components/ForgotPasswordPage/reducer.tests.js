@@ -1,5 +1,4 @@
 import configureStore from 'redux-mock-store';
-import expect from 'expect';
 import thunk from 'redux-thunk';
 
 import {
@@ -79,8 +78,8 @@ describe('ForgotPasswordPage - reducer', () => {
         .then(() => {
           const actions = store.getActions();
 
-          expect(actions).toInclude(forgotPasswordRequestAction);
-          expect(actions).toInclude(forgotPasswordSuccessAction(formData.email));
+          expect(actions).toContainEqual(forgotPasswordRequestAction);
+          expect(actions).toContainEqual(forgotPasswordSuccessAction(formData.email));
           expect(request.isDone()).toEqual(true);
           done();
         })
@@ -99,7 +98,7 @@ describe('ForgotPasswordPage - reducer', () => {
         .catch(() => {
           const actions = store.getActions();
 
-          expect(actions).toInclude(forgotPasswordErrorAction({ base: 'Something went wrong', http_status: 422 }));
+          expect(actions).toContainEqual(forgotPasswordErrorAction({ base: 'Something went wrong', http_status: 422 }));
           expect(invalidRequest.isDone()).toEqual(true);
           done();
         });

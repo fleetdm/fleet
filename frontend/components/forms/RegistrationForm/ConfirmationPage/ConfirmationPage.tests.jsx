@@ -1,13 +1,10 @@
 import React from 'react';
-import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
 import ConfirmationPage from 'components/forms/RegistrationForm/ConfirmationPage';
 
 describe('ConfirmationPage - form', () => {
-  afterEach(restoreSpies);
-
   const formData = {
     username: 'jmeller',
     email: 'jason@kolide.co',
@@ -23,14 +20,14 @@ describe('ConfirmationPage - form', () => {
       />,
     );
 
-    expect(form.text()).toInclude(formData.username);
-    expect(form.text()).toInclude(formData.email);
-    expect(form.text()).toInclude(formData.org_name);
-    expect(form.text()).toInclude(formData.kolide_server_url);
+    expect(form.text()).toContain(formData.username);
+    expect(form.text()).toContain(formData.email);
+    expect(form.text()).toContain(formData.org_name);
+    expect(form.text()).toContain(formData.kolide_server_url);
   });
 
   it('submits the form', () => {
-    const handleSubmitSpy = createSpy();
+    const handleSubmitSpy = jest.fn();
     const form = mount(
       <ConfirmationPage
         formData={formData}

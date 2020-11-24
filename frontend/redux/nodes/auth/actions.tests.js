@@ -1,5 +1,3 @@
-import expect, { restoreSpies, spyOn } from 'expect';
-
 import Kolide from 'kolide';
 import userActions from 'redux/nodes/entities/users/actions';
 
@@ -24,11 +22,10 @@ describe('Auth - actions', () => {
   describe('#ssoRedirect', () => {
     const ssoURL = 'http://salesforce.idp.com';
     const relayURL = '/';
-    afterEach(restoreSpies);
 
     describe('successful request', () => {
       beforeEach(() => {
-        spyOn(Kolide.sessions, 'initializeSSO').andReturn(Promise.resolve({ url: ssoURL }));
+        jest.spyOn(Kolide.sessions, 'initializeSSO').mockImplementation(() => Promise.resolve({ url: ssoURL }));
       });
 
       it('calls the API', () => {
@@ -77,12 +74,10 @@ describe('Auth - actions', () => {
   describe('dispatching the perform required password reset action', () => {
     describe('successful request', () => {
       beforeEach(() => {
-        spyOn(Kolide.users, 'performRequiredPasswordReset').andCall(() => {
+        jest.spyOn(Kolide.users, 'performRequiredPasswordReset').mockImplementation(() => {
           return Promise.resolve({ ...user, force_password_reset: false });
         });
       });
-
-      afterEach(restoreSpies);
 
       const resetParams = { password: 'foobar' };
 
@@ -130,12 +125,10 @@ describe('Auth - actions', () => {
       const resetParams = { password: 'foobar' };
 
       beforeEach(() => {
-        spyOn(Kolide.users, 'performRequiredPasswordReset').andCall(() => {
+        jest.spyOn(Kolide.users, 'performRequiredPasswordReset').mockImplementation(() => {
           return Promise.reject(errorResponse);
         });
       });
-
-      afterEach(restoreSpies);
 
       it('calls the resetFunc', () => {
         const mockStore = reduxMockStore(store);
@@ -180,7 +173,7 @@ describe('Auth - actions', () => {
         { type: 'UPDATE_USER_SUCCESS', payload: { user: updatedUser } },
       ];
 
-      spyOn(userActions, 'silentUpdate').andReturn(() => Promise.resolve(updatedUser));
+      jest.spyOn(userActions, 'silentUpdate').mockImplementation(() => () => Promise.resolve(updatedUser));
 
       return mockStore.dispatch(updateUser(userStub, updatedAttrs))
         .then(() => {

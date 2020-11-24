@@ -1,5 +1,3 @@
-import expect from 'expect';
-
 import reducer, { initialState } from './reducer';
 import {
   selectOsqueryTable,
@@ -13,7 +11,7 @@ describe('QueryPages - reducer', () => {
     expect(reducer(undefined, { type: 'SOME_ACTION' })).toEqual(initialState);
   });
 
-  context('selectOsqueryTable action', () => {
+  describe('selectOsqueryTable action', () => {
     it('sets the selectedOsqueryTable attribute', () => {
       const selectOsqueryTableAction = selectOsqueryTable('groups');
       expect(reducer(initialState, selectOsqueryTableAction)).toEqual({
@@ -25,7 +23,7 @@ describe('QueryPages - reducer', () => {
     });
   });
 
-  context('setQueryText action', () => {
+  describe('setQueryText action', () => {
     it('sets the queryText attribute', () => {
       const queryText = 'SELECT * FROM users';
       const setQueryTextAction = setQueryText(queryText);
@@ -38,7 +36,7 @@ describe('QueryPages - reducer', () => {
     });
   });
 
-  context('setSelectedTargets action', () => {
+  describe('setSelectedTargets action', () => {
     it('sets the selectedTarges attribute', () => {
       const selectedTargets = [{ label: 'MacOs' }];
       const setSelectedTargetsAction = setSelectedTargets(selectedTargets);
@@ -49,7 +47,7 @@ describe('QueryPages - reducer', () => {
     });
   });
 
-  context('setSelectedTargetsQuery action', () => {
+  describe('setSelectedTargetsQuery action', () => {
     it('sets the selectedTarges attribute', () => {
       const setSelectedTargetsQueryAction = setSelectedTargetsQuery('192');
       expect(reducer(initialState, setSelectedTargetsQueryAction)).toEqual({

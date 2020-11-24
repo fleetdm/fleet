@@ -1,6 +1,5 @@
 import React from 'react';
-import expect, { createSpy, restoreSpies } from 'expect';
-import { mount } from 'enzyme';
+import { mount, shallow } from 'enzyme';
 import nock from 'nock';
 import { noop } from 'lodash';
 
@@ -18,14 +17,13 @@ describe('SelectTargetsDropdown - component', () => {
     selectedTargets: [],
     targetsCount: 0,
   };
-  const DefaultComponent = mount(<SelectTargetsDropdown {...defaultProps} />);
-
   afterEach(() => nock.cleanAll());
 
   it('sets default state', () => {
+    const DefaultComponent = mount(<SelectTargetsDropdown {...defaultProps} />);
     expect(DefaultComponent.state()).toEqual({
       isEmpty: false,
-      isLoadingTargets: false,
+      isLoadingTargets: true,
       moreInfoTarget: null,
       query: '',
       targets: [],
@@ -34,16 +32,19 @@ describe('SelectTargetsDropdown - component', () => {
 
   describe('rendering', () => {
     it('renders', () => {
+      const DefaultComponent = mount(<SelectTargetsDropdown {...defaultProps} />);
       expect(DefaultComponent.length).toEqual(1, 'Expected component to render');
     });
 
     it('renders the SelectTargetsInput', () => {
+      const DefaultComponent = mount(<SelectTargetsDropdown {...defaultProps} />);
       const SelectTargetsInput = DefaultComponent.find('SelectTargetsInput');
 
       expect(SelectTargetsInput.length).toEqual(1, 'Expected SelectTargetsInput to render');
     });
 
     it('renders a label when passed as a prop', () => {
+      const DefaultComponent = mount(<SelectTargetsDropdown {...defaultProps} />);
       const noLabelProps = { ...defaultProps, label: undefined };
       const ComponentWithoutLabel = mount(<SelectTargetsDropdown {...noLabelProps} />);
       const Label = DefaultComponent.find('.target-select__label');
@@ -54,6 +55,7 @@ describe('SelectTargetsDropdown - component', () => {
     });
 
     it('renders the error when passed as a prop', () => {
+      const DefaultComponent = mount(<SelectTargetsDropdown {...defaultProps} />);
       const errorProps = { ...defaultProps, error: "You can't do this!" };
       const ErrorComponent = mount(<SelectTargetsDropdown {...errorProps} />);
       const Error = ErrorComponent.find('.target-select__label--error');
@@ -64,11 +66,12 @@ describe('SelectTargetsDropdown - component', () => {
     });
 
     it('renders the target count', () => {
+      const DefaultComponent = mount(<SelectTargetsDropdown {...defaultProps} />);
       const targetCountProps = { ...defaultProps, targetsCount: 10 };
       const TargetCountComponent = mount(<SelectTargetsDropdown {...targetCountProps} />);
 
-      expect(DefaultComponent.text()).toInclude('0 unique hosts');
-      expect(TargetCountComponent.text()).toInclude('10 unique hosts');
+      expect(DefaultComponent.text()).toContain('0 unique hosts');
+      expect(TargetCountComponent.text()).toContain('10 unique hosts');
     });
   });
 
@@ -94,48 +97,56 @@ describe('SelectTargetsDropdown - component', () => {
       targets: [{ ...Test.Stubs.labelStub, target_type: 'labels' }],
     };
 
-    afterEach(() => restoreSpies());
-
     it('calls the api', () => {
-      nock.cleanAll();
       Test.Mocks.targetMock(defaultParams, apiResponseWithTargets);
-      const Component = mount(<SelectTargetsDropdown {...defaultProps} />);
+      const Component = shallow(<SelectTargetsDropdown {...defaultProps} />);
       const node = Component.instance();
 
+      nock.cleanAll();
       const request = Test.Mocks.targetMock(defaultParams, apiResponseWithTargets);
 
+      expect.assertions(1);
       return node.fetchTargets()
         .then(() => {
           expect(request.isDone()).toEqual(true);
+        })
+        .catch((error) => {
+          expect(error).toBe(undefined);
         });
     });
 
     it('calls the onFetchTargets prop', () => {
+      const onFetchTargets = jest.fn();
+      const props = { ...defaultProps, onFetchTargets };
+
       nock.cleanAll();
       Test.Mocks.targetMock(defaultParams, apiResponseWithTargets).persist();
-      const onFetchTargets = createSpy();
-      const props = { ...defaultProps, onFetchTargets };
-      const Component = mount(<SelectTargetsDropdown {...props} />);
+
+      const Component = shallow(<SelectTargetsDropdown {...props} />);
       const node = Component.instance();
 
 
+      expect.assertions(1);
       return node.fetchTargets()
         .then(() => {
           expect(onFetchTargets).toHaveBeenCalledWith('', expectedApiClientResponseWithTargets);
         });
     });
 
-    it('does not call the onFetchTargets prop when the component is not mounted', () => {
-      const onFetchTargets = createSpy();
-      const props = { ...defaultProps, onFetchTargets };
-      const Component = mount(<SelectTargetsDropdown {...props} />);
-      const node = Component.instance();
+    it(
+      'does not call the onFetchTargets prop when the component is not mounted',
+      () => {
+        const onFetchTargets = jest.fn();
+        const props = { ...defaultProps, onFetchTargets };
+        const Component = shallow(<SelectTargetsDropdown {...props} />);
+        const node = Component.instance();
 
-      node.mounted = false;
+        node.mounted = false;
 
-      expect(node.fetchTargets()).toEqual(false);
-      expect(onFetchTargets).toNotHaveBeenCalled();
-    });
+        expect(node.fetchTargets()).toEqual(false);
+        expect(onFetchTargets).not.toHaveBeenCalled();
+      },
+    );
 
     it('sets state correctly when no targets are returned', () => {
       const Component = mount(<SelectTargetsDropdown {...defaultProps} />);
@@ -143,6 +154,7 @@ describe('SelectTargetsDropdown - component', () => {
 
       Test.Mocks.targetMock(defaultParams, apiResponseWithoutTargets);
 
+      expect.assertions(3);
       return node.fetchTargets()
         .then(() => {
           expect(Component.state('isEmpty')).toEqual(true);
@@ -158,6 +170,7 @@ describe('SelectTargetsDropdown - component', () => {
 
       Test.Mocks.targetMock({ ...defaultParams, query });
 
+      expect.assertions(1);
       return node.fetchTargets(query)
         .then((q) => {
           expect(q).toEqual(query);

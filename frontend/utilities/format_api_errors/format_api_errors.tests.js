@@ -1,5 +1,3 @@
-import expect from 'expect';
-
 import formatApiErrors from 'utilities/format_api_errors';
 
 describe('formatApiErrors', () => {

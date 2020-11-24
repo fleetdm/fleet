@@ -1,5 +1,4 @@
 import React from 'react';
-import expect, { spyOn, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
@@ -52,14 +51,12 @@ const store = {
 
 describe('UserManagementPage - component', () => {
   beforeEach(() => {
-    spyOn(userActions, 'loadAll')
-      .andReturn(() => Promise.resolve([]));
+    jest.spyOn(userActions, 'loadAll')
+      .mockImplementation(() => () => Promise.resolve([]));
 
-    spyOn(inviteActions, 'loadAll')
-      .andReturn(() => Promise.resolve([]));
+    jest.spyOn(inviteActions, 'loadAll')
+      .mockImplementation(() => () => Promise.resolve([]));
   });
-
-  afterEach(restoreSpies);
 
   describe('rendering', () => {
     it('does not render if invites are loading', () => {
@@ -74,7 +71,7 @@ describe('UserManagementPage - component', () => {
       };
       const page = mount(<UserManagementPage {...props} />);
 
-      expect(page.html()).toNotExist();
+      expect(page.html()).toBeFalsy();
     });
 
     it('does not render if users are loading', () => {
@@ -89,7 +86,7 @@ describe('UserManagementPage - component', () => {
       };
       const page = mount(<UserManagementPage {...props} />);
 
-      expect(page.html()).toNotExist();
+      expect(page.html()).toBeFalsy();
     });
 
     it('renders user blocks for users and invites', () => {
@@ -103,25 +100,28 @@ describe('UserManagementPage - component', () => {
       const mockStore = reduxMockStore(store);
       const page = mount(connectedComponent(ConnectedUserManagementPage, { mockStore }));
 
-      expect(page.text()).toInclude('Listing 2 users');
+      expect(page.text()).toContain('Listing 2 users');
     });
 
-    it('displays a disabled "Add User" button if email is not configured', () => {
-      const notConfiguredStore = { ...store, app: { config: { configured: false } } };
-      const notConfiguredMockStore = reduxMockStore(notConfiguredStore);
-      const notConfiguredPage = mount(connectedComponent(ConnectedUserManagementPage, {
-        mockStore: notConfiguredMockStore,
-      }));
+    it(
+      'displays a disabled "Add User" button if email is not configured',
+      () => {
+        const notConfiguredStore = { ...store, app: { config: { configured: false } } };
+        const notConfiguredMockStore = reduxMockStore(notConfiguredStore);
+        const notConfiguredPage = mount(connectedComponent(ConnectedUserManagementPage, {
+          mockStore: notConfiguredMockStore,
+        }));
 
-      const configuredStore = store;
-      const configuredMockStore = reduxMockStore(configuredStore);
-      const configuredPage = mount(connectedComponent(ConnectedUserManagementPage, {
-        mockStore: configuredMockStore,
-      }));
+        const configuredStore = store;
+        const configuredMockStore = reduxMockStore(configuredStore);
+        const configuredPage = mount(connectedComponent(ConnectedUserManagementPage, {
+          mockStore: configuredMockStore,
+        }));
 
-      expect(notConfiguredPage.find('Button').first().prop('disabled')).toEqual(true);
-      expect(configuredPage.find('Button').first().prop('disabled')).toEqual(false);
-    });
+        expect(notConfiguredPage.find('Button').first().prop('disabled')).toEqual(true);
+        expect(configuredPage.find('Button').first().prop('disabled')).toEqual(false);
+      },
+    );
 
     it('displays a SmtpWarning if email is not configured', () => {
       const notConfiguredStore = { ...store, app: { config: { configured: false } } };
@@ -136,27 +136,30 @@ describe('UserManagementPage - component', () => {
         mockStore: configuredMockStore,
       }));
 
-      expect(notConfiguredPage.find('WarningBanner').html()).toExist();
-      expect(configuredPage.find('WarningBanner').html()).toNotExist();
+      expect(notConfiguredPage.find('WarningBanner').html()).toBeTruthy();
+      expect(configuredPage.find('WarningBanner').html()).toBeFalsy();
     });
   });
 
-  it('goes to the app settings page for the user to resolve their smtp settings', () => {
-    const notConfiguredStore = { ...store, app: { config: { configured: false } } };
-    const mockStore = reduxMockStore(notConfiguredStore);
-    const page = mount(connectedComponent(ConnectedUserManagementPage, { mockStore }));
+  it(
+    'goes to the app settings page for the user to resolve their smtp settings',
+    () => {
+      const notConfiguredStore = { ...store, app: { config: { configured: false } } };
+      const mockStore = reduxMockStore(notConfiguredStore);
+      const page = mount(connectedComponent(ConnectedUserManagementPage, { mockStore }));
 
-    const smtpWarning = page.find('WarningBanner');
+      const smtpWarning = page.find('WarningBanner');
 
-    smtpWarning.find('Button').simulate('click');
+      smtpWarning.find('Button').simulate('click');
 
-    const goToAppSettingsAction = {
-      type: '@@router/CALL_HISTORY_METHOD',
-      payload: { method: 'push', args: ['/admin/settings'] },
-    };
+      const goToAppSettingsAction = {
+        type: '@@router/CALL_HISTORY_METHOD',
+        payload: { method: 'push', args: ['/admin/settings'] },
+      };
 
-    expect(mockStore.getActions()).toInclude(goToAppSettingsAction);
-  });
+      expect(mockStore.getActions()).toContainEqual(goToAppSettingsAction);
+    },
+  );
 
   it('gets users on mount', () => {
     const mockStore = reduxMockStore(store);
@@ -181,7 +184,7 @@ describe('UserManagementPage - component', () => {
     const updatedAttrs = { name: 'Updated Name' };
 
     it('updates the current user with only the updated attributes', () => {
-      spyOn(authActions, 'updateUser').andCallThrough();
+      jest.spyOn(authActions, 'updateUser');
 
       const updatedUser = { ...currentUser, ...updatedAttrs };
 
@@ -191,7 +194,7 @@ describe('UserManagementPage - component', () => {
     });
 
     it('updates a different user with only the updated attributes', () => {
-      spyOn(userActions, 'silentUpdate').andCallThrough();
+      jest.spyOn(userActions, 'silentUpdate');
 
       const otherUser = { ...currentUser, id: currentUser.id + 1 };
       const updatedUser = { ...otherUser, ...updatedAttrs };

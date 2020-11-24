@@ -1,5 +1,4 @@
 import React from 'react';
-import expect from 'expect';
 import { noop } from 'lodash';
 import { mount } from 'enzyme';
 

@@ -1,5 +1,3 @@
-import expect from 'expect';
-
 import validate from 'components/forms/admin/AppConfigForm/validate';
 
 describe('AppConfigForm - validations', () => {
@@ -78,7 +76,7 @@ describe('AppConfigForm - validations', () => {
       });
     });
 
-    it('validates the smtp server', () => {
+    it('validates the smtp port', () => {
       const invalidFormData = {
         ...validFormData,
         port: '',
@@ -165,16 +163,19 @@ describe('AppConfigForm - validations', () => {
       });
     });
 
-    it('does not validate the user_name and password if the auth type is "none"', () => {
-      const formData = {
-        ...validFormData,
-        authentication_type: 'authtype_none',
-        password: '',
-        user_name: '',
-      };
+    it(
+      'does not validate the user_name and password if the auth type is "none"',
+      () => {
+        const formData = {
+          ...validFormData,
+          authentication_type: 'authtype_none',
+          password: '',
+          user_name: '',
+        };
 
-      expect(validate(formData)).toEqual({ valid: true, errors: {} });
-    });
+        expect(validate(formData)).toEqual({ valid: true, errors: {} });
+      },
+    );
   });
 
   describe('host expiry settings', () => {

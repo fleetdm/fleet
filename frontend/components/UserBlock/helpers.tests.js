@@ -1,5 +1,3 @@
-import expect from 'expect';
-
 import helpers from 'components/UserBlock/helpers';
 import { userStub } from 'test/stubs';
 

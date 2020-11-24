@@ -1,4 +1,3 @@
-import expect from 'expect';
 import moment from 'moment';
 
 import { hostStub, labelStub } from 'test/stubs';

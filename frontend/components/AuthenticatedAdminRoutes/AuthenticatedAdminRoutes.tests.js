@@ -1,4 +1,3 @@
-import expect from 'expect';
 import { mount } from 'enzyme';
 
 import ConnectedAdminRoutes from './AuthenticatedAdminRoutes';
@@ -21,7 +20,7 @@ describe('AuthenticatedAdminRoutes - layout', () => {
       connectedComponent(ConnectedAdminRoutes, { mockStore }),
     );
 
-    expect(mockStore.getActions()).toInclude(redirectToHomeAction);
+    expect(mockStore.getActions()).toContainEqual(redirectToHomeAction);
   });
 
   it('does not redirect if the user is an admin', () => {
@@ -32,6 +31,6 @@ describe('AuthenticatedAdminRoutes - layout', () => {
       connectedComponent(ConnectedAdminRoutes, { mockStore }),
     );
 
-    expect(mockStore.getActions()).toNotInclude(redirectToHomeAction);
+    expect(mockStore.getActions()).not.toContainEqual(redirectToHomeAction);
   });
 });

@@ -1,5 +1,3 @@
-import expect from 'expect';
-
 import { reduxMockStore } from 'test/helpers';
 
 const errorAction = {
@@ -31,6 +29,6 @@ describe('redirect - middleware', () => {
     mockStore.dispatch(errorActionThunk)
       .catch(() => false);
 
-    expect(mockStore.getActions()).toInclude(expectedRedirectAction);
+    expect(mockStore.getActions()).toContainEqual(expectedRedirectAction);
   });
 });

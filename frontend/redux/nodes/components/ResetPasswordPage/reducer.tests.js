@@ -1,5 +1,3 @@
-import expect from 'expect';
-
 import {
   clearResetPasswordErrors,
   resetPassword,
@@ -83,8 +81,8 @@ describe('ResetPasswordPage - reducer', () => {
         .then(() => {
           const actions = store.getActions();
 
-          expect(actions).toInclude(resetPasswordRequest);
-          expect(actions).toInclude(resetPasswordSuccess);
+          expect(actions).toContainEqual(resetPasswordRequest);
+          expect(actions).toContainEqual(resetPasswordSuccess);
           expect(request.isDone()).toEqual(true);
           done();
         })
@@ -111,7 +109,7 @@ describe('ResetPasswordPage - reducer', () => {
         .then(done)
         .catch(() => {
           const actions = store.getActions();
-          expect(actions).toInclude(resetPasswordError({
+          expect(actions).toContainEqual(resetPasswordError({
             base: 'Something went wrong',
             http_status: 422,
           }));
