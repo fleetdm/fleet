@@ -1,5 +1,5 @@
 ---
-name: Internal: New teammate onboarding
+name: Internal - New teammate onboarding
 about: Onboarding tasks
 title: ''
 labels: ''
