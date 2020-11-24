@@ -18,7 +18,7 @@
 
   &__filter-icon {
     &--is-active {
-      color: $brand;
+      color: $core-blue;
     }
   }
 
@@ -30,7 +30,7 @@
   &__table-wrapper {
     display: flex;
     flex-grow: 1;
-    border: solid 1px $accent-dark;
+    border: solid 1px $ui-borders;
     border-radius: 3px;
     box-shadow: inset 0 0 8px 0 rgba(0, 0, 0, 0.12);
     overflow: scroll;
@@ -51,14 +51,14 @@
 
   &__table {
     border-collapse: collapse;
-    color: $text-medium;
+    color: $core-dark-blue-grey-2;
     font-size: $small;
     width: 100%;
   }
 
   thead {
-    background-color: $bg-medium;
-    color: $text-ultradark;
+    background-color: $core-light-blue-grey;
+    color: $core-black;
     text-align: left;
 
     th {
@@ -88,7 +88,7 @@
 
     tr {
       &:nth-child(even) {
-        background-color: $bg-light;
+        background-color: $core-light-blue-grey;
       }
     }
   }
@@ -98,7 +98,7 @@
     animation-fill-mode: forwards;
     border-radius: 3px;
     box-shadow: 0 0 12px 0 rgba(0, 0, 0, 0.1);
-    border: solid 1px $silver;
+    border: solid 1px $ui-borders;
     z-index: 99;
 
     .query-progress-details__run-btn {

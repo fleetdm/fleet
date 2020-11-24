@@ -8,7 +8,7 @@ html {
 }
 
 body {
-  color: $text-ultradark;
+  color: $core-black;
   padding: 0;
   margin: 0;
   font-family: 'Nunito Sans', sans-serif;
@@ -35,15 +35,15 @@ h3 {
 }
 
 h1 {
-  font-size: 24px;
+  font-size: $large;
   font-weight: $regular;
   letter-spacing: -0.5px;
-  color: $text-dark;
+  color: $core-black;
   margin: 0;
 }
 
 a {
-  color: $link;
+  color: $core-purple;
 }
 
 .wrapper {
@@ -112,7 +112,7 @@ button {
 
   &:-webkit-autofill {
     -webkit-box-shadow: 0 0 0 1000px #fff inset;
-    -webkit-text-fill-color: $text-dark !important; //sass-lint:disable-line no-important
+    -webkit-text-fill-color: $core-dark-blue-grey-2 !important; //sass-lint:disable-line no-important
   }
 }
 

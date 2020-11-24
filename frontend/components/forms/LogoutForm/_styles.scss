@@ -14,19 +14,19 @@
   }
 
   &__avatar {
-    border: 1px solid $brand;
+    border: 1px solid $core-blue;
     border-radius: 50%;
   }
 
   &__username {
-    color: $brand;
+    color: $core-blue;
     font-size: $large;
     margin: $pad-half 0;
     text-transform: uppercase;
   }
 
   &__subtext {
-    color: $text-light;
+    color: $core-dark-blue-grey-1;
     font-size: $medium;
     margin-top: $pad-half;
   }

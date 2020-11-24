@@ -1,37 +1,33 @@
 $base-class: 'panel-group-item';
 
-@mixin selected-hover($color: $brand) {
-  &:hover {
-    color: $color;
-    background-color: rgba($color, 0.1);
+.#{$base-class} {
+  transition: color 75ms ease-in-out, background 75ms ease-in-out;
+  width: 100%;
+  font-size: $x-small;
+  line-height: 2.25;
+  letter-spacing: 0.5px;
+  font-weight: $regular;
+  color: $core-black;
+  text-align: left;
+  padding: 0 $pad-large;
 
-    .#{$base-class}__icon,
-    .#{$base-class}__count {
-      color: $color;
+  &:hover {
+    background-color: $core-blue-selected;
+
+    .#{$base-class}__icon {
+      color: $core-black;
     }
   }
 
   &.#{$base-class}--selected {
-    color: $white;
-    background-color: $color;
+    color: $core-black;
+    font-weight: $bold;
+    background-color: $core-blue-selected;
 
-    .#{$base-class}__icon,
-    .#{$base-class}__count {
+    .#{$base-class}__icon {
       color: $white;
     }
   }
-}
-
-.#{$base-class} {
-  transition: color 75ms ease-in-out, background 75ms ease-in-out;
-  width: 100%;
-  font-size: 16px;
-  line-height: 2.25;
-  letter-spacing: 0.5px;
-  font-weight: $regular;
-  color: $text-medium;
-  text-align: left;
-  padding: 0 $pad-large;
 
   &__flexy {
     display: flex;
@@ -60,73 +56,5 @@ $base-class: 'panel-group-item';
     font-weight: $bold;
     text-align: right;
     font-size: 14px;
-  }
-
-  &__all {
-    @include selected-hover($brand);
-  }
-
-  &__status {
-    &--offline {
-      @include selected-hover($alert);
-
-      .#{$base-class}__count,
-      .#{$base-class}__icon {
-        color: $alert;
-      }
-    }
-
-    &--new {
-      @include selected-hover($warning);
-
-      .#{$base-class}__count,
-      .#{$base-class}__icon {
-        color: $warning;
-      }
-    }
-
-    &--online {
-      @include selected-hover($success);
-
-      .#{$base-class}__count,
-      .#{$base-class}__icon {
-        color: $success;
-      }
-    }
-
-    &--mia {
-      @include selected-hover($text-ultradark);
-
-      .#{$base-class}__count,
-      .#{$base-class}__icon {
-        color: $text-ultradark;
-      }
-    }
-  }
-
-  &__platform {
-    @include selected-hover($link);
-    text-transform: none;
-
-    .#{$base-class}__icon {
-      color: $text-light;
-    }
-
-    &--macos {
-      .#{$base-class}__icon {
-        margin-right: 24px;
-        margin-left: 2px;
-      }
-    }
-  }
-
-  &__custom {
-    @include selected-hover($brand);
-    font-size: 14px;
-    text-transform: none;
-
-    .#{$base-class}__icon {
-      color: $silver;
-    }
   }
 }

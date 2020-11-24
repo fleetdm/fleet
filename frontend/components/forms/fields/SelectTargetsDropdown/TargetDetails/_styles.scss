@@ -3,7 +3,7 @@
   padding: $pad-large;
 
   &__back {
-    color: $text-dark;
+    color: $core-dark-blue-grey-2;
     font-size: $xx-small;
     display: none;
 
@@ -30,12 +30,12 @@
     font-size: $medium;
     font-weight: $bold;
     letter-spacing: 0.6px;
-    color: $text-ultradark;
+    color: $core-black;
     margin: 0;
   }
 
   &__icon {
-    color: $accent-text;
+    color: $core-dark-blue-grey-1;
     margin-right: $pad-small;
     width: 21px;
 
@@ -73,7 +73,7 @@
     font-size: $small;
     font-weight: $bold;
     letter-spacing: 0.9px;
-    color: $text-dark;
+    color: $core-dark-blue-grey-2;
     text-transform: uppercase;
     margin: 0;
   }
@@ -83,7 +83,7 @@
     font-weight: $regular;
     line-height: 1.85;
     letter-spacing: 0.5px;
-    color: $text-medium;
+    color: $core-dark-blue-grey-2;
     list-style: none;
     margin: 0;
     padding: 0;
@@ -119,12 +119,12 @@
     font-size: $medium;
     font-weight: $bold;
     letter-spacing: 0.6px;
-    color: $text-ultradark;
+    color: $core-black;
     margin: 0;
   }
 
   &__icon {
-    color: $accent-text;
+    color: $core-dark-blue-grey-1;
     margin-right: $pad-small;
     width: 21px;
   }
@@ -138,7 +138,7 @@
 
   &__hosts-count {
     font-weight: $bold;
-    color: $text-dark;
+    color: $core-dark-blue-grey-2;
 
     strong {
       min-width: 21px;
@@ -157,7 +157,7 @@
     font-size: $pad-medium;
     font-weight: $regular;
     line-height: 1.71;
-    color: $text-dark;
+    color: $core-dark-blue-grey-2;
     margin: 0 0 $pad-small;
   }
 }
@@ -174,7 +174,7 @@
     th {
       font-weight: $bold;
       line-height: 2.3;
-      color: $text-dark;
+      color: $core-dark-blue-grey-2;
       padding-right: $pad-half;
     }
   }

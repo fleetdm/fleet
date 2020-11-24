@@ -1,21 +1,29 @@
 .hosts-table {
   &__wrapper {
-    border: solid 1px $accent-dark;
-    border-radius: 3px;
-    box-shadow: inset 0 0 8px 0 rgba(0, 0, 0, 0.12);
+    border: solid 1px $ui-borders;
+    border-radius: 6px;
     margin-top: $pad-base;
+    overflow: hidden;
   }
 
   &__table {
     border-collapse: collapse;
-    color: $text-medium;
-    font-size: $small;
+    color: $core-black;
+    font-size: $x-small;
     width: 100%;
   }
 
+  tr {
+    border-bottom: 1px solid $ui-borders;
+  }
+
+  tr:last-child {
+    border-bottom: none;
+  }
+
   thead {
-    background-color: $bg-medium;
-    color: $text-ultradark;
+    background-color: $core-light-blue-grey;
+    color: $core-black;
     text-align: left;
 
     th {
@@ -30,7 +38,7 @@
   }
 
   &__hostname {
-    color: $link;
+    color: $core-black;
   }
 
   &__status {

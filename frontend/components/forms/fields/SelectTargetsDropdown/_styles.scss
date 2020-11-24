@@ -7,7 +7,7 @@
     font-style: normal;
     font-stretch: normal;
     letter-spacing: -0.5px;
-    color: $text-dark;
+    color: $core-dark-blue-grey-2;
     display: block;
     margin-bottom: 4px;
     text-align: right;
@@ -26,7 +26,7 @@
   &__targets-count {
     font-size: $small;
     margin-left: $pad-xsmall;
-    color: $brand;
+    color: $core-blue;
   }
 
   &.Select {
@@ -60,7 +60,7 @@
       > input {
         line-height: 30px;
         padding: 8px 0;
-        color: $text-ultradark;
+        color: $core-black;
         font-size: 16px;
       }
     }
@@ -78,11 +78,11 @@
     &.Select--multi {
       .Select-option {
         padding: 0;
-        background-color: $bg-light;
+        background-color: $core-light-blue-grey;
 
         &.is-disabled {
           &.is-focused {
-            background-color: $brand-light;
+            background-color: $core-blue;
 
             .target-option__label-label,
             .target-option__target-icon,
@@ -99,7 +99,7 @@
 
             .target-option__count {
               background-color: $white;
-              color: $brand;
+              color: $core-blue;
             }
           }
         }
@@ -117,8 +117,8 @@
 
     &.is-focused {
       .Select-control {
-        border: 1px solid $accent-medium;
-        border-bottom-color: $brand;
+        border: 1px solid $ui-borders;
+        border-bottom-color: $core-blue;
         box-shadow: inset 0 0 8px 0 rgba($black, 0.1);
       }
     }
@@ -158,8 +158,7 @@
   .Select-value {
     border-radius: 2px;
     background-color: $white;
-    box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.12), 0 2px 0 0 $accent-dark;
-    border: solid 1px $accent-dark;
+    border: solid 1px $ui-borders;
 
     .Select-value-icon {
       border: 0;
@@ -181,14 +180,14 @@
         left: 50%;
         visibility: visible;
         font-size: 20px;
-        color: $accent-dark;
+        color: $ui-light-grey-2;
         display: block;
         text-indent: 0;
       }
 
       &:hover {
         &::after {
-          color: $accent-text;
+          color: $core-dark-blue-grey-1;
         }
       }
     }
@@ -196,7 +195,7 @@
     .Select-value-label {
       font-size: 16px;
       font-weight: $regular;
-      color: $text-dark;
+      color: $core-dark-blue-grey-2;
       padding: 0 0 0 $pad-medium;
       line-height: 34px;
     }
@@ -205,7 +204,7 @@
   .Select-clear {
     font-size: 28px;
     margin-right: 10px;
-    color: $text-dark;
+    color: $core-dark-blue-grey-2;
 
     &:hover {
       color: $alert;
@@ -223,7 +222,7 @@
           content: '\f049';
           font-size: 180px;
           margin-top: -90px;
-          color: $accent-medium;
+          color: $ui-light-grey-2;
         }
       }
     }

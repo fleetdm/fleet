@@ -1,7 +1,7 @@
 .pack-info-side-panel {
   background-color: $white;
   bottom: 0;
-  border-left: 1px solid $border-medium;
+  border-left: 1px solid $ui-borders;
   box-sizing: border-box;
   overflow: scroll;
   padding: 30px;
@@ -10,8 +10,8 @@
     font-size: 18px;
     font-weight: $regular;
     letter-spacing: 0.7px;
-    color: $text-dark;
-    border-bottom: 1px solid $accent-light;
+    color: $core-dark-blue-grey-2;
+    border-bottom: 1px solid $ui-borders;
     padding-bottom: 8px;
     margin: 0 0 4px;
   }
@@ -19,7 +19,7 @@
   &__subtitle {
     font-size: 16px;
     letter-spacing: 0.7px;
-    color: $text-dark;
+    color: $core-dark-blue-grey-2;
     margin: 0 0 10px;
     padding-top: 15px;
   }

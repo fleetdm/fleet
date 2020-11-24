@@ -2,12 +2,11 @@
   margin-bottom: $pad-small;
 
   &__label {
-    font-size: 16px;
-    font-weight: $bold;
+    font-size: $x-small;
+    font-weight: $regular;
     font-style: normal;
     font-stretch: normal;
-    letter-spacing: -0.5px;
-    color: $text-dark;
+    color: $core-black;
     display: block;
     margin-bottom: 4px;
 
@@ -21,11 +20,11 @@
     font-weight: $regular;
     line-height: 1.57;
     letter-spacing: 1px;
-    color: $accent-text;
+    color: $core-dark-blue-grey-1;
 
     code {
-      color: $brand;
-      background-color: $accent-light;
+      color: $core-blue;
+      background-color: $ui-light-grey-1;
       padding: 2px;
       font-family: 'SourceCodePro', $monospace;
     }

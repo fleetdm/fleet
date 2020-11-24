@@ -10,7 +10,7 @@
 
   &__title {
     .kolidecon {
-      color: $text-light;
+      color: $core-dark-blue-grey-1;
       margin-right: 15px;
     }
 
@@ -23,7 +23,7 @@
     }
 
     .kolidecon-mia {
-      color: $text-ultradark;
+      color: $core-black;
     }
 
     .kolidecon-clock {
@@ -49,31 +49,32 @@
 
     h2 {
       text-transform: uppercase;
-      color: $text-dark;
+      color: $core-dark-blue-grey-2;
       font-weight: $regular;
       font-size: 16px;
     }
 
     p {
-      color: $text-medium;
+      color: $core-dark-blue-grey-1;
       margin: 0;
-      font-size: 13px;
+      font-size: $x-small;
+      font-style: italic;
     }
   }
 
   &__topper {
     display: flex;
     align-items: flex-end;
-    border-bottom: solid 1px $accent-light;
+    border-bottom: solid 1px $ui-light-grey-2;
     padding-bottom: 10px;
   }
 
   &__host-count {
     flex-grow: 1;
-    font-size: 14px;
-    font-weight: $regular;
+    font-size: $x-small;
+    font-weight: $bold;
     letter-spacing: 0.9px;
-    color: $text-dark;
+    color: $core-black;
     margin: 0;
     display: inline-block;
   }
@@ -106,12 +107,12 @@
       width: 24px;
       height: 24px;
       margin-left: 12px;
-      fill: $accent-dark;
+      fill: $ui-light-grey-2;
     }
 
     &--active {
       .kolidecon {
-        fill: $link;
+        fill: $core-purple;
       }
     }
   }

@@ -1,10 +1,10 @@
 .ace_editor.ace-kolide {
   font-family: 'SourceCodePro', monospace;
   font-size: 14px;
-  background-color: #fcfcff;
+  background-color: #FAFAFA;
   color: #66696f;
-  border-radius: 2px;
-  border: solid 1px #d2daf4;
+  border-radius: 4px;
+  border: solid 1px #DBE3E5;
   line-height: 24px;
 }
 
@@ -33,7 +33,7 @@
   background: #fff;
   color: #c38dec;
   z-index: 1;
-  border-right: solid 1px #d2daf4;
+  border-right: solid 1px #E3E3E3;
 }
 
 .ace-kolide .ace_gutter-active-line {

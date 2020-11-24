@@ -4,7 +4,7 @@
     border-radius: 2px;
     background-color: $white;
     box-shadow: 0 3px 12px 0 rgba(49, 49, 93, 0.1), 0 3px 3px 0 rgba(0, 0, 0, 0.07);
-    border: solid 1px $accent-light;
+    border: solid 1px $ui-borders;
     position: relative;
     z-index: 2;
     padding: 15px 25px;
@@ -96,7 +96,7 @@
   }
 
   &__button-wrap {
-    border-top: solid 1px $accent-medium;
+    border-top: solid 1px $ui-borders;
     text-align: right;
     margin: 15px 0 0;
     padding: 15px 0 0;
@@ -125,7 +125,7 @@
     top: 8px;
     right: 10px;
     font-size: 18px;
-    color: $link;
+    color: $core-purple;
 
     &:active {
       top: 8px;
@@ -135,9 +135,9 @@
   &__secret-input {
     input {
       border-radius: 2px;
-      background-color: $bg-medium;
-      border-color: $bg-medium;
-      color: $link;
+      background-color: $core-light-blue-grey;
+      border-color: $ui-borders;
+      color: $core-purple;
     }
   }
 

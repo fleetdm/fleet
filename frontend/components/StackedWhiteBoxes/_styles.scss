@@ -29,7 +29,7 @@
     font-weight: 300;
 
     &-text {
-      color: $text-ultradark;
+      color: $core-black;
       font-size: $medium;
       line-height: 30px;
       letter-spacing: 0.64px;
@@ -42,7 +42,7 @@
     &-text {
       font-size: $large;
       font-weight: 300;
-      color: $text-ultradark;
+      color: $core-black;
       line-height: 32px;
       margin-top: 0;
       margin-bottom: 0;
@@ -56,7 +56,7 @@
 
     &-link {
       transition: color 150ms ease-in-out;
-      color: $text-light;
+      color: $core-dark-blue-grey-1;
       text-decoration: none;
       position: absolute;
       top: 10px;
@@ -66,7 +66,7 @@
       font-size: 30px;
 
       &:hover {
-        color: $brand-light;
+        color: $core-blue;
       }
     }
   }

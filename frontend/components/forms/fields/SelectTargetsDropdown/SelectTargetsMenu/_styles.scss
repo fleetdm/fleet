@@ -1,13 +1,13 @@
 .target-list {
   &__type {
-    background-color: $bg-medium;
+    background-color: $core-light-blue-grey;
     line-height: $x-large;
     padding: 0 $pad-base;
     margin: 0;
     text-transform: uppercase;
     font-weight: $regular;
     font-size: $x-small;
-    color: $text-dark;
+    color: $core-dark-blue-grey-2;
     letter-spacing: 0.5px;
   }
 
@@ -19,7 +19,7 @@
     min-height: 500px;
     position: relative;
     z-index: 2;
-    background-color: $bg-light;
+    background-color: $core-light-blue-grey;
   }
 
   &__spotlight {
@@ -37,7 +37,7 @@
     font-weight: $bold;
     line-height: 2.64;
     text-align: left;
-    color: $text-dark;
+    color: $core-dark-blue-grey-2;
     text-transform: uppercase;
     display: block;
     padding: 0 $large;

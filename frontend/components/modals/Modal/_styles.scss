@@ -22,7 +22,7 @@
     .button {
       @include size(30px);
       line-height: 30px;
-      color: $text-medium;
+      color: $core-dark-blue-grey-2;
       font-size: $x-large;
 
       &:hover {
@@ -37,7 +37,7 @@
     line-height: normal;
     letter-spacing: -0.5px;
     text-align: left;
-    color: $text-ultradark;
+    color: $core-black;
   }
 
   &__modal_container {

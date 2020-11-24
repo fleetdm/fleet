@@ -5,14 +5,14 @@
       font-weight: $bold;
       line-height: 1.5;
       letter-spacing: 0.6px;
-      color: $text-dark;
+      color: $core-dark-blue-grey-2;
       margin: 0;
       padding: 0;
 
     }
 
     p {
-      color: $text-dark;
+      color: $core-dark-blue-grey-2;
       font-size: 14px;
       font-weight: $regular;
     }
@@ -53,7 +53,7 @@
   }
 
   &__lead-text {
-    color: $brand;
+    color: $core-blue;
     font-size: 18px;
     font-weight: $regular;
     margin-top: 0;
@@ -61,7 +61,7 @@
   }
 
   &__sub-lead-text {
-    color: $text-dark;
+    color: $core-dark-blue-grey-2;
     font-size: 14px;
     font-weight: $regular;
     margin-bottom: 0;

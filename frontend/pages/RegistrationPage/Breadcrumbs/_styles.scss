@@ -17,7 +17,7 @@
     font-weight: $regular;
     line-height: 1.53;
     letter-spacing: 0.5px;
-    color: $text-medium;
+    color: $core-dark-blue-grey-2;
     position: relative;
 
     &::before {
@@ -25,7 +25,7 @@
       position: absolute;
       width: 235px;
       height: 2px;
-      background-image: linear-gradient(to right, $accent-dark 50%, transparent 50%);
+      background-image: linear-gradient(to right, $ui-light-grey-2 50%, transparent 50%);
       background-position: left top;
       background-repeat: repeat-x;
       background-size: 17px 2px;
@@ -61,7 +61,7 @@
 
     &--active {
       font-weight: $bold;
-      color: $text-dark;
+      color: $core-dark-blue-grey-2;
     }
 
     &--1 {
@@ -77,7 +77,7 @@
 
       &.registration-breadcrumbs__page--complete {
         &::before {
-          background-image: linear-gradient(to right, $success 0%, $link 100%);
+          background-image: linear-gradient(to right, $success 0%, $core-purple 100%);
           background-size: auto;
           z-index: 2;
         }
@@ -93,18 +93,18 @@
 
     &--2 {
       &::after {
-        border: solid 2px $link;
+        border: solid 2px $core-purple;
       }
 
       &.registration-breadcrumbs__page--active {
         &::after {
-          background-color: $link;
+          background-color: $core-purple;
         }
       }
 
       &.registration-breadcrumbs__page--complete {
         &::before {
-          background-image: linear-gradient(to right, $link 0%, $brand-light 100%);
+          background-image: linear-gradient(to right, $core-purple 0%, $core-blue 100%);
           background-size: auto;
           z-index: 2;
         }
@@ -112,7 +112,7 @@
         &::after {
           @include size(28px);
           content: '\f035';
-          color: $link;
+          color: $core-purple;
           border: 0;
         }
       }
@@ -124,12 +124,12 @@
       }
 
       &::after {
-        border: solid 2px $brand-light;
+        border: solid 2px $core-blue;
       }
 
       &.registration-breadcrumbs__page--active {
         &::after {
-          background-color: $brand-light;
+          background-color: $core-blue;
         }
       }
 
@@ -137,7 +137,7 @@
         &::after {
           @include size(28px);
           content: '\f035';
-          color: $brand-light;
+          color: $core-blue;
           border: 0;
         }
       }
