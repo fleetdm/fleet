@@ -1,5 +1,5 @@
 ---
-name: Feature request
+name: 💡  Feature request
 about: Request a new feature or enhancement to Fleet
 title: ''
 labels: ''
