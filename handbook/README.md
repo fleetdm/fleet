@@ -1,7 +1,9 @@
 # Fleet handbook
 
 ## Purpose
-The Fleet handbook aims to capture all processes relevant to Fleet and grow into our version of the GitLab handbook. It's meant to be a collaborative document that every Fleet teammate uses and contributes to for all company processes and procedures. As an all-remote company, clear documentation is essential to our effectiveness, and this handbook makes it easy to reference with deep links so that the team can use it as a short-hand to share expectations of how to approach a task, and for all to update regularly as we improve our approach.
+The Fleet handbook aims to capture the company processes here at Fleet.  We want it to grow into our version of the GitLab handbook.  It is a collaborative document that every Fleet team member uses and contributes to.
+
+As an all-remote company, it is especially important to maintain clear documentation to be effective.  Using a handbook makes it easy for anyone at Fleet to reference how to do almost anything, and to make updates regularly as we improve our approach.
 
 ## Editing the handbook
 The handbook is stored in a git repository. You can make edits to the repo by submitting a pull request.
