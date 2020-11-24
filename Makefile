@@ -133,8 +133,12 @@ analyze-go:
 	go test -tags full -race -cover ./...
 
 test-js: export NODE_PATH = ./frontend
+# Note use of --exit flag that prevents Mocha from hanging when the tests are
+# completed and ACE editor still has intervals set.
+# TODO fix the need for --exit
+# See https://github.com/enzymejs/enzyme/issues/911
 test-js:
-	_mocha \
+	_mocha --exit \
 		--require babel-core/register \
 		--reporter frontend/test/reporter.js \
 		--recursive "frontend/**/*.tests.js*" \
