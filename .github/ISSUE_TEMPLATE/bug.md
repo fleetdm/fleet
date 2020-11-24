@@ -1,13 +1,14 @@
 <!--
+Thanks for filing an issue!
 
-Thanks for filing an issue! If this is a question or feature request, just delete
-everything here and write out the request, providing as much context as you can.
-
+Please provide as much context as you can about your use case.
 -->
 
 ### What version of `fleet` are you using (`fleet version --full`)?
 
 ### What operating system are you using?
+
+### If this is a UI issue: What browser are you using?
 
 ### What did you do?
 
