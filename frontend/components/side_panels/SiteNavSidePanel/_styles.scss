@@ -104,8 +104,8 @@
   position: relative;
   cursor: pointer;
   margin: 0;
-  padding: 8px 0;
   text-transform: none;
+  padding: 6px 0;
 
   &--active {
     .site-sub-item__button {
@@ -154,25 +154,11 @@
     }
 
     @at-root .site-nav--small & {
-      text-align: center;
-      padding: 3px 0 9px;
-      height: 44px;
+      padding: 4px 10px;
     }
 
     @include breakpoint(smalldesk) {
-      text-align: center;
-      padding: 3px 0 9px;
-      height: 44px;
-    }
-  }
-
-  &__link {
-    transition: font-size 200ms ease-in-out;
-    font-size: 14px;
-
-    &--active {
-      text-decoration: none;
-      text-transform: none;
+      padding: 4px 10px;
     }
   }
 

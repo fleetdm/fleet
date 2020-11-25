@@ -29,7 +29,7 @@
   position: sticky; // sass-lint:disable-line no-duplicate-properties
   top: 0;
   left: 0;
-  z-index: 1;
+  z-index: 100;
   max-height: 100vh;
 
   &--small {
