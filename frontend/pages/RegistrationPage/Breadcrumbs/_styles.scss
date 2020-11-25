@@ -4,7 +4,7 @@
   align-content: center;
   width: 665px;
   height: 125px;
-  margin: 0 auto;
+  margin: 38px auto 0 auto;
 
   @include breakpoint(tablet) {
     height: 75px;
@@ -13,11 +13,9 @@
   &__page {
     text-align: center;
     width: 145px;
-    font-size: 14px;
+    font-size: $small;
     font-weight: $regular;
-    line-height: 1.53;
-    letter-spacing: 0.5px;
-    color: $core-dark-blue-grey;
+    color: $white;
     position: relative;
 
     &::before {
@@ -61,7 +59,7 @@
 
     &--active {
       font-weight: $bold;
-      color: $core-dark-blue-grey;
+      color: $white;
     }
 
     &--1 {

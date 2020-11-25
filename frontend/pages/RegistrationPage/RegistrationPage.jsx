@@ -11,7 +11,7 @@ import { setup } from 'redux/nodes/auth/actions';
 import { showBackgroundImage } from 'redux/nodes/app/actions';
 import EnsureUnauthenticated from 'components/EnsureUnauthenticated';
 
-import fleetLogoText from '../../../assets/images/fleet-logo-text-black.svg';
+import fleetLogoText from '../../../assets/images/fleet-logo-text-white.svg';
 
 export class RegistrationPage extends Component {
   static propTypes = {

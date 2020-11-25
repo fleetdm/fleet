@@ -51,11 +51,10 @@ export class App extends Component {
   }
 
   render () {
-    const { children, showBackgroundImage } = this.props;
+    const { children } = this.props;
 
     const wrapperStyles = classnames(
       'wrapper',
-      { 'wrapper--background': showBackgroundImage },
     );
 
     return (

@@ -7,11 +7,11 @@ import ConfirmationPage from 'components/forms/RegistrationForm/ConfirmationPage
 import KolideDetails from 'components/forms/RegistrationForm/KolideDetails';
 import OrgDetails from 'components/forms/RegistrationForm/OrgDetails';
 
-const PAGE_HEADER_TEXT = {
-  1: 'SET USERNAME & PASSWORD',
-  2: 'SET ORGANIZATION DETAILS',
-  3: 'SET KOLIDE WEB ADDRESS',
-  4: 'SUCCESS',
+const pageHeaderText = {
+  1: 'Setup user',
+  2: 'Organization details',
+  3: 'Set Fleet URL',
+  4: 'Success',
 };
 
 const baseClass = 'user-registration';
@@ -70,7 +70,7 @@ class RegistrationForm extends Component {
 
   renderHeader = () => {
     const { page } = this.props;
-    const headerText = PAGE_HEADER_TEXT[page];
+    const headerText = pageHeaderText[page];
 
     if (headerText) {
       return <h2 className={`${baseClass}__title`}>{headerText}</h2>;

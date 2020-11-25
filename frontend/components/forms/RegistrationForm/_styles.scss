@@ -1,18 +1,17 @@
 .user-registration {
   display: flex;
-  align-content: center;
   justify-content: center;
+  align-items: center;
   flex-grow: 1;
+  margin-top: 24px;
 
   &__container {
     @include size(500px 520px);
-    align-self: center;
-    border-radius: 4px;
+    border-radius: 10px;
     background-color: $core-light-blue-grey;
     box-shadow: 0 0 30px 0 rgba(0, 0, 0, 0.3);
     box-sizing: border-box;
     padding: 25px 35px;
-    margin-top: -55px;
 
     &--complete {
       padding: 0;
@@ -42,7 +41,7 @@
 
     &--step1-complete {
       .user-registration__field-wrapper--admin {
-        left: -184px;
+        left: -220px;
       }
 
       .user-registration__field-wrapper--org {
@@ -50,17 +49,17 @@
       }
 
       .user-registration__field-wrapper--kolide {
-        left: calc(100% + 184px);
+        left: calc(100% + 220px);
       }
     }
 
     &--step2-complete {
       .user-registration__field-wrapper--admin {
-        left: calc(-50% - 184px);
+        left: calc(-50% - 220px);
       }
 
       .user-registration__field-wrapper--org {
-        left: -184px;
+        left: -220px;
       }
 
       .user-registration__field-wrapper--kolide {
@@ -70,31 +69,16 @@
 
     &--step3-complete {
       .user-registration__field-wrapper--admin {
-        left: calc(-100% - 184px);
+        left: calc(-100% - 220px);
       }
 
       .user-registration__field-wrapper--org {
-        left: calc(-50% - 184px);
+        left: calc(-50% - 220px);
       }
 
       .user-registration__field-wrapper--kolide {
-        left: -184px;
+        left: -220px;
       }
-    }
-
-    &::before,
-    &::after {
-      background-image: linear-gradient(to right, $ui-medium-grey 50%, transparent 50%);
-      background-position: left top;
-      background-repeat: repeat-x;
-      background-size: 17px 2px;
-      position: absolute;
-      top: 100px;
-      left: 50%;
-      width: 50%;
-      height: 2px;
-      content: '';
-      z-index: 1;
     }
 
     &::before {
@@ -104,13 +88,6 @@
 
     &--step1-active {
       &::before {
-        display: none;
-      }
-    }
-
-    &--step3-active,
-    &--step3-complete {
-      &::after {
         display: none;
       }
     }
@@ -154,12 +131,12 @@
     }
 
     &--org {
-      left: calc(100% + 184px);
+      left: calc(100% + 220px);
       top: -10px;
     }
 
     &--kolide {
-      left: calc(150% + 184px);
+      left: calc(150% + 220px);
       top: -8px;
     }
 

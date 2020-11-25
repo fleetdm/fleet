@@ -47,13 +47,9 @@ a {
 }
 
 .wrapper {
-  background: $white;
+  background: $core-gradient;
   margin: 0;
 
-  &--background {
-    background: url('../assets/images/background.png') center center;
-    background-size: cover;
-  }
 }
 
 .body-wrap {
