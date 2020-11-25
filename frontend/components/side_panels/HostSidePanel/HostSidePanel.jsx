@@ -16,7 +16,6 @@ class HostSidePanel extends Component {
   static propTypes = {
     labels: PropTypes.arrayOf(labelInterface),
     onAddLabelClick: PropTypes.func,
-    onAddHostClick: PropTypes.func,
     onLabelClick: PropTypes.func,
     selectedFilter: PropTypes.string,
     statusLabels: statusLabelsInterface,
@@ -36,7 +35,7 @@ class HostSidePanel extends Component {
   }
 
   render () {
-    const { labels, onAddHostClick, onAddLabelClick, onLabelClick, selectedFilter, statusLabels } = this.props;
+    const { labels, onAddLabelClick, onLabelClick, selectedFilter, statusLabels } = this.props;
     const { labelFilter } = this.state;
     const { onFilterLabels } = this;
     const allHostLabels = filter(labels, { type: 'all' });
@@ -53,10 +52,6 @@ class HostSidePanel extends Component {
 
     return (
       <SecondarySidePanelContainer className={`${baseClass}`}>
-
-        <Button onClick={onAddHostClick} className="button button--brand">
-          <span>Add New Host</span>
-        </Button>
 
         <h3>Status</h3>
         <PanelGroup

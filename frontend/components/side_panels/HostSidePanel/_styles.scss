@@ -32,7 +32,7 @@
     margin-top: 24px;
 
     &:hover {
-      background-color: rgba($success, 0.1);
+      background-color: darken($core-medium-blue-grey, 5%);
     }
   }
 
@@ -59,7 +59,7 @@
   }
 
   &__filter-labels {
-    margin-bottom: 24px;
+    margin-bottom: 16px;
 
     .input-field {
       padding-left: 42px;
