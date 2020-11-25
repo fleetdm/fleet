@@ -24,7 +24,6 @@ class UserMenu extends Component {
 
   render () {
     const { pathname, onLogout, onNavItemClick } = this.props;
-    console.log(pathname.replace('/', ''));
 
     const baseClass = 'user-menu';
     const userMenuClass = classnames(
