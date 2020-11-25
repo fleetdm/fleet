@@ -21,9 +21,14 @@
 
 .site-nav {
   background: $core-gradient;
-  border-right: 1px solid $ui-borders;
   box-sizing: border-box;
   width: $nav-width;
+  display: flex;
+  flex-direction: column;
+  position: -webkit-sticky;
+  position: sticky; // sass-lint:disable-line no-duplicate-properties
+  top: 0;
+  max-height: 100vh;
 
   &--small {
     padding-left: 0;

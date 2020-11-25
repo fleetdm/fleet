@@ -1,0 +1,57 @@
+.user-menu {
+  padding: 0;
+
+  &__nav-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  &__nav-item {
+    font-size: $x-small;
+    font-weight: $regular;
+    padding: 11px 20px;
+
+    &:hover {
+      background-color: $core-black;
+    }
+
+    &--active {
+      background-color: $core-black;
+      border-right: 3px solid $core-blue;
+    }
+
+    a {
+      transition: opacity 75ms $ease-in-quad, background 75ms $ease-in-quad;
+      color: $white;
+      display: block;
+      text-decoration: none;
+      text-transform: none;
+
+      i {
+        margin-right: 24px;
+        font-size: $large;
+        vertical-align: text-bottom;
+      }
+    }
+
+    @include breakpoint(smalldesk) {
+      padding: 11px 14px;
+
+      a {
+        i {
+          margin-right: 0;
+        }
+
+        span {
+          display: none;
+        }
+      }
+    }
+
+    &:last-child {
+      margin-bottom: 11px;
+    }
+  }
+}
+ 
