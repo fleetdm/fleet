@@ -39,7 +39,7 @@ describe('HostsContainer - component', () => {
     expect(page.find('.host-container--no-hosts').length).toEqual(1);
   });
 
-  it('renders hosts as Table', () => {
+  it('renders hosts as HostsTable', () => {
     const page = mount(<HostContainer {...props} />);
 
     expect(page.find('HostsTable').length).toEqual(1);
