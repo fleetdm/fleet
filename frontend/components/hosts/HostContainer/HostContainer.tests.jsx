@@ -39,14 +39,8 @@ describe('HostsContainer - component', () => {
     expect(page.find('.host-container--no-hosts').length).toEqual(1);
   });
 
-  it('renders hosts as HostDetails by default', () => {
+  it('renders hosts as Table', () => {
     const page = mount(<HostContainer {...props} />);
-
-    expect(page.find('HostDetails').length).toEqual(1);
-  });
-
-  it('renders hosts as HostsTable when the display is "List"', () => {
-    const page = mount(<HostContainer {...props} displayType="List" />);
 
     expect(page.find('HostsTable').length).toEqual(1);
   });

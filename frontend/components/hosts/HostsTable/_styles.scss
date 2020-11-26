@@ -3,14 +3,13 @@
     border: solid 1px $ui-borders;
     border-radius: 6px;
     margin-top: $pad-base;
-    overflow: hidden;
+    overflow: scroll;
   }
 
   &__table {
     border-collapse: collapse;
     color: $core-black;
     font-size: $x-small;
-    width: 100%;
   }
 
   tr {
@@ -25,15 +24,18 @@
     background-color: $core-light-blue-grey;
     color: $core-black;
     text-align: left;
+    border-bottom: 1px solid $ui-borders;
 
     th {
-      padding: $pad-small $pad-xsmall;
+      padding: 18px 27px;
+      white-space: nowrap;
     }
   }
 
   tbody {
     td {
-      padding: $pad-xsmall;
+      padding: 12px 27px;
+      white-space: nowrap;
     }
   }
 

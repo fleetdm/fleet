@@ -95,14 +95,14 @@ describe('ManageHostsPage - component', () => {
       const oneHostLabel = { ...allHostsLabel, count: 1 };
       const page = mount(<ManageHostsPage {...props} selectedLabel={oneHostLabel} />);
 
-      expect(page.text()).toInclude('1 Host Total');
+      expect(page.text()).toInclude('1 host');
     });
 
     it('displays "#{count} Hosts Total" when there are more than 1 host', () => {
       const oneHostLabel = { ...allHostsLabel, count: 2 };
       const page = mount(<ManageHostsPage {...props} selectedLabel={oneHostLabel} />);
 
-      expect(page.text()).toInclude('2 Hosts Total');
+      expect(page.text()).toInclude('2 hosts');
     });
   });
 
@@ -267,7 +267,7 @@ describe('ManageHostsPage - component', () => {
       const ownProps = { location: {}, params: { active_label: 'all-hosts' } };
       const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
       const page = mount(component);
-      const deleteBtn = page.find('HostDetails').last().find('Button');
+      const deleteBtn = page.find('ActionButton').last().find('Button');
 
       spyOn(hostActions, 'destroy').andReturn((dispatch) => {
         dispatch({ type: 'hosts_LOAD_REQUEST' });

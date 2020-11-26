@@ -4,7 +4,7 @@ import { noop } from 'lodash';
 import AceEditor from 'react-ace';
 import classnames from 'classnames';
 
-import hostHelpers from 'components/hosts/HostDetails/helpers';
+import hostHelpers from 'components/hosts/HostsTable/helpers';
 import Icon from 'components/icons/Icon';
 import PlatformIcon from 'components/icons/PlatformIcon';
 import targetInterface from 'interfaces/target';
