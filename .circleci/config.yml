@@ -33,7 +33,7 @@ jobs:
       - checkout
       - run: make deps-js
       - run: make generate-js
-      - run: make lint-js
+      - run: npm run lint
       - run: npm test -- --maxWorkers=2
 
 workflows:
