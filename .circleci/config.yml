@@ -34,7 +34,7 @@ jobs:
       - run: make deps-js
       - run: make generate-js
       - run: make lint-js
-      - run: make test-js
+      - run: npm test -- --maxWorkers=2
 
 workflows:
   version: 2
