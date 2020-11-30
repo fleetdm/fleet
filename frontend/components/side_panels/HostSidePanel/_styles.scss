@@ -1,62 +1,53 @@
 .host-side-panel {
+  color: $core-dark-blue-grey;
+  padding: 14px 20px 22px;
+
+  .input-icon-field {
+    margin-top: 0;
+
+    &__label {
+      display: none;
+    }
+
+    &__icon {
+      top: 6px;
+    }
+  }
+
+  h3 {
+    font-size: $x-small;
+    font-weight: $bold;
+    color: $black;
+    margin: 24px 0 10px 8px;
+  }
+
   &__add-label-btn {
     color: $white;
+    font-size: $small;
+    font-weight: $bold;
     background-color: $core-medium-blue-grey;
-    font-weight: $regular;
-    line-height: 2.25;
-    letter-spacing: 0.5px;
-    padding: 0 30px;
+    padding: 9px 75px;
     width: 100%;
     text-align: center;
+    margin-top: 24px;
 
     &:hover {
-      background-color: rgba($success, 0.1);
+      background-color: darken($core-medium-blue-grey, 5%);
     }
-  }
-
-  &__add-label-icon {
-    margin: 0 0 0 $pad-small;
-  }
-
-  &__wrapper {
-    color: $core-dark-blue-grey;
-    padding: 0;
-
-    .input-icon-field {
-      margin-top: 0;
-
-      &__label {
-        display: none;
-      }
-
-      &__icon {
-        top: 6px;
-      }
-    }
-  }
-
-  &__hr {
-    color: $core-dark-blue-grey;
-    margin: $pad-base $pad-auto;
-    width: 80%;
-    height: 1px;
-    background-color: #ececec;
-    border: 0;
   }
 
   &__panel-group-item {
-    background-color: $white;
     color: $core-dark-blue-grey;
-    padding: $pad-half $pad-large;
+    width: 100%;
 
     &--filter {
       position: relative;
 
       .kolidecon {
         position: absolute;
-        top: calc(#{$pad-half} + 8px);
-        left: calc(#{$pad-large} + 10px);
-        font-size: 22px;
+        top: 10px;
+        left: 12px;
+        font-size: 20px;
         color: $core-medium-blue-grey;
       }
     }
@@ -68,35 +59,11 @@
   }
 
   &__filter-labels {
-    margin: 0;
+    margin-bottom: 16px;
 
     .input-field {
       padding-left: 42px;
       width: 100%;
-    }
-  }
-
-  &__add-hosts {
-    padding: 0 $pad-large;
-    width: 100%;
-    line-height: 2.25;
-    margin-top: 10px;
-    text-align: left;
-
-    span {
-      font-size: 16px;
-      font-weight: $regular;
-      line-height: normal;
-      letter-spacing: -0.5px;
-      color: $core-purple;
-      text-transform: none;
-    }
-
-    .kolidecon {
-      margin-right: 20px;
-      font-size: 26px;
-      vertical-align: middle;
-      margin-left: -3px;
     }
   }
 }
