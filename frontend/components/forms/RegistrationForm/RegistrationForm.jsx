@@ -142,18 +142,29 @@ class RegistrationForm extends Component {
     const { formData } = this.state;
     const { isCurrentPage, onPageFormSubmit, renderContent } = this;
 
-    const containerClass = classnames(`${baseClass}__container`, {
-      [`${baseClass}__container--complete`]: page > 3,
-    });
+    const adminDetailsContainerClass = classnames(
+      `${baseClass}__container`,
+      `${baseClass}__container--admin`,
+    );
 
     const adminDetailsClass = classnames(
       `${baseClass}__field-wrapper`,
       `${baseClass}__field-wrapper--admin`,
     );
 
+    const orgDetailsContainerClass = classnames(
+      `${baseClass}__container`,
+      `${baseClass}__container--org`,
+    );
+
     const orgDetailsClass = classnames(
       `${baseClass}__field-wrapper`,
       `${baseClass}__field-wrapper--org`,
+    );
+
+    const kolideDetailsContainerClass = classnames(
+      `${baseClass}__container`,
+      `${baseClass}__container--kolide`,
     );
 
     const kolideDetailsClass = classnames(
@@ -175,14 +186,18 @@ class RegistrationForm extends Component {
 
     return (
       <div className={baseClass}>
-        <div className={containerClass}>
-          {renderContent()}
-
-          <div className={formSectionClasses}>
+        <div className={formSectionClasses}>
+          <div className={adminDetailsContainerClass}>
+            <h2>Setup user</h2>
+            <p>Additional admins can be designated within the Fleet App</p>
             <AdminDetails formData={formData} handleSubmit={onPageFormSubmit} className={adminDetailsClass} currentPage={isCurrentPage(1)} />
-
+          </div>
+          <div className={orgDetailsContainerClass}>
+            <h2>Organization details</h2>
             <OrgDetails formData={formData} handleSubmit={onPageFormSubmit} className={orgDetailsClass} currentPage={isCurrentPage(2)} />
-
+          </div>
+          <div className={kolideDetailsContainerClass}>
+            <h2>Set Fleet URL</h2>
             <KolideDetails formData={formData} handleSubmit={onPageFormSubmit} className={kolideDetailsClass} currentPage={isCurrentPage(3)} />
           </div>
         </div>

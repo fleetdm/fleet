@@ -49,11 +49,11 @@ class OrgDetails extends Component {
             {...fields.org_logo_url}
             placeholder="Organization Logo URL (optional)"
             tabIndex={tabIndex}
-            hint="must start with https://"
+            hint="Set a logo to use in the Fleet application. Should be an https URL to an image file (e.g. https://fleetdm.com/logo.png)."
           />
         </div>
-        <Button type="submit" variant="gradient" tabIndex={tabIndex} disabled={!currentPage}>
-          Submit
+        <Button type="submit" tabIndex={tabIndex} disabled={!currentPage} className="button button--brand">
+          Next
         </Button>
       </form>
     );

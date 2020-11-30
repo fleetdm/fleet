@@ -232,7 +232,7 @@ the way that the Fleet server works.
 					apiHandler = service.WithSetup(svc, logger, apiHandler)
 					frontendHandler = service.RedirectLoginToSetup(svc, logger, frontendHandler, config.Server.URLPrefix)
 				} else {
-					frontendHandler = service.RedirectSetupToLogin(svc, logger, frontendHandler, config.Server.URLPrefix)
+					// frontendHandler = service.RedirectSetupToLogin(svc, logger, frontendHandler, config.Server.URLPrefix)
 				}
 
 			}

@@ -22,12 +22,9 @@ class InputFieldWithIcon extends InputField {
   };
 
   renderHeading = () => {
-    const { error, placeholder, value } = this.props;
+    const { error, placeholder } = this.props;
 
-    const labelClasses = classnames(
-      `${baseClass}__label`,
-      { [`${baseClass}__label--hidden`]: !value },
-    );
+    const labelClasses = classnames(`${baseClass}__label`);
 
     if (error) {
       return <div className={`${baseClass}__errors`}>{error}</div>;
