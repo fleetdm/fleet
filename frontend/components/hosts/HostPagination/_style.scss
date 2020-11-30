@@ -1,7 +1,7 @@
 .host-pagination {
   &__pager-wrap {
     flex-basis: 100%;
-    margin: 50px 0 115px;
+    margin: 16px 0 39px;
     display: flex;
     flex-wrap: wrap;
   }
@@ -14,10 +14,11 @@
     .rc-pagination-prev,
     .rc-pagination-next,
     .rc-pagination-item {
-      border: 1px solid $core-medium-blue-grey;
-      font-size: 15px;
+      border: 0;
+      font-size: $x-small;
+      margin-right: 16px;
       box-sizing: border-box;
-      border-radius: 3px;
+      border-radius: 4px;
 
       a {
         color: $core-medium-blue-grey;
@@ -28,8 +29,7 @@
     .rc-pagination-prev {
       a {
         &::after {
-          @extend %kolidecon;
-          content: '\f006';
+          content: 'Prev';
         }
       }
     }
@@ -37,8 +37,7 @@
     .rc-pagination-next {
       a {
         &::after {
-          @extend %kolidecon;
-          content: '\f008';
+          content: 'Next';
         }
       }
     }
