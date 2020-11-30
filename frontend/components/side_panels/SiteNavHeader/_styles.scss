@@ -1,40 +1,20 @@
 .site-nav-header {
   position: relative;
+  padding: 14px 20px;
+  background: $core-dark-blue-grey;
+  margin-bottom: 16px;
 
-  &__button {
-    transition: background 150ms $ease-in-quad;
-    cursor: pointer;
-    padding: $pad-large $pad-medium 0;
-    position: relative;
-    display: block;
-    width: 100%;
-    color: $white;
-    background-color: $core-dark-blue-grey;
-    text-align: left;
-    border-radius: 0;
-
-    @at-root .site-nav--small & {
-      padding: 0;
-    }
-
-    @include breakpoint(smalldesk) {
-      padding: 0;
-    }
+  @include breakpoint(smalldesk) {
+    padding: 14px 10px;
   }
 
-  &__org {
-    @include clearfix;
-    transition: border 150ms $ease-in-quad;
-    position: relative;
-    z-index: 2;
-    border-bottom: 1px solid $ui-borders;
-    padding-bottom: $pad-medium;
-    max-height: 100px;
+  &__inner {
+    display: flex;
+    align-items: center;
   }
 
   &__logo {
     @include size(24px);
-    float: left;
     margin-right: 24px;
 
     @at-root .site-nav--small & {
@@ -42,50 +22,7 @@
     }
 
     @include breakpoint(smalldesk) {
-      margin: 24px 5px 10px;
-    }
-  }
-
-  &__org-name {
-    @include ellipsis(110px);
-    font-size: 16px;
-    letter-spacing: 0.5px;
-    padding: 0;
-    white-space: nowrap;
-    text-transform: none;
-    font-weight: $bold;
-    display: block;
-    color: $white;
-
-    @at-root .site-nav--small & {
-      display: none;
-      margin: 24px 0 5px 63px;
-    }
-
-    @include breakpoint(smalldesk) {
-      display: none;
-      margin: 24px 0 5px 63px;
-    }
-  }
-
-  &__user-status {
-    @include size(16px);
-    background-color: $warning;
-    border-radius: 50%;
-    display: inline-block;
-    margin-right: 6px;
-    position: relative;
-
-    &--enabled {
-      background-color: $success;
-    }
-
-    @at-root .site-nav--small & {
-      display: none;
-    }
-
-    @include breakpoint(smalldesk) {
-      display: none;
+      margin: 10px 5px 10px;
     }
   }
 
@@ -93,141 +30,17 @@
     @include ellipsis(110px);
     margin: 0;
     padding: 0;
-    font-size: 13px;
-    letter-spacing: 0.6px;
-    text-transform: uppercase;
-    position: relative;
-    line-height: 16px;
-
-    @at-root .site-nav--small & {
-      display: none;
-    }
-
-    @include breakpoint(smalldesk) {
-      display: none;
-    }
-  }
-
-  &__carat {
-    @include position(absolute, null 0 $pad-small null);
-    color: $ui-medium-grey;
-    font-size: 9px;
-
-    @at-root .site-nav--small & {
-      display: none;
-    }
-
-    @include breakpoint(smalldesk) {
-      display: none;
-    }
-  }
-}
-
-.user-menu-toggle {
-  height: 0;
-  width: 239px;
-  position: absolute;
-  left: $pad-base;
-  padding: 0;
-  z-index: 2;
-  overflow: hidden;
-  opacity: 0;
-  box-sizing: border-box;
-  background-color: $core-blue;
-  border: solid 1px rgba(73, 143, 226, 0.6);
-
-  &--open {
-    height: auto;
-    padding: $pad-medium 0 0;
-    opacity: 1;
-  }
-
-  &__avatar {
-    @include size(42px);
-    float: left;
-    border: solid 1px $ui-borders;
-    border-radius: 50%;
-    margin: 0 10px 0 $pad-medium;
-  }
-
-  &__name,
-  &__position {
-    @include ellipsis(150px);
-    width: 150px;
-    margin: 0;
-    float: left;
-    text-transform: none;
-    font-size: 15px;
+    color: $white;
+    font-size: $small;
     font-weight: $bold;
-    line-height: 1.6;
-    letter-spacing: -0.5px;
-    color: rgba(255, 255, 255, 0.95);
-  }
+    position: relative;
 
-  &__position {
-    font-weight: $regular;
-    color: rgba(255, 255, 255, 0.6);
-
-    em {
-      padding-right: 4px;
-    }
-  }
-
-  &__nav {
-    clear: both;
-  }
-
-  &__nav-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-
-  &__nav-item {
-    font-size: 15px;
-    font-weight: $regular;
-    letter-spacing: 0.5px;
-    padding: 14px 0;
-
-    a {
-      transition: opacity 75ms $ease-in-quad, background 75ms $ease-in-quad;
-      color: $white;
-      display: block;
-      text-decoration: none;
-      text-transform: none;
-      margin: 0 18px;
-      line-height: 40px;
-      border-radius: 4px;
-      padding: 0 9px;
-      opacity: 0.75;
-
-      &:hover {
-        opacity: 1;
-      }
-
-      i {
-        margin-right: $pad-half;
-        font-size: $large;
-        vertical-align: text-bottom;
-      }
+    @at-root .site-nav--small & {
+      display: none;
     }
 
-    &:first-child {
-      border-bottom: solid 1px rgba(73, 143, 226, 0.4);
-
-      a {
-        &:hover {
-          background-color: $core-purple;
-        }
-      }
-    }
-
-    &:last-child {
-      a {
-        &:hover {
-          background-color: #3c3655;
-        }
-      }
+    @include breakpoint(smalldesk) {
+      display: none;
     }
   }
 }
