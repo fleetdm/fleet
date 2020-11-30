@@ -26,9 +26,7 @@ class UserMenu extends Component {
     const { pathname, onLogout, onNavItemClick } = this.props;
 
     const baseClass = 'user-menu';
-    const userMenuClass = classnames(
-      baseClass,
-    );
+    const userMenuClass = classnames(baseClass);
 
     let settingsActive;
     if (pathname.replace('/', '') === 'settings') settingsActive = true;
