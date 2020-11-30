@@ -58,24 +58,7 @@ export default (admin) => {
         regex: new RegExp(`^${URL_PREFIX}/queries/`),
         pathname: PATHS.MANAGE_QUERIES,
       },
-      subItems: [
-        {
-          icon: 'query',
-          name: 'Manage Queries',
-          location: {
-            regex: new RegExp(`^${PATHS.MANAGE_QUERIES}`),
-            pathname: PATHS.MANAGE_QUERIES,
-          },
-        },
-        {
-          icon: 'pencil',
-          name: 'New Query',
-          location: {
-            regex: new RegExp(`^${PATHS.NEW_QUERY}`),
-            pathname: PATHS.NEW_QUERY,
-          },
-        },
-      ],
+      subItems: [],
     },
     {
       icon: 'packs',
@@ -84,24 +67,7 @@ export default (admin) => {
         regex: new RegExp(`^${URL_PREFIX}/packs/`),
         pathname: PATHS.MANAGE_PACKS,
       },
-      subItems: [
-        {
-          icon: 'packs',
-          name: 'Manage Packs',
-          location: {
-            regex: new RegExp(`^${PATHS.MANAGE_PACKS}`),
-            pathname: PATHS.MANAGE_PACKS,
-          },
-        },
-        {
-          icon: 'pencil',
-          name: 'New Pack',
-          location: {
-            regex: new RegExp(`^${PATHS.NEW_PACK}`),
-            pathname: PATHS.NEW_PACK,
-          },
-        },
-      ],
+      subItems: [],
     },
     {
       icon: 'help',

@@ -4,9 +4,9 @@ import PropTypes from 'prop-types';
 import hostInterface from 'interfaces/host';
 import labelInterface from 'interfaces/label';
 import HostsTable from 'components/hosts/HostsTable';
-import HostDetails from 'components/hosts/HostDetails';
 import LonelyHost from 'components/hosts/LonelyHost';
 import Spinner from 'components/loaders/Spinner';
+import NoHostsImage from '../../../../assets/images/no-matching-host-100x100@2x.png';
 
 const baseClass = 'host-container';
 
@@ -15,7 +15,6 @@ class HostContainer extends Component {
     hosts: PropTypes.arrayOf(hostInterface),
     selectedLabel: labelInterface,
     loadingHosts: PropTypes.bool.isRequired,
-    displayType: PropTypes.oneOf(['Grid', 'List']),
     toggleAddHostModal: PropTypes.func,
     toggleDeleteHostModal: PropTypes.func,
     onQueryHost: PropTypes.func,
@@ -28,40 +27,29 @@ class HostContainer extends Component {
 
     return (
       <div className={`${baseClass}  ${baseClass}--no-hosts`}>
-        <h1>No matching hosts found.</h1>
-        <h2>Where are the missing hosts?</h2>
-        <ul>
-          {isCustom && <li>Check your SQL query above to confirm there are no mistakes.</li>}
-          <li>Check to confirm that your hosts are online.</li>
-          <li>Confirm that your expected hosts have osqueryd installed and configured.</li>
-        </ul>
+        <div className={`${baseClass}--no-hosts__inner`}>
+          <img src={NoHostsImage} alt="No Hosts" />
+          <div>
+            <h1>No matching hosts found.</h1>
+            <h2>Where are the missing hosts?</h2>
+            <ul>
+              {isCustom && <li>Check your SQL query above to confirm there are no mistakes.</li>}
+              <li>Check to confirm that your hosts are online.</li>
+              <li>Confirm that your expected hosts have osqueryd installed and configured.</li>
+            </ul>
 
-        <div className={`${baseClass}__no-hosts-contact`}>
-          <p>Still having trouble?</p>
-          <p><a href="https://github.com/fleetdm/fleet/issues">File a Github issue</a>.</p>
+            <div className={`${baseClass}__no-hosts-contact`}>
+              <p>Still having trouble?</p>
+              <a href="https://github.com/fleetdm/fleet/issues">File a Github issue</a>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   renderHosts = () => {
-    const { displayType, hosts, toggleDeleteHostModal, onQueryHost } = this.props;
-
-    if (displayType === 'Grid') {
-      return hosts.map((host) => {
-        const isLoading = !host.hostname;
-
-        return (
-          <HostDetails
-            host={host}
-            key={`host-${host.id}-details`}
-            onDestroyHost={toggleDeleteHostModal}
-            onQueryHost={onQueryHost}
-            isLoading={isLoading}
-          />
-        );
-      });
-    }
+    const { hosts, toggleDeleteHostModal, onQueryHost } = this.props;
 
     return (
       <HostsTable
@@ -74,7 +62,7 @@ class HostContainer extends Component {
 
   render () {
     const { renderHosts, renderNoHosts } = this;
-    const { hosts, displayType, loadingHosts, selectedLabel, toggleAddHostModal } = this.props;
+    const { hosts, loadingHosts, selectedLabel, toggleAddHostModal } = this.props;
 
     if (loadingHosts) {
       return <Spinner />;
@@ -89,7 +77,7 @@ class HostContainer extends Component {
     }
 
     return (
-      <div className={`${baseClass} ${baseClass}--${displayType.toLowerCase()}`}>
+      <div className={`${baseClass}`}>
         {renderHosts()}
       </div>
     );
