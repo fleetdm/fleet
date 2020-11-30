@@ -10,9 +10,9 @@ import { humanMemory, humanUptime, humanLastSeen } from './helpers';
 
 const baseClass = 'host-details';
 
-export const STATUSES = {
-  online: 'ONLINE',
-  offline: 'OFFLINE',
+export const statuses = {
+  online: 'Online',
+  offline: 'Offline',
 };
 
 const ActionButton = ({ host, onDestroyHost, onQueryHost }) => {

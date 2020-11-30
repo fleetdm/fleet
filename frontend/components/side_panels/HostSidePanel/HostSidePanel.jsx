@@ -52,7 +52,13 @@ class HostSidePanel extends Component {
     });
 
     return (
-      <SecondarySidePanelContainer className={`${baseClass}__wrapper`}>
+      <SecondarySidePanelContainer className={`${baseClass}`}>
+
+        <Button onClick={onAddHostClick} className={`${baseClass}__add-hosts button button--brand`}>
+          <span>Add New Host</span>
+        </Button>
+
+        <h3>Status</h3>
         <PanelGroup
           groupItems={allHostLabels}
           onLabelClick={onLabelClick}
@@ -60,12 +66,6 @@ class HostSidePanel extends Component {
           type="all-hosts"
         />
 
-        <Button variant="unstyled" onClick={onAddHostClick} className={`${baseClass}__add-hosts`}>
-          <Icon name="laptop-plus" className={`${baseClass}__add-hosts-icon`} />
-          <span>Add New Host</span>
-        </Button>
-
-        <hr className={`${baseClass}__hr`} />
         <PanelGroup
           groupItems={hostStatusLabels}
           onLabelClick={onLabelClick}
@@ -73,18 +73,16 @@ class HostSidePanel extends Component {
           selectedFilter={selectedFilter}
           type="status"
         />
-        <hr className={`${baseClass}__hr`} />
+
+        <h3>Operating Systems</h3>
         <PanelGroup
           groupItems={hostPlatformLabels}
           onLabelClick={onLabelClick}
           selectedFilter={selectedFilter}
           type="platform"
         />
-        {hostPlatformLabels.length > 0 && <hr className={`${baseClass}__hr`} />}
-        <div className={`${baseClass}__panel-group-item`}>
-          <Icon name="label" />
-          <span className="title">LABELS</span>
-        </div>
+
+        <h3 className="title">Labels</h3>
         <div className={`${baseClass}__panel-group-item ${baseClass}__panel-group-item--filter`}>
           <InputField
             name="tags-filter"
@@ -101,10 +99,9 @@ class HostSidePanel extends Component {
           selectedFilter={selectedFilter}
           type="label"
         />
-        <hr className={`${baseClass}__hr`} />
+
         <Button variant="unstyled" onClick={onAddLabelClick} className={`${baseClass}__add-label-btn`}>
-          ADD NEW LABEL
-          <Icon name="label" className={`${baseClass}__add-label-icon`} />
+          Add new label
         </Button>
       </SecondarySidePanelContainer>
     );
