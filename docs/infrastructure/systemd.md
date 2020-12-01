@@ -6,7 +6,7 @@ Below is a sample unit file.
 
 ```
 [Unit]
-Description=Kolide Fleet
+Description=Fleet
 After=network.target
 
 [Service]

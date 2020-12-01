@@ -1,7 +1,7 @@
 Infrastructure Documentation
 ============================
 
-Kolide Fleet is an infrastructure instrumentation application which has it's own infrastructure dependencies and requirements. The infrastructure documentation contains documents on the following topics:
+Fleet is an infrastructure instrumentation application which has it's own infrastructure dependencies and requirements. The infrastructure documentation contains documents on the following topics:
 
 ## Deploying and configuring osquery
 
