@@ -1,6 +1,6 @@
 # Fleet Documentation
 
-Welcome to the documentation for the Kolide Fleet osquery fleet manager.
+Welcome to the documentation for the Fleet osquery fleet manager.
 
 - If you're interested in using the `fleetctl` CLI to manage your osquery fleet, see the [CLI Documentation](./cli/README.md).
 - Resources for deploying osquery to hosts, deploying the Fleet server, installing Fleet's infrastructure dependencies, etc. can all be found in the [Infrastructure Documentation](./infrastructure/README.md).
