@@ -13,7 +13,6 @@ export class App extends Component {
   static propTypes = {
     children: PropTypes.element,
     dispatch: PropTypes.func,
-    showBackgroundImage: PropTypes.bool,
     user: userInterface,
   };
 

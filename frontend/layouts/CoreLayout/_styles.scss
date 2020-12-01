@@ -9,6 +9,7 @@
   padding: 0 0 0 $pad-base;
   max-width: calc(100% - 217px);
   position: relative;
+  background-color: $white;
 
   &--small {
     max-width: calc(100% - 73px);

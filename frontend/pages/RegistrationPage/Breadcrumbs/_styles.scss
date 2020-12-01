@@ -2,9 +2,9 @@
   display: flex;
   justify-content: space-between;
   align-content: center;
-  width: 665px;
+  width: 600px;
   height: 125px;
-  margin: 38px auto 0 auto;
+  margin: 38px auto 0;
 
   @include breakpoint(tablet) {
     height: 75px;
@@ -21,7 +21,7 @@
     &::before {
       content: '';
       position: absolute;
-      width: 232px;
+      width: 200px;
       height: 2px;
       background-color: $core-blue;
       bottom: 43px;
@@ -69,7 +69,7 @@
         &::before {
           background: linear-gradient(to right, $white 50%, $core-blue 50%);
         }
-        
+
         &::after {
           background-color: transparent;
           border: 2px solid $white;

@@ -1,7 +1,7 @@
 .user-registration {
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: stretch;
   flex-grow: 1;
   margin-top: 24px;
 
@@ -14,11 +14,13 @@
     box-sizing: border-box;
     padding: 40px;
     z-index: 1;
+    transform: translateY(-50%);
 
     h2 {
       font-size: $large;
       font-weight: $regular;
-      padding: 0 0 16px 0;
+      text-align: center;
+      padding: 0 0 16px;
       margin: 0;
       margin-bottom: 40px;
       border-bottom: 1px solid $ui-borders;
@@ -26,12 +28,12 @@
 
     p {
       font-size: $small;
-      margin: 0 0 8px 0;
+      margin: 0 0 8px;
     }
 
     &--admin {
       left: 0;
-      top: 0;
+      top: unquote('max(56%, 480px)');
       margin: auto;
     }
 
@@ -42,6 +44,11 @@
 
     &--kolide {
       left: calc(150% + 220px);
+      top: -8px;
+    }
+
+    &--confirmation {
+      left: calc(200% + 220px);
       top: -8px;
     }
 
@@ -58,11 +65,9 @@
   }
 
   &__form {
-    transform: translateY(-130px);
+    display: flex;
     width: 100%;
-    height: 470px;
     box-sizing: border-box;
-    padding: 25px 0;
 
     @include breakpoint(tablet) {
       transform: translateY(-100px);
@@ -76,12 +81,16 @@
 
       .user-registration__container--org {
         left: 0;
-        top: 0;
+        top: unquote('max(56%, 480px)');
         margin: auto;
       }
 
       .user-registration__container--kolide {
         left: calc(100% + 220px);
+      }
+
+      .user-registration__container--confirmation {
+        left: calc(150% + 220px);
       }
     }
 
@@ -99,8 +108,12 @@
 
       .user-registration__container--kolide {
         left: 0;
-        top: 0;
+        top: unquote('max(56%, 480px)');
         margin: auto;
+      }
+
+      .user-registration__container--confirmation {
+        left: calc(100% + 220px);
       }
     }
 
@@ -119,6 +132,12 @@
       .user-registration__container--kolide {
         left: -600px;
         opacity: 0;
+      }
+
+      .user-registration__container--confirmation {
+        left: 0;
+        top: unquote('max(56%, 480px)');
+        margin: auto;
       }
     }
 
@@ -167,11 +186,4 @@
     }
   }
 
-  &__confirmation {
-    background-color: $core-light-blue-grey;
-    position: relative;
-    z-index: 2;
-    width: 500px;
-    height: 500px;
-  }
 }
