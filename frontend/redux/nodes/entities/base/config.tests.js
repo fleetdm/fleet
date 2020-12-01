@@ -1,4 +1,3 @@
-import expect from 'expect';
 import { noop } from 'lodash';
 
 import ReduxConfig from 'redux/nodes/entities/base/config';
@@ -42,7 +41,7 @@ describe('ReduxConfig - class', () => {
       users: [userStub],
     };
 
-    context('when there is no parseApiResponseFunc or parseEntityFunc', () => {
+    describe('when there is no parseApiResponseFunc or parseEntityFunc', () => {
       const config = new ReduxConfig({ entityName: 'users' });
 
       it('returns the api response', () => {
@@ -50,7 +49,7 @@ describe('ReduxConfig - class', () => {
       });
     });
 
-    context('when there is a parseApiResponseFunc and no parseEntityFunc', () => {
+    describe('when there is a parseApiResponseFunc and no parseEntityFunc', () => {
       const parseApiResponseFunc = r => r.users;
       const config = new ReduxConfig({
         entityName: 'users',
@@ -62,18 +61,21 @@ describe('ReduxConfig - class', () => {
       });
     });
 
-    context('when there is a parseEntityFunc and no parseApiResponseFunc', () => {
+    describe('when there is a parseEntityFunc and no parseApiResponseFunc', () => {
       const parseEntityFunc = u => u.name;
       const config = new ReduxConfig({
         entityName: 'users',
         parseEntityFunc,
       });
 
-      it('returns the result of the parseEntitiesFunc when the response is an array', () => {
-        const { users } = apiResponse;
+      it(
+        'returns the result of the parseEntitiesFunc when the response is an array',
+        () => {
+          const { users } = apiResponse;
 
-        expect(config._parse(users)).toEqual(['Gnar Mike']);
-      });
+          expect(config._parse(users)).toEqual(['Gnar Mike']);
+        },
+      );
 
       it('throws an error when the response is not an array', () => {
         expect(() => config._parse(apiResponse)).toThrow('parseEntityFunc must be called on an array. Use the parseApiResponseFunc to format the response correctly.');
@@ -86,7 +88,7 @@ describe('ReduxConfig - class', () => {
     const { actions } = config;
 
     it('returns all actions', () => {
-      expect(actions).toEqual({
+      expect(JSON.stringify(actions)).toEqual(JSON.stringify({
         clearErrors: config._clearErrors,
         create: config._genericThunkAction('CREATE'),
         createFailure: config._genericFailure('CREATE'),
@@ -112,7 +114,7 @@ describe('ReduxConfig - class', () => {
         updateFailure: config._genericFailure('UPDATE'),
         updateRequest: config._genericRequest('UPDATE'),
         updateSuccess: config._genericSuccess('UPDATE'),
-      });
+      }));
     });
 
     describe('#clearErrors', () => {

@@ -1,4 +1,3 @@
-import expect, { restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 
 import AppSettingsPage from 'pages/admin/AppSettingsPage';
@@ -25,8 +24,6 @@ const storeWithSMTPConfig = {
 };
 
 describe('AppSettingsPage - component', () => {
-  afterEach(restoreSpies);
-
   it('renders', () => {
     const mockStore = reduxMockStore(baseStore);
     const page = mount(connectedComponent(AppSettingsPage, { mockStore }));
@@ -44,7 +41,7 @@ describe('AppSettingsPage - component', () => {
 
     expect(smtpWarning.length).toEqual(1);
     expect(smtpWarning.find('Icon').length).toEqual(1);
-    expect(smtpWarning.text()).toInclude('Email is not currently configured in Fleet');
+    expect(smtpWarning.text()).toContain('Email is not currently configured in Fleet');
   });
 
   it('dismisses the smtp warning when "DISMISS" is clicked', () => {
@@ -58,7 +55,7 @@ describe('AppSettingsPage - component', () => {
 
     dismissButton.simulate('click');
 
-    expect(page.find('WarningBanner').html()).toNotExist();
+    expect(page.find('WarningBanner').html()).toBeFalsy();
   });
 
   it('does not render a warning if SMTP has been configured', () => {
@@ -67,6 +64,6 @@ describe('AppSettingsPage - component', () => {
       connectedComponent(AppSettingsPage, { mockStore }),
     ).find('AppSettingsPage');
 
-    expect(page.find('WarningBanner').html()).toNotExist();
+    expect(page.find('WarningBanner').html()).toBeFalsy();
   });
 });

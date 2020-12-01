@@ -1,4 +1,3 @@
-import expect from 'expect';
 import helpers from './helpers';
 
 const targets = {

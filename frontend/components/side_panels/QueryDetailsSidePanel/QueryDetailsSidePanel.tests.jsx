@@ -1,5 +1,4 @@
 import React from 'react';
-import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
@@ -7,8 +6,6 @@ import QueryDetailsSidePanel from 'components/side_panels/QueryDetailsSidePanel'
 import { queryStub } from 'test/stubs';
 
 describe('QueryDetailsSidePanel - component', () => {
-  afterEach(restoreSpies);
-
   it('renders', () => {
     const component = mount(<QueryDetailsSidePanel onEditQuery={noop} query={queryStub} />);
 
@@ -25,7 +22,7 @@ describe('QueryDetailsSidePanel - component', () => {
   });
 
   it('calls the onEditQuery prop when Edit/Run Query is clicked', () => {
-    const spy = createSpy();
+    const spy = jest.fn();
     const component = mount(<QueryDetailsSidePanel onEditQuery={spy} query={queryStub} />);
     const button = component.find('Button');
 

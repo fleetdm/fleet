@@ -1,5 +1,4 @@
 import React from 'react';
-import expect, { spyOn, restoreSpies } from 'expect';
 import FileSave from 'file-saver';
 import { mount } from 'enzyme';
 import nock from 'nock';
@@ -21,8 +20,8 @@ describe('QueryPage - component', () => {
   beforeEach(() => {
     createAceSpy();
 
-    spyOn(hostActions, 'loadAll')
-      .andReturn(() => Promise.resolve([]));
+    jest.spyOn(hostActions, 'loadAll')
+      .mockImplementation(() => () => Promise.resolve([]));
 
     nock('http://localhost:8080')
       .post('/api/v1/kolide/targets', JSON.stringify({
@@ -47,7 +46,6 @@ describe('QueryPage - component', () => {
 
   afterEach(() => {
     nock.cleanAll();
-    restoreSpies();
   });
 
   const store = {
@@ -88,7 +86,7 @@ describe('QueryPage - component', () => {
         props: locationProp,
       }));
 
-      expect(page.html()).toNotExist();
+      expect(page.html()).toBeFalsy();
     });
 
     it('renders the QueryForm component', () => {
@@ -120,14 +118,14 @@ describe('QueryPage - component', () => {
       props: multipleHostsProps,
     }));
 
-    expect(singleHostMockStore.getActions()).toInclude({
+    expect(singleHostMockStore.getActions()).toContainEqual({
       type: 'SET_SELECTED_TARGETS',
       payload: {
         selectedTargets: [hostStub],
       },
     });
 
-    expect(multipleHostMockStore.getActions()).toInclude({
+    expect(multipleHostMockStore.getActions()).toContainEqual({
       type: 'SET_SELECTED_TARGETS',
       payload: {
         selectedTargets: [hostStub, { ...hostStub, id: 99 }],
@@ -135,18 +133,21 @@ describe('QueryPage - component', () => {
     });
   });
 
-  it('sets targetError in state when the query is run and there are no selected targets', () => {
-    const page = mount(connectedComponent(ConnectedQueryPage, { mockStore, props: locationProp }));
-    const runQueryBtn = page.find('.query-progress-details__run-btn');
-    let QueryPageSelectTargets = page.find('QueryPageSelectTargets');
+  it(
+    'sets targetError in state when the query is run and there are no selected targets',
+    () => {
+      const page = mount(connectedComponent(ConnectedQueryPage, { mockStore, props: locationProp }));
+      const runQueryBtn = page.find('.query-progress-details__run-btn');
+      let QueryPageSelectTargets = page.find('QueryPageSelectTargets');
 
-    expect(QueryPageSelectTargets.prop('error')).toNotExist();
+      expect(QueryPageSelectTargets.prop('error')).toBeFalsy();
 
-    runQueryBtn.hostNodes().simulate('click');
+      runQueryBtn.hostNodes().simulate('click');
 
-    QueryPageSelectTargets = page.find('QueryPageSelectTargets');
-    expect(QueryPageSelectTargets.prop('error')).toEqual('You must select at least one target to run a query');
-  });
+      QueryPageSelectTargets = page.find('QueryPageSelectTargets');
+      expect(QueryPageSelectTargets.prop('error')).toEqual('You must select at least one target to run a query');
+    },
+  );
 
   it('calls the onUpdateQuery prop when the query is updated', () => {
     const query = { id: 1, name: 'My query', description: 'My query description', query: 'select * from users' };
@@ -178,7 +179,7 @@ describe('QueryPage - component', () => {
     const nameInput = form.find({ name: 'name' }).find('input');
     const saveChangesBtn = form.find('li.dropdown-button__option').first().find('Button');
     fillInFormInput(nameInput, 'new name');
-    spyOn(queryActions, 'update').andReturn(() => Promise.resolve({
+    jest.spyOn(queryActions, 'update').mockImplementation(() => () => Promise.resolve({
       description: query.description,
       name: 'new name',
       queryText: 'SELECT * FROM users',
@@ -191,31 +192,34 @@ describe('QueryPage - component', () => {
   });
 
   describe('#componentWillReceiveProps', () => {
-    it('resets selected targets and removed the campaign when the hostname changes', () => {
-      const queryResult = { org_name: 'Kolide', org_url: 'https://kolide.co' };
-      const campaign = { id: 1, query_results: [queryResult], hosts_count: { total: 1 } };
-      const props = {
-        dispatch: noop,
-        loadingQueries: false,
-        location: { pathname: '/queries/11' },
-        query: { query: 'select * from users' },
-        selectedOsqueryTable: defaultSelectedOsqueryTable,
-        selectedTargets: [hostStub],
-      };
-      const Page = mount(<QueryPage {...props} />);
-      const PageNode = Page.instance();
+    it(
+      'resets selected targets and removed the campaign when the hostname changes',
+      () => {
+        const queryResult = { org_name: 'Kolide', org_url: 'https://kolide.co' };
+        const campaign = { id: 1, query_results: [queryResult], hosts_count: { total: 1 } };
+        const props = {
+          dispatch: noop,
+          loadingQueries: false,
+          location: { pathname: '/queries/11' },
+          query: { query: 'select * from users' },
+          selectedOsqueryTable: defaultSelectedOsqueryTable,
+          selectedTargets: [hostStub],
+        };
+        const Page = mount(<QueryPage {...props} />);
+        const PageNode = Page.instance();
 
-      spyOn(PageNode, 'destroyCampaign');
-      spyOn(PageNode, 'removeSocket');
-      spyOn(queryPageActions, 'setSelectedTargets');
+        jest.spyOn(PageNode, 'destroyCampaign');
+        jest.spyOn(PageNode, 'removeSocket');
+        jest.spyOn(queryPageActions, 'setSelectedTargets');
 
-      Page.setState({ campaign });
-      Page.setProps({ location: { pathname: '/queries/new' } });
+        Page.setState({ campaign });
+        Page.setProps({ location: { pathname: '/queries/new' } });
 
-      expect(queryPageActions.setSelectedTargets).toHaveBeenCalledWith([]);
-      expect(PageNode.destroyCampaign).toHaveBeenCalled();
-      expect(PageNode.removeSocket).toHaveBeenCalled();
-    });
+        expect(queryPageActions.setSelectedTargets).toHaveBeenCalledWith([]);
+        expect(PageNode.destroyCampaign).toHaveBeenCalled();
+        expect(PageNode.removeSocket).toHaveBeenCalled();
+      },
+    );
   });
 
   describe('export as csv', () => {
@@ -231,7 +235,7 @@ describe('QueryPage - component', () => {
         query_results: [queryResult],
       };
       const queryResultsCSV = convertToCSV([queryResult]);
-      const fileSaveSpy = spyOn(FileSave, 'saveAs');
+      const fileSaveSpy = jest.spyOn(FileSave, 'saveAs');
       const Page = mount(<QueryPage dispatch={noop} query={queryStub} selectedOsqueryTable={defaultSelectedOsqueryTable} />);
       const filename = 'query_results.csv';
       const fileStub = new global.window.File([queryResultsCSV], filename, { type: 'text/csv' });
@@ -248,36 +252,39 @@ describe('QueryPage - component', () => {
   });
 
   describe('toggle full screen results', () => {
-    it('toggles query results table from default to full screen and back', () => {
-      const queryResult = { org_name: 'Kolide', org_url: 'https://kolide.co' };
-      const campaign = {
-        id: 1,
-        hosts_count: {
-          failed: 0,
-          successful: 1,
-          total: 1,
-        },
-        query_results: [queryResult],
-      };
-      const Page = mount(<QueryPage dispatch={noop} query={queryStub} selectedOsqueryTable={defaultSelectedOsqueryTable} />);
-      Page.setState({ campaign });
+    it(
+      'toggles query results table from default to full screen and back',
+      () => {
+        const queryResult = { org_name: 'Kolide', org_url: 'https://kolide.co' };
+        const campaign = {
+          id: 1,
+          hosts_count: {
+            failed: 0,
+            successful: 1,
+            total: 1,
+          },
+          query_results: [queryResult],
+        };
+        const Page = mount(<QueryPage dispatch={noop} query={queryStub} selectedOsqueryTable={defaultSelectedOsqueryTable} />);
+        Page.setState({ campaign });
 
-      let QueryResultsTable = Page.find('QueryResultsTable');
+        let QueryResultsTable = Page.find('QueryResultsTable');
 
-      QueryResultsTable.find('.query-results-table__fullscreen-btn').hostNodes().simulate('click');
+        QueryResultsTable.find('.query-results-table__fullscreen-btn').hostNodes().simulate('click');
 
-      QueryResultsTable = Page.find('QueryResultsTable');
-      expect(QueryResultsTable.find('.query-results-table__fullscreen-btn--active').length).toBeGreaterThan(0);
-      expect(QueryResultsTable.find('.query-results-table--full-screen').length).toEqual(1);
-      expect(Page.find('.query-page__results--full-screen').length).toEqual(1);
+        QueryResultsTable = Page.find('QueryResultsTable');
+        expect(QueryResultsTable.find('.query-results-table__fullscreen-btn--active').length).toBeGreaterThan(0);
+        expect(QueryResultsTable.find('.query-results-table--full-screen').length).toEqual(1);
+        expect(Page.find('.query-page__results--full-screen').length).toEqual(1);
 
-      QueryResultsTable.find('.query-results-table__fullscreen-btn').hostNodes().simulate('click');
+        QueryResultsTable.find('.query-results-table__fullscreen-btn').hostNodes().simulate('click');
 
-      QueryResultsTable = Page.find('QueryResultsTable');
-      expect(QueryResultsTable.find('.query-results-table__fullscreen-btn--active').length).toEqual(0);
-      expect(QueryResultsTable.find('.query-results-table--full-screen').length).toEqual(0);
-      expect(QueryResultsTable.find('.query-results-table--shrinking').length).toEqual(1);
-      expect(Page.find('.query-page__results--full-screen').length).toEqual(0);
-    });
+        QueryResultsTable = Page.find('QueryResultsTable');
+        expect(QueryResultsTable.find('.query-results-table__fullscreen-btn--active').length).toEqual(0);
+        expect(QueryResultsTable.find('.query-results-table--full-screen').length).toEqual(0);
+        expect(QueryResultsTable.find('.query-results-table--shrinking').length).toEqual(1);
+        expect(Page.find('.query-page__results--full-screen').length).toEqual(0);
+      },
+    );
   });
 });

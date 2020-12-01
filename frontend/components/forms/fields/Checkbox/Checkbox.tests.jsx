@@ -1,19 +1,16 @@
 import React from 'react';
-import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 
 import Checkbox from './Checkbox';
 
 describe('Checkbox - component', () => {
-  afterEach(restoreSpies);
-
   it('renders', () => {
-    expect(mount(<Checkbox />)).toExist();
+    expect(mount(<Checkbox />)).toBeTruthy();
   });
 
   it('calls the "onChange" handler when changed', () => {
-    const onCheckedComponentChangeSpy = createSpy();
-    const onUncheckedComponentChangeSpy = createSpy();
+    const onCheckedComponentChangeSpy = jest.fn();
+    const onUncheckedComponentChangeSpy = jest.fn();
 
     const checkedComponent = mount(
       <Checkbox

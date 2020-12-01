@@ -1,5 +1,4 @@
 import React from 'react';
-import expect, { createSpy } from 'expect';
 import { shallow } from 'enzyme';
 
 import WarningBanner from 'components/WarningBanner/WarningBanner';
@@ -27,7 +26,7 @@ describe('WarningBanner - component', () => {
   });
 
   it('handles dismiss action', () => {
-    const spy = createSpy();
+    const spy = jest.fn();
     const props = { shouldShowWarning: true, message: 'message', onDismiss: spy };
     const component = shallow(<WarningBanner {...props} />);
 
@@ -36,7 +35,7 @@ describe('WarningBanner - component', () => {
   });
 
   it('handles resolve action', () => {
-    const spy = createSpy();
+    const spy = jest.fn();
     const props = { shouldShowWarning: true, message: 'message', onResolve: spy };
     const component = shallow(<WarningBanner {...props} />);
 

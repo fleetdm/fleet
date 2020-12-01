@@ -1,5 +1,4 @@
 import React from 'react';
-import expect, { createSpy, restoreSpies } from 'expect';
 import { mount, shallow } from 'enzyme';
 import { noop } from 'lodash';
 
@@ -14,22 +13,20 @@ const defaultProps = {
 };
 
 describe('ScheduledQueriesListItem - component', () => {
-  afterEach(restoreSpies);
-
   it('renders the scheduled query data', () => {
     const component = mount(<ScheduledQueriesListItem {...defaultProps} />);
-    expect(component.text()).toInclude(scheduledQueryStub.name);
-    expect(component.text()).toInclude(scheduledQueryStub.interval);
-    expect(component.text()).toInclude(scheduledQueryStub.shard);
+    expect(component.text()).toContain(scheduledQueryStub.name);
+    expect(component.text()).toContain(scheduledQueryStub.interval);
+    expect(component.text()).toContain(scheduledQueryStub.shard);
     expect(component.find('PlatformIcon').length).toEqual(1);
   });
 
   it('renders when the platform attribute is null', () => {
     const scheduledQuery = { ...scheduledQueryStub, platform: null };
-    const component = mount(<ScheduledQueriesListItem checked={false} onSelect={noop} scheduledQuery={scheduledQuery} />);
-    expect(component.text()).toInclude(scheduledQueryStub.name);
-    expect(component.text()).toInclude(scheduledQueryStub.interval);
-    expect(component.text()).toInclude(scheduledQueryStub.shard);
+    const component = mount(<ScheduledQueriesListItem checked={false} scheduledQuery={scheduledQuery} {...defaultProps} />);
+    expect(component.text()).toContain(scheduledQueryStub.name);
+    expect(component.text()).toContain(scheduledQueryStub.interval);
+    expect(component.text()).toContain(scheduledQueryStub.shard);
     expect(component.find('PlatformIcon').length).toEqual(1);
   });
 
@@ -39,7 +36,7 @@ describe('ScheduledQueriesListItem - component', () => {
   });
 
   it('calls the onCheck prop when a checkbox is changed', () => {
-    const onCheckSpy = createSpy();
+    const onCheckSpy = jest.fn();
     const props = { ...defaultProps, onCheck: onCheckSpy };
     const component = mount(<ScheduledQueriesListItem {...props} />);
     const checkbox = component.find('Checkbox').first();
@@ -50,7 +47,7 @@ describe('ScheduledQueriesListItem - component', () => {
   });
 
   it('calls the onSelect prop when a list item is selected', () => {
-    const spy = createSpy();
+    const spy = jest.fn();
     const props = { ...defaultProps, onSelect: spy };
     const component = shallow(<ScheduledQueriesListItem {...props} />);
     const tableRow = component.find('ClickableTableRow');
@@ -61,7 +58,7 @@ describe('ScheduledQueriesListItem - component', () => {
   });
 
   it('calls the onDblClick prop when a list item is double clicked', () => {
-    const spy = createSpy();
+    const spy = jest.fn();
     const props = { ...defaultProps, onDblClick: spy };
     const component = shallow(<ScheduledQueriesListItem {...props} />);
     const tableRow = component.find('ClickableTableRow');

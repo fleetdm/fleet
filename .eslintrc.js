@@ -1,19 +1,24 @@
 var path = require('path');
 
 module.exports = {
-  extends: 'airbnb',
+  extends: [
+    'airbnb',
+    'plugin:jest/recommended',
+  ],
   parser: 'babel-eslint',
   plugins: [
-    'react'
+    'jest',
+    'react',
   ],
   env: {
     'node': true,
     'mocha': true,
-    'browser': true
+    'browser': true,
+    'jest/globals': true,
   },
   globals: {
     'expect': false,
-    'describe': false
+    'describe': false,
   },
   rules: {
     'consistent-return': 1,

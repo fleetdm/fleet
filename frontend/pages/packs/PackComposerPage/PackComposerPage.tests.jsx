@@ -1,4 +1,3 @@
-import expect from 'expect';
 import { mount } from 'enzyme';
 
 import { connectedComponent, reduxMockStore } from 'test/helpers';

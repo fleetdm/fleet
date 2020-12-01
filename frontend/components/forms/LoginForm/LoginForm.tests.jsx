@@ -1,12 +1,10 @@
 import React from 'react';
-import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 import LoginForm from './LoginForm';
 import { fillInFormInput } from '../../../test/helpers';
 
 describe('LoginForm - component', () => {
-  afterEach(restoreSpies);
   const settings = { sso_enabled: false };
 
   it('renders the base error', () => {
@@ -14,8 +12,8 @@ describe('LoginForm - component', () => {
     const formWithError = mount(<LoginForm serverErrors={{ base: baseError }} handleSubmit={noop} ssoSettings={settings} />);
     const formWithoutError = mount(<LoginForm handleSubmit={noop} ssoSettings={settings} />);
 
-    expect(formWithError.text()).toInclude(baseError);
-    expect(formWithoutError.text()).toNotInclude(baseError);
+    expect(formWithError.text()).toContain(baseError);
+    expect(formWithoutError.text()).not.toContain(baseError);
   });
 
   it('renders 2 InputField components', () => {
@@ -32,7 +30,7 @@ describe('LoginForm - component', () => {
     fillInFormInput(usernameField, username);
 
     const { formData } = form.state();
-    expect(formData).toContain({ username });
+    expect(formData).toMatchObject({ username });
   });
 
   it('updates component state when the password field is changed', () => {
@@ -42,26 +40,29 @@ describe('LoginForm - component', () => {
     fillInFormInput(passwordField, 'hello');
 
     const { formData } = form.state();
-    expect(formData).toContain({
+    expect(formData).toMatchObject({
       password: 'hello',
     });
   });
 
-  it('it does not submit the form when the form fields have not been filled out', () => {
-    const submitSpy = createSpy();
-    const form = mount(<LoginForm handleSubmit={submitSpy} ssoSettings={settings} />);
-    const submitBtn = form.find('button');
+  it(
+    'it does not submit the form when the form fields have not been filled out',
+    () => {
+      const submitSpy = jest.fn();
+      const form = mount(<LoginForm handleSubmit={submitSpy} ssoSettings={settings} />);
+      const submitBtn = form.find('button');
 
-    submitBtn.simulate('click');
+      submitBtn.simulate('click');
 
-    expect(form.state().errors).toInclude({
-      username: 'Username or email field must be completed',
-    });
-    expect(submitSpy).toNotHaveBeenCalled();
-  });
+      expect(form.state().errors).toMatchObject({
+        username: 'Username or email field must be completed',
+      });
+      expect(submitSpy).not.toHaveBeenCalled();
+    },
+  );
 
   it('submits the form data when form is submitted', () => {
-    const submitSpy = createSpy();
+    const submitSpy = jest.fn();
 
     const form = mount(<LoginForm handleSubmit={submitSpy} ssoSettings={settings} />);
     const usernameField = form.find({ name: 'username' });

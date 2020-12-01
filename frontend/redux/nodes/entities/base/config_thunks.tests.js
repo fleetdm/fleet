@@ -1,4 +1,3 @@
-import expect, { createSpy, restoreSpies } from 'expect';
 import { find } from 'lodash';
 
 import ReduxConfig from 'redux/nodes/entities/base/config';
@@ -35,13 +34,11 @@ const standardError = {
 
 describe('ReduxConfig - thunks', () => {
   describe('#create', () => {
-    afterEach(() => restoreSpies());
-
     const apiResponse = [userStub];
 
     describe('successful call', () => {
-      const createFunc = createSpy()
-        .andCall(() => Promise.resolve(apiResponse));
+      const createFunc = jest.fn()
+        .mockImplementation(() => Promise.resolve(apiResponse));
       const config = new ReduxConfig({
         createFunc,
         entityName: 'users',
@@ -64,9 +61,9 @@ describe('ReduxConfig - thunks', () => {
             const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
             const successAction = find(dispatchedActions, { type: 'users_CREATE_SUCCESS' });
 
-            expect(dispatchedActionTypes).toInclude('users_CREATE_REQUEST');
-            expect(dispatchedActionTypes).toInclude('users_CREATE_SUCCESS');
-            expect(dispatchedActionTypes).toNotInclude('users_CREATE_FAILURE');
+            expect(dispatchedActionTypes).toContainEqual('users_CREATE_REQUEST');
+            expect(dispatchedActionTypes).toContainEqual('users_CREATE_SUCCESS');
+            expect(dispatchedActionTypes).not.toContainEqual('users_CREATE_FAILURE');
             expect(successAction.payload).toEqual({
               data: {
                 users: {
@@ -79,8 +76,8 @@ describe('ReduxConfig - thunks', () => {
     });
 
     describe('unsuccessful call', () => {
-      const createFunc = createSpy()
-        .andCall(() => Promise.reject(standardError));
+      const createFunc = jest.fn()
+        .mockImplementation(() => Promise.reject(standardError));
       const config = new ReduxConfig({
         createFunc,
         entityName: 'users',
@@ -105,9 +102,9 @@ describe('ReduxConfig - thunks', () => {
             const dispatchedActions = mockStore.getActions();
             const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
 
-            expect(dispatchedActionTypes).toInclude('users_CREATE_REQUEST');
-            expect(dispatchedActionTypes).toInclude('users_CREATE_FAILURE');
-            expect(dispatchedActionTypes).toNotInclude('users_CREATE_SUCCESS');
+            expect(dispatchedActionTypes).toContainEqual('users_CREATE_REQUEST');
+            expect(dispatchedActionTypes).toContainEqual('users_CREATE_FAILURE');
+            expect(dispatchedActionTypes).not.toContainEqual('users_CREATE_SUCCESS');
 
             const createFailureAction = find(dispatchedActions, { type: 'users_CREATE_FAILURE' });
 
@@ -123,11 +120,9 @@ describe('ReduxConfig - thunks', () => {
   });
 
   describe('#destroy', () => {
-    afterEach(() => restoreSpies());
-
     describe('successful call', () => {
-      const destroyFunc = createSpy()
-        .andCall(() => Promise.resolve());
+      const destroyFunc = jest.fn()
+        .mockImplementation(() => Promise.resolve());
       const config = new ReduxConfig({
         destroyFunc,
         entityName: 'users',
@@ -157,8 +152,8 @@ describe('ReduxConfig - thunks', () => {
     });
 
     describe('unsuccessful call', () => {
-      const destroyFunc = createSpy()
-        .andCall(() => Promise.reject(standardError));
+      const destroyFunc = jest.fn()
+        .mockImplementation(() => Promise.reject(standardError));
       const config = new ReduxConfig({
         destroyFunc,
         entityName: 'users',
@@ -183,9 +178,9 @@ describe('ReduxConfig - thunks', () => {
             const dispatchedActions = mockStore.getActions();
             const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
 
-            expect(dispatchedActionTypes).toInclude('users_DESTROY_REQUEST');
-            expect(dispatchedActionTypes).toInclude('users_DESTROY_FAILURE');
-            expect(dispatchedActionTypes).toNotInclude('users_DESTROY_SUCCESS');
+            expect(dispatchedActionTypes).toContainEqual('users_DESTROY_REQUEST');
+            expect(dispatchedActionTypes).toContainEqual('users_DESTROY_FAILURE');
+            expect(dispatchedActionTypes).not.toContainEqual('users_DESTROY_SUCCESS');
 
             const destroyFailureAction = find(dispatchedActions, { type: 'users_DESTROY_FAILURE' });
 
@@ -201,11 +196,9 @@ describe('ReduxConfig - thunks', () => {
   });
 
   describe('#load', () => {
-    afterEach(() => restoreSpies());
-
     describe('successful call', () => {
-      const loadFunc = createSpy()
-        .andCall(() => Promise.resolve());
+      const loadFunc = jest.fn()
+        .mockImplementation(() => Promise.resolve());
       const config = new ReduxConfig({
         entityName: 'users',
         loadFunc,
@@ -228,16 +221,16 @@ describe('ReduxConfig - thunks', () => {
             const dispatchedActions = mockStore.getActions();
             const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
 
-            expect(dispatchedActionTypes).toInclude('users_LOAD_REQUEST');
-            expect(dispatchedActionTypes).toInclude('users_LOAD_SUCCESS');
-            expect(dispatchedActionTypes).toNotInclude('users_LOAD_FAILURE');
+            expect(dispatchedActionTypes).toContainEqual('users_LOAD_REQUEST');
+            expect(dispatchedActionTypes).toContainEqual('users_LOAD_SUCCESS');
+            expect(dispatchedActionTypes).not.toContainEqual('users_LOAD_FAILURE');
           });
       });
     });
 
     describe('unsuccessful call', () => {
-      const loadFunc = createSpy()
-        .andCall(() => Promise.reject(standardError));
+      const loadFunc = jest.fn()
+        .mockImplementation(() => Promise.reject(standardError));
       const config = new ReduxConfig({
         entityName: 'users',
         loadFunc,
@@ -262,9 +255,9 @@ describe('ReduxConfig - thunks', () => {
             const dispatchedActions = mockStore.getActions();
             const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
 
-            expect(dispatchedActionTypes).toInclude('users_LOAD_REQUEST');
-            expect(dispatchedActionTypes).toInclude('users_LOAD_FAILURE');
-            expect(dispatchedActionTypes).toNotInclude('users_LOAD_SUCCESS');
+            expect(dispatchedActionTypes).toContainEqual('users_LOAD_REQUEST');
+            expect(dispatchedActionTypes).toContainEqual('users_LOAD_FAILURE');
+            expect(dispatchedActionTypes).not.toContainEqual('users_LOAD_SUCCESS');
 
             const loadFailureAction = find(dispatchedActions, { type: 'users_LOAD_FAILURE' });
 
@@ -280,11 +273,9 @@ describe('ReduxConfig - thunks', () => {
   });
 
   describe('#loadAll', () => {
-    afterEach(() => restoreSpies());
-
     describe('successful call', () => {
-      const loadAllFunc = createSpy()
-        .andCall(() => Promise.resolve());
+      const loadAllFunc = jest.fn()
+        .mockImplementation(() => Promise.resolve());
       const config = new ReduxConfig({
         entityName: 'users',
         loadAllFunc,
@@ -307,16 +298,16 @@ describe('ReduxConfig - thunks', () => {
             const dispatchedActions = mockStore.getActions();
             const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
 
-            expect(dispatchedActionTypes).toInclude('users_LOAD_REQUEST');
-            expect(dispatchedActionTypes).toInclude('users_LOAD_ALL_SUCCESS');
-            expect(dispatchedActionTypes).toNotInclude('users_LOAD_FAILURE');
+            expect(dispatchedActionTypes).toContainEqual('users_LOAD_REQUEST');
+            expect(dispatchedActionTypes).toContainEqual('users_LOAD_ALL_SUCCESS');
+            expect(dispatchedActionTypes).not.toContainEqual('users_LOAD_FAILURE');
           });
       });
     });
 
     describe('unsuccessful call', () => {
-      const loadAllFunc = createSpy()
-        .andCall(() => Promise.reject(standardError));
+      const loadAllFunc = jest.fn()
+        .mockImplementation(() => Promise.reject(standardError));
       const config = new ReduxConfig({
         entityName: 'users',
         loadAllFunc,
@@ -341,9 +332,9 @@ describe('ReduxConfig - thunks', () => {
             const dispatchedActions = mockStore.getActions();
             const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
 
-            expect(dispatchedActionTypes).toInclude('users_LOAD_REQUEST');
-            expect(dispatchedActionTypes).toInclude('users_LOAD_FAILURE');
-            expect(dispatchedActionTypes).toNotInclude('users_LOAD_ALL_SUCCESS');
+            expect(dispatchedActionTypes).toContainEqual('users_LOAD_REQUEST');
+            expect(dispatchedActionTypes).toContainEqual('users_LOAD_FAILURE');
+            expect(dispatchedActionTypes).not.toContainEqual('users_LOAD_ALL_SUCCESS');
 
             const loadAllFailureAction = find(dispatchedActions, { type: 'users_LOAD_FAILURE' });
 
@@ -359,11 +350,9 @@ describe('ReduxConfig - thunks', () => {
   });
 
   describe('#update', () => {
-    afterEach(() => restoreSpies());
-
     describe('successful call', () => {
-      const updateFunc = createSpy()
-        .andCall(() => Promise.resolve());
+      const updateFunc = jest.fn()
+        .mockImplementation(() => Promise.resolve());
       const config = new ReduxConfig({
         entityName: 'users',
         schema: schemas.USERS,
@@ -386,16 +375,16 @@ describe('ReduxConfig - thunks', () => {
             const dispatchedActions = mockStore.getActions();
             const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
 
-            expect(dispatchedActionTypes).toInclude('users_UPDATE_REQUEST');
-            expect(dispatchedActionTypes).toInclude('users_UPDATE_SUCCESS');
-            expect(dispatchedActionTypes).toNotInclude('users_UPDATE_FAILURE');
+            expect(dispatchedActionTypes).toContainEqual('users_UPDATE_REQUEST');
+            expect(dispatchedActionTypes).toContainEqual('users_UPDATE_SUCCESS');
+            expect(dispatchedActionTypes).not.toContainEqual('users_UPDATE_FAILURE');
           });
       });
     });
 
     describe('unsuccessful call', () => {
-      const updateFunc = createSpy()
-        .andCall(() => Promise.reject(standardError));
+      const updateFunc = jest.fn()
+        .mockImplementation(() => Promise.reject(standardError));
       const config = new ReduxConfig({
         entityName: 'users',
         schema: schemas.USERS,
@@ -420,9 +409,9 @@ describe('ReduxConfig - thunks', () => {
             const dispatchedActions = mockStore.getActions();
             const dispatchedActionTypes = dispatchedActions.map((action) => { return action.type; });
 
-            expect(dispatchedActionTypes).toInclude('users_UPDATE_REQUEST');
-            expect(dispatchedActionTypes).toInclude('users_UPDATE_FAILURE');
-            expect(dispatchedActionTypes).toNotInclude('users_UPDATE_SUCCESS');
+            expect(dispatchedActionTypes).toContainEqual('users_UPDATE_REQUEST');
+            expect(dispatchedActionTypes).toContainEqual('users_UPDATE_FAILURE');
+            expect(dispatchedActionTypes).not.toContainEqual('users_UPDATE_SUCCESS');
 
             const updateFailureAction = find(dispatchedActions, { type: 'users_UPDATE_FAILURE' });
 

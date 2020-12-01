@@ -1,5 +1,3 @@
-import expect from 'expect';
-
 import helpers from 'pages/queries/QueryPage/helpers';
 import { initialState } from 'redux/nodes/components/QueryPages/reducer';
 import Test from 'test';
@@ -14,7 +12,7 @@ describe('QueryPage - helpers', () => {
       });
     };
 
-    context('when there are selected targets and no selected hosts', () => {
+    describe('when there are selected targets and no selected hosts', () => {
       it('does not dispatch an action to set targets', () => {
         const mockStore = createMockStore();
         const selectedTargets = [Test.Stubs.labelStub];
@@ -28,7 +26,7 @@ describe('QueryPage - helpers', () => {
       });
     });
 
-    context('when there are selected hosts and no selected targets', () => {
+    describe('when there are selected hosts and no selected targets', () => {
       it('sets the selected targets to the selected hosts', () => {
         const mockStore = createMockStore();
         const selectedHosts = [Test.Stubs.hostStub];
@@ -38,7 +36,7 @@ describe('QueryPage - helpers', () => {
           selectedTargets: [],
         });
 
-        expect(mockStore.getActions()).toInclude({
+        expect(mockStore.getActions()).toContainEqual({
           type: 'SET_SELECTED_TARGETS',
           payload: {
             selectedTargets: selectedHosts,
@@ -47,28 +45,31 @@ describe('QueryPage - helpers', () => {
       });
     });
 
-    context('when there are selected hosts and selected targets', () => {
-      it('sets the selected targets to the combined selected hosts and selected targets', () => {
-        const mockStore = createMockStore();
+    describe('when there are selected hosts and selected targets', () => {
+      it(
+        'sets the selected targets to the combined selected hosts and selected targets',
+        () => {
+          const mockStore = createMockStore();
 
-        helpers.selectHosts(mockStore.dispatch, {
-          hosts: [Test.Stubs.hostStub],
-          selectedTargets: [Test.Stubs.labelStub],
-        });
+          helpers.selectHosts(mockStore.dispatch, {
+            hosts: [Test.Stubs.hostStub],
+            selectedTargets: [Test.Stubs.labelStub],
+          });
 
-        expect(mockStore.getActions()).toInclude({
-          type: 'SET_SELECTED_TARGETS',
-          payload: {
-            selectedTargets: [
-              Test.Stubs.hostStub,
-              Test.Stubs.labelStub,
-            ],
-          },
-        });
-      });
+          expect(mockStore.getActions()).toContainEqual({
+            type: 'SET_SELECTED_TARGETS',
+            payload: {
+              selectedTargets: [
+                Test.Stubs.hostStub,
+                Test.Stubs.labelStub,
+              ],
+            },
+          });
+        },
+      );
     });
 
-    context('when a target is duplicated', () => {
+    describe('when a target is duplicated', () => {
       it('does not duplicate the target when setting selected targets', () => {
         const mockStore = createMockStore();
 
@@ -77,7 +78,7 @@ describe('QueryPage - helpers', () => {
           selectedTargets: [Test.Stubs.labelStub, Test.Stubs.hostStub],
         });
 
-        expect(mockStore.getActions()).toInclude({
+        expect(mockStore.getActions()).toContainEqual({
           type: 'SET_SELECTED_TARGETS',
           payload: {
             selectedTargets: [Test.Stubs.hostStub, Test.Stubs.labelStub],

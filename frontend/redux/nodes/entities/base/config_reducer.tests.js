@@ -1,5 +1,3 @@
-import expect from 'expect';
-
 import ReduxConfig from 'redux/nodes/entities/base/config';
 import schemas from 'redux/nodes/entities/base/schemas';
 import { userStub } from 'test/stubs';

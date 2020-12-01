@@ -1,4 +1,3 @@
-import expect from 'expect';
 import nock from 'nock';
 import { find } from 'lodash';
 
@@ -21,7 +20,7 @@ describe('QueryPageWrapper - helpers', () => {
       global.localStorage.setItem('KOLIDE::auth_token', bearerToken);
     });
 
-    context('when the API call is successful', () => {
+    describe('when the API call is successful', () => {
       it('dispatches a load successful action', (done) => {
         queryMocks.load.valid(bearerToken, queryID);
         const mockStore = reduxMockStore();
@@ -29,14 +28,14 @@ describe('QueryPageWrapper - helpers', () => {
         fetchQuery(mockStore.dispatch, queryID)
           .then(() => {
             const dispatchedActions = mockStore.getActions().map((action) => { return action.type; });
-            expect(dispatchedActions).toInclude('queries_LOAD_SUCCESS');
+            expect(dispatchedActions).toContainEqual('queries_LOAD_SUCCESS');
 
             done();
           });
       });
     });
 
-    context('when the API call is unsuccessful', () => {
+    describe('when the API call is unsuccessful', () => {
       it('pushes to the new query page', (done) => {
         queryMocks.load.invalid(bearerToken, queryID);
         const mockStore = reduxMockStore();
@@ -45,7 +44,7 @@ describe('QueryPageWrapper - helpers', () => {
           .then(() => {
             const dispatchedActions = mockStore.getActions();
             const locationChangeAction = find(dispatchedActions, { type: '@@router/CALL_HISTORY_METHOD' });
-            expect(locationChangeAction).toExist();
+            expect(locationChangeAction).toBeTruthy();
             expect(locationChangeAction.payload).toEqual({
               method: 'push',
               args: ['/queries/new'],
@@ -64,8 +63,8 @@ describe('QueryPageWrapper - helpers', () => {
             const dispatchedActions = mockStore.getActions();
             const flashMessageAction = find(dispatchedActions, { type: 'RENDER_FLASH' });
 
-            expect(flashMessageAction).toExist();
-            expect(flashMessageAction.payload).toInclude({
+            expect(flashMessageAction).toBeTruthy();
+            expect(flashMessageAction.payload).toMatchObject({
               alertType: 'error',
               message: 'Resource not found',
             });

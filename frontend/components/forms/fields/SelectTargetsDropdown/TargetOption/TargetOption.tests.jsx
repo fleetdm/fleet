@@ -1,5 +1,4 @@
 import React from 'react';
-import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
@@ -7,8 +6,6 @@ import { hostStub, labelStub } from 'test/stubs';
 import TargetOption from './TargetOption';
 
 describe('TargetOption - component', () => {
-  afterEach(restoreSpies);
-
   it('renders a label option for label targets', () => {
     const count = 5;
     const component = mount(<TargetOption onMoreInfoClick={noop} target={{ ...labelStub, count }} />);
@@ -24,7 +21,7 @@ describe('TargetOption - component', () => {
   });
 
   it('calls the onSelect prop when + icon button is clicked', () => {
-    const onSelectSpy = createSpy();
+    const onSelectSpy = jest.fn();
     const component = mount(
       <TargetOption
         onMoreInfoClick={noop}
@@ -37,7 +34,7 @@ describe('TargetOption - component', () => {
   });
 
   it('calls the onMoreInfoClick prop when the item content is clicked', () => {
-    const onMoreInfoClickSpy = createSpy();
+    const onMoreInfoClickSpy = jest.fn();
     const onMoreInfoClick = () => {
       return onMoreInfoClickSpy;
     };

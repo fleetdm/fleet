@@ -1,6 +1,5 @@
 import React from 'react';
 import { mount } from 'enzyme';
-import expect from 'expect';
 
 import Timer from './Timer';
 

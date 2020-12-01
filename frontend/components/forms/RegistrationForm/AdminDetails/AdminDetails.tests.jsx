@@ -1,5 +1,4 @@
 import React from 'react';
-import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
@@ -7,8 +6,6 @@ import AdminDetails from 'components/forms/RegistrationForm/AdminDetails';
 import { fillInFormInput, itBehavesLikeAFormInputElement } from 'test/helpers';
 
 describe('AdminDetails - form', () => {
-  afterEach(restoreSpies);
-
   let form = mount(<AdminDetails handleSubmit={noop} />);
 
   describe('username input', () => {
@@ -36,16 +33,16 @@ describe('AdminDetails - form', () => {
   });
 
   describe('submitting the form', () => {
-    it('validates the email field', () => {
-      const onSubmitSpy = createSpy();
+    it('validates missing fields', () => {
+      const onSubmitSpy = jest.fn();
       form = mount(<AdminDetails handleSubmit={onSubmitSpy} />);
       const htmlForm = form.find('form');
 
 
       htmlForm.simulate('submit');
 
-      expect(onSubmitSpy).toNotHaveBeenCalled();
-      expect(form.state().errors).toInclude({
+      expect(onSubmitSpy).not.toHaveBeenCalled();
+      expect(form.state().errors).toMatchObject({
         email: 'Email must be present',
         password: 'Password must be present',
         password_confirmation: 'Password confirmation must be present',
@@ -54,7 +51,7 @@ describe('AdminDetails - form', () => {
     });
 
     it('validates the email field', () => {
-      const onSubmitSpy = createSpy();
+      const onSubmitSpy = jest.fn();
       form = mount(<AdminDetails handleSubmit={onSubmitSpy} />);
       const emailField = form.find({ name: 'email' }).find('input');
       const htmlForm = form.find('form');
@@ -62,12 +59,12 @@ describe('AdminDetails - form', () => {
       fillInFormInput(emailField, 'invalid-email');
       htmlForm.simulate('submit');
 
-      expect(onSubmitSpy).toNotHaveBeenCalled();
-      expect(form.state().errors).toInclude({ email: 'Email must be a valid email' });
+      expect(onSubmitSpy).not.toHaveBeenCalled();
+      expect(form.state().errors).toMatchObject({ email: 'Email must be a valid email' });
     });
 
     it('validates the password fields match', () => {
-      const onSubmitSpy = createSpy();
+      const onSubmitSpy = jest.fn();
       form = mount(<AdminDetails handleSubmit={onSubmitSpy} />);
       const passwordConfirmationField = form.find({ name: 'password_confirmation' }).find('input');
       const passwordField = form.find({ name: 'password' }).find('input');
@@ -77,14 +74,14 @@ describe('AdminDetails - form', () => {
       fillInFormInput(passwordConfirmationField, 'password123');
       htmlForm.simulate('submit');
 
-      expect(onSubmitSpy).toNotHaveBeenCalled();
-      expect(form.state().errors).toInclude({
+      expect(onSubmitSpy).not.toHaveBeenCalled();
+      expect(form.state().errors).toMatchObject({
         password_confirmation: 'Password confirmation does not match password',
       });
     });
 
     it('validates the password field', () => {
-      const onSubmitSpy = createSpy();
+      const onSubmitSpy = jest.fn();
       form = mount(<AdminDetails handleSubmit={onSubmitSpy} />);
       const passwordConfirmationField = form.find({ name: 'password_confirmation' }).find('input');
       const passwordField = form.find({ name: 'password' }).find('input');
@@ -94,14 +91,14 @@ describe('AdminDetails - form', () => {
       fillInFormInput(passwordConfirmationField, 'passw0rd');
       htmlForm.simulate('submit');
 
-      expect(onSubmitSpy).toNotHaveBeenCalled();
-      expect(form.state().errors).toInclude({
+      expect(onSubmitSpy).not.toHaveBeenCalled();
+      expect(form.state().errors).toMatchObject({
         password: 'Password must be at least 7 characters and contain at least 1 letter, 1 number, and 1 symbol',
       });
     });
 
     it('submits the form when valid', () => {
-      const onSubmitSpy = createSpy();
+      const onSubmitSpy = jest.fn();
       form = mount(<AdminDetails handleSubmit={onSubmitSpy} />);
       const emailField = form.find({ name: 'email' }).find('input');
       const passwordConfirmationField = form.find({ name: 'password_confirmation' }).find('input');

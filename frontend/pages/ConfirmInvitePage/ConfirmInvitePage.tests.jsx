@@ -1,4 +1,3 @@
-import expect from 'expect';
 import { mount } from 'enzyme';
 
 import ConfirmInvitePage from 'pages/ConfirmInvitePage';
@@ -33,7 +32,7 @@ describe('ConfirmInvitePage - component', () => {
   it('clears errors on unmount', () => {
     page.unmount();
 
-    expect(mockStore.getActions()).toInclude({
+    expect(mockStore.getActions()).toContainEqual({
       type: 'users_CLEAR_ERRORS',
     });
   });

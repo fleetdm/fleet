@@ -1,13 +1,12 @@
 import React from 'react';
-import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 
 import { queryStub } from 'test/stubs';
 import QueriesListRow from './QueriesListRow';
 
-const checkSpy = createSpy();
-const clickSpy = createSpy();
-const dblClickSpy = createSpy();
+const checkSpy = jest.fn();
+const clickSpy = jest.fn();
+const dblClickSpy = jest.fn();
 
 const props = {
   checked: false,
@@ -19,8 +18,6 @@ const props = {
 };
 
 describe('QueriesListRow - component', () => {
-  afterEach(restoreSpies);
-
   it('calls onDblClick when row is double clicked', () => {
     const queryRow = mount(<QueriesListRow {...props} />);
     queryRow.find('ClickableTableRow').simulate('doubleclick');
