@@ -1,20 +1,17 @@
 import React from 'react';
-import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 
 import TargetDetails from 'components/forms/fields/SelectTargetsDropdown/TargetDetails';
 import Test from 'test';
 
 describe('TargetDetails - component', () => {
-  afterEach(() => restoreSpies());
-
   const defaultProps = { target: Test.Stubs.labelStub };
 
   describe('rendering', () => {
     it('does not render without a target', () => {
       const Component = mount(<TargetDetails />);
 
-      expect(Component.html()).toNotExist();
+      expect(Component.html()).toBeFalsy();
     });
 
     it('renders when there is a target', () => {
@@ -38,14 +35,14 @@ describe('TargetDetails - component', () => {
         const Component = mount(<TargetDetails target={target} />);
         const componentText = Component.text();
 
-        expect(componentText).toInclude(target.display_text);
-        expect(componentText).toInclude(target.primary_mac);
-        expect(componentText).toInclude(target.primary_ip);
-        expect(componentText).toInclude('1.0 GB');
-        expect(componentText).toInclude(target.osquery_version);
-        expect(componentText).toInclude(target.os_version);
-        expect(componentText).toInclude(target.platform);
-        expect(componentText).toInclude(target.status);
+        expect(componentText).toContain(target.display_text);
+        expect(componentText).toContain(target.primary_mac);
+        expect(componentText).toContain(target.primary_ip);
+        expect(componentText).toContain('1.0 GB');
+        expect(componentText).toContain(target.osquery_version);
+        expect(componentText).toContain(target.os_version);
+        expect(componentText).toContain(target.platform);
+        expect(componentText).toContain(target.status);
       });
 
       it('renders a success check icon when the target is online', () => {
@@ -86,9 +83,9 @@ describe('TargetDetails - component', () => {
       it('renders the label data', () => {
         const componentText = Component.text();
 
-        expect(componentText).toInclude('100% ONLINE');
-        expect(componentText).toInclude(target.display_text);
-        expect(componentText).toInclude(target.description);
+        expect(componentText).toContain('100% ONLINE');
+        expect(componentText).toContain(target.display_text);
+        expect(componentText).toContain(target.description);
       });
 
       it('renders a read-only AceEditor', () => {
@@ -99,23 +96,26 @@ describe('TargetDetails - component', () => {
     });
   });
 
-  it('calls the handleBackToResults prop when the back button is clicked', () => {
-    const labelSpy = createSpy();
-    const labelProps = { ...defaultProps, handleBackToResults: labelSpy };
-    const LabelComponent = mount(<TargetDetails {...labelProps} />);
-    const LabelBackButton = LabelComponent.find('.label-target__back');
+  it(
+    'calls the handleBackToResults prop when the back button is clicked',
+    () => {
+      const labelSpy = jest.fn();
+      const labelProps = { ...defaultProps, handleBackToResults: labelSpy };
+      const LabelComponent = mount(<TargetDetails {...labelProps} />);
+      const LabelBackButton = LabelComponent.find('.label-target__back');
 
-    const hostSpy = createSpy();
-    const hostProps = { target: Test.Stubs.hostStub, handleBackToResults: hostSpy };
-    const HostComponent = mount(<TargetDetails {...hostProps} />);
-    const HostBackButton = HostComponent.find('.host-target__back');
+      const hostSpy = jest.fn();
+      const hostProps = { target: Test.Stubs.hostStub, handleBackToResults: hostSpy };
+      const HostComponent = mount(<TargetDetails {...hostProps} />);
+      const HostBackButton = HostComponent.find('.host-target__back');
 
-    LabelBackButton.simulate('click');
+      LabelBackButton.simulate('click');
 
-    expect(labelSpy).toHaveBeenCalled();
+      expect(labelSpy).toHaveBeenCalled();
 
-    HostBackButton.simulate('click');
+      HostBackButton.simulate('click');
 
-    expect(hostSpy).toHaveBeenCalled();
-  });
+      expect(hostSpy).toHaveBeenCalled();
+    },
+  );
 });

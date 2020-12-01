@@ -1,5 +1,4 @@
 import React from 'react';
-import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
@@ -9,8 +8,6 @@ import helpers from 'test/helpers';
 const { fillInFormInput, itBehavesLikeAFormInputElement } = helpers;
 
 describe('UserSettingsForm - component', () => {
-  afterEach(restoreSpies);
-
   const defaultProps = {
     handleSubmit: noop,
     onCancel: noop,
@@ -25,7 +22,7 @@ describe('UserSettingsForm - component', () => {
   });
 
   it('calls the handleSubmit props with form data', () => {
-    const handleSubmitSpy = createSpy();
+    const handleSubmitSpy = jest.fn();
     const props = { ...defaultProps, handleSubmit: handleSubmitSpy };
     const form = mount(<UserSettingsForm {...props} />);
     const expectedFormData = { email: 'email@example.com', name: 'Jim Example', username: 'jimmyexamples' };

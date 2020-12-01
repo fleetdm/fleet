@@ -1,5 +1,3 @@
-import expect from 'expect';
-
 import {
   CONFIG_START,
   CONFIG_SUCCESS,
@@ -44,8 +42,8 @@ describe('App - actions', () => {
           const actions = store.getActions()
             .map((action) => { return action.type; });
 
-          expect(actions).toInclude(CONFIG_START);
-          expect(actions).toInclude(CONFIG_SUCCESS);
+          expect(actions).toContainEqual(CONFIG_START);
+          expect(actions).toContainEqual(CONFIG_SUCCESS);
           done();
         })
         .catch(done);
@@ -79,8 +77,8 @@ describe('App - actions', () => {
           const actions = store.getActions()
             .map((action) => { return action.type; });
 
-          expect(actions).toInclude(CONFIG_START);
-          expect(actions).toInclude(CONFIG_SUCCESS);
+          expect(actions).toContainEqual(CONFIG_START);
+          expect(actions).toContainEqual(CONFIG_SUCCESS);
           done();
         })
         .catch(done);
@@ -103,21 +101,24 @@ describe('App - actions', () => {
         .catch(done);
     });
 
-    it('dispatches ENROLLSECRET_START & ENROLLSECRET_SUCCESS actions', (done) => {
-      const bearerToken = 'abc123';
-      configMocks.loadAll.valid(bearerToken);
+    it(
+      'dispatches ENROLLSECRET_START & ENROLLSECRET_SUCCESS actions',
+      (done) => {
+        const bearerToken = 'abc123';
+        configMocks.loadAll.valid(bearerToken);
 
-      Kolide.setBearerToken(bearerToken);
-      store.dispatch(getEnrollSecret())
-        .then(() => {
-          const actions = store.getActions()
-            .map((action) => { return action.type; });
+        Kolide.setBearerToken(bearerToken);
+        store.dispatch(getEnrollSecret())
+          .then(() => {
+            const actions = store.getActions()
+              .map((action) => { return action.type; });
 
-          expect(actions).toInclude(ENROLL_SECRET_START);
-          expect(actions).toInclude(ENROLL_SECRET_SUCCESS);
-          done();
-        })
-        .catch(done);
-    });
+            expect(actions).toContainEqual(ENROLL_SECRET_START);
+            expect(actions).toContainEqual(ENROLL_SECRET_SUCCESS);
+            done();
+          })
+          .catch(done);
+      },
+    );
   });
 });

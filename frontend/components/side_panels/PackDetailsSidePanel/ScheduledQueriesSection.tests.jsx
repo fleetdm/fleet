@@ -1,5 +1,4 @@
 import React from 'react';
-import expect from 'expect';
 import { mount } from 'enzyme';
 
 import ScheduledQueriesSection from 'components/side_panels/PackDetailsSidePanel/ScheduledQueriesSection';

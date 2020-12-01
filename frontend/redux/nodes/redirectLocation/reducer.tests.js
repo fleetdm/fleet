@@ -1,5 +1,3 @@
-import expect from 'expect';
-
 import actions from './actions';
 import reducer, { initialState } from './reducer';
 

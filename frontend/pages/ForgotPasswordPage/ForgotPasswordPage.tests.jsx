@@ -1,5 +1,4 @@
 import React from 'react';
-import expect from 'expect';
 import { mount } from 'enzyme';
 
 import { ForgotPasswordPage } from './ForgotPasswordPage';
@@ -16,7 +15,7 @@ describe('ForgotPasswordPage - component', () => {
     const page = mount(<ForgotPasswordPage email={email} />);
 
     expect(page.find('ForgotPasswordForm').length).toEqual(0);
-    expect(page.text()).toInclude(`An email was sent to ${email}.`);
+    expect(page.text()).toContain(`An email was sent to ${email}.`);
   });
 });
 

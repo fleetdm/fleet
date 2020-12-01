@@ -1,4 +1,3 @@
-import expect from 'expect';
 import nock from 'nock';
 
 import Kolide from 'kolide';
@@ -79,15 +78,18 @@ describe('Kolide - API client (users)', () => {
   });
 
   describe('#forgotPassword', () => {
-    it('calls the appropriate endpoint with the correct parameters when successful', () => {
-      const request = userMocks.forgotPassword.valid();
-      const email = 'hi@thegnar.co';
+    it(
+      'calls the appropriate endpoint with the correct parameters when successful',
+      () => {
+        const request = userMocks.forgotPassword.valid();
+        const email = 'hi@thegnar.co';
 
-      return Kolide.users.forgotPassword({ email })
-        .then(() => {
-          expect(request.isDone()).toEqual(true);
-        });
-    });
+        return Kolide.users.forgotPassword({ email })
+          .then(() => {
+            expect(request.isDone()).toEqual(true);
+          });
+      },
+    );
 
     it('return errors correctly for unsuccessful requests', () => {
       const error = { base: 'Something went wrong' };
@@ -109,19 +111,22 @@ describe('Kolide - API client (users)', () => {
   describe('#resetPassword', () => {
     const newPassword = 'p@ssw0rd';
 
-    it('calls the appropriate endpoint with the correct parameters when successful', () => {
-      const passwordResetToken = 'password-reset-token';
-      const request = userMocks.resetPassword.valid(newPassword, passwordResetToken);
-      const formData = {
-        new_password: newPassword,
-        password_reset_token: passwordResetToken,
-      };
+    it(
+      'calls the appropriate endpoint with the correct parameters when successful',
+      () => {
+        const passwordResetToken = 'password-reset-token';
+        const request = userMocks.resetPassword.valid(newPassword, passwordResetToken);
+        const formData = {
+          new_password: newPassword,
+          password_reset_token: passwordResetToken,
+        };
 
-      return Kolide.users.resetPassword(formData)
-        .then(() => {
-          expect(request.isDone()).toEqual(true);
-        });
-    });
+        return Kolide.users.resetPassword(formData)
+          .then(() => {
+            expect(request.isDone()).toEqual(true);
+          });
+      },
+    );
 
     it('return errors correctly for unsuccessful requests', () => {
       const errorResponse = {

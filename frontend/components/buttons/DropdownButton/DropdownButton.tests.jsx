@@ -1,15 +1,12 @@
 import React from 'react';
-import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
 import { DropdownButton } from './DropdownButton';
 
 describe('DropdownButton - component', () => {
-  afterEach(restoreSpies);
-
   it("calls the clicked item's onClick attribute", () => {
-    const optionSpy = createSpy();
+    const optionSpy = jest.fn();
     const dropdownOptions = [{ label: 'btn1', onClick: noop }, { label: 'btn2', onClick: optionSpy }];
     const component = mount(
       <DropdownButton options={dropdownOptions}>

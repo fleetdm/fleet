@@ -1,4 +1,3 @@
-import expect from 'expect';
 import nock from 'nock';
 
 import helpers from 'kolide/helpers';

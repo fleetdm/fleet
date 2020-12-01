@@ -1,5 +1,4 @@
 import React from 'react';
-import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
@@ -7,8 +6,6 @@ import EditPackFormWrapper from 'components/packs/EditPackFormWrapper';
 import { packStub } from 'test/stubs';
 
 describe('EditPackFormWrapper - component', () => {
-  afterEach(restoreSpies);
-
   it('does not render the EditPackForm by default', () => {
     const component = mount(
       <EditPackFormWrapper
@@ -36,7 +33,7 @@ describe('EditPackFormWrapper - component', () => {
   });
 
   it('calls onEditPack when EDIT is clicked', () => {
-    const spy = createSpy();
+    const spy = jest.fn();
     const component = mount(
       <EditPackFormWrapper
         isEdit={false}

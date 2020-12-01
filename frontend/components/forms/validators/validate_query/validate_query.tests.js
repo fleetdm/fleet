@@ -1,5 +1,3 @@
-import expect from 'expect';
-
 import validateQuery from './index';
 
 const malformedQueries = [
@@ -42,7 +40,7 @@ describe('validateQuery', () => {
     validQueries.forEach((query) => {
       const { error, valid } = validateQuery(query);
       expect(valid).toEqual(true, query);
-      expect(error).toNotExist();
+      expect(error).toBeFalsy();
     });
   });
 });

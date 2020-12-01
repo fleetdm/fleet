@@ -1,6 +1,5 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
@@ -16,8 +15,6 @@ const DummyOption = (props) => {
 DummyOption.propTypes = { children: PropTypes.node };
 
 describe('SelectTargetsMenu - component', () => {
-  afterEach(() => restoreSpies());
-
   let onMoreInfoClick = noop;
   const moreInfoTarget = undefined;
   const handleBackToResults = noop;
@@ -43,8 +40,8 @@ describe('SelectTargetsMenu - component', () => {
       const Component = mount(<SelectTargetsMenu {...defaultProps} />);
       const componentText = Component.text();
 
-      expect(componentText).toInclude('Unable to find any matching labels.');
-      expect(componentText).toInclude('Unable to find any matching hosts.');
+      expect(componentText).toContain('Unable to find any matching labels.');
+      expect(componentText).toContain('Unable to find any matching hosts.');
     });
 
     it('renders a target option component for each target', () => {
@@ -56,14 +53,14 @@ describe('SelectTargetsMenu - component', () => {
 
       expect(TargetOption.length).toEqual(options.length);
 
-      expect(options).toInclude(TargetOption.first().prop('target'));
-      expect(options).toInclude(TargetOption.last().prop('target'));
+      expect(options).toContainEqual(TargetOption.first().prop('target'));
+      expect(options).toContainEqual(TargetOption.last().prop('target'));
     });
   });
 
   describe('clicking a target', () => {
     it('calls the onMoreInfoClick function', () => {
-      const spy = createSpy();
+      const spy = jest.fn();
       onMoreInfoClick = (t) => {
         return () => spy(t);
       };
@@ -79,7 +76,7 @@ describe('SelectTargetsMenu - component', () => {
     });
 
     it('calls the onSelect prop when the add button is clicked', () => {
-      const spy = createSpy();
+      const spy = jest.fn();
       const SelectTargetsMenu = SelectTargetsMenuWrapper(onMoreInfoClick, moreInfoTarget, handleBackToResults);
       const options = [Test.Stubs.labelStub];
       const props = { ...defaultProps, onSelect: spy, options };

@@ -1,4 +1,3 @@
-import expect from 'expect';
 import { mount } from 'enzyme';
 
 import helpers from 'test/helpers';
@@ -22,39 +21,42 @@ describe('CoreLayout - layouts', () => {
   };
   const mockStore = reduxMockStore(store);
 
-  it('renders the FlashMessage component when notifications are present', () => {
-    const storeWithNotifications = {
-      app: { config: {} },
-      auth: {
-        user: userStub,
-      },
-      notifications: {
-        alertType: 'success',
-        isVisible: true,
-        message: 'nice jerb!',
-      },
-      persistentFlash: {
-        showFlash: false,
-        message: '',
-      },
-    };
-    const mockStoreWithNotifications = reduxMockStore(storeWithNotifications);
-    const componentWithFlash = connectedComponent(CoreLayout, {
-      mockStore: mockStoreWithNotifications,
-    });
-    const componentWithoutFlash = connectedComponent(CoreLayout, {
-      mockStore,
-    });
+  it(
+    'renders the FlashMessage component when notifications are present',
+    () => {
+      const storeWithNotifications = {
+        app: { config: {} },
+        auth: {
+          user: userStub,
+        },
+        notifications: {
+          alertType: 'success',
+          isVisible: true,
+          message: 'nice jerb!',
+        },
+        persistentFlash: {
+          showFlash: false,
+          message: '',
+        },
+      };
+      const mockStoreWithNotifications = reduxMockStore(storeWithNotifications);
+      const componentWithFlash = connectedComponent(CoreLayout, {
+        mockStore: mockStoreWithNotifications,
+      });
+      const componentWithoutFlash = connectedComponent(CoreLayout, {
+        mockStore,
+      });
 
-    const appWithFlash = mount(componentWithFlash);
-    const appWithoutFlash = mount(componentWithoutFlash);
+      const appWithFlash = mount(componentWithFlash);
+      const appWithoutFlash = mount(componentWithoutFlash);
 
-    expect(appWithFlash.length).toEqual(1);
-    expect(appWithoutFlash.length).toEqual(1);
+      expect(appWithFlash.length).toEqual(1);
+      expect(appWithoutFlash.length).toEqual(1);
 
-    expect(appWithFlash.find('FlashMessage').html()).toExist();
-    expect(appWithoutFlash.find('FlashMessage').html()).toNotExist();
-  });
+      expect(appWithFlash.find('FlashMessage').html()).toBeTruthy();
+      expect(appWithoutFlash.find('FlashMessage').html()).toBeFalsy();
+    },
+  );
 
   it('renders the PersistentFlash component when showFlash is true', () => {
     const storeWithPersistentFlash = {

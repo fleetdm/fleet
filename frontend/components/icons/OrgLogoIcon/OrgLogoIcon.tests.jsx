@@ -1,5 +1,4 @@
 import React from 'react';
-import expect from 'expect';
 import { mount } from 'enzyme';
 
 import fleetLogo from '../../../../assets/images/fleet-logo.svg';

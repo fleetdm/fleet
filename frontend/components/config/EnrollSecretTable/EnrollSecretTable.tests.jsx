@@ -1,5 +1,4 @@
 import React from 'react';
-import expect, { spyOn } from 'expect';
 import { shallow, mount } from 'enzyme';
 
 import * as copy from 'utilities/copy_text';
@@ -66,7 +65,7 @@ describe('EnrollSecretRow', () => {
 
   it('should call copy when button is clicked', () => {
     const row = mount(<EnrollSecretRow {...defaultProps} />);
-    const spy = spyOn(copy, 'stringToClipboard').andReturn(Promise.resolve());
+    const spy = jest.spyOn(copy, 'stringToClipboard').mockImplementation(() => Promise.resolve());
 
     const copyLink = row.find('.enroll-secrets__secret-copy-icon').find('Button');
     copyLink.simulate('click');

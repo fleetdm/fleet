@@ -1,5 +1,4 @@
 import React from 'react';
-import expect, { spyOn, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 
 import { connectedComponent, reduxMockStore } from 'test/helpers';
@@ -8,11 +7,9 @@ import Kolide from 'kolide';
 import { userStub } from 'test/stubs';
 
 describe('EmailTokenRedirect - component', () => {
-  afterEach(restoreSpies);
-
   beforeEach(() => {
-    spyOn(Kolide.users, 'confirmEmailChange')
-      .andReturn(Promise.resolve({ ...userStub, email: 'new@email.com' }));
+    jest.spyOn(Kolide.users, 'confirmEmailChange')
+      .mockImplementation(() => Promise.resolve({ ...userStub, email: 'new@email.com' }));
   });
 
   const authStore = {
@@ -47,7 +44,7 @@ describe('EmailTokenRedirect - component', () => {
         props: defaultProps,
       }));
 
-      expect(Kolide.users.confirmEmailChange).toNotHaveBeenCalled();
+      expect(Kolide.users.confirmEmailChange).not.toHaveBeenCalled();
     });
   });
 
@@ -57,7 +54,7 @@ describe('EmailTokenRedirect - component', () => {
       const props = { dispatch: mockStore.dispatch, token };
       const Component = mount(<EmailTokenRedirect {...props} />);
 
-      expect(Kolide.users.confirmEmailChange).toNotHaveBeenCalled();
+      expect(Kolide.users.confirmEmailChange).not.toHaveBeenCalled();
 
       Component.setProps({ user: userStub });
 
