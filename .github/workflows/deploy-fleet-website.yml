@@ -1,13 +1,8 @@
-# This workflow will do a clean install of node dependencies, build the source code and run tests across different versions of node
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
-
-# And then more things
-
 name: Deploy Fleet website
 
 on:
   push:
-    branches: [ website ]
+    branches: [ website ] # todo: change to master
 
 jobs:
   build:
@@ -63,20 +58,8 @@ jobs:
     - run: git -c "user.name=Fleetwood" -c "user.email=github@example.com" commit -am 'AUTOMATED COMMIT - Deployed the latest, including modified HTML layouts and .sailsrc file that reference minified assets.'
 
     # Configure the Heroku app we'll be deploying to
-    # - run: heroku info -a production-fleetdm-website
     - run: heroku git:remote -a production-fleetdm-website
     - run: git remote -v
-    # - run: git -c "user.name=Fleetwood" -c "user.email=github@example.com" remote add heroku https://git.heroku.com/test-deploy-from-subdir.git
-
-    # Configure our access credentials for Heroku
-    # - name: Configure Heroku credentials
-    #   env:
-    #     HEROKU_EMAIL_FOR_BOT_USER: ${{ secrets.HEROKU_EMAIL_FOR_BOT_USER }}
-    #     HEROKU_API_TOKEN_FOR_BOT_USER: ${{ secrets.HEROKU_API_TOKEN_FOR_BOT_USER }}
-    #   run: node -e "console.log('machine git.heroku.com\n    login $HEROKU_EMAIL_FOR_BOT_USER\n    password $HEROKU_API_TOKEN_FOR_BOT_USER\n');" > ~/.netrc
-
-    # - run: cat ~/.netrc
-
 
     # Deploy to Heroku (by pushing)
     # > Since a shallow clone was grabbed, we have to "unshallow" it before forcepushing.
@@ -84,6 +67,5 @@ jobs:
     - run: git fetch --prune --unshallow
     - run: echo "Deploying branch '${GITHUB_REF##*/}' to Heroku…"
     - run: git push heroku +${GITHUB_REF##*/}:master
-
-    # Hooray!
-    - run: echo '' && echo '--' && echo 'OK, done.  It should be live momentarily.' && echo '(if you get impatient, check the Heroku dashboard for status)' && echo && echo ' 🌐–•  https://fleetdm.com'
+    - name: 🌐 https://fleetdm.com
+      run: echo '' && echo '--' && echo 'OK, done.  It should be live momentarily.' && echo '(if you get impatient, check the Heroku dashboard for status)' && echo && echo ' 🌐–•  https://fleetdm.com'
