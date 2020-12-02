@@ -7,7 +7,7 @@ name: Deploy Fleet website
 
 on:
   push:
-    branches: [ master ]
+    branches: [ website ]
   pull_request:
     branches: [ ]
 
