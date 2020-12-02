@@ -77,7 +77,11 @@ jobs:
 
     # - run: cat ~/.netrc
 
+
     # Deploy to Heroku (by pushing)
+    # > Since a shallow clone was grabbed, we have to "unshallow" it before forcepushing.
+    - run: echo "Unshallowing local repository…"
+    - run: git fetch --prune --unshallow
     - run: echo "Deploying branch '${GITHUB_REF##*/}' to Heroku…"
     - run: git push heroku +website:master
 
