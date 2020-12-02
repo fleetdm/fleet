@@ -35,9 +35,10 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
 
-    - run: echo hello
-    - run: heroku auth:whoami
 
+    - run: echo hi
+    - run: heroku info -a test-deploy-from-subdir
+    - run: heroku git:remote -a test-deploy-from-subdir
     # # Now start building!
     # # > …but first, get a little crazy for a sec and delete the top-level package.json file
     # # > i.e. the one used by the Fleet server.  This is because require() in node will go
@@ -68,11 +69,11 @@ jobs:
     # - run: git -c "user.name=Fleetwood" -c "user.email=github@example.com" remote add heroku https://git.heroku.com/test-deploy-from-subdir.git
 
     # # Configure our access credentials for Heroku
-    # - name: Configure Heroku credentials
-    #   env:
-    #     HEROKU_EMAIL_FOR_BOT_USER: ${{ secrets.HEROKU_EMAIL_FOR_BOT_USER }}
-    #     HEROKU_API_TOKEN_FOR_BOT_USER: ${{ secrets.HEROKU_API_TOKEN_FOR_BOT_USER }}
-    #   run: node -e "console.log('machine git.heroku.com\n    login $HEROKU_EMAIL_FOR_BOT_USER\n    password $HEROKU_API_TOKEN_FOR_BOT_USER\n');" > ~/.netrc
+    # # - name: Configure Heroku credentials
+    # #   env:
+    # #     HEROKU_EMAIL_FOR_BOT_USER: ${{ secrets.HEROKU_EMAIL_FOR_BOT_USER }}
+    # #     HEROKU_API_TOKEN_FOR_BOT_USER: ${{ secrets.HEROKU_API_TOKEN_FOR_BOT_USER }}
+    # #   run: node -e "console.log('machine git.heroku.com\n    login $HEROKU_EMAIL_FOR_BOT_USER\n    password $HEROKU_API_TOKEN_FOR_BOT_USER\n');" > ~/.netrc
 
     # # Deploy to Heroku (by pushing)
     # - run: echo "Deploying branch '${GITHUB_REF##*/}' to Heroku…"
