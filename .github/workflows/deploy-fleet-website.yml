@@ -14,9 +14,9 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    # strategy:
-    #   matrix:
-    #     node-version: [14.x]
+    strategy:
+      matrix:
+        node-version: [14.x]
 
     steps:
     - uses: actions/checkout@v2
@@ -65,6 +65,7 @@ jobs:
     # Configure the Heroku app we'll be deploying to
     - run: heroku info -a test-deploy-from-subdir
     - run: heroku git:remote -a test-deploy-from-subdir
+    - run: git remote -v
     # - run: git -c "user.name=Fleetwood" -c "user.email=github@example.com" remote add heroku https://git.heroku.com/test-deploy-from-subdir.git
 
     # Configure our access credentials for Heroku
@@ -74,10 +75,10 @@ jobs:
     #     HEROKU_API_TOKEN_FOR_BOT_USER: ${{ secrets.HEROKU_API_TOKEN_FOR_BOT_USER }}
     #   run: node -e "console.log('machine git.heroku.com\n    login $HEROKU_EMAIL_FOR_BOT_USER\n    password $HEROKU_API_TOKEN_FOR_BOT_USER\n');" > ~/.netrc
 
+    # - run: cat ~/.netrc
+
     # Deploy to Heroku (by pushing)
     - run: echo "Deploying branch '${GITHUB_REF##*/}' to Heroku…"
-    # - run: cat ~/.netrc
-    # - run: git remote -v
     - run: git push heroku HEAD:master
 
     # Hooray!
