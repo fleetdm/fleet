@@ -1,5 +1,5 @@
 .manage-hosts {
-  padding: $pad-base;
+  padding: 50px 30px 0;
   min-height: 90vh;
 
   &__header {
@@ -9,6 +9,8 @@
   }
 
   &__title {
+    font-size: $large;
+
     .kolidecon {
       color: $core-medium-blue-grey;
       margin-right: 15px;
@@ -45,7 +47,7 @@
   &__description {
     line-height: 1.54;
     letter-spacing: 0.5px;
-    margin: 0 0 15px;
+    margin: 0 0 16px;
 
     h2 {
       text-transform: uppercase;
@@ -65,7 +67,6 @@
   &__topper {
     display: flex;
     align-items: flex-end;
-    border-bottom: solid 1px $ui-medium-grey;
     padding-bottom: 10px;
   }
 

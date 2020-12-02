@@ -1,5 +1,4 @@
 import React from 'react';
-import expect, { restoreSpies, spyOn } from 'expect';
 import { mount } from 'enzyme';
 
 import { connectedComponent, reduxMockStore } from 'test/helpers';
@@ -48,14 +47,12 @@ const store = {
 
 describe('Osquery Options Page - Component', () => {
   beforeEach(() => {
-    spyOn(osqueryOptionsActions, 'getOsqueryOptions')
-      .andReturn(() => Promise.resolve([]));
+    jest.spyOn(osqueryOptionsActions, 'getOsqueryOptions')
+      .mockImplementation(() => () => Promise.resolve([]));
 
-    spyOn(osqueryOptionsActions, 'updateOsqueryOptions')
-      .andReturn(() => Promise.resolve([]));
+    jest.spyOn(osqueryOptionsActions, 'updateOsqueryOptions')
+      .mockImplementation(() => () => Promise.resolve([]));
   });
-
-  afterEach(restoreSpies);
 
   it('renders', () => {
     const mockStore = reduxMockStore(store);
@@ -78,12 +75,15 @@ describe('Osquery Options Page - Component', () => {
     const pageNode = mount(<OsqueryOptionsPage {...props} />).instance();
     const updatedOptions = { osquery_options: osqueryOptionsString };
 
-    it('updates the current osquery options with the new osquery options object', () => {
-      spyOn(osqueryOptionsActions, 'updateOsqueryOptions').andCallThrough();
+    it(
+      'updates the current osquery options with the new osquery options object',
+      () => {
+        jest.spyOn(osqueryOptionsActions, 'updateOsqueryOptions');
 
-      pageNode.onSaveOsqueryOptionsFormSubmit(updatedOptions);
+        pageNode.onSaveOsqueryOptionsFormSubmit(updatedOptions);
 
-      expect(osqueryOptionsActions.updateOsqueryOptions).toHaveBeenCalledWith(updatedOptions);
-    });
+        expect(osqueryOptionsActions.updateOsqueryOptions).toHaveBeenCalledWith(updatedOptions);
+      },
+    );
   });
 });

@@ -1,5 +1,3 @@
-import expect from 'expect';
-
 import { parseEntityFunc } from './helpers';
 
 describe('reduxConfig - hosts helpers', () => {
@@ -36,7 +34,7 @@ describe('reduxConfig - hosts helpers', () => {
 
     it('parses a host missing CPU info entirely', () => {
       const host = {};
-      expect(parseEntityFunc(host).host_cpu).toEqual(undefined);
+      expect(parseEntityFunc(host).host_cpu).toEqual(null);
     });
   });
 });

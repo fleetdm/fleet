@@ -1,5 +1,3 @@
-import expect from 'expect';
-
 import replaceArrayItem from 'utilities/replace_array_item';
 
 describe('replaceArrayItem - utility', () => {

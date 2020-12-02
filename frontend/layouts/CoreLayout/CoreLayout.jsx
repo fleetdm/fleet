@@ -114,6 +114,7 @@ export class CoreLayout extends Component {
           />
           <SiteNavSidePanel
             config={config}
+            onLogoutUser={onLogoutUser}
             onNavItemClick={onNavItemClick}
             pathname={pathname}
             user={user}

@@ -1,5 +1,4 @@
 import React from 'react';
-import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
@@ -8,8 +7,6 @@ import { itBehavesLikeAFormDropdownElement, itBehavesLikeAFormInputElement } fro
 import { scheduledQueryStub } from 'test/stubs';
 
 describe('ConfigurePackQueryForm - component', () => {
-  afterEach(restoreSpies);
-
   describe('form fields', () => {
     const form = mount(
       <DefaultConfigurePackQueryForm
@@ -27,7 +24,7 @@ describe('ConfigurePackQueryForm - component', () => {
   });
 
   describe('platform options', () => {
-    const onChangeSpy = createSpy();
+    const onChangeSpy = jest.fn();
     const fieldsObj = {
       platform: {
         onChange: onChangeSpy,
@@ -58,7 +55,7 @@ describe('ConfigurePackQueryForm - component', () => {
   });
 
   describe('submitting the form', () => {
-    const spy = createSpy();
+    const spy = jest.fn();
     const form = mount(
       <DefaultConfigurePackQueryForm
         handleSubmit={spy}
@@ -110,7 +107,7 @@ describe('ConfigurePackQueryForm - component', () => {
     });
 
     it('calls the onCancel prop when the cancel Button is clicked', () => {
-      const spy = createSpy();
+      const spy = jest.fn();
       const UpdateScheduledQueryForm = mount(
         <DefaultConfigurePackQueryForm
           formData={scheduledQueryStub}

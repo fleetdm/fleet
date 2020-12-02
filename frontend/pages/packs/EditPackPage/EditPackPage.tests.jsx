@@ -1,5 +1,4 @@
 import React from 'react';
-import expect, { createSpy, spyOn, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
@@ -16,14 +15,12 @@ describe('EditPackPage - component', () => {
   beforeEach(() => {
     const spyResponse = () => Promise.resolve([]);
 
-    spyOn(hostActions, 'loadAll').andReturn(spyResponse);
-    spyOn(labelActions, 'loadAll').andReturn(spyResponse);
-    spyOn(packActions, 'load').andReturn(spyResponse);
-    spyOn(queryActions, 'loadAll').andReturn(spyResponse);
-    spyOn(scheduledQueryActions, 'loadAll').andReturn(spyResponse);
+    jest.spyOn(hostActions, 'loadAll').mockImplementation(() => spyResponse);
+    jest.spyOn(labelActions, 'loadAll').mockImplementation(() => spyResponse);
+    jest.spyOn(packActions, 'load').mockImplementation(() => spyResponse);
+    jest.spyOn(queryActions, 'loadAll').mockImplementation(() => spyResponse);
+    jest.spyOn(scheduledQueryActions, 'loadAll').mockImplementation(() => spyResponse);
   });
-
-  afterEach(restoreSpies);
 
   const store = {
     entities: {
@@ -57,7 +54,7 @@ describe('EditPackPage - component', () => {
         mockStore: reduxMockStore(packsLoadingStore),
       }));
 
-      expect(loadingPacksPage.html()).toNotExist();
+      expect(loadingPacksPage.html()).toBeFalsy();
     });
 
     it('does not render when scheduled queries are loading', () => {
@@ -73,7 +70,7 @@ describe('EditPackPage - component', () => {
         mockStore: reduxMockStore(scheduledQueriesLoadingStore),
       }));
 
-      expect(loadingScheduledQueriesPage.html()).toNotExist();
+      expect(loadingScheduledQueriesPage.html()).toBeFalsy();
     });
 
     it('does not render when there is no pack', () => {
@@ -89,7 +86,7 @@ describe('EditPackPage - component', () => {
         mockStore: reduxMockStore(noPackStore),
       }));
 
-      expect(noPackPage.html()).toNotExist();
+      expect(noPackPage.html()).toBeFalsy();
     });
 
     it('renders', () => {
@@ -107,7 +104,7 @@ describe('EditPackPage - component', () => {
 
   describe('updating a pack', () => {
     it('only sends the updated attributes to the server', () => {
-      spyOn(packActions, 'update');
+      jest.spyOn(packActions, 'update');
       const dispatch = () => Promise.resolve();
 
       const updatedAttrs = { name: 'Updated pack name' };
@@ -151,7 +148,7 @@ describe('EditPackPage - component', () => {
         .find('ScheduledQueriesList')
         .find('ClickableTableRow');
 
-      expect(Page.instance().state.selectedScheduledQuery).toNotExist();
+      expect(Page.instance().state.selectedScheduledQuery).toBeFalsy();
 
       QueryRow.simulate('click');
 
@@ -165,7 +162,7 @@ describe('EditPackPage - component', () => {
 
       PageForm.find('.configure-pack-query-form__cancel-btn').hostNodes().simulate('click');
 
-      expect(Page.state().selectedScheduledQuery).toNotExist();
+      expect(Page.state().selectedScheduledQuery).toBeFalsy();
 
       expect(Form(Page).length)
         .toEqual(0, 'Expected clicking Cancel to remove the ConfigurePackQueryForm component');
@@ -176,7 +173,7 @@ describe('EditPackPage - component', () => {
     const scheduledQuery = { ...scheduledQueryStub, query_id: queryStub.id };
     const defaultProps = {
       allQueries: [queryStub],
-      dispatch: createSpy(),
+      dispatch: jest.fn(),
       isEdit: true,
       isLoadingPack: false,
       isLoadingScheduledQueries: false,

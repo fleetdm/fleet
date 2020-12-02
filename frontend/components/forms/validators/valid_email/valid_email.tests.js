@@ -1,5 +1,3 @@
-import expect from 'expect';
-
 import validEmail from './index';
 
 describe('valid_email - validators', () => {

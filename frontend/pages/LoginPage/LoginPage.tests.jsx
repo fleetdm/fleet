@@ -1,4 +1,3 @@
-import expect from 'expect';
 import { mount } from 'enzyme';
 
 import { connectedComponent, reduxMockStore } from '../../test/helpers';
@@ -8,7 +7,7 @@ import LoginPage from './LoginPage';
 const ssoSettings = { sso_enabled: false };
 
 describe('LoginPage - component', () => {
-  context('when the user is not logged in', () => {
+  describe('when the user is not logged in', () => {
     const mockStore = reduxMockStore({ auth: { ssoSettings } });
 
     it('renders the LoginForm', () => {
@@ -18,7 +17,7 @@ describe('LoginPage - component', () => {
     });
   });
 
-  context('when the users session is not recognized', () => {
+  describe('when the users session is not recognized', () => {
     const mockStore = reduxMockStore({
       auth: {
         errors: { base: 'Unable to authenticate the current user' },
@@ -37,7 +36,7 @@ describe('LoginPage - component', () => {
     });
   });
 
-  context('when the user is logged in', () => {
+  describe('when the user is logged in', () => {
     beforeEach(() => {
       local.setItem('auth_token', 'fake-auth-token');
     });
@@ -56,7 +55,7 @@ describe('LoginPage - component', () => {
       };
 
       mount(connectedComponent(LoginPage, { props, mockStore }));
-      expect(mockStore.getActions()).toInclude(redirectAction);
+      expect(mockStore.getActions()).toContainEqual(redirectAction);
     });
   });
 });

@@ -1,5 +1,4 @@
 import React from 'react';
-import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
@@ -19,8 +18,6 @@ const defaultProps = {
 };
 
 describe('ScheduledQueriesListWrapper - component', () => {
-  afterEach(restoreSpies);
-
   it('renders the "Remove Query" button when queries have been selected', () => {
     const component = mount(<ScheduledQueriesListWrapper {...defaultProps} />);
 
@@ -31,10 +28,11 @@ describe('ScheduledQueriesListWrapper - component', () => {
 
     expect(addQueryBtn.length).toEqual(0);
     expect(removeQueryBtn.length).toBeGreaterThan(0);
-  });
+  },
+  );
 
   it('calls the onRemoveScheduledQueries prop', () => {
-    const spy = createSpy();
+    const spy = jest.fn();
     const props = { ...defaultProps, onRemoveScheduledQueries: spy };
     const component = mount(<ScheduledQueriesListWrapper {...props} />);
 

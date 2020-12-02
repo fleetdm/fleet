@@ -41,12 +41,12 @@ class PanelGroup extends Component {
   }
 
   render () {
-    const { groupItems } = this.props;
+    const { groupItems, type } = this.props;
     const { renderGroupItem } = this;
     const baseClass = 'panel-group';
 
     return (
-      <div className={baseClass}>
+      <div className={`${baseClass} ${baseClass}__${type}`}>
         {groupItems.map((item) => {
           return renderGroupItem(item);
         })}

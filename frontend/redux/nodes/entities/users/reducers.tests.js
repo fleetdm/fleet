@@ -1,5 +1,3 @@
-import expect from 'expect';
-
 import reducer from './reducer';
 import {
   requirePasswordResetFailure,

@@ -1,5 +1,3 @@
-import expect from 'expect';
-
 import Kolide from 'kolide';
 
 describe('Kolide - API client', () => {

@@ -1,4 +1,3 @@
-import expect, { spyOn, restoreSpies } from 'expect';
 import { reduxMockStore } from 'test/helpers';
 
 import helpers from 'components/EmailTokenRedirect/helpers';
@@ -6,8 +5,6 @@ import Kolide from 'kolide';
 import { userStub } from 'test/stubs';
 
 describe('EmailTokenRedirect - helpers', () => {
-  afterEach(restoreSpies);
-
   describe('#confirmEmailChage', () => {
     const { confirmEmailChange } = helpers;
     const token = 'KFBR392';
@@ -19,8 +16,8 @@ describe('EmailTokenRedirect - helpers', () => {
 
     describe('successfully dispatching the confirmEmailChange action', () => {
       beforeEach(() => {
-        spyOn(Kolide.users, 'confirmEmailChange')
-          .andReturn(Promise.resolve({ ...userStub, email: 'new@email.com' }));
+        jest.spyOn(Kolide.users, 'confirmEmailChange')
+          .mockImplementation(() => Promise.resolve({ ...userStub, email: 'new@email.com' }));
       });
 
       it('pushes the user to the settings page', () => {
@@ -31,7 +28,7 @@ describe('EmailTokenRedirect - helpers', () => {
           .then(() => {
             const dispatchedActions = mockStore.getActions();
 
-            expect(dispatchedActions).toInclude({
+            expect(dispatchedActions).toContainEqual({
               type: '@@router/CALL_HISTORY_METHOD',
               payload: {
                 method: 'push',
@@ -58,8 +55,8 @@ describe('EmailTokenRedirect - helpers', () => {
           },
         };
 
-        spyOn(Kolide.users, 'confirmEmailChange')
-          .andReturn(Promise.reject(errorResponse));
+        jest.spyOn(Kolide.users, 'confirmEmailChange')
+          .mockImplementation(() => Promise.reject(errorResponse));
       });
 
       it('pushes the user to the login page', () => {
@@ -71,7 +68,7 @@ describe('EmailTokenRedirect - helpers', () => {
           .catch(() => {
             const dispatchedActions = mockStore.getActions();
 
-            expect(dispatchedActions).toInclude({
+            expect(dispatchedActions).toContainEqual({
               type: '@@router/CALL_HISTORY_METHOD',
               payload: {
                 method: 'push',

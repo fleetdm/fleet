@@ -1,7 +1,7 @@
 API Documentation
 =================
 
-Kolide Fleet is powered by a Go API server which serves three types of endpoints:
+Fleet is powered by a Go API server which serves three types of endpoints:
 
 - Endpoints starting with `/api/v1/osquery/` are osquery TLS server API endpoints. All of these endpoints are used for talking to osqueryd agents and that's it.
 - Endpoints starting with `/api/v1/kolide/` are endpoints to interact with the Fleet data model (packs, queries, scheduled queries, labels, hosts, etc) as well as application endpoints (configuring settings, logging in, session management, etc).

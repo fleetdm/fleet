@@ -1,7 +1,7 @@
-Kolide Fleet on CentOS
+Fleet on CentOS
 ======================
 
-In this guide, we're going to install Kolide Fleet and all of it's application dependencies on a CentOS 7.1 server. Once we have Fleet up and running, we're going to install osquery on that same CentOS 7.1 host and enroll it in Fleet. This should give you a good understanding of both how to install Fleet as well as how to install and configure osquery such that it can communicate with Fleet.
+In this guide, we're going to install Fleet and all of it's application dependencies on a CentOS 7.1 server. Once we have Fleet up and running, we're going to install osquery on that same CentOS 7.1 host and enroll it in Fleet. This should give you a good understanding of both how to install Fleet as well as how to install and configure osquery such that it can communicate with Fleet.
 
 ## Setting up a host
 

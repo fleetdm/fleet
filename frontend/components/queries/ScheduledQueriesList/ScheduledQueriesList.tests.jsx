@@ -1,5 +1,4 @@
 import React from 'react';
-import expect from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
@@ -26,32 +25,38 @@ describe('ScheduledQueriesList - component', () => {
     expect(component.find('ScheduledQueriesListItem').length).toEqual(2);
   });
 
-  it('renders "No queries found" help text when scheduled queries are available but the scheduled queries are filtered out', () => {
-    const component = mount(
-      <ScheduledQueriesList
-        allQueries={[]}
-        isScheduledQueriesAvailable
-        onHidePackForm={noop}
-        onSelectQuery={noop}
-        scheduledQueries={[]}
-        selectedScheduledQueryIDs={[]}
-      />,
-    );
+  it(
+    'renders "No queries found" help text when scheduled queries are available but the scheduled queries are filtered out',
+    () => {
+      const component = mount(
+        <ScheduledQueriesList
+          allQueries={[]}
+          isScheduledQueriesAvailable
+          onHidePackForm={noop}
+          onSelectQuery={noop}
+          scheduledQueries={[]}
+          selectedScheduledQueryIDs={[]}
+        />,
+      );
 
-    expect(component.text()).toInclude('No queries matched your search criteria');
-  });
+      expect(component.text()).toContain('No queries matched your search criteria');
+    },
+  );
 
-  it('renders initial help text when no queries have been scheduled yet', () => {
-    const component = mount(
-      <ScheduledQueriesList
-        allQueries={[]}
-        onHidePackForm={noop}
-        onSelectQuery={noop}
-        scheduledQueries={[]}
-        selectedScheduledQueryIDs={[]}
-      />,
-    );
+  it(
+    'renders initial help text when no queries have been scheduled yet',
+    () => {
+      const component = mount(
+        <ScheduledQueriesList
+          allQueries={[]}
+          onHidePackForm={noop}
+          onSelectQuery={noop}
+          scheduledQueries={[]}
+          selectedScheduledQueryIDs={[]}
+        />,
+      );
 
-    expect(component.text()).toInclude("First let's add a query");
-  });
+      expect(component.text()).toContain("First let's add a query");
+    },
+  );
 });

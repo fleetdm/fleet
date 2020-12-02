@@ -1,14 +1,15 @@
 import React from 'react';
-import expect from 'expect';
 import { mount } from 'enzyme';
 
 import PanelGroupItem from './PanelGroupItem';
 
 describe('PanelGroupItem - component', () => {
+  const id = 0;
   const validPanelGroupItem = {
     count: 20,
     display_text: 'All Hosts',
     type: 'all',
+    id,
   };
   const validStatusGroupItem = {
     count: 111,
@@ -54,9 +55,9 @@ describe('PanelGroupItem - component', () => {
 
   it('renders the item count', () => {
     expect(labelComponent.text()).toContain(validPanelGroupItem.count);
-    expect(statusLabelComponent.text()).toNotContain(validStatusGroupItem.count);
+    expect(statusLabelComponent.text()).not.toContain(validStatusGroupItem.count);
     expect(statusLabelComponent.text()).toContain(statusLabels.online_count);
-    expect(loadingStatusLabelComponent.text()).toNotContain(statusLabels.online_count);
-    expect(loadingStatusLabelComponent.text()).toNotContain(validPanelGroupItem.count);
+    expect(loadingStatusLabelComponent.text()).not.toContain(statusLabels.online_count);
+    expect(loadingStatusLabelComponent.text()).not.toContain(validPanelGroupItem.count);
   });
 });

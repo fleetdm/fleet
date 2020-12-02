@@ -1,7 +1,7 @@
 CLI Documentation
 =================
 
-Kolide Fleet provides a server which allows you to manage and orchestrate an osquery deployment across of a set of workstations and servers. For certain use-cases, it makes sense to maintain the configuration and data of an osquery deployment in source-controlled files. It is also desirable to be able to manage these files with a familiar command-line tool. To facilitate this, Kolide Fleet includes a `fleetctl` CLI for managing osquery fleets in this way.
+Fleet provides a server which allows you to manage and orchestrate an osquery deployment across of a set of workstations and servers. For certain use-cases, it makes sense to maintain the configuration and data of an osquery deployment in source-controlled files. It is also desirable to be able to manage these files with a familiar command-line tool. To facilitate this, Fleet includes a `fleetctl` CLI for managing osquery fleets in this way.
 
 For more information, see:
 

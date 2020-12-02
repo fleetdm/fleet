@@ -71,14 +71,16 @@ a {
     .has-sidebar & {
       margin-right: 0;
       min-width: 610px;
-      max-width: calc(100vw - #{$nav-width} - #{$pad-base} - #{$pad-base} - #{$sidepanel-width});
+
+      // 62px includes
+      max-width: calc(100vw - #{$nav-width} - #{$pad-base} - #{$pad-base} - #{$pad-body} - #{$pad-body} - #{$pad-borders} - #{$sidepanel-width});
 
       @at-root .core-wrapper--small & {
-        max-width: calc(100vw - #{$nav-tablet-width} - #{$pad-base} - #{$pad-base} - #{$sidepanel-tablet-width});
+        max-width: calc(100vw - #{$nav-tablet-width} - #{$pad-base} - #{$pad-base} - #{$pad-body} - #{$pad-body} - #{pad-borders} #{$sidepanel-tablet-width});
       }
 
       @include breakpoint(smalldesk) {
-        max-width: calc(100vw - #{$nav-tablet-width} - #{$pad-base} - #{$pad-base} - #{$sidepanel-tablet-width});
+        max-width: calc(100vw - #{$nav-tablet-width} - #{$pad-base} - #{$pad-base} - #{$pad-body} - #{$pad-body} - #{pad-borders} - #{$sidepanel-tablet-width});
       }
     }
   }

@@ -1,5 +1,4 @@
 import React from 'react';
-import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
@@ -9,8 +8,6 @@ import helpers from 'test/helpers';
 const { fillInFormInput, itBehavesLikeAFormInputElement } = helpers;
 
 describe('ChangePasswordForm - component', () => {
-  afterEach(restoreSpies);
-
   it('has the correct fields', () => {
     const form = mount(<ChangePasswordForm handleSubmit={noop} onCancel={noop} />);
 
@@ -31,7 +28,7 @@ describe('ChangePasswordForm - component', () => {
   });
 
   it('calls the handleSubmit props with form data', () => {
-    const handleSubmitSpy = createSpy();
+    const handleSubmitSpy = jest.fn();
     const form = mount(<ChangePasswordForm handleSubmit={handleSubmitSpy} onCancel={noop} />).find('form');
     const expectedFormData = { old_password: 'p@ssw0rd', new_password: 'p@ssw0rd1', new_password_confirmation: 'p@ssw0rd1' };
     const passwordInput = form.find({ name: 'old_password' }).find('input');
@@ -48,7 +45,7 @@ describe('ChangePasswordForm - component', () => {
   });
 
   it('calls the onCancel prop when CANCEL is clicked', () => {
-    const onCancelSpy = createSpy();
+    const onCancelSpy = jest.fn();
     const form = mount(<ChangePasswordForm handleSubmit={noop} onCancel={onCancelSpy} />).find('form');
     const cancelBtn = form.find('Button').findWhere(n => n.prop('children') === 'Cancel').find('button');
 
@@ -58,7 +55,7 @@ describe('ChangePasswordForm - component', () => {
   });
 
   it('does not submit when the new password is invalid', () => {
-    const handleSubmitSpy = createSpy();
+    const handleSubmitSpy = jest.fn();
     const component = mount(<ChangePasswordForm handleSubmit={handleSubmitSpy} onCancel={noop} />);
     const form = component.find('form');
     const expectedFormData = { old_password: 'p@ssw0rd', new_password: 'new_password', new_password_confirmation: 'new_password' };
@@ -72,9 +69,9 @@ describe('ChangePasswordForm - component', () => {
 
     form.simulate('submit');
 
-    expect(handleSubmitSpy).toNotHaveBeenCalled();
+    expect(handleSubmitSpy).not.toHaveBeenCalled();
 
-    expect(component.state('errors')).toInclude({
+    expect(component.state('errors')).toMatchObject({
       new_password: 'Password must be at least 7 characters and contain at least 1 letter, 1 number, and 1 symbol',
     });
   });

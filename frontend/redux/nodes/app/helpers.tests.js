@@ -1,5 +1,3 @@
-import expect from 'expect';
-
 import { configStub } from 'test/stubs';
 import helpers from 'redux/nodes/app/helpers';
 

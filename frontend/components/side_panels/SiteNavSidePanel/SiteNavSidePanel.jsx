@@ -4,11 +4,13 @@ import classnames from 'classnames';
 
 import userInterface from 'interfaces/user';
 import Icon from 'components/icons/Icon';
+import UserMenu from 'components/side_panels/UserMenu';
 
 import navItems from './navItems';
 
 class SiteNavSidePanel extends Component {
   static propTypes = {
+    onLogoutUser: PropTypes.func,
     onNavItemClick: PropTypes.func,
     pathname: PropTypes.string,
     user: userInterface,
@@ -20,6 +22,8 @@ class SiteNavSidePanel extends Component {
     const { user: { admin } } = this.props;
 
     this.userNavItems = navItems(admin);
+
+    this.state = { userMenuOpened: false };
 
     this.state = {
       showSubItems: false,
@@ -81,13 +85,21 @@ class SiteNavSidePanel extends Component {
 
   renderNavItems = () => {
     const { renderNavItem, userNavItems } = this;
-
+    const { onLogoutUser, user, onNavItemClick, pathname } = this.props;
     return (
-      <ul className="site-nav-list">
-        {userNavItems.map((navItem) => {
-          return renderNavItem(navItem);
-        })}
-      </ul>
+      <div className="site-nav-container">
+        <ul className="site-nav-list">
+          {userNavItems.map((navItem) => {
+            return renderNavItem(navItem);
+          })}
+        </ul>
+        <UserMenu
+          pathname={pathname}
+          onLogout={onLogoutUser}
+          onNavItemClick={onNavItemClick}
+          user={user}
+        />
+      </div>
     );
   }
 
