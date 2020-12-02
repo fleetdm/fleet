@@ -24,7 +24,8 @@ jobs:
     - uses: akhileshns/heroku-deploy@v3.6.8
       with:
         heroku_api_key: ${{secrets.HEROKU_API_TOKEN_FOR_BOT_USER}}
-        heroku_app_name: "test-deploy-from-subdir"
+        heroku_app_name: ""
+        # heroku_app_name: "test-deploy-from-subdir"
         heroku_email: ${{secrets.HEROKU_EMAIL_FOR_BOT_USER}}
         justlogin: true
     - run: heroku auth:whoami
