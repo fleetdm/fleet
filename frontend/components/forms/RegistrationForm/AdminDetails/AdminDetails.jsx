@@ -43,7 +43,6 @@ class AdminDetails extends Component {
         <div className="registration-fields">
           <InputFieldWithIcon
             {...fields.username}
-            iconName="username"
             placeholder="Username"
             tabIndex={tabIndex}
             autofocus={currentPage}
@@ -51,27 +50,25 @@ class AdminDetails extends Component {
           />
           <InputFieldWithIcon
             {...fields.password}
-            iconName="password"
             placeholder="Password"
             type="password"
             tabIndex={tabIndex}
+            hint={['Must include 7 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)']}
           />
           <InputFieldWithIcon
             {...fields.password_confirmation}
-            iconName="password"
             placeholder="Confirm Password"
             type="password"
             tabIndex={tabIndex}
           />
           <InputFieldWithIcon
             {...fields.email}
-            iconName="email"
             placeholder="Email"
             tabIndex={tabIndex}
           />
         </div>
-        <Button type="submit" variant="gradient" tabIndex={tabIndex} disabled={!currentPage}>
-          Submit
+        <Button type="submit" tabIndex={tabIndex} disabled={!currentPage} className="button button--brand">
+          Next
         </Button>
       </form>
     );

@@ -4,7 +4,6 @@ import classnames from 'classnames';
 
 import Button from 'components/buttons/Button';
 import formDataInterface from 'interfaces/registration_form_data';
-import Icon from 'components/icons/Icon';
 import Checkbox from 'components/forms/fields/Checkbox';
 
 const baseClass = 'confirm-user-reg';
@@ -12,9 +11,21 @@ const baseClass = 'confirm-user-reg';
 class ConfirmationPage extends Component {
   static propTypes = {
     className: PropTypes.string,
+    currentPage: PropTypes.bool,
     formData: formDataInterface,
     handleSubmit: PropTypes.func,
   };
+
+  componentDidUpdate(prevProps) {
+    if (this.props.currentPage && this.props.currentPage !== prevProps.currentPage) {
+      // Component has a transition duration of 300ms set in
+      // RegistrationForm/_styles.scss. We need to wait 300ms before
+      // calling .focus() to preserve smooth transition.
+      setTimeout(() => {
+        this.firstInput.input.focus();
+      }, 300);
+    }
+  }
 
   importOsqueryConfig = () => {
     const disableImport = true;
@@ -37,6 +48,7 @@ class ConfirmationPage extends Component {
     const { importOsqueryConfig } = this;
     const {
       className,
+      currentPage,
       handleSubmit,
       formData: {
         email,
@@ -45,13 +57,13 @@ class ConfirmationPage extends Component {
         username,
       },
     } = this.props;
+    const tabIndex = currentPage ? 1 : -1;
 
     const confirmRegClasses = classnames(className, baseClass);
 
     return (
       <form onSubmit={handleSubmit} className={confirmRegClasses}>
         <div className={`${baseClass}__wrapper`}>
-          <Icon name="success-check" className={`${baseClass}__icon`} />
           <table className={`${baseClass}__table`}>
             <caption>Administrator Configuration</caption>
             <tbody>
@@ -77,7 +89,7 @@ class ConfirmationPage extends Component {
           {importOsqueryConfig()}
         </div>
 
-        <Button type="submit" variant="gradient" className={`${baseClass}__submit`} autofocus>
+        <Button type="submit" tabIndex={tabIndex} disabled={!currentPage} className="button button--brand" autofocus>
           Finish
         </Button>
       </form>

@@ -49,11 +49,11 @@ class OrgDetails extends Component {
             {...fields.org_logo_url}
             placeholder="Organization Logo URL (optional)"
             tabIndex={tabIndex}
-            hint="must start with https://"
+            hint="Personalize Fleet with your brand.  For best results, use a square image at least 150px wide, like https://fleetdm.com/logo.png."
           />
         </div>
-        <Button type="submit" variant="gradient" tabIndex={tabIndex} disabled={!currentPage}>
-          Submit
+        <Button type="submit" tabIndex={tabIndex} disabled={!currentPage} className="button button--brand">
+          Next
         </Button>
       </form>
     );
