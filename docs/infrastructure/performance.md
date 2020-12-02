@@ -26,7 +26,7 @@ If performance issues are encountered with the MySQL and Redis servers, use the 
 
 For performance issues in the Fleet server process, please [file an issue](https://github.com/fleetdm/fleet/issues/new/choose) with details about the scenario, and attach a debug archive. Debug archives can also be submitted confidentially through other support channels.
 
-#### Generate Debug Archive
+#### Generate Debug Archive (Fleet 3.4.0+)
 
 Use the `fleetctl archive` command to generate an archive of Fleet's full suite of debug profiles. See the [fleetctl setup guide](../cli/setup-guide.md) for details on configuring `fleetctl`.
 
