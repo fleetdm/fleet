@@ -31,7 +31,7 @@ module.exports.routes = {
     // FUTURE: make a page- check out how Sails does it, and also https://about.gitlab.com/security/
     res.redirect('mailto:todo@example.com?subject=Security vulnerability&body=Please do not send this email!\n\nWe are a very young company and still working on our processes.  For now, if you have a security vulnerability to report, please send a DM to mikermcneil or Zach Wasserman in the "osquery" Slack workspace.  Thank you for letting us know!');
   },
-  
+
   '/company/about':          '/blog', // FUTURE: brief "about" page explaining the origins of the company
   '/company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
   '/company/contact':        (req, res)=>{
