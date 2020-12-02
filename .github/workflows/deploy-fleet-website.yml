@@ -54,10 +54,16 @@ jobs:
     # Configure the Heroku app we'll be deploying to
     - run: git -c "user.name=Fleetwood" -c "user.email=github@example.com" remote add heroku https://git.heroku.com/test-deploy-from-subdir.git
 
+    # Configure our access credentials for Heroku
+    - name: Configure Heroku credentials
+      env:
+        HEROKU_API_TOKEN_FOR_BOT_USER: ${{ secrets.HEROKU_API_TOKEN_FOR_BOT_USER }}
+      run: echo "dont worry this is fake - $HEROKU_API_TOKEN_FOR_BOT_USER"
+
     # Deploy to Heroku (by pushing)
     - run: echo "Deploying branch '${GITHUB_REF##*/}' to Heroku…"
     - run: git remote -v
-    - run: cd website/ && git push heroku HEAD:master
+    - run: git push heroku HEAD:master
 
     # Hooray!
     - run: echo '' && echo '--' && echo 'OK, done.  It should be live momentarily.' && echo '(if you get impatient, check the Heroku dashboard for status)' && echo && echo ' 🌐–•  https://fleetdm.com'
