@@ -38,6 +38,7 @@ Documentation for this release can be found at https://github.com/fleetdm/fleet/
 **SHA256**
 ```
 <HASH VALUE>  fleet.zip
+<HASH VALUE>  fleetctl.exe.zip
 <HASH VALUE>  fleetctl-linux.tar.gz
 <HASH VALUE>  fleetctl-macos.tar.gz
 <HASH VALUE>  fleetctl-windows.tar.gz
@@ -45,7 +46,7 @@ Documentation for this release can be found at https://github.com/fleetdm/fleet/
 
 ````
 
-Upload the `fleet.zip` binary bundle along with the `fleetctl-*.tar.gz` for each platform and click "Publish Release".
+Upload `fleet.zip`, `fleetctl-*.tar.gz`, and `fleetctl.exe.zip`. Click "Publish Release".
 
 5. Push the new version to Docker Hub (ensure working tree is clean because this will effect the version string built into the binary):
 
