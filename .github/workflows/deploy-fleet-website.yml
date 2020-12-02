@@ -53,8 +53,9 @@ jobs:
     - run: cd website/ && git -c "user.name=Fleetwood" -c "user.email=github@example.com" commit -am 'AUTOMATED COMMIT - Automatically bundling compiled assets as part of deploy, updating the EJS layout and .sailsrc file accordingly.'
 
     # Deploy to Heroku
-    - run: echo "running on branch ${GITHUB_REF##*/}"
-    # - run: cd website/ && git push heroku {GITHUB_REF##*/}
+    - run: echo "Deploying branch '${GITHUB_REF##*/}' to Heroku…"
+    - run: git remote -v
+    # - run: cd website/ && git push heroku HEAD:master
 
     # Hooray!
     - run: echo '' && echo '--' && echo 'OK, done.  It should be live momentarily.' && echo '(if you get impatient, check the Heroku dashboard for status)' && echo && echo ' 🌐–•  https://fleetdm.com'
