@@ -33,6 +33,8 @@ Learn how to work with the osquery file carving functionality to extract file co
 
 Check out the [Frequently Asked Questions](./faq.md), which include troubleshooting steps for the most common issues experience by Fleet users.
 
+For performance concerns, see the [performance guide](./performance.md).
+
 ## Security
 
 Fleet developers have documented how Fleet handles the [OWASP Top 10](./owasp-top-10.md).
