@@ -26,6 +26,15 @@ jobs:
       uses: actions/setup-node@v1
       with:
         node-version: ${{ matrix.node-version }}
-    - run: cd website/ && npm ci
-    - run: cd website/ && npm run build --if-present
+
+    # Get dependencies (including dev deps)
+    - run: cd website/ && npm install
+
+    # Run sanity checks
     - run: cd website/ && npm test
+
+    # Compile assets
+    - run: cd website/ && npm run build --if-present
+
+    # Deploy to Heroku
+    - run: echo "TODO"
