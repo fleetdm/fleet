@@ -26,7 +26,6 @@ jobs:
       uses: actions/setup-node@v1
       with:
         node-version: ${{ matrix.node-version }}
-    - run: cd website
-    - run: npm ci
-    - run: npm run build --if-present
-    - run: npm test
+    - run: cd website/ && npm ci
+    - run: cd website/ && npm run build --if-present
+    - run: cd website/ && npm test
