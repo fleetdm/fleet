@@ -36,7 +36,7 @@ jobs:
     - run: rm -rf package.json package-lock.json node_modules/
     # > Turns out there's a similar issue with how eslint plugins are looked up, so we
     # > delete the top level .eslintrc file too.
-    - run: rm -rf .eslintrc.js
+    - run: rm -f .eslintrc.js
 
     # Get dependencies (including dev deps)
     - run: cd website/ && npm install
