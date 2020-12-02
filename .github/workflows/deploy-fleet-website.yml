@@ -59,15 +59,8 @@ jobs:
       env:
         HEROKU_EMAIL_FOR_BOT_USER: ${{ secrets.HEROKU_EMAIL_FOR_BOT_USER }}
         HEROKU_API_TOKEN_FOR_BOT_USER: ${{ secrets.HEROKU_API_TOKEN_FOR_BOT_USER }}
-      run: echo " - $HEROKU_EMAIL_FOR_BOT_USER"
-      run: echo "dont worry this is fake - $HEROKU_API_TOKEN_FOR_BOT_USER"
-      run: cat >~/.netrc <<EOF
-machine git.heroku.com
-    login $HEROKU_EMAIL_FOR_BOT_USER
-    password $SUPER_SECRET
-EOF
-echo "Successfully wrote to ~./netrc"
-      run: echo "here goes" && cat ~/.netrc
+      run: node -e "console.log('machine git.heroku.com\n    login $HEROKU_EMAIL_FOR_BOT_USER\n    password $HEROKU_API_TOKEN_FOR_BOT_USER\n');" > ~/.netrc
+      run: echo "Successfully wrote to ~./netrc" && cat ~/.netrc
 
     # Deploy to Heroku (by pushing)
     - run: echo "Deploying branch '${GITHUB_REF##*/}' to Heroku…"
