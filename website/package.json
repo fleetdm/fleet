@@ -1,5 +1,5 @@
 {
-  "name": "fleetdm-com",
+  "name": "@fleetdm/website",
   "private": true,
   "version": "0.0.21",
   "description": "a Sails application",
@@ -33,10 +33,10 @@
   "main": "app.js",
   "repository": {
     "type": "git",
-    "url": "git://github.com/mikermcneil/fleetdm-com.git"
+    "url": "git://github.com/fleetdm/fleetdm-com.git"
   },
   "author": "mikermcneil",
-  "license": "",
+  "license": "SEE LICENSE IN ../LICENSE",
   "engines": {
     "node": "^12.6"
   }
