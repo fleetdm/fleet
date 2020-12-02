@@ -20,66 +20,65 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+
+    # Authenticate with Heroku CLI
     - uses: akhileshns/heroku-deploy@v3.6.8
       with:
         heroku_api_key: ${{secrets.HEROKU_API_TOKEN_FOR_BOT_USER}}
-        heroku_app_name: ""
-        # heroku_app_name: "test-deploy-from-subdir"
+        heroku_app_name: "" # this has to be blank or it doesn't work
         heroku_email: ${{secrets.HEROKU_EMAIL_FOR_BOT_USER}}
         justlogin: true
     - run: heroku auth:whoami
 
-    # - uses: actions/checkout@v2
+    # Set the Node.js version
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v1
       with:
         node-version: ${{ matrix.node-version }}
 
+    # Now start building!
+    # > …but first, get a little crazy for a sec and delete the top-level package.json file
+    # > i.e. the one used by the Fleet server.  This is because require() in node will go
+    # > hunting in ancestral directories for missing dependencies, and since some of the
+    # > bundled transpiler tasks sniff for package availability using require(), this trips
+    # > up when it encounters another Node universe in the parent directory.
+    - run: rm -rf package.json package-lock.json node_modules/
+    # > Turns out there's a similar issue with how eslint plugins are looked up, so we
+    # > delete the top level .eslintrc file too.
+    - run: rm -f .eslintrc.js
 
-    - run: echo hi
+    # Get dependencies (including dev deps)
+    - run: cd website/ && npm install
+
+    # Run sanity checks
+    - run: cd website/ && npm test
+
+    # Compile assets
+    - run: cd website/ && npm run build
+
+    # Commit newly-built assets locally so we can push them to Heroku below.
+    # (This commit will never be pushed to GitHub- only to Heroku.)
+    # > The local config flags make this work in GitHub's environment.
+    - run: git add website/.www
+    - run: git -c "user.name=Fleetwood" -c "user.email=github@example.com" commit -am 'AUTOMATED COMMIT - Automatically bundling compiled assets as part of deploy, updating the EJS layout and .sailsrc file accordingly.'
+
+    # Configure the Heroku app we'll be deploying to
     - run: heroku info -a test-deploy-from-subdir
     - run: heroku git:remote -a test-deploy-from-subdir
-    # # Now start building!
-    # # > …but first, get a little crazy for a sec and delete the top-level package.json file
-    # # > i.e. the one used by the Fleet server.  This is because require() in node will go
-    # # > hunting in ancestral directories for missing dependencies, and since some of the
-    # # > bundled transpiler tasks sniff for package availability using require(), this trips
-    # # > up when it encounters another Node universe in the parent directory.
-    # - run: rm -rf package.json package-lock.json node_modules/
-    # # > Turns out there's a similar issue with how eslint plugins are looked up, so we
-    # # > delete the top level .eslintrc file too.
-    # - run: rm -f .eslintrc.js
-
-    # # Get dependencies (including dev deps)
-    # - run: cd website/ && npm install
-
-    # # Run sanity checks
-    # - run: cd website/ && npm test
-
-    # # Compile assets
-    # - run: cd website/ && npm run build
-
-    # # Commit newly-built assets locally so we can push them to Heroku below.
-    # # (This commit will never be pushed to GitHub- only to Heroku.)
-    # # > The local config flags make this work in GitHub's environment.
-    # - run: git add website/.www
-    # - run: git -c "user.name=Fleetwood" -c "user.email=github@example.com" commit -am 'AUTOMATED COMMIT - Automatically bundling compiled assets as part of deploy, updating the EJS layout and .sailsrc file accordingly.'
-
-    # # Configure the Heroku app we'll be deploying to
     # - run: git -c "user.name=Fleetwood" -c "user.email=github@example.com" remote add heroku https://git.heroku.com/test-deploy-from-subdir.git
 
-    # # Configure our access credentials for Heroku
-    # # - name: Configure Heroku credentials
-    # #   env:
-    # #     HEROKU_EMAIL_FOR_BOT_USER: ${{ secrets.HEROKU_EMAIL_FOR_BOT_USER }}
-    # #     HEROKU_API_TOKEN_FOR_BOT_USER: ${{ secrets.HEROKU_API_TOKEN_FOR_BOT_USER }}
-    # #   run: node -e "console.log('machine git.heroku.com\n    login $HEROKU_EMAIL_FOR_BOT_USER\n    password $HEROKU_API_TOKEN_FOR_BOT_USER\n');" > ~/.netrc
+    # Configure our access credentials for Heroku
+    # - name: Configure Heroku credentials
+    #   env:
+    #     HEROKU_EMAIL_FOR_BOT_USER: ${{ secrets.HEROKU_EMAIL_FOR_BOT_USER }}
+    #     HEROKU_API_TOKEN_FOR_BOT_USER: ${{ secrets.HEROKU_API_TOKEN_FOR_BOT_USER }}
+    #   run: node -e "console.log('machine git.heroku.com\n    login $HEROKU_EMAIL_FOR_BOT_USER\n    password $HEROKU_API_TOKEN_FOR_BOT_USER\n');" > ~/.netrc
 
-    # # Deploy to Heroku (by pushing)
-    # - run: echo "Deploying branch '${GITHUB_REF##*/}' to Heroku…"
-    # # - run: cat ~/.netrc
-    # # - run: git remote -v
-    # - run: git push heroku HEAD:master
+    # Deploy to Heroku (by pushing)
+    - run: echo "Deploying branch '${GITHUB_REF##*/}' to Heroku…"
+    # - run: cat ~/.netrc
+    # - run: git remote -v
+    - run: git push heroku HEAD:master
 
-    # # Hooray!
-    # - run: echo '' && echo '--' && echo 'OK, done.  It should be live momentarily.' && echo '(if you get impatient, check the Heroku dashboard for status)' && echo && echo ' 🌐–•  https://fleetdm.com'
+    # Hooray!
+    - run: echo '' && echo '--' && echo 'OK, done.  It should be live momentarily.' && echo '(if you get impatient, check the Heroku dashboard for status)' && echo && echo ' 🌐–•  https://fleetdm.com'
