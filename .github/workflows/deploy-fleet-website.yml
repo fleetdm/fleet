@@ -34,8 +34,22 @@ jobs:
     - run: cd website/ && npm test
 
     # Compile assets
+    # > …but first, get a little crazy for a sec and delete the top-level package.json file
+    # > i.e. the one used by the Fleet server.  This is because require() in node will go
+    # > hunting in ancestral directories for missing dependencies, and since some of the
+    # > bundled transpiler tasks sniff for package availability using require(), this trips
+    # > up when it encounters another Node universe in the parent directory.
+    - run: rm -rf package.json package-lock.json node_modules/
     - run: cd website/ && npm run build
 
+    # Commit built assets since Heroku likes deploys to be pushed
+    # (This commit will never be pushed to GitHub- only to Heroku.)
+    - run: cd website/ && git add .www
+    - run: cd website/ && git commit -am 'AUTOMATED COMMIT - Automatically bundling compiled assets as part of deploy, updating the EJS layout and .sailsrc file accordingly.'
+
     # Deploy to Heroku
-    run: echo running on branch ${GITHUB_REF##*/}
-    # - run: git push heroku:{GITHUB_REF##*/}
+    - run: echo "running on branch ${GITHUB_REF##*/}"
+    # - run: cd website/ && git push heroku {GITHUB_REF##*/}
+
+    # Hooray!
+    - run: echo '' && echo '--' && echo 'OK, done.  It should be live momentarily.' && echo '(if you get impatient, check the Heroku dashboard for status)' && echo && echo ' 🌐–•  https://fleetdm.com'
