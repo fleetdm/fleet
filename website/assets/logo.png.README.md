@@ -1,0 +1,1 @@
+This `logo.png` file is referenced in the Fleet product itself as an example of an image with the right dimensions.  Once we've implemented file uploads or gravatar, this won't be needed anymore except by older versions of Fleet.

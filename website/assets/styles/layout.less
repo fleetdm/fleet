@@ -1,0 +1,77 @@
+@footer-height: 222px;
+@container-md-max-width: 1100px;
+
+[v-cloak] { display: none; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+[purpose='page-wrap'] {
+  height: 100%;
+  /* lesshint-disable */height: auto !important;/* lesshint-enable */
+  // ^^The above is to disable "importantRule" and "duplicateProperty" rules.
+  min-height: 100%;
+  position: relative;
+  padding-bottom: @footer-height;
+}
+
+[purpose='page-footer'] {
+  height: @footer-height;
+  width: 100%;
+  position: absolute;
+  left: 0px;
+  bottom: 0px;
+  padding-top: 63px;
+  .twitter-link {
+    background-color: #03a9f4;
+    border-color: #03a9f4;
+    &:hover {
+      background-color: darken(#03a9f4, 10%);
+      border-color: darken(#03a9f4, 10%);
+    }
+  }
+  .slack-link {
+    background-color: #fff;
+    border-color: #fff;
+    &:hover {
+      background-color: darken(#fff, 10%);
+      border-color: darken(#fff, 10%);
+    }
+  }
+}
+
+body.detected-mobile {
+  // Above and beyond the media queries below, this selector (which relies on
+  // `parasails` automatically attaching this class, if appropriate) contains
+  // styles intended to be activated specifically when loaded from a recognized
+  // mobile device, regardless of viewport dimensions.  This includes tablet
+  // devices (like the iPad) as well as handset devices (like the iPhone).
+  // …
+}
+
+@media (max-width: 1199px) {
+  [purpose='page-wrap'] {
+    padding-bottom: 230px;
+    [purpose='page-footer'] {
+      height: 230px;
+    }
+  }
+}
+
+@media (max-width: 767px) {
+  [purpose='page-wrap'] {
+    padding-bottom: 360px;
+    [purpose='page-footer'] {
+      padding-top: 44px;
+      height: 360px;
+    }
+  }
+}
+
+@media (max-width: 360px) {
+  [purpose='join-the-community-on-slack-expanded-text'] {
+    display: none;
+  }
+}
