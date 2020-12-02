@@ -8,8 +8,6 @@ name: Deploy Fleet website
 on:
   push:
     branches: [ website ]
-  pull_request:
-    branches: [ ]
 
 jobs:
   build:
