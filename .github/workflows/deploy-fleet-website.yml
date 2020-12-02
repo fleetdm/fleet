@@ -50,7 +50,7 @@ jobs:
     # Commit built assets since Heroku likes deploys to be pushed
     # (This commit will never be pushed to GitHub- only to Heroku.)
     - run: cd website/ && git add .www
-    - run: cd website/ && git commit -am 'AUTOMATED COMMIT - Automatically bundling compiled assets as part of deploy, updating the EJS layout and .sailsrc file accordingly.'
+    - run: cd website/ && git -c "user.name=Fleetwood" -c "user.email=github@example.com" commit -am 'AUTOMATED COMMIT - Automatically bundling compiled assets as part of deploy, updating the EJS layout and .sailsrc file accordingly.'
 
     # Deploy to Heroku
     - run: echo "running on branch ${GITHUB_REF##*/}"
