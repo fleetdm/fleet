@@ -58,7 +58,16 @@ jobs:
     - name: Configure Heroku credentials
       env:
         HEROKU_API_TOKEN_FOR_BOT_USER: ${{ secrets.HEROKU_API_TOKEN_FOR_BOT_USER }}
+        HEROKU_EMAIL_FOR_BOT_USER: ${{ secrets.HEROKU_EMAIL_FOR_BOT_USER }}
+      run: echo " - $HEROKU_EMAIL_FOR_BOT_USER"
       run: echo "dont worry this is fake - $HEROKU_API_TOKEN_FOR_BOT_USER"
+      run: cat >~/.netrc <<EOF
+machine git.heroku.com
+    login $HEROKU_EMAIL_FOR_BOT_USER
+    password $SUPER_SECRET
+EOF
+echo "Successfully wrote to ~./netrc"
+      run: echo "here goes" && cat ~/.netrc
 
     # Deploy to Heroku (by pushing)
     - run: echo "Deploying branch '${GITHUB_REF##*/}' to Heroku…"
