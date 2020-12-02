@@ -60,6 +60,12 @@ This error usually indicates that the Fleet server has run out of file descripto
 
 This could be caused by a mismatched connection limit between the Fleet server and the MySQL server that prevents Fleet from fully utilizing the database. First [determine how many open connections your MySQL server supports](https://dev.mysql.com/doc/refman/8.0/en/too-many-connections.html). Now set the [`--mysql_max_open_conns`](./configuring-the-fleet-binary.md#mysql_max_open_conns) and [`--mysql_max_idle_conns`](./configuring-the-fleet-binary.md#mysql_max_idle_conns) flags appropriately.
 
+## How do I monitor the performance of my queries?
+
+Fleet can live query the `osquery_schedule` table. Performing this live query allows you to get the performance data for your scheduled queries. Fleet can then output this data in a format that is compatible with prometheus.
+
+<!-- TODO -->
+
 ## Why am I receiving a database connection error when attempting to "prepare" the database?
 
 First, check if you have a version of MySQL installed that is at least 5.7. Then, make sure that you currently have a MySQL server running.
