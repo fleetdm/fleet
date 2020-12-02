@@ -59,7 +59,7 @@ jobs:
       env:
         HEROKU_EMAIL_FOR_BOT_USER: ${{ secrets.HEROKU_EMAIL_FOR_BOT_USER }}
         HEROKU_API_TOKEN_FOR_BOT_USER: ${{ secrets.HEROKU_API_TOKEN_FOR_BOT_USER }}
-      run: node -e "console.log('machine git.heroku.com\n    login $HEROKU_EMAIL_FOR_BOT_USER\n    password $HEROKU_API_TOKEN_FOR_BOT_USER\n');" > ~/.netrc
+      run: node -e "console.log('machine git.heroku.com'+String.fromCharCode(10)+'    login $HEROKU_EMAIL_FOR_BOT_USER'+String.fromCharCode(10)+'    password $HEROKU_API_TOKEN_FOR_BOT_USER'+String.fromCharCode(10));" > ~/.netrc
       run: echo "Successfully wrote to ~./netrc" && cat ~/.netrc
 
     # Deploy to Heroku (by pushing)
