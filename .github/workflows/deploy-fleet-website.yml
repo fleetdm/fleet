@@ -54,7 +54,7 @@ jobs:
     - run: cd website/ && npm test
 
     # Compile assets
-    - run: cd website/ && npm run build
+    - run: cd website/ && npm run build-for-prod
 
     # Commit newly-built assets locally so we can push them to Heroku below.
     # (This commit will never be pushed to GitHub- only to Heroku.)
