@@ -2,9 +2,9 @@
   display: flex;
   justify-content: space-between;
   align-content: center;
-  width: 665px;
+  width: 600px;
   height: 125px;
-  margin: 0 auto;
+  margin: 38px auto 0;
 
   @include breakpoint(tablet) {
     height: 75px;
@@ -12,25 +12,20 @@
 
   &__page {
     text-align: center;
-    width: 145px;
-    font-size: 14px;
+    width: 150px;
+    font-size: $small;
     font-weight: $regular;
-    line-height: 1.53;
-    letter-spacing: 0.5px;
-    color: $core-dark-blue-grey;
+    color: $white;
     position: relative;
 
     &::before {
       content: '';
       position: absolute;
-      width: 235px;
+      width: 200px;
       height: 2px;
-      background-image: linear-gradient(to right, $ui-medium-grey 50%, transparent 50%);
-      background-position: left top;
-      background-repeat: repeat-x;
-      background-size: 17px 2px;
+      background-color: $core-blue;
       bottom: 43px;
-      left: 84px;
+      left: 87px;
 
       @include breakpoint(tablet) {
         bottom: 23px;
@@ -40,7 +35,7 @@
     &::after {
       @extend %kolidecon;
       @include size(24px);
-      background-color: $white;
+      background-color: transparent;
       display: block;
       border-radius: 50%;
       content: '';
@@ -61,23 +56,29 @@
 
     &--active {
       font-weight: $bold;
-      color: $core-dark-blue-grey;
+      color: $white;
     }
 
     &--1 {
       &::after {
-        border: solid 2px $success;
+        border: 2px solid $white;
       }
 
       &.registration-breadcrumbs__page--active {
+
+        &::before {
+          background: linear-gradient(to right, $white 50%, $core-blue 50%);
+        }
+
         &::after {
-          background-color: $success;
+          background-color: transparent;
+          border: 2px solid $white;
         }
       }
 
       &.registration-breadcrumbs__page--complete {
         &::before {
-          background-image: linear-gradient(to right, $success 0%, $core-purple 100%);
+          background-color: $white;
           background-size: auto;
           z-index: 2;
         }
@@ -85,7 +86,7 @@
         &::after {
           @include size(28px);
           content: '\f035';
-          color: $success;
+          color: $white;
           border: 0;
         }
       }
@@ -93,26 +94,30 @@
 
     &--2 {
       &::after {
-        border: solid 2px $core-purple;
+        border: solid 2px $core-blue;
       }
 
       &.registration-breadcrumbs__page--active {
+        &::before {
+          background: linear-gradient(to right, $white 50%, $core-blue 50%);
+        }
+
         &::after {
-          background-color: $core-purple;
+          background-color: transparent;
+          border: 2px solid $white;
         }
       }
 
       &.registration-breadcrumbs__page--complete {
         &::before {
-          background-image: linear-gradient(to right, $core-purple 0%, $core-blue 100%);
-          background-size: auto;
+          background: $white;
           z-index: 2;
         }
 
         &::after {
           @include size(28px);
           content: '\f035';
-          color: $core-purple;
+          color: $white;
           border: 0;
         }
       }
@@ -128,8 +133,14 @@
       }
 
       &.registration-breadcrumbs__page--active {
+
+        &::before {
+          background: linear-gradient(to right, $white 50%, $core-blue 50%);
+        }
+
         &::after {
-          background-color: $core-blue;
+          background-color: transparent;
+          border: 2px solid $white;
         }
       }
 
@@ -137,7 +148,7 @@
         &::after {
           @include size(28px);
           content: '\f035';
-          color: $core-blue;
+          color: $white;
           border: 0;
         }
       }

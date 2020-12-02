@@ -43,8 +43,8 @@ class Breadcrumbs extends Component {
     return (
       <div className={baseClass}>
         <button className={page1ClassName} onClick={onClick(1)}>Setup User</button>
-        <button className={page2ClassName} onClick={onClick(2)}>Setup Organization</button>
-        <button className={page3ClassName} onClick={onClick(3)}>Set Kolide URL</button>
+        <button className={page2ClassName} onClick={onClick(2)}>Organization details</button>
+        <button className={page3ClassName} onClick={onClick(3)}>Set Fleet URL</button>
       </div>
     );
   }

@@ -1,18 +1,56 @@
 .user-registration {
   display: flex;
-  align-content: center;
   justify-content: center;
+  align-items: stretch;
   flex-grow: 1;
+  margin-top: 24px;
 
   &__container {
-    @include size(500px 520px);
-    align-self: center;
-    border-radius: 4px;
+    @include size(500px auto);
+    @include position(absolute, 49% 0 null null);
+    transition: left 300ms ease, opacity 300ms ease;
+    border-radius: 10px;
     background-color: $core-light-blue-grey;
-    box-shadow: 0 0 30px 0 rgba(0, 0, 0, 0.3);
     box-sizing: border-box;
-    padding: 25px 35px;
-    margin-top: -55px;
+    padding: 40px;
+    z-index: 1;
+    transform: translateY(-50%);
+
+    h2 {
+      font-size: $large;
+      font-weight: $regular;
+      text-align: center;
+      padding: 0 0 16px;
+      margin: 0;
+      margin-bottom: 40px;
+      border-bottom: 1px solid $ui-borders;
+    }
+
+    p {
+      font-size: $small;
+      margin: 0 0 8px;
+    }
+
+    &--admin {
+      left: 0;
+      top: unquote('max(56%, 480px)');
+      margin: auto;
+    }
+
+    &--org {
+      left: calc(100% + 220px);
+      top: -10px;
+    }
+
+    &--kolide {
+      left: calc(150% + 220px);
+      top: -8px;
+    }
+
+    &--confirmation {
+      left: calc(200% + 220px);
+      top: -8px;
+    }
 
     &--complete {
       padding: 0;
@@ -20,8 +58,6 @@
       .user-registration__title {
         font-size: 24px;
         font-weight: $bold;
-        line-height: 0.54;
-        letter-spacing: 0.9px;
         color: $core-dark-blue-grey;
         padding: 25px 35px;
       }
@@ -29,72 +65,80 @@
   }
 
   &__form {
-    @include position(absolute, 49% 0 null null);
-    transform: translateY(-85px);
+    display: flex;
     width: 100%;
-    height: 470px;
     box-sizing: border-box;
-    padding: 25px 0;
 
     @include breakpoint(tablet) {
       transform: translateY(-100px);
     }
 
     &--step1-complete {
-      .user-registration__field-wrapper--admin {
-        left: -184px;
+      .user-registration__container--admin {
+        left: -600px;
+        opacity: 0;
       }
 
-      .user-registration__field-wrapper--org {
-        left: 50%;
+      .user-registration__container--org {
+        left: 0;
+        top: unquote('max(56%, 480px)');
+        margin: auto;
       }
 
-      .user-registration__field-wrapper--kolide {
-        left: calc(100% + 184px);
+      .user-registration__container--kolide {
+        left: calc(100% + 220px);
+      }
+
+      .user-registration__container--confirmation {
+        left: calc(150% + 220px);
       }
     }
 
     &--step2-complete {
-      .user-registration__field-wrapper--admin {
-        left: calc(-50% - 184px);
+      
+      .user-registration__container--admin {
+        left: calc(-50% - 600px);
+        opacity: 0;
       }
 
-      .user-registration__field-wrapper--org {
-        left: -184px;
+      .user-registration__container--org {
+        left: -600px;
+        opacity: 0;
       }
 
-      .user-registration__field-wrapper--kolide {
-        left: 50%;
+      .user-registration__container--kolide {
+        left: 0;
+        top: unquote('max(56%, 480px)');
+        margin: auto;
+      }
+
+      .user-registration__container--confirmation {
+        left: calc(100% + 220px);
       }
     }
 
     &--step3-complete {
-      .user-registration__field-wrapper--admin {
-        left: calc(-100% - 184px);
+
+      .user-registration__container--admin {
+        left: calc(-100% - 600px);
+        opacity: 0;
       }
 
-      .user-registration__field-wrapper--org {
-        left: calc(-50% - 184px);
+      .user-registration__container--org {
+        left: calc(-50% - 600px);
+        opacity: 0;
       }
 
-      .user-registration__field-wrapper--kolide {
-        left: -184px;
+      .user-registration__container--kolide {
+        left: -600px;
+        opacity: 0;
       }
-    }
 
-    &::before,
-    &::after {
-      background-image: linear-gradient(to right, $ui-medium-grey 50%, transparent 50%);
-      background-position: left top;
-      background-repeat: repeat-x;
-      background-size: 17px 2px;
-      position: absolute;
-      top: 100px;
-      left: 50%;
-      width: 50%;
-      height: 2px;
-      content: '';
-      z-index: 1;
+      .user-registration__container--confirmation {
+        left: 0;
+        top: unquote('max(56%, 480px)');
+        margin: auto;
+      }
     }
 
     &::before {
@@ -107,89 +151,39 @@
         display: none;
       }
     }
-
-    &--step3-active,
-    &--step3-complete {
-      &::after {
-        display: none;
-      }
-    }
   }
 
   &__description {
     font-size: 14px;
     font-weight: $regular;
-    line-height: 1.43;
-    letter-spacing: 0.5px;
     color: $core-dark-blue-grey;
   }
 
   &__title {
     font-size: 18px;
     font-weight: $bold;
-    line-height: 0.72;
-    letter-spacing: 0.6px;
     color: $core-dark-blue-grey;
     margin: 0;
     padding: 0;
   }
 
   &__field-wrapper {
-    transition: left 300ms ease;
-    width: 430px;
-    min-height: 420px;
-    padding-bottom: 75px;
-    border-radius: 4px;
     background-color: $core-light-blue-grey;
-    box-shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.3);
-    margin: 0 auto;
-    position: absolute;
     box-sizing: border-box;
-    margin-left: -215px;
     z-index: 2;
-
-    &--admin {
-      left: 50%;
-      top: -25px;
-    }
-
-    &--org {
-      left: calc(100% + 184px);
-      top: -10px;
-    }
-
-    &--kolide {
-      left: calc(150% + 184px);
-      top: -8px;
-    }
-
-    input {
-      background-color: transparent;
-    }
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 
     .button {
-      bottom: 0;
-      top: auto;
-      position: absolute;
-      border-top-left-radius: 0;
-      border-top-right-radius: 0;
-
-      &:active {
-        top: auto;
-      }
+      width: 160px;
+      margin-top: 40px;
     }
 
     .registration-fields {
-      padding: 0 35px 25px;
       box-sizing: border-box;
+      width: 100%;
     }
   }
 
-  &__confirmation {
-    background-color: $core-light-blue-grey;
-    position: relative;
-    z-index: 2;
-    width: 500px;
-    height: 500px;
-  }
 }

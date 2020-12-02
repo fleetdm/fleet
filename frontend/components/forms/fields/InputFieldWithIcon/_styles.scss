@@ -1,5 +1,5 @@
 .input-icon-field {
-  margin-top: 22px;
+  margin-top: 16px;
   position: relative;
   width: 100%;
 
@@ -20,10 +20,11 @@
   }
 
   &__input {
-    border: 2px;
-    border-bottom: 2px solid $core-blue;
-    padding: 0 30px 8px 0;
-    font-size: 20px;
+    border: 1px solid $ui-borders;
+    background-color: $ui-light-grey;
+    border-radius: 4px;
+    padding: 9px 30px 9px 16px;
+    font-size: $small;
     text-indent: 1px;
     position: relative;
     width: 100%;
@@ -43,33 +44,25 @@
       border-bottom-color: $alert;
     }
 
-    &--password {
-      letter-spacing: 7px;
-    }
   }
 
   &__label {
-    color: $core-blue;
-    font-size: $small;
-    text-transform: lowercase;
-
-    &--hidden {
-      visibility: hidden;
-    }
+    font-size: $x-small;
+    font-weight: $bold;
+    margin-bottom: 2px;
   }
 
   &__errors {
-    color: $alert;
-    font-size: $small;
-    text-transform: lowercase;
+    font-size: $x-small;
   }
 
   &__hint {
-    font-size: 14px;
+    font-size: $x-small;
+    font-style: italic;
     font-weight: $regular;
-    line-height: 1.57;
-    letter-spacing: 1px;
-    color: $core-medium-blue-grey;
+    line-height: 20px;
+    display: inline-block;
+    margin-top: 8px;
 
     code {
       color: $core-blue;

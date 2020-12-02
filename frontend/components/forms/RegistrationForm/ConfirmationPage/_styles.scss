@@ -1,6 +1,10 @@
 .confirm-user-reg {
-  &__wrapper {
-    padding: 0 35px 25px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  h2 {
+    text-align: center;
   }
 
   &__icon {
@@ -27,13 +31,10 @@
     width: 100%;
 
     caption {
-      font-size: 18px;
+      font-size: $small;
       font-weight: $bold;
-      line-height: 0.72;
-      letter-spacing: 0.6px;
-      color: $core-dark-blue-grey;
-      text-transform: uppercase;
-      padding-bottom: 20px;
+      margin-bottom: 24px;
+      text-align: left;
     }
 
     tr {
@@ -41,27 +42,23 @@
     }
 
     th {
-      font-size: 14px;
+      font-size: $small;
       font-weight: $bold;
-      line-height: 1.71;
-      letter-spacing: 0.5px;
-      color: $core-dark-blue-grey;
       text-align: left;
+      padding-right: 108px;
     }
 
     td {
-      font-size: 14px;
+      font-size: $small;
       font-weight: $regular;
-      line-height: 1.71;
-      letter-spacing: 0.5px;
-      color: $core-dark-blue-grey;
     }
   }
 
   &__table-url {
-    @include ellipsis(90%);
+    @include ellipsis(100%);
     font-family: 'SourceCodePro', $monospace;
     vertical-align: bottom;
+    font-weight: 600;
   }
 
   &__import {
@@ -91,5 +88,10 @@
       left: 0;
       top: 0;
     }
+  }
+
+  .button {
+    width: 160px;
+    margin-top: 40px;
   }
 }

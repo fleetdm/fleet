@@ -46,7 +46,7 @@ class KolideDetails extends Component {
             ref={(input) => { this.firstInput = input; }}
           />
         </div>
-        <Button type="submit" variant="gradient" tabIndex={tabIndex} disabled={!currentPage}>
+        <Button type="submit" tabIndex={tabIndex} disabled={!currentPage} className="button button--brand">
           Submit
         </Button>
       </form>
