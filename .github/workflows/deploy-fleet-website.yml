@@ -37,4 +37,5 @@ jobs:
     - run: cd website/ && npm run build --if-present
 
     # Deploy to Heroku
-    - run: echo "TODO"
+    run: echo running on branch ${GITHUB_REF##*/}
+    # - run: git push heroku:{GITHUB_REF##*/}
