@@ -2,7 +2,7 @@ name: Deploy Fleet website
 
 on:
   push:
-    branches: [ website ] # todo: change to master
+    branches: [ master ]
 
 jobs:
   build:
