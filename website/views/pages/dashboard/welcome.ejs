@@ -1,0 +1,101 @@
+<div id="welcome">
+  <div class="container pt-5 pb-5">
+    <h1>Welcome!</h1>
+    <hr/>
+    <p>This is a page that only logged-in people can visit. Don't you feel special? Try clicking on a button below to do some things you can't do when you're logged out.</p>
+    <div class="buttons">
+      <a class="btn btn-info" href="/account/profile">Update my email</a>
+      <button class="btn btn-outline-info ml-2" @click="clickOpenExampleModalButton()">Open a modal</button>
+    </div>
+  </div>
+
+  <router-view></router-view>
+
+  <!--  ╔═╗═╗ ╦╔═╗╔╦╗╔═╗╦  ╔═╗  ┌┬┐┌─┐┌┬┐┌─┐┬
+        ║╣ ╔╩╦╝╠═╣║║║╠═╝║  ║╣   ││││ │ ││├─┤│
+        ╚═╝╩ ╚═╩ ╩╩ ╩╩  ╩═╝╚═╝  ┴ ┴└─┘─┴┘┴ ┴┴─┘  -->
+  <modal class="example-modal" v-if="modal==='example'" @close="closeExampleModal()" v-cloak>
+    <div class="modal-header">
+      <h2 class="modal-title">Example modal</h2>
+      <p class="modal-intro">At your leisure, please peruse this excerpt from a whale of a tale.</p>
+      <hr>
+    </div>
+    <div class="modal-body">
+      <h5 class="pb-2 mb-3 border-bottom">Chapter 1: Loomings.</h5>
+      <p>Call me Ishmael. Some years ago—never mind how long precisely—having little or no money in my purse, and nothing particular to interest me on shore, I thought I would sail about a little and see the watery part of the world. It is a way I have of driving off the spleen and regulating the circulation. Whenever I find myself growing grim about the mouth; whenever it is a damp, drizzly November in my soul; whenever I find myself involuntarily pausing before coffin warehouses, and bringing up the rear of every funeral I meet; and especially whenever my hypos get such an upper hand of me, that it requires a strong moral principle to prevent me from deliberately stepping into the street, and methodically knocking people's hats off—then, I account it high time to get to sea as soon as I can. This is my substitute for pistol and ball. With a philosophical flourish Cato throws himself upon his sword; I quietly take to the ship. There is nothing surprising in this. If they but knew it, almost all men in their degree, some time or other, cherish very nearly the same feelings towards the ocean with me.</p>
+      <div class="js-timestamp-examples">
+        <h5 class="pt-4 pb-2 mb-3 border-bottom">About 2 years ago</h5>
+        <p>
+          <js-timestamp :at="pageLoadedAt-(2*365*24*60*60*1000)"></js-timestamp><br/>
+          <js-timestamp :at="pageLoadedAt-(2*365*24*60*60*1000)" format="timeago" short="true"></js-timestamp><br/>
+          <js-timestamp :at="pageLoadedAt-(2*365*24*60*60*1000)" format="calendar"></js-timestamp><br/>
+        </p>
+        <h5 class="pt-4 pb-2 mb-3 border-bottom">About 2 months ago</h5>
+        <p>
+          <js-timestamp :at="pageLoadedAt-(2*30*24*60*60*1000)"></js-timestamp><br/>
+          <js-timestamp :at="pageLoadedAt-(2*30*24*60*60*1000)" format="timeago" short="true"></js-timestamp><br/>
+          <js-timestamp :at="pageLoadedAt-(2*30*24*60*60*1000)" format="calendar"></js-timestamp><br/>
+        </p>
+        <h5 class="pt-4 pb-2 mb-3 border-bottom">2 days ago</h5>
+        <p>
+          <js-timestamp :at="pageLoadedAt-(2*24*60*60*1000)"></js-timestamp><br/>
+          <js-timestamp :at="pageLoadedAt-(2*24*60*60*1000)" format="timeago" short="true"></js-timestamp><br/>
+          <js-timestamp :at="pageLoadedAt-(2*24*60*60*1000)" format="calendar"></js-timestamp><br/>
+        </p>
+        <h5 class="pt-4 pb-2 mb-3 border-bottom">2 hours ago</h5>
+        <p>
+          <js-timestamp :at="pageLoadedAt-(2*60*60*1000)"></js-timestamp><br/>
+          <js-timestamp :at="pageLoadedAt-(2*60*60*1000)" format="timeago" short="true"></js-timestamp><br/>
+          <js-timestamp :at="pageLoadedAt-(2*60*60*1000)" format="calendar"></js-timestamp><br/>
+        </p>
+        <h5 class="pt-4 pb-2 mb-3 border-bottom">15 minutes ago</h5>
+        <p>
+          <js-timestamp :at="pageLoadedAt-(15*60*1000)"></js-timestamp><br/>
+          <js-timestamp :at="pageLoadedAt-(15*60*1000)" format="timeago" short="true"></js-timestamp><br/>
+          <js-timestamp :at="pageLoadedAt-(15*60*1000)" format="calendar"></js-timestamp><br/>
+        </p>
+        <h5 class="pt-4 pb-2 mb-3 border-bottom">45 seconds ago</h5>
+        <p>
+          <js-timestamp :at="pageLoadedAt-(45*1000)"></js-timestamp><br/>
+          <js-timestamp :at="pageLoadedAt-(45*1000)" format="timeago" short="true"></js-timestamp><br/>
+          <js-timestamp :at="pageLoadedAt-(45*1000)" format="calendar"></js-timestamp><br/>
+        </p>
+        <h5 class="pt-4 pb-2 mb-3 border-bottom">Right now</h5>
+        <p>
+          <js-timestamp :at="pageLoadedAt"></js-timestamp><br/>
+          <js-timestamp :at="pageLoadedAt" format="timeago" short="true"></js-timestamp><br/>
+          <js-timestamp :at="pageLoadedAt" format="calendar"></js-timestamp><br/>
+        </p>
+        <h5 class="pt-4 pb-2 mb-3 border-bottom">In an hour</h5>
+        <p>
+          <js-timestamp :at="pageLoadedAt+(60*60*1000)"></js-timestamp><br/>
+          <js-timestamp :at="pageLoadedAt+(60*60*1000)" format="timeago" short="true"></js-timestamp><br/>
+          <js-timestamp :at="pageLoadedAt+(60*60*1000)" format="calendar"></js-timestamp><br/>
+        </p>
+        <h5 class="pt-4 pb-2 mb-3 border-bottom">In two days</h5>
+        <p>
+          <js-timestamp :at="pageLoadedAt+(2*24*60*60*1000)"></js-timestamp><br/>
+          <js-timestamp :at="pageLoadedAt+(2*24*60*60*1000)" format="timeago" short="true"></js-timestamp><br/>
+          <js-timestamp :at="pageLoadedAt+(2*24*60*60*1000)" format="calendar"></js-timestamp><br/>
+        </p>
+        <h5 class="pt-4 pb-2 mb-3 border-bottom">In about two months</h5>
+        <p>
+          <js-timestamp :at="pageLoadedAt+(2*30*24*60*60*1000)"></js-timestamp><br/>
+          <js-timestamp :at="pageLoadedAt+(2*30*24*60*60*1000)" format="timeago" short="true"></js-timestamp><br/>
+          <js-timestamp :at="pageLoadedAt+(2*30*24*60*60*1000)" format="calendar"></js-timestamp><br/>
+        </p>
+        <h5 class="pt-4 pb-2 mb-3 border-bottom">In about two years</h5>
+        <p>
+          <js-timestamp :at="pageLoadedAt+(2*365*24*60*60*1000)"></js-timestamp><br/>
+          <js-timestamp :at="pageLoadedAt+(2*365*24*60*60*1000)" format="timeago" short="true"></js-timestamp><br/>
+          <js-timestamp :at="pageLoadedAt+(2*365*24*60*60*1000)" format="calendar"></js-timestamp><br/>
+        </p>
+      </div>
+    </div>
+    <div class="modal-footer flex-row-reverse justify-content-between">
+      <button type="button" data-dismiss="modal" class="btn btn-info">Close</button>
+      <button type="button" data-dismiss="modal" class="btn btn-outline-info">Cancel</button>
+    </div>
+  </modal>
+</div>
+<%- /* Expose locals as `window.SAILS_LOCALS` :: */ exposeLocalsToBrowser() %>

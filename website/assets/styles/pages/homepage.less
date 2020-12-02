@@ -1,0 +1,89 @@
+#homepage {
+  .hero-banner {
+    background: rgb(31,29,66);
+    background: linear-gradient(170.26deg, #1F1D42 7.33%, #00FFF0 130.16%);
+    color: #fff;
+  }
+  .hero-bg {
+    min-height: 700px;
+    background-image: url('/images/hero-bg-3424x700@2x.png');
+    background-position: center bottom;
+    background-size: 3424px 700px;
+  }
+  .prop-statement {
+    display: flex;
+  }
+  .prop-statement__container {
+    display: flex;
+    flex-direction: column;
+  }
+  .prop-statement__header {
+    font-size: 48px;
+  }
+  .os-logo {
+    width: 60px;
+    height: 56px;
+  }
+  .feature-card {
+    margin-left: 5px;
+    margin-right: 5px;
+  }
+  .quote-mark {
+    font-family: @header-font;
+  }
+  @media (max-width: 1175px) {
+    .hero-bg {
+      background-position: -1100px bottom;
+    }
+  }
+  @media (max-width: 960px) {
+    .feature-card-deck {
+      flex-direction: column;
+      .feature-card {
+        margin-left: auto;
+        margin-right: auto;
+      }
+    }
+  }
+  @media (max-width: 600px) {
+    .hero-bg {
+      min-height: 600px;
+      background-image: url('/images/hero-bg-3000x700@2x.png');
+      background-position: left -550px bottom -30px;
+      background-size: 3000px 700px;
+    }
+    .prop-statement {
+      justify-content: center;
+    }
+    .prop-statement__container {
+      align-items: center;
+    }
+    .prop-statement__header {
+      text-align: center;
+      font-size: 36px;
+    }
+    .prop-statement__paragraph {
+      text-align: center;
+    }
+  }
+  @media (max-width: 500px) {
+    .os-logo {
+      width: 43px;
+      height: 40px;
+    }
+  }
+  @media (max-width: 420px) {
+    .hero-bg {
+      background-position: left -700px bottom -60px;
+    }
+  }
+  @media (max-width: 360px) {
+    .os-logo {
+      width: 32px;
+      height: 30px;
+    }
+    [purpose="meet-the-fleet-community-expanded-text"] {
+      display: none;
+    }
+  }
+}
