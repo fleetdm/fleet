@@ -47,12 +47,12 @@ jobs:
     # Compile assets
     - run: cd website/ && npm run build
 
-    # Commit built assets since Heroku likes deploys to be pushed
+    # Commit built assets locally so we can push them to Heroku below.
     # (This commit will never be pushed to GitHub- only to Heroku.)
-    - run: cd website/ && git add .www
-    - run: cd website/ && git -c "user.name=Fleetwood" -c "user.email=github@example.com" commit -am 'AUTOMATED COMMIT - Automatically bundling compiled assets as part of deploy, updating the EJS layout and .sailsrc file accordingly.'
+    - run: git add .www
+    - run: git -c "user.name=Fleetwood" -c "user.email=github@example.com" commit -am 'AUTOMATED COMMIT - Automatically bundling compiled assets as part of deploy, updating the EJS layout and .sailsrc file accordingly.'
 
-    # Deploy to Heroku
+    # Deploy to Heroku (by pushing)
     - run: echo "Deploying branch '${GITHUB_REF##*/}' to Heroku…"
     - run: git remote -v
     # - run: cd website/ && git push heroku HEAD:master
