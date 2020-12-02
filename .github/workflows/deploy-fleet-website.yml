@@ -57,8 +57,8 @@ jobs:
     # Configure our access credentials for Heroku
     - name: Configure Heroku credentials
       env:
-        HEROKU_API_TOKEN_FOR_BOT_USER: ${{ secrets.HEROKU_API_TOKEN_FOR_BOT_USER }}
         HEROKU_EMAIL_FOR_BOT_USER: ${{ secrets.HEROKU_EMAIL_FOR_BOT_USER }}
+        HEROKU_API_TOKEN_FOR_BOT_USER: ${{ secrets.HEROKU_API_TOKEN_FOR_BOT_USER }}
       run: echo " - $HEROKU_EMAIL_FOR_BOT_USER"
       run: echo "dont worry this is fake - $HEROKU_API_TOKEN_FOR_BOT_USER"
       run: cat >~/.netrc <<EOF
