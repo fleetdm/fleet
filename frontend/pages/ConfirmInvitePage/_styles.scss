@@ -5,15 +5,15 @@
       font-weight: $bold;
       line-height: 0.72;
       letter-spacing: 0.6px;
-      color: $text-dark;
+      color: $core-dark-blue-grey;
       margin: 0;
       padding: 0;
     }
 
     p {
-      color: $text-dark;
+      color: $core-dark-blue-grey;
       font-size: 14px;
-      font-weight: $light;
+      font-weight: $regular;
     }
   }
 
@@ -52,17 +52,17 @@
   }
 
   &__lead-text {
-    color: $brand;
+    color: $core-blue;
     font-size: 18px;
-    font-weight: $light;
+    font-weight: $regular;
     margin-top: 0;
     text-align: center;
   }
 
   &__sub-lead-text {
-    color: $text-dark;
+    color: $core-dark-blue-grey;
     font-size: 14px;
-    font-weight: $light;
+    font-weight: $regular;
     margin-bottom: 0;
   }
 }

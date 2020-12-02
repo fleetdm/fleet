@@ -2,12 +2,10 @@ import {
   GET_STATUS_LABEL_COUNTS_FAILURE,
   GET_STATUS_LABEL_COUNTS_SUCCESS,
   LOAD_STATUS_LABEL_COUNTS,
-  SET_DISPLAY,
   SET_PAGINATION,
 } from './actions';
 
 export const initialState = {
-  display: 'Grid',
   page: 1,
   perPage: 100,
   status_labels: {
@@ -47,11 +45,6 @@ export default (state = initialState, { type, payload }) => {
           ...state.status_labels,
           loading_counts: true,
         },
-      };
-    case SET_DISPLAY:
-      return {
-        ...state,
-        display: payload.display,
       };
     case SET_PAGINATION:
       return {

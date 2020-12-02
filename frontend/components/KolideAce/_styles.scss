@@ -1,11 +1,8 @@
 .kolide-ace {
   &__label {
-    font-size: 16px;
-    font-weight: $bold;
-    font-style: normal;
-    font-stretch: normal;
-    letter-spacing: -0.5px;
-    color: $text-dark;
+    font-size: $x-small;
+    font-weight: $regular;
+    color: $core-black;
     display: block;
     margin-bottom: 4px;
     min-height: 25px;
@@ -25,14 +22,14 @@
 
   &__hint {
     font-size: 14px;
-    font-weight: $normal;
+    font-weight: $regular;
     line-height: 1.57;
     letter-spacing: 1px;
-    color: $accent-text;
+    color: $core-medium-blue-grey;
 
     code {
-      color: $brand;
-      background-color: $accent-light;
+      color: $core-blue;
+      background-color: $ui-light-grey;
       padding: 2px;
       font-family: 'SourceCodePro', $monospace;
     }

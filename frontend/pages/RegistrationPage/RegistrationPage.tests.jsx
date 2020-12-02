@@ -1,6 +1,5 @@
 import React from 'react';
-import expect from 'expect';
-import { mount } from 'enzyme';
+import { mount, shallow } from 'enzyme';
 
 import { connectedComponent, reduxMockStore } from 'test/helpers';
 import ConnectedRegistrationPage, { RegistrationPage } from 'pages/RegistrationPage/RegistrationPage';
@@ -38,7 +37,7 @@ describe('RegistrationPage - component', () => {
       },
     };
 
-    expect(dispatchedActions).toInclude(redirectToHomeAction);
+    expect(dispatchedActions).toContainEqual(redirectToHomeAction);
   });
 
   it('displays the Kolide background triangles', () => {
@@ -46,7 +45,7 @@ describe('RegistrationPage - component', () => {
 
     mount(connectedComponent(ConnectedRegistrationPage, { mockStore }));
 
-    expect(mockStore.getActions()).toInclude({
+    expect(mockStore.getActions()).toContainEqual({
       type: 'SHOW_BACKGROUND_IMAGE',
     });
   });
@@ -68,10 +67,10 @@ describe('RegistrationPage - component', () => {
     expect(page.find('RegistrationForm').length).toEqual(1);
   });
 
-  it('sets the page # to 1', () => {
+  it('sets the page number to 1', () => {
     const page = mount(<RegistrationPage />);
 
-    expect(page.state()).toInclude({ page: 1 });
+    expect(page.state()).toMatchObject({ page: 1 });
   });
 
   it('displays the setup breadcrumbs', () => {
@@ -83,11 +82,11 @@ describe('RegistrationPage - component', () => {
 
   describe('#onSetPage', () => {
     it('sets state to the page number', () => {
-      const page = mount(<RegistrationPage />);
+      const page = shallow(<RegistrationPage />);
       page.setState({ page: 3 });
       page.instance().onSetPage(3);
 
-      expect(page.state()).toInclude({ page: 3 });
+      expect(page.state()).toMatchObject({ page: 3 });
     });
   });
 });

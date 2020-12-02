@@ -1,7 +1,7 @@
 CLI Documentation
 =================
 
-Kolide Fleet provides a server which allows you to manage and orchestrate an osquery deployment across of a set of workstations and servers. For certain use-cases, it makes sense to maintain the configuration and data of an osquery deployment in source-controlled files. It is also desirable to be able to manage these files with a familiar command-line tool. To facilitate this, Kolide Fleet includes a `fleetctl` CLI for managing osquery fleets in this way.
+Fleet provides a server which allows you to manage and orchestrate an osquery deployment across of a set of workstations and servers. For certain use-cases, it makes sense to maintain the configuration and data of an osquery deployment in source-controlled files. It is also desirable to be able to manage these files with a familiar command-line tool. To facilitate this, Fleet includes a `fleetctl` CLI for managing osquery fleets in this way.
 
 For more information, see:
 
@@ -32,13 +32,13 @@ Fleet and `fleetctl` have built in support for [goquery](https://github.com/AbGu
 Use `fleetctl goquery` to open up the goquery console. When used with Fleet, goquery can connect using either a hostname or UUID.
 
 ```
-$ ./build/fleetctl get hosts
+./build/fleetctl get hosts
 +--------------------------------------+--------------+----------+---------+
 |                 UUID                 |   HOSTNAME   | PLATFORM | STATUS  |
 +--------------------------------------+--------------+----------+---------+
 | 192343D5-0000-0000-B85B-58F656BED4C7 | 6523f89187f8 | centos   | online  |
 +--------------------------------------+--------------+----------+---------+
-$ ./build/fleetctl goquery
+./build/fleetctl goquery
 goquery> .connect 6523f89187f8
 Verified Host(6523f89187f8) Exists.
 .

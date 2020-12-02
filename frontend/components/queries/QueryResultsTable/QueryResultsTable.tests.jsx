@@ -1,5 +1,4 @@
 import React from 'react';
-import expect, { createSpy, restoreSpies } from 'expect';
 import { keys } from 'lodash';
 import { mount } from 'enzyme';
 
@@ -58,8 +57,6 @@ const campaignWithQueryResults = {
 };
 
 describe('QueryResultsTable - component', () => {
-  afterEach(restoreSpies);
-
   const componentWithoutQueryResults = mount(
     <QueryResultsTable campaign={campaignWithNoQueryResults} />,
   );
@@ -72,18 +69,24 @@ describe('QueryResultsTable - component', () => {
     expect(componentWithQueryResults.length).toEqual(1);
   });
 
-  it('renders a QueryProgressDetails component if Results is Fullscreen', () => {
-    const component = mount(<QueryResultsTable campaign={campaignWithQueryResults} isQueryFullScreen />);
-    const QueryProgressDetails = component.find('QueryProgressDetails');
+  it(
+    'renders a QueryProgressDetails component if Results is Fullscreen',
+    () => {
+      const component = mount(<QueryResultsTable campaign={campaignWithQueryResults} isQueryFullScreen />);
+      const QueryProgressDetails = component.find('QueryProgressDetails');
 
-    expect(QueryProgressDetails.length).toEqual(1, 'QueryProgressDetails did not render');
-  });
+      expect(QueryProgressDetails.length).toEqual(1, 'QueryProgressDetails did not render');
+    },
+  );
 
-  it('doesn\'t render a QueryProgressDetails component if Results isn\'t Fullscreen', () => {
-    const QueryProgressDetails = componentWithQueryResults.find('QueryProgressDetails');
+  it(
+    'doesn\'t render a QueryProgressDetails component if Results isn\'t Fullscreen',
+    () => {
+      const QueryProgressDetails = componentWithQueryResults.find('QueryProgressDetails');
 
-    expect(QueryProgressDetails.length).toEqual(0, 'QueryProgressDetails did not render');
-  });
+      expect(QueryProgressDetails.length).toEqual(0, 'QueryProgressDetails did not render');
+    },
+  );
 
   it('sets the column headers to the keys of the query results', () => {
     const queryResultKeys = keys(queryResult.rows[0]);
@@ -91,9 +94,9 @@ describe('QueryResultsTable - component', () => {
 
     queryResultKeys.forEach((key) => {
       if (key === 'host_hostname') {
-        expect(tableHeaderText).toInclude('hostname');
+        expect(tableHeaderText).toContain('hostname');
       } else {
-        expect(tableHeaderText).toInclude(key);
+        expect(tableHeaderText).toContain(key);
       }
     });
   });
@@ -108,16 +111,19 @@ describe('QueryResultsTable - component', () => {
     expect(componentWithQueryResults.find('QueryResultsRow').length).toEqual(1);
   });
 
-  it('calls the onExportQueryResults prop when the export button is clicked', () => {
-    const spy = createSpy();
-    const component = mount(<QueryResultsTable campaign={campaignWithQueryResults} onExportQueryResults={spy} />);
+  it(
+    'calls the onExportQueryResults prop when the export button is clicked',
+    () => {
+      const spy = jest.fn();
+      const component = mount(<QueryResultsTable campaign={campaignWithQueryResults} onExportQueryResults={spy} />);
 
-    const exportBtn = component.find('.query-results-table__export-btn');
+      const exportBtn = component.find('.query-results-table__export-btn');
 
-    expect(spy).toNotHaveBeenCalled();
+      expect(spy).not.toHaveBeenCalled();
 
-    exportBtn.hostNodes().simulate('click');
+      exportBtn.hostNodes().simulate('click');
 
-    expect(spy).toHaveBeenCalled();
-  });
+      expect(spy).toHaveBeenCalled();
+    },
+  );
 });

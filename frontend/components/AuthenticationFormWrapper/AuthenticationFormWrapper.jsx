@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 
-import logoVertical from '../../../assets/images/kolide-logo-vertical.svg';
+import fleetLogoText from '../../../assets/images/fleet-logo-text-black.svg';
 
 const baseClass = 'auth-form-wrapper';
 
@@ -15,7 +15,7 @@ class AuthenticationFormWrapper extends Component {
 
     return (
       <div className={baseClass}>
-        <img alt="Kolide Fleet" src={logoVertical} className={`${baseClass}__logo`} />
+        <img alt="Fleet" src={fleetLogoText} className={`${baseClass}__logo`} />
         {children}
       </div>
     );

@@ -1,5 +1,3 @@
-import expect from 'expect';
-
 import { entitiesExceptID, formatErrorResponse } from './helpers';
 
 describe('reduxConfig - helpers', () => {

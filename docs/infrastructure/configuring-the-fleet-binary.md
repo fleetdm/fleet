@@ -48,37 +48,37 @@ For example, all of the following ways of launching Fleet are equivalent:
 #### Using only CLI flags
 
 ```
-$ /usr/bin/fleet serve \
-  --mysql_address=127.0.0.1:3306 \
-  --mysql_database=kolide \
-  --mysql_username=root \
-  --mysql_password=toor \
-  --redis_address=127.0.0.1:6379 \
-  --server_cert=/tmp/server.cert \
-  --server_key=/tmp/server.key \
-  --logging_json \
-  --auth_jwt_key=changeme
+/usr/bin/fleet serve \
+--mysql_address=127.0.0.1:3306 \
+--mysql_database=kolide \
+--mysql_username=root \
+--mysql_password=toor \
+--redis_address=127.0.0.1:6379 \
+--server_cert=/tmp/server.cert \
+--server_key=/tmp/server.key \
+--logging_json \
+--auth_jwt_key=changeme
 ```
 
 #### Using only environment variables
 
 ```
-$ KOLIDE_MYSQL_ADDRESS=127.0.0.1:3306 \
-  KOLIDE_MYSQL_DATABASE=kolide \
-  KOLIDE_MYSQL_USERNAME=root \
-  KOLIDE_MYSQL_PASSWORD=toor \
-  KOLIDE_REDIS_ADDRESS=127.0.0.1:6379 \
-  KOLIDE_SERVER_CERT=/tmp/server.cert \
-  KOLIDE_SERVER_KEY=/tmp/server.key \
-  KOLIDE_LOGGING_JSON=true \
-  KOLIDE_AUTH_JWT_KEY=changeme \
-  /usr/bin/fleet serve
+KOLIDE_MYSQL_ADDRESS=127.0.0.1:3306 \
+KOLIDE_MYSQL_DATABASE=kolide \
+KOLIDE_MYSQL_USERNAME=root \
+KOLIDE_MYSQL_PASSWORD=toor \
+KOLIDE_REDIS_ADDRESS=127.0.0.1:6379 \
+KOLIDE_SERVER_CERT=/tmp/server.cert \
+KOLIDE_SERVER_KEY=/tmp/server.key \
+KOLIDE_LOGGING_JSON=true \
+KOLIDE_AUTH_JWT_KEY=changeme \
+/usr/bin/fleet serve
 ```
 
 #### Using a config file
 
 ```
-$ echo '
+echo '
 mysql:
   address: 127.0.0.1:3306
   database: kolide
@@ -94,7 +94,7 @@ logging:
 auth:
   jwt_key: changeme
 ' > /tmp/kolide.yml
-$ fleet serve --config /tmp/kolide.yml
+fleet serve --config /tmp/kolide.yml
 ```
 
 ### What are the options?

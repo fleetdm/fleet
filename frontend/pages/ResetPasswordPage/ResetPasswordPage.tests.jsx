@@ -1,5 +1,4 @@
 import React from 'react';
-import expect from 'expect';
 import { mount } from 'enzyme';
 
 import ConnectedPage, { ResetPasswordPage } from './ResetPasswordPage';
@@ -36,7 +35,7 @@ describe('ResetPasswordPage - component', () => {
 
     const dispatchedActions = mockStore.getActions();
 
-    expect(dispatchedActions).toInclude(redirectToLoginAction);
+    expect(dispatchedActions).toContainEqual(redirectToLoginAction);
   });
 });
 

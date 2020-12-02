@@ -1,5 +1,3 @@
-import expect, { spyOn, restoreSpies } from 'expect';
-
 import Kolide from 'kolide';
 import { reduxMockStore } from 'test/helpers';
 import {
@@ -7,25 +5,13 @@ import {
   getStatusLabelCountsFailure,
   getStatusLabelCountsSuccess,
   loadStatusLabelCounts,
-  setDisplay,
   silentGetStatusLabelCounts,
 } from './actions';
 import reducer, { initialState } from './reducer';
 
 describe('ManageHostsPage - reducer', () => {
-  afterEach(restoreSpies);
-
   it('sets the initial state', () => {
     expect(reducer(undefined, { type: 'SOME_ACTION' })).toEqual(initialState);
-  });
-
-  describe('#setDisplay', () => {
-    it('sets the display in state', () => {
-      expect(reducer(initialState, setDisplay('List'))).toEqual({
-        ...initialState,
-        display: 'List',
-      });
-    });
   });
 
   describe('#getStatusLabelCounts', () => {
@@ -51,8 +37,8 @@ describe('ManageHostsPage - reducer', () => {
         },
       ];
 
-      spyOn(Kolide.statusLabels, 'getCounts')
-        .andReturn(Promise.resolve(statusLabelCounts));
+      jest.spyOn(Kolide.statusLabels, 'getCounts')
+        .mockImplementation(() => Promise.resolve(statusLabelCounts));
 
       mockStore.dispatch(getStatusLabelCounts)
         .then(() => {
@@ -75,8 +61,8 @@ describe('ManageHostsPage - reducer', () => {
         },
       ];
 
-      spyOn(Kolide.statusLabels, 'getCounts')
-        .andReturn(Promise.reject(errorObject));
+      jest.spyOn(Kolide.statusLabels, 'getCounts')
+        .mockImplementation(() => Promise.reject(errorObject));
 
       mockStore.dispatch(getStatusLabelCounts)
         .then(() => {
@@ -130,8 +116,8 @@ describe('ManageHostsPage - reducer', () => {
         },
       ];
 
-      spyOn(Kolide.statusLabels, 'getCounts')
-        .andReturn(Promise.resolve(statusLabelCounts));
+      jest.spyOn(Kolide.statusLabels, 'getCounts')
+        .mockImplementation(() => Promise.resolve(statusLabelCounts));
 
       mockStore.dispatch(silentGetStatusLabelCounts)
         .then(() => {
@@ -153,8 +139,8 @@ describe('ManageHostsPage - reducer', () => {
         },
       ];
 
-      spyOn(Kolide.statusLabels, 'getCounts')
-        .andReturn(Promise.reject(errorObject));
+      jest.spyOn(Kolide.statusLabels, 'getCounts')
+        .mockImplementation(() => Promise.reject(errorObject));
 
       mockStore.dispatch(silentGetStatusLabelCounts)
         .then(() => {

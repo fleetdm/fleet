@@ -16,9 +16,6 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/e-dard/netbug"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
-	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore/mysql"
 	"github.com/fleetdm/fleet/server/health"
@@ -29,6 +26,9 @@ import (
 	"github.com/fleetdm/fleet/server/pubsub"
 	"github.com/fleetdm/fleet/server/service"
 	"github.com/fleetdm/fleet/server/sso"
+	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/kolide/kit/version"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
@@ -264,6 +264,7 @@ the way that the Fleet server works.
 			rootMux.Handle("/metrics", prometheus.InstrumentHandler("metrics", promhttp.Handler()))
 			rootMux.Handle("/api/", apiHandler)
 			rootMux.Handle("/", frontendHandler)
+			rootMux.Handle("/debug/", service.MakeDebugHandler(svc, config, logger))
 
 			if path, ok := os.LookupEnv("KOLIDE_TEST_PAGE_PATH"); ok {
 				// test that we can load this
@@ -294,7 +295,6 @@ the way that the Fleet server works.
 			}
 
 			if len(config.Server.URLPrefix) > 0 {
-
 				prefixMux := http.NewServeMux()
 				prefixMux.Handle(config.Server.URLPrefix+"/", http.StripPrefix(config.Server.URLPrefix, rootMux))
 				rootMux = prefixMux
@@ -395,7 +395,10 @@ func getTLSConfig(profile string) *tls.Config {
 			tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
 		)
 	default:
-		panic("invalid tls profile " + profile)
+		initFatal(
+			errors.Errorf("%s is invalid", profile),
+			"set TLS profile",
+		)
 	}
 
 	return &cfg

@@ -3,7 +3,7 @@
   flex-direction: column;
   justify-content: center;
   flex-grow: 1;
-  padding: $base 0;
+  padding: $pad-base 0;
 
   &__logo {
     width: 160px;
@@ -12,6 +12,6 @@
   }
 
   @media all and (-ms-high-contrast: none), (-ms-high-contrast: active) {
-    height: calc(100vh - #{$footer-height});
+    height: 100vh;
   }
 }

@@ -8,7 +8,7 @@
     @include size(500px 520px);
     align-self: center;
     border-radius: 4px;
-    background-color: $bg-light;
+    background-color: $core-light-blue-grey;
     box-shadow: 0 0 30px 0 rgba(0, 0, 0, 0.3);
     box-sizing: border-box;
     padding: 25px 35px;
@@ -22,7 +22,7 @@
         font-weight: $bold;
         line-height: 0.54;
         letter-spacing: 0.9px;
-        color: $text-dark;
+        color: $core-dark-blue-grey;
         padding: 25px 35px;
       }
     }
@@ -84,7 +84,7 @@
 
     &::before,
     &::after {
-      background-image: linear-gradient(to right, $accent-dark 50%, transparent 50%);
+      background-image: linear-gradient(to right, $ui-medium-grey 50%, transparent 50%);
       background-position: left top;
       background-repeat: repeat-x;
       background-size: 17px 2px;
@@ -118,10 +118,10 @@
 
   &__description {
     font-size: 14px;
-    font-weight: $light;
+    font-weight: $regular;
     line-height: 1.43;
     letter-spacing: 0.5px;
-    color: $text-dark;
+    color: $core-dark-blue-grey;
   }
 
   &__title {
@@ -129,7 +129,7 @@
     font-weight: $bold;
     line-height: 0.72;
     letter-spacing: 0.6px;
-    color: $text-dark;
+    color: $core-dark-blue-grey;
     margin: 0;
     padding: 0;
   }
@@ -140,7 +140,7 @@
     min-height: 420px;
     padding-bottom: 75px;
     border-radius: 4px;
-    background-color: $bg-light;
+    background-color: $core-light-blue-grey;
     box-shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.3);
     margin: 0 auto;
     position: absolute;
@@ -186,7 +186,7 @@
   }
 
   &__confirmation {
-    background-color: $bg-light;
+    background-color: $core-light-blue-grey;
     position: relative;
     z-index: 2;
     width: 500px;

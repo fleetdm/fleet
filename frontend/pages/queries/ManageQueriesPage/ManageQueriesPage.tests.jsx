@@ -1,5 +1,4 @@
 import React from 'react';
-import expect, { spyOn, restoreSpies } from 'expect';
 import { find, noop } from 'lodash';
 import { mount } from 'enzyme';
 
@@ -26,11 +25,9 @@ const store = {
 
 describe('ManageQueriesPage - component', () => {
   beforeEach(() => {
-    spyOn(queryActions, 'loadAll')
-      .andReturn(() => Promise.resolve([]));
+    jest.spyOn(queryActions, 'loadAll')
+      .mockImplementation(() => () => Promise.resolve([]));
   });
-
-  afterEach(restoreSpies);
 
   describe('rendering', () => {
     it('does not render if queries are loading', () => {
@@ -42,7 +39,7 @@ describe('ManageQueriesPage - component', () => {
       });
       const page = mount(Component);
 
-      expect(page.html()).toNotExist();
+      expect(page.html()).toBeFalsy();
     });
 
     it('renders a QueriesList component', () => {
@@ -63,43 +60,49 @@ describe('ManageQueriesPage - component', () => {
       expect(page.find('QueryDetailsSidePanel').length).toEqual(1);
     });
 
-    it('resets checkedQueryIDs after successfully deleting checked queries', (done) => {
-      const fakeEvt = { preventDefault: noop };
-      const props = {
-        dispatch: () => Promise.resolve(),
-        loadingQueries: false,
-        queries: [queryStub],
-      };
-      const page = mount(<ManageQueriesPage {...props} />);
+    it(
+      'resets checkedQueryIDs after successfully deleting checked queries',
+      (done) => {
+        const fakeEvt = { preventDefault: noop };
+        const props = {
+          dispatch: () => Promise.resolve(),
+          loadingQueries: false,
+          queries: [queryStub],
+        };
+        const page = mount(<ManageQueriesPage {...props} />);
 
-      page.setState({ checkedQueryIDs: [queryStub.id], showModal: true });
-      page.instance().onDeleteQueries(fakeEvt)
-        .then(() => {
-          expect(page.state('showModal')).toEqual(false);
-          expect(page.state('checkedQueryIDs')).toEqual([]);
-          done();
-        })
-        .catch(done);
-    });
+        page.setState({ checkedQueryIDs: [queryStub.id], showModal: true });
+        page.instance().onDeleteQueries(fakeEvt)
+          .then(() => {
+            expect(page.state('showModal')).toEqual(false);
+            expect(page.state('checkedQueryIDs')).toEqual([]);
+            done();
+          })
+          .catch(done);
+      },
+    );
 
-    it('does not reset checkedQueryIDs if deleting a checked query is  unsuccessful', (done) => {
-      const fakeEvt = { preventDefault: noop };
-      const props = {
-        dispatch: () => Promise.reject(),
-        loadingQueries: false,
-        queries: [queryStub],
-      };
-      const page = mount(<ManageQueriesPage {...props} />);
+    it(
+      'does not reset checkedQueryIDs if deleting a checked query is  unsuccessful',
+      (done) => {
+        const fakeEvt = { preventDefault: noop };
+        const props = {
+          dispatch: () => Promise.reject(),
+          loadingQueries: false,
+          queries: [queryStub],
+        };
+        const page = mount(<ManageQueriesPage {...props} />);
 
-      page.setState({ checkedQueryIDs: [queryStub.id], showModal: true });
-      page.instance().onDeleteQueries(fakeEvt)
-        .then(() => {
-          expect(page.state('showModal')).toEqual(false);
-          expect(page.state('checkedQueryIDs')).toEqual([queryStub.id]);
-          done();
-        })
-        .catch(done);
-    });
+        page.setState({ checkedQueryIDs: [queryStub.id], showModal: true });
+        page.instance().onDeleteQueries(fakeEvt)
+          .then(() => {
+            expect(page.state('showModal')).toEqual(false);
+            expect(page.state('checkedQueryIDs')).toEqual([queryStub.id]);
+            done();
+          })
+          .catch(done);
+      },
+    );
   });
 
   it('filters the queries list', () => {
@@ -116,49 +119,58 @@ describe('ManageQueriesPage - component', () => {
     expect(page.instance().getQueries().length).toEqual(1);
   });
 
-  it('updates checkedQueryIDs in state when the check all queries Checkbox is toggled', () => {
-    const page = mount(<ManageQueriesPage queries={[queryStub]} />);
-    const selectAllQueries = page.find({ name: 'check-all-queries' });
+  it(
+    'updates checkedQueryIDs in state when the check all queries Checkbox is toggled',
+    () => {
+      const page = mount(<ManageQueriesPage queries={[queryStub]} />);
+      const selectAllQueries = page.find({ name: 'check-all-queries' });
 
-    expect(page.state('checkedQueryIDs')).toEqual([]);
+      expect(page.state('checkedQueryIDs')).toEqual([]);
 
-    selectAllQueries.hostNodes().simulate('change');
+      selectAllQueries.hostNodes().simulate('change');
 
-    expect(page.state('checkedQueryIDs')).toEqual([queryStub.id]);
+      expect(page.state('checkedQueryIDs')).toEqual([queryStub.id]);
 
-    selectAllQueries.hostNodes().simulate('change');
+      selectAllQueries.hostNodes().simulate('change');
 
-    expect(page.state('checkedQueryIDs')).toEqual([]);
-  });
+      expect(page.state('checkedQueryIDs')).toEqual([]);
+    },
+  );
 
-  it('updates checkedQueryIDs in state when a query row Checkbox is toggled', () => {
-    const page = mount(<ManageQueriesPage queries={[queryStub]} />);
-    const queryCheckbox = page.find({ name: `query-checkbox-${queryStub.id}` });
+  it(
+    'updates checkedQueryIDs in state when a query row Checkbox is toggled',
+    () => {
+      const page = mount(<ManageQueriesPage queries={[queryStub]} />);
+      const queryCheckbox = page.find({ name: `query-checkbox-${queryStub.id}` });
 
-    expect(page.state('checkedQueryIDs')).toEqual([]);
+      expect(page.state('checkedQueryIDs')).toEqual([]);
 
-    queryCheckbox.hostNodes().simulate('change');
+      queryCheckbox.hostNodes().simulate('change');
 
-    expect(page.state('checkedQueryIDs')).toEqual([queryStub.id]);
+      expect(page.state('checkedQueryIDs')).toEqual([queryStub.id]);
 
-    queryCheckbox.hostNodes().simulate('change');
+      queryCheckbox.hostNodes().simulate('change');
 
-    expect(page.state('checkedQueryIDs')).toEqual([]);
-  });
+      expect(page.state('checkedQueryIDs')).toEqual([]);
+    },
+  );
 
-  it('goes to the edit query page when the Edit/Run Query button is the side panel is clicked', () => {
-    const mockStore = reduxMockStore(store);
-    const props = { location: { query: { selectedQuery: queryStub.id } } };
-    const Component = connectedComponent(ConnectedManageQueriesPage, { mockStore, props });
-    const page = mount(Component);
-    const button = page.find('QueryDetailsSidePanel').find('Button');
+  it(
+    'goes to the edit query page when the Edit/Run Query button is the side panel is clicked',
+    () => {
+      const mockStore = reduxMockStore(store);
+      const props = { location: { query: { selectedQuery: queryStub.id } } };
+      const Component = connectedComponent(ConnectedManageQueriesPage, { mockStore, props });
+      const page = mount(Component);
+      const button = page.find('QueryDetailsSidePanel').find('Button');
 
-    button.simulate('click');
+      button.simulate('click');
 
-    const routerChangeAction = find(mockStore.getActions(), { type: '@@router/CALL_HISTORY_METHOD' });
+      const routerChangeAction = find(mockStore.getActions(), { type: '@@router/CALL_HISTORY_METHOD' });
 
-    expect(routerChangeAction.payload).toEqual({ method: 'push', args: [`/queries/${queryStub.id}`] });
-  });
+      expect(routerChangeAction.payload).toEqual({ method: 'push', args: [`/queries/${queryStub.id}`] });
+    },
+  );
 
   it('goes to the edit query page when table row is double clicked', () => {
     const mockStore = reduxMockStore(store);
@@ -201,13 +213,13 @@ describe('ManageQueriesPage - component', () => {
 
       deleteBtn.simulate('click');
 
-      expect(mockStore.getActions()).toNotInclude({ type: 'queries_DESTROY_REQUEST' });
+      expect(mockStore.getActions()).not.toContainEqual({ type: 'queries_DESTROY_REQUEST' });
 
       expect(page.find('Modal').length).toEqual(1);
 
       page.find('Modal').find('Button').first().simulate('click');
 
-      expect(mockStore.getActions()).toInclude({ type: 'queries_DESTROY_REQUEST' });
+      expect(mockStore.getActions()).toContainEqual({ type: 'queries_DESTROY_REQUEST' });
     });
 
     it('does not call the API if the Modal is not accepted', () => {
@@ -224,13 +236,13 @@ describe('ManageQueriesPage - component', () => {
 
       deleteBtn.simulate('click');
 
-      expect(mockStore.getActions()).toNotInclude({ type: 'queries_DESTROY_REQUEST' });
+      expect(mockStore.getActions()).not.toContainEqual({ type: 'queries_DESTROY_REQUEST' });
 
       expect(page.find('Modal').length).toEqual(1);
 
       page.find('Modal').find('Button').last().simulate('click');
 
-      expect(mockStore.getActions()).toNotInclude({ type: 'queries_DESTROY_REQUEST' });
+      expect(mockStore.getActions()).not.toContainEqual({ type: 'queries_DESTROY_REQUEST' });
     });
   });
 
@@ -241,7 +253,7 @@ describe('ManageQueriesPage - component', () => {
       const page = mount(Component).find('ManageQueriesPage');
       const firstRow = page.find('QueriesListRow').last();
 
-      expect(page.prop('selectedQuery')).toNotExist();
+      expect(page.prop('selectedQuery')).toBeFalsy();
 
       firstRow.find('ClickableTableRow').last().simulate('click');
 

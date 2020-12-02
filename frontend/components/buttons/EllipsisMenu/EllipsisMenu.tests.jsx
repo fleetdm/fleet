@@ -1,5 +1,4 @@
 import React from 'react';
-import expect from 'expect';
 import { mount } from 'enzyme';
 
 import { EllipsisMenu } from './EllipsisMenu';
@@ -13,7 +12,7 @@ describe('EllipsisMenu - component', () => {
     );
 
     expect(component.state().showChildren).toEqual(false);
-    expect(component.text()).toNotContain('EllipsisMenu Children');
+    expect(component.text()).not.toContainEqual('EllipsisMenu Children');
 
     component.find('button').simulate('click');
 

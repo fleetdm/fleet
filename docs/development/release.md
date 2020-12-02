@@ -1,7 +1,7 @@
 Releasing Fleet
 ===============
 
-1. Update the [CHANGELOG](/CHANGELOG.md) with the changes that have been made since the last Fleet release.
+1. Update the [CHANGELOG](../../CHANGELOG.md) with the changes that have been made since the last Fleet release.
 
 2. Tag and push the new release in Git:
 
@@ -15,6 +15,8 @@ git push origin <VERSION>
 ``` shell
 make binary-bundle
 ```
+
+Make note of the SHA256 checksum output at the end of this build command to paste into the release documentation on GitHub.
 
 4. Create a new release on the [GitHub releases page](https://github.com/fleetdm/fleet/releases). Select the newly pushed tag (GitHub should say "Existing tag"). Use the version number as the release title. Use the below template for the release description (replace items in <> with the appropriate values):
 
@@ -33,14 +35,17 @@ Documentation for this release can be found at https://github.com/fleetdm/fleet/
 
 ### Binary Checksum
 
+**SHA256**
 ```
-sha256sum fleet.zip
 <HASH VALUE>  fleet.zip
+<HASH VALUE>  fleetctl-linux.tar.gz
+<HASH VALUE>  fleetctl-macos.tar.gz
+<HASH VALUE>  fleetctl-windows.tar.gz
 ```
 
 ````
 
-Upload the `fleet.zip` binary bundle and click "Publish Release".
+Upload the `fleet.zip` binary bundle along with the `fleetctl-*.tar.gz` for each platform and click "Publish Release".
 
 5. Push the new version to Docker Hub (ensure working tree is clean because this will effect the version string built into the binary):
 
@@ -48,4 +53,7 @@ Upload the `fleet.zip` binary bundle and click "Publish Release".
 make docker-push-release
 ```
 
-6. Announce the release in the #fleet channel of [osquery Slack](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/).
+6. Publish the new version of `fleetctl` on NPM. Update the version in the [package.json](../../../tools/fleetctl-npm/package.json) and publish with `npm publish`. Note that NPM does not allow replacing a package without creating a new version number. Take care to get things correct before running `npm publish`!
+
+7. Announce the release in the #fleet channel of [osquery Slack](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/).
+

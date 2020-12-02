@@ -1,8 +1,8 @@
 .all-packs-page {
   &__bulk-action-btn {
-    color: $link;
+    color: $core-purple;
     font-size: 15px;
-    font-weight: $normal;
+    font-weight: $regular;
     margin-left: 26px;
 
     &--disable {
@@ -21,13 +21,13 @@
 
     &--delete {
       i {
-        color: $text-light;
+        color: $core-medium-blue-grey;
       }
     }
   }
 
   &__pack-count {
-    color: $footer-accent;
+    color: $core-darkest-blue-grey;
     font-size: 14px;
     font-weight: $bold;
     letter-spacing: -0.5px;
@@ -50,13 +50,13 @@
   }
 
   &__wrapper {
-    padding: $base;
+    padding: $pad-base;
     min-height: 90vh;
   }
 
   &__table {
     border-collapse: collapse;
-    color: $text-medium;
+    color: $core-dark-blue-grey;
     font-size: $small;
     width: 100%;
   }

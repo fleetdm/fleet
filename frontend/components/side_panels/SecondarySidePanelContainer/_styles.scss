@@ -1,13 +1,11 @@
 .secondary-side-panel-container {
   align-self: stretch;
-  background-color: $white;
+  background-color: $core-light-blue-grey;
   box-sizing: border-box;
-  border-left: 1px solid $border-medium;
+  border-left: 1px solid $ui-medium-grey;
   overflow: auto;
   width: $sidepanel-width;
   margin-left: $pad-base;
-  padding-top: $pad-base;
-  min-height: calc(100vh - #{$pad-base} - #{$footer-height});
 
   @include breakpoint(smalldesk) {
     width: $sidepanel-tablet-width;

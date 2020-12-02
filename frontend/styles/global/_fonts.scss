@@ -1,31 +1,32 @@
 @font-face {
-  font-family: 'Oxygen';
-  src: url('../assets/fonts/oxygen/Oxygen-Light.eot');
-  src: url('../assets/fonts/oxygen/Oxygen-Light.eot?#iefix') format('embedded-opentype'),
-    url('../assets/fonts/oxygen/Oxygen-Light.woff') format('woff'),
-    url('../assets/fonts/oxygen/Oxygen-Light.ttf') format('truetype');
-  font-weight: 300;
+  font-family: 'Nunito Sans';
   font-style: normal;
+  font-weight: 400;
+  src: url('../assets/fonts/nunito-sans/Nunito-Sans-Bold.eot');
+  src: local(''),
+       url('../assets/fonts/nunito-sans/Nunito-Sans-Regular.eot?#iefix') format('embedded-opentype'),
+       url('../assets/fonts/nunito-sans/Nunito-Sans-Regular.woff') format('woff'),
+       url('../assets/fonts/nunito-sans/Nunito-Sans-Regular.ttf') format('truetype'),
 }
-
 @font-face {
-  font-family: 'Oxygen';
-  src: url('../assets/fonts/oxygen/Oxygen-Bold.eot');
-  src: url('../assets/fonts/oxygen/Oxygen-Bold.eot?#iefix') format('embedded-opentype'),
-    url('../assets/fonts/oxygen/Oxygen-Bold.woff') format('woff'),
-    url('../assets/fonts/oxygen/Oxygen-Bold.ttf') format('truetype');
-  font-weight: bold;
+  font-family: 'Nunito Sans';
   font-style: normal;
+  font-weight: 700;
+  src: url('../assets/fonts/nunito-sans/Nunito-Sans-Bold.eot');
+  src: local(''),
+       url('../assets/fonts/nunito-sans/Nunito-Sans-Bold.eot?#iefix') format('embedded-opentype'),
+       url('../assets/fonts/nunito-sans/Nunito-Sans-Bold.woff') format('woff'),
+       url('../assets/fonts/nunito-sans/Nunito-Sans-Bold.ttf') format('truetype'),
 }
-
 @font-face {
-  font-family: 'Oxygen';
-  src: url('../assets/fonts/oxygen/Oxygen-Regular.eot');
-  src: url('../assets/fonts/oxygen/Oxygen-Regular.eot?#iefix') format('embedded-opentype'),
-    url('../assets/fonts/oxygen/Oxygen-Regular.woff') format('woff'),
-    url('../assets/fonts/oxygen/Oxygen-Regular.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
+  font-family: 'Nunito Sans';
+  font-style: italic;
+  font-weight: 400;
+  src: url('../assets/fonts/nunito-sans/Nunito-Sans-Regular-Italic.eot');
+  src: local(''),
+       url('../assets/fonts/nunito-sans/Nunito-Sans-Regular-Italic.eot?#iefix') format('embedded-opentype'),
+       url('../assets/fonts/nunito-sans/Nunito-Sans-Regular-Italic.woff') format('woff'),
+       url('../assets/fonts/nunito-sans/Nunito-Sans-Regular-Italic.ttf') format('truetype'),
 }
 
 @font-face {
@@ -43,7 +44,8 @@
     url('../assets/fonts/source-code-pro/SourceCodePro-Regular.ttf.woff') format('woff'),
     url('../assets/fonts/source-code-pro/SourceCodePro-Regular.ttf') format('truetype');
   font-weight: normal;
-  font-style: normal; }
+  font-style: normal; 
+}
 
 body {
   -webkit-font-smoothing: antialiased;

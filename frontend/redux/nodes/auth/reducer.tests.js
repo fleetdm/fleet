@@ -1,5 +1,4 @@
 import configureStore from 'redux-mock-store';
-import expect from 'expect';
 import { find } from 'lodash';
 import thunk from 'redux-thunk';
 
@@ -39,7 +38,7 @@ describe('Auth - reducer', () => {
     });
   });
 
-  context('loginUser action', () => {
+  describe('loginUser action', () => {
     const bearerToken = 'expected-bearer-token';
     const formData = {
       username: 'username',
@@ -103,14 +102,14 @@ describe('Auth - reducer', () => {
       store.dispatch(loginUser(formData))
         .then(() => {
           const actionTypes = store.getActions().map(a => a.type);
-          expect(actionTypes).toInclude(LOGIN_REQUEST, LOGIN_SUCCESS);
+          expect(actionTypes).toContainEqual(LOGIN_REQUEST, LOGIN_SUCCESS);
           done();
         })
         .catch(done);
     });
   });
 
-  context('logoutUser action', () => {
+  describe('logoutUser action', () => {
     const bearerToken = 'ABC123';
     const middlewares = [thunk, authMiddleware];
     const mockStore = configureStore(middlewares);
@@ -138,7 +137,7 @@ describe('Auth - reducer', () => {
 
       store.dispatch(logoutUser())
         .then(() => {
-          expect(local.getItem('auth_token')).toNotExist();
+          expect(local.getItem('auth_token')).toBeFalsy();
           done();
         })
         .catch(done);
@@ -149,7 +148,7 @@ describe('Auth - reducer', () => {
 
       store.dispatch(logoutUser())
         .then(() => {
-          expect(kolide.bearerToken).toNotExist();
+          expect(kolide.bearerToken).toBeFalsy();
           done();
         })
         .catch(done);
@@ -161,14 +160,14 @@ describe('Auth - reducer', () => {
       store.dispatch(logoutUser())
         .then(() => {
           const actionTypes = store.getActions().map(a => a.type);
-          expect(actionTypes).toInclude(LOGOUT_REQUEST, LOGOUT_SUCCESS);
+          expect(actionTypes).toContainEqual(LOGOUT_REQUEST, LOGOUT_SUCCESS);
           done();
         })
         .catch(done);
     });
   });
 
-  context('perform required password reset', () => {
+  describe('perform required password reset', () => {
     const user = { id: 1, email: 'zwass@kolide.co', force_password_reset: true };
 
     it('updates state when request is dispatched', () => {

@@ -1,5 +1,4 @@
 import React from 'react';
-import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
@@ -8,8 +7,6 @@ import { fillInFormInput } from 'test/helpers';
 import { packStub } from 'test/stubs';
 
 describe('EditPackForm - component', () => {
-  afterEach(restoreSpies);
-
   describe('form fields', () => {
     const form = mount(<EditPackForm formData={packStub} handleSubmit={noop} onCancel={noop} />);
 
@@ -22,7 +19,7 @@ describe('EditPackForm - component', () => {
 
   describe('form submission', () => {
     it('submits the forms with the form data', () => {
-      const spy = createSpy();
+      const spy = jest.fn();
       const form = mount(<EditPackForm formData={packStub} handleSubmit={spy} onCancel={noop} />).find('.edit-pack-form');
 
       const nameInput = form.find({ name: 'name' }).find('input');
@@ -40,7 +37,7 @@ describe('EditPackForm - component', () => {
     });
 
     it('calls the onCancel prop when "Cancel" is clicked', () => {
-      const spy = createSpy();
+      const spy = jest.fn();
       const form = mount(<EditPackForm formData={packStub} handleSubmit={noop} onCancel={spy} />).find('.edit-pack-form');
       const cancelBtn = form.find('Button').find({ children: 'Cancel' });
 

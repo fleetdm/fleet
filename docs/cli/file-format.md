@@ -31,7 +31,7 @@ All of these files can be concatenated together into [one file](../../examples/c
 `fleetctl` format. Use `fleetctl convert` with a path to the pack file:
 
 ```
-$ fleetctl convert -f test.json
+fleetctl convert -f test.json
 ---
 apiVersion: v1
 kind: pack
@@ -251,7 +251,7 @@ spec:
 
 ### Auto Table Construction
 
-You can use Kolide Fleet to query local SQLite databases as tables. For more information on creating ATC configuration from a SQLite database, see the [Osquery Automatic Table Construction documentation](https://osquery.readthedocs.io/en/stable/deployment/configuration/#automatic-table-construction)
+You can use Fleet to query local SQLite databases as tables. For more information on creating ATC configuration from a SQLite database, see the [Osquery Automatic Table Construction documentation](https://osquery.readthedocs.io/en/stable/deployment/configuration/#automatic-table-construction)
 
 If you already know what your ATC configuration needs to look like, you can add it to an options config file:
 

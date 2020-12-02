@@ -13,9 +13,10 @@
   }
 
   .primary-header {
+    position: absolute;
+    top: 0;
     height: 90px;
     width: 100%;
-    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.06);
 
     &__logo {
       height: 48px;
@@ -26,24 +27,19 @@
     }
   }
 
-  .gopher-container {
-    margin: -20px auto 0;
-    max-width: 340px;
-
-    img {
-      height: 470px;
-    }
+  .background-image {
+    width: 100%;
   }
 
   main {
     text-align: center;
 
     > h1 {
-      font-size: 56px;
+      display: inline;
+      font-size: 32px;
       max-width: 479px;
-      margin: 34px auto 0;
       font-weight: $bold;
-      color: $text-ultradark;
+      color: $core-black;
     }
 
     > h2 {

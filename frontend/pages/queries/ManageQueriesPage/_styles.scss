@@ -1,7 +1,7 @@
 .manage-queries-page {
   &__delete-queries-btn {
     font-size: 15px;
-    font-weight: $normal;
+    font-weight: $regular;
   }
 
   &__ctas {
@@ -10,7 +10,7 @@
   }
 
   &__query-count {
-    color: $text-dark;
+    color: $core-dark-blue-grey;
     font-size: 14px;
     font-weight: $bold;
     letter-spacing: -0.5px;
@@ -46,7 +46,7 @@
       top: 12px;
       left: 9px;
       font-size: 18px;
-      color: $accent-medium;
+      color: $ui-medium-grey;
     }
   }
 
@@ -55,7 +55,7 @@
   }
 
   &__wrapper {
-    padding: $base;
+    padding: $pad-base;
     min-height: 90vh;
   }
 

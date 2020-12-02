@@ -1,9 +1,9 @@
 .packs-list-row {
-  border-bottom: 1px solid $accent-medium;
+  border-bottom: 1px solid $ui-borders;
   cursor: pointer;
 
   &--selected {
-    background-color: $accent-light;
+    background-color: $ui-light-grey;
   }
 
   &:focus {
@@ -11,7 +11,7 @@
   }
 
   &__td {
-    color: $text-ultradark;
+    color: $core-black;
     font-weight: $bold;
     padding: 7px 0;
     text-align: center;
@@ -48,8 +48,8 @@
   }
 
   &__status-text {
-    color: $text-ultradark;
-    font-weight: $normal;
+    color: $core-black;
+    font-weight: $regular;
     margin-left: 10px;
 
     @include breakpoint(smalldesk) {

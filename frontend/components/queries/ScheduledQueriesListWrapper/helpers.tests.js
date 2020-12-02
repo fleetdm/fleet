@@ -1,5 +1,3 @@
-import expect from 'expect';
-
 import helpers from './helpers';
 
 describe('ScheduledQueriesListWrapper - helpers', () => {

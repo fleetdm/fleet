@@ -1,5 +1,4 @@
 import React from 'react';
-import expect from 'expect';
 import { mount } from 'enzyme';
 import { Provider } from 'react-redux';
 
@@ -92,7 +91,7 @@ describe('AuthenticatedRoutes - component', () => {
       </Provider>,
     );
 
-    expect(mockStore.getActions()).toInclude(redirectToPasswordResetAction);
+    expect(mockStore.getActions()).toContainEqual(redirectToPasswordResetAction);
   });
 
   it('redirects to login without a user', () => {
@@ -106,8 +105,8 @@ describe('AuthenticatedRoutes - component', () => {
       </Provider>,
     );
 
-    expect(mockStore.getActions()).toInclude(redirectToLoginAction);
-    expect(component.html()).toNotExist();
+    expect(mockStore.getActions()).toContainEqual(redirectToLoginAction);
+    expect(component.html()).toBeFalsy();
   });
 
   it('does not redirect to login if the user is loading', () => {
@@ -121,7 +120,7 @@ describe('AuthenticatedRoutes - component', () => {
       </Provider>,
     );
 
-    expect(mockStore.getActions()).toNotInclude(redirectToLoginAction);
-    expect(component.html()).toNotExist();
+    expect(mockStore.getActions()).not.toContainEqual(redirectToLoginAction);
+    expect(component.html()).toBeFalsy();
   });
 });

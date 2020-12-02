@@ -8,7 +8,6 @@ import paths from 'router/paths';
 import redirectLocationInterface from 'interfaces/redirect_location';
 import { setRedirectLocation } from 'redux/nodes/redirectLocation/actions';
 import userInterface from 'interfaces/user';
-import Footer from 'components/Footer';
 
 export class AuthenticatedRoutes extends Component {
   static propTypes = {
@@ -76,7 +75,6 @@ export class AuthenticatedRoutes extends Component {
     return (
       <div>
         {children}
-        <Footer />
       </div>
     );
   }

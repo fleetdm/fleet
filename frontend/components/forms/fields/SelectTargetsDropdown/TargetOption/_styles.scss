@@ -18,7 +18,7 @@
   &__add-btn {
     line-height: 34px;
     font-size: $small;
-    font-weight: $normal;
+    font-weight: $regular;
     text-transform: none;
     padding: 0 $pad-half;
   }
@@ -26,7 +26,7 @@
   &__add-btn {
     transition: color 0ms;
     color: $success;
-    font-size: $base;
+    font-size: $medium;
   }
 
   &__target-content {
@@ -35,7 +35,7 @@
   }
 
   &__count {
-    background-color: $text-medium;
+    background-color: $core-dark-blue-grey;
     border-radius: $border-radius;
     color: $white;
     font-size: 13px;
@@ -45,13 +45,13 @@
   }
 
   &__delimeter {
-    color: $text-dark;
+    color: $core-dark-blue-grey;
     font-weight: $bold;
     margin: 0 $pad-xsmall;
   }
 
   &__icon {
-    color: $text-medium;
+    color: $core-dark-blue-grey;
     font-size: $small;
 
     &--online {
@@ -63,23 +63,23 @@
     }
 
     &--mia {
-      color: $text-dark;
+      color: $core-dark-blue-grey;
     }
   }
 
   &__ip {
-    color: $text-dark;
+    color: $core-dark-blue-grey;
     font-size: $small;
   }
 
   &__label-host {
-    color: $link;
-    font-size: $base;
+    color: $core-purple;
+    font-size: $medium;
     margin-left: $pad-half;
   }
 
   &__label-label {
-    color: $text-medium;
+    color: $core-dark-blue-grey;
     font-size: 14px;
     margin-left: $pad-half;
 
@@ -89,15 +89,15 @@
   }
 
   &__more-info {
-    color: $brand;
+    color: $core-blue;
     cursor: pointer;
     float: right;
     margin-right: $pad-base;
   }
 
   &__target-icon {
-    font-size: $base;
-    color: $text-medium;
+    font-size: $medium;
+    color: $core-dark-blue-grey;
     margin-right: $pad-xsmall;
   }
 

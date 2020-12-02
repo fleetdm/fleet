@@ -1,24 +1,25 @@
 .input-field {
   transition: border 150ms ease-in-out, box-shadow 150ms ease-in-out;
   line-height: 34px;
-  background-color: $white;
-  border: solid 1px $accent-medium;
-  font-size: 16px;
+  background-color: $ui-light-grey;
+  border: solid 1px $ui-borders;
+  border-radius: 4px;
+  font-size: $small;
   padding: $pad-xsmall 12px;
-  color: $text-dark;
-  font-family: 'Oxygen', sans-serif;
+  color: $core-medium-blue-grey;
+  font-family: 'Nunito Sans', sans-serif;
   box-sizing: border-box;
   height: 40px;
 
   ::placeholder {
-    color: $accent-text;
+    color: $core-medium-blue-grey;
   }
 
   &:focus {
     outline: none;
     box-shadow: inset 0 0 8px 0 rgba($black, 0.1);
-    border-color: $link-light;
-    border-bottom-color: $brand;
+    border-color: $core-purple;
+    border-bottom-color: $core-blue;
   }
 
   &--disabled {
@@ -36,7 +37,7 @@
       box-shadow: inset 0 0 8px 0 rgba($black, 0.1);
       border-bottom-color: $alert;
       background-color: $white;
-      color: $text-dark;
+      color: $core-dark-blue-grey;
     }
   }
 
@@ -52,9 +53,9 @@
 
   &__label {
     display: block;
-    font-size: $base;
-    font-weight: $light;
-    color: $text-dark;
+    font-size: $medium;
+    font-weight: $regular;
+    color: $core-dark-blue-grey;
     margin-bottom: $pad-xsmall;
 
     &--error {
@@ -68,14 +69,14 @@
 
   &__hint {
     font-size: 14px;
-    font-weight: $normal;
+    font-weight: $regular;
     line-height: 1.57;
     letter-spacing: 1px;
-    color: $accent-text;
+    color: $core-medium-blue-grey;
 
     code {
-      color: $brand;
-      background-color: $accent-light;
+      color: $core-blue;
+      background-color: $ui-medium-grey;
       padding: 2px;
       font-family: 'SourceCodePro', $monospace;
     }

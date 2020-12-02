@@ -7,16 +7,16 @@
 
       &__label {
         font-size: 16px;
-        font-weight: $normal;
+        font-weight: $regular;
         letter-spacing: 1px;
-        color: $text-dark;
+        color: $core-dark-blue-grey;
         padding-left: 32px;
       }
     }
   }
 
   &__role {
-    color: $brand;
+    color: $core-blue;
     font-size: $small;
     text-transform: lowercase;
     margin: 0;

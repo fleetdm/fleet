@@ -1,6 +1,6 @@
 .query-form {
   &__wrapper {
-    padding: $base;
+    padding: $pad-base;
 
     h1 {
       margin-bottom: 19px;
@@ -27,15 +27,15 @@
 
   &__save-query-btn,
   &__cancel-btn {
-    margin-right: $xsmall;
+    margin-right: $pad-xsmall;
   }
 
   &__text-editor-wrapper {
-    margin: $base 0;
+    margin: $pad-base 0;
   }
 
   &__title {
-    color: $text-medium;
+    color: $core-dark-blue-grey;
     display: inline-block;
     font-size: $large;
   }

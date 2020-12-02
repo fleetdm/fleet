@@ -1,5 +1,3 @@
-import expect from 'expect';
-
 import convertToCSV from 'utilities/convert_to_csv';
 
 const objArray = [

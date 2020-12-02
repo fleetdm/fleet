@@ -87,7 +87,13 @@ export class QueryPage extends Component {
     const { dispatch, selectedHosts, selectedTargets } = this.props;
 
     Kolide.status.live_query().catch((response) => {
-      this.setState({ liveQueryError: response.message.errors[0].reason });
+      try {
+        const error = response.message.errors[0].reason;
+        this.setState({ liveQueryError: error });
+      } catch (e) {
+        const error = `Unknown error: ${e}`;
+        this.setState({ liveQueryError: error });
+      }
     });
 
     helpers.selectHosts(dispatch, {

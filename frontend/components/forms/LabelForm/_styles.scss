@@ -1,6 +1,6 @@
 .label-form {
   &__wrapper {
-    padding: $base;
+    padding: $pad-base;
   }
 
   &__label-title,
@@ -23,11 +23,11 @@
 
   &__save-btn,
   &__cancel-btn {
-    margin-right: $xsmall;
+    margin-right: $pad-xsmall;
   }
 
   &__text-editor-wrapper {
-    margin: $base 0;
+    margin: $pad-base 0;
   }
 }
 

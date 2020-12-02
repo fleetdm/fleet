@@ -1,5 +1,3 @@
-import expect from 'expect';
-
 import validateYaml from './index';
 
 // Valid indentations take up two spaces
@@ -20,7 +18,7 @@ describe('validateYaml', () => {
 
       expect(valid).toEqual(false);
       expect(error.name).toEqual('Syntax Error');
-      expect(error.reason).toExist();
+      expect(error.reason).toBeTruthy();
       expect(error.line).toBeGreaterThan(0);
     });
   });
@@ -36,7 +34,7 @@ describe('validateYaml', () => {
     validYaml.forEach((yaml) => {
       const { error, valid } = validateYaml(yaml);
       expect(valid).toEqual(true);
-      expect(error).toNotExist();
+      expect(error).toBeFalsy();
     });
   });
 });

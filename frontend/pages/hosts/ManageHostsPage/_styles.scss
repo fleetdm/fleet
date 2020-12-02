@@ -1,5 +1,5 @@
 .manage-hosts {
-  padding: $pad-base;
+  padding: 50px 30px 0;
   min-height: 90vh;
 
   &__header {
@@ -9,8 +9,10 @@
   }
 
   &__title {
+    font-size: $large;
+
     .kolidecon {
-      color: $text-light;
+      color: $core-medium-blue-grey;
       margin-right: 15px;
     }
 
@@ -23,7 +25,7 @@
     }
 
     .kolidecon-mia {
-      color: $text-ultradark;
+      color: $core-black;
     }
 
     .kolidecon-clock {
@@ -45,35 +47,35 @@
   &__description {
     line-height: 1.54;
     letter-spacing: 0.5px;
-    margin: 0 0 15px;
+    margin: 0 0 16px;
 
     h2 {
       text-transform: uppercase;
-      color: $text-dark;
-      font-weight: $light;
+      color: $core-dark-blue-grey;
+      font-weight: $regular;
       font-size: 16px;
     }
 
     p {
-      color: $text-medium;
+      color: $core-medium-blue-grey;
       margin: 0;
-      font-size: 13px;
+      font-size: $x-small;
+      font-style: italic;
     }
   }
 
   &__topper {
     display: flex;
     align-items: flex-end;
-    border-bottom: solid 1px $accent-light;
     padding-bottom: 10px;
   }
 
   &__host-count {
     flex-grow: 1;
-    font-size: 14px;
-    font-weight: $light;
+    font-size: $x-small;
+    font-weight: $bold;
     letter-spacing: 0.9px;
-    color: $text-dark;
+    color: $core-black;
     margin: 0;
     display: inline-block;
   }
@@ -106,12 +108,12 @@
       width: 24px;
       height: 24px;
       margin-left: 12px;
-      fill: $accent-dark;
+      fill: $ui-medium-grey;
     }
 
     &--active {
       .kolidecon {
-        fill: $link;
+        fill: $core-purple;
       }
     }
   }

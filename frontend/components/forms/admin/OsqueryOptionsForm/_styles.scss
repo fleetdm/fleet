@@ -9,7 +9,7 @@
     font-size: 16px;
     margin: 15px 0;
     display: inline-block;
-    color: $text-dark;
+    color: $core-dark-blue-grey;
   }
 
   &__button-wrap {
@@ -26,7 +26,7 @@
   }
 
   &__text-editor-wrapper {
-    margin: $base 0;
+    margin: $pad-base 0;
     width: 100%;
   }
 }

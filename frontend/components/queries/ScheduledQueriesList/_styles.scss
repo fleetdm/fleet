@@ -1,6 +1,6 @@
 .scheduled-queries-list {
   background-color: $white;
-  border: 1px solid $accent-dark;
+  border: 1px solid $ui-borders;
   border-radius: 3px;
   box-shadow: inset 0 0 8px 0 rgba(0, 0, 0, 0.12);
   box-sizing: border-box;
@@ -12,7 +12,7 @@
 
     thead {
       height: 50px;
-      background-color: $bg-medium;
+      background-color: $core-light-blue-grey;
       box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.12);
 
       th {
@@ -20,7 +20,7 @@
         font-weight: $bold;
         letter-spacing: -0.5px;
         text-align: left;
-        color: $link;
+        color: $core-purple;
         padding: 15px 10px;
 
         .form-field {
@@ -61,7 +61,7 @@
       td {
         padding: 0 10px;
         margin: 0;
-        border-bottom: 1px solid $accent-light;
+        border-bottom: 1px solid $ui-borders;
 
         .form-field {
           margin: 0;
@@ -78,26 +78,26 @@
           line-height: 2.71;
           letter-spacing: -0.5px;
           text-align: left;
-          color: $text-ultradark;
+          color: $core-black;
         }
 
         &:nth-child(3) {
           font-size: 14px;
-          font-weight: $normal;
+          font-weight: $regular;
           line-height: 2.71;
           letter-spacing: -0.5px;
-          color: $text-ultradark;
+          color: $core-black;
         }
 
         &:nth-child(4),
         &:nth-child(5),
         &:nth-child(6) {
           font-size: 14px;
-          font-weight: $normal;
+          font-weight: $regular;
           line-height: 2.71;
           letter-spacing: -0.5px;
           text-align: center;
-          color: $text-ultradark;
+          color: $core-black;
 
           .kolidecon {
             font-size: 18px;
@@ -107,7 +107,7 @@
         &:nth-child(7) {
           text-align: center;
           font-size: 18px;
-          color: $text-ultradark;
+          color: $core-black;
         }
       }
 
@@ -122,9 +122,9 @@
     text-align: left;
 
     h1 {
-      color: $text-dark;
+      color: $core-dark-blue-grey;
       font-size: 24px;
-      font-weight: $light;
+      font-weight: $regular;
       line-height: 1.96;
       letter-spacing: -0.5px;
       margin: 0;
@@ -134,16 +134,16 @@
       font-size: 20px;
       line-height: 2;
       letter-spacing: -0.4px;
-      color: $text-dark;
-      font-weight: $light;
+      color: $core-dark-blue-grey;
+      font-weight: $regular;
       margin: 0;
     }
 
     p {
       font-size: 16px;
-      font-weight: $normal;
+      font-weight: $regular;
       line-height: 2.5;
-      color: $text-dark;
+      color: $core-dark-blue-grey;
       margin: 0;
     }
 
@@ -156,9 +156,9 @@
     li {
       margin-left: 15px;
       font-size: 16px;
-      font-weight: $normal;
+      font-weight: $regular;
       line-height: 2.5;
-      color: $text-dark;
+      color: $core-dark-blue-grey;
     }
   }
 

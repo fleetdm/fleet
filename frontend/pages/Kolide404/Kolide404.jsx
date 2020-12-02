@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 
-import kolideLogo from '../../../assets/images/kolide-logo-condensed.svg';
-import gopher from '../../../assets/images/404.svg';
+import fleetLogoText from '../../../assets/images/fleet-logo-text-white.svg';
+import backgroundImg from '../../../assets/images/404.svg';
 
 const baseClass = 'kolide-404';
 
@@ -11,18 +11,14 @@ class Kolide404 extends Component {
       <div className={baseClass}>
         <header className="primary-header">
           <a href="/">
-            <img className="primary-header__logo" src={kolideLogo} alt="Kolide" />
+            <img className="primary-header__logo" src={fleetLogoText} alt="Fleet logo" />
           </a>
         </header>
+        <img src={backgroundImg} alt="404 background" className="background-image" />
         <main>
-          <h1>I have no memory of this place...</h1>
-          <h2>Error 404</h2>
-          <p>You seem to have lost your way.</p>
-          <p>Might we recommend going back on your browser or visiting the <a href="/">home page?</a></p>
-          <div className="gopher-container">
-            <img src={gopher} alt="" />
-            <p>Need assistance? <a href="https://github.com/fleetdm/fleet/issues">File an issue</a>.</p>
-          </div>
+          <h1>404: Oops, sorry we can&apos;t find that page!</h1>
+          <p>The page you are looking for has either moved, or doesn&apos;t exist.</p>
+          <a href="https://fleetdm.com/support">Get help</a>
         </main>
       </div>
     );

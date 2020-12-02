@@ -1,4 +1,3 @@
-import expect, { spyOn, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 
 import ConnectedApp from './App';
@@ -19,18 +18,17 @@ describe('App - component', () => {
   );
 
   afterEach(() => {
-    restoreSpies();
     local.setItem('auth_token', null);
   });
 
   it('renders', () => {
-    expect(component).toExist();
+    expect(component).toBeTruthy();
   });
 
   it('loads the current user if there is an auth token but no user', () => {
     local.setItem('auth_token', 'ABC123');
 
-    const spy = spyOn(authActions, 'fetchCurrentUser').andCall(() => {
+    const spy = jest.spyOn(authActions, 'fetchCurrentUser').mockImplementation(() => {
       return (dispatch) => {
         dispatch({ type: 'LOAD_USER_ACTION' });
         return Promise.resolve();
@@ -45,7 +43,7 @@ describe('App - component', () => {
   it('does not load the current user if is it already loaded', () => {
     local.setItem('auth_token', 'ABC123');
 
-    const spy = spyOn(authActions, 'fetchCurrentUser').andCall(() => {
+    const spy = jest.spyOn(authActions, 'fetchCurrentUser').mockImplementation(() => {
       return { type: 'LOAD_USER_ACTION' };
     });
     const storeWithUser = {
@@ -62,18 +60,18 @@ describe('App - component', () => {
     const application = connectedComponent(ConnectedApp, { mockStore: mockStoreWithUser });
 
     mount(application);
-    expect(spy).toNotHaveBeenCalled();
+    expect(spy).not.toHaveBeenCalled();
   });
 
   it('does not load the current user if there is no auth token', () => {
-    local.setItem('auth_token', null);
+    local.clear();
 
-    const spy = spyOn(authActions, 'fetchCurrentUser').andCall(() => {
-      return { type: 'LOAD_USER_ACTION' };
+    const spy = jest.spyOn(authActions, 'fetchCurrentUser').mockImplementation(() => {
+      throw new Error('should not have been called');
     });
     const application = connectedComponent(ConnectedApp, { mockStore });
 
     mount(application);
-    expect(spy).toNotHaveBeenCalled();
+    expect(spy).not.toHaveBeenCalled();
   });
 });

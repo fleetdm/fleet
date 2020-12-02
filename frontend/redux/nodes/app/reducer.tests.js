@@ -1,5 +1,3 @@
-import expect from 'expect';
-
 import reducer, { initialState } from './reducer';
 import {
   loadConfig,
@@ -18,7 +16,7 @@ describe('App - reducer', () => {
     expect(reducer(undefined, { type: 'SOME_ACTION' })).toEqual(initialState);
   });
 
-  context('toggleSmallNav action', () => {
+  describe('toggleSmallNav action', () => {
     it('toggles isSmallNav on', () => {
       expect(reducer(initialState, toggleSmallNav)).toEqual({
         ...initialState,
@@ -39,7 +37,7 @@ describe('App - reducer', () => {
     });
   });
 
-  context('showBackgroundImage action', () => {
+  describe('showBackgroundImage action', () => {
     it('shows the background image', () => {
       expect(reducer(initialState, showBackgroundImage)).toEqual({
         ...initialState,
@@ -48,7 +46,7 @@ describe('App - reducer', () => {
     });
   });
 
-  context('hideBackgroundImage action', () => {
+  describe('hideBackgroundImage action', () => {
     it('hides the background image', () => {
       const state = {
         ...initialState,
@@ -61,7 +59,7 @@ describe('App - reducer', () => {
     });
   });
 
-  context('loadConfig action', () => {
+  describe('loadConfig action', () => {
     it('sets the state to loading', () => {
       expect(reducer(initialState, loadConfig)).toEqual({
         ...initialState,
@@ -70,7 +68,7 @@ describe('App - reducer', () => {
     });
   });
 
-  context('configSuccess action', () => {
+  describe('configSuccess action', () => {
     it('sets the config in state', () => {
       const config = { name: 'Kolide' };
       const loadingConfigState = {
@@ -88,7 +86,7 @@ describe('App - reducer', () => {
     });
   });
 
-  context('configFailure action', () => {
+  describe('configFailure action', () => {
     it('sets the error in state', () => {
       const error = 'Unable to get config';
       const loadingConfigState = {
@@ -106,7 +104,7 @@ describe('App - reducer', () => {
     });
   });
 
-  context('loadEnrollSecret action', () => {
+  describe('loadEnrollSecret action', () => {
     it('sets the state to loading', () => {
       expect(reducer(initialState, loadEnrollSecret)).toEqual({
         ...initialState,
@@ -115,7 +113,7 @@ describe('App - reducer', () => {
     });
   });
 
-  context('enrollSecretSuccess action', () => {
+  describe('enrollSecretSuccess action', () => {
     it('sets the enrollSecret in state', () => {
       const enrollSecret = [{ name: 'Kolide' }];
       const loadingEnrollSecretState = {
@@ -133,7 +131,7 @@ describe('App - reducer', () => {
     });
   });
 
-  context('enrollSecretFailure action', () => {
+  describe('enrollSecretFailure action', () => {
     it('sets the error in state', () => {
       const error = 'Unable to get enrollSecret';
       const loadingEnrollSecretState = {

@@ -12,18 +12,18 @@
   border-radius: 2px;
 
   &--invited {
-    border: 1px dashed $brand;
+    border: 1px dashed $core-blue;
   }
 
   &--disabled {
-    background-color: $bg-medium;
+    background-color: $core-light-blue-grey;
   }
 
   &__header {
     transition: color 300ms ease-in-out, background-color 300ms ease-in-out;
-    background-color: $bg-light;
-    border-bottom: 1px solid $accent-light;
-    color: $text-ultradark;
+    background-color: $core-light-blue-grey;
+    border-bottom: 1px solid $ui-borders;
+    color: $core-black;
     height: 51px;
     margin-bottom: $pad-xsmall;
     text-align: center;
@@ -31,13 +31,13 @@
     border-radius: 2px 2px 0 0;
 
     &--admin {
-      background-color: $brand;
+      background-color: $core-blue;
       color: $white;
     }
 
     &--user {
       background-color: $white;
-      color: $text-ultradark;
+      color: $core-black;
     }
 
     &--invited {
@@ -46,8 +46,8 @@
     }
 
     &--disabled {
-      background-color: $text-light;
-      color: $text-ultradark;
+      background-color: $core-medium-blue-grey;
+      color: $core-black;
     }
   }
 
@@ -57,8 +57,8 @@
     padding: 0;
     text-transform: uppercase;
     letter-spacing: 1px;
-    font-weight: $light;
-    font-size: $base;
+    font-weight: $regular;
+    font-size: $medium;
   }
 
   &__details {
@@ -74,19 +74,19 @@
   &__avatar {
     @include size(100px);
     transition: border 300ms ease-in-out;
-    border: 1px solid $text-medium;
+    border: 1px solid $core-dark-blue-grey;
     filter: none;
     display: block;
     margin: 0 auto;
 
     &--enabled {
-      border: 1px solid $brand;
+      border: 1px solid $core-blue;
     }
   }
 
   &__status-wrapper {
-    border-top: 1px solid $border-medium;
-    border-bottom: 1px solid $border-medium;
+    border-top: 1px solid $ui-borders;
+    border-bottom: 1px solid $ui-borders;
     margin-top: $pad-xsmall;
     padding: $pad-xsmall 0;
   }
@@ -104,12 +104,12 @@
     transition: color 300ms ease-in-out;
     float: right;
     text-transform: uppercase;
-    font-weight: $light;
+    font-weight: $regular;
     font-size: $medium;
     letter-spacing: 1px;
 
     &--invited {
-      color: $brand;
+      color: $core-blue;
     }
 
     &--enabled {
@@ -117,21 +117,21 @@
     }
 
     &--disabled {
-      color: $text-medium;
+      color: $core-dark-blue-grey;
     }
   }
 
   &__username {
     transition: color 300ms ease-in-out;
-    color: $text-medium;
+    color: $core-dark-blue-grey;
     font-size: $medium;
     text-transform: uppercase;
-    line-height: $larger;
+    line-height: $x-large;
     margin: 0;
     letter-spacing: 1px;
 
     &--enabled {
-      color: $brand;
+      color: $core-blue;
     }
 
     &--hidden {
@@ -142,11 +142,11 @@
   &__position {
     @include ellipsis;
     font-size: $small;
-    line-height: $larger;
+    line-height: $x-large;
     margin: 0;
     letter-spacing: 0.5px;
-    color: $text-ultradark;
-    font-weight: $light;
+    color: $core-black;
+    font-weight: $regular;
 
     &--hidden {
       display: none;
@@ -155,21 +155,21 @@
 
   &__email {
     transition: color 300ms ease-in-out;
-    color: $link;
+    color: $core-purple;
     font-size: $small;
-    line-height: $larger;
+    line-height: $x-large;
     margin: 0;
 
     &--disabled {
-      color: $text-medium;
+      color: $core-dark-blue-grey;
     }
   }
 
   &__last-seen {
-    font-size: $mini;
-    line-height: $larger;
+    font-size: $x-small;
+    line-height: $x-large;
     margin: 0;
-    color: $text-medium;
+    color: $core-dark-blue-grey;
   }
 }
 

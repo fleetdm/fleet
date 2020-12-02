@@ -1,5 +1,3 @@
-import expect, { restoreSpies, spyOn } from 'expect';
-
 import Kolide from 'kolide';
 
 import { reduxMockStore } from 'test/helpers';
@@ -23,12 +21,10 @@ describe('Users - actions', () => {
   describe('enableUser', () => {
     describe('successful request', () => {
       beforeEach(() => {
-        spyOn(Kolide.users, 'enable').andCall(() => {
+        jest.spyOn(Kolide.users, 'enable').mockImplementation(() => {
           return Promise.resolve({ ...user, enabled: true });
         });
       });
-
-      afterEach(restoreSpies);
 
       it('calls the API', () => {
         const mockStore = reduxMockStore(store);
@@ -75,12 +71,10 @@ describe('Users - actions', () => {
         },
       };
       beforeEach(() => {
-        spyOn(Kolide.users, 'enable').andCall(() => {
+        jest.spyOn(Kolide.users, 'enable').mockImplementation(() => {
           return Promise.reject(errorResponse);
         });
       });
-
-      afterEach(restoreSpies);
 
       it('calls the API', (done) => {
         const mockStore = reduxMockStore(store);
@@ -118,12 +112,10 @@ describe('Users - actions', () => {
 
     describe('successful request', () => {
       beforeEach(() => {
-        spyOn(Kolide.users, 'changePassword').andCall(() => {
+        jest.spyOn(Kolide.users, 'changePassword').mockImplementation(() => {
           return Promise.resolve({});
         });
       });
-
-      afterEach(restoreSpies);
 
       it('calls the API', (done) => {
         const mockStore = reduxMockStore(store);
@@ -173,12 +165,10 @@ describe('Users - actions', () => {
         },
       };
       beforeEach(() => {
-        spyOn(Kolide.users, 'changePassword').andCall(() => {
+        jest.spyOn(Kolide.users, 'changePassword').mockImplementation(() => {
           return Promise.reject(errorResponse);
         });
       });
-
-      afterEach(restoreSpies);
 
       it('calls the API', (done) => {
         const mockStore = reduxMockStore(store);
@@ -217,12 +207,10 @@ describe('Users - actions', () => {
 
     describe('successful request', () => {
       beforeEach(() => {
-        spyOn(Kolide.users, 'confirmEmailChange').andCall(() => {
+        jest.spyOn(Kolide.users, 'confirmEmailChange').mockImplementation(() => {
           return Promise.resolve(updatedUser);
         });
       });
-
-      afterEach(restoreSpies);
 
       it('calls the API', (done) => {
         const mockStore = reduxMockStore(store);
@@ -273,15 +261,13 @@ describe('Users - actions', () => {
         },
       };
       beforeEach(() => {
-        spyOn(Kolide.users, 'confirmEmailChange').andCall(() => {
+        jest.spyOn(Kolide.users, 'confirmEmailChange').mockImplementation(() => {
           return Promise.reject(errorResponse);
         });
-        spyOn(Kolide.sessions, 'destroy').andCall(() => {
+        jest.spyOn(Kolide.sessions, 'destroy').mockImplementation(() => {
           return Promise.resolve({});
         });
       });
-
-      afterEach(restoreSpies);
 
       it('calls the API', (done) => {
         const mockStore = reduxMockStore(store);
@@ -325,12 +311,10 @@ describe('Users - actions', () => {
   describe('updateAdmin', () => {
     describe('successful request', () => {
       beforeEach(() => {
-        spyOn(Kolide.users, 'updateAdmin').andCall(() => {
+        jest.spyOn(Kolide.users, 'updateAdmin').mockImplementation(() => {
           return Promise.resolve({ ...user, admin: true });
         });
       });
-
-      afterEach(restoreSpies);
 
       it('calls the API', (done) => {
         const mockStore = reduxMockStore(store);
@@ -379,12 +363,10 @@ describe('Users - actions', () => {
         },
       };
       beforeEach(() => {
-        spyOn(Kolide.users, 'updateAdmin').andCall(() => {
+        jest.spyOn(Kolide.users, 'updateAdmin').mockImplementation(() => {
           return Promise.reject(errorResponse);
         });
       });
-
-      afterEach(restoreSpies);
 
       it('calls the API', (done) => {
         const mockStore = reduxMockStore(store);
@@ -419,12 +401,10 @@ describe('Users - actions', () => {
   describe('dispatching the require password reset action', () => {
     describe('successful request', () => {
       beforeEach(() => {
-        spyOn(Kolide.users, 'requirePasswordReset').andCall(() => {
+        jest.spyOn(Kolide.users, 'requirePasswordReset').mockImplementation(() => {
           return Promise.resolve({ ...user, force_password_reset: true });
         });
       });
-
-      afterEach(restoreSpies);
 
       it('calls the resetFunc', () => {
         const mockStore = reduxMockStore(store);
@@ -468,12 +448,10 @@ describe('Users - actions', () => {
       };
 
       beforeEach(() => {
-        spyOn(Kolide.users, 'requirePasswordReset').andCall(() => {
+        jest.spyOn(Kolide.users, 'requirePasswordReset').mockImplementation(() => {
           return Promise.reject(errorResponse);
         });
       });
-
-      afterEach(restoreSpies);
 
       it('calls the resetFunc', () => {
         const mockStore = reduxMockStore(store);

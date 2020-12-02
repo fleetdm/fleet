@@ -1,12 +1,12 @@
 # Adding Hosts To Fleet
 
-Kolide Fleet is powered by the open source osquery tool. To connect a host to Kolide Fleet, you have two general options. You can install the osquery binaries on your hosts via the packages distributed at https://osquery.io/downloads or you can use the [Kolide Osquery Launcher](https://github.com/kolide/launcher). The Launcher is a light wrapper that aims to make running and deploying osquery easier by adding a few features and minimizing the configuration interface. Some features of The Launcher are:
+Fleet is powered by the open source osquery tool. To connect a host to Fleet, you have two general options. You can install the osquery binaries on your hosts via the packages distributed at https://osquery.io/downloads or you can use the [Kolide Osquery Launcher](https://github.com/kolide/launcher). The Launcher is a light wrapper that aims to make running and deploying osquery easier by adding a few features and minimizing the configuration interface. Some features of The Launcher are:
 
 - Secure autoupdates to the latest stable osqueryd
 - Remote communication via a strongly-typed, versioned, modern gRPC server API
 - a curated `kolide_best_practices` table which includes a curated set of standards for the modern enterprise
 
-The Launcher also contains robust tooling to help you generate packages for your environment that are designed to work together with Kolide Fleet. For specific documentation on using Launcher with Fleet, see the section below called "Kolide Osquery Launcher".
+The Launcher also contains robust tooling to help you generate packages for your environment that are designed to work together with Fleet. For specific documentation on using Launcher with Fleet, see the section below called "Kolide Osquery Launcher".
 
 If you'd like to use the native osqueryd binaries to connect to Fleet, this is enabled by using osquery's TLS API plugins that are principally documented on the official osquery wiki: http://osquery.readthedocs.io/en/stable/deployment/remote/. These plugins are very customizable and thus have a large configuration surface. Configuring osqueryd to communicate with Fleet is documented below in the "Native Osquery TLS Plugins" section.
 
@@ -41,10 +41,10 @@ If you're running Fleet locally, include `--insecure` because your TLS certifica
 ```
 mkdir .osquery
 ./build/launcher \
-  --hostname=localhost:8412 \
-  --root_directory=.osquery \
-  --enroll_secret=32IeN3QLgckHUmMD3iW40kyLdNJcGzP5
-  --insecure
+    --hostname=localhost:8412 \
+    --root_directory=.osquery \
+    --enroll_secret=32IeN3QLgckHUmMD3iW40kyLdNJcGzP5
+    --insecure
 ```
 
 #### Generating packages
@@ -52,8 +52,8 @@ mkdir .osquery
 The Launcher also provides easy, robust tooling for creating packages that you can distribute across your fleet:
 
 ```
-$ make package-builder
-$ ./build/package-builder make \
+make package-builder
+./build/package-builder make \
   --hostname=fleet.acme.net:443 \
   --enroll_secret=32IeN3QLgckHUmMD3iW40kyLdNJcGzP5
 ```

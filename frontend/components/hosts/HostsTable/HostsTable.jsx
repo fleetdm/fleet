@@ -4,11 +4,10 @@ import classnames from 'classnames';
 
 import Button from 'components/buttons/Button';
 import Icon from 'components/icons/Icon';
-import PlatformIcon from 'components/icons/PlatformIcon';
 import hostInterface from 'interfaces/host';
 import iconClassForLabel from 'utilities/icon_class_for_label';
 
-import { humanLastSeen } from '../HostDetails/helpers';
+import { humanMemory, humanUptime, humanLastSeen } from './helpers';
 
 const baseClass = 'hosts-table';
 
@@ -67,13 +66,13 @@ class HostsTable extends Component {
         <td className={statusClassName}>
           <Icon name={iconClassForLabel(host.status)} />
         </td>
-        <td>
-          <PlatformIcon name={host.platform} title={host.os_version} />{' '}
-          {host.os_version}
-        </td>
+        <td>{host.os_version}</td>
         <td>{host.osquery_version}</td>
         <td>{host.primary_ip}</td>
         <td>{host.primary_mac}</td>
+        <td>{host.host_cpu}</td>
+        <td>{humanMemory(host.memory)}</td>
+        <td>{humanUptime(host.uptime)}</td>
         <td>
           <ActionButton
             host={host}
@@ -100,6 +99,9 @@ class HostsTable extends Component {
               <th>Osquery</th>
               <th>IPv4</th>
               <th>Physical Address</th>
+              <th>CPU</th>
+              <th>Memory</th>
+              <th>Uptime</th>
               <th />
             </tr>
           </thead>

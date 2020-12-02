@@ -70,7 +70,7 @@ We will use this address when we configure the Kubernetes deployment, but if you
 
 > ### A note on container versions
 >
-> The Kubernetes files referenced by this tutorial use the Kolide Fleet container tagged at `1.0.5`. The tag is something that should be consistent across the migration job and the deployment specification. If you use these files, I suggest creating a workflow that allows you templatize the value of this tag. For further reading on this topic, see the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/overview/#container-images).
+> The Kubernetes files referenced by this tutorial use the Fleet container tagged at `1.0.5`. The tag is something that should be consistent across the migration job and the deployment specification. If you use these files, I suggest creating a workflow that allows you templatize the value of this tag. For further reading on this topic, see the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/overview/#container-images).
 
 ### Create Server Secrets
 
@@ -121,7 +121,7 @@ kubectl apply -f ./examples/kubernetes/fleet-deployment.yml
 You should be able to get an instance of the webserver running via `kubectl get pods` and you should see the following logs:
 
 ```
-$ kubectl logs fleet-webserver-9bb45dd66-zxnbq
+kubectl logs fleet-webserver-9bb45dd66-zxnbq
 ts=2017-11-16T02:48:38.440578433Z component=service method=ListUsers user=none err=null took=2.350435ms
 ts=2017-11-16T02:48:38.441148166Z transport=https address=0.0.0.0:443 msg=listening
 ```

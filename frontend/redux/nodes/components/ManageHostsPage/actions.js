@@ -7,7 +7,6 @@ import labelActions from 'redux/nodes/entities/labels/actions';
 export const GET_STATUS_LABEL_COUNTS_FAILURE = 'GET_STATUS_LABEL_COUNTS_FAILURE';
 export const GET_STATUS_LABEL_COUNTS_SUCCESS = 'GET_STATUS_LABEL_COUNTS_SUCCESS';
 export const LOAD_STATUS_LABEL_COUNTS = 'LOAD_STATUS_LABEL_COUNTS';
-export const SET_DISPLAY = 'SET_DISPLAY';
 export const SET_PAGINATION = 'SET_PAGINATION';
 
 // Actions
@@ -80,13 +79,4 @@ export const setPagination = (page, perPage, selectedLabel) => (dispatch) => {
   Promise.all(promises).then(dispatch(setPaginationSuccess(page, perPage, selectedLabel)));
 };
 
-export const setDisplay = (display) => {
-  return {
-    type: SET_DISPLAY,
-    payload: {
-      display,
-    },
-  };
-};
-
-export default { getStatusLabelCounts, setDisplay, setPagination, silentGetStatusLabelCounts };
+export default { getStatusLabelCounts, setPagination, silentGetStatusLabelCounts };

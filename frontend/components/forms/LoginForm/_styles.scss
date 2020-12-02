@@ -22,19 +22,19 @@
     padding: 30px;
     width: 460px;
     min-height: 350px;
-    font-weight: $light;
+    font-weight: $regular;
   }
 
   &__submit-btn {
     border-radius: 2px;
-    padding: $base;
+    padding: $pad-base;
     width: 460px;
   }
 
   &__sso-btn {
     border-top-left-radius: 0;
     border-top-right-radius: 0;
-    padding: $base;
+    padding: $pad-base;
     width: 460px;
     height: 72px;
   }
@@ -49,7 +49,7 @@
     font-size: $medium;
     letter-spacing: 1px;
     text-decoration: none;
-    color: $accent-text;
+    color: $core-medium-blue-grey;
   }
 
   &__sso-image {

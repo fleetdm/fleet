@@ -1,5 +1,4 @@
 import React from 'react';
-import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 
 import { stubbedOsqueryTable } from 'test/helpers';
@@ -7,10 +6,8 @@ import { stubbedOsqueryTable } from 'test/helpers';
 import QuerySidePanel from './QuerySidePanel';
 
 describe('QuerySidePanel - component', () => {
-  afterEach(restoreSpies);
-
-  const onOsqueryTableSelect = createSpy();
-  const onTextEditorInputChange = createSpy();
+  const onOsqueryTableSelect = jest.fn();
+  const onTextEditorInputChange = jest.fn();
   const props = {
     onOsqueryTableSelect,
     onTextEditorInputChange,
@@ -24,10 +21,13 @@ describe('QuerySidePanel - component', () => {
     expect(tableSelect.prop('value')).toEqual('users');
   });
 
-  it('calls the onOsqueryTableSelect prop when a new table is selected in the dropdown', () => {
-    const component = mount(<QuerySidePanel {...props} />);
-    component.instance().onSelectTable('groups');
+  it(
+    'calls the onOsqueryTableSelect prop when a new table is selected in the dropdown',
+    () => {
+      const component = mount(<QuerySidePanel {...props} />);
+      component.instance().onSelectTable('groups');
 
-    expect(onOsqueryTableSelect).toHaveBeenCalledWith('groups');
-  });
+      expect(onOsqueryTableSelect).toHaveBeenCalledWith('groups');
+    },
+  );
 });

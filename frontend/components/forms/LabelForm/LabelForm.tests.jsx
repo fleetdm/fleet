@@ -1,5 +1,4 @@
 import React from 'react';
-import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
@@ -11,8 +10,6 @@ import {
 } from 'test/helpers';
 
 describe('LabelForm - form', () => {
-  afterEach(restoreSpies);
-
   const defaultProps = {
     handleSubmit: noop,
     isEdit: false,
@@ -43,7 +40,7 @@ describe('LabelForm - form', () => {
 
   describe('submitting the form', () => {
     it('validates the name field', () => {
-      const spy = createSpy();
+      const spy = jest.fn();
       const props = { ...defaultProps, handleSubmit: spy };
       const form = mount(<LabelForm {...props} />);
       const htmlForm = form.find('form');
@@ -51,14 +48,14 @@ describe('LabelForm - form', () => {
 
       htmlForm.simulate('submit');
 
-      expect(spy).toNotHaveBeenCalled();
-      expect(form.state('errors')).toInclude({
+      expect(spy).not.toHaveBeenCalled();
+      expect(form.state('errors')).toMatchObject({
         name: 'Label title must be present',
       });
     });
 
     it('submits the form when valid', () => {
-      const spy = createSpy();
+      const spy = jest.fn();
       const props = { ...defaultProps, handleSubmit: spy, formData: { query: 'select * from users' } };
       const form = mount(<LabelForm {...props} />);
       const nameField = form.find({ name: 'name' }).find('input');

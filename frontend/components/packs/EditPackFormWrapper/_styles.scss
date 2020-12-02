@@ -7,15 +7,15 @@
     @include ellipsis(80%);
 
     .kolidecon {
-      color: $accent-dark;
+      color: $ui-medium-grey;
     }
   }
 
   &__description {
     font-size: 15px;
-    font-weight: $normal;
+    font-weight: $regular;
     line-height: 2;
-    color: $text-medium;
+    color: $core-dark-blue-grey;
     max-width: 800px;
     word-wrap: break-word;
   }

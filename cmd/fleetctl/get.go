@@ -3,12 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
-	"io"
 
-	"github.com/ghodss/yaml"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/ghodss/yaml"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
@@ -19,7 +19,6 @@ const (
 	jsonFlagName        = "json"
 	withQueriesFlagName = "with-queries"
 	expiredFlagName     = "expired"
-	outfileFlagName     = "outfile"
 	stdoutFlagName      = "stdout"
 )
 
@@ -652,8 +651,8 @@ func getHostsCommand() cli.Command {
 
 func getCarvesCommand() cli.Command {
 	return cli.Command{
-		Name:    "carves",
-		Usage:   "Retrieve the file carving sessions",
+		Name:  "carves",
+		Usage: "Retrieve the file carving sessions",
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
@@ -709,21 +708,17 @@ func getCarvesCommand() cli.Command {
 	}
 }
 
-
 func getCarveCommand() cli.Command {
 	return cli.Command{
-		Name:    "carve",
-		Usage:   "Retrieve details for a carve by ID",
+		Name:  "carve",
+		Usage: "Retrieve details for a carve by ID",
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
+			outfileFlag(),
 			cli.BoolFlag{
 				Name:  stdoutFlagName,
 				Usage: "Print carve contents to stdout",
-			},
-			cli.StringFlag{
-				Name:  outfileFlagName,
-				Usage: "Download carve contents to specified file path",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -743,7 +738,7 @@ func getCarveCommand() cli.Command {
 				return errors.Wrap(err, "unable to parse carve ID as int")
 			}
 
-			outFile := c.String(outfileFlagName)
+			outFile := getOutfile(c)
 			stdout := c.Bool(stdoutFlagName)
 
 			if stdout && outFile != "" {
@@ -753,7 +748,7 @@ func getCarveCommand() cli.Command {
 			if stdout || outFile != "" {
 				out := os.Stdout
 				if outFile != "" {
-					f, err := os.OpenFile(outFile, os.O_CREATE|os.O_WRONLY, 0666)
+					f, err := os.OpenFile(outFile, os.O_CREATE|os.O_WRONLY, defaultFileMode)
 					if err != nil {
 						return errors.Wrap(err, "open out file")
 					}
@@ -786,4 +781,3 @@ func getCarveCommand() cli.Command {
 		},
 	}
 }
-

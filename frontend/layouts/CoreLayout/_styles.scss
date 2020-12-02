@@ -1,13 +1,13 @@
 .app-wrap {
   display: flex;
-  min-height: calc(100vh - #{$footer-height});
+  min-height: 100vh;
 }
 
 .core-wrapper {
   flex-grow: 1;
   margin: 0;
   padding: 0 0 0 $pad-base;
-  max-width: calc(100% - 258px);
+  max-width: calc(100% - 217px);
   position: relative;
 
   &--small {
@@ -20,10 +20,17 @@
 }
 
 .site-nav {
-  background-color: #f4f7fb;
-  border-right: 1px solid $border-medium;
+  background: $core-gradient;
   box-sizing: border-box;
   width: $nav-width;
+  display: flex;
+  flex-direction: column;
+  position: -webkit-sticky;
+  position: sticky; // sass-lint:disable-line no-duplicate-properties
+  top: 0;
+  left: 0;
+  z-index: 100;
+  max-height: 100vh;
 
   &--small {
     padding-left: 0;

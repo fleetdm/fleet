@@ -1,3 +1,27 @@
+## Fleet 3.4.0 (Nov 18, 2020)
+
+* Add NPM installer for `fleetctl`. Install via `npm install -g osquery-fleetctl`.
+
+* Add `fleetctl preview` command to start a local test instance of the Fleet server with Docker.
+
+* Add `fleetctl debug` commands and API endpoints for debugging server performance.
+
+* Add additional_info_filters parameter to get hosts API endpoint for filtering returned additional_info.
+
+* Updated package import paths from github.com/kolide/fleet to github.com/fleetdm/fleet.
+
+* Add first of the Fleet REST API documentation.
+
+* Add documentation on monitoring with Prometheus.
+
+* Add documentation to FAQ for debugging database connection errors.
+
+* Fix fleetctl Windows compatibility issues.
+
+* Fix a bug preventing usernames from containing the @ symbol.
+
+* Fix a bug in 3.3.0 in which there was an unexpected database migration warning.
+
 ## Fleet 3.3.0 (Nov 05, 2020)
 
 With this release, Fleet has moved to the new github.com/fleetdm/fleet
@@ -331,7 +355,7 @@ spec:
 
 ### Upgrade Plan
 
-* Managing osquery options via the UI has been removed in favor of the more flexible solution provided by the CLI. If you have customized your osquery options with Fleet, there is [a database migration](server/datastore/mysql/migrations/data/20171212182458_MigrateOsqueryOptions.go) which will port your existing data into the new format when you run `fleet prepare db`. To download your osquery options after migrating your database, run `fleetctl get options > options.yaml`. Further modifications to your options should occur in this file and it should be applied with `fleetctl apply -f ./options.yaml`.
+* Managing osquery options via the UI has been removed in favor of the more flexible solution provided by the CLI. If you have customized your osquery options with Fleet, there is [a database migration](./server/datastore/mysql/migrations/data/20171212182458_MigrateOsqueryOptions.go) which will port your existing data into the new format when you run `fleet prepare db`. To download your osquery options after migrating your database, run `fleetctl get options > options.yaml`. Further modifications to your options should occur in this file and it should be applied with `fleetctl apply -f ./options.yaml`.
 
 ## Kolide Fleet 1.0.8 (May 3, 2018)
 

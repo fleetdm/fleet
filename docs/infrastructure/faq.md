@@ -60,11 +60,25 @@ This error usually indicates that the Fleet server has run out of file descripto
 
 This could be caused by a mismatched connection limit between the Fleet server and the MySQL server that prevents Fleet from fully utilizing the database. First [determine how many open connections your MySQL server supports](https://dev.mysql.com/doc/refman/8.0/en/too-many-connections.html). Now set the [`--mysql_max_open_conns`](./configuring-the-fleet-binary.md#mysql_max_open_conns) and [`--mysql_max_idle_conns`](./configuring-the-fleet-binary.md#mysql_max_idle_conns) flags appropriately.
 
+## Why am I receiving a database connection error when attempting to "prepare" the database?
+
+First, check if you have a version of MySQL installed that is at least 5.7. Then, make sure that you currently have a MySQL server running.
+
+The next step is to make sure the credentials for the database match what is expected. Test your ability to connect to the database with `mysql -u<username> -h<hostname_or_ip> -P<port> -D<database_name> -p`.
+
+If you're successful connecting to the database and still receive a database connection error, you may need to specify your database credentials when running `fleet prepare db`. It's encouraged to put your database credentials in environment variables or a config file.
+
+```
+fleet prepare db \
+    --mysql_address=<database_address> \
+    --mysql_database=<database_name> \
+    --mysql_username=<username> \
+    --mysql_password=<database_password>
+```
+
 ## How do I monitor a Fleet server?
 
-Fleet provides a `/healthz` endpoint. If you query it with `curl` it will return an HTTP Status code. `200 OK` means everything is alright. `500 Internal Server Error` means Fleet is having trouble communicating with MySQL or Redis. Check the Fleet logs for additional details.
-
-The `/metrics` endpoint exposes data ready to be ingested by Prometheus.
+Fleet provides standard interfaces for monitoring and alerting. See the [Monitoring & Alerting](./monitoring-alerting.md) documentation for details.
 
 ## Why is the "Add User" button disabled?
 
@@ -74,7 +88,15 @@ One way to hack around this is to use a simulated mailserver like [Mailhog](http
 
 ## Is Fleet available as a SaaS product?
 
-Kolide does not host a SaaS version of Fleet. We offer [Kolide Cloud](https://kolide.com) which is a separate product providing the capabilities of Fleet along with alerting and insights, all hosted in a secure SaaS platform.
+No. Currently, Fleet is only available as open-source software.
+
+## Has anyone stress tested Fleet?
+
+Fleet has been stress tested to 150,000 online hosts and 400,000 total enrolled hosts. There are numerous production deployments in the thousands in the tens of thousands of hosts range, and there are production deployments in the high tens of thousands of hosts range.
+
+## How often do labels refresh? Is the refresh frequency configurable?
+
+The update frequency for labels is configurable with the [--osquery_label_update_interval](https://github.com/fleetdm/fleet/blob/master/docs/infrastructure/configuring-the-fleet-binary.md#osquery_label_update_interval) flag (default 1 hour).
 
 ## How do I get support for working with Fleet?
 

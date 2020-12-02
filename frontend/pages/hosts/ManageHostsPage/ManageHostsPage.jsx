@@ -4,7 +4,6 @@ import AceEditor from 'react-ace';
 import { connect } from 'react-redux';
 import { push } from 'react-router-redux';
 import { sortBy } from 'lodash';
-import classNames from 'classnames';
 
 import AddHostModal from 'components/hosts/AddHostModal';
 import Button from 'components/buttons/Button';
@@ -12,10 +11,8 @@ import configInterface from 'interfaces/config';
 import HostContainer from 'components/hosts/HostContainer';
 import HostPagination from 'components/hosts/HostPagination';
 import HostSidePanel from 'components/side_panels/HostSidePanel';
-import Icon from 'components/icons/Icon';
 import LabelForm from 'components/forms/LabelForm';
 import Modal from 'components/modals/Modal';
-import PlatformIcon from 'components/icons/PlatformIcon';
 import QuerySidePanel from 'components/side_panels/QuerySidePanel';
 import labelInterface from 'interfaces/label';
 import hostInterface from 'interfaces/host';
@@ -25,7 +22,6 @@ import enrollSecretInterface from 'interfaces/enroll_secret';
 import { selectOsqueryTable } from 'redux/nodes/components/QueryPages/actions';
 import {
   getStatusLabelCounts,
-  setDisplay,
   setPagination,
 } from 'redux/nodes/components/ManageHostsPage/actions';
 import hostActions from 'redux/nodes/entities/hosts/actions';
@@ -34,8 +30,6 @@ import { renderFlash } from 'redux/nodes/notifications/actions';
 import entityGetter from 'redux/utilities/entityGetter';
 import PATHS from 'router/paths';
 import deepDifference from 'utilities/deep_difference';
-import iconClassForLabel from 'utilities/icon_class_for_label';
-import platformIconClass from 'utilities/platform_icon_class';
 import scrollToTop from 'utilities/scroll_to_top';
 import helpers from './helpers';
 
@@ -46,7 +40,6 @@ export class ManageHostsPage extends PureComponent {
   static propTypes = {
     config: configInterface,
     dispatch: PropTypes.func,
-    display: PropTypes.oneOf(['Grid', 'List']),
     hosts: PropTypes.arrayOf(hostInterface),
     isAddLabel: PropTypes.bool,
     labelErrors: PropTypes.shape({
@@ -65,7 +58,6 @@ export class ManageHostsPage extends PureComponent {
   };
 
   static defaultProps = {
-    display: 'Grid',
     page: 1,
     perPage: 100,
     loadingHosts: false,
@@ -199,16 +191,6 @@ export class ManageHostsPage extends PureComponent {
 
         return false;
       });
-  }
-
-  onToggleDisplay = (event) => {
-    event.preventDefault();
-    const { dispatch } = this.props;
-    const value = event.currentTarget.dataset.value;
-
-    dispatch(setDisplay(value));
-
-    return false;
   }
 
   onDeleteLabel = () => {
@@ -378,16 +360,6 @@ export class ManageHostsPage extends PureComponent {
     );
   }
 
-  renderIcon = () => {
-    const { selectedLabel } = this.props;
-
-    if (platformIconClass(selectedLabel.display_text)) {
-      return <PlatformIcon name={platformIconClass(selectedLabel.display_text)} title={platformIconClass(selectedLabel.display_text)} />;
-    }
-
-    return <Icon name={iconClassForLabel(selectedLabel)} />;
-  }
-
   renderQuery = () => {
     const { selectedLabel } = this.props;
     const { slug, label_type: labelType, label_membership_type: membershipType, query } = selectedLabel;
@@ -422,51 +394,32 @@ export class ManageHostsPage extends PureComponent {
   }
 
   renderHeader = () => {
-    const { renderIcon, renderQuery, renderDeleteButton } = this;
-    const { display, isAddLabel, selectedLabel, statusLabels } = this.props;
+    const { renderQuery, renderDeleteButton } = this;
+    const { isAddLabel, selectedLabel, statusLabels } = this.props;
 
     if (!selectedLabel || isAddLabel) {
       return false;
     }
 
     const { count, description, display_text: displayText, statusLabelKey, type } = selectedLabel;
-    const { onToggleDisplay } = this;
 
     const hostCount = type === 'status' ? statusLabels[`${statusLabelKey}`] : count;
-    const hostsTotalDisplay = hostCount === 1 ? '1 Host Total' : `${hostCount} Hosts Total`;
+    const hostsTotalDisplay = hostCount === 1 ? '1 host' : `${hostCount} hosts`;
     const defaultDescription = 'No description available.';
 
     return (
       <div className={`${baseClass}__header`}>
         {renderDeleteButton()}
         <h1 className={`${baseClass}__title`}>
-          {renderIcon()}
           <span>{displayText}</span>
         </h1>
-        {renderQuery()}
         <div className={`${baseClass}__description`}>
-          <h2>Description</h2>
           <p>{description || <em>{defaultDescription}</em>}</p>
         </div>
         <div className={`${baseClass}__topper`}>
           <p className={`${baseClass}__host-count`}>{hostsTotalDisplay}</p>
-          <a
-            onClick={onToggleDisplay}
-            className={classNames(`${baseClass}__toggle-view`, {
-              [`${baseClass}__toggle-view--active`]: display === 'List',
-            })}
-            data-value="List"
-          >{<svg viewBox="0 0 24 24" className="kolidecon"><path d="M9 4h11a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zm0 7h11a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-1a1 1 0 0 1 1-1zm0 7h11a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-1a1 1 0 0 1 1-1zm-4.5 3a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm0-7a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm0-7a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z" fillRule="evenodd" /></svg>}
-          </a>
-          <a
-            onClick={onToggleDisplay}
-            className={classNames(`${baseClass}__toggle-view`, {
-              [`${baseClass}__toggle-view--active`]: display === 'Grid',
-            })}
-            data-value="Grid"
-          >{<svg viewBox="0 0 24 24" className="kolidecon"><path d="M5 15v4h4v-4H5zm-1-2h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1zm11 2v4h4v-4h-4zm-1-2h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-6a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1zm1-8v4h4V5h-4zm-1-2h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM5 5v4h4V5H5zM4 3h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" fillRule="nonzero" /></svg>}
-          </a>
         </div>
+        {renderQuery()}
       </div>
     );
   }
@@ -566,7 +519,6 @@ export class ManageHostsPage extends PureComponent {
       page,
       perPage,
       hosts,
-      display,
       isAddLabel,
       loadingLabels,
       loadingHosts,
@@ -609,11 +561,10 @@ export class ManageHostsPage extends PureComponent {
         {!isAddLabel && !isEditLabel &&
           <div className={`${baseClass} body-wrap`}>
             {renderHeader()}
-            <div className={`${baseClass}__list ${baseClass}__list--${display.toLowerCase()}`}>
+            <div className={`${baseClass}__list`}>
               <HostContainer
                 hosts={sortedHosts}
                 selectedLabel={selectedLabel}
-                displayType={display}
                 loadingHosts={loadingHosts}
                 toggleAddHostModal={toggleAddHostModal}
                 toggleDeleteHostModal={toggleDeleteHostModal}
@@ -643,7 +594,7 @@ const mapStateToProps = (state, { location, params }) => {
   const activeLabelSlug = activeLabel || 'all-hosts';
   const selectedFilter = labelID ? `labels/${labelID}` : activeLabelSlug;
 
-  const { display, status_labels: statusLabels, page, perPage } = state.components.ManageHostsPage;
+  const { status_labels: statusLabels, page, perPage } = state.components.ManageHostsPage;
   const { entities: hosts } = entityGetter(state).get('hosts');
   const labelEntities = entityGetter(state).get('labels');
   const { entities: labels } = labelEntities;
@@ -662,7 +613,6 @@ const mapStateToProps = (state, { location, params }) => {
     selectedFilter,
     page,
     perPage,
-    display,
     hosts,
     isAddLabel,
     labelErrors,

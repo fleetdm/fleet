@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"strings"
 	"unicode"
 
 	"github.com/fleetdm/fleet/server/contexts/viewer"
@@ -17,10 +16,6 @@ func (mw validationMiddleware) CreateUserWithInvite(ctx context.Context, p kolid
 	} else {
 		if *p.Username == "" {
 			invalid.Append("username", "cannot be empty")
-		}
-
-		if strings.Contains(*p.Username, "@") {
-			invalid.Append("username", "'@' character not allowed in usernames")
 		}
 	}
 
@@ -68,10 +63,6 @@ func (mw validationMiddleware) CreateUser(ctx context.Context, p kolide.UserPayl
 		if *p.Username == "" {
 			invalid.Append("username", "username cannot be empty")
 		}
-
-		if strings.Contains(*p.Username, "@") {
-			invalid.Append("username", "'@' character not allowed in usernames")
-		}
 	}
 
 	// we don't need a password for single sign on
@@ -109,10 +100,6 @@ func (mw validationMiddleware) ModifyUser(ctx context.Context, userID uint, p ko
 	if p.Username != nil {
 		if *p.Username == "" {
 			invalid.Append("username", "cannot be empty")
-		}
-
-		if strings.Contains(*p.Username, "@") {
-			invalid.Append("username", "'@' character not allowed in usernames")
 		}
 	}
 

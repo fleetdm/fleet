@@ -1,5 +1,3 @@
-import expect from 'expect';
-
 import { convertSeconds } from './helpers';
 
 describe('Timer convertSeconds helper', () => {

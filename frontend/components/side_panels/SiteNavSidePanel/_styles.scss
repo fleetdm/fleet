@@ -1,33 +1,18 @@
 .site-nav-item {
   position: relative;
-  margin: 15px 0;
 
   &__icon {
     position: relative;
     font-size: $large;
-    margin-right: $pad-medium;
+    margin-right: 24px;
     vertical-align: sub;
-
-    @at-root .site-nav--small & {
-      display: block;
-      text-align: center;
-      margin-right: 0;
-      line-height: 40px;
-    }
-
-    @include breakpoint(smalldesk) {
-      display: block;
-      text-align: center;
-      margin-right: 0;
-      line-height: 40px;
-    }
   }
 
   &__name {
     text-decoration: none;
     vertical-align: middle;
-    font-weight: $normal;
-    font-size: 14px;
+    font-weight: $regular;
+    font-size: $x-small;
 
     @at-root .site-nav--small & {
       display: none;
@@ -40,94 +25,57 @@
 
   &__button {
     transition: color 200ms ease-in-out;
+    border-radius: 0;
     line-height: 40px;
     position: relative;
-    color: $text-dark;
+    color: $white;
     cursor: pointer;
-    font-size: $small;
+    font-size: $x-small;
     letter-spacing: 0.5px;
-    text-transform: uppercase;
-    padding: 0 $pad-medium;
+    padding: 4px 20px;
     text-align: left;
 
     &:hover {
-      color: $text-dark;
-    }
-
-    @at-root .site-nav--small & {
-      height: 50px;
+      background-color: $core-black;
     }
 
     @include breakpoint(smalldesk) {
-      height: 50px;
+      padding: 4px 10px;
     }
   }
 
   &--active {
     .site-nav-item__button {
-      color: $brand;
-      border-bottom: 0;
-
-      &:hover {
-        color: $brand-dark;
-      }
-
-      &::before {
-        @include position(absolute, 0 null null 0);
-        content: '';
-        width: 6px;
-        height: 55px;
-        background-color: $brand;
-        z-index: 1;
-      }
+      background-color: $core-black;
+      border-right: 3px solid $core-blue;
 
       @at-root .site-nav--small & {
-        border-bottom: 6px solid $brand;
-        border-left: 6px solid $brand;
-        padding: 0;
-        border-radius: 0;
-
-        &::before {
-          display: none;
-        }
+        border-right: 3px solid $core-blue;
+        padding: 4px 10px;
       }
 
       @include breakpoint(smalldesk) {
-        border-bottom: 6px solid $brand;
-        border-left: 6px solid $brand;
-        padding: 0;
-        border-radius: 0;
-
-        &::before {
-          display: none;
-        }
+        border-right: 3px solid $core-blue;
+        padding: 4px 10px;
       }
+    }
+
+    .site-nav-item__name {
+      font-weight: $bold;
     }
 
     .site-nav-item__icon {
       @at-root .site-nav--small & {
-        transform: translate(-2px, 3px);
+        margin-right: 0;
       }
 
       @include breakpoint(smalldesk) {
-        transform: translate(-2px, 3px);
-      }
-    }
-
-
-
-    &.site-nav-item--single {
-      .site-nav-item__button {
-        &::before {
-          height: 41px;
-        }
+        margin-right: 0;
       }
     }
   }
 
   &:last-child {
-    border-top: 1px solid $accent-light;
-    padding-top: 15px;
 
     @at-root .site-nav--small & {
       margin-right: 0;
@@ -137,6 +85,13 @@
       margin-right: 0;
     }
   }
+}
+
+.site-nav-container {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .site-nav-list {
@@ -150,11 +105,12 @@
   cursor: pointer;
   margin: 0;
   text-transform: none;
+  padding: 6px 0;
 
   &--active {
     .site-sub-item__button {
       color: $white;
-      font-size: 13px;
+      font-size: $x-small;
       font-weight: $bold;
 
       &:hover {
@@ -169,9 +125,9 @@
       border-radius: 50%;
       background-color: $white;
       position: absolute;
-      left: 45px;
+      left: -8px;
       top: 50%;
-      margin: -3px 0 0 -4px;
+      margin: -3px 0 0 -8px;
 
       @at-root .site-nav--small & {
         display: none;
@@ -186,11 +142,10 @@
   &__button {
     transition: color 150ms ease-in-out;
     color: rgba($white, 0.75);
+    font-size: $x-small;
     text-transform: none;
     cursor: pointer;
-    padding: 9px 0 9px 60px;
-    font-size: 13px;
-    font-weight: $light;
+    font-weight: $regular;
     width: 100%;
     text-align: left;
 
@@ -199,25 +154,11 @@
     }
 
     @at-root .site-nav--small & {
-      text-align: center;
-      padding: 3px 0 9px;
-      height: 44px;
+      padding: 4px 10px;
     }
 
     @include breakpoint(smalldesk) {
-      text-align: center;
-      padding: 3px 0 9px;
-      height: 44px;
-    }
-  }
-
-  &__link {
-    transition: font-size 200ms ease-in-out;
-    font-size: 14px;
-
-    &--active {
-      text-decoration: none;
-      text-transform: none;
+      padding: 4px 10px;
     }
   }
 
@@ -272,27 +213,21 @@
 
 .site-sub-items {
   transition: width 100ms ease-in-out;
-  background-color: $brand;
   font-size: 13px;
   margin: 0;
   padding: 0;
   position: relative;
 
   @at-root .site-nav--small & {
-    background-color: $brand 18%;
-    background-image: linear-gradient(to bottom, $brand 18%, $brand 82%);
-    box-shadow: none;
-  }
-
-  @include breakpoint(smalldesk) {
-    background-color: $brand 18%;
-    background-image: linear-gradient(to bottom, $brand 18%, $brand 82%);
+    background-color: $core-blue 18%;
+    background-image: linear-gradient(to bottom, $core-blue 18%, $core-blue 82%);
     box-shadow: none;
   }
 
   &__list {
-    padding: 12px 0;
+    padding: 12px 0 0 42px;
     margin: 0;
+    list-style: none;
 
     @at-root .site-nav--small & {
       padding: 0;

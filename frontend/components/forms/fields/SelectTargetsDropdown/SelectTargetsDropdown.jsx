@@ -150,11 +150,11 @@ class SelectTargetsDropdown extends Component {
         return query;
       })
       .catch((error) => {
+        console.error('Error getting targets:', error);
+
         if (this.mounted) {
           this.setState({ isLoadingTargets: false });
         }
-
-        throw error;
       });
   }
 

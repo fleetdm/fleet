@@ -1,5 +1,4 @@
 import React from 'react';
-import expect, { createSpy, restoreSpies } from 'expect';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
@@ -20,8 +19,6 @@ describe('QueryProgressDetails - component', () => {
     query: 'select * from users',
     queryIsRunning: false,
   };
-
-  afterEach(restoreSpies);
 
   describe('rendering', () => {
     const DefaultComponent = mount(<QueryProgressDetails {...defaultProps} />);
@@ -126,7 +123,7 @@ describe('QueryProgressDetails - component', () => {
 
   describe('running a query', () => {
     it('calls the onRunQuery prop with the query text', () => {
-      const spy = createSpy();
+      const spy = jest.fn();
       const props = {
         ...defaultProps,
         campaign: campaignStub,
@@ -143,7 +140,7 @@ describe('QueryProgressDetails - component', () => {
 
   describe('stopping a query', () => {
     it('calls the onStopQuery prop', () => {
-      const spy = createSpy();
+      const spy = jest.fn();
       const props = {
         ...defaultProps,
         campaign: campaignStub,

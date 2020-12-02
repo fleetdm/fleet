@@ -8,10 +8,10 @@
     right: 6px;
     top: 28px;
     font-size: 18px;
-    color: $accent-text;
+    color: $core-medium-blue-grey;
 
     &--active {
-      color: $brand;
+      color: $core-blue;
     }
 
     &--error {
@@ -21,18 +21,18 @@
 
   &__input {
     border: 2px;
-    border-bottom: 2px solid $brand;
+    border-bottom: 2px solid $core-blue;
     padding: 0 30px 8px 0;
     font-size: 20px;
     text-indent: 1px;
     position: relative;
     width: 100%;
     box-sizing: border-box;
-    color: $text-dark;
-    font-weight: $light;
+    color: $core-dark-blue-grey;
+    font-weight: $regular;
 
     ::placeholder {
-      color: $accent-text;
+      color: $core-medium-blue-grey;
     }
 
     &:focus {
@@ -49,7 +49,7 @@
   }
 
   &__label {
-    color: $brand;
+    color: $core-blue;
     font-size: $small;
     text-transform: lowercase;
 
@@ -66,14 +66,14 @@
 
   &__hint {
     font-size: 14px;
-    font-weight: $normal;
+    font-weight: $regular;
     line-height: 1.57;
     letter-spacing: 1px;
-    color: $accent-text;
+    color: $core-medium-blue-grey;
 
     code {
-      color: $brand;
-      background-color: $accent-light;
+      color: $core-blue;
+      background-color: $ui-light-grey;
       padding: 2px;
       font-family: 'SourceCodePro', $monospace;
     }
