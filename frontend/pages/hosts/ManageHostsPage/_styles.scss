@@ -8,6 +8,7 @@
     justify-content: space-between;
     // We set this equal to the max-width of the host-container to preserve visual consistency
     max-width: 1220px;
+    margin-bottom: 16px;
   }
 
   &__header {
@@ -75,7 +76,6 @@
   &__topper {
     display: flex;
     align-items: flex-end;
-    padding-bottom: 10px;
   }
 
   &__host-count {

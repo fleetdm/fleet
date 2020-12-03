@@ -67,7 +67,7 @@ class EnrollSecretRow extends Component {
     const { onCopySecret, onToggleSecret } = this;
 
     return (
-      <span>
+      <span className={`${baseClass}__name`}>
         {name}
         <span className="buttons">
           {copyMessage && <span>{`${copyMessage} `}</span>}
@@ -128,12 +128,13 @@ class EnrollSecretTable extends Component {
     const { secrets } = this.props;
     const activeSecrets = secrets.filter(s => s.active);
 
+    let enrollSecrectsClass = baseClass;
     if (activeSecrets.length === 0) {
       return (<div className={baseClass}><em>No active enroll secrets.</em></div>);
-    }
+    } else if (activeSecrets.length > 1) enrollSecrectsClass += ` ${baseClass}--multiple-secrets`;
 
     return (
-      <div className={baseClass}>
+      <div className={enrollSecrectsClass}>
         {activeSecrets.map(({ name, secret }) =>
           <EnrollSecretRow key={name} name={name} secret={secret} />,
         )}

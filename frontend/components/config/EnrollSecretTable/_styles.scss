@@ -3,6 +3,13 @@
   overflow: auto;
 
   &__secret-input {
+    .form-field__label {
+      position: relative;
+      font-size: $x-small;
+      font-weight: $bold;
+      margin-top: 8px;
+    }
+
     .input-field {
       &--disabled {
         letter-spacing: 0;
@@ -37,6 +44,7 @@
   }
 
   &__secret-download-icon {
+    display: block;
     font-size: $x-small;
     color: $core-blue;
     font-weight: $bold;
@@ -50,6 +58,39 @@
       width: 12px;
       height: 12px;
       margin-left: 7px;
+    }
+  }
+
+  &--multiple-secrets {
+    &:before {
+      content: '';
+      position: sticky;
+      display: block;
+      z-index: 1;
+      top: -2px;
+      left: 0;
+      width: 100%;
+      height: 17px;
+      background-image: linear-gradient(to bottom, $white, transparent);
+    }
+
+    &:after {
+      content: '';
+      position: sticky;
+      display: block;
+      bottom: -1px;
+      left: 0;
+      width: 100%;
+      height: 17px;
+      background-image: linear-gradient(to bottom, transparent, $white);
+    }
+
+    .form-field__label {
+      margin-top: 0;
+    }
+
+    .enroll-secrets__secret-download-icon {
+      margin-bottom: 16px;
     }
   }
 }

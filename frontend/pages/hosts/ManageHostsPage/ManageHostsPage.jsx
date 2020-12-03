@@ -150,7 +150,6 @@ export class ManageHostsPage extends PureComponent {
   onLabelClick = (selectedLabel) => {
     return (evt) => {
       evt.preventDefault();
-
       const { dispatch, perPage } = this.props;
       const { MANAGE_HOSTS } = PATHS;
       const { slug, type } = selectedLabel;
@@ -394,7 +393,7 @@ export class ManageHostsPage extends PureComponent {
   }
 
   renderHeader = () => {
-    const { renderQuery, renderDeleteButton } = this;
+    const { renderDeleteButton } = this;
     const { isAddLabel, selectedLabel, statusLabels } = this.props;
 
     if (!selectedLabel || isAddLabel) {
@@ -419,7 +418,6 @@ export class ManageHostsPage extends PureComponent {
         <div className={`${baseClass}__topper`}>
           <p className={`${baseClass}__host-count`}>{hostsTotalDisplay}</p>
         </div>
-        {renderQuery()}
       </div>
     );
   }
@@ -511,6 +509,7 @@ export class ManageHostsPage extends PureComponent {
       renderAddHostModal,
       renderDeleteHostModal,
       renderDeleteLabelModal,
+      renderQuery,
       toggleAddHostModal,
       toggleDeleteHostModal,
     } = this;
@@ -567,6 +566,7 @@ export class ManageHostsPage extends PureComponent {
                 <span>Add new host</span>
               </Button>
             </div>
+            {selectedLabel && renderQuery()}
             <div className={`${baseClass}__list`}>
               <HostContainer
                 hosts={sortedHosts}
