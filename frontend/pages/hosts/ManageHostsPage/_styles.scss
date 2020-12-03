@@ -2,6 +2,12 @@
   padding: 50px 30px 0;
   min-height: 90vh;
 
+  .header-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
   &__header {
     .ace-kolide {
       margin: 12px 0;
@@ -92,14 +98,6 @@
 
     .button--alert {
       margin-left: 15px;
-    }
-  }
-
-  &__invite-modal {
-    .modal__header {
-      span {
-        color: #48c586;
-      }
     }
   }
 

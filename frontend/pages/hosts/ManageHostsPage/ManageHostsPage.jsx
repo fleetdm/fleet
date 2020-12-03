@@ -284,7 +284,7 @@ export class ManageHostsPage extends PureComponent {
 
     return (
       <Modal
-        title="Add New Host"
+        title="New host"
         onExit={toggleAddHostModal}
         className={`${baseClass}__invite-modal`}
       >
@@ -475,7 +475,7 @@ export class ManageHostsPage extends PureComponent {
       selectedOsqueryTable,
       statusLabels,
     } = this.props;
-    const { onAddHostClick, onAddLabelClick, onLabelClick, onOsqueryTableSelect } = this;
+    const { onAddLabelClick, onLabelClick, onOsqueryTableSelect } = this;
 
     if (isAddLabel) {
       SidePanel = (
@@ -490,7 +490,6 @@ export class ManageHostsPage extends PureComponent {
         <HostSidePanel
           key="hosts-side-panel"
           labels={labels}
-          onAddHostClick={onAddHostClick}
           onAddLabelClick={onAddLabelClick}
           onLabelClick={onLabelClick}
           selectedFilter={selectedFilter}
@@ -527,6 +526,8 @@ export class ManageHostsPage extends PureComponent {
     } = this.props;
     const { isEditLabel } = this.state;
 
+    const { onAddHostClick } = this;
+
     const sortedHosts = this.sortHosts(hosts);
 
 
@@ -560,7 +561,12 @@ export class ManageHostsPage extends PureComponent {
 
         {!isAddLabel && !isEditLabel &&
           <div className={`${baseClass} body-wrap`}>
-            {renderHeader()}
+            <div className="header-wrap">
+              {renderHeader()}
+              <Button onClick={onAddHostClick} className={`${baseClass}__add-hosts button button--brand`}>
+                <span>Add new host</span>
+              </Button>
+            </div>
             <div className={`${baseClass}__list`}>
               <HostContainer
                 hosts={sortedHosts}

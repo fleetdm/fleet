@@ -1,14 +1,7 @@
 .add-host-modal {
   &__manual-install-header {
-    width: 600px;
-    border-radius: 2px;
-    background-color: $white;
-    box-shadow: 0 3px 12px 0 rgba(49, 49, 93, 0.1), 0 3px 3px 0 rgba(0, 0, 0, 0.07);
-    border: solid 1px $ui-borders;
     position: relative;
     z-index: 2;
-    padding: 15px 25px;
-    box-sizing: border-box;
 
     h2 {
       font-size: 18px;
@@ -37,22 +30,10 @@
   }
 
   &__manual-install-content {
-    width: 580px;
-    border-radius: 2px;
-    background-color: $white;
-    box-shadow: 0 3px 3px 0 rgba(0, 0, 0, 0.07);
-    border: solid 1px rgba(73, 143, 226, 0.1);
-    margin-top: -5px;
-    margin-left: 10px;
-    padding: 20px;
-    box-sizing: border-box;
 
     h4 {
       font-size: 16px;
       font-weight: $bold;
-      line-height: 1.5;
-      letter-spacing: -0.5px;
-      color: rgba(32, 37, 50, 0.66);
       margin: 10px 0 0;
 
       .kolidecon {
@@ -67,7 +48,7 @@
       line-height: 1.6;
       letter-spacing: normal;
       color: rgba(32, 37, 50, 0.66);
-      margin: 0;
+      margin: 0 0 0 44px;
     }
 
     a {
@@ -95,6 +76,20 @@
     }
   }
 
+  &__step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 100px;
+    border: 2px solid $core-blue;
+    color: $core-blue;
+    font-weight: $bold;
+    text-align: center;
+    margin-right: 16px;
+  }
+
   &__button-wrap {
     border-top: solid 1px $ui-borders;
     text-align: right;
@@ -118,6 +113,7 @@
 
   &__secret-wrapper {
     position: relative;
+    margin: 0 0 0 44px;
   }
 
   &__secret-copy-icon {
@@ -144,6 +140,7 @@
   pre, 
   code {
     background-color: #f9f9f9;
+    margin: 0 0 0 44px;
   }
 
   &__error {
