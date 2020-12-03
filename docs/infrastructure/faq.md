@@ -6,6 +6,8 @@ Yes. Fleet scales horizontally out of the box as long as all of the Fleet server
 
 Note that osquery logs will be distributed across the Fleet servers.
 
+Read the [performance docs](./performance.md) for more.
+
 ## Where are my query results?
 
 ### Live Queries
@@ -88,7 +90,7 @@ One way to hack around this is to use a simulated mailserver like [Mailhog](http
 
 ## Is Fleet available as a SaaS product?
 
-No. Currently, Fleet is only available as open-source software.
+No. Currently, Fleet is only available for self-hosting on premises or in the cloud.
 
 ## Has anyone stress tested Fleet?
 
