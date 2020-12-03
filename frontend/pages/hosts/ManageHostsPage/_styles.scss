@@ -7,8 +7,13 @@
     align-items: center;
     justify-content: space-between;
     // We set this equal to the max-width of the host-container to preserve visual consistency
-    max-width: 1220px;
+    max-width: 1206px;
     margin-bottom: 16px;
+  }
+
+  #label-header {
+    // We set this equal to the max-width of the host-container to preserve visual consistency
+    max-width: 1206px;
   }
 
   &__header {
