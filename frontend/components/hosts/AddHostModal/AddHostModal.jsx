@@ -8,6 +8,7 @@ import configInterface from 'interfaces/config';
 import enrollSecretInterface from 'interfaces/enroll_secret';
 import EnrollSecretTable from 'components/config/EnrollSecretTable';
 import Icon from 'components/icons/Icon';
+import DownloadIcon from '../../../../assets/images/icon-download-12x12@2x.png';
 
 const baseClass = 'add-host-modal';
 
@@ -134,7 +135,9 @@ class AddHostModal extends Component {
               <p>
                 { fetchCertificateError
                   ? <span className={`${baseClass}__error`}>{fetchCertificateError}</span>
-                  : <a href="#downloadCertificate" onClick={this.onFetchCertificate}>Download Certificate</a>
+                  : <a href="#downloadCertificate" onClick={this.onFetchCertificate}>Download
+                    <img src={DownloadIcon} alt="download icon" />
+                  </a>
                 }
               </p>
             </li>
@@ -144,7 +147,9 @@ class AddHostModal extends Component {
                 If using the enroll secret and server certificate downloaded above, use the generated flagfile. In some configurations, modifications may need to be made:
               </p>
               <p>
-                <a href="#downloadFlagfile" onClick={onDownloadFlagfile}>Download Flagfile</a>
+                <a href="#downloadFlagfile" onClick={onDownloadFlagfile}>Download
+                  <img src={DownloadIcon} alt="download icon" />
+                </a>
               </p>
             </li>
             <li>
@@ -158,8 +163,8 @@ class AddHostModal extends Component {
         </div>
 
         <div className={`${baseClass}__button-wrap`}>
-          <Button onClick={onReturnToApp} variant="success">
-            Return To App
+          <Button onClick={onReturnToApp} className="button button--brand">
+            Done
           </Button>
         </div>
       </div>

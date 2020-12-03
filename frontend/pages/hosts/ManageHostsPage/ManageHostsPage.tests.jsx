@@ -292,9 +292,9 @@ describe('ManageHostsPage - component', () => {
   });
 
   describe('Add Host', () => {
-    it('Open the Add Host modal from sidebar', () => {
+    it('Open the Add Host modal', () => {
       const page = mount(<ManageHostsPage {...props} hosts={[]} selectedLabel={allHostsLabel} />);
-      const addNewHost = page.find('.host-side-panel__add-hosts');
+      const addNewHost = page.find('.manage-hosts__add-hosts');
       addNewHost.hostNodes().simulate('click');
 
       expect(page.find('AddHostModal').length).toBeGreaterThan(0);

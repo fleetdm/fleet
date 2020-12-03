@@ -47,7 +47,7 @@ describe('EnrollSecretRow', () => {
     expect(inputField.prop('type')).toEqual('password');
 
     const showLink = row.find('.enroll-secrets__show-secret');
-    expect(showLink.text()).toEqual('Show');
+    expect(showLink.find('img').prop('alt')).toEqual('show/hide');
 
     showLink.simulate('click');
 
@@ -55,7 +55,7 @@ describe('EnrollSecretRow', () => {
     expect(inputField.prop('type')).toEqual('text');
 
     const hideLink = row.find('.enroll-secrets__show-secret');
-    expect(hideLink.text()).toEqual('Hide');
+    expect(showLink.find('img').prop('alt')).toEqual('show/hide');
 
     hideLink.simulate('click');
 
