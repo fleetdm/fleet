@@ -64,8 +64,6 @@ This could be caused by a mismatched connection limit between the Fleet server a
 
 Fleet can live query the `osquery_schedule` table. Performing this live query allows you to get the performance data for your scheduled queries. Also consider scheduling a query to the `osquery_schedule` table to get these logs into your logging pipeline.
 
-<!-- TODO -->
-
 ## Why am I receiving a database connection error when attempting to "prepare" the database?
 
 First, check if you have a version of MySQL installed that is at least 5.7. Then, make sure that you currently have a MySQL server running.
