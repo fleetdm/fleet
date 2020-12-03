@@ -1,5 +1,11 @@
 # FAQ for using/operating Fleet
 
+## How do I get support for working with Fleet?
+
+For bug reports, please use the [Github issue tracker](https://github.com/fleetdm/fleet/issues).
+
+For questions and discussion, please join us in the #fleet channel of [osquery Slack](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/).
+
 ## Can multiple instances of the Fleet server be run behind a load-balancer?
 
 Yes. Fleet scales horizontally out of the box as long as all of the Fleet servers are connected to the same MySQL and Redis instances.
@@ -98,8 +104,6 @@ Fleet has been stress tested to 150,000 online hosts and 400,000 total enrolled 
 
 The update frequency for labels is configurable with the [--osquery_label_update_interval](https://github.com/fleetdm/fleet/blob/master/docs/infrastructure/configuring-the-fleet-binary.md#osquery_label_update_interval) flag (default 1 hour).
 
-## How do I get support for working with Fleet?
+## How do I revoke the authorization tokens for a user?
 
-For bug reports, please use the [Github issue tracker](https://github.com/fleetdm/fleet/issues).
-
-For questions and discussion, please join us in the #fleet channel of [osquery Slack](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/).
+Authorization tokens are revoked when the "require password reset" action is selected for that user. User-initiated password resets do not expire the existing tokens.
