@@ -140,6 +140,7 @@ export const scheduledQueryStub = {
   id: 1,
   interval: 60,
   name: 'Get all users',
+  query_name: 'users',
   pack_id: 123,
   platform: 'darwin',
   query: 'SELECT * FROM users',

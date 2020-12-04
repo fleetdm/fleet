@@ -15,7 +15,7 @@ const defaultProps = {
 describe('ScheduledQueriesListItem - component', () => {
   it('renders the scheduled query data', () => {
     const component = mount(<ScheduledQueriesListItem {...defaultProps} />);
-    expect(component.text()).toContain(scheduledQueryStub.name);
+    expect(component.text()).toContain(scheduledQueryStub.query_name);
     expect(component.text()).toContain(scheduledQueryStub.interval);
     expect(component.text()).toContain(scheduledQueryStub.shard);
     expect(component.find('PlatformIcon').length).toEqual(1);
@@ -24,7 +24,7 @@ describe('ScheduledQueriesListItem - component', () => {
   it('renders when the platform attribute is null', () => {
     const scheduledQuery = { ...scheduledQueryStub, platform: null };
     const component = mount(<ScheduledQueriesListItem checked={false} scheduledQuery={scheduledQuery} {...defaultProps} />);
-    expect(component.text()).toContain(scheduledQueryStub.name);
+    expect(component.text()).toContain(scheduledQueryStub.query_name);
     expect(component.text()).toContain(scheduledQueryStub.interval);
     expect(component.text()).toContain(scheduledQueryStub.shard);
     expect(component.find('PlatformIcon').length).toEqual(1);
