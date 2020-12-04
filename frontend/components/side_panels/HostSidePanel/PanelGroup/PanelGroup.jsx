@@ -45,8 +45,13 @@ class PanelGroup extends Component {
     const { renderGroupItem } = this;
     const baseClass = 'panel-group';
 
+    let multipleLabelsClass = baseClass;
+    if (type === 'label' && groupItems.length > 6) {
+      multipleLabelsClass = `${baseClass}__${type}--scroll-labels`;
+    }
+
     return (
-      <div className={`${baseClass} ${baseClass}__${type}`}>
+      <div className={`${baseClass} ${baseClass}__${type} ${multipleLabelsClass}`}>
         {groupItems.map((item) => {
           return renderGroupItem(item);
         })}

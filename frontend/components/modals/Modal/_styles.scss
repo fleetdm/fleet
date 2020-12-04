@@ -1,8 +1,11 @@
 .modal {
   &__background {
     @include position(fixed, 0 0 0 0);
-    background-color: rgba($black, 0.25);
-    z-index: 3;
+    background-color: rgba($core-fleet-black, 0.4);
+    z-index: 101;
+    overflow: scroll;
+    display: flex;
+    justify-content: center;
   }
 
   &__content {
@@ -14,9 +17,6 @@
   }
 
   &__ex {
-    @include position(absolute, 30px 30px null null);
-    @include size(30px);
-    line-height: 30px;
     text-decoration: none;
 
     .button {
@@ -32,22 +32,20 @@
   }
 
   &__header {
-    font-size: 24px;
+    font-size: $large;
     font-weight: $regular;
-    line-height: normal;
-    letter-spacing: -0.5px;
     text-align: left;
-    color: $core-black;
+    padding-bottom: 15px;
+    border-bottom: 1px solid $ui-borders;
+    display: flex;
+    justify-content: space-between;
   }
 
   &__modal_container {
-    @include position(absolute, 50% null null 50%);
-    transform: translate(-50%, -50%);
+    @include position(absolute, 22px null null null);
     background-color: $white;
-    width: 600px;
-    z-index: 3;
-    padding: 30px;
-    box-shadow: 0 3px 3px rgba(0, 0, 0, 0.07), 0 16px 24px rgba(50, 50, 93, 0.14), inset 0 0 0 1px rgba(74, 144, 226, 0.1);
-    border-radius: 2px;
+    width: 658px;
+    padding: 40px;
+    border-radius: 8px;
   }
 }

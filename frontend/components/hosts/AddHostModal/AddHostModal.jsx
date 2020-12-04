@@ -8,6 +8,7 @@ import configInterface from 'interfaces/config';
 import enrollSecretInterface from 'interfaces/enroll_secret';
 import EnrollSecretTable from 'components/config/EnrollSecretTable';
 import Icon from 'components/icons/Icon';
+import DownloadIcon from '../../../../assets/images/icon-download-12x12@2x.png';
 
 const baseClass = 'add-host-modal';
 
@@ -118,7 +119,7 @@ class AddHostModal extends Component {
           </div>
           <ol className={`${baseClass}__install-steps`}>
             <li>
-              <h4>1. Enroll Secret</h4>
+              <h4><span className={`${baseClass}__step-number`}>1</span>Enroll Secret</h4>
               <p>
                 Provide an active enroll secret to allow osquery to authenticate with the Fleet server:
               </p>
@@ -127,28 +128,32 @@ class AddHostModal extends Component {
               </div>
             </li>
             <li>
-              <h4>2. Server Certificate</h4>
+              <h4><span className={`${baseClass}__step-number`}>2</span>Server Certificate</h4>
               <p>
                 Provide the TLS certificate used by the Fleet server to enable secure connections from osquery:
               </p>
               <p>
                 { fetchCertificateError
                   ? <span className={`${baseClass}__error`}>{fetchCertificateError}</span>
-                  : <a href="#downloadCertificate" onClick={this.onFetchCertificate}>Download Certificate</a>
+                  : <a href="#downloadCertificate" onClick={this.onFetchCertificate}>Download
+                    <img src={DownloadIcon} alt="download icon" />
+                  </a>
                 }
               </p>
             </li>
             <li>
-              <h4>3. Flagfile</h4>
+              <h4><span className={`${baseClass}__step-number`}>3</span>Flagfile</h4>
               <p>
                 If using the enroll secret and server certificate downloaded above, use the generated flagfile. In some configurations, modifications may need to be made:
               </p>
               <p>
-                <a href="#downloadFlagfile" onClick={onDownloadFlagfile}>Download Flagfile</a>
+                <a href="#downloadFlagfile" onClick={onDownloadFlagfile}>Download
+                  <img src={DownloadIcon} alt="download icon" />
+                </a>
               </p>
             </li>
             <li>
-              <h4>4. Run Osquery</h4>
+              <h4><span className={`${baseClass}__step-number`}>4</span>Run Osquery</h4>
               <p>
                 Run osquery from the directory containing the above files (may require sudo or Run as Administrator privileges):
               </p>
@@ -158,8 +163,8 @@ class AddHostModal extends Component {
         </div>
 
         <div className={`${baseClass}__button-wrap`}>
-          <Button onClick={onReturnToApp} variant="success">
-            Return To App
+          <Button onClick={onReturnToApp} className="button button--brand">
+            Done
           </Button>
         </div>
       </div>

@@ -4,27 +4,29 @@
     overflow-y: scroll;
     position: relative;
 
-    &:before {
-      content: '';
-      position: sticky;
-      display: block;
-      z-index: 1;
-      top: -2px;
-      left: 0;
-      width: 100%;
-      height: 17px;
-      background-image: linear-gradient(to bottom, #f9fafc, transparent);
-    }
+    &--scroll-labels {
+      &:before {
+        content: '';
+        position: sticky;
+        display: block;
+        z-index: 1;
+        top: -2px;
+        left: 0;
+        width: 100%;
+        height: 17px;
+        background-image: linear-gradient(to bottom, #f9fafc, transparent);
+      }
 
-    &:after {
-      content: '';
-      position: sticky;
-      display: block;
-      bottom: -1px;
-      left: 0;
-      width: 100%;
-      height: 17px;
-      background-image: linear-gradient(to bottom, transparent, #f9fafc);
+      &:after {
+        content: '';
+        position: sticky;
+        display: block;
+        bottom: -1px;
+        left: 0;
+        width: 100%;
+        height: 17px;
+        background-image: linear-gradient(to bottom, transparent, #f9fafc);
+      }
     }
   }
 }

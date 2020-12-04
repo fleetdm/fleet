@@ -2,6 +2,20 @@
   padding: 50px 30px 0;
   min-height: 90vh;
 
+  .header-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    // We set this equal to the max-width of the host-container to preserve visual consistency
+    max-width: 1206px;
+    margin-bottom: 16px;
+  }
+
+  #label-header {
+    // We set this equal to the max-width of the host-container to preserve visual consistency
+    max-width: 1206px;
+  }
+
   &__header {
     .ace-kolide {
       margin: 12px 0;
@@ -67,7 +81,6 @@
   &__topper {
     display: flex;
     align-items: flex-end;
-    padding-bottom: 10px;
   }
 
   &__host-count {
@@ -92,14 +105,6 @@
 
     .button--alert {
       margin-left: 15px;
-    }
-  }
-
-  &__invite-modal {
-    .modal__header {
-      span {
-        color: #48c586;
-      }
     }
   }
 

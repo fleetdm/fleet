@@ -7,6 +7,8 @@ import enrollSecretInterface from 'interfaces/enroll_secret';
 import InputField from 'components/forms/fields/InputField';
 import Icon from 'components/icons/Icon';
 import { stringToClipboard } from 'utilities/copy_text';
+import EyeIcon from '../../../../assets/images/icon-eye-16x16@2x.png';
+import DownloadIcon from '../../../../assets/images/icon-download-12x12@2x.png';
 
 const baseClass = 'enroll-secrets';
 
@@ -61,11 +63,11 @@ class EnrollSecretRow extends Component {
 
   renderLabel = () => {
     const { name } = this.props;
-    const { showSecret, copyMessage } = this.state;
-    const { onCopySecret, onDownloadSecret, onToggleSecret } = this;
+    const { copyMessage } = this.state;
+    const { onCopySecret, onToggleSecret } = this;
 
     return (
-      <span>
+      <span className={`${baseClass}__name`}>
         {name}
         <span className="buttons">
           {copyMessage && <span>{`${copyMessage} `}</span>}
@@ -76,22 +78,12 @@ class EnrollSecretRow extends Component {
           >
             <Icon name="clipboard" />
           </Button>
-          |
-          <a
-            href="#onDownloadSecret"
-            variant="unstyled"
-            className={`${baseClass}__secret-download-icon`}
-            onClick={onDownloadSecret}
-          >
-            Download
-          </a>
-          |
           <a
             href="#showSecret"
             onClick={onToggleSecret}
             className={`${baseClass}__show-secret`}
           >
-            {showSecret ? 'Hide' : 'Show'}
+            <img src={EyeIcon} alt="show/hide" />
           </a>
         </span>
       </span>
@@ -101,7 +93,7 @@ class EnrollSecretRow extends Component {
   render () {
     const { secret } = this.props;
     const { showSecret } = this.state;
-    const { renderLabel } = this;
+    const { renderLabel, onDownloadSecret } = this;
 
     return (
       <div>
@@ -113,6 +105,15 @@ class EnrollSecretRow extends Component {
           type={showSecret ? 'text' : 'password'}
           value={secret}
         />
+        <a
+          href="#onDownloadSecret"
+          variant="unstyled"
+          className={`${baseClass}__secret-download-icon`}
+          onClick={onDownloadSecret}
+        >
+          Download
+          <img src={DownloadIcon} alt="download" />
+        </a>
       </div>
     );
   }
@@ -127,12 +128,13 @@ class EnrollSecretTable extends Component {
     const { secrets } = this.props;
     const activeSecrets = secrets.filter(s => s.active);
 
+    let enrollSecrectsClass = baseClass;
     if (activeSecrets.length === 0) {
       return (<div className={baseClass}><em>No active enroll secrets.</em></div>);
-    }
+    } else if (activeSecrets.length > 1) enrollSecrectsClass += ` ${baseClass}--multiple-secrets`;
 
     return (
-      <div className={baseClass}>
+      <div className={enrollSecrectsClass}>
         {activeSecrets.map(({ name, secret }) =>
           <EnrollSecretRow key={name} name={name} secret={secret} />,
         )}
