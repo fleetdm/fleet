@@ -2,11 +2,11 @@ name: Deploy Fleet website
 
 on:
   push:
-    branches: [ master ]
+    branches: [ mikermcneil-patch-1 ]
 
 jobs:
   build:
-    if: $GITHUB_REPOSITORY == 'fleetdm/fleet'
+    if: ${{ github.repository == 'fleetdm/fleet' }}
     
     runs-on: ubuntu-latest
 
