@@ -7,7 +7,7 @@ on:
 jobs:
   build:
 
-    if: GITHUB_REPOSITORY == 'fleetdm/fleet'
+    if: $GITHUB_REPOSITORY == 'fleetdm/fleet'
     
     runs-on: ubuntu-latest
 
