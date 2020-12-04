@@ -76,7 +76,7 @@ class ScheduledQueriesListItem extends Component {
 
   render () {
     const { checked, disabled, isSelected, scheduledQuery } = this.props;
-    const { id, name, interval, shard, version } = scheduledQuery;
+    const { id, query_name: name, interval, shard, version } = scheduledQuery;
     const { loggingTypeString, onDblClick, onCheck, onSelect, renderPlatformIcon } = this;
     const rowClassname = classnames(baseClass, {
       [`${baseClass}--selected`]: isSelected,

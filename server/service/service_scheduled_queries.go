@@ -23,10 +23,33 @@ func (svc service) ScheduleQuery(ctx context.Context, sq *kolide.ScheduledQuery)
 		if err != nil {
 			return nil, errors.Wrap(err, "lookup name for query")
 		}
-		sq.Name = query.Name
+
+		packQueries, err := svc.ds.ListScheduledQueriesInPack(sq.PackID, kolide.ListOptions{})
+		if err != nil {
+			return nil, errors.Wrap(err, "find existing scheduled queries")
+		}
+		_ = packQueries
+
+		sq.Name = findNextNameForQuery(query.Name, packQueries)
+		sq.QueryName = query.Name
+	} else if sq.QueryName == "" {
+		query, err := svc.ds.Query(sq.QueryID)
+		if err != nil {
+			return nil, errors.Wrap(err, "lookup name for query")
+		}
 		sq.QueryName = query.Name
 	}
 	return svc.ds.NewScheduledQuery(sq)
+}
+
+// Add "-1" suffixes to the query name until it is unique
+func findNextNameForQuery(name string, scheduled []*kolide.ScheduledQuery) string {
+	for _, q := range scheduled {
+		if name == q.Name {
+			return findNextNameForQuery(name+"-1", scheduled)
+		}
+	}
+	return name
 }
 
 func (svc service) ModifyScheduledQuery(ctx context.Context, id uint, p kolide.ScheduledQueryPayload) (*kolide.ScheduledQuery, error) {
