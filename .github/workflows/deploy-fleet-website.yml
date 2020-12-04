@@ -2,7 +2,7 @@ name: Deploy Fleet website
 
 on:
   push:
-    branches: [ mikermcneil-patch-1 ]
+    branches: [ master ]
 
 jobs:
   build:
