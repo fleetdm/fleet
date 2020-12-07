@@ -1,18 +1,19 @@
 .query-side-panel {
-  padding: 0 $pad-small;
+  padding: 0 28px;
 
   &__header {
-    margin: 0 0 12px;
-    padding: 0 0 5px;
-    font-size: 16px;
+    margin: 0 0 16px;
+    font-size: $x-small;
     font-weight: $bold;
-    letter-spacing: -0.5px;
-    color: $core-dark-blue-grey;
-    border-bottom: solid 1px $ui-borders;
+    color: $core-darkest-blue-grey;
   }
 
   &__choose-table {
-    margin-bottom: 24px;
+    margin: 40px 0 16px;
+
+    .form-field {
+      margin-bottom: 16px;
+    }
 
     .Select {
       margin: 0 0 $pad-half;
@@ -20,9 +21,8 @@
   }
 
   &__description {
-    font-size: 14px;
-    line-height: 1.43;
-    letter-spacing: 0.5px;
+    font-size: $x-small;
+    font-style: italic;
     color: $core-medium-blue-grey;
     margin: 0;
   }
@@ -84,8 +84,7 @@
     border-top: 1px solid $ui-borders;
     color: $core-dark-blue-grey;
     font-size: px-to-rem(14);
-    padding-bottom: $pad-half;
-    padding-top: $pad-half;
+    padding: 12px 0;
 
     &:first-of-type {
       border: 0;
@@ -93,13 +92,13 @@
   }
 
   &__name {
-    line-height: 28px;
-    border-radius: 3px;
-    background-color: $ui-light-grey;
-    border: solid 1px #dce2f7;
-    color: #858495;
-    padding: 0 13px;
+    border-radius: 4px;
+    border: solid 1px $core-dark-blue-grey;
+    padding: 4px 10px;
     box-sizing: border-box;
+    font-size: $xx-small;
+    font-weight: $bold;
+    color: $core-dark-blue-grey;
   }
 
   &__description {
@@ -108,8 +107,7 @@
   }
 
   &__type {
-    font-size: 14px;
-    letter-spacing: 0.7px;
+    font-size: $x-small;
     color: $core-dark-blue-grey;
   }
 
@@ -117,7 +115,7 @@
     margin-left: 12px;
     vertical-align: text-bottom;
     font-size: 20px;
-    color: #c1c8e1;
+    color: $core-dark-blue-grey;
   }
 }
 

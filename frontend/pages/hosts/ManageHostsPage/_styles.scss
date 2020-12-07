@@ -1,5 +1,4 @@
 .manage-hosts {
-  padding: 50px 30px 0;
   min-height: 90vh;
 
   .header-wrap {
@@ -11,15 +10,17 @@
     margin-bottom: 16px;
   }
 
-  #label-header {
+  .ace-kolide {
     // We set this equal to the max-width of the host-container to preserve visual consistency
     max-width: 1206px;
   }
 
   &__header {
-    .ace-kolide {
-      margin: 12px 0;
-    }
+    display: flex;
+  }
+
+  &__text {
+    margin-right: 16px;
   }
 
   &__title {
@@ -47,13 +48,11 @@
     }
   }
 
-  &__delete-label {
-    float: right;
-    margin-bottom: 15px;
+  &__label-actions {
 
     button {
       &:first-child {
-        margin-right: 15px;
+        margin-right: 12px;
       }
     }
   }

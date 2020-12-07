@@ -78,7 +78,8 @@ $base-class: 'button';
     @include button-variant($white, $inverse-hover, $core-blue);
     color: $core-blue;
     border: 2px solid $core-blue;
-    border-bottom-color: $core-blue;
+    height: 40px;
+    line-height: $x-small;
 
     &:active {
       border-bottom-color: $core-blue;
@@ -89,7 +90,8 @@ $base-class: 'button';
     @include button-variant($white, $inverse-hover, $alert);
     color: $alert;
     border: 2px solid $alert;
-    border-bottom-color: $white;
+    height: 40px;
+    line-height: $x-small;
 
     &:active {
       border-bottom-color: $alert;

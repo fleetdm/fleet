@@ -21,10 +21,8 @@
   }
 
   &__hint {
-    font-size: 14px;
+    font-size: $x-small;
     font-weight: $regular;
-    line-height: 1.57;
-    letter-spacing: 1px;
     color: $core-medium-blue-grey;
 
     code {

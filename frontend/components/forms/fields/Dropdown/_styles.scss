@@ -33,13 +33,16 @@
     background-color: $ui-light-grey;
     border-radius: 4px;
     height: 40px;
+
+    .Select-value {
+      border: 0;
+    }
   }
 
   .Select-value {
-    font-size: $medium;
-    border-radius: 2px;
-    background-color: #fff;
-    box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.12), 0 2px 0 0 $ui-medium-grey;
+    font-size: $small;
+    border-radius: 4px;
+    background-color: $ui-light-grey;
     border: solid 1px $ui-borders;
 
     .Select-value-icon {
@@ -90,7 +93,7 @@
   }
 
   .Select-arrow {
-    border-top-color: $core-blue;
+    border-top-color: $core-dark-blue-grey;
   }
 
   &.is-focused {
@@ -117,27 +120,24 @@
     }
   }
 
-  &.is-open {
-    .Select-control {
-      box-shadow: inset 0 0 8px 0 rgba(0, 0, 0, 0.08);
-    }
-  }
-
   .Select-menu-outer {
-    margin-top: 2px;
-    box-shadow: 0 1px 3px 1px rgba($black, 0.05);
-    border: solid 1px $ui-borders;
-    border-radius: 2px;
+    margin-top: 4px;
+    box-shadow: 0 4px 10px rgba(52, 59, 96, 0.15);
+    border-radius: 4px;
     z-index: 6;
+    overflow: hidden;
+    border: 0;
   }
 
   .Select-option {
     color: $core-dark-blue-grey;
-    font-size: $medium;
+    font-size: $x-small;
+    margin: 6px 0;
+    padding: 6px 16px;
+    display: block;
 
     &.is-focused {
-      background-color: $core-blue;
-      color: $white;
+      background-color: $core-blue-selected;
 
       .Select-icon {
         color: $core-blue-ultralight;

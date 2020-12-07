@@ -6,17 +6,17 @@
 .core-wrapper {
   flex-grow: 1;
   margin: 0;
-  padding: 0 0 0 $pad-base;
+  padding: 0;
   max-width: calc(100% - 217px);
   position: relative;
   background-color: $white;
 
   &--small {
-    max-width: calc(100% - 73px);
+    max-width: calc(100% - 55px);
   }
 
   @include breakpoint(smalldesk) {
-    max-width: calc(100% - 73px);
+    max-width: calc(100% - 55px);
   }
 }
 
