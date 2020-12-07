@@ -185,7 +185,7 @@ sudo /usr/bin/osqueryd \
   --enroll_secret_path=/var/osquery/enroll_secret \
   --tls_server_certs=/var/osquery/server.pem \
   --tls_hostname=localhost:8080 \
-  --host_identifier=uuid \
+  --host_identifier=instance \
   --enroll_tls_endpoint=/api/v1/osquery/enroll \
   --config_plugin=tls \
   --config_tls_endpoint=/api/v1/osquery/config \

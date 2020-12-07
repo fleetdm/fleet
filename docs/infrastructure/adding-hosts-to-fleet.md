@@ -109,7 +109,7 @@ sudo osqueryd \
  --enroll_secret_path=/etc/osquery/enroll_secret \
  --tls_server_certs=/etc/osquery/kolide.crt \
  --tls_hostname=kolide.acme.net \
- --host_identifier=uuid \
+ --host_identifier=instance \
  --enroll_tls_endpoint=/api/v1/osquery/enroll \
  --config_plugin=tls \
  --config_tls_endpoint=/api/v1/osquery/config \
