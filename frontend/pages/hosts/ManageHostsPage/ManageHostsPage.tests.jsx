@@ -212,7 +212,7 @@ describe('ManageHostsPage - component', () => {
     it('renders the LabelForm when Edit is clicked', () => {
       const Page = mount(Component);
       const EditButton = Page
-        .find('.manage-hosts__delete-label')
+        .find('.manage-hosts__label-actions')
         .find('Button')
         .first();
 
@@ -238,7 +238,7 @@ describe('ManageHostsPage - component', () => {
       });
       const page = mount(component);
       const deleteBtn = page
-        .find('.manage-hosts__delete-label')
+        .find('.manage-hosts__label-actions')
         .find('Button')
         .last();
 
