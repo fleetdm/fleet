@@ -1,5 +1,5 @@
 --force=true
---host_identifier=hostname
+--host_identifier=instance
 --verbose=true
 --debug
 --tls_dump=true

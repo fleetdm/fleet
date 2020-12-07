@@ -12,7 +12,7 @@ endef
 # Osquery flag file. No need to modify.
 define KOLIDE_FLAGS
 --force=true
---host_identifier=hostname
+--host_identifier=instance
 --verbose=true
 --debug
 --tls_dump=true

@@ -72,7 +72,7 @@ class AddHostModal extends Component {
     const flagfileContent = `--enroll_secret_path=secret.txt
 --tls_server_certs=fleet.pem
 --tls_hostname=${tlsHostname}
---host_identifier=uuid
+--host_identifier=instance
 --enroll_tls_endpoint=/api/v1/osquery/enroll
 --config_plugin=tls
 --config_tls_endpoint=/api/v1/osquery/config
