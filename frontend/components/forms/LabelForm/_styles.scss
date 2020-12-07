@@ -1,15 +1,13 @@
 .label-form {
-  &__wrapper {
-    padding: $pad-base;
-  }
 
   &__label-title,
   &__label-description {
-    width: 50%;
+    width: 100%;
   }
 
   &__button-wrap {
-    text-align: right;
+    display: flex;
+    justify-content: flex-end;
 
     .query-form__run-query-btn,
     .query-form__stop-query-btn {
@@ -21,13 +19,16 @@
     }
   }
 
-  &__save-btn,
   &__cancel-btn {
-    margin-right: $pad-xsmall;
+    margin-right: 14px;
+  }
+
+  &__save-btn {
+    padding: 7px 28px;
   }
 
   &__text-editor-wrapper {
-    margin: $pad-base 0;
+    margin: 24px 0;
   }
 }
 

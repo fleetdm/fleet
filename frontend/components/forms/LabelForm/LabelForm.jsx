@@ -59,8 +59,8 @@ class LabelForm extends Component {
     const { onLoad } = this;
     const isBuiltin = formData && (formData.label_type === 'builtin' || formData.type === 'status');
     const isManual = formData && formData.label_membership_type === 'manual';
-    const headerText = isEdit ? 'Edit Label' : 'New Label';
-    const saveBtnText = isEdit ? 'Update Label' : 'Save Label';
+    const headerText = isEdit ? 'Edit label' : 'New label';
+    const saveBtnText = isEdit ? 'Update label' : 'Save label';
     const aceHintText = isEdit ? 'Label queries are immutable. To change the query, delete this label and create a new one.' : '';
 
     if (isBuiltin) {

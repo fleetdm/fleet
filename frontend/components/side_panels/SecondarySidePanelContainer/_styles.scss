@@ -5,7 +5,6 @@
   border-left: 1px solid $ui-medium-grey;
   overflow: auto;
   width: $sidepanel-width;
-  margin-left: $pad-base;
 
   @include breakpoint(smalldesk) {
     width: $sidepanel-tablet-width;

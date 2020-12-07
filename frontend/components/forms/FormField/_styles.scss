@@ -1,11 +1,9 @@
 .form-field {
-  margin-bottom: $pad-small;
+  margin-bottom: 24px;
 
   &__label {
     font-size: $x-small;
     font-weight: $regular;
-    font-style: normal;
-    font-stretch: normal;
     color: $core-black;
     display: block;
     margin-bottom: 4px;
@@ -16,10 +14,7 @@
   }
 
   &__hint {
-    font-size: 14px;
     font-weight: $regular;
-    line-height: 1.57;
-    letter-spacing: 1px;
     color: $core-medium-blue-grey;
 
     code {

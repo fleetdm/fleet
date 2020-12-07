@@ -352,9 +352,9 @@ export class ManageHostsPage extends PureComponent {
     }
 
     return (
-      <div className={`${baseClass}__delete-label`}>
+      <div className={`${baseClass}__label-actions`}>
         <Button onClick={toggleEditLabel} variant="inverse">Edit</Button>
-        <Button onClick={toggleDeleteLabelModal} variant="alert">Delete</Button>
+        <Button onClick={toggleDeleteLabelModal} variant="inverse-alert">Delete</Button>
       </div>
     );
   }
@@ -408,16 +408,18 @@ export class ManageHostsPage extends PureComponent {
 
     return (
       <div className={`${baseClass}__header`}>
+        <div className={`${baseClass}__text`}>
+          <h1 className={`${baseClass}__title`}>
+            <span>{displayText}</span>
+          </h1>
+          <div className={`${baseClass}__description`}>
+            <p>{description || <em>{defaultDescription}</em>}</p>
+          </div>
+          <div className={`${baseClass}__topper`}>
+            <p className={`${baseClass}__host-count`}>{hostsTotalDisplay}</p>
+          </div>
+        </div>
         {renderDeleteButton()}
-        <h1 className={`${baseClass}__title`}>
-          <span>{displayText}</span>
-        </h1>
-        <div className={`${baseClass}__description`}>
-          <p>{description || <em>{defaultDescription}</em>}</p>
-        </div>
-        <div className={`${baseClass}__topper`}>
-          <p className={`${baseClass}__host-count`}>{hostsTotalDisplay}</p>
-        </div>
       </div>
     );
   }
