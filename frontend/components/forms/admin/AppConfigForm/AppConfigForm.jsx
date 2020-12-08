@@ -171,7 +171,6 @@ class AppConfigForm extends Component {
           </div>
           <div className={`${baseClass}__details ${baseClass}__avatar-preview`}>
             <OrgLogoIcon src={fields.org_logo_url.value} />
-            <p>Avatar Preview</p>
           </div>
         </div>
         <div className={`${baseClass}__section`}>

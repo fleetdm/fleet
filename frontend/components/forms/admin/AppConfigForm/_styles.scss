@@ -110,10 +110,12 @@
     text-align: center;
 
     img {
-      border-radius: 80px;
-      height: 160px;
-      width: 160px;
+      border-radius: 20%;
+      height: 120px;
+      width: 120px;
       border: 1px solid $ui-borders;
+      background-color: $ui-light-grey;
+      transform: translate(-100px, 20px);
     }
 
     p {
