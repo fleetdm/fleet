@@ -1,5 +1,5 @@
 .app-settings {
-  padding: 30px;
+  padding: 50px 30px;
 
   h1 {
     margin: 0 0 22px;
@@ -8,11 +8,10 @@
   h2 {
     font-size: 20px;
     font-weight: $regular;
-    line-height: 2.4;
-    letter-spacing: 0.8px;
-    color: $core-dark-blue-grey;
+    color: $core-black;
     border-bottom: solid 1px $ui-borders;
     margin: 0 0 15px;
+    padding: 0 0 8px;
 
     a {
       text-decoration: none;
@@ -25,10 +24,8 @@
     }
 
     small {
-      font-size: 15px;
+      font-size: $x-small;
       font-weight: $regular;
-      line-height: 1.6;
-      letter-spacing: 0.5px;
       color: $core-dark-blue-grey;
     }
   }

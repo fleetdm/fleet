@@ -6,8 +6,8 @@ import { noop } from 'lodash';
 import osqueryOptionsActions from 'redux/nodes/osquery/actions';
 import validateYaml from 'components/forms/validators/validate_yaml';
 import OsqueryOptionsForm from 'components/forms/admin/OsqueryOptionsForm';
-import Icon from 'components/icons/Icon';
 import { renderFlash } from 'redux/nodes/notifications/actions';
+import OpenNewTabIcon from '../../../../assets/images/open-new-tab-12x12@2x.png';
 
 const yaml = require('js-yaml');
 
@@ -64,36 +64,37 @@ export class OsqueryOptionsPage extends Component {
     const { onSaveOsqueryOptionsFormSubmit } = this;
 
     return (
-      <div className={`${baseClass} body-wrap`}>
-        <h1>Osquery Options</h1>
-        <div className={`${baseClass}__form-wrapper`}>
-          <OsqueryOptionsForm
-            formData={formData}
-            handleSubmit={onSaveOsqueryOptionsFormSubmit}
-          />
-          <div className={`${baseClass}__form-details`}>
-            <p>This file describes options returned to osqueryd when it checks for configuration.</p>
-            <p>See Fleet documentation for an example file that includes the overrides option.</p>
-            <a
-              href="https://github.com/fleetdm/fleet/blob/master/docs/cli/file-format.md#osquery-configuration-options"
-              target="_blank"
-              rel="noreferrer"
-              className="button button--muted"
-            >
-              GO TO FLEET DOCS
-              <Icon name="right-arrow" />
-            </a>
-            <p>See osquery documentation for all available options.</p>
-            <a
-              href="https://osquery.readthedocs.io/en/stable/deployment/configuration/#options"
-              target="_blank"
-              rel="noreferrer"
-              className="button button--muted"
-            >
-              GO TO OSQUERY DOCS
-              <Icon name="right-arrow" />
-            </a>
+      <div className={`${baseClass}__page-wrap has-sidebar`}>
+        <div className={`${baseClass} body-wrap`}>
+          <h1>Osquery Options</h1>
+          <div className={`${baseClass}__form-wrapper`}>
+            <OsqueryOptionsForm
+              formData={formData}
+              handleSubmit={onSaveOsqueryOptionsFormSubmit}
+            />
           </div>
+        </div>
+        <div className={`${baseClass}__side-panel secondary-side-panel-container`}>
+          <h2>Help</h2>
+          <p>This file describes options returned to osqueryd when it checks for configuration.</p>
+          <p>See Fleet documentation for an example file that includes the overrides option.</p>
+          <a
+            href="https://github.com/fleetdm/fleet/blob/master/docs/cli/file-format.md#osquery-configuration-options"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Go to Fleet docs
+            <img src={OpenNewTabIcon} alt="open new tab" />
+          </a>
+          <p>See osquery documentation for all available options.</p>
+          <a
+            href="https://osquery.readthedocs.io/en/stable/deployment/configuration/#options"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Go to osquery docs
+            <img src={OpenNewTabIcon} alt="open new tab" />
+          </a>
         </div>
       </div>
     );
