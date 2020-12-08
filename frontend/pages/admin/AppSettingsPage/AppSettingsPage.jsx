@@ -71,7 +71,7 @@ class AppSettingsPage extends Component {
       <div className={`${baseClass} body-wrap`}>
         <h1>App Settings</h1>
         <WarningBanner
-          message="SMTP is not currently configured in Fleet. The &quot;Add new user&quot; features requires that SMTP is configured in order to send invitation emails."
+          message="SMTP is not currently configured in Fleet. The &quot;Add new user&quot; feature requires that SMTP is configured in order to send invitation emails. Users may also be added with &quot;fleetctl user create&quot;."
           onDismiss={onDismissSmtpWarning}
           shouldShowWarning={shouldShowWarning}
         />
