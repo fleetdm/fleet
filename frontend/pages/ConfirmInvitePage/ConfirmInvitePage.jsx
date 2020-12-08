@@ -55,18 +55,14 @@ class ConfirmInvitePage extends Component {
 
     return (
       <AuthenticationFormWrapper>
-        <div className={`${baseClass}__lead-wrapper`}>
-          <p className={`${baseClass}__lead-text`}>
-            Welcome to the party, {inviteFormData.email}!
-          </p>
-          <p className={`${baseClass}__sub-lead-text`}>
-            Please take a moment to fill out the following information before we take you into <b>Fleet</b>
-          </p>
-        </div>
-        <div className={`${baseClass}__form-section-wrapper`}>
-          <div className={`${baseClass}__form-section-description`}>
-            <h2>SET USERNAME & PASSWORD</h2>
-            <p>Password must include 7 characters, at least 1 number (eg. 0-9), and at least 1 symbol (eg. ^&*#)</p>
+        <div className={`${baseClass}`}>
+          <div className={`${baseClass}__lead-wrapper`}>
+            <p className={`${baseClass}__lead-text`}>
+              Welcome to Fleet
+            </p>
+            <p className={`${baseClass}__sub-lead-text`}>
+              Before you get started, please take a moment to complete the following information.
+            </p>
           </div>
           <ConfirmInviteForm
             className={`${baseClass}__form`}

@@ -1,4 +1,10 @@
 .confirm-invite-page {
+  background-color: $white;
+  border-radius: 10px;
+  width: 436px;
+  padding: 40px;
+  margin-top: 40px;
+
   &__form-section-description {
     h2 {
       font-size: 18px;
@@ -18,51 +24,36 @@
   }
 
   &__form-section-wrapper {
-    background-color: $white;
-    border-radius: 4px;
-    box-shadow: 0 0 30px 0 rgba(0, 0, 0, 0.3);
     box-sizing: border-box;
-    height: 459px;
-    padding: 35px;
-    width: 500px;
     margin-bottom: 110px;
   }
 
-  &__form {
-    width: 440px;
-
-    .fields {
-      background-color: $white;
-      border-top-left-radius: 4px;
-      border-top-right-radius: 4px;
-      box-shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.3);
-      box-sizing: border-box;
-      padding: 30px;
-    }
-  }
-
   &__lead-wrapper {
-    background-color: $white;
     border-radius: 4px;
-    box-shadow: 0 0 30px 0 rgba(0, 0, 0, 0.3);
     box-sizing: border-box;
-    margin-bottom: 30px;
-    padding: 35px;
-    width: 500px;
   }
 
   &__lead-text {
-    color: $core-blue;
-    font-size: 18px;
+    font-size: $medium;
     font-weight: $regular;
-    margin-top: 0;
+    margin: 0 0 6px 0;
     text-align: center;
   }
 
   &__sub-lead-text {
-    color: $core-dark-blue-grey;
-    font-size: 14px;
+    font-size: $x-small;
     font-weight: $regular;
-    margin-bottom: 0;
+    text-align: center;
+    margin: 0;
+  }
+
+  .confirm-invite-page__form__button-wrap {
+    display: flex;
+    justify-content: center;
+    margin-top: 40px;
+
+    .button {
+      width: 160px;
+    }
   }
 }
