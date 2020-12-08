@@ -28,10 +28,10 @@ describe('UserSettingsPage - component', () => {
     const pageWithUser = mount(<UserSettingsPage dispatch={noop} user={userStub} />);
     const pageWithAdmin = mount(<UserSettingsPage dispatch={noop} user={admin} />);
 
-    expect(pageWithUser.text()).toContain('Role - USER');
-    expect(pageWithUser.text()).not.toContain('Role - ADMIN');
-    expect(pageWithAdmin.text()).not.toContain('Role - USER');
-    expect(pageWithAdmin.text()).toContain('Role - ADMIN');
+    expect(pageWithUser.find('.user-settings__role').text()).toContain('User');
+    expect(pageWithUser.find('.user-settings__role').text()).not.toContain('Admin');
+    expect(pageWithAdmin.find('.user-settings__role').text()).not.toContain('User');
+    expect(pageWithAdmin.find('.user-settings__role').text()).toContain('Admin');
   });
 
   it('updates a user with only the updated attributes', () => {

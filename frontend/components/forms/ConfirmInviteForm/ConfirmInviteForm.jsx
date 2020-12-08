@@ -51,7 +51,7 @@ class ConfirmInviteForm extends Component {
             type="password"
           />
         </div>
-        <div className={`${className}__button-wrap`}>
+        <div className="confirm-invite-button-wrap">
           <Button onClick={handleSubmit} type="Submit" className="button button--brand">
             Submit
           </Button>

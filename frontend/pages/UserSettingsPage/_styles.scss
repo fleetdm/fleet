@@ -45,7 +45,7 @@
   &__header {
     font-size: $x-small;
     font-weight: $bold;
-    margin: 24px 0 4px 0;
+    margin: 24px 0 4px;
   }
 
   &__description {
@@ -90,7 +90,7 @@
   &__secret-label {
     font-size: $x-small;
     font-weight: $bold;
-    margin: 0 0 4px 0;
+    margin: 0 0 4px;
 
     a {
       color: $core-blue;

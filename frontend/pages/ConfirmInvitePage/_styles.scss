@@ -36,7 +36,7 @@
   &__lead-text {
     font-size: $medium;
     font-weight: $regular;
-    margin: 0 0 6px 0;
+    margin: 0 0 6px;
     text-align: center;
   }
 
@@ -47,7 +47,7 @@
     margin: 0;
   }
 
-  .confirm-invite-page__form__button-wrap {
+  .confirm-invite-button-wrap {
     display: flex;
     justify-content: center;
     margin-top: 40px;

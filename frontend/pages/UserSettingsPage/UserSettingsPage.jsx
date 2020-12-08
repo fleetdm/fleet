@@ -315,7 +315,7 @@ export class UserSettingsPage extends Component {
 
           <div className={`${baseClass}__more-info-detail`}>
             <p className={`${baseClass}__header`}>Role</p>
-            <p className={`${baseClass}__description`}>{roleText}</p>
+            <p className={`${baseClass}__description ${baseClass}__role`}>{roleText}</p>
           </div>
           <div className={`${baseClass}__more-info-detail`}>
             <p className={`${baseClass}__header`}>Password</p>
