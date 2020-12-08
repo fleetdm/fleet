@@ -2,8 +2,8 @@
   background-color: $ui-light-grey;
 
   &__type {
-    padding: 0 8px 4px 8px;
-    margin: 40px 0 0 0;
+    padding: 0 8px 4px;
+    margin: 40px 0 0;
     text-transform: uppercase;
     font-weight: $bold;
     font-size: $xx-small;
@@ -23,7 +23,6 @@
     min-height: 500px;
     position: relative;
     z-index: 2;
-    background-color: $core-light-blue-grey;
     padding: 24px 16px;
     border-right: 1px solid $ui-borders;
     background-color: $white;

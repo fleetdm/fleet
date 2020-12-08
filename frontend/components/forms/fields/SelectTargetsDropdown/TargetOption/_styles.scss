@@ -106,12 +106,13 @@
   }
 }
 
-.target-option__wrapper.is-host {
+.is-host {
   .button {
     display: flex;
     justify-content: flex-start;
     align-items: center;
   }
+
   .target-option__label-label {
     font-weight: $bold;
     margin-right: 8px;

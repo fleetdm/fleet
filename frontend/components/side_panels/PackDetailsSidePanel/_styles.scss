@@ -1,5 +1,5 @@
 .pack-details-side-panel {
-  padding: 16px 20px 0 20px;
+  padding: 16px 20px 0;
 
   &__description {
     color: $core-dark-blue-grey;
@@ -12,7 +12,7 @@
     font-size: $x-small;
     font-weight: $bold;
     letter-spacing: -0.5px;
-    margin: 24px 0 16px 0;
+    margin: 24px 0 16px;
   }
 
   &__edit-pack-link {
@@ -41,7 +41,7 @@
 
   &__queries-list {
     list-style: none;
-    margin: 0 0 16px 0;
+    margin: 0 0 16px;
     padding: 0;
   }
 
