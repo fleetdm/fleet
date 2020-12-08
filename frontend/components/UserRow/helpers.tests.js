@@ -1,7 +1,7 @@
-import helpers from 'components/UserBlock/helpers';
+import helpers from 'components/UserRow/helpers';
 import { userStub } from 'test/stubs';
 
-describe('UserBlock - helpers', () => {
+describe('UserRow - helpers', () => {
   describe('#userActionOptions', () => {
     const { userActionOptions } = helpers;
 

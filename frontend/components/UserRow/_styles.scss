@@ -1,18 +1,20 @@
 .user-row {
   
   &__actions {
-    .form-field {
-      margin-bottom: 0px;
+    .form-field--dropdown {
+      margin-bottom: 0;
 
       .Select-placeholder {
         font-size: $x-small;
       }
+
       .Select-input {
         font-size: $x-small;
       }
+
       .Select-menu-outer {
-        width: auto;
-        left: -64px;
+        width: 186px;
+        transform: translateX(-33%);
       }
     }
   }

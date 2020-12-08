@@ -291,8 +291,8 @@ export class UserManagementPage extends Component {
 
   render () {
     const { renderModal, renderSmtpWarning, renderUserTable, toggleInviteUserModal } = this;
-    const { config, loadingInvites, loadingUsers } = this.props;
-
+    const { config, loadingInvites, loadingUsers, users, invites } = this.props;
+    const resourcesCount = users.length + invites.length;
     if (loadingInvites || loadingUsers) {
       return false;
     }
@@ -301,7 +301,7 @@ export class UserManagementPage extends Component {
       <div className={`${baseClass} body-wrap`}>
         <div className={`${baseClass}__heading-wrapper`}>
           <div className={`${baseClass}__add-user-wrap`}>
-            <h1 className={`${baseClass}__user-count`}>Manage users</h1>
+            <h1 className={`${baseClass}__header`}>Manage users</h1>
             <Button
               className={`${baseClass}__add-user-btn button button--brand`}
               disabled={!config.configured}
@@ -313,6 +313,7 @@ export class UserManagementPage extends Component {
           </div>
         </div>
         {renderSmtpWarning()}
+        <p className={`${baseClass}__user-count`}>{resourcesCount} users</p>
         {renderUserTable()}
         {renderModal()}
       </div>

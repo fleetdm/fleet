@@ -8,6 +8,10 @@
     margin-top: $pad-base;
   }
 
+  &__header {
+    font-size: $large;
+  }
+
   &__table {
     border-collapse: collapse;
     color: $core-black;
@@ -38,7 +42,7 @@
 
   tbody {
     td {
-      padding: 0px 30px;
+      padding: 0 30px;
       white-space: nowrap;
     }
 
@@ -59,12 +63,16 @@
   }
 
   &__user-count {
-    
+    font-size: $x-small;
+    font-weight: $bold;
+    color: $core-black;
+    margin-top: 34px;
   }
 
   &__add-user-wrap {
     display: flex;
     justify-content: space-between;
+    align-items: flex-start;
   }
 
   &__add-user-btn {

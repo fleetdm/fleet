@@ -83,6 +83,7 @@ class UserRow extends Component {
         </Modal>
       );
     }
+    return false;
   }
 
   render () {

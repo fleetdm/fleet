@@ -41,7 +41,7 @@ describe('AppSettingsPage - component', () => {
 
     expect(smtpWarning.length).toEqual(1);
     expect(smtpWarning.find('Icon').length).toEqual(1);
-    expect(smtpWarning.text()).toContain('Email is not currently configured in Fleet');
+    expect(smtpWarning.text()).toContain('Warning:SMTP is not currently configured in Fleet. The "Add new user" features requires that SMTP is configured in order to send invitation emails.');
   });
 
   it('dismisses the smtp warning when "DISMISS" is clicked', () => {

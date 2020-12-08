@@ -1,4 +1,6 @@
 .invite-user-form {
+  margin-top: 24px;
+
   &__radio {
     margin-top: 22px;
 
@@ -8,7 +10,6 @@
       &__label {
         font-size: 16px;
         font-weight: $regular;
-        letter-spacing: 1px;
         color: $core-dark-blue-grey;
         padding-left: 32px;
       }
@@ -16,9 +17,9 @@
   }
 
   &__role {
-    color: $core-blue;
-    font-size: $small;
-    text-transform: lowercase;
+    color: $core-black;
+    font-size: $x-small;
+    font-weight: $bold;
     margin: 0;
   }
 
