@@ -281,7 +281,7 @@ class AppConfigForm extends Component {
             />
           </div>
           <div className={`${baseClass}__details`}>
-            <p>The address email recipients will see all messages that are sent from the Fleet application.</p>
+            <p>The sender address for emails from Fleet.</p>
           </div>
           <div className={`${baseClass}__inputs ${baseClass}__inputs--smtp`}>
             <InputField
