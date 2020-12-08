@@ -2,7 +2,7 @@ import React from 'react';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
-import UserBlock from 'components/UserBlock/UserBlock';
+import UserBlock from 'components/UserRow/UserRow';
 import { fillInFormInput } from 'test/helpers';
 import { userStub } from 'test/stubs';
 

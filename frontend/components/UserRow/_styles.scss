@@ -1,0 +1,19 @@
+.user-row {
+  
+  &__actions {
+    .form-field {
+      margin-bottom: 0px;
+
+      .Select-placeholder {
+        font-size: $x-small;
+      }
+      .Select-input {
+        font-size: $x-small;
+      }
+      .Select-menu-outer {
+        width: auto;
+        left: -64px;
+      }
+    }
+  }
+}

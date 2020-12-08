@@ -1,24 +1,70 @@
 .user-management {
   min-height: 90vh;
-  padding: 30px 30px 30px 0;
+  padding: 30px;
+
+  &__wrapper {
+    border: solid 1px $ui-borders;
+    border-radius: 6px;
+    margin-top: $pad-base;
+  }
+
+  &__table {
+    border-collapse: collapse;
+    color: $core-black;
+    font-size: $x-small;
+    width: 100%;
+  }
+
+  tr {
+    border-bottom: 1px solid $ui-borders;
+
+    &:last-child {
+      border-bottom: 0;
+    }
+  }
+
+  thead {
+    background-color: $core-light-blue-grey;
+    color: $core-black;
+    text-align: left;
+    border-bottom: 1px solid $ui-borders;
+
+    th {
+      padding: 18px 30px;
+      white-space: nowrap;
+      border-radius: 6px 0;
+    }
+  }
+
+  tbody {
+    td {
+      padding: 0px 30px;
+      white-space: nowrap;
+    }
+
+    .user-row__actions {
+      padding: 4px 30px;
+      width: 120px;
+      float: right;
+    }
+  }
 
   &__heading-wrapper {
-    float: left;
     width: 100%;
     margin-bottom: 10px;
   }
 
   &__smtp-warning-wrapper {
-    padding-left: 30px;
+    width: 100%;
   }
 
   &__user-count {
-    margin: 0 0 0 30px;
-    float: left;
+    
   }
 
   &__add-user-wrap {
-    float: right;
+    display: flex;
+    justify-content: space-between;
   }
 
   &__add-user-btn {

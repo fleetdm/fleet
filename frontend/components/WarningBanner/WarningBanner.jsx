@@ -14,7 +14,7 @@ const WarningBanner = ({ className, message, labelText, shouldShowWarning, onDis
 
   const fullClassName = classnames(baseClass, className);
 
-  const label = labelText || 'Warning!';
+  const label = labelText || 'Warning:';
 
   return (
     <div className={fullClassName}>
