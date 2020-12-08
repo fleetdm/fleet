@@ -4,6 +4,11 @@
     font-weight: $regular;
   }
 
+  &__header-wrap {
+    display: flex;
+    justify-content: space-between;
+  }
+
   &__ctas {
     flex-grow: 1;
     text-align: right;
@@ -11,9 +16,8 @@
 
   &__query-count {
     color: $core-dark-blue-grey;
-    font-size: 14px;
+    font-size: $x-small;
     font-weight: $bold;
-    letter-spacing: -0.5px;
     margin: 0 12px 0 0;
     display: inline-block;
   }
@@ -28,7 +32,8 @@
 
     input {
       &[name='query-filter'] {
-        width: 240px;
+        width: 100%;
+        margin-top: 24px;
       }
     }
   }
@@ -43,7 +48,7 @@
 
     .kolidecon {
       position: absolute;
-      top: 12px;
+      top: 36px;
       left: 9px;
       font-size: 18px;
       color: $ui-medium-grey;
@@ -55,7 +60,7 @@
   }
 
   &__wrapper {
-    padding: $pad-base;
+    padding: 50px 30px;
     min-height: 90vh;
   }
 

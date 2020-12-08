@@ -29,7 +29,7 @@ class QueryDetailsSidePanel extends Component {
     const { packs } = query;
 
     if (!packs || (packs && !packs.length)) {
-      return <p>There are no packs associated with this query</p>;
+      return <p className={`${baseClass}__description`}>There are no packs associated with this query</p>;
     }
 
     return (
@@ -53,8 +53,9 @@ class QueryDetailsSidePanel extends Component {
 
     return (
       <SecondarySidePanelContainer className={baseClass}>
+        <p className={`${baseClass}__label`}>Query</p>
         <h1><Icon name="query" /> {name}</h1>
-        <Button onClick={handleEditQueryClick} variant="inverse">Edit/Run Query</Button>
+        <p className={`${baseClass}__label`}>SQL</p>
         <KolideAce
           fontSize={12}
           name="query-details"
@@ -64,10 +65,11 @@ class QueryDetailsSidePanel extends Component {
           wrapperClassName={`${baseClass}__query-preview`}
           wrapEnabled
         />
-        <h2>Description</h2>
+        <p className={`${baseClass}__label`}>Description</p>
         <p className={`${baseClass}__description`}>{description || <em>No description available</em>}</p>
-        <h2>Packs</h2>
+        <p className={`${baseClass}__label`}>Packs</p>
         {renderPacks()}
+        <Button onClick={handleEditQueryClick} variant="inverse">Edit or run query</Button>
       </SecondarySidePanelContainer>
     );
   }

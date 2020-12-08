@@ -39,7 +39,7 @@ const labelStubs = [
   {
     id: 'online',
     count: 0,
-    description: 'Hosts that have recently checked-in to kolide and are ready to run queries.',
+    description: 'Hosts that have recently checked-in to Fleet and are ready to run queries.',
     display_text: 'Online',
     slug: 'online',
     statusLabelKey: 'online_count',
@@ -48,7 +48,7 @@ const labelStubs = [
   {
     id: 'offline',
     count: 0,
-    description: 'Hosts that have not checked-in to kolide recently.',
+    description: 'Hosts that have not checked-in to Fleet recently.',
     display_text: 'Offline',
     slug: 'offline',
     statusLabelKey: 'offline_count',
@@ -57,7 +57,7 @@ const labelStubs = [
   {
     id: 'mia',
     count: 0,
-    description: 'Hosts that have not been seen by Kolide in more than 30 days.',
+    description: 'Hosts that have not been seen by Fleet in more than 30 days.',
     display_text: 'MIA',
     slug: 'mia',
     statusLabelKey: 'mia_count',

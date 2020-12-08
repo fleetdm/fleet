@@ -21,7 +21,7 @@
     z-index: 2;
     border-radius: 2px;
     background-color: $white;
-    border: solid 1px $ui-borders;
+    box-shadow: 0px 4px 10px rgba(52, 59, 96, 0.15);
 
     &--opened {
       display: inline-block;

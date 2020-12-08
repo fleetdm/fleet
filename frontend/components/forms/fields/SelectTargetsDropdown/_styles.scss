@@ -3,13 +3,12 @@
 
   &__label {
     font-size: 16px;
-    font-weight: $bold;
-    font-style: normal;
+    font-style: $x-small;
     font-stretch: normal;
     letter-spacing: -0.5px;
     color: $core-dark-blue-grey;
     display: block;
-    margin-bottom: 4px;
+    margin: 40px 0 4px 0;
     text-align: right;
 
     &--error {
@@ -25,7 +24,7 @@
 
   &__targets-count {
     font-size: $small;
-    margin-left: $pad-xsmall;
+    font-weight: $regular;
     color: $core-blue;
   }
 
@@ -78,29 +77,11 @@
     &.Select--multi {
       .Select-option {
         padding: 0;
-        background-color: $core-light-blue-grey;
 
         &.is-disabled {
           &.is-focused {
-            background-color: $core-blue;
-
-            .target-option__label-label,
-            .target-option__target-icon,
-            .target-option__delimeter,
-            .target-option__ip,
-            .target-option__more-info,
-            .target-option__icon {
-              color: $white;
-            }
-
-            .target-option__add-btn {
-              color: $white;
-            }
-
-            .target-option__count {
-              background-color: $white;
-              color: $core-blue;
-            }
+            background-color: $core-blue-selected;
+            border-radius: 8px;
           }
         }
 
@@ -140,11 +121,11 @@
         content: '\f03c';
         font-size: 150px;
         position: absolute;
-        left: 57%;
+        left: 50%;
         top: 50%;
         margin-top: -75px;
         opacity: 0.25;
-        width: 43%;
+        width: 50%;
         text-align: center;
       }
     }

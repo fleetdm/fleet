@@ -9,7 +9,6 @@ import entityGetter from 'redux/utilities/entityGetter';
 import Icon from 'components/icons/Icon';
 import InputField from 'components/forms/fields/InputField';
 import Modal from 'components/modals/Modal';
-import NumberPill from 'components/NumberPill';
 import packActions from 'redux/nodes/entities/packs/actions';
 import PackDetailsSidePanel from 'components/side_panels/PackDetailsSidePanel';
 import PackInfoSidePanel from 'components/side_panels/PackInfoSidePanel';
@@ -249,7 +248,7 @@ export class AllPacksPage extends Component {
     }
 
     return (
-      <Button variant="brand" onClick={goToNewPackPage}>CREATE NEW PACK</Button>
+      <Button variant="brand" onClick={goToNewPackPage}>Create new pack</Button>
     );
   }
 
@@ -308,6 +307,7 @@ export class AllPacksPage extends Component {
     const { loadingPacks, selectedPack } = this.props;
     const packs = getPacks();
     const packsCount = packs.length;
+    const packsTotalDisplay = packsCount === 1 ? '1 pack' : `${packsCount} packs`;
 
     if (loadingPacks) {
       return false;
@@ -316,18 +316,22 @@ export class AllPacksPage extends Component {
     return (
       <div className={`${baseClass} has-sidebar`}>
         <div className={`${baseClass}__wrapper body-wrap`}>
-          <h1 className={`${baseClass}__title`}>
-            <NumberPill number={packsCount} /> Query Packs
-          </h1>
+          <div className={`${baseClass}__header-wrap`}>
+            <h1 className={`${baseClass}__title`}>
+              Packs
+            </h1>
+            {renderCTAs()}
+          </div>
           <div className={`${baseClass}__search-create-section`}>
             <InputField
               name="pack-filter"
               onChange={onFilterPacks}
-              placeholder="Search Packs"
+              placeholder="Filter packs"
               value={packFilter}
             />
-            {renderCTAs()}
+            <Icon name="search" />
           </div>
+          <p className={`${baseClass}__pack-count`}>{packsTotalDisplay}</p>
           <PacksList
             allPacksChecked={allPacksChecked}
             checkedPackIDs={checkedPackIDs}

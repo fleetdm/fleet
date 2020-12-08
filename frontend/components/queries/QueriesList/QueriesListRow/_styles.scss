@@ -1,12 +1,18 @@
 .queries-list-row {
   line-height: 38px;
+  border-bottom: 1px solid $ui-borders;
+
+  &:last-child {
+    border-bottom: 0;
+  }
 
   &--selected {
-    background-color: $ui-light-grey;
+    background-color: $core-blue-selected;
   }
 
   &:hover {
     cursor: pointer;
+    background-color: $core-blue-selected;
   }
 
   &:active,
@@ -15,11 +21,7 @@
   }
 
   td {
-    font-size: 14px;
-
-    &:nth-child(2) {
-      font-weight: $bold;
-    }
+    font-size: $x-small;
 
     .form-field {
       margin: 0;
