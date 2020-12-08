@@ -4,7 +4,6 @@ import PropTypes from 'prop-types';
 import hostInterface from 'interfaces/host';
 import labelInterface from 'interfaces/label';
 import HostsTable from 'components/hosts/HostsTable';
-import LonelyHost from 'components/hosts/LonelyHost';
 import Spinner from 'components/loaders/Spinner';
 import NoHostsImage from '../../../../assets/images/no-matching-host-100x100@2x.png';
 
@@ -15,7 +14,6 @@ class HostContainer extends Component {
     hosts: PropTypes.arrayOf(hostInterface),
     selectedLabel: labelInterface,
     loadingHosts: PropTypes.bool.isRequired,
-    toggleAddHostModal: PropTypes.func,
     toggleDeleteHostModal: PropTypes.func,
     onQueryHost: PropTypes.func,
   };
@@ -62,7 +60,7 @@ class HostContainer extends Component {
 
   render () {
     const { renderHosts, renderNoHosts } = this;
-    const { hosts, loadingHosts, selectedLabel, toggleAddHostModal } = this.props;
+    const { hosts, loadingHosts, selectedLabel } = this.props;
 
     if (loadingHosts) {
       return <Spinner />;
@@ -70,7 +68,22 @@ class HostContainer extends Component {
 
     if (hosts.length === 0) {
       if (selectedLabel && selectedLabel.type === 'all') {
-        return <LonelyHost onClick={toggleAddHostModal} />;
+        return (
+          <div className={`${baseClass}  ${baseClass}--no-hosts`}>
+            <div className={`${baseClass}--no-hosts__inner`}>
+              <img src={NoHostsImage} alt="No Hosts" />
+              <div>
+                <h1>It&#39;s Kinda Lonely In Here...</h1>
+                <h2>Get started adding hosts to Fleet.</h2>
+                <p>This can be done individually or across your entire fleet.</p>
+                <div className={`${baseClass}__no-hosts-contact`}>
+                  <p>Still having trouble?</p>
+                  <a href="https://github.com/fleetdm/fleet/issues">File a Github issue</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
       }
 
       return renderNoHosts();

@@ -58,8 +58,6 @@
   }
 
   &__description {
-    line-height: 1.54;
-    letter-spacing: 0.5px;
     margin: 0 0 16px;
 
     h2 {
@@ -86,7 +84,6 @@
     flex-grow: 1;
     font-size: $x-small;
     font-weight: $bold;
-    letter-spacing: 0.9px;
     color: $core-black;
     margin: 0;
     display: inline-block;

@@ -20,10 +20,6 @@ $base-class: 'panel-group-item';
     font-weight: $bold;
     background-color: $core-blue-selected;
 
-    .#{$base-class}__icon {
-      color: $white;
-    }
-
     .#{$base-class}__count {
       font-weight: $bold;
     }

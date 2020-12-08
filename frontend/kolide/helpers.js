@@ -30,6 +30,7 @@ const labelStubs = [
   {
     id: 'new',
     count: 0,
+    description: 'Hosts that have been enrolled to Fleet in the last 24 hours.',
     display_text: 'New',
     slug: 'new',
     statusLabelKey: 'new_count',
