@@ -64,18 +64,16 @@ class EditUserForm extends Component {
         </Checkbox>
         <div className={`${baseClass}__btn-wrap`}>
           <Button
-            className={`${baseClass}__form-btn ${baseClass}__form-btn--submit`}
-            type="submit"
-            variant="brand"
-          >
-            Submit
-          </Button>
-          <Button
-            className={`${baseClass}__form-btn`}
+            className={`${baseClass}__form-btn ${baseClass}__form-btn--cancel button button--inverse`}
             onClick={onCancel}
-            variant="inverse"
           >
             Cancel
+          </Button>
+          <Button
+            className={`${baseClass}__form-btn ${baseClass}__form-btn--submit button button--brand`}
+            type="submit"
+          >
+            Submit
           </Button>
         </div>
       </form>

@@ -1,8 +1,17 @@
 .edit-user-form {
   box-sizing: border-box;
-  padding: $pad-small;
   height: 100%;
   position: relative;
+  margin-top: 24px;
+
+  &__btn-wrap {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .form-field {
+    margin-bottom: 24px;
+  }
 
   form &__input {
     font-size: $small;
@@ -16,19 +25,10 @@
     font-weight: $bold;
   }
 
-  &__btn-wrap {
-    margin-top: $pad-half;
-
-    .button {
-      padding: 0 $pad-medium;
-    }
-  }
-
   &__form-btn {
-    padding: inherit $pad-base;
 
-    &--submit {
-      float: right;
+    &--cancel {
+      margin-right: 14px;
     }
   }
 }

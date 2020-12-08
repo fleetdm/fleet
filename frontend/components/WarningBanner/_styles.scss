@@ -2,8 +2,8 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  background-color: $alert;
-  color: $white;
+  background-color: $warning;
+  color: $black;
   padding: 15px 20px;
   border-radius: 2px;
   font-size: 15px;
@@ -17,7 +17,6 @@
   &__label {
     font-weight: $bold;
     margin-left: 15px;
-    text-transform: uppercase;
   }
 
   &__text {
@@ -26,7 +25,7 @@
   }
 
   .button {
-    color: $white;
+    color: $black;
     font-size: 15px;
     text-decoration: underline;
     font-weight: $regular;
