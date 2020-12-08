@@ -8,7 +8,6 @@ import Button from 'components/buttons/Button';
 import entityGetter from 'redux/utilities/entityGetter';
 import InputField from 'components/forms/fields/InputField';
 import Modal from 'components/modals/Modal';
-import NumberPill from 'components/NumberPill';
 import Icon from 'components/icons/Icon';
 import PackInfoSidePanel from 'components/side_panels/PackInfoSidePanel';
 import PATHS from 'router/paths';
@@ -201,7 +200,7 @@ export class ManageQueriesPage extends Component {
     }
 
     return (
-      <Button variant="brand" onClick={goToNewQueryPage}>CREATE NEW QUERY</Button>
+      <Button variant="brand" onClick={goToNewQueryPage}>Create new query</Button>
     );
   }
 
@@ -255,6 +254,7 @@ export class ManageQueriesPage extends Component {
     const { loadingQueries, queries: allQueries, selectedQuery } = this.props;
     const queries = getQueries();
     const queriesCount = queries.length;
+    const queriesTotalDisplay = queriesCount === 1 ? '1 query' : `${queriesCount} queries`;
     const isQueriesAvailable = allQueries.length > 0;
 
     if (loadingQueries) {
@@ -264,9 +264,12 @@ export class ManageQueriesPage extends Component {
     return (
       <div className={`${baseClass} has-sidebar`}>
         <div className={`${baseClass}__wrapper body-wrap`}>
-          <h1 className={`${baseClass}__title`}>
-            <NumberPill number={queriesCount} /> Queries
-          </h1>
+          <div className={`${baseClass}__header-wrap`}>
+            <h1 className={`${baseClass}__title`}>
+              Query
+            </h1>
+            {renderCTAs()}
+          </div>
           <div className={`${baseClass}__filter-and-cta`}>
             <div className={`${baseClass}__filter-queries`}>
               <InputField
@@ -277,8 +280,8 @@ export class ManageQueriesPage extends Component {
               />
               <Icon name="search" />
             </div>
-            {renderCTAs()}
           </div>
+          <p className={`${baseClass}__query-count`}>{queriesTotalDisplay}</p>
           <QueriesList
             checkedQueryIDs={checkedQueryIDs}
             isQueriesAvailable={isQueriesAvailable}

@@ -36,7 +36,6 @@ class TargetOption extends Component {
 
       return (
         <span>
-          <span className={`${baseClass}__delimeter`}>&bull;</span>
           <span className={`${baseClass}__ip`}>{hostIpAddress}</span>
         </span>
       );
@@ -60,8 +59,10 @@ class TargetOption extends Component {
     return (
       <div className={wrapperClassName}>
         <button className={`button button--unstyled ${baseClass}__target-content`} onClick={onMoreInfoClick(target)}>
-          <TargetIcon target={target} />
-          <span className={`${baseClass}__label-label`}>{displayText}</span>
+          <div>
+            <TargetIcon target={target} />
+            <span className={`${baseClass}__label-label`}>{displayText}</span>
+          </div>
           {renderTargetDetail()}
         </button>
         <button className={`button button--unstyled ${baseClass}__add-btn`} onClick={handleSelect}>

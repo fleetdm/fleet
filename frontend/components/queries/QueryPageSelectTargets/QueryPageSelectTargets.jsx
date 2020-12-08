@@ -40,6 +40,14 @@ class QueryPageSelectTargets extends Component {
 
     return (
       <div className={`${baseClass}__wrapper body-wrap`}>
+        <SelectTargetsDropdown
+          error={error}
+          onFetchTargets={onFetchTargets}
+          onSelect={onTargetSelect}
+          selectedTargets={selectedTargets}
+          targetsCount={targetsCount}
+          label="Select targets"
+        />
         <QueryProgressDetails
           campaign={campaign}
           onRunQuery={onRunQuery}
@@ -47,14 +55,6 @@ class QueryPageSelectTargets extends Component {
           queryIsRunning={queryIsRunning}
           queryTimerMilliseconds={queryTimerMilliseconds}
           disableRun={disableRun}
-        />
-        <SelectTargetsDropdown
-          error={error}
-          onFetchTargets={onFetchTargets}
-          onSelect={onTargetSelect}
-          selectedTargets={selectedTargets}
-          targetsCount={targetsCount}
-          label="Select Targets"
         />
       </div>
     );

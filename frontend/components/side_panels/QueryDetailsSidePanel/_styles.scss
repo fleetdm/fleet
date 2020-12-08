@@ -3,7 +3,7 @@
 
   h1 {
     @include ellipsis(250px);
-    margin: 0 0 12px;
+    margin: 0 0 24px;
     font-size: 18px;
     font-weight: $bold;
 
@@ -13,29 +13,22 @@
     }
   }
 
-  h2 {
-    font-size: 16px;
+  &__label {
+    font-size: $x-small;
     font-weight: $bold;
-    letter-spacing: -0.5px;
-    color: $core-dark-blue-grey;
-    border-bottom: solid 1px $ui-borders;
     padding: 0 0 4px;
-    margin: 0 0 6px;
+    margin: 24px 0 16px;
   }
 
-  p {
+  &__description {
     font-size: 14px;
     font-weight: $regular;
-    line-height: 1.71;
     color: $core-dark-blue-grey;
+    word-wrap: break-word;
   }
 
   &__query-preview {
     margin-bottom: 12px;
-  }
-
-  &__description {
-    word-wrap: break-word;
   }
 
   .button {
@@ -43,7 +36,7 @@
   }
 
   &__packs {
-    margin: 0;
+    margin-bottom: 24px;
     padding: 0;
     list-style: none;
   }

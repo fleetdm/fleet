@@ -19,7 +19,7 @@ const QueryProgressDetails = ({ campaign, className, onRunQuery, onStopQuery, qu
       <Button
         className={`${baseClass}__run-btn`}
         onClick={onRunQuery}
-        variant="success"
+        variant="blue-green"
         disabled={disableRun}
       >
         Run

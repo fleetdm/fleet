@@ -60,6 +60,10 @@ $base-class: 'button';
     @include button-variant($alert);
   }
 
+  &--blue-green {
+    @include button-variant($core-blue-green)
+  }
+
   &--muted {
     @include button-variant(#eceef1, null, $core-darkest-blue-grey);
 

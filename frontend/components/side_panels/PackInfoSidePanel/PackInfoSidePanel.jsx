@@ -11,7 +11,7 @@ const PackInfoSidePanel = () => {
       <h3 className={`${baseClass}__title`}>
         <Icon name="packs" />
         &nbsp;
-        What&apos;s a Query Pack?
+        What&apos;s a query pack?
       </h3>
       <p>
         Osquery supports grouping of queries (called <b>query packs</b>)

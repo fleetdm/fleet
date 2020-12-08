@@ -1,15 +1,14 @@
 .query-form {
   &__wrapper {
-    padding: $pad-base;
 
     h1 {
-      margin-bottom: 19px;
+      margin-bottom: 24px;
     }
   }
 
   &__query-title,
   &__query-description {
-    width: 50%;
+    width: 100%;
   }
 
   &__button-wrap {

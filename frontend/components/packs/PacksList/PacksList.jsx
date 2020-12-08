@@ -68,29 +68,31 @@ class PacksList extends Component {
     const tableClassName = classnames(baseClass, className);
 
     return (
-      <table className={tableClassName}>
-        <thead>
-          <tr>
-            <th className={`${baseClass}__th`}>
-              <Checkbox
-                name="select-all-packs"
-                onChange={onCheckAllPacks}
-                value={allPacksChecked}
-                wrapperClassName={`${baseClass}__select-all`}
-              />
-            </th>
-            <th className={`${baseClass}__th ${baseClass}__th-pack-name`}>Pack Name</th>
-            <th className={`${baseClass}__th`}>Queries</th>
-            <th className={`${baseClass}__th`}>Status</th>
-            <th className={`${baseClass}__th`}>Hosts</th>
-            <th className={`${baseClass}__th`}>Last Modified</th>
-          </tr>
-        </thead>
-        <tbody>
-          {renderHelpText()}
-          {!!packs.length && orderBy(packs, ['name']).map(pack => renderPack(pack))}
-        </tbody>
-      </table>
+      <div className={`${baseClass}__wrapper`}>
+        <table className={tableClassName}>
+          <thead>
+            <tr>
+              <th className={`${baseClass}__th`}>
+                <Checkbox
+                  name="select-all-packs"
+                  onChange={onCheckAllPacks}
+                  value={allPacksChecked}
+                  wrapperClassName={`${baseClass}__select-all`}
+                />
+              </th>
+              <th className={`${baseClass}__th ${baseClass}__th-pack-name`}>Pack Name</th>
+              <th className={`${baseClass}__th`}>Queries</th>
+              <th className={`${baseClass}__th`}>Status</th>
+              <th className={`${baseClass}__th`}>Hosts</th>
+              <th className={`${baseClass}__th`}>Last Modified</th>
+            </tr>
+          </thead>
+          <tbody>
+            {renderHelpText()}
+            {!!packs.length && orderBy(packs, ['name']).map(pack => renderPack(pack))}
+          </tbody>
+        </table>
+      </div>
     );
   }
 }

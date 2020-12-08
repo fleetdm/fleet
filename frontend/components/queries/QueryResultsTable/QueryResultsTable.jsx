@@ -185,7 +185,7 @@ class QueryResultsTable extends Component {
           <Button
             className={`${baseClass}__export-btn`}
             onClick={onExportQueryResults}
-            variant="link"
+            variant="inverse"
           >
             Export
           </Button>
