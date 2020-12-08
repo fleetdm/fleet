@@ -2,11 +2,11 @@ import React from 'react';
 import { mount } from 'enzyme';
 import { noop } from 'lodash';
 
-import UserBlock from 'components/UserBlock/UserBlock';
+import UserRow from 'components/UserRow/UserRow';
 import { fillInFormInput } from 'test/helpers';
 import { userStub } from 'test/stubs';
 
-describe('UserBlock - component', () => {
+describe('UserRow - component', () => {
   const defaultInviteProps = {
     isCurrentUser: false,
     isEditing: false,
@@ -23,9 +23,9 @@ describe('UserBlock - component', () => {
     user: userStub,
   };
 
-  it('renders a user block', () => {
+  it('renders a user row', () => {
     const props = { ...defaultUserProps, user: userStub };
-    const component = mount(<UserBlock {...props} />);
+    const component = mount(<UserRow {...props} />);
 
     expect(component.length).toEqual(1);
     expect(component.find('Dropdown').length).toEqual(1);
@@ -36,7 +36,7 @@ describe('UserBlock - component', () => {
     () => {
       const spy = jest.fn();
       const props = { ...defaultUserProps, onToggleEditUser: spy };
-      const component = mount(<UserBlock {...props} />);
+      const component = mount(<UserRow {...props} />);
 
       component.find('.Select-control').simulate('keyDown', { keyCode: 40 });
       component.find('[aria-label="Modify Details"]').simulate('mousedown');
@@ -50,7 +50,7 @@ describe('UserBlock - component', () => {
     () => {
       const spy = jest.fn();
       const props = { ...defaultUserProps, onSelect: spy };
-      const component = mount(<UserBlock {...props} />);
+      const component = mount(<UserRow {...props} />);
 
       component.find('.Select-control').simulate('keyDown', { keyCode: 40 });
       component.find('[aria-label="Promote User"]').simulate('mousedown');
@@ -65,7 +65,7 @@ describe('UserBlock - component', () => {
       const adminUser = { ...userStub, admin: true };
       const spy = jest.fn();
       const props = { ...defaultUserProps, onSelect: spy, user: adminUser };
-      const component = mount(<UserBlock {...props} />);
+      const component = mount(<UserRow {...props} />);
 
       component.find('.Select-control').simulate('keyDown', { keyCode: 40 });
       component.find('[aria-label="Demote User"]').simulate('mousedown');
@@ -79,7 +79,7 @@ describe('UserBlock - component', () => {
     () => {
       const spy = jest.fn();
       const props = { ...defaultUserProps, onSelect: spy };
-      const component = mount(<UserBlock {...props} />);
+      const component = mount(<UserRow {...props} />);
 
       component.find('.Select-control').simulate('keyDown', { keyCode: 40 });
       component.find('[aria-label="Disable Account"]').simulate('mousedown');
@@ -94,7 +94,7 @@ describe('UserBlock - component', () => {
       const disabledUser = { ...userStub, enabled: false };
       const spy = jest.fn();
       const props = { ...defaultUserProps, onSelect: spy, user: disabledUser };
-      const component = mount(<UserBlock {...props} />);
+      const component = mount(<UserRow {...props} />);
 
       component.find('.Select-control').simulate('keyDown', { keyCode: 40 });
       component.find('[aria-label="Enable Account"]').simulate('mousedown');
@@ -108,7 +108,7 @@ describe('UserBlock - component', () => {
     () => {
       const spy = jest.fn();
       const props = { ...defaultUserProps, onSelect: spy };
-      const component = mount(<UserBlock {...props} />);
+      const component = mount(<UserRow {...props} />);
 
       component.find('.Select-control').simulate('keyDown', { keyCode: 40 });
       component.find('[aria-label="Require Password Reset"]').simulate('mousedown');
@@ -122,7 +122,7 @@ describe('UserBlock - component', () => {
     () => {
       const spy = jest.fn();
       const props = { ...defaultUserProps, isEditing: true, onEditUser: spy };
-      const component = mount(<UserBlock {...props} />);
+      const component = mount(<UserRow {...props} />);
       const form = component.find('EditUserForm');
 
       expect(form.length).toEqual(1);
