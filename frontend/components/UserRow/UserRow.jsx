@@ -114,7 +114,7 @@ class UserRow extends Component {
         <td>{name}</td>
         <td>{email}</td>
         <td>{userLabel}</td>
-        <td>{position}</td>
+        <td className={`${baseClass}__position`}>{position}</td>
         <td className={`${baseClass}__actions`}>
           {renderCTAs()}
           {renderEditUserModal(isEditing)}

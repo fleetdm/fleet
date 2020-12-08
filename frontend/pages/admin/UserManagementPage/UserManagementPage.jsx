@@ -272,7 +272,7 @@ export class UserManagementPage extends Component {
               <th>Full Name</th>
               <th>Email</th>
               <th>Role</th>
-              <th>Position</th>
+              <th className={`${baseClass}__position`}>Position</th>
               <th />
             </tr>
           </thead>

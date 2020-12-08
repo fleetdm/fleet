@@ -95,4 +95,10 @@
       width: 540px;
     }
   }
+
+  @include breakpoint(smalldesk) {
+    &__position {
+      display: none;
+    }
+  }
 }

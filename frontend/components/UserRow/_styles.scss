@@ -18,4 +18,10 @@
       }
     }
   }
+
+  @include breakpoint(smalldesk) {
+    &__position {
+      display: none;
+    }
+  }
 }
