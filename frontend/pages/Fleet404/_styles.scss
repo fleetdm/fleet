@@ -1,10 +1,11 @@
-.kolide-404 {
+.fleet-404 {
   p {
-    color: #666;
+    color: #333;
+    font-style: $regular;
   }
 
   a {
-    color: #4a90e2;
+    color: $core-blue;
     text-decoration: none;
 
     &:hover {
@@ -38,8 +39,11 @@
       display: inline;
       font-size: 32px;
       max-width: 479px;
-      font-weight: $bold;
       color: $core-black;
+
+      span {
+        font-weight: $bold;
+      }
     }
 
     > h2 {

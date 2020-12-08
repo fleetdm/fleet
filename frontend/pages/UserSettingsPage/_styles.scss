@@ -5,10 +5,14 @@
     margin: 0 0 30px;
   }
 
+  h2 {
+    font-size: $x-small;
+    font-weight: $bold;
+  }
+
   &__manage {
     flex-grow: 1;
     align-self: flex-start;
-    padding: 30px;
     min-width: 542px;
   }
 
@@ -18,6 +22,8 @@
     min-width: 350px;
     box-sizing: border-box;
     padding: 30px;
+    background-color: $ui-light-grey;
+    min-height: 100vh;
   }
 
   &__change-avatar {
@@ -26,27 +32,37 @@
 
     a {
       display: block;
-      background-color: $core-blue;
-      line-height: 40px;
-      color: #fff;
+      color: $core-blue;
       text-align: center;
       position: relative;
       z-index: 1;
       text-decoration: none;
-      margin-top: -10px;
+      font-size: $x-small;
+      margin-top: 4px;
     }
   }
 
+  &__header {
+    font-size: $x-small;
+    font-weight: $bold;
+    margin: 24px 0 4px 0;
+  }
+
+  &__description {
+    font-size: $x-small;
+    font-style: italic;
+    margin: 4px 0;
+  }
+
   &__avatar {
-    @include size(200px);
-    border: solid 1px $core-blue;
+    @include size(120px);
+    border: solid 1px $ui-borders;
     margin: 0 auto;
     display: block;
   }
 
   &__more-info-detail {
-    line-height: 50px;
-    border-top: 1px solid $ui-borders;
+
     color: $core-dark-blue-grey;
 
     .kolidecon {
@@ -61,12 +77,9 @@
   }
 
   &__last-updated {
-    font-size: 13px;
-    line-height: 40px;
-    letter-spacing: 0.5px;
-    color: $core-dark-blue-grey;
-    border-bottom: 1px solid $ui-borders;
-    margin: 0 0 35px;
+    font-size: $x-small;
+    font-style: italic;
+    margin: 4px 0 24px;
   }
 
   &__reveal-secret {
@@ -75,16 +88,22 @@
   }
 
   &__secret-label {
-    font-size: 15px;
-    font-weight: $regular;
-    line-height: 1.6;
-    letter-spacing: normal;
-    color: rgba(32, 37, 50, 0.66);
-    margin: 0;
+    font-size: $x-small;
+    font-weight: $bold;
+    margin: 0 0 4px 0;
+
+    a {
+      color: $core-blue;
+    }
   }
 
   &__secret-wrapper {
     position: relative;
+  }
+
+  &__button-wrap {
+    display: flex;
+    justify-content: flex-end;
   }
 
   &__secret-copy-icon {
@@ -92,7 +111,7 @@
     top: 8px;
     right: 10px;
     font-size: 18px;
-    color: $core-purple;
+    color: $core-blue;
 
     &:active {
       top: 8px;
@@ -104,7 +123,6 @@
       border-radius: 2px;
       background-color: $core-light-blue-grey;
       border-color: $ui-borders;
-      color: $core-purple;
       padding-right: 36px;
       font-family: 'SourceCodePro', $monospace;
 
