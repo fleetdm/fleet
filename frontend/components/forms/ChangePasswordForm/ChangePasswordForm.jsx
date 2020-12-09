@@ -43,7 +43,7 @@ class ChangePasswordForm extends Component {
           type="password"
         />
         <div className={`${baseClass}__btn-wrap`}>
-          <Button type="submit" variant="brand" className={`${baseClass}__btn`}>Change Password</Button>
+          <Button type="submit" variant="brand" className={`${baseClass}__btn`}>Change password</Button>
           <Button onClick={onCancel} variant="inverse" className={`${baseClass}__btn`}>Cancel</Button>
         </div>
       </form>

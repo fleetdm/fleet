@@ -1,10 +1,10 @@
-.kolide-500 {
+.fleet-500 {
   p {
-    color: #666;
+    color: #333;
   }
 
   a {
-    color: #4a90e2;
+    color: $core-blue;
     text-decoration: none;
 
     &:hover {
@@ -32,7 +32,7 @@
   }
 
   .error-message-container {
-    display: inline;
+    display: block;
   }
 
   main {
@@ -41,8 +41,11 @@
     > h1 {
       font-size: 32px;
       min-width: 479px;
-      font-weight: $bold;
       color: $core-black;
+
+      span {
+        font-weight: $bold;
+      }
     }
 
     > h2 {

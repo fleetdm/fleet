@@ -8,9 +8,9 @@ import errorsInterface from 'interfaces/errors500';
 import fleetLogoText from '../../../assets/images/fleet-logo-text-white.svg';
 import backgroundImg from '../../../assets/images/500.svg';
 
-const baseClass = 'kolide-500';
+const baseClass = 'fleet-500';
 
-class Kolide500 extends Component {
+class Fleet500 extends Component {
   static propTypes = {
     errors: errorsInterface,
     dispatch: PropTypes.func,
@@ -76,7 +76,7 @@ class Kolide500 extends Component {
         </header>
         <img className="background-image" src={backgroundImg} alt="500 background" />
         <main>
-          <h1>500: Oh, something went wrong.</h1>
+          <h1><span>500:</span> Oh, something went wrong.</h1>
           <p>Please file an issue if you believe this is a bug.</p>
           {renderError()}
           <a
@@ -99,4 +99,4 @@ const mapStateToProps = (state) => {
   };
 };
 
-export default connect(mapStateToProps)(Kolide500);
+export default connect(mapStateToProps)(Fleet500);

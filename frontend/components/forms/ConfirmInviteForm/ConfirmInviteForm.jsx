@@ -37,25 +37,25 @@ class ConfirmInviteForm extends Component {
           />
           <InputFieldWithIcon
             {...fields.username}
-            iconName="username"
             placeholder="Username"
           />
           <InputFieldWithIcon
             {...fields.password}
-            iconName="password"
             placeholder="Password"
             type="password"
+            hint={['Must include 7 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)']}
           />
           <InputFieldWithIcon
             {...fields.password_confirmation}
-            iconName="password"
             placeholder="Confirm Password"
             type="password"
           />
         </div>
-        <Button onClick={handleSubmit} type="Submit" variant="gradient">
-          Submit
-        </Button>
+        <div className="confirm-invite-button-wrap">
+          <Button onClick={handleSubmit} type="Submit" className="button button--brand">
+            Submit
+          </Button>
+        </div>
       </form>
     );
   }
