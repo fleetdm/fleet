@@ -4,11 +4,11 @@
 
 Making authenticated requests to the Fleet server requires that you are granted permission to access data. The Fleet Authentication API enables you to receive an authorization token. 
 
-All Fleet API requests are authenticated unless noted in the documentation. This means that almost all Fleet API requests will require sending the authentication token in the request header.
+All Fleet API requests are authenticated unless noted in the documentation. This means that almost all Fleet API requests will require sending the auth token in the request header.
 
 The typical steps to making an authenticated API request are outlined below.
 
-First, utilize the `/login` endpoint to receive an authentication token.
+First, utilize the `/login` endpoint to receive an authentication token. For SSO users, username/password login is disabled and the API token can be retrieved from the "Settings" page in the UI.
 
 `POST /api/v1/kolide/login`
 
@@ -51,9 +51,7 @@ Then, use the token returned from the `/login` endpoint to authenticate further 
 Request header
 
 ```
-{
-  "authentication": "Bearer {your token}"
-}
+Authorization: Bearer <your token>
 ```
 
 Default response
