@@ -77,7 +77,7 @@ const routes = (
       </Route>
       <Route path="/500" component={Fleet500} />
       <Route path="/404" component={Fleet404} />
-      <Route component={Fleet404} />
+      <Route path="*" component={Fleet404} />
     </Router>
   </Provider>
 );
