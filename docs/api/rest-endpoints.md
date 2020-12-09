@@ -16,8 +16,8 @@ Request body
 
 ```
 {
-  username: "janedoe@example.com"
-  passsword: "VArCjNW7CfsxGp67"
+  "username": "janedoe@example.com",
+  "passsword": "VArCjNW7CfsxGp67"
 }
 ```
 
@@ -160,8 +160,8 @@ Authenticates the user with the specified credentials. Use the token returned fr
 
 ```
 {
-  username: "janedoe@example.com"
-  passsword: "VArCjNW7CfsxGp67"
+  "username": "janedoe@example.com",
+  "passsword": "VArCjNW7CfsxGp67"
 }
 ```
 
