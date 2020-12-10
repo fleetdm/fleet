@@ -24,7 +24,7 @@ describe('ScheduledQueriesListWrapper - component', () => {
     component.find('Checkbox').last().find('input').simulate('change');
 
     const addQueryBtn = component.find('Button').find({ children: 'Add New Query' });
-    const removeQueryBtn = component.find('Button').find({ children: ['Remove ', 'Query'] });
+    const removeQueryBtn = component.find('Button').find({ children: ['Remove ', 'query'] });
 
     expect(addQueryBtn.length).toEqual(0);
     expect(removeQueryBtn.length).toBeGreaterThan(0);
@@ -42,7 +42,7 @@ describe('ScheduledQueriesListWrapper - component', () => {
       .find('input')
       .simulate('change');
 
-    const removeQueryBtn = component.find('Button').find({ children: ['Remove ', 'Query'] });
+    const removeQueryBtn = component.find('Button').find({ children: ['Remove ', 'query'] });
 
     removeQueryBtn.hostNodes().simulate('click');
 

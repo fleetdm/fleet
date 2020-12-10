@@ -12,7 +12,7 @@
     &:checked + .kolide-checkbox__tick {
       &::after {
         background-color: $core-blue;
-        border: solid 2px $core-blue;
+        border: solid 1px $core-blue;
       }
 
       &::before {
@@ -41,7 +41,7 @@
       @include size(20px);
       transition: border 75ms ease-in-out, background 75ms ease-in-out;
       border-radius: 2px;
-      border: solid 2px $ui-borders;
+      border: solid 1px $ui-borders;
       content: '';
       box-sizing: border-box;
       display: block;

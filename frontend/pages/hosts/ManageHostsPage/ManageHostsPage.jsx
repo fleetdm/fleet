@@ -330,7 +330,7 @@ export class ManageHostsPage extends PureComponent {
 
     return (
       <Modal
-        title="Delete Label"
+        title="Delete label"
         onExit={toggleDeleteLabelModal}
         className={`${baseClass}_delete-label__modal`}
       >
@@ -354,7 +354,7 @@ export class ManageHostsPage extends PureComponent {
     return (
       <div className={`${baseClass}__label-actions`}>
         <Button onClick={toggleEditLabel} variant="inverse">Edit</Button>
-        <Button onClick={toggleDeleteLabelModal} variant="inverse-alert">Delete</Button>
+        <Button onClick={toggleDeleteLabelModal} variant="inverse">Delete</Button>
       </div>
     );
   }

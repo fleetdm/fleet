@@ -13,7 +13,7 @@ export default (admin) => {
       subItems: [
         {
           icon: 'admin',
-          name: 'Manage Users',
+          name: 'Manage users',
           location: {
             regex: new RegExp(`^${PATHS.ADMIN_USERS}`),
             pathname: PATHS.ADMIN_USERS,
@@ -21,7 +21,7 @@ export default (admin) => {
         },
         {
           icon: 'user-settings',
-          name: 'App Settings',
+          name: 'App settings',
           location: {
             regex: new RegExp(`^${PATHS.ADMIN_SETTINGS}`),
             pathname: PATHS.ADMIN_SETTINGS,
@@ -31,7 +31,7 @@ export default (admin) => {
           // No such icon now. SiteNavSidePanel does not display
           // icons for subItems
           icon: 'osquery',
-          name: 'Osquery Options',
+          name: 'Osquery options',
           location: {
             regex: new RegExp(`^${PATHS.ADMIN_OSQUERY}`),
             pathname: PATHS.ADMIN_OSQUERY,
@@ -53,7 +53,7 @@ export default (admin) => {
     },
     {
       icon: 'query',
-      name: 'Query',
+      name: 'Queries',
       location: {
         regex: new RegExp(`^${URL_PREFIX}/queries/`),
         pathname: PATHS.MANAGE_QUERIES,
@@ -66,15 +66,6 @@ export default (admin) => {
       location: {
         regex: new RegExp(`^${URL_PREFIX}/packs/`),
         pathname: PATHS.MANAGE_PACKS,
-      },
-      subItems: [],
-    },
-    {
-      icon: 'help',
-      name: 'Help',
-      location: {
-        regex: /^\/help/,
-        pathname: 'https://github.com/fleetdm/fleet/blob/master/docs/README.md',
       },
       subItems: [],
     },

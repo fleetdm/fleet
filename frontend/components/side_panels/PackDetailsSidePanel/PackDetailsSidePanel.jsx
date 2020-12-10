@@ -37,16 +37,16 @@ const PackDetailsSidePanel = ({ onUpdateSelectedPack, pack, scheduledQueries = [
         <span>{pack.name}</span>
       </h2>
       <ScheduledQueriesSection scheduledQueries={scheduledQueries} />
+      <Description pack={pack} />
       <Slider
         activeText="Enabled"
         inactiveText="Disabled"
         onChange={updatePackStatus}
         value={!disabled}
       />
-      <Link className={`${baseClass}__edit-pack-link button button--inverse`} to={PATHS.PACK({ id: pack.id })}>
+      <Link className={`${baseClass}__edit-pack-link button button--inverse`} to={`${PATHS.PACK({ id: pack.id })}/edit`}>
         Edit Pack
       </Link>
-      <Description pack={pack} />
     </SecondarySidePanelContainer>
   );
 };

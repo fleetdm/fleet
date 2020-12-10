@@ -117,7 +117,7 @@ class SearchPackQuery extends Component {
         <Dropdown
           options={queryDropdownOptions}
           onChange={onSelectQuery}
-          placeholder={[<Icon name="search" size="lg" key="search-pack-query" />, ' Select Query...']}
+          placeholder={[<Icon name="search" size="lg" key="search-pack-query" />, ' Select query']}
         />
         {renderQuery()}
         {renderDescription()}

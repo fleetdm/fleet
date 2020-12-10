@@ -32,6 +32,10 @@
     right: 16px;
     transform: translateY(60%);
 
+    span {
+      font-weight: $regular;
+    }
+
     a {
       display: flex;
       align-items: center;

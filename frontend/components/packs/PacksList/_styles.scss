@@ -1,5 +1,6 @@
 .packs-list {
   border-collapse: collapse;
+  overflow: scroll;
 
   &__wrapper {
     border: 1px solid $ui-borders;
@@ -39,7 +40,7 @@
 
   &__empty-table {
     text-align: center;
-    font-size: 18px;
+    font-size: $x-small;
     color: $core-black;
   }
 }

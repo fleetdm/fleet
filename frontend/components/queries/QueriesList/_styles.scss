@@ -4,6 +4,7 @@
   border-radius: 4px;
   box-sizing: border-box;
   margin-top: 16px;
+  overflow: scroll;
 
   &__table {
     border-collapse: collapse;
@@ -33,6 +34,10 @@
       td {
         padding: 0 10px;
         margin: 0;
+
+        p {
+          font-size: $x-small;
+        }
 
         &:nth-child(1) {
           text-align: center;

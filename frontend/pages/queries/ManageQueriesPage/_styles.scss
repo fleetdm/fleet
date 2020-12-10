@@ -73,5 +73,20 @@
       width: 120px;
     }
   }
+
+  &__empty-label {
+    font-size: $medium;
+    font-weight: $bold;
+    padding: 20px 20px 0;
+    margin: 24px 0;
+  }
+
+  &__empty-description {
+
+    font-size: $small;
+    font-style: italic;
+    padding: 0 20px;
+    margin: 0;
+  }
 }
 

@@ -7,7 +7,7 @@
   overflow-x: hidden;
 
   &__logo {
-    @include position(absolute, 15px null null 15px);
+    @include position(absolute, 24px null null 24px);
     width: 120px;
 
     @include breakpoint(tablet) {

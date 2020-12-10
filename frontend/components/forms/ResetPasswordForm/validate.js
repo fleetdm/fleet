@@ -19,11 +19,11 @@ const validate = (formData) => {
   }
 
   if (!validatePresence(newPasswordConfirmation)) {
-    errors.new_password_confirmation = 'New Password Confirmation field must be completed';
+    errors.new_password_confirmation = 'New password Confirmation field must be completed';
   }
 
   if (!validatePresence(newPassword)) {
-    errors.new_password = 'New Password field must be completed';
+    errors.new_password = 'New password field must be completed';
   }
 
   if (noMatch) {

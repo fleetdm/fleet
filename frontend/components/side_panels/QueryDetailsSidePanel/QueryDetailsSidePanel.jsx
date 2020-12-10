@@ -3,7 +3,6 @@ import PropTypes from 'prop-types';
 import { Link } from 'react-router';
 
 import Button from 'components/buttons/Button';
-import Icon from 'components/icons/Icon';
 import KolideAce from 'components/KolideAce';
 import queryInterface from 'interfaces/query';
 import SecondarySidePanelContainer from 'components/side_panels/SecondarySidePanelContainer';
@@ -37,7 +36,6 @@ class QueryDetailsSidePanel extends Component {
         {packs.map((pack) => {
           return (
             <li className={`${baseClass}__pack-item`} key={`query-side-panel-pack-${pack.id}`}>
-              <Icon name="packs" />
               <Link to={`/packs/${pack.id}`} className={`${baseClass}__pack-name`}>{pack.name}</Link>
             </li>
           );
@@ -54,7 +52,7 @@ class QueryDetailsSidePanel extends Component {
     return (
       <SecondarySidePanelContainer className={baseClass}>
         <p className={`${baseClass}__label`}>Query</p>
-        <h1><Icon name="query" /> {name}</h1>
+        <h1>{name}</h1>
         <p className={`${baseClass}__label`}>SQL</p>
         <KolideAce
           fontSize={12}

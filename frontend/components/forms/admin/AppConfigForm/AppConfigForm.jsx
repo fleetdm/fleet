@@ -162,11 +162,11 @@ class AppConfigForm extends Component {
           <div className={`${baseClass}__inputs`}>
             <InputField
               {...fields.org_name}
-              label="Organization Name"
+              label="Organization name"
             />
             <InputField
               {...fields.org_logo_url}
-              label="Organization Avatar URL"
+              label="Organization avatar URL"
             />
           </div>
           <div className={`${baseClass}__details ${baseClass}__avatar-preview`}>
@@ -174,7 +174,7 @@ class AppConfigForm extends Component {
           </div>
         </div>
         <div className={`${baseClass}__section`}>
-          <h2>Fleet Web Address</h2>
+          <h2>Fleet web address</h2>
           <div className={`${baseClass}__inputs`}>
             <InputField
               {...fields.kolide_server_url}

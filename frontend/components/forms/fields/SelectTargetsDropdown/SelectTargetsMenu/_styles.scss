@@ -39,13 +39,7 @@
   }
 
   &__not-found {
-    font-size: $small;
-    font-weight: $bold;
-    line-height: 2.64;
-    text-align: left;
-    color: $core-dark-blue-grey;
-    text-transform: uppercase;
-    display: block;
-    padding: 0 $large;
+    font-size: $x-small;
+    padding: 0 4px 4px;
   }
 }

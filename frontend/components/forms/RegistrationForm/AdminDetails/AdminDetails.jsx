@@ -57,7 +57,7 @@ class AdminDetails extends Component {
           />
           <InputFieldWithIcon
             {...fields.password_confirmation}
-            placeholder="Confirm Password"
+            placeholder="Confirm password"
             type="password"
             tabIndex={tabIndex}
           />

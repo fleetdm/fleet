@@ -8,10 +8,8 @@
   }
 
   &__section-label {
-    color: $core-dark-blue-grey;
-    font-size: $x-small;
+    font-size: $medium;
     font-weight: $bold;
-    letter-spacing: -0.5px;
     margin: 24px 0 16px;
   }
 
@@ -29,7 +27,6 @@
     color: $core-dark-blue-grey;
     font-size: $small;
     font-weight: $regular;
-    letter-spacing: -0.5px;
     margin: 0;
   }
 
@@ -47,12 +44,8 @@
 
   &__query-name {
     @include ellipsis(240px);
-    font-size: 14px;
-    vertical-align: middle;
+    font-size: $small;
+    color: $core-blue;
     text-decoration: none;
-
-    &:hover {
-      text-decoration: underline;
-    }
   }
 }

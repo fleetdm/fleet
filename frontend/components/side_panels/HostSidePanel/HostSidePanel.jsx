@@ -82,7 +82,7 @@ class HostSidePanel extends Component {
           <InputField
             name="tags-filter"
             onChange={onFilterLabels}
-            placeholder="Filter Labels by Name..."
+            placeholder="Filter labels by name..."
             value={labelFilter}
             inputWrapperClass={`${baseClass}__filter-labels`}
           />

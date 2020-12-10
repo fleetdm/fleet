@@ -9,7 +9,7 @@ import entityGetter from 'redux/utilities/entityGetter';
 import InputField from 'components/forms/fields/InputField';
 import Modal from 'components/modals/Modal';
 import Icon from 'components/icons/Icon';
-import PackInfoSidePanel from 'components/side_panels/PackInfoSidePanel';
+import SecondarySidePanelContainer from 'components/side_panels/SecondarySidePanelContainer';
 import PATHS from 'router/paths';
 import QueryDetailsSidePanel from 'components/side_panels/QueryDetailsSidePanel';
 import QueriesList from 'components/queries/QueriesList';
@@ -187,7 +187,7 @@ export class ManageQueriesPage extends Component {
 
       return (
         <div className={`${baseClass}__ctas`}>
-          <p className={`${baseClass}__query-count`}>{checkedQueryCount} {queryText} Selected</p>
+          <p className={`${baseClass}__query-count`}>{checkedQueryCount} {queryText} selected</p>
           <Button
             className={btnClass}
             onClick={onToggleModal}
@@ -232,7 +232,12 @@ export class ManageQueriesPage extends Component {
 
     if (!selectedQuery) {
       // FIXME: Render QueryDetailsSidePanel when Fritz has completed the mock
-      return <PackInfoSidePanel />;
+      return (
+        <SecondarySidePanelContainer>
+          <p className={`${baseClass}__empty-label`}>Query</p>
+          <p className={`${baseClass}__empty-description`}>No query selected.</p>
+        </SecondarySidePanelContainer>
+      );
     }
 
     return <QueryDetailsSidePanel onEditQuery={goToEditQueryPage} query={selectedQuery} />;
@@ -266,7 +271,7 @@ export class ManageQueriesPage extends Component {
         <div className={`${baseClass}__wrapper body-wrap`}>
           <div className={`${baseClass}__header-wrap`}>
             <h1 className={`${baseClass}__title`}>
-              Query
+              Queries
             </h1>
             {renderCTAs()}
           </div>
@@ -275,7 +280,7 @@ export class ManageQueriesPage extends Component {
               <InputField
                 name="query-filter"
                 onChange={onFilterQueries}
-                placeholder="Filter Queries"
+                placeholder="Filter queries"
                 value={queriesFilter}
               />
               <Icon name="search" />
