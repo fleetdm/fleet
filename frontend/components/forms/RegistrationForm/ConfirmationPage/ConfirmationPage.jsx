@@ -65,7 +65,7 @@ class ConfirmationPage extends Component {
       <form onSubmit={handleSubmit} className={confirmRegClasses}>
         <div className={`${baseClass}__wrapper`}>
           <table className={`${baseClass}__table`}>
-            <caption>Administrator Configuration</caption>
+            <caption>Administrator configuration</caption>
             <tbody>
               <tr>
                 <th>Username:</th>

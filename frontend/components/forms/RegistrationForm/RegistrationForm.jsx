@@ -124,7 +124,7 @@ class RegistrationForm extends Component {
         <div className={formSectionClasses}>
           <div className={adminDetailsContainerClass}>
             <h2>Setup user</h2>
-            <p>Additional admins can be designated within the Fleet App</p>
+            <p>Additional admins can be designated within the Fleet app.</p>
             <AdminDetails formData={formData} handleSubmit={onPageFormSubmit} className={adminDetailsClass} currentPage={isCurrentPage(1)} />
           </div>
           <div className={orgDetailsContainerClass}>
@@ -136,7 +136,7 @@ class RegistrationForm extends Component {
             <KolideDetails formData={formData} handleSubmit={onPageFormSubmit} className={kolideDetailsClass} currentPage={isCurrentPage(3)} />
           </div>
           <div className={confirmationContainerClass}>
-            <h2>Success</h2>
+            <h2>You&apos;re all set.</h2>
             <ConfirmationPage formData={formData} handleSubmit={onSubmitConfirmation} classNmae={confirmationClass} currentPage={isCurrentPage(4)} />
           </div>
         </div>

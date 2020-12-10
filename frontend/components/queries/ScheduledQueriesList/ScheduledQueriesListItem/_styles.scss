@@ -1,8 +1,13 @@
 .scheduled-query-list-item {
   outline: none;
   cursor: pointer;
+  border-bottom: 1px solid $ui-borders;
+
+  &:last-child {
+    border-bottom: 0;
+  }
 
   &--selected {
-    background-color: $ui-light-grey;
+    background-color: $core-blue-selected;
   }
 }

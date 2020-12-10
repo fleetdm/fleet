@@ -47,10 +47,11 @@
 
     &__inner {
       display: flex;
-      align-items: flex-start;
+      align-items: center;
 
       img {
-        margin-right: 24px;
+        width: 176px;
+        margin-right: 34px;
       }
 
       p {

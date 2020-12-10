@@ -4,7 +4,6 @@ import { noop } from 'lodash';
 
 import Button from 'components/buttons/Button';
 import EditPackForm from 'components/forms/packs/EditPackForm';
-import Icon from 'components/icons/Icon';
 import packInterface from 'interfaces/pack';
 import SelectTargetsDropdown from 'components/forms/fields/SelectTargetsDropdown';
 import targetInterface from 'interfaces/target';
@@ -58,14 +57,14 @@ class EditPackFormWrapper extends Component {
           variant="brand"
           className={`${baseClass}__edit-btn`}
         >
-          EDIT
+          Edit
         </Button>
-        <h1 className={`${baseClass}__title`}><Icon name="packs" /> <span>{pack.name}</span></h1>
+        <h1 className={`${baseClass}__title`}><span>{pack.name}</span></h1>
         <div className={`${baseClass}__description`}>
           <p>{pack.description}</p>
         </div>
         <SelectTargetsDropdown
-          label="select pack targets"
+          label="Select pack targets"
           name="selected-pack-targets"
           onFetchTargets={onFetchTargets}
           onSelect={noop}

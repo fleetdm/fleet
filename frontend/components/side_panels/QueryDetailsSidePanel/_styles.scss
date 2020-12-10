@@ -3,9 +3,8 @@
 
   h1 {
     @include ellipsis(250px);
-    margin: 0 0 24px;
-    font-size: 18px;
-    font-weight: $bold;
+    margin: 0;
+    font-size: $small;
 
     .kolidecon {
       color: $core-medium-blue-grey;
@@ -14,14 +13,13 @@
   }
 
   &__label {
-    font-size: $x-small;
+    font-size: $medium;
     font-weight: $bold;
-    padding: 0 0 4px;
     margin: 24px 0 16px;
   }
 
   &__description {
-    font-size: 14px;
+    font-size: $small;
     font-weight: $regular;
     color: $core-dark-blue-grey;
     word-wrap: break-word;
@@ -29,6 +27,10 @@
 
   &__query-preview {
     margin-bottom: 12px;
+
+    .kolide-ace__label {
+      display: none;
+    }
   }
 
   .button {
@@ -41,21 +43,11 @@
     list-style: none;
   }
 
-  &__pack-item {
-    .kolidecon {
-      margin-right: 12px;
-      color: $core-dark-blue-grey;
-    }
-  }
-
   &__pack-name {
     @include ellipsis(240px);
     text-decoration: none;
-    font-size: 14px;
+    font-size: $small;
     vertical-align: middle;
-
-    &:hover {
-      text-decoration: underline;
-    }
+    color: $core-blue;
   }
 }

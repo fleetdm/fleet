@@ -2,11 +2,8 @@
   margin-bottom: $pad-small;
 
   &__label {
-    font-size: 16px;
-    font-style: $x-small;
-    font-stretch: normal;
-    letter-spacing: -0.5px;
-    color: $core-dark-blue-grey;
+    font-size: $x-small;
+    color: $core-black;
     display: block;
     margin: 40px 0 4px;
     text-align: right;
@@ -30,7 +27,6 @@
 
   &.Select {
     .Select-control {
-      transition: border 150ms ease-in-out, box-shadow 150ms ease-in-out;
       min-height: 48px;
     }
 
@@ -98,8 +94,7 @@
 
     &.is-focused {
       .Select-control {
-        border: 1px solid $ui-borders;
-        border-bottom-color: $core-blue;
+        border: 1px solid $core-blue;
       }
     }
   }

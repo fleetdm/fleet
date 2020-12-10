@@ -1,5 +1,4 @@
 .input-field {
-  transition: border 150ms ease-in-out, box-shadow 150ms ease-in-out;
   line-height: 34px;
   background-color: $ui-light-grey;
   border: solid 1px $ui-borders;
@@ -17,8 +16,7 @@
 
   &:focus {
     outline: none;
-    border-color: $core-purple;
-    border-bottom-color: $core-blue;
+    border-color: $core-blue;
   }
 
   &--disabled {

@@ -150,7 +150,7 @@ class QueryForm extends Component {
           {...fields.name}
           error={fields.name.error || errors.name}
           inputClassName={`${baseClass}__query-title`}
-          label="Query Title"
+          label="Query title"
         />
         <KolideAce
           {...fields.query}

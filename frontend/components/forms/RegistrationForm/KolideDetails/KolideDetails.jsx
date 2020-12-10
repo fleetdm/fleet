@@ -40,9 +40,9 @@ class KolideDetails extends Component {
         <div className="registration-fields">
           <InputFieldWithIcon
             {...fields.kolide_server_url}
-            placeholder="Fleet Web Address"
+            placeholder="Fleet web address"
             tabIndex={tabIndex}
-            hint={['Don’t include ', <code key="hint">/v1</code>, ' or any other path']}
+            hint={['Don’t include ', <code key="hint">/v1</code>, ' or any other path.']}
             ref={(input) => { this.firstInput = input; }}
           />
         </div>

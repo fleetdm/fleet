@@ -215,7 +215,7 @@ export class UserSettingsPage extends Component {
     }
 
     return (
-      <Modal title="Change Password" onExit={onTogglePasswordModal}>
+      <Modal title="Change password" onExit={onTogglePasswordModal}>
         <ChangePasswordForm
           handleSubmit={handleSubmitPasswordForm}
           onCancel={onTogglePasswordModal}
@@ -294,7 +294,7 @@ export class UserSettingsPage extends Component {
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__manage body-wrap`}>
-          <h1>User settings</h1>
+          <h1>Account</h1>
           <UserSettingsForm
             formData={user}
             handleSubmit={handleSubmit}

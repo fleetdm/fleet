@@ -119,7 +119,7 @@ class AddHostModal extends Component {
           </div>
           <ol className={`${baseClass}__install-steps`}>
             <li>
-              <h4><span className={`${baseClass}__step-number`}>1</span>Enroll Secret</h4>
+              <h4><span className={`${baseClass}__step-number`}>1</span>Enroll secret</h4>
               <p>
                 Provide an active enroll secret to allow osquery to authenticate with the Fleet server:
               </p>
@@ -128,7 +128,7 @@ class AddHostModal extends Component {
               </div>
             </li>
             <li>
-              <h4><span className={`${baseClass}__step-number`}>2</span>Server Certificate</h4>
+              <h4><span className={`${baseClass}__step-number`}>2</span>Server certificate</h4>
               <p>
                 Provide the TLS certificate used by the Fleet server to enable secure connections from osquery:
               </p>
@@ -153,7 +153,7 @@ class AddHostModal extends Component {
               </p>
             </li>
             <li>
-              <h4><span className={`${baseClass}__step-number`}>4</span>Run Osquery</h4>
+              <h4><span className={`${baseClass}__step-number`}>4</span>Run osquery</h4>
               <p>
                 Run osquery from the directory containing the above files (may require sudo or Run as Administrator privileges):
               </p>

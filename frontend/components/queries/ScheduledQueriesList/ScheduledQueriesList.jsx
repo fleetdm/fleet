@@ -121,8 +121,8 @@ class ScheduledQueriesList extends Component {
                 onChange={handleSelectAllQueries}
                 value={allQueriesSelected}
               /></th>
-              <th>Query Name</th>
-              <th>Interval [s]</th>
+              <th>Query name</th>
+              <th>Interval(s)</th>
               <th>Platform</th>
               <th><Icon name="osquery" /> Ver.</th>
               <th>Shard</th>

@@ -28,14 +28,14 @@ class ResetPasswordForm extends Component {
           {...fields.new_password}
           autofocus
           iconName="password"
-          placeholder="New Password"
+          placeholder="New password"
           className={`${baseClass}__input`}
           type="password"
         />
         <InputFieldWithIcon
           {...fields.new_password_confirmation}
           iconName="password"
-          placeholder="Confirm Password"
+          placeholder="Confirm password"
           className={`${baseClass}__input`}
           type="password"
         />

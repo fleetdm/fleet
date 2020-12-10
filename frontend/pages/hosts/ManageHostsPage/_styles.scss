@@ -17,10 +17,11 @@
 
   &__header {
     display: flex;
+    align-items: center;
   }
 
   &__text {
-    margin-right: 16px;
+    margin-right: 24px;
   }
 
   &__title {

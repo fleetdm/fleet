@@ -80,11 +80,11 @@ class PacksList extends Component {
                   wrapperClassName={`${baseClass}__select-all`}
                 />
               </th>
-              <th className={`${baseClass}__th ${baseClass}__th-pack-name`}>Pack Name</th>
+              <th className={`${baseClass}__th ${baseClass}__th-pack-name`}>Pack name</th>
               <th className={`${baseClass}__th`}>Queries</th>
               <th className={`${baseClass}__th`}>Status</th>
               <th className={`${baseClass}__th`}>Hosts</th>
-              <th className={`${baseClass}__th`}>Last Modified</th>
+              <th className={`${baseClass}__th`}>Last modified</th>
             </tr>
           </thead>
           <tbody>
