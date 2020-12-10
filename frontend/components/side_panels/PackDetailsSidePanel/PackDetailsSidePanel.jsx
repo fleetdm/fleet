@@ -45,7 +45,7 @@ const PackDetailsSidePanel = ({ onUpdateSelectedPack, pack, scheduledQueries = [
         value={!disabled}
       />
       <Link className={`${baseClass}__edit-pack-link button button--inverse`} to={`${PATHS.PACK({ id: pack.id })}/edit`}>
-        Edit Pack
+        Edit pack
       </Link>
     </SecondarySidePanelContainer>
   );
