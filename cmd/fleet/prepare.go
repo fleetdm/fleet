@@ -2,22 +2,17 @@ package main
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"os"
 
 	"github.com/WatchBeam/clock"
-	kitlog "github.com/go-kit/kit/log"
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore/mysql"
 	"github.com/fleetdm/fleet/server/kolide"
-	"github.com/fleetdm/fleet/server/pubsub"
-	"github.com/fleetdm/fleet/server/service"
 	"github.com/spf13/cobra"
 )
 
 func createPrepareCmd(configManager config.Manager) *cobra.Command {
-
 	var prepareCmd = &cobra.Command{
 		Use:   "prepare",
 		Short: "Subcommands for initializing Fleet infrastructure",
@@ -82,48 +77,5 @@ To setup Fleet infrastructure, use one of the available commands.
 	dbCmd.PersistentFlags().BoolVar(&noPrompt, "no-prompt", false, "disable prompting before migrations (for use in scripts)")
 
 	prepareCmd.AddCommand(dbCmd)
-
-	var testDataCmd = &cobra.Command{
-		Use:   "test-data",
-		Short: "Generate test data",
-		Long:  ``,
-		Run: func(cmd *cobra.Command, arg []string) {
-			config := configManager.LoadConfig()
-			ds, err := mysql.New(config.Mysql, clock.C)
-			if err != nil {
-				initFatal(err, "creating db connection")
-			}
-
-			var (
-				name     = "admin"
-				username = "admin"
-				password = "secret"
-				email    = "admin@kolide.co"
-				enabled  = true
-				isAdmin  = true
-			)
-			admin := kolide.UserPayload{
-				Name:     &name,
-				Username: &username,
-				Password: &password,
-				Email:    &email,
-				Enabled:  &enabled,
-				Admin:    &isAdmin,
-			}
-			svc, err := service.NewService(ds, pubsub.NewInmemQueryResults(), kitlog.NewNopLogger(), config, nil, clock.C, nil, nil)
-			if err != nil {
-				initFatal(err, "creating service")
-			}
-
-			_, err = svc.CreateUser(context.Background(), admin)
-			if err != nil {
-				initFatal(err, "saving new user")
-			}
-		},
-	}
-
-	prepareCmd.AddCommand(testDataCmd)
-
 	return prepareCmd
-
 }
