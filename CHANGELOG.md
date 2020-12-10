@@ -6,7 +6,7 @@
 
 * Add documentation for the authentication Fleet REST API endpoints.
 
-* Add FAQ answers about the stress test results for Fleet, configuraing labels, and resetting auth tokens.
+* Add FAQ answers about the stress test results for Fleet, configuring labels, and resetting auth tokens.
 
 * Fixed a performance issue users encountered when multiple hosts shared the same UUID by adding a one minute cooldown.
 
