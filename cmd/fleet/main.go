@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/fleetdm/fleet/server/config"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/spf13/cobra"
 )
 
@@ -42,7 +42,7 @@ func createRootCmd() *cobra.Command {
 	var rootCmd = &cobra.Command{
 		Use:   "fleet",
 		Short: "osquery management and orchestration",
-		Long: `Kolide Fleet (https://kolide.com/fleet)
+		Long: `Fleet server (https://fleetdm.com)
 
 Configurable Options:
 

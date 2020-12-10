@@ -9,5 +9,5 @@ When filing an issue, make sure to answer these five questions:
 5. What happened instead?
 
 Sensitive security-related issues should be reported to
-[security@kolide.co](mailto:security@kolide.co) before a public issue is made.
+[security@fleetdm.com](mailto:security@fleetdm.com) before a public issue is made.
 

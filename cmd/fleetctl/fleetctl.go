@@ -19,7 +19,7 @@ func init() {
 func main() {
 	app := cli.NewApp()
 	app.Name = "fleetctl"
-	app.Usage = "CLI for operating Kolide Fleet"
+	app.Usage = "CLI for operating Fleet"
 	app.Version = version.Version().Version
 	cli.VersionPrinter = func(c *cli.Context) {
 		version.PrintFull()
