@@ -10,7 +10,6 @@ import {
 } from 'redux/nodes/components/ForgotPasswordPage/actions';
 import debounce from 'utilities/debounce';
 import ForgotPasswordForm from 'components/forms/ForgotPasswordForm';
-import Icon from 'components/icons/Icon';
 import StackedWhiteBoxes from 'components/StackedWhiteBoxes';
 
 export class ForgotPasswordPage extends Component {
