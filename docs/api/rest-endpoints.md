@@ -569,6 +569,8 @@ The Fleet server exposes a handful of API endpoints that handles common user man
 
 ### List All Users
 
+Returns a list of all enabled users
+
 `GET /api/v1/kolide/users`
 
 #### Parameters
@@ -594,9 +596,9 @@ None.
       "created_at": "2020-12-10T03:52:53Z",
       "updated_at": "2020-12-10T03:52:53Z",
       "id": 1,
-      "username": "username",
+      "username": "janedoe",
       "name": "",
-      "email": "username@domain.com",
+      "email": "janedoe@example.com",
       "admin": true,
       "enabled": true,
       "force_password_reset": false,
@@ -625,18 +627,20 @@ None.
 
 ### Create a user account with an invitation
 
+Creates a user account after an invited user provides registration information and submits the form.
+
 `POST /api/v1/kolide/users`
 
 #### Parameters
 
-| Name                  | Type   | In   | Description                                       |
-| --------------------- | ------ | ---- | ------------------------------------------------- |
-| email                 | string | body | The email address of the user.                    |
-| invite_token          | string | body | Randomly generated token to validate invitations. |
-| name                  | string | body | The name of the user.                             |
-| username              | string | body | The username chosen by the user                   |
-| password              | string | body | The password chosen by the user.                  |
-| password_confirmation | string | body | Confirmation of the password chosen by the user.  |
+| Name                  | Type   | In   | Description                                                     |
+| --------------------- | ------ | ---- | --------------------------------------------------------------- |
+| email                 | string | body | **Required**. The email address of the user.                    |
+| invite_token          | string | body | **Required**. Randomly generated token to validate invitations. |
+| name                  | string | body | The name of the user.                                           |
+| username              | string | body | **Required**. The username chosen by the user                   |
+| password              | string | body | **Required**. The password chosen by the user.                  |
+| password_confirmation | string | body | **Required**. Confirmation of the password chosen by the user.  |
 
 #### Example
 
@@ -646,10 +650,10 @@ None.
 
 ```
 {
-  "email": "test@domain.com",
+  "email": "janedoe@example.com",
   "invite_token": "SjdReDNuZW5jd3dCbTJtQTQ5WjJTc2txWWlEcGpiM3c=",
-  "name": "test",
-  "username": "test",
+  "name": "janedoe",
+  "username": "janedoe",
   "password": "test-123",
   "password_confirmation": "test-123"
 }
@@ -665,9 +669,9 @@ None.
     "created_at": "0001-01-01T00:00:00Z",
     "updated_at": "0001-01-01T00:00:00Z",
     "id": 2,
-    "username": "test",
-    "name": "test",
-    "email": "test@domain.com",
+    "username": "janedoe",
+    "name": "janedoe",
+    "email": "janedoe@example.com",
     "admin": false,
     "enabled": true,
     "force_password_reset": false,
@@ -729,17 +733,19 @@ The same error will be returned whenever one of the required parameters fails th
 
 ### Create a user account without an invitation
 
+Creates a user account without requiring an invitation, the user is enabled immediately.
+
 `POST /api/v1/kolide/users/admin`
 
 #### Parameters
 
-| Name       | Type    | In   | Description                                |
-| ---------- | ------- | ---- | ------------------------------------------ |
-| username   | string  | body | The username for the new user.             |
-| email      | string  | body | The email for the new user.                |
-| password   | string  | body | The password for the new user.             |
-| invited_by | integer | body | The ID of the user sending the invitation. |
-| admin      | boolean | body | Will this user be an admin user?           |
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| username   | string  | body | **Required**. The user's username.               |
+| email      | string  | body | **Required**. The user's email address.          |
+| password   | string  | body | **Required**. The user's password.               |
+| invited_by | integer | body | **Required**. ID of the admin creating the user. |
+| admin      | boolean | body | **Required**. The user's admin flag.             |
 
 #### Example
 
@@ -749,8 +755,8 @@ The same error will be returned whenever one of the required parameters fails th
 
 ```
 {
-  "username": "Test",
-  "email": "test@domain.com",
+  "username": "janedoe",
+  "email": "janedoe@example.com",
   "password": "test-123",
   "invited_by":1,
   "admin":true
@@ -767,9 +773,9 @@ The same error will be returned whenever one of the required parameters fails th
     "created_at": "0001-01-01T00:00:00Z",
     "updated_at": "0001-01-01T00:00:00Z",
     "id": 5,
-    "username": "Test",
+    "username": "janedoe",
     "name": "",
-    "email": "test@domain.com",
+    "email": "janedoe@example.com",
     "admin": false,
     "enabled": true,
     "force_password_reset": false,
@@ -813,13 +819,15 @@ The same error will be returned whenever one of the required parameters fails th
 
 ### Get user information
 
+Returns all information about a specific user.
+
 `GET /api/v1/kolide/users/{id}`
 
 #### Parameters
 
-| Name | Type    | In    | Description                         |
-| ---- | ------- | ----- | ----------------------------------- |
-| id   | integer | query | The user id to get information for. |
+| Name | Type    | In    | Description                  |
+| ---- | ------- | ----- | ---------------------------- |
+| id   | integer | query | **Required**. The user's id. |
 
 #### Example
 
@@ -843,9 +851,9 @@ The same error will be returned whenever one of the required parameters fails th
     "created_at": "2020-12-10T05:20:25Z",
     "updated_at": "2020-12-10T05:24:27Z",
     "id": 2,
-    "username": "Test",
-    "name": "Test",
-    "email": "username@domain.com",
+    "username": "janedoe",
+    "name": "janedoe",
+    "email": "janedoe@example.com",
     "admin": true,
     "enabled": true,
     "force_password_reset": false,
