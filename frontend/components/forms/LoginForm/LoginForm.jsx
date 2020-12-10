@@ -84,7 +84,7 @@ class LoginForm extends Component {
           <InputFieldWithIcon
             {...fields.username}
             autofocus
-            placeholder="Username or Email"
+            placeholder="Username or email"
           />
           <InputFieldWithIcon
             {...fields.password}
