@@ -58,7 +58,7 @@ describe('ResetPasswordForm - component', () => {
       submitBtn.simulate('submit');
 
       const { errors } = form.state();
-      expect(errors.new_password_confirmation).toEqual('New password Confirmation field must be completed');
+      expect(errors.new_password_confirmation).toEqual('New password confirmation field must be completed');
       expect(submitSpy).not.toHaveBeenCalled();
     },
   );
