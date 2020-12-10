@@ -102,7 +102,7 @@ class ScheduledQueriesListWrapper extends Component {
   renderQueryCount = () => {
     const { scheduledQueries } = this.props;
     const queryCount = scheduledQueries.length;
-    const queryText = queryCount === 1 ? ' 1 query' : `${queryCount} Queries`;
+    const queryText = queryCount === 1 ? ' 1 query' : `${queryCount} queries`;
 
     return (
       <div>
