@@ -500,7 +500,7 @@ See https://wiki.mozilla.org/Security/Server_Side_TLS for more information on th
 
 * Lower HTTP timeout settings.
 
-  In an effort to provide a more resilient web server, timeouts are more strictly enforced by the Kolide HTTP server (regardless of whether or not you're using the built-in TLS termination). If your Kolide environment is particularly latent and you observe requests timing out, contact us at [help@kolide.co](mailto:help@kolide.co).
+  In an effort to provide a more resilient web server, timeouts are more strictly enforced by the Kolide HTTP server (regardless of whether or not you're using the built-in TLS termination).
 
 * Harden TLS server settings.
 
@@ -550,7 +550,7 @@ See https://wiki.mozilla.org/Security/Server_Side_TLS for more information on th
 
 * Add basic table autocompletion when typing in the query composer.
 
-* Support MySQL client certificate authentication. More details can be found in the [Configuring the Kolide binary docs](https://docs.kolide.co/kolide/1.0.1/infrastructure/configuring-the-kolide-binary.html)
+* Support MySQL client certificate authentication. More details can be found in the [Configuring the Fleet binary docs](./docs/infrastructure/configuring-the-fleet-binary.md).
 
 * Improve security for user-initiated email address changes.
 
