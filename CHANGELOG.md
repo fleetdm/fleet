@@ -1,3 +1,20 @@
+## Fleet 3.5.0 (Dec 10, 2020)
+
+* Refresh the Fleet UI with new colors, fonts, and Fleet logos.
+
+* All releases going forward will have the fleectl.exe.zip on the release page.
+
+* Add documentation for the authentication Fleet REST API endpoints.
+
+* Add FAQ answers about the stress test results for Fleet, configuraing labels, and resetting auth tokens.
+
+* Fixed a performance issue users encountered when multiple hosts shared the same UUID by adding a one minute cooldown.
+
+* Improve the `fleetctl preview` startup experience.
+
+* Fix a bug preventing the same query from being added to a scheduled pack more than once in the Fleet UI.
+
+
 ## Fleet 3.4.0 (Nov 18, 2020)
 
 * Add NPM installer for `fleetctl`. Install via `npm install -g osquery-fleetctl`.
