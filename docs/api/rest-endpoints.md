@@ -2,7 +2,7 @@
 
 ## Authentication
 
-Making authenticated requests to the Fleet server requires that you are granted permission to access data. The Fleet Authentication API enables you to receive an authorization token. 
+Making authenticated requests to the Fleet server requires that you are granted permission to access data. The Fleet Authentication API enables you to receive an authorization token.
 
 All Fleet API requests are authenticated unless noted in the documentation. This means that almost all Fleet API requests will require sending the auth token in the request header.
 
@@ -147,10 +147,10 @@ Authenticates the user with the specified credentials. Use the token returned fr
 
 #### Parameters
 
-| Name                    | Type    | In    | Description                                       |
-|-------------------------|---------|-------|---------------------------------------------------|
-| username                | string  | body  | **Required**. The user's email.              |
-| password                | string  | body  | **Required**. The user's plain text password.|
+| Name     | Type   | In   | Description                                   |
+| -------- | ------ | ---- | --------------------------------------------- |
+| username | string | body | **Required**. The user's email.               |
+| password | string | body | **Required**. The user's plain text password. |
 
 #### Example
 
@@ -187,8 +187,8 @@ Authenticates the user with the specified credentials. Use the token returned fr
   "token": "{your token}"
 }
 ```
-*******
 
+---
 
 ### Log out
 
@@ -203,8 +203,8 @@ Logs out the authenticated user.
 ##### Default response
 
 `Status: 200`
-*******
 
+---
 
 ### Forgot password
 
@@ -214,9 +214,9 @@ Sends a password reset email to the specified email. Requires that SMTP is confi
 
 #### Parameters
 
-| Name                    | Type    | In     | Description                                                               |
-|-------------------------|---------|--------|---------------------------------------------------------------------------|
-| email                   | string  | body   | **Required**. The email of the user requesting the reset password link.   |
+| Name  | Type   | In   | Description                                                             |
+| ----- | ------ | ---- | ----------------------------------------------------------------------- |
+| email | string | body | **Required**. The email of the user requesting the reset password link. |
 
 #### Example
 
@@ -249,8 +249,8 @@ Sends a password reset email to the specified email. Requires that SMTP is confi
   ]
 }
 ```
-*******
 
+---
 
 ### Change password
 
@@ -260,10 +260,10 @@ Changes the password for the authenticated user.
 
 #### Parameters
 
-| Name                    | Type    | In       | Description                                                                 |
-|-------------------------|---------|----------|-----------------------------------------------------------------------------|
-| old_password            | string  | body     | **Required**. The user's old password.                                      |
-| new_password            | string  | body     | **Required**. The user's new password.                                      |
+| Name         | Type   | In   | Description                            |
+| ------------ | ------ | ---- | -------------------------------------- |
+| old_password | string | body | **Required**. The user's old password. |
+| new_password | string | body | **Required**. The user's new password. |
 
 #### Example
 
@@ -297,8 +297,8 @@ Changes the password for the authenticated user.
   ]
 }
 ```
-*******
 
+---
 
 ### Me
 
@@ -331,8 +331,8 @@ Retrieves the user data for the authenticated user.
   }
 }
 ```
-*******
 
+---
 
 ### Perform required password reset
 
@@ -373,8 +373,8 @@ Resets the password of the authenticated user. Requires that `force_password_res
   }
 }
 ```
-*******
 
+---
 
 ### SSO config
 
@@ -399,8 +399,8 @@ Gets the current SSO configuration.
   }
 }
 ```
-*******
 
+---
 
 ### Initiate SSO
 
@@ -408,9 +408,9 @@ Gets the current SSO configuration.
 
 #### Parameters
 
-| Name                    | Type    | In       | Description                                                                 |
-|-------------------------|---------|----------|-----------------------------------------------------------------------------|
-| relay_url               | string  | body     | **Required**. The relative url to be navigated to after succesful sign in.  |
+| Name      | Type   | In   | Description                                                                |
+| --------- | ------ | ---- | -------------------------------------------------------------------------- |
+| relay_url | string | body | **Required**. The relative url to be navigated to after succesful sign in. |
 
 #### Example
 
@@ -443,8 +443,8 @@ Gets the current SSO configuration.
   ]
 }
 ```
-*******
 
+---
 
 ## Hosts
 
@@ -454,13 +454,13 @@ Gets the current SSO configuration.
 
 #### Parameters
 
-| Name                    | Type    | In    | Description                                                                              |
-|-------------------------|---------|-------|------------------------------------------------------------------------------------------|
-| page                    | integer | query | Page number of the results to fetch.                                                     |
-| per_page                | integer | query | Results per page.                                                                        |
-| order_key               | string  | query | What to order results by. Can be any column in the hosts table.                          |
-| status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.|
-| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](https://github.com/fleetdm/fleet/blob/master/docs/cli/file-format.md#fleet-configuration-options) for an example configuration with hosts' additional information.|
+| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                    |
+| ----------------------- | ------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                           |
+| per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                              |
+| order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                |
+| status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                               |
+| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](https://github.com/fleetdm/fleet/blob/master/docs/cli/file-format.md#fleet-configuration-options) for an example configuration with hosts' additional information. |
 
 #### Example
 
@@ -560,4 +560,331 @@ Gets the current SSO configuration.
   ]
 }
 ```
-*******
+
+---
+
+## Users
+
+The Fleet server exposes a handful of API endpoints that handles common user management operations. All the following endpoints require prior authentication meaning you must first log in successfully before calling any of the endpoints documented below.
+
+### List All Users
+
+`GET /api/v1/kolide/users`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/kolide/users`
+
+##### Request query parameters
+
+None.
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "users": [
+    {
+      "created_at": "2020-12-10T03:52:53Z",
+      "updated_at": "2020-12-10T03:52:53Z",
+      "id": 1,
+      "username": "username",
+      "name": "",
+      "email": "username@domain.com",
+      "admin": true,
+      "enabled": true,
+      "force_password_reset": false,
+      "gravatar_url": "",
+      "sso_enabled": false
+    }
+  ]
+}
+```
+
+##### Failed authentication
+
+`Status: 401 Authentication Failed`
+
+```
+{
+  "message": "Authentication Failed",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "username or email and password do not match"
+    }
+  ]
+}
+```
+
+### Create a user account with an invitation
+
+`POST /api/v1/kolide/users`
+
+#### Parameters
+
+| Name                  | Type   | In   | Description                                       |
+| --------------------- | ------ | ---- | ------------------------------------------------- |
+| email                 | string | body | The email address of the user.                    |
+| invite_token          | string | body | Randomly generated token to validate invitations. |
+| name                  | string | body | The name of the user.                             |
+| username              | string | body | The username chosen by the user                   |
+| password              | string | body | The password chosen by the user.                  |
+| password_confirmation | string | body | Confirmation of the password chosen by the user.  |
+
+#### Example
+
+`POST /api/v1/kolide/users`
+
+##### Request query parameters
+
+```
+{
+  "email": "test@domain.com",
+  "invite_token": "SjdReDNuZW5jd3dCbTJtQTQ5WjJTc2txWWlEcGpiM3c=",
+  "name": "test",
+  "username": "test",
+  "password": "test-123",
+  "password_confirmation": "test-123"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "user": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 2,
+    "username": "test",
+    "name": "test",
+    "email": "test@domain.com",
+    "admin": false,
+    "enabled": true,
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "sso_enabled": false
+  }
+}
+```
+
+##### Failed authentication
+
+`Status: 401 Authentication Failed`
+
+```
+{
+  "message": "Authentication Failed",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "username or email and password do not match"
+    }
+  ]
+}
+```
+
+##### Expired or used invite code
+
+`Status: 404 Resource Not Found`
+
+```
+{
+  "message": "Resource Not Found",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Invite with token SjdReDNuZW5jd3dCbTJtQTQ5WjJTc2txWWlEcGpiM3c= was not found in the datastore"
+    }
+  ]
+}
+```
+
+##### Validation failed
+
+`Status: 422 Validation Failed`
+
+The same error will be returned whenever one of the required parameters fails the validation.
+
+```
+{
+  "message": "Validation Failed",
+  "errors": [
+    {
+      "name": "username",
+      "reason": "cannot be empty"
+    }
+  ]
+}
+```
+
+### Create a user account without an invitation
+
+`POST /api/v1/kolide/users/admin`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                |
+| ---------- | ------- | ---- | ------------------------------------------ |
+| username   | string  | body | The username for the new user.             |
+| email      | string  | body | The email for the new user.                |
+| password   | string  | body | The password for the new user.             |
+| invited_by | integer | body | The ID of the user sending the invitation. |
+| admin      | boolean | body | Will this user be an admin user?           |
+
+#### Example
+
+`POST /api/v1/kolide/users/admin`
+
+##### Request query parameters
+
+```
+{
+  "username": "Test",
+  "email": "test@domain.com",
+  "password": "test-123",
+  "invited_by":1,
+  "admin":true
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "user": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 5,
+    "username": "Test",
+    "name": "",
+    "email": "test@domain.com",
+    "admin": false,
+    "enabled": true,
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "sso_enabled": false
+  }
+}
+```
+
+##### Failed authentication
+
+`Status: 401 Authentication Failed`
+
+```
+{
+  "message": "Authentication Failed",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "username or email and password do not match"
+    }
+  ]
+}
+```
+
+##### User doesn't exist
+
+`Status: 404 Resource Not Found`
+
+```
+{
+  "message": "Resource Not Found",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "User with id=1 was not found in the datastore"
+    }
+  ]
+}
+```
+
+### Get user information
+
+`GET /api/v1/kolide/users/{id}`
+
+#### Parameters
+
+| Name | Type    | In    | Description                         |
+| ---- | ------- | ----- | ----------------------------------- |
+| id   | integer | query | The user id to get information for. |
+
+#### Example
+
+`GET /api/v1/kolide/users/2`
+
+##### Request query parameters
+
+```
+{
+  "id": 1
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "user": {
+    "created_at": "2020-12-10T05:20:25Z",
+    "updated_at": "2020-12-10T05:24:27Z",
+    "id": 2,
+    "username": "Test",
+    "name": "Test",
+    "email": "username@domain.com",
+    "admin": true,
+    "enabled": true,
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "sso_enabled": false
+  }
+}
+```
+
+##### Failed authentication
+
+`Status: 401 Authentication Failed`
+
+```
+{
+  "message": "Authentication Failed",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "username or email and password do not match"
+    }
+  ]
+}
+```
+
+##### User doesn't exist
+
+`Status: 404 Resource Not Found`
+
+```
+{
+  "message": "Resource Not Found",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "User with id=5 was not found in the datastore"
+    }
+  ]
+}
+```
+
+---
