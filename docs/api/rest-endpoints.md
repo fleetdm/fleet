@@ -745,7 +745,7 @@ Creates a user account without requiring an invitation, the user is enabled imme
 | email      | string  | body | **Required**. The user's email address.          |
 | password   | string  | body | **Required**. The user's password.               |
 | invited_by | integer | body | **Required**. ID of the admin creating the user. |
-| admin      | boolean | body | **Required**. The user's admin flag.             |
+| admin      | boolean | body | **Required**. Whether the user has admin privileges. |
 
 #### Example
 
