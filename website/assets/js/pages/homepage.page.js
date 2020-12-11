@@ -20,6 +20,8 @@ parasails.registerPage('homepage', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    //…
+    clickChatButton: function() {
+      alert('TODO: open chat');
+    }
   }
 });
