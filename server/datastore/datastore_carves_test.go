@@ -42,7 +42,7 @@ func testCarveMetadata(t *testing.T, ds kolide.Datastore) {
 
 	// Check for increment of max block
 
-	err = ds.NewBlock(carve.ID, 0, nil)
+	err = ds.NewBlock(carve, 0, nil)
 	require.NoError(t, err)
 	expectedCarve.MaxBlock = 0
 
@@ -56,7 +56,7 @@ func testCarveMetadata(t *testing.T, ds kolide.Datastore) {
 
 	// Check for increment of max block
 
-	err = ds.NewBlock(carve.ID, 1, nil)
+	err = ds.NewBlock(carve, 1, nil)
 	require.NoError(t, err)
 	expectedCarve.MaxBlock = 1
 
@@ -97,13 +97,13 @@ func testCarveBlocks(t *testing.T, ds kolide.Datastore) {
 		require.NoError(t, err, "generate block")
 		expectedBlocks[i] = block
 
-		err = ds.NewBlock(carve.ID, i, block)
+		err = ds.NewBlock(carve, i, block)
 		require.NoError(t, err, "write block %v", block)
 	}
 
 	// Verify retrieved blocks match inserted blocks
 	for i := int64(0); i < blockCount; i++ {
-		data, err := ds.GetBlock(carve.ID, i)
+		data, err := ds.GetBlock(carve, i)
 		require.NoError(t, err, "get block %d %v", i, expectedBlocks[i])
 		assert.Equal(t, expectedBlocks[i], data)
 	}
@@ -137,7 +137,7 @@ func testCarveCleanupCarves(t *testing.T, ds kolide.Datastore) {
 		require.NoError(t, err, "generate block")
 		expectedBlocks[i] = block
 
-		err = ds.NewBlock(carve.ID, i, block)
+		err = ds.NewBlock(carve, i, block)
 		require.NoError(t, err, "write block %v", block)
 	}
 
@@ -145,7 +145,7 @@ func testCarveCleanupCarves(t *testing.T, ds kolide.Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, expired)
 
-	_, err = ds.GetBlock(carve.ID, 0)
+	_, err = ds.GetBlock(carve, 0)
 	require.NoError(t, err)
 
 	expired, err = ds.CleanupCarves(time.Now().Add(24 * time.Hour))
@@ -153,7 +153,7 @@ func testCarveCleanupCarves(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, 1, expired)
 
 	// Should no longer be able to get data
-	_, err = ds.GetBlock(carve.ID, 0)
+	_, err = ds.GetBlock(carve, 0)
 	require.Error(t, err, "data should be expired")
 
 	carve, err = ds.Carve(carve.ID)
@@ -180,7 +180,7 @@ func testCarveListCarves(t *testing.T, ds kolide.Datastore) {
 	require.NoError(t, err)
 	assert.NotEqual(t, 0, expectedCarve.ID)
 	// Add a block to this carve
-	err = ds.NewBlock(expectedCarve.ID, 0, nil)
+	err = ds.NewBlock(expectedCarve, 0, nil)
 	require.NoError(t, err)
 	expectedCarve.MaxBlock = 0
 

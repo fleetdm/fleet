@@ -76,7 +76,6 @@ func (c *Client) GetCarve(carveId int64) (*kolide.CarveMetadata, error) {
 	return &responseBody.Carve, nil
 }
 
-
 func (c *Client) getCarveBlock(carveId, blockId int64) ([]byte, error) {
 	path := fmt.Sprintf(
 		"/api/v1/kolide/carves/%d/block/%d",
@@ -110,23 +109,23 @@ func (c *Client) getCarveBlock(carveId, blockId int64) ([]byte, error) {
 }
 
 type carveReader struct {
-	carve kolide.CarveMetadata
+	carve     kolide.CarveMetadata
 	bytesRead int64
-	curBlock int64
-	buffer []byte
-	client *Client
+	curBlock  int64
+	buffer    []byte
+	client    *Client
 }
 
 func newCarveReader(carve kolide.CarveMetadata, client *Client) *carveReader {
 	return &carveReader{
-		carve:  carve,
-		client: client,
+		carve:     carve,
+		client:    client,
 		bytesRead: 0,
 		curBlock:  0,
 	}
 }
 
-func (r *carveReader)  Read(p []byte) (n int, err error) {
+func (r *carveReader) Read(p []byte) (n int, err error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
@@ -160,7 +159,7 @@ func (r *carveReader)  Read(p []byte) (n int, err error) {
 	return copyLen, nil
 }
 
-// ListCarves lists the file carving sessio
+// DownloadCarve creates a Reader downloading a carve (by ID)
 func (c *Client) DownloadCarve(id int64) (io.Reader, error) {
 	path := fmt.Sprintf("/api/v1/kolide/carves/%d", id)
 	response, err := c.AuthenticatedDo("GET", path, "", nil)

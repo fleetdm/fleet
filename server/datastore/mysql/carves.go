@@ -5,14 +5,15 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
 func (d *Datastore) NewCarve(metadata *kolide.CarveMetadata) (*kolide.CarveMetadata, error) {
 	stmt := `INSERT INTO carve_metadata (
 		host_id,
+		created_at,
 		name,
 		block_count,
 		block_size,
@@ -28,12 +29,14 @@ func (d *Datastore) NewCarve(metadata *kolide.CarveMetadata) (*kolide.CarveMetad
 		?,
 		?,
 		?,
+		?,
 		?
 	)`
 
 	result, err := d.db.Exec(
 		stmt,
 		metadata.HostId,
+		metadata.CreatedAt.Format(mySQLTimestampFormat),
 		metadata.Name,
 		metadata.BlockCount,
 		metadata.BlockSize,
@@ -50,6 +53,27 @@ func (d *Datastore) NewCarve(metadata *kolide.CarveMetadata) (*kolide.CarveMetad
 	metadata.ID = id
 
 	return metadata, nil
+}
+
+// UpdateCarve updates the carve metadata in database
+// Only max_block and expired are updatable
+func (d *Datastore) UpdateCarve(metadata *kolide.CarveMetadata) error {
+	stmt := `
+		UPDATE carve_metadata SET
+			max_block = ?,
+			expired = ?
+		WHERE id = ?
+	`
+	_, err := d.db.Exec(
+		stmt,
+		metadata.MaxBlock,
+		metadata.Expired,
+		metadata.ID,
+	)
+	if err != nil {
+		return errors.Wrap(err, "update carve metadata")
+	}
+	return nil
 }
 
 func (d *Datastore) CleanupCarves(now time.Time) (int, error) {
@@ -127,7 +151,10 @@ const carveSelectFields = `
 			request_id,
 			session_id,
 			expired,
-			(SELECT COALESCE(MAX(block_id), -1) FROM carve_blocks WHERE metadata_id = id) AS max_block
+			COALESCE(
+				max_block,
+				(SELECT COALESCE(MAX(block_id), -1) FROM carve_blocks WHERE metadata_id = id)
+			) AS max_block
 `
 
 func (d *Datastore) Carve(carveId int64) (*kolide.CarveMetadata, error) {
@@ -196,7 +223,7 @@ func (d *Datastore) ListCarves(opt kolide.CarveListOptions) ([]*kolide.CarveMeta
 	return carves, nil
 }
 
-func (d *Datastore) NewBlock(metadataId int64, blockId int64, data []byte) error {
+func (d *Datastore) NewBlock(metadata *kolide.CarveMetadata, blockId int64, data []byte) error {
 	stmt := `
 		INSERT INTO carve_blocks (
 			metadata_id,
@@ -207,21 +234,21 @@ func (d *Datastore) NewBlock(metadataId int64, blockId int64, data []byte) error
 			?,
 			?
 		)`
-	if _, err := d.db.Exec(stmt, metadataId, blockId, data); err != nil {
+	if _, err := d.db.Exec(stmt, metadata.ID, blockId, data); err != nil {
 		return errors.Wrap(err, "insert carve block")
 	}
 
 	return nil
 }
 
-func (d *Datastore) GetBlock(metadataId int64, blockId int64) ([]byte, error) {
+func (d *Datastore) GetBlock(metadata *kolide.CarveMetadata, blockId int64) ([]byte, error) {
 	stmt := `
 		SELECT data
 		FROM carve_blocks
 		WHERE metadata_id = ? AND block_id = ?
 	`
 	var data []byte
-	if err := d.db.Get(&data, stmt, metadataId, blockId); err != nil {
+	if err := d.db.Get(&data, stmt, metadata.ID, blockId); err != nil {
 		return nil, errors.Wrap(err, "select data")
 	}
 
