@@ -636,7 +636,7 @@ Creates a user account after an invited user provides registration information a
 | Name                  | Type   | In   | Description                                                     |
 | --------------------- | ------ | ---- | --------------------------------------------------------------- |
 | email                 | string | body | **Required**. The email address of the user.                    |
-| invite_token          | string | body | **Required**. Randomly generated token to validate invitations. |
+| invite_token          | string | body | **Required**. Token provided to the user in the invitation email. |
 | name                  | string | body | The name of the user.                                           |
 | username              | string | body | **Required**. The username chosen by the user                   |
 | password              | string | body | **Required**. The password chosen by the user.                  |
