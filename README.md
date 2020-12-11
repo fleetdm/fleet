@@ -12,7 +12,10 @@ Documentation for Fleet can be found on [GitHub](./docs/README.md).
 
 ![banner-fleet-cloud-city](https://user-images.githubusercontent.com/618009/98254443-eaf21100-1f41-11eb-9e2c-63a0545601f3.jpg)
 
-<!-- todo: update screenshots
+<img alt="Screenshot of query editor" src="https://user-images.githubusercontent.com/618009/101847266-769a2700-3b18-11eb-9109-7f1320ed5c45.png"/>
+
+
+<!-- todo: update other screenshots
 **Fleet Dashboard**
 ![Screenshot of dashboard](./assets/images/dashboard-screenshot.png)
 
