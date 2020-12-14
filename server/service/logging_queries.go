@@ -118,6 +118,15 @@ func (mw loggingMiddleware) ModifyQuery(ctx context.Context, id uint, p kolide.Q
 		loggedInUser = vc.Username()
 	}
 	defer func(begin time.Time) {
+		if query == nil {
+			_ = mw.loggerInfo(err).Log(
+				"method", "ModifyQuery",
+				"err", err,
+				"user", loggedInUser,
+				"took", time.Since(begin),
+			)
+			return
+		}
 		_ = mw.loggerInfo(err).Log(
 			"method", "ModifyQuery",
 			"err", err,

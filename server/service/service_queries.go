@@ -35,6 +35,12 @@ func (svc service) ApplyQuerySpecs(ctx context.Context, specs []*kolide.QuerySpe
 		queries = append(queries, queryFromSpec(spec))
 	}
 
+	for _, query := range queries {
+		if err := query.ValidateSQL(); err != nil {
+			return err
+		}
+	}
+
 	err := svc.ds.ApplyQueries(vc.UserID(), queries)
 	return errors.Wrap(err, "applying queries")
 }
@@ -89,6 +95,10 @@ func (svc service) NewQuery(ctx context.Context, p kolide.QueryPayload) (*kolide
 		query.AuthorName = vc.FullName()
 	}
 
+	if err := query.ValidateSQL(); err != nil {
+		return nil, err
+	}
+
 	query, err := svc.ds.NewQuery(query)
 	if err != nil {
 		return nil, err
@@ -115,8 +125,11 @@ func (svc service) ModifyQuery(ctx context.Context, id uint, p kolide.QueryPaylo
 		query.Query = *p.Query
 	}
 
-	err = svc.ds.SaveQuery(query)
-	if err != nil {
+	if err := query.ValidateSQL(); err != nil {
+		return nil, err
+	}
+
+	if err := svc.ds.SaveQuery(query); err != nil {
 		return nil, err
 	}
 
