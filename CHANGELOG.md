@@ -1,3 +1,17 @@
+## Fleet 3.5.1 (Dec 14, 2020)
+
+### This is a security release.
+
+* **Security**: Introduce XML validation library to mitigate Go stdlib XML parsing vulnerability effecting SSO login. See https://github.com/fleetdm/fleet/security/advisories/GHSA-w3wf-cfx3-6gcx and the linked content within that advisory.
+
+Follow up: Rotate `--auth_jwt_key` to invalidate existing sessions. Audit for suspicious activity in the Fleet server.
+
+* **Security**: Prevent new queries from using the SQLite `ATTACH` command. This is a mitigation for the osquery vulnerability https://github.com/osquery/osquery/security/advisories/GHSA-4g56-2482-x7q8.
+
+Follow up: Audit existing saved queries and logs of live query executions for possible malicious use of `ATTACH`. Upgrade osquery to 4.6.0 to prevent `ATTACH` queries from executing.
+
+* Update icons and fix hosts dashboard for wide screen sizes.
+
 ## Fleet 3.5.0 (Dec 10, 2020)
 
 * Refresh the Fleet UI with new colors, fonts, and Fleet logos.
