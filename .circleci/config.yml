@@ -2,7 +2,7 @@ version: 2
 jobs:
   build-go:
     docker:
-      - image: golang:1.12
+      - image: golang:1.15
       - image: redis:5.0
       - image: mysql:5.7.27
         command: --event-scheduler=ON
