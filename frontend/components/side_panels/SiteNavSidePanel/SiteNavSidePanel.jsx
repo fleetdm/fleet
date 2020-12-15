@@ -63,13 +63,14 @@ class SiteNavSidePanel extends Component {
       `${navItemBaseClass}`,
       {
         [`${navItemBaseClass}--active`]: active,
-        [`${navItemBaseClass}--single`]: subItems.length === 0,
+        [`${navItemBaseClass}--multiple`]: subItems.length !== 0,
       },
     );
 
     return (
       <li className={navItemClasses} key={`nav-item-${name}`}>
         <a
+          className={`${navItemBaseClass}__link`}
           onClick={onNavItemClick(navItem.location.pathname)}
         >
           <Icon name={iconName} size="24" className={`${navItemBaseClass}__icon`} />
@@ -120,6 +121,7 @@ class SiteNavSidePanel extends Component {
         className={baseSubItemItemClass}
       >
         <a
+          className={`${baseSubItemClass}__link`}
           key={`sub-item-${name}`}
           onClick={onNavItemClick(subItem.location.pathname)}
         >

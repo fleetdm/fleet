@@ -1,6 +1,5 @@
 .site-nav-item {
   position: relative;
-  padding: 14px 20px;
   transition: color 200ms ease-in-out;
   cursor: pointer;
 
@@ -9,8 +8,17 @@
   }
 
   @include breakpoint(smalldesk) {
-    padding: 11px 14px;
     justify-content: center;
+  }
+
+  &--multiple.site-nav-item--active {
+    background-color: transparent;
+    border-right: 0;
+
+    .site-nav-item__link {
+      border-right: 3px solid $core-blue;
+      background-color: $core-black;
+    }
   }
 
   &__icon {
@@ -48,10 +56,16 @@
     text-align: center;
     display: flex;
     align-items: center;
+    padding: 14px 20px;
+
+    @include breakpoint(smalldesk) {
+      padding: 11px 14px;
+    }
   }
 
   &--active {
     border-right: 3px solid $core-blue;
+    background-color: $core-black;
 
     @at-root .site-nav--small & {
       border-right: 3px solid $core-blue;
@@ -65,7 +79,19 @@
       font-weight: $bold;
     }
 
-    .site-sub-item__button {
+    .site-sub-item {
+      a {
+        padding: 0;
+
+        @at-root .site-nav--small & {
+          padding: 5px 14px;
+        }
+
+        @include breakpoint(smalldesk) {
+          padding: 5px 14px;
+        }
+      }
+
       @at-root .site-nav--small & {
         margin-right: 0;
         display: flex;
@@ -112,13 +138,25 @@
   text-transform: none;
   padding: 6px 0;
 
+  a {
+    padding: 0;
+  }
+
+  i {
+    color: $ui-medium-grey;
+  }
+
   &--active {
-    .site-sub-item__button {
+    .site-sub-item__link {
       color: $white;
       font-size: $x-small;
       font-weight: $bold;
 
       &:hover {
+        color: $white;
+      }
+
+      i {
         color: $white;
       }
     }
@@ -141,26 +179,6 @@
       @include breakpoint(smalldesk) {
         display: none;
       }
-    }
-  }
-
-  &__button {
-    transition: color 150ms ease-in-out;
-    color: rgba($white, 0.75);
-    font-size: $x-small;
-    text-transform: none;
-    font-weight: $regular;
-
-    &:hover {
-      color: rgba($white, 0.9);
-    }
-
-    @at-root .site-nav--small & {
-      padding: 4px 10px;
-    }
-
-    @include breakpoint(smalldesk) {
-      padding: 4px 10px;
     }
   }
 
@@ -227,7 +245,7 @@
   }
 
   &__list {
-    padding: 12px 0 0 46px;
+    padding: 12px 0 0 64px;
     margin: 0;
     list-style: none;
 
