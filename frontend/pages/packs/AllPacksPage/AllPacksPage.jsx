@@ -6,7 +6,7 @@ import { push } from 'react-router-redux';
 
 import Button from 'components/buttons/Button';
 import entityGetter from 'redux/utilities/entityGetter';
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 import InputField from 'components/forms/fields/InputField';
 import Modal from 'components/modals/Modal';
 import packActions from 'redux/nodes/entities/packs/actions';
@@ -227,21 +227,21 @@ export class AllPacksPage extends Component {
             onClick={onBulkAction('disable')}
             variant="unstyled"
           >
-            <Icon name="offline" /> Disable
+            <KolideIcon name="offline" /> Disable
           </Button>
           <Button
             className={`${btnClass} ${btnClass}--enable`}
             onClick={onBulkAction('enable')}
             variant="unstyled"
           >
-            <Icon name="success-check" /> Enable
+            <KolideIcon name="success-check" /> Enable
           </Button>
           <Button
             className={`${btnClass} ${btnClass}--delete`}
             onClick={onToggleModal}
             variant="unstyled"
           >
-            <Icon name="trash" /> Delete
+            <KolideIcon name="trash" /> Delete
           </Button>
         </div>
       );
@@ -329,7 +329,7 @@ export class AllPacksPage extends Component {
               placeholder="Filter packs"
               value={packFilter}
             />
-            <Icon name="search" />
+            <KolideIcon name="search" />
           </div>
           <p className={`${baseClass}__pack-count`}>{packsTotalDisplay}</p>
           <PacksList

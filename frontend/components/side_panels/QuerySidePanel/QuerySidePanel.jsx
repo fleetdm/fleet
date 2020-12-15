@@ -4,7 +4,7 @@ import PropTypes from 'prop-types';
 import osqueryTableInterface from 'interfaces/osquery_table';
 import { osqueryTableNames } from 'utilities/osquery_tables';
 import Dropdown from 'components/forms/fields/Dropdown';
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 import PlatformIcon from 'components/icons/PlatformIcon';
 import SecondarySidePanelContainer from '../SecondarySidePanelContainer';
 
@@ -48,7 +48,7 @@ class QuerySidePanel extends Component {
           <span className={`${columnBaseClass}__name`}>{column.name}</span>
           <div className={`${columnBaseClass}__description`}>
             <span className={`${columnBaseClass}__type`}>{displayTypeForDataType(column.type)}</span>
-            <Icon name="help-solid" className={`${columnBaseClass}__help`} title={column.description} />
+            <KolideIcon name="help-solid" className={`${columnBaseClass}__help`} title={column.description} />
           </div>
         </li>
       );
@@ -93,7 +93,7 @@ class QuerySidePanel extends Component {
           <ul className={`${baseClass}__platforms`}>
             {platforms.map((platform) => {
               if (platform === 'all') {
-                return <li key={platform}><Icon name="hosts" /> {platform}</li>;
+                return <li key={platform}><KolideIcon name="hosts" /> {platform}</li>;
               }
 
               return <li key={platform}><PlatformIcon name={platform} title={platform} /> {platform}</li>;

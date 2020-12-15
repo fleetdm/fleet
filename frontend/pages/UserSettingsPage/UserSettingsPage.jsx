@@ -15,7 +15,7 @@ import Button from 'components/buttons/Button';
 import ChangeEmailForm from 'components/forms/ChangeEmailForm';
 import ChangePasswordForm from 'components/forms/ChangePasswordForm';
 import deepDifference from 'utilities/deep_difference';
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 import InputField from 'components/forms/fields/InputField';
 import { logoutUser, updateUser } from 'redux/nodes/auth/actions';
 import Modal from 'components/modals/Modal';
@@ -258,7 +258,7 @@ export class UserSettingsPage extends Component {
             className={`${baseClass}__secret-copy-icon`}
             onClick={onCopySecret(`.${baseClass}__secret-input`)}
           >
-            <Icon name="clipboard" />
+            <KolideIcon name="clipboard" />
           </Button>
         </div>
         <div className={`${baseClass}__button-wrap`}>

@@ -8,7 +8,7 @@ import Form from 'components/forms/Form';
 import formFieldInterface from 'interfaces/form_field';
 import enrollSecretInterface from 'interfaces/enroll_secret';
 import EnrollSecretTable from 'components/config/EnrollSecretTable';
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 import InputField from 'components/forms/fields/InputField';
 import OrgLogoIcon from 'components/icons/OrgLogoIcon';
 import Slider from 'components/forms/fields/Slider';
@@ -32,7 +32,7 @@ const formFields = [
   'live_query_disabled',
 ];
 const Header = ({ showAdvancedOptions }) => {
-  const CaratIcon = <Icon name={showAdvancedOptions ? 'downcarat' : 'upcarat'} />;
+  const CaratIcon = <KolideIcon name={showAdvancedOptions ? 'downcarat' : 'upcarat'} />;
 
   return <span>Advanced Options {CaratIcon} <small>Most users do not need to modify these options.</small></span>;
 };

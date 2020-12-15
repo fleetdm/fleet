@@ -7,7 +7,7 @@ import Button from 'components/buttons/Button';
 import configInterface from 'interfaces/config';
 import enrollSecretInterface from 'interfaces/enroll_secret';
 import EnrollSecretTable from 'components/config/EnrollSecretTable';
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 import DownloadIcon from '../../../../assets/images/icon-download-12x12@2x.png';
 
 const baseClass = 'add-host-modal';
@@ -113,7 +113,7 @@ class AddHostModal extends Component {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Add Hosts Documentation <Icon name="external-link" />
+                Add Hosts Documentation <KolideIcon name="external-link" />
               </a>
             </h4>
           </div>

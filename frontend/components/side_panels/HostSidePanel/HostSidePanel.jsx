@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { filter } from 'lodash';
 
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 import Button from 'components/buttons/Button';
 import InputField from 'components/forms/fields/InputField';
 import labelInterface from 'interfaces/label';
@@ -86,7 +86,7 @@ class HostSidePanel extends Component {
             value={labelFilter}
             inputWrapperClass={`${baseClass}__filter-labels`}
           />
-          <Icon name="search" />
+          <KolideIcon name="search" />
         </div>
         <PanelGroup
           groupItems={customLabels}

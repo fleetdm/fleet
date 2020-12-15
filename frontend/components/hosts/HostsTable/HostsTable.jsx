@@ -3,9 +3,9 @@ import PropTypes from 'prop-types';
 import classnames from 'classnames';
 
 import Button from 'components/buttons/Button';
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 import hostInterface from 'interfaces/host';
-import iconClassForLabel from 'utilities/icon_class_for_label';
+import { iconNameForLabel } from 'utilities/icon_name';
 
 import { humanMemory, humanUptime, humanLastSeen } from './helpers';
 
@@ -15,14 +15,14 @@ const ActionButton = ({ host, onDestroyHost, onQueryHost }) => {
   if (host.status === 'online') {
     return (
       <Button onClick={onQueryHost(host)} variant="unstyled">
-        <Icon name="query" />
+        <KolideIcon name="query" />
       </Button>
     );
   }
 
   return (
     <Button onClick={onDestroyHost(host)} variant="unstyled">
-      <Icon name="trash" />
+      <KolideIcon name="trash" />
     </Button>
   );
 };
@@ -64,7 +64,7 @@ class HostsTable extends Component {
           {host.hostname}
         </td>
         <td className={statusClassName}>
-          <Icon name={iconClassForLabel(host.status)} />
+          <KolideIcon name={iconNameForLabel(host.status)} />
         </td>
         <td>{host.os_version}</td>
         <td>{host.osquery_version}</td>

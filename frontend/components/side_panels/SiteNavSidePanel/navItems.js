@@ -6,6 +6,7 @@ export default (admin) => {
     {
       icon: 'admin',
       name: 'Admin',
+      iconName: 'main-admin-white',
       location: {
         regex: new RegExp(`^${URL_PREFIX}/admin/`),
         pathname: PATHS.ADMIN_USERS,
@@ -45,6 +46,7 @@ export default (admin) => {
     {
       icon: 'hosts',
       name: 'Hosts',
+      iconName: 'main-hosts-white',
       location: {
         regex: new RegExp(`^${URL_PREFIX}/hosts/`),
         pathname: PATHS.MANAGE_HOSTS,
@@ -54,6 +56,7 @@ export default (admin) => {
     {
       icon: 'query',
       name: 'Queries',
+      iconName: 'main-query-white',
       location: {
         regex: new RegExp(`^${URL_PREFIX}/queries/`),
         pathname: PATHS.MANAGE_QUERIES,
@@ -63,6 +66,7 @@ export default (admin) => {
     {
       icon: 'packs',
       name: 'Packs',
+      iconName: 'main-packs-white',
       location: {
         regex: new RegExp(`^${URL_PREFIX}/packs/`),
         pathname: PATHS.MANAGE_PACKS,
