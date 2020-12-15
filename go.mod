@@ -33,12 +33,14 @@ require (
 	github.com/igm/sockjs-go/v3 v3.0.0
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jmoiron/sqlx v0.0.0-20180406164412-2aeb6a910c2b
+	github.com/jonboulle/clockwork v0.2.2 // indirect
 	github.com/kolide/goose v0.0.0-20181015214854-7aebd1deb5ab
 	github.com/kolide/kit v0.0.0-20180421083548-36eb8dc43916
 	github.com/kolide/launcher v0.0.0-20180427153757-cb412b945cf7
 	github.com/kolide/osquery-go v0.0.0-20190904034940-a74aa860032d
 	github.com/lib/pq v1.2.0 // indirect
 	github.com/magiconair/properties v1.7.6 // indirect
+	github.com/mattermost/xml-roundtrip-validator v0.0.0-20201213122252-bcd7e1b9601e
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/mattn/go-runewidth v0.0.8 // indirect
 	github.com/mattn/go-sqlite3 v1.11.0 // indirect
@@ -51,14 +53,14 @@ require (
 	github.com/pressly/goose v2.6.0+incompatible
 	github.com/prometheus/client_golang v0.9.3-0.20190127221311-3c4408c8b829
 	github.com/russellhaering/gosaml2 v0.3.1
-	github.com/russellhaering/goxmldsig v0.0.0-20180430223755-7acd5e4a6ef7
+	github.com/russellhaering/goxmldsig v1.1.0
 	github.com/spf13/afero v1.1.0 // indirect
 	github.com/spf13/cast v1.2.0
 	github.com/spf13/cobra v0.0.2
 	github.com/spf13/jwalterweatherman v0.0.0-20180109140146-7c0cea34c8ec // indirect
 	github.com/spf13/pflag v1.0.1 // indirect
 	github.com/spf13/viper v1.0.2
-	github.com/stretchr/testify v1.5.1
+	github.com/stretchr/testify v1.6.1
 	github.com/urfave/cli v1.22.4
 	go.opencensus.io v0.20.2 // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
