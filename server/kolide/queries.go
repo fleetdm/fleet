@@ -2,6 +2,8 @@ package kolide
 
 import (
 	"context"
+	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/ghodss/yaml"
@@ -78,6 +80,19 @@ type Query struct {
 	// Packs is loaded when retrieving queries, but is stored in a join
 	// table in the MySQL backend.
 	Packs []Pack `json:"packs" db:"-"`
+}
+
+var (
+	validateSQLRegexp = regexp.MustCompile(`(?i)attach[^\w]+.*[^\w]+as[^\w]+`)
+)
+
+// ValidateSQL performs security validations on the input query. It does not
+// actually determine whether the query is well formed.
+func (q Query) ValidateSQL() error {
+	if validateSQLRegexp.MatchString(q.Query) {
+		return fmt.Errorf("ATTACH not allowed in queries")
+	}
+	return nil
 }
 
 const (
