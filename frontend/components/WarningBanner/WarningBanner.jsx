@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import classnames from 'classnames';
 
 import Button from 'components/buttons/Button';
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 
 const baseClass = 'warning-banner';
 
@@ -19,7 +19,7 @@ const WarningBanner = ({ className, message, labelText, shouldShowWarning, onDis
   return (
     <div className={fullClassName}>
       <div className={`${baseClass}__icon-wrap`}>
-        <Icon name="warning-filled" />
+        <KolideIcon name="warning-filled" />
         <span className={`${baseClass}__label`}>{label}</span>
       </div>
       <span className={`${baseClass}__text`}>{message}</span>

@@ -1,6 +1,6 @@
 import React from 'react';
 
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 import SecondarySidePanelContainer from '../SecondarySidePanelContainer';
 
 const baseClass = 'pack-info-side-panel';
@@ -9,7 +9,7 @@ const PackInfoSidePanel = () => {
   return (
     <SecondarySidePanelContainer className={baseClass}>
       <h3 className={`${baseClass}__title`}>
-        <Icon name="packs" />
+        <KolideIcon name="packs" />
         &nbsp;
         What&apos;s a query pack?
       </h3>
@@ -30,10 +30,10 @@ const PackInfoSidePanel = () => {
       </p>
 
       <dl>
-        <dt><Icon name="plus-minus" /> <span>Differential</span></dt>
+        <dt><KolideIcon name="plus-minus" /> <span>Differential</span></dt>
         <dd>Only record data that has changed.</dd>
 
-        <dt><Icon name="camera" /> <span>Snapshot</span></dt>
+        <dt><KolideIcon name="camera" /> <span>Snapshot</span></dt>
         <dd>Record full query result each time.</dd>
       </dl>
 

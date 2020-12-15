@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { Link } from 'react-router';
 import classnames from 'classnames';
 
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 
 const baseClass = 'stacked-white-boxes';
 
@@ -77,7 +77,7 @@ class StackedWhiteBoxes extends Component {
     return (
       <div className={`${baseClass}__back`}>
         <Link to={previousLocation} className={`${baseClass}__back-link`} onClick={nowLeaving}>
-          <Icon name="x" />
+          <KolideIcon name="x" />
         </Link>
       </div>
     );

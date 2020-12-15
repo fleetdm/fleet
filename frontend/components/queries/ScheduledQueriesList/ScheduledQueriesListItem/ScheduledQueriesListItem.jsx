@@ -4,7 +4,7 @@ import classnames from 'classnames';
 
 import Checkbox from 'components/forms/fields/Checkbox';
 import ClickableTableRow from 'components/ClickableTableRow';
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 import PlatformIcon from 'components/icons/PlatformIcon';
 import { includes, isEmpty, isEqual } from 'lodash';
 import scheduledQueryInterface from 'interfaces/scheduled_query';
@@ -97,7 +97,7 @@ class ScheduledQueriesListItem extends Component {
         <td>{renderPlatformIcon()}</td>
         <td>{version ? `${version}+` : 'Any'}</td>
         <td>{shard}</td>
-        <td><Icon name={loggingTypeString()} /></td>
+        <td><KolideIcon name={loggingTypeString()} /></td>
       </ClickableTableRow>
     );
   }

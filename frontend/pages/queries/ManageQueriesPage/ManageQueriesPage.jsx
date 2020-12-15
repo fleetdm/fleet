@@ -8,7 +8,7 @@ import Button from 'components/buttons/Button';
 import entityGetter from 'redux/utilities/entityGetter';
 import InputField from 'components/forms/fields/InputField';
 import Modal from 'components/modals/Modal';
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 import SecondarySidePanelContainer from 'components/side_panels/SecondarySidePanelContainer';
 import PATHS from 'router/paths';
 import QueryDetailsSidePanel from 'components/side_panels/QueryDetailsSidePanel';
@@ -283,7 +283,7 @@ export class ManageQueriesPage extends Component {
                 placeholder="Filter queries"
                 value={queriesFilter}
               />
-              <Icon name="search" />
+              <KolideIcon name="search" />
             </div>
           </div>
           <p className={`${baseClass}__query-count`}>{queriesTotalDisplay}</p>

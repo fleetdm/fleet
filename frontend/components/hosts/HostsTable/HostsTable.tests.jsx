@@ -21,7 +21,7 @@ describe('HostsTable - component', () => {
       );
       const btn = offlineComponent.find('Button');
 
-      expect(btn.find('Icon').prop('name')).toEqual('trash');
+      expect(btn.find('KolideIcon').prop('name')).toEqual('trash');
 
       btn.simulate('click');
 
@@ -46,7 +46,7 @@ describe('HostsTable - component', () => {
       );
       const btn = miaComponent.find('Button');
 
-      expect(btn.find('Icon').prop('name')).toEqual('trash');
+      expect(btn.find('KolideIcon').prop('name')).toEqual('trash');
 
       btn.simulate('click');
 
@@ -71,7 +71,7 @@ describe('HostsTable - component', () => {
       );
       const btn = onlineComponent.find('Button');
 
-      expect(btn.find('Icon').prop('name')).toEqual('query');
+      expect(btn.find('KolideIcon').prop('name')).toEqual('query');
 
       btn.simulate('click');
 

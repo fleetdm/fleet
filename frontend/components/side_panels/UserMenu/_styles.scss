@@ -25,24 +25,20 @@
     a {
       transition: opacity 75ms $ease-in-quad, background 75ms $ease-in-quad;
       color: $white;
-      display: block;
+      display: flex;
+      align-items: center;
       text-decoration: none;
       text-transform: none;
+    }
 
-      i {
-        margin-right: 24px;
-        font-size: $large;
-        vertical-align: text-bottom;
-      }
+    .icon {
+      margin-right: 24px;
     }
 
     @include breakpoint(smalldesk) {
       padding: 11px 14px;
 
       a {
-        i {
-          margin-right: 0;
-        }
 
         span {
           display: none;

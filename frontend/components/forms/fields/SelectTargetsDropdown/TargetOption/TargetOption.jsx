@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import classnames from 'classnames';
 
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 import targetInterface from 'interfaces/target';
 import TargetIcon from './TargetIcon';
 
@@ -66,7 +66,7 @@ class TargetOption extends Component {
           {renderTargetDetail()}
         </button>
         <button className={`button button--unstyled ${baseClass}__add-btn`} onClick={handleSelect}>
-          <Icon name="add-button" />
+          <KolideIcon name="add-button" />
         </button>
       </div>
     );

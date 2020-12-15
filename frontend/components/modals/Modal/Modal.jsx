@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import classnames from 'classnames';
 
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 
 const baseClass = 'modal';
 
@@ -25,7 +25,7 @@ class Modal extends Component {
             <span>{title}</span>
             <div className={`${baseClass}__ex`}>
               <button className="button button--unstyled" onClick={onExit}>
-                <Icon name="x" />
+                <KolideIcon name="x" />
               </button>
             </div>
           </div>

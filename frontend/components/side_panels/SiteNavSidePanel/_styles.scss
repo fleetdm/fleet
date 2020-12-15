@@ -1,11 +1,30 @@
 .site-nav-item {
   position: relative;
+  padding: 14px 20px;
+  transition: color 200ms ease-in-out;
+
+  &:hover {
+    background-color: $core-black;
+  }
+
+  @include breakpoint(smalldesk) {
+    padding: 11px 14px;
+    justify-content: center;
+  }
 
   &__icon {
     position: relative;
     font-size: $large;
     margin-right: 24px;
     vertical-align: sub;
+
+    @at-root .site-nav--small & {
+      margin-right: 0;
+    }
+
+    @include breakpoint(smalldesk) {
+      margin-right: 0;
+    }
   }
 
   &__name {
@@ -23,54 +42,39 @@
     }
   }
 
-  &__button {
-    transition: color 200ms ease-in-out;
-    border-radius: 0;
-    line-height: 40px;
-    position: relative;
+  a {
     color: $white;
-    cursor: pointer;
-    font-size: $x-small;
-    letter-spacing: 0.5px;
-    padding: 4px 20px;
-    text-align: left;
-
-    &:hover {
-      background-color: $core-black;
-    }
-
-    @include breakpoint(smalldesk) {
-      padding: 4px 10px;
-    }
+    text-align: center;
+    display: flex;
+    align-items: center;
   }
 
   &--active {
-    .site-nav-item__button {
-      background-color: $core-black;
+    border-right: 3px solid $core-blue;
+
+    @at-root .site-nav--small & {
       border-right: 3px solid $core-blue;
+    }
 
-      @at-root .site-nav--small & {
-        border-right: 3px solid $core-blue;
-        padding: 4px 10px;
-      }
-
-      @include breakpoint(smalldesk) {
-        border-right: 3px solid $core-blue;
-        padding: 4px 10px;
-      }
+    @include breakpoint(smalldesk) {
+      border-right: 3px solid $core-blue;
     }
 
     .site-nav-item__name {
       font-weight: $bold;
     }
 
-    .site-nav-item__icon {
+    .site-sub-item__button {
       @at-root .site-nav--small & {
         margin-right: 0;
+        display: flex;
+        justify-content: center;
       }
 
       @include breakpoint(smalldesk) {
         margin-right: 0;
+        display: flex;
+        justify-content: center;
       }
     }
   }
@@ -146,8 +150,6 @@
     text-transform: none;
     cursor: pointer;
     font-weight: $regular;
-    width: 100%;
-    text-align: left;
 
     &:hover {
       color: rgba($white, 0.9);
@@ -225,20 +227,18 @@
   }
 
   &__list {
-    padding: 12px 0 0 42px;
+    padding: 12px 0 0 46px;
     margin: 0;
     list-style: none;
 
     @at-root .site-nav--small & {
       padding: 0;
       text-align: center;
-      width: 100%;
     }
 
     @include breakpoint(smalldesk) {
       padding: 0;
       text-align: center;
-      width: 100%;
     }
 
     &--expanded {

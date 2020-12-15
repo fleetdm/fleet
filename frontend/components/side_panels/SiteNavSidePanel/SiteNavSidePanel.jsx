@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import classnames from 'classnames';
 
 import userInterface from 'interfaces/user';
+import KolideIcon from 'components/icons/KolideIcon';
 import Icon from 'components/icons/Icon';
 import UserMenu from 'components/side_panels/UserMenu';
 
@@ -52,7 +53,7 @@ class SiteNavSidePanel extends Component {
   }
 
   renderNavItem = (navItem) => {
-    const { icon, name, subItems } = navItem;
+    const { name, iconName, subItems } = navItem;
     const { onNavItemClick, pathname } = this.props;
     const { renderSubItems } = this;
     const active = navItem.location.regex.test(pathname);
@@ -68,16 +69,14 @@ class SiteNavSidePanel extends Component {
 
     return (
       <li className={navItemClasses} key={`nav-item-${name}`}>
-        <button
-          className={`${navItemBaseClass}__button button button--unstyled`}
+        <a
           onClick={onNavItemClick(navItem.location.pathname)}
-          style={{ width: '100%' }}
         >
-          <Icon name={icon} className={`${navItemBaseClass}__icon`} />
+          <Icon name={iconName} size="24" className={`${navItemBaseClass}__icon`} />
           <span className={`${navItemBaseClass}__name`}>
             {name}
           </span>
-        </button>
+        </a>
         {active && renderSubItems(subItems)}
       </li>
     );
@@ -120,14 +119,13 @@ class SiteNavSidePanel extends Component {
         key={name}
         className={baseSubItemItemClass}
       >
-        <button
-          className={`${baseSubItemClass}__button button button--unstyled`}
+        <a
           key={`sub-item-${name}`}
           onClick={onNavItemClick(subItem.location.pathname)}
         >
           <span className={`${baseSubItemClass}__name`}>{name}</span>
-          <span className={`${baseSubItemClass}__icon`}><Icon name={icon} /></span>
-        </button>
+          <span className={`${baseSubItemClass}__icon`}><KolideIcon name={icon} /></span>
+        </a>
       </li>
     );
   }

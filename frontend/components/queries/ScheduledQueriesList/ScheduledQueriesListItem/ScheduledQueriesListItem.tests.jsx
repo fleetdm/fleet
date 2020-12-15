@@ -73,26 +73,26 @@ describe('ScheduledQueriesListItem - component', () => {
     const props = { ...defaultProps, scheduledQuery: query };
     let component = shallow(<ScheduledQueriesListItem {...props} />);
 
-    expect(component.find('Icon').last().props().name).toEqual('camera');
+    expect(component.find('KolideIcon').last().props().name).toEqual('camera');
 
     query.snapshot = false;
     query.removed = false;
     component = shallow(<ScheduledQueriesListItem {...props} />);
-    expect(component.find('Icon').last().props().name).toEqual('bold-plus');
+    expect(component.find('KolideIcon').last().props().name).toEqual('bold-plus');
 
     query.snapshot = false;
     query.removed = null;
     component = shallow(<ScheduledQueriesListItem {...props} />);
-    expect(component.find('Icon').last().props().name).toEqual('plus-minus');
+    expect(component.find('KolideIcon').last().props().name).toEqual('plus-minus');
 
     query.snapshot = false;
     query.removed = true;
     component = shallow(<ScheduledQueriesListItem {...props} />);
-    expect(component.find('Icon').last().props().name).toEqual('plus-minus');
+    expect(component.find('KolideIcon').last().props().name).toEqual('plus-minus');
 
     query.snapshot = null;
     query.removed = true;
     component = shallow(<ScheduledQueriesListItem {...props} />);
-    expect(component.find('Icon').last().props().name).toEqual('plus-minus');
+    expect(component.find('KolideIcon').last().props().name).toEqual('plus-minus');
   });
 });
