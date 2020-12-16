@@ -102,7 +102,7 @@ One way to hack around this is to use a simulated mailserver like [Mailhog](http
 
 No. Currently, Fleet is only available for self-hosting on premises or in the cloud.
 
-## Has anyone stress tested Fleet?
+## Has anyone stress tested Fleet? How many clients can the Fleet server handle?
 
 Fleet has been stress tested to 150,000 online hosts and 400,000 total enrolled hosts. There are numerous production deployments in the thousands in the tens of thousands of hosts range, and there are production deployments in the high tens of thousands of hosts range.
 
