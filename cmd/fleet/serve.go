@@ -18,6 +18,7 @@ import (
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore/mysql"
+	"github.com/fleetdm/fleet/server/datastore/s3"
 	"github.com/fleetdm/fleet/server/health"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/launcher"
@@ -118,12 +119,21 @@ the way that the Fleet server works.
 			}
 
 			var ds kolide.Datastore
+			var carveStore kolide.CarveStore
 			var err error
 			mailService := mail.NewService()
 
 			ds, err = mysql.New(config.Mysql, clock.C, mysql.Logger(logger))
 			if err != nil {
 				initFatal(err, "initializing datastore")
+			}
+			if config.S3.Bucket != "" {
+				carveStore, err = s3.New(config.S3, ds)
+				if err != nil {
+					initFatal(err, "initializing S3 carvestore")
+				}
+			} else {
+				carveStore = ds
 			}
 
 			migrationStatus, err := ds.MigrationStatus()
@@ -181,7 +191,7 @@ the way that the Fleet server works.
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
 
-			svc, err := service.NewService(ds, resultStore, logger, config, mailService, clock.C, ssoSessionStore, liveQueryStore)
+			svc, err := service.NewService(ds, resultStore, logger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}

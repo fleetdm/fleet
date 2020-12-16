@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
-	kitlog "github.com/go-kit/kit/log"
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/logging"
 	"github.com/fleetdm/fleet/server/sso"
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/kolide/kit/version"
 	"github.com/pkg/errors"
 )
@@ -21,7 +21,7 @@ import (
 // NewService creates a new service from the config struct
 func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore,
 	logger kitlog.Logger, config config.KolideConfig, mailService kolide.MailService,
-	c clock.Clock, sso sso.SessionStore, lq kolide.LiveQueryStore) (kolide.Service, error) {
+	c clock.Clock, sso sso.SessionStore, lq kolide.LiveQueryStore, carveStore kolide.CarveStore) (kolide.Service, error) {
 	var svc kolide.Service
 
 	osqueryLogger, err := logging.New(config, logger)
@@ -31,6 +31,7 @@ func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore,
 
 	svc = service{
 		ds:               ds,
+		carveStore:       carveStore,
 		resultStore:      resultStore,
 		liveQueryStore:   lq,
 		logger:           logger,
@@ -49,6 +50,7 @@ func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore,
 
 type service struct {
 	ds             kolide.Datastore
+	carveStore     kolide.CarveStore
 	resultStore    kolide.QueryResultStore
 	liveQueryStore kolide.LiveQueryStore
 	logger         kitlog.Logger

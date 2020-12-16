@@ -2,6 +2,8 @@
 
 Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from osquery agents, returning the full contents to Fleet.
 
+File carving data can be either stored in Fleet's database or to an external S3 bucket. For information on how to configure the latter, consult the [configuration docs](https://github.com/fleetdm/fleet/blob/master/docs/infrastructure/configuring-the-fleet-binary.md#s3-file-carving-backend).
+
 ## Configuration
 
 Given a working flagfile for connecting osquery agents to Fleet, add the following flags to enable carving:
@@ -20,6 +22,8 @@ The default flagfile provided in the "Add New Host" dialog also includes this co
 The `carver_block_size` flag should be configured in osquery. 2MB (`2000000`) is a good starting value.
 
 The configured value must be less than the value of `max_allowed_packet` in the MySQL connection, allowing for some overhead. The default for MySQL 5.7 is 4MB and for MySQL 8 it is 64MB.
+
+In case S3 is used as the storage backend, this value must be instead set to be at least 5MB due to the [constraints of S3's multipart uploads](https://docs.aws.amazon.com/AmazonS3/latest/dev/qfacts.html).
 
 Using a smaller value for `carver_block_size` will lead to more HTTP requests during the carving process, resulting in longer carve times and higher load on the Fleet server. If the value is too high, HTTP requests may run long enough to cause server timeouts.
 
@@ -64,7 +68,9 @@ fleetctl get carve 3 --stdout | tar -x
 
 ### Expiration
 
-Carve contents remain available for 24 hours after the first data is provided from the osquery client. After this time, the carve contents are cleaned from the database and the carve is marked as "expired". 
+Carve contents remain available for 24 hours after the first data is provided from the osquery client. After this time, the carve contents are cleaned from the database and the carve is marked as "expired".
+
+The same is not true if S3 is used as the storage backend. In that scenario, it is suggested to setup a [bucket lifecycle configuration](https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lifecycle-mgmt.html) to avoid retaining data in excess. Fleet, in an "eventual consistent" manner (i.e. by periodically performing comparisons), will keep the metadata relative to the files carves in sync with what it is actually available in the bucket.
 
 ## Troubleshooting
 

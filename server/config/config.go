@@ -114,6 +114,15 @@ type KinesisConfig struct {
 	ResultStream     string `yaml:"result_stream"`
 }
 
+// S3Config defines config to enable file carving storage to an S3 bucket
+type S3Config struct {
+	Bucket           string
+	Prefix           string
+	AccessKeyID      string `yaml:"access_key_id"`
+	SecretAccessKey  string `yaml:"secret_access_key"`
+	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
+}
+
 // PubSubConfig defines configs the for Google PubSub logging plugin
 type PubSubConfig struct {
 	Project     string
@@ -144,6 +153,7 @@ type KolideConfig struct {
 	Logging    LoggingConfig
 	Firehose   FirehoseConfig
 	Kinesis    KinesisConfig
+	S3         S3Config
 	PubSub     PubSubConfig
 	Filesystem FilesystemConfig
 }
@@ -270,6 +280,13 @@ func (man Manager) addConfigs() {
 	man.addConfigString("kinesis.result_stream", "",
 		"Kinesis stream name for result logs")
 
+	// S3 for file carving
+	man.addConfigString("s3.bucket", "", "Bucket where to store file carves")
+	man.addConfigString("s3.prefix", "", "Prefix under which carves are stored")
+	man.addConfigString("s3.access_key_id", "", "Access Key ID for AWS authentication")
+	man.addConfigString("s3.secret_access_key", "", "Secret Access Key for AWS authentication")
+	man.addConfigString("s3.sts_assume_role_arn", "", "ARN of role to assume for AWS")
+
 	// PubSub
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
 	man.addConfigString("pubsub.status_topic", "", "PubSub topic for status logs")
@@ -364,6 +381,13 @@ func (man Manager) LoadConfig() KolideConfig {
 			StatusStream:     man.getConfigString("kinesis.status_stream"),
 			ResultStream:     man.getConfigString("kinesis.result_stream"),
 			StsAssumeRoleArn: man.getConfigString("kinesis.sts_assume_role_arn"),
+		},
+		S3: S3Config{
+			Bucket:           man.getConfigString("s3.bucket"),
+			Prefix:           man.getConfigString("s3.prefix"),
+			AccessKeyID:      man.getConfigString("s3.access_key_id"),
+			SecretAccessKey:  man.getConfigString("s3.secret_access_key"),
+			StsAssumeRoleArn: man.getConfigString("s3.sts_assume_role_arn"),
 		},
 		PubSub: PubSubConfig{
 			Project:     man.getConfigString("pubsub.project"),

@@ -23,7 +23,8 @@ import (
 )
 
 const (
-	defaultSelectLimit = 1000000
+	defaultSelectLimit   = 1000000
+	mySQLTimestampFormat = "2006-01-02 15:04:05" // %Y/%m/%d %H:%M:%S
 )
 
 var (

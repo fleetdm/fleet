@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	hostctx "github.com/fleetdm/fleet/server/contexts/host"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 )
 
 const (
-	maxCarveSize = 8 * 1024 * 1024 * 1024 // 8MB
+	maxCarveSize = 8 * 1024 * 1024 * 1024 // 8GB
 	maxBlockSize = 256 * 1024 * 1024      // 256MB
 )
 
@@ -45,8 +45,9 @@ func (svc service) CarveBegin(ctx context.Context, payload kolide.CarveBeginPayl
 		return nil, osqueryError{message: "internal error: generate session ID for carve: " + err.Error()}
 	}
 
+	now := time.Now().UTC()
 	carve := &kolide.CarveMetadata{
-		Name:       fmt.Sprintf("%s-%s-%s", host.HostName, time.Now().Format(time.RFC3339), payload.RequestId),
+		Name:       fmt.Sprintf("%s-%s-%s", host.HostName, now.Format(time.RFC3339), payload.RequestId),
 		HostId:     host.ID,
 		BlockCount: payload.BlockCount,
 		BlockSize:  payload.BlockSize,
@@ -54,9 +55,10 @@ func (svc service) CarveBegin(ctx context.Context, payload kolide.CarveBeginPayl
 		CarveId:    payload.CarveId,
 		RequestId:  payload.RequestId,
 		SessionId:  sessionId.String(),
+		CreatedAt:  now,
 	}
 
-	carve, err = svc.ds.NewCarve(carve)
+	carve, err = svc.carveStore.NewCarve(carve)
 	if err != nil {
 		return nil, osqueryError{message: "internal error: new carve: " + err.Error()}
 	}
@@ -67,7 +69,7 @@ func (svc service) CarveBegin(ctx context.Context, payload kolide.CarveBeginPayl
 func (svc service) CarveBlock(ctx context.Context, payload kolide.CarveBlockPayload) error {
 	// Note host did not authenticate via node key. We need to authenticate them
 	// by the session ID and request ID
-	carve, err := svc.ds.CarveBySessionId(payload.SessionId)
+	carve, err := svc.carveStore.CarveBySessionId(payload.SessionId)
 	if err != nil {
 		return errors.Wrap(err, "find carve by session_id")
 	}
@@ -90,7 +92,7 @@ func (svc service) CarveBlock(ctx context.Context, payload kolide.CarveBlockPayl
 		return fmt.Errorf("exceeded declared block size %d: %d", carve.BlockSize, len(payload.Data))
 	}
 
-	if err := svc.ds.NewBlock(carve.ID, payload.BlockId, payload.Data); err != nil {
+	if err := svc.carveStore.NewBlock(carve, payload.BlockId, payload.Data); err != nil {
 		return errors.Wrap(err, "save block data")
 	}
 
@@ -98,15 +100,15 @@ func (svc service) CarveBlock(ctx context.Context, payload kolide.CarveBlockPayl
 }
 
 func (svc service) GetCarve(ctx context.Context, id int64) (*kolide.CarveMetadata, error) {
-	return svc.ds.Carve(id)
+	return svc.carveStore.Carve(id)
 }
 
 func (svc service) ListCarves(ctx context.Context, opt kolide.CarveListOptions) ([]*kolide.CarveMetadata, error) {
-	return svc.ds.ListCarves(opt)
+	return svc.carveStore.ListCarves(opt)
 }
 
 func (svc service) GetBlock(ctx context.Context, carveId, blockId int64) ([]byte, error) {
-	metadata, err := svc.ds.Carve(carveId)
+	metadata, err := svc.carveStore.Carve(carveId)
 	if err != nil {
 		return nil, errors.Wrap(err, "get carve by name")
 	}
@@ -119,12 +121,10 @@ func (svc service) GetBlock(ctx context.Context, carveId, blockId int64) ([]byte
 		return nil, fmt.Errorf("block %d not yet available", blockId)
 	}
 
-	data, err := svc.ds.GetBlock(metadata.ID, blockId)
+	data, err := svc.carveStore.GetBlock(metadata, blockId)
 	if err != nil {
 		return nil, errors.Wrapf(err, "get block %d", blockId)
 	}
 
 	return data, nil
 }
-
-
