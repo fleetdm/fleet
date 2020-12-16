@@ -936,7 +936,7 @@ the stream listed:
 
 #### PubSub
 
-### `pubsub_project`
+##### `pubsub_project`
 
 This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
 
@@ -955,7 +955,7 @@ for authentication with the service.
     project: my-gcp-project
   ```
 
-### `pubsub_result_topic`
+##### `pubsub_result_topic`
 
 This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
 
@@ -970,7 +970,7 @@ The identifier of the pubsub topic that client results will be published to.
     result_topic: osquery_result
   ```
 
-### `pubsub_status_topic`
+##### `pubsub_status_topic`
 
 This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
 
@@ -984,3 +984,78 @@ The identifier of the pubsub topic that osquery status logs will be published to
   pubsub:
     status_topic: osquery_status
   ```
+
+
+#### S3 file carving backend
+
+##### `s3_bucket`
+
+Name of the S3 bucket to use to store file carves.
+
+- Default value: none
+- Environment variable: `KOLIDE_S3_BUCKET`
+- Config file format:
+
+	```
+	s3:
+		bucket: some-carve-bucket
+	```
+
+##### `s3_prefix`
+
+Prefix to prepend to carve objects.
+
+All carve objects will also be prefixed by date and hour (UTC), making the resulting keys look like: `<prefix><year>/<month>/<day>/<hour>/<carve-name>`.
+
+- Default value: none
+- Environment variable: `KOLIDE_S3_PREFIX`
+- Config file format:
+
+	```
+	s3:
+		prefix: carves-go-here/
+	```
+
+##### `s3_access_key_id`
+
+AWS access key ID to use for S3 authentication.
+
+If `s3_access_key_id` and `s3_secret_access_key` are omitted, Fleet will try to use
+[the default credential provider chain](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html#specifying-credentials).
+
+The IAM identity used in this context must be allowed to perform the following actions on the bucket: `s3:PutObject`, `s3:GetObject`, `s3:ListMultipartUploadParts`, `s3:ListBucket`, `s3:GetBucketLocation`.
+
+- Default value: none
+- Environment variable: `KOLIDE_S3_ACCESS_KEY_ID`
+- Config file format:
+
+	```
+	s3:
+		access_key_id: AKIAIOSFODNN7EXAMPLE
+	```
+
+##### `s3_secret_access_key`
+
+AWS secret access key to use for S3 authentication.
+
+- Default value: none
+- Environment variable: `KOLIDE_S3_SECRET_ACCESS_KEY`
+- Config file format:
+
+	```
+	s3:
+		secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+	```
+
+##### `s3_sts_assume_role_arn`
+
+AWS STS role ARN to use for S3 authentication.
+
+- Default value: none
+- Environment variable: `KOLIDE_S3_STS_ASSUME_ROLE_ARN`
+- Config file format:
+
+	```
+	s3:
+		sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+	```
