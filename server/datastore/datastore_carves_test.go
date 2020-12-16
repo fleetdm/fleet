@@ -221,3 +221,34 @@ func testCarveListCarves(t *testing.T, ds kolide.Datastore) {
 	require.NoError(t, err)
 	assert.Len(t, carves, 2)
 }
+
+func testCarveUpdateCarve(t *testing.T, ds kolide.Datastore) {
+	h := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
+
+	actualCount := int64(10)
+	carve := &kolide.CarveMetadata{
+		HostId:     h.ID,
+		Name:       "foobar",
+		BlockCount: actualCount,
+		BlockSize:  20,
+		CarveSize:  actualCount * 20,
+		CarveId:    "carve_id",
+		RequestId:  "request_id",
+		SessionId:  "session_id",
+		CreatedAt:  mockCreatedAt,
+	}
+
+	carve, err := ds.NewCarve(carve)
+	require.NoError(t, err)
+
+	carve.Expired = true
+	carve.MaxBlock = 10
+	carve.BlockCount = 15 // it should not get updated
+	err = ds.UpdateCarve(carve)
+	require.NoError(t, err)
+
+	carve.BlockCount = actualCount
+	dbCarve, err := ds.Carve(carve.ID)
+	require.NoError(t, err)
+	assert.Equal(t, carve, dbCarve)
+}
