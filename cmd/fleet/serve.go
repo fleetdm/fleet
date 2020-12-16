@@ -119,7 +119,7 @@ the way that the Fleet server works.
 			}
 
 			var ds kolide.Datastore
-			var carveds kolide.CarveStore
+			var carveStore kolide.CarveStore
 			var err error
 			mailService := mail.NewService()
 
@@ -128,16 +128,12 @@ the way that the Fleet server works.
 				initFatal(err, "initializing datastore")
 			}
 			if config.S3.Bucket != "" {
-				if carveds, err = s3.New(config.S3, ds); err != nil {
-					level.Warn(logger).Log(
-						"WARNING", "s3_carvestore_fail",
-						"msg", "Failed initializing S3 file carve storage, falling back to default datastore",
-						"err", err,
-					)
-					carveds = ds
+				carveStore, err = s3.New(config.S3, ds)
+				if err != nil {
+					initFatal(err, "initializing S3 carvestore")
 				}
 			} else {
-				carveds = ds
+				carveStore = ds
 			}
 
 			migrationStatus, err := ds.MigrationStatus()
@@ -195,7 +191,7 @@ the way that the Fleet server works.
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
 
-			svc, err := service.NewService(ds, resultStore, logger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveds)
+			svc, err := service.NewService(ds, resultStore, logger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}

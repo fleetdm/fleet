@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var mockCreatedAt time.Time = time.Now().UTC().Truncate(time.Second)
+
 func testCarveMetadata(t *testing.T, ds kolide.Datastore) {
 	h := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
 
@@ -23,6 +25,7 @@ func testCarveMetadata(t *testing.T, ds kolide.Datastore) {
 		CarveId:    "carve_id",
 		RequestId:  "request_id",
 		SessionId:  "session_id",
+		CreatedAt:  mockCreatedAt,
 	}
 
 	expectedCarve, err := ds.NewCarve(expectedCarve)
@@ -32,11 +35,9 @@ func testCarveMetadata(t *testing.T, ds kolide.Datastore) {
 
 	carve, err := ds.CarveBySessionId(expectedCarve.SessionId)
 	require.NoError(t, err)
-	expectedCarve.CreatedAt = carve.CreatedAt // Ignore created_at field
 	assert.Equal(t, expectedCarve, carve)
 
 	carve, err = ds.Carve(expectedCarve.ID)
-	expectedCarve.CreatedAt = carve.CreatedAt // Ignore created_at field
 	require.NoError(t, err)
 	assert.Equal(t, expectedCarve, carve)
 
@@ -84,6 +85,7 @@ func testCarveBlocks(t *testing.T, ds kolide.Datastore) {
 		CarveId:    "carve_id",
 		RequestId:  "request_id",
 		SessionId:  "session_id",
+		CreatedAt:  mockCreatedAt,
 	}
 
 	carve, err := ds.NewCarve(carve)
@@ -124,6 +126,7 @@ func testCarveCleanupCarves(t *testing.T, ds kolide.Datastore) {
 		CarveId:    "carve_id",
 		RequestId:  "request_id",
 		SessionId:  "session_id",
+		CreatedAt:  mockCreatedAt,
 	}
 
 	carve, err := ds.NewCarve(carve)
@@ -161,7 +164,6 @@ func testCarveCleanupCarves(t *testing.T, ds kolide.Datastore) {
 	assert.True(t, carve.Expired)
 }
 
-
 func testCarveListCarves(t *testing.T, ds kolide.Datastore) {
 	h := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
 
@@ -174,6 +176,8 @@ func testCarveListCarves(t *testing.T, ds kolide.Datastore) {
 		CarveId:    "carve_id",
 		RequestId:  "request_id",
 		SessionId:  "session_id",
+		CreatedAt:  mockCreatedAt,
+		MaxBlock:   -1,
 	}
 
 	expectedCarve, err := ds.NewCarve(expectedCarve)
@@ -193,6 +197,7 @@ func testCarveListCarves(t *testing.T, ds kolide.Datastore) {
 		CarveId:    "carve_id2",
 		RequestId:  "request_id2",
 		SessionId:  "session_id2",
+		CreatedAt:  mockCreatedAt,
 	}
 
 	expectedCarve2, err = ds.NewCarve(expectedCarve2)
@@ -202,9 +207,6 @@ func testCarveListCarves(t *testing.T, ds kolide.Datastore) {
 
 	carves, err := ds.ListCarves(kolide.CarveListOptions{Expired: true})
 	require.NoError(t, err)
-	// Ignore created_at timestamps
-	expectedCarve.CreatedAt = carves[0].CreatedAt
-	expectedCarve2.CreatedAt = carves[1].CreatedAt
 	assert.Equal(t, []*kolide.CarveMetadata{expectedCarve, expectedCarve2}, carves)
 
 	// Expire the carves

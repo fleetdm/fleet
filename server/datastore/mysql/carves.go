@@ -151,10 +151,7 @@ const carveSelectFields = `
 			request_id,
 			session_id,
 			expired,
-			COALESCE(
-				max_block,
-				(SELECT COALESCE(MAX(block_id), -1) FROM carve_blocks WHERE metadata_id = id)
-			) AS max_block
+			max_block
 `
 
 func (d *Datastore) Carve(carveId int64) (*kolide.CarveMetadata, error) {
@@ -236,6 +233,14 @@ func (d *Datastore) NewBlock(metadata *kolide.CarveMetadata, blockId int64, data
 		)`
 	if _, err := d.db.Exec(stmt, metadata.ID, blockId, data); err != nil {
 		return errors.Wrap(err, "insert carve block")
+	}
+
+	if metadata.MaxBlock < blockId {
+		// Update max_block
+		metadata.MaxBlock = blockId
+		if err := d.UpdateCarve(metadata); err != nil {
+			return errors.Wrap(err, "insert carve block")
+		}
 	}
 
 	return nil

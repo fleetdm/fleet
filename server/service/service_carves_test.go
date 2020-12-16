@@ -22,7 +22,7 @@ func TestCarveBegin(t *testing.T) {
 		RequestId:  "carve_request",
 	}
 	ms := new(mock.Store)
-	svc := service{carveds: ms}
+	svc := service{carveStore: ms}
 	expectedMetadata := kolide.CarveMetadata{
 		ID:         7,
 		HostId:     host.ID,
@@ -56,7 +56,7 @@ func TestCarveBeginNewCarveError(t *testing.T) {
 		RequestId:  "carve_request",
 	}
 	ms := new(mock.Store)
-	svc := service{carveds: ms}
+	svc := service{carveStore: ms}
 	ms.NewCarveFunc = func(metadata *kolide.CarveMetadata) (*kolide.CarveMetadata, error) {
 		return nil, fmt.Errorf("ouch!")
 	}
@@ -70,7 +70,7 @@ func TestCarveBeginNewCarveError(t *testing.T) {
 
 func TestCarveBeginEmptyError(t *testing.T) {
 	ms := new(mock.Store)
-	svc := service{carveds: ms}
+	svc := service{carveStore: ms}
 	ctx := hostctx.NewContext(context.Background(), kolide.Host{})
 
 	_, err := svc.CarveBegin(ctx, kolide.CarveBeginPayload{})
@@ -80,7 +80,7 @@ func TestCarveBeginEmptyError(t *testing.T) {
 
 func TestCarveBeginMissingHostError(t *testing.T) {
 	ms := new(mock.Store)
-	svc := service{carveds: ms}
+	svc := service{carveStore: ms}
 
 	_, err := svc.CarveBegin(context.Background(), kolide.CarveBeginPayload{})
 	require.Error(t, err)
@@ -96,7 +96,7 @@ func TestCarveBeginBlockSizeMaxError(t *testing.T) {
 		RequestId:  "carve_request",
 	}
 	ms := new(mock.Store)
-	svc := service{carveds: ms}
+	svc := service{carveStore: ms}
 
 	ctx := hostctx.NewContext(context.Background(), host)
 
@@ -114,7 +114,7 @@ func TestCarveBeginCarveSizeMaxError(t *testing.T) {
 		RequestId:  "carve_request",
 	}
 	ms := new(mock.Store)
-	svc := service{carveds: ms}
+	svc := service{carveStore: ms}
 
 	ctx := hostctx.NewContext(context.Background(), host)
 
@@ -132,7 +132,7 @@ func TestCarveBeginCarveSizeError(t *testing.T) {
 		RequestId:  "carve_request",
 	}
 	ms := new(mock.Store)
-	svc := service{carveds: ms}
+	svc := service{carveStore: ms}
 	ctx := hostctx.NewContext(context.Background(), host)
 
 	// Too big
@@ -150,7 +150,7 @@ func TestCarveBeginCarveSizeError(t *testing.T) {
 func TestCarveCarveBlockGetCarveError(t *testing.T) {
 	sessionId := "foobar"
 	ms := new(mock.Store)
-	svc := service{carveds: ms}
+	svc := service{carveStore: ms}
 	ms.CarveBySessionIdFunc = func(sessionId string) (*kolide.CarveMetadata, error) {
 		return nil, fmt.Errorf("ouch!")
 	}
@@ -177,7 +177,7 @@ func TestCarveCarveBlockRequestIdError(t *testing.T) {
 		SessionId:  sessionId,
 	}
 	ms := new(mock.Store)
-	svc := service{carveds: ms}
+	svc := service{carveStore: ms}
 	ms.CarveBySessionIdFunc = func(sessionId string) (*kolide.CarveMetadata, error) {
 		assert.Equal(t, metadata.SessionId, sessionId)
 		return metadata, nil
@@ -206,7 +206,7 @@ func TestCarveCarveBlockBlockCountExceedError(t *testing.T) {
 		SessionId:  sessionId,
 	}
 	ms := new(mock.Store)
-	svc := service{carveds: ms}
+	svc := service{carveStore: ms}
 	ms.CarveBySessionIdFunc = func(sessionId string) (*kolide.CarveMetadata, error) {
 		assert.Equal(t, metadata.SessionId, sessionId)
 		return metadata, nil
@@ -237,7 +237,7 @@ func TestCarveCarveBlockBlockCountMatchError(t *testing.T) {
 		MaxBlock:   3,
 	}
 	ms := new(mock.Store)
-	svc := service{carveds: ms}
+	svc := service{carveStore: ms}
 	ms.CarveBySessionIdFunc = func(sessionId string) (*kolide.CarveMetadata, error) {
 		assert.Equal(t, metadata.SessionId, sessionId)
 		return metadata, nil
@@ -268,7 +268,7 @@ func TestCarveCarveBlockBlockSizeError(t *testing.T) {
 		MaxBlock:   3,
 	}
 	ms := new(mock.Store)
-	svc := service{carveds: ms}
+	svc := service{carveStore: ms}
 	ms.CarveBySessionIdFunc = func(sessionId string) (*kolide.CarveMetadata, error) {
 		assert.Equal(t, metadata.SessionId, sessionId)
 		return metadata, nil
@@ -299,7 +299,7 @@ func TestCarveCarveBlockNewBlockError(t *testing.T) {
 		MaxBlock:   3,
 	}
 	ms := new(mock.Store)
-	svc := service{carveds: ms}
+	svc := service{carveStore: ms}
 	ms.CarveBySessionIdFunc = func(sessionId string) (*kolide.CarveMetadata, error) {
 		assert.Equal(t, metadata.SessionId, sessionId)
 		return metadata, nil
@@ -339,7 +339,7 @@ func TestCarveCarveBlock(t *testing.T) {
 		BlockId:   4,
 	}
 	ms := new(mock.Store)
-	svc := service{carveds: ms}
+	svc := service{carveStore: ms}
 	ms.CarveBySessionIdFunc = func(sessionId string) (*kolide.CarveMetadata, error) {
 		assert.Equal(t, metadata.SessionId, sessionId)
 		return metadata, nil
@@ -369,7 +369,7 @@ func TestCarveGetBlock(t *testing.T) {
 		MaxBlock:   3,
 	}
 	ms := new(mock.Store)
-	svc := service{carveds: ms}
+	svc := service{carveStore: ms}
 	ms.CarveFunc = func(carveId int64) (*kolide.CarveMetadata, error) {
 		assert.Equal(t, metadata.ID, carveId)
 		return metadata, nil
@@ -398,7 +398,7 @@ func TestCarveGetBlockNotAvailableError(t *testing.T) {
 		MaxBlock:   3,
 	}
 	ms := new(mock.Store)
-	svc := service{carveds: ms}
+	svc := service{carveStore: ms}
 	ms.CarveFunc = func(carveId int64) (*kolide.CarveMetadata, error) {
 		assert.Equal(t, metadata.ID, carveId)
 		return metadata, nil
@@ -423,7 +423,7 @@ func TestCarveGetBlockGetBlockError(t *testing.T) {
 		MaxBlock:   3,
 	}
 	ms := new(mock.Store)
-	svc := service{carveds: ms}
+	svc := service{carveStore: ms}
 	ms.CarveFunc = func(carveId int64) (*kolide.CarveMetadata, error) {
 		assert.Equal(t, metadata.ID, carveId)
 		return metadata, nil

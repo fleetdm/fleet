@@ -182,9 +182,8 @@ func (d *Datastore) NewBlock(metadata *kolide.CarveMetadata, blockID int64, data
 	}
 	if metadata.MaxBlock < blockID {
 		metadata.MaxBlock = blockID
-		err = d.UpdateCarve(metadata)
-		if err != nil {
-			return err
+		if err = d.UpdateCarve(metadata); err != nil {
+			return errors.Wrap(err, "s3 multipart carve upload")
 		}
 	}
 	if blockID >= metadata.BlockCount-1 {
@@ -223,7 +222,9 @@ func (d *Datastore) GetBlock(metadata *kolide.CarveMetadata, blockID int64) ([]b
 		if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == s3.ErrCodeNoSuchKey {
 			// The carve does not exists in S3, mark expired
 			metadata.Expired = true
-			d.UpdateCarve(metadata)
+			if updateErr := d.UpdateCarve(metadata); err != nil {
+				err = errors.Wrap(err, updateErr.Error())
+			}
 		}
 		return nil, errors.Wrap(err, "s3 carve get block")
 	}

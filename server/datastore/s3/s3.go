@@ -19,14 +19,14 @@ const awsRegionHint = "us-east-1"
 // Datastore is a type implementing the CarveStore interface
 // relying on AWS S3 storage
 type Datastore struct {
-	metadatadb kolide.Datastore
+	metadatadb kolide.CarveStore
 	s3client   *s3.S3
 	bucket     string
 	prefix     string
 }
 
 // New initializes an S3 Datastore
-func New(config config.S3Config, metadatadb kolide.Datastore) (*Datastore, error) {
+func New(config config.S3Config, metadatadb kolide.CarveStore) (*Datastore, error) {
 	conf := &aws.Config{}
 
 	// Use default auth provire if no static credentials were provided

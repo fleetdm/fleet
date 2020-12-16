@@ -13,7 +13,7 @@ func init() {
 func Up_20201215091637(tx *sql.Tx) error {
 	query := `
 		ALTER TABLE carve_metadata
-		ADD max_block INT NULL,
+		ADD max_block INT DEFAULT -1,
 		MODIFY session_id VARCHAR(255) NOT NULL;
 	`
 	if _, err := tx.Exec(query); err != nil {
