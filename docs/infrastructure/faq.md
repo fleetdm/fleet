@@ -104,7 +104,9 @@ No. Currently, Fleet is only available for self-hosting on premises or in the cl
 
 ## Has anyone stress tested Fleet? How many clients can the Fleet server handle?
 
-Fleet has been stress tested to 150,000 online hosts and 400,000 total enrolled hosts. There are numerous production deployments in the thousands in the tens of thousands of hosts range, and there are production deployments in the high tens of thousands of hosts range.
+Fleet has been stress tested to 150,000 online hosts and 400,000 total enrolled hosts. There are numerous production deployments in the thousands, in the tens of thousands of hosts range, and there are production deployments in the high tens of thousands of hosts range. 
+
+It's standard deployment practice to have multiple Fleet servers behind a load balancer. However, typically the MySQL database is the bottleneck and an individual Fleet server can handle tens of thousands of hosts.
 
 ## How often do labels refresh? Is the refresh frequency configurable?
 
