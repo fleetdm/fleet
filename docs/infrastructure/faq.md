@@ -26,6 +26,10 @@ Scheduled query results (queries that are scheduled to run in Packs) are typical
 
 It is possible to configure osqueryd to log query results outside of Fleet. For results to go to Fleet, the `--logger_plugin` flag must be set to `tls`.
 
+### What are my options for storing the osquery result logs?
+
+
+
 ### Troubleshooting
 
 Expecting results, but not seeing anything in the logs?
