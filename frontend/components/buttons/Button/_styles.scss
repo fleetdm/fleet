@@ -38,7 +38,6 @@ $base-class: 'button';
   position: relative;
   color: $white;
   text-decoration: none;
-  display: flex;
   flex-direction: row;
   justify-content: center;
   align-items: center;
@@ -49,7 +48,6 @@ $base-class: 'button';
   font-weight: $bold;
   display: inline-flex;
   height: 38px;
-  padding: 8px 16px;
   top: 0;
   border: 0;
   cursor: pointer;
@@ -59,7 +57,7 @@ $base-class: 'button';
   }
 
   &--brand {
-    @include button-variant($core-blue, $core-blue-over, $core-blue-down, );
+    @include button-variant($core-blue, $core-blue-over, $core-blue-down);
   }
 
   &--success {

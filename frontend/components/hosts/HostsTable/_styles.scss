@@ -4,7 +4,7 @@
     border-radius: 6px;
     margin-top: $pad-base;
     overflow: scroll;
-    box-shadow: inset -8px 0px 17px -10px #E8EDF4;
+    box-shadow: inset -8px 0 17px -10px #e8edf4;
   }
 
   &__table {
@@ -53,7 +53,7 @@
       &:before {
         background-color: $success;
         border-radius: 100%;
-        content: " ";
+        content: ' ';
         display: inline-block;
         height: 8px;
         margin-right: 8px;
@@ -65,7 +65,7 @@
       &:before {
         background-color: $core-red;
         border-radius: 100%;
-        content: " ";
+        content: ' ';
         display: inline-block;
         height: 8px;
         margin-right: 8px;
