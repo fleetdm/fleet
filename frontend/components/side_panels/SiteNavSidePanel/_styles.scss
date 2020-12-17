@@ -1,10 +1,12 @@
+$core-black-over: rgba(25, 33, 71, 0.5);
+
 .site-nav-item {
   position: relative;
   transition: color 200ms ease-in-out;
   cursor: pointer;
 
   &:hover {
-    background-color: $core-black;
+    background-color: $core-black-over;
   }
 
   @include breakpoint(smalldesk) {

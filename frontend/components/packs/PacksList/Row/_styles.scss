@@ -3,7 +3,7 @@
   cursor: pointer;
 
   &--selected {
-    background-color: $core-blue-selected;
+    background-color: $core-blue-label-down;
   }
 
   &:focus {
@@ -11,7 +11,7 @@
   }
 
   &:hover {
-    background-color: $core-blue-selected;
+    background-color: $core-blue-label-over;
   }
 
   &:last-child {

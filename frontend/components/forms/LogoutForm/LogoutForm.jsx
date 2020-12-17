@@ -36,7 +36,7 @@ class LogoutForm extends Component {
           className={`${baseClass}__submit-btn`}
           onClick={onFormSubmit}
           type="submit"
-          variant="gradient"
+          variant="brand"
         >
           Logout
         </Button>

@@ -141,10 +141,10 @@
     display: block;
 
     &.is-focused {
-      background-color: $core-blue-selected;
+      background-color: $core-blue-label-over;
 
       .Select-icon {
-        color: $core-blue-ultralight;
+        color: $core-blue-label-over;
       }
     }
 
@@ -192,7 +192,7 @@
         cursor: default;
 
         &.is-focused {
-          background-color: $core-blue;
+          background-color: $core-blue-label-down;
           color: $white;
         }
       }

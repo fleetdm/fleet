@@ -24,4 +24,40 @@
       display: none;
     }
   }
+
+  &__status--active {
+    &:before {
+      background-color: $success;
+      border-radius: 100%;
+      content: " ";
+      display: inline-block;
+      height: 8px;
+      margin-right: 8px;
+      width: 8px;
+    }
+  }
+
+  &__status--invited {
+    &:before {
+      background-color: $warning;
+      border-radius: 100%;
+      content: " ";
+      display: inline-block;
+      height: 8px;
+      margin-right: 8px;
+      width: 8px;
+    }
+  }
+
+  &__status--disabled {
+    &:before {
+      background-color: $core-red;
+      border-radius: 100%;
+      content: " ";
+      display: inline-block;
+      height: 8px;
+      margin-right: 8px;
+      width: 8px;
+    }
+  }
 }

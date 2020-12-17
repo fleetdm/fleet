@@ -2,17 +2,21 @@
   line-height: 38px;
   border-bottom: 1px solid $ui-borders;
 
+  &__description {
+    max-width: 280px;
+  }
+
   &:last-child {
     border-bottom: 0;
   }
 
   &--selected {
-    background-color: $core-blue-selected;
+    background-color: $core-blue-label-down;
   }
 
   &:hover {
     cursor: pointer;
-    background-color: $core-blue-selected;
+    background-color: $core-blue-label-over;
   }
 
   &:active,

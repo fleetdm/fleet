@@ -34,6 +34,9 @@
       td {
         padding: 0 10px;
         margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
 
         p {
           font-size: $x-small;

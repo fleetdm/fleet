@@ -76,7 +76,7 @@
 
         &.is-disabled {
           &.is-focused {
-            background-color: $core-blue-selected;
+            background-color: $core-blue-label-down;
             border-radius: 8px;
           }
         }
