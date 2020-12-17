@@ -26,6 +26,12 @@ Scheduled query results (queries that are scheduled to run in Packs) are typical
 
 It is possible to configure osqueryd to log query results outside of Fleet. For results to go to Fleet, the `--logger_plugin` flag must be set to `tls`.
 
+### What are my options for storing the osquery logs?
+
+Folks typically use Fleet to ship logs to data aggregation systems like Splunk, the ELK stack, and Graylog. 
+
+The [logger configuration options](https://github.com/fleetdm/fleet/blob/master/docs/infrastructure/configuring-the-fleet-binary.md#osquery_status_log_plugin) allow you to select the log output plugin. Using the log outputs you can route the logs to your chosen aggregation system.
+
 ### Troubleshooting
 
 Expecting results, but not seeing anything in the logs?
