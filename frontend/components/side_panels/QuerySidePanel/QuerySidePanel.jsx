@@ -93,8 +93,6 @@ class QuerySidePanel extends Component {
           <h2 className={`${baseClass}__header`}>OS Availability</h2>
           <ul className={`${baseClass}__platforms`}>
             {platforms.map((platform) => {
-              console.log(platforms)
-              console.log(platform)
               if (platform === 'all') {
                 return <li key={platform}><KolideIcon name="hosts" /> {platform}</li>;
               } else if (platform === 'freebsd') {
