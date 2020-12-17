@@ -1,6 +1,6 @@
 package osquery
 
-func fleetFlags(hostname string) []string {
+func FleetFlags(hostname string) []string {
 	return []string{
 		"--tls_hostname=" + hostname,
 		"--enroll_tls_endpoint=/api/v1/osquery/enroll",

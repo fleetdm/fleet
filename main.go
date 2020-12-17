@@ -23,7 +23,9 @@ func main() {
 	var g run.Group
 	g.Add(run.SignalHandler(ctx, os.Interrupt, os.Kill))
 
-	r, _ := osquery.NewRunner()
+	r, _ := osquery.NewRunner(
+		osquery.WithFlags(osquery.FleetFlags("localhost:8080")),
+	)
 	g.Add(r.Execute, r.Interrupt)
 
 	err = g.Run()

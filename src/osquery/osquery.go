@@ -17,7 +17,7 @@ type Runner struct {
 	cancel func()
 }
 
-func NewRunner() (*Runner, error) {
+func NewRunner(options ...func(*Runner) error) (*Runner, error) {
 	r := &Runner{}
 
 	// TODO set path and flags appropriately
@@ -35,7 +35,21 @@ func NewRunner() (*Runner, error) {
 	r.cmd = cmd
 	r.proc = process.NewWithCmd(cmd)
 
+	for _, option := range options {
+		err := option(r)
+		if err != nil {
+			return nil, errors.Wrap(err, "apply option")
+		}
+	}
+
 	return r, nil
+}
+
+func WithFlags(flags []string) func(*Runner) error {
+	return func(r *Runner) error {
+		r.cmd.Args = append(r.cmd.Args, flags...)
+		return nil
+	}
 }
 
 func (r *Runner) Execute() error {
