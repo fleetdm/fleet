@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"time"
 )
 
@@ -47,13 +48,9 @@ func newWithMock(cmd ExecCmd) *Process {
 //
 // Adapted from Go core:
 // https://github.com/golang/go/blob/8981092d71aee273d27b0e11cf932a34d4d365c1/src/cmd/go/script_test.go#L1131-L1190
-func (p *Process) WaitOrKill(ctx context.Context, interrupt os.Signal, killDelay time.Duration) error {
+func (p *Process) StopOrKill(ctx context.Context, killDelay time.Duration) error {
 	if p.OsProcess() == nil {
 		return fmt.Errorf("WaitOrKill requires a non-nil OsProcess - missing Start call?")
-	}
-
-	if interrupt == nil {
-		return fmt.Errorf("WaitOrKill requires a non-nil interrupt signal")
 	}
 
 	errc := make(chan error)
@@ -64,7 +61,7 @@ func (p *Process) WaitOrKill(ctx context.Context, interrupt os.Signal, killDelay
 		case <-ctx.Done():
 		}
 
-		err := p.OsProcess().Signal(interrupt)
+		err := p.OsProcess().Signal(stopSignal())
 		if err == nil {
 			err = ctx.Err() // Report ctx.Err() as the reason we interrupted.
 		} else if err.Error() == "os: process already finished" {
@@ -100,4 +97,19 @@ func (p *Process) WaitOrKill(ctx context.Context, interrupt os.Signal, killDelay
 		return interruptErr
 	}
 	return waitErr
+}
+
+// stopSignal returns the appropriate signal to use to request that a process
+// stop execution.
+//
+// Copied from Go core:
+// https://github.com/golang/go/blob/8981092d71aee273d27b0e11cf932a34d4d365c1/src/cmd/go/script_test.go#L1119-L1129
+func stopSignal() os.Signal {
+	if runtime.GOOS == "windows" {
+		// Per https://golang.org/pkg/os/#Signal, “Interrupt is not implemented on
+		// Windows; using it with os.Process.Signal will return an error.”
+		// Fall back to Kill instead.
+		return os.Kill
+	}
+	return os.Interrupt
 }
