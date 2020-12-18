@@ -52,6 +52,13 @@ func WithFlags(flags []string) func(*Runner) error {
 	}
 }
 
+func WithEnv(env []string) func(*Runner) error {
+	return func(r *Runner) error {
+		r.cmd.Env = append(r.cmd.Env, env...)
+		return nil
+	}
+}
+
 func (r *Runner) Execute() error {
 	if err := r.proc.Start(); err != nil {
 		return errors.Wrap(err, "start osquery")
