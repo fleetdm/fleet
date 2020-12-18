@@ -1,5 +1,3 @@
-$core-black-over: rgba(25, 33, 71, 0.5);
-
 .site-nav-item {
   position: relative;
   transition: color 200ms ease-in-out;
@@ -16,6 +14,10 @@ $core-black-over: rgba(25, 33, 71, 0.5);
   &--multiple.site-nav-item--active {
     background-color: transparent;
     border-right: 0;
+
+    &:hover {
+      background-color: transparent;
+    }
 
     .site-nav-item__link {
       border-right: 3px solid $core-blue;
@@ -68,6 +70,10 @@ $core-black-over: rgba(25, 33, 71, 0.5);
   &--active {
     border-right: 3px solid $core-blue;
     background-color: $core-black;
+
+    &:hover {
+      background-color: $core-black;
+    }
 
     @at-root .site-nav--small & {
       border-right: 3px solid $core-blue;

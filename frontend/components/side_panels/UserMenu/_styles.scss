@@ -10,17 +10,20 @@
   &__nav-item {
     font-size: $x-small;
     font-weight: $regular;
-    padding: 11px 20px;
     cursor: pointer;
 
     &:hover {
-      background-color: $core-black;
+      background-color: $core-black-over;
     }
 
     &--active {
       background-color: $core-black;
       border-right: 3px solid $core-blue;
       font-weight: $bold;
+
+      &:hover {
+        background-color: $core-black;
+      }
     }
 
     a {
@@ -30,6 +33,7 @@
       align-items: center;
       text-decoration: none;
       text-transform: none;
+      padding: 11px 20px;
     }
 
     .icon {
@@ -37,9 +41,8 @@
     }
 
     @include breakpoint(smalldesk) {
-      padding: 11px 14px;
-
       a {
+        padding: 11px 14px;
 
         span {
           display: none;
