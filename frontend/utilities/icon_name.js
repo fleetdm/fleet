@@ -15,9 +15,9 @@ export const iconNameForLabel = (label) => {
 };
 
 export const iconNameForPlatform = (platform = '') => {
-  if (!platform.name) return false;
+  if (!platform) return false;
 
-  const lowerPlatform = platform.name.toLowerCase();
+  const lowerPlatform = platform.toLowerCase();
 
   switch (lowerPlatform) {
     case 'macos': return 'apple-dark';

@@ -3,9 +3,10 @@ import PropTypes from 'prop-types';
 
 import osqueryTableInterface from 'interfaces/osquery_table';
 import { osqueryTableNames } from 'utilities/osquery_tables';
+import { iconNameForPlatform } from 'utilities/icon_name';
 import Dropdown from 'components/forms/fields/Dropdown';
 import KolideIcon from 'components/icons/KolideIcon';
-import PlatformIcon from 'components/icons/PlatformIcon';
+import Icon from 'components/icons/Icon';
 import SecondarySidePanelContainer from '../SecondarySidePanelContainer';
 
 import displayTypeForDataType from './helpers';
@@ -94,9 +95,11 @@ class QuerySidePanel extends Component {
             {platforms.map((platform) => {
               if (platform === 'all') {
                 return <li key={platform}><KolideIcon name="hosts" /> {platform}</li>;
+              } else if (platform === 'freebsd') {
+                return <li key={platform}><KolideIcon name="single-host" /> {platform}</li>;
               }
 
-              return <li key={platform}><PlatformIcon name={platform} title={platform} /> {platform}</li>;
+              return <li key={platform}><Icon name={iconNameForPlatform(platform)} size="20" /> {platform}</li>;
             })}
           </ul>
         </div>
