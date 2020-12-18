@@ -76,7 +76,7 @@
       width: 100%;
       height: 17px;
       // We explicityly use rgba(255,255,255,0) because it's equivalent to transparent for most broswers except Safari.
-      background-image: linear-gradient(to bottom, $white, rgba(255,255,255,0));
+      background-image: linear-gradient(to bottom, $white, rgba(255, 255, 255, 0));
     }
 
     &:after {
@@ -88,7 +88,7 @@
       width: 100%;
       height: 17px;
       // We explicityly use rgba(255,255,255,0) because it's equivalent to transparent for most broswers except Safari.
-      background-image: linear-gradient(to bottom, rgba(255,255,255,0), $white);
+      background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0), $white);
     }
 
     .form-field__label {
