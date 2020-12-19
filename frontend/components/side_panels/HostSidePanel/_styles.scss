@@ -22,18 +22,8 @@
   }
 
   &__add-label-btn {
-    color: $white;
-    font-size: $small;
-    font-weight: $bold;
-    background-color: $core-medium-blue-grey;
-    padding: 9px 0;
     width: 100%;
-    text-align: center;
     margin-top: 24px;
-
-    &:hover {
-      background-color: darken($core-medium-blue-grey, 5%);
-    }
   }
 
   &__panel-group-item {

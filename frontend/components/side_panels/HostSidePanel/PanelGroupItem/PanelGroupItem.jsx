@@ -58,7 +58,7 @@ class PanelGroupItem extends Component {
     const wrapperClassName = classnames(
       baseClass,
       'button',
-      'button--unstyled',
+      'button--contextual-nav-item',
       `${baseClass}__${type.toLowerCase()}`,
       `${baseClass}__${type.toLowerCase()}--${displayText.toLowerCase().replace(' ', '-')}`,
       {

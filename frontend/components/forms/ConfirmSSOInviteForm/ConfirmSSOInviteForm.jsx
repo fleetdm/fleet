@@ -41,7 +41,7 @@ class ConfirmSSOInviteForm extends Component {
             placeholder="Username"
           />
         </div>
-        <Button onClick={handleSubmit} type="Submit" variant="gradient">
+        <Button onClick={handleSubmit} type="Submit" variant="brand">
           Submit
         </Button>
       </form>

@@ -178,7 +178,7 @@ class QueryResultsTable extends Component {
           <Button
             className={toggleFullScreenBtnClass}
             onClick={onToggleQueryFullScreen}
-            variant="muted"
+            variant="grey"
           >
             <KolideIcon name={isQueryFullScreen ? 'windowed' : 'fullscreen'} />
           </Button>
