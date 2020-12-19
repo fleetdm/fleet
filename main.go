@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
 
 	"github.com/fleetdm/orbit/src/insecure"
 	"github.com/fleetdm/orbit/src/osquery"
@@ -39,13 +38,7 @@ func main() {
 		},
 	}
 	app.Action = func(c *cli.Context) error {
-
-		osqueryPath, err := exec.LookPath("osqueryd")
-		if err != nil {
-			log.Fatalf("no osquery found: %v", err)
-		}
-
-		proxy, err := insecure.NewTLSProxy("localhost:8080")
+		proxy, err := insecure.NewTLSProxy(serverURL)
 		if err != nil {
 			return errors.Wrap(err, "create TLS proxy")
 		}
@@ -55,8 +48,10 @@ func main() {
 			return errors.Wrap(err, "write server cert")
 		}
 
-		ctx, cancel := context.WithCancel(context.Background())
 		var g run.Group
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 		g.Add(run.SignalHandler(ctx, os.Interrupt, os.Kill))
 
 		r, _ := osquery.NewRunner(
@@ -84,11 +79,10 @@ func main() {
 		err = g.Run()
 		fmt.Println(err)
 
-		_, _ = osqueryPath, cancel
-		//cmd := exec.CommandContext()
-		//
 		return nil
 	}
 
-	app.Run(os.Args)
+	if err := app.Run(os.Args); err != nil {
+		log.Println("Error:", err)
+	}
 }
