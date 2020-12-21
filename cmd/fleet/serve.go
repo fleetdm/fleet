@@ -163,6 +163,22 @@ the way that the Fleet server works.
 				os.Exit(1)
 			}
 
+			// Check to see if the flag is populated
+			// Check if file exists on disk
+			// If file exists read contents
+			if config.Auth.JwtKeyPath != "" {
+				if _, err := os.Stat(config.Auth.JwtKeyPath); err == nil {
+					fileContents, err := ioutil.ReadFile(config.Auth.JwtKeyPath)
+					if err == nil {
+						config.Auth.JwtKey = strings.TrimSpace(string(fileContents))
+					} else {
+						initFatal(err, "Could not read the JWT Key file provided")
+					}
+				} else {
+					initFatal(err, "JWT Key file path provided does not exist")
+				}
+			}
+
 			if config.Auth.JwtKey == "" {
 				jwtKey, err := kolide.RandomText(24)
 				if err != nil {

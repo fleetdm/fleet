@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
+	"os"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/WatchBeam/clock"
@@ -107,6 +109,22 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 
 	for _, setOpt := range opts {
 		setOpt(options)
+	}
+
+	// Check to see if the flag is populated
+	// Check if file exists on disk
+	// If file exists read contents
+	if config.PasswordPath != "" {
+		if _, err := os.Stat(config.PasswordPath); err == nil {
+			fileContents, err := ioutil.ReadFile(config.PasswordPath)
+			if err == nil {
+				config.Password = strings.TrimSpace(string(fileContents))
+			} else {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
 	}
 
 	if config.TLSConfig != "" {
