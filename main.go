@@ -7,8 +7,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/fleetdm/orbit/src/insecure"
-	"github.com/fleetdm/orbit/src/osquery"
+	"github.com/fleetdm/orbit/pkg/insecure"
+	"github.com/fleetdm/orbit/pkg/osquery"
 	"github.com/oklog/run"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"

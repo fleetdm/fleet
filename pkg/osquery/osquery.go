@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/fleetdm/orbit/src/process"
+	"github.com/fleetdm/orbit/pkg/process"
 	"github.com/pkg/errors"
 )
 
