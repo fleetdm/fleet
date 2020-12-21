@@ -163,6 +163,19 @@ The password to use when connecting to the MySQL instance.
 		password: kolide
 	```
 
+##### `mysql_password_path`
+
+File path to a file that contains the password to use when connecting to the MySQL instance.
+
+- Default value: `""`
+- Config file format:
+
+	```
+	mysql:
+		password_path: 'run/secrets/fleetdm-mysql-password
+	```
+
+
 ##### `mysql_tls_ca`
 
 The path to a PEM encoded certificate of MYSQL's CA for client certificate authentication.
@@ -406,6 +419,19 @@ The [JWT](https://jwt.io/) key to use when signing and validating session keys. 
 	auth:
 		jwt_key: JVnKw7CaUdJjZwYAqDgUHVYP
 	```
+
+##### `auth_jwt_key_path`
+
+File path to a file that contains the [JWT](https://jwt.io/) key to use when signing and validating session keys. 
+
+- Default value: `""`
+- Config file format:
+
+	```
+	auth:
+		jwt_key_path: 'run/secrets/fleetdm-jwt-token
+	```
+
 
 #####	`auth_bcrypt_cost`
 
