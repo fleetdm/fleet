@@ -16,7 +16,7 @@ const userActionOptions = (isCurrentUser, user, invite) => {
     userPromotionAction,
   ];
   if (!user.sso_enabled) {
-    result.push({ disabled: false, label: 'Require Password Reset', value: 'reset_password' });
+    result.push({ disabled: false, label: 'Require Password Reset', value: 'reset_password', helpText: 'This will revoke all active Fleet API tokens for this user.' });
   }
   result.push({ disabled: false, label: 'Modify Details', value: 'modify_details' });
   return result;

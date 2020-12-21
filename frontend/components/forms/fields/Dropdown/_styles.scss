@@ -25,6 +25,19 @@
       }
     }
   }
+
+  &__option {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__help-text {
+    margin-top: 4px;
+    font-size: $xx-small;
+    white-space: normal;
+    color: $core-medium-blue-grey;
+    font-style: italic;
+  }
 }
 
 .Select {
