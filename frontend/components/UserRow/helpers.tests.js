@@ -15,7 +15,7 @@ describe('UserRow - helpers', () => {
       expect(userActionOptions(false, userStub, false)).toEqual([
         { disabled: false, label: 'Disable Account', value: 'disable_account' },
         { disabled: false, label: 'Promote User', value: 'promote_user' },
-        { disabled: false, label: 'Require Password Reset', value: 'reset_password' },
+        { disabled: false, label: 'Require Password Reset', value: 'reset_password', helpText: 'This will revoke all active Fleet API tokens for this user.' },
         { disabled: false, label: 'Modify Details', value: 'modify_details' },
       ]);
     });
@@ -26,7 +26,7 @@ describe('UserRow - helpers', () => {
       expect(userActionOptions(false, disabledUser, false)).toEqual([
         { disabled: false, label: 'Enable Account', value: 'enable_account' },
         { disabled: false, label: 'Promote User', value: 'promote_user' },
-        { disabled: false, label: 'Require Password Reset', value: 'reset_password' },
+        { disabled: false, label: 'Require Password Reset', value: 'reset_password', helpText: 'This will revoke all active Fleet API tokens for this user.' },
         { disabled: false, label: 'Modify Details', value: 'modify_details' },
       ]);
     });
@@ -37,7 +37,7 @@ describe('UserRow - helpers', () => {
       expect(userActionOptions(false, adminUser, false)).toEqual([
         { disabled: false, label: 'Disable Account', value: 'disable_account' },
         { disabled: false, label: 'Demote User', value: 'demote_user' },
-        { disabled: false, label: 'Require Password Reset', value: 'reset_password' },
+        { disabled: false, label: 'Require Password Reset', value: 'reset_password', helpText: 'This will revoke all active Fleet API tokens for this user.' },
         { disabled: false, label: 'Modify Details', value: 'modify_details' },
       ]);
     });
@@ -48,7 +48,7 @@ describe('UserRow - helpers', () => {
       expect(userActionOptions(true, adminUser, false)).toEqual([
         { disabled: true, label: 'Disable Account', value: 'disable_account' },
         { disabled: true, label: 'Demote User', value: 'demote_user' },
-        { disabled: false, label: 'Require Password Reset', value: 'reset_password' },
+        { disabled: false, label: 'Require Password Reset', value: 'reset_password', helpText: 'This will revoke all active Fleet API tokens for this user.' },
         { disabled: false, label: 'Modify Details', value: 'modify_details' },
       ]);
     });

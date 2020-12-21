@@ -67,8 +67,17 @@ class Dropdown extends Component {
     );
   }
 
+  renderOption = (option) => {
+    return (
+      <div className={`${baseClass}__option`}>
+        {option.label}
+        {option.helpText && <span className={`${baseClass}__help-text`}>{option.helpText}</span>}
+      </div>
+    );
+  }
+
   render () {
-    const { handleChange } = this;
+    const { handleChange, renderOption } = this;
     const { error, className, clearable, disabled, multi, name, options, placeholder, value, wrapperClassName } = this.props;
 
     const formFieldProps = pick(this.props, ['hint', 'label', 'error', 'name']);
@@ -86,6 +95,7 @@ class Dropdown extends Component {
           name={`${name}-select`}
           onChange={handleChange}
           options={options}
+          optionRenderer={renderOption}
           placeholder={placeholder}
           value={value}
         />

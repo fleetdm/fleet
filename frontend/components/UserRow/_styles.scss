@@ -12,9 +12,14 @@
         font-size: $x-small;
       }
 
-      .Select-menu-outer {
-        width: 186px;
-        transform: translateX(-33%);
+      .Select-menu {
+        max-height: 220px;
+
+        &-outer {
+          width: 186px;
+          transform: translateX(-33%);
+          max-height: 220px;
+        }
       }
     }
   }
