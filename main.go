@@ -38,46 +38,74 @@ func main() {
 		},
 	}
 	app.Action = func(c *cli.Context) error {
-		proxy, err := insecure.NewTLSProxy(serverURL)
-		if err != nil {
-			return errors.Wrap(err, "create TLS proxy")
-		}
-
-		err = ioutil.WriteFile(certPath, []byte(insecure.ServerCert), os.ModePerm)
-		if err != nil {
-			return errors.Wrap(err, "write server cert")
-		}
-
 		var g run.Group
+		var options []func(*osquery.Runner) error
 
+		fleetURL := c.String("fleet_url")
+
+		if c.Bool("insecure") {
+			proxy, err := insecure.NewTLSProxy(fleetURL)
+			if err != nil {
+				return errors.Wrap(err, "create TLS proxy")
+			}
+
+			g.Add(
+				func() error {
+					err := proxy.InsecureServeTLS()
+					log.Println(err)
+					return err
+				},
+				func(error) {
+					if err := proxy.Close(); err != nil {
+						log.Printf("error closing proxy: %v", err)
+					}
+				},
+			)
+
+			// Write cert that proxy uses
+			err = ioutil.WriteFile(certPath, []byte(insecure.ServerCert), os.ModePerm)
+			if err != nil {
+				return errors.Wrap(err, "write server cert")
+			}
+
+			// Rewrite URL to the proxy URL
+			fleetURL = fmt.Sprintf("localhost:%d", proxy.Port)
+
+			options = append(options,
+				osquery.WithFlags(osquery.FleetFlags(fleetURL)),
+				osquery.WithFlags([]string{"--tls_server_certs", certPath}),
+			)
+		}
+
+		if enrollSecret := c.String("enroll_secret"); enrollSecret != "" {
+			options = append(options,
+				osquery.WithEnv([]string{"ENROLL_SECRET="}),
+				osquery.WithFlags([]string{"--enroll_secret_env", "ENROLL_SECRET"}),
+			)
+		}
+
+		if fleetURL != "" {
+			options = append(options,
+				osquery.WithFlags(osquery.FleetFlags(fleetURL)),
+			)
+		}
+
+		options = append(options,
+			osquery.WithFlags([]string{"--verbose"}),
+		)
+
+		// Create an osquery runner with the provided options
+		r, _ := osquery.NewRunner(options...)
+		g.Add(r.Execute, r.Interrupt)
+
+		// Install a signal handler
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		g.Add(run.SignalHandler(ctx, os.Interrupt, os.Kill))
 
-		r, _ := osquery.NewRunner(
-			osquery.WithFlags(osquery.FleetFlags(fmt.Sprintf("localhost:%d", proxy.Port))),
-			osquery.WithFlags([]string{"--tls_server_certs", certPath}),
-			osquery.WithFlags([]string{"--verbose"}),
-			osquery.WithEnv([]string{"ENROLL_SECRET=fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn"}),
-			osquery.WithFlags([]string{"--enroll_secret_env", "ENROLL_SECRET"}),
-		)
-		g.Add(r.Execute, r.Interrupt)
-
-		g.Add(
-			func() error {
-				err := proxy.InsecureServeTLS()
-				log.Println(err)
-				return err
-			},
-			func(error) {
-				if err := proxy.Close(); err != nil {
-					log.Printf("error closing proxy: %v", err)
-				}
-			},
-		)
-
-		err = g.Run()
-		fmt.Println(err)
+		if err := g.Run(); err != nil {
+			fmt.Println(err)
+		}
 
 		return nil
 	}
