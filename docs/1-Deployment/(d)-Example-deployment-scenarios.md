@@ -29,7 +29,7 @@
 
 ## Fleet on CentOS
 
-In this guide, we're going to install Fleet and all of it's application dependencies on a CentOS 7.1 server. Once we have Fleet up and running, we're going to install osquery on that same CentOS 7.1 host and enroll it in Fleet. This should give you a good understanding of both how to install Fleet as well as how to install and configure osquery such that it can communicate with Fleet.
+In this guide, we're going to install Fleet and all of its application dependencies on a CentOS 7.1 server. Once we have Fleet up and running, we're going to install osquery on that same CentOS 7.1 host and enroll it in Fleet. This should give you a good understanding of both how to install Fleet as well as how to install and configure osquery such that it can communicate with Fleet.
 
 ### Setting up a host
 
@@ -200,7 +200,7 @@ You will need to set the osquery enroll secret and osquery server certificate. I
 
 If you select "Fetch Kolide Certificate", your browser will download the appropriate file to your downloads directory (to a file probably called `localhost-8080.pem`). Copy this file to your CentOS host at `/var/osquery/server.pem`.
 
-You can also select "Reveal Secret" on that modal and the enrollment secret for your Fleet instance will be revealed. Copy that text and create a file with it's contents:
+You can also select "Reveal Secret" on that modal and the enrollment secret for your Fleet instance will be revealed. Copy that text and create a file with its contents:
 
 ```
 echo 'LQWzGg9+/yaxxcBUMY7VruDGsJRYULw8' | sudo tee /var/osquery/enroll_secret
@@ -233,7 +233,7 @@ If you go back to [https://localhost:8080/hosts/manage](https://localhost:8080/h
 
 ## Fleet on Ubuntu
 
-In this guide, we're going to install Fleet and all of it's application dependencies on an Ubuntu 16.04 LTS server. Once we have Fleet up and running, we're going to install osquery on that same Ubuntu 16.04 host and enroll it in Fleet. This should give you a good understanding of both how to install Fleet as well as how to install and configure osquery such that it can communicate with Fleet.
+In this guide, we're going to install Fleet and all of its application dependencies on an Ubuntu 16.04 LTS server. Once we have Fleet up and running, we're going to install osquery on that same Ubuntu 16.04 host and enroll it in Fleet. This should give you a good understanding of both how to install Fleet as well as how to install and configure osquery such that it can communicate with Fleet.
 
 ### Setting up a host
 
@@ -316,7 +316,7 @@ The output should look like:
 
 `Migrations completed`
 
-Before we can run the server, we need to generate some TLS keying material. If you already have tooling for generating valid TLS certificates, then you are encouraged to use that instead. You will need a TLS certificate and key for running the Fleet server. If you'd like to generate self-signed certificates, you can do this via the following steps (note - you will be asked for severl bits of information, including name, contact info, and location, in order to generate the certificate):
+Before we can run the server, we need to generate some TLS keying material. If you already have tooling for generating valid TLS certificates, then you are encouraged to use that instead. You will need a TLS certificate and key for running the Fleet server. If you'd like to generate self-signed certificates, you can do this via the following steps (note - you will be asked for several bits of information, including name, contact info, and location, in order to generate the certificate):
 
 ```
 openssl genrsa -out /tmp/server.key 4096
@@ -343,7 +343,7 @@ Now we are ready to run the server! We do this via `fleet serve`:
   --server_key=/tmp/server.key \
   --logging_json
 ```
-You will be prompted to add a value for `--auth_jwt_key`. A randomly generated key will be suggested, you can simply add the flag with the sugested key.
+You will be prompted to add a value for `--auth_jwt_key`. A randomly generated key will be suggested, you can simply add the flag with the suggested key.
 
 Now, if you go to [https://localhost:8080](https://localhost:8080) in your local browser, you should be redirected to [https://localhost:8080/setup](https://localhost:8080/setup) where you can create your first Fleet user account.
 
@@ -374,7 +374,7 @@ You will need to set the osquery enroll secret and osquery server certificate. I
 
 If you select "Fetch Fleet Certificate", your browser will download the appropriate file to your downloads directory (to a file probably called `localhost-8080.pem`). Copy this file to your Ubuntu host at `/var/osquery/server.pem`.
 
-You can also select "Reveal Secret" on that modal and the enrollment secret for your Fleet instance will be revealed. Copy that text and create a file with it's contents:
+You can also select "Reveal Secret" on that modal and the enrollment secret for your Fleet instance will be revealed. Copy that text and create a file with its contents:
 
 ```
 echo 'LQWzGg9+/yaxxcBUMY7VruDGsJRYULw8' | sudo tee /var/osquery/enroll_secret
@@ -408,7 +408,7 @@ If you go back to [https://localhost:8080/hosts/manage](https://localhost:8080/h
 
 ## Deploying Fleet on Kubernetes
 
-In this guide, we're going to install Fleet and all of it's application dependencies on a Kubernetes cluster. Kubernetes is a container orchestration tool that was open sourced by Google in 2014.
+In this guide, we're going to install Fleet and all of its application dependencies on a Kubernetes cluster. Kubernetes is a container orchestration tool that was open sourced by Google in 2014.
 
 ### Installing infrastructure dependencies
 
