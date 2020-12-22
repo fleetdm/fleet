@@ -167,26 +167,21 @@ the way that the Fleet server works.
 			// Check if file exists on disk
 			// If file exists read contents
 			if config.Auth.JwtKeyPath != "" {
-				if _, err := os.Stat(config.Auth.JwtKeyPath); err == nil {
-					fileContents, err := ioutil.ReadFile(config.Auth.JwtKeyPath)
-					if err == nil {
-						config.Auth.JwtKey = strings.TrimSpace(string(fileContents))
-					} else {
-						initFatal(err, "Could not read the JWT Key file provided")
-					}
-				} else {
-					initFatal(err, "JWT Key file path provided does not exist")
+				fileContents, err := ioutil.ReadFile(config.Auth.JwtKeyPath)
+				if err != nil {
+					initFatal(err, "Could not read the JWT Key file provided")
 				}
+				config.Auth.JwtKey = strings.TrimSpace(string(fileContents))
 			}
 
-			if config.Auth.JwtKey == "" {
+			if config.Auth.JwtKey == "" && config.Auth.JwtKeyPath == "" {
 				jwtKey, err := kolide.RandomText(24)
 				if err != nil {
 					initFatal(err, "generating sample jwt key")
 				}
 				fmt.Printf("################################################################################\n"+
 					"# ERROR:\n"+
-					"#   A value must be supplied for --auth_jwt_key. This value is used to create\n"+
+					"#   A value must be supplied for --auth_jwt_key or --auth_jwt_key_path. This value is used to create\n"+
 					"#   session tokens for users.\n"+
 					"#\n"+
 					"#   Consider using the following randomly generated key:\n"+

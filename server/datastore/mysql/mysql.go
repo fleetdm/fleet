@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -115,16 +114,11 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 	// Check if file exists on disk
 	// If file exists read contents
 	if config.PasswordPath != "" {
-		if _, err := os.Stat(config.PasswordPath); err == nil {
-			fileContents, err := ioutil.ReadFile(config.PasswordPath)
-			if err == nil {
-				config.Password = strings.TrimSpace(string(fileContents))
-			} else {
-				return nil, err
-			}
-		} else {
+		fileContents, err := ioutil.ReadFile(config.PasswordPath)
+		if err != nil {
 			return nil, err
 		}
+		config.Password = strings.TrimSpace(string(fileContents))
 	}
 
 	if config.TLSConfig != "" {
