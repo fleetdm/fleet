@@ -192,7 +192,7 @@ the way that the Fleet server works.
 			}
 
 			if config.Auth.JwtKey != "" && config.Auth.JwtKeyPath != "" {
-				initFatal(err, "Both a JWT key and a JWT key file path was provided. Please specify only one.")
+				initFatal(err, "A JWT key and a JWT key file were provided - please specify only one")
 			}
 
 			if initializingDS, ok := ds.(initializer); ok {

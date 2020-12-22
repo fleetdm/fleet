@@ -110,6 +110,10 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		setOpt(options)
 	}
 
+	if config.PasswordPath != "" && config.Password != "" {
+		return nil, errors.New("A MySQL password and a MySQL password file were provided - please specify only one")
+	}
+
 	// Check to see if the flag is populated
 	// Check if file exists on disk
 	// If file exists read contents
