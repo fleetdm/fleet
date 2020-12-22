@@ -191,6 +191,10 @@ the way that the Fleet server works.
 				os.Exit(1)
 			}
 
+			if config.Auth.JwtKey != "" && config.Auth.JwtKeyPath != "" {
+				initFatal(err, "Both a JWT key and a JWT key file path was provided. Please specify only one.")
+			}
+
 			if initializingDS, ok := ds.(initializer); ok {
 				if err := initializingDS.Initialize(); err != nil {
 					initFatal(err, "loading built in data")
