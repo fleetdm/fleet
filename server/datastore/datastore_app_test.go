@@ -140,7 +140,7 @@ func testEnrollSecretsCaseSensitive(t *testing.T, ds kolide.Datastore) {
 func testEnrollSecretRoundtrip(t *testing.T, ds kolide.Datastore) {
 	spec, err := ds.GetEnrollSecretSpec()
 	require.NoError(t, err)
-	assert.Len(t, spec.Secrets, 1)
+	assert.Len(t, spec.Secrets, 0)
 
 	expectedSpec := kolide.EnrollSecretSpec{
 		Secrets: []kolide.EnrollSecret{
@@ -153,17 +153,15 @@ func testEnrollSecretRoundtrip(t *testing.T, ds kolide.Datastore) {
 
 	spec, err = ds.GetEnrollSecretSpec()
 	require.NoError(t, err)
-	require.Len(t, spec.Secrets, 3)
+	require.Len(t, spec.Secrets, 2)
 	// sort secrets before equality checks to ensure proper order
 	sort.Slice(spec.Secrets, func(i, j int) bool { return spec.Secrets[i].Name < spec.Secrets[j].Name })
 
-	assert.Equal(t, "default", spec.Secrets[0].Name)
+	assert.Equal(t, "one", spec.Secrets[0].Name)
+	assert.Equal(t, "one_secret", spec.Secrets[0].Secret)
+	assert.Equal(t, false, spec.Secrets[0].Active)
 
-	assert.Equal(t, "one", spec.Secrets[1].Name)
-	assert.Equal(t, "one_secret", spec.Secrets[1].Secret)
-	assert.Equal(t, false, spec.Secrets[1].Active)
-
-	assert.Equal(t, "two", spec.Secrets[2].Name)
-	assert.Equal(t, "two_secret", spec.Secrets[2].Secret)
-	assert.Equal(t, true, spec.Secrets[2].Active)
+	assert.Equal(t, "two", spec.Secrets[1].Name)
+	assert.Equal(t, "two_secret", spec.Secrets[1].Secret)
+	assert.Equal(t, true, spec.Secrets[1].Active)
 }
