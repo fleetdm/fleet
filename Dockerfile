@@ -8,5 +8,5 @@ RUN addgroup -S fleet && adduser -S fleet -G fleet
 
 COPY ./build/binary-bundle/linux/fleet ./build/binary-bundle/linux/fleetctl /usr/bin/
 
-USER fleetdm
+USER fleet
 CMD ["fleet", "serve"]
