@@ -41,7 +41,7 @@ func TestDownloadWithSHA512Hash(t *testing.T) {
 	expectedHash, expectedLen := sha512Hash(expectedData), int64(len(expectedData))
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, string(expectedData))
+		fmt.Fprint(w, string(expectedData))
 	}))
 	defer ts.Close()
 
@@ -59,7 +59,7 @@ func TestDownloadWithSHA512HashTooSmall(t *testing.T) {
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Don't write all of data
-		fmt.Fprintf(w, string(expectedData[:2]))
+		fmt.Fprint(w, string(expectedData[:2]))
 	}))
 	defer ts.Close()
 
@@ -93,7 +93,7 @@ func TestDownloadWithSHA512HashMismatch(t *testing.T) {
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Write non-matching data
-		fmt.Fprintf(w, string("def"))
+		fmt.Fprint(w, string("def"))
 	}))
 	defer ts.Close()
 

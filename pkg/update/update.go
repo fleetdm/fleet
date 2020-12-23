@@ -51,7 +51,7 @@ func DownloadWithSHA512Hash(url string, out io.Writer, size int64, expectedHash 
 
 	// Validate the hash matches
 	gotHash := hash.Sum(nil)
-	if bytes.Compare(gotHash, expectedHash) != 0 {
+	if !bytes.Equal(gotHash, expectedHash) {
 		return errors.Errorf(
 			"hash %s does not match expected %s",
 			base64.StdEncoding.EncodeToString(gotHash),
