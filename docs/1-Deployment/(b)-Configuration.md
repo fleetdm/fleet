@@ -1,9 +1,8 @@
 # Configuration
 - [Configuring the Fleet binary](#configuring-the-fleet-binary)
-	- [Configuring the Fleet binary](#configuring-the-fleet-binary)
-		- [High-level configuration overview](#high-level-configuration-overview)
-		- [Commands](#commands)
-		- [Options](#options)
+	- [High-level configuration overview](#high-level-configuration-overview)
+	- [Commands](#commands)
+	- [Options](#options)
 - [Managing osquery configurations](#managing-osquery-configurations)
 - [Running with systemd](#running-with-systemd)
 
