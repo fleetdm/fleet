@@ -185,7 +185,7 @@ See [systemd](./systemd.md) for documentation on running fleet as a background p
 
 ### Installing and running osquery
 
-> Note that this whole process is outlined in more detail in the [Adding Hosts To Fleet](./adding-hosts-to-fleet.md) document. The steps are repeated here for the sake of a continuous tutorial.
+> Note that this whole process is outlined in more detail in the [Adding Hosts To Fleet](./(c)-Adding-hosts) document. The steps are repeated here for the sake of a continuous tutorial.
 
 To install osquery on CentOS, you can run the following:
 
@@ -354,7 +354,7 @@ See [systemd](./systemd.md) for documentation on running fleet as a background p
 
 ### Installing and running osquery
 
-> Note that this whole process is outlined in more detail in the [Adding Hosts To Fleet](./adding-hosts-to-fleet.md) document. The steps are repeated here for the sake of a continuous tutorial.
+> Note that this whole process is outlined in more detail in the [Adding Hosts To Fleet](./(c)-Adding-hosts.md) document. The steps are repeated here for the sake of a continuous tutorial.
 
 To install osquery on Ubuntu, you can run the following:
 

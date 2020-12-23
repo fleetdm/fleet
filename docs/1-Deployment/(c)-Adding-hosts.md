@@ -22,7 +22,7 @@ If you'd like to use the native osqueryd binaries to connect to Fleet, this is e
 
 ## Kolide osquery Launcher
 
-We provide compiled releases of the launcher for all supported platforms. Those can be found [here](https://github.com/kolide/launcher/releases). But if you’d like to compile from source, the instructions are [here](https://github.com/fleetdm/fleet/tree/master/docs/development).
+We provide compiled releases of the launcher for all supported platforms. Those can be found [here](https://github.com/kolide/launcher/releases). But if you’d like to compile from source, the instructions are [here](../3-Contribution-guide/(a)-building-fleet).
 
 ### Connecting a single Launcher to Fleet
 
@@ -177,4 +177,4 @@ Multiple enroll secrets can be set to allow different groups of hosts to
 authenticate with Fleet. When a host enrolls, the corresponding enroll secret is
 recorded and can be used to segment hosts.
 
-To set the enroll secret, use the `fleetctl` tool to apply an [enroll secret spec](../cli/file-format.md#enroll-secrets) 
+To set the enroll secret, use the `fleetctl` tool to apply an [enroll secret spec](../2-Using-Fleet/(b)-fleetctl-CLI.md#enroll-secrets) 
