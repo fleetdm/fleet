@@ -323,7 +323,7 @@ export class UserSettingsPage extends Component {
           <Button
             onClick={onShowModal}
             disabled={ssoEnabled}
-            className={`${baseClass}__button button button--muted`}
+            className={`${baseClass}__button button button--grey`}
           >
             Change password
           </Button>
@@ -332,7 +332,7 @@ export class UserSettingsPage extends Component {
           </p>
           <Button
             onClick={onShowApiTokenModal}
-            className={`${baseClass}__button button button--muted`}
+            className={`${baseClass}__button button button--grey`}
           >
             Get API token
           </Button>

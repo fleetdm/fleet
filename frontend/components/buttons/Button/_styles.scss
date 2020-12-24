@@ -1,55 +1,63 @@
-$gradient-start: $core-blue;
-$gradient-end: $core-blue;
-$inverse-hover: #fafbff;
 $base-class: 'button';
 
-@mixin button-variant($color, $hover: null, $shadow: null) {
-  @if not $shadow {
-    $shadow: adjust-color($color, $lightness: -20%, $saturation: 20%);
-  }
-
-  @if not $hover {
-    $hover: darken($color, 5%);
-  }
+@mixin button-variant($color, $hover: null, $active: null, $inverse: null) {
 
   background-color: $color;
 
-  &.#{$base-class}--disabled {
+  @if $inverse {
     &:hover {
-      background-color: $color;
+      border: 2px solid $hover;
+      color: $hover;
     }
-  }
 
-  &:hover {
-    background-color: $hover;
+    &:active {
+      border: 2px solid $active;
+      color: $active;
+    }
+  } @else { 
+
+    &.#{$base-class}--disabled {
+      &:hover {
+        background-color: $color;
+      }
+    }
+
+    &:hover {
+      background-color: $hover;
+    }
+
+    &:active {
+      background-color: $active;
+    }
   }
 }
 
 .#{$base-class} {
-  @include button-variant($core-purple);
-  user-select: none;
+  @include button-variant($core-blue);
   transition: color 150ms ease-in-out, background 150ms ease-in-out, top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out;
   position: relative;
-  text-align: center;
   color: $white;
   text-decoration: none;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  padding: 8px 16px;
   border-radius: 4px;
   font-size: $small;
   font-family: 'Nunito Sans', sans-serif;
   font-weight: $bold;
-  display: inline-block;
-  padding: 9px 15px;
+  display: inline-flex;
+  height: 38px;
   top: 0;
   border: 0;
   cursor: pointer;
-  box-sizing: border-box;
 
   &:focus {
     outline: none;
   }
 
   &--brand {
-    @include button-variant($core-blue);
+    @include button-variant($core-blue, $core-blue-over, $core-blue-down);
   }
 
   &--success {
@@ -57,17 +65,15 @@ $base-class: 'button';
   }
 
   &--alert {
-    @include button-variant($alert);
+    @include button-variant($alert, $core-red-over, $core-red-down);
   }
 
   &--blue-green {
     @include button-variant($core-blue-green)
   }
 
-  &--muted {
-    @include button-variant(#eceef1, null, $core-darkest-blue-grey);
-
-    color: $core-darkest-blue-grey;
+  &--grey {
+    @include button-variant($core-medium-blue-grey, $core-dark-blue-grey-over, $core-dark-blue-grey-down);
   }
 
   &--warning {
@@ -79,27 +85,17 @@ $base-class: 'button';
   }
 
   &--inverse {
-    @include button-variant($white, $inverse-hover, $core-blue);
+    @include button-variant($white, $core-blue-over, $core-blue-down, $inverse: true);
     color: $core-blue;
     border: 2px solid $core-blue;
-    height: 40px;
-    line-height: $x-small;
-
-    &:active {
-      border-bottom-color: $core-blue;
-    }
+    box-sizing: border-box;
   }
 
   &--inverse-alert {
-    @include button-variant($white, $inverse-hover, $alert);
+    @include button-variant($white, $core-red-over, $core-red-down, $inverse: true);
     color: $alert;
     border: 2px solid $alert;
-    height: 40px;
-    line-height: $x-small;
-
-    &:active {
-      border-bottom-color: $alert;
-    }
+    box-sizing: border-box;
   }
 
   &--block {
@@ -114,27 +110,6 @@ $base-class: 'button';
     &:hover {
       cursor: default;
     }
-  }
-
-  &--small {
-    height: 28px;
-    line-height: 26px;
-    padding: 0 $pad-medium;
-  }
-
-  &--large {
-    height: 48px;
-    line-height: 46px;
-  }
-
-  &--gradient {
-    background-color: transparent;
-    background-image: linear-gradient(134deg, $gradient-start 0%, $gradient-end 0%);
-    color: $white;
-    font-size: $large;
-    font-weight: $regular;
-    width: 100%;
-    height: auto;
   }
 
   &--unstyled {
@@ -161,5 +136,11 @@ $base-class: 'button';
       background-color: transparent;
       box-shadow: none;
     }
+  }
+
+  &--contextual-nav-item {
+    @include button-variant(transparent, $core-blue-label-over);
+    display: flex;
+    justify-content: space-between;
   }
 }

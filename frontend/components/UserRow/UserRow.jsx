@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
+import classnames from 'classnames';
 
 import Dropdown from 'components/forms/fields/Dropdown';
 import EditUserForm from 'components/forms/admin/EditUserForm';
@@ -100,6 +101,10 @@ class UserRow extends Component {
     const userLabel = admin ? 'Admin' : 'User';
 
     const baseClass = 'user-row';
+    const statusClassName = classnames(
+      `${baseClass}__status`,
+      `${baseClass}__status--${statusLabel.toLowerCase()}`,
+    );
 
     return (
       <tr key={`user-${user.id}-table`}>
@@ -108,7 +113,7 @@ class UserRow extends Component {
         >
           {username}
         </td>
-        <td>
+        <td className={statusClassName}>
           {statusLabel}
         </td>
         <td>{name}</td>

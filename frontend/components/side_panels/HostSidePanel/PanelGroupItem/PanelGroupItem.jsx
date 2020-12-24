@@ -16,6 +16,7 @@ class PanelGroupItem extends Component {
       display_text: PropTypes.string.isRequired,
       type: PropTypes.string.isRequired,
       id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+      name: PropTypes.string,
     }).isRequired,
     onLabelClick: PropTypes.func,
     isSelected: PropTypes.bool,
@@ -40,7 +41,8 @@ class PanelGroupItem extends Component {
   renderIcon = () => {
     const { item, type } = this.props;
     if (type === 'platform') {
-      return <Icon name={iconNameForPlatform(item)} size="20" className={`${baseClass}__icon`} />;
+      const platformName = item.name;
+      return <Icon name={iconNameForPlatform(platformName)} size="20" className={`${baseClass}__icon`} />;
     }
 
     return <Icon name={iconNameForLabel(item)} size="20" className={`${baseClass}__icon`} />;
@@ -56,7 +58,7 @@ class PanelGroupItem extends Component {
     const wrapperClassName = classnames(
       baseClass,
       'button',
-      'button--unstyled',
+      'button--contextual-nav-item',
       `${baseClass}__${type.toLowerCase()}`,
       `${baseClass}__${type.toLowerCase()}--${displayText.toLowerCase().replace(' ', '-')}`,
       {

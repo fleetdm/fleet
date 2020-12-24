@@ -1,3 +1,2 @@
-*
 !build/binary-bundle/linux/fleet
-!build/binary-bundle/linux/fleetctl
+!build/binary-bundle/linux/fleet 

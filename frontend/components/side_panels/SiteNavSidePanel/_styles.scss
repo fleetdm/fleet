@@ -4,7 +4,7 @@
   cursor: pointer;
 
   &:hover {
-    background-color: $core-black;
+    background-color: $core-black-over;
   }
 
   @include breakpoint(smalldesk) {
@@ -14,6 +14,10 @@
   &--multiple.site-nav-item--active {
     background-color: transparent;
     border-right: 0;
+
+    &:hover {
+      background-color: transparent;
+    }
 
     .site-nav-item__link {
       border-right: 3px solid $core-blue;
@@ -66,6 +70,10 @@
   &--active {
     border-right: 3px solid $core-blue;
     background-color: $core-black;
+
+    &:hover {
+      background-color: $core-black;
+    }
 
     @at-root .site-nav--small & {
       border-right: 3px solid $core-blue;

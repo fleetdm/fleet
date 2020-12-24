@@ -95,7 +95,7 @@ class HostSidePanel extends Component {
           type="label"
         />
 
-        <Button variant="unstyled" onClick={onAddLabelClick} className={`${baseClass}__add-label-btn`}>
+        <Button variant="grey" onClick={onAddLabelClick} className={`${baseClass}__add-label-btn`}>
           Add new label
         </Button>
       </SecondarySidePanelContainer>

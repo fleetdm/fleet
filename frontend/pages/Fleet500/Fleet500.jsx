@@ -47,7 +47,7 @@ class Fleet500 extends Component {
       // We only show the button when errorMessage exists
       // and showErrorMessage is set to false
       return (
-        <button className="button button--muted" onClick={onShowErrorMessage}>SHOW ERROR</button>
+        <button className="button button--grey" onClick={onShowErrorMessage}>SHOW ERROR</button>
       );
     }
 

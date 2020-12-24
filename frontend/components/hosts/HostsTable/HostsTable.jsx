@@ -5,7 +5,6 @@ import classnames from 'classnames';
 import Button from 'components/buttons/Button';
 import KolideIcon from 'components/icons/KolideIcon';
 import hostInterface from 'interfaces/host';
-import { iconNameForLabel } from 'utilities/icon_name';
 
 import { humanMemory, humanUptime, humanLastSeen } from './helpers';
 
@@ -64,7 +63,7 @@ class HostsTable extends Component {
           {host.hostname}
         </td>
         <td className={statusClassName}>
-          <KolideIcon name={iconNameForLabel(host.status)} />
+          {host.status}
         </td>
         <td>{host.os_version}</td>
         <td>{host.osquery_version}</td>

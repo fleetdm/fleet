@@ -11,14 +11,9 @@ $base-class: 'panel-group-item';
   margin: 2px 0;
   border-radius: 8px;
 
-  &:hover {
-    background-color: $core-blue-selected;
-
-  }
-
   &.#{$base-class}--selected {
     font-weight: $bold;
-    background-color: $core-blue-selected;
+    background-color: $core-blue-label-down;
 
     .#{$base-class}__count {
       font-weight: $bold;
@@ -26,6 +21,7 @@ $base-class: 'panel-group-item';
   }
 
   &__flexy {
+    width: 100%;
     display: flex;
     align-items: center;
   }
