@@ -1,4 +1,9 @@
-# Troubleshooting FAQ
+# Contribution FAQ
+- [Make errors](#make-errors)
+  - [`dep: command not found`](#dep-command-not-found)
+  - [`undefined: Asset`](#undefined-asset)
+- [How do I connect to the Mailhog simulated mail server?](#how-do-i-connect-to-the-mailhog-simulated-mail-server?)
+- [Adding hosts for testing](#adding-hosts-for-testing)
 
 ## Make errors
 
@@ -19,7 +24,7 @@ server/kolide/emails.go:90:23: undefined: Asset
 make: *** [fleet] Error 2
 ```
 
-If you get an `undefined: Asset` error it is likely because you did not run `make generate` before `make build`. See [Building the Code](https://github.com/fleetdm/fleet/blob/master/docs/development/building-the-code.md) for additional documentation on compiling the `fleet` binary.
+If you get an `undefined: Asset` error it is likely because you did not run `make generate` before `make build`. See [Building Fleet](./1-Building-Fleet.md) for additional documentation on compiling the `fleet` binary.
 
 ## How do I connect to the Mailhog simulated mail server?
 
