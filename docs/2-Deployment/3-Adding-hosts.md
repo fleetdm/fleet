@@ -1,5 +1,5 @@
 # Adding hosts
-- [Kolide osquery Laucher](#kolide-osquery-launcher)
+- [Kolide osquery Launcher](#kolide-osquery-launcher)
   - [Connecting a single Launcher to Fleet](#connecting-a-single-launcher-to-fleet)
   - [Generating packages](#generating-packages)
 - [Native osquery TLS plugins](#native-osquery-tls-plugins)
