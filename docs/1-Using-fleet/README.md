@@ -16,7 +16,7 @@ Includes documentation on the plugin options for working with osquery logs
 Provides documentation for load balancer health checks and working with Fleet server metrics and performance 
 
 ### [Security best practices](./6-Security-best-practices.md) 
-Includes resources for ways to mitigate agains the OWASP top 10 issues
+Includes resources for ways to mitigate against the OWASP top 10 issues
 
 ### [Updating Fleet](./7-Updating-Fleet.md) 
 Includes a guide for how to update and run new versions of Fleet
