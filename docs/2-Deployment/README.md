@@ -1,7 +1,7 @@
 # Deployment
 
 ### [Installation](./1-Installation.md) 
-Provides documentation on installing the Fleet binary and Fleet’s infrustrcuture dependecies
+Provides documentation on installing the Fleet binary and Fleet’s infrastructure dependencies
 
 ### [Configuration](./2-Configuration.md) 
 Includes resources for configuring the Fleet binary, managing osquery configurations, and running with systemd
@@ -10,7 +10,7 @@ Includes resources for configuring the Fleet binary, managing osquery configurat
 Provides resources for enrolling your hosts to Fleet
 
 ### [Example deployment scenarios](./4-Example-deployment-scenarios.md) 
-Includes deployment walk throughs for Fleet on CentOS, Ubuntu, and Kubernetes.
+Includes deployment walkthroughs for Fleet on CentOS, Ubuntu, and Kubernetes.
 
 ### [FAQ](./FAQ.md) 
 Includes commonly asked questions and answers about deployment from the Fleet community.
