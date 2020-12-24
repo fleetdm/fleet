@@ -1,4 +1,14 @@
-# Adding Hosts To Fleet
+# Adding hosts
+- [Kolide osquery Launcher](#kolide-osquery-launcher)
+  - [Connecting a single Launcher to Fleet](#connecting-a-single-launcher-to-fleet)
+  - [Generating packages](#generating-packages)
+- [Native osquery TLS plugins](#native-osquery-tls-plugins)
+	- [Set an environment variable with an agent enrollment secret](#set-an-environment-variable-with-an-agent-enrollment-secret)
+  - [Deploy the TLS certificate that osquery will use to communicate with Fleet](#deploy-the-tls-certificate-that-osquery-will-use-to-communicate-with-fleet)
+- [Launching osqueryd](#launching-osqueryd)
+  - [Using a flag file to manage flags](#using-a-flag-file-to-manage-flags)
+- [Enrolling multiple macOS hosts](#enrolling-multiple-macos-hosts)
+- [Multiple enroll secrets](#multiple-enroll-secrets)
 
 Fleet is powered by the open source osquery tool. To connect a host to Fleet, you have two general options. You can install the osquery binaries on your hosts via the packages distributed at https://osquery.io/downloads or you can use the [Kolide Osquery Launcher](https://github.com/kolide/launcher). The Launcher is a light wrapper that aims to make running and deploying osquery easier by adding a few features and minimizing the configuration interface. Some features of The Launcher are:
 
@@ -10,11 +20,11 @@ The Launcher also contains robust tooling to help you generate packages for your
 
 If you'd like to use the native osqueryd binaries to connect to Fleet, this is enabled by using osquery's TLS API plugins that are principally documented on the official osquery wiki: http://osquery.readthedocs.io/en/stable/deployment/remote/. These plugins are very customizable and thus have a large configuration surface. Configuring osqueryd to communicate with Fleet is documented below in the "Native Osquery TLS Plugins" section.
 
-## Kolide Osquery Launcher
+## Kolide osquery Launcher
 
-We provide compiled releases of the launcher for all supported platforms. Those can be found [here](https://github.com/kolide/launcher/releases). But if you’d like to compile from source, the instructions are [here](https://github.com/fleetdm/fleet/tree/master/docs/development).
+We provide compiled releases of the launcher for all supported platforms. Those can be found [here](https://github.com/kolide/launcher/releases). But if you’d like to compile from source, the instructions are [here](../3-Contribution-guide/(a)-building-fleet).
 
-#### Connecting a single Launcher to Fleet
+### Connecting a single Launcher to Fleet
 
 To directly execute the launcher binary without having to mess with packages, invoke the binary with just a few flags:
 
@@ -47,7 +57,7 @@ mkdir .osquery
     --insecure
 ```
 
-#### Generating packages
+### Generating packages
 
 The Launcher also provides easy, robust tooling for creating packages that you can distribute across your fleet:
 
@@ -72,11 +82,11 @@ You can also add the `--mac_package_signing_key` flag to define the name of the 
 
 If you want to generate a package for local testing, you can call `package-builder make` with the `--insecure` flag as well and the auto-run command in the resultant packages will include `--insecure` as well.
 
-## Native Osquery TLS Plugins
+## Native osquery TLS plugins
 
 You can find various ways to install osquery on a variety of platforms at https://osquery.io/downloads. Once you have installed osquery, you need to do two things:
 
-#### Set an environment variable with an agent enrollment secret
+### Set an environment variable with an agent enrollment secret
 
 The enrollment secret is a value that osquery provides to authenticate with Fleet. There are a few ways you can set the enrollment secret on the hosts which you control. You can either set the value as:
 
@@ -92,7 +102,7 @@ To retrieve the enroll secret, use the "Add New Host" dialog in the Fleet UI or
 
 If your organization has a robust internal public key infrastructure (PKI) and you already deploy TLS client certificates to each host to uniquely identify them, then osquery supports an advanced authentication mechanism which takes advantage of this. Fleet can be fronted with a proxy that will perform the TLS client authentication.
 
-#### Deploy the TLS certificate that osquery will use to communicate with Fleet
+### Deploy the TLS certificate that osquery will use to communicate with Fleet
 
 When Fleet uses a self-signed certificate, osquery agents will need a copy of that certificate in order to authenticate the Fleet server. If clients connect directly to the Fleet server, you can download the certificate through the Fleet UI. From the main dashboard (`/hosts/manage`), click "Add New Host" and "Fetch Kolide Certificate". If Fleet is running behind a load-balancer that terminates TLS, you will have to talk to your system administrator about where to find this certificate.
 
@@ -167,4 +177,4 @@ Multiple enroll secrets can be set to allow different groups of hosts to
 authenticate with Fleet. When a host enrolls, the corresponding enroll secret is
 recorded and can be used to segment hosts.
 
-To set the enroll secret, use the `fleetctl` tool to apply an [enroll secret spec](../cli/file-format.md#enroll-secrets) 
+To set the enroll secret, use the `fleetctl` tool to apply an [enroll secret spec](../2-Using-Fleet/(b)-fleetctl-CLI.md#enroll-secrets) 
