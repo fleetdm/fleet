@@ -2,7 +2,7 @@
 - [Installing the Fleet binary](#installing-the-fleet-binary)
   - [Docker container](#docker-container)
   - [Raw binaries](#raw-binaries)
-- [Infrastrucutre dependencies](#infrastructure-dependencies)
+- [Infrastructure dependencies](#infrastructure-dependencies)
 	- [MySQL](#mysql)
   - [Redis](#redis)
 
