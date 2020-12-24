@@ -6,7 +6,7 @@
   - [Starting the local development environment](#starting-the-local-development-environment)
   - [Running Fleet using Docker development infrastructure](#running-fleet-using-docker-development-infrastructure)
 - [Setting up a Linux Development Environment](#setting-up-a-linux-development-environment)
-- [Databse migrations](#database-migrations)
+- [Database migrations](#database-migrations)
   - [Adding/Updating tables](#adding/updating-tables)
   - [Populating the database with default data](#populating-the-database-with-default-data)
 
@@ -208,4 +208,3 @@ goose create PopulateFoo
 ```
 
 Proceed as for table migrations, editing and running the newly created migration file.
-
