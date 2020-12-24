@@ -2,15 +2,21 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/fleetdm/orbit/pkg/insecure"
 	"github.com/fleetdm/orbit/pkg/osquery"
 	"github.com/oklog/run"
 	"github.com/pkg/errors"
+	"github.com/theupdateframework/notary/client"
+	"github.com/theupdateframework/notary/trustpinning"
+	"github.com/theupdateframework/notary/tuf/data"
 	"github.com/urfave/cli/v2"
 )
 
@@ -35,8 +41,9 @@ func main() {
 			Usage: "Disable TLS certificate verification",
 		},
 		&cli.StringFlag{
-			Name:  "fleet-url",
-			Usage: "URL (host:port) to Fleet server",
+			Name:        "fleet_url",
+			Usage:       "URL (host:port) to Fleet server",
+			Value: serverURL,
 		},
 		&cli.StringFlag{
 			Name:  "enroll-secret",
@@ -48,6 +55,45 @@ func main() {
 		if err != nil {
 			return errors.Wrap(err, "initialize")
 		}
+
+		rootDir := ".trust"
+		if err := os.MkdirAll(rootDir, 0700); err != nil {
+			panic(err)
+		}
+
+		server := "https://localhost:4443"
+		image := "example.com/collection"
+		transport := http.DefaultTransport.(*http.Transport).Clone()
+		transport.TLSClientConfig = &tls.Config{
+			InsecureSkipVerify: true,
+		}
+		repo, err := client.NewFileCachedRepository(
+			rootDir,
+			data.GUN(image),
+			server,
+			transport,
+			nil,
+			trustpinning.TrustPinConfig{},
+		)
+		if err != nil {
+			panic(err)
+		}
+
+		targets, err := repo.ListTargets()
+		if err != nil {
+			panic(err)
+		}
+
+		for _, tgt := range targets {
+			fmt.Printf("%s\t%s\n", tgt.Name, hex.EncodeToString(tgt.Hashes["sha256"]))
+		}
+
+		tgt, err := repo.GetTargetByName("LICENSE")
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("%+v\n", tgt)
+>>>>>>> Stashed changes
 
 		var g run.Group
 		var options []func(*osquery.Runner) error
