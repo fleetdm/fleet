@@ -23,21 +23,32 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "Orbit osquery"
 	app.Usage = "A powered-up, (near) drop-in replacement for osquery"
+	defaultRootDir := "/usr/local/orbit"
 	app.Flags = []cli.Flag{
+		&cli.StringFlag{
+			Name:  "root-dir",
+			Usage: "Root directory for Orbit state",
+			Value: defaultRootDir,
+		},
 		&cli.BoolFlag{
 			Name:  "insecure",
 			Usage: "Disable TLS certificate verification",
 		},
 		&cli.StringFlag{
-			Name:  "fleet_url",
+			Name:  "fleet-url",
 			Usage: "URL (host:port) to Fleet server",
 		},
 		&cli.StringFlag{
-			Name:  "enroll_secret",
+			Name:  "enroll-secret",
 			Usage: "Enroll secret for authenticating to Fleet server",
 		},
 	}
 	app.Action = func(c *cli.Context) error {
+		err := initialize(c)
+		if err != nil {
+			return errors.Wrap(err, "initialize")
+		}
+
 		var g run.Group
 		var options []func(*osquery.Runner) error
 
@@ -113,4 +124,14 @@ func main() {
 	if err := app.Run(os.Args); err != nil {
 		log.Println("Error:", err)
 	}
+}
+
+func initialize(c *cli.Context) error {
+	fmt.Println(c.String("root-dir"))
+	err := os.MkdirAll(c.String("root-dir"), 0o600)
+	if err != nil {
+		return errors.Wrap(err, "make root directory")
+	}
+
+	return nil
 }
