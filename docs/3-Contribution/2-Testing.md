@@ -1,5 +1,9 @@
-Testing
-=======
+# Testing
+- [Full test suite](#full-test-suite)
+  - [Database tests](#database-tests)
+  - [Email tests](#email-tests)
+- [Integration tests](#integration-tests)
+  - [Email](#email)
 
 ## Full test suite
 
@@ -19,24 +23,6 @@ To run all Go unit tests, run the following:
 make test-go
 ```
 
-### Database Tests
-
-To run database tests set environment variables as follows.
-
-```
-export MYSQL_PORT_3306_TCP_ADDR=192.168.99.100
-export MYSQL_TEST=1
-```
-
-### Email Tests
-
-To run email related unit tests using MailHog set the following environment
-variable.
-
-```
-export MAIL_TEST=1
-```
-
 #### JavaScript unit tests
 
 To run all JavaScript unit tests, run the following:
@@ -53,7 +39,25 @@ To run all Go linters and static analyzers, run the following:
 make lint-go
 ```
 
-# Integration Tests
+### Database tests
+
+To run database tests set environment variables as follows.
+
+```
+export MYSQL_PORT_3306_TCP_ADDR=192.168.99.100
+export MYSQL_TEST=1
+```
+
+### Email tests
+
+To run email related unit tests using MailHog set the following environment
+variable.
+
+```
+export MAIL_TEST=1
+```
+
+## Integration tests
 
 By default, tests that require external dependecies like Mysql or Redis are skipped. The tests can be enabled by setting `MYSQL_TEST=true` and `REDIS_TEST=true` environment variables. MYSQL will try to connect with the following credentials.
 ```

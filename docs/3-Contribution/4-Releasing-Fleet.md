@@ -1,5 +1,4 @@
-Releasing Fleet
-===============
+# Releasing Fleet
 
 1. Update the [CHANGELOG](../../CHANGELOG.md) with the changes that have been made since the last Fleet release.
 
