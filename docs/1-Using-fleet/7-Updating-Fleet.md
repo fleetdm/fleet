@@ -1,7 +1,13 @@
-Updating Fleet
-==============
+# Updating Fleet
+- [Overview](#overview)
+- [Updating the Fleet binary](#updating-the-fleet-binary)
+  - [Raw binaries](#raw-binaries)
+  - [Docker container](#docker-container)
+- [Running database migrations](#running-database-migrations)
 
-This guide explains how to update and run new versions of Fleet. For initial installation instructions, see [Installing Fleet](./installing-fleet.md).
+## Overview
+
+This guide explains how to update and run new versions of Fleet. For initial installation instructions, see [Installing Fleet](./1-Deployment/(a)-Installation.md).
 
 There are two steps to perform a typical Fleet update. If any other steps are required, they will be noted in the release notes.
 
@@ -14,7 +20,7 @@ As with any enterprise software update, it's a good idea to back up your MySQL d
 
 Follow the binary update instructions corresponding to the original installation method used to install Fleet.
 
-#### Raw binaries
+### Raw binaries
 
 Download the latest raw Fleet binaries:
 
@@ -36,7 +42,7 @@ unzip fleet.zip 'linux/*' -d fleet
 
 Replace the existing Fleet binary with the newly unzipped binary.
 
-#### Docker container
+### Docker container
 
 Pull the latest Fleet docker image:
 
