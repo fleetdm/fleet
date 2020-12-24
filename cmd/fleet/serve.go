@@ -163,9 +163,10 @@ the way that the Fleet server works.
 				os.Exit(1)
 			}
 
-			// Check to see if the flag is populated
-			// Check if file exists on disk
-			// If file exists read contents
+			if config.Auth.JwtKey != "" && config.Auth.JwtKeyPath != "" {
+				initFatal(err, "A JWT key and a JWT key file were provided - please specify only one")
+			}
+
 			if config.Auth.JwtKeyPath != "" {
 				fileContents, err := ioutil.ReadFile(config.Auth.JwtKeyPath)
 				if err != nil {
@@ -189,10 +190,6 @@ the way that the Fleet server works.
 					"################################################################################\n",
 					jwtKey)
 				os.Exit(1)
-			}
-
-			if config.Auth.JwtKey != "" && config.Auth.JwtKeyPath != "" {
-				initFatal(err, "A JWT key and a JWT key file were provided - please specify only one")
 			}
 
 			if initializingDS, ok := ds.(initializer); ok {
