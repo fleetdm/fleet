@@ -10,14 +10,14 @@ Please check out [the blog post](https://medium.com/fleetdm/a-new-fleet-d4096c7d
 
 ## Preview Fleet
 
-### Get the latest release of the fleetctl CLI tool
+#### Get the latest release of the fleetctl CLI tool
 
 With [node installed](https://nodejs.org/en/download/):
 ```
 npm install -g fleetctl
 ```
 
-### Set up a preview deployment of the Fleet server
+#### Set up a preview deployment of the Fleet server
 
 With [docker installed](https://docs.docker.com/get-docker/):
 ```
@@ -26,7 +26,7 @@ fleetctl preview
 
 Preview Fleet at https://localhost:8412.
 
-### Add containerized hosts to your preview deployment
+#### Add containerized hosts to your preview deployment
 The [`osquery`](./osquery) directory contains a `docker-compose.yml` and
 additional configuration files to start containerized osquery agents. To start
 osquery, first retrieve the "Enroll Secret" from Fleet (by clicking the "Add New
