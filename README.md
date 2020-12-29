@@ -31,7 +31,7 @@ Now that you've finished setting up Fleet, you will want to enroll a server, con
 >
 > <!-- TODO: simplify this step -->
 > 
-> The [`osquery`](./osquery) directory contains a `docker-compose.yml` and
+> The [`osquery`](./tools/osquery) directory contains a `docker-compose.yml` and
 additional configuration files to start containerized osquery agents. To start
 osquery, first retrieve the "Enroll Secret" from Fleet (by clicking the "Add New
 Host") button in the Fleet dashboard.
