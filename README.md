@@ -27,19 +27,18 @@ A local copy of the Fleet server is now running at https://localhost:8412.
 
 Now that you've finished setting up Fleet, you will want to enroll a server, container, or laptop so you have something to run queries against.
 
-> Fleet comes with simulated hosts you can use for demo purposes.
+> Fleet comes with simulated hosts you can use for demo purposes.  <!-- TODO: simplify this step -->
 >
-> <!-- TODO: simplify this step -->
+> First, finish setting up Fleet in the browser and retrieve your "Enroll Secret" by clicking the "Add New Host" button in the Fleet dashboard.
 > 
-> The [`osquery`](./tools/osquery) directory contains a `docker-compose.yml` and
-additional configuration files to start containerized osquery agents. To start
-osquery, first retrieve the "Enroll Secret" from Fleet (by clicking the "Add New
-Host") button in the Fleet dashboard.
+> Then after cloning this repository, `cd` into the [`osquery/`](./tools/osquery) directory:
+> ```shell
+> cd osquery/
+> ```
 >
-> With your "Enroll Secret" copied:
-> ``` shell
-> cd fleet-preview/osquery
-> ENROLL_SECRET=<copy from fleet> docker-compose up
+> This directory contains configuration that can start up Docker containers running osquery agents.  To start them up:
+> ```shell
+> ENROLL_SECRET=<paste your enroll secret here> docker-compose up
 > ```
 >
 > Now navigate back to https://localhost:8412 or refresh to see your new hosts in Fleet!
