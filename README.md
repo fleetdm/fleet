@@ -24,9 +24,9 @@ With [docker installed](https://docs.docker.com/get-docker/):
 fleetctl preview
 ```
 
-Preview Fleet at https://localhost:8412
+Preview Fleet at https://localhost:8412.
 
-### Add containerized hosts to your preview deployment:
+### Add containerized hosts to your preview deployment
 The [`osquery`](./osquery) directory contains a `docker-compose.yml` and
 additional configuration files to start containerized osquery agents. To start
 osquery, first retrieve the "Enroll Secret" from Fleet (by clicking the "Add New
@@ -34,10 +34,10 @@ Host") button in the Fleet dashboard.
 
 With your "Enroll Secret" copied:
 ``` shell
-cd osquery
+cd fleet-preview/osquery
 ENROLL_SECRET=<copy from fleet> docker-compose up
 ```
-Refresh your broswer to 
+Refresh your broswer to see the containerized hosts populate the Fleet dashboard.
 
 ## Query editor
 
