@@ -73,7 +73,7 @@ Please join us in the #fleet channel on [osquery Slack](https://osquery.slack.co
 
 Below are some projects created by Fleet community members. Please submit a pull request if you'd like your project featured.
 
-- [Kolide Cloud ("K2")](https://kolide.com) is a cloud-hosted, user-driven security SaaS application.  To be clear: Kolide ≠ Fleet.  Kolide is well-executed, a great commercial tool, and they offer a 30-day free trial.
+- [Kolide Cloud ("K2")](https://kolide.com) is a cloud-hosted, user-driven security SaaS application.  To be clear: Kolide ≠ Fleet.
 - [davidrecordon/terraform-aws-kolide-fleet](https://github.com/davidrecordon/terraform-aws-kolide-fleet) - Deploy Fleet into AWS using Terraform.
 - [deeso/fleet-deployment](https://github.com/deeso/fleet-deployment) - Install Fleet on a Ubuntu box.
 - [gjyoung1974/kolide-fleet-chart](https://github.com/gjyoung1974/kolide-fleet-chart) - Kubernetes Helm chart for deploying Fleet.
