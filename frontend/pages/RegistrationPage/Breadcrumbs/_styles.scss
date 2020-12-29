@@ -94,7 +94,7 @@
 
     &--2 {
       &::after {
-        border: solid 2px $core-blue;
+        border: solid 1px $core-blue;
       }
 
       &.registration-breadcrumbs__page--active {
@@ -129,7 +129,7 @@
       }
 
       &::after {
-        border: solid 2px $core-blue;
+        border: solid 1px $core-blue;
       }
 
       &.registration-breadcrumbs__page--active {

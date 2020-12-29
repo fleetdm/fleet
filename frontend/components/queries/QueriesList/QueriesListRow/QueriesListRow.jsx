@@ -49,7 +49,7 @@ class QueriesListRow extends Component {
   render () {
     const { checked, query, selected } = this.props;
     const { onCheck, onSelect, onDblClick } = this;
-    const { author_name: authorName, id, name, updated_at: updatedAt } = query;
+    const { author_name: authorName, id, name, updated_at: updatedAt, description } = query;
     const lastModifiedDate = moment(updatedAt).format('MM/DD/YY');
     const rowClassName = classnames(baseClass, {
       [`${baseClass}--selected`]: selected,
@@ -65,6 +65,7 @@ class QueriesListRow extends Component {
           />
         </td>
         <td className={`${baseClass}__name`}>{name}</td>
+        <td className={`${baseClass}__description`}>{description}</td>
         <td className={`${baseClass}__author-name`}>{authorName}</td>
         <td>{lastModifiedDate}</td>
       </ClickableTableRow>

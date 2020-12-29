@@ -27,26 +27,23 @@ class ResetPasswordForm extends Component {
         <InputFieldWithIcon
           {...fields.new_password}
           autofocus
-          iconName="password"
-          placeholder="New Password"
+          placeholder="New password"
           className={`${baseClass}__input`}
           type="password"
         />
         <InputFieldWithIcon
           {...fields.new_password_confirmation}
-          iconName="password"
-          placeholder="Confirm Password"
+          placeholder="Confirm password"
           className={`${baseClass}__input`}
           type="password"
         />
         <div className={`${baseClass}__button-wrap`}>
           <Button
             onClick={handleSubmit}
-            className={`${baseClass}__btn`}
+            className={`${baseClass}__btn button button--brand`}
             type="submit"
-            variant="gradient"
           >
-            Reset Password
+            Reset password
           </Button>
         </div>
       </form>

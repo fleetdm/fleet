@@ -3,9 +3,8 @@
 
   h1 {
     @include ellipsis(250px);
-    margin: 0 0 12px;
-    font-size: 18px;
-    font-weight: $bold;
+    margin: 0;
+    font-size: $small;
 
     .kolidecon {
       color: $core-medium-blue-grey;
@@ -13,29 +12,25 @@
     }
   }
 
-  h2 {
-    font-size: 16px;
+  &__label {
+    font-size: $medium;
     font-weight: $bold;
-    letter-spacing: -0.5px;
-    color: $core-dark-blue-grey;
-    border-bottom: solid 1px $ui-borders;
-    padding: 0 0 4px;
-    margin: 0 0 6px;
+    margin: 24px 0 16px;
   }
 
-  p {
-    font-size: 14px;
+  &__description {
+    font-size: $small;
     font-weight: $regular;
-    line-height: 1.71;
     color: $core-dark-blue-grey;
+    word-wrap: break-word;
   }
 
   &__query-preview {
     margin-bottom: 12px;
-  }
 
-  &__description {
-    word-wrap: break-word;
+    .kolide-ace__label {
+      display: none;
+    }
   }
 
   .button {
@@ -43,26 +38,16 @@
   }
 
   &__packs {
-    margin: 0;
+    margin-bottom: 24px;
     padding: 0;
     list-style: none;
-  }
-
-  &__pack-item {
-    .kolidecon {
-      margin-right: 12px;
-      color: $core-dark-blue-grey;
-    }
   }
 
   &__pack-name {
     @include ellipsis(240px);
     text-decoration: none;
-    font-size: 14px;
+    font-size: $small;
     vertical-align: middle;
-
-    &:hover {
-      text-decoration: underline;
-    }
+    color: $core-blue;
   }
 }

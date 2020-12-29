@@ -24,8 +24,8 @@ import PackComposerPage from 'pages/packs/PackComposerPage';
 import QueryPage from 'pages/queries/QueryPage';
 import QueryPageWrapper from 'components/queries/QueryPageWrapper';
 import RegistrationPage from 'pages/RegistrationPage';
-import Kolide404 from 'pages/Kolide404';
-import Kolide500 from 'pages/Kolide500';
+import Fleet404 from 'pages/Fleet404';
+import Fleet500 from 'pages/Fleet500';
 import store from 'redux/store';
 import UserSettingsPage from 'pages/UserSettingsPage';
 import PATHS from 'router/paths';
@@ -75,9 +75,9 @@ const routes = (
           </Route>
         </Route>
       </Route>
-      <Route path="/500" component={Kolide500} />
-      <Route path="/404" component={Kolide404} />
-      <Route component={Kolide404} />
+      <Route path="/500" component={Fleet500} />
+      <Route path="/404" component={Fleet404} />
+      <Route path="*" component={Fleet404} />
     </Router>
   </Provider>
 );

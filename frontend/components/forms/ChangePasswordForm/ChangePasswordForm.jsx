@@ -29,21 +29,21 @@ class ChangePasswordForm extends Component {
         <InputField
           {...fields.old_password}
           autofocus
-          label="Original Password"
+          label="Original password"
           type="password"
         />
         <InputField
           {...fields.new_password}
-          label="New Password"
+          label="New password"
           type="password"
         />
         <InputField
           {...fields.new_password_confirmation}
-          label="New Password Confirmation"
+          label="New password confirmation"
           type="password"
         />
         <div className={`${baseClass}__btn-wrap`}>
-          <Button type="submit" variant="brand" className={`${baseClass}__btn`}>Change Password</Button>
+          <Button type="submit" variant="brand" className={`${baseClass}__btn`}>Change password</Button>
           <Button onClick={onCancel} variant="inverse" className={`${baseClass}__btn`}>Cancel</Button>
         </div>
       </form>

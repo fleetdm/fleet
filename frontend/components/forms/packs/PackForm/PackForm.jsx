@@ -44,21 +44,21 @@ class PackForm extends Component {
         {baseError && <div className="form__base-error">{baseError}</div>}
         <InputField
           {...fields.name}
-          placeholder="Query Pack Title"
-          label="Query Pack Title"
+          placeholder="Query pack title"
+          label="Query pack title"
           inputWrapperClass={`${baseClass}__pack-title`}
         />
         <InputField
           {...fields.description}
           inputWrapperClass={`${baseClass}__pack-description`}
-          label="Query Pack Description"
+          label="Query pack description"
           placeholder="Add a description of your query"
           type="textarea"
         />
         <div className={`${baseClass}__pack-targets`}>
           <SelectTargetsDropdown
             {...fields.targets}
-            label="Select Pack Targets"
+            label="Select pack targets"
             onSelect={fields.targets.onChange}
             onFetchTargets={onFetchTargets}
             selectedTargets={fields.targets.value}
@@ -67,7 +67,7 @@ class PackForm extends Component {
         </div>
         <div className={`${baseClass}__pack-buttons`}>
           <Button type="submit" variant="brand">
-            Save Query Pack
+            Save query pack
           </Button>
         </div>
       </form>

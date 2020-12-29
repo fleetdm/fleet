@@ -46,7 +46,8 @@ describe('PanelGroupItem - component', () => {
     expect(labelComponent.find('PlatformIcon').length).toEqual(0);
     expect(labelComponent.find('Icon').length).toEqual(1);
 
-    expect(platformComponent.find('PlatformIcon').length).toEqual(1);
+    expect(platformComponent.find('PlatformIcon').length).toEqual(0);
+    expect(platformComponent.find('Icon').length).toEqual(1);
   });
 
   it('renders the item text', () => {

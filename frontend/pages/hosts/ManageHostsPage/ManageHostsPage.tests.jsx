@@ -299,13 +299,5 @@ describe('ManageHostsPage - component', () => {
 
       expect(page.find('AddHostModal').length).toBeGreaterThan(0);
     });
-
-    it('Open the Add Host modal from Lonely Host', () => {
-      const page = mount(<ManageHostsPage {...props} hosts={[]} selectedLabel={allHostsLabel} />);
-      const addNewHost = page.find('LonelyHost').find('Button');
-      addNewHost.simulate('click');
-
-      expect(page.find('AddHostModal').length).toEqual(1);
-    });
   });
 });

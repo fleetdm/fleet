@@ -6,6 +6,7 @@ export default (admin) => {
     {
       icon: 'admin',
       name: 'Admin',
+      iconName: 'main-admin-white',
       location: {
         regex: new RegExp(`^${URL_PREFIX}/admin/`),
         pathname: PATHS.ADMIN_USERS,
@@ -13,7 +14,7 @@ export default (admin) => {
       subItems: [
         {
           icon: 'admin',
-          name: 'Manage Users',
+          name: 'Manage users',
           location: {
             regex: new RegExp(`^${PATHS.ADMIN_USERS}`),
             pathname: PATHS.ADMIN_USERS,
@@ -21,7 +22,7 @@ export default (admin) => {
         },
         {
           icon: 'user-settings',
-          name: 'App Settings',
+          name: 'App settings',
           location: {
             regex: new RegExp(`^${PATHS.ADMIN_SETTINGS}`),
             pathname: PATHS.ADMIN_SETTINGS,
@@ -31,7 +32,7 @@ export default (admin) => {
           // No such icon now. SiteNavSidePanel does not display
           // icons for subItems
           icon: 'osquery',
-          name: 'Osquery Options',
+          name: 'Osquery options',
           location: {
             regex: new RegExp(`^${PATHS.ADMIN_OSQUERY}`),
             pathname: PATHS.ADMIN_OSQUERY,
@@ -45,6 +46,7 @@ export default (admin) => {
     {
       icon: 'hosts',
       name: 'Hosts',
+      iconName: 'main-hosts-white',
       location: {
         regex: new RegExp(`^${URL_PREFIX}/hosts/`),
         pathname: PATHS.MANAGE_HOSTS,
@@ -53,7 +55,8 @@ export default (admin) => {
     },
     {
       icon: 'query',
-      name: 'Query',
+      name: 'Queries',
+      iconName: 'main-query-white',
       location: {
         regex: new RegExp(`^${URL_PREFIX}/queries/`),
         pathname: PATHS.MANAGE_QUERIES,
@@ -63,18 +66,10 @@ export default (admin) => {
     {
       icon: 'packs',
       name: 'Packs',
+      iconName: 'main-packs-white',
       location: {
         regex: new RegExp(`^${URL_PREFIX}/packs/`),
         pathname: PATHS.MANAGE_PACKS,
-      },
-      subItems: [],
-    },
-    {
-      icon: 'help',
-      name: 'Help',
-      location: {
-        regex: /^\/help/,
-        pathname: 'https://github.com/fleetdm/fleet/blob/master/docs/README.md',
       },
       subItems: [],
     },

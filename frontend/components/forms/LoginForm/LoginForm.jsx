@@ -84,27 +84,24 @@ class LoginForm extends Component {
           <InputFieldWithIcon
             {...fields.username}
             autofocus
-            iconName="username"
-            placeholder="Username or Email"
+            placeholder="Username or email"
           />
           <InputFieldWithIcon
             {...fields.password}
-            iconName="password"
             placeholder="Password"
             type="password"
           />
           <div className={`${baseClass}__forgot-wrap`}>
             <Link className={`${baseClass}__forgot-link`} to={paths.FORGOT_PASSWORD}>Forgot Password?</Link>
           </div>
+          <Button
+            className={`${baseClass}__submit-btn button button--brand`}
+            onClick={handleSubmit}
+            type="submit"
+          >
+            Login
+          </Button>
         </div>
-        <Button
-          className={`${baseClass}__submit-btn`}
-          onClick={handleSubmit}
-          type="submit"
-          variant="gradient"
-        >
-          Login
-        </Button>
         { ssoEnabled && showSingleSignOnButton()}
       </form>
     );

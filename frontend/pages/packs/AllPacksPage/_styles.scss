@@ -26,22 +26,36 @@
     }
   }
 
+  &__header-wrap {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
   &__pack-count {
     color: $core-darkest-blue-grey;
-    font-size: 14px;
+    font-size: $x-small;
     font-weight: $bold;
-    letter-spacing: -0.5px;
     margin: 0;
   }
 
   &__search-create-section {
-    display: flex;
-    justify-content: space-between;
+    position: relative;
 
     input {
       &[name='pack-filter'] {
-        width: 240px;
+        width: 100%;
+        margin-top: 24px;
+        padding-left: 42px;
       }
+    }
+
+    .kolidecon {
+      position: absolute;
+      top: 36px;
+      left: 9px;
+      font-size: 18px;
+      color: $ui-medium-grey;
     }
   }
 
@@ -50,12 +64,11 @@
   }
 
   &__wrapper {
-    padding: $pad-base;
+    padding: 50px 30px;
     min-height: 90vh;
   }
 
   &__table {
-    border-collapse: collapse;
     color: $core-dark-blue-grey;
     font-size: $small;
     width: 100%;

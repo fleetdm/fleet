@@ -5,7 +5,6 @@ import { pull } from 'lodash';
 import Button from 'components/buttons/Button';
 import helpers from 'components/queries/ScheduledQueriesListWrapper/helpers';
 import InputField from 'components/forms/fields/InputField';
-import NumberPill from 'components/NumberPill';
 import QueriesList from 'components/queries/ScheduledQueriesList';
 import queryInterface from 'interfaces/query';
 
@@ -84,7 +83,7 @@ class ScheduledQueriesListWrapper extends Component {
     const scheduledQueryCount = checkedScheduledQueryIDs.length;
 
     if (scheduledQueryCount) {
-      const queryText = scheduledQueryCount === 1 ? 'Query' : 'Queries';
+      const queryText = scheduledQueryCount === 1 ? 'query' : 'queries';
 
       return (
         <Button
@@ -103,9 +102,14 @@ class ScheduledQueriesListWrapper extends Component {
   renderQueryCount = () => {
     const { scheduledQueries } = this.props;
     const queryCount = scheduledQueries.length;
-    const queryText = queryCount === 1 ? 'Query' : 'Queries';
+    const queryText = queryCount === 1 ? ' 1 query' : `${queryCount} queries`;
 
-    return <h1 className={`${baseClass}__query-count`}><NumberPill number={queryCount} /> {queryText}</h1>;
+    return (
+      <div>
+        <h1>Queries</h1>
+        <p className={`${baseClass}__query-count`}>{queryText}</p>
+      </div>
+    );
   }
 
   renderQueriesList = () => {
@@ -145,9 +149,9 @@ class ScheduledQueriesListWrapper extends Component {
             placeholder="Search Queries"
             value={querySearchText}
           />
-          {renderButton()}
         </div>
         {renderQueriesList()}
+        {renderButton()}
       </div>
     );
   }

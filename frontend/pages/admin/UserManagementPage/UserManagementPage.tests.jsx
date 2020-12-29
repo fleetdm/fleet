@@ -93,14 +93,14 @@ describe('UserManagementPage - component', () => {
       const mockStore = reduxMockStore(store);
       const page = mount(connectedComponent(ConnectedUserManagementPage, { mockStore }));
 
-      expect(page.find('UserBlock').length).toEqual(2);
+      expect(page.find('UserRow').length).toEqual(2);
     });
 
     it('displays a count of the number of users & invites', () => {
       const mockStore = reduxMockStore(store);
       const page = mount(connectedComponent(ConnectedUserManagementPage, { mockStore }));
-
-      expect(page.text()).toContain('Listing 2 users');
+      const count = page.find('.user-management__user-count');
+      expect(count.text()).toContain('2 users');
     });
 
     it(

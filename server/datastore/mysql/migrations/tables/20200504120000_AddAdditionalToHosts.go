@@ -16,7 +16,7 @@ func Up_20200504120000(tx *sql.Tx) error {
 			"ADD COLUMN `additional` JSON DEFAULT NULL;",
 	)
 	if err != nil {
-		errors.Wrap(err, "add additional column")
+		return errors.Wrap(err, "add additional column")
 	}
 
 	_, err = tx.Exec(
@@ -24,7 +24,7 @@ func Up_20200504120000(tx *sql.Tx) error {
 			"ADD COLUMN `additional_queries` JSON DEFAULT NULL;",
 	)
 	if err != nil {
-		errors.Wrap(err, "add additional_queries column")
+		return errors.Wrap(err, "add additional_queries column")
 	}
 
 	return nil

@@ -17,23 +17,13 @@
   h3 {
     font-size: $x-small;
     font-weight: $bold;
-    color: $black;
+    color: $core-dark-blue-grey;
     margin: 24px 0 10px 8px;
   }
 
   &__add-label-btn {
-    color: $white;
-    font-size: $small;
-    font-weight: $bold;
-    background-color: $core-medium-blue-grey;
-    padding: 9px 0;
     width: 100%;
-    text-align: center;
     margin-top: 24px;
-
-    &:hover {
-      background-color: darken($core-medium-blue-grey, 5%);
-    }
   }
 
   &__panel-group-item {

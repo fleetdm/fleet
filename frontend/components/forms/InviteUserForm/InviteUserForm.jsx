@@ -136,13 +136,12 @@ class InviteUserForm extends Component {
     const baseError = serverErrors.base;
 
     return (
-      <form onSubmit={onFormSubmit}>
+      <form onSubmit={onFormSubmit} className={baseClass}>
         {baseError && <div className="form__base-error">{baseError}</div>}
         <InputFieldWithIcon
           autofocus
           error={errors.name}
           name="name"
-          iconName="username"
           onChange={onInputChange('name')}
           placeholder="Name"
           value={name}
@@ -150,13 +149,12 @@ class InviteUserForm extends Component {
         <InputFieldWithIcon
           error={errors.email}
           name="email"
-          iconName="email"
           onChange={onInputChange('email')}
           placeholder="Email"
           value={email}
         />
         <div className={`${baseClass}__radio`}>
-          <p className={`${baseClass}__role`}>admin</p>
+          <p className={`${baseClass}__role`}>Admin</p>
           <Checkbox
             name="admin"
             onChange={onCheckboxChange('admin')}
@@ -167,7 +165,7 @@ class InviteUserForm extends Component {
           </Checkbox>
         </div>
         <div className={`${baseClass}__radio`}>
-          <p className={`${baseClass}__role`}>single sign on</p>
+          <p className={`${baseClass}__role`}>Single sign on</p>
           <Checkbox
             name="sso_enabled"
             onChange={onCheckboxChange('sso_enabled')}

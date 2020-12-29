@@ -7,14 +7,16 @@ import (
 
 type CarveStore interface {
 	NewCarve(metadata *CarveMetadata) (*CarveMetadata, error)
+	UpdateCarve(metadata *CarveMetadata) error
 	Carve(carveId int64) (*CarveMetadata, error)
 	CarveBySessionId(sessionId string) (*CarveMetadata, error)
 	CarveByName(name string) (*CarveMetadata, error)
 	ListCarves(opt CarveListOptions) ([]*CarveMetadata, error)
-	NewBlock(carveId, blockId int64, data []byte) error
-	GetBlock(carveId, blockId int64) ([]byte, error)
+	NewBlock(metadata *CarveMetadata, blockId int64, data []byte) error
+	GetBlock(metadata *CarveMetadata, blockId int64) ([]byte, error)
 	// CleanupCarves will mark carves older than 24 hours expired, and delete the
-	// associated data blocks.
+	// associated data blocks. This behaves differently for carves stored in S3
+	// (check the implementation godoc comment for more details)
 	CleanupCarves(now time.Time) (expired int, err error)
 }
 

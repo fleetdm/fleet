@@ -86,8 +86,7 @@ export class ResetPasswordPage extends Component {
 
     return (
       <StackedWhiteBoxes
-        headerText="Reset Password"
-        leadText="Create a new password using at least one letter, one numeral and seven characters."
+        leadText="Create a new password. Your new password must include 7 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)"
         onLeave={handleLeave}
       >
         <ResetPasswordForm

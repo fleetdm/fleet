@@ -108,9 +108,10 @@ class QueriesList extends Component {
                 onChange={handleCheckAll}
                 value={allQueriesChecked}
               /></th>
-              <th>Query Name</th>
+              <th>Query name</th>
+              <th>Description</th>
               <th className={`${baseClass}__author-name`}>Author</th>
-              <th>Last Modified</th>
+              <th>Last modified</th>
             </tr>
           </thead>
           <tbody>

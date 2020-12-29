@@ -1,6 +1,4 @@
 .host-container {
-  // We set this equal to the max-width of header-wrap to preserve visual consistency
-  max-width: 1206px;
 
   &--no-hosts {
     display: flex;
@@ -47,10 +45,18 @@
 
     &__inner {
       display: flex;
-      align-items: flex-start;
+      align-items: center;
 
       img {
-        margin-right: 24px;
+        width: 176px;
+        margin-right: 34px;
+      }
+
+      p {
+        color: $core-black;
+        font-weight: $regular;
+        font-size: $x-small;
+        margin: 0;
       }
     }
   }

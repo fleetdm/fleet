@@ -584,7 +584,7 @@ const mapStateToProps = (state, ownProps) => {
   const { selectedTargets } = state.components.QueryPages;
   const { host_ids: hostIDs, host_uuids: hostUUIDs } = ownProps.location.query;
   const { isSmallNav } = state.app;
-  const title = queryID ? 'Edit Query' : 'New Query';
+  const title = queryID ? 'Edit query' : 'New query';
   let selectedHosts = [];
 
   if (!queryID && ((hostIDs && hostIDs.length) || (hostUUIDs && hostUUIDs.length)) > 0) {

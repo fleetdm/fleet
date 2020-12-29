@@ -4,9 +4,11 @@
     border-radius: 6px;
     margin-top: $pad-base;
     overflow: scroll;
+    box-shadow: inset -8px 0 17px -10px #e8edf4;
   }
 
   &__table {
+    width: 100%;
     border-collapse: collapse;
     color: $core-black;
     font-size: $x-small;
@@ -44,14 +46,31 @@
   }
 
   &__status {
-    text-indent: 5px;
+    color: $core-dark-blue-grey;
+    text-transform: capitalize;
 
     &--online {
-      color: $success;
+      &:before {
+        background-color: $success;
+        border-radius: 100%;
+        content: ' ';
+        display: inline-block;
+        height: 8px;
+        margin-right: 8px;
+        width: 8px;
+      }
     }
 
     &--offline {
-      color: $alert;
+      &:before {
+        background-color: $core-red;
+        border-radius: 100%;
+        content: ' ';
+        display: inline-block;
+        height: 8px;
+        margin-right: 8px;
+        width: 8px;
+      }
     }
   }
 }

@@ -4,7 +4,7 @@ import { noop } from 'lodash';
 import classnames from 'classnames';
 
 import ClickOutside from 'components/ClickOutside';
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 import Button from 'components/buttons/Button';
 
 const baseClass = 'dropdown-button';
@@ -92,7 +92,7 @@ export class DropdownButton extends Component {
           type={type}
           variant={variant}
         >
-          {children} <Icon name="downcarat" className={`${baseClass}__carat`} />
+          {children} <KolideIcon name="downcarat" className={`${baseClass}__carat`} />
         </Button>
 
         <ul className={optionsClass}>

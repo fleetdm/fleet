@@ -2,7 +2,8 @@
   width: 100%;
 
   &__button-wrap {
-    @include position(absolute, null 0 0 0);
+    display: flex;
+    justify-content: center;
   }
 
   &__input {
@@ -10,6 +11,8 @@
   }
 
   &__btn {
-    margin-top: $pad-base;
+    margin-top: 40px;
+    width: 160px;
+    margin-bottom: 20px;
   }
 }

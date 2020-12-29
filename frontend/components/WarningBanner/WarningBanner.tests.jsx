@@ -8,8 +8,8 @@ describe('WarningBanner - component', () => {
     const props = { shouldShowWarning: true, message: 'message' };
     const component = shallow(<WarningBanner {...props} />);
     expect(component.length).toEqual(1);
-    expect(component.find('Icon').props().name).toEqual('warning-filled');
-    expect(component.find('.warning-banner__label').text()).toEqual('Warning!');
+    expect(component.find('KolideIcon').props().name).toEqual('warning-filled');
+    expect(component.find('.warning-banner__label').text()).toEqual('Warning:');
     expect(component.find('.warning-banner__text').text()).toEqual('message');
   });
 

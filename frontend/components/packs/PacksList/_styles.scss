@@ -1,8 +1,13 @@
 .packs-list {
-  border: 1px solid #b9c2e4;
-  border-radius: 3px;
-  box-shadow: inset 0 0 8px 0 rgba(0, 0, 0, 0.12);
-  margin-top: 20px;
+  border-collapse: collapse;
+  overflow: scroll;
+
+  &__wrapper {
+    border: 1px solid $ui-borders;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 16px;
+  }
 
   thead {
     background-color: $core-light-blue-grey;
@@ -10,8 +15,7 @@
   }
 
   &__th {
-    color: $core-purple;
-    font-size: 14px;
+    font-size: $x-small;
     padding: 14px;
     text-align: center;
 
@@ -36,7 +40,7 @@
 
   &__empty-table {
     text-align: center;
-    font-size: 18px;
+    font-size: $x-small;
     color: $core-black;
   }
 }

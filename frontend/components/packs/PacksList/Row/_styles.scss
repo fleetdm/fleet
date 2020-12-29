@@ -3,16 +3,25 @@
   cursor: pointer;
 
   &--selected {
-    background-color: $ui-light-grey;
+    background-color: $core-blue-label-down;
   }
 
   &:focus {
     outline: none;
   }
 
+  &:hover {
+    background-color: $core-blue-label-over;
+  }
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
   &__td {
     color: $core-black;
-    font-weight: $bold;
+    font-weight: $regular;
+    font-size: $x-small;
     padding: 7px 0;
     text-align: center;
 

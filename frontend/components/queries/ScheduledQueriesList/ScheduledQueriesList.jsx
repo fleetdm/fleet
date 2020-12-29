@@ -4,7 +4,7 @@ import classnames from 'classnames';
 import { includes, sortBy, size } from 'lodash';
 
 import queryInterface from 'interfaces/query';
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 import QueriesListItem from 'components/queries/ScheduledQueriesList/ScheduledQueriesListItem';
 import Checkbox from 'components/forms/fields/Checkbox';
 
@@ -89,12 +89,12 @@ class ScheduledQueriesList extends Component {
             <h2>Then we&apos;ll set the following:</h2>
             <p><strong>interval:</strong> the amount of time, in seconds, the query waits before running</p>
             <p><strong>platform:</strong> the computer platform where this query will run (other platforms ignored)</p>
-            <p><strong>minimum <Icon name="osquery" /> version:</strong> the minimum required <strong>osqueryd</strong> version installed on a host</p>
+            <p><strong>minimum <KolideIcon name="osquery" /> version:</strong> the minimum required <strong>osqueryd</strong> version installed on a host</p>
             <p><strong>logging type:</strong></p>
             <ul>
-              <li><strong><Icon name="plus-minus" /> differential:</strong> show only what’s added from last run</li>
-              <li><strong><Icon name="bold-plus" /> differential (ignore removals):</strong> show only what’s been added since the last run</li>
-              <li><strong><Icon name="camera" /> snapshot:</strong> show everything in its current state</li>
+              <li><strong><KolideIcon name="plus-minus" /> differential:</strong> show only what’s added from last run</li>
+              <li><strong><KolideIcon name="bold-plus" /> differential (ignore removals):</strong> show only what’s been added since the last run</li>
+              <li><strong><KolideIcon name="camera" /> snapshot:</strong> show everything in its current state</li>
             </ul>
           </div>
         </td>
@@ -121,10 +121,10 @@ class ScheduledQueriesList extends Component {
                 onChange={handleSelectAllQueries}
                 value={allQueriesSelected}
               /></th>
-              <th>Query Name</th>
-              <th>Interval [s]</th>
+              <th>Query name</th>
+              <th>Interval(s)</th>
               <th>Platform</th>
-              <th><Icon name="osquery" /> Ver.</th>
+              <th><KolideIcon name="osquery" /> Ver.</th>
               <th>Shard</th>
               <th>Logging</th>
             </tr>

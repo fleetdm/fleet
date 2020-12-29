@@ -1,29 +1,35 @@
 .target-list {
+  background-color: $ui-light-grey;
+
   &__type {
-    background-color: $core-light-blue-grey;
-    line-height: $x-large;
-    padding: 0 $pad-base;
-    margin: 0;
+    padding: 0 8px 4px;
+    margin: 40px 0 0;
     text-transform: uppercase;
-    font-weight: $regular;
-    font-size: $x-small;
+    font-weight: $bold;
+    font-size: $xx-small;
     color: $core-dark-blue-grey;
     letter-spacing: 0.5px;
+    border-bottom: 1px solid $ui-borders;
+
+    &:first-child {
+      margin: 0;
+    }
   }
 
   &__options {
-    width: 57%;
+    width: 50%;
     float: left;
     overflow-y: auto;
-    box-shadow: 0 8px 12px 0 rgba(0, 0, 0, 0.15);
     min-height: 500px;
     position: relative;
     z-index: 2;
-    background-color: $core-light-blue-grey;
+    padding: 24px 16px;
+    border-right: 1px solid $ui-borders;
+    background-color: $white;
   }
 
   &__spotlight {
-    width: 43%;
+    width: 50%;
     float: right;
     overflow-y: auto;
     background-color: $white;
@@ -33,13 +39,7 @@
   }
 
   &__not-found {
-    font-size: $small;
-    font-weight: $bold;
-    line-height: 2.64;
-    text-align: left;
-    color: $core-dark-blue-grey;
-    text-transform: uppercase;
-    display: block;
-    padding: 0 $large;
+    font-size: $x-small;
+    padding: 0 4px 4px;
   }
 }

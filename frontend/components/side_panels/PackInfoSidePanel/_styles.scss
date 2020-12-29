@@ -7,9 +7,8 @@
   padding: 30px;
 
   &__title {
-    font-size: 18px;
+    font-size: $medium;
     font-weight: $regular;
-    letter-spacing: 0.7px;
     color: $core-dark-blue-grey;
     border-bottom: 1px solid $ui-borders;
     padding-bottom: 8px;
@@ -17,8 +16,8 @@
   }
 
   &__subtitle {
-    font-size: 16px;
-    letter-spacing: 0.7px;
+    font-size: $small;
+    font-weight: $regular;
     color: $core-dark-blue-grey;
     margin: 0 0 10px;
     padding-top: 15px;
@@ -26,19 +25,15 @@
 
   p,
   ul {
-    font-size: 13px;
-    line-height: 1.85;
-    letter-spacing: 0.5px;
-    color: #858495;
+    font-size: $x-small;
+    color: $core-dark-blue-grey;
   }
 
   dl {
     dt {
       font-weight: $bold;
-      font-size: 13px;
-      line-height: 1.85;
-      letter-spacing: 0.5px;
-      color: #858495;
+      font-size: $x-small;
+      color: $core-dark-blue-grey;
 
       .kolidecon {
         font-size: 20px;
@@ -52,9 +47,7 @@
 
     dd {
       font-size: 13px;
-      line-height: 1.85;
-      letter-spacing: 0.5px;
-      color: #858495;
+      color: $core-dark-blue-grey;
       margin-left: 30px;
     }
   }

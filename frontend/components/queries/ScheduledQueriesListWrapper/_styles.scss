@@ -1,10 +1,12 @@
 .scheduled-queries-list-wrapper {
   flex-grow: 1;
-  padding: $pad-small $pad-base;
+  padding: 50px 30px;
   margin-bottom: $pad-base;
 
   &__query-count {
-    margin: 0 0 15px;
+    font-size: $x-small;
+    font-weight: $bold;
+    margin: 24px 0;
   }
 
   &__queries-list-wrapper {
@@ -13,13 +15,17 @@
   }
 
   &__search-queries-input {
-    float: left;
     display: inline-block;
-    width: '400px';
+    width: 100%;
+
+    input {
+      width: 100%;
+    }
   }
 
   &__query-btn {
     float: right;
+    margin-top: 14px;
   }
 
   &__search-queries {

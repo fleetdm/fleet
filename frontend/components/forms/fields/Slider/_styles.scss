@@ -46,12 +46,10 @@
   }
 
   &__label {
-    font-size: 18px;
+    font-size: $small;
     font-weight: $regular;
-    letter-spacing: 1.3px;
     text-align: left;
     vertical-align: text-bottom;
-    text-transform: uppercase;
     margin-right: 10px;
     color: $core-medium-blue-grey;
 

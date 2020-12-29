@@ -15,7 +15,7 @@ import Button from 'components/buttons/Button';
 import ChangeEmailForm from 'components/forms/ChangeEmailForm';
 import ChangePasswordForm from 'components/forms/ChangePasswordForm';
 import deepDifference from 'utilities/deep_difference';
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 import InputField from 'components/forms/fields/InputField';
 import { logoutUser, updateUser } from 'redux/nodes/auth/actions';
 import Modal from 'components/modals/Modal';
@@ -215,7 +215,7 @@ export class UserSettingsPage extends Component {
     }
 
     return (
-      <Modal title="Change Password" onExit={onTogglePasswordModal}>
+      <Modal title="Change password" onExit={onTogglePasswordModal}>
         <ChangePasswordForm
           handleSubmit={handleSubmitPasswordForm}
           onCancel={onTogglePasswordModal}
@@ -234,9 +234,9 @@ export class UserSettingsPage extends Component {
     }
 
     return (
-      <Modal title="Get API Token" onExit={onToggleApiTokenModal}>
+      <Modal title="Get API token" onExit={onToggleApiTokenModal}>
         <p className={`${baseClass}__secret-label`}>
-          The following is your API Token:
+          Your API Token:
           <a
             href="#revealSecret"
             onClick={onToggleSecret}
@@ -258,12 +258,12 @@ export class UserSettingsPage extends Component {
             className={`${baseClass}__secret-copy-icon`}
             onClick={onCopySecret(`.${baseClass}__secret-input`)}
           >
-            <Icon name="clipboard" />
+            <KolideIcon name="clipboard" />
           </Button>
         </div>
         <div className={`${baseClass}__button-wrap`}>
-          <Button onClick={onToggleApiTokenModal} variant="success">
-            Return To App
+          <Button onClick={onToggleApiTokenModal} className="button button--brand">
+            Done
           </Button>
         </div>
       </Modal>
@@ -274,7 +274,6 @@ export class UserSettingsPage extends Component {
     const {
       handleSubmit,
       onCancel,
-      onLogout,
       onShowModal,
       onShowApiTokenModal,
       renderEmailModal,
@@ -289,13 +288,13 @@ export class UserSettingsPage extends Component {
     }
 
     const { admin, updated_at: updatedAt, sso_enabled: ssoEnabled } = user;
-    const roleText = admin ? 'ADMIN' : 'USER';
+    const roleText = admin ? 'Admin' : 'User';
     const lastUpdatedAt = moment(updatedAt).fromNow();
 
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__manage body-wrap`}>
-          <h1>Manage User Settings</h1>
+          <h1>Account</h1>
           <UserSettingsForm
             formData={user}
             handleSubmit={handleSubmit}
@@ -305,48 +304,37 @@ export class UserSettingsPage extends Component {
           />
         </div>
         <div className={`${baseClass}__additional body-wrap`}>
-          <h1>Additional Info</h1>
+          <h2>Photo</h2>
 
           <div className={`${baseClass}__change-avatar`}>
             <Avatar user={user} className={`${baseClass}__avatar`} />
             <a href="http://en.gravatar.com/emails/">
-              Change Photo at Gravatar
+              Change photo at Gravatar
             </a>
           </div>
 
-          <Button
-            onClick={onShowApiTokenModal}
-            variant="brand"
-            className={`${baseClass}__button`}
-          >
-            GET API TOKEN
-          </Button>
-
           <div className={`${baseClass}__more-info-detail`}>
-            <Icon name="username" />
-            <strong>Role</strong> - {roleText}
+            <p className={`${baseClass}__header`}>Role</p>
+            <p className={`${baseClass}__description ${baseClass}__role`}>{roleText}</p>
           </div>
           <div className={`${baseClass}__more-info-detail`}>
-            <Icon name="lock-big" />
-            <strong>Password</strong>
+            <p className={`${baseClass}__header`}>Password</p>
           </div>
           <Button
             onClick={onShowModal}
-            variant="brand"
             disabled={ssoEnabled}
-            className={`${baseClass}__button`}
+            className={`${baseClass}__button button button--grey`}
           >
-            CHANGE PASSWORD
+            Change password
           </Button>
           <p className={`${baseClass}__last-updated`}>
             Last changed: {lastUpdatedAt}
           </p>
           <Button
-            onClick={onLogout}
-            variant="alert"
-            className={`${baseClass}__button`}
+            onClick={onShowApiTokenModal}
+            className={`${baseClass}__button button button--grey`}
           >
-            LOGOUT
+            Get API token
           </Button>
         </div>
         {renderEmailModal()}

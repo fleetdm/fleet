@@ -1,41 +1,23 @@
 .forgot-password {
-  top: 50%;
-  margin-top: -170px;
-  height: 420px;
+  transform: translateY(-50px);
 
   &__header {
     text-align: left;
   }
 
   &__text-wrapper {
-    padding: $pad-base;
-    background-color: $ui-light-grey;
-    border-radius: 4px;
-    margin-bottom: $pad-base;
+    font-size: $small;
   }
 
   &__text {
-    font-size: $medium;
+    font-size: $small;
+
+    span {
+      color: $core-blue;
+    }
   }
 
   &__email {
     color: $core-purple;
-  }
-
-  &__button {
-    background-color: $success-light;
-    border-radius: 4px;
-    color: $white;
-    padding: $pad-base;
-    position: relative;
-    text-align: center;
-    text-transform: uppercase;
-  }
-
-  &__icon {
-    font-size: 35px;
-    left: 18px;
-    position: absolute;
-    top: 14px;
   }
 }

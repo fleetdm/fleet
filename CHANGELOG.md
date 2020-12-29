@@ -1,3 +1,34 @@
+## Fleet 3.5.1 (Dec 14, 2020)
+
+### This is a security release.
+
+* **Security**: Introduce XML validation library to mitigate Go stdlib XML parsing vulnerability effecting SSO login. See https://github.com/fleetdm/fleet/security/advisories/GHSA-w3wf-cfx3-6gcx and the linked content within that advisory.
+
+Follow up: Rotate `--auth_jwt_key` to invalidate existing sessions. Audit for suspicious activity in the Fleet server.
+
+* **Security**: Prevent new queries from using the SQLite `ATTACH` command. This is a mitigation for the osquery vulnerability https://github.com/osquery/osquery/security/advisories/GHSA-4g56-2482-x7q8.
+
+Follow up: Audit existing saved queries and logs of live query executions for possible malicious use of `ATTACH`. Upgrade osquery to 4.6.0 to prevent `ATTACH` queries from executing.
+
+* Update icons and fix hosts dashboard for wide screen sizes.
+
+## Fleet 3.5.0 (Dec 10, 2020)
+
+* Refresh the Fleet UI with new colors, fonts, and Fleet logos.
+
+* All releases going forward will have the fleectl.exe.zip on the release page.
+
+* Add documentation for the authentication Fleet REST API endpoints.
+
+* Add FAQ answers about the stress test results for Fleet, configuring labels, and resetting auth tokens.
+
+* Fixed a performance issue users encountered when multiple hosts shared the same UUID by adding a one minute cooldown.
+
+* Improve the `fleetctl preview` startup experience.
+
+* Fix a bug preventing the same query from being added to a scheduled pack more than once in the Fleet UI.
+
+
 ## Fleet 3.4.0 (Nov 18, 2020)
 
 * Add NPM installer for `fleetctl`. Install via `npm install -g osquery-fleetctl`.
@@ -500,7 +531,7 @@ See https://wiki.mozilla.org/Security/Server_Side_TLS for more information on th
 
 * Lower HTTP timeout settings.
 
-  In an effort to provide a more resilient web server, timeouts are more strictly enforced by the Kolide HTTP server (regardless of whether or not you're using the built-in TLS termination). If your Kolide environment is particularly latent and you observe requests timing out, contact us at [help@kolide.co](mailto:help@kolide.co).
+  In an effort to provide a more resilient web server, timeouts are more strictly enforced by the Kolide HTTP server (regardless of whether or not you're using the built-in TLS termination).
 
 * Harden TLS server settings.
 
@@ -550,7 +581,7 @@ See https://wiki.mozilla.org/Security/Server_Side_TLS for more information on th
 
 * Add basic table autocompletion when typing in the query composer.
 
-* Support MySQL client certificate authentication. More details can be found in the [Configuring the Kolide binary docs](https://docs.kolide.co/kolide/1.0.1/infrastructure/configuring-the-kolide-binary.html)
+* Support MySQL client certificate authentication. More details can be found in the [Configuring the Fleet binary docs](./docs/infrastructure/configuring-the-fleet-binary.md).
 
 * Improve security for user-initiated email address changes.
 

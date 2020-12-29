@@ -13,7 +13,7 @@ const redirectMiddleware = store => next => (action) => {
     const httpStatus = get(payload, 'errors.http_status');
 
     if (HTTP_STATUS.INTERNAL_ERROR.test(httpStatus)) {
-      store.dispatch(push(PATHS.KOLIDE_500));
+      store.dispatch(push(PATHS.FLEET_500));
     }
   }
 
