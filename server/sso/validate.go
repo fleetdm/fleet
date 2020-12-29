@@ -1,6 +1,7 @@
 package sso
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/base64"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/beevik/etree"
 	"github.com/fleetdm/fleet/server/kolide"
+	rtvalidator "github.com/mattermost/xml-roundtrip-validator"
 	"github.com/pkg/errors"
 	gosamltypes "github.com/russellhaering/gosaml2/types"
 	dsig "github.com/russellhaering/goxmldsig"
@@ -103,8 +105,16 @@ func (v *validator) ValidateSignature(auth kolide.Auth) (kolide.Auth, error) {
 	}
 	decoded, err := base64.StdEncoding.DecodeString(info.rawResponse())
 	if err != nil {
-		return nil, errors.Wrap(err, "based64 decoding response")
+		return nil, errors.Wrap(err, "base64 decode response")
 	}
+
+	// Examine the response for attempts to exploit weaknesses in Go's
+	// encoding/xml
+	err = rtvalidator.Validate(bytes.NewReader(decoded))
+	if err != nil {
+		return nil, errors.Wrap(err, "response XML failed validation")
+	}
+
 	doc := etree.NewDocument()
 	err = doc.ReadFromBytes(decoded)
 	if err != nil || doc.Root() == nil {

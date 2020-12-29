@@ -5,22 +5,16 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    // We set this equal to the max-width of the host-container to preserve visual consistency
-    max-width: 1206px;
     margin-bottom: 16px;
-  }
-
-  .ace-kolide {
-    // We set this equal to the max-width of the host-container to preserve visual consistency
-    max-width: 1206px;
   }
 
   &__header {
     display: flex;
+    align-items: center;
   }
 
   &__text {
-    margin-right: 16px;
+    margin-right: 24px;
   }
 
   &__title {
@@ -58,8 +52,6 @@
   }
 
   &__description {
-    line-height: 1.54;
-    letter-spacing: 0.5px;
     margin: 0 0 16px;
 
     h2 {
@@ -83,13 +75,10 @@
   }
 
   &__host-count {
-    flex-grow: 1;
     font-size: $x-small;
     font-weight: $bold;
-    letter-spacing: 0.9px;
     color: $core-black;
     margin: 0;
-    display: inline-block;
   }
 
   &__modal {

@@ -4,19 +4,19 @@ export const platformIconClass = (platform = '') => {
   const lowerPlatform = platform.toLowerCase();
 
   switch (lowerPlatform) {
-    case 'macos': return 'apple';
-    case 'mac os x': return 'apple';
-    case 'mac osx': return 'apple';
-    case 'mac os': return 'apple';
-    case 'darwin': return 'apple';
-    case 'apple': return 'apple';
-    case 'centos': return 'centos';
-    case 'centos linux': return 'centos';
-    case 'ubuntu': return 'ubuntu';
-    case 'ubuntu linux': return 'ubuntu';
-    case 'linux': return 'linux';
-    case 'windows': return 'windows';
-    case 'ms windows': return 'windows';
+    case 'macos': return 'icon-apple-dark-20x20@2x.png';
+    case 'mac os x': return 'icon-apple-dark-20x20@2x.png';
+    case 'mac osx': return 'icon-apple-dark-20x20@2x.png';
+    case 'mac os': return 'icon-apple-dark-20x20@2x.png';
+    case 'darwin': return 'icon-apple-dark-20x20@2x.png';
+    case 'apple': return 'icon-apple-dark-20x20@2x.png';
+    case 'centos': return 'icon-centos-dark-20x20@2x.png';
+    case 'centos linux': return 'icon-centos-dark-20x20@2x.png';
+    case 'ubuntu': return 'icon-ubuntu-dark-20x20@2x.png';
+    case 'ubuntu linux': return 'icon-ubuntu-dark-20x20@2x.png';
+    case 'linux': return 'icon-linux-dark-20x20@2x.png';
+    case 'windows': return 'icon-windows-dark-20x20@2x.png';
+    case 'ms windows': return 'icon-windows-dark-20x20@2x.png';
     default: return false;
   }
 };

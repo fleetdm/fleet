@@ -16,7 +16,7 @@ export default {
   },
   FORGOT_PASSWORD: `${URL_PREFIX}/login/forgot`,
   HOME: `${URL_PREFIX}/`,
-  KOLIDE_500: `${URL_PREFIX}/500`,
+  FLEET_500: `${URL_PREFIX}/500`,
   LOGIN: `${URL_PREFIX}/login`,
   LOGOUT: `${URL_PREFIX}/logout`,
   MANAGE_HOSTS: `${URL_PREFIX}/hosts/manage`,

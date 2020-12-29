@@ -8,9 +8,8 @@ import Button from 'components/buttons/Button';
 import entityGetter from 'redux/utilities/entityGetter';
 import InputField from 'components/forms/fields/InputField';
 import Modal from 'components/modals/Modal';
-import NumberPill from 'components/NumberPill';
-import Icon from 'components/icons/Icon';
-import PackInfoSidePanel from 'components/side_panels/PackInfoSidePanel';
+import KolideIcon from 'components/icons/KolideIcon';
+import SecondarySidePanelContainer from 'components/side_panels/SecondarySidePanelContainer';
 import PATHS from 'router/paths';
 import QueryDetailsSidePanel from 'components/side_panels/QueryDetailsSidePanel';
 import QueriesList from 'components/queries/QueriesList';
@@ -188,7 +187,7 @@ export class ManageQueriesPage extends Component {
 
       return (
         <div className={`${baseClass}__ctas`}>
-          <p className={`${baseClass}__query-count`}>{checkedQueryCount} {queryText} Selected</p>
+          <p className={`${baseClass}__query-count`}>{checkedQueryCount} {queryText} selected</p>
           <Button
             className={btnClass}
             onClick={onToggleModal}
@@ -201,7 +200,7 @@ export class ManageQueriesPage extends Component {
     }
 
     return (
-      <Button variant="brand" onClick={goToNewQueryPage}>CREATE NEW QUERY</Button>
+      <Button variant="brand" onClick={goToNewQueryPage}>Create new query</Button>
     );
   }
 
@@ -233,7 +232,12 @@ export class ManageQueriesPage extends Component {
 
     if (!selectedQuery) {
       // FIXME: Render QueryDetailsSidePanel when Fritz has completed the mock
-      return <PackInfoSidePanel />;
+      return (
+        <SecondarySidePanelContainer>
+          <p className={`${baseClass}__empty-label`}>Query</p>
+          <p className={`${baseClass}__empty-description`}>No query selected.</p>
+        </SecondarySidePanelContainer>
+      );
     }
 
     return <QueryDetailsSidePanel onEditQuery={goToEditQueryPage} query={selectedQuery} />;
@@ -255,6 +259,7 @@ export class ManageQueriesPage extends Component {
     const { loadingQueries, queries: allQueries, selectedQuery } = this.props;
     const queries = getQueries();
     const queriesCount = queries.length;
+    const queriesTotalDisplay = queriesCount === 1 ? '1 query' : `${queriesCount} queries`;
     const isQueriesAvailable = allQueries.length > 0;
 
     if (loadingQueries) {
@@ -264,21 +269,24 @@ export class ManageQueriesPage extends Component {
     return (
       <div className={`${baseClass} has-sidebar`}>
         <div className={`${baseClass}__wrapper body-wrap`}>
-          <h1 className={`${baseClass}__title`}>
-            <NumberPill number={queriesCount} /> Queries
-          </h1>
+          <div className={`${baseClass}__header-wrap`}>
+            <h1 className={`${baseClass}__title`}>
+              Queries
+            </h1>
+            {renderCTAs()}
+          </div>
           <div className={`${baseClass}__filter-and-cta`}>
             <div className={`${baseClass}__filter-queries`}>
               <InputField
                 name="query-filter"
                 onChange={onFilterQueries}
-                placeholder="Filter Queries"
+                placeholder="Filter queries"
                 value={queriesFilter}
               />
-              <Icon name="search" />
+              <KolideIcon name="search" />
             </div>
-            {renderCTAs()}
           </div>
+          <p className={`${baseClass}__query-count`}>{queriesTotalDisplay}</p>
           <QueriesList
             checkedQueryIDs={checkedQueryIDs}
             isQueriesAvailable={isQueriesAvailable}

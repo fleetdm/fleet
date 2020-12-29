@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 
-import fleetLogoText from '../../../assets/images/fleet-logo-text-black.svg';
+import fleetLogoText from '../../../assets/images/fleet-logo-text-white.svg';
 
 const baseClass = 'auth-form-wrapper';
 

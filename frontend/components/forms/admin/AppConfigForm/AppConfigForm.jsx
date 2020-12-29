@@ -8,7 +8,7 @@ import Form from 'components/forms/Form';
 import formFieldInterface from 'interfaces/form_field';
 import enrollSecretInterface from 'interfaces/enroll_secret';
 import EnrollSecretTable from 'components/config/EnrollSecretTable';
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 import InputField from 'components/forms/fields/InputField';
 import OrgLogoIcon from 'components/icons/OrgLogoIcon';
 import Slider from 'components/forms/fields/Slider';
@@ -32,7 +32,7 @@ const formFields = [
   'live_query_disabled',
 ];
 const Header = ({ showAdvancedOptions }) => {
-  const CaratIcon = <Icon name={showAdvancedOptions ? 'downcarat' : 'upcarat'} />;
+  const CaratIcon = <KolideIcon name={showAdvancedOptions ? 'downcarat' : 'upcarat'} />;
 
   return <span>Advanced Options {CaratIcon} <small>Most users do not need to modify these options.</small></span>;
 };
@@ -162,20 +162,19 @@ class AppConfigForm extends Component {
           <div className={`${baseClass}__inputs`}>
             <InputField
               {...fields.org_name}
-              label="Organization Name"
+              label="Organization name"
             />
             <InputField
               {...fields.org_logo_url}
-              label="Organization Avatar URL"
+              label="Organization avatar URL"
             />
           </div>
           <div className={`${baseClass}__details ${baseClass}__avatar-preview`}>
             <OrgLogoIcon src={fields.org_logo_url.value} />
-            <p>Avatar Preview</p>
           </div>
         </div>
         <div className={`${baseClass}__section`}>
-          <h2>Fleet Web Address</h2>
+          <h2>Fleet web address</h2>
           <div className={`${baseClass}__inputs`}>
             <InputField
               {...fields.kolide_server_url}
@@ -184,7 +183,7 @@ class AppConfigForm extends Component {
             />
           </div>
           <div className={`${baseClass}__details`}>
-            <p>The base URL of this instance for use in <strong>Fleet</strong> links.</p>
+            <p>The base URL of this instance for use in Fleet links.</p>
           </div>
         </div>
 
@@ -217,7 +216,7 @@ class AppConfigForm extends Component {
             />
           </div>
           <div className={`${baseClass}__details`}>
-            <p>The required entity ID is a URI that you use to identify <strong>Fleet</strong> when configuring the identity provider.</p>
+            <p>The required entity ID is a URI that you use to identify Fleet when configuring the identity provider.</p>
           </div>
 
           <div className={`${baseClass}__inputs`}>
@@ -281,7 +280,7 @@ class AppConfigForm extends Component {
             />
           </div>
           <div className={`${baseClass}__details`}>
-            <p>The address email recipients will see all messages that are sent from the <strong>Fleet</strong> application.</p>
+            <p>The sender address for emails from Fleet.</p>
           </div>
           <div className={`${baseClass}__inputs ${baseClass}__inputs--smtp`}>
             <InputField
@@ -333,7 +332,7 @@ class AppConfigForm extends Component {
           type="submit"
           variant="brand"
         >
-          UPDATE SETTINGS
+          Update settings
         </Button>
       </form>
     );

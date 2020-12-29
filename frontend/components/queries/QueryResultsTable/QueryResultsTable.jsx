@@ -6,7 +6,7 @@ import { keys, omit } from 'lodash';
 import Button from 'components/buttons/Button';
 import campaignInterface from 'interfaces/campaign';
 import filterArrayByHash from 'utilities/filter_array_by_hash';
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 import InputField from 'components/forms/fields/InputField';
 import QueryResultsRow from 'components/queries/QueryResultsTable/QueryResultsRow';
 import QueryProgressDetails from 'components/queries/QueryProgressDetails';
@@ -66,7 +66,7 @@ class QueryResultsTable extends Component {
 
     return (
       <th key={`query-results-table-header-${index}`}>
-        <span><Icon className={filterIconClassName} name="filter" />{column}</span>
+        <span><KolideIcon className={filterIconClassName} name="filter" />{column}</span>
         <InputField
           name={column}
           onChange={onFilterAttribute(filterable)}
@@ -178,14 +178,14 @@ class QueryResultsTable extends Component {
           <Button
             className={toggleFullScreenBtnClass}
             onClick={onToggleQueryFullScreen}
-            variant="muted"
+            variant="grey"
           >
-            <Icon name={isQueryFullScreen ? 'windowed' : 'fullscreen'} />
+            <KolideIcon name={isQueryFullScreen ? 'windowed' : 'fullscreen'} />
           </Button>
           <Button
             className={`${baseClass}__export-btn`}
             onClick={onExportQueryResults}
-            variant="link"
+            variant="inverse"
           >
             Export
           </Button>

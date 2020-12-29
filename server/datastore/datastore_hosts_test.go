@@ -229,14 +229,18 @@ func testListHostsStatus(t *testing.T, ds kolide.Datastore) {
 
 func testEnrollHost(t *testing.T, ds kolide.Datastore) {
 	test.AddAllHostsLabel(t, ds)
-	var hosts []*kolide.Host
+	enrollSecretName := "default"
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, "default")
+		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, enrollSecretName)
 		require.Nil(t, err)
 
-		hosts = append(hosts, h)
 		assert.Equal(t, tt.uuid, h.OsqueryHostID)
-		assert.NotEmpty(t, h.NodeKey)
+		assert.Equal(t, tt.nodeKey, h.NodeKey)
+		assert.Equal(t, enrollSecretName, h.EnrollSecretName)
+
+		// This host should not be allowed to re-enroll immediately
+		_, err = ds.EnrollHost(tt.uuid, tt.nodeKey+"new", enrollSecretName+"new")
+		require.Error(t, err)
 	}
 }
 

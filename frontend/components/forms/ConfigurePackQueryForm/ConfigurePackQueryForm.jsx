@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { pull } from 'lodash';
 
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 import Button from 'components/buttons/Button';
 import Dropdown from 'components/forms/fields/Dropdown';
 import Form from 'components/forms/Form';
@@ -142,7 +142,7 @@ export class ConfigurePackQueryForm extends Component {
             {...fields.version}
             options={minOsqueryVersionOptions}
             placeholder="- - -"
-            label={['minimum ', <Icon name="osquery" key="min-osquery-vers" />, ' version']}
+            label={['minimum ', <KolideIcon name="osquery" key="min-osquery-vers" />, ' version']}
             wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--osquer-vers`}
           />
           <Dropdown

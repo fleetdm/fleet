@@ -8,12 +8,23 @@
       font-weight: $regular;
       float: right;
       height: 23px;
-      letter-spacing: -0.5px;
       text-transform: none;
     }
 
     input {
       color: $core-purple;
+    }
+  }
+
+  .form-field {
+    &__label {
+      font-weight: $bold;
+      margin-bottom: 4px;
+    }
+
+    &__hint {
+      font-size: $x-small;
+      font-style: italic;
     }
   }
 
@@ -24,8 +35,6 @@
     .smtp-options {
       font-size: 15px;
       font-weight: $bold;
-      line-height: 3.2;
-      letter-spacing: 0.6px;
       color: $core-dark-blue-grey;
       padding-left: 15px;
 
@@ -83,11 +92,9 @@
     width: 40%;
 
     p {
-      font-size: 15px;
-      font-weight: $regular;
-      line-height: 1.6;
-      letter-spacing: 0.5px;
-      color: $core-dark-blue-grey;
+      font-size: $x-small;
+      font-style: italic;
+      margin: 32px 0;
     }
 
     .hint {
@@ -103,10 +110,12 @@
     text-align: center;
 
     img {
-      border-radius: 80px;
-      height: 160px;
-      width: 160px;
+      border-radius: 20%;
+      height: 120px;
+      width: 120px;
       border: 1px solid $ui-borders;
+      background-color: $ui-light-grey;
+      transform: translate(-100px, 20px);
     }
 
     p {
@@ -117,53 +126,13 @@
     }
   }
 
-  &__show-options {
-    color: $core-dark-blue-grey;
-  }
-
   &__smtp-section {
     @include clearfix;
-    border-radius: 2px;
-    background-color: $core-medium-blue-grey;
-    border: solid 1px $ui-borders;
-    padding: 30px;
-
-    .form-field {
-      @include clearfix;
-
-      &__label {
-        float: left;
-        font-size: 15px;
-        font-weight: $bold;
-        letter-spacing: 0.6px;
-        text-align: right;
-        color: $core-dark-blue-grey;
-        width: 32%;
-        margin: 0;
-        line-height: 40px;
-
-        @media (min-width: $medium-width + 1) and (max-width: 1195px) {
-          line-height: 18px;
-        }
-      }
-
-      &:last-child {
-        margin: 0;
-      }
-    }
-
-    .input-field,
-    .Select,
-    .kolide-slider__wrapper {
-      width: 60%;
-      float: right;
-    }
 
     .slide-wrapper {
       .slider-option {
         font-size: 18px;
         font-weight: $regular;
-        letter-spacing: 1.3px;
         text-align: left;
         vertical-align: text-bottom;
 

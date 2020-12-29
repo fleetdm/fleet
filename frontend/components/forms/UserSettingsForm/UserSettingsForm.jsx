@@ -62,8 +62,8 @@ class UserSettingsForm extends Component {
           label="Position"
         />
         <div className={`${baseClass}__button-wrap`}>
-          <Button onClick={onCancel} variant="inverse">CANCEL</Button>
-          <Button type="submit" variant="brand">UPDATE</Button>
+          <Button onClick={onCancel} variant="inverse">Cancel</Button>
+          <Button type="submit" variant="brand">Update</Button>
         </div>
       </form>
     );

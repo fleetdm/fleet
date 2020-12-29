@@ -7,7 +7,7 @@ import Button from 'components/buttons/Button';
 import configInterface from 'interfaces/config';
 import enrollSecretInterface from 'interfaces/enroll_secret';
 import EnrollSecretTable from 'components/config/EnrollSecretTable';
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 import DownloadIcon from '../../../../assets/images/icon-download-12x12@2x.png';
 
 const baseClass = 'add-host-modal';
@@ -113,13 +113,13 @@ class AddHostModal extends Component {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Add Hosts Documentation <Icon name="external-link" />
+                Add Hosts Documentation <KolideIcon name="external-link" />
               </a>
             </h4>
           </div>
           <ol className={`${baseClass}__install-steps`}>
             <li>
-              <h4><span className={`${baseClass}__step-number`}>1</span>Enroll Secret</h4>
+              <h4><span className={`${baseClass}__step-number`}>1</span>Enroll secret</h4>
               <p>
                 Provide an active enroll secret to allow osquery to authenticate with the Fleet server:
               </p>
@@ -128,7 +128,7 @@ class AddHostModal extends Component {
               </div>
             </li>
             <li>
-              <h4><span className={`${baseClass}__step-number`}>2</span>Server Certificate</h4>
+              <h4><span className={`${baseClass}__step-number`}>2</span>Server certificate</h4>
               <p>
                 Provide the TLS certificate used by the Fleet server to enable secure connections from osquery:
               </p>
@@ -153,7 +153,7 @@ class AddHostModal extends Component {
               </p>
             </li>
             <li>
-              <h4><span className={`${baseClass}__step-number`}>4</span>Run Osquery</h4>
+              <h4><span className={`${baseClass}__step-number`}>4</span>Run osquery</h4>
               <p>
                 Run osquery from the directory containing the above files (may require sudo or Run as Administrator privileges):
               </p>

@@ -36,7 +36,7 @@ class EditPackForm extends Component {
 
     return (
       <form className={`${baseClass} ${className}`} onSubmit={handleSubmit}>
-        <h1>Edit Pack</h1>
+        <h1>Edit pack</h1>
         <InputField
           {...fields.name}
           placeholder="Query Pack Title"

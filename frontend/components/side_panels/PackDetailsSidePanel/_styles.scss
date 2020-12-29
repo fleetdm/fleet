@@ -1,5 +1,5 @@
 .pack-details-side-panel {
-  padding: 20px;
+  padding: 16px 20px 0;
 
   &__description {
     color: $core-dark-blue-grey;
@@ -8,17 +8,13 @@
   }
 
   &__section-label {
-    border-bottom: 1px solid $ui-borders;
-    color: $core-dark-blue-grey;
-    font-size: 16px;
+    font-size: $medium;
     font-weight: $bold;
-    letter-spacing: -0.5px;
-    margin-bottom: 0;
-    padding-bottom: 10px;
+    margin: 24px 0 16px;
   }
 
   &__edit-pack-link {
-    display: block;
+    width: 100%;
   }
 
   &__pack-icon {
@@ -29,9 +25,9 @@
   &__pack-name {
     @include ellipsis(250px);
     color: $core-dark-blue-grey;
-    font-size: 18px;
-    font-weight: $bold;
-    letter-spacing: -0.5px;
+    font-size: $small;
+    font-weight: $regular;
+    margin: 0;
   }
 
   &__query-icon {
@@ -42,18 +38,14 @@
 
   &__queries-list {
     list-style: none;
-    margin: 0;
+    margin: 0 0 16px;
     padding: 0;
   }
 
   &__query-name {
     @include ellipsis(240px);
-    font-size: 14px;
-    vertical-align: middle;
+    font-size: $small;
+    color: $core-blue;
     text-decoration: none;
-
-    &:hover {
-      text-decoration: underline;
-    }
   }
 }

@@ -2,26 +2,24 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import classnames from 'classnames';
 
-const baseClass = 'kolidecon';
+const baseClass = 'icon';
 
 export class Icon extends Component {
   static propTypes = {
     className: PropTypes.string,
-    fw: PropTypes.bool,
     name: PropTypes.string.isRequired,
-    size: PropTypes.string,
-    title: PropTypes.string,
+    size: PropTypes.string.isRequired,
   };
 
   render () {
-    const { className, fw, name, size, title } = this.props;
-    const iconClasses = classnames(baseClass, `${baseClass}-${name}`, className, {
-      [`${baseClass}-fw`]: fw,
+    const { className, name, size } = this.props;
+    const src = `../../../assets/images/icon-${name}-${size}x${size}@2x.png`;
+    const iconClasses = classnames(baseClass, className, {
       [`${baseClass}-${size}`]: size,
     });
 
     return (
-      <i className={iconClasses} title={title} />
+      <img src={src} alt={`${name} icon`} className={iconClasses} />
     );
   }
 }

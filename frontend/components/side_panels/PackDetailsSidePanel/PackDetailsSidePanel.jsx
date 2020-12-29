@@ -1,7 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
-import Icon from 'components/icons/Icon';
 import { Link } from 'react-router';
 import packInterface from 'interfaces/pack';
 import ScheduledQueriesSection from 'components/side_panels/PackDetailsSidePanel/ScheduledQueriesSection';
@@ -33,21 +32,21 @@ const PackDetailsSidePanel = ({ onUpdateSelectedPack, pack, scheduledQueries = [
 
   return (
     <SecondarySidePanelContainer className={baseClass}>
+      <p className={`${baseClass}__section-label`}>Pack</p>
       <h2 className={`${baseClass}__pack-name`}>
-        <Icon className={`${baseClass}__pack-icon`} name="packs" />
         <span>{pack.name}</span>
       </h2>
+      <ScheduledQueriesSection scheduledQueries={scheduledQueries} />
+      <Description pack={pack} />
       <Slider
-        activeText="ENABLED"
-        inactiveText="DISABLED"
+        activeText="Enabled"
+        inactiveText="Disabled"
         onChange={updatePackStatus}
         value={!disabled}
       />
-      <Link className={`${baseClass}__edit-pack-link button button--inverse`} to={PATHS.PACK({ id: pack.id })}>
-        Edit Pack
+      <Link className={`${baseClass}__edit-pack-link button button--inverse`} to={`${PATHS.PACK({ id: pack.id })}/edit`}>
+        Edit pack
       </Link>
-      <Description pack={pack} />
-      <ScheduledQueriesSection scheduledQueries={scheduledQueries} />
     </SecondarySidePanelContainer>
   );
 };

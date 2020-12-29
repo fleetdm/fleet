@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import classnames from 'classnames';
 
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 import targetInterface from 'interfaces/target';
 import TargetIcon from './TargetIcon';
 
@@ -36,7 +36,6 @@ class TargetOption extends Component {
 
       return (
         <span>
-          <span className={`${baseClass}__delimeter`}>&bull;</span>
           <span className={`${baseClass}__ip`}>{hostIpAddress}</span>
         </span>
       );
@@ -60,12 +59,14 @@ class TargetOption extends Component {
     return (
       <div className={wrapperClassName}>
         <button className={`button button--unstyled ${baseClass}__target-content`} onClick={onMoreInfoClick(target)}>
-          <TargetIcon target={target} />
-          <span className={`${baseClass}__label-label`}>{displayText}</span>
+          <div>
+            <TargetIcon target={target} />
+            <span className={`${baseClass}__label-label`}>{displayText}</span>
+          </div>
           {renderTargetDetail()}
         </button>
         <button className={`button button--unstyled ${baseClass}__add-btn`} onClick={handleSelect}>
-          <Icon name="add-button" />
+          <KolideIcon name="add-button" />
         </button>
       </div>
     );

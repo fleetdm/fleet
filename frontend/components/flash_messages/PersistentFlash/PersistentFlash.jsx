@@ -2,7 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import classnames from 'classnames';
 
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 
 const baseClass = 'persistent-flash';
 
@@ -12,7 +12,7 @@ const PersistentFlash = ({ message }) => {
   return (
     <div className={klass}>
       <div className={`${baseClass}__content`}>
-        <Icon name="warning-filled" /> <span>{message}</span>
+        <KolideIcon name="warning-filled" /> <span>{message}</span>
       </div>
     </div>
   );

@@ -5,6 +5,6 @@ import Icon from './Icon';
 
 describe('Icon - component', () => {
   it('renders', () => {
-    expect(mount(<Icon name="success-check" />)).toBeTruthy();
+    expect(mount(<Icon name="main-hosts" size="24" />)).toBeTruthy();
   });
 });

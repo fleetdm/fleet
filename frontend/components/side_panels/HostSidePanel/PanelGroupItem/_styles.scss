@@ -5,24 +5,15 @@ $base-class: 'panel-group-item';
   width: 100%;
   font-size: $x-small;
   font-weight: $regular;
-  color: $black;
+  color: $core-dark-blue-grey;
   text-align: left;
   padding: 10px 0;
   margin: 2px 0;
   border-radius: 8px;
 
-  &:hover {
-    background-color: $core-blue-selected;
-
-  }
-
   &.#{$base-class}--selected {
     font-weight: $bold;
-    background-color: $core-blue-selected;
-
-    .#{$base-class}__icon {
-      color: $white;
-    }
+    background-color: $core-blue-label-down;
 
     .#{$base-class}__count {
       font-weight: $bold;
@@ -30,6 +21,7 @@ $base-class: 'panel-group-item';
   }
 
   &__flexy {
+    width: 100%;
     display: flex;
     align-items: center;
   }

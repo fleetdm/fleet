@@ -11,9 +11,10 @@
 
       .form-field__hint {
         position: absolute;
-        bottom: 5px;
+        bottom: 10px;
         right: 10px;
         text-transform: lowercase;
+        font-size: $x-small;
       }
     }
   }

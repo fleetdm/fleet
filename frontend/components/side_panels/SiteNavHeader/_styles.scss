@@ -16,6 +16,7 @@
   &__logo {
     @include size(24px);
     margin-right: 24px;
+    border-radius: 20%;
 
     @at-root .site-nav--small & {
       margin: 24px 5px 10px;

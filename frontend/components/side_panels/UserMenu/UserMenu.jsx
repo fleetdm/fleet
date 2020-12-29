@@ -41,8 +41,9 @@ class UserMenu extends Component {
       <div className={userMenuClass}>
         <nav className={`${baseClass}__nav`}>
           <ul className={`${baseClass}__nav-list`}>
-            <li className={settingsNavItemBaseClass}><a href="#settings" onClick={onNavItemClick(PATHS.USER_SETTINGS)}><Icon name="user-settings" /><span>Settings</span></a></li>
-            <li className={`${baseClass}__nav-item`}><a href="#logout" onClick={onLogout}><Icon name="logout" /><span>Log Out</span></a></li>
+            <li className={settingsNavItemBaseClass}><a href="#settings" onClick={onNavItemClick(PATHS.USER_SETTINGS)}><Icon name="main-settings-white" size="24" /><span>Account</span></a></li>
+            <li className={`${baseClass}__nav-item`}><a href="https://github.com/fleetdm/fleet/blob/master/docs/README.md" target="_blank" rel="noreferrer"><Icon name="main-help-white" size="24" /><span>Help</span></a></li>
+            <li className={`${baseClass}__nav-item`}><a href="#logout" onClick={onLogout}><Icon name="main-logout-white" size="24" /><span>Log out</span></a></li>
           </ul>
         </nav>
       </div>

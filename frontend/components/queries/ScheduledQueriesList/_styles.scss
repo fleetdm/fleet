@@ -1,8 +1,7 @@
 .scheduled-queries-list {
   background-color: $white;
   border: 1px solid $ui-borders;
-  border-radius: 3px;
-  box-shadow: inset 0 0 8px 0 rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
   box-sizing: border-box;
 
   &__table {
@@ -13,14 +12,12 @@
     thead {
       height: 50px;
       background-color: $core-light-blue-grey;
-      box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.12);
+      border-bottom: 1px solid $ui-borders;
 
       th {
-        font-size: 14px;
+        font-size: $x-small;
         font-weight: $bold;
-        letter-spacing: -0.5px;
         text-align: left;
-        color: $core-purple;
         padding: 15px 10px;
 
         .form-field {
@@ -61,7 +58,6 @@
       td {
         padding: 0 10px;
         margin: 0;
-        border-bottom: 1px solid $ui-borders;
 
         .form-field {
           margin: 0;

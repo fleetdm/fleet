@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var mockCreatedAt time.Time = time.Now().UTC().Truncate(time.Second)
+
 func testCarveMetadata(t *testing.T, ds kolide.Datastore) {
 	h := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
 
@@ -23,6 +25,7 @@ func testCarveMetadata(t *testing.T, ds kolide.Datastore) {
 		CarveId:    "carve_id",
 		RequestId:  "request_id",
 		SessionId:  "session_id",
+		CreatedAt:  mockCreatedAt,
 	}
 
 	expectedCarve, err := ds.NewCarve(expectedCarve)
@@ -32,17 +35,15 @@ func testCarveMetadata(t *testing.T, ds kolide.Datastore) {
 
 	carve, err := ds.CarveBySessionId(expectedCarve.SessionId)
 	require.NoError(t, err)
-	expectedCarve.CreatedAt = carve.CreatedAt // Ignore created_at field
 	assert.Equal(t, expectedCarve, carve)
 
 	carve, err = ds.Carve(expectedCarve.ID)
-	expectedCarve.CreatedAt = carve.CreatedAt // Ignore created_at field
 	require.NoError(t, err)
 	assert.Equal(t, expectedCarve, carve)
 
 	// Check for increment of max block
 
-	err = ds.NewBlock(carve.ID, 0, nil)
+	err = ds.NewBlock(carve, 0, nil)
 	require.NoError(t, err)
 	expectedCarve.MaxBlock = 0
 
@@ -56,7 +57,7 @@ func testCarveMetadata(t *testing.T, ds kolide.Datastore) {
 
 	// Check for increment of max block
 
-	err = ds.NewBlock(carve.ID, 1, nil)
+	err = ds.NewBlock(carve, 1, nil)
 	require.NoError(t, err)
 	expectedCarve.MaxBlock = 1
 
@@ -84,6 +85,7 @@ func testCarveBlocks(t *testing.T, ds kolide.Datastore) {
 		CarveId:    "carve_id",
 		RequestId:  "request_id",
 		SessionId:  "session_id",
+		CreatedAt:  mockCreatedAt,
 	}
 
 	carve, err := ds.NewCarve(carve)
@@ -97,13 +99,13 @@ func testCarveBlocks(t *testing.T, ds kolide.Datastore) {
 		require.NoError(t, err, "generate block")
 		expectedBlocks[i] = block
 
-		err = ds.NewBlock(carve.ID, i, block)
+		err = ds.NewBlock(carve, i, block)
 		require.NoError(t, err, "write block %v", block)
 	}
 
 	// Verify retrieved blocks match inserted blocks
 	for i := int64(0); i < blockCount; i++ {
-		data, err := ds.GetBlock(carve.ID, i)
+		data, err := ds.GetBlock(carve, i)
 		require.NoError(t, err, "get block %d %v", i, expectedBlocks[i])
 		assert.Equal(t, expectedBlocks[i], data)
 	}
@@ -124,6 +126,7 @@ func testCarveCleanupCarves(t *testing.T, ds kolide.Datastore) {
 		CarveId:    "carve_id",
 		RequestId:  "request_id",
 		SessionId:  "session_id",
+		CreatedAt:  mockCreatedAt,
 	}
 
 	carve, err := ds.NewCarve(carve)
@@ -137,7 +140,7 @@ func testCarveCleanupCarves(t *testing.T, ds kolide.Datastore) {
 		require.NoError(t, err, "generate block")
 		expectedBlocks[i] = block
 
-		err = ds.NewBlock(carve.ID, i, block)
+		err = ds.NewBlock(carve, i, block)
 		require.NoError(t, err, "write block %v", block)
 	}
 
@@ -145,7 +148,7 @@ func testCarveCleanupCarves(t *testing.T, ds kolide.Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, expired)
 
-	_, err = ds.GetBlock(carve.ID, 0)
+	_, err = ds.GetBlock(carve, 0)
 	require.NoError(t, err)
 
 	expired, err = ds.CleanupCarves(time.Now().Add(24 * time.Hour))
@@ -153,14 +156,13 @@ func testCarveCleanupCarves(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, 1, expired)
 
 	// Should no longer be able to get data
-	_, err = ds.GetBlock(carve.ID, 0)
+	_, err = ds.GetBlock(carve, 0)
 	require.Error(t, err, "data should be expired")
 
 	carve, err = ds.Carve(carve.ID)
 	require.NoError(t, err)
 	assert.True(t, carve.Expired)
 }
-
 
 func testCarveListCarves(t *testing.T, ds kolide.Datastore) {
 	h := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
@@ -174,13 +176,15 @@ func testCarveListCarves(t *testing.T, ds kolide.Datastore) {
 		CarveId:    "carve_id",
 		RequestId:  "request_id",
 		SessionId:  "session_id",
+		CreatedAt:  mockCreatedAt,
+		MaxBlock:   -1,
 	}
 
 	expectedCarve, err := ds.NewCarve(expectedCarve)
 	require.NoError(t, err)
 	assert.NotEqual(t, 0, expectedCarve.ID)
 	// Add a block to this carve
-	err = ds.NewBlock(expectedCarve.ID, 0, nil)
+	err = ds.NewBlock(expectedCarve, 0, nil)
 	require.NoError(t, err)
 	expectedCarve.MaxBlock = 0
 
@@ -193,6 +197,7 @@ func testCarveListCarves(t *testing.T, ds kolide.Datastore) {
 		CarveId:    "carve_id2",
 		RequestId:  "request_id2",
 		SessionId:  "session_id2",
+		CreatedAt:  mockCreatedAt,
 	}
 
 	expectedCarve2, err = ds.NewCarve(expectedCarve2)
@@ -202,9 +207,6 @@ func testCarveListCarves(t *testing.T, ds kolide.Datastore) {
 
 	carves, err := ds.ListCarves(kolide.CarveListOptions{Expired: true})
 	require.NoError(t, err)
-	// Ignore created_at timestamps
-	expectedCarve.CreatedAt = carves[0].CreatedAt
-	expectedCarve2.CreatedAt = carves[1].CreatedAt
 	assert.Equal(t, []*kolide.CarveMetadata{expectedCarve, expectedCarve2}, carves)
 
 	// Expire the carves
@@ -218,4 +220,35 @@ func testCarveListCarves(t *testing.T, ds kolide.Datastore) {
 	carves, err = ds.ListCarves(kolide.CarveListOptions{Expired: true})
 	require.NoError(t, err)
 	assert.Len(t, carves, 2)
+}
+
+func testCarveUpdateCarve(t *testing.T, ds kolide.Datastore) {
+	h := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
+
+	actualCount := int64(10)
+	carve := &kolide.CarveMetadata{
+		HostId:     h.ID,
+		Name:       "foobar",
+		BlockCount: actualCount,
+		BlockSize:  20,
+		CarveSize:  actualCount * 20,
+		CarveId:    "carve_id",
+		RequestId:  "request_id",
+		SessionId:  "session_id",
+		CreatedAt:  mockCreatedAt,
+	}
+
+	carve, err := ds.NewCarve(carve)
+	require.NoError(t, err)
+
+	carve.Expired = true
+	carve.MaxBlock = 10
+	carve.BlockCount = 15 // it should not get updated
+	err = ds.UpdateCarve(carve)
+	require.NoError(t, err)
+
+	carve.BlockCount = actualCount
+	dbCarve, err := ds.Carve(carve.ID)
+	require.NoError(t, err)
+	assert.Equal(t, carve, dbCarve)
 }

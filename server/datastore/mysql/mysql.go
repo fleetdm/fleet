@@ -12,18 +12,19 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/cenkalti/backoff/v4"
-	"github.com/go-kit/kit/log"
-	"github.com/go-sql-driver/mysql"
-	"github.com/jmoiron/sqlx"
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/go-kit/kit/log"
+	"github.com/go-sql-driver/mysql"
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
 const (
-	defaultSelectLimit = 1000000
+	defaultSelectLimit   = 1000000
+	mySQLTimestampFormat = "2006-01-02 15:04:05" // %Y/%m/%d %H:%M:%S
 )
 
 var (
@@ -68,7 +69,9 @@ func (d *Datastore) withRetryTxx(fn txFn) (err error) {
 
 		defer func() {
 			if p := recover(); p != nil {
-				tx.Rollback()
+				if err := tx.Rollback(); err != nil {
+					d.logger.Log("err", err, "msg", "error encountered during transaction panic rollback")
+				}
 				panic(p)
 			}
 		}()
@@ -77,13 +80,17 @@ func (d *Datastore) withRetryTxx(fn txFn) (err error) {
 		if err != nil {
 			rbErr := tx.Rollback()
 			if rbErr != nil && rbErr != sql.ErrTxDone {
-				panic(fmt.Sprintf("got err '%s' rolling back after err '%s'", rbErr, err))
+				return fmt.Errorf("got err '%s' rolling back after err '%s'", rbErr, err)
 			}
+			return err
 		} else {
 			err = tx.Commit()
+			if err != nil {
+				return errors.Wrap(err, "committing transaction")
+			}
 		}
 
-		return errors.Wrap(err, "committing transaction")
+		return nil
 	}
 
 	bo := backoff.NewExponentialBackOff()

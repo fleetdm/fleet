@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/igm/sockjs-go/v3/sockjs"
 	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/websocket"
+	"github.com/igm/sockjs-go/v3/sockjs"
 	"github.com/pkg/errors"
 )
 
@@ -41,12 +41,16 @@ func (svc service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 		return nil, errNoContext
 	}
 
-	query, err := svc.ds.NewQuery(&kolide.Query{
+	query := &kolide.Query{
 		Name:     fmt.Sprintf("distributed_%s_%d", vc.Username(), time.Now().Unix()),
 		Query:    queryString,
 		Saved:    false,
 		AuthorID: uintPtr(vc.UserID()),
-	})
+	}
+	if err := query.ValidateSQL(); err != nil {
+		return nil, err
+	}
+	query, err := svc.ds.NewQuery(query)
 	if err != nil {
 		return nil, errors.Wrap(err, "new query")
 	}

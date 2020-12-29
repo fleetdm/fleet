@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { filter } from 'lodash';
 
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 import Button from 'components/buttons/Button';
 import InputField from 'components/forms/fields/InputField';
 import labelInterface from 'interfaces/label';
@@ -82,11 +82,11 @@ class HostSidePanel extends Component {
           <InputField
             name="tags-filter"
             onChange={onFilterLabels}
-            placeholder="Filter Labels by Name..."
+            placeholder="Filter labels by name..."
             value={labelFilter}
             inputWrapperClass={`${baseClass}__filter-labels`}
           />
-          <Icon name="search" />
+          <KolideIcon name="search" />
         </div>
         <PanelGroup
           groupItems={customLabels}
@@ -95,7 +95,7 @@ class HostSidePanel extends Component {
           type="label"
         />
 
-        <Button variant="unstyled" onClick={onAddLabelClick} className={`${baseClass}__add-label-btn`}>
+        <Button variant="grey" onClick={onAddLabelClick} className={`${baseClass}__add-label-btn`}>
           Add new label
         </Button>
       </SecondarySidePanelContainer>

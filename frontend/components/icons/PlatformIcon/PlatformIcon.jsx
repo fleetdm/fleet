@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import classnames from 'classnames';
 
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 import platformIconClass from 'utilities/platform_icon_class';
 
 const baseClass = 'platform-icon';
@@ -26,7 +26,7 @@ export class PlatformIcon extends Component {
     }
 
     return (
-      <Icon
+      <KolideIcon
         className={iconClasses}
         fw={fw}
         name={iconName}

@@ -26,10 +26,10 @@ describe('HostsContainer - component', () => {
     expect(page.find('Spinner').length).toEqual(1);
   });
 
-  it('render LonelyHost if no hosts available', () => {
+  it('displays getting started text if no hosts available', () => {
     const page = mount(<HostContainer {...props} hosts={[]} selectedLabel={allHostsLabel} />);
 
-    expect(page.find('LonelyHost').length).toEqual(1);
+    expect(page.find('h2').text()).toEqual('Get started adding hosts to Fleet.');
   });
 
   it('renders message if no hosts available and not on All Hosts', () => {

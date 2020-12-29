@@ -36,6 +36,12 @@ const (
 	// online interval to avoid flapping of hosts that check in a bit later
 	// than their expected checkin interval.
 	OnlineIntervalBuffer = 30
+
+	// HostEnrollCooldown is how often a host can enroll. Users sometimes deploy
+	// osquery in a configuration in which multiple hosts use the same host
+	// identifier and Fleet needs to have a cooldown period to prevent this from
+	// cascading into out of control host enrollment.
+	HostEnrollCooldown = 1 * time.Minute
 )
 
 type HostStore interface {
@@ -45,6 +51,9 @@ type HostStore interface {
 	SaveHost(host *Host) error
 	DeleteHost(hid uint) error
 	Host(id uint) (*Host, error)
+	// EnrollHost will enroll a new host with the given identifier, setting the
+	// node key, and enroll secret used for the host. Implementations of this
+	// method should respect HostEnrollCooldown.
 	EnrollHost(osqueryHostId, nodeKey, secretName string) (*Host, error)
 	ListHosts(opt HostListOptions) ([]*Host, error)
 	// AuthenticateHost authenticates and returns host metadata by node key.
@@ -100,6 +109,7 @@ type Host struct {
 	OsqueryHostID    string        `json:"-" db:"osquery_host_id"`
 	DetailUpdateTime time.Time     `json:"detail_updated_at" db:"detail_update_time"` // Time that the host details were last updated
 	LabelUpdateTime  time.Time     `json:"label_updated_at" db:"label_update_time"`   // Time that the host details were last updated
+	LastEnrollTime   time.Time     `json:"last_enrolled_at" db:"last_enroll_time"`    // Time that the host last enrolled
 	SeenTime         time.Time     `json:"seen_time" db:"seen_time"`                  // Time that the host was last "seen"
 	NodeKey          string        `json:"-" db:"node_key"`
 	HostName         string        `json:"hostname" db:"host_name"` // there is a fulltext index on this field
