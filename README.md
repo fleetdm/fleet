@@ -37,7 +37,7 @@ With your "Enroll Secret" copied:
 cd fleet-preview/osquery
 ENROLL_SECRET=<copy from fleet> docker-compose up
 ```
-Refresh your broswer to see the containerized hosts populate the Fleet dashboard.
+Refresh the page to see the containerized hosts populate the Fleet dashboard.
 
 ## Query editor
 
