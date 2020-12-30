@@ -168,7 +168,7 @@
     "webpack-cli": "^3.3.6",
     "webpack-dev-middleware": "^3.7.0",
     "webpack-hot-middleware": "2.22.2",
-    "webpack-notifier": "1.6.0"
+    "webpack-notifier": "1.12.0"
   },
   "browserslist": [
     "last 1 version",
