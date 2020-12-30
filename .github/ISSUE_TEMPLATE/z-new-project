@@ -1,17 +1,15 @@
 ---
 name: Internal - New project
-about: Plan a new project and working group
+about: Kick off a new company-sponsored project to ship particular improvements to Fleet
 title: ''
 labels: ''
 assignees: ''
 
 ---
 
-This issue kicks off a ≈4 week company-sponsored project to ship some specific improvements to Fleet.
+### Goal
 
-### Goals
-
-> TODO: A sentence or two describing our high level goals for this project and timeframe
+> TODO: A sentence or two describing the high level goal for this project
 
 ### Steps
 
