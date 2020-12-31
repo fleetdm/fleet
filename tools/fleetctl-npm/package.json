@@ -1,5 +1,5 @@
 {
-  "name": "osquery-fleetctl",
+  "name": "fleetctl",
   "version": "3.5.1",
   "description": "Installer for the fleetctl CLI tool",
   "main": "binary.js",

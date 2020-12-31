@@ -170,7 +170,7 @@ func (man Manager) addConfigs() {
 		"MySQL server address (host:port)")
 	man.addConfigString("mysql.username", "kolide",
 		"MySQL server username")
-	man.addConfigString("mysql.password", "kolide",
+	man.addConfigString("mysql.password", "",
 		"MySQL server password (prefer env variable for security)")
 	man.addConfigString("mysql.password_path", "",
 		"Path to file containg MySQL server password")
