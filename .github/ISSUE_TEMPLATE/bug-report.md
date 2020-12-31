@@ -21,7 +21,7 @@ Please provide as much context as you can about your use case.
 
 ### If this is a performance issue: Please attach the debug archive.
 <!--
-Follow the steps documented in https://github.com/fleetdm/fleet/blob/master/docs/infrastructure/performance.md#debugging-performance-issues to generate a debug archive
+Follow the steps documented in https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/5-Monitoring-Fleet.md#debugging-performance-issues to generate a debug archive
 -->
 
 ### What did you do?
