@@ -183,7 +183,7 @@ File path to a file that contains the password to use when connecting to the MyS
 
 	```
 	mysql:
-		password_path: 'run/secrets/fleetdm-mysql-password
+		password_path: '/run/secrets/fleetdm-mysql-password
 	```
 
 
@@ -440,7 +440,7 @@ File path to a file that contains the [JWT](https://jwt.io/) key to use when sig
 
 	```
 	auth:
-		jwt_key_path: 'run/secrets/fleetdm-jwt-token
+		jwt_key_path: '/run/secrets/fleetdm-jwt-token
 	```
 
 #####	`auth_bcrypt_cost`
