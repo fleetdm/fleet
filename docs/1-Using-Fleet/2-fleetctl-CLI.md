@@ -386,6 +386,12 @@ spec:
 
 The following file describes options returned to osqueryd when it checks for configuration. See the [osquery documentation](https://osquery.readthedocs.io/en/stable/deployment/configuration/#options) for the available options. Existing options will be over-written by the application of this file.
 
+#### Overrides option
+
+The overrides option allows you to target a group of your hosts by their platform and supply them with unique osquery configuration options. When you choose to use the overrides option for a specific platform, all options specified in the default configuration will be ignored for that platform. 
+
+In the example file below, all Darwin and Ubuntu hosts will only receive the options specified in their respective overrides sections.
+
 ```yaml
 apiVersion: v1
 kind: options
