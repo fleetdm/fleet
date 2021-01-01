@@ -6,9 +6,6 @@
   - [Starting the local development environment](#starting-the-local-development-environment)
   - [Running Fleet using Docker development infrastructure](#running-fleet-using-docker-development-infrastructure)
 - [Setting up a Linux Development Environment](#setting-up-a-linux-development-environment)
-- [Database migrations](#database-migrations)
-  - [Adding/Updating tables](#adding/updating-tables)
-  - [Populating the database with default data](#populating-the-database-with-default-data)
 
 ## Building the code
 
@@ -112,6 +109,8 @@ By default, Fleet will try to connect to servers running on default ports on loc
 
 If you're using Docker via [Docker Toolbox](https://www.docker.com/products/docker-toolbox), you may have to modify the default values use the output of `docker-machine ip` instead of `localhost`. There is an example configuration file included in this repository to make this process easier for you.  Use the `--config` flag of the Fleet binary to specify the path to your config. See `fleet --help` for more options.
 
+The server is accessible by default at [https://localhost:8080](https://localhost:8080).
+
 ## Setting up a Linux Development Environment
 
 #### Install some dependencies
@@ -163,48 +162,3 @@ make generate
 make build
 sudo cp build/fleet /usr/bin/fleet
 ```
-
-## Database migrations
-
-### Adding/Updating tables
-
-Database schemas are managed by a series of migrations defined in go code. We use a customized version of the Goose migrations tool to handle these migrations.
-
-Note: Once committed to the Fleet repo, table migrations should be considered immutable. Any changes to an existing table should take place in a new migration executing ALTERs.
-
-From the project root run the following shell commands:
-
-``` bash
-go get github.com/kolide/goose
-cd server/datastore/mysql/migrations/tables
-goose create AddColumnFooToUsers
-```
-
-Find the file you created in the migrations directory and edit it:
-
-* delete the import line for goose: `github.com/pressly/goose`
-* change `goose.AddMigration(...)` to `MigrationClient.AddMigration(...)`
-* add your migration code
-
-You can then update the database by running the following shell commands:
-
-``` bash
-make build
-build/fleet prepare db
-```
-
-### Populating the database with default data
-
-Populating built in data is also performed through migrations. All table migrations are performed before any data migrations.
-
-Note: Data migrations can be mutable. If tables are altered in a way that would render a data migration invalid (columns changed/removed), data migrations should be updated to comply with the new schema. Data migrations will not be re-run when they have already been run against a database, but they must be updated to maintain compatibility with a fresh DB.
-
-From the project root run the following shell commands:
-
-``` bash
-go get github.com/kolide/goose
-cd server/datastore/mysql/migrations/data
-goose create PopulateFoo
-```
-
-Proceed as for table migrations, editing and running the newly created migration file.
