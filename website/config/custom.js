@@ -32,7 +32,7 @@ module.exports.custom = {
   * > that is displayed all over the app when it's first generated.         *
   *                                                                         *
   **************************************************************************/
-  platformCopyrightYear: '2020',
+  platformCopyrightYear: '2021',
 
   /**************************************************************************
   *                                                                         *
