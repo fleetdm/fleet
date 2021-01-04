@@ -21,6 +21,7 @@ type MysqlConfig struct {
 	Address         string
 	Username        string
 	Password        string
+	PasswordPath    string `yaml:"password_path"`
 	Database        string
 	TLSCert         string `yaml:"tls_cert"`
 	TLSKey          string `yaml:"tls_key"`
@@ -59,6 +60,7 @@ type ServerConfig struct {
 // AuthConfig defines configs related to user authorization
 type AuthConfig struct {
 	JwtKey      string `yaml:"jwt_key"`
+	JwtKeyPath  string `yaml:"jwt_key_path"`
 	BcryptCost  int    `yaml:"bcrypt_cost"`
 	SaltKeySize int    `yaml:"salt_key_size"`
 }
@@ -168,8 +170,10 @@ func (man Manager) addConfigs() {
 		"MySQL server address (host:port)")
 	man.addConfigString("mysql.username", "kolide",
 		"MySQL server username")
-	man.addConfigString("mysql.password", "kolide",
+	man.addConfigString("mysql.password", "",
 		"MySQL server password (prefer env variable for security)")
+	man.addConfigString("mysql.password_path", "",
+		"Path to file containg MySQL server password")
 	man.addConfigString("mysql.database", "kolide",
 		"MySQL database name")
 	man.addConfigString("mysql.tls_cert", "",
@@ -213,6 +217,8 @@ func (man Manager) addConfigs() {
 	// Auth
 	man.addConfigString("auth.jwt_key", "",
 		"JWT session token key (required)")
+	man.addConfigString("auth.jwt_key_path", "",
+		"Path to file containg JWT session token key")
 	man.addConfigInt("auth.bcrypt_cost", 12,
 		"Bcrypt iterations")
 	man.addConfigInt("auth.salt_key_size", 24,
@@ -314,6 +320,7 @@ func (man Manager) LoadConfig() KolideConfig {
 			Address:         man.getConfigString("mysql.address"),
 			Username:        man.getConfigString("mysql.username"),
 			Password:        man.getConfigString("mysql.password"),
+			PasswordPath:    man.getConfigString("mysql.password_path"),
 			Database:        man.getConfigString("mysql.database"),
 			TLSCert:         man.getConfigString("mysql.tls_cert"),
 			TLSKey:          man.getConfigString("mysql.tls_key"),
@@ -340,6 +347,7 @@ func (man Manager) LoadConfig() KolideConfig {
 		},
 		Auth: AuthConfig{
 			JwtKey:      man.getConfigString("auth.jwt_key"),
+			JwtKeyPath:  man.getConfigString("auth.jwt_key_path"),
 			BcryptCost:  man.getConfigInt("auth.bcrypt_cost"),
 			SaltKeySize: man.getConfigInt("auth.salt_key_size"),
 		},
