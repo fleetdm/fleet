@@ -27,7 +27,7 @@ Fleet supports SAML auth which means that it can be configured such that it neve
 
 Passwords are never stored in plaintext in the database. We store a `bcrypt`ed hash of the password along with a randomly generated salt. The `bcrypt` iteration count and salt key size are admin-configurable.
 ### Authentication tokens
-The size and expiration time of session tokens is admin-configurable.  See [https://github.com/fleetdm/fleet/blob/master/docs/2-Deployment/2-Configuration.md#session_duration](./1-Deployment/2-Configuration.md#session_duration).
+The size and expiration time of session tokens is admin-configurable.  See [https://github.com/fleetdm/fleet/blob/master/docs/2-Deployment/2-Configuration.md#session_duration](../2-Deployment/2-Configuration.md#session_duration).
 
 It is possible to revoke all session tokens for a user by forcing a password reset.
 

@@ -16,12 +16,12 @@ Saved queries can be accessed if you select "Manage Queries" from the "Query" se
 
 ![Manage Queries](../images/manage-queries.png)
 
-To learn more about scheduling queries so that they run on an on-going basis, see the [Scheduling Queries](./scheduling-queries.md) guide.
+To learn more about scheduling queries so that they run on an on-going basis, see the scheduling queries guide below.
 
 
-## Scheduling Queries
+## Scheduling queries
 
-As discussed in the [Running Queries Documentation](./running-queries.md), you can use the Fleet application to create, execute, and save osquery queries. You can organize these queries into "Query Packs". To view all saved packs and perhaps create a new pack, select "Manage Packs" from the "Packs" sidebar. Packs are usually organized by the general class of instrumentation that you're trying to perform.
+As discussed in the running queries documentation, you can use the Fleet application to create, execute, and save osquery queries. You can organize these queries into "Query Packs". To view all saved packs and perhaps create a new pack, select "Manage Packs" from the "Packs" sidebar. Packs are usually organized by the general class of instrumentation that you're trying to perform.
 
 ![Manage Packs](../images/manage-packs.png)
 
@@ -44,5 +44,5 @@ To add queries to a pack, use the right-hand sidebar. You can take an existing s
 ![Schedule Query Sidebar](../images/schedule-query-sidebar.png)
 
 
-Once you've scheduled queries and curated your packs, you can read our guide to [Working With Osquery Logs](../infrastructure/working-with-osquery-logs.md).
+Once you've scheduled queries and curated your packs, you can read our guide to [Working With Osquery Logs](../1-Using-Fleet/4-Osquery-logs.md).
 
