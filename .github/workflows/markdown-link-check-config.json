@@ -1,16 +1,16 @@
 {
     "ignorePatterns": [
         {
-            "localhost": "localhost"
+            "pattern": "localhost"
         },
         {
-            "osquery-downloads": "osquery.io/downloads"
+            "pattern": "osquery.io/downloads"
         },
         {
-            "fleet.acme.org": "fleet.acme.org"
+            "pattern": "fleet.acme.org"
         },
         {
-            "fleet.corp.example.com": "fleet.corp.example.com"
+            "pattern": "fleet.corp.example.com"
         }
     ],
     "retryOn429": true,
