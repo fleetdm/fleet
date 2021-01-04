@@ -9,5 +9,4 @@ jobs:
     - uses: actions/checkout@master
     - uses: gaurav-nelson/github-action-markdown-link-check@v1
       with:
-        use-verbose-mode: 'yes'
         config-file: .github/workflows/markdown-link-check-config.json
