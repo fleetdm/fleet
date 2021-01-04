@@ -12,3 +12,4 @@ jobs:
         use-quiet-mode: 'no'
         use-verbose-mode: 'yes'
         config-file: .github/workflows/markdown-link-check-config.json
+        folder-path: '/docs'
