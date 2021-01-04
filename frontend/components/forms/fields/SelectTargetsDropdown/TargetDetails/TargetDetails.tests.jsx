@@ -48,9 +48,9 @@ describe('TargetDetails - component', () => {
       it('renders a success check icon when the target is online', () => {
         const target = { ...Test.Stubs.hostStub, status: 'online' };
         const Component = mount(<TargetDetails target={target} />);
-        const Icon = Component.find('Icon');
-        const onlineIcon = Icon.find('.host-target__icon--online');
-        const offlineIcon = Icon.find('.host-target__icon--offline');
+        const KolideIcon = Component.find('KolideIcon');
+        const onlineIcon = KolideIcon.find('.host-target__icon--online');
+        const offlineIcon = KolideIcon.find('.host-target__icon--offline');
 
         expect(onlineIcon.length).toBeGreaterThan(0, 'Expected the online icon to render');
         expect(offlineIcon.length).toEqual(0, 'Expected the offline icon to not render');
@@ -59,9 +59,9 @@ describe('TargetDetails - component', () => {
       it('renders a offline icon when the target is offline', () => {
         const target = { ...Test.Stubs.hostStub, status: 'offline' };
         const Component = mount(<TargetDetails target={target} />);
-        const Icon = Component.find('Icon');
-        const onlineIcon = Icon.find('.host-target__icon--online');
-        const offlineIcon = Icon.find('.host-target__icon--offline');
+        const KolideIcon = Component.find('KolideIcon');
+        const onlineIcon = KolideIcon.find('.host-target__icon--online');
+        const offlineIcon = KolideIcon.find('.host-target__icon--offline');
 
         expect(onlineIcon.length).toEqual(0, 'Expected the online icon to not render');
         expect(offlineIcon.length).toBeGreaterThan(0, 'Expected the offline icon to render');
