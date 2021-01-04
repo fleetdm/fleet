@@ -353,7 +353,7 @@ to 2.0.0.
 
 ## Kolide Fleet 2.0.0 (currently preparing for release)
 
-The primary new addition in Fleet 2 is the new `fleetctl` CLI and file-format, which dramatically increases the flexibility and control that administrators have over their osquery deployment. The CLI and the file format are documented [in the Fleet documentation](https://github.com/kolide/fleet/blob/master/docs/cli/README.md).
+The primary new addition in Fleet 2 is the new `fleetctl` CLI and file-format, which dramatically increases the flexibility and control that administrators have over their osquery deployment. The CLI and the file format are documented [in the Fleet documentation](https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md).
 
 ### New Features
 

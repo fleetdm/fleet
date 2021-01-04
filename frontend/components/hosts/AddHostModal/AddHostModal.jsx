@@ -109,7 +109,7 @@ class AddHostModal extends Component {
           <div className={`${baseClass}__documentation-link`}>
             <h4>
               <a
-                href="https://github.com/fleetdm/fleet/blob/master/docs/infrastructure/adding-hosts-to-fleet.md"
+                href="https://github.com/fleetdm/fleet/blob/master/docs/2-Deployment/3-Adding-hosts.md"
                 target="_blank"
                 rel="noopener noreferrer"
               >

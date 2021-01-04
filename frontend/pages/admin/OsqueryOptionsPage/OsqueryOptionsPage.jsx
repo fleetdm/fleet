@@ -79,7 +79,7 @@ export class OsqueryOptionsPage extends Component {
           <p>This file describes options returned to osqueryd when it checks for configuration.</p>
           <p>See Fleet documentation for an example file that includes the overrides option.</p>
           <a
-            href="https://github.com/fleetdm/fleet/blob/master/docs/cli/file-format.md#osquery-configuration-options"
+            href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
             target="_blank"
             rel="noreferrer"
           >
