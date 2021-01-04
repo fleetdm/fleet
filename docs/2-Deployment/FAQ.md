@@ -20,7 +20,7 @@ Yes. Fleet scales horizontally out of the box as long as all of the Fleet server
 
 Note that osquery logs will be distributed across the Fleet servers.
 
-Read the [performance docs](./performance.md) for more.
+Read the [performance documentation](../1-Using-fleet/5-Monitoring-Fleet#fleet-server-performance.md) for more.
 
 ## Why aren't my osquery agents connecting to Fleet?
 
@@ -44,11 +44,11 @@ Osquery requires that all communication between the agent and Fleet are over a s
 
 ## What do I do about "too many open files" errors?
 
-This error usually indicates that the Fleet server has run out of file descriptors. Fix this by increasing the `ulimit` on the Fleet process. See the `LimitNOFILE` setting in the [example systemd unit file](./systemd.md) for an example of how to do this with systemd.
+This error usually indicates that the Fleet server has run out of file descriptors. Fix this by increasing the `ulimit` on the Fleet process. See the `LimitNOFILE` setting in the [example systemd unit file](./2-Configuration.md#runing-with-systemd) for an example of how to do this with systemd.
 
 ## I upgraded my database, but Fleet is still running slowly. What could be going on?
 
-This could be caused by a mismatched connection limit between the Fleet server and the MySQL server that prevents Fleet from fully utilizing the database. First [determine how many open connections your MySQL server supports](https://dev.mysql.com/doc/refman/8.0/en/too-many-connections.html). Now set the [`--mysql_max_open_conns`](./configuring-the-fleet-binary.md#mysql_max_open_conns) and [`--mysql_max_idle_conns`](./configuring-the-fleet-binary.md#mysql_max_idle_conns) flags appropriately.
+This could be caused by a mismatched connection limit between the Fleet server and the MySQL server that prevents Fleet from fully utilizing the database. First [determine how many open connections your MySQL server supports](https://dev.mysql.com/doc/refman/8.0/en/too-many-connections.html). Now set the [`--mysql_max_open_conns`](./2-Configuration.md#mysql_max_open_conns) and [`--mysql_max_idle_conns`](./2-Configuration.md#mysql_max_idle_conns) flags appropriately.
 
 ## Why am I receiving a database connection error when attempting to "prepare" the database?
 

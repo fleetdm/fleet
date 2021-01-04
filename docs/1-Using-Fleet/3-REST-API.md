@@ -34,7 +34,7 @@ Only osquery agents should interact with the osquery API, but we'd like to suppo
 
 ### fleetctl
 
-Many of the operations that a user may wish to perform with an API are currently best performed via the [fleetctl](./(b)-fleetctl-CLI) tooling. These CLI tools allow updating of the osquery configuration entities, as well as performing live queries.
+Many of the operations that a user may wish to perform with an API are currently best performed via the [fleetctl](./2-fleetctl-CLI) tooling. These CLI tools allow updating of the osquery configuration entities, as well as performing live queries.
 
 ### Current API
 

@@ -33,7 +33,7 @@ This guide illustrates:
 
 ### Running Fleet
 
-For the sake of this tutorial, I will be using the local development Docker Compose infrastructure to run Fleet locally. This is documented in some detail in the [developer documentation](../3-Contribution-guide/(a)-Building-Fleet.md#development-infrastructure), but the following are the minimal set of commands that you can run from the root of the repository (assuming that you have a working Go/JavaScript toolchain installed along with Docker Compose):
+For the sake of this tutorial, I will be using the local development Docker Compose infrastructure to run Fleet locally. This is documented in some detail in the [developer documentation](../3-Contribution/1-Building-Fleet.md#development-infrastructure), but the following are the minimal set of commands that you can run from the root of the repository (assuming that you have a working Go/JavaScript toolchain installed along with Docker Compose):
 
 ```
 docker-compose up -d
@@ -79,7 +79,7 @@ It's possible to specify the password via the `--password` flag or the `$PASSWOR
 
 ### Connecting a host
 
-For the sake of this tutorial, I'm going to be using Kolide's osquery launcher to start osquery locally and connect it to Fleet. To learn more about connecting osquery to Fleet, see the [Adding Hosts to Fleet](../1-Deployment/(c)-Adding-hosts.md) documentation.
+For the sake of this tutorial, I'm going to be using Kolide's osquery launcher to start osquery locally and connect it to Fleet. To learn more about connecting osquery to Fleet, see the [Adding Hosts to Fleet](../2-Deployment/3-Adding-hosts.md) documentation.
 
 To get your osquery enroll secret, run the following:
 

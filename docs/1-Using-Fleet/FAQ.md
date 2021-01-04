@@ -28,7 +28,7 @@ Fleet can live query the `osquery_schedule` table. Performing this live query al
 
 ## How do I monitor a Fleet server?
 
-Fleet provides standard interfaces for monitoring and alerting. See the [Monitoring Fleet](./(e)-Monitoring-fleet.md) documentation for details.
+Fleet provides standard interfaces for monitoring and alerting. See the [Monitoring Fleet](./5-Monitoring-fleet.md) documentation for details.
 
 
 ## Why is the “Add User” button disabled?
@@ -45,7 +45,7 @@ Live query results (executed in the web UI or `fleetctl query`) are pushed direc
 
 ### Scheduled Queries
 
-Scheduled query results (queries that are scheduled to run in Packs) are typically sent to the Fleet server, and will be available on the filesystem of the server at the path configurable by [`--osquery_result_log_file`](../1-Deployment/(b)-Configuration.md#osquery_result_log_file). This defaults to `/tmp/osquery_result`.
+Scheduled query results (queries that are scheduled to run in Packs) are typically sent to the Fleet server, and will be available on the filesystem of the server at the path configurable by [`--osquery_result_log_file`](../2-Deployment/2-Configuration.md#osquery_result_log_file). This defaults to `/tmp/osquery_result`.
 
 It is possible to configure osqueryd to log query results outside of Fleet. For results to go to Fleet, the `--logger_plugin` flag must be set to `tls`.
 
@@ -63,7 +63,7 @@ Expecting results, but not seeing anything in the logs?
 - Check whether the query is scheduled in differential mode. If so, new results will only be logged when the result set changes.
 - Ensure that the query is scheduled to run on the intended platforms, and that the tables queried are supported by those platforms.
 - Use live query to `SELECT * FROM osquery_schedule` to check whether the query has been scheduled on the host.
-- Look at the status logs provided by osquery. In a standard configuration these are available on the filesystem of the Fleet server at the path configurable by [`--filesystem_status_log_file`](../1-Deployment/(b)-Configuration.md#filesystem_status_log_file). This defaults to `/tmp/osquery_status`. The host will output a status log each time it executes the query.
+- Look at the status logs provided by osquery. In a standard configuration these are available on the filesystem of the Fleet server at the path configurable by [`--filesystem_status_log_file`](../2-Deployment/2-Configuration.md#filesystem_status_log_file). This defaults to `/tmp/osquery_status`. The host will output a status log each time it executes the query.
 
 ## Why aren’t my live queries being logged?
 

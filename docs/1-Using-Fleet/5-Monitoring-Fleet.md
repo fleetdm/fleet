@@ -19,7 +19,7 @@ The `/healthz` endpoint will return an `HTTP 200` status if the server is runnin
 
 ## Metrics
 
-Fleet exposes server metrics in a format compatible with [Prometheus](https://prometheus.io/). A simple example Prometheus configuration is available in [tools/app/prometheus.yml](/tools/app/prometheus.yml).
+Fleet exposes server metrics in a format compatible with [Prometheus](https://prometheus.io/). A simple example Prometheus configuration is available in [tools/app/prometheus.yml](../../tools/app/prometheus.yml).
 
 Prometheus can be configured to use a wide range of service discovery mechanisms within AWS, GCP, Azure, Kubernetes, and more. See the Prometheus [configuration documentation](https://prometheus.io/docs/prometheus/latest/configuration/configuration/) for more information on configuring the
 
@@ -54,11 +54,11 @@ Scaling Fleet horizontally is as simple as running more Fleet server processes c
 
 The Fleet/osquery system is resilient to loss of availability. Osquery agents will continue executing the existing configuration and buffering result logs during downtime due to lack of network connectivity, server maintenance, or any other reason. Buffering in osquery can be configured with the `--buffered_log_max` flag.
 
-Note that short downtimes are expected during [Fleet server upgrades](./(g)-Updating.md)-fleet.md) that require database migrations.
+Note that short downtimes are expected during [Fleet server upgrades](./7-Updating.md)-fleet.md) that require database migrations.
 
 ### Monitoring
 
-More information on monitoring Fleet servers with Prometheus and other tools is available in the [Monitoring Fleet](./(e)-Monitoring-Fleet.md) documentation.
+More information on monitoring Fleet servers with Prometheus and other tools is available in the [Monitoring Fleet](./5-Monitoring-Fleet.md) documentation.
 
 ### Debugging performance issues
 
@@ -72,7 +72,7 @@ For performance issues in the Fleet server process, please [file an issue](https
 
 ##### Generate debug archive (Fleet 3.4.0+)
 
-Use the `fleetctl archive` command to generate an archive of Fleet's full suite of debug profiles. See the [fleetctl setup guide](./(b)-fleetctl-CLI.md)) for details on configuring `fleetctl`.
+Use the `fleetctl archive` command to generate an archive of Fleet's full suite of debug profiles. See the [fleetctl setup guide](./2-fleetctl-CLI.md)) for details on configuring `fleetctl`.
 
 The generated `.tar.gz` archive will be available in the current directory.
 
