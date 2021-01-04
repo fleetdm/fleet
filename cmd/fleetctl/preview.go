@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/fleetdm/fleet/server/service"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 )
@@ -32,9 +33,13 @@ func previewCommand() cli.Command {
 
 This command will create a directory fleet-preview in the current working directory. Configurations can be modified in that directory.`,
 		Subcommands: []cli.Command{},
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+		},
 		Action: func(c *cli.Context) error {
 			if _, err := exec.LookPath("docker-compose"); err != nil {
-				return errors.New("Please install Docker (https://docs.docker.com/get-docker/).")
+				return errors.New("Docker is required for the fleetctl preview experience.\n\nPlease install Docker (https://docs.docker.com/get-docker/).")
 			}
 
 			// Download files if necessary
@@ -59,12 +64,60 @@ This command will create a directory fleet-preview in the current working direct
 			}
 
 			fmt.Println("Waiting for server to start up...")
-			fmt.Println("Note: You can safely ignore the browser warning \"Your connection is not private\". Click through this warning using the \"Advanced\" option.")
 			if err := waitStartup(); err != nil {
 				return errors.Wrap(err, "wait for server startup")
 			}
 
+			fmt.Println("Initializing server...")
+			const (
+				address  = "https://localhost:8412"
+				username = "admin"
+				password = "admin123#"
+			)
+
+			fleet, err := service.NewClient(address, true, "", "")
+			if err != nil {
+				return errors.Wrap(err, "Error creating Fleet API client handler")
+			}
+
+			token, err := fleet.Setup(username, username, password, "Fleet Preview")
+			if err != nil {
+				return errors.Wrap(err, "Error setting up Fleet")
+			}
+
+			val, err := getConfigValue(c, "address")
+			if err != nil {
+				return errors.Wrap(err, "Error checking config")
+			}
+			if v, ok := val.(string); ok && v != "" {
+				fmt.Println("Skipped fleetctl setup because there is an existing fleetctl config.")
+				fmt.Println("Fleet is now available at https://localhost:8412.")
+				fmt.Println("Username:", username)
+				fmt.Println("Password:", password)
+				fmt.Println("Note: You can safely ignore the browser warning \"Your connection is not private\". Click through this warning using the \"Advanced\" option.")
+				return nil
+			}
+
+			if err := setConfigValue(c, "email", username); err != nil {
+				return errors.Wrap(err, "Error setting username")
+			}
+
+			if err := setConfigValue(c, "token", token); err != nil {
+				return errors.Wrap(err, "Error setting token")
+			}
+
+			if err := setConfigValue(c, "tls-skip-verify", "true"); err != nil {
+				return errors.Wrap(err, "Error setting tls-skip-verify")
+			}
+
+			if err := setConfigValue(c, "address", address); err != nil {
+				return errors.Wrap(err, "error setting address")
+			}
+
 			fmt.Println("Fleet is now available at https://localhost:8412.")
+			fmt.Println("Username:", username)
+			fmt.Println("Password:", password)
+			fmt.Println("Note: You can safely ignore the browser warning \"Your connection is not private\". Click through this warning using the \"Advanced\" option.")
 
 			return nil
 		},

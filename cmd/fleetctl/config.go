@@ -39,7 +39,7 @@ func configFlag() cli.Flag {
 		Name:   "config",
 		Value:  defaultConfigPath,
 		EnvVar: "CONFIG",
-		Usage:  "Path to the Fleet config file",
+		Usage:  "Path to the fleetctl config file",
 	}
 }
 
@@ -48,7 +48,7 @@ func contextFlag() cli.Flag {
 		Name:   "context",
 		Value:  "default",
 		EnvVar: "CONTEXT",
-		Usage:  "Name of Fleet config context to use",
+		Usage:  "Name of fleetctl config context to use",
 	}
 }
 
