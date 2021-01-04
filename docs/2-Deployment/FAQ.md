@@ -20,7 +20,7 @@ Yes. Fleet scales horizontally out of the box as long as all of the Fleet server
 
 Note that osquery logs will be distributed across the Fleet servers.
 
-Read the [performance documentation](../1-Using-fleet/5-Monitoring-Fleet#fleet-server-performance.md) for more.
+Read the [performance documentation](../1-Using-fleet/5-Monitoring-Fleet.md#fleet-server-performance) for more.
 
 ## Why aren't my osquery agents connecting to Fleet?
 

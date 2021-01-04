@@ -28,7 +28,7 @@ Fleet can live query the `osquery_schedule` table. Performing this live query al
 
 ## How do I monitor a Fleet server?
 
-Fleet provides standard interfaces for monitoring and alerting. See the [Monitoring Fleet](./5-Monitoring-fleet.md) documentation for details.
+Fleet provides standard interfaces for monitoring and alerting. See the [Monitoring Fleet](./5-Monitoring-Fleet.md) documentation for details.
 
 
 ## Why is the “Add User” button disabled?
