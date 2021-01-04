@@ -108,7 +108,7 @@
     .Select-menu {
       height: 498px;
       max-height: 498px;
-      overflow: hidden;
+      overflow: scroll;
       position: relative;
 
       &::after {
