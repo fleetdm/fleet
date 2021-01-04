@@ -9,6 +9,5 @@ jobs:
     - uses: actions/checkout@v2
     - uses: gaurav-nelson/github-action-markdown-link-check@v1
       with:
-        use-quiet-mode: 'no'
         use-verbose-mode: 'yes'
         config-file: .github/workflows/markdown-link-check-config.json
