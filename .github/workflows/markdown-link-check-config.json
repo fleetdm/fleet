@@ -1,12 +1,4 @@
 {
-    "ignorePatterns": [
-        {
-            "localhost": "localhost",
-            "osquery-downloads": "osquery.io/downloads",
-            "fleet.acme.org": "fleet.acme.org",
-            "fleet.corp.example.com": "fleet.corp.example.com"
-        }
-    ],
     "retryOn429": true,
     "retryCount": 2,
     "fallbackRetryDelay": "2s",
