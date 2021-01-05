@@ -5,7 +5,7 @@ import AceEditor from 'react-ace';
 import classnames from 'classnames';
 
 import hostHelpers from 'components/hosts/HostsTable/helpers';
-import Icon from 'components/icons/Icon';
+import KolideIcon from 'components/icons/KolideIcon';
 import PlatformIcon from 'components/icons/PlatformIcon';
 import targetInterface from 'interfaces/target';
 
@@ -60,16 +60,16 @@ class TargetDetails extends Component {
     return (
       <div className={`${hostBaseClass} ${className}`}>
         <button className={`button button--unstyled ${hostBaseClass}__back`} onClick={handleBackToResults}>
-          <Icon name="chevronleft" />Back
+          <KolideIcon name="chevronleft" />Back
         </button>
 
         <p className={`${hostBaseClass}__display-text`}>
-          <Icon name="single-host" fw className={`${hostBaseClass}__icon`} />
+          <KolideIcon name="single-host" fw className={`${hostBaseClass}__icon`} />
           <span>{displayText}</span>
         </p>
         <p className={statusClassName}>
-          {isOnline && <Icon name="success-check" fw className={`${hostBaseClass}__icon ${hostBaseClass}__icon--online`} />}
-          {isOffline && <Icon name="offline" fw className={`${hostBaseClass}__icon ${hostBaseClass}__icon--offline`} />}
+          {isOnline && <KolideIcon name="success-check" fw className={`${hostBaseClass}__icon ${hostBaseClass}__icon--online`} />}
+          {isOffline && <KolideIcon name="offline" fw className={`${hostBaseClass}__icon ${hostBaseClass}__icon--offline`} />}
           <span>{status}</span>
         </p>
         <table className={`${baseClass}__table`}>
@@ -123,11 +123,11 @@ class TargetDetails extends Component {
     return (
       <div className={`${labelBaseClass} ${className}`}>
         <button className={`button button--unstyled ${labelBaseClass}__back`} onClick={handleBackToResults}>
-          <Icon name="chevronleft" /> Back
+          <KolideIcon name="chevronleft" /> Back
         </button>
 
         <p className={`${labelBaseClass}__display-text`}>
-          <Icon name="label" fw className={`${labelBaseClass}__icon`} />
+          <KolideIcon name="label" fw className={`${labelBaseClass}__icon`} />
           <span>{displayText}</span>
         </p>
 
