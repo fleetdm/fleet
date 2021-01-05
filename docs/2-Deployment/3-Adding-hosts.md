@@ -22,7 +22,8 @@ If you'd like to use the native osqueryd binaries to connect to Fleet, this is e
 
 ## Kolide osquery Launcher
 
-We provide compiled releases of the launcher for all supported platforms. Those can be found [here](https://github.com/kolide/launcher/releases). But if you’d like to compile from source, the instructions are [here](../3-Contribution/1-Building-Fleet.md).
+Kolide provides compiled releases of their launcher for all supported platforms. 
+Those can be found [here](https://github.com/kolide/launcher/releases), or if you’d like to compile from source, the instructions are [here](https://github.com/kolide/launcher/blob/master/docs/launcher.md#building-the-code).
 
 ### Connecting a single Launcher to Fleet
 
@@ -53,7 +54,7 @@ mkdir .osquery
 ./build/launcher \
     --hostname=localhost:8412 \
     --root_directory=.osquery \
-    --enroll_secret=32IeN3QLgckHUmMD3iW40kyLdNJcGzP5
+    --enroll_secret=32IeN3QLgckHUmMD3iW40kyLdNJcGzP5 \
     --insecure
 ```
 
