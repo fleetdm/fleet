@@ -6,6 +6,8 @@
   a {
     color: $core-blue;
     text-decoration: none;
+    display: block;
+    margin-top: 16px;
 
     &:hover {
       text-decoration: underline;
