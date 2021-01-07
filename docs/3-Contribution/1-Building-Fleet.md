@@ -105,11 +105,13 @@ To start the Fleet server backed by the Docker development infrastructure, run t
 fleet serve --auth_jwt_key="insecure"
 ```
 
+The server is accessible by default at [https://localhost:8080](https://localhost:8080).
+
 By default, Fleet will try to connect to servers running on default ports on localhost. Depending on your browser's settings, you may have to click through a security warning.
 
-If you're using Docker via [Docker Toolbox](https://www.docker.com/products/docker-toolbox), you may have to modify the default values use the output of `docker-machine ip` instead of `localhost`. There is an example configuration file included in this repository to make this process easier for you.  Use the `--config` flag of the Fleet binary to specify the path to your config. See `fleet --help` for more options.
+If you're using the Google Chrome web browser, you have the option to always automatically bypass the security warning. Visit [chrome://flags/#allow-insecure-localhost](chrome://flags/#allow-insecure-localhost) and set the "Allow invalid certificates for resources loaded from localhost." flag to "Enabled."
 
-The server is accessible by default at [https://localhost:8080](https://localhost:8080).
+If you're using Docker via [Docker Toolbox](https://www.docker.com/products/docker-toolbox), you may have to modify the default values use the output of `docker-machine ip` instead of `localhost`. There is an example configuration file included in this repository to make this process easier for you.  Use the `--config` flag of the Fleet binary to specify the path to your config. See `fleet --help` for more options.
 
 ## Setting up a Linux Development Environment
 
