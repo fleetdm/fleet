@@ -1,3 +1,19 @@
+## Fleet 3.6.0 (Jan 7, 2021)
+
+* Add the option to set up an S3 bucket as the storage backend for file carving.
+
+* Build Docker container with Fleet running as non-root user.
+
+* Add support to read in the MySQL password and JWT key from a file.
+
+* Improve the `fleetctl preview` experience by automatically completing the setup process and configuring fleetctl for users.
+
+* Restructure the documentation into three top-level sections titled "Using Fleet," "Deployment," and "Contribution."
+
+* Fix a bug that allowed hosts to enroll with an empty enroll secret in new installations before setup was completed.
+
+* Fix a bug that made the query editor render strangely in Safari.
+
 ## Fleet 3.5.1 (Dec 14, 2020)
 
 ### This is a security release.
