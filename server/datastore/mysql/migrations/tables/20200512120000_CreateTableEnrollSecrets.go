@@ -26,7 +26,7 @@ func Up_20200512120000(tx *sql.Tx) error {
 
 	_, err = tx.Exec(
 		"INSERT INTO `enroll_secrets` (`name`, `secret`, `active`)" +
-			"SELECT 'default', `osquery_enroll_secret`, TRUE FROM `app_configs`",
+			"SELECT 'default', `osquery_enroll_secret`, TRUE FROM `app_configs` WHERE osquery_enroll_secret != ''",
 	)
 	if err != nil {
 		return errors.Wrap(err, "copy existing enroll secret")
