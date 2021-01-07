@@ -17,6 +17,7 @@
   - [Create a user account with an invitation](#create-a-user-account-with-an-invitation)
   - [Create a user account without an invitation](#create-a-user-account-without-an-invitation)
   - [Get user information](#get-user-information)
+- [Fleet App](#fleet-app)
 
 ## Overview
 
@@ -955,3 +956,95 @@ Returns all information about a specific user.
 ```
 
 ---
+
+## Fleet application
+
+The Fleet server exposes a handful of API endpoints that handle the configuration of the Fleet application as well as endpoints that manage invitation and enroll secret operations. All the following endpoints require prior authentication meaning you must first log in successfully before calling any of the endpoints documented below.
+
+### Get application certificate
+
+Returns the Fleet application's certificate.
+
+`GET /api/v1/kolide/config/certificate`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/kolide/config/certificate`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "certificate_chain": 
+}
+```
+
+### Get application configuration
+
+Returns all information about the Fleet application's configuration.
+
+`GET /api/v1/kolide/config`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/kolide/config`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "org_info": {
+    "org_name": "fleet",
+    "org_logo_url": ""
+  },
+  "server_settings": {
+    "kolide_server_url": "https://localhost:8080",
+    "live_query_disabled": false
+  },
+  "smtp_settings": {
+    "enable_smtp": false,
+    "configured": false,
+    "sender_address": "",
+    "server": "",
+    "port": 587,
+    "authentication_type": "authtype_username_password",
+    "user_name": "",
+    "password": "********",
+    "enable_ssl_tls": true,
+    "authentication_method": "authmethod_plain",
+    "domain": "",
+    "verify_ssl_certs": true,
+    "enable_start_tls": true
+  },
+  "sso_settings": {
+    "entity_id": "",
+    "issuer_uri": "",
+    "idp_image_url": "",
+    "metadata": "",
+    "metadata_url": "",
+    "idp_name": "",
+    "enable_sso": false
+  },
+  "host_expiry_settings": {
+    "host_expiry_enabled": false,
+    "host_expiry_window": 0
+  },
+  "host_settings": {
+    "additional_queries": null
+  }
+}
+```
