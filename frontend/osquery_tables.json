@@ -1965,6 +1965,342 @@
     ]
   },
   {
+    "name":"bpf_process_events",
+    "description":"Track time/action process executions.",
+    "url":"https://github.com/osquery/osquery/blob/master/specs/linux/bpf_process_events.table",
+    "platforms":[
+      "linux"
+    ],
+    "evented":true,
+    "cacheable":false,
+    "columns":[
+      {
+        "name":"tid",
+        "description":"Thread ID",
+        "type":"bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"pid",
+        "description":"Process ID",
+        "type":"bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"parent",
+        "description":"Parent process ID",
+        "type":"bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"uid",
+        "description":"User ID",
+        "type":"bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"gid",
+        "description":"Group ID",
+        "type":"bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"cid",
+        "description":"Cgroup ID",
+        "type":"integer",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"exit_code",
+        "description":"Exit code of the system call",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"probe_error",
+        "description":"Set to 1 if one or more buffers could not be captured",
+        "type":"integer",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"syscall",
+        "description":"System call name",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"path",
+        "description":"Binary path",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"cwd",
+        "description":"Current working directory",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"cmdline",
+        "description":"Command line arguments",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"duration",
+        "description":"How much time was spent inside the syscall (nsecs)",
+        "type":"integer",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"json_cmdline",
+        "description":"Command line arguments, in JSON format",
+        "type":"text",
+        "hidden":true,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"ntime",
+        "description":"The nsecs uptime timestamp as obtained from BPF",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"time",
+        "description":"Time of execution in UNIX time",
+        "type":"bigint",
+        "hidden":true,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"eid",
+        "description":"Event ID",
+        "type":"integer",
+        "hidden":true,
+        "required":false,
+        "index":false
+      }
+    ]
+  },
+  {
+    "name":"bpf_socket_events",
+    "description":"Track network socket opens and closes.",
+    "url":"https://github.com/osquery/osquery/blob/master/specs/linux/bpf_socket_events.table",
+    "platforms":[
+      "linux"
+    ],
+    "evented":true,
+    "cacheable":false,
+    "columns":[
+      {
+        "name":"tid",
+        "description":"Thread ID",
+        "type":"bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"pid",
+        "description":"Process ID",
+        "type":"bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"parent",
+        "description":"Parent process ID",
+        "type":"bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"uid",
+        "description":"User ID",
+        "type":"bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"gid",
+        "description":"Group ID",
+        "type":"bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"cid",
+        "description":"Cgroup ID",
+        "type":"integer",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"exit_code",
+        "description":"Exit code of the system call",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"probe_error",
+        "description":"Set to 1 if one or more buffers could not be captured",
+        "type":"integer",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"syscall",
+        "description":"System call name",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"path",
+        "description":"Path of executed file",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"fd",
+        "description":"The file description for the process socket",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"family",
+        "description":"The Internet protocol family ID",
+        "type":"integer",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"type",
+        "description":"The socket type",
+        "type":"integer",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"protocol",
+        "description":"The network protocol ID",
+        "type":"integer",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"local_address",
+        "description":"Local address associated with socket",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"remote_address",
+        "description":"Remote address associated with socket",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"local_port",
+        "description":"Local network protocol port number",
+        "type":"integer",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"remote_port",
+        "description":"Remote network protocol port number",
+        "type":"integer",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"duration",
+        "description":"How much time was spent inside the syscall (nsecs)",
+        "type":"integer",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"ntime",
+        "description":"The nsecs uptime timestamp as obtained from BPF",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"time",
+        "description":"Time of execution in UNIX time",
+        "type":"bigint",
+        "hidden":true,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"eid",
+        "description":"Event ID",
+        "type":"integer",
+        "hidden":true,
+        "required":false,
+        "index":false
+      }
+    ]
+  },
+  {
     "name":"browser_plugins",
     "description":"All C/NPAPI browser plugin details for all users.",
     "url":"https://github.com/osquery/osquery/blob/master/specs/darwin/browser_plugins.table",
@@ -2241,7 +2577,7 @@
   },
   {
     "name":"carves",
-    "description":"Forensic Carves.",
+    "description":"List the set of completed and in-progress carves. If carve=1 then the query is treated as a new carve request.",
     "url":"https://github.com/osquery/osquery/blob/master/specs/carves.table",
     "platforms":[
       "darwin",
@@ -2281,7 +2617,7 @@
         "description":"The path of the requested carve",
         "type":"text",
         "hidden":false,
-        "required":true,
+        "required":false,
         "index":false
       },
       {
@@ -3837,6 +4173,14 @@
       {
         "name":"dump_certificate",
         "description":"Set this value to '1' to dump certificate",
+        "type":"integer",
+        "hidden":true,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"timeout",
+        "description":"Set this value to the timeout in seconds to complete the TLS handshake (default 4s, use 0 for no timeout)",
         "type":"integer",
         "hidden":true,
         "required":false,
@@ -6417,9 +6761,12 @@
   {
     "name":"ec2_instance_metadata",
     "description":"EC2 instance metadata.",
-    "url":"https://github.com/osquery/osquery/blob/master/specs/linux/ec2_instance_metadata.table",
+    "url":"https://github.com/osquery/osquery/blob/master/specs/linwin/ec2_instance_metadata.table",
     "platforms":[
-      "linux"
+      "darwin",
+      "linux",
+      "freebsd",
+      "windows"
     ],
     "evented":false,
     "cacheable":true,
@@ -6541,9 +6888,12 @@
   {
     "name":"ec2_instance_tags",
     "description":"EC2 instance tag key value pairs.",
-    "url":"https://github.com/osquery/osquery/blob/master/specs/linux/ec2_instance_tags.table",
+    "url":"https://github.com/osquery/osquery/blob/master/specs/linwin/ec2_instance_tags.table",
     "platforms":[
-      "linux"
+      "darwin",
+      "linux",
+      "freebsd",
+      "windows"
     ],
     "evented":false,
     "cacheable":true,
@@ -7189,9 +7539,10 @@
   {
     "name":"extended_attributes",
     "description":"Returns the extended attributes for files (similar to Windows ADS).",
-    "url":"https://github.com/osquery/osquery/blob/master/specs/darwin/extended_attributes.table",
+    "url":"https://github.com/osquery/osquery/blob/master/specs/posix/extended_attributes.table",
     "platforms":[
-      "darwin"
+      "darwin",
+      "linux"
     ],
     "evented":false,
     "cacheable":false,
@@ -9250,7 +9601,7 @@
       {
         "name":"size",
         "description":"Size of module content",
-        "type":"text",
+        "type":"bigint",
         "hidden":false,
         "required":false,
         "index":false
@@ -13324,6 +13675,61 @@
       {
         "name":"value",
         "description":"The value of the OEM string",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      }
+    ]
+  },
+  {
+    "name":"office_mru",
+    "description":"View recently opened Office documents.",
+    "url":"https://github.com/osquery/osquery/blob/master/specs/office_mru.table",
+    "platforms":[
+      "darwin",
+      "linux",
+      "windows",
+      "freebsd"
+    ],
+    "evented":false,
+    "cacheable":false,
+    "columns":[
+      {
+        "name":"application",
+        "description":"Associated Office application",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"version",
+        "description":"Office application version number",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"path",
+        "description":"File path",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"last_opened_time",
+        "description":"Most recent opened time file was opened",
+        "type":"integer",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"sid",
+        "description":"User SID",
         "type":"text",
         "hidden":false,
         "required":false,
@@ -18566,10 +18972,12 @@
   {
     "name":"startup_items",
     "description":"Applications and binaries set as user/login startup items.",
-    "url":"https://github.com/osquery/osquery/blob/master/specs/macwin/startup_items.table",
+    "url":"https://github.com/osquery/osquery/blob/master/specs/startup_items.table",
     "platforms":[
       "darwin",
-      "windows"
+      "linux",
+      "windows",
+      "freebsd"
     ],
     "evented":false,
     "cacheable":true,
