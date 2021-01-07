@@ -6,9 +6,9 @@
 
 * Add support to read in the MySQL password and JWT key from a file.
 
-* Improve the `fleetctl preview` experience by automatically completing the set up process and configuring fleetctl for users.
+* Improve the `fleetctl preview` experience by automatically completing the setup process and configuring fleetctl for users.
 
-* Restructure the documentation into three top level sections titled "Using Fleet," "Deployment," and "Contribution."
+* Restructure the documentation into three top-level sections titled "Using Fleet," "Deployment," and "Contribution."
 
 * Fix a bug that allowed hosts to enroll with an empty enroll secret in new installations before setup was completed.
 
