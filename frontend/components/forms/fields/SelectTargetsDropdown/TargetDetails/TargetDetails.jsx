@@ -64,12 +64,12 @@ class TargetDetails extends Component {
         </button>
 
         <p className={`${hostBaseClass}__display-text`}>
-          <KolideIcon name="single-host" fw className={`${hostBaseClass}__icon`} />
+          <KolideIcon name="single-host" className={`${hostBaseClass}__icon`} />
           <span>{displayText}</span>
         </p>
         <p className={statusClassName}>
-          {isOnline && <KolideIcon name="success-check" fw className={`${hostBaseClass}__icon ${hostBaseClass}__icon--online`} />}
-          {isOffline && <KolideIcon name="offline" fw className={`${hostBaseClass}__icon ${hostBaseClass}__icon--offline`} />}
+          {isOnline && <KolideIcon name="success-check" className={`${hostBaseClass}__icon ${hostBaseClass}__icon--online`} />}
+          {isOffline && <KolideIcon name="offline" className={`${hostBaseClass}__icon ${hostBaseClass}__icon--offline`} />}
           <span>{status}</span>
         </p>
         <table className={`${baseClass}__table`}>
