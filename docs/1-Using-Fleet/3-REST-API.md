@@ -17,7 +17,11 @@
   - [Create a user account with an invitation](#create-a-user-account-with-an-invitation)
   - [Create a user account without an invitation](#create-a-user-account-without-an-invitation)
   - [Get user information](#get-user-information)
-- [Fleet Application](#fleet-application)
+- [Fleet application](#fleet-application)
+  - [Get application configuration](#get-application-configuration)
+  - [Modify application configuration](#modify-application-configuration)
+  - [Get enroll secrets](#get-enroll-secrets)
+  - [Modify enroll secrets](#modify-enroll-secrets)
 
 ## Overview
 
@@ -1059,13 +1063,10 @@ Modifies the Fleet application's configuration with the supplied information.
 
 | Name       | Type    | In   | Description                                      |
 | ---------- | ------- | ---- | ------------------------------------------------ |
-| org_info   | object  | body | The object that contains the organization information parameters.               |
 | org_name   | string  | body | *Organization information*. The organization name.               |
 | org_logo_url      | string  | body | *Organization information*. The url for the orgnization logo.          |
-| server_settings   | object  | body | The object that contains the server settings parameters.               |
 | kolide_server_url   | string  | body | *Server settings*. The Fleet server url.               |
 | live_query_disabled | boolean | body | *Server settings*. Whether the live query capabilities are disabled. |
-| smtp_settings      | object | body | The object that contains the SMTP settings parameters. |
 | enable_smtp      | boolean | body | *SMTP settings*. Whether SMTP is enabled for the Fleet app. |
 | sender_address      | string | body | *SMTP settings*. The sender email address for the Fleet app. An invitation email is an example of the emails that may use this sender address  |
 | server      | string | body | *SMTP settings*. The SMTP server for the Fleet app. |
@@ -1078,24 +1079,21 @@ Modifies the Fleet application's configuration with the supplied information.
 | domain | string | body | *SMTP settings*. The domain for the SMTP server.|
 | verify_ssl_certs | boolean | body | *SMTP settings*. Whether or not SSL certificates are verified by the SMTP server. Turn this off (not recommended) if you use a self-signed certificate. |
 | enabled_start_tls | boolean | body | *SMTP settings*. Detects if STARTTLS is enabled in your SMTP server and starts to use it.|
-| sso_settings      | object | body | The object that contains the SSO settings parameters. |
 | enabled_sso      | boolean | body | *SSO settings*. Whether or not SSO is enabled for the Fleet application. If this value is true, you must also include most of the SSO settings parameters below.|
 | entity_id      | string | body | *SSO settings*. The required entity ID is a URI that you use to identify Fleet when configuring the identity provider. |
 | issuer_uri      | string | body | *SSO settings*. The URI you provide here must exactly match the Entity ID field used in the identity provider configuration. |
 | idp_image_url      | string | body | *SSO settings*. An optional link to an image such as a logo for the identity provider. |
 | metadata      | string | body | *SSO settings*. Metadata provided by the identity provider. Either metadata or a metadata url must be provided. |
 | metadata_url      | string | body | *SSO settings*. A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata. |
-| host_expiry_settings      | object | body | The object that contains the Host expiry parameters. |
 | host_expiry_enabled      | boolean | body | *Host expiry settings*. When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days. |
 | host_expiry_window      | integer | body | *Host expiry settings*. If a host has not communicated with Fleet in the specified number of days, it will be removed. |
-| host_expiry_settings      | object | body | The object that contains the Host settings parameters. |
 | additional_queries      | boolean | body | Whether or not additional queries are enabled on hosts. |
 
 #### Example
 
 `PATCH /api/v1/kolide/config`
 
-##### Request query parameters
+##### Request body
 
 ```
 {
@@ -1160,7 +1158,7 @@ Modifies the Fleet application's configuration with the supplied information.
 }
 ```
 
-### Get the enroll secret(s)
+### Get enroll secret(s)
 
 Returns all the enroll secrets used by the Fleet server.
 
@@ -1206,24 +1204,23 @@ None.
 }
 ```
 
-### Modify the enroll secret(s)
+### Modify enroll secret(s)
 
 Modifies the specified enroll secret(s).
 
-`PATCH /api/v1/kolide/spec/enroll_secret`
+`POST /api/v1/kolide/spec/enroll_secret`
 
 #### Parameters
 
-None.
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| name   | string  | body | The name of the enroll secret              |
+| secret   | string  | body | The plain text string used as the enroll secret.               |
+| active      | boolean  | body | Whether or not the enroll secret is active. Must be set to true for hosts to enroll using the enroll secret.          |
 
 #### Example
 
-`PATCH /api/v1/kolide/spec/enroll_secret`
-
-
-##### Default response
-
-`Status: 200`
+##### Request body
 
 ```
 {
@@ -1237,4 +1234,15 @@ None.
     ]
   }
 }
+```
+
+`POST /api/v1/kolide/spec/enroll_secret`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
 ```
