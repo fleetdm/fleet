@@ -17,7 +17,7 @@
   - [Create a user account with an invitation](#create-a-user-account-with-an-invitation)
   - [Create a user account without an invitation](#create-a-user-account-without-an-invitation)
   - [Get user information](#get-user-information)
-- [Fleet App](#fleet-app)
+- [Fleet Application](#fleet-application)
 
 ## Overview
 
@@ -1045,6 +1045,196 @@ None.
   },
   "host_settings": {
     "additional_queries": null
+  }
+}
+```
+
+### Modify application configuration
+
+Modifies the Fleet application's configuration with the supplied information.
+
+`PATCH /api/v1/kolide/config`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| org_info   | object  | body | The object that contains the organization information parameters.               |
+| org_name   | string  | body | *Organization information*. The organization name.               |
+| org_logo_url      | string  | body | *Organization information*. The url for the orgnization logo.          |
+| server_settings   | object  | body | The object that contains the server settings parameters.               |
+| kolide_server_url   | string  | body | *Server settings*. The Fleet server url.               |
+| live_query_disabled | boolean | body | *Server settings*. Whether the live query capabilities are disabled. |
+| smtp_settings      | object | body | The object that contains the SMTP settings parameters. |
+| enable_smtp      | boolean | body | *SMTP settings*. Whether SMTP is enabled for the Fleet app. |
+| sender_address      | string | body | *SMTP settings*. The sender email address for the Fleet app. An invitation email is an example of the emails that may use this sender address  |
+| server      | string | body | *SMTP settings*. The SMTP server for the Fleet app. |
+| port      | integer | body | *SMTP settings*. The SMTP port for the Fleet app. |
+| authetication_type | string | body | *SMTP settings*. The authentication type used by the SMTP server. Options include `"authtype_username_and_password"` or `"none"`|
+| username_name | string | body | *SMTP settings*. The username used to autheticate requests made to the SMTP server.|
+| password | string | body | *SMTP settings*. The password used to autheticate requests made to the SMTP server.|
+| enable_ssl_tls | boolean | body | *SMTP settings*. Whether or not SSL and TLS are enabled for the SMTP server.|
+| authentication_method | string | body | *SMTP settings*. The authentication method used to make autheticated requests to SMTP server. Options include `"authmethod_plain"`, `"authmethod_cram_md5"`, and `"authmethod_login"`.|
+| domain | string | body | *SMTP settings*. The domain for the SMTP server.|
+| verify_ssl_certs | boolean | body | *SMTP settings*. Whether or not SSL certificates are verified by the SMTP server. Turn this off (not recommended) if you use a self-signed certificate. |
+| enabled_start_tls | boolean | body | *SMTP settings*. Detects if STARTTLS is enabled in your SMTP server and starts to use it.|
+| sso_settings      | object | body | The object that contains the SSO settings parameters. |
+| enabled_sso      | boolean | body | *SSO settings*. Whether or not SSO is enabled for the Fleet application. If this value is true, you must also include most of the SSO settings parameters below.|
+| entity_id      | string | body | *SSO settings*. The required entity ID is a URI that you use to identify Fleet when configuring the identity provider. |
+| issuer_uri      | string | body | *SSO settings*. The URI you provide here must exactly match the Entity ID field used in the identity provider configuration. |
+| idp_image_url      | string | body | *SSO settings*. An optional link to an image such as a logo for the identity provider. |
+| metadata      | string | body | *SSO settings*. Metadata provided by the identity provider. Either metadata or a metadata url must be provided. |
+| metadata_url      | string | body | *SSO settings*. A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata. |
+| host_expiry_settings      | object | body | The object that contains the Host expiry parameters. |
+| host_expiry_enabled      | boolean | body | *Host expiry settings*. When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days. |
+| host_expiry_window      | integer | body | *Host expiry settings*. If a host has not communicated with Fleet in the specified number of days, it will be removed. |
+| host_expiry_settings      | object | body | The object that contains the Host settings parameters. |
+| additional_queries      | boolean | body | Whether or not additional queries are enabled on hosts. |
+
+#### Example
+
+`PATCH /api/v1/kolide/config`
+
+##### Request query parameters
+
+```
+{
+  "org_info": {
+    "org_name": "Fleet Device Management",
+    "org_logo_url": "https://fleetdm.com/logo.png"
+  },
+  "smtp_settings: {
+    "enable_smtp": true,
+    "server": "localhost",
+    "port": "1025"
+  }
+}
+```
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "org_info": {
+    "org_name": "Fleet Device Management",
+    "org_logo_url": "https://fleetdm.com/logo.png"
+  },
+  "server_settings": {
+    "kolide_server_url": "https://localhost:8080",
+    "live_query_disabled": false
+  },
+  "smtp_settings": {
+    "enable_smtp": true,
+    "configured": true,
+    "sender_address": "",
+    "server": "localhost",
+    "port": 1025,
+    "authentication_type": "authtype_username_none",
+    "user_name": "",
+    "password": "********",
+    "enable_ssl_tls": true,
+    "authentication_method": "authmethod_plain",
+    "domain": "",
+    "verify_ssl_certs": true,
+    "enable_start_tls": true
+  },
+  "sso_settings": {
+    "entity_id": "",
+    "issuer_uri": "",
+    "idp_image_url": "",
+    "metadata": "",
+    "metadata_url": "",
+    "idp_name": "",
+    "enable_sso": false
+  },
+  "host_expiry_settings": {
+    "host_expiry_enabled": false,
+    "host_expiry_window": 0
+  },
+  "host_settings": {
+    "additional_queries": null
+  }
+}
+```
+
+### Get the enroll secret(s)
+
+Returns all the enroll secrets used by the Fleet server.
+
+`GET /api/v1/kolide/spec/enroll_secret`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/kolide/spec/enroll_secret`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "specs": {
+    "secrets": [
+      {
+        "name": "bar",
+        "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn",
+        "active": true,
+        "created_at": "2021-01-07T19:40:04Z"
+      },
+      {
+        "name": "default",
+        "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn",
+        "active": true,
+        "created_at": "2021-01-04T21:18:07Z"
+      },
+      {
+        "name": "foo",
+        "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn",
+        "active": true,
+        "created_at": "2021-01-07T19:40:04Z"
+      }
+    ]
+  }
+}
+```
+
+### Modify the enroll secret(s)
+
+Modifies the specified enroll secret(s).
+
+`PATCH /api/v1/kolide/spec/enroll_secret`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`PATCH /api/v1/kolide/spec/enroll_secret`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "spec": {
+    "secrets": [
+      {
+        "name": "bar",
+        "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn",
+        "active": false,
+      },
+    ]
   }
 }
 ```
