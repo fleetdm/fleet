@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -108,4 +110,25 @@ func sha512Hash(data []byte) []byte {
 		panic(err)
 	}
 	return hash.Sum(nil)
+}
+
+func TestInitializeDirectories(t *testing.T) {
+	t.Parallel()
+
+	tmpDir, err := ioutil.TempDir("", "orbit-test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	_, err = New(Options{RootDirectory: tmpDir})
+	require.NoError(t, err)
+	assertDir(t, filepath.Join(tmpDir, binDir))
+	assertDir(t, filepath.Join(tmpDir, binDir, osqueryDir))
+	assertDir(t, filepath.Join(tmpDir, binDir, orbitDir))
+	assertDir(t, filepath.Join(tmpDir, notaryDir))
+}
+
+func assertDir(t *testing.T, path string) {
+	info, err := os.Stat(path)
+	assert.NoError(t, err, "stat should succeed")
+	assert.True(t, info.IsDir())
 }

@@ -2,26 +2,23 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
-	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 
+	"github.com/fleetdm/orbit/pkg/constant"
 	"github.com/fleetdm/orbit/pkg/insecure"
 	"github.com/fleetdm/orbit/pkg/osquery"
+	"github.com/fleetdm/orbit/pkg/update"
 	"github.com/oklog/run"
 	"github.com/pkg/errors"
-	"github.com/theupdateframework/notary/client"
-	"github.com/theupdateframework/notary/trustpinning"
-	"github.com/theupdateframework/notary/tuf/data"
 	"github.com/urfave/cli/v2"
 )
 
 const (
 	serverURL = "localhost:8080"
+	notaryURL = "https://localhost:4443"
 	certPath  = "/tmp/fleet.pem"
 )
 
@@ -41,9 +38,14 @@ func main() {
 			Usage: "Disable TLS certificate verification",
 		},
 		&cli.StringFlag{
-			Name:        "fleet_url",
-			Usage:       "URL (host:port) to Fleet server",
+			Name:  "fleet-url",
+			Usage: "URL (host:port) to Fleet server",
 			Value: serverURL,
+		},
+		&cli.StringFlag{
+			Name:  "notary-url",
+			Usage: "URL (host:port) to Notary update server",
+			Value: notaryURL,
 		},
 		&cli.StringFlag{
 			Name:  "enroll-secret",
@@ -51,54 +53,64 @@ func main() {
 		},
 	}
 	app.Action = func(c *cli.Context) error {
-		err := initialize(c)
+		// err := initialize(c)
+		// if err != nil {
+		// 	return errors.Wrap(err, "initialize")
+		// }
+
+		// rootDir := ".trust"
+		// if err := os.MkdirAll(rootDir, 0700); err != nil {
+		// 	panic(err)
+		// }
+
+		// server := "https://localhost:4443"
+		// image := "example.com/collection"
+		// transport := http.DefaultTransport.(*http.Transport).Clone()
+		// transport.TLSClientConfig = &tls.Config{
+		// 	InsecureSkipVerify: true,
+		// }
+		// repo, err := client.NewFileCachedRepository(
+		// 	rootDir,
+		// 	data.GUN(image),
+		// 	server,
+		// 	transport,
+		// 	nil,
+		// 	trustpinning.TrustPinConfig{},
+		// )
+		// if err != nil {
+		// 	panic(err)
+		// }
+
+		// targets, err := repo.ListTargets()
+		// if err != nil {
+		// 	panic(err)
+		// }
+
+		// for _, tgt := range targets {
+		// 	fmt.Printf("%s\t%s\n", tgt.Name, hex.EncodeToString(tgt.Hashes["sha256"]))
+		// }
+
+		// tgt, err := repo.GetTargetByName("LICENSE")
+		// if err != nil {
+		// 	panic(err)
+		// }
+		// fmt.Printf("%+v\n", tgt)
+
+		updater, err := update.New(update.Options{
+			RootDirectory:     c.String("root-dir"),
+			ServerURL:         c.String("notary-url"),
+			InsecureTransport: true,
+		})
 		if err != nil {
-			return errors.Wrap(err, "initialize")
+			return err
 		}
-
-		rootDir := ".trust"
-		if err := os.MkdirAll(rootDir, 0700); err != nil {
-			panic(err)
-		}
-
-		server := "https://localhost:4443"
-		image := "example.com/collection"
-		transport := http.DefaultTransport.(*http.Transport).Clone()
-		transport.TLSClientConfig = &tls.Config{
-			InsecureSkipVerify: true,
-		}
-		repo, err := client.NewFileCachedRepository(
-			rootDir,
-			data.GUN(image),
-			server,
-			transport,
-			nil,
-			trustpinning.TrustPinConfig{},
-		)
-		if err != nil {
-			panic(err)
-		}
-
-		targets, err := repo.ListTargets()
-		if err != nil {
-			panic(err)
-		}
-
-		for _, tgt := range targets {
-			fmt.Printf("%s\t%s\n", tgt.Name, hex.EncodeToString(tgt.Hashes["sha256"]))
-		}
-
-		tgt, err := repo.GetTargetByName("LICENSE")
-		if err != nil {
-			panic(err)
-		}
-		fmt.Printf("%+v\n", tgt)
->>>>>>> Stashed changes
+		fmt.Println(updater.Lookup("test", "LICENSE"))
+		_ = updater
 
 		var g run.Group
 		var options []func(*osquery.Runner) error
 
-		fleetURL := c.String("fleet_url")
+		fleetURL := c.String("fleet-url")
 
 		if c.Bool("insecure") {
 			proxy, err := insecure.NewTLSProxy(fleetURL)
@@ -174,7 +186,7 @@ func main() {
 
 func initialize(c *cli.Context) error {
 	fmt.Println(c.String("root-dir"))
-	err := os.MkdirAll(c.String("root-dir"), 0o600)
+	err := os.MkdirAll(c.String("root-dir"), constant.DefaultDirMode)
 	if err != nil {
 		return errors.Wrap(err, "make root directory")
 	}
