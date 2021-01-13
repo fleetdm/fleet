@@ -37,6 +37,7 @@ class HostsTable extends Component {
     hosts: PropTypes.arrayOf(hostInterface),
     onDestroyHost: PropTypes.func,
     onQueryHost: PropTypes.func,
+    onHostClick: PropTypes.func,
   };
 
   lastSeenTime = (status, seenTime) => {
@@ -48,7 +49,7 @@ class HostsTable extends Component {
   };
 
   renderHost = (host) => {
-    const { onDestroyHost, onQueryHost } = this.props;
+    const { onDestroyHost, onQueryHost, onHostClick } = this.props;
     const statusClassName = classnames(
       `${baseClass}__status`,
       `${baseClass}__status--${host.status}`,
@@ -60,7 +61,7 @@ class HostsTable extends Component {
           className={`${baseClass}__hostname`}
           title={this.lastSeenTime(host.status, host.seen_time)}
         >
-          {host.hostname}
+          <Button onClick={() => onHostClick(host)} variant="text-link">{host.hostname}</Button>
         </td>
         <td className={statusClassName}>
           {host.status}

@@ -15,6 +15,7 @@ import ConfirmSSOInvitePage from 'pages/ConfirmSSOInvitePage';
 import CoreLayout from 'layouts/CoreLayout';
 import EditPackPage from 'pages/packs/EditPackPage';
 import EmailTokenRedirect from 'components/EmailTokenRedirect';
+import HostDetailsPage from 'pages/hosts/HostDetailsPage';
 import LoginRoutes from 'components/LoginRoutes';
 import LogoutPage from 'pages/LogoutPage';
 import ManageHostsPage from 'pages/hosts/ManageHostsPage';
@@ -57,6 +58,7 @@ const routes = (
               <Route path="manage" component={ManageHostsPage} />
               <Route path="manage/labels/:label_id" component={ManageHostsPage} />
               <Route path="manage/:active_label" component={ManageHostsPage} />
+              <Route path=":host_id" component={HostDetailsPage} />
             </Route>
             <Route path="packs" component={PackPageWrapper}>
               <Route path="manage" component={AllPacksPage} />

@@ -108,6 +108,14 @@ export class ManageHostsPage extends PureComponent {
     return false;
   }
 
+  onHostClick = (host) => {
+    const { dispatch } = this.props;
+
+    dispatch(push(PATHS.HOST_DETAILS(host)));
+
+    return false;
+  }
+
   onAddHostClick = (evt) => {
     evt.preventDefault();
 
@@ -505,6 +513,7 @@ export class ManageHostsPage extends PureComponent {
     const {
       onQueryHost,
       onPaginationChange,
+      onHostClick,
       renderForm,
       renderHeader,
       renderSidePanel,
@@ -577,6 +586,7 @@ export class ManageHostsPage extends PureComponent {
                 toggleAddHostModal={toggleAddHostModal}
                 toggleDeleteHostModal={toggleDeleteHostModal}
                 onQueryHost={onQueryHost}
+                onHostClick={onHostClick}
               />
               {!loadingHosts && <HostPagination
                 allHostCount={hostCount}

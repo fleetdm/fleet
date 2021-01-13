@@ -84,6 +84,34 @@ $base-class: 'button';
     @include button-variant($core-purple);
   }
 
+  &--text-link {
+    @include button-variant(transparent);
+    border: 0;
+    box-shadow: none;
+    color: $core-blue;
+    font-size: $x-small;
+    cursor: pointer;
+    margin: 0;
+    padding: 0;
+    height: auto;
+    line-height: normal;
+
+    &:active {
+      box-shadow: none;
+      top: 0;
+    }
+
+    &:focus {
+      outline: none;
+    }
+
+    &:hover {
+      background-color: transparent;
+      box-shadow: none;
+      text-decoration: underline;
+    }
+  }
+
   &--inverse {
     @include button-variant($white, $core-blue-over, $core-blue-down, $inverse: true);
     color: $core-blue;
