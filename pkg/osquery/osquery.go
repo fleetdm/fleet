@@ -59,13 +59,21 @@ func WithEnv(env []string) func(*Runner) error {
 	}
 }
 
+func WithPath(path string) func(*Runner) error {
+	return func(r *Runner) error {
+		r.cmd.Path = path
+		return nil
+	}
+}
+
 func (r *Runner) Execute() error {
+	ctx, cancel := context.WithCancel(context.Background())
+	r.cancel = cancel
+
 	if err := r.proc.Start(); err != nil {
 		return errors.Wrap(err, "start osquery")
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	r.cancel = cancel
 	if err := r.proc.StopOrKill(ctx, 10*time.Second); err != nil {
 		return errors.Wrap(err, "osquery exited with error")
 	}

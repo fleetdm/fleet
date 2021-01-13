@@ -6,11 +6,14 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/fleetdm/orbit/pkg/constant"
+	"github.com/fleetdm/orbit/pkg/database"
 	"github.com/fleetdm/orbit/pkg/insecure"
 	"github.com/fleetdm/orbit/pkg/osquery"
 	"github.com/fleetdm/orbit/pkg/update"
+	"github.com/fleetdm/orbit/pkg/update/badgerstore"
 	"github.com/oklog/run"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
@@ -18,7 +21,7 @@ import (
 
 const (
 	serverURL = "localhost:8080"
-	notaryURL = "https://localhost:4443"
+	notaryURL = "https://tuf.fleetctl.com"
 	certPath  = "/tmp/fleet.pem"
 )
 
@@ -26,7 +29,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "Orbit osquery"
 	app.Usage = "A powered-up, (near) drop-in replacement for osquery"
-	defaultRootDir := "/usr/local/orbit"
+	defaultRootDir := "/usr/local/fleet"
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
 			Name:  "root-dir",
@@ -53,59 +56,37 @@ func main() {
 		},
 	}
 	app.Action = func(c *cli.Context) error {
-		// err := initialize(c)
-		// if err != nil {
-		// 	return errors.Wrap(err, "initialize")
-		// }
+		if err := os.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
+			return errors.Wrap(err, "initialize root dir")
+		}
 
-		// rootDir := ".trust"
-		// if err := os.MkdirAll(rootDir, 0700); err != nil {
-		// 	panic(err)
-		// }
-
-		// server := "https://localhost:4443"
-		// image := "example.com/collection"
-		// transport := http.DefaultTransport.(*http.Transport).Clone()
-		// transport.TLSClientConfig = &tls.Config{
-		// 	InsecureSkipVerify: true,
-		// }
-		// repo, err := client.NewFileCachedRepository(
-		// 	rootDir,
-		// 	data.GUN(image),
-		// 	server,
-		// 	transport,
-		// 	nil,
-		// 	trustpinning.TrustPinConfig{},
-		// )
-		// if err != nil {
-		// 	panic(err)
-		// }
-
-		// targets, err := repo.ListTargets()
-		// if err != nil {
-		// 	panic(err)
-		// }
-
-		// for _, tgt := range targets {
-		// 	fmt.Printf("%s\t%s\n", tgt.Name, hex.EncodeToString(tgt.Hashes["sha256"]))
-		// }
-
-		// tgt, err := repo.GetTargetByName("LICENSE")
-		// if err != nil {
-		// 	panic(err)
-		// }
-		// fmt.Printf("%+v\n", tgt)
-
-		updater, err := update.New(update.Options{
-			RootDirectory:     c.String("root-dir"),
-			ServerURL:         c.String("notary-url"),
-			InsecureTransport: true,
-		})
+		db, err := database.Open(filepath.Join(c.String("root-dir"), "orbit.db"))
 		if err != nil {
 			return err
 		}
-		fmt.Println(updater.Lookup("test", "LICENSE"))
-		_ = updater
+		defer func() {
+			if err := db.Close(); err != nil {
+				log.Printf("Error closing badger: %v", err)
+			}
+		}()
+
+		opt := update.DefaultOptions
+		opt.RootDirectory = c.String("root-dir")
+		opt.ServerURL = c.String("notary-url")
+		opt.LocalStore = badgerstore.New(db.DB)
+		updater, err := update.New(opt)
+		if err != nil {
+			return err
+		}
+		if err := updater.UpdateMetadata(); err != nil {
+			return err
+		}
+		log.Println(updater.Targets())
+
+		osquerydPath, err := updater.Get("osqueryd", "macos", "stable")
+		if err != nil {
+			return err
+		}
 
 		var g run.Group
 		var options []func(*osquery.Runner) error
@@ -146,9 +127,9 @@ func main() {
 			)
 		}
 
-		if enrollSecret := c.String("enroll_secret"); enrollSecret != "" {
+		if enrollSecret := c.String("enroll-secret"); enrollSecret != "" {
 			options = append(options,
-				osquery.WithEnv([]string{"ENROLL_SECRET="}),
+				osquery.WithEnv([]string{"ENROLL_SECRET=" + enrollSecret}),
 				osquery.WithFlags([]string{"--enroll_secret_env", "ENROLL_SECRET"}),
 			)
 		}
@@ -162,6 +143,8 @@ func main() {
 		options = append(options,
 			osquery.WithFlags([]string{"--verbose"}),
 		)
+
+		options = append(options, osquery.WithPath(osquerydPath))
 
 		// Create an osquery runner with the provided options
 		r, _ := osquery.NewRunner(options...)

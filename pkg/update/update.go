@@ -2,20 +2,19 @@
 package update
 
 import (
-	"bytes"
-	"crypto/sha512"
 	"crypto/tls"
-	"encoding/base64"
-	"io"
+	"encoding/json"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 
 	"github.com/fleetdm/orbit/pkg/constant"
 	"github.com/pkg/errors"
-	"github.com/theupdateframework/notary/client"
-	"github.com/theupdateframework/notary/trustpinning"
-	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/go-tuf/client"
+	"github.com/theupdateframework/go-tuf/data"
 )
 
 const (
@@ -23,13 +22,14 @@ const (
 	osqueryDir = "osquery"
 	orbitDir   = "orbit"
 
-	notaryDir = "notary"
+	windowsExtension = ".exe"
 )
 
 // Updater is responsible for managing update state.
 type Updater struct {
 	opt       Options
 	transport *http.Transport
+	client    *client.Client
 }
 
 // Options are the options that can be provided when creating an Updater.
@@ -38,12 +38,26 @@ type Options struct {
 	RootDirectory string
 	// ServerURL is the URL of the update server.
 	ServerURL string
-	// GUN is the Globally Unique Name to look up with the Notary server.
-	GUN string
 	// InsecureTransport skips TLS certificate verification in the transport if
 	// set to true.
 	InsecureTransport bool
+	// RootKeys is the JSON encoded root keys to use to bootstrap trust.
+	RootKeys string
+	// LocalStore is the local metadata store.
+	LocalStore client.LocalStore
 }
+
+var (
+	// DefaultOptions are the default options to use when creating an update
+	// client.
+	DefaultOptions = Options{
+		RootDirectory:     "/var/fleet",
+		ServerURL:         "https://tuf.fleetctl.com",
+		LocalStore:        client.MemoryLocalStore(),
+		InsecureTransport: false,
+		RootKeys:          `[{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"0994148e5242118d1d6a9a397a3646e0423545a37794a791c28aa39de3b0c523"}}]`,
+	}
+)
 
 // New creates a new updater given the provided options. All the necessary
 // directories are initialized.
@@ -52,40 +66,136 @@ func New(opt Options) (*Updater, error) {
 	transport.TLSClientConfig = &tls.Config{
 		InsecureSkipVerify: opt.InsecureTransport,
 	}
+	httpClient := &http.Client{Transport: transport}
 
-	updater := &Updater{
-		opt:       opt,
-		transport: transport,
+	remoteStore, err := client.HTTPRemoteStore(opt.ServerURL, nil, httpClient)
+	if err != nil {
+		return nil, errors.Wrap(err, "init remote store")
 	}
 
-	err := updater.initializeDirectories()
-	if err != nil {
+	tufClient := client.NewClient(opt.LocalStore, remoteStore)
+	var rootKeys []*data.Key
+	if err := json.Unmarshal([]byte(opt.RootKeys), &rootKeys); err != nil {
+		return nil, errors.Wrap(err, "unmarshal root keys")
+	}
+	if err := tufClient.Init(rootKeys, 1); err != nil {
+		return nil, errors.Wrap(err, "init tuf client")
+	}
+
+	updater := &Updater{
+		opt:    opt,
+		client: tufClient,
+	}
+
+	if err := updater.initializeDirectories(); err != nil {
 		return nil, err
 	}
 
 	return updater, nil
 }
 
-// Lookup returns the target metadata for the provided GUN and target name.
-func (u *Updater) Lookup(GUN, target string) (*client.Target, error) {
-	client, err := client.NewFileCachedRepository(
-		u.pathFromRoot(notaryDir),
-		data.GUN(GUN),
-		u.opt.ServerURL,
-		u.transport,
-		nil,
-		trustpinning.TrustPinConfig{},
-	)
+func (u *Updater) UpdateMetadata() error {
+	if _, err := u.client.Update(); err != nil && errors.Is(err, &client.ErrLatestSnapshot{}) {
+		return errors.Wrap(err, "update metadata")
+	}
+	return nil
+}
+
+func makeRepoPath(name, platform, version string) string {
+	path := path.Join(name, platform, version, name)
+	if platform == "windows" {
+		path += windowsExtension
+	}
+	return path
+}
+
+func makeLocalPath(name, platform, version string) string {
+	path := filepath.Join(name, version, name)
+	if platform == "windows" {
+		path += windowsExtension
+	}
+	return path
+}
+
+// Lookup looks up the provided target in the local target metadata. This should
+// be called after UpdateMetadata.
+func (u *Updater) Lookup(name, platform, version string) (*data.TargetFileMeta, error) {
+	target, err := u.client.Target(makeRepoPath(name, platform, version))
 	if err != nil {
-		return nil, errors.Wrap(err, "make notary client")
+		return nil, errors.Wrapf(err, "lookup target %s", target)
 	}
 
-	targetWithRole, err := client.GetTargetByName(target)
+	return &target, nil
+}
+
+// Targets gets all of the known targets
+func (u *Updater) Targets() (data.TargetFiles, error) {
+	targets, err := u.client.Targets()
 	if err != nil {
-		return nil, errors.Wrap(err, "get target by name")
+		return nil, errors.Wrapf(err, "get targets")
 	}
 
-	return &targetWithRole.Target, nil
+	return targets, nil
+}
+
+// Get returns the local path to the specified target. The target is downloaded
+// if it does not yet exist locally or the hash does not match.
+func (u *Updater) Get(name, platform, version string) (string, error) {
+	localPath := u.pathFromRoot(makeLocalPath(name, platform, version))
+	repoPath := makeRepoPath(name, platform, version)
+	stat, err := os.Stat(localPath)
+	if err != nil {
+		log.Println("error stat file:", err)
+		return localPath, u.Download(repoPath, localPath)
+	}
+	if !stat.Mode().IsRegular() {
+		return "", errors.Errorf("expected %s to be regular file", localPath)
+	}
+
+	meta, err := u.Lookup(name, platform, version)
+	if err != nil {
+		return "", err
+	}
+
+	if err := CheckFileHash(meta, localPath); err != nil {
+		log.Printf("Will redownload due to error checking hash: %v", err)
+		return localPath, u.Download(repoPath, localPath)
+	}
+
+	log.Printf("Found expected version locally: %s", localPath)
+
+	return localPath, nil
+}
+
+// Download downloads the target to the provided path. The file is deleted and
+// an error is returned if the hash does not match.
+func (u *Updater) Download(repoPath, localPath string) error {
+	tmp, err := ioutil.TempFile("", "orbit-download")
+	if err != nil {
+		return errors.Wrap(err, "open temp file for download")
+	}
+	defer func() {
+		tmp.Close()
+		os.Remove(tmp.Name())
+	}()
+
+	if err := os.MkdirAll(filepath.Dir(localPath), constant.DefaultDirMode); err != nil {
+		return errors.Wrap(err, "initialize download dir")
+	}
+
+	if err := u.client.Download(repoPath, &fileDestination{tmp}); err != nil {
+		return errors.Wrapf(err, "download target %s", repoPath)
+	}
+
+	if err := os.Chmod(tmp.Name(), constant.DefaultExecutableMode); err != nil {
+		return errors.Wrap(err, "chmod download")
+	}
+
+	if err := os.Rename(tmp.Name(), localPath); err != nil {
+		return errors.Wrap(err, "move download")
+	}
+
+	return nil
 }
 
 func (u *Updater) pathFromRoot(parts ...string) string {
@@ -97,63 +207,11 @@ func (u *Updater) initializeDirectories() error {
 		u.pathFromRoot(binDir),
 		u.pathFromRoot(binDir, osqueryDir),
 		u.pathFromRoot(binDir, orbitDir),
-		u.pathFromRoot(notaryDir),
 	} {
 		err := os.MkdirAll(dir, constant.DefaultDirMode)
 		if err != nil {
 			return errors.Wrap(err, "initialize directories")
 		}
-	}
-
-	return nil
-}
-
-// DownloadWithSHA512Hash downloads the contents of the given URL, writing
-// results to the provided writer. The size is used as an upper limit on the
-// amount of data read. An error is returned if the hash of the data received
-// does not match the expected hash.
-func DownloadWithSHA512Hash(url string, out io.Writer, size int64, expectedHash []byte) error {
-	resp, err := http.Get(url)
-	if err != nil {
-		return errors.Wrap(err, "make get request")
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return errors.Errorf("unexpected HTTP status: %s", resp.Status)
-	}
-
-	hash := sha512.New()
-
-	// Limit size of response read to expected size
-	limitReader := &io.LimitedReader{
-		R: resp.Body,
-		N: size + 1,
-	}
-
-	// Tee the bytes through the hash function
-	teeReader := io.TeeReader(limitReader, hash)
-
-	n, err := io.Copy(out, teeReader)
-	if err != nil {
-		return errors.Wrap(err, "copy response body")
-	}
-	// Technically these cases would be caught by the hash, but these errors are
-	// hopefully a bit more helpful.
-	if n < size {
-		return errors.New("response smaller than expected")
-	}
-	if n > size {
-		return errors.New("response larger than expected")
-	}
-
-	// Validate the hash matches
-	gotHash := hash.Sum(nil)
-	if !bytes.Equal(gotHash, expectedHash) {
-		return errors.Errorf(
-			"hash %s does not match expected %s",
-			base64.StdEncoding.EncodeToString(gotHash),
-			base64.StdEncoding.EncodeToString(expectedHash),
-		)
 	}
 
 	return nil
