@@ -33,7 +33,7 @@ func assertDir(t *testing.T, path string) {
 	assert.True(t, info.IsDir())
 }
 
-func TestMakePath(t *testing.T) {
+func TestMakeRepoPath(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
@@ -50,7 +50,7 @@ func TestMakePath(t *testing.T) {
 		t.Run(tt.expected, func(t *testing.T) {
 			t.Parallel()
 
-			assert.Equal(t, tt.expected, makePath(tt.name, tt.platform, tt.version))
+			assert.Equal(t, tt.expected, makeRepoPath(tt.name, tt.platform, tt.version))
 		})
 	}
 }

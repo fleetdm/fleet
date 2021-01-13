@@ -27,9 +27,8 @@ const (
 
 // Updater is responsible for managing update state.
 type Updater struct {
-	opt       Options
-	transport *http.Transport
-	client    *client.Client
+	opt    Options
+	client *client.Client
 }
 
 // Options are the options that can be provided when creating an Updater.
@@ -122,7 +121,7 @@ func makeLocalPath(name, platform, version string) string {
 func (u *Updater) Lookup(name, platform, version string) (*data.TargetFileMeta, error) {
 	target, err := u.client.Target(makeRepoPath(name, platform, version))
 	if err != nil {
-		return nil, errors.Wrapf(err, "lookup target %s", target)
+		return nil, errors.Wrapf(err, "lookup target %v", target)
 	}
 
 	return &target, nil

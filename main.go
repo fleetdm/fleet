@@ -166,13 +166,3 @@ func main() {
 		log.Println("Error:", err)
 	}
 }
-
-func initialize(c *cli.Context) error {
-	fmt.Println(c.String("root-dir"))
-	err := os.MkdirAll(c.String("root-dir"), constant.DefaultDirMode)
-	if err != nil {
-		return errors.Wrap(err, "make root directory")
-	}
-
-	return nil
-}
