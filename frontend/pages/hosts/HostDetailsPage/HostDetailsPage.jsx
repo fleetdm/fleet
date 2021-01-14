@@ -2,9 +2,11 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 
+import Spinner from 'components/loaders/Spinner';
+
 import entityGetter from 'redux/utilities/entityGetter';
 import hostInterface from 'interfaces/host';
-import { isEmpty } from 'lodash';
+import { isEmpty, noop } from 'lodash';
 import helpers from 'pages/hosts/HostDetailsPage/helpers';
 
 export class HostDetailsPage extends Component {
@@ -12,11 +14,12 @@ export class HostDetailsPage extends Component {
     host: hostInterface,
     hostID: PropTypes.string,
     dispatch: PropTypes.func,
-
+    isLoadingHost: PropTypes.bool,
   }
 
   static defaultProps = {
     host: {},
+    dispatch: noop,
   };
 
   componentDidMount () {
@@ -31,7 +34,14 @@ export class HostDetailsPage extends Component {
   }
 
   render () {
-    const { host } = this.props;
+    const { host, isLoadingHost } = this.props;
+
+    if (isLoadingHost) {
+      return (
+        <Spinner />
+      );
+    }
+
     return (
       <div>{host.hostname}</div>
     );
@@ -41,9 +51,11 @@ export class HostDetailsPage extends Component {
 const mapStateToProps = (state, ownProps) => {
   const { host_id: hostID } = ownProps.params;
   const host = entityGetter(state).get('hosts').findBy({ id: hostID });
+  const { loading: isLoadingHost } = state.entities.hosts;
   return {
     host,
     hostID,
+    isLoadingHost,
   };
 };
 
