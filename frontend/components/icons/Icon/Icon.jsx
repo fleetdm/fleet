@@ -13,13 +13,14 @@ export class Icon extends Component {
 
   render () {
     const { className, name, size } = this.props;
-    const src = `../../../assets/images/icon-${name}-${size}x${size}@2x.png`;
+    const requestImageFile = require.context('../../../../assets/images', true, /.png$/);
+    const fileName = `icon-${name}-${size}x${size}@2x`;
     const iconClasses = classnames(baseClass, className, {
       [`${baseClass}-${size}`]: size,
     });
 
     return (
-      <img src={src} alt={`${name} icon`} className={iconClasses} />
+      <img src={requestImageFile(`./${fileName}.png`)} alt={`${name} icon`} className={iconClasses} />
     );
   }
 }
