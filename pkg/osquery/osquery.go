@@ -78,20 +78,20 @@ func WithShell() func(*Runner) error {
 }
 
 func (r *Runner) Execute() error {
-	log.Debug().Str("cmd", r.cmd.String()).Msg("Run osquery")
+	log.Debug().Str("cmd", r.cmd.String()).Msg("run osqueryd")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	r.cancel = cancel
 
 	if err := r.proc.Start(); err != nil {
-		return errors.Wrap(err, "start osquery")
+		return errors.Wrap(err, "start osqueryd")
 	}
 
-	if err := r.proc.StopOrKill(ctx, 10*time.Second); err != nil {
-		return errors.Wrap(err, "osquery exited with error")
+	if err := r.proc.WaitOrKill(ctx, 10*time.Second); err != nil {
+		return errors.Wrap(err, "osqueryd exited with error")
 	}
 
-	return errors.New("osquery exited unexpectedly")
+	return nil
 }
 
 func (r *Runner) Interrupt(err error) {

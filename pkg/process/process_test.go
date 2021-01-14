@@ -18,12 +18,12 @@ func TestWaitOrKillNilProcess(t *testing.T) {
 	mockCmd.On("OsProcess").Return(nil)
 
 	p := newWithMock(mockCmd)
-	err := p.StopOrKill(context.Background(), 1*time.Second)
+	err := p.WaitOrKill(context.Background(), 1*time.Second)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "non-nil OsProcess")
 }
 
-func TestStopOrKillProcessCompleted(t *testing.T) {
+func TestWaitOrKillProcessCompleted(t *testing.T) {
 	// Process already completed
 	mockCmd := &mockExecCmd{}
 	mockProcess := &mockOsProcess{}
@@ -32,11 +32,11 @@ func TestStopOrKillProcessCompleted(t *testing.T) {
 	mockCmd.On("Wait").Return(nil)
 
 	p := newWithMock(mockCmd)
-	err := p.StopOrKill(context.Background(), 10*time.Millisecond)
+	err := p.WaitOrKill(context.Background(), 10*time.Millisecond)
 	require.NoError(t, err)
 }
 
-func TestStopOrKillProcessCompletedError(t *testing.T) {
+func TestWaitOrKillProcessCompletedError(t *testing.T) {
 	// Process already completed with error
 	mockCmd := &mockExecCmd{}
 	mockProcess := &mockOsProcess{}
@@ -45,12 +45,12 @@ func TestStopOrKillProcessCompletedError(t *testing.T) {
 	mockCmd.On("Wait").After(10 * time.Millisecond).Return(fmt.Errorf("super bad"))
 
 	p := newWithMock(mockCmd)
-	err := p.StopOrKill(context.Background(), 10*time.Millisecond)
+	err := p.WaitOrKill(context.Background(), 10*time.Millisecond)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "super bad")
 }
 
-func TestStopOrKillWait(t *testing.T) {
+func TestWaitOrKillWait(t *testing.T) {
 	// Process completes after the wait call and after the signal is sent
 	mockCmd := &mockExecCmd{}
 	mockProcess := &mockOsProcess{}
@@ -62,12 +62,12 @@ func TestStopOrKillWait(t *testing.T) {
 	p := newWithMock(mockCmd)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	err := p.StopOrKill(ctx, 10*time.Millisecond)
+	err := p.WaitOrKill(ctx, 10*time.Millisecond)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "context canceled")
 }
 
-func TestStopOrKillWaitSignalCompleted(t *testing.T) {
+func TestWaitOrKillWaitSignalCompleted(t *testing.T) {
 	// Process completes after the wait call and before the signal is sent
 	mockCmd := &mockExecCmd{}
 	mockProcess := &mockOsProcess{}
@@ -79,11 +79,11 @@ func TestStopOrKillWaitSignalCompleted(t *testing.T) {
 	p := newWithMock(mockCmd)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	err := p.StopOrKill(ctx, 5*time.Millisecond)
+	err := p.WaitOrKill(ctx, 5*time.Millisecond)
 	require.NoError(t, err)
 }
 
-func TestStopOrKillWaitKilled(t *testing.T) {
+func TestWaitOrKillWaitKilled(t *testing.T) {
 	// Process is killed after the wait call and signal
 	mockCmd := &mockExecCmd{}
 	mockProcess := &mockOsProcess{}
@@ -96,7 +96,7 @@ func TestStopOrKillWaitKilled(t *testing.T) {
 	p := newWithMock(mockCmd)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	err := p.StopOrKill(ctx, 5*time.Millisecond)
+	err := p.WaitOrKill(ctx, 5*time.Millisecond)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "context canceled")
 }

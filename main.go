@@ -166,6 +166,7 @@ func main() {
 
 		options = append(options, osquery.WithPath(osquerydPath))
 		options = append(options, osquery.WithShell())
+		options = append(options, osquery.WithFlags([]string(c.Args().Slice())))
 
 		// Create an osquery runner with the provided options
 		r, _ := osquery.NewRunner(options...)
@@ -177,7 +178,7 @@ func main() {
 		g.Add(run.SignalHandler(ctx, os.Interrupt, os.Kill))
 
 		if err := g.Run(); err != nil {
-			fmt.Println(err)
+			log.Error().Err(err).Msg("unexpected exit")
 		}
 
 		return nil
@@ -220,7 +221,7 @@ var shellCommand = &cli.Command{
 		}
 		defer func() {
 			if err := db.Close(); err != nil {
-				log.Error().Err(err).Msg("Close badger")
+				log.Error().Err(err).Msg("close badger")
 			}
 		}()
 
@@ -251,6 +252,7 @@ var shellCommand = &cli.Command{
 		r, _ := osquery.NewRunner(
 			osquery.WithShell(),
 			osquery.WithPath(osquerydPath),
+			osquery.WithFlags([]string(c.Args().Slice())),
 		)
 		g.Add(r.Execute, r.Interrupt)
 
@@ -260,7 +262,7 @@ var shellCommand = &cli.Command{
 		g.Add(run.SignalHandler(ctx, os.Interrupt, os.Kill))
 
 		if err := g.Run(); err != nil {
-			fmt.Println(err)
+			log.Error().Err(err).Msg("unexpected exit")
 		}
 
 		return nil
