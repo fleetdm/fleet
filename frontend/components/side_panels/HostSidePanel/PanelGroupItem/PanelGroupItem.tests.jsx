@@ -30,10 +30,6 @@ describe('PanelGroupItem - component', () => {
     <PanelGroupItem item={validPanelGroupItem} statusLabels={statusLabels} />,
   );
 
-  const platformComponent = mount(
-    <PanelGroupItem item={validPanelGroupItem} statusLabels={statusLabels} type="platform" />,
-  );
-
   const statusLabelComponent = mount(
     <PanelGroupItem item={validStatusGroupItem} statusLabels={statusLabels} type="status" />,
   );
