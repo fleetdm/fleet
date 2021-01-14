@@ -2,7 +2,6 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import classnames from 'classnames';
 
-import Icon from 'components/icons/Icon';
 import PATHS from 'router/paths';
 
 import SettingsIcon from '../../../../assets/images/icon-main-settings-white-24x24@2x.png';
