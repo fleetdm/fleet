@@ -2,13 +2,13 @@ package osquery
 
 import (
 	"context"
-	"log"
 	"os"
 	"os/exec"
 	"time"
 
 	"github.com/fleetdm/orbit/pkg/process"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
 type Runner struct {
@@ -78,6 +78,8 @@ func WithShell() func(*Runner) error {
 }
 
 func (r *Runner) Execute() error {
+	log.Debug().Str("cmd", r.cmd.String()).Msg("Run osquery")
+
 	ctx, cancel := context.WithCancel(context.Background())
 	r.cancel = cancel
 
@@ -93,6 +95,6 @@ func (r *Runner) Execute() error {
 }
 
 func (r *Runner) Interrupt(err error) {
-	log.Printf("interrupt osquery")
+	log.Debug().Msg("interrupt osquery")
 	r.cancel()
 }

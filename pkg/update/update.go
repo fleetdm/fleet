@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"path"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/fleetdm/orbit/pkg/constant"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"github.com/theupdateframework/go-tuf/client"
 	"github.com/theupdateframework/go-tuf/data"
 )
@@ -136,7 +136,7 @@ func (u *Updater) Get(name, platform, version string) (string, error) {
 	repoPath := makeRepoPath(name, platform, version)
 	stat, err := os.Stat(localPath)
 	if err != nil {
-		log.Println("error stat file:", err)
+		log.Debug().Err(err).Msg("stat file")
 		return localPath, u.Download(repoPath, localPath)
 	}
 	if !stat.Mode().IsRegular() {
@@ -149,11 +149,11 @@ func (u *Updater) Get(name, platform, version string) (string, error) {
 	}
 
 	if err := CheckFileHash(meta, localPath); err != nil {
-		log.Printf("Will redownload due to error checking hash: %v", err)
+		log.Debug().Err(err).Msg("will redownload due to error checking hash")
 		return localPath, u.Download(repoPath, localPath)
 	}
 
-	log.Printf("Found expected version locally: %s", localPath)
+	log.Debug().Str("path", localPath).Msg("found expected version locally")
 
 	return localPath, nil
 }

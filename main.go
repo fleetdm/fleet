@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/fleetdm/orbit/pkg/constant"
 	"github.com/fleetdm/orbit/pkg/database"
@@ -16,6 +16,8 @@ import (
 	"github.com/fleetdm/orbit/pkg/update/badgerstore"
 	"github.com/oklog/run"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v2"
 )
 
@@ -25,6 +27,7 @@ const (
 )
 
 func main() {
+
 	app := cli.NewApp()
 	app.Name = "Orbit osquery"
 	app.Usage = "A powered-up, (near) drop-in replacement for osquery"
@@ -60,8 +63,17 @@ func main() {
 			Usage: "Version of osqueryd to use",
 			Value: "stable",
 		},
+		&cli.BoolFlag{
+			Name:  "debug",
+			Usage: "Enable debug logging",
+		},
 	}
 	app.Action = func(c *cli.Context) error {
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+		if c.Bool("debug") {
+			zerolog.SetGlobalLevel(zerolog.DebugLevel)
+		}
+
 		if err := os.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
 			return errors.Wrap(err, "initialize root dir")
 		}
@@ -72,7 +84,7 @@ func main() {
 		}
 		defer func() {
 			if err := db.Close(); err != nil {
-				log.Printf("Error closing badger: %v", err)
+				log.Error().Err(err).Msg("Close badger")
 			}
 		}()
 
@@ -111,12 +123,11 @@ func main() {
 			g.Add(
 				func() error {
 					err := proxy.InsecureServeTLS()
-					log.Println(err)
 					return err
 				},
 				func(error) {
 					if err := proxy.Close(); err != nil {
-						log.Printf("error closing proxy: %v", err)
+						log.Error().Err(err).Msg("close proxy")
 					}
 				},
 			)
@@ -173,7 +184,7 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		log.Println("Error:", err)
+		log.Error().Err(err).Msg("")
 	}
 }
 
@@ -187,8 +198,18 @@ var shellCommand = &cli.Command{
 			Usage: "Version of osqueryd to use",
 			Value: "stable",
 		},
+		&cli.BoolFlag{
+			Name:  "debug",
+			Usage: "Enable debug logging",
+		},
 	},
 	Action: func(c *cli.Context) error {
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339})
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+		if c.Bool("debug") {
+			zerolog.SetGlobalLevel(zerolog.DebugLevel)
+		}
+
 		if err := os.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
 			return errors.Wrap(err, "initialize root dir")
 		}
@@ -199,7 +220,7 @@ var shellCommand = &cli.Command{
 		}
 		defer func() {
 			if err := db.Close(); err != nil {
-				log.Printf("Error closing badger: %v", err)
+				log.Error().Err(err).Msg("Close badger")
 			}
 		}()
 

@@ -1,11 +1,11 @@
 package database
 
 import (
-	"log"
 	"time"
 
 	"github.com/dgraph-io/badger/v2"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -56,8 +56,8 @@ func (b *BadgerDB) startBackgroundCompaction() {
 				return
 
 			case <-ticker.C:
-				if err := b.DB.RunValueLogGC(compactionDiscardRatio); err != nil {
-					log.Printf("Error compacting Badger: %v", err)
+				if err := b.DB.RunValueLogGC(compactionDiscardRatio); err != nil && !errors.Is(err, badger.ErrNoRewrite) {
+					log.Error().Err(err).Msg("compact badger")
 				}
 			}
 		}
