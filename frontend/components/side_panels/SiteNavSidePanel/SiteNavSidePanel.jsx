@@ -58,7 +58,6 @@ class SiteNavSidePanel extends Component {
 
   renderNavItem = (navItem) => {
     const { name, iconName, subItems } = navItem;
-    console.log(iconName);
     const { onNavItemClick, pathname } = this.props;
     const { renderSubItems } = this;
     const active = navItem.location.regex.test(pathname);
