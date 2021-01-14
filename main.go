@@ -20,7 +20,6 @@ import (
 )
 
 const (
-	serverURL = "localhost:8080"
 	notaryURL = "https://tuf.fleetctl.com"
 	certPath  = "/tmp/fleet.pem"
 )
@@ -30,6 +29,9 @@ func main() {
 	app.Name = "Orbit osquery"
 	app.Usage = "A powered-up, (near) drop-in replacement for osquery"
 	defaultRootDir := "/usr/local/fleet"
+	app.Commands = []*cli.Command{
+		shellCommand,
+	}
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
 			Name:  "root-dir",
@@ -43,11 +45,10 @@ func main() {
 		&cli.StringFlag{
 			Name:  "fleet-url",
 			Usage: "URL (host:port) to Fleet server",
-			Value: serverURL,
 		},
 		&cli.StringFlag{
 			Name:  "notary-url",
-			Usage: "URL (host:port) to Notary update server",
+			Usage: "URL to Notary update server",
 			Value: notaryURL,
 		},
 		&cli.StringFlag{
@@ -70,6 +71,7 @@ func main() {
 			}
 		}()
 
+		// Initialize updater and get expected version
 		opt := update.DefaultOptions
 		opt.RootDirectory = c.String("root-dir")
 		opt.ServerURL = c.String("notary-url")
@@ -81,9 +83,7 @@ func main() {
 		if err := updater.UpdateMetadata(); err != nil {
 			return err
 		}
-		log.Println(updater.Targets())
-
-		osquerydPath, err := updater.Get("osqueryd", "macos", "stable")
+		osquerydPath, err := updater.Get("osqueryd", constant.PlatformName, "stable")
 		if err != nil {
 			return err
 		}
@@ -145,6 +145,7 @@ func main() {
 		)
 
 		options = append(options, osquery.WithPath(osquerydPath))
+		options = append(options, osquery.WithShell())
 
 		// Create an osquery runner with the provided options
 		r, _ := osquery.NewRunner(options...)
@@ -165,4 +166,62 @@ func main() {
 	if err := app.Run(os.Args); err != nil {
 		log.Println("Error:", err)
 	}
+}
+
+var shellCommand = &cli.Command{
+	Name:    "shell",
+	Aliases: []string{"osqueryi"},
+	Usage:   "Run the osqueryi shell",
+	Action: func(c *cli.Context) error {
+		if err := os.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
+			return errors.Wrap(err, "initialize root dir")
+		}
+
+		db, err := database.Open(filepath.Join(c.String("root-dir"), "orbit.db"))
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if err := db.Close(); err != nil {
+				log.Printf("Error closing badger: %v", err)
+			}
+		}()
+
+		// Initialize updater and get expected version
+		opt := update.DefaultOptions
+		opt.RootDirectory = c.String("root-dir")
+		opt.ServerURL = c.String("notary-url")
+		opt.LocalStore = badgerstore.New(db.DB)
+		updater, err := update.New(opt)
+		if err != nil {
+			return err
+		}
+		if err := updater.UpdateMetadata(); err != nil {
+			return err
+		}
+		osquerydPath, err := updater.Get("osqueryd", constant.PlatformName, "stable")
+		if err != nil {
+			return err
+		}
+
+		var g run.Group
+
+		// Create an osquery runner with the provided options
+		r, _ := osquery.NewRunner(
+			osquery.WithShell(),
+			osquery.WithPath(osquerydPath),
+		)
+		g.Add(r.Execute, r.Interrupt)
+
+		// Install a signal handler
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		g.Add(run.SignalHandler(ctx, os.Interrupt, os.Kill))
+
+		if err := g.Run(); err != nil {
+			fmt.Println(err)
+		}
+
+		return nil
+	},
 }

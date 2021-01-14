@@ -2,6 +2,7 @@ package osquery
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -66,7 +67,19 @@ func WithPath(path string) func(*Runner) error {
 	}
 }
 
+// WithShell adds the -S flag to run an osqueryi shell.
+func WithShell() func(*Runner) error {
+	return func(r *Runner) error {
+		r.cmd.Args = append(r.cmd.Args, "-S")
+		r.cmd.Stdout = os.Stdout
+		r.cmd.Stderr = os.Stderr
+		r.cmd.Stdin = os.Stdin
+		return nil
+	}
+}
+
 func (r *Runner) Execute() error {
+	fmt.Println(r.cmd)
 	ctx, cancel := context.WithCancel(context.Background())
 	r.cancel = cancel
 

@@ -21,8 +21,6 @@ const (
 	binDir     = "bin"
 	osqueryDir = "osquery"
 	orbitDir   = "orbit"
-
-	windowsExtension = ".exe"
 )
 
 // Updater is responsible for managing update state.
@@ -101,18 +99,12 @@ func (u *Updater) UpdateMetadata() error {
 }
 
 func makeRepoPath(name, platform, version string) string {
-	path := path.Join(name, platform, version, name)
-	if platform == "windows" {
-		path += windowsExtension
-	}
+	path := path.Join(name, platform, version, name+constant.ExecutableExtension)
 	return path
 }
 
 func makeLocalPath(name, platform, version string) string {
-	path := filepath.Join(name, version, name)
-	if platform == "windows" {
-		path += windowsExtension
-	}
+	path := filepath.Join(name, version, name+constant.ExecutableExtension)
 	return path
 }
 
