@@ -5,6 +5,10 @@ import classnames from 'classnames';
 import Icon from 'components/icons/Icon';
 import PATHS from 'router/paths';
 
+import SettingsIcon from '../../../../assets/images/icon-main-settings-white-24x24@2x.png';
+import HelpIcon from '../../../../assets/images/icon-main-help-white-24x24@2x.png';
+import LogoutIcon from '../../../../assets/images/icon-main-logout-white-24x24@2x.png';
+
 class UserMenu extends Component {
   static propTypes = {
     pathname: PropTypes.string,
@@ -37,13 +41,17 @@ class UserMenu extends Component {
       },
     );
 
+    const iconClasses = classnames(
+      'icon',
+    );
+
     return (
       <div className={userMenuClass}>
         <nav className={`${baseClass}__nav`}>
           <ul className={`${baseClass}__nav-list`}>
-            <li className={settingsNavItemBaseClass}><a href="#settings" onClick={onNavItemClick(PATHS.USER_SETTINGS)}><Icon name="main-settings-white" size="24" /><span>Account</span></a></li>
-            <li className={`${baseClass}__nav-item`}><a href="https://github.com/fleetdm/fleet/blob/master/docs/README.md" target="_blank" rel="noreferrer"><Icon name="main-help-white" size="24" /><span>Help</span></a></li>
-            <li className={`${baseClass}__nav-item`}><a href="#logout" onClick={onLogout}><Icon name="main-logout-white" size="24" /><span>Log out</span></a></li>
+            <li className={settingsNavItemBaseClass}><a href="#settings" onClick={onNavItemClick(PATHS.USER_SETTINGS)}><img src={SettingsIcon} alt="settings icon" className={iconClasses} /><span>Account</span></a></li>
+            <li className={`${baseClass}__nav-item`}><a href="https://github.com/fleetdm/fleet/blob/master/docs/README.md" target="_blank" rel="noreferrer"><img src={HelpIcon} alt="help icon" className={iconClasses} /><span>Help</span></a></li>
+            <li className={`${baseClass}__nav-item`}><a href="#logout" onClick={onLogout}><img src={LogoutIcon} alt="logout icon" className={iconClasses} /><span>Log out</span></a></li>
           </ul>
         </nav>
       </div>

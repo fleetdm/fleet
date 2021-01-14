@@ -4,10 +4,14 @@ import classnames from 'classnames';
 
 import userInterface from 'interfaces/user';
 import KolideIcon from 'components/icons/KolideIcon';
-import Icon from 'components/icons/Icon';
 import UserMenu from 'components/side_panels/UserMenu';
 
 import navItems from './navItems';
+
+import HostsIcon from '../../../../assets/images/icon-main-hosts-white-24x24@2x.png';
+import QueriesIcon from '../../../../assets/images/icon-main-query-white-24x24@2x.png';
+import PacksIcon from '../../../../assets/images/icon-main-packs-white-24x24@2x.png';
+import AdminIcon from '../../../../assets/images/icon-main-admin-white-24x24@2x.png';
 
 class SiteNavSidePanel extends Component {
   static propTypes = {
@@ -54,6 +58,7 @@ class SiteNavSidePanel extends Component {
 
   renderNavItem = (navItem) => {
     const { name, iconName, subItems } = navItem;
+    console.log(iconName);
     const { onNavItemClick, pathname } = this.props;
     const { renderSubItems } = this;
     const active = navItem.location.regex.test(pathname);
@@ -67,13 +72,22 @@ class SiteNavSidePanel extends Component {
       },
     );
 
+    const iconClasses = classnames(
+      [`${navItemBaseClass}__icon`],
+    );
+
+    let icon = <img src={HostsIcon} alt={`${iconName} icon`} className={iconClasses} />;
+    if (iconName === 'queries') icon = <img src={QueriesIcon} alt={`${iconName} icon`} className={iconClasses} />;
+    else if (iconName === 'packs') icon = <img src={PacksIcon} alt={`${iconName} icon`} className={iconClasses} />;
+    else if (iconName === 'admin') icon = <img src={AdminIcon} alt={`${iconName} icon`} className={iconClasses} />;
+
     return (
       <li className={navItemClasses} key={`nav-item-${name}`}>
         <a
           className={`${navItemBaseClass}__link`}
           onClick={onNavItemClick(navItem.location.pathname)}
         >
-          <Icon name={iconName} size="24" className={`${navItemBaseClass}__icon`} />
+          {icon}
           <span className={`${navItemBaseClass}__name`}>
             {name}
           </span>
