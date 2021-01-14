@@ -55,6 +55,11 @@ func main() {
 			Name:  "enroll-secret",
 			Usage: "Enroll secret for authenticating to Fleet server",
 		},
+		&cli.StringFlag{
+			Name:  "osqueryd-version",
+			Usage: "Version of osqueryd to use",
+			Value: "stable",
+		},
 	}
 	app.Action = func(c *cli.Context) error {
 		if err := os.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
@@ -83,7 +88,11 @@ func main() {
 		if err := updater.UpdateMetadata(); err != nil {
 			return err
 		}
-		osquerydPath, err := updater.Get("osqueryd", constant.PlatformName, "stable")
+		osquerydPath, err := updater.Get(
+			"osqueryd",
+			constant.PlatformName,
+			c.String("osqueryd-version"),
+		)
 		if err != nil {
 			return err
 		}
@@ -172,6 +181,13 @@ var shellCommand = &cli.Command{
 	Name:    "shell",
 	Aliases: []string{"osqueryi"},
 	Usage:   "Run the osqueryi shell",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "osqueryd-version",
+			Usage: "Version of osqueryd to use",
+			Value: "stable",
+		},
+	},
 	Action: func(c *cli.Context) error {
 		if err := os.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
 			return errors.Wrap(err, "initialize root dir")
@@ -199,7 +215,11 @@ var shellCommand = &cli.Command{
 		if err := updater.UpdateMetadata(); err != nil {
 			return err
 		}
-		osquerydPath, err := updater.Get("osqueryd", constant.PlatformName, "stable")
+		osquerydPath, err := updater.Get(
+			"osqueryd",
+			constant.PlatformName,
+			c.String("osqueryd-version"),
+		)
 		if err != nil {
 			return err
 		}

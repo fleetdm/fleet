@@ -2,7 +2,6 @@ package osquery
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -79,7 +78,6 @@ func WithShell() func(*Runner) error {
 }
 
 func (r *Runner) Execute() error {
-	fmt.Println(r.cmd)
 	ctx, cancel := context.WithCancel(context.Background())
 	r.cancel = cancel
 
