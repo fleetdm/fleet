@@ -22,10 +22,7 @@ module.exports.routes = {
     res.redirect('mailto:todo@example.com?subject=Pricing question&body=Please do not send this email!\n\nWe are a very young company and still working on our processes.  For now, if you have a pricing question or would like to know Fleet\'s latest pricing and support tiers, please create an issue at https://github.com/fleetdm/fleet/issues.  Thank you!');
   },
 
-  '/legal/terms':        (req, res)=>{
-    // FUTURE: page w/ our subscription terms
-    res.redirect('mailto:todo@example.com?subject=Legal question&body=Please do not send this email!\n\nWe are a very young company and still working on our processes.  For now, if you have a legal question or would like to review Fleet\'s subscription terms, please send a DM to mikermcneil or Zach Wasserman in the "osquery" Slack workspace.  Thank you!');
-  },
+  '/legal/terms': 'https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y/edit',
 
   '/security':       (req, res)=>{
     // FUTURE: make a page- check out how Sails does it, and also https://about.gitlab.com/security/
