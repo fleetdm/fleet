@@ -17,6 +17,9 @@
         },
         {
             "pattern": "/server/datastore/mysql/migrations/"
+        },
+        {
+            "pattern": "linkedin.com/company/fleetdm"
         }
     ],
     "retryOn429": true,
