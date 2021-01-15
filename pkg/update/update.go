@@ -92,26 +92,30 @@ func New(opt Options) (*Updater, error) {
 }
 
 func (u *Updater) UpdateMetadata() error {
-	if _, err := u.client.Update(); err != nil && errors.Is(err, &client.ErrLatestSnapshot{}) {
-		return errors.Wrap(err, "update metadata")
+	if _, err := u.client.Update(); err != nil {
+		// An error is returned if we are already up-to-date. We can ignore that
+		// error.
+		if !client.IsLatestSnapshot(errors.Cause(err)) {
+			return errors.Wrap(err, "update metadata")
+		}
 	}
 	return nil
 }
 
-func makeRepoPath(name, platform, version string) string {
-	path := path.Join(name, platform, version, name+constant.ExecutableExtension)
+func makeRepoPath(name, version string) string {
+	path := path.Join(name, constant.PlatformName, version, name+constant.ExecutableExtension)
 	return path
 }
 
-func makeLocalPath(name, platform, version string) string {
-	path := filepath.Join(name, version, name+constant.ExecutableExtension)
+func makeLocalPath(name, version string) string {
+	path := filepath.Join(name, constant.PlatformName, name+constant.ExecutableExtension)
 	return path
 }
 
 // Lookup looks up the provided target in the local target metadata. This should
 // be called after UpdateMetadata.
-func (u *Updater) Lookup(name, platform, version string) (*data.TargetFileMeta, error) {
-	target, err := u.client.Target(makeRepoPath(name, platform, version))
+func (u *Updater) Lookup(name, version string) (*data.TargetFileMeta, error) {
+	target, err := u.client.Target(makeRepoPath(name, version))
 	if err != nil {
 		return nil, errors.Wrapf(err, "lookup target %v", target)
 	}
@@ -131,9 +135,9 @@ func (u *Updater) Targets() (data.TargetFiles, error) {
 
 // Get returns the local path to the specified target. The target is downloaded
 // if it does not yet exist locally or the hash does not match.
-func (u *Updater) Get(name, platform, version string) (string, error) {
-	localPath := u.pathFromRoot(makeLocalPath(name, platform, version))
-	repoPath := makeRepoPath(name, platform, version)
+func (u *Updater) Get(name, version string) (string, error) {
+	localPath := u.pathFromRoot(makeLocalPath(name, version))
+	repoPath := makeRepoPath(name, version)
 	stat, err := os.Stat(localPath)
 	if err != nil {
 		log.Debug().Err(err).Msg("stat file")
@@ -143,7 +147,7 @@ func (u *Updater) Get(name, platform, version string) (string, error) {
 		return "", errors.Errorf("expected %s to be regular file", localPath)
 	}
 
-	meta, err := u.Lookup(name, platform, version)
+	meta, err := u.Lookup(name, version)
 	if err != nil {
 		return "", err
 	}

@@ -1,3 +1,4 @@
+// package osquery implements a runtime for osqueryd.
 package osquery
 
 import (
@@ -11,12 +12,15 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// Runner is a specialized runner for osquery. It is designed with Execute and
+// Interrupt functions to be compatible with oklog/run.
 type Runner struct {
 	proc   *process.Process
 	cmd    *exec.Cmd
 	cancel func()
 }
 
+// NewRunner creates a new osquery runner given the provided functional options.
 func NewRunner(options ...func(*Runner) error) (*Runner, error) {
 	r := &Runner{}
 
@@ -45,6 +49,7 @@ func NewRunner(options ...func(*Runner) error) (*Runner, error) {
 	return r, nil
 }
 
+// WithFlags adds additional flags to the osqueryd invocation.
 func WithFlags(flags []string) func(*Runner) error {
 	return func(r *Runner) error {
 		r.cmd.Args = append(r.cmd.Args, flags...)
@@ -52,6 +57,8 @@ func WithFlags(flags []string) func(*Runner) error {
 	}
 }
 
+// WithEnv adds additional environment variables to the osqueryd invocation.
+// Inputs should be in the form "KEY=VAL".
 func WithEnv(env []string) func(*Runner) error {
 	return func(r *Runner) error {
 		r.cmd.Env = append(r.cmd.Env, env...)
@@ -59,6 +66,7 @@ func WithEnv(env []string) func(*Runner) error {
 	}
 }
 
+// WithPath sets the path of the osqueryd binary to execute.
 func WithPath(path string) func(*Runner) error {
 	return func(r *Runner) error {
 		r.cmd.Path = path
@@ -77,6 +85,9 @@ func WithShell() func(*Runner) error {
 	}
 }
 
+// Execute begins running osqueryd and returns when the process exits. The
+// process may not be restarted after exit. Instead create a new one with
+// NewRunner.
 func (r *Runner) Execute() error {
 	log.Debug().Str("cmd", r.cmd.String()).Msg("run osqueryd")
 
@@ -94,6 +105,7 @@ func (r *Runner) Execute() error {
 	return nil
 }
 
+// Runner interrupts the running osquery process.
 func (r *Runner) Interrupt(err error) {
 	log.Debug().Msg("interrupt osquery")
 	r.cancel()

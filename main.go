@@ -22,12 +22,11 @@ import (
 )
 
 const (
-	notaryURL = "https://tuf.fleetctl.com"
-	certPath  = "/tmp/fleet.pem"
+	tufURL   = "https://tuf.fleetctl.com"
+	certPath = "/tmp/fleet.pem"
 )
 
 func main() {
-
 	app := cli.NewApp()
 	app.Name = "Orbit osquery"
 	app.Usage = "A powered-up, (near) drop-in replacement for osquery"
@@ -50,9 +49,9 @@ func main() {
 			Usage: "URL (host:port) to Fleet server",
 		},
 		&cli.StringFlag{
-			Name:  "notary-url",
-			Usage: "URL to Notary update server",
-			Value: notaryURL,
+			Name:  "tuf-url",
+			Usage: "URL to TUF update server",
+			Value: tufURL,
 		},
 		&cli.StringFlag{
 			Name:  "enroll-secret",
@@ -90,8 +89,8 @@ func main() {
 
 		// Initialize updater and get expected version
 		opt := update.DefaultOptions
-		opt.RootDirectory = c.String("root-dir")
-		opt.ServerURL = c.String("notary-url")
+		opt.RootDirectory = c.String("tuf-dir")
+		opt.ServerURL = c.String("tuf-url")
 		opt.LocalStore = badgerstore.New(db.DB)
 		updater, err := update.New(opt)
 		if err != nil {
@@ -100,11 +99,7 @@ func main() {
 		if err := updater.UpdateMetadata(); err != nil {
 			return err
 		}
-		osquerydPath, err := updater.Get(
-			"osqueryd",
-			constant.PlatformName,
-			c.String("osqueryd-version"),
-		)
+		osquerydPath, err := updater.Get("osqueryd", c.String("osqueryd-version"))
 		if err != nil {
 			return err
 		}
@@ -205,7 +200,9 @@ var shellCommand = &cli.Command{
 		},
 	},
 	Action: func(c *cli.Context) error {
-		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339})
+		log.Logger = log.Output(
+			zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano},
+		)
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 		if c.Bool("debug") {
 			zerolog.SetGlobalLevel(zerolog.DebugLevel)
@@ -228,7 +225,7 @@ var shellCommand = &cli.Command{
 		// Initialize updater and get expected version
 		opt := update.DefaultOptions
 		opt.RootDirectory = c.String("root-dir")
-		opt.ServerURL = c.String("notary-url")
+		opt.ServerURL = c.String("tuf-url")
 		opt.LocalStore = badgerstore.New(db.DB)
 		updater, err := update.New(opt)
 		if err != nil {
@@ -237,11 +234,8 @@ var shellCommand = &cli.Command{
 		if err := updater.UpdateMetadata(); err != nil {
 			return err
 		}
-		osquerydPath, err := updater.Get(
-			"osqueryd",
-			constant.PlatformName,
-			c.String("osqueryd-version"),
-		)
+
+		osquerydPath, err := updater.Get("osqueryd", c.String("osqueryd-version"))
 		if err != nil {
 			return err
 		}

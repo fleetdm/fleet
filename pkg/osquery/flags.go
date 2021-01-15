@@ -1,5 +1,6 @@
 package osquery
 
+// FleetFlags is the set of flags to pass to osquery when connecting to Fleet.
 func FleetFlags(hostname string) []string {
 	return []string{
 		"--tls_hostname=" + hostname,
