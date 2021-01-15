@@ -17,10 +17,10 @@
   - [Create a user account with an invitation](#create-a-user-account-with-an-invitation)
   - [Create a user account without an invitation](#create-a-user-account-without-an-invitation)
   - [Get user information](#get-user-information)
-- [Fleet web application](#fleet-web-application)
-  - [Get application certificate](#get-application-certificate)
-  - [Get application configuration](#get-application-configuration)
-  - [Modify application configuration](#modify-application-configuration)
+- [Fleet configuration](#fleet-configuration)
+  - [Get certificate](#get-certificate)
+  - [Get configuration](#get-configuration)
+  - [Modify configuration](#modify-configuration)
   - [Get enroll secrets](#get-enroll-secrets)
   - [Modify enroll secrets](#modify-enroll-secrets)
   - [Create invite](#create-invite)
@@ -966,13 +966,13 @@ Returns all information about a specific user.
 
 ---
 
-## Fleet web application
+## Fleet configuration
 
-The Fleet server exposes a handful of API endpoints that handle the configuration of the Fleet application as well as endpoints that manage invitation and enroll secret operations. All the following endpoints require prior authentication meaning you must first log in successfully before calling any of the endpoints documented below.
+The Fleet server exposes a handful of API endpoints that handle the configuration of Fleet as well as endpoints that manage invitation and enroll secret operations. All the following endpoints require prior authentication meaning you must first log in successfully before calling any of the endpoints documented below.
 
-### Get application certificate
+### Get certificate
 
-Returns the Fleet application's certificate.
+Returns the Fleet certificate.
 
 `GET /api/v1/kolide/config/certificate`
 
@@ -995,9 +995,9 @@ None.
 }
 ```
 
-### Get application configuration
+### Get configuration
 
-Returns all information about the Fleet application's configuration.
+Returns all information about the Fleet's configuration.
 
 `GET /api/v1/kolide/config`
 
@@ -1058,9 +1058,9 @@ None.
 }
 ```
 
-### Modify application configuration
+### Modify configuration
 
-Modifies the Fleet application's configuration with the supplied information.
+Modifies the Fleet's configuration with the supplied information.
 
 `PATCH /api/v1/kolide/config`
 
