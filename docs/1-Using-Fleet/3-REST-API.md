@@ -18,6 +18,7 @@
   - [Create a user account without an invitation](#create-a-user-account-without-an-invitation)
   - [Get user information](#get-user-information)
 - [Fleet web application](#fleet-web-application)
+  - [Get application certificate](#get-application-certificate)
   - [Get application configuration](#get-application-configuration)
   - [Modify application configuration](#modify-application-configuration)
   - [Get enroll secrets](#get-enroll-secrets)
