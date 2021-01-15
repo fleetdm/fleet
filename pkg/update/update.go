@@ -36,7 +36,8 @@ type Options struct {
 	// ServerURL is the URL of the update server.
 	ServerURL string
 	// InsecureTransport skips TLS certificate verification in the transport if
-	// set to true.
+	// set to true. Best to leave this on, but due to the file signing any
+	// tampering by a MitM should be detectable.
 	InsecureTransport bool
 	// RootKeys is the JSON encoded root keys to use to bootstrap trust.
 	RootKeys string
