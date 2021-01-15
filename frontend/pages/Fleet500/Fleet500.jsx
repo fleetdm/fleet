@@ -4,6 +4,9 @@ import { connect } from 'react-redux';
 import { noop } from 'lodash';
 import { resetErrors } from 'redux/nodes/errors500/actions';
 import errorsInterface from 'interfaces/errors500';
+import { Link } from 'react-router';
+
+import PATHS from 'router/paths';
 
 import fleetLogoText from '../../../assets/images/fleet-logo-text-white.svg';
 import backgroundImg from '../../../assets/images/500.svg';
@@ -70,9 +73,9 @@ class Fleet500 extends Component {
     return (
       <div className={baseClass}>
         <header className="primary-header">
-          <a href="/">
+          <Link to={PATHS.HOME}>
             <img className="primary-header__logo" src={fleetLogoText} alt="Fleet logo" />
-          </a>
+          </Link>
         </header>
         <img className="background-image" src={backgroundImg} alt="500 background" />
         <main>

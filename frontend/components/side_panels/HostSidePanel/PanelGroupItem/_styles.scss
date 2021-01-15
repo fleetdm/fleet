@@ -24,17 +24,13 @@ $base-class: 'panel-group-item';
     width: 100%;
     display: flex;
     align-items: center;
-  }
-
-  &__icon {
-    transition: color 75ms ease-in-out;
-    padding: 0 16px 0 8px;
-    font-size: 18px;
+    justify-content: space-between;
   }
 
   &__name {
     @include ellipsis(80%);
     flex-grow: 1;
+    padding-left: 16px;
   }
 
   &__description {
@@ -47,7 +43,7 @@ $base-class: 'panel-group-item';
     transition: color 75ms ease-in-out;
     font-weight: $regular;
     text-align: right;
-    padding-right: 12px;
+    padding-right: 16px;
     font-size: 14px;
   }
 }

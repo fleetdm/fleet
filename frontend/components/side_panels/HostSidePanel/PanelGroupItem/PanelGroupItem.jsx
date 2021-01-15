@@ -2,8 +2,6 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import classnames from 'classnames';
 
-import Icon from 'components/icons/Icon';
-import { iconNameForLabel, iconNameForPlatform } from 'utilities/icon_name';
 import statusLabelsInterface from 'interfaces/status_labels';
 
 const baseClass = 'panel-group-item';
@@ -38,18 +36,8 @@ class PanelGroupItem extends Component {
     return statusLabels[`${item.id}_count`];
   }
 
-  renderIcon = () => {
-    const { item, type } = this.props;
-    if (type === 'platform') {
-      const platformName = item.name;
-      return <Icon name={iconNameForPlatform(platformName)} size="20" className={`${baseClass}__icon`} />;
-    }
-
-    return <Icon name={iconNameForLabel(item)} size="20" className={`${baseClass}__icon`} />;
-  }
-
   render () {
-    const { displayCount, renderIcon } = this;
+    const { displayCount } = this;
     const { item, onLabelClick, isSelected } = this.props;
     const {
       display_text: displayText,
@@ -69,7 +57,6 @@ class PanelGroupItem extends Component {
     return (
       <button className={wrapperClassName} onClick={onLabelClick}>
         <div className={`${baseClass}__flexy`}>
-          {renderIcon()}
           <span className={`${baseClass}__name`}>
             {displayText}
           </span>

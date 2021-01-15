@@ -1,15 +1,18 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
+import classnames from 'classnames';
 
 import osqueryTableInterface from 'interfaces/osquery_table';
 import { osqueryTableNames } from 'utilities/osquery_tables';
-import { iconNameForPlatform } from 'utilities/icon_name';
 import Dropdown from 'components/forms/fields/Dropdown';
 import KolideIcon from 'components/icons/KolideIcon';
-import Icon from 'components/icons/Icon';
 import SecondarySidePanelContainer from '../SecondarySidePanelContainer';
 
 import displayTypeForDataType from './helpers';
+
+import AppleIcon from '../../../../assets/images/icon-apple-dark-20x20@2x.png';
+import LinuxIcon from '../../../../assets/images/icon-linux-dark-20x20@2x.png';
+import WindowsIcon from '../../../../assets/images/icon-windows-dark-20x20@2x.png';
 
 const baseClass = 'query-side-panel';
 
@@ -81,6 +84,11 @@ class QuerySidePanel extends Component {
     } = this;
     const { selectedOsqueryTable: { description, platforms } } = this.props;
 
+    const iconClasses = classnames(
+      [`${baseClass}__icon`],
+      'icon',
+    );
+
     return (
       <SecondarySidePanelContainer className={baseClass}>
         <div className={`${baseClass}__choose-table`}>
@@ -98,8 +106,12 @@ class QuerySidePanel extends Component {
               } else if (platform === 'freebsd') {
                 return <li key={platform}><KolideIcon name="single-host" /> {platform}</li>;
               }
+              platform = platform.toLowerCase();
+              let icon = <img src={AppleIcon} alt={`${platform} icon`} className={iconClasses} />;
+              if (platform === 'linux') icon = <img src={LinuxIcon} alt={`${platform} icon`} className={iconClasses} />;
+              else if (platform === 'windows') icon = <img src={WindowsIcon} alt={`${platform} icon`} className={iconClasses} />;
 
-              return <li key={platform}><Icon name={iconNameForPlatform(platform)} size="20" /> {platform}</li>;
+              return <li key={platform}>{icon} {platform}</li>;
             })}
           </ul>
         </div>
