@@ -3,40 +3,15 @@ import PropTypes from 'prop-types';
 import classnames from 'classnames';
 
 import Button from 'components/buttons/Button';
-import KolideIcon from 'components/icons/KolideIcon';
 import hostInterface from 'interfaces/host';
 
 import { humanMemory, humanUptime, humanLastSeen } from './helpers';
 
 const baseClass = 'hosts-table';
 
-const ActionButton = ({ host, onDestroyHost, onQueryHost }) => {
-  if (host.status === 'online') {
-    return (
-      <Button onClick={onQueryHost(host)} variant="unstyled">
-        <KolideIcon name="query" />
-      </Button>
-    );
-  }
-
-  return (
-    <Button onClick={onDestroyHost(host)} variant="unstyled">
-      <KolideIcon name="trash" />
-    </Button>
-  );
-};
-
-ActionButton.propTypes = {
-  host: hostInterface,
-  onDestroyHost: PropTypes.func,
-  onQueryHost: PropTypes.func,
-};
-
 class HostsTable extends Component {
   static propTypes = {
     hosts: PropTypes.arrayOf(hostInterface),
-    onDestroyHost: PropTypes.func,
-    onQueryHost: PropTypes.func,
     onHostClick: PropTypes.func,
   };
 
@@ -49,7 +24,7 @@ class HostsTable extends Component {
   };
 
   renderHost = (host) => {
-    const { onDestroyHost, onQueryHost, onHostClick } = this.props;
+    const { onHostClick } = this.props;
     const statusClassName = classnames(
       `${baseClass}__status`,
       `${baseClass}__status--${host.status}`,
@@ -73,13 +48,6 @@ class HostsTable extends Component {
         <td>{host.host_cpu}</td>
         <td>{humanMemory(host.memory)}</td>
         <td>{humanUptime(host.uptime)}</td>
-        <td>
-          <ActionButton
-            host={host}
-            onDestroyHost={onDestroyHost}
-            onQueryHost={onQueryHost}
-          />
-        </td>
       </tr>
     );
   };
@@ -102,7 +70,6 @@ class HostsTable extends Component {
               <th>CPU</th>
               <th>Memory</th>
               <th>Uptime</th>
-              <th />
             </tr>
           </thead>
           <tbody>

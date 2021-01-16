@@ -12,4 +12,18 @@ export const fetchHost = (dispatch, hostID) => {
     });
 };
 
-export default { fetchHost };
+export const destroyHost = (dispatch, host) => {
+  return dispatch(hostActions.destroy(host))
+    .then(() => {
+      dispatch(push(PATHS.HOME));
+    });
+};
+
+export const queryHost = (dispatch, host) => {
+  return dispatch(push({
+    pathname: PATHS.NEW_QUERY,
+    query: { host_ids: [host.id] },
+  }));
+};
+
+export default { fetchHost, destroyHost, queryHost };

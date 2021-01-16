@@ -263,34 +263,6 @@ describe('ManageHostsPage - component', () => {
     });
   });
 
-  describe('Delete a host', () => {
-    it('Deleted host after confirmation modal', () => {
-      const ownProps = { location: {}, params: { active_label: 'all-hosts' } };
-      const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
-      const page = mount(component);
-      const deleteBtn = page.find('ActionButton').last().find('Button');
-
-      jest.spyOn(hostActions, 'destroy').mockImplementation(() => (dispatch) => {
-        dispatch({ type: 'hosts_LOAD_REQUEST' });
-
-        return Promise.resolve();
-      });
-
-      expect(page.find('Modal').length).toEqual(0);
-
-      deleteBtn.simulate('click');
-
-      const confirmModal = page.find('Modal');
-
-      expect(confirmModal.length).toEqual(1);
-
-      const confirmBtn = confirmModal.find('.button--alert');
-      confirmBtn.simulate('click');
-
-      expect(hostActions.destroy).toHaveBeenCalledWith(offlineHost);
-    });
-  });
-
   describe('Add Host', () => {
     it('Open the Add Host modal', () => {
       const page = mount(<ManageHostsPage {...props} hosts={[]} selectedLabel={allHostsLabel} />);
