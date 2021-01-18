@@ -1,18 +1,136 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
+import classnames from 'classnames';
 
 import Spinner from 'components/loaders/Spinner';
 import Button from 'components/buttons/Button';
 import Modal from 'components/modals/Modal';
 
 import entityGetter from 'redux/utilities/entityGetter';
+import { renderFlash } from 'redux/nodes/notifications/actions';
+import { push } from 'react-router-redux';
+
+import PATHS from 'router/paths';
+
 import hostInterface from 'interfaces/host';
 import { isEmpty, noop, pick } from 'lodash';
-import helpers from 'pages/hosts/HostDetailsPage/helpers';
-import { renderFlash } from 'redux/nodes/notifications/actions';
+import { humanMemory, humanUptime, humanLastSeen, humanEnrolled } from 'components/hosts/HostsTable/helpers';
+import helpers from './helpers';
 
 const baseClass = 'host-details';
+
+const dummyHost = {
+  labels: [
+    {
+      created_at: '2021-01-04T21:18:09Z',
+      updated_at: '2021-01-04T21:18:09Z',
+      id: 6,
+      name: 'All Hosts',
+      description: 'All hosts which have enrolled in Fleet',
+      query: 'select 1;',
+      platform: '',
+      label_type: 'builtin',
+      label_membership_type: 'dynamic',
+      host_count: 105,
+      display_text: 'All Hosts',
+      count: 105,
+      host_ids: null,
+    },
+    {
+      created_at: '2021-01-04T21:18:09Z',
+      updated_at: '2021-01-04T21:18:09Z',
+      id: 7,
+      name: 'macOS',
+      description: 'All macOS hosts',
+      query: "select 1 from os_version where platform = 'darwin';",
+      platform: 'darwin',
+      label_type: 'builtin',
+      label_membership_type: 'dynamic',
+      host_count: 90,
+      display_text: 'macOS',
+      count: 90,
+      host_ids: null,
+    },
+    {
+      created_at: '2021-01-04T21:18:09Z',
+      updated_at: '2021-01-04T21:18:09Z',
+      id: 8,
+      name: 'Ubuntu Linux',
+      description: 'All Ubuntu hosts',
+      query: "select 1 from os_version where platform = 'ubuntu';",
+      platform: 'ubuntu',
+      label_type: 'builtin',
+      label_membership_type: 'dynamic',
+      host_count: 4,
+      display_text: 'Ubuntu Linux',
+      count: 4,
+      host_ids: null,
+    },
+    {
+      created_at: '2021-01-04T21:18:09Z',
+      updated_at: '2021-01-04T21:18:09Z',
+      id: 9,
+      name: 'CentOS Linux',
+      description: 'All CentOS hosts',
+      query: "select 1 from os_version where platform = 'centos' or name like '%centos%'",
+      platform: '',
+      label_type: 'builtin',
+      label_membership_type: 'dynamic',
+      host_count: 97,
+      display_text: 'CentOS Linux',
+      count: 97,
+      host_ids: null,
+    },
+    {
+      created_at: '2021-01-04T21:18:09Z',
+      updated_at: '2021-01-04T21:18:09Z',
+      id: 10,
+      name: 'MS Windows',
+      description: 'All Windows hosts',
+      query: "select 1 from os_version where platform = 'windows';",
+      platform: 'windows',
+      label_type: 'builtin',
+      label_membership_type: 'dynamic',
+      host_count: 0,
+      display_text: 'MS Windows',
+      count: 0,
+      host_ids: null,
+    },
+    {
+      created_at: '2021-01-07T18:39:33Z',
+      updated_at: '2021-01-07T18:39:33Z',
+      id: 11,
+      name: 'docker volumes',
+      description: '',
+      query: 'SELECT * FROM docker_volumes',
+      platform: '',
+      label_type: 'regular',
+      label_membership_type: 'dynamic',
+      host_count: 1,
+      display_text: 'docker volumes',
+      count: 1,
+      host_ids: null,
+    },
+  ],
+  packs: [
+    {
+      created_at: '2021-01-05T21:13:04Z',
+      updated_at: '2021-01-07T19:12:54Z',
+      id: 1,
+      name: 'Pack',
+      description: 'Pack',
+      platform: '',
+      disabled: true,
+      query_count: 1,
+      total_hosts_count: 4,
+      host_ids: [],
+      label_ids: [
+        8,
+      ],
+    },
+  ],
+};
 
 export class HostDetailsPage extends Component {
   static propTypes = {
@@ -73,6 +191,18 @@ export class HostDetailsPage extends Component {
     return false;
   }
 
+  onPackClick = (pack) => {
+    const { dispatch } = this.props;
+
+    return dispatch(push(PATHS.PACK({ id: pack.id })));
+  }
+
+  onLabelClick = (label) => {
+    const { dispatch } = this.props;
+
+    return dispatch(push(`${PATHS.MANAGE_HOSTS}/labels/${label.id}`));
+  };
+
   toggleDeleteHostModal = () => {
     return () => {
       const { showDeleteHostModal } = this.state;
@@ -110,13 +240,88 @@ export class HostDetailsPage extends Component {
     );
   }
 
+  renderLabels = () => {
+    const { onLabelClick } = this;
+    const { labels } = dummyHost;
+
+    const labelItems = labels.map((label) => {
+      return (
+        <li className="list__item" key={label.id}>
+          <Button
+            onClick={() => onLabelClick(label)}
+            variant="label"
+            className="list__button"
+          >
+            {label.name}
+          </Button>
+        </li>
+      );
+    });
+
+    return (
+      <div className="section labels">
+        <p className="section__header">Labels</p>
+        <ul className="list">
+          {labelItems}
+        </ul>
+      </div>
+    );
+  }
+
+  renderPacks = () => {
+    const { onPackClick } = this;
+    const { packs } = dummyHost;
+
+    const packItems = packs.map((pack) => {
+      return (
+        <li className="list__item" key={pack.id}>
+          <Button
+            onClick={() => onPackClick(pack)}
+            variant="text-link"
+            className="list__button"
+          >
+            {pack.name}
+          </Button>
+        </li>
+      );
+    });
+
+    return (
+      <div className="section section--packs">
+        <p className="section__header">Packs</p>
+        <ul className="list">
+          {packItems}
+        </ul>
+      </div>
+    );
+  }
+
   render () {
     const { host, isLoadingHost } = this.props;
-    const { renderDeleteHostModal, toggleDeleteHostModal, onQueryHost } = this;
+    const {
+      renderDeleteHostModal,
+      toggleDeleteHostModal,
+      onQueryHost,
+      renderLabels,
+      renderPacks,
+    } = this;
 
     const titleData = pick(host, ['status', 'memory', 'host_cpu', 'os_version', 'enroll_secret_name']);
-    const aboutData = pick(host, ['seen_time', 'last_enrolled_at', 'hardware_model', 'hardware_serial', 'primary_ip']);
+    const aboutData = pick(host, ['seen_time', 'uptime', 'last_enrolled_at', 'hardware_model', 'hardware_serial', 'primary_ip']);
     const osqueryData = pick(host, ['config_tls_refresh', 'logger_tls_period', 'distributed_interval']);
+    const data = [titleData, aboutData, osqueryData];
+    data.forEach((object) => {
+      Object.keys(object).forEach((key) => {
+        if (object[key] === '') {
+          object[key] = '--';
+        }
+      });
+    });
+
+    const statusClassName = classnames(
+      'status',
+      `status--${host.status}`,
+    );
 
     if (isLoadingHost) {
       return (
@@ -132,11 +337,11 @@ export class HostDetailsPage extends Component {
             <div className="info">
               <div className="info__item info__item--title">
                 <span className="info__header">Status</span>
-                <span className="info__data">{titleData.status}</span>
+                <span className={`${statusClassName} info__data`}>{titleData.status}</span>
               </div>
               <div className="info__item info__item--title">
                 <span className="info__header">RAM</span>
-                <span className="info__data">{titleData.memory}</span>
+                <span className="info__data">{humanMemory(titleData.memory)}</span>
               </div>
               <div className="info__item info__item--title">
                 <span className="info__header">CPU</span>
@@ -167,9 +372,9 @@ export class HostDetailsPage extends Component {
                 <span className="info__header">Uptime</span>
               </div>
               <div className="info__block">
-                <span className="info__data">{aboutData.seen_time}</span>
-                <span className="info__data">{aboutData.last_enrolled_at}</span>
-                <span className="info__data">5 hours</span>
+                <span className="info__data">{humanLastSeen(aboutData.seen_time)}</span>
+                <span className="info__data">{humanEnrolled(aboutData.last_enrolled_at)}</span>
+                <span className="info__data">{humanUptime(aboutData.uptime)}</span>
               </div>
             </div>
             <div className="info__item info__item--about">
@@ -202,35 +407,9 @@ export class HostDetailsPage extends Component {
               <span className="info__data">{osqueryData.distributed_interval}</span>
             </div>
           </div>
-          <div className="section labels">
-            <p className="section__header">Labels</p>
-            <ul className="list">
-              <li className="list__item">
-                <Button className="list__button">Label</Button>
-              </li>
-              <li className="list__item">
-                <Button className="list__button">Label</Button>
-              </li>
-              <li className="list__item">
-                <Button className="list__button">Label</Button>
-              </li>
-            </ul>
-          </div>
-          <div className="section section--packs">
-            <p className="section__header">Packs</p>
-            <ul className="list">
-              <li className="list__item">
-                <Button className="list__button" variant="text-link">Pack</Button>
-              </li>
-              <li className="list__item">
-                <Button className="list__button" variant="text-link">Pack</Button>
-              </li>
-              <li className="list__item">
-                <Button className="list__button" variant="text-link">Pack</Button>
-              </li>
-            </ul>
-          </div>
         </div>
+        {renderLabels()}
+        {renderPacks()}
         {renderDeleteHostModal()}
       </div>
     );

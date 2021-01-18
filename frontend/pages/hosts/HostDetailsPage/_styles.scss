@@ -23,8 +23,36 @@
 
         &--title {
           margin-right: 40px;
-        }
 
+          .status {
+            color: $core-dark-blue-grey;
+            text-transform: capitalize;
+
+            &--online {
+              &:before {
+                background-color: $success;
+                border-radius: 100%;
+                content: ' ';
+                display: inline-block;
+                height: 8px;
+                margin-right: 8px;
+                width: 8px;
+              }
+            }
+
+            &--offline {
+              &:before {
+                background-color: $core-red;
+                border-radius: 100%;
+                content: ' ';
+                display: inline-block;
+                height: 8px;
+                margin-right: 8px;
+                width: 8px;
+              }
+            }
+          }
+        }
 
       }
 

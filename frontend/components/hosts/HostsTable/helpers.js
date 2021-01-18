@@ -18,7 +18,11 @@ export const humanUptime = (uptimeInNanoseconds) => {
 };
 
 export const humanLastSeen = (lastSeen) => {
-  return moment(lastSeen).format('YYYY-MM-DD HH:mm:ss');
+  return moment(lastSeen).format('MMM D YYYY, HH:mm:ss');
+};
+
+export const humanEnrolled = (enrolled) => {
+  return moment(enrolled).format('MMM D YYYY, HH:mm:ss');
 };
 
 export const humanMemory = (bytes) => {
