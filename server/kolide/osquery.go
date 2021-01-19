@@ -17,7 +17,7 @@ type OsqueryService interface {
 	// for) should be returned. Returning 0 for this will not activate the
 	// feature.
 	GetDistributedQueries(ctx context.Context) (queries map[string]string, accelerate uint, err error)
-	SubmitDistributedQueryResults(ctx context.Context, results OsqueryDistributedQueryResults, statuses map[string]OsqueryStatus) (err error)
+	SubmitDistributedQueryResults(ctx context.Context, results OsqueryDistributedQueryResults, statuses map[string]OsqueryStatus, messages map[string]string) (err error)
 	SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) (err error)
 	SubmitResultLogs(ctx context.Context, logs []json.RawMessage) (err error)
 	//CarveBegin(ctx context.Context)
