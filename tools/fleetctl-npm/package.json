@@ -20,7 +20,10 @@
   },
   "homepage": "https://fleetdm.com",
   "dependencies": {
-    "binary-install": "0.1.0"
+    "binary-install": "0.1.1"
   },
-  "keywords": ["osquery", "security"]
+  "keywords": [
+    "osquery",
+    "security"
+  ]
 }
