@@ -241,6 +241,15 @@ func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppC
 }
 
 func (svc service) ApplyEnrollSecretSpec(ctx context.Context, spec *kolide.EnrollSecretSpec) error {
+	for _, s := range spec.Secrets {
+		if s.Name == "" {
+			return errors.New("enroll secret name must not be empty")
+		}
+		if s.Secret == "" {
+			return errors.New("enroll secret must not be empty")
+		}
+	}
+
 	return svc.ds.ApplyEnrollSecretSpec(spec)
 }
 

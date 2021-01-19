@@ -84,3 +84,44 @@ func TestCreateAppConfig(t *testing.T) {
 		assert.Len(t, gotSecretSpec.Secrets[0].Secret, 32)
 	}
 }
+
+func TestEmptyEnrollSecret(t *testing.T) {
+	ds := new(mock.Store)
+	svc, err := newTestService(ds, nil, nil)
+	require.Nil(t, err)
+
+	ds.ApplyEnrollSecretSpecFunc = func(spec *kolide.EnrollSecretSpec) error {
+		return nil
+	}
+	ds.AppConfigFunc = func() (*kolide.AppConfig, error) {
+		return &kolide.AppConfig{}, nil
+	}
+
+	err = svc.ApplyEnrollSecretSpec(
+		context.Background(),
+		&kolide.EnrollSecretSpec{
+			Secrets: []kolide.EnrollSecret{{}},
+		},
+	)
+	require.Error(t, err)
+
+	err = svc.ApplyEnrollSecretSpec(
+		context.Background(),
+		&kolide.EnrollSecretSpec{Secrets: []kolide.EnrollSecret{{Name: "foo"}}},
+	)
+	require.Error(t, err)
+
+	err = svc.ApplyEnrollSecretSpec(
+		context.Background(),
+		&kolide.EnrollSecretSpec{Secrets: []kolide.EnrollSecret{{Secret: "foo"}}},
+	)
+	require.Error(t, err)
+
+	err = svc.ApplyEnrollSecretSpec(
+		context.Background(),
+		&kolide.EnrollSecretSpec{
+			Secrets: []kolide.EnrollSecret{{Name: "foo", Secret: "foo"}},
+		},
+	)
+	require.NoError(t, err)
+}
