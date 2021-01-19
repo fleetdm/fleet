@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
-	"github.com/go-kit/kit/log"
 	"github.com/fleetdm/fleet/server/config"
 	hostctx "github.com/fleetdm/fleet/server/contexts/host"
 	"github.com/fleetdm/fleet/server/contexts/viewer"
@@ -22,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/server/logging"
 	"github.com/fleetdm/fleet/server/mock"
 	"github.com/fleetdm/fleet/server/pubsub"
+	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -347,6 +347,7 @@ func TestLabelQueries(t *testing.T) {
 			hostLabelQueryPrefix + "1": {{"col1": "val1"}},
 		},
 		map[string]kolide.OsqueryStatus{},
+		map[string]string{},
 	)
 	assert.Nil(t, err)
 	host.LabelUpdateTime = mockClock.Now()
@@ -366,6 +367,7 @@ func TestLabelQueries(t *testing.T) {
 			hostLabelQueryPrefix + "3": {},
 		},
 		map[string]kolide.OsqueryStatus{},
+		map[string]string{},
 	)
 	assert.Nil(t, err)
 	host.LabelUpdateTime = mockClock.Now()
@@ -643,7 +645,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	}
 
 	// Verify that results are ingested properly
-	svc.SubmitDistributedQueryResults(ctx, results, map[string]kolide.OsqueryStatus{})
+	svc.SubmitDistributedQueryResults(ctx, results, map[string]kolide.OsqueryStatus{}, map[string]string{})
 
 	// osquery_info
 	assert.Equal(t, "darwin", gotHost.Platform)
@@ -813,7 +815,7 @@ func TestDetailQueries(t *testing.T) {
 		return nil
 	}
 	// Verify that results are ingested properly
-	svc.SubmitDistributedQueryResults(ctx, results, map[string]kolide.OsqueryStatus{})
+	svc.SubmitDistributedQueryResults(ctx, results, map[string]kolide.OsqueryStatus{}, map[string]string{})
 
 	// osquery_info
 	assert.Equal(t, "darwin", gotHost.Platform)
@@ -1069,7 +1071,7 @@ func TestDistributedQueryResults(t *testing.T) {
 	// this test.
 	time.Sleep(10 * time.Millisecond)
 
-	err = svc.SubmitDistributedQueryResults(hostCtx, results, map[string]kolide.OsqueryStatus{})
+	err = svc.SubmitDistributedQueryResults(hostCtx, results, map[string]kolide.OsqueryStatus{}, map[string]string{})
 	require.Nil(t, err)
 }
 
@@ -1087,7 +1089,7 @@ func TestIngestDistributedQueryParseIdError(t *testing.T) {
 	}
 
 	host := kolide.Host{ID: 1}
-	err := svc.ingestDistributedQuery(host, "bad_name", []map[string]string{}, false)
+	err := svc.ingestDistributedQuery(host, "bad_name", []map[string]string{}, false, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unable to parse campaign")
 }
@@ -1111,7 +1113,7 @@ func TestIngestDistributedQueryOrphanedCampaignLoadError(t *testing.T) {
 
 	host := kolide.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(host, "kolide_distributed_query_42", []map[string]string{}, false)
+	err := svc.ingestDistributedQuery(host, "kolide_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "loading orphaned campaign")
 }
@@ -1144,7 +1146,7 @@ func TestIngestDistributedQueryOrphanedCampaignWaitListener(t *testing.T) {
 
 	host := kolide.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(host, "kolide_distributed_query_42", []map[string]string{}, false)
+	err := svc.ingestDistributedQuery(host, "kolide_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "campaign waiting for listener")
 }
@@ -1180,7 +1182,7 @@ func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
 
 	host := kolide.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(host, "kolide_distributed_query_42", []map[string]string{}, false)
+	err := svc.ingestDistributedQuery(host, "kolide_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "closing orphaned campaign")
 }
@@ -1217,7 +1219,7 @@ func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
 
 	host := kolide.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(host, "kolide_distributed_query_42", []map[string]string{}, false)
+	err := svc.ingestDistributedQuery(host, "kolide_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "stopping orphaned campaign")
 }
@@ -1254,7 +1256,7 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 
 	host := kolide.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(host, "kolide_distributed_query_42", []map[string]string{}, false)
+	err := svc.ingestDistributedQuery(host, "kolide_distributed_query_42", []map[string]string{}, false, "")
 	require.NoError(t, err)
 	lq.AssertExpectations(t)
 }
@@ -1284,7 +1286,7 @@ func TestIngestDistributedQueryRecordCompletionError(t *testing.T) {
 	}()
 	time.Sleep(10 * time.Millisecond)
 
-	err := svc.ingestDistributedQuery(host, "kolide_distributed_query_42", []map[string]string{}, false)
+	err := svc.ingestDistributedQuery(host, "kolide_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "record query completion")
 	lq.AssertExpectations(t)
@@ -1315,7 +1317,7 @@ func TestIngestDistributedQuery(t *testing.T) {
 	}()
 	time.Sleep(10 * time.Millisecond)
 
-	err := svc.ingestDistributedQuery(host, "kolide_distributed_query_42", []map[string]string{}, false)
+	err := svc.ingestDistributedQuery(host, "kolide_distributed_query_42", []map[string]string{}, false, "")
 	require.NoError(t, err)
 	lq.AssertExpectations(t)
 }
