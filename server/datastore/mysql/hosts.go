@@ -294,7 +294,11 @@ func (d *Datastore) EnrollHost(osqueryHostID, nodeKey, secretName string) (*koli
 
 		var id int64
 		err := tx.Get(&host, `SELECT id, last_enroll_time FROM hosts WHERE osquery_host_id = ?`, osqueryHostID)
-		if err != nil {
+		switch {
+		case err != nil && !errors.Is(err, sql.ErrNoRows):
+			return errors.Wrap(err, "check existing")
+
+		case errors.Is(err, sql.ErrNoRows):
 			// Create new host record
 			sqlInsert := `
 				INSERT INTO hosts (
@@ -313,7 +317,8 @@ func (d *Datastore) EnrollHost(osqueryHostID, nodeKey, secretName string) (*koli
 			}
 
 			id, _ = result.LastInsertId()
-		} else {
+
+		default:
 			// Prevent hosts from enrolling too often with the same identifier.
 			// Prior to adding this we saw many hosts (probably VMs) with the
 			// same identifier competing for enrollment and causing perf issues.
