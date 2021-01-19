@@ -99,25 +99,29 @@ func TestEmptyEnrollSecret(t *testing.T) {
 
 	err = svc.ApplyEnrollSecretSpec(
 		context.Background(),
-		&kolide.EnrollSecretSpec{[]kolide.EnrollSecret{kolide.EnrollSecret{}}},
+		&kolide.EnrollSecretSpec{
+			Secrets: []kolide.EnrollSecret{{}},
+		},
 	)
 	require.Error(t, err)
 
 	err = svc.ApplyEnrollSecretSpec(
 		context.Background(),
-		&kolide.EnrollSecretSpec{[]kolide.EnrollSecret{{Name: "foo"}}},
+		&kolide.EnrollSecretSpec{Secrets: []kolide.EnrollSecret{{Name: "foo"}}},
 	)
 	require.Error(t, err)
 
 	err = svc.ApplyEnrollSecretSpec(
 		context.Background(),
-		&kolide.EnrollSecretSpec{[]kolide.EnrollSecret{{Secret: "foo"}}},
+		&kolide.EnrollSecretSpec{Secrets: []kolide.EnrollSecret{{Secret: "foo"}}},
 	)
 	require.Error(t, err)
 
 	err = svc.ApplyEnrollSecretSpec(
 		context.Background(),
-		&kolide.EnrollSecretSpec{[]kolide.EnrollSecret{{Name: "foo", Secret: "foo"}}},
+		&kolide.EnrollSecretSpec{
+			Secrets: []kolide.EnrollSecret{{Name: "foo", Secret: "foo"}},
+		},
 	)
 	require.NoError(t, err)
 }
