@@ -1,6 +1,8 @@
 .host-details {
   display: flex;
   flex-direction: column;
+  padding-bottom: 50px;
+  min-width: 0;
 
   .section {
     display: flex;
@@ -20,6 +22,7 @@
         font-size: $x-small;
         display: flex;
         flex-direction: column;
+        white-space: nowrap;
 
         &--title {
           margin-right: 40px;
