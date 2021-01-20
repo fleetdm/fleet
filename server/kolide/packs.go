@@ -167,6 +167,7 @@ type PackSpecQuery struct {
 	Shard       *uint   `json:"shard,omitempty"`
 	Platform    *string `json:"platform,omitempty"`
 	Version     *string `json:"version,omitempty"`
+	Denylist    *bool   `json:"denylist,omitempty"`
 }
 
 // PackTarget associates a pack with either a host or a label

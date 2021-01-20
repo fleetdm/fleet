@@ -99,6 +99,18 @@ func testScheduledQuery(t *testing.T, ds kolide.Datastore) {
 	query, err := ds.ScheduledQuery(sq1.ID)
 	require.Nil(t, err)
 	assert.Equal(t, uint(60), query.Interval)
+	assert.Nil(t, query.Denylist)
+
+	denylist := false
+	query.Denylist = &denylist
+
+	query, err = ds.SaveScheduledQuery(query)
+
+	query, err = ds.ScheduledQuery(sq1.ID)
+	require.Nil(t, err)
+	assert.Equal(t, uint(60), query.Interval)
+	require.NotNil(t, query.Denylist)
+	assert.False(t, *query.Denylist)
 }
 
 func testDeleteScheduledQuery(t *testing.T, ds kolide.Datastore) {
