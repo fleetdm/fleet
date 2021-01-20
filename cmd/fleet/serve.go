@@ -369,7 +369,7 @@ the way that the Fleet server works.
 // Support for TLS security profiles, we set up the TLS configuation based on
 // value supplied to server_tls_compatibility command line flag. The default
 // profile is 'modern'.
-// See https://wiki.mozilla.org/Security/Server_Side_TLS
+// See https://wiki.mozilla.org/index.php?title=Security/Server_Side_TLS&oldid=1229478
 func getTLSConfig(profile string) *tls.Config {
 	cfg := tls.Config{
 		PreferServerCipherSuites: true,
@@ -377,44 +377,34 @@ func getTLSConfig(profile string) *tls.Config {
 
 	switch profile {
 	case config.TLSProfileModern:
-		cfg.MinVersion = tls.VersionTLS12
+		cfg.MinVersion = tls.VersionTLS13
 		cfg.CurvePreferences = append(cfg.CurvePreferences,
+			tls.X25519,
 			tls.CurveP256,
 			tls.CurveP384,
-			tls.CurveP521,
-			tls.X25519,
 		)
 		cfg.CipherSuites = append(cfg.CipherSuites,
+			tls.TLS_AES_128_GCM_SHA256,
+			tls.TLS_AES_256_GCM_SHA384,
+			tls.TLS_CHACHA20_POLY1305_SHA256,
+		)
+	case config.TLSProfileIntermediate:
+		cfg.MinVersion = tls.VersionTLS12
+		cfg.CurvePreferences = append(cfg.CurvePreferences,
+			tls.X25519,
+			tls.CurveP256,
+			tls.CurveP384,
+		)
+		cfg.CipherSuites = append(cfg.CipherSuites,
+			tls.TLS_AES_128_GCM_SHA256,
+			tls.TLS_AES_256_GCM_SHA384,
+			tls.TLS_CHACHA20_POLY1305_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
 			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
 			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
-			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-		)
-	case config.TLSProfileIntermediate:
-		cfg.MinVersion = tls.VersionTLS10
-		cfg.CurvePreferences = append(cfg.CurvePreferences,
-			tls.CurveP256,
-			tls.CurveP384,
-			tls.CurveP521,
-			tls.X25519,
-		)
-		cfg.CipherSuites = append(cfg.CipherSuites,
-			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
-			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
-			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-			tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
-			tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
-			tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
-			tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
-			tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,
-			tls.TLS_RSA_WITH_RC4_128_SHA,
-			tls.TLS_RSA_WITH_AES_128_CBC_SHA,
-			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-			tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
 		)
 	default:
 		initFatal(

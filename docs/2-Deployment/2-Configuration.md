@@ -389,7 +389,7 @@ Whether or not the server should be served over TLS.
 
 ###### `server_tls_compatibility`
 
-Configures the TLS settings for compatibility with various user agents. Options are `modern` and `intermediate`. These correspond to the compatibility levels [defined by the Mozilla OpSec team](https://wiki.mozilla.org/Security/Server_Side_TLS)
+Configures the TLS settings for compatibility with various user agents. Options are `modern` and `intermediate`. These correspond to the compatibility levels [defined by the Mozilla OpSec team](https://wiki.mozilla.org/index.php?title=Security/Server_Side_TLS&oldid=1229478) (updated July 24, 2020).
 
 - Default value: `modern`
 - Environment variable: `KOLIDE_SERVER_TLS_COMPATIBILITY`
