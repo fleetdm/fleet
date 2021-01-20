@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/go-kit/kit/log"
 	"github.com/fleetdm/fleet/server/health"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/mock"
+	"github.com/go-kit/kit/log"
 	"github.com/kolide/osquery-go/plugin/distributed"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -66,7 +66,9 @@ func TestLauncherPublishResults(t *testing.T) {
 	tls.SubmitDistributedQueryResultsFunc = func(
 		ctx context.Context,
 		results kolide.OsqueryDistributedQueryResults,
-		statuses map[string]kolide.OsqueryStatus) (err error) {
+		statuses map[string]kolide.OsqueryStatus,
+		messages map[string]string,
+	) (err error) {
 		assert.Equal(t, results["query"][0], result)
 		return nil
 	}
@@ -146,6 +148,7 @@ func newTLSService(t *testing.T) *mock.TLSService {
 			ctx context.Context,
 			results kolide.OsqueryDistributedQueryResults,
 			statuses map[string]kolide.OsqueryStatus,
+			messages map[string]string,
 		) (err error) {
 			return
 		},

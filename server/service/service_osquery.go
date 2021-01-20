@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-kit/kit/log"
 	hostctx "github.com/fleetdm/fleet/server/contexts/host"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/pubsub"
+	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 )
@@ -567,7 +567,7 @@ func (svc service) ingestLabelQuery(host kolide.Host, query string, rows []map[s
 
 // ingestDistributedQuery takes the results of a distributed query and modifies the
 // provided kolide.Host appropriately.
-func (svc service) ingestDistributedQuery(host kolide.Host, name string, rows []map[string]string, failed bool) error {
+func (svc service) ingestDistributedQuery(host kolide.Host, name string, rows []map[string]string, failed bool, errMsg string) error {
 	trimmedQuery := strings.TrimPrefix(name, hostDistributedQueryPrefix)
 
 	campaignID, err := strconv.Atoi(emptyToZero(trimmedQuery))
@@ -582,10 +582,7 @@ func (svc service) ingestDistributedQuery(host kolide.Host, name string, rows []
 		Rows:                       rows,
 	}
 	if failed {
-		// osquery errors are not currently helpful, but we should fix
-		// them to be better in the future
-		errString := "failed"
-		res.Error = &errString
+		res.Error = &errMsg
 	}
 
 	err = svc.resultStore.WriteResult(res)
@@ -632,7 +629,7 @@ func (svc service) ingestDistributedQuery(host kolide.Host, name string, rows []
 	return nil
 }
 
-func (svc service) SubmitDistributedQueryResults(ctx context.Context, results kolide.OsqueryDistributedQueryResults, statuses map[string]kolide.OsqueryStatus) error {
+func (svc service) SubmitDistributedQueryResults(ctx context.Context, results kolide.OsqueryDistributedQueryResults, statuses map[string]kolide.OsqueryStatus, messages map[string]string) error {
 	host, ok := hostctx.FromContext(ctx)
 
 	if !ok {
@@ -659,7 +656,7 @@ func (svc service) SubmitDistributedQueryResults(ctx context.Context, results ko
 			// status indicates a query error
 			status, ok := statuses[query]
 			failed := (ok && status != kolide.StatusOK)
-			err = svc.ingestDistributedQuery(host, query, rows, failed)
+			err = svc.ingestDistributedQuery(host, query, rows, failed, messages[query])
 		default:
 			err = osqueryError{message: "unknown query prefix: " + query}
 		}

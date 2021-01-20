@@ -17,6 +17,16 @@
   - [Create a user account with an invitation](#create-a-user-account-with-an-invitation)
   - [Create a user account without an invitation](#create-a-user-account-without-an-invitation)
   - [Get user information](#get-user-information)
+- [Fleet configuration](#fleet-configuration)
+  - [Get certificate](#get-certificate)
+  - [Get configuration](#get-configuration)
+  - [Modify configuration](#modify-configuration)
+  - [Get enroll secrets](#get-enroll-secrets)
+  - [Modify enroll secrets](#modify-enroll-secrets)
+  - [Create invite](#create-invite)
+  - [List invites](#list-invites)
+  - [Delete invite](#delete-invite)
+  - [Verify invite](#verify-invite)
 
 ## Overview
 
@@ -955,3 +965,463 @@ Returns all information about a specific user.
 ```
 
 ---
+
+## Fleet configuration
+
+The Fleet server exposes a handful of API endpoints that handle the configuration of Fleet as well as endpoints that manage invitation and enroll secret operations. All the following endpoints require prior authentication meaning you must first log in successfully before calling any of the endpoints documented below.
+
+### Get certificate
+
+Returns the Fleet certificate.
+
+`GET /api/v1/kolide/config/certificate`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/kolide/config/certificate`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "certificate_chain": <certificate_chain>
+}
+```
+
+### Get configuration
+
+Returns all information about the Fleet's configuration.
+
+`GET /api/v1/kolide/config`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/kolide/config`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "org_info": {
+    "org_name": "fleet",
+    "org_logo_url": ""
+  },
+  "server_settings": {
+    "kolide_server_url": "https://localhost:8080",
+    "live_query_disabled": false
+  },
+  "smtp_settings": {
+    "enable_smtp": false,
+    "configured": false,
+    "sender_address": "",
+    "server": "",
+    "port": 587,
+    "authentication_type": "authtype_username_password",
+    "user_name": "",
+    "password": "********",
+    "enable_ssl_tls": true,
+    "authentication_method": "authmethod_plain",
+    "domain": "",
+    "verify_ssl_certs": true,
+    "enable_start_tls": true
+  },
+  "sso_settings": {
+    "entity_id": "",
+    "issuer_uri": "",
+    "idp_image_url": "",
+    "metadata": "",
+    "metadata_url": "",
+    "idp_name": "",
+    "enable_sso": false
+  },
+  "host_expiry_settings": {
+    "host_expiry_enabled": false,
+    "host_expiry_window": 0
+  },
+  "host_settings": {
+    "additional_queries": null
+  }
+}
+```
+
+### Modify configuration
+
+Modifies the Fleet's configuration with the supplied information.
+
+`PATCH /api/v1/kolide/config`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| org_name   | string  | body | *Organization information*. The organization name.               |
+| org_logo_url      | string  | body | *Organization information*. The URL for the organization logo.          |
+| kolide_server_url   | string  | body | *Server settings*. The Fleet server URL.               |
+| live_query_disabled | boolean | body | *Server settings*. Whether the live query capabilities are disabled. |
+| enable_smtp      | boolean | body | *SMTP settings*. Whether SMTP is enabled for the Fleet app. |
+| sender_address      | string | body | *SMTP settings*. The sender email address for the Fleet app. An invitation email is an example of the emails that may use this sender address  |
+| server      | string | body | *SMTP settings*. The SMTP server for the Fleet app. |
+| port      | integer | body | *SMTP settings*. The SMTP port for the Fleet app. |
+| authetication_type | string | body | *SMTP settings*. The authentication type used by the SMTP server. Options include `"authtype_username_and_password"` or `"none"`|
+| username_name | string | body | *SMTP settings*. The username used to authenticate requests made to the SMTP server.|
+| password | string | body | *SMTP settings*. The password used to authenticate requests made to the SMTP server.|
+| enable_ssl_tls | boolean | body | *SMTP settings*. Whether or not SSL and TLS are enabled for the SMTP server.|
+| authentication_method | string | body | *SMTP settings*. The authentication method used to make authenticate requests to SMTP server. Options include `"authmethod_plain"`, `"authmethod_cram_md5"`, and `"authmethod_login"`.|
+| domain | string | body | *SMTP settings*. The domain for the SMTP server.|
+| verify_ssl_certs | boolean | body | *SMTP settings*. Whether or not SSL certificates are verified by the SMTP server. Turn this off (not recommended) if you use a self-signed certificate. |
+| enabled_start_tls | boolean | body | *SMTP settings*. Detects if STARTTLS is enabled in your SMTP server and starts to use it.|
+| enabled_sso      | boolean | body | *SSO settings*. Whether or not SSO is enabled for the Fleet application. If this value is true, you must also include most of the SSO settings parameters below.|
+| entity_id      | string | body | *SSO settings*. The required entity ID is a URI that you use to identify Fleet when configuring the identity provider. |
+| issuer_uri      | string | body | *SSO settings*. The URI you provide here must exactly match the Entity ID field used in the identity provider configuration. |
+| idp_image_url      | string | body | *SSO settings*. An optional link to an image such as a logo for the identity provider. |
+| metadata      | string | body | *SSO settings*. Metadata provided by the identity provider. Either metadata or a metadata URL must be provided. |
+| metadata_url      | string | body | *SSO settings*. A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata. |
+| host_expiry_enabled      | boolean | body | *Host expiry settings*. When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days. |
+| host_expiry_window      | integer | body | *Host expiry settings*. If a host has not communicated with Fleet in the specified number of days, it will be removed. |
+| additional_queries      | boolean | body | Whether or not additional queries are enabled on hosts. |
+
+#### Example
+
+`PATCH /api/v1/kolide/config`
+
+##### Request body
+
+```
+{
+  "org_info": {
+    "org_name": "Fleet Device Management",
+    "org_logo_url": "https://fleetdm.com/logo.png"
+  },
+  "smtp_settings: {
+    "enable_smtp": true,
+    "server": "localhost",
+    "port": "1025"
+  }
+}
+```
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "org_info": {
+    "org_name": "Fleet Device Management",
+    "org_logo_url": "https://fleetdm.com/logo.png"
+  },
+  "server_settings": {
+    "kolide_server_url": "https://localhost:8080",
+    "live_query_disabled": false
+  },
+  "smtp_settings": {
+    "enable_smtp": true,
+    "configured": true,
+    "sender_address": "",
+    "server": "localhost",
+    "port": 1025,
+    "authentication_type": "authtype_username_none",
+    "user_name": "",
+    "password": "********",
+    "enable_ssl_tls": true,
+    "authentication_method": "authmethod_plain",
+    "domain": "",
+    "verify_ssl_certs": true,
+    "enable_start_tls": true
+  },
+  "sso_settings": {
+    "entity_id": "",
+    "issuer_uri": "",
+    "idp_image_url": "",
+    "metadata": "",
+    "metadata_url": "",
+    "idp_name": "",
+    "enable_sso": false
+  },
+  "host_expiry_settings": {
+    "host_expiry_enabled": false,
+    "host_expiry_window": 0
+  },
+  "host_settings": {
+    "additional_queries": null
+  }
+}
+```
+
+### Get enroll secret(s)
+
+Returns all the enroll secrets used by the Fleet server.
+
+`GET /api/v1/kolide/spec/enroll_secret`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/kolide/spec/enroll_secret`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "specs": {
+    "secrets": [
+      {
+        "name": "bar",
+        "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn",
+        "active": true,
+        "created_at": "2021-01-07T19:40:04Z"
+      },
+      {
+        "name": "default",
+        "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn",
+        "active": true,
+        "created_at": "2021-01-04T21:18:07Z"
+      },
+      {
+        "name": "foo",
+        "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn",
+        "active": true,
+        "created_at": "2021-01-07T19:40:04Z"
+      }
+    ]
+  }
+}
+```
+
+### Modify enroll secret(s)
+
+Modifies and/or creates the specified enroll secret(s).
+
+`POST /api/v1/kolide/spec/enroll_secret`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| name   | string  | body | **Required.** The name of the enroll secret              |
+| secret   | string  | body | **Required.** The plain text string used as the enroll secret.               |
+| active      | boolean  | body | Whether or not the enroll secret is active. Must be set to true for hosts to enroll using the enroll secret.          |
+
+#### Example
+
+##### Request body
+
+```
+{
+  "spec": {
+    "secrets": [
+      {
+        "name": "bar",
+        "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn",
+        "active": false,
+      },
+    ]
+  }
+}
+```
+
+`POST /api/v1/kolide/spec/enroll_secret`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
+### Create invite
+
+
+`POST /api/v1/kolide/invites`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| admin   | boolean  | body | **Required.** Whether or not the invited user will be granted admin privileges.             |
+| email   | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.              |
+| invited_by      | integer  | body | **Required.** The id of the user that is extending the invitation. See the [Get user information](#get-user-information) endpoint for how to retrieve a user's id.          |
+| name     | string  | body | **Required.** The name of the invited user.         |
+| sso_enabled     | boolean  | body | **Required.** Whether or not SSO will be enabled for the invited user.   |
+
+#### Example
+
+##### Request body
+
+```
+{
+  "admin": false,
+  "email": "john_appleseed@example.com",
+  "invited_by": 1,
+  "name": John,
+  "sso_enabled": false
+}
+```
+
+`POST /api/v1/kolide/invites`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "invite": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 3,
+    "invited_by": 1,
+    "email": "john_appleseed@example.com",
+    "admin": false,
+    "name": "John",
+    "sso_enabled": false
+  }
+}
+```
+
+### List invites
+
+Returns a list of the active invitations in Fleet.
+
+`GET /api/v1/kolide/invites`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/kolide/invites`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "invites": [
+    {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 3,
+      "invited_by": 1,
+      "email": "john_appleseed@example.com",
+      "admin": false,
+      "name": "John",
+      "sso_enabled": false
+    },
+    {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 4,
+      "invited_by": 1,
+      "email": "bob_marks@example.com",
+      "admin": true,
+      "name": "Bob",
+      "sso_enabled": false
+    },
+  ]
+}
+```
+
+### Delete invite
+
+Delete the specified invite from Fleet.
+
+`DELETE /api/v1/kolide/invites/{id}`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| id   | integer  | query | **Required.** The user's id.            |
+
+#### Example
+
+`DELETE /api/v1/kolide/invites/{id}`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
+### Verify invite
+
+Verify the specified invite.
+
+`GET /api/v1/kolide/invites/{token}`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| token   | integer  | query | **Required.** The user's invite token.            |
+
+#### Example
+
+`GET /api/v1/kolide/invites/{token}`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+    "invite": {
+        "created_at": "2021-01-15T00:58:33Z",
+        "updated_at": "2021-01-15T00:58:33Z",
+        "id": 4,
+        "invited_by": 1,
+        "email": "steve@example.com",
+        "admin": false,
+        "name": "Steve",
+        "sso_enabled": false
+    }
+}
+```
+
+##### Not found
+
+`Status: 404`
+
+```
+{
+    "message": "Resource Not Found",
+    "errors": [
+        {
+            "name": "base",
+            "reason": "Invite with token <token> was not found in the datastore"
+        }
+    ]
+}
+```

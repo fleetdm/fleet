@@ -30,10 +30,6 @@ describe('PanelGroupItem - component', () => {
     <PanelGroupItem item={validPanelGroupItem} statusLabels={statusLabels} />,
   );
 
-  const platformComponent = mount(
-    <PanelGroupItem item={validPanelGroupItem} statusLabels={statusLabels} type="platform" />,
-  );
-
   const statusLabelComponent = mount(
     <PanelGroupItem item={validStatusGroupItem} statusLabels={statusLabels} type="status" />,
   );
@@ -41,14 +37,6 @@ describe('PanelGroupItem - component', () => {
   const loadingStatusLabelComponent = mount(
     <PanelGroupItem item={validStatusGroupItem} statusLabels={loadingStatusLabels} type="status" />,
   );
-
-  it('renders the appropriate icon', () => {
-    expect(labelComponent.find('PlatformIcon').length).toEqual(0);
-    expect(labelComponent.find('Icon').length).toEqual(1);
-
-    expect(platformComponent.find('PlatformIcon').length).toEqual(0);
-    expect(platformComponent.find('Icon').length).toEqual(1);
-  });
 
   it('renders the item text', () => {
     expect(labelComponent.text()).toContain(validPanelGroupItem.display_text);

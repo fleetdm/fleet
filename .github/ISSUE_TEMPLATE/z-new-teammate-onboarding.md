@@ -26,13 +26,21 @@ Welcome to Fleet! This issue tracks TODOs required for all new teammates for you
 - [ ] Check out our [additional recommendations for new team members](https://docs.google.com/document/d/1xcnqKB9HHPd94POnZ_7LATiy_VjO2kJdbYx0SAgKVao/edit#)
 
 
-#### Additional setup for engineers only
+#### Engineers only: Additional setup
 - [ ] Setup local development environment
     - [ ] Fleet (for contributors)
     - [ ] MySQL database
     - [ ] Redis
 <!-- - [ ] Invite to Rollbar -->
 <!-- - [ ] Go over engineering-specific values and expectations -->
+
+#### Bizdev only: Additional setup
+- [ ] Ask your manager about getting set up with a phone number (RingCentral)
+  - [ ] Accept your invite to RingCentral
+  - [ ] Install the RingCentral desktop app
+  - [ ] Install the RingCentral mobile app, if appropriate
+- [ ] Ask your manager about getting set up with an account to log in to our CRM (Salesforce)
+  - [ ] Accept your invite to Salesforce
 
 
 ## TODOs for your manager

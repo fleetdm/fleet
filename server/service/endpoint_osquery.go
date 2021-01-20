@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/go-kit/kit/endpoint"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/go-kit/kit/endpoint"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -98,6 +98,7 @@ type submitDistributedQueryResultsRequest struct {
 	NodeKey  string                                `json:"node_key"`
 	Results  kolide.OsqueryDistributedQueryResults `json:"queries"`
 	Statuses map[string]kolide.OsqueryStatus       `json:"statuses"`
+	Messages map[string]string                     `json:"messages"`
 }
 
 type submitDistributedQueryResultsResponse struct {
@@ -109,7 +110,7 @@ func (r submitDistributedQueryResultsResponse) error() error { return r.Err }
 func makeSubmitDistributedQueryResultsEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(submitDistributedQueryResultsRequest)
-		err := svc.SubmitDistributedQueryResults(ctx, req.Results, req.Statuses)
+		err := svc.SubmitDistributedQueryResults(ctx, req.Results, req.Statuses, req.Messages)
 		if err != nil {
 			return submitDistributedQueryResultsResponse{Err: err}, nil
 		}

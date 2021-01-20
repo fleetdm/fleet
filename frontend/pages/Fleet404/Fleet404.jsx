@@ -1,4 +1,7 @@
 import React, { Component } from 'react';
+import { Link } from 'react-router';
+
+import PATHS from 'router/paths';
 
 import fleetLogoText from '../../../assets/images/fleet-logo-text-white.svg';
 import backgroundImg from '../../../assets/images/404.svg';
@@ -10,9 +13,9 @@ class Fleet404 extends Component {
     return (
       <div className={baseClass}>
         <header className="primary-header">
-          <a href="/">
+          <Link to={PATHS.HOME}>
             <img className="primary-header__logo" src={fleetLogoText} alt="Fleet logo" />
-          </a>
+          </Link>
         </header>
         <img src={backgroundImg} alt="404 background" className="background-image" />
         <main>

@@ -52,10 +52,12 @@ func decodeSubmitDistributedQueryResultsRequest(ctx context.Context, r *http.Req
 	//  },
 	// "node_key":"IGXCXknWQ1baTa8TZ6rF3kAPZ4\/aTsui"
 	// }
+
 	type distributedQueryResultsShim struct {
 		NodeKey  string                     `json:"node_key"`
 		Results  map[string]json.RawMessage `json:"queries"`
 		Statuses map[string]interface{}     `json:"statuses"`
+		Messages map[string]string          `json:"messages"`
 	}
 
 	var shim distributedQueryResultsShim
@@ -97,6 +99,7 @@ func decodeSubmitDistributedQueryResultsRequest(ctx context.Context, r *http.Req
 		NodeKey:  shim.NodeKey,
 		Results:  results,
 		Statuses: statuses,
+		Messages: shim.Messages,
 	}
 
 	return req, nil

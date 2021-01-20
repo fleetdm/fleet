@@ -120,7 +120,9 @@ func (svc *launcherWrapper) PublishResults(ctx context.Context, nodeKey string, 
 		osqueryResults[result.QueryName] = result.Rows
 	}
 
-	err = svc.tls.SubmitDistributedQueryResults(newCtx, osqueryResults, statuses)
+	// TODO can Launcher expose the error messages?
+	messages := make(map[string]string)
+	err = svc.tls.SubmitDistributedQueryResults(newCtx, osqueryResults, statuses, messages)
 	return "", "", false, errors.Wrap(err, "submit launcher results")
 }
 
