@@ -11,6 +11,8 @@ const baseClass = 'query-progress-details';
 
 const QueryProgressDetails = ({ campaign, className, onRunQuery, onStopQuery, queryIsRunning, queryTimerMilliseconds, disableRun }) => {
   const { hosts_count: hostsCount } = campaign;
+  const { Metrics: metrics } = campaign;
+  const { errors } = campaign;
   const totalHostsCount = get(campaign, ['totals', 'count'], 0);
   const totalRowsCount = get(campaign, ['query_results', 'length'], 0);
 
@@ -51,12 +53,11 @@ const QueryProgressDetails = ({ campaign, className, onRunQuery, onStopQuery, qu
   return (
     <div className={`${baseClass} ${className}`}>
       <div className={`${baseClass}__wrapper`}>
-        <span>
-          <b>{hostsCount.total}</b>&nbsp;of&nbsp;
-          <b>{totalHostsCount} Hosts</b>&nbsp;Returning&nbsp;
-          <b>{totalRowsCount} Records&nbsp;</b>
-          <em>({hostsCount.failed} failed)</em>
-        </span>
+        <div className={`${baseClass}__text-wrapper`}>
+          <span>Online - {metrics.OnlineHosts} hosts returning {totalRowsCount} results</span>
+          <span>Offline - {metrics.OfflineHosts} hosts returning 0 results</span>
+          <span>Failed - {hostsCount.failed} hosts returning {errors ? errors.length : '0'} errors</span>
+        </div>
         <ProgressBar
           error={hostsCount.failed}
           max={totalHostsCount}

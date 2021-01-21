@@ -2,11 +2,14 @@
   display: flex;
   flex-direction: column;
   background-color: $white;
-  padding: $pad-base;
   width: 100%;
   min-height: calc(500px + (#{$pad-base} * 2));
   box-sizing: border-box;
-  max-height: 75vh;
+
+  &__table-title {
+    font-size: $x-small;
+    font-weight: $bold;
+  }
 
   &__button-wrap {
     @include clearfix;
@@ -27,17 +30,16 @@
     width: 378px;
   }
 
-  &__table-wrapper {
+  &__results-table-wrapper {
     display: flex;
-    flex-grow: 1;
     border: solid 1px $ui-borders;
     border-radius: 3px;
     box-shadow: inset 0 0 8px 0 rgba(0, 0, 0, 0.12);
     overflow: scroll;
-    margin-top: 30px;
+    margin-top: 4px;
     min-height: 400px;
+    height: 400px;
     width: 100%;
-
     .kolide-spinner {
       align-self: center;
     }
@@ -46,13 +48,30 @@
       flex-grow: 1;
       align-self: center;
       text-align: center;
+      font-size: $x-small;
     }
+  }
+
+  &__error-table-container {
+    margin-top: 24px;
+  }
+
+  &__error-table-wrapper {
+    display: flex;
+    border: solid 1px $ui-borders;
+    border-radius: 3px;
+    box-shadow: inset 0 0 8px 0 rgba(0, 0, 0, 0.12);
+    overflow: scroll;
+    margin-bottom: 40px;
+    margin-top: 4px;
+    max-height: 200px;
+    width: 100%;
   }
 
   &__table {
     border-collapse: collapse;
     color: $core-dark-blue-grey;
-    font-size: $small;
+    font-size: $x-small;
     width: 100%;
   }
 
@@ -83,7 +102,7 @@
     background-color: $white;
 
     td {
-      padding: $pad-xsmall;
+      padding: 7px;
     }
 
     tr {
@@ -100,8 +119,17 @@
     box-shadow: 0 0 12px 0 rgba(0, 0, 0, 0.1);
     border: solid 1px $ui-borders;
     z-index: 99;
+    padding: 20px;
 
     .query-progress-details__run-btn {
+      display: none;
+    }
+
+    .query-results-table__results-table-wrapper {
+      height: auto;
+    }
+
+    .query-results-table__error-table-container {
       display: none;
     }
   }

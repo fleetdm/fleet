@@ -14,6 +14,12 @@
     }
   }
 
+  &__text-wrapper {
+    display: flex;
+    flex-direction: column;
+    font-size: $x-small;
+  }
+
   &__btn-wrapper {
     float: right;
 
