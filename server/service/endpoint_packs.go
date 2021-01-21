@@ -3,8 +3,9 @@ package service
 import (
 	"context"
 
-	"github.com/go-kit/kit/endpoint"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/go-kit/kit/endpoint"
 )
 
 type packResponse struct {
@@ -261,6 +262,7 @@ func (r applyPackSpecsResponse) error() error { return r.Err }
 func makeApplyPackSpecsEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(applyPackSpecsRequest)
+		spew.Dump(req)
 		err := svc.ApplyPackSpecs(ctx, req.Specs)
 		if err != nil {
 			return applyPackSpecsResponse{Err: err}, nil
