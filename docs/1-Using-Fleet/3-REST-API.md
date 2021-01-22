@@ -27,8 +27,8 @@
   - [Get queries specs](#get-quieries-specs)
   - [Get query spec](#get-query-spec)
   - [Apply queries specs](#apply-quieries-specs)
-  - [Run live query](#run-live-query)
-  - [Run live query by name](#run-live-query-by-name)
+  - [Create distributed query campaign](#create-distributed-query-campaign)
+  - [Create distributed query campaign by query name](#create-distributed-query-campaign-by-query-name)
 - [Fleet configuration](#fleet-configuration)
   - [Get certificate](#get-certificate)
   - [Get configuration](#get-configuration)
@@ -1389,7 +1389,7 @@ Creates and/or modifies the queries included in the specs list. To modify an exi
 {}
 ```
 
-### Run live query
+### Create distributed query campaign
 
 Runs the specified query as a distributed query on the specified hosts or group of hosts. Returns a new distributed query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label ID.
 
@@ -1476,7 +1476,7 @@ Runs the specified query as a distributed query on the specified hosts or group 
 }
 ```
 
-### Run live query by name
+### Create distributed query campaign by query name
 
 Runs the specified query by name as a distributed query on the specified hosts or group of hosts. Returns a new distributed query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label.
 
@@ -1486,8 +1486,8 @@ Runs the specified query by name as a distributed query on the specified hosts o
 
 | Name       | Type    | In   | Description                                      |
 | ---------- | ------- | ---- | ------------------------------------------------ |
-| name   | string  | body | **Required.** The name of the query               |
-| selected   | object  | body | **Required.** The desired targets for the query. This object must contain `hosts` and `labels` properties. See example below     |
+| name   | string  | body | **Required.** The name of the query.             |
+| selected   | object  | body | **Required.** The desired targets for the query. This object must contain `hosts` and `labels` properties. See example below.     |
 
 #### Example with one host targeted
 
