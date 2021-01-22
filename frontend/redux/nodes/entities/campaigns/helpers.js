@@ -30,7 +30,14 @@ const updateCampaignStateFromResults = (campaign, { data }) => {
       total: newTotal,
     };
 
-    newErrors = [...errors, { host_hostname: host.hostname, error }];
+    newErrors = [
+      ...errors,
+      {
+        host_hostname: host.hostname,
+        osquery_version: host.osquery_version,
+        error,
+      },
+    ];
   // Host's with osquery version below 4.4.0 receive an empty error message
   // when the live query fails so we create our own message.
   } else if (error === '') {
@@ -42,7 +49,14 @@ const updateCampaignStateFromResults = (campaign, { data }) => {
       failed: newFailed,
       total: newTotal,
     };
-    newErrors = [...errors, { host_hostname: host.hostname, error: 'unknown error: upgrade osquery on this host to a version > 4.4.0 to see a more descriptive message.' }];
+    newErrors = [
+      ...errors,
+      {
+        host_hostname: host.hostname,
+        osquery_version: host.osquery_version,
+        error: 'unknown error: upgrade osquery on this host to a version > 4.4.0 to see a more descriptive message.',
+      },
+    ];
   } else {
     const newSuccessful = hostsCount.successful + 1;
     const newTotal = hostsCount.failed + newSuccessful;

@@ -20,6 +20,7 @@
   }
 
   &__filter-icon {
+    color: #AFBEC1;
     &--is-active {
       color: $core-blue;
     }
@@ -34,7 +35,6 @@
     display: flex;
     border: solid 1px $ui-borders;
     border-radius: 3px;
-    box-shadow: inset 0 0 8px 0 rgba(0, 0, 0, 0.12);
     overflow: scroll;
     margin-top: 4px;
     min-height: 400px;
@@ -60,7 +60,6 @@
     display: flex;
     border: solid 1px $ui-borders;
     border-radius: 3px;
-    box-shadow: inset 0 0 8px 0 rgba(0, 0, 0, 0.12);
     overflow: scroll;
     margin-bottom: 40px;
     margin-top: 4px;
@@ -79,10 +78,15 @@
     background-color: $core-light-blue-grey;
     color: $core-black;
     text-align: left;
+    border-bottom: 1px solid $ui-borders;
 
     th {
-      padding: $pad-small $pad-xsmall;
+      padding: 12px 24px;
       min-width: 125px;
+
+      .form-field {
+        margin-bottom: 0;
+      }
 
       span {
         white-space: nowrap;
@@ -102,13 +106,16 @@
     background-color: $white;
 
     td {
-      padding: 7px;
+      padding: 12px 24px;
+      white-space: nowrap;
     }
 
     tr {
-      &:nth-child(even) {
-        background-color: $core-light-blue-grey;
-      }
+      border-bottom: 1px solid $ui-borders;
+    }
+
+    tr:last-child {
+      border-bottom: none;
     }
   }
 

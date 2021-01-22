@@ -214,7 +214,7 @@ class QueryResultsTable extends Component {
         </header>
         <span className={`${baseClass}__table-title`}>Results</span>
         <div className={`${baseClass}__results-table-wrapper`}>
-          {hasNoResults && <span className="no-results-message">No results found</span>}
+          {hasNoResults && <span className="no-results-message">No results found. Check the table below for errors.</span>}
           {!hasNoResults && renderTable()}
         </div>
         {hasErrors &&
