@@ -54,9 +54,9 @@ const QueryProgressDetails = ({ campaign, className, onRunQuery, onStopQuery, qu
     <div className={`${baseClass} ${className}`}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__text-wrapper`}>
-          <span>Online - {metrics.OnlineHosts} hosts returning {totalRowsCount} results</span>
-          <span>Offline - {metrics.OfflineHosts} hosts returning 0 results</span>
-          <span>Failed - {hostsCount.failed} hosts returning {errors ? errors.length : '0'} errors</span>
+          <span className={`${baseClass}__text-online`}>Online - {metrics.OnlineHosts} hosts returning {totalRowsCount} results</span>
+          <span className={`${baseClass}__text-offline`}>Offline - {metrics.OfflineHosts} hosts returning 0 results</span>
+          <span className={`${baseClass}__text-error`}>Failed - {hostsCount.failed} hosts returning {errors ? errors.length : '0'} errors</span>
         </div>
         <ProgressBar
           error={hostsCount.failed}
