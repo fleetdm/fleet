@@ -196,7 +196,7 @@ describe('QueryPage - component', () => {
       'resets selected targets and removed the campaign when the hostname changes',
       () => {
         const queryResult = { org_name: 'Kolide', org_url: 'https://kolide.co' };
-        const campaign = { id: 1, query_results: [queryResult], hosts_count: { total: 1 } };
+        const campaign = { id: 1, query_results: [queryResult], hosts_count: { total: 1 }, Metrics: { OnlineHosts: 1, OfflineHosts: 0 } };
         const props = {
           dispatch: noop,
           loadingQueries: false,
@@ -232,6 +232,10 @@ describe('QueryPage - component', () => {
           successful: 1,
           total: 1,
         },
+        Metrics: {
+          OnlineHosts: 1,
+          OfflineHosts: 0,
+        },
         query_results: [queryResult],
       };
       const queryResultsCSV = convertToCSV([queryResult]);
@@ -262,6 +266,10 @@ describe('QueryPage - component', () => {
             failed: 0,
             successful: 1,
             total: 1,
+          },
+          Metrics: {
+            OnlineHosts: 1,
+            OfflineHosts: 0,
           },
           query_results: [queryResult],
         };

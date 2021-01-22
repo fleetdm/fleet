@@ -49,6 +49,10 @@ const campaignWithQueryResults = {
     { host_hostname: 'dfoihgsx', cwd: '/', directory: '/root' },
     { host_hostname: 'abc123', cwd: '/', directory: '/root' },
   ],
+  Metrics: {
+    OnlineHosts: 2,
+    OfflineHosts: 0,
+  },
   hosts_count: {
     failed: 0,
     successful: 2,
