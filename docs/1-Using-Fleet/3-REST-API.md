@@ -17,6 +17,7 @@
   - [Create a user account with an invitation](#create-a-user-account-with-an-invitation)
   - [Create a user account without an invitation](#create-a-user-account-without-an-invitation)
   - [Get user information](#get-user-information)
+- [Packs](#packs)
 - [Fleet configuration](#fleet-configuration)
   - [Get certificate](#get-certificate)
   - [Get configuration](#get-configuration)
@@ -962,6 +963,261 @@ Returns all information about a specific user.
     }
   ]
 }
+```
+
+---
+
+## Packs
+
+### Create pack
+
+`POST /api/v1/kolide/packs`
+
+#### Parameters
+
+| Name | Type    | In    | Description                  |
+| ---- | ------- | ----- | ---------------------------- |
+| name   | string | body | **Required**. The pack's name. |
+| description   | string | body | The pack's description. |
+| host_ids   | list | body | A list containing the targeted host IDs. |
+| label_ids   | list | body | A list containing the targeted label's IDs. |
+
+#### Example
+
+`POST /api/v1/kolide/packs`
+
+##### Request query parameters
+
+```
+{
+  "description": "Collects osquery data."
+  "host_ids": []
+  "label_ids": [6]
+  "name": "query_pack_1"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "pack": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 17,
+    "name": "query_pack_1",
+    "description": "Collects osquery data.",
+    "query_count": 0,
+    "total_hosts_count": 223,
+    "host_ids": [],
+    "label_ids": [
+      6
+    ]
+  }
+}
+```
+
+### Modify pack
+
+`PATCH /api/v1/kolide/packs/{id}`
+
+#### Parameters
+
+| Name | Type    | In    | Description                  |
+| ---- | ------- | ----- | ---------------------------- |
+| id   | integer | path | **Required.** The pack's id. |
+| name   | string | body | The pack's name. |
+| description   | string | body | The pack's description. |
+| host_ids   | list | body | A list containing the targeted host IDs. |
+| label_ids   | list | body | A list containing the targeted label's IDs. |
+
+#### Example
+
+`PATCH /api/v1/kolide/packs/{id}`
+
+##### Request query parameters
+
+```
+{
+  "description": "MacOS hosts are targeted"
+  "host_ids": []
+  "label_ids": [7]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "pack": {
+    "created_at": "2021-01-25T22:32:45Z",
+    "updated_at": "2021-01-25T22:32:45Z",
+    "id": 17,
+    "name": "Title2",
+    "description": "MacOS hosts are targeted",
+    "query_count": 0,
+    "total_hosts_count": 110,
+    "host_ids": [],
+    "label_ids": [
+      7
+    ]
+  }
+}
+```
+
+### Get pack
+
+`GET /api/v1/kolide/packs/{id}`
+
+#### Parameters
+
+| Name | Type    | In    | Description                  |
+| ---- | ------- | ----- | ---------------------------- |
+| id   | integer | path | **Required.** The pack's id. |
+
+#### Example
+
+`GET /api/v1/kolide/packs/17`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "pack": {
+    "created_at": "2021-01-25T22:32:45Z",
+    "updated_at": "2021-01-25T22:32:45Z",
+    "id": 17,
+    "name": "Title2",
+    "description": "MacOS hosts are targeted",
+    "query_count": 0,
+    "total_hosts_count": 110,
+    "host_ids": [],
+    "label_ids": [
+      7
+    ]
+  }
+}
+```
+
+### List packs
+
+`GET /api/v1/kolide/packs`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/kolide/packs`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "packs": [
+    {
+      "created_at": "2021-01-05T21:13:04Z",
+      "updated_at": "2021-01-07T19:12:54Z",
+      "id": 1,
+      "name": "pack_number_one",
+      "description": "This pack has a description",
+      "disabled": true,
+      "query_count": 1,
+      "total_hosts_count": 53,
+      "host_ids": [],
+      "label_ids": [
+        8
+      ]
+    },
+    {
+      "created_at": "2021-01-19T17:08:31Z",
+      "updated_at": "2021-01-19T17:08:31Z",
+      "id": 2,
+      "name": "query_pack_2",
+      "query_count": 5,
+      "total_hosts_count": 223,
+      "host_ids": [],
+      "label_ids": [
+        6
+      ]
+    },
+  ]
+}
+```
+
+### Delete pack
+
+`DELETE /api/v1/kolide/packs/{name}`
+
+#### Parameters
+
+| Name | Type    | In    | Description                  |
+| ---- | ------- | ----- | ---------------------------- |
+| name   | string | path | **Required.** The pack's name. |
+
+#### Example
+
+`DELETE /api/v1/kolide/packs/pack_number_one`
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
+### Delete pack by ID
+
+`DELETE /api/v1/kolide/packs/id/{id}`
+
+#### Parameters
+
+| Name | Type    | In    | Description                  |
+| ---- | ------- | ----- | ---------------------------- |
+| id   | integer | path | **Required.** The pack's ID. |
+
+#### Example
+
+`DELETE /api/v1/kolide/packs/id/1`
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
+### Delete pack by ID
+
+`DELETE /api/v1/kolide/packs/id/{id}`
+
+#### Parameters
+
+| Name | Type    | In    | Description                  |
+| ---- | ------- | ----- | ---------------------------- |
+| id   | integer | path | **Required.** The pack's ID. |
+
+#### Example
+
+`DELETE /api/v1/kolide/packs/id/1`
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
 ```
 
 ---
