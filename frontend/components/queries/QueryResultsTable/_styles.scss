@@ -21,6 +21,7 @@
 
   &__filter-icon {
     color: $ui-dark-grey;
+
     &--is-active {
       color: $core-blue;
     }
@@ -40,6 +41,7 @@
     min-height: 200px;
     max-height: 400px;
     width: 100%;
+
     .kolide-spinner {
       align-self: center;
     }
@@ -112,10 +114,10 @@
 
     tr {
       border-bottom: 1px solid $ui-borders;
-    }
 
-    tr:last-child {
-      border-bottom: none;
+      &:last-child {
+        border-bottom: 0;
+      }
     }
   }
 
