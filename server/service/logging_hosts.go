@@ -25,9 +25,9 @@ func (mw loggingMiddleware) ListHosts(ctx context.Context, opt kolide.HostListOp
 	return hosts, err
 }
 
-func (mw loggingMiddleware) GetHost(ctx context.Context, id uint) (*kolide.Host, error) {
+func (mw loggingMiddleware) GetHost(ctx context.Context, id uint) (*kolide.HostDetail, error) {
 	var (
-		host *kolide.Host
+		host *kolide.HostDetail
 		err  error
 	)
 
