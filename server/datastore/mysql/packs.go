@@ -129,7 +129,7 @@ WHERE pack_id = ? AND pt.type = ? AND pt.target_id = l.id
 			query = `
 SELECT
 query_name, name, description, ` + "`interval`" + `,
-snapshot, removed, shard, platform, version
+snapshot, removed, shard, platform, version, denylist
 FROM scheduled_queries
 WHERE pack_id = ?
 `
@@ -179,7 +179,7 @@ WHERE pack_id = ? AND pt.type = ? AND pt.target_id = l.id
 		query = `
 SELECT
 query_name, name, description, ` + "`interval`" + `,
-snapshot, removed, shard, platform, version
+snapshot, removed, shard, platform, version, denylist
 FROM scheduled_queries
 WHERE pack_id = ?
 `

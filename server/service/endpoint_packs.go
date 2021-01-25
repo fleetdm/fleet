@@ -262,7 +262,6 @@ func (r applyPackSpecsResponse) error() error { return r.Err }
 func makeApplyPackSpecsEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(applyPackSpecsRequest)
-		spew.Dump(req)
 		err := svc.ApplyPackSpecs(ctx, req.Specs)
 		if err != nil {
 			return applyPackSpecsResponse{Err: err}, nil
