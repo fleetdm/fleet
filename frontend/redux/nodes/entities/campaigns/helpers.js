@@ -54,7 +54,7 @@ const updateCampaignStateFromResults = (campaign, { data }) => {
       {
         host_hostname: host.hostname,
         osquery_version: host.osquery_version,
-        error: 'unknown error: upgrade osquery on this host to a version > 4.4.0 to see a more descriptive message.',
+        error: 'upgrade osquery on this host to 4.4.0+ for error details',
       },
     ];
   } else {
