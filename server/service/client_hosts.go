@@ -37,7 +37,7 @@ func (c *Client) GetHosts() ([]HostResponse, error) {
 
 // HostByIdentifier retrieves a host by the uuid, osquery_host_id, hostname, or
 // node_key.
-func (c *Client) HostByIdentifier(identifier string) (*HostResponse, error) {
+func (c *Client) HostByIdentifier(identifier string) (*HostDetailResponse, error) {
 	response, err := c.AuthenticatedDo("GET", "/api/v1/kolide/hosts/identifier/"+identifier, "", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "GET /api/v1/kolide/hosts/identifier")

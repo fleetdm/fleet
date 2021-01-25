@@ -13,13 +13,10 @@ type HostStatus string
 const (
 	// StatusOnline host is active.
 	StatusOnline = HostStatus("online")
-
 	// StatusOffline no communication with host for OfflineDuration.
 	StatusOffline = HostStatus("offline")
-
 	// StatusMIA no communication with host for MIADuration.
 	StatusMIA = HostStatus("mia")
-
 	// StatusNew means the host has enrolled in the interval defined by
 	// NewDuration. It is independent of offline and online.
 	StatusNew = HostStatus("new")
@@ -28,7 +25,7 @@ const (
 	// considered new.
 	NewDuration = 24 * time.Hour
 
-	// OfflineDuration if a host hasn't been in communication for this period it
+	// MIADuration if a host hasn't been in communication for this period it
 	// is considered MIA.
 	MIADuration = 30 * 24 * time.Hour
 
@@ -84,13 +81,13 @@ type HostStore interface {
 
 type HostService interface {
 	ListHosts(ctx context.Context, opt HostListOptions) (hosts []*Host, err error)
-	GetHost(ctx context.Context, id uint) (host *Host, err error)
+	GetHost(ctx context.Context, id uint) (host *HostDetail, err error)
 	GetHostSummary(ctx context.Context) (summary *HostSummary, err error)
 	DeleteHost(ctx context.Context, id uint) (err error)
 	// HostByIdentifier returns one host matching the provided identifier.
 	// Possible matches can be on osquery_host_identifier, node_key, UUID, or
 	// hostname.
-	HostByIdentifier(ctx context.Context, identifier string) (*Host, error)
+	HostByIdentifier(ctx context.Context, identifier string) (*HostDetail, error)
 }
 
 type HostListOptions struct {
@@ -144,6 +141,16 @@ type Host struct {
 	LoggerTLSPeriod           uint                `json:"logger_tls_period" db:"logger_tls_period"`
 	Additional                *json.RawMessage    `json:"additional,omitempty" db:"additional"`
 	EnrollSecretName          string              `json:"enroll_secret_name" db:"enroll_secret_name"`
+}
+
+// HostDetail provides the full host metadata along with associated labels and
+// packs.
+type HostDetail struct {
+	Host
+	// Labels is the list of labels the host is a member of.
+	Labels []Label `json:"labels"`
+	// Packs is the list of packs the host is a member of.
+	Packs []Pack `json:"packs"`
 }
 
 const (
