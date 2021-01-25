@@ -56,7 +56,7 @@ class QueryResultsTable extends Component {
     };
   }
 
-  renderTableHeaderRowData = (column, index) => {
+  renderTableHeaderColumn = (column, index) => {
     const filterable = column === 'hostname' ? 'host_hostname' : column;
     const { activeColumn, resultsFilter } = this.state;
     const { onFilterAttribute, onSetActiveColumn } = this;
@@ -77,29 +77,29 @@ class QueryResultsTable extends Component {
     );
   }
 
-  renderTableHeaderRow = (data) => {
-    const { renderTableHeaderRowData } = this;
+  renderTableHeaderRow = (rows) => {
+    const { renderTableHeaderColumn } = this;
 
-    const queryAttrs = omit(data[0], ['host_hostname']);
+    const queryAttrs = omit(rows[0], ['host_hostname']);
     const queryResultColumns = keys(queryAttrs);
 
     return (
       <tr>
-        {renderTableHeaderRowData('hostname', -1)}
+        {renderTableHeaderColumn('hostname', -1)}
         {queryResultColumns.map((column, i) => {
-          return renderTableHeaderRowData(column, i);
+          return renderTableHeaderColumn(column, i);
         })}
       </tr>
     );
   }
 
-  renderTableRows = (data) => {
+  renderTableRows = (rows) => {
     const { resultsFilter } = this.state;
-    const filteredData = filterArrayByHash(data, resultsFilter);
+    const filteredRows = filterArrayByHash(rows, resultsFilter);
 
-    return filteredData.map((item) => {
+    return filteredRows.map((row) => {
       return (
-        <QueryResultsRow queryResult={item} />
+        <QueryResultsRow queryResult={row} />
       );
     });
   }
