@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/go-kit/kit/endpoint"
 )
