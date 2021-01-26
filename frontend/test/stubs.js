@@ -175,6 +175,10 @@ export const campaignStub = {
     successful: 2,
     total: 2,
   },
+  Metrics: {
+    OnlineHosts: 2,
+    OfflineHosts: 0,
+  },
   id: 1,
   query_id: queryStub.id,
   query_results: [queryResultStub],
