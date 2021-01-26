@@ -2,11 +2,14 @@
   display: flex;
   flex-direction: column;
   background-color: $white;
-  padding: $pad-base;
   width: 100%;
   min-height: calc(500px + (#{$pad-base} * 2));
   box-sizing: border-box;
-  max-height: 75vh;
+
+  &__table-title {
+    font-size: $x-small;
+    font-weight: $bold;
+  }
 
   &__button-wrap {
     @include clearfix;
@@ -17,6 +20,8 @@
   }
 
   &__filter-icon {
+    color: $ui-dark-grey;
+
     &--is-active {
       color: $core-blue;
     }
@@ -27,15 +32,14 @@
     width: 378px;
   }
 
-  &__table-wrapper {
+  &__results-table-wrapper {
     display: flex;
-    flex-grow: 1;
     border: solid 1px $ui-borders;
     border-radius: 3px;
-    box-shadow: inset 0 0 8px 0 rgba(0, 0, 0, 0.12);
     overflow: scroll;
-    margin-top: 30px;
-    min-height: 400px;
+    margin-top: 4px;
+    min-height: 200px;
+    max-height: 400px;
     width: 100%;
 
     .kolide-spinner {
@@ -46,13 +50,29 @@
       flex-grow: 1;
       align-self: center;
       text-align: center;
+      font-size: $x-small;
     }
+  }
+
+  &__error-table-container {
+    margin-top: 24px;
+  }
+
+  &__error-table-wrapper {
+    display: flex;
+    border: solid 1px $ui-borders;
+    border-radius: 3px;
+    overflow: scroll;
+    margin-bottom: 40px;
+    margin-top: 4px;
+    max-height: 200px;
+    width: 100%;
   }
 
   &__table {
     border-collapse: collapse;
     color: $core-dark-blue-grey;
-    font-size: $small;
+    font-size: $x-small;
     width: 100%;
   }
 
@@ -60,10 +80,15 @@
     background-color: $core-light-blue-grey;
     color: $core-black;
     text-align: left;
+    border-bottom: 1px solid $ui-borders;
 
     th {
-      padding: $pad-small $pad-xsmall;
+      padding: 12px 24px;
       min-width: 125px;
+
+      .form-field {
+        margin-bottom: 0;
+      }
 
       span {
         white-space: nowrap;
@@ -83,12 +108,15 @@
     background-color: $white;
 
     td {
-      padding: $pad-xsmall;
+      padding: 12px 24px;
+      white-space: nowrap;
     }
 
     tr {
-      &:nth-child(even) {
-        background-color: $core-light-blue-grey;
+      border-bottom: 1px solid $ui-borders;
+
+      &:last-child {
+        border-bottom: 0;
       }
     }
   }
@@ -100,8 +128,21 @@
     box-shadow: 0 0 12px 0 rgba(0, 0, 0, 0.1);
     border: solid 1px $ui-borders;
     z-index: 99;
+    padding: 20px;
 
     .query-progress-details__run-btn {
+      display: none;
+    }
+
+    .query-progress-details__stop-btn {
+      display: none;
+    }
+
+    .query-results-table__results-table-wrapper {
+      height: auto;
+    }
+
+    .query-results-table__error-table-container {
       display: none;
     }
   }

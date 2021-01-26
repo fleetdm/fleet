@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
@@ -65,16 +65,16 @@ func applyPackSpec(tx *sqlx.Tx, spec *kolide.PackSpec) error {
 		query = `
 			INSERT INTO scheduled_queries (
 				pack_id, query_name, name, description, ` + "`interval`" + `,
-				snapshot, removed, shard, platform, version
+				snapshot, removed, shard, platform, version, denylist
 			)
 			VALUES (
 				?, ?, ?, ?, ?,
-				?, ?, ?, ?, ?
+				?, ?, ?, ?, ?, ?
 			)
 		`
 		_, err := tx.Exec(query,
 			packID, q.QueryName, q.Name, q.Description, q.Interval,
-			q.Snapshot, q.Removed, q.Shard, q.Platform, q.Version,
+			q.Snapshot, q.Removed, q.Shard, q.Platform, q.Version, q.Denylist,
 		)
 		switch {
 		case isChildForeignKeyError(err):
@@ -129,7 +129,7 @@ WHERE pack_id = ? AND pt.type = ? AND pt.target_id = l.id
 			query = `
 SELECT
 query_name, name, description, ` + "`interval`" + `,
-snapshot, removed, shard, platform, version
+snapshot, removed, shard, platform, version, denylist
 FROM scheduled_queries
 WHERE pack_id = ?
 `
@@ -179,7 +179,7 @@ WHERE pack_id = ? AND pt.type = ? AND pt.target_id = l.id
 		query = `
 SELECT
 query_name, name, description, ` + "`interval`" + `,
-snapshot, removed, shard, platform, version
+snapshot, removed, shard, platform, version, denylist
 FROM scheduled_queries
 WHERE pack_id = ?
 `

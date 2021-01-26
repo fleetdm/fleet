@@ -12,11 +12,27 @@
   - [Initiate SSO](#initiate-sso)
 - [Hosts](#hosts)
   - [List hosts](#list-hosts)
+  - [Get hosts summary](#get-hosts-summary)
+  - [Get host](#get-host)
+  - [Get host by identifier](#get-host-by-identifier)
+  - [Delete host](#delete-host)
 - [Users](#users)
   - [List all users](#list-all-users)
   - [Create a user account with an invitation](#create-a-user-account-with-an-invitation)
   - [Create a user account without an invitation](#create-a-user-account-without-an-invitation)
   - [Get user information](#get-user-information)
+- [Queries](#queries)
+  - [Get query](#get-query)
+  - [List queries](#list-queries)
+  - [Create query](#create-query)
+  - [Modify query](#modify-query)
+  - [Delete query](#delete-query)
+  - [Delete query by ID](#delete-query-by-id)
+  - [Get queries specs](#get-quieries-specs)
+  - [Get query spec](#get-query-spec)
+  - [Apply queries specs](#apply-quieries-specs)
+  - [Run live query](#run-live-query)
+  - [Run live query by query name](#run-live-query-by-query-name)
 - [Fleet configuration](#fleet-configuration)
   - [Get certificate](#get-certificate)
   - [Get configuration](#get-configuration)
@@ -27,6 +43,9 @@
   - [List invites](#list-invites)
   - [Delete invite](#delete-invite)
   - [Verify invite](#verify-invite)
+- [Osquery options](#osquery-options)
+  - [Get osquery options spec](#get-osquery-options-spec)
+  - [Modify osquery options spec](#modify-osquery-options-spec)
 
 ## Overview
 
@@ -630,6 +649,188 @@ Gets the current SSO configuration.
 }
 ```
 
+### Get hosts summary
+
+Returns the count of all hosts organized by status. `online_count` includes all hosts currently enrolled in Fleet. `offline_count` includes all hosts that haven't checked into Fleet recently. `mia_count` includes all hosts that haven't been seen by Fleet in more than 30 days. `new_count` includes the hosts that have been enrolled to Fleet in the last 24 hours.
+
+`GET /api/v1/kolide/host_summary`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/kolide/host_summary`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "online_count": 2267,
+  "offline_count": 141,
+  "mia_count": 0,
+  "new_count": 0
+}
+```
+
+### Get host
+
+Returns the information of the specified host.
+
+`GET /api/v1/kolide/hosts/{id}`
+
+#### Parameters
+
+| Name                  | Type   | In   | Description                                                     |
+| --------------------- | ------ | ---- | --------------------------------------------------------------- |
+| id                 | integer | path | **Required**. The host's id.                    |
+
+#### Example
+
+`GET /api/v1/kolide/hosts/121`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+    "host": {
+        "created_at": "2021-01-19T18:04:12Z",
+        "updated_at": "2021-01-19T20:21:27Z",
+        "id": 121,
+        "detail_updated_at": "2021-01-19T20:04:22Z",
+        "label_updated_at": "2021-01-19T20:04:22Z",
+        "last_enrolled_at": "2021-01-19T18:04:12Z",
+        "seen_time": "2021-01-19T20:21:27Z",
+        "hostname": "259404d30eb6",
+        "uuid": "f01c4390-0000-0000-a1e5-14346a5724dc",
+        "platform": "ubuntu",
+        "osquery_version": "2.10.2",
+        "os_version": "Ubuntu 14.4.0",
+        "build": "",
+        "platform_like": "debian",
+        "code_name": "",
+        "uptime": 11202000000000,
+        "memory": 2085326848,
+        "cpu_type": "6",
+        "cpu_subtype": "142",
+        "cpu_brand": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
+        "cpu_physical_cores": 4,
+        "cpu_logical_cores": 4,
+        "hardware_vendor": "",
+        "hardware_model": "",
+        "hardware_version": "",
+        "hardware_serial": "",
+        "computer_name": "259404d30eb6",
+        "primary_ip": "172.19.0.4",
+        "primary_mac": "02:42:ac:13:00:04",
+        "distributed_interval": 10,
+        "config_tls_refresh": 10,
+        "logger_tls_period": 10,
+        "additional": {},
+        "enroll_secret_name": "bar",
+        "status": "offline",
+        "display_text": "259404d30eb6"
+    }
+}
+```
+
+### Get host by identifier
+
+Returns the information of the host specified using the `uuid`, `osquery_host_id`, `hostname`, or
+`node_key` as an identifier
+
+`GET /api/v1/kolide/hosts/identifier/{identifier}`
+
+#### Parameters
+
+| Name                  | Type   | In   | Description                                                     |
+| --------------------- | ------ | ---- | --------------------------------------------------------------- |
+| identifier                 | integer or string | path | **Required**. The host's `uuid`, `osquery_host_id`, `hostname`, or `node_key`|
+
+#### Example
+
+`GET /api/v1/kolide/hosts/identifier/f01c4390-0000-0000-a1e5-14346a5724dc`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+    "host": {
+        "created_at": "2021-01-19T18:04:12Z",
+        "updated_at": "2021-01-19T20:21:27Z",
+        "id": 121,
+        "detail_updated_at": "2021-01-19T20:04:22Z",
+        "label_updated_at": "2021-01-19T20:04:22Z",
+        "last_enrolled_at": "2021-01-19T18:04:12Z",
+        "seen_time": "2021-01-19T20:21:27Z",
+        "hostname": "259404d30eb6",
+        "uuid": "f01c4390-0000-0000-a1e5-14346a5724dc",
+        "platform": "ubuntu",
+        "osquery_version": "2.10.2",
+        "os_version": "Ubuntu 14.4.0",
+        "build": "",
+        "platform_like": "debian",
+        "code_name": "",
+        "uptime": 11202000000000,
+        "memory": 2085326848,
+        "cpu_type": "6",
+        "cpu_subtype": "142",
+        "cpu_brand": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
+        "cpu_physical_cores": 4,
+        "cpu_logical_cores": 4,
+        "hardware_vendor": "",
+        "hardware_model": "",
+        "hardware_version": "",
+        "hardware_serial": "",
+        "computer_name": "259404d30eb6",
+        "primary_ip": "172.19.0.4",
+        "primary_mac": "02:42:ac:13:00:04",
+        "distributed_interval": 10,
+        "config_tls_refresh": 10,
+        "logger_tls_period": 10,
+        "additional": {},
+        "enroll_secret_name": "bar",
+        "status": "offline",
+        "display_text": "259404d30eb6"
+    }
+}
+```
+
+### Delete host
+
+Deletes the specified host from Fleet. Note that a deleted host will fail authentication with the previous node key, and in most osquery configurations will attempt to re-enroll automatically. If the host still has a valid enroll secret, it will re-enroll successfully.
+
+`DELETE /api/v1/kolide/hosts/{id}`
+
+#### Parameters
+
+| Name                  | Type   | In   | Description                                                     |
+| --------------------- | ------ | ---- | --------------------------------------------------------------- |
+| id                 | integer | path | **Required**. The host's id.                    |
+
+#### Example
+
+`DELETE /api/v1/kolide/hosts/121`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
 ---
 
 ## Users
@@ -896,7 +1097,7 @@ Returns all information about a specific user.
 
 | Name | Type    | In    | Description                  |
 | ---- | ------- | ----- | ---------------------------- |
-| id   | integer | query | **Required**. The user's id. |
+| id   | integer | path | **Required**. The user's id. |
 
 #### Example
 
@@ -961,6 +1162,556 @@ Returns all information about a specific user.
       "reason": "User with id=5 was not found in the datastore"
     }
   ]
+}
+```
+
+---
+
+## Queries
+
+### Get query
+
+Returns the query specified by ID.
+
+`GET /api/v1/kolide/queries/{id}`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| id   | integer  | path | **Required**. The id of the desired query.               |
+
+#### Example
+
+`GET /api/v1/kolide/queries/31`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "query": {
+    "created_at": "2021-01-19T17:08:24Z",
+    "updated_at": "2021-01-19T17:08:24Z",
+    "id": 31,
+    "name": "centos_hosts",
+    "description": "",
+    "query": "select 1 from os_version where platform = \"centos\";",
+    "saved": true,
+    "author_id": 1,
+    "author_name": "John",
+    "packs": [
+      {
+        "created_at": "2021-01-19T17:08:31Z",
+        "updated_at": "2021-01-19T17:08:31Z",
+        "id": 14,
+        "name": "test_pack",
+        "description": "",
+        "platform": "",
+        "disabled": false
+      }
+    ]
+  }
+}
+```
+
+### List queries
+
+Returns a list of all queries in the Fleet instance.
+
+`GET /api/v1/kolide/queries`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/kolide/queries`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+"queries": [
+  {
+    "created_at": "2021-01-04T21:19:57Z",
+    "updated_at": "2021-01-04T21:19:57Z",
+    "id": 1,
+    "name": "query1",
+    "description": "query",
+    "query": "SELECT * FROM osquery_info",
+    "saved": true,
+    "author_id": 1,
+    "author_name": "noah",
+    "packs": [
+      {
+        "created_at": "2021-01-05T21:13:04Z",
+        "updated_at": "2021-01-07T19:12:54Z",
+        "id": 1,
+        "name": "Pack",
+        "description": "Pack",
+        "platform": "",
+        "disabled": true
+      }
+    ]
+  },
+  {
+    "created_at": "2021-01-19T17:08:24Z",
+    "updated_at": "2021-01-19T17:08:24Z",
+    "id": 2,
+    "name": "osquery_version",
+    "description": "The version of the Launcher and Osquery process",
+    "query": "select launcher.version, osquery.version from kolide_launcher_info launcher, osquery_info osquery;",
+    "saved": true,
+    "author_id": 1,
+    "author_name": "noah",
+    "packs": [
+      {
+        "created_at": "2021-01-19T17:08:31Z",
+        "updated_at": "2021-01-19T17:08:31Z",
+        "id": 14,
+        "name": "test_pack",
+        "description": "",
+        "platform": "",
+        "disabled": false
+      },
+      {
+        "created_at": "2021-01-19T17:08:31Z",
+        "updated_at": "2021-01-19T17:08:31Z",
+        "id": 14,
+        "name": "test_pack",
+        "description": "",
+        "platform": "",
+        "disabled": false
+      }
+    ]
+  },
+  {
+    "created_at": "2021-01-19T17:08:24Z",
+    "updated_at": "2021-01-19T17:08:24Z",
+    "id": 3,
+    "name": "osquery_schedule",
+    "description": "Report performance stats for each file in the query schedule.",
+    "query": "select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;",
+    "saved": true,
+    "author_id": 1,
+    "author_name": "noah",
+    "packs": [
+      {
+        "created_at": "2021-01-19T17:08:31Z",
+        "updated_at": "2021-01-19T17:08:31Z",
+        "id": 14,
+        "name": "test_pack",
+        "description": "",
+        "platform": "",
+        "disabled": false
+      }
+    ]
+  },
+]
+```
+
+### Create query
+
+`POST /api/v1/kolide/queries`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| name   | string  | body | **Required**. The name of the query.               |
+| query   | string  | body | **Required**. The query in SQL syntax.              |
+| description   | string  | body | The query's description.               |
+
+#### Example
+
+`POST /api/v1/kolide/queries`
+
+##### Request body
+
+```
+{
+  "description": "This is a new query."
+  "name": "new_query"
+  "query": "SELECT * FROM osquery_info"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "query": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 288,
+    "name": "new_query",
+    "description": "This is a new query.",
+    "query": "SELECT * FROM osquery_info",
+    "saved": true,
+    "author_id": 1,
+    "author_name": "",
+    "packs": []
+  }
+}
+```
+
+### Modify query
+
+Returns the query specified by ID.
+
+`PATCH /api/v1/kolide/queries/{id}`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| id   | integer  | path | **Required.** The ID of the query.               |
+| name   | string  | body | The name of the query.               |
+| query   | string  | body | The query in SQL syntax.              |
+| description   | string  | body | The query's description.               |
+
+#### Example
+
+`PATCH /api/v1/kolide/queries/2`
+
+##### Request body
+
+```
+{
+  "name": "new_title_for_my_query"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "query": {
+    "created_at": "2021-01-22T17:23:27Z",
+    "updated_at": "2021-01-22T17:23:27Z",
+    "id": 288,
+    "name": "new_title_for_my_query",
+    "description": "This is a new query.",
+    "query": "SELECT * FROM osquery_info",
+    "saved": true,
+    "author_id": 1,
+    "author_name": "noah",
+    "packs": []
+  }
+}
+```
+
+### Delete query
+
+Deletes the query specified by name.
+
+`DELETE /api/v1/kolide/queries/{name}`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| name   | string  | path | **Required.** The name of the query.               |
+
+#### Example
+
+`DELETE /api/v1/kolide/queries/{name}`
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
+### Delete query by ID
+
+Deletes the query specified by ID.
+
+`DELETE /api/v1/kolide/queries/id/{id}`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| id   | integer  | path | **Required.** The ID of the query.               |
+
+#### Example
+
+`DELETE /api/v1/kolide/queries/id/28`
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
+### Get queries specs
+
+Returns a list of all queries in the Fleet instance. Each item returned includes the name, description, and SQL of the query.
+
+`GET /api/v1/kolide/spec/queries`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/kolide/spec/queries`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "specs": [
+    {
+        "name": "query1",
+        "description": "query",
+        "query": "SELECT * FROM osquery_info"
+    },
+    {
+        "name": "osquery_version",
+        "description": "The version of the Launcher and Osquery process",
+        "query": "select launcher.version, osquery.version from kolide_launcher_info launcher, osquery_info osquery;"
+    },
+    {
+        "name": "osquery_schedule",
+        "description": "Report performance stats for each file in the query schedule.",
+        "query": "select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;"
+    },
+  ]
+}
+```
+
+### Get query spec
+
+Returns the name, description, and SQL of the query specified by name.
+
+`GET /api/v1/kolide/spec/queries/{name}`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| name   | string  | path | **Required.** The name of the query.               |
+
+#### Example
+
+`GET /api/v1/kolide/spec/queries/query1`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+    "specs": {
+        "name": "query1",
+        "description": "query",
+        "query": "SELECT * FROM osquery_info"
+    }
+}
+```
+
+### Apply queries specs
+
+Creates and/or modifies the queries included in the specs list. To modify an existing query, the name of the query included in `specs` must already be used by an existing query. If a query with the specified name doesn't exist in Fleet, a new query will be created.
+
+`POST /api/v1/kolide/spec/queries`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| specs   | list  | body | **Required.** The list of the queries to be created or modified.               |
+
+#### Example
+
+`POST /api/v1/kolide/spec/queries`
+
+##### Request body
+
+```
+{
+  "specs": [
+    {
+        "name": "new_query",
+        "description": "This will be a new query because a query with the name 'new_query' doesn't exist in Fleet.",
+        "query": "SELECT * FROM osquery_info"
+    },
+    {
+        "name": "osquery_version",
+        "description": "Only this queries description will be modified because a query with the name 'osquery_version' exists in Fleet.",
+        "query": "select launcher.version, osquery.version from kolide_launcher_info launcher, osquery_info osquery;"
+    },
+    {
+        "name": "osquery_schedule",
+        "description": "This queries description and SQL will be modified because a query with the name 'osquery_schedule' exists in Fleet.",
+        "query": "SELECT * FROM osquery_info"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
+### Run live query
+
+Runs the specified query as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label ID.
+
+`POST /api/v1/kolide/spec/queries/run`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| query   | string  | body | **Required.** The SQL of the query               |
+| selected   | object  | body | **Required.** The desired targets for the query. This object must contain `hosts` and `labels` properties. See example below     |
+
+#### Example with one host targeted by ID
+
+`POST /api/v1/kolide/spec/queries/run`
+
+##### Request body
+
+```
+{
+  "query": "select instance_id from system_info;"
+  "selected": { "hosts": [171], "labels": []}
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "campaign": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "Metrics": {
+      "TotalHosts": 1,
+      "OnlineHosts": 0,
+      "OfflineHosts": 1,
+      "MissingInActionHosts": 0,
+      "NewHosts": 1
+    },
+    "id": 273,
+    "query_id": 293,
+    "status": 0,
+    "user_id": 1
+  }
+}
+```
+
+#### Example with multiple hosts targeted by label ID
+
+`POST /api/v1/kolide/spec/queries/run`
+
+##### Request body
+
+```
+{
+  "query": "select instance_id from system_info;"
+  "selected": { "hosts": [171], "labels": []}
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "campaign": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "Metrics": {
+      "TotalHosts": 1,
+      "OnlineHosts": 0,
+      "OfflineHosts": 1,
+      "MissingInActionHosts": 0,
+      "NewHosts": 1
+    },
+    "id": 273,
+    "query_id": 293,
+    "status": 0,
+    "user_id": 1
+  }
+}
+```
+
+### Run live query by query name
+
+Runs the specified query by name as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label.
+
+`POST /api/v1/kolide/spec/queries/run`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| name   | string  | body | **Required.** The name of the query.             |
+| selected   | object  | body | **Required.** The desired targets for the query. This object must contain `hosts` and `labels` properties. See example below.     |
+
+#### Example with one host targeted
+
+`POST /api/v1/kolide/spec/queries/run`
+
+##### Request body
+
+```
+{
+  "name": "instance_id"
+  "selected": { "hosts": [171], "labels": [] }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "campaign": {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "Metrics": {
+          "TotalHosts": 1,
+          "OnlineHosts": 0,
+          "OfflineHosts": 1,
+          "MissingInActionHosts": 0,
+          "NewHosts": 1
+      },
+      "id": 275,
+      "query_id": 295,
+      "status": 0,
+      "user_id": 1
+  }
 }
 ```
 
@@ -1113,7 +1864,6 @@ Modifies the Fleet's configuration with the supplied information.
   }
 }
 ```
-
 
 ##### Default response
 
@@ -1359,7 +2109,7 @@ Delete the specified invite from Fleet.
 
 | Name       | Type    | In   | Description                                      |
 | ---------- | ------- | ---- | ------------------------------------------------ |
-| id   | integer  | query | **Required.** The user's id.            |
+| id   | integer  | path | **Required.** The user's id.            |
 
 #### Example
 
@@ -1384,7 +2134,7 @@ Verify the specified invite.
 
 | Name       | Type    | In   | Description                                      |
 | ---------- | ------- | ---- | ------------------------------------------------ |
-| token   | integer  | query | **Required.** The user's invite token.            |
+| token   | integer  | path | **Required.** The user's invite token.            |
 
 #### Example
 
@@ -1424,4 +2174,105 @@ Verify the specified invite.
         }
     ]
 }
+```
+---
+
+## Osquery options
+
+### Get osquery options spec
+
+Retrieve the osquery options configured via Fleet.
+
+`GET /api/v1/kolide/spec/osquery_options`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/kolide/spec/osquery_options`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "spec": {
+    "config": {
+      "options": {
+        "logger_plugin": "tls",
+        "pack_delimiter": "/",
+        "logger_tls_period": 10,
+        "distributed_plugin": "tls",
+        "disable_distributed": false,
+        "logger_tls_endpoint": "/api/v1/osquery/log",
+        "distributed_interval": 10,
+        "distributed_tls_max_attempts": 3
+      },
+      "decorators": {
+        "load": [
+          "SELECT uuid AS host_uuid FROM system_info;",
+          "SELECT hostname AS hostname FROM system_info;"
+        ]
+      }
+    },
+    "overrides": {}
+  }
+}
+```
+
+### Modify osquery options spec
+
+Modifies the osquery options configuration set in Fleet.
+
+`POST /api/v1/kolide/spec/osquery_options`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| spec   | JSON  | body | **Required.** The modified osquery spec.            |
+
+#### Example
+
+`POST /api/v1/kolide/spec/osquery_options`
+
+##### Request body
+
+```
+{
+  "spec": {
+    "config": {
+      "options": {
+        "logger_plugin": "tls",
+        "pack_delimiter": "/",
+        "logger_tls_period": 10,
+        "distributed_plugin": "tls",
+        "disable_distributed": false,
+        "logger_tls_endpoint": "/api/v1/osquery/log",
+        "distributed_interval": 12,
+        "distributed_tls_max_attempts": 4
+      },
+      "decorators": {
+        "load": [
+          "SELECT uuid AS host_uuid FROM system_info;",
+          "SELECT hostname AS hostname FROM system_info;"
+        ]
+      }
+    },
+    "overrides": {}
+  }
+}
+```
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
 ```

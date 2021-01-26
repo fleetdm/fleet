@@ -15,42 +15,42 @@ x-default-settings:
 
 services:
   ubuntu16-osquery:
-    image: "dactiv/osquery:4.3.0-ubuntu16.04"
+    image: "dactiv/osquery:4.5.1-ubuntu16.04"
     volumes: *default-volumes
     environment: *default-environment
     command: *default-command
     ulimits: *default-ulimits
 
   ubuntu18-osquery:
-    image: "dactiv/osquery:4.3.0-ubuntu18.04"
+    image: "dactiv/osquery:4.5.1-ubuntu18.04"
     volumes: *default-volumes
     environment: *default-environment
     command: *default-command
     ulimits: *default-ulimits
 
   ubuntu20-osquery:
-    image: "dactiv/osquery:4.3.0-ubuntu20.04"
+    image: "dactiv/osquery:4.5.1-ubuntu20.04"
     volumes: *default-volumes
     environment: *default-environment
     command: *default-command
     ulimits: *default-ulimits
 
   centos6-osquery:
-    image: "dactiv/osquery:4.3.0-centos6"
+    image: "dactiv/osquery:4.5.1-centos6"
     volumes: *default-volumes
     environment: *default-environment
     command: *default-command
     ulimits: *default-ulimits
 
   centos7-osquery:
-    image: "dactiv/osquery:4.3.0-centos7"
+    image: "dactiv/osquery:4.5.1-centos7"
     volumes: *default-volumes
     environment: *default-environment
     command: *default-command
     ulimits: *default-ulimits
 
   centos8-osquery:
-    image: "dactiv/osquery:4.3.0-centos8"
+    image: "dactiv/osquery:4.5.1-centos8"
     volumes: *default-volumes
     environment: *default-environment
     command: *default-command

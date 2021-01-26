@@ -4,9 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/go-kit/kit/endpoint"
 	"github.com/fleetdm/fleet/server/kolide"
-	"github.com/pkg/errors"
+	"github.com/go-kit/kit/endpoint"
 )
 
 // HostResponse is the response struct that contains the full host information
@@ -27,18 +26,20 @@ func hostResponseForHost(ctx context.Context, svc kolide.Service, host *kolide.H
 	}, nil
 }
 
-func addLabelsToHost(ctx context.Context, svc kolide.Service, host *kolide.Host) (*HostResponse, error) {
-	labels, err := svc.ListLabelsForHost(ctx, host.ID)
-	if err != nil {
-		return nil, errors.Wrap(err, "list labels for host")
-	}
-	return &HostResponse{
-		Host:        *host,
+// HostDetailresponse is the response struct that contains the full host information
+// with the HostDetail details.
+type HostDetailResponse struct {
+	kolide.HostDetail
+	Status      kolide.HostStatus `json:"status"`
+	DisplayText string            `json:"display_text"`
+}
+
+func hostDetailResponseForHost(ctx context.Context, svc kolide.Service, host *kolide.HostDetail) (*HostDetailResponse, error) {
+	return &HostDetailResponse{
+		HostDetail:  *host,
 		Status:      host.Status(time.Now()),
 		DisplayText: host.HostName,
-		Labels:      labels,
 	}, nil
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -50,8 +51,8 @@ type getHostRequest struct {
 }
 
 type getHostResponse struct {
-	Host *HostResponse `json:"host"`
-	Err  error         `json:"error,omitempty"`
+	Host *HostDetailResponse `json:"host"`
+	Err  error               `json:"error,omitempty"`
 }
 
 func (r getHostResponse) error() error { return r.Err }
@@ -64,7 +65,7 @@ func makeGetHostEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return getHostResponse{Err: err}, nil
 		}
 
-		resp, err := hostResponseForHost(ctx, svc, host)
+		resp, err := hostDetailResponseForHost(ctx, svc, host)
 		if err != nil {
 			return getHostResponse{Err: err}, nil
 		}
@@ -76,7 +77,7 @@ func makeGetHostEndpoint(svc kolide.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Get Host
+// Get Host By Identifier
 ////////////////////////////////////////////////////////////////////////////////
 
 type hostByIdentifierRequest struct {
@@ -91,7 +92,7 @@ func makeHostByIdentifierEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return getHostResponse{Err: err}, nil
 		}
 
-		resp, err := addLabelsToHost(ctx, svc, host)
+		resp, err := hostDetailResponseForHost(ctx, svc, host)
 		if err != nil {
 			return getHostResponse{Err: err}, nil
 		}
