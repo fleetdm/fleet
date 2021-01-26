@@ -13,7 +13,7 @@ import (
 	"github.com/fleetdm/orbit/pkg/insecure"
 	"github.com/fleetdm/orbit/pkg/osquery"
 	"github.com/fleetdm/orbit/pkg/update"
-	"github.com/fleetdm/orbit/pkg/update/badgerstore"
+	"github.com/fleetdm/orbit/pkg/update/filestore"
 	"github.com/oklog/run"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -22,15 +22,20 @@ import (
 )
 
 const (
-	tufURL   = "https://tuf.fleetctl.com"
-	certPath = "/tmp/fleet.pem"
+	tufURL         = "https://tuf.fleetctl.com"
+	certPath       = "/tmp/fleet.pem"
+	defaultRootDir = "/var/lib/fleet/orbit"
 )
 
 func main() {
+	log.Logger = log.Output(
+		zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano},
+	)
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+
 	app := cli.NewApp()
 	app.Name = "Orbit osquery"
 	app.Usage = "A powered-up, (near) drop-in replacement for osquery"
-	defaultRootDir := "/usr/local/fleet"
 	app.Commands = []*cli.Command{
 		shellCommand,
 	}
@@ -68,7 +73,6 @@ func main() {
 		},
 	}
 	app.Action = func(c *cli.Context) error {
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 		if c.Bool("debug") {
 			zerolog.SetGlobalLevel(zerolog.DebugLevel)
 		}
@@ -87,17 +91,23 @@ func main() {
 			}
 		}()
 
+		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), "tuf-metadata.json"))
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed to create local metadata store")
+		}
+
 		// Initialize updater and get expected version
 		opt := update.DefaultOptions
-		opt.RootDirectory = c.String("tuf-dir")
+		opt.RootDirectory = c.String("root-dir")
 		opt.ServerURL = c.String("tuf-url")
-		opt.LocalStore = badgerstore.New(db.DB)
+		opt.LocalStore = localStore
+		opt.InsecureTransport = c.Bool("insecure")
 		updater, err := update.New(opt)
 		if err != nil {
 			return err
 		}
 		if err := updater.UpdateMetadata(); err != nil {
-			return err
+			log.Info().Err(err).Msg("failed to update metadata. using saved metadata.")
 		}
 		osquerydPath, err := updater.Get("osqueryd", c.String("osqueryd-version"))
 		if err != nil {
@@ -106,6 +116,7 @@ func main() {
 
 		var g run.Group
 		var options []func(*osquery.Runner) error
+		options = append(options, osquery.WithDataPath(c.String("root-dir")))
 
 		fleetURL := c.String("fleet-url")
 
@@ -117,6 +128,10 @@ func main() {
 
 			g.Add(
 				func() error {
+					log.Info().
+						Str("addr", fmt.Sprintf("localhost:%d", proxy.Port)).
+						Str("target", c.String("fleet-url")).
+						Msg("using insecure TLS proxy")
 					err := proxy.InsecureServeTLS()
 					return err
 				},
@@ -155,16 +170,16 @@ func main() {
 			)
 		}
 
-		options = append(options,
-			osquery.WithFlags([]string{"--verbose"}),
-		)
+		if c.Bool("debug") {
+			options = append(options,
+				osquery.WithFlags([]string{"--verbose", "--tls_dump"}),
+			)
+		}
 
-		options = append(options, osquery.WithPath(osquerydPath))
-		options = append(options, osquery.WithShell())
 		options = append(options, osquery.WithFlags([]string(c.Args().Slice())))
 
 		// Create an osquery runner with the provided options
-		r, _ := osquery.NewRunner(options...)
+		r, _ := osquery.NewRunner(osquerydPath, options...)
 		g.Add(r.Execute, r.Interrupt)
 
 		// Install a signal handler
@@ -200,10 +215,6 @@ var shellCommand = &cli.Command{
 		},
 	},
 	Action: func(c *cli.Context) error {
-		log.Logger = log.Output(
-			zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano},
-		)
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 		if c.Bool("debug") {
 			zerolog.SetGlobalLevel(zerolog.DebugLevel)
 		}
@@ -222,19 +233,24 @@ var shellCommand = &cli.Command{
 			}
 		}()
 
+		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), "tuf-metadata.json"))
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed to create local metadata store")
+		}
+
 		// Initialize updater and get expected version
 		opt := update.DefaultOptions
 		opt.RootDirectory = c.String("root-dir")
 		opt.ServerURL = c.String("tuf-url")
-		opt.LocalStore = badgerstore.New(db.DB)
+		opt.LocalStore = localStore
+		opt.InsecureTransport = c.Bool("insecure")
 		updater, err := update.New(opt)
 		if err != nil {
 			return err
 		}
 		if err := updater.UpdateMetadata(); err != nil {
-			return err
+			log.Info().Err(err).Msg("failed to update metadata. using saved metadata.")
 		}
-
 		osquerydPath, err := updater.Get("osqueryd", c.String("osqueryd-version"))
 		if err != nil {
 			return err
@@ -244,9 +260,10 @@ var shellCommand = &cli.Command{
 
 		// Create an osquery runner with the provided options
 		r, _ := osquery.NewRunner(
+			osquerydPath,
 			osquery.WithShell(),
-			osquery.WithPath(osquerydPath),
 			osquery.WithFlags([]string(c.Args().Slice())),
+			osquery.WithDataPath(c.String("root-dir")),
 		)
 		g.Add(r.Execute, r.Interrupt)
 

@@ -4,7 +4,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -24,8 +23,6 @@ func TestInitializeDirectories(t *testing.T) {
 	err = updater.initializeDirectories()
 	require.NoError(t, err)
 	assertDir(t, filepath.Join(tmpDir, binDir))
-	assertDir(t, filepath.Join(tmpDir, binDir, osqueryDir))
-	assertDir(t, filepath.Join(tmpDir, binDir, orbitDir))
 }
 
 func assertDir(t *testing.T, path string) {
@@ -37,35 +34,26 @@ func assertDir(t *testing.T, path string) {
 func TestMakeRepoPath(t *testing.T) {
 	t.Parallel()
 
-	type testCase struct {
+	testCases := []struct {
 		name     string
 		version  string
+		platform string
 		expected string
-	}
-	var testCases []testCase
-	switch runtime.GOOS {
-	case "linux":
-		testCases = append(testCases,
-			testCase{name: "osqueryd", version: "4.6.0", expected: "osqueryd/linux/4.6.0/osqueryd"},
-			testCase{name: "osqueryd", version: "3.3.2", expected: "osqueryd/linux/3.3.2/osqueryd"},
-		)
-	case "darwin":
-		testCases = append(testCases,
-			testCase{name: "osqueryd", version: "4.6.0", expected: "osqueryd/macos/4.6.0/osqueryd"},
-			testCase{name: "osqueryd", version: "3.3.2", expected: "osqueryd/macos/3.3.2/osqueryd"},
-		)
-	case "windows":
-		testCases = append(testCases,
-			testCase{name: "osqueryd", version: "4.6.0", expected: "osqueryd/windows/4.6.0/osqueryd.exe"},
-			testCase{name: "osqueryd", version: "3.3.2", expected: "osqueryd/windows/3.3.2/osqueryd.exe"},
-		)
+	}{
+		{platform: "linux", name: "osqueryd", version: "4.6.0", expected: "osqueryd/linux/4.6.0/osqueryd"},
+		{platform: "linux", name: "osqueryd", version: "3.3.2", expected: "osqueryd/linux/3.3.2/osqueryd"},
+		{platform: "macos", name: "osqueryd", version: "4.6.0", expected: "osqueryd/macos/4.6.0/osqueryd"},
+		{platform: "macos", name: "osqueryd", version: "3.3.2", expected: "osqueryd/macos/3.3.2/osqueryd"},
+		{platform: "windows", name: "osqueryd", version: "4.6.0", expected: "osqueryd/windows/4.6.0/osqueryd.exe"},
+		{platform: "windows", name: "osqueryd", version: "3.3.2", expected: "osqueryd/windows/3.3.2/osqueryd.exe"},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.expected, func(t *testing.T) {
 			t.Parallel()
 
-			assert.Equal(t, tt.expected, makeRepoPath(tt.name, tt.version))
+			u := Updater{opt: Options{Platform: tt.platform}}
+			assert.Equal(t, tt.expected, u.RepoPath(tt.name, tt.version))
 		})
 	}
 }

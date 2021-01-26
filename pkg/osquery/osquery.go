@@ -5,8 +5,10 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"time"
 
+	"github.com/fleetdm/orbit/pkg/constant"
 	"github.com/fleetdm/orbit/pkg/process"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -21,18 +23,10 @@ type Runner struct {
 }
 
 // NewRunner creates a new osquery runner given the provided functional options.
-func NewRunner(options ...func(*Runner) error) (*Runner, error) {
+func NewRunner(path string, options ...func(*Runner) error) (*Runner, error) {
 	r := &Runner{}
 
-	// TODO set path and flags appropriately
-	cmd := exec.Command(
-		"osqueryd",
-		"--pidfile=/tmp/osquery.pid",
-		"--database_path=/tmp/osquery.test.db",
-		"--extensions_socket=/tmp/osquery.em",
-		"--config_path=/tmp/osquery.conf",
-		"--logger_path=/tmp",
-	)
+	cmd := exec.Command(path)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -66,14 +60,6 @@ func WithEnv(env []string) func(*Runner) error {
 	}
 }
 
-// WithPath sets the path of the osqueryd binary to execute.
-func WithPath(path string) func(*Runner) error {
-	return func(r *Runner) error {
-		r.cmd.Path = path
-		return nil
-	}
-}
-
 // WithShell adds the -S flag to run an osqueryi shell.
 func WithShell() func(*Runner) error {
 	return func(r *Runner) error {
@@ -81,6 +67,36 @@ func WithShell() func(*Runner) error {
 		r.cmd.Stdout = os.Stdout
 		r.cmd.Stderr = os.Stderr
 		r.cmd.Stdin = os.Stdin
+		return nil
+	}
+}
+
+func WithDataPath(path string) func(*Runner) error {
+	return func(r *Runner) error {
+		if err := os.MkdirAll(filepath.Join(path, "logs"), constant.DefaultDirMode); err != nil {
+			return errors.Wrap(err, "initialize osquery data path")
+		}
+
+		r.cmd.Args = append(r.cmd.Args,
+			"--pidfile="+filepath.Join(path, "osquery.pid"),
+			"--database_path="+filepath.Join(path, "osquery.db"),
+			"--extensions_socket="+filepath.Join(path, "osquery.em"),
+			"--config_path="+filepath.Join(path, "osquery.conf"),
+		)
+		return nil
+	}
+}
+
+func WithLogPath(path string) func(*Runner) error {
+	return func(r *Runner) error {
+		if err := os.MkdirAll(path, constant.DefaultDirMode); err != nil {
+			return errors.Wrap(err, "initialize osquery log path")
+		}
+
+		r.cmd.Args = append(r.cmd.Args,
+			"--logger_path="+path,
+		)
+
 		return nil
 	}
 }

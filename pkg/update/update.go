@@ -18,9 +18,7 @@ import (
 )
 
 const (
-	binDir     = "bin"
-	osqueryDir = "osquery"
-	orbitDir   = "orbit"
+	binDir = "bin"
 )
 
 // Updater is responsible for managing update state.
@@ -43,6 +41,9 @@ type Options struct {
 	RootKeys string
 	// LocalStore is the local metadata store.
 	LocalStore client.LocalStore
+	// Platform is the name of the platform to update for. In the default
+	// options this is the current platform.
+	Platform string
 }
 
 var (
@@ -53,6 +54,7 @@ var (
 		ServerURL:         "https://tuf.fleetctl.com",
 		LocalStore:        client.MemoryLocalStore(),
 		InsecureTransport: false,
+		Platform:          constant.PlatformName,
 		RootKeys:          `[{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"0994148e5242118d1d6a9a397a3646e0423545a37794a791c28aa39de3b0c523"}}]`,
 	}
 )
@@ -76,8 +78,16 @@ func New(opt Options) (*Updater, error) {
 	if err := json.Unmarshal([]byte(opt.RootKeys), &rootKeys); err != nil {
 		return nil, errors.Wrap(err, "unmarshal root keys")
 	}
-	if err := tufClient.Init(rootKeys, 1); err != nil {
-		return nil, errors.Wrap(err, "init tuf client")
+
+	meta, err := opt.LocalStore.GetMeta()
+	if err != nil || meta["root.json"] == nil {
+		var rootKeys []*data.Key
+		if err := json.Unmarshal([]byte(opt.RootKeys), &rootKeys); err != nil {
+			return nil, errors.Wrap(err, "unmarshal root keys")
+		}
+		if err := tufClient.Init(rootKeys, 1); err != nil {
+			return nil, errors.Wrap(err, "init tuf client")
+		}
 	}
 
 	updater := &Updater{
@@ -103,20 +113,18 @@ func (u *Updater) UpdateMetadata() error {
 	return nil
 }
 
-func makeRepoPath(name, version string) string {
-	path := path.Join(name, constant.PlatformName, version, name+constant.ExecutableExtension)
-	return path
+func (u *Updater) RepoPath(name, version string) string {
+	return path.Join(name, u.opt.Platform, version, name+constant.ExecutableExtension(u.opt.Platform))
 }
 
-func makeLocalPath(name, version string) string {
-	path := filepath.Join(name, constant.PlatformName, name+constant.ExecutableExtension)
-	return path
+func (u *Updater) LocalPath(name, version string) string {
+	return u.pathFromRoot(filepath.Join(binDir, name, u.opt.Platform, version, name+constant.ExecutableExtension(u.opt.Platform)))
 }
 
 // Lookup looks up the provided target in the local target metadata. This should
 // be called after UpdateMetadata.
 func (u *Updater) Lookup(name, version string) (*data.TargetFileMeta, error) {
-	target, err := u.client.Target(makeRepoPath(name, version))
+	target, err := u.client.Target(u.RepoPath(name, version))
 	if err != nil {
 		return nil, errors.Wrapf(err, "lookup target %v", target)
 	}
@@ -137,8 +145,8 @@ func (u *Updater) Targets() (data.TargetFiles, error) {
 // Get returns the local path to the specified target. The target is downloaded
 // if it does not yet exist locally or the hash does not match.
 func (u *Updater) Get(name, version string) (string, error) {
-	localPath := u.pathFromRoot(makeLocalPath(name, version))
-	repoPath := makeRepoPath(name, version)
+	localPath := u.LocalPath(name, version)
+	repoPath := u.RepoPath(name, version)
 	stat, err := os.Stat(localPath)
 	if err != nil {
 		log.Debug().Err(err).Msg("stat file")
@@ -201,8 +209,6 @@ func (u *Updater) pathFromRoot(parts ...string) string {
 func (u *Updater) initializeDirectories() error {
 	for _, dir := range []string{
 		u.pathFromRoot(binDir),
-		u.pathFromRoot(binDir, osqueryDir),
-		u.pathFromRoot(binDir, orbitDir),
 	} {
 		err := os.MkdirAll(dir, constant.DefaultDirMode)
 		if err != nil {

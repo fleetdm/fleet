@@ -149,9 +149,9 @@ func newProxyHandler(hostname string) (*httputil.ReverseProxy, error) {
 
 	reverseProxy := &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
-			req.Host = hostname
+			req.Host = target.Host
 			req.URL.Scheme = "https"
-			req.URL.Host = hostname
+			req.URL.Host = target.Host
 			req.URL.Path, req.URL.RawPath = joinURLPath(target, req.URL)
 		},
 	}

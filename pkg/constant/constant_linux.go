@@ -1,6 +1,5 @@
 package constant
 
 const (
-	PlatformName        = "linux"
-	ExecutableExtension = ""
+	PlatformName = "linux"
 )
