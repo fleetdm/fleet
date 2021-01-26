@@ -41,35 +41,42 @@ func main() {
 	}
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
-			Name:  "root-dir",
-			Usage: "Root directory for Orbit state",
-			Value: defaultRootDir,
+			Name:    "root-dir",
+			Usage:   "Root directory for Orbit state",
+			Value:   defaultRootDir,
+			EnvVars: []string{"ORBIT_ROOT_DIR"},
 		},
 		&cli.BoolFlag{
-			Name:  "insecure",
-			Usage: "Disable TLS certificate verification",
+			Name:    "insecure",
+			Usage:   "Disable TLS certificate verification",
+			EnvVars: []string{"ORBIT_INSECURE"},
 		},
 		&cli.StringFlag{
-			Name:  "fleet-url",
-			Usage: "URL (host:port) to Fleet server",
+			Name:    "fleet-url",
+			Usage:   "URL (host:port) of Fleet server",
+			EnvVars: []string{"ORBIT_FLEET_URL"},
 		},
 		&cli.StringFlag{
-			Name:  "tuf-url",
-			Usage: "URL to TUF update server",
-			Value: tufURL,
+			Name:    "tuf-url",
+			Usage:   "URL of TUF update server",
+			Value:   tufURL,
+			EnvVars: []string{"ORBIT_TUF_URL"},
 		},
 		&cli.StringFlag{
-			Name:  "enroll-secret",
-			Usage: "Enroll secret for authenticating to Fleet server",
+			Name:    "enroll-secret",
+			Usage:   "Enroll secret for authenticating to Fleet server",
+			EnvVars: []string{"ENROLL_SECRET"},
 		},
 		&cli.StringFlag{
-			Name:  "osqueryd-version",
-			Usage: "Version of osqueryd to use",
-			Value: "stable",
+			Name:    "osqueryd-version",
+			Usage:   "Version of osqueryd to use",
+			Value:   "stable",
+			EnvVars: []string{"ORBIT_OSQUERYD_VERSION"},
 		},
 		&cli.BoolFlag{
-			Name:  "debug",
-			Usage: "Enable debug logging",
+			Name:    "debug",
+			Usage:   "Enable debug logging",
+			EnvVars: []string{"ORBIT_DEBUG"},
 		},
 	}
 	app.Action = func(c *cli.Context) error {
