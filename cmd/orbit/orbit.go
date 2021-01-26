@@ -65,13 +65,13 @@ func main() {
 		&cli.StringFlag{
 			Name:    "enroll-secret",
 			Usage:   "Enroll secret for authenticating to Fleet server",
-			EnvVars: []string{"ENROLL_SECRET"},
+			EnvVars: []string{"ORBIT_ENROLL_SECRET"},
 		},
 		&cli.StringFlag{
-			Name:    "osqueryd-version",
-			Usage:   "Version of osqueryd to use",
+			Name:    "osquery-version",
+			Usage:   "Version of osquery to use",
 			Value:   "stable",
-			EnvVars: []string{"ORBIT_OSQUERYD_VERSION"},
+			EnvVars: []string{"ORBIT_OSQUERY_VERSION"},
 		},
 		&cli.BoolFlag{
 			Name:    "debug",
@@ -116,7 +116,7 @@ func main() {
 		if err := updater.UpdateMetadata(); err != nil {
 			log.Info().Err(err).Msg("failed to update metadata. using saved metadata.")
 		}
-		osquerydPath, err := updater.Get("osqueryd", c.String("osqueryd-version"))
+		osquerydPath, err := updater.Get("osqueryd", c.String("osquery-version"))
 		if err != nil {
 			return err
 		}
@@ -212,13 +212,15 @@ var shellCommand = &cli.Command{
 	Usage:   "Run the osqueryi shell",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "osqueryd-version",
-			Usage: "Version of osqueryd to use",
-			Value: "stable",
+			Name:    "osquery-version",
+			Usage:   "Version of osquery to use",
+			Value:   "stable",
+			EnvVars: []string{"ORBIT_OSQUERY_VERSION"},
 		},
 		&cli.BoolFlag{
-			Name:  "debug",
-			Usage: "Enable debug logging",
+			Name:    "debug",
+			Usage:   "Enable debug logging",
+			EnvVars: []string{"ORBIT_DEBUG"},
 		},
 	},
 	Action: func(c *cli.Context) error {
@@ -258,7 +260,7 @@ var shellCommand = &cli.Command{
 		if err := updater.UpdateMetadata(); err != nil {
 			log.Info().Err(err).Msg("failed to update metadata. using saved metadata.")
 		}
-		osquerydPath, err := updater.Get("osqueryd", c.String("osqueryd-version"))
+		osquerydPath, err := updater.Get("osqueryd", c.String("osquery-version"))
 		if err != nil {
 			return err
 		}

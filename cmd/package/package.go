@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"text/template"
 	"time"
 
 	"github.com/fleetdm/orbit/pkg/constant"
@@ -18,7 +20,15 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+type packageOptions struct {
+	FleetURL     string
+	EnrollSecret string
+	StartService bool
+	Insecure     bool
+}
+
 func main() {
+	var opt packageOptions
 	log.Logger = log.Output(
 		zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano},
 	)
@@ -29,27 +39,51 @@ func main() {
 	app.Usage = "A powered-up, (near) drop-in replacement for osquery"
 	app.Commands = []*cli.Command{}
 	app.Flags = []cli.Flag{
+		&cli.StringFlag{
+			Name:        "enroll-secret",
+			Usage:       "Enroll secret for authenticating to Fleet server",
+			Destination: &opt.EnrollSecret,
+		},
+		&cli.StringFlag{
+			Name:        "fleet-url",
+			Usage:       "URL (host:port) of Fleet server",
+			Destination: &opt.FleetURL,
+		},
+		&cli.BoolFlag{
+			Name:        "insecure",
+			Usage:       "Disable TLS certificate verification",
+			Destination: &opt.Insecure,
+		},
 		&cli.BoolFlag{
 			Name:  "debug",
 			Usage: "Enable debug logging",
 		},
 	}
-	app.Action = buildLinux
+	app.Before = func(c *cli.Context) error {
+		if c.Bool("debug") {
+			zerolog.SetGlobalLevel(zerolog.DebugLevel)
+		}
+		return nil
+	}
+	app.Action = func(c *cli.Context) error {
+		if opt.FleetURL != "" || opt.EnrollSecret != "" {
+			opt.StartService = true
+
+			if opt.FleetURL == "" || opt.EnrollSecret == "" {
+				return errors.New("--enroll-secret and --fleet-url must be provided together")
+			}
+		}
+
+		return buildLinux(opt)
+	}
 
 	if err := app.Run(os.Args); err != nil {
 		log.Fatal().Err(err).Msg("package failed")
 	}
 }
 
-func buildLinux(c *cli.Context) error {
-	log.Logger = log.Output(
-		zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano},
-	)
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-
-	if c.Bool("debug") {
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	}
+func buildLinux(opt packageOptions) error {
+	// Initialize directories
 
 	tmpDir, err := ioutil.TempDir("", "orbit-package")
 	if err != nil {
@@ -67,44 +101,34 @@ func buildLinux(c *cli.Context) error {
 		return errors.Wrap(err, "create orbit dir")
 	}
 
-	systemdRoot := filepath.Join(filesystemRoot, "usr", "lib", "systemd", "system")
-	if err := os.MkdirAll(systemdRoot, constant.DefaultDirMode); err != nil {
-		return errors.Wrap(err, "create systemd dir")
-	}
-	if err := ioutil.WriteFile(
-		filepath.Join(systemdRoot, "orbit.service"),
-		[]byte(`
-[Unit]
-Description=The osquery Daemon
-After=network.service syslog.service
+	// Write files
 
-[Service]
-TimeoutStartSec=0
-ExecStart=/usr/local/bin/orbit --insecure --fleet-url=https://10.0.0.115:8080 --enroll-secret=s96I5x42hhN6c/kqxnpnX2ODkVJBVrOP
-Restart=on-failure
-KillMode=control-group
-KillSignal=SIGTERM
-CPUQuota=20%
-
-[Install]
-WantedBy=multi-user.target
-`),
-		constant.DefaultFileMode,
-	); err != nil {
+	if err := writeSystemdUnit(opt, filesystemRoot); err != nil {
 		return errors.Wrap(err, "write systemd unit")
 	}
+
+	if err := writeEnvFile(opt, filesystemRoot); err != nil {
+		return errors.Wrap(err, "write env file")
+	}
+
+	postInstallPath := filepath.Join(tmpDir, "postinstall.sh")
+	if err := writePostInstall(opt, postInstallPath); err != nil {
+		return errors.Wrap(err, "write postinstall script")
+	}
+
+	// Initialize autoupdate metadata
 
 	localStore, err := filestore.New(filepath.Join(orbitRoot, "tuf-metadata.json"))
 	if err != nil {
 		return errors.Wrap(err, "failed to create local metadata store")
 	}
-	opt := update.DefaultOptions
-	opt.RootDirectory = orbitRoot
-	opt.ServerURL = "https://tuf.fleetctl.com"
-	opt.LocalStore = localStore
-	opt.Platform = "linux"
+	updateOpt := update.DefaultOptions
+	updateOpt.RootDirectory = orbitRoot
+	updateOpt.ServerURL = "https://tuf.fleetctl.com"
+	updateOpt.LocalStore = localStore
+	updateOpt.Platform = "linux"
 
-	updater, err := update.New(opt)
+	updater, err := update.New(updateOpt)
 	if err != nil {
 		return errors.Wrap(err, "failed to init updater")
 	}
@@ -116,6 +140,8 @@ WantedBy=multi-user.target
 		return errors.Wrap(err, "failed to get osqueryd")
 	}
 	log.Debug().Str("path", osquerydPath).Msg("got osqueryd")
+
+	// Pick up all file contents
 
 	contents := files.Contents{
 		&files.Content{
@@ -148,21 +174,7 @@ WantedBy=multi-user.target
 		log.Debug().Interface("file", c).Msg("added file")
 	}
 
-	postInstall := `#!/bin/sh
-
-# If we have a systemd, daemon-reload away now
-if [ -x /bin/systemctl ] && pidof systemd ; then
-  /bin/systemctl daemon-reload 2>/dev/null 2>&1 && /bin/systemctl start orbit.service 2>&1
-fi
-`
-	postInstallPath := filepath.Join(tmpDir, "postinstall.sh")
-	if err := ioutil.WriteFile(
-		postInstallPath,
-		[]byte(postInstall),
-		constant.DefaultFileMode,
-	); err != nil {
-		return errors.Wrap(err, "write postinstall")
-	}
+	// Build package
 
 	info := &nfpm.Info{
 		Name:        "orbit-osquery",
@@ -182,7 +194,6 @@ fi
 			},
 		},
 	}
-
 	pkger := deb.Default
 	filename := pkger.ConventionalFileName(info)
 
@@ -196,6 +207,94 @@ fi
 		return errors.Wrap(err, "write deb package")
 	}
 	log.Info().Str("path", filename).Msg("wrote deb package")
+
+	return nil
+}
+
+func writeSystemdUnit(optt packageOptions, rootPath string) error {
+	systemdRoot := filepath.Join(rootPath, "usr", "lib", "systemd", "system")
+	if err := os.MkdirAll(systemdRoot, constant.DefaultDirMode); err != nil {
+		return errors.Wrap(err, "create systemd dir")
+	}
+	if err := ioutil.WriteFile(
+		filepath.Join(systemdRoot, "orbit.service"),
+		[]byte(`
+[Unit]
+Description=Fleet Orbit osquery
+After=network.service syslog.service
+
+[Service]
+TimeoutStartSec=0
+EnvironmentFile=/etc/default/orbit
+ExecStart=/usr/local/bin/orbit
+Restart=on-failure
+KillMode=control-group
+KillSignal=SIGTERM
+CPUQuota=20%
+
+[Install]
+WantedBy=multi-user.target
+`),
+		constant.DefaultFileMode,
+	); err != nil {
+		return errors.Wrap(err, "write file")
+	}
+
+	return nil
+}
+
+var envTemplate = template.Must(template.New("env").Parse(`
+{{- if .Insecure }}ORBIT_INSECURE=true{{ end }}
+{{ if .FleetURL }}ORBIT_FLEET_URL={{.FleetURL}}{{ end }}
+{{ if .EnrollSecret }}ORBIT_ENROLL_SECRET={{.EnrollSecret}}{{ end }}
+`))
+
+func writeEnvFile(opt packageOptions, rootPath string) error {
+	envRoot := filepath.Join(rootPath, "etc", "default")
+	if err := os.MkdirAll(envRoot, constant.DefaultDirMode); err != nil {
+		return errors.Wrap(err, "create env dir")
+	}
+
+	var contents bytes.Buffer
+	if err := envTemplate.Execute(&contents, opt); err != nil {
+		return errors.Wrap(err, "execute template")
+	}
+
+	if err := ioutil.WriteFile(
+		filepath.Join(envRoot, "orbit"),
+		contents.Bytes(),
+		constant.DefaultFileMode,
+	); err != nil {
+		return errors.Wrap(err, "write file")
+	}
+
+	return nil
+}
+
+var postInstallTemplate = template.Must(template.New("postinstall").Parse(`
+#!/bin/sh
+
+# Exit on error
+set -e
+
+# If we have a systemd, daemon-reload away now
+if [ -x /bin/systemctl ] && pidof systemd ; then
+  /bin/systemctl daemon-reload 2>/dev/null 2>&1
+{{ if .StartService -}}
+  /bin/systemctl start orbit.service 2>&1
+{{- end}}
+fi
+`))
+
+func writePostInstall(opt packageOptions, path string) error {
+	var contents bytes.Buffer
+	if err := postInstallTemplate.Execute(&contents, opt); err != nil {
+		return errors.Wrap(err, "execute template")
+	}
+
+	if err := ioutil.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
+		return errors.Wrap(err, "write file")
+	}
 
 	return nil
 }
