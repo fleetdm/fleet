@@ -31,8 +31,8 @@
   - [Get queries specs](#get-quieries-specs)
   - [Get query spec](#get-query-spec)
   - [Apply queries specs](#apply-quieries-specs)
-  - [Create distributed query campaign](#create-distributed-query-campaign)
-  - [Create distributed query campaign by query name](#create-distributed-query-campaign-by-query-name)
+  - [Run live query](#run-live-query)
+  - [Run live query by query name](#run-live-query-by-query-name)
 - [Fleet configuration](#fleet-configuration)
   - [Get certificate](#get-certificate)
   - [Get configuration](#get-configuration)
@@ -1578,9 +1578,9 @@ Creates and/or modifies the queries included in the specs list. To modify an exi
 {}
 ```
 
-### Create distributed query campaign
+### Run live query
 
-Runs the specified query as a distributed query on the specified hosts or group of hosts. Returns a new distributed query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label ID.
+Runs the specified query as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label ID.
 
 `POST /api/v1/kolide/spec/queries/run`
 
@@ -1665,9 +1665,9 @@ Runs the specified query as a distributed query on the specified hosts or group 
 }
 ```
 
-### Create distributed query campaign by query name
+### Run live query by query name
 
-Runs the specified query by name as a distributed query on the specified hosts or group of hosts. Returns a new distributed query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label.
+Runs the specified query by name as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label.
 
 `POST /api/v1/kolide/spec/queries/run`
 
