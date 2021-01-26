@@ -14,6 +14,48 @@
     }
   }
 
+  &__text-wrapper {
+    display: flex;
+    flex-direction: column;
+    font-size: $x-small;
+  }
+
+  &__text-online {
+    &:before {
+      background-color: $success;
+      border-radius: 100%;
+      content: ' ';
+      display: inline-block;
+      height: 8px;
+      margin-right: 8px;
+      width: 8px;
+    }
+  }
+
+  &__text-offline {
+    &:before {
+      background-color: $ui-dark-grey;
+      border-radius: 100%;
+      content: ' ';
+      display: inline-block;
+      height: 8px;
+      margin-right: 8px;
+      width: 8px;
+    }
+  }
+
+  &__text-error {
+    &:before {
+      background-color: $alert;
+      border-radius: 100%;
+      content: ' ';
+      display: inline-block;
+      height: 8px;
+      margin-right: 8px;
+      width: 8px;
+    }
+  }
+
   &__btn-wrapper {
     float: right;
 

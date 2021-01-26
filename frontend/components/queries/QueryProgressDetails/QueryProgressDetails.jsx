@@ -11,8 +11,19 @@ const baseClass = 'query-progress-details';
 
 const QueryProgressDetails = ({ campaign, className, onRunQuery, onStopQuery, queryIsRunning, queryTimerMilliseconds, disableRun }) => {
   const { hosts_count: hostsCount } = campaign;
+  const { Metrics: metrics = {} } = campaign;
+  const { errors } = campaign;
   const totalHostsCount = get(campaign, ['totals', 'count'], 0);
   const totalRowsCount = get(campaign, ['query_results', 'length'], 0);
+
+  const onlineHostsTotalDisplay = metrics.OnlineHosts === 1 ? '1 host' : `${metrics.OnlineHosts} hosts`;
+  const onlineResultsTotalDisplay = totalRowsCount === 1 ? '1 result' : `${totalRowsCount} results`;
+  const offlineHostsTotalDisplay = metrics.OfflineHosts === 1 ? '1 host' : `${metrics.OfflineHosts} hosts`;
+  const failedHostsTotalDisplay = hostsCount.failed === 1 ? '1 host' : `${hostsCount.failed} hosts`;
+  let totalErrorsDisplay = '0 errors';
+  if (errors) {
+    totalErrorsDisplay = errors.length === 1 ? '1 error' : `${errors.length} errors`;
+  }
 
   const runQueryBtn = (
     <div className={`${baseClass}__btn-wrapper`}>
@@ -51,12 +62,11 @@ const QueryProgressDetails = ({ campaign, className, onRunQuery, onStopQuery, qu
   return (
     <div className={`${baseClass} ${className}`}>
       <div className={`${baseClass}__wrapper`}>
-        <span>
-          <b>{hostsCount.total}</b>&nbsp;of&nbsp;
-          <b>{totalHostsCount} Hosts</b>&nbsp;Returning&nbsp;
-          <b>{totalRowsCount} Records&nbsp;</b>
-          <em>({hostsCount.failed} failed)</em>
-        </span>
+        <div className={`${baseClass}__text-wrapper`}>
+          <span className={`${baseClass}__text-online`}>Online - {onlineHostsTotalDisplay} returning {onlineResultsTotalDisplay}</span>
+          <span className={`${baseClass}__text-offline`}>Offline - {offlineHostsTotalDisplay} returning 0 results</span>
+          <span className={`${baseClass}__text-error`}>Failed - {failedHostsTotalDisplay} returning {totalErrorsDisplay}</span>
+        </div>
         <ProgressBar
           error={hostsCount.failed}
           max={totalHostsCount}

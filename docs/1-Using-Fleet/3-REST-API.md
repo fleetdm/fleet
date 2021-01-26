@@ -12,6 +12,10 @@
   - [Initiate SSO](#initiate-sso)
 - [Hosts](#hosts)
   - [List hosts](#list-hosts)
+  - [Get hosts summary](#get-hosts-summary)
+  - [Get host](#get-host)
+  - [Get host by identifier](#get-host-by-identifier)
+  - [Delete host](#delete-host)
 - [Users](#users)
   - [List all users](#list-all-users)
   - [Create a user account with an invitation](#create-a-user-account-with-an-invitation)
@@ -39,6 +43,9 @@
   - [List invites](#list-invites)
   - [Delete invite](#delete-invite)
   - [Verify invite](#verify-invite)
+- [Osquery options](#osquery-options)
+  - [Get osquery options spec](#get-osquery-options-spec)
+  - [Modify osquery options spec](#modify-osquery-options-spec)
 
 ## Overview
 
@@ -642,6 +649,188 @@ Gets the current SSO configuration.
 }
 ```
 
+### Get hosts summary
+
+Returns the count of all hosts organized by status. `online_count` includes all hosts currently enrolled in Fleet. `offline_count` includes all hosts that haven't checked into Fleet recently. `mia_count` includes all hosts that haven't been seen by Fleet in more than 30 days. `new_count` includes the hosts that have been enrolled to Fleet in the last 24 hours.
+
+`GET /api/v1/kolide/host_summary`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/kolide/host_summary`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "online_count": 2267,
+  "offline_count": 141,
+  "mia_count": 0,
+  "new_count": 0
+}
+```
+
+### Get host
+
+Returns the information of the specified host.
+
+`GET /api/v1/kolide/hosts/{id}`
+
+#### Parameters
+
+| Name                  | Type   | In   | Description                                                     |
+| --------------------- | ------ | ---- | --------------------------------------------------------------- |
+| id                 | integer | path | **Required**. The host's id.                    |
+
+#### Example
+
+`GET /api/v1/kolide/hosts/121`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+    "host": {
+        "created_at": "2021-01-19T18:04:12Z",
+        "updated_at": "2021-01-19T20:21:27Z",
+        "id": 121,
+        "detail_updated_at": "2021-01-19T20:04:22Z",
+        "label_updated_at": "2021-01-19T20:04:22Z",
+        "last_enrolled_at": "2021-01-19T18:04:12Z",
+        "seen_time": "2021-01-19T20:21:27Z",
+        "hostname": "259404d30eb6",
+        "uuid": "f01c4390-0000-0000-a1e5-14346a5724dc",
+        "platform": "ubuntu",
+        "osquery_version": "2.10.2",
+        "os_version": "Ubuntu 14.4.0",
+        "build": "",
+        "platform_like": "debian",
+        "code_name": "",
+        "uptime": 11202000000000,
+        "memory": 2085326848,
+        "cpu_type": "6",
+        "cpu_subtype": "142",
+        "cpu_brand": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
+        "cpu_physical_cores": 4,
+        "cpu_logical_cores": 4,
+        "hardware_vendor": "",
+        "hardware_model": "",
+        "hardware_version": "",
+        "hardware_serial": "",
+        "computer_name": "259404d30eb6",
+        "primary_ip": "172.19.0.4",
+        "primary_mac": "02:42:ac:13:00:04",
+        "distributed_interval": 10,
+        "config_tls_refresh": 10,
+        "logger_tls_period": 10,
+        "additional": {},
+        "enroll_secret_name": "bar",
+        "status": "offline",
+        "display_text": "259404d30eb6"
+    }
+}
+```
+
+### Get host by identifier
+
+Returns the information of the host specified using the `uuid`, `osquery_host_id`, `hostname`, or
+`node_key` as an identifier
+
+`GET /api/v1/kolide/hosts/identifier/{identifier}`
+
+#### Parameters
+
+| Name                  | Type   | In   | Description                                                     |
+| --------------------- | ------ | ---- | --------------------------------------------------------------- |
+| identifier                 | integer or string | path | **Required**. The host's `uuid`, `osquery_host_id`, `hostname`, or `node_key`|
+
+#### Example
+
+`GET /api/v1/kolide/hosts/identifier/f01c4390-0000-0000-a1e5-14346a5724dc`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+    "host": {
+        "created_at": "2021-01-19T18:04:12Z",
+        "updated_at": "2021-01-19T20:21:27Z",
+        "id": 121,
+        "detail_updated_at": "2021-01-19T20:04:22Z",
+        "label_updated_at": "2021-01-19T20:04:22Z",
+        "last_enrolled_at": "2021-01-19T18:04:12Z",
+        "seen_time": "2021-01-19T20:21:27Z",
+        "hostname": "259404d30eb6",
+        "uuid": "f01c4390-0000-0000-a1e5-14346a5724dc",
+        "platform": "ubuntu",
+        "osquery_version": "2.10.2",
+        "os_version": "Ubuntu 14.4.0",
+        "build": "",
+        "platform_like": "debian",
+        "code_name": "",
+        "uptime": 11202000000000,
+        "memory": 2085326848,
+        "cpu_type": "6",
+        "cpu_subtype": "142",
+        "cpu_brand": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
+        "cpu_physical_cores": 4,
+        "cpu_logical_cores": 4,
+        "hardware_vendor": "",
+        "hardware_model": "",
+        "hardware_version": "",
+        "hardware_serial": "",
+        "computer_name": "259404d30eb6",
+        "primary_ip": "172.19.0.4",
+        "primary_mac": "02:42:ac:13:00:04",
+        "distributed_interval": 10,
+        "config_tls_refresh": 10,
+        "logger_tls_period": 10,
+        "additional": {},
+        "enroll_secret_name": "bar",
+        "status": "offline",
+        "display_text": "259404d30eb6"
+    }
+}
+```
+
+### Delete host
+
+Deletes the specified host from Fleet.
+
+`DELELTE /api/v1/kolide/hosts/{id}`
+
+#### Parameters
+
+| Name                  | Type   | In   | Description                                                     |
+| --------------------- | ------ | ---- | --------------------------------------------------------------- |
+| id                 | integer | path | **Required**. The host's id.                    |
+
+#### Example
+
+`DELELTE /api/v1/kolide/hosts/121`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
 ---
 
 ## Users
@@ -908,7 +1097,7 @@ Returns all information about a specific user.
 
 | Name | Type    | In    | Description                  |
 | ---- | ------- | ----- | ---------------------------- |
-| id   | integer | query | **Required**. The user's id. |
+| id   | integer | path | **Required**. The user's id. |
 
 #### Example
 
@@ -1920,7 +2109,7 @@ Delete the specified invite from Fleet.
 
 | Name       | Type    | In   | Description                                      |
 | ---------- | ------- | ---- | ------------------------------------------------ |
-| id   | integer  | query | **Required.** The user's id.            |
+| id   | integer  | path | **Required.** The user's id.            |
 
 #### Example
 
@@ -1945,7 +2134,7 @@ Verify the specified invite.
 
 | Name       | Type    | In   | Description                                      |
 | ---------- | ------- | ---- | ------------------------------------------------ |
-| token   | integer  | query | **Required.** The user's invite token.            |
+| token   | integer  | path | **Required.** The user's invite token.            |
 
 #### Example
 
@@ -1985,4 +2174,105 @@ Verify the specified invite.
         }
     ]
 }
+```
+---
+
+## Osquery options
+
+### Get osquery options spec
+
+Returns to osquery options configuration set in Fleet.
+
+`GET /api/v1/kolide/spec/osquery_options`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/kolide/spec/osquery_options`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "spec": {
+    "config": {
+      "options": {
+        "logger_plugin": "tls",
+        "pack_delimiter": "/",
+        "logger_tls_period": 10,
+        "distributed_plugin": "tls",
+        "disable_distributed": false,
+        "logger_tls_endpoint": "/api/v1/osquery/log",
+        "distributed_interval": 10,
+        "distributed_tls_max_attempts": 3
+      },
+      "decorators": {
+        "load": [
+          "SELECT uuid AS host_uuid FROM system_info;",
+          "SELECT hostname AS hostname FROM system_info;"
+        ]
+      }
+    },
+    "overrides": {}
+  }
+}
+```
+
+### Modify osquery options spec
+
+Modifies the osquery options configuration set in Fleet.
+
+`POST /api/v1/kolide/spec/osquery_options`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| spec   | JSON  | body | **Required.** The modified osquery spec.            |
+
+#### Example
+
+`POST /api/v1/kolide/spec/osquery_options`
+
+##### Request body
+
+```
+{
+  "spec": {
+    "config": {
+      "options": {
+        "logger_plugin": "tls",
+        "pack_delimiter": "/",
+        "logger_tls_period": 10,
+        "distributed_plugin": "tls",
+        "disable_distributed": false,
+        "logger_tls_endpoint": "/api/v1/osquery/log",
+        "distributed_interval": 12,
+        "distributed_tls_max_attempts": 4
+      },
+      "decorators": {
+        "load": [
+          "SELECT uuid AS host_uuid FROM system_info;",
+          "SELECT hostname AS hostname FROM system_info;"
+        ]
+      }
+    },
+    "overrides": {}
+  }
+}
+```
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
 ```

@@ -21,6 +21,7 @@ func (d *Datastore) ListScheduledQueriesInPack(id uint, opts kolide.ListOptions)
 			sq.platform,
 			sq.version,
 			sq.shard,
+			sq.denylist,
 			q.query,
 			q.id AS query_id
 		FROM scheduled_queries sq
@@ -53,15 +54,16 @@ func (d *Datastore) NewScheduledQuery(sq *kolide.ScheduledQuery, opts ...kolide.
 			` + "`interval`" + `,
 			platform,
 			version,
-			shard
+			shard,
+			denylist
 		)
-		SELECT name, ?, ?, ?, ?, ?, ?, ?, ?
+		SELECT name, ?, ?, ?, ?, ?, ?, ?, ?, ?
 		FROM queries
 		WHERE id = ?
 		`
-	result, err := db.Exec(query, sq.Name, sq.PackID, sq.Snapshot, sq.Removed, sq.Interval, sq.Platform, sq.Version, sq.Shard, sq.QueryID)
+	result, err := db.Exec(query, sq.Name, sq.PackID, sq.Snapshot, sq.Removed, sq.Interval, sq.Platform, sq.Version, sq.Shard, sq.Denylist, sq.QueryID)
 	if err != nil {
-		return nil, errors.Wrap(err, "inserting scheduled query")
+		return nil, errors.Wrap(err, "insert scheduled query")
 	}
 
 	id, _ := result.LastInsertId()
@@ -93,10 +95,10 @@ func (d *Datastore) NewScheduledQuery(sq *kolide.ScheduledQuery, opts ...kolide.
 func (d *Datastore) SaveScheduledQuery(sq *kolide.ScheduledQuery) (*kolide.ScheduledQuery, error) {
 	query := `
 		UPDATE scheduled_queries
-			SET pack_id = ?, query_id = ?, ` + "`interval`" + ` = ?, snapshot = ?, removed = ?, platform = ?, version = ?, shard = ?
+			SET pack_id = ?, query_id = ?, ` + "`interval`" + ` = ?, snapshot = ?, removed = ?, platform = ?, version = ?, shard = ?, denylist = ?
 			WHERE id = ?
 	`
-	result, err := d.db.Exec(query, sq.PackID, sq.QueryID, sq.Interval, sq.Snapshot, sq.Removed, sq.Platform, sq.Version, sq.Shard, sq.ID)
+	result, err := d.db.Exec(query, sq.PackID, sq.QueryID, sq.Interval, sq.Snapshot, sq.Removed, sq.Platform, sq.Version, sq.Shard, sq.Denylist, sq.ID)
 	if err != nil {
 		return nil, errors.Wrap(err, "saving a scheduled query")
 	}
@@ -129,6 +131,7 @@ func (d *Datastore) ScheduledQuery(id uint) (*kolide.ScheduledQuery, error) {
 			sq.shard,
 			sq.query_name,
 			sq.description,
+			sq.denylist,
 			q.query,
 			q.name,
 			q.id AS query_id
@@ -139,7 +142,7 @@ func (d *Datastore) ScheduledQuery(id uint) (*kolide.ScheduledQuery, error) {
 	`
 	sq := &kolide.ScheduledQuery{}
 	if err := d.db.Get(sq, query, id); err != nil {
-		return nil, errors.Wrap(err, "selecting a scheduled query")
+		return nil, errors.Wrap(err, "select scheduled query")
 	}
 
 	return sq, nil

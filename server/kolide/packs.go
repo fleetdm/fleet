@@ -124,9 +124,9 @@ type Pack struct {
 	UpdateCreateTimestamps
 	ID          uint   `json:"id"`
 	Name        string `json:"name"`
-	Description string `json:"description"`
-	Platform    string `json:"platform"`
-	Disabled    bool   `json:"disabled"`
+	Description string `json:"description,omitempty"`
+	Platform    string `json:"platform,omitempty"`
+	Disabled    bool   `json:"disabled,omitempty"`
 }
 
 const (
@@ -167,6 +167,7 @@ type PackSpecQuery struct {
 	Shard       *uint   `json:"shard,omitempty"`
 	Platform    *string `json:"platform,omitempty"`
 	Version     *string `json:"version,omitempty"`
+	Denylist    *bool   `json:"denylist,omitempty"`
 }
 
 // PackTarget associates a pack with either a host or a label
