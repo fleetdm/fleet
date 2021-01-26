@@ -808,9 +808,9 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
 
 ### Delete host
 
-Deletes the specified host from Fleet.
+Deletes the specified host from Fleet. Note that a deleted host will fail authentication with the previous node key, and in most osquery configurations will attempt to re-enroll automatically. If the host still has a valid enroll secret, it will re-enroll successfully.
 
-`DELELTE /api/v1/kolide/hosts/{id}`
+`DELETE /api/v1/kolide/hosts/{id}`
 
 #### Parameters
 
@@ -820,7 +820,7 @@ Deletes the specified host from Fleet.
 
 #### Example
 
-`DELELTE /api/v1/kolide/hosts/121`
+`DELETE /api/v1/kolide/hosts/121`
 
 
 ##### Default response
@@ -2181,7 +2181,7 @@ Verify the specified invite.
 
 ### Get osquery options spec
 
-Returns to osquery options configuration set in Fleet.
+Retrieve the osquery options configured via Fleet.
 
 `GET /api/v1/kolide/spec/osquery_options`
 
