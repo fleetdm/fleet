@@ -57,6 +57,7 @@ Welcome to Fleet! This issue tracks TODOs required for all new teammates for you
 - [ ] Google Workspace (email address) and appropriate group membership
 - [ ] [OnePassword]
     - [ ] Add to vaults (after the invite is accepted)
+- [ ] _If using a company-issued laptop or other equipment >$500 USD (per item):_ Add new equipment to [fixed asset tracking doc](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0)
 - [ ] https://app.orbit.love
 - [ ] Trello
 - [ ] Fleet Slack
