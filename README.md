@@ -33,12 +33,12 @@ Now that you've finished setting up Fleet, you will want to enroll a server, con
 > 
 > Then after cloning this repository, `cd` into the [`osquery/`](./tools/osquery) directory:
 > ```shell
-> cd osquery/
+> cd tools/osquery/
 > ```
 >
 > This directory contains configuration that can start up Docker containers running osquery agents.  To start them up:
 > ```shell
-> ENROLL_SECRET=<paste your enroll secret here> docker-compose up
+> ENROLL_SECRET=<paste your enroll secret here> FLEET_SERVER=host.docker.internal:8412 docker-compose up
 > ```
 >
 > Now navigate back to https://localhost:8412 or refresh to see your new hosts in Fleet!
