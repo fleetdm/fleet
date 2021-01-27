@@ -11,10 +11,14 @@ assignees: ''
 
 > TODO: A sentence or two describing the high level goal for this project
 
+### Estimated release date
+
+> TODO: When we expect to release some or all of these improvements
+
 ### Steps
 
 - I. Drafting
-  - [x] High-level goals, due date set
+  - [x] High-level goals, estimated release date set
   - [x] GitHub issue
   - [ ] Consider impact to UX/DX, talk to users
   - [ ] **If applicable:** Visual design
