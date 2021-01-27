@@ -21,8 +21,7 @@ import (
 )
 
 const (
-	previewDirectory = "fleet-preview"
-	downloadUrl      = "https://github.com/fleetdm/osquery-in-a-box/archive/master.zip"
+	downloadUrl = "https://github.com/fleetdm/osquery-in-a-box/archive/master.zip"
 )
 
 func previewCommand() cli.Command {
@@ -38,21 +37,22 @@ This command will create a directory fleet-preview in the current working direct
 			contextFlag(),
 		},
 		Action: func(c *cli.Context) error {
-			if _, err := exec.LookPath("docker-compose"); err != nil {
-				return errors.New("Docker is required for the fleetctl preview experience.\n\nPlease install Docker (https://docs.docker.com/get-docker/).")
+			if err := checkDocker(); err != nil {
+				return err
 			}
 
 			// Download files if necessary
+			previewDir := previewDirectory()
 			if _, err := os.Stat(
-				filepath.Join(previewDirectory, "docker-compose.yml"),
+				filepath.Join(previewDir, "docker-compose.yml"),
 			); err != nil {
-				fmt.Printf("Downloading dependencies into %s...\n", previewDirectory)
+				fmt.Printf("Downloading dependencies into %s...\n", previewDir)
 				if err := downloadFiles(); err != nil {
 					return errors.Wrap(err, "Error downloading dependencies")
 				}
 			}
 
-			if err := os.Chdir(previewDirectory); err != nil {
+			if err := os.Chdir(previewDir); err != nil {
 				return err
 			}
 
@@ -82,7 +82,9 @@ This command will create a directory fleet-preview in the current working direct
 
 			token, err := fleet.Setup(username, username, password, "Fleet Preview")
 			if err != nil {
-				return errors.Wrap(err, "Error setting up Fleet")
+				if e, ok := err.(service.SetupAlreadyErr); !(ok && e.SetupAlready()) {
+					return errors.Wrap(err, "Error setting up Fleet")
+				}
 			}
 
 			val, err := getConfigValue(c, "address")
@@ -94,7 +96,7 @@ This command will create a directory fleet-preview in the current working direct
 				fmt.Println("Fleet is now available at https://localhost:8412.")
 				fmt.Println("Username:", username)
 				fmt.Println("Password:", password)
-				fmt.Println("Note: You can safely ignore the browser warning \"Your connection is not private\". Click through this warning using the \"Advanced\" option.")
+				fmt.Println("Note: You can safely ignore the browser warning \"Your connection is not private\". Click through this warning using the \"Advanced\" option. Chrome users may need to configure chrome://flags/#allow-insecure-localhost.")
 				return nil
 			}
 
@@ -117,11 +119,19 @@ This command will create a directory fleet-preview in the current working direct
 			fmt.Println("Fleet is now available at https://localhost:8412.")
 			fmt.Println("Username:", username)
 			fmt.Println("Password:", password)
-			fmt.Println("Note: You can safely ignore the browser warning \"Your connection is not private\". Click through this warning using the \"Advanced\" option.")
+			fmt.Println("Note: You can safely ignore the browser warning \"Your connection is not private\". Click through this warning using the \"Advanced\" option. Chrome users may need to configure chrome://flags/#allow-insecure-localhost.")
 
 			return nil
 		},
 	}
+}
+
+func previewDirectory() string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		homeDir = "~"
+	}
+	return filepath.Join(homeDir, ".fleet", "preview")
 }
 
 func downloadFiles() error {
@@ -155,6 +165,8 @@ func downloadFiles() error {
 
 // Adapted from https://stackoverflow.com/a/24792688/491710
 func unzip(r *zip.Reader) error {
+	previewDir := previewDirectory()
+
 	// Closure to address file descriptors issue with all the deferred .Close()
 	// methods
 	extractAndWriteFile := func(f *zip.File) error {
@@ -165,7 +177,7 @@ func unzip(r *zip.Reader) error {
 		defer rc.Close()
 
 		path := f.Name
-		path = strings.Replace(path, "osquery-in-a-box-master", "fleet-preview", 1)
+		path = strings.Replace(path, "osquery-in-a-box-master", previewDir, 1)
 
 		// We don't need to check for directory traversal as we are already
 		// trusting the validity of this ZIP file.
@@ -226,6 +238,23 @@ func waitStartup() error {
 		retryStrategy,
 	); err != nil {
 		return errors.Wrap(err, "checking server health")
+	}
+
+	return nil
+}
+
+func checkDocker() error {
+	// Check installed
+	if _, err := exec.LookPath("docker-compose"); err != nil {
+		return errors.New("Docker is required for the fleetctl preview experience.\n\nPlease install Docker (https://docs.docker.com/get-docker/).")
+	}
+	if _, err := exec.LookPath("docker"); err != nil {
+		return errors.New("Docker is required for the fleetctl preview experience.\n\nPlease install Docker (https://docs.docker.com/get-docker/).")
+	}
+
+	// Check running
+	if err := exec.Command("docker", "info").Run(); err != nil {
+		return errors.New("Please start Docker daemon before running fleetctl preview.")
 	}
 
 	return nil
