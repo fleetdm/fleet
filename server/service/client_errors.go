@@ -13,7 +13,7 @@ type SetupAlreadyErr interface {
 type setupAlreadyErr struct{}
 
 func (e setupAlreadyErr) Error() string {
-	return "Kolide Fleet has already been setup"
+	return "Fleet has already been setup"
 }
 
 func (e setupAlreadyErr) SetupAlready() bool {
@@ -43,7 +43,7 @@ type NotSetupErr interface {
 type notSetupErr struct{}
 
 func (e notSetupErr) Error() string {
-	return "The Kolide Fleet instance is not set up yet"
+	return "The Fleet instance is not set up yet"
 }
 
 func (e notSetupErr) NotSetup() bool {
