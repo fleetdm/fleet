@@ -54,7 +54,7 @@ const updateCampaignStateFromResults = (campaign, { data }) => {
       {
         host_hostname: host.hostname,
         osquery_version: host.osquery_version,
-        error: 'upgrade osquery on this host to 4.4.0+ for error details',
+        error: 'Error details require osquery 4.4.0+ (Launcher does not provide error details)',
       },
     ];
   } else {
