@@ -7,10 +7,10 @@
   .section {
     display: flex;
     flex-direction: column;
-    margin: 40px 0 0 0;
+    margin: 40px 0 0;
 
     &__header {
-      margin: 0 0 16px 0;
+      margin: 0 0 16px;
       font-size: $x-small;
       font-weight: $bold;
     }
@@ -26,35 +26,6 @@
 
         &--title {
           margin-right: 40px;
-
-          .status {
-            color: $core-dark-blue-grey;
-            text-transform: capitalize;
-
-            &--online {
-              &:before {
-                background-color: $success;
-                border-radius: 100%;
-                content: ' ';
-                display: inline-block;
-                height: 8px;
-                margin-right: 8px;
-                width: 8px;
-              }
-            }
-
-            &--offline {
-              &:before {
-                background-color: $ui-dark-grey;
-                border-radius: 100%;
-                content: ' ';
-                display: inline-block;
-                height: 8px;
-                margin-right: 8px;
-                width: 8px;
-              }
-            }
-          }
         }
 
       }
@@ -73,10 +44,10 @@
       &__item {
         margin-bottom: 12px;
         display: flex;
-      }
 
-      &__item:last-child {
-        margin-bottom: 0;
+        &:last-child {
+          margin-bottom: 0;
+        }
       }
     }
   }
@@ -117,13 +88,42 @@
 
         span {
           margin-bottom: 16px;
-        }
 
-        span:last-child {
-          margin-bottom: 0;
+          &:last-child {
+            margin-bottom: 0;
+          }
         }
       }
 
+    }
+  }
+
+  .status {
+    color: $core-dark-blue-grey;
+    text-transform: capitalize;
+
+    &--online {
+      &:before {
+        background-color: $success;
+        border-radius: 100%;
+        content: ' ';
+        display: inline-block;
+        height: 8px;
+        margin-right: 8px;
+        width: 8px;
+      }
+    }
+
+    &--offline {
+      &:before {
+        background-color: $ui-dark-grey;
+        border-radius: 100%;
+        content: ' ';
+        display: inline-block;
+        height: 8px;
+        margin-right: 8px;
+        width: 8px;
+      }
     }
   }
 
