@@ -969,6 +969,21 @@ Returns all information about a specific user.
 
 ## Packs
 
+- [Create pack](#create-pack)
+- [Modify pack](#modify-pack)
+- [Get pack](#get-pack)
+- [List packs](#list-packs)
+- [Delete pack](#delete-pack)
+- [Delete pack by ID](#delete-pack-by-id)
+- [Get scheduled queries in a pack](#get-scheduled-queries-in-a-pack)
+- [Add scheduled query to a pack](#add-scheduled-query-to-a-pack)
+- [Get scheduled query](#get-scheduled-query)
+- [Modify scheduled query](#modify-scheduled-query)
+- [Delete scheduled query](#delete-scheduled-query)
+- [Get packs specs](#get-packs-specs)
+- [Apply packs specs](#apply-packs-specs)
+- [Get pack spec by name](#get-pack-spec-by-name)
+
 ### Create pack
 
 `POST /api/v1/kolide/packs`
@@ -1198,9 +1213,9 @@ None.
 {}
 ```
 
-### Delete pack by ID
+### Get scheduled queries in a pack
 
-`DELETE /api/v1/kolide/packs/id/{id}`
+`GET /api/v1/kolide/packs/{id}/scheduled`
 
 #### Parameters
 
@@ -1210,7 +1225,227 @@ None.
 
 #### Example
 
-`DELETE /api/v1/kolide/packs/id/1`
+`GET /api/v1/kolide/packs/1/scheduled`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "scheduled": [
+    {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 49,
+      "pack_id": 15,
+      "name": "new_query",
+      "query_id": 289,
+      "query_name": "new_query",
+      "query": "SELECT * FROM osquery_info",
+      "interval": 456,
+      "snapshot": false,
+      "removed": true,
+      "shard": null
+    },
+    {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 50,
+      "pack_id": 15,
+      "name": "new_title_for_my_query",
+      "query_id": 288,
+      "query_name": "new_title_for_my_query",
+      "query": "SELECT * FROM osquery_info",
+      "interval": 677,
+      "snapshot": true,
+      "removed": false,
+      "shard": null
+    },
+    {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 51,
+      "pack_id": 15,
+      "name": "osquery_info",
+      "query_id": 22,
+      "query_name": "osquery_info",
+      "query": "select i.*, p.resident_size, p.user_time, p.system_time, time.minutes as counter from osquery_info i, processes p, time where p.pid = i.pid;",
+      "interval": 6667,
+      "snapshot": true,
+      "removed": false,
+      "shard": null
+    },
+  ]
+}
+```
+
+### Add scheduled query to a pack
+
+`POST /api/v1/kolide/schedule`
+
+#### Parameters
+
+| Name | Type    | In    | Description                  |
+| ---- | ------- | ----- | ---------------------------- |
+| pack_id   | integer | body | **Required.** The pack's ID. |
+| query_id   | integer | body | **Required.** The query's ID. |
+| interval   | integer | body | **Required.** The amount of time, in seconds, the query waits before running. |
+| snapshot   | boolean | body | **Required.** Whether the queries logs show everything in its current state. |
+| removed   | boolean | body | **Required.** Whether "removed" actions should be logged. |
+| platform   | string | body | The computer platform where this query will run (other platforms ignored). |
+| shard   | integer | body | Restrict this query to a percentage (1-100) of target hosts. |
+| version   | string | body | The minimum required osqueryd version installed on a host. |
+
+#### Example
+
+`POST /api/v1/kolide/schedule`
+
+#### Request body 
+
+```
+{
+  "interval": 120,
+  "pack_id": 15,
+  "query_id": 23,
+  "removed": true,
+  "shard": null,
+  "snapshot": false,
+  "version": "4.5.0",
+  "platform": "windows"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "scheduled": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 56,
+    "pack_id": 17,
+    "name": "osquery_events",
+    "query_id": 23,
+    "query_name": "osquery_events",
+    "query": "select name, publisher, type, subscriptions, events, active from osquery_events;",
+    "interval": 120,
+    "snapshot": false,
+    "removed": true,
+    "platform": "windows",
+    "version": "4.5.0",
+    "shard": 10
+  }
+}
+```
+
+### Get scheduled query
+
+`GET /api/v1/kolide/schedule/{id}`
+
+#### Parameters
+
+| Name | Type    | In    | Description                  |
+| ---- | ------- | ----- | ---------------------------- |
+| id   | integer | path | **Required.** The scheduled query's ID. |
+
+#### Example
+
+`GET /api/v1/kolide/schedule/56`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "scheduled": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 56,
+    "pack_id": 17,
+    "name": "osquery_events",
+    "query_id": 23,
+    "query_name": "osquery_events",
+    "query": "select name, publisher, type, subscriptions, events, active from osquery_events;",
+    "interval": 120,
+    "snapshot": false,
+    "removed": true,
+    "platform": "windows",
+    "version": "4.5.0",
+    "shard": 10
+  }
+}
+```
+
+### Modify scheduled query
+
+`PATCH /api/v1/kolide/schedule/{id}`
+
+#### Parameters
+
+| Name | Type    | In    | Description                  |
+| ---- | ------- | ----- | ---------------------------- |
+| id   | integer | path | **Required.** The scheduled query's ID. |
+| interval   | integer | body | The amount of time, in seconds, the query waits before running. |
+| snapshot   | boolean | body | Whether the queries logs show everything in its current state. |
+| removed   | boolean | body | Whether "removed" actions should be logged. |
+| platform   | string | body | The computer platform where this query will run (other platforms ignored). |
+| shard   | integer | body | Restrict this query to a percentage (1-100) of target hosts. |
+| version   | string | body | The minimum required osqueryd version installed on a host. |
+
+#### Example
+
+`PATCH /api/v1/kolide/schedule/56`
+
+#### Request body 
+
+```
+{
+  "platform": "",
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "scheduled": {
+    "created_at": "2021-01-28T19:40:04Z",
+    "updated_at": "2021-01-28T19:40:04Z",
+    "id": 56,
+    "pack_id": 17,
+    "name": "osquery_events",
+    "query_id": 23,
+    "query_name": "osquery_events",
+    "query": "select name, publisher, type, subscriptions, events, active from osquery_events;",
+    "interval": 120,
+    "snapshot": false,
+    "removed": true,
+    "platform": "",
+    "version": "4.5.0",
+    "shard": 10
+  }
+}
+```
+
+### Delete scheduled query
+
+`DELETE /api/v1/kolide/schedule/{id}`
+
+#### Parameters
+
+| Name | Type    | In    | Description                  |
+| ---- | ------- | ----- | ---------------------------- |
+| id   | integer | path | **Required.** The scheduled query's ID. |
+
+#### Example
+
+`DELETE /api/v1/kolide/schedule/56`
 
 ##### Default response
 
@@ -1218,6 +1453,298 @@ None.
 
 ```
 {}
+```
+
+### Get packs specs
+
+Returns the specs for all packs in the Fleet instance.
+
+`GET /api/v1/kolide/spec/packs`
+
+#### Example
+
+`GET /api/v1/kolide/spec/packs`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "specs": [
+    {
+      "id": 1,
+      "name": "pack_1",
+      "description": "Description",
+      "disabled": false,
+      "targets": {
+        "labels": [
+          "All Hosts"
+        ]
+      },
+      "queries": [
+        {
+          "query": "new_query",
+          "name": "new_query",
+          "description": "",
+          "interval": 456,
+          "snapshot": false,
+          "removed": true
+        },
+        {
+          "query": "new_title_for_my_query",
+          "name": "new_title_for_my_query",
+          "description": "",
+          "interval": 677,
+          "snapshot": true,
+          "removed": false
+        },
+        {
+          "query": "osquery_info",
+          "name": "osquery_info",
+          "description": "",
+          "interval": 6667,
+          "snapshot": true,
+          "removed": false
+        },
+        {
+          "query": "query1",
+          "name": "query1",
+          "description": "",
+          "interval": 7767,
+          "snapshot": false,
+          "removed": true
+        },
+        {
+          "query": "osquery_events",
+          "name": "osquery_events",
+          "description": "",
+          "interval": 454,
+          "snapshot": false,
+          "removed": true
+        },
+        {
+          "query": "osquery_events",
+          "name": "osquery_events-1",
+          "description": "",
+          "interval": 120,
+          "snapshot": false,
+          "removed": true
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "pack_2",
+      "disabled": false,
+      "targets": {
+        "labels": null
+      },
+      "queries": [
+        {
+          "query": "new_query",
+          "name": "new_query",
+          "description": "",
+          "interval": 333,
+          "snapshot": false,
+          "removed": true,
+          "platform": "windows"
+        }
+      ]
+    },
+  ]
+}
+```
+
+### Apply packs specs
+
+Returns the specs for all packs in the Fleet instance.
+
+`POST /api/v1/kolide/spec/packs`
+
+#### Parameters
+
+| Name | Type    | In    | Description                  |
+| ---- | ------- | ----- | ---------------------------- |
+| specs   | list | body | **Required.** A list that includes the specs for each pack to be added to the Fleet instance. |
+
+#### Example
+
+`POST /api/v1/kolide/spec/packs`
+
+##### Request body
+
+```
+{
+  "specs": [
+    {
+      "id": 1,
+      "name": "pack_1",
+      "description": "Description",
+      "disabled": false,
+      "targets": {
+        "labels": [
+          "All Hosts"
+        ]
+      },
+      "queries": [
+        {
+          "query": "new_query",
+          "name": "new_query",
+          "description": "",
+          "interval": 456,
+          "snapshot": false,
+          "removed": true
+        },
+        {
+          "query": "new_title_for_my_query",
+          "name": "new_title_for_my_query",
+          "description": "",
+          "interval": 677,
+          "snapshot": true,
+          "removed": false
+        },
+        {
+          "query": "osquery_info",
+          "name": "osquery_info",
+          "description": "",
+          "interval": 6667,
+          "snapshot": true,
+          "removed": false
+        },
+        {
+          "query": "query1",
+          "name": "query1",
+          "description": "",
+          "interval": 7767,
+          "snapshot": false,
+          "removed": true
+        },
+        {
+          "query": "osquery_events",
+          "name": "osquery_events",
+          "description": "",
+          "interval": 454,
+          "snapshot": false,
+          "removed": true
+        },
+        {
+          "query": "osquery_events",
+          "name": "osquery_events-1",
+          "description": "",
+          "interval": 120,
+          "snapshot": false,
+          "removed": true
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "pack_2",
+      "disabled": false,
+      "targets": {
+        "labels": null
+      },
+      "queries": [
+        {
+          "query": "new_query",
+          "name": "new_query",
+          "description": "",
+          "interval": 333,
+          "snapshot": false,
+          "removed": true,
+          "platform": "windows"
+        }
+      ]
+    },
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
+### Get pack spec by name
+
+Returns the spec for the specified pack by pack name.
+
+`GET /api/v1/kolide/spec/packs/{name}`
+
+#### Parameters
+
+| Name | Type    | In    | Description                  |
+| ---- | ------- | ----- | ---------------------------- |
+| name   | string | path | **Required.** The pack's name. |
+
+#### Example
+
+`GET /api/v1/kolide/spec/packs/pack_1`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "specs": {
+    "id": 15,
+    "name": "pack_1",
+    "description": "Description",
+    "disabled": false,
+    "targets": {
+      "labels": [
+        "All Hosts"
+      ]
+    },
+    "queries": [
+      {
+        "query": "new_title_for_my_query",
+        "name": "new_title_for_my_query",
+        "description": "",
+        "interval": 677,
+        "snapshot": true,
+        "removed": false
+      },
+      {
+        "query": "osquery_info",
+        "name": "osquery_info",
+        "description": "",
+        "interval": 6667,
+        "snapshot": true,
+        "removed": false
+      },
+      {
+        "query": "query1",
+        "name": "query1",
+        "description": "",
+        "interval": 7767,
+        "snapshot": false,
+        "removed": true
+      },
+      {
+        "query": "osquery_events",
+        "name": "osquery_events",
+        "description": "",
+        "interval": 454,
+        "snapshot": false,
+        "removed": true
+      },
+      {
+        "query": "osquery_events",
+        "name": "osquery_events-1",
+        "description": "",
+        "interval": 120,
+        "snapshot": false,
+        "removed": true
+      }
+    ]
+  }
+}
 ```
 
 ---
