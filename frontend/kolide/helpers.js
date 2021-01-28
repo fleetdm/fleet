@@ -1,5 +1,6 @@
 import { flatMap, omit, pick, size } from 'lodash';
 import md5 from 'js-md5';
+import moment from 'moment';
 
 const ORG_INFO_ATTRS = ['org_name', 'org_logo_url'];
 const ADMIN_ATTRS = ['email', 'name', 'password', 'password_confirmation', 'username'];
@@ -216,6 +217,35 @@ const setupData = (formData) => {
   };
 };
 
+const BYTES_PER_GIGABYTE = 1074000000;
+const NANOSECONDS_PER_MILLISECOND = 1000000;
+
+const inGigaBytes = (bytes) => {
+  return (bytes / BYTES_PER_GIGABYTE).toFixed(1);
+};
+
+const inMilliseconds = (nanoseconds) => {
+  return nanoseconds / NANOSECONDS_PER_MILLISECOND;
+};
+
+export const humanHostUptime = (uptimeInNanoseconds) => {
+  const milliseconds = inMilliseconds(uptimeInNanoseconds);
+
+  return moment.duration(milliseconds, 'milliseconds').humanize();
+};
+
+export const humanHostLastSeen = (lastSeen) => {
+  return moment(lastSeen).format('MMM D YYYY, HH:mm:ss');
+};
+
+export const humanHostEnrolled = (enrolled) => {
+  return moment(enrolled).format('MMM D YYYY, HH:mm:ss');
+};
+
+export const humanHostMemory = (bytes) => {
+  return `${inGigaBytes(bytes)} GB`;
+};
+
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
@@ -223,6 +253,10 @@ export default {
   formatScheduledQueryForClient,
   formatScheduledQueryForServer,
   formatSelectedTargetsForApi,
+  humanHostUptime,
+  humanHostLastSeen,
+  humanHostEnrolled,
+  humanHostMemory,
   labelSlug,
   setupData,
 };

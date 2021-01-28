@@ -8,6 +8,13 @@ export default (client) => {
 
       return client.authenticatedDelete(endpoint);
     },
+    load: (hostID) => {
+      const { HOSTS } = endpoints;
+      const endpoint = client._endpoint(`${HOSTS}/${hostID}`);
+
+      return client.authenticatedGet(endpoint)
+        .then(response => response.host);
+    },
     loadAll: (page = 1, perPage = 100, selected = '') => {
       const { HOSTS, LABEL_HOSTS } = endpoints;
       const pagination = `page=${page - 1}&per_page=${perPage}&order_key=host_name`;

@@ -20,6 +20,9 @@ export default {
   LOGIN: `${URL_PREFIX}/login`,
   LOGOUT: `${URL_PREFIX}/logout`,
   MANAGE_HOSTS: `${URL_PREFIX}/hosts/manage`,
+  HOST_DETAILS: (host) => {
+    return `${URL_PREFIX}/hosts/${host.id}`;
+  },
   MANAGE_PACKS: `${URL_PREFIX}/packs/manage`,
   NEW_PACK: `${URL_PREFIX}/packs/new`,
   MANAGE_QUERIES: `${URL_PREFIX}/queries/manage`,

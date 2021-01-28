@@ -1,0 +1,160 @@
+.host-details {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 50px;
+  min-width: 0;
+
+  .section {
+    display: flex;
+    flex-direction: column;
+    margin: 40px 0 0;
+
+    &__header {
+      margin: 0 0 16px;
+      font-size: $x-small;
+      font-weight: $bold;
+    }
+
+    .info {
+      display: flex;
+
+      &__item {
+        font-size: $x-small;
+        display: flex;
+        flex-direction: column;
+        white-space: nowrap;
+
+        &--title {
+          margin-right: 40px;
+        }
+
+      }
+
+      &__header {
+        color: $core-medium-blue-grey;
+      }
+
+    }
+
+    .list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+
+      &__item {
+        margin-bottom: 12px;
+        display: flex;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+    }
+  }
+
+  .title {
+    flex-direction: row;
+    justify-content: space-between;
+    border-bottom: 1px solid $ui-borders;
+    margin: 0;
+
+    &__inner {
+      padding-bottom: 16px;
+    }
+
+    .hostname {
+      font-size: $large;
+      margin-bottom: 16px;
+    }
+  }
+
+  .about {
+    .info {
+
+      &__item {
+
+        &--about {
+          margin-right: 92px;
+          flex-direction: row;
+        }
+
+
+      }
+
+      &__block {
+        display: flex;
+        flex-direction: column;
+        margin-right: 40px;
+
+        span {
+          margin-bottom: 16px;
+
+          &:last-child {
+            margin-bottom: 0;
+          }
+        }
+      }
+
+    }
+  }
+
+  .status {
+    color: $core-dark-blue-grey;
+    text-transform: capitalize;
+
+    &--online {
+      &:before {
+        background-color: $success;
+        border-radius: 100%;
+        content: ' ';
+        display: inline-block;
+        height: 8px;
+        margin-right: 8px;
+        width: 8px;
+      }
+    }
+
+    &--offline {
+      &:before {
+        background-color: $ui-dark-grey;
+        border-radius: 100%;
+        content: ' ';
+        display: inline-block;
+        height: 8px;
+        margin-right: 8px;
+        width: 8px;
+      }
+    }
+  }
+
+  &__action-button-container {
+    display: flex;
+    align-items: flex-start;
+  }
+
+  &__query-button {
+    margin-right: 12px;
+  }
+
+  &__modal {
+    p {
+      font-size: 16px;
+    }
+  }
+
+  &__modal-buttons {
+    display: flex;
+    flex-direction: row-reverse;
+
+    .button--alert {
+      margin-left: 15px;
+    }
+  }
+
+  &__tooltip-text {
+    font-size: $x-small;
+    display: flex;
+    justify-content: center;
+    text-align: center;
+  }
+}
