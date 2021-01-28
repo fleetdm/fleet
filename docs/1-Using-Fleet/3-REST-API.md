@@ -2037,7 +2037,7 @@ None.
 | interval   | integer | body | **Required.** The amount of time, in seconds, the query waits before running. |
 | snapshot   | boolean | body | **Required.** Whether the queries logs show everything in its current state. |
 | removed   | boolean | body | **Required.** Whether "removed" actions should be logged. |
-| platform   | string | body | The computer platform where this query will run (other platforms ignored). |
+| platform   | string | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. |
 | shard   | integer | body | Restrict this query to a percentage (1-100) of target hosts. |
 | version   | string | body | The minimum required osqueryd version installed on a host. |
 
@@ -2136,7 +2136,7 @@ None.
 | interval   | integer | body | The amount of time, in seconds, the query waits before running. |
 | snapshot   | boolean | body | Whether the queries logs show everything in its current state. |
 | removed   | boolean | body | Whether "removed" actions should be logged. |
-| platform   | string | body | The computer platform where this query will run (other platforms ignored). |
+| platform   | string | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. |
 | shard   | integer | body | Restrict this query to a percentage (1-100) of target hosts. |
 | version   | string | body | The minimum required osqueryd version installed on a host. |
 
@@ -3068,4 +3068,7 @@ Modifies the osquery options configuration set in Fleet.
 ```
 
 ---
+<<<<<<< HEAD
 
+=======
+>>>>>>> 54f46b944e0ed2f127022739fa5959dca40f5217

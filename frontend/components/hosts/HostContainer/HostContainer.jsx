@@ -14,8 +14,7 @@ class HostContainer extends Component {
     hosts: PropTypes.arrayOf(hostInterface),
     selectedLabel: labelInterface,
     loadingHosts: PropTypes.bool.isRequired,
-    toggleDeleteHostModal: PropTypes.func,
-    onQueryHost: PropTypes.func,
+    onHostClick: PropTypes.func,
   };
 
   renderNoHosts = () => {
@@ -47,13 +46,12 @@ class HostContainer extends Component {
   }
 
   renderHosts = () => {
-    const { hosts, toggleDeleteHostModal, onQueryHost } = this.props;
+    const { hosts, onHostClick } = this.props;
 
     return (
       <HostsTable
         hosts={hosts}
-        onDestroyHost={toggleDeleteHostModal}
-        onQueryHost={onQueryHost}
+        onHostClick={onHostClick}
       />
     );
   }

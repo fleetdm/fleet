@@ -21,12 +21,9 @@ import statusLabelsInterface from 'interfaces/status_labels';
 import enrollSecretInterface from 'interfaces/enroll_secret';
 import { selectOsqueryTable } from 'redux/nodes/components/QueryPages/actions';
 import {
-  getStatusLabelCounts,
   setPagination,
 } from 'redux/nodes/components/ManageHostsPage/actions';
-import hostActions from 'redux/nodes/entities/hosts/actions';
 import labelActions from 'redux/nodes/entities/labels/actions';
-import { renderFlash } from 'redux/nodes/notifications/actions';
 import entityGetter from 'redux/utilities/entityGetter';
 import PATHS from 'router/paths';
 import deepDifference from 'utilities/deep_difference';
@@ -71,7 +68,6 @@ export class ManageHostsPage extends PureComponent {
       isEditLabel: false,
       labelQueryText: '',
       pagedHosts: [],
-      showDeleteHostModal: false,
       showAddHostModal: false,
       selectedHost: null,
       showDeleteLabelModal: false,
@@ -108,28 +104,19 @@ export class ManageHostsPage extends PureComponent {
     return false;
   }
 
+  onHostClick = (host) => {
+    const { dispatch } = this.props;
+
+    dispatch(push(PATHS.HOST_DETAILS(host)));
+
+    return false;
+  }
+
   onAddHostClick = (evt) => {
     evt.preventDefault();
 
     const { toggleAddHostModal } = this;
     toggleAddHostModal();
-
-    return false;
-  }
-
-  onDestroyHost = (evt) => {
-    evt.preventDefault();
-
-    const { dispatch } = this.props;
-    const { selectedHost } = this.state;
-
-    dispatch(hostActions.destroy(selectedHost))
-      .then(() => {
-        this.toggleDeleteHostModal(null)();
-
-        dispatch(getStatusLabelCounts);
-        dispatch(renderFlash('success', `Host "${selectedHost.hostname}" was successfully deleted`));
-      });
 
     return false;
   }
@@ -205,22 +192,6 @@ export class ManageHostsPage extends PureComponent {
       });
   }
 
-  onQueryHost = (host) => {
-    return (evt) => {
-      evt.preventDefault();
-
-      const { dispatch } = this.props;
-      const { NEW_QUERY } = PATHS;
-
-      dispatch(push({
-        pathname: NEW_QUERY,
-        query: { host_ids: [host.id] },
-      }));
-
-      return false;
-    };
-  }
-
   clearHostUpdates () {
     if (this.timeout) {
       global.window.clearTimeout(this.timeout);
@@ -242,19 +213,6 @@ export class ManageHostsPage extends PureComponent {
     const { showAddHostModal } = this.state;
     this.setState({ showAddHostModal: !showAddHostModal });
     return false;
-  }
-
-  toggleDeleteHostModal = (selectedHost) => {
-    return () => {
-      const { showDeleteHostModal } = this.state;
-
-      this.setState({
-        selectedHost,
-        showDeleteHostModal: !showDeleteHostModal,
-      });
-
-      return false;
-    };
   }
 
   toggleDeleteLabelModal = () => {
@@ -292,30 +250,6 @@ export class ManageHostsPage extends PureComponent {
           enrollSecret={enrollSecret}
           config={config}
         />
-      </Modal>
-    );
-  }
-
-  renderDeleteHostModal = () => {
-    const { showDeleteHostModal, selectedHost } = this.state;
-    const { toggleDeleteHostModal, onDestroyHost } = this;
-
-    if (!showDeleteHostModal) {
-      return false;
-    }
-
-    return (
-      <Modal
-        title="Delete Host"
-        onExit={toggleDeleteHostModal(null)}
-        className={`${baseClass}__modal`}
-      >
-        <p>This action will delete the host <strong>{selectedHost.hostname}</strong> from your Fleet instance.</p>
-        <p>If the host comes back online it will automatically re-enroll. To prevent the host from re-enrolling please disable or uninstall osquery on the host.</p>
-        <div className={`${baseClass}__modal-buttons`}>
-          <Button onClick={onDestroyHost} variant="alert">Delete</Button>
-          <Button onClick={toggleDeleteHostModal(null)} variant="inverse">Cancel</Button>
-        </div>
       </Modal>
     );
   }
@@ -503,17 +437,15 @@ export class ManageHostsPage extends PureComponent {
 
   render () {
     const {
-      onQueryHost,
       onPaginationChange,
+      onHostClick,
       renderForm,
       renderHeader,
       renderSidePanel,
       renderAddHostModal,
-      renderDeleteHostModal,
       renderDeleteLabelModal,
       renderQuery,
       toggleAddHostModal,
-      toggleDeleteHostModal,
     } = this;
     const {
       page,
@@ -575,8 +507,7 @@ export class ManageHostsPage extends PureComponent {
                 selectedLabel={selectedLabel}
                 loadingHosts={loadingHosts}
                 toggleAddHostModal={toggleAddHostModal}
-                toggleDeleteHostModal={toggleDeleteHostModal}
-                onQueryHost={onQueryHost}
+                onHostClick={onHostClick}
               />
               {!loadingHosts && <HostPagination
                 allHostCount={hostCount}
@@ -590,7 +521,6 @@ export class ManageHostsPage extends PureComponent {
 
         {!loadingLabels && renderSidePanel()}
         {renderAddHostModal()}
-        {renderDeleteHostModal()}
         {renderDeleteLabelModal()}
       </div>
     );

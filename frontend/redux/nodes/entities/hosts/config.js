@@ -9,6 +9,7 @@ export default new Config({
   destroyFunc: Kolide.hosts.destroy,
   entityName: 'hosts',
   loadAllFunc: Kolide.hosts.loadAll,
+  loadFunc: Kolide.hosts.load,
   parseEntityFunc,
   schema,
 });

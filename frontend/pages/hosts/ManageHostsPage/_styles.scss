@@ -81,21 +81,6 @@
     margin: 0;
   }
 
-  &__modal {
-    p {
-      font-size: 16px;
-    }
-  }
-
-  &__modal-buttons {
-    display: flex;
-    flex-direction: row-reverse;
-
-    .button--alert {
-      margin-left: 15px;
-    }
-  }
-
   &__toggle-view {
     .kolidecon {
       width: 24px;
