@@ -3068,7 +3068,3 @@ Modifies the osquery options configuration set in Fleet.
 ```
 
 ---
-<<<<<<< HEAD
-
-=======
->>>>>>> 54f46b944e0ed2f127022739fa5959dca40f5217
