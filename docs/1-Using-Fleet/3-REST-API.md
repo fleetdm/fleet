@@ -1079,7 +1079,7 @@ Returns all information about a specific user.
 
 | Name | Type    | In    | Description                  |
 | ---- | ------- | ----- | ---------------------------- |
-| id   | integer | query | **Required**. The user's id. |
+| id   | integer | path | **Required**. The user's id. |
 
 #### Example
 
@@ -2896,7 +2896,7 @@ Delete the specified invite from Fleet.
 
 | Name       | Type    | In   | Description                                      |
 | ---------- | ------- | ---- | ------------------------------------------------ |
-| id   | integer  | query | **Required.** The user's id.            |
+| id   | integer  | path | **Required.** The user's id.            |
 
 #### Example
 
@@ -2921,7 +2921,7 @@ Verify the specified invite.
 
 | Name       | Type    | In   | Description                                      |
 | ---------- | ------- | ---- | ------------------------------------------------ |
-| token   | integer  | query | **Required.** The user's invite token.            |
+| token   | integer  | path | **Required.** The user's invite token.            |
 
 #### Example
 
@@ -2962,7 +2962,6 @@ Verify the specified invite.
     ]
 }
 ```
-
 ---
 
 ## Osquery options

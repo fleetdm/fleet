@@ -217,6 +217,7 @@ func setupPackSpecsTest(t *testing.T, ds kolide.Datastore) []*kolide.PackSpec {
 					Name:      "foo_snapshot",
 					Interval:  600,
 					Snapshot:  boolPtr(true),
+					Denylist:  boolPtr(false),
 				},
 				kolide.PackSpecQuery{
 					Name:      "q2",
@@ -226,6 +227,7 @@ func setupPackSpecsTest(t *testing.T, ds kolide.Datastore) []*kolide.PackSpec {
 					Shard:     uintPtr(73),
 					Platform:  stringPtr("foobar"),
 					Version:   stringPtr("0.0.0.0.0.1"),
+					Denylist:  boolPtr(true),
 				},
 			},
 		},

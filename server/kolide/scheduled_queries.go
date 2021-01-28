@@ -37,6 +37,7 @@ type ScheduledQuery struct {
 	Platform    *string `json:"platform,omitempty"`
 	Version     *string `json:"version,omitempty"`
 	Shard       *uint   `json:"shard"`
+	Denylist    *bool   `json:"denylist"`
 }
 
 type ScheduledQueryPayload struct {
@@ -48,4 +49,5 @@ type ScheduledQueryPayload struct {
 	Platform *string   `json:"platform"`
 	Version  *string   `json:"version"`
 	Shard    *null.Int `json:"shard"`
+	Denylist *bool     `json:"denylist"`
 }

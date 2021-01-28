@@ -41,6 +41,9 @@ Welcome to Fleet! This issue tracks TODOs required for all new teammates for you
   - [ ] Install the RingCentral mobile app, if appropriate
 - [ ] Ask your manager about getting set up with an account to log in to our CRM (Salesforce)
   - [ ] Accept your invite to Salesforce
+    - [ ] Add a consistent profile picture
+    - [ ] Enable "Einstein Activity Capture", linking your work email address / calendar / docs
+      - [ ] Then, under ["Sharing Settings"](https://fleetdm.lightning.force.com/lightning/settings/personal/EmailStreamSharingSettings/home) choose "Share with everyone".  (This helps us avoid asking folks the same question more than once.)
 
 
 ## TODOs for your manager
@@ -57,6 +60,7 @@ Welcome to Fleet! This issue tracks TODOs required for all new teammates for you
 - [ ] Google Workspace (email address) and appropriate group membership
 - [ ] [OnePassword]
     - [ ] Add to vaults (after the invite is accepted)
+- [ ] _If using a company-issued laptop or other equipment >$500 USD (per item):_ Add new equipment to [fixed asset tracking doc](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0)
 - [ ] https://app.orbit.love
 - [ ] Trello
 - [ ] Fleet Slack

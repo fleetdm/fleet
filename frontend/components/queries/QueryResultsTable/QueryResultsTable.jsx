@@ -56,7 +56,7 @@ class QueryResultsTable extends Component {
     };
   }
 
-  renderTableHeaderRowData = (column, index) => {
+  renderTableHeaderColumn = (column, index) => {
     const filterable = column === 'hostname' ? 'host_hostname' : column;
     const { activeColumn, resultsFilter } = this.state;
     const { onFilterAttribute, onSetActiveColumn } = this;
@@ -77,33 +77,29 @@ class QueryResultsTable extends Component {
     );
   }
 
-  renderTableHeaderRow = () => {
-    const { campaign } = this.props;
-    const { renderTableHeaderRowData } = this;
-    const { query_results: queryResults } = campaign;
+  renderTableHeaderRow = (rows) => {
+    const { renderTableHeaderColumn } = this;
 
-    const queryAttrs = omit(queryResults[0], ['host_hostname']);
+    const queryAttrs = omit(rows[0], ['host_hostname']);
     const queryResultColumns = keys(queryAttrs);
 
     return (
       <tr>
-        {renderTableHeaderRowData('hostname', -1)}
+        {renderTableHeaderColumn('hostname', -1)}
         {queryResultColumns.map((column, i) => {
-          return renderTableHeaderRowData(column, i);
+          return renderTableHeaderColumn(column, i);
         })}
       </tr>
     );
   }
 
-  renderTableRows = () => {
-    const { campaign } = this.props;
-    const { query_results: queryResults } = campaign;
+  renderTableRows = (rows) => {
     const { resultsFilter } = this.state;
-    const filteredQueryResults = filterArrayByHash(queryResults, resultsFilter);
+    const filteredRows = filterArrayByHash(rows, resultsFilter);
 
-    return filteredQueryResults.map((queryResult) => {
+    return filteredRows.map((row) => {
       return (
-        <QueryResultsRow queryResult={queryResult} />
+        <QueryResultsRow queryResult={row} />
       );
     });
   }
@@ -116,7 +112,6 @@ class QueryResultsTable extends Component {
 
     const { queryIsRunning, campaign } = this.props;
     const { query_results: queryResults } = campaign;
-
     const loading = queryIsRunning && (!queryResults || !queryResults.length);
 
     if (loading) {
@@ -126,10 +121,37 @@ class QueryResultsTable extends Component {
     return (
       <table className={`${baseClass}__table`}>
         <thead>
-          {renderTableHeaderRow()}
+          {renderTableHeaderRow(queryResults)}
         </thead>
         <tbody>
-          {renderTableRows()}
+          {renderTableRows(queryResults)}
+        </tbody>
+      </table>
+    );
+  }
+
+  renderErrorsTable = () => {
+    const {
+      renderTableHeaderRow,
+      renderTableRows,
+    } = this;
+
+    const { queryIsRunning, campaign } = this.props;
+    const { errors } = campaign;
+
+    const loading = queryIsRunning && (!errors || !errors.length);
+
+    if (loading) {
+      return <Spinner />;
+    }
+
+    return (
+      <table className={`${baseClass}__table`}>
+        <thead>
+          {renderTableHeaderRow(errors)}
+        </thead>
+        <tbody>
+          {renderTableRows(errors)}
         </tbody>
       </table>
     );
@@ -148,10 +170,11 @@ class QueryResultsTable extends Component {
       queryTimerMilliseconds,
     } = this.props;
 
-    const { renderTable } = this;
+    const { renderTable, renderErrorsTable } = this;
 
-    const { hosts_count: hostsCount, query_results: queryResults } = campaign;
+    const { hosts_count: hostsCount, query_results: queryResults, errors } = campaign;
     const hasNoResults = !queryIsRunning && (!hostsCount.successful || (!queryResults || !queryResults.length));
+    const hasErrors = !queryIsRunning && (hostsCount.failed || errors);
 
     const resultsTableWrapClass = classnames(baseClass, {
       [`${baseClass}--full-screen`]: isQueryFullScreen,
@@ -174,7 +197,6 @@ class QueryResultsTable extends Component {
             className={`${baseClass}__full-screen`}
             queryTimerMilliseconds={queryTimerMilliseconds}
           />}
-
           <Button
             className={toggleFullScreenBtnClass}
             onClick={onToggleQueryFullScreen}
@@ -187,13 +209,22 @@ class QueryResultsTable extends Component {
             onClick={onExportQueryResults}
             variant="inverse"
           >
-            Export
+            Export results
           </Button>
         </header>
-        <div className={`${baseClass}__table-wrapper`}>
-          {hasNoResults && <em className="no-results-message">No results found</em>}
+        <span className={`${baseClass}__table-title`}>Results</span>
+        <div className={`${baseClass}__results-table-wrapper`}>
+          {hasNoResults && <span className="no-results-message">No results found. Check the table below for errors.</span>}
           {!hasNoResults && renderTable()}
         </div>
+        {hasErrors &&
+        <div className={`${baseClass}__error-table-container`}>
+          <span className={`${baseClass}__table-title`}>Errors</span>
+          <div className={`${baseClass}__error-table-wrapper`}>
+            {renderErrorsTable()}
+          </div>
+        </div>
+        }
       </div>
     );
   }

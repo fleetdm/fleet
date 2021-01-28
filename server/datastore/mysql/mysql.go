@@ -193,22 +193,22 @@ func (d *Datastore) MigrationStatus() (kolide.MigrationStatus, error) {
 
 	lastTablesMigration, err := tables.MigrationClient.Migrations.Last()
 	if err != nil {
-		return 0, errors.New("missing tables migrations")
+		return 0, errors.Wrap(err, "missing tables migrations")
 	}
 
 	currentTablesVersion, err := tables.MigrationClient.GetDBVersion(d.db.DB)
 	if err != nil {
-		return 0, errors.New("cannot get table migration status")
+		return 0, errors.Wrap(err, "cannot get table migration status")
 	}
 
 	lastDataMigration, err := data.MigrationClient.Migrations.Last()
 	if err != nil {
-		return 0, errors.New("missing data migrations")
+		return 0, errors.Wrap(err, "missing data migrations")
 	}
 
 	currentDataVersion, err := data.MigrationClient.GetDBVersion(d.db.DB)
 	if err != nil {
-		return 0, errors.New("cannot get table migration status")
+		return 0, errors.Wrap(err, "cannot get data migration status")
 	}
 
 	switch {
