@@ -16,7 +16,7 @@ import { push } from 'react-router-redux';
 import PATHS from 'router/paths';
 
 import hostInterface from 'interfaces/host';
-import { humanMemory, humanUptime, humanLastSeen, humanEnrolled } from 'components/hosts/HostsTable/helpers';
+import { humanHostUptime, humanHostLastSeen, humanHostEnrolled, humanHostMemory } from 'kolide/helpers';
 import helpers from './helpers';
 
 const baseClass = 'host-details';
@@ -112,8 +112,8 @@ export class HostDetailsPage extends Component {
         className={`${baseClass}__modal`}
       >
         <p>This action will delete the host <strong>{host.hostname}</strong> from your Fleet instance.</p>
-        <p>If the host comes back online it will automatically re-enroll.</p>
-        <p>To prevent re-enrollment, you can disable or uninstall osquery on the host.</p>
+        <p>The host will automatically re-enroll when it checks back into Fleet.</p>
+        <p>To prevent re-enrollment, you can uninstall osquery on the host or revoke the host&apos;s enroll secret.</p>
         <div className={`${baseClass}__modal-buttons`}>
           <Button onClick={() => onDestroyHost()} variant="alert">Delete</Button>
           <Button onClick={toggleDeleteHostModal(null)} variant="inverse">Cancel</Button>
@@ -137,12 +137,7 @@ export class HostDetailsPage extends Component {
         <ReactTooltip place="bottom" type="dark" effect="solid" id="query" backgroundColor="#3e4771">
           <span className={`${baseClass}__tooltip-text`}>You can’t <br /> query an <br /> offline host.</span>
         </ReactTooltip>
-        <div data-tip data-for="delete" data-tip-disable={isOffline}>
-          <Button onClick={toggleDeleteHostModal()} variant="inverse" disabled={isOnline}>Delete</Button>
-        </div>
-        <ReactTooltip place="bottom" type="dark" effect="solid" id="delete" backgroundColor="#3e4771">
-          <span className={`${baseClass}__tooltip-text`}>You can’t <br /> delete an <br /> online host.</span>
-        </ReactTooltip>
+        <Button onClick={toggleDeleteHostModal()} variant="inverse">Delete</Button>
       </div>
     );
   }
@@ -250,7 +245,7 @@ export class HostDetailsPage extends Component {
               </div>
               <div className="info__item info__item--title">
                 <span className="info__header">RAM</span>
-                <span className="info__data">{humanMemory(titleData.memory)}</span>
+                <span className="info__data">{humanHostMemory(titleData.memory)}</span>
               </div>
               <div className="info__item info__item--title">
                 <span className="info__header">CPU</span>
@@ -278,9 +273,9 @@ export class HostDetailsPage extends Component {
                 <span className="info__header">Uptime</span>
               </div>
               <div className="info__block">
-                <span className="info__data">{humanLastSeen(aboutData.seen_time)}</span>
-                <span className="info__data">{humanEnrolled(aboutData.last_enrolled_at)}</span>
-                <span className="info__data">{humanUptime(aboutData.uptime)}</span>
+                <span className="info__data">{humanHostLastSeen(aboutData.seen_time)}</span>
+                <span className="info__data">{humanHostEnrolled(aboutData.last_enrolled_at)}</span>
+                <span className="info__data">{humanHostUptime(aboutData.uptime)}</span>
               </div>
             </div>
             <div className="info__item info__item--about">

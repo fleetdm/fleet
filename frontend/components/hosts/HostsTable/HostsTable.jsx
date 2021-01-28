@@ -5,7 +5,7 @@ import classnames from 'classnames';
 import Button from 'components/buttons/Button';
 import hostInterface from 'interfaces/host';
 
-import { humanMemory, humanUptime, humanLastSeen } from './helpers';
+import helpers from 'kolide/helpers';
 
 const baseClass = 'hosts-table';
 
@@ -16,14 +16,18 @@ class HostsTable extends Component {
   };
 
   lastSeenTime = (status, seenTime) => {
+    const { humanHostLastSeen } = helpers;
+
     if (status !== 'online') {
-      return `Last Seen: ${humanLastSeen(seenTime)} UTC`;
+      return `Last Seen: ${humanHostLastSeen(seenTime)} UTC`;
     }
 
     return 'Online';
   };
 
   renderHost = (host) => {
+    const { humanHostMemory, humanHostUptime } = helpers;
+
     const { onHostClick } = this.props;
     const statusClassName = classnames(
       `${baseClass}__status`,
@@ -46,8 +50,8 @@ class HostsTable extends Component {
         <td>{host.primary_ip}</td>
         <td>{host.primary_mac}</td>
         <td>{host.host_cpu}</td>
-        <td>{humanMemory(host.memory)}</td>
-        <td>{humanUptime(host.uptime)}</td>
+        <td>{humanHostMemory(host.memory)}</td>
+        <td>{humanHostUptime(host.uptime)}</td>
       </tr>
     );
   };

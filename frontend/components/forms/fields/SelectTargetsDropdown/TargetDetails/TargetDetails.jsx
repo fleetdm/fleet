@@ -4,7 +4,7 @@ import { noop } from 'lodash';
 import AceEditor from 'react-ace';
 import classnames from 'classnames';
 
-import hostHelpers from 'components/hosts/HostsTable/helpers';
+import { humanHostMemory } from 'kolide/helpers';
 import KolideIcon from 'components/icons/KolideIcon';
 import PlatformIcon from 'components/icons/PlatformIcon';
 import targetInterface from 'interfaces/target';
@@ -99,7 +99,7 @@ class TargetDetails extends Component {
             </tr>
             <tr>
               <th>Memory</th>
-              <td>{hostHelpers.humanMemory(memory)}</td>
+              <td>{humanHostMemory(memory)}</td>
             </tr>
           </tbody>
         </table>

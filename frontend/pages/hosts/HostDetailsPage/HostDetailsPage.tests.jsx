@@ -35,7 +35,7 @@ describe('HostDetailsPage - component', () => {
   });
 
   describe('Delete a host', () => {
-    it('Deletes the host after confirmation modal', () => {
+    it('Deletes an offine host after confirmation modal', () => {
       const dispatch = () => Promise.resolve();
       const props = { ...propsWithOfflineHost, dispatch };
       const page = mount(<HostDetailsPage {...props} />);
@@ -59,6 +59,32 @@ describe('HostDetailsPage - component', () => {
       confirmBtn.simulate('click');
 
       expect(hostActions.destroy).toHaveBeenCalledWith(offlineHost);
+    });
+
+    it('Deletes an online host after confirmation modal', () => {
+      const dispatch = () => Promise.resolve();
+      const props = { ...propsWithOnlineHost, dispatch };
+      const page = mount(<HostDetailsPage {...props} />);
+      const deleteBtn = page.find('Button').at(1);
+      expect(deleteBtn.text()).toBe('Delete');
+
+      jest.spyOn(hostActions, 'destroy').mockImplementation(() => () => {
+        dispatch({ type: 'hosts_LOAD_REQUEST' });
+
+        return Promise.resolve();
+      });
+
+      expect(page.find('Modal').length).toEqual(0);
+
+      deleteBtn.simulate('click');
+
+      const confirmModal = page.find('Modal');
+      expect(confirmModal.length).toEqual(1);
+
+      const confirmBtn = confirmModal.find('.button--alert');
+      confirmBtn.simulate('click');
+
+      expect(hostActions.destroy).toHaveBeenCalledWith(onlineHost);
     });
   });
 
