@@ -16,12 +16,6 @@ $base-class: 'button';
     }
   } @else { 
 
-    &.#{$base-class}--disabled {
-      &:hover {
-        background-color: $color;
-      }
-    }
-
     &:hover {
       background-color: $hover;
     }
@@ -85,9 +79,9 @@ $base-class: 'button';
   }
 
   &--label {
-    @include button-variant($core-light-blue-grey, #426186, null, $inverse: true);
-    color: $core-medium-blue-grey;
-    border: 1px solid $core-medium-blue-grey;
+    @include button-variant($core-light-blue-grey, $core-blue-over, null, $inverse: true);
+    color: $core-blue;
+    border: 1px solid $core-blue;
     box-sizing: border-box;
     font-size: $xx-small;
     padding: 4px 10px;
@@ -98,7 +92,7 @@ $base-class: 'button';
     }
 
     &:hover {
-      border: 1px solid $core-medium-blue-grey;
+      border: 1px solid $core-blue;
     }
   }
 
@@ -153,6 +147,7 @@ $base-class: 'button';
 
   &--disabled {
     opacity: 0.4;
+    filter: grayscale(1);
     cursor: default;
 
     &:hover {

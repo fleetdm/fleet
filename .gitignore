@@ -29,3 +29,7 @@ tmp/
 
 # test mysql server data
 mysqldata/
+
+# generated lock files
+package-lock.json
+yarn.lock

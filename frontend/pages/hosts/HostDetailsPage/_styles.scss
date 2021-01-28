@@ -45,7 +45,7 @@
 
             &--offline {
               &:before {
-                background-color: $core-red;
+                background-color: $ui-dark-grey;
                 border-radius: 100%;
                 content: ' ';
                 display: inline-block;
@@ -127,6 +127,15 @@
     }
   }
 
+  &__action-button-container {
+    display: flex;
+    align-items: flex-start;
+  }
+
+  &__query-button {
+    margin-right: 12px;
+  }
+
   &__modal {
     p {
       font-size: 16px;
@@ -140,5 +149,12 @@
     .button--alert {
       margin-left: 15px;
     }
+  }
+
+  &__tooltip-text {
+    font-size: $x-small;
+    display: flex;
+    justify-content: center;
+    text-align: center;
   }
 }

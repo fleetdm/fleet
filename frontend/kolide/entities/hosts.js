@@ -11,7 +11,7 @@ export default (client) => {
     load: (hostID) => {
       const { HOSTS } = endpoints;
       const endpoint = client._endpoint(`${HOSTS}/${hostID}`);
-      console.log(endpoint)
+
       return client.authenticatedGet(endpoint)
         .then(response => response.host);
     },
