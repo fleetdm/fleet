@@ -87,41 +87,77 @@ This command will create a directory fleet-preview in the current working direct
 				}
 			}
 
-			configPath, context := c.String("config"), c.String("context")
+			configPath, context := c.String("config"), "default"
 
-			val, err := getConfigValue(configPath, context, "address")
+			contextConfig := Context{
+				Address:       address,
+				Email:         username,
+				Token:         token,
+				TLSSkipVerify: true,
+			}
+
+			config, err := readConfig(configPath)
 			if err != nil {
-				return errors.Wrap(err, "Error checking config")
+				// No existing config
+				config.Contexts["default"] = contextConfig
+			} else {
+				fmt.Println("Configured fleetctl in the 'preview' context to avoid overwriting existing config.")
+				context = "preview"
+				config.Contexts["preview"] = contextConfig
 			}
-			if v, ok := val.(string); ok && v != "" {
-				fmt.Println("Skipped fleetctl setup because there is an existing fleetctl config.")
-				fmt.Println("Fleet is now available at https://localhost:8412.")
-				fmt.Println("Username:", username)
-				fmt.Println("Password:", password)
-				fmt.Println("Note: You can safely ignore the browser warning \"Your connection is not private\". Click through this warning using the \"Advanced\" option. Chrome users may need to configure chrome://flags/#allow-insecure-localhost.")
-				return nil
-			}
+			c.Set("context", context)
 
-			if err := setConfigValue(configPath, context, "email", username); err != nil {
-				return errors.Wrap(err, "Error setting username")
-			}
-
-			if err := setConfigValue(configPath, context, "token", token); err != nil {
-				return errors.Wrap(err, "Error setting token")
-			}
-
-			if err := setConfigValue(configPath, context, "tls-skip-verify", "true"); err != nil {
-				return errors.Wrap(err, "Error setting tls-skip-verify")
-			}
-
-			if err := setConfigValue(configPath, context, "address", address); err != nil {
-				return errors.Wrap(err, "error setting address")
+			if err := writeConfig(configPath, config); err != nil {
+				return errors.Wrap(err, "Error writing fleetctl configuration")
 			}
 
 			fmt.Println("Fleet is now available at https://localhost:8412.")
 			fmt.Println("Username:", username)
 			fmt.Println("Password:", password)
 			fmt.Println("Note: You can safely ignore the browser warning \"Your connection is not private\". Click through this warning using the \"Advanced\" option. Chrome users may need to configure chrome://flags/#allow-insecure-localhost.")
+
+			// Create client and get enroll secret
+			client, err := unauthenticatedClientFromCLI(c)
+			if err != nil {
+				return errors.Wrap(err, "Error making fleetctl client")
+			}
+
+			token, err = client.Login(username, password)
+			if err != nil {
+				return errors.Wrap(err, "fleetctl login failed")
+			}
+
+			if err := setConfigValue(configPath, context, "token", token); err != nil {
+				return errors.Wrap(err, "Error setting token for the current context")
+			}
+			client.SetToken(token)
+
+			secrets, err := client.GetEnrollSecretSpec()
+			if err != nil {
+				return errors.Wrap(err, "Error retrieving enroll secret")
+			}
+
+			if len(secrets.Secrets) != 1 || !secrets.Secrets[0].Active {
+				return errors.New("Expected 1 active enroll secret")
+			}
+
+			if err := os.Chdir(filepath.Join(previewDir, "osquery")); err != nil {
+				return errors.Wrap(err, "Error getting preview osquery directory")
+			}
+
+			fmt.Println("Starting simulated hosts...")
+			cmd := exec.Command("docker-compose", "up", "-d")
+			cmd.Env = append(cmd.Env,
+				"ENROLL_SECRET="+secrets.Secrets[0].Secret,
+				"FLEET_URL="+address,
+			)
+			out, err = cmd.CombinedOutput()
+			if err != nil {
+				fmt.Println(string(out))
+				return errors.Errorf("Failed to run docker-compose")
+			}
+
+			fmt.Println("Preview environment complete. Enjoy using Fleet!")
 
 			return nil
 		},
