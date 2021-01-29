@@ -9,39 +9,16 @@ Fleet is the most widely used open source osquery manager.  Deploying osquery wi
 
 ## Try Fleet
 
-#### With [Node.js installed](https://nodejs.org/en/download/):
-```bash
-# Get the Fleet command-line tool
-npm install -g fleetctl
-```
+#### With [Node.js](https://nodejs.org/en/download/) and [Docker](https://docs.docker.com/get-docker/) installed:
 
-#### With [Docker installed](https://docs.docker.com/get-docker/):
 ```bash
+# Install the Fleet command-line tool
+npm install -g fleetctl
 # Run a local demo of the Fleet server
 fleetctl preview
 ```
 
-A local copy of the Fleet server is now running at https://localhost:8412.
-
-#### Adding hosts
-
-Now that you've finished setting up Fleet, you will want to enroll a server, container, or laptop so you have something to run queries against.
-
-> Fleet comes with simulated hosts you can use for demo purposes.  <!-- TODO: simplify this step -->
->
-> First, finish setting up Fleet in the browser and retrieve your "Enroll Secret" by clicking the "Add New Host" button in the Fleet dashboard.
-> 
-> Then after cloning this repository, `cd` into the [`osquery/`](./tools/osquery) directory:
-> ```shell
-> cd osquery/
-> ```
->
-> This directory contains configuration that can start up Docker containers running osquery agents.  To start them up:
-> ```shell
-> ENROLL_SECRET=<paste your enroll secret here> docker-compose up
-> ```
->
-> Now navigate back to https://localhost:8412 or refresh to see your new hosts in Fleet!
+A local copy of the Fleet server is now running at https://localhost:8412. The preview experience will start sample Linux hosts connected to this server.
 
 #### Your first query
 
