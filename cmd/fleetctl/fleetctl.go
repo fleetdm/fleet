@@ -46,6 +46,7 @@ func main() {
 		userCommand(),
 		debugCommand(),
 		previewCommand(),
+		updatesCommand(),
 	}
 
 	app.RunAndExitOnError()
