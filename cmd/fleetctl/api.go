@@ -46,8 +46,10 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 		return nil, err
 	}
 
+	configPath, context := c.String("config"), c.String("context")
+
 	// Add authentication token
-	t, err := getConfigValue(c, "token")
+	t, err := getConfigValue(configPath, context, "token")
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting token from the config")
 	}
