@@ -26,7 +26,9 @@ func logoutCommand() cli.Command {
 				return errors.Wrap(err, "error logging in")
 			}
 
-			if err := setConfigValue(c, "token", ""); err != nil {
+			configPath, context := c.String("config"), c.String("context")
+
+			if err := setConfigValue(configPath, context, "token", ""); err != nil {
 				return errors.Wrap(err, "error setting token for the current context")
 			}
 

@@ -87,7 +87,9 @@ This command will create a directory fleet-preview in the current working direct
 				}
 			}
 
-			val, err := getConfigValue(c, "address")
+			configPath, context := c.String("config"), c.String("context")
+
+			val, err := getConfigValue(configPath, context, "address")
 			if err != nil {
 				return errors.Wrap(err, "Error checking config")
 			}
@@ -100,19 +102,19 @@ This command will create a directory fleet-preview in the current working direct
 				return nil
 			}
 
-			if err := setConfigValue(c, "email", username); err != nil {
+			if err := setConfigValue(configPath, context, "email", username); err != nil {
 				return errors.Wrap(err, "Error setting username")
 			}
 
-			if err := setConfigValue(c, "token", token); err != nil {
+			if err := setConfigValue(configPath, context, "token", token); err != nil {
 				return errors.Wrap(err, "Error setting token")
 			}
 
-			if err := setConfigValue(c, "tls-skip-verify", "true"); err != nil {
+			if err := setConfigValue(configPath, context, "tls-skip-verify", "true"); err != nil {
 				return errors.Wrap(err, "Error setting tls-skip-verify")
 			}
 
-			if err := setConfigValue(c, "address", address); err != nil {
+			if err := setConfigValue(configPath, context, "address", address); err != nil {
 				return errors.Wrap(err, "error setting address")
 			}
 
