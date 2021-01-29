@@ -1,45 +1,50 @@
 package main
 
 import (
-	"sort"
 	"encoding/json"
 	"os"
+	"sort"
 
-	"github.com/olekukonko/tablewriter"
-	"github.com/gosuri/uilive"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/gosuri/uilive"
+	"github.com/olekukonko/tablewriter"
 )
 
-type outputWriter interface{
+type outputWriter interface {
 	WriteResult(res kolide.DistributedQueryResult) error
 }
 
 type resultOutput struct {
 	HostIdentifier string              `json:"host"`
 	Rows           []map[string]string `json:"rows"`
+	Error          *string             `json:"error,omitempty"`
 }
 
-type jsonWriter struct {}
+type jsonWriter struct{}
 
 func newJsonWriter() *jsonWriter {
 	return &jsonWriter{}
 }
 
 func (w *jsonWriter) WriteResult(res kolide.DistributedQueryResult) error {
-	out := resultOutput{res.Host.HostName, res.Rows}
+	out := resultOutput{
+		HostIdentifier: res.Host.HostName,
+		Rows:           res.Rows,
+		Error:          res.Error,
+	}
 	return json.NewEncoder(os.Stdout).Encode(out)
 }
 
 type prettyWriter struct {
 	results []kolide.DistributedQueryResult
 	columns map[string]bool
-	writer *uilive.Writer
+	writer  *uilive.Writer
 }
 
-func newPrettyWriter() *prettyWriter{
+func newPrettyWriter() *prettyWriter {
 	return &prettyWriter{
 		columns: make(map[string]bool),
-		writer: uilive.New(),
+		writer:  uilive.New(),
 	}
 }
 
