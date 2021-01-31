@@ -159,8 +159,8 @@ spec:
           - name: KOLIDE_REDIS_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: {{ .Values.redis.secretName }}
-                key: {{ .Values.redis.passwordKey }}
+                name: "{{ .Values.redis.secretName }}"
+                key: "{{ .Values.redis.passwordKey }}"
           {{- end }}
           ## END REDIS SECTION
           ## BEGIN OSQUERY SECTION
@@ -176,18 +176,21 @@ spec:
             value: "{{ .Values.osquery.logging.resultPlugin }}"
           {{- if eq .Values.osquery.logging.statusPlugin "filesystem" }}
           - name: KOLIDE_FILESYSTEM_STATUS_LOG_FILE
-            value: "{{ .Values.osquery.logging.filesystem.statusLogFile }}"
+            value: "/logs/{{ .Values.osquery.logging.filesystem.statusLogFile }}"
           {{- end }}
+
           {{- if eq .Values.osquery.logging.resultPlugin "filesystem" }}
           - name: KOLIDE_FILESYSTEM_RESULT_LOG_FILE
-            value: "{{ .Values.osquery.logging.filesystem.resultLogFile }}"
+            value: "/logs/{{ .Values.osquery.logging.filesystem.resultLogFile }}"
           {{- end }}
+
           {{- if or (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
           - name: KOLIDE_FILESYSTEM_ENABLE_LOG_ROTATION
             value: "{{ .Values.osquery.logging.filesystem.enableRotation }}"
           - name: KOLIDE_FILESYSTEM_ENABLE_LOG_COMPRESSION
             value: "{{ .Values.osquery.logging.filesystem.enableCompression }}"
           {{- end }}
+
           {{- if or (eq .Values.osquery.logging.statusPlugin "firehose") (eq .Values.osquery.logging.resultPlugin "firehose") }}
           - name: KOLIDE_FIREHOSE_REGION
             value: "{{ .Values.osquery.logging.firehose.region }}"
@@ -205,13 +208,14 @@ spec:
           - name: KOLIDE_FIREHOSE_SECRET_ACCESS_KEY
             valueFrom:
               secretKeyRef:
-                name: {{ .Values.osquery.secretName }}
-                key: {{ .Values.osquery.logging.firehose.secretKey }}
+                name: "{{ .Values.osquery.secretName }}"
+                key: "{{ .Values.osquery.logging.firehose.secretKey }}"
           {{ else }}
           - name: KOLIDE_FIREHOSE_STS_ASSUME_ROLE_ARN
             value: "{{ .Values.osquery.logging.firehose.stsAssumeRoleARN }}"
           {{- end }}
           {{- end }}
+
           {{- if or (eq .Values.osquery.logging.statusPlugin "kinesis") (eq .Values.osquery.logging.resultPlugin "kinesis") }}
           - name: KOLIDE_KINESIS_REGION
             value: "{{ .Values.osquery.logging.kinesis.region }}"
@@ -229,16 +233,18 @@ spec:
           - name: KOLIDE_KINESIS_SECRET_ACCESS_KEY
             valueFrom:
               secretKeyRef:
-                name: {{ .Values.osquery.secretName }}
-                key: {{ .Values.osquery.logging.kinesis.secretKey }}
+                name: "{{ .Values.osquery.secretName }}"
+                key: "{{ .Values.osquery.logging.kinesis.secretKey }}"
           {{ else }}
           - name: KOLIDE_KINESIS_STS_ASSUME_ROLE_ARN
             value: "{{ .Values.osquery.logging.kinesis.stsAssumeRoleARN }}"
           {{- end }}
           {{- end }}
+
           {{- if or (eq .Values.osquery.logging.statusPlugin "pubsub") (eq .Values.osquery.logging.resultPlugin "pubsub") }}
           - name: KOLIDE_PUBSUB_PROJECT
             value: "{{ .Values.osquery.logging.pubsub.project }}"
+          {{- end }}
           {{- if eq .Values.osquery.logging.statusPlugin "pubsub" }}
           - name: KOLIDE_PUBSUB_STATUS_TOPIC
             value: "{{ .Values.osquery.logging.pubsub.statusTopic }}"
@@ -265,7 +271,7 @@ spec:
           httpGet:
             path: /healthz
             port: {{ .Values.fleet.listenPort }}
-        {{- if or (.Values.fleet.tls.enabled) (.Values.mysql.tls.enabled) }}
+        {{- if or (.Values.fleet.tls.enabled) (.Values.mysql.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
         volumeMounts:
           {{- if .Values.fleet.tls.enabled }}
           - name: fleet-tls
@@ -277,10 +283,14 @@ spec:
             readOnly: true
             mountPath: /secrets/mysql
           {{- end }}
+          {{- if or (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
+          - name: osquery-logs
+            mountPath: /logs
+          {{- end }}
         {{- end }}
       {{- if .Values.gke.cloudSQL.enableProxy }}
       - name: cloudsql-proxy
-        image: gcr.io/cloudsql-docker/gce-proxy:{{ .Values.gke.cloudSQL.imageTag }}
+        image: "gcr.io/cloudsql-docker/gce-proxy:{{ .Values.gke.cloudSQL.imageTag }}"
         command:
         - "/cloud_sql_proxy"
         - "-verbose={{ .Values.gke.cloudSQL.verbose}}"
@@ -306,17 +316,21 @@ spec:
       hostNetwork: false
       hostIPC: false
       serviceAccountName: fleet
-      {{- if or (.Values.fleet.tls.enabled) (.Values.mysql.tls.enabled) }}
+      {{- if or (.Values.fleet.tls.enabled) (.Values.mysql.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
       volumes:
         {{- if .Values.fleet.tls.enabled }}
         - name: fleet-tls
           secret:
-            secretName: {{ .Values.fleet.secretName }}
+            secretName: "{{ .Values.fleet.secretName }}"
         {{- end }}
         {{- if .Values.mysql.tls.enabled }}
         - name: mysql-tls
           secret:
-            secretName: {{ .Values.mysql.secretName }}
+            secretName: "{{ .Values.mysql.secretName }}"
+        {{- end }}
+        {{- if or (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
+        - name: osquery-logs
+          emptyDir:
+            sizeLimit: "{{ .Values.osquery.logging.filesystem.volumeSize }}"
         {{- end }}
       {{- end }}
-{{- end }}

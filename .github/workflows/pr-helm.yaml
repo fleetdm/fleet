@@ -37,7 +37,7 @@ jobs:
             chart \
           > helm-temp/${FILE}
         done
-    - name: kubeval sanity check    
+    - name: kubeval sanity check
       uses: instrumenta/kubeval-action
       with:
         files: helm-temp

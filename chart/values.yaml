@@ -67,10 +67,11 @@ osquery:
 
     # To congigure the filesystem logger, change the values below
     filesystem:
-      statusLogFile: /tmp/osquery_status
-      resultLogFile: /tmp/osquery_result
-      enableRotation: "false"
-      enableCompression: "false"
+      statusLogFile: osquery_status # will be placed in the /logs volume
+      resultLogFile: osquery_result # will be placed in the /logs volume
+      enableRotation: false
+      enableCompression: false
+      volumeSize: 20Gi # the maximum size of the volume
 
     # To configure the AWS Firehose logger, change the values below
     firehose:
