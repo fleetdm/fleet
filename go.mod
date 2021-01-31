@@ -65,6 +65,7 @@ require (
 	golang.org/x/net v0.0.0-20201021035429-f5854403a974 // indirect
 	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a // indirect
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9 // indirect
+	golang.org/x/tools v0.0.0-20190312170243-e65039ee4138
 	google.golang.org/api v0.3.2 // indirect
 	google.golang.org/grpc v1.19.0
 	gopkg.in/guregu/null.v3 v3.4.0
