@@ -548,7 +548,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 
 	resultJSON := `
 {
-"kolide_detail_query_network_interface": [
+"fleet_detail_query_network_interface": [
 		{
 				"address": "192.168.0.1",
 				"broadcast": "192.168.0.255",
@@ -568,7 +568,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 				"type": ""
 		}
 ],
-"kolide_detail_query_os_version": [
+"fleet_detail_query_os_version": [
 		{
 				"platform": "darwin",
 				"build": "15G1004",
@@ -578,7 +578,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 				"patch": "6"
 		}
 ],
-"kolide_detail_query_osquery_info": [
+"fleet_detail_query_osquery_info": [
 		{
 				"build_distro": "10.10",
 				"build_platform": "darwin",
@@ -591,7 +591,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 				"watcher": "38112"
 		}
 ],
-"kolide_detail_query_system_info": [
+"fleet_detail_query_system_info": [
 		{
 				"computer_name": "computer",
 				"cpu_brand": "Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz",
@@ -608,7 +608,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 				"uuid": "uuid"
 		}
 ],
-"kolide_detail_query_uptime": [
+"fleet_detail_query_uptime": [
 		{
 				"days": "20",
 				"hours": "0",
@@ -617,7 +617,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 				"total_seconds": "1730893"
 		}
 ],
-"kolide_detail_query_osquery_flags": [
+"fleet_detail_query_osquery_flags": [
 		{
 			"name":"config_tls_refresh",
 			"value":""
@@ -715,7 +715,7 @@ func TestDetailQueries(t *testing.T) {
 
 	resultJSON := `
 {
-"kolide_detail_query_network_interface": [
+"fleet_detail_query_network_interface": [
     {
         "address": "192.168.0.1",
         "broadcast": "192.168.0.255",
@@ -735,7 +735,7 @@ func TestDetailQueries(t *testing.T) {
         "type": "6"
     }
 ],
-"kolide_detail_query_os_version": [
+"fleet_detail_query_os_version": [
     {
         "platform": "darwin",
         "build": "15G1004",
@@ -745,7 +745,7 @@ func TestDetailQueries(t *testing.T) {
         "patch": "6"
     }
 ],
-"kolide_detail_query_osquery_info": [
+"fleet_detail_query_osquery_info": [
     {
         "build_distro": "10.10",
         "build_platform": "darwin",
@@ -758,7 +758,7 @@ func TestDetailQueries(t *testing.T) {
         "watcher": "38112"
     }
 ],
-"kolide_detail_query_system_info": [
+"fleet_detail_query_system_info": [
     {
         "computer_name": "computer",
         "cpu_brand": "Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz",
@@ -775,7 +775,7 @@ func TestDetailQueries(t *testing.T) {
         "uuid": "uuid"
     }
 ],
-"kolide_detail_query_uptime": [
+"fleet_detail_query_uptime": [
     {
         "days": "20",
         "hours": "0",
@@ -784,7 +784,7 @@ func TestDetailQueries(t *testing.T) {
         "total_seconds": "1730893"
     }
 ],
-"kolide_detail_query_osquery_flags": [
+"fleet_detail_query_osquery_flags": [
     {
       "name":"config_tls_refresh",
       "value":"10"
@@ -1113,7 +1113,7 @@ func TestIngestDistributedQueryOrphanedCampaignLoadError(t *testing.T) {
 
 	host := kolide.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(host, "kolide_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(host, "fleet_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "loading orphaned campaign")
 }
@@ -1146,7 +1146,7 @@ func TestIngestDistributedQueryOrphanedCampaignWaitListener(t *testing.T) {
 
 	host := kolide.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(host, "kolide_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(host, "fleet_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "campaign waiting for listener")
 }
@@ -1182,7 +1182,7 @@ func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
 
 	host := kolide.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(host, "kolide_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(host, "fleet_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "closing orphaned campaign")
 }
@@ -1219,7 +1219,7 @@ func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
 
 	host := kolide.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(host, "kolide_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(host, "fleet_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "stopping orphaned campaign")
 }
@@ -1256,7 +1256,7 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 
 	host := kolide.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(host, "kolide_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(host, "fleet_distributed_query_42", []map[string]string{}, false, "")
 	require.NoError(t, err)
 	lq.AssertExpectations(t)
 }
@@ -1286,7 +1286,7 @@ func TestIngestDistributedQueryRecordCompletionError(t *testing.T) {
 	}()
 	time.Sleep(10 * time.Millisecond)
 
-	err := svc.ingestDistributedQuery(host, "kolide_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(host, "fleet_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "record query completion")
 	lq.AssertExpectations(t)
@@ -1317,7 +1317,7 @@ func TestIngestDistributedQuery(t *testing.T) {
 	}()
 	time.Sleep(10 * time.Millisecond)
 
-	err := svc.ingestDistributedQuery(host, "kolide_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(host, "fleet_distributed_query_42", []map[string]string{}, false, "")
 	require.NoError(t, err)
 	lq.AssertExpectations(t)
 }
