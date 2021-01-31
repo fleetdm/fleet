@@ -4,6 +4,8 @@ on:
     paths:
     - 'chart/**'
     - '.github/workflows/pr-helm.yaml'
+    - '.github/scripts/helm-check-expected.sh'
+    - 'tools/ci/helm-values/**'
 
 jobs:
   sanity-check:
