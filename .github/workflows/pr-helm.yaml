@@ -1,0 +1,43 @@
+name: pr-helm
+on:
+  pull_request:
+    paths:
+    - chart
+
+jobs:
+  sanity-check:
+    strategy:
+      matrix:
+        kube-version: [1.16, 1.17, 1.18, 1.19, 1.20] # all currently supported versions
+    runs-on: ubuntu-20.04
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+    - name: create temp dir
+      run: mkdir -p helm-temp
+    - name: helm template -- default values
+      run: >
+        helm template
+          --namespace fleet
+          --release-name fleet
+          --values chart/values.yaml
+          chart
+        > helm-temp/output-defaults.yaml
+    - name: helm template -- other configurations
+      run: |
+        VALUES_FILES=$(find tools/ci/helm-values -type f)
+        for FILE_PATH in ${VALUES_FILES}; do
+          FILE=$(echo ${FILE_PATH} | rev | cut -d"/" -f1 | rev)
+          REL_NAME=$(echo ${FILE} | cut -d"." -f1)
+          helm template \
+            --namespace ${REL_NAME} \
+            --release-name ${REL_NAME} \
+            --values ${FILE_PATH} \
+            chart \
+          > helm-temp/${FILE}
+        done
+    - name: kubeval sanity check    
+      uses: instrumenta/kubeval-action
+      with:
+        files: helm-temp
+        version: ${{ matrix.kube-version }}
