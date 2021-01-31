@@ -178,19 +178,16 @@ spec:
           - name: KOLIDE_FILESYSTEM_STATUS_LOG_FILE
             value: "/logs/{{ .Values.osquery.logging.filesystem.statusLogFile }}"
           {{- end }}
-
           {{- if eq .Values.osquery.logging.resultPlugin "filesystem" }}
           - name: KOLIDE_FILESYSTEM_RESULT_LOG_FILE
             value: "/logs/{{ .Values.osquery.logging.filesystem.resultLogFile }}"
           {{- end }}
-
           {{- if or (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
           - name: KOLIDE_FILESYSTEM_ENABLE_LOG_ROTATION
             value: "{{ .Values.osquery.logging.filesystem.enableRotation }}"
           - name: KOLIDE_FILESYSTEM_ENABLE_LOG_COMPRESSION
             value: "{{ .Values.osquery.logging.filesystem.enableCompression }}"
           {{- end }}
-
           {{- if or (eq .Values.osquery.logging.statusPlugin "firehose") (eq .Values.osquery.logging.resultPlugin "firehose") }}
           - name: KOLIDE_FIREHOSE_REGION
             value: "{{ .Values.osquery.logging.firehose.region }}"

@@ -9,7 +9,7 @@ jobs:
   sanity-check:
     strategy:
       matrix:
-        kube-version: [1.16, 1.17, 1.18, 1.19, 1.20] # all currently supported versions
+        kube-version: [1.16.0, 1.17.0, 1.18.0] # kubeval is currently lagging behind the active schema versions, so these are the ones we can test against. see https://github.com/instrumenta/kubernetes-json-schema/issues/26
     runs-on: ubuntu-20.04
     steps:
     - name: checkout
