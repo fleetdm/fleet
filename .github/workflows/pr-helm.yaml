@@ -2,7 +2,8 @@ name: pr-helm
 on:
   pull_request:
     paths:
-    - chart
+    - 'chart/**'
+    - '.github/workflows/pr-helm.yaml'
 
 jobs:
   sanity-check:
