@@ -17,12 +17,12 @@ jobs:
     - name: create temp dir
       run: mkdir -p helm-temp
     - name: helm template -- default values
-      run: >
-        helm template
-          --namespace fleet
-          --release-name fleet
-          --values chart/values.yaml
-          chart
+      run: |
+        helm template \
+          --namespace fleet \
+          --release-name fleet \
+          --values chart/values.yaml \
+          chart \
         > helm-temp/output-defaults.yaml
     - name: helm template -- other configurations
       run: |
@@ -42,3 +42,45 @@ jobs:
       with:
         files: helm-temp
         version: ${{ matrix.kube-version }}
+    - name: install yq
+      env:
+        YQ_VERSION: 4.4.1
+      run: |
+        curl -LO https://github.com/mikefarah/yq/releases/download/v$YQ_VERSION/yq_linux_amd64
+        curl -LO https://github.com/mikefarah/yq/releases/download/v$YQ_VERSION/checksums
+        echo "$(grep linux_amd64 checksums | awk '{print $19}') yq_linux_amd64" > sha256
+        sha256sum --check sha256
+        chmod +x yq_linux_amd64
+        mkdir -p ${HOME}/.bin
+        mv yq_linux_amd64 ${HOME}/.bin/yq
+        echo PATH=${PATH}:${HOME}/.bin >> $GITHUB_ENV
+    - name: check default values
+      run: |
+        .github/scripts/helm-check-expected.sh \
+        "helm-temp/output-defaults.yaml" \
+        'KOLIDE_FILESYSTEM_STATUS_LOG_FILE KOLIDE_FILESYSTEM_RESULT_LOG_FILE KOLIDE_FILESYSTEM_ENABLE_LOG_ROTATION KOLIDE_FILESYSTEM_ENABLE_LOG_COMPRESSION' \
+        'fleet-tls osquery-logs'
+    - name: check pubusb values
+      run: |
+        .github/scripts/helm-check-expected.sh \
+        "helm-temp/logger-pubsub.yaml" \
+        'KOLIDE_PUBSUB_PROJECT KOLIDE_PUBSUB_STATUS_TOPIC KOLIDE_PUBSUB_RESULT_TOPIC' \
+        'fleet-tls'
+    - name: check firehose accesskey values
+      run: |
+        .github/scripts/helm-check-expected.sh \
+        "helm-temp/logger-firehose-accesssid.yaml" \
+        'KOLIDE_FIREHOSE_REGION KOLIDE_FIREHOSE_STATUS_STREAM KOLIDE_FIREHOSE_RESULT_STREAM KOLIDE_FIREHOSE_ACCESS_KEY_ID KOLIDE_FIREHOSE_SECRET_ACCESS_KEY' \
+        'fleet-tls'
+    - name: check firehose sts values
+      run: |
+        .github/scripts/helm-check-expected.sh \
+        "helm-temp/logger-firehose-sts.yaml" \
+        'KOLIDE_FIREHOSE_REGION KOLIDE_FIREHOSE_STATUS_STREAM KOLIDE_FIREHOSE_RESULT_STREAM KOLIDE_FIREHOSE_STS_ASSUME_ROLE_ARN' \
+        'fleet-tls'
+    - name: check mysql tls enabled values
+      run: |
+        .github/scripts/helm-check-expected.sh \
+        "helm-temp/enable-mysql-tls.yaml" \
+        'KOLIDE_MYSQL_TLS_CA KOLIDE_MYSQL_TLS_CERT KOLIDE_MYSQL_TLS_KEY KOLIDE_MYSQL_TLS_CONFIG KOLIDE_MYSQL_TLS_SERVER_NAME' \
+        'fleet-tls osquery-logs mysql-tls'
