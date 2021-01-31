@@ -49,6 +49,8 @@ type initializer interface {
 func createServeCmd(configManager config.Manager) *cobra.Command {
 	// Whether to enable the debug endpoints
 	debug := false
+	// Whether to enable developer options
+	dev := false
 
 	serveCmd := &cobra.Command{
 		Use:   "serve",
@@ -63,6 +65,10 @@ the way that the Fleet server works.
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			config := configManager.LoadConfig()
+
+			if dev {
+				applyDevFlags(&config)
+			}
 
 			var logger kitlog.Logger
 			{
@@ -362,6 +368,7 @@ the way that the Fleet server works.
 	}
 
 	serveCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug endpoints")
+	serveCmd.PersistentFlags().BoolVar(&dev, "dev", false, "Enable developer options")
 
 	return serveCmd
 }

@@ -94,7 +94,7 @@ docker-compose down
 Once you `docker-compose up` and are running the databases, you can build the code and run the following command to create the database tables:
 
 ```
-fleet prepare db
+./build/fleet prepare db --dev
 ```
 
 ### Running Fleet using Docker development infrastructure
@@ -102,7 +102,7 @@ fleet prepare db
 To start the Fleet server backed by the Docker development infrastructure, run the Fleet binary as follows:
 
 ```
-fleet serve --auth_jwt_key="insecure"
+./build/fleet serve --dev
 ```
 
 The server is accessible by default at [https://localhost:8080](https://localhost:8080).

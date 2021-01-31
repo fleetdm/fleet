@@ -8,9 +8,9 @@ services:
     command: mysqld --datadir=/tmp/mysqldata --slow_query_log=1 --log_output=TABLE --log-queries-not-using-indexes --event-scheduler=ON
     environment: &mysql-default-environment
       MYSQL_ROOT_PASSWORD: toor
-      MYSQL_DATABASE: kolide
-      MYSQL_USER: kolide
-      MYSQL_PASSWORD: kolide
+      MYSQL_DATABASE: fleet
+      MYSQL_USER: fleet
+      MYSQL_PASSWORD: insecure
     ports:
       - "3306:3306"
 
