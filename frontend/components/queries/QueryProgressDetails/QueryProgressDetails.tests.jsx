@@ -121,6 +121,25 @@ describe('QueryProgressDetails - component', () => {
     });
   });
 
+  describe('when the campaign is empty', () => {
+    describe('and the query is running', () => {
+      const noResults = { failed: 0, successful: 0, total: 0 };
+      const campaignWithNoResults = Object.assign({}, campaignStub, { hosts_count: noResults });
+      const props = {
+        ...defaultProps,
+        campaign: campaignWithNoResults,
+        queryIsRunning: true,
+      };
+      const Component = mount(<QueryProgressDetails {...props} />);
+
+      it('renders a ProgressBar component', () => {
+        const ProgressBar = Component.find('ProgressBar');
+
+        expect(ProgressBar.length).toEqual(1, 'ProgressBar is expected to render');
+      });
+    });
+  });
+
   describe('running a query', () => {
     it('calls the onRunQuery prop with the query text', () => {
       const spy = jest.fn();
