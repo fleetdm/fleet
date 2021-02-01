@@ -22,7 +22,6 @@ metadata:
     release: {{ .Release.Name }}
   name: fleet
   namespace: {{ .Release.Namespace }}
-{{- end }}
 spec:
   rules:
   - host: {{ .Values.hostName }}
@@ -33,3 +32,4 @@ spec:
         backend:
           serviceName: fleet
           servicePort: fleet
+{{- end }}
