@@ -16,7 +16,7 @@ All of these are served via a built-in HTTP server, so there is no need for comp
 
 ## Installing the Fleet binary
 
-Because everyone's infrastructure is different, there are a multiple options available for installing the Fleet binary.
+Because everyone's infrastructure is different, there are multiple options available for installing the Fleet binary.
 
 ### Docker container
 
