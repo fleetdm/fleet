@@ -29,3 +29,6 @@ tmp/
 
 # test mysql server data
 mysqldata/
+
+# test helm charts
+helm-temp
