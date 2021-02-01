@@ -15,7 +15,7 @@ Welcome to Fleet! This issue tracks TODOs required for all new teammates for you
 - [ ] Ensure your payroll and employment information is correct and up to date, reach out to @mikermcneil if not.
 - [ ] Accept the invite to all of our productivity tools
 <!-- - [ ] Set up your personal workspace. See our guidelines for personal office setup -->
-- [ ] Set a consistent picture as your avatar in all of our collaboration tools (GitHub, Slack, GSuite, etc.)
+- [ ] Set a consistent picture as your avatar in all of our collaboration tools (GitHub, Slack, Google Workspace, etc.)
 - [ ] Update your LinkedIn profile and send connection requests to your colleagues. (This is a suggestion, not a requirement. Consider using the same picture as your linkedin everywhere at Fleet for continuity.)
 <!-- - [ ] Add your birthday (mm-dd) and start date (mm-dd) to our [company milestones] -->
 - [ ] Confirm that your GitHub notifications are on and that you are able to receive them
@@ -68,14 +68,13 @@ Welcome to Fleet! This issue tracks TODOs required for all new teammates for you
 - [ ] GCal for Slack  (TODO: replace w/ Reclaim's Slack app when new release is ready)
 - [ ] Reclaim.ai for syncing personal availability
 - [ ] [Zoom](https://zoom.us) (if applicable) - use "Basic" account for engineers, "Licensed" account for teammates who we expect to host meetings frequently
-<!-- - [ ] GitHub - use "Maintainer" role under the "fleetdm" group by default -->
+- [ ] GitHub - use "Team Members" as the team
+- [ ] Confirm good to go w/ local Fleet demo (`fleetctl preview`)
 - [ ] [YouTube] - use "Manager" permission level
   <!-- - [ ] [Connect your Zoom account with your Fleet DM calendar](https://support.zoom.us/hc/en-us/articles/360020187492-Google-Calendar-add-on) -->
 - [ ] Add to [Google Analytics](https://analytics.google.com)  (collaborate + read + analyze permissions)
-- [ ] Local Fleet (QA-able, demo-able, update-able)
-    - [ ] Node
-    - [ ] fleetctl
-    - [ ] Docker Desktop
-    - [ ] fleetctl preview
-    - [ ] Simulated hosts (containers running osqueryd)
 - [ ] Confirm accounts in all of the systems listed above
+
+#### Engineers only: Additional setup
+- [ ] GitHub - also add to "Engineers" team to grant full write access
+- [ ] Confirm good to go w/ local Fleet for contributors
