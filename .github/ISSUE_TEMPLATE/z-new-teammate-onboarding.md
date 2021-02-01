@@ -62,11 +62,14 @@ Welcome to Fleet! This issue tracks TODOs required for all new teammates for you
     - [ ] Add to vaults (after the invite is accepted)
 - [ ] _If using a company-issued laptop or other equipment >$500 USD (per item):_ Add new equipment to [fixed asset tracking doc](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0)
 - [ ] https://app.orbit.love
-- [ ] Trello
 - [ ] Fleet Slack
-- [ ] osquery Slack
 - [ ] GCal for Slack  (TODO: replace w/ Reclaim's Slack app when new release is ready)
-- [ ] Reclaim.ai for syncing personal availability
+- [ ] Reclaim.ai for syncing availability from your personal calendar (optional; but otherwise, please add any known personal events as "busy" on your work calendar so we don't schedule on top of your important stuff!)
+- [ ] Invite to osquery Slack.  Steps for new teammate:
+  - [ ] [Sign up for the osquery Slack workspace](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/) using your work email address
+  - [ ] Set your standard profile pic
+  - [ ] Join the `#fleet` channel
+  - [ ] Introduce yourself to the community
 - [ ] [Zoom](https://zoom.us) (if applicable) - use "Basic" account for engineers, "Licensed" account for teammates who we expect to host meetings frequently
 - [ ] GitHub - use "Team Members" as the team
 - [ ] Confirm good to go w/ local Fleet demo (`fleetctl preview`)
