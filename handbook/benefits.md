@@ -6,9 +6,9 @@ We believe device management should be safe, easy, and transparent to end users.
 Fleet makes it easier to query and track your servers, containers, and laptops. It extends osquery to answer questions about multiple devices at the same time and provides log streams that enable automated threat detection. You can run it on your own hardware or deploy it in any cloud.
 
 #### Realtime visibility
-- Share with any team (ops, sec, helpdesk, etc)
+- Share with any team (ops, security, helpdesk, etc)
 - Unmetered access to user seats
-- Intuitive user interface (L1-friendly)
+- Intuitive user interface
 - Verify remediations were actually successful
 - Make compliance goals highly visible
 - Track progress towards compliance goals together
@@ -25,7 +25,7 @@ Fleet makes it easier to query and track your servers, containers, and laptops. 
 
 #### Developer productivity
 - Programmable (REST API, ±gRPC)
-- Command line tool (fleetctl)
+- Command line tool (`fleetctl`)
 - "Infrastructure as code"-ready (YAML)
 - All UI functionality accessible via APIs
 - Focus on value, not boilerplate
@@ -35,7 +35,7 @@ Fleet makes it easier to query and track your servers, containers, and laptops. 
 
 ### Unlock efficiencies
 - Designed for enterprise (from day 1)
-- Built by osquery creators (Zach W + Mike A)
+- Built by osquery creators (Zach Wasserman + Mike Arpaia)
 - Battle-tested in production (3+ years)
 - Learn from peers' mistakes & best practices
 - Widespread adoption in F1000
