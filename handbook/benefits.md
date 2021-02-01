@@ -33,7 +33,7 @@ Fleet makes it easier to query and track your servers, containers, and laptops. 
 - Ad hoc audits (live queries answer in seconds)
 - 100% source code available
 
-### Unlock efficiencies
+#### Unlock efficiencies
 - Designed for enterprise (from day 1)
 - Built by osquery creators (Zach W + Mike A)
 - Battle-tested in production (3+ years)
