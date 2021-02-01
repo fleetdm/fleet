@@ -19,7 +19,7 @@ assignees: ''
 
 - I. Drafting
   - [x] High-level goals, estimated release date set
-  - [x] GitHub issue
+  - [x] This GitHub issue
   - [ ] Consider impact to UX/DX, talk to users
   - [ ] **If applicable:** Visual design
     - [ ] Design research
