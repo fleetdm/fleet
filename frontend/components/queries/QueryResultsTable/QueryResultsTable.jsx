@@ -111,6 +111,7 @@ class QueryResultsTable extends Component {
     } = this;
 
     const { queryIsRunning, campaign } = this.props;
+    console.log(campaign);
     const { query_results: queryResults } = campaign;
     const loading = queryIsRunning && (!queryResults || !queryResults.length);
 
