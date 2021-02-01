@@ -235,19 +235,19 @@ func (svc service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage)
 // hostLabelQueryPrefix is appended before the query name when a query is
 // provided as a label query. This allows the results to be retrieved when
 // osqueryd writes the distributed query results.
-const hostLabelQueryPrefix = "kolide_label_query_"
+const hostLabelQueryPrefix = "fleet_label_query_"
 
 // hostDetailQueryPrefix is appended before the query name when a query is
 // provided as a detail query.
-const hostDetailQueryPrefix = "kolide_detail_query_"
+const hostDetailQueryPrefix = "fleet_detail_query_"
 
 // hostAdditionalQueryPrefix is appended before the query name when a query is
 // provided as an additional query (additional info for hosts to retrieve).
-const hostAdditionalQueryPrefix = "kolide_additional_query_"
+const hostAdditionalQueryPrefix = "fleet_additional_query_"
 
 // hostDistributedQueryPrefix is appended before the query name when a query is
 // run from a distributed query campaign
-const hostDistributedQueryPrefix = "kolide_distributed_query_"
+const hostDistributedQueryPrefix = "fleet_distributed_query_"
 
 // detailQueries defines the detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the
