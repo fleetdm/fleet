@@ -11,14 +11,17 @@ const baseClass = 'query-progress-details';
 
 const QueryProgressDetails = ({ campaign, className, onRunQuery, onStopQuery, queryIsRunning, queryTimerMilliseconds, disableRun }) => {
   const { hosts_count: hostsCount } = campaign;
-  const { Metrics: metrics = {} } = campaign;
   const { errors } = campaign;
+
+  const totalHostsOnline = get(campaign, ['totals', 'online'], 0);
+  const totalHostsOffline = get(campaign, ['totals', 'offline'], 0);
   const totalHostsCount = get(campaign, ['totals', 'count'], 0);
   const totalRowsCount = get(campaign, ['query_results', 'length'], 0);
+  const campaignIsEmpty = !hostsCount.successful && hostsCount.successful !== 0;
 
-  const onlineHostsTotalDisplay = metrics.OnlineHosts === 1 ? '1 host' : `${metrics.OnlineHosts} hosts`;
+  const onlineHostsTotalDisplay = totalHostsOnline === 1 ? '1 host' : `${totalHostsOnline} hosts`;
   const onlineResultsTotalDisplay = totalRowsCount === 1 ? '1 result' : `${totalRowsCount} results`;
-  const offlineHostsTotalDisplay = metrics.OfflineHosts === 1 ? '1 host' : `${metrics.OfflineHosts} hosts`;
+  const offlineHostsTotalDisplay = totalHostsOffline === 1 ? '1 host' : `${totalHostsOffline} hosts`;
   const failedHostsTotalDisplay = hostsCount.failed === 1 ? '1 host' : `${hostsCount.failed} hosts`;
   let totalErrorsDisplay = '0 errors';
   if (errors) {
@@ -50,7 +53,7 @@ const QueryProgressDetails = ({ campaign, className, onRunQuery, onStopQuery, qu
     </div>
   );
 
-  if (!hostsCount.total) {
+  if (!hostsCount.total && campaignIsEmpty) {
     return (
       <div className={`${baseClass} ${className}`}>
         <div className={`${baseClass}__wrapper`} />
