@@ -27,6 +27,8 @@ To setup Fleet infrastructure, use one of the available commands.
 	}
 
 	noPrompt := false
+	// Whether to enable developer options
+	dev := false
 
 	var dbCmd = &cobra.Command{
 		Use:   "db",
@@ -34,6 +36,12 @@ To setup Fleet infrastructure, use one of the available commands.
 		Long:  ``,
 		Run: func(cmd *cobra.Command, args []string) {
 			config := configManager.LoadConfig()
+
+			if dev {
+				applyDevFlags(&config)
+				noPrompt = true
+			}
+
 			ds, err := mysql.New(config.Mysql, clock.C)
 			if err != nil {
 				initFatal(err, "creating db connection")
@@ -75,6 +83,7 @@ To setup Fleet infrastructure, use one of the available commands.
 	}
 
 	dbCmd.PersistentFlags().BoolVar(&noPrompt, "no-prompt", false, "disable prompting before migrations (for use in scripts)")
+	dbCmd.PersistentFlags().BoolVar(&dev, "dev", false, "Enable developer options")
 
 	prepareCmd.AddCommand(dbCmd)
 	return prepareCmd
