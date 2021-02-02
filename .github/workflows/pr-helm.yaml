@@ -40,7 +40,7 @@ jobs:
           > helm-temp/${FILE}
         done
     - name: kubeval sanity check
-      uses: instrumenta/kubeval-action
+      uses: instrumenta/kubeval-action@master
       with:
         files: helm-temp
         version: ${{ matrix.kube-version }}
