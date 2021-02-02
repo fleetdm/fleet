@@ -195,17 +195,6 @@ docker-build-circle:
 	docker build -t "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" .
 	docker push "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
 
-demo-dump:
-	mysqldump --extended-insert=FALSE --skip-dump-date \
-		-u kolide -p \
-		-h ${MYSQL_PORT_3306_TCP_ADDR} kolide \
-		> ./tools/app/demo.sql
-
-demo-restore:
-	mysql --binary-mode -u kolide -p \
-		-h ${MYSQL_PORT_3306_TCP_ADDR} kolide \
-		< ./tools/app/demo.sql
-
 .pre-binary-bundle:
 	rm -rf build/binary-bundle
 	mkdir -p build/binary-bundle/linux
