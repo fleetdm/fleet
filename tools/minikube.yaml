@@ -23,11 +23,11 @@ spec:
         - name: MYSQL_ROOT_PASSWORD
           value: "toor"
         - name: MYSQL_DATABASE
-          value: "kolide"
+          value: "fleet"
         - name: MYSQL_USER
-          value: "kolide"
+          value: "fleet"
         - name: MYSQL_PASSWORD
-          value: "kolide"
+          value: "insecure"
         args: ["mysqld", "--slow_query_log=1", "--log_output=TABLE", "--log-queries-not-using-indexes"]
         volumeMounts:
         - name: mysql-persistent-storage
@@ -92,11 +92,11 @@ spec:
         - name: MYSQL_ROOT_PASSWORD
           value: "toor"
         - name: MYSQL_DATABASE
-          value: "kolide"
+          value: "fleet"
         - name: MYSQL_USER
-          value: "kolide"
+          value: "fleet"
         - name: MYSQL_PASSWORD
-          value: "kolide"
+          value: "insecure"
         args: ["mysqld", "--slow_query_log=1", "--log_output=TABLE", "--log-queries-not-using-indexes"]
         ports:
         - containerPort: 3306
