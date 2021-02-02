@@ -19,7 +19,7 @@ func setupCommand() cli.Command {
 	)
 	return cli.Command{
 		Name:      "setup",
-		Usage:     "Setup a Kolide Fleet instance",
+		Usage:     "Set up a Fleet instance",
 		UsageText: `fleetctl setup [options]`,
 		Flags: []cli.Flag{
 			configFlag(),

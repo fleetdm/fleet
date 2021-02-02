@@ -10,7 +10,7 @@ import (
 func logoutCommand() cli.Command {
 	return cli.Command{
 		Name:      "logout",
-		Usage:     "Logout of Kolide Fleet",
+		Usage:     "Log out of Fleet",
 		UsageText: `fleetctl logout [options]`,
 		Flags: []cli.Flag{
 			configFlag(),
@@ -23,7 +23,7 @@ func logoutCommand() cli.Command {
 			}
 
 			if err := fleet.Logout(); err != nil {
-				return errors.Wrap(err, "error logging in")
+				return errors.Wrap(err, "error logging out")
 			}
 
 			configPath, context := c.String("config"), c.String("context")
