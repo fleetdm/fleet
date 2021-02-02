@@ -194,6 +194,7 @@ export class EditPackPage extends Component {
 
     return Promise.all(promises)
       .then(() => {
+        this.setState({ selectedScheduledQuery: null, selectedQuery: null });
         dispatch(renderFlash('success', 'Scheduled queries removed'));
       });
   }
