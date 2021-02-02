@@ -88,7 +88,10 @@
       }
 
       .Select-value {
-        line-height: 1.9;
+        line-height: 34px;
+        border: 1px solid $core-dark-blue-grey;
+        margin-top: 5px;
+        margin-bottom: 0;
       }
     }
 
@@ -131,7 +134,7 @@
   }
 
   .Select-value {
-    border-radius: 2px;
+    border-radius: $border-radius;
     background-color: $white;
     border: solid 1px $ui-borders;
 
@@ -149,20 +152,19 @@
         @extend %kolidecon;
         transition: color 150ms ease-in-out;
         transform: translate(-50%, -50%);
-        content: '\f036';
+        content: '\2715'; // hex code for multiplication cross
         position: absolute;
         top: 50%;
         left: 50%;
         visibility: visible;
-        font-size: 20px;
-        color: $ui-medium-grey;
+        color: $core-dark-blue-grey;
         display: block;
         text-indent: 0;
       }
 
       &:hover {
         &::after {
-          color: $core-medium-blue-grey;
+          color: $alert;
         }
       }
     }
