@@ -39,6 +39,7 @@ To setup Fleet infrastructure, use one of the available commands.
 
 			if dev {
 				applyDevFlags(&config)
+				noPrompt = true
 			}
 
 			ds, err := mysql.New(config.Mysql, clock.C)
