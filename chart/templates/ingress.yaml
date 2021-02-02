@@ -28,7 +28,8 @@ spec:
     http:
       paths:
       - path: /*
-        pathType: Exact
+        # Next line required in k8s 1.19 and not supported in <=1.17
+        # pathType: Exact
         backend:
           serviceName: fleet
           servicePort: fleet
