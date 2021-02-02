@@ -4,6 +4,7 @@
   - [Current API](#current-api)
 - [Authentication](#authentication)
 - [Hosts](#hosts)
+- [Labels](#labels)
 - [Users](#users)
 - [Queries](#queries)
 - [Packs](#packs)
@@ -807,6 +808,12 @@ Deletes the specified host from Fleet. Note that a deleted host will fail authen
 ```
 {}
 ```
+
+---
+
+## Labels
+
+- [Create label](#create-label)
 
 ---
 
