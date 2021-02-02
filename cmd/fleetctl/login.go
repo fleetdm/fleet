@@ -17,7 +17,7 @@ func loginCommand() cli.Command {
 	)
 	return cli.Command{
 		Name:  "login",
-		Usage: "Login to Kolide Fleet",
+		Usage: "Login to Fleet",
 		UsageText: `
 fleetctl login [options]
 

@@ -105,7 +105,7 @@ If your organization has a robust internal public key infrastructure (PKI) and y
 
 ### Deploy the TLS certificate that osquery will use to communicate with Fleet
 
-When Fleet uses a self-signed certificate, osquery agents will need a copy of that certificate in order to authenticate the Fleet server. If clients connect directly to the Fleet server, you can download the certificate through the Fleet UI. From the main dashboard (`/hosts/manage`), click "Add New Host" and "Fetch Kolide Certificate". If Fleet is running behind a load-balancer that terminates TLS, you will have to talk to your system administrator about where to find this certificate.
+When Fleet uses a self-signed certificate, osquery agents will need a copy of that certificate in order to authenticate the Fleet server. If clients connect directly to the Fleet server, you can download the certificate through the Fleet UI. From the main dashboard (`/hosts/manage`), click "Add New Host" and "Fetch Certificate". If Fleet is running behind a load-balancer that terminates TLS, you will have to talk to your system administrator about where to find this certificate.
 
 It is important that the CN of this certificate matches the hostname or IP that osqueryd clients will use to connect.
 
@@ -113,13 +113,13 @@ Specify the path to this certificate with the `--tls_server_certs` flag when you
 
 ## Launching osqueryd
 
-Assuming that you are deploying your enrollment secret in the file `/etc/osquery/enroll_secret` and your osquery server certificate is at `/etc/osquery/kolide.crt`, you could copy and paste the following command with the following flags (be sure to replace `kolide.acme.net` with the hostname or IP of your Fleet installation):
+Assuming that you are deploying your enrollment secret in the file `/etc/osquery/enroll_secret` and your osquery server certificate is at `/etc/osquery/fleet.crt`, you could copy and paste the following command with the following flags (be sure to replace `fleet.acme.net` with the hostname or IP of your Fleet installation):
 
 ```
 sudo osqueryd \
  --enroll_secret_path=/etc/osquery/enroll_secret \
- --tls_server_certs=/etc/osquery/kolide.crt \
- --tls_hostname=kolide.acme.net \
+ --tls_server_certs=/etc/osquery/fleet.crt \
+ --tls_hostname=fleet.acme.net \
  --host_identifier=instance \
  --enroll_tls_endpoint=/api/v1/osquery/enroll \
  --config_plugin=tls \
@@ -136,14 +136,14 @@ sudo osqueryd \
  --logger_tls_period=10
 ```
 
-If your osquery server certificate is deployed to a path that is not `/etc/osquery/kolide.crt`, be sure to update the `--tls_server_certs` flag. Similarly, if your enrollment secret is in an environment variable that is not called `OSQUERY_ENROLL_SECRET`, then be sure to update the `--enroll_secret_env` environment variable. If your enroll secret is defined in a local file, specify the file's path with the `--enroll_secret_path` flag instead of using the `--enroll_secret_env` flag.
+If your osquery server certificate is deployed to a path that is not `/etc/osquery/fleet.crt`, be sure to update the `--tls_server_certs` flag. Similarly, if your enrollment secret is in an environment variable that is not called `OSQUERY_ENROLL_SECRET`, then be sure to update the `--enroll_secret_env` environment variable. If your enroll secret is defined in a local file, specify the file's path with the `--enroll_secret_path` flag instead of using the `--enroll_secret_env` flag.
 
 ### Using a flag file to manage flags
 
-For your convenience, osqueryd supports putting all of your flags into a single file. We suggest deploying this file to `/etc/osquery/kolide.flags`. If you've deployed the appropriate osquery flags to that path, you could simply launch osquery via:
+For your convenience, osqueryd supports putting all of your flags into a single file. We suggest deploying this file to `/etc/osquery/fleet.flags`. If you've deployed the appropriate osquery flags to that path, you could simply launch osquery via:
 
 ```
-osqueryd --flagfile=/etc/osquery/kolide.flags
+osqueryd --flagfile=/etc/osquery/fleet.flags
 ```
 
 ## Enrolling multiple macOS hosts
@@ -166,7 +166,7 @@ Next, you'll have to edit the `config.mk` file. You'll find all of the necessary
       define KOLIDE_TLS_CERTIFICATE
       ```
 
-Note that osqueryd requires a full certificate chain, even for certificates which might be trusted by your keychain. The "Fetch Kolide Certificate" button in the Add New Host screen will attempt to fetch the full chain for you.
+Note that osqueryd requires a full certificate chain, even for certificates which might be trusted by your keychain. The "Fetch Fleet Certificate" button in the Add New Host screen will attempt to fetch the full chain for you.
 
 Once you've configured the `config.mk` file with the correct variables, you can run `make` in the `tools/mac` directory. Running `make` will create a new `kolide-enroll.pkg` file which you can import into your software repository and deploy to your mac fleet.
 
