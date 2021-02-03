@@ -53,7 +53,7 @@ type ServerConfig struct {
 	Cert       string
 	Key        string
 	TLS        bool
-	TLSProfile string
+	TLSProfile string // TODO #271 set `yaml:"tls_compatibility"`
 	URLPrefix  string `yaml:"url_prefix"`
 }
 
@@ -208,7 +208,7 @@ func (man Manager) addConfigs() {
 		"Fleet TLS key path")
 	man.addConfigBool("server.tls", true,
 		"Enable TLS (required for osqueryd communication)")
-	man.addConfigString(TLSProfileKey, TLSProfileModern,
+	man.addConfigString(TLSProfileKey, TLSProfileIntermediate,
 		fmt.Sprintf("TLS security profile choose one of %s or %s",
 			TLSProfileModern, TLSProfileIntermediate))
 	man.addConfigString("server.url_prefix", "",
