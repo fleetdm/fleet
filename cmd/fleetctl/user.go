@@ -62,6 +62,7 @@ func createUserCommand() cli.Command {
 			configFlag(),
 			contextFlag(),
 			yamlFlag(),
+			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)

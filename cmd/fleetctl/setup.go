@@ -22,8 +22,6 @@ func setupCommand() cli.Command {
 		Usage:     "Setup a Kolide Fleet instance",
 		UsageText: `fleetctl setup [options]`,
 		Flags: []cli.Flag{
-			configFlag(),
-			contextFlag(),
 			cli.StringFlag{
 				Name:        "email",
 				EnvVar:      "EMAIL",
@@ -52,6 +50,9 @@ func setupCommand() cli.Command {
 				Destination: &flOrgName,
 				Usage:       "Name of the organization",
 			},
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := unauthenticatedClientFromCLI(c)

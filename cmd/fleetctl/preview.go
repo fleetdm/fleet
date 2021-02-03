@@ -35,6 +35,7 @@ This command will create a directory fleet-preview in the current working direct
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
+			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			if err := checkDocker(); err != nil {

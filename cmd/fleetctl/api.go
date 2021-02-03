@@ -32,7 +32,18 @@ func unauthenticatedClientFromCLI(c *cli.Context) (*service.Client, error) {
 		return nil, errors.New("Windows clients must configure rootca (secure) or tls-skip-verify (insecure)")
 	}
 
-	fleet, err := service.NewClient(cc.Address, cc.TLSSkipVerify, cc.RootCA, cc.URLPrefix)
+	var options []service.ClientOption
+	if getDebug(c) {
+		options = append(options, service.EnableClientDebug())
+	}
+
+	fleet, err := service.NewClient(
+		cc.Address,
+		cc.TLSSkipVerify,
+		cc.RootCA,
+		cc.URLPrefix,
+		options...,
+	)
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating Fleet API client handler")
 	}
