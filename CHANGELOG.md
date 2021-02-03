@@ -1,3 +1,30 @@
+## Fleet 3.7.0 (Feb 3, 2021)
+
+### This is a security release.
+
+* **Security**: Fixed a vulnerability in which a malicious actor with a valid node key can send a badly formatted request that causes the Fleet server to exit, resulting in denial of service. See https://github.com/fleetdm/fleet/security/advisories/GHSA-xwh8-9p3f-3x45 and the linked content within that advisory.
+
+* Add new Host details page which includes a rich view of a specific host’s attributes.
+
+* Reveal live query errors in the Fleet UI and `fleetctl` to help target and diagnose hosts that fail.
+
+* Add Helm chart to make it easier for users to deploy to Kubernetes.
+
+* Add support for `denylist` parameter in scheduled queries.
+
+* Add debug flag to `fleetctl` that enables logging of HTTP requests and responses to stderr.
+
+* Improvements to the `fleetctl preview` experience that include adding containerized osquery agents, displaying login information, creating a default directory, and checking for Docker daemon status.
+
+* Add improved error handling in host enrollment to make debugging issues with the enrollment process easier.
+
+* Upgrade TLS compatibility settings to match Mozilla.
+
+* Add comments in generated flagfile to add clarity to different features being configured.
+
+* Fix a bug in Fleet UI that allowed user to edit a scheduled query after it had been deleted from a pack.
+
+
 ## Fleet 3.6.0 (Jan 7, 2021)
 
 * Add the option to set up an S3 bucket as the storage backend for file carving.
