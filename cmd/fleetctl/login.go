@@ -24,14 +24,12 @@ fleetctl login [options]
 Interactively prompts for email and password if not specified in the flags or environment variables.
 `,
 		Flags: []cli.Flag{
-			configFlag(),
-			contextFlag(),
 			cli.StringFlag{
 				Name:        "email",
 				EnvVar:      "EMAIL",
 				Value:       "",
 				Destination: &flEmail,
-				Usage:       "Email to use to log in",
+				Usage:       "Email or username to use to log in",
 			},
 			cli.StringFlag{
 				Name:        "password",
@@ -40,6 +38,9 @@ Interactively prompts for email and password if not specified in the flags or en
 				Destination: &flPassword,
 				Usage:       "Password to use to log in (recommended to use interactive entry)",
 			},
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := unauthenticatedClientFromCLI(c)
@@ -51,7 +52,7 @@ Interactively prompts for email and password if not specified in the flags or en
 			// CLI history.
 			if flEmail == "" {
 				fmt.Println("Log in using the standard Fleet credentials.")
-				fmt.Print("Email: ")
+				fmt.Print("Email/Username: ")
 				_, err := fmt.Scanln(&flEmail)
 				if err != nil {
 					return errors.Wrap(err, "error reading email")

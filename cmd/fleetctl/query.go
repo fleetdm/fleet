@@ -3,20 +3,19 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 	"time"
-	"io/ioutil"
 
 	"github.com/briandowns/spinner"
 	"github.com/urfave/cli"
 )
 
-
 func queryCommand() cli.Command {
 	var (
 		flHosts, flLabels, flQuery, flQueryName string
-		flDebug, flQuiet, flExit, flPretty      bool
+		flQuiet, flExit, flPretty               bool
 		flTimeout                               time.Duration
 	)
 	return cli.Command{
@@ -24,8 +23,6 @@ func queryCommand() cli.Command {
 		Usage:     "Run a live query",
 		UsageText: `fleetctl query [options]`,
 		Flags: []cli.Flag{
-			configFlag(),
-			contextFlag(),
 			cli.StringFlag{
 				Name:        "hosts",
 				EnvVar:      "HOSTS",
@@ -67,12 +64,6 @@ func queryCommand() cli.Command {
 				Usage:       "Name of saved query to run",
 			},
 			cli.BoolFlag{
-				Name:        "debug",
-				EnvVar:      "DEBUG",
-				Destination: &flDebug,
-				Usage:       "Whether or not to enable debug logging",
-			},
-			cli.BoolFlag{
 				Name:        "pretty",
 				EnvVar:      "PRETTY",
 				Destination: &flPretty,
@@ -84,6 +75,9 @@ func queryCommand() cli.Command {
 				Destination: &flTimeout,
 				Usage:       "How long to run query before exiting (10s, 1h, etc.)",
 			},
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)

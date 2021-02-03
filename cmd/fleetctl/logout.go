@@ -15,6 +15,7 @@ func logoutCommand() cli.Command {
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
+			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)

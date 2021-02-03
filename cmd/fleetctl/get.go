@@ -229,6 +229,7 @@ func getQueriesCommand() cli.Command {
 			yamlFlag(),
 			configFlag(),
 			contextFlag(),
+			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)
@@ -297,14 +298,15 @@ func getPacksCommand() cli.Command {
 		Aliases: []string{"pack", "p"},
 		Usage:   "List information about one or more packs",
 		Flags: []cli.Flag{
-			jsonFlag(),
-			yamlFlag(),
-			configFlag(),
-			contextFlag(),
 			cli.BoolFlag{
 				Name:  withQueriesFlagName,
 				Usage: "Output queries included in pack(s) too",
 			},
+			jsonFlag(),
+			yamlFlag(),
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)
@@ -420,6 +422,7 @@ func getLabelsCommand() cli.Command {
 			yamlFlag(),
 			configFlag(),
 			contextFlag(),
+			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)
@@ -490,6 +493,7 @@ func getOptionsCommand() cli.Command {
 			yamlFlag(),
 			configFlag(),
 			contextFlag(),
+			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)
@@ -522,6 +526,7 @@ func getEnrollSecretCommand() cli.Command {
 			yamlFlag(),
 			configFlag(),
 			contextFlag(),
+			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)
@@ -553,6 +558,7 @@ func getAppConfigCommand() cli.Command {
 			yamlFlag(),
 			configFlag(),
 			contextFlag(),
+			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)
@@ -585,6 +591,7 @@ func getHostsCommand() cli.Command {
 			yamlFlag(),
 			configFlag(),
 			contextFlag(),
+			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)
@@ -654,12 +661,13 @@ func getCarvesCommand() cli.Command {
 		Name:  "carves",
 		Usage: "Retrieve the file carving sessions",
 		Flags: []cli.Flag{
-			configFlag(),
-			contextFlag(),
 			cli.BoolFlag{
 				Name:  expiredFlagName,
 				Usage: "Include expired carves",
 			},
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)
@@ -713,13 +721,14 @@ func getCarveCommand() cli.Command {
 		Name:  "carve",
 		Usage: "Retrieve details for a carve by ID",
 		Flags: []cli.Flag{
-			configFlag(),
-			contextFlag(),
-			outfileFlag(),
 			cli.BoolFlag{
 				Name:  stdoutFlagName,
 				Usage: "Print carve contents to stdout",
 			},
+			configFlag(),
+			contextFlag(),
+			outfileFlag(),
+			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)

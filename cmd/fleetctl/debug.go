@@ -20,6 +20,7 @@ func debugCommand() cli.Command {
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
+			debugFlag(),
 		},
 		Subcommands: []cli.Command{
 			debugProfileCommand(),
@@ -51,9 +52,10 @@ func debugProfileCommand() cli.Command {
 		Usage:     "Record a CPU profile from the Fleet server.",
 		UsageText: "Record a 30-second CPU profile. The output can be analyzed with go tool pprof.",
 		Flags: []cli.Flag{
+			outfileFlag(),
 			configFlag(),
 			contextFlag(),
-			outfileFlag(),
+			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)
@@ -93,9 +95,10 @@ func debugCmdlineCommand() cli.Command {
 		Name:  "cmdline",
 		Usage: "Get the command line used to invoke the Fleet server.",
 		Flags: []cli.Flag{
+			outfileFlag(),
 			configFlag(),
 			contextFlag(),
-			outfileFlag(),
+			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)
@@ -131,9 +134,10 @@ func debugHeapCommand() cli.Command {
 		Usage:     "Report the allocated memory in the Fleet server.",
 		UsageText: "Report the heap-allocated memory. The output can be analyzed with go tool pprof.",
 		Flags: []cli.Flag{
+			outfileFlag(),
 			configFlag(),
 			contextFlag(),
-			outfileFlag(),
+			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)
@@ -167,9 +171,10 @@ func debugGoroutineCommand() cli.Command {
 		Usage:     "Get stack traces of all goroutines (threads) in the Fleet server.",
 		UsageText: "Get stack traces of all current goroutines (threads). The output can be analyzed with go tool pprof.",
 		Flags: []cli.Flag{
+			outfileFlag(),
 			configFlag(),
 			contextFlag(),
-			outfileFlag(),
+			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)
@@ -203,9 +208,10 @@ func debugTraceCommand() cli.Command {
 		Usage:     "Record an execution trace on the Fleet server.",
 		UsageText: "Record a 1 second execution trace. The output can be analyzed with go tool trace.",
 		Flags: []cli.Flag{
+			outfileFlag(),
 			configFlag(),
 			contextFlag(),
-			outfileFlag(),
+			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)
@@ -237,9 +243,10 @@ func debugArchiveCommand() cli.Command {
 		Name:  "archive",
 		Usage: "Create an archive with the entire suite of debug profiles.",
 		Flags: []cli.Flag{
+			outfileFlag(),
 			configFlag(),
 			contextFlag(),
-			outfileFlag(),
+			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)

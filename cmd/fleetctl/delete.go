@@ -12,15 +12,12 @@ import (
 func deleteCommand() cli.Command {
 	var (
 		flFilename string
-		flDebug    bool
 	)
 	return cli.Command{
 		Name:      "delete",
 		Usage:     "Specify files to declaratively batch delete osquery configurations",
 		UsageText: `fleetctl delete [options]`,
 		Flags: []cli.Flag{
-			configFlag(),
-			contextFlag(),
 			cli.StringFlag{
 				Name:        "f",
 				EnvVar:      "FILENAME",
@@ -28,12 +25,9 @@ func deleteCommand() cli.Command {
 				Destination: &flFilename,
 				Usage:       "A file to apply",
 			},
-			cli.BoolFlag{
-				Name:        "debug",
-				EnvVar:      "DEBUG",
-				Destination: &flDebug,
-				Usage:       "Whether or not to enable debug logging",
-			},
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			if flFilename == "" {
