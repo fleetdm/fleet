@@ -1,3 +1,7 @@
+## Fleet 3.7.1 (Feb 3, 2021)
+
+* Change the default `--server_tls_compatibility` to `intermediate`. The new settings caused TLS connectivity issues for users in some environments. This new default is a more appropriate balance of security and compatibility, as recommended by Mozilla.
+
 ## Fleet 3.7.0 (Feb 3, 2021)
 
 ### This is a security release.
