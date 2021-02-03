@@ -163,11 +163,18 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	lastTotals := targetTotals{}
 
 	// to improve performance of the frontend rendering the results table, we
-	// add the "host_hostname" field to every row.
-	mapHostnameRows := func(hostname string, rows []map[string]string) {
-		for _, row := range rows {
-			row["host_hostname"] = hostname
+	// add the "host_hostname" field to every row and clean null rows.
+	mapHostnameRows := func(res *kolide.DistributedQueryResult) {
+		filteredRows := []map[string]string{}
+		for _, row := range res.Rows {
+			if row == nil {
+				continue
+			}
+			row["host_hostname"] = res.Host.HostName
+			filteredRows = append(filteredRows, row)
 		}
+
+		res.Rows = filteredRows
 	}
 
 	hostIDs, labelIDs, err := svc.ds.DistributedQueryCampaignTargetIDs(campaign.ID)
@@ -230,7 +237,7 @@ func (svc service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			// Receive a result and push it over the websocket
 			switch res := res.(type) {
 			case kolide.DistributedQueryResult:
-				mapHostnameRows(res.Host.HostName, res.Rows)
+				mapHostnameRows(&res)
 				err = conn.WriteJSONMessage("result", res)
 				if errors.Cause(err) == sockjs.ErrSessionNotOpen {
 					// return and stop sending the query if the session was closed
