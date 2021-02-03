@@ -7,6 +7,8 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const WebpackNotifierPlugin = require('webpack-notifier');
 
+const DEV_SOURCE_MAPS = 'eval-source-map';
+
 var plugins = [
   new webpack.NoEmitOnErrorsPlugin(),
   new HtmlWebpackPlugin({
@@ -46,6 +48,7 @@ var config  = {
     publicPath: "/assets/",
     filename: '[name].js'
   },
+  devtool: process.env.NODE_ENV === 'development' ? DEV_SOURCE_MAPS : false,
   plugins: plugins,
   optimization: {
     minimize: process.env.NODE_ENV == 'production',
