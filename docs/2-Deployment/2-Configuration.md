@@ -391,14 +391,16 @@ Whether or not the server should be served over TLS.
 
 Configures the TLS settings for compatibility with various user agents. Options are `modern` and `intermediate`. These correspond to the compatibility levels [defined by the Mozilla OpSec team](https://wiki.mozilla.org/index.php?title=Security/Server_Side_TLS&oldid=1229478) (updated July 24, 2020).
 
-- Default value: `modern`
+- Default value: `intermediate`
 - Environment variable: `KOLIDE_SERVER_TLS_COMPATIBILITY`
 - Config file format:
 
 	```
 	server:
-		tls_compatibility: intermediate
+		tlsprofile: intermediate
 	```
+	
+Please note this option has an inconsistent key name in the config file. This will be fixed in Fleet 4.0.0.
 
 ###### `server_url_prefix`
 
