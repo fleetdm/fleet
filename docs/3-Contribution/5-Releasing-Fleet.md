@@ -1,6 +1,8 @@
 # Releasing Fleet
 
-1. Update the [CHANGELOG](../../CHANGELOG.md) with the changes that have been made since the last Fleet release.
+1. Update the [CHANGELOG](../../CHANGELOG.md) with the changes that have been made since the last Fleet release. Update the NPM [package.json](../../tools/fleetctl-npm/package.json) with the new version number (do not yet `npm publish`). Update the [Helm chart](../../chart/Chart.yaml) with the new version number.
+
+Commit these changes via Pull Request and pull the changes on the `master` branch locally. Check that `HEAD` of the `master` branch points to the commit with these changes.
 
 2. Tag and push the new release in Git:
 
@@ -53,7 +55,11 @@ Upload `fleet.zip`, `fleetctl-*.tar.gz`, and `fleetctl.exe.zip`. Click "Publish 
 make docker-push-release
 ```
 
-6. Publish the new version of `fleetctl` on NPM. Update the version in the [package.json](../../tools/fleetctl-npm/package.json) and publish with `npm publish`. Note that NPM does not allow replacing a package without creating a new version number. Take care to get things correct before running `npm publish`!
+6. Publish the new version of `fleetctl` on NPM. Run `npm publish` in the [fleetctl-npm](../../tools/fleetctl-npm/) directory. Note that NPM does not allow replacing a package without creating a new version number. Take care to get things correct before running `npm publish`!
 
-7. Announce the release in the #fleet channel of [osquery Slack](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/).
+7. Announce the release in the #fleet channel of [osquery Slack](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/). Using `@here` requires admin permissions, so typically this announcement will be done by `@zwass`.
+
+Announce the release via blog post (on Medium) and Twitter (linking to blog post).
+
+8. Crack open a beer and wonder why we haven't yet automated this process. Cheers!
 
