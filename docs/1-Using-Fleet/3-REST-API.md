@@ -11,6 +11,7 @@
 - [Targets](#targets)
 - [Fleet configuration](#fleet-configuration)
 - [Osquery options](#osquery-options)
+- [Fleet UI](#fleet-ui)
 
 ## Overview
 
@@ -420,11 +421,12 @@ Gets the current SSO configuration.
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                |
 | order_direction               | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                 |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                               |
+| q                  | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, and `ipv4`.                                                                                                                                                                                               |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. |
 
 #### Example
 
-`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=host_name`
+`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=host_name&q=2ce`
 
 ##### Request query parameters
 
@@ -479,43 +481,6 @@ Gets the current SSO configuration.
       "enroll_secret_name": "default",
       "status": "offline",
       "display_text": "2ceca32fe484"
-    },
-    {
-      "created_at": "2020-11-05T05:09:44Z",
-      "updated_at": "2020-11-05T06:03:39Z",
-      "id": 2,
-      "detail_updated_at": "2020-11-05T05:09:45Z",
-      "label_updated_at": "2020-11-05T05:14:52Z",
-      "seen_time": "2020-11-05T06:03:40Z",
-      "hostname": "4cc885c20110",
-      "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
-      "platform": "centos",
-      "osquery_version": "2.7.0",
-      "os_version": "CentOS 6.8.0",
-      "build": "",
-      "platform_like": "rhel",
-      "code_name": "",
-      "uptime": 8305000000000,
-      "memory": 2084032512,
-      "cpu_type": "6",
-      "cpu_subtype": "142",
-      "cpu_brand": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
-      "cpu_physical_cores": 4,
-      "cpu_logical_cores": 4,
-      "hardware_vendor": "",
-      "hardware_model": "",
-      "hardware_version": "",
-      "hardware_serial": "",
-      "computer_name": "4cc885c20110",
-      "primary_ip": "",
-      "primary_mac": "",
-      "distributed_interval": 10,
-      "config_tls_refresh": 10,
-      "logger_tls_period": 8,
-      "additional": {},
-      "enroll_secret_name": "default",
-      "status": "offline",
-      "display_text": "4cc885c20110"
     },
   ]
 }
@@ -3643,6 +3608,86 @@ Modifies the osquery options configuration set in Fleet.
 
 ```
 {}
+```
+
+---
+
+## Fleet UI
+
+### Get hosts' table columns
+
+Returns the hosts' table columns and their order as they're displayed in the Fleet UI.
+
+`GET /api/v1/kolide/users/hosts_table_columns`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/kolide/users/hosts_table_columns`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  “columns”: [
+      { “label”: “hostname” },
+      { “label”: “status” },
+      { “label”: “osquery_version” },
+      { “label”: “ipv4” }
+    ]
+}
+```
+
+### Modify hosts' table columns
+
+Modifies the hosts' table columns and their order as they're displayed in the Fleet UI.
+
+`POST /api/v1/kolide/users/hosts_table_columns`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| columns   | list (JSON)  | body | **Required.** The modified columns list. See the properties returned by the [api/v1/kolide/host](#get-host) endpoint for a list of possible columns.   |
+
+#### Example
+
+`GET /api/v1/kolide/users/hosts_table_columns`
+
+##### Request body
+
+```
+{
+  “columns”: [
+      { “label”: “hostname” },
+      { “label”: “status” },
+      { “label”: “osquery_version” },
+      { “label”: “seen_time” },
+      { “label”: “hardware_serial” }
+    ]
+}
+```
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  “columns”: [
+      { “label”: “hostname” },
+      { “label”: “status” },
+      { “label”: “osquery_version” },
+      { “label”: “seen_time” },
+      { “label”: “hardware_serial” }
+    ]
+}
 ```
 
 ---
