@@ -3657,7 +3657,7 @@ Modifies the hosts' table columns and their order as they're displayed in the Fl
 
 #### Example
 
-`GET /api/v1/kolide/users/hosts_table_columns`
+`POST /api/v1/kolide/users/hosts_table_columns`
 
 ##### Request body
 
