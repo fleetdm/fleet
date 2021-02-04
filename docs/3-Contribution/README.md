@@ -9,8 +9,8 @@ Includes documentation about Fleet's full test suite and integration tests
 ### [Migrations](./3-Migrations.md)
 Information about creating and updating database migrations
 
-### [Architecture decisions](./4-Architecture-decisions.md) 
-Provides a template for making architecturally significant changes to the project
+### [Commiting Changes](./4-Commiting-Changes.md) 
+Contains information about how to merge changes into the codebase
 
 ### [Releasing Fleet](./5-Releasing-Fleet.md) 
 Provides a guide for Fleet's release process
