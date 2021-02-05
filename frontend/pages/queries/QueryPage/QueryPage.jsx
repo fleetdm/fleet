@@ -59,6 +59,8 @@ export class QueryPage extends Component {
     selectedOsqueryTable: osqueryTableInterface,
     selectedTargets: PropTypes.arrayOf(targetInterface),
     title: PropTypes.string,
+    requestHost: PropTypes.bool,
+    hostId: PropTypes.string,
   };
 
   static defaultProps = {
@@ -78,6 +80,7 @@ export class QueryPage extends Component {
       targetsError: null,
       queryResultsToggle: null,
       queryPosition: {},
+      selectRelatedHostTarget: true,
     };
 
     this.csvQueryName = 'Query Results';
@@ -104,10 +107,44 @@ export class QueryPage extends Component {
     return false;
   }
 
+  componentDidMount() {
+    const {
+      dispatch,
+      requestHost,
+      hostId,
+    } = this.props;
+
+    // A fetch call is required for the host data if we do not already have the host
+    // data that is related to this query.
+    // e.g. coming into the app from a bookmark link /queries/new?host_ids=4
+    if (requestHost) {
+      const { fetchHost } = helpers;
+      fetchHost(dispatch, hostId).then(() => {
+        this.setState({ selectRelatedHostTarget: true });
+      });
+    }
+  }
+
   componentWillReceiveProps (nextProps) {
     const { location } = nextProps;
     const nextPathname = location.pathname;
     const { pathname } = this.props.location;
+
+
+    // this will initially select the related host for queries. This should only happen one time,
+    // and only when a query has a related host.
+    const {
+      dispatch,
+      selectedHosts,
+      selectedTargets,
+    } = nextProps;
+    if (this.state.selectRelatedHostTarget) {
+      helpers.selectHosts(dispatch, {
+        hosts: selectedHosts,
+        selectedTargets,
+      });
+      this.setState({ selectRelatedHostTarget: false });
+    }
 
     if (nextPathname !== pathname) {
       this.resetCampaignAndTargets();
@@ -116,7 +153,7 @@ export class QueryPage extends Component {
     return false;
   }
 
-  componentWillUnmount () {
+  componentWillUnmount() {
     const { dispatch, isSmallNav } = this.props;
     const { document: { body } } = global;
 
@@ -306,7 +343,7 @@ export class QueryPage extends Component {
       });
 
     return false;
-  };
+  }
 
   onToggleQueryFullScreen = (evt) => {
     const { document: { body }, window } = global;
@@ -585,6 +622,7 @@ const mapStateToProps = (state, ownProps) => {
   const { host_ids: hostIDs, host_uuids: hostUUIDs } = ownProps.location.query;
   const { isSmallNav } = state.app;
   const title = queryID ? 'Edit query' : 'New query';
+
   let selectedHosts = [];
 
   if (!queryID && ((hostIDs && hostIDs.length) || (hostUUIDs && hostUUIDs.length)) > 0) {
@@ -597,6 +635,14 @@ const mapStateToProps = (state, ownProps) => {
     selectedHosts = filter(hosts, hostFilter);
   }
 
+  const hostId = ownProps.location.query.host_ids;
+  const relatedHost = stateEntities
+    .get('hosts')
+    .findBy({ id: parseInt(hostId, 10) });
+  const requestHost =
+    hostId !== undefined &&
+    relatedHost === undefined;
+
   return {
     errors,
     isSmallNav,
@@ -605,6 +651,8 @@ const mapStateToProps = (state, ownProps) => {
     selectedOsqueryTable,
     selectedHosts,
     selectedTargets,
+    requestHost,
+    hostId,
     title,
   };
 };
