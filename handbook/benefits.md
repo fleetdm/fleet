@@ -21,6 +21,8 @@ Fleet makes it easier to query and track your servers, containers, and laptops. 
 - Express and track custom compliance goals
 - Integrate existing business processes
 - Play nice with internal tools and requirements
+- Self-managed (cloud first, but can still be within your VPC)
+- Complete control (no need to rely on 3rd party vendors, reduced risk of getting hacked)
 - Deploy anywhere
 
 #### Developer productivity
