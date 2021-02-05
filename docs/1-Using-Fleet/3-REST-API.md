@@ -3616,9 +3616,9 @@ Modifies the osquery options configuration set in Fleet.
 
 ### Get hosts' table columns
 
-Returns the hosts' table columns and their order as they're displayed in the Fleet UI.
+Returns the selected user's UI preferences as a list of attributes.
 
-`GET /api/v1/kolide/users/hosts_table_columns`
+`GET /api/v1/kolide/users/app/attributes`
 
 #### Parameters
 
@@ -3626,7 +3626,7 @@ None.
 
 #### Example
 
-`GET /api/v1/kolide/users/hosts_table_columns`
+`GET /api/v1/kolide/users/app/attributes?user_id=1`
 
 ##### Default response
 
@@ -3634,42 +3634,51 @@ None.
 
 ```
 {
-  “columns”: [
-      { “label”: “hostname” },
-      { “label”: “status” },
-      { “label”: “osquery_version” },
-      { “label”: “ipv4” }
-    ]
+  "attributes": [
+    {
+      "user_id": 1,
+      "key": "hosts_table_columns"
+      "value": "[
+        { “label”: “hostname” },
+        { “label”: “status” },
+        { “label”: “osquery_version” },
+        { “label”: “ipv4” }
+      ]"
+    },
+  ]
 }
 ```
 
 ### Modify hosts' table columns
 
-Modifies the hosts' table columns and their order as they're displayed in the Fleet UI.
+Modifies the selected user's UI preferences for the supplied attribute.
 
-`POST /api/v1/kolide/users/hosts_table_columns`
+`POST /api/v1/kolide/users/app/attributes`
 
 #### Parameters
 
 | Name       | Type    | In   | Description                                      |
 | ---------- | ------- | ---- | ------------------------------------------------ |
-| columns   | list (JSON)  | body | **Required.** The modified columns list. See the properties returned by the [api/v1/kolide/host](#get-host) endpoint for a list of possible columns.   |
+| user_id   | integer  | query | **Required.** The id of the user.  |
+| key   | string  | body | **Required.** The atrribute of the UI that is being changed.  |
+| value   | string  | body | **Required.** The updated state of the attribute. Ex. The list describing the new ordering of the columns in the *Hosts* table |
 
 #### Example
 
-`POST /api/v1/kolide/users/hosts_table_columns`
+`POST /api/v1/kolide/users/app/attributes?user_id=1`
 
 ##### Request body
 
 ```
 {
-  “columns”: [
-      { “label”: “hostname” },
-      { “label”: “status” },
-      { “label”: “osquery_version” },
-      { “label”: “seen_time” },
-      { “label”: “hardware_serial” }
-    ]
+  “key”: "hosts_table_columns",
+  "value": "[
+    { “label”: “hostname” },
+    { “label”: “status” },
+    { “label”: “osquery_version” },
+    { “label”: “seen_time” },
+    { “label”: “hardware_serial” }
+  ]"
 }
 ```
 
@@ -3680,13 +3689,15 @@ Modifies the hosts' table columns and their order as they're displayed in the Fl
 
 ```
 {
-  “columns”: [
-      { “label”: “hostname” },
-      { “label”: “status” },
-      { “label”: “osquery_version” },
-      { “label”: “seen_time” },
-      { “label”: “hardware_serial” }
-    ]
+  "user_id": 1,
+  “key”: "hosts_table_columns",
+  "value": "[
+    { “label”: “hostname” },
+    { “label”: “status” },
+    { “label”: “osquery_version” },
+    { “label”: “seen_time” },
+    { “label”: “hardware_serial” }
+  ]"
 }
 ```
 
