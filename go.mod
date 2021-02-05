@@ -18,6 +18,7 @@ require (
 	github.com/e-dard/netbug v0.0.0-20151029172837-e64d308a0b20
 	github.com/elazarl/go-bindata-assetfs v1.0.0
 	github.com/fatih/color v1.7.0 // indirect
+	github.com/fleetdm/goose v0.0.0-20210205022138-27718647ba5b
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-kit/kit v0.8.0
 	github.com/go-sql-driver/mysql v1.5.0
@@ -32,16 +33,13 @@ require (
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jmoiron/sqlx v0.0.0-20180406164412-2aeb6a910c2b
 	github.com/jonboulle/clockwork v0.2.2 // indirect
-	github.com/kolide/goose v0.0.0-20181015214854-7aebd1deb5ab
 	github.com/kolide/kit v0.0.0-20180421083548-36eb8dc43916
 	github.com/kolide/launcher v0.0.0-20180427153757-cb412b945cf7
 	github.com/kolide/osquery-go v0.0.0-20190904034940-a74aa860032d
-	github.com/lib/pq v1.2.0 // indirect
 	github.com/magiconair/properties v1.7.6 // indirect
 	github.com/mattermost/xml-roundtrip-validator v0.0.0-20201213122252-bcd7e1b9601e
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/mattn/go-runewidth v0.0.8 // indirect
-	github.com/mattn/go-sqlite3 v1.11.0 // indirect
 	github.com/mitchellh/mapstructure v0.0.0-20180220230111-00c29f56e238 // indirect
 	github.com/olekukonko/tablewriter v0.0.0-20180506121414-d4647c9c7a84
 	github.com/patrickmn/sortutil v0.0.0-20120526081524-abeda66eb583
@@ -58,6 +56,7 @@ require (
 	github.com/spf13/viper v1.0.2
 	github.com/stretchr/testify v1.6.1
 	github.com/urfave/cli v1.22.4
+	github.com/ziutek/mymysql v1.5.4 // indirect
 	go.opencensus.io v0.20.2 // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/net v0.0.0-20201021035429-f5854403a974 // indirect

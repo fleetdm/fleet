@@ -169,6 +169,9 @@ deps-go:
 		github.com/groob/mockimpl
 	go mod download
 
+migration:
+	go run github.com/fleetdm/goose/cmd/goose -dir server/datastore/mysql/migrations/tables create $(name)
+
 distclean:
 ifeq ($(OS), Windows_NT)
 	if exist build rmdir /s/q build
