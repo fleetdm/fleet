@@ -34,6 +34,12 @@ const (
 	snapshotExpirationDuration = 3 * 365 * 24 * time.Hour
 	// 14 days
 	timestampExpirationDuration = 14 * 24 * time.Hour
+
+	decryptionFailedError = "encrypted: decryption failed"
+)
+
+var (
+	passHandler = newPassphraseHandler()
 )
 
 func updatesCommand() cli.Command {
@@ -75,7 +81,7 @@ func updatesInitCommand() cli.Command {
 
 func updatesInitFunc(c *cli.Context) error {
 	path := c.String("path")
-	store := tuf.FileSystemStore(path, updatesPassphraseFunc)
+	store := tuf.FileSystemStore(path, passHandler.getPassphrase)
 	meta, err := store.GetMeta()
 	if err != nil {
 		return errors.Wrap(err, "get repo meta")
@@ -176,9 +182,14 @@ func updatesAddFunc(c *cli.Context) error {
 		return err
 	}
 
-	// TODO verify all passwords here
-	// store := tuf.FileSystemStore(c.String("path"), updatesPassphraseFunc)
-	// keys, err := store.GetSigningKeys("timestamp")
+	// Verify we can decrypt necessary role keys
+	requiredKeys := []string{"timestamp", "snapshot", "targets"}
+	store := tuf.FileSystemStore(c.String("path"), passHandler.getPassphrase)
+	for _, role := range requiredKeys {
+		if err := passHandler.checkPassphrase(store, role); err != nil {
+			return err
+		}
+	}
 
 	tags := c.StringSlice("tag")
 	version := c.String("version")
@@ -267,7 +278,7 @@ func updatesGenKey(repo *tuf.Repo, role string) error {
 }
 
 func openRepo(path string) (*tuf.Repo, error) {
-	store := tuf.FileSystemStore(path, updatesPassphraseFunc)
+	store := tuf.FileSystemStore(path, passHandler.getPassphrase)
 	meta, err := store.GetMeta()
 	if err != nil {
 		return nil, errors.Wrap(err, "get repo meta")
@@ -284,34 +295,106 @@ func openRepo(path string) (*tuf.Repo, error) {
 	return repo, nil
 }
 
-func updatesPassphraseFunc(role string, confirm bool) ([]byte, error) {
-	// Adapted from
-	// https://github.com/theupdateframework/go-tuf/blob/aee6270feb5596036edde4b6d7564fa17db811cb/cmd/tuf/main.go#L125
+// passphraseHandler will cache passphrases so that they can be checked prior to
+// usage without requiring the user to enter them more than once.
+type passphraseHandler struct {
+	cache map[string][]byte
+}
 
-	if pass := os.Getenv(fmt.Sprintf("FLEET_UPDATE_%s_PASSPHRASE", strings.ToUpper(role))); pass != "" {
-		return []byte(pass), nil
+func newPassphraseHandler() *passphraseHandler {
+	return &passphraseHandler{cache: make(map[string][]byte)}
+}
+
+func (p *passphraseHandler) getPassphrase(role string, confirm bool) ([]byte, error) {
+	// Check cache
+	if pass, ok := p.cache[role]; ok {
+		return pass, nil
 	}
 
-	fmt.Printf("Enter %s key passphrase: ", role)
-	passphrase, err := terminal.ReadPassword(int(syscall.Stdin))
-	fmt.Println()
+	// Get passphrase
+	var err error
+	passphrase, err := p.readPassphrase(role, confirm)
 	if err != nil {
 		return nil, err
 	}
 
-	if !confirm {
-		return passphrase, nil
-	}
+	// Store cache
+	p.cache[role] = passphrase
 
-	fmt.Printf("Repeat %s key passphrase: ", role)
-	confirmation, err := terminal.ReadPassword(int(syscall.Stdin))
-	fmt.Println()
-	if err != nil {
-		return nil, err
-	}
-
-	if !bytes.Equal(passphrase, confirmation) {
-		return nil, errors.New("The entered passphrases do not match")
-	}
 	return passphrase, nil
+}
+
+func (p *passphraseHandler) passphraseEnvName(role string) string {
+	return fmt.Sprintf("FLEET_UPDATE_%s_PASSPHRASE", strings.ToUpper(role))
+}
+
+func (p *passphraseHandler) getPassphraseFromEnv(role string) []byte {
+	if pass := os.Getenv(p.passphraseEnvName(role)); pass != "" {
+		return []byte(pass)
+	}
+
+	return nil
+}
+
+// Read input. Adapted from
+// https://github.com/theupdateframework/go-tuf/blob/aee6270feb5596036edde4b6d7564fa17db811cb/cmd/tuf/main.go#L125
+func (p *passphraseHandler) readPassphrase(role string, confirm bool) ([]byte, error) {
+	// Loop until error reading or successful confirmation (if needed)
+	for {
+		if passphrase := p.getPassphraseFromEnv(role); passphrase != nil {
+			return passphrase, nil
+		}
+
+		fmt.Printf("Enter %s key passphrase: ", role)
+		passphrase, err := terminal.ReadPassword(int(syscall.Stdin))
+		fmt.Println()
+		if err != nil {
+			return nil, errors.Wrap(err, "read password")
+		}
+
+		if !confirm {
+			return passphrase, nil
+		}
+
+		fmt.Printf("Repeat %s key passphrase: ", role)
+		confirmation, err := terminal.ReadPassword(int(syscall.Stdin))
+		fmt.Println()
+		if err != nil {
+			return nil, errors.Wrap(err, "read password confirmation")
+		}
+
+		if bytes.Equal(passphrase, confirmation) {
+			return passphrase, nil
+		}
+
+		fmt.Println("The entered passphrases do not match")
+	}
+}
+
+func (p *passphraseHandler) checkPassphrase(store tuf.LocalStore, role string) error {
+	// It seems the only way to check the passphrase is to try decrypting the
+	// key and see if it is successful. Loop until successful decryption or
+	// non-decryption error.
+	for {
+		if _, err := store.GetSigningKeys(role); err != nil {
+			// TODO it would be helpful if we could upstream a new error type in
+			// go-tuf and use errors.Is instead of comparing the text of the
+			// error as we do currently.
+			if errors.Cause(err).Error() != decryptionFailedError {
+				return err
+
+			} else if err != nil {
+				if p.getPassphraseFromEnv(role) != nil {
+					// Fatal error if environment variable passphrase is
+					// incorrect
+					return errors.Errorf("%s passphrase from %s is invalid", role, p.passphraseEnvName(role))
+				}
+
+				fmt.Printf("Failed to decrypt %s key. Try again.\n", role)
+				delete(p.cache, role)
+			}
+		} else {
+			return nil
+		}
+	}
 }
