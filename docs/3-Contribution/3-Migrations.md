@@ -10,40 +10,36 @@ Database schemas are managed by a series of migrations defined in go code. We us
 
 Note: Once committed to the Fleet repo, table migrations should be considered immutable. Any changes to an existing table should take place in a new migration executing ALTERs.
 
-From the project root run the following shell commands:
+From the project root run the following shell command:
 
 ``` bash
-go get github.com/kolide/goose
-cd server/datastore/mysql/migrations/tables
-goose create AddColumnFooToUsers
+make migration name=NameOfMigration
 ```
 
-Find the file you created in the migrations directory and edit it:
-
-* delete the import line for goose: `github.com/pressly/goose`
-* change `goose.AddMigration(...)` to `MigrationClient.AddMigration(...)`
-* add your migration code
+Now edit the generated migration file in [server/datastore/mysql/migations/tables/](server/datastore/mysql/migations/tables/).
 
 You can then update the database by running the following shell commands:
 
 ``` bash
-make build
-build/fleet prepare db
+make fleet
+./build/fleet prepare db
 ```
 
 ## Populating the database with default data
+
+Note: This pattern will soon be changing. Please check with @zwass if you think you need to write a data migration.
 
 Populating built in data is also performed through migrations. All table migrations are performed before any data migrations.
 
 Note: Data migrations can be mutable. If tables are altered in a way that would render a data migration invalid (columns changed/removed), data migrations should be updated to comply with the new schema. Data migrations will not be re-run when they have already been run against a database, but they must be updated to maintain compatibility with a fresh DB.
 
-From the project root run the following shell commands:
+From the project root run the following shell command:
 
 ``` bash
-go get github.com/kolide/goose
-cd server/datastore/mysql/migrations/data
-goose create PopulateFoo
+make migration name=NameOfMigration
 ```
+
+Move the migration file from [server/datastore/mysql/migations/tables/](server/datastore/mysql/migations/tables/) to [server/datastore/mysql/migations/data/](server/datastore/mysql/migations/data/), and change the `package tables` to `package data`.
 
 Proceed as for table migrations, editing and running the newly created migration file.
 
