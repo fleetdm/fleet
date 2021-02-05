@@ -3614,7 +3614,7 @@ Modifies the osquery options configuration set in Fleet.
 
 ## Fleet UI
 
-### Get hosts' table columns
+### List user's UI preferences
 
 Returns the selected user's UI preferences as a list of attributes.
 
@@ -3649,7 +3649,7 @@ None.
 }
 ```
 
-### Modify hosts' table columns
+### Modify user's UI preferences
 
 Modifies the selected user's UI preferences for the supplied attribute.
 
