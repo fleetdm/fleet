@@ -16,7 +16,7 @@ From the project root run the following shell command:
 make migration name=NameOfMigration
 ```
 
-Now edit the generated migration file in [server/datastore/mysql/migations/tables/](server/datastore/mysql/migations/tables/).
+Now edit the generated migration file in [server/datastore/mysql/migrations/tables/](../../server/datastore/mysql/migrations/tables/).
 
 You can then update the database by running the following shell commands:
 
@@ -39,7 +39,7 @@ From the project root run the following shell command:
 make migration name=NameOfMigration
 ```
 
-Move the migration file from [server/datastore/mysql/migations/tables/](server/datastore/mysql/migations/tables/) to [server/datastore/mysql/migations/data/](server/datastore/mysql/migations/data/), and change the `package tables` to `package data`.
+Move the migration file from [server/datastore/mysql/migrations/tables/](../../server/datastore/mysql/migrations/tables/) to [server/datastore/mysql/migrations/data/](../../server/datastore/mysql/migrations/data/), and change the `package tables` to `package data`.
 
 Proceed as for table migrations, editing and running the newly created migration file.
 
