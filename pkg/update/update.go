@@ -19,6 +19,8 @@ import (
 
 const (
 	binDir = "bin"
+
+	defaultRootKeys = `[{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"c5008789635b7ac63228d80eec24edbfb8b3bddfd2121b08456de201ec24df7a"}}]`
 )
 
 // Updater is responsible for managing update state.
@@ -55,7 +57,7 @@ var (
 		LocalStore:        client.MemoryLocalStore(),
 		InsecureTransport: false,
 		Platform:          constant.PlatformName,
-		RootKeys:          `[{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"0994148e5242118d1d6a9a397a3646e0423545a37794a791c28aa39de3b0c523"}}]`,
+		RootKeys:          defaultRootKeys,
 	}
 )
 
