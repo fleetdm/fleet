@@ -21,16 +21,17 @@ const (
 	// consistentSnapshots are not needed due to the low update frequency of
 	// these repositories.
 	consistentSnapshots = false
-	// default to 10 year expiration on keys
+
+	// ~10 years
 	keyExpirationDuration = 10 * 365 * 24 * time.Hour
 
 	// Expirations from
 	// https://github.com/theupdateframework/notary/blob/e87b31f46cdc5041403c64b7536df236d5e35860/docs/best_practices.md#expiration-prevention
-	// 10 years
+	// ~10 years
 	rootExpirationDuration = 10 * 365 * 24 * time.Hour
-	// 3 years
+	// ~3 years
 	targetsExpirationDuration = 3 * 365 * 24 * time.Hour
-	// 3 years
+	// ~3 years
 	snapshotExpirationDuration = 3 * 365 * 24 * time.Hour
 	// 14 days
 	timestampExpirationDuration = 14 * 24 * time.Hour
@@ -50,6 +51,7 @@ func updatesCommand() cli.Command {
 			updatesInitCommand(),
 			updatesRootsCommand(),
 			updatesAddCommand(),
+			updatesTimestampCommand(),
 		},
 		Flags: []cli.Flag{
 			configFlag(),
@@ -172,23 +174,18 @@ func updatesAddCommand() cli.Command {
 	}
 }
 
-type customMetadata struct {
-	Version string `json:"version"`
-}
-
 func updatesAddFunc(c *cli.Context) error {
 	repo, err := openRepo(c.String("path"))
 	if err != nil {
 		return err
 	}
 
-	// Verify we can decrypt necessary role keys
-	requiredKeys := []string{"timestamp", "snapshot", "targets"}
-	store := tuf.FileSystemStore(c.String("path"), passHandler.getPassphrase)
-	for _, role := range requiredKeys {
-		if err := passHandler.checkPassphrase(store, role); err != nil {
-			return err
-		}
+	if err := checkKeys(c.String("path"),
+		"timestamp",
+		"snapshot",
+		"targets",
+	); err != nil {
+		return err
 	}
 
 	tags := c.StringSlice("tag")
@@ -206,6 +203,9 @@ func updatesAddFunc(c *cli.Context) error {
 		}
 	}
 
+	type customMetadata struct {
+		Version string `json:"version"`
+	}
 	meta, err := json.Marshal(customMetadata{Version: version})
 	if err != nil {
 		return errors.Wrap(err, "marshal custom metadata")
@@ -227,13 +227,59 @@ func updatesAddFunc(c *cli.Context) error {
 	}
 
 	if err := repo.TimestampWithExpires(
-		time.Now().Add(snapshotExpirationDuration),
+		time.Now().Add(timestampExpirationDuration),
 	); err != nil {
 		return errors.Wrap(err, "make timestamp")
 	}
 
 	if err := repo.Commit(); err != nil {
 		return errors.Wrap(err, "commit repo")
+	}
+
+	return nil
+}
+
+func updatesTimestampCommand() cli.Command {
+	return cli.Command{
+		Name:   "timestamp",
+		Usage:  "Sign a new timestamp manifest",
+		Flags:  updatesFlags(),
+		Action: updatesTimestampFunc,
+	}
+}
+
+func updatesTimestampFunc(c *cli.Context) error {
+	repo, err := openRepo(c.String("path"))
+	if err != nil {
+		return err
+	}
+
+	if err := checkKeys(c.String("path"),
+		"timestamp",
+	); err != nil {
+		return err
+	}
+
+	if err := repo.TimestampWithExpires(
+		time.Now().Add(timestampExpirationDuration),
+	); err != nil {
+		return errors.Wrap(err, "make timestamp")
+	}
+
+	if err := repo.Commit(); err != nil {
+		return errors.Wrap(err, "commit repo")
+	}
+
+	return nil
+}
+
+func checkKeys(repoPath string, keys ...string) error {
+	// Verify we can decrypt necessary role keys
+	store := tuf.FileSystemStore(repoPath, passHandler.getPassphrase)
+	for _, role := range keys {
+		if err := passHandler.checkPassphrase(store, role); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -324,8 +370,9 @@ func (p *passphraseHandler) getPassphrase(role string, confirm bool) ([]byte, er
 	return passphrase, nil
 }
 
+// export FLEET_TIMESTAMP_PASSPHRASE=insecure FLEET_SNAPSHOT_PASSPHRASE=insecure FLEET_TARGETS_PASSPHRASE=insecure FLEET_ROOT_PASSPHASE=insecure
 func (p *passphraseHandler) passphraseEnvName(role string) string {
-	return fmt.Sprintf("FLEET_UPDATE_%s_PASSPHRASE", strings.ToUpper(role))
+	return fmt.Sprintf("FLEET_%s_PASSPHRASE", strings.ToUpper(role))
 }
 
 func (p *passphraseHandler) getPassphraseFromEnv(role string) []byte {
