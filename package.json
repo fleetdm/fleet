@@ -47,7 +47,7 @@
     "react-router-transition": "0.1.1",
     "react-select": "^1",
     "react-tooltip": "^4.2.13",
-    "redux": "3.7.2",
+    "redux": "4.0.5",
     "redux-mock-store": "1.4.0",
     "redux-thunk": "2.3.0",
     "require-hacker": "2.1.4",
