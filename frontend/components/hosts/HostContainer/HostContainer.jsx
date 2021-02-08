@@ -6,6 +6,7 @@ import labelInterface from 'interfaces/label';
 import HostsTable from 'components/hosts/HostsTable';
 import Spinner from 'components/loaders/Spinner';
 import RoboDogImage from '../../../../assets/images/robo-dog-176x144@2x.png';
+import HostsDataTable from '../HostsDataTable/HostsDataTable';
 
 const baseClass = 'host-container';
 
@@ -90,6 +91,7 @@ class HostContainer extends Component {
     return (
       <div className={`${baseClass}`}>
         {renderHosts()}
+        <HostsDataTable hosts={hosts} />
       </div>
     );
   }
