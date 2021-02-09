@@ -53,6 +53,8 @@ Welcome to Fleet! This issue tracks TODOs required for all new teammates for you
 - [ ] Create new 1:1 agenda doc for teammate based on [GitLab's 1:1 template](https://about.gitlab.com/handbook/leadership/1-1/suggested-agenda-format)  (i.e. copy [one of the existing 1:1 agendas](https://drive.google.com/drive/folders/1d9iOzMUU-W4qTIchaZrY0Y_tq3Wqevkk?usp=sharing))
 - [ ] Schedule recurring daily check-ins with teammate for the first 2 weeks
 - [ ] Schedule a recurring 1:1 at starting in week 3
+- [ ] Check/add-if-not-already there availability for their region in the ["Hours, availability"](https://docs.google.com/document/d/1LzIZs7PbHHK88tMXXcQDecUMSE6lFzkWZV_N9o6C6L0/edit?usp=sharing) google doc
+- [ ] Set up Slack’s work hours setting to match core hours from that doc
 
 #### Set up with accounts and tools
 - [ ] Google Workspace
