@@ -24,6 +24,11 @@ func main() {
 	app.Commands = []*cli.Command{}
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
+			Name:     "type",
+			Usage:    "Type of package to build",
+			Required: true,
+		},
+		&cli.StringFlag{
 			Name:        "enroll-secret",
 			Usage:       "Enroll secret for authenticating to Fleet server",
 			Destination: &opt.EnrollSecret,
@@ -32,6 +37,18 @@ func main() {
 			Name:        "fleet-url",
 			Usage:       "URL (host:port) of Fleet server",
 			Destination: &opt.FleetURL,
+		},
+		&cli.StringFlag{
+			Name:        "identifier",
+			Usage:       "Identifier for package product",
+			Value:       "com.fleetdm.orbit",
+			Destination: &opt.Identifier,
+		},
+		&cli.StringFlag{
+			Name:        "version",
+			Usage:       "Version for package product",
+			Value:       "0.0.1",
+			Destination: &opt.Version,
 		},
 		&cli.BoolFlag{
 			Name:        "insecure",
@@ -58,7 +75,14 @@ func main() {
 			}
 		}
 
-		return packaging.BuildDeb(opt)
+		switch c.String("type") {
+		case "pkg":
+			return packaging.BuildPkg(opt)
+		case "deb":
+			return packaging.BuildDeb(opt)
+		default:
+			return errors.New("type must be one of ('pkg', 'deb')")
+		}
 	}
 
 	if err := app.Run(os.Args); err != nil {

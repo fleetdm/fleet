@@ -27,9 +27,9 @@ func BuildDeb(opt Options) error {
 	defer os.RemoveAll(tmpDir)
 	log.Debug().Str("path", tmpDir).Msg("created temp dir")
 
-	filesystemRoot := filepath.Join(tmpDir, "filesystem")
+	filesystemRoot := filepath.Join(tmpDir, "root")
 	if err := os.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
-		return errors.Wrap(err, "create filesystem dir")
+		return errors.Wrap(err, "create root dir")
 	}
 	orbitRoot := filepath.Join(filesystemRoot, "var", "lib", "fleet", "orbit")
 	if err := os.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
@@ -113,7 +113,7 @@ func BuildDeb(opt Options) error {
 
 	info := &nfpm.Info{
 		Name:        "orbit-osquery",
-		Version:     "0.0.1",
+		Version:     opt.Version,
 		Description: "Osquery launcher and autoupdater",
 		Arch:        "amd64",
 		Maintainer:  "FleetDM Engineers <engineering@fleetdm.com>",
