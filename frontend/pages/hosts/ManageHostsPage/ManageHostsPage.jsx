@@ -8,7 +8,6 @@ import { sortBy } from 'lodash';
 import AddHostModal from 'components/hosts/AddHostModal';
 import Button from 'components/buttons/Button';
 import configInterface from 'interfaces/config';
-import HostContainer from 'components/hosts/HostContainer';
 import HostPagination from 'components/hosts/HostPagination';
 import HostSidePanel from 'components/side_panels/HostSidePanel';
 import LabelForm from 'components/forms/LabelForm';
@@ -28,6 +27,7 @@ import entityGetter from 'redux/utilities/entityGetter';
 import PATHS from 'router/paths';
 import deepDifference from 'utilities/deep_difference';
 import scrollToTop from 'utilities/scroll_to_top';
+import HostContainer from './components/HostContainer';
 import helpers from './helpers';
 
 const NEW_LABEL_HASH = '#new_label';

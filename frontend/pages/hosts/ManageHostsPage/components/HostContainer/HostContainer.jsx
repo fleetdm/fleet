@@ -3,10 +3,10 @@ import PropTypes from 'prop-types';
 
 import hostInterface from 'interfaces/host';
 import labelInterface from 'interfaces/label';
-import HostsTable from 'components/hosts/HostsTable';
 import Spinner from 'components/loaders/Spinner';
-import RoboDogImage from '../../../../assets/images/robo-dog-176x144@2x.png';
+import HostsTable from '../HostsTable';
 import HostsDataTable from '../HostsDataTable/HostsDataTable';
+import RoboDogImage from '../../../../../../assets/images/robo-dog-176x144@2x.png';
 
 const baseClass = 'host-container';
 
