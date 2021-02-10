@@ -1,6 +1,9 @@
 import React from 'react';
 import { useTable } from 'react-table';
 
+import TableHeader from '../TableHeader/TableHeader';
+import TextCell from '../TextCell/TextCell';
+
 const baseClass = 'hosts-table';
 
 const HostsDataTable = ({ hosts }) => {
@@ -24,28 +27,25 @@ const HostsDataTable = ({ hosts }) => {
 
 
   const {
-    getTableProps,
-    getTableBodyProps,
     headerGroups,
     rows,
     prepareRow,
-  } = useTable({ columns, data });
+  } = useTable({ columns, data, defaultColumn: { Cell: TextCell } });
 
   return (
     <div className={`${baseClass} ${baseClass}__wrapper`}>
-      <table {...getTableProps()} className={`${baseClass}__table`}>
+      <table className={`${baseClass}__table`}>
         <thead>
           {headerGroups.map(headerGroup => (
             <tr {...headerGroup.getHeaderGroupProps()}>
               {headerGroup.headers.map(column => (
-                <th>
-                  {column.render('Header')}
-                </th>
+                <th {...column.getHeaderProps()}>{column.render('Header')}</th>
+                // <TableHeader title={column.render('Header')} />
               ))}
             </tr>
           ))}
         </thead>
-        <tbody {...getTableBodyProps()}>
+        <tbody>
           {rows.map((row) => {
             prepareRow(row);
             return (
