@@ -13,7 +13,7 @@ import (
 
 func TestDecodeCreateUserRequest(t *testing.T) {
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/kolide/users", func(writer http.ResponseWriter, request *http.Request) {
+	router.HandleFunc("/api/v1/fleet/users", func(writer http.ResponseWriter, request *http.Request) {
 		r, err := decodeCreateUserRequest(context.Background(), request)
 		assert.Nil(t, err)
 
@@ -30,13 +30,13 @@ func TestDecodeCreateUserRequest(t *testing.T) {
 
 	router.ServeHTTP(
 		httptest.NewRecorder(),
-		httptest.NewRequest("POST", "/api/v1/kolide/users", &body),
+		httptest.NewRequest("POST", "/api/v1/fleet/users", &body),
 	)
 }
 
 func TestDecodeGetUserRequest(t *testing.T) {
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/kolide/users/{id}", func(writer http.ResponseWriter, request *http.Request) {
+	router.HandleFunc("/api/v1/fleet/users/{id}", func(writer http.ResponseWriter, request *http.Request) {
 		r, err := decodeGetUserRequest(context.Background(), request)
 		assert.Nil(t, err)
 
@@ -46,13 +46,13 @@ func TestDecodeGetUserRequest(t *testing.T) {
 
 	router.ServeHTTP(
 		httptest.NewRecorder(),
-		httptest.NewRequest("GET", "/api/v1/kolide/users/1", nil),
+		httptest.NewRequest("GET", "/api/v1/fleet/users/1", nil),
 	)
 }
 
 func TestDecodeChangePasswordRequest(t *testing.T) {
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/kolide/change_password", func(writer http.ResponseWriter, request *http.Request) {
+	router.HandleFunc("/api/v1/fleet/change_password", func(writer http.ResponseWriter, request *http.Request) {
 		r, err := decodeChangePasswordRequest(context.Background(), request)
 		assert.Nil(t, err)
 
@@ -69,13 +69,13 @@ func TestDecodeChangePasswordRequest(t *testing.T) {
 
 	router.ServeHTTP(
 		httptest.NewRecorder(),
-		httptest.NewRequest("POST", "/api/v1/kolide/change_password", &body),
+		httptest.NewRequest("POST", "/api/v1/fleet/change_password", &body),
 	)
 }
 
 func TestDecodeResetPasswordRequest(t *testing.T) {
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/kolide/users/{id}/password", func(writer http.ResponseWriter, request *http.Request) {
+	router.HandleFunc("/api/v1/fleet/users/{id}/password", func(writer http.ResponseWriter, request *http.Request) {
 		r, err := decodeResetPasswordRequest(context.Background(), request)
 		assert.Nil(t, err)
 
@@ -92,13 +92,13 @@ func TestDecodeResetPasswordRequest(t *testing.T) {
 
 	router.ServeHTTP(
 		httptest.NewRecorder(),
-		httptest.NewRequest("POST", "/api/v1/kolide/users/1/password", &body),
+		httptest.NewRequest("POST", "/api/v1/fleet/users/1/password", &body),
 	)
 }
 
 func TestDecodeModifyUserRequest(t *testing.T) {
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/kolide/users/{id}", func(writer http.ResponseWriter, request *http.Request) {
+	router.HandleFunc("/api/v1/fleet/users/{id}", func(writer http.ResponseWriter, request *http.Request) {
 		r, err := decodeModifyUserRequest(context.Background(), request)
 		assert.Nil(t, err)
 
@@ -114,7 +114,7 @@ func TestDecodeModifyUserRequest(t *testing.T) {
         "email": "foo@kolide.co"
     }`))
 
-	request := httptest.NewRequest("PATCH", "/api/v1/kolide/users/1", &body)
+	request := httptest.NewRequest("PATCH", "/api/v1/fleet/users/1", &body)
 	router.ServeHTTP(
 		httptest.NewRecorder(),
 		request,

@@ -432,7 +432,7 @@ func MakeHandler(svc kolide.Service, config config.KolideConfig, logger kitlog.L
 	r.PathPrefix("/api/v1/fleet/results/").
 		Handler(makeStreamDistributedQueryCampaignResultsHandler(svc, config.Auth.JwtKey, logger)).
 		Name("distributed_query_results")
-	r.PathPrefix("/api/v1/kolide/results/").
+	r.PathPrefix("/api/v1/fleet/results/").
 		Handler(makeStreamDistributedQueryCampaignResultsHandler(svc, config.Auth.JwtKey, logger)).
 		Name("distributed_query_results")
 

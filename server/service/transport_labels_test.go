@@ -13,7 +13,7 @@ import (
 
 func TestDecodeDeleteLabelRequest(t *testing.T) {
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/kolide/labels/{name}", func(writer http.ResponseWriter, request *http.Request) {
+	router.HandleFunc("/api/v1/fleet/labels/{name}", func(writer http.ResponseWriter, request *http.Request) {
 		r, err := decodeDeleteLabelRequest(context.Background(), request)
 		assert.Nil(t, err)
 
@@ -23,13 +23,13 @@ func TestDecodeDeleteLabelRequest(t *testing.T) {
 
 	router.ServeHTTP(
 		httptest.NewRecorder(),
-		httptest.NewRequest("DELETE", "/api/v1/kolide/labels/foo", nil),
+		httptest.NewRequest("DELETE", "/api/v1/fleet/labels/foo", nil),
 	)
 }
 
 func TestDecodeGetLabelRequest(t *testing.T) {
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/kolide/labels/{id}", func(writer http.ResponseWriter, request *http.Request) {
+	router.HandleFunc("/api/v1/fleet/labels/{id}", func(writer http.ResponseWriter, request *http.Request) {
 		r, err := decodeGetLabelRequest(context.Background(), request)
 		assert.Nil(t, err)
 
@@ -39,13 +39,13 @@ func TestDecodeGetLabelRequest(t *testing.T) {
 
 	router.ServeHTTP(
 		httptest.NewRecorder(),
-		httptest.NewRequest("GET", "/api/v1/kolide/labels/1", nil),
+		httptest.NewRequest("GET", "/api/v1/fleet/labels/1", nil),
 	)
 }
 
 func TestDecodeCreateLabelRequest(t *testing.T) {
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/kolide/labels", func(writer http.ResponseWriter, request *http.Request) {
+	router.HandleFunc("/api/v1/fleet/labels", func(writer http.ResponseWriter, request *http.Request) {
 		r, err := decodeCreateLabelRequest(context.Background(), request)
 		assert.Nil(t, err)
 
@@ -64,6 +64,6 @@ func TestDecodeCreateLabelRequest(t *testing.T) {
 
 	router.ServeHTTP(
 		httptest.NewRecorder(),
-		httptest.NewRequest("POST", "/api/v1/kolide/labels", &body),
+		httptest.NewRequest("POST", "/api/v1/fleet/labels", &body),
 	)
 }

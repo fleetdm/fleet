@@ -14,7 +14,7 @@ import (
 
 func TestDecodeGetScheduledQueriesInPackRequest(t *testing.T) {
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/kolide/packs/{id}/scheduled", func(writer http.ResponseWriter, request *http.Request) {
+	router.HandleFunc("/api/v1/fleet/packs/{id}/scheduled", func(writer http.ResponseWriter, request *http.Request) {
 		r, err := decodeGetScheduledQueriesInPackRequest(context.Background(), request)
 		assert.Nil(t, err)
 
@@ -24,13 +24,13 @@ func TestDecodeGetScheduledQueriesInPackRequest(t *testing.T) {
 
 	router.ServeHTTP(
 		httptest.NewRecorder(),
-		httptest.NewRequest("GET", "/api/v1/kolide/packs/1/scheduled", nil),
+		httptest.NewRequest("GET", "/api/v1/fleet/packs/1/scheduled", nil),
 	)
 }
 
 func TestDecodeScheduleQueryRequest(t *testing.T) {
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/kolide/schedule", func(writer http.ResponseWriter, request *http.Request) {
+	router.HandleFunc("/api/v1/fleet/schedule", func(writer http.ResponseWriter, request *http.Request) {
 		r, err := decodeScheduleQueryRequest(context.Background(), request)
 		require.Nil(t, err)
 
@@ -51,13 +51,13 @@ func TestDecodeScheduleQueryRequest(t *testing.T) {
 
 	router.ServeHTTP(
 		httptest.NewRecorder(),
-		httptest.NewRequest("POST", "/api/v1/kolide/schedule", &body),
+		httptest.NewRequest("POST", "/api/v1/fleet/schedule", &body),
 	)
 }
 
 func TestDecodeModifyScheduledQueryRequest(t *testing.T) {
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/kolide/scheduled/{id}", func(writer http.ResponseWriter, request *http.Request) {
+	router.HandleFunc("/api/v1/fleet/scheduled/{id}", func(writer http.ResponseWriter, request *http.Request) {
 		r, err := decodeModifyScheduledQueryRequest(context.Background(), request)
 		assert.Nil(t, err)
 
@@ -82,13 +82,13 @@ func TestDecodeModifyScheduledQueryRequest(t *testing.T) {
 
 	router.ServeHTTP(
 		httptest.NewRecorder(),
-		httptest.NewRequest("PATCH", "/api/v1/kolide/scheduled/1", &body),
+		httptest.NewRequest("PATCH", "/api/v1/fleet/scheduled/1", &body),
 	)
 }
 
 func TestDecodeDeleteScheduledQueryRequest(t *testing.T) {
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/kolide/scheduled/{id}", func(writer http.ResponseWriter, request *http.Request) {
+	router.HandleFunc("/api/v1/fleet/scheduled/{id}", func(writer http.ResponseWriter, request *http.Request) {
 		r, err := decodeDeleteScheduledQueryRequest(context.Background(), request)
 		assert.Nil(t, err)
 
@@ -98,13 +98,13 @@ func TestDecodeDeleteScheduledQueryRequest(t *testing.T) {
 
 	router.ServeHTTP(
 		httptest.NewRecorder(),
-		httptest.NewRequest("DELETE", "/api/v1/kolide/scheduled/1", nil),
+		httptest.NewRequest("DELETE", "/api/v1/fleet/scheduled/1", nil),
 	)
 }
 
 func TestDecodeGetScheduledQueryRequest(t *testing.T) {
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/kolide/scheduled/{id}", func(writer http.ResponseWriter, request *http.Request) {
+	router.HandleFunc("/api/v1/fleet/scheduled/{id}", func(writer http.ResponseWriter, request *http.Request) {
 		r, err := decodeGetScheduledQueryRequest(context.Background(), request)
 		assert.Nil(t, err)
 
@@ -114,6 +114,6 @@ func TestDecodeGetScheduledQueryRequest(t *testing.T) {
 
 	router.ServeHTTP(
 		httptest.NewRecorder(),
-		httptest.NewRequest("GET", "/api/v1/kolide/scheduled/1", nil),
+		httptest.NewRequest("GET", "/api/v1/fleet/scheduled/1", nil),
 	)
 }

@@ -67,7 +67,7 @@ func setupEndpointTest(t *testing.T) *testResource {
 	marshalledUser, _ := json.Marshal(&userParam)
 
 	requestBody := &nopCloser{bytes.NewBuffer(marshalledUser)}
-	resp, _ := http.Post(test.server.URL+"/api/v1/kolide/login", "application/json", requestBody)
+	resp, _ := http.Post(test.server.URL+"/api/v1/fleet/login", "application/json", requestBody)
 
 	var jsn = struct {
 		User  *kolide.User `json:"user"`
@@ -82,7 +82,7 @@ func setupEndpointTest(t *testing.T) *testResource {
 	userParam.Password = testUsers["user1"].PlaintextPassword
 	marshalledUser, _ = json.Marshal(userParam)
 	requestBody = &nopCloser{bytes.NewBuffer(marshalledUser)}
-	resp, err = http.Post(test.server.URL+"/api/v1/kolide/login", "application/json", requestBody)
+	resp, err = http.Post(test.server.URL+"/api/v1/fleet/login", "application/json", requestBody)
 	require.Nil(t, err)
 	err = json.NewDecoder(resp.Body).Decode(&jsn)
 	require.Nil(t, err)

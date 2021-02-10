@@ -12,14 +12,14 @@ import (
 
 // ListCarves lists the file carving sessions
 func (c *Client) ListCarves(opt kolide.CarveListOptions) ([]*kolide.CarveMetadata, error) {
-	endpoint := "/api/v1/kolide/carves"
+	endpoint := "/api/v1/fleet/carves"
 	rawQuery := ""
 	if opt.Expired {
 		rawQuery = "expired=1"
 	}
 	response, err := c.AuthenticatedDo("GET", endpoint, rawQuery, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "GET /api/v1/kolide/carves")
+		return nil, errors.Wrap(err, "GET /api/v1/fleet/carves")
 	}
 	defer response.Body.Close()
 
@@ -50,7 +50,7 @@ func (c *Client) ListCarves(opt kolide.CarveListOptions) ([]*kolide.CarveMetadat
 }
 
 func (c *Client) GetCarve(carveId int64) (*kolide.CarveMetadata, error) {
-	endpoint := fmt.Sprintf("/api/v1/kolide/carves/%d", carveId)
+	endpoint := fmt.Sprintf("/api/v1/fleet/carves/%d", carveId)
 	response, err := c.AuthenticatedDo("GET", endpoint, "", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "GET "+endpoint)
@@ -78,7 +78,7 @@ func (c *Client) GetCarve(carveId int64) (*kolide.CarveMetadata, error) {
 
 func (c *Client) getCarveBlock(carveId, blockId int64) ([]byte, error) {
 	path := fmt.Sprintf(
-		"/api/v1/kolide/carves/%d/block/%d",
+		"/api/v1/fleet/carves/%d/block/%d",
 		carveId,
 		blockId,
 	)
@@ -161,7 +161,7 @@ func (r *carveReader) Read(p []byte) (n int, err error) {
 
 // DownloadCarve creates a Reader downloading a carve (by ID)
 func (c *Client) DownloadCarve(id int64) (io.Reader, error) {
-	path := fmt.Sprintf("/api/v1/kolide/carves/%d", id)
+	path := fmt.Sprintf("/api/v1/fleet/carves/%d", id)
 	response, err := c.AuthenticatedDo("GET", path, "", nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "GET %s", path)

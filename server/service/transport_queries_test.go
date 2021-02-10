@@ -13,7 +13,7 @@ import (
 
 func TestDecodeCreateQueryRequest(t *testing.T) {
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/kolide/queries", func(writer http.ResponseWriter, request *http.Request) {
+	router.HandleFunc("/api/v1/fleet/queries", func(writer http.ResponseWriter, request *http.Request) {
 		r, err := decodeCreateQueryRequest(context.Background(), request)
 		assert.Nil(t, err)
 
@@ -30,13 +30,13 @@ func TestDecodeCreateQueryRequest(t *testing.T) {
 
 	router.ServeHTTP(
 		httptest.NewRecorder(),
-		httptest.NewRequest("POST", "/api/v1/kolide/queries", &body),
+		httptest.NewRequest("POST", "/api/v1/fleet/queries", &body),
 	)
 }
 
 func TestDecodeModifyQueryRequest(t *testing.T) {
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/kolide/queries/{id}", func(writer http.ResponseWriter, request *http.Request) {
+	router.HandleFunc("/api/v1/fleet/queries/{id}", func(writer http.ResponseWriter, request *http.Request) {
 		r, err := decodeModifyQueryRequest(context.Background(), request)
 		assert.Nil(t, err)
 
@@ -52,13 +52,13 @@ func TestDecodeModifyQueryRequest(t *testing.T) {
 
 	router.ServeHTTP(
 		httptest.NewRecorder(),
-		httptest.NewRequest("PATCH", "/api/v1/kolide/queries/1", &body),
+		httptest.NewRequest("PATCH", "/api/v1/fleet/queries/1", &body),
 	)
 }
 
 func TestDecodeDeleteQueryRequest(t *testing.T) {
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/kolide/queries/{name}", func(writer http.ResponseWriter, request *http.Request) {
+	router.HandleFunc("/api/v1/fleet/queries/{name}", func(writer http.ResponseWriter, request *http.Request) {
 		r, err := decodeDeleteQueryRequest(context.Background(), request)
 		assert.Nil(t, err)
 
@@ -68,13 +68,13 @@ func TestDecodeDeleteQueryRequest(t *testing.T) {
 
 	router.ServeHTTP(
 		httptest.NewRecorder(),
-		httptest.NewRequest("DELETE", "/api/v1/kolide/queries/qwerty", nil),
+		httptest.NewRequest("DELETE", "/api/v1/fleet/queries/qwerty", nil),
 	)
 }
 
 func TestDecodeGetQueryRequest(t *testing.T) {
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/kolide/queries/{id}", func(writer http.ResponseWriter, request *http.Request) {
+	router.HandleFunc("/api/v1/fleet/queries/{id}", func(writer http.ResponseWriter, request *http.Request) {
 		r, err := decodeGetQueryRequest(context.Background(), request)
 		assert.Nil(t, err)
 
@@ -84,6 +84,6 @@ func TestDecodeGetQueryRequest(t *testing.T) {
 
 	router.ServeHTTP(
 		httptest.NewRecorder(),
-		httptest.NewRequest("GET", "/api/v1/kolide/queries/1", nil),
+		httptest.NewRequest("GET", "/api/v1/fleet/queries/1", nil),
 	)
 }

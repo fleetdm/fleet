@@ -64,9 +64,9 @@ func (c *Client) LiveQuery(query string, labels []string, hosts []string) (*Live
 		Query:    query,
 		Selected: distributedQueryCampaignTargetsByNames{Labels: labels, Hosts: hosts},
 	}
-	response, err := c.AuthenticatedDo("POST", "/api/v1/kolide/queries/run_by_names", "", req)
+	response, err := c.AuthenticatedDo("POST", "/api/v1/fleet/queries/run_by_names", "", req)
 	if err != nil {
-		return nil, errors.Wrap(err, "POST /api/v1/kolide/queries/run_by_names")
+		return nil, errors.Wrap(err, "POST /api/v1/fleet/queries/run_by_names")
 	}
 	defer response.Body.Close()
 
@@ -96,7 +96,7 @@ func (c *Client) LiveQuery(query string, labels []string, hosts []string) (*Live
 
 	wssURL := *c.baseURL
 	wssURL.Scheme = "wss"
-	wssURL.Path = c.urlPrefix + "/api/v1/kolide/results/websocket"
+	wssURL.Path = c.urlPrefix + "/api/v1/fleet/results/websocket"
 	conn, _, err := dialer.Dial(wssURL.String(), nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "upgrade live query result websocket")

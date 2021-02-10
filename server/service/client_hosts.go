@@ -10,9 +10,9 @@ import (
 
 // GetHosts retrieves the list of all Hosts
 func (c *Client) GetHosts() ([]HostResponse, error) {
-	response, err := c.AuthenticatedDo("GET", "/api/v1/kolide/hosts", "", nil)
+	response, err := c.AuthenticatedDo("GET", "/api/v1/fleet/hosts", "", nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "GET /api/v1/kolide/hosts")
+		return nil, errors.Wrap(err, "GET /api/v1/fleet/hosts")
 	}
 	defer response.Body.Close()
 
@@ -38,9 +38,9 @@ func (c *Client) GetHosts() ([]HostResponse, error) {
 // HostByIdentifier retrieves a host by the uuid, osquery_host_id, hostname, or
 // node_key.
 func (c *Client) HostByIdentifier(identifier string) (*HostDetailResponse, error) {
-	response, err := c.AuthenticatedDo("GET", "/api/v1/kolide/hosts/identifier/"+identifier, "", nil)
+	response, err := c.AuthenticatedDo("GET", "/api/v1/fleet/hosts/identifier/"+identifier, "", nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "GET /api/v1/kolide/hosts/identifier")
+		return nil, errors.Wrap(err, "GET /api/v1/fleet/hosts/identifier")
 	}
 	defer response.Body.Close()
 
@@ -66,7 +66,7 @@ func (c *Client) HostByIdentifier(identifier string) (*HostDetailResponse, error
 // DeleteHost deletes the host with the matching id.
 func (c *Client) DeleteHost(id uint) error {
 	verb := "DELETE"
-	path := fmt.Sprintf("/api/v1/kolide/hosts/%d", id)
+	path := fmt.Sprintf("/api/v1/fleet/hosts/%d", id)
 	response, err := c.AuthenticatedDo(verb, path, "", nil)
 	if err != nil {
 		return errors.Wrapf(err, "%s %s", verb, path)
