@@ -57,6 +57,13 @@ This command will create a directory fleet-preview in the current working direct
 				return err
 			}
 
+			// Make sure the logs directory is writable, otherwise the Fleet
+			// server errors on startup. This can be a problem when running on
+			// Linux with a non-root user inside the container.
+			if err := os.Chmod(filepath.Join(previewDir, "logs"), 0777); err != nil {
+				return errors.Wrap(err, "make logs writable")
+			}
+
 			fmt.Println("Starting Docker containers...")
 			out, err := exec.Command("docker-compose", "up", "-d", "mysql01", "redis01", "fleet01").CombinedOutput()
 			if err != nil {
