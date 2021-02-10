@@ -18,6 +18,8 @@ npm install -g fleetctl
 fleetctl preview
 ```
 
+> Running into an error?  Make sure you're not using `sudo` when you do `npm install`.
+
 A local copy of the Fleet server is now running at https://localhost:8412. The preview experience will start sample Linux hosts connected to this server.
 
 #### Your first query
