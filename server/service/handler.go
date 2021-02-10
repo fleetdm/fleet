@@ -11,6 +11,7 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -422,8 +423,15 @@ func MakeHandler(svc kolide.Service, config config.KolideConfig, logger kitlog.L
 	kolideHandlers := makeKolideKitHandlers(kolideEndpoints, kolideAPIOptions)
 
 	r := mux.NewRouter()
+
 	attachKolideAPIRoutes(r, kolideHandlers)
+
+	shimRoutes(r)
+
 	// Results endpoint is handled different due to websockets use
+	r.PathPrefix("/api/v1/fleet/results/").
+		Handler(makeStreamDistributedQueryCampaignResultsHandler(svc, config.Auth.JwtKey, logger)).
+		Name("distributed_query_results")
 	r.PathPrefix("/api/v1/kolide/results/").
 		Handler(makeStreamDistributedQueryCampaignResultsHandler(svc, config.Auth.JwtKey, logger)).
 		Name("distributed_query_results")
@@ -442,99 +450,130 @@ func addMetrics(r *mux.Router) {
 	r.Walk(walkFn)
 }
 
+func shimRoutes(r *mux.Router) {
+	if err := r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+		path, err := route.GetPathTemplate()
+		if err != nil {
+			return errors.Wrap(err, "get path template")
+		}
+
+		if !strings.HasPrefix(path, "/api/v1/fleet") {
+			return nil
+		}
+
+		methods, err := route.GetMethods()
+		if err != nil {
+			methods = []string{}
+		}
+
+		path = strings.Replace(path, "fleet", "kolide", 1)
+		router.Handle(path, route.GetHandler()).Methods(methods...).Name(route.GetName())
+
+		return nil
+	}); err != nil {
+		panic(err)
+	}
+
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			next.ServeHTTP(w, r)
+		})
+	})
+}
+
 func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
-	r.Handle("/api/v1/kolide/login", h.Login).Methods("POST").Name("login")
-	r.Handle("/api/v1/kolide/logout", h.Logout).Methods("POST").Name("logout")
-	r.Handle("/api/v1/kolide/forgot_password", h.ForgotPassword).Methods("POST").Name("forgot_password")
-	r.Handle("/api/v1/kolide/reset_password", h.ResetPassword).Methods("POST").Name("reset_password")
-	r.Handle("/api/v1/kolide/me", h.Me).Methods("GET").Name("me")
-	r.Handle("/api/v1/kolide/change_password", h.ChangePassword).Methods("POST").Name("change_password")
-	r.Handle("/api/v1/kolide/perform_required_password_reset", h.PerformRequiredPasswordReset).Methods("POST").Name("perform_required_password_reset")
-	r.Handle("/api/v1/kolide/sso", h.InitiateSSO).Methods("POST").Name("intiate_sso")
-	r.Handle("/api/v1/kolide/sso", h.SettingsSSO).Methods("GET").Name("sso_config")
-	r.Handle("/api/v1/kolide/sso/callback", h.CallbackSSO).Methods("POST").Name("callback_sso")
-	r.Handle("/api/v1/kolide/users", h.ListUsers).Methods("GET").Name("list_users")
-	r.Handle("/api/v1/kolide/users", h.CreateUserWithInvite).Methods("POST").Name("create_user_with_invite")
-	r.Handle("/api/v1/kolide/users/admin", h.CreateUser).Methods("POST").Name("create_user")
-	r.Handle("/api/v1/kolide/users/{id}", h.GetUser).Methods("GET").Name("get_user")
-	r.Handle("/api/v1/kolide/users/{id}", h.ModifyUser).Methods("PATCH").Name("modify_user")
-	r.Handle("/api/v1/kolide/users/{id}/enable", h.EnableUser).Methods("POST").Name("enable_user")
-	r.Handle("/api/v1/kolide/users/{id}/admin", h.AdminUser).Methods("POST").Name("admin_user")
-	r.Handle("/api/v1/kolide/users/{id}/require_password_reset", h.RequirePasswordReset).Methods("POST").Name("require_password_reset")
-	r.Handle("/api/v1/kolide/users/{id}/sessions", h.GetSessionsForUserInfo).Methods("GET").Name("get_session_for_user")
-	r.Handle("/api/v1/kolide/users/{id}/sessions", h.DeleteSessionsForUser).Methods("DELETE").Name("delete_session_for_user")
+	r.Handle("/api/v1/fleet/login", h.Login).Methods("POST").Name("login")
+	r.Handle("/api/v1/fleet/logout", h.Logout).Methods("POST").Name("logout")
+	r.Handle("/api/v1/fleet/forgot_password", h.ForgotPassword).Methods("POST").Name("forgot_password")
+	r.Handle("/api/v1/fleet/reset_password", h.ResetPassword).Methods("POST").Name("reset_password")
+	r.Handle("/api/v1/fleet/me", h.Me).Methods("GET").Name("me")
+	r.Handle("/api/v1/fleet/change_password", h.ChangePassword).Methods("POST").Name("change_password")
+	r.Handle("/api/v1/fleet/perform_required_password_reset", h.PerformRequiredPasswordReset).Methods("POST").Name("perform_required_password_reset")
+	r.Handle("/api/v1/fleet/sso", h.InitiateSSO).Methods("POST").Name("intiate_sso")
+	r.Handle("/api/v1/fleet/sso", h.SettingsSSO).Methods("GET").Name("sso_config")
+	r.Handle("/api/v1/fleet/sso/callback", h.CallbackSSO).Methods("POST").Name("callback_sso")
+	r.Handle("/api/v1/fleet/users", h.ListUsers).Methods("GET").Name("list_users")
+	r.Handle("/api/v1/fleet/users", h.CreateUserWithInvite).Methods("POST").Name("create_user_with_invite")
+	r.Handle("/api/v1/fleet/users/admin", h.CreateUser).Methods("POST").Name("create_user")
+	r.Handle("/api/v1/fleet/users/{id}", h.GetUser).Methods("GET").Name("get_user")
+	r.Handle("/api/v1/fleet/users/{id}", h.ModifyUser).Methods("PATCH").Name("modify_user")
+	r.Handle("/api/v1/fleet/users/{id}/enable", h.EnableUser).Methods("POST").Name("enable_user")
+	r.Handle("/api/v1/fleet/users/{id}/admin", h.AdminUser).Methods("POST").Name("admin_user")
+	r.Handle("/api/v1/fleet/users/{id}/require_password_reset", h.RequirePasswordReset).Methods("POST").Name("require_password_reset")
+	r.Handle("/api/v1/fleet/users/{id}/sessions", h.GetSessionsForUserInfo).Methods("GET").Name("get_session_for_user")
+	r.Handle("/api/v1/fleet/users/{id}/sessions", h.DeleteSessionsForUser).Methods("DELETE").Name("delete_session_for_user")
 
-	r.Handle("/api/v1/kolide/sessions/{id}", h.GetSessionInfo).Methods("GET").Name("get_session_info")
-	r.Handle("/api/v1/kolide/sessions/{id}", h.DeleteSession).Methods("DELETE").Name("delete_session")
+	r.Handle("/api/v1/fleet/sessions/{id}", h.GetSessionInfo).Methods("GET").Name("get_session_info")
+	r.Handle("/api/v1/fleet/sessions/{id}", h.DeleteSession).Methods("DELETE").Name("delete_session")
 
-	r.Handle("/api/v1/kolide/config/certificate", h.GetCertificate).Methods("GET").Name("get_certificate")
-	r.Handle("/api/v1/kolide/config", h.GetAppConfig).Methods("GET").Name("get_app_config")
-	r.Handle("/api/v1/kolide/config", h.ModifyAppConfig).Methods("PATCH").Name("modify_app_config")
-	r.Handle("/api/v1/kolide/spec/enroll_secret", h.ApplyEnrollSecretSpec).Methods("POST").Name("apply_enroll_secret_spec")
-	r.Handle("/api/v1/kolide/spec/enroll_secret", h.GetEnrollSecretSpec).Methods("GET").Name("get_enroll_secret_spec")
-	r.Handle("/api/v1/kolide/invites", h.CreateInvite).Methods("POST").Name("create_invite")
-	r.Handle("/api/v1/kolide/invites", h.ListInvites).Methods("GET").Name("list_invites")
-	r.Handle("/api/v1/kolide/invites/{id}", h.DeleteInvite).Methods("DELETE").Name("delete_invite")
-	r.Handle("/api/v1/kolide/invites/{token}", h.VerifyInvite).Methods("GET").Name("verify_invite")
+	r.Handle("/api/v1/fleet/config/certificate", h.GetCertificate).Methods("GET").Name("get_certificate")
+	r.Handle("/api/v1/fleet/config", h.GetAppConfig).Methods("GET").Name("get_app_config")
+	r.Handle("/api/v1/fleet/config", h.ModifyAppConfig).Methods("PATCH").Name("modify_app_config")
+	r.Handle("/api/v1/fleet/spec/enroll_secret", h.ApplyEnrollSecretSpec).Methods("POST").Name("apply_enroll_secret_spec")
+	r.Handle("/api/v1/fleet/spec/enroll_secret", h.GetEnrollSecretSpec).Methods("GET").Name("get_enroll_secret_spec")
+	r.Handle("/api/v1/fleet/invites", h.CreateInvite).Methods("POST").Name("create_invite")
+	r.Handle("/api/v1/fleet/invites", h.ListInvites).Methods("GET").Name("list_invites")
+	r.Handle("/api/v1/fleet/invites/{id}", h.DeleteInvite).Methods("DELETE").Name("delete_invite")
+	r.Handle("/api/v1/fleet/invites/{token}", h.VerifyInvite).Methods("GET").Name("verify_invite")
 
-	r.Handle("/api/v1/kolide/email/change/{token}", h.ChangeEmail).Methods("GET").Name("change_email")
+	r.Handle("/api/v1/fleet/email/change/{token}", h.ChangeEmail).Methods("GET").Name("change_email")
 
-	r.Handle("/api/v1/kolide/queries/{id}", h.GetQuery).Methods("GET").Name("get_query")
-	r.Handle("/api/v1/kolide/queries", h.ListQueries).Methods("GET").Name("list_queries")
-	r.Handle("/api/v1/kolide/queries", h.CreateQuery).Methods("POST").Name("create_query")
-	r.Handle("/api/v1/kolide/queries/{id}", h.ModifyQuery).Methods("PATCH").Name("modify_query")
-	r.Handle("/api/v1/kolide/queries/{name}", h.DeleteQuery).Methods("DELETE").Name("delete_query")
-	r.Handle("/api/v1/kolide/queries/id/{id}", h.DeleteQueryByID).Methods("DELETE").Name("delete_query_by_id")
-	r.Handle("/api/v1/kolide/queries/delete", h.DeleteQueries).Methods("POST").Name("delete_queries")
-	r.Handle("/api/v1/kolide/spec/queries", h.ApplyQuerySpecs).Methods("POST").Name("apply_query_specs")
-	r.Handle("/api/v1/kolide/spec/queries", h.GetQuerySpecs).Methods("GET").Name("get_query_specs")
-	r.Handle("/api/v1/kolide/spec/queries/{name}", h.GetQuerySpec).Methods("GET").Name("get_query_spec")
-	r.Handle("/api/v1/kolide/queries/run", h.CreateDistributedQueryCampaign).Methods("POST").Name("create_distributed_query_campaign")
-	r.Handle("/api/v1/kolide/queries/run_by_names", h.CreateDistributedQueryCampaignByNames).Methods("POST").Name("create_distributed_query_campaign_by_names")
+	r.Handle("/api/v1/fleet/queries/{id}", h.GetQuery).Methods("GET").Name("get_query")
+	r.Handle("/api/v1/fleet/queries", h.ListQueries).Methods("GET").Name("list_queries")
+	r.Handle("/api/v1/fleet/queries", h.CreateQuery).Methods("POST").Name("create_query")
+	r.Handle("/api/v1/fleet/queries/{id}", h.ModifyQuery).Methods("PATCH").Name("modify_query")
+	r.Handle("/api/v1/fleet/queries/{name}", h.DeleteQuery).Methods("DELETE").Name("delete_query")
+	r.Handle("/api/v1/fleet/queries/id/{id}", h.DeleteQueryByID).Methods("DELETE").Name("delete_query_by_id")
+	r.Handle("/api/v1/fleet/queries/delete", h.DeleteQueries).Methods("POST").Name("delete_queries")
+	r.Handle("/api/v1/fleet/spec/queries", h.ApplyQuerySpecs).Methods("POST").Name("apply_query_specs")
+	r.Handle("/api/v1/fleet/spec/queries", h.GetQuerySpecs).Methods("GET").Name("get_query_specs")
+	r.Handle("/api/v1/fleet/spec/queries/{name}", h.GetQuerySpec).Methods("GET").Name("get_query_spec")
+	r.Handle("/api/v1/fleet/queries/run", h.CreateDistributedQueryCampaign).Methods("POST").Name("create_distributed_query_campaign")
+	r.Handle("/api/v1/fleet/queries/run_by_names", h.CreateDistributedQueryCampaignByNames).Methods("POST").Name("create_distributed_query_campaign_by_names")
 
-	r.Handle("/api/v1/kolide/packs", h.CreatePack).Methods("POST").Name("create_pack")
-	r.Handle("/api/v1/kolide/packs/{id}", h.ModifyPack).Methods("PATCH").Name("modify_pack")
-	r.Handle("/api/v1/kolide/packs/{id}", h.GetPack).Methods("GET").Name("get_pack")
-	r.Handle("/api/v1/kolide/packs", h.ListPacks).Methods("GET").Name("list_packs")
-	r.Handle("/api/v1/kolide/packs/{name}", h.DeletePack).Methods("DELETE").Name("delete_pack")
-	r.Handle("/api/v1/kolide/packs/id/{id}", h.DeletePackByID).Methods("DELETE").Name("delete_pack_by_id")
-	r.Handle("/api/v1/kolide/packs/{id}/scheduled", h.GetScheduledQueriesInPack).Methods("GET").Name("get_scheduled_queries_in_pack")
-	r.Handle("/api/v1/kolide/schedule", h.ScheduleQuery).Methods("POST").Name("schedule_query")
-	r.Handle("/api/v1/kolide/schedule/{id}", h.GetScheduledQuery).Methods("GET").Name("get_scheduled_query")
-	r.Handle("/api/v1/kolide/schedule/{id}", h.ModifyScheduledQuery).Methods("PATCH").Name("modify_scheduled_query")
-	r.Handle("/api/v1/kolide/schedule/{id}", h.DeleteScheduledQuery).Methods("DELETE").Name("delete_scheduled_query")
-	r.Handle("/api/v1/kolide/spec/packs", h.ApplyPackSpecs).Methods("POST").Name("apply_pack_specs")
-	r.Handle("/api/v1/kolide/spec/packs", h.GetPackSpecs).Methods("GET").Name("get_pack_specs")
-	r.Handle("/api/v1/kolide/spec/packs/{name}", h.GetPackSpec).Methods("GET").Name("get_pack_spec")
+	r.Handle("/api/v1/fleet/packs", h.CreatePack).Methods("POST").Name("create_pack")
+	r.Handle("/api/v1/fleet/packs/{id}", h.ModifyPack).Methods("PATCH").Name("modify_pack")
+	r.Handle("/api/v1/fleet/packs/{id}", h.GetPack).Methods("GET").Name("get_pack")
+	r.Handle("/api/v1/fleet/packs", h.ListPacks).Methods("GET").Name("list_packs")
+	r.Handle("/api/v1/fleet/packs/{name}", h.DeletePack).Methods("DELETE").Name("delete_pack")
+	r.Handle("/api/v1/fleet/packs/id/{id}", h.DeletePackByID).Methods("DELETE").Name("delete_pack_by_id")
+	r.Handle("/api/v1/fleet/packs/{id}/scheduled", h.GetScheduledQueriesInPack).Methods("GET").Name("get_scheduled_queries_in_pack")
+	r.Handle("/api/v1/fleet/schedule", h.ScheduleQuery).Methods("POST").Name("schedule_query")
+	r.Handle("/api/v1/fleet/schedule/{id}", h.GetScheduledQuery).Methods("GET").Name("get_scheduled_query")
+	r.Handle("/api/v1/fleet/schedule/{id}", h.ModifyScheduledQuery).Methods("PATCH").Name("modify_scheduled_query")
+	r.Handle("/api/v1/fleet/schedule/{id}", h.DeleteScheduledQuery).Methods("DELETE").Name("delete_scheduled_query")
+	r.Handle("/api/v1/fleet/spec/packs", h.ApplyPackSpecs).Methods("POST").Name("apply_pack_specs")
+	r.Handle("/api/v1/fleet/spec/packs", h.GetPackSpecs).Methods("GET").Name("get_pack_specs")
+	r.Handle("/api/v1/fleet/spec/packs/{name}", h.GetPackSpec).Methods("GET").Name("get_pack_spec")
 
-	r.Handle("/api/v1/kolide/labels", h.CreateLabel).Methods("POST").Name("create_label")
-	r.Handle("/api/v1/kolide/labels/{id}", h.ModifyLabel).Methods("PATCH").Name("modify_label")
-	r.Handle("/api/v1/kolide/labels/{id}", h.GetLabel).Methods("GET").Name("get_label")
-	r.Handle("/api/v1/kolide/labels", h.ListLabels).Methods("GET").Name("list_labels")
-	r.Handle("/api/v1/kolide/labels/{id}/hosts", h.ListHostsInLabel).Methods("GET").Name("list_hosts_in_label")
-	r.Handle("/api/v1/kolide/labels/{name}", h.DeleteLabel).Methods("DELETE").Name("delete_label")
-	r.Handle("/api/v1/kolide/labels/id/{id}", h.DeleteLabelByID).Methods("DELETE").Name("delete_label_by_id")
-	r.Handle("/api/v1/kolide/spec/labels", h.ApplyLabelSpecs).Methods("POST").Name("apply_label_specs")
-	r.Handle("/api/v1/kolide/spec/labels", h.GetLabelSpecs).Methods("GET").Name("get_label_specs")
-	r.Handle("/api/v1/kolide/spec/labels/{name}", h.GetLabelSpec).Methods("GET").Name("get_label_spec")
+	r.Handle("/api/v1/fleet/labels", h.CreateLabel).Methods("POST").Name("create_label")
+	r.Handle("/api/v1/fleet/labels/{id}", h.ModifyLabel).Methods("PATCH").Name("modify_label")
+	r.Handle("/api/v1/fleet/labels/{id}", h.GetLabel).Methods("GET").Name("get_label")
+	r.Handle("/api/v1/fleet/labels", h.ListLabels).Methods("GET").Name("list_labels")
+	r.Handle("/api/v1/fleet/labels/{id}/hosts", h.ListHostsInLabel).Methods("GET").Name("list_hosts_in_label")
+	r.Handle("/api/v1/fleet/labels/{name}", h.DeleteLabel).Methods("DELETE").Name("delete_label")
+	r.Handle("/api/v1/fleet/labels/id/{id}", h.DeleteLabelByID).Methods("DELETE").Name("delete_label_by_id")
+	r.Handle("/api/v1/fleet/spec/labels", h.ApplyLabelSpecs).Methods("POST").Name("apply_label_specs")
+	r.Handle("/api/v1/fleet/spec/labels", h.GetLabelSpecs).Methods("GET").Name("get_label_specs")
+	r.Handle("/api/v1/fleet/spec/labels/{name}", h.GetLabelSpec).Methods("GET").Name("get_label_spec")
 
-	r.Handle("/api/v1/kolide/hosts", h.ListHosts).Methods("GET").Name("list_hosts")
-	r.Handle("/api/v1/kolide/host_summary", h.GetHostSummary).Methods("GET").Name("get_host_summary")
-	r.Handle("/api/v1/kolide/hosts/{id}", h.GetHost).Methods("GET").Name("get_host")
-	r.Handle("/api/v1/kolide/hosts/identifier/{identifier}", h.HostByIdentifier).Methods("GET").Name("host_by_identifier")
-	r.Handle("/api/v1/kolide/hosts/{id}", h.DeleteHost).Methods("DELETE").Name("delete_host")
+	r.Handle("/api/v1/fleet/hosts", h.ListHosts).Methods("GET").Name("list_hosts")
+	r.Handle("/api/v1/fleet/host_summary", h.GetHostSummary).Methods("GET").Name("get_host_summary")
+	r.Handle("/api/v1/fleet/hosts/{id}", h.GetHost).Methods("GET").Name("get_host")
+	r.Handle("/api/v1/fleet/hosts/identifier/{identifier}", h.HostByIdentifier).Methods("GET").Name("host_by_identifier")
+	r.Handle("/api/v1/fleet/hosts/{id}", h.DeleteHost).Methods("DELETE").Name("delete_host")
 
-	r.Handle("/api/v1/kolide/spec/osquery_options", h.ApplyOsqueryOptionsSpec).Methods("POST").Name("apply_osquery_options_spec")
-	r.Handle("/api/v1/kolide/spec/osquery_options", h.GetOsqueryOptionsSpec).Methods("GET").Name("get_osquery_options_spec")
+	r.Handle("/api/v1/fleet/spec/osquery_options", h.ApplyOsqueryOptionsSpec).Methods("POST").Name("apply_osquery_options_spec")
+	r.Handle("/api/v1/fleet/spec/osquery_options", h.GetOsqueryOptionsSpec).Methods("GET").Name("get_osquery_options_spec")
 
-	r.Handle("/api/v1/kolide/targets", h.SearchTargets).Methods("POST").Name("search_targets")
+	r.Handle("/api/v1/fleet/targets", h.SearchTargets).Methods("POST").Name("search_targets")
 
-	r.Handle("/api/v1/kolide/status/result_store", h.StatusResultStore).Methods("GET").Name("status_result_store")
-	r.Handle("/api/v1/kolide/status/live_query", h.StatusLiveQuery).Methods("GET").Name("status_live_query")
+	r.Handle("/api/v1/fleet/status/result_store", h.StatusResultStore).Methods("GET").Name("status_result_store")
+	r.Handle("/api/v1/fleet/status/live_query", h.StatusLiveQuery).Methods("GET").Name("status_live_query")
 
-	r.Handle("/api/v1/kolide/carves", h.ListCarves).Methods("GET").Name("list_carves")
-	r.Handle("/api/v1/kolide/carves/{id}", h.GetCarve).Methods("GET").Name("get_carve")
-	r.Handle("/api/v1/kolide/carves/{id}/block/{block_id}", h.GetCarveBlock).Methods("GET").Name("get_carve_block")
+	r.Handle("/api/v1/fleet/carves", h.ListCarves).Methods("GET").Name("list_carves")
+	r.Handle("/api/v1/fleet/carves/{id}", h.GetCarve).Methods("GET").Name("get_carve")
+	r.Handle("/api/v1/fleet/carves/{id}/block/{block_id}", h.GetCarveBlock).Methods("GET").Name("get_carve_block")
 
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
 	r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST").Name("get_client_config")
