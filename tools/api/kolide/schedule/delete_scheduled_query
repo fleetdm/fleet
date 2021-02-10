@@ -1,4 +1,4 @@
 #!/bin/bash
 source $FLEET_ENV_PATH
-endpoint="api/v1/kolide/schedule/$1"
+endpoint="api/v1/fleet/schedule/$1"
 curl $CURL_FLAGS -X DELETE -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$endpoint"

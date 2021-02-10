@@ -1,6 +1,6 @@
 #!/bin/bash
 source $FLEET_ENV_PATH
-endpoint="api/v1/kolide/queries"
+endpoint="api/v1/fleet/queries"
 jq -n \
   --arg name "$1" \
   --arg query "$2" \

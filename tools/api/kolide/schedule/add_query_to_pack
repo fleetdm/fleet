@@ -1,6 +1,6 @@
 #!/bin/bash
 source $FLEET_ENV_PATH
-endpoint="api/v1/kolide/schedule"
+endpoint="api/v1/fleet/schedule"
 jq -n \
   --arg pack_id "$1" \
   --arg query_id "$2" \
