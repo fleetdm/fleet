@@ -16,13 +16,11 @@ Fleet is powered by a Go API server which serves three types of endpoints:
 
 - Endpoints starting with `/api/v1/osquery/` are osquery TLS server API endpoints. All of these endpoints are used for talking to osqueryd agents and that's it.
 - Endpoints starting with `/api/v1/fleet/` are endpoints to interact with the Fleet data model (packs, queries, scheduled queries, labels, hosts, etc) as well as application endpoints (configuring settings, logging in, session management, etc).
-- All other endpoints are served the React single page application bundle. The React app uses React Router to determine whether or not the URI is a valid route and what to do.
-
-Only osquery agents should interact with the osquery API, but we'd like to support the eventual use of the Fleet API extensively. The API is not very well documented at all right now, but we have plans to:
-
-- Generate and publish detailed documentation via a tool built using [test2doc](https://github.com/adams-sarah/test2doc) (or similar).
-- Release a JavaScript Fleet API client library (which would be derived from the [current](https://github.com/fleetdm/fleet/blob/master/frontend/kolide/index.js) JavaScript API client).
-- Commit to a stable, standardized API format.
+- All other endpoints are served by the React single page application bundle.
+  The React app uses React Router to determine whether or not the URI is a valid
+  route and what to do.
+  
+Note: We have deprecated `/api/v1/kolide/` routes and will remove them in the Fleet 4.0 release. Please migrate all routes to `/api/v1/fleet/`. 
 
 ### fleetctl
 
