@@ -35,23 +35,23 @@ spec:
           - "/fleet"
           - "serve"
         env:
-            - name: KOLIDE_MYSQL_USERNAME
+            - name: FLEET_MYSQL_USERNAME
               valueFrom:
                 secretKeyRef:
                     name: cloudsql.cloudmaster
                     key: username
-            - name: KOLIDE_SERVER_TLS
+            - name: FLEET_SERVER_TLS
               value: "false"
-            - name: KOLIDE_MYSQL_PASSWORD
+            - name: FLEET_MYSQL_PASSWORD
               valueFrom:
                 secretKeyRef:
                     name: cloudsql.cloudmaster
                     key: password
-            - name: KOLIDE_MYSQL_DATABASE
+            - name: FLEET_MYSQL_DATABASE
               value: pr_{{ .Number }}_{{ .RevShort }}
-            - name: KOLIDE_REDIS_ADDRESS
+            - name: FLEET_REDIS_ADDRESS
               value: redis-fleet-pr-{{ .Number }}:6379
-            - name: KOLIDE_AUTH_JWT_KEY
+            - name: FLEET_AUTH_JWT_KEY
               value: changeme_fake_jwt_key
         ports:
         - containerPort: 8080

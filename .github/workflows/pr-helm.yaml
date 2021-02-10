@@ -60,29 +60,29 @@ jobs:
       run: |
         .github/scripts/helm-check-expected.sh \
         "helm-temp/output-defaults.yaml" \
-        'KOLIDE_FILESYSTEM_STATUS_LOG_FILE KOLIDE_FILESYSTEM_RESULT_LOG_FILE KOLIDE_FILESYSTEM_ENABLE_LOG_ROTATION KOLIDE_FILESYSTEM_ENABLE_LOG_COMPRESSION' \
+        'FLEET_FILESYSTEM_STATUS_LOG_FILE FLEET_FILESYSTEM_RESULT_LOG_FILE FLEET_FILESYSTEM_ENABLE_LOG_ROTATION FLEET_FILESYSTEM_ENABLE_LOG_COMPRESSION' \
         'fleet-tls osquery-logs'
     - name: check pubusb values
       run: |
         .github/scripts/helm-check-expected.sh \
         "helm-temp/logger-pubsub.yaml" \
-        'KOLIDE_PUBSUB_PROJECT KOLIDE_PUBSUB_STATUS_TOPIC KOLIDE_PUBSUB_RESULT_TOPIC' \
+        'FLEET_PUBSUB_PROJECT FLEET_PUBSUB_STATUS_TOPIC FLEET_PUBSUB_RESULT_TOPIC' \
         'fleet-tls'
     - name: check firehose accesskey values
       run: |
         .github/scripts/helm-check-expected.sh \
         "helm-temp/logger-firehose-accesssid.yaml" \
-        'KOLIDE_FIREHOSE_REGION KOLIDE_FIREHOSE_STATUS_STREAM KOLIDE_FIREHOSE_RESULT_STREAM KOLIDE_FIREHOSE_ACCESS_KEY_ID KOLIDE_FIREHOSE_SECRET_ACCESS_KEY' \
+        'FLEET_FIREHOSE_REGION FLEET_FIREHOSE_STATUS_STREAM FLEET_FIREHOSE_RESULT_STREAM FLEET_FIREHOSE_ACCESS_KEY_ID FLEET_FIREHOSE_SECRET_ACCESS_KEY' \
         'fleet-tls'
     - name: check firehose sts values
       run: |
         .github/scripts/helm-check-expected.sh \
         "helm-temp/logger-firehose-sts.yaml" \
-        'KOLIDE_FIREHOSE_REGION KOLIDE_FIREHOSE_STATUS_STREAM KOLIDE_FIREHOSE_RESULT_STREAM KOLIDE_FIREHOSE_STS_ASSUME_ROLE_ARN' \
+        'FLEET_FIREHOSE_REGION FLEET_FIREHOSE_STATUS_STREAM FLEET_FIREHOSE_RESULT_STREAM FLEET_FIREHOSE_STS_ASSUME_ROLE_ARN' \
         'fleet-tls'
     - name: check mysql tls enabled values
       run: |
         .github/scripts/helm-check-expected.sh \
         "helm-temp/enable-mysql-tls.yaml" \
-        'KOLIDE_MYSQL_TLS_CA KOLIDE_MYSQL_TLS_CERT KOLIDE_MYSQL_TLS_KEY KOLIDE_MYSQL_TLS_CONFIG KOLIDE_MYSQL_TLS_SERVER_NAME' \
+        'FLEET_MYSQL_TLS_CA FLEET_MYSQL_TLS_CERT FLEET_MYSQL_TLS_KEY FLEET_MYSQL_TLS_CONFIG FLEET_MYSQL_TLS_SERVER_NAME' \
         'fleet-tls osquery-logs mysql-tls'

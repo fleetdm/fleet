@@ -12,9 +12,9 @@ spec:
         image: kolide/fleet:1.0.5
         command: ["fleet",  "prepare", "db"]
         env:
-          - name: KOLIDE_MYSQL_ADDRESS
+          - name: FLEET_MYSQL_ADDRESS
             value: fleet-database-mysql:3306
-          - name: KOLIDE_MYSQL_PASSWORD
+          - name: FLEET_MYSQL_PASSWORD
             valueFrom:
               secretKeyRef:
                 name: fleet-database-mysql
