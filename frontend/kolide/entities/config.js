@@ -11,13 +11,13 @@ export default (client) => {
       return client.authenticatedGet(client._endpoint(CONFIG));
     },
     loadCertificate: () => {
-      const endpoint = client._endpoint('/v1/kolide/config/certificate');
+      const endpoint = client._endpoint('/v1/fleet/config/certificate');
 
       return client.authenticatedGet(endpoint)
         .then(response => global.window.atob(response.certificate_chain));
     },
     loadEnrollSecret: () => {
-      const endpoint = client._endpoint('/v1/kolide/spec/enroll_secret');
+      const endpoint = client._endpoint('/v1/fleet/spec/enroll_secret');
 
       return client.authenticatedGet(endpoint);
     },

@@ -5,7 +5,7 @@ export default {
   create: {
     valid: (bearerToken = 'abc123', params) => {
       return createRequestMock({
-        endpoint: '/api/v1/kolide/login',
+        endpoint: '/api/v1/fleet/login',
         method: 'post',
         params,
         response: { token: bearerToken, user: userStub },
@@ -16,7 +16,7 @@ export default {
     valid: (bearerToken) => {
       return createRequestMock({
         bearerToken,
-        endpoint: '/api/v1/kolide/logout',
+        endpoint: '/api/v1/fleet/logout',
         method: 'post',
         response: {},
       });

@@ -7,7 +7,7 @@ export default (client) => {
     queries: {
       run: (campaignID) => {
         return new Promise((resolve) => {
-          const socket = new SockJS(`${client.baseURL}/v1/kolide/results`, undefined, {});
+          const socket = new SockJS(`${client.baseURL}/v1/fleet/results`, undefined, {});
 
           socket.onopen = () => {
             socket.send(JSON.stringify({ type: 'auth', data: { token: local.getItem('auth_token') } }));

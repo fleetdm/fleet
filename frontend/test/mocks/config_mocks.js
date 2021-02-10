@@ -5,7 +5,7 @@ export default {
     valid: (bearerToken) => {
       return createRequestMock({
         bearerToken,
-        endpoint: '/api/v1/kolide/config',
+        endpoint: '/api/v1/fleet/config',
         method: 'get',
         response: { config: { name: 'Kolide' } },
       });
@@ -15,7 +15,7 @@ export default {
     valid: (bearerToken, params) => {
       return createRequestMock({
         bearerToken,
-        endpoint: '/api/v1/kolide/config',
+        endpoint: '/api/v1/fleet/config',
         method: 'patch',
         params,
         response: {},

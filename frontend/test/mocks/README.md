@@ -44,7 +44,7 @@ const queryMocks = {
     valid: (bearerToken, queryID) => {
       return createRequestMock({
         bearerToken,
-        endpoint: `/api/v1/kolide/queries/${queryID}`,
+        endpoint: `/api/v1/fleet/queries/${queryID}`,
         method: 'get',
         response: { query: { ...queryStub, id: queryID } },
         responseStatus: 200,

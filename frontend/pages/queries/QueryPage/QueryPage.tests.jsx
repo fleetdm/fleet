@@ -24,7 +24,7 @@ describe('QueryPage - component', () => {
       .mockImplementation(() => () => Promise.resolve([]));
 
     nock('http://localhost:8080')
-      .post('/api/v1/kolide/targets', JSON.stringify({
+      .post('/api/v1/fleet/targets', JSON.stringify({
         selected: {
           hosts: [1, 99],
           labels: [],
