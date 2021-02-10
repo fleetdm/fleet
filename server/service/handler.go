@@ -4,11 +4,14 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/go-kit/kit/endpoint"
+	"github.com/go-kit/kit/log"
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -426,7 +429,8 @@ func MakeHandler(svc kolide.Service, config config.KolideConfig, logger kitlog.L
 
 	attachKolideAPIRoutes(r, kolideHandlers)
 
-	shimRoutes(r)
+	// TODO #42 remove the shims
+	shimRoutes(r, logger)
 
 	// Results endpoint is handled different due to websockets use
 	r.PathPrefix("/api/v1/fleet/results/").
@@ -450,7 +454,7 @@ func addMetrics(r *mux.Router) {
 	r.Walk(walkFn)
 }
 
-func shimRoutes(r *mux.Router) {
+func shimRoutes(r *mux.Router, logger log.Logger) {
 	if err := r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 		path, err := route.GetPathTemplate()
 		if err != nil {
@@ -474,8 +478,24 @@ func shimRoutes(r *mux.Router) {
 		panic(err)
 	}
 
+	// Shim the routes to allow them to be referred as /api/v1/fleet or
+	// /api/v1/kolide.
+	var lastShimLogTime time.Time
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if time.Now().After(lastShimLogTime.Add(1 * time.Hour)) {
+				if strings.HasPrefix(r.URL.Path, "/api/v1/kolide") {
+					// There's a race condition with this timestamp but it's not
+					// a big deal if we accidentally log this message more than
+					// once. The point is to not overwhelm the logs with these
+					// messages and this code will be killed soon anyway.
+					lastShimLogTime = time.Now()
+					level.Info(logger).Log(
+						"msg", "client used deprecated route",
+						"deprecated", r.URL.Path,
+					)
+				}
+			}
 			next.ServeHTTP(w, r)
 		})
 	})
