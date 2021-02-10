@@ -160,6 +160,11 @@ func updatesAddCommand() cli.Command {
 				Required: true,
 				Usage:    "Path to target to add (required)",
 			},
+			&cli.StringFlag{
+				Name:     "platform",
+				Required: true,
+				Usage:    "Name of platform for target (required)",
+			},
 			&cli.StringSliceFlag{
 				Name:     "version",
 				Required: true,
@@ -190,12 +195,13 @@ func updatesAddFunc(c *cli.Context) error {
 
 	tags := c.StringSlice("tag")
 	version := c.String("version")
+	platform := c.String("platform")
 
 	targetsPath := filepath.Join(c.String("path"), "staged", "targets")
 
 	var paths []string
 	for _, tag := range append([]string{version}, tags...) {
-		dstPath := filepath.Join("osqueryd", "linux", tag, "osqueryd")
+		dstPath := filepath.Join("osqueryd", platform, tag, "osqueryd")
 		fullPath := filepath.Join(targetsPath, dstPath)
 		paths = append(paths, dstPath)
 		if err := copyTarget(c.String("target"), fullPath); err != nil {
