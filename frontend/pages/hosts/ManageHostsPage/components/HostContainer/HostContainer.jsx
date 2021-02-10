@@ -4,7 +4,6 @@ import PropTypes from 'prop-types';
 import hostInterface from 'interfaces/host';
 import labelInterface from 'interfaces/label';
 import Spinner from 'components/loaders/Spinner';
-import HostsTable from '../HostsTable';
 import HostsDataTable from '../HostsDataTable/HostsDataTable';
 import RoboDogImage from '../../../../../../assets/images/robo-dog-176x144@2x.png';
 
@@ -15,7 +14,6 @@ class HostContainer extends Component {
     hosts: PropTypes.arrayOf(hostInterface),
     selectedLabel: labelInterface,
     loadingHosts: PropTypes.bool.isRequired,
-    onHostClick: PropTypes.func,
   };
 
   renderNoHosts = () => {
@@ -46,19 +44,8 @@ class HostContainer extends Component {
     );
   }
 
-  renderHosts = () => {
-    const { hosts, onHostClick } = this.props;
-
-    return (
-      <HostsTable
-        hosts={hosts}
-        onHostClick={onHostClick}
-      />
-    );
-  }
-
   render () {
-    const { renderHosts, renderNoHosts } = this;
+    const { renderNoHosts } = this;
     const { hosts, loadingHosts, selectedLabel } = this.props;
 
     if (loadingHosts) {
@@ -90,7 +77,6 @@ class HostContainer extends Component {
 
     return (
       <div className={`${baseClass}`}>
-        {renderHosts()}
         <HostsDataTable hosts={hosts} />
       </div>
     );
