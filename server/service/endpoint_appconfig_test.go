@@ -22,7 +22,7 @@ type mockValidationError struct {
 }
 
 func testGetAppConfig(t *testing.T, r *testResource) {
-	req, err := http.NewRequest("GET", r.server.URL+"/api/v1/kolide/config", nil)
+	req, err := http.NewRequest("GET", r.server.URL+"/api/v1/fleet/config", nil)
 	require.Nil(t, err)
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.adminToken))
 	client := &http.Client{}
@@ -72,7 +72,7 @@ func testModifyAppConfig(t *testing.T, r *testResource) {
 	var buffer bytes.Buffer
 	err := json.NewEncoder(&buffer).Encode(payload)
 	require.Nil(t, err)
-	req, err := http.NewRequest("PATCH", r.server.URL+"/api/v1/kolide/config", &buffer)
+	req, err := http.NewRequest("PATCH", r.server.URL+"/api/v1/fleet/config", &buffer)
 	require.Nil(t, err)
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.adminToken))
 	client := &http.Client{}
@@ -112,7 +112,7 @@ func testModifyAppConfigWithValidationFail(t *testing.T, r *testResource) {
 	var buffer bytes.Buffer
 	err := json.NewEncoder(&buffer).Encode(payload)
 	require.Nil(t, err)
-	req, err := http.NewRequest("PATCH", r.server.URL+"/api/v1/kolide/config", &buffer)
+	req, err := http.NewRequest("PATCH", r.server.URL+"/api/v1/fleet/config", &buffer)
 	require.Nil(t, err)
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.adminToken))
 	client := &http.Client{}

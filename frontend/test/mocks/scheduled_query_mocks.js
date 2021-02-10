@@ -16,7 +16,7 @@ export default {
 
       return createRequestMock({
         bearerToken,
-        endpoint: '/api/v1/kolide/schedule',
+        endpoint: '/api/v1/fleet/schedule',
         method: 'post',
         params,
         response: { scheduled: scheduledQueryStub },
@@ -28,7 +28,7 @@ export default {
     valid: (bearerToken, scheduledQuery) => {
       return createRequestMock({
         bearerToken,
-        endpoint: `/api/v1/kolide/schedule/${scheduledQuery.id}`,
+        endpoint: `/api/v1/fleet/schedule/${scheduledQuery.id}`,
         method: 'delete',
         response: {},
       });
@@ -38,7 +38,7 @@ export default {
     valid: (bearerToken, pack) => {
       return createRequestMock({
         bearerToken,
-        endpoint: `/api/v1/kolide/packs/${pack.id}/scheduled`,
+        endpoint: `/api/v1/fleet/packs/${pack.id}/scheduled`,
         method: 'get',
         response: { scheduled: [scheduledQueryStub] },
       });
@@ -48,7 +48,7 @@ export default {
     valid: (bearerToken, scheduledQuery, params) => {
       return createRequestMock({
         bearerToken,
-        endpoint: `/api/v1/kolide/schedule/${scheduledQuery.id}`,
+        endpoint: `/api/v1/fleet/schedule/${scheduledQuery.id}`,
         method: 'patch',
         params,
         response: { scheduled: { ...scheduledQuery, ...params } },

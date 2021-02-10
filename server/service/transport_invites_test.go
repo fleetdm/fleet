@@ -13,7 +13,7 @@ import (
 
 func TestDecodeCreateInviteRequest(t *testing.T) {
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/kolide/invites", func(writer http.ResponseWriter, request *http.Request) {
+	router.HandleFunc("/api/v1/fleet/invites", func(writer http.ResponseWriter, request *http.Request) {
 		r, err := decodeCreateInviteRequest(context.Background(), request)
 		assert.Nil(t, err)
 
@@ -31,7 +31,7 @@ func TestDecodeCreateInviteRequest(t *testing.T) {
 
 		router.ServeHTTP(
 			httptest.NewRecorder(),
-			httptest.NewRequest("POST", "/api/v1/kolide/invites", &body),
+			httptest.NewRequest("POST", "/api/v1/fleet/invites", &body),
 		)
 	})
 
@@ -46,7 +46,7 @@ func TestDecodeCreateInviteRequest(t *testing.T) {
 
 		router.ServeHTTP(
 			httptest.NewRecorder(),
-			httptest.NewRequest("POST", "/api/v1/kolide/invites", &body),
+			httptest.NewRequest("POST", "/api/v1/fleet/invites", &body),
 		)
 	})
 
@@ -54,7 +54,7 @@ func TestDecodeCreateInviteRequest(t *testing.T) {
 
 func TestDecodeVerifyInviteRequest(t *testing.T) {
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/kolide/invites/{token}", func(writer http.ResponseWriter, request *http.Request) {
+	router.HandleFunc("/api/v1/fleet/invites/{token}", func(writer http.ResponseWriter, request *http.Request) {
 		r, err := decodeCreateInviteRequest(context.Background(), request)
 		assert.Nil(t, err)
 
@@ -64,7 +64,7 @@ func TestDecodeVerifyInviteRequest(t *testing.T) {
 
 	router.ServeHTTP(
 		httptest.NewRecorder(),
-		httptest.NewRequest("GET", "/api/v1/kolide/tokens/test_token", nil),
+		httptest.NewRequest("GET", "/api/v1/fleet/tokens/test_token", nil),
 	)
 
 }

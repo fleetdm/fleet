@@ -1,4 +1,4 @@
 #!/bin/bash
 source $FLEET_ENV_PATH
-endpoint="api/v1/kolide/packs/$1/scheduled"
+endpoint="api/v1/fleet/packs/$1/scheduled"
 curl $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$endpoint" 

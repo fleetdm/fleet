@@ -13,9 +13,9 @@ import (
 // Fleet instance.
 func (c *Client) ApplyPacks(specs []*kolide.PackSpec) error {
 	req := applyPackSpecsRequest{Specs: specs}
-	response, err := c.AuthenticatedDo("POST", "/api/v1/kolide/spec/packs", "", req)
+	response, err := c.AuthenticatedDo("POST", "/api/v1/fleet/spec/packs", "", req)
 	if err != nil {
-		return errors.Wrap(err, "POST /api/v1/kolide/spec/packs")
+		return errors.Wrap(err, "POST /api/v1/fleet/spec/packs")
 	}
 	defer response.Body.Close()
 
@@ -42,10 +42,10 @@ func (c *Client) ApplyPacks(specs []*kolide.PackSpec) error {
 
 // GetPack retrieves information about a pack
 func (c *Client) GetPack(name string) (*kolide.PackSpec, error) {
-	verb, path := "GET", "/api/v1/kolide/spec/packs/"+url.PathEscape(name)
+	verb, path := "GET", "/api/v1/fleet/spec/packs/"+url.PathEscape(name)
 	response, err := c.AuthenticatedDo(verb, path, "", nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "GET /api/v1/kolide/spec/packs")
+		return nil, errors.Wrap(err, "GET /api/v1/fleet/spec/packs")
 	}
 	defer response.Body.Close()
 
@@ -76,9 +76,9 @@ func (c *Client) GetPack(name string) (*kolide.PackSpec, error) {
 
 // GetPacks retrieves the list of all Packs.
 func (c *Client) GetPacks() ([]*kolide.PackSpec, error) {
-	response, err := c.AuthenticatedDo("GET", "/api/v1/kolide/spec/packs", "", nil)
+	response, err := c.AuthenticatedDo("GET", "/api/v1/fleet/spec/packs", "", nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "GET /api/v1/kolide/spec/packs")
+		return nil, errors.Wrap(err, "GET /api/v1/fleet/spec/packs")
 	}
 	defer response.Body.Close()
 
@@ -105,7 +105,7 @@ func (c *Client) GetPacks() ([]*kolide.PackSpec, error) {
 
 // DeletePack deletes the pack with the matching name.
 func (c *Client) DeletePack(name string) error {
-	verb, path := "DELETE", "/api/v1/kolide/packs/"+url.PathEscape(name)
+	verb, path := "DELETE", "/api/v1/fleet/packs/"+url.PathEscape(name)
 	response, err := c.AuthenticatedDo(verb, path, "", nil)
 	if err != nil {
 		return errors.Wrapf(err, "%s %s", verb, path)

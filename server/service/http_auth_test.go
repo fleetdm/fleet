@@ -90,7 +90,7 @@ func TestLogin(t *testing.T) {
 		assert.Nil(t, err)
 
 		requestBody := &nopCloser{bytes.NewBuffer(j)}
-		resp, err := http.Post(server.URL+"/api/v1/kolide/login", "application/json", requestBody)
+		resp, err := http.Post(server.URL+"/api/v1/fleet/login", "application/json", requestBody)
 		require.Nil(t, err)
 		assert.Equal(t, tt.status, resp.StatusCode)
 
@@ -120,7 +120,7 @@ func TestLogin(t *testing.T) {
 		assert.NotEqual(t, "", sessions[0].Key)
 
 		// test logout
-		req, _ := http.NewRequest("POST", server.URL+"/api/v1/kolide/logout", nil)
+		req, _ := http.NewRequest("POST", server.URL+"/api/v1/fleet/logout", nil)
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", jsn.Token))
 		client := &http.Client{}
 		resp, err = client.Do(req)

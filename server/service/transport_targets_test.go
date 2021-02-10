@@ -13,7 +13,7 @@ import (
 
 func TestDecodeSearchTargetsRequest(t *testing.T) {
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/kolide/targets", func(writer http.ResponseWriter, request *http.Request) {
+	router.HandleFunc("/api/v1/fleet/targets", func(writer http.ResponseWriter, request *http.Request) {
 		r, err := decodeSearchTargetsRequest(context.Background(), request)
 		assert.Nil(t, err)
 
@@ -41,6 +41,6 @@ func TestDecodeSearchTargetsRequest(t *testing.T) {
 
 	router.ServeHTTP(
 		httptest.NewRecorder(),
-		httptest.NewRequest("POST", "/api/v1/kolide/targets", &body),
+		httptest.NewRequest("POST", "/api/v1/fleet/targets", &body),
 	)
 }

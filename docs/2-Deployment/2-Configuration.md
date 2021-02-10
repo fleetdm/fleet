@@ -1160,12 +1160,12 @@ Several items are required to configure an IDP to provide SSO services to Fleet.
 
 * _Assertion Consumer Service_ - This is the call back URL that the identity provider
 will use to send security assertions to Fleet. In Okta, this field is called *Single sign on URL*. The value that you supply will be a fully qualified URL
-consisting of your Fleet web address and the callback path `/api/v1/kolide/sso/callback`. For example,
+consisting of your Fleet web address and the callback path `/api/v1/fleet/sso/callback`. For example,
 if your Fleet web address is https://fleet.acme.org, then the value you would
 use in the identity provider configuration would be:
 
   ```
-  https://fleet.acme.org/api/v1/kolide/sso/callback
+  https://fleet.acme.org/api/v1/fleet/sso/callback
   ```
 
 * _Entity ID_ - This value is a URI that you define. It identifies your Fleet instance as the service provider that issues authorization requests. The value must exactly match the

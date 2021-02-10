@@ -1,6 +1,6 @@
 #!/bin/bash
 source $FLEET_ENV_PATH
-endpoint="api/v1/kolide/packs"
+endpoint="api/v1/fleet/packs"
 jq -n \
   --arg name "$1" \
   '.name = $name 

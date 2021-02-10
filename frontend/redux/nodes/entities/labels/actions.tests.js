@@ -17,7 +17,7 @@ describe('Labels - actions', () => {
 
     describe('successful request', () => {
       it('does not call the LOAD_REQUEST action', (done) => {
-        nock('http://localhost:8080').get('/api/v1/kolide/labels').reply(200, { labels: [labelStub] });
+        nock('http://localhost:8080').get('/api/v1/fleet/labels').reply(200, { labels: [labelStub] });
 
         const mockStore = reduxMockStore(store);
         const expectedActionTypes = ['labels_LOAD_ALL_SUCCESS'];
@@ -49,7 +49,7 @@ describe('Labels - actions', () => {
           },
         };
 
-        nock('http://localhost:8080').get('/api/v1/kolide/labels').reply(422, { errors });
+        nock('http://localhost:8080').get('/api/v1/fleet/labels').reply(422, { errors });
 
         mockStore.dispatch(silentLoadAll())
           .then(done)

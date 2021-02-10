@@ -14,7 +14,7 @@ nock.disableNetConnect();
 // included to mock the common HTTP request.
 beforeEach(() => {
   nock('http://localhost:8080')
-    .post('/api/v1/kolide/targets', () => true)
+    .post('/api/v1/fleet/targets', () => true)
     .reply(200, {
       targets_count: 1234,
       targets: [

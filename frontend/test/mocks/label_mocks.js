@@ -5,7 +5,7 @@ export default {
     valid: (bearerToken, params) => {
       return createRequestMock({
         bearerToken,
-        endpoint: '/api/v1/kolide/labels',
+        endpoint: '/api/v1/fleet/labels',
         method: 'post',
         response: { label: { ...params, display_text: params.name } },
         responseStatus: 201,
@@ -16,7 +16,7 @@ export default {
     valid: (bearerToken, label) => {
       return createRequestMock({
         bearerToken,
-        endpoint: `/api/v1/kolide/labels/id/${label.id}`,
+        endpoint: `/api/v1/fleet/labels/id/${label.id}`,
         method: 'delete',
         response: {},
       });
@@ -26,7 +26,7 @@ export default {
     valid: (bearerToken, label, params) => {
       return createRequestMock({
         bearerToken,
-        endpoint: `/api/v1/kolide/labels/${label.id}`,
+        endpoint: `/api/v1/fleet/labels/${label.id}`,
         method: 'patch',
         response: { label: { ...label, ...params } },
       });

@@ -37,119 +37,119 @@ func TestAPIRoutes(t *testing.T) {
 	}{
 		{
 			verb: "POST",
-			uri:  "/api/v1/kolide/users",
+			uri:  "/api/v1/fleet/users",
 		},
 		{
 			verb: "GET",
-			uri:  "/api/v1/kolide/users",
+			uri:  "/api/v1/fleet/users",
 		},
 		{
 			verb: "GET",
-			uri:  "/api/v1/kolide/users/1",
+			uri:  "/api/v1/fleet/users/1",
 		},
 		{
 			verb: "PATCH",
-			uri:  "/api/v1/kolide/users/1",
+			uri:  "/api/v1/fleet/users/1",
 		},
 		{
 			verb: "POST",
-			uri:  "/api/v1/kolide/login",
+			uri:  "/api/v1/fleet/login",
 		},
 		{
 			verb: "POST",
-			uri:  "/api/v1/kolide/forgot_password",
+			uri:  "/api/v1/fleet/forgot_password",
 		},
 		{
 			verb: "POST",
-			uri:  "/api/v1/kolide/reset_password",
+			uri:  "/api/v1/fleet/reset_password",
 		},
 		{
 			verb: "GET",
-			uri:  "/api/v1/kolide/me",
+			uri:  "/api/v1/fleet/me",
 		},
 		{
 			verb: "GET",
-			uri:  "/api/v1/kolide/config",
+			uri:  "/api/v1/fleet/config",
 		},
 		{
 			verb: "PATCH",
-			uri:  "/api/v1/kolide/config",
+			uri:  "/api/v1/fleet/config",
 		},
 		{
 			verb: "GET",
-			uri:  "/api/v1/kolide/invites",
+			uri:  "/api/v1/fleet/invites",
 		},
 		{
 			verb: "POST",
-			uri:  "/api/v1/kolide/invites",
+			uri:  "/api/v1/fleet/invites",
 		},
 		{
 			verb: "DELETE",
-			uri:  "/api/v1/kolide/invites/1",
+			uri:  "/api/v1/fleet/invites/1",
 		},
 		{
 			verb: "GET",
-			uri:  "/api/v1/kolide/queries/1",
+			uri:  "/api/v1/fleet/queries/1",
 		},
 		{
 			verb: "GET",
-			uri:  "/api/v1/kolide/queries",
+			uri:  "/api/v1/fleet/queries",
 		},
 		{
 			verb: "POST",
-			uri:  "/api/v1/kolide/queries",
+			uri:  "/api/v1/fleet/queries",
 		},
 		{
 			verb: "PATCH",
-			uri:  "/api/v1/kolide/queries/1",
+			uri:  "/api/v1/fleet/queries/1",
 		},
 		{
 			verb: "DELETE",
-			uri:  "/api/v1/kolide/queries/1",
+			uri:  "/api/v1/fleet/queries/1",
 		},
 		{
 			verb: "POST",
-			uri:  "/api/v1/kolide/queries/delete",
+			uri:  "/api/v1/fleet/queries/delete",
 		},
 		{
 			verb: "POST",
-			uri:  "/api/v1/kolide/queries/run",
+			uri:  "/api/v1/fleet/queries/run",
 		},
 		{
 			verb: "GET",
-			uri:  "/api/v1/kolide/packs/1",
+			uri:  "/api/v1/fleet/packs/1",
 		},
 		{
 			verb: "GET",
-			uri:  "/api/v1/kolide/packs",
+			uri:  "/api/v1/fleet/packs",
 		},
 		{
 			verb: "POST",
-			uri:  "/api/v1/kolide/packs",
+			uri:  "/api/v1/fleet/packs",
 		},
 		{
 			verb: "PATCH",
-			uri:  "/api/v1/kolide/packs/1",
+			uri:  "/api/v1/fleet/packs/1",
 		},
 		{
 			verb: "DELETE",
-			uri:  "/api/v1/kolide/packs/1",
+			uri:  "/api/v1/fleet/packs/1",
 		},
 		{
 			verb: "GET",
-			uri:  "/api/v1/kolide/packs/1/scheduled",
+			uri:  "/api/v1/fleet/packs/1/scheduled",
 		},
 		{
 			verb: "POST",
-			uri:  "/api/v1/kolide/schedule",
+			uri:  "/api/v1/fleet/schedule",
 		},
 		{
 			verb: "DELETE",
-			uri:  "/api/v1/kolide/schedule/1",
+			uri:  "/api/v1/fleet/schedule/1",
 		},
 		{
 			verb: "PATCH",
-			uri:  "/api/v1/kolide/schedule/1",
+			uri:  "/api/v1/fleet/schedule/1",
 		}, {
 			verb: "POST",
 			uri:  "/api/v1/osquery/enroll",
@@ -172,35 +172,35 @@ func TestAPIRoutes(t *testing.T) {
 		},
 		{
 			verb: "GET",
-			uri:  "/api/v1/kolide/labels/1",
+			uri:  "/api/v1/fleet/labels/1",
 		},
 		{
 			verb: "GET",
-			uri:  "/api/v1/kolide/labels",
+			uri:  "/api/v1/fleet/labels",
 		},
 		{
 			verb: "POST",
-			uri:  "/api/v1/kolide/labels",
+			uri:  "/api/v1/fleet/labels",
 		},
 		{
 			verb: "DELETE",
-			uri:  "/api/v1/kolide/labels/1",
+			uri:  "/api/v1/fleet/labels/1",
 		},
 		{
 			verb: "GET",
-			uri:  "/api/v1/kolide/hosts/1",
+			uri:  "/api/v1/fleet/hosts/1",
 		},
 		{
 			verb: "GET",
-			uri:  "/api/v1/kolide/hosts",
+			uri:  "/api/v1/fleet/hosts",
 		},
 		{
 			verb: "DELETE",
-			uri:  "/api/v1/kolide/hosts/1",
+			uri:  "/api/v1/fleet/hosts/1",
 		},
 		{
 			verb: "GET",
-			uri:  "/api/v1/kolide/host_summary",
+			uri:  "/api/v1/fleet/host_summary",
 		},
 	}
 
@@ -308,7 +308,7 @@ func TestModifyUserPermissions(t *testing.T) {
 			admin, enabled = tt.ActingUserAdmin, tt.ActingUserEnabled
 
 			recorder := httptest.NewRecorder()
-			path := fmt.Sprintf("/api/v1/kolide/users/%d", tt.TargetUserID)
+			path := fmt.Sprintf("/api/v1/fleet/users/%d", tt.TargetUserID)
 			request := httptest.NewRequest("PATCH", path, bytes.NewBufferString("{}"))
 			// Bearer token generated with session key CHANGEME on jwt.io
 			request.Header.Add("Authorization", "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzZXNzaW9uX2tleSI6ImZsb29wIn0.ukCPTFvgSJrXbHH2QeAMx3EKwoMh1OmhP3xXxy5I-Wk")

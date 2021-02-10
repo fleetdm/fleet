@@ -11,9 +11,9 @@ import (
 // ApplyOptions sends the osquery options to be applied to the Fleet instance.
 func (c *Client) ApplyOptions(spec *kolide.OptionsSpec) error {
 	req := applyOsqueryOptionsSpecRequest{Spec: spec}
-	response, err := c.AuthenticatedDo("POST", "/api/v1/kolide/spec/osquery_options", "", req)
+	response, err := c.AuthenticatedDo("POST", "/api/v1/fleet/spec/osquery_options", "", req)
 	if err != nil {
-		return errors.Wrap(err, "POST /api/v1/kolide/spec/osquery_options")
+		return errors.Wrap(err, "POST /api/v1/fleet/spec/osquery_options")
 	}
 	defer response.Body.Close()
 
@@ -40,7 +40,7 @@ func (c *Client) ApplyOptions(spec *kolide.OptionsSpec) error {
 
 // GetOptions retrieves the configured osquery options.
 func (c *Client) GetOptions() (*kolide.OptionsSpec, error) {
-	verb, path := "GET", "/api/v1/kolide/spec/osquery_options"
+	verb, path := "GET", "/api/v1/fleet/spec/osquery_options"
 	response, err := c.AuthenticatedDo(verb, path, "", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, verb+" "+path)

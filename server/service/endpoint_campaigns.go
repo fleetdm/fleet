@@ -78,7 +78,7 @@ func makeStreamDistributedQueryCampaignResultsHandler(svc kolide.Service, jwtKey
 	opt := sockjs.DefaultOptions
 	opt.Websocket = true
 	opt.RawWebsocket = true
-	return sockjs.NewHandler("/api/v1/kolide/results", opt, func(session sockjs.Session) {
+	return sockjs.NewHandler("/api/v1/fleet/results", opt, func(session sockjs.Session) {
 		conn := &websocket.Conn{Session: session}
 		defer func() {
 			if p := recover(); p != nil {

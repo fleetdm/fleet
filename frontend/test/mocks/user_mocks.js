@@ -6,7 +6,7 @@ export default {
     valid: (bearerToken, params) => {
       return createRequestMock({
         bearerToken,
-        endpoint: '/api/v1/kolide/change_password',
+        endpoint: '/api/v1/fleet/change_password',
         method: 'post',
         params,
         response: {},
@@ -15,7 +15,7 @@ export default {
   },
   confirmEmailChange: {
     valid: (bearerToken, token) => {
-      const endpoint = `/api/v1/kolide/email/change/${token}`;
+      const endpoint = `/api/v1/fleet/email/change/${token}`;
 
       return createRequestMock({
         bearerToken,
@@ -27,7 +27,7 @@ export default {
   },
   enable: {
     valid: (bearerToken, user, params) => {
-      const endpoint = `/api/v1/kolide/users/${user.id}/enable`;
+      const endpoint = `/api/v1/fleet/users/${user.id}/enable`;
 
       return createRequestMock({
         bearerToken,
@@ -41,7 +41,7 @@ export default {
   forgotPassword: {
     invalid: (response) => {
       return createRequestMock({
-        endpoint: '/api/v1/kolide/forgot_password',
+        endpoint: '/api/v1/fleet/forgot_password',
         method: 'post',
         response,
         responseStatus: 422,
@@ -49,7 +49,7 @@ export default {
     },
     valid: () => {
       return createRequestMock({
-        endpoint: '/api/v1/kolide/forgot_password',
+        endpoint: '/api/v1/fleet/forgot_password',
         method: 'post',
         response: { user: userStub },
       });
@@ -59,7 +59,7 @@ export default {
     valid: (bearerToken) => {
       return createRequestMock({
         bearerToken,
-        endpoint: '/api/v1/kolide/users',
+        endpoint: '/api/v1/fleet/users',
         method: 'get',
         response: { users: [userStub] },
       });
@@ -69,7 +69,7 @@ export default {
     valid: (bearerToken) => {
       return createRequestMock({
         bearerToken,
-        endpoint: '/api/v1/kolide/me',
+        endpoint: '/api/v1/fleet/me',
         method: 'get',
         response: { user: userStub },
       });
@@ -80,7 +80,7 @@ export default {
       const params = { new_password: password, password_reset_token: token };
 
       return createRequestMock({
-        endpoint: '/api/v1/kolide/reset_password',
+        endpoint: '/api/v1/fleet/reset_password',
         method: 'post',
         params,
         response,
@@ -91,7 +91,7 @@ export default {
       const params = { new_password: password, password_reset_token: token };
 
       return createRequestMock({
-        endpoint: '/api/v1/kolide/reset_password',
+        endpoint: '/api/v1/fleet/reset_password',
         method: 'post',
         params,
         response: { user: userStub },
@@ -101,7 +101,7 @@ export default {
   update: {
     valid: (user, params) => {
       return createRequestMock({
-        endpoint: `/api/v1/kolide/users/${user.id}`,
+        endpoint: `/api/v1/fleet/users/${user.id}`,
         method: 'patch',
         params,
         response: { user: userStub },
@@ -112,7 +112,7 @@ export default {
     valid: (bearerToken, user, params) => {
       return createRequestMock({
         bearerToken,
-        endpoint: `/api/v1/kolide/users/${user.id}/admin`,
+        endpoint: `/api/v1/fleet/users/${user.id}/admin`,
         method: 'post',
         params,
         response: { user: { ...user, ...params } },

@@ -4,7 +4,7 @@ import { packStub } from 'test/stubs';
 export default {
   addLabel: {
     valid: (bearerToken, packID, labelID) => {
-      const endpoint = `/api/v1/kolide/packs/${packID}/labels/${labelID}`;
+      const endpoint = `/api/v1/fleet/packs/${packID}/labels/${labelID}`;
 
       return createRequestMock({
         bearerToken,
@@ -16,7 +16,7 @@ export default {
   },
   addQuery: {
     valid: (bearerToken, packID, queryID) => {
-      const endpoint = `/api/v1/kolide/packs/${packID}/queries/${queryID}`;
+      const endpoint = `/api/v1/fleet/packs/${packID}/queries/${queryID}`;
 
       return createRequestMock({
         bearerToken,
@@ -30,7 +30,7 @@ export default {
     valid: (bearerToken, params) => {
       return createRequestMock({
         bearerToken,
-        endpoint: '/api/v1/kolide/packs',
+        endpoint: '/api/v1/fleet/packs',
         params,
         method: 'post',
         response: { pack: params },
@@ -42,7 +42,7 @@ export default {
     valid: (bearerToken, pack) => {
       return createRequestMock({
         bearerToken,
-        endpoint: `/api/v1/kolide/packs/id/${pack.id}`,
+        endpoint: `/api/v1/fleet/packs/id/${pack.id}`,
         method: 'delete',
         response: {},
       });
@@ -52,7 +52,7 @@ export default {
     valid: (bearerToken, pack, params) => {
       return createRequestMock({
         bearerToken,
-        endpoint: `/api/v1/kolide/packs/${pack.id}`,
+        endpoint: `/api/v1/fleet/packs/${pack.id}`,
         method: 'patch',
         params,
         response: { pack: { ...pack, ...params } },

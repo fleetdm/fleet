@@ -15,14 +15,12 @@
 Fleet is powered by a Go API server which serves three types of endpoints:
 
 - Endpoints starting with `/api/v1/osquery/` are osquery TLS server API endpoints. All of these endpoints are used for talking to osqueryd agents and that's it.
-- Endpoints starting with `/api/v1/kolide/` are endpoints to interact with the Fleet data model (packs, queries, scheduled queries, labels, hosts, etc) as well as application endpoints (configuring settings, logging in, session management, etc).
-- All other endpoints are served the React single page application bundle. The React app uses React Router to determine whether or not the URI is a valid route and what to do.
-
-Only osquery agents should interact with the osquery API, but we'd like to support the eventual use of the Fleet API extensively. The API is not very well documented at all right now, but we have plans to:
-
-- Generate and publish detailed documentation via a tool built using [test2doc](https://github.com/adams-sarah/test2doc) (or similar).
-- Release a JavaScript Fleet API client library (which would be derived from the [current](https://github.com/fleetdm/fleet/blob/master/frontend/kolide/index.js) JavaScript API client).
-- Commit to a stable, standardized API format.
+- Endpoints starting with `/api/v1/fleet/` are endpoints to interact with the Fleet data model (packs, queries, scheduled queries, labels, hosts, etc) as well as application endpoints (configuring settings, logging in, session management, etc).
+- All other endpoints are served by the React single page application bundle.
+  The React app uses React Router to determine whether or not the URI is a valid
+  route and what to do.
+  
+Note: We have deprecated `/api/v1/kolide/` routes and will remove them in the Fleet 4.0 release. Please migrate all routes to `/api/v1/fleet/`. 
 
 ### fleetctl
 
@@ -39,11 +37,11 @@ The general idea with the current API is that there are many entities throughout
 
 Each set of objects follows a similar REST access pattern.
 
-- You can `GET /api/v1/kolide/packs` to get all packs
-- You can `GET /api/v1/kolide/packs/1` to get a specific pack.
-- You can `DELETE /api/v1/kolide/packs/1` to delete a specific pack.
-- You can `POST /api/v1/kolide/packs` (with a valid body) to create a new pack.
-- You can `PATCH /api/v1/kolide/packs/1` (with a valid body) to modify a specific pack.
+- You can `GET /api/v1/fleet/packs` to get all packs
+- You can `GET /api/v1/fleet/packs/1` to get a specific pack.
+- You can `DELETE /api/v1/fleet/packs/1` to delete a specific pack.
+- You can `POST /api/v1/fleet/packs` (with a valid body) to create a new pack.
+- You can `PATCH /api/v1/fleet/packs/1` (with a valid body) to modify a specific pack.
 
 Queries, packs, scheduled queries, labels, invites, users, sessions all behave this way. Some objects, like invites, have additional HTTP methods for additional functionality. Some objects, such as scheduled queries, are merely a relationship between two other objects (in this case, a query and a pack) with some details attached.
 
@@ -96,7 +94,7 @@ Authorization: Bearer <your token>
 
 Authenticates the user with the specified credentials. Use the token returned from this endpoint to authenticate further API requests.
 
-`POST /api/v1/kolide/login`
+`POST /api/v1/fleet/login`
 
 #### Parameters
 
@@ -107,7 +105,7 @@ Authenticates the user with the specified credentials. Use the token returned fr
 
 #### Example
 
-`POST /api/v1/kolide/login`
+`POST /api/v1/fleet/login`
 
 ##### Request body
 
@@ -147,11 +145,11 @@ Authenticates the user with the specified credentials. Use the token returned fr
 
 Logs out the authenticated user.
 
-`POST /api/v1/kolide/logout`
+`POST /api/v1/fleet/logout`
 
 #### Example
 
-`POST /api/v1/kolide/logout`
+`POST /api/v1/fleet/logout`
 
 ##### Default response
 
@@ -163,7 +161,7 @@ Logs out the authenticated user.
 
 Sends a password reset email to the specified email. Requires that SMTP is configured for your Fleet server.
 
-`POST /api/v1/kolide/forgot_password`
+`POST /api/v1/fleet/forgot_password`
 
 #### Parameters
 
@@ -173,7 +171,7 @@ Sends a password reset email to the specified email. Requires that SMTP is confi
 
 #### Example
 
-`POST /api/v1/kolide/forgot_password`
+`POST /api/v1/fleet/forgot_password`
 
 ##### Request body
 
@@ -207,7 +205,7 @@ Sends a password reset email to the specified email. Requires that SMTP is confi
 
 ### Change password
 
-`POST /api/v1/kolide/change_password`
+`POST /api/v1/fleet/change_password`
 
 Changes the password for the authenticated user.
 
@@ -220,7 +218,7 @@ Changes the password for the authenticated user.
 
 #### Example
 
-`POST /api/v1/kolide/change_password`
+`POST /api/v1/fleet/change_password`
 
 ##### Request body
 
@@ -257,11 +255,11 @@ Changes the password for the authenticated user.
 
 Retrieves the user data for the authenticated user.
 
-`POST /api/v1/kolide/me`
+`POST /api/v1/fleet/me`
 
 #### Example
 
-`POST /api/v1/kolide/me`
+`POST /api/v1/fleet/me`
 
 ##### Default response
 
@@ -291,11 +289,11 @@ Retrieves the user data for the authenticated user.
 
 Resets the password of the authenticated user. Requires that `force_password_reset` is set to `true` prior to the request.
 
-`POST /api/v1/kolide/perform_require_password_reset`
+`POST /api/v1/fleet/perform_require_password_reset`
 
 #### Example
 
-`POST /api/v1/kolide/perform_required_password_reset`
+`POST /api/v1/fleet/perform_required_password_reset`
 
 ##### Request body
 
@@ -333,11 +331,11 @@ Resets the password of the authenticated user. Requires that `force_password_res
 
 Gets the current SSO configuration.
 
-`GET /api/v1/kolide/sso`
+`GET /api/v1/fleet/sso`
 
 #### Example
 
-`GET /api/v1/kolide/sso`
+`GET /api/v1/fleet/sso`
 
 ##### Default response
 
@@ -357,7 +355,7 @@ Gets the current SSO configuration.
 
 ### Initiate SSO
 
-`POST /api/v1/kolide/sso`
+`POST /api/v1/fleet/sso`
 
 #### Parameters
 
@@ -367,7 +365,7 @@ Gets the current SSO configuration.
 
 #### Example
 
-`POST /api/v1/kolide/sso`
+`POST /api/v1/fleet/sso`
 
 ##### Request body
 
@@ -409,7 +407,7 @@ Gets the current SSO configuration.
 
 ### List hosts
 
-`GET /api/v1/kolide/hosts`
+`GET /api/v1/fleet/hosts`
 
 #### Parameters
 
@@ -423,7 +421,7 @@ Gets the current SSO configuration.
 
 #### Example
 
-`GET /api/v1/kolide/hosts?page=0&per_page=100&order_key=host_name`
+`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=host_name`
 
 ##### Request query parameters
 
@@ -524,7 +522,7 @@ Gets the current SSO configuration.
 
 Returns the count of all hosts organized by status. `online_count` includes all hosts currently enrolled in Fleet. `offline_count` includes all hosts that haven't checked into Fleet recently. `mia_count` includes all hosts that haven't been seen by Fleet in more than 30 days. `new_count` includes the hosts that have been enrolled to Fleet in the last 24 hours.
 
-`GET /api/v1/kolide/host_summary`
+`GET /api/v1/fleet/host_summary`
 
 #### Parameters
 
@@ -532,7 +530,7 @@ None.
 
 #### Example
 
-`GET /api/v1/kolide/host_summary`
+`GET /api/v1/fleet/host_summary`
 
 
 ##### Default response
@@ -552,7 +550,7 @@ None.
 
 Returns the information of the specified host.
 
-`GET /api/v1/kolide/hosts/{id}`
+`GET /api/v1/fleet/hosts/{id}`
 
 #### Parameters
 
@@ -562,7 +560,7 @@ Returns the information of the specified host.
 
 #### Example
 
-`GET /api/v1/kolide/hosts/121`
+`GET /api/v1/fleet/hosts/121`
 
 
 ##### Default response
@@ -617,7 +615,7 @@ Returns the information of the specified host.
 Returns the information of the host specified using the `uuid`, `osquery_host_id`, `hostname`, or
 `node_key` as an identifier
 
-`GET /api/v1/kolide/hosts/identifier/{identifier}`
+`GET /api/v1/fleet/hosts/identifier/{identifier}`
 
 #### Parameters
 
@@ -627,7 +625,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
 
 #### Example
 
-`GET /api/v1/kolide/hosts/identifier/f01c4390-0000-0000-a1e5-14346a5724dc`
+`GET /api/v1/fleet/hosts/identifier/f01c4390-0000-0000-a1e5-14346a5724dc`
 
 
 ##### Default response
@@ -681,7 +679,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
 
 Deletes the specified host from Fleet. Note that a deleted host will fail authentication with the previous node key, and in most osquery configurations will attempt to re-enroll automatically. If the host still has a valid enroll secret, it will re-enroll successfully.
 
-`DELETE /api/v1/kolide/hosts/{id}`
+`DELETE /api/v1/fleet/hosts/{id}`
 
 #### Parameters
 
@@ -691,7 +689,7 @@ Deletes the specified host from Fleet. Note that a deleted host will fail authen
 
 #### Example
 
-`DELETE /api/v1/kolide/hosts/121`
+`DELETE /api/v1/fleet/hosts/121`
 
 
 ##### Default response
@@ -717,7 +715,7 @@ The Fleet server exposes a handful of API endpoints that handles common user man
 
 Returns a list of all enabled users
 
-`GET /api/v1/kolide/users`
+`GET /api/v1/fleet/users`
 
 #### Parameters
 
@@ -725,7 +723,7 @@ None.
 
 #### Example
 
-`GET /api/v1/kolide/users`
+`GET /api/v1/fleet/users`
 
 ##### Request query parameters
 
@@ -775,7 +773,7 @@ None.
 
 Creates a user account after an invited user provides registration information and submits the form.
 
-`POST /api/v1/kolide/users`
+`POST /api/v1/fleet/users`
 
 #### Parameters
 
@@ -790,7 +788,7 @@ Creates a user account after an invited user provides registration information a
 
 #### Example
 
-`POST /api/v1/kolide/users`
+`POST /api/v1/fleet/users`
 
 ##### Request query parameters
 
@@ -881,7 +879,7 @@ The same error will be returned whenever one of the required parameters fails th
 
 Creates a user account without requiring an invitation, the user is enabled immediately.
 
-`POST /api/v1/kolide/users/admin`
+`POST /api/v1/fleet/users/admin`
 
 #### Parameters
 
@@ -895,7 +893,7 @@ Creates a user account without requiring an invitation, the user is enabled imme
 
 #### Example
 
-`POST /api/v1/kolide/users/admin`
+`POST /api/v1/fleet/users/admin`
 
 ##### Request query parameters
 
@@ -967,7 +965,7 @@ Creates a user account without requiring an invitation, the user is enabled imme
 
 Returns all information about a specific user.
 
-`GET /api/v1/kolide/users/{id}`
+`GET /api/v1/fleet/users/{id}`
 
 #### Parameters
 
@@ -977,7 +975,7 @@ Returns all information about a specific user.
 
 #### Example
 
-`GET /api/v1/kolide/users/2`
+`GET /api/v1/fleet/users/2`
 
 ##### Request query parameters
 
@@ -1061,7 +1059,7 @@ Returns all information about a specific user.
 
 Returns the query specified by ID.
 
-`GET /api/v1/kolide/queries/{id}`
+`GET /api/v1/fleet/queries/{id}`
 
 #### Parameters
 
@@ -1071,7 +1069,7 @@ Returns the query specified by ID.
 
 #### Example
 
-`GET /api/v1/kolide/queries/31`
+`GET /api/v1/fleet/queries/31`
 
 
 ##### Default response
@@ -1109,7 +1107,7 @@ Returns the query specified by ID.
 
 Returns a list of all queries in the Fleet instance.
 
-`GET /api/v1/kolide/queries`
+`GET /api/v1/fleet/queries`
 
 #### Parameters
 
@@ -1117,7 +1115,7 @@ None.
 
 #### Example
 
-`GET /api/v1/kolide/queries`
+`GET /api/v1/fleet/queries`
 
 
 ##### Default response
@@ -1207,7 +1205,7 @@ None.
 
 ### Create query
 
-`POST /api/v1/kolide/queries`
+`POST /api/v1/fleet/queries`
 
 #### Parameters
 
@@ -1219,7 +1217,7 @@ None.
 
 #### Example
 
-`POST /api/v1/kolide/queries`
+`POST /api/v1/fleet/queries`
 
 ##### Request body
 
@@ -1256,7 +1254,7 @@ None.
 
 Returns the query specified by ID.
 
-`PATCH /api/v1/kolide/queries/{id}`
+`PATCH /api/v1/fleet/queries/{id}`
 
 #### Parameters
 
@@ -1269,7 +1267,7 @@ Returns the query specified by ID.
 
 #### Example
 
-`PATCH /api/v1/kolide/queries/2`
+`PATCH /api/v1/fleet/queries/2`
 
 ##### Request body
 
@@ -1304,7 +1302,7 @@ Returns the query specified by ID.
 
 Deletes the query specified by name.
 
-`DELETE /api/v1/kolide/queries/{name}`
+`DELETE /api/v1/fleet/queries/{name}`
 
 #### Parameters
 
@@ -1314,7 +1312,7 @@ Deletes the query specified by name.
 
 #### Example
 
-`DELETE /api/v1/kolide/queries/{name}`
+`DELETE /api/v1/fleet/queries/{name}`
 
 ##### Default response
 
@@ -1328,7 +1326,7 @@ Deletes the query specified by name.
 
 Deletes the query specified by ID.
 
-`DELETE /api/v1/kolide/queries/id/{id}`
+`DELETE /api/v1/fleet/queries/id/{id}`
 
 #### Parameters
 
@@ -1338,7 +1336,7 @@ Deletes the query specified by ID.
 
 #### Example
 
-`DELETE /api/v1/kolide/queries/id/28`
+`DELETE /api/v1/fleet/queries/id/28`
 
 ##### Default response
 
@@ -1352,7 +1350,7 @@ Deletes the query specified by ID.
 
 Returns a list of all queries in the Fleet instance. Each item returned includes the name, description, and SQL of the query.
 
-`GET /api/v1/kolide/spec/queries`
+`GET /api/v1/fleet/spec/queries`
 
 #### Parameters
 
@@ -1360,7 +1358,7 @@ None.
 
 #### Example
 
-`GET /api/v1/kolide/spec/queries`
+`GET /api/v1/fleet/spec/queries`
 
 ##### Default response
 
@@ -1392,7 +1390,7 @@ None.
 
 Returns the name, description, and SQL of the query specified by name.
 
-`GET /api/v1/kolide/spec/queries/{name}`
+`GET /api/v1/fleet/spec/queries/{name}`
 
 #### Parameters
 
@@ -1402,7 +1400,7 @@ Returns the name, description, and SQL of the query specified by name.
 
 #### Example
 
-`GET /api/v1/kolide/spec/queries/query1`
+`GET /api/v1/fleet/spec/queries/query1`
 
 ##### Default response
 
@@ -1422,7 +1420,7 @@ Returns the name, description, and SQL of the query specified by name.
 
 Creates and/or modifies the queries included in the specs list. To modify an existing query, the name of the query included in `specs` must already be used by an existing query. If a query with the specified name doesn't exist in Fleet, a new query will be created.
 
-`POST /api/v1/kolide/spec/queries`
+`POST /api/v1/fleet/spec/queries`
 
 #### Parameters
 
@@ -1432,7 +1430,7 @@ Creates and/or modifies the queries included in the specs list. To modify an exi
 
 #### Example
 
-`POST /api/v1/kolide/spec/queries`
+`POST /api/v1/fleet/spec/queries`
 
 ##### Request body
 
@@ -1470,7 +1468,7 @@ Creates and/or modifies the queries included in the specs list. To modify an exi
 
 Runs the specified query as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label ID.
 
-`POST /api/v1/kolide/spec/queries/run`
+`POST /api/v1/fleet/spec/queries/run`
 
 #### Parameters
 
@@ -1481,7 +1479,7 @@ Runs the specified query as a live query on the specified hosts or group of host
 
 #### Example with one host targeted by ID
 
-`POST /api/v1/kolide/spec/queries/run`
+`POST /api/v1/fleet/spec/queries/run`
 
 ##### Request body
 
@@ -1518,7 +1516,7 @@ Runs the specified query as a live query on the specified hosts or group of host
 
 #### Example with multiple hosts targeted by label ID
 
-`POST /api/v1/kolide/spec/queries/run`
+`POST /api/v1/fleet/spec/queries/run`
 
 ##### Request body
 
@@ -1557,7 +1555,7 @@ Runs the specified query as a live query on the specified hosts or group of host
 
 Runs the specified query by name as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label.
 
-`POST /api/v1/kolide/spec/queries/run`
+`POST /api/v1/fleet/spec/queries/run`
 
 #### Parameters
 
@@ -1568,7 +1566,7 @@ Runs the specified query by name as a live query on the specified hosts or group
 
 #### Example with one host targeted
 
-`POST /api/v1/kolide/spec/queries/run`
+`POST /api/v1/fleet/spec/queries/run`
 
 ##### Request body
 
@@ -1624,7 +1622,7 @@ Runs the specified query by name as a live query on the specified hosts or group
 
 ### Create pack
 
-`POST /api/v1/kolide/packs`
+`POST /api/v1/fleet/packs`
 
 #### Parameters
 
@@ -1637,7 +1635,7 @@ Runs the specified query by name as a live query on the specified hosts or group
 
 #### Example
 
-`POST /api/v1/kolide/packs`
+`POST /api/v1/fleet/packs`
 
 ##### Request query parameters
 
@@ -1674,7 +1672,7 @@ Runs the specified query by name as a live query on the specified hosts or group
 
 ### Modify pack
 
-`PATCH /api/v1/kolide/packs/{id}`
+`PATCH /api/v1/fleet/packs/{id}`
 
 #### Parameters
 
@@ -1688,7 +1686,7 @@ Runs the specified query by name as a live query on the specified hosts or group
 
 #### Example
 
-`PATCH /api/v1/kolide/packs/{id}`
+`PATCH /api/v1/fleet/packs/{id}`
 
 ##### Request query parameters
 
@@ -1724,7 +1722,7 @@ Runs the specified query by name as a live query on the specified hosts or group
 
 ### Get pack
 
-`GET /api/v1/kolide/packs/{id}`
+`GET /api/v1/fleet/packs/{id}`
 
 #### Parameters
 
@@ -1734,7 +1732,7 @@ Runs the specified query by name as a live query on the specified hosts or group
 
 #### Example
 
-`GET /api/v1/kolide/packs/17`
+`GET /api/v1/fleet/packs/17`
 
 ##### Default response
 
@@ -1760,7 +1758,7 @@ Runs the specified query by name as a live query on the specified hosts or group
 
 ### List packs
 
-`GET /api/v1/kolide/packs`
+`GET /api/v1/fleet/packs`
 
 #### Parameters
 
@@ -1768,7 +1766,7 @@ None.
 
 #### Example
 
-`GET /api/v1/kolide/packs`
+`GET /api/v1/fleet/packs`
 
 ##### Default response
 
@@ -1809,7 +1807,7 @@ None.
 
 ### Delete pack
 
-`DELETE /api/v1/kolide/packs/{name}`
+`DELETE /api/v1/fleet/packs/{name}`
 
 #### Parameters
 
@@ -1819,7 +1817,7 @@ None.
 
 #### Example
 
-`DELETE /api/v1/kolide/packs/pack_number_one`
+`DELETE /api/v1/fleet/packs/pack_number_one`
 
 ##### Default response
 
@@ -1831,7 +1829,7 @@ None.
 
 ### Delete pack by ID
 
-`DELETE /api/v1/kolide/packs/id/{id}`
+`DELETE /api/v1/fleet/packs/id/{id}`
 
 #### Parameters
 
@@ -1841,7 +1839,7 @@ None.
 
 #### Example
 
-`DELETE /api/v1/kolide/packs/id/1`
+`DELETE /api/v1/fleet/packs/id/1`
 
 ##### Default response
 
@@ -1853,7 +1851,7 @@ None.
 
 ### Get scheduled queries in a pack
 
-`GET /api/v1/kolide/packs/{id}/scheduled`
+`GET /api/v1/fleet/packs/{id}/scheduled`
 
 #### Parameters
 
@@ -1863,7 +1861,7 @@ None.
 
 #### Example
 
-`GET /api/v1/kolide/packs/1/scheduled`
+`GET /api/v1/fleet/packs/1/scheduled`
 
 ##### Default response
 
@@ -1920,7 +1918,7 @@ None.
 
 ### Add scheduled query to a pack
 
-`POST /api/v1/kolide/schedule`
+`POST /api/v1/fleet/schedule`
 
 #### Parameters
 
@@ -1937,7 +1935,7 @@ None.
 
 #### Example
 
-`POST /api/v1/kolide/schedule`
+`POST /api/v1/fleet/schedule`
 
 #### Request body 
 
@@ -1981,7 +1979,7 @@ None.
 
 ### Get scheduled query
 
-`GET /api/v1/kolide/schedule/{id}`
+`GET /api/v1/fleet/schedule/{id}`
 
 #### Parameters
 
@@ -1991,7 +1989,7 @@ None.
 
 #### Example
 
-`GET /api/v1/kolide/schedule/56`
+`GET /api/v1/fleet/schedule/56`
 
 ##### Default response
 
@@ -2020,7 +2018,7 @@ None.
 
 ### Modify scheduled query
 
-`PATCH /api/v1/kolide/schedule/{id}`
+`PATCH /api/v1/fleet/schedule/{id}`
 
 #### Parameters
 
@@ -2036,7 +2034,7 @@ None.
 
 #### Example
 
-`PATCH /api/v1/kolide/schedule/56`
+`PATCH /api/v1/fleet/schedule/56`
 
 #### Request body 
 
@@ -2073,7 +2071,7 @@ None.
 
 ### Delete scheduled query
 
-`DELETE /api/v1/kolide/schedule/{id}`
+`DELETE /api/v1/fleet/schedule/{id}`
 
 #### Parameters
 
@@ -2083,7 +2081,7 @@ None.
 
 #### Example
 
-`DELETE /api/v1/kolide/schedule/56`
+`DELETE /api/v1/fleet/schedule/56`
 
 ##### Default response
 
@@ -2097,11 +2095,11 @@ None.
 
 Returns the specs for all packs in the Fleet instance.
 
-`GET /api/v1/kolide/spec/packs`
+`GET /api/v1/fleet/spec/packs`
 
 #### Example
 
-`GET /api/v1/kolide/spec/packs`
+`GET /api/v1/fleet/spec/packs`
 
 ##### Default response
 
@@ -2198,7 +2196,7 @@ Returns the specs for all packs in the Fleet instance.
 
 Returns the specs for all packs in the Fleet instance.
 
-`POST /api/v1/kolide/spec/packs`
+`POST /api/v1/fleet/spec/packs`
 
 #### Parameters
 
@@ -2208,7 +2206,7 @@ Returns the specs for all packs in the Fleet instance.
 
 #### Example
 
-`POST /api/v1/kolide/spec/packs`
+`POST /api/v1/fleet/spec/packs`
 
 ##### Request body
 
@@ -2311,7 +2309,7 @@ Returns the specs for all packs in the Fleet instance.
 
 Returns the spec for the specified pack by pack name.
 
-`GET /api/v1/kolide/spec/packs/{name}`
+`GET /api/v1/fleet/spec/packs/{name}`
 
 #### Parameters
 
@@ -2321,7 +2319,7 @@ Returns the spec for the specified pack by pack name.
 
 #### Example
 
-`GET /api/v1/kolide/spec/packs/pack_1`
+`GET /api/v1/fleet/spec/packs/pack_1`
 
 ##### Default response
 
@@ -2405,7 +2403,7 @@ The Fleet server exposes a handful of API endpoints that handle the configuratio
 
 Returns the Fleet certificate.
 
-`GET /api/v1/kolide/config/certificate`
+`GET /api/v1/fleet/config/certificate`
 
 #### Parameters
 
@@ -2413,7 +2411,7 @@ None.
 
 #### Example
 
-`GET /api/v1/kolide/config/certificate`
+`GET /api/v1/fleet/config/certificate`
 
 
 ##### Default response
@@ -2430,7 +2428,7 @@ None.
 
 Returns all information about the Fleet's configuration.
 
-`GET /api/v1/kolide/config`
+`GET /api/v1/fleet/config`
 
 #### Parameters
 
@@ -2438,7 +2436,7 @@ None.
 
 #### Example
 
-`GET /api/v1/kolide/config`
+`GET /api/v1/fleet/config`
 
 
 ##### Default response
@@ -2493,7 +2491,7 @@ None.
 
 Modifies the Fleet's configuration with the supplied information.
 
-`PATCH /api/v1/kolide/config`
+`PATCH /api/v1/fleet/config`
 
 #### Parameters
 
@@ -2527,7 +2525,7 @@ Modifies the Fleet's configuration with the supplied information.
 
 #### Example
 
-`PATCH /api/v1/kolide/config`
+`PATCH /api/v1/fleet/config`
 
 ##### Request body
 
@@ -2598,7 +2596,7 @@ Modifies the Fleet's configuration with the supplied information.
 
 Returns all the enroll secrets used by the Fleet server.
 
-`GET /api/v1/kolide/spec/enroll_secret`
+`GET /api/v1/fleet/spec/enroll_secret`
 
 #### Parameters
 
@@ -2606,7 +2604,7 @@ None.
 
 #### Example
 
-`GET /api/v1/kolide/spec/enroll_secret`
+`GET /api/v1/fleet/spec/enroll_secret`
 
 
 ##### Default response
@@ -2644,7 +2642,7 @@ None.
 
 Modifies and/or creates the specified enroll secret(s).
 
-`POST /api/v1/kolide/spec/enroll_secret`
+`POST /api/v1/fleet/spec/enroll_secret`
 
 #### Parameters
 
@@ -2672,7 +2670,7 @@ Modifies and/or creates the specified enroll secret(s).
 }
 ```
 
-`POST /api/v1/kolide/spec/enroll_secret`
+`POST /api/v1/fleet/spec/enroll_secret`
 
 
 ##### Default response
@@ -2686,7 +2684,7 @@ Modifies and/or creates the specified enroll secret(s).
 ### Create invite
 
 
-`POST /api/v1/kolide/invites`
+`POST /api/v1/fleet/invites`
 
 #### Parameters
 
@@ -2712,7 +2710,7 @@ Modifies and/or creates the specified enroll secret(s).
 }
 ```
 
-`POST /api/v1/kolide/invites`
+`POST /api/v1/fleet/invites`
 
 
 ##### Default response
@@ -2738,7 +2736,7 @@ Modifies and/or creates the specified enroll secret(s).
 
 Returns a list of the active invitations in Fleet.
 
-`GET /api/v1/kolide/invites`
+`GET /api/v1/fleet/invites`
 
 #### Parameters
 
@@ -2746,7 +2744,7 @@ None.
 
 #### Example
 
-`GET /api/v1/kolide/invites`
+`GET /api/v1/fleet/invites`
 
 
 ##### Default response
@@ -2784,7 +2782,7 @@ None.
 
 Delete the specified invite from Fleet.
 
-`DELETE /api/v1/kolide/invites/{id}`
+`DELETE /api/v1/fleet/invites/{id}`
 
 #### Parameters
 
@@ -2794,7 +2792,7 @@ Delete the specified invite from Fleet.
 
 #### Example
 
-`DELETE /api/v1/kolide/invites/{id}`
+`DELETE /api/v1/fleet/invites/{id}`
 
 
 ##### Default response
@@ -2809,7 +2807,7 @@ Delete the specified invite from Fleet.
 
 Verify the specified invite.
 
-`GET /api/v1/kolide/invites/{token}`
+`GET /api/v1/fleet/invites/{token}`
 
 #### Parameters
 
@@ -2819,7 +2817,7 @@ Verify the specified invite.
 
 #### Example
 
-`GET /api/v1/kolide/invites/{token}`
+`GET /api/v1/fleet/invites/{token}`
 
 
 ##### Default response
@@ -2867,7 +2865,7 @@ Verify the specified invite.
 
 Retrieve the osquery options configured via Fleet.
 
-`GET /api/v1/kolide/spec/osquery_options`
+`GET /api/v1/fleet/spec/osquery_options`
 
 #### Parameters
 
@@ -2875,7 +2873,7 @@ None.
 
 #### Example
 
-`GET /api/v1/kolide/spec/osquery_options`
+`GET /api/v1/fleet/spec/osquery_options`
 
 
 ##### Default response
@@ -2912,7 +2910,7 @@ None.
 
 Modifies the osquery options configuration set in Fleet.
 
-`POST /api/v1/kolide/spec/osquery_options`
+`POST /api/v1/fleet/spec/osquery_options`
 
 #### Parameters
 
@@ -2922,7 +2920,7 @@ Modifies the osquery options configuration set in Fleet.
 
 #### Example
 
-`POST /api/v1/kolide/spec/osquery_options`
+`POST /api/v1/fleet/spec/osquery_options`
 
 ##### Request body
 

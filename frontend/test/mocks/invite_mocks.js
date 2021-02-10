@@ -5,7 +5,7 @@ export default {
     valid: (bearerToken, params) => {
       return createRequestMock({
         bearerToken,
-        endpoint: '/api/v1/kolide/invites',
+        endpoint: '/api/v1/fleet/invites',
         method: 'post',
         params,
         response: { invite: params },
@@ -16,7 +16,7 @@ export default {
     valid: (bearerToken) => {
       return createRequestMock({
         bearerToken,
-        endpoint: '/api/v1/kolide/invites',
+        endpoint: '/api/v1/fleet/invites',
         method: 'get',
         response: { invites: [] },
       });
@@ -26,7 +26,7 @@ export default {
     valid: (bearerToken, invite) => {
       return createRequestMock({
         bearerToken,
-        endpoint: `/api/v1/kolide/invites/${invite.id}`,
+        endpoint: `/api/v1/fleet/invites/${invite.id}`,
         method: 'delete',
         response: {},
       });
