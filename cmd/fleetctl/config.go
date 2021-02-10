@@ -63,20 +63,23 @@ func makeConfigIfNotExists(fp string) error {
 	return err
 }
 
-func readConfig(fp string) (c configFile, err error) {
+func readConfig(fp string) (configFile, error) {
+	var c configFile
 	b, err := ioutil.ReadFile(fp)
 	if err != nil {
-		return
+		return c, err
 	}
 
-	err = yaml.Unmarshal(b, &c)
+	if err := yaml.Unmarshal(b, &c); err != nil {
+		return c, errors.Wrap(err, "unmarshal config")
+	}
 
 	if c.Contexts == nil {
 		c.Contexts = map[string]Context{
 			"default": Context{},
 		}
 	}
-	return
+	return c, nil
 }
 
 func writeConfig(fp string, c configFile) error {

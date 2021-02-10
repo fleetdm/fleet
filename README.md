@@ -9,7 +9,7 @@ Fleet is the most widely used open source osquery manager.  Deploying osquery wi
 
 ## Try Fleet
 
-#### With [Node.js](https://nodejs.org/en/download/) and [Docker](https://docs.docker.com/get-docker/) installed:
+#### With [Node.js](https://nodejs.org/en/download/), [Docker](https://docs.docker.com/get-docker/), and [Docker Compose](https://docs.docker.com/compose/install/) installed:
 
 ```bash
 # Install the Fleet command-line tool

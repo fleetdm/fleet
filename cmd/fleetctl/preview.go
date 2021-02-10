@@ -100,7 +100,9 @@ This command will create a directory fleet-preview in the current working direct
 			config, err := readConfig(configPath)
 			if err != nil {
 				// No existing config
-				config.Contexts["default"] = contextConfig
+				config.Contexts = map[string]Context{
+					"default": contextConfig,
+				}
 			} else {
 				fmt.Println("Configured fleetctl in the 'preview' context to avoid overwriting existing config.")
 				context = "preview"
@@ -284,11 +286,11 @@ func waitStartup() error {
 
 func checkDocker() error {
 	// Check installed
-	if _, err := exec.LookPath("docker-compose"); err != nil {
-		return errors.New("Docker is required for the fleetctl preview experience.\n\nPlease install Docker (https://docs.docker.com/get-docker/).")
-	}
 	if _, err := exec.LookPath("docker"); err != nil {
 		return errors.New("Docker is required for the fleetctl preview experience.\n\nPlease install Docker (https://docs.docker.com/get-docker/).")
+	}
+	if _, err := exec.LookPath("docker-compose"); err != nil {
+		return errors.New("Docker Compose is required for the fleetctl preview experience.\n\nPlease install Docker Compose (https://docs.docker.com/compose/install/).")
 	}
 
 	// Check running
