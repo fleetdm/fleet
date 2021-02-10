@@ -61,31 +61,13 @@ All of these objects are put together and distributed to the appropriate osquery
 - [SSO config](#sso-config)
 - [Initiate SSO](#initiate-sso)
 
-Making authenticated requests to the Fleet server requires that you are granted permission to access data. The Fleet Authentication API enables you to receive an authorization token.
+All API requests to the Fleet server require API token authentication unless noted in the documentation.
 
-All Fleet API requests are authenticated unless noted in the documentation. This means that almost all Fleet API requests will require sending the API token in the request header.
-
-The typical steps to making an authenticated API request are outlined below.
-
-First, utilize the `/login` endpoint to receive an API token. For SSO users, username/password login is disabled and the API token can be retrieved from the "Settings" page in the UI.
-
-`POST /api/v1/kolide/login`
-
-Request body
+To get an API token, send a request to the [login endpoint](#log-in):
 
 ```
 {
-  "username": "janedoe@example.com",
-  "passsword": "VArCjNW7CfsxGp67"
-}
-```
-
-Default response
-
-`Status: 200`
-
-```
-{
+  "token": "<your token>",
   "user": {
     "created_at": "2020-11-13T22:57:12Z",
     "updated_at": "2020-11-13T22:57:12Z",
@@ -98,105 +80,17 @@ Default response
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false
-  },
-  "token": "{your token}"
+  }
 }
 ```
 
-Then, use the token returned from the `/login` endpoint to authenticate further API requests. The example below utilizes the `/hosts` endpoint.
-
-`GET /api/v1/kolide/hosts`
-
-Request header
+Then, use that API token to authenticate all subsequent API requests by sending it in the "Authorization" request header, prefixed with "Bearer ":
 
 ```
 Authorization: Bearer <your token>
 ```
 
-Default response
-
-`Status: 200`
-
-```
-{
-  "hosts": [
-    {
-      "created_at": "2020-11-05T05:09:44Z",
-      "updated_at": "2020-11-05T06:03:39Z",
-      "id": 1,
-      "detail_updated_at": "2020-11-05T05:09:45Z",
-      "label_updated_at": "2020-11-05T05:14:51Z",
-      "seen_time": "2020-11-05T06:03:39Z",
-      "hostname": "2ceca32fe484",
-      "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
-      "platform": "centos",
-      "osquery_version": "2.7.0",
-      "os_version": "CentOS Linux 7",
-      "build": "",
-      "platform_like": "rhel fedora",
-      "code_name": "",
-      "uptime": 8305000000000,
-      "memory": 2084032512,
-      "cpu_type": "6",
-      "cpu_subtype": "142",
-      "cpu_brand": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
-      "cpu_physical_cores": 4,
-      "cpu_logical_cores": 4,
-      "hardware_vendor": "",
-      "hardware_model": "",
-      "hardware_version": "",
-      "hardware_serial": "",
-      "computer_name": "2ceca32fe484",
-      "primary_ip": "",
-      "primary_mac": "",
-      "distributed_interval": 10,
-      "config_tls_refresh": 10,
-      "logger_tls_period": 8,
-      "additional": {},
-      "enroll_secret_name": "default",
-      "status": "offline",
-      "display_text": "2ceca32fe484"
-    },
-    {
-      "created_at": "2020-11-05T05:09:44Z",
-      "updated_at": "2020-11-05T06:03:39Z",
-      "id": 2,
-      "detail_updated_at": "2020-11-05T05:09:45Z",
-      "label_updated_at": "2020-11-05T05:14:52Z",
-      "seen_time": "2020-11-05T06:03:40Z",
-      "hostname": "4cc885c20110",
-      "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
-      "platform": "centos",
-      "osquery_version": "2.7.0",
-      "os_version": "CentOS 6.8.0",
-      "build": "",
-      "platform_like": "rhel",
-      "code_name": "",
-      "uptime": 8305000000000,
-      "memory": 2084032512,
-      "cpu_type": "6",
-      "cpu_subtype": "142",
-      "cpu_brand": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
-      "cpu_physical_cores": 4,
-      "cpu_logical_cores": 4,
-      "hardware_vendor": "",
-      "hardware_model": "",
-      "hardware_version": "",
-      "hardware_serial": "",
-      "computer_name": "4cc885c20110",
-      "primary_ip": "",
-      "primary_mac": "",
-      "distributed_interval": 10,
-      "config_tls_refresh": 10,
-      "logger_tls_period": 8,
-      "additional": {},
-      "enroll_secret_name": "default",
-      "status": "offline",
-      "display_text": "4cc885c20110"
-    },
-  ]
-}
-```
+> For SSO users, username/password login is disabled.  The API token can instead be retrieved from the "Settings" page in the UI.
 
 ### Log in
 
@@ -220,7 +114,7 @@ Authenticates the user with the specified credentials. Use the token returned fr
 ```
 {
   "username": "janedoe@example.com",
-  "passsword": "VArCjNW7CfsxGp67"
+  "password": "VArCjNW7CfsxGp67"
 }
 ```
 
