@@ -8,7 +8,6 @@ import { sortBy } from 'lodash';
 import AddHostModal from 'components/hosts/AddHostModal';
 import Button from 'components/buttons/Button';
 import configInterface from 'interfaces/config';
-import HostContainer from 'components/hosts/HostContainer';
 import HostPagination from 'components/hosts/HostPagination';
 import HostSidePanel from 'components/side_panels/HostSidePanel';
 import LabelForm from 'components/forms/LabelForm';
@@ -28,7 +27,7 @@ import entityGetter from 'redux/utilities/entityGetter';
 import PATHS from 'router/paths';
 import deepDifference from 'utilities/deep_difference';
 import scrollToTop from 'utilities/scroll_to_top';
-import helpers from './helpers';
+import HostContainer from './components/HostContainer';
 
 const NEW_LABEL_HASH = '#new_label';
 const baseClass = 'manage-hosts';
@@ -100,14 +99,6 @@ export class ManageHostsPage extends PureComponent {
     const { dispatch } = this.props;
 
     dispatch(push(PATHS.MANAGE_HOSTS));
-
-    return false;
-  }
-
-  onHostClick = (host) => {
-    const { dispatch } = this.props;
-
-    dispatch(push(PATHS.HOST_DETAILS(host)));
 
     return false;
   }
@@ -197,12 +188,6 @@ export class ManageHostsPage extends PureComponent {
       global.window.clearTimeout(this.timeout);
       this.timeout = null;
     }
-  }
-
-  filterAllHosts = (hosts, selectedLabel) => {
-    const { filterHosts } = helpers;
-
-    return filterHosts(hosts, selectedLabel);
   }
 
   sortHosts = (hosts) => {
@@ -438,7 +423,6 @@ export class ManageHostsPage extends PureComponent {
   render () {
     const {
       onPaginationChange,
-      onHostClick,
       renderForm,
       renderHeader,
       renderSidePanel,
@@ -507,7 +491,6 @@ export class ManageHostsPage extends PureComponent {
                 selectedLabel={selectedLabel}
                 loadingHosts={loadingHosts}
                 toggleAddHostModal={toggleAddHostModal}
-                onHostClick={onHostClick}
               />
               {!loadingHosts && <HostPagination
                 allHostCount={hostCount}

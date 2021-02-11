@@ -46,6 +46,7 @@
     "react-router-redux": "4.0.8",
     "react-router-transition": "0.1.1",
     "react-select": "^1",
+    "react-table": "^7.6.3",
     "react-tooltip": "^4.2.13",
     "redux": "4.0.5",
     "redux-mock-store": "1.4.0",
