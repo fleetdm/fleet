@@ -65,98 +65,98 @@ spec:
             memory: {{ .Values.resources.requests.memory }}
         env:
           ## BEGIN FLEET SECTION
-          - name: KOLIDE_SERVER_ADDRESS
+          - name: FLEET_SERVER_ADDRESS
             value: "0.0.0.0:{{ .Values.fleet.listenPort }}"
-          - name: KOLIDE_AUTH_BCRYPT_COST
+          - name: FLEET_AUTH_BCRYPT_COST
             value: "{{ .Values.fleet.auth.bcryptCost }}"
-          - name: KOLIDE_AUTH_SALT_KEY_SIZE
+          - name: FLEET_AUTH_SALT_KEY_SIZE
             value: "{{ .Values.fleet.auth.saltKeySize }}"
-          - name: KOLIDE_AUTH_JWT_KEY
+          - name: FLEET_AUTH_JWT_KEY
             valueFrom:
               secretKeyRef:
                 name: "{{ .Values.fleet.secretName }}"
                 key: "{{ .Values.fleet.auth.jwtSecretKey }}"
-          - name: KOLIDE_APP_TOKEN_KEY_SIZE
+          - name: FLEET_APP_TOKEN_KEY_SIZE
             value: "{{ .Values.fleet.app.tokenKeySize }}"
-          - name: KOLIDE_APP_TOKEN_VALIDITY_PERIOD
+          - name: FLEET_APP_TOKEN_VALIDITY_PERIOD
             value: "{{ .Values.fleet.app.inviteTokenValidityPeriod }}"
-          - name: KOLIDE_SESSION_KEY_SIZE
+          - name: FLEET_SESSION_KEY_SIZE
             value: "{{ .Values.fleet.session.keySize }}"
-          - name: KOLIDE_SESSION_DURATION
+          - name: FLEET_SESSION_DURATION
             value: "{{ .Values.fleet.session.duration }}"
-          - name: KOLIDE_LOGGING_DEBUG
+          - name: FLEET_LOGGING_DEBUG
             value: "{{ .Values.fleet.logging.debug }}"
-          - name: KOLIDE_LOGGING_JSON
+          - name: FLEET_LOGGING_JSON
             value: "{{ .Values.fleet.logging.json }}"
-          - name: KOLIDE_LOGGING_DISABLE_BANNER
+          - name: FLEET_LOGGING_DISABLE_BANNER
             value: "{{ .Values.fleet.logging.disableBanner }}"
-          - name: KOLIDE_SERVER_TLS
+          - name: FLEET_SERVER_TLS
             value: "{{ .Values.fleet.tls.enabled }}"
           {{- if .Values.fleet.tls.enabled }}
-          - name: KOLIDE_SERVER_TLS_COMPATIBILITY
+          - name: FLEET_SERVER_TLS_COMPATIBILITY
             value: "{{ .Values.fleet.tls.compatibility }}"
-          - name: KOLIDE_SERVER_CERT
+          - name: FLEET_SERVER_CERT
             value: "/secrets/tls/{{ .Values.fleet.tls.certSecretKey }}"
-          - name: KOLIDE_SERVER_KEY
+          - name: FLEET_SERVER_KEY
             value: "/secrets/tls/{{ .Values.fleet.tls.keySecretKey }}"
           {{- end }}
           {{- if ne .Values.fleet.carving.s3.bucketName "" }}
-          - name: KOLIDE_S3_BUCKET
+          - name: FLEET_S3_BUCKET
             value: "{{ .Values.fleet.carving.s3.bucketName }}"
-          - name: KOLIDE_S3_PREFIX
+          - name: FLEET_S3_PREFIX
             value: "{{ .Values.fleet.carving.s3.prefix }}"
           {{- if ne .Values.fleet.carving.s3.accessKeyID "" }}
-          - name: KOLIDE_S3_ACCESS_KEY_ID
+          - name: FLEET_S3_ACCESS_KEY_ID
             value: "{{ .Values.fleet.carving.s3.accessKeyID }}"
-          - name: KOLIDE_S3_SECRET_ACCESS_KEY
+          - name: FLEET_S3_SECRET_ACCESS_KEY
             valueFrom:
               secretKeyRef:
                 name: "{{ .Values.fleet.secretName }}"
                 key: "{{ .Values.fleet.carving.s3.secretKey }}"
           {{ else }}
-          - name: KOLIDE_S3_STS_ASSUME_ROLE_ARN
+          - name: FLEET_S3_STS_ASSUME_ROLE_ARN
             value: "{{ .Values.fleet.carving.s3.stsAssumeRoleARN }}"
           {{- end }}
           {{- end }}
           ## END FLEET SECTION
           ## BEGIN MYSQL SECTION
-          - name: KOLIDE_MYSQL_ADDRESS
+          - name: FLEET_MYSQL_ADDRESS
             value: "{{ .Values.mysql.address }}"
-          - name: KOLIDE_MYSQL_DATABASE
+          - name: FLEET_MYSQL_DATABASE
             value: "{{ .Values.mysql.database }}"
-          - name: KOLIDE_MYSQL_USERNAME
+          - name: FLEET_MYSQL_USERNAME
             value: "{{ .Values.mysql.username }}"
-          - name: KOLIDE_MYSQL_PASSWORD
+          - name: FLEET_MYSQL_PASSWORD
             valueFrom:
               secretKeyRef:
                 name: {{ .Values.mysql.secretName }}
                 key: {{ .Values.mysql.passwordKey }}
-          - name: KOLIDE_MYSQL_MAX_OPEN_CONNS
+          - name: FLEET_MYSQL_MAX_OPEN_CONNS
             value: "{{ .Values.mysql.maxOpenConns }}"
-          - name: KOLIDE_MYSQL_MAX_IDLE_CONNS
+          - name: FLEET_MYSQL_MAX_IDLE_CONNS
             value: "{{ .Values.mysql.maxIdleConns }}"
-          - name: KOLIDE_MYSQL_CONN_MAX_LIFETIME
+          - name: FLEET_MYSQL_CONN_MAX_LIFETIME
             value: "{{ .Values.mysql.connMaxLifetime }}"
           {{- if .Values.mysql.tls.enabled }}
-          - name: KOLIDE_MYSQL_TLS_CA
+          - name: FLEET_MYSQL_TLS_CA
             value: "/secrets/mysql/{{ .Values.mysql.tls.caCertKey }}"
-          - name: KOLIDE_MYSQL_TLS_CERT
+          - name: FLEET_MYSQL_TLS_CERT
             value: "/secrets/mysql/{{ .Values.mysql.tls.certKey }}"
-          - name: KOLIDE_MYSQL_TLS_KEY
+          - name: FLEET_MYSQL_TLS_KEY
             value: "/secrets/mysql/{{ .Values.mysql.tls.keyKey }}"
-          - name: KOLIDE_MYSQL_TLS_CONFIG
+          - name: FLEET_MYSQL_TLS_CONFIG
             value: "{{ .Values.mysql.tls.config }}"
-          - name: KOLIDE_MYSQL_TLS_SERVER_NAME
+          - name: FLEET_MYSQL_TLS_SERVER_NAME
             value: "{{ .Values.mysql.tls.serverName }}"
           {{- end }}
           ## END MYSQL SECTION
           ## BEGIN REDIS SECTION
-          - name: KOLIDE_REDIS_ADDRESS
+          - name: FLEET_REDIS_ADDRESS
             value: "{{ .Values.redis.address }}"
-          - name: KOLIDE_REDIS_DATABASE
+          - name: FLEET_REDIS_DATABASE
             value: "{{ .Values.redis.database }}"
           {{- if .Values.redis.usePassword }}
-          - name: KOLIDE_REDIS_PASSWORD
+          - name: FLEET_REDIS_PASSWORD
             valueFrom:
               secretKeyRef:
                 name: "{{ .Values.redis.secretName }}"
@@ -164,90 +164,90 @@ spec:
           {{- end }}
           ## END REDIS SECTION
           ## BEGIN OSQUERY SECTION
-          - name: KOLIDE_OSQUERY_NODE_KEY_SIZE
+          - name: FLEET_OSQUERY_NODE_KEY_SIZE
             value: "{{ .Values.osquery.nodeKeySize }}"
-          - name: KOLIDE_OSQUERY_LABEL_UPDATE_INTERVAL
+          - name: FLEET_OSQUERY_LABEL_UPDATE_INTERVAL
             value: "{{ .Values.osquery.labelUpdateInterval }}"
-          - name: KOLIDE_OSQUERY_DETAIL_UPDATE_INTERVAL
+          - name: FLEET_OSQUERY_DETAIL_UPDATE_INTERVAL
             value: "{{ .Values.osquery.detailUpdateInterval }}"
-          - name: KOLIDE_OSQUERY_STATUS_LOG_PLUGIN
+          - name: FLEET_OSQUERY_STATUS_LOG_PLUGIN
             value: "{{ .Values.osquery.logging.statusPlugin }}"
-          - name: KOLIDE_OSQUERY_RESULT_LOG_PLUGIN
+          - name: FLEET_OSQUERY_RESULT_LOG_PLUGIN
             value: "{{ .Values.osquery.logging.resultPlugin }}"
           {{- if eq .Values.osquery.logging.statusPlugin "filesystem" }}
-          - name: KOLIDE_FILESYSTEM_STATUS_LOG_FILE
+          - name: FLEET_FILESYSTEM_STATUS_LOG_FILE
             value: "/logs/{{ .Values.osquery.logging.filesystem.statusLogFile }}"
           {{- end }}
           {{- if eq .Values.osquery.logging.resultPlugin "filesystem" }}
-          - name: KOLIDE_FILESYSTEM_RESULT_LOG_FILE
+          - name: FLEET_FILESYSTEM_RESULT_LOG_FILE
             value: "/logs/{{ .Values.osquery.logging.filesystem.resultLogFile }}"
           {{- end }}
           {{- if or (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
-          - name: KOLIDE_FILESYSTEM_ENABLE_LOG_ROTATION
+          - name: FLEET_FILESYSTEM_ENABLE_LOG_ROTATION
             value: "{{ .Values.osquery.logging.filesystem.enableRotation }}"
-          - name: KOLIDE_FILESYSTEM_ENABLE_LOG_COMPRESSION
+          - name: FLEET_FILESYSTEM_ENABLE_LOG_COMPRESSION
             value: "{{ .Values.osquery.logging.filesystem.enableCompression }}"
           {{- end }}
           {{- if or (eq .Values.osquery.logging.statusPlugin "firehose") (eq .Values.osquery.logging.resultPlugin "firehose") }}
-          - name: KOLIDE_FIREHOSE_REGION
+          - name: FLEET_FIREHOSE_REGION
             value: "{{ .Values.osquery.logging.firehose.region }}"
           {{- if eq .Values.osquery.logging.statusPlugin "firehose" }}
-          - name: KOLIDE_FIREHOSE_STATUS_STREAM
+          - name: FLEET_FIREHOSE_STATUS_STREAM
             value: "{{ .Values.osquery.logging.firehose.statusStream }}"
           {{- end }}
           {{- if eq .Values.osquery.logging.resultPlugin "firehose" }}
-          - name: KOLIDE_FIREHOSE_RESULT_STREAM
+          - name: FLEET_FIREHOSE_RESULT_STREAM
             value: "{{ .Values.osquery.logging.firehose.resultStream }}"
           {{- end }}
           {{- if ne .Values.osquery.logging.firehose.accessKeyID "" }}
-          - name: KOLIDE_FIREHOSE_ACCESS_KEY_ID
+          - name: FLEET_FIREHOSE_ACCESS_KEY_ID
             value: "{{ .Values.osquery.logging.firehose.accessKeyID }}"
-          - name: KOLIDE_FIREHOSE_SECRET_ACCESS_KEY
+          - name: FLEET_FIREHOSE_SECRET_ACCESS_KEY
             valueFrom:
               secretKeyRef:
                 name: "{{ .Values.osquery.secretName }}"
                 key: "{{ .Values.osquery.logging.firehose.secretKey }}"
           {{ else }}
-          - name: KOLIDE_FIREHOSE_STS_ASSUME_ROLE_ARN
+          - name: FLEET_FIREHOSE_STS_ASSUME_ROLE_ARN
             value: "{{ .Values.osquery.logging.firehose.stsAssumeRoleARN }}"
           {{- end }}
           {{- end }}
 
           {{- if or (eq .Values.osquery.logging.statusPlugin "kinesis") (eq .Values.osquery.logging.resultPlugin "kinesis") }}
-          - name: KOLIDE_KINESIS_REGION
+          - name: FLEET_KINESIS_REGION
             value: "{{ .Values.osquery.logging.kinesis.region }}"
           {{- if eq .Values.osquery.logging.statusPlugin "kinesis" }}
-          - name: KOLIDE_KINESIS_STATUS_STREAM
+          - name: FLEET_KINESIS_STATUS_STREAM
             value: "{{ .Values.osquery.logging.kinesis.statusStream }}"
           {{- end }}
           {{- if eq .Values.osquery.logging.resultPlugin "kinesis" }}
-          - name: KOLIDE_KINESIS_RESULT_STREAM
+          - name: FLEET_KINESIS_RESULT_STREAM
             value: "{{ .Values.osquery.logging.kinesis.resultStream }}"
           {{- end }}
           {{- if ne .Values.osquery.logging.kinesis.accessKeyID "" }}
-          - name: KOLIDE_KINESIS_ACCESS_KEY_ID
+          - name: FLEET_KINESIS_ACCESS_KEY_ID
             value: "{{ .Values.osquery.logging.kinesis.accessKeyID }}"
-          - name: KOLIDE_KINESIS_SECRET_ACCESS_KEY
+          - name: FLEET_KINESIS_SECRET_ACCESS_KEY
             valueFrom:
               secretKeyRef:
                 name: "{{ .Values.osquery.secretName }}"
                 key: "{{ .Values.osquery.logging.kinesis.secretKey }}"
           {{ else }}
-          - name: KOLIDE_KINESIS_STS_ASSUME_ROLE_ARN
+          - name: FLEET_KINESIS_STS_ASSUME_ROLE_ARN
             value: "{{ .Values.osquery.logging.kinesis.stsAssumeRoleARN }}"
           {{- end }}
           {{- end }}
 
           {{- if or (eq .Values.osquery.logging.statusPlugin "pubsub") (eq .Values.osquery.logging.resultPlugin "pubsub") }}
-          - name: KOLIDE_PUBSUB_PROJECT
+          - name: FLEET_PUBSUB_PROJECT
             value: "{{ .Values.osquery.logging.pubsub.project }}"
           {{- end }}
           {{- if eq .Values.osquery.logging.statusPlugin "pubsub" }}
-          - name: KOLIDE_PUBSUB_STATUS_TOPIC
+          - name: FLEET_PUBSUB_STATUS_TOPIC
             value: "{{ .Values.osquery.logging.pubsub.statusTopic }}"
           {{- end }}
           {{- if eq .Values.osquery.logging.resultPlugin "pubsub" }}
-          - name: KOLIDE_PUBSUB_RESULT_TOPIC
+          - name: FLEET_PUBSUB_RESULT_TOPIC
             value: "{{ .Values.osquery.logging.pubsub.resultTopic }}"
           {{- end }}
           ## END OSQUERY SECTION

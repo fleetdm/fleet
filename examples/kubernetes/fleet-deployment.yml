@@ -29,28 +29,28 @@ spec:
             mountPath: "/secrets/fleet-tls"
             readOnly: true
         env:
-          - name: KOLIDE_MYSQL_ADDRESS
+          - name: FLEET_MYSQL_ADDRESS
             value: fleet-database-mysql:3306
-          - name: KOLIDE_MYSQL_PASSWORD
+          - name: FLEET_MYSQL_PASSWORD
             valueFrom:
               secretKeyRef:
                 name: fleet-database-mysql
                 key: mysql-password
-          - name: KOLIDE_REDIS_ADDRESS
+          - name: FLEET_REDIS_ADDRESS
             value: fleet-cache-redis:6379
-          - name: KOLIDE_REDIS_PASSWORD
+          - name: FLEET_REDIS_PASSWORD
             valueFrom:
               secretKeyRef:
                 name: fleet-cache-redis
                 key: redis-password
-          - name: KOLIDE_AUTH_JWT_KEY
+          - name: FLEET_AUTH_JWT_KEY
             valueFrom:
               secretKeyRef:
                 name: fleet-server-auth-key
                 key: fleet-server-auth-key
-          - name: KOLIDE_SERVER_ADDRESS
+          - name: FLEET_SERVER_ADDRESS
             value: "0.0.0.0:443"
-          - name: KOLIDE_SERVER_CERT
+          - name: FLEET_SERVER_CERT
             value: "/secrets/fleet-tls/tls.crt"
-          - name: KOLIDE_SERVER_KEY
+          - name: FLEET_SERVER_KEY
             value: "/secrets/fleet-tls/tls.key"

@@ -54,6 +54,8 @@ In order of precedence, options can be specified via:
 - Environment variables
 - Command-line flags
 
+Note: We have deprecated `KOLIDE_` environment variables and will remove them in the Fleet 4.0 release. Please migrate all environment variables to `FLEET_`.
+
 For example, all of the following ways of launching Fleet are equivalent:
 
 ##### Using only CLI flags
@@ -74,15 +76,15 @@ For example, all of the following ways of launching Fleet are equivalent:
 ##### Using only environment variables
 
 ```
-KOLIDE_MYSQL_ADDRESS=127.0.0.1:3306 \
-KOLIDE_MYSQL_DATABASE=kolide \
-KOLIDE_MYSQL_USERNAME=root \
-KOLIDE_MYSQL_PASSWORD=toor \
-KOLIDE_REDIS_ADDRESS=127.0.0.1:6379 \
-KOLIDE_SERVER_CERT=/tmp/server.cert \
-KOLIDE_SERVER_KEY=/tmp/server.key \
-KOLIDE_LOGGING_JSON=true \
-KOLIDE_AUTH_JWT_KEY=changeme \
+FLEET_MYSQL_ADDRESS=127.0.0.1:3306 \
+FLEET_MYSQL_DATABASE=kolide \
+FLEET_MYSQL_USERNAME=root \
+FLEET_MYSQL_PASSWORD=toor \
+FLEET_REDIS_ADDRESS=127.0.0.1:6379 \
+FLEET_SERVER_CERT=/tmp/server.cert \
+FLEET_SERVER_KEY=/tmp/server.key \
+FLEET_LOGGING_JSON=true \
+FLEET_AUTH_JWT_KEY=changeme \
 /usr/bin/fleet serve
 ```
 
@@ -110,7 +112,7 @@ fleet serve --config /tmp/kolide.yml
 
 #### What are the options?
 
-Note that all option names can be converted consistently from flag name to environment variable and visa-versa. For example, the `--mysql_address` flag would be the `KOLIDE_MYSQL_ADDRESS`. Further, specifying the `mysql_address` option in the config would follow the pattern:
+Note that all option names can be converted consistently from flag name to environment variable and visa-versa. For example, the `--mysql_address` flag would be the `FLEET_MYSQL_ADDRESS`. Further, specifying the `mysql_address` option in the config would follow the pattern:
 
 ```
 mysql:
@@ -118,7 +120,7 @@ mysql:
 ```
 
 
-Basically, just capitalize the option and prepend `KOLIDE_` to it in order to get the environment variable. The conversion works the same the opposite way.
+Basically, just capitalize the option and prepend `FLEET_` to it in order to get the environment variable. The conversion works the same the opposite way.
 
 ##### MySQL
 
@@ -127,7 +129,7 @@ Basically, just capitalize the option and prepend `KOLIDE_` to it in order to ge
 The address of the MySQL server which Fleet should connect to. Include the hostname and port.
 
 - Default value: `localhost:3306`
-- Environment variable: `KOLIDE_MYSQL_ADDRESS`
+- Environment variable: `FLEET_MYSQL_ADDRESS`
 - Config file format:
 
 	```
@@ -140,7 +142,7 @@ The address of the MySQL server which Fleet should connect to. Include the hostn
 The name of the MySQL database which Fleet will use.
 
 - Default value: `kolide`
-- Environment variable: `KOLIDE_MYSQL_DATABASE`
+- Environment variable: `FLEET_MYSQL_DATABASE`
 - Config file format:
 
 	```
@@ -153,7 +155,7 @@ The name of the MySQL database which Fleet will use.
 The username to use when connecting to the MySQL instance.
 
 - Default value: `kolide`
-- Environment variable: `KOLIDE_MYSQL_USERNAME`
+- Environment variable: `FLEET_MYSQL_USERNAME`
 - Config file format:
 
 	```
@@ -166,7 +168,7 @@ The username to use when connecting to the MySQL instance.
 The password to use when connecting to the MySQL instance.
 
 - Default value: `kolide`
-- Environment variable: `KOLIDE_MYSQL_PASSWORD`
+- Environment variable: `FLEET_MYSQL_PASSWORD`
 - Config file format:
 
 	```
@@ -192,7 +194,7 @@ File path to a file that contains the password to use when connecting to the MyS
 The path to a PEM encoded certificate of MYSQL's CA for client certificate authentication.
 
 - Default value: none
-- Environment variable: `KOLIDE_MYSQL_TLS_CA`
+- Environment variable: `FLEET_MYSQL_TLS_CA`
 - Config file format:
 
 	```
@@ -205,7 +207,7 @@ The path to a PEM encoded certificate of MYSQL's CA for client certificate authe
 The path to a PEM encoded certificate use for tls authentication.
 
 - Default value: none
-- Environment variable: `KOLIDE_MYSQL_TLS_CERT`
+- Environment variable: `FLEET_MYSQL_TLS_CERT`
 - Config file format:
 
 	```
@@ -218,7 +220,7 @@ The path to a PEM encoded certificate use for tls authentication.
 The path to a PEM encoded private key use for tls authentication.
 
 - Default value: none
-- Environment variable: `KOLIDE_MYSQL_TLS_KEY`
+- Environment variable: `FLEET_MYSQL_TLS_KEY`
 - Config file format:
 
 	```
@@ -231,7 +233,7 @@ The path to a PEM encoded private key use for tls authentication.
 The tls value in a MYSQL DSN. Can be `true`,`false`,`skip-verify` or the CN value of the certificate.
 
 - Default value: none
-- Environment variable: `KOLIDE_MYSQL_TLS_CONFIG`
+- Environment variable: `FLEET_MYSQL_TLS_CONFIG`
 - Config file format:
 
 	```
@@ -244,7 +246,7 @@ The tls value in a MYSQL DSN. Can be `true`,`false`,`skip-verify` or the CN valu
 The server name or IP address used by the client certificate.
 
 - Default value: none
-- Environment variable: `KOLIDE_MYSQL_TLS_SERVER_NAME`
+- Environment variable: `FLEET_MYSQL_TLS_SERVER_NAME`
 - Config file format:
 
 	```
@@ -257,7 +259,7 @@ The server name or IP address used by the client certificate.
 Maximum open connections to database
 
 - Default value: 50
-- Environment variable: `KOLIDE_MYSQL_MAX_OPEN_CONNS`
+- Environment variable: `FLEET_MYSQL_MAX_OPEN_CONNS`
 - Config file format:
 
 	```
@@ -270,7 +272,7 @@ Maximum open connections to database
 Maximum idle connections to database. This value should be equal to or less than `mysql_max_open_conns`
 
 - Default value: 50
-- Environment variable: `KOLIDE_MYSQL_MAX_IDLE_CONNS`
+- Environment variable: `FLEET_MYSQL_MAX_IDLE_CONNS`
 - Config file format:
 
 	```
@@ -283,7 +285,7 @@ Maximum idle connections to database. This value should be equal to or less than
 Maximum amount of time, in seconds, a connection may be reused.
 
 - Default value: 0 (Unlimited)
-- Environment variable: `KOLIDE_MYSQL_CONN_MAX_LIFETIME`
+- Environment variable: `FLEET_MYSQL_CONN_MAX_LIFETIME`
 - Config file format:
 
 	```
@@ -298,7 +300,7 @@ Maximum amount of time, in seconds, a connection may be reused.
 The address of the Redis server which Fleet should connect to. Include the hostname and port.
 
 - Default value: `localhost:6379`
-- Environment variable: `KOLIDE_REDIS_ADDRESS`
+- Environment variable: `FLEET_REDIS_ADDRESS`
 - Config file format:
 
 	```
@@ -311,7 +313,7 @@ The address of the Redis server which Fleet should connect to. Include the hostn
 The password to use when connecting to the Redis instance.
 
 - Default value: `<empty>`
-- Environment variable: `KOLIDE_REDIS_PASSWORD`
+- Environment variable: `FLEET_REDIS_PASSWORD`
 - Config file format:
 
 	```
@@ -323,7 +325,7 @@ The password to use when connecting to the Redis instance.
 The database to use when connecting to the Redis instance.
 
 - Default value: `0`
-- Environment variable: `KOLIDE_REDIS_DATABASE`
+- Environment variable: `FLEET_REDIS_DATABASE`
 - Config file format:
 
   ```
@@ -338,7 +340,7 @@ The database to use when connecting to the Redis instance.
 The address to serve the Fleet webserver.
 
 - Default value: `0.0.0.0:8080`
-- Environment variable: `KOLIDE_SERVER_ADDRESS`
+- Environment variable: `FLEET_SERVER_ADDRESS`
 - Config file format:
 
 	```
@@ -351,7 +353,7 @@ The address to serve the Fleet webserver.
 The TLS cert to use when terminating TLS.
 
 - Default value: `./tools/osquery/kolide.crt`
-- Environment variable: `KOLIDE_SERVER_CERT`
+- Environment variable: `FLEET_SERVER_CERT`
 - Config file format:
 
 	```
@@ -365,7 +367,7 @@ The TLS cert to use when terminating TLS.
 The TLS key to use when terminating TLS.
 
 - Default value: `./tools/osquery/kolide.key`
-- Environment variable: `KOLIDE_SERVER_KEY`
+- Environment variable: `FLEET_SERVER_KEY`
 - Config file format:
 
 	```
@@ -379,7 +381,7 @@ The TLS key to use when terminating TLS.
 Whether or not the server should be served over TLS.
 
 - Default value: `true`
-- Environment variable: `KOLIDE_SERVER_TLS`
+- Environment variable: `FLEET_SERVER_TLS`
 - Config file format:
 
 	```
@@ -392,7 +394,7 @@ Whether or not the server should be served over TLS.
 Configures the TLS settings for compatibility with various user agents. Options are `modern` and `intermediate`. These correspond to the compatibility levels [defined by the Mozilla OpSec team](https://wiki.mozilla.org/index.php?title=Security/Server_Side_TLS&oldid=1229478) (updated July 24, 2020).
 
 - Default value: `intermediate`
-- Environment variable: `KOLIDE_SERVER_TLS_COMPATIBILITY`
+- Environment variable: `FLEET_SERVER_TLS_COMPATIBILITY`
 - Config file format:
 
 	```
@@ -409,7 +411,7 @@ Sets a URL prefix to use when serving the Fleet API and frontend. Prefixes shoul
 Note that some other configurations may need to be changed when modifying the URL prefix. In particular, URLs that are provided to osquery via flagfile, the configuration served by Fleet, the URL prefix used by `fleetctl`, and the redirect URL set with an SSO Identity Provider.
 
 - Default value: Empty (no prefix set)
-- Environment variable: `KOLIDE_SERVER_URL_PREFIX`
+- Environment variable: `FLEET_SERVER_URL_PREFIX`
 - Config file format:
 
 	```
@@ -425,7 +427,7 @@ Note that some other configurations may need to be changed when modifying the UR
 The [JWT](https://jwt.io/) key to use when signing and validating session keys. If this value is not specified the Fleet server will fail to start and a randomly generated key will be provided for use.
 
 - Default value: None
-- Environment variable: `KOLIDE_AUTH_JWT_KEY`
+- Environment variable: `FLEET_AUTH_JWT_KEY`
 - Config file format:
 
 	```
@@ -450,7 +452,7 @@ File path to a file that contains the [JWT](https://jwt.io/) key to use when sig
 The bcrypt cost to use when hashing user passwords.
 
 - Default value: `12`
-- Environment variable:	`KOLIDE_AUTH_BCRYT_COST`
+- Environment variable:	`FLEET_AUTH_BCRYT_COST`
 - Config file format:
 
 	```
@@ -463,7 +465,7 @@ The bcrypt cost to use when hashing user passwords.
 The key size of the salt which is generated when hashing user passwords.
 
 - Default value: `24`
-- Environment variable: `KOLIDE_AUTH_SALT_KEY_SIZE`
+- Environment variable: `FLEET_AUTH_SALT_KEY_SIZE`
 - Config file format:
 
 	```
@@ -478,7 +480,7 @@ The key size of the salt which is generated when hashing user passwords.
 Size of generated app tokens.
 
 - Default value: `24`
-- Environment variable: `KOLIDE_APP_TOKEN_KEY_SIZE`
+- Environment variable: `FLEET_APP_TOKEN_KEY_SIZE`
 - Config file format:
 
 	```
@@ -491,7 +493,7 @@ Size of generated app tokens.
 How long invite tokens should be valid for.
 
 - Default value: `5 days`
-- Environment variable: `KOLIDE_APP_TOKEN_VALIDITY_PERIOD`
+- Environment variable: `FLEET_APP_TOKEN_VALIDITY_PERIOD`
 - Config file format:
 
 	```
@@ -506,7 +508,7 @@ How long invite tokens should be valid for.
 The size of the session key.
 
 - Default value: `64`
-- Environment variable: `KOLIDE_SESSION_KEY_SIZE`
+- Environment variable: `FLEET_SESSION_KEY_SIZE`
 - Config file format:
 
 	```
@@ -519,7 +521,7 @@ The size of the session key.
 The amount of time that a session should last for.
 
 - Default value: `90 days`
-- Environment variable: `KOLIDE_SESSION_DURATION`
+- Environment variable: `FLEET_SESSION_DURATION`
 - Config file format:
 
 	```
@@ -534,7 +536,7 @@ The amount of time that a session should last for.
 The size of the node key which is negotiated with `osqueryd` clients.
 
 - Default value: `24`
-- Environment variable:	`KOLIDE_OSQUERY_NODE_KEY_SIZE`
+- Environment variable:	`FLEET_OSQUERY_NODE_KEY_SIZE`
 - Config file format:
 
 	```
@@ -550,7 +552,7 @@ The interval at which Fleet will ask osquery agents to update their results for 
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
 
 - Default value: `1h`
-- Environment variable: `KOLIDE_OSQUERY_LABEL_UPDATE_INTERVAL`
+- Environment variable: `FLEET_OSQUERY_LABEL_UPDATE_INTERVAL`
 - Config file format:
 
 	```
@@ -565,7 +567,7 @@ The interval at which Fleet will ask osquery agents to update host details (such
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
 
 - Default value: `1h`
-- Environment variable: `KOLIDE_OSQUERY_DETAIL_UPDATE_INTERVAL`
+- Environment variable: `FLEET_OSQUERY_DETAIL_UPDATE_INTERVAL`
 - Config file format:
 
 	```
@@ -580,7 +582,7 @@ Which log output plugin should be used for osquery status logs received from cli
 Options are `filesystem`, `firehose`, `kinesis`, `pubsub`, and `stdout`.
 
 - Default value: `filesystem`
-- Environment variable: `KOLIDE_OSQUERY_STATUS_LOG_PLUGIN`
+- Environment variable: `FLEET_OSQUERY_STATUS_LOG_PLUGIN`
 - Config file format:
 
 	```
@@ -595,7 +597,7 @@ Which log output plugin should be used for osquery result logs received from cli
 Options are `filesystem`, `firehose`, `kinesis`, `pubsub`, and `stdout`.
 
 - Default value: `filesystem`
-- Environment variable: `KOLIDE_OSQUERY_RESULT_LOG_PLUGIN`
+- Environment variable: `FLEET_OSQUERY_RESULT_LOG_PLUGIN`
 - Config file format:
 
 	```
@@ -610,7 +612,7 @@ DEPRECATED: Use filesystem_status_log_file.
 The path which osquery status logs will be logged to.
 
 - Default value: `/tmp/osquery_status`
-- Environment variable: `KOLIDE_OSQUERY_STATUS_LOG_FILE`
+- Environment variable: `FLEET_OSQUERY_STATUS_LOG_FILE`
 - Config file format:
 
 	```
@@ -625,7 +627,7 @@ DEPRECATED: Use filesystem_result_log_file.
 The path which osquery result logs will be logged to.
 
 - Default value: `/tmp/osquery_result`
-- Environment variable: `KOLIDE_OSQUERY_RESULT_LOG_FILE`
+- Environment variable: `FLEET_OSQUERY_RESULT_LOG_FILE`
 - Config file format:
 
 	```
@@ -641,7 +643,7 @@ This flag will cause the osquery result and status log files to be automatically
 rotated when files reach a size of 500 Mb or an age of 28 days.
 
 - Default value: `false`
-- Environment variable: `KOLIDE_OSQUERY_ENABLE_LOG_ROTATION`
+- Environment variable: `FLEET_OSQUERY_ENABLE_LOG_ROTATION`
 - Config file format:
 
   ```
@@ -656,7 +658,7 @@ rotated when files reach a size of 500 Mb or an age of 28 days.
 Whether or not to enable debug logging.
 
 - Default value: `false`
-- Environment variable: `KOLIDE_LOGGING_DEBUG`
+- Environment variable: `FLEET_LOGGING_DEBUG`
 - Config file format:
 
 	```
@@ -669,7 +671,7 @@ Whether or not to enable debug logging.
 Whether or not to log in JSON.
 
 - Default value: `false`
-- Environment variable: `KOLIDE_LOGGING_JSON`
+- Environment variable: `FLEET_LOGGING_JSON`
 - Config file format:
 
 	```
@@ -682,7 +684,7 @@ Whether or not to log in JSON.
 Whether or not to log the welcome banner.
 
 - Default value: `false`
-- Environment variable: `KOLIDE_LOGGING_DISABLE_BANNER`
+- Environment variable: `FLEET_LOGGING_DISABLE_BANNER`
 - Config file format:
 
 	```
@@ -699,7 +701,7 @@ This flag only has effect if `osquery_status_log_plugin` is set to `filesystem` 
 The path which osquery status logs will be logged to.
 
 - Default value: `/tmp/osquery_status`
-- Environment variable: `KOLIDE_FILESYSTEM_STATUS_LOG_FILE`
+- Environment variable: `FLEET_FILESYSTEM_STATUS_LOG_FILE`
 - Config file format:
 
 	```
@@ -714,7 +716,7 @@ This flag only has effect if `osquery_result_log_plugin` is set to `filesystem` 
 The path which osquery result logs will be logged to.
 
 - Default value: `/tmp/osquery_result`
-- Environment variable: `KOLIDE_FILESYSTEM_RESULT_LOG_FILE`
+- Environment variable: `FLEET_FILESYSTEM_RESULT_LOG_FILE`
 - Config file format:
 
 	```
@@ -730,7 +732,7 @@ This flag will cause the osquery result and status log files to be automatically
 rotated when files reach a size of 500 Mb or an age of 28 days.
 
 - Default value: `false`
-- Environment variable: `KOLIDE_FILESYSTEM_ENABLE_LOG_ROTATION`
+- Environment variable: `FLEET_FILESYSTEM_ENABLE_LOG_ROTATION`
 - Config file format:
 
   ```
@@ -745,7 +747,7 @@ This flag only has effect if `filesystem_enable_log_rotation` is set to `true`.
 This flag will cause the rotated logs to be compressed with gzip.
 
 - Default value: `false`
-- Environment variable: `KOLIDE_FILESYSTEM_ENABLE_LOG_COMPRESSION`
+- Environment variable: `FLEET_FILESYSTEM_ENABLE_LOG_COMPRESSION`
 - Config file format:
 
   ```
@@ -762,7 +764,7 @@ This flag only has effect if `osquery_status_log_plugin` is set to `firehose`.
 AWS region to use for Firehose connection
 
 - Default value: none
-- Environment variable: `KOLIDE_FIREHOSE_REGION`
+- Environment variable: `FLEET_FIREHOSE_REGION`
 - Config file format:
 
 	```
@@ -779,7 +781,7 @@ If `firehose_access_key_id` and `firehose_secret_access_key` are omitted, Fleet 
 AWS access key ID to use for Firehose authentication.
 
 - Default value: none
-- Environment variable: `KOLIDE_FIREHOSE_ACCESS_KEY_ID`
+- Environment variable: `FLEET_FIREHOSE_ACCESS_KEY_ID`
 - Config file format:
 
 	```
@@ -794,7 +796,7 @@ This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_
 AWS secret access key to use for Firehose authentication.
 
 - Default value: none
-- Environment variable: `KOLIDE_FIREHOSE_SECRET_ACCESS_KEY`
+- Environment variable: `FLEET_FIREHOSE_SECRET_ACCESS_KEY`
 - Config file format:
 
 	```
@@ -810,7 +812,7 @@ This flag only has effect if `osquery_status_log_plugin` or
 AWS STS role ARN to use for Firehose authentication.
 
 - Default value: none
-- Environment variable: `KOLIDE_FIREHOSE_STS_ASSUME_ROLE_ARN`
+- Environment variable: `FLEET_FIREHOSE_STS_ASSUME_ROLE_ARN`
 - Config file format:
 
 	```
@@ -825,7 +827,7 @@ This flag only has effect if `osquery_status_log_plugin` is set to `firehose`.
 Name of the Firehose stream to write osquery status logs received from clients.
 
 - Default value: none
-- Environment variable: `KOLIDE_FIREHOSE_STATUS_STREAM`
+- Environment variable: `FLEET_FIREHOSE_STATUS_STREAM`
 - Config file format:
 
 	```
@@ -846,7 +848,7 @@ This flag only has effect if `osquery_result_log_plugin` is set to `firehose`.
 Name of the Firehose stream to write osquery result logs received from clients.
 
 - Default value: none
-- Environment variable: `KOLIDE_FIREHOSE_RESULT_STREAM`
+- Environment variable: `FLEET_FIREHOSE_RESULT_STREAM`
 - Config file format:
 
 	```
@@ -869,7 +871,7 @@ This flag only has effect if `osquery_status_log_plugin` is set to `kinesis`.
 AWS region to use for Kinesis connection
 
 - Default value: none
-- Environment variable: `KOLIDE_KINESIS_REGION`
+- Environment variable: `FLEET_KINESIS_REGION`
 - Config file format:
 
 	```
@@ -890,7 +892,7 @@ credentials.
 AWS access key ID to use for Kinesis authentication.
 
 - Default value: none
-- Environment variable: `KOLIDE_KINESIS_ACCESS_KEY_ID`
+- Environment variable: `FLEET_KINESIS_ACCESS_KEY_ID`
 - Config file format:
 
 	```
@@ -906,7 +908,7 @@ This flag only has effect if `osquery_status_log_plugin` or
 AWS secret access key to use for Kinesis authentication.
 
 - Default value: none
-- Environment variable: `KOLIDE_KINESIS_SECRET_ACCESS_KEY`
+- Environment variable: `FLEET_KINESIS_SECRET_ACCESS_KEY`
 - Config file format:
 
 	```
@@ -922,7 +924,7 @@ This flag only has effect if `osquery_status_log_plugin` or
 AWS STS role ARN to use for Kinesis authentication.
 
 - Default value: none
-- Environment variable: `KOLIDE_KINESIS_STS_ASSUME_ROLE_ARN`
+- Environment variable: `FLEET_KINESIS_STS_ASSUME_ROLE_ARN`
 - Config file format:
 
 	```
@@ -937,7 +939,7 @@ This flag only has effect if `osquery_status_log_plugin` is set to `kinesis`.
 Name of the Kinesis stream to write osquery status logs received from clients.
 
 - Default value: none
-- Environment variable: `KOLIDE_KINESIS_STATUS_STREAM`
+- Environment variable: `FLEET_KINESIS_STATUS_STREAM`
 - Config file format:
 
 	```
@@ -958,7 +960,7 @@ This flag only has effect if `osquery_result_log_plugin` is set to `kinesis`.
 Name of the Kinesis stream to write osquery result logs received from clients.
 
 - Default value: none
-- Environment variable: `KOLIDE_KINESIS_RESULT_STREAM`
+- Environment variable: `FLEET_KINESIS_RESULT_STREAM`
 - Config file format:
 
 	```
@@ -985,7 +987,7 @@ Note that the pubsub plugin uses [Application Default Credentials (ADCs)](https:
 for authentication with the service.
 
 - Default value: none
-- Environment variable: `KOLIDE_PUBSUB_PROJECT`
+- Environment variable: `FLEET_PUBSUB_PROJECT`
 - Config file format:
 
   ```
@@ -1000,7 +1002,7 @@ This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
 The identifier of the pubsub topic that client results will be published to.
 
 - Default value: none
-- Environment variable: `KOLIDE_PUBSUB_RESULT_TOPIC`
+- Environment variable: `FLEET_PUBSUB_RESULT_TOPIC`
 - Config file format:
 
   ```
@@ -1015,7 +1017,7 @@ This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
 The identifier of the pubsub topic that osquery status logs will be published to.
 
 - Default value: none
-- Environment variable: `KOLIDE_PUBSUB_STATUS_TOPIC`
+- Environment variable: `FLEET_PUBSUB_STATUS_TOPIC`
 - Config file format:
 
   ```
@@ -1031,7 +1033,7 @@ The identifier of the pubsub topic that osquery status logs will be published to
 Name of the S3 bucket to use to store file carves.
 
 - Default value: none
-- Environment variable: `KOLIDE_S3_BUCKET`
+- Environment variable: `FLEET_S3_BUCKET`
 - Config file format:
 
 	```
@@ -1046,7 +1048,7 @@ Prefix to prepend to carve objects.
 All carve objects will also be prefixed by date and hour (UTC), making the resulting keys look like: `<prefix><year>/<month>/<day>/<hour>/<carve-name>`.
 
 - Default value: none
-- Environment variable: `KOLIDE_S3_PREFIX`
+- Environment variable: `FLEET_S3_PREFIX`
 - Config file format:
 
 	```
@@ -1064,7 +1066,7 @@ If `s3_access_key_id` and `s3_secret_access_key` are omitted, Fleet will try to 
 The IAM identity used in this context must be allowed to perform the following actions on the bucket: `s3:PutObject`, `s3:GetObject`, `s3:ListMultipartUploadParts`, `s3:ListBucket`, `s3:GetBucketLocation`.
 
 - Default value: none
-- Environment variable: `KOLIDE_S3_ACCESS_KEY_ID`
+- Environment variable: `FLEET_S3_ACCESS_KEY_ID`
 - Config file format:
 
 	```
@@ -1077,7 +1079,7 @@ The IAM identity used in this context must be allowed to perform the following a
 AWS secret access key to use for S3 authentication.
 
 - Default value: none
-- Environment variable: `KOLIDE_S3_SECRET_ACCESS_KEY`
+- Environment variable: `FLEET_S3_SECRET_ACCESS_KEY`
 - Config file format:
 
 	```
@@ -1090,7 +1092,7 @@ AWS secret access key to use for S3 authentication.
 AWS STS role ARN to use for S3 authentication.
 
 - Default value: none
-- Environment variable: `KOLIDE_S3_STS_ASSUME_ROLE_ARN`
+- Environment variable: `FLEET_S3_STS_ASSUME_ROLE_ARN`
 - Config file format:
 
 	```

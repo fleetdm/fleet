@@ -294,11 +294,11 @@ the way that the Fleet server works.
 			rootMux.Handle("/", frontendHandler)
 			rootMux.Handle("/debug/", service.MakeDebugHandler(svc, config, logger))
 
-			if path, ok := os.LookupEnv("KOLIDE_TEST_PAGE_PATH"); ok {
+			if path, ok := os.LookupEnv("FLEET_TEST_PAGE_PATH"); ok {
 				// test that we can load this
 				_, err := ioutil.ReadFile(path)
 				if err != nil {
-					initFatal(err, "loading KOLIDE_TEST_PAGE_PATH")
+					initFatal(err, "loading FLEET_TEST_PAGE_PATH")
 				}
 				rootMux.HandleFunc("/test", func(rw http.ResponseWriter, req *http.Request) {
 					testPage, err := ioutil.ReadFile(path)
