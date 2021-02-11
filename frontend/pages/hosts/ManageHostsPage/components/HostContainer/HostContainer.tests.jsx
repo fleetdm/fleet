@@ -1,6 +1,6 @@
 import React from 'react';
 import { noop } from 'lodash';
-import { mount } from 'enzyme';
+import { shallow, mount } from 'enzyme';
 
 import { hostStub } from 'test/stubs';
 import HostContainer from './HostContainer';
@@ -38,10 +38,10 @@ describe('HostsContainer - component', () => {
     expect(page.find('.host-container--no-hosts').length).toEqual(1);
   });
 
-  it('renders hosts as HostsTable', () => {
-    const page = mount(<HostContainer {...props} />);
+  it('renders the HostsDataTable if there are hosts', () => {
+    const page = shallow(<HostContainer {...props} />);
 
-    expect(page.find('HostsTable').length).toEqual(1);
+    expect(page.find('HostsDataTable').length).toEqual(1);
   });
 
   it('does not render sidebar if labels are loading', () => {

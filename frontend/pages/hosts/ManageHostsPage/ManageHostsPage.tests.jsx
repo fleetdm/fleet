@@ -104,24 +104,11 @@ describe('ManageHostsPage - component', () => {
   });
 
   describe('host filtering', () => {
-    it('filters hosts', () => {
-      const allHostsLabelPageNode = mount(
-        <ManageHostsPage
-          {...props}
-          hosts={[hostStub, offlineHost]}
-          selectedLabel={allHostsLabel}
-        />,
-      ).instance();
-      const offlineHostsLabelPageNode = mount(
-        <ManageHostsPage
-          {...props}
-          hosts={[hostStub, offlineHost]}
-          selectedLabel={offlineHostsLabel}
-        />,
-      ).instance();
-
-      expect(allHostsLabelPageNode.filterAllHosts([hostStub, offlineHost], allHostsLabel)).toEqual([hostStub, offlineHost]);
-      expect(offlineHostsLabelPageNode.filterAllHosts([hostStub, offlineHost], offlineHostsLabel)).toEqual([offlineHost]);
+    it('shows all hosts by default', () => {
+      const ownProps = { location: { hash: '' }, params: {} };
+      const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
+      const page = mount(component);
+      expect(page.find('HostContainer').find('tbody tr').length).toEqual(2);
     });
   });
 
