@@ -4,6 +4,7 @@
   - [Current API](#current-api)
 - [Authentication](#authentication)
 - [Hosts](#hosts)
+- [Labels](#labels)
 - [Users](#users)
 - [Queries](#queries)
 - [Packs](#packs)
@@ -698,6 +699,532 @@ Deletes the specified host from Fleet. Note that a deleted host will fail authen
 
 ```
 {}
+```
+
+---
+
+## Labels
+
+- [Create label](#create-label)
+- [Modify label](#modify-label)
+- [Get label](#get-label)
+- [List labels](#list-labels)
+- [List hosts in label](#list-hosts-in-label)
+- [Delete label](#delete-label)
+- [Delete label by ID](#delete-label-by-id)
+- [Apply labels specs](#apply-labels-specs)
+- [Get labels specs](#get-labels-specs)
+- [Get label spec](#get-label-spec)
+
+### Create label
+
+Creates a dynamic label.
+
+`POST /api/v1/kolide/labels`
+
+#### Parameters
+
+| Name                  | Type   | In   | Description                                                     |
+| --------------------- | ------ | ---- | --------------------------------------------------------------- |
+| name                 | string | body | **Required**. The label's name.                    |
+| description                 | string | body | The label's description.                    |
+| query                 | string | body | **Required**. The query in SQL syntax used to filter the hosts.                    |
+| platform                 | string | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string.|
+
+#### Example
+
+`POST /api/v1/kolide/labels`
+
+##### Request body
+
+```
+{
+  "name": "Ubuntu hosts",
+  "description": "Filters ubuntu hosts",
+  "query": "select 1 from os_version where platform = 'ubuntu';",
+  "platform": ""
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "label": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 1,
+    "name": "Ubuntu hosts",
+    "description": "Filters ubuntu hosts",
+    "query": "select 1 from os_version where platform = 'ubuntu';",
+    "label_type": "regular",
+    "label_membership_type": "dynamic",
+    "display_text": "Ubuntu hosts",
+    "count": 0,
+    "host_ids": null
+  }
+}
+```
+
+### Modify label
+
+Modifies the specified label. Note: Label queries are immutable. To change the query, you must delete the label and create a new label.
+
+`PATCH /api/v1/kolide/labels/{id}`
+
+#### Parameters
+
+| Name                  | Type   | In   | Description                                                     |
+| --------------------- | ------ | ---- | --------------------------------------------------------------- |
+| id                 | integer | path | **Required**. The label's id.                    |
+| name                 | string | body | The label's name.                    |
+| description                 | string | body | The label's description.                    |
+| platform                 | string | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string.|
+
+#### Example
+
+`PATCH /api/v1/kolide/labels/1`
+
+##### Request body
+
+```
+{
+  "name": "macOS label",
+  "description": "Now this label only includes macOS machines",
+  "platform": "darwin"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "label": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 1,
+    "name": "Ubuntu hosts",
+    "description": "Filters ubuntu hosts",
+    "query": "select 1 from os_version where platform = 'ubuntu';",
+    "platform": "darwin",
+    "label_type": "regular",
+    "label_membership_type": "dynamic",
+    "display_text": "Ubuntu hosts",
+    "count": 0,
+    "host_ids": null
+  }
+}
+```
+
+### Get label
+
+Returns the specified label.
+
+`GET /api/v1/kolide/labels/{id}`
+
+#### Parameters
+
+| Name                  | Type   | In   | Description                                                     |
+| --------------------- | ------ | ---- | --------------------------------------------------------------- |
+| id                 | integer | path | **Required**. The label's id.                    |
+
+#### Example
+
+`GET /api/v1/kolide/labels/1`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "label": {
+    "created_at": "2021-02-09T22:09:43Z",
+    "updated_at": "2021-02-09T22:15:58Z",
+    "id": 12,
+    "name": "Ubuntu",
+    "description": "Filters ubuntu hosts",
+    "query": "select 1 from os_version where platform = 'ubuntu';",
+    "label_type": "regular",
+    "label_membership_type": "dynamic",
+    "display_text": "Ubuntu",
+    "count": 0,
+    "host_ids": null
+  }
+}
+```
+
+### List labels
+
+Returns a list of all the labels in Fleet.
+
+`GET /api/v1/kolide/labels`
+
+#### Parameters
+
+| Name                  | Type   | In   | Description                                                     |
+| --------------------- | ------ | ---- | --------------------------------------------------------------- |
+| id                 | integer | path | **Required**. The label's id.                    |
+
+#### Example
+
+`GET /api/v1/kolide/labels`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "labels": [
+    {
+      "created_at": "2021-02-02T23:55:25Z",
+      "updated_at": "2021-02-02T23:55:25Z",
+      "id": 6,
+      "name": "All Hosts",
+      "description": "All hosts which have enrolled in Fleet",
+      "query": "select 1;",
+      "label_type": "builtin",
+      "label_membership_type": "dynamic",
+      "host_count": 7,
+      "display_text": "All Hosts",
+      "count": 7,
+      "host_ids": null
+    },
+    {
+      "created_at": "2021-02-02T23:55:25Z",
+      "updated_at": "2021-02-02T23:55:25Z",
+      "id": 7,
+      "name": "macOS",
+      "description": "All macOS hosts",
+      "query": "select 1 from os_version where platform = 'darwin';",
+      "platform": "darwin",
+      "label_type": "builtin",
+      "label_membership_type": "dynamic",
+      "host_count": 1,
+      "display_text": "macOS",
+      "count": 1,
+      "host_ids": null
+    },
+    {
+      "created_at": "2021-02-02T23:55:25Z",
+      "updated_at": "2021-02-02T23:55:25Z",
+      "id": 8,
+      "name": "Ubuntu Linux",
+      "description": "All Ubuntu hosts",
+      "query": "select 1 from os_version where platform = 'ubuntu';",
+      "platform": "ubuntu",
+      "label_type": "builtin",
+      "label_membership_type": "dynamic",
+      "host_count": 3,
+      "display_text": "Ubuntu Linux",
+      "count": 3,
+      "host_ids": null
+    },
+    {
+      "created_at": "2021-02-02T23:55:25Z",
+      "updated_at": "2021-02-02T23:55:25Z",
+      "id": 9,
+      "name": "CentOS Linux",
+      "description": "All CentOS hosts",
+      "query": "select 1 from os_version where platform = 'centos' or name like '%centos%'",
+      "label_type": "builtin",
+      "label_membership_type": "dynamic",
+      "host_count": 3,
+      "display_text": "CentOS Linux",
+      "count": 3,
+      "host_ids": null
+    },
+    {
+      "created_at": "2021-02-02T23:55:25Z",
+      "updated_at": "2021-02-02T23:55:25Z",
+      "id": 10,
+      "name": "MS Windows",
+      "description": "All Windows hosts",
+      "query": "select 1 from os_version where platform = 'windows';",
+      "platform": "windows",
+      "label_type": "builtin",
+      "label_membership_type": "dynamic",
+      "display_text": "MS Windows",
+      "count": 0,
+      "host_ids": null
+    },
+  ]
+}
+```
+
+### List hosts in a label
+
+Returns a list of the hosts that belong to the specified label.
+
+`GET /api/v1/kolide/labels/{id}/hosts`
+
+#### Parameters
+
+| Name                  | Type   | In   | Description                                                     |
+| --------------------- | ------ | ---- | --------------------------------------------------------------- |
+| id                 | integer | path | **Required**. The label's id.                    |
+
+#### Example
+
+`GET /api/v1/kolide/labels/6/hosts`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "hosts": [
+    {
+      "created_at": "2021-02-03T16:11:43Z",
+      "updated_at": "2021-02-03T21:58:19Z",
+      "id": 2,
+      "detail_updated_at": "2021-02-03T21:58:10Z",
+      "label_updated_at": "2021-02-03T21:58:10Z",
+      "last_enrolled_at": "2021-02-03T16:11:43Z",
+      "seen_time": "2021-02-03T21:58:20Z",
+      "hostname": "e2e7f8d8983d",
+      "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
+      "platform": "ubuntu",
+      "osquery_version": "4.5.1",
+      "os_version": "Ubuntu 20.4.0",
+      "build": "",
+      "platform_like": "debian",
+      "code_name": "",
+      "uptime": 32688000000000,
+      "memory": 2086899712,
+      "cpu_type": "x86_64",
+      "cpu_subtype": "142",
+      "cpu_brand": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
+      "cpu_physical_cores": 4,
+      "cpu_logical_cores": 4,
+      "hardware_vendor": "",
+      "hardware_model": "",
+      "hardware_version": "",
+      "hardware_serial": "",
+      "computer_name": "e2e7f8d8983d",
+      "primary_ip": "172.20.0.2",
+      "primary_mac": "02:42:ac:14:00:02",
+      "distributed_interval": 10,
+      "config_tls_refresh": 10,
+      "logger_tls_period": 10,
+      "additional": {},
+      "enroll_secret_name": "default",
+      "status": "offline",
+      "display_text": "e2e7f8d8983d"
+    },
+  ]
+}
+```
+
+### Delete label
+
+Deletes the label specified by name.
+
+`DELETE /api/v1/kolide/labels/{name}`
+
+#### Parameters
+
+| Name                  | Type   | In   | Description                                                     |
+| --------------------- | ------ | ---- | --------------------------------------------------------------- |
+| name                 | string | path | **Required**. The label's name.                    |
+
+#### Example
+
+`DELETE /api/v1/kolide/labels/ubuntu_label`
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
+### Delete label by ID
+
+Deletes the label specified by ID.
+
+`DELETE /api/v1/kolide/labels/id/{id}`
+
+#### Parameters
+
+| Name                  | Type   | In   | Description                                                     |
+| --------------------- | ------ | ---- | --------------------------------------------------------------- |
+| id                 | integer | path | **Required**. The label's id.                    |
+
+#### Example
+
+`DELETE /api/v1/kolide/labels/id/13`
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
+### Apply labels specs
+
+Applies the supplied labels specs to Fleet. Each label requires the `name`, and `label_membership_type` properties.
+
+If the `label_membership_type` is set to `dynamic`, the `query` property must also be specified with the value set to a query in SQL syntax.
+
+If the `label_membership_type` is set to `manual`, the `hosts` property must also be specified with the value set to a list of hostnames.
+
+`POST /api/v1/kolide/specs/labels`
+
+#### Parameters
+
+| Name                  | Type   | In   | Description                                                     |
+| --------------------- | ------ | ---- | --------------------------------------------------------------- |
+| specs                 | list | path | A list of the label to apply. Each label requires the `name`, `query`, and `label_membership_type` properties|
+
+#### Example
+
+`POST /api/v1/kolide/specs/labels`
+
+##### Request body
+
+```
+{
+  "specs": [
+    {
+      "name": "Ubuntu",
+      "description": "Filters ubuntu hosts",
+      "query": "select 1 from os_version where platform = 'ubuntu';",
+      "label_membership_type": "dynamic"
+    },
+    {
+      "name": "local_machine",
+      "description": "Includes only my local machine",
+      "label_membership_type": "manual",
+      "hosts": [
+        "snacbook-pro.local"
+      ]
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
+### Get labels specs
+
+`GET /api/v1/kolide/specs/labels`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/kolide/specs/labels`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "specs": [
+    {
+      "ID": 0,
+      "name": "All Hosts",
+      "description": "All hosts which have enrolled in Fleet",
+      "query": "select 1;",
+      "label_type": "builtin",
+      "label_membership_type": "dynamic"
+    },
+    {
+      "ID": 0,
+      "name": "macOS",
+      "description": "All macOS hosts",
+      "query": "select 1 from os_version where platform = 'darwin';",
+      "platform": "darwin",
+      "label_type": "builtin",
+      "label_membership_type": "dynamic"
+    },
+    {
+      "ID": 0,
+      "name": "Ubuntu Linux",
+      "description": "All Ubuntu hosts",
+      "query": "select 1 from os_version where platform = 'ubuntu';",
+      "platform": "ubuntu",
+      "label_type": "builtin",
+      "label_membership_type": "dynamic"
+    },
+    {
+      "ID": 0,
+      "name": "CentOS Linux",
+      "description": "All CentOS hosts",
+      "query": "select 1 from os_version where platform = 'centos' or name like '%centos%'",
+      "label_type": "builtin",
+      "label_membership_type": "dynamic"
+    },
+    {
+      "ID": 0,
+      "name": "MS Windows",
+      "description": "All Windows hosts",
+      "query": "select 1 from os_version where platform = 'windows';",
+      "platform": "windows",
+      "label_type": "builtin",
+      "label_membership_type": "dynamic"
+    },
+    {
+      "ID": 0,
+      "name": "Ubuntu",
+      "description": "Filters ubuntu hosts",
+      "query": "select 1 from os_version where platform = 'ubuntu';",
+      "label_membership_type": "dynamic"
+    }
+  ]
+}
+```
+
+### Get label spec
+
+Returns the spec for the label specified by name.
+
+`GET /api/v1/kolide/specs/labels/{name}`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/kolide/specs/labels/local_machine`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "specs": {
+    "ID": 0,
+    "name": "local_machine",
+    "description": "Includes only my local machine",
+    "query": "",
+    "label_membership_type": "manual",
+    "hosts": [
+        "snacbook-pro.local"
+    ]
+  }
+}
 ```
 
 ---
