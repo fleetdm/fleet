@@ -43,7 +43,8 @@ const HostsDataTable = (props) => {
   } = useTable({ columns, data }, useGlobalFilter);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const onChange = debounce((value) => {
+  const onChange = useAsyncDebounce((value) => {
+    console.log(value);
     setSearchQuery(value);
     setGlobalFilter(value || undefined);
   }, 200);

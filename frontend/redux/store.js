@@ -1,6 +1,3 @@
-import Es6ObjectAssign from 'es6-object-assign';
-import Es6Promise from 'es6-promise';
-
 import { applyMiddleware, compose, createStore } from 'redux';
 import { browserHistory } from 'react-router';
 import { loadingBarMiddleware } from 'react-redux-loading-bar';
@@ -10,10 +7,6 @@ import thunkMiddleware from 'redux-thunk';
 import authMiddleware from './middlewares/auth';
 import redirectMiddleware from './middlewares/redirect';
 import reducers from './reducers';
-
-// ie polyfills
-Es6ObjectAssign.polyfill();
-Es6Promise.polyfill();
 
 const initialState = {};
 
