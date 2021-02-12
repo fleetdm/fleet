@@ -64,6 +64,7 @@
       [
         "@babel/preset-env",
         {
+          "targets": "defaults",
           "useBuiltIns": "usage",
           "corejs": "3.8"
         }
@@ -180,10 +181,7 @@
     "webpack-notifier": "1.12.0"
   },
   "browserslist": [
-    "last 1 version",
-    "> 1%",
-    "maintained node versions",
-    "not dead"
+    "defaults"
   ],
   "jest": {
     "rootDir": "frontend",

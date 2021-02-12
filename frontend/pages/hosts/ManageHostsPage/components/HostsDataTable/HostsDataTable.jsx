@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useTable, useGlobalFilter, useAsyncDebounce } from 'react-table';
-import { debounce } from 'lodash';
 
 import hostInterface from 'interfaces/host';
 import { humanHostMemory, humanHostUptime } from 'kolide/helpers';
