@@ -2,7 +2,7 @@
 name: Internal - New project
 about: Kick off a new company-sponsored project to ship particular improvements to Fleet
 title: ''
-labels: 'epic'
+labels: 'project'
 assignees: ''
 
 ---
