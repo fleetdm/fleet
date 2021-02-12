@@ -358,8 +358,6 @@ When managing multiple Fleet environments, you may want to move queries and/or p
 3. Now, with your importer Fleet instance running, run `fleetctl apply -f queries.yml`. This will import all the queries from your new queries.yml file into your importer Fleet instance.
 4. With your importer Fleet instance running, run `fleetctl apply -f packs.yml`. This will import all the query packs along with the correct queries (that you just imported) into your importer Fleet instance.
 
-
-
 ### Host labels
 
 The following file describes the labels which hosts should be automatically grouped into. The label resource should include the actual SQL query so that the label is self-contained:
