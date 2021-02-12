@@ -65,7 +65,7 @@ This command will create a directory fleet-preview in the current working direct
 			}
 
 			fmt.Println("Starting Docker containers...")
-			out, err := exec.Command("docker-compose", "up", "-d", "mysql01", "redis01", "fleet01").CombinedOutput()
+			out, err := exec.Command("docker-compose", "up", "-d", "--remove-orphans", "mysql01", "redis01", "fleet01").CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
 				return errors.Errorf("Failed to run docker-compose")
@@ -151,12 +151,9 @@ This command will create a directory fleet-preview in the current working direct
 				return errors.New("Expected 1 active enroll secret")
 			}
 
-			if err := os.Chdir(filepath.Join(previewDir, "osquery")); err != nil {
-				return errors.Wrap(err, "Error getting preview osquery directory")
-			}
-
 			fmt.Println("Starting simulated hosts...")
-			cmd := exec.Command("docker-compose", "up", "-d")
+			cmd := exec.Command("docker-compose", "up", "-d", "--remove-orphans")
+			cmd.Dir = filepath.Join(previewDir, "osquery")
 			cmd.Env = append(cmd.Env,
 				"ENROLL_SECRET="+secrets.Secrets[0].Secret,
 				"FLEET_URL="+address,
