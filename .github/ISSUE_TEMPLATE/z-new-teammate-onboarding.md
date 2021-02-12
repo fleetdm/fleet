@@ -69,8 +69,9 @@ Welcome to Fleet! This issue tracks TODOs required for all new teammates for you
 - [ ] _If using a company-issued laptop or other equipment >$500 USD (per item):_ Add new equipment to [fixed asset tracking doc](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0)
 - [ ] [Invite to Orbit CXP](https://app.orbit.love/fleet/edit)
 - [ ] [Invite to Fleet Slack](https://fleetdm.slack.com/admin)
-- [ ] GCal for Slack  (TODO: replace w/ Reclaim's Slack app when new release is ready)
-- [ ] Reclaim.ai for syncing availability from your personal calendar (optional; but otherwise, please add any known personal events as "busy" on your work calendar so we don't schedule on top of your important stuff!)
+- [ ] Install "Google Calendar" for Slack 
+- [ ] Sign up for Reclaim.ai for syncing availability from your personal calendar (optional; but otherwise, please add any known personal events as "busy" on your work calendar so we don't schedule on top of your important stuff!)
+  - [ ] Install Reclaim's Slack app and make sure automated status syncing is turned on.  Then, open up Google Calendar for Slack's settings, and disable "Status Sync"  (Reclaim will take care of this instead.)
 - [ ] Invite to osquery Slack.  Steps for new teammate:
   - [ ] [Sign up for the osquery Slack workspace](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/) using your work email address
   - [ ] Set your standard profile pic
