@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { useTable, useGlobalFilter, useAsyncDebounce } from 'react-table';
 
@@ -42,11 +42,15 @@ const HostsDataTable = (props) => {
   } = useTable({ columns, data }, useGlobalFilter);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const onChange = useAsyncDebounce((value) => {
-    console.log(value);
-    setSearchQuery(value);
+
+  const debouncedGlobalFilter = useAsyncDebounce((value) => {
     setGlobalFilter(value || undefined);
   }, 200);
+
+  const onChange = useCallback((value) => {
+    setSearchQuery(value);
+    debouncedGlobalFilter(value);
+  }, [setSearchQuery, debouncedGlobalFilter]);
 
   return (
     <React.Fragment>
