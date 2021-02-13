@@ -2,12 +2,8 @@
   "name": "fleetctl",
   "version": "3.7.1",
   "description": "Installer for the fleetctl CLI tool",
-  "main": "binary.js",
   "bin": {
     "fleetctl": "./run.js"
-  },
-  "scripts": {
-    "postinstall": "node ./install.js"
   },
   "repository": {
     "type": "git",
@@ -20,7 +16,8 @@
   },
   "homepage": "https://fleetdm.com",
   "dependencies": {
-    "binary-install": "0.1.1"
+    "axios": "0.21.1",
+    "tar": "6.1.0"
   },
   "keywords": [
     "osquery",
