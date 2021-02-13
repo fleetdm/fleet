@@ -57,8 +57,15 @@ This command will create a directory fleet-preview in the current working direct
 				return err
 			}
 
+			// Make sure the logs directory is writable, otherwise the Fleet
+			// server errors on startup. This can be a problem when running on
+			// Linux with a non-root user inside the container.
+			if err := os.Chmod(filepath.Join(previewDir, "logs"), 0777); err != nil {
+				return errors.Wrap(err, "make logs writable")
+			}
+
 			fmt.Println("Starting Docker containers...")
-			out, err := exec.Command("docker-compose", "up", "-d", "mysql01", "redis01", "fleet01").CombinedOutput()
+			out, err := exec.Command("docker-compose", "up", "-d", "--remove-orphans", "mysql01", "redis01", "fleet01").CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
 				return errors.Errorf("Failed to run docker-compose")
@@ -100,7 +107,9 @@ This command will create a directory fleet-preview in the current working direct
 			config, err := readConfig(configPath)
 			if err != nil {
 				// No existing config
-				config.Contexts["default"] = contextConfig
+				config.Contexts = map[string]Context{
+					"default": contextConfig,
+				}
 			} else {
 				fmt.Println("Configured fleetctl in the 'preview' context to avoid overwriting existing config.")
 				context = "preview"
@@ -142,12 +151,9 @@ This command will create a directory fleet-preview in the current working direct
 				return errors.New("Expected 1 active enroll secret")
 			}
 
-			if err := os.Chdir(filepath.Join(previewDir, "osquery")); err != nil {
-				return errors.Wrap(err, "Error getting preview osquery directory")
-			}
-
 			fmt.Println("Starting simulated hosts...")
-			cmd := exec.Command("docker-compose", "up", "-d")
+			cmd := exec.Command("docker-compose", "up", "-d", "--remove-orphans")
+			cmd.Dir = filepath.Join(previewDir, "osquery")
 			cmd.Env = append(cmd.Env,
 				"ENROLL_SECRET="+secrets.Secrets[0].Secret,
 				"FLEET_URL="+address,
@@ -284,11 +290,11 @@ func waitStartup() error {
 
 func checkDocker() error {
 	// Check installed
-	if _, err := exec.LookPath("docker-compose"); err != nil {
-		return errors.New("Docker is required for the fleetctl preview experience.\n\nPlease install Docker (https://docs.docker.com/get-docker/).")
-	}
 	if _, err := exec.LookPath("docker"); err != nil {
 		return errors.New("Docker is required for the fleetctl preview experience.\n\nPlease install Docker (https://docs.docker.com/get-docker/).")
+	}
+	if _, err := exec.LookPath("docker-compose"); err != nil {
+		return errors.New("Docker Compose is required for the fleetctl preview experience.\n\nPlease install Docker Compose (https://docs.docker.com/compose/install/).")
 	}
 
 	// Check running
