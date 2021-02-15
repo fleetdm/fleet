@@ -82,8 +82,8 @@ Welcome to Fleet! This issue tracks TODOs required for all new teammates for you
   - If this is an engineer: [invite to "Engineering" team to grant full write access](https://github.com/orgs/fleetdm/teams/engineering/members)
   - Otherwise: [invite to "Teammates" team](https://github.com/orgs/fleetdm/teams/teammates/members)
   - [ ] Ask new teammate to set their membership visibility to public, if they are comfortable doing so
-  - [ ] Ask new teammate to bookmark Public Issues (https://github.com/fleetdm/fleet/issues)
-  - [ ] Ask new teammate to bookmark Confindential Issues (https://github.com/fleetdm/confidential/issues)
+  - [ ] Ask new teammate to bookmark public issues (https://github.com/fleetdm/fleet/issues)
+  - [ ] Ask new teammate to bookmark confidential issues (https://github.com/fleetdm/confidential/issues)
 - [ ] Confirm good to go w/ local Fleet demo (`fleetctl preview`)
 - [ ] [Invite to YouTube channel using "Manager" permission level](https://myaccount.google.com/brandaccounts/101249600164635997667/view?rapt=AEjHL4ODSDx9fkk9dWt-VqycEWQIQrFnDpGO3oTddHxOZGN0QP8Z36nQWxaTPoeefxUntuhaRbOWKgosV_S0emrrISC1Azt9KA)  (if you have trouble administering the YouTube channel with your Fleet email account, log in with the gmail address from the shared 1password vault)
 - [ ] [Connect new teammate's Zoom account with their work calendar](https://support.zoom.us/hc/en-us/articles/360020187492-Google-Calendar-add-on), if not already set up.
