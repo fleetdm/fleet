@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
+const child = require('child_process');
+const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const fs = require('fs');
-const child = require('child_process');
 
 const axios = require('axios');
+const rimraf = require('rimraf');
 const tar = require('tar');
 
 const { version } = require('./package.json');
@@ -56,7 +57,8 @@ const install = async () => {
 
 const run = async () => {
   if (!fs.existsSync(binPath)) {
-    fs.rmSync(binDir, { recursive: true, force: true });
+    // Remove any existing binaries before installing the new one.
+    rimraf.sync(binDir);
     console.log(`Installing fleetctl ${version}...`);
     try {
       await install();
