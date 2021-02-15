@@ -26,6 +26,7 @@ To setup a working local development environment, you must install the following
 > # More info: https://golang.org/doc/gopath_code.html#GOPATH
 > export PATH=$PATH:$(go env GOPATH)/bin
 > ```
+> Make sure that you open a new terminal tab AFTER you edit your bash profile, otherwise the changes will not take effect.
 
 Once you have those minimum requirements, you will need to install Fleet's dependencies. To do this, run the following from the root of the repository:
 
