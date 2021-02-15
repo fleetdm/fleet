@@ -349,7 +349,7 @@ spec:
       removed: false
 ```
 
-#### Moving queries and packs from one Fleet environement to another
+#### Moving queries and packs from one Fleet environment to another
 
 When managing multiple Fleet environments, you may want to move queries and/or packs from one environment (exporter) to the other (importer).
 
@@ -675,5 +675,4 @@ can be helpful to debug carving problems.
 This value must be less than the `max_allowed_packet` setting in MySQL. If it is too large, MySQL will reject the writes.
 
 The value must be small enough that HTTP requests do not time out.
-
 
