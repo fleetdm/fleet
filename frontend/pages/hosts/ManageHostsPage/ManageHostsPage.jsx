@@ -159,6 +159,13 @@ export class ManageHostsPage extends PureComponent {
     return true;
   }
 
+  onChangeTableData = (tableState) => {
+    const { dispatch, selectedFilter, perPage } = this.props;
+    const START_PAGE = 1;
+
+    dispatch(setPagination(START_PAGE, perPage, selectedFilter, tableState));
+  }
+
   onSaveAddLabel = (formData) => {
     const { dispatch } = this.props;
 
@@ -430,6 +437,7 @@ export class ManageHostsPage extends PureComponent {
       renderDeleteLabelModal,
       renderQuery,
       toggleAddHostModal,
+      onChangeTableData,
     } = this;
     const {
       page,
@@ -472,6 +480,8 @@ export class ManageHostsPage extends PureComponent {
       }
     }
 
+    console.log('render ManageHostsPage')
+
     return (
       <div className="has-sidebar">
         {renderForm()}
@@ -491,6 +501,7 @@ export class ManageHostsPage extends PureComponent {
                 selectedLabel={selectedLabel}
                 loadingHosts={loadingHosts}
                 toggleAddHostModal={toggleAddHostModal}
+                onChangeTableData={onChangeTableData}
               />
               {!loadingHosts && <HostPagination
                 allHostCount={hostCount}

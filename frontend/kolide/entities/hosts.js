@@ -15,9 +15,21 @@ export default (client) => {
       return client.authenticatedGet(endpoint)
         .then(response => response.host);
     },
-    loadAll: (page = 1, perPage = 100, selected = '') => {
+
+    // TODO: this needs to change to handle other filters
+    loadAll: (page = 1, perPage = 100, selected = '', tableState = {}) => {
+      const {
+        sortBy,
+        globalFilter = '',
+      } = tableState;
+
+
       const { HOSTS, LABEL_HOSTS } = endpoints;
-      const pagination = `page=${page - 1}&per_page=${perPage}&order_key=hostname`;
+
+      let pagination = `page=${page - 1}&per_page=${perPage}`;
+      if (sortBy !== undefined) {
+        pagination += `&order_key=${sortBy[0].id}`;
+      }
 
       let endpoint = '';
       const labelPrefix = 'labels/';

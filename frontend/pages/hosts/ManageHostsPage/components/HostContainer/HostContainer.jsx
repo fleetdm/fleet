@@ -9,6 +9,8 @@ import RoboDogImage from '../../../../../../assets/images/robo-dog-176x144@2x.pn
 
 const baseClass = 'host-container';
 
+// TODO: come back and define table columns here
+
 class HostContainer extends Component {
   static propTypes = {
     hosts: PropTypes.arrayOf(hostInterface),
@@ -45,8 +47,9 @@ class HostContainer extends Component {
   }
 
   render () {
+    console.log('render HostContainer');
     const { renderNoHosts } = this;
-    const { hosts, loadingHosts, selectedLabel } = this.props;
+    const { hosts, loadingHosts, selectedLabel, onChangeTableData } = this.props;
 
     if (loadingHosts) {
       return <Spinner />;
@@ -77,7 +80,7 @@ class HostContainer extends Component {
 
     return (
       <div className={`${baseClass}`}>
-        <HostsDataTable hosts={hosts} />
+        <HostsDataTable hosts={hosts} onChangeTableData={onChangeTableData} /> {/** TODO: rename prop */}
       </div>
     );
   }

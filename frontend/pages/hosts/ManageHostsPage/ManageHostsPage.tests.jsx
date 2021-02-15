@@ -135,6 +135,7 @@ describe('ManageHostsPage - component', () => {
     beforeEach(() => createAceSpy());
 
     it('Displays the all hosts label as the active label by default', () => {
+      console.log('test');
       const ownProps = { location: {}, params: {} };
       const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
       const page = mount(component);
