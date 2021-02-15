@@ -20,6 +20,9 @@
         },
         {
             "pattern": "linkedin.com/company/fleetdm"
+        },
+        {
+            "pattern": "github.com/fleetdm/confidential"
         }
     ],
     "retryOn429": true,
