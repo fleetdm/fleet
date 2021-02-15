@@ -16,7 +16,7 @@ To setup a working local development environment, you must install the following
 * [Go](https://golang.org/doc/install) (1.9 or greater)
 * [Node.js](https://nodejs.org/en/download/current/) and [Yarn](https://yarnpkg.com/en/docs/install)
 * [GNU Make](https://www.gnu.org/software/make/) (probably already installed if you're on macOS/Linux)
-* [Docker](https://www.docker.com/products/overview#/install_the_platform)
+* [Docker](https://docs.docker.com/get-docker/)
 
 > #### New to the Go language?
 > 
