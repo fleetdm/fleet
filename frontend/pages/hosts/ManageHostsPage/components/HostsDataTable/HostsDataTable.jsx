@@ -1,21 +1,27 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { useTable, useGlobalFilter, useAsyncDebounce } from 'react-table';
+import { useTable, useGlobalFilter, useSortBy, useAsyncDebounce } from 'react-table';
 
+// TODO: move this file closer to HostsDataTable
 import hostInterface from 'interfaces/host';
 import { humanHostMemory, humanHostUptime } from 'kolide/helpers';
 import InputField from 'components/forms/fields/InputField';
+
 import TextCell from '../TextCell/TextCell';
 import StatusCell from '../StatusCell/StatusCell';
 import LinkCell from '../LinkCell/LinkCell';
 
-
-const baseClass = 'host-side-panel';
+const useListenForTableChanges = (tableState, changeTableDataHandler) => {
+  useEffect(() => {
+    // changeTableDataHandler();
+    console.log('TABLE STATE:', tableState);
+  }, [tableState.sortBy, tableState.globalFilter]);
+};
 
 // This data table uses react-table for implementation. The relevant documentation of the library
 // can be found here https://react-table.tanstack.com/docs/api/useTable
 const HostsDataTable = (props) => {
-  const { hosts } = props;
+  console.log('render HostsDataTable');
   const columns = React.useMemo(() => {
     return [
       { Header: 'Hostname', accessor: 'hostname', Cell: cellProps => <LinkCell value={cellProps.cell.value} host={cellProps.row.original} /> },
@@ -30,6 +36,7 @@ const HostsDataTable = (props) => {
     ];
   }, []);
 
+  const { hosts } = props;
   const data = React.useMemo(() => {
     return hosts;
   }, [hosts]);
@@ -39,7 +46,8 @@ const HostsDataTable = (props) => {
     rows,
     prepareRow,
     setGlobalFilter,
-  } = useTable({ columns, data }, useGlobalFilter);
+    state,
+  } = useTable({ columns, data }, useGlobalFilter, useSortBy);
 
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -52,6 +60,9 @@ const HostsDataTable = (props) => {
     debouncedGlobalFilter(value);
   }, [setSearchQuery, debouncedGlobalFilter]);
 
+  const { onChangeTableData } = props;
+  useListenForTableChanges(state, onChangeTableData);
+
   return (
     <React.Fragment>
       <InputField
@@ -59,7 +70,7 @@ const HostsDataTable = (props) => {
         name=""
         onChange={onChange}
         value={searchQuery}
-        inputWrapperClass={`${baseClass}__filter-labels`}
+        inputWrapperClass={'host-side-panel__filter-labels'}
       />
 
       <div className={'hosts-table hosts-table__wrapper'}>
@@ -68,7 +79,7 @@ const HostsDataTable = (props) => {
             {headerGroups.map(headerGroup => (
               <tr {...headerGroup.getHeaderGroupProps()}>
                 {headerGroup.headers.map(column => (
-                  <th {...column.getHeaderProps()}>
+                  <th {...column.getHeaderProps(column.getSortByToggleProps())}>
                     {column.render('Header')}
                   </th>
                 ))}
