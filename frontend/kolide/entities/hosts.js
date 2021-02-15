@@ -17,7 +17,7 @@ export default (client) => {
     },
     loadAll: (page = 1, perPage = 100, selected = '') => {
       const { HOSTS, LABEL_HOSTS } = endpoints;
-      const pagination = `page=${page - 1}&per_page=${perPage}&order_key=host_name`;
+      const pagination = `page=${page - 1}&per_page=${perPage}&order_key=hostname`;
 
       let endpoint = '';
       const labelPrefix = 'labels/';
