@@ -29,6 +29,7 @@ const (
 )
 
 var (
+	// Matches all non-word and '-' characters for replacement
 	columnCharsRegexp = regexp.MustCompile(`[^\w-]`)
 )
 
@@ -371,4 +372,25 @@ func isChildForeignKeyError(err error) bool {
 	// https://dev.mysql.com/doc/refman/5.7/en/error-messages-server.html#error_er_no_referenced_row_2
 	const ER_NO_REFERENCED_ROW_2 = 1452
 	return mysqlErr.Number == ER_NO_REFERENCED_ROW_2
+}
+
+// searchLike adds SQL and parameters for a "search" using LIKE syntax.
+//
+// The input columns must be sanitized if they are provided by the user.
+func searchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}) {
+	if len(columns) == 0 {
+		return sql, params
+	}
+
+	match = strings.Replace(match, "_", "\\_", -1)
+	match = strings.Replace(match, "%", "\\%", -1)
+	pattern := "%" + match + "%"
+	ors := make([]string, 0, len(columns))
+	for _, column := range columns {
+		ors = append(ors, column+" LIKE ?")
+		params = append(params, pattern)
+	}
+
+	sql += " AND (" + strings.Join(ors, " OR ") + ")"
+	return sql, params
 }

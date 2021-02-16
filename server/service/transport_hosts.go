@@ -54,5 +54,9 @@ func decodeListHostsRequest(ctx context.Context, r *http.Request) (interface{}, 
 	if additionalInfoFiltersString != "" {
 		hopt.AdditionalFilters = strings.Split(additionalInfoFiltersString, ",")
 	}
+
+	query := r.URL.Query().Get("query")
+	hopt.MatchQuery = query
+
 	return listHostsRequest{ListOptions: hopt}, nil
 }

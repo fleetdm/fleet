@@ -227,6 +227,70 @@ func testListHostsStatus(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, 10, len(hosts))
 }
 
+func testListHostsQuery(t *testing.T, ds kolide.Datastore) {
+	hosts := []*kolide.Host{}
+	for i := 0; i < 10; i++ {
+		host, err := ds.NewHost(&kolide.Host{
+			DetailUpdateTime: time.Now(),
+			LabelUpdateTime:  time.Now(),
+			SeenTime:         time.Now(),
+			OsqueryHostID:    strconv.Itoa(i),
+			NodeKey:          fmt.Sprintf("%d", i),
+			UUID:             fmt.Sprintf("uuid_00%d", i),
+			HostName:         fmt.Sprintf("hostname%%00%d", i),
+			HardwareSerial:   fmt.Sprintf("serial00%d", i),
+		})
+		require.NoError(t, err)
+		host.PrimaryIP = fmt.Sprintf("192.168.1.%d", i)
+		require.NoError(t, ds.SaveHost(host))
+		hosts = append(hosts, host)
+	}
+
+	gotHosts, err := ds.ListHosts(kolide.HostListOptions{})
+	require.Nil(t, err)
+	assert.Equal(t, len(hosts), len(gotHosts))
+
+	gotHosts, err = ds.ListHosts(kolide.HostListOptions{MatchQuery: "00"})
+	require.Nil(t, err)
+	assert.Equal(t, 10, len(gotHosts))
+
+	gotHosts, err = ds.ListHosts(kolide.HostListOptions{MatchQuery: "000"})
+	require.Nil(t, err)
+	assert.Equal(t, 1, len(gotHosts))
+
+	gotHosts, err = ds.ListHosts(kolide.HostListOptions{MatchQuery: "192.168."})
+	require.Nil(t, err)
+	assert.Equal(t, 10, len(gotHosts))
+
+	gotHosts, err = ds.ListHosts(kolide.HostListOptions{MatchQuery: "192.168.1.1"})
+	require.Nil(t, err)
+	assert.Equal(t, 1, len(gotHosts))
+
+	gotHosts, err = ds.ListHosts(kolide.HostListOptions{MatchQuery: "hostname%00"})
+	require.Nil(t, err)
+	assert.Equal(t, 10, len(gotHosts))
+
+	gotHosts, err = ds.ListHosts(kolide.HostListOptions{MatchQuery: "hostname%003"})
+	require.Nil(t, err)
+	assert.Equal(t, 1, len(gotHosts))
+
+	gotHosts, err = ds.ListHosts(kolide.HostListOptions{MatchQuery: "uuid_"})
+	require.Nil(t, err)
+	assert.Equal(t, 10, len(gotHosts))
+
+	gotHosts, err = ds.ListHosts(kolide.HostListOptions{MatchQuery: "uuid_006"})
+	require.Nil(t, err)
+	assert.Equal(t, 1, len(gotHosts))
+
+	gotHosts, err = ds.ListHosts(kolide.HostListOptions{MatchQuery: "serial"})
+	require.Nil(t, err)
+	assert.Equal(t, 10, len(gotHosts))
+
+	gotHosts, err = ds.ListHosts(kolide.HostListOptions{MatchQuery: "serial009"})
+	require.Nil(t, err)
+	assert.Equal(t, 1, len(gotHosts))
+}
+
 func testEnrollHost(t *testing.T, ds kolide.Datastore) {
 	test.AddAllHostsLabel(t, ds)
 	enrollSecretName := "default"
