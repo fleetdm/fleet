@@ -53,7 +53,6 @@ const calculateTotalHostCount = (selectedFilter, labels, statusLabels) => {
 // This data table uses react-table for implementation. The relevant documentation of the library
 // can be found here https://react-table.tanstack.com/docs/api/useTable
 const HostsDataTable = (props) => {
-
   // this prop is passed down, as it ultimately comes form the router and this component cannot
   // access the router state.
   const { selectedFilter = '' } = props;
@@ -97,22 +96,31 @@ const HostsDataTable = (props) => {
     rows,
     prepareRow,
     setGlobalFilter,
-    state,
+    state: tableState,
   } = useTable(
     { columns,
       data,
-      autoResetSortBy: !skipPageResetRef.current,
-      autoResetGlobalFilter: !skipPageResetRef.current,
+      initialState: { sortBy: [{ id: 'hostname', desc: false }] },
+      autoResetSortBy: skipPageResetRef.current,
+      autoResetGlobalFilter: skipPageResetRef.current,
     },
     useGlobalFilter,
     useSortBy,
   );
 
+  // These are provided by react-table internal state
+  const { globalFilter, sortBy } = tableState;
+  const { id: orderKey, desc: isDesc } = sortBy[0];
+
   const [searchQuery, setSearchQuery] = useState('');
 
+  // TODO: use for cleanup
+  // const [orderKey, setSortKey] = useState('');
+  // const [sortDirection, setSortDirection] = useState('');
+
   const debouncedGlobalFilter = useAsyncDebounce((value) => {
+    skipPageResetRef.current = true;
     setGlobalFilter(value || undefined);
-    dispatch(setPagination(page, perPage, selectedFilter));
   }, 200);
 
   const onSearchQueryChange = useCallback((value) => {
@@ -126,12 +134,14 @@ const HostsDataTable = (props) => {
     scrollToTop();
   }, [dispatch, perPage, selectedFilter]);
 
-
   useEffect(() => {
-    dispatch(setPagination(page, perPage, selectedFilter, state.globalFilter));
-    // console.log(state.globalFilter);
+    console.log(tableState);
+    console.log('GLOBAL FILTER:', globalFilter);
+    console.log('SORTBY', sortBy);
+    console.log('SORTBYKEY:', orderKey, 'ISDESC:', isDesc);
+    dispatch(setPagination(page, perPage, selectedFilter, globalFilter, sortBy, isDesc));
     skipPageResetRef.current = false;
-  }, [dispatch, selectedFilter, page, perPage, state.globalFilter]);
+  }, [dispatch, selectedFilter, page, perPage, globalFilter, orderKey, isDesc]);
 
   if (loadingHosts) return <Spinner />;
 

@@ -17,15 +17,21 @@ export default (client) => {
     },
 
     // TODO: this needs to change to handle other filters
-    loadAll: (page = 1, perPage = 100, selected = '', globalFilter = '') => {
+    loadAll: (page = 1, perPage = 100, selected = '', globalFilter = '', sortKey = '', isDesc) => {
 
       const { HOSTS, LABEL_HOSTS } = endpoints;
 
       const pagination = `page=${page - 1}&per_page=${perPage}`;
 
-      // if (sortBy !== undefined) {
-      //   pagination += `&order_key=${sortBy[0].id}`;
-      // }
+      let orderKey = '';
+      if (sortKey !== '') {
+        orderKey += `&order_key=${sortKey[0].id}`;
+      }
+
+      let orderDirection = '';
+      if (isDesc !== undefined) {
+        orderDirection = isDesc ? '&order_direction=desc' : '&order_direction=asc';
+      }
 
       let searchQuery = '';
       if (globalFilter !== '') {
@@ -42,7 +48,7 @@ export default (client) => {
         if (selected === 'new' || selected === 'online' || selected === 'offline' || selected === 'mia') {
           selectedFilter = `&status=${selected}`;
         }
-        endpoint = `${HOSTS}?${pagination}${selectedFilter}${searchQuery}`;
+        endpoint = `${HOSTS}?${pagination}${selectedFilter}${searchQuery}${orderKey}${orderDirection}`;
       }
 
       return client.authenticatedGet(client._endpoint(endpoint))

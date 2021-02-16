@@ -69,9 +69,9 @@ export const setPaginationSuccess = (page, perPage, selectedLabel) => {
   };
 };
 
-export const setPagination = (page, perPage, selectedLabel, globalFilter) => (dispatch) => {
+export const setPagination = (page, perPage, selectedLabel, globalFilter, orderKey, isDesc) => (dispatch) => {
   const promises = [
-    dispatch(hostActions.loadAll(page, perPage, selectedLabel, globalFilter)),
+    dispatch(hostActions.loadAll(page, perPage, selectedLabel, globalFilter, orderKey, isDesc)),
     dispatch(labelActions.silentLoadAll()),
     dispatch(silentGetStatusLabelCounts),
   ];
