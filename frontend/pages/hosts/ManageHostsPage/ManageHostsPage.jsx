@@ -434,8 +434,6 @@ export class ManageHostsPage extends PureComponent {
       }
     }
 
-    console.log('render ManageHostsPage');
-
     return (
       <div className="has-sidebar">
         {renderForm()}

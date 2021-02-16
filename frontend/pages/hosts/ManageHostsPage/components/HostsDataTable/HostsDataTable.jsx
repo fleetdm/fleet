@@ -1,14 +1,14 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { useTable, useGlobalFilter, useSortBy, useAsyncDebounce } from 'react-table';
 import { useSelector, useDispatch } from 'react-redux';
 
 
 // TODO: move this file closer to HostsDataTable
-import hostInterface from 'interfaces/host';
 import { humanHostMemory, humanHostUptime } from 'kolide/helpers';
 import { setPagination } from 'redux/nodes/components/ManageHostsPage/actions';
 import scrollToTop from 'utilities/scroll_to_top';
+import Spinner from 'components/loaders/Spinner';
 import InputField from 'components/forms/fields/InputField';
 import HostPagination from 'components/hosts/HostPagination';
 
@@ -53,8 +53,12 @@ const calculateTotalHostCount = (selectedFilter, labels, statusLabels) => {
 // This data table uses react-table for implementation. The relevant documentation of the library
 // can be found here https://react-table.tanstack.com/docs/api/useTable
 const HostsDataTable = (props) => {
-  console.log('render HostsDataTable');
+
+  // this prop is passed down, as it ultimately comes form the router and this component cannot
+  // access the router state.
   const { selectedFilter = '' } = props;
+
+
   const dispatch = useDispatch();
   const loadingHosts = useSelector(state => state.entities.hosts.loading);
   const hosts = useSelector(state => state.entities.hosts.data);
@@ -68,10 +72,7 @@ const HostsDataTable = (props) => {
     );
   });
 
-  useEffect(() => {
-    console.log('fetching');
-    dispatch(setPagination(page, perPage, selectedFilter));
-  }, [dispatch, selectedFilter, page, perPage]);
+  const skipPageResetRef = React.useRef();
 
   const columns = useMemo(() => {
     return [
@@ -97,32 +98,49 @@ const HostsDataTable = (props) => {
     prepareRow,
     setGlobalFilter,
     state,
-  } = useTable({ columns, data }, useGlobalFilter, useSortBy);
+  } = useTable(
+    { columns,
+      data,
+      autoResetSortBy: !skipPageResetRef.current,
+      autoResetGlobalFilter: !skipPageResetRef.current,
+    },
+    useGlobalFilter,
+    useSortBy,
+  );
 
   const [searchQuery, setSearchQuery] = useState('');
 
   const debouncedGlobalFilter = useAsyncDebounce((value) => {
     setGlobalFilter(value || undefined);
+    dispatch(setPagination(page, perPage, selectedFilter));
   }, 200);
 
-  const onChange = useCallback((value) => {
+  const onSearchQueryChange = useCallback((value) => {
     setSearchQuery(value);
     debouncedGlobalFilter(value);
   }, [setSearchQuery, debouncedGlobalFilter]);
 
   const onPaginationChange = useCallback((nextPage) => {
+    skipPageResetRef.current = true;
     dispatch(setPagination(nextPage, perPage, selectedFilter));
     scrollToTop();
   }, [dispatch, perPage, selectedFilter]);
 
-  if (loadingHosts) return null;
+
+  useEffect(() => {
+    dispatch(setPagination(page, perPage, selectedFilter, state.globalFilter));
+    // console.log(state.globalFilter);
+    skipPageResetRef.current = false;
+  }, [dispatch, selectedFilter, page, perPage, state.globalFilter]);
+
+  if (loadingHosts) return <Spinner />;
 
   return (
     <React.Fragment>
       <InputField
         placeholder="Search hosts by hostname"
         name=""
-        onChange={onChange}
+        onChange={onSearchQueryChange}
         value={searchQuery}
         inputWrapperClass={'host-side-panel__filter-labels'}
       />
@@ -171,7 +189,7 @@ const HostsDataTable = (props) => {
 };
 
 HostsDataTable.propTypes = {
-  hosts: PropTypes.arrayOf(hostInterface),
+  selectedFilter: PropTypes.string,
 };
 
 export default HostsDataTable;

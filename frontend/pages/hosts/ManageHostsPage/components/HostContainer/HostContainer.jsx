@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 
 import hostInterface from 'interfaces/host';
 import labelInterface from 'interfaces/label';
-import Spinner from 'components/loaders/Spinner';
+
 import HostsDataTable from '../HostsDataTable/HostsDataTable';
 import RoboDogImage from '../../../../../../assets/images/robo-dog-176x144@2x.png';
 
@@ -15,7 +15,6 @@ class HostContainer extends Component {
   static propTypes = {
     hosts: PropTypes.arrayOf(hostInterface),
     selectedLabel: labelInterface,
-    loadingHosts: PropTypes.bool.isRequired,
   };
 
   renderNoHosts = () => {
@@ -47,13 +46,9 @@ class HostContainer extends Component {
   }
 
   render () {
-    console.log('render HostContainer');
     const { renderNoHosts } = this;
     const { selectedLabel, selectedFilter } = this.props;
 
-    // if (loadingHosts) {
-    //   return <Spinner />;
-    // }
 
     // if (hosts.length === 0) {
     //   if (selectedLabel && selectedLabel.type === 'all') {
