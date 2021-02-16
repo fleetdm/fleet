@@ -17,18 +17,19 @@ export default (client) => {
     },
 
     // TODO: this needs to change to handle other filters
-    loadAll: (page = 1, perPage = 100, selected = '', tableState = {}) => {
-      const {
-        sortBy,
-        globalFilter = '',
-      } = tableState;
-
+    loadAll: (page = 1, perPage = 100, selected = '', globalFilter = '') => {
 
       const { HOSTS, LABEL_HOSTS } = endpoints;
 
-      let pagination = `page=${page - 1}&per_page=${perPage}`;
-      if (sortBy !== undefined) {
-        pagination += `&order_key=${sortBy[0].id}`;
+      const pagination = `page=${page - 1}&per_page=${perPage}`;
+
+      // if (sortBy !== undefined) {
+      //   pagination += `&order_key=${sortBy[0].id}`;
+      // }
+
+      let searchQuery = '';
+      if (globalFilter !== '') {
+        searchQuery = `&query=${globalFilter}`;
       }
 
       let endpoint = '';
@@ -41,7 +42,7 @@ export default (client) => {
         if (selected === 'new' || selected === 'online' || selected === 'offline' || selected === 'mia') {
           selectedFilter = `&status=${selected}`;
         }
-        endpoint = `${HOSTS}?${pagination}${selectedFilter}`;
+        endpoint = `${HOSTS}?${pagination}${selectedFilter}${searchQuery}`;
       }
 
       return client.authenticatedGet(client._endpoint(endpoint))
