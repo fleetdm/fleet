@@ -7,7 +7,7 @@ import {
 
 export const initialState = {
   page: 1,
-  perPage: 100,
+  perPage: 2,
   status_labels: {
     errors: {},
     loading_counts: false,
