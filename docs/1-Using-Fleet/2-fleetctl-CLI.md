@@ -12,6 +12,7 @@
   - [Convert osquery JSON](#convert-osquery-json)
   - [Osquery queries](#osquery-queries)
   - [Query packs](#query-packs)
+    - [Moving queries and packs from one Fleet environment to another](#moving-queries-and-packs-from-one-fleet-environment-to-another)
   - [Host labels](#host-labels)
   - [Osquery configuration options](#osquery-configuration-options)
   - [Auto table construction](#auto-table-construction)
@@ -348,6 +349,14 @@ spec:
       removed: false
 ```
 
+#### Moving queries and packs from one Fleet environment to another
+
+When managing multiple Fleet environments, you may want to move queries and/or packs from one "exporter" environment to a another "importer" environment.
+
+1. Navigate to `~/.fleet/config` to find the context names for your "exporter" and "importer" environment. For the purpose of these instructions we will use the context names `exporter` and `importer` respectively.
+2. Run the command `fleetctl get queries --yaml --context exporter > queries.yaml && fleetctl apply -f queries.yml --context importer`. This will import all the queries from your exporter Fleet instance into your importer Fleet instance. *Note, this will also write a list of all queries in yaml syntax to a file names `queries.yml`.*
+3. Run the command `fleetctl get packs --yaml --context exporter > packs.yaml && fleetctl apply -f packs.yml --context importer`. This will import all the packs from your exporter Fleet instance into your importer Fleet instance. *Note, this will also write a list of all packs in yaml syntax to a file names `packs.yml`.*
+
 ### Host labels
 
 The following file describes the labels which hosts should be automatically grouped into. The label resource should include the actual SQL query so that the label is self-contained:
@@ -665,5 +674,3 @@ can be helpful to debug carving problems.
 This value must be less than the `max_allowed_packet` setting in MySQL. If it is too large, MySQL will reject the writes.
 
 The value must be small enough that HTTP requests do not time out.
-
-
