@@ -49,38 +49,40 @@ class HostContainer extends Component {
   render () {
     console.log('render HostContainer');
     const { renderNoHosts } = this;
-    const { hosts, loadingHosts, selectedLabel, onChangeTableData } = this.props;
+    const { hosts, loadingHosts, selectedLabel, selectedFilter } = this.props;
 
-    if (loadingHosts) {
-      return <Spinner />;
-    }
+    // if (loadingHosts) {
+    //   return <Spinner />;
+    // }
 
-    if (hosts.length === 0) {
-      if (selectedLabel && selectedLabel.type === 'all') {
-        return (
-          <div className={`${baseClass}  ${baseClass}--no-hosts`}>
-            <div className={`${baseClass}--no-hosts__inner`}>
-              <img src={RoboDogImage} alt="No Hosts" />
-              <div>
-                <h1>It&#39;s kinda empty in here...</h1>
-                <h2>Get started adding hosts to Fleet.</h2>
-                <p>Add your laptops and servers to securely monitor them.</p>
-                <div className={`${baseClass}__no-hosts-contact`}>
-                  <p>Still having trouble?</p>
-                  <a href="https://github.com/fleetdm/fleet/issues">File a GitHub issue</a>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      }
+    // if (hosts.length === 0) {
+    //   if (selectedLabel && selectedLabel.type === 'all') {
+    //     return (
+    //       <div className={`${baseClass}  ${baseClass}--no-hosts`}>
+    //         <div className={`${baseClass}--no-hosts__inner`}>
+    //           <img src={RoboDogImage} alt="No Hosts" />
+    //           <div>
+    //             <h1>It&#39;s kinda empty in here...</h1>
+    //             <h2>Get started adding hosts to Fleet.</h2>
+    //             <p>Add your laptops and servers to securely monitor them.</p>
+    //             <div className={`${baseClass}__no-hosts-contact`}>
+    //               <p>Still having trouble?</p>
+    //               <a href="https://github.com/fleetdm/fleet/issues">File a GitHub issue</a>
+    //             </div>
+    //           </div>
+    //         </div>
+    //       </div>
+    //     );
+    //   }
 
-      return renderNoHosts();
-    }
+    //   return renderNoHosts();
+    // }
 
     return (
       <div className={`${baseClass}`}>
-        <HostsDataTable hosts={hosts} onChangeTableData={onChangeTableData} /> {/** TODO: rename prop */}
+        <HostsDataTable
+          selectedLabel={selectedLabel} selectedFilter={selectedFilter}
+        />
       </div>
     );
   }

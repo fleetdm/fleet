@@ -74,11 +74,11 @@ export class ManageHostsPage extends PureComponent {
     };
   }
 
-  componentDidMount () {
-    const { dispatch, page, perPage, selectedFilter } = this.props;
+  // componentDidMount () {
+  //   const { dispatch, page, perPage, selectedFilter } = this.props;
 
-    dispatch(setPagination(page, perPage, selectedFilter));
-  }
+  //   dispatch(setPagination(page, perPage, selectedFilter));
+  // }
 
   componentWillUnmount () {
     this.clearHostUpdates();
@@ -135,7 +135,7 @@ export class ManageHostsPage extends PureComponent {
 
       dispatch(push(nextLocation));
 
-      dispatch(setPagination(1, perPage, selectedLabel.slug));
+      // dispatch(setPagination(1, perPage, selectedLabel.slug));
 
       return false;
     };
@@ -152,7 +152,7 @@ export class ManageHostsPage extends PureComponent {
   onPaginationChange = (page) => {
     const { dispatch, selectedFilter, perPage } = this.props;
 
-    dispatch(setPagination(page, perPage, selectedFilter));
+    // dispatch(setPagination(page, perPage, selectedFilter));
 
     scrollToTop();
 
@@ -163,7 +163,7 @@ export class ManageHostsPage extends PureComponent {
     const { dispatch, selectedFilter, perPage } = this.props;
     const START_PAGE = 1;
 
-    dispatch(setPagination(START_PAGE, perPage, selectedFilter, tableState));
+    // dispatch(setPagination(START_PAGE, perPage, selectedFilter, tableState));
   }
 
   onSaveAddLabel = (formData) => {
@@ -448,6 +448,7 @@ export class ManageHostsPage extends PureComponent {
       loadingHosts,
       selectedLabel,
       statusLabels,
+      selectedFilter,
     } = this.props;
     const { isEditLabel } = this.state;
 
@@ -480,7 +481,7 @@ export class ManageHostsPage extends PureComponent {
       }
     }
 
-    console.log('render ManageHostsPage')
+    console.log('render ManageHostsPage');
 
     return (
       <div className="has-sidebar">
@@ -498,6 +499,7 @@ export class ManageHostsPage extends PureComponent {
             <div className={`${baseClass}__list`}>
               <HostContainer
                 hosts={sortedHosts}
+                selectedFilter={selectedFilter}
                 selectedLabel={selectedLabel}
                 loadingHosts={loadingHosts}
                 toggleAddHostModal={toggleAddHostModal}
@@ -545,11 +547,11 @@ const mapStateToProps = (state, { location, params }) => {
     selectedFilter,
     page,
     perPage,
-    hosts,
+    // hosts,
     isAddLabel,
     labelErrors,
     labels,
-    loadingHosts,
+    // loadingHosts,
     loadingLabels,
     enrollSecret,
     selectedLabel,
