@@ -674,5 +674,3 @@ can be helpful to debug carving problems.
 This value must be less than the `max_allowed_packet` setting in MySQL. If it is too large, MySQL will reject the writes.
 
 The value must be small enough that HTTP requests do not time out.
-
-
