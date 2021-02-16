@@ -1,39 +1,77 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { useTable, useGlobalFilter, useSortBy, useAsyncDebounce } from 'react-table';
-import { useSelector, useDispatch, shallowEqual } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 
 
 // TODO: move this file closer to HostsDataTable
 import hostInterface from 'interfaces/host';
 import { humanHostMemory, humanHostUptime } from 'kolide/helpers';
-import InputField from 'components/forms/fields/InputField';
 import { setPagination } from 'redux/nodes/components/ManageHostsPage/actions';
+import scrollToTop from 'utilities/scroll_to_top';
+import InputField from 'components/forms/fields/InputField';
+import HostPagination from 'components/hosts/HostPagination';
 
 import TextCell from '../TextCell/TextCell';
 import StatusCell from '../StatusCell/StatusCell';
 import LinkCell from '../LinkCell/LinkCell';
 
-// const useListenForTableChanges = (tableState, changeTableDataHandler) => {
-//   useEffect(() => {
-//     // changeTableDataHandler();
-//     console.log('TABLE STATE:', tableState);
-//   }, [tableState.sortBy, tableState.globalFilter]);
-// };
+
+// TODO: pull out to another file
+// How we are handling lables and host counts on the client is strange. This function is required
+// to try to hide some of that complexity, but ideally we'd come back and simplify how we are
+// working with labels on the client.
+const calculateTotalHostCount = (selectedFilter, labels, statusLabels) => {
+  if (Object.keys(labels).length === 0) return 0;
+
+  let hostCount = 0;
+  switch (selectedFilter) {
+    case 'all-hosts':
+      hostCount = statusLabels.total_count;
+      break;
+    case 'new':
+      hostCount = statusLabels.new_count;
+      break;
+    case 'online':
+      hostCount = statusLabels.online_count;
+      break;
+    case 'offline':
+      hostCount = statusLabels.offline_count;
+      break;
+    case 'mia':
+      hostCount = statusLabels.mia_count;
+      break;
+    default: {
+      const labelId = selectedFilter.split('/')[1];
+      hostCount = labels[labelId].count;
+      break;
+    }
+  }
+  return hostCount;
+};
 
 // This data table uses react-table for implementation. The relevant documentation of the library
 // can be found here https://react-table.tanstack.com/docs/api/useTable
 const HostsDataTable = (props) => {
   console.log('render HostsDataTable');
-  const { selectedLabel = {}, selectedFilter = '' } = props;
+  const { selectedFilter = '' } = props;
   const dispatch = useDispatch();
   const loadingHosts = useSelector(state => state.entities.hosts.loading);
   const hosts = useSelector(state => state.entities.hosts.data);
+  const page = useSelector(state => state.components.ManageHostsPage.page);
+  const perPage = useSelector(state => state.components.ManageHostsPage.perPage);
+  const totalHostCount = useSelector((state) => {
+    return calculateTotalHostCount(
+      selectedFilter,
+      state.entities.labels.data,
+      state.components.ManageHostsPage.status_labels,
+    );
+  });
 
   useEffect(() => {
     console.log('fetching');
-    dispatch(setPagination(undefined, undefined, selectedFilter));
-  }, [dispatch, selectedFilter]);
+    dispatch(setPagination(page, perPage, selectedFilter));
+  }, [dispatch, selectedFilter, page, perPage]);
 
   const columns = useMemo(() => {
     return [
@@ -72,6 +110,11 @@ const HostsDataTable = (props) => {
     debouncedGlobalFilter(value);
   }, [setSearchQuery, debouncedGlobalFilter]);
 
+  const onPaginationChange = useCallback((nextPage) => {
+    dispatch(setPagination(nextPage, perPage, selectedFilter));
+    scrollToTop();
+  }, [dispatch, perPage, selectedFilter]);
+
   if (loadingHosts) return null;
 
   return (
@@ -84,6 +127,7 @@ const HostsDataTable = (props) => {
         inputWrapperClass={'host-side-panel__filter-labels'}
       />
 
+      {/* TODO: pull out into component */}
       <div className={'hosts-table hosts-table__wrapper'}>
         <table className={'hosts-table__table'}>
           <thead>
@@ -115,6 +159,13 @@ const HostsDataTable = (props) => {
           </tbody>
         </table>
       </div>
+
+      <HostPagination
+        allHostCount={totalHostCount}
+        currentPage={page}
+        hostsPerPage={perPage}
+        onPaginationChange={onPaginationChange}
+      />
     </React.Fragment>
   );
 };

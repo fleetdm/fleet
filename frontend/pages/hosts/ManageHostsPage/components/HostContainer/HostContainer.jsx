@@ -49,7 +49,7 @@ class HostContainer extends Component {
   render () {
     console.log('render HostContainer');
     const { renderNoHosts } = this;
-    const { hosts, loadingHosts, selectedLabel, selectedFilter } = this.props;
+    const { selectedLabel, selectedFilter } = this.props;
 
     // if (loadingHosts) {
     //   return <Spinner />;
@@ -81,7 +81,7 @@ class HostContainer extends Component {
     return (
       <div className={`${baseClass}`}>
         <HostsDataTable
-          selectedLabel={selectedLabel} selectedFilter={selectedFilter}
+          selectedFilter={selectedFilter}
         />
       </div>
     );
