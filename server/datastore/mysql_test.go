@@ -5,19 +5,19 @@ import (
 	"testing"
 
 	"github.com/WatchBeam/clock"
-	"github.com/go-kit/kit/log"
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore/mysql"
 	"github.com/fleetdm/fleet/server/test"
+	"github.com/go-kit/kit/log"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
 )
 
 func setupMySQL(t *testing.T) (ds *mysql.Datastore, teardown func()) {
 	config := config.MysqlConfig{
-		Username: "kolide",
-		Password: "kolide",
-		Database: "kolide",
+		Username: "fleet",
+		Password: "insecure",
+		Database: "fleet",
 		// When using docker-compose.yml for local testing
 		Address: "127.0.0.1:3307",
 	}
