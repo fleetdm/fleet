@@ -12,7 +12,7 @@
   - [Convert osquery JSON](#convert-osquery-json)
   - [Osquery queries](#osquery-queries)
   - [Query packs](#query-packs)
-    - [Moving queries and packs from one Fleet environement to another](#moving-queries-and-packs-from-one-fleet-environement-to-another)
+    - [Moving queries and packs from one Fleet environment to another](#moving-queries-and-packs-from-one-fleet-environment-to-another)
   - [Host labels](#host-labels)
   - [Osquery configuration options](#osquery-configuration-options)
   - [Auto table construction](#auto-table-construction)
@@ -349,14 +349,13 @@ spec:
       removed: false
 ```
 
-#### Moving queries and packs from one Fleet environement to another
+#### Moving queries and packs from one Fleet environment to another
 
-When managing multiple Fleet environments, you may want to move queries and/or packs from one environment (exporter) to the other (importer).
+When managing multiple Fleet environments, you may want to move queries and/or packs from one "exporter" environment to a different "importer" environment.
 
-1. With your exporter Fleet environment running, run `fleetctl get queries --yaml > queries.yml`. This will write a list of all queries in yaml syntax to a file named queries.yml.
-2. With your exporter Fleet environment running, run `fleetctl get packs --yaml > packs.yml`. This will write a list of all query packs in yaml syntax to a file named packs.yml.
-3. Now, with your importer Fleet environment running, run `fleetctl apply -f queries.yml`. This will import all the queries from your new queries.yml file into your importer Fleet instance.
-4. With your importer Fleet environment running, run `fleetctl apply -f packs.yml`. This will import all the query packs along with the correct queries (that you just imported) into your importer Fleet instance.
+1. Navigate to `~/.fleet/config` to find the context names for your "exporter" and "importer" environment. For the purpose of these intructions we will use the context names `exporter` and `importer` respectively.
+2. Run the command `fleetctl get queries --yaml --context exporter > queries.yaml && fleetctl apply -f queries.yml --context importer`. This will import all the queries from your exporter Fleet instance into your importer Fleet instance. Note this will also write a list of all queries in yaml syntax to a file names `queries.yml`.
+3. Run the command `fleetctl get packs --yaml --context exporter > packs.yaml && fleetctl apply -f packs.yml --context importer`. This will import all the queries from your exporter Fleet instance into your importer Fleet instance. Note: this will also write a list of all packs in yaml syntax to a file names `packs.yml`.
 
 ### Host labels
 
