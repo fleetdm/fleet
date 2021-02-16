@@ -76,7 +76,7 @@ const HostsDataTable = (props) => {
   const columns = useMemo(() => {
     return [
       { Header: 'Hostname', accessor: 'hostname', Cell: cellProps => <LinkCell value={cellProps.cell.value} host={cellProps.row.original} /> },
-      { Header: 'Status', accessor: 'status', Cell: cellProps => <StatusCell value={cellProps.cell.value} /> },
+      { Header: 'Status', disableSortBy: true, accessor: 'status', Cell: cellProps => <StatusCell value={cellProps.cell.value} /> },
       { Header: 'OS', accessor: 'os_version', Cell: cellProps => <TextCell value={cellProps.cell.value} /> },
       { Header: 'Osquery', accessor: 'osquery_version', Cell: cellProps => <TextCell value={cellProps.cell.value} /> },
       { Header: 'IPv4', accessor: 'primary_ip', Cell: cellProps => <TextCell value={cellProps.cell.value} /> },
@@ -139,7 +139,7 @@ const HostsDataTable = (props) => {
     console.log('GLOBAL FILTER:', globalFilter);
     console.log('SORTBY', sortBy);
     console.log('SORTBYKEY:', orderKey, 'ISDESC:', isDesc);
-    dispatch(setPagination(page, perPage, selectedFilter, globalFilter, sortBy, isDesc));
+    dispatch(setPagination(page, perPage, selectedFilter, globalFilter, orderKey, isDesc));
     skipPageResetRef.current = false;
   }, [dispatch, selectedFilter, page, perPage, globalFilter, orderKey, isDesc]);
 
