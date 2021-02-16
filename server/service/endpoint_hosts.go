@@ -121,11 +121,6 @@ func (r listHostsResponse) error() error { return r.Err }
 func makeListHostsEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(listHostsRequest)
-		// Special case this key so that the frontend can migrate to using only "hostname"
-		// TODO #317 remove special cases for host_name by standardizing on hostname
-		if req.ListOptions.OrderKey == "hostname" {
-			req.ListOptions.OrderKey = "host_name"
-		}
 		hosts, err := svc.ListHosts(ctx, req.ListOptions)
 		if err != nil {
 			return listHostsResponse{Err: err}, nil

@@ -8,8 +8,8 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/gorilla/mux"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 )
 
@@ -142,6 +142,15 @@ func listOptionsFromRequest(r *http.Request) (kolide.ListOptions, error) {
 		return kolide.ListOptions{},
 			errors.New("unknown order_direction: " + orderDirectionString)
 
+	}
+
+	// Special some keys so that the frontend can use consistent names.
+	// TODO #317 remove special cases
+	switch orderKey {
+	case "hostname":
+		orderKey = "host_name"
+	case "memory":
+		orderKey = "physical_memory"
 	}
 
 	return kolide.ListOptions{
