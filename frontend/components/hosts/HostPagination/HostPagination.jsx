@@ -31,8 +31,8 @@ class HostPagination extends PureComponent {
       <div className={`${baseClass}__pager-wrap`}>
         <Pagination
           onChange={onPaginationChange}
-          current={currentPage}
-          total={allHostCount}
+          // current={currentPage}
+          // total={allHostCount}
           pageSize={hostsPerPage}
           className={`${baseClass}__pagination`}
           locale={enUs}

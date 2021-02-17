@@ -410,36 +410,11 @@ export class ManageHostsPage extends PureComponent {
       isAddLabel,
       loadingLabels,
       selectedLabel,
-      statusLabels,
       selectedFilter,
     } = this.props;
     const { isEditLabel } = this.state;
 
     const { onAddHostClick } = this;
-
-    let hostCount = 0;
-    if (hostCount === 0) {
-      switch (selectedLabel ? selectedLabel.id : '') {
-        case 'all-hosts':
-          hostCount = statusLabels.total_count;
-          break;
-        case 'new':
-          hostCount = statusLabels.new_count;
-          break;
-        case 'online':
-          hostCount = statusLabels.online_count;
-          break;
-        case 'offline':
-          hostCount = statusLabels.offline_count;
-          break;
-        case 'mia':
-          hostCount = statusLabels.mia_count;
-          break;
-        default:
-          hostCount = selectedLabel ? selectedLabel.count : 0;
-          break;
-      }
-    }
 
     return (
       <div className="has-sidebar">
