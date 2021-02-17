@@ -211,21 +211,25 @@ func (d *Datastore) ListHosts(opt kolide.HostListOptions) ([]*kolide.Host, error
 	}
 
 	sql += `FROM hosts
+WHERE TRUE
     `
 	switch opt.StatusFilter {
 	case "new":
-		sql += "WHERE DATE_ADD(created_at, INTERVAL 1 DAY) >= ?"
+		sql += "AND DATE_ADD(created_at, INTERVAL 1 DAY) >= ?"
 		params = append(params, time.Now())
 	case "online":
-		sql += fmt.Sprintf("WHERE DATE_ADD(seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ?", kolide.OnlineIntervalBuffer)
+		sql += fmt.Sprintf("AND DATE_ADD(seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ?", kolide.OnlineIntervalBuffer)
 		params = append(params, time.Now())
 	case "offline":
-		sql += fmt.Sprintf("WHERE DATE_ADD(seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(seen_time, INTERVAL 30 DAY) >= ?", kolide.OnlineIntervalBuffer)
+		sql += fmt.Sprintf("AND DATE_ADD(seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(seen_time, INTERVAL 30 DAY) >= ?", kolide.OnlineIntervalBuffer)
 		params = append(params, time.Now(), time.Now())
 	case "mia":
-		sql += "WHERE DATE_ADD(seen_time, INTERVAL 30 DAY) <= ?"
+		sql += "AND DATE_ADD(seen_time, INTERVAL 30 DAY) <= ?"
 		params = append(params, time.Now())
 	}
+
+	sql, params = searchLike(sql, params, opt.MatchQuery, "host_name", "uuid", "hardware_serial", "primary_ip")
+
 	sql = appendListOptionsToSQL(sql, opt.ListOptions)
 
 	hosts := []*kolide.Host{}
