@@ -27,32 +27,16 @@ func BuildPkg(opt Options) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to create temp dir")
 	}
-	// TODO reenable
-	//defer os.RemoveAll(tmpDir)
+	defer os.RemoveAll(tmpDir)
 	log.Debug().Str("path", tmpDir).Msg("created temp dir")
 
 	filesystemRoot := filepath.Join(tmpDir, "root")
 	if err := os.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "create root dir")
 	}
-	// if err := os.MkdirAll(
-	// 	filepath.Join(filesystemRoot, "Resources", "en.lproj"),
-	// 	constant.DefaultDirMode,
-	// ); err != nil {
-	// 	return errors.Wrap(err, "create resources dir")
-	// }
 	orbitRoot := filepath.Join(filesystemRoot, "var", "lib", "fleet", "orbit")
 	if err := os.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "create orbit dir")
-	}
-
-	// Write files
-
-	if err := writePackageInfo(opt, tmpDir); err != nil {
-		return errors.Wrap(err, "write PackageInfo")
-	}
-	if err := writeDistribution(opt, tmpDir); err != nil {
-		return errors.Wrap(err, "write Distribution")
 	}
 
 	// Initialize autoupdate metadata
@@ -80,6 +64,30 @@ func BuildPkg(opt Options) error {
 	}
 	log.Debug().Str("path", osquerydPath).Msg("got osqueryd")
 
+	// Write files
+
+	if err := writePackageInfo(opt, tmpDir); err != nil {
+		return errors.Wrap(err, "write PackageInfo")
+	}
+	if err := writeDistribution(opt, tmpDir); err != nil {
+		return errors.Wrap(err, "write Distribution")
+	}
+	if err := writeScripts(opt, tmpDir); err != nil {
+		return errors.Wrap(err, "write postinstall")
+	}
+	if opt.StartService {
+		if err := writeLaunchd(opt, filesystemRoot); err != nil {
+			return errors.Wrap(err, "write launchd")
+		}
+	}
+	if err := copyFile(
+		"./orbit",
+		filepath.Join(filesystemRoot, "var", "lib", "fleet", "orbit", "orbit"),
+		0755,
+	); err != nil {
+		return errors.Wrap(err, "write orbit")
+	}
+
 	// Build package
 	if err := xarBom(opt, tmpDir); err != nil {
 		return errors.Wrap(err, "build pkg")
@@ -95,6 +103,7 @@ func BuildPkg(opt Options) error {
 }
 
 func writePackageInfo(opt Options, rootPath string) error {
+	// PackageInfo is metadata for the pkg
 	path := filepath.Join(rootPath, "flat", "base.pkg", "PackageInfo")
 	if err := os.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "mkdir")
@@ -112,7 +121,46 @@ func writePackageInfo(opt Options, rootPath string) error {
 	return nil
 }
 
+func writeScripts(opt Options, rootPath string) error {
+	// Postinstall script
+	path := filepath.Join(rootPath, "scripts", "postinstall")
+	if err := os.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
+		return errors.Wrap(err, "mkdir")
+	}
+
+	var contents bytes.Buffer
+	if err := macosPostinstallTemplate.Execute(&contents, opt); err != nil {
+		return errors.Wrap(err, "execute template")
+	}
+
+	if err := ioutil.WriteFile(path, contents.Bytes(), 0744); err != nil {
+		return errors.Wrap(err, "write file")
+	}
+
+	return nil
+}
+
+func writeLaunchd(opt Options, rootPath string) error {
+	// launchd is the service mechanism on macOS
+	path := filepath.Join(rootPath, "Library", "LaunchDaemons", "com.fleetdm.orbit.plist")
+	if err := os.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
+		return errors.Wrap(err, "mkdir")
+	}
+
+	var contents bytes.Buffer
+	if err := macosLaunchdTemplate.Execute(&contents, opt); err != nil {
+		return errors.Wrap(err, "execute template")
+	}
+
+	if err := ioutil.WriteFile(path, contents.Bytes(), 0644); err != nil {
+		return errors.Wrap(err, "write file")
+	}
+
+	return nil
+}
+
 func writeDistribution(opt Options, rootPath string) error {
+	// Distribution file is metadata for the pkg
 	path := filepath.Join(rootPath, "flat", "Distribution")
 	if err := os.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "mkdir")
@@ -136,52 +184,18 @@ func xarBom(opt Options, rootPath string) error {
 	// Adapted from BSD licensed
 	// https://github.com/go-flutter-desktop/hover/blob/v0.46.2/cmd/packaging/darwin-pkg.go
 
-	// Copy payload
-	payload, err := os.OpenFile(filepath.Join(rootPath, "flat", "base.pkg", "Payload"), os.O_RDWR|os.O_CREATE, 0755)
-	if err != nil {
-		return errors.Wrap(err, "open payload")
+	// Copy payload/scripts
+	if err := cpio(
+		filepath.Join(rootPath, "root"),
+		filepath.Join(rootPath, "flat", "base.pkg", "Payload"),
+	); err != nil {
+		return errors.Wrap(err, "cpio Payload")
 	}
-
-	cmdFind := exec.Command("find", ".")
-	cmdFind.Dir = filepath.Join(rootPath, "root")
-	cmdCpio := exec.Command("cpio", "-o", "--format", "odc", "-R", "0:80")
-	cmdCpio.Dir = filepath.Join(rootPath, "root")
-	cmdGzip := exec.Command("gzip", "-c")
-
-	// Pipes like this: find | cpio | gzip > Payload
-	cmdCpio.Stdin, err = cmdFind.StdoutPipe()
-	if err != nil {
-		return errors.Wrap(err, "pipe cpio")
-	}
-	cmdGzip.Stdin, err = cmdCpio.StdoutPipe()
-	if err != nil {
-		return errors.Wrap(err, "pipe gzip")
-	}
-	cmdGzip.Stdout = payload
-
-	err = cmdGzip.Start()
-	if err != nil {
-		return errors.Wrap(err, "start gzip")
-	}
-	err = cmdCpio.Start()
-	if err != nil {
-		return errors.Wrap(err, "start cpio")
-	}
-	err = cmdFind.Run()
-	if err != nil {
-		return errors.Wrap(err, "run find")
-	}
-	err = cmdCpio.Wait()
-	if err != nil {
-		return errors.Wrap(err, "wait cpio")
-	}
-	err = cmdGzip.Wait()
-	if err != nil {
-		return errors.Wrap(err, "wait gzip")
-	}
-	err = payload.Close()
-	if err != nil {
-		return errors.Wrap(err, "close payload")
+	if err := cpio(
+		filepath.Join(rootPath, "scripts"),
+		filepath.Join(rootPath, "flat", "base.pkg", "Scripts"),
+	); err != nil {
+		return errors.Wrap(err, "cpio Scripts")
 	}
 
 	// Make bom
@@ -220,6 +234,59 @@ func xarBom(opt Options, rootPath string) error {
 
 	if err := cmdXar.Run(); err != nil {
 		return errors.Wrap(err, "run xar")
+	}
+
+	return nil
+}
+
+func cpio(srcPath, dstPath string) error {
+	// This is the compression routine that is expected for pkg files.
+	dst, err := os.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, 0755)
+	if err != nil {
+		return errors.Wrap(err, "open dst")
+	}
+	defer dst.Close()
+
+	cmdFind := exec.Command("find", ".")
+	cmdFind.Dir = srcPath
+	cmdCpio := exec.Command("cpio", "-o", "--format", "odc", "-R", "0:80")
+	cmdCpio.Dir = srcPath
+	cmdGzip := exec.Command("gzip", "-c")
+
+	// Pipes like this: find | cpio | gzip > dstPath
+	cmdCpio.Stdin, err = cmdFind.StdoutPipe()
+	if err != nil {
+		return errors.Wrap(err, "pipe cpio")
+	}
+	cmdGzip.Stdin, err = cmdCpio.StdoutPipe()
+	if err != nil {
+		return errors.Wrap(err, "pipe gzip")
+	}
+	cmdGzip.Stdout = dst
+
+	err = cmdGzip.Start()
+	if err != nil {
+		return errors.Wrap(err, "start gzip")
+	}
+	err = cmdCpio.Start()
+	if err != nil {
+		return errors.Wrap(err, "start cpio")
+	}
+	err = cmdFind.Run()
+	if err != nil {
+		return errors.Wrap(err, "run find")
+	}
+	err = cmdCpio.Wait()
+	if err != nil {
+		return errors.Wrap(err, "wait cpio")
+	}
+	err = cmdGzip.Wait()
+	if err != nil {
+		return errors.Wrap(err, "wait gzip")
+	}
+	err = dst.Close()
+	if err != nil {
+		return errors.Wrap(err, "close dst")
 	}
 
 	return nil

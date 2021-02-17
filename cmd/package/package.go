@@ -56,6 +56,12 @@ func main() {
 			Destination: &opt.Insecure,
 		},
 		&cli.BoolFlag{
+			Name:        "service",
+			Usage:       "Install orbit/osquery with a persistence service (launchd, systemd, etc.)",
+			Value:       true,
+			Destination: &opt.StartService,
+		},
+		&cli.BoolFlag{
 			Name:  "debug",
 			Usage: "Enable debug logging",
 		},
@@ -68,8 +74,6 @@ func main() {
 	}
 	app.Action = func(c *cli.Context) error {
 		if opt.FleetURL != "" || opt.EnrollSecret != "" {
-			opt.StartService = true
-
 			if opt.FleetURL == "" || opt.EnrollSecret == "" {
 				return errors.New("--enroll-secret and --fleet-url must be provided together")
 			}

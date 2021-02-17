@@ -36,21 +36,6 @@ func BuildDeb(opt Options) error {
 		return errors.Wrap(err, "create orbit dir")
 	}
 
-	// Write files
-
-	if err := writeSystemdUnit(opt, filesystemRoot); err != nil {
-		return errors.Wrap(err, "write systemd unit")
-	}
-
-	if err := writeEnvFile(opt, filesystemRoot); err != nil {
-		return errors.Wrap(err, "write env file")
-	}
-
-	postInstallPath := filepath.Join(tmpDir, "postinstall.sh")
-	if err := writePostInstall(opt, postInstallPath); err != nil {
-		return errors.Wrap(err, "write postinstall script")
-	}
-
 	// Initialize autoupdate metadata
 
 	localStore, err := filestore.New(filepath.Join(orbitRoot, "tuf-metadata.json"))
@@ -75,6 +60,21 @@ func BuildDeb(opt Options) error {
 		return errors.Wrap(err, "failed to get osqueryd")
 	}
 	log.Debug().Str("path", osquerydPath).Msg("got osqueryd")
+
+	// Write files
+
+	if err := writeSystemdUnit(opt, filesystemRoot); err != nil {
+		return errors.Wrap(err, "write systemd unit")
+	}
+
+	if err := writeEnvFile(opt, filesystemRoot); err != nil {
+		return errors.Wrap(err, "write env file")
+	}
+
+	postInstallPath := filepath.Join(tmpDir, "postinstall.sh")
+	if err := writePostInstall(opt, postInstallPath); err != nil {
+		return errors.Wrap(err, "write postinstall script")
+	}
 
 	// Pick up all file contents
 
