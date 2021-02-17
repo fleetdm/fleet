@@ -9,12 +9,17 @@ import { humanHostMemory, humanHostUptime } from 'kolide/helpers';
 import { setPagination, getHostTableData } from 'redux/nodes/components/ManageHostsPage/actions';
 import scrollToTop from 'utilities/scroll_to_top';
 import Spinner from 'components/loaders/Spinner';
-import InputField from 'components/forms/fields/InputField';
 import HostPagination from 'components/hosts/HostPagination';
 
 import TextCell from '../TextCell/TextCell';
 import StatusCell from '../StatusCell/StatusCell';
 import LinkCell from '../LinkCell/LinkCell';
+
+const DEFAULT_PAGE_SIZE = 100;
+const DEFAULT_PAGE_INDEX = 0;
+const DEBOUNCE_QUERY_DELAY = 300;
+
+const containerClass = 'host-container';
 
 
 // TODO: pull out to another file
@@ -53,10 +58,12 @@ const calculateTotalHostCount = (selectedFilter, labels, statusLabels) => {
 // This data table uses react-table for implementation. The relevant documentation of the library
 // can be found here https://react-table.tanstack.com/docs/api/useTable
 const HostsDataTable = (props) => {
-  // this prop is passed down, as it ultimately comes form the router and this component cannot
-  // access the router state.
-  const { selectedFilter = '' } = props;
-
+  const {
+    // selectedFilter is passed from parent, as it ultimately comes from the router and this
+    // component cannot access the router state.
+    selectedFilter,
+    searchQuery,
+  } = props;
 
   const dispatch = useDispatch();
   const loadingHosts = useSelector(state => state.entities.hosts.loading);
@@ -100,9 +107,13 @@ const HostsDataTable = (props) => {
   } = useTable(
     { columns,
       data,
-      initialState: { sortBy: [{ id: 'hostname', desc: false }] },
+      initialState: {
+        sortBy: [{ id: 'hostname', desc: false }],
+        pageSize: DEFAULT_PAGE_SIZE,
+        pageIndex: DEFAULT_PAGE_INDEX,
+      },
       autoResetSortBy: skipPageResetRef.current,
-      autoResetGlobalFilter: skipPageResetRef.current,
+      autoResetGlobalFilter: false,
     },
     useGlobalFilter,
     useSortBy,
@@ -112,21 +123,10 @@ const HostsDataTable = (props) => {
   const { globalFilter, sortBy } = tableState;
   const { id: orderKey, desc: isDesc } = sortBy[0];
 
-  const [searchQuery, setSearchQuery] = useState('');
-
-  // TODO: use for cleanup
-  // const [orderKey, setSortKey] = useState('');
-  // const [sortDirection, setSortDirection] = useState('');
-
   const debouncedGlobalFilter = useAsyncDebounce((value) => {
     skipPageResetRef.current = true;
     setGlobalFilter(value || undefined);
-  }, 200);
-
-  const onSearchQueryChange = useCallback((value) => {
-    setSearchQuery(value);
-    debouncedGlobalFilter(value);
-  }, [setSearchQuery, debouncedGlobalFilter]);
+  }, DEBOUNCE_QUERY_DELAY);
 
   const onPaginationChange = useCallback((nextPage) => {
     skipPageResetRef.current = true;
@@ -134,23 +134,36 @@ const HostsDataTable = (props) => {
     scrollToTop();
   }, [dispatch, perPage, selectedFilter]);
 
+  // Since searchQuery is feed in from the parent, we want to debounce the globalfilter change
+  // when we see it change.
   useEffect(() => {
-    console.log('fetching data');
+    debouncedGlobalFilter(searchQuery);
+  }, [debouncedGlobalFilter, searchQuery]);
+
+  // Any changes to these relevent table search params will fire off an action to get the new hosts.
+  useEffect(() => {
+    console.log('fetching data', tableState);
     dispatch(getHostTableData(page, perPage, selectedFilter, globalFilter, orderKey, isDesc));
     skipPageResetRef.current = false;
-  }, [dispatch, selectedFilter, page, perPage, globalFilter, orderKey, isDesc]);
+  }, [dispatch, page, perPage, selectedFilter, globalFilter, orderKey, isDesc]);
 
   if (loadingHosts) return <Spinner />;
 
+  if (Object.values(hosts).length === 0) {
+    return (
+      <div className={`${containerClass}  ${containerClass}--no-hosts`}>
+        <div className={`${containerClass}--no-hosts__inner`}>
+          <div>
+            <h1>No hosts match the current search criteria</h1>
+            <p>Expecting to see new hosts? Try again in a few seconds as the system catches up</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <React.Fragment>
-      <InputField
-        placeholder="Search hosts by hostname"
-        name=""
-        onChange={onSearchQueryChange}
-        value={searchQuery}
-        inputWrapperClass={'host-side-panel__filter-labels'}
-      />
 
       {/* TODO: pull out into component */}
       <div className={'hosts-table hosts-table__wrapper'}>
@@ -197,6 +210,7 @@ const HostsDataTable = (props) => {
 
 HostsDataTable.propTypes = {
   selectedFilter: PropTypes.string,
+  searchQuery: PropTypes.string,
 };
 
 export default HostsDataTable;
