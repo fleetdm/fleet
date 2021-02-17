@@ -11,7 +11,6 @@
 - [Targets](#targets)
 - [Fleet configuration](#fleet-configuration)
 - [Osquery options](#osquery-options)
-- [Fleet UI](#fleet-ui)
 
 ## Overview
 
@@ -421,12 +420,12 @@ Gets the current SSO configuration.
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                |
 | order_direction               | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                 |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                               |
-| q                  | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                               |
+| query                  | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                               |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. |
 
 #### Example
 
-`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=host_name&q=2ce`
+`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=host_name&query=2ce`
 
 ##### Request query parameters
 
@@ -3612,93 +3611,3 @@ Modifies the osquery options configuration set in Fleet.
 
 ---
 
-## Fleet UI
-
-### List user's UI preferences
-
-Returns the selected user's UI preferences as a list of attributes.
-
-`GET /api/v1/kolide/users/app/attributes`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/kolide/users/app/attributes?user_id=1`
-
-##### Default response
-
-`Status: 200`
-
-```
-{
-  "attributes": [
-    {
-      "user_id": 1,
-      "key": "hosts_table_columns"
-      "value": "[
-        { “label”: “hostname” },
-        { “label”: “status” },
-        { “label”: “osquery_version” },
-        { “label”: “ipv4” }
-      ]"
-    },
-  ]
-}
-```
-
-### Modify user's UI preferences
-
-Modifies the selected user's UI preferences for the supplied attribute.
-
-`POST /api/v1/kolide/users/app/attributes`
-
-#### Parameters
-
-| Name       | Type    | In   | Description                                      |
-| ---------- | ------- | ---- | ------------------------------------------------ |
-| user_id   | integer  | query | **Required.** The id of the user.  |
-| key   | string  | body | **Required.** The atrribute of the UI that is being changed.  |
-| value   | string  | body | **Required.** The updated state of the attribute. Ex. The list describing the new ordering of the columns in the *Hosts* table |
-
-#### Example
-
-`POST /api/v1/kolide/users/app/attributes?user_id=1`
-
-##### Request body
-
-```
-{
-  “key”: "hosts_table_columns",
-  "value": "[
-    { “label”: “hostname” },
-    { “label”: “status” },
-    { “label”: “osquery_version” },
-    { “label”: “seen_time” },
-    { “label”: “hardware_serial” }
-  ]"
-}
-```
-
-
-##### Default response
-
-`Status: 200`
-
-```
-{
-  "user_id": 1,
-  “key”: "hosts_table_columns",
-  "value": "[
-    { “label”: “hostname” },
-    { “label”: “status” },
-    { “label”: “osquery_version” },
-    { “label”: “seen_time” },
-    { “label”: “hardware_serial” }
-  ]"
-}
-```
-
----
