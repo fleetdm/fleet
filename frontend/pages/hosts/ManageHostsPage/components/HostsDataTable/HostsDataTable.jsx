@@ -6,7 +6,7 @@ import { useSelector, useDispatch } from 'react-redux';
 
 // TODO: move this file closer to HostsDataTable
 import { humanHostMemory, humanHostUptime } from 'kolide/helpers';
-import { setPagination } from 'redux/nodes/components/ManageHostsPage/actions';
+import { setPagination, getHostTableData } from 'redux/nodes/components/ManageHostsPage/actions';
 import scrollToTop from 'utilities/scroll_to_top';
 import Spinner from 'components/loaders/Spinner';
 import InputField from 'components/forms/fields/InputField';
@@ -135,11 +135,8 @@ const HostsDataTable = (props) => {
   }, [dispatch, perPage, selectedFilter]);
 
   useEffect(() => {
-    console.log(tableState);
-    console.log('GLOBAL FILTER:', globalFilter);
-    console.log('SORTBY', sortBy);
-    console.log('SORTBYKEY:', orderKey, 'ISDESC:', isDesc);
-    dispatch(setPagination(page, perPage, selectedFilter, globalFilter, orderKey, isDesc));
+    console.log('fetching data');
+    dispatch(getHostTableData(page, perPage, selectedFilter, globalFilter, orderKey, isDesc));
     skipPageResetRef.current = false;
   }, [dispatch, selectedFilter, page, perPage, globalFilter, orderKey, isDesc]);
 

@@ -20,6 +20,7 @@ import enrollSecretInterface from 'interfaces/enroll_secret';
 import { selectOsqueryTable } from 'redux/nodes/components/QueryPages/actions';
 import labelActions from 'redux/nodes/entities/labels/actions';
 import entityGetter from 'redux/utilities/entityGetter';
+import { getLabels } from 'redux/nodes/components/ManageHostsPage/actions';
 import PATHS from 'router/paths';
 import deepDifference from 'utilities/deep_difference';
 import HostContainer from './components/HostContainer';
@@ -64,6 +65,12 @@ export class ManageHostsPage extends PureComponent {
       showHostContainerSpinner: false,
     };
   }
+
+  componentDidMount () {
+    const { dispatch } = this.props;
+    dispatch(getLabels());
+  }
+
 
   componentWillUnmount () {
     this.clearHostUpdates();
