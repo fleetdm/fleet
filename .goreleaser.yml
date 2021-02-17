@@ -1,0 +1,52 @@
+before:
+  hooks:
+    - go mod download
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+    goarch:
+      - amd64
+    dir: ./cmd/orbit/
+    binary: orbit
+
+  - id: macos
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
+      - amd64
+    dir: ./cmd/orbit/
+    binary: orbit
+
+archives:
+  - replacements:
+      darwin: macos
+      386: i386
+      amd64: x86_64
+
+signs:
+  - signature: "${artifact}_macos.dmg"
+    ids:
+      - macos
+    cmd: gon
+    args:
+      - .gon.hcl
+    artifacts: all
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ .Tag }}-untagged"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'

@@ -61,6 +61,11 @@ func main() {
 			Value:       true,
 			Destination: &opt.StartService,
 		},
+		&cli.StringFlag{
+			Name:        "sign-identity",
+			Usage:       "Identity to use for codesigning",
+			Destination: &opt.SignIdentity,
+		},
 		&cli.BoolFlag{
 			Name:  "debug",
 			Usage: "Enable debug logging",

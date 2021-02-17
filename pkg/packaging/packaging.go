@@ -25,6 +25,8 @@ type Options struct {
 	StartService bool
 	// Insecure enables insecure TLS connections for the generated package.
 	Insecure bool
+	// SignIdentity is the codesigning identity to use (only macOS at this time)
+	SignIdentity string
 }
 
 func copyFile(srcPath, dstPath string, perm os.FileMode) error {

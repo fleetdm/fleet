@@ -93,8 +93,21 @@ func BuildPkg(opt Options) error {
 		return errors.Wrap(err, "build pkg")
 	}
 
+	generatedPath := filepath.Join(tmpDir, "orbit.pkg")
+
+	if len(opt.SignIdentity) != 0 {
+		log.Info().Str("identity", opt.SignIdentity).Msg("productsign package")
+		if err := signPkg(generatedPath, opt.SignIdentity); err != nil {
+			return errors.Wrap(err, "productsign")
+		}
+	}
+
+	if err := notarizePkg(generatedPath); err != nil {
+		return err
+	}
+
 	filename := fmt.Sprintf("orbit-osquery_%s_amd64.pkg", opt.Version)
-	if err := os.Rename(filepath.Join(tmpDir, "orbit.pkg"), filename); err != nil {
+	if err := os.Rename(generatedPath, filename); err != nil {
 		return errors.Wrap(err, "rename pkg")
 	}
 	log.Info().Str("path", filename).Msg("wrote pkg package")
@@ -287,6 +300,28 @@ func cpio(srcPath, dstPath string) error {
 	err = dst.Close()
 	if err != nil {
 		return errors.Wrap(err, "close dst")
+	}
+
+	return nil
+}
+
+func signPkg(pkgPath, identity string) error {
+	var outBuf bytes.Buffer
+	cmdProductsign := exec.Command(
+		"productsign",
+		"--sign", identity,
+		pkgPath,
+		pkgPath+".signed",
+	)
+	cmdProductsign.Stdout = &outBuf
+	cmdProductsign.Stderr = &outBuf
+	if err := cmdProductsign.Run(); err != nil {
+		fmt.Println(outBuf.String())
+		return errors.Wrap(err, "productsign")
+	}
+
+	if err := os.Rename(pkgPath+".signed", pkgPath); err != nil {
+		return errors.Wrap(err, "rename signed")
 	}
 
 	return nil
