@@ -9,7 +9,6 @@
 - [Queries](#queries)
 - [Packs](#packs)
 - [Targets](#targets)
-- [Carves](#carves)
 - [Fleet configuration](#fleet-configuration)
 - [Osquery options](#osquery-options)
 
