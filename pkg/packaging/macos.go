@@ -228,14 +228,18 @@ func xarBom(opt Options, rootPath string) error {
 
 	// List files for xar
 	var files []string
-	if err := filepath.Walk(filepath.Join(rootPath, "flat"), func(path string, info os.FileInfo, err error) error {
-		relativePath, err := filepath.Rel(filepath.Join(rootPath, "flat"), path)
-		if err != nil {
-			return err
-		}
-		files = append(files, relativePath)
-		return nil
-	}); err != nil {
+	err := filepath.Walk(
+		filepath.Join(rootPath, "flat"),
+		func(path string, info os.FileInfo, _ error) error {
+			relativePath, err := filepath.Rel(filepath.Join(rootPath, "flat"), path)
+			if err != nil {
+				return err
+			}
+			files = append(files, relativePath)
+			return nil
+		},
+	)
+	if err != nil {
 		return errors.Wrap(err, "iterate files")
 	}
 
