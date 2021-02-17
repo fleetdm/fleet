@@ -2929,11 +2929,11 @@ Returns the spec for the specified pack by pack name.
 
 ## Targets
 
-In Fleet, targets are used to run queries against specific hosts or groups of hosts. Fleet groups hosts by labels.
+In Fleet, targets are used to run queries against specific hosts or groups of hosts. Labels are used to create groups in Fleet.
 
 ### Search targets
 
-The search targets endpoint returns two lists. The first list includes the target hosts in Fleet given the search query provided and the hosts already selected as targets. The second list includes the target labels in Fleet given the search query provided and the labels already selected as targets.
+The search targets endpoint returns two lists. The first list includes the possible target hosts in Fleet given the search query provided and the hosts already selected as targets. The second list includes the possible target labels in Fleet given the search query provided and the labels already selected as targets.
 
 `POST /api/v1/fleet/targets`
 
