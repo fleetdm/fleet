@@ -1,25 +1,37 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
+// TODO: consider removing this and implementing css in HeaderCell.
+const SortArrow = (props) => {
+  const { isSortedDesc } = props;
+  if (isSortedDesc === undefined) return null;
+
+  return isSortedDesc
+    ? <span>desc</span>
+    : <span>asc</span>;
+};
+
+SortArrow.propTypes = {
+  isSortedDesc: PropTypes.bool,
+}
+
 const HeaderCell = (props) => {
   const {
     value,
-    formatter = val => val, // identity function if no formatter is provided
+    isSortedDesc,
   } = props;
 
   return (
-    <span>
-      {formatter(value)}
-    </span>
+    <div>
+      <span>{value}</span>
+      <SortArrow isSortedDesc={isSortedDesc} />
+    </div>
   );
 };
 
 HeaderCell.propTypes = {
-  value: PropTypes.oneOfType([
-    PropTypes.string,
-    PropTypes.number,
-  ]),
-  formatter: PropTypes.func,
+  value: PropTypes.string,
+  isSortedDesc: PropTypes.bool,
 };
 
 export default HeaderCell;

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import React, { useMemo, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { useTable, useGlobalFilter, useSortBy, useAsyncDebounce } from 'react-table';
 import { useSelector, useDispatch } from 'react-redux';
@@ -11,15 +11,21 @@ import scrollToTop from 'utilities/scroll_to_top';
 import Spinner from 'components/loaders/Spinner';
 import HostPagination from 'components/hosts/HostPagination';
 
+import HeaderCell from '../HeaderCell/HeaderCell';
 import TextCell from '../TextCell/TextCell';
 import StatusCell from '../StatusCell/StatusCell';
 import LinkCell from '../LinkCell/LinkCell';
 
+// TODO: pass in as props
 const DEFAULT_PAGE_SIZE = 100;
 const DEFAULT_PAGE_INDEX = 0;
 const DEBOUNCE_QUERY_DELAY = 300;
+const DEFAULT_SORT_KEY = 'hostname';
+const DEFAULT_SORT_DIRECTION = 'ASC';
 
+// TODO: possibly get rid of this.
 const containerClass = 'host-container';
+
 
 
 // TODO: pull out to another file
@@ -78,19 +84,20 @@ const HostsDataTable = (props) => {
     );
   });
 
-  const skipPageResetRef = React.useRef();
+  const skipPageResetRef = useRef();
 
+  // TODO: maybe pass as props?
   const columns = useMemo(() => {
     return [
-      { Header: 'Hostname', accessor: 'hostname', Cell: cellProps => <LinkCell value={cellProps.cell.value} host={cellProps.row.original} /> },
+      { Header: cellProps => <HeaderCell all={cellProps.column} value={'Hostname'} isSortedDesc={cellProps.column.isSortedDesc} />, accessor: 'hostname', Cell: cellProps => <LinkCell value={cellProps.cell.value} host={cellProps.row.original} /> },
       { Header: 'Status', disableSortBy: true, accessor: 'status', Cell: cellProps => <StatusCell value={cellProps.cell.value} /> },
-      { Header: 'OS', accessor: 'os_version', Cell: cellProps => <TextCell value={cellProps.cell.value} /> },
-      { Header: 'Osquery', accessor: 'osquery_version', Cell: cellProps => <TextCell value={cellProps.cell.value} /> },
-      { Header: 'IPv4', accessor: 'primary_ip', Cell: cellProps => <TextCell value={cellProps.cell.value} /> },
-      { Header: 'Physical Address', accessor: 'primary_mac', Cell: cellProps => <TextCell value={cellProps.cell.value} /> },
+      { Header: cellProps => <HeaderCell all={cellProps.column} value={'OS'} isSortedDesc={cellProps.column.isSortedDesc} />, accessor: 'os_version', Cell: cellProps => <TextCell value={cellProps.cell.value} /> },
+      { Header: cellProps => <HeaderCell value={'Osquery'} isSortedDesc={cellProps.column.isSortedDesc} />, accessor: 'osquery_version', Cell: cellProps => <TextCell value={cellProps.cell.value} /> },
+      { Header: cellProps => <HeaderCell value={'IPv4'} isSortedDesc={cellProps.column.isSortedDesc} />, accessor: 'primary_ip', Cell: cellProps => <TextCell value={cellProps.cell.value} /> },
+      { Header: cellProps => <HeaderCell value={'Physical Address'} isSortedDesc={cellProps.column.isSortedDesc} />, accessor: 'primary_mac', Cell: cellProps => <TextCell value={cellProps.cell.value} /> },
       { Header: 'CPU', disableSortBy: true, accessor: 'host_cpu', Cell: cellProps => <TextCell value={cellProps.cell.value} /> },
-      { Header: 'Memory', accessor: 'memory', Cell: cellProps => <TextCell value={cellProps.cell.value} formatter={humanHostMemory} /> },
-      { Header: 'Uptime', accessor: 'uptime', Cell: cellProps => <TextCell value={cellProps.cell.value} formatter={humanHostUptime} /> },
+      { Header: cellProps => <HeaderCell value={'Memory'} isSortedDesc={cellProps.column.isSortedDesc} />, accessor: 'memory', Cell: cellProps => <TextCell value={cellProps.cell.value} formatter={humanHostMemory} /> },
+      { Header: cellProps => <HeaderCell value={'Uptime'} isSortedDesc={cellProps.column.isSortedDesc} />, accessor: 'uptime', Cell: cellProps => <TextCell value={cellProps.cell.value} formatter={humanHostUptime} /> },
     ];
   }, []);
 
@@ -108,12 +115,14 @@ const HostsDataTable = (props) => {
     { columns,
       data,
       initialState: {
-        sortBy: [{ id: 'hostname', desc: false }],
+        sortBy: [{ id: DEFAULT_SORT_KEY, desc: DEFAULT_SORT_DIRECTION === 'DESC' }],
+        // sortBy: [{ id: DEFAULT_SORT_KEY, desc: DEFAULT_SORT_DIRECTION }],
         pageSize: DEFAULT_PAGE_SIZE,
         pageIndex: DEFAULT_PAGE_INDEX,
       },
+      disableMultiSort: true,
       autoResetSortBy: skipPageResetRef.current,
-      autoResetGlobalFilter: false,
+      autoResetGlobalFilter: skipPageResetRef.current,
     },
     useGlobalFilter,
     useSortBy,
@@ -121,7 +130,6 @@ const HostsDataTable = (props) => {
 
   // These are provided by react-table internal state
   const { globalFilter, sortBy } = tableState;
-  const { id: orderKey, desc: isDesc } = sortBy[0];
 
   const debouncedGlobalFilter = useAsyncDebounce((value) => {
     skipPageResetRef.current = true;
@@ -143,9 +151,9 @@ const HostsDataTable = (props) => {
   // Any changes to these relevent table search params will fire off an action to get the new hosts.
   useEffect(() => {
     console.log('fetching data', tableState);
-    dispatch(getHostTableData(page, perPage, selectedFilter, globalFilter, orderKey, isDesc));
+    dispatch(getHostTableData(page, perPage, selectedFilter, globalFilter, sortBy));
     skipPageResetRef.current = false;
-  }, [dispatch, page, perPage, selectedFilter, globalFilter, orderKey, isDesc]);
+  }, [dispatch, page, perPage, selectedFilter, globalFilter, sortBy]);
 
   if (loadingHosts) return <Spinner />;
 
