@@ -32,3 +32,6 @@ mysqldata/
 
 # test helm charts
 helm-temp
+
+#editors
+.vscode
