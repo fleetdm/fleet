@@ -149,7 +149,7 @@ const HostsDataTable = (props) => {
   // Any changes to these relevent table search params will fire off an action to get the new
   // hosts data.
   useEffect(() => {
-    console.log('fetching data', tableState);
+    // console.log('fetching data', tableState);
     dispatch(getHostTableData(page, perPage, selectedFilter, globalFilter, sortBy));
     skipPageResetRef.current = false;
   }, [dispatch, page, perPage, selectedFilter, globalFilter, sortBy]);

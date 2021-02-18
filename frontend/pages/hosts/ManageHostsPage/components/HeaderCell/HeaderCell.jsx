@@ -1,20 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
-// TODO: consider removing this and implementing css in HeaderCell.
-const SortArrow = (props) => {
-  const { isSortedDesc } = props;
-  if (isSortedDesc === undefined) return null;
-
-  return isSortedDesc
-    ? <span>desc</span>
-    : <span>asc</span>;
-};
-
-SortArrow.propTypes = {
-  isSortedDesc: PropTypes.bool,
-};
-
 const HeaderCell = (props) => {
   const {
     value,
@@ -37,7 +23,6 @@ const HeaderCell = (props) => {
         <span className="ascending-arrow" />
         <span className="descending-arrow" />
       </div>
-      {/* <SortArrow isSortedDesc={isSortedDesc} /> */}
     </div>
   );
 };

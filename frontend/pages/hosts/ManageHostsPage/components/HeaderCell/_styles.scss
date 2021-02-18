@@ -4,7 +4,7 @@
   align-items: center;
 
   .sort-arrows {
-    padding-left: 5px;
+    padding-left: $pad-half;
     display: flex;
     flex-direction: column;
   }
