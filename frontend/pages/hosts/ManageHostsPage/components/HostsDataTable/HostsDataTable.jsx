@@ -155,9 +155,8 @@ const HostsDataTable = (props) => {
     skipPageResetRef.current = false;
   }, [dispatch, page, perPage, selectedFilter, globalFilter, sortBy]);
 
-  if (loadingHosts) return <Spinner />;
-
-  if (Object.values(hosts).length === 0) {
+  // No hosts for this result
+  if (!loadingHosts && Object.values(hosts).length === 0) {
     return (
       <div className={`${containerClass}  ${containerClass}--no-hosts`}>
         <div className={`${containerClass}--no-hosts__inner`}>
@@ -188,20 +187,23 @@ const HostsDataTable = (props) => {
             ))}
           </thead>
           <tbody>
-            {rows.map((row) => {
-              prepareRow(row);
-              return (
-                <tr {...row.getRowProps()}>
-                  {row.cells.map((cell) => {
-                    return (
-                      <td {...cell.getCellProps()}>
-                        {cell.render('Cell')}
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
+            {loadingHosts
+              ? <tr><td><Spinner /></td></tr>
+              : rows.map((row) => {
+                prepareRow(row);
+                return (
+                  <tr {...row.getRowProps()}>
+                    {row.cells.map((cell) => {
+                      return (
+                        <td {...cell.getCellProps()}>
+                          {cell.render('Cell')}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })
+            }
           </tbody>
         </table>
       </div>
