@@ -19,10 +19,10 @@ const QueryProgressDetails = ({ campaign, className, onRunQuery, onStopQuery, qu
   const totalRowsCount = get(campaign, ['query_results', 'length'], 0);
   const campaignIsEmpty = !hostsCount.successful && hostsCount.successful !== 0;
 
-  const onlineHostsTotalDisplay = totalHostsOnline === 1 ? '1 host' : `${totalHostsOnline} hosts`;
+  const onlineHostsTotalDisplay = totalHostsOnline === 1 ? '1 online host' : `${totalHostsOnline} online hosts`;
   const onlineResultsTotalDisplay = totalRowsCount === 1 ? '1 result' : `${totalRowsCount} results`;
-  const offlineHostsTotalDisplay = totalHostsOffline === 1 ? '1 host' : `${totalHostsOffline} hosts`;
-  const failedHostsTotalDisplay = hostsCount.failed === 1 ? '1 host' : `${hostsCount.failed} hosts`;
+  const offlineHostsTotalDisplay = totalHostsOffline === 1 ? '1 offline host' : `${totalHostsOffline} offline hosts`;
+  const failedHostsTotalDisplay = hostsCount.failed === 1 ? '1 failed host' : `${hostsCount.failed} failed hosts`;
   let totalErrorsDisplay = '0 errors';
   if (errors) {
     totalErrorsDisplay = errors.length === 1 ? '1 error' : `${errors.length} errors`;
@@ -66,9 +66,15 @@ const QueryProgressDetails = ({ campaign, className, onRunQuery, onStopQuery, qu
     <div className={`${baseClass} ${className}`}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__text-wrapper`}>
-          <span className={`${baseClass}__text-online`}>Online - {onlineHostsTotalDisplay} returning {onlineResultsTotalDisplay}</span>
-          <span className={`${baseClass}__text-offline`}>Offline - {offlineHostsTotalDisplay} returning 0 results</span>
-          <span className={`${baseClass}__text-error`}>Failed - {failedHostsTotalDisplay} returning {totalErrorsDisplay}</span>
+          <span className={`${baseClass}__text-online`}>{hostsCount.successful} out of {onlineHostsTotalDisplay} responding
+            <span className={`${baseClass}__text-results`}> returning {onlineResultsTotalDisplay}</span>
+          </span>
+          <span className={`${baseClass}__text-offline`}>{offlineHostsTotalDisplay}
+            <span className={`${baseClass}__text-results`}> returning 0 results</span>
+          </span>
+          <span className={`${baseClass}__text-error`}>{failedHostsTotalDisplay}
+            <span className={`${baseClass}__text-results`}> returning {totalErrorsDisplay}</span>
+          </span>
         </div>
         <ProgressBar
           error={hostsCount.failed}
