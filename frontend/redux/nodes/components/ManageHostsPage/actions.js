@@ -87,9 +87,10 @@ export const getLabels = () => (dispatch) => {
   ];
 };
 
-export const getHostTableData = (page, perPage, selectedLabel, globalFilter, orderKey, isDesc) => (dispatch) => {
+// export const getHostTableData = (page, perPage, selectedLabel, globalFilter, orderKey, isDesc) => (dispatch) => {
+export const getHostTableData = (page, perPage, selectedLabel, globalFilter, sortBy) => (dispatch) => {
   const promises = [
-    dispatch(hostActions.loadAll(page, perPage, selectedLabel, globalFilter, orderKey, isDesc)),
+    dispatch(hostActions.loadAll(page, perPage, selectedLabel, globalFilter, sortBy)),
   ];
 
   // Promise.all(promises).then(dispatch(setPaginationSuccess(page, perPage, selectedLabel)));

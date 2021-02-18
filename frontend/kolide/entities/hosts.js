@@ -17,19 +17,18 @@ export default (client) => {
     },
 
     // TODO: this needs to change to handle other filters
-    loadAll: (page = 1, perPage = 100, selected = '', globalFilter = '', orderKey = '', isDesc) => {
+    // loadAll: (page = 1, perPage = 100, selected = '', globalFilter = '', orderKey = '', isDesc) => {
+    loadAll: (page = 1, perPage = 100, selected = '', globalFilter = '', sortBy) => {
       const { HOSTS, LABEL_HOSTS } = endpoints;
 
       const pagination = `page=${page - 1}&per_page=${perPage}`;
 
       let orderKeyParam = '';
-      if (orderKey !== '') {
-        orderKeyParam += `&order_key=${orderKey}`;
-      }
-
       let orderDirection = '';
-      if (isDesc !== undefined) {
-        orderDirection = isDesc ? '&order_direction=desc' : '&order_direction=asc';
+      if (sortBy.length !== 0) {
+        const sortItem = sortBy[0];
+        orderKeyParam += `&order_key=${sortItem.id}`;
+        orderDirection = sortItem.desc ? '&order_direction=desc' : '&order_direction=asc';
       }
 
       let searchQuery = '';
