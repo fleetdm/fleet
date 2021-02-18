@@ -1,8 +1,8 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 
-import labelInterface from 'interfaces/label';
 import InputField from 'components/forms/fields/InputField';
+import KolideIcon from 'components/icons/KolideIcon';
 
 import HostsDataTable from '../HostsDataTable/HostsDataTable';
 
@@ -60,13 +60,16 @@ class HostContainer extends Component {
 
     return (
       <div className={`${baseClass}`}>
-        <InputField
-          placeholder="Search hosts by hostname"
-          name=""
-          onChange={onSearchQueryChange}
-          value={searchQuery}
-          inputWrapperClass={'host-side-panel__filter-labels'}
-        />
+        <div className={`${baseClass}__search-input`}>
+          <InputField
+            placeholder="Search hosts by hostname"
+            name=""
+            onChange={onSearchQueryChange}
+            value={searchQuery}
+            inputWrapperClass={`${baseClass}__input-wrapper`}
+          />
+          <KolideIcon name="search" />
+        </div>
         <HostsDataTable
           selectedFilter={selectedFilter}
           searchQuery={searchQuery}
