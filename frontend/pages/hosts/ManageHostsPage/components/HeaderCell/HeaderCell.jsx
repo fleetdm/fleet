@@ -13,7 +13,7 @@ const SortArrow = (props) => {
 
 SortArrow.propTypes = {
   isSortedDesc: PropTypes.bool,
-}
+};
 
 const HeaderCell = (props) => {
   const {

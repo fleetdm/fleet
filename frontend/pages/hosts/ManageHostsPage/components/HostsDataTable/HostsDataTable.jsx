@@ -26,8 +26,6 @@ const DEFAULT_SORT_DIRECTION = 'ASC';
 // TODO: possibly get rid of this.
 const containerClass = 'host-container';
 
-
-
 // TODO: pull out to another file
 // How we are handling lables and host counts on the client is strange. This function is required
 // to try to hide some of that complexity, but ideally we'd come back and simplify how we are
@@ -84,6 +82,9 @@ const HostsDataTable = (props) => {
     );
   });
 
+  // This variable is used to keep the react-table state persistant across server calls for new data.
+  // You can read more about this here technique here:
+  // https://react-table.tanstack.com/docs/faq#how-do-i-stop-my-table-state-from-automatically-resetting-when-my-data-changes
   const skipPageResetRef = useRef();
 
   // TODO: maybe pass as props?
@@ -116,7 +117,6 @@ const HostsDataTable = (props) => {
       data,
       initialState: {
         sortBy: [{ id: DEFAULT_SORT_KEY, desc: DEFAULT_SORT_DIRECTION === 'DESC' }],
-        // sortBy: [{ id: DEFAULT_SORT_KEY, desc: DEFAULT_SORT_DIRECTION }],
         pageSize: DEFAULT_PAGE_SIZE,
         pageIndex: DEFAULT_PAGE_INDEX,
       },
@@ -127,8 +127,6 @@ const HostsDataTable = (props) => {
     useGlobalFilter,
     useSortBy,
   );
-
-  // These are provided by react-table internal state
   const { globalFilter, sortBy } = tableState;
 
   const debouncedGlobalFilter = useAsyncDebounce((value) => {
@@ -148,14 +146,15 @@ const HostsDataTable = (props) => {
     debouncedGlobalFilter(searchQuery);
   }, [debouncedGlobalFilter, searchQuery]);
 
-  // Any changes to these relevent table search params will fire off an action to get the new hosts.
+  // Any changes to these relevent table search params will fire off an action to get the new
+  // hosts data.
   useEffect(() => {
     console.log('fetching data', tableState);
     dispatch(getHostTableData(page, perPage, selectedFilter, globalFilter, sortBy));
     skipPageResetRef.current = false;
   }, [dispatch, page, perPage, selectedFilter, globalFilter, sortBy]);
 
-  // No hosts for this result
+  // No hosts for this result.
   if (!loadingHosts && Object.values(hosts).length === 0) {
     return (
       <div className={`${containerClass}  ${containerClass}--no-hosts`}>
@@ -171,8 +170,6 @@ const HostsDataTable = (props) => {
 
   return (
     <React.Fragment>
-
-      {/* TODO: pull out into component */}
       <div className={'hosts-table hosts-table__wrapper'}>
         <table className={'hosts-table__table'}>
           <thead>
