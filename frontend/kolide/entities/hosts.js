@@ -40,7 +40,7 @@ export default (client) => {
       const labelPrefix = 'labels/';
       if (selected.startsWith(labelPrefix)) {
         const lid = selected.substr(labelPrefix.length);
-        endpoint = `${LABEL_HOSTS(lid)}?${pagination}`;
+        endpoint = `${LABEL_HOSTS(lid)}?${pagination}${searchQuery}${orderKeyParam}${orderDirection}`;
       } else {
         let selectedFilter = '';
         if (selected === 'new' || selected === 'online' || selected === 'offline' || selected === 'mia') {
