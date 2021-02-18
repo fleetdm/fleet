@@ -49,11 +49,13 @@ func decodeListHostsInLabelRequest(ctx context.Context, r *http.Request) (interf
 	if err != nil {
 		return nil, err
 	}
-	opt, err := listOptionsFromRequest(r)
+
+	hopt, err := hostListOptionsFromRequest(r)
 	if err != nil {
 		return nil, err
 	}
-	return listHostsInLabelRequest{ID: id, ListOptions: opt}, nil
+
+	return listHostsInLabelRequest{ID: id, ListOptions: hopt}, nil
 }
 
 func decodeApplyLabelSpecsRequest(ctx context.Context, r *http.Request) (interface{}, error) {

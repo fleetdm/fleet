@@ -11,6 +11,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+var hostSearchColumns = []string{"host_name", "uuid", "hardware_serial", "primary_ip"}
+
 func (d *Datastore) NewHost(host *kolide.Host) (*kolide.Host, error) {
 	sqlStatement := `
 	INSERT INTO hosts (
@@ -228,7 +230,7 @@ WHERE TRUE
 		params = append(params, time.Now())
 	}
 
-	sql, params = searchLike(sql, params, opt.MatchQuery, "host_name", "uuid", "hardware_serial", "primary_ip")
+	sql, params = searchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 
 	sql = appendListOptionsToSQL(sql, opt.ListOptions)
 
