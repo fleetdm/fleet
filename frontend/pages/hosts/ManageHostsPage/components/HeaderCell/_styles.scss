@@ -1,0 +1,48 @@
+.header-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  .sort-arrows {
+    padding-left: 5px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ascending-arrow,
+  .descending-arrow {
+    // padding-right: 10px;
+
+    &:after {
+      content: '';
+      position: relative;
+      border: 8px solid transparent;
+    }
+  }
+
+  .ascending-arrow:after {
+    bottom: 10px;
+    border-bottom-color: $ui-dark-grey;
+  }
+
+  .descending-arrow:after {
+    top: 10px;
+    border-top-color: $ui-dark-grey;
+  }
+
+  &.ascending {
+
+    .ascending-arrow:after {
+      bottom: 10px;
+      border-bottom-color: $core-blue;
+    }
+  }
+
+  &.descending {
+
+    .descending-arrow:after {
+      top: 10px;
+      border-top-color: $core-blue;
+    }
+  }
+}

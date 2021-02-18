@@ -21,10 +21,23 @@ const HeaderCell = (props) => {
     isSortedDesc,
   } = props;
 
+  let sortArrowClass = '';
+  if (isSortedDesc === undefined) {
+    sortArrowClass = '';
+  } else if (isSortedDesc) {
+    sortArrowClass = 'ascending';
+  } else {
+    sortArrowClass = 'descending';
+  }
+
   return (
-    <div>
+    <div className={`header-cell ${sortArrowClass}`}>
       <span>{value}</span>
-      <SortArrow isSortedDesc={isSortedDesc} />
+      <div className="sort-arrows">
+        <span className="ascending-arrow" />
+        <span className="descending-arrow" />
+      </div>
+      {/* <SortArrow isSortedDesc={isSortedDesc} /> */}
     </div>
   );
 };
