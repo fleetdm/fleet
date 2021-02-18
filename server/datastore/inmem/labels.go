@@ -177,7 +177,7 @@ func (d *Datastore) SearchLabels(query string, omit ...uint) ([]kolide.Label, er
 	return results, nil
 }
 
-func (d *Datastore) ListHostsInLabel(lid uint, opt kolide.ListOptions) ([]kolide.Host, error) {
+func (d *Datastore) ListHostsInLabel(lid uint, opt kolide.HostListOptions) ([]kolide.Host, error) {
 	var hosts []kolide.Host
 
 	d.mtx.Lock()

@@ -3,10 +3,6 @@ package service
 import (
 	"context"
 	"net/http"
-	"strings"
-
-	"github.com/fleetdm/fleet/server/kolide"
-	"github.com/pkg/errors"
 )
 
 func decodeGetHostRequest(ctx context.Context, r *http.Request) (interface{}, error) {
