@@ -27,6 +27,8 @@ type Options struct {
 	Insecure bool
 	// SignIdentity is the codesigning identity to use (only macOS at this time)
 	SignIdentity string
+	// Notarize sets whether macOS packages should be Notarized.
+	Notarize bool
 }
 
 func copyFile(srcPath, dstPath string, perm os.FileMode) error {

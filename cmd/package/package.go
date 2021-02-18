@@ -67,6 +67,11 @@ func main() {
 			Destination: &opt.SignIdentity,
 		},
 		&cli.BoolFlag{
+			Name:        "notarize",
+			Usage:       "Whether to notarize macOS packages",
+			Destination: &opt.Notarize,
+		},
+		&cli.BoolFlag{
 			Name:  "debug",
 			Usage: "Enable debug logging",
 		},

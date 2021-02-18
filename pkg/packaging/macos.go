@@ -102,8 +102,10 @@ func BuildPkg(opt Options) error {
 		}
 	}
 
-	if err := notarizePkg(generatedPath); err != nil {
-		return err
+	if opt.Notarize {
+		if err := notarizePkg(generatedPath); err != nil {
+			return err
+		}
 	}
 
 	filename := fmt.Sprintf("orbit-osquery_%s_amd64.pkg", opt.Version)
