@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/gorilla/mux"
@@ -159,6 +160,39 @@ func listOptionsFromRequest(r *http.Request) (kolide.ListOptions, error) {
 		OrderKey:       orderKey,
 		OrderDirection: orderDirection,
 	}, nil
+}
+
+func hostListOptionsFromRequest(r *http.Request) (kolide.HostListOptions, error) {
+	opt, err := listOptionsFromRequest(r)
+	if err != nil {
+		return kolide.HostListOptions{}, err
+	}
+
+	hopt := kolide.HostListOptions{ListOptions: opt}
+
+	status := r.URL.Query().Get("status")
+	switch kolide.HostStatus(status) {
+	case kolide.StatusNew, kolide.StatusOnline, kolide.StatusOffline, kolide.StatusMIA:
+		hopt.StatusFilter = kolide.HostStatus(status)
+	case "":
+		// No error when unset
+	default:
+		return hopt, errors.Errorf("invalid status %s", status)
+
+	}
+	if err != nil {
+		return hopt, err
+	}
+
+	additionalInfoFiltersString := r.URL.Query().Get("additional_info_filters")
+	if additionalInfoFiltersString != "" {
+		hopt.AdditionalFilters = strings.Split(additionalInfoFiltersString, ",")
+	}
+
+	query := r.URL.Query().Get("query")
+	hopt.MatchQuery = query
+
+	return hopt, nil
 }
 
 func decodeNoParamsRequest(ctx context.Context, r *http.Request) (interface{}, error) {

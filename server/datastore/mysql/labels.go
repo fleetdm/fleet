@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
@@ -388,7 +388,7 @@ func (d *Datastore) ListLabelsForHost(hid uint) ([]kolide.Label, error) {
 
 // ListHostsInLabel returns a list of kolide.Host that are associated
 // with kolide.Label referened by Label ID
-func (d *Datastore) ListHostsInLabel(lid uint, opt kolide.ListOptions) ([]kolide.Host, error) {
+func (d *Datastore) ListHostsInLabel(lid uint, opt kolide.HostListOptions) ([]kolide.Host, error) {
 	sql := `
 		SELECT h.*
 		FROM label_membership lm
@@ -396,9 +396,13 @@ func (d *Datastore) ListHostsInLabel(lid uint, opt kolide.ListOptions) ([]kolide
 		ON lm.host_id = h.id
 		WHERE lm.label_id = ?
 	`
-	sql = appendListOptionsToSQL(sql, opt)
+	params := []interface{}{lid}
+
+	sql, params = searchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
+
+	sql = appendListOptionsToSQL(sql, opt.ListOptions)
 	hosts := []kolide.Host{}
-	err := d.db.Select(&hosts, sql, lid)
+	err := d.db.Select(&hosts, sql, params...)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting label query executions")
 	}

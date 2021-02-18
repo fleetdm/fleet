@@ -41,7 +41,7 @@ type LabelStore interface {
 
 	// ListHostsInLabel returns a slice of hosts in the label with the
 	// given ID.
-	ListHostsInLabel(lid uint, opt ListOptions) ([]Host, error)
+	ListHostsInLabel(lid uint, opt HostListOptions) ([]Host, error)
 
 	// ListUniqueHostsInLabels returns a slice of all of the hosts in the
 	// given label IDs. A host will only appear once in the results even if
@@ -74,7 +74,7 @@ type LabelService interface {
 
 	// ListHostsInLabel returns a slice of hosts in the label with the
 	// given ID.
-	ListHostsInLabel(ctx context.Context, lid uint, opt ListOptions) ([]Host, error)
+	ListHostsInLabel(ctx context.Context, lid uint, opt HostListOptions) ([]Host, error)
 
 	// LabelsForHost returns the labels that the given host is in.
 	ListLabelsForHost(ctx context.Context, hid uint) ([]Label, error)

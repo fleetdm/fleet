@@ -90,7 +90,7 @@ func (svc service) DeleteLabelByID(ctx context.Context, id uint) error {
 	return svc.ds.DeleteLabel(label.Name)
 }
 
-func (svc service) ListHostsInLabel(ctx context.Context, lid uint, opt kolide.ListOptions) ([]kolide.Host, error) {
+func (svc service) ListHostsInLabel(ctx context.Context, lid uint, opt kolide.HostListOptions) ([]kolide.Host, error) {
 	return svc.ds.ListHostsInLabel(lid, opt)
 }
 
@@ -99,7 +99,7 @@ func (svc service) ListLabelsForHost(ctx context.Context, hid uint) ([]kolide.La
 }
 
 func (svc service) HostIDsForLabel(lid uint) ([]uint, error) {
-	hosts, err := svc.ds.ListHostsInLabel(lid, kolide.ListOptions{})
+	hosts, err := svc.ds.ListHostsInLabel(lid, kolide.HostListOptions{})
 	if err != nil {
 		return nil, err
 	}

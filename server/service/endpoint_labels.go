@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"github.com/go-kit/kit/endpoint"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/go-kit/kit/endpoint"
 )
 
 type getLabelRequest struct {
@@ -159,7 +159,7 @@ func makeListLabelsEndpoint(svc kolide.Service) endpoint.Endpoint {
 
 type listHostsInLabelRequest struct {
 	ID          uint
-	ListOptions kolide.ListOptions
+	ListOptions kolide.HostListOptions
 }
 
 func makeListHostsInLabelEndpoint(svc kolide.Service) endpoint.Endpoint {
