@@ -31,7 +31,7 @@ func BuildDeb(opt Options) error {
 	if err := os.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "create root dir")
 	}
-	orbitRoot := filepath.Join(filesystemRoot, "var", "lib", "fleet", "orbit")
+	orbitRoot := filepath.Join(filesystemRoot, "var", "lib", "orbit")
 	if err := os.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "create orbit dir")
 	}
@@ -85,13 +85,13 @@ func BuildDeb(opt Options) error {
 		},
 		&files.Content{
 			Source:      "orbit",
-			Destination: "/var/lib/fleet/orbit/orbit",
+			Destination: "/var/lib/orbit/orbit",
 			FileInfo: &files.ContentFileInfo{
 				Mode: constant.DefaultExecutableMode,
 			},
 		},
 		&files.Content{
-			Source:      "/var/lib/fleet/orbit/orbit",
+			Source:      "/var/lib/orbit/orbit",
 			Destination: "/usr/local/bin/orbit",
 			Type:        "symlink",
 			FileInfo: &files.ContentFileInfo{
@@ -122,7 +122,7 @@ func BuildDeb(opt Options) error {
 			Contents: contents,
 			EmptyFolders: []string{
 				"/var/log/osquery",
-				"/var/log/fleet/orbit",
+				"/var/log/orbit",
 			},
 			Scripts: nfpm.Scripts{
 				PostInstall: postInstallPath,

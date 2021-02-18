@@ -34,7 +34,7 @@ func BuildPkg(opt Options) error {
 	if err := os.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "create root dir")
 	}
-	orbitRoot := filepath.Join(filesystemRoot, "var", "lib", "fleet", "orbit")
+	orbitRoot := filepath.Join(filesystemRoot, "var", "lib", "orbit")
 	if err := os.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "create orbit dir")
 	}
@@ -75,16 +75,15 @@ func BuildPkg(opt Options) error {
 	if err := writeScripts(opt, tmpDir); err != nil {
 		return errors.Wrap(err, "write postinstall")
 	}
+	if err := writeSecret(opt, orbitRoot); err != nil {
+		return errors.Wrap(err, "write enroll secret")
+	}
 	if opt.StartService {
 		if err := writeLaunchd(opt, filesystemRoot); err != nil {
 			return errors.Wrap(err, "write launchd")
 		}
 	}
-	if err := copyFile(
-		"./orbit",
-		filepath.Join(filesystemRoot, "var", "lib", "fleet", "orbit", "orbit"),
-		0755,
-	); err != nil {
+	if err := copyFile("./orbit", filepath.Join(orbitRoot, "orbit"), 0755); err != nil {
 		return errors.Wrap(err, "write orbit")
 	}
 
@@ -149,6 +148,20 @@ func writeScripts(opt Options, rootPath string) error {
 	}
 
 	if err := ioutil.WriteFile(path, contents.Bytes(), 0744); err != nil {
+		return errors.Wrap(err, "write file")
+	}
+
+	return nil
+}
+
+func writeSecret(opt Options, orbitRoot string) error {
+	// Enroll secret
+	path := filepath.Join(orbitRoot, "secret")
+	if err := os.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
+		return errors.Wrap(err, "mkdir")
+	}
+
+	if err := ioutil.WriteFile(path, []byte(opt.EnrollSecret), 0600); err != nil {
 		return errors.Wrap(err, "write file")
 	}
 

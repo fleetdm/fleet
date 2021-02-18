@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/orbit/pkg/constant"
@@ -24,7 +25,7 @@ import (
 const (
 	tufURL         = "https://tuf.fleetctl.com"
 	certPath       = "/tmp/fleet.pem"
-	defaultRootDir = "/var/lib/fleet/orbit"
+	defaultRootDir = "/var/lib/orbit"
 )
 
 func main() {
@@ -68,6 +69,11 @@ func main() {
 			EnvVars: []string{"ORBIT_ENROLL_SECRET"},
 		},
 		&cli.StringFlag{
+			Name:    "enroll-secret-path",
+			Usage:   "Path to file containing enroll secret",
+			EnvVars: []string{"ORBIT_ENROLL_SECRET_PATH"},
+		},
+		&cli.StringFlag{
 			Name:    "osquery-version",
 			Usage:   "Version of osquery to use",
 			Value:   "stable",
@@ -82,6 +88,19 @@ func main() {
 	app.Action = func(c *cli.Context) error {
 		if c.Bool("debug") {
 			zerolog.SetGlobalLevel(zerolog.DebugLevel)
+		}
+
+		if c.String("enroll-secret-path") != "" {
+			if c.String("enroll-secret") != "" {
+				return errors.New("enroll-secret and enroll-secret-path may not be specified together")
+			}
+
+			b, err := ioutil.ReadFile(c.String("enroll-secret-path"))
+			if err != nil {
+				return errors.Wrap(err, "read enroll secret file")
+			}
+
+			c.Set("enroll-secret", strings.TrimSpace(string(b)))
 		}
 
 		if err := os.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
@@ -164,7 +183,8 @@ func main() {
 			)
 		}
 
-		if enrollSecret := c.String("enroll-secret"); enrollSecret != "" {
+		enrollSecret := c.String("enroll-secret")
+		if enrollSecret != "" {
 			options = append(options,
 				osquery.WithEnv([]string{"ENROLL_SECRET=" + enrollSecret}),
 				osquery.WithFlags([]string{"--enroll_secret_env", "ENROLL_SECRET"}),
@@ -172,6 +192,10 @@ func main() {
 		}
 
 		if fleetURL != "" {
+			if enrollSecret == "" {
+				return errors.New("enroll secret must be specified to connect to Fleet server")
+			}
+
 			options = append(options,
 				osquery.WithFlags(osquery.FleetFlags(fleetURL)),
 			)

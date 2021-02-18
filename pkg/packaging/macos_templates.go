@@ -33,7 +33,7 @@ var macosDistributionTemplate = template.Must(template.New("").Option("missingke
 var macosPostinstallTemplate = template.Must(template.New("").Option("missingkey=error").Parse(
 	`#!/bin/bash
 
-ln -sf /var/lib/fleet/orbit/orbit /usr/local/bin/orbit
+ln -sf /var/lib/orbit/orbit /usr/local/bin/orbit
 
 {{ if .StartService -}}
 launchctl stop com.fleetdm.orbit
@@ -55,7 +55,7 @@ var macosLaunchdTemplate = template.Must(template.New("").Option("missingkey=err
     <string>com.fleetdm.orbit</string>
     <key>ProgramArguments</key>
     <array>
-       <string>/var/lib/fleet/orbit/orbit</string>
+       <string>/var/lib/orbit/orbit</string>
     </array>
     <key>StandardOutPath</key>
     <string>/var/log/orbit/orbit.stdout.log</string>
@@ -65,7 +65,7 @@ var macosLaunchdTemplate = template.Must(template.New("").Option("missingkey=err
     <dict>
       {{ if .Insecure }}<key>ORBIT_INSECURE</key><string>true</string>{{ end }}
       {{ if .FleetURL }}<key>ORBIT_FLEET_URL</key><string>{{.FleetURL}}</string>{{ end }}
-      {{ if .EnrollSecret }}<key>ORBIT_ENROLL_SECRET</key><string>{{.EnrollSecret}}</string>{{ end }}
+      {{ if .EnrollSecret }}<key>ORBIT_ENROLL_SECRET_PATH</key><string>/var/lib/orbit/secret</string>{{ end }}
     </dict>
     <key>KeepAlive</key><true/>
     <key>RunAtLoad</key><true/>

@@ -52,7 +52,7 @@ var (
 	// DefaultOptions are the default options to use when creating an update
 	// client.
 	DefaultOptions = Options{
-		RootDirectory:     "/var/fleet",
+		RootDirectory:     "/var/lib/orbit",
 		ServerURL:         "https://tuf.fleetctl.com",
 		LocalStore:        client.MemoryLocalStore(),
 		InsecureTransport: false,
