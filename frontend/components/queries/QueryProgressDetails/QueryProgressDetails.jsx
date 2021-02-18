@@ -67,7 +67,7 @@ const QueryProgressDetails = ({ campaign, className, onRunQuery, onStopQuery, qu
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__text-wrapper`}>
           <span className={`${baseClass}__text-online`}>{hostsCount.successful} out of {onlineHostsTotalDisplay} responding
-            <span className={`${baseClass}__text-results`}> and returning {onlineResultsTotalDisplay}</span>
+            <span className={`${baseClass}__text-results`}> returning {onlineResultsTotalDisplay}</span>
           </span>
           <span className={`${baseClass}__text-offline`}>{offlineHostsTotalDisplay}
             <span className={`${baseClass}__text-results`}> returning 0 results</span>
