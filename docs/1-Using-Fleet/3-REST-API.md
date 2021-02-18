@@ -8,6 +8,7 @@
 - [Users](#users)
 - [Queries](#queries)
 - [Packs](#packs)
+- [Targets](#targets)
 - [Fleet configuration](#fleet-configuration)
 - [Osquery options](#osquery-options)
 
@@ -417,6 +418,7 @@ Gets the current SSO configuration.
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                           |
 | per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                              |
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                |
+| order_direction               | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                 |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                               |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. |
 
@@ -720,7 +722,7 @@ Deletes the specified host from Fleet. Note that a deleted host will fail authen
 
 Creates a dynamic label.
 
-`POST /api/v1/kolide/labels`
+`POST /api/v1/fleet/labels`
 
 #### Parameters
 
@@ -733,7 +735,7 @@ Creates a dynamic label.
 
 #### Example
 
-`POST /api/v1/kolide/labels`
+`POST /api/v1/fleet/labels`
 
 ##### Request body
 
@@ -772,7 +774,7 @@ Creates a dynamic label.
 
 Modifies the specified label. Note: Label queries are immutable. To change the query, you must delete the label and create a new label.
 
-`PATCH /api/v1/kolide/labels/{id}`
+`PATCH /api/v1/fleet/labels/{id}`
 
 #### Parameters
 
@@ -785,7 +787,7 @@ Modifies the specified label. Note: Label queries are immutable. To change the q
 
 #### Example
 
-`PATCH /api/v1/kolide/labels/1`
+`PATCH /api/v1/fleet/labels/1`
 
 ##### Request body
 
@@ -824,7 +826,7 @@ Modifies the specified label. Note: Label queries are immutable. To change the q
 
 Returns the specified label.
 
-`GET /api/v1/kolide/labels/{id}`
+`GET /api/v1/fleet/labels/{id}`
 
 #### Parameters
 
@@ -834,7 +836,7 @@ Returns the specified label.
 
 #### Example
 
-`GET /api/v1/kolide/labels/1`
+`GET /api/v1/fleet/labels/1`
 
 ##### Default response
 
@@ -862,17 +864,19 @@ Returns the specified label.
 
 Returns a list of all the labels in Fleet.
 
-`GET /api/v1/kolide/labels`
+`GET /api/v1/fleet/labels`
 
 #### Parameters
 
 | Name                  | Type   | In   | Description                                                     |
 | --------------------- | ------ | ---- | --------------------------------------------------------------- |
 | id                 | integer | path | **Required**. The label's id.                    |
+| order_key               | string  | query | What to order results by. Can be any column in the labels table.                                                                                                                                                                                                                                |
+| order_direction               | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.   |
 
 #### Example
 
-`GET /api/v1/kolide/labels`
+`GET /api/v1/fleet/labels`
 
 ##### Default response
 
@@ -961,17 +965,19 @@ Returns a list of all the labels in Fleet.
 
 Returns a list of the hosts that belong to the specified label.
 
-`GET /api/v1/kolide/labels/{id}/hosts`
+`GET /api/v1/fleet/labels/{id}/hosts`
 
 #### Parameters
 
 | Name                  | Type   | In   | Description                                                     |
 | --------------------- | ------ | ---- | --------------------------------------------------------------- |
 | id                 | integer | path | **Required**. The label's id.                    |
+| order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                |
+| order_direction               | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.   |
 
 #### Example
 
-`GET /api/v1/kolide/labels/6/hosts`
+`GET /api/v1/fleet/labels/6/hosts`
 
 ##### Default response
 
@@ -1026,7 +1032,7 @@ Returns a list of the hosts that belong to the specified label.
 
 Deletes the label specified by name.
 
-`DELETE /api/v1/kolide/labels/{name}`
+`DELETE /api/v1/fleet/labels/{name}`
 
 #### Parameters
 
@@ -1036,7 +1042,7 @@ Deletes the label specified by name.
 
 #### Example
 
-`DELETE /api/v1/kolide/labels/ubuntu_label`
+`DELETE /api/v1/fleet/labels/ubuntu_label`
 
 ##### Default response
 
@@ -1050,7 +1056,7 @@ Deletes the label specified by name.
 
 Deletes the label specified by ID.
 
-`DELETE /api/v1/kolide/labels/id/{id}`
+`DELETE /api/v1/fleet/labels/id/{id}`
 
 #### Parameters
 
@@ -1060,7 +1066,7 @@ Deletes the label specified by ID.
 
 #### Example
 
-`DELETE /api/v1/kolide/labels/id/13`
+`DELETE /api/v1/fleet/labels/id/13`
 
 ##### Default response
 
@@ -1078,7 +1084,7 @@ If the `label_membership_type` is set to `dynamic`, the `query` property must al
 
 If the `label_membership_type` is set to `manual`, the `hosts` property must also be specified with the value set to a list of hostnames.
 
-`POST /api/v1/kolide/specs/labels`
+`POST /api/v1/fleet/specs/labels`
 
 #### Parameters
 
@@ -1088,7 +1094,7 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 #### Example
 
-`POST /api/v1/kolide/specs/labels`
+`POST /api/v1/fleet/specs/labels`
 
 ##### Request body
 
@@ -1123,7 +1129,7 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 ### Get labels specs
 
-`GET /api/v1/kolide/specs/labels`
+`GET /api/v1/fleet/specs/labels`
 
 #### Parameters
 
@@ -1131,7 +1137,7 @@ None.
 
 #### Example
 
-`GET /api/v1/kolide/specs/labels`
+`GET /api/v1/fleet/specs/labels`
 
 ##### Default response
 
@@ -1198,7 +1204,7 @@ None.
 
 Returns the spec for the label specified by name.
 
-`GET /api/v1/kolide/specs/labels/{name}`
+`GET /api/v1/fleet/specs/labels/{name}`
 
 #### Parameters
 
@@ -1206,7 +1212,7 @@ None.
 
 #### Example
 
-`GET /api/v1/kolide/specs/labels/local_machine`
+`GET /api/v1/fleet/specs/labels/local_machine`
 
 ##### Default response
 
@@ -1246,7 +1252,10 @@ Returns a list of all enabled users
 
 #### Parameters
 
-None.
+| Name                  | Type   | In   | Description                                                     |
+| --------------------- | ------ | ---- | --------------------------------------------------------------- |
+| order_key               | string  | query | What to order results by. Can be any column in the users table.                                                                                                                                                                                                                                |
+| order_direction               | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.   |
 
 #### Example
 
@@ -1638,7 +1647,10 @@ Returns a list of all queries in the Fleet instance.
 
 #### Parameters
 
-None.
+| Name                  | Type   | In   | Description                                                     |
+| --------------------- | ------ | ---- | --------------------------------------------------------------- |
+| order_key               | string  | query | What to order results by. Can be any column in the queries table.                                                                                                                                                                                                                                |
+| order_direction               | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.   |
 
 #### Example
 
@@ -2289,7 +2301,10 @@ Runs the specified query by name as a live query on the specified hosts or group
 
 #### Parameters
 
-None.
+| Name                  | Type   | In   | Description                                                     |
+| --------------------- | ------ | ---- | --------------------------------------------------------------- |
+| order_key               | string  | query | What to order results by. Can be any column in the packs table.                                                                                                                                                                                                                                |
+| order_direction               | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.   |
 
 #### Example
 
@@ -2912,6 +2927,147 @@ Returns the spec for the specified pack by pack name.
 
 ---
 
+## Targets
+
+In Fleet, targets are used to run queries against specific hosts or groups of hosts. Labels are used to create groups in Fleet.
+
+### Search targets
+
+The search targets endpoint returns two lists. The first list includes the possible target hosts in Fleet given the search query provided and the hosts already selected as targets. The second list includes the possible target labels in Fleet given the search query provided and the labels already selected as targets.
+
+`POST /api/v1/fleet/targets`
+
+#### Parameters
+
+| Name | Type    | In    | Description                  |
+| ---- | ------- | ----- | ---------------------------- |
+| query   | string | body | The search query. Searchable items include a host's hostname or IPv4 address and labels. |
+| selected   | object | body | The targets already selected. The object includes a `hosts` property which contains a list of host IDs and a `labels` property which contains a list of label IDs.|
+
+#### Example
+
+`POST /api/v1/fleet/targets`
+
+##### Request body
+
+```
+{
+  "query": "172"
+  "selected": {
+    "hosts": [], 
+    "labels": [7]
+  }
+}
+```
+
+##### Default response
+
+```
+{
+  "targets": {
+    "hosts": [
+      {
+        "created_at": "2021-02-03T16:11:43Z",
+        "updated_at": "2021-02-03T21:58:19Z",
+        "id": 3,
+        "detail_updated_at": "2021-02-03T21:58:10Z",
+        "label_updated_at": "2021-02-03T21:58:10Z",
+        "last_enrolled_at": "2021-02-03T16:11:43Z",
+        "seen_time": "2021-02-03T21:58:20Z",
+        "hostname": "7a2f41482833",
+        "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
+        "platform": "rhel",
+        "osquery_version": "4.5.1",
+        "os_version": "CentOS 6.10.0",
+        "build": "",
+        "platform_like": "rhel",
+        "code_name": "",
+        "uptime": 32688000000000,
+        "memory": 2086899712,
+        "cpu_type": "x86_64",
+        "cpu_subtype": "142",
+        "cpu_brand": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
+        "cpu_physical_cores": 4,
+        "cpu_logical_cores": 4,
+        "hardware_vendor": "",
+        "hardware_model": "",
+        "hardware_version": "",
+        "hardware_serial": "",
+        "computer_name": "7a2f41482833",
+        "primary_ip": "172.20.0.3",
+        "primary_mac": "02:42:ac:14:00:03",
+        "distributed_interval": 10,
+        "config_tls_refresh": 10,
+        "logger_tls_period": 10,
+        "additional": {},
+        "enroll_secret_name": "default",
+        "status": "offline",
+        "display_text": "7a2f41482833"
+      },
+      {
+        "created_at": "2021-02-03T16:11:43Z",
+        "updated_at": "2021-02-03T21:58:19Z",
+        "id": 4,
+        "detail_updated_at": "2021-02-03T21:58:10Z",
+        "label_updated_at": "2021-02-03T21:58:10Z",
+        "last_enrolled_at": "2021-02-03T16:11:43Z",
+        "seen_time": "2021-02-03T21:58:20Z",
+        "hostname": "78c96e72746c",
+        "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
+        "platform": "ubuntu",
+        "osquery_version": "4.5.1",
+        "os_version": "Ubuntu 16.4.0",
+        "build": "",
+        "platform_like": "debian",
+        "code_name": "",
+        "uptime": 32688000000000,
+        "memory": 2086899712,
+        "cpu_type": "x86_64",
+        "cpu_subtype": "142",
+        "cpu_brand": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
+        "cpu_physical_cores": 4,
+        "cpu_logical_cores": 4,
+        "hardware_vendor": "",
+        "hardware_model": "",
+        "hardware_version": "",
+        "hardware_serial": "",
+        "computer_name": "78c96e72746c",
+        "primary_ip": "172.20.0.7",
+        "primary_mac": "02:42:ac:14:00:07",
+        "distributed_interval": 10,
+        "config_tls_refresh": 10,
+        "logger_tls_period": 10,
+        "additional": {},
+        "enroll_secret_name": "default",
+        "status": "offline",
+        "display_text": "78c96e72746c"
+      }
+    ],
+    "labels": [
+      {
+        "created_at": "2021-02-02T23:55:25Z",
+        "updated_at": "2021-02-02T23:55:25Z",
+        "id": 6,
+        "name": "All Hosts",
+        "description": "All hosts which have enrolled in Fleet",
+        "query": "select 1;",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic",
+        "host_count": 5,
+        "display_text": "All Hosts",
+        "count": 5
+      }
+    ]
+  },
+  "targets_count": 1,
+  "targets_online": 1,
+  "targets_offline": 0,
+  "targets_missing_in_action": 0
+}
+```
+
+---
+
 ## Fleet configuration
 
 - [Get certificate](#get-certificate)
@@ -3267,7 +3423,10 @@ Returns a list of the active invitations in Fleet.
 
 #### Parameters
 
-None.
+| Name                  | Type   | In   | Description                                                     |
+| --------------------- | ------ | ---- | --------------------------------------------------------------- |
+| order_key               | string  | query | What to order results by. Can be any column in the invites table.                                                                                                                                                                                                                                |
+| order_direction               | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.   |
 
 #### Example
 
