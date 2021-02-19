@@ -104,7 +104,8 @@ func testScheduledQuery(t *testing.T, ds kolide.Datastore) {
 	denylist := false
 	query.Denylist = &denylist
 
-	query, err = ds.SaveScheduledQuery(query)
+	_, err = ds.SaveScheduledQuery(query)
+	require.Nil(t, err)
 
 	query, err = ds.ScheduledQuery(sq1.ID)
 	require.Nil(t, err)
