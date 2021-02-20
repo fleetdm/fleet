@@ -38,12 +38,18 @@ func CheckFileHash(meta *data.TargetFileMeta, localPath string) error {
 
 // selectHashFunction returns the first matching hash function and expected
 // hash, otherwise returning an error if not matching hash can be found.
+//
+// SHA512 is preferred, and SHA256 is returned if 512 is not available.
+
 func selectHashFunction(meta *data.TargetFileMeta) (hash.Hash, []byte, error) {
 	for hashName, hashVal := range meta.Hashes {
-		switch hashName {
-		case "sha512":
+		if hashName == "sha512" {
 			return sha512.New(), hashVal, nil
-		case "sha256":
+		}
+	}
+
+	for hashName, hashVal := range meta.Hashes {
+		if hashName == "sha256" {
 			return sha256.New(), hashVal, nil
 		}
 	}

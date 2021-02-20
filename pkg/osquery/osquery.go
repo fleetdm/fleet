@@ -64,8 +64,6 @@ func WithEnv(env []string) func(*Runner) error {
 func WithShell() func(*Runner) error {
 	return func(r *Runner) error {
 		r.cmd.Args = append(r.cmd.Args, "-S")
-		r.cmd.Stdout = os.Stdout
-		r.cmd.Stderr = os.Stderr
 		r.cmd.Stdin = os.Stdin
 		return nil
 	}

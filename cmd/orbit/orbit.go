@@ -201,6 +201,8 @@ func main() {
 			)
 		}
 
+		options = append(options, osquery.WithFlags([]string{"--force"}))
+
 		if c.Bool("debug") {
 			options = append(options,
 				osquery.WithFlags([]string{"--verbose", "--tls_dump"}),

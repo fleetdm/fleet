@@ -115,20 +115,20 @@ func (u *Updater) UpdateMetadata() error {
 	return nil
 }
 
-func (u *Updater) RepoPath(name, version string) string {
-	return path.Join(name, u.opt.Platform, version, name+constant.ExecutableExtension(u.opt.Platform))
+func (u *Updater) RepoPath(name, channel string) string {
+	return path.Join(name, u.opt.Platform, channel, name+constant.ExecutableExtension(u.opt.Platform))
 }
 
-func (u *Updater) LocalPath(name, version string) string {
-	return u.pathFromRoot(filepath.Join(binDir, name, u.opt.Platform, version, name+constant.ExecutableExtension(u.opt.Platform)))
+func (u *Updater) LocalPath(name, channel string) string {
+	return u.pathFromRoot(filepath.Join(binDir, name, u.opt.Platform, channel, name+constant.ExecutableExtension(u.opt.Platform)))
 }
 
 // Lookup looks up the provided target in the local target metadata. This should
 // be called after UpdateMetadata.
-func (u *Updater) Lookup(name, version string) (*data.TargetFileMeta, error) {
-	target, err := u.client.Target(u.RepoPath(name, version))
+func (u *Updater) Lookup(name, channel string) (*data.TargetFileMeta, error) {
+	target, err := u.client.Target(u.RepoPath(name, channel))
 	if err != nil {
-		return nil, errors.Wrapf(err, "lookup target %v", target)
+		return nil, errors.Wrapf(err, "lookup %s@%s", name, channel)
 	}
 
 	return &target, nil
@@ -146,9 +146,9 @@ func (u *Updater) Targets() (data.TargetFiles, error) {
 
 // Get returns the local path to the specified target. The target is downloaded
 // if it does not yet exist locally or the hash does not match.
-func (u *Updater) Get(name, version string) (string, error) {
-	localPath := u.LocalPath(name, version)
-	repoPath := u.RepoPath(name, version)
+func (u *Updater) Get(name, channel string) (string, error) {
+	localPath := u.LocalPath(name, channel)
+	repoPath := u.RepoPath(name, channel)
 	stat, err := os.Stat(localPath)
 	if err != nil {
 		log.Debug().Err(err).Msg("stat file")
@@ -158,7 +158,7 @@ func (u *Updater) Get(name, version string) (string, error) {
 		return "", errors.Errorf("expected %s to be regular file", localPath)
 	}
 
-	meta, err := u.Lookup(name, version)
+	meta, err := u.Lookup(name, channel)
 	if err != nil {
 		return "", err
 	}
@@ -168,7 +168,7 @@ func (u *Updater) Get(name, version string) (string, error) {
 		return localPath, u.Download(repoPath, localPath)
 	}
 
-	log.Debug().Str("path", localPath).Msg("found expected version locally")
+	log.Debug().Str("path", localPath).Msg("found expected channel locally")
 
 	return localPath, nil
 }
@@ -189,6 +189,7 @@ func (u *Updater) Download(repoPath, localPath string) error {
 		return errors.Wrap(err, "initialize download dir")
 	}
 
+	// The go-tuf client handles checking of max size and hash.
 	if err := u.client.Download(repoPath, &fileDestination{tmp}); err != nil {
 		return errors.Wrapf(err, "download target %s", repoPath)
 	}
