@@ -429,13 +429,13 @@ func (p *passphraseHandler) checkPassphrase(store tuf.LocalStore, role string) e
 	// key and see if it is successful. Loop until successful decryption or
 	// non-decryption error.
 	for {
-		if _, err := store.GetSigningKeys(role); err != nil {
+		keys, err := store.GetSigningKeys(role)
+		if err != nil {
 			// TODO it would be helpful if we could upstream a new error type in
 			// go-tuf and use errors.Is instead of comparing the text of the
 			// error as we do currently.
 			if errors.Cause(err).Error() != decryptionFailedError {
 				return err
-
 			} else if err != nil {
 				if p.getPassphraseFromEnv(role) != nil {
 					// Fatal error if environment variable passphrase is
@@ -446,6 +446,9 @@ func (p *passphraseHandler) checkPassphrase(store tuf.LocalStore, role string) e
 				fmt.Printf("Failed to decrypt %s key. Try again.\n", role)
 				delete(p.cache, role)
 			}
+			continue
+		} else if len(keys) == 0 {
+			return errors.Errorf("%s key not found", role)
 		} else {
 			return nil
 		}
