@@ -26,6 +26,14 @@ const DEFAULT_SORT_DIRECTION = 'ASC';
 // TODO: possibly get rid of this.
 const containerClass = 'host-container';
 
+const generateHostCountText = (pageIndex, itemsPerPage, resultsCount) => {
+  if (itemsPerPage === resultsCount) return `${itemsPerPage}+ results`;
+
+  if (pageIndex !== 0 && (resultsCount <= itemsPerPage)) return `${itemsPerPage}+ results`;
+
+  return `${resultsCount} results`;
+};
+
 // This data table uses react-table for implementation. The relevant documentation of the library
 // can be found here https://react-table.tanstack.com/docs/api/useTable
 const HostsDataTable = (props) => {
@@ -151,6 +159,9 @@ const HostsDataTable = (props) => {
   console.log(rows);
   return (
     <React.Fragment>
+      <div className={'manage-hosts__topper'}>
+        <p className={'manage-hosts__host-count'}>{generateHostCountText(pageIndex, pageSize, rows.length)}</p>
+      </div>
       <div className={'hosts-table hosts-table__wrapper'}>
         <table className={'hosts-table__table'}>
           <thead>
