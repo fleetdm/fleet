@@ -18,10 +18,10 @@ export default (client) => {
 
     // TODO: this needs to change to handle other filters
     // loadAll: (page = 1, perPage = 100, selected = '', globalFilter = '', orderKey = '', isDesc) => {
-    loadAll: (page = 1, perPage = 100, selected = '', globalFilter = '', sortBy) => {
+    loadAll: (page = 0, perPage = 100, selected = '', globalFilter = '', sortBy) => {
       const { HOSTS, LABEL_HOSTS } = endpoints;
 
-      const pagination = `page=${page - 1}&per_page=${perPage}`;
+      const pagination = `page=${page}&per_page=${perPage}`;
 
       let orderKeyParam = '';
       let orderDirection = '';

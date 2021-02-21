@@ -1,9 +1,19 @@
 .host-pagination {
+
   &__pager-wrap {
-    flex-basis: 100%;
-    margin: 16px 0 39px;
-    display: flex;
-    flex-wrap: wrap;
+    width: 150px;
+    margin-top: $pad-half;
+    margin-left: auto;
+    text-align: right;
+  }
+
+  button:first-child {
+    margin-right: $pad-half;
+    color: red;
+  }
+
+  button:last-child {
+    margin-left: 20px;
   }
 
   &__pagination {
