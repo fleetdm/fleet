@@ -82,6 +82,7 @@ const HostsDataTable = (props) => {
         sortBy: [{ id: DEFAULT_SORT_KEY, desc: DEFAULT_SORT_DIRECTION === 'DESC' }],
       },
       disableMultiSort: true,
+      manualGlobalFilter: true,
       autoResetSortBy: skipPageResetRef.current,
       autoResetGlobalFilter: skipPageResetRef.current,
     },
@@ -89,6 +90,7 @@ const HostsDataTable = (props) => {
     useSortBy,
   );
   const { globalFilter, sortBy } = tableState;
+  console.log('TABLE STATE:', tableState)
 
   const debouncedGlobalFilter = useAsyncDebounce((value) => {
     skipPageResetRef.current = true;
@@ -116,17 +118,13 @@ const HostsDataTable = (props) => {
   // Any changes to these relevent table search params will fire off an action to get the new
   // hosts data.
   useEffect(() => {
+    console.log('global filter', globalFilter)
     if (pageIndexChangeRef.current) { // the pageIndex has changed
       dispatch(getHostTableData(pageIndex, pageSize, selectedFilter, globalFilter, sortBy));
     } else {
       setPageIndex(0);
       dispatch(getHostTableData(0, pageSize, selectedFilter, globalFilter, sortBy));
     }
-
-    // console.log('fetching data', tableState);
-    // console.log('previous pageIndex', pageIndexRef.current);
-    // console.log('currentPageIndex', pageIndex);
-    // dispatch(getHostTableData(pageIndex, pageSize, selectedFilter, globalFilter, sortBy));
     skipPageResetRef.current = false;
     pageIndexChangeRef.current = false;
   }, [dispatch, pageIndex, pageSize, selectedFilter, globalFilter, sortBy]);
@@ -153,8 +151,8 @@ const HostsDataTable = (props) => {
   }
 
   console.log('ROWS:', rows);
-  console.log('DATA:', data);
-  console.log('HOSTS:', hosts);
+  console.log('data:', data);
+  console.log('hosts:', hosts);
   return (
     <React.Fragment>
       <div className={'hosts-table hosts-table__wrapper'}>
