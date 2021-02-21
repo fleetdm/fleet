@@ -19,8 +19,6 @@ class HostPagination extends PureComponent {
   }
 
   disableNext = () => {
-    console.log('HOSTS ON CURRENTPAG:', this.props.hostsOnCurrentPage);
-    console.log('HOSTS PER PAGE:', this.props.hostsPerPage);
     // NOTE: not sure why hostsOnCurrentPage is getting assigned undefined.
     // but this seems to work when there is no data in the table.
     return this.props.hostsOnCurrentPage === undefined ||
