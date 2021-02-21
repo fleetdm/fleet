@@ -36,7 +36,7 @@ const HostsDataTable = (props) => {
     searchQuery,
   } = props;
 
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [pageSize] = useState(DEFAULT_PAGE_SIZE);
   const [pageIndex, setPageIndex] = useState(DEFAULT_PAGE_INDEX);
 
   const dispatch = useDispatch();
@@ -90,7 +90,6 @@ const HostsDataTable = (props) => {
     useSortBy,
   );
   const { globalFilter, sortBy } = tableState;
-  console.log('TABLE STATE:', tableState)
 
   const debouncedGlobalFilter = useAsyncDebounce((value) => {
     skipPageResetRef.current = true;
@@ -118,7 +117,6 @@ const HostsDataTable = (props) => {
   // Any changes to these relevent table search params will fire off an action to get the new
   // hosts data.
   useEffect(() => {
-    console.log('global filter', globalFilter)
     if (pageIndexChangeRef.current) { // the pageIndex has changed
       dispatch(getHostTableData(pageIndex, pageSize, selectedFilter, globalFilter, sortBy));
     } else {
@@ -150,9 +148,6 @@ const HostsDataTable = (props) => {
     );
   }
 
-  console.log('ROWS:', rows);
-  console.log('data:', data);
-  console.log('hosts:', hosts);
   return (
     <React.Fragment>
       <div className={'hosts-table hosts-table__wrapper'}>
