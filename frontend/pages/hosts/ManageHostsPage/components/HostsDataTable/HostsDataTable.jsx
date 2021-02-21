@@ -17,7 +17,7 @@ import StatusCell from '../StatusCell/StatusCell';
 import LinkCell from '../LinkCell/LinkCell';
 
 // TODO: pass in as props
-const DEFAULT_PAGE_SIZE = 2;
+const DEFAULT_PAGE_SIZE = 100;
 const DEFAULT_PAGE_INDEX = 0;
 const DEBOUNCE_QUERY_DELAY = 300;
 const DEFAULT_SORT_KEY = 'hostname';
@@ -156,7 +156,6 @@ const HostsDataTable = (props) => {
     );
   }
 
-  console.log(rows);
   return (
     <React.Fragment>
       <div className={'manage-hosts__topper'}>
