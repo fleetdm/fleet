@@ -158,6 +158,7 @@ func (svc service) GetClientConfig(ctx context.Context) (map[string]interface{},
 				Version:  query.Version,
 				Removed:  query.Removed,
 				Shard:    query.Shard,
+				Denylist: query.Denylist,
 			}
 
 			if query.Removed != nil {
