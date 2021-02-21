@@ -311,9 +311,6 @@ export class ManageHostsPage extends PureComponent {
           <div className={`${baseClass}__description`}>
             <p>{description || <em>{defaultDescription}</em>}</p>
           </div>
-          <div className={`${baseClass}__topper`}>
-            <p className={`${baseClass}__host-count`}>{hostsTotalDisplay}</p>
-          </div>
         </div>
         {renderDeleteButton()}
       </div>
