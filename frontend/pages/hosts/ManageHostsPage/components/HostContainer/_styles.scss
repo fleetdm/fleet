@@ -2,6 +2,7 @@
 
   &--no-hosts {
     display: flex;
+    flex-direction: column;
     justify-content: center;
     padding-top: 35px;
     font-size: 15px;
@@ -47,6 +48,7 @@
     &__inner {
       display: flex;
       align-items: center;
+      justify-content: center;
 
       img {
         width: 176px;
@@ -59,6 +61,10 @@
         font-size: $x-small;
         margin: 0;
       }
+    }
+
+    .host-pagination__pager-wrap {
+      margin-top: $pad-base;
     }
   }
 

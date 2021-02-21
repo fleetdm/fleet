@@ -8,7 +8,6 @@ const baseClass = 'host-pagination';
 
 class HostPagination extends PureComponent {
   static propTypes = {
-    allHostCount: PropTypes.number,
     currentPage: PropTypes.number,
     hostsPerPage: PropTypes.number,
     onPaginationChange: PropTypes.func,
@@ -30,14 +29,9 @@ class HostPagination extends PureComponent {
 
   render () {
     const {
-      allHostCount,
       currentPage,
       onPaginationChange,
     } = this.props;
-
-    if (allHostCount === 0) {
-      return null;
-    }
 
     return (
       <div className={`${baseClass}__pager-wrap`}>

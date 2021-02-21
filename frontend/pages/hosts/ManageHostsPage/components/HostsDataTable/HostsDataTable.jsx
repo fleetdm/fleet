@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect, useRef, useCallback, useState } from 'react';
 import PropTypes from 'prop-types';
-import {useTable, useGlobalFilter, useSortBy, useAsyncDebounce, usePagination } from 'react-table';
+import {useTable, useGlobalFilter, useSortBy, useAsyncDebounce } from 'react-table';
 import { useSelector, useDispatch } from 'react-redux';
 
 
@@ -17,7 +17,7 @@ import StatusCell from '../StatusCell/StatusCell';
 import LinkCell from '../LinkCell/LinkCell';
 
 // TODO: pass in as props
-const DEFAULT_PAGE_SIZE = 4;
+const DEFAULT_PAGE_SIZE = 2;
 const DEFAULT_PAGE_INDEX = 0;
 const DEBOUNCE_QUERY_DELAY = 300;
 const DEFAULT_SORT_KEY = 'hostname';
@@ -148,6 +148,7 @@ const HostsDataTable = (props) => {
     );
   }
 
+  console.log(rows);
   return (
     <React.Fragment>
       <div className={'hosts-table hosts-table__wrapper'}>
@@ -186,7 +187,7 @@ const HostsDataTable = (props) => {
       </div>
 
       <HostPagination
-        hostsOnCurrentPage={data.length}
+        hostsOnCurrentPage={rows.length}
         currentPage={pageIndex}
         hostsPerPage={pageSize}
         onPaginationChange={onPaginationChange}
