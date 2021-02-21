@@ -46,6 +46,7 @@ type QueryContent struct {
 	Snapshot    *bool   `json:"snapshot,omitempty"`
 	Removed     *bool   `json:"removed,omitempty"`
 	Shard       *uint   `json:"shard,omitempty"`
+	Denylist    *bool   `json:"denylist,omitempty"`
 }
 
 type PermissiveQueryContent struct {
