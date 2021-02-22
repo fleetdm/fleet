@@ -1,8 +1,8 @@
 ---
-name: Internal - New project
-about: Kick off a new, company-sponsored project to ship particular improvements to Fleet
+name: Internal - New task
+about: Track a new, company-sponsored task ("List integrations on website")
 title: ''
-labels: 'project'
+labels: ''
 assignees: ''
 
 ---
