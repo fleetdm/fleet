@@ -87,7 +87,7 @@ const HostsDataTable = (props) => {
     { columns,
       data,
       initialState: {
-        sortBy: [{ id: DEFAULT_SORT_KEY, desc: DEFAULT_SORT_DIRECTION === 'DESC' }],
+        sortBy: [{ id: DEFAULT_SORT_KEY, desc: DEFAULT_SORT_DIRECTION }],
       },
       disableMultiSort: true,
       manualGlobalFilter: true,
