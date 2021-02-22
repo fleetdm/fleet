@@ -21,7 +21,6 @@ const DEFAULT_PAGE_SIZE = 100;
 const DEFAULT_PAGE_INDEX = 0;
 const DEBOUNCE_QUERY_DELAY = 300;
 const DEFAULT_SORT_KEY = 'hostname';
-const DEFAULT_SORT_DIRECTION = 'DESC';
 
 // TODO: possibly get rid of this.
 const containerClass = 'host-container';
@@ -50,6 +49,7 @@ const HostsDataTable = (props) => {
   const dispatch = useDispatch();
   const loadingHosts = useSelector(state => state.entities.hosts.loading);
   const hosts = useSelector(state => state.entities.hosts.data);
+  const hostAPIOrder = useSelector(state => state.entities.hosts.originalOrder);
 
   // This variable is used to keep the react-table state persistant across server calls for new data.
   // You can read more about this here technique here:
@@ -74,8 +74,11 @@ const HostsDataTable = (props) => {
   }, []);
 
   const data = useMemo(() => {
-    return Object.values(hosts);
-  }, [hosts]);
+    // return Object.values(hosts);
+    return hostAPIOrder.map((id) => {
+      return hosts[id];
+    });
+  }, [hosts, hostAPIOrder]);
 
   const {
     headerGroups,
@@ -87,16 +90,18 @@ const HostsDataTable = (props) => {
     { columns,
       data,
       initialState: {
-        sortBy: [{ id: DEFAULT_SORT_KEY, desc: DEFAULT_SORT_DIRECTION }],
+        sortBy: [{ id: DEFAULT_SORT_KEY, desc: true }],
       },
       disableMultiSort: true,
       manualGlobalFilter: true,
-      autoResetSortBy: skipPageResetRef.current,
+      manualSortBy: true,
+      autoResetSortBy: !skipPageResetRef.current,
       autoResetGlobalFilter: skipPageResetRef.current,
     },
     useGlobalFilter,
     useSortBy,
   );
+  console.log('ROWS', rows);
   const { globalFilter, sortBy } = tableState;
 
   const debouncedGlobalFilter = useAsyncDebounce((value) => {
@@ -155,6 +160,10 @@ const HostsDataTable = (props) => {
       </div>
     );
   }
+
+  // console.log('hosts:', hosts);
+  // console.log('data:', data);
+  // console.log('rows:', rows);
 
   return (
     <React.Fragment>

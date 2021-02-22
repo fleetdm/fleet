@@ -16,8 +16,6 @@ export default (client) => {
         .then(response => response.host);
     },
 
-    // TODO: this needs to change to handle other filters
-    // loadAll: (page = 1, perPage = 100, selected = '', globalFilter = '', orderKey = '', isDesc) => {
     loadAll: (page = 0, perPage = 100, selected = '', globalFilter = '', sortBy) => {
       const { HOSTS, LABEL_HOSTS } = endpoints;
 

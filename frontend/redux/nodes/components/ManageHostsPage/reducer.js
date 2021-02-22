@@ -3,7 +3,6 @@ import {
   GET_STATUS_LABEL_COUNTS_SUCCESS,
   LOAD_STATUS_LABEL_COUNTS,
   SET_PAGINATION,
-  GET_HOSTS
 } from './actions';
 
 export const initialState = {

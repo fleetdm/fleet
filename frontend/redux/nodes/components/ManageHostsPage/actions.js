@@ -9,6 +9,7 @@ export const GET_STATUS_LABEL_COUNTS_SUCCESS = 'GET_STATUS_LABEL_COUNTS_SUCCESS'
 export const LOAD_STATUS_LABEL_COUNTS = 'LOAD_STATUS_LABEL_COUNTS';
 export const SET_PAGINATION = 'SET_PAGINATION';
 export const GET_HOSTS = 'GET_HOSTS';
+export const SET_HOST_TABLE_DATA_ORDER = 'SET_HOST_TABLE_DATA_ORDER';
 
 // Actions
 export const loadStatusLabelCounts = { type: LOAD_STATUS_LABEL_COUNTS };
@@ -87,13 +88,18 @@ export const getLabels = () => (dispatch) => {
   ];
 };
 
-// export const getHostTableData = (page, perPage, selectedLabel, globalFilter, orderKey, isDesc) => (dispatch) => {
-export const getHostTableData = (page, perPage, selectedLabel, globalFilter, sortBy) => (dispatch) => {
-  const promises = [
-    dispatch(hostActions.loadAll(page, perPage, selectedLabel, globalFilter, sortBy)),
-  ];
-
-  // Promise.all(promises).then(dispatch(setPaginationSuccess(page, perPage, selectedLabel)));
+export const setHostTableDataOrder = (data) => {
+  return {
+    type: SET_HOST_TABLE_DATA_ORDER,
+    payload: {
+      data,
+    },
+  };
 };
+
+export const getHostTableData = (page, perPage, selectedLabel, globalFilter, sortBy) => (dispatch) => {
+  dispatch(hostActions.loadAll(page, perPage, selectedLabel, globalFilter, sortBy));
+};
+
 
 export default { getStatusLabelCounts, setPagination, silentGetStatusLabelCounts, getHostTableData };

@@ -25,6 +25,7 @@ class BaseConfig {
     loading: false,
     errors: {},
     data: {},
+    originalOrder: [],
   }
 
   static TYPES = {
@@ -118,9 +119,11 @@ class BaseConfig {
     const { _parse, schema } = this;
     const parsable = isArray(response) ? response : [response];
     const parsed = _parse(parsable);
-    const { entities } = normalize(parsed, arrayOf(schema));
+    const { entities, result } = normalize(parsed, arrayOf(schema));
+    console.log(normalize(parsed, arrayOf(schema)));
+    console.log(result);
 
-    return thunk(entities);
+    return thunk(entities, result);
   }
 
   // PRIVATE METHODS
@@ -226,11 +229,12 @@ class BaseConfig {
   _genericSuccess (type) {
     const { actionTypes } = this;
 
-
-    return (data) => {
+    return (data, originalOrder) => {
       return {
         type: BaseConfig.successActionTypeFor(actionTypes, type),
-        payload: { data },
+        // This originalOrder is included to keep the order of the results sent back from the API
+        // This is used in things like server side ordering for data tables (e.g. host data table)
+        payload: { data, originalOrder },
       };
     };
   }
