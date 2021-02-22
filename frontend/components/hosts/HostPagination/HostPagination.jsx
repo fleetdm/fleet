@@ -33,10 +33,10 @@ class HostPagination extends PureComponent {
 
     return (
       <div className={`${baseClass}__pager-wrap`}>
-        <Button variant={''} disabled={this.disablePrev()} onClick={() => onPaginationChange(currentPage - 1)}>
+        <Button variant="unstyled" disabled={this.disablePrev()} onClick={() => onPaginationChange(currentPage - 1)}>
           <KolideIcon name="chevronleft" /> Prev
         </Button>
-        <Button variant={''} disabled={this.disableNext()} onClick={() => onPaginationChange(currentPage + 1)}>
+        <Button variant="unstyled" disabled={this.disableNext()} onClick={() => onPaginationChange(currentPage + 1)}>
           Next <KolideIcon name="chevronright" />
         </Button>
       </div>
