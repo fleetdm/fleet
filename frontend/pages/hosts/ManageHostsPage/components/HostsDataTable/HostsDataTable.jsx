@@ -21,7 +21,7 @@ const DEFAULT_PAGE_SIZE = 100;
 const DEFAULT_PAGE_INDEX = 0;
 const DEBOUNCE_QUERY_DELAY = 300;
 const DEFAULT_SORT_KEY = 'hostname';
-const DEFAULT_SORT_DIRECTION = 'ASC';
+const DEFAULT_SORT_DIRECTION = 'DESC';
 
 // TODO: possibly get rid of this.
 const containerClass = 'host-container';
@@ -61,7 +61,7 @@ const HostsDataTable = (props) => {
   // TODO: maybe pass as props?
   const columns = useMemo(() => {
     return [
-      { Header: cellProps => <HeaderCell all={cellProps.column} value={'Hostname'} isSortedDesc={cellProps.column.isSortedDesc} />, accessor: 'hostname', Cell: cellProps => <LinkCell value={cellProps.cell.value} host={cellProps.row.original} /> },
+      { Header: cellProps => <HeaderCell value={'Hostname'} isSortedDesc={cellProps.column.isSortedDesc} />, accessor: 'hostname', Cell: cellProps => <LinkCell value={cellProps.cell.value} host={cellProps.row.original} /> },
       { Header: 'Status', disableSortBy: true, accessor: 'status', Cell: cellProps => <StatusCell value={cellProps.cell.value} /> },
       { Header: cellProps => <HeaderCell all={cellProps.column} value={'OS'} isSortedDesc={cellProps.column.isSortedDesc} />, accessor: 'os_version', Cell: cellProps => <TextCell value={cellProps.cell.value} /> },
       { Header: cellProps => <HeaderCell value={'Osquery'} isSortedDesc={cellProps.column.isSortedDesc} />, accessor: 'osquery_version', Cell: cellProps => <TextCell value={cellProps.cell.value} /> },

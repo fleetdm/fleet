@@ -11,9 +11,9 @@ const HeaderCell = (props) => {
   if (isSortedDesc === undefined) {
     sortArrowClass = '';
   } else if (isSortedDesc) {
-    sortArrowClass = 'ascending';
-  } else {
     sortArrowClass = 'descending';
+  } else {
+    sortArrowClass = 'ascending';
   }
 
   return (
