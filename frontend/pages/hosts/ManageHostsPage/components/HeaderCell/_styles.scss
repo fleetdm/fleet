@@ -4,44 +4,38 @@
   align-items: center;
 
   .sort-arrows {
+    height: 14px;
     padding-left: $pad-half;
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
   }
 
-  .ascending-arrow,
+  .ascending-arrow {
+    width: 0; 
+    height: 0; 
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 6px solid $ui-dark-grey;
+  }
   .descending-arrow {
-    // padding-right: 10px;
-
-    &:after {
-      content: '';
-      position: relative;
-      border: 8px solid transparent;
-    }
-  }
-
-  .ascending-arrow:after {
-    bottom: 10px;
-    border-bottom-color: $ui-dark-grey;
-  }
-
-  .descending-arrow:after {
-    top: 10px;
-    border-top-color: $ui-dark-grey;
+    width: 0; 
+    height: 0; 
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid $ui-dark-grey;
   }
 
   &.ascending {
 
-    .ascending-arrow:after {
-      bottom: 10px;
+    .ascending-arrow {
       border-bottom-color: $core-blue;
     }
   }
 
   &.descending {
 
-    .descending-arrow:after {
-      top: 10px;
+    .descending-arrow {
       border-top-color: $core-blue;
     }
   }

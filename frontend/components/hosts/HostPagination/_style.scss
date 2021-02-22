@@ -4,11 +4,33 @@
     display: flex;
     justify-content: flex-end;
     margin-top: $pad-half;
+    margin-bottom: $pad-half;
     margin-left: auto;
     text-align: right;
 
+    button {
+      color: $core-blue;
+      padding: 6px;
+
+      .kolidecon-chevronleft {
+        margin-right: $pad-half;
+      }
+
+      .kolidecon-chevronright {
+        margin-left: $pad-half;
+      }
+    }
+
+    button:hover {
+      background-color: $core-blue-label-over;
+    }
+
+    .button--disabled:hover {
+      background-color: transparent;
+    }
+
     button:last-child {
-      margin-left: $pad-half;
+      margin-left: $pad-large;
     }
   }
 }
