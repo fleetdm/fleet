@@ -74,7 +74,6 @@ const HostsDataTable = (props) => {
   }, []);
 
   const data = useMemo(() => {
-    // return Object.values(hosts);
     return hostAPIOrder.map((id) => {
       return hosts[id];
     });
@@ -101,7 +100,6 @@ const HostsDataTable = (props) => {
     useGlobalFilter,
     useSortBy,
   );
-  console.log('ROWS', rows);
   const { globalFilter, sortBy } = tableState;
 
   const debouncedGlobalFilter = useAsyncDebounce((value) => {
@@ -160,10 +158,6 @@ const HostsDataTable = (props) => {
       </div>
     );
   }
-
-  // console.log('hosts:', hosts);
-  // console.log('data:', data);
-  // console.log('rows:', rows);
 
   return (
     <React.Fragment>
