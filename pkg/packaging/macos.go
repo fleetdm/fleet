@@ -83,7 +83,11 @@ func BuildPkg(opt Options) error {
 			return errors.Wrap(err, "write launchd")
 		}
 	}
-	if err := copyFile("./orbit", filepath.Join(orbitRoot, "orbit"), 0755); err != nil {
+	if err := copyFile(
+		"./orbit",
+		filepath.Join(orbitRoot, "bin", "orbit", "macos", "current", "orbit"),
+		0755,
+	); err != nil {
 		return errors.Wrap(err, "write orbit")
 	}
 

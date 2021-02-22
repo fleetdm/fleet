@@ -141,6 +141,18 @@ func main() {
 		}
 
 		var g run.Group
+
+		updateRunner, err := update.NewRunner(updater, update.RunnerOptions{
+			CheckInterval: 10 * time.Second,
+			Targets: map[string]string{
+				"osqueryd": c.String("osquery-version"),
+			},
+		})
+		if err != nil {
+			return err
+		}
+		g.Add(updateRunner.Execute, updateRunner.Interrupt)
+
 		var options []func(*osquery.Runner) error
 		options = append(options, osquery.WithDataPath(c.String("root-dir")))
 

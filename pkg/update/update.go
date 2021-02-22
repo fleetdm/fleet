@@ -20,7 +20,7 @@ import (
 const (
 	binDir = "bin"
 
-	defaultRootKeys = `[{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"c5008789635b7ac63228d80eec24edbfb8b3bddfd2121b08456de201ec24df7a"}}]`
+	defaultRootKeys = `[{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"037b475337c1acdafe20cff4fee6308209bc4ba23a2439a1f7be85131794cae1"}}]`
 )
 
 // Updater is responsible for managing update state.
@@ -43,7 +43,7 @@ type Options struct {
 	RootKeys string
 	// LocalStore is the local metadata store.
 	LocalStore client.LocalStore
-	// Platform is the name of the platform to update for. In the default
+	// Platform is the target of the platform to update for. In the default
 	// options this is the current platform.
 	Platform string
 }
@@ -115,23 +115,23 @@ func (u *Updater) UpdateMetadata() error {
 	return nil
 }
 
-func (u *Updater) RepoPath(name, channel string) string {
-	return path.Join(name, u.opt.Platform, channel, name+constant.ExecutableExtension(u.opt.Platform))
+func (u *Updater) RepoPath(target, channel string) string {
+	return path.Join(target, u.opt.Platform, channel, target+constant.ExecutableExtension(u.opt.Platform))
 }
 
-func (u *Updater) LocalPath(name, channel string) string {
-	return u.pathFromRoot(filepath.Join(binDir, name, u.opt.Platform, channel, name+constant.ExecutableExtension(u.opt.Platform)))
+func (u *Updater) LocalPath(target, channel string) string {
+	return u.pathFromRoot(filepath.Join(binDir, target, u.opt.Platform, channel, target+constant.ExecutableExtension(u.opt.Platform)))
 }
 
 // Lookup looks up the provided target in the local target metadata. This should
 // be called after UpdateMetadata.
-func (u *Updater) Lookup(name, channel string) (*data.TargetFileMeta, error) {
-	target, err := u.client.Target(u.RepoPath(name, channel))
+func (u *Updater) Lookup(target, channel string) (*data.TargetFileMeta, error) {
+	t, err := u.client.Target(u.RepoPath(target, channel))
 	if err != nil {
-		return nil, errors.Wrapf(err, "lookup %s@%s", name, channel)
+		return nil, errors.Wrapf(err, "lookup %s@%s", target, channel)
 	}
 
-	return &target, nil
+	return &t, nil
 }
 
 // Targets gets all of the known targets
@@ -146,9 +146,9 @@ func (u *Updater) Targets() (data.TargetFiles, error) {
 
 // Get returns the local path to the specified target. The target is downloaded
 // if it does not yet exist locally or the hash does not match.
-func (u *Updater) Get(name, channel string) (string, error) {
-	localPath := u.LocalPath(name, channel)
-	repoPath := u.RepoPath(name, channel)
+func (u *Updater) Get(target, channel string) (string, error) {
+	localPath := u.LocalPath(target, channel)
+	repoPath := u.RepoPath(target, channel)
 	stat, err := os.Stat(localPath)
 	if err != nil {
 		log.Debug().Err(err).Msg("stat file")
@@ -158,17 +158,17 @@ func (u *Updater) Get(name, channel string) (string, error) {
 		return "", errors.Errorf("expected %s to be regular file", localPath)
 	}
 
-	meta, err := u.Lookup(name, channel)
+	meta, err := u.Lookup(target, channel)
 	if err != nil {
 		return "", err
 	}
 
 	if err := CheckFileHash(meta, localPath); err != nil {
-		log.Debug().Err(err).Msg("will redownload due to error checking hash")
+		log.Debug().Err(err).Msg("will redownload")
 		return localPath, u.Download(repoPath, localPath)
 	}
 
-	log.Debug().Str("path", localPath).Msg("found expected channel locally")
+	log.Debug().Str("path", localPath).Str("target", target).Str("channel", channel).Msg("found expected target locally")
 
 	return localPath, nil
 }
