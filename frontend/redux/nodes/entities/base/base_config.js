@@ -120,8 +120,6 @@ class BaseConfig {
     const parsable = isArray(response) ? response : [response];
     const parsed = _parse(parsable);
     const { entities, result } = normalize(parsed, arrayOf(schema));
-    console.log(normalize(parsed, arrayOf(schema)));
-    console.log(result);
 
     return thunk(entities, result);
   }
