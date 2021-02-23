@@ -290,16 +290,14 @@ export class ManageHostsPage extends PureComponent {
 
   renderHeader = () => {
     const { renderDeleteButton } = this;
-    const { isAddLabel, selectedLabel, statusLabels } = this.props;
+    const { isAddLabel, selectedLabel } = this.props;
 
     if (!selectedLabel || isAddLabel) {
       return false;
     }
 
-    const { count, description, display_text: displayText, statusLabelKey, type } = selectedLabel;
+    const { description, display_text: displayText } = selectedLabel;
 
-    const hostCount = type === 'status' ? statusLabels[`${statusLabelKey}`] : count;
-    const hostsTotalDisplay = hostCount === 1 ? '1 host' : `${hostCount} hosts`;
     const defaultDescription = 'No description available.';
 
     return (

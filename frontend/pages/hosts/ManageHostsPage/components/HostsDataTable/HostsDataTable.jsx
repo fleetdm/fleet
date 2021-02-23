@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect, useRef, useCallback, useState } from 'react';
 import PropTypes from 'prop-types';
-import {useTable, useGlobalFilter, useSortBy, useAsyncDebounce } from 'react-table';
+import { useTable, useGlobalFilter, useSortBy, useAsyncDebounce } from 'react-table';
 import { useSelector, useDispatch } from 'react-redux';
 
 
@@ -95,7 +95,7 @@ const HostsDataTable = (props) => {
       manualGlobalFilter: true,
       manualSortBy: true,
       autoResetSortBy: !skipPageResetRef.current,
-      autoResetGlobalFilter: skipPageResetRef.current,
+      autoResetGlobalFilter: !skipPageResetRef.current,
     },
     useGlobalFilter,
     useSortBy,
