@@ -10,7 +10,6 @@ describe('HostsContainer - component', () => {
     selectedLabel: allHostsLabel,
   };
 
-  // TODO: come back and implement this again.
   it('displays getting started text if no hosts available', () => {
     const page = shallow(<HostContainer {...props} selectedFilter={'all-hosts'} selectedLabel={allHostsLabel} />);
 
