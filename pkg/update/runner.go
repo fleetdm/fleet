@@ -151,5 +151,4 @@ func (r *Runner) updateTarget(target, channel string) error {
 func (r *Runner) Interrupt(err error) {
 	r.cancel <- struct{}{}
 	log.Debug().Msg("interrupt updater")
-	return
 }

@@ -100,7 +100,9 @@ func main() {
 				return errors.Wrap(err, "read enroll secret file")
 			}
 
-			c.Set("enroll-secret", strings.TrimSpace(string(b)))
+			if err := c.Set("enroll-secret", strings.TrimSpace(string(b))); err != nil {
+				return errors.Wrap(err, "set enroll secret from file")
+			}
 		}
 
 		if err := os.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {

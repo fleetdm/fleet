@@ -114,9 +114,9 @@ func BuildDeb(opt Options) error {
 	info := &nfpm.Info{
 		Name:        "orbit-osquery",
 		Version:     opt.Version,
-		Description: "Osquery launcher and autoupdater",
+		Description: "Orbit osquery -- runtime and autoupdater by Fleet",
 		Arch:        "amd64",
-		Maintainer:  "FleetDM Engineers <engineering@fleetdm.com>",
+		Maintainer:  "Fleet Engineers <engineering@fleetdm.com>",
 		Homepage:    "https://github.com/fleetdm/orbit",
 		Overridables: nfpm.Overridables{
 			Contents: contents,
