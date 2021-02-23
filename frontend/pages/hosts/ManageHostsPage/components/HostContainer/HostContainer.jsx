@@ -33,6 +33,7 @@ class HostContainer extends Component {
     const { onSearchQueryChange } = this;
     const { selectedFilter } = this.props;
     const { searchQuery } = this.state;
+    console.log(selectedFilter);
 
 
     // if (hosts.length === 0) {

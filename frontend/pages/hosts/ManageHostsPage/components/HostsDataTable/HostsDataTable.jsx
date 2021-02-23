@@ -160,7 +160,7 @@ const HostsDataTable = (props) => {
   }
 
   return (
-    <React.Fragment>
+    <div className={'host-data-table'}>
       <div className={'manage-hosts__topper'}>
         <p className={'manage-hosts__host-count'}>{generateHostCountText(pageIndex, pageSize, rows.length)}</p>
       </div>
@@ -205,7 +205,7 @@ const HostsDataTable = (props) => {
         hostsPerPage={pageSize}
         onPaginationChange={onPaginationChange}
       />
-    </React.Fragment>
+    </div>
   );
 };
 
