@@ -15,10 +15,18 @@ export default {
     valid: (bearerToken) => {
       return createRequestMock({
         bearerToken,
-        endpoint: '/api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname',
+        endpoint: '/api/v1/fleet/hosts?page=0&per_page=100',
         method: 'get',
         response: { hosts: [] },
       });
     },
+    validWithParams: (bearerToken) => {
+      return createRequestMock({
+        bearerToken,
+        endpoint: '/api/v1/fleet/hosts?page=3&per_page=100&status=new&order_key=hostname&order_direction=desc&query=testQuery',
+        method: 'get',
+        response: { hosts: [] },
+      });
+    }
   },
 };
