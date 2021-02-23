@@ -38,7 +38,6 @@ export class ManageHostsPage extends PureComponent {
       base: PropTypes.string,
     }),
     labels: PropTypes.arrayOf(labelInterface),
-    loadingHosts: PropTypes.bool.isRequired,
     loadingLabels: PropTypes.bool.isRequired,
     enrollSecret: enrollSecretInterface,
     selectedFilter: PropTypes.string,
@@ -48,7 +47,6 @@ export class ManageHostsPage extends PureComponent {
   };
 
   static defaultProps = {
-    loadingHosts: false,
     loadingLabels: false,
   };
 
