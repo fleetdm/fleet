@@ -18,6 +18,14 @@ Orbit is Fleet's [osquery](https://github.com/osquery/osquery) runtime and autou
 | Manage/update osquery extensions     | 🔜     |
 | Manage cgroups for Linux performance | 🔜     |
 
+## Usage
+
+TODO
+
+## Packaging
+
+TODO
+
 ## FAQs
 
 ### How does Orbit compare with Kolide Launcher?
