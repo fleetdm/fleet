@@ -42,6 +42,7 @@ class ReduxConfig extends BaseConfig {
             ...state,
             loading: false,
             errors: {},
+            originalOrder: payload.originalOrder,
             data: {
               ...state.data,
               ...payload.data[entityName],

@@ -30,6 +30,7 @@ describe('ReduxConfig - reducer', () => {
           data: {
             [userStub.id]: userStub,
           },
+          originalOrder: [userStub.id],
         });
       });
     });
@@ -45,6 +46,7 @@ describe('ReduxConfig - reducer', () => {
           loading: false,
           errors,
           data: {},
+          originalOrder: [],
         });
       });
     });
@@ -105,6 +107,7 @@ describe('ReduxConfig - reducer', () => {
           data: {
             [userStub.id]: userStub,
           },
+          originalOrder: [userStub.id],
         });
       });
     });
@@ -120,6 +123,7 @@ describe('ReduxConfig - reducer', () => {
           loading: false,
           errors,
           data: {},
+          originalOrder: [],
         });
       });
     });
@@ -145,6 +149,7 @@ describe('ReduxConfig - reducer', () => {
           data: {
             101: newUser,
           },
+          originalOrder: [newUser.id],
         });
       });
     });
@@ -169,6 +174,7 @@ describe('ReduxConfig - reducer', () => {
           data: {
             [userStub.id]: newUser,
           },
+          originalOrder: [userStub.id],
         });
       });
     });
