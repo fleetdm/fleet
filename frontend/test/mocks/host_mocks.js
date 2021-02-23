@@ -27,6 +27,6 @@ export default {
         method: 'get',
         response: { hosts: [] },
       });
-    }
+    },
   },
 };

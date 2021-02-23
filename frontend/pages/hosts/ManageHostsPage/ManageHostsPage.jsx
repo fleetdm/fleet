@@ -13,7 +13,6 @@ import LabelForm from 'components/forms/LabelForm';
 import Modal from 'components/modals/Modal';
 import QuerySidePanel from 'components/side_panels/QuerySidePanel';
 import labelInterface from 'interfaces/label';
-import hostInterface from 'interfaces/host';
 import osqueryTableInterface from 'interfaces/osquery_table';
 import statusLabelsInterface from 'interfaces/status_labels';
 import enrollSecretInterface from 'interfaces/enroll_secret';
@@ -32,7 +31,6 @@ export class ManageHostsPage extends PureComponent {
   static propTypes = {
     config: configInterface,
     dispatch: PropTypes.func,
-    hosts: PropTypes.arrayOf(hostInterface),
     isAddLabel: PropTypes.bool,
     labelErrors: PropTypes.shape({
       base: PropTypes.string,

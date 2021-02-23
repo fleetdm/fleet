@@ -82,10 +82,8 @@ export const setPagination = (page, perPage, selectedLabel, globalFilter, orderK
 };
 
 export const getLabels = () => (dispatch) => {
-  const promises = [
-    dispatch(labelActions.loadAll()),
-    dispatch(silentGetStatusLabelCounts),
-  ];
+  dispatch(labelActions.loadAll());
+  dispatch(silentGetStatusLabelCounts);
 };
 
 export const setHostTableDataOrder = (data) => {
