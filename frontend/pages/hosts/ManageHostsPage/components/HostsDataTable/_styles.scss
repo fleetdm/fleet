@@ -1,80 +1,89 @@
-.hosts-table {
-  &__wrapper {
-    border: solid 1px $ui-borders;
-    border-radius: 6px;
-    margin-top: $pad-half;
-    overflow: scroll;
-    box-shadow: inset -8px 0 17px -10px #e8edf4;
+.host-data-table {
+  position: relative;
+
+  .manage-hosts__topper {
+    position: absolute;
+    top: -38px;
   }
 
-  &__table {
-    width: 100%;
-    border-collapse: collapse;
-    color: $core-black;
-    font-size: $x-small;
-  }
-
-  tr {
-    border-bottom: 1px solid $ui-borders;
-
-    &:last-child {
-      border-bottom: 0;
+  .hosts-table {
+    &__wrapper {
+      border: solid 1px $ui-borders;
+      border-radius: 6px;
+      margin-top: $pad-half;
+      overflow: scroll;
+      box-shadow: inset -8px 0 17px -10px #e8edf4;
     }
-  }
 
-  thead {
-    background-color: $core-light-blue-grey;
-    color: $core-black;
-    text-align: left;
-    border-bottom: 1px solid $ui-borders;
+    &__table {
+      width: 100%;
+      border-collapse: collapse;
+      color: $core-black;
+      font-size: $x-small;
+    }
 
-    th {
-      padding: 16px 27px;
-      white-space: nowrap;
-      border-right: 1px solid $ui-borders;
+    tr {
+      border-bottom: 1px solid $ui-borders;
 
       &:last-child {
-        border-right: none;
-      }
-    }
-  }
-
-  tbody {
-    td {
-      padding: 12px 27px;
-      white-space: nowrap;
-    }
-  }
-
-  &__hostname {
-    color: $core-black;
-  }
-
-  &__status {
-    color: $core-dark-blue-grey;
-    text-transform: capitalize;
-
-    &--online {
-      &:before {
-        background-color: $success;
-        border-radius: 100%;
-        content: ' ';
-        display: inline-block;
-        height: 8px;
-        margin-right: 8px;
-        width: 8px;
+        border-bottom: 0;
       }
     }
 
-    &--offline {
-      &:before {
-        background-color: $ui-dark-grey;
-        border-radius: 100%;
-        content: ' ';
-        display: inline-block;
-        height: 8px;
-        margin-right: 8px;
-        width: 8px;
+    thead {
+      background-color: $core-light-blue-grey;
+      color: $core-black;
+      text-align: left;
+      border-bottom: 1px solid $ui-borders;
+
+      th {
+        padding: 16px 27px;
+        white-space: nowrap;
+        border-right: 1px solid $ui-borders;
+
+        &:last-child {
+          border-right: none;
+        }
+      }
+    }
+
+    tbody {
+      td {
+        padding: 12px 27px;
+        white-space: nowrap;
+      }
+    }
+
+    &__hostname {
+      color: $core-black;
+    }
+
+    &__status {
+      color: $core-dark-blue-grey;
+      text-transform: capitalize;
+
+      &--online {
+        &:before {
+          background-color: $success;
+          border-radius: 100%;
+          content: ' ';
+          display: inline-block;
+          height: 8px;
+          margin-right: 8px;
+          width: 8px;
+        }
+      }
+
+      &--offline {
+        &:before {
+          background-color: $ui-dark-grey;
+          border-radius: 100%;
+          content: ' ';
+          display: inline-block;
+          height: 8px;
+          margin-right: 8px;
+          width: 8px;
+        }
       }
     }
   }
