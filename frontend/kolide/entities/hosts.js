@@ -16,7 +16,7 @@ export default (client) => {
         .then(response => response.host);
     },
 
-    loadAll: (page = 0, perPage = 100, selected = '', globalFilter = '', sortBy) => {
+    loadAll: (page = 0, perPage = 100, selected = '', globalFilter = '', sortBy = []) => {
       const { HOSTS, LABEL_HOSTS } = endpoints;
 
       const pagination = `page=${page}&per_page=${perPage}`;

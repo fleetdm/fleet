@@ -1,5 +1,5 @@
 import React from 'react';
-import { mount } from 'enzyme';
+import { mount, shallow } from 'enzyme';
 import { noop } from 'lodash';
 
 import hostActions from 'redux/nodes/entities/hosts/actions';
@@ -15,7 +15,7 @@ const offlineHost = { ...hostStub, id: 111, status: 'offline' };
 const offlineHostsLabel = { id: 5, display_text: 'OFFLINE', slug: 'offline', status: 'offline', type: 'status', count: 1 };
 const customLabel = { id: 6, display_text: 'Custom Label', slug: 'custom-label', type: 'custom', count: 3 };
 const mockStore = reduxMockStore({
-  app: { config: {} },
+  app: { enrollSecret: [], config: {} },
   components: {
     ManageHostsPage: {
       display: 'Grid',
@@ -32,6 +32,7 @@ const mockStore = reduxMockStore({
         [hostStub.id]: hostStub,
         [offlineHost.id]: offlineHost,
       },
+      originalOrder: [hostStub.id, offlineHost.id],
     },
     labels: {
       data: {
@@ -73,7 +74,7 @@ describe('ManageHostsPage - component', () => {
 
   describe('side panels', () => {
     it('renders a HostSidePanel when not adding a new label', () => {
-      const page = mount(<ManageHostsPage {...props} />);
+      const page = shallow(<ManageHostsPage {...props} />);
 
       expect(page.find('HostSidePanel').length).toEqual(1);
     });
@@ -84,22 +85,6 @@ describe('ManageHostsPage - component', () => {
       const page = mount(component);
 
       expect(page.find('QuerySidePanel').length).toEqual(1);
-    });
-  });
-
-  describe('header', () => {
-    it('displays "1 host" when there is 1 host', () => {
-      const oneHostLabel = { ...allHostsLabel, count: 1 };
-      const page = mount(<ManageHostsPage {...props} selectedLabel={oneHostLabel} />);
-
-      expect(page.text()).toContain('1 host');
-    });
-
-    it('displays "#{count} Hosts Total" when there are more than 1 host', () => {
-      const oneHostLabel = { ...allHostsLabel, count: 2 };
-      const page = mount(<ManageHostsPage {...props} selectedLabel={oneHostLabel} />);
-
-      expect(page.text()).toContain('2 hosts');
     });
   });
 
@@ -135,7 +120,6 @@ describe('ManageHostsPage - component', () => {
     beforeEach(() => createAceSpy());
 
     it('Displays the all hosts label as the active label by default', () => {
-      console.log('test');
       const ownProps = { location: {}, params: {} };
       const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
       const page = mount(component);
@@ -165,7 +149,7 @@ describe('ManageHostsPage - component', () => {
           selectedLabel: noDescriptionLabel,
         };
 
-        const Page = mount(<ManageHostsPage {...pageProps} />);
+        const Page = shallow(<ManageHostsPage {...pageProps} />);
 
         expect(Page.find('.manage-hosts__header').text())
           .toContain(defaultDescription);
@@ -183,7 +167,7 @@ describe('ManageHostsPage - component', () => {
           selectedLabel: noDescriptionLabel,
         };
 
-        const Page = mount(<ManageHostsPage {...pageProps} />);
+        const Page = shallow(<ManageHostsPage {...pageProps} />);
 
         expect(Page.find('.manage-hosts__header').text())
           .toContain(labelDescription);
@@ -253,7 +237,10 @@ describe('ManageHostsPage - component', () => {
 
   describe('Add Host', () => {
     it('Open the Add Host modal', () => {
-      const page = mount(<ManageHostsPage {...props} hosts={[]} selectedLabel={allHostsLabel} />);
+      // const page = mount(<ManageHostsPage {...props} hosts={[]} selectedLabel={allHostsLabel} />);
+      const ownProps = { location: { hash: '' }, params: {} };
+      const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
+      const page = mount(component);
       const addNewHost = page.find('.manage-hosts__add-hosts');
       addNewHost.hostNodes().simulate('click');
 
