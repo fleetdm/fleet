@@ -37,6 +37,7 @@ describe('Users - actions', () => {
 
       it('dispatches the correct actions', (done) => {
         const mockStore = reduxMockStore(store);
+        const responseOrder = [user.id];
 
         mockStore.dispatch(enableUser(user, { enabled: true }))
           .then(() => {
@@ -47,7 +48,7 @@ describe('Users - actions', () => {
                 users: {
                   [user.id]: { ...user, enabled: true },
                 },
-              }),
+              }, responseOrder),
             ]);
 
             done();
@@ -130,6 +131,7 @@ describe('Users - actions', () => {
 
       it('dispatches the correct actions', (done) => {
         const mockStore = reduxMockStore(store);
+        const responseOrder = [user.id];
 
         mockStore.dispatch(changePasswordAction)
           .then(() => {
@@ -141,7 +143,7 @@ describe('Users - actions', () => {
                 users: {
                   [user.id]: user,
                 },
-              }),
+              }, responseOrder),
             ]);
 
             done();
@@ -225,6 +227,7 @@ describe('Users - actions', () => {
 
       it('dispatches the correct actions', (done) => {
         const mockStore = reduxMockStore(store);
+        const responseOrder = [user.id];
 
         mockStore.dispatch(confirmEmailChange(user, token))
           .then(() => {
@@ -236,7 +239,7 @@ describe('Users - actions', () => {
                 users: {
                   [user.id]: updatedUser,
                 },
-              }),
+              }, responseOrder),
               updateUserSuccess(updatedUser),
             ]);
 
@@ -329,6 +332,7 @@ describe('Users - actions', () => {
 
       it('dispatches the correct actions', (done) => {
         const mockStore = reduxMockStore(store);
+        const responseOrder = [user.id];
 
         mockStore.dispatch(updateAdmin(user, { admin: true }))
           .then(() => {
@@ -339,7 +343,7 @@ describe('Users - actions', () => {
                 users: {
                   [user.id]: { ...user, admin: true },
                 },
-              }),
+              }, responseOrder),
             ]);
 
             done();
