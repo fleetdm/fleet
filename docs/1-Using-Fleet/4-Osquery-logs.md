@@ -61,7 +61,7 @@ output in the Fleet logs and those logs _will not_ be sent to Kinesis.
 - Flag namespace: [lambda](../2-Deployment/2-Configuration.md#lambda)
 
 With the Lambda plugin, osquery result and/or status logs are written to
-[AWS Lambda](https://aws.amazon.com/lambda/data-streams) functions.
+[AWS Lambda](https://aws.amazon.com/lambda/) functions.
 
 Note that Lambda logging has limits [discussed in the
 documentation](https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html).
