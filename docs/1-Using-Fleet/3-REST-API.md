@@ -3883,7 +3883,7 @@ Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allo
 
 To initiate a file carve using the Fleet API, you can use the [live query](#run-live-query) or [scheduled query](#add-scheduled-query-to-a-pack) endpoints to run a query against the `carves` table. 
 
-For more information on executing a file carve in Fleet, go to the [File carving with Fleet docs](../1-Usig-Fleet/2-fleetctl-CLI.md#file-carving-with-fleet).
+For more information on executing a file carve in Fleet, go to the [File carving with Fleet docs](../1-Using-Fleet/2-fleetctl-CLI.md#file-carving-with-fleet).
 
 ### List carves
 
