@@ -91,6 +91,15 @@ osquery:
       statusStream: ""
       resultStream: ""
 
+    # To configure the AWS Lambda logger, change the values below
+    lambda:
+      region: ""
+      accessKeyID: ""
+      secretKey: lambda
+      stsAssumeRoleARN: ""
+      statusFunction: ""
+      resultFunction: ""
+
     # To configure the GCP PubSub logger, change the values below
     pubsub:
       project: ""

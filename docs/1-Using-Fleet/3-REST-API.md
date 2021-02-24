@@ -421,11 +421,12 @@ Gets the current SSO configuration.
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                |
 | order_direction               | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                 |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                               |
+| query                  | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                               |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. |
 
 #### Example
 
-`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=host_name`
+`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=host_name&query=2ce`
 
 ##### Request query parameters
 
@@ -480,43 +481,6 @@ Gets the current SSO configuration.
       "enroll_secret_name": "default",
       "status": "offline",
       "display_text": "2ceca32fe484"
-    },
-    {
-      "created_at": "2020-11-05T05:09:44Z",
-      "updated_at": "2020-11-05T06:03:39Z",
-      "id": 2,
-      "detail_updated_at": "2020-11-05T05:09:45Z",
-      "label_updated_at": "2020-11-05T05:14:52Z",
-      "seen_time": "2020-11-05T06:03:40Z",
-      "hostname": "4cc885c20110",
-      "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
-      "platform": "centos",
-      "osquery_version": "2.7.0",
-      "os_version": "CentOS 6.8.0",
-      "build": "",
-      "platform_like": "rhel",
-      "code_name": "",
-      "uptime": 8305000000000,
-      "memory": 2084032512,
-      "cpu_type": "6",
-      "cpu_subtype": "142",
-      "cpu_brand": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
-      "cpu_physical_cores": 4,
-      "cpu_logical_cores": 4,
-      "hardware_vendor": "",
-      "hardware_model": "",
-      "hardware_version": "",
-      "hardware_serial": "",
-      "computer_name": "4cc885c20110",
-      "primary_ip": "",
-      "primary_mac": "",
-      "distributed_interval": 10,
-      "config_tls_refresh": 10,
-      "logger_tls_period": 8,
-      "additional": {},
-      "enroll_secret_name": "default",
-      "status": "offline",
-      "display_text": "4cc885c20110"
     },
   ]
 }
@@ -973,12 +937,13 @@ Returns a list of the hosts that belong to the specified label.
 | Name                  | Type   | In   | Description                                                     |
 | --------------------- | ------ | ---- | --------------------------------------------------------------- |
 | id                 | integer | path | **Required**. The label's id.                    |
-| order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                |
-| order_direction               | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.   |
+| order_key          | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                |
+| order_direction   | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.   |
+| query              | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`. |                                                                        
 
 #### Example
 
-`GET /api/v1/fleet/labels/6/hosts`
+`GET /api/v1/fleet/labels/6/hosts&query=floobar`
 
 ##### Default response
 
@@ -995,7 +960,7 @@ Returns a list of the hosts that belong to the specified label.
       "label_updated_at": "2021-02-03T21:58:10Z",
       "last_enrolled_at": "2021-02-03T16:11:43Z",
       "seen_time": "2021-02-03T21:58:20Z",
-      "hostname": "e2e7f8d8983d",
+      "hostname": "floobar42",
       "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
       "platform": "ubuntu",
       "osquery_version": "4.5.1",

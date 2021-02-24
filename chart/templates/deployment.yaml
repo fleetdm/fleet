@@ -188,6 +188,7 @@ spec:
           - name: FLEET_FILESYSTEM_ENABLE_LOG_COMPRESSION
             value: "{{ .Values.osquery.logging.filesystem.enableCompression }}"
           {{- end }}
+
           {{- if or (eq .Values.osquery.logging.statusPlugin "firehose") (eq .Values.osquery.logging.resultPlugin "firehose") }}
           - name: FLEET_FIREHOSE_REGION
             value: "{{ .Values.osquery.logging.firehose.region }}"
@@ -237,6 +238,32 @@ spec:
             value: "{{ .Values.osquery.logging.kinesis.stsAssumeRoleARN }}"
           {{- end }}
           {{- end }}
+
+          {{- if or (eq .Values.osquery.logging.statusPlugin "lambda") (eq .Values.osquery.logging.resultPlugin "lambda") }}
+          - name: FLEET_LAMBDA_REGION
+            value: "{{ .Values.osquery.logging.lambda.region }}"
+          {{- if eq .Values.osquery.logging.statusPlugin "lambda" }}
+          - name: FLEET_LAMBDA_STATUS_FUNCTION
+            value: "{{ .Values.osquery.logging.lambda.statusFunction }}"
+          {{- end }}
+          {{- if eq .Values.osquery.logging.resultPlugin "lambda" }}
+          - name: FLEET_LAMBDA_RESULT_FUNCTION
+            value: "{{ .Values.osquery.logging.lambda.resultFunction }}"
+          {{- end }}
+          {{- if ne .Values.osquery.logging.lambda.accessKeyID "" }}
+          - name: FLEET_LAMBDA_ACCESS_KEY_ID
+            value: "{{ .Values.osquery.logging.lambda.accessKeyID }}"
+          - name: FLEET_LAMBDA_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: "{{ .Values.osquery.secretName }}"
+                key: "{{ .Values.osquery.logging.lambda.secretKey }}"
+          {{ else }}
+          - name: FLEET_LAMBDA_STS_ASSUME_ROLE_ARN
+            value: "{{ .Values.osquery.logging.lambda.stsAssumeRoleARN }}"
+          {{- end }}
+          {{- end }}
+
 
           {{- if or (eq .Values.osquery.logging.statusPlugin "pubsub") (eq .Values.osquery.logging.resultPlugin "pubsub") }}
           - name: FLEET_PUBSUB_PROJECT
