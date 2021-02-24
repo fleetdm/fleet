@@ -63,7 +63,7 @@ const EditColumnsModal = (props) => {
       </div>
       <div className={'button-actions'}>
         <Button
-          onClick={() => {}}
+          onClick={() => onSaveColumns(getHiddenColumns(columnItems))}
           variant={'inverse'}
         >
           Cancel
