@@ -364,7 +364,7 @@ Gets the current SSO configuration.
 
 | Name      | Type   | In   | Description                                                                |
 | --------- | ------ | ---- | -------------------------------------------------------------------------- |
-| relay_url | string | body | **Required**. The relative url to be navigated to after succesful sign in. |
+| relay_url | string | body | **Required**. The relative url to be navigated to after successful sign in. |
 
 #### Example
 
@@ -3449,7 +3449,7 @@ Modifies the Fleet's configuration with the supplied information.
 | sender_address      | string | body | *SMTP settings*. The sender email address for the Fleet app. An invitation email is an example of the emails that may use this sender address  |
 | server      | string | body | *SMTP settings*. The SMTP server for the Fleet app. |
 | port      | integer | body | *SMTP settings*. The SMTP port for the Fleet app. |
-| authetication_type | string | body | *SMTP settings*. The authentication type used by the SMTP server. Options include `"authtype_username_and_password"` or `"none"`|
+| authentication_type | string | body | *SMTP settings*. The authentication type used by the SMTP server. Options include `"authtype_username_and_password"` or `"none"`|
 | username_name | string | body | *SMTP settings*. The username used to authenticate requests made to the SMTP server.|
 | password | string | body | *SMTP settings*. The password used to authenticate requests made to the SMTP server.|
 | enable_ssl_tls | boolean | body | *SMTP settings*. Whether or not SSL and TLS are enabled for the SMTP server.|
@@ -3912,10 +3912,13 @@ Modifies the osquery options configuration set in Fleet.
 
 - [List carves](#list-carves)
 - [Get carve](#get-carve)
+- [Get carve block](#get-carve-block)
 
 Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from osquery agents, returning the full contents to Fleet.
 
-The Fleet REST API supports reading carve data from the MySQL database but does not support creating carves. For more information on executing a file carve in Fleet, go to the [File carving with Fleet docs](../1-Using-Fleet/2-fleetctl-CLI.md#file-carving-with-fleet).
+To initiate a file carve using the Fleet API, you can use the [live query](#run-live-query) or [scheduled query](#add-scheduled-query-to-a-pack) endpoints to run a query against the `carves` table. 
+
+For more information on executing a file carve in Fleet, go to the [File carving with Fleet docs](../1-Usig-Fleet/2-fleetctl-CLI.md#file-carving-with-fleet).
 
 ### List carves
 
@@ -3972,7 +3975,7 @@ None.
 
 ### Get carve
 
-Retrives the specified carve.
+Retrieves the specified carve.
 
 `GET /api/v1/fleet/carves/{id}`
 
@@ -4006,6 +4009,33 @@ Retrives the specified carve.
     "expired": false,
     "max_block": 0
   }
+}
+```
+
+### Get carve block
+
+Retrieves the specified carve block. This endpoint retrieves the data that was carved.
+
+`GET /api/v1/fleet/carves/{id}/block/{block_id}`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| id   | integer  | path | **Required.** The desired carve's ID.            |
+| block_id   | integer  | path | **Required.** The desired carve block's ID.            |
+
+#### Example
+
+`GET /api/v1/fleet/carves/1/block/0`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+    "data": "aG9zdHMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA..."
 }
 ```
 
