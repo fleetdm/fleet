@@ -936,11 +936,13 @@ Returns a list of the hosts that belong to the specified label.
 | Name                  | Type   | In   | Description                                                     |
 | --------------------- | ------ | ---- | --------------------------------------------------------------- |
 | id                 | integer | path | **Required**. The label's id.                    |
+| order_key          | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                |
+| order_direction   | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.   |
 | query              | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`. |                                                                        
 
 #### Example
 
-`GET /api/v1/kolide/labels/6/hosts&query=floobar`
+`GET /api/v1/fleet/labels/6/hosts&query=floobar`
 
 ##### Default response
 
