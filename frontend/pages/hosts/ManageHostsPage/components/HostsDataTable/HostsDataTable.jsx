@@ -124,7 +124,7 @@ const HostsDataTable = (props) => {
   useEffect(() => {
     if (pageIndexChangeRef.current) { // the pageIndex has changed
       dispatch(getHostTableData(pageIndex, pageSize, selectedFilter, globalFilter, sortBy));
-    } else { // something besides pageIndex changes. we want to get results starting at the first page
+    } else { // something besides pageIndex changed. we want to get results starting at the first page
       setPageIndex(0);
       dispatch(getHostTableData(0, pageSize, selectedFilter, globalFilter, sortBy));
     }

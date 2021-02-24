@@ -29,10 +29,12 @@ class HostContainer extends Component {
   constructor (props) {
     super(props);
 
+    const storedHiddenColumns = JSON.parse(localStorage.getItem('hostHiddenColumns'));
+
     this.state = {
       searchQuery: '',
       showEditColumnsModal: false,
-      hiddenColumns: defaultHiddenColumns,
+      hiddenColumns: storedHiddenColumns !== null ? storedHiddenColumns : defaultHiddenColumns,
     };
   }
 
@@ -60,6 +62,7 @@ class HostContainer extends Component {
   }
 
   onSaveColumns = (newHiddenColumns) => {
+    localStorage.setItem('hostHiddenColumns', JSON.stringify(newHiddenColumns));
     this.setState({
       hiddenColumns: newHiddenColumns,
       showEditColumnsModal: false,
