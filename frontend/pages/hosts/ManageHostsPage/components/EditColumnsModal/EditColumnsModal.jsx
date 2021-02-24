@@ -40,7 +40,7 @@ const getHiddenColumns = (columns) => {
 }
 
 const EditColumnsModal = (props) => {
-  const { columns, hiddenColumns, onSaveColumns } = props;
+  const { columns, hiddenColumns, onSaveColumns, onCancelColumns } = props;
   const [columnItems, updateColumnItems] = useCheckboxListStateManagement(columns, hiddenColumns);
 
   return (
@@ -63,7 +63,7 @@ const EditColumnsModal = (props) => {
       </div>
       <div className={'button-actions'}>
         <Button
-          onClick={() => onSaveColumns(getHiddenColumns(columnItems))}
+          onClick={onCancelColumns}
           variant={'inverse'}
         >
           Cancel
@@ -83,6 +83,7 @@ EditColumnsModal.propTypes = {
   columns: PropTypes.arrayOf(PropTypes.object), // TODO: create proper interface for this
   hiddenColumns: PropTypes.arrayOf(PropTypes.string),
   onSaveColumns: PropTypes.func,
+  onCancelColumns: PropTypes.func,
 };
 
 export default EditColumnsModal;

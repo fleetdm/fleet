@@ -51,15 +51,10 @@ class HostContainer extends Component {
     });
   }
 
-  onToggleColumn = (column) => {
-    const { hiddenColumns } = this.state;
-    let newHiddenColumns;
-    if (hiddenColumns.includes(column)) {
-      newHiddenColumns = hiddenColumns.filter(columnName => columnName === column);
-    } else {
-      newHiddenColumns = [...hiddenColumns, column];
-    }
-    this.setState({ hiddenColumns: newHiddenColumns });
+  onCancelColumns = () => {
+    this.setState({
+      showEditColumnsModal: false,
+    });
   }
 
   onSaveColumns = (newHiddenColumns) => {
@@ -85,6 +80,7 @@ class HostContainer extends Component {
           columns={hostDataHeaders}
           hiddenColumns={hiddenColumns}
           onSaveColumns={this.onSaveColumns}
+          onCancelColumns={this.onCancelColumns}
         />
       </Modal>
     );
