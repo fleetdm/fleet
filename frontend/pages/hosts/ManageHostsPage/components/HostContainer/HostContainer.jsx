@@ -60,7 +60,10 @@ class HostContainer extends Component {
   }
 
   onSaveColumns = (newHiddenColumns) => {
-    this.setState({ hiddenColumns: newHiddenColumns });
+    this.setState({
+      hiddenColumns: newHiddenColumns,
+      showEditColumnsModal: false,
+    });
   }
 
   renderEditColumnsModal = () => {
