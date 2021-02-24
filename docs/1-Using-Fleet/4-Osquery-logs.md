@@ -63,8 +63,10 @@ output in the Fleet logs and those logs _will not_ be sent to Kinesis.
 With the Lambda plugin, osquery result and/or status logs are written to
 [AWS Lambda](https://aws.amazon.com/lambda/) functions.
 
+Lambda processes logs from Fleet synchronously, so the Lambda function used must not take enough processing time that the osquery client times out while writing logs. If there is heavy processing to be done, use Lambda to store the logs in another datastore/queue before performing the long-running process.
+
 Note that Lambda logging has limits [discussed in the
-documentation](https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html).
+documentation](https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html). The maximum size of a log sent to Lambda is 6MB.
 When Fleet encounters logs that are too big for Lambda, notifications will be
 output in the Fleet logs and those logs _will not_ be sent to Lambda.
 
