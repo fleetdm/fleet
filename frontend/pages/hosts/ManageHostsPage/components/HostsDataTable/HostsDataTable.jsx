@@ -3,14 +3,12 @@ import PropTypes from 'prop-types';
 import { useTable, useGlobalFilter, useSortBy, useAsyncDebounce } from 'react-table';
 import { useSelector, useDispatch } from 'react-redux';
 
-
 // TODO: move this file closer to HostsDataTable
 import { getHostTableData } from 'redux/nodes/components/ManageHostsPage/actions';
 
 import Spinner from 'components/loaders/Spinner';
 import HostPagination from 'components/hosts/HostPagination';
 import scrollToTop from '../../../../../utilities/scroll_to_top';
-
 
 // TODO: pass in as props
 const DEFAULT_PAGE_SIZE = 100;
@@ -125,6 +123,9 @@ const HostsDataTable = (props) => {
     if (pageIndexChangeRef.current) { // the pageIndex has changed
       dispatch(getHostTableData(pageIndex, pageSize, selectedFilter, globalFilter, sortBy));
     } else { // something besides pageIndex changed. we want to get results starting at the first page
+      // NOTE: currently this causes the request to fire twice if the user is not on the first page
+      // of results. Need to come back to this and figure out how to get it to
+      // only fire once.
       setPageIndex(0);
       dispatch(getHostTableData(0, pageSize, selectedFilter, globalFilter, sortBy));
     }

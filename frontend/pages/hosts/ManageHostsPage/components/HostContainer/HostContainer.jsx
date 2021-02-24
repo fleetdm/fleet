@@ -10,7 +10,7 @@ import RoboDogImage from '../../../../../../assets/images/robo-dog-176x144@2x.pn
 
 import { hostDataHeaders, defaultHiddenColumns } from './HostTableConfig';
 import HostsDataTable from '../HostsDataTable/HostsDataTable';
-import EditColumnsModal from '../../../EditColumnsModal/EditColumnsModal';
+import EditColumnsModal from '../EditColumnsModal/EditColumnsModal';
 
 const baseClass = 'host-container';
 
@@ -29,6 +29,7 @@ class HostContainer extends Component {
   constructor (props) {
     super(props);
 
+    // For now we persist using localstorage. May do server side persistence later.
     const storedHiddenColumns = JSON.parse(localStorage.getItem('hostHiddenColumns'));
 
     this.state = {

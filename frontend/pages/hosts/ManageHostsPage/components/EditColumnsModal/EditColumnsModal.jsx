@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 
-import Checkbox from '../../../components/forms/fields/Checkbox';
-import Button from '../../../components/buttons/Button';
+import Checkbox from '../../../../../components/forms/fields/Checkbox';
+import Button from '../../../../../components/buttons/Button';
 
 const useCheckboxListStateManagement = (allColumns, hiddenColumns) => {
   const [columnItems, setColumnItems] = useState(() => {
     return allColumns.map((column) => {
       return {
-        name: column.accessor,
+        name: column.title,
         accessor: column.accessor,
         isChecked: !hiddenColumns.includes(column.accessor),
       };
