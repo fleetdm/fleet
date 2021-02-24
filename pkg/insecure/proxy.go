@@ -140,17 +140,34 @@ func (p *TLSProxy) Close() error {
 	return p.server.Shutdown(ctx)
 }
 
-func newProxyHandler(hostname string) (*httputil.ReverseProxy, error) {
+func parseURL(hostname string) (*url.URL, error) {
+	if strings.HasPrefix(hostname, "http://") {
+		return nil, errors.New("scheme must be https")
+	}
+	if !strings.HasPrefix(hostname, "http") {
+		hostname = "https://" + hostname
+	}
 	target, err := url.Parse(hostname)
+	if err != nil {
+		return nil, errors.Wrap(err, "parse url")
+	}
+	if target.Scheme == "" {
+		target.Scheme = "https"
+	}
+
+	return target, nil
+}
+
+func newProxyHandler(hostname string) (*httputil.ReverseProxy, error) {
+	target, err := parseURL(hostname)
 	if err != nil {
 		return nil, errors.Wrap(err, "parse hostname")
 	}
-	target.Scheme = "https"
 
 	reverseProxy := &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
 			req.Host = target.Host
-			req.URL.Scheme = "https"
+			req.URL.Scheme = target.Scheme
 			req.URL.Host = target.Host
 			req.URL.Path, req.URL.RawPath = joinURLPath(target, req.URL)
 		},

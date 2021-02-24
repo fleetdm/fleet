@@ -223,6 +223,7 @@ func main() {
 			)
 		}
 
+		// Handle additional args after --
 		options = append(options, osquery.WithFlags([]string(c.Args().Slice())))
 
 		// Create an osquery runner with the provided options
@@ -311,6 +312,7 @@ var shellCommand = &cli.Command{
 		r, _ := osquery.NewRunner(
 			osquerydPath,
 			osquery.WithShell(),
+			// Handle additional args after --
 			osquery.WithFlags([]string(c.Args().Slice())),
 			osquery.WithDataPath(c.String("root-dir")),
 		)
