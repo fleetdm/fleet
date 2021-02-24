@@ -936,12 +936,11 @@ Returns a list of the hosts that belong to the specified label.
 | Name                  | Type   | In   | Description                                                     |
 | --------------------- | ------ | ---- | --------------------------------------------------------------- |
 | id                 | integer | path | **Required**. The label's id.                    |
-| order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                |
-| order_direction               | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.   |
+| query              | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`. |                                                                        
 
 #### Example
 
-`GET /api/v1/fleet/labels/6/hosts`
+`GET /api/v1/kolide/labels/6/hosts&query=floobar`
 
 ##### Default response
 
@@ -958,7 +957,7 @@ Returns a list of the hosts that belong to the specified label.
       "label_updated_at": "2021-02-03T21:58:10Z",
       "last_enrolled_at": "2021-02-03T16:11:43Z",
       "seen_time": "2021-02-03T21:58:20Z",
-      "hostname": "e2e7f8d8983d",
+      "hostname": "floobar42",
       "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
       "platform": "ubuntu",
       "osquery_version": "4.5.1",
