@@ -116,6 +116,16 @@ type KinesisConfig struct {
 	ResultStream     string `yaml:"result_stream"`
 }
 
+// LambdaConfig defines configs for the AWS Lambda logging plugin
+type LambdaConfig struct {
+	Region           string
+	AccessKeyID      string `yaml:"access_key_id"`
+	SecretAccessKey  string `yaml:"secret_access_key"`
+	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
+	StatusFunction   string `yaml:"status_function"`
+	ResultFunction   string `yaml:"result_function"`
+}
+
 // S3Config defines config to enable file carving storage to an S3 bucket
 type S3Config struct {
 	Bucket           string
@@ -155,6 +165,7 @@ type KolideConfig struct {
 	Logging    LoggingConfig
 	Firehose   FirehoseConfig
 	Kinesis    KinesisConfig
+	Lambda     LambdaConfig
 	S3         S3Config
 	PubSub     PubSubConfig
 	Filesystem FilesystemConfig
@@ -286,6 +297,17 @@ func (man Manager) addConfigs() {
 	man.addConfigString("kinesis.result_stream", "",
 		"Kinesis stream name for result logs")
 
+	// Lambda
+	man.addConfigString("lambda.region", "", "AWS Region to use")
+	man.addConfigString("lambda.access_key_id", "", "Access Key ID for AWS authentication")
+	man.addConfigString("lambda.secret_access_key", "", "Secret Access Key for AWS authentication")
+	man.addConfigString("lambda.sts_assume_role_arn", "",
+		"ARN of role to assume for AWS")
+	man.addConfigString("lambda.status_function", "",
+		"Lambda function name for status logs")
+	man.addConfigString("lambda.result_function", "",
+		"Lambda function name for result logs")
+
 	// S3 for file carving
 	man.addConfigString("s3.bucket", "", "Bucket where to store file carves")
 	man.addConfigString("s3.prefix", "", "Prefix under which carves are stored")
@@ -412,6 +434,14 @@ func (man Manager) LoadConfig() KolideConfig {
 			StatusStream:     man.getConfigString("kinesis.status_stream"),
 			ResultStream:     man.getConfigString("kinesis.result_stream"),
 			StsAssumeRoleArn: man.getConfigString("kinesis.sts_assume_role_arn"),
+		},
+		Lambda: LambdaConfig{
+			Region:           man.getConfigString("lambda.region"),
+			AccessKeyID:      man.getConfigString("lambda.access_key_id"),
+			SecretAccessKey:  man.getConfigString("lambda.secret_access_key"),
+			StatusFunction:   man.getConfigString("lambda.status_function"),
+			ResultFunction:   man.getConfigString("lambda.result_function"),
+			StsAssumeRoleArn: man.getConfigString("lambda.sts_assume_role_arn"),
 		},
 		S3: S3Config{
 			Bucket:           man.getConfigString("s3.bucket"),

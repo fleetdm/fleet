@@ -62,7 +62,7 @@ jobs:
         "helm-temp/output-defaults.yaml" \
         'FLEET_FILESYSTEM_STATUS_LOG_FILE FLEET_FILESYSTEM_RESULT_LOG_FILE FLEET_FILESYSTEM_ENABLE_LOG_ROTATION FLEET_FILESYSTEM_ENABLE_LOG_COMPRESSION' \
         'fleet-tls osquery-logs'
-    - name: check pubusb values
+    - name: check pubsub values
       run: |
         .github/scripts/helm-check-expected.sh \
         "helm-temp/logger-pubsub.yaml" \

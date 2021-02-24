@@ -579,7 +579,7 @@ Setting this to a higher value can reduce baseline load on the Fleet server in l
 
 Which log output plugin should be used for osquery status logs received from clients.
 
-Options are `filesystem`, `firehose`, `kinesis`, `pubsub`, and `stdout`.
+Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, and `stdout`.
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_OSQUERY_STATUS_LOG_PLUGIN`
@@ -594,7 +594,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `pubsub`, and `stdout`.
 
 Which log output plugin should be used for osquery result logs received from clients.
 
-Options are `filesystem`, `firehose`, `kinesis`, `pubsub`, and `stdout`.
+Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, and `stdout`.
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_OSQUERY_RESULT_LOG_PLUGIN`
@@ -973,6 +973,117 @@ the stream listed:
 
 * `kinesis:DescribeStream`
 * `kinesis:PutRecords`
+
+##### Lambda
+
+###### `lambda_region`
+
+This flag only has effect if `osquery_status_log_plugin` is set to `lambda`.
+
+AWS region to use for Lambda connection
+
+- Default value: none
+- Environment variable: `FLEET_LAMBDA_REGION`
+- Config file format:
+
+	```
+	lambda:
+		region: ca-central-1
+	```
+
+###### `lambda_access_key_id`
+
+This flag only has effect if `osquery_status_log_plugin` or
+`osquery_result_log_plugin` are set to `lambda`.
+
+If `lambda_access_key_id` and `lambda_secret_access_key` are omitted, Fleet
+will try to use
+[AWS STS](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html)
+credentials.
+
+AWS access key ID to use for Lambda authentication.
+
+- Default value: none
+- Environment variable: `FLEET_LAMBDA_ACCESS_KEY_ID`
+- Config file format:
+
+	```
+	lambda:
+		access_key_id: AKIAIOSFODNN7EXAMPLE
+	```
+
+###### `lambda_secret_access_key`
+
+This flag only has effect if `osquery_status_log_plugin` or
+`osquery_result_log_plugin` are set to `lambda`.
+
+AWS secret access key to use for Lambda authentication.
+
+- Default value: none
+- Environment variable: `FLEET_LAMBDA_SECRET_ACCESS_KEY`
+- Config file format:
+
+	```
+	lambda:
+		secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+	```
+
+###### `lambda_sts_assume_role_arn`
+
+This flag only has effect if `osquery_status_log_plugin` or
+`osquery_result_log_plugin` are set to `lambda`.
+
+AWS STS role ARN to use for Lambda authentication.
+
+- Default value: none
+- Environment variable: `FLEET_LAMBDA_STS_ASSUME_ROLE_ARN`
+- Config file format:
+
+	```
+	lambda:
+		sts_assume_role_arn: arn:aws:iam::1234567890:role/lambda-role
+	```
+
+###### `lambda_status_function`
+
+This flag only has effect if `osquery_status_log_plugin` is set to `lambda`.
+
+Name of the Lambda function to write osquery status logs received from clients.
+
+- Default value: none
+- Environment variable: `FLEET_LAMBDA_STATUS_FUNCTION`
+- Config file format:
+
+	```
+	lambda:
+		status_function: statusFunction
+	```
+
+The IAM role used to send to Lambda must allow the following permissions on
+the function listed:
+
+* `lambda:InvokeFunction`
+
+###### `lambda_result_function`
+
+This flag only has effect if `osquery_result_log_plugin` is set to `lambda`.
+
+Name of the Lambda function to write osquery result logs received from clients.
+
+- Default value: none
+- Environment variable: `FLEET_LAMBDA_RESULT_FUNCTION`
+- Config file format:
+
+	```
+	lambda:
+		result_function: resultFunction
+	```
+
+The IAM role used to send to Lambda must allow the following permissions on
+the function listed:
+
+* `lambda:InvokeFunction`
+
 
 ##### PubSub
 

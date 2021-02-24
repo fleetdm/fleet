@@ -3,10 +3,10 @@
 package logging
 
 import (
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/pkg/errors"
 )
 
@@ -22,7 +22,7 @@ func New(config config.KolideConfig, logger log.Logger) (*OsqueryLogger, error) 
 	switch config.Osquery.StatusLogPlugin {
 	case "":
 		// Allow "" to mean filesystem for backwards compatibility
-		level.Info(logger).Log("msg", "kolide_status_log_plugin not explicitly specified. Assuming 'filesystem'")
+		level.Info(logger).Log("msg", "fleet_status_log_plugin not explicitly specified. Assuming 'filesystem'")
 		fallthrough
 	case "filesystem":
 		status, err = NewFilesystemLogWriter(
@@ -58,6 +58,18 @@ func New(config config.KolideConfig, logger log.Logger) (*OsqueryLogger, error) 
 		if err != nil {
 			return nil, errors.Wrap(err, "create kinesis status logger")
 		}
+	case "lambda":
+		status, err = NewLambdaLogWriter(
+			config.Lambda.Region,
+			config.Lambda.AccessKeyID,
+			config.Lambda.SecretAccessKey,
+			config.Lambda.StsAssumeRoleArn,
+			config.Lambda.StatusFunction,
+			logger,
+		)
+		if err != nil {
+			return nil, errors.Wrap(err, "create lambda status logger")
+		}
 	case "pubsub":
 		status, err = NewPubSubLogWriter(
 			config.PubSub.Project,
@@ -81,7 +93,7 @@ func New(config config.KolideConfig, logger log.Logger) (*OsqueryLogger, error) 
 	switch config.Osquery.ResultLogPlugin {
 	case "":
 		// Allow "" to mean filesystem for backwards compatibility
-		level.Info(logger).Log("msg", "kolide_result_log_plugin not explicitly specified. Assuming 'filesystem'")
+		level.Info(logger).Log("msg", "fleet_result_log_plugin not explicitly specified. Assuming 'filesystem'")
 		fallthrough
 	case "filesystem":
 		result, err = NewFilesystemLogWriter(
@@ -116,6 +128,18 @@ func New(config config.KolideConfig, logger log.Logger) (*OsqueryLogger, error) 
 		)
 		if err != nil {
 			return nil, errors.Wrap(err, "create kinesis result logger")
+		}
+	case "lambda":
+		result, err = NewLambdaLogWriter(
+			config.Lambda.Region,
+			config.Lambda.AccessKeyID,
+			config.Lambda.SecretAccessKey,
+			config.Lambda.StsAssumeRoleArn,
+			config.Lambda.ResultFunction,
+			logger,
+		)
+		if err != nil {
+			return nil, errors.Wrap(err, "create lambda result logger")
 		}
 	case "pubsub":
 		result, err = NewPubSubLogWriter(

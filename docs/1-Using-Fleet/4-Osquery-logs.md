@@ -3,6 +3,7 @@
   - [Filesystem](#filesystem)
   - [Firehose](#firehose)
   - [Kinesis](#kinesis)
+  - [Lambda](#lambda)
   - [PubSub](#pubsub)
   - [Stdout](#stdout)
 
@@ -17,6 +18,7 @@ Fleet supports the following logging plugins for osquery logs:
 - [Filesystem](#filesystem) - Logs are written to the local Fleet server filesystem.
 - [Firehose](#firehose) - Logs are written to AWS Firehose streams.
 - [Kinesis](#kinesis) - Logs are written to AWS Kinesis streams.
+- [Lambda](#lambda) - Logs are written to AWS Lambda functions.
 - [PubSub](#pubsub) - Logs are written to Google Cloud PubSub topics.
 - [Stdout](#stdout) - Logs are written to stdout.
 
@@ -52,6 +54,21 @@ Note that Kinesis logging has limits [discussed in the
 documentation](https://docs.aws.amazon.com/kinesis/latest/dev/limits.html).
 When Fleet encounters logs that are too big for Kinesis, notifications will be
 output in the Fleet logs and those logs _will not_ be sent to Kinesis.
+
+### Lambda
+
+- Plugin name: `lambda`
+- Flag namespace: [lambda](../2-Deployment/2-Configuration.md#lambda)
+
+With the Lambda plugin, osquery result and/or status logs are written to
+[AWS Lambda](https://aws.amazon.com/lambda/) functions.
+
+Lambda processes logs from Fleet synchronously, so the Lambda function used must not take enough processing time that the osquery client times out while writing logs. If there is heavy processing to be done, use Lambda to store the logs in another datastore/queue before performing the long-running process.
+
+Note that Lambda logging has limits [discussed in the
+documentation](https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html). The maximum size of a log sent to Lambda is 6MB.
+When Fleet encounters logs that are too big for Lambda, notifications will be
+output in the Fleet logs and those logs _will not_ be sent to Lambda.
 
 ### PubSub
 
