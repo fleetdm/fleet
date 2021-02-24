@@ -5,17 +5,12 @@ import { useSelector, useDispatch } from 'react-redux';
 
 
 // TODO: move this file closer to HostsDataTable
-import { humanHostMemory, humanHostUptime } from 'kolide/helpers';
 import { getHostTableData } from 'redux/nodes/components/ManageHostsPage/actions';
 
 import Spinner from 'components/loaders/Spinner';
 import HostPagination from 'components/hosts/HostPagination';
-
-import HeaderCell from '../HeaderCell/HeaderCell';
-import TextCell from '../TextCell/TextCell';
-import StatusCell from '../StatusCell/StatusCell';
-import LinkCell from '../LinkCell/LinkCell';
 import scrollToTop from '../../../../../utilities/scroll_to_top';
+
 
 // TODO: pass in as props
 const DEFAULT_PAGE_SIZE = 100;
@@ -42,6 +37,8 @@ const HostsDataTable = (props) => {
     // component cannot access the router state.
     selectedFilter,
     searchQuery,
+    hiddenColumns,
+    tableColumns,
   } = props;
 
   const [pageSize] = useState(DEFAULT_PAGE_SIZE);
@@ -61,18 +58,8 @@ const HostsDataTable = (props) => {
 
   // TODO: maybe pass as props?
   const columns = useMemo(() => {
-    return [
-      { Header: cellProps => <HeaderCell value={'Hostname'} isSortedDesc={cellProps.column.isSortedDesc} />, accessor: 'hostname', Cell: cellProps => <LinkCell value={cellProps.cell.value} host={cellProps.row.original} /> },
-      { Header: 'Status', disableSortBy: true, accessor: 'status', Cell: cellProps => <StatusCell value={cellProps.cell.value} /> },
-      { Header: cellProps => <HeaderCell all={cellProps.column} value={'OS'} isSortedDesc={cellProps.column.isSortedDesc} />, accessor: 'os_version', Cell: cellProps => <TextCell value={cellProps.cell.value} /> },
-      { Header: cellProps => <HeaderCell value={'Osquery'} isSortedDesc={cellProps.column.isSortedDesc} />, accessor: 'osquery_version', Cell: cellProps => <TextCell value={cellProps.cell.value} /> },
-      { Header: cellProps => <HeaderCell value={'IPv4'} isSortedDesc={cellProps.column.isSortedDesc} />, accessor: 'primary_ip', Cell: cellProps => <TextCell value={cellProps.cell.value} /> },
-      { Header: cellProps => <HeaderCell value={'Physical Address'} isSortedDesc={cellProps.column.isSortedDesc} />, accessor: 'primary_mac', Cell: cellProps => <TextCell value={cellProps.cell.value} /> },
-      { Header: 'CPU', disableSortBy: true, accessor: 'host_cpu', Cell: cellProps => <TextCell value={cellProps.cell.value} /> },
-      { Header: cellProps => <HeaderCell value={'Memory'} isSortedDesc={cellProps.column.isSortedDesc} />, accessor: 'memory', Cell: cellProps => <TextCell value={cellProps.cell.value} formatter={humanHostMemory} /> },
-      { Header: cellProps => <HeaderCell value={'Uptime'} isSortedDesc={cellProps.column.isSortedDesc} />, accessor: 'uptime', Cell: cellProps => <TextCell value={cellProps.cell.value} formatter={humanHostUptime} /> },
-    ];
-  }, []);
+    return tableColumns;
+  }, [tableColumns]);
 
   const data = useMemo(() => {
     return hostAPIOrder.map((id) => {
@@ -91,6 +78,7 @@ const HostsDataTable = (props) => {
       data,
       initialState: {
         sortBy: [{ id: DEFAULT_SORT_KEY, desc: true }],
+        hiddenColumns,
       },
       disableMultiSort: true,
       manualGlobalFilter: true,
@@ -110,23 +98,21 @@ const HostsDataTable = (props) => {
 
   const onPaginationChange = useCallback((newPage) => {
     if (newPage > pageIndex) {
-      // pageIndexChangeRef.current = pageIndex;
       setPageIndex(pageIndex + 1);
     } else {
-      // pageIndpageIndexChangeRefexRef.current = pageIndex;
       setPageIndex(pageIndex - 1);
     }
     pageIndexChangeRef.current = true;
     scrollToTop();
   }, [pageIndex, setPageIndex]);
 
-  // Since searchQuery is feed in from the parent, we want to debounce the globalfilter change
+  // Since searchQuery is feed in from the parent, we want to debounce the globalFilter change
   // when we see it change.
   useEffect(() => {
     debouncedGlobalFilter(searchQuery);
   }, [debouncedGlobalFilter, searchQuery]);
 
-  // Any changes to these relevent table search params will fire off an action to get the new
+  // Any changes to these relevant table search params will fire off an action to get the new
   // hosts data.
   useEffect(() => {
     if (pageIndexChangeRef.current) { // the pageIndex has changed
@@ -213,6 +199,8 @@ const HostsDataTable = (props) => {
 HostsDataTable.propTypes = {
   selectedFilter: PropTypes.string,
   searchQuery: PropTypes.string,
+  tableColumns: PropTypes.arrayOf(PropTypes.object), // TODO: create proper interface for this
+  hiddenColumns: PropTypes.arrayOf(PropTypes.string),
 };
 
 export default HostsDataTable;

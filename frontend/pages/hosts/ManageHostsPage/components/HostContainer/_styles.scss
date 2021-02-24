@@ -96,11 +96,17 @@
     }
   }
 
+  &__table-controls {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+  }
+
   &__search-input {
     position: relative;
     color: $core-dark-blue-grey;
     width: 344px;
-    margin-left: auto;
+    margin-left: $pad-half;
 
     .host-container__input-wrapper {
       margin-bottom: 0;
