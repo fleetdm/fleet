@@ -7,6 +7,7 @@ import InputField from 'components/forms/fields/InputField';
 import KolideIcon from 'components/icons/KolideIcon';
 import Modal from 'components/modals/Modal';
 import RoboDogImage from '../../../../../../assets/images/robo-dog-176x144@2x.png';
+import EditColumnsIcon from '../../../../../../assets/images/icon-edit-columns-20x20@2x.png';
 
 import { hostDataHeaders, defaultHiddenColumns } from './HostTableConfig';
 import HostsDataTable from '../HostsDataTable/HostsDataTable';
@@ -114,7 +115,10 @@ class HostContainer extends Component {
       <div className={`${baseClass}`}>
         {/* TODO: find a way to move these controls into the table component */}
         <div className={`${baseClass}__table-controls`}>
-          <Button onClick={this.onEditColumnsClick}>Edit columns</Button>
+          <Button onClick={this.onEditColumnsClick} variant="unstyled" className={`${baseClass}__edit-columns-button`}>
+            <img src={EditColumnsIcon} alt="edit columns icon" />
+            Edit columns
+          </Button>
           <div className={`${baseClass}__search-input`}>
             <InputField
               placeholder="Search hosts by hostname"

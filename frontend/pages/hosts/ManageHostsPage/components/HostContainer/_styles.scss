@@ -102,11 +102,29 @@
     align-items: center;
   }
 
+  &__edit-columns-button {
+    display: flex;
+    align-items: center;
+    font-size: $x-small;
+    color: $core-blue;
+
+    img {
+      width: 20px;
+      margin-right: $pad-half;
+    }
+  }
+
+  &__edit-columns-button:hover {
+    cursor: pointer;
+    text-decoration: underline;
+    color: $core-blue-over;
+  }
+
   &__search-input {
     position: relative;
     color: $core-dark-blue-grey;
     width: 344px;
-    margin-left: $pad-half;
+    margin-left: $pad-medium;
 
     .host-container__input-wrapper {
       margin-bottom: 0;
