@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
+import ReactTooltip from 'react-tooltip';
 
 import labelInterface from 'interfaces/label';
 import Button from 'components/buttons/Button';
@@ -119,9 +120,9 @@ class HostContainer extends Component {
             <img src={EditColumnsIcon} alt="edit columns icon" />
             Edit columns
           </Button>
-          <div className={`${baseClass}__search-input`}>
+          <div data-tip data-for="search" className={`${baseClass}__search-input`}>
             <InputField
-              placeholder="Search hosts by hostname"
+              placeholder="Search hostname, UUID, serial number, or IPv4"
               name=""
               onChange={onSearchQueryChange}
               value={searchQuery}
@@ -129,6 +130,9 @@ class HostContainer extends Component {
             />
             <KolideIcon name="search" />
           </div>
+          <ReactTooltip place="bottom" type="dark" effect="solid" id="search" backgroundColor="#3e4771">
+            <span className={`${baseClass}__tooltip-text`}>Search by hostname, UUID, serial number, or IPv4</span>
+          </ReactTooltip>
         </div>
         <HostsDataTable
           selectedFilter={selectedFilter}

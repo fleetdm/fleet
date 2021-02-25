@@ -3,15 +3,8 @@
   &--no-hosts {
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    padding-top: 35px;
-    font-size: 15px;
-    font-weight: $regular;
-    line-height: 2;
-    letter-spacing: normal;
-    color: rgba(32, 37, 50, 0.66);
-    border-top: 1px solid $ui-borders;
-    margin-top: $pad-half;
+    align-items: center;
+    margin-top: 80px;
 
     h1 {
       font-size: $large;
@@ -47,8 +40,14 @@
 
     &__inner {
       display: flex;
-      align-items: center;
-      justify-content: center;
+      flex-direction: column;
+      width: 350px;
+
+      h1 {
+        font-size: $small;
+        font-weight: $bold;
+        margin-bottom: $pad-medium;
+      }
 
       img {
         width: 176px;

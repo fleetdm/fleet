@@ -137,18 +137,9 @@ const HostsDataTable = (props) => {
     return (
       <div className={`${containerClass}  ${containerClass}--no-hosts`}>
         <div className={`${containerClass}--no-hosts__inner`}>
-          <div>
-            <h1>No hosts match the current search criteria</h1>
-            <p>Expecting to see new hosts? Try again in a few seconds as the system catches up</p>
-          </div>
+          <h1>No hosts match the current criteria</h1>
+          <p>Expecting to see new hosts? Try again in a few seconds as the system catches up</p>
         </div>
-
-        <HostPagination
-          hostOnCurrentPage={100}
-          currentPage={pageIndex}
-          hostsPerPage={pageSize}
-          onPaginationChange={onPaginationChange}
-        />
       </div>
     );
   }
