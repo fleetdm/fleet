@@ -69,6 +69,7 @@ const EditColumnsModal = (props) => {
           Cancel
         </Button>
         <Button
+          className={'save-button'}
           onClick={() => onSaveColumns(getHiddenColumns(columnItems))}
           variant={'default'}
         >
