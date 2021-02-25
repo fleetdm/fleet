@@ -7,9 +7,6 @@ import labelActions from 'redux/nodes/entities/labels/actions';
 export const GET_STATUS_LABEL_COUNTS_FAILURE = 'GET_STATUS_LABEL_COUNTS_FAILURE';
 export const GET_STATUS_LABEL_COUNTS_SUCCESS = 'GET_STATUS_LABEL_COUNTS_SUCCESS';
 export const LOAD_STATUS_LABEL_COUNTS = 'LOAD_STATUS_LABEL_COUNTS';
-export const SET_PAGINATION = 'SET_PAGINATION';
-export const GET_HOSTS = 'GET_HOSTS';
-export const SET_HOST_TABLE_DATA_ORDER = 'SET_HOST_TABLE_DATA_ORDER';
 
 // Actions
 export const loadStatusLabelCounts = { type: LOAD_STATUS_LABEL_COUNTS };
@@ -60,39 +57,9 @@ export const getStatusLabelCounts = (dispatch) => {
     });
 };
 
-export const setPaginationSuccess = (page, perPage, selectedLabel) => {
-  return {
-    type: SET_PAGINATION,
-    payload: {
-      page,
-      perPage,
-      selectedLabel,
-    },
-  };
-};
-
-export const setPagination = (page, perPage, selectedLabel, globalFilter, orderKey, isDesc) => (dispatch) => {
-  const promises = [
-    dispatch(hostActions.loadAll(page, perPage, selectedLabel, globalFilter, orderKey, isDesc)),
-    dispatch(labelActions.silentLoadAll()),
-    dispatch(silentGetStatusLabelCounts),
-  ];
-
-  Promise.all(promises).then(dispatch(setPaginationSuccess(page, perPage, selectedLabel)));
-};
-
 export const getLabels = () => (dispatch) => {
   dispatch(labelActions.loadAll());
   dispatch(silentGetStatusLabelCounts);
-};
-
-export const setHostTableDataOrder = (data) => {
-  return {
-    type: SET_HOST_TABLE_DATA_ORDER,
-    payload: {
-      data,
-    },
-  };
 };
 
 export const getHostTableData = (page, perPage, selectedLabel, globalFilter, sortBy) => (dispatch) => {
@@ -100,4 +67,4 @@ export const getHostTableData = (page, perPage, selectedLabel, globalFilter, sor
 };
 
 
-export default { getStatusLabelCounts, setPagination, silentGetStatusLabelCounts, getHostTableData };
+export default { getStatusLabelCounts, silentGetStatusLabelCounts, getHostTableData };
