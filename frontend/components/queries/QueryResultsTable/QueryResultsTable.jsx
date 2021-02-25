@@ -174,7 +174,7 @@ class QueryResultsTable extends Component {
 
     const { hosts_count: hostsCount, query_results: queryResults, errors } = campaign;
     const hasNoResults = !queryIsRunning && (!hostsCount.successful || (!queryResults || !queryResults.length));
-    const hasErrors = !queryIsRunning && (hostsCount.failed && errors);
+    const hasErrors = !queryIsRunning && errors;
 
     const resultsTableWrapClass = classnames(baseClass, {
       [`${baseClass}--full-screen`]: isQueryFullScreen,
@@ -219,12 +219,12 @@ class QueryResultsTable extends Component {
           {!hasNoResults && renderTable()}
         </div>
         {hasErrors &&
-        <div className={`${baseClass}__error-table-container`}>
-          <span className={`${baseClass}__table-title`}>Errors</span>
-          <div className={`${baseClass}__error-table-wrapper`}>
-            {renderErrorsTable()}
+          <div className={`${baseClass}__error-table-container`}>
+            <span className={`${baseClass}__table-title`}>Errors</span>
+            <div className={`${baseClass}__error-table-wrapper`}>
+              {renderErrorsTable()}
+            </div>
           </div>
-        </div>
         }
       </div>
     );
