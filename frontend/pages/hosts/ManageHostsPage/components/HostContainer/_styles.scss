@@ -3,15 +3,8 @@
   &--no-hosts {
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    padding-top: 35px;
-    font-size: 15px;
-    font-weight: $regular;
-    line-height: 2;
-    letter-spacing: normal;
-    color: rgba(32, 37, 50, 0.66);
-    border-top: 1px solid $ui-borders;
-    margin-top: $pad-half;
+    align-items: center;
+    margin-top: 80px;
 
     h1 {
       font-size: $large;
@@ -47,8 +40,13 @@
 
     &__inner {
       display: flex;
-      align-items: center;
-      justify-content: center;
+      flex-direction: row;
+
+      h1 {
+        font-size: $small;
+        font-weight: $bold;
+        margin-bottom: $pad-medium;
+      }
 
       img {
         width: 176px;
@@ -60,6 +58,12 @@
         font-weight: $regular;
         font-size: $x-small;
         margin: 0;
+      }
+
+      .no-filter-results {
+        display: flex;
+        flex-direction: column;
+        width: 350px;
       }
     }
 
@@ -96,11 +100,35 @@
     }
   }
 
+  &__table-controls {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+  }
+
+  &__edit-columns-button {
+    display: flex;
+    align-items: center;
+    font-size: $x-small;
+    color: $core-blue;
+
+    img {
+      width: 20px;
+      margin-right: $pad-half;
+    }
+  }
+
+  &__edit-columns-button:hover {
+    cursor: pointer;
+    text-decoration: underline;
+    color: $core-blue-over;
+  }
+
   &__search-input {
     position: relative;
     color: $core-dark-blue-grey;
     width: 344px;
-    margin-left: auto;
+    margin-left: $pad-medium;
 
     .host-container__input-wrapper {
       margin-bottom: 0;
