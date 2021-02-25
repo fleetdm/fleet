@@ -54,7 +54,6 @@ const HostsDataTable = (props) => {
 
   const pageIndexChangeRef = useRef();
 
-  // TODO: maybe pass as props?
   const columns = useMemo(() => {
     return tableColumns;
   }, [tableColumns]);

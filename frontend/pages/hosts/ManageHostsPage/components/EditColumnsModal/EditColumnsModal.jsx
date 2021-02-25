@@ -37,7 +37,7 @@ const useCheckboxListStateManagement = (allColumns, hiddenColumns) => {
 const getHiddenColumns = (columns) => {
   return columns.filter(column => !column.isChecked)
     .map(column => column.accessor);
-}
+};
 
 const EditColumnsModal = (props) => {
   const { columns, hiddenColumns, onSaveColumns, onCancelColumns } = props;

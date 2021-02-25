@@ -4,7 +4,7 @@ import HeaderCell from '../HeaderCell/HeaderCell';
 import LinkCell from '../LinkCell/LinkCell';
 import StatusCell from '../StatusCell/StatusCell';
 import TextCell from '../TextCell/TextCell';
-import { humanHostMemory, humanHostUptime } from '../../../../../kolide/helpers';
+import { humanHostMemory, humanHostUptime, humanHostLastSeen } from '../../../../../kolide/helpers';
 
 const hostDataHeaders = [
   {
@@ -40,10 +40,22 @@ const hostDataHeaders = [
     Cell: cellProps => <TextCell value={cellProps.cell.value} />,
   },
   {
-    title: 'Physical Address',
+    title: 'Last Seen',
     Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
-    accessor: 'primary_mac',
+    accessor: 'seen_time',
+    Cell: cellProps => <TextCell value={cellProps.cell.value} formatter={humanHostLastSeen} />,
+  },
+  {
+    title: 'UUID',
+    Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
+    accessor: 'uuid',
     Cell: cellProps => <TextCell value={cellProps.cell.value} />,
+  },
+  {
+    title: 'Uptime',
+    Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
+    accessor: 'uptime',
+    Cell: cellProps => <TextCell value={cellProps.cell.value} formatter={humanHostUptime} />,
   },
   {
     title: 'CPU',
@@ -59,33 +71,21 @@ const hostDataHeaders = [
     Cell: cellProps => <TextCell value={cellProps.cell.value} formatter={humanHostMemory} />,
   },
   {
-    title: 'Uptime',
+    title: 'MAC Address',
     Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
-    accessor: 'uptime',
-    Cell: cellProps => <TextCell value={cellProps.cell.value} formatter={humanHostUptime} />,
-  },
-  {
-    title: 'UUID',
-    Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
-    accessor: 'uuid',
+    accessor: 'primary_mac',
     Cell: cellProps => <TextCell value={cellProps.cell.value} />,
   },
   {
-    title: 'Seen Time',
+    title: 'Serial Number',
     Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
-    accessor: 'seen_time',
+    accessor: 'hardware_serial',
     Cell: cellProps => <TextCell value={cellProps.cell.value} />,
   },
   {
     title: 'Hardware Model',
     Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
     accessor: 'hardware_model',
-    Cell: cellProps => <TextCell value={cellProps.cell.value} />,
-  },
-  {
-    title: 'Hardware Serial',
-    Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
-    accessor: 'hardware_serial',
     Cell: cellProps => <TextCell value={cellProps.cell.value} />,
   },
 ];
