@@ -15,6 +15,7 @@ import HeaderCell from '../HeaderCell/HeaderCell';
 import TextCell from '../TextCell/TextCell';
 import StatusCell from '../StatusCell/StatusCell';
 import LinkCell from '../LinkCell/LinkCell';
+import scrollToTop from '../../../../../utilities/scroll_to_top';
 
 // TODO: pass in as props
 const DEFAULT_PAGE_SIZE = 100;
@@ -116,7 +117,7 @@ const HostsDataTable = (props) => {
       setPageIndex(pageIndex - 1);
     }
     pageIndexChangeRef.current = true;
-    // scrollToTop();
+    scrollToTop();
   }, [pageIndex, setPageIndex]);
 
   // Since searchQuery is feed in from the parent, we want to debounce the globalfilter change
