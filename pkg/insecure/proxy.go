@@ -85,7 +85,7 @@ type TLSProxy struct {
 
 // NewTLSProxy creates a new proxy implementation targeting the provided
 // hostname.
-func NewTLSProxy(targetHostname string) (*TLSProxy, error) {
+func NewTLSProxy(targetURL string) (*TLSProxy, error) {
 	cert, err := tls.X509KeyPair([]byte(ServerCert), []byte(serverKey))
 	if err != nil {
 		return nil, errors.Wrap(err, "load keypair")
@@ -103,7 +103,7 @@ func NewTLSProxy(targetHostname string) (*TLSProxy, error) {
 		return nil, errors.New("listener is not *net.TCPAddr")
 	}
 
-	handler, err := newProxyHandler(targetHostname)
+	handler, err := newProxyHandler(targetURL)
 	if err != nil {
 		return nil, errors.Wrap(err, "make proxy handler")
 	}
@@ -140,25 +140,10 @@ func (p *TLSProxy) Close() error {
 	return p.server.Shutdown(ctx)
 }
 
-func parseURL(hostname string) (*url.URL, error) {
-	if strings.HasPrefix(hostname, "http://") {
-		return nil, errors.New("scheme must be https")
-	}
-	target, err := url.Parse(hostname)
+func newProxyHandler(targetURL string) (*httputil.ReverseProxy, error) {
+	target, err := url.Parse(targetURL)
 	if err != nil {
-		return nil, errors.Wrap(err, "parse url")
-	}
-	if target.Scheme == "" {
-		target.Scheme = "https"
-	}
-
-	return target, nil
-}
-
-func newProxyHandler(hostname string) (*httputil.ReverseProxy, error) {
-	target, err := parseURL(hostname)
-	if err != nil {
-		return nil, errors.Wrap(err, "parse hostname")
+		return nil, errors.Wrap(err, "parse target url")
 	}
 
 	reverseProxy := &httputil.ReverseProxy{
