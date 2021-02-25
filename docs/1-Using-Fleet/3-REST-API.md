@@ -11,6 +11,7 @@
 - [Targets](#targets)
 - [Fleet configuration](#fleet-configuration)
 - [Osquery options](#osquery-options)
+- [File carving](#file-carving)
 
 ## Overview
 
@@ -363,7 +364,7 @@ Gets the current SSO configuration.
 
 | Name      | Type   | In   | Description                                                                |
 | --------- | ------ | ---- | -------------------------------------------------------------------------- |
-| relay_url | string | body | **Required**. The relative url to be navigated to after succesful sign in. |
+| relay_url | string | body | **Required**. The relative url to be navigated to after successful sign in. |
 
 #### Example
 
@@ -1206,6 +1207,12 @@ None.
 - [Create a user account with an invitation](#create-a-user-account-with-an-invitation)
 - [Create a user account without an invitation](#create-a-user-account-without-an-invitation)
 - [Get user information](#get-user-information)
+- [Modify user](#modify-user)
+- [Enable or disable user](#enable-or-disable-user)
+- [Promote or demote user](#promote-or-demote-user)
+- [Require password reset](#require-password-reset)
+- [List a user's sessions](#list-a-users-sessions)
+- [Delete a user's sessions](#delete-a-users-sessions)
 
 The Fleet server exposes a handful of API endpoints that handles common user management operations. All the following endpoints require prior authentication meaning you must first log in successfully before calling any of the endpoints documented below.
 
@@ -1538,6 +1545,260 @@ Returns all information about a specific user.
     }
   ]
 }
+```
+
+### Modify user
+
+`PATCH /api/v1/fleet/users/{id}`
+
+#### Parameters
+
+| Name | Type    | In    | Description                  |
+| ---- | ------- | ----- | ---------------------------- |
+| id   | integer | path | **Required**. The user's id. |
+| name   | string | body | The user's name. |
+| username   | string | body | The user's username. |
+| position   | string | body | The user's position. |
+| email   | string | body | The user's email. |
+| sso_enabled   | boolean | body | Whether or not SSO is enabled for the user. |
+
+#### Example
+
+`PATCH /api/v1/fleet/users/2`
+
+##### Request body
+
+```
+{
+  "name": "Jane Doe",
+  "position": "Incident Response Engineer"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "user": {
+    "created_at": "2021-02-03T16:11:06Z",
+    "updated_at": "2021-02-03T16:11:06Z",
+    "id": 2,
+    "username": "jdoe",
+    "name": "Jane Doe",
+    "email": "janedoe@example.com",
+    "admin": true,
+    "enabled": true,
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "position": "Incident Response Engineer",
+    "sso_enabled": false
+  }
+}
+```
+
+### Enable or disable user
+
+Revokes or renews the selected user's access to Fleet. Returns the user object.
+
+`POST /api/v1/fleet/users/{id}/enable`
+
+#### Parameters
+
+| Name | Type    | In    | Description                  |
+| ---- | ------- | ----- | ---------------------------- |
+| id   | integer | path | **Required**. The user's id. |
+| enabled   | boolean | body | **Required**. Whether or not the user can access Fleet. |
+
+#### Example
+
+`POST /api/v1/fleet/users/2/enable`
+
+#### Default body
+
+```
+{
+  "enabled": false
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "user": {
+    "created_at": "2021-02-23T22:23:34Z",
+    "updated_at": "2021-02-23T22:23:34Z",
+    "id": 2,
+    "username": "janedoe",
+    "name": "Jane Doe",
+    "email": "janedoe@example.com",
+    "admin": false,
+    "enabled": false,
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "sso_enabled": false
+  }
+}
+```
+
+### Promote or demote user
+
+Promotes or demotes the selected user's level of access as an admin in Fleet. Admins in Fleet have the ability to invite new users, edit settings, and edit osquery options across hosts. Returns the user object.
+
+`POST /api/v1/fleet/users/{id}/admin`
+
+#### Parameters
+
+| Name | Type    | In    | Description                  |
+| ---- | ------- | ----- | ---------------------------- |
+| id   | integer | path | **Required**. The user's id. |
+| enabled   | boolean | body | **Required**. Whether or not the user can access Fleet. |
+
+#### Example
+
+`POST /api/v1/fleet/users/2/admin`
+
+#### Default body
+
+```
+{
+  "admin": true
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "user": {
+    "created_at": "2021-02-23T22:23:34Z",
+    "updated_at": "2021-02-23T22:28:41Z",
+    "id": 2,
+    "username": "janedoe",
+    "name": "Jane Doe",
+    "email": "janedoe@example.com",
+    "admin": true,
+    "enabled": true,
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "sso_enabled": false
+  }
+}
+```
+
+### Require password reset
+
+The selected user is logged out of Fleet and required to reset their password during the next attempt to log in. This also revokes all active Fleet API tokens for this user. Returns the user object.
+
+`POST /api/v1/fleet/users/{id}/require_password_reset`
+
+#### Parameters
+
+| Name | Type    | In    | Description                  |
+| ---- | ------- | ----- | ---------------------------- |
+| id   | integer | path | **Required**. The user's id. |
+| reset   | boolean | body | Whether or not the user is required to reset their password during the next attempt to log in. |
+
+#### Example
+
+`POST /api/v1/fleet/users/{id}/require_password_reset`
+
+#### Request body
+
+```
+{
+  "require": true
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "user": {
+    "created_at": "2021-02-23T22:23:34Z",
+    "updated_at": "2021-02-23T22:28:52Z",
+    "id": 2,
+    "username": "janedoe",
+    "name": "Jane Doe",
+    "email": "janedoe@example.com",
+    "admin": false,
+    "enabled": true,
+    "force_password_reset": true,
+    "gravatar_url": "",
+    "sso_enabled": false
+  }
+}
+```
+
+### List a user's sessions
+
+Returns a list of the user's sessions in Fleet.
+
+`GET /api/v1/fleet/users/{id}/sessions`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/users/1/sessions`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "sessions": [
+    {
+      "session_id": 2,
+      "user_id": 1,
+      "created_at": "2021-02-03T16:12:50Z"
+    },
+    {
+      "session_id": 3,
+      "user_id": 1,
+      "created_at": "2021-02-09T23:40:23Z"
+    },
+    {
+      "session_id": 6,
+      "user_id": 1,
+      "created_at": "2021-02-23T22:23:58Z"
+    }
+  ]
+}
+```
+
+### Delete a user's sessions
+
+Deletes the selected user's sessions in Fleet. Also deletes the user's API token.
+
+`DELETE /api/v1/fleet/users/{id}/sessions`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`DELETE /api/v1/fleet/users/1/sessions`
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
 ```
 
 ---
@@ -3153,7 +3414,7 @@ Modifies the Fleet's configuration with the supplied information.
 | sender_address      | string | body | *SMTP settings*. The sender email address for the Fleet app. An invitation email is an example of the emails that may use this sender address  |
 | server      | string | body | *SMTP settings*. The SMTP server for the Fleet app. |
 | port      | integer | body | *SMTP settings*. The SMTP port for the Fleet app. |
-| authetication_type | string | body | *SMTP settings*. The authentication type used by the SMTP server. Options include `"authtype_username_and_password"` or `"none"`|
+| authentication_type | string | body | *SMTP settings*. The authentication type used by the SMTP server. Options include `"authtype_username_and_password"` or `"none"`|
 | username_name | string | body | *SMTP settings*. The username used to authenticate requests made to the SMTP server.|
 | password | string | body | *SMTP settings*. The password used to authenticate requests made to the SMTP server.|
 | enable_ssl_tls | boolean | body | *SMTP settings*. Whether or not SSL and TLS are enabled for the SMTP server.|
@@ -3612,3 +3873,135 @@ Modifies the osquery options configuration set in Fleet.
 
 ---
 
+## File carving
+
+- [List carves](#list-carves)
+- [Get carve](#get-carve)
+- [Get carve block](#get-carve-block)
+
+Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from osquery agents, returning the full contents to Fleet.
+
+To initiate a file carve using the Fleet API, you can use the [live query](#run-live-query) or [scheduled query](#add-scheduled-query-to-a-pack) endpoints to run a query against the `carves` table. 
+
+For more information on executing a file carve in Fleet, go to the [File carving with Fleet docs](../1-Using-Fleet/2-fleetctl-CLI.md#file-carving-with-fleet).
+
+### List carves
+
+Retrieves a list of the non expired carves. Carve contents remain available for 24 hours after the first data is provided from the osquery client.
+
+`GET /api/v1/fleet/carves`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/carves`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "carves": [
+    {
+      "id": 1,
+      "created_at": "2021-02-23T22:52:01Z",
+      "host_id": 7,
+      "name": "macbook-pro.local-2021-02-23T22:52:01Z-fleet_distributed_query_30",
+      "block_count": 1,
+      "block_size": 2000000,
+      "carve_size": 2048,
+      "carve_id": "c6958b5f-4c10-4dc8-bc10-60aad5b20dc8",
+      "request_id": "fleet_distributed_query_30",
+      "session_id": "065a1dc3-40ad-441c-afff-80c2ad7dac28",
+      "expired": false,
+      "max_block": 0
+    },
+    {
+      "id": 2,
+      "created_at": "2021-02-23T22:53:03Z",
+      "host_id": 7,
+      "name": "macbook-pro.local-2021-02-23T22:53:03Z-fleet_distributed_query_31",
+      "block_count": 2,
+      "block_size": 2000000,
+      "carve_size": 3400704,
+      "carve_id": "2b9170b9-4e11-4569-a97c-2f18d18bec7a",
+      "request_id": "fleet_distributed_query_31",
+      "session_id": "f73922ed-40a4-4e98-a50a-ccda9d3eb755",
+      "expired": false,
+      "max_block": 1
+    }
+  ]
+}
+```
+
+### Get carve
+
+Retrieves the specified carve.
+
+`GET /api/v1/fleet/carves/{id}`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| id   | integer  | path | **Required.** The desired carve's ID.            |
+
+#### Example
+
+`GET /api/v1/fleet/carves/1`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "carve": {
+    "id": 1,
+    "created_at": "2021-02-23T22:52:01Z",
+    "host_id": 7,
+    "name": "macbook-pro.local-2021-02-23T22:52:01Z-fleet_distributed_query_30",
+    "block_count": 1,
+    "block_size": 2000000,
+    "carve_size": 2048,
+    "carve_id": "c6958b5f-4c10-4dc8-bc10-60aad5b20dc8",
+    "request_id": "fleet_distributed_query_30",
+    "session_id": "065a1dc3-40ad-441c-afff-80c2ad7dac28",
+    "expired": false,
+    "max_block": 0
+  }
+}
+```
+
+### Get carve block
+
+Retrieves the specified carve block. This endpoint retrieves the data that was carved.
+
+`GET /api/v1/fleet/carves/{id}/block/{block_id}`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| id   | integer  | path | **Required.** The desired carve's ID.            |
+| block_id   | integer  | path | **Required.** The desired carve block's ID.            |
+
+#### Example
+
+`GET /api/v1/fleet/carves/1/block/0`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+    "data": "aG9zdHMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA..."
+}
+```
+
+---
