@@ -137,8 +137,10 @@ const HostsDataTable = (props) => {
     return (
       <div className={`${containerClass}  ${containerClass}--no-hosts`}>
         <div className={`${containerClass}--no-hosts__inner`}>
-          <h1>No hosts match the current criteria</h1>
-          <p>Expecting to see new hosts? Try again in a few seconds as the system catches up</p>
+          <div className={'no-filter-results'}>
+            <h1>No hosts match the current criteria</h1>
+            <p>Expecting to see new hosts? Try again in a few seconds as the system catches up</p>
+          </div>
         </div>
       </div>
     );
