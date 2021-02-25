@@ -2,12 +2,9 @@ import {
   GET_STATUS_LABEL_COUNTS_FAILURE,
   GET_STATUS_LABEL_COUNTS_SUCCESS,
   LOAD_STATUS_LABEL_COUNTS,
-  SET_PAGINATION,
 } from './actions';
 
 export const initialState = {
-  page: 1,
-  perPage: 2,
   status_labels: {
     errors: {},
     loading_counts: false,
@@ -45,12 +42,6 @@ export default (state = initialState, { type, payload }) => {
           ...state.status_labels,
           loading_counts: true,
         },
-      };
-    case SET_PAGINATION:
-      return {
-        ...state,
-        page: payload.page,
-        perPage: payload.perPage,
       };
     default:
       return state;
