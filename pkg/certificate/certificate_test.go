@@ -46,3 +46,25 @@ func TestFetchPEM(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, expectedCert, pem)
 }
+
+func TestLoadPEM(t *testing.T) {
+	t.Parallel()
+
+	pool, err := LoadPEM(filepath.Join("testdata", "test.crt"))
+	require.NoError(t, err)
+	assert.True(t, len(pool.Subjects()) > 0)
+}
+
+func TestLoadErrorNoCertificates(t *testing.T) {
+	t.Parallel()
+
+	_, err := LoadPEM(filepath.Join("testdata", "empty.crt"))
+	require.Error(t, err)
+}
+
+func TestLoadErrorMissingFile(t *testing.T) {
+	t.Parallel()
+
+	_, err := LoadPEM(filepath.Join("testdata", "invalid_path"))
+	require.Error(t, err)
+}

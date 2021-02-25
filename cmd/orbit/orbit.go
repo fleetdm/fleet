@@ -2,13 +2,16 @@ package main
 
 import (
 	"context"
+	"crypto/x509"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/fleetdm/orbit/pkg/certificate"
 	"github.com/fleetdm/orbit/pkg/constant"
 	"github.com/fleetdm/orbit/pkg/database"
 	"github.com/fleetdm/orbit/pkg/insecure"
@@ -58,6 +61,11 @@ func main() {
 			EnvVars: []string{"ORBIT_FLEET_URL"},
 		},
 		&cli.StringFlag{
+			Name:    "fleet-certificate",
+			Usage:   "Path to server cerificate bundle",
+			EnvVars: []string{"ORBIT_FLEET_CERTIFICATE"},
+		},
+		&cli.StringFlag{
 			Name:    "tuf-url",
 			Usage:   "URL of TUF update server",
 			Value:   tufURL,
@@ -88,6 +96,10 @@ func main() {
 	app.Action = func(c *cli.Context) error {
 		if c.Bool("debug") {
 			zerolog.SetGlobalLevel(zerolog.DebugLevel)
+		}
+
+		if c.Bool("insecure") && c.String("fleet-certificate") != "" {
+			return errors.New("insecure and fleet-certificate may not be specified together")
 		}
 
 		if c.String("enroll-secret-path") != "" {
@@ -159,8 +171,19 @@ func main() {
 		options = append(options, osquery.WithDataPath(c.String("root-dir")))
 
 		fleetURL := c.String("fleet-url")
+		if !strings.HasPrefix(fleetURL, "http") {
+			fleetURL = "https://" + fleetURL
+		}
 
-		if c.Bool("insecure") {
+		enrollSecret := c.String("enroll-secret")
+		if enrollSecret != "" {
+			options = append(options,
+				osquery.WithEnv([]string{"ENROLL_SECRET=" + enrollSecret}),
+				osquery.WithFlags([]string{"--enroll_secret_env=ENROLL_SECRET"}),
+			)
+		}
+
+		if fleetURL != "" && c.Bool("insecure") {
 			proxy, err := insecure.NewTLSProxy(fleetURL)
 			if err != nil {
 				return errors.Wrap(err, "create TLS proxy")
@@ -188,33 +211,66 @@ func main() {
 				return errors.Wrap(err, "write server cert")
 			}
 
-			// Rewrite URL to the proxy URL
-			fleetURL = fmt.Sprintf("localhost:%d", proxy.Port)
+			// Rewrite URL to the proxy URL. Note the proxy handles any URL
+			// prefix so we don't need to carry that over here.
+			parsedURL := &url.URL{
+				Scheme: "https",
+				Host:   fmt.Sprintf("localhost:%d", proxy.Port),
+			}
+
+			// Check and log if there are any errors with TLS connection.
+			pool, err := certificate.LoadPEM(certPath)
+			if err != nil {
+				return errors.Wrap(err, "load certificate")
+			}
+			if err := certificate.ValidateConnection(pool, fleetURL); err != nil {
+				log.Info().Err(err).Msg("Failed to connect to Fleet server. Osquery connection may fail.")
+			}
 
 			options = append(options,
-				osquery.WithFlags(osquery.FleetFlags(fleetURL)),
+				osquery.WithFlags(osquery.FleetFlags(parsedURL)),
 				osquery.WithFlags([]string{"--tls_server_certs", certPath}),
 			)
-		}
-
-		enrollSecret := c.String("enroll-secret")
-		if enrollSecret != "" {
-			options = append(options,
-				osquery.WithEnv([]string{"ENROLL_SECRET=" + enrollSecret}),
-				osquery.WithFlags([]string{"--enroll_secret_env", "ENROLL_SECRET"}),
-			)
-		}
-
-		if fleetURL != "" {
+		} else if fleetURL != "" {
 			if enrollSecret == "" {
 				return errors.New("enroll secret must be specified to connect to Fleet server")
 			}
 
+			parsedURL, err := url.Parse(fleetURL)
+			if err != nil {
+				return errors.Wrap(err, "parse URL")
+			}
+
 			options = append(options,
-				osquery.WithFlags(osquery.FleetFlags(fleetURL)),
+				osquery.WithFlags(osquery.FleetFlags(parsedURL)),
 			)
+
+			if certPath := c.String("fleet-certificate"); certPath != "" {
+				// Check and log if there are any errors with TLS connection.
+				pool, err := certificate.LoadPEM(certPath)
+				if err != nil {
+					return errors.Wrap(err, "load certificate")
+				}
+				if err := certificate.ValidateConnection(pool, fleetURL); err != nil {
+					log.Info().Err(err).Msg("Failed to connect to Fleet server. Osquery connection may fail.")
+				}
+
+				options = append(options,
+					osquery.WithFlags([]string{"--tls_server_certs=" + certPath}),
+				)
+			} else {
+				// Check and log if there are any errors with TLS connection.
+				pool, err := x509.SystemCertPool()
+				if err != nil {
+					log.Info().Err(err).Msg("Failed to retrieve system cert pool. Cannot validate Fleet server connection.")
+				} else if err := certificate.ValidateConnection(pool, fleetURL); err != nil {
+					log.Info().Err(err).Msg("Failed to connect to Fleet server. Osquery connection may fail. Provide certificate with --fleet-certificate.")
+				}
+			}
 		}
 
+		// --force is sometimes needed when an older osquery process has not
+		// exited properly
 		options = append(options, osquery.WithFlags([]string{"--force"}))
 
 		if c.Bool("debug") {
@@ -224,7 +280,7 @@ func main() {
 		}
 
 		// Handle additional args after --
-		options = append(options, osquery.WithFlags([]string(c.Args().Slice())))
+		options = append(options, osquery.WithFlags(c.Args().Slice()))
 
 		// Create an osquery runner with the provided options
 		r, _ := osquery.NewRunner(osquerydPath, options...)
@@ -313,7 +369,7 @@ var shellCommand = &cli.Command{
 			osquerydPath,
 			osquery.WithShell(),
 			// Handle additional args after --
-			osquery.WithFlags([]string(c.Args().Slice())),
+			osquery.WithFlags(c.Args().Slice()),
 			osquery.WithDataPath(c.String("root-dir")),
 		)
 		g.Add(r.Execute, r.Interrupt)

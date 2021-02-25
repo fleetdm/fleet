@@ -144,9 +144,6 @@ func parseURL(hostname string) (*url.URL, error) {
 	if strings.HasPrefix(hostname, "http://") {
 		return nil, errors.New("scheme must be https")
 	}
-	if !strings.HasPrefix(hostname, "http") {
-		hostname = "https://" + hostname
-	}
 	target, err := url.Parse(hostname)
 	if err != nil {
 		return nil, errors.Wrap(err, "parse url")
