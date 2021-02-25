@@ -39,6 +39,11 @@ func main() {
 			Destination: &opt.FleetURL,
 		},
 		&cli.StringFlag{
+			Name:        "fleet-certificate",
+			Usage:       "Path to server cerificate bundle",
+			Destination: &opt.FleetCertificate,
+		},
+		&cli.StringFlag{
 			Name:        "identifier",
 			Usage:       "Identifier for package product",
 			Value:       "com.fleetdm.orbit",

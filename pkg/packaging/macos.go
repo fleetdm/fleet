@@ -11,7 +11,6 @@ import (
 
 	"github.com/fleetdm/orbit/pkg/constant"
 	"github.com/fleetdm/orbit/pkg/update"
-	"github.com/fleetdm/orbit/pkg/update/filestore"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
@@ -41,28 +40,17 @@ func BuildPkg(opt Options) error {
 
 	// Initialize autoupdate metadata
 
-	localStore, err := filestore.New(filepath.Join(orbitRoot, "tuf-metadata.json"))
-	if err != nil {
-		return errors.Wrap(err, "failed to create local metadata store")
-	}
 	updateOpt := update.DefaultOptions
-	updateOpt.RootDirectory = orbitRoot
-	updateOpt.ServerURL = "https://tuf.fleetctl.com"
-	updateOpt.LocalStore = localStore
 	updateOpt.Platform = "macos"
+	updateOpt.RootDirectory = orbitRoot
 
-	updater, err := update.New(updateOpt)
-	if err != nil {
-		return errors.Wrap(err, "failed to init updater")
+	// TODO these should be configurable
+	updateOpt.ServerURL = "https://tuf.fleetctl.com"
+	osqueryChannel, orbitChannel := "stable", "stable"
+
+	if err := initializeUpdates(updateOpt, osqueryChannel, orbitChannel); err != nil {
+		return errors.Wrap(err, "initialize updates")
 	}
-	if err := updater.UpdateMetadata(); err != nil {
-		return errors.Wrap(err, "failed to update metadata")
-	}
-	osquerydPath, err := updater.Get("osqueryd", "stable")
-	if err != nil {
-		return errors.Wrap(err, "failed to get osqueryd")
-	}
-	log.Debug().Str("path", osquerydPath).Msg("got osqueryd")
 
 	// Write files
 
@@ -81,6 +69,11 @@ func BuildPkg(opt Options) error {
 	if opt.StartService {
 		if err := writeLaunchd(opt, filesystemRoot); err != nil {
 			return errors.Wrap(err, "write launchd")
+		}
+	}
+	if opt.FleetCertificate != "" {
+		if err := writeCertificate(opt, orbitRoot); err != nil {
+			return errors.Wrap(err, "write fleet certificate")
 		}
 	}
 	if err := copyFile(
@@ -205,6 +198,17 @@ func writeDistribution(opt Options, rootPath string) error {
 
 	if err := ioutil.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
 		return errors.Wrap(err, "write file")
+	}
+
+	return nil
+}
+
+func writeCertificate(opt Options, orbitRoot string) error {
+	// Fleet TLS certificate
+	dstPath := filepath.Join(orbitRoot, "fleet.pem")
+
+	if err := copyFile(opt.FleetCertificate, dstPath, 0644); err != nil {
+		return errors.Wrap(err, "write orbit")
 	}
 
 	return nil

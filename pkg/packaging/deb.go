@@ -9,7 +9,6 @@ import (
 
 	"github.com/fleetdm/orbit/pkg/constant"
 	"github.com/fleetdm/orbit/pkg/update"
-	"github.com/fleetdm/orbit/pkg/update/filestore"
 	"github.com/goreleaser/nfpm/v2"
 	"github.com/goreleaser/nfpm/v2/deb"
 	"github.com/goreleaser/nfpm/v2/files"
@@ -38,28 +37,17 @@ func BuildDeb(opt Options) error {
 
 	// Initialize autoupdate metadata
 
-	localStore, err := filestore.New(filepath.Join(orbitRoot, "tuf-metadata.json"))
-	if err != nil {
-		return errors.Wrap(err, "failed to create local metadata store")
-	}
 	updateOpt := update.DefaultOptions
-	updateOpt.RootDirectory = orbitRoot
-	updateOpt.ServerURL = "https://tuf.fleetctl.com"
-	updateOpt.LocalStore = localStore
 	updateOpt.Platform = "linux"
+	updateOpt.RootDirectory = orbitRoot
 
-	updater, err := update.New(updateOpt)
-	if err != nil {
-		return errors.Wrap(err, "failed to init updater")
+	// TODO these should be configurable
+	updateOpt.ServerURL = "https://tuf.fleetctl.com"
+	osqueryChannel, orbitChannel := "stable", "stable"
+
+	if err := initializeUpdates(updateOpt, osqueryChannel, orbitChannel); err != nil {
+		return errors.Wrap(err, "initialize updates")
 	}
-	if err := updater.UpdateMetadata(); err != nil {
-		return errors.Wrap(err, "failed to update metadata")
-	}
-	osquerydPath, err := updater.Get("osqueryd", "stable")
-	if err != nil {
-		return errors.Wrap(err, "failed to get osqueryd")
-	}
-	log.Debug().Str("path", osquerydPath).Msg("got osqueryd")
 
 	// Write files
 
@@ -161,7 +149,7 @@ After=network.service syslog.service
 [Service]
 TimeoutStartSec=0
 EnvironmentFile=/etc/default/orbit
-ExecStart=/usr/local/bin/orbit
+ExecStart=/var/lib/orbit/orbit
 Restart=on-failure
 KillMode=control-group
 KillSignal=SIGTERM
@@ -181,6 +169,7 @@ WantedBy=multi-user.target
 var envTemplate = template.Must(template.New("env").Parse(`
 {{- if .Insecure }}ORBIT_INSECURE=true{{ end }}
 {{ if .FleetURL }}ORBIT_FLEET_URL={{.FleetURL}}{{ end }}
+{{ if .FleetCertificate }}ORBIT_FLEET_CERTIFICATE=/var/lib/orbit/fleet.pem{{ end }}
 {{ if .EnrollSecret }}ORBIT_ENROLL_SECRET={{.EnrollSecret}}{{ end }}
 `))
 

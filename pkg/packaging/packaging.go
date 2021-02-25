@@ -6,7 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/fleetdm/orbit/pkg/update"
+	"github.com/fleetdm/orbit/pkg/update/filestore"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
 // Options are the configurable options provided for the package.
@@ -29,6 +32,8 @@ type Options struct {
 	SignIdentity string
 	// Notarize sets whether macOS packages should be Notarized.
 	Notarize bool
+	// FleetCertificate is a path to a server certificate to include in the package.
+	FleetCertificate string
 }
 
 func copyFile(srcPath, dstPath string, perm os.FileMode) error {
@@ -51,6 +56,35 @@ func copyFile(srcPath, dstPath string, perm os.FileMode) error {
 	if _, err := io.Copy(dst, src); err != nil {
 		return errors.Wrap(err, "copy src to dst")
 	}
+
+	return nil
+}
+
+func initializeUpdates(updateOpt update.Options, osqueryChannel, orbitChannel string) error {
+	localStore, err := filestore.New(filepath.Join(updateOpt.RootDirectory, "tuf-metadata.json"))
+	if err != nil {
+		return errors.Wrap(err, "failed to create local metadata store")
+	}
+	updateOpt.LocalStore = localStore
+
+	updater, err := update.New(updateOpt)
+	if err != nil {
+		return errors.Wrap(err, "failed to init updater")
+	}
+	if err := updater.UpdateMetadata(); err != nil {
+		return errors.Wrap(err, "failed to update metadata")
+	}
+	osquerydPath, err := updater.Get("osqueryd", osqueryChannel)
+	if err != nil {
+		return errors.Wrap(err, "failed to get osqueryd")
+	}
+	log.Debug().Str("path", osquerydPath).Msg("got osqueryd")
+
+	orbitPath, err := updater.Get("orbit", orbitChannel)
+	if err != nil {
+		return errors.Wrap(err, "failed to get orbit")
+	}
+	log.Debug().Str("path", orbitPath).Msg("got orbit")
 
 	return nil
 }
