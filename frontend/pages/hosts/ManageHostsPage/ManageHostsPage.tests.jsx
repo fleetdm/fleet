@@ -237,7 +237,6 @@ describe('ManageHostsPage - component', () => {
 
   describe('Add Host', () => {
     it('Open the Add Host modal', () => {
-      // const page = mount(<ManageHostsPage {...props} hosts={[]} selectedLabel={allHostsLabel} />);
       const ownProps = { location: { hash: '' }, params: {} };
       const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
       const page = mount(component);
