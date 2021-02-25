@@ -1,131 +1,36 @@
 .host-pagination {
+
   &__pager-wrap {
-    flex-basis: 100%;
-    margin: 16px 0 39px;
     display: flex;
-    flex-wrap: wrap;
-  }
+    justify-content: flex-end;
+    margin-top: $pad-half;
+    margin-bottom: $pad-half;
+    margin-left: auto;
+    text-align: right;
 
-  &__pagination {
-    margin: 0 25px 0 0;
-    padding: 0;
-    font-family: 'Nunito Sans', sans-serif;
+    button {
+      color: $core-blue;
+      padding: 6px;
 
-    .rc-pagination-prev,
-    .rc-pagination-next,
-    .rc-pagination-item {
-      border: 0;
-      font-size: $x-small;
-      margin-right: 16px;
-      box-sizing: border-box;
-      border-radius: 4px;
+      .kolidecon-chevronleft {
+        margin-right: $pad-half;
+      }
 
-      a {
-        color: $core-medium-blue-grey;
-        font-weight: bold;
+      .kolidecon-chevronright {
+        margin-left: $pad-half;
       }
     }
 
-    .rc-pagination-prev {
-      a {
-        &::after {
-          content: 'Prev';
-        }
-      }
+    button:hover {
+      background-color: $core-blue-label-over;
     }
 
-    .rc-pagination-next {
-      a {
-        &::after {
-          content: 'Next';
-        }
-      }
+    .button--disabled:hover {
+      background-color: transparent;
     }
 
-    .rc-pagination-item {
-      border: 0;
-
-      &:hover {
-        background-color: $core-medium-blue-grey;
-
-        a {
-          color: $white;
-        }
-      }
+    button:last-child {
+      margin-left: $pad-large;
     }
-
-    .rc-pagination-jump-prev,
-    .rc-pagination-jump-next {
-      &::after {
-        color: $core-medium-blue-grey;
-      }
-
-      &:hover {
-        &::after {
-          font-size: 22px;
-          line-height: 20px;
-        }
-      }
-    }
-
-    .rc-pagination-disabled {
-      opacity: 0.25;
-    }
-
-    .rc-pagination-item-active {
-      background-color: $core-medium-blue-grey;
-
-      a {
-        color: $white;
-      }
-    }
-  }
-
-  &__pager-count {
-    flex-basis: 100%;
-    margin: 15px 0 0;
-    display: flex;
-  }
-
-  &__count-select {
-    width: 90px;
-    margin-right: 15px;
-
-    .Select-control {
-      border-color: $core-medium-blue-grey;
-      border-radius: 3px;
-      height: 30px;
-
-      @at-root .Select.is-focused#{&} {
-        border-color: $core-medium-blue-grey;
-      }
-    }
-
-    .Select-value {
-      box-shadow: none;
-    }
-
-    &.Select--single {
-      > .Select-control {
-        .Select-value {
-          line-height: 30px;
-          border: 0;
-        }
-      }
-    }
-
-    .Select-input {
-      height: 30px;
-    }
-
-    .Select-option {
-      &.is-focused {
-        background-color: $core-medium-blue-grey;
-      }
-    }
-  }
-
-  &__pager-range {
-    margin: 0;
   }
 }

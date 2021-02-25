@@ -1,5 +1,9 @@
 import ReactDOM from 'react-dom';
 
+// used for babel polyfills.
+import 'core-js/stable';
+import 'regenerator-runtime/runtime';
+
 import './public-path';
 import routes from './router';
 import './index.scss';

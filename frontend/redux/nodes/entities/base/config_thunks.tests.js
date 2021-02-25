@@ -70,6 +70,7 @@ describe('ReduxConfig - thunks', () => {
                   [userStub.id]: userStub,
                 },
               },
+              originalOrder: [userStub.id],
             });
           });
       });
