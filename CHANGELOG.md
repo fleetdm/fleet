@@ -1,3 +1,25 @@
+## Fleet 3.8.0 (Feb 25, 2021)
+
+* Add search, sort, and column selection in the hosts dashboard.
+
+* Add AWS Lambda logging plugin.
+
+* Improve messaging about number of hosts responding to live query.
+
+* Update host listing API endpoints to support search.
+
+* Fixes to the `fleetctl preview` experience.
+
+* Fix `denylist` parameter in scheduled queries.
+
+* Fix an issue with errors table rendering on live query page.
+
+* Deprecate `KOLIDE_` environment variable prefixes in favor of `FLEET_` prefixes. Deprecated prefixes continue to work and the Fleet server will log warnings if the deprecated variable names are used. 
+
+* Deprecate `/api/v1/kolide` routes in favor of `/api/v1/fleet`. Deprecated routes continue to work and the Fleet server will log warnings if the deprecated routes are used. 
+
+* Add Javascript source maps for development.
+
 ## Fleet 3.7.1 (Feb 3, 2021)
 
 * Change the default `--server_tls_compatibility` to `intermediate`. The new settings caused TLS connectivity issues for users in some environments. This new default is a more appropriate balance of security and compatibility, as recommended by Mozilla.
