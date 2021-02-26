@@ -146,7 +146,7 @@
     "babel-loader": "^8.2.1",
     "css-loader": "0.28.11",
     "enzyme-adapter-react-16": "^1.7.1",
-    "eslint": "^4",
+    "eslint": "^7.20.0",
     "eslint-config-airbnb": "^15",
     "eslint-import-resolver-webpack": "0.10.0",
     "eslint-plugin-import": "^2",
