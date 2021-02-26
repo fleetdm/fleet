@@ -2,14 +2,13 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { noop } from 'lodash';
+import yaml from 'js-yaml';
 
 import osqueryOptionsActions from 'redux/nodes/osquery/actions';
 import validateYaml from 'components/forms/validators/validate_yaml';
 import OsqueryOptionsForm from 'components/forms/admin/OsqueryOptionsForm';
 import { renderFlash } from 'redux/nodes/notifications/actions';
 import OpenNewTabIcon from '../../../../assets/images/open-new-tab-12x12@2x.png';
-
-const yaml = require('js-yaml');
 
 const baseClass = 'osquery-options';
 
@@ -59,7 +58,7 @@ export class OsqueryOptionsPage extends Component {
   render () {
     const { options } = this.props;
     const formData = {
-      osquery_options: yaml.safeDump(options),
+      osquery_options: yaml.dump(options),
     };
     const { onSaveOsqueryOptionsFormSubmit } = this;
 

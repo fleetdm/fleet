@@ -1,5 +1,5 @@
-import * as React from 'react';
-const classnames = require('classnames');
+import React from 'react';
+import classnames from 'classnames';
 
 const baseClass = 'button';
 
@@ -17,13 +17,11 @@ interface IButtonProps {
   variant: string;
 }
 
-interface IButtonState {}
-
 interface Inputs {
   button?: HTMLButtonElement;
 }
 
-class Button extends React.Component<IButtonProps, IButtonState> {
+class Button extends React.Component<IButtonProps, null> {
   static defaultProps = {
     block: false,
     size: '',
@@ -31,20 +29,24 @@ class Button extends React.Component<IButtonProps, IButtonState> {
     variant: 'default',
   };
 
-  inputs: Inputs = {};
-
-  componentDidMount() {
+  componentDidMount(): void {
     const { autofocus } = this.props;
     const { inputs: { button } } = this;
 
     if (autofocus && button) {
       button.focus();
     }
+  }
+
+  setRef = (button: HTMLButtonElement): boolean => {
+    this.inputs.button = button;
 
     return false;
   }
 
-  handleClick = (evt: React.MouseEvent<HTMLButtonElement>) => {
+  inputs: Inputs = {};
+
+  handleClick = (evt: React.MouseEvent<HTMLButtonElement>): boolean => {
     const { disabled, onClick } = this.props;
 
     if (disabled) {
@@ -58,19 +60,13 @@ class Button extends React.Component<IButtonProps, IButtonState> {
     return false;
   }
 
-  setRef = (button: HTMLButtonElement) => {
-    this.inputs.button = button;
-
-    return false;
-  }
-
-  render() {
+  render(): JSX.Element {
     const { handleClick, setRef } = this;
     const { block, children, className, disabled, size, tabIndex, type, title, variant } = this.props;
     const fullClassName = classnames(baseClass, `${baseClass}--${variant}`, className, {
       [`${baseClass}--block`]: block,
       [`${baseClass}--disabled`]: disabled,
-      [`${baseClass}--${size}`]: size,
+      [`${baseClass}--${size}`]: size !== undefined,
     });
 
     return (

@@ -1,6 +1,5 @@
+import yaml from 'js-yaml';
 import Kolide from 'kolide';
-
-const yaml = require('js-yaml');
 
 export const OSQUERY_OPTIONS_FAILURE = 'OSQUERY_OPTIONS_FAILURE';
 export const OSQUERY_OPTIONS_START = 'OSQUERY_OPTIONS_START';

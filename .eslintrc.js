@@ -34,6 +34,7 @@ module.exports = {
     'react/no-multi-comp': 0,
     'react/no-unused-prop-types': [1, { customValidators: [], skipShapeProps: true }],
     'react/require-default-props': 0, // TODO set default props and enable this check
+    'react/jsx-filename-extension': [1, { extensions: ['.jsx', '.tsx'] }],
     'no-param-reassign': 0,
     'new-cap': 0,
     'import/no-unresolved': 2,
