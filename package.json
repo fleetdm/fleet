@@ -153,7 +153,7 @@
     "eslint-import-resolver-webpack": "0.10.0",
     "eslint-plugin-import": "^2",
     "eslint-plugin-jest": "20.0.3",
-    "eslint-plugin-jsx-a11y": "^5",
+    "eslint-plugin-jsx-z": "^6.4.1",
     "eslint-plugin-react": "^7",
     "eslint-plugin-react-hooks": "^4.2.0",
     "expose-loader": "0.7.5",
