@@ -1,1 +1,1 @@
-export default from './PersistentFlash';
+export { default } from './PersistentFlash';

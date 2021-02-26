@@ -1,1 +1,1 @@
-export default from './ScheduledQueriesListWrapper';
+export { default } from './ScheduledQueriesListWrapper';

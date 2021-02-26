@@ -1,1 +1,1 @@
-export default from './EditPackPage';
+export { default } from './EditPackPage';

@@ -1,1 +1,1 @@
-export default from './LoginSuccessfulPage';
+export { default } from './LoginSuccessfulPage';

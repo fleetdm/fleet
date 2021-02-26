@@ -1,1 +1,1 @@
-export default from './OrgLogoIcon';
+export { default } from './OrgLogoIcon';

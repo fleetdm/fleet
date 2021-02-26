@@ -1,1 +1,1 @@
-export default from './QueryDetailsSidePanel';
+export { default } from './QueryDetailsSidePanel';

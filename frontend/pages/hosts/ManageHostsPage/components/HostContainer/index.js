@@ -1,1 +1,1 @@
-export default from './HostContainer';
+export { default } from './HostContainer';

@@ -5,7 +5,7 @@
   "private": true,
   "sasslintConfig": ".sass-lint.yml",
   "scripts": {
-    "lint": "eslint frontend --ext .js,.jsx && tslint frontend/**/*.tsx frontend/**/*.ts && sass-lint --verbose",
+    "lint": "eslint frontend --ext .js,.jsx,.ts,.tsx && sass-lint --verbose",
     "test": "jest"
   },
   "dependencies": {
@@ -140,6 +140,8 @@
     "@types/mocha": "2.2.48",
     "@types/node": "6.0.112",
     "@types/react": "0.14.57",
+    "@typescript-eslint/eslint-plugin": "^4.15.2",
+    "@typescript-eslint/parser": "^4.15.2",
     "babel-core": "^7.0.0-bridge.0",
     "babel-eslint": "^9.0.0",
     "babel-jest": "^23.4.2",

@@ -1,1 +1,1 @@
-export default from './EllipsisMenu';
+export { default } from './EllipsisMenu';

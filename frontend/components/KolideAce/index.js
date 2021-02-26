@@ -1,1 +1,1 @@
-export default from './KolideAce';
+export { default } from './KolideAce';

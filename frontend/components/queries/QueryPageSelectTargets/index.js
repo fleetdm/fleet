@@ -1,1 +1,1 @@
-export default from './QueryPageSelectTargets';
+export { default } from './QueryPageSelectTargets';

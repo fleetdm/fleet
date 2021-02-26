@@ -1,1 +1,1 @@
-export default from './SecondarySidePanelContainer';
+export { default } from './SecondarySidePanelContainer';

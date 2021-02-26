@@ -1,1 +1,1 @@
-export default from './HostPagination';
+export { default } from './HostPagination';

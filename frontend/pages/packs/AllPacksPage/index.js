@@ -1,1 +1,1 @@
-export default from './AllPacksPage';
+export { default } from './AllPacksPage';

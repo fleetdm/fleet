@@ -1,1 +1,1 @@
-export default from './ConfirmSSOInviteForm';
+export { default } from './ConfirmSSOInviteForm';

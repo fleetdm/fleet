@@ -1,1 +1,1 @@
-export default from './ConfirmSSOInvitePage';
+export { default } from './ConfirmSSOInvitePage';

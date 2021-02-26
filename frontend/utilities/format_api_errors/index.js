@@ -1,1 +1,1 @@
-export default from './format_api_errors';
+export { default } from './format_api_errors';

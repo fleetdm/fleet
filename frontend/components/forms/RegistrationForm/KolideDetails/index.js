@@ -1,1 +1,1 @@
-export default from './KolideDetails';
+export { default } from './KolideDetails';

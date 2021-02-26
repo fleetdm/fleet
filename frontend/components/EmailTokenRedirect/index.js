@@ -1,1 +1,1 @@
-export default from './EmailTokenRedirect';
+export { default } from './EmailTokenRedirect';

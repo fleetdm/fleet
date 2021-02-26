@@ -1,1 +1,1 @@
-export default from './InputFieldWithIcon';
+export { default } from './InputFieldWithIcon';

@@ -1,1 +1,1 @@
-export default from './ScheduledQueriesListItem';
+export { default } from './ScheduledQueriesListItem';

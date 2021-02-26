@@ -1,1 +1,1 @@
-export default from './QueryPageWrapper';
+export { default } from './QueryPageWrapper';

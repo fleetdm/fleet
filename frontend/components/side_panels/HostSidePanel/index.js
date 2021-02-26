@@ -1,1 +1,1 @@
-export default from './HostSidePanel';
+export { default } from './HostSidePanel';

@@ -1,1 +1,1 @@
-export default from './LoginRoutes';
+export { default } from './LoginRoutes';
