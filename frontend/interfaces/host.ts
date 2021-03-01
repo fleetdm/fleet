@@ -14,6 +14,7 @@ export default PropTypes.shape({
   updated_at: PropTypes.string,
   uptime: PropTypes.number,
   uuid: PropTypes.string,
+  seen_time: PropTypes.string,
 });
 
 export interface IHost {
@@ -30,4 +31,5 @@ export interface IHost {
   updated_at: string;
   uptime: number;
   uuid: string;
+  seen_time: string;
 }

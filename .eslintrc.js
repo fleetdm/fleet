@@ -66,7 +66,9 @@ module.exports = {
     {
       files: ['*.ts', '*.tsx'],
       rules: {
-        '@typescript-eslint/explicit-module-boundary-types': ['error'],
+        // Set to warn for now at the beginning to make migration easier
+        // but want to change this to error when we can.
+        '@typescript-eslint/explicit-module-boundary-types': ['warn'],
       },
     },
   ],

@@ -12,3 +12,14 @@ export default PropTypes.shape({
   snapshot: PropTypes.bool.isRequired,
 });
 
+export interface IScheduledQuery {
+  id: number;
+  interval: number;
+  name: string;
+  pack_id: number;
+  platform?: string,
+  query: string;
+  query_id: number;
+  removed: boolean;
+  snapshot: boolean;
+}

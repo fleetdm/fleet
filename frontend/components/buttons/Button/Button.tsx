@@ -4,17 +4,17 @@ import classnames from 'classnames';
 const baseClass = 'button';
 
 interface IButtonProps {
-  autofocus: boolean;
-  block: boolean;
+  autofocus?: boolean;
+  block?: boolean;
   children: React.ReactChild;
-  className: string;
-  disabled: boolean;
-  onClick: (evt: React.MouseEvent<HTMLButtonElement>) => boolean;
-  size: string;
-  tabIndex: number;
-  type: 'button' | 'submit' | 'reset';
-  title: string;
-  variant: string;
+  className?: string;
+  disabled?: boolean;
+  onClick: (evt: React.MouseEvent<HTMLButtonElement>) => void;
+  size?: string;
+  tabIndex?: number;
+  type?: 'button' | 'submit' | 'reset';
+  title?: string;
+  variant?: string;
 }
 
 interface Inputs {

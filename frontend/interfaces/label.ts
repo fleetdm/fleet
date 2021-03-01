@@ -6,3 +6,10 @@ export default PropTypes.shape({
   title: PropTypes.string,
   type: PropTypes.string,
 });
+
+export interface ILabel {
+  hosts_count: number;
+  id: number | string;
+  title: string;
+  type: string;
+}

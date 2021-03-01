@@ -5,7 +5,7 @@ import moment from 'moment';
 const ORG_INFO_ATTRS = ['org_name', 'org_logo_url'];
 const ADMIN_ATTRS = ['email', 'name', 'password', 'password_confirmation', 'username'];
 
-export const addGravatarUrlToResource = (resource) => {
+export const addGravatarUrlToResource = (resource: any) => {
   const { email } = resource;
 
   const emailHash = md5(email.toLowerCase());
@@ -17,7 +17,7 @@ export const addGravatarUrlToResource = (resource) => {
   };
 };
 
-const labelSlug = (label) => {
+const labelSlug = (label: any) => {
   const { id, name } = label;
 
   if (name === 'All Hosts') {
@@ -68,13 +68,13 @@ const labelStubs = [
   },
 ];
 
-const filterTarget = (targetType) => {
-  return (target) => {
+const filterTarget = (targetType: string) => {
+  return (target: any) => {
     return target.target_type === targetType ? [target.id] : [];
   };
 };
 
-export const formatConfigDataForServer = (config) => {
+export const formatConfigDataForServer = (config: any) => {
   const orgInfoAttrs = pick(config, ['org_logo_url', 'org_name']);
   const serverSettingsAttrs = pick(config, ['kolide_server_url', 'osquery_enroll_secret', 'live_query_disabled']);
   const smtpSettingsAttrs = pick(config, [
@@ -106,8 +106,8 @@ export const formatConfigDataForServer = (config) => {
   };
 };
 
-const formatLabelResponse = (response) => {
-  const labelTypeForDisplayText = {
+const formatLabelResponse = (response: any) => {
+  const labelTypeForDisplayText: {[index: string]: any} = {
     'All Hosts': 'all',
     'MS Windows': 'platform',
     'CentOS Linux': 'platform',
@@ -115,7 +115,7 @@ const formatLabelResponse = (response) => {
     'Ubuntu Linux': 'platform',
   };
 
-  const labels = response.labels.map((label) => {
+  const labels = response.labels.map((label: any) => {
     return {
       ...label,
       slug: labelSlug(label),
@@ -126,7 +126,7 @@ const formatLabelResponse = (response) => {
   return labels.concat(labelStubs);
 };
 
-export const formatSelectedTargetsForApi = (selectedTargets, appendID = false) => {
+export const formatSelectedTargetsForApi = (selectedTargets: any, appendID = false) => {
   const targets = selectedTargets || [];
   const hosts = flatMap(targets, filterTarget('hosts'));
   const labels = flatMap(targets, filterTarget('labels'));
@@ -138,7 +138,7 @@ export const formatSelectedTargetsForApi = (selectedTargets, appendID = false) =
   return { hosts, labels };
 };
 
-export const formatScheduledQueryForServer = (scheduledQuery) => {
+export const formatScheduledQueryForServer = (scheduledQuery: any) => {
   const {
     interval,
     logging_type: loggingType,
@@ -177,7 +177,7 @@ export const formatScheduledQueryForServer = (scheduledQuery) => {
   return result;
 };
 
-export const formatScheduledQueryForClient = (scheduledQuery) => {
+export const formatScheduledQueryForClient = (scheduledQuery: any) => {
   if (scheduledQuery.platform === '') {
     scheduledQuery.platform = 'all';
   }
@@ -201,7 +201,7 @@ export const formatScheduledQueryForClient = (scheduledQuery) => {
   return scheduledQuery;
 };
 
-const setupData = (formData) => {
+const setupData = (formData: any) => {
   const orgInfo = pick(formData, ORG_INFO_ATTRS);
   const adminInfo = pick(formData, ADMIN_ATTRS);
 
@@ -220,29 +220,29 @@ const setupData = (formData) => {
 const BYTES_PER_GIGABYTE = 1074000000;
 const NANOSECONDS_PER_MILLISECOND = 1000000;
 
-const inGigaBytes = (bytes) => {
+const inGigaBytes = (bytes: number): string => {
   return (bytes / BYTES_PER_GIGABYTE).toFixed(1);
 };
 
-const inMilliseconds = (nanoseconds) => {
+const inMilliseconds = (nanoseconds: number): number => {
   return nanoseconds / NANOSECONDS_PER_MILLISECOND;
 };
 
-export const humanHostUptime = (uptimeInNanoseconds) => {
+export const humanHostUptime = (uptimeInNanoseconds: number): string => {
   const milliseconds = inMilliseconds(uptimeInNanoseconds);
 
   return moment.duration(milliseconds, 'milliseconds').humanize();
 };
 
-export const humanHostLastSeen = (lastSeen) => {
+export const humanHostLastSeen = (lastSeen: string): string => {
   return moment(lastSeen).format('MMM D YYYY, HH:mm:ss');
 };
 
-export const humanHostEnrolled = (enrolled) => {
+export const humanHostEnrolled = (enrolled: string): string => {
   return moment(enrolled).format('MMM D YYYY, HH:mm:ss');
 };
 
-export const humanHostMemory = (bytes) => {
+export const humanHostMemory = (bytes: number): string => {
   return `${inGigaBytes(bytes)} GB`;
 };
 

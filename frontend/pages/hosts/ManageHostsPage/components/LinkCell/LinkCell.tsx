@@ -1,23 +1,27 @@
 import React from 'react';
-import PropTypes from 'prop-types';
 import { useDispatch } from 'react-redux';
 import { push } from 'react-router-redux';
 
-import hostInterface from 'interfaces/host';
-import helpers from 'kolide/helpers';
-import PATHS from 'router/paths';
-import Button from 'components/buttons/Button';
+import { IHost } from '../../../../../interfaces/host';
+import helpers from '../../../../../kolide/helpers';
+import PATHS from '../../../../../router/paths';
+import Button from '../../../../../components/buttons/Button/Button';
 
-const LinkCell = (props) => {
+interface ILinkCellProps {
+  value: string;
+  host: IHost;
+}
+
+const LinkCell = (props: ILinkCellProps): JSX.Element => {
   const { value, host } = props;
 
   const dispatch = useDispatch();
 
-  const onHostClick = (selectedHost) => {
+  const onHostClick = (selectedHost: IHost): void => {
     dispatch(push(PATHS.HOST_DETAILS(selectedHost)));
   };
 
-  const lastSeenTime = (status, seenTime) => {
+  const lastSeenTime = (status: string, seenTime: string): string => {
     const { humanHostLastSeen } = helpers;
 
     if (status !== 'online') {
@@ -36,11 +40,6 @@ const LinkCell = (props) => {
       {value}
     </Button>
   );
-};
-
-LinkCell.propTypes = {
-  value: PropTypes.string,
-  host: hostInterface,
 };
 
 export default LinkCell;

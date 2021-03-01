@@ -8,3 +8,12 @@ export default PropTypes.shape({
   platform: PropTypes.string,
   updated_at: PropTypes.string,
 });
+
+export interface IPack {
+  description: string;
+  detail_updated_at: string;
+  id: number;
+  name: string;
+  platform: string;
+  updated_at: string;
+}

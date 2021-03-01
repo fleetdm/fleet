@@ -1,17 +1,20 @@
-import URL_PREFIX from 'router/url_prefix';
+import { IHost } from '../interfaces/host';
+import { IPack } from '../interfaces/pack';
+import { IQuery } from '../interfaces/query';
+import URL_PREFIX from './url_prefix';
 
 export default {
   ADMIN_USERS: `${URL_PREFIX}/admin/users`,
   ADMIN_SETTINGS: `${URL_PREFIX}/admin/settings`,
   ADMIN_OSQUERY: `${URL_PREFIX}/admin/osquery`,
   ALL_PACKS: `${URL_PREFIX}/packs/all`,
-  EDIT_PACK: (pack) => {
+  EDIT_PACK: (pack: IPack): string => {
     return `${URL_PREFIX}/packs/${pack.id}/edit`;
   },
-  PACK: (pack) => {
+  PACK: (pack: IPack): string => {
     return `${URL_PREFIX}/packs/${pack.id}`;
   },
-  EDIT_QUERY: (query) => {
+  EDIT_QUERY: (query: IQuery): string => {
     return `${URL_PREFIX}/queries/${query.id}`;
   },
   FORGOT_PASSWORD: `${URL_PREFIX}/login/forgot`,
@@ -20,7 +23,7 @@ export default {
   LOGIN: `${URL_PREFIX}/login`,
   LOGOUT: `${URL_PREFIX}/logout`,
   MANAGE_HOSTS: `${URL_PREFIX}/hosts/manage`,
-  HOST_DETAILS: (host) => {
+  HOST_DETAILS: (host: IHost): string => {
     return `${URL_PREFIX}/hosts/${host.id}`;
   },
   MANAGE_PACKS: `${URL_PREFIX}/packs/manage`,
