@@ -183,7 +183,7 @@ func main() {
 			)
 		}
 
-		if fleetURL != "" && c.Bool("insecure") {
+		if fleetURL != "https://" && c.Bool("insecure") {
 			proxy, err := insecure.NewTLSProxy(fleetURL)
 			if err != nil {
 				return errors.Wrap(err, "create TLS proxy")
@@ -231,7 +231,7 @@ func main() {
 				osquery.WithFlags(osquery.FleetFlags(parsedURL)),
 				osquery.WithFlags([]string{"--tls_server_certs", certPath}),
 			)
-		} else if fleetURL != "" {
+		} else if fleetURL != "https://" {
 			if enrollSecret == "" {
 				return errors.New("enroll secret must be specified to connect to Fleet server")
 			}
