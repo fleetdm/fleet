@@ -12,7 +12,7 @@ interface IButtonProps {
   onClick: (evt: React.MouseEvent<HTMLButtonElement>) => boolean;
   size: string;
   tabIndex: number;
-  type: string;
+  type: 'button' | 'submit' | 'reset';
   title: string;
   variant: string;
 }
