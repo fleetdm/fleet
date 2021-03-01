@@ -24,6 +24,7 @@ module.exports = {
     describe: false,
   },
   rules: {
+    camelcase: 'off',
     'consistent-return': 1,
     'arrow-body-style': 0,
     'max-len': 0,
