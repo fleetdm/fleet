@@ -5,7 +5,7 @@ import moment from 'moment';
 const ORG_INFO_ATTRS = ['org_name', 'org_logo_url'];
 const ADMIN_ATTRS = ['email', 'name', 'password', 'password_confirmation', 'username'];
 
-export const addGravatarUrlToResource = (resource: any) => {
+export const addGravatarUrlToResource = (resource: any): any => {
   const { email } = resource;
 
   const emailHash = md5(email.toLowerCase());
@@ -17,7 +17,7 @@ export const addGravatarUrlToResource = (resource: any) => {
   };
 };
 
-const labelSlug = (label: any) => {
+const labelSlug = (label: any): string => {
   const { id, name } = label;
 
   if (name === 'All Hosts') {
@@ -74,7 +74,7 @@ const filterTarget = (targetType: string) => {
   };
 };
 
-export const formatConfigDataForServer = (config: any) => {
+export const formatConfigDataForServer = (config: any): any => {
   const orgInfoAttrs = pick(config, ['org_logo_url', 'org_name']);
   const serverSettingsAttrs = pick(config, ['kolide_server_url', 'osquery_enroll_secret', 'live_query_disabled']);
   const smtpSettingsAttrs = pick(config, [
@@ -106,7 +106,7 @@ export const formatConfigDataForServer = (config: any) => {
   };
 };
 
-const formatLabelResponse = (response: any) => {
+const formatLabelResponse = (response: any): {[index: string]: any} => {
   const labelTypeForDisplayText: {[index: string]: any} = {
     'All Hosts': 'all',
     'MS Windows': 'platform',
@@ -177,7 +177,7 @@ export const formatScheduledQueryForServer = (scheduledQuery: any) => {
   return result;
 };
 
-export const formatScheduledQueryForClient = (scheduledQuery: any) => {
+export const formatScheduledQueryForClient = (scheduledQuery: any): any => {
   if (scheduledQuery.platform === '') {
     scheduledQuery.platform = 'all';
   }
