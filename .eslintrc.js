@@ -37,7 +37,7 @@ module.exports = {
     'react/jsx-filename-extension': [1, { extensions: ['.jsx', '.tsx'] }],
     'no-param-reassign': 0,
     'new-cap': 0,
-    'import/no-unresolved': 2,
+    'import/no-unresolved': [2, { caseSensitive: false }],
     'linebreak-style': 0,
     'import/no-named-as-default': 'off',
     'import/no-named-as-default-member': 'off',
