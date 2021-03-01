@@ -1,1 +1,1 @@
-export default from './YamlAce';
+export { default } from './YamlAce';

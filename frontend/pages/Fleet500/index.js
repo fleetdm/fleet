@@ -1,1 +1,1 @@
-export default from './Fleet500';
+export { default } from './Fleet500';

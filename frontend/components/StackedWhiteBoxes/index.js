@@ -1,1 +1,1 @@
-export default from './StackedWhiteBoxes';
+export { default } from './StackedWhiteBoxes';

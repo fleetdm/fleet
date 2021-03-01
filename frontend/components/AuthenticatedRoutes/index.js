@@ -1,1 +1,1 @@
-export default from './AuthenticatedRoutes';
+export { default } from './AuthenticatedRoutes';

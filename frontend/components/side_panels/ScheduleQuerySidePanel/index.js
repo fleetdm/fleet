@@ -1,1 +1,1 @@
-export default from './ScheduleQuerySidePanel';
+export { default } from './ScheduleQuerySidePanel';

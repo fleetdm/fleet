@@ -1,6 +1,6 @@
-import endpoints from 'kolide/endpoints';
+import yaml from 'js-yaml';
 
-const yaml = require('js-yaml');
+import endpoints from 'kolide/endpoints';
 
 export default (client) => {
   return {

@@ -1,1 +1,1 @@
-export default from './QueriesListRow';
+export { default } from './QueriesListRow';

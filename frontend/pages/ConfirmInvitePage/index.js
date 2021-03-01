@@ -1,1 +1,1 @@
-export default from './ConfirmInvitePage';
+export { default } from './ConfirmInvitePage';

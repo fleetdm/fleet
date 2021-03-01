@@ -1,1 +1,1 @@
-export default from './EditPackFormWrapper';
+export { default } from './EditPackFormWrapper';

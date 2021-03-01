@@ -1,5 +1,5 @@
-import * as React from 'react';
-const classnames = require('classnames');
+import React from 'react';
+import classnames from 'classnames';
 
 interface IAvatarUserInterface {
   gravatarURL: string;
@@ -11,14 +11,12 @@ interface IAvatarInterface {
   user: IAvatarUserInterface;
 }
 
-interface IAvatarState { }
-
 const baseClass = 'avatar';
 
-class Avatar extends React.Component<IAvatarInterface, IAvatarState> {
+class Avatar extends React.Component<IAvatarInterface, null> {
   render(): JSX.Element {
     const { className, size, user } = this.props;
-    const isSmall = size && size.toLowerCase() === 'small';
+    const isSmall = size !== undefined && size.toLowerCase() === 'small';
     const avatarClasses = classnames(baseClass, className, {
       [`${baseClass}--${size}`]: isSmall,
     });
@@ -26,7 +24,7 @@ class Avatar extends React.Component<IAvatarInterface, IAvatarState> {
 
     return (
       <img
-        alt='User Avatar'
+        alt="User Avatar"
         className={avatarClasses}
         src={gravatarURL}
       />

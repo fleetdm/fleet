@@ -1,1 +1,1 @@
-export default from './QueryResultsTable';
+export { default } from './QueryResultsTable';

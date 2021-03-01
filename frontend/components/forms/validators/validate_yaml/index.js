@@ -1,4 +1,4 @@
-const yaml = require('js-yaml');
+import yaml from 'js-yaml';
 
 const invalidYamlResponse = (message) => {
   return { valid: false, error: message };

@@ -1,1 +1,1 @@
-export default from './EnrollSecretTable';
+export { default } from './EnrollSecretTable';

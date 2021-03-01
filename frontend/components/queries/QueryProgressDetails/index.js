@@ -1,1 +1,1 @@
-export default from './QueryProgressDetails';
+export { default } from './QueryProgressDetails';

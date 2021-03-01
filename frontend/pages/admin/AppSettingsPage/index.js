@@ -1,1 +1,1 @@
-export default from './AppSettingsPage';
+export { default } from './AppSettingsPage';

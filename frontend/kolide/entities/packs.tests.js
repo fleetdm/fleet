@@ -69,12 +69,6 @@ describe('Kolide - API client (packs)', () => {
     });
   });
 
-  describe('#load', () => {
-  });
-
-  describe('#loadAll', () => {
-  });
-
   describe('#update', () => {
     it('sends the host and/or label ids if packs are changed', () => {
       const label2 = { ...labelStub, id: 2 };

@@ -1,1 +1,1 @@
-export default from './SearchPackQuery';
+export { default } from './SearchPackQuery';
