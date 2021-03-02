@@ -82,10 +82,16 @@ func main() {
 			EnvVars: []string{"ORBIT_ENROLL_SECRET_PATH"},
 		},
 		&cli.StringFlag{
-			Name:    "osquery-version",
-			Usage:   "Version of osquery to use",
+			Name:    "osquery-channel",
+			Usage:   "Update channel of osquery to use",
 			Value:   "stable",
-			EnvVars: []string{"ORBIT_OSQUERY_VERSION"},
+			EnvVars: []string{"ORBIT_OSQUERY_CHANNEL"},
+		},
+		&cli.StringFlag{
+			Name:    "orbit-channel",
+			Usage:   "Update channel of orbit to use",
+			Value:   "stable",
+			EnvVars: []string{"ORBI_ORBIT_CHANNEL"},
 		},
 		&cli.BoolFlag{
 			Name:    "debug",
@@ -149,7 +155,7 @@ func main() {
 		if err := updater.UpdateMetadata(); err != nil {
 			log.Info().Err(err).Msg("failed to update metadata. using saved metadata.")
 		}
-		osquerydPath, err := updater.Get("osqueryd", c.String("osquery-version"))
+		osquerydPath, err := updater.Get("osqueryd", c.String("osquery-channel"))
 		if err != nil {
 			return err
 		}
@@ -159,7 +165,8 @@ func main() {
 		updateRunner, err := update.NewRunner(updater, update.RunnerOptions{
 			CheckInterval: 10 * time.Second,
 			Targets: map[string]string{
-				"osqueryd": c.String("osquery-version"),
+				"osqueryd": c.String("osquery-channel"),
+				"orbit":    c.String("orbit-channel"),
 			},
 		})
 		if err != nil {
@@ -309,10 +316,10 @@ var shellCommand = &cli.Command{
 	Usage:   "Run the osqueryi shell",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:    "osquery-version",
-			Usage:   "Version of osquery to use",
+			Name:    "osquery-channel",
+			Usage:   "Channel of osquery version to use",
 			Value:   "stable",
-			EnvVars: []string{"ORBIT_OSQUERY_VERSION"},
+			EnvVars: []string{"ORBIT_OSQUERY_CHANNEL"},
 		},
 		&cli.BoolFlag{
 			Name:    "debug",
@@ -347,7 +354,7 @@ var shellCommand = &cli.Command{
 		if err := updater.UpdateMetadata(); err != nil {
 			log.Info().Err(err).Msg("failed to update metadata. using saved metadata.")
 		}
-		osquerydPath, err := updater.Get("osqueryd", c.String("osquery-version"))
+		osquerydPath, err := updater.Get("osqueryd", c.String("osquery-channel"))
 		if err != nil {
 			return err
 		}
