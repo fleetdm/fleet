@@ -117,6 +117,31 @@ func updatesInitFunc(c *cli.Context) error {
 		return errors.Wrap(err, "sign root metadata")
 	}
 
+	// Create empty manifests for commit
+	if err := repo.AddTargetsWithExpires(
+		nil,
+		nil,
+		time.Now().Add(targetsExpirationDuration),
+	); err != nil {
+		return errors.Wrap(err, "initialize targets")
+	}
+	if err := repo.SnapshotWithExpires(
+		tuf.CompressionTypeNone,
+		time.Now().Add(snapshotExpirationDuration),
+	); err != nil {
+		return errors.Wrap(err, "make snapshot")
+	}
+	if err := repo.TimestampWithExpires(
+		time.Now().Add(timestampExpirationDuration),
+	); err != nil {
+		return errors.Wrap(err, "make timestamp")
+	}
+
+	// Commit empty manifests
+	if err := repo.Commit(); err != nil {
+		return errors.Wrap(err, "commit repo")
+	}
+
 	// TODO messaging about separating keys -- maybe we can help by splitting
 	// things up into separate directories?
 
