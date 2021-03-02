@@ -59,7 +59,6 @@ class SiteNavSidePanel extends Component {
   renderNavItem = (navItem) => {
     const { name, iconName, subItems } = navItem;
     const { onNavItemClick, pathname } = this.props;
-    const { renderSubItems } = this;
     const active = navItem.location.regex.test(pathname);
     const navItemBaseClass = 'site-nav-item';
 
@@ -67,7 +66,6 @@ class SiteNavSidePanel extends Component {
       `${navItemBaseClass}`,
       {
         [`${navItemBaseClass}--active`]: active,
-        [`${navItemBaseClass}--multiple`]: subItems.length !== 0,
       },
     );
 
@@ -91,7 +89,6 @@ class SiteNavSidePanel extends Component {
             {name}
           </span>
         </a>
-        {active && renderSubItems(subItems)}
       </li>
     );
   }
@@ -112,59 +109,6 @@ class SiteNavSidePanel extends Component {
           onNavItemClick={onNavItemClick}
           user={user}
         />
-      </div>
-    );
-  }
-
-  renderSubItem = (subItem) => {
-    const { icon, name } = subItem;
-    const { onNavItemClick, pathname } = this.props;
-    const active = subItem.location.regex.test(pathname);
-
-    const baseSubItemClass = 'site-sub-item';
-
-    const baseSubItemItemClass = classnames(
-      `${baseSubItemClass}`,
-      { [`${baseSubItemClass}--active`]: active },
-    );
-
-    return (
-      <li
-        key={name}
-        className={baseSubItemItemClass}
-      >
-        <a
-          className={`${baseSubItemClass}__link`}
-          key={`sub-item-${name}`}
-          onClick={onNavItemClick(subItem.location.pathname)}
-        >
-          <span className={`${baseSubItemClass}__name`}>{name}</span>
-          <span className={`${baseSubItemClass}__icon`}><KolideIcon name={icon} /></span>
-        </a>
-      </li>
-    );
-  }
-
-  renderSubItems = (subItems) => {
-    const { renderSubItem, setSubNavClass } = this;
-    const { showSubItems } = this.state;
-
-    const baseSubItemsClass = 'site-sub-items';
-
-    const subItemListClasses = classnames(
-      `${baseSubItemsClass}__list`,
-      { [`${baseSubItemsClass}__list--expanded`]: showSubItems },
-    );
-
-    if (!subItems.length) return false;
-
-    return (
-      <div className={`${setSubNavClass(showSubItems)} ${baseSubItemsClass}`}>
-        <ul className={subItemListClasses}>
-          {subItems.map((subItem) => {
-            return renderSubItem(subItem);
-          })}
-        </ul>
       </div>
     );
   }
