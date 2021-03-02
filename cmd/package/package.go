@@ -94,6 +94,10 @@ func main() {
 			}
 		}
 
+		if opt.Insecure && opt.FleetCertificate != "" {
+			return errors.New("--insecure and --fleet-certificate may not be provided together")
+		}
+
 		// TODO take these from flags
 		opt.OrbitChannel = "stable"
 		opt.OsqueryChannel = "stable"
