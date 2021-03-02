@@ -94,6 +94,10 @@ func main() {
 			}
 		}
 
+		// TODO take these from flags
+		opt.OrbitChannel = "stable"
+		opt.OsqueryChannel = "stable"
+
 		switch c.String("type") {
 		case "pkg":
 			return packaging.BuildPkg(opt)

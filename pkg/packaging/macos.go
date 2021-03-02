@@ -43,12 +43,13 @@ func BuildPkg(opt Options) error {
 	updateOpt := update.DefaultOptions
 	updateOpt.Platform = "macos"
 	updateOpt.RootDirectory = orbitRoot
+	updateOpt.OrbitChannel = opt.OrbitChannel
+	updateOpt.OsqueryChannel = opt.OsqueryChannel
 
 	// TODO these should be configurable
 	updateOpt.ServerURL = "https://tuf.fleetctl.com"
-	osqueryChannel, orbitChannel := "stable", "stable"
 
-	if err := initializeUpdates(updateOpt, osqueryChannel, orbitChannel); err != nil {
+	if err := initializeUpdates(updateOpt); err != nil {
 		return errors.Wrap(err, "initialize updates")
 	}
 
@@ -76,13 +77,15 @@ func BuildPkg(opt Options) error {
 			return errors.Wrap(err, "write fleet certificate")
 		}
 	}
-	if err := copyFile(
-		"./orbit",
-		filepath.Join(orbitRoot, "bin", "orbit", "macos", "current", "orbit"),
-		0755,
-	); err != nil {
-		return errors.Wrap(err, "write orbit")
-	}
+
+	// TODO gate behind a flag and allow copying a local orbit
+	// if err := copyFile(
+	// 	"./orbit",
+	// 	filepath.Join(orbitRoot, "bin", "orbit", "macos", "current", "orbit"),
+	// 	0755,
+	// ); err != nil {
+	// 	return errors.Wrap(err, "write orbit")
+	// }
 
 	// Build package
 	if err := xarBom(opt, tmpDir); err != nil {

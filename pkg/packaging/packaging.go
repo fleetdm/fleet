@@ -34,6 +34,10 @@ type Options struct {
 	Notarize bool
 	// FleetCertificate is a path to a server certificate to include in the package.
 	FleetCertificate string
+	// OrbitChannel is the update channel to use for Orbit.
+	OrbitChannel string
+	// OsqueryChannel is the update channel to use for Osquery.
+	OsqueryChannel string
 }
 
 func copyFile(srcPath, dstPath string, perm os.FileMode) error {
@@ -60,7 +64,7 @@ func copyFile(srcPath, dstPath string, perm os.FileMode) error {
 	return nil
 }
 
-func initializeUpdates(updateOpt update.Options, osqueryChannel, orbitChannel string) error {
+func initializeUpdates(updateOpt update.Options) error {
 	localStore, err := filestore.New(filepath.Join(updateOpt.RootDirectory, "tuf-metadata.json"))
 	if err != nil {
 		return errors.Wrap(err, "failed to create local metadata store")
@@ -74,13 +78,13 @@ func initializeUpdates(updateOpt update.Options, osqueryChannel, orbitChannel st
 	if err := updater.UpdateMetadata(); err != nil {
 		return errors.Wrap(err, "failed to update metadata")
 	}
-	osquerydPath, err := updater.Get("osqueryd", osqueryChannel)
+	osquerydPath, err := updater.Get("osqueryd", updateOpt.OsqueryChannel)
 	if err != nil {
 		return errors.Wrap(err, "failed to get osqueryd")
 	}
 	log.Debug().Str("path", osquerydPath).Msg("got osqueryd")
 
-	orbitPath, err := updater.Get("orbit", orbitChannel)
+	orbitPath, err := updater.Get("orbit", updateOpt.OrbitChannel)
 	if err != nil {
 		return errors.Wrap(err, "failed to get orbit")
 	}

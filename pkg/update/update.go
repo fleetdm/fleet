@@ -46,6 +46,10 @@ type Options struct {
 	// Platform is the target of the platform to update for. In the default
 	// options this is the current platform.
 	Platform string
+	// OrbitChannel is the update channel to use for Orbit.
+	OrbitChannel string
+	// OsqueryChannel is the update channel to use for Osquery.
+	OsqueryChannel string
 }
 
 var (
@@ -58,6 +62,8 @@ var (
 		InsecureTransport: false,
 		Platform:          constant.PlatformName,
 		RootKeys:          defaultRootKeys,
+		OrbitChannel:      "stable",
+		OsqueryChannel:    "stable",
 	}
 )
 

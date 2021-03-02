@@ -40,12 +40,13 @@ func BuildDeb(opt Options) error {
 	updateOpt := update.DefaultOptions
 	updateOpt.Platform = "linux"
 	updateOpt.RootDirectory = orbitRoot
+	updateOpt.OrbitChannel = opt.OrbitChannel
+	updateOpt.OsqueryChannel = opt.OsqueryChannel
 
 	// TODO these should be configurable
 	updateOpt.ServerURL = "https://tuf.fleetctl.com"
-	osqueryChannel, orbitChannel := "stable", "stable"
 
-	if err := initializeUpdates(updateOpt, osqueryChannel, orbitChannel); err != nil {
+	if err := initializeUpdates(updateOpt); err != nil {
 		return errors.Wrap(err, "initialize updates")
 	}
 
