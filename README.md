@@ -20,7 +20,57 @@ Orbit is Fleet's [osquery](https://github.com/osquery/osquery) runtime and autou
 
 ## Usage
 
-TODO
+General information and flag documentation can be accessed by running `orbit --help`.
+
+### Permissions
+
+Orbit generally expects root permissions to be able to create and access it's working files. 
+
+To get root level permissions:
+
+#### macOS/Linux
+
+Prefix `orbit` commands with `sudo` (`sudo orbit ...`) or run in a root shell.
+
+#### Windows
+
+Run Powershell or cmd.exe with "Run as administrator" and start `orbit` commands from that shell.
+
+### Osquery shell
+
+Run an `osqueryi` shell with `orbit osqueryi` or `orbit shell`.
+
+### Connect to a Fleet server
+
+Use the `--fleet-url` and `--enroll-secret` flags to connect to a Fleet server.
+
+For example:
+
+``` sh
+orbit --fleet-url=https://localhost:8080 --enroll-secret=the_secret_value 
+```
+
+Use `--fleet_certificate` to provide a path to a certificate bundle when necessary for osquery to verify the authenticity of the Fleet server (typically when using a Windows client or self-signed certificates):
+
+``` sh
+orbit --fleet-url=https://localhost:8080 --enroll-secret=the_secret_value --fleet-certificate=cert.pem 
+```
+
+Add the `--insecure` flag for connections using otherwise invalid certificates:
+
+``` sh
+orbit --fleet-url=https://localhost:8080 --enroll-secret=the_secret_value --insecure 
+```
+
+### Osquery flags
+
+Orbit can be used as near drop-in replacement for `osqueryd`, enhancing standard osquery with autoupdate capabilities. Orbit passes through any options after `--` directly to the `osqueryd` instance.
+
+For example, the following would be a typical drop-in usage of Orbit:
+
+``` sh
+orbit -- --flagfile=flags.txt
+```
 
 ## Packaging
 
