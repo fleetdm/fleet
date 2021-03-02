@@ -11,6 +11,7 @@ const useCheckboxListStateManagement = (allColumns, hiddenColumns) => {
         name: column.title,
         accessor: column.accessor,
         isChecked: !hiddenColumns.includes(column.accessor),
+        disableHidden: column.disableHidden,
       };
     });
   });
@@ -48,6 +49,7 @@ const EditColumnsModal = (props) => {
       <p>Choose which columns you see</p>
       <div className={'modal-items'}>
         {columnItems.map((column) => {
+          if (column.disableHidden) return null;
           return (
             <div key={column.accessor}>
               <Checkbox
