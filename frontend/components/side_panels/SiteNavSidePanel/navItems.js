@@ -4,11 +4,11 @@ import URL_PREFIX from 'router/url_prefix';
 export default (admin) => {
   const adminNavItems = [
     {
-      icon: 'admin',
-      name: 'Admin',
-      iconName: 'admin',
+      icon: 'settings',
+      name: 'Settings',
+      iconName: 'settings',
       location: {
-        regex: new RegExp(`^${URL_PREFIX}/admin/`),
+        regex: new RegExp(`^${URL_PREFIX}/settings/`),
         pathname: PATHS.ADMIN_USERS,
       },
       subItems: [

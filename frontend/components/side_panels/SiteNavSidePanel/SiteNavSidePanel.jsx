@@ -3,7 +3,6 @@ import PropTypes from 'prop-types';
 import classnames from 'classnames';
 
 import userInterface from 'interfaces/user';
-import KolideIcon from 'components/icons/KolideIcon';
 import UserMenu from 'components/side_panels/UserMenu';
 
 import navItems from './navItems';
@@ -43,7 +42,7 @@ class SiteNavSidePanel extends Component {
   }
 
   renderNavItem = (navItem) => {
-    const { name, iconName, subItems } = navItem;
+    const { name, iconName } = navItem;
     const { onNavItemClick, pathname } = this.props;
     const active = navItem.location.regex.test(pathname);
     const navItemBaseClass = 'site-nav-item';
@@ -62,7 +61,7 @@ class SiteNavSidePanel extends Component {
     let icon = <img src={HostsIcon} alt={`${iconName} icon`} className={iconClasses} />;
     if (iconName === 'queries') icon = <img src={QueriesIcon} alt={`${iconName} icon`} className={iconClasses} />;
     else if (iconName === 'packs') icon = <img src={PacksIcon} alt={`${iconName} icon`} className={iconClasses} />;
-    else if (iconName === 'admin') icon = <img src={AdminIcon} alt={`${iconName} icon`} className={iconClasses} />;
+    else if (iconName === 'settings') icon = <img src={AdminIcon} alt={`${iconName} icon`} className={iconClasses} />;
 
     return (
       <li className={navItemClasses} key={`nav-item-${name}`}>

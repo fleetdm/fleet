@@ -49,7 +49,7 @@ const routes = (
           <Route path="logout" component={LogoutPage} />
           <Route component={CoreLayout}>
             <IndexRedirect to={PATHS.MANAGE_HOSTS} />
-            <Route path="admin" component={AuthenticatedAdminRoutes}>
+            <Route path="settings" component={AuthenticatedAdminRoutes}>
               <Route path="users" component={AdminUserManagementPage} />
               <Route path="settings" component={AdminAppSettingsPage} />
               <Route path="osquery" component={AdminOsqueryOptionsPage} />

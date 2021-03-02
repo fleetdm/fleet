@@ -4,9 +4,9 @@ import { IQuery } from '../interfaces/query';
 import URL_PREFIX from './url_prefix';
 
 export default {
-  ADMIN_USERS: `${URL_PREFIX}/admin/users`,
-  ADMIN_SETTINGS: `${URL_PREFIX}/admin/settings`,
-  ADMIN_OSQUERY: `${URL_PREFIX}/admin/osquery`,
+  ADMIN_USERS: `${URL_PREFIX}/settings/users`,
+  ADMIN_SETTINGS: `${URL_PREFIX}/settings/settings`,
+  ADMIN_OSQUERY: `${URL_PREFIX}/settings/osquery`,
   ALL_PACKS: `${URL_PREFIX}/packs/all`,
   EDIT_PACK: (pack: IPack): string => {
     return `${URL_PREFIX}/packs/${pack.id}/edit`;
