@@ -329,16 +329,6 @@ var shellCommand = &cli.Command{
 			return errors.Wrap(err, "initialize root dir")
 		}
 
-		db, err := database.Open(filepath.Join(c.String("root-dir"), "orbit.db"))
-		if err != nil {
-			return err
-		}
-		defer func() {
-			if err := db.Close(); err != nil {
-				log.Error().Err(err).Msg("close badger")
-			}
-		}()
-
 		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), "tuf-metadata.json"))
 		if err != nil {
 			log.Fatal().Err(err).Msg("failed to create local metadata store")
@@ -370,7 +360,6 @@ var shellCommand = &cli.Command{
 			osquery.WithShell(),
 			// Handle additional args after --
 			osquery.WithFlags(c.Args().Slice()),
-			osquery.WithDataPath(c.String("root-dir")),
 		)
 		g.Add(r.Execute, r.Interrupt)
 
