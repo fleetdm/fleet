@@ -79,7 +79,6 @@ func WithDataPath(path string) func(*Runner) error {
 			"--pidfile="+filepath.Join(path, "osquery.pid"),
 			"--database_path="+filepath.Join(path, "osquery.db"),
 			"--extensions_socket="+filepath.Join(path, "osquery.em"),
-			"--config_path="+filepath.Join(path, "osquery.conf"),
 		)
 		return nil
 	}
