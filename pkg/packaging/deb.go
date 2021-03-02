@@ -79,13 +79,21 @@ func BuildDeb(opt Options) error {
 				Mode: constant.DefaultExecutableMode,
 			},
 		},
+		// Symlink current into /var/lib/orbit/bin/orbit/orbit
 		&files.Content{
-			Source:      "/var/lib/orbit/orbit",
+			Source:      "/var/lib/orbit/bin/orbit/linux/" + opt.OrbitChannel + "/orbit",
+			Destination: "/var/lib/orbit/bin/orbit/orbit",
+			Type:        "symlink",
+			FileInfo: &files.ContentFileInfo{
+				Mode: constant.DefaultExecutableMode | os.ModeSymlink,
+			},
+		},
+		// Symlink current into /usr/local/bin
+		&files.Content{
+			Source:      "/var/lib/orbit/bin/orbit/orbit",
 			Destination: "/usr/local/bin/orbit",
 			Type:        "symlink",
 			FileInfo: &files.ContentFileInfo{
-				// TODO follow up on nfpm not respecting this
-				// https://github.com/goreleaser/nfpm/issues/286
 				Mode: constant.DefaultExecutableMode | os.ModeSymlink,
 			},
 		},
@@ -146,12 +154,14 @@ func writeSystemdUnit(opt Options, rootPath string) error {
 [Unit]
 Description=Fleet Orbit osquery
 After=network.service syslog.service
+StartLimitIntervalSec=0
 
 [Service]
 TimeoutStartSec=0
 EnvironmentFile=/etc/default/orbit
-ExecStart=/var/lib/orbit/orbit
-Restart=on-failure
+ExecStart=/var/lib/orbit/bin/orbit/orbit
+Restart=always
+RestartSec=1
 KillMode=control-group
 KillSignal=SIGTERM
 CPUQuota=20%
@@ -206,7 +216,7 @@ set -e
 if [ -x /bin/systemctl ] && pidof systemd ; then
   /bin/systemctl daemon-reload 2>/dev/null 2>&1
 {{ if .StartService -}}
-  /bin/systemctl start orbit.service 2>&1
+  /bin/systemctl restart orbit.service 2>&1
 {{- end}}
 fi
 `))
