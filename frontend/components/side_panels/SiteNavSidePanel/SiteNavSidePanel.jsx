@@ -36,20 +36,6 @@ class SiteNavSidePanel extends Component {
     };
   }
 
-  setSubNavClass = (showSubItems) => {
-    return showSubItems ? 'sub-nav sub-nav--expanded' : 'sub-nav';
-  }
-
-  toggleShowSubItems = (showSubItems) => {
-    return (evt) => {
-      evt.preventDefault();
-
-      this.setState({ showSubItems });
-
-      return false;
-    };
-  }
-
   toggleUserMenu = () => {
     const { userMenuOpened } = this.state;
 

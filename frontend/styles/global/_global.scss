@@ -59,17 +59,9 @@ a {
   min-width: 910px;
 
   @at-root {
-    .core-wrapper--small & {
-      max-width: calc(100vw - #{$nav-tablet-width} - #{$pad-base});
-    }
-
     .has-sidebar & {
       margin-right: 0;
       min-width: 610px;
-
-      @at-root .core-wrapper--small & {
-        max-width: calc(100vw - #{$nav-tablet-width} - #{$pad-body} - #{$pad-body} - #{$pad-borders} - #{$sidepanel-tablet-width});
-      }
     }
   }
 }

@@ -14,7 +14,6 @@ export const initialState = {
   config: {},
   enrollSecret: [],
   error: {},
-  isSmallNav: false,
   loading: false,
   showBackgroundImage: false,
 };
@@ -70,7 +69,6 @@ const reducer = (state = initialState, { type, payload }) => {
     case TOGGLE_SMALL_NAV:
       return {
         ...state,
-        isSmallNav: !state.isSmallNav,
       };
     default:
       return state;

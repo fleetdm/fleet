@@ -33,10 +33,6 @@
     height: 24px;
     vertical-align: sub;
 
-    @at-root .site-nav--small & {
-      margin-right: 0;
-    }
-
     @include breakpoint(smalldesk) {
       margin-right: 0;
     }
@@ -47,10 +43,6 @@
     vertical-align: middle;
     font-weight: $regular;
     font-size: $x-small;
-
-    @at-root .site-nav--small & {
-      display: none;
-    }
   }
 
   a {
@@ -73,20 +65,12 @@
       background-color: $core-black;
     }
 
-    @at-root .site-nav--small & {
-      border-right: 3px solid $core-blue;
-    }
-
     .site-nav-item__name {
       font-weight: $bold;
     }
   }
 
   &:last-child {
-
-    @at-root .site-nav--small & {
-      margin-right: 0;
-    }
 
     @include breakpoint(smalldesk) {
       margin-right: 0;
