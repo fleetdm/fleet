@@ -4,7 +4,6 @@ import { connect } from 'react-redux';
 import LoadingBar from 'react-redux-loading-bar';
 import { logoutUser } from 'redux/nodes/auth/actions';
 import { push } from 'react-router-redux';
-import classnames from 'classnames';
 
 import configInterface from 'interfaces/config';
 import FlashMessage from 'components/flash_messages/FlashMessage';

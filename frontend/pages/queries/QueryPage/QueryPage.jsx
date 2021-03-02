@@ -25,7 +25,6 @@ import QueryPageSelectTargets from 'components/queries/QueryPageSelectTargets';
 import QueryResultsTable from 'components/queries/QueryResultsTable';
 import QuerySidePanel from 'components/side_panels/QuerySidePanel';
 import { renderFlash } from 'redux/nodes/notifications/actions';
-import { toggleSmallNav } from 'redux/nodes/app/actions';
 import { selectOsqueryTable, setSelectedTargets, setSelectedTargetsQuery } from 'redux/nodes/components/QueryPages/actions';
 import targetInterface from 'interfaces/target';
 import validateQuery from 'components/forms/validators/validate_query';
@@ -382,7 +381,6 @@ export class QueryPage extends Component {
 
       callback = () => {
         body.style.overflow = 'hidden';
-        dispatch(toggleSmallNav);
         merge(parent.style, newPosition);
         grandParent.style.height = `${newPosition.maxHeight}`;
       };
@@ -393,7 +391,6 @@ export class QueryPage extends Component {
 
       callback = () => {
         body.style.overflow = 'visible';
-        dispatch(toggleSmallNav);
         newPosition = queryPosition;
         merge(parent.style, newPosition);
         grandParent.style.height = `${newPosition.maxHeight}`;
