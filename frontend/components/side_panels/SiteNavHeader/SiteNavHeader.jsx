@@ -26,7 +26,6 @@ class SiteNavHeader extends Component {
       <header className={headerBaseClass}>
         <div className={`${headerBaseClass}__inner`}>
           <OrgLogoIcon className={`${headerBaseClass}__logo`} src={orgLogoURL} />
-          <h1 className={`${headerBaseClass}__username`}>{username}</h1>
         </div>
       </header>
     );

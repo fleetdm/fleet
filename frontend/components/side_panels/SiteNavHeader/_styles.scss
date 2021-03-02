@@ -3,10 +3,6 @@
   padding: 14px 20px;
   background: $core-dark-blue-grey;
 
-  @include breakpoint(smalldesk) {
-    padding: 14px 10px;
-  }
-
   &__inner {
     display: flex;
     align-items: center;
@@ -14,12 +10,7 @@
 
   &__logo {
     @include size(24px);
-    margin-right: 24px;
     border-radius: 20%;
-
-    @include breakpoint(smalldesk) {
-      margin: 10px 5px;
-    }
   }
 
   &__username {
