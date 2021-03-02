@@ -1,5 +1,6 @@
 .app-wrap {
   display: flex;
+  flex-direction: column;
   min-height: 100vh;
 }
 
@@ -7,39 +8,19 @@
   flex-grow: 1;
   margin: 0;
   padding: 0;
-  max-width: calc(100% - 217px);
   position: relative;
   background-color: $white;
-
-  &--small {
-    max-width: calc(100% - 55px);
-  }
-
-  @include breakpoint(smalldesk) {
-    max-width: calc(100% - 55px);
-  }
 }
 
 .site-nav {
   background: $core-gradient;
   box-sizing: border-box;
-  width: $nav-width;
   display: flex;
-  flex-direction: column;
-  position: -webkit-sticky;
-  position: sticky; // sass-lint:disable-line no-duplicate-properties
   top: 0;
   left: 0;
   z-index: 100;
-  max-height: 100vh;
-  min-height: 560px;
 
   &--small {
-    padding-left: 0;
-    width: $nav-tablet-width;
-  }
-
-  @include breakpoint(smalldesk) {
     padding-left: 0;
     width: $nav-tablet-width;
   }

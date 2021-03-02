@@ -57,7 +57,6 @@ a {
   background-color: $white;
   border: solid 1px $white;
   min-width: 910px;
-  max-width: calc(100vw - #{$nav-width} - #{$pad-base});
 
   @at-root {
     .core-wrapper--small & {
@@ -68,21 +67,10 @@ a {
       margin-right: 0;
       min-width: 610px;
 
-      // 62px includes
-      max-width: calc(100vw - #{$nav-width} - #{$pad-body} - #{$pad-body} - #{$pad-borders} - #{$sidepanel-width});
-
       @at-root .core-wrapper--small & {
         max-width: calc(100vw - #{$nav-tablet-width} - #{$pad-body} - #{$pad-body} - #{$pad-borders} - #{$sidepanel-tablet-width});
       }
-
-      @include breakpoint(smalldesk) {
-        max-width: calc(100vw - #{$nav-tablet-width} - #{$pad-body} - #{$pad-body} - #{$pad-borders} - #{$sidepanel-tablet-width});
-      }
     }
-  }
-
-  @include breakpoint(smalldesk) {
-    max-width: calc(100vw - #{$nav-tablet-width} - #{$pad-base});
   }
 }
 
