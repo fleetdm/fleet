@@ -2,7 +2,7 @@ import React from 'react';
 
 interface ITextCellProps {
   value: string | number;
-  formatter?: (value: string | number) => string
+  formatter?: (val: any) => string;
 }
 
 const TextCell = (props: ITextCellProps): JSX.Element => {
