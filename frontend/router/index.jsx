@@ -73,7 +73,7 @@ const routes = (
               <Route path="new" component={QueryPage} />
               <Route path=":id" component={QueryPage} />
             </Route>
-            <Route path="settings" component={UserSettingsPage} />
+            <Route path="profile" component={UserSettingsPage} />
           </Route>
         </Route>
       </Route>

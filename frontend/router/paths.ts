@@ -32,5 +32,5 @@ export default {
   NEW_QUERY: `${URL_PREFIX}/queries/new`,
   RESET_PASSWORD: `${URL_PREFIX}/login/reset`,
   SETUP: `${URL_PREFIX}/setup`,
-  USER_SETTINGS: `${URL_PREFIX}/settings`,
+  USER_SETTINGS: `${URL_PREFIX}/profile`,
 };
