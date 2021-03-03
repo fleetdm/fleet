@@ -89,7 +89,6 @@ class SiteNavSidePanel extends Component {
           })}
         </ul>
         <UserMenu
-          pathname={pathname}
           onLogout={onLogoutUser}
           onNavItemClick={onNavItemClick}
           user={user}
