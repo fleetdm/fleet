@@ -1,7 +1,11 @@
 import React from 'react';
-import PropTypes from 'prop-types';
 
-const HeaderCell = (props) => {
+interface IHeaderCellProps {
+  value: string;
+  isSortedDesc?: boolean;
+}
+
+const HeaderCell = (props: IHeaderCellProps): JSX.Element => {
   const {
     value,
     isSortedDesc,
@@ -25,11 +29,6 @@ const HeaderCell = (props) => {
       </div>
     </div>
   );
-};
-
-HeaderCell.propTypes = {
-  value: PropTypes.string,
-  isSortedDesc: PropTypes.bool,
 };
 
 export default HeaderCell;

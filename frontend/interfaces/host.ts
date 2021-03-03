@@ -14,4 +14,22 @@ export default PropTypes.shape({
   updated_at: PropTypes.string,
   uptime: PropTypes.number,
   uuid: PropTypes.string,
+  seen_time: PropTypes.string,
 });
+
+export interface IHost {
+  detail_updated_at: string;
+  hostname: string;
+  id: number;
+  ip: string;
+  mac: string;
+  memory: number;
+  os_version: string;
+  osquery_version: string;
+  platform: string;
+  status: string;
+  updated_at: string;
+  uptime: number;
+  uuid: string;
+  seen_time: string;
+}

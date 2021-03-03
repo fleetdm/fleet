@@ -24,6 +24,7 @@ module.exports = {
     describe: false,
   },
   rules: {
+    camelcase: 'off',
     'consistent-return': 1,
     'arrow-body-style': 0,
     'max-len': 0,
@@ -37,7 +38,7 @@ module.exports = {
     'react/jsx-filename-extension': [1, { extensions: ['.jsx', '.tsx'] }],
     'no-param-reassign': 0,
     'new-cap': 0,
-    'import/no-unresolved': 2,
+    'import/no-unresolved': [2, { caseSensitive: false }],
     'linebreak-style': 0,
     'import/no-named-as-default': 'off',
     'import/no-named-as-default-member': 'off',
@@ -65,7 +66,9 @@ module.exports = {
     {
       files: ['*.ts', '*.tsx'],
       rules: {
-        '@typescript-eslint/explicit-module-boundary-types': ['error'],
+        // Set to warn for now at the beginning to make migration easier
+        // but want to change this to error when we can.
+        '@typescript-eslint/explicit-module-boundary-types': ['warn'],
       },
     },
   ],

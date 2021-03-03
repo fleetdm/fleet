@@ -4,24 +4,27 @@ import classnames from 'classnames';
 const baseClass = 'button';
 
 interface IButtonProps {
-  autofocus: boolean;
-  block: boolean;
+  autofocus?: boolean;
+  block?: boolean;
   children: React.ReactChild;
-  className: string;
-  disabled: boolean;
-  onClick: (evt: React.MouseEvent<HTMLButtonElement>) => boolean;
-  size: string;
-  tabIndex: number;
-  type: string;
-  title: string;
-  variant: string;
+  className?: string;
+  disabled?: boolean;
+  onClick: (evt: React.MouseEvent<HTMLButtonElement>) => void;
+  size?: string;
+  tabIndex?: number;
+  type?: 'button' | 'submit' | 'reset';
+  title?: string;
+  variant?: string;
 }
+
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+interface IButtonState {}
 
 interface Inputs {
   button?: HTMLButtonElement;
 }
 
-class Button extends React.Component<IButtonProps, null> {
+class Button extends React.Component<IButtonProps, IButtonState> {
   static defaultProps = {
     block: false,
     size: '',

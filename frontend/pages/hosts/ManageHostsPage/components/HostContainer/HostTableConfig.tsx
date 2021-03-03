@@ -1,4 +1,5 @@
 import React from 'react';
+import { IHost } from '../../../../../interfaces/host';
 
 import HeaderCell from '../HeaderCell/HeaderCell';
 import LinkCell from '../LinkCell/LinkCell';
@@ -6,7 +7,32 @@ import StatusCell from '../StatusCell/StatusCell';
 import TextCell from '../TextCell/TextCell';
 import { humanHostMemory, humanHostUptime, humanHostLastSeen } from '../../../../../kolide/helpers';
 
-const hostDataHeaders = [
+interface IHeaderProps {
+  column: {
+    title: string;
+    isSortedDesc: boolean;
+  }
+}
+
+interface ICellProps {
+  cell: {
+    value: string;
+  };
+  row: {
+    original: IHost;
+  };
+}
+
+interface IHostDataColumn {
+  title: string;
+  Header: ((props: IHeaderProps) => JSX.Element) | string;
+  accessor: string;
+  Cell: (props: ICellProps) => JSX.Element;
+  canHide?: boolean;
+  disableSortBy?: boolean;
+}
+
+const hostDataHeaders: IHostDataColumn[] = [
   {
     title: 'Hostname',
     Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
@@ -23,7 +49,7 @@ const hostDataHeaders = [
   },
   {
     title: 'OS',
-    Header: cellProps => <HeaderCell all={cellProps.column} value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
+    Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
     accessor: 'os_version',
     Cell: cellProps => <TextCell value={cellProps.cell.value} />,
   },

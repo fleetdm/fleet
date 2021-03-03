@@ -1,7 +1,11 @@
 import React from 'react';
-import PropTypes from 'prop-types';
 
-const TextCell = (props) => {
+interface ITextCellProps {
+  value: string | number;
+  formatter?: (val: any) => string;
+}
+
+const TextCell = (props: ITextCellProps): JSX.Element => {
   const {
     value,
     formatter = val => val, // identity function if no formatter is provided
@@ -12,14 +16,6 @@ const TextCell = (props) => {
       {formatter(value)}
     </span>
   );
-};
-
-TextCell.propTypes = {
-  value: PropTypes.oneOfType([
-    PropTypes.string,
-    PropTypes.number,
-  ]),
-  formatter: PropTypes.func,
 };
 
 export default TextCell;
