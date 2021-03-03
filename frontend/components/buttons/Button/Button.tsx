@@ -17,11 +17,14 @@ interface IButtonProps {
   variant?: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+interface IButtonState {}
+
 interface Inputs {
   button?: HTMLButtonElement;
 }
 
-class Button extends React.Component<IButtonProps> {
+class Button extends React.Component<IButtonProps, IButtonState> {
   static defaultProps = {
     block: false,
     size: '',
