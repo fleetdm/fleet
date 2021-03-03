@@ -107,8 +107,10 @@ func main() {
 			return packaging.BuildPkg(opt)
 		case "deb":
 			return packaging.BuildDeb(opt)
+		case "rpm":
+			return packaging.BuildRPM(opt)
 		default:
-			return errors.New("type must be one of ('pkg', 'deb')")
+			return errors.New("type must be one of ('pkg', 'deb', 'rpm')")
 		}
 	}
 
