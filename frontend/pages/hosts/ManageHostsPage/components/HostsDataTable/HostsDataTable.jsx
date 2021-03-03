@@ -20,11 +20,11 @@ const DEFAULT_SORT_KEY = 'hostname';
 const containerClass = 'host-container';
 
 const generateHostCountText = (pageIndex, itemsPerPage, resultsCount) => {
-  if (itemsPerPage === resultsCount) return `${itemsPerPage}+ results`;
+  if (itemsPerPage === resultsCount) return `${itemsPerPage}+ hosts`;
 
-  if (pageIndex !== 0 && (resultsCount <= itemsPerPage)) return `${itemsPerPage}+ results`;
+  if (pageIndex !== 0 && (resultsCount <= itemsPerPage)) return `${itemsPerPage}+ hosts`;
 
-  return `${resultsCount} results`;
+  return `${resultsCount} hosts`;
 };
 
 // This data table uses react-table for implementation. The relevant documentation of the library
@@ -47,7 +47,7 @@ const HostsDataTable = (props) => {
   const hosts = useSelector(state => state.entities.hosts.data);
   const hostAPIOrder = useSelector(state => state.entities.hosts.originalOrder);
 
-  // This variable is used to keep the react-table state persistant across server calls for new data.
+  // This variable is used to keep the react-table state persistent across server calls for new data.
   // You can read more about this here technique here:
   // https://react-table.tanstack.com/docs/faq#how-do-i-stop-my-table-state-from-automatically-resetting-when-my-data-changes
   const skipPageResetRef = useRef();
@@ -72,7 +72,8 @@ const HostsDataTable = (props) => {
     setHiddenColumns,
     state: tableState,
   } = useTable(
-    { columns,
+    {
+      columns,
       data,
       initialState: {
         sortBy: [{ id: DEFAULT_SORT_KEY, desc: true }],

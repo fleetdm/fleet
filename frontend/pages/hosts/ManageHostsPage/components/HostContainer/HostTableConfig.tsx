@@ -28,7 +28,7 @@ interface IHostDataColumn {
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   accessor: string;
   Cell: (props: ICellProps) => JSX.Element;
-  canHide?: boolean;
+  disableHidden?: boolean;
   disableSortBy?: boolean;
 }
 
@@ -38,7 +38,7 @@ const hostDataHeaders: IHostDataColumn[] = [
     Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
     accessor: 'hostname',
     Cell: cellProps => <LinkCell value={cellProps.cell.value} host={cellProps.row.original} />,
-    canHide: false,
+    disableHidden: true,
   },
   {
     title: 'Status',
