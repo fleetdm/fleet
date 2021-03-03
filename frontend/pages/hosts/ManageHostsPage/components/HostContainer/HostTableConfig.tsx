@@ -60,7 +60,7 @@ const hostDataHeaders: IHostDataColumn[] = [
     Cell: cellProps => <TextCell value={cellProps.cell.value} />,
   },
   {
-    title: 'IPv4',
+    title: 'IP address',
     Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
     accessor: 'primary_ip',
     Cell: cellProps => <TextCell value={cellProps.cell.value} />,
@@ -91,7 +91,7 @@ const hostDataHeaders: IHostDataColumn[] = [
     Cell: cellProps => <TextCell value={cellProps.cell.value} />,
   },
   {
-    title: 'Memory',
+    title: 'RAM',
     Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
     accessor: 'memory',
     Cell: cellProps => <TextCell value={cellProps.cell.value} formatter={humanHostMemory} />,
