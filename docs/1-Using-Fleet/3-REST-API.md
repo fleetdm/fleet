@@ -6,6 +6,7 @@
 - [Hosts](#hosts)
 - [Labels](#labels)
 - [Users](#users)
+- [Sessions](#sessions)
 - [Queries](#queries)
 - [Packs](#packs)
 - [Targets](#targets)
@@ -58,6 +59,7 @@ All of these objects are put together and distributed to the appropriate osquery
 - [Log out](#log-out)
 - [Forgot password](#forgot-password)
 - [Change password](#change-password)
+- [Reset password](#reset-password)
 - [Me](#me)
 - [SSO config](#sso-config)
 - [Initiate SSO](#initiate-sso)
@@ -250,6 +252,42 @@ Changes the password for the authenticated user.
     }
   ]
 }
+```
+
+### Reset password
+
+Resets a user's password. Which user is determined by the password reset token used. The password reset token can be found in the password reset email sent to the desired user.
+
+`POST /api/v1/fleet/reset_password`
+
+#### Parameters
+
+| Name | Type    | In    | Description                  |
+| ---- | ------- | ----- | ---------------------------- |
+| new_password   | string | body | **Required**. The new password. |
+| new_password_confirmation   | string | body | **Required**. Confirmation for the new password. |
+| password_reset_token   | string | body | **Required**. The token provided to the user in the password reset email. |
+
+#### Example
+
+`POST /api/v1/fleet/reset_password`
+
+##### Request body
+
+```
+{
+  "new_password": "abc123"
+  "new_password_confirmation": "abc123"
+  "password_reset_token": "UU5EK0JhcVpsRkY3NTdsaVliMEZDbHJ6TWdhK3oxQ1Q="
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
 ```
 
 ---
@@ -1709,7 +1747,7 @@ The selected user is logged out of Fleet and required to reset their password du
 
 `POST /api/v1/fleet/users/{id}/require_password_reset`
 
-#### Request body
+##### Request body
 
 ```
 {
@@ -1787,11 +1825,72 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
 
 #### Parameters
 
-None.
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| id   | integer  | path | **Required**. The ID of the desired user.               |
 
 #### Example
 
 `DELETE /api/v1/fleet/users/1/sessions`
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
+---
+
+## Sessions
+- [Get session info](#get-sessions-info)
+- [Delete session](#delete-session)
+
+### Get session info
+
+Returns the session information for the session specified by ID.
+
+`GET /api/v1/kolide/sessions/{id}`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| id   | integer  | path | **Required**. The ID of the desired session.               |
+
+#### Example
+
+`GET /api/v1/fleet/sessions/1`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "session_id": 1,
+  "user_id": 1,
+  "created_at": "2021-03-02T18:41:34Z"
+}
+```
+
+### Delete session
+
+Deletes the session specified by ID. When the user associated with the session next attempts to access Fleet, they will be asked to log in.
+
+`DELETE /api/v1/kolide/sessions/{id}`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| id   | integer  | path | **Required**. The id of the desired session.               |
+
+#### Example
+
+`DELETE /api/v1/fleet/sessions/1`
+
 
 ##### Default response
 
@@ -1811,6 +1910,7 @@ None.
 - [Modify query](#modify-query)
 - [Delete query](#delete-query)
 - [Delete query by ID](#delete-query-by-id)
+- [Delete queries](#delete-queries)
 - [Get queries specs](#get-queries-specs)
 - [Get query spec](#get-query-spec)
 - [Apply queries specs](#apply-queries-specs)
@@ -2109,6 +2209,42 @@ Deletes the query specified by ID.
 
 ```
 {}
+```
+
+### Delete queries
+
+Deletes the queries specified by ID. Returns the count of queries successfully deleted.
+
+`POST /api/v1/fleet/queries/delete`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| ids   | list  | body | **Required.** The IDs of the queries.               |
+
+#### Example
+
+`POST /api/v1/fleet/queries/delete`
+
+##### Request body
+
+```
+{
+  "ids": [
+    2, 24, 25
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "deleted": 3
+}
 ```
 
 ### Get queries specs
@@ -3725,7 +3861,7 @@ Verify the specified invite.
 
 | Name       | Type    | In   | Description                                      |
 | ---------- | ------- | ---- | ------------------------------------------------ |
-| token   | integer  | path | **Required.** The user's invite token.            |
+| token   | integer  | path | **Required.** Token provided to the user in the invitation email.|
 
 #### Example
 
@@ -3764,6 +3900,33 @@ Verify the specified invite.
             "reason": "Invite with token <token> was not found in the datastore"
         }
     ]
+}
+```
+
+### Change email
+
+Changes the email specified by token.
+
+`GET /api/v1/fleet/email/change/{token}`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| token   | integer  | path | **Required.** The token provided to the user in the email change confirmation email.|
+
+#### Example
+
+`GET /api/v1/fleet/invites/{token}`
+
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "new_email": janedoe@example.com
 }
 ```
 ---
