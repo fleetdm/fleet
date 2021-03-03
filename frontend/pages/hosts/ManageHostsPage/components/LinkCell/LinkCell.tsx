@@ -2,10 +2,10 @@ import React from 'react';
 import { useDispatch } from 'react-redux';
 import { push } from 'react-router-redux';
 
-import { IHost } from '../../../../../interfaces/host';
-import helpers from '../../../../../kolide/helpers';
-import PATHS from '../../../../../router/paths';
-import Button from '../../../../../components/buttons/Button/Button';
+import { IHost } from 'interfaces/host';
+import helpers from 'kolide/helpers';
+import PATHS from 'router/paths';
+import Button from 'components/buttons/Button/Button';
 
 interface ILinkCellProps {
   value: string;

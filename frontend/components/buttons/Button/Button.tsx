@@ -21,7 +21,7 @@ interface Inputs {
   button?: HTMLButtonElement;
 }
 
-class Button extends React.Component<IButtonProps, null> {
+class Button extends React.Component<IButtonProps> {
   static defaultProps = {
     block: false,
     size: '',
