@@ -19,7 +19,6 @@ jobs:
       with:
         path: |
           '**/node_modules'
-          ~/.cache/Cypress
         key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
         restore-keys: |
           ${{ runner.os }}-modules-
@@ -35,7 +34,7 @@ jobs:
     #       ${{ runner.os }}-go-
       
     - name: Install JS Dependencies
-      run: yarn install --prefer-offline
+      run: yarn install --prefer-offline && cypress install
 
     - name: Install Go Dependencies
       run: make deps-go
