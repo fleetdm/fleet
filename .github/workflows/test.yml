@@ -14,11 +14,20 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - uses: actions/cache@v2
+    - name: JS Dependency Cache
+      uses: actions/cache@v2
       with:
         path: '**/node_modules'
         key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
 
+    - name: Go Dependency Cache
+      uses: actions/cache@v2
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+      
     - name: Install Dependencies
       run: make deps-go && yarn install --prefer-offline
 
