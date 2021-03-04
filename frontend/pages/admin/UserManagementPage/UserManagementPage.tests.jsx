@@ -154,7 +154,7 @@ describe('UserManagementPage - component', () => {
 
       const goToAppSettingsAction = {
         type: '@@router/CALL_HISTORY_METHOD',
-        payload: { method: 'push', args: ['/admin/settings'] },
+        payload: { method: 'push', args: ['/settings/organization'] },
       };
 
       expect(mockStore.getActions()).toContainEqual(goToAppSettingsAction);
