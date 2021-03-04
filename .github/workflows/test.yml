@@ -34,9 +34,12 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-go-
       
-    - name: Install Dependencies
-      run: make deps
+    - name: Install JS Dependencies
+      run: make deps-js
 
+    - name: Install Go Dependencies
+      run: make deps-go
+    
     - name: Build Fleet
       run: |
         export PATH=$PATH:~/go/bin
