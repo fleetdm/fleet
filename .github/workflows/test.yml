@@ -35,7 +35,7 @@ jobs:
           ${{ runner.os }}-go-
       
     - name: Install JS Dependencies
-      run: make deps-js
+      run: yarn install --prefer-offline
 
     - name: Install Go Dependencies
       run: make deps-go
