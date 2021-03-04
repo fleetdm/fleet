@@ -11,34 +11,6 @@ export default (admin) => {
         regex: new RegExp(`^${URL_PREFIX}/settings/`),
         pathname: PATHS.ADMIN_SETTINGS,
       },
-      subItems: [
-        {
-          icon: 'user-settings',
-          name: 'App settings',
-          location: {
-            regex: new RegExp(`^${PATHS.ADMIN_SETTINGS}`),
-            pathname: PATHS.ADMIN_SETTINGS,
-          },
-        },
-        {
-          icon: 'admin',
-          name: 'Manage users',
-          location: {
-            regex: new RegExp(`^${PATHS.ADMIN_USERS}`),
-            pathname: PATHS.ADMIN_USERS,
-          },
-        },
-        {
-          // No such icon now. SiteNavSidePanel does not display
-          // icons for subItems
-          icon: 'osquery',
-          name: 'Osquery options',
-          location: {
-            regex: new RegExp(`^${PATHS.ADMIN_OSQUERY}`),
-            pathname: PATHS.ADMIN_OSQUERY,
-          },
-        },
-      ],
     },
   ];
 
@@ -51,7 +23,6 @@ export default (admin) => {
         regex: new RegExp(`^${URL_PREFIX}/hosts/`),
         pathname: PATHS.MANAGE_HOSTS,
       },
-      subItems: [],
     },
     {
       icon: 'query',
@@ -61,7 +32,6 @@ export default (admin) => {
         regex: new RegExp(`^${URL_PREFIX}/queries/`),
         pathname: PATHS.MANAGE_QUERIES,
       },
-      subItems: [],
     },
     {
       icon: 'packs',
@@ -71,7 +41,6 @@ export default (admin) => {
         regex: new RegExp(`^${URL_PREFIX}/packs/`),
         pathname: PATHS.MANAGE_PACKS,
       },
-      subItems: [],
     },
   ];
 

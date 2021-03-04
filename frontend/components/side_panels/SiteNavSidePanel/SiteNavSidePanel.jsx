@@ -26,19 +26,6 @@ class SiteNavSidePanel extends Component {
     const { user: { admin } } = this.props;
 
     this.userNavItems = navItems(admin);
-
-    this.state = { userMenuOpened: false };
-
-    this.state = {
-      showSubItems: false,
-      userMenuOpened: false,
-    };
-  }
-
-  toggleUserMenu = () => {
-    const { userMenuOpened } = this.state;
-
-    this.setState({ userMenuOpened: !userMenuOpened });
   }
 
   renderNavItem = (navItem) => {
@@ -80,7 +67,7 @@ class SiteNavSidePanel extends Component {
 
   renderNavItems = () => {
     const { renderNavItem, userNavItems } = this;
-    const { onLogoutUser, user, onNavItemClick, pathname } = this.props;
+    const { onLogoutUser, user, onNavItemClick } = this.props;
     return (
       <div className="site-nav-container">
         <ul className="site-nav-list">
