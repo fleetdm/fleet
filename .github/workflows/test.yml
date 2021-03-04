@@ -24,6 +24,7 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-modules-
 
+    # It seems faster not to cache Go dependencies
     # - name: Go Dependency Cache
     #   uses: actions/cache@v2
     #   with:
@@ -76,4 +77,35 @@ jobs:
         yarn cypress run
 
         
+  test-js:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: JS Dependency Cache
+      uses: actions/cache@v2
+      with:
+        path: |
+          **/node_modules
+          ~/.cache/Cypress
+        key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-modules-
+
+    - name: Install JS Dependencies
+      run: make deps-js
+
+    - name: Run JS Tests
+      run: |
+        make test-js
+      
+    - name: Run JS Linting
+      run: |
+        make lint-js
+        
+
 
