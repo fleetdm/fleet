@@ -19,6 +19,8 @@ jobs:
       with:
         path: '**/node_modules'
         key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-modules-
 
     - name: Go Dependency Cache
       uses: actions/cache@v2
