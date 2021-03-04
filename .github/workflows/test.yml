@@ -47,22 +47,6 @@ jobs:
         make generate
         make
 
-    # - name: Run Go Tests
-    #   run: |
-    #     make test-go
-
-    # - name: Run Go Linting
-    #   run: |
-    #     make lint-go
-
-    # - name: Run JS Tests
-    #   run: |
-    #     make test-js
-      
-    # - name: Run JS Linting
-    #   run: |
-    #     make lint-js
-
     - name: Start Infra Dependencies
       run: docker-compose up -d
     
@@ -100,14 +84,13 @@ jobs:
     - name: Install JS Dependencies
       run: make deps-js
 
-    - name: Run JS Tests
-      run: |
-        make test-js
-      
     - name: Run JS Linting
       run: |
         make lint-js
         
+    - name: Run JS Tests
+      run: |
+        make test-js
 
 
   test-go:
@@ -144,10 +127,10 @@ jobs:
         make generate-go
         make
 
-    - name: Run Go Tests
-      run: |
-        make test-go
-
     - name: Run Go Linting
       run: |
         make lint-go
+
+    - name: Run Go Tests
+      run: |
+        make test-go
