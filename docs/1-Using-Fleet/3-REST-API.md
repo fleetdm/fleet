@@ -12,6 +12,7 @@
 - [Fleet configuration](#fleet-configuration)
 - [Osquery options](#osquery-options)
 - [File carving](#file-carving)
+- [Teams](#teams)
 
 ## Overview
 
@@ -1224,10 +1225,15 @@ Returns a list of all enabled users
 
 #### Parameters
 
-| Name                  | Type   | In   | Description                                                     |
-| --------------------- | ------ | ---- | --------------------------------------------------------------- |
-| order_key               | string  | query | What to order results by. Can be any column in the users table.                                                                                                                                                                                                                                |
-| order_direction               | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.   |
+| Name                  | Type   | In    | Description                                                         |
+| --------------------- | ------ | ----- | ------------------------------------------------------------------- |
+| query                 | string | query | Search query keywords. Searchable fields include `name` and `email`.|
+| order_key             | string | query | What to order results by. Can be any column in the users table.     |
+| order_direction       | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                    |
+| page                  | integer | query | Page number of the results to fetch.                               |
+| per_page              | integer | query | Results per page.                                                  |
+| team_id               | string  | query | Filters the users to only include users in the specified   team.   |
+                                         
 
 #### Example
 
@@ -1397,7 +1403,7 @@ Creates a user account without requiring an invitation, the user is enabled imme
 | email      | string  | body | **Required**. The user's email address.          |
 | password   | string  | body | **Required**. The user's password.               |
 | invited_by | integer | body | **Required**. ID of the admin creating the user. |
-| admin      | boolean | body | **Required**. Whether the user has admin privileges. |
+| teams      | list    | body | A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
 
 #### Example
 
@@ -1411,7 +1417,16 @@ Creates a user account without requiring an invitation, the user is enabled imme
   "email": "janedoe@example.com",
   "password": "test-123",
   "invited_by":1,
-  "admin":true
+  "teams": [
+    {
+      “id”: 2,
+      “role: “observer”
+    },
+    {
+      “id”: 3,
+      “role: “maintainer”
+    },
+  ]
 }
 ```
 
@@ -1428,11 +1443,20 @@ Creates a user account without requiring an invitation, the user is enabled imme
     "username": "janedoe",
     "name": "",
     "email": "janedoe@example.com",
-    "admin": false,
     "enabled": true,
     "force_password_reset": false,
     "gravatar_url": "",
-    "sso_enabled": false
+    "sso_enabled": false,
+    "teams": [
+      {
+        “id”: 2,
+        “role: “observer”
+      },
+      {
+        “id”: 3,
+        “role: “maintainer”
+      },
+    ]
   }
 }
 ```
@@ -1553,14 +1577,15 @@ Returns all information about a specific user.
 
 #### Parameters
 
-| Name | Type    | In    | Description                  |
-| ---- | ------- | ----- | ---------------------------- |
-| id   | integer | path | **Required**. The user's id. |
-| name   | string | body | The user's name. |
-| username   | string | body | The user's username. |
-| position   | string | body | The user's position. |
-| email   | string | body | The user's email. |
-| sso_enabled   | boolean | body | Whether or not SSO is enabled for the user. |
+| Name           | Type    | In   | Description                                 |
+| -------------- | ------- | ---- | ------------------------------------------- |
+| id             | integer | path | **Required**. The user's id.                |
+| name           | string  | body | The user's name.                            |
+| username       | string  | body | The user's username.                        |
+| position       | string  | body | The user's position.                        |
+| email          | string  | body | The user's email.                           | 
+| sso_enabled    | boolean | body | Whether or not SSO is enabled for the user. |
+| teams          | list    | body | A list of teams the user is a member of. Each item in the list includes the team's ID and the user's role for the specified team. |
 
 #### Example
 
@@ -1594,6 +1619,60 @@ Returns all information about a specific user.
     "gravatar_url": "",
     "position": "Incident Response Engineer",
     "sso_enabled": false
+  }
+}
+```
+
+#### Example (modify a user's teams)
+
+`PATCH /api/v1/fleet/users/2`
+
+##### Request body
+
+```
+{
+  “teams”: [
+    {
+      “id”: 1,
+      “role: “observer”
+    },
+    {
+      “id”: 2
+      “role”: “maintainer”
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "user": {
+    "created_at": "2021-02-03T16:11:06Z",
+    "updated_at": "2021-02-03T16:11:06Z",
+    "id": 2,
+    "username": "jdoe",
+    "name": "Jane Doe",
+    "email": "janedoe@example.com",
+    "admin": true,
+    "enabled": true,
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "position": "Incident Response Engineer",
+    "sso_enabled": false,
+    "teams": [
+      {
+        “id”: 2,
+        “role: “observer”
+      },
+      {
+        “id”: 3,
+        “role: “maintainer”
+      },
+    ]
   }
 }
 ```
@@ -3604,6 +3683,7 @@ Modifies and/or creates the specified enroll secret(s).
 | invited_by      | integer  | body | **Required.** The id of the user that is extending the invitation. See the [Get user information](#get-user-information) endpoint for how to retrieve a user's id.          |
 | name     | string  | body | **Required.** The name of the invited user.         |
 | sso_enabled     | boolean  | body | **Required.** Whether or not SSO will be enabled for the invited user.   |
+| teams      | list    | body | A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
 
 #### Example
 
@@ -3615,7 +3695,17 @@ Modifies and/or creates the specified enroll secret(s).
   "email": "john_appleseed@example.com",
   "invited_by": 1,
   "name": John,
-  "sso_enabled": false
+  "sso_enabled": false,
+  "teams": [
+    {
+      “id”: 2,
+      “role: “observer”
+    },
+    {
+      “id”: 3,
+      “role: “maintainer”
+    },
+  ]
 }
 ```
 
@@ -3634,9 +3724,18 @@ Modifies and/or creates the specified enroll secret(s).
     "id": 3,
     "invited_by": 1,
     "email": "john_appleseed@example.com",
-    "admin": false,
     "name": "John",
-    "sso_enabled": false
+    "sso_enabled": false,
+    "teams": [
+      {
+        “id”: 2,
+        “role: “observer”
+      },
+      {
+        “id”: 3,
+        “role: “maintainer”
+      },
+    ]
   }
 }
 ```
@@ -4002,6 +4101,277 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 {
     "data": "aG9zdHMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA..."
 }
+```
+
+---
+
+## Teams
+
+### Create team
+
+`POST /api/v1/fleet/teams`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| name   | string  | body | **Required.** The team's name.            |
+
+#### Example
+
+`POST /api/v1/fleet/teams`
+
+##### Request body
+
+```
+{
+  "name": "Workstations"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "team": {
+    “name”: “Workstations”,
+    “id”: 1
+    “user_ids”: [],
+    “host_ids”: [],
+    “agent_options”: {
+      "spec": {
+        "config": {
+          "options": {
+            "logger_plugin": "tls",
+            "pack_delimiter": "/",
+            "logger_tls_period": 10,
+            "distributed_plugin": "tls",
+            "disable_distributed": false,
+            "logger_tls_endpoint": "/api/v1/osquery/log",
+            "distributed_interval": 10,
+            "distributed_tls_max_attempts": 3
+          },
+          "decorators": {
+            "load": [
+              "SELECT uuid AS host_uuid FROM system_info;",
+              "SELECT hostname AS hostname FROM system_info;"
+            ]
+          }
+        },
+        "overrides": {}
+      }
+    }
+  }
+}
+```
+
+### Modify team
+
+`PATCH /api/v1/fleet/teams/{id}`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| id   | string  | body | **Required.** The desired team's ID.                   |
+| name   | string  | body | The team's name.                                     |
+| host_ids   | list  | body | A list of hosts that belong to the team.           |
+| user_ids   | list  | body | A list of users that are members of the team.      |
+
+#### Example (add users to a team)
+
+`PATCH /api/v1/fleet/teams/1`
+
+##### Request body
+
+```
+{
+  "user_ids": [1, 17, 22, 32],
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "team": {
+    “name”: “Workstations”,
+    “id”: 1
+    “user_ids”: [1, 17, 22, 32],
+    “host_ids”: [],
+    “agent_options”: {
+      "spec": {
+        "config": {
+          "options": {
+            "logger_plugin": "tls",
+            "pack_delimiter": "/",
+            "logger_tls_period": 10,
+            "distributed_plugin": "tls",
+            "disable_distributed": false,
+            "logger_tls_endpoint": "/api/v1/osquery/log",
+            "distributed_interval": 10,
+            "distributed_tls_max_attempts": 3
+          },
+          "decorators": {
+            "load": [
+              "SELECT uuid AS host_uuid FROM system_info;",
+              "SELECT hostname AS hostname FROM system_info;"
+            ]
+          }
+        },
+        "overrides": {}
+      }
+    }
+  }
+}
+```
+
+#### Example (transfer hosts to a team)
+
+`PATCH /api/v1/fleet/teams/1`
+
+##### Request body
+
+```
+{
+  "host_ids": [3, 6, 7, 8, 9, 20, 32, 44],
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "team": {
+    “name”: “Workstations”,
+    “id”: 1
+    “user_ids”: [1, 17, 22, 32],
+    “host_ids”: [3, 6, 7, 8, 9, 20, 32, 44],
+    “agent_options”: {
+      "spec": {
+        "config": {
+          "options": {
+            "logger_plugin": "tls",
+            "pack_delimiter": "/",
+            "logger_tls_period": 10,
+            "distributed_plugin": "tls",
+            "disable_distributed": false,
+            "logger_tls_endpoint": "/api/v1/osquery/log",
+            "distributed_interval": 10,
+            "distributed_tls_max_attempts": 3
+          },
+          "decorators": {
+            "load": [
+              "SELECT uuid AS host_uuid FROM system_info;",
+              "SELECT hostname AS hostname FROM system_info;"
+            ]
+          }
+        },
+        "overrides": {}
+      }
+    }
+  }
+}
+```
+
+#### Example (edit agent options for a team)
+
+`PATCH /api/v1/fleet/teams/1`
+
+##### Request body
+
+```
+{
+  “agent_options”: {
+    "spec": {
+      "config": {
+        "options": {
+          "logger_plugin": "tls",
+          "pack_delimiter": "/",
+          "logger_tls_period": 20,
+          "distributed_plugin": "tls",
+          "disable_distributed": false,
+          "logger_tls_endpoint": "/api/v1/osquery/log",
+          "distributed_interval": 60,
+          "distributed_tls_max_attempts": 3
+        },
+        "decorators": {
+          "load": [
+            "SELECT uuid AS host_uuid FROM system_info;",
+            "SELECT hostname AS hostname FROM system_info;"
+          ]
+        }
+      },
+      "overrides": {}
+    }
+  }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "team": {
+    “name”: “Workstations”,
+    “id”: 1
+    “user_ids”: [1, 17, 22, 32],
+    “host_ids”: [3, 6, 7, 8, 9, 20, 32, 44],
+    “agent_options”: {
+      "spec": {
+        "config": {
+          "options": {
+            "logger_plugin": "tls",
+            "pack_delimiter": "/",
+            "logger_tls_period": 20,
+            "distributed_plugin": "tls",
+            "disable_distributed": false,
+            "logger_tls_endpoint": "/api/v1/osquery/log",
+            "distributed_interval": 60,
+            "distributed_tls_max_attempts": 3
+          },
+          "decorators": {
+            "load": [
+              "SELECT uuid AS host_uuid FROM system_info;",
+              "SELECT hostname AS hostname FROM system_info;"
+            ]
+          }
+        },
+        "overrides": {}
+      }
+    }
+  }
+}
+```
+
+### Delete team
+
+`DELETE /api/v1/fleet/teams/{id}`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| id   | string  | body | **Required.** The desired team's ID.                   |
+
+#### Example
+
+`DELETE /api/v1/fleet/teams/1`
+
+#### Default response
+
+`Status: 200`
+
+```
+{}
 ```
 
 ---
