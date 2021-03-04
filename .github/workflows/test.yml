@@ -41,9 +41,16 @@ jobs:
     - name: Run JS Linting
       run: |
         make lint-js
-        
-    - name: Run Fleet server
+
+    - name: Build Fleet
+      run: make
+
+    - name: Run e2e tests
       run: |
         docker-compose up -d
-        timeout 30s ./build/fleet serve --dev
+        timeout 60s ./build/fleet serve --dev &
+        ./build/fleetctl setup --email=test@fleetdm.com --username=test --password=admin123# --org-name='Fleet Test'
+        yarn cypress run
+
+        
 
