@@ -19,7 +19,7 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Install Dependencies
-      run: make deps
+      run: make deps-go && yarn install --prefer-offline
 
     - name: Build JS
       run: |
