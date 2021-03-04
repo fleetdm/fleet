@@ -9,23 +9,23 @@ export default (admin) => {
       iconName: 'settings',
       location: {
         regex: new RegExp(`^${URL_PREFIX}/settings/`),
-        pathname: PATHS.ADMIN_USERS,
+        pathname: PATHS.ADMIN_SETTINGS,
       },
       subItems: [
-        {
-          icon: 'admin',
-          name: 'Manage users',
-          location: {
-            regex: new RegExp(`^${PATHS.ADMIN_USERS}`),
-            pathname: PATHS.ADMIN_USERS,
-          },
-        },
         {
           icon: 'user-settings',
           name: 'App settings',
           location: {
             regex: new RegExp(`^${PATHS.ADMIN_SETTINGS}`),
             pathname: PATHS.ADMIN_SETTINGS,
+          },
+        },
+        {
+          icon: 'admin',
+          name: 'Manage users',
+          location: {
+            regex: new RegExp(`^${PATHS.ADMIN_USERS}`),
+            pathname: PATHS.ADMIN_USERS,
           },
         },
         {

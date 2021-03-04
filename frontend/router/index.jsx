@@ -53,8 +53,8 @@ const routes = (
             <IndexRedirect to={PATHS.MANAGE_HOSTS} />
             <Route path="settings" component={AuthenticatedAdminRoutes}>
               <Route component={SettingsWrapper}>
-                <Route path="users" component={AdminUserManagementPage} />
                 <Route path="settings" component={AdminAppSettingsPage} />
+                <Route path="users" component={AdminUserManagementPage} />
                 <Route path="osquery" component={AdminOsqueryOptionsPage} />
               </Route>
             </Route>
