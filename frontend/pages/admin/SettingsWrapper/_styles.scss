@@ -1,7 +1,15 @@
 @import '../../../../node_modules/react-tabs/style/react-tabs.scss';
 
 .settings-wrapper {
-  padding: 50px 30px;
+  padding: 25px 30px 50px; // different to pad sticky subnav properly
+
+  &__nav-header {
+    padding-top: 25px;
+    position: sticky;
+    top: 0;
+    background-color: $white;
+    z-index: 100;
+  }
 
   h1 {
     margin-bottom: $pad-half;
@@ -36,7 +44,7 @@
     }
 
     &__tab--selected, &__tab--selected:focus {
-      font-weight: 700;
+      font-weight: $bold;
       border-bottom: 2px solid $core-purple;
     }
   }

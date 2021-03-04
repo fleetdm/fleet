@@ -38,6 +38,8 @@ const getDefaultTabIndex = (path: string): number => {
   });
 };
 
+const baseClass = 'settings-wrapper';
+
 const SettingsWrapper = (props: ISettingsWrapperProp): JSX.Element => {
   const { children, location: { pathname } } = props;
   const dispatch = useDispatch();
@@ -48,15 +50,17 @@ const SettingsWrapper = (props: ISettingsWrapperProp): JSX.Element => {
   };
 
   return (
-    <div className="settings-wrapper">
-      <h1>Settings</h1>
-      <Tabs defaultIndex={getDefaultTabIndex(pathname)} onSelect={i => navigateToNav(i)}>
-        <TabList>
-          {settingsSubNav.map((navItem) => {
-            return <Tab>{navItem.name}</Tab>;
-          })}
-        </TabList>
-      </Tabs>
+    <div className={baseClass}>
+      <div className={`${baseClass}__nav-header`}>
+        <h1>Settings</h1>
+        <Tabs defaultIndex={getDefaultTabIndex(pathname)} onSelect={i => navigateToNav(i)}>
+          <TabList>
+            {settingsSubNav.map((navItem) => {
+              return <Tab>{navItem.name}</Tab>;
+            })}
+          </TabList>
+        </Tabs>
+      </div>
       {children}
     </div>
   );
