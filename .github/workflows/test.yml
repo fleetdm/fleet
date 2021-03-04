@@ -11,11 +11,18 @@ jobs:
       uses: actions/setup-go@v2
       with:
         go-version: ${{ matrix.go-version }}
+    - uses: actions/cache@v2
+      with:
+        path: '**/node_modules'
+        key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
     - name: Checkout code
       uses: actions/checkout@v2
     - name: Install Dependencies
       run: make deps
+
     - name: Build JS
-      run: make generate
+      run: |
+        export PATH=$PATH:$(go env GOPATH)/bin
+        make generate
     - name: Run Go Tests
       run: make test-go
