@@ -48,7 +48,10 @@ jobs:
     - name: Run e2e tests
       run: |
         docker-compose up -d
+        sleep 10
         timeout 60s ./build/fleet serve --dev &
+        fleetctl config set --address https://localhost:8080
+        fleetctl config set --tls-skip-verify true
         ./build/fleetctl setup --email=test@fleetdm.com --username=test --password=admin123# --org-name='Fleet Test'
         yarn cypress run
 
