@@ -1,8 +1,43 @@
 @import '../../../../node_modules/react-tabs/style/react-tabs.scss';
 
 .settings-wrapper {
+  padding: 50px 30px;
+
+  h1 {
+    margin-bottom: $pad-half;
+  }
+
+  .body-wrap {
+    padding: 0;
+  }
+
   .react-tabs {
     .react-tabs__tab-list {
+      border-bottom: 2px solid $ui-medium-grey;
+    }
+
+    &__tab {
+      border: none;
+      bottom: -2px;
+      padding-bottom: $pad-base;
+
+      &:focus {
+        box-shadow: none;
+        outline: auto;
+      }
+
+      &:after {
+        background-color: transparent;
+      }
+
+      &:first-child {
+        padding-left: 0;
+      }
+    }
+
+    &__tab--selected, &__tab--selected:focus {
+      font-weight: 700;
+      border-bottom: 2px solid $core-purple;
     }
   }
 }

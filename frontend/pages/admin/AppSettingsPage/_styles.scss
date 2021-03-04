@@ -1,8 +1,8 @@
 .app-settings {
   padding: 50px 30px;
 
-  h1 {
-    margin: 0 0 22px;
+  &__page-description {
+    font-size: $small;
   }
 
   h2 {

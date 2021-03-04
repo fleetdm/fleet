@@ -49,7 +49,7 @@ const SettingsWrapper = (props: ISettingsWrapperProp): JSX.Element => {
 
   return (
     <div className="settings-wrapper">
-      <h1>Testing</h1>
+      <h1>Settings</h1>
       <Tabs defaultIndex={getDefaultTabIndex(pathname)} onSelect={i => navigateToNav(i)}>
         <TabList>
           {settingsSubNav.map((navItem) => {

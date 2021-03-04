@@ -7,8 +7,8 @@
     min-height: 100vh;
   }
 
-  h1 {
-    margin: 0 0 24px;
+  &__page-description {
+    font-size: $small;
   }
 
   a {

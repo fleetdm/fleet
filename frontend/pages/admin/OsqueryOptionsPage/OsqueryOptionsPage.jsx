@@ -65,7 +65,7 @@ export class OsqueryOptionsPage extends Component {
     return (
       <div className={`${baseClass}__page-wrap has-sidebar`}>
         <div className={`${baseClass} body-wrap`}>
-          <h1>Osquery Options</h1>
+          <p className={`${baseClass}__page-description`}>This file describes options returned to osquery when it checks for configuration.</p>
           <div className={`${baseClass}__form-wrapper`}>
             <OsqueryOptionsForm
               formData={formData}
