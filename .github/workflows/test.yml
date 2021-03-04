@@ -17,6 +17,7 @@ jobs:
         key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
     - name: Checkout code
       uses: actions/checkout@v2
+
     - name: Install Dependencies
       run: make deps
 
@@ -24,5 +25,25 @@ jobs:
       run: |
         export PATH=$PATH:$(go env GOPATH)/bin
         make generate
+
     - name: Run Go Tests
-      run: make test-go
+      run: |
+        make test-go
+
+    - name: Run Go Linting
+      run: |
+        make lint-go
+
+    - name: Run JS Tests
+      run: |
+        make test-js
+      
+    - name: Run JS Linting
+      run: |
+        make lint-js
+        
+    # - name: Run Fleet server
+    #   run: |
+    #     docker-compose up -d
+    #     ./build/fleet serve --dev
+
