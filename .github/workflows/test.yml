@@ -18,23 +18,24 @@ jobs:
       uses: actions/cache@v2
       with:
         path: |
-          '**/node_modules'
+          **/node_modules
+          ~/.cache/Cypress
         key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
         restore-keys: |
           ${{ runner.os }}-modules-
 
-    # - name: Go Dependency Cache
-    #   uses: actions/cache@v2
-    #   with:
-    #     path: |
-    #       ~/go/pkg/mod
-    #       ~/go/bin
-    #     key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-    #     restore-keys: |
-    #       ${{ runner.os }}-go-
+    - name: Go Dependency Cache
+      uses: actions/cache@v2
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/go/bin
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
       
     - name: Install JS Dependencies
-      run: yarn install --prefer-offline && cypress install
+      run: make deps-js
 
     - name: Install Go Dependencies
       run: make deps-go
