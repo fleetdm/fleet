@@ -25,15 +25,6 @@ jobs:
           ${{ runner.os }}-modules-
 
     # It seems faster not to cache Go dependencies
-    # - name: Go Dependency Cache
-    #   uses: actions/cache@v2
-    #   with:
-    #     path: |
-    #       ~/go/pkg/mod
-    #       ~/go/bin
-    #     key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-    #     restore-keys: |
-    #       ${{ runner.os }}-go-
       
     - name: Install JS Dependencies
       run: make deps-js
@@ -44,7 +35,7 @@ jobs:
     # Pre-starting dependencies here means they are ready to go when we need them. 
     - name: Start Infra Dependencies
       # Use & to background this
-      run: docker-compose up &
+      run: docker-compose up mysql redis mailhog &
       
     - name: Build Fleet
       run: |
@@ -53,7 +44,7 @@ jobs:
         make
 
     - name: Ensure Infra Dependencies
-      run: docker-compose up -d
+      run: docker-compose up mysql redis mailhog -d
     
     - name: Run e2e tests
       run: |
@@ -136,23 +127,12 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    # It seems faster not to cache Go dependencies
-    # - name: Go Dependency Cache
-    #   uses: actions/cache@v2
-    #   with:
-    #     path: |
-    #       ~/go/pkg/mod
-    #       ~/go/bin
-    #     key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-    #     restore-keys: |
-    #       ${{ runner.os }}-go-
-      
     # Pre-starting dependencies here means they are ready to go when we need them. 
-
     - name: Start Infra Dependencies
       # Use & to background this
-      run: docker-compose up &
+      run: docker-compose up mysql_test redis &
       
+    # It seems faster not to cache Go dependencies
     - name: Install Go Dependencies
       run: make deps-go
     
@@ -161,12 +141,8 @@ jobs:
         export PATH=$PATH:~/go/bin
         make generate-go
 
-    - name: Run Go Linting
-      run: |
-        make lint-go
-
     - name: Ensure Infra Dependencies
-      run: docker-compose up -d
+      run: docker-compose up mysql_test redis -d
       
     - name: Run Go Tests
       run: |
