@@ -49,9 +49,10 @@ jobs:
       run: |
         docker-compose up -d
         sleep 10
+        ./build/fleet prepare db
         timeout 60s ./build/fleet serve --dev &
-        fleetctl config set --address https://localhost:8080
-        fleetctl config set --tls-skip-verify true
+        ./build/fleetctl config set --address https://localhost:8080
+        ./build/fleetctl config set --tls-skip-verify true
         ./build/fleetctl setup --email=test@fleetdm.com --username=test --password=admin123# --org-name='Fleet Test'
         yarn cypress run
 
