@@ -113,18 +113,12 @@ fleetctl: .prefix .pre-build .pre-fleetctl
 	CGO_ENABLED=0 go build -tags full -o build/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
 
 lint-js:
-	yarn run eslint frontend --ext .js,.jsx
-
-lint-ts:
-	yarn run tslint frontend/**/*.tsx frontend/**/*.ts
-
-lint-scss:
-	yarn run sass-lint --verbose
+	yarn lint
 
 lint-go:
 	go vet ./...
 
-lint: lint-go lint-js lint-scss lint-ts
+lint: lint-go lint-js
 
 test-go:
 	go test -tags full ./...
