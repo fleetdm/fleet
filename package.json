@@ -6,7 +6,8 @@
   "sasslintConfig": ".sass-lint.yml",
   "scripts": {
     "lint": "eslint frontend --ext .js,.jsx,.ts,.tsx && sass-lint --verbose",
-    "test": "jest"
+    "test": "jest",
+    "cypress:open": "cypress open"
   },
   "dependencies": {
     "ace-builds": "1.3.1",
@@ -154,10 +155,12 @@
     "babel-jest": "^23.4.2",
     "babel-loader": "^8.2.1",
     "css-loader": "0.28.11",
+    "cypress": "^6.6.0",
     "enzyme-adapter-react-16": "^1.7.1",
     "eslint": "^7.20.0",
     "eslint-config-airbnb": "^15",
     "eslint-import-resolver-webpack": "0.10.0",
+    "eslint-plugin-cypress": "^2.11.2",
     "eslint-plugin-import": "^2",
     "eslint-plugin-jest": "20.0.3",
     "eslint-plugin-jsx-a11y": "5.1.1",
