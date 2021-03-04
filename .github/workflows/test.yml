@@ -42,8 +42,8 @@ jobs:
       run: |
         make lint-js
         
-    # - name: Run Fleet server
-    #   run: |
-    #     docker-compose up -d
-    #     ./build/fleet serve --dev
+    - name: Run Fleet server
+      run: |
+        docker-compose up -d
+        timeout 30s ./build/fleet serve --dev
 
