@@ -37,29 +37,27 @@ jobs:
     - name: Install Dependencies
       run: make deps
 
-    - name: Build JS
+    - name: Build Fleet
       run: |
         export PATH=$PATH:~/go/bin
         make generate
+        make
 
-    - name: Run Go Tests
-      run: |
-        make test-go
+    # - name: Run Go Tests
+    #   run: |
+    #     make test-go
 
-    - name: Run Go Linting
-      run: |
-        make lint-go
+    # - name: Run Go Linting
+    #   run: |
+    #     make lint-go
 
-    - name: Run JS Tests
-      run: |
-        make test-js
+    # - name: Run JS Tests
+    #   run: |
+    #     make test-js
       
-    - name: Run JS Linting
-      run: |
-        make lint-js
-
-    - name: Build Fleet
-      run: make
+    # - name: Run JS Linting
+    #   run: |
+    #     make lint-js
 
     - name: Run e2e tests
       run: |
