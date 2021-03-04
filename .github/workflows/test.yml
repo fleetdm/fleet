@@ -24,15 +24,15 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-modules-
 
-    - name: Go Dependency Cache
-      uses: actions/cache@v2
-      with:
-        path: |
-          ~/go/pkg/mod
-          ~/go/bin
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-
+    # - name: Go Dependency Cache
+    #   uses: actions/cache@v2
+    #   with:
+    #     path: |
+    #       ~/go/pkg/mod
+    #       ~/go/bin
+    #     key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+    #     restore-keys: |
+    #       ${{ runner.os }}-go-
       
     - name: Install JS Dependencies
       run: make deps-js
