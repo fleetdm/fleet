@@ -1851,7 +1851,7 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
 
 Returns the session information for the session specified by ID.
 
-`GET /api/v1/kolide/sessions/{id}`
+`GET /api/v1/fleet/sessions/{id}`
 
 #### Parameters
 
@@ -1879,7 +1879,7 @@ Returns the session information for the session specified by ID.
 
 Deletes the session specified by ID. When the user associated with the session next attempts to access Fleet, they will be asked to log in.
 
-`DELETE /api/v1/kolide/sessions/{id}`
+`DELETE /api/v1/fleet/sessions/{id}`
 
 #### Parameters
 
