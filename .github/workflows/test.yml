@@ -1,7 +1,7 @@
 on: [push, pull_request]
 name: Run Tests
 jobs:
-  test:
+  test-e2e:
     strategy:
       matrix:
         os: [ubuntu-latest]
@@ -82,6 +82,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
@@ -109,3 +110,44 @@ jobs:
         
 
 
+  test-go:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Install Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go-version }}
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    # It seems faster not to cache Go dependencies
+    # - name: Go Dependency Cache
+    #   uses: actions/cache@v2
+    #   with:
+    #     path: |
+    #       ~/go/pkg/mod
+    #       ~/go/bin
+    #     key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+    #     restore-keys: |
+    #       ${{ runner.os }}-go-
+      
+    - name: Install Go Dependencies
+      run: make deps-go
+    
+    - name: Build Fleet
+      run: |
+        export PATH=$PATH:~/go/bin
+        make generate-go
+        make
+
+    - name: Run Go Tests
+      run: |
+        make test-go
+
+    - name: Run Go Linting
+      run: |
+        make lint-go
