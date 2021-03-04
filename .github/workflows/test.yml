@@ -40,8 +40,10 @@ jobs:
 
     - name: Install Go Dependencies
       run: make deps-go
-    
+
+    # Pre-starting dependencies here means they are ready to go when we need them. 
     - name: Start Infra Dependencies
+      # Use & to background this
       run: docker-compose up &
       
     - name: Build Fleet
@@ -121,19 +123,27 @@ jobs:
     #     restore-keys: |
     #       ${{ runner.os }}-go-
       
+    # Pre-starting dependencies here means they are ready to go when we need them. 
+
+    - name: Start Infra Dependencies
+      # Use & to background this
+      run: docker-compose up &
+      
     - name: Install Go Dependencies
       run: make deps-go
     
-    - name: Build Fleet
+    - name: Generate static files
       run: |
         export PATH=$PATH:~/go/bin
         make generate-go
-        make
 
     - name: Run Go Linting
       run: |
         make lint-go
 
+    - name: Ensure Infra Dependencies
+      run: docker-compose up -d
+      
     - name: Run Go Tests
       run: |
-        make test-go
+        MYSQL_TEST=1 REDIS_TEST=1 make test-go
