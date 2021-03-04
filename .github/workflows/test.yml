@@ -49,7 +49,7 @@ jobs:
       run: |
         docker-compose up -d
         sleep 10
-        ./build/fleet prepare db
+        ./build/fleet prepare db --dev
         timeout 60s ./build/fleet serve --dev &
         ./build/fleetctl config set --address https://localhost:8080
         ./build/fleetctl config set --tls-skip-verify true
