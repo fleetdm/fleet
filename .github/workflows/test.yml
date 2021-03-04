@@ -44,7 +44,7 @@ jobs:
         make
 
     - name: Ensure Infra Dependencies
-      run: docker-compose up mysql redis mailhog -d
+      run: docker-compose up -d mysql redis mailhog
     
     - name: Run e2e tests
       run: |
@@ -142,7 +142,7 @@ jobs:
         make generate-go
 
     - name: Ensure Infra Dependencies
-      run: docker-compose up mysql_test redis -d
+      run: docker-compose up -d mysql_test redis
       
     - name: Run Go Tests
       run: |
