@@ -62,10 +62,11 @@ jobs:
     #   run: |
     #     make lint-js
 
+    - name: Start Infra Dependencies
+      run: docker-compose up -d
+    
     - name: Run e2e tests
       run: |
-        docker-compose up -d
-        sleep 1
         ./build/fleet prepare db --dev
         ./build/fleet serve --dev &
         sleep 3
