@@ -41,13 +41,16 @@ jobs:
     - name: Install Go Dependencies
       run: make deps-go
     
+    - name: Start Infra Dependencies
+      run: docker-compose up &
+      
     - name: Build Fleet
       run: |
         export PATH=$PATH:~/go/bin
         make generate
         make
 
-    - name: Start Infra Dependencies
+    - name: Ensure Infra Dependencies
       run: docker-compose up -d
     
     - name: Run e2e tests
