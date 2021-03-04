@@ -32,15 +32,15 @@ interface ISettingsWrapperProp {
   }
 }
 
+const getDefaultTabIndex = (path: string): number => {
+  return settingsSubNav.findIndex((navItem) => {
+    return navItem.pathname.includes(path);
+  });
+};
+
 const SettingsWrapper = (props: ISettingsWrapperProp): JSX.Element => {
   const { children, location: { pathname } } = props;
   const dispatch = useDispatch();
-
-  const getDefaultTabIndex = (path: string): number => {
-    return settingsSubNav.findIndex((navItem) => {
-      return navItem.pathname.includes(path);
-    });
-  };
 
   const navigateToNav = (i: number): void => {
     const navPath = settingsSubNav[i].pathname;
