@@ -1,0 +1,19 @@
+---
+apiVersion: v1
+kind: teams
+spec:
+  teams:
+  - name: workstations
+    hosts:
+      - hardware_serial1
+      - hwardware_serial2
+      - hwardware_serial3
+    users:
+      - email1
+  - name: servers
+    hosts:
+      - hardware_serial4
+      - hardware_serial5
+    users:
+      - email1
+      - email2
