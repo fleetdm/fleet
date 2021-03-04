@@ -89,14 +89,38 @@ jobs:
     - name: Install JS Dependencies
       run: make deps-js
 
-    - name: Run JS Linting
-      run: |
-        make lint-js
-        
     - name: Run JS Tests
       run: |
         make test-js
 
+
+  lint-js:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: JS Dependency Cache
+      uses: actions/cache@v2
+      with:
+        path: |
+          **/node_modules
+          ~/.cache/Cypress
+        key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-modules-
+
+    - name: Install JS Dependencies
+      run: make deps-js
+
+    - name: Run JS Linting
+      run: |
+        make lint-js
+      
 
   test-go:
     strategy:
@@ -147,3 +171,31 @@ jobs:
     - name: Run Go Tests
       run: |
         MYSQL_TEST=1 REDIS_TEST=1 make test-go
+
+
+  lint-go:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Install Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go-version }}
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    # - name: Install Go Dependencies
+    #   run: make deps-go
+    
+    # - name: Generate static files
+    #   run: |
+    #     export PATH=$PATH:~/go/bin
+    #     make generate-go
+
+    - name: Run Go Linting
+      run: |
+        make lint-go
+
