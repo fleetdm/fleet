@@ -6,6 +6,7 @@ module.exports = {
     'plugin:jest/recommended',
     'plugin:react-hooks/recommended',
     'plugin:@typescript-eslint/recommended',
+    'plugin:cypress/recommended',
   ],
   parser: '@typescript-eslint/parser',
   plugins: [
