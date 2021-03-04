@@ -25,17 +25,19 @@ jobs:
     - name: Go Dependency Cache
       uses: actions/cache@v2
       with:
-        path: ~/go/pkg/mod
+        path: |
+          ~/go/pkg/mod
+          ~/go/bin
         key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
         restore-keys: |
           ${{ runner.os }}-go-
       
     - name: Install Dependencies
-      run: make deps-go && yarn install --prefer-offline
+      run: make deps
 
     - name: Build JS
       run: |
-        export PATH=$PATH:$(go env GOPATH)/bin
+        export PATH=$PATH:~/go/bin
         make generate
 
     - name: Run Go Tests
