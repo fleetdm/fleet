@@ -282,7 +282,7 @@ export class HostDetailsPage extends Component {
               <div className="info__block">
                 <span className="info__header">Hardware model</span>
                 <span className="info__header">Serial number</span>
-                <span className="info__header">IPv4</span>
+                <span className="info__header">IP address</span>
               </div>
               <div className="info__block">
                 <span className="info__data">{aboutData.hardware_model}</span>

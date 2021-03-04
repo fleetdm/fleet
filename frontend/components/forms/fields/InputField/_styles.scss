@@ -17,6 +17,7 @@
   &:focus {
     outline: none;
     border-color: $core-blue;
+    border-top-color: $core-purple;
   }
 
   &--disabled {
