@@ -27,36 +27,36 @@ jobs:
         export PATH=$PATH:$(go env GOPATH)/bin
         make generate
 
-    - name: Run Go Tests
-      run: |
-        make test-go
+    # - name: Run Go Tests
+    #   run: |
+    #     make test-go
 
-    - name: Run Go Linting
-      run: |
-        make lint-go
+    # - name: Run Go Linting
+    #   run: |
+    #     make lint-go
 
-    - name: Run JS Tests
-      run: |
-        make test-js
+    # - name: Run JS Tests
+    #   run: |
+    #     make test-js
       
-    - name: Run JS Linting
-      run: |
-        make lint-js
+    # - name: Run JS Linting
+    #   run: |
+    #     make lint-js
 
-    - name: Build Fleet
-      run: make
+    # - name: Build Fleet
+    #   run: make
 
-    - name: Run e2e tests
-      run: |
-        docker-compose up -d
-        sleep 1
-        ./build/fleet prepare db --dev
-        ./build/fleet serve --dev &
-        sleep 3
-        ./build/fleetctl config set --address https://localhost:8080
-        ./build/fleetctl config set --tls-skip-verify true
-        ./build/fleetctl setup --email=test@fleetdm.com --username=test --password=admin123# --org-name='Fleet Test'
-        yarn cypress run
+    # - name: Run e2e tests
+    #   run: |
+    #     docker-compose up -d
+    #     sleep 1
+    #     ./build/fleet prepare db --dev
+    #     ./build/fleet serve --dev &
+    #     sleep 3
+    #     ./build/fleetctl config set --address https://localhost:8080
+    #     ./build/fleetctl config set --tls-skip-verify true
+    #     ./build/fleetctl setup --email=test@fleetdm.com --username=test --password=admin123# --org-name='Fleet Test'
+    #     yarn cypress run
 
         
 
