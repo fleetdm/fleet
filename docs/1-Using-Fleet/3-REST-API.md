@@ -2233,6 +2233,8 @@ Creates and/or modifies the queries included in the specs list. To modify an exi
 
 Runs the specified query as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label ID.
 
+To retrieve the live query results, see the documentation for the [Retrieve live query results](#retrieve-live-query-results-sockjs) endpoint.
+
 `POST /api/v1/fleet/spec/queries/run`
 
 #### Parameters
@@ -2365,6 +2367,49 @@ Runs the specified query by name as a live query on the specified hosts or group
   }
 }
 ```
+
+### Retrieve live query results (SockJS)
+
+If you have a [SockJS client](https://github.com/sockjs/sockjs-client) you can retrieve the results of a live query using the SockJS-client API. 
+
+Before you retrieve the live query results, you must create a live query campaign by running the live query. See the documentation for the [Run live query](#run-live-query) endpoint to create a live query campaign.
+
+`/api/v1/fleet/results/`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| token  | string  |  | **Required.** The token used to authenticate with the Fleet API. |
+| campaignID   | integer  |  | **Required.** The ID of the live query campaign. |
+
+#### Example
+
+```
+const socket = new SockJS(`<your-base-url>/api/v1/fleet/results`, undefined, {});
+
+socket.onopen = () => {
+  socket.send(JSON.stringify({ type: 'auth', data: { token: local.getItem('<token>') } }));
+  socket.send(JSON.stringify({ type: 'select_campaign', data: { campaign_id: <campaignID> } }));
+};
+
+socket.ommessage = ({ data }) => {
+  const socketData = JSON.parse(data);
+}
+
+if (socketData.type === 'status' && socketData.data.status === 'finished') {
+  socket.close()
+}
+```
+
+### Retrieve live query results (standard WebSocket API)
+
+`/api/v1/fleet/results/websockets`
+
+
+#### Parameters
+
+#### Example
 
 ---
 
