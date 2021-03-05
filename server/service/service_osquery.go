@@ -188,11 +188,8 @@ func (svc service) GetClientConfig(ctx context.Context) (map[string]interface{},
 		config["packs"] = json.RawMessage(packJSON)
 	}
 
-	// Save interval values if they have been updated. Note
-	// config_tls_refresh can only be set in the osquery flags so is
-	// ignored here.
+	// Save interval values if they have been updated.
 	saveHost := false
-
 	if options, ok := config["options"].(map[string]interface{}); ok {
 		distributedIntervalVal, ok := options["distributed_interval"]
 		distributedInterval, err := cast.ToUintE(distributedIntervalVal)
@@ -205,6 +202,16 @@ func (svc service) GetClientConfig(ctx context.Context) (map[string]interface{},
 		loggerTLSPeriod, err := cast.ToUintE(loggerTLSPeriodVal)
 		if ok && err == nil && host.LoggerTLSPeriod != loggerTLSPeriod {
 			host.LoggerTLSPeriod = loggerTLSPeriod
+			saveHost = true
+		}
+
+		// Note config_tls_refresh can only be set in the osquery flags (and has
+		// also been deprecated in osquery for quite some time) so is ignored
+		// here.
+		configRefreshVal, ok := options["config_refresh"]
+		configRefresh, err := cast.ToUintE(configRefreshVal)
+		if ok && err == nil && host.ConfigTLSRefresh != configRefresh {
+			host.ConfigTLSRefresh = configRefresh
 			saveHost = true
 		}
 	}
@@ -338,6 +345,7 @@ var detailQueries = map[string]struct {
 		Query: `select name, value from osquery_flags where name in ("distributed_interval", "config_tls_refresh", "config_refresh", "logger_tls_period")`,
 		IngestFunc: func(logger log.Logger, host *kolide.Host, rows []map[string]string) error {
 			var configTLSRefresh, configRefresh uint
+			var configRefreshSeen, configTLSRefreshSeen bool
 			for _, row := range rows {
 				switch row["name"] {
 
@@ -356,6 +364,7 @@ var detailQueries = map[string]struct {
 						return errors.Wrap(err, "parsing config_tls_refresh")
 					}
 					configTLSRefresh = uint(interval)
+					configTLSRefreshSeen = true
 
 				case "config_refresh":
 					// After 2.4.6 `config_tls_refresh` was
@@ -365,6 +374,7 @@ var detailQueries = map[string]struct {
 						return errors.Wrap(err, "parsing config_refresh")
 					}
 					configRefresh = uint(interval)
+					configRefreshSeen = true
 
 				case "logger_tls_period":
 					interval, err := strconv.Atoi(emptyToZero(row["value"]))
@@ -379,9 +389,9 @@ var detailQueries = map[string]struct {
 			// 2.4.6 and had a different meaning, we prefer
 			// `config_tls_refresh` if it was set, and use
 			// `config_refresh` as a fallback.
-			if configTLSRefresh != 0 {
+			if configTLSRefreshSeen {
 				host.ConfigTLSRefresh = configTLSRefresh
-			} else {
+			} else if configRefreshSeen {
 				host.ConfigTLSRefresh = configRefresh
 			}
 

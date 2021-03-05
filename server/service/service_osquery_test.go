@@ -1405,6 +1405,25 @@ func TestUpdateHostIntervals(t *testing.T) {
 			}}`),
 			true,
 		},
+		// config_refresh should also cause an update
+		{
+			kolide.Host{
+				DistributedInterval: 11,
+				LoggerTLSPeriod:     33,
+				ConfigTLSRefresh:    60,
+			},
+			kolide.Host{
+				DistributedInterval: 11,
+				LoggerTLSPeriod:     33,
+				ConfigTLSRefresh:    42,
+			},
+			json.RawMessage(`{"options":{
+				"distributed_interval": 11,
+				"logger_tls_period":    33,
+				"config_refresh":    42
+			}}`),
+			true,
+		},
 		// SaveHost should not be called with no changes
 		{
 			kolide.Host{
