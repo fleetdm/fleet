@@ -11,7 +11,7 @@ jobs:
       uses: actions/setup-go@v2
       with:
         go-version: ${{ matrix.go-version }}
-    - name: Checkout code
+    - name: Checkout Code
       uses: actions/checkout@v2
 
     - name: JS Dependency Cache
@@ -46,7 +46,7 @@ jobs:
     - name: Ensure Infra Dependencies
       run: docker-compose up -d mysql redis mailhog
     
-    - name: Run e2e tests
+    - name: Run E2E Tests
       run: |
         ./build/fleet prepare db --dev
         ./build/fleet serve --dev &
@@ -54,7 +54,7 @@ jobs:
         ./build/fleetctl config set --address https://localhost:8080
         ./build/fleetctl config set --tls-skip-verify true
         ./build/fleetctl setup --email=test@fleetdm.com --username=test --password=admin123# --org-name='Fleet Test'
-        yarn cypress run
+        yarn cypress run --config video=false
 
         
   test-js:
@@ -64,7 +64,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - name: Checkout code
+    - name: Checkout Code
       uses: actions/checkout@v2
 
     - name: JS Dependency Cache
@@ -92,7 +92,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - name: Checkout code
+    - name: Checkout Code
       uses: actions/checkout@v2
 
     - name: JS Dependency Cache
@@ -124,7 +124,7 @@ jobs:
       uses: actions/setup-go@v2
       with:
         go-version: ${{ matrix.go-version }}
-    - name: Checkout code
+    - name: Checkout Code
       uses: actions/checkout@v2
 
     # Pre-starting dependencies here means they are ready to go when we need them. 
@@ -160,16 +160,8 @@ jobs:
       uses: actions/setup-go@v2
       with:
         go-version: ${{ matrix.go-version }}
-    - name: Checkout code
+    - name: Checkout Code
       uses: actions/checkout@v2
-
-    # - name: Install Go Dependencies
-    #   run: make deps-go
-    
-    # - name: Generate static files
-    #   run: |
-    #     export PATH=$PATH:~/go/bin
-    #     make generate-go
 
     - name: Run Go Linting
       run: |
