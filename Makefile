@@ -158,8 +158,7 @@ deps-js:
 
 deps-go:
 	GO111MODULE=off go get -u \
-		github.com/kolide/go-bindata/... \
-		github.com/groob/mockimpl
+		github.com/kolide/go-bindata/go-bindata
 	go mod download
 
 migration:
