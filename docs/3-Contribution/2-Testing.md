@@ -68,8 +68,6 @@ host        = "127.0.0.1"
 ```
 Redis tests expect a redis instance at `127.0.0.1:6379`.
 
-
-Both the Redis and MySQL tests will also be automatically enabled with Docker links. You can check out the CircleCI configuration file(`circle.yml`) for an example of how to use Docker links to run integration tests.
 #### JavaScript linters
 
 To run all JavaScript linters and static analyzers, run the following:
