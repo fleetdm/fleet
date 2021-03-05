@@ -43,9 +43,6 @@ jobs:
         make generate
         make
 
-    - name: Ensure Infra Dependencies
-      run: docker-compose up -d mysql redis mailhog
-    
     - name: Run E2E Tests
       run: |
         ./build/fleet prepare db --dev
@@ -141,9 +138,6 @@ jobs:
         export PATH=$PATH:~/go/bin
         make generate-go
 
-    - name: Ensure Infra Dependencies
-      run: docker-compose up -d mysql_test redis
-      
     - name: Run Go Tests
       run: |
         MYSQL_TEST=1 REDIS_TEST=1 make test-go
