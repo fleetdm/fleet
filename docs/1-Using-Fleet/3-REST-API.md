@@ -2406,7 +2406,6 @@ if (socketData.type === 'status' && socketData.data.status === 'finished') {
 
 `/api/v1/fleet/results/websockets`
 
-
 #### Parameters
 
 #### Example
