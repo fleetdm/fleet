@@ -1,4 +1,4 @@
-.PHONY: build
+.PHONY: build clean clean-assets
 
 export GO111MODULE=on
 
@@ -66,7 +66,9 @@ define HELP_TEXT
 	make generate-go  - Generate and bundle required go code
 	make generate-js  - Generate and bundle required js code
 	make generate-dev - Generate and bundle required code in a watch loop
-	make distclean    - Delete all build artifacts
+
+    make clean        - Clean all build artifacts
+	make clean-assets - Clean assets only
 
 	make build        - Build the code
 	make package 	  - Build rpm and deb packages for linux
@@ -131,9 +133,9 @@ test-js:
 
 test: lint test-go test-js
 
-generate: generate-js generate-go
+generate: clean-assets generate-js generate-go
 
-generate-js: .prefix
+generate-js: clean-assets .prefix
 	NODE_ENV=production webpack --progress --colors
 
 generate-go: .prefix
@@ -164,7 +166,7 @@ deps-go:
 migration:
 	go run github.com/fleetdm/goose/cmd/goose -dir server/datastore/mysql/migrations/tables create $(name)
 
-distclean:
+clean: clean-assets
 ifeq ($(OS), Windows_NT)
 	if exist build rmdir /s/q build
 	if exist vendor rmdir /s/q vendor
@@ -173,6 +175,9 @@ else
 	rm -rf build vendor
 	rm -f assets/bundle.js
 endif
+
+clean-assets:
+	git clean -fx assets
 
 docker-build-release: xp-fleet xp-fleetctl
 	docker build -t "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" .
