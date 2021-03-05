@@ -296,7 +296,7 @@ export class HostDetailsPage extends Component {
           <p className="section__header">Osquery configuration</p>
           <div className="info">
             <div className="info__item info__item--title">
-              <span className="info__header">Config TLS refresh</span>
+              <span className="info__header">Config refresh</span>
               <span className="info__data">{osqueryData.config_tls_refresh}</span>
             </div>
             <div className="info__item info__item--title">
