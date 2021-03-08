@@ -1816,6 +1816,8 @@ None.
 - [Apply queries specs](#apply-queries-specs)
 - [Run live query](#run-live-query)
 - [Run live query by query name](#run-live-query-by-query-name)
+- [Retrieve live query results (standard WebSocket API)](#retrieve-live-query-results-standard-websocket-api)
+- [Retrieve live query results (SockJS)](#retrieve-live-query-results-sockjs)
 
 ### Get query
 
@@ -2368,11 +2370,150 @@ Runs the specified query by name as a live query on the specified hosts or group
 }
 ```
 
-### Retrieve live query results (SockJS)
+### Retrieve live query results (standard WebSocket API)
 
-If you have a [SockJS client](https://github.com/sockjs/sockjs-client) you can retrieve the results of a live query using the SockJS-client API. 
+You can retrieve the results of a live query using the [standard WebSocket API](#https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_client_applications). 
 
 Before you retrieve the live query results, you must create a live query campaign by running the live query. See the documentation for the [Run live query](#run-live-query) endpoint to create a live query campaign.
+
+`/api/v1/fleet/results/websockets`
+
+#### Parameters
+
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| token  | string  |  | **Required.** The token used to authenticate with the Fleet API. |
+| campaignID   | integer  |  | **Required.** The ID of the live query campaign. |
+
+#### Example
+
+##### Example script to handle request and response
+
+```
+const webSocket = new WebSocket(`<your-base-url>/api/v1/fleet/results/websockets`);
+
+socket.onopen = () => {
+  webSocket.send(JSON.stringify({ type: 'auth', data: { token: <token> } }));
+  webSocket.send(JSON.stringify({ type: 'select_campaign', data: { campaign_id: <campaignID> } }));
+};
+
+webSocket.ommessage = ({ data }) => {
+  const webSocketData = JSON.parse(data);
+}
+
+if (webSocketData.type === 'status' && webSocketData.data.status === 'finished') {
+  webSocket.close()
+}
+```
+
+##### Detailed request and response walkthrough
+
+##### `webSocket.onopen()`
+
+###### Response data
+
+```
+o
+```
+
+##### `webSocket.send()`
+
+###### Request data
+
+```
+[
+  { 
+    "type": "auth", 
+    "data": { "token": <token> } 
+  }
+]
+```
+
+```
+[
+  {
+    "type": "select_campaign", 
+    "data": { "campaign_id": <campaignID> }
+  }
+]
+```
+
+##### `webSocket.onmessage()`
+
+###### Response data
+
+```
+// Sends the total number of hosts targeted and segments them by status
+
+[
+  {
+    "type": "totals",
+    "data": {
+      "count": 24,
+      "online": 0,
+      "offline" "pending",
+      "missing_in_action": 
+    }
+
+  }
+]
+```
+
+```
+// Sends the expected results, actual results so far, and the status of the live query
+
+[
+  {
+    "type": "status",
+    "data": {
+      "expected_results": 6,
+      "actual_results": 0,
+      "status" "pending"
+    }
+
+  }
+]
+```
+
+```
+// Sends the result for a given host
+
+[
+  {
+    "type": "result",
+    "data": {
+      "distributed_query_execution_id": 39,
+      "host": {
+        // host data
+      },
+      "rows": [
+        // query results data for the given host
+      ],
+      "error": null
+    }
+  }
+]
+```
+
+```
+// Sends the status of "finished" when messages with the results for all expected hosts have been sent
+
+[
+  {
+    "type": "status",
+    "data": {
+      "expected_results": 6,
+      "actual_results": 6,
+      "status" "finished"
+    }
+
+  }
+]
+```
+
+### Retrieve live query results (SockJS)
+
+You can also retrieve live query results with a [SockJS client](https://github.com/sockjs/sockjs-client). The script to handle the request and response messages will look similar to the standard WebSocket API script with slight variations. For example, the constructor used for SockJS is `SockJS` while the constructor used for the standard WebSocket API is `WebSocket`.
 
 `/api/v1/fleet/results/`
 
@@ -2385,11 +2526,13 @@ Before you retrieve the live query results, you must create a live query campaig
 
 #### Example
 
+##### Example script to handle request and response
+
 ```
 const socket = new SockJS(`<your-base-url>/api/v1/fleet/results`, undefined, {});
 
 socket.onopen = () => {
-  socket.send(JSON.stringify({ type: 'auth', data: { token: local.getItem('<token>') } }));
+  socket.send(JSON.stringify({ type: 'auth', data: { token: <token> } }));
   socket.send(JSON.stringify({ type: 'select_campaign', data: { campaign_id: <campaignID> } }));
 };
 
@@ -2402,13 +2545,110 @@ if (socketData.type === 'status' && socketData.data.status === 'finished') {
 }
 ```
 
-### Retrieve live query results (standard WebSocket API)
+##### Detailed request and response walkthrough
 
-`/api/v1/fleet/results/websockets`
+##### `socket.onopen()`
 
-#### Parameters
+###### Response data
 
-#### Example
+```
+o
+```
+
+##### `socket.send()`
+
+###### Request data
+
+```
+[
+  { 
+    "type": "auth", 
+    "data": { "token": <token> } 
+  }
+]
+```
+
+```
+[
+  {
+    "type": "select_campaign", 
+    "data": { "campaign_id": <campaignID> }
+  }
+]
+```
+
+##### `socket.onmessage()`
+
+###### Response data
+
+```
+// Sends the total number of hosts targeted and segments them by status
+
+[
+  {
+    "type": "totals",
+    "data": {
+      "count": 24,
+      "online": 0,
+      "offline" "pending",
+      "missing_in_action": 
+    }
+
+  }
+]
+```
+
+```
+// Sends the expected results, actual results so far, and the status of the live query
+
+[
+  {
+    "type": "status",
+    "data": {
+      "expected_results": 6,
+      "actual_results": 0,
+      "status" "pending"
+    }
+
+  }
+]
+```
+
+```
+// Sends the result for a given host
+
+[
+  {
+    "type": "result",
+    "data": {
+      "distributed_query_execution_id": 39,
+      "host": {
+        // host data
+      },
+      "rows": [
+        // query results data for the given host
+      ],
+      "error": null
+    }
+  }
+]
+```
+
+```
+// Sends the status of "finished" when messages with the results for all expected hosts have been sent
+
+[
+  {
+    "type": "status",
+    "data": {
+      "expected_results": 6,
+      "actual_results": 6,
+      "status" "finished"
+    }
+
+  }
+]
+```
 
 ---
 
