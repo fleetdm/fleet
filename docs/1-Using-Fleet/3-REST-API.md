@@ -2235,13 +2235,7 @@ Creates and/or modifies the queries included in the specs list. To modify an exi
 
 Runs the specified query as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label ID.
 
-<<<<<<< HEAD
-To retrieve the live query results, see the documentation for the [Retrieve live query results](#retrieve-live-query-results-sockjs) endpoint.
-
-`POST /api/v1/fleet/spec/queries/run`
-=======
 `POST /api/v1/fleet/queries/run`
->>>>>>> 53296ee930b6376aa627bb167189e749b6ff0b6d
 
 #### Parameters
 
