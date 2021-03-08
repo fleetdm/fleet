@@ -228,7 +228,7 @@ Changes the password for the authenticated user.
 ```
 {
   "old_password": "VArCjNW7CfsxGp67",
-  "new_password": "zGq7mCLA6z4PzArC",
+  "new_password": "zGq7mCLA6z4PzArC"
 }
 ```
 
@@ -2235,9 +2235,13 @@ Creates and/or modifies the queries included in the specs list. To modify an exi
 
 Runs the specified query as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label ID.
 
+<<<<<<< HEAD
 To retrieve the live query results, see the documentation for the [Retrieve live query results](#retrieve-live-query-results-sockjs) endpoint.
 
 `POST /api/v1/fleet/spec/queries/run`
+=======
+`POST /api/v1/fleet/queries/run`
+>>>>>>> 53296ee930b6376aa627bb167189e749b6ff0b6d
 
 #### Parameters
 
@@ -2248,13 +2252,13 @@ To retrieve the live query results, see the documentation for the [Retrieve live
 
 #### Example with one host targeted by ID
 
-`POST /api/v1/fleet/spec/queries/run`
+`POST /api/v1/fleet/queries/run`
 
 ##### Request body
 
 ```
 {
-  "query": "select instance_id from system_info;"
+  "query": "select instance_id from system_info;",
   "selected": { "hosts": [171], "labels": []}
 }
 ```
@@ -2285,13 +2289,13 @@ To retrieve the live query results, see the documentation for the [Retrieve live
 
 #### Example with multiple hosts targeted by label ID
 
-`POST /api/v1/fleet/spec/queries/run`
+`POST /api/v1/fleet/queries/run`
 
 ##### Request body
 
 ```
 {
-  "query": "select instance_id from system_info;"
+  "query": "select instance_id from system_info;",
   "selected": { "hosts": [171], "labels": []}
 }
 ```
@@ -2324,7 +2328,7 @@ To retrieve the live query results, see the documentation for the [Retrieve live
 
 Runs the specified query by name as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label.
 
-`POST /api/v1/fleet/spec/queries/run`
+`POST /api/v1/fleet/queries/run_by_names`
 
 #### Parameters
 
@@ -2335,13 +2339,13 @@ Runs the specified query by name as a live query on the specified hosts or group
 
 #### Example with one host targeted
 
-`POST /api/v1/fleet/spec/queries/run`
+`POST /api/v1/fleet/queries/run_by_names`
 
 ##### Request body
 
 ```
 {
-  "name": "instance_id"
+  "name": "instance_id",
   "selected": { "hosts": [171], "labels": [] }
 }
 ```
@@ -2690,9 +2694,9 @@ o
 
 ```
 {
-  "description": "Collects osquery data."
-  "host_ids": []
-  "label_ids": [6]
+  "description": "Collects osquery data.",
+  "host_ids": [],
+  "label_ids": [6],
   "name": "query_pack_1"
 }
 ```
@@ -2741,8 +2745,8 @@ o
 
 ```
 {
-  "description": "MacOS hosts are targeted"
-  "host_ids": []
+  "description": "MacOS hosts are targeted",
+  "host_ids": [],
   "label_ids": [7]
 }
 ```
@@ -3462,7 +3466,7 @@ The search targets endpoint returns two lists. The first list includes the possi
 
 ```
 {
-  "query": "172"
+  "query": "172",
   "selected": {
     "hosts": [], 
     "labels": [7]

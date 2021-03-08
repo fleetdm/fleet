@@ -1,0 +1,51 @@
+@import '../../../../node_modules/react-tabs/style/react-tabs.scss';
+
+.settings-wrapper {
+  padding: 25px 30px 50px; // different to pad sticky subnav properly
+
+  &__nav-header {
+    padding-top: 25px;
+    position: sticky;
+    top: 0;
+    background-color: $white;
+    z-index: 2;
+  }
+
+  h1 {
+    margin-bottom: $pad-half;
+  }
+
+  .body-wrap {
+    padding: 0;
+  }
+
+  .react-tabs {
+    .react-tabs__tab-list {
+      border-bottom: 2px solid $ui-medium-grey;
+    }
+
+    &__tab {
+      border: none;
+      bottom: -2px;
+      padding-bottom: $pad-base;
+
+      &:focus {
+        box-shadow: none;
+        outline: auto;
+      }
+
+      &:after {
+        background-color: transparent;
+      }
+
+      &:first-child {
+        padding-left: 0;
+      }
+    }
+
+    &__tab--selected, &__tab--selected:focus {
+      font-weight: $bold;
+      border-bottom: 2px solid $core-purple;
+    }
+  }
+}

@@ -32,7 +32,7 @@ describe('EmailTokenRedirect - helpers', () => {
               type: '@@router/CALL_HISTORY_METHOD',
               payload: {
                 method: 'push',
-                args: ['/settings'],
+                args: ['/profile'],
               },
             });
           });

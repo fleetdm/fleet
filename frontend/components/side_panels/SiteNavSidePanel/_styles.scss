@@ -7,10 +7,6 @@
     background-color: $core-black-over;
   }
 
-  @include breakpoint(smalldesk) {
-    justify-content: center;
-  }
-
   &--multiple.site-nav-item--active {
     background-color: transparent;
     border-right: 0;
@@ -28,18 +24,10 @@
   &__icon {
     position: relative;
     font-size: $large;
-    margin-right: 24px;
-    width: 24px;
-    height: 24px;
+    margin-right: 8px;
+    width: 16px;
+    height: 16px;
     vertical-align: sub;
-
-    @at-root .site-nav--small & {
-      margin-right: 0;
-    }
-
-    @include breakpoint(smalldesk) {
-      margin-right: 0;
-    }
   }
 
   &__name {
@@ -47,14 +35,6 @@
     vertical-align: middle;
     font-weight: $regular;
     font-size: $x-small;
-
-    @at-root .site-nav--small & {
-      display: none;
-    }
-
-    @include breakpoint(smalldesk) {
-      display: none;
-    }
   }
 
   a {
@@ -63,67 +43,18 @@
     display: flex;
     align-items: center;
     padding: 14px 20px;
-
-    @include breakpoint(smalldesk) {
-      padding: 11px 14px;
-    }
   }
 
   &--active {
-    border-right: 3px solid $core-blue;
+    border-bottom: 3px solid $core-blue;
     background-color: $core-black;
 
     &:hover {
       background-color: $core-black;
     }
 
-    @at-root .site-nav--small & {
-      border-right: 3px solid $core-blue;
-    }
-
-    @include breakpoint(smalldesk) {
-      border-right: 3px solid $core-blue;
-    }
-
     .site-nav-item__name {
       font-weight: $bold;
-    }
-
-    .site-sub-item {
-      a {
-        padding: 0;
-
-        @at-root .site-nav--small & {
-          padding: 5px 14px;
-        }
-
-        @include breakpoint(smalldesk) {
-          padding: 5px 14px;
-        }
-      }
-
-      @at-root .site-nav--small & {
-        margin-right: 0;
-        display: flex;
-        justify-content: center;
-      }
-
-      @include breakpoint(smalldesk) {
-        margin-right: 0;
-        display: flex;
-        justify-content: center;
-      }
-    }
-  }
-
-  &:last-child {
-
-    @at-root .site-nav--small & {
-      margin-right: 0;
-    }
-
-    @include breakpoint(smalldesk) {
-      margin-right: 0;
     }
   }
 }
@@ -131,166 +62,13 @@
 .site-nav-container {
   flex-grow: 1;
   display: flex;
-  flex-direction: column;
   justify-content: space-between;
+  align-items: center;
 }
 
 .site-nav-list {
   list-style: none;
   margin: 0;
   padding: 0;
-}
-
-.site-sub-item {
-  position: relative;
-  cursor: pointer;
-  margin: 0;
-  text-transform: none;
-  padding: 6px 0;
-
-  a {
-    padding: 0;
-  }
-
-  i {
-    color: $ui-medium-grey;
-  }
-
-  &--active {
-    .site-sub-item__link {
-      color: $white;
-      font-size: $x-small;
-      font-weight: $bold;
-
-      &:hover {
-        color: $white;
-      }
-
-      i {
-        color: $white;
-      }
-    }
-
-    &::before {
-      @include size(7px);
-      content: '';
-      display: block;
-      border-radius: 50%;
-      background-color: $white;
-      position: absolute;
-      left: -8px;
-      top: 50%;
-      margin: -3px 0 0 -8px;
-
-      @at-root .site-nav--small & {
-        display: none;
-      }
-
-      @include breakpoint(smalldesk) {
-        display: none;
-      }
-    }
-  }
-
-  &__name {
-    @at-root .site-nav--small & {
-      display: none;
-    }
-
-    @include breakpoint(desktop) {
-      display: inline-block;
-    }
-
-    @include breakpoint(smalldesk) {
-      display: none;
-    }
-  }
-
-  &__icon {
-    @at-root .site-nav--small & {
-      display: inline-block;
-      font-size: 25px;
-
-      .kolidecon {
-        vertical-align: 1px;
-      }
-    }
-
-    @include breakpoint(desktop) {
-      display: none;
-    }
-
-    @include breakpoint(smalldesk) {
-      display: inline-block;
-      font-size: 25px;
-
-      .kolidecon {
-        vertical-align: 1px;
-      }
-    }
-  }
-
-  &:first-child {
-    @at-root .site-nav--small & {
-      display: none;
-    }
-
-    @include breakpoint(smalldesk) {
-      display: none;
-    }
-  }
-}
-
-.site-sub-items {
-  transition: width 100ms ease-in-out;
-  font-size: 13px;
-  margin: 0;
-  padding: 0;
-  position: relative;
-
-  @at-root .site-nav--small & {
-    background-color: $core-blue 18%;
-    background-image: linear-gradient(to bottom, $core-blue 18%, $core-blue 82%);
-    box-shadow: none;
-  }
-
-  &__list {
-    padding: 12px 0 0 64px;
-    margin: 0;
-    list-style: none;
-
-    @at-root .site-nav--small & {
-      padding: 0;
-      text-align: center;
-    }
-
-    @include breakpoint(smalldesk) {
-      padding: 0;
-      text-align: center;
-    }
-
-    &--expanded {
-      @at-root .site-nav--small & {
-        display: inline-block;
-      }
-
-      @include breakpoint(smalldesk) {
-        display: inline-block;
-      }
-    }
-  }
-}
-
-.collapse-sub-item {
-  bottom: 0;
-  color: $white;
-  cursor: pointer;
-  line-height: 95px;
-  position: absolute;
-  right: 4px;
-  top: 0;
-
-  @include breakpoint(gtsmalldesk) {
-    display: none;
-  }
+  display: flex;
 }

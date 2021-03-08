@@ -8,33 +8,11 @@ import {
   enrollSecretSuccess,
   hideBackgroundImage,
   showBackgroundImage,
-  toggleSmallNav,
 } from './actions';
 
 describe('App - reducer', () => {
   it('sets the initial state', () => {
     expect(reducer(undefined, { type: 'SOME_ACTION' })).toEqual(initialState);
-  });
-
-  describe('toggleSmallNav action', () => {
-    it('toggles isSmallNav on', () => {
-      expect(reducer(initialState, toggleSmallNav)).toEqual({
-        ...initialState,
-        isSmallNav: true,
-      });
-    });
-
-    it('toggles isSmallNav off', () => {
-      const state = {
-        ...initialState,
-        isSmallNav: true,
-      };
-
-      expect(reducer(state, toggleSmallNav)).toEqual({
-        ...state,
-        isSmallNav: false,
-      });
-    });
   });
 
   describe('showBackgroundImage action', () => {
@@ -80,7 +58,6 @@ describe('App - reducer', () => {
         enrollSecret: [],
         error: {},
         loading: false,
-        isSmallNav: false,
         showBackgroundImage: false,
       });
     });
@@ -98,7 +75,6 @@ describe('App - reducer', () => {
         enrollSecret: [],
         error,
         loading: false,
-        isSmallNav: false,
         showBackgroundImage: false,
       });
     });
@@ -125,7 +101,6 @@ describe('App - reducer', () => {
         config: {},
         error: {},
         loading: false,
-        isSmallNav: false,
         showBackgroundImage: false,
       });
     });
@@ -143,7 +118,6 @@ describe('App - reducer', () => {
         config: {},
         error,
         loading: false,
-        isSmallNav: false,
         showBackgroundImage: false,
       });
     });
