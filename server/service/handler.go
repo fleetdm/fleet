@@ -9,7 +9,6 @@ import (
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/go-kit/kit/endpoint"
-	"github.com/go-kit/kit/log"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -454,7 +453,7 @@ func addMetrics(r *mux.Router) {
 	r.Walk(walkFn)
 }
 
-func shimRoutes(r *mux.Router, logger log.Logger) {
+func shimRoutes(r *mux.Router, logger kitlog.Logger) {
 	if err := r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 		path, err := route.GetPathTemplate()
 		if err != nil {
