@@ -139,7 +139,7 @@
     }
 
     .query-results-table__results-table-wrapper {
-      height: auto;
+      max-height: none;
     }
 
     .query-results-table__error-table-container {
