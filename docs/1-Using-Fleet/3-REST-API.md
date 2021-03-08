@@ -2388,19 +2388,19 @@ Before you retrieve the live query results, you must create a live query campaig
 ##### Example script to handle request and response
 
 ```
-const webSocket = new WebSocket(`<your-base-url>/api/v1/fleet/results/websockets`);
+const socket = new WebSocket('wss://<your-base-url>/api/v1/fleet/results/websocket');
 
 socket.onopen = () => {
-  webSocket.send(JSON.stringify({ type: 'auth', data: { token: <token> } }));
-  webSocket.send(JSON.stringify({ type: 'select_campaign', data: { campaign_id: <campaignID> } }));
+  socket.send(JSON.stringify({ type: 'auth', data: { token: <auth-token> } }));
+  socket.send(JSON.stringify({ type: 'select_campaign', data: { campaign_id: <campaign-id> } }));
 };
 
-webSocket.ommessage = ({ data }) => {
-  const webSocketData = JSON.parse(data);
-}
-
-if (webSocketData.type === 'status' && webSocketData.data.status === 'finished') {
-  webSocket.close()
+socket.onmessage = ({ data }) => {
+  console.log(data);
+  const message = JSON.parse(data);
+  if (message.type === 'status' && message.data.status === 'finished') {
+    socket.close();
+  }
 }
 ```
 
@@ -2534,12 +2534,13 @@ socket.onopen = () => {
   socket.send(JSON.stringify({ type: 'select_campaign', data: { campaign_id: <campaignID> } }));
 };
 
-socket.ommessage = ({ data }) => {
-  const socketData = JSON.parse(data);
-}
-
-if (socketData.type === 'status' && socketData.data.status === 'finished') {
-  socket.close()
+socket.onmessage = ({ data }) => {
+  console.log(data);
+  const message = JSON.parse(data);
+  
+  if (message.type === 'status' && message.data.status === 'finished') {
+    socket.close()
+  }
 }
 ```
 
