@@ -2,4 +2,19 @@
   button {
     background-color: transparent;
   }
+
+  .dropdown-button__options {
+    padding: 8px;
+    right: 10px;
+
+    button {
+      display: inline-block;
+      min-width: 125px;
+
+      &:hover {
+        background-color: #f1f0ff;
+        color: #3e4771;
+      }
+    }
+  }
 }
