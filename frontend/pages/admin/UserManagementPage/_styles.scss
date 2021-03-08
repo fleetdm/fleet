@@ -2,6 +2,10 @@
   min-height: 90vh;
   padding: 30px;
 
+  &__page-description {
+    font-size: $small;
+  }
+
   &__wrapper {
     border: solid 1px $ui-borders;
     border-radius: 6px;

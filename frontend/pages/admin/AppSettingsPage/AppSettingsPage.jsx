@@ -69,7 +69,7 @@ class AppSettingsPage extends Component {
 
     return (
       <div className={`${baseClass} body-wrap`}>
-        <h1>App Settings</h1>
+        <p className={`${baseClass}__page-description`}>Set your organization information, Configure SAML and SMTP, and view host enroll secrets.</p>
         <WarningBanner
           message="SMTP is not currently configured in Fleet. The &quot;Add new user&quot; feature requires that SMTP is configured in order to send invitation emails. Users may also be added with &quot;fleetctl user create&quot;."
           onDismiss={onDismissSmtpWarning}

@@ -27,9 +27,11 @@ import QueryPageWrapper from 'components/queries/QueryPageWrapper';
 import RegistrationPage from 'pages/RegistrationPage';
 import Fleet404 from 'pages/Fleet404';
 import Fleet500 from 'pages/Fleet500';
-import store from 'redux/store';
 import UserSettingsPage from 'pages/UserSettingsPage';
+import SettingsWrapper from 'pages/admin/SettingsWrapper/SettingsWrapper';
 import PATHS from 'router/paths';
+import store from 'redux/store';
+
 
 const history = syncHistoryWithStore(browserHistory, store);
 
@@ -49,10 +51,12 @@ const routes = (
           <Route path="logout" component={LogoutPage} />
           <Route component={CoreLayout}>
             <IndexRedirect to={PATHS.MANAGE_HOSTS} />
-            <Route path="admin" component={AuthenticatedAdminRoutes}>
-              <Route path="users" component={AdminUserManagementPage} />
-              <Route path="settings" component={AdminAppSettingsPage} />
-              <Route path="osquery" component={AdminOsqueryOptionsPage} />
+            <Route path="settings" component={AuthenticatedAdminRoutes}>
+              <Route component={SettingsWrapper}>
+                <Route path="organization" component={AdminAppSettingsPage} />
+                <Route path="users" component={AdminUserManagementPage} />
+                <Route path="osquery" component={AdminOsqueryOptionsPage} />
+              </Route>
             </Route>
             <Route path="hosts">
               <Route path="manage" component={ManageHostsPage} />
@@ -73,7 +77,7 @@ const routes = (
               <Route path="new" component={QueryPage} />
               <Route path=":id" component={QueryPage} />
             </Route>
-            <Route path="settings" component={UserSettingsPage} />
+            <Route path="profile" component={UserSettingsPage} />
           </Route>
         </Route>
       </Route>

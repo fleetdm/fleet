@@ -25,7 +25,6 @@ import QueryPageSelectTargets from 'components/queries/QueryPageSelectTargets';
 import QueryResultsTable from 'components/queries/QueryResultsTable';
 import QuerySidePanel from 'components/side_panels/QuerySidePanel';
 import { renderFlash } from 'redux/nodes/notifications/actions';
-import { toggleSmallNav } from 'redux/nodes/app/actions';
 import { selectOsqueryTable, setSelectedTargets, setSelectedTargetsQuery } from 'redux/nodes/components/QueryPages/actions';
 import targetInterface from 'interfaces/target';
 import validateQuery from 'components/forms/validators/validate_query';
@@ -49,7 +48,6 @@ export class QueryPage extends Component {
     errors: PropTypes.shape({
       base: PropTypes.string,
     }),
-    isSmallNav: PropTypes.bool.isRequired,
     loadingQueries: PropTypes.bool.isRequired,
     location: PropTypes.shape({
       pathname: PropTypes.string,
@@ -154,14 +152,9 @@ export class QueryPage extends Component {
   }
 
   componentWillUnmount() {
-    const { dispatch, isSmallNav } = this.props;
     const { document: { body } } = global;
 
     this.resetCampaignAndTargets();
-
-    if (isSmallNav) {
-      dispatch(toggleSmallNav);
-    }
 
     if (this.runQueryInterval) {
       clearInterval(this.runQueryInterval);
@@ -388,7 +381,6 @@ export class QueryPage extends Component {
 
       callback = () => {
         body.style.overflow = 'hidden';
-        dispatch(toggleSmallNav);
         merge(parent.style, newPosition);
         grandParent.style.height = `${newPosition.maxHeight}`;
       };
@@ -399,7 +391,6 @@ export class QueryPage extends Component {
 
       callback = () => {
         body.style.overflow = 'visible';
-        dispatch(toggleSmallNav);
         newPosition = queryPosition;
         merge(parent.style, newPosition);
         grandParent.style.height = `${newPosition.maxHeight}`;
@@ -620,7 +611,6 @@ const mapStateToProps = (state, ownProps) => {
   const { errors, loading: loadingQueries } = state.entities.queries;
   const { selectedTargets } = state.components.QueryPages;
   const { host_ids: hostIDs, host_uuids: hostUUIDs } = ownProps.location.query;
-  const { isSmallNav } = state.app;
   const title = queryID ? 'Edit query' : 'New query';
 
   let selectedHosts = [];
@@ -645,7 +635,6 @@ const mapStateToProps = (state, ownProps) => {
 
   return {
     errors,
-    isSmallNav,
     loadingQueries,
     query,
     selectedOsqueryTable,

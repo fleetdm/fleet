@@ -301,7 +301,7 @@ export class UserManagementPage extends Component {
       <div className={`${baseClass} body-wrap`}>
         <div className={`${baseClass}__heading-wrapper`}>
           <div className={`${baseClass}__add-user-wrap`}>
-            <h1 className={`${baseClass}__header`}>Manage users</h1>
+            <p className={`${baseClass}__page-description`}>Invite new users, customize user permissions, and disable users in Fleet.</p>
             <Button
               className={`${baseClass}__add-user-btn button button--brand`}
               disabled={!config.configured}
