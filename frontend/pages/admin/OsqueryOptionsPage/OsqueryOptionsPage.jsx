@@ -66,34 +66,23 @@ export class OsqueryOptionsPage extends Component {
       <div className={`${baseClass}__page-wrap has-sidebar`}>
         <div className={`${baseClass} body-wrap`}>
           <p className={`${baseClass}__page-description`}>This file describes options returned to osquery when it checks for configuration.</p>
+          <div className={`${baseClass}__info-banner`}>
+            <p>See Fleet documentation for an example file that includes the overrides option.</p>
+            <a
+              href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Go to Fleet docs
+              <img src={OpenNewTabIcon} alt="open new tab" />
+            </a>
+          </div>
           <div className={`${baseClass}__form-wrapper`}>
             <OsqueryOptionsForm
               formData={formData}
               handleSubmit={onSaveOsqueryOptionsFormSubmit}
             />
           </div>
-        </div>
-        <div className={`${baseClass}__side-panel secondary-side-panel-container`}>
-          <h2>Help</h2>
-          <p>This file describes options returned to osqueryd when it checks for configuration.</p>
-          <p>See Fleet documentation for an example file that includes the overrides option.</p>
-          <a
-            href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Go to Fleet docs
-            <img src={OpenNewTabIcon} alt="open new tab" />
-          </a>
-          <p>See osquery documentation for all available options.</p>
-          <a
-            href="https://osquery.readthedocs.io/en/stable/deployment/configuration/#options"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Go to osquery docs
-            <img src={OpenNewTabIcon} alt="open new tab" />
-          </a>
         </div>
       </div>
     );

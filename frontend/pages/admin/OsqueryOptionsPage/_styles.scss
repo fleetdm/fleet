@@ -11,8 +11,34 @@
     font-size: $small;
   }
 
-  a {
-    margin: 0 0 20px;
+  &__info-banner {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 16px;
+    border-radius: $border-radius;
+    border: 1px solid #D9D9FE;
+    background-color: $info;
+    margin-bottom: 16px;
+
+    p {
+      margin: 0;
+      font-size: $x-small;
+    }
+
+    a {
+      color: $core-blue;
+      font-size: $x-small;
+      font-weight: $bold;
+      text-decoration: none;
+      margin-left: 16px;
+    }
+
+    img {
+      width: 12px;
+      height: 12px;
+      margin-left: 6px;
+    }
   }
 
   &__form-wrapper {
@@ -34,33 +60,5 @@
 
   i {
     margin-left: 8px;
-  }
-
-  &__side-panel {
-    padding: 40px 28px;
-
-    h2 {
-      font-size: $x-small;
-      font-weight: $bold;
-    }
-
-    p {
-      font-size: $x-small;
-      font-style: italic;
-      color: $core-dark-blue-grey;
-    }
-
-    a {
-      color: $core-blue;
-      font-size: $x-small;
-      font-weight: $bold;
-      text-decoration: none;
-    }
-
-    img {
-      width: 12px;
-      height: 12px;
-      margin-left: 6px;
-    }
   }
 }
