@@ -2404,7 +2404,7 @@ if (webSocketData.type === 'status' && webSocketData.data.status === 'finished')
 }
 ```
 
-##### Detailed request and response walkthrough
+##### Detailed request and response walkthrough with example data
 
 ##### `webSocket.onopen()`
 
@@ -2422,7 +2422,7 @@ o
 [
   { 
     "type": "auth", 
-    "data": { "token": <token> } 
+    "data": { "token": <insert_token_here> } 
   }
 ]
 ```
@@ -2431,7 +2431,7 @@ o
 [
   {
     "type": "select_campaign", 
-    "data": { "campaign_id": <campaignID> }
+    "data": { "campaign_id": 12 }
   }
 ]
 ```
@@ -2448,9 +2448,9 @@ o
     "type": "totals",
     "data": {
       "count": 24,
-      "online": 0,
-      "offline" "pending",
-      "missing_in_action": 
+      "online": 6,
+      "offline": 18,
+      "missing_in_action": 0
     }
 
   }
@@ -2466,7 +2466,7 @@ o
     "data": {
       "expected_results": 6,
       "actual_results": 0,
-      "status" "pending"
+      "status": "pending"
     }
 
   }
@@ -2502,7 +2502,7 @@ o
     "data": {
       "expected_results": 6,
       "actual_results": 6,
-      "status" "finished"
+      "status": "finished"
     }
 
   }
@@ -2561,7 +2561,7 @@ o
 [
   { 
     "type": "auth", 
-    "data": { "token": <token> } 
+    "data": { "token": <insert_token_here> } 
   }
 ]
 ```
@@ -2570,7 +2570,7 @@ o
 [
   {
     "type": "select_campaign", 
-    "data": { "campaign_id": <campaignID> }
+    "data": { "campaign_id": 12 }
   }
 ]
 ```
@@ -2587,9 +2587,9 @@ o
     "type": "totals",
     "data": {
       "count": 24,
-      "online": 0,
-      "offline" "pending",
-      "missing_in_action": 
+      "online": 6,
+      "offline": 18,
+      "missing_in_action": 0
     }
 
   }
@@ -2605,7 +2605,7 @@ o
     "data": {
       "expected_results": 6,
       "actual_results": 0,
-      "status" "pending"
+      "status": "pending"
     }
 
   }
@@ -2641,7 +2641,7 @@ o
     "data": {
       "expected_results": 6,
       "actual_results": 6,
-      "status" "finished"
+      "status": "finished"
     }
 
   }
