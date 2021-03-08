@@ -2539,7 +2539,7 @@ socket.onmessage = ({ data }) => {
   const message = JSON.parse(data);
   
   if (message.type === 'status' && message.data.status === 'finished') {
-    socket.close()
+    socket.close();
   }
 }
 ```
