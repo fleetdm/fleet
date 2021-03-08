@@ -228,7 +228,7 @@ Changes the password for the authenticated user.
 ```
 {
   "old_password": "VArCjNW7CfsxGp67",
-  "new_password": "zGq7mCLA6z4PzArC",
+  "new_password": "zGq7mCLA6z4PzArC"
 }
 ```
 
@@ -2250,7 +2250,7 @@ Runs the specified query as a live query on the specified hosts or group of host
 
 ```
 {
-  "query": "select instance_id from system_info;"
+  "query": "select instance_id from system_info;",
   "selected": { "hosts": [171], "labels": []}
 }
 ```
@@ -2287,7 +2287,7 @@ Runs the specified query as a live query on the specified hosts or group of host
 
 ```
 {
-  "query": "select instance_id from system_info;"
+  "query": "select instance_id from system_info;",
   "selected": { "hosts": [171], "labels": []}
 }
 ```
@@ -2337,7 +2337,7 @@ Runs the specified query by name as a live query on the specified hosts or group
 
 ```
 {
-  "name": "instance_id"
+  "name": "instance_id",
   "selected": { "hosts": [171], "labels": [] }
 }
 ```
@@ -2406,9 +2406,9 @@ Runs the specified query by name as a live query on the specified hosts or group
 
 ```
 {
-  "description": "Collects osquery data."
-  "host_ids": []
-  "label_ids": [6]
+  "description": "Collects osquery data.",
+  "host_ids": [],
+  "label_ids": [6],
   "name": "query_pack_1"
 }
 ```
@@ -2457,8 +2457,8 @@ Runs the specified query by name as a live query on the specified hosts or group
 
 ```
 {
-  "description": "MacOS hosts are targeted"
-  "host_ids": []
+  "description": "MacOS hosts are targeted",
+  "host_ids": [],
   "label_ids": [7]
 }
 ```
@@ -3178,7 +3178,7 @@ The search targets endpoint returns two lists. The first list includes the possi
 
 ```
 {
-  "query": "172"
+  "query": "172",
   "selected": {
     "hosts": [], 
     "labels": [7]
