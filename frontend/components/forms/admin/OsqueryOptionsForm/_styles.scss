@@ -4,21 +4,23 @@
   align-items: flex-end;
   width: 100%;
 
-  &__button-wrap {
-    text-align: right;
+  &__btn-wrap {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
 
-    .query-form__run-query-btn,
-    .query-form__stop-query-btn {
-      margin-left: $pad-xsmall;
-    }
-
-    .kolide-timer {
-      display: block;
+    p {
+      font-size: $x-small;
+      font-weight: $bold;
     }
   }
 
   &__text-editor-wrapper {
     width: 100%;
     margin-bottom: 16px;
+  }
+
+  .yaml-ace__label {
+    min-height: 0;
   }
 }

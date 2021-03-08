@@ -300,20 +300,20 @@ export class UserManagementPage extends Component {
     return (
       <div className={`${baseClass} body-wrap`}>
         <div className={`${baseClass}__heading-wrapper`}>
-          <div className={`${baseClass}__add-user-wrap`}>
-            <p className={`${baseClass}__page-description`}>Invite new users, customize user permissions, and disable users in Fleet.</p>
-            <Button
-              className={`${baseClass}__add-user-btn button button--brand`}
-              disabled={!config.configured}
-              onClick={toggleInviteUserModal}
-              title={config.configured ? 'Add User' : 'Email must be configured to add users'}
-            >
-              Add new user
-            </Button>
-          </div>
+          <p className={`${baseClass}__page-description`}>Invite new users, customize user permissions, and disable users in Fleet.</p>
         </div>
         {renderSmtpWarning()}
-        <p className={`${baseClass}__user-count`}>{resourcesCount} users</p>
+        <div className={`${baseClass}__add-user-wrap`}>
+          <p className={`${baseClass}__user-count`}>{resourcesCount} users</p>
+          <Button
+            className={'button button--brand'}
+            disabled={!config.configured}
+            onClick={toggleInviteUserModal}
+            title={config.configured ? 'Add User' : 'Email must be configured to add users'}
+          >
+            Invite user
+          </Button>
+        </div>
         {renderUserTable()}
         {renderModal()}
       </div>

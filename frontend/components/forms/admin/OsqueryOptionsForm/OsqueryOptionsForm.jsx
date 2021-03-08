@@ -40,18 +40,20 @@ class OsqueryOptionsForm extends Component {
 
     return (
       <form onSubmit={handleSubmit} className={baseClass}>
+        <div className={`${baseClass}__btn-wrap`}>
+          <p>YAML</p>
+          <Button
+            type="submit"
+            variant="brand"
+          >
+            Save options
+          </Button>
+        </div>
         <YamlAce
           {...fields.osquery_options}
           error={fields.osquery_options.error}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          label="YAML"
         />
-        <Button
-          type="submit"
-          variant="brand"
-        >
-          Update options
-        </Button>
       </form>
     );
   }

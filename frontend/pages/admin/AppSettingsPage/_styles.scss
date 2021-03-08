@@ -1,8 +1,10 @@
 .app-settings {
-  padding: 50px 30px;
+  padding: 40px 30px;
 
   &__page-description {
-    font-size: $small;
+    font-size: $x-small;
+    color: $core-dark-blue-grey;
+    margin: 40px 0 54px 0;
   }
 
   h2 {

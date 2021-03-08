@@ -1,5 +1,5 @@
 .osquery-options {
-  padding: 50px 30px;
+  padding: 40px 30px;
   flex-grow: 1;
 
   &__page-wrap {
@@ -8,7 +8,9 @@
   }
 
   &__page-description {
-    font-size: $small;
+    font-size: $x-small;
+    color: $core-dark-blue-grey;
+    margin: 40px 0 16px 0;
   }
 
   &__info-banner {
