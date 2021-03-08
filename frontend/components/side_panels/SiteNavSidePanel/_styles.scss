@@ -28,9 +28,9 @@
   &__icon {
     position: relative;
     font-size: $large;
-    margin-right: 24px;
-    width: 24px;
-    height: 24px;
+    margin-right: 8px;
+    width: 16px;
+    height: 16px;
     vertical-align: sub;
 
     @include breakpoint(smalldesk) {

@@ -7,10 +7,10 @@ import UserMenu from 'components/side_panels/UserMenu';
 
 import navItems from './navItems';
 
-import HostsIcon from '../../../../assets/images/icon-main-hosts-white-24x24@2x.png';
-import QueriesIcon from '../../../../assets/images/icon-main-query-white-24x24@2x.png';
-import PacksIcon from '../../../../assets/images/icon-main-packs-white-24x24@2x.png';
-import AdminIcon from '../../../../assets/images/icon-main-admin-white-24x24@2x.png';
+import HostsIcon from '../../../../assets/images/icon-main-hosts@2x-16x16@2x.png';
+import QueriesIcon from '../../../../assets/images/icon-main-queries@2x-16x16@2x.png';
+import PacksIcon from '../../../../assets/images/icon-main-packs@2x-16x16@2x.png';
+import AdminIcon from '../../../../assets/images/icon-main-settings@2x-16x16@2x.png';
 
 class SiteNavSidePanel extends Component {
   static propTypes = {
