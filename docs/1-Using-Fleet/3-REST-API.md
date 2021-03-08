@@ -2233,7 +2233,7 @@ Creates and/or modifies the queries included in the specs list. To modify an exi
 
 Runs the specified query as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label ID.
 
-`POST /api/v1/fleet/spec/queries/run`
+`POST /api/v1/fleet/queries/run`
 
 #### Parameters
 
@@ -2244,7 +2244,7 @@ Runs the specified query as a live query on the specified hosts or group of host
 
 #### Example with one host targeted by ID
 
-`POST /api/v1/fleet/spec/queries/run`
+`POST /api/v1/fleet/queries/run`
 
 ##### Request body
 
@@ -2281,7 +2281,7 @@ Runs the specified query as a live query on the specified hosts or group of host
 
 #### Example with multiple hosts targeted by label ID
 
-`POST /api/v1/fleet/spec/queries/run`
+`POST /api/v1/fleet/queries/run`
 
 ##### Request body
 
@@ -2320,7 +2320,7 @@ Runs the specified query as a live query on the specified hosts or group of host
 
 Runs the specified query by name as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label.
 
-`POST /api/v1/fleet/spec/queries/run`
+`POST /api/v1/fleet/queries/run_by_names`
 
 #### Parameters
 
@@ -2331,7 +2331,7 @@ Runs the specified query by name as a live query on the specified hosts or group
 
 #### Example with one host targeted
 
-`POST /api/v1/fleet/spec/queries/run`
+`POST /api/v1/fleet/queries/run_by_names`
 
 ##### Request body
 
