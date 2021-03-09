@@ -371,40 +371,7 @@ func (d *Datastore) EnrollHost(osqueryHostID, nodeKey, secretName string, cooldo
 
 func (d *Datastore) AuthenticateHost(nodeKey string) (*kolide.Host, error) {
 	sqlStatement := `
-		SELECT
-			id,
-			osquery_host_id,
-			created_at,
-			updated_at,
-			detail_update_time,
-			label_update_time,
-			node_key,
-			host_name,
-			uuid,
-			platform,
-			osquery_version,
-			os_version,
-			build,
-			platform_like,
-			code_name,
-			uptime,
-			physical_memory,
-			cpu_type,
-			cpu_subtype,
-			cpu_brand,
-			cpu_physical_cores,
-			cpu_logical_cores,
-			hardware_vendor,
-			hardware_model,
-			hardware_version,
-			hardware_serial,
-			computer_name,
-			primary_ip_id,
-			seen_time,
-			distributed_interval,
-			logger_tls_period,
-			config_tls_refresh,
-			enroll_secret_name
+		SELECT *
 		FROM hosts
 		WHERE node_key = ?
 		LIMIT 1

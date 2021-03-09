@@ -745,7 +745,6 @@ func (svc service) SubmitDistributedQueryResults(ctx context.Context, results ko
 		if err != nil {
 			return osqueryError{message: "failed to ingest result: " + err.Error()}
 		}
-
 	}
 
 	if len(labelResults) > 0 {
