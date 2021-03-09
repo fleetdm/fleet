@@ -28,7 +28,7 @@ class UserMenu extends Component {
     const accountNavigate = props.onNavItemClick(PATHS.USER_SETTINGS);
     this.dropdownItems = [
       {
-        label: 'My Account',
+        label: 'My account',
         onClick: accountNavigate,
       },
       {
@@ -36,7 +36,7 @@ class UserMenu extends Component {
         onClick: () => window.open('https://github.com/fleetdm/fleet/blob/master/docs/README.md', '_blank'),
       },
       {
-        label: 'Sign Out',
+        label: 'Sign out',
         onClick: props.onLogout,
       },
     ];

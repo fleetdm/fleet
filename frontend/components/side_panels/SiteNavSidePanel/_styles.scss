@@ -2,6 +2,7 @@
   position: relative;
   transition: color 200ms ease-in-out;
   cursor: pointer;
+  border-bottom: 3px solid transparent;
 
   &:hover {
     background-color: $core-black-over;

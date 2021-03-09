@@ -12,7 +12,7 @@ interface ISettingSubNavItem {
 
 const settingsSubNav: ISettingSubNavItem[] = [
   {
-    name: 'Organization Settings',
+    name: 'Organization settings',
     pathname: PATHS.ADMIN_SETTINGS,
   },
   {
@@ -20,7 +20,7 @@ const settingsSubNav: ISettingSubNavItem[] = [
     pathname: PATHS.ADMIN_USERS,
   },
   {
-    name: 'Osquery Options',
+    name: 'Osquery options',
     pathname: PATHS.ADMIN_OSQUERY,
   },
 ];
@@ -56,7 +56,9 @@ const SettingsWrapper = (props: ISettingsWrapperProp): JSX.Element => {
         <Tabs selectedIndex={getTabIndex(pathname)} onSelect={i => navigateToNav(i)}>
           <TabList>
             {settingsSubNav.map((navItem) => {
-              return <Tab key={navItem.name}>{navItem.name}</Tab>;
+              // Bolding text when the tab is active causes a layout shift
+              // so we add a hidden pseudo element with the same text string
+              return <Tab key={navItem.name} data-text={navItem.name}>{navItem.name}</Tab>;
             })}
           </TabList>
         </Tabs>
