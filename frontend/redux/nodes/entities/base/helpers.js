@@ -6,6 +6,10 @@ export const entitiesExceptID = (entities, id) => {
   });
 };
 
+export const orderExceptId = (originalOrder, id) => {
+  return originalOrder.filter(entitiesId => entitiesId !== id);
+};
+
 const formatServerErrors = (errors) => {
   if (!errors || !errors.length) {
     return {};
@@ -35,4 +39,4 @@ export const formatErrorResponse = (errorResponse) => {
   };
 };
 
-export default { entitiesExceptID, formatErrorResponse };
+export default { entitiesExceptID, orderExceptId, formatErrorResponse };
