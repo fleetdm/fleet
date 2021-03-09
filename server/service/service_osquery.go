@@ -717,6 +717,20 @@ func (svc service) SubmitDistributedQueryResults(ctx context.Context, results ko
 		return osqueryError{message: "internal error: missing host from request context"}
 	}
 
+	// Check for label queries and if so, load host additional. If we don't do
+	// this, we will end up unintentionally dropping any existing host
+	// additional info.
+	for query, _ := range results {
+		if strings.HasPrefix(query, hostLabelQueryPrefix) {
+			fullHost, err := svc.ds.Host(host.ID)
+			if err != nil {
+				return osqueryError{message: "internal error: load host additional: " + err.Error()}
+			}
+			host = *fullHost
+			break
+		}
+	}
+
 	var err error
 	detailUpdated := false // Whether detail or additional was updated
 	additionalResults := make(kolide.OsqueryDistributedQueryResults)
@@ -745,7 +759,6 @@ func (svc service) SubmitDistributedQueryResults(ctx context.Context, results ko
 		if err != nil {
 			return osqueryError{message: "failed to ingest result: " + err.Error()}
 		}
-
 	}
 
 	if len(labelResults) > 0 {

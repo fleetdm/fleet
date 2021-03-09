@@ -370,6 +370,7 @@ func (d *Datastore) EnrollHost(osqueryHostID, nodeKey, secretName string, cooldo
 }
 
 func (d *Datastore) AuthenticateHost(nodeKey string) (*kolide.Host, error) {
+	// Select everything besides `additional`
 	sqlStatement := `
 		SELECT
 			id,
@@ -404,6 +405,8 @@ func (d *Datastore) AuthenticateHost(nodeKey string) (*kolide.Host, error) {
 			distributed_interval,
 			logger_tls_period,
 			config_tls_refresh,
+			primary_ip,
+			primary_mac,
 			enroll_secret_name
 		FROM hosts
 		WHERE node_key = ?
