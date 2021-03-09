@@ -104,7 +104,7 @@ describe('UserManagementPage - component', () => {
     });
 
     it(
-      'displays a disabled "Add User" button if email is not configured',
+      'displays a disabled "Invite user" button if email is not configured',
       () => {
         const notConfiguredStore = { ...store, app: { config: { configured: false } } };
         const notConfiguredMockStore = reduxMockStore(notConfiguredStore);
@@ -118,7 +118,7 @@ describe('UserManagementPage - component', () => {
           mockStore: configuredMockStore,
         }));
 
-        expect(notConfiguredPage.find('Button').first().prop('disabled')).toEqual(true);
+        expect(notConfiguredPage.find('Button').at(1).prop('disabled')).toEqual(true);
         expect(configuredPage.find('Button').first().prop('disabled')).toEqual(false);
       },
     );
