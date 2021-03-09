@@ -161,11 +161,11 @@
 
 @keyframes growFullScreen {
   100% {
-    top: $pad-half;
+    top: 60px;
     right: $pad-half;
     bottom: $pad-half;
-    left: calc(#{$nav-tablet-width} + #{$pad-half});
-    max-width: calc(100vw - #{$nav-tablet-width} - #{$pad-half} - #{$pad-half});
+    left: $pad-half;
+    max-width: calc(100vw - #{$pad-half} - #{$pad-half});
     max-height: 100vh;
   }
 }
