@@ -1,5 +1,5 @@
 import BaseConfig from 'redux/nodes/entities/base/base_config';
-import { entitiesExceptID } from 'redux/nodes/entities/base/helpers';
+import { entitiesExceptID, orderExceptId } from 'redux/nodes/entities/base/helpers';
 
 class ReduxConfig extends BaseConfig {
   get actions () {
@@ -56,6 +56,7 @@ class ReduxConfig extends BaseConfig {
             data: {
               ...entitiesExceptID(state.data, payload.data),
             },
+            originalOrder: orderExceptId(state.originalOrder, payload.data),
           };
         }
         case actionTypes.CREATE_FAILURE:

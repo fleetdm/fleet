@@ -1,4 +1,4 @@
-import { entitiesExceptID, formatErrorResponse } from './helpers';
+import { entitiesExceptID, orderExceptId, formatErrorResponse } from './helpers';
 
 describe('reduxConfig - helpers', () => {
   describe('#entitiesExceptID', () => {
@@ -21,6 +21,13 @@ describe('reduxConfig - helpers', () => {
       expect(entitiesExceptID(entities, id)).toEqual({
         2: { name: 'Dog' },
       });
+    });
+  });
+
+  describe('#orderExceptId', () => {
+    it('returns a new orderId array with the deleted entityID no longer in this array', () => {
+      const originalOrder = [1, 2, 3, 4];
+      expect(orderExceptId(originalOrder, 3)).toEqual([1, 2, 4]);
     });
   });
 

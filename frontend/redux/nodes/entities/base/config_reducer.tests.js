@@ -9,6 +9,7 @@ describe('ReduxConfig - reducer', () => {
     data: {
       [userStub.id]: userStub,
     },
+    originalOrder: [userStub.id],
   };
 
   describe('creating an entity', () => {
@@ -69,6 +70,7 @@ describe('ReduxConfig - reducer', () => {
           loading: false,
           errors: {},
           data: {},
+          originalOrder: [],
         });
       });
     });
