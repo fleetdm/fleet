@@ -25,6 +25,8 @@ const loggingTypeOptions = [
 ];
 const minOsqueryVersionOptions = [
   { label: 'All', value: '' },
+  { label: '4.7.0 +', value: '4.7.0' },
+  { label: '4.6.0 +', value: '4.6.0' },
   { label: '4.5.1 +', value: '4.5.1' },
   { label: '4.5.0 +', value: '4.5.0' },
   { label: '4.4.0 +', value: '4.4.0' },
