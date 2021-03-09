@@ -228,8 +228,8 @@ export class ManageHostsPage extends PureComponent {
       >
         <p>Are you sure you wish to delete this label?</p>
         <div className={`${baseClass}__modal-buttons`}>
-          <Button onClick={onDeleteLabel} variant="alert">Delete</Button>
           <Button onClick={toggleDeleteLabelModal} variant="inverse">Cancel</Button>
+          <Button onClick={onDeleteLabel} variant="alert">Delete</Button>
         </div>
       </Modal>
     );

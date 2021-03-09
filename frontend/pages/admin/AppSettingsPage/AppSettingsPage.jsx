@@ -8,7 +8,6 @@ import configInterface from 'interfaces/config';
 import enrollSecretInterface from 'interfaces/enroll_secret';
 import deepDifference from 'utilities/deep_difference';
 import { renderFlash } from 'redux/nodes/notifications/actions';
-import WarningBanner from 'components/WarningBanner';
 import { updateConfig } from 'redux/nodes/app/actions';
 
 export const baseClass = 'app-settings';
@@ -20,18 +19,6 @@ class AppSettingsPage extends Component {
     error: PropTypes.object, // eslint-disable-line react/forbid-prop-types
     enrollSecret: enrollSecretInterface,
   };
-
-  constructor (props) {
-    super(props);
-
-    this.state = { showSmtpWarning: true };
-  }
-
-  onDismissSmtpWarning = () => {
-    this.setState({ showSmtpWarning: false });
-
-    return false;
-  }
 
   onFormSubmit = (formData) => {
     const { appConfig, dispatch } = this.props;
@@ -56,10 +43,8 @@ class AppSettingsPage extends Component {
 
   render () {
     const { appConfig, error, enrollSecret } = this.props;
-    const { onDismissSmtpWarning, onFormSubmit } = this;
-    const { showSmtpWarning } = this.state;
+    const { onFormSubmit } = this;
     const { configured: smtpConfigured } = appConfig;
-    const shouldShowWarning = !smtpConfigured && showSmtpWarning;
 
     if (!size(appConfig)) {
       return false;
@@ -70,11 +55,6 @@ class AppSettingsPage extends Component {
     return (
       <div className={`${baseClass} body-wrap`}>
         <p className={`${baseClass}__page-description`}>Set your organization information, Configure SAML and SMTP, and view host enroll secrets.</p>
-        <WarningBanner
-          message="SMTP is not currently configured in Fleet. The &quot;Add new user&quot; feature requires that SMTP is configured in order to send invitation emails. Users may also be added with &quot;fleetctl user create&quot;."
-          onDismiss={onDismissSmtpWarning}
-          shouldShowWarning={shouldShowWarning}
-        />
         <AppConfigForm
           formData={formData}
           handleSubmit={onFormSubmit}

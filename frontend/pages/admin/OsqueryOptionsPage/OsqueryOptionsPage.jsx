@@ -63,7 +63,7 @@ export class OsqueryOptionsPage extends Component {
     const { onSaveOsqueryOptionsFormSubmit } = this;
 
     return (
-      <div className={`${baseClass}__page-wrap has-sidebar`}>
+      <div className={`${baseClass}__page-wrap`}>
         <div className={`${baseClass} body-wrap`}>
           <p className={`${baseClass}__page-description`}>This file describes options returned to osquery when it checks for configuration.</p>
           <div className={`${baseClass}__info-banner`}>

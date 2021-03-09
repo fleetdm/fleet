@@ -9,7 +9,7 @@
 }
 
 .flash-message {
-  @include position(fixed, 52px 0 null 0);
+  @include position(absolute, 0 0 null 0);
   display: flex;
   align-items: center;
   justify-content: center;

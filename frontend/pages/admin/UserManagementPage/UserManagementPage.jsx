@@ -250,7 +250,7 @@ export class UserManagementPage extends Component {
     return (
       <div className={`${baseClass}__smtp-warning-wrapper`}>
         <WarningBanner
-          message="SMTP is not currently configured in Fleet. The &quot;Add new user&quot; features requires that SMTP is configured in order to send invitation emails."
+          message="SMTP is not currently configured in Fleet. The &quot;Invite user&quot; features requires that SMTP is configured in order to send invitation emails. Users may also be added with &quot;fleetctl user create&quot;."
           onResolve={goToAppConfigPage}
           shouldShowWarning={!config.configured}
         />
