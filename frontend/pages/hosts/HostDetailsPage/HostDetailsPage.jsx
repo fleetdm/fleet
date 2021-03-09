@@ -147,8 +147,7 @@ export class HostDetailsPage extends Component {
     const { host } = this.props;
     const { labels = [] } = host;
 
-    const filteredLabels = labels.filter(label => label.name !== 'All Hosts');
-    const labelItems = filteredLabels.map((label) => {
+    const labelItems = labels.map((label) => {
       return (
         <li className="list__item" key={label.id}>
           <Button
