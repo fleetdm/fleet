@@ -280,11 +280,16 @@ func TestLabelQueries(t *testing.T) {
 	svc, err := newTestServiceWithClock(ds, nil, lq, mockClock)
 	require.Nil(t, err)
 
+	host := &kolide.Host{}
+
 	ds.LabelQueriesForHostFunc = func(host *kolide.Host, cutoff time.Time) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 	ds.DistributedQueriesForHostFunc = func(host *kolide.Host) (map[uint]string, error) {
 		return map[uint]string{}, nil
+	}
+	ds.HostFunc = func(id uint) (*kolide.Host, error) {
+		return host, nil
 	}
 	ds.SaveHostFunc = func(host *kolide.Host) error {
 		return nil
@@ -295,7 +300,6 @@ func TestLabelQueries(t *testing.T) {
 
 	lq.On("QueriesForHost", uint(0)).Return(map[string]string{}, nil)
 
-	host := &kolide.Host{}
 	ctx := hostctx.NewContext(context.Background(), *host)
 
 	// With a new host, we should get the detail queries (and accelerate
