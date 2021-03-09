@@ -253,7 +253,7 @@ func (man Manager) addConfigs() {
 	// Osquery
 	man.addConfigInt("osquery.node_key_size", 24,
 		"Size of generated osqueryd node keys")
-	man.addConfigString("osquery.host_identifier", "instance",
+	man.addConfigString("osquery.host_identifier", "provided",
 		"Identifier used to uniquely determine osquery clients")
 	man.addConfigString("osquery.status_log_plugin", "filesystem",
 		"Log plugin to use for status logs")
