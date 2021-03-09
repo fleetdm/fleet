@@ -1,8 +1,8 @@
 ## Fleet 3.9.0 (Mar 9, 2021)
 
-* Add configurable host identifier to alleviate problematic enrollment scenarios.
+* Add configurable host identifier to help with duplicate host enrollment scenarios. By default, Fleet's behavior does not change (it uses the identifier configured in osquery's `--host_identifier` flag), but for users with overlapping host UUIDs changing `--osquery_host_identifier` to `instance` may be helpful. 
 
-* Add configurable cool-down period for host enrollment to control load on the database in scenarios in which hosts are using the same identifier.
+* Make cool-down period for host enrollment configurable to control load on the database in scenarios in which hosts are using the same identifier. By default, the cooldown is off, reverting to the behavior of Fleet <=3.4.0. The cooldown can be enabled with `--osquery_enroll_cooldown`.
 
 * Refresh the Fleet UI with a new layout and horizontal navigation bar.
 
