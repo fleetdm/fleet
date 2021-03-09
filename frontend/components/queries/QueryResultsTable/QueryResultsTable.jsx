@@ -175,8 +175,6 @@ class QueryResultsTable extends Component {
     const { hosts_count: hostsCount, query_results: queryResults, errors } = campaign;
     const hasNoResults = !queryIsRunning && (!hostsCount.successful || (!queryResults || !queryResults.length));
     const hasErrors = !queryIsRunning && errors;
-    console.log(hasNoResults)
-    console.log(hasErrors)
 
     const resultsTableWrapClass = classnames(baseClass, {
       [`${baseClass}--full-screen`]: isQueryFullScreen,
