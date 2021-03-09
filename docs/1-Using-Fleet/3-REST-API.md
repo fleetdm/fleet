@@ -2378,7 +2378,7 @@ Runs the specified query as a live query on the specified hosts or group of host
 | Name       | Type    | In   | Description                                      |
 | ---------- | ------- | ---- | ------------------------------------------------ |
 | query   | string  | body | **Required.** The SQL of the query               |
-| selected   | object  | body | **Required.** The desired targets for the query. This object must contain `hosts` and `labels` properties. See example below     |
+| selected   | object  | body | **Required.** The desired targets for the query specified by ID. This object can contain `hosts` and/or `labels` properties. See examples below.     |
 
 #### Example with one host targeted by ID
 
@@ -2389,7 +2389,9 @@ Runs the specified query as a live query on the specified hosts or group of host
 ```
 {
   "query": "select instance_id from system_info;",
-  "selected": { "hosts": [171], "labels": []}
+  "selected": { 
+    "hosts": [171]
+  }
 }
 ```
 
@@ -2409,8 +2411,8 @@ Runs the specified query as a live query on the specified hosts or group of host
       "MissingInActionHosts": 0,
       "NewHosts": 1
     },
-    "id": 273,
-    "query_id": 293,
+    "id": 1,
+    "query_id": 3,
     "status": 0,
     "user_id": 1
   }
@@ -2426,7 +2428,9 @@ Runs the specified query as a live query on the specified hosts or group of host
 ```
 {
   "query": "select instance_id from system_info;",
-  "selected": { "hosts": [171], "labels": []}
+  "selected": { 
+    "labels": [7]
+  }
 }
 ```
 
@@ -2440,23 +2444,23 @@ Runs the specified query as a live query on the specified hosts or group of host
     "created_at": "0001-01-01T00:00:00Z",
     "updated_at": "0001-01-01T00:00:00Z",
     "Metrics": {
-      "TotalHosts": 1,
+      "TotalHosts": 102,
       "OnlineHosts": 0,
-      "OfflineHosts": 1,
+      "OfflineHosts": 24,
       "MissingInActionHosts": 0,
-      "NewHosts": 1
+      "NewHosts": 0
     },
-    "id": 273,
-    "query_id": 293,
+    "id": 2,
+    "query_id": 3,
     "status": 0,
     "user_id": 1
   }
 }
 ```
 
-### Run live query by query name
+### Run live query by name
 
-Runs the specified query by name as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label.
+Runs the specified query as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's hostname. Groups of hosts are specified by label name.
 
 `POST /api/v1/fleet/queries/run_by_names`
 
@@ -2465,9 +2469,9 @@ Runs the specified query by name as a live query on the specified hosts or group
 | Name       | Type    | In   | Description                                      |
 | ---------- | ------- | ---- | ------------------------------------------------ |
 | name   | string  | body | **Required.** The name of the query.             |
-| selected   | object  | body | **Required.** The desired targets for the query. This object must contain `hosts` and `labels` properties. See example below.     |
+| selected   | object  | body | **Required.** The desired targets for the query specified by name. This object can contain `hosts` and/or `labels` properties. See examples below.     |
 
-#### Example with one host targeted
+#### Example with one host targeted by hostname
 
 `POST /api/v1/fleet/queries/run_by_names`
 
@@ -2476,7 +2480,11 @@ Runs the specified query by name as a live query on the specified hosts or group
 ```
 {
   "name": "instance_id",
-  "selected": { "hosts": [171], "labels": [] }
+  "selected": { 
+    "hosts": [
+      "macbook-pro.local", 
+    ]
+  }
 }
 ```
 
@@ -2496,8 +2504,49 @@ Runs the specified query by name as a live query on the specified hosts or group
           "MissingInActionHosts": 0,
           "NewHosts": 1
       },
-      "id": 275,
-      "query_id": 295,
+      "id": 1,
+      "query_id": 3,
+      "status": 0,
+      "user_id": 1
+  }
+}
+```
+
+#### Example with multiple hosts targeted by label name
+
+`POST /api/v1/fleet/queries/run_by_names`
+
+##### Request body
+
+```
+{
+  "name": "instance_id",
+  "selected": { 
+    "labels": [
+      "All Hosts"
+    ]
+  }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "campaign": {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "Metrics": {
+          "TotalHosts": 102,
+          "OnlineHosts": 0,
+          "OfflineHosts": 24,
+          "MissingInActionHosts": 0,
+          "NewHosts": 1
+      },
+      "id": 2,
+      "query_id": 3,
       "status": 0,
       "user_id": 1
   }

@@ -275,11 +275,6 @@ spec:
   name: docker_processes
   description: The docker containers processes that are running on a system.
   query: select * from docker_container_processes;
-  support:
-    osquery: 2.9.0
-    platforms:
-      - linux
-      - darwin
 ```
 
 To define multiple queries in a file, concatenate multiple `query` resources together in a single file with `---`. For example, consider a file that you might store at `queries/osquery_monitoring.yml`:
@@ -291,9 +286,6 @@ spec:
   name: osquery_version
   description: The version of the Launcher and Osquery process
   query: select launcher.version, osquery.version from kolide_launcher_info launcher, osquery_info osquery;
-  support:
-    launcher: 0.3.0
-    osquery: 2.9.0
 ---
 apiVersion: v1
 kind: query
