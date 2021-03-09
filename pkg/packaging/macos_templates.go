@@ -37,12 +37,8 @@ ln -sf /var/lib/orbit/bin/orbit/macos/{{.OrbitChannel}}/orbit /var/lib/orbit/bin
 ln -sf /var/lib/orbit/bin/orbit/orbit /usr/local/bin/orbit
 
 {{ if .StartService -}}
-launchctl stop com.fleetdm.orbit
-
-sleep 3
-
 launchctl unload /Library/LaunchDaemons/com.fleetdm.orbit.plist
-launchctl load /Library/LaunchDaemons/com.fleetdm.orbit.plist
+launchctl load -w /Library/LaunchDaemons/com.fleetdm.orbit.plist
 {{- end }}
 `))
 
