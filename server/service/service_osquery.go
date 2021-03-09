@@ -365,9 +365,18 @@ var detailQueries = map[string]struct {
 			}
 
 			// If only link-local and loopback found, still use the first
-			// interface.
-			host.PrimaryIP = rows[0]["address"]
-			host.PrimaryMac = rows[0]["mac"]
+			// nonempty interface.
+			for _, row := range rows {
+				if row["address"] != "" {
+					host.PrimaryIP = row["address"]
+					host.PrimaryMac = row["mac"]
+					return nil
+				}
+			}
+
+			logger.Log("component", "service", "method", "IngestFunc", "err",
+				"found no nonempty network interfaces", "host", host.HostName)
+
 			return nil
 		},
 	},
