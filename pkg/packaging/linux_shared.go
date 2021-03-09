@@ -180,6 +180,7 @@ var envTemplate = template.Must(template.New("env").Parse(`
 {{ if .FleetURL }}ORBIT_FLEET_URL={{.FleetURL}}{{ end }}
 {{ if .FleetCertificate }}ORBIT_FLEET_CERTIFICATE=/var/lib/orbit/fleet.pem{{ end }}
 {{ if .EnrollSecret }}ORBIT_ENROLL_SECRET={{.EnrollSecret}}{{ end }}
+{{ if .Debug }}ORBIT_DEBUG=true{{ end }}
 `))
 
 func writeEnvFile(opt Options, rootPath string) error {

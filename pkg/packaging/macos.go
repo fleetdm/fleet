@@ -88,6 +88,7 @@ func BuildPkg(opt Options) error {
 	// }
 
 	// Build package
+
 	if err := xarBom(opt, tmpDir); err != nil {
 		return errors.Wrap(err, "build pkg")
 	}

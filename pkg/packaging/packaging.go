@@ -38,6 +38,8 @@ type Options struct {
 	OrbitChannel string
 	// OsqueryChannel is the update channel to use for Osquery.
 	OsqueryChannel string
+	// Debug determines whether to enable debug logging for the agent.
+	Debug bool
 }
 
 func copyFile(srcPath, dstPath string, perm os.FileMode) error {

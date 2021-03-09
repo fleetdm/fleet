@@ -77,12 +77,13 @@ func main() {
 			Destination: &opt.Notarize,
 		},
 		&cli.BoolFlag{
-			Name:  "debug",
-			Usage: "Enable debug logging",
+			Name:        "debug",
+			Usage:       "Enable debug logging",
+			Destination: &opt.Debug,
 		},
 	}
 	app.Before = func(c *cli.Context) error {
-		if c.Bool("debug") {
+		if opt.Debug {
 			zerolog.SetGlobalLevel(zerolog.DebugLevel)
 		}
 		return nil
