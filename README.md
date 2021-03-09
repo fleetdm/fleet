@@ -10,10 +10,11 @@ Orbit is Fleet's [osquery](https://github.com/osquery/osquery) runtime and autou
 | ------------------------------------ | ------ |
 | Secure autoupdate for osquery        | ✅     |
 | Secure autoupdate for Orbit          | ✅     |
+| Configurable update channels         | ✅     |
 | Full osquery flag customization      | ✅     |
 | Package tooling for macOS `.pkg`     | ✅     |
 | Package tooling for Linux `.deb`     | ✅     |
-| Package tooling for Linux `.rpm`     | 🔜     |
+| Package tooling for Linux `.rpm`     | ✅     |
 | Package tooling for Windows `.msi`   | 🔜     |
 | Manage/update osquery extensions     | 🔜     |
 | Manage cgroups for Linux performance | 🔜     |
