@@ -289,7 +289,7 @@ func (d *Datastore) GenerateHostStatusStatistics(now time.Time) (online, offline
 }
 
 // EnrollHost enrolls a host
-func (d *Datastore) EnrollHost(osqueryHostID, nodeKey, secretName string) (*kolide.Host, error) {
+func (d *Datastore) EnrollHost(osqueryHostID, nodeKey, secretName string, cooldown time.Duration) (*kolide.Host, error) {
 	if osqueryHostID == "" {
 		return nil, fmt.Errorf("missing osquery host identifier")
 	}
@@ -328,7 +328,7 @@ func (d *Datastore) EnrollHost(osqueryHostID, nodeKey, secretName string) (*koli
 			// Prevent hosts from enrolling too often with the same identifier.
 			// Prior to adding this we saw many hosts (probably VMs) with the
 			// same identifier competing for enrollment and causing perf issues.
-			if time.Since(host.LastEnrollTime) < kolide.HostEnrollCooldown {
+			if cooldown > 0 && time.Since(host.LastEnrollTime) < cooldown {
 				return backoff.Permanent(fmt.Errorf("host identified by %s enrolling too often", osqueryHostID))
 			}
 			id = int64(host.ID)

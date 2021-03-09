@@ -80,6 +80,8 @@ type SessionConfig struct {
 // OsqueryConfig defines configs related to osquery
 type OsqueryConfig struct {
 	NodeKeySize          int           `yaml:"node_key_size"`
+	HostIdentifier       string        `yaml:"host_identifier"`
+	EnrollCooldown       time.Duration `yaml:"enroll_cooldown"`
 	StatusLogPlugin      string        `yaml:"status_log_plugin"`
 	ResultLogPlugin      string        `yaml:"result_log_plugin"`
 	LabelUpdateInterval  time.Duration `yaml:"label_update_interval"`
@@ -252,6 +254,10 @@ func (man Manager) addConfigs() {
 	// Osquery
 	man.addConfigInt("osquery.node_key_size", 24,
 		"Size of generated osqueryd node keys")
+	man.addConfigString("osquery.host_identifier", "provided",
+		"Identifier used to uniquely determine osquery clients")
+	man.addConfigDuration("osquery.enroll_cooldown", 0,
+		"Cooldown period for duplicate host enrollment (default off)")
 	man.addConfigString("osquery.status_log_plugin", "filesystem",
 		"Log plugin to use for status logs")
 	man.addConfigString("osquery.result_log_plugin", "filesystem",
@@ -406,6 +412,8 @@ func (man Manager) LoadConfig() KolideConfig {
 		},
 		Osquery: OsqueryConfig{
 			NodeKeySize:          man.getConfigInt("osquery.node_key_size"),
+			HostIdentifier:       man.getConfigString("osquery.host_identifier"),
+			EnrollCooldown:       man.getConfigDuration("osquery.enroll_cooldown"),
 			StatusLogPlugin:      man.getConfigString("osquery.status_log_plugin"),
 			ResultLogPlugin:      man.getConfigString("osquery.result_log_plugin"),
 			StatusLogFile:        man.getConfigString("osquery.status_log_file"),
@@ -676,6 +684,8 @@ func TestConfig() KolideConfig {
 		},
 		Osquery: OsqueryConfig{
 			NodeKeySize:          24,
+			HostIdentifier:       "instance",
+			EnrollCooldown:       42 * time.Minute,
 			StatusLogPlugin:      "filesystem",
 			ResultLogPlugin:      "filesystem",
 			LabelUpdateInterval:  1 * time.Hour,

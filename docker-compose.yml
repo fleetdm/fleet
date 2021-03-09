@@ -29,7 +29,7 @@ services:
       - "1025:1025"
 
   redis:
-    image: redis:3.2.4
+    image: redis:5
     ports:
       - "6379:6379"
 

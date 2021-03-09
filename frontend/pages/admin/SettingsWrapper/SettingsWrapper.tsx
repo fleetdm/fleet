@@ -32,7 +32,7 @@ interface ISettingsWrapperProp {
   }
 }
 
-const getDefaultTabIndex = (path: string): number => {
+const getTabIndex = (path: string): number => {
   return settingsSubNav.findIndex((navItem) => {
     return navItem.pathname.includes(path);
   });
@@ -53,12 +53,12 @@ const SettingsWrapper = (props: ISettingsWrapperProp): JSX.Element => {
     <div className={baseClass}>
       <div className={`${baseClass}__nav-header`}>
         <h1>Settings</h1>
-        <Tabs defaultIndex={getDefaultTabIndex(pathname)} onSelect={i => navigateToNav(i)}>
+        <Tabs selectedIndex={getTabIndex(pathname)} onSelect={i => navigateToNav(i)}>
           <TabList>
             {settingsSubNav.map((navItem) => {
               // Bolding text when the tab is active causes a layout shift
               // so we add a hidden pseudo element with the same text string
-              return <Tab data-text={navItem.name}>{navItem.name}</Tab>;
+              return <Tab key={navItem.name} data-text={navItem.name}>{navItem.name}</Tab>;
             })}
           </TabList>
         </Tabs>

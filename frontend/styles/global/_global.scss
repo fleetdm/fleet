@@ -62,6 +62,7 @@ a {
     .has-sidebar & {
       margin-right: 0;
       min-width: 610px;
+      max-width: calc(100vw - #{$pad-body} - #{$pad-body} - #{$pad-borders} - #{$sidepanel-width});
     }
   }
 }

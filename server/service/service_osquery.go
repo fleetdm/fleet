@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/pubsub"
 	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 )
@@ -89,7 +90,9 @@ func (svc service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 		}
 	}
 
-	host, err := svc.ds.EnrollHost(hostIdentifier, nodeKey, secretName)
+	hostIdentifier = getHostIdentifier(svc.logger, svc.config.Osquery.HostIdentifier, hostIdentifier, hostDetails)
+
+	host, err := svc.ds.EnrollHost(hostIdentifier, nodeKey, secretName, svc.config.Osquery.EnrollCooldown)
 	if err != nil {
 		return "", osqueryError{message: "save enroll failed: " + err.Error(), nodeInvalid: true}
 	}
@@ -115,6 +118,73 @@ func (svc service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 	}
 
 	return host.NodeKey, nil
+}
+
+func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier string, details map[string](map[string]string)) string {
+	switch identifierOption {
+	case "provided":
+		// Use the host identifier already provided in the request.
+		return providedIdentifier
+
+	case "instance":
+		r, ok := details["osquery_info"]
+		if !ok {
+			level.Info(logger).Log(
+				"msg", "could not get host identifier",
+				"reason", "missing osquery_info",
+				"identifier", "instance",
+			)
+		} else if r["instance_id"] == "" {
+			level.Info(logger).Log(
+				"msg", "could not get host identifier",
+				"reason", "missing instance_id in osquery_info",
+				"identifier", "instance",
+			)
+		} else {
+			return r["instance_id"]
+		}
+
+	case "uuid":
+		r, ok := details["osquery_info"]
+		if !ok {
+			level.Info(logger).Log(
+				"msg", "could not get host identifier",
+				"reason", "missing osquery_info",
+				"identifier", "uuid",
+			)
+		} else if r["uuid"] == "" {
+			level.Info(logger).Log(
+				"msg", "could not get host identifier",
+				"reason", "missing instance_id in osquery_info",
+				"identifier", "uuid",
+			)
+		} else {
+			return r["uuid"]
+		}
+
+	case "hostname":
+		r, ok := details["system_info"]
+		if !ok {
+			level.Info(logger).Log(
+				"msg", "could not get host identifier",
+				"reason", "missing system_info",
+				"identifier", "hostname",
+			)
+		} else if r["hostname"] == "" {
+			level.Info(logger).Log(
+				"msg", "could not get host identifier",
+				"reason", "missing instance_id in system_info",
+				"identifier", "hostname",
+			)
+		} else {
+			return r["hostname"]
+		}
+
+	default:
+		panic("Unknown option for host_identifier: " + identifierOption)
+	}
+
+	return providedIdentifier
 }
 
 func (svc service) GetClientConfig(ctx context.Context) (map[string]interface{}, error) {
