@@ -99,4 +99,14 @@
       }
     }
   }
+
+  &__modal-buttons {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+
+    .button:first-child {
+      margin-right: $pad-base;
+    }
+  }
 }
