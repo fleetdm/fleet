@@ -1,3 +1,15 @@
+## Fleet 3.9.0 (Mar 9, 2021)
+
+* Add configurable host identifier to alleviate problematic enrollment scenarios.
+
+* Add configurable cool-down period for host enrollment to control load on the database in scenarios in which hosts are using the same identifier.
+
+* Refresh the Fleet UI with a new layout and horizontal navigation bar.
+
+* Improve handling of config_refresh values from osquery clients.
+
+* Fix an issue with IP addresses and host additional info dropping.
+
 ## Fleet 3.8.0 (Feb 25, 2021)
 
 * Add search, sort, and column selection in the hosts dashboard.
