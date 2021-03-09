@@ -13,6 +13,10 @@ func FleetFlags(fleetURL *url.URL) []string {
 		"--enroll_tls_endpoint=" + path.Join(prefix, "/api/v1/osquery/enroll"),
 		"--config_plugin=tls",
 		"--config_tls_endpoint=" + path.Join(prefix, "/api/v1/osquery/config"),
+		// Osquery defaults config_refresh to 0 which is probably not ideal for
+		// a client connected to Fleet. Users can always override this in the
+		// config they serve via Fleet.
+		"--config_refresh=60",
 		"--disable_distributed=false",
 		"--distributed_plugin=tls",
 		"--distributed_tls_max_attempts=10",
