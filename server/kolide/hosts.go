@@ -33,12 +33,6 @@ const (
 	// online interval to avoid flapping of hosts that check in a bit later
 	// than their expected checkin interval.
 	OnlineIntervalBuffer = 30
-
-	// HostEnrollCooldown is how often a host can enroll. Users sometimes deploy
-	// osquery in a configuration in which multiple hosts use the same host
-	// identifier and Fleet needs to have a cooldown period to prevent this from
-	// cascading into out of control host enrollment.
-	HostEnrollCooldown = 1 * time.Minute
 )
 
 type HostStore interface {
@@ -50,8 +44,9 @@ type HostStore interface {
 	Host(id uint) (*Host, error)
 	// EnrollHost will enroll a new host with the given identifier, setting the
 	// node key, and enroll secret used for the host. Implementations of this
-	// method should respect HostEnrollCooldown.
-	EnrollHost(osqueryHostId, nodeKey, secretName string) (*Host, error)
+	// method should respect the provided host enrollment cooldown, by returning
+	// an error if the host has enrolled within the cooldown period.
+	EnrollHost(osqueryHostId, nodeKey, secretName string, cooldown time.Duration) (*Host, error)
 	ListHosts(opt HostListOptions) ([]*Host, error)
 	// AuthenticateHost authenticates and returns host metadata by node key.
 	// This method should not return the host "additional" information as this

@@ -157,7 +157,7 @@ func (d *Datastore) GenerateHostStatusStatistics(now time.Time) (online, offline
 	return online, offline, mia, new, nil
 }
 
-func (d *Datastore) EnrollHost(osQueryHostID, nodeKey, secretName string) (*kolide.Host, error) {
+func (d *Datastore) EnrollHost(osQueryHostID, nodeKey, secretName string, cooldown time.Duration) (*kolide.Host, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 

@@ -36,7 +36,7 @@ func TestEnrollAgent(t *testing.T) {
 			return "", errors.New("not found")
 		}
 	}
-	ds.EnrollHostFunc = func(osqueryHostId, nodeKey, secretName string) (*kolide.Host, error) {
+	ds.EnrollHostFunc = func(osqueryHostId, nodeKey, secretName string, cooldown time.Duration) (*kolide.Host, error) {
 		return &kolide.Host{
 			OsqueryHostID: osqueryHostId, NodeKey: nodeKey, EnrollSecretName: secretName,
 		}, nil
@@ -74,7 +74,7 @@ func TestEnrollAgentDetails(t *testing.T) {
 	ds.VerifyEnrollSecretFunc = func(secret string) (string, error) {
 		return "valid", nil
 	}
-	ds.EnrollHostFunc = func(osqueryHostId, nodeKey, secretName string) (*kolide.Host, error) {
+	ds.EnrollHostFunc = func(osqueryHostId, nodeKey, secretName string, cooldown time.Duration) (*kolide.Host, error) {
 		return &kolide.Host{
 			OsqueryHostID: osqueryHostId, NodeKey: nodeKey, EnrollSecretName: secretName,
 		}, nil
