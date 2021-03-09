@@ -109,6 +109,16 @@ the way that the Fleet server works.
 				config.Filesystem.EnableLogRotation = config.Osquery.EnableLogRotation
 			}
 
+			allowedHostIdentifiers := map[string]bool{
+				"provided": true,
+				"instance": true,
+				"uuid":     true,
+				"hostname": true,
+			}
+			if !allowedHostIdentifiers[config.Osquery.HostIdentifier] {
+				initFatal(errors.Errorf("%s is not a valid value for osquery_host_identifier", config.Osquery.HostIdentifier), "set host identifier")
+			}
+
 			if len(config.Server.URLPrefix) > 0 {
 				// Massage provided prefix to match expected format
 				config.Server.URLPrefix = strings.TrimSuffix(config.Server.URLPrefix, "/")

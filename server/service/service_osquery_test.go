@@ -1531,3 +1531,76 @@ func TestAuthenticationErrors(t *testing.T) {
 	require.NotNil(t, err)
 	require.False(t, err.(osqueryError).NodeInvalid())
 }
+
+func TestGetHostIdentifier(t *testing.T) {
+	t.Parallel()
+
+	details := map[string](map[string]string){
+		"osquery_info": map[string]string{
+			"uuid":        "foouuid",
+			"instance_id": "fooinstance",
+		},
+		"system_info": map[string]string{
+			"hostname": "foohost",
+		},
+	}
+
+	emptyDetails := map[string](map[string]string){
+		"osquery_info": map[string]string{
+			"uuid":        "",
+			"instance_id": "",
+		},
+		"system_info": map[string]string{
+			"hostname": "",
+		},
+	}
+
+	testCases := []struct {
+		identifierOption   string
+		providedIdentifier string
+		details            map[string](map[string]string)
+		expected           string
+		shouldPanic        bool
+	}{
+		// Panix
+		{identifierOption: "bad", shouldPanic: true},
+		{identifierOption: "", shouldPanic: true},
+
+		// Missing details
+		{identifierOption: "instance", providedIdentifier: "foobar", expected: "foobar"},
+		{identifierOption: "uuid", providedIdentifier: "foobar", expected: "foobar"},
+		{identifierOption: "hostname", providedIdentifier: "foobar", expected: "foobar"},
+		{identifierOption: "provided", providedIdentifier: "foobar", expected: "foobar"},
+
+		// Empty details
+		{identifierOption: "instance", providedIdentifier: "foobar", details: emptyDetails, expected: "foobar"},
+		{identifierOption: "uuid", providedIdentifier: "foobar", details: emptyDetails, expected: "foobar"},
+		{identifierOption: "hostname", providedIdentifier: "foobar", details: emptyDetails, expected: "foobar"},
+		{identifierOption: "provided", providedIdentifier: "foobar", details: emptyDetails, expected: "foobar"},
+
+		// Successes
+		{identifierOption: "instance", providedIdentifier: "foobar", details: details, expected: "fooinstance"},
+		{identifierOption: "uuid", providedIdentifier: "foobar", details: details, expected: "foouuid"},
+		{identifierOption: "hostname", providedIdentifier: "foobar", details: details, expected: "foohost"},
+		{identifierOption: "provided", providedIdentifier: "foobar", details: details, expected: "foobar"},
+	}
+	logger := log.NewNopLogger()
+
+	for _, tt := range testCases {
+		t.Run("", func(t *testing.T) {
+			if tt.shouldPanic {
+				assert.Panics(
+					t,
+					func() { getHostIdentifier(logger, tt.identifierOption, tt.providedIdentifier, tt.details) },
+				)
+				return
+			}
+
+			assert.Equal(
+				t,
+				tt.expected,
+				getHostIdentifier(logger, tt.identifierOption, tt.providedIdentifier, tt.details),
+			)
+		})
+	}
+}
