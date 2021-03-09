@@ -6,6 +6,8 @@
 
 * Refresh the Fleet UI with a new layout and horizontal navigation bar.
 
+* Trim down the size of Fleet binaries.
+
 * Improve handling of config_refresh values from osquery clients.
 
 * Fix an issue with IP addresses and host additional info dropping.
