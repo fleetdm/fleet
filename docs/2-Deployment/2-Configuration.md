@@ -550,7 +550,9 @@ The identifier to use when determining uniqueness of hosts.
 
 Options are `instance` (default), `uuid`, `hostname`, or `provided`.
 
-This setting works in combination with the `--host_identifier` flag in osquery. In most deployments, using `instance` will be the best option. The flag defaults to `provided` -- preserving the existing behavior of Fleet's handling of host identifiers -- using the identifier provided by osquery. `instance`, `uuid`, and `hostname` correspond to the same meanings as for osquery's `--host_identifier` flag. 
+This setting works in combination with the `--host_identifier` flag in osquery. In most deployments, using `instance` will be the best option. The flag defaults to `provided` -- preserving the existing behavior of Fleet's handling of host identifiers -- using the identifier provided by osquery. `instance`, `uuid`, and `hostname` correspond to the same meanings as for osquery's `--host_identifier` flag.
+
+Users that have duplicate UUIDs in their environment can benefit from setting this flag to `instance`.
 
 - Default value: `provided`
 - Environment variable:	`FLEET_OSQUERY_HOST_IDENTIFIER`
@@ -559,6 +561,21 @@ This setting works in combination with the `--host_identifier` flag in osquery. 
 	```
 	osquery:
 		host_identifier: uuid
+	```
+
+###### `osquery_enroll_cooldown`
+
+The cooldown period for host enrollment. If a host (uniquely identified by the `osquery_host_identifier` option) tries to enroll within this duration from the last enrollment, enroll will fail.
+
+This flag can be used to control load on the database in scenarios in which many hosts are using the same identifier. Often configuring `osquery_host_identifier` to `instance` may be a better solution.
+
+- Default value: `0` (off)
+- Environment variable: `FLEET_ENROLL_COOLDOWN`
+- Config file format:
+
+	```
+	osquery:
+		enroll_cooldown: 1m
 	```
 
 ###### `osquery_label_update_interval`

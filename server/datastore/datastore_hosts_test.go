@@ -295,15 +295,19 @@ func testEnrollHost(t *testing.T, ds kolide.Datastore) {
 	test.AddAllHostsLabel(t, ds)
 	enrollSecretName := "default"
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, enrollSecretName)
+		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, enrollSecretName, 0)
 		require.Nil(t, err)
 
 		assert.Equal(t, tt.uuid, h.OsqueryHostID)
 		assert.Equal(t, tt.nodeKey, h.NodeKey)
 		assert.Equal(t, enrollSecretName, h.EnrollSecretName)
 
-		// This host should not be allowed to re-enroll immediately
-		_, err = ds.EnrollHost(tt.uuid, tt.nodeKey+"new", enrollSecretName+"new")
+		// This host should be allowed to re-enroll immediately if cooldown is disabled
+		_, err = ds.EnrollHost(tt.uuid, tt.nodeKey+"new", enrollSecretName+"new", 0)
+		require.NoError(t, err)
+
+		// This host should not be allowed to re-enroll immediately if cooldown is enabled
+		_, err = ds.EnrollHost(tt.uuid, tt.nodeKey+"new", enrollSecretName+"new", 10*time.Second)
 		require.Error(t, err)
 	}
 }
@@ -311,7 +315,7 @@ func testEnrollHost(t *testing.T, ds kolide.Datastore) {
 func testAuthenticateHost(t *testing.T, ds kolide.Datastore) {
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, "default")
+		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, "default", 0)
 		require.Nil(t, err)
 
 		returned, err := ds.AuthenticateHost(h.NodeKey)
@@ -329,7 +333,7 @@ func testAuthenticateHost(t *testing.T, ds kolide.Datastore) {
 func testAuthenticateHostCaseSensitive(t *testing.T, ds kolide.Datastore) {
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, "default")
+		h, err := ds.EnrollHost(tt.uuid, tt.nodeKey, "default", 0)
 		require.Nil(t, err)
 
 		_, err = ds.AuthenticateHost(strings.ToUpper(h.NodeKey))
