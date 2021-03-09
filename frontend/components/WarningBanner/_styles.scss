@@ -5,7 +5,8 @@
   background-color: $warning;
   color: $black;
   padding: 15px 20px;
-  border-radius: 2px;
+  border-radius: $border-radius;
+  border: 1px solid $warning-border;
   font-size: 15px;
   margin: 0 0 25px;
 
