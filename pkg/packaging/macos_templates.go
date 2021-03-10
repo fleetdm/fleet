@@ -65,6 +65,7 @@ var macosLaunchdTemplate = template.Must(template.New("").Option("missingkey=err
     <string>/var/log/orbit/orbit.stderr.log</string>
     <key>EnvironmentVariables</key>
     <dict>
+      <key>ORBIT_UPDATE_URL</key><string>{{ .UpdateURL }}</string>
       <key>ORBIT_ORBIT_CHANNEL</key><string>{{ .OrbitChannel }}</string>
       <key>ORBIT_OSQUERYD_CHANNEL</key><string>{{ .OsquerydChannel }}</string>
       {{ if .Insecure }}<key>ORBIT_INSECURE</key><string>true</string>{{ end }}

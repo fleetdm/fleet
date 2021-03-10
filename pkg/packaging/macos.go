@@ -45,9 +45,7 @@ func BuildPkg(opt Options) error {
 	updateOpt.RootDirectory = orbitRoot
 	updateOpt.OrbitChannel = opt.OrbitChannel
 	updateOpt.OsquerydChannel = opt.OsquerydChannel
-
-	// TODO these should be configurable
-	updateOpt.ServerURL = "https://tuf.fleetctl.com"
+	updateOpt.ServerURL = opt.UpdateURL
 
 	if err := initializeUpdates(updateOpt); err != nil {
 		return errors.Wrap(err, "initialize updates")

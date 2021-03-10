@@ -88,6 +88,12 @@ func main() {
 			Value:       "stable",
 			Destination: &opt.OrbitChannel,
 		},
+		&cli.StringFlag{
+			Name:        "update-url",
+			Usage:       "URL for update server",
+			Value:       "https://tuf.fleetctl.com",
+			Destination: &opt.UpdateURL,
+		},
 		&cli.BoolFlag{
 			Name:        "debug",
 			Usage:       "Enable debug logging",

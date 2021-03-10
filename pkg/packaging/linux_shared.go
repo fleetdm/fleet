@@ -41,9 +41,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) error {
 	updateOpt.RootDirectory = orbitRoot
 	updateOpt.OrbitChannel = opt.OrbitChannel
 	updateOpt.OsquerydChannel = opt.OsquerydChannel
-
-	// TODO these should be configurable
-	updateOpt.ServerURL = "https://tuf.fleetctl.com"
+	updateOpt.ServerURL = opt.UpdateURL
 
 	if err := initializeUpdates(updateOpt); err != nil {
 		return errors.Wrap(err, "initialize updates")
@@ -176,6 +174,7 @@ WantedBy=multi-user.target
 }
 
 var envTemplate = template.Must(template.New("env").Parse(`
+ORBIT_UPDATE_URL={{ .UpdateURL }}
 ORBIT_ORBIT_CHANNEL={{ .OrbitChannel }}
 ORBIT_OSQUERYD_CHANNEL={{ .OsquerydChannel }}
 {{ if .Insecure }}ORBIT_INSECURE=true{{ end }}

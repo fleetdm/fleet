@@ -38,6 +38,8 @@ type Options struct {
 	OrbitChannel string
 	// OsquerydChannel is the update channel to use for Osquery (osqueryd).
 	OsquerydChannel string
+	// UpdateURL is the base URL of the update server (TUF repository).
+	UpdateURL string
 	// Debug determines whether to enable debug logging for the agent.
 	Debug bool
 }

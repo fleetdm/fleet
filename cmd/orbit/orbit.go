@@ -26,7 +26,6 @@ import (
 )
 
 const (
-	tufURL         = "https://tuf.fleetctl.com"
 	certPath       = "/tmp/fleet.pem"
 	defaultRootDir = "/var/lib/orbit"
 )
@@ -66,10 +65,10 @@ func main() {
 			EnvVars: []string{"ORBIT_FLEET_CERTIFICATE"},
 		},
 		&cli.StringFlag{
-			Name:    "tuf-url",
-			Usage:   "URL of TUF update server",
-			Value:   tufURL,
-			EnvVars: []string{"ORBIT_TUF_URL"},
+			Name:    "update-url",
+			Usage:   "URL for update server",
+			Value:   "https://tuf.fleetctl.com",
+			EnvVars: []string{"ORBIT_UPDATE_URL"},
 		},
 		&cli.StringFlag{
 			Name:    "enroll-secret",
