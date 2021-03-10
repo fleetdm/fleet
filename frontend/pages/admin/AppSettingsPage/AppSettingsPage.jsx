@@ -55,13 +55,25 @@ class AppSettingsPage extends Component {
     return (
       <div className={`${baseClass} body-wrap`}>
         <p className={`${baseClass}__page-description`}>Set your organization information, Configure SAML and SMTP, and view host enroll secrets.</p>
-        <AppConfigForm
-          formData={formData}
-          handleSubmit={onFormSubmit}
-          serverErrors={error}
-          smtpConfigured={smtpConfigured}
-          enrollSecret={enrollSecret}
-        />
+        <div className={`${baseClass}__settings-form`}>
+          <nav>
+            <ul className={`${baseClass}__form-nav-list`}>
+              <li><a href="#organization-info">Organization info</a></li>
+              <li><a href="#fleet-web-address">Fleet web address</a></li>
+              <li><a href="#saml">SAML single sign on options</a></li>
+              <li><a href="#smtp">SMTP options</a></li>
+              <li><a href="#osquery-enrollment-secrets">Osquery enrollment secrets</a></li>
+              <li><a href="#advanced-options">Advanced options</a></li>
+            </ul>
+          </nav>
+          <AppConfigForm
+            formData={formData}
+            handleSubmit={onFormSubmit}
+            serverErrors={error}
+            smtpConfigured={smtpConfigured}
+            enrollSecret={enrollSecret}
+          />
+        </div>
       </div>
     );
   }

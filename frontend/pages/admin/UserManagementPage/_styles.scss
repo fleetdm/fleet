@@ -1,11 +1,11 @@
 .user-management {
-  min-height: 90vh;
   padding: 30px;
 
   &__page-description {
     font-size: $x-small;
     color: $core-dark-blue-grey;
-    margin: 40px 0 20px 0;
+    @include sticky-settings-description;
+    padding-bottom: $pad-medium;
   }
 
   &__wrapper {
@@ -61,7 +61,6 @@
 
   &__heading-wrapper {
     width: 100%;
-    margin-bottom: 10px;
   }
 
   &__smtp-warning-wrapper {

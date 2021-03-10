@@ -32,9 +32,9 @@ export class AuthenticatedAdminRoutes extends Component {
     }
 
     return (
-      <div>
+      <>
         {children}
-      </div>
+      </>
     );
   }
 }

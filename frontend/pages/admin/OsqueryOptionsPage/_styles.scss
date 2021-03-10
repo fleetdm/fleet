@@ -10,7 +10,8 @@
   &__page-description {
     font-size: $x-small;
     color: $core-dark-blue-grey;
-    margin: 40px 0 16px 0;
+    @include sticky-settings-description;
+    padding-bottom: $pad-medium;
   }
 
   &__info-banner {

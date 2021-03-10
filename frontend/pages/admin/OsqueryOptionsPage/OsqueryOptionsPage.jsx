@@ -63,26 +63,24 @@ export class OsqueryOptionsPage extends Component {
     const { onSaveOsqueryOptionsFormSubmit } = this;
 
     return (
-      <div className={`${baseClass}__page-wrap`}>
-        <div className={`${baseClass} body-wrap`}>
-          <p className={`${baseClass}__page-description`}>This file describes options returned to osquery when it checks for configuration.</p>
-          <div className={`${baseClass}__info-banner`}>
-            <p>See Fleet documentation for an example file that includes the overrides option.</p>
-            <a
-              href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Go to Fleet docs
-              <img src={OpenNewTabIcon} alt="open new tab" />
-            </a>
-          </div>
-          <div className={`${baseClass}__form-wrapper`}>
-            <OsqueryOptionsForm
-              formData={formData}
-              handleSubmit={onSaveOsqueryOptionsFormSubmit}
-            />
-          </div>
+      <div className={`${baseClass} body-wrap`}>
+        <p className={`${baseClass}__page-description`}>This file describes options returned to osquery when it checks for configuration.</p>
+        <div className={`${baseClass}__info-banner`}>
+          <p>See Fleet documentation for an example file that includes the overrides option.</p>
+          <a
+            href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Go to Fleet docs
+            <img src={OpenNewTabIcon} alt="open new tab" />
+          </a>
+        </div>
+        <div className={`${baseClass}__form-wrapper`}>
+          <OsqueryOptionsForm
+            formData={formData}
+            handleSubmit={onSaveOsqueryOptionsFormSubmit}
+          />
         </div>
       </div>
     );
