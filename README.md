@@ -4,6 +4,21 @@
 
 Orbit is Fleet's [osquery](https://github.com/osquery/osquery) runtime and autoupdater. With Orbit, it's easy to deploy osquery, manage configurations, and stay up to date. Orbit eases the deployment of osquery connected with a [Fleet server](https://github.com/fleetdm/fleet), and is a (near) drop-in replacement for osquery in a variety of deployment scenarios.
 
+## Try Orbit
+
+#### With [`fleetctl preview` already running](https://github.com/fleetdm/fleet) and [Go](https://golang.org/doc/install) installed:
+
+```bash
+# From within the top-level directory of this repo…
+# Generate a macOS installer pointed at your local Fleet
+go run ./cmd/package --type=pkg --fleet-url=localhost:8412 --insecure --enroll-secret=YOUR_FLEET_ENROLL_SECRET_HERE
+```
+
+An installer configured to point at your Fleet instance has now been generated.
+
+Now run that installer (double click, on a Mac) to enroll your own computer as a host in Fleet.  In Fleet, after several seconds, you should now see your local computer as a new host.
+
+
 ## Capabilities
 
 | Capability                           | Status |
@@ -98,10 +113,10 @@ Configure osquery to connect to a Fleet (or other TLS) server with the `--fleet-
 A minimal invocation for communicating with Fleet:
 
 ``` sh
-go run ./cmd/package --type deb --fleet-url=test.fleetdm.com --enroll-secret=notsosecret
+go run ./cmd/package --type deb --fleet-url=fleet.example.com --enroll-secret=notsosecret
 ```
 
-This will build a `.deb` package configured to communicate with a Fleet server at `test.fleetdm.com` using the enroll secret `notsosecret`.
+This will build a `.deb` package configured to communicate with a Fleet server at `fleet.example.com` using the enroll secret `notsosecret`.
 
 When the Fleet server uses a self-signed (or otherwise invalid) TLS certificate, package with the `--insecure` or `--fleet-certificate` options.
 
@@ -132,7 +147,7 @@ For Notarization, valid App Store Connect credentials must be available on the b
 Build a signed and notarized macOS package with an invocation like the following:
 
 ``` sh
-AC_USERNAME=zach@fleetdm.com AC_PASSWORD=llpk-sije-kjlz-jdzw go run ./cmd/package --type pkg --fleet-url=test.fleetdm.com --enroll-secret=63SBzTT+2UyW --sign-identity 3D7260BF99539C6E80A94835A8921A988F4E6498 --notarize
+AC_USERNAME=zach@fleetdm.com AC_PASSWORD=llpk-sije-kjlz-jdzw go run ./cmd/package --type pkg --fleet-url=fleet.example.com --enroll-secret=63SBzTT+2UyW --sign-identity 3D7260BF99539C6E80A94835A8921A988F4E6498 --notarize
 ```
 
 This process may take several minutes to complete as the Notarization process completes on Apple's servers.
