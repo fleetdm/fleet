@@ -75,7 +75,69 @@ orbit -- --flagfile=flags.txt
 
 ## Packaging
 
-TODO
+Orbit, like standalone osquery, is typically deployed via OS-specific packages. Tooling is provided with this repository to generate installation packages.
+
+### Packaging support
+
+- **macOS** - `.pkg` package generation with (optional) [Notarization](https://developer.apple.com/documentation/xcode/notarizing_macos_software_before_distribution) - Persistence via `launchd`.
+
+- **Linux** - `.deb` (Debian, Ubuntu, etc.) & `.rpm` (RHEL, CentOS, etc.) package generation - Persistence via `systemd`.
+
+- **Windows** (coming soon) - `.msi` package generation - Persistence via Services.
+
+### Building packages
+
+Before building packages, clone or download this repository and [install Go](https://golang.org/doc/install).
+
+Use `go run ./cmd/package` from this directory to run the packaging tools.
+
+The only required parameter is `--type`, use one of `deb`, `rpm`, or `pkg` (`msi` coming soon).
+
+Configure osquery to connect to a Fleet (or other TLS) server with the `--fleet-url` and `--enroll-secret` flags.
+
+A minimal invocation for communicating with Fleet:
+
+``` sh
+go run ./cmd/package --type deb --fleet-url=test.fleetdm.com --enroll-secret=notsosecret
+```
+
+This will build a `.deb` package configured to communicate with a Fleet server at `test.fleetdm.com` using the enroll secret `notsosecret`.
+
+When the Fleet server uses a self-signed (or otherwise invalid) TLS certificate, package with the `--insecure` or `--fleet-certificate` options.
+
+See `go run ./cmd/package` for the full range of packaging options.
+
+#### Update channels
+
+Orbit uses the concept of "update channels" to determine the version of Orbit, osquery, and any extensions (extension support coming soon) to run. This concept is modeled from the common versioning convention for Docker containers.
+
+Configure update channels for Orbit and osqueryd with the `--orbit-channel` and `--osqueryd-channel` flags when packaging.
+
+| Channel                              | Versions |
+| ------------------------------------ | ------   |
+| `4`                                  | 4.x.x    |
+| `4.6`                                | 4.6.x    |
+| `4.6.0`                              | 4.6.0    |
+
+Additionally `stable` and `edge` are special channel names. `stable` will always return the version Fleet deems to be stable, while `edge` will provide newer releases for beta testing.
+
+#### macOS signing & Notarization
+
+Orbit's packager can automate the codesigning and Notarization steps to allow the resulting package to generate packages that appear "trusted" when install on macOS hosts. Signing & notarization are supported only on macOS hosts.
+
+For signing, a "Developer ID Installer" certificate must be available on the build machine ([generation instructions](https://help.apple.com/xcode/mac/current/#/dev154b28f09)). Use `security find-identity -v` to verify the existence of this certificate and make note of the identifier provided in the left column.
+
+For Notarization, valid App Store Connect credentials must be available on the build machine. Set these in the environment variables `AC_USERNAME` and `AC_PASSWORD`. It is common to configure this via [app-specific passwords](https://support.apple.com/en-ca/HT204397).
+
+Build a signed and notarized macOS package with an invocation like the following:
+
+``` sh
+AC_USERNAME=zach@fleetdm.com AC_PASSWORD=llpk-sije-kjlz-jdzw go run ./cmd/package --type pkg --fleet-url=test.fleetdm.com --enroll-secret=63SBzTT+2UyW --sign-identity 3D7260BF99539C6E80A94835A8921A988F4E6498 --notarize
+```
+
+This process may take several minutes to complete as the Notarization process completes on Apple's servers.
+
+After successful notarization, the generated "ticket" is automatically stapled to the package. 
 
 ## FAQs
 
