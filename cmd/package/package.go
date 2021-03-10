@@ -76,6 +76,18 @@ func main() {
 			Usage:       "Whether to notarize macOS packages",
 			Destination: &opt.Notarize,
 		},
+		&cli.StringFlag{
+			Name:        "osqueryd-channel",
+			Usage:       "Update channel of osqueryd to use",
+			Value:       "stable",
+			Destination: &opt.OsquerydChannel,
+		},
+		&cli.StringFlag{
+			Name:        "orbit-channel",
+			Usage:       "Update channel of Orbit to use",
+			Value:       "stable",
+			Destination: &opt.OrbitChannel,
+		},
 		&cli.BoolFlag{
 			Name:        "debug",
 			Usage:       "Enable debug logging",
@@ -98,10 +110,6 @@ func main() {
 		if opt.Insecure && opt.FleetCertificate != "" {
 			return errors.New("--insecure and --fleet-certificate may not be provided together")
 		}
-
-		// TODO take these from flags
-		opt.OrbitChannel = "stable"
-		opt.OsqueryChannel = "stable"
 
 		switch c.String("type") {
 		case "pkg":

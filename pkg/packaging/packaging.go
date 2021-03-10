@@ -36,8 +36,8 @@ type Options struct {
 	FleetCertificate string
 	// OrbitChannel is the update channel to use for Orbit.
 	OrbitChannel string
-	// OsqueryChannel is the update channel to use for Osquery.
-	OsqueryChannel string
+	// OsquerydChannel is the update channel to use for Osquery (osqueryd).
+	OsquerydChannel string
 	// Debug determines whether to enable debug logging for the agent.
 	Debug bool
 }
@@ -80,7 +80,7 @@ func initializeUpdates(updateOpt update.Options) error {
 	if err := updater.UpdateMetadata(); err != nil {
 		return errors.Wrap(err, "failed to update metadata")
 	}
-	osquerydPath, err := updater.Get("osqueryd", updateOpt.OsqueryChannel)
+	osquerydPath, err := updater.Get("osqueryd", updateOpt.OsquerydChannel)
 	if err != nil {
 		return errors.Wrap(err, "failed to get osqueryd")
 	}

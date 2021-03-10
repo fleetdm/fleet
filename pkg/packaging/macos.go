@@ -44,7 +44,7 @@ func BuildPkg(opt Options) error {
 	updateOpt.Platform = "macos"
 	updateOpt.RootDirectory = orbitRoot
 	updateOpt.OrbitChannel = opt.OrbitChannel
-	updateOpt.OsqueryChannel = opt.OsqueryChannel
+	updateOpt.OsquerydChannel = opt.OsquerydChannel
 
 	// TODO these should be configurable
 	updateOpt.ServerURL = "https://tuf.fleetctl.com"

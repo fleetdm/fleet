@@ -48,8 +48,8 @@ type Options struct {
 	Platform string
 	// OrbitChannel is the update channel to use for Orbit.
 	OrbitChannel string
-	// OsqueryChannel is the update channel to use for Osquery.
-	OsqueryChannel string
+	// OsquerydChannel is the update channel to use for osquery (osqueryd).
+	OsquerydChannel string
 }
 
 var (
@@ -63,7 +63,7 @@ var (
 		Platform:          constant.PlatformName,
 		RootKeys:          defaultRootKeys,
 		OrbitChannel:      "stable",
-		OsqueryChannel:    "stable",
+		OsquerydChannel:   "stable",
 	}
 )
 

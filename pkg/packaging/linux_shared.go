@@ -40,7 +40,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) error {
 	updateOpt.Platform = "linux"
 	updateOpt.RootDirectory = orbitRoot
 	updateOpt.OrbitChannel = opt.OrbitChannel
-	updateOpt.OsqueryChannel = opt.OsqueryChannel
+	updateOpt.OsquerydChannel = opt.OsquerydChannel
 
 	// TODO these should be configurable
 	updateOpt.ServerURL = "https://tuf.fleetctl.com"
@@ -176,7 +176,9 @@ WantedBy=multi-user.target
 }
 
 var envTemplate = template.Must(template.New("env").Parse(`
-{{- if .Insecure }}ORBIT_INSECURE=true{{ end }}
+ORBIT_ORBIT_CHANNEL={{ .OrbitChannel }}
+ORBIT_OSQUERYD_CHANNEL={{ .OsquerydChannel }}
+{{ if .Insecure }}ORBIT_INSECURE=true{{ end }}
 {{ if .FleetURL }}ORBIT_FLEET_URL={{.FleetURL}}{{ end }}
 {{ if .FleetCertificate }}ORBIT_FLEET_CERTIFICATE=/var/lib/orbit/fleet.pem{{ end }}
 {{ if .EnrollSecret }}ORBIT_ENROLL_SECRET={{.EnrollSecret}}{{ end }}
