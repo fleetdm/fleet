@@ -158,7 +158,7 @@ class AppConfigForm extends Component {
     return (
       <form className={baseClass} onSubmit={handleSubmit}>
         <div className={`${baseClass}__section`}>
-          <h2>Organization Info</h2>
+          <h2><a id="organization-info">Organization Info</a><span className="page-jump"></span></h2>
           <div className={`${baseClass}__inputs`}>
             <InputField
               {...fields.org_name}
@@ -174,7 +174,7 @@ class AppConfigForm extends Component {
           </div>
         </div>
         <div className={`${baseClass}__section`}>
-          <h2>Fleet web address</h2>
+          <h2><a id="fleet-web-address">Fleet web address</a></h2>
           <div className={`${baseClass}__inputs`}>
             <InputField
               {...fields.kolide_server_url}
@@ -188,7 +188,7 @@ class AppConfigForm extends Component {
         </div>
 
         <div className={`${baseClass}__section`}>
-          <h2>SAML Single Sign On Options</h2>
+          <h2><a id="saml">SAML Single Sign On Options</a></h2>
 
           <div className={`${baseClass}__inputs`}>
             <Checkbox
@@ -264,7 +264,9 @@ class AppConfigForm extends Component {
         </div>
 
         <div className={`${baseClass}__section`}>
-          <h2>SMTP Options <small className={`smtp-options smtp-options--${smtpConfigured ? 'configured' : 'notconfigured'}`}>STATUS: <em>{smtpConfigured ? 'CONFIGURED' : 'NOT CONFIGURED'}</em></small></h2>
+          <h2>
+            <a id="smtp">SMTP Options <small className={`smtp-options smtp-options--${smtpConfigured ? 'configured' : 'notconfigured'}`}>STATUS: <em>{smtpConfigured ? 'CONFIGURED' : 'NOT CONFIGURED'}</em></small></a>
+          </h2>
           <div className={`${baseClass}__inputs`}>
             <Checkbox
               {...fields.enable_smtp}
@@ -316,7 +318,7 @@ class AppConfigForm extends Component {
           </div>
         </div>
         <div className={`${baseClass}__section`}>
-          <h2>Osquery Enrollment Secrets</h2>
+          <h2><a id="osquery-enrollment-secrets">Osquery Enrollment Secrets</a></h2>
           <div className={`${baseClass}__inputs`}>
             <p className={`${baseClass}__enroll-secret-label`}>
               Manage secrets with <code>fleetctl</code>. Active secrets:
@@ -325,7 +327,7 @@ class AppConfigForm extends Component {
           </div>
         </div>
         <div className={`${baseClass}__section`}>
-          <h2><a href="#advancedOptions" onClick={onToggleAdvancedOptions} className={`${baseClass}__show-options`}><Header showAdvancedOptions={showAdvancedOptions} /></a></h2>
+          <h2><a href="#advancedOptions" id="advanced-options" onClick={onToggleAdvancedOptions} className={`${baseClass}__show-options`}><Header showAdvancedOptions={showAdvancedOptions} /></a></h2>
           {renderAdvancedOptions()}
         </div>
         <Button

@@ -1,4 +1,5 @@
 .app-config-form {
+
   &__enroll-secret-label {
     font-size: 15px;
 
@@ -31,6 +32,13 @@
   &__section {
     @include clearfix;
     margin: 0 0 30px;
+
+    h2 {
+      a {
+        color: $black;
+        scroll-margin-top: 210px; // used to push down anchor to visible area when there are sticky headers
+      }
+    }
 
     .smtp-options {
       font-size: 15px;

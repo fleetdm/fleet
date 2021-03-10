@@ -50,6 +50,7 @@ const SettingsWrapper = (props: ISettingsWrapperProp): JSX.Element => {
   };
 
   return (
+    <>
     <div className={baseClass}>
       <div className={`${baseClass}__nav-header`}>
         <h1>Settings</h1>
@@ -65,6 +66,7 @@ const SettingsWrapper = (props: ISettingsWrapperProp): JSX.Element => {
       </div>
       {children}
     </div>
+    </>
   );
 };
 

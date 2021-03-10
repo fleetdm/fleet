@@ -4,7 +4,7 @@
   &__page-description {
     font-size: $x-small;
     color: $core-dark-blue-grey;
-    margin: 40px 0 54px 0;
+    @include sticky-settings-description;
   }
 
   h2 {
@@ -29,6 +29,33 @@
       font-size: $x-small;
       font-weight: $regular;
       color: $core-dark-blue-grey;
+    }
+  }
+
+  &__settings-form {
+    display: flex;
+
+  }
+
+  &__form-nav-list {
+    position: sticky;
+    // this is the spacing needed to make the sticky form nav position correctly when scrolling
+    // TODO: find a way to calculate these sticky positions this and use variables.
+    //  will be tedious to update otherwise.
+    top: 207px;
+    width: 178px;
+    margin: 0;
+    padding: 0 110px 0 0;
+    list-style: none;
+    font-size: $x-small;
+
+    li {
+      margin-bottom: 16px;
+    }
+
+    a {
+      color: $black;
+      text-decoration: none;
     }
   }
 }

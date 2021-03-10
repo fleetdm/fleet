@@ -299,9 +299,7 @@ export class UserManagementPage extends Component {
 
     return (
       <div className={`${baseClass} body-wrap`}>
-        <div className={`${baseClass}__heading-wrapper`}>
-          <p className={`${baseClass}__page-description`}>Invite new users, customize user permissions, and disable users in Fleet.</p>
-        </div>
+        <p className={`${baseClass}__page-description`}>Invite new users, customize user permissions, and disable users in Fleet.</p>
         {renderSmtpWarning()}
         <div className={`${baseClass}__add-user-wrap`}>
           <p className={`${baseClass}__user-count`}>{resourcesCount} users</p>
