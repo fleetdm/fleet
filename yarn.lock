@@ -10656,10 +10656,10 @@ react-test-renderer@^16.0.0-0:
     react-is "^16.8.6"
     scheduler "^0.13.6"
 
-react-tooltip@^4.2.13:
-  version "4.2.13"
-  resolved "https://registry.yarnpkg.com/react-tooltip/-/react-tooltip-4.2.13.tgz#908db8a41dc10ae2ae9cc1864746cde939aaab0f"
-  integrity sha512-iAZ02wSxChLWb7Vnu0zeQMyAo/jiGHrwFNILWaR3pCKaFVRjKcv/B6TBI4+Xd66xLXVzLngwJ91Tf5D+mqAqVA==
+react-tooltip@^4.2.15:
+  version "4.2.15"
+  resolved "https://registry.yarnpkg.com/react-tooltip/-/react-tooltip-4.2.15.tgz#ae278931a222434ae597c57aab07be215a2aa5f9"
+  integrity sha512-xmVWi6N1qsrACiAquv28jhQ10igFbQX0Xk5rjSjgUPi9BAf8lCFhYpdFXe6NrEeuPrM7hdZkePa3eS2SrIRxIw==
   dependencies:
     prop-types "^15.7.2"
     uuid "^7.0.3"

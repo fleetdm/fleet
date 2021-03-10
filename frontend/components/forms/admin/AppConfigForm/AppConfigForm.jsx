@@ -13,6 +13,7 @@ import InputField from 'components/forms/fields/InputField';
 import OrgLogoIcon from 'components/icons/OrgLogoIcon';
 import Slider from 'components/forms/fields/Slider';
 import validate from 'components/forms/admin/AppConfigForm/validate';
+import ReactTooltip from 'react-tooltip';
 
 const authMethodOptions = [
   { label: 'Plain', value: 'authmethod_plain' },
@@ -38,6 +39,21 @@ const Header = ({ showAdvancedOptions }) => {
 };
 
 Header.propTypes = { showAdvancedOptions: PropTypes.bool.isRequired };
+
+const IconToolTip = (props) => {
+  const { text, isHtml } = props;
+  return (
+    <div className="icon-tooltip">
+      <span data-tip={text} data-html={isHtml}>
+        <svg width="16" height="17" viewBox="0 0 16 17" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="8" cy="8.59961" r="8" fill="#6A67FE" />
+          <path d="M7.49605 10.1893V9.70927C7.49605 9.33327 7.56405 8.98527 7.70005 8.66527C7.84405 8.34527 8.08405 7.99727 8.42005 7.62127C8.67605 7.34127 8.85205 7.10127 8.94805 6.90127C9.05205 6.70127 9.10405 6.48927 9.10405 6.26527C9.10405 6.00127 9.00805 5.79327 8.81605 5.64127C8.62405 5.48927 8.35205 5.41326 8.00005 5.41326C7.21605 5.41326 6.49205 5.70127 5.82805 6.27727L5.32405 5.12527C5.66005 4.82127 6.07605 4.57727 6.57205 4.39327C7.07605 4.20927 7.58405 4.11727 8.09605 4.11727C8.60005 4.11727 9.04005 4.20127 9.41605 4.36927C9.80005 4.53727 10.096 4.76927 10.304 5.06527C10.52 5.36127 10.628 5.70927 10.628 6.10927C10.628 6.47727 10.544 6.82127 10.376 7.14127C10.216 7.46127 9.92805 7.80927 9.51205 8.18527C9.13605 8.52927 8.87605 8.82927 8.73205 9.08527C8.58805 9.34127 8.49605 9.59727 8.45605 9.85327L8.40805 10.1893H7.49605ZM7.11205 12.6973V11.0293H8.79205V12.6973H7.11205Z" fill="white" />
+        </svg>
+      </span>
+      <ReactTooltip effect={'solid'} data-html={isHtml} />
+    </div>
+  );
+};
 
 class AppConfigForm extends Component {
   static propTypes = {
@@ -111,12 +127,17 @@ class AppConfigForm extends Component {
         </div>
 
         <div className={`${baseClass}__details`}>
-          <p><strong>Domain</strong> - If you need to specify a HELO domain, you can do it here <em className="hint hint--brand">(Default: <strong>Blank</strong>)</em></p>
-          <p><strong>Verify SSL Certs</strong> - Turn this off (not recommended) if you use a self-signed certificate <em className="hint hint--brand">(Default: <strong>On</strong>)</em></p>
-          <p><strong>Enable STARTTLS</strong> - Detects if STARTTLS is enabled in your SMTP server and starts to use it. <em className="hint hint--brand">(Default: <strong>On</strong>)</em></p>
-          <p><strong>Host Expiry</strong> - When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days. <em className="hint hint--brand">(Default: <strong>Off</strong>)</em></p>
-          <p><strong>Host Expiry Window</strong> - If a host has not communicated with Fleet in the specified number of days, it will be removed.</p>
-          <p><strong>Disable Live Queries</strong> - When enabled, disables the ability to run live queries (ad hoc queries executed via the UI or fleetctl). <em className="hint hint--brand">(Default: <strong>Off</strong>)</em></p>
+          <IconToolTip
+            isHtml
+            text={'\
+              <p><strong>Domain</strong> - If you need to specify a HELO domain, you can do it here <em className="hint hint--brand">(Default: <strong>Blank</strong>)</em></p>\
+              <p><strong>Verify SSL Certs</strong> - Turn this off (not recommended) if you use a self-signed certificate <em className="hint hint--brand">(Default: <strong>On</strong>)</em></p>\
+              <p><strong>Enable STARTTLS</strong> - Detects if STARTTLS is enabled in your SMTP server and starts to use it. <em className="hint hint--brand">(Default: <strong>On</strong>)</em></p>\
+              <p><strong>Host Expiry</strong> - When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days. <em className="hint hint--brand">(Default: <strong>Off</strong>)</em></p>\
+              <p><strong>Host Expiry Window</strong> - If a host has not communicated with Fleet in the specified number of days, it will be removed.</p>\
+              <p><strong>Disable Live Queries</strong> - When enabled, disables the ability to run live queries (ad hoc queries executed via the UI or fleetctl). <em className="hint hint--brand">(Default: <strong>Off</strong>)</em></p>\
+            '}
+          />
         </div>
       </div>
     );
@@ -183,7 +204,7 @@ class AppConfigForm extends Component {
             />
           </div>
           <div className={`${baseClass}__details`}>
-            <p>The base URL of this instance for use in Fleet links.</p>
+            <IconToolTip text={'The base URL of this instance for use in Fleet links.'} />
           </div>
         </div>
 
@@ -205,7 +226,7 @@ class AppConfigForm extends Component {
             />
           </div>
           <div className={`${baseClass}__details`}>
-            <p>A required human friendly name for the identity provider that will provide single sign on authentication.</p>
+            <IconToolTip text={'A required human friendly name for the identity provider that will provide single sign on authentication.'} />
           </div>
 
           <div className={`${baseClass}__inputs`}>
@@ -216,7 +237,7 @@ class AppConfigForm extends Component {
             />
           </div>
           <div className={`${baseClass}__details`}>
-            <p>The required entity ID is a URI that you use to identify Fleet when configuring the identity provider.</p>
+            <IconToolTip text={'The required entity ID is a URI that you use to identify Fleet when configuring the identity provider.'} />
           </div>
 
           <div className={`${baseClass}__inputs`}>
@@ -224,10 +245,12 @@ class AppConfigForm extends Component {
               {...fields.issuer_uri}
               label="Issuer URI"
             />
+
           </div>
           <div className={`${baseClass}__details`}>
-            <p>The issuer URI supplied by the identity provider.</p>
+            <IconToolTip text={'The issuer URI supplied by the identity provider.'} />
           </div>
+
 
           <div className={`${baseClass}__inputs`}>
             <InputField
@@ -236,7 +259,7 @@ class AppConfigForm extends Component {
             />
           </div>
           <div className={`${baseClass}__details`}>
-            <p>An optional link to an image such as a logo for the identity provider.</p>
+            <IconToolTip text={'An optional link to an image such as a logo for the identity provider.'} />
           </div>
 
           <div className={`${baseClass}__inputs`}>
@@ -247,7 +270,7 @@ class AppConfigForm extends Component {
             />
           </div>
           <div className={`${baseClass}__details`}>
-            <p>Metadata provided by the identity provider. Either metadata or a metadata url must be provided.</p>
+            <IconToolTip text={'Metadata provided by the identity provider. Either metadata or a metadata url must be provided.'} />
           </div>
 
           <div className={`${baseClass}__inputs`}>
@@ -256,11 +279,11 @@ class AppConfigForm extends Component {
               label="Metadata URL"
               hint={<span>If available from the identity provider, this is the preferred means of providing metadata.</span>}
             />
+            <IconToolTip text={'A URL that references the identity provider metadata.'} />
           </div>
           <div className={`${baseClass}__details`}>
-            <p>A URL that references the identity provider metadata.</p>
+            <IconToolTip text={'A URL that references the identity provider metadata.'} />
           </div>
-
         </div>
 
         <div className={`${baseClass}__section`}>
@@ -282,8 +305,9 @@ class AppConfigForm extends Component {
             />
           </div>
           <div className={`${baseClass}__details`}>
-            <p>The sender address for emails from Fleet.</p>
+            <IconToolTip text={'The sender address for emails from Fleet.'} />
           </div>
+
           <div className={`${baseClass}__inputs ${baseClass}__inputs--smtp`}>
             <InputField
               {...fields.server}
@@ -301,8 +325,9 @@ class AppConfigForm extends Component {
             </Checkbox>
           </div>
           <div className={`${baseClass}__details`}>
-            <p>The hostname / IP address and corresponding port of your organization&apos;s SMTP server.</p>
+            <IconToolTip text={'The hostname / IP address and corresponding port of your organization&apos;s SMTP server.'} />
           </div>
+
           <div className={`${baseClass}__inputs`}>
             <Dropdown
               {...fields.authentication_type}
@@ -312,9 +337,14 @@ class AppConfigForm extends Component {
             {renderSmtpSection()}
           </div>
           <div className={`${baseClass}__details`}>
-            <p>If your mail server requires authentication, you need to specify the authentication type here.</p>
-            <p><strong>No Authentication</strong> - Select this if your SMTP is open.</p>
-            <p><strong>Username & Password</strong> - Select this if your SMTP server requires authentication with a username and password.</p>
+            <IconToolTip
+              isHtml
+              text={'\
+                <p>If your mail server requires authentication, you need to specify the authentication type here.</p> \
+                <p><strong>No Authentication</strong> - Select this if your SMTP is open.</p> \
+                <p><strong>Username & Password</strong> - Select this if your SMTP server requires authentication with a username and password.</p>\
+              '}
+            />
           </div>
         </div>
         <div className={`${baseClass}__section`}>
