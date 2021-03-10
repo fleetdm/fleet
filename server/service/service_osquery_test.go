@@ -15,7 +15,6 @@ import (
 	"github.com/fleetdm/fleet/server/config"
 	hostctx "github.com/fleetdm/fleet/server/contexts/host"
 	"github.com/fleetdm/fleet/server/contexts/viewer"
-	"github.com/fleetdm/fleet/server/datastore/inmem"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/live_query"
 	"github.com/fleetdm/fleet/server/logging"
@@ -1469,22 +1468,6 @@ func TestUpdateHostIntervals(t *testing.T) {
 		})
 	}
 
-}
-
-func setupOsqueryTests(t *testing.T) (kolide.Datastore, *live_query.MockLiveQuery, kolide.Service, *clock.MockClock) {
-	ds, err := inmem.New(config.TestConfig())
-	require.Nil(t, err)
-
-	lq := &live_query.MockLiveQuery{}
-
-	_, err = ds.NewAppConfig(&kolide.AppConfig{})
-	require.Nil(t, err)
-
-	mockClock := clock.NewMockClock()
-	svc, err := newTestServiceWithClock(ds, nil, lq, mockClock)
-	require.Nil(t, err)
-
-	return ds, lq, svc, mockClock
 }
 
 type notFoundError struct{}

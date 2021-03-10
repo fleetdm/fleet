@@ -5,11 +5,11 @@ import (
 	"reflect"
 
 	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/go-kit/kit/endpoint"
 	hostctx "github.com/fleetdm/fleet/server/contexts/host"
 	"github.com/fleetdm/fleet/server/contexts/token"
 	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/go-kit/kit/endpoint"
 	"github.com/pkg/errors"
 )
 
@@ -186,14 +186,6 @@ func canPerformPasswordReset(next endpoint.Endpoint) endpoint.Endpoint {
 		return next(ctx, request)
 	}
 }
-
-type permission int
-
-const (
-	anyone permission = iota
-	self
-	admin
-)
 
 func requestUserIDFromContext(ctx context.Context) uint {
 	userID, ok := ctx.Value("request-id").(uint)
