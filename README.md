@@ -6,7 +6,7 @@ Orbit is Fleet's [osquery](https://github.com/osquery/osquery) runtime and autou
 
 ## Try Orbit
 
-#### With [`fleetctl preview` already running](https://github.com/fleetdm/fleet) and [Go](https://golang.org/doc/install) installed:
+#### With [`fleetctl preview` already running](https://github.com/fleetdm/fleet#try-fleet) and [Go](https://golang.org/doc/install) installed:
 
 ```bash
 # From within the top-level directory of this repo…
