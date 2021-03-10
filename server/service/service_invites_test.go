@@ -105,12 +105,6 @@ var adminUser = &kolide.User{
 	Name:     "Administrator",
 }
 
-var existingUser = &kolide.User{
-	ID:       2,
-	Email:    "user@acme.co",
-	Username: "user",
-}
-
 var validInvite = &kolide.Invite{
 	ID:    1,
 	Token: "abcd",

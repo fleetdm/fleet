@@ -12,12 +12,12 @@ import (
 	"strconv"
 	"testing"
 
-	kitlog "github.com/go-kit/kit/log"
-	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore/inmem"
 	"github.com/fleetdm/fleet/server/kolide"
+	kitlog "github.com/go-kit/kit/log"
+	kithttp "github.com/go-kit/kit/transport/http"
+	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -143,11 +143,3 @@ type nopCloser struct {
 }
 
 func (nopCloser) Close() error { return nil }
-
-// helper to convert a bool pointer false
-func falseIfNil(b *bool) bool {
-	if b == nil {
-		return false
-	}
-	return *b
-}

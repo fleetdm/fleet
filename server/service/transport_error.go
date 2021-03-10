@@ -29,14 +29,6 @@ func baseError(err string) []map[string]string {
 	}
 }
 
-// same as baseError, but replaces "base" with different name.
-func namedError(name string, err string) []map[string]string {
-	return []map[string]string{map[string]string{
-		"name":   name,
-		"reason": err},
-	}
-}
-
 // encode error and status header to the client
 func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	enc := json.NewEncoder(w)
