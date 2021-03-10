@@ -158,7 +158,7 @@ class AppConfigForm extends Component {
     return (
       <form className={baseClass} onSubmit={handleSubmit}>
         <div className={`${baseClass}__section`}>
-          <h2><a id="organization-info">Organization Info</a><span className="page-jump"></span></h2>
+          <h2><a id="organization-info">Organization Info</a></h2>
           <div className={`${baseClass}__inputs`}>
             <InputField
               {...fields.org_name}
