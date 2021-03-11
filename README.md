@@ -13,6 +13,7 @@ Orbit is Fleet's [osquery](https://github.com/osquery/osquery) runtime and autou
 # Generate a macOS installer pointed at your local Fleet
 go run ./cmd/package --type=pkg --fleet-url=localhost:8412 --insecure --enroll-secret=YOUR_FLEET_ENROLL_SECRET_HERE
 ```
+> With fleetctl preview running, you can find your Fleet enroll secret by selecting the "Add new host" button on the Hosts page in the Fleet UI.
 
 An installer configured to point at your Fleet instance has now been generated.
 
@@ -147,7 +148,7 @@ For Notarization, valid App Store Connect credentials must be available on the b
 Build a signed and notarized macOS package with an invocation like the following:
 
 ``` sh
-AC_USERNAME=zach@fleetdm.com AC_PASSWORD=llpk-sije-kjlz-jdzw go run ./cmd/package --type pkg --fleet-url=fleet.example.com --enroll-secret=63SBzTT+2UyW --sign-identity 3D7260BF99539C6E80A94835A8921A988F4E6498 --notarize
+AC_USERNAME=zach@fleetdm.com AC_PASSWORD=llpk-sije-kjlz-jdzw go run ./cmd/package --type=pkg --fleet-url=fleet.example.com --enroll-secret=63SBzTT+2UyW --sign-identity 3D7260BF99539C6E80A94835A8921A988F4E6498 --notarize
 ```
 
 This process may take several minutes to complete as the Notarization process completes on Apple's servers.
