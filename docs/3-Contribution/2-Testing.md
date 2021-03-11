@@ -105,7 +105,7 @@ E2E tests are run using Docker and Cypress.
 
 #### Preparation
 
-Make sure dependencies are up to date and the [Fleet binaries are built locally](./1-Building-fleet.md).
+Make sure dependencies are up to date and the [Fleet binaries are built locally](./1-Building-Fleet.md).
 
 ```
 make e2e-reset-db
