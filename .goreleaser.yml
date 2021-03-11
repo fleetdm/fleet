@@ -3,33 +3,58 @@ before:
     - go mod download
 
 builds:
-  - env:
+  - id: orbit
+    dir: ./cmd/orbit/
+    binary: orbit
+    env:
       - CGO_ENABLED=0
     goos:
+      - darwin
       - linux
       - windows
-      - darwin
     goarch:
       - amd64
     ldflags:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser
-    dir: ./cmd/orbit/
-    binary: orbit
+    hooks:
+      post: ./tools/build/sign-macos.sh {{ .Path }}
+
+  - id: orbit-package
+    dir: ./cmd/package/
+    binary: orbit-package
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser
+    hooks:
+      post: ./tools/build/sign-macos.sh {{ .Path }}
 
 archives:
-  - replacements:
-      darwin: macos
-      386: i386
-      amd64: x86_64
-
-signs:
-  - signature: "${artifact}_macos.dmg"
-    ids:
+  - id: orbit
+    builds:
       - orbit
-    cmd: gon
-    args:
-      - .gon.hcl
-    artifacts: all
+    name_template: orbit_{{.Version}}_{{.Os}}
+    replacements:
+      darwin: macos
+    format_overrides:
+      - goos: windows
+        format: zip
+
+  - id: orbit-package
+    builds:
+      - orbit-package
+    name_template: orbit-package_{{.Version}}_{{.Os}}
+    replacements:
+      darwin: macos
+    format_overrides:
+      - goos: windows
+        format: zip
 
 checksum:
   name_template: 'checksums.txt'
@@ -38,8 +63,15 @@ snapshot:
   name_template: "{{ .Tag }}-untagged"
 
 changelog:
+  skip: true
   sort: asc
   filters:
     exclude:
       - '^docs:'
       - '^test:'
+
+release:
+  github:
+    owner: fleetdm
+    name: orbit
+  draft: true
