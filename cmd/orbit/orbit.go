@@ -161,7 +161,7 @@ func main() {
 		// Initialize updater and get expected version
 		opt := update.DefaultOptions
 		opt.RootDirectory = c.String("root-dir")
-		opt.ServerURL = c.String("tuf-url")
+		opt.ServerURL = c.String("update-url")
 		opt.LocalStore = localStore
 		opt.InsecureTransport = c.Bool("insecure")
 		updater, err := update.New(opt)
