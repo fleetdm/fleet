@@ -30,6 +30,13 @@ const (
 	defaultRootDir = "/var/lib/orbit"
 )
 
+var (
+	// Flags set by goreleaser during build
+	version = ""
+	commit  = ""
+	date    = ""
+)
+
 func main() {
 	log.Logger = log.Output(
 		zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano},
@@ -40,6 +47,7 @@ func main() {
 	app.Name = "Orbit osquery"
 	app.Usage = "A powered-up, (near) drop-in replacement for osquery"
 	app.Commands = []*cli.Command{
+		versionCommand,
 		shellCommand,
 	}
 	app.Flags = []cli.Flag{
@@ -97,8 +105,17 @@ func main() {
 			Usage:   "Enable debug logging",
 			EnvVars: []string{"ORBIT_DEBUG"},
 		},
+		&cli.BoolFlag{
+			Name:  "version",
+			Usage: "Get Orbit version",
+		},
 	}
 	app.Action = func(c *cli.Context) error {
+		if c.Bool("version") {
+			fmt.Println("orbit " + version)
+			return nil
+		}
+
 		if c.Bool("debug") {
 			zerolog.SetGlobalLevel(zerolog.DebugLevel)
 		}
@@ -307,4 +324,16 @@ func main() {
 	if err := app.Run(os.Args); err != nil {
 		log.Error().Err(err).Msg("")
 	}
+}
+
+var versionCommand = &cli.Command{
+	Name:  "version",
+	Usage: "Get the orbit version",
+	Flags: []cli.Flag{},
+	Action: func(c *cli.Context) error {
+		fmt.Println("orbit " + version)
+		fmt.Println("commit - " + commit)
+		fmt.Println("date - " + date)
+		return nil
+	},
 }

@@ -1,4 +1,4 @@
-source = ["./dist/macos_darwin_amd64/orbit"]
+source = ["./dist/orbit_darwin_amd64/orbit"]
 bundle_id = "com.fleetdm.orbit"
 
 apple_id {

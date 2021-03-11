@@ -8,18 +8,11 @@ builds:
     goos:
       - linux
       - windows
-    goarch:
-      - amd64
-    dir: ./cmd/orbit/
-    binary: orbit
-
-  - id: macos
-    env:
-      - CGO_ENABLED=0
-    goos:
       - darwin
     goarch:
       - amd64
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser
     dir: ./cmd/orbit/
     binary: orbit
 
@@ -32,7 +25,7 @@ archives:
 signs:
   - signature: "${artifact}_macos.dmg"
     ids:
-      - macos
+      - orbit
     cmd: gon
     args:
       - .gon.hcl
