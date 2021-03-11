@@ -45,7 +45,7 @@ jobs:
 
     - name: Run E2E Tests
       run: |
-        make e2e-prepare-db
+        make e2e-reset-db
         make e2e-serve &
         sleep 3
         make e2e-setup

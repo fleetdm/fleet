@@ -1,4 +1,4 @@
-.PHONY: build clean clean-assets e2e-prepare-db e2e-serve e2e-setup
+.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup
 
 export GO111MODULE=on
 
@@ -219,8 +219,8 @@ binary-bundle: xp-fleet xp-fleetctl
 	cd build/binary-bundle && shasum -a 256 fleet.zip fleetctl.exe.zip fleetctl-macos.tar.gz fleetctl-windows.tar.gz fleetctl-linux.tar.gz
 
 # Drop, create, and migrate the e2e test database
-e2e-prepare-db:
-	docker-compose exec mysql_test bash -c 'echo "drop database if exists e2e; create database e2e;" | mysql -uroot -ptoor'
+e2e-reset-db:
+	docker-compose exec -T mysql_test bash -c 'echo "drop database if exists e2e; create database e2e;" | mysql -uroot -ptoor'
 	./build/fleet prepare db --mysql_address=localhost:3307  --mysql_username=root --mysql_password=toor --auth_jwt_key=insecure --mysql_database=e2e 
 
 e2e-setup:
