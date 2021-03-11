@@ -11,8 +11,8 @@ assignees: ''
 
 > TODO: A sentence describing the problem this project is trying to solve. i.e. What is the user trying to achieve?
 
-> TODO: A sentence describing the "so what" for this project. i.e. What's the overall benefit the user is trying to achieve? How does their immediate desire fit into the their bigger picture?
+> TODO: A sentence describing the "so what" for this project. i.e. Why do they want to solve the above problem? What's the overall benefit the user is trying to achieve? 
 
 ### Solution
 
-> TODO: Attach any wireframes, mockups, screenshots, or describe the planned or possible solution.
+> TODO: Attach any wireframes, mockups, screenshots, or just describe the planned or possible solution.
