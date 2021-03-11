@@ -67,6 +67,14 @@
     width: 100%;
   }
 
+  &__config-button {
+    text-decoration: none;
+    color: $core-blue;
+    font-size: $x-small;
+    margin-left: $pad-medium;
+  }
+
+
   &__user-count {
     font-size: $x-small;
     font-weight: $bold;
