@@ -21,6 +21,8 @@ An installer configured to point at your Fleet instance has now been generated.
 
 Now run that installer (double click, on a Mac) to enroll your own computer as a host in Fleet.  In Fleet, after several seconds, you should now see your local computer as a new host.
 
+## Bugs
+To report a bug or request a feature, [click here](https://github.com/fleetdm/fleet/issues).
 
 ## Capabilities
 
