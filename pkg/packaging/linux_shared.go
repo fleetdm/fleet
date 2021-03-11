@@ -69,13 +69,6 @@ func buildNFPM(opt Options, pkger nfpm.Packager) error {
 			Source:      filepath.Join(filesystemRoot, "**"),
 			Destination: "/",
 		},
-		&files.Content{
-			Source:      "orbit",
-			Destination: "/var/lib/orbit/orbit",
-			FileInfo: &files.ContentFileInfo{
-				Mode: constant.DefaultExecutableMode,
-			},
-		},
 		// Symlink current into /var/lib/orbit/bin/orbit/orbit
 		&files.Content{
 			Source:      "/var/lib/orbit/bin/orbit/linux/" + opt.OrbitChannel + "/orbit",
