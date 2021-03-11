@@ -1,4 +1,4 @@
-.PHONY: build clean clean-assets
+.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup
 
 export GO111MODULE=on
 
@@ -217,4 +217,17 @@ binary-bundle: xp-fleet xp-fleetctl
 	cd build/binary-bundle && mkdir fleetctl-windows && cp windows/fleetctl.exe fleetctl-windows && tar -czf fleetctl-windows.tar.gz fleetctl-windows
 	cd build/binary-bundle && cp windows/fleetctl.exe . && zip fleetctl.exe.zip fleetctl.exe 
 	cd build/binary-bundle && shasum -a 256 fleet.zip fleetctl.exe.zip fleetctl-macos.tar.gz fleetctl-windows.tar.gz fleetctl-linux.tar.gz
+
+# Drop, create, and migrate the e2e test database
+e2e-reset-db:
+	docker-compose exec -T mysql_test bash -c 'echo "drop database if exists e2e; create database e2e;" | mysql -uroot -ptoor'
+	./build/fleet prepare db --mysql_address=localhost:3307  --mysql_username=root --mysql_password=toor --auth_jwt_key=insecure --mysql_database=e2e 
+
+e2e-setup:
+	./build/fleetctl config set --context e2e --address https://localhost:8642
+	./build/fleetctl config set --context e2e --tls-skip-verify true
+	./build/fleetctl setup --context e2e --email=test@fleetdm.com --username=test --password=admin123# --org-name='Fleet Test'
+
+e2e-serve:
+	./build/fleet serve --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --auth_jwt_key=insecure --mysql_database=e2e --server_address=localhost:8642
 

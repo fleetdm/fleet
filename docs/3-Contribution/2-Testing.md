@@ -1,16 +1,14 @@
 # Testing
-- [Full test suite](#full-test-suite)
-  - [Database tests](#database-tests)
-  - [Email tests](#email-tests)
-- [Integration tests](#integration-tests)
-  - [Email](#email)
+- [Test suite](#full-test-suite)
+- [End-to-end tests](#end-to-end-tests)
+- [Email](#email)
 
-## Full test suite
+## Test suite
 
-To execute all of the tests that CI will execute, run the following from the root of the repository:
+To execute the basic unit tests, run the following from the root of the repository:
 
 ```
-make test
+MYSQL_TEST=1 REDIS_TEST=1 make test
 ```
 
 It is a good idea to run `make test` before submitting a Pull Request.
@@ -23,14 +21,6 @@ To run all Go unit tests, run the following:
 make test-go
 ```
 
-#### JavaScript unit tests
-
-To run all JavaScript unit tests, run the following:
-
-```
-make test-js
-```
-
 #### Go linters
 
 To run all Go linters and static analyzers, run the following:
@@ -39,44 +29,59 @@ To run all Go linters and static analyzers, run the following:
 make lint-go
 ```
 
-### Database tests
+#### Javascript unit tests
 
-To run database tests set environment variables as follows.
-
-```
-export MYSQL_PORT_3306_TCP_ADDR=192.168.99.100
-export MYSQL_TEST=1
-```
-
-### Email tests
-
-To run email related unit tests using MailHog set the following environment
-variable.
+To run all JS unit tests, run the following:
 
 ```
-export MAIL_TEST=1
+make test-js
 ```
 
-## Integration tests
+or
 
-By default, tests that require external dependecies like Mysql or Redis are skipped. The tests can be enabled by setting `MYSQL_TEST=true` and `REDIS_TEST=true` environment variables. MYSQL will try to connect with the following credentials.
 ```
-user        = "kolide"
-password    = "kolide"
-database    = "kolide"
-host        = "127.0.0.1"
+yarn test
 ```
-Redis tests expect a redis instance at `127.0.0.1:6379`.
 
-#### JavaScript linters
+#### Javascript linters
 
-To run all JavaScript linters and static analyzers, run the following:
+To run all JS linters and static analyzers, run the following:
 
 ```
 make lint-js
 ```
 
-#### Viewing test coverage
+or
+
+```
+yarn lint
+```
+
+#### MySQL tests
+
+To run MySQL integration tests set environment variables as follows:
+
+```
+MYSQL_TEST=1 make test-go
+```
+
+#### Redis tests
+
+To run Redis integration tests set environment variables as follows:
+
+```
+REDIS_TEST=1 make test-go
+```
+
+#### Email tests
+
+To run email related integration tests using MailHog set environment as follows:
+
+```
+MAIL_TEST=1 make test-go
+```
+
+### Viewing test coverage
 
 When you run `make test` or `make test-go` from the root of the repository, test coverage reports are generated in every subpackage. For example, the `server` subpackage will have a coverage report generated in `./server/server.cover`
 
@@ -94,17 +99,52 @@ To view test a test coverage report in a terminal, run the following:
 go tool cover -func=./server/server.cover
 ```
 
-### Email
+## End-to-end tests
 
-#### Testing email using MailHog
+E2E tests are run using Docker and Cypress.
 
-To intercept sent emails while running a Fleet development environment, make sure that you've set the SMTP address to `<docker host ip>:1025` and leave the username and password blank. Then, visit `<docker host ip>:8025` in a web browser to view the [MailHog](https://github.com/mailhog/MailHog) UI.
+#### Preparation
 
-For example, if docker is running natively on your `localhost`, then your mail settings should look something like:
+Make sure dependencies are up to date and the [Fleet binaries are built locally](./1-Building-Fleet.md).
 
-```yaml
-mail:
-  address: localhost:1025
+```
+make e2e-reset-db
+make e2e-serve
 ```
 
-`localhost:1025` is the default configuration. You can use `fleet config_dump` to see the values which Fleet is using given your configuration.
+This will start a local Fleet server connected to the E2E database. Leave this server running for the duration of end-to-end testing.
+
+```
+make e2e-setup
+```
+
+This will initialize the E2E instance with a user.
+
+#### Run tests
+
+Tests can be run in interactive mode, or from the command line.
+
+#### Interactive
+
+```
+yarn cypress open
+```
+
+Use the graphical UI controls to run and view tests.
+
+#### Command line
+
+```
+yarn cypress run
+```
+
+Tests will run automatically and results are reported to the shell.
+
+
+## Email
+
+#### Manually testing email with MailHog
+
+To intercept sent emails while running a Fleet development environment, make sure that you've set the SMTP address to `localhost:1025` and leave the username and password blank. Then, visit http://localhost:8025 in a web browser to view the [MailHog](https://github.com/mailhog/MailHog) UI.
+
+When Fleet sends emails, the contents of the messages are available in the MailHog UI.

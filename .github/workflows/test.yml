@@ -35,7 +35,7 @@ jobs:
     # Pre-starting dependencies here means they are ready to go when we need them. 
     - name: Start Infra Dependencies
       # Use & to background this
-      run: docker-compose up -d mysql redis mailhog &
+      run: docker-compose up -d mysql_test redis mailhog &
       
     - name: Build Fleet
       run: |
@@ -45,12 +45,10 @@ jobs:
 
     - name: Run E2E Tests
       run: |
-        ./build/fleet prepare db --dev
-        ./build/fleet serve --dev &
+        make e2e-reset-db
+        make e2e-serve &
         sleep 3
-        ./build/fleetctl config set --address https://localhost:8080
-        ./build/fleetctl config set --tls-skip-verify true
-        ./build/fleetctl setup --email=test@fleetdm.com --username=test --password=admin123# --org-name='Fleet Test'
+        make e2e-setup
         yarn cypress run --config video=false
 
         
