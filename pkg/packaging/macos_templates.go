@@ -23,7 +23,7 @@ var macosDistributionTemplate = template.Must(template.New("").Option("missingke
 	<choices-outline>
 	    <line choice="choiceBase"/>
     </choices-outline>
-    <choice id="choiceBase" title="base">
+    <choice id="choiceBase" title="Orbit osquery" enabled="false" selected="true" description="Standard installation for Orbit osquery.">
         <pkg-ref id="{{.Identifier}}.base.pkg"/>
     </choice>
     <pkg-ref id="{{.Identifier}}.base.pkg" version="{{.Version}}" auth="root">#base.pkg</pkg-ref>
