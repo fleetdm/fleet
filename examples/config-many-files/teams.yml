@@ -1,13 +1,19 @@
+# This configuration file allows for the manaing of teams in Fleet.
+# The file can be used for the creating, updating, and deleting of teams.
+# A team's hosts and users are managed with this file.
+
 ---
 apiVersion: v1
 kind: teams
 spec:
   teams:
   - name: workstations
+    # hosts can only belong to one team
     hosts:
       - hardware_serial1
       - hwardware_serial2
       - hwardware_serial3
+    # users can belong to multiple teams
     users:
       - email1
   - name: servers
@@ -15,5 +21,7 @@ spec:
       - hardware_serial4
       - hardware_serial5
     users:
-      - email1
-      - email2
+      - email: email1
+        role: admin
+      - email: email2
+        role: maintainer

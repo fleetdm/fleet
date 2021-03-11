@@ -1,3 +1,7 @@
+# This configuration file manages the osquery options in Fleet.
+# The `team_name` key determines which team's hosts the spec applies to.
+# The current thinking is that options specified for `team_name` default
+# will apply to all hosts that don't belong to a team.
 ---
 apiVersion: v1
 kind: options
@@ -19,6 +23,8 @@ spec:
       interval:
         3600: "SELECT total_seconds AS uptime FROM uptime"
 ---
+# These options will apply to all hosts that belong to the `workstations` team.
+# These options will override the `default` options.
 apiVersion: v1
 kind: options
 spec:
@@ -39,6 +45,8 @@ spec:
       interval:
         3600: "SELECT total_seconds AS uptime FROM uptime"
 ---
+# These options will apply to all hosts that belong to the `servers` team.
+# These options will override the `default` options.
 apiVersion: v1
 kind: options
 spec:
