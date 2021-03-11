@@ -21,7 +21,7 @@ const (
 	binDir = "bin"
 
 	defaultURL      = "https://tuf.fleetctl.com"
-	defaultRootKeys = `[{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"037b475337c1acdafe20cff4fee6308209bc4ba23a2439a1f7be85131794cae1"}}]`
+	defaultRootKeys = `[{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"6d71d3beac3b830be929f2b10d513448d49ec6bb62a680176b89ffdfca180eb4"}}]`
 )
 
 // Updater is responsible for managing update state.
