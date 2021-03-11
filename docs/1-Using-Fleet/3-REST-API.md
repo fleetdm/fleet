@@ -2377,7 +2377,7 @@ Runs the specified query as a live query on the specified hosts or group of host
 
 | Name       | Type    | In   | Description                                      |
 | ---------- | ------- | ---- | ------------------------------------------------ |
-| query   | string  | body | **Required.** The SQL of the query               |
+| query   | string  | body | **Required.** The SQL of the query.               |
 | selected   | object  | body | **Required.** The desired targets for the query specified by ID. This object can contain `hosts` and/or `labels` properties. See examples below.     |
 
 #### Example with one host targeted by ID
@@ -2388,7 +2388,7 @@ Runs the specified query as a live query on the specified hosts or group of host
 
 ```
 {
-  "query": "select instance_id from system_info;",
+  "query": "select instance_id from system_info",
   "selected": { 
     "hosts": [171]
   }
@@ -2468,7 +2468,7 @@ Runs the specified query as a live query on the specified hosts or group of host
 
 | Name       | Type    | In   | Description                                      |
 | ---------- | ------- | ---- | ------------------------------------------------ |
-| name   | string  | body | **Required.** The name of the query.             |
+| query   | string  | body | **Required.** The SQL of the query.              |
 | selected   | object  | body | **Required.** The desired targets for the query specified by name. This object can contain `hosts` and/or `labels` properties. See examples below.     |
 
 #### Example with one host targeted by hostname
@@ -2479,7 +2479,7 @@ Runs the specified query as a live query on the specified hosts or group of host
 
 ```
 {
-  "name": "instance_id",
+  "query": "select instance_id from system_info",
   "selected": { 
     "hosts": [
       "macbook-pro.local", 
@@ -2520,7 +2520,7 @@ Runs the specified query as a live query on the specified hosts or group of host
 
 ```
 {
-  "name": "instance_id",
+  "query": "select instance_id from system_info",
   "selected": { 
     "labels": [
       "All Hosts"
