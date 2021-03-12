@@ -1,6 +1,6 @@
-# Get all macOS software
+# Get installed macOS software
 
-Get all software on a macOS computer, including browser plugins and installed packages.
+Get all software installed on a macOS computer, including apps, browser plugins, and installed packages.
 
 ```sql
 todo
