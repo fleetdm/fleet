@@ -5,6 +5,18 @@ This is where the code for the public https://fleetdm.com website lives.
 
 a [Sails v1](https://sailsjs.com) application
 
+## Test locally
+
+Run the following commands to test the site locally:
+
+``` sh
+npm install -g sails
+cd website/
+npm install
+sails lift
+```
+
+The site will now be running on http://localhost:1337
 
 ### Links
 
