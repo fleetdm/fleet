@@ -6,46 +6,42 @@ describe('Setup', () => {
   
   it('Completes setup', () => {
     cy.visit('/');
-
-    cy.url().should('include', '/setup');
-      
-    cy.contains('setup', { matchCase: false })
+    cy.url().should('match', /\/setup$/);
+    cy.contains(/setup/i);
 
     // Page 1
-    cy.findByPlaceholderText('Username')
+    cy.findByPlaceholderText(/username/i)
       .type('test');
 
-    cy.findByPlaceholderText('Password')
+    cy.findByPlaceholderText(/^password/i).first()
       .type('admin123#');
 
-    cy.findByPlaceholderText('Confirm password')
+    cy.findByPlaceholderText(/confirm password/i).last()
       .type('admin123#');
 
-    cy.findByPlaceholderText('Email')
+    cy.findByPlaceholderText(/email/i)
       .type('test@fleetdm.com');
 
-    cy.contains('button:enabled', 'Next')
+    cy.contains('button:enabled', /next/i)
       .click();
 
     // Page 2
-    cy.findByPlaceholderText('Organization name')
+    cy.findByPlaceholderText(/organization name/i)
       .type('Fleet Test')
 
-    cy.contains('button:enabled', 'Next')
+    cy.contains('button:enabled', /next/i)
       .click();
 
     // Page 3
-    cy.contains('button:enabled', 'Submit')
+    cy.contains('button:enabled', /submit/i)
       .click();
-
 
     // Page 4
-    cy.contains('button:enabled', 'Finish')
+    cy.contains('button:enabled', /finish/i)
       .click();
 
       
-    cy.url().should('contain', '/hosts/manage');
-      
-    cy.contains('All Hosts');
+    cy.url().should('match', /\/hosts\/manage$/i);
+    cy.contains(/all hosts/i);
   });
 });
