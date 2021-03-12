@@ -1,6 +1,8 @@
 describe('Sessions', () => {
+  // Typically we want to use a beforeEach but not much happens in these tests
+  // so sharing some state should be okay and saves a bit of runtime.
   before(() => {
-    cy.exec('make e2e-reset-db e2e-setup')
+    cy.setup();
   })
   
   it('Logs in and out successfully', () => {
@@ -39,5 +41,11 @@ describe('Sessions', () => {
 
     cy.url().should('match', /\/login$/);
     cy.contains('username or email and password do not match');
+  });
+
+  it('Fails to access authenticated resource', () => {
+    cy.visit('/hosts/manage');
+
+    cy.url().should('match', /\/login$/);
   });
 });

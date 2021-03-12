@@ -1,7 +1,7 @@
 describe('Setup', () => {
-  // Different than normal beforeEach because we don't run the setup.
+  // Different than normal beforeEach because we don't run the fleetctl setup.
   beforeEach(() => {
-    cy.exec('make e2e-reset-db')
+    cy.exec('make e2e-reset-db', { timeout: 5000 });
   })
   
   it('Completes setup', () => {
