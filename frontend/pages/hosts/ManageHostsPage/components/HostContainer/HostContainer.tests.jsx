@@ -16,9 +16,9 @@ describe('HostsContainer - component', () => {
     expect(page.find('h2').text()).toEqual('Get started adding hosts to Fleet.');
   });
 
-  it('renders the HostsDataTable if there are hosts', () => {
+  it('renders the DataTable if there are hosts', () => {
     const page = shallow(<HostContainer {...props} />);
 
-    expect(page.find('HostsDataTable').length).toEqual(1);
+    expect(page.find('DataTable').length).toEqual(1);
   });
 });

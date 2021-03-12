@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import ReactTooltip from 'react-tooltip';
 
 import labelInterface from 'interfaces/label';
+import { getHostTableData } from 'redux/nodes/components/ManageHostsPage/actions';
 import Button from 'components/buttons/Button';
 import InputField from 'components/forms/fields/InputField';
 import KolideIcon from 'components/icons/KolideIcon';
@@ -11,12 +12,10 @@ import RoboDogImage from '../../../../../../assets/images/robo-dog-176x144@2x.pn
 import EditColumnsIcon from '../../../../../../assets/images/icon-edit-columns-20x20@2x.png';
 
 import { hostDataHeaders, defaultHiddenColumns } from './HostTableConfig';
-import HostsDataTable from '../HostsDataTable/HostsDataTable';
+import DataTable from '../DataTable/DataTable';
 import EditColumnsModal from '../EditColumnsModal/EditColumnsModal';
 
 const baseClass = 'host-container';
-
-// TODO: come back and define table columns here
 
 class HostContainer extends Component {
   static propTypes = {
@@ -134,11 +133,15 @@ class HostContainer extends Component {
             <span className={`${baseClass}__tooltip-text`}>Search by hostname, UUID, serial number, or IPv4</span>
           </ReactTooltip>
         </div>
-        <HostsDataTable
+        <DataTable
           selectedFilter={selectedFilter}
           searchQuery={searchQuery}
           tableColumns={hostDataHeaders}
           hiddenColumns={hiddenColumns}
+          pageSize={100}
+          defaultSortHeader={hostDataHeaders[0].accessor}
+          resultsName={'hosts'}
+          fetchDataAction={getHostTableData}
         />
         {renderEditColumnsModal()}
       </div>
