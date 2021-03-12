@@ -17,7 +17,7 @@ In 2014, our CTO Zach Wasserman, together with [Mike Arpaia](https://twitter.com
 
 
 ##### 2016: Origins of Fleet v1.0
-A few years later, Zach, Mike Arpaia, and their team at [Kolide](https://kolide.com) created Fleet: an open source platform that made it easier and more productive to use osquery in an enterprise setting.
+A few years later, Zach, Mike Arpaia, and [Jason Meller](https://honest.security) founded [Kolide](https://kolide.com) and created Fleet: an open source platform that made it easier and more productive to use osquery in an enterprise setting.
 
 ##### 2019: The growing community
 When Kolide's attention shifted away from Fleet and towards their separate, user-focused SaaS offering, the Fleet community took over maintenance of the open source project. After his time at Kolide, Zach continued as lead maintainer of Fleet.  He spent 2019 consulting and working with the growing open source community to support and extend the capabilities of the Fleet platform.
