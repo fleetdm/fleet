@@ -1,11 +1,19 @@
 describe('Login', () => {
+  beforeEach(() => {
+    cy.exec('make e2e-reset-db e2e-setup')
+  })
+  
   it('Logs in successfully', () => {
     cy.visit('/');
-    cy.get(':nth-child(1) > .input-icon-field__input')
+
+    cy.contains('forgot password', { matchCase: false })
+    
+    cy.get('input').first()
+      .click()
       .type('test@fleetdm.com');
 
-    cy.get(':nth-child(2) > .input-icon-field__input')
-      .type('admin123#');
+    cy.get('input').last()
+      .click().type('admin123#');
 
     cy.get('.button')
       .click();
@@ -16,11 +24,11 @@ describe('Login', () => {
 
   it('Fails with invalid password', () => {
     cy.visit('/');
-    cy.get(':nth-child(1) > .input-icon-field__input')
-      .type('test@fleetdm.com');
+    cy.get('input').first()
+      .click().type('test@fleetdm.com');
 
-    cy.get(':nth-child(2) > .input-icon-field__input')
-      .type('bad_password');
+    cy.get('input').last()
+      .click().type('bad_password');
 
     cy.get('.button')
       .click();
