@@ -1,4 +1,5 @@
 describe('Setup', () => {
+  // Different than normal beforeEach because we don't run the setup.
   beforeEach(() => {
     cy.exec('make e2e-reset-db')
   })
@@ -39,8 +40,6 @@ describe('Setup', () => {
 
 
     // Page 4
-    // TODO figure out what is going on with the exception here.
-    cy.on('uncaught:exception', () => { return false });
     cy.contains('button:enabled', 'Finish')
       .click();
 

@@ -22,7 +22,7 @@ class ConfirmationPage extends Component {
       // RegistrationForm/_styles.scss. We need to wait 300ms before
       // calling .focus() to preserve smooth transition.
       setTimeout(() => {
-        this.firstInput.input.focus();
+        this.firstInput && this.firstInput.input.focus();
       }, 300);
     }
   }
