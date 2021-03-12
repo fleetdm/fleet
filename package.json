@@ -5,7 +5,7 @@
   "private": true,
   "sasslintConfig": ".sass-lint.yml",
   "scripts": {
-    "lint": "eslint frontend --ext .js,.jsx,.ts,.tsx && sass-lint --verbose",
+    "lint": "eslint frontend cypress --ext .js,.jsx,.ts,.tsx && sass-lint --verbose",
     "test": "jest",
     "cypress:open": "cypress open"
   },

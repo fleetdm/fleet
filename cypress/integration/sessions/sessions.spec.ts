@@ -3,8 +3,8 @@ describe('Sessions', () => {
   // so sharing some state should be okay and saves a bit of runtime.
   before(() => {
     cy.setup();
-  })
-  
+  });
+
   it('Logs in and out successfully', () => {
     cy.visit('/');
     cy.contains(/forgot password/i);
@@ -27,7 +27,7 @@ describe('Sessions', () => {
     cy.contains('button', 'Sign out')
       .click();
 
-    cy.url().should('match', /\/login$/)
+    cy.url().should('match', /\/login$/);
   });
 
   it('Fails login with invalid password', () => {
