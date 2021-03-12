@@ -17,6 +17,19 @@ import EditColumnsModal from '../EditColumnsModal/EditColumnsModal';
 
 const baseClass = 'host-container';
 
+const EmptyHosts = () => {
+  return (
+    <div className={`${baseClass}  ${baseClass}--no-hosts`}>
+      <div className={`${baseClass}--no-hosts__inner`}>
+        <div className={'no-filter-results'}>
+          <h1>No hosts match the current criteria</h1>
+          <p>Expecting to see new hosts? Try again in a few seconds as the system catches up</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 class HostContainer extends Component {
   static propTypes = {
     selectedFilter: PropTypes.string,
@@ -119,7 +132,7 @@ class HostContainer extends Component {
             <img src={EditColumnsIcon} alt="edit columns icon" />
             Edit columns
           </Button>
-          <div data-tip data-for="search" className={`${baseClass}__search-input`}>
+          <div data-for="search" className={`${baseClass}__search-input`}>
             <InputField
               placeholder="Search hostname, UUID, serial number, or IPv4"
               name=""
@@ -142,6 +155,8 @@ class HostContainer extends Component {
           defaultSortHeader={hostDataHeaders[0].accessor}
           resultsName={'hosts'}
           fetchDataAction={getHostTableData}
+          entity={'hosts'}
+          emptyComponent={EmptyHosts}
         />
         {renderEditColumnsModal()}
       </div>

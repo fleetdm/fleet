@@ -11,9 +11,9 @@ const DEFAULT_PAGE_INDEX = 0;
 const DEBOUNCE_QUERY_DELAY = 300;
 const DEFAULT_RESULTS_NAME = 'results';
 
-const containerClass = 'host-container';
+const baseClass = 'data-table-container';
 
-const generateHostCountText = (name = DEFAULT_RESULTS_NAME, pageIndex, itemsPerPage, resultsCount) => {
+const generateResultsCountText = (name = DEFAULT_RESULTS_NAME, pageIndex, itemsPerPage, resultsCount) => {
   if (itemsPerPage === resultsCount) return `${itemsPerPage}+ ${name}`;
 
   if (pageIndex !== 0 && (resultsCount <= itemsPerPage)) return `${itemsPerPage}+ ${name}`;
@@ -35,14 +35,16 @@ const DataTable = (props) => {
     defaultSortHeader,
     resultsName,
     fetchDataAction,
+    entity,
+    emptyComponent,
   } = props;
 
   const [pageIndex, setPageIndex] = useState(DEFAULT_PAGE_INDEX);
 
   const dispatch = useDispatch();
-  const loadingHosts = useSelector(state => state.entities.hosts.loading);
-  const hosts = useSelector(state => state.entities.hosts.data);
-  const hostAPIOrder = useSelector(state => state.entities.hosts.originalOrder);
+  const loadingEntity = useSelector(state => state.entities[entity].loading);
+  const entityData = useSelector(state => state.entities[entity].data);
+  const apiOrder = useSelector(state => state.entities[entity].originalOrder);
 
   // This variable is used to keep the react-table state persistent across server calls for new data.
   // You can read more about this here technique here:
@@ -55,11 +57,12 @@ const DataTable = (props) => {
     return tableColumns;
   }, [tableColumns]);
 
+  // The table data needs to be ordered by the order we received from the API.
   const data = useMemo(() => {
-    return hostAPIOrder.map((id) => {
-      return hosts[id];
+    return apiOrder.map((id) => {
+      return entityData[id];
     });
-  }, [hosts, hostAPIOrder]);
+  }, [entityData, apiOrder]);
 
   const {
     headerGroups,
@@ -115,7 +118,7 @@ const DataTable = (props) => {
   }, [setHiddenColumns, hiddenColumns]);
 
   // Any changes to these relevant table search params will fire off an action to get the new
-  // hosts data.
+  // entity data.
   useEffect(() => {
     if (pageIndexChangeRef.current) { // the pageIndex has changed
       dispatch(fetchDataAction(pageIndex, pageSize, selectedFilter, globalFilter, sortBy));
@@ -128,34 +131,26 @@ const DataTable = (props) => {
     }
     skipPageResetRef.current = false;
     pageIndexChangeRef.current = false;
-  }, [dispatch, pageIndex, pageSize, selectedFilter, globalFilter, sortBy]);
+  }, [fetchDataAction, dispatch, pageIndex, pageSize, selectedFilter, globalFilter, sortBy]);
 
-  // No hosts for this result.
-  if (!loadingHosts && Object.values(hosts).length === 0) {
-    return (
-      <div className={`${containerClass}  ${containerClass}--no-hosts`}>
-        <div className={`${containerClass}--no-hosts__inner`}>
-          <div className={'no-filter-results'}>
-            <h1>No hosts match the current criteria</h1>
-            <p>Expecting to see new hosts? Try again in a few seconds as the system catches up</p>
-          </div>
-        </div>
-      </div>
-    );
+  // No entities for this result.
+  if (!loadingEntity && Object.values(entityData).length === 0) {
+    const NoResultsComponent = emptyComponent;
+    return <NoResultsComponent />;
   }
 
   return (
-    <div className={'host-data-table'}>
-      <div className={'manage-hosts__topper'}>
-        <p className={'manage-hosts__host-count'}>{generateHostCountText(resultsName, pageIndex, pageSize, rows.length)}</p>
+    <div className={baseClass}>
+      <div className={`${baseClass}__topper`}>
+        <p className={`${baseClass}__results-count`}>{generateResultsCountText(resultsName, pageIndex, pageSize, rows.length)}</p>
       </div>
-      <div className={'hosts-table hosts-table__wrapper'}>
-        {loadingHosts &&
+      <div className={'data-table data-table__wrapper'}>
+        {loadingEntity &&
           <div className={'loading-overlay'}>
             <Spinner />
           </div>
         }
-        <table className={'hosts-table__table'}>
+        <table className={'data-table__table'}>
           <thead>
             {headerGroups.map(headerGroup => (
               <tr {...headerGroup.getHeaderGroupProps()}>
@@ -206,6 +201,8 @@ DataTable.propTypes = {
   defaultSortHeader: PropTypes.string,
   resultsName: PropTypes.string,
   fetchDataAction: PropTypes.func,
+  entity: PropTypes.string,
+  emptyComponent: PropTypes.func,
 };
 
 export default DataTable;
