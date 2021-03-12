@@ -14,4 +14,4 @@ Informational
 
 ## Remediation
 
- No remediation necessary, this is just an informational query.
+N/A
