@@ -3,7 +3,8 @@
   "compilerOptions": {
     "baseUrl": "./frontend",
     "sourceMap": true,
-    "jsx": "react"
+    "jsx": "react",
+    "types": ["cypress", "@testing-library/cypress"]
   },
   "include": [
     "./frontend/**/*"

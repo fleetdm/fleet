@@ -40,3 +40,4 @@ helm-temp
 # Cypress e2e testing
 cypress/screenshots
 cypress/videos
+cypress/downloads

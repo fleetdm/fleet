@@ -5,7 +5,7 @@
   "private": true,
   "sasslintConfig": ".sass-lint.yml",
   "scripts": {
-    "lint": "eslint frontend --ext .js,.jsx,.ts,.tsx && sass-lint --verbose",
+    "lint": "eslint frontend cypress --ext .js,.jsx,.ts,.tsx && sass-lint --verbose",
     "test": "jest",
     "cypress:open": "cypress open"
   },
@@ -138,6 +138,7 @@
     "@babel/preset-env": "^7.12.7",
     "@babel/preset-react": "^7.12.7",
     "@babel/preset-typescript": "^7.12.7",
+    "@testing-library/cypress": "^7.0.4",
     "@tsconfig/recommended": "^1.0.1",
     "@types/classnames": "0.0.32",
     "@types/expect": "1.20.3",
