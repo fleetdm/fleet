@@ -13,7 +13,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/theupdateframework/go-tuf"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -43,11 +43,12 @@ var (
 	passHandler = newPassphraseHandler()
 )
 
-func UpdatesCommand() cli.Command {
-	return cli.Command{
-		Name:  "updates",
-		Usage: "Manage client updates",
-		Subcommands: []cli.Command{
+func UpdatesCommand() *cli.Command {
+	return &cli.Command{
+		Name:        "updates",
+		Usage:       "Manage client updates",
+		Description: "foobar fdsjklfsdlkfjsafj",
+		Subcommands: []*cli.Command{
 			updatesInitCommand(),
 			updatesRootsCommand(),
 			updatesAddCommand(),
@@ -66,8 +67,8 @@ func updatesFlags() []cli.Flag {
 	}
 }
 
-func updatesInitCommand() cli.Command {
-	return cli.Command{
+func updatesInitCommand() *cli.Command {
+	return &cli.Command{
 		Name:   "init",
 		Usage:  "Initialize update repository",
 		Flags:  updatesFlags(),
@@ -142,8 +143,8 @@ func updatesInitFunc(c *cli.Context) error {
 	return nil
 }
 
-func updatesRootsCommand() cli.Command {
-	return cli.Command{
+func updatesRootsCommand() *cli.Command {
+	return &cli.Command{
 		Name:   "roots",
 		Usage:  "Get root keys metadata",
 		Flags:  updatesFlags(),
@@ -169,8 +170,8 @@ func updatesRootsFunc(c *cli.Context) error {
 	return nil
 }
 
-func updatesAddCommand() cli.Command {
-	return cli.Command{
+func updatesAddCommand() *cli.Command {
+	return &cli.Command{
 		Name:  "add",
 		Usage: "Add a new update artifact",
 		Flags: append(updatesFlags(),
@@ -270,8 +271,8 @@ func updatesAddFunc(c *cli.Context) error {
 	return nil
 }
 
-func updatesTimestampCommand() cli.Command {
-	return cli.Command{
+func updatesTimestampCommand() *cli.Command {
+	return &cli.Command{
 		Name:   "timestamp",
 		Usage:  "Sign a new timestamp manifest",
 		Flags:  updatesFlags(),
