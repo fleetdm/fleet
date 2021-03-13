@@ -1,4 +1,4 @@
-package main
+package eefleetctl
 
 import (
 	"bytes"
@@ -43,7 +43,7 @@ var (
 	passHandler = newPassphraseHandler()
 )
 
-func updatesCommand() cli.Command {
+func UpdatesCommand() cli.Command {
 	return cli.Command{
 		Name:  "updates",
 		Usage: "Manage client updates",
@@ -52,10 +52,6 @@ func updatesCommand() cli.Command {
 			updatesRootsCommand(),
 			updatesAddCommand(),
 			updatesTimestampCommand(),
-		},
-		Flags: []cli.Flag{
-			configFlag(),
-			contextFlag(),
 		},
 	}
 }
@@ -67,8 +63,6 @@ func updatesFlags() []cli.Flag {
 			Usage: "Path to local repository",
 			Value: ".",
 		},
-		configFlag(),
-		contextFlag(),
 	}
 }
 
