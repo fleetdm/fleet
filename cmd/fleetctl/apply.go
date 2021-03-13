@@ -10,7 +10,7 @@ import (
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 var (
@@ -114,18 +114,18 @@ func specGroupFromBytes(b []byte) (*specGroup, error) {
 	return specs, nil
 }
 
-func applyCommand() cli.Command {
+func applyCommand() *cli.Command {
 	var (
 		flFilename string
 	)
-	return cli.Command{
+	return &cli.Command{
 		Name:      "apply",
 		Usage:     "Apply files to declaratively manage osquery configurations",
 		UsageText: `fleetctl apply [options]`,
 		Flags: []cli.Flag{
-			cli.StringFlag{
+			&cli.StringFlag{
 				Name:        "f",
-				EnvVar:      "FILENAME",
+				EnvVars:     []string{"FILENAME"},
 				Value:       "",
 				Destination: &flFilename,
 				Usage:       "A file to apply",

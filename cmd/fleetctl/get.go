@@ -11,7 +11,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 const (
@@ -34,15 +34,15 @@ func defaultTable() *tablewriter.Table {
 	return table
 }
 
-func yamlFlag() cli.BoolFlag {
-	return cli.BoolFlag{
+func yamlFlag() cli.Flag {
+	return &cli.BoolFlag{
 		Name:  yamlFlagName,
 		Usage: "Output in yaml format",
 	}
 }
 
-func jsonFlag() cli.BoolFlag {
-	return cli.BoolFlag{
+func jsonFlag() cli.Flag {
+	return &cli.BoolFlag{
 		Name:  jsonFlagName,
 		Usage: "Output in JSON format",
 	}
@@ -201,11 +201,11 @@ func printConfig(c *cli.Context, config *kolide.AppConfigPayload) error {
 	return err
 }
 
-func getCommand() cli.Command {
-	return cli.Command{
+func getCommand() *cli.Command {
+	return &cli.Command{
 		Name:  "get",
 		Usage: "Get/list resources",
-		Subcommands: []cli.Command{
+		Subcommands: []*cli.Command{
 			getQueriesCommand(),
 			getPacksCommand(),
 			getLabelsCommand(),
@@ -219,8 +219,8 @@ func getCommand() cli.Command {
 	}
 }
 
-func getQueriesCommand() cli.Command {
-	return cli.Command{
+func getQueriesCommand() *cli.Command {
+	return &cli.Command{
 		Name:    "queries",
 		Aliases: []string{"query", "q"},
 		Usage:   "List information about one or more queries",
@@ -292,13 +292,13 @@ func getQueriesCommand() cli.Command {
 	}
 }
 
-func getPacksCommand() cli.Command {
-	return cli.Command{
+func getPacksCommand() *cli.Command {
+	return &cli.Command{
 		Name:    "packs",
 		Aliases: []string{"pack", "p"},
 		Usage:   "List information about one or more packs",
 		Flags: []cli.Flag{
-			cli.BoolFlag{
+			&cli.BoolFlag{
 				Name:  withQueriesFlagName,
 				Usage: "Output queries included in pack(s) too",
 			},
@@ -412,8 +412,8 @@ func getPacksCommand() cli.Command {
 	}
 }
 
-func getLabelsCommand() cli.Command {
-	return cli.Command{
+func getLabelsCommand() *cli.Command {
+	return &cli.Command{
 		Name:    "labels",
 		Aliases: []string{"label", "l"},
 		Usage:   "List information about one or more labels",
@@ -484,8 +484,8 @@ func getLabelsCommand() cli.Command {
 	}
 }
 
-func getOptionsCommand() cli.Command {
-	return cli.Command{
+func getOptionsCommand() *cli.Command {
+	return &cli.Command{
 		Name:  "options",
 		Usage: "Retrieve the osquery configuration",
 		Flags: []cli.Flag{
@@ -516,8 +516,8 @@ func getOptionsCommand() cli.Command {
 	}
 }
 
-func getEnrollSecretCommand() cli.Command {
-	return cli.Command{
+func getEnrollSecretCommand() *cli.Command {
+	return &cli.Command{
 		Name:    "enroll_secret",
 		Aliases: []string{"enroll_secrets", "enroll-secret", "enroll-secrets"},
 		Usage:   "Retrieve the osquery enroll secrets",
@@ -549,8 +549,8 @@ func getEnrollSecretCommand() cli.Command {
 	}
 }
 
-func getAppConfigCommand() cli.Command {
-	return cli.Command{
+func getAppConfigCommand() *cli.Command {
+	return &cli.Command{
 		Name:  "config",
 		Usage: "Retrieve the Fleet configuration",
 		Flags: []cli.Flag{
@@ -581,8 +581,8 @@ func getAppConfigCommand() cli.Command {
 	}
 }
 
-func getHostsCommand() cli.Command {
-	return cli.Command{
+func getHostsCommand() *cli.Command {
+	return &cli.Command{
 		Name:    "hosts",
 		Aliases: []string{"host", "h"},
 		Usage:   "List information about one or more hosts",
@@ -656,12 +656,12 @@ func getHostsCommand() cli.Command {
 	}
 }
 
-func getCarvesCommand() cli.Command {
-	return cli.Command{
+func getCarvesCommand() *cli.Command {
+	return &cli.Command{
 		Name:  "carves",
 		Usage: "Retrieve the file carving sessions",
 		Flags: []cli.Flag{
-			cli.BoolFlag{
+			&cli.BoolFlag{
 				Name:  expiredFlagName,
 				Usage: "Include expired carves",
 			},
@@ -716,12 +716,12 @@ func getCarvesCommand() cli.Command {
 	}
 }
 
-func getCarveCommand() cli.Command {
-	return cli.Command{
+func getCarveCommand() *cli.Command {
+	return &cli.Command{
 		Name:  "carve",
 		Usage: "Retrieve details for a carve by ID",
 		Flags: []cli.Flag{
-			cli.BoolFlag{
+			&cli.BoolFlag{
 				Name:  stdoutFlagName,
 				Usage: "Print carve contents to stdout",
 			},

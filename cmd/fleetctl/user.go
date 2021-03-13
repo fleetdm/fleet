@@ -7,7 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -19,43 +19,43 @@ const (
 	ssoFlagName      = "sso"
 )
 
-func userCommand() cli.Command {
-	return cli.Command{
+func userCommand() *cli.Command {
+	return &cli.Command{
 		Name:  "user",
 		Usage: "Manage Fleet users",
-		Subcommands: []cli.Command{
+		Subcommands: []*cli.Command{
 			createUserCommand(),
 		},
 	}
 }
 
-func createUserCommand() cli.Command {
-	return cli.Command{
+func createUserCommand() *cli.Command {
+	return &cli.Command{
 		Name:  "create",
 		Usage: "Create a new user",
 		UsageText: `This command will create a new user in Fleet. By default, the user will authenticate with a password and will not have admin privileges.
 
    If a password is required and not provided by flag, the command will prompt for password input through stdin.`,
 		Flags: []cli.Flag{
-			cli.StringFlag{
+			&cli.StringFlag{
 				Name:     usernameFlagName,
 				Usage:    "Username for new user (required)",
 				Required: true,
 			},
-			cli.StringFlag{
+			&cli.StringFlag{
 				Name:     emailFlagName,
 				Usage:    "Email for new user (required)",
 				Required: true,
 			},
-			cli.StringFlag{
+			&cli.StringFlag{
 				Name:  passwordFlagName,
 				Usage: "Password for new user",
 			},
-			cli.BoolFlag{
+			&cli.BoolFlag{
 				Name:  adminFlagName,
 				Usage: "Grant admin privileges to created user (default false)",
 			},
-			cli.BoolFlag{
+			&cli.BoolFlag{
 				Name:  ssoFlagName,
 				Usage: "Enable user login via SSO (default false)",
 			},
