@@ -1,7 +1,7 @@
-# Fleet role based access control and teams guide
+# Fleet role-based access control and teams guide
 
 
-## Role based access control
+## Role-based access control
 > Applies to Fleet Core and Fleet Basic
 ### Roles
 #### Admin
