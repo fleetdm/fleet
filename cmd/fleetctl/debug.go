@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
-func debugCommand() cli.Command {
-	return cli.Command{
+func debugCommand() *cli.Command {
+	return &cli.Command{
 		Name:  "debug",
 		Usage: "Tools for debugging Fleet",
 		Flags: []cli.Flag{
@@ -22,7 +22,7 @@ func debugCommand() cli.Command {
 			contextFlag(),
 			debugFlag(),
 		},
-		Subcommands: []cli.Command{
+		Subcommands: []*cli.Command{
 			debugProfileCommand(),
 			debugCmdlineCommand(),
 			debugHeapCommand(),
@@ -46,8 +46,8 @@ func outfileName(name string) string {
 	return fmt.Sprintf("fleet-%s-%s", name, time.Now().Format(time.RFC3339))
 }
 
-func debugProfileCommand() cli.Command {
-	return cli.Command{
+func debugProfileCommand() *cli.Command {
+	return &cli.Command{
 		Name:      "profile",
 		Usage:     "Record a CPU profile from the Fleet server.",
 		UsageText: "Record a 30-second CPU profile. The output can be analyzed with go tool pprof.",
@@ -90,8 +90,8 @@ func joinCmdline(cmdline string) string {
 	return fmt.Sprintf("[%s]", strings.Join(tokens, ", "))
 }
 
-func debugCmdlineCommand() cli.Command {
-	return cli.Command{
+func debugCmdlineCommand() *cli.Command {
+	return &cli.Command{
 		Name:  "cmdline",
 		Usage: "Get the command line used to invoke the Fleet server.",
 		Flags: []cli.Flag{
@@ -127,9 +127,9 @@ func debugCmdlineCommand() cli.Command {
 	}
 }
 
-func debugHeapCommand() cli.Command {
+func debugHeapCommand() *cli.Command {
 	name := "heap"
-	return cli.Command{
+	return &cli.Command{
 		Name:      name,
 		Usage:     "Report the allocated memory in the Fleet server.",
 		UsageText: "Report the heap-allocated memory. The output can be analyzed with go tool pprof.",
@@ -164,9 +164,9 @@ func debugHeapCommand() cli.Command {
 	}
 }
 
-func debugGoroutineCommand() cli.Command {
+func debugGoroutineCommand() *cli.Command {
 	name := "goroutine"
-	return cli.Command{
+	return &cli.Command{
 		Name:      name,
 		Usage:     "Get stack traces of all goroutines (threads) in the Fleet server.",
 		UsageText: "Get stack traces of all current goroutines (threads). The output can be analyzed with go tool pprof.",
@@ -201,9 +201,9 @@ func debugGoroutineCommand() cli.Command {
 	}
 }
 
-func debugTraceCommand() cli.Command {
+func debugTraceCommand() *cli.Command {
 	name := "trace"
-	return cli.Command{
+	return &cli.Command{
 		Name:      name,
 		Usage:     "Record an execution trace on the Fleet server.",
 		UsageText: "Record a 1 second execution trace. The output can be analyzed with go tool trace.",
@@ -238,8 +238,8 @@ func debugTraceCommand() cli.Command {
 	}
 }
 
-func debugArchiveCommand() cli.Command {
-	return cli.Command{
+func debugArchiveCommand() *cli.Command {
+	return &cli.Command{
 		Name:  "archive",
 		Usage: "Create an archive with the entire suite of debug profiles.",
 		Flags: []cli.Flag{

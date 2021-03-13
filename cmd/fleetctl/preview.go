@@ -17,21 +17,21 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/server/service"
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 const (
 	downloadUrl = "https://github.com/fleetdm/osquery-in-a-box/archive/master.zip"
 )
 
-func previewCommand() cli.Command {
-	return cli.Command{
+func previewCommand() *cli.Command {
+	return &cli.Command{
 		Name:  "preview",
 		Usage: "Set up a preview deployment of the Fleet server",
 		UsageText: `Set up a preview deployment of the Fleet server using Docker and docker-compose. Docker tools must be available in the environment.
 
 This command will create a directory fleet-preview in the current working directory. Configurations can be modified in that directory.`,
-		Subcommands: []cli.Command{},
+		Subcommands: []*cli.Command{},
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),

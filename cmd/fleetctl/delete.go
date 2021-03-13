@@ -6,21 +6,21 @@ import (
 
 	"github.com/fleetdm/fleet/server/service"
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
-func deleteCommand() cli.Command {
+func deleteCommand() *cli.Command {
 	var (
 		flFilename string
 	)
-	return cli.Command{
+	return &cli.Command{
 		Name:      "delete",
 		Usage:     "Specify files to declaratively batch delete osquery configurations",
 		UsageText: `fleetctl delete [options]`,
 		Flags: []cli.Flag{
-			cli.StringFlag{
+			&cli.StringFlag{
 				Name:        "f",
-				EnvVar:      "FILENAME",
+				EnvVars:     []string{"FILENAME"},
 				Value:       "",
 				Destination: &flFilename,
 				Usage:       "A file to apply",
