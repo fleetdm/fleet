@@ -5,7 +5,7 @@ Get all software installed on a macOS computer, including apps, browser plugins,
 > This does not included other running processes in the `processes` table.
 
 ### Support
-MacOS
+macOS
 
 ### Query
 ```sql
@@ -29,7 +29,7 @@ FROM chrome_extensions
 SELECT
   name as name,
   version AS version
-  'firefox_addones' AS source
+  'firefox_addons' AS source
 FROM firefox_addons
 SELECT
   name as name,
