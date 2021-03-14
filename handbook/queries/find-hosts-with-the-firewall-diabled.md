@@ -5,7 +5,7 @@ macOS
 
 ### Query
 ```sql
-SELECT * FROM alf WHERE global_state = 0
+SELECT * FROM alf WHERE global_state = 0;
 ```
 
 ### Purpose
