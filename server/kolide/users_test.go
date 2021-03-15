@@ -18,8 +18,6 @@ func TestValidatePassword(t *testing.T) {
 		{"jason", "bar0baz!?", "jason@kolide.co", true, false},
 	}
 
-	const bcryptCost = 6
-
 	for _, tt := range passwordTests {
 		user := newTestUser(t, tt.Username, tt.Password, tt.Email)
 
