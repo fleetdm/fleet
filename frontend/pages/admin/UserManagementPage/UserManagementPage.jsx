@@ -7,9 +7,7 @@ import { push } from 'react-router-redux';
 import Button from 'components/buttons/Button';
 import configInterface from 'interfaces/config';
 import deepDifference from 'utilities/deep_difference';
-import entityGetter from 'redux/utilities/entityGetter';
 import inviteActions from 'redux/nodes/entities/invites/actions';
-import inviteInterface from 'interfaces/invite';
 import InviteUserForm from 'components/forms/InviteUserForm';
 import Modal from 'components/modals/Modal';
 import paths from 'router/paths';
@@ -17,8 +15,9 @@ import { renderFlash } from 'redux/nodes/notifications/actions';
 import WarningBanner from 'components/WarningBanner';
 import { updateUser } from 'redux/nodes/auth/actions';
 import userActions from 'redux/nodes/entities/users/actions';
-import UserRow from 'components/UserRow';
 import userInterface from 'interfaces/user';
+import DataTable from 'components/DataTable/DataTable';
+import usersTableHeaders from './UsersTableConfig';
 
 const baseClass = 'user-management';
 
@@ -32,15 +31,11 @@ export class UserManagementPage extends Component {
       base: PropTypes.string,
       email: PropTypes.string,
     }),
-    invites: PropTypes.arrayOf(inviteInterface),
-    loadingInvites: PropTypes.bool,
-    loadingUsers: PropTypes.bool,
     userErrors: PropTypes.shape({
       base: PropTypes.string,
       name: PropTypes.string,
       username: PropTypes.string,
     }),
-    users: PropTypes.arrayOf(userInterface),
   };
 
   constructor (props) {
@@ -55,9 +50,7 @@ export class UserManagementPage extends Component {
   componentWillMount () {
     const { dispatch } = this.props;
 
-    dispatch(userActions.loadAll());
     dispatch(inviteActions.loadAll());
-
     return false;
   }
 
@@ -190,27 +183,27 @@ export class UserManagementPage extends Component {
     return false;
   }
 
-  renderUserRow = (user, idx, options = { invite: false }) => {
-    const { currentUser, userErrors } = this.props;
-    const { invite } = options;
-    const { onEditUser, onToggleEditUser, onUserActionSelect } = this;
-    const { usersEditing } = this.state;
-    const isEditing = includes(usersEditing, user.id);
-
-    return (
-      <UserRow
-        isEditing={isEditing}
-        isInvite={invite}
-        isCurrentUser={currentUser.id === user.id}
-        key={`${user.email}-${idx}-${invite ? 'invite' : 'user'}`}
-        onEditUser={onEditUser}
-        onSelect={onUserActionSelect}
-        onToggleEditUser={onToggleEditUser}
-        user={user}
-        userErrors={userErrors}
-      />
-    );
-  }
+  // renderUserRow = (user, idx, options = { invite: false }) => {
+  //   const { currentUser, userErrors } = this.props;
+  //   const { invite } = options;
+  //   const { onEditUser, onToggleEditUser, onUserActionSelect } = this;
+  //   const { usersEditing } = this.state;
+  //   const isEditing = includes(usersEditing, user.id);
+  //
+  //   return (
+  //     <UserRow
+  //       isEditing={isEditing}
+  //       isInvite={invite}
+  //       isCurrentUser={currentUser.id === user.id}
+  //       key={`${user.email}-${idx}-${invite ? 'invite' : 'user'}`}
+  //       onEditUser={onEditUser}
+  //       onSelect={onUserActionSelect}
+  //       onToggleEditUser={onToggleEditUser}
+  //       user={user}
+  //       userErrors={userErrors}
+  //     />
+  //   );
+  // }
 
   renderModal = () => {
     const { currentUser, inviteErrors } = this.props;
@@ -265,61 +258,34 @@ export class UserManagementPage extends Component {
     );
   }
 
-  renderUserTable = () => {
-    const { invites, users } = this.props;
-    const { renderUserRow } = this;
-
-    return (
-      <div className={`${baseClass}__wrapper`}>
-        <table className={`${baseClass}__table`}>
-          <thead>
-            <tr>
-              <th>Username</th>
-              <th>Status</th>
-              <th>Full Name</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th className={`${baseClass}__position`}>Position</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((user, idx) => {
-              return renderUserRow(user, idx);
-            })}
-            {invites.map((user, idx) => {
-              return renderUserRow(user, idx, { invite: true });
-            })}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
-
   render () {
-    const { renderModal, renderSmtpWarning, renderUserTable, toggleInviteUserModal } = this;
-    const { config, loadingInvites, loadingUsers, users, invites } = this.props;
-    const resourcesCount = users.length + invites.length;
-    if (loadingInvites || loadingUsers) {
-      return false;
-    }
+    const { renderModal, renderSmtpWarning, toggleInviteUserModal } = this;
+    const { config } = this.props;
 
     return (
       <div className={`${baseClass} body-wrap`}>
-        <p className={`${baseClass}__page-description`}>Invite new users, customize user permissions, and disable users in Fleet.</p>
+        <p className={`${baseClass}__page-description`}>Create new users, customize user permissions, and remove users from Fleet.</p>
         {renderSmtpWarning()}
         <div className={`${baseClass}__add-user-wrap`}>
-          <p className={`${baseClass}__user-count`}>{resourcesCount} users</p>
           <Button
             className={'button button--brand'}
             disabled={!config.configured}
             onClick={toggleInviteUserModal}
             title={config.configured ? 'Add User' : 'Email must be configured to add users'}
           >
-            Invite user
+            Create User
           </Button>
         </div>
-        {renderUserTable()}
+        <DataTable
+          searchQuery={''}
+          tableColumns={usersTableHeaders}
+          pageSize={100}
+          defaultSortHeader={'name'}
+          resultsName={'rows'}
+          fetchDataAction={userActions.loadAll}
+          entity={'users'}
+          emptyComponent={() => { return null; }}
+        />
         {renderModal()}
       </div>
     );
@@ -327,25 +293,14 @@ export class UserManagementPage extends Component {
 }
 
 const mapStateToProps = (state) => {
-  const stateEntityGetter = entityGetter(state);
   const { config } = state.app;
   const { loading: appConfigLoading } = state.app;
   const { user: currentUser } = state.auth;
-  const { entities: users } = stateEntityGetter.get('users');
-  const { entities: invites } = stateEntityGetter.get('invites');
-  const { errors: inviteErrors, loading: loadingInvites } = state.entities.invites;
-  const { errors: userErrors, loading: loadingUsers } = state.entities.users;
 
   return {
     appConfigLoading,
     config,
     currentUser,
-    inviteErrors,
-    invites,
-    loadingInvites,
-    loadingUsers,
-    userErrors,
-    users,
   };
 };
 

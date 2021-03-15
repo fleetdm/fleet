@@ -1,11 +1,11 @@
 import React from 'react';
-import { IHost } from '../../../../../interfaces/host';
 
-import HeaderCell from '../HeaderCell/HeaderCell';
-import LinkCell from '../LinkCell/LinkCell';
-import StatusCell from '../StatusCell/StatusCell';
-import TextCell from '../TextCell/TextCell';
-import { humanHostMemory, humanHostUptime, humanHostLastSeen } from '../../../../../kolide/helpers';
+import { IHost } from 'interfaces/host';
+import HeaderCell from 'components/DataTable/HeaderCell/HeaderCell';
+import LinkCell from 'components/DataTable/LinkCell/LinkCell';
+import StatusCell from 'components/DataTable/StatusCell/StatusCell';
+import TextCell from 'components/DataTable/TextCell/TextCell';
+import { humanHostMemory, humanHostUptime, humanHostLastSeen } from 'kolide/helpers';
 
 interface IHeaderProps {
   column: {

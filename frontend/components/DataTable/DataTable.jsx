@@ -29,7 +29,7 @@ const DataTable = (props) => {
     // component cannot access the router state.
     selectedFilter,
     searchQuery,
-    hiddenColumns,
+    hiddenColumns = [],
     tableColumns,
     pageSize,
     defaultSortHeader,
@@ -54,11 +54,13 @@ const DataTable = (props) => {
   const pageIndexChangeRef = useRef();
 
   const columns = useMemo(() => {
+    // console.log('Column calc');
     return tableColumns;
   }, [tableColumns]);
 
   // The table data needs to be ordered by the order we received from the API.
   const data = useMemo(() => {
+    // console.log('Data calc');
     return apiOrder.map((id) => {
       return entityData[id];
     });

@@ -11,3 +11,15 @@ export default PropTypes.shape({
   position: PropTypes.string,
   username: PropTypes.string,
 });
+
+export interface IUser {
+  admin: boolean,
+  email: string,
+  enabled: boolean,
+  force_password_reset: boolean,
+  gravatarURL: string,
+  id: number,
+  name: string,
+  position: string,
+  username: string,
+}
