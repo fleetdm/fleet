@@ -3,33 +3,27 @@ import PropTypes from 'prop-types';
 import { useTable, useGlobalFilter, useSortBy, useAsyncDebounce } from 'react-table';
 import { useSelector, useDispatch } from 'react-redux';
 
-// TODO: move this file closer to HostsDataTable
-import { getHostTableData } from 'redux/nodes/components/ManageHostsPage/actions';
-
 import Spinner from 'components/loaders/Spinner';
-import HostPagination from 'components/hosts/HostPagination';
-import scrollToTop from '../../../../../utilities/scroll_to_top';
+import Pagination from 'components/Pagination';
+import scrollToTop from 'utilities/scroll_to_top';
 
-// TODO: pass in as props
-const DEFAULT_PAGE_SIZE = 100;
 const DEFAULT_PAGE_INDEX = 0;
 const DEBOUNCE_QUERY_DELAY = 300;
-const DEFAULT_SORT_KEY = 'hostname';
+const DEFAULT_RESULTS_NAME = 'results';
 
-// TODO: possibly get rid of this.
-const containerClass = 'host-container';
+const baseClass = 'data-table-container';
 
-const generateHostCountText = (pageIndex, itemsPerPage, resultsCount) => {
-  if (itemsPerPage === resultsCount) return `${itemsPerPage}+ hosts`;
+const generateResultsCountText = (name = DEFAULT_RESULTS_NAME, pageIndex, itemsPerPage, resultsCount) => {
+  if (itemsPerPage === resultsCount) return `${itemsPerPage}+ ${name}`;
 
-  if (pageIndex !== 0 && (resultsCount <= itemsPerPage)) return `${itemsPerPage}+ hosts`;
+  if (pageIndex !== 0 && (resultsCount <= itemsPerPage)) return `${itemsPerPage}+ ${name}`;
 
-  return `${resultsCount} hosts`;
+  return `${resultsCount} ${name}`;
 };
 
 // This data table uses react-table for implementation. The relevant documentation of the library
 // can be found here https://react-table.tanstack.com/docs/api/useTable
-const HostsDataTable = (props) => {
+const DataTable = (props) => {
   const {
     // selectedFilter is passed from parent, as it ultimately comes from the router and this
     // component cannot access the router state.
@@ -37,15 +31,20 @@ const HostsDataTable = (props) => {
     searchQuery,
     hiddenColumns,
     tableColumns,
+    pageSize,
+    defaultSortHeader,
+    resultsName,
+    fetchDataAction,
+    entity,
+    emptyComponent,
   } = props;
 
-  const [pageSize] = useState(DEFAULT_PAGE_SIZE);
   const [pageIndex, setPageIndex] = useState(DEFAULT_PAGE_INDEX);
 
   const dispatch = useDispatch();
-  const loadingHosts = useSelector(state => state.entities.hosts.loading);
-  const hosts = useSelector(state => state.entities.hosts.data);
-  const hostAPIOrder = useSelector(state => state.entities.hosts.originalOrder);
+  const loadingEntity = useSelector(state => state.entities[entity].loading);
+  const entityData = useSelector(state => state.entities[entity].data);
+  const apiOrder = useSelector(state => state.entities[entity].originalOrder);
 
   // This variable is used to keep the react-table state persistent across server calls for new data.
   // You can read more about this here technique here:
@@ -58,11 +57,12 @@ const HostsDataTable = (props) => {
     return tableColumns;
   }, [tableColumns]);
 
+  // The table data needs to be ordered by the order we received from the API.
   const data = useMemo(() => {
-    return hostAPIOrder.map((id) => {
-      return hosts[id];
+    return apiOrder.map((id) => {
+      return entityData[id];
     });
-  }, [hosts, hostAPIOrder]);
+  }, [entityData, apiOrder]);
 
   const {
     headerGroups,
@@ -76,7 +76,7 @@ const HostsDataTable = (props) => {
       columns,
       data,
       initialState: {
-        sortBy: [{ id: DEFAULT_SORT_KEY, desc: true }],
+        sortBy: [{ id: defaultSortHeader, desc: true }],
         hiddenColumns,
       },
       autoResetHiddenColumns: false,
@@ -118,47 +118,39 @@ const HostsDataTable = (props) => {
   }, [setHiddenColumns, hiddenColumns]);
 
   // Any changes to these relevant table search params will fire off an action to get the new
-  // hosts data.
+  // entity data.
   useEffect(() => {
     if (pageIndexChangeRef.current) { // the pageIndex has changed
-      dispatch(getHostTableData(pageIndex, pageSize, selectedFilter, globalFilter, sortBy));
+      dispatch(fetchDataAction(pageIndex, pageSize, selectedFilter, globalFilter, sortBy));
     } else { // something besides pageIndex changed. we want to get results starting at the first page
       // NOTE: currently this causes the request to fire twice if the user is not on the first page
       // of results. Need to come back to this and figure out how to get it to
       // only fire once.
       setPageIndex(0);
-      dispatch(getHostTableData(0, pageSize, selectedFilter, globalFilter, sortBy));
+      dispatch(fetchDataAction(0, pageSize, selectedFilter, globalFilter, sortBy));
     }
     skipPageResetRef.current = false;
     pageIndexChangeRef.current = false;
-  }, [dispatch, pageIndex, pageSize, selectedFilter, globalFilter, sortBy]);
+  }, [fetchDataAction, dispatch, pageIndex, pageSize, selectedFilter, globalFilter, sortBy]);
 
-  // No hosts for this result.
-  if (!loadingHosts && Object.values(hosts).length === 0) {
-    return (
-      <div className={`${containerClass}  ${containerClass}--no-hosts`}>
-        <div className={`${containerClass}--no-hosts__inner`}>
-          <div className={'no-filter-results'}>
-            <h1>No hosts match the current criteria</h1>
-            <p>Expecting to see new hosts? Try again in a few seconds as the system catches up</p>
-          </div>
-        </div>
-      </div>
-    );
+  // No entities for this result.
+  if (!loadingEntity && Object.values(entityData).length === 0) {
+    const NoResultsComponent = emptyComponent;
+    return <NoResultsComponent />;
   }
 
   return (
-    <div className={'host-data-table'}>
-      <div className={'manage-hosts__topper'}>
-        <p className={'manage-hosts__host-count'}>{generateHostCountText(pageIndex, pageSize, rows.length)}</p>
+    <div className={baseClass}>
+      <div className={`${baseClass}__topper`}>
+        <p className={`${baseClass}__results-count`}>{generateResultsCountText(resultsName, pageIndex, pageSize, rows.length)}</p>
       </div>
-      <div className={'hosts-table hosts-table__wrapper'}>
-        {loadingHosts &&
+      <div className={'data-table data-table__wrapper'}>
+        {loadingEntity &&
           <div className={'loading-overlay'}>
             <Spinner />
           </div>
         }
-        <table className={'hosts-table__table'}>
+        <table className={'data-table__table'}>
           <thead>
             {headerGroups.map(headerGroup => (
               <tr {...headerGroup.getHeaderGroupProps()}>
@@ -190,21 +182,27 @@ const HostsDataTable = (props) => {
         </table>
       </div>
 
-      <HostPagination
-        hostsOnCurrentPage={rows.length}
+      <Pagination
+        resultsOnCurrentPage={rows.length}
         currentPage={pageIndex}
-        hostsPerPage={pageSize}
+        resultsPerPage={pageSize}
         onPaginationChange={onPaginationChange}
       />
     </div>
   );
 };
 
-HostsDataTable.propTypes = {
+DataTable.propTypes = {
   selectedFilter: PropTypes.string,
   searchQuery: PropTypes.string,
   tableColumns: PropTypes.arrayOf(PropTypes.object), // TODO: create proper interface for this
   hiddenColumns: PropTypes.arrayOf(PropTypes.string),
+  pageSize: PropTypes.number,
+  defaultSortHeader: PropTypes.string,
+  resultsName: PropTypes.string,
+  fetchDataAction: PropTypes.func,
+  entity: PropTypes.string,
+  emptyComponent: PropTypes.func,
 };
 
-export default HostsDataTable;
+export default DataTable;

@@ -1,12 +1,19 @@
-.host-data-table {
+.data-table-container {
   position: relative;
 
-  .manage-hosts__topper {
+  &__topper {
     position: absolute;
     top: -38px;
   }
 
-  .hosts-table {
+  &__results-count {
+    font-size: $x-small;
+    font-weight: $bold;
+    color: $core-black;
+    margin: 0;
+  }
+
+  .data-table {
     &__wrapper {
       border: solid 1px $ui-borders;
       border-radius: 6px;

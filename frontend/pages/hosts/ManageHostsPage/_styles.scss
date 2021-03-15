@@ -69,18 +69,6 @@
     }
   }
 
-  &__topper {
-    display: flex;
-    align-items: flex-end;
-  }
-
-  &__host-count {
-    font-size: $x-small;
-    font-weight: $bold;
-    color: $core-black;
-    margin: 0;
-  }
-
   &__toggle-view {
     .kolidecon {
       width: 24px;

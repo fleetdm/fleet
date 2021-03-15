@@ -4,14 +4,14 @@ import PropTypes from 'prop-types';
 import Button from 'components/buttons/Button';
 import KolideIcon from 'components/icons/KolideIcon';
 
-const baseClass = 'host-pagination';
+const baseClass = 'pagination';
 
-class HostPagination extends PureComponent {
+class Pagination extends PureComponent {
   static propTypes = {
     currentPage: PropTypes.number,
-    hostsPerPage: PropTypes.number,
+    resultsPerPage: PropTypes.number,
     onPaginationChange: PropTypes.func,
-    hostsOnCurrentPage: PropTypes.number,
+    resultsOnCurrentPage: PropTypes.number,
   };
 
   disablePrev = () => {
@@ -19,10 +19,10 @@ class HostPagination extends PureComponent {
   }
 
   disableNext = () => {
-    // NOTE: not sure why hostsOnCurrentPage is getting assigned undefined.
+    // NOTE: not sure why resultsOnCurrentPage is getting assigned undefined.
     // but this seems to work when there is no data in the table.
-    return this.props.hostsOnCurrentPage === undefined ||
-      this.props.hostsOnCurrentPage < this.props.hostsPerPage;
+    return this.props.resultsOnCurrentPage === undefined ||
+      this.props.resultsOnCurrentPage < this.props.resultsPerPage;
   }
 
   render () {
@@ -44,4 +44,4 @@ class HostPagination extends PureComponent {
   }
 }
 
-export default HostPagination;
+export default Pagination;
