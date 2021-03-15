@@ -4,7 +4,6 @@ package websocket
 
 import (
 	"encoding/json"
-	"time"
 
 	"github.com/igm/sockjs-go/v3/sockjs"
 
@@ -13,20 +12,11 @@ import (
 )
 
 const (
-	// maxMessageSize is used to set a read limit on the websocket and
-	// prevent clients from flooding us with data.
-	maxMessageSize int64 = 8096
-
 	// authType is the type string used for auth messages.
 	authType string = "auth"
 
 	// errType is the type string used for error messages.
 	errType string = "error"
-
-	// defaultTimeout is the default timeout that should be used for
-	// sending and receiving over the websocket. It is used unless
-	// Conn.Timeout is set explicitly after Upgrade is called.
-	defaultTimeout time.Duration = 3 * time.Second
 )
 
 // JSONMessage is a wrapper struct for messages that will be sent across the wire
