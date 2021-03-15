@@ -21,7 +21,6 @@ type AuthnRequest struct {
 	NameIDPolicy                *NameIDPolicy          `xml:"NameIDPolicy,omitempty"`
 	RequestedAuthnContext       *RequestedAuthnContext `xml:"RequestedAuthnContext,omitempty"`
 	Signature                   *Signature             `xml:"Signature,omitempty"`
-	originalString              string
 }
 
 // Response is submitted to the service provider (Kolide) from the IDP via a callback.
@@ -43,8 +42,6 @@ type Response struct {
 	Signature Signature `xml:"Signature"`
 	Issuer    Issuer    `xml:"Issuer"`
 	Status    Status    `xml:"Status"`
-
-	originalString string
 }
 
 type Issuer struct {
