@@ -45,9 +45,11 @@ var (
 
 func UpdatesCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "updates",
-		Usage:       "Manage client updates",
-		Description: "foobar fdsjklfsdlkfjsafj",
+		Name:  "updates",
+		Usage: "Manage client updates",
+		Description: `fleetctl updates commands provide the initialization and management of a TUF-compliant update repository.
+
+This functionality is licensed under the Fleet EE License. Usage requires a current Fleet EE subscription.`,
 		Subcommands: []*cli.Command{
 			updatesInitCommand(),
 			updatesRootsCommand(),
