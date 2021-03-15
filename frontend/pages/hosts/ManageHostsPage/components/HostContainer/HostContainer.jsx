@@ -7,12 +7,13 @@ import { getHostTableData } from 'redux/nodes/components/ManageHostsPage/actions
 import Button from 'components/buttons/Button';
 import InputField from 'components/forms/fields/InputField';
 import KolideIcon from 'components/icons/KolideIcon';
+import DataTable from 'components/DataTable/DataTable';
 import Modal from 'components/modals/Modal';
 import RoboDogImage from '../../../../../../assets/images/robo-dog-176x144@2x.png';
 import EditColumnsIcon from '../../../../../../assets/images/icon-edit-columns-20x20@2x.png';
 
 import { hostDataHeaders, defaultHiddenColumns } from './HostTableConfig';
-import DataTable from '../../../../../components/DataTable/DataTable';
+
 import EditColumnsModal from '../EditColumnsModal/EditColumnsModal';
 
 const baseClass = 'host-container';
@@ -101,7 +102,6 @@ class HostContainer extends Component {
   }
 
   render () {
-    console.log('render HostContainer');
     const { onSearchQueryChange, renderEditColumnsModal } = this;
     const { selectedFilter, selectedLabel } = this.props;
     const { searchQuery, hiddenColumns } = this.state;
@@ -151,6 +151,7 @@ class HostContainer extends Component {
           selectedFilter={selectedFilter}
           searchQuery={searchQuery}
           tableColumns={hostDataHeaders}
+          hiddenColumns={hiddenColumns}
           pageSize={100}
           defaultSortHeader={hostDataHeaders[0].accessor}
           resultsName={'hosts'}

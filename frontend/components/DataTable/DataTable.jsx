@@ -29,7 +29,7 @@ const DataTable = (props) => {
     // component cannot access the router state.
     selectedFilter,
     searchQuery,
-    hiddenColumns = [],
+    hiddenColumns,
     tableColumns,
     pageSize,
     defaultSortHeader,

@@ -279,6 +279,7 @@ export class UserManagementPage extends Component {
         <DataTable
           searchQuery={''}
           tableColumns={usersTableHeaders}
+          hiddenColumns={[]}
           pageSize={100}
           defaultSortHeader={'name'}
           resultsName={'rows'}
