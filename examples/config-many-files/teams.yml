@@ -1,4 +1,4 @@
-# This configuration file allows for the manaing of teams in Fleet.
+# This configuration file allows for the managing of teams in Fleet.
 # The file can be used for the creating, updating, and deleting of teams.
 # A team's hosts and users are managed with this file.
 
