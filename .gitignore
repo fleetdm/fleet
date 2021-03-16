@@ -41,3 +41,6 @@ helm-temp
 cypress/screenshots
 cypress/videos
 cypress/downloads
+
+# Fleet local development DB backups
+backup.sql.gz
