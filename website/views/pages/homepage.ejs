@@ -1,8 +1,13 @@
 <div id="homepage" v-cloak>
   <div class="hero-banner">
     <div style="background-repeat: no-repeat;" class="hero-bg">
-      <div style="max-width: 1440px" class="container-fluid pt-3 pb-3 px-4 px-sm-5">
+      <div style="max-width: 1440px" class="container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-4 px-sm-5">
         <img alt="Fleet logo" src="/images/logo-120x48@2x.png" style="height: 56px; width: 120px;" class="pt-2"/>
+        <div>
+          <a href="#features-section" class="px-3 py-2 mr-4" style="color: #fff; text-decoration: none;">Features</a>
+          <a href="#pricing-section" class="px-3 py-2 mr-4 text-decoration-none" style="color: #fff; text-decoration: none;">Pricing</a>
+          <a target="_blank" href="https://blog.fleetdm.com" class="px-3 py-2" style="color: #fff; text-decoration: none;">Blog</a>
+        </div>
       </div>
       <div style="max-width: 1260px" class="prop-statement container-fluid py-5 px-4 px-sm-5">
         <div style="max-width: 500px" class="prop-statement__container mx-auto mx-sm-0">
@@ -167,7 +172,7 @@
   </div>
   <div class="footer-fade pb-5">
     <div style="max-width: 1260px;" class="container-fluid pt-5 px-4 px-sm-5 mx-auto">
-      <div style="max-width: 800px" class="pt-5 mx-auto">
+      <div id="pricing-section" style="max-width: 800px" class="pt-5 mx-auto">
         <h1 style="color: #fff" class="text-center">Choose a plan that suits your needs</h1>
         <p style="color: #fff" class="text-center mb-5">All plans have unlimited hosts and collaborators.</p>
         <div style="max-width: 810px;">
@@ -229,7 +234,7 @@
           </div>
         </div>
       </div>
-      <div style="max-width: 800px;" class="py-5 mx-auto">
+      <div id="features-section" style="max-width: 800px;" class="py-5 mx-auto">
         <div style="max-width: 810px;">
           <div class="row">
             <div class="col-lg px-1 mx-auto" style="max-width: 810px">
