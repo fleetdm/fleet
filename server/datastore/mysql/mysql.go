@@ -275,10 +275,6 @@ func (d *Datastore) Close() error {
 	return d.db.Close()
 }
 
-func (d *Datastore) log(msg string) {
-	d.logger.Log("comp", d.Name(), "msg", msg)
-}
-
 func sanitizeColumn(col string) string {
 	return columnCharsRegexp.ReplaceAllString(col, "")
 }
