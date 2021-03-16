@@ -1,25 +1,31 @@
-# Get installed macOS software
+# Get installed Windows software
 
-Get all software installed on a macOS computer, including apps, browser plugins, and installed packages.
+Get all software installed on a Windows computer, including programs, browser plugins, and installed packages.
 
 > This does not included other running processes in the `processes` table.
 
 ### Support
-macOS
+Windows
 
 ### Query
 ```sql
 SELECT
   name AS name,
-  bundle_short_version AS version,
-  'apps' AS source
-FROM apps
+  version AS version,
+  'programs' AS source
+FROM programs
 UNION
 SELECT
   name AS name,
   version AS version,
   'python_packages' AS source
 FROM python_packages
+UNION
+SELECT
+  name AS name,
+  version AS version
+  'ie_extensions' AS source
+FROM ie_extensions
 UNION
 SELECT
   name AS name,
@@ -36,20 +42,20 @@ UNION
 SELECT
   name AS name,
   version AS version
-  'opera_extensions' AS source
-FROM opera_extensions
-UNION
-SELECT
-  name As name,
-  version AS version
-  'safari_extensions' AS source
-FROM safari_extensions
+  'chocolatey_packages' AS source
+FROM chocolatey_packages
 UNION
 SELECT
   name AS name,
   version AS version
-  'homebrew_packages' AS source
-FROM homebrew_packages;
+  'atom_packages' AS source
+FROM atom_packages
+UNION
+SELECT
+  name AS name,
+  version AS version
+  'python_packages' AS source
+FROM python_packages;
 ```
 
 ### Purpose
