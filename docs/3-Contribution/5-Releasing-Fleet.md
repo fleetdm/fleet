@@ -57,7 +57,7 @@ make docker-push-release
 
 6. Publish the new version of `fleetctl` on NPM. Run `npm publish` in the [fleetctl-npm](../../tools/fleetctl-npm/) directory. Note that NPM does not allow replacing a package without creating a new version number. Take care to get things correct before running `npm publish`!
 
-7. Announce the release in the #fleet channel of [osquery Slack](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/). Using `@here` requires admin permissions, so typically this announcement will be done by `@zwass`.
+7. Announce the release in the #fleet channel of [osquery Slack](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/) and update the channel's topic with the link to this release. Using `@here` requires admin permissions, so typically this announcement will be done by `@zwass`.
 
 Announce the release via blog post (on Medium) and Twitter (linking to blog post).
 
