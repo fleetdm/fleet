@@ -1,7 +1,8 @@
-# Testing
+# Testing & Local Development
 - [Test suite](#full-test-suite)
 - [End-to-end tests](#end-to-end-tests)
 - [Email](#email)
+- [Database backup/restore](#database-backuprestore)
 
 ## Test suite
 
@@ -148,3 +149,21 @@ Tests will run automatically and results are reported to the shell.
 To intercept sent emails while running a Fleet development environment, make sure that you've set the SMTP address to `localhost:1025` and leave the username and password blank. Then, visit http://localhost:8025 in a web browser to view the [MailHog](https://github.com/mailhog/MailHog) UI.
 
 When Fleet sends emails, the contents of the messages are available in the MailHog UI.
+
+## Database Backup/Restore
+
+In the course of development (particularly when crafting database migrations), it may be useful to backup and restore the MySQL database. This can be achieved with the following commands:
+
+Backup:
+```
+./tools/backup_db/backup.sh
+```
+
+The database dump is stored in `backup.sql.gz`.
+
+Restore:
+```
+./tools/backup_db/restore.sh
+```
+
+Note that a "restore" will replace the state of the development database with the state from the backup.
