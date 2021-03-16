@@ -3,6 +3,7 @@ package kolide
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/base64"
 	"fmt"
 
@@ -100,7 +101,8 @@ type User struct {
 	GravatarURL              string `json:"gravatar_url" db:"gravatar_url"`
 	Position                 string `json:"position,omitempty"` // job role
 	// SSOEnabled if true, the single siqn on is used to log in
-	SSOEnabled bool `json:"sso_enabled" db:"sso_enabled"`
+	SSOEnabled bool           `json:"sso_enabled" db:"sso_enabled"`
+	GlobalRole sql.NullString `json:"global_role" db:"global_role"`
 }
 
 // UserPayload is used to modify an existing user

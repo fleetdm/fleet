@@ -3,6 +3,7 @@ package kolide
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"time"
@@ -139,6 +140,8 @@ type Host struct {
 	LoggerTLSPeriod           uint                `json:"logger_tls_period" db:"logger_tls_period"`
 	Additional                *json.RawMessage    `json:"additional,omitempty" db:"additional"`
 	EnrollSecretName          string              `json:"enroll_secret_name" db:"enroll_secret_name"`
+
+	TeamID sql.NullInt64 `json:"team_id" db:"team_id"`
 }
 
 // HostDetail provides the full host metadata along with associated labels and
