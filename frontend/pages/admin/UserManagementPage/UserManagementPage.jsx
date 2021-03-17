@@ -5,10 +5,11 @@ import { concat, includes, difference } from 'lodash';
 import { push } from 'react-router-redux';
 
 import Button from 'components/buttons/Button';
+import InputField from 'components/forms/fields/InputField';
+import KolideIcon from 'components/icons/KolideIcon';
 import configInterface from 'interfaces/config';
 import deepDifference from 'utilities/deep_difference';
 import inviteActions from 'redux/nodes/entities/invites/actions';
-import InviteUserForm from 'components/forms/InviteUserForm';
 import Modal from 'components/modals/Modal';
 import paths from 'router/paths';
 import { renderFlash } from 'redux/nodes/notifications/actions';
@@ -17,9 +18,9 @@ import { updateUser } from 'redux/nodes/auth/actions';
 import userActions from 'redux/nodes/entities/users/actions';
 import userInterface from 'interfaces/user';
 import DataTable from 'components/DataTable/DataTable';
+
+import CreateUserForm from './components/CreateUserForm';
 import usersTableHeaders from './UsersTableConfig';
-import InputField from '../../../components/forms/fields/InputField';
-import KolideIcon from '../../../components/icons/KolideIcon';
 
 const baseClass = 'user-management';
 
@@ -44,14 +45,10 @@ export class UserManagementPage extends Component {
     super(props);
 
     this.state = {
-      showInviteUserModal: false,
+      showCreateUserModal: false,
       usersEditing: [],
       searchQuery: '',
     };
-  }
-
-  componentWillMount () {
-    const { dispatch } = this.props;
   }
 
   onUserActionSelect = (user, action) => {
@@ -137,7 +134,7 @@ export class UserManagementPage extends Component {
 
     dispatch(inviteActions.silentCreate(formData))
       .then(() => {
-        return this.toggleInviteUserModal();
+        return this.toggleCreateUserModal();
       })
       .catch(() => false);
   }
@@ -145,7 +142,7 @@ export class UserManagementPage extends Component {
   onInviteCancel = (evt) => {
     evt.preventDefault();
 
-    return this.toggleInviteUserModal();
+    return this.toggleCreateUserModal();
   }
 
   onToggleEditUser = (user) => {
@@ -179,11 +176,11 @@ export class UserManagementPage extends Component {
     dispatch(push(ADMIN_SETTINGS));
   }
 
-  toggleInviteUserModal = () => {
-    const { showInviteUserModal } = this.state;
+  toggleCreateUserModal = () => {
+    const { showCreateUserModal } = this.state;
 
     this.setState({
-      showInviteUserModal: !showInviteUserModal,
+      showCreateUserModal: !showCreateUserModal,
     });
 
     return false;
@@ -191,21 +188,21 @@ export class UserManagementPage extends Component {
 
   renderModal = () => {
     const { currentUser, inviteErrors } = this.props;
-    const { showInviteUserModal } = this.state;
-    const { onInviteCancel, onInviteUserSubmit, toggleInviteUserModal } = this;
+    const { showCreateUserModal } = this.state;
+    const { onInviteCancel, onInviteUserSubmit, toggleCreateUserModal } = this;
     const ssoEnabledForApp = this.props.config.enable_sso;
 
-    if (!showInviteUserModal) {
+    if (!showCreateUserModal) {
       return false;
     }
 
     return (
       <Modal
         title="Invite new user"
-        onExit={toggleInviteUserModal}
-        className={`${baseClass}__invite-modal`}
+        onExit={toggleCreateUserModal}
+        className={`${baseClass}__create-user-modal`}
       >
-        <InviteUserForm
+        <CreateUserForm
           serverErrors={inviteErrors}
           invitedBy={currentUser}
           onCancel={onInviteCancel}
@@ -243,7 +240,7 @@ export class UserManagementPage extends Component {
   }
 
   render () {
-    const { renderModal, renderSmtpWarning, toggleInviteUserModal, onSearchQueryChange } = this;
+    const { renderModal, renderSmtpWarning, toggleCreateUserModal, onSearchQueryChange } = this;
     const { config } = this.props;
     const { searchQuery } = this.state;
 
@@ -255,8 +252,8 @@ export class UserManagementPage extends Component {
         <div className={`${baseClass}__table-controls`}>
           <Button
             className={`${baseClass}__create-user-button`}
-            disabled={!config.configured}
-            onClick={toggleInviteUserModal}
+            // disabled={!config.configured}
+            onClick={toggleCreateUserModal}
             title={config.configured ? 'Add User' : 'Email must be configured to add users'}
           >
             Create User

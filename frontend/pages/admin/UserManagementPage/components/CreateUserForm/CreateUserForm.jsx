@@ -1,16 +1,16 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 
+import userInterface from 'interfaces/user';
 import Button from 'components/buttons/Button';
 import InputFieldWithIcon from 'components/forms/fields/InputFieldWithIcon';
 import Checkbox from 'components/forms/fields/Checkbox';
-import userInterface from 'interfaces/user';
 import validatePresence from 'components/forms/validators/validate_presence';
 import validEmail from 'components/forms/validators/valid_email';
 
 const baseClass = 'invite-user-form';
 
-class InviteUserForm extends Component {
+class CreateUserForm extends Component {
   static propTypes = {
     serverErrors: PropTypes.shape({
       email: PropTypes.string,
@@ -195,4 +195,4 @@ class InviteUserForm extends Component {
   }
 }
 
-export default InviteUserForm;
+export default CreateUserForm;
