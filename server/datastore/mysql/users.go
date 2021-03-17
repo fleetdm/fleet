@@ -147,7 +147,9 @@ func (d *Datastore) SaveUser(user *kolide.User) error {
 
 // loadTeamsForUsers will load the teams/roles for the provided users.
 func (d *Datastore) loadTeamsForUsers(users []*kolide.User) error {
-	userIDs := make([]uint, 0, len(users))
+	userIDs := make([]uint, 0, len(users)+1)
+	// Make sure the slice is never empty for IN by filling a nonexistent ID
+	userIDs = append(userIDs, 0)
 	idToUser := make(map[uint]*kolide.User, len(users))
 	for _, u := range users {
 		// Initialize empty slice so we get an array in JSON responses instead
