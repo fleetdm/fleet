@@ -15,6 +15,17 @@ resources:
     cpu: 0.1 # 100Mhz
     memory: 50Mi
 
+# Node labels for pod assignment
+# ref: https://kubernetes.io/docs/user-guide/node-selection/
+nodeSelector: {}
+
+# Tolerations for pod assignment
+# ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+tolerations: []
+
+# Anti-affinity to disallow deploying client and master nodes on the same worker node
+affinity: {}
+
 ## Section: Fleet
 # All of the settings relating to configuring the Fleet server
 fleet:
