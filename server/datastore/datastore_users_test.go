@@ -145,3 +145,115 @@ func testListUsers(t *testing.T, ds kolide.Datastore) {
 	require.Len(t, users, 1)
 	assert.Equal(t, "mike@kolide.co", users[0].Email)
 }
+
+func testUserTeams(t *testing.T, ds kolide.Datastore) {
+	for i := 0; i < 10; i++ {
+		_, err := ds.NewTeam(&kolide.Team{Name: fmt.Sprintf("%d", i)})
+		require.NoError(t, err)
+	}
+
+	users := createTestUsers(t, ds)
+
+	assert.Len(t, users[0].Teams, 0)
+	assert.Len(t, users[1].Teams, 0)
+
+	// Add invalid team should fail
+	users[0].Teams = []kolide.UserTeam{
+		{
+			Team: kolide.Team{ID: 13},
+			Role: "foobar",
+		},
+	}
+	err := ds.SaveUser(users[0])
+	require.Error(t, err)
+
+	// Add valid team should succeed
+	users[0].Teams = []kolide.UserTeam{
+		{
+			Team: kolide.Team{ID: 3},
+			Role: "foobar",
+		},
+	}
+	err = ds.SaveUser(users[0])
+	require.NoError(t, err)
+
+	users, err = ds.ListUsers(kolide.ListOptions{OrderKey: "name"})
+	require.NoError(t, err)
+
+	assert.Len(t, users[0].Teams, 1)
+	assert.Len(t, users[1].Teams, 0)
+
+	users[1].Teams = []kolide.UserTeam{
+		{
+			Team: kolide.Team{ID: 1},
+			Role: "foobar",
+		},
+		{
+			Team: kolide.Team{ID: 2},
+			Role: "foobar",
+		},
+		{
+			Team: kolide.Team{ID: 3},
+			Role: "foobar",
+		},
+	}
+	err = ds.SaveUser(users[1])
+	require.NoError(t, err)
+
+	users, err = ds.ListUsers(kolide.ListOptions{OrderKey: "name"})
+	require.NoError(t, err)
+
+	assert.Len(t, users[0].Teams, 1)
+	assert.Len(t, users[1].Teams, 3)
+
+	// Clear teams
+	users[1].Teams = []kolide.UserTeam{}
+	err = ds.SaveUser(users[1])
+	require.NoError(t, err)
+
+	users, err = ds.ListUsers(kolide.ListOptions{OrderKey: "name"})
+	require.NoError(t, err)
+
+	assert.Len(t, users[0].Teams, 1)
+	assert.Len(t, users[1].Teams, 0)
+}
+
+func testUserCreateWithTeams(t *testing.T, ds kolide.Datastore) {
+	for i := 0; i < 10; i++ {
+		_, err := ds.NewTeam(&kolide.Team{Name: fmt.Sprintf("%d", i)})
+		require.NoError(t, err)
+	}
+
+	u := &kolide.User{
+		Username: "1",
+		Password: []byte("foo"),
+		Teams: []kolide.UserTeam{
+			{
+				Team: kolide.Team{ID: 6},
+				Role: "admin",
+			},
+			{
+				Team: kolide.Team{ID: 3},
+				Role: "observer",
+			},
+			{
+				Team: kolide.Team{ID: 9},
+				Role: "maintainer",
+			},
+		},
+	}
+	user, err := ds.NewUser(u)
+	assert.Nil(t, err)
+	assert.Len(t, user.Teams, 3)
+
+	user, err = ds.UserByID(user.ID)
+	require.NoError(t, err)
+	assert.Len(t, user.Teams, 3)
+
+	assert.Equal(t, uint(3), user.Teams[0].ID)
+	assert.Equal(t, "observer", user.Teams[0].Role)
+	assert.Equal(t, uint(6), user.Teams[1].ID)
+	assert.Equal(t, "admin", user.Teams[1].Role)
+	assert.Equal(t, uint(9), user.Teams[2].ID)
+	assert.Equal(t, "maintainer", user.Teams[2].Role)
+}

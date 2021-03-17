@@ -15,6 +15,7 @@ func Up_20210315111056(tx *sql.Tx) error {
 		id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		name VARCHAR(255) NOT NULL,
+		description VARCHAR(1023) NOT NULL DEFAULT '',
 		UNIQUE KEY idx_name (name)
 	)`); err != nil {
 		return errors.Wrap(err, "create teams")
