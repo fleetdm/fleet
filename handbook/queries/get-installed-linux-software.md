@@ -11,31 +11,31 @@ Linux
 ```sql
 SELECT
   name AS name,
-  version AS version
+  version AS version,
   'apt_sources' AS source
 FROM apt_sources
 UNION
 SELECT
   name AS name,
-  version AS version
+  version AS version,
   'deb_packages' AS source
 FROM deb_packages
 UNION
 SELECT
   package AS name,
-  version AS version
+  version AS version,
   'portage_packages' AS source
 FROM portage_packages
 UNION
 SELECT
   name AS name,
-  version AS version
+  version AS version,
   'rpm_packages' AS source
 FROM rpm_packages
 UNION
 SELECT
   name AS name,
-  version AS version,
+  '' AS version,
   'yum_sources' AS source
 FROM yum_sources
 UNION

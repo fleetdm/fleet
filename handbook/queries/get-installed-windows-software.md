@@ -23,37 +23,37 @@ FROM python_packages
 UNION
 SELECT
   name AS name,
-  version AS version
+  version AS version,
   'ie_extensions' AS source
 FROM ie_extensions
 UNION
 SELECT
   name AS name,
-  version AS version
+  version AS version,
   'chrome_extensions' AS source
 FROM chrome_extensions
 UNION
 SELECT
   name AS name,
-  version AS version
+  version AS version,
   'firefox_addons' AS source
 FROM firefox_addons
 UNION
 SELECT
   name AS name,
-  version AS version
+  version AS version,
   'chocolatey_packages' AS source
 FROM chocolatey_packages
 UNION
 SELECT
   name AS name,
-  version AS version
+  version AS version,
   'atom_packages' AS source
 FROM atom_packages
 UNION
 SELECT
   name AS name,
-  version AS version
+  version AS version,
   'python_packages' AS source
 FROM python_packages;
 ```
