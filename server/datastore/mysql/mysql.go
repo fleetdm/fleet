@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VividCortex/mysqlerr"
 	"github.com/WatchBeam/clock"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/server/config"
@@ -61,12 +62,28 @@ func (d *Datastore) getTransaction(opts []kolide.OptionalArg) dbfunctions {
 
 type txFn func(*sqlx.Tx) error
 
+// retryableError determines whether a MySQL error can be retried. By default
+// errors are considered non-retryable. Only errors that we know have a
+// possibility of succeeding on a retry should return true in this function.
+func retryableError(err error) bool {
+	base := errors.Cause(err)
+	if b, ok := base.(*mysql.MySQLError); ok {
+		switch b.Number {
+		// Consider lock related errors to be retryable
+		case mysqlerr.ER_LOCK_DEADLOCK, mysqlerr.ER_LOCK_WAIT_TIMEOUT:
+			return true
+		}
+	}
+
+	return false
+}
+
 // withRetryTxx provides a common way to commit/rollback a txFn wrapped in a retry with exponential backoff
 func (d *Datastore) withRetryTxx(fn txFn) (err error) {
 	operation := func() error {
 		tx, err := d.db.Beginx()
 		if err != nil {
-			return errors.Wrap(err, "creating transaction")
+			return errors.Wrap(err, "create transaction")
 		}
 
 		defer func() {
@@ -78,18 +95,29 @@ func (d *Datastore) withRetryTxx(fn txFn) (err error) {
 			}
 		}()
 
-		err = fn(tx)
-		if err != nil {
+		if err := fn(tx); err != nil {
 			rbErr := tx.Rollback()
 			if rbErr != nil && rbErr != sql.ErrTxDone {
-				return fmt.Errorf("got err '%s' rolling back after err '%s'", rbErr, err)
+				// Consider rollback errors to be non-retryable
+				return backoff.Permanent(errors.Wrapf(err, "got err '%s' rolling back after err", rbErr.Error()))
 			}
-			return err
-		} else {
-			err = tx.Commit()
-			if err != nil {
-				return errors.Wrap(err, "committing transaction")
+
+			if retryableError(err) {
+				return err
 			}
+
+			// Consider any other errors to be non-retryable
+			return backoff.Permanent(err)
+		}
+
+		if err := tx.Commit(); err != nil {
+			err = errors.Wrap(err, "commit transaction")
+
+			if retryableError(err) {
+				return err
+			}
+
+			return backoff.Permanent(errors.Wrap(err, "commit transaction"))
 		}
 
 		return nil
