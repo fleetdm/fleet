@@ -19,6 +19,7 @@ export default (client) => {
     loadAll: (page = 0, perPage = 100, selected = '', globalFilter = '', sortBy = []) => {
       const { HOSTS, LABEL_HOSTS } = endpoints;
 
+      // TODO: add this query param logic to client class
       const pagination = `page=${page}&per_page=${perPage}`;
 
       let orderKeyParam = '';

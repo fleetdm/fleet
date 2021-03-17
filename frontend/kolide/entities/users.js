@@ -37,10 +37,27 @@ export default (client) => {
       return client.authenticatedPost(endpoint, JSON.stringify({ enabled }))
         .then(response => helpers.addGravatarUrlToResource(response.user));
     },
-    loadAll: () => {
+    loadAll: (page = 0, perPage = 100, selected = '', globalFilter = '', sortBy = []) => {
       const { USERS } = endpoints;
 
-      return client.authenticatedGet(client._endpoint(USERS))
+      // TODO: add this query param logic to client class
+      const pagination = `page=${page}&per_page=${perPage}`;
+
+      let orderKeyParam = '';
+      let orderDirection = '';
+      if (sortBy.length !== 0) {
+        const sortItem = sortBy[0];
+        orderKeyParam += `&order_key=${sortItem.id}`;
+        orderDirection = sortItem.desc ? '&order_direction=desc' : '&order_direction=asc';
+      }
+
+      let searchQuery = '';
+      if (globalFilter !== '') {
+        searchQuery = `&query=${globalFilter}`;
+      }
+
+      const userEndpoint = `${USERS}?${pagination}${searchQuery}${orderKeyParam}${orderDirection}`;
+      return client.authenticatedGet(client._endpoint(userEndpoint))
         .then((response) => {
           const { users } = response;
 
@@ -91,4 +108,3 @@ export default (client) => {
     },
   };
 };
-
