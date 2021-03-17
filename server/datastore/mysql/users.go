@@ -150,6 +150,10 @@ func (d *Datastore) loadTeamsForUsers(users []*kolide.User) error {
 	userIDs := make([]uint, 0, len(users))
 	idToUser := make(map[uint]*kolide.User, len(users))
 	for _, u := range users {
+		// Initialize empty slice so we get an array in JSON responses instead
+		// of null if it is empty
+		u.Teams = []kolide.UserTeam{}
+		// Track IDs for queries and matching
 		userIDs = append(userIDs, u.ID)
 		idToUser[u.ID] = u
 	}
@@ -173,6 +177,7 @@ func (d *Datastore) loadTeamsForUsers(users []*kolide.User) error {
 		return errors.Wrap(err, "get loadTeamsForUsers")
 	}
 
+	// Map each row to the appropriate user
 	for _, r := range rows {
 		user := idToUser[r.UserID]
 		user.Teams = append(user.Teams, r.UserTeam)

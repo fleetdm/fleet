@@ -120,6 +120,10 @@ func (svc service) ModifyUser(ctx context.Context, userID uint, p kolide.UserPay
 		user.SSOEnabled = *p.SSOEnabled
 	}
 
+	if p.Teams != nil {
+		user.Teams = *p.Teams
+	}
+
 	err = svc.saveUser(user)
 	if err != nil {
 		return nil, err

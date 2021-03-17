@@ -117,18 +117,19 @@ type UserTeam struct {
 
 // UserPayload is used to modify an existing user
 type UserPayload struct {
-	Username                 *string `json:"username,omitempty"`
-	Name                     *string `json:"name,omitempty"`
-	Email                    *string `json:"email,omitempty"`
-	Admin                    *bool   `json:"admin,omitempty"`
-	Enabled                  *bool   `json:"enabled,omitempty"`
-	Password                 *string `json:"password,omitempty"`
-	GravatarURL              *string `json:"gravatar_url,omitempty"`
-	Position                 *string `json:"position,omitempty"`
-	InviteToken              *string `json:"invite_token,omitempty"`
-	SSOInvite                *bool   `json:"sso_invite,omitempty"`
-	SSOEnabled               *bool   `json:"sso_enabled,omitempty"`
-	AdminForcedPasswordReset *bool   `json:"admin_forced_password_reset,omitempty"`
+	Username                 *string     `json:"username,omitempty"`
+	Name                     *string     `json:"name,omitempty"`
+	Email                    *string     `json:"email,omitempty"`
+	Admin                    *bool       `json:"admin,omitempty"`
+	Enabled                  *bool       `json:"enabled,omitempty"`
+	Password                 *string     `json:"password,omitempty"`
+	GravatarURL              *string     `json:"gravatar_url,omitempty"`
+	Position                 *string     `json:"position,omitempty"`
+	InviteToken              *string     `json:"invite_token,omitempty"`
+	SSOInvite                *bool       `json:"sso_invite,omitempty"`
+	SSOEnabled               *bool       `json:"sso_enabled,omitempty"`
+	AdminForcedPasswordReset *bool       `json:"admin_forced_password_reset,omitempty"`
+	Teams                    *[]UserTeam `json:"teams,omitempty"`
 }
 
 // User creates a user from payload.
@@ -138,6 +139,7 @@ func (p UserPayload) User(keySize, cost int) (*User, error) {
 		Email:    *p.Email,
 		Admin:    falseIfNil(p.Admin),
 		Enabled:  true,
+		Teams:    []UserTeam{},
 	}
 	if err := user.SetPassword(*p.Password, keySize, cost); err != nil {
 		return nil, err
@@ -158,6 +160,9 @@ func (p UserPayload) User(keySize, cost int) (*User, error) {
 	}
 	if p.AdminForcedPasswordReset != nil {
 		user.AdminForcedPasswordReset = *p.AdminForcedPasswordReset
+	}
+	if p.Teams != nil {
+		user.Teams = *p.Teams
 	}
 
 	return user, nil
