@@ -17,4 +17,5 @@ type Service interface {
 	ScheduledQueryService
 	StatusService
 	CarveService
+	TeamService
 }

@@ -107,6 +107,8 @@ type KolideEndpoints struct {
 	ListCarves                            endpoint.Endpoint
 	GetCarve                              endpoint.Endpoint
 	GetCarveBlock                         endpoint.Endpoint
+	CreateTeam                            endpoint.Endpoint
+	ModifyTeam                            endpoint.Endpoint
 }
 
 // MakeKolideServerEndpoints creates the Kolide API endpoints.
@@ -201,6 +203,8 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string) Kol
 		ListCarves:                            authenticatedUser(jwtKey, svc, makeListCarvesEndpoint(svc)),
 		GetCarve:                              authenticatedUser(jwtKey, svc, makeGetCarveEndpoint(svc)),
 		GetCarveBlock:                         authenticatedUser(jwtKey, svc, makeGetCarveBlockEndpoint(svc)),
+		CreateTeam:                            authenticatedUser(jwtKey, svc, makeCreateTeamEndpoint(svc)),
+		ModifyTeam:                            authenticatedUser(jwtKey, svc, makeModifyTeamEndpoint(svc)),
 
 		// Authenticated status endpoints
 		StatusResultStore: authenticatedUser(jwtKey, svc, makeStatusResultStoreEndpoint(svc)),
@@ -309,6 +313,8 @@ type kolideHandlers struct {
 	ListCarves                            http.Handler
 	GetCarve                              http.Handler
 	GetCarveBlock                         http.Handler
+	CreateTeam                            http.Handler
+	ModifyTeam                            http.Handler
 }
 
 func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *kolideHandlers {
@@ -404,6 +410,8 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		ListCarves:                            newServer(e.ListCarves, decodeListCarvesRequest),
 		GetCarve:                              newServer(e.GetCarve, decodeGetCarveRequest),
 		GetCarveBlock:                         newServer(e.GetCarveBlock, decodeGetCarveBlockRequest),
+		CreateTeam:                            newServer(e.CreateTeam, decodeCreateTeamRequest),
+		ModifyTeam:                            newServer(e.ModifyTeam, decodeModifyTeamRequest),
 	}
 }
 
@@ -593,6 +601,9 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/fleet/carves", h.ListCarves).Methods("GET").Name("list_carves")
 	r.Handle("/api/v1/fleet/carves/{id}", h.GetCarve).Methods("GET").Name("get_carve")
 	r.Handle("/api/v1/fleet/carves/{id}/block/{block_id}", h.GetCarveBlock).Methods("GET").Name("get_carve_block")
+
+	r.Handle("/api/v1/fleet/teams", h.CreateTeam).Methods("POST").Name("create_team")
+	r.Handle("/api/v1/fleet/teams/{id}", h.ModifyTeam).Methods("PATCH").Name("modify_team")
 
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
 	r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST").Name("get_client_config")

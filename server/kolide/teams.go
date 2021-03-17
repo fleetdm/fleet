@@ -1,14 +1,29 @@
 package kolide
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type TeamStore interface {
 	// NewTeam creates a new Team object in the store.
 	NewTeam(team *Team) (*Team, error)
-	// Team retrieves the Team by ID
+	// Team retrieves the Team by ID.
 	Team(tid uint) (*Team, error)
-	// TeamByName retrieves the Team by Name
+	// TeamByName retrieves the Team by Name.
 	TeamByName(name string) (*Team, error)
+	// SaveTeam saves any changes to the team.
+	SaveTeam(team *Team) (*Team, error)
+}
+
+type TeamService interface {
+	NewTeam(ctx context.Context, p TeamPayload) (*Team, error)
+	ModifyTeam(ctx context.Context, id uint, payload TeamPayload) (*Team, error)
+}
+
+type TeamPayload struct {
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
 }
 
 // Team is the data representation for the "Team" concept (group of hosts and
@@ -17,7 +32,8 @@ type Team struct {
 	// Directly in DB
 
 	// ID is the database ID.
-	ID        uint      `json:"id" db:"id"`
+	ID uint `json:"id" db:"id"`
+	// CreatedAt is the timestamp of the label creation.
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	// Name is the human friendly name of the team.
 	Name string `json:"name" db:"name"`

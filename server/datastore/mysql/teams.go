@@ -53,3 +53,17 @@ func (d *Datastore) TeamByName(name string) (*kolide.Team, error) {
 
 	return team, nil
 }
+
+func (d *Datastore) SaveTeam(team *kolide.Team) (*kolide.Team, error) {
+	query := `
+		UPDATE teams SET
+			name = ?,
+			description = ?
+		WHERE id = ?
+	`
+	_, err := d.db.Exec(query, team.Name, team.Description, team.ID)
+	if err != nil {
+		return nil, errors.Wrap(err, "saving team")
+	}
+	return team, nil
+}
