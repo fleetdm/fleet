@@ -18,6 +18,8 @@ import userActions from 'redux/nodes/entities/users/actions';
 import userInterface from 'interfaces/user';
 import DataTable from 'components/DataTable/DataTable';
 import usersTableHeaders from './UsersTableConfig';
+import InputField from '../../../components/forms/fields/InputField';
+import KolideIcon from '../../../components/icons/KolideIcon';
 
 const baseClass = 'user-management';
 
@@ -44,14 +46,12 @@ export class UserManagementPage extends Component {
     this.state = {
       showInviteUserModal: false,
       usersEditing: [],
+      searchQuery: '',
     };
   }
 
   componentWillMount () {
     const { dispatch } = this.props;
-
-    dispatch(inviteActions.loadAll());
-    return false;
   }
 
   onUserActionSelect = (user, action) => {
@@ -164,6 +164,12 @@ export class UserManagementPage extends Component {
     this.setState({ usersEditing: updatedUsersEditing });
   }
 
+  onSearchQueryChange = (newQuery) => {
+    this.setState({
+      searchQuery: newQuery,
+    });
+  }
+
   goToAppConfigPage = (evt) => {
     evt.preventDefault();
 
@@ -182,28 +188,6 @@ export class UserManagementPage extends Component {
 
     return false;
   }
-
-  // renderUserRow = (user, idx, options = { invite: false }) => {
-  //   const { currentUser, userErrors } = this.props;
-  //   const { invite } = options;
-  //   const { onEditUser, onToggleEditUser, onUserActionSelect } = this;
-  //   const { usersEditing } = this.state;
-  //   const isEditing = includes(usersEditing, user.id);
-  //
-  //   return (
-  //     <UserRow
-  //       isEditing={isEditing}
-  //       isInvite={invite}
-  //       isCurrentUser={currentUser.id === user.id}
-  //       key={`${user.email}-${idx}-${invite ? 'invite' : 'user'}`}
-  //       onEditUser={onEditUser}
-  //       onSelect={onUserActionSelect}
-  //       onToggleEditUser={onToggleEditUser}
-  //       user={user}
-  //       userErrors={userErrors}
-  //     />
-  //   );
-  // }
 
   renderModal = () => {
     const { currentUser, inviteErrors } = this.props;
@@ -259,25 +243,37 @@ export class UserManagementPage extends Component {
   }
 
   render () {
-    const { renderModal, renderSmtpWarning, toggleInviteUserModal } = this;
+    const { renderModal, renderSmtpWarning, toggleInviteUserModal, onSearchQueryChange } = this;
     const { config } = this.props;
+    const { searchQuery } = this.state;
 
     return (
       <div className={`${baseClass} body-wrap`}>
         <p className={`${baseClass}__page-description`}>Create new users, customize user permissions, and remove users from Fleet.</p>
         {renderSmtpWarning()}
-        <div className={`${baseClass}__add-user-wrap`}>
+        {/* TODO: find a way to move these controls into the table component */}
+        <div className={`${baseClass}__table-controls`}>
           <Button
-            className={'button button--brand'}
+            className={`${baseClass}__create-user-button`}
             disabled={!config.configured}
             onClick={toggleInviteUserModal}
             title={config.configured ? 'Add User' : 'Email must be configured to add users'}
           >
             Create User
           </Button>
+          <div className={`${baseClass}__search-input`}>
+            <InputField
+              placeholder="Search"
+              name=""
+              onChange={onSearchQueryChange}
+              value={searchQuery}
+              inputWrapperClass={`${baseClass}__input-wrapper`}
+            />
+            <KolideIcon name="search" />
+          </div>
         </div>
         <DataTable
-          searchQuery={''}
+          searchQuery={searchQuery}
           tableColumns={usersTableHeaders}
           hiddenColumns={[]}
           pageSize={100}
