@@ -1,6 +1,6 @@
 # Releasing Fleet
 
-1. Update the [CHANGELOG](../../CHANGELOG.md) with the changes that have been made since the last Fleet release. Update the NPM [package.json](../../tools/fleetctl-npm/package.json) with the new version number (do not yet `npm publish`). Update the [Helm chart](../../chart/Chart.yaml) with the new version number.
+1. Update the [CHANGELOG](../../CHANGELOG.md) with the changes that have been made since the last Fleet release. Update the NPM [package.json](../../tools/fleetctl-npm/package.json) with the new version number (do not yet `npm publish`). Update the [Helm chart](../../charts/fleet/Chart.yaml) and [values file](../../charts/fleet/values.yaml) with the new version number.
 
 Commit these changes via Pull Request and pull the changes on the `master` branch locally. Check that `HEAD` of the `master` branch points to the commit with these changes.
 
