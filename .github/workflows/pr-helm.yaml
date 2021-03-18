@@ -2,7 +2,7 @@ name: pr-helm
 on:
   pull_request:
     paths:
-    - 'chart/**'
+    - 'charts/**'
     - '.github/workflows/pr-helm.yaml'
     - '.github/scripts/helm-check-expected.sh'
     - 'tools/ci/helm-values/**'
@@ -23,8 +23,8 @@ jobs:
         helm template \
           --namespace fleet \
           --release-name fleet \
-          --values chart/values.yaml \
-          chart \
+          --values charts/fleet/values.yaml \
+          charts/fleet \
         > helm-temp/output-defaults.yaml
     - name: helm template -- other configurations
       run: |
@@ -36,7 +36,7 @@ jobs:
             --namespace ${REL_NAME} \
             --release-name ${REL_NAME} \
             --values ${FILE_PATH} \
-            chart \
+            charts/fleet \
           > helm-temp/${FILE}
         done
     - name: kubeval sanity check

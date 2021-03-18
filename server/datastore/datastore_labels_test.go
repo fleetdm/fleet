@@ -433,7 +433,7 @@ func testChangeLabelDetails(t *testing.T, db kolide.Datastore) {
 }
 
 func setupLabelSpecsTest(t *testing.T, ds kolide.Datastore) []*kolide.LabelSpec {
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 10; i++ {
 		_, err := ds.NewHost(&kolide.Host{
 			DetailUpdateTime: time.Now(),
 			LabelUpdateTime:  time.Now(),

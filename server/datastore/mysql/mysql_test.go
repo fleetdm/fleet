@@ -3,7 +3,14 @@ package mysql
 import (
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/VividCortex/mysqlerr"
+	"github.com/go-kit/kit/log"
+	"github.com/go-sql-driver/mysql"
+	"github.com/jmoiron/sqlx"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSanitizeColumn(t *testing.T) {
@@ -107,4 +114,120 @@ func TestSearchLike(t *testing.T) {
 			assert.Equal(t, tt.outParams, params)
 		})
 	}
+}
+
+func mockDatastore(t *testing.T) (sqlmock.Sqlmock, *Datastore) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	ds := &Datastore{
+		db:     sqlx.NewDb(db, "sqlmock"),
+		logger: log.NewNopLogger(),
+	}
+
+	return mock, ds
+}
+
+func TestWithRetryTxxSuccess(t *testing.T) {
+	mock, ds := mockDatastore(t)
+	defer ds.Close()
+
+	mock.ExpectBegin()
+	mock.ExpectExec("SELECT 1").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	require.NoError(t, ds.withRetryTxx(func(tx *sqlx.Tx) error {
+		_, err := tx.Exec("SELECT 1")
+		return err
+	}))
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestWithRetryTxxRollbackSuccess(t *testing.T) {
+	mock, ds := mockDatastore(t)
+	defer ds.Close()
+
+	mock.ExpectBegin()
+	mock.ExpectExec("SELECT 1").WillReturnError(errors.New("fail"))
+	mock.ExpectRollback()
+
+	require.Error(t, ds.withRetryTxx(func(tx *sqlx.Tx) error {
+		_, err := tx.Exec("SELECT 1")
+		return err
+	}))
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestWithRetryTxxRollbackError(t *testing.T) {
+	mock, ds := mockDatastore(t)
+	defer ds.Close()
+
+	mock.ExpectBegin()
+	mock.ExpectExec("SELECT 1").WillReturnError(errors.New("fail"))
+	mock.ExpectRollback().WillReturnError(errors.New("rollback failed"))
+
+	require.Error(t, ds.withRetryTxx(func(tx *sqlx.Tx) error {
+		_, err := tx.Exec("SELECT 1")
+		return err
+	}))
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestWithRetryTxxRetrySuccess(t *testing.T) {
+	mock, ds := mockDatastore(t)
+	defer ds.Close()
+
+	mock.ExpectBegin()
+	// Return a retryable error
+	mock.ExpectExec("SELECT 1").WillReturnError(&mysql.MySQLError{Number: mysqlerr.ER_LOCK_DEADLOCK})
+	mock.ExpectRollback()
+	mock.ExpectBegin()
+	mock.ExpectExec("SELECT 1").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	assert.NoError(t, ds.withRetryTxx(func(tx *sqlx.Tx) error {
+		_, err := tx.Exec("SELECT 1")
+		return err
+	}))
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestWithRetryTxxCommitRetrySuccess(t *testing.T) {
+	mock, ds := mockDatastore(t)
+	defer ds.Close()
+
+	mock.ExpectBegin()
+	mock.ExpectExec("SELECT 1").WillReturnResult(sqlmock.NewResult(1, 1))
+	// Return a retryable error
+	mock.ExpectCommit().WillReturnError(&mysql.MySQLError{Number: mysqlerr.ER_LOCK_DEADLOCK})
+	mock.ExpectBegin()
+	mock.ExpectExec("SELECT 1").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	assert.NoError(t, ds.withRetryTxx(func(tx *sqlx.Tx) error {
+		_, err := tx.Exec("SELECT 1")
+		return err
+	}))
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestWithRetryTxxCommitError(t *testing.T) {
+	mock, ds := mockDatastore(t)
+	defer ds.Close()
+
+	mock.ExpectBegin()
+	mock.ExpectExec("SELECT 1").WillReturnResult(sqlmock.NewResult(1, 1))
+	// Return a retryable error
+	mock.ExpectCommit().WillReturnError(errors.New("fail"))
+
+	assert.Error(t, ds.withRetryTxx(func(tx *sqlx.Tx) error {
+		_, err := tx.Exec("SELECT 1")
+		return err
+	}))
+
+	require.NoError(t, mock.ExpectationsWereMet())
 }
