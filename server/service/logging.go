@@ -17,7 +17,7 @@ func NewLoggingService(svc kolide.Service, logger kitlog.Logger) kolide.Service 
 	return loggingMiddleware{Service: svc, logger: logger}
 }
 
-// loggerDebug returns the debug level if the error is nil, or else the Info level.
+// loggerDebug returns the the info level if there error is non-nil, otherwise defaulting to the debug level.
 func (mw loggingMiddleware) loggerDebug(err error) kitlog.Logger {
 	if err != nil {
 		return level.Info(mw.logger)
