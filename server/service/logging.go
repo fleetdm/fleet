@@ -1,9 +1,9 @@
 package service
 
 import (
+	"github.com/fleetdm/fleet/server/kolide"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/fleetdm/fleet/server/kolide"
 )
 
 // logging middleware logs the service actions
@@ -17,8 +17,11 @@ func NewLoggingService(svc kolide.Service, logger kitlog.Logger) kolide.Service 
 	return loggingMiddleware{Service: svc, logger: logger}
 }
 
-// loggerDebug returns the debug level
+// loggerDebug returns the debug level if the error is nil, or else the Info level.
 func (mw loggingMiddleware) loggerDebug(err error) kitlog.Logger {
+	if err != nil {
+		return level.Info(mw.logger)
+	}
 	return level.Debug(mw.logger)
 }
 
