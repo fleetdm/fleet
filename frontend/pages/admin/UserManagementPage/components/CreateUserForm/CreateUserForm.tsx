@@ -1,28 +1,43 @@
 import React, { Component } from 'react';
-import PropTypes from 'prop-types';
 
-import userInterface from 'interfaces/user';
+import { IUser } from 'interfaces/user';
 import Button from 'components/buttons/Button';
-import InputFieldWithIcon from 'components/forms/fields/InputFieldWithIcon';
-import Checkbox from 'components/forms/fields/Checkbox';
 import validatePresence from 'components/forms/validators/validate_presence';
 import validEmail from 'components/forms/validators/valid_email';
 
-const baseClass = 'invite-user-form';
+// ignore TS error for now until these are rewritten in ts.
+// @ts-ignore
+import InputFieldWithIcon from 'components/forms/fields/InputFieldWithIcon';
+// @ts-ignore
+import Checkbox from 'components/forms/fields/Checkbox';
 
-class CreateUserForm extends Component {
-  static propTypes = {
-    serverErrors: PropTypes.shape({
-      email: PropTypes.string,
-      base: PropTypes.string,
-    }),
-    invitedBy: userInterface,
-    onCancel: PropTypes.func,
-    onSubmit: PropTypes.func,
-    canUseSSO: PropTypes.bool,
+const baseClass = 'create-user-form';
+
+interface ICreateUserFormProps {
+  createdBy: IUser;
+  onCancel: () => void;
+  onSubmit: () => void;
+  canUseSSO: boolean;
+}
+
+interface ICreateUserFormState {
+  errors: {
+    admin: boolean | null;
+    email: string | null;
+    name: string | null;
+    sso_enabled: boolean | null;
   };
+  formData: {
+    admin: boolean;
+    email: string;
+    name: string;
+    sso_enabled: boolean;
+  };
+}
 
-  constructor (props) {
+class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormState> {
+
+  constructor (props: ICreateUserFormProps) {
     super(props);
 
     this.state = {
@@ -85,11 +100,11 @@ class CreateUserForm extends Component {
 
     if (valid) {
       const { formData: { admin, email, name, sso_enabled: ssoEnabled } } = this.state;
-      const { invitedBy, onSubmit } = this.props;
+      const { createdBy, onSubmit } = this.props;
       return onSubmit({
         admin,
         email,
-        invited_by: invitedBy.id,
+        invited_by: createdBy.id,
         name,
         sso_enabled: ssoEnabled,
       });

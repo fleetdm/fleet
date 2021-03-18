@@ -204,7 +204,7 @@ export class UserManagementPage extends Component {
       >
         <CreateUserForm
           serverErrors={inviteErrors}
-          invitedBy={currentUser}
+          createdBy={currentUser}
           onCancel={onInviteCancel}
           onSubmit={onInviteUserSubmit}
           canUseSSO={ssoEnabledForApp}
