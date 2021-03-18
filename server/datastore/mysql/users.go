@@ -26,12 +26,14 @@ func (d *Datastore) NewUser(user *kolide.User) (*kolide.User, error) {
       	admin_forced_password_reset,
       	gravatar_url,
       	position,
-        sso_enabled
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?)
+        sso_enabled,
+		global_role
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
       `
 	result, err := d.db.Exec(sqlStatement, user.Password, user.Salt, user.Name,
 		user.Username, user.Email, user.Admin, user.Enabled,
-		user.AdminForcedPasswordReset, user.GravatarURL, user.Position, user.SSOEnabled)
+		user.AdminForcedPasswordReset, user.GravatarURL, user.Position, user.SSOEnabled,
+		user.GlobalRole)
 	if err != nil {
 		return nil, errors.Wrap(err, "create new user")
 	}
@@ -120,12 +122,14 @@ func (d *Datastore) SaveUser(user *kolide.User) error {
       	admin_forced_password_reset = ?,
       	gravatar_url = ?,
       	position = ?,
-        sso_enabled = ?
+        sso_enabled = ?,
+		global_role = ?
       WHERE id = ?
       `
 	result, err := d.db.Exec(sqlStatement, user.Username, user.Password,
 		user.Salt, user.Name, user.Email, user.Admin, user.Enabled,
-		user.AdminForcedPasswordReset, user.GravatarURL, user.Position, user.SSOEnabled, user.ID)
+		user.AdminForcedPasswordReset, user.GravatarURL, user.Position, user.SSOEnabled,
+		user.GlobalRole, user.ID)
 	if err != nil {
 		return errors.Wrap(err, "save user")
 	}
