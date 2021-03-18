@@ -27,11 +27,14 @@ const (
 func previewCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "preview",
-		Usage: "Set up a preview deployment of the Fleet server",
-		UsageText: `Set up a preview deployment of the Fleet server using Docker and docker-compose. Docker tools must be available in the environment.
+		Usage: "Start a preview deployment of the Fleet server",
+		Description: `Start a preview deployment of the Fleet server using Docker and docker-compose. Docker tools must be available in the environment.
 
-This command will create a directory fleet-preview in the current working directory. Configurations can be modified in that directory.`,
-		Subcommands: []*cli.Command{},
+Use the stop and reset subcommands to manage the server and dependencies once started.`,
+		Subcommands: []*cli.Command{
+			previewStopCommand(),
+			previewResetCommand(),
+		},
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
@@ -42,19 +45,18 @@ This command will create a directory fleet-preview in the current working direct
 				return err
 			}
 
-			// Download files if necessary
+			// Download files every time to ensure the user gets the most up to date versions
 			previewDir := previewDirectory()
-			if _, err := os.Stat(
-				filepath.Join(previewDir, "docker-compose.yml"),
-			); err != nil {
-				fmt.Printf("Downloading dependencies into %s...\n", previewDir)
-				if err := downloadFiles(); err != nil {
-					return errors.Wrap(err, "Error downloading dependencies")
-				}
+			fmt.Printf("Downloading dependencies into %s...\n", previewDir)
+			if err := downloadFiles(); err != nil {
+				return errors.Wrap(err, "Error downloading dependencies")
 			}
 
 			if err := os.Chdir(previewDir); err != nil {
 				return err
+			}
+			if _, err := os.Stat("docker-compose.yml"); err != nil {
+				return errors.Wrap(err, "docker-compose file not found in preview directory")
 			}
 
 			// Make sure the logs directory is writable, otherwise the Fleet
@@ -303,4 +305,74 @@ func checkDocker() error {
 	}
 
 	return nil
+}
+
+func previewStopCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "stop",
+		Usage: "Stop the Fleet preview server and dependencies",
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			if err := checkDocker(); err != nil {
+				return err
+			}
+
+			previewDir := previewDirectory()
+			if err := os.Chdir(previewDir); err != nil {
+				return err
+			}
+			if _, err := os.Stat("docker-compose.yml"); err != nil {
+				return errors.Wrap(err, "docker-compose file not found in preview directory")
+			}
+
+			out, err := exec.Command("docker-compose", "stop").CombinedOutput()
+			if err != nil {
+				fmt.Println(string(out))
+				return errors.Errorf("Failed to run docker-compose stop")
+			}
+
+			fmt.Println("Fleet preview server and dependencies stopped. Start again with fleetctl preview.")
+
+			return nil
+		},
+	}
+}
+
+func previewResetCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "reset",
+		Usage: "Reset the Fleet preview server and dependencies",
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			if err := checkDocker(); err != nil {
+				return err
+			}
+
+			previewDir := previewDirectory()
+			if err := os.Chdir(previewDir); err != nil {
+				return err
+			}
+			if _, err := os.Stat("docker-compose.yml"); err != nil {
+				return errors.Wrap(err, "docker-compose file not found in preview directory")
+			}
+
+			out, err := exec.Command("docker-compose", "rm", "-sf").CombinedOutput()
+			if err != nil {
+				fmt.Println(string(out))
+				return errors.Errorf("Failed to run docker-compose rm -sf")
+			}
+
+			fmt.Println("Fleet preview server and dependencies reset. Start again with fleetctl preview.")
+
+			return nil
+		},
+	}
 }
