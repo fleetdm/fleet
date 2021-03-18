@@ -24,7 +24,18 @@ nodeSelector: {}
 tolerations: []
 
 # Anti-affinity to disallow deploying client and master nodes on the same worker node
-affinity: {}
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app
+            operator: In
+            values:
+            - fleet
+        topologyKey: kubernetes.io/hostname
+      weight: 100
 
 ## Section: Fleet
 # All of the settings relating to configuring the Fleet server
