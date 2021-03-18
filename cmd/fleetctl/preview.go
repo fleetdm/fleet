@@ -92,7 +92,10 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 
 			token, err := fleet.Setup(username, username, password, "Fleet Preview")
 			if err != nil {
-				if e, ok := err.(service.SetupAlreadyErr); !(ok && e.SetupAlready()) {
+				switch errors.Cause(err).(type) {
+				case service.SetupAlreadyErr:
+					// Ignore this error
+				default:
 					return errors.Wrap(err, "Error setting up Fleet")
 				}
 			}
