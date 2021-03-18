@@ -32,10 +32,6 @@ module.exports.routes = {
   '/company/about':          '/blog', // FUTURE: brief "about" page explaining the origins of the company
   '/company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
   'GET /company/contact':    { action:   'view-contact' },
-//   '/company/contact':        (req, res)=>{
-//     // FUTURE: Page about this.  See “Contacting Fleet” in google drive for verbiage (updated holiday hours) - better to just make it all open source and check it in here.  For inspiration, see also: https://about.gitlab.com/company/contact/
-//     res.redirect('mailto:todo@example.com?subject=I have a question&body=Please do not send this email!\n\nWe are a very young company and still working on our processes.  For now, if you have questions or feedback for us, please create an issue at https://github.com/fleetdm/fleet/issues.  Thank you!');
-//   },
 
   // 'GET /welcome/:unused?':   { action: 'dashboard/view-welcome' },
 
