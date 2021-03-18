@@ -154,11 +154,14 @@ func listOptionsFromRequest(r *http.Request) (kolide.ListOptions, error) {
 		orderKey = "physical_memory"
 	}
 
+	query := r.URL.Query().Get("query")
+
 	return kolide.ListOptions{
 		Page:           uint(page),
 		PerPage:        uint(perPage),
 		OrderKey:       orderKey,
 		OrderDirection: orderDirection,
+		MatchQuery:     query,
 	}, nil
 }
 
@@ -188,9 +191,6 @@ func hostListOptionsFromRequest(r *http.Request) (kolide.HostListOptions, error)
 	if additionalInfoFiltersString != "" {
 		hopt.AdditionalFilters = strings.Split(additionalInfoFiltersString, ",")
 	}
-
-	query := r.URL.Query().Get("query")
-	hopt.MatchQuery = query
 
 	return hopt, nil
 }

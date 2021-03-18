@@ -8,6 +8,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+var userSearchColumns = []string{"name", "email"}
+
 // NewUser creates a new user
 func (d *Datastore) NewUser(user *kolide.User) (*kolide.User, error) {
 	sqlStatement := `
@@ -67,11 +69,14 @@ func (d *Datastore) User(username string) (*kolide.User, error) {
 func (d *Datastore) ListUsers(opt kolide.ListOptions) ([]*kolide.User, error) {
 	sqlStatement := `
 		SELECT * FROM users
+		WHERE TRUE
 	`
+
+	sqlStatement, params := searchLike(sqlStatement, nil, opt.MatchQuery, userSearchColumns...)
 	sqlStatement = appendListOptionsToSQL(sqlStatement, opt)
 	users := []*kolide.User{}
 
-	if err := d.db.Select(&users, sqlStatement); err != nil {
+	if err := d.db.Select(&users, sqlStatement, params...); err != nil {
 		return nil, errors.Wrap(err, "list users")
 	}
 
