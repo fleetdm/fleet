@@ -3,10 +3,11 @@ package kolide
 import (
 	"context"
 	"crypto/rand"
-	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"time"
+
+	"gopkg.in/guregu/null.v3"
 )
 
 type HostStatus string
@@ -141,7 +142,7 @@ type Host struct {
 	Additional                *json.RawMessage    `json:"additional,omitempty" db:"additional"`
 	EnrollSecretName          string              `json:"enroll_secret_name" db:"enroll_secret_name"`
 
-	TeamID sql.NullInt64 `json:"team_id" db:"team_id"`
+	TeamID null.Int `json:"team_id" db:"team_id"`
 }
 
 // HostDetail provides the full host metadata along with associated labels and
