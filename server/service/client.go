@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -38,6 +39,10 @@ func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, o
 	baseURL, err := url.Parse(addr)
 	if err != nil {
 		return nil, errors.Wrap(err, "parsing URL")
+	}
+
+	if baseURL.Scheme != "https" && !strings.Contains(baseURL.Host, "localhost") {
+		return nil, errors.New("address must start with https:// for remote connections")
 	}
 
 	rootCAPool := x509.NewCertPool()
