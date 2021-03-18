@@ -6,6 +6,7 @@ import (
 
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func testCreateUser(t *testing.T, ds kolide.Datastore) {
@@ -66,6 +67,7 @@ func createTestUsers(t *testing.T, ds kolide.Datastore) []*kolide.User {
 	for _, tt := range createTests {
 		u := &kolide.User{
 			Username:                 tt.username,
+			Name:                     tt.username,
 			Password:                 []byte(tt.password),
 			Admin:                    tt.isAdmin,
 			AdminForcedPasswordReset: tt.passwordReset,
@@ -124,4 +126,22 @@ func testAdminAttribute(t *testing.T, ds kolide.Datastore, users []*kolide.User)
 		assert.Nil(t, err)
 		assert.Equal(t, user.Admin, verify.Admin)
 	}
+}
+
+func testListUsers(t *testing.T, ds kolide.Datastore) {
+	createTestUsers(t, ds)
+
+	users, err := ds.ListUsers(kolide.ListOptions{})
+	assert.NoError(t, err)
+	require.Len(t, users, 2)
+
+	users, err = ds.ListUsers(kolide.ListOptions{MatchQuery: "jason"})
+	assert.NoError(t, err)
+	require.Len(t, users, 1)
+	assert.Equal(t, "jason@kolide.co", users[0].Email)
+
+	users, err = ds.ListUsers(kolide.ListOptions{MatchQuery: "paia"})
+	assert.NoError(t, err)
+	require.Len(t, users, 1)
+	assert.Equal(t, "mike@kolide.co", users[0].Email)
 }

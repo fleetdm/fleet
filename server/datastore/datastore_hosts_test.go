@@ -250,43 +250,43 @@ func testListHostsQuery(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, err)
 	assert.Equal(t, len(hosts), len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{MatchQuery: "00"})
+	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "00"}})
 	require.Nil(t, err)
 	assert.Equal(t, 10, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{MatchQuery: "000"})
+	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "000"}})
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{MatchQuery: "192.168."})
+	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "192.168."}})
 	require.Nil(t, err)
 	assert.Equal(t, 10, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{MatchQuery: "192.168.1.1"})
+	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "192.168.1.1"}})
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{MatchQuery: "hostname%00"})
+	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "hostname%00"}})
 	require.Nil(t, err)
 	assert.Equal(t, 10, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{MatchQuery: "hostname%003"})
+	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "hostname%003"}})
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{MatchQuery: "uuid_"})
+	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "uuid_"}})
 	require.Nil(t, err)
 	assert.Equal(t, 10, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{MatchQuery: "uuid_006"})
+	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "uuid_006"}})
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{MatchQuery: "serial"})
+	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "serial"}})
 	require.Nil(t, err)
 	assert.Equal(t, 10, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(kolide.HostListOptions{MatchQuery: "serial009"})
+	gotHosts, err = ds.ListHosts(kolide.HostListOptions{ListOptions: kolide.ListOptions{MatchQuery: "serial009"}})
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(gotHosts))
 }

@@ -93,8 +93,6 @@ type HostListOptions struct {
 	AdditionalFilters []string
 	// StatusFilter selects the online status of the hosts.
 	StatusFilter HostStatus
-	// MatchQuery is the query string to match in various columns of the host.
-	MatchQuery string
 }
 
 type Host struct {

@@ -296,6 +296,10 @@ type ListOptions struct {
 	OrderKey string
 	// Direction of ordering
 	OrderDirection OrderDirection
+	// MatchQuery is the query string to match against columns of the entity
+	// (varies depending on entity, eg. hostname, IP address for hosts).
+	// Handling for this parameter must be implemented separately for each type.
+	MatchQuery string
 }
 
 // EnrollSecret contains information about an enroll secret, name, and active
