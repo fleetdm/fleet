@@ -17,6 +17,38 @@ html, body {
   padding-bottom: @footer-height;
 }
 
+[purpose='page-header'] {
+  position: absolute;
+  left: 0;
+  right: 0;
+  .header-btn {
+    color: #ffffff;
+  }
+  .header-btn:hover {
+    color: #6a67fe;
+  }
+  .header-btn[aria-expanded='true'] {
+    color: #6a67fe;
+  }
+  .header-link {
+    color: #ffffff;
+    font-family: @header-font;
+  }
+  .header-link:hover {
+    color: #6a67fe;
+  }
+  // These styles override the Bootstrap "dropdown-item" class
+  .dropdown-link:hover {
+    background-color: #f1f0ff;
+    font-weight: @bold;
+  }
+  // These styles override the Bootstrap "dropdown-menu" class
+  .dropdown-container {
+    left: 16px !important;
+    min-width: 0;
+  }
+}
+
 [purpose='page-footer'] {
   height: @footer-height;
   width: 100%;
