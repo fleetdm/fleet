@@ -36,13 +36,13 @@ type ClientOption func(*Client) error
 func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, options ...ClientOption) (*Client, error) {
 	// TODO #265 refactor all optional parameters to functional options
 	// API breaking change, needs a major version release
-	if !strings.HasPrefix(addr, "https://") {
-		return nil, errors.New("Address must start with https://")
-	}
-
 	baseURL, err := url.Parse(addr)
 	if err != nil {
 		return nil, errors.Wrap(err, "parsing URL")
+	}
+
+	if baseURL.Scheme != "https" && !strings.Contains(baseURL.Host, "localhost") {
+		return nil, errors.New("address must start with https:// for remote connections")
 	}
 
 	rootCAPool := x509.NewCertPool()
