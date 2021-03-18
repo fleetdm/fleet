@@ -105,7 +105,7 @@ type User struct {
 	GlobalRole null.String `json:"global_role" db:"global_role"`
 
 	// Teams is the teams this user has roles in.
-	Teams []UserTeam
+	Teams []UserTeam `json:"teams"`
 }
 
 type UserTeam struct {
