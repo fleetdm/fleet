@@ -177,7 +177,7 @@ func testUserTeams(t *testing.T, ds kolide.Datastore) {
 	err = ds.SaveUser(users[0])
 	require.NoError(t, err)
 
-	users, err = ds.ListUsers(kolide.ListOptions{OrderKey: "name"})
+	users, err = ds.ListUsers(kolide.ListOptions{OrderKey: "name", OrderDirection: kolide.OrderDescending})
 	require.NoError(t, err)
 
 	assert.Len(t, users[0].Teams, 1)
@@ -200,7 +200,7 @@ func testUserTeams(t *testing.T, ds kolide.Datastore) {
 	err = ds.SaveUser(users[1])
 	require.NoError(t, err)
 
-	users, err = ds.ListUsers(kolide.ListOptions{OrderKey: "name"})
+	users, err = ds.ListUsers(kolide.ListOptions{OrderKey: "name", OrderDirection: kolide.OrderDescending})
 	require.NoError(t, err)
 
 	assert.Len(t, users[0].Teams, 1)
@@ -211,7 +211,7 @@ func testUserTeams(t *testing.T, ds kolide.Datastore) {
 	err = ds.SaveUser(users[1])
 	require.NoError(t, err)
 
-	users, err = ds.ListUsers(kolide.ListOptions{OrderKey: "name"})
+	users, err = ds.ListUsers(kolide.ListOptions{OrderKey: "name", OrderDirection: kolide.OrderDescending})
 	require.NoError(t, err)
 
 	assert.Len(t, users[0].Teams, 1)
