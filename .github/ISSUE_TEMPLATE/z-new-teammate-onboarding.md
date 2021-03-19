@@ -17,6 +17,7 @@ Welcome to Fleet! This issue tracks TODOs required for all new teammates for you
 <!-- - [ ] Set up your personal workspace. See our guidelines for personal office setup -->
 - [ ] Set a consistent picture as your avatar in all of our collaboration tools (GitHub, Slack, Google Workspace, etc.)
 - [ ] Update your LinkedIn profile and send connection requests to your colleagues. (This is a suggestion, not a requirement. Consider using the same picture as your linkedin everywhere at Fleet for continuity.)
+- [ ] [Publicize your membership](https://github.com/orgs/fleetdm/people) in the [Fleet GitHub org](https://github.com/fleetdm). (This is a suggestion, not a requirement.)
 <!-- - [ ] Add your birthday (mm-dd) and start date (mm-dd) to our [company milestones] -->
 - [ ] Confirm that your GitHub notifications are on and that you are able to receive them
 <!-- - [ ] Add yourself and your role to our [Handbook Teams Page] -->
