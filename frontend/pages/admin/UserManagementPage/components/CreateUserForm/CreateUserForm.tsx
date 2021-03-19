@@ -1,6 +1,7 @@
 import React, { Component, FormEvent } from 'react';
 
 import { IUser } from 'interfaces/user';
+import ITeam from 'interfaces/team';
 import Button from 'components/buttons/Button';
 import validatePresence from 'components/forms/validators/validate_presence';
 import validEmail from 'components/forms/validators/valid_email';
@@ -31,6 +32,7 @@ interface ICreateUserFormProps {
   onCancel: () => void;
   onSubmit: (formData: ISubmitData) => void;
   canUseSSO: boolean;
+  availableTeams: ITeam[]
 }
 
 interface ICreateUserFormState {
@@ -136,7 +138,7 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
 
   render () {
     const { errors, formData: { admin, email, name, sso_enabled } } = this.state;
-    const { onCancel } = this.props;
+    const { onCancel, availableTeams } = this.props;
     const { onFormSubmit, onInputChange, onCheckboxChange } = this;
 
     return (
@@ -183,6 +185,8 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
 
         <div className={`${baseClass}__selected-teams-container`}>
           <SelectedTeamsForm
+            // availableTeams={availableTeams}
+            availableTeams={[{ name: 'Test Team', id: 1, role: 'admin' }, { name: 'Test Team 2', id: 2, role: 'admin' }]}
             teams={[{ name: 'Test Team', id: 1, role: 'admin' }, { name: 'Test Team 2', id: 2, role: 'admin' }]}
           />
         </div>

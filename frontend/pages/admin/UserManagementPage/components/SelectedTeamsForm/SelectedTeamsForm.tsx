@@ -14,7 +14,8 @@ interface ICheckboxListItem {
   isChecked: boolean | undefined;
 }
 
-interface ISelectedTeamsForm {
+interface ISelectedTeamsFormProps {
+  availableTeams: ITeam[];
   teams: ITeam[];
 }
 
@@ -73,9 +74,9 @@ const generateListItems = (allTeams: ITeam[], selectedTeams: ITeam[]): ICheckbox
   // });
 };
 
-const SelectedTeamsForm = (props: ISelectedTeamsForm): JSX.Element => {
-  const { teams } = props;
-  const checkboxListItems = generateListItems(teams, []);
+const SelectedTeamsForm = (props: ISelectedTeamsFormProps): JSX.Element => {
+  const { availableTeams, teams } = props;
+  const checkboxListItems = generateListItems(availableTeams, []);
   const [listItems, updateCheckboxList] = useCheckboxListStateManagement(checkboxListItems);
 
   return (

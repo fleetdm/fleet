@@ -23,6 +23,10 @@
     margin: 0;
   }
 
+  &__selected-teams-container {
+    margin-bottom: $pad-most;
+  }
+
   &__btn-wrap {
     display: flex;
     flex-direction: row-reverse;

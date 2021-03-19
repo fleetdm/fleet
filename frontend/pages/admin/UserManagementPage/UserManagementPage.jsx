@@ -208,6 +208,7 @@ export class UserManagementPage extends Component {
           onCancel={onInviteCancel}
           onSubmit={onInviteUserSubmit}
           canUseSSO={ssoEnabledForApp}
+          availableTeams={currentUser.teams}
         />
       </Modal>
     );
