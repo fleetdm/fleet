@@ -1,6 +1,6 @@
 # Get installed Chrome Extensions
 
-List installed Chrome Extensions for all users
+List installed Chrome Extensions for all users.
 
 ### Support
 macOS
