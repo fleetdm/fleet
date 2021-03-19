@@ -58,7 +58,8 @@ To configure how Fleet runs, such as specifying the number of Fleet instances to
 Once the secrets have been created and you have updated the values to match your required configuration, you can deploy with the following command.
 
 ```sh
-helm upgrade --install fleet . \
+helm upgrade --install fleet fleet \
   --namespace <your_namespace> \
+  --repo https://fleetdm.github.io/fleet/charts \
   --values values.yaml
 ```
