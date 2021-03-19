@@ -21,6 +21,7 @@ interface IFormData {
   name: string;
   sso_enabled: boolean;
   invited_by?: number;
+  selectedTeams: ITeam[];
 }
 
 interface ISubmitData extends IFormData {
@@ -32,7 +33,7 @@ interface ICreateUserFormProps {
   onCancel: () => void;
   onSubmit: (formData: ISubmitData) => void;
   canUseSSO: boolean;
-  availableTeams: ITeam[]
+  availableTeams: ITeam[];
 }
 
 interface ICreateUserFormState {
@@ -61,6 +62,7 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
         email: '',
         name: '',
         sso_enabled: false,
+        selectedTeams: [],
       },
     };
   }
@@ -88,12 +90,22 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
     };
   };
 
+  onSelectedTeamChange = (teams: ITeam[]) => {
+    const { formData } = this.state;
+    this.setState({
+      formData: {
+        ...formData,
+        selectedTeams: teams,
+      },
+    });
+  }
+
   onFormSubmit = (evt: FormEvent) => {
     evt.preventDefault();
     const valid = this.validate();
 
     if (valid) {
-      const { formData: { admin, email, name, sso_enabled } } = this.state;
+      const { formData: { admin, email, name, sso_enabled, selectedTeams } } = this.state;
       const { createdBy, onSubmit } = this.props;
       return onSubmit({
         admin,
@@ -101,6 +113,7 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
         created_by: createdBy.id,
         name,
         sso_enabled,
+        selectedTeams,
       });
     }
   }
@@ -137,9 +150,9 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
   }
 
   render () {
-    const { errors, formData: { admin, email, name, sso_enabled } } = this.state;
+    const { errors, formData: { admin, email, name, sso_enabled, selectedTeams } } = this.state;
     const { onCancel, availableTeams } = this.props;
-    const { onFormSubmit, onInputChange, onCheckboxChange } = this;
+    const { onFormSubmit, onInputChange, onCheckboxChange, onSelectedTeamChange } = this;
 
     return (
       <form onSubmit={onFormSubmit} className={baseClass}>
@@ -187,7 +200,8 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
           <SelectedTeamsForm
             // availableTeams={availableTeams}
             availableTeams={[{ name: 'Test Team', id: 1, role: 'admin' }, { name: 'Test Team 2', id: 2, role: 'admin' }]}
-            teams={[{ name: 'Test Team', id: 1, role: 'admin' }, { name: 'Test Team 2', id: 2, role: 'admin' }]}
+            selectedTeams={selectedTeams}
+            onFormChange={onSelectedTeamChange}
           />
         </div>
 

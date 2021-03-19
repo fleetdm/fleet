@@ -16,7 +16,8 @@ interface ICheckboxListItem {
 
 interface ISelectedTeamsFormProps {
   availableTeams: ITeam[];
-  teams: ITeam[];
+  selectedTeams: ITeam[];
+  onFormChange: (teams: ITeam[]) => void;
 }
 
 const baseClass = 'selected-teams-form';
@@ -32,28 +33,6 @@ const roles = [
   },
 ];
 
-const useCheckboxListStateManagement = (checkboxListItems: ICheckboxListItem[]): [ICheckboxListItem[], (itemId: number) => void] => {
-  const [checkboxItems, setCheckboxItems] = useState(checkboxListItems);
-
-  const updateCheckboxList = (itemId: number) => {
-    setCheckboxItems((prevState) => {
-      const selectedCheckbox = checkboxItems.find(checkbox => checkbox.id === itemId) as ICheckboxListItem;
-      const updatedCheckbox = {
-        ...selectedCheckbox,
-        isChecked: !selectedCheckbox.isChecked,
-      };
-
-      // this is replacing the checkbox item object with the updatedCheckbox we just created.
-      const newState = prevState.map((currentItem) => {
-        return currentItem.id === itemId ? updatedCheckbox : currentItem;
-      });
-      return newState;
-    });
-  };
-
-  return [checkboxItems, updateCheckboxList];
-};
-
 const generateListItems = (allTeams: ITeam[], selectedTeams: ITeam[]): ICheckboxListItem[] => {
   if (selectedTeams.length === 0) {
     return allTeams.map((team) => {
@@ -66,28 +45,35 @@ const generateListItems = (allTeams: ITeam[], selectedTeams: ITeam[]): ICheckbox
     });
   }
 
-  // TODO: add functionality for selected teams.
+  // TODO: add functionality editing for selected teams.
   return [];
-
-  // allTeams.map((team) => {
-  //
-  // });
 };
 
 const SelectedTeamsForm = (props: ISelectedTeamsFormProps): JSX.Element => {
-  const { availableTeams, teams } = props;
-  const checkboxListItems = generateListItems(availableTeams, []);
-  const [listItems, updateCheckboxList] = useCheckboxListStateManagement(checkboxListItems);
+  const { availableTeams, selectedTeams, onFormChange } = props;
+  const checkboxListItems = generateListItems(availableTeams, selectedTeams);
+
+  const onChangeInput = (checkboxItem: ICheckboxListItem): void => {
+    const updatedTeam = selectedTeams.find(team => team.id === checkboxItem.id);
+
+    // TODO: figure out logic of newly checked and updated checked.
+    // if (updatedTeam === undefined) {
+    //
+    // } else {
+    //
+    // }
+    // onFormChange(selectedTeam);
+  };
 
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__team-select-items`}>
-        {listItems.map((checkboxItem) => {
+        {checkboxListItems.map((checkboxItem) => {
           return (
             <div className={`${baseClass}__team-item`}>
               <Checkbox
                 name={checkboxItem.name}
-                onChange={() => updateCheckboxList(checkboxItem.id)}
+                onChange={() => onChangeInput(checkboxItem)}
                 value={checkboxItem.name}
               >
                 {checkboxItem.name}
@@ -96,6 +82,7 @@ const SelectedTeamsForm = (props: ISelectedTeamsFormProps): JSX.Element => {
                 className={`${baseClass}__role-dropdown`}
                 options={roles}
                 searchable={false}
+                onChange={() => onChangeInput(checkboxItem)}
               />
             </div>
           );
