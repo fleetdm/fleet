@@ -9,3 +9,8 @@ macOS
 ```sql
 SELECT * FROM users CROSS JOIN chrome_extensions USING (uid);
 ```
+### Purpose
+Informational
+
+### Remediation
+N/A
