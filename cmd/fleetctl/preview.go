@@ -66,8 +66,15 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return errors.Wrap(err, "make logs writable")
 			}
 
+			fmt.Println("Pulling Docker dependencies...")
+			out, err := exec.Command("docker-compose", "pull", "mysql01", "redis01", "fleet01").CombinedOutput()
+			if err != nil {
+				fmt.Println(string(out))
+				return errors.Errorf("Failed to run docker-compose")
+			}
+
 			fmt.Println("Starting Docker containers...")
-			out, err := exec.Command("docker-compose", "up", "-d", "--remove-orphans", "mysql01", "redis01", "fleet01").CombinedOutput()
+			out, err = exec.Command("docker-compose", "up", "-d", "--remove-orphans", "mysql01", "redis01", "fleet01").CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
 				return errors.Errorf("Failed to run docker-compose")
