@@ -1,0 +1,6 @@
+# Fleet is, in large part, a Go app, so to avoid confusion we'll help GitHub understand that.
+# Thanks @wabri, @brymon68, and Linguist!
+#  - https://github.community/t/how-to-change-the-category/2261/3)
+#  - https://github.com/github/linguist/issues/4769
+#  - https://github.com/github/linguist/blob/2a6f9e29e198afbaa721164680bbc3b292dad260/docs/overrides.md#vendored-code
+website/* linguist-vendored
