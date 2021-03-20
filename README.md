@@ -22,12 +22,9 @@ A local copy of the Fleet server is now running at https://localhost:8412. The p
 
 #### Your first query
 Ready to run your first query?  Target some of your sample hosts and try it out:
-
-<img width="800" alt="Screenshot of query editor" src="https://user-images.githubusercontent.com/618009/111853525-5a610f80-88e9-11eb-84c0-c36df0558026.png"/>
-
+<img width="800" alt="Screenshot of query editor" src="https://user-images.githubusercontent.com/618009/111853677-099de680-88ea-11eb-90bb-f5cd787f1f15.png"/>
 
 ## Team
-
 Fleet is [independently backed](https://linkedin.com/company/fleetdm) and actively maintained with the help of many amazing [contributors](https://github.com/fleetdm/fleet/graphs/contributors).
 
 > **:tada: Announcing the transition of Fleet to a new independent entity :tada:**
