@@ -9,20 +9,25 @@ Fleet is the most widely used open source osquery manager.  Deploying osquery wi
 
 ## Try Fleet
 
-#### With [Node.js](https://nodejs.org/en/download/), [Docker](https://docs.docker.com/get-docker/), and [Docker Compose](https://docs.docker.com/compose/install/) installed:
+#### With [Node.js](https://nodejs.org/en/download/) and [Docker](https://docs.docker.com/get-docker/) installed:
 
 ```bash
 # Install the Fleet command-line tool
 npm install -g fleetctl
 # Run a local demo of the Fleet server
-fleetctl preview
+sudo fleetctl preview
 ```
 
-A local copy of the Fleet server is now running at https://localhost:8412. The preview experience will start sample Linux hosts connected to this server.
+A local demo copy of the Fleet server is now running at https://localhost:8412.
+
+> **Seeing a warning in your browser?**  You can safely skirt the browser warning ("Your connection is not private") when accessing Fleet locally over https.  For example in Google Chrome, visit `chrome://flags/#allow-insecure-localhost` to enable self-signed certs on localhost.  Then [refresh Fleet](https://localhost:8412) and click through this warning using the "Advanced" option.
 
 #### Your first query
 Ready to run your first query?  Target some of your sample hosts and try it out:
 <img width="800" alt="Screenshot of query editor" src="https://user-images.githubusercontent.com/618009/111853677-099de680-88ea-11eb-90bb-f5cd787f1f15.png"/>
+
+#### Using real devices
+For convenience, the demo includes a few simulated Linux hosts.  To query a real device, [install the osquery agent](https://github.com/fleetdm/orbit).
 
 ## Team
 Fleet is [independently backed](https://linkedin.com/company/fleetdm) and actively maintained with the help of many amazing [contributors](https://github.com/fleetdm/fleet/graphs/contributors).
