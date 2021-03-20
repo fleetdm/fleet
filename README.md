@@ -21,11 +21,10 @@ fleetctl preview
 A local copy of the Fleet server is now running at https://localhost:8412. The preview experience will start sample Linux hosts connected to this server.
 
 #### Your first query
-
 Ready to run your first query?  Target some of your sample hosts and try it out:
 
+<img width="800" alt="Screenshot of query editor" src="https://user-images.githubusercontent.com/618009/111853525-5a610f80-88e9-11eb-84c0-c36df0558026.png"/>
 
-<img width="400" alt="Screenshot of query editor" src="https://user-images.githubusercontent.com/618009/111853390-d3ac3280-88e8-11eb-85b7-394a7fb18914.png"/><img width="400" alt="Screenshot of query editor" src="https://user-images.githubusercontent.com/618009/111853104-89768180-88e7-11eb-810c-5341ec445f66.png"/>
 
 ## Team
 
