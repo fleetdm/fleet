@@ -15,7 +15,7 @@ Fleet is the most widely used open source osquery manager.  Deploying osquery wi
 # Install the Fleet command-line tool
 npm install -g fleetctl
 
-# Edit your Docker config
+# Edit your Docker config  (Required on macOS w/ default Docker install.)
 #  • remove "credsStore": "desktop"
 #  • remove the preceding comma (,) to ensure well-formed JSON
 nano ~/.docker/config.json
