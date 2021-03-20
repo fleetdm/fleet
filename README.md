@@ -23,7 +23,9 @@ A local copy of the Fleet server is now running at https://localhost:8412. The p
 #### Your first query
 
 Ready to run your first query?  Target some of your sample hosts and try it out:
-<img width="500" alt="Screenshot of query editor" src="https://user-images.githubusercontent.com/618009/101847266-769a2700-3b18-11eb-9109-7f1320ed5c45.png"/>
+
+
+<img width="400" alt="Screenshot of query editor" src="https://user-images.githubusercontent.com/618009/111853390-d3ac3280-88e8-11eb-85b7-394a7fb18914.png"/><img width="400" alt="Screenshot of query editor" src="https://user-images.githubusercontent.com/618009/111853104-89768180-88e7-11eb-810c-5341ec445f66.png"/>
 
 ## Team
 
