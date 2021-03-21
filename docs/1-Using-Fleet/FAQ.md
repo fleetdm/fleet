@@ -6,7 +6,7 @@
 - [How do I monitor a Fleet server?](#how-do-i-monitor-a-fleet-server)
 - [Why is the “Add User” button disabled?](#why-is-the-add-user-button-disabled)
 - [Where are my query results?](#where-are-my-query-results)
-- [Why aren’t my live queries being logged?](#why-aren’t-my-live-queries-being-logged)
+- [Why aren’t my live queries being logged?](#why-arent-my-live-queries-being-logged)
 
 ## Has anyone stress tested Fleet? How many clients can the Fleet server handle?
 
