@@ -20,8 +20,6 @@ sudo fleetctl preview
 
 The Fleet UI is now available at http://localhost:1337.
 
-> **Seeing a warning in your browser?**  You can safely skirt the browser warning ("Your connection is not private") when accessing Fleet locally over https.  For example in Google Chrome, visit `chrome://flags/#allow-insecure-localhost` to enable self-signed certs on localhost.  Then [refresh Fleet](https://localhost:8412) and click through this warning using the "Advanced" option.
-
 #### Your first query
 Ready to run your first query?  Target some of your sample hosts and try it out:
 <img width="800" alt="Screenshot of query editor" src="https://user-images.githubusercontent.com/618009/111853677-099de680-88ea-11eb-90bb-f5cd787f1f15.png"/>
