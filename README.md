@@ -18,7 +18,7 @@ npm install -g fleetctl
 fleetctl preview
 ```
 
-A local copy of the Fleet server is now running at https://localhost:8412. The preview experience will start sample Linux hosts connected to this server.
+The Fleet UI is now available at http://localhost:1337. The preview experience will start sample Linux hosts connected to this server.
 
 #### Your first query
 
