@@ -8,7 +8,7 @@
   - [Availability](#availability)
   - [Monitoring](#monitoring)
   - [Debugging performance issues](#debugging-performance-issues)
-    - [MySQL & Redis](#mysql-&-redis)
+    - [MySQL & Redis](#mysql-redis)
     - [Fleet server](#fleet-server)
 
 ## Health checks
