@@ -2,7 +2,7 @@
 - [Make errors](#make-errors)
   - [`dep: command not found`](#dep-command-not-found)
   - [`undefined: Asset`](#undefined-asset)
-- [How do I connect to the Mailhog simulated mail server?](#how-do-i-connect-to-the-mailhog-simulated-mail-server?)
+- [How do I connect to the Mailhog simulated mail server?](#how-do-i-connect-to-the-mailhog-simulated-mail-server)
 - [Adding hosts for testing](#adding-hosts-for-testing)
 
 ## Make errors
