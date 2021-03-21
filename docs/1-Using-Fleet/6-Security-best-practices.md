@@ -1,12 +1,12 @@
 # Security best practices
-- [Describe your secure coding practices](#describe-your-secure-coding-practices,-including-code-reviews,-use-of-static/dynamic-security-testing-tools,-3rd-party-scans/reviews)
+- [Describe your secure coding practices](#describe-your-secure-coding-practices-including-code-reviews-use-of-static/dynamic-security-testing-tools-3rd-party-scans/reviews)
 - [SQL injection](#sql-injection)
-- [Broken authentication](#broken-authentication-–-authentication,-session-management-flaws-that-compromise-passwords,-keys,-session-tokens-etc.)
+- [Broken authentication](#broken-authentication-–-authentication-session-management-flaws-that-compromise-passwords-keys-session-tokens-etc.)
   - [Passwords](#passwords)
   - [Authentication tokens](#authentication-tokens)
 - [Sensitive data exposure](#sensitive-data-exposure-–-encryption-in-transit,-at-rest,-improperly-implemented-APIs.)
 - [Cross-site scripting](#cross-site-scripting-–-ensure-an-attacker-can’t-execute-scripts-in-the-user’s-browser)
-- [Components with known vulnerabilities](#components-with-known-vulnerabilities-–-prevent-the-use-of-libraries,-frameworks,-other-software-with-existing-vulnerabilities.)
+- [Components with known vulnerabilities](#components-with-known-vulnerabilities-–-prevent-the-use-of-libraries-frameworks-other-software-with-existing-vulnerabilities.)
 
 The Fleet community follows best practices when coding.  Here are some of the ways we mitigate against the OWASP top 10 issues:
 
