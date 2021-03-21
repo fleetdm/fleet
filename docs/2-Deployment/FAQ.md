@@ -1,7 +1,7 @@
 # Deployment FAQ
 - [How do I get support for working with Fleet?](#how-do-i-get-support-for-working-with-fleet)
 - [Can multiple instances of the Fleet server be run behind a load-balancer?](#can-multiple-instances-of-the-fleet-server-be-run-behind-a-load-balancer)
-- [Why aren't my osquery agents connecting to Fleet?](#why-aren't-my-osquery-agents-connecting-to-fleet)
+- [Why aren't my osquery agents connecting to Fleet?](#why-arent-my-osquery-agents-connecting-to-fleet)
 - [How do I fix "certificate verify failed" errors from osqueryd?](#how-do-i-fix-certificate-verify-failed-errors-from-osqueryd)
 - [What do I do about "too many open files" errors?](#what-do-i-do-about-too-many-open-files-errors)
 - [I upgraded my database, but Fleet is still running slowly. What could be going on?](#i-upgraded-my-database-but-fleet-is-still-running-slowly-what-could-be-going-on)
