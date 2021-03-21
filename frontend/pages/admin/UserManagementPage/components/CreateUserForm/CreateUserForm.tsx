@@ -198,9 +198,8 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
 
         <div className={`${baseClass}__selected-teams-container`}>
           <SelectedTeamsForm
-            // availableTeams={availableTeams}
             availableTeams={[{ name: 'Test Team', id: 1, role: 'admin' }, { name: 'Test Team 2', id: 2, role: 'admin' }]}
-            selectedTeams={selectedTeams}
+            usersCurrentTeams={[]}
             onFormChange={onSelectedTeamChange}
           />
         </div>

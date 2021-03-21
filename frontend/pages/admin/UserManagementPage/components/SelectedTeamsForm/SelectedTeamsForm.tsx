@@ -1,4 +1,3 @@
-import PropTypes from 'prop-types';
 import React, { useState } from 'react';
 
 import ITeam from 'interfaces/team';
@@ -8,15 +7,13 @@ import Checkbox from 'components/forms/fields/Checkbox';
 // @ts-ignore
 import Dropdown from 'components/forms/fields/Dropdown';
 
-interface ICheckboxListItem {
-  name: string;
-  id: number;
+interface ITeamCheckboxListItem extends ITeam {
   isChecked: boolean | undefined;
 }
 
 interface ISelectedTeamsFormProps {
   availableTeams: ITeam[];
-  selectedTeams: ITeam[];
+  usersCurrentTeams: ITeam[];
   onFormChange: (teams: ITeam[]) => void;
 }
 
@@ -33,13 +30,12 @@ const roles = [
   },
 ];
 
-const generateListItems = (allTeams: ITeam[], selectedTeams: ITeam[]): ICheckboxListItem[] => {
-  if (selectedTeams.length === 0) {
+const generateFormListItems = (allTeams: ITeam[], currentTeams: ITeam[]): ITeamCheckboxListItem[] => {
+  if (currentTeams.length === 0) {
     return allTeams.map((team) => {
-      const { name, id } = team;
       return {
-        name,
-        id,
+        ...team,
+        role: 'observer',
         isChecked: false,
       };
     });
@@ -49,40 +45,78 @@ const generateListItems = (allTeams: ITeam[], selectedTeams: ITeam[]): ICheckbox
   return [];
 };
 
-const SelectedTeamsForm = (props: ISelectedTeamsFormProps): JSX.Element => {
-  const { availableTeams, selectedTeams, onFormChange } = props;
-  const checkboxListItems = generateListItems(availableTeams, selectedTeams);
+// Handles the generation of the form data. This is eventually passed up to the parent
+// so we only want to send the selected teams. The user can change the dropdown of an
+// unselected item, but the parent will not track it as it only cares about selected items.
+const generateSelectedTeamData = (teamsFormList: ITeamCheckboxListItem[]): ITeam[] => {
+  return teamsFormList.reduce((selectedTeams: ITeam[], teamItem) => {
+    if (teamItem.isChecked) {
+      selectedTeams.push({
+        id: teamItem.id,
+        name: teamItem.name,
+        role: teamItem.role,
+      });
+    }
+    return selectedTeams;
+  }, []);
+};
 
-  const onChangeInput = (checkboxItem: ICheckboxListItem): void => {
-    const updatedTeam = selectedTeams.find(team => team.id === checkboxItem.id);
+// handles the updating of the form items.
+// updates either selected state or the dropdown status of an item.
+const updateFormState = (prevTeamItems: ITeamCheckboxListItem[], teamId: number, newValue: any, updateType: string): ITeamCheckboxListItem[] => {
+  const prevItemIndex = prevTeamItems.findIndex(item => item.id === teamId);
+  const prevItem = prevTeamItems[prevItemIndex];
 
-    // TODO: figure out logic of newly checked and updated checked.
-    // if (updatedTeam === undefined) {
-    //
-    // } else {
-    //
-    // }
-    // onFormChange(selectedTeam);
+  if (updateType === 'checkbox') {
+    prevItem.isChecked = newValue;
+  } else {
+    prevItem.role = newValue;
+  }
+
+  return [...prevTeamItems];
+};
+
+const useSelectedTeamState = (allTeams: ITeam[], currentTeams: ITeam[], formChange: (teams: ITeam[]) => void) => {
+  const [teamsFormList, setTeamsFormList] = useState(() => {
+    return generateFormListItems(allTeams, currentTeams);
+  });
+
+  const updateSelectedTeams = (teamId: number, newValue: any, updateType: string) => {
+    setTeamsFormList((prevState) => {
+      const updatedTeamFormList = updateFormState(prevState, teamId, newValue, updateType);
+      const selectedTeamsData = generateSelectedTeamData(updatedTeamFormList);
+      formChange(selectedTeamsData);
+      return updatedTeamFormList;
+    });
   };
+
+  return [teamsFormList, updateSelectedTeams] as const;
+};
+
+const SelectedTeamsForm = (props: ISelectedTeamsFormProps): JSX.Element => {
+  const { availableTeams, usersCurrentTeams, onFormChange } = props;
+  const [teamsFormList, updateSelectedTeams] = useSelectedTeamState(availableTeams, usersCurrentTeams, onFormChange);
 
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__team-select-items`}>
-        {checkboxListItems.map((checkboxItem) => {
+        {teamsFormList.map((teamItem) => {
+          const { isChecked, name, role, id } = teamItem;
           return (
-            <div className={`${baseClass}__team-item`}>
+            <div key={id} className={`${baseClass}__team-item`}>
               <Checkbox
-                name={checkboxItem.name}
-                onChange={() => onChangeInput(checkboxItem)}
-                value={checkboxItem.name}
+                value={isChecked}
+                name={name}
+                onChange={(newValue: boolean) => updateSelectedTeams(teamItem.id, newValue, 'checkbox')}
               >
-                {checkboxItem.name}
+                {name}
               </Checkbox>
               <Dropdown
+                value={role}
                 className={`${baseClass}__role-dropdown`}
                 options={roles}
                 searchable={false}
-                onChange={() => onChangeInput(checkboxItem)}
+                onChange={(newValue: string) => updateSelectedTeams(teamItem.id, newValue, 'dropdown')}
               />
             </div>
           );
