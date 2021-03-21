@@ -1,13 +1,14 @@
 # Building Fleet
 - [Building the code](#building-the-code)
-  - [Generating the packaged JavaScript](#generating-the-packaged-javascript)
-  - [Compiling the Fleet binary](#compiling-the-Fleet-binary)
 - [Development infrastructure](#development-infrastructure)
   - [Starting the local development environment](#starting-the-local-development-environment)
   - [Running Fleet using Docker development infrastructure](#running-fleet-using-docker-development-infrastructure)
 - [Setting up a Linux Development Environment](#setting-up-a-linux-development-environment)
 
 ## Building the code
+
+- [Generating the packaged JavaScript](#generating-the-packaged-javascript)
+- [Compiling the Fleet binary](#compiling-the-Fleet-binary)
 
 Clone this repository.
 

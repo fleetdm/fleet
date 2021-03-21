@@ -4,9 +4,9 @@
 - [How do I revoke the authorization tokens for a user?](#how-do-i-revoke-the-authorization-tokens-for-a-user)
 - [How do I monitor the performance of my queries?](#how-do-i-monitor-the-performance-of-my-queries)
 - [How do I monitor a Fleet server?](#how-do-i-monitor-a-fleet-server)
-- [Why is the “Add User” button disabled?](#why-is-the-"add-user"-button-disabled)
+- [Why is the “Add User” button disabled?](#why-is-the-add-user-button-disabled)
 - [Where are my query results?](#where-are-my-query-results)
-- [Why aren’t my live queries being logged?](#why-aren’t-my-live-queries-being-logged)
+- [Why aren’t my live queries being logged?](#why-arent-my-live-queries-being-logged)
 
 ## Has anyone stress tested Fleet? How many clients can the Fleet server handle?
 

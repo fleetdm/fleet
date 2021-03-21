@@ -6,7 +6,7 @@
 - [Managing osquery configurations](#managing-osquery-configurations)
 - [Running with systemd](#running-with-systemd)
 - [Configuring Single Sign On](#configuring-single-sign-on)
-	- [Identity Provider (IDP) Configuration](#identity-provider-(IDP)-configuration)
+	- [Identity Provider (IDP) Configuration](#identity-provider-IDP-configuration)
 	- [Fleet SSO Configuration](#fleet-sso-configuration)
 	- [Creating SSO Users in Fleet](#creating-sso-users-in-fleet)
 
