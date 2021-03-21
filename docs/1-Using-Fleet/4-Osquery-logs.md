@@ -1,5 +1,11 @@
 # Osquery Logs
 - [Osquery logging plugins](#osquery-logging-plugins)
+  - [Filesystem](#filesystem)
+  - [Firehose](#firehose)
+  - [Kinesis](#kinesis)
+  - [Lambda](#lambda)
+  - [PubSub](#pubsub)
+  - [Stdout](#stdout)
 
 Osquery agents are typically configured to send logs to the Fleet server (`--logger_plugin=tls`). This is not a requirement, and any other logger plugin can be used even when osquery clients are connecting to the Fleet server to retrieve configuration or run live queries. See the [osquery logging documentation](https://osquery.readthedocs.io/en/stable/deployment/logging/) for more about configuring logging on the agent.
 
