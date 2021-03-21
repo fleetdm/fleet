@@ -62,7 +62,7 @@ More information on monitoring Fleet servers with Prometheus and other tools is 
 
 ### Debugging performance issues
 
-#### MySQL & Redis
+#### MySQL and Redis
 
 If performance issues are encountered with the MySQL and Redis servers, use the extensive resources available online to optimize and understand these problems. Please [file an issue](https://github.com/fleetdm/fleet/issues/new/choose) with details about the problem so that Fleet developers can work to fix them.
 
