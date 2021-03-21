@@ -7,7 +7,7 @@
   - [Query hosts](#query-hosts)
   - [Update osquery options](#update-osquery-options)
 - [Logging in to an existing Fleet instance](#logging-in-to-an-existing-Fleet-instance)
-  - [Logging in with SAML (SSO) authentication](#logging-in-with-SAML-(SSO)-authentication)
+  - [Logging in with SAML (SSO) authentication](#logging-in-with-SAML-SSO-authentication)
 - [Using fleetctl for configuration](#using-fleetctl-for-configuration)
   - [Convert osquery JSON](#convert-osquery-json)
   - [Osquery queries](#osquery-queries)
