@@ -714,7 +714,7 @@ Deletes the specified host from Fleet. Note that a deleted host will fail authen
 - [Modify label](#modify-label)
 - [Get label](#get-label)
 - [List labels](#list-labels)
-- [List hosts in label](#list-hosts-in-label)
+- [List hosts in a label](#list-hosts-in-a-label)
 - [Delete label](#delete-label)
 - [Delete label by ID](#delete-label-by-id)
 - [Apply labels specs](#apply-labels-specs)
@@ -1844,7 +1844,7 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
 ---
 
 ## Sessions
-- [Get session info](#get-sessions-info)
+- [Get session info](#get-session-info)
 - [Delete session](#delete-session)
 
 ### Get session info
@@ -1915,7 +1915,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get query spec](#get-query-spec)
 - [Apply queries specs](#apply-queries-specs)
 - [Run live query](#run-live-query)
-- [Run live query by query name](#run-live-query-by-query-name)
+- [Run live query by name](#run-live-query-by-name)
 - [Retrieve live query results (standard WebSocket API)](#retrieve-live-query-results-standard-websocket-api)
 - [Retrieve live query results (SockJS)](#retrieve-live-query-results-sockjs)
 

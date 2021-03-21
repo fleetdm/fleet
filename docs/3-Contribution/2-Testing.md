@@ -1,5 +1,5 @@
 # Testing & Local Development
-- [Test suite](#full-test-suite)
+- [Test suite](#test-suite)
 - [End-to-end tests](#end-to-end-tests)
 - [Email](#email)
 - [Database backup/restore](#database-backuprestore)

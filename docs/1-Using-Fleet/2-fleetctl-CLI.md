@@ -226,7 +226,7 @@ When you reason about how to manage these config files, consider following the [
 - Group related objects into a single file whenever it makes sense. One file is often easier to manage than several. See the [config-single-file.yml](../../examples/config-single-file.yml) file as an example of this syntax.
 - Don’t specify default values unnecessarily – simple and minimal configs will reduce errors.
 
-All of these files can be concatenated together into [one file](../../examples/config-single-file.yml) (seperated by `---`), or they can be in [individual files with a directory structure](../../examples/config-many-files) like the following:
+All of these files can be concatenated together into [one file](../../examples/config-single-file.yml) (separated by `---`), or they can be in [individual files with a directory structure](../../examples/config-many-files) like the following:
 
 ```
 |-- config.yml
