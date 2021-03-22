@@ -18,9 +18,7 @@ npm install -g fleetctl
 sudo fleetctl preview
 ```
 
-A local demo copy of the Fleet server is now running at https://localhost:8412.
-
-> **Seeing a warning in your browser?**  You can safely skirt the browser warning ("Your connection is not private") when accessing Fleet locally over https.  For example in Google Chrome, visit `chrome://flags/#allow-insecure-localhost` to enable self-signed certs on localhost.  Then [refresh Fleet](https://localhost:8412) and click through this warning using the "Advanced" option.
+The Fleet UI is now available at http://localhost:1337.
 
 #### Your first query
 Ready to run your first query?  Target some of your sample hosts and try it out:

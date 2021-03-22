@@ -67,7 +67,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			}
 
 			fmt.Println("Pulling Docker dependencies...")
-			out, err := exec.Command("docker-compose", "pull", "mysql01", "redis01", "fleet01").CombinedOutput()
+			out, err := exec.Command("docker-compose", "pull").CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
 				return errors.Errorf("Failed to run docker-compose")
@@ -83,6 +83,15 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			fmt.Println("Waiting for server to start up...")
 			if err := waitStartup(); err != nil {
 				return errors.Wrap(err, "wait for server startup")
+			}
+
+			// Start fleet02 (UI server) after fleet01 (agent/fleetctl server)
+			// has finished starting up so that there is no conflict with
+			// running database migrations.
+			out, err = exec.Command("docker-compose", "up", "-d", "--remove-orphans", "fleet02").CombinedOutput()
+			if err != nil {
+				fmt.Println(string(out))
+				return errors.Errorf("Failed to run docker-compose")
 			}
 
 			fmt.Println("Initializing server...")
@@ -133,10 +142,9 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return errors.Wrap(err, "Error writing fleetctl configuration")
 			}
 
-			fmt.Println("Fleet is now available at https://localhost:8412.")
+			fmt.Println("Fleet UI is now available at http://localhost:1337.")
 			fmt.Println("Username:", username)
 			fmt.Println("Password:", password)
-			fmt.Println("Note: You can safely ignore the browser warning \"Your connection is not private\". Click through this warning using the \"Advanced\" option. Chrome users may need to configure chrome://flags/#allow-insecure-localhost.")
 
 			// Create client and get enroll secret
 			client, err := unauthenticatedClientFromCLI(c)
