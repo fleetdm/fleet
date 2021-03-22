@@ -1,5 +1,8 @@
 # Building Fleet
 - [Building the code](#building-the-code)
+  - [Quickstart](#quickstart)
+  - [Clone and build](#clone-and-build)
+  - [Details](#details)
 - [Development infrastructure](#development-infrastructure)
   - [Starting the local development environment](#starting-the-local-development-environment)
   - [Running Fleet using Docker development infrastructure](#running-fleet-using-docker-development-infrastructure)
@@ -7,27 +10,52 @@
 
 ## Building the code
 
-- [Generating the packaged JavaScript](#generating-the-packaged-javascript)
-- [Compiling the Fleet binary](#compiling-the-Fleet-binary)
+### Quickstart
 
-Clone this repository.
+Install the dependencies as described in the next sections, then go to [Clone and build](#clone-and-build)
+
+#### macOS
+
+Enable the macOS developer tools:
+
+```
+xcode-select --install
+```
+
+Install [Homebrew](https://brew.sh/) to manage dependencies, then:
+
+```
+brew install git go node yarn
+```
+
+#### Ubuntu
+
+Install dependencies:
+
+```
+sudo apt-get install -y git golang make nodejs npm
+sudo npm install -g yarn
+```
+
+### Clone and build
+
+```
+git clone https://github.com/fleetdm/fleet.git
+cd fleet
+make deps
+make generate
+make
+```
+
+The binaries are now available in `./build/`.
+
+### Details
 
 To setup a working local development environment, you must install the following minimum toolset:
 
-* [Go](https://golang.org/doc/install) (1.9 or greater)
+* [Go](https://golang.org/doc/install)
 * [Node.js](https://nodejs.org/en/download/current/) and [Yarn](https://yarnpkg.com/en/docs/install)
 * [GNU Make](https://www.gnu.org/software/make/) (probably already installed if you're on macOS/Linux)
-* [Docker](https://docs.docker.com/get-docker/)
-
-> #### New to the Go language?
-> 
-> After installing Go, your $GOPATH will probably need a little freshening up.  To take care of this automatically every time a new terminal is opened, add this to your shell startup script (`~/.profile`):
-> ```bash
-> # Allow go-bindata and other Go stuff to work properly (e.g. for Fleet/osquery)
-> # More info: https://golang.org/doc/gopath_code.html#GOPATH
-> export PATH=$PATH:$(go env GOPATH)/bin
-> ```
-> Make sure that you open a new terminal tab AFTER you edit your bash profile, otherwise the changes will not take effect.
 
 Once you have those minimum requirements, you will need to install Fleet's dependencies. To do this, run the following from the root of the repository:
 
@@ -35,7 +63,7 @@ Once you have those minimum requirements, you will need to install Fleet's depen
 make deps
 ```
 
-When pulling in new revisions to your working source tree, it may be necessary to re-run `make deps` if a new Go or JavaScript dependency was added.
+When pulling changes, it may be necessary to re-run `make deps` if a new Go or JavaScript dependency was added.
 
 ### Generating the packaged JavaScript
 
@@ -63,29 +91,30 @@ After you run `make generate-dev`, run `make build` to build the binary, launch 
 
 ### Compiling the Fleet binary
 
-Use `go build` to build the application code. For your convenience, a make command is included which builds the code:
+For convenience, a Makefile is included to build the code:
 
 ```
-make build
+make
 ```
 
 It's not necessary to use Make to build the code, but using Make allows us to account for cross-platform differences more effectively than the `go build` tool when writing automated tooling. Use whichever you prefer.
 
 ## Development infrastructure
 
+The following assumes that  [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/) (installed by default with Docker on macOS and Windows) are installed.
+
+
 ### Starting the local development environment
 
-To set up a canonical development environment via docker, run the following from the root of the repository:
+To set up a canonical development environment via Docker, run the following from the root of the repository:
 
 ```
 docker-compose up
 ```
 
-This requires that you have docker installed. At this point in time, automatic configuration tools are not included with this project.
-
 ##### Stopping the local development environment
 
-If you'd like to shut down the virtual infrastructure created by docker, run the following from the root of the repository:
+If you'd like to shut down the virtual infrastructure created by Docker, run the following from the root of the repository:
 
 ```
 docker-compose down
@@ -109,62 +138,10 @@ To start the Fleet server backed by the Docker development infrastructure, run t
 
 The server is accessible by default at [https://localhost:8080](https://localhost:8080).
 
-By default, Fleet will try to connect to servers running on default ports on localhost. Depending on your browser's settings, you may have to click through a security warning.
+By default, Fleet will try to connect to servers running on default ports on `localhost`. Depending on your browser's settings, you may have to click through a security warning.
 
 If you're using the Google Chrome web browser, you have the option to always automatically bypass the security warning. Visit [chrome://flags/#allow-insecure-localhost](chrome://flags/#allow-insecure-localhost) and set the "Allow invalid certificates for resources loaded from localhost." flag to "Enabled."
 
 > Note: in Chrome version 88 there is a bug where you must first enable [chrome://flags/#temporary-unexpire-flags-m87](chrome://flags/#temporary-unexpire-flags-m87). The [chrome://flags/#allow-insecure-localhost](chrome://flags/#allow-insecure-localhost) flag will then be visible again.
 
-If you're using Docker via [Docker Toolbox](https://www.docker.com/products/docker-toolbox), you may have to modify the default values use the output of `docker-machine ip` instead of `localhost`. There is an example configuration file included in this repository to make this process easier for you.  Use the `--config` flag of the Fleet binary to specify the path to your config. See `fleet --help` for more options.
 
-## Setting up a Linux Development Environment
-
-#### Install some dependencies
-
-`sudo apt-get install xzip gyp libjs-underscore libuv1-dev dep11-tools deps-tools-cli`
-
-#### Create a temp directory, download and place the `node` and `golang` bins 
-
-```
-mkdir tmp
-cd tmp
-```
-
-#### install `node` and `yarn`
-
-```
-wget https://nodejs.org/dist/v9.4.0/node-v9.4.0-linux-x64.tar.xz
-xz -d node-v9.4.0-linux-x64.tar.xz
-tar -xf node-v9.4.0-linux-x64.tar
-sudo cp -rf node-v9.4.0-linux-x64/bin /usr/local/
-sudo cp -rf node-v9.4.0-linux-x64/include /usr/local
-sudo cp -rf node-v9.4.0-linux-x64/lib /usr/local
-sudo cp -rf node-v9.4.0-linux-x64/share /usr/local
-npm install -g yarn
-```
-
-#### install `go`
-
-```
-wget https://dl.google.com/go/go1.9.3.linux-amd64.tar.gz
-sudo tar -C /usr/local -xzf go1.9.3.linux-amd64.tar.gz
-export PATH=$PATH:/usr/local/go/bin:~/go/bin/
-```
-
-#### clean-up temp directory
-
-```
-cd ..
-rm -rf tmp
-```
-
-#### Clone and build depenencies
-
-```
-git clone https://github.com/fleetdm/fleet.git
-cd fleet
-make deps
-make generate
-make build
-sudo cp build/fleet /usr/bin/fleet
-```
