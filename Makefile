@@ -139,7 +139,7 @@ generate-js: clean-assets .prefix
 	NODE_ENV=production webpack --progress --colors
 
 generate-go: .prefix
-	go-bindata -pkg=bindata -tags full \
+	go run github.com/kevinburke/go-bindata/go-bindata -pkg=bindata -tags full \
 		-o=server/bindata/generated.go \
 		frontend/templates/ assets/... server/mail/templates
 
@@ -148,7 +148,7 @@ generate-go: .prefix
 # run webpack in watch mode to continuously re-generate the bundle
 generate-dev: .prefix
 	NODE_ENV=development webpack --progress --colors
-	go-bindata -debug -pkg=bindata -tags full \
+	go run github.com/kevinburke/go-bindata/go-bindata -debug -pkg=bindata -tags full \
 		-o=server/bindata/generated.go \
 		frontend/templates/ assets/... server/mail/templates
 	NODE_ENV=development webpack --progress --colors --watch
@@ -159,8 +159,6 @@ deps-js:
 	yarn
 
 deps-go:
-	GO111MODULE=off go get -u \
-		github.com/kolide/go-bindata/go-bindata
 	go mod download
 
 migration:
