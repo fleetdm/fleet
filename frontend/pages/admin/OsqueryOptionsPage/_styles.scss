@@ -14,14 +14,7 @@
     padding-bottom: $pad-medium;
   }
 
-  &__info-banner {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    padding: 16px;
-    border-radius: $border-radius;
-    border: 1px solid #D9D9FE;
-    background-color: $info;
+  &__config-docs {
     margin-bottom: 16px;
 
     p {
