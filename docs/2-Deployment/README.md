@@ -12,5 +12,8 @@ Provides resources for enrolling your hosts to Fleet
 ### [Example deployment scenarios](./4-Example-deployment-scenarios.md) 
 Includes deployment walkthroughs for Fleet on CentOS, Ubuntu, and Kubernetes.
 
+### [Self-managed update server](./4-fleetctl-update-server.md)
+Information about running an update server with fleetctl.
+
 ### [FAQ](./FAQ.md) 
 Includes commonly asked questions and answers about deployment from the Fleet community.
