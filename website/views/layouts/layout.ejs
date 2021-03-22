@@ -15,7 +15,7 @@
     rule. (Include them up here along with any hard-coded «link» tags for Typekit,
     Google Fonts, etc. - above the «body» to prevent the page flickering when fonts
     load.) */ %>
-    <link href="https://fonts.googleapis.com/css2?family=Lato&family=Mulish:ital,wght@0,400;0,700;1,400;1,700&family=Raleway:wght@800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Mulish:wght@400;700&family=Raleway:wght@400;700&display=swap" rel="stylesheet">
 
     <% /* Certain scripts, normally analytics tools like Google Tag Manager and
     Google Analytics, should only be included in production: */
@@ -45,37 +45,56 @@
     <link rel="stylesheet" href="/dependencies/bootstrap-4/bootstrap-4.css">
     <link rel="stylesheet" href="/dependencies/fontawesome.css">
     <link rel="stylesheet" href="/styles/importer.css">
-    <link rel="stylesheet" href="/styles/layout.css">
     <link rel="stylesheet" href="/styles/mixins-and-variables/typography.css">
     <!--STYLES END-->
   </head>
   <body>
     <div purpose="page-wrap">
       <div style="max-width: 1440px" class="container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-4 px-sm-5" purpose="page-header">
-        <img alt="Fleet logo" src="/images/logo-120x48@2x.png" style="height: 56px; width: 120px;" class="pt-2"/>
-        <div class="d-flex">
+        <img alt="Fleet logo" src="/images/logo-white-162x92@2x.png" style="height: 92px; width: 162px;"/>
+        <div class="d-flex d-lg-none">
+          <button style="font-size: 16px; text-decoration: none;" class="header-btn btn btn-link d-flex align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
+            <span class="mr-2">Menu</span>
+            <img src="/images/icon-hamburger-16x14@2x.png" style="width: 16px;" />
+          </button>
+          <div class="mobile-menu" id="navbarToggleExternalContent">
+            <div class="d-flex justify-content-between px-4">
+              <img alt="Fleet logo" src="/images/logo-blue-162x92@2x.png" style="height: 92px; width: 162px;" class="mt-3"/>
+              <button style="font-size: 16px; text-decoration: none;" class="header-btn btn btn-link d-flex align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
+                <img src="/images/icon-close-16x16@2x.png" style="width: 16px;" />
+              </button>
+            </div>
+            <div class="px-4 pt-2">
+              <div class="d-flex flex-column mb-4">
+                <span style="font-weight: 700;" class="py-2 px-3">Get started</span>
+                <a class="mobile-menu-item py-2 px-3" href="https://fleetdm.com/try-fleet" data-text="Try Fleet">Try Fleet</a>
+                <a class="mobile-menu-item py-2 px-3" href="https://fleetdm.com/documentation" data-text="Documentation">Documentation</a>
+                <a class="mobile-menu-item py-2 px-3" href="https://fleetdm.com/contribute" data-text="Contribute">Contribute</a>
+                <a class="mobile-menu-item py-2 px-3" href="https://hall-of-fame" data-text="Hall of fame">Hall of fame</a>
+              </div>
+              <a href="https://blog.fleetdm.com" class="header-link d-flex align-items-center px-3 py-2 mb-4 text-decoration-none" style=" text-decoration: none; color: #192147; font-weight: 700;">Blog</a>
+              <a href="https://fleetdm.com/contact" class="header-link d-flex align-items-center px-3 py-2 mb-4 text-decoration-none" style=" text-decoration: none; color: #192147; font-weight: 700;">Contact</a>
+              <a target="_blank" href="https://blog.fleetdm.com" class="header-link d-flex align-items-center px-3 py-2" style=" text-decoration: none; color: #192147; font-weight: 700;">
+                <img src="/images/github-mark-blue-24x24@2x.png" style="width: 24px; font-weight: 700;" />
+                <span class="ml-2">GitHub</span>
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="d-none d-lg-flex">
           <div class="dropdown">
-            <button style="font-size: 16px; text-decoration: none;" class="header-btn btn btn-link px-3 py-2 mr-4" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <button style="font-size: 16px; text-decoration: none;" class="header-btn btn btn-link px-3 py-2 mr-4" type="button" id="dropdownMenuButton">
               Get started
             </button>
             <div style="border-radius: 8px;" class="dropdown-menu dropdown-container p-2" aria-labelledby="dropdownMenuButton">
-              <a style="border-radius: 4px;" class="dropdown-item dropdown-link py-2 px-3" href="#">Try Fleet</a>
-              <a style="border-radius: 4px;" class="dropdown-item dropdown-link py-2 px-3" href="#">Documentation</a>
-              <a style="border-radius: 4px;" class="dropdown-item dropdown-link py-2 px-3" href="#">Contribute</a>
-              <a style="border-radius: 4px;" class="dropdown-item dropdown-link py-2 px-3" href="#">Hall of fame</a>
+              <a style="border-radius: 4px;" class="dropdown-item dropdown-link py-2 px-3" href="https://fleetdm.com/try-fleet" data-text="Try Fleet">Try Fleet</a>
+              <a style="border-radius: 4px;" class="dropdown-item dropdown-link py-2 px-3" href="https://fleetdm.com/documentation" data-text="Documentation">Documentation</a>
+              <a style="border-radius: 4px;" class="dropdown-item dropdown-link py-2 px-3" href="https://fleetdm.com/contribute" data-text="Contribute">Contribute</a>
+              <a style="border-radius: 4px;" class="dropdown-item dropdown-link py-2 px-3" href="https://hall-of-fame" data-text="Hall of fame">Hall of fame</a>
             </div>
           </div>
           <a href="https://blog.fleetdm.com" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none;line-height: 23px;">Blog</a>
-          <div class="dropdown">
-            <button style="font-size: 16px; text-decoration: none;" class="header-btn btn btn-link px-3 py-2 mr-4" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-              Company
-            </button>
-            <div style="border-radius: 4px;" class="dropdown-menu dropdown-container p-2" aria-labelledby="dropdownMenuButton">
-              <a style="border-radius: 4px;" class="dropdown-item dropdown-link py-2 px-3" style="border-radius: 4px;" href="#">About us</a>
-              <a style="border-radius: 4px;" class="dropdown-item dropdown-link py-2 px-3" style="border-radius: 4px;" href="#">Contact</a>
-              <a  style="border-radius: 4px;"class="dropdown-item dropdown-link py-2 px-3" style="border-radius: 4px;" href="#">Terms</a>
-            </div>
-          </div>
+          <a href="https://fleetdm.com/contact" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none;line-height: 23px;">Contact</a>
           <a target="_blank" href="https://blog.fleetdm.com" class="header-link d-flex align-items-center px-3 py-2" style=" text-decoration: none;line-height: 23px;">
             <img src="/images/github-mark-white-24x24@2x.png" style="width: 24px;" />
             <span class="ml-2">GitHub</span>
