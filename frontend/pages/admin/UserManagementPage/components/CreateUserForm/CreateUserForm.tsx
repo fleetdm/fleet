@@ -11,7 +11,11 @@ import validEmail from 'components/forms/validators/valid_email';
 import InputFieldWithIcon from 'components/forms/fields/InputFieldWithIcon';
 // @ts-ignore
 import Checkbox from 'components/forms/fields/Checkbox';
+import InfoBanner from 'components/InfoBanner/InfoBanner';
 import SelectedTeamsForm from '../SelectedTeamsForm/SelectedTeamsForm';
+import OpenNewTabIcon from '../../../../../../assets/images/open-new-tab-12x12@2x.png';
+
+
 
 const baseClass = 'create-user-form';
 
@@ -195,6 +199,18 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
             Enable Admin
           </Checkbox>
         </div>
+
+        <InfoBanner className={`${baseClass}__user-permissions-info`}>
+          <p>Users can be members of multiple teams and can only manage or observe team-sepcific users, entities, and settings in Fleet.</p>
+          <a
+            href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Learn more about user permissions
+            <img src={OpenNewTabIcon} alt="open new tab" />
+          </a>
+        </InfoBanner>
 
         <div className={`${baseClass}__selected-teams-container`}>
           <SelectedTeamsForm

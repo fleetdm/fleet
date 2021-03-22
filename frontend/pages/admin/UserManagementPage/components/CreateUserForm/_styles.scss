@@ -23,6 +23,30 @@
     margin: 0;
   }
 
+  &__user-permissions-info {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: $pad-medium;
+
+    p {
+      margin: 0 0 $pad-medium 0;
+    }
+
+
+    a {
+      color: $core-blue;
+      font-size: $x-small;
+      font-weight: $bold;
+      text-decoration: none;
+    }
+
+    img {
+      width: 12px;
+      height: 12px;
+      margin-left: 6px;
+    }
+  }
+
   &__selected-teams-container {
     margin-bottom: $pad-most;
   }
