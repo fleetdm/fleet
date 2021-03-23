@@ -99,8 +99,7 @@ Orbit, like standalone osquery, is typically deployed via OS-specific packages. 
 
 ### Packaging support
 
-- **macOS** - `.pkg` package generation with (optional) [Notarization](https://developer.apple.com/documentation/xcode/notarizing_macos_software_before_distribution) and codesigning.
-- Persistence via `launchd`.
+- **macOS** - `.pkg` package generation with (optional) [Notarization](https://developer.apple.com/documentation/xcode/notarizing_macos_software_before_distribution) and codesigning - Persistence via `launchd`.
 
 - **Linux** - `.deb` (Debian, Ubuntu, etc.) & `.rpm` (RHEL, CentOS, etc.) package generation - Persistence via `systemd`.
 
