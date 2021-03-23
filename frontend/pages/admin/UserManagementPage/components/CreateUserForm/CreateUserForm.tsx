@@ -11,11 +11,10 @@ import validEmail from 'components/forms/validators/valid_email';
 import InputFieldWithIcon from 'components/forms/fields/InputFieldWithIcon';
 // @ts-ignore
 import Checkbox from 'components/forms/fields/Checkbox';
+import Radio from 'components/forms/fields/Radio';
 import InfoBanner from 'components/InfoBanner/InfoBanner';
 import SelectedTeamsForm from '../SelectedTeamsForm/SelectedTeamsForm';
 import OpenNewTabIcon from '../../../../../../assets/images/open-new-tab-12x12@2x.png';
-
-
 
 const baseClass = 'create-user-form';
 
@@ -24,8 +23,9 @@ interface IFormData {
   email: string;
   name: string;
   sso_enabled: boolean;
+  global_role?: string;
+  selectedTeams?: ITeam[];
   invited_by?: number;
-  selectedTeams: ITeam[];
 }
 
 interface ISubmitData extends IFormData {
@@ -66,12 +66,13 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
         email: '',
         name: '',
         sso_enabled: false,
+        global_role: '',
         selectedTeams: [],
       },
     };
   }
 
-  onInputChange = (formField: string) => {
+  onInputChange = (formField: string): (value: string) => void => {
     return (value: string) => {
       const { errors, formData } = this.state;
 
@@ -88,13 +89,13 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
     };
   }
 
-  onCheckboxChange = (formField: string) => {
+  onCheckboxChange = (formField: string): (evt: string) => void => {
     return (evt: string) => {
       return this.onInputChange(formField)(evt);
     };
   };
 
-  onSelectedTeamChange = (teams: ITeam[]) => {
+  onSelectedTeamChange = (teams: ITeam[]): void => {
     const { formData } = this.state;
     this.setState({
       formData: {
@@ -104,12 +105,11 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
     });
   }
 
-  onFormSubmit = (evt: FormEvent) => {
+  onFormSubmit = (evt: FormEvent): void => {
     evt.preventDefault();
     const valid = this.validate();
-
     if (valid) {
-      const { formData: { admin, email, name, sso_enabled, selectedTeams } } = this.state;
+      const { formData: { admin, email, name, sso_enabled, global_role, selectedTeams } } = this.state;
       const { createdBy, onSubmit } = this.props;
       return onSubmit({
         admin,
@@ -117,6 +117,7 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
         created_by: createdBy.id,
         name,
         sso_enabled,
+        global_role,
         selectedTeams,
       });
     }
@@ -153,8 +154,8 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
     return true;
   }
 
-  render () {
-    const { errors, formData: { admin, email, name, sso_enabled, selectedTeams } } = this.state;
+  render (): JSX.Element {
+    const { errors, formData: { admin, email, name, sso_enabled } } = this.state;
     const { onCancel, availableTeams } = this.props;
     const { onFormSubmit, onInputChange, onCheckboxChange, onSelectedTeamChange } = this;
 
@@ -200,19 +201,34 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
           </Checkbox>
         </div>
 
-        <InfoBanner className={`${baseClass}__user-permissions-info`}>
-          <p>Users can be members of multiple teams and can only manage or observe team-sepcific users, entities, and settings in Fleet.</p>
-          <a
-            href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Learn more about user permissions
-            <img src={OpenNewTabIcon} alt="open new tab" />
-          </a>
-        </InfoBanner>
-
         <div className={`${baseClass}__selected-teams-container`}>
+          <div className={`${baseClass}__team-radios`}>
+            <Radio
+              label={'Global user'}
+              id={'global-user'}
+              checked
+              value={'globalUser'}
+              onChange={value => console.log(value)}
+            />
+            <Radio
+              label={'Assign teams'}
+              id={'assign-teams'}
+              value={'assignTeams'}
+              onChange={value => console.log(value)}
+            />
+          </div>
+
+          <InfoBanner className={`${baseClass}__user-permissions-info`}>
+            <p>Users can be members of multiple teams and can only manage or observe team-sepcific users, entities, and settings in Fleet.</p>
+            <a
+              href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Learn more about user permissions
+              <img src={OpenNewTabIcon} alt="open new tab" />
+            </a>
+          </InfoBanner>
           <SelectedTeamsForm
             availableTeams={[{ name: 'Test Team', id: 1, role: 'admin' }, { name: 'Test Team 2', id: 2, role: 'admin' }]}
             usersCurrentTeams={[]}

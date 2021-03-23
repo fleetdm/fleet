@@ -4,12 +4,12 @@ import { connect } from 'react-redux';
 import { noop } from 'lodash';
 import yaml from 'js-yaml';
 
+import { renderFlash } from 'redux/nodes/notifications/actions';
 import osqueryOptionsActions from 'redux/nodes/osquery/actions';
 import validateYaml from 'components/forms/validators/validate_yaml';
 import OsqueryOptionsForm from 'components/forms/admin/OsqueryOptionsForm';
-import { renderFlash } from 'redux/nodes/notifications/actions';
+import InfoBanner from 'components/InfoBanner/InfoBanner';
 import OpenNewTabIcon from '../../../../assets/images/open-new-tab-12x12@2x.png';
-import InfoBanner from '../../../components/InfoBanner/InfoBanner';
 
 const baseClass = 'osquery-options';
 
