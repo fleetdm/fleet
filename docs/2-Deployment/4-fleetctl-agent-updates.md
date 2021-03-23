@@ -92,6 +92,12 @@ Python's `SimpleHTTPServer` can be used for quick local testing:
 cd repository && python -m SimpleHTTPServer
 ```
 
+Or, for Python version 3.0 and greater:
+
+```
+cd repository && python -m http.server
+```
+
 Run this to host the repository at http://localhost:8000.
 
 #### Update timestamp
