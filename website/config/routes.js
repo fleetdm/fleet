@@ -37,6 +37,12 @@ module.exports.routes = {
     res.redirect('mailto:todo@example.com?subject=I have a question&body=Please do not send this email!\n\nWe are a very young company and still working on our processes.  For now, if you have questions or feedback for us, please create an issue at https://github.com/fleetdm/fleet/issues.  Thank you!');
   },
 
+  '/try-fleet': 'https://github.com/fleetdm/fleet/blob/master/README.md',
+  '/documentation': 'https://github.com/fleetdm/fleet/tree/master/docs',
+  '/contribute': 'https://github.com/fleetdm/fleet/tree/master/docs/3-Contribution',
+  '/hall-of-fame': 'https://github.com/fleetdm/fleet/pulse',
+
+
   // 'GET /welcome/:unused?':   { action: 'dashboard/view-welcome' },
 
   // 'GET /faq':                { action:   'view-faq' },

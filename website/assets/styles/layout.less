@@ -35,58 +35,24 @@ html, body {
   .header-link:hover {
     color: #6a67fe;
   }
-  // These styles override the Bootstrap "dropdown-item" class
-  .dropdown-link {
-    display: inline-flex;
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .dropdown-link:hover {
-    background-color: #f1f0ff;
-    font-weight: @bold;
-  }
-  // Bolding text when the tab is active causes a layout shift
-  // so we add a hidden pseudo element with the same text string
-  .dropdown-link:before {
-    content: attr(data-text);
-    height: 0;
-    visibility: hidden;
-    overflow: hidden;
-    user-select: none;
-    pointer-events: none;
-    font-weight: @bold;
-  }
-  // These styles override the Bootstrap "dropdown-menu" class
-  .dropdown-container {
-    left: 16px !important;
-    min-width: 0;
-    margin: 0;
-  }
-  .dropdown:hover > .dropdown-container {
-    display: block;
-  }
-  .dropdown:hover > .header-btn {
-    color: #6a67fe;
-  }
   .mobile-menu {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #ffffff;
-    opacity: 0;
     pointer-events: none;
-    transition: opacity 0.2s linear;
+    background-color: #ffffff;
   }
   .collapsing {
-    transition: opacity 0.2s linear;
     opacity: 0;
   }
-  .mobile-menu.show {
-    transition: opacity 0.2s linear;
+  .collapse.show {
     opacity: 1;
     pointer-events: auto;
+  }
+  .collapse {
+    opacity: 0;
   }
   .mobile-menu-item {
     color: #192147;
