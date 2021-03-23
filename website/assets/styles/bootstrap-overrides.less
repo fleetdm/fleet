@@ -40,6 +40,13 @@ h1, h2, h3, h4 {
   line-height: 23px;
   border-radius: 10px;
 
+  &.btn-link {
+    color: #ffffff;
+    font-weight: 400;
+    font-family: @navigation-font;
+    transition: none;
+  }
+
   &.btn-sm {
     padding-top: 9px;
     padding-bottom: 8px;
@@ -70,4 +77,38 @@ h1, h2, h3, h4 {
 
 .card {
   box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.dropdown:hover > .dropdown-menu {
+  display: block;
+}
+.dropdown:hover > .btn {
+  color: #6a67fe;
+}
+
+.dropdown-menu {
+  left: 16px !important;
+  min-width: 0;
+  margin: 0;
+}
+
+.dropdown-item {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.dropdown-item:hover {
+  background-color: #f1f0ff;
+  font-weight: @bold;
+}
+// Bolding text when the tab is active causes a layout shift
+// so we add a hidden pseudo element with the same text string
+.dropdown-item:before {
+  content: attr(data-text);
+  height: 0;
+  visibility: hidden;
+  overflow: hidden;
+  user-select: none;
+  pointer-events: none;
+  font-weight: @bold;
 }

@@ -33,6 +33,12 @@ module.exports.routes = {
   '/company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
   'GET /company/contact':    { action:   'view-contact' },
 
+  '/try-fleet': 'https://github.com/fleetdm/fleet/blob/master/README.md',
+  '/documentation': 'https://github.com/fleetdm/fleet/tree/master/docs',
+  '/contribute': 'https://github.com/fleetdm/fleet/tree/master/docs/3-Contribution',
+  '/hall-of-fame': 'https://github.com/fleetdm/fleet/pulse',
+
+
   // 'GET /welcome/:unused?':   { action: 'dashboard/view-welcome' },
 
   // 'GET /faq':                { action:   'view-faq' },
