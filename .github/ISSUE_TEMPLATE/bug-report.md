@@ -2,30 +2,21 @@
 name: 🦟  Bug report
 about: Report a bug to help us improve
 title: ''
-labels: ''
+labels: 'bug'
 assignees: ''
 
 ---
 
-<!--
-Thanks for filing an issue!
+### Expected behavior
+<!-- What did you do?  What did you expect to see? -->
 
-Please provide as much context as you can about your use case.
--->
+### Actual behavior
+<!-- What did you see instead? -->
 
-### What version of `fleet` are you using (`fleet version --full`)?
+### Version info
 
-### What operating system are you using?
+##### What version(s) are you using?
+<!-- Please run `fleet version --full`, and provide any other relevant version strings. -->
 
-### If this is a UI issue: What browser are you using?
-
-### If this is a performance issue: Please attach the debug archive.
-<!--
-Follow the steps documented in https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/5-Monitoring-Fleet.md#debugging-performance-issues to generate a debug archive
--->
-
-### What did you do?
-
-### What did you expect to see?
-
-### What did you see instead?
+##### What platform(s) are you using?
+<!-- Please provide your operating system version.  If this is potentially a UI issue, please also include which browser you are using. -->
