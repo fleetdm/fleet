@@ -198,8 +198,9 @@ func updatesAddCommand() *cli.Command {
 				Usage:    "Version of target (required)",
 			},
 			&cli.StringSliceFlag{
-				Name:  "tag,t",
-				Usage: "Tags to apply to the target (multiple may be specified)",
+				Name:    "tag",
+				Aliases: []string{"t"},
+				Usage:   "Tags to apply to the target (multiple may be specified)",
 			},
 		),
 		Action: updatesAddFunc,
