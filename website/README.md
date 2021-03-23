@@ -9,14 +9,14 @@ a [Sails v1](https://sailsjs.com) application
 
 Run the following commands to test the site locally:
 
-``` sh
+```sh
 npm install -g sails
 cd website/
 npm install
-sails lift
+sails lift --port=2024
 ```
 
-The site will now be running on http://localhost:1337
+The site will now be running on http://localhost:2024
 
 ### Links
 
