@@ -7,20 +7,18 @@ assignees: ''
 
 ---
 
-**Fleet version** _(`fleetctl version`)_: TODO
-**Operating system** _(e.g. macOS 11.2.3)_: TODO
-**Web browser and version** _(e.g. Chrome 88)_: TODO
+**Fleet version** (`fleetctl version`): 
+**Operating system** _(e.g. macOS 11.2.3)_: 
+**Web browser** _(e.g. Chrome 88.0.4324)_: 
 <hr/>
 
-### Expected behavior
+### 🧑‍💻  Expected behavior
 <!-- What did you do?  What did you expect to see? -->
 
-### Actual behavior
+### 💥  Actual behavior
 <!-- What did you see instead? -->
 
-### More info
-<!-- Please run `fleet version --full`, and provide any other relevant version strings. -->
-<!-- Please provide your operating system and version. -->
-<!-- If this is potentially a UI issue: Please also include which browser and version you are using. -->
-<!-- If this is a performance issue: Follow the steps documented in https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/5-Monitoring-Fleet.md#debugging-performance-issues to generate and attach a debug archive. -->
+### ℹ️  More info
+<!-- Any ideas?  -->
 
+<!-- If this is a performance issue: Please [follow these steps](https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/5-Monitoring-Fleet.md#debugging-performance-issues) to generate and attach a debug archive. -->
