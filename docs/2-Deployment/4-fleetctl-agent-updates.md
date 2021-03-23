@@ -24,6 +24,8 @@ By default, the current working directory is used for the TUF repository. All up
 
 _Note: The root cryptographic key generated in this step is highly sensitive, and critical to the security of the update system. We recommend following these steps from a trusted, offline, ephemeral environment such as [Debian Live](https://www.debian.org/CD/live/) running from a USB stick. Avoid placing the root key in an online environment. Fleet will soon support the use of Hardware security modules (HSMs) to further protect the root key._
 
+For testing purposes it is okay to initialize the repository in an online environment. Be sure to use a clean offline environment with new keys and passphrases when deploying to production.
+
 Initialize the repository:
 
 ```
@@ -52,12 +54,72 @@ cp -r keys repository staged <destination>
 
 Shut down the environment.
 
-### 
+### Deploy updates
 
-Record the root key metadata:
+Updates are deployed first by staging the contents and metadata, then publishing.
+
+#### Staging
+ 
+Staging targets requires access to the `target`, `snapshot`, and `timestamp` keys. Best practice is to connect the drive containing the keys while staging updates and leave the keys offline at other times.
+
+Use `fleetctl updates add` to stage updates. The following commands will prompt for key passphrases if not  specified in the environment:
+
+```
+fleetctl updates add --target ./path/to/linux/osqueryd  --platform linux --name osqueryd --version 4.6.0 -t 4.6 -t 4 -t stable 
+```
+
+This will add the `osqueryd` binary located at `./path/to/osqueryd` to the channels `4.6.0`, `4.6`, `4`, and `stable` for the `linux` platform.
+
+In a typical scenario, each platform is staged before the repository is published.
+
+Stage the equivalent macOS update:
+
+```
+fleetctl updates add --target ./path/to/macos/osqueryd  --platform macos --name osqueryd --version 4.6.0 -t 4.6 -t 4 -t stable 
+```
+
+A similar process can be used to stage the `orbit` artifacts by substituting `--name orbit`
+
+When updates are staged, publish the repository.
+
+#### Publishing
+
+Publishing updates is as simple as making the contents of the `repository` directory available over HTTP. This can be achieved with [AWS S3](https://docs.aws.amazon.com/AmazonS3/latest/userguide/HostingWebsiteOnS3Setup.html), [Apache](https://access.redhat.com/solutions/67298), [NGINX](https://docs.nginx.com/nginx/admin-guide/web-server/serving-static-content/), or any other static file hosting solution or CDN.
+
+Python's `SimpleHTTPServer` can be used for quick local testing:
+
+```
+cd repository && python -m SimpleHTTPServer
+```
+
+Run this to host the repository at http://localhost:8000.
+
+#### Update timestamp
+
+Orbit verifies freshness of the update metadata using the signed [timestamp file](https://theupdateframework.io/metadata/#timestamp-metadata-timestampjson). _This file must be re-signed every two weeks_ (this interval will be made configurable soon).
+
+To update the timestamp metadata:
+
+```
+fleetctl updates timestamp
+```
+
+This operation requires the `snapshot` and `timestamp` keys to be available, along with the corresponding passphrases. Best practice is to keep these keys "online" in a context where they can be used to update the metadata on an interval (via `cron`, AWS Lambda, etc.). This "online" context should be on a separate host from the static file server, to prevent leaking these less sensitive (though still sensitive) keys in the event the static file server is compromised.
+
+### Building packages
+
+Note that `osqueryd` and `orbit` updates must be published before packages can be produced.
+
+Record the root key metadata with a copy of the repository:
 
 ```
 fleetctl updates roots
 ```
 
-This output is not sensitive and will be shared in all client deployments.
+This output is _not sensitive_ and will be shared in agent deployments to verify the contents of updates and metadata. Provide the JSON output in the `--update-roots` flag of the [Orbit packager](https://github.com/fleetdm/orbit#packaging):
+
+For example:
+
+```
+go run ./cmd/package --type pkg --enroll-secret=ZB3QfaItRRUjlGo+LctfOMzLTjjyxLdg --fleet-url=https://localhost:8080 --update-url=http://localhost:8000 --update-roots='[{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"9aac6f59f0e3f2f4ef6f789e4eff058af27db3743eaa6a47a228f23e5a1ad4d7"}}]' --insecure
+```
