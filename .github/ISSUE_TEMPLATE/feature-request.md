@@ -1,9 +1,9 @@
 ---
 name: 💡  Feature request
-about: Request a new feature or enhancement to Fleet
+about: Propose a new feature or enhancement in Fleet.
 title: ''
 labels: 'enhancement'
-assignees: ''
+assignees: 'noahtalerman'
 
 ---
 
