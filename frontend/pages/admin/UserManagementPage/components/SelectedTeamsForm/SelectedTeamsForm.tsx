@@ -21,10 +21,12 @@ const baseClass = 'selected-teams-form';
 
 const roles = [
   {
+    disabled: false,
     label: 'observer',
     value: 'observer',
   },
   {
+    disabled: false,
     label: 'maintainer',
     value: 'maintainer',
   },

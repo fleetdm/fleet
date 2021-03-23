@@ -11,6 +11,8 @@ import validEmail from 'components/forms/validators/valid_email';
 import InputFieldWithIcon from 'components/forms/fields/InputFieldWithIcon';
 // @ts-ignore
 import Checkbox from 'components/forms/fields/Checkbox';
+// @ts-ignore
+import Dropdown from 'components/forms/fields/Dropdown';
 import Radio from 'components/forms/fields/Radio';
 import InfoBanner from 'components/InfoBanner/InfoBanner';
 import SelectedTeamsForm from '../SelectedTeamsForm/SelectedTeamsForm';
@@ -18,13 +20,36 @@ import OpenNewTabIcon from '../../../../../../assets/images/open-new-tab-12x12@2
 
 const baseClass = 'create-user-form';
 
+enum UserTeamType {
+  GlobalUser = 'GLOBAL_USER',
+  AssignTeams = 'ASSIGN_TEAMS',
+}
+
+const globalUserRoles = [
+  {
+    disabled: false,
+    label: 'admin',
+    value: 'admin',
+  },
+  {
+    disabled: false,
+    label: 'observer',
+    value: 'observer',
+  },
+  {
+    disabled: false,
+    label: 'maintainer',
+    value: 'maintainer',
+  },
+];
+
 interface IFormData {
   admin: boolean;
   email: string;
   name: string;
   sso_enabled: boolean;
   global_role?: string;
-  selectedTeams?: ITeam[];
+  teams?: ITeam[];
   invited_by?: number;
 }
 
@@ -47,7 +72,8 @@ interface ICreateUserFormState {
     name: string | null;
     sso_enabled: boolean | null;
   };
-  formData: IFormData
+  formData: IFormData,
+  isGlobalUser: boolean,
 }
 
 class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormState> {
@@ -66,9 +92,10 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
         email: '',
         name: '',
         sso_enabled: false,
-        global_role: '',
-        selectedTeams: [],
+        global_role: undefined,
+        teams: undefined,
       },
+      isGlobalUser: false,
     };
   }
 
@@ -95,12 +122,29 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
     };
   };
 
+  onIsGlobalUserChange = (value: string): void => {
+    const isGlobalUser = value === UserTeamType.GlobalUser;
+    this.setState({
+      isGlobalUser,
+    });
+  }
+
+  onGlobalUserRoleChange = (value: string): void => {
+    const { formData } = this.state;
+    this.setState({
+      formData: {
+        ...formData,
+        global_role: value,
+      },
+    });
+  }
+
   onSelectedTeamChange = (teams: ITeam[]): void => {
     const { formData } = this.state;
     this.setState({
       formData: {
         ...formData,
-        selectedTeams: teams,
+        teams,
       },
     });
   }
@@ -109,7 +153,7 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
     evt.preventDefault();
     const valid = this.validate();
     if (valid) {
-      const { formData: { admin, email, name, sso_enabled, global_role, selectedTeams } } = this.state;
+      const { formData: { admin, email, name, sso_enabled, global_role, teams } } = this.state;
       const { createdBy, onSubmit } = this.props;
       return onSubmit({
         admin,
@@ -118,7 +162,7 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
         name,
         sso_enabled,
         global_role,
-        selectedTeams,
+        teams,
       });
     }
   }
@@ -154,10 +198,62 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
     return true;
   }
 
+  renderGlobalRoleForm = () => {
+    const { onGlobalUserRoleChange } = this;
+    const { formData: { global_role } } = this.state;
+    return (
+      <>
+        <InfoBanner className={`${baseClass}__user-permissions-info`}>
+          <p>Global users can only be members of the top level team and can manage or observe all users, entities, and settings in Fleet.</p>
+          <a
+            href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Learn more about user permissions
+            <img src={OpenNewTabIcon} alt="open new tab" />
+          </a>
+        </InfoBanner>
+        <Dropdown
+          value={global_role || 'admin'}
+          className={`${baseClass}__role-dropdown`}
+          options={globalUserRoles}
+          searchable={false}
+          onChange={onGlobalUserRoleChange}
+        />
+      </>
+    );
+  }
+
+
+  renderTeamsForm = (): JSX.Element => {
+    const { onSelectedTeamChange } = this;
+    return (
+      <>
+        <InfoBanner className={`${baseClass}__user-permissions-info`}>
+          <p>Users can be members of multiple teams and can only manage or observe team-sepcific users, entities, and settings in Fleet.</p>
+          <a
+            href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Learn more about user permissions
+            <img src={OpenNewTabIcon} alt="open new tab" />
+          </a>
+        </InfoBanner>
+        <SelectedTeamsForm
+          availableTeams={[{ name: 'Test Team', id: 1, role: 'admin' }, { name: 'Test Team 2', id: 2, role: 'admin' }]}
+          usersCurrentTeams={[]}
+          onFormChange={onSelectedTeamChange}
+        />
+      </>
+    );
+  }
+
   render (): JSX.Element {
-    const { errors, formData: { admin, email, name, sso_enabled } } = this.state;
+    const { errors, formData: { admin, email, name, sso_enabled }, isGlobalUser } = this.state;
     const { onCancel, availableTeams } = this.props;
-    const { onFormSubmit, onInputChange, onCheckboxChange, onSelectedTeamChange } = this;
+    const { onFormSubmit, onInputChange, onCheckboxChange, onIsGlobalUserChange, renderGlobalRoleForm, renderTeamsForm } = this;
 
     return (
       <form onSubmit={onFormSubmit} className={baseClass}>
@@ -206,34 +302,21 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
             <Radio
               label={'Global user'}
               id={'global-user'}
-              checked
-              value={'globalUser'}
-              onChange={value => console.log(value)}
+              checked={isGlobalUser}
+              value={UserTeamType.GlobalUser}
+              onChange={onIsGlobalUserChange}
             />
             <Radio
               label={'Assign teams'}
               id={'assign-teams'}
-              value={'assignTeams'}
-              onChange={value => console.log(value)}
+              checked={!isGlobalUser}
+              value={UserTeamType.AssignTeams}
+              onChange={onIsGlobalUserChange}
             />
           </div>
-
-          <InfoBanner className={`${baseClass}__user-permissions-info`}>
-            <p>Users can be members of multiple teams and can only manage or observe team-sepcific users, entities, and settings in Fleet.</p>
-            <a
-              href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Learn more about user permissions
-              <img src={OpenNewTabIcon} alt="open new tab" />
-            </a>
-          </InfoBanner>
-          <SelectedTeamsForm
-            availableTeams={[{ name: 'Test Team', id: 1, role: 'admin' }, { name: 'Test Team 2', id: 2, role: 'admin' }]}
-            usersCurrentTeams={[]}
-            onFormChange={onSelectedTeamChange}
-          />
+          <div className={`${baseClass}__teams-form-container`}>
+            {isGlobalUser ? renderGlobalRoleForm() : renderTeamsForm()}
+          </div>
         </div>
 
         <div className={`${baseClass}__btn-wrap`}>

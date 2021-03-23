@@ -23,6 +23,10 @@
     margin: 0;
   }
 
+  &__teams-form-container {
+    margin-top: $pad-medium;
+  }
+
   &__user-permissions-info {
     display: flex;
     flex-direction: column;
