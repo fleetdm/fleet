@@ -11,6 +11,7 @@ assignees: ''
 
 <!-- Thanks for filing an issue!  Please provide as much context as you can about your use case and motivations. -->
 
-### Proposal
 
-<!-- You can leave this part blank, or describe a planned or possible solution.  Please attach any screenshots or wireframes. -->
+### Solution
+
+<!-- You can leave this blank, or propose a solution.  Please attach any screenshots or wireframes that might help convey your meaning. -->
