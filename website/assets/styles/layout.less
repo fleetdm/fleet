@@ -10,8 +10,7 @@ html, body {
 
 [purpose='page-wrap'] {
   height: 100%;
-  /* lesshint-disable */height: auto !important;/* lesshint-enable */
-  // ^^The above is to disable "importantRule" and "duplicateProperty" rules.
+  height: auto !important;//lesshint-disable-line importantRule,duplicateProperty
   min-height: 100%;
   position: relative;
   padding-bottom: @footer-height;
@@ -23,7 +22,7 @@ html, body {
   right: 0;
   .header-btn {
     color: #ffffff;
-    cursor: default !important;
+    cursor: default !important;//lesshint-disable-line importantRule
     font-family: @navigation-font;
   }
   // .header-btn[aria-expanded='true'] {
