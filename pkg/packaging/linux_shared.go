@@ -42,6 +42,9 @@ func buildNFPM(opt Options, pkger nfpm.Packager) error {
 	updateOpt.OrbitChannel = opt.OrbitChannel
 	updateOpt.OsquerydChannel = opt.OsquerydChannel
 	updateOpt.ServerURL = opt.UpdateURL
+	if opt.UpdateRoots != "" {
+		updateOpt.RootKeys = opt.UpdateRoots
+	}
 
 	if err := initializeUpdates(updateOpt); err != nil {
 		return errors.Wrap(err, "initialize updates")

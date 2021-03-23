@@ -40,6 +40,8 @@ type Options struct {
 	OsquerydChannel string
 	// UpdateURL is the base URL of the update server (TUF repository).
 	UpdateURL string
+	// UpdateRoots is the root JSON metadata for update server (TUF repository).
+	UpdateRoots string
 	// Debug determines whether to enable debug logging for the agent.
 	Debug bool
 }

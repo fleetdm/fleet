@@ -68,7 +68,7 @@ func main() {
 		},
 		&cli.StringFlag{
 			Name:        "sign-identity",
-			Usage:       "Identity to use for codesigning",
+			Usage:       "Identity to use for macOS codesigning",
 			Destination: &opt.SignIdentity,
 		},
 		&cli.BoolFlag{
@@ -93,6 +93,11 @@ func main() {
 			Usage:       "URL for update server",
 			Value:       "https://tuf.fleetctl.com",
 			Destination: &opt.UpdateURL,
+		},
+		&cli.StringFlag{
+			Name:        "update-roots",
+			Usage:       "Root key JSON metadata for update server (from fleetctl updates roots)",
+			Destination: &opt.UpdateRoots,
 		},
 		&cli.BoolFlag{
 			Name:        "debug",
