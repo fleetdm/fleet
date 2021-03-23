@@ -30,7 +30,7 @@ Zach partnered with our CEO, Mike McNeil, to found a new, independent company: F
 
 ### Spending Company Money
 
-As we continue to expand our own company policies, we are using [GitLab's expense policy](https://about.gitlab.com/handbook/spending-company-money/). as a guide for company spending.
+As we continue to expand our own company policies, we are using [GitLab's expense policy](https://about.gitlab.com/handbook/spending-company-money/) as a guide for company spending.
 
 In brief, this means that as a Fleet team member, you may:
 
