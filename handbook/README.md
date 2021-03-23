@@ -25,6 +25,22 @@ When Kolide's attention shifted away from Fleet and towards their separate, user
 ##### 2020: Fleet was incorporated
 Zach partnered with our CEO, Mike McNeil, to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
 
+
+## People Group
+
+### Spending Company Money
+
+As we continue to expand our own company policies, we are using [GitLab's expense policy](https://about.gitlab.com/handbook/spending-company-money/). as a guide for company spending.
+
+In brief, this means that as a Fleet team member, you may:
+
+* Spend company money like is is your own money.
+* Be responsible for what you need to purchase or expense in order to do your job effectively.
+* Feel free to make purchases __in the interest of the company__ without asking for permission beforehand (when in doubt, do __inform__ your manager prior to purchase, or as soon as possible after the purchase).
+
+For more detailed information about __spending guidelines and limits__, please read [GitLab's expense policy](https://about.gitlab.com/handbook/spending-company-money/)
+
+
 ### About the handbook
 #### Why bother?
 The Fleet handbook is inspired by (and heavily influenced by) the [GitLab team handbook](https://about.gitlab.com/handbook/about/).  It shares the same [advantages](https://about.gitlab.com/handbook/about/#advantages) and will probably undergo a similar [evolution](https://about.gitlab.com/handbook/ceo/#evolution-of-the-handbook).
