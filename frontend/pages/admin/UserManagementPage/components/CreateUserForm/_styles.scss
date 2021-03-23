@@ -8,19 +8,19 @@
       margin-top: 5px;
 
       &__label {
-        font-size: 16px;
-        font-weight: $regular;
+        font-size: $x-small;
+        font-weight: $bold;
         color: $core-dark-blue-grey;
         padding-left: 32px;
       }
     }
   }
 
-  &__role {
+  &__label {
     color: $core-black;
     font-size: $x-small;
     font-weight: $bold;
-    margin: 0;
+    margin-bottom: 4px;
   }
 
   &__teams-form-container {
@@ -30,7 +30,7 @@
   &__user-permissions-info {
     display: flex;
     flex-direction: column;
-    margin-bottom: $pad-medium;
+    margin-bottom: $pad-xlarge;
 
     p {
       margin: 0 0 $pad-medium 0;

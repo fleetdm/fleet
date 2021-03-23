@@ -214,9 +214,10 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
             <img src={OpenNewTabIcon} alt="open new tab" />
           </a>
         </InfoBanner>
+        <p className={`${baseClass}__label`}>Role</p>
         <Dropdown
           value={global_role || 'admin'}
-          className={`${baseClass}__role-dropdown`}
+          className={`${baseClass}__global-role-dropdown`}
           options={globalUserRoles}
           searchable={false}
           onChange={onGlobalUserRoleChange}
@@ -274,36 +275,27 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
           value={email}
         />
         <div className={`${baseClass}__radio`}>
-          <div className={`${baseClass}__radio`}>
-            <Checkbox
-              name="sso_enabled"
-              onChange={onCheckboxChange('sso_enabled')}
-              value={sso_enabled}
-              disabled={!this.props.canUseSSO}
-              wrapperClassName={`${baseClass}__invite-admin`}
-            >
-              Enable Single Sign On
-            </Checkbox>
-          </div>
-
-          <p className={`${baseClass}__role`}>Admin</p>
           <Checkbox
-            name="admin"
-            onChange={onCheckboxChange('admin')}
-            value={admin}
+            name="sso_enabled"
+            onChange={onCheckboxChange('sso_enabled')}
+            value={sso_enabled}
+            disabled={!this.props.canUseSSO}
             wrapperClassName={`${baseClass}__invite-admin`}
           >
-            Enable Admin
+            Enable Single Sign On
           </Checkbox>
         </div>
 
         <div className={`${baseClass}__selected-teams-container`}>
           <div className={`${baseClass}__team-radios`}>
+            <p className={`${baseClass}__label`}>Team</p>
             <Radio
+              className={'test'}
               label={'Global user'}
               id={'global-user'}
               checked={isGlobalUser}
               value={UserTeamType.GlobalUser}
+              name={'userTeamType'}
               onChange={onIsGlobalUserChange}
             />
             <Radio
@@ -311,6 +303,7 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
               id={'assign-teams'}
               checked={!isGlobalUser}
               value={UserTeamType.AssignTeams}
+              name={'userTeamType'}
               onChange={onIsGlobalUserChange}
             />
           </div>

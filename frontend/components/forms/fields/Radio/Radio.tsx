@@ -1,7 +1,7 @@
 import React from 'react';
 import classnames from 'classnames';
 
-const baseClass = 'radio-input';
+const baseClass = 'radio';
 
 interface IRadioProps {
   label: string;
@@ -16,15 +16,11 @@ interface IRadioProps {
 
 const Radio = (props: IRadioProps): JSX.Element => {
   const { className, id, name, value, checked, disabled, label, onChange } = props;
-
   const wrapperClasses = classnames(baseClass, className);
-  const checkBoxTickClass = classnames(`${wrapperClasses}__tick`, {
-    [`${wrapperClasses}__tick--disabled`]: disabled,
-  });
 
   return (
-    <div className={wrapperClasses}>
-      <label htmlFor={id}>
+    <label htmlFor={id} className={wrapperClasses}>
+      <span className={`${baseClass}__input`}>
         <input
           type="radio"
           id={id}
@@ -34,10 +30,10 @@ const Radio = (props: IRadioProps): JSX.Element => {
           checked={checked}
           onChange={event => onChange(event.target.value)}
         />
-        <span className={checkBoxTickClass} />
-        <span className={`${wrapperClasses}__label`}>{label}</span>
-      </label>
-    </div>
+        <span className={`${baseClass}__control`} />
+      </span>
+      <span className={`${baseClass}__label`}>{label}</span>
+    </label>
   );
 };
 
