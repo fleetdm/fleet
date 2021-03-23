@@ -2,7 +2,7 @@
 
 Fleet's [Orbit](https://github.com/fleetdm/fleet) osquery updater by default utilizes the public Fleet update repository.
 
-For users who would like to self-manage an update server, this capability is available with the Fleet Core subscription.
+For users who would like to self-manage an update server, this capability is available with a Fleet Basic subscription.
 
 ## Securing updates
 
