@@ -7,6 +7,6 @@ contact_links:
     url: https://fleetdm.com/documentation
     about: Read about how to use, deploy, and configure Fleet.
   - name: Project
-    url: https://github.com/fleetdm/fleet/issues/new?milestone=x.x.x&labels=project&body=%23%23%23%20Goal%0A%0ATODO%20(%E2%89%A42%20sentences)%0A%0A%23%23%23%20How%3F%0A%0A-%20%5B%20%5D%20TODO
+    url: https://github.com/fleetdm/fleet/issues/new?milestone=x.x.x&labels=project&assignees=noahtalerman&body=%23%23%23%20Goal%0A%0ATODO%20(%E2%89%A42%20sentences)%0A%0A%23%23%23%20How%3F%0A%0A-%20%5B%20%5D%20TODO
     about: Schedule a company-sponsored project to ship improvements to Fleet ("Self-managed autoupdates").
 
