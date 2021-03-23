@@ -252,7 +252,7 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
   }
 
   render (): JSX.Element {
-    const { errors, formData: { admin, email, name, sso_enabled }, isGlobalUser } = this.state;
+    const { errors, formData: { email, name, sso_enabled }, isGlobalUser } = this.state;
     const { onCancel, availableTeams } = this.props;
     const { onFormSubmit, onInputChange, onCheckboxChange, onIsGlobalUserChange, renderGlobalRoleForm, renderTeamsForm } = this;
 
@@ -274,7 +274,7 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
           placeholder="Email"
           value={email}
         />
-        <div className={`${baseClass}__radio`}>
+        <div className={`${baseClass}__sso-input`}>
           <Checkbox
             name="sso_enabled"
             onChange={onCheckboxChange('sso_enabled')}
@@ -290,7 +290,7 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
           <div className={`${baseClass}__team-radios`}>
             <p className={`${baseClass}__label`}>Team</p>
             <Radio
-              className={'test'}
+              className={`${baseClass}__radio-input`}
               label={'Global user'}
               id={'global-user'}
               checked={isGlobalUser}
@@ -299,6 +299,7 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
               onChange={onIsGlobalUserChange}
             />
             <Radio
+              className={`${baseClass}__radio-input`}
               label={'Assign teams'}
               id={'assign-teams'}
               checked={!isGlobalUser}

@@ -1,7 +1,7 @@
 .create-user-form {
   margin-top: 24px;
 
-  &__radio {
+  &__sso-input {
     margin-top: 22px;
 
     .kolide-checkbox {
@@ -21,10 +21,6 @@
     font-size: $x-small;
     font-weight: $bold;
     margin-bottom: 4px;
-  }
-
-  &__teams-form-container {
-    margin-top: $pad-medium;
   }
 
   &__user-permissions-info {
@@ -52,6 +48,10 @@
 
   &__selected-teams-container {
     margin-bottom: $pad-most;
+  }
+
+  &__radio-input {
+    margin-bottom: $pad-medium;
   }
 
   &__btn-wrap {
