@@ -1,9 +1,9 @@
 ---
 name: Internal - New teammate onboarding
 about: Onboard a new Fleet team member to the company ("Hiring Jasmine Stone")
-title: ''
-labels: ''
-assignees: ''
+title: 'Hiring ____________'
+labels: 'project'
+assignees: 'mikermcneil'
 
 ---
 
