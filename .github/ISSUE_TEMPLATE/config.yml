@@ -1,9 +1,12 @@
-blank_issues_enabled: true
+blank_issues_enabled: false
 contact_links:
   - name: Chat with other developers
     url: https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/
     about: Please ask and answer questions here.
-  - name: Internal project
+  - name: Documentation
+    url: https://fleetdm.com/documentation
+    about: Read about how to use, deploy, and configure Fleet.
+  - name: Project
     url: https://github.com/fleetdm/fleet/issues/new?milestone=x.x.x&labels=project&body=%23%23%23%20Goal%0A%0ATODO%20(%E2%89%A42%20sentences)%0A%0A%23%23%23%20How%3F%0A%0A-%20%5B%20%5D%20TODO
-    about: Kick off a company-sponsored project to ship improvements to Fleet ("Self-managed autoupdates")
-    
+    about: Schedule a company-sponsored project to ship improvements to Fleet ("Self-managed autoupdates").
+
