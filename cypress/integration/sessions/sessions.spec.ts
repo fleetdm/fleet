@@ -40,7 +40,7 @@ describe('Sessions', () => {
       .click();
 
     cy.url().should('match', /\/login$/);
-    cy.contains('username or email and password do not match');
+    cy.contains('Authentication failed');
   });
 
   it('Fails to access authenticated resource', () => {
