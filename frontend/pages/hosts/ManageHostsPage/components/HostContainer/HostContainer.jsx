@@ -1,18 +1,18 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
-import ReactTooltip from 'react-tooltip';
 
 import labelInterface from 'interfaces/label';
 import { getHostTableData } from 'redux/nodes/components/ManageHostsPage/actions';
 import Button from 'components/buttons/Button';
 import InputField from 'components/forms/fields/InputField';
 import KolideIcon from 'components/icons/KolideIcon';
+import DataTable from 'components/DataTable/DataTable';
 import Modal from 'components/modals/Modal';
 import RoboDogImage from '../../../../../../assets/images/robo-dog-176x144@2x.png';
 import EditColumnsIcon from '../../../../../../assets/images/icon-edit-columns-20x20@2x.png';
 
 import { hostDataHeaders, defaultHiddenColumns } from './HostTableConfig';
-import DataTable from '../DataTable/DataTable';
+
 import EditColumnsModal from '../EditColumnsModal/EditColumnsModal';
 
 const baseClass = 'host-container';
@@ -132,7 +132,7 @@ class HostContainer extends Component {
             <img src={EditColumnsIcon} alt="edit columns icon" />
             Edit columns
           </Button>
-          <div data-for="search" className={`${baseClass}__search-input`}>
+          <div className={`${baseClass}__search-input`}>
             <InputField
               placeholder="Search hostname, UUID, serial number, or IPv4"
               name=""
@@ -142,9 +142,6 @@ class HostContainer extends Component {
             />
             <KolideIcon name="search" />
           </div>
-          <ReactTooltip place="bottom" type="dark" effect="solid" id="search" backgroundColor="#3e4771">
-            <span className={`${baseClass}__tooltip-text`}>Search by hostname, UUID, serial number, or IPv4</span>
-          </ReactTooltip>
         </div>
         <DataTable
           selectedFilter={selectedFilter}

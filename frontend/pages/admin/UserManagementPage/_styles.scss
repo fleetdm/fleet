@@ -82,9 +82,9 @@
     margin: 0;
   }
 
-  &__add-user-wrap {
+  &__table-controls {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
   }
 
@@ -94,9 +94,40 @@
     clear: both;
   }
 
-  &__invite-modal {
+  &__create-user-modal {
     &.modal__modal_container {
       width: 540px;
+    }
+  }
+
+  &__edit-columns-button {
+    display: flex;
+    align-items: center;
+    font-size: $x-small;
+    color: $core-blue;
+  }
+
+  &__search-input {
+    position: relative;
+    color: $core-dark-blue-grey;
+    width: 344px;
+    margin-left: $pad-medium;
+
+    .user-management__input-wrapper {
+      margin-bottom: 0;
+    }
+
+    .input-field {
+      padding-left: 42px;
+      width: 100%;
+    }
+
+    .kolidecon {
+      position: absolute;
+      top: 10px;
+      left: 12px;
+      font-size: 20px;
+      color: $core-medium-blue-grey;
     }
   }
 
