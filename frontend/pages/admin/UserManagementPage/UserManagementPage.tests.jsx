@@ -1,9 +1,8 @@
 import React from 'react';
-import { mount, shallow } from 'enzyme';
+import { mount } from 'enzyme';
 
-import * as authActions from 'redux/nodes/auth/actions';
 import { connectedComponent, reduxMockStore } from 'test/helpers';
-import ConnectedUserManagementPage, { UserManagementPage } from 'pages/admin/UserManagementPage/UserManagementPage';
+import ConnectedUserManagementPage from 'pages/admin/UserManagementPage/UserManagementPage';
 import inviteActions from 'redux/nodes/entities/invites/actions';
 import userActions from 'redux/nodes/entities/users/actions';
 
