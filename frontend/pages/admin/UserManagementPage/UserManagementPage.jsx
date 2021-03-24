@@ -227,7 +227,7 @@ export class UserManagementPage extends Component {
         <WarningBanner
           shouldShowWarning={!config.configured}
         >
-          <span>SMTP is not currently configured in Fleet. The &quot;Invite user&quot; feature requires that SMTP is configured in order to send invitation emails.</span>
+          <span>SMTP is not currently configured in Fleet. The &quot;Create User&quot; feature requires that SMTP is configured in order to send invitation emails.</span>
           <Button
             className={`${baseClass}__config-button`}
             onClick={goToAppConfigPage}
@@ -253,11 +253,11 @@ export class UserManagementPage extends Component {
         <div className={`${baseClass}__table-controls`}>
           <Button
             className={`${baseClass}__create-user-button`}
-            // disabled={!config.configured}
+            disabled={!config.configured}
             onClick={toggleCreateUserModal}
             title={config.configured ? 'Add User' : 'Email must be configured to add users'}
           >
-            Create User
+            Create user
           </Button>
           <div className={`${baseClass}__search-input`}>
             <InputField

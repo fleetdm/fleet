@@ -1,6 +1,5 @@
 import React from 'react';
-import { mount } from 'enzyme';
-import { noop } from 'lodash';
+import { mount, shallow } from 'enzyme';
 
 import * as authActions from 'redux/nodes/auth/actions';
 import { connectedComponent, reduxMockStore } from 'test/helpers';
@@ -35,6 +34,7 @@ const store = {
           ...currentUser,
         },
       },
+      originalOrder: [1],
     },
     invites: {
       loading: false,
@@ -45,6 +45,7 @@ const store = {
           name: 'Other user',
         },
       },
+      originalOrder: [1],
     },
   },
 };
@@ -59,52 +60,8 @@ describe('UserManagementPage - component', () => {
   });
 
   describe('rendering', () => {
-    it('does not render if invites are loading', () => {
-      const props = {
-        dispatch: noop,
-        config: {},
-        currentUser,
-        invites: [],
-        loadingInvites: true,
-        loadingUsers: false,
-        users: [currentUser],
-      };
-      const page = mount(<UserManagementPage {...props} />);
-
-      expect(page.html()).toBeFalsy();
-    });
-
-    it('does not render if users are loading', () => {
-      const props = {
-        dispatch: noop,
-        config: {},
-        currentUser,
-        invites: [],
-        loadingInvites: false,
-        loadingUsers: true,
-        users: [currentUser],
-      };
-      const page = mount(<UserManagementPage {...props} />);
-
-      expect(page.html()).toBeFalsy();
-    });
-
-    it('renders user blocks for users and invites', () => {
-      const mockStore = reduxMockStore(store);
-      const page = mount(connectedComponent(ConnectedUserManagementPage, { mockStore }));
-
-      expect(page.find('UserRow').length).toEqual(2);
-    });
-
-    it('displays a count of the number of users & invites', () => {
-      const mockStore = reduxMockStore(store);
-      const page = mount(connectedComponent(ConnectedUserManagementPage, { mockStore }));
-      const count = page.find('.user-management__user-count');
-      expect(count.text()).toContain('2 users');
-    });
-
     it(
-      'displays a disabled "Invite user" button if email is not configured',
+      'displays a disabled "Create user" button if email is not configured',
       () => {
         const notConfiguredStore = { ...store, app: { config: { configured: false } } };
         const notConfiguredMockStore = reduxMockStore(notConfiguredStore);
@@ -160,48 +117,4 @@ describe('UserManagementPage - component', () => {
       expect(mockStore.getActions()).toContainEqual(goToAppSettingsAction);
     },
   );
-
-  it('gets users on mount', () => {
-    const mockStore = reduxMockStore(store);
-
-    mount(connectedComponent(ConnectedUserManagementPage, { mockStore }));
-
-    expect(userActions.loadAll).toHaveBeenCalled();
-  });
-
-  it('gets invites on mount', () => {
-    const mockStore = reduxMockStore(store);
-
-    mount(connectedComponent(ConnectedUserManagementPage, { mockStore }));
-
-    expect(inviteActions.loadAll).toHaveBeenCalled();
-  });
-
-  describe('updating a user', () => {
-    const dispatch = () => Promise.resolve();
-    const props = { dispatch, config: {}, currentUser, invites: [], users: [currentUser] };
-    const pageNode = mount(<UserManagementPage {...props} />).instance();
-    const updatedAttrs = { name: 'Updated Name' };
-
-    it('updates the current user with only the updated attributes', () => {
-      jest.spyOn(authActions, 'updateUser');
-
-      const updatedUser = { ...currentUser, ...updatedAttrs };
-
-      pageNode.onEditUser(currentUser, updatedUser);
-
-      expect(authActions.updateUser).toHaveBeenCalledWith(currentUser, updatedAttrs);
-    });
-
-    it('updates a different user with only the updated attributes', () => {
-      jest.spyOn(userActions, 'silentUpdate');
-
-      const otherUser = { ...currentUser, id: currentUser.id + 1 };
-      const updatedUser = { ...otherUser, ...updatedAttrs };
-
-      pageNode.onEditUser(otherUser, updatedUser);
-
-      expect(userActions.silentUpdate).toHaveBeenCalledWith(otherUser, updatedAttrs);
-    });
-  });
 });
