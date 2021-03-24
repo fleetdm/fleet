@@ -13,6 +13,7 @@ class Dropdown extends Component {
   static propTypes = {
     className: PropTypes.string,
     clearable: PropTypes.bool,
+    searchable: PropTypes.bool,
     disabled: PropTypes.bool,
     error: PropTypes.string,
     label: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
@@ -29,6 +30,7 @@ class Dropdown extends Component {
   static defaultProps = {
     onChange: noop,
     clearable: false,
+    searchable: true,
     disabled: false,
     multi: false,
     name: 'targets',
@@ -78,7 +80,7 @@ class Dropdown extends Component {
 
   render () {
     const { handleChange, renderOption } = this;
-    const { error, className, clearable, disabled, multi, name, options, placeholder, value, wrapperClassName } = this.props;
+    const { error, className, clearable, disabled, multi, name, options, placeholder, value, wrapperClassName, searchable } = this.props;
 
     const formFieldProps = pick(this.props, ['hint', 'label', 'error', 'name']);
     const selectClasses = classnames(className, `${baseClass}__select`, {
@@ -92,6 +94,7 @@ class Dropdown extends Component {
           clearable={clearable}
           disabled={disabled}
           multi={multi}
+          searchable={searchable}
           name={`${name}-select`}
           onChange={handleChange}
           options={options}

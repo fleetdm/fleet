@@ -4,10 +4,11 @@ import { connect } from 'react-redux';
 import { noop } from 'lodash';
 import yaml from 'js-yaml';
 
+import { renderFlash } from 'redux/nodes/notifications/actions';
 import osqueryOptionsActions from 'redux/nodes/osquery/actions';
 import validateYaml from 'components/forms/validators/validate_yaml';
 import OsqueryOptionsForm from 'components/forms/admin/OsqueryOptionsForm';
-import { renderFlash } from 'redux/nodes/notifications/actions';
+import InfoBanner from 'components/InfoBanner/InfoBanner';
 import OpenNewTabIcon from '../../../../assets/images/open-new-tab-12x12@2x.png';
 
 const baseClass = 'osquery-options';
@@ -65,7 +66,7 @@ export class OsqueryOptionsPage extends Component {
     return (
       <div className={`${baseClass} body-wrap`}>
         <p className={`${baseClass}__page-description`}>This file describes options returned to osquery when it checks for configuration.</p>
-        <div className={`${baseClass}__info-banner`}>
+        <InfoBanner className={`${baseClass}__config-docs`}>
           <p>See Fleet documentation for an example file that includes the overrides option.</p>
           <a
             href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
@@ -75,7 +76,7 @@ export class OsqueryOptionsPage extends Component {
             Go to Fleet docs
             <img src={OpenNewTabIcon} alt="open new tab" />
           </a>
-        </div>
+        </InfoBanner>
         <div className={`${baseClass}__form-wrapper`}>
           <OsqueryOptionsForm
             formData={formData}
