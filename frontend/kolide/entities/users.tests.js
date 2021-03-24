@@ -63,6 +63,21 @@ describe('Kolide - API client (users)', () => {
           expect(request.isDone()).toEqual(true);
         });
     });
+
+    it('calls the appropriate endpoint with the correct query params when passed multiple arguments', () => {
+      const request = userMocks.loadAll.validWithParams(bearerToken);
+      const page = 3;
+      const perPage = 100;
+      const selectedFilter = undefined;
+      const query = 'testQuery';
+      const sortBy = [{ id: 'name', desc: true }];
+
+      Kolide.setBearerToken(bearerToken);
+      return Kolide.users.loadAll(page, perPage, selectedFilter, query, sortBy)
+        .then(() => {
+          expect(request.isDone()).toEqual(true);
+        });
+    });
   });
 
   describe('#me', () => {
@@ -172,4 +187,3 @@ describe('Kolide - API client (users)', () => {
     });
   });
 });
-
