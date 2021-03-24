@@ -27,7 +27,28 @@ import '@testing-library/cypress/add-commands';
 // Cypress.Commands.overwrite("visit", (originalFn, url, options) => { ... })
 
 Cypress.Commands.add('setup', () => {
-  cy.exec('make e2e-reset-db e2e-setup', { timeout: 5000 });
+  cy.exec('make e2e-reset-db e2e-setup', { timeout: 10000 });
+});
+
+Cypress.Commands.add('setupSMTP', () => {
+  const body = {
+    smtp_settings: {
+      authentication_type: 'authtype_none',
+      enable_smtp: true,
+      port: 1025,
+      sender_address: 'gabriel+dev@fleetdm.com',
+      server: 'localhost',
+    },
+  };
+
+  cy.request({
+    url: '/api/v1/fleet/config',
+    method: 'PATCH',
+    body,
+    auth: {
+      bearer: window.localStorage.getItem('KOLIDE::auth_token'),
+    },
+  });
 });
 
 Cypress.Commands.add('login', (username, password) => {

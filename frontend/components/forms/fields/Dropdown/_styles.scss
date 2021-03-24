@@ -1,7 +1,7 @@
 .dropdown {
   &__label {
     display: block;
-    font-size: 16px;
+    font-size: $x-small;
     font-weight: $regular;
     color: $core-dark-blue-grey;
     margin-bottom: $pad-xsmall;
@@ -53,7 +53,7 @@
   }
 
   .Select-value {
-    font-size: $small;
+    font-size: $x-small;
     border-radius: 4px;
     background-color: $ui-light-grey;
     border: solid 1px $ui-borders;
@@ -77,7 +77,7 @@
         top: 50%;
         left: 50%;
         visibility: visible;
-        font-size: 16px;
+        font-size: $x-small;
         color: $ui-medium-grey;
         text-indent: 0;
       }
@@ -90,7 +90,7 @@
     }
 
     .Select-value-label {
-      font-size: 16px;
+      font-size: $x-small;
       font-weight: $regular;
       color: $core-dark-blue-grey;
       line-height: 28px;
@@ -127,7 +127,7 @@
       .Select-value {
         .Select-value-label {
           color: $core-dark-blue-grey;
-          font-size: 16px;
+          font-size: $x-small;
         }
       }
     }
@@ -177,7 +177,7 @@
 
   .Select-placeholder {
     color: $core-medium-blue-grey;
-    font-size: $small;
+    font-size: $x-small;
     line-height: 40px;
     padding: 0 12px;
     box-sizing: border-box;
