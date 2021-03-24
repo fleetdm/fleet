@@ -4,8 +4,8 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/go-kit/kit/endpoint"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/go-kit/kit/endpoint"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -308,10 +308,10 @@ func (r forgotPasswordResponse) status() int  { return http.StatusAccepted }
 func makeForgotPasswordEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(forgotPasswordRequest)
-		err := svc.RequestPasswordReset(ctx, req.Email)
-		if err != nil {
-			return forgotPasswordResponse{Err: err}, nil
-		}
+		// Any error returned by the service should not be returned to the
+		// client to prevent information disclosure (it will be logged in the
+		// server logs).
+		_ = svc.RequestPasswordReset(ctx, req.Email)
 		return forgotPasswordResponse{}, nil
 	}
 }

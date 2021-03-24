@@ -70,7 +70,7 @@ func authenticatedUser(jwtKey string, svc kolide.Service, next endpoint.Endpoint
 		// if not succesful, try again this time with errors
 		bearer, ok := token.FromContext(ctx)
 		if !ok {
-			return nil, authError{reason: "no auth token"}
+			return nil, authRequiredError{internal: "no auth token"}
 		}
 
 		v, err := authViewer(ctx, jwtKey, bearer, svc)
@@ -92,30 +92,30 @@ func authViewer(ctx context.Context, jwtKey string, bearerToken token.Token, svc
 		return []byte(jwtKey), nil
 	})
 	if err != nil {
-		return nil, authError{reason: err.Error()}
+		return nil, authRequiredError{internal: err.Error()}
 	}
-	if jwtToken.Valid != true {
-		return nil, authError{reason: "invalid jwt token"}
+	if !jwtToken.Valid {
+		return nil, authRequiredError{internal: "invalid jwt token"}
 	}
 	claims, ok := jwtToken.Claims.(jwt.MapClaims)
 	if !ok {
-		return nil, authError{reason: "no jwt claims"}
+		return nil, authRequiredError{internal: "no jwt claims"}
 	}
 	sessionKeyClaim, ok := claims["session_key"]
 	if !ok {
-		return nil, authError{reason: "no session_key in JWT claims"}
+		return nil, authRequiredError{internal: "no session_key in JWT claims"}
 	}
 	sessionKey, ok := sessionKeyClaim.(string)
 	if !ok {
-		return nil, authError{reason: "non-string key in sessionClaim"}
+		return nil, authRequiredError{internal: "non-string key in sessionClaim"}
 	}
 	session, err := svc.GetSessionByKey(ctx, sessionKey)
 	if err != nil {
-		return nil, authError{reason: err.Error()}
+		return nil, authRequiredError{internal: err.Error()}
 	}
 	user, err := svc.User(ctx, session.UserID)
 	if err != nil {
-		return nil, authError{reason: err.Error()}
+		return nil, authRequiredError{internal: err.Error()}
 	}
 	return &viewer.Viewer{User: user, Session: session}, nil
 }

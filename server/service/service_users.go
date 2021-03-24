@@ -322,6 +322,12 @@ func (svc service) RequirePasswordReset(ctx context.Context, uid uint, require b
 }
 
 func (svc service) RequestPasswordReset(ctx context.Context, email string) error {
+	// Regardless of error, sleep until the request has taken at least 1 second.
+	// This means that any request to this method will take ~1s and frustrate a timing attack.
+	defer func(start time.Time) {
+		time.Sleep(time.Until(start.Add(1 * time.Second)))
+	}(time.Now())
+
 	user, err := svc.ds.UserByEmail(email)
 	if err != nil {
 		return err
