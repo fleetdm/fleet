@@ -10,6 +10,8 @@
   padding: 0;
   position: relative;
   background-color: $white;
+  display: flex;
+  flex-direction: column;
 }
 
 .site-nav {

@@ -20,10 +20,6 @@
   background-color: #3d4758;
   min-width: $min-width;
 
-  @include breakpoint(smalldesk) {
-    left: $nav-tablet-width;
-  }
-
   &--full-width {
     left: 0;
   }
