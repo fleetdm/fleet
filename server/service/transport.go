@@ -152,6 +152,8 @@ func listOptionsFromRequest(r *http.Request) (kolide.ListOptions, error) {
 		orderKey = "host_name"
 	case "memory":
 		orderKey = "physical_memory"
+	case "detail_updated_at":
+		orderKey = "detail_update_time"
 	}
 
 	return kolide.ListOptions{

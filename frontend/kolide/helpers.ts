@@ -246,6 +246,10 @@ export const humanHostMemory = (bytes: number): string => {
   return `${inGigaBytes(bytes)} GB`;
 };
 
+export const humanHostDetailUpdated = (detailUpdated: string): string => {
+  return moment(detailUpdated).fromNow();
+};
+
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
@@ -257,6 +261,7 @@ export default {
   humanHostLastSeen,
   humanHostEnrolled,
   humanHostMemory,
+  humanHostDetailUpdated,
   labelSlug,
   setupData,
 };

@@ -11,8 +11,7 @@
 
     &__header {
       margin: 0 0 16px;
-      font-size: $x-small;
-      font-weight: $bold;
+      font-size: $medium;
     }
 
     .info {
@@ -31,7 +30,8 @@
       }
 
       &__header {
-        color: $core-medium-blue-grey;
+        color: $core-black;
+        font-weight: $bold;
       }
 
     }
@@ -62,9 +62,22 @@
       padding-bottom: 16px;
     }
 
+    .hostname-container {
+      display: flex;
+      align-items: flex-end;
+      margin-bottom: $pad-large;
+    }
+
     .hostname {
       font-size: $large;
-      margin-bottom: 16px;
+      font-weight: $bold;
+    }
+
+    .last-fetched {
+      font-size: $xx-small;
+      color: $core-dark-blue-grey;
+      margin: 0;
+      padding-left: $pad-small;
     }
   }
 
