@@ -41,6 +41,7 @@
     &__inner {
       display: flex;
       flex-direction: row;
+      align-items: flex-start;
 
       h1 {
         font-size: $small;
