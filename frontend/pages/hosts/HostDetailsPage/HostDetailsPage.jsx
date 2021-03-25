@@ -16,7 +16,7 @@ import { push } from 'react-router-redux';
 import PATHS from 'router/paths';
 
 import hostInterface from 'interfaces/host';
-import { humanHostUptime, humanHostLastSeen, humanHostEnrolled, humanHostMemory } from 'kolide/helpers';
+import { humanHostUptime, humanHostLastSeen, humanHostEnrolled, humanHostMemory, humanHostDetailUpdated } from 'kolide/helpers';
 import helpers from './helpers';
 
 const baseClass = 'host-details';
@@ -209,7 +209,7 @@ export class HostDetailsPage extends Component {
       renderPacks,
     } = this;
 
-    const titleData = pick(host, ['status', 'memory', 'host_cpu', 'os_version', 'enroll_secret_name']);
+    const titleData = pick(host, ['status', 'memory', 'host_cpu', 'os_version', 'enroll_secret_name', 'detail_updated_at']);
     const aboutData = pick(host, ['seen_time', 'uptime', 'last_enrolled_at', 'hardware_model', 'hardware_serial', 'primary_ip']);
     const osqueryData = pick(host, ['config_tls_refresh', 'logger_tls_period', 'distributed_interval']);
     const data = [titleData, aboutData, osqueryData];
@@ -236,7 +236,10 @@ export class HostDetailsPage extends Component {
       <div className={`${baseClass} body-wrap`}>
         <div className="section title">
           <div className="title__inner">
-            <h1 className="hostname">{host.hostname}</h1>
+            <div className="hostname-container">
+              <h1 className="hostname">{host.hostname}</h1>
+              <p className="last-fetched">{`Last fetched ${humanHostDetailUpdated(titleData.detail_updated_at)}`}</p>
+            </div>
             <div className="info">
               <div className="info__item info__item--title">
                 <span className="info__header">Status</span>

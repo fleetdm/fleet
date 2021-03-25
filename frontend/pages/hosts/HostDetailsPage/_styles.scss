@@ -62,9 +62,20 @@
       padding-bottom: 16px;
     }
 
+    .hostname-container {
+      display: flex;
+      align-items: flex-end;
+      margin-bottom: $pad-medium;
+    }
+
     .hostname {
       font-size: $large;
-      margin-bottom: 16px;
+    }
+
+    .last-fetched {
+      font-size: $x-small;
+      margin: 0;
+      padding-left: $pad-small;
     }
   }
 
