@@ -67,8 +67,7 @@ const hostDataHeaders: IHostDataColumn[] = [
   },
   {
     title: 'Last fetched',
-    Header: 'Last fetched',
-    disableSortBy: true,
+    Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
     accessor: 'detail_updated_at',
     Cell: cellProps => <TextCell value={cellProps.cell.value} formatter={humanHostDetailUpdated} />,
   },
