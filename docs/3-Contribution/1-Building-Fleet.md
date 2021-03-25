@@ -6,7 +6,7 @@
 - [Development infrastructure](#development-infrastructure)
   - [Starting the local development environment](#starting-the-local-development-environment)
   - [Running Fleet using Docker development infrastructure](#running-fleet-using-docker-development-infrastructure)
-- [Setting up a Linux Development Environment](#setting-up-a-linux-development-environment)
+- [Debugging with Delve debugger](#debugging-with-delve-debugger)
 
 ## Building the code
 
@@ -145,3 +145,14 @@ If you're using the Google Chrome web browser, you have the option to always aut
 > Note: in Chrome version 88 there is a bug where you must first enable [chrome://flags/#temporary-unexpire-flags-m87](chrome://flags/#temporary-unexpire-flags-m87). The [chrome://flags/#allow-insecure-localhost](chrome://flags/#allow-insecure-localhost) flag will then be visible again.
 
 
+## Debugging with Delve debugger
+
+The [Delve](https://github.com/go-delve/delve) Go debugger can be used for debugging the Fleet binary.
+
+Use the following command in place of `make` and `./build/fleet serve --dev`:
+
+```
+dlv debug --build-flags '-tags=full' ./cmd/fleet -- serve --dev
+```
+
+It is important to pass the `-tags=full` build flag, otherwise the server will not have access to the asset files.
