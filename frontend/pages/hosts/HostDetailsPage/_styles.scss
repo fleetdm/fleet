@@ -11,8 +11,7 @@
 
     &__header {
       margin: 0 0 16px;
-      font-size: $x-small;
-      font-weight: $bold;
+      font-size: $medium;
     }
 
     .info {
@@ -31,7 +30,8 @@
       }
 
       &__header {
-        color: $core-medium-blue-grey;
+        color: $core-black;
+        font-weight: $bold;
       }
 
     }
@@ -65,15 +65,17 @@
     .hostname-container {
       display: flex;
       align-items: flex-end;
-      margin-bottom: $pad-medium;
+      margin-bottom: $pad-large;
     }
 
     .hostname {
       font-size: $large;
+      font-weight: $bold;
     }
 
     .last-fetched {
-      font-size: $x-small;
+      font-size: $xx-small;
+      color: $core-dark-blue-grey;
       margin: 0;
       padding-left: $pad-small;
     }
