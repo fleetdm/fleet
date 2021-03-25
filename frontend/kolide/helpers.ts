@@ -261,7 +261,7 @@ export default {
   humanHostLastSeen,
   humanHostEnrolled,
   humanHostMemory,
+  humanHostDetailUpdated,
   labelSlug,
   setupData,
-  humanHostDetailUpdated,
 };

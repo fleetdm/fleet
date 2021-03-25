@@ -5,7 +5,7 @@ import HeaderCell from '../HeaderCell/HeaderCell';
 import LinkCell from '../LinkCell/LinkCell';
 import StatusCell from '../StatusCell/StatusCell';
 import TextCell from '../TextCell/TextCell';
-import { humanHostMemory, humanHostUptime, humanHostLastSeen } from '../../../../../kolide/helpers';
+import { humanHostMemory, humanHostUptime, humanHostLastSeen, humanHostDetailUpdated } from '../../../../../kolide/helpers';
 
 interface IHeaderProps {
   column: {
@@ -66,7 +66,14 @@ const hostDataHeaders: IHostDataColumn[] = [
     Cell: cellProps => <TextCell value={cellProps.cell.value} />,
   },
   {
-    title: 'Last Seen',
+    title: 'Last fetched',
+    Header: 'Last fetched',
+    disableSortBy: true,
+    accessor: 'detail_updated_at',
+    Cell: cellProps => <TextCell value={cellProps.cell.value} formatter={humanHostDetailUpdated} />,
+  },
+  {
+    title: 'Last seen',
     Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
     accessor: 'seen_time',
     Cell: cellProps => <TextCell value={cellProps.cell.value} formatter={humanHostLastSeen} />,
@@ -97,7 +104,7 @@ const hostDataHeaders: IHostDataColumn[] = [
     Cell: cellProps => <TextCell value={cellProps.cell.value} formatter={humanHostMemory} />,
   },
   {
-    title: 'MAC Address',
+    title: 'MAC address',
     Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
     accessor: 'primary_mac',
     Cell: cellProps => <TextCell value={cellProps.cell.value} />,
@@ -109,7 +116,7 @@ const hostDataHeaders: IHostDataColumn[] = [
     Cell: cellProps => <TextCell value={cellProps.cell.value} />,
   },
   {
-    title: 'Hardware Model',
+    title: 'Hardware model',
     Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
     accessor: 'hardware_model',
     Cell: cellProps => <TextCell value={cellProps.cell.value} />,
