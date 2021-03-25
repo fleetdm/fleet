@@ -6,8 +6,8 @@ import (
 	"html/template"
 	"time"
 
-	"github.com/go-kit/kit/endpoint"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/go-kit/kit/endpoint"
 )
 
 ////////////////////////////////////////////////////////////////////////////////

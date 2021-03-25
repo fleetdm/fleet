@@ -71,12 +71,10 @@ Interactively prompts for email and password if not specified in the flags or en
 			token, err := fleet.Login(flEmail, flPassword)
 			if err != nil {
 				switch err.(type) {
-				case service.InvalidLoginErr:
-					return err
 				case service.NotSetupErr:
 					return err
 				}
-				return errors.Wrap(err, "error logging in")
+				return errors.Wrap(err, "Login failed")
 			}
 
 			configPath, context := c.String("config"), c.String("context")

@@ -20,21 +20,6 @@ func (e setupAlreadyErr) SetupAlready() bool {
 	return true
 }
 
-type InvalidLoginErr interface {
-	InvalidLogin() bool
-	Error() string
-}
-
-type invalidLoginErr struct{}
-
-func (e invalidLoginErr) Error() string {
-	return "The credentials supplied were invalid"
-}
-
-func (e invalidLoginErr) InvalidLogin() bool {
-	return true
-}
-
 type NotSetupErr interface {
 	NotSetup() bool
 	Error() string

@@ -123,26 +123,38 @@ func (svc service) CallbackSSO(ctx context.Context, auth kolide.Auth) (*kolide.S
 }
 
 func (svc service) Login(ctx context.Context, username, password string) (*kolide.User, string, error) {
+	// If there is an error, sleep until the request has taken at least 1
+	// second. This means that generally a login failure for any reason will
+	// take ~1s and frustrate a timing attack.
+	var err error
+	defer func(start time.Time) {
+		if err != nil {
+			time.Sleep(time.Until(start.Add(1 * time.Second)))
+		}
+	}(time.Now())
+
 	user, err := svc.userByEmailOrUsername(username)
 	if _, ok := err.(kolide.NotFoundError); ok {
-		return nil, "", authError{reason: "no such user"}
+		return nil, "", authFailedError{internal: "user not found"}
 	}
 	if err != nil {
-		return nil, "", err
+		return nil, "", authFailedError{internal: err.Error()}
 	}
+
+	if err = user.ValidatePassword(password); err != nil {
+		return nil, "", authFailedError{internal: "invalid password"}
+	}
+
 	if !user.Enabled {
-		return nil, "", authError{reason: "account disabled", clientReason: "account disabled"}
+		return nil, "", authFailedError{internal: "account disabled"}
 	}
 	if user.SSOEnabled {
-		const errMessage = "password login not allowed for single sign on users"
-		return nil, "", authError{reason: errMessage, clientReason: errMessage}
+		return nil, "", authFailedError{internal: "password login disabled for sso users"}
 	}
-	if err = user.ValidatePassword(password); err != nil {
-		return nil, "", authError{reason: "bad password"}
-	}
+
 	token, err := svc.makeSession(user.ID)
 	if err != nil {
-		return nil, "", err
+		return nil, "", authFailedError{internal: err.Error()}
 	}
 
 	return user, token, nil
@@ -261,10 +273,7 @@ func (svc service) DeleteSession(ctx context.Context, id uint) error {
 
 func (svc service) validateSession(session *kolide.Session) error {
 	if session == nil {
-		return authError{
-			reason:       "active session not present",
-			clientReason: "session error",
-		}
+		return authRequiredError{internal: "active session not present"}
 	}
 
 	sessionDuration := svc.config.Session.Duration
@@ -274,10 +283,7 @@ func (svc service) validateSession(session *kolide.Session) error {
 		if err != nil {
 			return errors.Wrap(err, "destroying session")
 		}
-		return authError{
-			reason:       "expired session",
-			clientReason: "session error",
-		}
+		return authRequiredError{internal: "expired session"}
 	}
 
 	return svc.ds.MarkSessionAccessed(session)

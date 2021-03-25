@@ -149,9 +149,16 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		return
 	}
 
-	w.WriteHeader(http.StatusInternalServerError)
+	// Get specific status code if it is available from this error type,
+	// defaulting to HTTP 500
+	status := http.StatusInternalServerError
+	if e, ok := err.(ErrWithStatusCode); ok {
+		status = e.StatusCode()
+	}
+
+	w.WriteHeader(status)
 	je := jsonError{
-		Message: "Unknown Error",
+		Message: err.Error(),
 		Errors:  baseError(err.Error()),
 	}
 	enc.Encode(je)
