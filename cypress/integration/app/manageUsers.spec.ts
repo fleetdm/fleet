@@ -34,14 +34,6 @@ describe('Manage Users', () => {
       .should('not.exist');
     cy.findByText('test+2@fleetdm.com')
       .should('not.exist');
-
-    // cy.contains('button', /add new host/i)
-    //   .click();
-    //
-    // cy.contains('a', /download/i).first()
-    //   .click();
-    //
-    // cy.get('a[href*="showSecret"]').click();
   });
 
   it('Creating a user', () => {

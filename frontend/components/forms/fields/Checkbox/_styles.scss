@@ -4,11 +4,8 @@
   display: inline-block;
 
   &__input {
-    //visibility: hidden;
     opacity: 0;
     margin: 0;
-    //position: absolute;
-    //z-index: -1;
 
     &:focus + .kolide-checkbox__tick {
       &::after {
