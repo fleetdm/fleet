@@ -8,13 +8,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kit/kit/log"
-	"github.com/gorilla/mux"
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore/inmem"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/mock"
+	"github.com/go-kit/kit/log"
+	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
+	"github.com/throttled/throttled/store/memstore"
 )
 
 func TestAPIRoutes(t *testing.T) {
@@ -25,7 +26,8 @@ func TestAPIRoutes(t *testing.T) {
 	assert.Nil(t, err)
 
 	r := mux.NewRouter()
-	ke := MakeKolideServerEndpoints(svc, "CHANGEME", "")
+	limitStore, _ := memstore.New(0)
+	ke := MakeKolideServerEndpoints(svc, "CHANGEME", "", limitStore)
 	kh := makeKolideKitHandlers(ke, nil)
 	attachKolideAPIRoutes(r, kh)
 	handler := mux.NewRouter()
@@ -241,8 +243,14 @@ func TestModifyUserPermissions(t *testing.T) {
 
 	svc, err := newTestService(ms, nil, nil)
 	assert.Nil(t, err)
+	limitStore, _ := memstore.New(0)
 
-	handler := MakeHandler(svc, config.KolideConfig{Auth: config.AuthConfig{JwtKey: "CHANGEME"}}, log.NewNopLogger())
+	handler := MakeHandler(
+		svc,
+		config.KolideConfig{Auth: config.AuthConfig{JwtKey: "CHANGEME"}},
+		log.NewNopLogger(),
+		limitStore,
+	)
 
 	testCases := []struct {
 		ActingUserID      uint

@@ -9,12 +9,13 @@ import (
 	"os"
 	"testing"
 
-	kitlog "github.com/go-kit/kit/log"
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/datastore/inmem"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/test"
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/require"
+	"github.com/throttled/throttled/store/memstore"
 )
 
 type testResource struct {
@@ -54,8 +55,9 @@ func setupEndpointTest(t *testing.T) *testResource {
 	createTestUsers(t, test.ds)
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 	jwtKey := "CHANGEME"
+	limitStore, _ := memstore.New(0)
 
-	routes := MakeHandler(svc, config.KolideConfig{Auth: config.AuthConfig{JwtKey: jwtKey}}, logger)
+	routes := MakeHandler(svc, config.KolideConfig{Auth: config.AuthConfig{JwtKey: jwtKey}}, logger, limitStore)
 
 	test.server = httptest.NewServer(routes)
 
