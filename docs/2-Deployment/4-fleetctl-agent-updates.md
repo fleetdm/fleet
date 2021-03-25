@@ -22,7 +22,7 @@ By default, the current working directory is used for the TUF repository. All up
 
 ### Initialize the repository
 
-_Note: The root cryptographic key generated in this step is highly sensitive, and critical to the security of the update system. We recommend following these steps from a trusted, offline, ephemeral environment such as [Debian Live](https://www.debian.org/CD/live/) running from a USB stick. Avoid placing the root key in an online environment. Fleet will soon support the use of Hardware security modules (HSMs) to further protect the root key._
+_The root cryptographic key generated in this step is highly sensitive, and critical to the security of the update system. We recommend following these steps from a trusted, offline, ephemeral environment such as [Debian Live](https://www.debian.org/CD/live/) running from a USB stick. Avoid placing the root key in an online environment. Fleet will soon support the use of Hardware security modules (HSMs) to further protect the root key._
 
 For testing purposes it is okay to initialize the repository in an online environment. Be sure to use a clean offline environment with new keys and passphrases when deploying to production.
 
@@ -60,9 +60,13 @@ Updates are deployed first by staging the contents and metadata, then publishing
 
 #### Staging
  
-Staging targets requires access to the `target`, `snapshot`, and `timestamp` keys. Best practice is to connect the drive containing the keys while staging updates and leave the keys offline at other times.
+_Staging targets requires access to the `target`, `snapshot`, and `timestamp` keys. Best practice is to connect the drive containing the keys while staging updates and leave the keys offline at other times._
 
-Use `fleetctl updates add` to stage updates. The following commands will prompt for key passphrases if not  specified in the environment:
+Use `fleetctl updates add` to stage updates. Orbit updates the `osqueryd` binary, as well as the `orbit` binary itself. Updates are staged for each of these separately using the `--name` flag. It is not necessary to update both at the same time.
+
+The following commands will prompt for key passphrases if not specified in the environment.
+
+To stage updates for `osqueryd`:
 
 ```
 fleetctl updates add --target ./path/to/linux/osqueryd  --platform linux --name osqueryd --version 4.6.0 -t 4.6 -t 4 -t stable 
@@ -110,7 +114,7 @@ To update the timestamp metadata:
 fleetctl updates timestamp
 ```
 
-This operation requires the `snapshot` and `timestamp` keys to be available, along with the corresponding passphrases. Best practice is to keep these keys "online" in a context where they can be used to update the metadata on an interval (via `cron`, AWS Lambda, etc.). This "online" context should be on a separate host from the static file server, to prevent leaking these less sensitive (though still sensitive) keys in the event the static file server is compromised.
+_This operation requires the `snapshot` and `timestamp` keys to be available, along with the corresponding passphrases. Best practice is to keep these keys "online" in a context where they can be used to update the metadata on an interval (via `cron`, AWS Lambda, etc.). This "online" context should be on a separate host from the static file server, to prevent leaking these less sensitive (though still sensitive) keys in the event the static file server is compromised.__
 
 ### Building packages
 
