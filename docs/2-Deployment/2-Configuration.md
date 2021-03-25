@@ -548,7 +548,7 @@ The size of the node key which is negotiated with `osqueryd` clients.
 
 The identifier to use when determining uniqueness of hosts.
 
-Options are `instance` (default), `uuid`, `hostname`, or `provided`.
+Options are `provided` (default), `uuid`, `hostname`, or `instance`.
 
 This setting works in combination with the `--host_identifier` flag in osquery. In most deployments, using `instance` will be the best option. The flag defaults to `provided` -- preserving the existing behavior of Fleet's handling of host identifiers -- using the identifier provided by osquery. `instance`, `uuid`, and `hostname` correspond to the same meanings as for osquery's `--host_identifier` flag.
 
