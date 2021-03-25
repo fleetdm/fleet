@@ -4,10 +4,17 @@
   display: inline-block;
 
   &__input {
-    visibility: hidden;
+    //visibility: hidden;
+    opacity: 0;
     margin: 0;
-    position: absolute;
-    z-index: -1;
+    //position: absolute;
+    //z-index: -1;
+
+    &:focus + .kolide-checkbox__tick {
+      &::after {
+        border-color: $core-blue;
+      }
+    }
 
     &:checked + .kolide-checkbox__tick {
       &::after {
@@ -62,6 +69,6 @@
     line-height: 20px;
     letter-spacing: 0.5px;
     color: $core-dark-blue-grey;
-    padding-left: 25px;
+    padding-left: $pad-small;
   }
 }

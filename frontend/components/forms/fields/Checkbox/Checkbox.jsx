@@ -16,6 +16,7 @@ class Checkbox extends Component {
     onChange: PropTypes.func,
     value: PropTypes.bool,
     wrapperClassName: PropTypes.string,
+    testId: PropTypes.string,
   };
 
   static defaultProps = {
@@ -31,7 +32,7 @@ class Checkbox extends Component {
 
   render () {
     const { handleChange } = this;
-    const { children, className, disabled, name, value, wrapperClassName } = this.props;
+    const { children, className, disabled, name, value, wrapperClassName, testId } = this.props;
     const checkBoxClass = classnames(baseClass, className);
 
     const formFieldProps = pick(this.props, ['hint', 'label', 'error', 'name']);
@@ -52,7 +53,7 @@ class Checkbox extends Component {
             onChange={handleChange}
             type="checkbox"
           />
-          <span className={checkBoxTickClass} />
+          <span className={checkBoxTickClass} data-testid={testId} />
           <span className={`${checkBoxClass}__label`}>{children}</span>
         </label>
       </FormField>

@@ -56,5 +56,8 @@ describe('Manage Users', () => {
 
     cy.findByPlaceholderText('Email')
       .type('new-user@fleetdm.com');
+
+    cy.findByRole('checkbox', { name: 'Test Team' })
+      .click({ force: true }); // we use `force` as the checkbox button is not fully accessible yet.
   });
 });
