@@ -9,7 +9,7 @@
 }
 
 .persistent-flash {
-  @include position(fixed, 0 0 null $nav-width);
+  @include position(fixed, 0 0 null 0);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -19,10 +19,6 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
   background-color: #3d4758;
   min-width: $min-width;
-
-  @include breakpoint(smalldesk) {
-    left: $nav-tablet-width;
-  }
 
   &__content {
     flex-grow: 1;
