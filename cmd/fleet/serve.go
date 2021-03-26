@@ -35,6 +35,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
+	"github.com/throttled/throttled/store/redigostore"
 	"google.golang.org/grpc"
 )
 
@@ -249,15 +250,21 @@ the way that the Fleet server works.
 			}, fieldKeys)
 
 			svcLogger := kitlog.With(logger, "component", "service")
+
 			svc = service.NewLoggingService(svc, svcLogger)
 			svc = service.NewMetricsService(svc, requestCount, requestLatency)
 
 			httpLogger := kitlog.With(logger, "component", "http")
 
+			limiterStore, err := redigostore.New(redisPool, "ratelimit::", 0)
+			if err != nil {
+				initFatal(err, "initialize rate limit store")
+			}
+
 			var apiHandler, frontendHandler http.Handler
 			{
 				frontendHandler = prometheus.InstrumentHandler("get_frontend", service.ServeFrontend(config.Server.URLPrefix, httpLogger))
-				apiHandler = service.MakeHandler(svc, config, httpLogger)
+				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore)
 
 				setupRequired, err := service.RequireSetup(svc)
 				if err != nil {

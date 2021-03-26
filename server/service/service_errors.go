@@ -9,6 +9,8 @@ import (
 // information that should be logged in server logs but not sent to clients.
 type ErrWithInternal interface {
 	error
+	// Internal returns the error string that must only be logged internally,
+	// not returned to the client.
 	Internal() string
 }
 
@@ -16,7 +18,17 @@ type ErrWithInternal interface {
 // status when encoding.
 type ErrWithStatusCode interface {
 	error
+	// StatusCode returns the HTTP status code that should be returned.
 	StatusCode() int
+}
+
+// ErrWithRetryAfter is an interface for errors that should set a specific HTTP
+// Header Retry-After value (see
+// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After)
+type ErrWithRetryAfter interface {
+	error
+	// RetryAfter returns the number of seconds to wait before retry.
+	RetryAfter() int
 }
 
 type invalidArgumentError []invalidArgument

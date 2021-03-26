@@ -20,6 +20,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/throttled/throttled/store/memstore"
 )
 
 func TestLogin(t *testing.T) {
@@ -38,7 +39,8 @@ func TestLogin(t *testing.T) {
 		),
 	}
 	r := mux.NewRouter()
-	ke := MakeKolideServerEndpoints(svc, "CHANGEME", "")
+	limitStore, _ := memstore.New(0)
+	ke := MakeKolideServerEndpoints(svc, "CHANGEME", "", limitStore)
 	kh := makeKolideKitHandlers(ke, opts)
 	attachKolideAPIRoutes(r, kh)
 	r.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

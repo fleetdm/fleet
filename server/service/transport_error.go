@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/pkg/errors"
@@ -154,6 +155,12 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	status := http.StatusInternalServerError
 	if e, ok := err.(ErrWithStatusCode); ok {
 		status = e.StatusCode()
+	}
+
+	// See header documentation
+	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After)
+	if e, ok := err.(ErrWithRetryAfter); ok {
+		w.Header().Add("Retry-After", strconv.Itoa(e.RetryAfter()))
 	}
 
 	w.WriteHeader(status)
