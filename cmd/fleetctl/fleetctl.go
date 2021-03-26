@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"time"
 
+	eefleetctl "github.com/fleetdm/fleet/ee/fleetctl"
 	"github.com/kolide/kit/version"
 	"github.com/urfave/cli/v2"
 )
@@ -46,6 +47,7 @@ func main() {
 		userCommand(),
 		debugCommand(),
 		previewCommand(),
+		eefleetctl.UpdatesCommand(),
 	}
 
 	app.RunAndExitOnError()
