@@ -1,6 +1,6 @@
 # Get macOS disk free space percentage
 
-Displays the percentage of free space available on the primary disk partition
+Displays the percentage of free space available on the primary disk partition.
 
 ### Support
 macOS
