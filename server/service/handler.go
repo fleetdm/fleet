@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/service/middleware/ratelimit"
 	"github.com/go-kit/kit/endpoint"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -15,6 +16,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/throttled/throttled/v2"
 )
 
 // KolideEndpoints is a collection of RPC endpoints implemented by the Kolide API.
@@ -110,11 +112,18 @@ type KolideEndpoints struct {
 }
 
 // MakeKolideServerEndpoints creates the Kolide API endpoints.
-func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string) KolideEndpoints {
+func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string, limitStore throttled.GCRAStore) KolideEndpoints {
+	limiter := ratelimit.NewMiddleware(limitStore)
+
 	return KolideEndpoints{
-		Login:                makeLoginEndpoint(svc),
-		Logout:               makeLogoutEndpoint(svc),
-		ForgotPassword:       makeForgotPasswordEndpoint(svc),
+		Login: limiter.Limit(throttled.RateQuota{MaxRate: throttled.PerMin(10), MaxBurst: 9})(
+			makeLoginEndpoint(svc),
+		),
+		Logout: makeLogoutEndpoint(svc),
+		ForgotPassword: limiter.Limit(
+			throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: 9})(
+			makeForgotPasswordEndpoint(svc),
+		),
 		ResetPassword:        makeResetPasswordEndpoint(svc),
 		CreateUserWithInvite: makeCreateUserWithInviteEndpoint(svc),
 		VerifyInvite:         makeVerifyInviteEndpoint(svc),
@@ -407,21 +416,41 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 	}
 }
 
+type errorHandler struct {
+	logger kitlog.Logger
+}
+
+func (h *errorHandler) Handle(ctx context.Context, err error) {
+	// get the request path
+	path, _ := ctx.Value(kithttp.ContextKeyRequestPath).(string)
+	logger := level.Info(kitlog.With(h.logger, "path", path))
+
+	switch e := err.(type) {
+	case ratelimit.Error:
+		res := e.Result()
+		logger.Log("err", "limit exceeded", "retry_after", res.RetryAfter)
+
+	default:
+		logger.Log("err", err)
+	}
+}
+
 // MakeHandler creates an HTTP handler for the Fleet server endpoints.
-func MakeHandler(svc kolide.Service, config config.KolideConfig, logger kitlog.Logger) http.Handler {
+func MakeHandler(svc kolide.Service, config config.KolideConfig, logger kitlog.Logger, limitStore throttled.GCRAStore) http.Handler {
 	kolideAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext, // populate the request context with common fields
 			setRequestsContexts(svc, config.Auth.JwtKey),
 		),
-		kithttp.ServerErrorLogger(logger),
+		//kithttp.ServerErrorLogger(logger),
+		kithttp.ServerErrorHandler(&errorHandler{logger}),
 		kithttp.ServerErrorEncoder(encodeError),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
 		),
 	}
 
-	kolideEndpoints := MakeKolideServerEndpoints(svc, config.Auth.JwtKey, config.Server.URLPrefix)
+	kolideEndpoints := MakeKolideServerEndpoints(svc, config.Auth.JwtKey, config.Server.URLPrefix, limitStore)
 	kolideHandlers := makeKolideKitHandlers(kolideEndpoints, kolideAPIOptions)
 
 	r := mux.NewRouter()
