@@ -10,6 +10,8 @@ import {
   COPY_TEXT_ERROR,
 } from 'utilities/copy_text';
 
+import { noop } from 'lodash';
+
 import Avatar from 'components/Avatar';
 import Button from 'components/buttons/Button';
 import ChangeEmailForm from 'components/forms/ChangeEmailForm';
@@ -44,6 +46,11 @@ export class UserSettingsPage extends Component {
       new_password: PropTypes.string,
       old_password: PropTypes.string,
     }),
+  };
+
+  static defaultProps = {
+    version: {},
+    dispatch: noop,
   };
 
   constructor(props) {
@@ -360,7 +367,7 @@ export class UserSettingsPage extends Component {
 }
 
 const mapStateToProps = (state) => {
-  const version = state.version.data;
+  const { data: version } = state.version;
   const { errors, user } = state.auth;
   const { errors: userErrors } = state.entities.users;
 
