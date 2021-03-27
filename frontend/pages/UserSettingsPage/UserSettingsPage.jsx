@@ -294,7 +294,6 @@ export class UserSettingsPage extends Component {
       renderApiTokenModal,
     } = this;
     const { version, errors, user } = this.props;
-    console.log(version)
     const { pendingEmail } = this.state;
 
     if (!user) {
