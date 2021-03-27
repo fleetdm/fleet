@@ -346,6 +346,9 @@ var detailQueries = map[string]struct {
 				return nil
 			}
 
+			// Rows are ordered by traffic, so we will get the most active
+			// interface by iterating in order
+			var firstIPv4, firstIPv6 map[string]string
 			for _, row := range rows {
 				ip := net.ParseIP(row["address"])
 				if ip == nil {
@@ -357,17 +360,35 @@ var detailQueries = map[string]struct {
 					continue
 				}
 
-				// Rows are ordered by traffic, so we will get the most active
-				// interface by iterating in order
-				host.PrimaryIP = row["address"]
-				host.PrimaryMac = row["mac"]
-				return nil
+				if strings.Contains(row["address"], ":") {
+					//IPv6
+					if firstIPv6 == nil {
+						firstIPv6 = row
+					}
+				} else {
+					// IPv4
+					if firstIPv4 == nil {
+						firstIPv4 = row
+					}
+				}
 			}
 
+			var selected map[string]string
+			switch {
+			// Prefer IPv4
+			case firstIPv4 != nil:
+				selected = firstIPv4
+			// Otherwise IPv6
+			case firstIPv6 != nil:
+				selected = firstIPv6
 			// If only link-local and loopback found, still use the first
-			// interface.
-			host.PrimaryIP = rows[0]["address"]
-			host.PrimaryMac = rows[0]["mac"]
+			// interface so that we don't get an empty value.
+			default:
+				selected = rows[0]
+			}
+
+			host.PrimaryIP = selected["address"]
+			host.PrimaryMac = selected["mac"]
 			return nil
 		},
 	},

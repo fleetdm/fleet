@@ -3773,6 +3773,7 @@ The search targets endpoint returns two lists. The first list includes the possi
 - [List invites](#list-invites)
 - [Delete invite](#delete-invite)
 - [Verify invite](#verify-invite)
+- [Version](#version)
 
 The Fleet server exposes a handful of API endpoints that handle the configuration of Fleet as well as endpoints that manage invitation and enroll secret operations. All the following endpoints require prior authentication meaning you must first log in successfully before calling any of the endpoints documented below.
 
@@ -4259,6 +4260,36 @@ Changes the email specified by token.
 ```
 {
   "new_email": janedoe@example.com
+}
+```
+---
+
+### Version
+
+Get version and build information from the Fleet server.
+
+`GET /api/v1/fleet/version`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/version`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "version": "3.9.0-93-g1b67826f-dirty",
+  "branch": "version",
+  "revision": "1b67826fe4bf40b2f45ec53e01db9bf467752e74",
+  "go_version": "go1.15.7",
+  "build_date": "2021-03-27T00:28:48Z",
+  "build_user": "zwass"
 }
 ```
 ---
