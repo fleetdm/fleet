@@ -10,6 +10,8 @@ import {
   COPY_TEXT_ERROR,
 } from 'utilities/copy_text';
 
+import { noop } from 'lodash';
+
 import Avatar from 'components/Avatar';
 import Button from 'components/buttons/Button';
 import ChangeEmailForm from 'components/forms/ChangeEmailForm';
@@ -21,6 +23,7 @@ import { logoutUser, updateUser } from 'redux/nodes/auth/actions';
 import Modal from 'components/modals/Modal';
 import { renderFlash } from 'redux/nodes/notifications/actions';
 import userActions from 'redux/nodes/entities/users/actions';
+import versionActions from 'redux/nodes/version/actions';
 import userInterface from 'interfaces/user';
 import UserSettingsForm from 'components/forms/UserSettingsForm';
 
@@ -29,6 +32,10 @@ const baseClass = 'user-settings';
 export class UserSettingsPage extends Component {
   static propTypes = {
     dispatch: PropTypes.func.isRequired,
+    version: PropTypes.shape({
+      version: PropTypes.string,
+      go_version: PropTypes.string,
+    }),
     errors: PropTypes.shape({
       username: PropTypes.string,
       base: PropTypes.string,
@@ -41,6 +48,11 @@ export class UserSettingsPage extends Component {
     }),
   };
 
+  static defaultProps = {
+    version: {},
+    dispatch: noop,
+  };
+
   constructor(props) {
     super(props);
 
@@ -50,6 +62,14 @@ export class UserSettingsPage extends Component {
       showPasswordModal: false,
       updatedUser: {},
     };
+  }
+
+  componentDidMount () {
+    const { dispatch } = this.props;
+
+    dispatch(versionActions.getVersion());
+
+    return false;
   }
 
   onCancel = (evt) => {
@@ -280,7 +300,7 @@ export class UserSettingsPage extends Component {
       renderPasswordModal,
       renderApiTokenModal,
     } = this;
-    const { errors, user } = this.props;
+    const { version, errors, user } = this.props;
     const { pendingEmail } = this.state;
 
     if (!user) {
@@ -294,7 +314,7 @@ export class UserSettingsPage extends Component {
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__manage body-wrap`}>
-          <h1>Account</h1>
+          <h1>My account</h1>
           <UserSettingsForm
             formData={user}
             handleSubmit={handleSubmit}
@@ -323,7 +343,7 @@ export class UserSettingsPage extends Component {
           <Button
             onClick={onShowModal}
             disabled={ssoEnabled}
-            className={`${baseClass}__button button button--grey`}
+            className={`${baseClass}__button`}
           >
             Change password
           </Button>
@@ -332,10 +352,11 @@ export class UserSettingsPage extends Component {
           </p>
           <Button
             onClick={onShowApiTokenModal}
-            className={`${baseClass}__button button button--grey`}
+            className={`${baseClass}__button`}
           >
             Get API token
           </Button>
+          <span className={`${baseClass}__version`}>{`Fleet ${version.version} • Go ${version.go_version}`}</span>
         </div>
         {renderEmailModal()}
         {renderPasswordModal()}
@@ -346,10 +367,11 @@ export class UserSettingsPage extends Component {
 }
 
 const mapStateToProps = (state) => {
+  const { data: version } = state.version;
   const { errors, user } = state.auth;
   const { errors: userErrors } = state.entities.users;
 
-  return { errors, user, userErrors };
+  return { version, errors, user, userErrors };
 };
 
 export default connect(mapStateToProps)(UserSettingsPage);

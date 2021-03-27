@@ -14,7 +14,7 @@ const {
 } = testHelpers;
 
 describe('UserSettingsPage - component', () => {
-  const store = { auth: { user: userStub }, entities: { users: {} } };
+  const store = { auth: { user: userStub }, entities: { users: {} }, version: { data: {} } };
   const mockStore = reduxMockStore(store);
 
   it('renders a UserSettingsForm component', () => {

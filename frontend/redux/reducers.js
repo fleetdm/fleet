@@ -11,6 +11,7 @@ import notifications from './nodes/notifications/reducer';
 import osquery from './nodes/osquery/reducer';
 import persistentFlash from './nodes/persistent_flash/reducer';
 import redirectLocation from './nodes/redirectLocation/reducer';
+import version from './nodes/version/reducer';
 
 export default combineReducers({
   app,
@@ -24,4 +25,5 @@ export default combineReducers({
   persistentFlash,
   redirectLocation,
   routing: routerReducer,
+  version,
 });
