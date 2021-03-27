@@ -1,5 +1,6 @@
 .user-settings {
   display: flex;
+  align-items: stretch;
 
   h1 {
     margin: 0 0 30px;
@@ -12,7 +13,6 @@
 
   &__manage {
     flex-grow: 1;
-    align-self: flex-start;
     min-width: 542px;
   }
 
@@ -130,5 +130,12 @@
         letter-spacing: 3px;
       }
     }
+  }
+
+  &__version {
+    font-size: $xx-small;
+    text-align: center;
+    display: block;
+    margin-top: 40px;
   }
 }

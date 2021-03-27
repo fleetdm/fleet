@@ -294,7 +294,7 @@ export class UserSettingsPage extends Component {
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__manage body-wrap`}>
-          <h1>Account</h1>
+          <h1>My account</h1>
           <UserSettingsForm
             formData={user}
             handleSubmit={handleSubmit}
@@ -323,7 +323,7 @@ export class UserSettingsPage extends Component {
           <Button
             onClick={onShowModal}
             disabled={ssoEnabled}
-            className={`${baseClass}__button button button--grey`}
+            className={`${baseClass}__button`}
           >
             Change password
           </Button>
@@ -332,10 +332,11 @@ export class UserSettingsPage extends Component {
           </p>
           <Button
             onClick={onShowApiTokenModal}
-            className={`${baseClass}__button button button--grey`}
+            className={`${baseClass}__button`}
           >
             Get API token
           </Button>
+          <span className={`${baseClass}__version`}>Version: Fleet 3.7.0 • go 1.17.0</span>
         </div>
         {renderEmailModal()}
         {renderPasswordModal()}
