@@ -356,7 +356,7 @@ export class UserSettingsPage extends Component {
           >
             Get API token
           </Button>
-          <span className={`${baseClass}__version`}>{`Version: Fleet ${version.version} • Go ${version.go_version}`}</span>
+          <span className={`${baseClass}__version`}>{`Fleet ${version.version} • Go ${version.go_version}`}</span>
         </div>
         {renderEmailModal()}
         {renderPasswordModal()}
