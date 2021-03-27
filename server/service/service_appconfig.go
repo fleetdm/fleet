@@ -9,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/mail"
+	"github.com/kolide/kit/version"
 	"github.com/pkg/errors"
 )
 
@@ -255,4 +256,9 @@ func (svc service) ApplyEnrollSecretSpec(ctx context.Context, spec *kolide.Enrol
 
 func (svc service) GetEnrollSecretSpec(ctx context.Context) (*kolide.EnrollSecretSpec, error) {
 	return svc.ds.GetEnrollSecretSpec()
+}
+
+func (svc service) Version(ctx context.Context) (*version.Info, error) {
+	info := version.Version()
+	return &info, nil
 }

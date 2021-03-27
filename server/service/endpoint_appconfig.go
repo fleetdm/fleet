@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 
-	"github.com/go-kit/kit/endpoint"
 	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/go-kit/kit/endpoint"
+	"github.com/kolide/kit/version"
 )
 
 type appConfigRequest struct {
@@ -162,7 +163,7 @@ func makeApplyEnrollSecretSpecEndpoint(svc kolide.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Get Pack Specs
+// Get Enroll Secret Spec
 ////////////////////////////////////////////////////////////////////////////////
 
 type getEnrollSecretSpecResponse struct {
@@ -179,5 +180,26 @@ func makeGetEnrollSecretSpecEndpoint(svc kolide.Service) endpoint.Endpoint {
 			return getEnrollSecretSpecResponse{Err: err}, nil
 		}
 		return getEnrollSecretSpecResponse{Spec: specs}, nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Version
+////////////////////////////////////////////////////////////////////////////////
+
+type versionResponse struct {
+	*version.Info
+	Err error `json:"error,omitempty"`
+}
+
+func (r versionResponse) error() error { return r.Err }
+
+func makeVersionEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		info, err := svc.Version(ctx)
+		if err != nil {
+			return versionResponse{Err: err}, nil
+		}
+		return versionResponse{Info: info}, nil
 	}
 }
