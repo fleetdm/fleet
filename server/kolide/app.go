@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"time"
+
+	"github.com/kolide/kit/version"
 )
 
 // AppConfigStore contains method for saving and retrieving
@@ -42,6 +44,9 @@ type AppConfigService interface {
 	// For cases where the connection is self-signed, the server will attempt to
 	// connect using the InsecureSkipVerify option in tls.Config.
 	CertificateChain(ctx context.Context) (cert []byte, err error)
+
+	// Version returns version and build information.
+	Version(ctx context.Context) (*version.Info, error)
 }
 
 // SMTP settings names returned from API, these map to SMTPAuthType and

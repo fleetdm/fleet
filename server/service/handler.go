@@ -109,6 +109,7 @@ type KolideEndpoints struct {
 	ListCarves                            endpoint.Endpoint
 	GetCarve                              endpoint.Endpoint
 	GetCarveBlock                         endpoint.Endpoint
+	Version                               endpoint.Endpoint
 }
 
 // MakeKolideServerEndpoints creates the Kolide API endpoints.
@@ -210,6 +211,7 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string, lim
 		ListCarves:                            authenticatedUser(jwtKey, svc, makeListCarvesEndpoint(svc)),
 		GetCarve:                              authenticatedUser(jwtKey, svc, makeGetCarveEndpoint(svc)),
 		GetCarveBlock:                         authenticatedUser(jwtKey, svc, makeGetCarveBlockEndpoint(svc)),
+		Version:                               authenticatedUser(jwtKey, svc, makeVersionEndpoint(svc)),
 
 		// Authenticated status endpoints
 		StatusResultStore: authenticatedUser(jwtKey, svc, makeStatusResultStoreEndpoint(svc)),
@@ -318,6 +320,7 @@ type kolideHandlers struct {
 	ListCarves                            http.Handler
 	GetCarve                              http.Handler
 	GetCarveBlock                         http.Handler
+	Version                               http.Handler
 }
 
 func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *kolideHandlers {
@@ -413,6 +416,7 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		ListCarves:                            newServer(e.ListCarves, decodeListCarvesRequest),
 		GetCarve:                              newServer(e.GetCarve, decodeGetCarveRequest),
 		GetCarveBlock:                         newServer(e.GetCarveBlock, decodeGetCarveBlockRequest),
+		Version:                               newServer(e.Version, decodeNoParamsRequest),
 	}
 }
 
@@ -615,6 +619,8 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/fleet/spec/osquery_options", h.GetOsqueryOptionsSpec).Methods("GET").Name("get_osquery_options_spec")
 
 	r.Handle("/api/v1/fleet/targets", h.SearchTargets).Methods("POST").Name("search_targets")
+
+	r.Handle("/api/v1/fleet/version", h.Version).Methods("GET").Name("version")
 
 	r.Handle("/api/v1/fleet/status/result_store", h.StatusResultStore).Methods("GET").Name("status_result_store")
 	r.Handle("/api/v1/fleet/status/live_query", h.StatusLiveQuery).Methods("GET").Name("status_live_query")
