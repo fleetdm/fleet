@@ -2,6 +2,7 @@ import Base from 'kolide/base';
 import Request from 'kolide/request';
 import accountMethods from 'kolide/entities/account';
 import configMethods from 'kolide/entities/config';
+import versionMethods from 'kolide/entities/version';
 import osqueryOptionsMethods from 'kolide/entities/osquery_options';
 import hostMethods from 'kolide/entities/hosts';
 import inviteMethods from 'kolide/entities/invites';
@@ -24,6 +25,7 @@ class Kolide extends Base {
 
     this.account = accountMethods(this);
     this.config = configMethods(this);
+    this.version = versionMethods(this);
     this.osqueryOptions = osqueryOptionsMethods(this);
     this.hosts = hostMethods(this);
     this.invites = inviteMethods(this);

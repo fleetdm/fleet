@@ -1,7 +1,7 @@
 export default {
   CHANGE_PASSWORD: '/v1/fleet/change_password',
   CONFIG: '/v1/fleet/config',
-  VERSION: 'v1/fleet/version',
+  VERSION: '/v1/fleet/version',
   CONFIRM_EMAIL_CHANGE: (token) => {
     return `/v1/fleet/email/change/${token}`;
   },
