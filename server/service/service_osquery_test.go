@@ -887,7 +887,44 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 	assert.Equal(t, "192.168.1.3", host.PrimaryIP)
 	assert.Equal(t, "f4:5d:79:93:58:5b", host.PrimaryMac)
 
-	// Only local/loopback
+	// Only IPv6
+	require.NoError(t, json.Unmarshal([]byte(`
+[
+  {"address":"127.0.0.1","mac":"00:00:00:00:00:00"},
+  {"address":"::1","mac":"00:00:00:00:00:00"},
+  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00"},
+  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b"},
+  {"address":"2604:3f08:1337:9411:cbe:814f:51a6:e4e3","mac":"27:1b:aa:60:e8:0a"},
+  {"address":"3333:3f08:1337:9411:cbe:814f:51a6:e4e3","mac":"bb:1b:aa:60:e8:bb"},
+  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00"}
+]`),
+		&rows,
+	))
+
+	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
+	assert.Equal(t, "2604:3f08:1337:9411:cbe:814f:51a6:e4e3", host.PrimaryIP)
+	assert.Equal(t, "27:1b:aa:60:e8:0a", host.PrimaryMac)
+
+	// IPv6 appears before IPv4 (v4 should be prioritized)
+	require.NoError(t, json.Unmarshal([]byte(`
+[
+  {"address":"127.0.0.1","mac":"00:00:00:00:00:00"},
+  {"address":"::1","mac":"00:00:00:00:00:00"},
+  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00"},
+  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b"},
+  {"address":"2604:3f08:1337:9411:cbe:814f:51a6:e4e3","mac":"27:1b:aa:60:e8:0a"},
+  {"address":"205.111.43.79","mac":"ab:1b:aa:60:e8:0a"},
+  {"address":"205.111.44.80","mac":"bb:bb:aa:60:e8:0a"},
+  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00"}
+]`),
+		&rows,
+	))
+
+	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
+	assert.Equal(t, "205.111.43.79", host.PrimaryIP)
+	assert.Equal(t, "ab:1b:aa:60:e8:0a", host.PrimaryMac)
+
+	// Only link-local/loopback
 	require.NoError(t, json.Unmarshal([]byte(`
 [
   {"address":"127.0.0.1","mac":"00:00:00:00:00:00"},
