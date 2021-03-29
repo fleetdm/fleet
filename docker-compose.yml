@@ -33,6 +33,15 @@ services:
     ports:
       - "6379:6379"
 
+  saml_idp:
+    image: fleetdm/docker-idp:latest
+    environment:
+      SIMPLESAMLPHP_SP_ENTITY_ID: 'https://localhost:8080'
+      SIMPLESAMLPHP_SP_ASSERTION_CONSUMER_SERVICE: 'https://localhost:8080/api/v1/fleet/sso/callback'
+    ports:
+      - "9080:8080"
+      - "9443:8443"
+
   # CAdvisor container allows monitoring other containers. Useful for
   # development.
   cadvisor:
