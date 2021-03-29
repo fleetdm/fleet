@@ -1,30 +1,20 @@
-import React, { useMemo, useEffect, useRef, useCallback, useState } from 'react';
+import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { useTable, useGlobalFilter, useSortBy, useAsyncDebounce } from 'react-table';
 
 import Spinner from 'components/loaders/Spinner';
-import scrollToTop from 'utilities/scroll_to_top';
 
-const DEFAULT_PAGE_INDEX = 0;
 const DEBOUNCE_QUERY_DELAY = 300;
-const DEFAULT_RESULTS_NAME = 'results';
 
 const baseClass = 'data-table-container';
-
-const generateResultsCountText = (name = DEFAULT_RESULTS_NAME, pageIndex, itemsPerPage, resultsCount) => {
-  if (itemsPerPage === resultsCount) return `${itemsPerPage}+ ${name}`;
-
-  if (pageIndex !== 0 && (resultsCount <= itemsPerPage)) return `${itemsPerPage}+ ${name}`;
-
-  return `${resultsCount} ${name}`;
-};
 
 // This data table uses react-table for implementation. The relevant documentation of the library
 // can be found here https://react-table.tanstack.com/docs/api/useTable
 const DataTable = (props) => {
+
   const {
-    tableColumns,
-    tableData,
+    columns: tableColumns,
+    data: tableData,
     isLoading,
     defaultSortHeader,
   } = props;
@@ -116,8 +106,8 @@ const DataTable = (props) => {
 };
 
 DataTable.propTypes = {
-  tableColumns: PropTypes.arrayOf(PropTypes.object), // TODO: create proper interface for this
-  tableData: PropTypes.arrayOf(PropTypes.object), // TODO: create proper interface for this
+  columns: PropTypes.arrayOf(PropTypes.object), // TODO: create proper interface for this
+  data: PropTypes.arrayOf(PropTypes.object), // TODO: create proper interface for this
   isLoading: PropTypes.bool,
   defaultSortHeader: PropTypes.string,
   resultsName: PropTypes.string,

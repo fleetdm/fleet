@@ -24,7 +24,7 @@ import { getLabels, getHosts } from 'redux/nodes/components/ManageHostsPage/acti
 import PATHS from 'router/paths';
 import deepDifference from 'utilities/deep_difference';
 
-import HostContainer from './components/HostContainer';
+import { hostTableHeaders } from './HostTableConfig';
 
 const NEW_LABEL_HASH = '#new_label';
 const baseClass = 'manage-hosts';
@@ -50,6 +50,7 @@ export class ManageHostsPage extends PureComponent {
 
   static defaultProps = {
     loadingLabels: false,
+    hosts: [],
   };
 
   constructor (props) {
@@ -439,7 +440,7 @@ export class ManageHostsPage extends PureComponent {
               {/*  selectedLabel={selectedLabel}*/}
               {/*/>*/}
               <TableContainer
-                columns={[]}
+                columns={hostTableHeaders}
                 data={hosts}
                 isLoading={loadingHosts}
                 defaultSortHeader={'hostname'}

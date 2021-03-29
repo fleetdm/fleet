@@ -32,7 +32,7 @@ interface IHostDataColumn {
   disableSortBy?: boolean;
 }
 
-const hostDataHeaders: IHostDataColumn[] = [
+const hostTableHeaders: IHostDataColumn[] = [
   {
     title: 'Hostname',
     Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
@@ -133,4 +133,4 @@ const defaultHiddenColumns = [
   'hardware_serial',
 ];
 
-export { hostDataHeaders, defaultHiddenColumns };
+export { hostTableHeaders, defaultHiddenColumns };

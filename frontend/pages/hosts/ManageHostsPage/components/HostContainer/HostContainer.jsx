@@ -11,7 +11,7 @@ import Modal from 'components/modals/Modal';
 import RoboDogImage from '../../../../../../assets/images/robo-dog-176x144@2x.png';
 import EditColumnsIcon from '../../../../../../assets/images/icon-edit-columns-20x20@2x.png';
 
-import { hostDataHeaders, defaultHiddenColumns } from './HostTableConfig';
+import { hostTableHeaders, defaultHiddenColumns } from '../../HostTableConfig';
 
 import EditColumnsModal from '../EditColumnsModal/EditColumnsModal';
 
@@ -91,7 +91,7 @@ class HostContainer extends Component {
         className={`${baseClass}__invite-modal`}
       >
         <EditColumnsModal
-          columns={hostDataHeaders}
+          columns={hostTableHeaders}
           hiddenColumns={hiddenColumns}
           onSaveColumns={this.onSaveColumns}
           onCancelColumns={this.onCancelColumns}
@@ -146,10 +146,10 @@ class HostContainer extends Component {
         <DataTable
           selectedFilter={selectedFilter}
           searchQuery={searchQuery}
-          tableColumns={hostDataHeaders}
+          tableColumns={hostTableHeaders}
           hiddenColumns={hiddenColumns}
           pageSize={100}
-          defaultSortHeader={hostDataHeaders[0].accessor}
+          defaultSortHeader={hostTableHeaders[0].accessor}
           resultsName={'hosts'}
           fetchDataAction={getHosts}
           entity={'hosts'}

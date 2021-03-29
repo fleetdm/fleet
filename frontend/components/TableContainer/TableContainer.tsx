@@ -110,8 +110,8 @@ const TableContainer = <T, U>(props: ITableContainerProps<T, U>): JSX.Element =>
           <p>NO RESULTS</p> :
           <>
             <DataTable
-              tableColumns={columns}
-              tableData={data}
+              columns={columns}
+              data={data}
               searchQuery={searchQuery}
               pageSize={pageSize}
               defaultSortHeader={sortHeader}
