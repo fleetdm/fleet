@@ -2,11 +2,11 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 
 import labelInterface from 'interfaces/label';
-import { getHostTableData } from 'redux/nodes/components/ManageHostsPage/actions';
+import { getHosts } from 'redux/nodes/components/ManageHostsPage/actions';
 import Button from 'components/buttons/Button';
 import InputField from 'components/forms/fields/InputField';
 import KolideIcon from 'components/icons/KolideIcon';
-import DataTable from 'components/DataTable/DataTable';
+import DataTable from 'components/TableContainer/DataTable/DataTable';
 import Modal from 'components/modals/Modal';
 import RoboDogImage from '../../../../../../assets/images/robo-dog-176x144@2x.png';
 import EditColumnsIcon from '../../../../../../assets/images/icon-edit-columns-20x20@2x.png';
@@ -151,7 +151,7 @@ class HostContainer extends Component {
           pageSize={100}
           defaultSortHeader={hostDataHeaders[0].accessor}
           resultsName={'hosts'}
-          fetchDataAction={getHostTableData}
+          fetchDataAction={getHosts}
           entity={'hosts'}
           emptyComponent={EmptyHosts}
         />

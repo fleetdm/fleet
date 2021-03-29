@@ -1,8 +1,8 @@
 import React from 'react';
 
-import HeaderCell from 'components/DataTable/HeaderCell/HeaderCell';
+import HeaderCell from 'components/TableContainer/DataTable/HeaderCell/HeaderCell';
 // import StatusCell from 'components/DataTable/StatusCell/StatusCell';
-import TextCell from 'components/DataTable/TextCell/TextCell';
+import TextCell from 'components/TableContainer/DataTable/TextCell/TextCell';
 import { IUser } from 'interfaces/user';
 
 interface IHeaderProps {

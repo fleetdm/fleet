@@ -17,7 +17,7 @@ import WarningBanner from 'components/WarningBanner';
 import { updateUser } from 'redux/nodes/auth/actions';
 import userActions from 'redux/nodes/entities/users/actions';
 import userInterface from 'interfaces/user';
-import DataTable from 'components/DataTable/DataTable';
+import DataTable from 'components/TableContainer/DataTable/DataTable';
 
 import CreateUserForm from './components/CreateUserForm';
 import usersTableHeaders from './UsersTableConfig';

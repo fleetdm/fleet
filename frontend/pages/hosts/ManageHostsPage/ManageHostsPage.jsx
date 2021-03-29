@@ -3,7 +3,6 @@ import PropTypes from 'prop-types';
 import AceEditor from 'react-ace';
 import { connect } from 'react-redux';
 import { push } from 'react-router-redux';
-import { sortBy } from 'lodash';
 
 import AddHostModal from 'components/hosts/AddHostModal';
 import Button from 'components/buttons/Button';
@@ -12,16 +11,19 @@ import HostSidePanel from 'components/side_panels/HostSidePanel';
 import LabelForm from 'components/forms/LabelForm';
 import Modal from 'components/modals/Modal';
 import QuerySidePanel from 'components/side_panels/QuerySidePanel';
+import TableContainer from 'components/TableContainer';
 import labelInterface from 'interfaces/label';
+import hostInterface from 'interfaces/host';
 import osqueryTableInterface from 'interfaces/osquery_table';
 import statusLabelsInterface from 'interfaces/status_labels';
 import enrollSecretInterface from 'interfaces/enroll_secret';
 import { selectOsqueryTable } from 'redux/nodes/components/QueryPages/actions';
 import labelActions from 'redux/nodes/entities/labels/actions';
 import entityGetter from 'redux/utilities/entityGetter';
-import { getLabels } from 'redux/nodes/components/ManageHostsPage/actions';
+import { getLabels, getHosts } from 'redux/nodes/components/ManageHostsPage/actions';
 import PATHS from 'router/paths';
 import deepDifference from 'utilities/deep_difference';
+
 import HostContainer from './components/HostContainer';
 
 const NEW_LABEL_HASH = '#new_label';
@@ -42,6 +44,8 @@ export class ManageHostsPage extends PureComponent {
     selectedLabel: labelInterface,
     selectedOsqueryTable: osqueryTableInterface,
     statusLabels: statusLabelsInterface,
+    hosts: PropTypes.arrayOf(hostInterface),
+    loadingHosts: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -54,7 +58,6 @@ export class ManageHostsPage extends PureComponent {
     this.state = {
       isEditLabel: false,
       labelQueryText: '',
-      pagedHosts: [],
       showAddHostModal: false,
       selectedHost: null,
       showDeleteLabelModal: false,
@@ -63,7 +66,7 @@ export class ManageHostsPage extends PureComponent {
   }
 
   componentDidMount () {
-    const { dispatch } = this.props;
+    const { dispatch, selectedFilter } = this.props;
     dispatch(getLabels());
   }
 
@@ -98,6 +101,14 @@ export class ManageHostsPage extends PureComponent {
     toggleAddHostModal();
 
     return false;
+  }
+
+  onTableQueryChange = (queryData) => {
+    const { selectedFilter, dispatch } = this.props;
+    const { pageIndex, pageSize, searchQuery, sortHeader, sortDirection } = queryData;
+    const sortBy = [{ id: sortHeader, desc: sortDirection === 'desc' }];
+    dispatch(getHosts(pageIndex, pageSize, selectedFilter, searchQuery, sortBy));
+    console.log('table query changes', queryData);
   }
 
   onEditLabel = (formData) => {
@@ -163,8 +174,8 @@ export class ManageHostsPage extends PureComponent {
     }
   }
 
-  sortHosts = (hosts) => {
-    return sortBy(hosts, (h) => { return h.hostname; });
+  toggleEditColumnsModal = () => {
+    console.log('toggle edit column modal');
   }
 
   toggleAddHostModal = () => {
@@ -402,10 +413,12 @@ export class ManageHostsPage extends PureComponent {
       loadingLabels,
       selectedLabel,
       selectedFilter,
+      hosts,
+      loadingHosts,
     } = this.props;
     const { isEditLabel } = this.state;
 
-    const { onAddHostClick } = this;
+    const { onAddHostClick, onTableQueryChange, toggleEditColumnsModal } = this;
 
     return (
       <div className="has-sidebar">
@@ -421,9 +434,21 @@ export class ManageHostsPage extends PureComponent {
             </div>
             {selectedLabel && renderQuery()}
             <div className={`${baseClass}__list`}>
-              <HostContainer
-                selectedFilter={selectedFilter}
-                selectedLabel={selectedLabel}
+              {/*<HostContainer*/}
+              {/*  selectedFilter={selectedFilter}*/}
+              {/*  selectedLabel={selectedLabel}*/}
+              {/*/>*/}
+              <TableContainer
+                columns={[]}
+                data={hosts}
+                isLoading={loadingHosts}
+                defaultSortHeader={'hostname'}
+                defaultSortDirection={'desc'}
+                additionalQueries={JSON.stringify([selectedFilter])}
+                includesTableAction
+                onTableActionClick={toggleEditColumnsModal}
+                onQueryChange={onTableQueryChange}
+                resultsTitle={'hosts'}
               />
             </div>
           </div>
@@ -454,6 +479,8 @@ const mapStateToProps = (state, { location, params }) => {
   const { errors: labelErrors, loading: loadingLabels } = state.entities.labels;
   const enrollSecret = state.app.enrollSecret;
   const config = state.app.config;
+  const { entities: hosts } = entityGetter(state).get('hosts');
+  const { loading: loadingHosts } = state.entities.hosts;
 
   return {
     selectedFilter,
@@ -466,6 +493,8 @@ const mapStateToProps = (state, { location, params }) => {
     selectedOsqueryTable,
     statusLabels,
     config,
+    hosts,
+    loadingHosts,
   };
 };
 
