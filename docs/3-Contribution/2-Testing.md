@@ -3,6 +3,7 @@
 - [End-to-end tests](#end-to-end-tests)
 - [Email](#email)
 - [Database backup/restore](#database-backuprestore)
+- [Testing SSO](#testing-sso)
 
 ## Test suite
 
@@ -167,3 +168,36 @@ Restore:
 ```
 
 Note that a "restore" will replace the state of the development database with the state from the backup.
+
+## Testing SSO
+
+Fleet's `docker-compose` file includes a SAML identity provider (IdP) for testing SAML-based SSO locally.
+
+### Configuration
+
+Configure SSO on the Organization Settings page with the following:
+
+```
+Identity Provider Name: SimpleSAML
+Entity ID: https://localhost:8080
+Issuer URI: http://localhost:8080/simplesaml/saml2/idp/SSOService.php
+Metadata URL: http://localhost:9080/simplesaml/saml2/idp/metadata.php
+```
+
+The identity provider is configured with 2 users:
+
+```
+Username: user1
+Email: user1@example.com
+Password: user1pass
+```
+
+and
+
+```
+Username: user2
+Email: user2@example.com
+Password: user2pass
+```
+
+Use the Fleet UI to invite one of these users with the associated email. Be sure the "Enable Single Sign On" box is checked for that user. Now after accepting the invitation, you should be able to log in as that user by clicking "Sign On with SimpleSAML" on the login page.
