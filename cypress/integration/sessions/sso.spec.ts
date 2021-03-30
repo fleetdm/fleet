@@ -1,6 +1,4 @@
 describe('SSO Sessions', () => {
-  // Typically we want to use a beforeEach but not much happens in these tests
-  // so sharing some state should be okay and saves a bit of runtime.
   beforeEach(() => {
     cy.setup();
   });
