@@ -68,7 +68,6 @@ export class ManageHostsPage extends PureComponent {
       showAddHostModal: false,
       selectedHost: null,
       showDeleteLabelModal: false,
-      showHostContainerSpinner: false,
       showEditColumnsModal: false,
       hiddenColumns: storedHiddenColumns !== null ? storedHiddenColumns : defaultHiddenColumns,
     };
@@ -460,13 +459,11 @@ export class ManageHostsPage extends PureComponent {
     const { hiddenColumns } = this.state;
     const { toggleEditColumnsModal, onTableQueryChange, onEditColumnsClick } = this;
 
+    // The data has not been fetched yet.
     if (selectedFilter === undefined || selectedLabel === undefined) return null;
 
-    // if (selectedFilter === 'all-hosts' && selectedLabel.count === 0) {
-    //   return <NoHosts />;
-    // }
-
-    if (true) {
+    // Hosts have not been set up for this instance yet.
+    if (selectedFilter === 'all-hosts' && selectedLabel.count === 0) {
       return <NoHosts />;
     }
 

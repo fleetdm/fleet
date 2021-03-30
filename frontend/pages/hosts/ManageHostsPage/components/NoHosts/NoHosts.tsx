@@ -9,7 +9,7 @@ const baseClass = 'no-hosts';
 
 const NoHosts = (): JSX.Element => {
   return (
-    <div className={`${baseClass} ${baseClass}--no-hosts`}>
+    <div className={`${baseClass}`}>
       <div className={`${baseClass}--no-hosts__inner`}>
         <img src={RoboDogImage} alt="No Hosts" />
         <div>
