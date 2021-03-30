@@ -133,4 +133,10 @@ const defaultHiddenColumns = [
   'hardware_serial',
 ];
 
-export { hostTableHeaders, defaultHiddenColumns };
+const generateVisibleHostColumns = (hiddenColumns: string[]) => {
+  return hostTableHeaders.filter((column) => {
+    return !hiddenColumns.includes(column.accessor);
+  });
+};
+
+export { hostTableHeaders, defaultHiddenColumns, generateVisibleHostColumns };

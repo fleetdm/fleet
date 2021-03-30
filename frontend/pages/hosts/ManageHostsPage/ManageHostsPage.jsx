@@ -24,7 +24,10 @@ import { getLabels, getHosts } from 'redux/nodes/components/ManageHostsPage/acti
 import PATHS from 'router/paths';
 import deepDifference from 'utilities/deep_difference';
 
-import { hostTableHeaders } from './HostTableConfig';
+import { defaultHiddenColumns, hostTableHeaders, generateVisibleHostColumns } from './HostTableConfig';
+import NoHosts from './components/NoHosts';
+import EmptyHosts from './components/EmptyHosts';
+import EditColumnsModal from './components/EditColumnsModal/EditColumnsModal';
 
 const NEW_LABEL_HASH = '#new_label';
 const baseClass = 'manage-hosts';
@@ -56,6 +59,9 @@ export class ManageHostsPage extends PureComponent {
   constructor (props) {
     super(props);
 
+    // For now we persist using localstorage. May do server side persistence later.
+    const storedHiddenColumns = JSON.parse(localStorage.getItem('hostHiddenColumns'));
+
     this.state = {
       isEditLabel: false,
       labelQueryText: '',
@@ -63,11 +69,13 @@ export class ManageHostsPage extends PureComponent {
       selectedHost: null,
       showDeleteLabelModal: false,
       showHostContainerSpinner: false,
+      showEditColumnsModal: false,
+      hiddenColumns: storedHiddenColumns !== null ? storedHiddenColumns : defaultHiddenColumns,
     };
   }
 
   componentDidMount () {
-    const { dispatch, selectedFilter } = this.props;
+    const { dispatch } = this.props;
     dispatch(getLabels());
   }
 
@@ -87,6 +95,32 @@ export class ManageHostsPage extends PureComponent {
     return false;
   }
 
+  onSearchQueryChange = (newQuery) => {
+    this.setState({
+      searchQuery: newQuery,
+    });
+  }
+
+  onEditColumnsClick = () => {
+    this.setState({
+      showEditColumnsModal: true,
+    });
+  }
+
+  onCancelColumns = () => {
+    this.setState({
+      showEditColumnsModal: false,
+    });
+  }
+
+  onSaveColumns = (newHiddenColumns) => {
+    localStorage.setItem('hostHiddenColumns', JSON.stringify(newHiddenColumns));
+    this.setState({
+      hiddenColumns: newHiddenColumns,
+      showEditColumnsModal: false,
+    });
+  }
+
   onCancelAddLabel = () => {
     const { dispatch } = this.props;
 
@@ -104,12 +138,16 @@ export class ManageHostsPage extends PureComponent {
     return false;
   }
 
+  // NOTE: this is called once on the initial rendering. The initial render of
+  // the TableContainer child component.
   onTableQueryChange = (queryData) => {
     const { selectedFilter, dispatch } = this.props;
     const { pageIndex, pageSize, searchQuery, sortHeader, sortDirection } = queryData;
-    const sortBy = [{ id: sortHeader, desc: sortDirection === 'desc' }];
+    let sortBy = [];
+    if (sortHeader !== '') {
+      sortBy = [{ id: sortHeader, direction: sortDirection }];
+    }
     dispatch(getHosts(pageIndex, pageSize, selectedFilter, searchQuery, sortBy));
-    console.log('table query changes', queryData);
   }
 
   onEditLabel = (formData) => {
@@ -175,10 +213,6 @@ export class ManageHostsPage extends PureComponent {
     }
   }
 
-  toggleEditColumnsModal = () => {
-    console.log('toggle edit column modal');
-  }
-
   toggleAddHostModal = () => {
     const { showAddHostModal } = this.state;
     this.setState({ showAddHostModal: !showAddHostModal });
@@ -198,6 +232,27 @@ export class ManageHostsPage extends PureComponent {
     this.setState({ isEditLabel: !isEditLabel });
 
     return false;
+  }
+
+  renderEditColumnsModal = () => {
+    const { showEditColumnsModal, hiddenColumns } = this.state;
+
+    if (!showEditColumnsModal) return null;
+
+    return (
+      <Modal
+        title="Edit Columns"
+        onExit={() => this.setState({ showEditColumnsModal: false })}
+        className={`${baseClass}__invite-modal`}
+      >
+        <EditColumnsModal
+          columns={hostTableHeaders}
+          hiddenColumns={hiddenColumns}
+          onSaveColumns={this.onSaveColumns}
+          onCancelColumns={this.onCancelColumns}
+        />
+      </Modal>
+    );
   }
 
   renderAddHostModal = () => {
@@ -400,6 +455,34 @@ export class ManageHostsPage extends PureComponent {
     return SidePanel;
   }
 
+  renderTable = () => {
+    const { selectedFilter, selectedLabel, hosts, loadingHosts } = this.props;
+    const { hiddenColumns } = this.state;
+    const { toggleEditColumnsModal, onTableQueryChange, onEditColumnsClick } = this;
+
+    if (selectedFilter === undefined || selectedLabel === undefined) return null;
+
+    if (selectedFilter === 'all-hosts' && selectedLabel.count === 0) {
+      return <NoHosts />;
+    }
+
+    return (
+      <TableContainer
+        columns={generateVisibleHostColumns(hiddenColumns)}
+        data={hosts}
+        isLoading={loadingHosts}
+        defaultSortHeader={'hostname'}
+        defaultSortDirection={'desc'}
+        additionalQueries={JSON.stringify([selectedFilter])}
+        inputPlaceHolder={'Search hostname, UUID, serial number, or IPv4'}
+        onTableActionClick={onEditColumnsClick}
+        onQueryChange={onTableQueryChange}
+        resultsTitle={'hosts'}
+        emptyComponent={EmptyHosts}
+      />
+    );
+  }
+
   render () {
     const {
       renderForm,
@@ -408,6 +491,9 @@ export class ManageHostsPage extends PureComponent {
       renderAddHostModal,
       renderDeleteLabelModal,
       renderQuery,
+      renderTable,
+      renderEditColumnsModal,
+      onAddHostClick,
     } = this;
     const {
       isAddLabel,
@@ -418,8 +504,6 @@ export class ManageHostsPage extends PureComponent {
       loadingHosts,
     } = this.props;
     const { isEditLabel } = this.state;
-
-    const { onAddHostClick, onTableQueryChange, toggleEditColumnsModal } = this;
 
     return (
       <div className="has-sidebar">
@@ -434,29 +518,12 @@ export class ManageHostsPage extends PureComponent {
               </Button>
             </div>
             {selectedLabel && renderQuery()}
-            <div className={`${baseClass}__list`}>
-              {/*<HostContainer*/}
-              {/*  selectedFilter={selectedFilter}*/}
-              {/*  selectedLabel={selectedLabel}*/}
-              {/*/>*/}
-              <TableContainer
-                columns={hostTableHeaders}
-                data={hosts}
-                isLoading={loadingHosts}
-                defaultSortHeader={'hostname'}
-                defaultSortDirection={'desc'}
-                additionalQueries={JSON.stringify([selectedFilter])}
-                includesTableAction
-                onTableActionClick={toggleEditColumnsModal}
-                onQueryChange={onTableQueryChange}
-                resultsTitle={'hosts'}
-              />
-            </div>
+            {renderTable()}
           </div>
         }
-
         {!loadingLabels && renderSidePanel()}
         {renderAddHostModal()}
+        {renderEditColumnsModal()}
         {renderDeleteLabelModal()}
       </div>
     );
@@ -480,7 +547,11 @@ const mapStateToProps = (state, { location, params }) => {
   const { errors: labelErrors, loading: loadingLabels } = state.entities.labels;
   const enrollSecret = state.app.enrollSecret;
   const config = state.app.config;
+
+  // NOTE: good opportunity for performance optimisation here later. This currently
+  // always generates a new array of hosts, when it could memoized version of the list.
   const { entities: hosts } = entityGetter(state).get('hosts');
+
   const { loading: loadingHosts } = state.entities.hosts;
 
   return {

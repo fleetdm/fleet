@@ -1,22 +1,21 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { useTable, useGlobalFilter, useSortBy, useAsyncDebounce } from 'react-table';
+import { useTable, useSortBy } from 'react-table';
 
 import Spinner from 'components/loaders/Spinner';
-
-const DEBOUNCE_QUERY_DELAY = 300;
 
 const baseClass = 'data-table-container';
 
 // This data table uses react-table for implementation. The relevant documentation of the library
 // can be found here https://react-table.tanstack.com/docs/api/useTable
 const DataTable = (props) => {
-
   const {
     columns: tableColumns,
     data: tableData,
     isLoading,
-    defaultSortHeader,
+    sortHeader,
+    sortDirection,
+    onSort,
   } = props;
 
   // This variable is used to keep the react-table state persistent across server calls for new data.
@@ -37,30 +36,35 @@ const DataTable = (props) => {
     headerGroups,
     rows,
     prepareRow,
-    setGlobalFilter,
     state: tableState,
   } = useTable(
     {
       columns,
       data,
       initialState: {
-        sortBy: [{ id: defaultSortHeader, desc: true }],
+        sortBy: useMemo(() => {
+          return [{ id: sortHeader, desc: sortDirection === 'desc' }];
+        }, [sortHeader, sortDirection]),
       },
       disableMultiSort: true,
-      manualGlobalFilter: true,
       manualSortBy: true,
-      // autoResetSortBy: !skipPageResetRef.current,
-      // autoResetGlobalFilter: !skipPageResetRef.current,
     },
-    useGlobalFilter,
     useSortBy,
   );
-  const { globalFilter, sortBy } = tableState;
 
-  const debouncedGlobalFilter = useAsyncDebounce((value) => {
-    // skipPageResetRef.current = true;
-    setGlobalFilter(value || undefined);
-  }, DEBOUNCE_QUERY_DELAY);
+  const { sortBy } = tableState;
+
+  useEffect(() => {
+    const column = sortBy[0];
+    if (column !== undefined) {
+      if (column.id !== sortHeader || column.desc !== (sortDirection === 'desc')) {
+        onSort(column.id, column.desc);
+      }
+    } else {
+      onSort(undefined);
+    }
+  }, [sortBy, sortHeader, sortDirection]);
+
 
   return (
     <div className={baseClass}>
@@ -70,6 +74,7 @@ const DataTable = (props) => {
             <Spinner />
           </div>
         }
+        {/* TODO: can this be memoized? seems performance heavy */}
         <table className={'data-table__table'}>
           <thead>
             {headerGroups.map(headerGroup => (
@@ -109,10 +114,11 @@ DataTable.propTypes = {
   columns: PropTypes.arrayOf(PropTypes.object), // TODO: create proper interface for this
   data: PropTypes.arrayOf(PropTypes.object), // TODO: create proper interface for this
   isLoading: PropTypes.bool,
-  defaultSortHeader: PropTypes.string,
+  sortHeader: PropTypes.string,
+  sortDirection: PropTypes.string,
+  onSort: PropTypes.func,
   resultsName: PropTypes.string,
   fetchDataAction: PropTypes.func,
-  emptyComponent: PropTypes.element,
 };
 
 export default DataTable;
