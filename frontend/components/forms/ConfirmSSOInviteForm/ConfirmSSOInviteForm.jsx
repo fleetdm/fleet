@@ -37,13 +37,14 @@ class ConfirmSSOInviteForm extends Component {
           />
           <InputFieldWithIcon
             {...fields.username}
-            iconName="username"
             placeholder="Username"
           />
         </div>
-        <Button onClick={handleSubmit} type="Submit" variant="brand">
-          Submit
-        </Button>
+        <div className="confirm-invite-button-wrap">
+          <Button onClick={handleSubmit} type="Submit" variant="brand">
+            Submit
+          </Button>
+        </div>
       </form>
     );
   }

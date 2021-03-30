@@ -58,6 +58,7 @@ class LoginForm extends Component {
         className={`${baseClass}__sso-btn`}
         type="button"
         title="Single Sign On"
+        variant="inverse"
         onClick={handleSSOSignOn}
       >
         <div>
@@ -101,8 +102,8 @@ class LoginForm extends Component {
           >
             Login
           </Button>
+          { ssoEnabled && showSingleSignOnButton()}
         </div>
-        { ssoEnabled && showSingleSignOnButton()}
       </form>
     );
   }
