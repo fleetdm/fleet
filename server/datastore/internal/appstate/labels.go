@@ -47,28 +47,24 @@ func Labels2() []kolide.Label {
 			LabelType:   kolide.LabelTypeBuiltIn,
 		},
 		{
-			Platform:    "darwin",
 			Name:        "macOS",
 			Query:       "select 1 from os_version where platform = 'darwin';",
 			Description: "All macOS hosts",
 			LabelType:   kolide.LabelTypeBuiltIn,
 		},
 		{
-			Platform:    "ubuntu",
 			Name:        "Ubuntu Linux",
 			Query:       "select 1 from os_version where platform = 'ubuntu';",
 			Description: "All Ubuntu hosts",
 			LabelType:   kolide.LabelTypeBuiltIn,
 		},
 		{
-			Platform:    "centos",
 			Name:        "CentOS Linux",
 			Query:       "select 1 from os_version where platform = 'centos';",
 			Description: "All CentOS hosts",
 			LabelType:   kolide.LabelTypeBuiltIn,
 		},
 		{
-			Platform:    "windows",
 			Name:        "MS Windows",
 			Query:       "select 1 from os_version where platform = 'windows';",
 			Description: "All Windows hosts",
