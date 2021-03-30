@@ -18,7 +18,6 @@ describe('ScheduledQueriesListItem - component', () => {
     expect(component.text()).toContain(scheduledQueryStub.query_name);
     expect(component.text()).toContain(scheduledQueryStub.interval);
     expect(component.text()).toContain(scheduledQueryStub.shard);
-    expect(component.find('PlatformIcon').length).toEqual(1);
   });
 
   it('renders when the platform attribute is null', () => {
@@ -27,7 +26,6 @@ describe('ScheduledQueriesListItem - component', () => {
     expect(component.text()).toContain(scheduledQueryStub.query_name);
     expect(component.text()).toContain(scheduledQueryStub.interval);
     expect(component.text()).toContain(scheduledQueryStub.shard);
-    expect(component.find('PlatformIcon').length).toEqual(1);
   });
 
   it('renders a Checkbox component', () => {
