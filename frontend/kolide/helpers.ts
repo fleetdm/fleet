@@ -113,6 +113,7 @@ const formatLabelResponse = (response: any): {[index: string]: any} => {
     'CentOS Linux': 'platform',
     macOS: 'platform',
     'Ubuntu Linux': 'platform',
+    'Red Hat Linux': 'platform',
   };
 
   const labels = response.labels.map((label: any) => {

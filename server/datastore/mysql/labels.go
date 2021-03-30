@@ -513,7 +513,7 @@ func (d *Datastore) searchLabelsDefault(omit ...uint) ([]kolide.Label, error) {
 	WHERE id NOT IN (?)
 	GROUP BY id
 	ORDER BY label_type DESC, id ASC
-	LIMIT 5
+	LIMIT 7
 	`
 
 	var in interface{}
