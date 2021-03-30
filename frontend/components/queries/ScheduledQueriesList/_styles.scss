@@ -39,7 +39,6 @@
 
         &:nth-child(4) {
           width: 18%;
-          text-align: center;
         }
 
         &:nth-child(5) {
@@ -85,7 +84,15 @@
           color: $core-black;
         }
 
-        &:nth-child(4),
+        &:nth-child(4) {
+          font-size: 14px;
+          font-weight: $regular;
+          line-height: 2.71;
+          letter-spacing: -0.5px;
+          text-align: left;
+          color: $core-black;
+        }
+        
         &:nth-child(5),
         &:nth-child(6) {
           font-size: 14px;

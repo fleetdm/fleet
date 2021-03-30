@@ -10,16 +10,24 @@ import scheduledQueryInterface from 'interfaces/scheduled_query';
 
 const baseClass = 'scheduled-query-list-item';
 
-const generatePlatformText = (platform) => {
+const generatePlatformText = (platforms) => {
   const ALL_PLATFORMS = [
     { text: 'All', value: 'all' },
     { text: 'macOS', value: 'darwin' },
     { text: 'Windows', value: 'windows' },
     { text: 'Linux', value: 'linux' },
   ];
+  console.log(platforms)
+  if (platforms) {
+    const platformArray = platforms.split(',');
+    console.log(platformArray);
+    const textArray = platformArray.map((platform) => {
+      const text = find(ALL_PLATFORMS, { value: platform }).text;
 
-  if (platform) {
-    const displayText = find(ALL_PLATFORMS, { value: platform }).text;
+      return text;
+    });
+
+    const displayText = textArray.join(', ');
 
     return displayText;
   }
