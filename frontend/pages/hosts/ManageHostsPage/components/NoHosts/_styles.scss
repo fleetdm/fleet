@@ -1,0 +1,20 @@
+.no-hosts {
+  &__no-hosts-contact {
+    text-align: left;
+    margin-top: 24px;
+
+    p {
+      color: $core-black;
+      font-weight: $bold;
+      font-size: $x-small;
+      margin: 0;
+    }
+
+    a {
+      color: $core-blue;
+      font-weight: $regular;
+      font-size: $x-small;
+      text-decoration: none;
+    }
+  }
+}

@@ -150,7 +150,7 @@ const TableContainer = <T, U>(props: ITableContainerProps<T, U>): JSX.Element =>
           <Button
             onClick={onTableActionClick}
             variant="unstyled"
-            className={`${baseClass}__edit-columns-button`}
+            className={`${baseClass}__table-action-button`}
           >
             Edit columns
           </Button>

@@ -462,7 +462,11 @@ export class ManageHostsPage extends PureComponent {
 
     if (selectedFilter === undefined || selectedLabel === undefined) return null;
 
-    if (selectedFilter === 'all-hosts' && selectedLabel.count === 0) {
+    // if (selectedFilter === 'all-hosts' && selectedLabel.count === 0) {
+    //   return <NoHosts />;
+    // }
+
+    if (true) {
       return <NoHosts />;
     }
 
