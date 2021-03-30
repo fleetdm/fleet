@@ -12,7 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testMetadata = `
+func testMetadata() Metadata {
+	var metadata Metadata
+	if err := xml.Unmarshal([]byte(`
 <?xml version="1.0" encoding="UTF-8"?>
   <md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://kolide-dev-ed.my.salesforce.com" validUntil="2027-04-29T19:22:40.750Z" xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
       <md:IDPSSODescriptor WantAuthnRequestsSigned="false" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
@@ -28,10 +30,14 @@ var testMetadata = `
          <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://kolide-dev-ed.my.salesforce.com/idp/endpoint/HttpRedirect"/>
       </md:IDPSSODescriptor>
    </md:EntityDescriptor>
-`
+`), &metadata); err != nil {
+		panic(err)
+	}
+	return metadata
+}
 
 func TestNewValidator(t *testing.T) {
-	v, err := NewValidator(testMetadata)
+	v, err := NewValidator(testMetadata())
 	assert.Nil(t, err)
 	assert.NotNil(t, v)
 }
@@ -43,7 +49,7 @@ func TestValidate(t *testing.T) {
 	require.Nil(t, err)
 
 	clock := dsig.NewFakeClockAt(tm)
-	validator, err := NewValidator(testMetadata, Clock(clock))
+	validator, err := NewValidator(testMetadata(), Clock(clock))
 	require.Nil(t, err)
 	require.NotNil(t, validator)
 
@@ -87,7 +93,7 @@ func TestVerfiyValidTamperedWithDocFails(t *testing.T) {
 	require.Nil(t, err)
 
 	clock := dsig.NewFakeClockAt(tm)
-	validator, err := NewValidator(testMetadata, Clock(clock))
+	validator, err := NewValidator(testMetadata(), Clock(clock))
 	require.Nil(t, err)
 	require.NotNil(t, validator)
 
@@ -103,7 +109,7 @@ func TestVerfiyStaleMessageFails(t *testing.T) {
 	tm, err := time.Parse(time.UnixDate, "Sun Apr 30 22:14:00 UTC 2017")
 	require.Nil(t, err)
 	clock := dsig.NewFakeClockAt(tm)
-	validator, err := NewValidator(testMetadata, Clock(clock))
+	validator, err := NewValidator(testMetadata(), Clock(clock))
 	require.Nil(t, err)
 	require.NotNil(t, validator)
 
@@ -118,7 +124,9 @@ func TestVerfiyStaleMessageFails(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-var testGoogleMetadata = `
+func testGoogleMetadata() Metadata {
+	var metadata Metadata
+	if err := xml.Unmarshal([]byte(`
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://accounts.google.com/o/saml2?idpid=C0171bstf" validUntil="2022-07-16T20:07:43.000Z">
   <md:IDPSSODescriptor WantAuthnRequestsSigned="false" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
@@ -149,8 +157,11 @@ QyrBRp8n4UR9PjoeIy0tTCmG0tqu/NackFH4PkamY84Etxe9uH0StmkhID46QTT4Cv2+jqCaklg+
     <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://accounts.google.com/o/saml2/idp?idpid=C0171bstf"/>
   </md:IDPSSODescriptor>
 </md:EntityDescriptor>
-
-`
+`), &metadata); err != nil {
+		panic(err)
+	}
+	return metadata
+}
 
 func TestVerifyValidGoogleResponse(t *testing.T) {
 	samlResponse :=
@@ -158,7 +169,7 @@ func TestVerifyValidGoogleResponse(t *testing.T) {
 	tm, err := time.Parse(time.RFC3339, "2017-07-18T14:47:08.035Z")
 	require.Nil(t, err)
 	clock := dsig.NewFakeClockAt(tm)
-	validator, err := NewValidator(testGoogleMetadata, Clock(clock))
+	validator, err := NewValidator(testGoogleMetadata(), Clock(clock))
 	require.Nil(t, err)
 	require.NotNil(t, validator)
 	auth, err := DecodeAuthResponse(samlResponse)
@@ -183,7 +194,7 @@ func TestVerifyGoogleResponseCommentInjected(t *testing.T) {
 	tm, err := time.Parse(time.RFC3339, "2017-07-18T14:47:08.035Z")
 	require.Nil(t, err)
 	clock := dsig.NewFakeClockAt(tm)
-	validator, err := NewValidator(testGoogleMetadata, Clock(clock))
+	validator, err := NewValidator(testGoogleMetadata(), Clock(clock))
 	require.Nil(t, err)
 	require.NotNil(t, validator)
 	auth, err := DecodeAuthResponse(samlResponse)
@@ -200,7 +211,7 @@ func TestVerifyGoogleResponseDoubleColon(t *testing.T) {
 	require.Nil(t, err)
 	clock := dsig.NewFakeClockAt(tm)
 
-	validator, err := NewValidator(testGoogleMetadata, Clock(clock))
+	validator, err := NewValidator(testGoogleMetadata(), Clock(clock))
 	require.Nil(t, err)
 	require.NotNil(t, validator)
 
@@ -219,7 +230,7 @@ func TestVerifyInvalidSignatureGoogleResponse(t *testing.T) {
 	tm, err := time.Parse(time.RFC3339, "2017-07-18T14:47:08.035Z")
 	require.Nil(t, err)
 	clock := dsig.NewFakeClockAt(tm)
-	validator, err := NewValidator(testGoogleMetadata, Clock(clock))
+	validator, err := NewValidator(testGoogleMetadata(), Clock(clock))
 	require.Nil(t, err)
 	require.NotNil(t, validator)
 	auth, err := DecodeAuthResponse(samlResponse)

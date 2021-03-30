@@ -46,13 +46,14 @@ func makeGetAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 				*smtpSettings.SMTPPassword = "********"
 			}
 			ssoSettings = &kolide.SSOSettingsPayload{
-				EntityID:    &config.EntityID,
-				IssuerURI:   &config.IssuerURI,
-				IDPImageURL: &config.IDPImageURL,
-				Metadata:    &config.Metadata,
-				MetadataURL: &config.MetadataURL,
-				IDPName:     &config.IDPName,
-				EnableSSO:   &config.EnableSSO,
+				EntityID:          &config.EntityID,
+				IssuerURI:         &config.IssuerURI,
+				IDPImageURL:       &config.IDPImageURL,
+				Metadata:          &config.Metadata,
+				MetadataURL:       &config.MetadataURL,
+				IDPName:           &config.IDPName,
+				EnableSSO:         &config.EnableSSO,
+				EnableSSOIdPLogin: &config.EnableSSOIdPLogin,
 			}
 			hostExpirySettings = &kolide.HostExpirySettings{
 				HostExpiryEnabled: &config.HostExpiryEnabled,
@@ -97,13 +98,14 @@ func makeModifyAppConfigEndpoint(svc kolide.Service) endpoint.Endpoint {
 			},
 			SMTPSettings: smtpSettingsFromAppConfig(config),
 			SSOSettings: &kolide.SSOSettingsPayload{
-				EntityID:    &config.EntityID,
-				IssuerURI:   &config.IssuerURI,
-				IDPImageURL: &config.IDPImageURL,
-				Metadata:    &config.Metadata,
-				MetadataURL: &config.MetadataURL,
-				IDPName:     &config.IDPName,
-				EnableSSO:   &config.EnableSSO,
+				EntityID:          &config.EntityID,
+				IssuerURI:         &config.IssuerURI,
+				IDPImageURL:       &config.IDPImageURL,
+				Metadata:          &config.Metadata,
+				MetadataURL:       &config.MetadataURL,
+				IDPName:           &config.IDPName,
+				EnableSSO:         &config.EnableSSO,
+				EnableSSOIdPLogin: &config.EnableSSOIdPLogin,
 			},
 			HostExpirySettings: &kolide.HostExpirySettings{
 				HostExpiryEnabled: &config.HostExpiryEnabled,

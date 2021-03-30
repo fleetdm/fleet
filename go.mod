@@ -19,7 +19,7 @@ require (
 	github.com/e-dard/netbug v0.0.0-20151029172837-e64d308a0b20
 	github.com/elazarl/go-bindata-assetfs v1.0.0
 	github.com/fatih/color v1.7.0 // indirect
-	github.com/fleetdm/goose v0.0.0-20210205022138-27718647ba5b
+	github.com/fleetdm/goose v0.0.0-20210209032905-c3c01484bacb
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-kit/kit v0.9.0
 	github.com/go-sql-driver/mysql v1.5.0

@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"github.com/VividCortex/mysqlerr"
+	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
-	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/pkg/errors"
 )
 
@@ -16,7 +16,6 @@ func (d *Datastore) NewAppConfig(info *kolide.AppConfig) (*kolide.AppConfig, err
 	}
 
 	return info, nil
-
 }
 
 func (d *Datastore) AppConfig() (*kolide.AppConfig, error) {
@@ -114,6 +113,7 @@ func (d *Datastore) SaveAppConfig(info *kolide.AppConfig) error {
       metadata_url,
       idp_name,
       enable_sso,
+      enable_sso_idp_login,
       fim_interval,
       fim_file_accesses,
       host_expiry_enabled,
@@ -121,7 +121,7 @@ func (d *Datastore) SaveAppConfig(info *kolide.AppConfig) error {
       live_query_disabled,
       additional_queries
     )
-    VALUES( 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
+    VALUES( 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
     ON DUPLICATE KEY UPDATE
       org_name = VALUES(org_name),
       org_logo_url = VALUES(org_logo_url),
@@ -145,6 +145,7 @@ func (d *Datastore) SaveAppConfig(info *kolide.AppConfig) error {
       metadata_url = VALUES(metadata_url),
       idp_name = VALUES(idp_name),
       enable_sso = VALUES(enable_sso),
+      enable_sso_idp_login = VALUES(enable_sso_idp_login),
       fim_interval = VALUES(fim_interval),
       fim_file_accesses = VALUES(fim_file_accesses),
       host_expiry_enabled = VALUES(host_expiry_enabled),
@@ -176,6 +177,7 @@ func (d *Datastore) SaveAppConfig(info *kolide.AppConfig) error {
 		info.MetadataURL,
 		info.IDPName,
 		info.EnableSSO,
+		info.EnableSSOIdPLogin,
 		info.FIMInterval,
 		info.FIMFileAccesses,
 		info.HostExpiryEnabled,

@@ -139,6 +139,9 @@ func appConfigFromAppConfigPayload(p kolide.AppConfigPayload, config kolide.AppC
 		if p.SSOSettings.EnableSSO != nil {
 			config.EnableSSO = *p.SSOSettings.EnableSSO
 		}
+		if p.SSOSettings.EnableSSOIdPLogin != nil {
+			config.EnableSSOIdPLogin = *p.SSOSettings.EnableSSOIdPLogin
+		}
 		if p.SSOSettings.EntityID != nil {
 			config.EntityID = *p.SSOSettings.EntityID
 		}
