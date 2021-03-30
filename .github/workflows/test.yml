@@ -35,7 +35,7 @@ jobs:
     # Pre-starting dependencies here means they are ready to go when we need them. 
     - name: Start Infra Dependencies
       # Use & to background this
-      run: docker-compose up -d mysql_test redis mailhog &
+      run: docker-compose up -d mysql_test redis mailhog saml_idp &
       
     - name: Build Fleet
       run: |
