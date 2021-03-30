@@ -29,8 +29,8 @@ const formFields = [
   'authentication_method', 'authentication_type', 'domain', 'enable_ssl_tls', 'enable_start_tls', 'kolide_server_url',
   'org_logo_url', 'org_name', 'osquery_enroll_secret', 'password', 'port', 'sender_address',
   'server', 'user_name', 'verify_ssl_certs', 'idp_name', 'entity_id', 'issuer_uri', 'idp_image_url',
-  'metadata', 'metadata_url', 'enable_sso', 'enable_smtp', 'host_expiry_enabled', 'host_expiry_window',
-  'live_query_disabled',
+  'metadata', 'metadata_url', 'enable_sso', 'enable_sso_idp_login', 'enable_smtp', 'host_expiry_enabled',
+  'host_expiry_window', 'live_query_disabled',
 ];
 const Header = ({ showAdvancedOptions }) => {
   const CaratIcon = <KolideIcon name={showAdvancedOptions ? 'downcarat' : 'upcarat'} />;
@@ -64,6 +64,7 @@ class AppConfigForm extends Component {
       metadata_url: formFieldInterface.isRequired,
       idp_name: formFieldInterface.isRequired,
       enable_sso: formFieldInterface.isRequired,
+      enable_sso_idp_login: formFieldInterface.isRequired,
       enable_smtp: formFieldInterface.isRequired,
       host_expiry_enabled: formFieldInterface.isRequired,
       host_expiry_window: formFieldInterface.isRequired,
@@ -236,7 +237,6 @@ class AppConfigForm extends Component {
             <IconToolTip text={'The issuer URI supplied by the identity provider.'} />
           </div>
 
-
           <div className={`${baseClass}__inputs`}>
             <InputField
               {...fields.idp_image_url}
@@ -264,13 +264,20 @@ class AppConfigForm extends Component {
               label="Metadata URL"
               hint={<span>If available from the identity provider, this is the preferred means of providing metadata.</span>}
             />
-            <IconToolTip text={'A URL that references the identity provider metadata.'} />
           </div>
           <div className={`${baseClass}__details`}>
             <IconToolTip text={'A URL that references the identity provider metadata.'} />
           </div>
-        </div>
 
+          <div className={`${baseClass}__inputs`}>
+            <Checkbox
+              {...fields.enable_sso_idp_login}
+            >
+              Allow SSO login initiated by Identity Provider
+            </Checkbox>
+          </div>
+        </div>
+        
         <div className={`${baseClass}__section`}>
           <h2>
             <a id="smtp">SMTP Options <small className={`smtp-options smtp-options--${smtpConfigured ? 'configured' : 'notconfigured'}`}>STATUS: <em>{smtpConfigured ? 'CONFIGURED' : 'NOT CONFIGURED'}</em></small></a>

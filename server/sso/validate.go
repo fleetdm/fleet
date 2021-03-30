@@ -13,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/server/kolide"
 	rtvalidator "github.com/mattermost/xml-roundtrip-validator"
 	"github.com/pkg/errors"
-	gosamltypes "github.com/russellhaering/gosaml2/types"
 	dsig "github.com/russellhaering/goxmldsig"
 	"github.com/russellhaering/goxmldsig/etreeutils"
 )
@@ -26,7 +25,7 @@ type Validator interface {
 type validator struct {
 	context  *dsig.ValidationContext
 	clock    *dsig.Clock
-	metadata gosamltypes.EntityDescriptor
+	metadata Metadata
 }
 
 func Clock(clock *dsig.Clock) func(v *validator) {
@@ -37,13 +36,11 @@ func Clock(clock *dsig.Clock) func(v *validator) {
 
 // NewValidator is used to validate the response to an auth request.
 // metadata is from the IDP.
-func NewValidator(metadata string, opts ...func(v *validator)) (Validator, error) {
-	var v validator
-
-	err := xml.Unmarshal([]byte(metadata), &v.metadata)
-	if err != nil {
-		return nil, errors.Wrap(err, "unmarshalling metadata")
+func NewValidator(metadata Metadata, opts ...func(v *validator)) (Validator, error) {
+	v := validator{
+		metadata: metadata,
 	}
+
 	var idpCertStore dsig.MemoryX509CertificateStore
 	for _, key := range v.metadata.IDPSSODescriptor.KeyDescriptors {
 		if len(key.KeyInfo.X509Data.X509Certificates) == 0 {

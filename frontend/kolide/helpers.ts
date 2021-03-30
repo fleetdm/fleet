@@ -83,7 +83,7 @@ export const formatConfigDataForServer = (config: any): any => {
     'enable_smtp',
   ]);
   const ssoSettingsAttrs = pick(config, ['entity_id', 'issuer_uri', 'idp_image_url', 'metadata',
-    'metadata_url', 'idp_name', 'enable_sso',
+    'metadata_url', 'idp_name', 'enable_sso', 'enable_sso_idp_login',
   ]);
   const hostExpirySettingsAttrs = pick(config, ['host_expiry_enabled', 'host_expiry_window']);
 
