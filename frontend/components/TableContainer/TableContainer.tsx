@@ -98,7 +98,6 @@ const TableContainer = <T, U>(props: ITableContainerProps<T, U>): JSX.Element =>
     scrollToTop();
   };
 
-
   // We use useRef to keep track of the previous searchQuery value. This allows us
   // to later compare this the the current value and debounce a change handler.
   const prevSearchQueryRef = useRef(searchQuery);
@@ -118,11 +117,14 @@ const TableContainer = <T, U>(props: ITableContainerProps<T, U>): JSX.Element =>
       pageSize,
       pageIndex,
     };
+    // Something besides the pageIndex has changed; we want to set it back to 0.
     if (!hasPageIndexChangedRef.current) {
       const updateQueryData = {
         ...queryData,
         pageIndex: 0,
       };
+      // searchQuery has changed; we want to debounce calling the handler so the
+      // user can finish typing.
       if (searchQuery !== prevSearchQuery) {
         debounceOnQueryChange(updateQueryData);
       } else {

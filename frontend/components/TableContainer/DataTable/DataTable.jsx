@@ -18,11 +18,6 @@ const DataTable = (props) => {
     onSort,
   } = props;
 
-  // This variable is used to keep the react-table state persistent across server calls for new data.
-  // You can read more about this here technique here:
-  // https://react-table.tanstack.com/docs/faq#how-do-i-stop-my-table-state-from-automatically-resetting-when-my-data-changes
-  // const skipPageResetRef = useRef();
-
   const columns = useMemo(() => {
     return tableColumns;
   }, [tableColumns]);
