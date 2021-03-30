@@ -225,7 +225,7 @@ e2e-setup:
 	./build/fleetctl config set --context e2e --address https://localhost:8642
 	./build/fleetctl config set --context e2e --tls-skip-verify true
 	./build/fleetctl setup --context e2e --email=test@fleetdm.com --username=test --password=admin123# --org-name='Fleet Test'
+	./build/fleetctl user create --context e2e --username=user1 --email=user1@example.com --sso=true
 
 e2e-serve:
 	./build/fleet serve --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --auth_jwt_key=insecure --mysql_database=e2e --server_address=localhost:8642
-

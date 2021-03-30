@@ -277,7 +277,7 @@ class AppConfigForm extends Component {
             </Checkbox>
           </div>
         </div>
-        
+
         <div className={`${baseClass}__section`}>
           <h2>
             <a id="smtp">SMTP Options <small className={`smtp-options smtp-options--${smtpConfigured ? 'configured' : 'notconfigured'}`}>STATUS: <em>{smtpConfigured ? 'CONFIGURED' : 'NOT CONFIGURED'}</em></small></a>
