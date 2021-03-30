@@ -10,7 +10,7 @@ import scheduledQueryInterface from 'interfaces/scheduled_query';
 
 const baseClass = 'scheduled-query-list-item';
 
-const generatePlatformText = (inputPlatform) => {
+const generatePlatformText = (platform) => {
   const ALL_PLATFORMS = [
     { text: 'All', value: 'all' },
     { text: 'macOS', value: 'darwin' },
@@ -18,8 +18,8 @@ const generatePlatformText = (inputPlatform) => {
     { text: 'Linux', value: 'linux' },
   ];
 
-  if (inputPlatform) {
-    const displayText = find(ALL_PLATFORMS, { value: inputPlatform }).text;
+  if (platform) {
+    const displayText = find(ALL_PLATFORMS, { value: platform }).text;
 
     return displayText;
   }
