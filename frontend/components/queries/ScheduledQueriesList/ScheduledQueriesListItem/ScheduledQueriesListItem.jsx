@@ -5,11 +5,27 @@ import classnames from 'classnames';
 import Checkbox from 'components/forms/fields/Checkbox';
 import ClickableTableRow from 'components/ClickableTableRow';
 import KolideIcon from 'components/icons/KolideIcon';
-import PlatformIcon from 'components/icons/PlatformIcon';
-import { includes, isEmpty, isEqual } from 'lodash';
+import { isEqual, find } from 'lodash';
 import scheduledQueryInterface from 'interfaces/scheduled_query';
 
 const baseClass = 'scheduled-query-list-item';
+
+const generatePlatformText = (inputPlatform) => {
+  const ALL_PLATFORMS = [
+    { text: 'All', value: 'all' },
+    { text: 'macOS', value: 'darwin' },
+    { text: 'Windows', value: 'windows' },
+    { text: 'Linux', value: 'linux' },
+  ];
+
+  if (inputPlatform) {
+    const displayText = find(ALL_PLATFORMS, { value: inputPlatform }).text;
+
+    return displayText;
+  }
+
+  return '---';
+};
 
 class ScheduledQueriesListItem extends Component {
   static propTypes = {
@@ -63,21 +79,10 @@ class ScheduledQueriesListItem extends Component {
     return 'bold-plus';
   }
 
-  renderPlatformIcon = () => {
-    const { scheduledQuery: { platform } } = this.props;
-    const platformArr = platform ? platform.split(',') : [];
-
-    if (isEmpty(platformArr) || includes(platformArr, 'all')) {
-      return <PlatformIcon name="all" title="All Platforms" className={`${baseClass}__icon`} />;
-    }
-
-    return platformArr.map(pltf => <PlatformIcon name={pltf} title={pltf} className={`${baseClass}__icon`} key={pltf} />);
-  }
-
   render () {
     const { checked, disabled, isSelected, scheduledQuery } = this.props;
-    const { id, query_name: name, interval, shard, version } = scheduledQuery;
-    const { loggingTypeString, onDblClick, onCheck, onSelect, renderPlatformIcon } = this;
+    const { id, query_name: name, interval, shard, version, platform } = scheduledQuery;
+    const { loggingTypeString, onDblClick, onCheck, onSelect } = this;
     const rowClassname = classnames(baseClass, {
       [`${baseClass}--selected`]: isSelected,
     });
@@ -94,7 +99,7 @@ class ScheduledQueriesListItem extends Component {
         </td>
         <td className="scheduled-queries-list__query-name">{name}</td>
         <td>{interval}</td>
-        <td>{renderPlatformIcon()}</td>
+        <td>{generatePlatformText(platform)}</td>
         <td>{version ? `${version}+` : 'Any'}</td>
         <td>{shard}</td>
         <td><KolideIcon name={loggingTypeString()} /></td>
