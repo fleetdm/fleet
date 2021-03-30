@@ -93,7 +93,7 @@ describe('ManageHostsPage - component', () => {
       const ownProps = { location: { hash: '' }, params: {} };
       const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
       const page = mount(component);
-      expect(page.find('HostContainer').find('tbody tr').length).toEqual(2);
+      expect(page.find('TableContainer').find('tbody tr').length).toEqual(2);
     });
   });
 

@@ -17,7 +17,6 @@ import WarningBanner from 'components/WarningBanner';
 import { updateUser } from 'redux/nodes/auth/actions';
 import userActions from 'redux/nodes/entities/users/actions';
 import userInterface from 'interfaces/user';
-import DataTable from 'components/TableContainer/DataTable/DataTable';
 
 import CreateUserForm from './components/CreateUserForm';
 import usersTableHeaders from './UsersTableConfig';
@@ -270,17 +269,6 @@ export class UserManagementPage extends Component {
             <KolideIcon name="search" />
           </div>
         </div>
-        <DataTable
-          searchQuery={searchQuery}
-          tableColumns={usersTableHeaders}
-          hiddenColumns={[]}
-          pageSize={100}
-          defaultSortHeader={'name'}
-          resultsName={'rows'}
-          fetchDataAction={userActions.loadAll}
-          entity={'users'}
-          emptyComponent={() => { return null; }}
-        />
         {renderModal()}
       </div>
     );
