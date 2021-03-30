@@ -139,29 +139,31 @@ const TableContainer = <T, U>(props: ITableContainerProps<T, U>): JSX.Element =>
   return (
     <div className={wrapperClasses}>
       {/* TODO: find a way to move these controls into the table component */}
-      <div className={`${baseClass}__table-controls`}>
+      <div className={`${baseClass}__header`}>
         { data && data.length ?
           <p className={`${baseClass}__results-count`}>
             {TableContainerUtils.generateResultsCountText(resultsTitle, pageIndex, pageSize, data.length)}
           </p> :
           null
         }
-        <Button
-          onClick={onTableActionClick}
-          variant="unstyled"
-          className={`${baseClass}__edit-columns-button`}
-        >
-          Edit columns
-        </Button>
-        <div className={`${baseClass}__search-input`}>
-          <InputField
-            placeholder={inputPlaceHolder}
-            name="searchQuery"
-            onChange={onSearchQueryChange}
-            value={searchQuery}
-            inputWrapperClass={`${baseClass}__input-wrapper`}
-          />
-          <KolideIcon name="search" />
+        <div className={`${baseClass}__table-controls`}>
+          <Button
+            onClick={onTableActionClick}
+            variant="unstyled"
+            className={`${baseClass}__edit-columns-button`}
+          >
+            Edit columns
+          </Button>
+          <div className={`${baseClass}__search-input`}>
+            <InputField
+              placeholder={inputPlaceHolder}
+              name="searchQuery"
+              onChange={onSearchQueryChange}
+              value={searchQuery}
+              inputWrapperClass={`${baseClass}__input-wrapper`}
+            />
+            <KolideIcon name="search" />
+          </div>
         </div>
       </div>
       <div className={`${baseClass}__data-table-container`}>

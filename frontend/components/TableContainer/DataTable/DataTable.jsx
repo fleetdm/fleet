@@ -117,7 +117,6 @@ DataTable.propTypes = {
   sortHeader: PropTypes.string,
   sortDirection: PropTypes.string,
   onSort: PropTypes.func,
-  resultsName: PropTypes.string,
   fetchDataAction: PropTypes.func,
 };
 
