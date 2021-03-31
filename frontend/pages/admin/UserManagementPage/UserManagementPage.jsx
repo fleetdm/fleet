@@ -3,13 +3,14 @@ import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { concat, includes, difference } from 'lodash';
 import { push } from 'react-router-redux';
+import memoize from 'memoize-one';
 
 import Button from 'components/buttons/Button';
-import InputField from 'components/forms/fields/InputField';
-import KolideIcon from 'components/icons/KolideIcon';
 import configInterface from 'interfaces/config';
 import deepDifference from 'utilities/deep_difference';
+import entityGetter from 'redux/utilities/entityGetter';
 import inviteActions from 'redux/nodes/entities/invites/actions';
+import inviteInterface from 'interfaces/invite';
 import Modal from 'components/modals/Modal';
 import paths from 'router/paths';
 import { renderFlash } from 'redux/nodes/notifications/actions';
@@ -20,8 +21,15 @@ import userInterface from 'interfaces/user';
 
 import CreateUserForm from './components/CreateUserForm';
 import usersTableHeaders from './UsersTableConfig';
+import TableContainer from '../../../components/TableContainer';
 
 const baseClass = 'user-management';
+
+const EmptyUsers = () => {
+  return (
+    <p>no users</p>
+  );
+};
 
 export class UserManagementPage extends Component {
   static propTypes = {
@@ -29,10 +37,13 @@ export class UserManagementPage extends Component {
     config: configInterface,
     currentUser: userInterface,
     dispatch: PropTypes.func,
+    loadingTableData: PropTypes.bool,
+    invites: PropTypes.arrayOf(inviteInterface),
     inviteErrors: PropTypes.shape({
       base: PropTypes.string,
       email: PropTypes.string,
     }),
+    users: PropTypes.arrayOf(userInterface),
     userErrors: PropTypes.shape({
       base: PropTypes.string,
       name: PropTypes.string,
@@ -46,7 +57,6 @@ export class UserManagementPage extends Component {
     this.state = {
       showCreateUserModal: false,
       usersEditing: [],
-      searchQuery: '',
     };
   }
 
@@ -160,10 +170,17 @@ export class UserManagementPage extends Component {
     this.setState({ usersEditing: updatedUsersEditing });
   }
 
-  onSearchQueryChange = (newQuery) => {
-    this.setState({
-      searchQuery: newQuery,
-    });
+  // NOTE: this is called once on the initial rendering. The initial render of
+  // the TableContainer child component calls this handler.
+  onTableQueryChange = (queryData) => {
+    const { dispatch } = this.props;
+    const { pageIndex, pageSize, searchQuery, sortHeader, sortDirection } = queryData;
+    let sortBy = [];
+    if (sortHeader !== '') {
+      sortBy = [{ id: sortHeader, direction: sortDirection }];
+    }
+    dispatch(userActions.loadAll(pageIndex, pageSize, undefined, searchQuery, sortBy));
+    dispatch(inviteActions.loadAll());
   }
 
   goToAppConfigPage = (evt) => {
@@ -184,6 +201,10 @@ export class UserManagementPage extends Component {
 
     return false;
   }
+
+  combineUsersAndInvites = memoize(
+    (users, invites) => { return [...users, ...invites]; },
+  )
 
   renderModal = () => {
     const { currentUser, inviteErrors } = this.props;
@@ -240,35 +261,33 @@ export class UserManagementPage extends Component {
   }
 
   render () {
-    const { renderModal, renderSmtpWarning, toggleCreateUserModal, onSearchQueryChange } = this;
-    const { config } = this.props;
-    const { searchQuery } = this.state;
+    const { renderModal, renderSmtpWarning, toggleCreateUserModal, onTableQueryChange } = this;
+    const { config, loadingTableData, users, invites } = this.props;
+
+    let tableData = [];
+    if (!loadingTableData) {
+      tableData = this.combineUsersAndInvites(users, invites);
+    }
 
     return (
       <div className={`${baseClass} body-wrap`}>
         <p className={`${baseClass}__page-description`}>Create new users, customize user permissions, and remove users from Fleet.</p>
         {renderSmtpWarning()}
         {/* TODO: find a way to move these controls into the table component */}
-        <div className={`${baseClass}__table-controls`}>
-          <Button
-            className={`${baseClass}__create-user-button`}
-            disabled={!config.configured}
-            onClick={toggleCreateUserModal}
-            title={config.configured ? 'Add User' : 'Email must be configured to add users'}
-          >
-            Create user
-          </Button>
-          <div className={`${baseClass}__search-input`}>
-            <InputField
-              placeholder="Search"
-              name=""
-              onChange={onSearchQueryChange}
-              value={searchQuery}
-              inputWrapperClass={`${baseClass}__input-wrapper`}
-            />
-            <KolideIcon name="search" />
-          </div>
-        </div>
+        <TableContainer
+          columns={usersTableHeaders}
+          data={tableData}
+          isLoading={loadingTableData}
+          defaultSortHeader={'name'}
+          defaultSortDirection={'desc'}
+          inputPlaceHolder={'Search'}
+          disableActionButton={!config.configured}
+          actionButtonText={'Create User'}
+          onActionButtonClick={toggleCreateUserModal}
+          onQueryChange={onTableQueryChange}
+          resultsTitle={'rows'}
+          emptyComponent={EmptyUsers}
+        />
         {renderModal()}
       </div>
     );
@@ -276,14 +295,25 @@ export class UserManagementPage extends Component {
 }
 
 const mapStateToProps = (state) => {
+  const stateEntityGetter = entityGetter(state);
   const { config } = state.app;
   const { loading: appConfigLoading } = state.app;
   const { user: currentUser } = state.auth;
+  const { entities: users } = stateEntityGetter.get('users');
+  const { entities: invites } = stateEntityGetter.get('invites');
+  const { errors: inviteErrors, loading: loadingInvites } = state.entities.invites;
+  const { errors: userErrors, loading: loadingUsers } = state.entities.users;
+  const loadingTableData = loadingUsers || loadingInvites;
 
   return {
     appConfigLoading,
     config,
     currentUser,
+    users,
+    userErrors,
+    invites,
+    inviteErrors,
+    loadingTableData,
   };
 };
 

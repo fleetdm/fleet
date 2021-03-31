@@ -33,10 +33,12 @@ interface ITableContainerProps<T, U> {
   isLoading: boolean;
   defaultSortHeader: string;
   defaultSortDirection: string;
-  includesTableAction: boolean;
-  onTableActionClick: () => void;
+  onActionButtonClick: () => void;
+  actionButtonText: string;
   onQueryChange: (queryData: ITableQueryData) => void;
   inputPlaceHolder: string;
+  includesTableActionButton?: boolean; // will be used later to conditionally show button
+  disableActionButton?: boolean;
   resultsTitle?: string;
   additionalQueries?: string;
   emptyComponent: React.ElementType;
@@ -56,13 +58,15 @@ const TableContainer = <T, U>(props: ITableContainerProps<T, U>): JSX.Element =>
     isLoading,
     defaultSortHeader,
     defaultSortDirection,
-    onTableActionClick,
+    onActionButtonClick,
     inputPlaceHolder,
     additionalQueries,
     onQueryChange,
     resultsTitle,
     emptyComponent,
     className,
+    disableActionButton,
+    actionButtonText,
   } = props;
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -146,15 +150,16 @@ const TableContainer = <T, U>(props: ITableContainerProps<T, U>): JSX.Element =>
           <p className={`${baseClass}__results-count`}>
             {TableContainerUtils.generateResultsCountText(resultsTitle, pageIndex, pageSize, data.length)}
           </p> :
-          null
+          <p></p>
         }
         <div className={`${baseClass}__table-controls`}>
           <Button
-            onClick={onTableActionClick}
+            disabled={disableActionButton}
+            onClick={onActionButtonClick}
             variant="unstyled"
             className={`${baseClass}__table-action-button`}
           >
-            Edit columns
+            {actionButtonText}
           </Button>
           <div className={`${baseClass}__search-input`}>
             <InputField
