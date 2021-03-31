@@ -13,7 +13,7 @@ module.exports.routes = {
   //  ╦ ╦╔═╗╔╗ ╔═╗╔═╗╔═╗╔═╗╔═╗
   //  ║║║║╣ ╠╩╗╠═╝╠═╣║ ╦║╣ ╚═╗
   //  ╚╩╝╚═╝╚═╝╩  ╩ ╩╚═╝╚═╝╚═╝
-  'GET /':                   { action: 'view-homepage-or-redirect' },
+  'GET /':                   { action: 'view-homepage-or-redirect', locals: { page: 'homepage' } },
 
   '/blog':           'https://medium.com/fleetdm',
 
@@ -31,9 +31,11 @@ module.exports.routes = {
 
   '/company/about':          '/blog', // FUTURE: brief "about" page explaining the origins of the company
   '/company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
-  'GET /company/contact':    { action:   'view-contact' },
+  'GET /company/contact':    { action:   'view-contact', locals: { page: 'contact' } },
+  'GET /get-started':    { action:   'view-get-started', locals: { page: 'get-started' } },
 
   '/try-fleet': 'https://github.com/fleetdm/fleet/blob/master/README.md',
+  // '/try-fleet': '/get-started', FUTURE: uncomment this line and delete the line above to allow navigation to the get-started page
   '/documentation': 'https://github.com/fleetdm/fleet/tree/master/docs',
   '/contribute': 'https://github.com/fleetdm/fleet/tree/master/docs/3-Contribution',
   '/hall-of-fame': 'https://github.com/fleetdm/fleet/pulse',
