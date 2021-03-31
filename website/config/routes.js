@@ -35,6 +35,7 @@ module.exports.routes = {
   'GET /get-started':    { action:   'view-get-started', locals: { page: 'get-started' } },
 
   '/try-fleet': 'https://github.com/fleetdm/fleet/blob/master/README.md',
+  // '/try-fleet': '/get-started', FUTURE: uncomment this line and delete the line above to allow navigation to the get-started page
   '/documentation': 'https://github.com/fleetdm/fleet/tree/master/docs',
   '/contribute': 'https://github.com/fleetdm/fleet/tree/master/docs/3-Contribution',
   '/hall-of-fame': 'https://github.com/fleetdm/fleet/pulse',
