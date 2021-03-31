@@ -29,10 +29,7 @@
   }
 
   &__sso-btn {
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
-    padding: $pad-base;
-    height: 72px;
+    margin-top: 40px;
   }
 
   &__forgot-wrap {
@@ -49,9 +46,10 @@
 
   &__sso-image {
     vertical-align: middle;
-    height: 45px;
-    width: 45px;
-    padding-right: 10px;
+    height: 20px;
+    width: 20px;
+    margin-right: 10px;
+    border-radius: 20%;
   }
 
   &__sso-legend {
