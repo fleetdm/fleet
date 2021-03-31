@@ -17,10 +17,10 @@ const generatePlatformText = (platforms) => {
     { text: 'Windows', value: 'windows' },
     { text: 'Linux', value: 'linux' },
   ];
-  console.log(platforms)
+
   if (platforms) {
     const platformArray = platforms.split(',');
-    console.log(platformArray);
+
     const textArray = platformArray.map((platform) => {
       const text = find(ALL_PLATFORMS, { value: platform }).text;
 
