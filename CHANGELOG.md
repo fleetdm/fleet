@@ -2,17 +2,15 @@
 
 * Add `fleetctl` agent auto-updates beta which introduces the ability to self-manage an agent update server. Available for Fleet Basic customers.
 
-* Add Identity Provider-Initiated (IdP-initiated) Single Sign-On (SSO).
+* Add option for Identity Provider-Initiated (IdP-initiated) Single Sign-On (SSO).
 
 * Improve logging. All errors are logged regardless of log level, some non-errors are logged regardless of log level (agent enrollments, runs of live queries etc.), and all other non-errors are logged on debug level.
 
 * Improve login resilience by adding rate-limiting to login and password reset attempts and preventing user enumeration.
 
-* Add Fleet version and Go version to the Fleet UI.
+* Add Fleet version and Go version in the My Account page of the Fleet UI.
 
 * Improvements to `fleetctl preview` that ensure the latest version of Fleet is fired up on every run. In addition, the Fleet UI is now accessible without having to click through browser security warning messages.
-
-* Fix an issue that prevented built-in operating system labels from refreshing.
 
 ## Fleet 3.9.0 (Mar 9, 2021)
 
