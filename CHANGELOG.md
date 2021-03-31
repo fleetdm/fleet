@@ -12,6 +12,8 @@
 
 * Improvements to `fleetctl preview` that ensure the latest version of Fleet is fired up on every run. In addition, the Fleet UI is now accessible without having to click through browser security warning messages.
 
+* Prefer storing IPv4 addresses for host details.
+
 ## Fleet 3.9.0 (Mar 9, 2021)
 
 * Add configurable host identifier to help with duplicate host enrollment scenarios. By default, Fleet's behavior does not change (it uses the identifier configured in osquery's `--host_identifier` flag), but for users with overlapping host UUIDs changing `--osquery_host_identifier` to `instance` may be helpful. 
