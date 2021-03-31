@@ -23,7 +23,7 @@ nodeSelector: {}
 # ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
 tolerations: []
 
-# Anti-affinity to disallow deploying client and master nodes on the same worker node
+# Configurable affinity for pod assignment
 affinity:
   podAntiAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
