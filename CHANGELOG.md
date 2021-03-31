@@ -1,3 +1,19 @@
+## Fleet 3.10.0 (Mar 31, 2021)
+
+* Add `fleetctl` agent auto-updates beta which introduces the ability to self-manage an agent update server.
+
+* Add Identity Provider-Initiated (IdP-initiated) Single Sign-On (SSO).
+
+* Improve logging. All errors are logged regardless of log level, some non-errors are logged regardless of log level (agent enrollments, runs of live queries etc.), and all other non-errors are logged on debug level.
+
+* Improve login resilience by adding rate-limiting to login and password reset attempts and preventing user enumeration.
+
+* Add Fleet version and Go version to the Fleet UI.
+
+* Improvements to `fleetctl preview` that ensure the latest version of Fleet is fired up on every run. In addition, the Fleet UI is now accessible without having to click through browser security warning messages.
+
+* Fix an issue that prevented built-in operating system labels from refreshing.
+
 ## Fleet 3.9.0 (Mar 9, 2021)
 
 * Add configurable host identifier to help with duplicate host enrollment scenarios. By default, Fleet's behavior does not change (it uses the identifier configured in osquery's `--host_identifier` flag), but for users with overlapping host UUIDs changing `--osquery_host_identifier` to `instance` may be helpful. 
