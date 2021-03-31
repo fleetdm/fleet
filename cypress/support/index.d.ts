@@ -20,6 +20,9 @@ declare namespace Cypress {
 
     /**
      * Custom command to setup the SMTP configuration for this testing environment.
+     *
+     * NOTE: login() command is required before this, as it will make authenticated
+     * requests to set up SMTP
      */
     setupSMTP(): Chainable<Element>;
 

@@ -33,7 +33,6 @@ class Checkbox extends Component {
     const { handleChange } = this;
     const { children, className, disabled, name, value, wrapperClassName } = this.props;
     const checkBoxClass = classnames(baseClass, className);
-
     const formFieldProps = pick(this.props, ['hint', 'label', 'error', 'name']);
 
     const checkBoxTickClass = classnames(`${checkBoxClass}__tick`, {

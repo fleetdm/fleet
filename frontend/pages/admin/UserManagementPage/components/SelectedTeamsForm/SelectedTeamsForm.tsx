@@ -110,6 +110,7 @@ const SelectedTeamsForm = (props: ISelectedTeamsFormProps): JSX.Element => {
                 value={isChecked}
                 name={name}
                 onChange={(newValue: boolean) => updateSelectedTeams(teamItem.id, newValue, 'checkbox')}
+                testId={`${name}-checkbox`}
               >
                 {name}
               </Checkbox>
@@ -119,6 +120,7 @@ const SelectedTeamsForm = (props: ISelectedTeamsFormProps): JSX.Element => {
                 options={roles}
                 searchable={false}
                 onChange={(newValue: string) => updateSelectedTeams(teamItem.id, newValue, 'dropdown')}
+                testId={`${name}-checkbox`}
               />
             </div>
           );

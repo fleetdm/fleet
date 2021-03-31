@@ -28,11 +28,6 @@ enum UserTeamType {
 const globalUserRoles = [
   {
     disabled: false,
-    label: 'admin',
-    value: 'admin',
-  },
-  {
-    disabled: false,
     label: 'observer',
     value: 'observer',
   },
@@ -40,6 +35,11 @@ const globalUserRoles = [
     disabled: false,
     label: 'maintainer',
     value: 'maintainer',
+  },
+  {
+    disabled: false,
+    label: 'admin',
+    value: 'admin',
   },
 ];
 
@@ -216,7 +216,7 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
         </InfoBanner>
         <p className={`${baseClass}__label`}>Role</p>
         <Dropdown
-          value={global_role || 'admin'}
+          value={global_role || 'observer'}
           className={`${baseClass}__global-role-dropdown`}
           options={globalUserRoles}
           searchable={false}
