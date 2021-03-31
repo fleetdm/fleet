@@ -4,9 +4,9 @@ kind: Ingress
 metadata:
 {{- if or .Values.ingressAnnotations .Values.gke.useGKEIngress }}
   annotations:
-  {{- with .Values.ingressAnnotations }}
-  {{ toYaml . | trim | indent 2 }}
-  {{- end }}
+{{- range $key, $value := $.Values.ingressAnnotations }}
+    {{ $key }}: {{ $value | quote }}
+{{- end }}
   {{- if .Values.gke.ingress.useGKEIngress }}
     kubernetes.io/ingress.class: gce
     {{- if .Values.gke.ingress.useManagedCertificate }}

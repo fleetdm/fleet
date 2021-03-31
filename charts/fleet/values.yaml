@@ -15,6 +15,28 @@ resources:
     cpu: 0.1 # 100Mhz
     memory: 50Mi
 
+# Node labels for pod assignment
+# ref: https://kubernetes.io/docs/user-guide/node-selection/
+nodeSelector: {}
+
+# Tolerations for pod assignment
+# ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+tolerations: []
+
+# Configurable affinity for pod assignment
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app
+            operator: In
+            values:
+            - fleet
+        topologyKey: kubernetes.io/hostname
+      weight: 100
+
 ## Section: Fleet
 # All of the settings relating to configuring the Fleet server
 fleet:
