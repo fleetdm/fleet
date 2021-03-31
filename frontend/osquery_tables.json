@@ -1624,7 +1624,7 @@
       {
         "name":"last_execution_time",
         "description":"Most recent time application was executed.",
-        "type":"integer",
+        "type":"bigint",
         "hidden":false,
         "required":false,
         "index":false
@@ -2637,6 +2637,14 @@
         "index":false
       },
       {
+        "name":"request_id",
+        "description":"Identifying value of the carve request (e.g., scheduled query name, distributed request, etc)",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
         "name":"carve",
         "description":"Set this value to '1' to start a file carve",
         "type":"integer",
@@ -3017,6 +3025,14 @@
     "cacheable":false,
     "columns":[
       {
+        "name":"browser_type",
+        "description":"The browser type (Valid values: chrome, chromium, opera, yandex, brave)",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
         "name":"uid",
         "description":"The local user that owns the extension",
         "type":"bigint",
@@ -3055,12 +3071,36 @@
         "hidden":false,
         "required":false,
         "index":false
+      },
+      {
+        "name":"profile_path",
+        "description":"The profile path",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"path",
+        "description":"Path to extension folder",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"referenced",
+        "description":"1 if this extension is referenced by the Preferences file of the profile",
+        "type":"bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
       }
     ]
   },
   {
     "name":"chrome_extensions",
-    "description":"Chrome browser extensions.",
+    "description":"Chrome-based browser extensions.",
     "url":"https://github.com/osquery/osquery/blob/master/specs/chrome_extensions.table",
     "platforms":[
       "darwin",
@@ -3071,6 +3111,14 @@
     "evented":false,
     "cacheable":false,
     "columns":[
+      {
+        "name":"browser_type",
+        "description":"The browser type (Valid values: chrome, chromium, opera, yandex, brave, edge, edge_beta)",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
       {
         "name":"uid",
         "description":"The local user that owns the extension",
@@ -3089,7 +3137,15 @@
       },
       {
         "name":"profile",
-        "description":"The Chrome profile that contains this extension",
+        "description":"The name of the Chrome profile that contains this extension",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"profile_path",
+        "description":"The profile path",
         "type":"text",
         "hidden":false,
         "required":false,
@@ -3097,7 +3153,7 @@
       },
       {
         "name":"identifier",
-        "description":"Extension identifier",
+        "description":"Extension identifier (folder name)",
         "type":"text",
         "hidden":false,
         "required":false,
@@ -3120,8 +3176,16 @@
         "index":false
       },
       {
-        "name":"locale",
+        "name":"default_locale",
         "description":"Default locale supported by extension",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"current_locale",
+        "description":"Current locale supported by extension",
         "type":"text",
         "hidden":false,
         "required":false,
@@ -3168,10 +3232,82 @@
         "index":false
       },
       {
+        "name":"permissions_json",
+        "description":"The JSON-encoded permissions required by the extension",
+        "type":"text",
+        "hidden":true,
+        "required":false,
+        "index":false
+      },
+      {
         "name":"optional_permissions",
         "description":"The permissions optionally required by the extensions",
         "type":"text",
         "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"optional_permissions_json",
+        "description":"The JSON-encoded permissions optionally required by the extensions",
+        "type":"text",
+        "hidden":true,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"manifest_hash",
+        "description":"The SHA256 hash of the manifest.json file",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"referenced",
+        "description":"1 if this extension is referenced by the Preferences file of the profile",
+        "type":"bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"from_webstore",
+        "description":"True if this extension was installed from the web store",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"state",
+        "description":"1 if this extension is enabled",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"install_time",
+        "description":"Extension install time, in its original Webkit format",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"install_timestamp",
+        "description":"Extension install time, converted to unix time",
+        "type":"bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"manifest_json",
+        "description":"The manifest file of the extension",
+        "type":"text",
+        "hidden":true,
         "required":false,
         "index":false
       }
@@ -4699,8 +4835,16 @@
         "index":false
       },
       {
+        "name":"encryption_status",
+        "description":"Disk encryption status with one of following values: encrypted | not encrypted | undefined",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
         "name":"uid",
-        "description":"Currently authenticated user if available (Apple)",
+        "description":"Currently authenticated user if available",
         "type":"text",
         "hidden":false,
         "required":false,
@@ -4708,15 +4852,15 @@
       },
       {
         "name":"user_uuid",
-        "description":"UUID of authenticated user if available (Apple)",
+        "description":"UUID of authenticated user if available",
         "type":"text",
         "hidden":false,
         "required":false,
         "index":false
       },
       {
-        "name":"encryption_status",
-        "description":"Disk encryption status with one of following values: encrypted | not encrypted | undefined",
+        "name":"filevault_status",
+        "description":"FileVault status with one of following values: on | off | unknown",
         "type":"text",
         "hidden":false,
         "required":false,
@@ -5467,7 +5611,7 @@
       },
       {
         "name":"wired_size",
-        "description":"Bytes of unpagable memory used by process",
+        "description":"Bytes of unpageable memory used by process",
         "type":"bigint",
         "hidden":false,
         "required":false,
@@ -5968,6 +6112,67 @@
         "description":"UTS namespace",
         "type":"text",
         "hidden":true,
+        "required":false,
+        "index":false
+      }
+    ]
+  },
+  {
+    "name":"docker_image_history",
+    "description":"Docker image history information.",
+    "url":"https://github.com/osquery/osquery/blob/master/specs/posix/docker_image_history.table",
+    "platforms":[
+      "darwin",
+      "linux"
+    ],
+    "evented":false,
+    "cacheable":false,
+    "columns":[
+      {
+        "name":"id",
+        "description":"Image ID",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"created",
+        "description":"Time of creation as UNIX time",
+        "type":"bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"size",
+        "description":"Size of instruction in bytes",
+        "type":"bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"created_by",
+        "description":"Created by instruction",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"tags",
+        "description":"Comma-separated list of tags",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"comment",
+        "description":"Instruction comment",
+        "type":"text",
+        "hidden":false,
         "required":false,
         "index":false
       }
@@ -6761,12 +6966,12 @@
   {
     "name":"ec2_instance_metadata",
     "description":"EC2 instance metadata.",
-    "url":"https://github.com/osquery/osquery/blob/master/specs/linwin/ec2_instance_metadata.table",
+    "url":"https://github.com/osquery/osquery/blob/master/specs/ec2_instance_metadata.table",
     "platforms":[
       "darwin",
       "linux",
-      "freebsd",
-      "windows"
+      "windows",
+      "freebsd"
     ],
     "evented":false,
     "cacheable":true,
@@ -6888,12 +7093,12 @@
   {
     "name":"ec2_instance_tags",
     "description":"EC2 instance tag key value pairs.",
-    "url":"https://github.com/osquery/osquery/blob/master/specs/linwin/ec2_instance_tags.table",
+    "url":"https://github.com/osquery/osquery/blob/master/specs/ec2_instance_tags.table",
     "platforms":[
       "darwin",
       "linux",
-      "freebsd",
-      "windows"
+      "windows",
+      "freebsd"
     ],
     "evented":false,
     "cacheable":true,
@@ -10979,6 +11184,26 @@
     ]
   },
   {
+    "name":"location_services",
+    "description":"Reports the status of the Location Services feature of the OS.",
+    "url":"https://github.com/osquery/osquery/blob/master/specs/darwin/location_services.table",
+    "platforms":[
+      "darwin"
+    ],
+    "evented":false,
+    "cacheable":false,
+    "columns":[
+      {
+        "name":"enabled",
+        "description":"1 if Location Services are enabled, else 0",
+        "type":"integer",
+        "hidden":false,
+        "required":false,
+        "index":false
+      }
+    ]
+  },
+  {
     "name":"logged_in_users",
     "description":"Users with an active shell on the system.",
     "url":"https://github.com/osquery/osquery/blob/master/specs/logged_in_users.table",
@@ -11026,7 +11251,7 @@
       {
         "name":"time",
         "description":"Time entry was made",
-        "type":"integer",
+        "type":"bigint",
         "hidden":false,
         "required":false,
         "index":false
@@ -11942,7 +12167,7 @@
       },
       {
         "name":"space_used",
-        "description":"Storgae space used in bytes",
+        "description":"Storage space used in bytes",
         "type":"bigint",
         "hidden":false,
         "required":false,
@@ -13685,12 +13910,9 @@
   {
     "name":"office_mru",
     "description":"View recently opened Office documents.",
-    "url":"https://github.com/osquery/osquery/blob/master/specs/office_mru.table",
+    "url":"https://github.com/osquery/osquery/blob/master/specs/windows/office_mru.table",
     "platforms":[
-      "darwin",
-      "linux",
-      "windows",
-      "freebsd"
+      "windows"
     ],
     "evented":false,
     "cacheable":false,
@@ -13722,7 +13944,7 @@
       {
         "name":"last_opened_time",
         "description":"Most recent opened time file was opened",
-        "type":"integer",
+        "type":"bigint",
         "hidden":false,
         "required":false,
         "index":false
@@ -13730,99 +13952,6 @@
       {
         "name":"sid",
         "description":"User SID",
-        "type":"text",
-        "hidden":false,
-        "required":false,
-        "index":false
-      }
-    ]
-  },
-  {
-    "name":"opera_extensions",
-    "description":"Opera browser extensions.",
-    "url":"https://github.com/osquery/osquery/blob/master/specs/posix/opera_extensions.table",
-    "platforms":[
-      "darwin",
-      "linux"
-    ],
-    "evented":false,
-    "cacheable":false,
-    "columns":[
-      {
-        "name":"uid",
-        "description":"The local user that owns the extension",
-        "type":"bigint",
-        "hidden":false,
-        "required":false,
-        "index":false
-      },
-      {
-        "name":"name",
-        "description":"Extension display name",
-        "type":"text",
-        "hidden":false,
-        "required":false,
-        "index":false
-      },
-      {
-        "name":"identifier",
-        "description":"Extension identifier",
-        "type":"text",
-        "hidden":false,
-        "required":false,
-        "index":false
-      },
-      {
-        "name":"version",
-        "description":"Extension-supplied version",
-        "type":"text",
-        "hidden":false,
-        "required":false,
-        "index":false
-      },
-      {
-        "name":"description",
-        "description":"Extension-optional description",
-        "type":"text",
-        "hidden":false,
-        "required":false,
-        "index":false
-      },
-      {
-        "name":"locale",
-        "description":"Default locale supported by extension",
-        "type":"text",
-        "hidden":false,
-        "required":false,
-        "index":false
-      },
-      {
-        "name":"update_url",
-        "description":"Extension-supplied update URI",
-        "type":"text",
-        "hidden":false,
-        "required":false,
-        "index":false
-      },
-      {
-        "name":"author",
-        "description":"Optional extension author",
-        "type":"text",
-        "hidden":false,
-        "required":false,
-        "index":false
-      },
-      {
-        "name":"persistent",
-        "description":"1 If extension is persistent across all tabs else 0",
-        "type":"integer",
-        "hidden":false,
-        "required":false,
-        "index":false
-      },
-      {
-        "name":"path",
-        "description":"Path to extension folder",
         "type":"text",
         "hidden":false,
         "required":false,
@@ -14067,7 +14196,7 @@
       },
       {
         "name":"path",
-        "description":"Path of the extenion's domain socket or library path",
+        "description":"Path of the extension's Thrift connection or library path",
         "type":"text",
         "hidden":false,
         "required":false,
@@ -16547,7 +16676,7 @@
       },
       {
         "name":"wired_size",
-        "description":"Bytes of unpagable memory used by process",
+        "description":"Bytes of unpageable memory used by process",
         "type":"bigint",
         "hidden":false,
         "required":false,
@@ -17603,7 +17732,7 @@
       {
         "name":"last_run_time",
         "description":"Timestamp the task last ran",
-        "type":"integer",
+        "type":"bigint",
         "hidden":false,
         "required":false,
         "index":false
@@ -17611,7 +17740,7 @@
       {
         "name":"next_run_time",
         "description":"Timestamp the task is scheduled to run next",
-        "type":"integer",
+        "type":"bigint",
         "hidden":false,
         "required":false,
         "index":false
@@ -18301,6 +18430,82 @@
         "name":"history_file",
         "description":"Path to the .*_history for this user",
         "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      }
+    ]
+  },
+  {
+    "name":"shellbags",
+    "description":"Shows directories accessed via Windows Explorer.",
+    "url":"https://github.com/osquery/osquery/blob/master/specs/windows/shellbags.table",
+    "platforms":[
+      "windows"
+    ],
+    "evented":false,
+    "cacheable":false,
+    "columns":[
+      {
+        "name":"sid",
+        "description":"User SID",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"source",
+        "description":"Shellbags source Registry file",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"path",
+        "description":"Directory name.",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"modified_time",
+        "description":"Directory Modified time.",
+        "type":"bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"created_time",
+        "description":"Directory Created time.",
+        "type":"bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"accessed_time",
+        "description":"Directory Accessed time.",
+        "type":"bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"mft_entry",
+        "description":"Directory master file table entry.",
+        "type":"bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"mft_sequence",
+        "description":"Directory master file table sequence.",
+        "type":"integer",
         "hidden":false,
         "required":false,
         "index":false
@@ -19268,6 +19473,82 @@
     ]
   },
   {
+    "name":"system_extensions",
+    "description":"macOS (>= 10.15) system extension table.",
+    "url":"https://github.com/osquery/osquery/blob/master/specs/darwin/system_extensions.table",
+    "platforms":[
+      "darwin"
+    ],
+    "evented":false,
+    "cacheable":false,
+    "columns":[
+      {
+        "name":"path",
+        "description":"Original path of system extension",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"UUID",
+        "description":"Extension unique id",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"state",
+        "description":"System extension state",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"identifier",
+        "description":"Identifier name",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"version",
+        "description":"System extension version",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"category",
+        "description":"System extension category",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"bundle_path",
+        "description":"System extension bundle path",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"team",
+        "description":"Signing team ID",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      }
+    ]
+  },
+  {
     "name":"system_info",
     "description":"System information for identification.",
     "url":"https://github.com/osquery/osquery/blob/master/specs/system_info.table",
@@ -19427,6 +19708,122 @@
       {
         "name":"local_hostname",
         "description":"Local hostname (optional)",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      }
+    ]
+  },
+  {
+    "name":"systemd_units",
+    "description":"Track systemd units.",
+    "url":"https://github.com/osquery/osquery/blob/master/specs/linux/systemd_units.table",
+    "platforms":[
+      "linux"
+    ],
+    "evented":false,
+    "cacheable":false,
+    "columns":[
+      {
+        "name":"id",
+        "description":"Unique unit identifier",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"description",
+        "description":"Unit description",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"load_state",
+        "description":"Reflects whether the unit definition was properly loaded",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"active_state",
+        "description":"The high-level unit activation state, i.e. generalization of SUB",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"sub_state",
+        "description":"The low-level unit activation state, values depend on unit type",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"following",
+        "description":"The name of another unit that this unit follows in state",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"object_path",
+        "description":"The object path for this unit",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"job_id",
+        "description":"Next queued job id",
+        "type":"bigint",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"job_type",
+        "description":"Job type",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"job_path",
+        "description":"The object path for the job",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"fragment_path",
+        "description":"The unit file path this unit was read from, if there is any",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"user",
+        "description":"The configured user, if any",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"source_path",
+        "description":"Path to the (possibly generated) unit configuration file",
         "type":"text",
         "hidden":false,
         "required":false,
@@ -20122,7 +20519,7 @@
       {
         "name":"last_execution_time",
         "description":"Most recent time application was executed.",
-        "type":"integer",
+        "type":"bigint",
         "hidden":false,
         "required":false,
         "index":false
@@ -20292,7 +20689,7 @@
       },
       {
         "name":"manufacturer",
-        "description":"The manufaturer of the gpu.",
+        "description":"The manufacturer of the gpu.",
         "type":"text",
         "hidden":false,
         "required":false,
@@ -21103,6 +21500,14 @@
         "index":false
       },
       {
+        "name":"computer_name",
+        "description":"Hostname of system where event was generated",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
         "name":"eventid",
         "description":"Event ID of the event",
         "type":"integer",
@@ -21213,6 +21618,14 @@
       {
         "name":"provider_guid",
         "description":"Provider guid of the event",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"computer_name",
+        "description":"Hostname of system where event was generated",
         "type":"text",
         "hidden":false,
         "required":false,
@@ -21997,6 +22410,93 @@
         "description":"Event ID",
         "type":"text",
         "hidden":true,
+        "required":false,
+        "index":false
+      }
+    ]
+  },
+  {
+    "name":"ycloud_instance_metadata",
+    "description":"Yandex.Cloud instance metadata.",
+    "url":"https://github.com/osquery/osquery/blob/master/specs/ycloud_instance_metadata.table",
+    "platforms":[
+      "darwin",
+      "linux",
+      "windows",
+      "freebsd"
+    ],
+    "evented":false,
+    "cacheable":true,
+    "columns":[
+      {
+        "name":"instance_id",
+        "description":"Unique identifier for the VM",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"folder_id",
+        "description":"Folder identifier for the VM",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"name",
+        "description":"Name of the VM",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"description",
+        "description":"Description of the VM",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"hostname",
+        "description":"Hostname of the VM",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"zone",
+        "description":"Availability zone of the VM",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"ssh_public_key",
+        "description":"SSH public key. Only available if supplied at instance launch time",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"serial_port_enabled",
+        "description":"Indicates if serial port is enabled for the VM",
+        "type":"text",
+        "hidden":false,
+        "required":false,
+        "index":false
+      },
+      {
+        "name":"metadata_endpoint",
+        "description":"Endpoint used to fetch VM metadata",
+        "type":"text",
+        "hidden":false,
         "required":false,
         "index":false
       }
