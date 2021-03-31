@@ -1,6 +1,6 @@
 ## Fleet 3.10.0 (Mar 31, 2021)
 
-* Add `fleetctl` agent auto-updates beta which introduces the ability to self-manage an agent update server.
+* Add `fleetctl` agent auto-updates beta which introduces the ability to self-manage an agent update server. Available for Fleet Basic customers.
 
 * Add Identity Provider-Initiated (IdP-initiated) Single Sign-On (SSO).
 
