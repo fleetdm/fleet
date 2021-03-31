@@ -8,8 +8,8 @@ interface IStatusCellProps {
 const StatusCell = (props: IStatusCellProps): JSX.Element => {
   const { value } = props;
   const statusClassName = classnames(
-    'hosts-table__status',
-    `hosts-table__status--${value}`,
+    'data-table__status',
+    `data-table__status--${value}`,
   );
 
   return (
