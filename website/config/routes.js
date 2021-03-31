@@ -33,6 +33,7 @@ module.exports.routes = {
   '/company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
   'GET /company/contact':    { action:   'view-contact', locals: { page: 'contact' } },
   'GET /get-started':    { action:   'view-get-started', locals: { page: 'get-started' } },
+  'GET /pricing':    { action:   'view-pricing', locals: { page: 'pricing' } },
 
   '/try-fleet': 'https://github.com/fleetdm/fleet/blob/master/README.md',
   // '/try-fleet': '/get-started', FUTURE: uncomment this line and delete the line above to allow navigation to the get-started page

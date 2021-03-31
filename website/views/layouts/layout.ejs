@@ -46,7 +46,6 @@
     <link rel="stylesheet" href="/dependencies/fontawesome.css">
     <link rel="stylesheet" href="/styles/importer.css">
     <link rel="stylesheet" href="/styles/mixins-and-variables/typography.css">
-    <link rel="stylesheet" href="/styles/pages/get-started.css">
     <!--STYLES END-->
   </head>
   <body>
@@ -54,11 +53,15 @@
       <% /* The homepage-header on the homepage has unique styles and images */ %>
       <% if (page === 'homepage') { %>
       <div style="max-width: 1440px" class="homepage-header container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-4 px-sm-5" purpose="page-header">
-        <img alt="Fleet logo" src="/images/logo-white-162x92@2x.png" style="height: 92px; width: 162px;"/>
+        <a href="/">
+          <img alt="Fleet logo" src="/images/logo-white-162x92@2x.png" style="height: 92px; width: 162px;"/>
+        </a>
       <% /* The header on all pages other than the homepage have the same images and styles  */ %>
       <% } else { %>
       <div style="max-width: 1440px" class="header container-fluid d-flex justify-content-between align-items-center px-4 px-sm-5" purpose="page-header">
-        <img alt="Fleet logo" src="/images/logo-blue-162x92@2x.png" style="height: 92px; width: 162px;"/>
+        <a href="/">
+          <img alt="Fleet logo" src="/images/logo-blue-162x92@2x.png" style="height: 92px; width: 162px;"/>
+        </a>
       <% } %>
         <div class="d-flex d-lg-none">
           <button style="font-size: 16px; text-decoration: none;" class="header-btn btn btn-link d-flex align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">

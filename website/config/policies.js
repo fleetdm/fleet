@@ -19,6 +19,7 @@ module.exports.policies = {
   'view-faq': true,
   'view-contact': true,
   'view-get-started': true,
+  'view-pricing': true,
   'legal/view-terms': true,
   'legal/view-privacy': true,
   'deliver-contact-form-message': true,
