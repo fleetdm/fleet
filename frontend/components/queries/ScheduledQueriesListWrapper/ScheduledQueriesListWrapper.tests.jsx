@@ -14,6 +14,7 @@ const defaultProps = {
   onRemoveScheduledQueries: noop,
   onScheduledQueryFormSubmit: noop,
   onSelectScheduledQuery: noop,
+  onDblClickScheduledQuery: noop,
   scheduledQueries,
 };
 

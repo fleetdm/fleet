@@ -8,8 +8,8 @@ export default PropTypes.shape({
   platform: PropTypes.string,
   query: PropTypes.string.isRequired,
   query_id: PropTypes.number.isRequired,
-  removed: PropTypes.bool.isRequired,
-  snapshot: PropTypes.bool.isRequired,
+  removed: PropTypes.bool,
+  snapshot: PropTypes.bool,
 });
 
 export interface IScheduledQuery {

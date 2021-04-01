@@ -9,6 +9,7 @@ const defaultProps = {
   checked: false,
   onCheck: noop,
   onSelect: noop,
+  onDblClick: noop,
   scheduledQuery: scheduledQueryStub,
 };
 
