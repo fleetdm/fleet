@@ -13,7 +13,7 @@ import nock from 'nock';
 
 nock.disableNetConnect();
 
-nock.emitter.on('NOCK NO MATCH', req => {console.log('no match: ', req)})
+nock.emitter.on('no match', (req) => { console.log('NOCK NO MATCH ', req); });
 
 // nock.emitter.on('request', (req, interceptor) => {
 //   console.error('interceptor matched request: ', req, interceptor)
