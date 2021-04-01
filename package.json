@@ -17,7 +17,6 @@
     "brace": "0.11.1",
     "classnames": "2.2.5",
     "core-js": "3",
-    "enzyme": "^3",
     "es6-object-assign": "1.1.0",
     "es6-promise": "4.2.4",
     "expect": "1.20.2",
@@ -28,7 +27,6 @@
     "isomorphic-fetch": "2.2.1",
     "js-md5": "0.7.3",
     "js-yaml": "3",
-    "jsdom": "9.12.0",
     "lodash": "^4.17.15",
     "memoize-one": "^5",
     "moment": "2.22.2",
@@ -40,7 +38,7 @@
     "prop-types": "^15.0.0",
     "proxy-middleware": "0.15.0",
     "rc-pagination": "1.16.3",
-    "react": "^16",
+    "react": "^16.8.6",
     "react-ace": "^6.3.2",
     "react-dom": "^16",
     "react-entity-getter": "0.0.8",
@@ -161,7 +159,8 @@
     "babel-loader": "^8.2.1",
     "css-loader": "0.28.11",
     "cypress": "^6.6.0",
-    "enzyme-adapter-react-16": "^1.7.1",
+    "enzyme": "^3.11.0",
+    "enzyme-adapter-react-16": "^1.15.6",
     "eslint": "^7.20.0",
     "eslint-config-airbnb": "^15",
     "eslint-import-resolver-webpack": "0.10.0",
@@ -177,6 +176,8 @@
     "identity-obj-proxy": "^3.0.0",
     "ignore-styles": "5.0.1",
     "jest": "^26.6.3",
+    "jest-environment-jsdom-sixteen": "^1.0.3",
+    "jsdom": "^16.5.2",
     "json-loader": "0.5.7",
     "mini-css-extract-plugin": "^0.7.0",
     "raw-loader": "0.5.1",
@@ -186,6 +187,7 @@
     "source-map-loader": "0.2.3",
     "stacktrace-parser": "^0.1.10",
     "style-loader": "0.21.0",
+    "trace-unhandled": "^2.0.1",
     "ts-loader": "^6.0.4",
     "ts-node": "1.7.3",
     "tslint": "5.10.0",
@@ -218,6 +220,10 @@
     "setupFilesAfterEnv": [
       "<rootDir>/test/envSetup.js"
     ],
+    "setupFiles": [
+      "trace-unhandled/register"
+    ],
+    "testEnvironment": "jest-environment-jsdom-sixteen",
     "clearMocks": true,
     "testURL": "http://localhost:8080"
   },

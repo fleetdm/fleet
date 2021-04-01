@@ -10,10 +10,18 @@ const scheduledQueries = [
   { ...scheduledQueryStub, id: 2 },
 ];
 
+const defaultProps = {
+  onCheckAllQueries: noop,
+  onCheckQuery: noop,
+  onDblClickQuery: noop,
+  checkedScheduledQueryIDs: [],
+};
+
 describe('ScheduledQueriesList - component', () => {
   it('renders a ScheduledQueriesListItem for each scheduled query', () => {
     const component = mount(
       <ScheduledQueriesList
+        {...defaultProps}
         allQueries={[]}
         onHidePackForm={noop}
         onSelectQuery={noop}
@@ -30,6 +38,7 @@ describe('ScheduledQueriesList - component', () => {
     () => {
       const component = mount(
         <ScheduledQueriesList
+          {...defaultProps}
           allQueries={[]}
           isScheduledQueriesAvailable
           onHidePackForm={noop}
