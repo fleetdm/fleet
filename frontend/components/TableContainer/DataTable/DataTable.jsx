@@ -42,7 +42,7 @@ const DataTable = (props) => {
         }, [sortHeader, sortDirection]),
       },
       disableMultiSort: true,
-      manualSortBy: true,
+      // manualSortBy: true,
     },
     useSortBy,
   );

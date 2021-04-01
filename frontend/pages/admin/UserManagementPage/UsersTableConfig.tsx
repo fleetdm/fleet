@@ -43,46 +43,52 @@ interface ITableData {
   actions: IDropdownOption[]
 }
 
-const usersTableHeaders: IDataColumn[] = [
-  {
-    title: 'Name',
-    Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
-    accessor: 'name',
-    Cell: cellProps => <TextCell value={cellProps.cell.value} />,
-  },
-  // TODO: need to add this info to API
-  {
-    title: 'Status',
-    Header: 'Status',
-    accessor: 'status',
-    Cell: cellProps => <StatusCell value={cellProps.cell.value} />,
-  },
-  {
-    title: 'Email',
-    Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
-    accessor: 'email',
-    Cell: cellProps => <TextCell value={cellProps.cell.value} />,
-  },
-  {
-    title: 'Teams',
-    Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
-    accessor: 'teams',
-    Cell: cellProps => <TextCell value={cellProps.cell.value} />,
-  },
-  {
-    title: 'Roles',
-    Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
-    accessor: 'roles',
-    Cell: cellProps => <TextCell value={cellProps.cell.value} />,
-  },
-  // TODO: figure out this column accessor
-  {
-    title: 'Actions',
-    Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
-    accessor: 'actions',
-    Cell: cellProps => <DropdownCell options={cellProps.cell.value} onChange={a => console.log(a)} placeholder={'Actions'} />,
-  },
-];
+const generateTableHeaders = (actionSelectHandler: () => void): IDataColumn[] => {
+  return [
+    {
+      title: 'Name',
+      Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
+      accessor: 'name',
+      Cell: cellProps => <TextCell value={cellProps.cell.value} />,
+    },
+    // TODO: need to add this info to API
+    {
+      title: 'Status',
+      Header: 'Status',
+      disableSortBy: true,
+      accessor: 'status',
+      Cell: cellProps => <StatusCell value={cellProps.cell.value} />,
+    },
+    {
+      title: 'Email',
+      Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
+      accessor: 'email',
+      Cell: cellProps => <TextCell value={cellProps.cell.value} />,
+    },
+    {
+      title: 'Teams',
+      Header: cellProps => <HeaderCell value={cellProps.column.title} />,
+      accessor: 'teams',
+      disableSortBy: true,
+      Cell: cellProps => <TextCell value={cellProps.cell.value} />,
+    },
+    {
+      title: 'Roles',
+      Header: cellProps => <HeaderCell value={cellProps.column.title} />,
+      accessor: 'roles',
+      disableSortBy: true,
+      Cell: cellProps => <TextCell value={cellProps.cell.value} />,
+    },
+    // TODO: figure out this column accessor
+    {
+      title: 'Actions',
+      Header: 'Actions',
+      disableSortBy: true,
+      accessor: 'actions',
+      Cell: cellProps => <DropdownCell options={cellProps.cell.value} onChange={actionSelectHandler} placeholder={'Actions'} />,
+    },
+  ];
+};
 
 // TODO: need to rethink status data.
 const generateStatus = (type: string, data: IUser | IInvite): string => {
@@ -173,8 +179,8 @@ const enhanceInviteData = (invites: IInvite[], currentUserId: number): ITableDat
   });
 };
 
-const combineDataSets = (users: IUser[], invites: IInvite[], currentUserId: number, onActionSelect: () => void): ITableData[] => {
+const combineDataSets = (users: IUser[], invites: IInvite[], currentUserId: number): ITableData[] => {
   return [...enhanceUserData(users, currentUserId), ...enhanceInviteData(invites, currentUserId)];
 };
 
-export { usersTableHeaders, combineDataSets };
+export { generateTableHeaders, combineDataSets };

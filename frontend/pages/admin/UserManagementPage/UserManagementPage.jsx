@@ -6,22 +6,23 @@ import { push } from 'react-router-redux';
 import memoize from 'memoize-one';
 
 import Button from 'components/buttons/Button';
-import configInterface from 'interfaces/config';
+import TableContainer from 'components/TableContainer';
+import Modal from 'components/modals/Modal';
+import WarningBanner from 'components/WarningBanner';
 import deepDifference from 'utilities/deep_difference';
+import inviteInterface from 'interfaces/invite';
+import configInterface from 'interfaces/config';
+import userInterface from 'interfaces/user';
+import paths from 'router/paths';
 import entityGetter from 'redux/utilities/entityGetter';
 import inviteActions from 'redux/nodes/entities/invites/actions';
-import inviteInterface from 'interfaces/invite';
-import Modal from 'components/modals/Modal';
-import paths from 'router/paths';
 import { renderFlash } from 'redux/nodes/notifications/actions';
-import WarningBanner from 'components/WarningBanner';
 import { updateUser } from 'redux/nodes/auth/actions';
 import userActions from 'redux/nodes/entities/users/actions';
-import userInterface from 'interfaces/user';
+
 
 import CreateUserForm from './components/CreateUserForm';
-import { usersTableHeaders, combineDataSets } from './UsersTableConfig';
-import TableContainer from '../../../components/TableContainer';
+import { generateTableHeaders, combineDataSets } from './UsersTableConfig';
 
 const baseClass = 'user-management';
 
@@ -58,6 +59,8 @@ export class UserManagementPage extends Component {
       showCreateUserModal: false,
       usersEditing: [],
     };
+
+    this.tableHeaders = generateTableHeaders(this.onActionSelect);
   }
 
   onUserActionSelect = (user, action) => {
@@ -267,7 +270,7 @@ export class UserManagementPage extends Component {
   }
 
   render () {
-    const { renderModal, renderSmtpWarning, toggleCreateUserModal, onTableQueryChange, onActionSelect } = this;
+    const { tableHeaders, renderModal, renderSmtpWarning, toggleCreateUserModal, onTableQueryChange, onActionSelect } = this;
     const { config, loadingTableData, users, invites, currentUser } = this.props;
 
     let tableData = [];
@@ -283,7 +286,7 @@ export class UserManagementPage extends Component {
         {renderSmtpWarning()}
         {/* TODO: find a way to move these controls into the table component */}
         <TableContainer
-          columns={usersTableHeaders}
+          columns={tableHeaders}
           data={tableData}
           isLoading={loadingTableData}
           defaultSortHeader={'name'}
@@ -308,7 +311,10 @@ const mapStateToProps = (state) => {
   const { loading: appConfigLoading } = state.app;
   const { user: currentUser } = state.auth;
   const { entities: users } = stateEntityGetter.get('users');
-  const { entities: invites } = stateEntityGetter.get('invites');
+  // const { entities: invites } = stateEntityGetter.get('invites');
+  const invites = [{
+    name: 'Gabriel Fernandez', email: 'gabriel+fev@fleetdm.com', id: 100, teams: [{ name: 'test team', role: 'admin' }], global_role: null,
+  }];
   const { errors: inviteErrors, loading: loadingInvites } = state.entities.invites;
   const { errors: userErrors, loading: loadingUsers } = state.entities.users;
   const loadingTableData = loadingUsers || loadingInvites;

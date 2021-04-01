@@ -50,12 +50,26 @@
     td {
       padding: 0 30px;
       white-space: nowrap;
+
+      .form-field {
+        margin: 0;
+      }
     }
 
     .user-row__actions {
       padding: 4px 30px;
       width: 120px;
       float: right;
+    }
+
+    .Select-control {
+      background-color: $white;
+      border: none;
+    }
+
+    .Select-menu-outer {
+      position: absolute;
+      z-index: 100;
     }
   }
 
