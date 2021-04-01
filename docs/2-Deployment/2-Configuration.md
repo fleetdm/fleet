@@ -699,6 +699,23 @@ Whether or not to enable debug logging.
 		debug: true
 	```
 
+###### `logging_level`
+
+Specify the level of logs to be output. Valid values are:
+* `error`
+* `warn`
+* `info`
+* `debug`
+
+- Default value: `info`
+- Environment variable: `FLEET_LOGGING_LEVEL`
+- Config file format:
+
+        ```
+        logging:
+                level: error
+        ```
+
 ###### `logging_json`
 
 Whether or not to log in JSON.

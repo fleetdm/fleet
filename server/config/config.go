@@ -94,6 +94,7 @@ type OsqueryConfig struct {
 // LoggingConfig defines configs related to logging
 type LoggingConfig struct {
 	Debug         bool
+	Level         string
 	JSON          bool
 	DisableBanner bool `yaml:"disable_banner"`
 }
@@ -276,6 +277,8 @@ func (man Manager) addConfigs() {
 	// Logging
 	man.addConfigBool("logging.debug", false,
 		"Enable debug logging")
+	man.addConfigString("logging.level", "info",
+		"Syslog level to log at")
 	man.addConfigBool("logging.json", false,
 		"Log in JSON format")
 	man.addConfigBool("logging.disable_banner", false,
@@ -424,6 +427,7 @@ func (man Manager) LoadConfig() KolideConfig {
 		},
 		Logging: LoggingConfig{
 			Debug:         man.getConfigBool("logging.debug"),
+			Level:         man.getConfigString("logging.level"),
 			JSON:          man.getConfigBool("logging.json"),
 			DisableBanner: man.getConfigBool("logging.disable_banner"),
 		},
@@ -693,6 +697,7 @@ func TestConfig() KolideConfig {
 		},
 		Logging: LoggingConfig{
 			Debug:         true,
+			Level:         "debug",
 			DisableBanner: true,
 		},
 		Filesystem: FilesystemConfig{

@@ -79,31 +79,48 @@ the way that the Fleet server works.
 				} else {
 					logger = kitlog.NewLogfmtLogger(output)
 				}
+
+				// Logs without any level default to info
+				logger = level.NewInjector(logger, level.InfoValue())
+
 				if config.Logging.Debug {
 					logger = level.NewFilter(logger, level.AllowDebug())
 				} else {
-					logger = level.NewFilter(logger, level.AllowInfo())
+					switch l := strings.ToLower(config.Logging.Level); l {
+					case "error":
+						logger = level.NewFilter(logger, level.AllowError())
+					case "warn":
+						logger = level.NewFilter(logger, level.AllowWarn())
+					case "debug":
+						logger = level.NewFilter(logger, level.AllowDebug())
+					default:
+						level.Error(logger).Log(
+							"msg", "unsupported level for logging.level; Defaulting to info level",
+						)
+						logger = level.NewFilter(logger, level.AllowInfo())
+					}
 				}
+
 				logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
 			}
 
 			// Check for deprecated config options.
 			if config.Osquery.StatusLogFile != "" {
-				level.Info(logger).Log(
+				level.Error(logger).Log(
 					"DEPRECATED", "use filesystem.status_log_file.",
 					"msg", "using osquery.status_log_file value for filesystem.status_log_file",
 				)
 				config.Filesystem.StatusLogFile = config.Osquery.StatusLogFile
 			}
 			if config.Osquery.ResultLogFile != "" {
-				level.Info(logger).Log(
+				level.Error(logger).Log(
 					"DEPRECATED", "use filesystem.result_log_file.",
 					"msg", "using osquery.result_log_file value for filesystem.result_log_file",
 				)
 				config.Filesystem.ResultLogFile = config.Osquery.ResultLogFile
 			}
 			if config.Osquery.EnableLogRotation != false {
-				level.Info(logger).Log(
+				level.Error(logger).Log(
 					"DEPRECATED", "use filesystem.enable_log_rotation.",
 					"msg", "using osquery.enable_log_rotation value for filesystem.result_log_file",
 				)
