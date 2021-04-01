@@ -1,7 +1,7 @@
 import React, { Component, FormEvent } from 'react';
 
 import { IUser } from 'interfaces/user';
-import ITeam from 'interfaces/team';
+import { ITeam } from 'interfaces/team';
 import Button from 'components/buttons/Button';
 import validatePresence from 'components/forms/validators/validate_presence';
 import validEmail from 'components/forms/validators/valid_email';

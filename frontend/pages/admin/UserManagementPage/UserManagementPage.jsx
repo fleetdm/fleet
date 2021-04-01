@@ -20,7 +20,7 @@ import userActions from 'redux/nodes/entities/users/actions';
 import userInterface from 'interfaces/user';
 
 import CreateUserForm from './components/CreateUserForm';
-import usersTableHeaders from './UsersTableConfig';
+import { usersTableHeaders, combineDataSets } from './UsersTableConfig';
 import TableContainer from '../../../components/TableContainer';
 
 const baseClass = 'user-management';
@@ -183,6 +183,10 @@ export class UserManagementPage extends Component {
     dispatch(inviteActions.loadAll());
   }
 
+  onActionSelect = () => {
+    console.log('action selected');
+  }
+
   goToAppConfigPage = (evt) => {
     evt.preventDefault();
 
@@ -203,7 +207,9 @@ export class UserManagementPage extends Component {
   }
 
   combineUsersAndInvites = memoize(
-    (users, invites) => { return [...users, ...invites]; },
+    (users, invites, currentUserId, onActionSelect) => {
+      return combineDataSets(users, invites, currentUserId, onActionSelect);
+    },
   )
 
   renderModal = () => {
@@ -261,13 +267,15 @@ export class UserManagementPage extends Component {
   }
 
   render () {
-    const { renderModal, renderSmtpWarning, toggleCreateUserModal, onTableQueryChange } = this;
-    const { config, loadingTableData, users, invites } = this.props;
+    const { renderModal, renderSmtpWarning, toggleCreateUserModal, onTableQueryChange, onActionSelect } = this;
+    const { config, loadingTableData, users, invites, currentUser } = this.props;
 
     let tableData = [];
     if (!loadingTableData) {
-      tableData = this.combineUsersAndInvites(users, invites);
+      tableData = this.combineUsersAndInvites(users, invites, currentUser.id, onActionSelect);
     }
+
+    console.log(tableData);
 
     return (
       <div className={`${baseClass} body-wrap`}>
