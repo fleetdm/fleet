@@ -128,6 +128,7 @@ type UserPayload struct {
 	InviteToken              *string     `json:"invite_token,omitempty"`
 	SSOInvite                *bool       `json:"sso_invite,omitempty"`
 	SSOEnabled               *bool       `json:"sso_enabled,omitempty"`
+	GlobalRole               *string     `json:"global_role,omitempty"`
 	AdminForcedPasswordReset *bool       `json:"admin_forced_password_reset,omitempty"`
 	Teams                    *[]UserTeam `json:"teams,omitempty"`
 }

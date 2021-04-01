@@ -21,6 +21,8 @@ func (svc service) CreateUserWithInvite(ctx context.Context, p kolide.UserPayloa
 
 	// set the payload Admin property based on an existing invite.
 	p.Admin = &invite.Admin
+	p.GlobalRole = invite.GlobalRole
+	p.Teams = &invite.Teams
 
 	user, err := svc.newUser(p)
 	if err != nil {

@@ -8,14 +8,24 @@ import (
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/guregu/null.v3"
 )
 
 func testCreateInvite(t *testing.T, ds kolide.Datastore) {
+	for i := 0; i < 3; i++ {
+		_, err := ds.NewTeam(&kolide.Team{Name: fmt.Sprintf("%d", i)})
+		require.NoError(t, err)
+	}
+
 	invite := &kolide.Invite{
 
 		Email: "user@foo.com",
 		Name:  "user",
 		Token: "some_user",
+		Teams: []kolide.UserTeam{
+			{Role: "observer", Team: kolide.Team{ID: 1}},
+			{Role: "maintainer", Team: kolide.Team{ID: 3}},
+		},
 	}
 
 	invite, err := ds.NewInvite(invite)
@@ -25,16 +35,17 @@ func testCreateInvite(t *testing.T, ds kolide.Datastore) {
 	require.Nil(t, err)
 	assert.Equal(t, invite.ID, verify.ID)
 	assert.Equal(t, invite.Email, verify.Email)
+	assert.Len(t, invite.Teams, 2)
 }
 
 func setupTestInvites(t *testing.T, ds kolide.Datastore) {
-
 	var err error
 	admin := &kolide.Invite{
-		Email: "admin@foo.com",
-		Admin: true,
-		Name:  "Xadmin",
-		Token: "admin",
+		Email:      "admin@foo.com",
+		Admin:      true,
+		Name:       "Xadmin",
+		Token:      "admin",
+		GlobalRole: null.StringFrom("admin"),
 	}
 
 	admin, err = ds.NewInvite(admin)
@@ -42,11 +53,12 @@ func setupTestInvites(t *testing.T, ds kolide.Datastore) {
 
 	for user := 0; user < 23; user++ {
 		i := kolide.Invite{
-			InvitedBy: admin.ID,
-			Email:     fmt.Sprintf("user%d@foo.com", user),
-			Admin:     false,
-			Name:      fmt.Sprintf("User%02d", user),
-			Token:     fmt.Sprintf("usertoken%d", user),
+			InvitedBy:  admin.ID,
+			Email:      fmt.Sprintf("user%d@foo.com", user),
+			Admin:      false,
+			Name:       fmt.Sprintf("User%02d", user),
+			Token:      fmt.Sprintf("usertoken%d", user),
+			GlobalRole: null.StringFrom("observer"),
 		}
 
 		_, err := ds.NewInvite(&i)
@@ -56,12 +68,6 @@ func setupTestInvites(t *testing.T, ds kolide.Datastore) {
 }
 
 func testListInvites(t *testing.T, ds kolide.Datastore) {
-	// TODO: fix this for inmem
-	if ds.Name() == "inmem" {
-		fmt.Println("Busted test skipped for inmem")
-		return
-	}
-
 	setupTestInvites(t, ds)
 
 	opt := kolide.ListOptions{
@@ -77,6 +83,7 @@ func testListInvites(t *testing.T, ds kolide.Datastore) {
 	assert.Equal(t, len(result), 10)
 	assert.Equal(t, "User00", result[0].Name)
 	assert.Equal(t, "User09", result[9].Name)
+	assert.Equal(t, null.StringFrom("observer"), result[9].GlobalRole)
 
 	opt.Page = 2
 	opt.OrderDirection = kolide.OrderDescending
@@ -102,31 +109,6 @@ func testDeleteInvite(t *testing.T, ds kolide.Datastore) {
 	invite, err = ds.InviteByEmail("user0@foo.com")
 	assert.NotNil(t, err)
 	assert.Nil(t, invite)
-
-}
-
-func testSaveInvite(t *testing.T, ds kolide.Datastore) {
-	setupTestInvites(t, ds)
-
-	invite, err := ds.InviteByEmail("user0@foo.com")
-	assert.Nil(t, err)
-	assert.NotNil(t, invite)
-
-	invite, err = ds.Invite(invite.ID)
-	assert.Nil(t, err)
-	assert.NotNil(t, invite)
-
-	invite.Name = "Bob"
-	invite.Admin = true
-
-	err = ds.SaveInvite(invite)
-	assert.Nil(t, err)
-
-	invite, err = ds.Invite(invite.ID)
-	assert.Nil(t, err)
-	assert.NotNil(t, invite)
-	assert.Equal(t, "Bob", invite.Name)
-	assert.True(t, invite.Admin)
 
 }
 
