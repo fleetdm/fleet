@@ -13,7 +13,7 @@ module.exports.routes = {
   //  ╦ ╦╔═╗╔╗ ╔═╗╔═╗╔═╗╔═╗╔═╗
   //  ║║║║╣ ╠╩╗╠═╝╠═╣║ ╦║╣ ╚═╗
   //  ╚╩╝╚═╝╚═╝╩  ╩ ╩╚═╝╚═╝╚═╝
-  'GET /':                   { action: 'view-homepage-or-redirect', locals: { page: 'homepage' } },
+  'GET /':                   { action: 'view-homepage-or-redirect', locals: { page: 'homepage', headerClass: 'homepage-header' } },
 
   '/blog':           'https://medium.com/fleetdm',
 
@@ -31,9 +31,9 @@ module.exports.routes = {
 
   '/company/about':          '/blog', // FUTURE: brief "about" page explaining the origins of the company
   '/company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
-  'GET /company/contact':    { action:   'view-contact', locals: { page: 'contact' } },
-  'GET /get-started':    { action:   'view-get-started', locals: { page: 'get-started' } },
-  'GET /pricing':    { action:   'view-pricing', locals: { page: 'pricing' } },
+  'GET /company/contact':    { action:   'view-contact', locals: { page: 'contact', headerClass: 'header' } },
+  'GET /get-started':    { action:   'view-get-started', locals: { page: 'get-started', headerClass: 'header' } },
+  'GET /pricing':    { action:   'view-pricing', locals: { page: 'pricing', headerClass: 'header' } },
 
   '/try-fleet': 'https://github.com/fleetdm/fleet/blob/master/README.md',
   // '/try-fleet': '/get-started', FUTURE: uncomment this line and delete the line above to allow navigation to the get-started page
