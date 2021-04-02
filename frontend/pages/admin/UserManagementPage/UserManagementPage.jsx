@@ -23,6 +23,7 @@ import userActions from 'redux/nodes/entities/users/actions';
 
 import CreateUserForm from './components/CreateUserForm';
 import { generateTableHeaders, combineDataSets } from './UsersTableConfig';
+import EditUserForm from '../../../components/forms/admin/EditUserForm/EditUserForm';
 
 const baseClass = 'user-management';
 
@@ -57,6 +58,7 @@ export class UserManagementPage extends Component {
 
     this.state = {
       showCreateUserModal: false,
+      showEditUserModal: false,
       usersEditing: [],
     };
 
@@ -69,15 +71,6 @@ export class UserManagementPage extends Component {
 
     if (action) {
       switch (action) {
-        case 'demote_user': {
-          if (currentUser.id === user.id) {
-            return dispatch(renderFlash('error', 'You cannot demote yourself'));
-          }
-          return dispatch(updateAdmin(user, { admin: false }))
-            .then(() => {
-              return dispatch(renderFlash('success', 'User demoted', updateAdmin(user, { admin: true })));
-            });
-        }
         case 'disable_account': {
           if (currentUser.id === user.id) {
             return dispatch(renderFlash('error', 'You cannot disable your own account'));
@@ -87,16 +80,6 @@ export class UserManagementPage extends Component {
               return dispatch(renderFlash('success', 'User account disabled', enableUser(user, { enabled: true })));
             });
         }
-        case 'enable_account':
-          return dispatch(enableUser(user, { enabled: true }))
-            .then(() => {
-              return dispatch(renderFlash('success', 'User account enabled', enableUser(user, { enabled: false })));
-            });
-        case 'promote_user':
-          return dispatch(updateAdmin(user, { admin: true }))
-            .then(() => {
-              return dispatch(renderFlash('success', 'User promoted to admin', updateAdmin(user, { admin: false })));
-            });
         case 'reset_password':
           return dispatch(requirePasswordReset(user, { require: true }))
             .then(() => {
@@ -186,8 +169,24 @@ export class UserManagementPage extends Component {
     dispatch(inviteActions.loadAll());
   }
 
-  onActionSelect = () => {
-    console.log('action selected');
+  onActionSelect = (action, userId) => {
+    const { currentUser, dispatch } = this.props;
+    const { toggleEditUserModal } = this;
+    const { requirePasswordReset } = userActions;
+
+    switch (action) {
+      case ('edit'):
+        toggleEditUserModal();
+        break;
+      case ('delete'):
+        break;
+      case ('passwordReset'):
+        return dispatch(requirePasswordReset(userId, { require: true }))
+          .then(() => {
+            return dispatch(renderFlash('success', 'User required to reset password', requirePasswordReset(userId, { require: false })));
+          });
+      default:
+    }
   }
 
   goToAppConfigPage = (evt) => {
@@ -201,12 +200,15 @@ export class UserManagementPage extends Component {
 
   toggleCreateUserModal = () => {
     const { showCreateUserModal } = this.state;
-
     this.setState({
       showCreateUserModal: !showCreateUserModal,
     });
-
-    return false;
+  }
+  toggleEditUserModal = () => {
+    const { showEditUserModal } = this.state;
+    this.setState({
+      showEditUserModal: !showEditUserModal,
+    });
   }
 
   combineUsersAndInvites = memoize(
@@ -215,11 +217,35 @@ export class UserManagementPage extends Component {
     },
   )
 
-  renderModal = () => {
-    const { currentUser, inviteErrors } = this.props;
+  renderEditUserModal = () => {
+    const { currentUser, inviteErrors, config } = this.props;
+    const { showEditUserModal } = this.state;
+    const { onEditUser, toggleEditUserModal } = this;
+
+    if (!showEditUserModal) return null;
+
+    return (
+      <Modal
+        title="Edit user"
+        onExit={toggleEditUserModal}
+        className={`${baseClass}__edit-user-modal`}
+      >
+        <CreateUserForm
+          serverErrors={inviteErrors}
+          createdBy={currentUser}
+          onCancel={toggleEditUserModal}
+          onSubmit={onEditUser}
+          canUseSSO={config.enable_sso}
+          availableTeams={currentUser.teams}
+        />
+      </Modal>
+    );
+  }
+
+  renderCreateUserModal = () => {
+    const { currentUser, inviteErrors, config } = this.props;
     const { showCreateUserModal } = this.state;
     const { onInviteCancel, onInviteUserSubmit, toggleCreateUserModal } = this;
-    const ssoEnabledForApp = this.props.config.enable_sso;
 
     if (!showCreateUserModal) {
       return false;
@@ -227,7 +253,7 @@ export class UserManagementPage extends Component {
 
     return (
       <Modal
-        title="Create new user"
+        title="Create user"
         onExit={toggleCreateUserModal}
         className={`${baseClass}__create-user-modal`}
       >
@@ -236,7 +262,7 @@ export class UserManagementPage extends Component {
           createdBy={currentUser}
           onCancel={onInviteCancel}
           onSubmit={onInviteUserSubmit}
-          canUseSSO={ssoEnabledForApp}
+          canUseSSO={config.enable_sso}
           availableTeams={currentUser.teams}
         />
       </Modal>
@@ -270,7 +296,15 @@ export class UserManagementPage extends Component {
   }
 
   render () {
-    const { tableHeaders, renderModal, renderSmtpWarning, toggleCreateUserModal, onTableQueryChange, onActionSelect } = this;
+    const {
+      tableHeaders,
+      renderCreateUserModal,
+      renderEditUserModal,
+      renderSmtpWarning,
+      toggleCreateUserModal,
+      onTableQueryChange,
+      onActionSelect,
+    } = this;
     const { config, loadingTableData, users, invites, currentUser } = this.props;
 
     let tableData = [];
@@ -299,7 +333,8 @@ export class UserManagementPage extends Component {
           resultsTitle={'rows'}
           emptyComponent={EmptyUsers}
         />
-        {renderModal()}
+        {renderCreateUserModal()}
+        {renderEditUserModal()}
       </div>
     );
   }

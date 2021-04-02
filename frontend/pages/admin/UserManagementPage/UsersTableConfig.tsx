@@ -34,16 +34,20 @@ interface IDataColumn {
   disableSortBy?: boolean;
 }
 
-interface ITableData {
+interface IUserTableData {
   name: string;
   status: string;
   email: string;
   teams: string;
   roles: string;
-  actions: IDropdownOption[]
+  actions: IDropdownOption[],
+  id: number,
+  type: string,
 }
 
-const generateTableHeaders = (actionSelectHandler: () => void): IDataColumn[] => {
+// NOTE: cellProps come from react-table
+// more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
+const generateTableHeaders = (actionSelectHandler: (value: string, userId: number) => void): IDataColumn[] => {
   return [
     {
       title: 'Name',
@@ -67,14 +71,14 @@ const generateTableHeaders = (actionSelectHandler: () => void): IDataColumn[] =>
     },
     {
       title: 'Teams',
-      Header: cellProps => <HeaderCell value={cellProps.column.title} />,
+      Header: 'Teams',
       accessor: 'teams',
       disableSortBy: true,
       Cell: cellProps => <TextCell value={cellProps.cell.value} />,
     },
     {
       title: 'Roles',
-      Header: cellProps => <HeaderCell value={cellProps.column.title} />,
+      Header: 'Roles',
       accessor: 'roles',
       disableSortBy: true,
       Cell: cellProps => <TextCell value={cellProps.cell.value} />,
@@ -85,7 +89,13 @@ const generateTableHeaders = (actionSelectHandler: () => void): IDataColumn[] =>
       Header: 'Actions',
       disableSortBy: true,
       accessor: 'actions',
-      Cell: cellProps => <DropdownCell options={cellProps.cell.value} onChange={actionSelectHandler} placeholder={'Actions'} />,
+      Cell: cellProps => (
+        <DropdownCell
+          options={cellProps.cell.value}
+          onChange={(value: string) => actionSelectHandler(value, cellProps.row.original.id)}
+          placeholder={'Actions'}
+        />
+      ),
     },
   ];
 };
@@ -153,7 +163,7 @@ const generateActionDropdownOptions = (id: number, currentUserId: number): IDrop
 };
 
 
-const enhanceUserData = (users: IUser[], currentUserId: number): ITableData[] => {
+const enhanceUserData = (users: IUser[], currentUserId: number): IUserTableData[] => {
   return users.map((user) => {
     return {
       name: user.name,
@@ -162,11 +172,13 @@ const enhanceUserData = (users: IUser[], currentUserId: number): ITableData[] =>
       teams: generateTeam(user.teams, user.global_role),
       roles: generateRole(user.teams, user.global_role),
       actions: generateActionDropdownOptions(user.id, currentUserId),
+      id: user.id,
+      type: 'user',
     };
   });
 };
 
-const enhanceInviteData = (invites: IInvite[], currentUserId: number): ITableData[] => {
+const enhanceInviteData = (invites: IInvite[], currentUserId: number): IUserTableData[] => {
   return invites.map((invite) => {
     return {
       name: invite.name,
@@ -175,11 +187,13 @@ const enhanceInviteData = (invites: IInvite[], currentUserId: number): ITableDat
       teams: generateTeam(invite.teams, invite.global_role),
       roles: generateRole(invite.teams, invite.global_role),
       actions: generateActionDropdownOptions(invite.id, currentUserId),
+      id: invite.id,
+      type: 'invite',
     };
   });
 };
 
-const combineDataSets = (users: IUser[], invites: IInvite[], currentUserId: number): ITableData[] => {
+const combineDataSets = (users: IUser[], invites: IInvite[], currentUserId: number): IUserTableData[] => {
   return [...enhanceUserData(users, currentUserId), ...enhanceInviteData(invites, currentUserId)];
 };
 
