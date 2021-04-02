@@ -3,7 +3,7 @@ name: Test Fleet website
 on:
   pull_request:
     paths:
-      - '/website/**'
+      - 'website/**'
 
 jobs:
   build:
