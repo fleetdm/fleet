@@ -34,7 +34,6 @@ var testFunctions = [...]func(*testing.T, kolide.Datastore){
 	testCreateUser,
 	testSaveUser,
 	testUserByID,
-	testPasswordResetRequests,
 	testSearchHosts,
 	testSearchHostsLimit,
 	testSearchLabels,
