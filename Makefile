@@ -42,10 +42,6 @@ ifdef CIRCLE_TAG
 	DOCKER_IMAGE_TAG = ${CIRCLE_TAG}
 endif
 
-ifndef MYSQL_PORT_3306_TCP_ADDR
-	MYSQL_PORT_3306_TCP_ADDR = 127.0.0.1
-endif
-
 KIT_VERSION = "\
 	-X github.com/kolide/kit/version.appName=${APP_NAME} \
 	-X github.com/kolide/kit/version.version=${VERSION} \
@@ -123,7 +119,7 @@ lint-go:
 lint: lint-go lint-js
 
 test-go:
-	go test -tags full ./...
+	go test -tags full -parallel 8 ./...
 
 analyze-go:
 	go test -tags full -race -cover ./...

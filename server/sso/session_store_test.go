@@ -1,13 +1,12 @@
 package sso
 
 import (
-	"fmt"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/gomodule/redigo/redis"
 	"github.com/fleetdm/fleet/server/pubsub"
+	"github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,9 +19,6 @@ func newPool(t *testing.T) *redis.Pool {
 			database = 0
 			useTLS   = false
 		)
-		if a, ok := os.LookupEnv("REDIS_PORT_6379_TCP_ADDR"); ok {
-			addr = fmt.Sprintf("%s:6379", a)
-		}
 
 		p := pubsub.NewRedisPool(addr, password, database, useTLS)
 		_, err := p.Get().Do("PING")
