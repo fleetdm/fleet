@@ -81,14 +81,9 @@ export class UserManagementPage extends Component {
   onEditUser = (formData) => {
     const { currentUser, users, invites, dispatch } = this.props;
     const { userEditing } = this.state;
-    const { toggleEditUserModal } = this;
+    const { toggleEditUserModal, getUser } = this;
 
-    let userData;
-    if (userEditing.type === 'user') {
-      userData = users.find(user => user.id === userEditing.id);
-    } else {
-      userData = invites.find(invite => invite.id === userEditing.id);
-    }
+    const userData = getUser(userEditing.type, userEditing.id);
 
     const updatedAttrs = generateUpdateData(userData, formData);
     if (currentUser.id === userEditing.id) {
@@ -345,7 +340,7 @@ const mapStateToProps = (state) => {
   const { entities: users } = stateEntityGetter.get('users');
   // const { entities: invites } = stateEntityGetter.get('invites');
   const invites = [{
-    name: 'Gabriel Fernandez', email: 'gabriel+fev@fleetdm.com', id: 100, teams: [{ name: 'Test Team', role: 'admin', id: 1 }], global_role: null,
+    name: 'Gabriel Fernandez', email: 'gabriel+fev@fleetdm.com', id: 100, teams: [{ name: 'Test Team', role: 'maintainer', id: 1 }], global_role: null,
   }];
   const { errors: inviteErrors, loading: loadingInvites } = state.entities.invites;
   const { errors: userErrors, loading: loadingUsers } = state.entities.users;
