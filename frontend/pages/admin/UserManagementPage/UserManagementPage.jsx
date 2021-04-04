@@ -62,6 +62,8 @@ export class UserManagementPage extends Component {
       usersEditing: [],
     };
 
+    // done as an instance variable as these headers will not change, so dont
+    // want to recalculate on re-renders.
     this.tableHeaders = generateTableHeaders(this.onActionSelect);
   }
 
@@ -169,7 +171,7 @@ export class UserManagementPage extends Component {
       sortBy = [{ id: sortHeader, direction: sortDirection }];
     }
     dispatch(userActions.loadAll(pageIndex, pageSize, undefined, searchQuery, sortBy));
-    dispatch(inviteActions.loadAll()); // TODO: add search params when API supports it
+    dispatch(inviteActions.loadAll(pageIndex, pageSize, searchQuery, sortBy)); // TODO: add search params when API supports it
   }
 
   onActionSelect = (action, user) => {
