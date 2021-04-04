@@ -108,7 +108,7 @@ const TableContainer = <T, U>(props: ITableContainerProps<T, U>): JSX.Element =>
 
   // When any of our query params change, or if any additionalQueries change, we want to fire off
   // the parent components handler function with this updated query data. There is logic in here to check
-  // different types of query updates, as we handle some of them differently then others.
+  // different types of query updates, as we handle some of them differently than others.
   useEffect(() => {
     const queryData = {
       searchQuery,
