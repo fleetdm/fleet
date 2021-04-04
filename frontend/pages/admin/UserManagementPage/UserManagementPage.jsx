@@ -361,7 +361,7 @@ const mapStateToProps = (state) => {
   const { entities: users } = stateEntityGetter.get('users');
   // const { entities: invites } = stateEntityGetter.get('invites');
   const invites = [{
-    name: 'Gabriel Fernandez', email: 'gabriel+fev@fleetdm.com', id: 100, teams: [{ name: 'test team', role: 'admin' }], global_role: null,
+    name: 'Gabriel Fernandez', email: 'gabriel+fev@fleetdm.com', id: 100, teams: [{ name: 'Test Team', role: 'admin', id: 1 }], global_role: null,
   }];
   const { errors: inviteErrors, loading: loadingInvites } = state.entities.invites;
   const { errors: userErrors, loading: loadingUsers } = state.entities.users;

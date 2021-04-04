@@ -33,18 +33,14 @@ const roles = [
 ];
 
 const generateFormListItems = (allTeams: ITeam[], currentTeams: ITeam[]): ITeamCheckboxListItem[] => {
-  if (currentTeams.length === 0) {
-    return allTeams.map((team) => {
-      return {
-        ...team,
-        role: 'observer',
-        isChecked: false,
-      };
-    });
-  }
-
-  // TODO: add functionality editing for selected teams.
-  return [];
+  return allTeams.map((team) => {
+    const foundTeam = currentTeams.find(currentTeam => currentTeam.id === team.id);
+    return {
+      ...team,
+      role: foundTeam ? foundTeam.role : 'observer',
+      isChecked: foundTeam !== undefined,
+    };
+  });
 };
 
 // Handles the generation of the form data. This is eventually passed up to the parent
