@@ -95,7 +95,7 @@ export class UserManagementPage extends Component {
         .catch(() => false);
     }
 
-    return dispatch(userActions.silentUpdate(formData, updatedAttrs))
+    return dispatch(userActions.silentUpdate(userData, formData))
       .then(() => {
         dispatch(renderFlash('success', 'User updated', userActions.silentUpdate(formData, formData)));
         toggleEditUserModal();
@@ -340,7 +340,7 @@ const mapStateToProps = (state) => {
   const { entities: users } = stateEntityGetter.get('users');
   // const { entities: invites } = stateEntityGetter.get('invites');
   const invites = [{
-    name: 'Gabriel Fernandez', email: 'gabriel+fev@fleetdm.com', id: 100, teams: [{ name: 'Test Team', role: 'maintainer', id: 1 }], global_role: null,
+    name: 'Gabriel Fernandez', email: 'gabriel+fev@fleetdm.com', id: 2, teams: [{ name: 'Test Team', role: 'maintainer', id: 1 }], global_role: null,
   }];
   const { errors: inviteErrors, loading: loadingInvites } = state.entities.invites;
   const { errors: userErrors, loading: loadingUsers } = state.entities.users;
