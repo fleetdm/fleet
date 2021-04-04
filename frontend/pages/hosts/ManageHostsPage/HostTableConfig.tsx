@@ -1,10 +1,10 @@
 import React from 'react';
 
 import { IHost } from 'interfaces/host';
-import HeaderCell from 'components/DataTable/HeaderCell/HeaderCell';
-import LinkCell from 'components/DataTable/LinkCell/LinkCell';
-import StatusCell from 'components/DataTable/StatusCell/StatusCell';
-import TextCell from 'components/DataTable/TextCell/TextCell';
+import HeaderCell from 'components/TableContainer/DataTable/HeaderCell/HeaderCell';
+import LinkCell from 'components/TableContainer/DataTable/LinkCell/LinkCell';
+import StatusCell from 'components/TableContainer/DataTable/StatusCell/StatusCell';
+import TextCell from 'components/TableContainer/DataTable/TextCell/TextCell';
 import { humanHostMemory, humanHostUptime, humanHostLastSeen, humanHostDetailUpdated } from 'kolide/helpers';
 
 interface IHeaderProps {
@@ -32,7 +32,7 @@ interface IHostDataColumn {
   disableSortBy?: boolean;
 }
 
-const hostDataHeaders: IHostDataColumn[] = [
+const hostTableHeaders: IHostDataColumn[] = [
   {
     title: 'Hostname',
     Header: cellProps => <HeaderCell value={cellProps.column.title} isSortedDesc={cellProps.column.isSortedDesc} />,
@@ -133,4 +133,10 @@ const defaultHiddenColumns = [
   'hardware_serial',
 ];
 
-export { hostDataHeaders, defaultHiddenColumns };
+const generateVisibleHostColumns = (hiddenColumns: string[]) => {
+  return hostTableHeaders.filter((column) => {
+    return !hiddenColumns.includes(column.accessor);
+  });
+};
+
+export { hostTableHeaders, defaultHiddenColumns, generateVisibleHostColumns };

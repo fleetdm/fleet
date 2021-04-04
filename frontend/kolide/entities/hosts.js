@@ -27,7 +27,7 @@ export default (client) => {
       if (sortBy.length !== 0) {
         const sortItem = sortBy[0];
         orderKeyParam += `&order_key=${sortItem.id}`;
-        orderDirection = sortItem.desc ? '&order_direction=desc' : '&order_direction=asc';
+        orderDirection = `&order_direction=${sortItem.direction}`;
       }
 
       let searchQuery = '';

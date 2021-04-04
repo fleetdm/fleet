@@ -3,7 +3,6 @@ import PropTypes from 'prop-types';
 import AceEditor from 'react-ace';
 import { connect } from 'react-redux';
 import { push } from 'react-router-redux';
-import { sortBy } from 'lodash';
 
 import AddHostModal from 'components/hosts/AddHostModal';
 import Button from 'components/buttons/Button';
@@ -12,17 +11,23 @@ import HostSidePanel from 'components/side_panels/HostSidePanel';
 import LabelForm from 'components/forms/LabelForm';
 import Modal from 'components/modals/Modal';
 import QuerySidePanel from 'components/side_panels/QuerySidePanel';
+import TableContainer from 'components/TableContainer';
 import labelInterface from 'interfaces/label';
+import hostInterface from 'interfaces/host';
 import osqueryTableInterface from 'interfaces/osquery_table';
 import statusLabelsInterface from 'interfaces/status_labels';
 import enrollSecretInterface from 'interfaces/enroll_secret';
 import { selectOsqueryTable } from 'redux/nodes/components/QueryPages/actions';
 import labelActions from 'redux/nodes/entities/labels/actions';
 import entityGetter from 'redux/utilities/entityGetter';
-import { getLabels } from 'redux/nodes/components/ManageHostsPage/actions';
+import { getLabels, getHosts } from 'redux/nodes/components/ManageHostsPage/actions';
 import PATHS from 'router/paths';
 import deepDifference from 'utilities/deep_difference';
-import HostContainer from './components/HostContainer';
+
+import { defaultHiddenColumns, hostTableHeaders, generateVisibleHostColumns } from './HostTableConfig';
+import NoHosts from './components/NoHosts';
+import EmptyHosts from './components/EmptyHosts';
+import EditColumnsModal from './components/EditColumnsModal/EditColumnsModal';
 
 const NEW_LABEL_HASH = '#new_label';
 const baseClass = 'manage-hosts';
@@ -42,23 +47,29 @@ export class ManageHostsPage extends PureComponent {
     selectedLabel: labelInterface,
     selectedOsqueryTable: osqueryTableInterface,
     statusLabels: statusLabelsInterface,
+    hosts: PropTypes.arrayOf(hostInterface),
+    loadingHosts: PropTypes.bool,
   };
 
   static defaultProps = {
     loadingLabels: false,
+    hosts: [],
   };
 
   constructor (props) {
     super(props);
 
+    // For now we persist using localstorage. May do server side persistence later.
+    const storedHiddenColumns = JSON.parse(localStorage.getItem('hostHiddenColumns'));
+
     this.state = {
       isEditLabel: false,
       labelQueryText: '',
-      pagedHosts: [],
       showAddHostModal: false,
       selectedHost: null,
       showDeleteLabelModal: false,
-      showHostContainerSpinner: false,
+      showEditColumnsModal: false,
+      hiddenColumns: storedHiddenColumns !== null ? storedHiddenColumns : defaultHiddenColumns,
     };
   }
 
@@ -83,6 +94,32 @@ export class ManageHostsPage extends PureComponent {
     return false;
   }
 
+  onSearchQueryChange = (newQuery) => {
+    this.setState({
+      searchQuery: newQuery,
+    });
+  }
+
+  onEditColumnsClick = () => {
+    this.setState({
+      showEditColumnsModal: true,
+    });
+  }
+
+  onCancelColumns = () => {
+    this.setState({
+      showEditColumnsModal: false,
+    });
+  }
+
+  onSaveColumns = (newHiddenColumns) => {
+    localStorage.setItem('hostHiddenColumns', JSON.stringify(newHiddenColumns));
+    this.setState({
+      hiddenColumns: newHiddenColumns,
+      showEditColumnsModal: false,
+    });
+  }
+
   onCancelAddLabel = () => {
     const { dispatch } = this.props;
 
@@ -98,6 +135,18 @@ export class ManageHostsPage extends PureComponent {
     toggleAddHostModal();
 
     return false;
+  }
+
+  // NOTE: this is called once on the initial rendering. The initial render of
+  // the TableContainer child component.
+  onTableQueryChange = (queryData) => {
+    const { selectedFilter, dispatch } = this.props;
+    const { pageIndex, pageSize, searchQuery, sortHeader, sortDirection } = queryData;
+    let sortBy = [];
+    if (sortHeader !== '') {
+      sortBy = [{ id: sortHeader, direction: sortDirection }];
+    }
+    dispatch(getHosts(pageIndex, pageSize, selectedFilter, searchQuery, sortBy));
   }
 
   onEditLabel = (formData) => {
@@ -163,10 +212,6 @@ export class ManageHostsPage extends PureComponent {
     }
   }
 
-  sortHosts = (hosts) => {
-    return sortBy(hosts, (h) => { return h.hostname; });
-  }
-
   toggleAddHostModal = () => {
     const { showAddHostModal } = this.state;
     this.setState({ showAddHostModal: !showAddHostModal });
@@ -186,6 +231,27 @@ export class ManageHostsPage extends PureComponent {
     this.setState({ isEditLabel: !isEditLabel });
 
     return false;
+  }
+
+  renderEditColumnsModal = () => {
+    const { showEditColumnsModal, hiddenColumns } = this.state;
+
+    if (!showEditColumnsModal) return null;
+
+    return (
+      <Modal
+        title="Edit Columns"
+        onExit={() => this.setState({ showEditColumnsModal: false })}
+        className={`${baseClass}__invite-modal`}
+      >
+        <EditColumnsModal
+          columns={hostTableHeaders}
+          hiddenColumns={hiddenColumns}
+          onSaveColumns={this.onSaveColumns}
+          onCancelColumns={this.onCancelColumns}
+        />
+      </Modal>
+    );
   }
 
   renderAddHostModal = () => {
@@ -388,6 +454,36 @@ export class ManageHostsPage extends PureComponent {
     return SidePanel;
   }
 
+  renderTable = () => {
+    const { selectedFilter, selectedLabel, hosts, loadingHosts } = this.props;
+    const { hiddenColumns } = this.state;
+    const { toggleEditColumnsModal, onTableQueryChange, onEditColumnsClick } = this;
+
+    // The data has not been fetched yet.
+    if (selectedFilter === undefined || selectedLabel === undefined) return null;
+
+    // Hosts have not been set up for this instance yet.
+    if (selectedFilter === 'all-hosts' && selectedLabel.count === 0) {
+      return <NoHosts />;
+    }
+
+    return (
+      <TableContainer
+        columns={generateVisibleHostColumns(hiddenColumns)}
+        data={hosts}
+        isLoading={loadingHosts}
+        defaultSortHeader={'hostname'}
+        defaultSortDirection={'desc'}
+        additionalQueries={JSON.stringify([selectedFilter])}
+        inputPlaceHolder={'Search hostname, UUID, serial number, or IPv4'}
+        onTableActionClick={onEditColumnsClick}
+        onQueryChange={onTableQueryChange}
+        resultsTitle={'hosts'}
+        emptyComponent={EmptyHosts}
+      />
+    );
+  }
+
   render () {
     const {
       renderForm,
@@ -396,16 +492,19 @@ export class ManageHostsPage extends PureComponent {
       renderAddHostModal,
       renderDeleteLabelModal,
       renderQuery,
+      renderTable,
+      renderEditColumnsModal,
+      onAddHostClick,
     } = this;
     const {
       isAddLabel,
       loadingLabels,
       selectedLabel,
       selectedFilter,
+      hosts,
+      loadingHosts,
     } = this.props;
     const { isEditLabel } = this.state;
-
-    const { onAddHostClick } = this;
 
     return (
       <div className="has-sidebar">
@@ -420,17 +519,12 @@ export class ManageHostsPage extends PureComponent {
               </Button>
             </div>
             {selectedLabel && renderQuery()}
-            <div className={`${baseClass}__list`}>
-              <HostContainer
-                selectedFilter={selectedFilter}
-                selectedLabel={selectedLabel}
-              />
-            </div>
+            {renderTable()}
           </div>
         }
-
         {!loadingLabels && renderSidePanel()}
         {renderAddHostModal()}
+        {renderEditColumnsModal()}
         {renderDeleteLabelModal()}
       </div>
     );
@@ -455,6 +549,12 @@ const mapStateToProps = (state, { location, params }) => {
   const enrollSecret = state.app.enrollSecret;
   const config = state.app.config;
 
+  // NOTE: good opportunity for performance optimisation here later. This currently
+  // always generates a new array of hosts, when it could memoized version of the list.
+  const { entities: hosts } = entityGetter(state).get('hosts');
+
+  const { loading: loadingHosts } = state.entities.hosts;
+
   return {
     selectedFilter,
     isAddLabel,
@@ -466,6 +566,8 @@ const mapStateToProps = (state, { location, params }) => {
     selectedOsqueryTable,
     statusLabels,
     config,
+    hosts,
+    loadingHosts,
   };
 };
 

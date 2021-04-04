@@ -1,18 +1,6 @@
 .data-table-container {
   position: relative;
 
-  &__topper {
-    position: absolute;
-    top: -38px;
-  }
-
-  &__results-count {
-    font-size: $x-small;
-    font-weight: $bold;
-    color: $core-black;
-    margin: 0;
-  }
-
   .data-table {
     &__wrapper {
       border: solid 1px $ui-borders;

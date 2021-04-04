@@ -44,7 +44,7 @@ describe('Kolide - API client (hosts)', () => {
       const perPage = 100;
       const selectedFilter = 'new';
       const query = 'testQuery';
-      const sortBy = [{ id: 'hostname', desc: true }];
+      const sortBy = [{ id: 'hostname', direction: 'desc' }];
 
       Kolide.setBearerToken(bearerToken);
       return Kolide.hosts.loadAll(page, perPage, selectedFilter, query, sortBy)
