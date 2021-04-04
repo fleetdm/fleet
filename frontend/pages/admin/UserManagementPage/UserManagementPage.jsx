@@ -81,7 +81,7 @@ export class UserManagementPage extends Component {
   onEditUser = (formData) => {
     const { currentUser, users, invites, dispatch } = this.props;
     const { userEditing } = this.state;
-    const { onToggleEditUser } = this;
+    const { toggleEditUserModal } = this;
 
     let userData;
     if (userEditing.type === 'user') {
@@ -95,7 +95,7 @@ export class UserManagementPage extends Component {
       return dispatch(updateUser(userData, updatedAttrs))
         .then(() => {
           dispatch(renderFlash('success', 'User updated', updateUser(formData, formData)));
-          onToggleEditUser(formData);
+          toggleEditUserModal();
         })
         .catch(() => false);
     }
@@ -103,7 +103,7 @@ export class UserManagementPage extends Component {
     return dispatch(userActions.silentUpdate(formData, updatedAttrs))
       .then(() => {
         dispatch(renderFlash('success', 'User updated', userActions.silentUpdate(formData, formData)));
-        onToggleEditUser(formData);
+        toggleEditUserModal();
       })
       .catch(() => false);
   }
@@ -126,22 +126,6 @@ export class UserManagementPage extends Component {
   onCreateCancel = (evt) => {
     evt.preventDefault();
     this.toggleCreateUserModal();
-  }
-
-  onToggleEditUser = (user) => {
-    const { dispatch } = this.props;
-    const { usersEditing } = this.state;
-    let updatedUsersEditing = [];
-
-    dispatch(userActions.clearErrors());
-
-    if (includes(usersEditing, user.id)) {
-      updatedUsersEditing = difference(usersEditing, [user.id]);
-    } else {
-      updatedUsersEditing = concat(usersEditing, [user.id]);
-    }
-
-    this.setState({ usersEditing: updatedUsersEditing });
   }
 
   // NOTE: this is called once on the initial rendering. The initial render of
