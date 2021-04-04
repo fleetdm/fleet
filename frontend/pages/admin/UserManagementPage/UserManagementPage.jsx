@@ -23,7 +23,6 @@ import userActions from 'redux/nodes/entities/users/actions';
 
 import CreateUserForm from './components/CreateUserForm';
 import { generateTableHeaders, combineDataSets } from './UsersTableConfig';
-import EditUserForm from '../../../components/forms/admin/EditUserForm/EditUserForm';
 
 const baseClass = 'user-management';
 
@@ -59,6 +58,7 @@ export class UserManagementPage extends Component {
     this.state = {
       showCreateUserModal: false,
       showEditUserModal: false,
+      userEditing: null,
       usersEditing: [],
     };
 
@@ -67,7 +67,7 @@ export class UserManagementPage extends Component {
 
   onUserActionSelect = (user, action) => {
     const { currentUser, dispatch } = this.props;
-    const { enableUser, updateAdmin, requirePasswordReset } = userActions;
+    const { enableUser, requirePasswordReset } = userActions;
 
     if (action) {
       switch (action) {
@@ -93,51 +93,54 @@ export class UserManagementPage extends Component {
           return false;
       }
     }
-
-    return false;
   }
 
-  onEditUser = (user, updatedUser) => {
+  onEditUser = (formData) => {
     const { currentUser, dispatch } = this.props;
+    const { userEditing } = this.state;
     const { onToggleEditUser } = this;
     const { silentUpdate } = userActions;
-    const updatedAttrs = deepDifference(updatedUser, user);
+    const updatedAttrs = deepDifference(userEditing, formData);
 
-    if (currentUser.id === user.id) {
-      return dispatch(updateUser(user, updatedAttrs))
+    if (currentUser.id === userEditing.id) {
+      return dispatch(updateUser(formData, updatedAttrs))
         .then(() => {
-          dispatch(renderFlash('success', 'User updated', updateUser(user, user)));
-          onToggleEditUser(user);
+          dispatch(renderFlash('success', 'User updated', updateUser(formData, formData)));
+          onToggleEditUser(formData);
 
           return false;
         })
         .catch(() => false);
     }
 
-    return dispatch(silentUpdate(user, updatedAttrs))
+    return dispatch(silentUpdate(formData, updatedAttrs))
       .then(() => {
-        dispatch(renderFlash('success', 'User updated', silentUpdate(user, user)));
-        onToggleEditUser(user);
+        dispatch(renderFlash('success', 'User updated', silentUpdate(formData, formData)));
+        onToggleEditUser(formData);
 
         return false;
       })
       .catch(() => false);
   }
 
-  onInviteUserSubmit = (formData) => {
+  onCreateUserSubmit = (formData) => {
     const { dispatch } = this.props;
-
-    dispatch(inviteActions.silentCreate(formData))
+    // Do some data formatting adding `invited_by` for the request to be correct.
+    const requestData = {
+      ...formData,
+      invited_by: formData.currentUserId,
+    };
+    dispatch(inviteActions.silentCreate(requestData))
       .then(() => {
-        return this.toggleCreateUserModal();
+        this.toggleCreateUserModal();
+        dispatch(inviteActions.loadAll()); // TODO: add search params when API supports it
       })
       .catch(() => false);
   }
 
-  onInviteCancel = (evt) => {
+  onCreateCancel = (evt) => {
     evt.preventDefault();
-
-    return this.toggleCreateUserModal();
+    this.toggleCreateUserModal();
   }
 
   onToggleEditUser = (user) => {
@@ -166,24 +169,29 @@ export class UserManagementPage extends Component {
       sortBy = [{ id: sortHeader, direction: sortDirection }];
     }
     dispatch(userActions.loadAll(pageIndex, pageSize, undefined, searchQuery, sortBy));
-    dispatch(inviteActions.loadAll());
+    dispatch(inviteActions.loadAll()); // TODO: add search params when API supports it
   }
 
-  onActionSelect = (action, userId) => {
+  onActionSelect = (action, user) => {
     const { currentUser, dispatch } = this.props;
     const { toggleEditUserModal } = this;
     const { requirePasswordReset } = userActions;
 
     switch (action) {
       case ('edit'):
-        toggleEditUserModal();
+        toggleEditUserModal(user);
         break;
       case ('delete'):
         break;
       case ('passwordReset'):
-        return dispatch(requirePasswordReset(userId, { require: true }))
+        return dispatch(requirePasswordReset(user.id, { require: true }))
           .then(() => {
-            return dispatch(renderFlash('success', 'User required to reset password', requirePasswordReset(userId, { require: false })));
+            return dispatch(
+              renderFlash(
+                'success', 'User required to reset password',
+                requirePasswordReset(user.id, { require: false }), // this is an undo action.
+              ),
+            );
           });
       default:
     }
@@ -204,10 +212,12 @@ export class UserManagementPage extends Component {
       showCreateUserModal: !showCreateUserModal,
     });
   }
-  toggleEditUserModal = () => {
+
+  toggleEditUserModal = (user) => {
     const { showEditUserModal } = this.state;
     this.setState({
       showEditUserModal: !showEditUserModal,
+      userEditing: !showEditUserModal ? user : null,
     });
   }
 
@@ -219,7 +229,7 @@ export class UserManagementPage extends Component {
 
   renderEditUserModal = () => {
     const { currentUser, inviteErrors, config } = this.props;
-    const { showEditUserModal } = this.state;
+    const { showEditUserModal, userEditing } = this.state;
     const { onEditUser, toggleEditUserModal } = this;
 
     if (!showEditUserModal) return null;
@@ -232,7 +242,10 @@ export class UserManagementPage extends Component {
       >
         <CreateUserForm
           serverErrors={inviteErrors}
+          defaultEmail={userEditing.email}
+          defaultName={userEditing.name}
           createdBy={currentUser}
+          currentUserId={currentUser.id}
           onCancel={toggleEditUserModal}
           onSubmit={onEditUser}
           canUseSSO={config.enable_sso}
@@ -245,7 +258,7 @@ export class UserManagementPage extends Component {
   renderCreateUserModal = () => {
     const { currentUser, inviteErrors, config } = this.props;
     const { showCreateUserModal } = this.state;
-    const { onInviteCancel, onInviteUserSubmit, toggleCreateUserModal } = this;
+    const { onCreateUserSubmit, toggleCreateUserModal } = this;
 
     if (!showCreateUserModal) {
       return false;
@@ -260,8 +273,9 @@ export class UserManagementPage extends Component {
         <CreateUserForm
           serverErrors={inviteErrors}
           createdBy={currentUser}
-          onCancel={onInviteCancel}
-          onSubmit={onInviteUserSubmit}
+          currentUserId={currentUser.id}
+          onCancel={toggleCreateUserModal}
+          onSubmit={onCreateUserSubmit}
           canUseSSO={config.enable_sso}
           availableTeams={currentUser.teams}
         />
@@ -311,8 +325,6 @@ export class UserManagementPage extends Component {
     if (!loadingTableData) {
       tableData = this.combineUsersAndInvites(users, invites, currentUser.id, onActionSelect);
     }
-
-    console.log(tableData);
 
     return (
       <div className={`${baseClass} body-wrap`}>

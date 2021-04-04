@@ -47,7 +47,7 @@ interface IUserTableData {
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = (actionSelectHandler: (value: string, userId: number) => void): IDataColumn[] => {
+const generateTableHeaders = (actionSelectHandler: (value: string, user: IUser | IInvite) => void): IDataColumn[] => {
   return [
     {
       title: 'Name',
@@ -92,7 +92,7 @@ const generateTableHeaders = (actionSelectHandler: (value: string, userId: numbe
       Cell: cellProps => (
         <DropdownCell
           options={cellProps.cell.value}
-          onChange={(value: string) => actionSelectHandler(value, cellProps.row.original.id)}
+          onChange={(value: string) => actionSelectHandler(value, cellProps.row.original)}
           placeholder={'Actions'}
         />
       ),
@@ -162,6 +162,21 @@ const generateActionDropdownOptions = (id: number, currentUserId: number): IDrop
   ];
 };
 
+const generateInviteDropdownOptions = (): IDropdownOption[] => {
+  return [
+    {
+      label: 'Edit',
+      disabled: false,
+      value: 'edit',
+    },
+    {
+      label: 'Delete',
+      disabled: false,
+      value: 'delete',
+    },
+  ];
+};
+
 
 const enhanceUserData = (users: IUser[], currentUserId: number): IUserTableData[] => {
   return users.map((user) => {
@@ -178,7 +193,7 @@ const enhanceUserData = (users: IUser[], currentUserId: number): IUserTableData[
   });
 };
 
-const enhanceInviteData = (invites: IInvite[], currentUserId: number): IUserTableData[] => {
+const enhanceInviteData = (invites: IInvite[]): IUserTableData[] => {
   return invites.map((invite) => {
     return {
       name: invite.name,
@@ -186,7 +201,7 @@ const enhanceInviteData = (invites: IInvite[], currentUserId: number): IUserTabl
       email: invite.email,
       teams: generateTeam(invite.teams, invite.global_role),
       roles: generateRole(invite.teams, invite.global_role),
-      actions: generateActionDropdownOptions(invite.id, currentUserId),
+      actions: generateInviteDropdownOptions(),
       id: invite.id,
       type: 'invite',
     };
@@ -194,7 +209,7 @@ const enhanceInviteData = (invites: IInvite[], currentUserId: number): IUserTabl
 };
 
 const combineDataSets = (users: IUser[], invites: IInvite[], currentUserId: number): IUserTableData[] => {
-  return [...enhanceUserData(users, currentUserId), ...enhanceInviteData(invites, currentUserId)];
+  return [...enhanceUserData(users, currentUserId), ...enhanceInviteData(invites)];
 };
 
 export { generateTableHeaders, combineDataSets };
