@@ -48,7 +48,8 @@ interface IFormData {
   sso_enabled: boolean;
   currentUserId: number;
   global_role: string | null;
-  teams?: ITeam[];
+  teams: ITeam[];
+  invited_by?: number;
 }
 
 interface ICreateUserFormProps {
@@ -59,8 +60,8 @@ interface ICreateUserFormProps {
   canUseSSO: boolean;
   defaultName?: string;
   defaultEmail?: string;
-  defaultGlobalRole: string | null;
-  defaultTeams?: ITeam[];
+  defaultGlobalRole?: string | null;
+  defaultTeams: ITeam[];
 }
 
 interface ICreateUserFormState {
@@ -87,7 +88,7 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
         email: props.defaultEmail || '',
         name: props.defaultName || '',
         sso_enabled: false,
-        global_role: props.defaultGlobalRole,
+        global_role: props.defaultGlobalRole || null,
         teams: props.defaultTeams,
         currentUserId: props.currentUserId,
       },
@@ -225,6 +226,7 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
   renderTeamsForm = (): JSX.Element => {
     const { onSelectedTeamChange } = this;
     const { availableTeams } = this.props;
+    const { formData: { teams } } = this.state;
     return (
       <>
         <InfoBanner className={`${baseClass}__user-permissions-info`}>
@@ -241,7 +243,7 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
         <SelectedTeamsForm
           // availableTeams={availableTeams}
           availableTeams={[{ name: 'Test Team', id: 1, role: 'admin' }, { name: 'Test Team 2', id: 2, role: 'admin' }]}
-          usersCurrentTeams={[]}
+          usersCurrentTeams={teams}
           onFormChange={onSelectedTeamChange}
         />
       </>
