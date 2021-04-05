@@ -16,8 +16,6 @@ type InviteByEmailFunc func(email string) (*kolide.Invite, error)
 
 type InviteByTokenFunc func(token string) (*kolide.Invite, error)
 
-type SaveInviteFunc func(i *kolide.Invite) error
-
 type DeleteInviteFunc func(id uint) error
 
 type InviteStore struct {
@@ -35,9 +33,6 @@ type InviteStore struct {
 
 	InviteByTokenFunc        InviteByTokenFunc
 	InviteByTokenFuncInvoked bool
-
-	SaveInviteFunc        SaveInviteFunc
-	SaveInviteFuncInvoked bool
 
 	DeleteInviteFunc        DeleteInviteFunc
 	DeleteInviteFuncInvoked bool
@@ -66,11 +61,6 @@ func (s *InviteStore) InviteByEmail(email string) (*kolide.Invite, error) {
 func (s *InviteStore) InviteByToken(token string) (*kolide.Invite, error) {
 	s.InviteByTokenFuncInvoked = true
 	return s.InviteByTokenFunc(token)
-}
-
-func (s *InviteStore) SaveInvite(i *kolide.Invite) error {
-	s.SaveInviteFuncInvoked = true
-	return s.SaveInviteFunc(i)
 }
 
 func (s *InviteStore) DeleteInvite(id uint) error {

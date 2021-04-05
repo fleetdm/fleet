@@ -8,7 +8,6 @@ const { invites: inviteMocks } = mocks;
 
 describe('Kolide - API client (invites)', () => {
   afterEach(() => {
-    nock.cleanAll();
     Kolide.setBearerToken(null);
   });
 

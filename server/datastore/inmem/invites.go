@@ -107,19 +107,6 @@ func (d *Datastore) InviteByToken(token string) (*kolide.Invite, error) {
 		WithMessage(fmt.Sprintf("with token %s", token))
 }
 
-// SaveInvite saves an invitation in the datastore.
-func (d *Datastore) SaveInvite(invite *kolide.Invite) error {
-	d.mtx.Lock()
-	defer d.mtx.Unlock()
-
-	if _, ok := d.invites[invite.ID]; !ok {
-		return notFound("Invite").WithID(invite.ID)
-	}
-
-	d.invites[invite.ID] = invite
-	return nil
-}
-
 // DeleteInvite deletes an invitation.
 func (d *Datastore) DeleteInvite(id uint) error {
 	d.mtx.Lock()

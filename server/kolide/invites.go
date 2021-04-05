@@ -2,6 +2,8 @@ package kolide
 
 import (
 	"context"
+
+	"gopkg.in/guregu/null.v3"
 )
 
 // InviteStore contains the methods for
@@ -21,9 +23,6 @@ type InviteStore interface {
 
 	// InviteByToken retrieves and invite using the token string.
 	InviteByToken(token string) (*Invite, error)
-
-	// SaveInvite saves an invitation in the datastore.
-	SaveInvite(i *Invite) error
 
 	// DeleteInvite deletes an invitation.
 	DeleteInvite(id uint) error
@@ -53,18 +52,22 @@ type InvitePayload struct {
 	Admin      *bool
 	Name       *string
 	Position   *string
-	SSOEnabled *bool `json:"sso_enabled"`
+	SSOEnabled *bool      `json:"sso_enabled"`
+	GlobalRole *string    `json:"global_role"`
+	Teams      []UserTeam `json:"teams,omitempty"`
 }
 
 // Invite represents an invitation for a user to join Fleet.
 type Invite struct {
 	UpdateCreateTimestamps
-	ID         uint   `json:"id"`
-	InvitedBy  uint   `json:"invited_by" db:"invited_by"`
-	Email      string `json:"email"`
-	Admin      bool   `json:"admin"`
-	Name       string `json:"name"`
-	Position   string `json:"position,omitempty"`
-	Token      string `json:"-"`
-	SSOEnabled bool   `json:"sso_enabled" db:"sso_enabled"`
+	ID         uint        `json:"id"`
+	InvitedBy  uint        `json:"invited_by" db:"invited_by"`
+	Email      string      `json:"email"`
+	Admin      bool        `json:"admin"`
+	Name       string      `json:"name"`
+	Position   string      `json:"position,omitempty"`
+	Token      string      `json:"-"`
+	SSOEnabled bool        `json:"sso_enabled" db:"sso_enabled"`
+	GlobalRole null.String `json:"global_role" db:"global_role"`
+	Teams      []UserTeam  `json:"teams,omitempty"`
 }
