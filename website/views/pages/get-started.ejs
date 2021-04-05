@@ -42,7 +42,7 @@
         </p>
       </section>
       <hr class="solid" style="max-width: 800px" />
-      <section id="query-section" class="pt-5 mx-auto">
+      <section id="query-section" class="py-4 mx-auto">
         <h1>Ready to run your first query?</h1>
         <p class="mb-5">
           Target some of the sample hosts included, and give it a try.
@@ -60,41 +60,46 @@
           class="w-100 my-4 mx-auto"
         />
       </section>
-      <section id="learn-more-section" class="pt-5 mx-auto">
-        <h1>Learn more about how to use Fleet</h1>
-        <ul class="mb-5">
-          <li>See how companies like Palantir use osquery in production.</li>
-          <li>
-            Need even more functionality? Install osquery extensions like these
-            from Trail of Bits.
-          </li>
-        </ul>
-
-        <div
-          class="tpbutton btn-toolbar justify-content-center"
-          style="text-align: left"
-        >
-          <a
-            target="_blank"
-            href="https://calendly.com/fleetdm/chat?month=2021-04"
-            style="max-width: 150px"
-            class="btn btn-block btn-md btn-primary my-3 mx-2"
-          >
-            Go to docs
-          </a>
-          <a
-            target="_blank"
-            href="https://github.com/fleetdm/fleet/tree/master/docs"
-            style="max-width: 250px"
-            class="btn btn-block btn-lg btn-white my-3 mx-2"
-            >Schedule a demo
-            <img
-              alt="a right arrow"
-              src="/images/arrow-right-16x16@2x.png"
-              style="width: 16px; height: 16px; margin: 5px"
-              class="d-inline"
-            />
-          </a>
+      <section class="py-5 mx-auto">
+        <div class="row">
+          <div class="col-lg px-1 mx-auto" style="max-width: 810px">
+            <div style="border-radius: 15px" class="mb-4">
+              <div class="py-md-5 px-md-5" id="learn-more">
+                <h1>Learn more about how to use Fleet</h1>
+                <ul class="mb-5">
+                  <li>
+                    See how companies like <a href="https://github.com/palantir/osquery-configuration/tree/master/Fleet" target="_blank">Palantir</a> use osquery in production.
+                  </li>
+                  <li>
+                    Need even more functionality? Install osquery extensions
+                    like <a href="https://github.com/trailofbits/osquery-extensions">these</a> from Trail of Bits.
+                  </li>
+                </ul>
+                <div
+                  class="tpbutton btn-toolbar"
+                  style="text-align: left"
+                >
+                  <a
+                    target="_blank"
+                    href="https://github.com/fleetdm/fleet/tree/master/docs"
+                    style="max-width: 150px"
+                    class="btn btn-block btn-md btn-primary my-1 mr-2"
+                    id="primary-button"
+                  >
+                    Go to docs
+                  </a>
+                  <a
+                    target="_blank"
+                    href="https://calendly.com/fleetdm/chat?month=2021-04"
+                    style="max-width: 250px"
+                    class="btn btn-block btn-lg btn-schedule my-1 ml-2"
+                    id="arrow"
+                    >Schedule a demo
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
     </div>
