@@ -1,3 +1,4 @@
+// Package mysql is a MySQL implementation of the Datastore interface.
 package mysql
 
 import (

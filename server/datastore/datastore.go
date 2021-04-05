@@ -1,3 +1,4 @@
+// Package datastore provides testcases for Datastore implementations.
 package datastore
 
 import (
@@ -6,7 +7,9 @@ import (
 	"github.com/fleetdm/fleet/server/kolide"
 )
 
-var testFunctions = [...]func(*testing.T, kolide.Datastore){
+// TestFunctions are the test functions that a Datastore implementation should
+// run to verify proper implementation.
+var TestFunctions = [...]func(*testing.T, kolide.Datastore){
 	testOrgInfo,
 	testAdditionalQueries,
 	testEnrollSecrets,

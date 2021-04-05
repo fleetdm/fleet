@@ -1,57 +1,133 @@
 package mysql
 
 import (
+	"database/sql"
+	"fmt"
+	"os"
+	"os/exec"
 	"testing"
 
+	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/server/config"
+	"github.com/fleetdm/fleet/server/datastore"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/fleetdm/fleet/server/test"
+	"github.com/go-kit/kit/log"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/stretchr/testify/require"
 )
 
-func TestAppendListOptionsToSQL(t *testing.T) {
-	sql := "SELECT * FROM app_configs"
-	opts := kolide.ListOptions{
-		OrderKey: "name",
+const (
+	schemaDbName = "schemadb"
+	dumpfile     = "dump.sql"
+	testUsername = "root"
+	testPassword = "toor"
+	testAddress  = "localhost:3307"
+)
+
+func connectMySQL(t *testing.T, testName string) *Datastore {
+	config := config.MysqlConfig{
+		Username: testUsername,
+		Password: testPassword,
+		Database: testName,
+		Address:  testAddress,
 	}
 
-	actual := appendListOptionsToSQL(sql, opts)
-	expected := "SELECT * FROM app_configs ORDER BY name ASC LIMIT 1000000"
-	if actual != expected {
-		t.Error("Expected", expected, "Actual", actual)
+	// Create datastore client
+	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1))
+	require.Nil(t, err)
+	return ds
+}
+
+// initializeSchema initializes a database schema using the normal Fleet
+// migrations, then outputs the schema with mysqldump within the MySQL Docker
+// container.
+func initializeSchema(t *testing.T) {
+	// Create the database (must use raw MySQL client to do this)
+	db, err := sql.Open(
+		"mysql",
+		fmt.Sprintf("%s:%s@tcp(%s)/?multiStatements=true", testUsername, testPassword, testAddress),
+	)
+	require.NoError(t, err)
+	defer db.Close()
+	_, err = db.Exec("DROP DATABASE IF EXISTS schemadb; CREATE DATABASE schemadb;")
+	require.NoError(t, err)
+
+	// Create a datastore client in order to run migrations as usual
+	config := config.MysqlConfig{
+		Username: testUsername,
+		Password: testPassword,
+		Address:  testAddress,
+		Database: schemaDbName,
+	}
+	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1))
+	require.Nil(t, err)
+	defer ds.Close()
+	require.Nil(t, ds.MigrateTables())
+
+	// Dump schema to dumpfile
+	if out, err := exec.Command(
+		"docker-compose", "exec", "-T", "mysql_test",
+		// Command run inside container
+		"mysqldump",
+		"-u"+testUsername, "-p"+testPassword,
+		"schemadb",
+		"--compact", "--skip-comments",
+		"--result-file="+dumpfile,
+	).CombinedOutput(); err != nil {
+		t.Error(err)
+		t.Error(string(out))
+		t.FailNow()
+	}
+}
+
+// initializeDatabase loads the dumped schema into a newly created database in
+// MySQL. This is much faster than running the full set of migrations on each
+// test.
+func initializeDatabase(t *testing.T, dbName string) {
+	// Load schema from dumpfile
+	if out, err := exec.Command(
+		"docker-compose", "exec", "-T", "mysql_test",
+		// Command run inside container
+		"mysql",
+		"-u"+testUsername, "-p"+testPassword,
+		"-e",
+		fmt.Sprintf(
+			"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; SOURCE %s;",
+			dbName, dbName, dbName, dumpfile,
+		),
+	).CombinedOutput(); err != nil {
+		t.Error(err)
+		t.Error(string(out))
+		t.FailNow()
 	}
 
-	sql = "SELECT * FROM app_configs"
-	opts.OrderDirection = kolide.OrderDescending
-	actual = appendListOptionsToSQL(sql, opts)
-	expected = "SELECT * FROM app_configs ORDER BY name DESC LIMIT 1000000"
-	if actual != expected {
-		t.Error("Expected", expected, "Actual", actual)
+}
+
+func runTest(t *testing.T, testFunc func(*testing.T, kolide.Datastore)) {
+	t.Run(test.FunctionName(testFunc), func(t *testing.T) {
+		t.Parallel()
+
+		// Create a new database and load the schema for each test
+		initializeDatabase(t, test.FunctionName(testFunc))
+
+		ds := connectMySQL(t, test.FunctionName(testFunc))
+		defer ds.Close()
+
+		testFunc(t, ds)
+	})
+}
+
+func TestMySQL(t *testing.T) {
+	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
+		t.Skip("MySQL tests are disabled")
 	}
 
-	opts = kolide.ListOptions{
-		PerPage: 10,
-	}
+	// Initialize the schema once for the entire test run.
+	initializeSchema(t)
 
-	sql = "SELECT * FROM app_configs"
-	actual = appendListOptionsToSQL(sql, opts)
-	expected = "SELECT * FROM app_configs LIMIT 10"
-	if actual != expected {
-		t.Error("Expected", expected, "Actual", actual)
-	}
-
-	sql = "SELECT * FROM app_configs"
-	opts.Page = 2
-	actual = appendListOptionsToSQL(sql, opts)
-	expected = "SELECT * FROM app_configs LIMIT 10 OFFSET 20"
-	if actual != expected {
-		t.Error("Expected", expected, "Actual", actual)
-	}
-
-	opts = kolide.ListOptions{}
-	sql = "SELECT * FROM app_configs"
-	actual = appendListOptionsToSQL(sql, opts)
-	expected = "SELECT * FROM app_configs LIMIT 1000000"
-
-	if actual != expected {
-		t.Error("Expected", expected, "Actual", actual)
+	for _, f := range datastore.TestFunctions {
+		runTest(t, f)
 	}
 
 }
