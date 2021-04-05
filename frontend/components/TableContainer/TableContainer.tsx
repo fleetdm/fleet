@@ -150,7 +150,7 @@ const TableContainer = <T, U>(props: ITableContainerProps<T, U>): JSX.Element =>
           <p className={`${baseClass}__results-count`}>
             {TableContainerUtils.generateResultsCountText(resultsTitle, pageIndex, pageSize, data.length)}
           </p> :
-          <p></p>
+          <p />
         }
         <div className={`${baseClass}__table-controls`}>
           <Button
