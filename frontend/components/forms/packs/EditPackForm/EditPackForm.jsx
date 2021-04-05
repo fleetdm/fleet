@@ -47,7 +47,7 @@ class EditPackForm extends Component {
           {...fields.description}
           inputWrapperClass={`${baseClass}__pack-description`}
           label="Query Pack Description"
-          placeholder="Add a description of your query"
+          placeholder="Add a description of your pack"
           type="textarea"
         />
         <SelectTargetsDropdown
