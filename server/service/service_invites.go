@@ -5,8 +5,10 @@ import (
 	"encoding/base64"
 	"html/template"
 
+	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/mail"
+	"github.com/pkg/errors"
 )
 
 func (svc service) InviteNewUser(ctx context.Context, payload kolide.InvitePayload) (*kolide.Invite, error) {
@@ -15,16 +17,16 @@ func (svc service) InviteNewUser(ctx context.Context, payload kolide.InvitePaylo
 	if err == nil {
 		return nil, newInvalidArgumentError("email", "a user with this account already exists")
 	}
-
 	if _, ok := err.(kolide.NotFoundError); !ok {
 		return nil, err
 	}
 
 	// find the user who created the invite
-	inviter, err := svc.User(ctx, *payload.InvitedBy)
-	if err != nil {
-		return nil, err
+	v, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, errors.New("missing viewer context for create invite")
 	}
+	inviter := v.User
 
 	random, err := kolide.RandomText(svc.config.App.TokenKeySize)
 	if err != nil {

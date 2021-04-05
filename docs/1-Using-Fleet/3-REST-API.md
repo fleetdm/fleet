@@ -1434,7 +1434,6 @@ Creates a user account without requiring an invitation, the user is enabled imme
 | username   | string  | body | **Required**. The user's username.               |
 | email      | string  | body | **Required**. The user's email address.          |
 | password   | string  | body | **Required**. The user's password.               |
-| invited_by | integer | body | **Required**. ID of the admin creating the user. |
 | admin      | boolean | body | **Required**. Whether the user has admin privileges. |
 
 #### Example
@@ -1448,7 +1447,6 @@ Creates a user account without requiring an invitation, the user is enabled imme
   "username": "janedoe",
   "email": "janedoe@example.com",
   "password": "test-123",
-  "invited_by":1,
   "admin":true
 }
 ```
@@ -4070,7 +4068,6 @@ Modifies and/or creates the specified enroll secret(s).
 | ---------- | ------- | ---- | ------------------------------------------------ |
 | admin   | boolean  | body | **Required.** Whether or not the invited user will be granted admin privileges.             |
 | email   | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.              |
-| invited_by      | integer  | body | **Required.** The id of the user that is extending the invitation. See the [Get user information](#get-user-information) endpoint for how to retrieve a user's id.          |
 | name     | string  | body | **Required.** The name of the invited user.         |
 | sso_enabled     | boolean  | body | **Required.** Whether or not SSO will be enabled for the invited user.   |
 
@@ -4082,7 +4079,6 @@ Modifies and/or creates the specified enroll secret(s).
 {
   "admin": false,
   "email": "john_appleseed@example.com",
-  "invited_by": 1,
   "name": John,
   "sso_enabled": false
 }

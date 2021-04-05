@@ -47,7 +47,6 @@ type InviteService interface {
 
 // InvitePayload contains fields required to create a new user invite.
 type InvitePayload struct {
-	InvitedBy  *uint `json:"invited_by"`
 	Email      *string
 	Admin      *bool
 	Name       *string

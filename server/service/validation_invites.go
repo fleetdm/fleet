@@ -11,9 +11,6 @@ func (mw validationMiddleware) InviteNewUser(ctx context.Context, payload kolide
 	if payload.Email == nil {
 		invalid.Append("email", "missing required argument")
 	}
-	if payload.InvitedBy == nil {
-		invalid.Append("invited_by", "missing required argument")
-	}
 	if payload.Admin == nil {
 		invalid.Append("admin", "missing required argument")
 	}
