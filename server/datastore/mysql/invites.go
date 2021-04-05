@@ -20,7 +20,7 @@ func (d *Datastore) NewInvite(i *kolide.Invite) (*kolide.Invite, error) {
 	result, err := d.db.Exec(sqlStmt, i.InvitedBy, i.Email, i.Admin,
 		i.Name, i.Position, i.Token, i.SSOEnabled, i.GlobalRole)
 	if err != nil && isDuplicate(err) {
-		return nil, alreadyExists("Invite", 0)
+		return nil, alreadyExists("Invite", i.Email)
 	} else if err != nil {
 		return nil, errors.Wrap(err, "create invite")
 	}

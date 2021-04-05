@@ -50,7 +50,6 @@ interface IFormData {
   sso_enabled: boolean;
   global_role?: string;
   teams?: ITeam[];
-  invited_by?: number;
 }
 
 interface ISubmitData extends IFormData {

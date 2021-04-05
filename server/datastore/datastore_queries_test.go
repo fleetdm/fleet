@@ -340,5 +340,5 @@ func testDuplicateNewQuery(t *testing.T, ds kolide.Datastore) {
 
 	// Note that we can't do the actual type assertion here because existsError
 	// is private to the individual datastore implementations
-	assert.Contains(t, err.Error(), "already exists in the datastore")
+	assert.Contains(t, err.Error(), "already exists")
 }
