@@ -22,4 +22,4 @@
 
 ### Remediation
 
-<!-- Are there any remediation steps to resolve your query's detection? If not, insert "N/A."  -->
+<!-- Are there any remediation steps to resolve the detection triggered by your query? If not, insert "N/A."  -->
