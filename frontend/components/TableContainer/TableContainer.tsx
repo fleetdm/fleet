@@ -144,7 +144,6 @@ const TableContainer = <T, U>(props: ITableContainerProps<T, U>): JSX.Element =>
 
   return (
     <div className={wrapperClasses}>
-      {/* TODO: find a way to move these controls into the table component */}
       <div className={`${baseClass}__header`}>
         { data && data.length ?
           <p className={`${baseClass}__results-count`}>

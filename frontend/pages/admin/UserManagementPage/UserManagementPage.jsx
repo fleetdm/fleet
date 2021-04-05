@@ -19,18 +19,11 @@ import { renderFlash } from 'redux/nodes/notifications/actions';
 import { updateUser } from 'redux/nodes/auth/actions';
 import userActions from 'redux/nodes/entities/users/actions';
 
-
 import UserForm from './components/UserForm';
+import EmptyUsers from './components/EmptyUsers';
 import { generateTableHeaders, combineDataSets } from './UsersTableConfig';
 
 const baseClass = 'user-management';
-
-const EmptyUsers = () => {
-  return (
-    <p>no users</p>
-  );
-};
-
 
 const generateUpdateData = (currentUserData, formData) => {
   const updatableFields = ['global_role', 'teams', 'name', 'email', 'sso_enabled'];
