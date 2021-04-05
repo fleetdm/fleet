@@ -164,11 +164,6 @@ const generateActionDropdownOptions = (id: number, currentUserId: number): IDrop
 const generateInviteDropdownOptions = (): IDropdownOption[] => {
   return [
     {
-      label: 'Edit',
-      disabled: false,
-      value: 'edit',
-    },
-    {
       label: 'Delete',
       disabled: false,
       value: 'delete',
