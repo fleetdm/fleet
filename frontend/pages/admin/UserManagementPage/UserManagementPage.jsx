@@ -118,6 +118,24 @@ export class UserManagementPage extends Component {
     this.toggleCreateUserModal();
   }
 
+  onDeleteUser = () => {
+    const { dispatch } = this.props;
+    const { userEditing } = this.state;
+    const { toggleDeleteUserModal } = this;
+
+    if (userEditing.type === 'invite') {
+      dispatch(inviteActions.destroy(userEditing)).then(() => {
+        dispatch(renderFlash('success', 'User deleted'));
+        toggleDeleteUserModal();
+      }).catch(() => false);
+    } else {
+      dispatch(userActions.destroy(userEditing)).then(() => {
+        dispatch(renderFlash('success', 'User deleted'));
+        toggleDeleteUserModal();
+      }).catch(() => false);
+    }
+  }
+
   // NOTE: this is called once on the initial rendering. The initial render of
   // the TableContainer child component calls this handler.
   onTableQueryChange = (queryData) => {
@@ -273,7 +291,7 @@ export class UserManagementPage extends Component {
 
   renderDeleteUserModal = () => {
     const { showDeleteUserModal, userEditing } = this.state;
-    const { toggleDeleteUserModal } = this;
+    const { toggleDeleteUserModal, onDeleteUser } = this;
 
     if (!showDeleteUserModal) return null;
 
@@ -285,7 +303,7 @@ export class UserManagementPage extends Component {
       >
         <DeleteUserForm
           name={userEditing.name}
-          onDelete={() => console.log('delted')}
+          onDelete={onDeleteUser}
           onCancel={toggleDeleteUserModal}
         />
       </Modal>
@@ -371,7 +389,7 @@ const mapStateToProps = (state) => {
   const { entities: users } = stateEntityGetter.get('users');
   // const { entities: invites } = stateEntityGetter.get('invites');
   const invites = [{
-    name: 'Gabriel Fernandez', email: 'gabriel+fev@fleetdm.com', id: 2, teams: [{ name: 'Test Team', role: 'maintainer', id: 1 }], global_role: null,
+    name: 'Gabriel Fernandez', email: 'gabriel+fev@fleetdm.com', id: 6, teams: [{ name: 'Test Team', role: 'maintainer', id: 1 }], global_role: null,
   }];
   const { errors: inviteErrors, loading: loadingInvites } = state.entities.invites;
   const { errors: userErrors, loading: loadingUsers } = state.entities.users;

@@ -10,6 +10,12 @@ export default (client) => {
       return client.authenticatedPost(client._endpoint(USERS), JSON.stringify(formData))
         .then(response => helpers.addGravatarUrlToResource(response.user));
     },
+    destroy: (user) => {
+      const { USERS } = endpoints;
+      const endpoint = `${client._endpoint(USERS)}/${user.id}`;
+
+      return client.authenticatedDelete(endpoint);
+    },
     forgotPassword: ({ email }) => {
       const { FORGOT_PASSWORD } = endpoints;
       const endpoint = client.baseURL + FORGOT_PASSWORD;
