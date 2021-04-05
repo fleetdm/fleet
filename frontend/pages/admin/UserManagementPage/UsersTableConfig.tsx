@@ -83,7 +83,6 @@ const generateTableHeaders = (actionSelectHandler: (value: string, user: IUser |
       disableSortBy: true,
       Cell: cellProps => <TextCell value={cellProps.cell.value} />,
     },
-    // TODO: figure out this column accessor
     {
       title: 'Actions',
       Header: 'Actions',

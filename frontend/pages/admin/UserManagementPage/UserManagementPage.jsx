@@ -22,6 +22,7 @@ import userActions from 'redux/nodes/entities/users/actions';
 import UserForm from './components/UserForm';
 import EmptyUsers from './components/EmptyUsers';
 import { generateTableHeaders, combineDataSets } from './UsersTableConfig';
+import DeleteUserForm from './components/DeleteUserForm';
 
 const baseClass = 'user-management';
 
@@ -62,6 +63,7 @@ export class UserManagementPage extends Component {
     this.state = {
       showCreateUserModal: false,
       showEditUserModal: false,
+      showDeleteUserModal: false,
       userEditing: null,
       usersEditing: [],
     };
@@ -130,27 +132,19 @@ export class UserManagementPage extends Component {
   }
 
   onActionSelect = (action, user) => {
-    const { dispatch } = this.props;
-    const { toggleEditUserModal } = this;
-    const { requirePasswordReset } = userActions;
-
+    const { toggleEditUserModal, toggleDeleteUserModal, resetPassword } = this;
     switch (action) {
       case ('edit'):
         toggleEditUserModal(user);
         break;
       case ('delete'):
+        toggleDeleteUserModal(user);
         break;
       case ('passwordReset'):
-        return dispatch(requirePasswordReset(user.id, { require: true }))
-          .then(() => {
-            return dispatch(
-              renderFlash(
-                'success', 'User required to reset password',
-                requirePasswordReset(user.id, { require: false }), // this is an undo action.
-              ),
-            );
-          });
+        resetPassword(user);
+        break;
       default:
+        return null;
     }
   }
 
@@ -180,11 +174,34 @@ export class UserManagementPage extends Component {
     });
   }
 
+  toggleDeleteUserModal = (user) => {
+    const { showDeleteUserModal } = this.state;
+    this.setState({
+      showDeleteUserModal: !showDeleteUserModal,
+      userEditing: !showDeleteUserModal ? user : null,
+    });
+  }
+
   combineUsersAndInvites = memoize(
-    (users, invites, currentUserId, onActionSelect) => {
-      return combineDataSets(users, invites, currentUserId, onActionSelect);
+    (users, invites, currentUserId) => {
+      return combineDataSets(users, invites, currentUserId);
     },
   )
+
+  resetPassword = (user) => {
+    const { dispatch } = this.props;
+    const { requirePasswordReset } = userActions;
+
+    return dispatch(requirePasswordReset(user.id, { require: true }))
+      .then(() => {
+        return dispatch(
+          renderFlash(
+            'success', 'User required to reset password',
+            requirePasswordReset(user.id, { require: false }), // this is an undo action.
+          ),
+        );
+      });
+  }
 
   goToAppConfigPage = (evt) => {
     evt.preventDefault();
@@ -216,7 +233,6 @@ export class UserManagementPage extends Component {
           defaultName={userData.name}
           defaultGlobalRole={userData.global_role}
           defaultTeams={userData.teams}
-          createdBy={currentUser}
           currentUserId={currentUser.id}
           onCancel={toggleEditUserModal}
           onSubmit={onEditUser}
@@ -233,9 +249,7 @@ export class UserManagementPage extends Component {
     const { showCreateUserModal } = this.state;
     const { onCreateUserSubmit, toggleCreateUserModal } = this;
 
-    if (!showCreateUserModal) {
-      return false;
-    }
+    if (!showCreateUserModal) return null;
 
     return (
       <Modal
@@ -245,7 +259,6 @@ export class UserManagementPage extends Component {
       >
         <UserForm
           serverErrors={inviteErrors}
-          createdBy={currentUser}
           currentUserId={currentUser.id}
           onCancel={toggleCreateUserModal}
           onSubmit={onCreateUserSubmit}
@@ -257,6 +270,27 @@ export class UserManagementPage extends Component {
       </Modal>
     );
   };
+
+  renderDeleteUserModal = () => {
+    const { showDeleteUserModal, userEditing } = this.state;
+    const { toggleDeleteUserModal } = this;
+
+    if (!showDeleteUserModal) return null;
+
+    return (
+      <Modal
+        title={'Delete user'}
+        onExit={toggleDeleteUserModal}
+        className={`${baseClass}__delete-user-modal`}
+      >
+        <DeleteUserForm
+          name={userEditing.name}
+          onDelete={() => console.log('delted')}
+          onCancel={toggleDeleteUserModal}
+        />
+      </Modal>
+    );
+  }
 
   renderSmtpWarning = () => {
     const { appConfigLoading, config } = this.props;
@@ -289,6 +323,7 @@ export class UserManagementPage extends Component {
       tableHeaders,
       renderCreateUserModal,
       renderEditUserModal,
+      renderDeleteUserModal,
       renderSmtpWarning,
       toggleCreateUserModal,
       onTableQueryChange,
@@ -322,6 +357,7 @@ export class UserManagementPage extends Component {
         />
         {renderCreateUserModal()}
         {renderEditUserModal()}
+        {renderDeleteUserModal()}
       </div>
     );
   }
