@@ -184,7 +184,6 @@ const TableContainer = <T, U>(props: ITableContainerProps<T, U>): JSX.Element =>
               sortHeader={sortHeader}
               sortDirection={sortDirection}
               onSort={onSortChange}
-              resultsName={'hosts'}
             />
             <Pagination
               resultsOnCurrentPage={data.length}
