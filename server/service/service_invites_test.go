@@ -7,6 +7,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/server/config"
+	"github.com/fleetdm/fleet/server/contexts/viewer"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/fleetdm/fleet/server/mock"
 	"github.com/stretchr/testify/assert"
@@ -16,17 +17,17 @@ import (
 func TestInviteNewUserMock(t *testing.T) {
 	svc, mockStore, mailer := setupInviteTest(t)
 	ctx := context.Background()
-
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: adminUser})
 	payload := kolide.InvitePayload{
-		Email:     stringPtr("user@acme.co"),
-		InvitedBy: &adminUser.ID,
-		Admin:     boolPtr(false),
+		Email: stringPtr("user@acme.co"),
+		Admin: boolPtr(false),
 	}
 
 	// happy path
 	invite, err := svc.InviteNewUser(ctx, payload)
 	require.Nil(t, err)
 	assert.Equal(t, invite.ID, validInvite.ID)
+	assert.Equal(t, adminUser.ID, invite.InvitedBy)
 	assert.True(t, mockStore.NewInviteFuncInvoked)
 	assert.True(t, mockStore.AppConfigFuncInvoked)
 	assert.True(t, mailer.Invoked)
