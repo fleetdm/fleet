@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
-import { concat, includes, difference, isEqual } from 'lodash';
+import { isEqual } from 'lodash';
 import { push } from 'react-router-redux';
 import memoize from 'memoize-one';
 
@@ -20,7 +20,7 @@ import { updateUser } from 'redux/nodes/auth/actions';
 import userActions from 'redux/nodes/entities/users/actions';
 
 
-import CreateUserForm from './components/CreateUserForm';
+import UserForm from './components/UserForm';
 import { generateTableHeaders, combineDataSets } from './UsersTableConfig';
 
 const baseClass = 'user-management';
@@ -217,7 +217,7 @@ export class UserManagementPage extends Component {
         onExit={toggleEditUserModal}
         className={`${baseClass}__edit-user-modal`}
       >
-        <CreateUserForm
+        <UserForm
           serverErrors={inviteErrors}
           defaultEmail={userData.email}
           defaultName={userData.name}
@@ -229,6 +229,7 @@ export class UserManagementPage extends Component {
           onSubmit={onEditUser}
           canUseSSO={config.enable_sso}
           availableTeams={userData.teams}
+          submitText={'Edit'}
         />
       </Modal>
     );
@@ -249,7 +250,7 @@ export class UserManagementPage extends Component {
         onExit={toggleCreateUserModal}
         className={`${baseClass}__create-user-modal`}
       >
-        <CreateUserForm
+        <UserForm
           serverErrors={inviteErrors}
           createdBy={currentUser}
           currentUserId={currentUser.id}
@@ -258,6 +259,7 @@ export class UserManagementPage extends Component {
           canUseSSO={config.enable_sso}
           availableTeams={currentUser.teams}
           defaultTeams={[]}
+          submitText={'Create'}
         />
       </Modal>
     );

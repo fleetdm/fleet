@@ -58,6 +58,7 @@ interface ICreateUserFormProps {
   onCancel: () => void;
   onSubmit: (formData: IFormData) => void;
   canUseSSO: boolean;
+  submitText: string;
   defaultName?: string;
   defaultEmail?: string;
   defaultGlobalRole?: string | null;
@@ -74,7 +75,7 @@ interface ICreateUserFormState {
   isGlobalUser: boolean,
 }
 
-class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormState> {
+class UserForm extends Component <ICreateUserFormProps, ICreateUserFormState> {
   constructor (props: ICreateUserFormProps) {
     super(props);
 
@@ -252,7 +253,7 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
 
   render (): JSX.Element {
     const { errors, formData: { email, name, sso_enabled }, isGlobalUser } = this.state;
-    const { onCancel } = this.props;
+    const { onCancel, submitText } = this.props;
     const { onFormSubmit, onInputChange, onCheckboxChange, onIsGlobalUserChange, renderGlobalRoleForm, renderTeamsForm } = this;
 
     return (
@@ -319,7 +320,7 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
             variant="brand"
             onClick={onFormSubmit}
           >
-            Create
+            {submitText}
           </Button>
           <Button
             className={`${baseClass}__btn`}
@@ -334,4 +335,4 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
   }
 }
 
-export default CreateUserForm;
+export default UserForm;

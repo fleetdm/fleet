@@ -13,6 +13,8 @@ const currentUser = {
   name: 'Gnar Dog',
   position: 'Head of Gnar',
   username: 'gnardog',
+  teams: [],
+  global_role: 'admin',
 };
 const store = {
   app: {
