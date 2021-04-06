@@ -117,7 +117,6 @@ export class ConfigurePackQueryForm extends Component {
 
   render () {
     const { fields, handleSubmit } = this.props;
-    console.log(fields.platform);
     const { handlePlatformChoice, renderCancelButton } = this;
 
     return (
