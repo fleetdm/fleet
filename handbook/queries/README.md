@@ -6,7 +6,7 @@ Fleet's standard query library includes a growing collection of useful queries f
 
 - [Detect machines with gatekeeper disabled](./detect-machines-with-gatekeeper-disabled.md)
 - [Detect presence of authorized SSH keys](./detect-presence-of-authorized-ssh-keys.md)
-- [Find hosts with the firewall disabled](./find-hosts-with-the-firewall-disabled.md)
+- [Detect hosts with the firewall disabled](./detect-hosts-with-the-firewall-disabled.md)
 - [Get installed Chrome extensions](./get-installed-chrome-extensions.md)
 - [Get installed FreeBSD software](./get-installed-freebsd-software.md)
 - [Get installed Homebrew packages](./get-installed-homebrew-packages.md)
