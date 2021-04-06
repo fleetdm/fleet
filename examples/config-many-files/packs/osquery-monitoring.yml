@@ -8,6 +8,7 @@ spec:
       name: osquery_version_snapshot
       interval: 7200
       snapshot: true
+      platform: posix,linux, darwin
     - query: osquery_version
       name: osquery_version_differential
       interval: 7200

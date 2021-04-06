@@ -17,6 +17,8 @@ const platformOptions = [
   { label: 'Windows', value: 'windows' },
   { label: 'Linux', value: 'linux' },
   { label: 'macOS', value: 'darwin' },
+  { label: 'POSIX', value: 'posix' },
+  { label: 'FreeBSD', value: 'freebsd' },
 ];
 const loggingTypeOptions = [
   { label: 'Differential', value: 'differential' },
@@ -117,6 +119,7 @@ export class ConfigurePackQueryForm extends Component {
 
   render () {
     const { fields, handleSubmit } = this.props;
+    console.log(fields.platform);
     const { handlePlatformChoice, renderCancelButton } = this;
 
     return (
