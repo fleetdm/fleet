@@ -1,6 +1,6 @@
-# Platform info snapshot
+# Get platform info
 
-Takes a snapshot of platform info.
+Shows information about the host platform
 
 ### Support
 macOS
