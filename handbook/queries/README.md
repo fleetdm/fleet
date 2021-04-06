@@ -19,7 +19,7 @@ Fleet's standard query library includes a growing collection of useful queries f
 - [Get System Logins and Logouts](./get-system-logins-and-logouts.md)
 - [Get wifi status](./get-wifi-status.md)
 - [Get Windows machines with unencrypted hard disks](./get-windows-machines-with-unencrypted-hard-disks.md)
-- [Platform info snapshot](./platform_info_snapshot.md)
+- [Get platform info](./get-platform-info.md)
 
 ### Contributors
 
