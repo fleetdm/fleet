@@ -62,3 +62,34 @@ func makeModifyTeamEndpoint(svc kolide.Service) endpoint.Endpoint {
 		return modifyTeamResponse{Team: team}, err
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// List Teams
+////////////////////////////////////////////////////////////////////////////////
+
+type listTeamsRequest struct {
+	ListOptions kolide.ListOptions
+}
+
+type listTeamsResponse struct {
+	Teams []kolide.Team `json:"teams"`
+	Err   error         `json:"error,omitempty"`
+}
+
+func (r listTeamsResponse) error() error { return r.Err }
+
+func makeListTeamsEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(listTeamsRequest)
+		teams, err := svc.ListTeams(ctx, req.ListOptions)
+		if err != nil {
+			return listTeamsResponse{Err: err}, nil
+		}
+
+		resp := listTeamsResponse{Teams: []kolide.Team{}}
+		for _, team := range teams {
+			resp.Teams = append(resp.Teams, *team)
+		}
+		return resp, nil
+	}
+}

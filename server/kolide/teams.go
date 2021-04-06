@@ -14,11 +14,19 @@ type TeamStore interface {
 	TeamByName(name string) (*Team, error)
 	// SaveTeam saves any changes to the team.
 	SaveTeam(team *Team) (*Team, error)
+	// ListTeams lists teams with the ordering and filters in the provided
+	// options.
+	ListTeams(opt ListOptions) ([]*Team, error)
 }
 
 type TeamService interface {
+	// NewTeam creates a new team.
 	NewTeam(ctx context.Context, p TeamPayload) (*Team, error)
+	// ModifyTeam modifies an existing team.
 	ModifyTeam(ctx context.Context, id uint, payload TeamPayload) (*Team, error)
+	// ListTeams lists teams with the ordering and filters in the provided
+	// options.
+	ListTeams(ctx context.Context, opt ListOptions) ([]*Team, error)
 }
 
 type TeamPayload struct {

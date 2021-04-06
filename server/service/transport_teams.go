@@ -27,3 +27,11 @@ func decodeModifyTeamRequest(ctx context.Context, r *http.Request) (interface{},
 	resp.ID = id
 	return resp, nil
 }
+
+func decodeListTeamsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	opt, err := listOptionsFromRequest(r)
+	if err != nil {
+		return nil, err
+	}
+	return listTeamsRequest{ListOptions: opt}, nil
+}
