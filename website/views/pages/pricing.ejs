@@ -4,9 +4,9 @@
       style="max-width: 1260px"
       class="container-fluid pt-5 px-4 px-sm-5 mx-auto"
     >
-      <div id="pricing-section" style="max-width: 800px" class="pt-5 mx-auto">
-        <h1 style="color: #000" class="text-center">Choose your plan</h1>
-        <p style="color: #000" class="text-center mb-5">
+      <section id="pricing-section" class="pt-5 mx-auto">
+        <h1 class="text-center">Choose your plan</h1>
+        <p class="text-center mb-5">
           Choose the right plan for your business
         </p>
         <div style="max-width: 810px">
@@ -22,10 +22,9 @@
                     <p class="mb-0">/host/month</p>
                   </div>
                   <a
-                    target="_blank"
-                    href="https://github.com/fleetdm/fleet#readme"
+                    href="/get-started"
                     style="max-width: 242px"
-                    class="btn btn-block btn-lg btn-info mt-3 mb-4 mx-auto"
+                    class="btn btn-block btn-lg btn-info my-3 mx-auto"
                     >Start now</a
                   >
                   <div
@@ -34,7 +33,7 @@
                   >
                     <p
                       style="padding-left: 32px"
-                      class="position-relative mt-3 mb-4"
+                      class="position-relative my-3"
                     >
                       <img
                         alt="a circle with a checkmark"
@@ -46,7 +45,7 @@
                     </p>
                     <p
                       style="padding-left: 32px"
-                      class="position-relative mt-3 mb-4"
+                      class="position-relative my-3"
                     >
                       <img
                         alt="a circle with a checkmark"
@@ -58,7 +57,7 @@
                     </p>
                     <p
                       style="padding-left: 32px"
-                      class="position-relative mt-3 mb-4"
+                      class="position-relative my-3"
                     >
                       <img
                         alt="a circle with a checkmark"
@@ -87,7 +86,7 @@
                   </div>
                   <button
                     style="max-width: 242px"
-                    class="btn btn-block btn-lg btn-info mt-3 mb-4 mx-auto"
+                    class="btn btn-block btn-lg btn-info my-3 mx-auto"
                     @click="clickChatButton()"
                   >
                     Get free trial
@@ -98,7 +97,7 @@
                   >
                     <p
                       style="padding-left: 32px"
-                      class="position-relative mt-3 mb-4"
+                      class="position-relative my-3"
                     >
                       <img
                         alt="a circle with a checkmark"
@@ -110,7 +109,7 @@
                     </p>
                     <p
                       style="padding-left: 32px"
-                      class="position-relative mt-3 mb-4"
+                      class="position-relative my-3"
                     >
                       <img
                         alt="a circle with a checkmark"
@@ -122,7 +121,7 @@
                     </p>
                     <p
                       style="padding-left: 32px"
-                      class="position-relative mt-3 mb-4"
+                      class="position-relative my-3"
                     >
                       <img
                         alt="a circle with a checkmark"
@@ -138,8 +137,8 @@
             </div>
           </div>
         </div>
-      </div>
-      <div id="features-section" style="max-width: 800px" class="py-5 mx-auto">
+      </section>
+      <section id="features" class="py-5 mx-auto">
         <div style="max-width: 810px">
           <div class="row">
             <div class="col-lg px-1 mx-auto" style="max-width: 810px">
@@ -1056,9 +1055,9 @@
             </div>
           </div>
         </div>
-      </div>
-      <div id="questions-section" style="max-width: 800px" class="py-5 mx-auto">
-        <h1 style="color: #000" class="text-center">
+      </section>
+      <section id="questions" class="py-5 mx-auto">
+        <h1 class="text-center">
           Still got questions? Get in touch.
         </h1>
         <div
@@ -1067,7 +1066,7 @@
         >
           <button
             style="max-width: 150px"
-            class="btn btn-block btn-md btn-primary mt-3 mb-4 mx-2"
+            class="btn btn-block btn-md btn-primary my-3 mx-2"
             @click="clickChatButton()"
           >
             Contact Us
@@ -1076,16 +1075,12 @@
             target="_blank"
             href="https://calendly.com/fleetdm/chat?month=2021-04"
             style="max-width: 250px"
-            class="btn btn-block btn-lg btn-white mt-3 mb-4 mx-2"
-            >Schedule a demo <img
-            alt="a right arrow"
-            src="/images/arrow-right-16x16@2x.png"
-            style="width: 16px; height: 16px; margin: 5px;"
-            class="d-inline"
-          />
+            class="btn btn-block btn-lg btn-white my-3 mx-2"
+            id="arrow"
+            >Schedule a demo
           </a>
         </div>
-      </div>
+      </section>
     </div>
   </div>
 </div>
