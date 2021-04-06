@@ -17,8 +17,6 @@ const platformOptions = [
   { label: 'Windows', value: 'windows' },
   { label: 'Linux', value: 'linux' },
   { label: 'macOS', value: 'darwin' },
-  { label: 'POSIX', value: 'posix' },
-  { label: 'FreeBSD', value: 'freebsd' },
 ];
 const loggingTypeOptions = [
   { label: 'Differential', value: 'differential' },

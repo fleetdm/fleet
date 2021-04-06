@@ -25,12 +25,11 @@ const generatePlatformText = (platforms) => {
     const platformsArray = platforms.split(',');
 
     const textArray = platformsArray.map((platform) => {
+      // Trim spaces from the platform
       const trimmedPlatform = platform.trim();
-      console.log(trimmedPlatform)
-      const platformObject = find(ALL_PLATFORMS, { value: trimmedPlatform });
-      let text = '---';
 
-      if (platformObject) text = platformObject.text;
+      // Convert value to text if value exists. Otherwise, just use the value.
+      const text = find(ALL_PLATFORMS, { value: trimmedPlatform }) ? find(ALL_PLATFORMS, { value: trimmedPlatform }).text : trimmedPlatform;
 
       return text;
     });
