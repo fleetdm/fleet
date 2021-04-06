@@ -1,6 +1,6 @@
 ## Fleet 3.10.1 (Apr 6, 2021)
 
-* Fix a frontend bug that prevented the "Pack" page and "Edit pack" page from rendering. This issue occurred when the `platform` key, in the requested pack's configuration, was set to any value other than `darwin`, `linux`, `windows`, or `all`.
+* Fix a frontend bug that prevented the "Pack" page and "Edit pack" page from rendering in the Fleet UI. This issue occurred when the `platform` key, in the requested pack's configuration, was set to any value other than `darwin`, `linux`, `windows`, or `all`.
 
 ## Fleet 3.10.0 (Mar 31, 2021)
 
