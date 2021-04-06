@@ -20,8 +20,8 @@ const settingsSubNav: ISettingSubNavItem[] = [
     pathname: PATHS.ADMIN_USERS,
   },
   {
-    name: 'Osquery options',
-    pathname: PATHS.ADMIN_OSQUERY,
+    name: 'Teams',
+    pathname: PATHS.ADMIN_TEAMS,
   },
 ];
 

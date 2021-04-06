@@ -5,7 +5,7 @@ import { syncHistoryWithStore } from 'react-router-redux';
 
 import AdminAppSettingsPage from 'pages/admin/AppSettingsPage';
 import AdminUserManagementPage from 'pages/admin/UserManagementPage';
-import AdminOsqueryOptionsPage from 'pages/admin/OsqueryOptionsPage';
+import AdminTeamManagementPage from 'pages/admin/TeamManagementPage';
 import AllPacksPage from 'pages/packs/AllPacksPage';
 import App from 'components/App';
 import AuthenticatedAdminRoutes from 'components/AuthenticatedAdminRoutes';
@@ -55,7 +55,7 @@ const routes = (
               <Route component={SettingsWrapper}>
                 <Route path="organization" component={AdminAppSettingsPage} />
                 <Route path="users" component={AdminUserManagementPage} />
-                <Route path="osquery" component={AdminOsqueryOptionsPage} />
+                <Route path="teams" component={AdminTeamManagementPage} />
               </Route>
             </Route>
             <Route path="hosts">
