@@ -13,12 +13,9 @@ const baseClass = 'scheduled-query-list-item';
 const generatePlatformText = (platforms) => {
   const ALL_PLATFORMS = [
     { text: 'All', value: 'all' },
-    { text: 'All', value: 'any' },
     { text: 'Windows', value: 'windows' },
     { text: 'Linux', value: 'linux' },
     { text: 'macOS', value: 'darwin' },
-    { text: 'POSIX', value: 'posix' },
-    { text: 'FreeBSD', value: 'freebsd' },
   ];
 
   if (platforms) {
