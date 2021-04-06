@@ -1,4 +1,4 @@
-# Find hosts with the firewall disabled
+# Detect hosts with the firewall disabled
 
 ### Platforms
 macOS
