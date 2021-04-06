@@ -13,16 +13,22 @@ const baseClass = 'scheduled-query-list-item';
 const generatePlatformText = (platforms) => {
   const ALL_PLATFORMS = [
     { text: 'All', value: 'all' },
-    { text: 'macOS', value: 'darwin' },
     { text: 'Windows', value: 'windows' },
     { text: 'Linux', value: 'linux' },
+    { text: 'macOS', value: 'darwin' },
   ];
 
   if (platforms) {
-    const platformArray = platforms.split(',');
+    const platformsArray = platforms.split(',');
 
-    const textArray = platformArray.map((platform) => {
-      const text = find(ALL_PLATFORMS, { value: platform }).text;
+    const textArray = platformsArray.map((platform) => {
+      // Trim spaces from the platform
+      const trimmedPlatform = platform.trim();
+      const platformObject = find(ALL_PLATFORMS, { value: trimmedPlatform });
+      // Convert trimmed value to the corresponding text if the value exists
+      // in the ALL_PLATFORMS array.
+      // Otherwise, just use the trimmed value.
+      const text = platformObject ? platformObject.text : trimmedPlatform;
 
       return text;
     });
@@ -32,7 +38,7 @@ const generatePlatformText = (platforms) => {
     return displayText;
   }
 
-  return '---';
+  return 'All';
 };
 
 class ScheduledQueriesListItem extends Component {

@@ -29,6 +29,24 @@ describe('ScheduledQueriesListItem - component', () => {
     expect(component.text()).toContain(scheduledQueryStub.shard);
   });
 
+  it('renders the converted platform attributes', () => {
+    const scheduledQuery = { ...scheduledQueryStub, platform: 'darwin,linux,all,windows' };
+    const component = mount(<ScheduledQueriesListItem checked={false} {...defaultProps}scheduledQuery={scheduledQuery} />);
+    expect(component.text()).toContain('macOS');
+    expect(component.text()).toContain('Linux');
+    expect(component.text()).toContain('All');
+    expect(component.text()).toContain('Windows');
+  });
+
+  it('renders the platform attributes when there are no conversions', () => {
+    const scheduledQuery = { ...scheduledQueryStub, platform: 'darwin,freebsd,  bar, foo' };
+    const component = mount(<ScheduledQueriesListItem checked={false} {...defaultProps} scheduledQuery={scheduledQuery} />);
+    expect(component.text()).toContain('macOS');
+    expect(component.text()).toContain('freebsd');
+    expect(component.text()).toContain('bar');
+    expect(component.text()).toContain('foo');
+  });
+
   it('renders a Checkbox component', () => {
     const component = shallow(<ScheduledQueriesListItem {...defaultProps} />);
     expect(component.find('Checkbox').length).toEqual(1);
