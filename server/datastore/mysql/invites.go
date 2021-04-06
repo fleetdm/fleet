@@ -10,6 +10,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+var inviteSearchColumns = []string{"name", "email"}
+
 // NewInvite generates a new invitation.
 func (d *Datastore) NewInvite(i *kolide.Invite) (*kolide.Invite, error) {
 	sqlStmt := `
@@ -52,8 +54,11 @@ func (d *Datastore) NewInvite(i *kolide.Invite) (*kolide.Invite, error) {
 // using the opt parameter. See kolide.ListOptions
 func (d *Datastore) ListInvites(opt kolide.ListOptions) ([]*kolide.Invite, error) {
 	invites := []*kolide.Invite{}
-	query := appendListOptionsToSQL("SELECT * FROM invites", opt)
-	err := d.db.Select(&invites, query)
+	query := "SELECT * FROM invites WHERE true"
+	query, params := searchLike(query, nil, opt.MatchQuery, inviteSearchColumns...)
+	query = appendListOptionsToSQL(query, opt)
+
+	err := d.db.Select(&invites, query, params...)
 	if err == sql.ErrNoRows {
 		return nil, notFound("Invite")
 	} else if err != nil {

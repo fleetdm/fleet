@@ -1266,6 +1266,7 @@ Returns a list of all enabled users
 | --------------------- | ------ | ---- | --------------------------------------------------------------- |
 | order_key               | string  | query | What to order results by. Can be any column in the users table.                                                                                                                                                                                                                                |
 | order_direction               | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.   |
+| query                  | string  | query | Search query keywords. Searchable fields include `name` and `email`.                                                   |
 
 #### Example
 
@@ -4118,6 +4119,7 @@ Returns a list of the active invitations in Fleet.
 | --------------------- | ------ | ---- | --------------------------------------------------------------- |
 | order_key               | string  | query | What to order results by. Can be any column in the invites table.                                                                                                                                                                                                                                |
 | order_direction               | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.   |
+| query                  | string  | query | Search query keywords. Searchable fields include `name` and `email`.                                                   |
 
 #### Example
 
