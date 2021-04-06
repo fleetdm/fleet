@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/guregu/null.v3"
 )
 
 func testCreateUser(t *testing.T, ds kolide.Datastore) {
@@ -22,7 +23,6 @@ func testCreateUser(t *testing.T, ds kolide.Datastore) {
 		u := &kolide.User{
 			Username:                 tt.username,
 			Password:                 []byte(tt.password),
-			Admin:                    tt.isAdmin,
 			AdminForcedPasswordReset: tt.passwordReset,
 			Email:                    tt.email,
 			SSOEnabled:               tt.sso,
@@ -69,7 +69,6 @@ func createTestUsers(t *testing.T, ds kolide.Datastore) []*kolide.User {
 			Username:                 tt.username,
 			Name:                     tt.username,
 			Password:                 []byte(tt.password),
-			Admin:                    tt.isAdmin,
 			AdminForcedPasswordReset: tt.passwordReset,
 			Email:                    tt.email,
 		}
@@ -85,7 +84,7 @@ func createTestUsers(t *testing.T, ds kolide.Datastore) []*kolide.User {
 
 func testSaveUser(t *testing.T, ds kolide.Datastore) {
 	users := createTestUsers(t, ds)
-	testAdminAttribute(t, ds, users)
+	testUserGlobalRole(t, ds, users)
 	testEmailAttribute(t, ds, users)
 	testPasswordAttribute(t, ds, users)
 }
@@ -116,15 +115,15 @@ func testEmailAttribute(t *testing.T, ds kolide.Datastore, users []*kolide.User)
 	}
 }
 
-func testAdminAttribute(t *testing.T, ds kolide.Datastore, users []*kolide.User) {
+func testUserGlobalRole(t *testing.T, ds kolide.Datastore, users []*kolide.User) {
 	for _, user := range users {
-		user.Admin = false
+		user.GlobalRole = null.StringFrom("admin")
 		err := ds.SaveUser(user)
 		assert.Nil(t, err)
 
 		verify, err := ds.User(user.Username)
 		assert.Nil(t, err)
-		assert.Equal(t, user.Admin, verify.Admin)
+		assert.Equal(t, user.GlobalRole, verify.GlobalRole)
 	}
 }
 

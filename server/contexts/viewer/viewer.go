@@ -101,8 +101,9 @@ func (v Viewer) CanPerformActions() bool {
 // CanPerformAdminActions indicates whether or not the current user can perform
 // administrative actions.
 func (v Viewer) CanPerformAdminActions() bool {
+	// TODO this needs revisiting for teams!
 	if v.User != nil {
-		return v.CanPerformActions() && v.User.Admin
+		return v.CanPerformActions()
 	}
 	return false
 }

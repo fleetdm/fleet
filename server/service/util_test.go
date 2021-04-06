@@ -4,10 +4,11 @@ import (
 	"testing"
 
 	"github.com/WatchBeam/clock"
-	kitlog "github.com/go-kit/kit/log"
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/kolide"
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/guregu/null.v3"
 )
 
 func newTestService(ds kolide.Datastore, rs kolide.QueryResultStore, lq kolide.LiveQueryStore) (kolide.Service, error) {
@@ -48,7 +49,6 @@ func createTestUsers(t *testing.T, ds kolide.Datastore) map[string]kolide.User {
 			Name:     "Test Name " + u.Username,
 			Username: u.Username,
 			Email:    u.Email,
-			Admin:    u.IsAdmin,
 			Enabled:  u.Enabled,
 		}
 		err := user.SetPassword(u.PlaintextPassword, 10, 10)
@@ -64,14 +64,14 @@ var testUsers = map[string]struct {
 	Username          string
 	Email             string
 	PlaintextPassword string
-	IsAdmin           bool
+	GlobalRole        null.String
 	Enabled           bool
 }{
 	"admin1": {
 		Username:          "admin1",
 		PlaintextPassword: "foobarbaz1234!",
 		Email:             "admin1@example.com",
-		IsAdmin:           true,
+		GlobalRole:        null.StringFrom("admin"),
 		Enabled:           true,
 	},
 	"user1": {
@@ -79,18 +79,21 @@ var testUsers = map[string]struct {
 		PlaintextPassword: "foobarbaz1234!",
 		Email:             "user1@example.com",
 		Enabled:           true,
+		GlobalRole:        null.StringFrom("maintainer"),
 	},
 	"user2": {
 		Username:          "user2",
 		PlaintextPassword: "bazfoo1234!",
 		Email:             "user2@example.com",
 		Enabled:           true,
+		GlobalRole:        null.StringFrom("maintainer"),
 	},
 	"disabled1": {
 		Username:          "disabled1",
 		PlaintextPassword: "bazfoo1234!",
 		Email:             "disabled1@example.com",
 		Enabled:           false,
+		GlobalRole:        null.StringFrom("maintainer"),
 	},
 }
 

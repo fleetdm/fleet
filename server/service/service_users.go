@@ -19,11 +19,8 @@ func (svc service) CreateUserWithInvite(ctx context.Context, p kolide.UserPayloa
 		return nil, err
 	}
 
-	// set the payload Admin property based on an existing invite.
-	p.Admin = &invite.Admin
-	if invite.GlobalRole.Valid {
-		p.GlobalRole = &invite.GlobalRole.String
-	}
+	// set the payload role property based on an existing invite.
+	p.GlobalRole = invite.GlobalRole
 	p.Teams = &invite.Teams
 
 	user, err := svc.newUser(p)
@@ -66,15 +63,8 @@ func (svc service) newUser(p kolide.UserPayload) (*kolide.User, error) {
 }
 
 func (svc service) ChangeUserAdmin(ctx context.Context, id uint, isAdmin bool) (*kolide.User, error) {
-	user, err := svc.ds.UserByID(id)
-	if err != nil {
-		return nil, err
-	}
-	user.Admin = isAdmin
-	if err = svc.saveUser(user); err != nil {
-		return nil, err
-	}
-	return user, nil
+	// TODO remove this function
+	return nil, errors.New("This function is being eliminated")
 }
 
 func (svc service) ChangeUserEnabled(ctx context.Context, id uint, isEnabled bool) (*kolide.User, error) {
