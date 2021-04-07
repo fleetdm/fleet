@@ -7,7 +7,7 @@ describe('Query flow', () => {
   it('Create, check, edit, and delete a query successfully', () => {
     cy.visit('/queries/manage');
 
-    cy.contains('button', /create new query/i).click();
+    cy.findByRole('button', { name: /create new query/i }).click();
 
     cy.get('.query-form__query-title').type('Query all window crashes');
 
