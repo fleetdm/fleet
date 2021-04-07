@@ -48,12 +48,11 @@ type InviteService interface {
 // InvitePayload contains fields required to create a new user invite.
 type InvitePayload struct {
 	Email      *string
-	Admin      *bool
 	Name       *string
 	Position   *string
-	SSOEnabled *bool      `json:"sso_enabled"`
-	GlobalRole *string    `json:"global_role"`
-	Teams      []UserTeam `json:"teams,omitempty"`
+	SSOEnabled *bool       `json:"sso_enabled"`
+	GlobalRole null.String `json:"global_role"`
+	Teams      []UserTeam  `json:"teams,omitempty"`
 }
 
 // Invite represents an invitation for a user to join Fleet.
@@ -62,7 +61,6 @@ type Invite struct {
 	ID         uint        `json:"id"`
 	InvitedBy  uint        `json:"invited_by" db:"invited_by"`
 	Email      string      `json:"email"`
-	Admin      bool        `json:"admin"`
 	Name       string      `json:"name"`
 	Position   string      `json:"position,omitempty"`
 	Token      string      `json:"-"`

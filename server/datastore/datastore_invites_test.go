@@ -42,7 +42,6 @@ func setupTestInvites(t *testing.T, ds kolide.Datastore) {
 	var err error
 	admin := &kolide.Invite{
 		Email:      "admin@foo.com",
-		Admin:      true,
 		Name:       "Xadmin",
 		Token:      "admin",
 		GlobalRole: null.StringFrom("admin"),
@@ -55,7 +54,6 @@ func setupTestInvites(t *testing.T, ds kolide.Datastore) {
 		i := kolide.Invite{
 			InvitedBy:  admin.ID,
 			Email:      fmt.Sprintf("user%d@foo.com", user),
-			Admin:      false,
 			Name:       fmt.Sprintf("User%02d", user),
 			Token:      fmt.Sprintf("usertoken%d", user),
 			GlobalRole: null.StringFrom("observer"),

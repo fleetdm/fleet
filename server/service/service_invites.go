@@ -35,10 +35,10 @@ func (svc service) InviteNewUser(ctx context.Context, payload kolide.InvitePaylo
 	token := base64.URLEncoding.EncodeToString([]byte(random))
 
 	invite := &kolide.Invite{
-		Email:     *payload.Email,
-		Admin:     *payload.Admin,
-		InvitedBy: inviter.ID,
-		Token:     token,
+		Email:      *payload.Email,
+		InvitedBy:  inviter.ID,
+		Token:      token,
+		GlobalRole: payload.GlobalRole,
 	}
 	if payload.Position != nil {
 		invite.Position = *payload.Position

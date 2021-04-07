@@ -35,7 +35,6 @@ func TestInviteNewUserMock(t *testing.T) {
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &kolide.User{ID: 3}})
 	payload := kolide.InvitePayload{
 		Email: stringPtr("user@acme.co"),
-		Admin: boolPtr(false),
 	}
 
 	// happy path

@@ -76,11 +76,6 @@ func TestLogin(t *testing.T) {
 	}
 
 	for _, tt := range loginTests {
-		var shouldBeAdmin bool
-		if u, ok := testUsers[tt.username]; ok {
-			shouldBeAdmin = u.IsAdmin
-		}
-
 		// test sessions
 		testUser := users[tt.username]
 
@@ -110,7 +105,6 @@ func TestLogin(t *testing.T) {
 		}
 
 		require.NotNil(t, jsn.User)
-		assert.Equal(t, shouldBeAdmin, jsn.User.Admin)
 		assert.Equal(t, tt.username, jsn.User.Username)
 
 		// ensure that a session was created for our test user and stored
