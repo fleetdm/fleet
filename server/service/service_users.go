@@ -118,6 +118,10 @@ func (svc service) ModifyUser(ctx context.Context, userID uint, p kolide.UserPay
 		user.Teams = *p.Teams
 	}
 
+	if p.GlobalRole.Valid {
+		user.GlobalRole = p.GlobalRole
+	}
+
 	err = svc.saveUser(user)
 	if err != nil {
 		return nil, err
