@@ -51,6 +51,8 @@ const generateSelectedTeamData = (teamsFormList: ITeamCheckboxListItem[]): ITeam
     if (teamItem.isChecked) {
       selectedTeams.push({
         id: teamItem.id,
+        hosts: teamItem.hosts,
+        members: teamItem.members,
         name: teamItem.name,
         role: teamItem.role,
       });

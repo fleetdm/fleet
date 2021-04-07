@@ -243,7 +243,7 @@ class UserForm extends Component <ICreateUserFormProps, ICreateUserFormState> {
         </InfoBanner>
         <SelectedTeamsForm
           // availableTeams={availableTeams}
-          availableTeams={[{ name: 'Test Team', id: 1, role: 'admin' }, { name: 'Test Team 2', id: 2, role: 'admin' }]}
+          availableTeams={[{ name: 'Test Team', hosts: 100, members: 100, id: 1, role: 'admin' }, { name: 'Test Team 2', hosts: 100, members: 100, id: 2, role: 'admin' }]}
           usersCurrentTeams={teams}
           onFormChange={onSelectedTeamChange}
         />
