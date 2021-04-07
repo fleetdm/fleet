@@ -3,10 +3,11 @@
 describe('Pack flow', () => {
     beforeEach(() => {
       cy.setup();
+      cy.login();
     });
 
 
-    it('Create a pack successfully', () => {
+    it('Create, edit, and delete a pack successfully', () => {
         cy.visit('/packs/manage');
 
         cy.contains('button', /create new pack/i)
@@ -22,9 +23,6 @@ describe('Pack flow', () => {
         cy.contains('button', /save query pack/i)
         .click();
 
-    });
-
-    it('Edit a pack successfully', () => {
         cy.visit('/packs/manage');
         
         // click on query pack generated
@@ -44,12 +42,10 @@ describe('Pack flow', () => {
         cy.contains('button', /save/i)
         .click();
 
-    });
-
-    it('Delete a pack successfully', () => {
         cy.visit('/packs/manage');
 
         // click on check box for the query pack generated
+        // find the right element, then it will be able to click the checkbox
 
         cy.contains('button', /delete/i)
         .click();

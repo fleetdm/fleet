@@ -4,6 +4,7 @@ describe('Label flow', () => {
       cy.login();
     });
 
+    // create, edit, delete, all one test
 
   it('Create a label successfully', () => {
     cy.visit('/hosts/manage');
@@ -23,6 +24,7 @@ describe('Label flow', () => {
 
     // dropdown Platform
     // macOS
+    //https://docs.cypress.io/api/commands/select
 
     // click save label
     cy.contains('button', /save label/i)
@@ -40,6 +42,8 @@ describe('Label flow', () => {
 
     // modify in SQL
     // "select * from users;"
+    cy.get('input').______inputfieldvalue()
+    .type('select * from users;');
 
     // modify in Name
     // "Show Users"
