@@ -7,7 +7,7 @@ assignees: ''
 
 ---
 
-**Fleet version** (`fleetctl version`): 
+**Fleet version** (Head to the "My account" page in the Fleet UI or run `fleetctl version`): 
 **Operating system** _(e.g. macOS 11.2.3)_: 
 **Web browser** _(e.g. Chrome 88.0.4324)_: 
 <hr/>
