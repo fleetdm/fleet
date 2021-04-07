@@ -9,7 +9,7 @@ Includes documentation about Fleet's full test suite and integration tests
 ### [Migrations](./3-Migrations.md)
 Information about creating and updating database migrations
 
-### [Commiting Changes](./4-Commiting-Changes.md) 
+### [Committing Changes](./4-Committing-Changes.md) 
 Contains information about how to merge changes into the codebase
 
 ### [Releasing Fleet](./5-Releasing-Fleet.md) 
