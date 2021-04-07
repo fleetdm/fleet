@@ -31,6 +31,7 @@ export default (client: any) => {
       return client.authenticatedGet(client._endpoint(teamsEndpoint))
         .then((response: ITeamsResponse) => {
           const { teams } = response;
+          return teams;
         });
     },
 
