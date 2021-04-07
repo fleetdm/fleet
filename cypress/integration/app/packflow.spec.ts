@@ -1,5 +1,3 @@
-// these run every hour for example
-
 describe('Pack flow', () => {
   beforeEach(() => {
     cy.setup();
@@ -9,41 +7,48 @@ describe('Pack flow', () => {
   it('Create, edit, and delete a pack successfully', () => {
     cy.visit('/packs/manage');
 
-    cy.contains('button', /create new pack/i).click();
+    cy.findByRole('button', { name: /create new pack/i }).click();
 
-    // query pack title
+    cy.findByLabelText(/query pack title/i)
+      .click()
+      .type('Errors and crashes');
 
-    // query pack description
+    cy.findByLabelText(/query pack description/i)
+      .click()
+      .type('See all user errors and window crashes.');
 
-    // dropdown select pack targets
-    // have to hit the plus button...
-
-    cy.contains('button', /save query pack/i).click();
-
-    cy.visit('/packs/manage');
-
-    // click on query pack generated
-
-    cy.contains('button', /edit pack/i).click();
-
-    // query pack title
-
-    // query pack description
-
-    // x all hosts
-    // dropdown select pack targets
-    // have to hit the plus button...
-    // macos ?
-
-    cy.contains('button', /save/i).click();
+    cy.findByRole('button', { name: /save query pack/i }).click();
 
     cy.visit('/packs/manage');
 
-    // click on check box for the query pack generated
-    // find the right element, then it will be able to click the checkbox
+    cy.findByText(/errors and crashes/i).click();
 
-    cy.contains('button', /delete/i).click();
+    cy.findByText(/edit pack/i).click();
 
-    cy.contains('button', /delete/i).click();
+    cy.findByLabelText(/query pack title/i)
+      .click()
+      .type('{selectall}{backspace}Server errors');
+
+    cy.findByLabelText(/query pack description/i)
+      .click()
+      .type('{selectall}{backspace}See all server errors.');
+
+    cy.findByRole('button', { name: /save/i }).click();
+
+    cy.visit('/packs/manage');
+
+    cy.get('#select-pack-1').check({ force: true });
+
+    cy.findByRole('button', { name: /delete/i }).click();
+
+    // Can't figure out how attach findByRole onto modal button
+    // Can't use findByText because delete button under modal
+    cy.get('.all-packs-page__modal-btn-wrap > .button--alert')
+      .contains('button', /delete/i)
+      .click();
+
+    cy.findByText(/successfully deleted/i).should('be.visible');
+
+    cy.findByText(/server errors/i).should('not.exist');
   });
 });

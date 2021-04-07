@@ -156,6 +156,7 @@ class QueryForm extends Component {
           {...fields.query}
           error={fields.query.error || errors.query}
           label="SQL"
+          name="query editor"
           onLoad={onLoad}
           readOnly={queryIsRunning}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}

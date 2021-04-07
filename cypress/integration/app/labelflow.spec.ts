@@ -4,51 +4,59 @@ describe('Label flow', () => {
     cy.login();
   });
 
-  // create, edit, delete, all one test
-
-  it('Create a label successfully', () => {
+  it('Create, edit, and delete a label successfully', () => {
     cy.visit('/hosts/manage');
 
-    cy.contains('button', /add new label/i).click();
+    cy.findByRole('button', { name: /add new label/i }).click();
 
-    // fill in SQL
-    // 'select * from users;'
+    // Using class selector because third party element doesn't work with Cypress Testing Selector Library
+    cy.get('.ace_content')
+      .click()
+      .type('{selectall}{backspace}SELECT * FROM users;');
 
-    // fill in Name
-    // 'Show Users'
+    cy.findByLabelText(/name/i).click().type('Show all users');
 
-    // fill in description
-    // 'Select all from users.'
+    cy.findByLabelText(/description/i)
+      .click()
+      .type('Select all users across platforms.');
 
-    // dropdown Platform
-    // macOS
-    // https://docs.cypress.io/api/commands/select
+    // Cannot call cy.select on div disguised as a dropdown
+    cy.findByText(/select one/i).click();
+    cy.findByText(/all platforms/i).click();
 
-    // click save label
-    cy.contains('button', /save label/i).click();
+    cy.findByRole('button', { name: /save label/i }).click();
 
-    cy.contains('button', /show users/i).click();
+    cy.findByText(/show all users/i).click();
 
     cy.contains('button', /edit/i).click();
 
-    // modify in SQL
-    // 'select * from users;'
-    cy.get('input').______inputfieldvalue().type('select * from users;');
+    // blocked here, tried numerous iterations
+    // cy.get('.ace_content')
+    //   .click({ multiple: true, force: true })
+    //   .type('{selectall}{backspace}SELECT username FROM users;');
 
-    // modify in Name
-    // 'Show Users'
+    cy.findByLabelText(/name/i)
+      .click()
+      .type('{selectall}{backspace}Show all usernames');
 
-    // modify in description
-    // 'Select all from users.'
+    cy.findByLabelText(/description/i)
+      .click()
+      .type('{selectall}{backspace}Select all usernames on Mac.');
 
-    // modify dropdown Platform
-    // macOS
+    cy.findByText(/select one/i).click();
 
-    cy.contains('button', /update label/i).click();
+    cy.findAllByText(/macos/i).click();
 
-    cy.contains('button', /delete/i).click();
+    cy.findByRole('button', { name: /update label/i }).click();
 
-    // click again in pop up to confirm
-    cy.contains('button', /delete/i).click();
+    cy.findByRole('button', { name: /delete/i }).click();
+
+    // Can't figure out how attach findByRole onto modal button
+    // Can't use findByText because delete button under modal
+    cy.get('.manage-hosts__modal-buttons > .button--alert')
+      .contains('button', /delete/i)
+      .click();
+
+    cy.findByText(/show all users/i).should('not.exist');
   });
 });

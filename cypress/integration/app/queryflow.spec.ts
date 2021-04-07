@@ -9,49 +9,55 @@ describe('Query flow', () => {
 
     cy.findByRole('button', { name: /create new query/i }).click();
 
-    cy.get('.query-form__query-title').type('Query all window crashes');
+    cy.findByLabelText(/query title/i).click().type('Query all window crashes');
 
+    // Using class selector because third party element doesn't work with Cypress Testing Selector Library
     cy.get('.ace_content')
-      .type('{selectall}{backspace}SELECT * FROM windows_crashes;')
-      .click();
+      .click()
+      .type('{selectall}{backspace}SELECT * FROM windows_crashes;');
 
-    cy.get('.query-form__query-description').type('See all window crashes');
+    cy.findByLabelText(/description/i).click().type('See all window crashes');
 
-    cy.contains('button', /save/i).click();
+    cy.findByRole('button', { name: /save/i }).click();
 
-    cy.contains('button', /save as new/i).click();
+    cy.findByRole('button', { name: /save as new/i }).click();
 
-    // no prompt to user that anything was done, just refreshes edit query
+    // Just refreshes to create new query, needs success alert to user that they created a query
 
     cy.visit('/queries/manage');
 
-    // see all window crashes in table
-    cy.get('.queries-list-row__name').click();
+    cy.findByText(/query all/i).click();
 
-    cy.contains('button', /edit or run query/i).click();
+    cy.findByRole('button', { name: /edit or run query/i }).click();
 
     cy.get('.ace_content')
+      .click()
       .type(
-        '{selectall}{backspace}SELECT datetime, username FROM windows_crashes;'
-      )
-      .click();
+        '{selectall}{backspace}SELECT datetime, username FROM windows_crashes;',
+      );
 
-    cy.contains('button', /save/i).click();
+    cy.findByRole('button', { name: /save/i }).click();
 
-    cy.contains('button', /save changes/i).click();
+    cy.findByRole('button', { name: /save changes/i }).click();
 
-    cy.get('.flash-message--success').should('be.visible');
+    cy.findByText(/query updated/i).should('be.visible');
 
     cy.visit('/queries/manage');
 
-    cy.get('#query-checkbox-1').check({ force: true });
+    // This element has no label, text, or role
+    cy.get('#query-checkbox-1')
+      .check({ force: true });
 
-    cy.contains('button', /delete/i).click();
+    cy.findByRole('button', { name: /delete/i }).click();
 
+    // Can't figure out how attach findByRole onto modal button
+    // Can't use findByText because delete button under modal
     cy.get('.manage-queries-page__modal-btn-wrap > .button--alert')
       .contains('button', /delete/i)
       .click();
 
-    cy.get('.flash-message--success').should('be.visible');
+    cy.findByText(/successfully deleted/i).should('be.visible');
+
+    cy.findByText(/query all/i).should('not.exist');
   });
 });
