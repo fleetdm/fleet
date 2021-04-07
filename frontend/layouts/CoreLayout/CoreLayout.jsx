@@ -1,7 +1,6 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
-import LoadingBar from 'react-redux-loading-bar';
 import { logoutUser } from 'redux/nodes/auth/actions';
 import { push } from 'react-router-redux';
 
@@ -93,7 +92,6 @@ export class CoreLayout extends Component {
 
     return (
       <div className="app-wrap">
-        <LoadingBar />
         <nav className="site-nav">
           <SiteNavHeader
             config={config}

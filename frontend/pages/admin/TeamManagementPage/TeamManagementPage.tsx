@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 
-import { ITeam } from 'interfaces/team';
 
+import { ITeam } from 'interfaces/team';
+import teamActions from 'redux/nodes/entities/teams/actions';
 import TableContainer from 'components/TableContainer';
 
 import EmptyTeams from './components/EmptyTeams';
@@ -21,9 +22,14 @@ interface RootState {
 }
 
 const TeamManagementPage = () => {
+  const dispatch = useDispatch();
   const loadingTableData = useSelector((state: RootState) => state.entities.teams.isLoading);
   const tableHeaders = generateTableHeaders(() => null);
   const teams = useSelector((state: RootState) => generateDataSet(state.entities.teams.data));
+
+  useEffect(() => {
+    dispatch(teamActions.loadAll());
+  }, []);
 
   return (
     <div className={`${baseClass} body-wrap`}>

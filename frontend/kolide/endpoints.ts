@@ -40,4 +40,5 @@ export default {
   SSO: '/v1/fleet/sso',
   STATUS_LIVE_QUERY: '/v1/fleet/status/live_query',
   STATUS_RESULT_STORE: '/v1/fleet/status/result_store',
+  TEAMS: '/v1/fleet/teams',
 };

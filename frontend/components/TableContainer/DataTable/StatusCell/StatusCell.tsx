@@ -5,14 +5,12 @@ interface IStatusCellProps {
   value: string;
 }
 
+const generateClassTag = (rawValue: string): string => {
+  return rawValue.replace(' ', '-').toLowerCase();
+};
+
 const StatusCell = (props: IStatusCellProps): JSX.Element => {
   const { value } = props;
-
-  const generateClassTag = (rawValue: string): string => {
-    const classTag = rawValue.replace(' ', '-').toLowerCase();
-
-    return classTag;
-  };
 
   const statusClassName = classnames(
     'data-table__status',

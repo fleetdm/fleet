@@ -56,7 +56,7 @@ const generateTableHeaders = (actionSelectHandler: (value: string, team: ITeam) 
       Header: 'Hosts',
       disableSortBy: true,
       accessor: 'hosts',
-      Cell: cellProps => <StatusCell value={cellProps.cell.value} />,
+      Cell: cellProps => <TextCell value={cellProps.cell.value} />,
     },
     {
       title: 'Members',
