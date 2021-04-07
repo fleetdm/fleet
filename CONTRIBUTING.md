@@ -6,7 +6,9 @@ When filing an issue, make sure to answer these five questions:
 
 #### 1. What version of Fleet are you using? 
 
-You can determine the version by viewing the "My account" page in the Fleet UI (pictured below) or by running the `fleetctl version --full` command.
+Copy the version from the "My account" page in the Fleet UI (located below the "Get API token" button) or by run the `fleetctl version --full` command.
+
+![My account page](./docs/images/my-account-page.png)
 
 #### 2. What operating system are you using?
 
