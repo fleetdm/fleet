@@ -95,7 +95,6 @@ type User struct {
 	Salt                     string `json:"-"`
 	Name                     string `json:"name"`
 	Email                    string `json:"email"`
-	Admin                    bool   `json:"admin"`
 	Enabled                  bool   `json:"enabled"`
 	AdminForcedPasswordReset bool   `json:"force_password_reset" db:"admin_forced_password_reset"`
 	GravatarURL              string `json:"gravatar_url" db:"gravatar_url"`
@@ -128,7 +127,7 @@ type UserPayload struct {
 	InviteToken              *string     `json:"invite_token,omitempty"`
 	SSOInvite                *bool       `json:"sso_invite,omitempty"`
 	SSOEnabled               *bool       `json:"sso_enabled,omitempty"`
-	GlobalRole               *string     `json:"global_role,omitempty"`
+	GlobalRole               null.String `json:"global_role,omitempty"`
 	AdminForcedPasswordReset *bool       `json:"admin_forced_password_reset,omitempty"`
 	Teams                    *[]UserTeam `json:"teams,omitempty"`
 }
@@ -136,11 +135,11 @@ type UserPayload struct {
 // User creates a user from payload.
 func (p UserPayload) User(keySize, cost int) (*User, error) {
 	user := &User{
-		Username: *p.Username,
-		Email:    *p.Email,
-		Admin:    falseIfNil(p.Admin),
-		Enabled:  true,
-		Teams:    []UserTeam{},
+		Username:   *p.Username,
+		Email:      *p.Email,
+		Enabled:    true,
+		Teams:      []UserTeam{},
+		GlobalRole: p.GlobalRole,
 	}
 	if err := user.SetPassword(*p.Password, keySize, cost); err != nil {
 		return nil, err

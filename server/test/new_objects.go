@@ -113,7 +113,6 @@ func NewUser(t *testing.T, ds kolide.Datastore, name, username, email string, ad
 		Name:     name,
 		Username: username,
 		Email:    email,
-		Admin:    admin,
 	})
 
 	require.Nil(t, err)

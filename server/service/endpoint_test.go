@@ -97,10 +97,6 @@ var testFunctions = [...]func(*testing.T, *testResource){
 	testGetAppConfig,
 	testModifyAppConfig,
 	testModifyAppConfigWithValidationFail,
-	testAdminUserSetAdmin,
-	testNonAdminUserSetAdmin,
-	testAdminUserSetEnabled,
-	testNonAdminUserSetEnabled,
 }
 
 func TestEndpoints(t *testing.T) {

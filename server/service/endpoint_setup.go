@@ -3,9 +3,10 @@ package service
 import (
 	"context"
 
-	"github.com/go-kit/kit/endpoint"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/go-kit/kit/endpoint"
 	"github.com/pkg/errors"
+	"gopkg.in/guregu/null.v3"
 )
 
 type setupRequest struct {
@@ -57,6 +58,8 @@ func makeSetupEndpoint(svc kolide.Service) endpoint.Endpoint {
 				err := errors.Errorf("admin password cannot be empty")
 				return setupResponse{Err: err}, nil
 			}
+			// Make the user an admin
+			req.Admin.GlobalRole = null.StringFrom("admin")
 			admin, err = svc.CreateUser(ctx, *req.Admin)
 			if err != nil {
 				return setupResponse{Err: err}, nil

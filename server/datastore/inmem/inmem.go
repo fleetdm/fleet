@@ -238,7 +238,6 @@ func (d *Datastore) createDevUsers() error {
 			Username: "admin",
 			Email:    "admin@kolide.co",
 			Position: "Director of Security",
-			Admin:    true,
 			Enabled:  true,
 		},
 		{
@@ -255,7 +254,6 @@ func (d *Datastore) createDevUsers() error {
 			Username: "user",
 			Email:    "user@kolide.co",
 			Position: "Security Engineer",
-			Admin:    false,
 			Enabled:  true,
 		},
 	}

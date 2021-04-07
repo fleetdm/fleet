@@ -10,14 +10,16 @@ import (
 	"github.com/pkg/errors"
 )
 
+var inviteSearchColumns = []string{"name", "email"}
+
 // NewInvite generates a new invitation.
 func (d *Datastore) NewInvite(i *kolide.Invite) (*kolide.Invite, error) {
 	sqlStmt := `
-	INSERT INTO invites ( invited_by, email, admin, name, position, token, sso_enabled, global_role )
-	  VALUES ( ?, ?, ?, ?, ?, ?, ?, ?)
+	INSERT INTO invites ( invited_by, email, name, position, token, sso_enabled, global_role )
+	  VALUES ( ?, ?, ?, ?, ?, ?, ?)
 	`
 
-	result, err := d.db.Exec(sqlStmt, i.InvitedBy, i.Email, i.Admin,
+	result, err := d.db.Exec(sqlStmt, i.InvitedBy, i.Email,
 		i.Name, i.Position, i.Token, i.SSOEnabled, i.GlobalRole)
 	if err != nil && isDuplicate(err) {
 		return nil, alreadyExists("Invite", i.Email)
@@ -52,8 +54,11 @@ func (d *Datastore) NewInvite(i *kolide.Invite) (*kolide.Invite, error) {
 // using the opt parameter. See kolide.ListOptions
 func (d *Datastore) ListInvites(opt kolide.ListOptions) ([]*kolide.Invite, error) {
 	invites := []*kolide.Invite{}
-	query := appendListOptionsToSQL("SELECT * FROM invites", opt)
-	err := d.db.Select(&invites, query)
+	query := "SELECT * FROM invites WHERE true"
+	query, params := searchLike(query, nil, opt.MatchQuery, inviteSearchColumns...)
+	query = appendListOptionsToSQL(query, opt)
+
+	err := d.db.Select(&invites, query, params...)
 	if err == sql.ErrNoRows {
 		return nil, notFound("Invite")
 	} else if err != nil {

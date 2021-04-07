@@ -42,7 +42,6 @@ func TestAuthenticatedUser(t *testing.T) {
 func TestModifyUserEmail(t *testing.T) {
 	user := &kolide.User{
 		ID:      3,
-		Admin:   false,
 		Email:   "foo@bar.com",
 		Enabled: true,
 	}
@@ -93,7 +92,6 @@ func TestModifyUserCannotUpdateAdminEnabled(t *testing.T) {
 	// through the ChangeUserAdmin and ChangeUserEnabled functions.
 	user := &kolide.User{
 		ID:      3,
-		Admin:   false,
 		Email:   "foo@bar.com",
 		Enabled: true,
 	}
@@ -103,7 +101,6 @@ func TestModifyUserCannotUpdateAdminEnabled(t *testing.T) {
 		return user, nil
 	}
 	ms.SaveUserFunc = func(u *kolide.User) error {
-		assert.Equal(t, false, u.Admin, "should not be able to update admin status!")
 		assert.Equal(t, true, u.Enabled, "should not be able to update enabled status!")
 		return nil
 	}
@@ -124,7 +121,6 @@ func TestModifyUserCannotUpdateAdminEnabled(t *testing.T) {
 func TestModifyUserEmailNoPassword(t *testing.T) {
 	user := &kolide.User{
 		ID:      3,
-		Admin:   true,
 		Email:   "foo@bar.com",
 		Enabled: true,
 	}
@@ -172,7 +168,6 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 	user := &kolide.User{
 		ID:      3,
-		Admin:   true,
 		Email:   "foo@bar.com",
 		Enabled: true,
 	}
@@ -220,7 +215,6 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 func TestModifyAdminUserEmailPassword(t *testing.T) {
 	user := &kolide.User{
 		ID:      3,
-		Admin:   true,
 		Email:   "foo@bar.com",
 		Enabled: true,
 	}
@@ -346,7 +340,6 @@ func TestCreateUserWithInvite(t *testing.T) {
 		Password           *string
 		Email              *string
 		NeedsPasswordReset *bool
-		Admin              *bool
 		InviteToken        *string
 		wantErr            error
 	}{
@@ -367,7 +360,6 @@ func TestCreateUserWithInvite(t *testing.T) {
 			Password:           stringPtr("foobarbaz1234!"),
 			Email:              stringPtr("admin2@example.com"),
 			NeedsPasswordReset: boolPtr(true),
-			Admin:              boolPtr(false),
 			InviteToken:        &invites["admin2@example.com"].Token,
 		},
 		{ // should return ErrNotFound because the invite is deleted
@@ -376,7 +368,6 @@ func TestCreateUserWithInvite(t *testing.T) {
 			Password:           stringPtr("foobarbaz1234!"),
 			Email:              stringPtr("admin2@example.com"),
 			NeedsPasswordReset: boolPtr(true),
-			Admin:              boolPtr(false),
 			InviteToken:        &invites["admin2@example.com"].Token,
 			wantErr:            errors.New("Invite with token admin2@example.com was not found in the datastore"),
 		},
@@ -385,7 +376,6 @@ func TestCreateUserWithInvite(t *testing.T) {
 			Password:           stringPtr("foobarbaz1234!"),
 			Email:              &invites["expired"].Email,
 			NeedsPasswordReset: boolPtr(true),
-			Admin:              boolPtr(false),
 			InviteToken:        &invites["expired"].Token,
 			wantErr:            &invalidArgumentError{{name: "invite_token", reason: "Invite token has expired."}},
 		},
@@ -394,7 +384,6 @@ func TestCreateUserWithInvite(t *testing.T) {
 			Password:           stringPtr("foobarbaz1234!"),
 			Email:              stringPtr("admin3@example.com"),
 			NeedsPasswordReset: boolPtr(true),
-			Admin:              boolPtr(false),
 			InviteToken:        &invites["admin3@example.com"].Token,
 		},
 	}
@@ -405,7 +394,6 @@ func TestCreateUserWithInvite(t *testing.T) {
 				Username:    tt.Username,
 				Password:    tt.Password,
 				Email:       tt.Email,
-				Admin:       tt.Admin,
 				InviteToken: tt.InviteToken,
 			}
 			user, err := svc.CreateUserWithInvite(ctx, payload)
@@ -422,8 +410,6 @@ func TestCreateUserWithInvite(t *testing.T) {
 
 			err = user.ValidatePassword("different_password")
 			assert.NotNil(t, err)
-
-			assert.Equal(t, user.Admin, *tt.Admin)
 		})
 
 	}

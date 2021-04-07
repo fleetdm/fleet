@@ -45,3 +45,7 @@ func (svc service) ModifyTeam(ctx context.Context, id uint, payload kolide.TeamP
 
 	return svc.ds.SaveTeam(team)
 }
+
+func (svc service) ListTeams(ctx context.Context, opt kolide.ListOptions) ([]*kolide.Team, error) {
+	return svc.ds.ListTeams(opt)
+}

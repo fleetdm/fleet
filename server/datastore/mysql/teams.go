@@ -5,6 +5,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+var teamSearchColumns = []string{"name"}
+
 func (d *Datastore) NewTeam(team *kolide.Team) (*kolide.Team, error) {
 	query := `
 	INSERT INTO teams (
@@ -66,4 +68,21 @@ func (d *Datastore) SaveTeam(team *kolide.Team) (*kolide.Team, error) {
 		return nil, errors.Wrap(err, "saving team")
 	}
 	return team, nil
+}
+
+// ListTeams lists all teams with limit, sort and offset passed in with
+// kolide.ListOptions
+func (d *Datastore) ListTeams(opt kolide.ListOptions) ([]*kolide.Team, error) {
+	query := `
+		SELECT * FROM teams
+		WHERE TRUE
+	`
+	query, params := searchLike(query, nil, opt.MatchQuery, teamSearchColumns...)
+	query = appendListOptionsToSQL(query, opt)
+	teams := []*kolide.Team{}
+	if err := d.db.Select(&teams, query, params...); err != nil {
+		return nil, errors.Wrap(err, "list teams")
+	}
+	return teams, nil
+
 }
