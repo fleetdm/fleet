@@ -20,6 +20,7 @@ Fleet's standard query library includes a growing collection of useful queries f
 - [Get wifi status](./get-wifi-status.md)
 - [Get Windows machines with unencrypted hard disks](./get-windows-machines-with-unencrypted-hard-disks.md)
 - [Get platform info](./get-platform-info.md)
+- [Get USB devices](./get-usb-devices.md)
 
 ### Contributors
 
