@@ -92,7 +92,7 @@ class KolideAce extends Component {
           onChange={onChange}
           onLoad={(editor) => {
             editor.commands.removeCommands(['gotoline', 'find']);
-            onLoad(editor);
+            onLoad && onLoad(editor);
           }}
           readOnly={readOnly}
           setOptions={{ enableLinking: true }}
