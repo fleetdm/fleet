@@ -66,5 +66,5 @@ type Invite struct {
 	Token      string      `json:"-"`
 	SSOEnabled bool        `json:"sso_enabled" db:"sso_enabled"`
 	GlobalRole null.String `json:"global_role" db:"global_role"`
-	Teams      []UserTeam  `json:"teams,omitempty"`
+	Teams      []UserTeam  `json:"teams"`
 }
