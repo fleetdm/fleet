@@ -304,6 +304,7 @@ export class QueryPage extends Component {
     return dispatch(queryActions.create(formData))
       .then((query) => {
         dispatch(push(PATHS.EDIT_QUERY(query)));
+        dispatch(renderFlash('success', 'Query created!'));
       })
       .catch(() => false);
   })
