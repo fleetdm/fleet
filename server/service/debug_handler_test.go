@@ -79,28 +79,6 @@ func TestDebugHandlerAuthenticationSessionInvalid(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, res.Code)
 }
 
-func TestDebugHandlerAuthenticationDisabled(t *testing.T) {
-	svc := &mockService{}
-	svc.On(
-		"GetSessionByKey",
-		mock.Anything,
-		"session",
-	).Return(&kolide.Session{UserID: 42, ID: 1}, nil)
-	svc.On(
-		"User",
-		mock.Anything,
-		uint(42),
-	).Return(&kolide.User{Enabled: false}, nil)
-	handler := MakeDebugHandler(svc, testConfig, nil)
-
-	req := httptest.NewRequest(http.MethodGet, "https://fleetdm.com/debug/pprof/profile", nil)
-	req.Header.Add("Authorization", "BEARER eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzZXNzaW9uX2tleSI6InNlc3Npb24iLCJpYXQiOjE1MTYyMzkwMjJ9.YZIL9fKxfVg7fCms4CTKCPT2w8x8N3e2pciV_h0OvTk")
-	res := httptest.NewRecorder()
-
-	handler.ServeHTTP(res, req)
-	assert.Equal(t, http.StatusForbidden, res.Code)
-}
-
 func TestDebugHandlerAuthenticationSuccess(t *testing.T) {
 	svc := &mockService{}
 	svc.On(
@@ -112,7 +90,7 @@ func TestDebugHandlerAuthenticationSuccess(t *testing.T) {
 		"User",
 		mock.Anything,
 		uint(42),
-	).Return(&kolide.User{Enabled: true}, nil)
+	).Return(&kolide.User{}, nil)
 
 	handler := MakeDebugHandler(svc, testConfig, nil)
 

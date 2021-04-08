@@ -141,10 +141,6 @@ func (svc service) CallbackSSO(ctx context.Context, auth kolide.Auth) (*kolide.S
 	if err != nil {
 		return nil, errors.Wrap(err, "find user in sso callback")
 	}
-	// if user is not active they are not authorized to use the application
-	if !user.Enabled {
-		return nil, errors.New("user authorization failed")
-	}
 	// if the user is not sso enabled they are not authorized
 	if !user.SSOEnabled {
 		return nil, errors.New("user not configured to use sso")
@@ -183,9 +179,6 @@ func (svc service) Login(ctx context.Context, username, password string) (*kolid
 		return nil, "", authFailedError{internal: "invalid password"}
 	}
 
-	if !user.Enabled {
-		return nil, "", authFailedError{internal: "account disabled"}
-	}
 	if user.SSOEnabled {
 		return nil, "", authFailedError{internal: "password login disabled for sso users"}
 	}
