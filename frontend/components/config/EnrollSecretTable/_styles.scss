@@ -22,7 +22,7 @@
   }
 
   &__secret-copy-icon {
-    color: $core-blue;
+    color: $core-vibrant-blue;
     margin-right: 16px;
   }
 
@@ -52,7 +52,7 @@
   &__secret-download-icon {
     display: block;
     font-size: $x-small;
-    color: $core-blue;
+    color: $core-vibrant-blue;
     font-weight: $bold;
 
     a {
@@ -78,7 +78,7 @@
       width: 100%;
       height: 17px;
       // We explicityly use rgba(255,255,255,0) because it's equivalent to transparent for most broswers except Safari.
-      background-image: linear-gradient(to bottom, $white, rgba(255, 255, 255, 0));
+      background-image: linear-gradient(to bottom, $core-white, rgba(255, 255, 255, 0));
     }
 
     &:after {
@@ -90,7 +90,7 @@
       width: 100%;
       height: 17px;
       // We explicityly use rgba(255,255,255,0) because it's equivalent to transparent for most broswers except Safari.
-      background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0), $white);
+      background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0), $core-white);
     }
 
     .form-field__label {

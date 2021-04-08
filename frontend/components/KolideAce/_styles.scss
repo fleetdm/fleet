@@ -2,20 +2,20 @@
   &__label {
     font-size: $x-small;
     font-weight: $regular;
-    color: $core-black;
+    color: $core-fleet-black;
     display: block;
     margin-bottom: 4px;
     min-height: 25px;
 
     &--error {
-      color: $alert;
+      color: $ui-error;
     }
   }
 
   &__wrapper {
     &--error {
       .ace-kolide {
-        border: 1px solid $alert;
+        border: 1px solid $ui-error;
       }
     }
   }
@@ -23,10 +23,10 @@
   &__hint {
     font-size: $x-small;
     font-weight: $regular;
-    color: $core-medium-blue-grey;
+    color: $core-fleet-blue;
 
     code {
-      color: $core-blue;
+      color: $core-vibrant-blue;
       background-color: $ui-light-grey;
       padding: 2px;
       font-family: 'SourceCodePro', $monospace;

@@ -1,8 +1,8 @@
 .form {
   &__base-error {
-    background-color: $alert;
+    background-color: $ui-error;
     border-radius: 3px;
-    color: $white;
+    color: $core-white;
     font-size: 14px;
     margin-top: 10px;
     padding: 5px 0;

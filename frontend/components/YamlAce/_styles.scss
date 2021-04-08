@@ -5,20 +5,20 @@
     font-style: normal;
     font-stretch: normal;
     letter-spacing: -0.5px;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-blue;
     display: block;
     margin: 0 0 4px;
     min-height: 25px;
 
     &--error {
-      color: $alert;
+      color: $ui-error;
     }
   }
 
   &__wrapper {
     &--error {
       .ace-kolide {
-        border: 1px solid $alert;
+        border: 1px solid $ui-error;
       }
     }
   }

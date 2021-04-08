@@ -47,13 +47,13 @@
       font-weight: $regular;
       line-height: 20px;
       letter-spacing: normal;
-      color: $black;
+      color: $core-fleet-black;
       margin: 8px 0 0 44px;
     }
 
     a {
       font-size: $x-small;
-      color: $core-blue;
+      color: $core-vibrant-blue;
       font-weight: $bold;
       text-decoration: none;
 
@@ -84,8 +84,8 @@
     width: 24px;
     height: 24px;
     border-radius: 100px;
-    border: 2px solid $core-blue;
-    color: $core-blue;
+    border: 2px solid $core-vibrant-blue;
+    color: $core-vibrant-blue;
     font-weight: $bold;
     text-align: center;
     margin-right: 16px;
@@ -118,16 +118,16 @@
 
   pre, 
   code {
-    background-color: $core-light-blue-grey;
-    color: $core-medium-blue-grey;
-    border: 1px solid $ui-borders;
+    background-color: $ui-off-white;
+    color: $core-fleet-blue;
+    border: 1px solid $ui-fleet-blue-15;
     border-radius: 4px;
     padding: 7px 16px;
     margin: 24px 0 0 44px;
   }
 
   &__error {
-    color: $alert;
+    color: $ui-error;
   }
 
 }

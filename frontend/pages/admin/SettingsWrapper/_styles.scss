@@ -7,7 +7,7 @@
     padding-top: 15px;
     position: sticky;
     top: 0;
-    background-color: $white;
+    background-color: $core-white;
     z-index: 2;
   }
 
@@ -21,7 +21,7 @@
 
   .react-tabs {
     .react-tabs__tab-list {
-      border-bottom: 1px solid $ui-medium-grey;
+      border-bottom: 1px solid $ui-gray;
     }
 
     &__tab {
@@ -61,7 +61,7 @@
 
     &__tab--selected, &__tab--selected:focus {
       font-weight: $bold;
-      border-bottom: 1px solid $core-blue;
+      border-bottom: 1px solid $core-vibrant-blue;
     }
   }
 }

@@ -32,7 +32,7 @@
 
   &__status--active {
     &:before {
-      background-color: $success;
+      background-color: $ui-success;
       border-radius: 100%;
       content: ' ';
       display: inline-block;
@@ -44,7 +44,7 @@
 
   &__status--invited {
     &:before {
-      background-color: $warning;
+      background-color: $ui-warning;
       border-radius: 100%;
       content: ' ';
       display: inline-block;
@@ -56,7 +56,7 @@
 
   &__status--disabled {
     &:before {
-      background-color: $core-red;
+      background-color: $core-vibrant-red;
       border-radius: 100%;
       content: ' ';
       display: inline-block;

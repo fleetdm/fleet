@@ -3,7 +3,7 @@
 
   .data-table {
     &__wrapper {
-      border: solid 1px $ui-borders;
+      border: solid 1px $ui-fleet-blue-15;
       border-radius: 6px;
       margin-top: $pad-half;
       overflow: scroll;
@@ -13,12 +13,12 @@
     &__table {
       width: 100%;
       border-collapse: collapse;
-      color: $core-black;
+      color: $core-fleet-black;
       font-size: $x-small;
     }
 
     tr {
-      border-bottom: 1px solid $ui-borders;
+      border-bottom: 1px solid $ui-fleet-blue-15;
 
       &:last-child {
         border-bottom: 0;
@@ -26,15 +26,15 @@
     }
 
     thead {
-      background-color: $core-light-blue-grey;
-      color: $core-black;
+      background-color: $ui-off-white;
+      color: $core-fleet-black;
       text-align: left;
-      border-bottom: 1px solid $ui-borders;
+      border-bottom: 1px solid $ui-fleet-blue-15;
 
       th {
         padding: 16px 27px;
         white-space: nowrap;
-        border-right: 1px solid $ui-borders;
+        border-right: 1px solid $ui-fleet-blue-15;
 
         &:last-child {
           border-right: none;
@@ -50,16 +50,16 @@
     }
 
     &__hostname {
-      color: $core-black;
+      color: $core-fleet-black;
     }
 
     &__status {
-      color: $core-dark-blue-grey;
+      color: $core-fleet-blue;
       text-transform: capitalize;
 
       &--online {
         &:before {
-          background-color: $success;
+          background-color: $ui-success;
           border-radius: 100%;
           content: ' ';
           display: inline-block;
@@ -71,7 +71,7 @@
 
       &--offline {
         &:before {
-          background-color: $ui-dark-grey;
+          background-color: $ui-fleet-black-25;
           border-radius: 100%;
           content: ' ';
           display: inline-block;

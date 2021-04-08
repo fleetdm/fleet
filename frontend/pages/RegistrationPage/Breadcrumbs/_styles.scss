@@ -15,7 +15,7 @@
     width: 150px;
     font-size: $small;
     font-weight: $regular;
-    color: $white;
+    color: $core-white;
     position: relative;
 
     &::before {
@@ -23,7 +23,7 @@
       position: absolute;
       width: 200px;
       height: 2px;
-      background-color: $core-blue;
+      background-color: $core-vibrant-blue;
       bottom: 43px;
       left: 87px;
 
@@ -56,29 +56,29 @@
 
     &--active {
       font-weight: $bold;
-      color: $white;
+      color: $core-white;
     }
 
     &--1 {
       &::after {
-        border: 2px solid $white;
+        border: 2px solid $core-white;
       }
 
       &.registration-breadcrumbs__page--active {
 
         &::before {
-          background: linear-gradient(to right, $white 50%, $core-blue 50%);
+          background: linear-gradient(to right, $core-white 50%, $core-vibrant-blue 50%);
         }
 
         &::after {
           background-color: transparent;
-          border: 2px solid $white;
+          border: 2px solid $core-white;
         }
       }
 
       &.registration-breadcrumbs__page--complete {
         &::before {
-          background-color: $white;
+          background-color: $core-white;
           background-size: auto;
           z-index: 2;
         }
@@ -86,7 +86,7 @@
         &::after {
           @include size(28px);
           content: '\f035';
-          color: $white;
+          color: $core-white;
           border: 0;
         }
       }
@@ -94,30 +94,30 @@
 
     &--2 {
       &::after {
-        border: solid 1px $core-blue;
+        border: solid 1px $core-vibrant-blue;
       }
 
       &.registration-breadcrumbs__page--active {
         &::before {
-          background: linear-gradient(to right, $white 50%, $core-blue 50%);
+          background: linear-gradient(to right, $core-white 50%, $core-vibrant-blue 50%);
         }
 
         &::after {
           background-color: transparent;
-          border: 2px solid $white;
+          border: 2px solid $core-white;
         }
       }
 
       &.registration-breadcrumbs__page--complete {
         &::before {
-          background: $white;
+          background: $core-white;
           z-index: 2;
         }
 
         &::after {
           @include size(28px);
           content: '\f035';
-          color: $white;
+          color: $core-white;
           border: 0;
         }
       }
@@ -129,18 +129,18 @@
       }
 
       &::after {
-        border: solid 1px $core-blue;
+        border: solid 1px $core-vibrant-blue;
       }
 
       &.registration-breadcrumbs__page--active {
 
         &::before {
-          background: linear-gradient(to right, $white 50%, $core-blue 50%);
+          background: linear-gradient(to right, $core-white 50%, $core-vibrant-blue 50%);
         }
 
         &::after {
           background-color: transparent;
-          border: 2px solid $white;
+          border: 2px solid $core-white;
         }
       }
 
@@ -148,7 +148,7 @@
         &::after {
           @include size(28px);
           content: '\f035';
-          color: $white;
+          color: $core-white;
           border: 0;
         }
       }

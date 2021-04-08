@@ -1,6 +1,6 @@
 .scheduled-queries-list {
-  background-color: $white;
-  border: 1px solid $ui-borders;
+  background-color: $core-white;
+  border: 1px solid $ui-fleet-blue-15;
   border-radius: 4px;
   box-sizing: border-box;
 
@@ -11,8 +11,8 @@
 
     thead {
       height: 50px;
-      background-color: $core-light-blue-grey;
-      border-bottom: 1px solid $ui-borders;
+      background-color: $ui-off-white;
+      border-bottom: 1px solid $ui-fleet-blue-15;
 
       th {
         font-size: $x-small;
@@ -73,7 +73,7 @@
           line-height: 2.71;
           letter-spacing: -0.5px;
           text-align: left;
-          color: $core-black;
+          color: $core-fleet-black;
         }
 
         &:nth-child(3) {
@@ -81,7 +81,7 @@
           font-weight: $regular;
           line-height: 2.71;
           letter-spacing: -0.5px;
-          color: $core-black;
+          color: $core-fleet-black;
         }
 
         &:nth-child(4) {
@@ -90,7 +90,7 @@
           line-height: 2.71;
           letter-spacing: -0.5px;
           text-align: left;
-          color: $core-black;
+          color: $core-fleet-black;
         }
         
         &:nth-child(5),
@@ -100,7 +100,7 @@
           line-height: 2.71;
           letter-spacing: -0.5px;
           text-align: center;
-          color: $core-black;
+          color: $core-fleet-black;
 
           .kolidecon {
             font-size: 18px;
@@ -110,7 +110,7 @@
         &:nth-child(7) {
           text-align: center;
           font-size: 18px;
-          color: $core-black;
+          color: $core-fleet-black;
         }
       }
 
@@ -125,7 +125,7 @@
     text-align: left;
 
     h1 {
-      color: $core-dark-blue-grey;
+      color: $core-fleet-blue;
       font-size: 24px;
       font-weight: $regular;
       line-height: 1.96;
@@ -137,7 +137,7 @@
       font-size: 20px;
       line-height: 2;
       letter-spacing: -0.4px;
-      color: $core-dark-blue-grey;
+      color: $core-fleet-blue;
       font-weight: $regular;
       margin: 0;
     }
@@ -146,7 +146,7 @@
       font-size: 16px;
       font-weight: $regular;
       line-height: 2.5;
-      color: $core-dark-blue-grey;
+      color: $core-fleet-blue;
       margin: 0;
     }
 
@@ -161,7 +161,7 @@
       font-size: 16px;
       font-weight: $regular;
       line-height: 2.5;
-      color: $core-dark-blue-grey;
+      color: $core-fleet-blue;
     }
   }
 

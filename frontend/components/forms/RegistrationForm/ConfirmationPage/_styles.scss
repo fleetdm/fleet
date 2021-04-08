@@ -8,7 +8,7 @@
   }
 
   &__icon {
-    color: $success;
+    color: $ui-success;
     font-size: 120px;
     display: block;
     text-align: center;
@@ -67,7 +67,7 @@
     font-weight: $regular;
     line-height: 1.71;
     letter-spacing: 0.5px;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-blue;
     margin: 30px 0 0;
 
     .kolide-checkbox {

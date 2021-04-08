@@ -24,20 +24,20 @@
     font-size: $large;
 
     .kolidecon {
-      color: $core-medium-blue-grey;
+      color: $core-fleet-blue;
       margin-right: 15px;
     }
 
     .kolidecon-success-check {
-      color: $success;
+      color: $ui-success;
     }
 
     .kolidecon-offline {
-      color: $alert;
+      color: $ui-error;
     }
 
     .kolidecon-mia {
-      color: $core-black;
+      color: $core-fleet-black;
     }
   }
 
@@ -55,13 +55,13 @@
 
     h2 {
       text-transform: uppercase;
-      color: $core-dark-blue-grey;
+      color: $core-fleet-blue;
       font-weight: $regular;
       font-size: 16px;
     }
 
     p {
-      color: $core-medium-blue-grey;
+      color: $core-fleet-blue;
       margin: 0;
       font-size: $x-small;
       font-style: italic;
@@ -73,12 +73,12 @@
       width: 24px;
       height: 24px;
       margin-left: 12px;
-      fill: $ui-medium-grey;
+      fill: $ui-gray;
     }
 
     &--active {
       .kolidecon {
-        fill: $core-purple;
+        fill: $core-fleet-purple;
       }
     }
   }

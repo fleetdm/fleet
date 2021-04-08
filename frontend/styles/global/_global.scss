@@ -8,7 +8,7 @@ html {
 }
 
 body {
-  color: $core-black;
+  color: $core-fleet-black;
   padding: 0;
   margin: 0;
   font-family: 'Nunito Sans', sans-serif;
@@ -37,16 +37,16 @@ h1 {
   font-size: $large;
   font-weight: $regular;
   letter-spacing: -0.5px;
-  color: $core-black;
+  color: $core-fleet-black;
   margin: 0;
 }
 
 a {
-  color: $core-purple;
+  color: $core-fleet-purple;
 }
 
 .wrapper {
-  background: $core-gradient;
+  background: $gradients-dark-gradient-vertical;
   margin: 0;
 
 }
@@ -54,8 +54,8 @@ a {
 .body-wrap {
   padding: 40px 30px 0;
   border-radius: 3px;
-  background-color: $white;
-  border: solid 1px $white;
+  background-color: $core-white;
+  border: solid 1px $core-white;
   min-width: 910px;
 
   @at-root {
@@ -91,7 +91,7 @@ button {
 
   &:-webkit-autofill {
     -webkit-box-shadow: 0 0 0 1000px #fff inset;
-    -webkit-text-fill-color: $core-dark-blue-grey !important; //sass-lint:disable-line no-important
+    -webkit-text-fill-color: $core-fleet-blue !important; //sass-lint:disable-line no-important
   }
 }
 

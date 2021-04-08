@@ -1,6 +1,6 @@
 .queries-list {
-  background-color: $white;
-  border: 1px solid $ui-borders;
+  background-color: $core-white;
+  border: 1px solid $ui-fleet-blue-15;
   border-radius: 4px;
   box-sizing: border-box;
   margin-top: 16px;
@@ -11,8 +11,8 @@
     width: 100%;
 
     thead {
-      background-color: $core-light-blue-grey;
-      border-bottom: 1px solid $ui-borders;
+      background-color: $ui-off-white;
+      border-bottom: 1px solid $ui-fleet-blue-15;
 
       .form-field {
         margin: 0;

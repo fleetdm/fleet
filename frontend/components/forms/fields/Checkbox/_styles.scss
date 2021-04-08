@@ -9,14 +9,14 @@
 
     &:focus + .kolide-checkbox__tick {
       &::after {
-        border-color: $core-blue;
+        border-color: $core-vibrant-blue;
       }
     }
 
     &:checked + .kolide-checkbox__tick {
       &::after {
-        background-color: $core-blue;
-        border: solid 2px $core-blue;
+        background-color: $core-vibrant-blue;
+        border: solid 2px $core-vibrant-blue;
       }
 
       &::before {
@@ -27,7 +27,7 @@
         width: 7px;
         height: 13px;
         margin: -8px 0 0 -3px;
-        border: 2px solid $white;
+        border: 2px solid $core-white;
         border-top: 0;
         border-left: 0;
         content: '';
@@ -45,17 +45,17 @@
       @include size(20px);
       transition: border 75ms ease-in-out, background 75ms ease-in-out;
       border-radius: 2px;
-      border: solid 2px $ui-borders;
+      border: solid 2px $ui-fleet-blue-15;
       content: '';
       box-sizing: border-box;
       display: block;
-      background-color: $white;
+      background-color: $core-white;
       visibility: visible;
     }
 
     &--disabled {
       &::after {
-        background-color: $ui-borders;
+        background-color: $ui-fleet-blue-15;
       }
     }
   }
@@ -65,7 +65,7 @@
     font-weight: $regular;
     line-height: 20px;
     letter-spacing: 0.5px;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-blue;
     padding-left: $pad-small;
   }
 }

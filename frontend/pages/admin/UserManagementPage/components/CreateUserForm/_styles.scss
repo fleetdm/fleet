@@ -10,14 +10,14 @@
       &__label {
         font-size: $x-small;
         font-weight: $bold;
-        color: $core-dark-blue-grey;
+        color: $core-fleet-blue;
         padding-left: 32px;
       }
     }
   }
 
   &__label {
-    color: $core-black;
+    color: $core-fleet-black;
     font-size: $x-small;
     font-weight: $bold;
     margin-bottom: 4px;
@@ -33,7 +33,7 @@
     }
 
     a {
-      color: $core-blue;
+      color: $core-vibrant-blue;
       font-size: $x-small;
       font-weight: $bold;
       text-decoration: none;

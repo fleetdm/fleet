@@ -7,7 +7,7 @@
     font-size: $small;
 
     .kolidecon {
-      color: $core-medium-blue-grey;
+      color: $core-fleet-blue;
       margin-right: 6px;
     }
   }
@@ -21,7 +21,7 @@
   &__description {
     font-size: $small;
     font-weight: $regular;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-blue;
     word-wrap: break-word;
   }
 
@@ -48,6 +48,6 @@
     text-decoration: none;
     font-size: $small;
     vertical-align: middle;
-    color: $core-blue;
+    color: $core-vibrant-blue;
   }
 }

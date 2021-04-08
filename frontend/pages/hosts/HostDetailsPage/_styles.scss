@@ -30,7 +30,7 @@
       }
 
       &__header {
-        color: $core-black;
+        color: $core-fleet-black;
         font-weight: $bold;
       }
 
@@ -55,7 +55,7 @@
   .title {
     flex-direction: row;
     justify-content: space-between;
-    border-bottom: 1px solid $ui-borders;
+    border-bottom: 1px solid $ui-fleet-blue-15;
     margin: 0;
 
     &__inner {
@@ -75,7 +75,7 @@
 
     .last-fetched {
       font-size: $xx-small;
-      color: $core-dark-blue-grey;
+      color: $core-fleet-blue;
       margin: 0;
       padding-left: $pad-small;
     }
@@ -112,12 +112,12 @@
   }
 
   .status {
-    color: $core-dark-blue-grey;
+    color: $core-fleet-blue;
     text-transform: capitalize;
 
     &--online {
       &:before {
-        background-color: $success;
+        background-color: $ui-success;
         border-radius: 100%;
         content: ' ';
         display: inline-block;
@@ -129,7 +129,7 @@
 
     &--offline {
       &:before {
-        background-color: $ui-dark-grey;
+        background-color: $ui-fleet-black-25;
         border-radius: 100%;
         content: ' ';
         display: inline-block;

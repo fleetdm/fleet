@@ -3,13 +3,13 @@
 
   &__page-description {
     font-size: $x-small;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-blue;
     @include sticky-settings-description;
     padding-bottom: $pad-medium;
   }
 
   &__wrapper {
-    border: solid 1px $ui-borders;
+    border: solid 1px $ui-fleet-blue-15;
     border-radius: 6px;
     margin-top: $pad-base;
   }
@@ -20,13 +20,13 @@
 
   &__table {
     border-collapse: collapse;
-    color: $core-black;
+    color: $core-fleet-black;
     font-size: $x-small;
     width: 100%;
   }
 
   tr {
-    border-bottom: 1px solid $ui-borders;
+    border-bottom: 1px solid $ui-fleet-blue-15;
 
     &:last-child {
       border-bottom: 0;
@@ -34,10 +34,10 @@
   }
 
   thead {
-    background-color: $core-light-blue-grey;
-    color: $core-black;
+    background-color: $ui-off-white;
+    color: $core-fleet-black;
     text-align: left;
-    border-bottom: 1px solid $ui-borders;
+    border-bottom: 1px solid $ui-fleet-blue-15;
 
     th {
       padding: 18px 30px;
@@ -69,7 +69,7 @@
 
   &__config-button {
     text-decoration: none;
-    color: $core-blue;
+    color: $core-vibrant-blue;
     font-size: $x-small;
     margin-left: $pad-medium;
   }
@@ -78,7 +78,7 @@
   &__user-count {
     font-size: $x-small;
     font-weight: $bold;
-    color: $core-black;
+    color: $core-fleet-black;
     margin: 0;
   }
 
@@ -104,12 +104,12 @@
     display: flex;
     align-items: center;
     font-size: $x-small;
-    color: $core-blue;
+    color: $core-vibrant-blue;
   }
 
   &__search-input {
     position: relative;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-blue;
     width: 344px;
     margin-left: $pad-medium;
 
@@ -127,7 +127,7 @@
       top: 10px;
       left: 12px;
       font-size: 20px;
-      color: $core-medium-blue-grey;
+      color: $core-fleet-blue;
     }
   }
 

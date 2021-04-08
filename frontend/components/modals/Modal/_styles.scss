@@ -23,11 +23,11 @@
     .button {
       @include size(30px);
       line-height: 30px;
-      color: $core-dark-blue-grey;
+      color: $core-fleet-blue;
       font-size: $x-large;
 
       &:hover {
-        color: $alert-light;
+        color: $ui-error;
       }
     }
   }
@@ -37,14 +37,14 @@
     font-weight: $regular;
     text-align: left;
     padding-bottom: 15px;
-    border-bottom: 1px solid $ui-borders;
+    border-bottom: 1px solid $ui-fleet-blue-15;
     display: flex;
     justify-content: space-between;
   }
 
   &__modal_container {
     @include position(absolute, 22px null null null);
-    background-color: $white;
+    background-color: $core-white;
     width: 658px;
     padding: 40px;
     border-radius: 8px;

@@ -31,14 +31,14 @@
 
   &.left {
     &::after {
-      border-color: transparent $white transparent transparent;
+      border-color: transparent $core-white transparent transparent;
       border-width: 15px;
       right: 99%;
       top: 23px;
     }
 
     &::before {
-      border-color: transparent $core-dark-blue-grey transparent transparent;
+      border-color: transparent $core-fleet-blue transparent transparent;
       border-width: 16px;
       right: 99%;
       top: 22px;
@@ -48,14 +48,14 @@
 
   &.right {
     &::after {
-      border-color: transparent transparent transparent $white;
+      border-color: transparent transparent transparent $core-white;
       border-width: 15px;
       left: 99%;
       top: 23px;
     }
 
     &::before {
-      border-color: transparent transparent transparent $core-dark-blue-grey;
+      border-color: transparent transparent transparent $core-fleet-blue;
       border-width: 16px;
       left: 99%;
       top: 22px;

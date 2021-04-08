@@ -9,7 +9,7 @@
     text-align: right;
 
     button {
-      color: $core-blue;
+      color: $core-vibrant-blue;
       padding: 6px;
 
       .kolidecon-chevronleft {
@@ -22,7 +22,7 @@
     }
 
     button:hover {
-      background-color: $core-blue-label-over;
+      background-color: $ui-vibrant-blue-10;
     }
 
     .button--disabled:hover {

@@ -9,7 +9,7 @@
     max-width: 420px;
 
     em {
-      color: $core-medium-blue-grey;
+      color: $core-fleet-blue;
       font-size: 0.8em;
     }
   }
@@ -22,7 +22,7 @@
 
   &__text-online {
     &:before {
-      background-color: $success;
+      background-color: $ui-success;
       border-radius: 100%;
       content: ' ';
       display: inline-block;
@@ -34,7 +34,7 @@
 
   &__text-offline {
     &:before {
-      background-color: $ui-dark-grey;
+      background-color: $ui-fleet-black-25;
       border-radius: 100%;
       content: ' ';
       display: inline-block;
@@ -46,7 +46,7 @@
 
   &__text-error {
     &:before {
-      background-color: $alert;
+      background-color: $ui-error;
       border-radius: 100%;
       content: ' ';
       display: inline-block;
@@ -57,7 +57,7 @@
   }
 
   &__text-results {
-    color: $core-medium-blue-grey;
+    color: $core-fleet-blue;
   }
 
   &__btn-wrapper {

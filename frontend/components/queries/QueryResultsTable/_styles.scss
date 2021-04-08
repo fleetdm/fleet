@@ -1,7 +1,7 @@
 .query-results-table {
   display: flex;
   flex-direction: column;
-  background-color: $white;
+  background-color: $core-white;
   width: 100%;
   min-height: calc(500px + (#{$pad-base} * 2));
   box-sizing: border-box;
@@ -20,10 +20,10 @@
   }
 
   &__filter-icon {
-    color: $ui-dark-grey;
+    color: $ui-fleet-black-25;
 
     &--is-active {
-      color: $core-blue;
+      color: $core-vibrant-blue;
     }
   }
 
@@ -34,7 +34,7 @@
 
   &__results-table-wrapper {
     display: flex;
-    border: solid 1px $ui-borders;
+    border: solid 1px $ui-fleet-blue-15;
     border-radius: 3px;
     overflow: scroll;
     margin-top: 4px;
@@ -60,7 +60,7 @@
 
   &__error-table-wrapper {
     display: flex;
-    border: solid 1px $ui-borders;
+    border: solid 1px $ui-fleet-blue-15;
     border-radius: 3px;
     overflow: scroll;
     margin-bottom: 40px;
@@ -71,16 +71,16 @@
 
   &__table {
     border-collapse: collapse;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-blue;
     font-size: $x-small;
     width: 100%;
   }
 
   thead {
-    background-color: $core-light-blue-grey;
-    color: $core-black;
+    background-color: $ui-off-white;
+    color: $core-fleet-black;
     text-align: left;
-    border-bottom: 1px solid $ui-borders;
+    border-bottom: 1px solid $ui-fleet-blue-15;
 
     th {
       padding: 12px 24px;
@@ -105,7 +105,7 @@
   }
 
   tbody {
-    background-color: $white;
+    background-color: $core-white;
 
     td {
       padding: 12px 24px;
@@ -113,7 +113,7 @@
     }
 
     tr {
-      border-bottom: 1px solid $ui-borders;
+      border-bottom: 1px solid $ui-fleet-blue-15;
 
       &:last-child {
         border-bottom: 0;
@@ -126,7 +126,7 @@
     animation-fill-mode: forwards;
     border-radius: 3px;
     box-shadow: 0 0 12px 0 rgba(0, 0, 0, 0.1);
-    border: solid 1px $ui-borders;
+    border: solid 1px $ui-fleet-blue-15;
     z-index: 99;
     padding: 20px;
 

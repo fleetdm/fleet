@@ -1,5 +1,5 @@
 .host-side-panel {
-  color: $core-dark-blue-grey;
+  color: $core-fleet-blue;
   padding: 14px 20px 22px;
 
   .input-icon-field {
@@ -17,7 +17,7 @@
   h3 {
     font-size: $x-small;
     font-weight: $bold;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-blue;
     margin: 24px 0 10px 16px;
   }
 
@@ -27,7 +27,7 @@
   }
 
   &__panel-group-item {
-    color: $core-dark-blue-grey;
+    color: $core-fleet-blue;
     width: 100%;
 
     &--filter {
@@ -38,7 +38,7 @@
         top: 10px;
         left: 12px;
         font-size: 20px;
-        color: $core-medium-blue-grey;
+        color: $core-fleet-blue;
       }
     }
 

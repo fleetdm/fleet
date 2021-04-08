@@ -20,7 +20,7 @@
     display: none;
     z-index: 2;
     border-radius: 2px;
-    background-color: $white;
+    background-color: $core-white;
     box-shadow: 0 4px 10px rgba(52, 59, 96, 0.15);
 
     &--opened {
@@ -32,7 +32,7 @@
     display: block;
 
     .button {
-      color: $core-dark-blue-grey;
+      color: $core-fleet-blue;
       text-transform: none;
       text-align: left;
       font-weight: $regular;
@@ -46,8 +46,8 @@
       letter-spacing: -0.5px;
 
       &:hover {
-        background-color: $core-blue;
-        color: $white;
+        background-color: $core-vibrant-blue;
+        color: $core-white;
       }
     }
   }
