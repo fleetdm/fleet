@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/WatchBeam/clock"
@@ -29,7 +30,7 @@ func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore,
 		return nil, errors.Wrap(err, "initializing osquery logging")
 	}
 
-	svc = service{
+	svc = &service{
 		ds:               ds,
 		carveStore:       carveStore,
 		resultStore:      resultStore,
@@ -40,6 +41,7 @@ func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore,
 		osqueryLogWriter: osqueryLogger,
 		mailService:      mailService,
 		ssoSessionStore:  sso,
+		seenHostMap:      newSeenHostMap(),
 		metaDataClient: &http.Client{
 			Timeout: 5 * time.Second,
 		},
@@ -62,6 +64,8 @@ type service struct {
 	mailService     kolide.MailService
 	ssoSessionStore sso.SessionStore
 	metaDataClient  *http.Client
+
+	seenHostMap *seenHostMap
 }
 
 func (s service) SendEmail(mail kolide.Email) error {
@@ -89,4 +93,33 @@ func getAssetURL() template.URL {
 	}
 
 	return template.URL("https://github.com/fleetdm/fleet/blob/" + tag)
+}
+
+type seenHostMap struct {
+	mutex   sync.Mutex
+	hostIDs map[uint]bool
+}
+
+func newSeenHostMap() *seenHostMap {
+	return &seenHostMap{
+		mutex:   sync.Mutex{},
+		hostIDs: make(map[uint]bool),
+	}
+}
+
+func (m *seenHostMap) addHostID(id uint) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.hostIDs[id] = true
+}
+
+func (m *seenHostMap) getAndClearHostIDs() []uint {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	var ids []uint
+	for id, _ := range m.hostIDs {
+		ids = append(ids, id)
+	}
+	m.hostIDs = make(map[uint]bool)
+	return ids
 }

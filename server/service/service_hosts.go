@@ -66,3 +66,9 @@ func (svc service) GetHostSummary(ctx context.Context) (*kolide.HostSummary, err
 func (svc service) DeleteHost(ctx context.Context, id uint) error {
 	return svc.ds.DeleteHost(id)
 }
+
+func (svc *service) FlushSeenHosts(ctx context.Context) error {
+	hostIDs := svc.seenHostMap.getAndClearHostIDs()
+	err := svc.ds.MarkHostsSeen(hostIDs, svc.clock.Now())
+	return err
+}

@@ -64,11 +64,10 @@ func (svc service) AuthenticateHost(ctx context.Context, nodeKey string) (*kolid
 		}
 	}
 
-	// Update the "seen" time used to calculate online status
-	err = svc.ds.MarkHostSeen(host, svc.clock.Now())
-	if err != nil {
-		return nil, osqueryError{message: "failed to mark host seen: " + err.Error()}
-	}
+	// Update the "seen" time used to calculate online status. These updates are
+	// batched for MySQL performance reasons.
+	svc.seenHostMap.addHostID(host.ID)
+	host.SeenTime = svc.clock.Now()
 
 	return host, nil
 }

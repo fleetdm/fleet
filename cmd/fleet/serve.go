@@ -235,6 +235,17 @@ the way that the Fleet server works.
 				}
 			}()
 
+			go func() {
+				ticker := time.NewTicker(1 * time.Second)
+				for {
+					if err := svc.FlushSeenHosts(context.Background()); err != nil {
+						logger.Log("err", err)
+					}
+					logger.Log("msg", "flushed seen")
+					<-ticker.C
+				}
+			}()
+
 			fieldKeys := []string{"method", "error"}
 			requestCount := kitprometheus.NewCounterFrom(prometheus.CounterOpts{
 				Namespace: "api",

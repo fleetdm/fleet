@@ -5,7 +5,7 @@ services:
     image: mysql:5.7
     volumes:
       - mysql-persistent-volume:/tmp
-    command: mysqld --datadir=/tmp/mysqldata --slow_query_log=1 --log_output=TABLE --log-queries-not-using-indexes --event-scheduler=ON
+    command: mysqld --datadir=/tmp/mysqldata --event-scheduler=ON
     environment: &mysql-default-environment
       MYSQL_ROOT_PASSWORD: toor
       MYSQL_DATABASE: fleet
