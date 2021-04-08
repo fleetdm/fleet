@@ -30,10 +30,7 @@ describe('Label flow', () => {
 
     cy.contains('button', /edit/i).click();
 
-    // blocked here, tried numerous iterations
-    // cy.get('.ace_content')
-    //   .click({ multiple: true, force: true })
-    //   .type('{selectall}{backspace}SELECT username FROM users;');
+    // Label SQL not editable to test
 
     cy.findByLabelText(/name/i)
       .click()
