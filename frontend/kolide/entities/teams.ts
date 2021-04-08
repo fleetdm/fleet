@@ -1,10 +1,6 @@
 import endpoints from 'kolide/endpoints';
-
-// ignore TS error for now until these are rewritten in ts.
-// @ts-ignore
-import Base from 'kolide/base';
-
 import { ITeam } from 'interfaces/team';
+import { ICreateTeamFormData } from 'pages/admin/TeamManagementPage/components/CreateTeamModal/CreateTeamModal';
 
 interface ITeamsResponse {
   teams: ITeam[];
@@ -12,8 +8,11 @@ interface ITeamsResponse {
 
 export default (client: any) => {
   return {
-    create: () => {
-      return {};
+    create: (formData: ICreateTeamFormData) => {
+      const { TEAMS } = endpoints;
+
+      return client.authenticatedPost(client._endpoint(TEAMS), JSON.stringify(formData))
+        .then((response: ITeam) => response);
     },
 
     loadAll: (page = 0, perPage = 100, globalFilter = '') => {

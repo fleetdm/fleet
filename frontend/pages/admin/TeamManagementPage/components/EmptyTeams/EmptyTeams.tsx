@@ -1,5 +1,5 @@
 import React from 'react';
-import OpenNewTabIcon from '../../../../../assets/images/open-new-tab-12x12@2x.png';
+import OpenNewTabIcon from '../../../../../../assets/images/open-new-tab-12x12@2x.png';
 
 const baseClass = 'empty-teams';
 
