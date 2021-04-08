@@ -9,7 +9,7 @@
   &__title {
     font-size: $medium;
     font-weight: $regular;
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     border-bottom: 1px solid $ui-fleet-blue-15;
     padding-bottom: 8px;
     margin: 0 0 4px;
@@ -26,14 +26,14 @@
   p,
   ul {
     font-size: $x-small;
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
   }
 
   dl {
     dt {
       font-weight: $bold;
       font-size: $x-small;
-      color: $core-fleet-blue;
+      color: $core-fleet-black;
 
       .kolidecon {
         font-size: 20px;
@@ -47,7 +47,7 @@
 
     dd {
       font-size: 13px;
-      color: $core-fleet-blue;
+      color: $core-fleet-black;
       margin-left: 30px;
     }
   }

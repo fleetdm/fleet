@@ -21,7 +21,7 @@
 
     &--delete {
       i {
-        color: $core-fleet-blue;
+        color: $core-fleet-black;
       }
     }
   }
@@ -33,7 +33,7 @@
   }
 
   &__pack-count {
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     font-size: $x-small;
     font-weight: $bold;
     margin: 0;
@@ -68,7 +68,7 @@
   }
 
   &__table {
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     font-size: $small;
     width: 100%;
   }

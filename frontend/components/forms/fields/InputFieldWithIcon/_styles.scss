@@ -8,7 +8,7 @@
     right: 6px;
     top: 28px;
     font-size: 18px;
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
 
     &--active {
       color: $core-vibrant-blue;
@@ -29,11 +29,11 @@
     position: relative;
     width: 100%;
     box-sizing: border-box;
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     font-weight: $regular;
 
     ::placeholder {
-      color: $core-fleet-blue;
+      color: $ui-fleet-black-50;
     }
 
     &:focus {

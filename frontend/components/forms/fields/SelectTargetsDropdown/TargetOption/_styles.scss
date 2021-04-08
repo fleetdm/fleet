@@ -40,7 +40,7 @@
   }
 
   &__count {
-    background-color: $core-fleet-blue;
+    background-color: $core-fleet-black;
     border-radius: $border-radius;
     color: $core-white;
     font-size: $xx-small;
@@ -51,24 +51,24 @@
   }
 
   &__icon {
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     font-size: $small;
 
     &--online {
-      color: $core-fleet-blue;
+      color: $core-fleet-black;
     }
 
     &--offline {
-      color: $core-fleet-blue;
+      color: $core-fleet-black;
     }
 
     &--mia {
-      color: $core-fleet-blue;
+      color: $core-fleet-black;
     }
   }
 
   &__ip {
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     font-size: $small;
   }
 
@@ -79,7 +79,7 @@
   }
 
   &__label-label {
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     font-size: 14px;
     margin-left: $pad-half;
 
@@ -97,7 +97,7 @@
 
   &__target-icon {
     font-size: $medium;
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     margin-right: $pad-xsmall;
   }
 

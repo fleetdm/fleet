@@ -84,7 +84,7 @@
 
       &:hover {
         &::after {
-          color: $core-fleet-blue;
+          color: $core-fleet-black;
         }
       }
     }
@@ -92,7 +92,7 @@
     .Select-value-label {
       font-size: $x-small;
       font-weight: $regular;
-      color: $core-fleet-blue;
+      color: $core-fleet-black;
       line-height: 28px;
     }
   }
@@ -126,7 +126,7 @@
     &.is-pseudo-focused > .Select-control {
       .Select-value {
         .Select-value-label {
-          color: $core-fleet-blue;
+          color: $core-fleet-black;
           font-size: $x-small;
         }
       }
@@ -147,7 +147,7 @@
   }
 
   .Select-option {
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     font-size: $x-small;
     margin: 6px 0;
     padding: 6px 16px;
@@ -176,7 +176,7 @@
   }
 
   .Select-placeholder {
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     font-size: $x-small;
     line-height: 40px;
     padding: 0 12px;
@@ -201,7 +201,7 @@
 
     .Select-option {
       &.is-disabled {
-        color: $core-fleet-blue;
+        color: $core-fleet-black;
         cursor: default;
 
         &.is-focused {

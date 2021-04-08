@@ -5,13 +5,13 @@
   border-radius: 4px;
   font-size: $small;
   padding: $pad-xsmall 12px;
-  color: $core-fleet-blue;
+  color: $core-fleet-black;
   font-family: 'Nunito Sans', sans-serif;
   box-sizing: border-box;
   height: 40px;
 
   ::placeholder {
-    color: $core-fleet-blue;
+    color: $ui-fleet-black-50;
   }
 
   &:focus {
@@ -33,7 +33,7 @@
     &:focus {
       border-bottom-color: $ui-error;
       background-color: $core-white;
-      color: $core-fleet-blue;
+      color: $core-fleet-black;
     }
   }
 
@@ -51,7 +51,7 @@
     display: block;
     font-size: $medium;
     font-weight: $regular;
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     margin-bottom: $pad-xsmall;
 
     &--error {

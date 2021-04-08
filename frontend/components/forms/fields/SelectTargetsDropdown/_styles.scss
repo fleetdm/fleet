@@ -89,7 +89,7 @@
 
       .Select-value {
         line-height: 34px;
-        border: 1px solid $core-fleet-blue;
+        border: 1px solid $core-fleet-black;
         margin-top: 5px;
         margin-bottom: 0;
       }
@@ -157,7 +157,7 @@
         top: 50%;
         left: 50%;
         visibility: visible;
-        color: $core-fleet-blue;
+        color: $core-fleet-black;
         display: block;
         text-indent: 0;
       }
@@ -172,7 +172,7 @@
     .Select-value-label {
       font-size: 16px;
       font-weight: $regular;
-      color: $core-fleet-blue;
+      color: $core-fleet-black;
       padding: 0 0 0 $pad-medium;
       line-height: 34px;
     }

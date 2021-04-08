@@ -18,20 +18,20 @@
   }
 
   &__pack-icon {
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     margin-right: 11px;
   }
 
   &__pack-name {
     @include ellipsis(250px);
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     font-size: $small;
     font-weight: $regular;
     margin: 0;
   }
 
   &__query-icon {
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     font-size: 16px;
     margin-right: 15px;
   }
