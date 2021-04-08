@@ -10,6 +10,7 @@ const { TEAMS } = schemas;
 
 export default new Config({
   createFunc: Kolide.teams.create,
+  destroyFunc: Kolide.teams.destroy,
   entityName: 'teams',
   loadAllFunc: Kolide.teams.loadAll,
   schema: TEAMS,

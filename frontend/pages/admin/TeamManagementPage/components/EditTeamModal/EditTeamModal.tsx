@@ -8,21 +8,22 @@ import InputFieldWithIcon from 'components/forms/fields/InputFieldWithIcon';
 import Button from 'components/buttons/Button';
 import InfoBanner from 'components/InfoBanner/InfoBanner';
 
-const baseClass = 'create-team-modal';
+const baseClass = 'edit-team-modal';
 
-export interface ICreateTeamFormData {
+export interface IEditTeamFormData {
   name: string;
 }
 
-interface ICreateTeamModalProps {
+interface IEditTeamModalProps {
   onCancel: () => void;
-  onSubmit: (formData: ICreateTeamFormData) => void;
+  onSubmit: (formData: IEditTeamFormData) => void;
+  defaultName: string;
 }
 
-const CreateTeamModal = (props: ICreateTeamModalProps): JSX.Element => {
-  const { onCancel, onSubmit } = props;
+const EditTeamModal = (props: IEditTeamModalProps): JSX.Element => {
+  const { onCancel, onSubmit, defaultName } = props;
 
-  const [name, setName] = useState('');
+  const [name, setName] = useState(defaultName);
 
   const onInputChange = useCallback((value: string) => {
     setName(value);
@@ -36,7 +37,7 @@ const CreateTeamModal = (props: ICreateTeamModalProps): JSX.Element => {
 
   return (
     <Modal
-      title={'Create team'}
+      title={'Edit team'}
       onExit={onCancel}
       className={baseClass}
     >
@@ -49,10 +50,6 @@ const CreateTeamModal = (props: ICreateTeamModalProps): JSX.Element => {
           placeholder="Team name"
           value={name}
         />
-        <InfoBanner className={`${baseClass}__sandbox-info`}>
-          <p className={`${baseClass}__info-header`}>Need to test queries and configurations before deploying?</p>
-          <p>A popular pattern is to end a team’s name with “- Sandbox”, then you can use this to test new queries and configuration with staging hosts or volunteers acting as canaries.</p>
-        </InfoBanner>
         <div className={`${baseClass}__btn-wrap`}>
           <Button
             className={`${baseClass}__btn`}
@@ -60,7 +57,7 @@ const CreateTeamModal = (props: ICreateTeamModalProps): JSX.Element => {
             variant="brand"
             onClick={onFormSubmit}
           >
-            Create
+            Save
           </Button>
           <Button
             className={`${baseClass}__btn`}
@@ -75,4 +72,4 @@ const CreateTeamModal = (props: ICreateTeamModalProps): JSX.Element => {
   );
 };
 
-export default CreateTeamModal;
+export default EditTeamModal;

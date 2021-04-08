@@ -1,14 +1,19 @@
 import React, { useState, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 
-
 import { ITeam } from 'interfaces/team';
 import teamActions from 'redux/nodes/entities/teams/actions';
+// ignore TS error for now until these are rewritten in ts.
+// @ts-ignore
+import { renderFlash } from 'redux/nodes/notifications/actions';
 import TableContainer from 'components/TableContainer';
-import {ICreateTeamFormData} from './components/CreateTeamModal/CreateTeamModal';
 
-import EmptyTeams from './components/EmptyTeams';
 import CreateTeamModal from './components/CreateTeamModal';
+import DeleteTeamModal from './components/DeleteTeamModal';
+import EditTeamModal from './components/EditTeamModal';
+import EmptyTeams from './components/EmptyTeams';
+import { ICreateTeamFormData } from './components/CreateTeamModal/CreateTeamModal';
+import { IEditTeamFormData } from './components/EditTeamModal/EditTeamModal';
 import { generateTableHeaders, generateDataSet } from './TeamTableConfig';
 
 const baseClass = 'team-management';
@@ -23,30 +28,84 @@ interface RootState {
   }
 }
 
+const generateUpdateData = (currentTeamData: ITeam, formData: IEditTeamFormData) => {
+  if (currentTeamData.name !== formData.name) {
+    return {
+      name: formData.name,
+    };
+  }
+};
+
 const TeamManagementPage = (): JSX.Element => {
   const dispatch = useDispatch();
-  const loadingTableData = useSelector((state: RootState) => state.entities.teams.isLoading);
-  const tableHeaders = generateTableHeaders(() => null);
-  const teams = useSelector((state: RootState) => generateDataSet(state.entities.teams.data));
-
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
+  const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
+  const [showEditTeamModal, setShowEditTeamModal] = useState(false);
+  const [teamEditing, setTeamEditing] = useState<ITeam>();
 
+  // NOTE: called once on the initial render of this component.
   const onQueryChange = useCallback((queryData) => {
     const { pageIndex, pageSize, searchQuery } = queryData;
     dispatch(teamActions.loadAll(pageIndex, pageSize, searchQuery));
   }, [dispatch]);
 
+  const onCreateSubmit = useCallback((formData: ICreateTeamFormData) => {
+    dispatch(teamActions.create(formData)).then(() => {
+      dispatch(renderFlash('success', 'Team created'));
+      dispatch(teamActions.loadAll());
+      // TODO: error handling
+    }).catch(() => null);
+    setShowCreateTeamModal(false);
+  }, [dispatch, setShowCreateTeamModal]);
+
+  const onDeleteSubmit = useCallback(() => {
+    dispatch(teamActions.destroy(teamEditing?.id)).then(() => {
+      dispatch(renderFlash('success', 'Team removed'));
+      dispatch(teamActions.loadAll());
+      // TODO: error handling
+    }).catch(() => null);
+    setShowDeleteTeamModal(false);
+  }, [dispatch, setShowDeleteTeamModal, teamEditing]);
+
+  const onEditSubmit = useCallback((formData: IEditTeamFormData) => {
+    const updatedAttrs = generateUpdateData(teamEditing as ITeam, formData);
+    dispatch(teamActions.update(teamEditing?.id, updatedAttrs)).then(() => {
+      dispatch(renderFlash('success', 'Team updated'));
+      dispatch(teamActions.loadAll());
+      // TODO: error handling
+    }).catch(() => null);
+    setShowEditTeamModal(false);
+  }, [dispatch, setShowEditTeamModal, teamEditing]);
+
   const toggleCreateTeamModal = useCallback(() => {
     setShowCreateTeamModal(!showCreateTeamModal);
   }, [showCreateTeamModal, setShowCreateTeamModal]);
 
-  const onCreateSubmit = useCallback((formData: ICreateTeamFormData) => {
-    dispatch(teamActions.create(formData)).then(() => {
-      dispatch(teamActions.loadAll());
-      // TODO: error handling
-    });
-    setShowCreateTeamModal(false);
-  }, [dispatch, setShowCreateTeamModal]);
+  const toggleDeleteTeamModal = useCallback((team?: ITeam) => {
+    setShowDeleteTeamModal(!showDeleteTeamModal);
+    team ? setTeamEditing(team) : setTeamEditing(undefined);
+  }, [showDeleteTeamModal, setShowDeleteTeamModal, setTeamEditing]);
+
+  const toggleEditTeamModal = useCallback((team?: ITeam) => {
+    setShowEditTeamModal(!showEditTeamModal);
+    team ? setTeamEditing(team) : setTeamEditing(undefined);
+  }, [showEditTeamModal, setShowEditTeamModal, setTeamEditing]);
+
+  const onActionSelection = (action: string, team: ITeam): void => {
+    switch (action) {
+      case 'edit':
+        toggleEditTeamModal(team);
+        break;
+      case 'delete':
+        toggleDeleteTeamModal(team);
+        break;
+      default:
+    }
+  };
+
+  const tableHeaders = generateTableHeaders(onActionSelection);
+  const loadingTableData = useSelector((state: RootState) => state.entities.teams.isLoading);
+  const teams = useSelector((state: RootState) => generateDataSet(state.entities.teams.data));
 
   return (
     <div className={`${baseClass} body-wrap`}>
@@ -68,10 +127,23 @@ const TeamManagementPage = (): JSX.Element => {
       />
       {showCreateTeamModal ?
         <CreateTeamModal
-          onExit={toggleCreateTeamModal}
+          onCancel={toggleCreateTeamModal}
           onSubmit={onCreateSubmit}
-        /> :
-        null
+        /> : null
+      }
+      {showDeleteTeamModal ?
+        <DeleteTeamModal
+          onCancel={toggleDeleteTeamModal}
+          onSubmit={onDeleteSubmit}
+          name={teamEditing?.name || ''}
+        /> : null
+      }
+      {showEditTeamModal ?
+        <EditTeamModal
+          onCancel={toggleEditTeamModal}
+          onSubmit={onEditSubmit}
+          defaultName={teamEditing?.name || ''}
+        /> : null
       }
     </div>
   );

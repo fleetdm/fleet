@@ -15,6 +15,12 @@ export default (client: any) => {
         .then((response: ITeam) => response);
     },
 
+    destroy: (teamId: number) => {
+      const { TEAMS } = endpoints;
+      const endpoint = `${client._endpoint(TEAMS)}/${teamId}`;
+      return client.authenticatedDelete(endpoint);
+    },
+
     loadAll: (page = 0, perPage = 100, globalFilter = '') => {
       const { TEAMS } = endpoints;
 
@@ -33,9 +39,12 @@ export default (client: any) => {
           return teams;
         });
     },
+    update: (teamId: number, updateParams: ITeam) => {
+      const { TEAMS } = endpoints;
+      const updateQueryEndpoint = `${client.baseURL}${TEAMS}/${teamId}`;
 
-    update: () => {
-      return {};
+      return client.authenticatedPatch(updateQueryEndpoint, JSON.stringify(updateParams))
+        .then((response: ITeam) => response);
     },
   };
 };

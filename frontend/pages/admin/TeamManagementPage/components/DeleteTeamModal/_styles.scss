@@ -1,11 +1,11 @@
-.create-team-modal {
+.delete-team-modal {
 
-  &__sandbox-info {
-    margin-top: $pad-medium;
+  &__name {
+    font-weight: $bold;
   }
 
-  &__info-header {
-    font-weight: $bold;
+  &__warning {
+    color: $alert
   }
 
   &__btn-wrap {
