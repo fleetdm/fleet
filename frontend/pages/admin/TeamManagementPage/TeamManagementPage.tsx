@@ -28,12 +28,13 @@ interface RootState {
   }
 }
 
-const generateUpdateData = (currentTeamData: ITeam, formData: IEditTeamFormData) => {
+const generateUpdateData = (currentTeamData: ITeam, formData: IEditTeamFormData): IEditTeamFormData | null => {
   if (currentTeamData.name !== formData.name) {
     return {
       name: formData.name,
     };
   }
+  return null;
 };
 
 const TeamManagementPage = (): JSX.Element => {
@@ -42,6 +43,20 @@ const TeamManagementPage = (): JSX.Element => {
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
   const [teamEditing, setTeamEditing] = useState<ITeam>();
+
+  const toggleCreateTeamModal = useCallback(() => {
+    setShowCreateTeamModal(!showCreateTeamModal);
+  }, [showCreateTeamModal, setShowCreateTeamModal]);
+
+  const toggleDeleteTeamModal = useCallback((team?: ITeam) => {
+    setShowDeleteTeamModal(!showDeleteTeamModal);
+    team ? setTeamEditing(team) : setTeamEditing(undefined);
+  }, [showDeleteTeamModal, setShowDeleteTeamModal, setTeamEditing]);
+
+  const toggleEditTeamModal = useCallback((team?: ITeam) => {
+    setShowEditTeamModal(!showEditTeamModal);
+    team ? setTeamEditing(team) : setTeamEditing(undefined);
+  }, [showEditTeamModal, setShowEditTeamModal, setTeamEditing]);
 
   // NOTE: called once on the initial render of this component.
   const onQueryChange = useCallback((queryData) => {
@@ -64,32 +79,23 @@ const TeamManagementPage = (): JSX.Element => {
       dispatch(teamActions.loadAll());
       // TODO: error handling
     }).catch(() => null);
-    setShowDeleteTeamModal(false);
-  }, [dispatch, setShowDeleteTeamModal, teamEditing]);
+    toggleDeleteTeamModal();
+  }, [dispatch, teamEditing, toggleDeleteTeamModal]);
 
   const onEditSubmit = useCallback((formData: IEditTeamFormData) => {
     const updatedAttrs = generateUpdateData(teamEditing as ITeam, formData);
+    // no updates, so no need for a request.
+    if (updatedAttrs === null) {
+      toggleEditTeamModal();
+      return;
+    }
     dispatch(teamActions.update(teamEditing?.id, updatedAttrs)).then(() => {
       dispatch(renderFlash('success', 'Team updated'));
       dispatch(teamActions.loadAll());
       // TODO: error handling
     }).catch(() => null);
-    setShowEditTeamModal(false);
-  }, [dispatch, setShowEditTeamModal, teamEditing]);
-
-  const toggleCreateTeamModal = useCallback(() => {
-    setShowCreateTeamModal(!showCreateTeamModal);
-  }, [showCreateTeamModal, setShowCreateTeamModal]);
-
-  const toggleDeleteTeamModal = useCallback((team?: ITeam) => {
-    setShowDeleteTeamModal(!showDeleteTeamModal);
-    team ? setTeamEditing(team) : setTeamEditing(undefined);
-  }, [showDeleteTeamModal, setShowDeleteTeamModal, setTeamEditing]);
-
-  const toggleEditTeamModal = useCallback((team?: ITeam) => {
-    setShowEditTeamModal(!showEditTeamModal);
-    team ? setTeamEditing(team) : setTeamEditing(undefined);
-  }, [showEditTeamModal, setShowEditTeamModal, setTeamEditing]);
+    toggleEditTeamModal();
+  }, [dispatch, teamEditing, toggleEditTeamModal]);
 
   const onActionSelection = (action: string, team: ITeam): void => {
     switch (action) {
@@ -117,7 +123,7 @@ const TeamManagementPage = (): JSX.Element => {
         data={teams}
         isLoading={loadingTableData}
         defaultSortHeader={'name'}
-        defaultSortDirection={'desc'}
+        defaultSortDirection={'asc'}
         inputPlaceHolder={'Search'}
         actionButtonText={'Create Team'}
         onActionButtonClick={toggleCreateTeamModal}
