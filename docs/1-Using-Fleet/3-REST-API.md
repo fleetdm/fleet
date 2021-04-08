@@ -278,11 +278,12 @@ Retrieves the user data for the authenticated user.
     "username": "jane",
     "name": "",
     "email": "janedoe@example.com",
-    "admin": true,
+    "global_role": "admin",
     "enabled": true,
     "force_password_reset": false,
     "gravatar_url": "",
-    "sso_enabled": false
+    "sso_enabled": false,
+    "teams": []
   }
 }
 ```
@@ -1257,11 +1258,20 @@ None.
       "username": "janedoe",
       "name": "",
       "email": "janedoe@example.com",
-      "admin": true,
+      "global_role": null,
       "enabled": true,
       "force_password_reset": false,
       "gravatar_url": "",
-      "sso_enabled": false
+      "sso_enabled": false,
+      "teams": [
+        {
+          "id": 1,
+          "created_at": "0001-01-01T00:00:00Z",
+          "name": "workstations",
+          "description": "",
+          "role": "admin"
+        }
+      ]
     }
   ]
 }
@@ -1530,11 +1540,12 @@ Returns all information about a specific user.
     "username": "janedoe",
     "name": "janedoe",
     "email": "janedoe@example.com",
-    "admin": true,
+    "global_role": "admin",
     "enabled": true,
     "force_password_reset": false,
     "gravatar_url": "",
-    "sso_enabled": false
+    "sso_enabled": false,
+    "teams": []
   }
 }
 ```
@@ -4125,7 +4136,7 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 ```
 {
-  "name": "Workstations"
+  "name": "workstations"
 }
 ```
 
@@ -4135,35 +4146,37 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 ```
 {
-  "team": {
-    “name”: “Workstations”,
-    “id”: 1
-    “user_ids”: [],
-    “host_ids”: [],
-    “agent_options”: {
-      "spec": {
-        "config": {
-          "options": {
-            "logger_plugin": "tls",
-            "pack_delimiter": "/",
-            "logger_tls_period": 10,
-            "distributed_plugin": "tls",
-            "disable_distributed": false,
-            "logger_tls_endpoint": "/api/v1/osquery/log",
-            "distributed_interval": 10,
-            "distributed_tls_max_attempts": 3
+  "teams: [
+    {
+      “name”: “workstations”,
+      “id”: 1
+      “user_ids”: [],
+      “host_ids”: [],
+      “agent_options”: {
+        "spec": {
+          "config": {
+            "options": {
+              "logger_plugin": "tls",
+              "pack_delimiter": "/",
+              "logger_tls_period": 10,
+              "distributed_plugin": "tls",
+              "disable_distributed": false,
+              "logger_tls_endpoint": "/api/v1/osquery/log",
+              "distributed_interval": 10,
+              "distributed_tls_max_attempts": 3
+            },
+            "decorators": {
+              "load": [
+                "SELECT uuid AS host_uuid FROM system_info;",
+                "SELECT hostname AS hostname FROM system_info;"
+              ]
+            }
           },
-          "decorators": {
-            "load": [
-              "SELECT uuid AS host_uuid FROM system_info;",
-              "SELECT hostname AS hostname FROM system_info;"
-            ]
-          }
-        },
-        "overrides": {}
+          "overrides": {}
+        }
       }
     }
-  }
+  ]
 }
 ```
 
