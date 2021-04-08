@@ -50,9 +50,11 @@ class QuerySidePanel extends Component {
       return (
         <li key={column.name} className={`${columnBaseClass}__item`}>
           <span className={`${columnBaseClass}__name`}>{column.name}</span>
+          <div className={`${columnBaseClass}__tooltip`}><KolideIcon name="help-solid" className={`${columnBaseClass}__help`} />
+            <span className={`${columnBaseClass}__tooltiptext`}>{column.description}</span>
+          </div>
           <div className={`${columnBaseClass}__description`}>
             <span className={`${columnBaseClass}__type`}>{displayTypeForDataType(column.type)}</span>
-            <KolideIcon name="help-solid" className={`${columnBaseClass}__help`} title={column.description} />
           </div>
         </li>
       );

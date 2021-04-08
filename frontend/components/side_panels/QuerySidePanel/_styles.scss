@@ -5,7 +5,7 @@
     margin: 0 0 16px;
     font-size: $x-small;
     font-weight: $bold;
-    color: $core-darkest-blue-grey;
+    color: $core-black;
   }
 
   &__choose-table {
@@ -23,13 +23,13 @@
   &__description {
     font-size: $x-small;
     font-style: italic;
-    color: $core-medium-blue-grey;
+    color: $core-black;
     margin: 0;
   }
 
   &__platforms {
     font-size: 14px;
-    color: $core-medium-blue-grey;
+    color: $core-black;
     list-style: none;
     margin: 0 0 24px;
     padding: 0;
@@ -81,7 +81,7 @@
     line-height: 1.71;
     letter-spacing: 0.5px;
     text-align: left;
-    color: $core-medium-blue-grey;
+    color: $core-black;
   }
 
   &__load-suggestion {
@@ -97,7 +97,7 @@
     align-items: center;
     justify-content: space-between;
     border-top: 1px solid $ui-borders;
-    color: $core-dark-blue-grey;
+    color: $core-black;
     font-size: px-to-rem(14);
     padding: 12px 0;
 
@@ -107,13 +107,9 @@
   }
 
   &__name {
-    border-radius: 4px;
-    border: solid 1px $core-dark-blue-grey;
-    padding: 4px 10px;
-    box-sizing: border-box;
-    font-size: $xx-small;
+    padding: 4px 4px;
     font-weight: $bold;
-    color: $core-dark-blue-grey;
+    color: $core-black;
   }
 
   &__description {
@@ -123,14 +119,53 @@
 
   &__type {
     font-size: $x-small;
-    color: $core-dark-blue-grey;
+    color: $core-black;
   }
 
   &__help {
     margin-left: 12px;
     vertical-align: text-bottom;
     font-size: 20px;
-    color: $core-dark-blue-grey;
+    color: $core-blue;
+  }
+
+  /* Tooltip container */
+  &__tooltip {
+    position: relative;
+    display: inline-block;
+  }
+
+  /* Tooltip text */
+  &__tooltip &__tooltiptext {
+    visibility: hidden;
+    width: 120px;
+    background-color: $core-dark-blue-grey;
+    color: #fff;
+    text-align: center;
+    padding: 5px 0;
+    border-radius: 6px;
+    position: absolute;
+    bottom: 28px;
+    left: 50%;
+    margin-left: -55px;
+    z-index: 1;
+  }
+
+  /* Tooltip arrow */
+  &__tooltip &__tooltiptext::after {
+    content: " ";
+    position: absolute;
+    top: calc(100% - 1px); /* At the bottom of the tooltip */
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color:$core-dark-blue-grey transparent transparent transparent;
+  }
+
+  /* Show the tooltip text when you mouse over the tooltip container */
+  &__tooltip:hover &__tooltiptext {
+    visibility: visible;
   }
 }
 
