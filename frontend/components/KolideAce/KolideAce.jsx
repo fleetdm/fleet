@@ -90,7 +90,10 @@ class KolideAce extends Component {
           maxLines={20}
           name={name}
           onChange={onChange}
-          onLoad={onLoad}
+          onLoad={(editor) => {
+            editor.commands.removeCommands(['gotoline', 'find']);
+            onLoad(editor);
+          }}
           readOnly={readOnly}
           setOptions={{ enableLinking: true }}
           showGutter={showGutter}
