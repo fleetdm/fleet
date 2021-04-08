@@ -24,22 +24,6 @@ func (mw metricsMiddleware) ChangeUserAdmin(ctx context.Context, id uint, isAdmi
 	return user, err
 }
 
-func (mw metricsMiddleware) ChangeUserEnabled(ctx context.Context, id uint, isEnabled bool) (*kolide.User, error) {
-	var (
-		user *kolide.User
-		err  error
-	)
-
-	defer func(begin time.Time) {
-		lvs := []string{"method", "ChangeUserEnabled", "error", fmt.Sprint(err != nil)}
-		mw.requestCount.With(lvs...).Add(1)
-		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-
-	user, err = mw.Service.ChangeUserEnabled(ctx, id, isEnabled)
-	return user, err
-}
-
 func (mw metricsMiddleware) CreateUserWithInvite(ctx context.Context, p kolide.UserPayload) (*kolide.User, error) {
 	var (
 		user *kolide.User

@@ -16,7 +16,6 @@ var (
 			ID:       41,
 			Name:     "No Session",
 			Username: "nosession",
-			Enabled:  true,
 		},
 	}
 
@@ -26,23 +25,10 @@ var (
 			ID:       45,
 			Name:     "Regular User",
 			Username: "user",
-			Enabled:  true,
 		},
 		Session: &kolide.Session{
 			ID:     4,
 			UserID: 45,
-		},
-	}
-	disabledUserViewer = Viewer{
-		User: &kolide.User{
-			ID:       46,
-			Name:     "Disabled Regular User",
-			Username: "disabled_user",
-			Enabled:  false,
-		},
-		Session: &kolide.Session{
-			ID:     5,
-			UserID: 46,
 		},
 	}
 
@@ -51,7 +37,6 @@ var (
 			ID:                       47,
 			Name:                     "Regular User Needs Password Reset",
 			Username:                 "reset_user",
-			Enabled:                  true,
 			AdminForcedPasswordReset: true,
 		},
 		Session: &kolide.Session{
@@ -66,23 +51,10 @@ var (
 			ID:       42,
 			Name:     "The Admin",
 			Username: "admin",
-			Enabled:  true,
 		},
 		Session: &kolide.Session{
 			ID:     1,
 			UserID: 42,
-		},
-	}
-	disabledAdminViewer = Viewer{
-		User: &kolide.User{
-			ID:       43,
-			Name:     "The Disabled Admin",
-			Username: "disabled_admin",
-			Enabled:  false,
-		},
-		Session: &kolide.Session{
-			ID:     2,
-			UserID: 43,
 		},
 	}
 	needsPasswordResetAdminViewer = Viewer{
@@ -90,7 +62,6 @@ var (
 			ID:                       44,
 			Name:                     "The Admin Requires Password Reset",
 			Username:                 "reset_admin",
-			Enabled:                  true,
 			AdminForcedPasswordReset: true,
 		},
 		Session: &kolide.Session{
@@ -111,7 +82,6 @@ func TestIsUserID(t *testing.T) {
 	assert.True(t, adminViewer.IsUserID(42))
 	assert.False(t, adminViewer.IsUserID(7))
 	assert.True(t, userViewer.IsUserID(45))
-	assert.True(t, disabledUserViewer.IsUserID(46))
 }
 
 func TestIsLoggedIn(t *testing.T) {
@@ -119,11 +89,9 @@ func TestIsLoggedIn(t *testing.T) {
 	assert.Equal(t, false, noSessionViewer.IsLoggedIn())
 
 	assert.Equal(t, true, userViewer.IsLoggedIn())
-	assert.Equal(t, false, disabledUserViewer.IsLoggedIn())
 	assert.Equal(t, true, needsPasswordResetUserViewer.IsLoggedIn())
 
 	assert.Equal(t, true, adminViewer.IsLoggedIn())
-	assert.Equal(t, false, disabledAdminViewer.IsLoggedIn())
 	assert.Equal(t, true, needsPasswordResetAdminViewer.IsLoggedIn())
 }
 
@@ -132,11 +100,9 @@ func TestCanPerformActions(t *testing.T) {
 	assert.Equal(t, false, noSessionViewer.CanPerformActions())
 
 	assert.Equal(t, true, userViewer.CanPerformActions())
-	assert.Equal(t, false, disabledUserViewer.CanPerformActions())
 	assert.Equal(t, false, needsPasswordResetUserViewer.CanPerformActions())
 
 	assert.Equal(t, true, adminViewer.CanPerformActions())
-	assert.Equal(t, false, disabledAdminViewer.CanPerformActions())
 	assert.Equal(t, false, needsPasswordResetAdminViewer.CanPerformActions())
 }
 
@@ -192,17 +158,3 @@ func TestCanPerformActions(t *testing.T) {
 // 	assert.Equal(t, false, needsPasswordResetAdminViewer.CanPerformWriteActionOnUser(1))
 // 	assert.Equal(t, true, needsPasswordResetAdminViewer.CanPerformWriteActionOnUser(needsPasswordResetAdminViewer.User.ID))
 // }
-
-func TestCanPerformPasswordReset(t *testing.T) {
-	assert.Equal(t, false, nilViewer.CanPerformPasswordReset())
-	assert.Equal(t, false, noSessionViewer.CanPerformPasswordReset())
-
-	assert.Equal(t, false, userViewer.CanPerformPasswordReset())
-	assert.Equal(t, false, disabledUserViewer.CanPerformPasswordReset())
-	assert.Equal(t, true, needsPasswordResetUserViewer.CanPerformPasswordReset())
-
-	assert.Equal(t, false, adminViewer.CanPerformPasswordReset())
-	assert.Equal(t, false, disabledAdminViewer.CanPerformPasswordReset())
-	assert.Equal(t, true, needsPasswordResetAdminViewer.CanPerformPasswordReset())
-
-}

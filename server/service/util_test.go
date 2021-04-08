@@ -49,7 +49,6 @@ func createTestUsers(t *testing.T, ds kolide.Datastore) map[string]kolide.User {
 			Name:     "Test Name " + u.Username,
 			Username: u.Username,
 			Email:    u.Email,
-			Enabled:  u.Enabled,
 		}
 		err := user.SetPassword(u.PlaintextPassword, 10, 10)
 		require.Nil(t, err)
@@ -65,34 +64,23 @@ var testUsers = map[string]struct {
 	Email             string
 	PlaintextPassword string
 	GlobalRole        null.String
-	Enabled           bool
 }{
 	"admin1": {
 		Username:          "admin1",
 		PlaintextPassword: "foobarbaz1234!",
 		Email:             "admin1@example.com",
 		GlobalRole:        null.StringFrom("admin"),
-		Enabled:           true,
 	},
 	"user1": {
 		Username:          "user1",
 		PlaintextPassword: "foobarbaz1234!",
 		Email:             "user1@example.com",
-		Enabled:           true,
 		GlobalRole:        null.StringFrom("maintainer"),
 	},
 	"user2": {
 		Username:          "user2",
 		PlaintextPassword: "bazfoo1234!",
 		Email:             "user2@example.com",
-		Enabled:           true,
-		GlobalRole:        null.StringFrom("maintainer"),
-	},
-	"disabled1": {
-		Username:          "disabled1",
-		PlaintextPassword: "bazfoo1234!",
-		Email:             "disabled1@example.com",
-		Enabled:           false,
 		GlobalRole:        null.StringFrom("maintainer"),
 	},
 }

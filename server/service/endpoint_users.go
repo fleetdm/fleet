@@ -98,29 +98,6 @@ func makeAdminUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 	}
 }
 
-type enableUserRequest struct {
-	ID      uint `json:"id"`
-	Enabled bool `json:"enabled"`
-}
-
-type enableUserResponse struct {
-	User *kolide.User `json:"user,omitempty"`
-	Err  error        `json:"error,omitempty"`
-}
-
-func (r enableUserResponse) error() error { return r.Err }
-
-func makeEnableUserEndpoint(svc kolide.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(enableUserRequest)
-		user, err := svc.ChangeUserEnabled(ctx, req.ID, req.Enabled)
-		if err != nil {
-			return enableUserResponse{Err: err}, nil
-		}
-		return enableUserResponse{User: user}, nil
-	}
-}
-
 func makeGetSessionUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		user, err := svc.AuthenticatedUser(ctx)
@@ -233,6 +210,31 @@ func makeModifyUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 		}
 
 		return modifyUserResponse{User: user}, nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Delete User
+////////////////////////////////////////////////////////////////////////////////
+
+type deleteUserRequest struct {
+	ID uint `json:"id"`
+}
+
+type deleteUserResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteUserResponse) error() error { return r.Err }
+
+func makeDeleteUserEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(deleteUserRequest)
+		err := svc.DeleteUser(ctx, req.ID)
+		if err != nil {
+			return deleteUserResponse{Err: err}, nil
+		}
+		return deleteUserResponse{}, nil
 	}
 }
 

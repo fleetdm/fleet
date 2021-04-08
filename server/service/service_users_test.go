@@ -41,9 +41,8 @@ func TestAuthenticatedUser(t *testing.T) {
 
 func TestModifyUserEmail(t *testing.T) {
 	user := &kolide.User{
-		ID:      3,
-		Email:   "foo@bar.com",
-		Enabled: true,
+		ID:    3,
+		Email: "foo@bar.com",
 	}
 	user.SetPassword("password", 10, 10)
 	ms := new(mock.Store)
@@ -86,43 +85,10 @@ func TestModifyUserEmail(t *testing.T) {
 
 }
 
-func TestModifyUserCannotUpdateAdminEnabled(t *testing.T) {
-	// The modify user function should not be able to update the admin or
-	// enabled status of a user. These should only be updated explicitly
-	// through the ChangeUserAdmin and ChangeUserEnabled functions.
-	user := &kolide.User{
-		ID:      3,
-		Email:   "foo@bar.com",
-		Enabled: true,
-	}
-	user.SetPassword("password", 10, 10)
-	ms := new(mock.Store)
-	ms.UserByIDFunc = func(id uint) (*kolide.User, error) {
-		return user, nil
-	}
-	ms.SaveUserFunc = func(u *kolide.User) error {
-		assert.Equal(t, true, u.Enabled, "should not be able to update enabled status!")
-		return nil
-	}
-	svc, err := newTestService(ms, nil, nil)
-	require.Nil(t, err)
-	ctx := context.Background()
-	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
-	payload := kolide.UserPayload{
-		Admin:   boolPtr(true),
-		Enabled: boolPtr(false),
-	}
-	_, err = svc.ModifyUser(ctx, 3, payload)
-	require.Nil(t, err)
-	assert.True(t, ms.SaveUserFuncInvoked)
-
-}
-
 func TestModifyUserEmailNoPassword(t *testing.T) {
 	user := &kolide.User{
-		ID:      3,
-		Email:   "foo@bar.com",
-		Enabled: true,
+		ID:    3,
+		Email: "foo@bar.com",
 	}
 	user.SetPassword("password", 10, 10)
 	ms := new(mock.Store)
@@ -167,9 +133,8 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 
 func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 	user := &kolide.User{
-		ID:      3,
-		Email:   "foo@bar.com",
-		Enabled: true,
+		ID:    3,
+		Email: "foo@bar.com",
 	}
 	user.SetPassword("password", 10, 10)
 	ms := new(mock.Store)
@@ -214,9 +179,8 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 
 func TestModifyAdminUserEmailPassword(t *testing.T) {
 	user := &kolide.User{
-		ID:      3,
-		Email:   "foo@bar.com",
-		Enabled: true,
+		ID:    3,
+		Email: "foo@bar.com",
 	}
 	user.SetPassword("password", 10, 10)
 	ms := new(mock.Store)
@@ -602,13 +566,11 @@ func TestRequirePasswordReset(t *testing.T) {
 			ctx := context.Background()
 
 			// Log user in
-			if tt.Enabled {
-				_, _, err = svc.Login(ctx, tt.Username, tt.PlaintextPassword)
-				require.Nil(t, err, "login unsuccessful")
-				sessions, err = svc.GetInfoAboutSessionsForUser(ctx, user.ID)
-				require.Nil(t, err)
-				require.Len(t, sessions, 1, "user should have one session")
-			}
+			_, _, err = svc.Login(ctx, tt.Username, tt.PlaintextPassword)
+			require.Nil(t, err, "login unsuccessful")
+			sessions, err = svc.GetInfoAboutSessionsForUser(ctx, user.ID)
+			require.Nil(t, err)
+			require.Len(t, sessions, 1, "user should have one session")
 
 			// Reset and verify sessions destroyed
 			retUser, err := svc.RequirePasswordReset(ctx, user.ID, true)
@@ -643,10 +605,6 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 
 	for _, tt := range testUsers {
 		t.Run(tt.Username, func(t *testing.T) {
-			if !tt.Enabled {
-				return
-			}
-
 			user, err := ds.User(tt.Username)
 			require.Nil(t, err)
 

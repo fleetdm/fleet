@@ -18,6 +18,8 @@ type UserStore interface {
 	UserByEmail(email string) (*User, error)
 	UserByID(id uint) (*User, error)
 	SaveUser(user *User) error
+	// DeleteUser permanently deletes the user identified by the provided ID.
+	DeleteUser(id uint) error
 	// PendingEmailChange creates a record with a pending email change for a user identified
 	// by uid. The change record is keyed by a unique token. The token is emailed to the user
 	// with a link that they can use to confirm the change.
@@ -78,8 +80,8 @@ type UserService interface {
 	// ChangeUserAdmin is used to modify the admin state of the user identified by id.
 	ChangeUserAdmin(ctx context.Context, id uint, isAdmin bool) (*User, error)
 
-	// ChangeUserEnabled is used to enable/disable the user identified by id.
-	ChangeUserEnabled(ctx context.Context, id uint, isEnabled bool) (*User, error)
+	// DeleteUser permanently deletes the user identified by the provided ID.
+	DeleteUser(ctx context.Context, id uint) error
 
 	// ChangeUserEmail is used to confirm new email address and if confirmed,
 	// write the new email address to user.
@@ -95,7 +97,6 @@ type User struct {
 	Salt                     string `json:"-"`
 	Name                     string `json:"name"`
 	Email                    string `json:"email"`
-	Enabled                  bool   `json:"enabled"`
 	AdminForcedPasswordReset bool   `json:"force_password_reset" db:"admin_forced_password_reset"`
 	GravatarURL              string `json:"gravatar_url" db:"gravatar_url"`
 	Position                 string `json:"position,omitempty"` // job role
@@ -120,7 +121,6 @@ type UserPayload struct {
 	Name                     *string     `json:"name,omitempty"`
 	Email                    *string     `json:"email,omitempty"`
 	Admin                    *bool       `json:"admin,omitempty"`
-	Enabled                  *bool       `json:"enabled,omitempty"`
 	Password                 *string     `json:"password,omitempty"`
 	GravatarURL              *string     `json:"gravatar_url,omitempty"`
 	Position                 *string     `json:"position,omitempty"`
@@ -137,7 +137,6 @@ func (p UserPayload) User(keySize, cost int) (*User, error) {
 	user := &User{
 		Username:   *p.Username,
 		Email:      *p.Email,
-		Enabled:    true,
 		Teams:      []UserTeam{},
 		GlobalRole: p.GlobalRole,
 	}
