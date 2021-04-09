@@ -77,6 +77,11 @@ class KolideAce extends Component {
       [`${baseClass}__wrapper--error`]: error,
     });
 
+    const fixHotkeys = (editor) => {
+      editor.commands.removeCommands(['gotoline', 'find']);
+      onLoad && onLoad(editor);
+    };
+
     return (
       <div className={wrapperClass}>
         {renderLabel()}
@@ -90,7 +95,7 @@ class KolideAce extends Component {
           maxLines={20}
           name={name}
           onChange={onChange}
-          onLoad={onLoad}
+          onLoad={fixHotkeys}
           readOnly={readOnly}
           setOptions={{ enableLinking: true }}
           showGutter={showGutter}
