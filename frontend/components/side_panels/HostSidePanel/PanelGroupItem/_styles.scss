@@ -30,12 +30,12 @@ $base-class: 'panel-group-item';
   &__name {
     @include ellipsis(80%);
     flex-grow: 1;
-    padding-left: 16px;
+    padding-left: $pad-medium;
   }
 
   &__description {
     font-size: 13px;
-    margin-left: 4px;
+    margin-left: $pad-xsmall;
     text-transform: lowercase;
   }
 
@@ -43,7 +43,7 @@ $base-class: 'panel-group-item';
     transition: color 75ms ease-in-out;
     font-weight: $regular;
     text-align: right;
-    padding-right: 16px;
-    font-size: 14px;
+    padding-right: $pad-medium;
+    font-size: $x-small;
   }
 }

@@ -1,5 +1,5 @@
 .input-icon-field {
-  margin-top: 16px;
+  margin-top: $pad-medium;
   position: relative;
   width: 100%;
 
@@ -22,8 +22,8 @@
   &__input {
     border: 1px solid $ui-fleet-blue-15;
     background-color: $ui-light-grey;
-    border-radius: 4px;
-    padding: 9px 30px 9px 16px;
+    border-radius: $border-radius;
+    padding: 9px 30px 9px $pad-medium;
     font-size: $small;
     text-indent: 1px;
     position: relative;
@@ -32,8 +32,8 @@
     color: $core-fleet-black;
     font-weight: $regular;
 
-    ::placeholder {
-      color: $ui-fleet-black-50;
+    &::placeholder {
+      color: $ui-fleet-black-25;
     }
 
     &:focus {
@@ -49,7 +49,7 @@
   &__label {
     font-size: $x-small;
     font-weight: $bold;
-    margin-bottom: 4px;
+    margin-bottom: $pad-xsmall;
   }
 
   &__errors {
@@ -62,7 +62,7 @@
     font-weight: $regular;
     line-height: 20px;
     display: inline-block;
-    margin-top: 8px;
+    margin-top: $pad-small;
 
     code {
       color: $core-vibrant-blue;

@@ -1,7 +1,7 @@
 .stacked-white-boxes {
   @include position(absolute, null null null 50%);
   transition: opacity 300ms ease-in;
-  margin: 40px 0 0 -262px;
+  margin: $pad-xxlarge 0 0 -262px;
   width: 516px;
 
   &--loading {
@@ -21,13 +21,13 @@
     border-radius: 10px;
     min-height: 360px;
     box-sizing: border-box;
-    padding: 40px;
+    padding: $pad-xxlarge;
     font-weight: 300;
 
     &-text {
       color: $core-fleet-black;
       font-size: $small;
-      margin: 40px 0 24px;
+      margin: $pad-xxlarge 0 $pad-large;
     }
   }
 

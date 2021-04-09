@@ -1,12 +1,9 @@
 $pad-auto: auto;
+$pad-xxsmall: px-to-rem(2);
 $pad-xsmall: px-to-rem(4);
 $pad-small: px-to-rem(8);
 $pad-medium: px-to-rem(16);
-$pad-base: px-to-rem(18);
 $pad-large: px-to-rem(24);
 $pad-xlarge: px-to-rem(32);
-$pad-half: px-to-rem(9);
-$pad-none: 0;
-$pad-most: px-to-rem(40);
-$pad-body: px-to-rem(30);
-$pad-borders: px-to-rem(2);
+$pad-xxlarge: px-to-rem(40);
+$pad-xxxlarge: px-to-rem(80);

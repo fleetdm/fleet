@@ -1,16 +1,16 @@
 .pack-details-side-panel {
-  padding: 16px 20px 0;
+  padding: $pad-medium 20px 0;
 
   &__description {
     color: $core-fleet-blue;
-    font-size: 14px;
+    font-size: $x-small;
     word-wrap: break-word;
   }
 
   &__section-label {
     font-size: $medium;
     font-weight: $bold;
-    margin: 24px 0 16px;
+    margin: $pad-large 0 $pad-medium;
   }
 
   &__edit-pack-link {
@@ -32,13 +32,13 @@
 
   &__query-icon {
     color: $core-fleet-black;
-    font-size: 16px;
+    font-size: $small;
     margin-right: 15px;
   }
 
   &__queries-list {
     list-style: none;
-    margin: 0 0 16px;
+    margin: 0 0 $pad-medium;
     padding: 0;
   }
 

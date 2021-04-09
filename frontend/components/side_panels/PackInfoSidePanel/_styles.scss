@@ -4,14 +4,14 @@
   border-left: 1px solid $ui-fleet-blue-15;
   box-sizing: border-box;
   overflow: scroll;
-  padding: 30px;
+  padding: $pad-xlarge;
 
   &__title {
     font-size: $medium;
     font-weight: $regular;
     color: $core-fleet-black;
     border-bottom: 1px solid $ui-fleet-blue-15;
-    padding-bottom: 8px;
+    padding-bottom: $pad-small;
     margin: 0 0 4px;
   }
 
@@ -36,7 +36,7 @@
       color: $core-fleet-black;
 
       .kolidecon {
-        font-size: 20px;
+        font-size: $medium;
         margin-right: 5px;
       }
 
@@ -48,7 +48,7 @@
     dd {
       font-size: 13px;
       color: $core-fleet-black;
-      margin-left: 30px;
+      margin-left: $pad-xlarge;
     }
   }
 }

@@ -34,7 +34,7 @@
     h4 {
       font-size: $small;
       font-weight: $bold;
-      margin: 34px 0 0;
+      margin: $pad-xlarge 0 0;
 
       .kolidecon {
         margin-left: 5px;
@@ -48,7 +48,7 @@
       line-height: 20px;
       letter-spacing: normal;
       color: $core-fleet-black;
-      margin: 8px 0 0 44px;
+      margin: $pad-small 0 0 44px;
     }
 
     a {
@@ -88,13 +88,13 @@
     color: $core-vibrant-blue;
     font-weight: $bold;
     text-align: center;
-    margin-right: 16px;
+    margin-right: $pad-medium;
   }
 
   &__button-wrap {
     display: flex;
     justify-content: flex-end;
-    margin: 24px 0 0;
+    margin: $pad-large 0 0;
   }
 
   &__download-cert {
@@ -121,9 +121,9 @@
     background-color: $ui-off-white;
     color: $core-fleet-black;
     border: 1px solid $ui-fleet-blue-15;
-    border-radius: 4px;
-    padding: 7px 16px;
-    margin: 24px 0 0 44px;
+    border-radius: $border-radius;
+    padding: 7px $pad-medium;
+    margin: $pad-large 0 0 44px;
   }
 
   &__error {

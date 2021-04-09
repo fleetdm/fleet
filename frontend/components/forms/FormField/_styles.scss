@@ -1,12 +1,12 @@
 .form-field {
-  margin-bottom: 24px;
+  margin-bottom: $pad-large;
 
   &__label {
     font-size: $x-small;
     font-weight: $regular;
     color: $core-fleet-black;
     display: block;
-    margin-bottom: 4px;
+    margin-bottom: $pad-xsmall;
 
     &--error {
       color: $ui-error;

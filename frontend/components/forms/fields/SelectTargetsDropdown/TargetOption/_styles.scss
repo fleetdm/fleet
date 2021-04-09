@@ -13,7 +13,7 @@
     align-content: stretch;
     cursor: default;
     border-radius: 8px;
-    padding: 4px 8px;
+    padding: $pad-xsmall 8px;
   }
 
   &__target-content,
@@ -75,13 +75,13 @@
   &__label-host {
     color: $core-fleet-purple;
     font-size: $medium;
-    margin-left: $pad-half;
+    margin-left: $pad-small;
   }
 
   &__label-label {
     color: $core-fleet-black;
-    font-size: 14px;
-    margin-left: $pad-half;
+    font-size: $x-small;
+    margin-left: $pad-small;
 
     .all-hosts {
       font-weight: $bold;
@@ -92,7 +92,7 @@
     color: $core-vibrant-blue;
     cursor: pointer;
     float: right;
-    margin-right: $pad-base;
+    margin-right: $pad-medium;
   }
 
   &__target-icon {
@@ -115,6 +115,6 @@
 
   .target-option__label-label {
     font-weight: $bold;
-    margin-right: 8px;
+    margin-right: $pad-small;
   }
 }

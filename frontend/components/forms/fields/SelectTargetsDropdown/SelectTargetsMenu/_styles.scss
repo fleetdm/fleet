@@ -2,7 +2,7 @@
 
   &__type {
     padding: 0 8px 4px;
-    margin: 40px 0 0;
+    margin: $pad-xxlarge 0 0;
     text-transform: uppercase;
     font-weight: $bold;
     font-size: $xx-small;
@@ -22,7 +22,7 @@
     min-height: 500px;
     position: relative;
     z-index: 2;
-    padding: 24px 16px;
+    padding: $pad-large $pad-medium;
     border-right: 1px solid $ui-fleet-blue-15;
     background-color: $core-white;
   }

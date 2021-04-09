@@ -4,9 +4,9 @@
 
   &__wrapper {
     border: 1px solid $ui-fleet-blue-15;
-    border-radius: 4px;
+    border-radius: $border-radius;
     overflow: hidden;
-    margin-top: 16px;
+    margin-top: $pad-medium;
   }
 
   thead {

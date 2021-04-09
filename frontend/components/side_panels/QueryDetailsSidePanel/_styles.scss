@@ -15,7 +15,7 @@
   &__label {
     font-size: $medium;
     font-weight: $bold;
-    margin: 24px 0 16px;
+    margin: $pad-large 0 $pad-medium;
   }
 
   &__description {
@@ -38,7 +38,7 @@
   }
 
   &__packs {
-    margin-bottom: 24px;
+    margin-bottom: $pad-large;
     padding: 0;
     list-style: none;
   }

@@ -14,7 +14,7 @@
   align-items: center;
   justify-content: center;
   color: $core-white;
-  padding: $pad-half;
+  padding: $pad-small;
   z-index: 3;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
   background-color: #3d4758;
@@ -46,14 +46,14 @@
     }
 
     .kolidecon {
-      font-size: 24px;
+      font-size: $large;
     }
   }
 
   &__undo {
     color: $core-white;
     cursor: pointer;
-    font-size: 16px;
+    font-size: $small;
     text-decoration: underline;
     text-transform: uppercase;
   }
@@ -67,7 +67,7 @@
     .kolidecon {
       transition: color 150ms ease-in-out;
       color: $core-fleet-black;
-      font-size: 24px;
+      font-size: $large;
 
       &:hover {
         color: $core-white;

@@ -39,14 +39,14 @@
       display: block;
       border-radius: 50%;
       content: '';
-      font-size: 28px;
+      font-size: $x-large;
       margin: 14px auto 0;
       position: relative;
       z-index: 1;
       cursor: pointer;
 
       @include breakpoint(tablet) {
-        margin-top: 4px;
+        margin-top: $pad-xsmall;
       }
     }
 

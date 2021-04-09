@@ -7,7 +7,7 @@
       position: relative;
       font-size: $x-small;
       font-weight: $bold;
-      margin-top: 8px;
+      margin-top: $pad-small;
     }
 
     .input-field {
@@ -23,7 +23,7 @@
 
   &__secret-copy-icon {
     color: $core-vibrant-blue;
-    margin-right: 16px;
+    margin-right: $pad-medium;
   }
 
   .buttons {
@@ -98,7 +98,7 @@
     }
 
     .enroll-secrets__secret-download-icon {
-      margin-bottom: 16px;
+      margin-bottom: $pad-medium;
     }
   }
 }

@@ -20,7 +20,7 @@
   }
 
   &__cancel-btn {
-    margin-right: 14px;
+    margin-right: $pad-medium;
   }
 
   &__save-btn {
@@ -28,7 +28,7 @@
   }
 
   &__text-editor-wrapper {
-    margin: 24px 0;
+    margin: $pad-large 0;
   }
 }
 

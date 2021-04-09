@@ -3,8 +3,8 @@
   &__pager-wrap {
     display: flex;
     justify-content: flex-end;
-    margin-top: $pad-half;
-    margin-bottom: $pad-half;
+    margin-top: $pad-small;
+    margin-bottom: $pad-small;
     margin-left: auto;
     text-align: right;
 
@@ -13,11 +13,11 @@
       padding: 6px;
 
       .kolidecon-chevronleft {
-        margin-right: $pad-half;
+        margin-right: $pad-small;
       }
 
       .kolidecon-chevronright {
-        margin-left: $pad-half;
+        margin-left: $pad-small;
       }
     }
 

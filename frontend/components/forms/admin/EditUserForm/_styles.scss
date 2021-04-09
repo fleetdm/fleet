@@ -2,7 +2,7 @@
   box-sizing: border-box;
   height: 100%;
   position: relative;
-  margin-top: 24px;
+  margin-top: $pad-large;
 
   &__btn-wrap {
     display: flex;
@@ -10,13 +10,13 @@
   }
 
   .form-field {
-    margin-bottom: 24px;
+    margin-bottom: $pad-large;
   }
 
   form &__input {
     font-size: $small;
     width: 100%;
-    padding: $pad-xsmall $pad-half;
+    padding: $pad-xsmall $pad-small;
   }
 
   form &__label {
@@ -28,7 +28,7 @@
   &__form-btn {
 
     &--cancel {
-      margin-right: 14px;
+      margin-right: $pad-medium;
     }
   }
 }
