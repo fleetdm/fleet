@@ -84,7 +84,7 @@ export class UserManagementPage extends Component {
     if (currentUser.id === userEditing.id) {
       return dispatch(updateUser(userData, updatedAttrs))
         .then(() => {
-          dispatch(renderFlash('success', 'User updated', updateUser(formData, formData)));
+          dispatch(renderFlash('success', 'User updated'));
           toggleEditUserModal();
         })
         .catch(() => false);
@@ -92,7 +92,7 @@ export class UserManagementPage extends Component {
 
     return dispatch(userActions.silentUpdate(userData, formData))
       .then(() => {
-        dispatch(renderFlash('success', 'User updated', userActions.silentUpdate(formData, formData)));
+        dispatch(renderFlash('success', 'User updated'));
         toggleEditUserModal();
       })
       .catch(() => false);
@@ -106,7 +106,7 @@ export class UserManagementPage extends Component {
       invited_by: formData.currentUserId,
     };
     delete requestData.currentUserId; // dont need this for the request.
-    dispatch(inviteActions.silentCreate(requestData))
+    dispatch(inviteActions.create(requestData))
       .then(() => {
         this.toggleCreateUserModal();
       })
@@ -256,7 +256,7 @@ export class UserManagementPage extends Component {
           onSubmit={onEditUser}
           canUseSSO={config.enable_sso}
           availableTeams={userData.teams}
-          submitText={'Edit'}
+          submitText={'Save'}
         />
       </Modal>
     );
@@ -282,6 +282,7 @@ export class UserManagementPage extends Component {
           onSubmit={onCreateUserSubmit}
           canUseSSO={config.enable_sso}
           availableTeams={currentUser.teams}
+          defaultGlobalRole={'observer'}
           defaultTeams={[]}
           submitText={'Create'}
         />
@@ -387,10 +388,7 @@ const mapStateToProps = (state) => {
   const { loading: appConfigLoading } = state.app;
   const { user: currentUser } = state.auth;
   const { entities: users } = stateEntityGetter.get('users');
-  // const { entities: invites } = stateEntityGetter.get('invites');
-  const invites = [{
-    name: 'Gabriel Fernandez', email: 'gabriel+fev@fleetdm.com', id: 6, teams: [{ name: 'Test Team', role: 'maintainer', id: 1 }], global_role: null,
-  }];
+  const { entities: invites } = stateEntityGetter.get('invites');
   const { errors: inviteErrors, loading: loadingInvites } = state.entities.invites;
   const { errors: userErrors, loading: loadingUsers } = state.entities.users;
   const loadingTableData = loadingUsers || loadingInvites;

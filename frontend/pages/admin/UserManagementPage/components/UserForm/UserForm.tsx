@@ -195,7 +195,7 @@ class UserForm extends Component <ICreateUserFormProps, ICreateUserFormState> {
     return true;
   }
 
-  renderGlobalRoleForm = () => {
+  renderGlobalRoleForm = (): JSX.Element => {
     const { onGlobalUserRoleChange } = this;
     const { formData: { global_role } } = this.state;
     return (
