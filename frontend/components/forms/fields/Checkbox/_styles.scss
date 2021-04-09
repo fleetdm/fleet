@@ -55,6 +55,7 @@
     &--disabled {
       &::after {
         background-color: $ui-fleet-blue-15;
+        border: 1px solid $ui-fleet-blue-15;
       }
     }
   }
