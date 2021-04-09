@@ -94,12 +94,6 @@ export class ManageHostsPage extends PureComponent {
     return false;
   }
 
-  onSearchQueryChange = (newQuery) => {
-    this.setState({
-      searchQuery: newQuery,
-    });
-  }
-
   onEditColumnsClick = () => {
     this.setState({
       showEditColumnsModal: true,
@@ -457,7 +451,7 @@ export class ManageHostsPage extends PureComponent {
   renderTable = () => {
     const { selectedFilter, selectedLabel, hosts, loadingHosts } = this.props;
     const { hiddenColumns } = this.state;
-    const { toggleEditColumnsModal, onTableQueryChange, onEditColumnsClick } = this;
+    const { onTableQueryChange, onEditColumnsClick } = this;
 
     // The data has not been fetched yet.
     if (selectedFilter === undefined || selectedLabel === undefined) return null;
@@ -474,9 +468,10 @@ export class ManageHostsPage extends PureComponent {
         isLoading={loadingHosts}
         defaultSortHeader={'hostname'}
         defaultSortDirection={'desc'}
+        actionButtonText={'Edit columns'}
         additionalQueries={JSON.stringify([selectedFilter])}
         inputPlaceHolder={'Search hostname, UUID, serial number, or IPv4'}
-        onTableActionClick={onEditColumnsClick}
+        onActionButtonClick={onEditColumnsClick}
         onQueryChange={onTableQueryChange}
         resultsTitle={'hosts'}
         emptyComponent={EmptyHosts}
@@ -500,9 +495,6 @@ export class ManageHostsPage extends PureComponent {
       isAddLabel,
       loadingLabels,
       selectedLabel,
-      selectedFilter,
-      hosts,
-      loadingHosts,
     } = this.props;
     const { isEditLabel } = this.state;
 

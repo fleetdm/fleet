@@ -54,5 +54,19 @@ describe('Kolide - API client (invites)', () => {
           expect(request.isDone()).toEqual(true);
         });
     });
+
+    it('calls the appropriate endpoint with the correct query params when passed multiple arguments', () => {
+      const request = inviteMocks.loadAll.validWithParams(bearerToken);
+      const page = 3;
+      const perPage = 100;
+      const query = 'testQuery';
+      const sortBy = [{ id: 'name', desc: true }];
+
+      Kolide.setBearerToken(bearerToken);
+      return Kolide.invites.loadAll(page, perPage, query, sortBy)
+        .then(() => {
+          expect(request.isDone()).toEqual(true);
+        });
+    });
   });
 });

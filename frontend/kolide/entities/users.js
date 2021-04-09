@@ -10,6 +10,12 @@ export default (client) => {
       return client.authenticatedPost(client._endpoint(USERS), JSON.stringify(formData))
         .then(response => helpers.addGravatarUrlToResource(response.user));
     },
+    destroy: (user) => {
+      const { USERS } = endpoints;
+      const endpoint = `${client._endpoint(USERS)}/${user.id}`;
+
+      return client.authenticatedDelete(endpoint);
+    },
     forgotPassword: ({ email }) => {
       const { FORGOT_PASSWORD } = endpoints;
       const endpoint = client.baseURL + FORGOT_PASSWORD;
@@ -83,9 +89,9 @@ export default (client) => {
       return client.authenticatedPost(endpoint, JSON.stringify({ new_password: password }))
         .then(response => helpers.addGravatarUrlToResource(response.user));
     },
-    requirePasswordReset: (user, { require }) => {
+    requirePasswordReset: (userId, { require }) => {
       const { USERS } = endpoints;
-      const endpoint = client._endpoint(`${USERS}/${user.id}/require_password_reset`);
+      const endpoint = client._endpoint(`${USERS}/${userId}/require_password_reset`);
 
       return client.authenticatedPost(endpoint, JSON.stringify({ require }))
         .then(response => helpers.addGravatarUrlToResource(response.user));
