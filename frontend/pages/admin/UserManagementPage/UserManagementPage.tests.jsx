@@ -7,7 +7,6 @@ import inviteActions from 'redux/nodes/entities/invites/actions';
 import userActions from 'redux/nodes/entities/users/actions';
 
 const currentUser = {
-  admin: true,
   email: 'hi@gnar.dog',
   enabled: true,
   name: 'Gnar Dog',
@@ -15,6 +14,15 @@ const currentUser = {
   username: 'gnardog',
   teams: [],
   global_role: 'admin',
+};
+const invitedUser = {
+  email: 'test+4@fleetdm.com',
+  global_role: 'observer',
+  id: 6,
+  invited_by: 1,
+  name: 'test 4',
+  sso_enabled: false,
+  teams: [],
 };
 const store = {
   app: {
@@ -41,9 +49,10 @@ const store = {
       loading: false,
       data: {
         1: {
-          admin: false,
+          global_role: 'admin',
           email: 'other@user.org',
           name: 'Other user',
+          teams: [],
         },
       },
       originalOrder: [1],
