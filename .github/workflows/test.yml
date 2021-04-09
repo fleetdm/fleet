@@ -107,6 +107,32 @@ jobs:
       run: |
         make lint-js
 
+  check-prettier:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: JS Dependency Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            **/node_modules
+            ~/.cache/Cypress
+          key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-modules-
+
+      - name: Install JS Dependencies
+        run: make deps-js
+
+      - name: Run JS Linting
+        run: |
+          yarn prettier --check
+
 
   test-go:
     strategy:
