@@ -1,7 +1,9 @@
 const formChanged = (fields, query) => {
-  return query.name !== fields.name.value ||
+  return (
+    query.name !== fields.name.value ||
     query.description !== fields.description.value ||
-    query.query !== fields.query.value;
+    query.query !== fields.query.value
+  );
 };
 
 const canSaveAsNew = (fields, query = {}) => {
@@ -28,13 +30,13 @@ const canSaveChanges = (fields, query = {}) => {
   return false;
 };
 
-const allPlatforms = { label: 'All Platforms', value: '' };
+const allPlatforms = { label: "All Platforms", value: "" };
 const platformOptions = [
   allPlatforms,
-  { label: 'macOS', value: 'darwin' },
-  { label: 'Windows', value: 'windows' },
-  { label: 'Ubuntu', value: 'ubuntu' },
-  { label: 'Centos', value: 'centos' },
+  { label: "macOS", value: "darwin" },
+  { label: "Windows", value: "windows" },
+  { label: "Ubuntu", value: "ubuntu" },
+  { label: "Centos", value: "centos" },
 ];
 
 export default { allPlatforms, canSaveAsNew, canSaveChanges, platformOptions };

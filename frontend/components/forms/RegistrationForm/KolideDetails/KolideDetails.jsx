@@ -1,13 +1,13 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
-import Form from 'components/forms/Form';
-import formFieldInterface from 'interfaces/form_field';
-import Button from 'components/buttons/Button';
-import helpers from 'components/forms/RegistrationForm/KolideDetails/helpers';
-import InputFieldWithIcon from 'components/forms/fields/InputFieldWithIcon';
+import Form from "components/forms/Form";
+import formFieldInterface from "interfaces/form_field";
+import Button from "components/buttons/Button";
+import helpers from "components/forms/RegistrationForm/KolideDetails/helpers";
+import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 
-const formFields = ['kolide_server_url'];
+const formFields = ["kolide_server_url"];
 const { validate } = helpers;
 
 class KolideDetails extends Component {
@@ -21,7 +21,10 @@ class KolideDetails extends Component {
   };
 
   componentDidUpdate(prevProps) {
-    if (this.props.currentPage && this.props.currentPage !== prevProps.currentPage) {
+    if (
+      this.props.currentPage &&
+      this.props.currentPage !== prevProps.currentPage
+    ) {
       // Component has a transition duration of 300ms set in
       // RegistrationForm/_styles.scss. We need to wait 300ms before
       // calling .focus() to preserve smooth transition.
@@ -31,7 +34,7 @@ class KolideDetails extends Component {
     }
   }
 
-  render () {
+  render() {
     const { className, currentPage, fields, handleSubmit } = this.props;
     const tabIndex = currentPage ? 1 : -1;
 
@@ -42,11 +45,22 @@ class KolideDetails extends Component {
             {...fields.kolide_server_url}
             placeholder="Fleet web address"
             tabIndex={tabIndex}
-            hint={['Don’t include ', <code key="hint">/v1</code>, ' or any other path.']}
-            ref={(input) => { this.firstInput = input; }}
+            hint={[
+              "Don’t include ",
+              <code key="hint">/v1</code>,
+              " or any other path.",
+            ]}
+            ref={(input) => {
+              this.firstInput = input;
+            }}
           />
         </div>
-        <Button type="submit" tabIndex={tabIndex} disabled={!currentPage} className="button button--brand">
+        <Button
+          type="submit"
+          tabIndex={tabIndex}
+          disabled={!currentPage}
+          className="button button--brand"
+        >
           Submit
         </Button>
       </form>

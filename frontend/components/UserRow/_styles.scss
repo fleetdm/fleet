@@ -1,5 +1,4 @@
 .user-row {
-  
   &__actions {
     .form-field--dropdown {
       margin-bottom: 0;
@@ -34,7 +33,7 @@
     &:before {
       background-color: $success;
       border-radius: 100%;
-      content: ' ';
+      content: " ";
       display: inline-block;
       height: 8px;
       margin-right: 8px;
@@ -46,7 +45,7 @@
     &:before {
       background-color: $warning;
       border-radius: 100%;
-      content: ' ';
+      content: " ";
       display: inline-block;
       height: 8px;
       margin-right: 8px;
@@ -58,7 +57,7 @@
     &:before {
       background-color: $core-red;
       border-radius: 100%;
-      content: ' ';
+      content: " ";
       display: inline-block;
       height: 8px;
       margin-right: 8px;

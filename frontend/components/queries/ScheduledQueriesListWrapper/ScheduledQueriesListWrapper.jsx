@@ -1,14 +1,14 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { pull } from 'lodash';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { pull } from "lodash";
 
-import Button from 'components/buttons/Button';
-import helpers from 'components/queries/ScheduledQueriesListWrapper/helpers';
-import InputField from 'components/forms/fields/InputField';
-import QueriesList from 'components/queries/ScheduledQueriesList';
-import queryInterface from 'interfaces/query';
+import Button from "components/buttons/Button";
+import helpers from "components/queries/ScheduledQueriesListWrapper/helpers";
+import InputField from "components/forms/fields/InputField";
+import QueriesList from "components/queries/ScheduledQueriesList";
+import queryInterface from "interfaces/query";
 
-const baseClass = 'scheduled-queries-list-wrapper';
+const baseClass = "scheduled-queries-list-wrapper";
 
 class ScheduledQueriesListWrapper extends Component {
   static propTypes = {
@@ -19,11 +19,11 @@ class ScheduledQueriesListWrapper extends Component {
     scheduledQueries: PropTypes.arrayOf(queryInterface),
   };
 
-  constructor (props) {
+  constructor(props) {
     super(props);
 
     this.state = {
-      querySearchText: '',
+      querySearchText: "",
       checkedScheduledQueryIDs: [],
     };
   }
@@ -31,18 +31,20 @@ class ScheduledQueriesListWrapper extends Component {
   onRemoveScheduledQueries = (evt) => {
     evt.preventDefault();
 
-    const { onRemoveScheduledQueries: handleRemoveScheduledQueries } = this.props;
+    const {
+      onRemoveScheduledQueries: handleRemoveScheduledQueries,
+    } = this.props;
     const { checkedScheduledQueryIDs } = this.state;
 
     this.setState({ checkedScheduledQueryIDs: [] });
 
     return handleRemoveScheduledQueries(checkedScheduledQueryIDs);
-  }
+  };
 
   onCheckAllQueries = (shouldCheckAll) => {
     if (shouldCheckAll) {
       const allScheduledQueries = this.getQueries();
-      const checkedScheduledQueryIDs = allScheduledQueries.map(sq => sq.id);
+      const checkedScheduledQueryIDs = allScheduledQueries.map((sq) => sq.id);
 
       this.setState({ checkedScheduledQueryIDs });
 
@@ -52,29 +54,29 @@ class ScheduledQueriesListWrapper extends Component {
     this.setState({ checkedScheduledQueryIDs: [] });
 
     return false;
-  }
+  };
 
   onCheckQuery = (shouldCheckQuery, scheduledQueryID) => {
     const { checkedScheduledQueryIDs } = this.state;
-    const newCheckedScheduledQueryIDs = shouldCheckQuery ?
-      checkedScheduledQueryIDs.concat(scheduledQueryID) :
-      pull(checkedScheduledQueryIDs, scheduledQueryID);
+    const newCheckedScheduledQueryIDs = shouldCheckQuery
+      ? checkedScheduledQueryIDs.concat(scheduledQueryID)
+      : pull(checkedScheduledQueryIDs, scheduledQueryID);
 
     this.setState({ checkedScheduledQueryIDs: newCheckedScheduledQueryIDs });
 
     return false;
-  }
+  };
 
   onUpdateQuerySearchText = (querySearchText) => {
     this.setState({ querySearchText });
-  }
+  };
 
   getQueries = () => {
     const { scheduledQueries } = this.props;
     const { querySearchText } = this.state;
 
     return helpers.filterQueries(scheduledQueries, querySearchText);
-  }
+  };
 
   renderButton = () => {
     const { onRemoveScheduledQueries } = this;
@@ -83,7 +85,7 @@ class ScheduledQueriesListWrapper extends Component {
     const scheduledQueryCount = checkedScheduledQueryIDs.length;
 
     if (scheduledQueryCount) {
-      const queryText = scheduledQueryCount === 1 ? 'query' : 'queries';
+      const queryText = scheduledQueryCount === 1 ? "query" : "queries";
 
       return (
         <Button
@@ -97,12 +99,12 @@ class ScheduledQueriesListWrapper extends Component {
     }
 
     return false;
-  }
+  };
 
   renderQueryCount = () => {
     const { scheduledQueries } = this.props;
     const queryCount = scheduledQueries.length;
-    const queryText = queryCount === 1 ? ' 1 query' : `${queryCount} queries`;
+    const queryText = queryCount === 1 ? " 1 query" : `${queryCount} queries`;
 
     return (
       <div>
@@ -110,11 +112,21 @@ class ScheduledQueriesListWrapper extends Component {
         <p className={`${baseClass}__query-count`}>{queryText}</p>
       </div>
     );
-  }
+  };
 
   renderQueriesList = () => {
-    const { getQueries, onHidePackForm, onCheckAllQueries, onCheckQuery } = this;
-    const { onScheduledQueryFormSubmit, onSelectScheduledQuery, onDblClickScheduledQuery, scheduledQueries } = this.props;
+    const {
+      getQueries,
+      onHidePackForm,
+      onCheckAllQueries,
+      onCheckQuery,
+    } = this;
+    const {
+      onScheduledQueryFormSubmit,
+      onSelectScheduledQuery,
+      onDblClickScheduledQuery,
+      scheduledQueries,
+    } = this.props;
     const { checkedScheduledQueryIDs } = this.state;
 
     return (
@@ -132,10 +144,15 @@ class ScheduledQueriesListWrapper extends Component {
         />
       </div>
     );
-  }
+  };
 
-  render () {
-    const { onUpdateQuerySearchText, renderButton, renderQueryCount, renderQueriesList } = this;
+  render() {
+    const {
+      onUpdateQuerySearchText,
+      renderButton,
+      renderQueryCount,
+      renderQueriesList,
+    } = this;
     const { querySearchText } = this.state;
 
     return (

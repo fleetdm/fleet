@@ -1,13 +1,13 @@
-import reducer from './reducer';
+import reducer from "./reducer";
 import {
   requirePasswordResetFailure,
   requirePasswordResetSuccess,
-} from './actions';
+} from "./actions";
 
-const user = { id: 1, email: 'zwass@kolide.co', force_password_reset: false };
+const user = { id: 1, email: "zwass@kolide.co", force_password_reset: false };
 
-describe('Users - reducer', () => {
-  describe('require password reset', () => {
+describe("Users - reducer", () => {
+  describe("require password reset", () => {
     const initialState = {
       loading: false,
       errors: {},
@@ -16,7 +16,7 @@ describe('Users - reducer', () => {
       },
     };
 
-    it('updates state when request is successful', () => {
+    it("updates state when request is successful", () => {
       const initState = {
         ...initialState,
         loading: true,
@@ -33,9 +33,12 @@ describe('Users - reducer', () => {
       });
     });
 
-    it('updates state when request fails', () => {
-      const errors = { base: 'Unable to require password reset' };
-      const newState = reducer(initialState, requirePasswordResetFailure(errors));
+    it("updates state when request fails", () => {
+      const errors = { base: "Unable to require password reset" };
+      const newState = reducer(
+        initialState,
+        requirePasswordResetFailure(errors)
+      );
 
       expect(newState).toEqual({
         ...initialState,

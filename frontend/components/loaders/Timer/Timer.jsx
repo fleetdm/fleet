@@ -1,16 +1,16 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
-import { convertSeconds } from './helpers';
+import { convertSeconds } from "./helpers";
 
-const baseClass = 'kolide-timer';
+const baseClass = "kolide-timer";
 
 class Timer extends Component {
   static propTypes = {
     totalMilliseconds: PropTypes.number,
-  }
+  };
 
-  render () {
+  render() {
     const { totalMilliseconds } = this.props;
 
     return (

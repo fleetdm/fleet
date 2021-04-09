@@ -1,12 +1,14 @@
-import { find } from 'lodash';
+import { find } from "lodash";
 
-import { osqueryTables } from 'utilities/osquery_tables';
+import { osqueryTables } from "utilities/osquery_tables";
 
-export const SELECT_OSQUERY_TABLE = 'SELECT_OSQUERY_TABLE';
-export const SET_QUERY_TEXT = 'SET_QUERY_TEXT';
-export const SET_SELECTED_TARGETS = 'SET_SELECTED_TARGETS';
-export const SET_SELECTED_TARGETS_QUERY = 'SET_SELECTED_TARGETS_QUERY';
-export const defaultSelectedOsqueryTable = find(osqueryTables, { name: 'users' });
+export const SELECT_OSQUERY_TABLE = "SELECT_OSQUERY_TABLE";
+export const SET_QUERY_TEXT = "SET_QUERY_TEXT";
+export const SET_SELECTED_TARGETS = "SET_SELECTED_TARGETS";
+export const SET_SELECTED_TARGETS_QUERY = "SET_SELECTED_TARGETS_QUERY";
+export const defaultSelectedOsqueryTable = find(osqueryTables, {
+  name: "users",
+});
 export const selectOsqueryTable = (tableName) => {
   const lowerTableName = tableName.toLowerCase();
   const selectedOsqueryTable = find(osqueryTables, { name: lowerTableName });

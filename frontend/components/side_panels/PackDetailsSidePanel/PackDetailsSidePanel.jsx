@@ -1,15 +1,15 @@
-import React from 'react';
-import PropTypes from 'prop-types';
+import React from "react";
+import PropTypes from "prop-types";
 
-import { Link } from 'react-router';
-import packInterface from 'interfaces/pack';
-import ScheduledQueriesSection from 'components/side_panels/PackDetailsSidePanel/ScheduledQueriesSection';
-import scheduledQueryInterface from 'interfaces/scheduled_query';
-import SecondarySidePanelContainer from 'components/side_panels/SecondarySidePanelContainer';
-import Slider from 'components/forms/fields/Slider';
-import PATHS from 'router/paths';
+import { Link } from "react-router";
+import packInterface from "interfaces/pack";
+import ScheduledQueriesSection from "components/side_panels/PackDetailsSidePanel/ScheduledQueriesSection";
+import scheduledQueryInterface from "interfaces/scheduled_query";
+import SecondarySidePanelContainer from "components/side_panels/SecondarySidePanelContainer";
+import Slider from "components/forms/fields/Slider";
+import PATHS from "router/paths";
 
-const baseClass = 'pack-details-side-panel';
+const baseClass = "pack-details-side-panel";
 
 const Description = ({ pack }) => {
   if (!pack.description) {
@@ -19,12 +19,18 @@ const Description = ({ pack }) => {
   return (
     <div>
       <p className={`${baseClass}__section-label`}>Description</p>
-      <p className={`${baseClass}__description`}>{pack.description || <em>No description available</em>}</p>
+      <p className={`${baseClass}__description`}>
+        {pack.description || <em>No description available</em>}
+      </p>
     </div>
   );
 };
 
-const PackDetailsSidePanel = ({ onUpdateSelectedPack, pack, scheduledQueries = [] }) => {
+const PackDetailsSidePanel = ({
+  onUpdateSelectedPack,
+  pack,
+  scheduledQueries = [],
+}) => {
   const { disabled } = pack;
   const updatePackStatus = (value) => {
     return onUpdateSelectedPack(pack, { disabled: !value });
@@ -44,7 +50,10 @@ const PackDetailsSidePanel = ({ onUpdateSelectedPack, pack, scheduledQueries = [
         onChange={updatePackStatus}
         value={!disabled}
       />
-      <Link className={`${baseClass}__edit-pack-link button button--inverse`} to={`${PATHS.PACK({ id: pack.id })}/edit`}>
+      <Link
+        className={`${baseClass}__edit-pack-link button button--inverse`}
+        to={`${PATHS.PACK({ id: pack.id })}/edit`}
+      >
         Edit pack
       </Link>
     </SecondarySidePanelContainer>
@@ -62,4 +71,3 @@ PackDetailsSidePanel.propTypes = {
 };
 
 export default PackDetailsSidePanel;
-

@@ -11,7 +11,6 @@ $circle-size: 60px;
   animation: spin-circle 1s linear infinite;
 }
 
-
 @keyframes spin-circle {
   100% {
     transform: rotate(360deg);

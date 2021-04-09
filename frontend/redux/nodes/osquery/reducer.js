@@ -2,7 +2,7 @@ import {
   OSQUERY_OPTIONS_FAILURE,
   OSQUERY_OPTIONS_START,
   OSQUERY_OPTIONS_SUCCESS,
-} from './actions';
+} from "./actions";
 
 export const initialState = {
   options: {},

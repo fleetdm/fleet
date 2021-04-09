@@ -1,14 +1,17 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { noop } from 'lodash';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { noop } from "lodash";
 
-import AuthenticationFormWrapper from '../../components/AuthenticationFormWrapper';
-import debounce from '../../utilities/debounce';
-import LogoutForm from '../../components/forms/LogoutForm';
-import { logoutUser } from '../../redux/nodes/auth/actions';
-import { hideBackgroundImage, showBackgroundImage } from '../../redux/nodes/app/actions';
-import userInterface from '../../interfaces/user';
+import AuthenticationFormWrapper from "../../components/AuthenticationFormWrapper";
+import debounce from "../../utilities/debounce";
+import LogoutForm from "../../components/forms/LogoutForm";
+import { logoutUser } from "../../redux/nodes/auth/actions";
+import {
+  hideBackgroundImage,
+  showBackgroundImage,
+} from "../../redux/nodes/app/actions";
+import userInterface from "../../interfaces/user";
 
 export class LogoutPage extends Component {
   static propTypes = {
@@ -20,13 +23,13 @@ export class LogoutPage extends Component {
     dispatch: noop,
   };
 
-  componentWillMount () {
+  componentWillMount() {
     const { dispatch } = this.props;
 
     dispatch(showBackgroundImage);
   }
 
-  componentWillUnmount () {
+  componentWillUnmount() {
     const { dispatch } = this.props;
 
     dispatch(hideBackgroundImage);
@@ -36,12 +39,12 @@ export class LogoutPage extends Component {
     const { dispatch } = this.props;
 
     return dispatch(logoutUser());
-  })
+  });
 
-  render () {
+  render() {
     const { user } = this.props;
     const { onSubmit } = this;
-    const baseClass = 'logout-page';
+    const baseClass = "logout-page";
 
     if (!user) return false;
 

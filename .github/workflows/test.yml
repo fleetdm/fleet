@@ -25,18 +25,18 @@ jobs:
           ${{ runner.os }}-modules-
 
     # It seems faster not to cache Go dependencies
-      
+
     - name: Install JS Dependencies
       run: make deps-js
 
     - name: Install Go Dependencies
       run: make deps-go
 
-    # Pre-starting dependencies here means they are ready to go when we need them. 
+    # Pre-starting dependencies here means they are ready to go when we need them.
     - name: Start Infra Dependencies
       # Use & to background this
       run: docker-compose up -d mysql_test redis mailhog saml_idp &
-      
+
     - name: Build Fleet
       run: |
         export PATH=$PATH:~/go/bin
@@ -51,7 +51,7 @@ jobs:
         make e2e-setup
         yarn cypress run --config video=false
 
-        
+
   test-js:
     strategy:
       matrix:
@@ -106,7 +106,7 @@ jobs:
     - name: Run JS Linting
       run: |
         make lint-js
-      
+
 
   test-go:
     strategy:
@@ -122,15 +122,15 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v2
 
-    # Pre-starting dependencies here means they are ready to go when we need them. 
+    # Pre-starting dependencies here means they are ready to go when we need them.
     - name: Start Infra Dependencies
       # Use & to background this
       run: docker-compose up -d mysql_test redis &
-      
+
     # It seems faster not to cache Go dependencies
     - name: Install Go Dependencies
       run: make deps-go
-    
+
     - name: Generate static files
       run: |
         export PATH=$PATH:~/go/bin
@@ -158,4 +158,3 @@ jobs:
     - name: Run Go Linting
       run: |
         make lint-go
-

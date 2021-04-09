@@ -1,7 +1,6 @@
-$base-class: 'button';
+$base-class: "button";
 
 @mixin button-variant($color, $hover: null, $active: null, $inverse: null) {
-
   background-color: $color;
 
   @if $inverse {
@@ -14,8 +13,7 @@ $base-class: 'button';
       border: 2px solid $active;
       color: $active;
     }
-  } @else { 
-
+  } @else {
     &:hover {
       background-color: $hover;
     }
@@ -28,7 +26,8 @@ $base-class: 'button';
 
 .#{$base-class} {
   @include button-variant($core-blue);
-  transition: color 150ms ease-in-out, background 150ms ease-in-out, top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out;
+  transition: color 150ms ease-in-out, background 150ms ease-in-out,
+    top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out;
   position: relative;
   color: $white;
   text-decoration: none;
@@ -38,7 +37,7 @@ $base-class: 'button';
   padding: 8px 16px;
   border-radius: 4px;
   font-size: $small;
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: "Nunito Sans", sans-serif;
   font-weight: $bold;
   display: inline-flex;
   height: 38px;
@@ -63,11 +62,15 @@ $base-class: 'button';
   }
 
   &--blue-green {
-    @include button-variant($core-blue-green)
+    @include button-variant($core-blue-green);
   }
 
   &--grey {
-    @include button-variant($core-medium-blue-grey, $core-dark-blue-grey-over, $core-dark-blue-grey-down);
+    @include button-variant(
+      $core-medium-blue-grey,
+      $core-dark-blue-grey-over,
+      $core-dark-blue-grey-down
+    );
   }
 
   &--warning {
@@ -79,7 +82,12 @@ $base-class: 'button';
   }
 
   &--label {
-    @include button-variant($core-light-blue-grey, $core-blue-over, null, $inverse: true);
+    @include button-variant(
+      $core-light-blue-grey,
+      $core-blue-over,
+      null,
+      $inverse: true
+    );
     color: $core-blue;
     border: 1px solid $core-blue;
     box-sizing: border-box;
@@ -127,14 +135,24 @@ $base-class: 'button';
   }
 
   &--inverse {
-    @include button-variant($white, $core-blue-over, $core-blue-down, $inverse: true);
+    @include button-variant(
+      $white,
+      $core-blue-over,
+      $core-blue-down,
+      $inverse: true
+    );
     color: $core-blue;
     border: 2px solid $core-blue;
     box-sizing: border-box;
   }
 
   &--inverse-alert {
-    @include button-variant($white, $core-red-over, $core-red-down, $inverse: true);
+    @include button-variant(
+      $white,
+      $core-red-over,
+      $core-red-down,
+      $inverse: true
+    );
     color: $alert;
     border: 2px solid $alert;
     box-sizing: border-box;

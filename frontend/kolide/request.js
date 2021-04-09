@@ -1,27 +1,27 @@
-import fetch from 'isomorphic-fetch';
-import { isUndefined, omitBy } from 'lodash';
+import fetch from "isomorphic-fetch";
+import { isUndefined, omitBy } from "lodash";
 
 export default class Request {
-  constructor (options) {
+  constructor(options) {
     this.body = options.body;
-    this.credentials = 'same-origin';
+    this.credentials = "same-origin";
     this.endpoint = options.endpoint;
     this.headers = {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
+      Accept: "application/json",
+      "Content-Type": "application/json",
       ...options.headers,
     };
     this.method = options.method;
   }
 
   static REQUEST_METHODS = {
-    DELETE: 'DELETE',
-    GET: 'GET',
-    PATCH: 'PATCH',
-    POST: 'POST',
+    DELETE: "DELETE",
+    GET: "GET",
+    PATCH: "PATCH",
+    POST: "POST",
   };
 
-  static handleResponse (response, jsonResponse) {
+  static handleResponse(response, jsonResponse) {
     if (response.ok) {
       return jsonResponse;
     }
@@ -35,21 +35,19 @@ export default class Request {
     throw error;
   }
 
-  get requestAttributes () {
+  get requestAttributes() {
     const { body, credentials, headers, method } = this;
 
     return omitBy({ body, credentials, headers, method }, isUndefined);
   }
 
-  send () {
+  send() {
     const { endpoint, requestAttributes } = this;
 
-    return fetch(endpoint, requestAttributes)
-      .then((response) => {
-        return response.json()
-          .then((jsonResponse) => {
-            return Request.handleResponse(response, jsonResponse);
-          });
+    return fetch(endpoint, requestAttributes).then((response) => {
+      return response.json().then((jsonResponse) => {
+        return Request.handleResponse(response, jsonResponse);
       });
+    });
   }
 }

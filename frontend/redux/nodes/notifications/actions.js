@@ -1,5 +1,5 @@
-export const RENDER_FLASH = 'RENDER_FLASH';
-export const HIDE_FLASH = 'HIDE_FLASH';
+export const RENDER_FLASH = "RENDER_FLASH";
+export const HIDE_FLASH = "HIDE_FLASH";
 
 export const renderFlash = (alertType, message, undoAction) => {
   return {

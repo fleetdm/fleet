@@ -1,25 +1,29 @@
-import React from 'react';
-import { mount } from 'enzyme';
-import { noop } from 'lodash';
+import React from "react";
+import { mount } from "enzyme";
+import { noop } from "lodash";
 
-import { connectedComponent, reduxMockStore } from 'test/helpers';
-import { packStub, queryStub, scheduledQueryStub } from 'test/stubs';
-import ConnectedEditPackPage, { EditPackPage } from 'pages/packs/EditPackPage/EditPackPage';
-import hostActions from 'redux/nodes/entities/hosts/actions';
-import labelActions from 'redux/nodes/entities/labels/actions';
-import packActions from 'redux/nodes/entities/packs/actions';
-import queryActions from 'redux/nodes/entities/queries/actions';
-import scheduledQueryActions from 'redux/nodes/entities/scheduled_queries/actions';
+import { connectedComponent, reduxMockStore } from "test/helpers";
+import { packStub, queryStub, scheduledQueryStub } from "test/stubs";
+import ConnectedEditPackPage, {
+  EditPackPage,
+} from "pages/packs/EditPackPage/EditPackPage";
+import hostActions from "redux/nodes/entities/hosts/actions";
+import labelActions from "redux/nodes/entities/labels/actions";
+import packActions from "redux/nodes/entities/packs/actions";
+import queryActions from "redux/nodes/entities/queries/actions";
+import scheduledQueryActions from "redux/nodes/entities/scheduled_queries/actions";
 
-describe('EditPackPage - component', () => {
+describe("EditPackPage - component", () => {
   beforeEach(() => {
     const spyResponse = () => Promise.resolve([]);
 
-    jest.spyOn(hostActions, 'loadAll').mockImplementation(() => spyResponse);
-    jest.spyOn(labelActions, 'loadAll').mockImplementation(() => spyResponse);
-    jest.spyOn(packActions, 'load').mockImplementation(() => spyResponse);
-    jest.spyOn(queryActions, 'loadAll').mockImplementation(() => spyResponse);
-    jest.spyOn(scheduledQueryActions, 'loadAll').mockImplementation(() => spyResponse);
+    jest.spyOn(hostActions, "loadAll").mockImplementation(() => spyResponse);
+    jest.spyOn(labelActions, "loadAll").mockImplementation(() => spyResponse);
+    jest.spyOn(packActions, "load").mockImplementation(() => spyResponse);
+    jest.spyOn(queryActions, "loadAll").mockImplementation(() => spyResponse);
+    jest
+      .spyOn(scheduledQueryActions, "loadAll")
+      .mockImplementation(() => spyResponse);
   });
 
   const store = {
@@ -35,13 +39,15 @@ describe('EditPackPage - component', () => {
       scheduled_queries: { loading: false, data: {} },
     },
   };
-  const page = mount(connectedComponent(ConnectedEditPackPage, {
-    props: { params: { id: String(packStub.id) }, route: {} },
-    mockStore: reduxMockStore(store),
-  }));
+  const page = mount(
+    connectedComponent(ConnectedEditPackPage, {
+      props: { params: { id: String(packStub.id) }, route: {} },
+      mockStore: reduxMockStore(store),
+    })
+  );
 
-  describe('rendering', () => {
-    it('does not render when packs are loading', () => {
+  describe("rendering", () => {
+    it("does not render when packs are loading", () => {
       const packsLoadingStore = {
         entities: {
           ...store.entities,
@@ -49,31 +55,38 @@ describe('EditPackPage - component', () => {
         },
       };
 
-      const loadingPacksPage = mount(connectedComponent(ConnectedEditPackPage, {
-        props: { params: { id: String(packStub.id) }, route: {} },
-        mockStore: reduxMockStore(packsLoadingStore),
-      }));
+      const loadingPacksPage = mount(
+        connectedComponent(ConnectedEditPackPage, {
+          props: { params: { id: String(packStub.id) }, route: {} },
+          mockStore: reduxMockStore(packsLoadingStore),
+        })
+      );
 
       expect(loadingPacksPage.html()).toBeFalsy();
     });
 
-    it('does not render when scheduled queries are loading', () => {
+    it("does not render when scheduled queries are loading", () => {
       const scheduledQueriesLoadingStore = {
         entities: {
           ...store.entities,
-          scheduled_queries: { ...store.entities.scheduled_queries, loading: true },
+          scheduled_queries: {
+            ...store.entities.scheduled_queries,
+            loading: true,
+          },
         },
       };
 
-      const loadingScheduledQueriesPage = mount(connectedComponent(ConnectedEditPackPage, {
-        props: { params: { id: String(packStub.id) }, route: {} },
-        mockStore: reduxMockStore(scheduledQueriesLoadingStore),
-      }));
+      const loadingScheduledQueriesPage = mount(
+        connectedComponent(ConnectedEditPackPage, {
+          props: { params: { id: String(packStub.id) }, route: {} },
+          mockStore: reduxMockStore(scheduledQueriesLoadingStore),
+        })
+      );
 
       expect(loadingScheduledQueriesPage.html()).toBeFalsy();
     });
 
-    it('does not render when there is no pack', () => {
+    it("does not render when there is no pack", () => {
       const noPackStore = {
         entities: {
           ...store.entities,
@@ -81,33 +94,35 @@ describe('EditPackPage - component', () => {
         },
       };
 
-      const noPackPage = mount(connectedComponent(ConnectedEditPackPage, {
-        props: { params: { id: String(packStub.id) }, route: {} },
-        mockStore: reduxMockStore(noPackStore),
-      }));
+      const noPackPage = mount(
+        connectedComponent(ConnectedEditPackPage, {
+          props: { params: { id: String(packStub.id) }, route: {} },
+          mockStore: reduxMockStore(noPackStore),
+        })
+      );
 
       expect(noPackPage.html()).toBeFalsy();
     });
 
-    it('renders', () => {
+    it("renders", () => {
       expect(page.length).toEqual(1);
     });
 
-    it('renders a EditPackFormWrapper component', () => {
-      expect(page.find('EditPackFormWrapper').length).toEqual(1);
+    it("renders a EditPackFormWrapper component", () => {
+      expect(page.find("EditPackFormWrapper").length).toEqual(1);
     });
 
-    it('renders a ScheduleQuerySidePanel component', () => {
-      expect(page.find('ScheduleQuerySidePanel').length).toEqual(1);
+    it("renders a ScheduleQuerySidePanel component", () => {
+      expect(page.find("ScheduleQuerySidePanel").length).toEqual(1);
     });
   });
 
-  describe('updating a pack', () => {
-    it('only sends the updated attributes to the server', () => {
-      jest.spyOn(packActions, 'update');
+  describe("updating a pack", () => {
+    it("only sends the updated attributes to the server", () => {
+      jest.spyOn(packActions, "update");
       const dispatch = () => Promise.resolve();
 
-      const updatedAttrs = { name: 'Updated pack name' };
+      const updatedAttrs = { name: "Updated pack name" };
       const updatedPack = { ...packStub, ...updatedAttrs };
       const props = {
         allQueries: [],
@@ -118,7 +133,9 @@ describe('EditPackPage - component', () => {
         scheduledQueries: [],
       };
 
-      const pageNode = mount(<EditPackPage {...props} pack={packStub} />).instance();
+      const pageNode = mount(
+        <EditPackPage {...props} pack={packStub} />
+      ).instance();
 
       pageNode.handlePackFormSubmit(updatedPack);
 
@@ -126,7 +143,7 @@ describe('EditPackPage - component', () => {
     });
   });
 
-  describe('updating a scheduled query', () => {
+  describe("updating a scheduled query", () => {
     const scheduledQuery = { ...scheduledQueryStub, query_id: queryStub.id };
     const defaultProps = {
       allQueries: [queryStub],
@@ -141,35 +158,43 @@ describe('EditPackPage - component', () => {
       scheduledQueries: [scheduledQuery],
     };
 
-    it('de-selects the scheduledQuery when cancel is clicked', () => {
-      const Form = Page => Page.find('ConfigurePackQueryForm');
+    it("de-selects the scheduledQuery when cancel is clicked", () => {
+      const Form = (Page) => Page.find("ConfigurePackQueryForm");
       const Page = mount(<EditPackPage {...defaultProps} />);
-      const QueryRow = Page
-        .find('ScheduledQueriesList')
-        .find('ClickableTableRow');
+      const QueryRow = Page.find("ScheduledQueriesList").find(
+        "ClickableTableRow"
+      );
 
       expect(Page.instance().state.selectedScheduledQuery).toBeFalsy();
 
-      QueryRow.simulate('click');
+      QueryRow.simulate("click");
 
-      expect(Page.state().selectedScheduledQuery)
-        .toEqual(scheduledQuery, 'Expected clicking a scheduled query row to set the scheduled query in component state');
+      expect(Page.state().selectedScheduledQuery).toEqual(
+        scheduledQuery,
+        "Expected clicking a scheduled query row to set the scheduled query in component state"
+      );
 
       const PageForm = Form(Page);
 
-      expect(PageForm.length)
-        .toEqual(1, 'Expected clicking a scheduled query row to render the ConfigurePackQueryForm component');
+      expect(PageForm.length).toEqual(
+        1,
+        "Expected clicking a scheduled query row to render the ConfigurePackQueryForm component"
+      );
 
-      PageForm.find('.configure-pack-query-form__cancel-btn').hostNodes().simulate('click');
+      PageForm.find(".configure-pack-query-form__cancel-btn")
+        .hostNodes()
+        .simulate("click");
 
       expect(Page.state().selectedScheduledQuery).toBeFalsy();
 
-      expect(Form(Page).length)
-        .toEqual(0, 'Expected clicking Cancel to remove the ConfigurePackQueryForm component');
+      expect(Form(Page).length).toEqual(
+        0,
+        "Expected clicking Cancel to remove the ConfigurePackQueryForm component"
+      );
     });
   });
 
-  describe('double clicking a scheduled query', () => {
+  describe("double clicking a scheduled query", () => {
     const scheduledQuery = { ...scheduledQueryStub, query_id: queryStub.id };
     const defaultProps = {
       allQueries: [queryStub],
@@ -184,20 +209,22 @@ describe('EditPackPage - component', () => {
       scheduledQueries: [scheduledQuery],
     };
     const pushAction = {
-      type: '@@router/CALL_HISTORY_METHOD',
+      type: "@@router/CALL_HISTORY_METHOD",
       payload: {
-        method: 'push',
+        method: "push",
         args: [`/queries/${scheduledQuery.query_id}`],
       },
     };
 
-    it('should take user to edit query page', () => {
-      const Page = mount(<EditPackPage {...defaultProps} />).find('EditPackPage');
-      const QueryRow = Page
-        .find('ScheduledQueriesList')
-        .find('ClickableTableRow');
+    it("should take user to edit query page", () => {
+      const Page = mount(<EditPackPage {...defaultProps} />).find(
+        "EditPackPage"
+      );
+      const QueryRow = Page.find("ScheduledQueriesList").find(
+        "ClickableTableRow"
+      );
 
-      QueryRow.simulate('doubleclick');
+      QueryRow.simulate("doubleclick");
 
       expect(defaultProps.dispatch).toHaveBeenCalledWith(pushAction);
     });

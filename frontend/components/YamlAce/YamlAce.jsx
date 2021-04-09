@@ -1,11 +1,11 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import AceEditor from 'react-ace';
-import classnames from 'classnames';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import AceEditor from "react-ace";
+import classnames from "classnames";
 
-import 'ace-builds/src-noconflict/mode-yaml';
+import "ace-builds/src-noconflict/mode-yaml";
 
-const baseClass = 'yaml-ace';
+const baseClass = "yaml-ace";
 
 class YamlAce extends Component {
   static propTypes = {
@@ -15,20 +15,17 @@ class YamlAce extends Component {
     onChange: PropTypes.func.isRequired,
     value: PropTypes.string,
     wrapperClassName: PropTypes.string,
-  }
+  };
 
   renderLabel = () => {
     const { error, label } = this.props;
 
-    const labelClassName = classnames(
-      `${baseClass}__label`,
-      { [`${baseClass}__label--error`]: error },
-    );
+    const labelClassName = classnames(`${baseClass}__label`, {
+      [`${baseClass}__label--error`]: error,
+    });
 
-    return (
-      <p className={labelClassName}>{error || label}</p>
-    );
-  }
+    return <p className={labelClassName}>{error || label}</p>;
+  };
 
   render() {
     const {

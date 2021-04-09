@@ -1,11 +1,11 @@
-import React from 'react';
-import PropTypes from 'prop-types';
-import classnames from 'classnames';
+import React from "react";
+import PropTypes from "prop-types";
+import classnames from "classnames";
 
-import KolideIcon from 'components/icons/KolideIcon';
-import InputField from '../InputField';
+import KolideIcon from "components/icons/KolideIcon";
+import InputField from "../InputField";
 
-const baseClass = 'input-icon-field';
+const baseClass = "input-icon-field";
 
 class InputFieldWithIcon extends InputField {
   static propTypes = {
@@ -31,7 +31,7 @@ class InputFieldWithIcon extends InputField {
     }
 
     return <div className={labelClasses}>{placeholder}</div>;
-  }
+  };
 
   renderHint = () => {
     const { hint } = this.props;
@@ -41,24 +41,33 @@ class InputFieldWithIcon extends InputField {
     }
 
     return false;
-  }
+  };
 
-  render () {
-    const { className, error, iconName, name, placeholder, tabIndex, type, value } = this.props;
+  render() {
+    const {
+      className,
+      error,
+      iconName,
+      name,
+      placeholder,
+      tabIndex,
+      type,
+      value,
+    } = this.props;
     const { onInputChange, renderHint } = this;
 
     const inputClasses = classnames(
       `${baseClass}__input`,
-      'input-with-icon',
+      "input-with-icon",
       className,
       { [`${baseClass}__input--error`]: error },
-      { [`${baseClass}__input--password`]: type === 'password' && value },
+      { [`${baseClass}__input--password`]: type === "password" && value }
     );
 
     const iconClasses = classnames(
       `${baseClass}__icon`,
       { [`${baseClass}__icon--error`]: error },
-      { [`${baseClass}__icon--active`]: value },
+      { [`${baseClass}__icon--active`]: value }
     );
 
     return (
@@ -69,7 +78,9 @@ class InputFieldWithIcon extends InputField {
           onChange={onInputChange}
           className={inputClasses}
           placeholder={placeholder}
-          ref={(r) => { this.input = r; }}
+          ref={(r) => {
+            this.input = r;
+          }}
           tabIndex={tabIndex}
           type={type}
           value={value}

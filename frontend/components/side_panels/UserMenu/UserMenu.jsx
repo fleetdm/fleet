@@ -1,10 +1,10 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
-import PATHS from 'router/paths';
+import PATHS from "router/paths";
 
-import DropdownButton from 'components/buttons/DropdownButton';
-import Avatar from '../../Avatar';
+import DropdownButton from "components/buttons/DropdownButton";
+import Avatar from "../../Avatar";
 
 class UserMenu extends Component {
   static propTypes = {
@@ -28,29 +28,31 @@ class UserMenu extends Component {
     const accountNavigate = props.onNavItemClick(PATHS.USER_SETTINGS);
     this.dropdownItems = [
       {
-        label: 'My account',
+        label: "My account",
         onClick: accountNavigate,
       },
       {
-        label: 'Documentation',
-        onClick: () => window.open('https://github.com/fleetdm/fleet/blob/master/docs/README.md', '_blank'),
+        label: "Documentation",
+        onClick: () =>
+          window.open(
+            "https://github.com/fleetdm/fleet/blob/master/docs/README.md",
+            "_blank"
+          ),
       },
       {
-        label: 'Sign out',
+        label: "Sign out",
         onClick: props.onLogout,
       },
     ];
   }
 
-  render () {
+  render() {
     const { user } = this.props;
-    const baseClass = 'user-menu';
+    const baseClass = "user-menu";
 
     return (
       <div className={baseClass}>
-        <DropdownButton
-          options={this.dropdownItems}
-        >
+        <DropdownButton options={this.dropdownItems}>
           <Avatar
             className={`${baseClass}__avatar-image`}
             user={user}

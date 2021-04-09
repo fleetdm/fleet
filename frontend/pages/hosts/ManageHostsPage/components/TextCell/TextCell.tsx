@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface ITextCellProps {
   value: string | number;
@@ -8,14 +8,10 @@ interface ITextCellProps {
 const TextCell = (props: ITextCellProps): JSX.Element => {
   const {
     value,
-    formatter = val => val, // identity function if no formatter is provided
+    formatter = (val) => val, // identity function if no formatter is provided
   } = props;
 
-  return (
-    <span>
-      {formatter(value)}
-    </span>
-  );
+  return <span>{formatter(value)}</span>;
 };
 
 export default TextCell;

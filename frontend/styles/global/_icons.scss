@@ -1,14 +1,14 @@
 %kolidecon {
   display: inline-block;
-  font: normal normal normal 14px/1 'kolidecons';
+  font: normal normal normal 14px/1 "kolidecons";
   font-size: inherit;
   text-rendering: auto;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-[class^='kolidecon-'],
-[class*=' kolidecon-'],
+[class^="kolidecon-"],
+[class*=" kolidecon-"],
 .kolidecon {
   @extend %kolidecon;
 }
@@ -41,339 +41,339 @@
 }
 
 .kolidecon-kolide-logo-flat:before {
-  content: '\f000';
+  content: "\f000";
 }
 
 .kolidecon-chevrondown:before {
-  content: '\f004';
+  content: "\f004";
 }
 
 .kolidecon-chevronleft:before {
-  content: '\f006';
+  content: "\f006";
 }
 
 .kolidecon-chevronright:before {
-  content: '\f008';
+  content: "\f008";
 }
 
 .kolidecon-chevronup:before {
-  content: '\f00a';
+  content: "\f00a";
 }
 
 .kolidecon-cpu:before {
-  content: '\f00c';
+  content: "\f00c";
 }
 
 .kolidecon-downcarat:before {
-  content: '\f00d';
+  content: "\f00d";
 }
 
 .kolidecon-filter:before {
-  content: '\f00f';
+  content: "\f00f";
 }
 
 .kolidecon-mac:before {
-  content: '\f012';
+  content: "\f012";
 }
 
 .kolidecon-memory:before {
-  content: '\f013';
+  content: "\f013";
 }
 
 .kolidecon-storage:before {
-  content: '\f019';
+  content: "\f019";
 }
 
 .kolidecon-upcarat:before {
-  content: '\f01b';
+  content: "\f01b";
 }
 
 .kolidecon-uptime:before {
-  content: '\f01c';
+  content: "\f01c";
 }
 
 .kolidecon-world:before {
-  content: '\f01d';
+  content: "\f01d";
 }
 
 .kolidecon-osquery:before {
-  content: '\f021';
+  content: "\f021";
 }
 
 .kolidecon-join:before {
-  content: '\f022';
+  content: "\f022";
 }
 
 .kolidecon-add-button:before {
-  content: '\f029';
+  content: "\f029";
 }
 
 .kolidecon-packs:before {
-  content: '\f02f';
+  content: "\f02f";
 }
 
 .kolidecon-help:before {
-  content: '\f030';
+  content: "\f030";
 }
 
 .kolidecon-admin:before {
-  content: '\f031';
+  content: "\f031";
 }
 
 .kolidecon-config:before {
-  content: '\f032';
+  content: "\f032";
 }
 
 .kolidecon-mia:before {
-  content: '\f034';
+  content: "\f034";
 }
 
 .kolidecon-success-check:before {
-  content: '\f035';
+  content: "\f035";
 }
 
 .kolidecon-offline:before {
-  content: '\f036';
+  content: "\f036";
 }
 
 .kolidecon-windows-original:before {
-  content: '\f037';
+  content: "\f037";
 }
 
 .kolidecon-centos-original:before {
-  content: '\f038';
+  content: "\f038";
 }
 
 .kolidecon-ubuntu-original:before {
-  content: '\f039';
+  content: "\f039";
 }
 
 .kolidecon-apple-original:before {
-  content: '\f03a';
+  content: "\f03a";
 }
 
 .kolidecon-search:before {
-  content: '\f03b';
+  content: "\f03b";
 }
 
 .kolidecon-all-hosts:before {
-  content: '\f03c';
+  content: "\f03c";
 }
 
 .kolidecon-alerts:before {
-  content: '\f03e';
+  content: "\f03e";
 }
 
 .kolidecon-logout:before {
-  content: '\f03f';
+  content: "\f03f";
 }
 
 .kolidecon-user-settings:before {
-  content: '\f040';
+  content: "\f040";
 }
 
 .kolidecon-clipboard:before {
-  content: '\f043';
+  content: "\f043";
 }
 
 .kolidecon-list-select:before {
-  content: '\f044';
+  content: "\f044";
 }
 
 .kolidecon-grid-select:before {
-  content: '\f045';
+  content: "\f045";
 }
 
 .kolidecon-label:before {
-  content: '\f033';
+  content: "\f033";
 }
 
 .kolidecon-docker:before {
-  content: '\f046';
+  content: "\f046";
 }
 
 .kolidecon-cloud:before {
-  content: '\f047';
+  content: "\f047";
 }
 
 .kolidecon-self-hosted:before {
-  content: '\f048';
+  content: "\f048";
 }
 
 .kolidecon-help-solid:before {
-  content: '\f049';
+  content: "\f049";
 }
 
 .kolidecon-help-stroke:before {
-  content: '\f04a';
+  content: "\f04a";
 }
 
 .kolidecon-warning-filled:before {
-  content: '\f04b';
+  content: "\f04b";
 }
 
 .kolidecon-delete-cloud:before {
-  content: '\f04c';
+  content: "\f04c";
 }
 
 .kolidecon-pdf:before {
-  content: '\f04d';
+  content: "\f04d";
 }
 
 .kolidecon-credit-card-small:before {
-  content: '\f04e';
+  content: "\f04e";
 }
 
 .kolidecon-billing-card:before {
-  content: '\f04f';
+  content: "\f04f";
 }
 
 .kolidecon-lock-big:before {
-  content: '\f050';
+  content: "\f050";
 }
 
 .kolidecon-link-big:before {
-  content: '\f051';
+  content: "\f051";
 }
 
 .kolidecon-briefcase:before {
-  content: '\f052';
+  content: "\f052";
 }
 
 .kolidecon-name-card:before {
-  content: '\f053';
+  content: "\f053";
 }
 
 .kolidecon-kolide-logo:before {
-  content: '\f054';
+  content: "\f054";
 }
 
 .kolidecon-business:before {
-  content: '\f055';
+  content: "\f055";
 }
 
 .kolidecon-clock:before {
-  content: '\f056';
+  content: "\f056";
 }
 
 .kolidecon-host-large:before {
-  content: '\f057';
+  content: "\f057";
 }
 
 .kolidecon-single-host:before {
-  content: '\f03d';
+  content: "\f03d";
 }
 
 .kolidecon-username:before {
-  content: '\f02a';
+  content: "\f02a";
 }
 
 .kolidecon-password:before {
-  content: '\f02b';
+  content: "\f02b";
 }
 
 .kolidecon-email:before {
-  content: '\f02c';
+  content: "\f02c";
 }
 
 .kolidecon-hosts:before {
-  content: '\f02e';
+  content: "\f02e";
 }
 
 .kolidecon-query:before {
-  content: '\f02d';
+  content: "\f02d";
 }
 
 .kolidecon-import:before {
-  content: '\f058';
+  content: "\f058";
 }
 
 .kolidecon-pencil:before {
-  content: '\f059';
+  content: "\f059";
 }
 
 .kolidecon-add-plus:before {
-  content: '\f05a';
+  content: "\f05a";
 }
 
 .kolidecon-x:before {
-  content: '\f05b';
+  content: "\f05b";
 }
 
 .kolidecon-kill-kolide:before {
-  content: '\f05c';
+  content: "\f05c";
 }
 
 .kolidecon-right-arrow:before {
-  content: '\f05d';
+  content: "\f05d";
 }
 
 .kolidecon-camera:before {
-  content: '\f05e';
+  content: "\f05e";
 }
 
 .kolidecon-plus-minus:before {
-  content: '\f05f';
+  content: "\f05f";
 }
 
 .kolidecon-bold-plus:before {
-  content: '\f060';
+  content: "\f060";
 }
 
 .kolidecon-linux-original:before {
-  content: '\f061';
+  content: "\f061";
 }
 
 .kolidecon-clock2:before {
-  content: '\f063';
+  content: "\f063";
 }
 
 .kolidecon-trash:before {
-  content: '\f064';
+  content: "\f064";
 }
 
 .kolidecon-laptop-plus:before {
-  content: '\f066';
+  content: "\f066";
 }
 
 .kolidecon-wrench-hand:before {
-  content: '\f067';
+  content: "\f067";
 }
 
 .kolidecon-external-link:before {
-  content: '\f068';
+  content: "\f068";
 }
 
 .kolidecon-fullscreen:before {
-  content: '\f069';
+  content: "\f069";
 }
 
 .kolidecon-windowed:before {
-  content: '\f06a';
+  content: "\f06a";
 }
 
 .kolidecon-heroku:before {
-  content: '\f06b';
+  content: "\f06b";
 }
 
 .kolidecon-ubuntu:before {
-  content: '\f06c';
+  content: "\f06c";
 }
 
 .kolidecon-windows:before {
-  content: '\f06d';
+  content: "\f06d";
 }
 
 .kolidecon-centos:before {
-  content: '\f06e';
+  content: "\f06e";
 }
 
 .kolidecon-apple:before {
-  content: '\f06f';
+  content: "\f06f";
 }
 
 .kolidecon-linux:before {
-  content: '\f070';
+  content: "\f070";
 }
 
 .sr-only {
@@ -384,7 +384,7 @@
   margin: -1px;
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
-  border: 0
+  border: 0;
 }
 
 .sr-only-focusable:active,
@@ -394,5 +394,5 @@
   height: auto;
   margin: 0;
   overflow: visible;
-  clip: auto
+  clip: auto;
 }

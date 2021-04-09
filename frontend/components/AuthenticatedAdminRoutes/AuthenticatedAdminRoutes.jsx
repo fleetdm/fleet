@@ -1,10 +1,10 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { push } from 'react-router-redux';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { push } from "react-router-redux";
 
-import paths from '../../router/paths';
-import userInterface from '../../interfaces/user';
+import paths from "../../router/paths";
+import userInterface from "../../interfaces/user";
 
 export class AuthenticatedAdminRoutes extends Component {
   static propTypes = {
@@ -13,8 +13,11 @@ export class AuthenticatedAdminRoutes extends Component {
     user: userInterface,
   };
 
-  componentWillMount () {
-    const { dispatch, user: { admin } } = this.props;
+  componentWillMount() {
+    const {
+      dispatch,
+      user: { admin },
+    } = this.props;
     const { HOME } = paths;
 
     if (!admin) {
@@ -24,18 +27,14 @@ export class AuthenticatedAdminRoutes extends Component {
     return false;
   }
 
-  render () {
+  render() {
     const { children, user } = this.props;
 
     if (!user) {
       return false;
     }
 
-    return (
-      <>
-        {children}
-      </>
-    );
+    return <>{children}</>;
   }
 }
 

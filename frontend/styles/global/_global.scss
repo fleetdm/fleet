@@ -11,7 +11,7 @@ body {
   color: $core-black;
   padding: 0;
   margin: 0;
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: "Nunito Sans", sans-serif;
   font-size: $medium;
   min-width: $medium-width;
   height: 100%;
@@ -48,7 +48,6 @@ a {
 .wrapper {
   background: $core-gradient;
   margin: 0;
-
 }
 
 .body-wrap {
@@ -62,7 +61,9 @@ a {
     .has-sidebar & {
       margin-right: 0;
       min-width: 610px;
-      max-width: calc(100vw - #{$pad-body} - #{$pad-body} - #{$pad-borders} - #{$sidepanel-width});
+      max-width: calc(
+        100vw - #{$pad-body} - #{$pad-body} - #{$pad-borders} - #{$sidepanel-width}
+      );
     }
   }
 }
@@ -87,7 +88,7 @@ a {
 input,
 textarea,
 button {
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: "Nunito Sans", sans-serif;
 
   &:-webkit-autofill {
     -webkit-box-shadow: 0 0 0 1000px #fff inset;
@@ -96,7 +97,7 @@ button {
 }
 
 input {
-  &[type=number] {
+  &[type="number"] {
     &::-webkit-inner-spin-button,
     &::-webkit-outer-spin-button {
       -webkit-appearance: none;

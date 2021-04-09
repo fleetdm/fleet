@@ -7,7 +7,7 @@ import {
   ENROLL_SECRET_SUCCESS,
   HIDE_BACKGROUND_IMAGE,
   SHOW_BACKGROUND_IMAGE,
-} from './actions';
+} from "./actions";
 
 export const initialState = {
   config: {},

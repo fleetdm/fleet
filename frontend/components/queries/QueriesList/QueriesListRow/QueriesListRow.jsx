@@ -1,14 +1,14 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import classnames from 'classnames';
-import moment from 'moment';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import classnames from "classnames";
+import moment from "moment";
 
-import Checkbox from 'components/forms/fields/Checkbox';
-import ClickableTableRow from 'components/ClickableTableRow';
-import { isEqual } from 'lodash';
-import queryInterface from 'interfaces/query';
+import Checkbox from "components/forms/fields/Checkbox";
+import ClickableTableRow from "components/ClickableTableRow";
+import { isEqual } from "lodash";
+import queryInterface from "interfaces/query";
 
-const baseClass = 'queries-list-row';
+const baseClass = "queries-list-row";
 
 class QueriesListRow extends Component {
   static propTypes = {
@@ -20,7 +20,7 @@ class QueriesListRow extends Component {
     selected: PropTypes.bool,
   };
 
-  shouldComponentUpdate (nextProps) {
+  shouldComponentUpdate(nextProps) {
     if (isEqual(nextProps, this.props)) {
       return false;
     }
@@ -32,31 +32,41 @@ class QueriesListRow extends Component {
     const { onCheck: handleCheck, query } = this.props;
 
     return handleCheck(value, query.id);
-  }
+  };
 
   onSelect = () => {
     const { onSelect: handleSelect, query } = this.props;
 
     return handleSelect(query);
-  }
+  };
 
   onDblClick = () => {
     const { onDoubleClick: handleDblClick, query } = this.props;
 
     return handleDblClick(query);
-  }
+  };
 
-  render () {
+  render() {
     const { checked, query, selected } = this.props;
     const { onCheck, onSelect, onDblClick } = this;
-    const { author_name: authorName, id, name, updated_at: updatedAt, description } = query;
-    const lastModifiedDate = moment(updatedAt).format('MM/DD/YY');
+    const {
+      author_name: authorName,
+      id,
+      name,
+      updated_at: updatedAt,
+      description,
+    } = query;
+    const lastModifiedDate = moment(updatedAt).format("MM/DD/YY");
     const rowClassName = classnames(baseClass, {
       [`${baseClass}--selected`]: selected,
     });
 
     return (
-      <ClickableTableRow className={rowClassName} onClick={onSelect} onDoubleClick={onDblClick}>
+      <ClickableTableRow
+        className={rowClassName}
+        onClick={onSelect}
+        onDoubleClick={onDblClick}
+      >
         <td>
           <Checkbox
             name={`query-checkbox-${id}`}

@@ -1,16 +1,20 @@
-import React from 'react';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
-import { filter, includes, isEqual, noop } from 'lodash';
+import React from "react";
+import PropTypes from "prop-types";
+import classNames from "classnames";
+import { filter, includes, isEqual, noop } from "lodash";
 
-import targetInterface from 'interfaces/target';
-import TargetDetails from '../TargetDetails';
-import { targetFilter } from './helpers';
-import TargetOption from '../TargetOption';
+import targetInterface from "interfaces/target";
+import TargetDetails from "../TargetDetails";
+import { targetFilter } from "./helpers";
+import TargetOption from "../TargetOption";
 
-const baseClass = 'target-list';
+const baseClass = "target-list";
 
-const SelectTargetsMenuWrapper = (onMoreInfoClick, moreInfoTarget, handleBackToResults) => {
+const SelectTargetsMenuWrapper = (
+  onMoreInfoClick,
+  moreInfoTarget,
+  handleBackToResults
+) => {
   const SelectTargetsMenu = ({
     focusedOption,
     instancePrefix,
@@ -28,54 +32,69 @@ const SelectTargetsMenuWrapper = (onMoreInfoClick, moreInfoTarget, handleBackToR
     const renderTargets = (targetType) => {
       const targets = filter(options, targetFilter(targetType));
       const targetsOutput = [];
-      const targetTitle = targetType === 'all' ? 'all hosts' : targetType;
+      const targetTitle = targetType === "all" ? "all hosts" : targetType;
 
-      targetsOutput.push(<p className={`${baseClass}__type`} key={`type-${targetType}-key`}>{targetTitle}</p>);
+      targetsOutput.push(
+        <p className={`${baseClass}__type`} key={`type-${targetType}-key`}>
+          {targetTitle}
+        </p>
+      );
 
       if (targets.length === 0) {
-        if (targetType === 'all') {
+        if (targetType === "all") {
           return false;
         }
 
-        targetsOutput.push(<span className={`${baseClass}__not-found`} key={`${targetType}-notfound`}>Unable to find any matching {targetType}.</span>);
+        targetsOutput.push(
+          <span
+            className={`${baseClass}__not-found`}
+            key={`${targetType}-notfound`}
+          >
+            Unable to find any matching {targetType}.
+          </span>
+        );
 
         return targetsOutput;
       }
 
-      targetsOutput.push(targets.map((target, index) => {
-        const { disabled: isDisabled } = target;
-        const isSelected = includes(valueArray, target);
-        const isFocused = isEqual(focusedOption, target);
-        const className = classNames(optionClassName, {
-          'Select-option': true,
-          'is-selected': isSelected,
-          'is-focused': isFocused,
-          'is-disabled': true,
-        });
-        const setRef = (ref) => { onOptionRef(ref, isFocused); };
+      targetsOutput.push(
+        targets.map((target, index) => {
+          const { disabled: isDisabled } = target;
+          const isSelected = includes(valueArray, target);
+          const isFocused = isEqual(focusedOption, target);
+          const className = classNames(optionClassName, {
+            "Select-option": true,
+            "is-selected": isSelected,
+            "is-focused": isFocused,
+            "is-disabled": true,
+          });
+          const setRef = (ref) => {
+            onOptionRef(ref, isFocused);
+          };
 
-        return (
-          <Option
-            className={className}
-            instancePrefix={instancePrefix}
-            isDisabled={isDisabled}
-            isFocused={isFocused}
-            isSelected={isSelected}
-            key={`option-${target[valueKey]}`}
-            onFocus={onFocus}
-            onSelect={noop}
-            option={target}
-            optionIndex={index}
-            ref={setRef}
-          >
-            <TargetOption
-              target={target}
-              onSelect={onSelect}
-              onMoreInfoClick={onMoreInfoClick}
-            />
-          </Option>
-        );
-      }));
+          return (
+            <Option
+              className={className}
+              instancePrefix={instancePrefix}
+              isDisabled={isDisabled}
+              isFocused={isFocused}
+              isSelected={isSelected}
+              key={`option-${target[valueKey]}`}
+              onFocus={onFocus}
+              onSelect={noop}
+              option={target}
+              optionIndex={index}
+              ref={setRef}
+            >
+              <TargetOption
+                target={target}
+                onSelect={onSelect}
+                onMoreInfoClick={onMoreInfoClick}
+              />
+            </Option>
+          );
+        })
+      );
 
       return targetsOutput;
     };
@@ -83,11 +102,15 @@ const SelectTargetsMenuWrapper = (onMoreInfoClick, moreInfoTarget, handleBackToR
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__options`}>
-          {renderTargets('all')}
-          {renderTargets('labels')}
-          {renderTargets('hosts')}
+          {renderTargets("all")}
+          {renderTargets("labels")}
+          {renderTargets("hosts")}
         </div>
-        <TargetDetails target={moreInfoTarget} className={`${baseClass}__spotlight`} handleBackToResults={handleBackToResults} />
+        <TargetDetails
+          target={moreInfoTarget}
+          className={`${baseClass}__spotlight`}
+          handleBackToResults={handleBackToResults}
+        />
       </div>
     );
   };

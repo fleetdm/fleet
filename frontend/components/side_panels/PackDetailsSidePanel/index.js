@@ -1,1 +1,1 @@
-export { default } from './PackDetailsSidePanel';
+export { default } from "./PackDetailsSidePanel";

@@ -1,4 +1,4 @@
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
 export default PropTypes.shape({
   idp_image_url: PropTypes.string,

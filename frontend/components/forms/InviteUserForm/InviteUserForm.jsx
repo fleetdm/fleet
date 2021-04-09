@@ -1,14 +1,14 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
-import Button from 'components/buttons/Button';
-import InputFieldWithIcon from 'components/forms/fields/InputFieldWithIcon';
-import Checkbox from 'components/forms/fields/Checkbox';
-import userInterface from 'interfaces/user';
-import validatePresence from 'components/forms/validators/validate_presence';
-import validEmail from 'components/forms/validators/valid_email';
+import Button from "components/buttons/Button";
+import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
+import Checkbox from "components/forms/fields/Checkbox";
+import userInterface from "interfaces/user";
+import validatePresence from "components/forms/validators/validate_presence";
+import validEmail from "components/forms/validators/valid_email";
 
-const baseClass = 'invite-user-form';
+const baseClass = "invite-user-form";
 
 class InviteUserForm extends Component {
   static propTypes = {
@@ -22,7 +22,7 @@ class InviteUserForm extends Component {
     canUseSSO: PropTypes.bool,
   };
 
-  constructor (props) {
+  constructor(props) {
     super(props);
 
     this.state = {
@@ -34,14 +34,14 @@ class InviteUserForm extends Component {
       },
       formData: {
         admin: false,
-        email: '',
-        name: '',
+        email: "",
+        name: "",
         sso_enabled: false,
       },
     };
   }
 
-  componentWillReceiveProps ({ serverErrors }) {
+  componentWillReceiveProps({ serverErrors }) {
     const { errors } = this.state;
 
     if (this.props.serverErrors !== serverErrors) {
@@ -71,7 +71,7 @@ class InviteUserForm extends Component {
 
       return false;
     };
-  }
+  };
 
   onCheckboxChange = (formField) => {
     return (evt) => {
@@ -84,7 +84,9 @@ class InviteUserForm extends Component {
     const valid = this.validate();
 
     if (valid) {
-      const { formData: { admin, email, name, sso_enabled: ssoEnabled } } = this.state;
+      const {
+        formData: { admin, email, name, sso_enabled: ssoEnabled },
+      } = this.state;
       const { invitedBy, onSubmit } = this.props;
       return onSubmit({
         admin,
@@ -96,7 +98,7 @@ class InviteUserForm extends Component {
     }
 
     return false;
-  }
+  };
 
   validate = () => {
     const {
@@ -108,7 +110,7 @@ class InviteUserForm extends Component {
       this.setState({
         errors: {
           ...errors,
-          email: 'Email field must be completed',
+          email: "Email field must be completed",
         },
       });
 
@@ -127,10 +129,13 @@ class InviteUserForm extends Component {
     }
 
     return true;
-  }
+  };
 
-  render () {
-    const { errors, formData: { admin, email, name, ssoEnabled } } = this.state;
+  render() {
+    const {
+      errors,
+      formData: { admin, email, name, ssoEnabled },
+    } = this.state;
     const { onCancel, serverErrors } = this.props;
     const { onFormSubmit, onInputChange, onCheckboxChange } = this;
     const baseError = serverErrors.base;
@@ -142,14 +147,14 @@ class InviteUserForm extends Component {
           autofocus
           error={errors.name}
           name="name"
-          onChange={onInputChange('name')}
+          onChange={onInputChange("name")}
           placeholder="Name"
           value={name}
         />
         <InputFieldWithIcon
           error={errors.email}
           name="email"
-          onChange={onInputChange('email')}
+          onChange={onInputChange("email")}
           placeholder="Email"
           value={email}
         />
@@ -157,7 +162,7 @@ class InviteUserForm extends Component {
           <p className={`${baseClass}__role`}>Admin</p>
           <Checkbox
             name="admin"
-            onChange={onCheckboxChange('admin')}
+            onChange={onCheckboxChange("admin")}
             value={admin}
             wrapperClassName={`${baseClass}__invite-admin`}
           >
@@ -168,7 +173,7 @@ class InviteUserForm extends Component {
           <p className={`${baseClass}__role`}>Single sign on</p>
           <Checkbox
             name="sso_enabled"
-            onChange={onCheckboxChange('sso_enabled')}
+            onChange={onCheckboxChange("sso_enabled")}
             value={ssoEnabled}
             disabled={!this.props.canUseSSO}
             wrapperClassName={`${baseClass}__invite-admin`}

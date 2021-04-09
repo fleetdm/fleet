@@ -1,1 +1,1 @@
-export { default } from './LabelForm';
+export { default } from "./LabelForm";

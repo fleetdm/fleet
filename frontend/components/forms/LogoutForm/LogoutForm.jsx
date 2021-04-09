@@ -1,10 +1,10 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
-import Button from '../../buttons/Button';
-import userInterface from '../../../interfaces/user';
+import Button from "../../buttons/Button";
+import userInterface from "../../../interfaces/user";
 
-const baseClass = 'logout-form';
+const baseClass = "logout-form";
 
 class LogoutForm extends Component {
   static propTypes = {
@@ -18,9 +18,9 @@ class LogoutForm extends Component {
     const { onSubmit } = this.props;
 
     return onSubmit();
-  }
+  };
 
-  render () {
+  render() {
     const { user } = this.props;
     const { gravatarURL } = user;
     const { onFormSubmit } = this;
@@ -28,9 +28,15 @@ class LogoutForm extends Component {
     return (
       <form onSubmit={onFormSubmit} className={baseClass}>
         <div className={`${baseClass}__container`}>
-          <img alt="Avatar" src={gravatarURL} className={`${baseClass}__avatar`} />
+          <img
+            alt="Avatar"
+            src={gravatarURL}
+            className={`${baseClass}__avatar`}
+          />
           <p className={`${baseClass}__username`}>{user.username}</p>
-          <p className={`${baseClass}__subtext`}>Are you sure you want to log out?</p>
+          <p className={`${baseClass}__subtext`}>
+            Are you sure you want to log out?
+          </p>
         </div>
         <Button
           className={`${baseClass}__submit-btn`}

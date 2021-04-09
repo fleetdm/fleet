@@ -62,7 +62,6 @@
   }
 
   &__more-info-detail {
-
     color: $core-dark-blue-grey;
 
     .kolidecon {
@@ -124,9 +123,9 @@
       background-color: $core-light-blue-grey;
       border-color: $ui-borders;
       padding-right: 36px;
-      font-family: 'SourceCodePro', $monospace;
+      font-family: "SourceCodePro", $monospace;
 
-      &[type='password'] {
+      &[type="password"] {
         letter-spacing: 3px;
       }
     }

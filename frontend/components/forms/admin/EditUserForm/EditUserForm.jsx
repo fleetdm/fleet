@@ -1,13 +1,13 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import Checkbox from 'components/forms/fields/Checkbox';
-import Button from 'components/buttons/Button';
-import Form from 'components/forms/Form';
-import formFieldInterface from 'interfaces/form_field';
-import InputField from 'components/forms/fields/InputField';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import Checkbox from "components/forms/fields/Checkbox";
+import Button from "components/buttons/Button";
+import Form from "components/forms/Form";
+import formFieldInterface from "interfaces/form_field";
+import InputField from "components/forms/fields/InputField";
 
-const baseClass = 'edit-user-form';
-const fieldNames = ['email', 'name', 'position', 'username', 'sso_enabled'];
+const baseClass = "edit-user-form";
+const fieldNames = ["email", "name", "position", "username", "sso_enabled"];
 
 class EditUserForm extends Component {
   static propTypes = {
@@ -23,7 +23,7 @@ class EditUserForm extends Component {
     }).isRequired,
   };
 
-  render () {
+  render() {
     const { fields, handleSubmit, onCancel, isCurrentUser } = this.props;
 
     return (
@@ -57,11 +57,7 @@ class EditUserForm extends Component {
           labelClassName={`${baseClass}__label`}
           inputClassName={`${baseClass}__input ${baseClass}__input--email`}
         />
-        <Checkbox
-          {...fields.sso_enabled}
-        >
-          Enable Single Sign On
-        </Checkbox>
+        <Checkbox {...fields.sso_enabled}>Enable Single Sign On</Checkbox>
         <div className={`${baseClass}__btn-wrap`}>
           <Button
             className={`${baseClass}__form-btn ${baseClass}__form-btn--cancel button button--inverse`}

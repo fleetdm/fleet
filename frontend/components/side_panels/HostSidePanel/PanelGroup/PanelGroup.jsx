@@ -1,10 +1,10 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { noop } from 'lodash';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { noop } from "lodash";
 
-import labelInterface from 'interfaces/label';
-import PanelGroupItem from 'components/side_panels/HostSidePanel/PanelGroupItem';
-import statusLabelsInterface from 'interfaces/status_labels';
+import labelInterface from "interfaces/label";
+import PanelGroupItem from "components/side_panels/HostSidePanel/PanelGroupItem";
+import statusLabelsInterface from "interfaces/status_labels";
 
 class PanelGroup extends Component {
   static propTypes = {
@@ -20,12 +20,7 @@ class PanelGroup extends Component {
   };
 
   renderGroupItem = (item) => {
-    const {
-      onLabelClick,
-      selectedFilter,
-      statusLabels,
-      type,
-    } = this.props;
+    const { onLabelClick, selectedFilter, statusLabels, type } = this.props;
     const selected = item.slug === selectedFilter || type === selectedFilter;
 
     return (
@@ -38,20 +33,22 @@ class PanelGroup extends Component {
         type={type}
       />
     );
-  }
+  };
 
-  render () {
+  render() {
     const { groupItems, type } = this.props;
     const { renderGroupItem } = this;
-    const baseClass = 'panel-group';
+    const baseClass = "panel-group";
 
     let multipleLabelsClass = baseClass;
-    if (type === 'label' && groupItems.length > 6) {
+    if (type === "label" && groupItems.length > 6) {
       multipleLabelsClass = `${baseClass}__${type}--scroll-labels`;
     }
 
     return (
-      <div className={`${baseClass} ${baseClass}__${type} ${multipleLabelsClass}`}>
+      <div
+        className={`${baseClass} ${baseClass}__${type} ${multipleLabelsClass}`}
+      >
         {groupItems.map((item) => {
           return renderGroupItem(item);
         })}

@@ -1,10 +1,10 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
-import { calculateTooltipDirection } from './helpers';
-import ClickOutside from '../../ClickOutside';
+import { calculateTooltipDirection } from "./helpers";
+import ClickOutside from "../../ClickOutside";
 
-const baseClass = 'ellipsis-menu';
+const baseClass = "ellipsis-menu";
 
 export class EllipsisMenu extends Component {
   static propTypes = {
@@ -12,7 +12,7 @@ export class EllipsisMenu extends Component {
     positionStyles: PropTypes.object, // eslint-disable-line react/forbid-prop-types
   };
 
-  constructor (props) {
+  constructor(props) {
     super(props);
 
     this.state = {
@@ -20,18 +20,18 @@ export class EllipsisMenu extends Component {
     };
   }
 
-  componentDidMount () {
+  componentDidMount() {
     const { setTooltipDirection } = this;
 
-    global.window.addEventListener('resize', setTooltipDirection);
+    global.window.addEventListener("resize", setTooltipDirection);
 
     return setTooltipDirection();
   }
 
-  componentWillUnmount () {
+  componentWillUnmount() {
     const { setTooltipDirection } = this;
 
-    global.window.removeEventListener('resize', setTooltipDirection);
+    global.window.removeEventListener("resize", setTooltipDirection);
 
     return false;
   }
@@ -42,11 +42,11 @@ export class EllipsisMenu extends Component {
     this.setState({ showChildren: !showChildren });
 
     return false;
-  }
+  };
 
   setDOMNode = (DOMNode) => {
     this.DOMNode = DOMNode;
-  }
+  };
 
   setTooltipDirection = () => {
     if (this.DOMNode) {
@@ -56,12 +56,12 @@ export class EllipsisMenu extends Component {
     }
 
     return false;
-  }
+  };
 
   renderChildren = () => {
     const { children } = this.props;
     const { showChildren, tooltipDirection } = this.state;
-    const triangleDirection = tooltipDirection === 'left' ? 'right' : 'left';
+    const triangleDirection = tooltipDirection === "left" ? "right" : "left";
 
     if (!showChildren) {
       return false;
@@ -74,18 +74,14 @@ export class EllipsisMenu extends Component {
         {children}
       </div>
     );
-  }
+  };
 
-  render () {
+  render() {
     const { onToggleChildren, renderChildren, setDOMNode } = this;
     const { positionStyles } = this.props;
 
     return (
-      <div
-        ref={setDOMNode}
-        className={baseClass}
-        style={positionStyles}
-      >
+      <div ref={setDOMNode} className={baseClass} style={positionStyles}>
         <button
           onClick={onToggleChildren}
           className={`${baseClass}__btn button button--unstyled`}

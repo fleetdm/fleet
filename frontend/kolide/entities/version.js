@@ -1,4 +1,4 @@
-import endpoints from 'kolide/endpoints';
+import endpoints from "kolide/endpoints";
 
 export default (client) => {
   return {

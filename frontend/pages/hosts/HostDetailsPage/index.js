@@ -1,1 +1,1 @@
-export { default } from './HostDetailsPage';
+export { default } from "./HostDetailsPage";

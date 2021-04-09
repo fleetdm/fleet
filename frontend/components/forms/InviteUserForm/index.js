@@ -1,1 +1,1 @@
-export { default } from './InviteUserForm';
+export { default } from "./InviteUserForm";

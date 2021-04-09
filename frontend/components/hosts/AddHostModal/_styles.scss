@@ -30,7 +30,6 @@
   }
 
   &__manual-install-content {
-
     h4 {
       font-size: $small;
       font-weight: $bold;
@@ -116,7 +115,7 @@
     margin: 0 0 0 44px;
   }
 
-  pre, 
+  pre,
   code {
     background-color: $core-light-blue-grey;
     color: $core-medium-blue-grey;
@@ -129,6 +128,4 @@
   &__error {
     color: $alert;
   }
-
 }
-

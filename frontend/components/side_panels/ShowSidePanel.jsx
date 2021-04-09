@@ -1,9 +1,12 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { noop } from 'lodash';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { noop } from "lodash";
 
-import { removeRightSidePanel, showRightSidePanel } from 'redux/nodes/app/actions';
+import {
+  removeRightSidePanel,
+  showRightSidePanel,
+} from "redux/nodes/app/actions";
 
 const ShowSidePanel = (WrappedComponent) => {
   class PageWithSidePanel extends Component {
@@ -15,15 +18,15 @@ const ShowSidePanel = (WrappedComponent) => {
       dispatch: noop,
     };
 
-    componentWillMount () {
+    componentWillMount() {
       this.props.dispatch(showRightSidePanel);
     }
 
-    componentWillUnmount () {
+    componentWillUnmount() {
       this.props.dispatch(removeRightSidePanel);
     }
 
-    render () {
+    render() {
       return <WrappedComponent {...this.props} />;
     }
   }

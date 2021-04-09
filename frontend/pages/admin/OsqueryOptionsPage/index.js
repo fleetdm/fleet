@@ -1,1 +1,1 @@
-export { default } from './OsqueryOptionsPage';
+export { default } from "./OsqueryOptionsPage";

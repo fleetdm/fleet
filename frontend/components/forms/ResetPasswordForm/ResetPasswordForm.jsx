@@ -1,14 +1,14 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
-import Button from 'components/buttons/Button';
-import Form from 'components/forms/Form';
-import formFieldInterface from 'interfaces/form_field';
-import InputFieldWithIcon from 'components/forms/fields/InputFieldWithIcon';
-import validate from 'components/forms/ResetPasswordForm/validate';
+import Button from "components/buttons/Button";
+import Form from "components/forms/Form";
+import formFieldInterface from "interfaces/form_field";
+import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
+import validate from "components/forms/ResetPasswordForm/validate";
 
-const baseClass = 'reset-password-form';
-const formFields = ['new_password', 'new_password_confirmation'];
+const baseClass = "reset-password-form";
+const formFields = ["new_password", "new_password_confirmation"];
 
 class ResetPasswordForm extends Component {
   static propTypes = {
@@ -19,7 +19,7 @@ class ResetPasswordForm extends Component {
     }),
   };
 
-  render () {
+  render() {
     const { fields, handleSubmit } = this.props;
 
     return (

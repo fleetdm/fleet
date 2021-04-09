@@ -1,60 +1,72 @@
 @font-face {
-  font-family: 'Nunito Sans';
+  font-family: "Nunito Sans";
   font-style: normal;
   font-weight: 400;
-  src: url('../assets/fonts/nunito-sans/Nunito-Sans-Bold.eot');
-  src: local(''),
-       url('../assets/fonts/nunito-sans/Nunito-Sans-Regular.eot?#iefix') format('embedded-opentype'),
-       url('../assets/fonts/nunito-sans/Nunito-Sans-Regular.woff') format('woff'),
-       url('../assets/fonts/nunito-sans/Nunito-Sans-Regular.ttf') format('truetype'),
+  src: url("../assets/fonts/nunito-sans/Nunito-Sans-Bold.eot");
+  src: local(""),
+    url("../assets/fonts/nunito-sans/Nunito-Sans-Regular.eot?#iefix")
+      format("embedded-opentype"),
+    url("../assets/fonts/nunito-sans/Nunito-Sans-Regular.woff") format("woff"),
+    url("../assets/fonts/nunito-sans/Nunito-Sans-Regular.ttf")
+      format("truetype");
 }
 @font-face {
-  font-family: 'Nunito Sans';
+  font-family: "Nunito Sans";
   font-style: normal;
   font-weight: 700;
-  src: url('../assets/fonts/nunito-sans/Nunito-Sans-Bold.eot');
-  src: local(''),
-       url('../assets/fonts/nunito-sans/Nunito-Sans-Bold.eot?#iefix') format('embedded-opentype'),
-       url('../assets/fonts/nunito-sans/Nunito-Sans-Bold.woff') format('woff'),
-       url('../assets/fonts/nunito-sans/Nunito-Sans-Bold.ttf') format('truetype'),
+  src: url("../assets/fonts/nunito-sans/Nunito-Sans-Bold.eot");
+  src: local(""),
+    url("../assets/fonts/nunito-sans/Nunito-Sans-Bold.eot?#iefix")
+      format("embedded-opentype"),
+    url("../assets/fonts/nunito-sans/Nunito-Sans-Bold.woff") format("woff"),
+    url("../assets/fonts/nunito-sans/Nunito-Sans-Bold.ttf") format("truetype");
 }
 @font-face {
-  font-family: 'Nunito Sans';
+  font-family: "Nunito Sans";
   font-style: italic;
   font-weight: 400;
-  src: url('../assets/fonts/nunito-sans/Nunito-Sans-Regular-Italic.eot');
-  src: local(''),
-       url('../assets/fonts/nunito-sans/Nunito-Sans-Regular-Italic.eot?#iefix') format('embedded-opentype'),
-       url('../assets/fonts/nunito-sans/Nunito-Sans-Regular-Italic.woff') format('woff'),
-       url('../assets/fonts/nunito-sans/Nunito-Sans-Regular-Italic.ttf') format('truetype'),
+  src: url("../assets/fonts/nunito-sans/Nunito-Sans-Regular-Italic.eot");
+  src: local(""),
+    url("../assets/fonts/nunito-sans/Nunito-Sans-Regular-Italic.eot?#iefix")
+      format("embedded-opentype"),
+    url("../assets/fonts/nunito-sans/Nunito-Sans-Regular-Italic.woff")
+      format("woff"),
+    url("../assets/fonts/nunito-sans/Nunito-Sans-Regular-Italic.ttf")
+      format("truetype");
 }
 
 @font-face {
-  font-family: 'kolidecons';
-  src: url('../assets/fonts/kolidecons/kolidecons.woff2') format('woff2'),
-    url('../assets/fonts/kolidecons/kolidecons.woff') format('woff');
+  font-family: "kolidecons";
+  src: url("../assets/fonts/kolidecons/kolidecons.woff2") format("woff2"),
+    url("../assets/fonts/kolidecons/kolidecons.woff") format("woff");
   font-weight: normal;
   font-style: normal;
 }
 
 @font-face {
-  font-family: 'SourceCodePro';
-  src: url('../assets/fonts/source-code-pro/Source-Code-Pro-Regular.eot');
-  src: url('../assets/fonts/source-code-pro/Source-Code-Pro-Regular.eot?#iefix') format('embedded-opentype'),
-    url('../assets/fonts/source-code-pro/Source-Code-Pro-Regular.ttf.woff') format('woff'),
-    url('../assets/fonts/source-code-pro/Source-Code-Pro-Regular.ttf') format('truetype');
+  font-family: "SourceCodePro";
+  src: url("../assets/fonts/source-code-pro/Source-Code-Pro-Regular.eot");
+  src: url("../assets/fonts/source-code-pro/Source-Code-Pro-Regular.eot?#iefix")
+      format("embedded-opentype"),
+    url("../assets/fonts/source-code-pro/Source-Code-Pro-Regular.ttf.woff")
+      format("woff"),
+    url("../assets/fonts/source-code-pro/Source-Code-Pro-Regular.ttf")
+      format("truetype");
   font-weight: 400;
-  font-style: normal; 
+  font-style: normal;
 }
 
 @font-face {
-  font-family: 'SourceCodePro';
-  src: url('../assets/fonts/source-code-pro/Source-Code-Pro-Bold.eot');
-  src: url('../assets/fonts/source-code-pro/Source-Code-Pro-Bold.eot?#iefix') format('embedded-opentype'),
-    url('../assets/fonts/source-code-pro/Source-Code-Pro-Bold.woff') format('woff'),
-    url('../assets/fonts/source-code-pro/Source-Code-Pro-Bold.ttf') format('truetype');
+  font-family: "SourceCodePro";
+  src: url("../assets/fonts/source-code-pro/Source-Code-Pro-Bold.eot");
+  src: url("../assets/fonts/source-code-pro/Source-Code-Pro-Bold.eot?#iefix")
+      format("embedded-opentype"),
+    url("../assets/fonts/source-code-pro/Source-Code-Pro-Bold.woff")
+      format("woff"),
+    url("../assets/fonts/source-code-pro/Source-Code-Pro-Bold.ttf")
+      format("truetype");
   font-weight: 600;
-  font-style: normal; 
+  font-style: normal;
 }
 
 body {

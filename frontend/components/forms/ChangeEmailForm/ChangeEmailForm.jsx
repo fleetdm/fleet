@@ -1,12 +1,12 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
-import Button from 'components/buttons/Button';
-import Form from 'components/forms/Form';
-import formFieldInterface from 'interfaces/form_field';
-import InputField from 'components/forms/fields/InputField';
+import Button from "components/buttons/Button";
+import Form from "components/forms/Form";
+import formFieldInterface from "interfaces/form_field";
+import InputField from "components/forms/fields/InputField";
 
-const baseClass = 'change-email-form';
+const baseClass = "change-email-form";
 
 class ChangeEmailForm extends Component {
   static propTypes = {
@@ -17,7 +17,7 @@ class ChangeEmailForm extends Component {
     onCancel: PropTypes.func.isRequired,
   };
 
-  render () {
+  render() {
     const { fields, handleSubmit, onCancel } = this.props;
 
     return (
@@ -32,7 +32,13 @@ class ChangeEmailForm extends Component {
           <Button className={`${baseClass}__btn`} type="submit" variant="brand">
             Submit
           </Button>
-          <Button onClick={onCancel} variant="inverse" className={`${baseClass}__btn`}>Cancel</Button>
+          <Button
+            onClick={onCancel}
+            variant="inverse"
+            className={`${baseClass}__btn`}
+          >
+            Cancel
+          </Button>
         </div>
       </form>
     );
@@ -40,12 +46,12 @@ class ChangeEmailForm extends Component {
 }
 
 export default Form(ChangeEmailForm, {
-  fields: ['password'],
+  fields: ["password"],
   validate: (formData) => {
     if (!formData.password) {
       return {
         valid: false,
-        errors: { password: 'Password must be present' },
+        errors: { password: "Password must be present" },
       };
     }
 

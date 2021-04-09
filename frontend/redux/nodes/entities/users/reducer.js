@@ -1,8 +1,8 @@
 import {
   REQUIRE_PASSWORD_RESET_FAILURE,
   REQUIRE_PASSWORD_RESET_SUCCESS,
-} from './actions';
-import config, { initialState } from './config';
+} from "./actions";
+import config, { initialState } from "./config";
 
 export default (state = initialState, { type, payload }) => {
   switch (type) {

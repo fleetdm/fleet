@@ -1,5 +1,5 @@
-import createRequestMock from 'test/mocks/create_request_mock';
-import helpers from 'kolide/helpers';
+import createRequestMock from "test/mocks/create_request_mock";
+import helpers from "kolide/helpers";
 
 export default {
   create: {
@@ -7,8 +7,8 @@ export default {
       const params = helpers.setupData(unformattedParams);
 
       return createRequestMock({
-        endpoint: '/api/v1/setup',
-        method: 'post',
+        endpoint: "/api/v1/setup",
+        method: "post",
         params,
         response: {},
       });
