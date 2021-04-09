@@ -14,26 +14,26 @@ describe('Manage Users', () => {
     cy.visit('/settings/users');
     cy.url().should('match', /\/settings\/users$/i);
 
-    // cy.wait('@getUsers');
-    //
-    // cy.findByText('test@fleetdm.com')
-    //   .should('exist');
-    // cy.findByText('test+1@fleetdm.com')
-    //   .should('exist');
-    // cy.findByText('test+2@fleetdm.com')
-    //   .should('exist');
-    //
-    // cy.findByPlaceholderText('Search')
-    //   .type('test@fleetdm.com');
-    //
-    // cy.wait('@getUsers');
-    //
-    // cy.findByText('test@fleetdm.com')
-    //   .should('exist');
-    // cy.findByText('test+1@fleetdm.com')
-    //   .should('not.exist');
-    // cy.findByText('test+2@fleetdm.com')
-    //   .should('not.exist');
+    cy.wait('@getUsers');
+
+    cy.findByText('test@fleetdm.com')
+      .should('exist');
+    cy.findByText('test+1@fleetdm.com')
+      .should('exist');
+    cy.findByText('test+2@fleetdm.com')
+      .should('exist');
+
+    cy.findByPlaceholderText('Search')
+      .type('test@fleetdm.com');
+
+    cy.wait('@getUsers');
+
+    cy.findByText('test@fleetdm.com')
+      .should('exist');
+    cy.findByText('test+1@fleetdm.com')
+      .should('not.exist');
+    cy.findByText('test+2@fleetdm.com')
+      .should('not.exist');
   });
 
   // it('Creating a user', () => {

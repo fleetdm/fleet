@@ -14,10 +14,10 @@ export class AuthenticatedAdminRoutes extends Component {
   };
 
   componentWillMount () {
-    const { dispatch, user: { admin } } = this.props;
+    const { dispatch, user: { global_role } } = this.props;
     const { HOME } = paths;
 
-    if (!admin) {
+    if (global_role !== 'admin') {
       dispatch(push(HOME));
     }
 

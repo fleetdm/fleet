@@ -7,9 +7,16 @@ interface IStatusCellProps {
 
 const StatusCell = (props: IStatusCellProps): JSX.Element => {
   const { value } = props;
+
+  const generateClassTag = (rawValue: string): string => {
+    const classTag = rawValue.replace(' ', '-').toLowerCase();
+
+    return classTag;
+  };
+
   const statusClassName = classnames(
     'data-table__status',
-    `data-table__status--${value}`,
+    `data-table__status--${generateClassTag(value)}`,
   );
 
   return (

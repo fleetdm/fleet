@@ -1,7 +1,6 @@
 import React, { Component, FormEvent } from 'react';
 
-import { IUser } from 'interfaces/user';
-import ITeam from 'interfaces/team';
+import { ITeam } from 'interfaces/team';
 import Button from 'components/buttons/Button';
 import validatePresence from 'components/forms/validators/validate_presence';
 import validEmail from 'components/forms/validators/valid_email';
@@ -44,29 +43,30 @@ const globalUserRoles = [
 ];
 
 interface IFormData {
-  admin: boolean;
   email: string;
   name: string;
   sso_enabled: boolean;
-  global_role?: string;
-  teams?: ITeam[];
-}
-
-interface ISubmitData extends IFormData {
-  created_by: number
+  currentUserId: number;
+  global_role: string | null;
+  teams: ITeam[];
+  invited_by?: number;
 }
 
 interface ICreateUserFormProps {
-  createdBy: IUser;
-  onCancel: () => void;
-  onSubmit: (formData: ISubmitData) => void;
-  canUseSSO: boolean;
   availableTeams: ITeam[];
+  currentUserId: number;
+  onCancel: () => void;
+  onSubmit: (formData: IFormData) => void;
+  canUseSSO: boolean;
+  submitText: string;
+  defaultName?: string;
+  defaultEmail?: string;
+  defaultGlobalRole?: string | null;
+  defaultTeams: ITeam[];
 }
 
 interface ICreateUserFormState {
   errors: {
-    admin: boolean | null;
     email: string | null;
     name: string | null;
     sso_enabled: boolean | null;
@@ -75,26 +75,25 @@ interface ICreateUserFormState {
   isGlobalUser: boolean,
 }
 
-class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormState> {
+class UserForm extends Component <ICreateUserFormProps, ICreateUserFormState> {
   constructor (props: ICreateUserFormProps) {
     super(props);
 
     this.state = {
       errors: {
-        admin: null,
         email: null,
         name: null,
         sso_enabled: null,
       },
       formData: {
-        admin: false,
-        email: '',
-        name: '',
+        email: props.defaultEmail || '',
+        name: props.defaultName || '',
         sso_enabled: false,
-        global_role: undefined,
-        teams: undefined,
+        global_role: props.defaultGlobalRole || null,
+        teams: props.defaultTeams,
+        currentUserId: props.currentUserId,
       },
-      isGlobalUser: false,
+      isGlobalUser: props.defaultGlobalRole !== null,
     };
   }
 
@@ -152,12 +151,11 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
     evt.preventDefault();
     const valid = this.validate();
     if (valid) {
-      const { formData: { admin, email, name, sso_enabled, global_role, teams } } = this.state;
-      const { createdBy, onSubmit } = this.props;
+      const { formData: { email, name, sso_enabled, global_role, teams } } = this.state;
+      const { onSubmit, currentUserId } = this.props;
       return onSubmit({
-        admin,
         email,
-        created_by: createdBy.id,
+        currentUserId,
         name,
         sso_enabled,
         global_role,
@@ -197,7 +195,7 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
     return true;
   }
 
-  renderGlobalRoleForm = () => {
+  renderGlobalRoleForm = (): JSX.Element => {
     const { onGlobalUserRoleChange } = this;
     const { formData: { global_role } } = this.state;
     return (
@@ -228,6 +226,8 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
 
   renderTeamsForm = (): JSX.Element => {
     const { onSelectedTeamChange } = this;
+    const { availableTeams } = this.props;
+    const { formData: { teams } } = this.state;
     return (
       <>
         <InfoBanner className={`${baseClass}__user-permissions-info`}>
@@ -242,8 +242,9 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
           </a>
         </InfoBanner>
         <SelectedTeamsForm
+          // availableTeams={availableTeams}
           availableTeams={[{ name: 'Test Team', id: 1, role: 'admin' }, { name: 'Test Team 2', id: 2, role: 'admin' }]}
-          usersCurrentTeams={[]}
+          usersCurrentTeams={teams}
           onFormChange={onSelectedTeamChange}
         />
       </>
@@ -252,11 +253,11 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
 
   render (): JSX.Element {
     const { errors, formData: { email, name, sso_enabled }, isGlobalUser } = this.state;
-    const { onCancel, availableTeams } = this.props;
+    const { onCancel, submitText } = this.props;
     const { onFormSubmit, onInputChange, onCheckboxChange, onIsGlobalUserChange, renderGlobalRoleForm, renderTeamsForm } = this;
 
     return (
-      <form onSubmit={onFormSubmit} className={baseClass}>
+      <form className={baseClass}>
         {/* {baseError && <div className="form__base-error">{baseError}</div>} */}
         <InputFieldWithIcon
           autofocus
@@ -317,9 +318,9 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
             className={`${baseClass}__btn`}
             type="button"
             variant="brand"
-            onClick={() => { return null; }}
+            onClick={onFormSubmit}
           >
-            Create
+            {submitText}
           </Button>
           <Button
             className={`${baseClass}__btn`}
@@ -334,4 +335,4 @@ class CreateUserForm extends Component <ICreateUserFormProps, ICreateUserFormSta
   }
 }
 
-export default CreateUserForm;
+export default UserForm;

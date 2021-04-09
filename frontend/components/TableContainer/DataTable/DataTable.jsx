@@ -42,7 +42,6 @@ const DataTable = (props) => {
         }, [sortHeader, sortDirection]),
       },
       disableMultiSort: true,
-      manualSortBy: true,
     },
     useSortBy,
   );
@@ -112,7 +111,6 @@ DataTable.propTypes = {
   sortHeader: PropTypes.string,
   sortDirection: PropTypes.string,
   onSort: PropTypes.func,
-  fetchDataAction: PropTypes.func,
 };
 
 export default DataTable;

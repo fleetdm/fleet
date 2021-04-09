@@ -74,11 +74,6 @@ func (v Viewer) IsUserID(id uint) bool {
 // IsLoggedIn determines whether or not the current VC is attached to a user
 // account
 func (v Viewer) IsLoggedIn() bool {
-	if v.User != nil {
-		if !v.User.Enabled {
-			return false
-		}
-	}
 	if v.Session != nil {
 		// Without having access to a service to call GetInfoAboutSession(id),
 		// we can't synchronously check the database here.

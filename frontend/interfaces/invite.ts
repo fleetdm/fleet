@@ -4,26 +4,20 @@ import teamInterface, { ITeam } from './team';
 export default PropTypes.shape({
   admin: PropTypes.bool,
   email: PropTypes.string,
-  enabled: PropTypes.bool,
-  force_password_reset: PropTypes.bool,
   gravatarURL: PropTypes.string,
   id: PropTypes.number,
+  invited_by: PropTypes.number,
   name: PropTypes.string,
-  position: PropTypes.string,
-  username: PropTypes.string,
   teams: PropTypes.arrayOf(teamInterface),
 });
 
-export interface IUser {
-  admin: boolean,
-  email: string,
-  enabled: boolean,
-  force_password_reset: boolean,
-  gravatarURL: string,
-  id: number,
-  name: string,
-  position: string,
-  username: string,
+export interface IInvite {
+  admin: boolean;
+  email: string;
+  gravatarURL: string;
+  id: number;
+  invited_by: number;
+  name: string;
   teams: ITeam[];
   global_role: string | null;
 }

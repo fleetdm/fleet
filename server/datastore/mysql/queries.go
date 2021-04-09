@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
@@ -170,7 +170,7 @@ func (d *Datastore) Query(id uint) (*kolide.Query, error) {
 // determined by passed in kolide.ListOptions
 func (d *Datastore) ListQueries(opt kolide.ListOptions) ([]*kolide.Query, error) {
 	sql := `
-		SELECT q.*, COALESCE(NULLIF(u.name, ''), u.username, '') AS author_name
+		SELECT q.*, COALESCE(u.name, '<deleted>') AS author_name
 		FROM queries q
 		LEFT JOIN users u
 			ON q.author_id = u.id

@@ -1635,51 +1635,29 @@ Returns all information about a specific user.
 }
 ```
 
-### Enable or disable user
+### Delete user
 
-Revokes or renews the selected user's access to Fleet. Returns the user object.
+Delete the specified user from Fleet.
 
-`POST /api/v1/fleet/users/{id}/enable`
+`DELETE /api/v1/fleet/users/{id}`
 
 #### Parameters
 
-| Name | Type    | In    | Description                  |
-| ---- | ------- | ----- | ---------------------------- |
-| id   | integer | path | **Required**. The user's id. |
-| enabled   | boolean | body | **Required**. Whether or not the user can access Fleet. |
+| Name       | Type    | In   | Description                                      |
+| ---------- | ------- | ---- | ------------------------------------------------ |
+| id   | integer  | path | **Required.** The user's id.            |
 
 #### Example
 
-`POST /api/v1/fleet/users/2/enable`
+`DELETE /api/v1/fleet/users/3`
 
-#### Default body
-
-```
-{
-  "enabled": false
-}
-```
 
 ##### Default response
 
 `Status: 200`
 
 ```
-{
-  "user": {
-    "created_at": "2021-02-23T22:23:34Z",
-    "updated_at": "2021-02-23T22:23:34Z",
-    "id": 2,
-    "username": "janedoe",
-    "name": "Jane Doe",
-    "email": "janedoe@example.com",
-    "admin": false,
-    "enabled": false,
-    "force_password_reset": false,
-    "gravatar_url": "",
-    "sso_enabled": false
-  }
-}
+{}
 ```
 
 ### Promote or demote user

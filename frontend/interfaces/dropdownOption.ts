@@ -5,3 +5,9 @@ export default PropTypes.shape({
   label: PropTypes.string,
   value: PropTypes.string,
 });
+
+export interface IDropdownOption {
+  disabled: boolean;
+  label: string;
+  value: string;
+}

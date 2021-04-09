@@ -238,7 +238,6 @@ func (d *Datastore) createDevUsers() error {
 			Username: "admin",
 			Email:    "admin@kolide.co",
 			Position: "Director of Security",
-			Enabled:  true,
 		},
 		{
 			UpdateCreateTimestamps: kolide.UpdateCreateTimestamps{
@@ -254,7 +253,6 @@ func (d *Datastore) createDevUsers() error {
 			Username: "user",
 			Email:    "user@kolide.co",
 			Position: "Security Engineer",
-			Enabled:  true,
 		},
 	}
 	for _, user := range users {

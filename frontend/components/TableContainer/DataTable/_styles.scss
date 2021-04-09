@@ -46,6 +46,15 @@
       td {
         padding: 12px 27px;
         white-space: nowrap;
+
+        // form-field wraps the dropdown menu
+        .form-field {
+          margin: 0;
+        }
+        .Select-control {
+          background-color: $core-white;
+          border: none;
+        }
       }
     }
 
@@ -57,29 +66,15 @@
       color: $core-fleet-blue;
       text-transform: capitalize;
 
-      &--online {
-        &:before {
-          background-color: $ui-success;
-          border-radius: 100%;
-          content: ' ';
-          display: inline-block;
-          height: 8px;
-          margin-right: 8px;
-          width: 8px;
-        }
+      &:before {
+        border-radius: 100%;
+        content: ' ';
+        display: inline-block;
+        height: 8px;
+        margin-right: 8px;
+        width: 8px;
       }
-
-      &--offline {
-        &:before {
-          background-color: $ui-fleet-black-25;
-          border-radius: 100%;
-          content: ' ';
-          display: inline-block;
-          height: 8px;
-          margin-right: 8px;
-          width: 8px;
-        }
-      }
+ 
     }
 
     .loading-overlay {

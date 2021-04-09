@@ -8,61 +8,6 @@
     padding-bottom: $pad-medium;
   }
 
-  &__wrapper {
-    border: solid 1px $ui-fleet-blue-15;
-    border-radius: 6px;
-    margin-top: $pad-base;
-  }
-
-  &__header {
-    font-size: $large;
-  }
-
-  &__table {
-    border-collapse: collapse;
-    color: $core-fleet-black;
-    font-size: $x-small;
-    width: 100%;
-  }
-
-  tr {
-    border-bottom: 1px solid $ui-fleet-blue-15;
-
-    &:last-child {
-      border-bottom: 0;
-    }
-  }
-
-  thead {
-    background-color: $ui-off-white;
-    color: $core-fleet-black;
-    text-align: left;
-    border-bottom: 1px solid $ui-fleet-blue-15;
-
-    th {
-      padding: 18px 30px;
-      white-space: nowrap;
-      border-radius: 6px 0;
-    }
-  }
-
-  tbody {
-    td {
-      padding: 0 30px;
-      white-space: nowrap;
-    }
-
-    .user-row__actions {
-      padding: 4px 30px;
-      width: 120px;
-      float: right;
-    }
-  }
-
-  &__heading-wrapper {
-    width: 100%;
-  }
-
   &__smtp-warning-wrapper {
     width: 100%;
   }
@@ -74,66 +19,35 @@
     margin-left: $pad-medium;
   }
 
-
-  &__user-count {
-    font-size: $x-small;
-    font-weight: $bold;
-    color: $core-fleet-black;
-    margin: 0;
-  }
-
-  &__table-controls {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-  }
-
-  &__users {
-    display: flex;
-    flex-wrap: wrap;
-    clear: both;
-  }
-
   &__create-user-modal {
     &.modal__modal_container {
       width: 540px;
     }
   }
 
-  &__edit-columns-button {
-    display: flex;
-    align-items: center;
-    font-size: $x-small;
-    color: $core-vibrant-blue;
-  }
+  .data-table {
 
-  &__search-input {
-    position: relative;
-    color: $core-fleet-black;
-    width: 344px;
-    margin-left: $pad-medium;
+    &__status {
 
-    .user-management__input-wrapper {
-      margin-bottom: 0;
-    }
+      &--active {
+        &:before {
+          background-color: $ui-success;
+        }
+      }
 
-    .input-field {
-      padding-left: 42px;
-      width: 100%;
-    }
+      &--no-access {
+        &:before {
+          background-color: $ui-offline;
+        }
+      }
 
-    .kolidecon {
-      position: absolute;
-      top: 10px;
-      left: 12px;
-      font-size: 20px;
-      color: $core-fleet-black;
-    }
-  }
+      &--invite-pending {
+        &:before {
+          background-color: $ui-warning;
+        }
+      }
 
-  @include breakpoint(smalldesk) {
-    &__position {
-      display: none;
+
     }
   }
 }
