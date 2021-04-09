@@ -1,42 +1,39 @@
-// Fleet brand colors
-$white: #fff;
-$black: #000;
-$core-gradient: linear-gradient(360deg, #201e43 0%, #353d62 100%);
-$core-gradient-horizontal: linear-gradient(270deg, #201E43 0%, #353D62 100%);
-$core-black: #192147;
-$core-blue: #6a67fe;
-$core-blue-selected: rgba(106, 103, 254, 0.2);
-$core-purple: #ae6ddf;
-$core-red: #ff5c83;
-$core-medium-blue-grey: #506e92;
-$core-dark-blue-grey: #3e4771;
-$core-darkest-blue-grey: #353d62;
-$core-light-blue-grey: #f9fafc;
-$core-fleet-black: #201e43;
-$core-blue-green: #25c3ba;
-$ui-borders: #dbe3e5;
+// Core
+$core-fleet-black: #192147;
+$core-fleet-blue: #3e4771;
+$core-vibrant-blue: #6a67fe;
+$core-vibrant-red: #ff5c83;
+$core-fleet-purple: #ae6ddf;
+$core-white: #ffffff;
+
+// UI
+$ui-fleet-black-50: #8b8fa2;
+$ui-fleet-black-25: #c5c7d1;
+$ui-fleet-blue-15: #e2e4ea;
+$ui-dark-blue-gray: #afbec1;
+$ui-blue-gray: #dbe3e5;
+$ui-gray: #e3e3e3;
 $ui-light-grey: #fafafa;
-$ui-medium-grey: #e3e3e3;
-$ui-dark-grey: #afbec1;
+$ui-off-white: #f9fafc;
+$ui-vibrant-blue-25: #d9d9fe;
+$ui-vibrant-blue-10: #f1f0ff;
+
+// Notifications & status
+$ui-offline: #8b8fa2;
+$ui-success: #3DB67B;
+$ui-warning: #ebbc43;
+$ui-error: #d66c7b;
+$ui-info: #6a67fe;
+
+// Gradients
+$gradients-dark-gradient: linear-gradient(270deg, #201e43 0%, #353d62 100%);
+$gradients-dark-gradient-vertical: linear-gradient(360deg, #201e43 0%, #353d62 100%);
+$gradients-bright-gradient: linear-gradient(180deg, #ae6ddf 0%, #6a67fe 100%);
 
 // Colors for over (hover) and down (active) buttons styles
-$core-red-over: #e93661;
-$core-red-down: #cb3559;
-$core-blue-over: #5855eb;
-$core-blue-down: #3f3cd4;
-$core-dark-blue-grey-over: #426186;
-$core-dark-blue-grey-down: #345073;
-$core-blue-label-over: rgba(106, 103, 254, 0.1);
-$core-blue-label-down: rgba(106, 103, 254, 0.2);
-$core-black-over: rgba(25, 33, 71, 0.5);
-
-$alert: #ff5c83;
-$alert-light: #ffb5b2;
-$brand-light: #c38dec;
-$core-blue-ultralight: #edd6ff;
-$button-shadow: #734893;
-$success: #27d77e;
-$success-light: #48da90;
-$warning: #fff4d8;
-$warning-border: #ffeab5;
-$info:  #f1f0ff;
+$core-vibrant-red-over: #e93661;
+$core-vibrant-red-down: #cb3559;
+$core-vibrant-blue-over: #5855eb;
+$core-vibrant-blue-down: #3f3cd4;
+$core-fleet-blue-over: #303860;
+$core-fleet-blue-down: $core-fleet-black;

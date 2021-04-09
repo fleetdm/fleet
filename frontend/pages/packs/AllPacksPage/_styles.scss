@@ -1,6 +1,6 @@
 .all-packs-page {
   &__bulk-action-btn {
-    color: $core-purple;
+    color: $core-fleet-purple;
     font-size: 15px;
     font-weight: $regular;
     margin-left: 26px;
@@ -9,19 +9,19 @@
       margin-left: 0;
 
       i {
-        color: $alert;
+        color: $ui-error;
       }
     }
 
     &--enable {
       i {
-        color: $success;
+        color: $ui-success;
       }
     }
 
     &--delete {
       i {
-        color: $core-medium-blue-grey;
+        color: $core-fleet-black;
       }
     }
   }
@@ -33,7 +33,7 @@
   }
 
   &__pack-count {
-    color: $core-darkest-blue-grey;
+    color: $core-fleet-black;
     font-size: $x-small;
     font-weight: $bold;
     margin: 0;
@@ -55,7 +55,7 @@
       top: 36px;
       left: 9px;
       font-size: 18px;
-      color: $ui-medium-grey;
+      color: $ui-gray;
     }
   }
 
@@ -68,7 +68,7 @@
   }
 
   &__table {
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     font-size: $small;
     width: 100%;
   }

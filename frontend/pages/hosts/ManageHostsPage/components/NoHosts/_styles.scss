@@ -9,7 +9,7 @@
     font-weight: $regular;
     line-height: normal;
     letter-spacing: normal;
-    color: $core-black;
+    color: $core-fleet-black;
   }
 
   h2 {
@@ -17,20 +17,20 @@
     font-weight: $bold;
     margin: 0 0 24px;
     line-height: 20px;
-    color: $core-black;
+    color: $core-fleet-black;
   }
 
   ul {
     margin: 0;
     padding: 0;
-    color: $core-black;
+    color: $core-fleet-black;
     list-style: none;
 
     li {
 
       &::before {
         content: '•';
-        color: $core-blue;
+        color: $core-vibrant-blue;
         margin-right: 16px;
       }
     }
@@ -52,7 +52,7 @@
     }
 
     p {
-      color: $core-black;
+      color: $core-fleet-black;
       font-weight: $regular;
       font-size: $x-small;
       margin: 0;
@@ -74,14 +74,14 @@
     margin-top: 24px;
 
     p {
-      color: $core-black;
+      color: $core-fleet-black;
       font-weight: $bold;
       font-size: $x-small;
       margin: 0;
     }
 
     a {
-      color: $core-blue;
+      color: $core-vibrant-blue;
       font-weight: $regular;
       font-size: $x-small;
       text-decoration: none;

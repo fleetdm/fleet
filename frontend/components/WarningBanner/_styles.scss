@@ -2,11 +2,11 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  background-color: $warning;
-  color: $black;
+  background-color: $ui-warning;
+  color: $core-fleet-black;
   padding: 15px 20px;
   border-radius: $border-radius;
-  border: 1px solid $warning-border;
+  border: 1px solid $ui-warning;
   font-size: $x-small;
   margin: 0 0 25px;
 

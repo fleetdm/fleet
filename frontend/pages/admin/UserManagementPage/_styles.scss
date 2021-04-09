@@ -3,7 +3,7 @@
 
   &__page-description {
     font-size: $x-small;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-blue;
     @include sticky-settings-description;
     padding-bottom: $pad-medium;
   }
@@ -14,7 +14,7 @@
 
   &__config-button {
     text-decoration: none;
-    color: $core-blue;
+    color: $core-vibrant-blue;
     font-size: $x-small;
     margin-left: $pad-medium;
   }
@@ -31,19 +31,19 @@
 
       &--active {
         &:before {
-          background-color: $success;
+          background-color: $ui-success;
         }
       }
 
       &--no-access {
         &:before {
-          background-color: $ui-dark-grey;
+          background-color: $ui-offline;
         }
       }
 
       &--invite-pending {
         &:before {
-          background-color: $warning;
+          background-color: $ui-warning;
         }
       }
 

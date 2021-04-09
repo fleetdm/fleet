@@ -32,7 +32,7 @@
 
     a {
       display: block;
-      color: $core-blue;
+      color: $core-vibrant-blue;
       text-align: center;
       position: relative;
       z-index: 1;
@@ -56,17 +56,17 @@
 
   &__avatar {
     @include size(120px);
-    border: solid 1px $ui-borders;
+    border: solid 1px $ui-fleet-blue-15;
     margin: 0 auto;
     display: block;
   }
 
   &__more-info-detail {
 
-    color: $core-dark-blue-grey;
+    color: $core-fleet-blue;
 
     .kolidecon {
-      color: $ui-medium-grey;
+      color: $ui-gray;
       font-size: 18px;
       margin-right: 11px;
     }
@@ -93,7 +93,7 @@
     margin: 0 0 4px;
 
     a {
-      color: $core-blue;
+      color: $core-vibrant-blue;
     }
   }
 
@@ -111,7 +111,7 @@
     top: 8px;
     right: 10px;
     font-size: 18px;
-    color: $core-blue;
+    color: $core-vibrant-blue;
 
     &:active {
       top: 8px;
@@ -121,8 +121,8 @@
   &__secret-input {
     input {
       border-radius: 2px;
-      background-color: $core-light-blue-grey;
-      border-color: $ui-borders;
+      background-color: $ui-off-white;
+      border-color: $ui-fleet-blue-15;
       padding-right: 36px;
       font-family: 'SourceCodePro', $monospace;
 

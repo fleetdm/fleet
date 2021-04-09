@@ -1,5 +1,5 @@
 .confirm-invite-page {
-  background-color: $white;
+  background-color: $core-white;
   border-radius: 10px;
   width: 436px;
   padding: 40px;
@@ -11,13 +11,13 @@
       font-weight: $bold;
       line-height: 0.72;
       letter-spacing: 0.6px;
-      color: $core-dark-blue-grey;
+      color: $core-fleet-blue;
       margin: 0;
       padding: 0;
     }
 
     p {
-      color: $core-dark-blue-grey;
+      color: $core-fleet-black;
       font-size: 14px;
       font-weight: $regular;
     }

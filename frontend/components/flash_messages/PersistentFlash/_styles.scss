@@ -13,7 +13,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: $white;
+  color: $core-white;
   padding: $pad-half;
   z-index: 2;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
@@ -25,7 +25,7 @@
     text-align: center;
 
     i {
-      color: $alert;
+      color: $ui-error;
       font-size: 24px;
     }
 

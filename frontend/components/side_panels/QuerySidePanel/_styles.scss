@@ -5,7 +5,7 @@
     margin: 0 0 16px;
     font-size: $x-small;
     font-weight: $bold;
-    color: $core-darkest-blue-grey;
+    color: $core-fleet-black;
   }
 
   &__choose-table {
@@ -23,13 +23,13 @@
   &__description {
     font-size: $x-small;
     font-style: italic;
-    color: $core-medium-blue-grey;
+    color: $core-fleet-black;
     margin: 0;
   }
 
   &__platforms {
     font-size: 14px;
-    color: $core-medium-blue-grey;
+    color: $core-fleet-black;
     list-style: none;
     margin: 0 0 24px;
     padding: 0;
@@ -72,7 +72,7 @@
     display: flex;
     margin: 0 0 15px;
     padding-top: $pad-half;
-    border-top: 1px solid $ui-borders;
+    border-top: 1px solid $ui-fleet-blue-15;
   }
 
   &__suggestion {
@@ -81,7 +81,7 @@
     line-height: 1.71;
     letter-spacing: 0.5px;
     text-align: left;
-    color: $core-medium-blue-grey;
+    color: $core-fleet-blue;
   }
 
   &__load-suggestion {
@@ -96,8 +96,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-top: 1px solid $ui-borders;
-    color: $core-dark-blue-grey;
+    border-top: 1px solid $ui-fleet-blue-15;
+    color: $core-fleet-black;
     font-size: px-to-rem(14);
     padding: 12px 0;
 
@@ -108,12 +108,12 @@
 
   &__name {
     border-radius: 4px;
-    border: solid 1px $core-dark-blue-grey;
+    border: solid 1px $core-fleet-black;
     padding: 4px 10px;
     box-sizing: border-box;
     font-size: $xx-small;
     font-weight: $bold;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-blue;
   }
 
   &__description {
@@ -123,14 +123,14 @@
 
   &__type {
     font-size: $x-small;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
   }
 
   &__help {
     margin-left: 12px;
     vertical-align: text-bottom;
     font-size: 20px;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
   }
 }
 

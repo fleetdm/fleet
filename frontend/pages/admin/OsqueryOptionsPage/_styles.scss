@@ -9,7 +9,7 @@
 
   &__page-description {
     font-size: $x-small;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-blue;
     @include sticky-settings-description;
     padding-bottom: $pad-medium;
   }
@@ -26,7 +26,7 @@
     }
 
     a {
-      color: $core-blue;
+      color: $core-vibrant-blue;
       font-size: $x-small;
       font-weight: $bold;
       text-decoration: none;
@@ -53,7 +53,7 @@
       font-weight: $regular;
       line-height: 1.6;
       letter-spacing: 0.5px;
-      color: $core-dark-blue-grey;
+      color: $core-fleet-blue;
     }
   }
 

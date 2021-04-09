@@ -10,7 +10,7 @@
     @include position(absolute, 49% 0 null null);
     transition: left 300ms ease, opacity 300ms ease;
     border-radius: 10px;
-    background-color: $core-light-blue-grey;
+    background-color: $ui-off-white;
     box-sizing: border-box;
     padding: 40px;
     z-index: 1;
@@ -23,7 +23,7 @@
       padding: 0 0 16px;
       margin: 0;
       margin-bottom: 40px;
-      border-bottom: 1px solid $ui-borders;
+      border-bottom: 1px solid $ui-fleet-blue-15;
     }
 
     p {
@@ -61,7 +61,7 @@
       .user-registration__title {
         font-size: 24px;
         font-weight: $bold;
-        color: $core-dark-blue-grey;
+        color: $core-fleet-black;
         padding: 25px 35px;
       }
     }
@@ -162,19 +162,19 @@
   &__description {
     font-size: 14px;
     font-weight: $regular;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-blue;
   }
 
   &__title {
     font-size: 18px;
     font-weight: $bold;
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     margin: 0;
     padding: 0;
   }
 
   &__field-wrapper {
-    background-color: $core-light-blue-grey;
+    background-color: $ui-off-white;
     box-sizing: border-box;
     z-index: 2;
     display: flex;

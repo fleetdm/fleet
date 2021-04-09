@@ -38,13 +38,13 @@
 
     h2 {
       text-transform: uppercase;
-      color: $core-dark-blue-grey;
+      color: $core-fleet-blue;
       font-weight: $regular;
       font-size: 16px;
     }
 
     p {
-      color: $core-medium-blue-grey;
+      color: $core-fleet-blue;
       margin: 0;
       font-size: $x-small;
       font-style: italic;
@@ -67,13 +67,13 @@
 
       &--online {
         &:before {
-          background-color: $success;
+          background-color: $ui-success;
         }
       }
 
       &--offline {
         &:before {
-          background-color: $ui-dark-grey;
+          background-color: $ui-offline;
         }
       }
 

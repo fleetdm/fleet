@@ -14,7 +14,7 @@
   &__container {
     display: flex;
     align-items: center;
-    background-color: $white;
+    background-color: $core-white;
     border-top-left-radius: 0;
     border-top-right-radius: 0;
     box-sizing: border-box;
@@ -41,7 +41,7 @@
   &__forgot-link {
     font-size: $x-small;
     text-decoration: none;
-    color: $core-blue;
+    color: $core-vibrant-blue;
   }
 
   &__sso-image {

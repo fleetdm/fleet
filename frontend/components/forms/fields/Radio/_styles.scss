@@ -20,7 +20,7 @@
         content: "";
         width: 10px;
         height: 10px;
-        box-shadow: inset 1em 1em $core-blue;
+        box-shadow: inset 1em 1em $core-vibrant-blue;
         border-radius: 50%;
         top: 5px;
         left: 5px;
@@ -33,7 +33,7 @@
       }
 
       &:focus + .radio__control {
-        border-color: $core-blue;
+        border-color: $core-vibrant-blue;
       }
     }
   }
@@ -44,7 +44,7 @@
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    border: 2px solid $ui-borders;
+    border: 2px solid $ui-fleet-blue-15;
     transform: translateY(-0.05em);
   }
 

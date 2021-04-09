@@ -4,7 +4,7 @@
     font-size: 15px;
 
     button {
-      color: $core-purple;
+      color: $core-fleet-purple;
       font-size: 15px;
       font-weight: $regular;
       float: right;
@@ -13,7 +13,7 @@
     }
 
     input {
-      color: $core-purple;
+      color: $core-fleet-purple;
     }
   }
 
@@ -35,7 +35,7 @@
 
     h2 {
       a {
-        color: $black;
+        color: $core-fleet-black;
         scroll-margin-top: 210px; // used to push down anchor to visible area when there are sticky headers
       }
     }
@@ -43,7 +43,7 @@
     .smtp-options {
       font-size: 15px;
       font-weight: $bold;
-      color: $core-dark-blue-grey;
+      color: $core-fleet-black;
       padding-left: 15px;
 
       em {
@@ -52,13 +52,13 @@
 
       &--configured {
         em {
-          color: $success;
+          color: $ui-success;
         }
       }
 
       &--notconfigured {
         em {
-          color: $alert;
+          color: $ui-error;
         }
       }
     }
@@ -104,10 +104,10 @@
     }
 
     .hint {
-      color: $core-dark-blue-grey;
+      color: $core-fleet-blue;
 
       &--brand {
-        color: $core-blue;
+        color: $core-vibrant-blue;
       }
     }
   }
@@ -119,13 +119,13 @@
       border-radius: 20%;
       height: 120px;
       width: 120px;
-      border: 1px solid $ui-borders;
+      border: 1px solid $ui-fleet-blue-15;
       background-color: $ui-light-grey;
       transform: translate(-100px, 20px);
     }
 
     p {
-      color: $core-purple;
+      color: $core-fleet-purple;
       font-size: 18px;
       font-weight: $bold;
       margin-top: 0;
@@ -143,11 +143,11 @@
         vertical-align: text-bottom;
 
         &--off {
-          color: $core-medium-blue-grey;
+          color: $core-fleet-black;
         }
 
         &--on {
-          color: $core-blue;
+          color: $core-vibrant-blue;
         }
       }
 

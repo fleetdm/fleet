@@ -2,7 +2,7 @@
   padding: 16px 20px 0;
 
   &__description {
-    color: $core-dark-blue-grey;
+    color: $core-fleet-blue;
     font-size: 14px;
     word-wrap: break-word;
   }
@@ -18,20 +18,20 @@
   }
 
   &__pack-icon {
-    color: $core-medium-blue-grey;
+    color: $core-fleet-black;
     margin-right: 11px;
   }
 
   &__pack-name {
     @include ellipsis(250px);
-    color: $core-dark-blue-grey;
+    color: $core-fleet-black;
     font-size: $small;
     font-weight: $regular;
     margin: 0;
   }
 
   &__query-icon {
-    color: $core-medium-blue-grey;
+    color: $core-fleet-black;
     font-size: 16px;
     margin-right: 15px;
   }
@@ -45,7 +45,7 @@
   &__query-name {
     @include ellipsis(240px);
     font-size: $small;
-    color: $core-blue;
+    color: $core-vibrant-blue;
     text-decoration: none;
   }
 }
