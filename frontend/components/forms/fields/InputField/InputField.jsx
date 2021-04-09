@@ -85,6 +85,7 @@ class InputField extends Component {
         <FormField {...formFieldProps} type="textarea" className={inputWrapperClass}>
           <textarea
             name={name}
+            id={name}
             onChange={onInputChange}
             className={inputClasses}
             disabled={disabled}
@@ -103,6 +104,7 @@ class InputField extends Component {
         <input
           disabled={disabled}
           name={name}
+          id={name}
           onChange={onInputChange}
           onFocus={onFocus}
           className={inputClasses}

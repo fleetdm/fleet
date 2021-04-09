@@ -27,7 +27,7 @@ import '@testing-library/cypress/add-commands';
 // Cypress.Commands.overwrite("visit", (originalFn, url, options) => { ... })
 
 Cypress.Commands.add('setup', () => {
-  cy.exec('make e2e-reset-db e2e-setup', { timeout: 10000 });
+  cy.exec('make e2e-reset-db e2e-setup', { timeout: 20000 });
 });
 
 Cypress.Commands.add('login', (username, password) => {
