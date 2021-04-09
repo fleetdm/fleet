@@ -67,18 +67,6 @@ func (svc service) ChangeUserAdmin(ctx context.Context, id uint, isAdmin bool) (
 	return nil, errors.New("This function is being eliminated")
 }
 
-func (svc service) ChangeUserEnabled(ctx context.Context, id uint, isEnabled bool) (*kolide.User, error) {
-	user, err := svc.ds.UserByID(id)
-	if err != nil {
-		return nil, err
-	}
-	user.Enabled = isEnabled
-	if err = svc.saveUser(user); err != nil {
-		return nil, err
-	}
-	return user, nil
-}
-
 func (svc service) ModifyUser(ctx context.Context, userID uint, p kolide.UserPayload) (*kolide.User, error) {
 	user, err := svc.User(ctx, userID)
 	if err != nil {
@@ -162,6 +150,10 @@ func (svc service) modifyEmailAddress(ctx context.Context, user *kolide.User, em
 		},
 	}
 	return svc.mailService.SendEmail(changeEmail)
+}
+
+func (svc service) DeleteUser(ctx context.Context, id uint) error {
+	return svc.ds.DeleteUser(id)
 }
 
 func (svc service) ChangeUserEmail(ctx context.Context, token string) (string, error) {

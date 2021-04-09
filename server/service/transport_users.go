@@ -8,19 +8,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-func decodeEnableUserRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
-	if err != nil {
-		return nil, err
-	}
-	var req enableUserRequest
-	if err = json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, err
-	}
-	req.ID = id
-	return req, nil
-}
-
 func decodeAdminUserRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	id, err := idFromRequest(r, "id")
 	if err != nil {
@@ -70,6 +57,14 @@ func decodeModifyUserRequest(ctx context.Context, r *http.Request) (interface{},
 	}
 	req.ID = id
 	return req, nil
+}
+
+func decodeDeleteUserRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	id, err := idFromRequest(r, "id")
+	if err != nil {
+		return nil, err
+	}
+	return deleteUserRequest{ID: id}, nil
 }
 
 func decodeChangePasswordRequest(ctx context.Context, r *http.Request) (interface{}, error) {
