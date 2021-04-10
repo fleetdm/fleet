@@ -21,7 +21,7 @@
   }
 
   @include breakpoint(ltdesktop) {
-    padding-top: $pad-most;
+    padding-top: $pad-xxlarge;
   }
 }
 
@@ -175,7 +175,7 @@
       font-weight: $bold;
       line-height: 2.3;
       color: $core-fleet-black;
-      padding-right: $pad-half;
+      padding-right: $pad-small;
     }
   }
 }

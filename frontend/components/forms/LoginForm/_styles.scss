@@ -19,21 +19,21 @@
     border-top-right-radius: 0;
     box-sizing: border-box;
     flex-direction: column;
-    padding: 40px;
+    padding: $pad-xxlarge;
     font-weight: $regular;
   }
 
   &__submit-btn {
-    margin-top: 40px;
+    margin-top: $pad-xxlarge;
     width: 160px;
   }
 
   &__sso-btn {
-    margin-top: 40px;
+    margin-top: $pad-xxlarge;
   }
 
   &__forgot-wrap {
-    margin-top: 4px;
+    margin-top: $pad-xsmall;
     text-align: right;
     width: 100%;
   }

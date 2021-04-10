@@ -2,7 +2,7 @@
   margin-top: $pad-large;
 
   &__sso-input {
-    margin-top: 22px;
+    margin-top: $pad-large;
 
     .kolide-checkbox {
       margin-top: 5px;
@@ -11,7 +11,7 @@
         font-size: $x-small;
         font-weight: $bold;
         color: $core-fleet-black;
-        padding-left: 32px;
+        padding-left: $pad-xlarge;
       }
     }
   }
@@ -20,7 +20,7 @@
     color: $core-fleet-black;
     font-size: $x-small;
     font-weight: $bold;
-    margin-bottom: 4px;
+    margin-bottom: $pad-xsmall;
   }
 
   &__user-permissions-info {
@@ -47,7 +47,7 @@
   }
 
   &__selected-teams-container {
-    margin-bottom: $pad-most;
+    margin-bottom: $pad-xxlarge;
   }
 
   &__radio-input {

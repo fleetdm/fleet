@@ -14,7 +14,7 @@
   align-items: center;
   justify-content: center;
   color: $core-white;
-  padding: $pad-half;
+  padding: $pad-small;
   z-index: 2;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
   background-color: #3d4758;
@@ -26,7 +26,7 @@
 
     i {
       color: $ui-error;
-      font-size: 24px;
+      font-size: $large;
     }
 
     span {

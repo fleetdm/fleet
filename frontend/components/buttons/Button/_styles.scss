@@ -35,8 +35,8 @@ $base-class: 'button';
   flex-direction: row;
   justify-content: center;
   align-items: center;
-  padding: 8px 16px;
-  border-radius: 4px;
+  padding: $pad-small $pad-medium;
+  border-radius: $border-radius;
   font-size: $small;
   font-family: 'Nunito Sans', sans-serif;
   font-weight: $bold;
@@ -84,7 +84,7 @@ $base-class: 'button';
     border: 1px solid $core-vibrant-blue;
     box-sizing: border-box;
     font-size: $xx-small;
-    padding: 4px 10px;
+    padding: $pad-xsmall 10px;
     height: 24px;
 
     &:active {

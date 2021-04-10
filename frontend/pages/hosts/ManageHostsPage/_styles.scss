@@ -4,11 +4,11 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 16px;
+    margin-bottom: $pad-medium;
   }
 
   .ace-kolide {
-    margin-bottom: $pad-base;
+    margin-bottom: $pad-medium;
   }
 
   &__header {
@@ -17,7 +17,7 @@
   }
 
   &__text {
-    margin-right: 24px;
+    margin-right: $pad-large;
   }
 
   &__title {
@@ -28,19 +28,19 @@
 
     button {
       &:first-child {
-        margin-right: 12px;
+        margin-right: $pad-medium;
       }
     }
   }
 
   &__description {
-    margin: 0 0 16px;
+    margin: 0 0 $pad-medium;
 
     h2 {
       text-transform: uppercase;
       color: $core-fleet-blue;
       font-weight: $regular;
-      font-size: 16px;
+      font-size: $small;
     }
 
     p {
@@ -57,7 +57,7 @@
     justify-content: flex-end;
 
     .button:first-child {
-      margin-right: $pad-base;
+      margin-right: $pad-medium;
     }
   }
 

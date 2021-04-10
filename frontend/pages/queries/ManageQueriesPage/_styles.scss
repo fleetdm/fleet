@@ -33,7 +33,7 @@
     input {
       &[name='query-filter'] {
         width: 100%;
-        margin-top: 24px;
+        margin-top: $pad-large;
       }
     }
   }
@@ -51,7 +51,7 @@
       top: 36px;
       left: 9px;
       font-size: 18px;
-      color: $ui-gray;
+      color: $core-fleet-black;
     }
   }
 
@@ -60,7 +60,7 @@
   }
 
   &__wrapper {
-    padding: 40px 30px;
+    padding: $pad-xxlarge $pad-xlarge;
   }
 
   &__modal-btn-wrap {
@@ -77,7 +77,7 @@
     font-size: $medium;
     font-weight: $bold;
     padding: 20px 20px 0;
-    margin: 24px 0;
+    margin: $pad-large 0;
   }
 
   &__empty-description {

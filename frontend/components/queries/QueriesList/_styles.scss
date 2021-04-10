@@ -1,9 +1,9 @@
 .queries-list {
   background-color: $core-white;
   border: 1px solid $ui-fleet-blue-15;
-  border-radius: 4px;
+  border-radius: $border-radius;
   box-sizing: border-box;
-  margin-top: 16px;
+  margin-top: $pad-medium;
   overflow: scroll;
 
   &__table {

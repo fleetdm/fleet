@@ -27,7 +27,7 @@
 
     img {
       width: 20px;
-      margin-right: $pad-half;
+      margin-right: $pad-small;
     }
   }
 
@@ -56,8 +56,8 @@
       position: absolute;
       top: 10px;
       left: 12px;
-      font-size: 20px;
-      color: $core-fleet-blue;
+      font-size: $medium;
+      color: $core-fleet-black;
     }
   }
 }

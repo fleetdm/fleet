@@ -46,7 +46,7 @@
     @include position(absolute, 22px null null null);
     background-color: $core-white;
     width: 658px;
-    padding: 40px;
+    padding: $pad-xxlarge;
     border-radius: 8px;
   }
 }

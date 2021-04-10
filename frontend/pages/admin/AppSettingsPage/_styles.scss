@@ -1,5 +1,5 @@
 .app-settings {
-  padding: 40px 30px;
+  padding: $pad-xxlarge $pad-xlarge;
 
   &__page-description {
     font-size: $x-small;
@@ -8,7 +8,7 @@
   }
 
   h2 {
-    font-size: 20px;
+    font-size: $medium;
     font-weight: $regular;
     color: $core-fleet-black;
     border-bottom: solid 1px $ui-fleet-blue-15;
@@ -50,7 +50,7 @@
     font-size: $x-small;
 
     li {
-      margin-bottom: 16px;
+      margin-bottom: $pad-medium;
     }
 
     a {

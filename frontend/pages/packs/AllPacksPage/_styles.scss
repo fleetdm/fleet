@@ -3,7 +3,7 @@
     color: $core-fleet-purple;
     font-size: 15px;
     font-weight: $regular;
-    margin-left: 26px;
+    margin-left: $pad-large;
 
     &--disable {
       margin-left: 0;
@@ -55,7 +55,7 @@
       top: 36px;
       left: 9px;
       font-size: 18px;
-      color: $ui-gray;
+      color: $core-fleet-black;
     }
   }
 
@@ -64,7 +64,7 @@
   }
 
   &__wrapper {
-    padding: 40px 30px;
+    padding: $pad-xxlarge $pad-xlarge;
   }
 
   &__table {

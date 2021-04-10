@@ -1,5 +1,5 @@
 .osquery-options {
-  padding: 40px 30px;
+  padding: $pad-xxlarge $pad-xlarge;
   flex-grow: 1;
 
   &__page-wrap {
@@ -18,7 +18,7 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-    margin-bottom: 16px;
+    margin-bottom: $pad-medium;
 
     p {
       margin: 0;
@@ -30,13 +30,13 @@
       font-size: $x-small;
       font-weight: $bold;
       text-decoration: none;
-      margin-left: 16px;
+      margin-left: $pad-medium;
     }
 
     img {
       width: 12px;
       height: 12px;
-      margin-left: 6px;
+      margin-left: $pad-small;
     }
   }
 
@@ -58,6 +58,6 @@
   }
 
   i {
-    margin-left: 8px;
+    margin-left: $pad-small;
   }
 }

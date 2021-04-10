@@ -3,7 +3,7 @@
   justify-content: center;
   align-items: stretch;
   flex-grow: 1;
-  margin-top: 24px;
+  margin-top: $pad-large;
 
   &__container {
     @include size(500px auto);
@@ -12,7 +12,7 @@
     border-radius: 10px;
     background-color: $ui-off-white;
     box-sizing: border-box;
-    padding: 40px;
+    padding: $pad-xxlarge;
     z-index: 1;
     transform: translateY(-50%);
 
@@ -20,9 +20,9 @@
       font-size: $large;
       font-weight: $regular;
       text-align: center;
-      padding: 0 0 16px;
+      padding: 0 0 $pad-medium;
       margin: 0;
-      margin-bottom: 40px;
+      margin-bottom: $pad-xxlarge;
       border-bottom: 1px solid $ui-fleet-blue-15;
     }
 
@@ -59,10 +59,10 @@
       padding: 0;
 
       .user-registration__title {
-        font-size: 24px;
+        font-size: $large;
         font-weight: $bold;
         color: $core-fleet-black;
-        padding: 25px 35px;
+        padding: $pad-large 35px;
       }
     }
   }
@@ -160,7 +160,7 @@
   }
 
   &__description {
-    font-size: 14px;
+    font-size: $x-small;
     font-weight: $regular;
     color: $core-fleet-blue;
   }
@@ -183,7 +183,7 @@
 
     .button {
       width: 160px;
-      margin-top: 40px;
+      margin-top: $pad-xxlarge;
     }
 
     .registration-fields {

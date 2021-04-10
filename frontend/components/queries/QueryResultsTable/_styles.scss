@@ -3,7 +3,7 @@
   flex-direction: column;
   background-color: $core-white;
   width: 100%;
-  min-height: calc(500px + (#{$pad-base} * 2));
+  min-height: calc(500px + (#{$pad-medium} * 2));
   box-sizing: border-box;
 
   &__table-title {
@@ -37,7 +37,7 @@
     border: solid 1px $ui-fleet-blue-15;
     border-radius: 3px;
     overflow: scroll;
-    margin-top: 4px;
+    margin-top: $pad-xsmall;
     min-height: 200px;
     max-height: 400px;
     width: 100%;
@@ -55,7 +55,7 @@
   }
 
   &__error-table-container {
-    margin-top: 24px;
+    margin-top: $pad-large;
   }
 
   &__error-table-wrapper {
@@ -63,8 +63,8 @@
     border: solid 1px $ui-fleet-blue-15;
     border-radius: 3px;
     overflow: scroll;
-    margin-bottom: 40px;
-    margin-top: 4px;
+    margin-bottom: $pad-xxlarge;
+    margin-top: $pad-xsmall;
     max-height: 200px;
     width: 100%;
   }
@@ -83,7 +83,7 @@
     border-bottom: 1px solid $ui-fleet-blue-15;
 
     th {
-      padding: 12px 24px;
+      padding: 12px $pad-large;
       min-width: 125px;
 
       .form-field {
@@ -108,7 +108,7 @@
     background-color: $core-white;
 
     td {
-      padding: 12px 24px;
+      padding: 12px $pad-large;
       white-space: nowrap;
     }
 
@@ -162,20 +162,20 @@
 @keyframes growFullScreen {
   100% {
     top: 60px;
-    right: $pad-half;
-    bottom: $pad-half;
-    left: $pad-half;
-    max-width: calc(100vw - #{$pad-half} - #{$pad-half});
+    right: $pad-small;
+    bottom: $pad-small;
+    left: $pad-small;
+    max-width: calc(100vw - #{$pad-small} - #{$pad-small});
     max-height: 100vh;
   }
 }
 
 @keyframes shrinkFullScreen {
   0% {
-    top: $pad-half;
+    top: $pad-small;
     right: auto;
     bottom: auto;
-    left: $pad-half;
+    left: $pad-small;
     max-width: 100vw;
     max-height: 100vh;
   }

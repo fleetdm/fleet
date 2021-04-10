@@ -20,7 +20,7 @@
   .form-field {
     &__label {
       font-weight: $bold;
-      margin-bottom: 4px;
+      margin-bottom: $pad-xsmall;
     }
 
     &__hint {
@@ -31,7 +31,7 @@
 
   &__section {
     @include clearfix;
-    margin: 0 0 30px;
+    margin: 0 0 $pad-xlarge;
 
     h2 {
       a {
@@ -67,7 +67,7 @@
   &__inputs {
     width: 60%;
     float: left;
-    padding: 0 40px 0 0;
+    padding: 0 $pad-xxlarge 0 0;
     box-sizing: border-box;
 
     .input-field {
@@ -75,7 +75,7 @@
     }
 
     &--smtp {
-      margin: 0 0 $pad-base;
+      margin: 0 0 $pad-medium;
 
       .form-field {
         width: 18%;
@@ -100,7 +100,7 @@
     width: 40%;
 
     .icon-tooltip {
-      margin: 32px 0;
+      margin: $pad-xlarge 0;
     }
 
     .hint {

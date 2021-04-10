@@ -8,7 +8,7 @@
     flex-direction: column;
     background-color: $core-white;
     box-sizing: border-box;
-    padding: 30px;
+    padding: $pad-xlarge;
     width: 460px;
     min-height: 350px;
   }
@@ -21,14 +21,14 @@
   &__username {
     color: $core-vibrant-blue;
     font-size: $large;
-    margin: $pad-half 0;
+    margin: $pad-small 0;
     text-transform: uppercase;
   }
 
   &__subtext {
     color: $core-fleet-blue;
     font-size: $medium;
-    margin-top: $pad-half;
+    margin-top: $pad-small;
   }
 
   &__submit-btn {

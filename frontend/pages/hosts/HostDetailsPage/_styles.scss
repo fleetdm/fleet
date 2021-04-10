@@ -7,10 +7,10 @@
   .section {
     display: flex;
     flex-direction: column;
-    margin: 40px 0 0;
+    margin: $pad-xxlarge 0 0;
 
     &__header {
-      margin: 0 0 16px;
+      margin: 0 0 $pad-medium;
       font-size: $medium;
     }
 
@@ -24,7 +24,7 @@
         white-space: nowrap;
 
         &--title {
-          margin-right: 40px;
+          margin-right: $pad-xxlarge;
         }
 
       }
@@ -59,7 +59,7 @@
     margin: 0;
 
     &__inner {
-      padding-bottom: 16px;
+      padding-bottom: $pad-medium;
     }
 
     .hostname-container {
@@ -97,10 +97,10 @@
       &__block {
         display: flex;
         flex-direction: column;
-        margin-right: 40px;
+        margin-right: $pad-xxlarge;
 
         span {
-          margin-bottom: 16px;
+          margin-bottom: $pad-medium;
 
           &:last-child {
             margin-bottom: 0;
@@ -122,7 +122,7 @@
         content: ' ';
         display: inline-block;
         height: 8px;
-        margin-right: 8px;
+        margin-right: $pad-small;
         width: 8px;
       }
     }
@@ -134,7 +134,7 @@
         content: ' ';
         display: inline-block;
         height: 8px;
-        margin-right: 8px;
+        margin-right: $pad-small;
         width: 8px;
       }
     }
@@ -151,7 +151,7 @@
 
   &__modal {
     p {
-      font-size: 16px;
+      font-size: $small;
     }
   }
 

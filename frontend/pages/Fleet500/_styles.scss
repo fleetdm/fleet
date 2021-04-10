@@ -7,7 +7,7 @@
     color: $core-vibrant-blue;
     text-decoration: none;
     display: block;
-    margin-top: 16px;
+    margin-top: $pad-medium;
 
     &:hover {
       text-decoration: underline;

@@ -32,7 +32,7 @@
   }
 
   &__help-text {
-    margin-top: 4px;
+    margin-top: $pad-xsmall;
     font-size: $xx-small;
     white-space: normal;
     color: $core-fleet-blue;
@@ -44,7 +44,7 @@
   .Select-control {
     border: 1px solid $ui-fleet-blue-15;
     background-color: $ui-light-grey;
-    border-radius: 4px;
+    border-radius: $border-radius;
     height: 40px;
 
     .Select-value {
@@ -54,7 +54,7 @@
 
   .Select-value {
     font-size: $x-small;
-    border-radius: 4px;
+    border-radius: $border-radius;
     background-color: $ui-light-grey;
     border: solid 1px $ui-fleet-blue-15;
 
@@ -134,9 +134,9 @@
   }
 
   .Select-menu-outer {
-    margin-top: 4px;
+    margin-top: $pad-xsmall;
     box-shadow: 0 4px 10px rgba(52, 59, 96, 0.15);
-    border-radius: 4px;
+    border-radius: $border-radius;
     z-index: 6;
     overflow: hidden;
     border: 0;
@@ -150,7 +150,7 @@
     color: $core-fleet-black;
     font-size: $x-small;
     margin: $pad-small;
-    padding: $pad-half;
+    padding: $pad-small;
     display: block;
 
     &.is-focused {

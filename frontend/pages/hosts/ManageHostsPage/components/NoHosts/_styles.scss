@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 80px;
+  margin-top: $pad-xxxlarge;
 
   h1 {
     font-size: $large;
@@ -15,7 +15,7 @@
   h2 {
     font-size: $x-small;
     font-weight: $bold;
-    margin: 0 0 24px;
+    margin: 0 0 $pad-large;
     line-height: 20px;
     color: $core-fleet-black;
   }
@@ -31,7 +31,7 @@
       &::before {
         content: '•';
         color: $core-vibrant-blue;
-        margin-right: 16px;
+        margin-right: $pad-medium;
       }
     }
   }
@@ -48,7 +48,7 @@
 
     img {
       width: 176px;
-      margin-right: 34px;
+      margin-right: $pad-xlarge;
     }
 
     p {
@@ -66,12 +66,12 @@
   }
 
   .host-pagination__pager-wrap {
-    margin-top: $pad-base;
+    margin-top: $pad-medium;
   }
 
   &__no-hosts-contact {
     text-align: left;
-    margin-top: 24px;
+    margin-top: $pad-large;
 
     p {
       color: $core-fleet-black;
