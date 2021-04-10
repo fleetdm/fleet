@@ -1,17 +1,39 @@
-# Detect macOS hosts with high severity vulnerable versions of OpenSSL
+# Detect Linux hosts with high severity vulnerable versions of OpenSSL
 
-Retrieves the OpenSSL version if the package was installed using the Homebrew package manager.
+Retrieves the OpenSSL version.
 
 See the table below to determine if the installed version is a high severity vulnerability and view the corresponding CVE(s).
 
 ### Support
 
-macOS
+Linux
 
 ### Query
 
 ```sql
-SELECT name, version FROM homebrew_packages WHERE name LIKE 'openssl%';
+SELECT
+  name AS name,
+  version AS version,
+  'deb_packages' AS source
+FROM deb_packages
+WHERE 
+  name LIKE 'openssl%'
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  'apt_sources' AS source
+FROM apt_sources
+WHERE 
+  name LIKE 'openssl%'
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  'rpm_packages' AS source
+FROM rpm_packages
+WHERE 
+  name LIKE 'openssl%';
 ```
 
 ### Table of vulnerable OpenSSL versions
