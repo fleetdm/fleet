@@ -130,7 +130,7 @@ jobs:
       - name: Install JS Dependencies
         run: make deps-js
 
-      - name: Run JS Linting
+      - name: Run prettier formatting check
         run: |
           yarn prettier --check
 
