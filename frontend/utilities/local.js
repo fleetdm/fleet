@@ -18,6 +18,8 @@ const local = {
   },
 };
 
-export const authToken = () => { return local.getItem('auth_token'); };
+export const authToken = () => {
+  return local.getItem("auth_token");
+};
 
 export default local;

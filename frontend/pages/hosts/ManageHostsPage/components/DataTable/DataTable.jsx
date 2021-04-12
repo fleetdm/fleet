@@ -1,22 +1,39 @@
-import React, { useMemo, useEffect, useRef, useCallback, useState } from 'react';
-import PropTypes from 'prop-types';
-import { useTable, useGlobalFilter, useSortBy, useAsyncDebounce } from 'react-table';
-import { useSelector, useDispatch } from 'react-redux';
+import React, {
+  useMemo,
+  useEffect,
+  useRef,
+  useCallback,
+  useState,
+} from "react";
+import PropTypes from "prop-types";
+import {
+  useTable,
+  useGlobalFilter,
+  useSortBy,
+  useAsyncDebounce,
+} from "react-table";
+import { useSelector, useDispatch } from "react-redux";
 
-import Spinner from 'components/loaders/Spinner';
-import Pagination from 'components/Pagination';
-import scrollToTop from 'utilities/scroll_to_top';
+import Spinner from "components/loaders/Spinner";
+import Pagination from "components/Pagination";
+import scrollToTop from "utilities/scroll_to_top";
 
 const DEFAULT_PAGE_INDEX = 0;
 const DEBOUNCE_QUERY_DELAY = 300;
-const DEFAULT_RESULTS_NAME = 'results';
+const DEFAULT_RESULTS_NAME = "results";
 
-const baseClass = 'data-table-container';
+const baseClass = "data-table-container";
 
-const generateResultsCountText = (name = DEFAULT_RESULTS_NAME, pageIndex, itemsPerPage, resultsCount) => {
+const generateResultsCountText = (
+  name = DEFAULT_RESULTS_NAME,
+  pageIndex,
+  itemsPerPage,
+  resultsCount
+) => {
   if (itemsPerPage === resultsCount) return `${itemsPerPage}+ ${name}`;
 
-  if (pageIndex !== 0 && (resultsCount <= itemsPerPage)) return `${itemsPerPage}+ ${name}`;
+  if (pageIndex !== 0 && resultsCount <= itemsPerPage)
+    return `${itemsPerPage}+ ${name}`;
 
   return `${resultsCount} ${name}`;
 };
@@ -42,9 +59,9 @@ const DataTable = (props) => {
   const [pageIndex, setPageIndex] = useState(DEFAULT_PAGE_INDEX);
 
   const dispatch = useDispatch();
-  const loadingEntity = useSelector(state => state.entities[entity].loading);
-  const entityData = useSelector(state => state.entities[entity].data);
-  const apiOrder = useSelector(state => state.entities[entity].originalOrder);
+  const loadingEntity = useSelector((state) => state.entities[entity].loading);
+  const entityData = useSelector((state) => state.entities[entity].data);
+  const apiOrder = useSelector((state) => state.entities[entity].originalOrder);
 
   // This variable is used to keep the react-table state persistent across server calls for new data.
   // You can read more about this here technique here:
@@ -87,7 +104,7 @@ const DataTable = (props) => {
       autoResetGlobalFilter: !skipPageResetRef.current,
     },
     useGlobalFilter,
-    useSortBy,
+    useSortBy
   );
   const { globalFilter, sortBy } = tableState;
 
@@ -96,15 +113,18 @@ const DataTable = (props) => {
     setGlobalFilter(value || undefined);
   }, DEBOUNCE_QUERY_DELAY);
 
-  const onPaginationChange = useCallback((newPage) => {
-    if (newPage > pageIndex) {
-      setPageIndex(pageIndex + 1);
-    } else {
-      setPageIndex(pageIndex - 1);
-    }
-    pageIndexChangeRef.current = true;
-    scrollToTop();
-  }, [pageIndex, setPageIndex]);
+  const onPaginationChange = useCallback(
+    (newPage) => {
+      if (newPage > pageIndex) {
+        setPageIndex(pageIndex + 1);
+      } else {
+        setPageIndex(pageIndex - 1);
+      }
+      pageIndexChangeRef.current = true;
+      scrollToTop();
+    },
+    [pageIndex, setPageIndex]
+  );
 
   // Since searchQuery is passed in from the parent, we want to debounce the globalFilter change
   // when we see it change.
@@ -120,18 +140,38 @@ const DataTable = (props) => {
   // Any changes to these relevant table search params will fire off an action to get the new
   // entity data.
   useEffect(() => {
-    if (pageIndexChangeRef.current) { // the pageIndex has changed
-      dispatch(fetchDataAction(pageIndex, pageSize, selectedFilter, globalFilter, sortBy));
-    } else { // something besides pageIndex changed. we want to get results starting at the first page
+    if (pageIndexChangeRef.current) {
+      // the pageIndex has changed
+      dispatch(
+        fetchDataAction(
+          pageIndex,
+          pageSize,
+          selectedFilter,
+          globalFilter,
+          sortBy
+        )
+      );
+    } else {
+      // something besides pageIndex changed. we want to get results starting at the first page
       // NOTE: currently this causes the request to fire twice if the user is not on the first page
       // of results. Need to come back to this and figure out how to get it to
       // only fire once.
       setPageIndex(0);
-      dispatch(fetchDataAction(0, pageSize, selectedFilter, globalFilter, sortBy));
+      dispatch(
+        fetchDataAction(0, pageSize, selectedFilter, globalFilter, sortBy)
+      );
     }
     skipPageResetRef.current = false;
     pageIndexChangeRef.current = false;
-  }, [fetchDataAction, dispatch, pageIndex, pageSize, selectedFilter, globalFilter, sortBy]);
+  }, [
+    fetchDataAction,
+    dispatch,
+    pageIndex,
+    pageSize,
+    selectedFilter,
+    globalFilter,
+    sortBy,
+  ]);
 
   // No entities for this result.
   if (!loadingEntity && Object.values(entityData).length === 0) {
@@ -142,21 +182,28 @@ const DataTable = (props) => {
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__topper`}>
-        <p className={`${baseClass}__results-count`}>{generateResultsCountText(resultsName, pageIndex, pageSize, rows.length)}</p>
+        <p className={`${baseClass}__results-count`}>
+          {generateResultsCountText(
+            resultsName,
+            pageIndex,
+            pageSize,
+            rows.length
+          )}
+        </p>
       </div>
-      <div className={'data-table data-table__wrapper'}>
-        {loadingEntity &&
-          <div className={'loading-overlay'}>
+      <div className={"data-table data-table__wrapper"}>
+        {loadingEntity && (
+          <div className={"loading-overlay"}>
             <Spinner />
           </div>
-        }
-        <table className={'data-table__table'}>
+        )}
+        <table className={"data-table__table"}>
           <thead>
-            {headerGroups.map(headerGroup => (
+            {headerGroups.map((headerGroup) => (
               <tr {...headerGroup.getHeaderGroupProps()}>
-                {headerGroup.headers.map(column => (
+                {headerGroup.headers.map((column) => (
                   <th {...column.getHeaderProps(column.getSortByToggleProps())}>
-                    {column.render('Header')}
+                    {column.render("Header")}
                   </th>
                 ))}
               </tr>
@@ -169,15 +216,12 @@ const DataTable = (props) => {
                 <tr {...row.getRowProps()}>
                   {row.cells.map((cell) => {
                     return (
-                      <td {...cell.getCellProps()}>
-                        {cell.render('Cell')}
-                      </td>
+                      <td {...cell.getCellProps()}>{cell.render("Cell")}</td>
                     );
                   })}
                 </tr>
               );
-            })
-            }
+            })}
           </tbody>
         </table>
       </div>

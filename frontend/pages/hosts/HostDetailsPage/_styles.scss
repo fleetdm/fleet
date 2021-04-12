@@ -26,14 +26,12 @@
         &--title {
           margin-right: 40px;
         }
-
       }
 
       &__header {
         color: $core-black;
         font-weight: $bold;
       }
-
     }
 
     .list {
@@ -83,15 +81,11 @@
 
   .about {
     .info {
-
       &__item {
-
         &--about {
           margin-right: 92px;
           flex-direction: row;
         }
-
-
       }
 
       &__block {
@@ -107,7 +101,6 @@
           }
         }
       }
-
     }
   }
 
@@ -119,7 +112,7 @@
       &:before {
         background-color: $success;
         border-radius: 100%;
-        content: ' ';
+        content: " ";
         display: inline-block;
         height: 8px;
         margin-right: 8px;
@@ -131,7 +124,7 @@
       &:before {
         background-color: $ui-dark-grey;
         border-radius: 100%;
-        content: ' ';
+        content: " ";
         display: inline-block;
         height: 8px;
         margin-right: 8px;

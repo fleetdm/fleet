@@ -1,4 +1,4 @@
-import { every, filter, keys, pick } from 'lodash';
+import { every, filter, keys, pick } from "lodash";
 
 const filterArrayByHash = (array, arrayFilter) => {
   return filter(array, (obj) => {

@@ -1,12 +1,15 @@
-import BaseConfig from 'redux/nodes/entities/base/base_config';
-import { entitiesExceptID, orderExceptId } from 'redux/nodes/entities/base/helpers';
+import BaseConfig from "redux/nodes/entities/base/base_config";
+import {
+  entitiesExceptID,
+  orderExceptId,
+} from "redux/nodes/entities/base/helpers";
 
 class ReduxConfig extends BaseConfig {
-  get actions () {
+  get actions() {
     return this.allActions();
   }
 
-  get reducer () {
+  get reducer() {
     const { actionTypes, entityName } = this;
 
     return (state = BaseConfig.initialState, { type, payload }) => {

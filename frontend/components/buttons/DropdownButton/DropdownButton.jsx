@@ -1,13 +1,13 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { noop } from 'lodash';
-import classnames from 'classnames';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { noop } from "lodash";
+import classnames from "classnames";
 
-import ClickOutside from 'components/ClickOutside';
-import KolideIcon from 'components/icons/KolideIcon';
-import Button from 'components/buttons/Button';
+import ClickOutside from "components/ClickOutside";
+import KolideIcon from "components/icons/KolideIcon";
+import Button from "components/buttons/Button";
 
-const baseClass = 'dropdown-button';
+const baseClass = "dropdown-button";
 
 export class DropdownButton extends Component {
   static propTypes = {
@@ -19,7 +19,7 @@ export class DropdownButton extends Component {
         disabled: PropTypes.bool,
         label: PropTypes.string,
         onClick: PropTypes.func,
-      }),
+      })
     ).isRequired,
     size: PropTypes.string,
     tabIndex: PropTypes.number,
@@ -31,7 +31,7 @@ export class DropdownButton extends Component {
     onChange: noop,
   };
 
-  constructor (props) {
+  constructor(props) {
     super(props);
 
     this.state = { isOpen: false };
@@ -39,7 +39,7 @@ export class DropdownButton extends Component {
 
   setDOMNode = (DOMNode) => {
     this.DOMNode = DOMNode;
-  }
+  };
 
   toggleDropdown = () => {
     const { isOpen } = this.state;
@@ -56,13 +56,22 @@ export class DropdownButton extends Component {
     const { disabled, label, onClick } = opt;
 
     return (
-      <li className={`${baseClass}__option`} key={`dropdown-button-option-${idx}`}>
-        <Button variant="unstyled" onClick={evt => optionClick(evt, onClick)} disabled={disabled}>{label}</Button>
+      <li
+        className={`${baseClass}__option`}
+        key={`dropdown-button-option-${idx}`}
+      >
+        <Button
+          variant="unstyled"
+          onClick={(evt) => optionClick(evt, onClick)}
+          disabled={disabled}
+        >
+          {label}
+        </Button>
       </li>
     );
   };
 
-  render () {
+  render() {
     const {
       children,
       className,
@@ -92,7 +101,8 @@ export class DropdownButton extends Component {
           type={type}
           variant={variant}
         >
-          {children} <KolideIcon name="downcarat" className={`${baseClass}__carat`} />
+          {children}{" "}
+          <KolideIcon name="downcarat" className={`${baseClass}__carat`} />
         </Button>
 
         <ul className={optionsClass}>

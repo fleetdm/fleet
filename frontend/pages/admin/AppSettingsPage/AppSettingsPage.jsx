@@ -1,16 +1,16 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { size } from 'lodash';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { size } from "lodash";
 
-import AppConfigForm from 'components/forms/admin/AppConfigForm';
-import configInterface from 'interfaces/config';
-import enrollSecretInterface from 'interfaces/enroll_secret';
-import deepDifference from 'utilities/deep_difference';
-import { renderFlash } from 'redux/nodes/notifications/actions';
-import { updateConfig } from 'redux/nodes/app/actions';
+import AppConfigForm from "components/forms/admin/AppConfigForm";
+import configInterface from "interfaces/config";
+import enrollSecretInterface from "interfaces/enroll_secret";
+import deepDifference from "utilities/deep_difference";
+import { renderFlash } from "redux/nodes/notifications/actions";
+import { updateConfig } from "redux/nodes/app/actions";
 
-export const baseClass = 'app-settings';
+export const baseClass = "app-settings";
 
 class AppSettingsPage extends Component {
   static propTypes = {
@@ -26,22 +26,22 @@ class AppSettingsPage extends Component {
 
     dispatch(updateConfig(diff))
       .then(() => {
-        dispatch(renderFlash('success', 'Settings updated!'));
+        dispatch(renderFlash("success", "Settings updated!"));
 
         return false;
       })
       .catch((errors) => {
         if (errors.base) {
-          dispatch(renderFlash('error', errors.base));
+          dispatch(renderFlash("error", errors.base));
         }
 
         return false;
       });
 
     return false;
-  }
+  };
 
-  render () {
+  render() {
     const { appConfig, error, enrollSecret } = this.props;
     const { onFormSubmit } = this;
     const { configured: smtpConfigured } = appConfig;
@@ -54,16 +54,33 @@ class AppSettingsPage extends Component {
 
     return (
       <div className={`${baseClass} body-wrap`}>
-        <p className={`${baseClass}__page-description`}>Set your organization information, Configure SAML and SMTP, and view host enroll secrets.</p>
+        <p className={`${baseClass}__page-description`}>
+          Set your organization information, Configure SAML and SMTP, and view
+          host enroll secrets.
+        </p>
         <div className={`${baseClass}__settings-form`}>
           <nav>
             <ul className={`${baseClass}__form-nav-list`}>
-              <li><a href="#organization-info">Organization info</a></li>
-              <li><a href="#fleet-web-address">Fleet web address</a></li>
-              <li><a href="#saml">SAML single sign on options</a></li>
-              <li><a href="#smtp">SMTP options</a></li>
-              <li><a href="#osquery-enrollment-secrets">Osquery enrollment secrets</a></li>
-              <li><a href="#advanced-options">Advanced options</a></li>
+              <li>
+                <a href="#organization-info">Organization info</a>
+              </li>
+              <li>
+                <a href="#fleet-web-address">Fleet web address</a>
+              </li>
+              <li>
+                <a href="#saml">SAML single sign on options</a>
+              </li>
+              <li>
+                <a href="#smtp">SMTP options</a>
+              </li>
+              <li>
+                <a href="#osquery-enrollment-secrets">
+                  Osquery enrollment secrets
+                </a>
+              </li>
+              <li>
+                <a href="#advanced-options">Advanced options</a>
+              </li>
             </ul>
           </nav>
           <AppConfigForm

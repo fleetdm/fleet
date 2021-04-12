@@ -1,4 +1,4 @@
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
 export default PropTypes.shape({
   id: PropTypes.number.isRequired,
@@ -17,7 +17,7 @@ export interface IScheduledQuery {
   interval: number;
   name: string;
   pack_id: number;
-  platform?: string,
+  platform?: string;
   query: string;
   query_id: number;
   removed: boolean;

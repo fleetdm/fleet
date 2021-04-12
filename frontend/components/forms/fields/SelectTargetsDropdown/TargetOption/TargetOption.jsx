@@ -1,12 +1,12 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import classnames from 'classnames';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import classnames from "classnames";
 
-import KolideIcon from 'components/icons/KolideIcon';
-import targetInterface from 'interfaces/target';
-import TargetIcon from './TargetIcon';
+import KolideIcon from "components/icons/KolideIcon";
+import targetInterface from "interfaces/target";
+import TargetIcon from "./TargetIcon";
 
-const baseClass = 'target-option';
+const baseClass = "target-option";
 
 class TargetOption extends Component {
   static propTypes = {
@@ -19,7 +19,7 @@ class TargetOption extends Component {
     const { onSelect, target } = this.props;
 
     return onSelect(target, evt);
-  }
+  };
 
   renderTargetDetail = () => {
     const { target } = this.props;
@@ -29,7 +29,7 @@ class TargetOption extends Component {
       target_type: targetType,
     } = target;
 
-    if (targetType === 'hosts') {
+    if (targetType === "hosts") {
       if (!hostIpAddress) {
         return false;
       }
@@ -42,30 +42,33 @@ class TargetOption extends Component {
     }
 
     return <span className={`${baseClass}__count`}>{count} hosts</span>;
-  }
+  };
 
-  render () {
+  render() {
     const { onMoreInfoClick, target } = this.props;
     const { display_text: displayText, target_type: targetType } = target;
-    const {
-      handleSelect,
-      renderTargetDetail,
-    } = this;
+    const { handleSelect, renderTargetDetail } = this;
     const wrapperClassName = classnames(`${baseClass}__wrapper`, {
-      'is-label': targetType === 'labels',
-      'is-host': targetType === 'hosts',
+      "is-label": targetType === "labels",
+      "is-host": targetType === "hosts",
     });
 
     return (
       <div className={wrapperClassName}>
-        <button className={`button button--unstyled ${baseClass}__target-content`} onClick={onMoreInfoClick(target)}>
+        <button
+          className={`button button--unstyled ${baseClass}__target-content`}
+          onClick={onMoreInfoClick(target)}
+        >
           <div>
             <TargetIcon target={target} />
             <span className={`${baseClass}__label-label`}>{displayText}</span>
           </div>
           {renderTargetDetail()}
         </button>
-        <button className={`button button--unstyled ${baseClass}__add-btn`} onClick={handleSelect}>
+        <button
+          className={`button button--unstyled ${baseClass}__add-btn`}
+          onClick={handleSelect}
+        >
           <KolideIcon name="add-button" />
         </button>
       </div>

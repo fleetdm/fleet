@@ -1,1 +1,1 @@
-export { default } from './IconToolTip';
+export { default } from "./IconToolTip";

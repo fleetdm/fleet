@@ -2,7 +2,7 @@ import {
   GET_STATUS_LABEL_COUNTS_FAILURE,
   GET_STATUS_LABEL_COUNTS_SUCCESS,
   LOAD_STATUS_LABEL_COUNTS,
-} from './actions';
+} from "./actions";
 
 export const initialState = {
   status_labels: {

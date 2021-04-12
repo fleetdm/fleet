@@ -1,13 +1,13 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import classnames from 'classnames';
-import { includes, sortBy, size } from 'lodash';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import classnames from "classnames";
+import { includes, sortBy, size } from "lodash";
 
-import queryInterface from 'interfaces/query';
-import Checkbox from 'components/forms/fields/Checkbox';
-import QueriesListRow from 'components/queries/QueriesList/QueriesListRow';
+import queryInterface from "interfaces/query";
+import Checkbox from "components/forms/fields/Checkbox";
+import QueriesListRow from "components/queries/QueriesList/QueriesListRow";
 
-const baseClass = 'queries-list';
+const baseClass = "queries-list";
 
 class QueriesList extends Component {
   static propTypes = {
@@ -25,7 +25,7 @@ class QueriesList extends Component {
     selectedQuery: {},
   };
 
-  constructor (props) {
+  constructor(props) {
     super(props);
 
     this.state = { allQueriesChecked: false };
@@ -40,7 +40,7 @@ class QueriesList extends Component {
     }
 
     return includes(checkedQueryIDs, query.id);
-  }
+  };
 
   handleCheckAll = (shouldCheckAllQueries) => {
     const { onCheckAll } = this.props;
@@ -49,7 +49,7 @@ class QueriesList extends Component {
     this.setState({ allQueriesChecked: !allQueriesChecked });
 
     return onCheckAll(shouldCheckAllQueries);
-  }
+  };
 
   handleCheckQuery = (val, id) => {
     const { allQueriesChecked } = this.state;
@@ -60,7 +60,7 @@ class QueriesList extends Component {
     }
 
     onCheckQuery(val, id);
-  }
+  };
 
   renderHelpText = () => {
     const { isQueriesAvailable, queries } = this.props;
@@ -86,11 +86,17 @@ class QueriesList extends Component {
         </td>
       </tr>
     );
-  }
+  };
 
-  render () {
-    const alphaSort = q => q.name.toLowerCase();
-    const { checkedQueryIDs, onSelectQuery, onDblClickQuery, queries, selectedQuery } = this.props;
+  render() {
+    const alphaSort = (q) => q.name.toLowerCase();
+    const {
+      checkedQueryIDs,
+      onSelectQuery,
+      onDblClickQuery,
+      queries,
+      selectedQuery,
+    } = this.props;
     const { allQueriesChecked } = this.state;
     const { renderHelpText, handleCheckAll, handleCheckQuery } = this;
     const sortedQueries = sortBy(queries, [alphaSort]);
@@ -103,11 +109,13 @@ class QueriesList extends Component {
         <table className={wrapperClassName}>
           <thead>
             <tr>
-              <th><Checkbox
-                name="check-all-queries"
-                onChange={handleCheckAll}
-                value={allQueriesChecked}
-              /></th>
+              <th>
+                <Checkbox
+                  name="check-all-queries"
+                  onChange={handleCheckAll}
+                  value={allQueriesChecked}
+                />
+              </th>
               <th>Query name</th>
               <th>Description</th>
               <th className={`${baseClass}__author-name`}>Author</th>
@@ -116,19 +124,22 @@ class QueriesList extends Component {
           </thead>
           <tbody>
             {renderHelpText()}
-            {!!sortedQueries.length && sortedQueries.map((query) => {
-              return (
-                <QueriesListRow
-                  checked={this.isChecked(query)}
-                  key={`query-row-${query.id}`}
-                  onCheck={handleCheckQuery}
-                  onSelect={onSelectQuery}
-                  onDoubleClick={onDblClickQuery}
-                  query={query}
-                  selected={allQueriesChecked || selectedQuery.id === query.id}
-                />
-              );
-            })}
+            {!!sortedQueries.length &&
+              sortedQueries.map((query) => {
+                return (
+                  <QueriesListRow
+                    checked={this.isChecked(query)}
+                    key={`query-row-${query.id}`}
+                    onCheck={handleCheckQuery}
+                    onSelect={onSelectQuery}
+                    onDoubleClick={onDblClickQuery}
+                    query={query}
+                    selected={
+                      allQueriesChecked || selectedQuery.id === query.id
+                    }
+                  />
+                );
+              })}
           </tbody>
         </table>
       </div>
@@ -137,4 +148,3 @@ class QueriesList extends Component {
 }
 
 export default QueriesList;
-

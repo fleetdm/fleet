@@ -1,8 +1,10 @@
-import React from 'react';
-import { mount, shallow } from 'enzyme';
+import React from "react";
+import { mount, shallow } from "enzyme";
 
-import { connectedComponent, reduxMockStore } from 'test/helpers';
-import ConnectedRegistrationPage, { RegistrationPage } from 'pages/RegistrationPage/RegistrationPage';
+import { connectedComponent, reduxMockStore } from "test/helpers";
+import ConnectedRegistrationPage, {
+  RegistrationPage,
+} from "pages/RegistrationPage/RegistrationPage";
 
 const baseStore = {
   app: {},
@@ -10,12 +12,12 @@ const baseStore = {
 };
 const user = {
   id: 1,
-  name: 'Gnar Dog',
-  email: 'hi@gnar.dog',
+  name: "Gnar Dog",
+  email: "hi@gnar.dog",
 };
 
-describe('RegistrationPage - component', () => {
-  it('redirects to the login page when a user is logged in', () => {
+describe("RegistrationPage - component", () => {
+  it("redirects to the login page when a user is logged in", () => {
     const storeWithUser = {
       ...baseStore,
       auth: {
@@ -30,58 +32,64 @@ describe('RegistrationPage - component', () => {
     const dispatchedActions = mockStore.getActions();
 
     const redirectToHomeAction = {
-      type: '@@router/CALL_HISTORY_METHOD',
+      type: "@@router/CALL_HISTORY_METHOD",
       payload: {
-        method: 'push',
-        args: ['/'],
+        method: "push",
+        args: ["/"],
       },
     };
 
     expect(dispatchedActions).toContainEqual(redirectToHomeAction);
   });
 
-  it('displays the Kolide background triangles', () => {
+  it("displays the Kolide background triangles", () => {
     const mockStore = reduxMockStore(baseStore);
 
     mount(connectedComponent(ConnectedRegistrationPage, { mockStore }));
 
     expect(mockStore.getActions()).toContainEqual({
-      type: 'SHOW_BACKGROUND_IMAGE',
+      type: "SHOW_BACKGROUND_IMAGE",
     });
   });
 
-  it('does not render the RegistrationForm if the user is loading', () => {
+  it("does not render the RegistrationForm if the user is loading", () => {
     const mockStore = reduxMockStore({
       app: {},
       auth: { loading: true },
     });
-    const page = mount(connectedComponent(ConnectedRegistrationPage, { mockStore }));
+    const page = mount(
+      connectedComponent(ConnectedRegistrationPage, { mockStore })
+    );
 
-    expect(page.find('RegistrationForm').length).toEqual(0);
+    expect(page.find("RegistrationForm").length).toEqual(0);
   });
 
-  it('renders the RegistrationForm when there is no user', () => {
+  it("renders the RegistrationForm when there is no user", () => {
     const mockStore = reduxMockStore(baseStore);
-    const page = mount(connectedComponent(ConnectedRegistrationPage, { mockStore }));
+    const page = mount(
+      connectedComponent(ConnectedRegistrationPage, { mockStore })
+    );
 
-    expect(page.find('RegistrationForm').length).toEqual(1);
+    expect(page.find("RegistrationForm").length).toEqual(1);
   });
 
-  it('sets the page number to 1', () => {
+  it("sets the page number to 1", () => {
     const page = mount(<RegistrationPage />);
 
     expect(page.state()).toMatchObject({ page: 1 });
   });
 
-  it('displays the setup breadcrumbs', () => {
+  it("displays the setup breadcrumbs", () => {
     const mockStore = reduxMockStore(baseStore);
-    const page = mount(connectedComponent(ConnectedRegistrationPage, { mockStore }));
+    const page = mount(
+      connectedComponent(ConnectedRegistrationPage, { mockStore })
+    );
 
-    expect(page.find('Breadcrumbs').length).toEqual(1);
+    expect(page.find("Breadcrumbs").length).toEqual(1);
   });
 
-  describe('#onSetPage', () => {
-    it('sets state to the page number', () => {
+  describe("#onSetPage", () => {
+    it("sets state to the page number", () => {
       const page = shallow(<RegistrationPage />);
       page.setState({ page: 3 });
       page.instance().onSetPage(3);

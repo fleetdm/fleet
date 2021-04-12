@@ -1,9 +1,9 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import classnames from 'classnames';
-import { round } from 'lodash';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import classnames from "classnames";
+import { round } from "lodash";
 
-const baseClass = 'progress-bar';
+const baseClass = "progress-bar";
 
 class ProgressBar extends Component {
   static propTypes = {
@@ -13,16 +13,22 @@ class ProgressBar extends Component {
     success: PropTypes.number.isRequired,
   };
 
-  render () {
+  render() {
     const { className, error, max, success } = this.props;
-    const successPercentComplete = `${(round((success / (max || 1)) * 100, 0))}%`;
-    const errorPercentComplete = `${(round((error / (max || 1)) * 100, 0))}%`;
+    const successPercentComplete = `${round((success / (max || 1)) * 100, 0)}%`;
+    const errorPercentComplete = `${round((error / (max || 1)) * 100, 0)}%`;
     const wrapperClassName = classnames(baseClass, className);
 
     return (
       <div className={wrapperClassName}>
-        <div className={`${baseClass}__progress ${baseClass}__progress--success`} style={{ width: successPercentComplete }} />
-        <div className={`${baseClass}__progress ${baseClass}__progress--error`} style={{ width: errorPercentComplete }} />
+        <div
+          className={`${baseClass}__progress ${baseClass}__progress--success`}
+          style={{ width: successPercentComplete }}
+        />
+        <div
+          className={`${baseClass}__progress ${baseClass}__progress--error`}
+          style={{ width: errorPercentComplete }}
+        />
       </div>
     );
   }

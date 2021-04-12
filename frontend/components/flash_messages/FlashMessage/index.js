@@ -1,1 +1,1 @@
-export { default } from './FlashMessage';
+export { default } from "./FlashMessage";

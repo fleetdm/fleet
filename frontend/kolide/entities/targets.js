@@ -1,5 +1,5 @@
-import { appendTargetTypeToTargets } from 'redux/nodes/entities/targets/helpers';
-import endpoints from 'kolide/endpoints';
+import { appendTargetTypeToTargets } from "redux/nodes/entities/targets/helpers";
+import endpoints from "kolide/endpoints";
 
 const defaultSelected = {
   hosts: [],
@@ -11,15 +11,19 @@ export default (client) => {
     loadAll: (query, selected = defaultSelected) => {
       const { TARGETS } = endpoints;
 
-      return client.authenticatedPost(client._endpoint(TARGETS), JSON.stringify({ query, selected }))
+      return client
+        .authenticatedPost(
+          client._endpoint(TARGETS),
+          JSON.stringify({ query, selected })
+        )
         .then((response) => {
           const { targets } = response;
 
           return {
             ...response,
             targets: [
-              ...appendTargetTypeToTargets(targets.hosts, 'hosts'),
-              ...appendTargetTypeToTargets(targets.labels, 'labels'),
+              ...appendTargetTypeToTargets(targets.hosts, "hosts"),
+              ...appendTargetTypeToTargets(targets.labels, "labels"),
             ],
           };
         });

@@ -1,7 +1,7 @@
-import Kolide from 'kolide';
+import Kolide from "kolide";
 
-import { reduxMockStore } from 'test/helpers';
-import { updateUserSuccess } from 'redux/nodes/auth/actions';
+import { reduxMockStore } from "test/helpers";
+import { updateUserSuccess } from "redux/nodes/auth/actions";
 
 import {
   changePassword,
@@ -11,44 +11,51 @@ import {
   REQUIRE_PASSWORD_RESET_FAILURE,
   REQUIRE_PASSWORD_RESET_SUCCESS,
   updateAdmin,
-} from './actions';
-import config from './config';
+} from "./actions";
+import config from "./config";
 
 const store = { entities: { invites: {}, users: {} } };
-const user = { id: 1, email: 'zwass@kolide.co', force_password_reset: false };
+const user = { id: 1, email: "zwass@kolide.co", force_password_reset: false };
 
-describe('Users - actions', () => {
-  describe('enableUser', () => {
-    describe('successful request', () => {
+describe("Users - actions", () => {
+  describe("enableUser", () => {
+    describe("successful request", () => {
       beforeEach(() => {
-        jest.spyOn(Kolide.users, 'enable').mockImplementation(() => {
+        jest.spyOn(Kolide.users, "enable").mockImplementation(() => {
           return Promise.resolve({ ...user, enabled: true });
         });
       });
 
-      it('calls the API', () => {
+      it("calls the API", () => {
         const mockStore = reduxMockStore(store);
 
-        return mockStore.dispatch(enableUser(user, { enabled: true }))
+        return mockStore
+          .dispatch(enableUser(user, { enabled: true }))
           .then(() => {
-            expect(Kolide.users.enable).toHaveBeenCalledWith(user, { enabled: true });
+            expect(Kolide.users.enable).toHaveBeenCalledWith(user, {
+              enabled: true,
+            });
           });
       });
 
-      it('dispatches the correct actions', (done) => {
+      it("dispatches the correct actions", (done) => {
         const mockStore = reduxMockStore(store);
         const responseOrder = [user.id];
 
-        mockStore.dispatch(enableUser(user, { enabled: true }))
+        mockStore
+          .dispatch(enableUser(user, { enabled: true }))
           .then(() => {
             const dispatchedActions = mockStore.getActions();
 
             expect(dispatchedActions).toEqual([
-              config.actions.updateSuccess({
-                users: {
-                  [user.id]: { ...user, enabled: true },
+              config.actions.updateSuccess(
+                {
+                  users: {
+                    [user.id]: { ...user, enabled: true },
+                  },
                 },
-              }, responseOrder),
+                responseOrder
+              ),
             ]);
 
             done();
@@ -57,48 +64,55 @@ describe('Users - actions', () => {
       });
     });
 
-    describe('unsuccessful request', () => {
+    describe("unsuccessful request", () => {
       const errors = [
         {
-          name: 'base',
-          reason: 'Unable to enable the user',
+          name: "base",
+          reason: "Unable to enable the user",
         },
       ];
       const errorResponse = {
         status: 422,
         message: {
-          message: 'Unable to enable the user',
+          message: "Unable to enable the user",
           errors,
         },
       };
       beforeEach(() => {
-        jest.spyOn(Kolide.users, 'enable').mockImplementation(() => {
+        jest.spyOn(Kolide.users, "enable").mockImplementation(() => {
           return Promise.reject(errorResponse);
         });
       });
 
-      it('calls the API', (done) => {
+      it("calls the API", (done) => {
         const mockStore = reduxMockStore(store);
 
-        mockStore.dispatch(enableUser(user, { enabled: true }))
+        mockStore
+          .dispatch(enableUser(user, { enabled: true }))
           .then(done)
           .catch(() => {
-            expect(Kolide.users.enable).toHaveBeenCalledWith(user, { enabled: true });
+            expect(Kolide.users.enable).toHaveBeenCalledWith(user, {
+              enabled: true,
+            });
 
             done();
           });
       });
 
-      it('dispatches the correct actions', (done) => {
+      it("dispatches the correct actions", (done) => {
         const mockStore = reduxMockStore(store);
 
-        mockStore.dispatch(enableUser(user, { enabled: true }))
+        mockStore
+          .dispatch(enableUser(user, { enabled: true }))
           .then(done)
           .catch(() => {
             const dispatchedActions = mockStore.getActions();
 
             expect(dispatchedActions).toEqual([
-              config.actions.updateFailure({ base: 'Unable to enable the user', http_status: 422 }),
+              config.actions.updateFailure({
+                base: "Unable to enable the user",
+                http_status: 422,
+              }),
             ]);
 
             done();
@@ -107,43 +121,53 @@ describe('Users - actions', () => {
     });
   });
 
-  describe('changePassword', () => {
-    const passwordParams = { old_password: 'p@ssword', new_password: 'password' };
+  describe("changePassword", () => {
+    const passwordParams = {
+      old_password: "p@ssword",
+      new_password: "password",
+    };
     const changePasswordAction = changePassword(user, passwordParams);
 
-    describe('successful request', () => {
+    describe("successful request", () => {
       beforeEach(() => {
-        jest.spyOn(Kolide.users, 'changePassword').mockImplementation(() => {
+        jest.spyOn(Kolide.users, "changePassword").mockImplementation(() => {
           return Promise.resolve({});
         });
       });
 
-      it('calls the API', (done) => {
+      it("calls the API", (done) => {
         const mockStore = reduxMockStore(store);
 
-        mockStore.dispatch(changePasswordAction)
+        mockStore
+          .dispatch(changePasswordAction)
           .then(() => {
-            expect(Kolide.users.changePassword).toHaveBeenCalledWith(passwordParams);
+            expect(Kolide.users.changePassword).toHaveBeenCalledWith(
+              passwordParams
+            );
             done();
           })
           .catch(done);
       });
 
-      it('dispatches the correct actions', (done) => {
+      it("dispatches the correct actions", (done) => {
         const mockStore = reduxMockStore(store);
         const responseOrder = [user.id];
 
-        mockStore.dispatch(changePasswordAction)
+        mockStore
+          .dispatch(changePasswordAction)
           .then(() => {
             const dispatchedActions = mockStore.getActions();
 
             expect(dispatchedActions).toEqual([
               config.actions.updateRequest(),
-              config.actions.updateSuccess({
-                users: {
-                  [user.id]: user,
+              config.actions.updateSuccess(
+                {
+                  users: {
+                    [user.id]: user,
+                  },
                 },
-              }, responseOrder),
+                responseOrder
+              ),
             ]);
 
             done();
@@ -152,49 +176,56 @@ describe('Users - actions', () => {
       });
     });
 
-    describe('unsuccessful request', () => {
+    describe("unsuccessful request", () => {
       const errors = [
         {
-          name: 'base',
-          reason: 'Unable to change password',
+          name: "base",
+          reason: "Unable to change password",
         },
       ];
       const errorResponse = {
         status: 422,
         message: {
-          message: 'Unable to change password',
+          message: "Unable to change password",
           errors,
         },
       };
       beforeEach(() => {
-        jest.spyOn(Kolide.users, 'changePassword').mockImplementation(() => {
+        jest.spyOn(Kolide.users, "changePassword").mockImplementation(() => {
           return Promise.reject(errorResponse);
         });
       });
 
-      it('calls the API', (done) => {
+      it("calls the API", (done) => {
         const mockStore = reduxMockStore(store);
 
-        mockStore.dispatch(changePasswordAction)
+        mockStore
+          .dispatch(changePasswordAction)
           .then(done)
           .catch(() => {
-            expect(Kolide.users.changePassword).toHaveBeenCalledWith(passwordParams);
+            expect(Kolide.users.changePassword).toHaveBeenCalledWith(
+              passwordParams
+            );
 
             done();
           });
       });
 
-      it('dispatches the correct actions', (done) => {
+      it("dispatches the correct actions", (done) => {
         const mockStore = reduxMockStore(store);
 
-        mockStore.dispatch(changePasswordAction)
+        mockStore
+          .dispatch(changePasswordAction)
           .then(done)
           .catch(() => {
             const dispatchedActions = mockStore.getActions();
 
             expect(dispatchedActions).toEqual([
               config.actions.updateRequest(),
-              config.actions.updateFailure({ base: 'Unable to change password', http_status: 422 }),
+              config.actions.updateFailure({
+                base: "Unable to change password",
+                http_status: 422,
+              }),
             ]);
 
             done();
@@ -203,43 +234,53 @@ describe('Users - actions', () => {
     });
   });
 
-  describe('confirmEmailChange', () => {
-    const token = 'KFBR392';
-    const updatedUser = { ...user, email: 'new@email.com' };
+  describe("confirmEmailChange", () => {
+    const token = "KFBR392";
+    const updatedUser = { ...user, email: "new@email.com" };
 
-    describe('successful request', () => {
+    describe("successful request", () => {
       beforeEach(() => {
-        jest.spyOn(Kolide.users, 'confirmEmailChange').mockImplementation(() => {
-          return Promise.resolve(updatedUser);
-        });
+        jest
+          .spyOn(Kolide.users, "confirmEmailChange")
+          .mockImplementation(() => {
+            return Promise.resolve(updatedUser);
+          });
       });
 
-      it('calls the API', (done) => {
+      it("calls the API", (done) => {
         const mockStore = reduxMockStore(store);
 
-        mockStore.dispatch(confirmEmailChange(user, token))
+        mockStore
+          .dispatch(confirmEmailChange(user, token))
           .then(() => {
-            expect(Kolide.users.confirmEmailChange).toHaveBeenCalledWith(user, token);
+            expect(Kolide.users.confirmEmailChange).toHaveBeenCalledWith(
+              user,
+              token
+            );
             done();
           })
           .catch(done);
       });
 
-      it('dispatches the correct actions', (done) => {
+      it("dispatches the correct actions", (done) => {
         const mockStore = reduxMockStore(store);
         const responseOrder = [user.id];
 
-        mockStore.dispatch(confirmEmailChange(user, token))
+        mockStore
+          .dispatch(confirmEmailChange(user, token))
           .then(() => {
             const dispatchedActions = mockStore.getActions();
 
             expect(dispatchedActions).toEqual([
               config.actions.loadRequest(),
-              config.actions.updateSuccess({
-                users: {
-                  [user.id]: updatedUser,
+              config.actions.updateSuccess(
+                {
+                  users: {
+                    [user.id]: updatedUser,
+                  },
                 },
-              }, responseOrder),
+                responseOrder
+              ),
               updateUserSuccess(updatedUser),
             ]);
 
@@ -249,59 +290,69 @@ describe('Users - actions', () => {
       });
     });
 
-    describe('unsuccessful request', () => {
+    describe("unsuccessful request", () => {
       const errors = [
         {
-          name: 'base',
-          reason: 'Unable to confirm your email address',
+          name: "base",
+          reason: "Unable to confirm your email address",
         },
       ];
       const errorResponse = {
         status: 422,
         message: {
-          message: 'Unable to confirm email address',
+          message: "Unable to confirm email address",
           errors,
         },
       };
       beforeEach(() => {
-        jest.spyOn(Kolide.users, 'confirmEmailChange').mockImplementation(() => {
-          return Promise.reject(errorResponse);
-        });
-        jest.spyOn(Kolide.sessions, 'destroy').mockImplementation(() => {
+        jest
+          .spyOn(Kolide.users, "confirmEmailChange")
+          .mockImplementation(() => {
+            return Promise.reject(errorResponse);
+          });
+        jest.spyOn(Kolide.sessions, "destroy").mockImplementation(() => {
           return Promise.resolve({});
         });
       });
 
-      it('calls the API', (done) => {
+      it("calls the API", (done) => {
         const mockStore = reduxMockStore(store);
 
-        mockStore.dispatch(confirmEmailChange(user, token))
+        mockStore
+          .dispatch(confirmEmailChange(user, token))
           .then(() => {
-            expect(Kolide.users.confirmEmailChange).toHaveBeenCalledWith(user, token);
+            expect(Kolide.users.confirmEmailChange).toHaveBeenCalledWith(
+              user,
+              token
+            );
             done();
           })
           .catch(done);
       });
 
-      it('dispatches the correct actions', (done) => {
+      it("dispatches the correct actions", (done) => {
         const mockStore = reduxMockStore(store);
 
-        mockStore.dispatch(confirmEmailChange(user, token))
+        mockStore
+          .dispatch(confirmEmailChange(user, token))
           .then(() => {
             const dispatchedActions = mockStore.getActions();
 
             expect(dispatchedActions).toEqual([
               config.actions.loadRequest(),
-              config.actions.updateFailure({ base: 'Unable to confirm your email address', http_status: 422 }),
-              { type: 'LOGOUT_REQUEST' },
+              config.actions.updateFailure({
+                base: "Unable to confirm your email address",
+                http_status: 422,
+              }),
+              { type: "LOGOUT_REQUEST" },
               {
-                type: '@@router/CALL_HISTORY_METHOD',
+                type: "@@router/CALL_HISTORY_METHOD",
                 payload: {
-                  method: 'push',
-                  args: ['/login'],
+                  method: "push",
+                  args: ["/login"],
                 },
               },
-              { type: 'LOGOUT_SUCCESS' },
+              { type: "LOGOUT_SUCCESS" },
             ]);
 
             done();
@@ -311,39 +362,46 @@ describe('Users - actions', () => {
     });
   });
 
-  describe('updateAdmin', () => {
-    describe('successful request', () => {
+  describe("updateAdmin", () => {
+    describe("successful request", () => {
       beforeEach(() => {
-        jest.spyOn(Kolide.users, 'updateAdmin').mockImplementation(() => {
+        jest.spyOn(Kolide.users, "updateAdmin").mockImplementation(() => {
           return Promise.resolve({ ...user, admin: true });
         });
       });
 
-      it('calls the API', (done) => {
+      it("calls the API", (done) => {
         const mockStore = reduxMockStore(store);
 
-        mockStore.dispatch(updateAdmin(user, { admin: true }))
+        mockStore
+          .dispatch(updateAdmin(user, { admin: true }))
           .then(() => {
-            expect(Kolide.users.updateAdmin).toHaveBeenCalledWith(user, { admin: true });
+            expect(Kolide.users.updateAdmin).toHaveBeenCalledWith(user, {
+              admin: true,
+            });
             done();
           })
           .catch(done);
       });
 
-      it('dispatches the correct actions', (done) => {
+      it("dispatches the correct actions", (done) => {
         const mockStore = reduxMockStore(store);
         const responseOrder = [user.id];
 
-        mockStore.dispatch(updateAdmin(user, { admin: true }))
+        mockStore
+          .dispatch(updateAdmin(user, { admin: true }))
           .then(() => {
             const dispatchedActions = mockStore.getActions();
 
             expect(dispatchedActions).toEqual([
-              config.actions.updateSuccess({
-                users: {
-                  [user.id]: { ...user, admin: true },
+              config.actions.updateSuccess(
+                {
+                  users: {
+                    [user.id]: { ...user, admin: true },
+                  },
                 },
-              }, responseOrder),
+                responseOrder
+              ),
             ]);
 
             done();
@@ -352,48 +410,55 @@ describe('Users - actions', () => {
       });
     });
 
-    describe('unsuccessful request', () => {
+    describe("unsuccessful request", () => {
       const errors = [
         {
-          name: 'base',
-          reason: 'Unable to make the user an admin',
+          name: "base",
+          reason: "Unable to make the user an admin",
         },
       ];
       const errorResponse = {
         status: 422,
         message: {
-          message: 'Unable to make the user an admin',
+          message: "Unable to make the user an admin",
           errors,
         },
       };
       beforeEach(() => {
-        jest.spyOn(Kolide.users, 'updateAdmin').mockImplementation(() => {
+        jest.spyOn(Kolide.users, "updateAdmin").mockImplementation(() => {
           return Promise.reject(errorResponse);
         });
       });
 
-      it('calls the API', (done) => {
+      it("calls the API", (done) => {
         const mockStore = reduxMockStore(store);
 
-        mockStore.dispatch(updateAdmin(user, { admin: true }))
+        mockStore
+          .dispatch(updateAdmin(user, { admin: true }))
           .then(done)
           .catch(() => {
-            expect(Kolide.users.updateAdmin).toHaveBeenCalledWith(user, { admin: true });
+            expect(Kolide.users.updateAdmin).toHaveBeenCalledWith(user, {
+              admin: true,
+            });
 
             done();
           });
       });
 
-      it('dispatches the correct actions', (done) => {
+      it("dispatches the correct actions", (done) => {
         const mockStore = reduxMockStore(store);
 
-        mockStore.dispatch(updateAdmin(user, { admin: true }))
+        mockStore
+          .dispatch(updateAdmin(user, { admin: true }))
           .then(done)
           .catch(() => {
             const dispatchedActions = mockStore.getActions();
 
             expect(dispatchedActions).toEqual([
-              config.actions.updateFailure({ base: 'Unable to make the user an admin', http_status: 422 }),
+              config.actions.updateFailure({
+                base: "Unable to make the user an admin",
+                http_status: 422,
+              }),
             ]);
 
             done();
@@ -402,24 +467,30 @@ describe('Users - actions', () => {
     });
   });
 
-  describe('dispatching the require password reset action', () => {
-    describe('successful request', () => {
+  describe("dispatching the require password reset action", () => {
+    describe("successful request", () => {
       beforeEach(() => {
-        jest.spyOn(Kolide.users, 'requirePasswordReset').mockImplementation(() => {
-          return Promise.resolve({ ...user, force_password_reset: true });
-        });
-      });
-
-      it('calls the resetFunc', () => {
-        const mockStore = reduxMockStore(store);
-
-        return mockStore.dispatch(requirePasswordReset(user, { require: true }))
-          .then(() => {
-            expect(Kolide.users.requirePasswordReset).toHaveBeenCalledWith(user, { require: true });
+        jest
+          .spyOn(Kolide.users, "requirePasswordReset")
+          .mockImplementation(() => {
+            return Promise.resolve({ ...user, force_password_reset: true });
           });
       });
 
-      it('dispatches the correct actions', () => {
+      it("calls the resetFunc", () => {
+        const mockStore = reduxMockStore(store);
+
+        return mockStore
+          .dispatch(requirePasswordReset(user, { require: true }))
+          .then(() => {
+            expect(Kolide.users.requirePasswordReset).toHaveBeenCalledWith(
+              user,
+              { require: true }
+            );
+          });
+      });
+
+      it("dispatches the correct actions", () => {
         const mockStore = reduxMockStore(store);
 
         const expectedActions = [
@@ -429,59 +500,72 @@ describe('Users - actions', () => {
           },
         ];
 
-        return mockStore.dispatch(requirePasswordReset(user, { require: true }))
+        return mockStore
+          .dispatch(requirePasswordReset(user, { require: true }))
           .then(() => {
             expect(mockStore.getActions()).toEqual(expectedActions);
           });
       });
     });
 
-    describe('unsuccessful request', () => {
+    describe("unsuccessful request", () => {
       const errors = [
         {
-          name: 'base',
-          reason: 'Unable to require password reset',
+          name: "base",
+          reason: "Unable to require password reset",
         },
       ];
       const errorResponse = {
         status: 422,
         message: {
-          message: 'Unable to require password reset',
+          message: "Unable to require password reset",
           errors,
         },
       };
 
       beforeEach(() => {
-        jest.spyOn(Kolide.users, 'requirePasswordReset').mockImplementation(() => {
-          return Promise.reject(errorResponse);
-        });
-      });
-
-      it('calls the resetFunc', () => {
-        const mockStore = reduxMockStore(store);
-
-        return mockStore.dispatch(requirePasswordReset(user, { require: true }))
-          .then(() => {
-            throw new Error('promise should have failed');
-          })
-          .catch(() => {
-            expect(Kolide.users.requirePasswordReset).toHaveBeenCalledWith(user, { require: true });
+        jest
+          .spyOn(Kolide.users, "requirePasswordReset")
+          .mockImplementation(() => {
+            return Promise.reject(errorResponse);
           });
       });
 
-      it('dispatches the correct actions', () => {
+      it("calls the resetFunc", () => {
+        const mockStore = reduxMockStore(store);
+
+        return mockStore
+          .dispatch(requirePasswordReset(user, { require: true }))
+          .then(() => {
+            throw new Error("promise should have failed");
+          })
+          .catch(() => {
+            expect(Kolide.users.requirePasswordReset).toHaveBeenCalledWith(
+              user,
+              { require: true }
+            );
+          });
+      });
+
+      it("dispatches the correct actions", () => {
         const mockStore = reduxMockStore(store);
 
         const expectedActions = [
           {
             type: REQUIRE_PASSWORD_RESET_FAILURE,
-            payload: { errors: { base: 'Unable to require password reset', http_status: 422 } },
+            payload: {
+              errors: {
+                base: "Unable to require password reset",
+                http_status: 422,
+              },
+            },
           },
         ];
 
-        return mockStore.dispatch(requirePasswordReset(user, { require: true }))
+        return mockStore
+          .dispatch(requirePasswordReset(user, { require: true }))
           .then(() => {
-            throw new Error('promise should have failed');
+            throw new Error("promise should have failed");
           })
           .catch(() => {
             expect(mockStore.getActions()).toEqual(expectedActions);

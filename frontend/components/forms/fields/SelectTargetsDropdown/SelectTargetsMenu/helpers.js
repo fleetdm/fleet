@@ -1,11 +1,11 @@
 export const targetFilter = (targetType) => {
-  if (targetType === 'all') {
-    return { name: 'All Hosts' };
+  if (targetType === "all") {
+    return { name: "All Hosts" };
   }
 
-  if (targetType === 'labels') {
+  if (targetType === "labels") {
     return (option) => {
-      return option.target_type === targetType && option.name !== 'All Hosts';
+      return option.target_type === targetType && option.name !== "All Hosts";
     };
   }
 

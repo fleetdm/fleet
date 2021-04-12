@@ -1,10 +1,10 @@
-import React from 'react';
-import PropTypes from 'prop-types';
-import classnames from 'classnames';
+import React from "react";
+import PropTypes from "prop-types";
+import classnames from "classnames";
 
-import KolideIcon from 'components/icons/KolideIcon';
+import KolideIcon from "components/icons/KolideIcon";
 
-const baseClass = 'persistent-flash';
+const baseClass = "persistent-flash";
 
 const PersistentFlash = ({ message }) => {
   const klass = classnames(baseClass, `${baseClass}--error`);
@@ -23,4 +23,3 @@ PersistentFlash.propTypes = {
 };
 
 export default PersistentFlash;
-

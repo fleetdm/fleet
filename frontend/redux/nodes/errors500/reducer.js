@@ -1,6 +1,4 @@
-import {
-  RESET_ERRORS,
-} from './actions';
+import { RESET_ERRORS } from "./actions";
 
 const initialState = {
   errors: null,

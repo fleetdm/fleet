@@ -1,12 +1,12 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import classnames from 'classnames';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import classnames from "classnames";
 
-import Dropdown from 'components/forms/fields/Dropdown';
-import EditUserForm from 'components/forms/admin/EditUserForm';
-import Modal from 'components/modals/Modal';
-import helpers from 'components/UserRow/helpers';
-import userInterface from 'interfaces/user';
+import Dropdown from "components/forms/fields/Dropdown";
+import EditUserForm from "components/forms/admin/EditUserForm";
+import Modal from "components/modals/Modal";
+import helpers from "components/UserRow/helpers";
+import userInterface from "interfaces/user";
 
 class UserRow extends Component {
   static propTypes = {
@@ -30,28 +30,32 @@ class UserRow extends Component {
     const { onToggleEditUser, user } = this.props;
 
     return onToggleEditUser(user);
-  }
+  };
 
   onEditUser = (updatedUser) => {
     const { onEditUser, user } = this.props;
 
     return onEditUser(user, updatedUser);
-  }
+  };
 
   onUserActionSelect = (action) => {
     const { onSelect, onToggleEditUser, user } = this.props;
 
-    if (action === 'modify_details') {
+    if (action === "modify_details") {
       return onToggleEditUser(user);
     }
 
     return onSelect(user, action);
-  }
+  };
 
   renderCTAs = () => {
     const { isCurrentUser, isInvite, user } = this.props;
     const { onUserActionSelect } = this;
-    const userActionOptions = helpers.userActionOptions(isCurrentUser, user, isInvite);
+    const userActionOptions = helpers.userActionOptions(
+      isCurrentUser,
+      user,
+      isInvite
+    );
 
     return (
       <Dropdown
@@ -59,10 +63,10 @@ class UserRow extends Component {
         options={userActionOptions}
         placeholder="Actions..."
         onChange={onUserActionSelect}
-        className={isInvite ? 'revoke-invite' : ''}
+        className={isInvite ? "revoke-invite" : ""}
       />
     );
-  }
+  };
 
   renderEditUserModal = (isEditing) => {
     const { userErrors, isCurrentUser, user } = this.props;
@@ -70,10 +74,7 @@ class UserRow extends Component {
 
     if (isEditing) {
       return (
-        <Modal
-          title="Edit user"
-          onExit={onToggleEditing}
-        >
+        <Modal title="Edit user" onExit={onToggleEditing}>
           <EditUserForm
             isCurrentUser={isCurrentUser}
             onCancel={onToggleEditing}
@@ -85,37 +86,25 @@ class UserRow extends Component {
       );
     }
     return false;
-  }
+  };
 
-  render () {
+  render() {
     const { isInvite, user, isEditing } = this.props;
-    const {
-      admin,
-      email,
-      name,
-      position,
-      username,
-    } = user;
+    const { admin, email, name, position, username } = user;
     const { renderCTAs, renderEditUserModal } = this;
     const statusLabel = helpers.userStatusLabel(user, isInvite);
-    const userLabel = admin ? 'Admin' : 'User';
+    const userLabel = admin ? "Admin" : "User";
 
-    const baseClass = 'user-row';
+    const baseClass = "user-row";
     const statusClassName = classnames(
       `${baseClass}__status`,
-      `${baseClass}__status--${statusLabel.toLowerCase()}`,
+      `${baseClass}__status--${statusLabel.toLowerCase()}`
     );
 
     return (
       <tr key={`user-${user.id}-table`}>
-        <td
-          className={`${baseClass}__username`}
-        >
-          {username}
-        </td>
-        <td className={statusClassName}>
-          {statusLabel}
-        </td>
+        <td className={`${baseClass}__username`}>{username}</td>
+        <td className={statusClassName}>{statusLabel}</td>
         <td>{name}</td>
         <td>{email}</td>
         <td>{userLabel}</td>

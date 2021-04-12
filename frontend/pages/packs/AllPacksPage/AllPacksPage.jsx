@@ -1,26 +1,25 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { filter, find, get, includes, isEqual, noop, pull } from 'lodash';
-import { push } from 'react-router-redux';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { filter, find, get, includes, isEqual, noop, pull } from "lodash";
+import { push } from "react-router-redux";
 
-import Button from 'components/buttons/Button';
-import entityGetter from 'redux/utilities/entityGetter';
-import KolideIcon from 'components/icons/KolideIcon';
-import InputField from 'components/forms/fields/InputField';
-import Modal from 'components/modals/Modal';
-import packActions from 'redux/nodes/entities/packs/actions';
-import PackDetailsSidePanel from 'components/side_panels/PackDetailsSidePanel';
-import PackInfoSidePanel from 'components/side_panels/PackInfoSidePanel';
-import packInterface from 'interfaces/pack';
-import PacksList from 'components/packs/PacksList';
-import { renderFlash } from 'redux/nodes/notifications/actions';
-import scheduledQueryActions from 'redux/nodes/entities/scheduled_queries/actions';
-import scheduledQueryInterface from 'interfaces/scheduled_query';
-import PATHS from 'router/paths';
+import Button from "components/buttons/Button";
+import entityGetter from "redux/utilities/entityGetter";
+import KolideIcon from "components/icons/KolideIcon";
+import InputField from "components/forms/fields/InputField";
+import Modal from "components/modals/Modal";
+import packActions from "redux/nodes/entities/packs/actions";
+import PackDetailsSidePanel from "components/side_panels/PackDetailsSidePanel";
+import PackInfoSidePanel from "components/side_panels/PackInfoSidePanel";
+import packInterface from "interfaces/pack";
+import PacksList from "components/packs/PacksList";
+import { renderFlash } from "redux/nodes/notifications/actions";
+import scheduledQueryActions from "redux/nodes/entities/scheduled_queries/actions";
+import scheduledQueryInterface from "interfaces/scheduled_query";
+import PATHS from "router/paths";
 
-
-const baseClass = 'all-packs-page';
+const baseClass = "all-packs-page";
 
 export class AllPacksPage extends Component {
   static propTypes = {
@@ -29,20 +28,20 @@ export class AllPacksPage extends Component {
     packs: PropTypes.arrayOf(packInterface),
     selectedPack: packInterface,
     selectedScheduledQueries: PropTypes.arrayOf(scheduledQueryInterface),
-  }
+  };
 
   static defaultProps = {
     dispatch: noop,
     loadingPacks: false,
   };
 
-  constructor (props) {
+  constructor(props) {
     super(props);
 
     this.state = {
       allPacksChecked: false,
       checkedPackIDs: [],
-      packFilter: '',
+      packFilter: "",
       showModal: false,
     };
   }
@@ -59,7 +58,7 @@ export class AllPacksPage extends Component {
     return false;
   }
 
-  componentWillReceiveProps ({ selectedPack }) {
+  componentWillReceiveProps({ selectedPack }) {
     if (!isEqual(this.props.selectedPack, selectedPack)) {
       this.getScheduledQueriesForPack(selectedPack);
     }
@@ -77,9 +76,9 @@ export class AllPacksPage extends Component {
 
       const promises = checkedPackIDs.map((packID) => {
         const pack = find(packs, { id: packID });
-        const disabled = actionType === 'disable';
+        const disabled = actionType === "disable";
 
-        if (actionType === 'delete') {
+        if (actionType === "delete") {
           return dispatch(destroy(pack));
         }
 
@@ -90,8 +89,8 @@ export class AllPacksPage extends Component {
         .then(() => {
           let newState = { allPacksChecked: false, checkedPackIDs: [] };
 
-          if (actionType === 'delete') {
-            dispatch(renderFlash('success', 'Packs successfully deleted.'));
+          if (actionType === "delete") {
+            dispatch(renderFlash("success", "Packs successfully deleted."));
 
             newState = { ...newState, showModal: false };
           }
@@ -100,14 +99,14 @@ export class AllPacksPage extends Component {
 
           return false;
         })
-        .catch(() => dispatch(renderFlash('error', 'Something went wrong.')));
+        .catch(() => dispatch(renderFlash("error", "Something went wrong.")));
     };
-  }
+  };
 
   onCheckAllPacks = (shouldCheck) => {
     if (shouldCheck) {
       const packs = this.getPacks();
-      const checkedPackIDs = packs.map(pack => pack.id);
+      const checkedPackIDs = packs.map((pack) => pack.id);
 
       this.setState({ allPacksChecked: true, checkedPackIDs });
 
@@ -117,22 +116,27 @@ export class AllPacksPage extends Component {
     this.setState({ allPacksChecked: false, checkedPackIDs: [] });
 
     return false;
-  }
+  };
 
   onCheckPack = (checked, id) => {
     const { checkedPackIDs } = this.state;
-    const newCheckedPackIDs = checked ? checkedPackIDs.concat(id) : pull(checkedPackIDs, id);
+    const newCheckedPackIDs = checked
+      ? checkedPackIDs.concat(id)
+      : pull(checkedPackIDs, id);
 
-    this.setState({ allPacksChecked: false, checkedPackIDs: newCheckedPackIDs });
+    this.setState({
+      allPacksChecked: false,
+      checkedPackIDs: newCheckedPackIDs,
+    });
 
     return false;
-  }
+  };
 
   onFilterPacks = (packFilter) => {
     this.setState({ packFilter });
 
     return false;
-  }
+  };
 
   onSelectPack = (selectedPack) => {
     const { dispatch } = this.props;
@@ -144,7 +148,7 @@ export class AllPacksPage extends Component {
     dispatch(push(locationObject));
 
     return false;
-  }
+  };
 
   onDoubleClickPack = (selectedPack) => {
     const { dispatch } = this.props;
@@ -152,7 +156,7 @@ export class AllPacksPage extends Component {
     dispatch(push(PATHS.PACK(selectedPack)));
 
     return false;
-  }
+  };
 
   onToggleModal = () => {
     const { showModal } = this.state;
@@ -160,14 +164,14 @@ export class AllPacksPage extends Component {
     this.setState({ showModal: !showModal });
 
     return false;
-  }
+  };
 
   onUpdateSelectedPack = (pack, updatedAttrs) => {
     const { dispatch } = this.props;
     const { update } = packActions;
 
     return dispatch(update(pack, updatedAttrs));
-  }
+  };
 
   getPacks = () => {
     const { packFilter } = this.state;
@@ -188,7 +192,7 @@ export class AllPacksPage extends Component {
 
       return includes(lowerPackName, lowerPackFilter);
     });
-  }
+  };
 
   getScheduledQueriesForPack = (pack) => {
     const { dispatch } = this.props;
@@ -201,7 +205,7 @@ export class AllPacksPage extends Component {
     dispatch(loadAll(pack));
 
     return false;
-  }
+  };
 
   goToNewPackPage = () => {
     const { dispatch } = this.props;
@@ -209,7 +213,7 @@ export class AllPacksPage extends Component {
     dispatch(push(PATHS.NEW_PACK));
 
     return false;
-  }
+  };
 
   renderCTAs = () => {
     const { goToNewPackPage, onBulkAction, onToggleModal } = this;
@@ -217,21 +221,23 @@ export class AllPacksPage extends Component {
     const checkedPackCount = this.state.checkedPackIDs.length;
 
     if (checkedPackCount) {
-      const packText = checkedPackCount === 1 ? 'Pack' : 'Packs';
+      const packText = checkedPackCount === 1 ? "Pack" : "Packs";
 
       return (
         <div>
-          <p className={`${baseClass}__pack-count`}>{checkedPackCount} {packText} Selected</p>
+          <p className={`${baseClass}__pack-count`}>
+            {checkedPackCount} {packText} Selected
+          </p>
           <Button
             className={`${btnClass} ${btnClass}--disable`}
-            onClick={onBulkAction('disable')}
+            onClick={onBulkAction("disable")}
             variant="unstyled"
           >
             <KolideIcon name="offline" /> Disable
           </Button>
           <Button
             className={`${btnClass} ${btnClass}--enable`}
-            onClick={onBulkAction('enable')}
+            onClick={onBulkAction("enable")}
             variant="unstyled"
           >
             <KolideIcon name="success-check" /> Enable
@@ -248,9 +254,11 @@ export class AllPacksPage extends Component {
     }
 
     return (
-      <Button variant="brand" onClick={goToNewPackPage}>Create new pack</Button>
+      <Button variant="brand" onClick={goToNewPackPage}>
+        Create new pack
+      </Button>
     );
-  }
+  };
 
   renderModal = () => {
     const { onBulkAction, onToggleModal } = this;
@@ -261,18 +269,19 @@ export class AllPacksPage extends Component {
     }
 
     return (
-      <Modal
-        title="Delete Packs"
-        onExit={onToggleModal}
-      >
+      <Modal title="Delete Packs" onExit={onToggleModal}>
         <p>Are you sure you want to delete the selected packs?</p>
         <div className={`${baseClass}__modal-btn-wrap`}>
-          <Button onClick={onBulkAction('delete')} variant="alert">Delete</Button>
-          <Button onClick={onToggleModal} variant="inverse">Cancel</Button>
+          <Button onClick={onBulkAction("delete")} variant="alert">
+            Delete
+          </Button>
+          <Button onClick={onToggleModal} variant="inverse">
+            Cancel
+          </Button>
         </div>
       </Modal>
     );
-  }
+  };
 
   renderSidePanel = () => {
     const { onUpdateSelectedPack } = this;
@@ -289,9 +298,9 @@ export class AllPacksPage extends Component {
         scheduledQueries={selectedScheduledQueries}
       />
     );
-  }
+  };
 
-  render () {
+  render() {
     const { allPacksChecked, checkedPackIDs, packFilter } = this.state;
     const {
       getPacks,
@@ -307,7 +316,8 @@ export class AllPacksPage extends Component {
     const { loadingPacks, selectedPack } = this.props;
     const packs = getPacks();
     const packsCount = packs.length;
-    const packsTotalDisplay = packsCount === 1 ? '1 pack' : `${packsCount} packs`;
+    const packsTotalDisplay =
+      packsCount === 1 ? "1 pack" : `${packsCount} packs`;
 
     if (loadingPacks) {
       return false;
@@ -317,9 +327,7 @@ export class AllPacksPage extends Component {
       <div className={`${baseClass} has-sidebar`}>
         <div className={`${baseClass}__wrapper body-wrap`}>
           <div className={`${baseClass}__header-wrap`}>
-            <h1 className={`${baseClass}__title`}>
-              Packs
-            </h1>
+            <h1 className={`${baseClass}__title`}>Packs</h1>
             {renderCTAs()}
           </div>
           <div className={`${baseClass}__search-create-section`}>
@@ -352,12 +360,14 @@ export class AllPacksPage extends Component {
 }
 
 const mapStateToProps = (state, { location }) => {
-  const packEntities = entityGetter(state).get('packs');
-  const scheduledQueryEntities = entityGetter(state).get('scheduled_queries');
+  const packEntities = entityGetter(state).get("packs");
+  const scheduledQueryEntities = entityGetter(state).get("scheduled_queries");
   const { entities: packs } = packEntities;
-  const selectedPackID = get(location, 'query.selectedPack');
-  const selectedPack = selectedPackID && packEntities.findBy({ id: selectedPackID });
-  const selectedScheduledQueries = selectedPack && scheduledQueryEntities.where({ pack_id: selectedPack.id });
+  const selectedPackID = get(location, "query.selectedPack");
+  const selectedPack =
+    selectedPackID && packEntities.findBy({ id: selectedPackID });
+  const selectedScheduledQueries =
+    selectedPack && scheduledQueryEntities.where({ pack_id: selectedPack.id });
   const { loading: loadingPacks } = state.entities.packs;
 
   return { loadingPacks, packs, selectedPack, selectedScheduledQueries };

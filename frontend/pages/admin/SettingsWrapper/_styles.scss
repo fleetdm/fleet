@@ -1,4 +1,4 @@
-@import '../../../../node_modules/react-tabs/style/react-tabs.scss';
+@import "../../../../node_modules/react-tabs/style/react-tabs.scss";
 
 .settings-wrapper {
   padding: 25px 30px 50px; // different to pad sticky subnav properly
@@ -59,7 +59,8 @@
       }
     }
 
-    &__tab--selected, &__tab--selected:focus {
+    &__tab--selected,
+    &__tab--selected:focus {
       font-weight: $bold;
       border-bottom: 1px solid $core-blue;
     }

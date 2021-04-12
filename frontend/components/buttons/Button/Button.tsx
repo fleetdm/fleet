@@ -1,7 +1,7 @@
-import React from 'react';
-import classnames from 'classnames';
+import React from "react";
+import classnames from "classnames";
 
-const baseClass = 'button';
+const baseClass = "button";
 
 interface IButtonProps {
   autofocus?: boolean;
@@ -12,7 +12,7 @@ interface IButtonProps {
   onClick: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   size?: string;
   tabIndex?: number;
-  type?: 'button' | 'submit' | 'reset';
+  type?: "button" | "submit" | "reset";
   title?: string;
   variant?: string;
 }
@@ -27,14 +27,16 @@ interface Inputs {
 class Button extends React.Component<IButtonProps, IButtonState> {
   static defaultProps = {
     block: false,
-    size: '',
-    type: 'button',
-    variant: 'default',
+    size: "",
+    type: "button",
+    variant: "default",
   };
 
   componentDidMount(): void {
     const { autofocus } = this.props;
-    const { inputs: { button } } = this;
+    const {
+      inputs: { button },
+    } = this;
 
     if (autofocus && button) {
       button.focus();
@@ -45,7 +47,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
     this.inputs.button = button;
 
     return false;
-  }
+  };
 
   inputs: Inputs = {};
 
@@ -61,16 +63,31 @@ class Button extends React.Component<IButtonProps, IButtonState> {
     }
 
     return false;
-  }
+  };
 
   render(): JSX.Element {
     const { handleClick, setRef } = this;
-    const { block, children, className, disabled, size, tabIndex, type, title, variant } = this.props;
-    const fullClassName = classnames(baseClass, `${baseClass}--${variant}`, className, {
-      [`${baseClass}--block`]: block,
-      [`${baseClass}--disabled`]: disabled,
-      [`${baseClass}--${size}`]: size !== undefined,
-    });
+    const {
+      block,
+      children,
+      className,
+      disabled,
+      size,
+      tabIndex,
+      type,
+      title,
+      variant,
+    } = this.props;
+    const fullClassName = classnames(
+      baseClass,
+      `${baseClass}--${variant}`,
+      className,
+      {
+        [`${baseClass}--block`]: block,
+        [`${baseClass}--disabled`]: disabled,
+        [`${baseClass}--${size}`]: size !== undefined,
+      }
+    );
 
     return (
       <button

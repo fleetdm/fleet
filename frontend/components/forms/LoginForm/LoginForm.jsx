@@ -1,18 +1,18 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { Link } from 'react-router';
-import classnames from 'classnames';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { Link } from "react-router";
+import classnames from "classnames";
 
-import Button from 'components/buttons/Button';
-import Form from 'components/forms/Form';
-import formFieldInterface from 'interfaces/form_field';
-import InputFieldWithIcon from 'components/forms/fields/InputFieldWithIcon';
-import paths from 'router/paths';
-import validate from 'components/forms/LoginForm/validate';
-import ssoSettingsInterface from 'interfaces/ssoSettings';
+import Button from "components/buttons/Button";
+import Form from "components/forms/Form";
+import formFieldInterface from "interfaces/form_field";
+import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
+import paths from "router/paths";
+import validate from "components/forms/LoginForm/validate";
+import ssoSettingsInterface from "interfaces/ssoSettings";
 
-const baseClass = 'login-form';
-const formFields = ['username', 'password'];
+const baseClass = "login-form";
+const formFields = ["username", "password"];
 
 class LoginForm extends Component {
   static propTypes = {
@@ -28,8 +28,8 @@ class LoginForm extends Component {
   };
 
   showLegendWithImage = (image, idpName) => {
-    let legend = 'Single Sign On';
-    if (idpName !== '') {
+    let legend = "Single Sign On";
+    if (idpName !== "") {
       legend = `Sign on with ${idpName}`;
     }
     return (
@@ -38,18 +38,18 @@ class LoginForm extends Component {
         <span className={`${baseClass}__sso-legend`}>{legend}</span>
       </div>
     );
-  }
+  };
 
   showSingleSignOnButton = () => {
     const { ssoSettings, handleSSOSignOn } = this.props;
     const { idp_name: idpName, idp_image_url: imageURL } = ssoSettings;
     const { showLegendWithImage } = this;
 
-    let legend = 'Single Sign On';
-    if (idpName !== '') {
+    let legend = "Single Sign On";
+    if (idpName !== "") {
       legend = `Sign On With ${idpName}`;
     }
-    if (imageURL !== '') {
+    if (imageURL !== "") {
       legend = showLegendWithImage(imageURL, idpName);
     }
 
@@ -61,22 +61,25 @@ class LoginForm extends Component {
         variant="inverse"
         onClick={handleSSOSignOn}
       >
-        <div>
-          {legend}
-        </div>
+        <div>{legend}</div>
       </Button>
     );
-  }
+  };
 
-  render () {
-    const { baseError, fields, handleSubmit, isHidden, ssoSettings } = this.props;
+  render() {
+    const {
+      baseError,
+      fields,
+      handleSubmit,
+      isHidden,
+      ssoSettings,
+    } = this.props;
     const { sso_enabled: ssoEnabled } = ssoSettings;
     const { showSingleSignOnButton } = this;
 
-    const loginFormClass = classnames(
-      baseClass,
-      { [`${baseClass}--hidden`]: isHidden },
-    );
+    const loginFormClass = classnames(baseClass, {
+      [`${baseClass}--hidden`]: isHidden,
+    });
 
     return (
       <form onSubmit={handleSubmit} className={loginFormClass}>
@@ -93,7 +96,12 @@ class LoginForm extends Component {
             type="password"
           />
           <div className={`${baseClass}__forgot-wrap`}>
-            <Link className={`${baseClass}__forgot-link`} to={paths.FORGOT_PASSWORD}>Forgot Password?</Link>
+            <Link
+              className={`${baseClass}__forgot-link`}
+              to={paths.FORGOT_PASSWORD}
+            >
+              Forgot Password?
+            </Link>
           </div>
           <Button
             className={`${baseClass}__submit-btn button button--brand`}
@@ -102,7 +110,7 @@ class LoginForm extends Component {
           >
             Login
           </Button>
-          { ssoEnabled && showSingleSignOnButton()}
+          {ssoEnabled && showSingleSignOnButton()}
         </div>
       </form>
     );

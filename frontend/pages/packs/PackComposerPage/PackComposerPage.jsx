@@ -1,15 +1,15 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { noop } from 'lodash';
-import { push } from 'react-router-redux';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { noop } from "lodash";
+import { push } from "react-router-redux";
 
-import packActions from 'redux/nodes/entities/packs/actions';
-import PackForm from 'components/forms/packs/PackForm';
-import PackInfoSidePanel from 'components/side_panels/PackInfoSidePanel';
-import PATHS from 'router/paths';
+import packActions from "redux/nodes/entities/packs/actions";
+import PackForm from "components/forms/packs/PackForm";
+import PackInfoSidePanel from "components/side_panels/PackInfoSidePanel";
+import PATHS from "router/paths";
 
-const baseClass = 'pack-composer';
+const baseClass = "pack-composer";
 
 export class PackComposerPage extends Component {
   static propTypes = {
@@ -23,7 +23,7 @@ export class PackComposerPage extends Component {
     dispatch: noop,
   };
 
-  constructor (props) {
+  constructor(props) {
     super(props);
 
     this.state = { selectedTargetsCount: 0 };
@@ -35,7 +35,7 @@ export class PackComposerPage extends Component {
     this.setState({ selectedTargetsCount });
 
     return false;
-  }
+  };
 
   visitPackPage = (packID) => {
     const { dispatch } = this.props;
@@ -43,22 +43,21 @@ export class PackComposerPage extends Component {
     dispatch(push(PATHS.PACK({ id: packID })));
 
     return false;
-  }
+  };
 
   handleSubmit = (formData) => {
     const { create } = packActions;
     const { dispatch } = this.props;
     const { visitPackPage } = this;
 
-    return dispatch(create(formData))
-      .then((pack) => {
-        const { id: packID } = pack;
+    return dispatch(create(formData)).then((pack) => {
+      const { id: packID } = pack;
 
-        return visitPackPage(packID);
-      });
-  }
+      return visitPackPage(packID);
+    });
+  };
 
-  render () {
+  render() {
     const { handleSubmit, onFetchTargets } = this;
     const { selectedTargetsCount } = this.state;
     const { serverErrors } = this.props;

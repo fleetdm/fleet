@@ -1,9 +1,9 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
 
-import helpers from 'components/EmailTokenRedirect/helpers';
-import userInterface from 'interfaces/user';
+import helpers from "components/EmailTokenRedirect/helpers";
+import userInterface from "interfaces/user";
 
 export class EmailTokenRedirect extends Component {
   static propTypes = {
@@ -12,13 +12,13 @@ export class EmailTokenRedirect extends Component {
     user: userInterface,
   };
 
-  componentWillMount () {
+  componentWillMount() {
     const { dispatch, token, user } = this.props;
 
     return helpers.confirmEmailChange(dispatch, token, user);
   }
 
-  componentWillReceiveProps (nextProps) {
+  componentWillReceiveProps(nextProps) {
     const { dispatch, token: newToken, user: newUser } = nextProps;
     const { token: oldToken, user: oldUser } = this.props;
 
@@ -31,7 +31,7 @@ export class EmailTokenRedirect extends Component {
     return false;
   }
 
-  render () {
+  render() {
     return <div />;
   }
 }

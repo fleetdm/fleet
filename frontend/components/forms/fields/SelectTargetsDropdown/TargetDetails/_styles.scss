@@ -92,13 +92,13 @@
       display: inline-block;
 
       &::after {
-        content: ',';
+        content: ",";
         margin-right: 3px;
       }
 
       &:last-child {
         &::after {
-          content: '';
+          content: "";
           margin: 0;
         }
       }

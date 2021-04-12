@@ -1,10 +1,10 @@
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
 
-import entityGetter from 'redux/utilities/entityGetter';
-import helpers from 'components/queries/QueryPageWrapper/helpers';
-import queryInterface from 'interfaces/query';
+import entityGetter from "redux/utilities/entityGetter";
+import helpers from "components/queries/QueryPageWrapper/helpers";
+import queryInterface from "interfaces/query";
 
 class QueryPageWrapper extends Component {
   static propTypes = {
@@ -14,7 +14,7 @@ class QueryPageWrapper extends Component {
     queryID: PropTypes.string,
   };
 
-  componentDidMount () {
+  componentDidMount() {
     const { dispatch, query, queryID } = this.props;
     const { fetchQuery } = helpers;
 
@@ -25,7 +25,7 @@ class QueryPageWrapper extends Component {
     return false;
   }
 
-  render () {
+  render() {
     const { children } = this.props;
 
     if (!children) {
@@ -38,7 +38,7 @@ class QueryPageWrapper extends Component {
 
 const mapStateToProps = (state, { params }) => {
   const { id: queryID } = params;
-  const query = entityGetter(state).get('queries').findBy({ id: queryID });
+  const query = entityGetter(state).get("queries").findBy({ id: queryID });
 
   return { query, queryID };
 };

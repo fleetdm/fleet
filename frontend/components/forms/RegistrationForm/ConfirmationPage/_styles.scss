@@ -56,7 +56,7 @@
 
   &__table-url {
     @include ellipsis(100%);
-    font-family: 'SourceCodePro', $monospace;
+    font-family: "SourceCodePro", $monospace;
     vertical-align: bottom;
     font-weight: 600;
   }

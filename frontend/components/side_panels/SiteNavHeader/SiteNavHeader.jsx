@@ -1,8 +1,8 @@
-import React, { Component } from 'react';
+import React, { Component } from "react";
 
-import configInterface from 'interfaces/config';
-import OrgLogoIcon from 'components/icons/OrgLogoIcon';
-import userInterface from 'interfaces/user';
+import configInterface from "interfaces/config";
+import OrgLogoIcon from "components/icons/OrgLogoIcon";
+import userInterface from "interfaces/user";
 
 class SiteNavHeader extends Component {
   static propTypes = {
@@ -10,22 +10,23 @@ class SiteNavHeader extends Component {
     user: userInterface,
   };
 
-  render () {
+  render() {
     const {
-      config: {
-        org_logo_url: orgLogoURL,
-      },
+      config: { org_logo_url: orgLogoURL },
       user,
     } = this.props;
 
     const { username } = user;
 
-    const headerBaseClass = 'site-nav-header';
+    const headerBaseClass = "site-nav-header";
 
     return (
       <header className={headerBaseClass}>
         <div className={`${headerBaseClass}__inner`}>
-          <OrgLogoIcon className={`${headerBaseClass}__logo`} src={orgLogoURL} />
+          <OrgLogoIcon
+            className={`${headerBaseClass}__logo`}
+            src={orgLogoURL}
+          />
         </div>
       </header>
     );

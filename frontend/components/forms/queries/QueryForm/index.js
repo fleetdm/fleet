@@ -1,1 +1,1 @@
-export { default } from './QueryForm';
+export { default } from "./QueryForm";

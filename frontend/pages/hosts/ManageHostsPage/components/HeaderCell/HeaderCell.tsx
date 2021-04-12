@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface IHeaderCellProps {
   value: string;
@@ -6,18 +6,15 @@ interface IHeaderCellProps {
 }
 
 const HeaderCell = (props: IHeaderCellProps): JSX.Element => {
-  const {
-    value,
-    isSortedDesc,
-  } = props;
+  const { value, isSortedDesc } = props;
 
-  let sortArrowClass = '';
+  let sortArrowClass = "";
   if (isSortedDesc === undefined) {
-    sortArrowClass = '';
+    sortArrowClass = "";
   } else if (isSortedDesc) {
-    sortArrowClass = 'descending';
+    sortArrowClass = "descending";
   } else {
-    sortArrowClass = 'ascending';
+    sortArrowClass = "ascending";
   }
 
   return (

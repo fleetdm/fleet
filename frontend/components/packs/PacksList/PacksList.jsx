@@ -1,13 +1,13 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import classnames from 'classnames';
-import { includes, orderBy } from 'lodash';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import classnames from "classnames";
+import { includes, orderBy } from "lodash";
 
-import Checkbox from 'components/forms/fields/Checkbox';
-import packInterface from 'interfaces/pack';
-import Row from 'components/packs/PacksList/Row';
+import Checkbox from "components/forms/fields/Checkbox";
+import packInterface from "interfaces/pack";
+import Row from "components/packs/PacksList/Row";
 
-const baseClass = 'packs-list';
+const baseClass = "packs-list";
 
 class PacksList extends Component {
   static propTypes = {
@@ -42,10 +42,16 @@ class PacksList extends Component {
         </td>
       </tr>
     );
-  }
+  };
 
   renderPack = (pack) => {
-    const { checkedPackIDs, onCheckPack, onDoubleClickPack, onSelectPack, selectedPack } = this.props;
+    const {
+      checkedPackIDs,
+      onCheckPack,
+      onDoubleClickPack,
+      onSelectPack,
+      selectedPack,
+    } = this.props;
     const checked = includes(checkedPackIDs, pack.id);
     const selected = pack.id === selectedPack.id;
 
@@ -60,9 +66,9 @@ class PacksList extends Component {
         selected={selected}
       />
     );
-  }
+  };
 
-  render () {
+  render() {
     const { allPacksChecked, className, onCheckAllPacks, packs } = this.props;
     const { renderPack, renderHelpText } = this;
     const tableClassName = classnames(baseClass, className);
@@ -80,7 +86,9 @@ class PacksList extends Component {
                   wrapperClassName={`${baseClass}__select-all`}
                 />
               </th>
-              <th className={`${baseClass}__th ${baseClass}__th-pack-name`}>Pack name</th>
+              <th className={`${baseClass}__th ${baseClass}__th-pack-name`}>
+                Pack name
+              </th>
               <th className={`${baseClass}__th`}>Queries</th>
               <th className={`${baseClass}__th`}>Status</th>
               <th className={`${baseClass}__th`}>Hosts</th>
@@ -89,7 +97,8 @@ class PacksList extends Component {
           </thead>
           <tbody>
             {renderHelpText()}
-            {!!packs.length && orderBy(packs, ['name']).map(pack => renderPack(pack))}
+            {!!packs.length &&
+              orderBy(packs, ["name"]).map((pack) => renderPack(pack))}
           </tbody>
         </table>
       </div>

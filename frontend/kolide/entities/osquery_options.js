@@ -1,6 +1,6 @@
-import yaml from 'js-yaml';
+import yaml from "js-yaml";
 
-import endpoints from 'kolide/endpoints';
+import endpoints from "kolide/endpoints";
 
 export default (client) => {
   return {
@@ -12,7 +12,10 @@ export default (client) => {
       const { OSQUERY_OPTIONS } = endpoints;
       const osqueryOptionsData = yaml.safeLoad(formData.osquery_options);
 
-      return client.authenticatedPost(client._endpoint(OSQUERY_OPTIONS), JSON.stringify(osqueryOptionsData));
+      return client.authenticatedPost(
+        client._endpoint(OSQUERY_OPTIONS),
+        JSON.stringify(osqueryOptionsData)
+      );
     },
   };
 };

@@ -1,19 +1,24 @@
 /* eslint-disable no-unused-vars */
-import { endsWith, get } from 'lodash';
-import { push } from 'react-router-redux';
+import { endsWith, get } from "lodash";
+import { push } from "react-router-redux";
 
-import APP_CONSTANTS from 'app_constants';
-import kolide from 'kolide';
-import { LOGIN_FAILURE, LOGIN_SUCCESS, LOGOUT_SUCCESS, logoutSuccess } from 'redux/nodes/auth/actions';
-import local from 'utilities/local';
+import APP_CONSTANTS from "app_constants";
+import kolide from "kolide";
+import {
+  LOGIN_FAILURE,
+  LOGIN_SUCCESS,
+  LOGOUT_SUCCESS,
+  logoutSuccess,
+} from "redux/nodes/auth/actions";
+import local from "utilities/local";
 
 const { HTTP_STATUS, PATHS } = APP_CONSTANTS;
 
-const authMiddleware = store => next => (action) => {
+const authMiddleware = (store) => (next) => (action) => {
   const { type, payload } = action;
 
-  if (endsWith(type, 'FAILURE')) {
-    if (get(payload, 'errors.http_status') === HTTP_STATUS.UNAUTHENTICATED) {
+  if (endsWith(type, "FAILURE")) {
+    if (get(payload, "errors.http_status") === HTTP_STATUS.UNAUTHENTICATED) {
       store.dispatch(logoutSuccess);
     }
   }
@@ -22,7 +27,7 @@ const authMiddleware = store => next => (action) => {
     const { token } = payload;
 
     if (token) {
-      local.setItem('auth_token', token);
+      local.setItem("auth_token", token);
       kolide.setBearerToken(token);
     }
   }

@@ -1,13 +1,13 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
-import Form from 'components/forms/Form';
-import formFieldInterface from 'interfaces/form_field';
-import Button from 'components/buttons/Button';
-import InputFieldWithIcon from 'components/forms/fields/InputFieldWithIcon';
-import helpers from './helpers';
+import Form from "components/forms/Form";
+import formFieldInterface from "interfaces/form_field";
+import Button from "components/buttons/Button";
+import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
+import helpers from "./helpers";
 
-const formFields = ['username', 'password', 'password_confirmation', 'email'];
+const formFields = ["username", "password", "password_confirmation", "email"];
 const { validate } = helpers;
 
 class AdminDetails extends Component {
@@ -24,7 +24,10 @@ class AdminDetails extends Component {
   };
 
   componentDidUpdate(prevProps) {
-    if (this.props.currentPage && this.props.currentPage !== prevProps.currentPage) {
+    if (
+      this.props.currentPage &&
+      this.props.currentPage !== prevProps.currentPage
+    ) {
       // Component has a transition duration of 300ms set in
       // RegistrationForm/_styles.scss. We need to wait 300ms before
       // calling .focus() to preserve smooth transition.
@@ -34,7 +37,7 @@ class AdminDetails extends Component {
     }
   }
 
-  render () {
+  render() {
     const { className, currentPage, fields, handleSubmit } = this.props;
     const tabIndex = currentPage ? 1 : -1;
 
@@ -46,14 +49,18 @@ class AdminDetails extends Component {
             placeholder="Username"
             tabIndex={tabIndex}
             autofocus={currentPage}
-            ref={(input) => { this.firstInput = input; }}
+            ref={(input) => {
+              this.firstInput = input;
+            }}
           />
           <InputFieldWithIcon
             {...fields.password}
             placeholder="Password"
             type="password"
             tabIndex={tabIndex}
-            hint={['Must include 7 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)']}
+            hint={[
+              "Must include 7 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
+            ]}
           />
           <InputFieldWithIcon
             {...fields.password_confirmation}
@@ -67,7 +74,12 @@ class AdminDetails extends Component {
             tabIndex={tabIndex}
           />
         </div>
-        <Button type="submit" tabIndex={tabIndex} disabled={!currentPage} className="button button--brand">
+        <Button
+          type="submit"
+          tabIndex={tabIndex}
+          disabled={!currentPage}
+          className="button button--brand"
+        >
           Next
         </Button>
       </form>

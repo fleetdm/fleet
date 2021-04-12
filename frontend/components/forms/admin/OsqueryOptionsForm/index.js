@@ -1,1 +1,1 @@
-export { default } from './OsqueryOptionsForm';
+export { default } from "./OsqueryOptionsForm";

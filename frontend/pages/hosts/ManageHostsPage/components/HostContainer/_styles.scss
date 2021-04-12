@@ -1,5 +1,4 @@
 .host-container {
-
   &--no-hosts {
     display: flex;
     flex-direction: column;
@@ -29,9 +28,8 @@
       list-style: none;
 
       li {
-
         &::before {
-          content: '•';
+          content: "•";
           color: $core-blue;
           margin-right: 16px;
         }
@@ -90,7 +88,6 @@
       font-size: $x-small;
       text-decoration: none;
     }
-
   }
   &__filter-labels {
     margin-bottom: 16px;
