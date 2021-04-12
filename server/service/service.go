@@ -41,7 +41,7 @@ func NewService(ds kolide.Datastore, resultStore kolide.QueryResultStore,
 		osqueryLogWriter: osqueryLogger,
 		mailService:      mailService,
 		ssoSessionStore:  sso,
-		seenHostMap:      newSeenHostMap(),
+		seenHostSet:      newSeenHostSet(),
 		metaDataClient: &http.Client{
 			Timeout: 5 * time.Second,
 		},
@@ -65,7 +65,7 @@ type service struct {
 	ssoSessionStore sso.SessionStore
 	metaDataClient  *http.Client
 
-	seenHostMap *seenHostMap
+	seenHostSet *seenHostSet
 }
 
 func (s service) SendEmail(mail kolide.Email) error {
@@ -95,25 +95,29 @@ func getAssetURL() template.URL {
 	return template.URL("https://github.com/fleetdm/fleet/blob/" + tag)
 }
 
-type seenHostMap struct {
+// seenHostSet implements synchronized storage for the set of seen hosts.
+type seenHostSet struct {
 	mutex   sync.Mutex
 	hostIDs map[uint]bool
 }
 
-func newSeenHostMap() *seenHostMap {
-	return &seenHostMap{
+func newSeenHostSet() *seenHostSet {
+	return &seenHostSet{
 		mutex:   sync.Mutex{},
 		hostIDs: make(map[uint]bool),
 	}
 }
 
-func (m *seenHostMap) addHostID(id uint) {
+// addHostID adds the host identified by ID to the set
+func (m *seenHostSet) addHostID(id uint) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	m.hostIDs[id] = true
 }
 
-func (m *seenHostMap) getAndClearHostIDs() []uint {
+// getAndClearHostIDs gets the list of unique host IDs from the set and empties
+// the set.
+func (m *seenHostSet) getAndClearHostIDs() []uint {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	var ids []uint

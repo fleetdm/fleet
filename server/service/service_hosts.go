@@ -68,7 +68,6 @@ func (svc service) DeleteHost(ctx context.Context, id uint) error {
 }
 
 func (svc *service) FlushSeenHosts(ctx context.Context) error {
-	hostIDs := svc.seenHostMap.getAndClearHostIDs()
-	err := svc.ds.MarkHostsSeen(hostIDs, svc.clock.Now())
-	return err
+	hostIDs := svc.seenHostSet.getAndClearHostIDs()
+	return svc.ds.MarkHostsSeen(hostIDs, svc.clock.Now())
 }

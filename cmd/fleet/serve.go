@@ -235,13 +235,16 @@ the way that the Fleet server works.
 				}
 			}()
 
+			// Flush seen hosts every second
 			go func() {
 				ticker := time.NewTicker(1 * time.Second)
 				for {
 					if err := svc.FlushSeenHosts(context.Background()); err != nil {
-						logger.Log("err", err)
+						level.Info(logger).Log(
+							"err", err,
+							"msg", "failed to update host seen times",
+						)
 					}
-					logger.Log("msg", "flushed seen")
 					<-ticker.C
 				}
 			}()

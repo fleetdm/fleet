@@ -65,8 +65,12 @@ func (svc service) AuthenticateHost(ctx context.Context, nodeKey string) (*kolid
 	}
 
 	// Update the "seen" time used to calculate online status. These updates are
-	// batched for MySQL performance reasons.
-	svc.seenHostMap.addHostID(host.ID)
+	// batched for MySQL performance reasons. Because this is done
+	// asynchronously, it is possible for the server to shut down before
+	// updating the seen time for these hosts. This seems to be an acceptable
+	// tradeoff as an online host will continue to check in and quickly be
+	// marked online again.
+	svc.seenHostSet.addHostID(host.ID)
 	host.SeenTime = svc.clock.Now()
 
 	return host, nil
