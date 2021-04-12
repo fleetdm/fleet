@@ -5,13 +5,13 @@
   }
 
   &__warning {
-    color: $alert
+    color: $ui-error
   }
 
   &__btn-wrap {
     display: flex;
     flex-direction: row-reverse;
-    margin-top: $pad-most;
+    margin-top: $pad-xxlarge;
   }
 
   &__btn {
