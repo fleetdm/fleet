@@ -192,7 +192,7 @@ func updatesAddCommand() *cli.Command {
 				Required: true,
 				Usage:    "Platform name of target (required)",
 			},
-			&cli.StringSliceFlag{
+			&cli.StringFlag{
 				Name:     "version",
 				Required: true,
 				Usage:    "Version of target (required)",
@@ -225,15 +225,19 @@ func updatesAddFunc(c *cli.Context) error {
 	version := c.String("version")
 	platform := c.String("platform")
 	name := c.String("name")
+	target := c.String("target")
 
 	targetsPath := filepath.Join(c.String("path"), "staged", "targets")
 
 	var paths []string
 	for _, tag := range append([]string{version}, tags...) {
 		dstPath := filepath.Join(name, platform, tag, name)
+		if strings.HasSuffix(target, ".exe") {
+			dstPath += ".exe"
+		}
 		fullPath := filepath.Join(targetsPath, dstPath)
 		paths = append(paths, dstPath)
-		if err := copyTarget(c.String("target"), fullPath); err != nil {
+		if err := copyTarget(target, fullPath); err != nil {
 			return err
 		}
 	}
