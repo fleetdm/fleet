@@ -12,6 +12,7 @@ Linux
 SELECT
   name AS name,
   version AS version,
+  'Package (APT)' AS type,
   architectures AS 'architecture',
   '' AS 'install_time',
   'apt_sources' AS source
@@ -20,6 +21,7 @@ UNION
 SELECT
   name AS name,
   version AS version,
+  'Package (deb)' AS type,
   arch AS 'architecture',
   '' AS 'install_time',
   'deb_packages' AS source
@@ -28,6 +30,7 @@ UNION
 SELECT
   package AS name,
   version AS version,
+  'Package (Portage)' AS type,
   '' AS 'architecture',
   '' AS 'install_time',
   'portage_packages' AS source
@@ -36,6 +39,7 @@ UNION
 SELECT
   name AS name,
   version AS version,
+  'Package (RPM)' AS type,
   arch AS 'architecture',
   install_time AS 'install_time',
   'rpm_packages' AS source
@@ -44,6 +48,7 @@ UNION
 SELECT
   name AS name,
   '' AS version,
+  'Package (YUM)' AS type,
   '' AS 'architecture',
   '' AS 'install_time',
   'yum_sources' AS source
@@ -52,6 +57,7 @@ UNION
 SELECT
   name AS name,
   version AS version,
+  'Package (NPM)' AS type,
   '' AS 'architecture',
   '' AS 'install_time',
   'npm_packages' AS source
@@ -60,6 +66,7 @@ UNION
 SELECT
   name AS name,
   version AS version,
+  'Package (Atom)' AS type,
   '' AS 'architecture',
   '' AS 'install_time',
   'atom_packages' AS source
@@ -68,6 +75,7 @@ UNION
 SELECT
   name AS name,
   version AS version,
+  'Package (Python)' AS type,
   '' AS 'architecture',
   '' AS 'install_time',
   'python_packages' AS source

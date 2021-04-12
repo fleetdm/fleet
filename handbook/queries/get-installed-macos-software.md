@@ -12,7 +12,7 @@ macOS
 SELECT
   name AS name,
   bundle_short_version AS version,
-  'Application' AS type,
+  'Application (macOS)' AS type,
   'apps' AS source
 FROM apps
 UNION
