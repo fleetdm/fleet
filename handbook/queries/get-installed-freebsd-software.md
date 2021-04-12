@@ -12,30 +12,35 @@ FreeBSD
 SELECT
   name AS name,
   version AS version,
+  '' AS 'architecture',
   'chrome_extensions' AS source
 FROM chrome_extensions
 UNION
 SELECT
   name AS name,
   version AS version,
+  '' AS 'architecture',
   'firefox_addons' AS source
 FROM firefox_addons
 UNION
 SELECT
   name AS name,
   version AS version,
+  '' AS 'architecture',
   'atom_packages' AS source
 FROM atom_packages
 UNION
 SELECT
   name AS name,
   version AS version,
+  '' AS 'architecture',
   'python_packages' AS source
 FROM python_packages
 UNION
 SELECT
   name AS name,
   version AS version,
+  arch AS 'architecture',
   'pkg_packages' AS source
 FROM pkg_packages;
 ```
