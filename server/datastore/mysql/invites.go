@@ -31,6 +31,7 @@ func (d *Datastore) NewInvite(i *kolide.Invite) (*kolide.Invite, error) {
 	i.ID = uint(id)
 
 	if len(i.Teams) == 0 {
+		i.Teams = []kolide.UserTeam{}
 		return i, nil
 	}
 

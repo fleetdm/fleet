@@ -52,7 +52,7 @@ type InvitePayload struct {
 	Position   *string
 	SSOEnabled *bool       `json:"sso_enabled"`
 	GlobalRole null.String `json:"global_role"`
-	Teams      []UserTeam  `json:"teams,omitempty"`
+	Teams      []UserTeam  `json:"teams"`
 }
 
 // Invite represents an invitation for a user to join Fleet.

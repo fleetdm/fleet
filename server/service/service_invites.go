@@ -39,6 +39,7 @@ func (svc service) InviteNewUser(ctx context.Context, payload kolide.InvitePaylo
 		InvitedBy:  inviter.ID,
 		Token:      token,
 		GlobalRole: payload.GlobalRole,
+		Teams:      payload.Teams,
 	}
 	if payload.Position != nil {
 		invite.Position = *payload.Position
