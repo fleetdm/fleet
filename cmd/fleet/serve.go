@@ -235,6 +235,20 @@ the way that the Fleet server works.
 				}
 			}()
 
+			// Flush seen hosts every second
+			go func() {
+				ticker := time.NewTicker(1 * time.Second)
+				for {
+					if err := svc.FlushSeenHosts(context.Background()); err != nil {
+						level.Info(logger).Log(
+							"err", err,
+							"msg", "failed to update host seen times",
+						)
+					}
+					<-ticker.C
+				}
+			}()
+
 			fieldKeys := []string{"method", "error"}
 			requestCount := kitprometheus.NewCounterFrom(prometheus.CounterOpts{
 				Namespace: "api",

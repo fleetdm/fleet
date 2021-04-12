@@ -564,6 +564,67 @@ func testMarkHostSeen(t *testing.T, ds kolide.Datastore) {
 	}
 }
 
+func testMarkHostsSeen(t *testing.T, ds kolide.Datastore) {
+	mockClock := clock.NewMockClock()
+
+	aSecondAgo := mockClock.Now().Add(-1 * time.Second).UTC()
+	anHourAgo := mockClock.Now().Add(-1 * time.Hour).UTC()
+	aDayAgo := mockClock.Now().Add(-24 * time.Hour).UTC()
+
+	h1, err := ds.NewHost(&kolide.Host{
+		ID:               1,
+		OsqueryHostID:    "1",
+		UUID:             "1",
+		NodeKey:          "1",
+		DetailUpdateTime: aDayAgo,
+		LabelUpdateTime:  aDayAgo,
+		SeenTime:         aDayAgo,
+	})
+	require.Nil(t, err)
+
+	h2, err := ds.NewHost(&kolide.Host{
+		ID:               2,
+		OsqueryHostID:    "2",
+		UUID:             "2",
+		NodeKey:          "2",
+		DetailUpdateTime: aDayAgo,
+		LabelUpdateTime:  aDayAgo,
+		SeenTime:         aDayAgo,
+	})
+	require.Nil(t, err)
+
+	err = ds.MarkHostsSeen([]uint{h1.ID}, anHourAgo)
+	assert.Nil(t, err)
+
+	{
+		h1Verify, err := ds.Host(h1.ID)
+		assert.Nil(t, err)
+		require.NotNil(t, h1Verify)
+		assert.WithinDuration(t, anHourAgo, h1Verify.SeenTime, time.Second)
+
+		h2Verify, err := ds.Host(h2.ID)
+		assert.Nil(t, err)
+		require.NotNil(t, h2Verify)
+		assert.WithinDuration(t, aDayAgo, h2Verify.SeenTime, time.Second)
+	}
+
+	err = ds.MarkHostsSeen([]uint{h1.ID, h2.ID}, aSecondAgo)
+	assert.Nil(t, err)
+
+	{
+		h1Verify, err := ds.Host(h1.ID)
+		assert.Nil(t, err)
+		require.NotNil(t, h1Verify)
+		assert.WithinDuration(t, aSecondAgo, h1Verify.SeenTime, time.Second)
+
+		h2Verify, err := ds.Host(h2.ID)
+		assert.Nil(t, err)
+		require.NotNil(t, h2Verify)
+		assert.WithinDuration(t, aSecondAgo, h2Verify.SeenTime, time.Second)
+	}
+
+}
+
 func testCleanupIncomingHosts(t *testing.T, ds kolide.Datastore) {
 	mockClock := clock.NewMockClock()
 

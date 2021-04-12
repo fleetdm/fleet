@@ -442,6 +442,34 @@ func (d *Datastore) MarkHostSeen(host *kolide.Host, t time.Time) error {
 	return nil
 }
 
+func (d *Datastore) MarkHostsSeen(hostIDs []uint, t time.Time) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	if err := d.withRetryTxx(func(tx *sqlx.Tx) error {
+		query := `
+		UPDATE hosts SET
+			seen_time = ?
+		WHERE id IN (?)
+	`
+		query, args, err := sqlx.In(query, t, hostIDs)
+		if err != nil {
+			return errors.Wrap(err, "sqlx in")
+		}
+		query = d.db.Rebind(query)
+		if _, err := d.db.Exec(query, args...); err != nil {
+			return errors.Wrap(err, "exec update")
+		}
+
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "MarkHostsSeen transaction")
+	}
+
+	return nil
+}
+
 func (d *Datastore) searchHostsWithOmits(query string, omit ...uint) ([]*kolide.Host, error) {
 	hostQuery := transformQuery(query)
 	ipQuery := `"` + query + `"`
