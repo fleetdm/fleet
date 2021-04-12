@@ -76,7 +76,7 @@ class KolideAce extends Component {
     });
 
     const fixHotkeys = (editor) => {
-      editor.commands.removeCommands(['gotoline', 'find']);
+      editor.commands.removeCommands(["gotoline", "find"]);
       onLoad && onLoad(editor);
     };
 

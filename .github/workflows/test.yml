@@ -132,8 +132,7 @@ jobs:
 
       - name: Run prettier formatting check
         run: |
-          yarn prettier --check
-
+          yarn prettier:check
 
   test-go:
     strategy:
