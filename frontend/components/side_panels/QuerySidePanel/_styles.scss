@@ -123,50 +123,9 @@
   }
 
   &__help {
-    margin-left: 12px;
+    margin: 0px 4px;
     vertical-align: text-bottom;
     font-size: 20px;
     color: $core-blue;
   }
-
-  /* Tooltip container */
-  &__tooltip {
-    position: relative;
-    display: inline-block;
-  }
-
-  /* Tooltip text */
-  &__tooltip &__tooltiptext {
-    visibility: hidden;
-    width: 120px;
-    background-color: $core-dark-blue-grey;
-    color: #fff;
-    text-align: center;
-    padding: 5px 0;
-    border-radius: 6px;
-    position: absolute;
-    bottom: 28px;
-    left: 50%;
-    margin-left: -55px;
-    z-index: 1;
-  }
-
-  /* Tooltip arrow */
-  &__tooltip &__tooltiptext::after {
-    content: " ";
-    position: absolute;
-    top: calc(100% - 1px); /* At the bottom of the tooltip */
-    left: 50%;
-    margin-left: -5px;
-    border-width: 5px;
-    border-style: solid;
-    border-color:$core-dark-blue-grey transparent transparent transparent;
-  }
-
-  /* Show the tooltip text when you mouse over the tooltip container */
-  &__tooltip:hover &__tooltiptext {
-    visibility: visible;
-  }
 }
-
-
