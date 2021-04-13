@@ -200,6 +200,32 @@ export class QueryPage extends Component {
     return false;
   };
 
+  onExportErrorsResults = (evt) => {
+    evt.preventDefault();
+
+    const { campaign } = this.state;
+    const { errors } = campaign;
+
+    if (errors) {
+      const csv = convertToCSV(errors, (fields) => {
+        const result = filter(fields, (f) => f !== "host_hostname");
+
+        result.unshift("host_hostname");
+
+        return result;
+      });
+      const formattedTime = moment(new Date()).format("MM-DD-YY hh-mm-ss");
+      const filename = `${this.csvQueryName} (${formattedTime}).csv`;
+      const file = new global.window.File([csv], filename, {
+        type: "text/csv",
+      });
+
+      FileSaver.saveAs(file);
+    }
+
+    return false;
+  };
+
   onFetchTargets = (query, targetResponse) => {
     const { dispatch } = this.props;
     const { targets_count: targetsCount } = targetResponse;
@@ -433,6 +459,81 @@ export class QueryPage extends Component {
     return false;
   };
 
+  onToggleErrorsFullScreen = (evt) => {
+    console.log("You reached full screen!")
+    // const {
+    //   document: { body },
+    //   window,
+    // } = global;
+    // const { errorsResultsToggle, errorsPosition } = this.state;
+    // const { dispatch } = this.props;
+    // window.scrollTo(0, 0);
+    // const {
+    //   parentNode: { parentNode: parent },
+    // } = evt.currentTarget;
+    // const { parentNode: grandParent } = parent;
+    // const rect = parent.getBoundingClientRect();
+
+    // const defaultPosition = {
+    //   top: `${rect.top}px`,
+    //   left: `${rect.left}px`,
+    //   right: `${rect.right - rect.left}px`,
+    //   bottom: `${rect.bottom - rect.top}px`,
+    //   maxWidth: `${parent.offsetWidth}px`,
+    //   maxHeight: `${parent.offsetHeight}px`,
+    //   position: "fixed",
+    // };
+
+    // const resetPosition = {
+    //   position: null,
+    //   maxWidth: null,
+    //   minWidth: null,
+    //   maxHeight: null,
+    //   minHeight: null,
+    //   top: null,
+    //   right: null,
+    //   bottom: null,
+    //   left: null,
+    // };
+
+    // let newPosition = clone(defaultPosition);
+    // let newState;
+    // let callback;
+
+    // if (errorsResultsToggle !== ERRORS_RESULTS_OPTIONS.FULL_SCREEN) {
+    //   newState = {
+    //     errorsResultsToggle: ERRORS_RESULTS_OPTIONS.FULL_SCREEN,
+    //     errorsPosition: defaultPosition,
+    //   };
+
+    //   callback = () => {
+    //     body.style.overflow = "hidden";
+    //     merge(parent.style, newPosition);
+    //     grandParent.style.height = `${newPosition.maxHeight}`;
+    //   };
+    // } else {
+    //   newState = {
+    //     errorsResultsToggle: ERRORS_RESULTS_OPTIONS.SHRINKING,
+    //   };
+
+    //   callback = () => {
+    //     body.style.overflow = "visible";
+    //     newPosition = queryPosition;
+    //     merge(parent.style, newPosition);
+    //     grandParent.style.height = `${newPosition.maxHeight}`;
+
+    //     window.setTimeout(() => {
+    //       merge(parent.style, resetPosition);
+    //       this.setState({ errorsResultsToggle: null });
+    //     }, 500);
+    //   };
+    // }
+
+    // this.setState(newState, callback);
+
+    // return false;
+  };
+
   setupDistributedQuery = (socket) => {
     this.socket = socket;
     const update = () => {
@@ -522,7 +623,9 @@ export class QueryPage extends Component {
     } = this.state;
     const {
       onExportQueryResults,
+      onExportErrorsResults,
       onToggleQueryFullScreen,
+      onToggleErrorsFullScreen,
       onRunQuery,
       onStopQuery,
       onTargetSelect,
@@ -546,7 +649,9 @@ export class QueryPage extends Component {
         <QueryResultsTable
           campaign={campaign}
           onExportQueryResults={onExportQueryResults}
+          onExportErrorsResults={onExportErrorsResults}
           isQueryFullScreen={isQueryFullScreen}
+          onToggleErrorsFullScreen={onToggleErrorsFullScreen}
           isQueryShrinking={isQueryShrinking}
           onToggleQueryFullScreen={onToggleQueryFullScreen}
           onRunQuery={onRunQuery}
