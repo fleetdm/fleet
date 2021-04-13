@@ -55,6 +55,7 @@ class QuerySidePanel extends Component {
             data-tip
             data-for={column.name}
             className={`${columnBaseClass}__tooltip`}
+            multiline={true}
           >
             <KolideIcon
               name="help-solid"
@@ -67,6 +68,7 @@ class QuerySidePanel extends Component {
             type="dark"
             effect="solid"
             backgroundColor="#3e4771"
+            className={`${columnBaseClass}__react-tooltip`}
           >
             <span className={`${columnBaseClass}__tooltiptext`}>
               {column.description}

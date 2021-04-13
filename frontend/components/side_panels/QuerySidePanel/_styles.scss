@@ -128,4 +128,9 @@
     font-size: 20px;
     color: $core-blue;
   }
+
+  &__react-tooltip {
+    max-width: 100px;
+    text-align: center;
+  }
 }
