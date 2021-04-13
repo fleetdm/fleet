@@ -195,20 +195,24 @@ class QueryResultsTable extends Component {
               queryTimerMilliseconds={queryTimerMilliseconds}
             />
           )}
-          <Button
-            className={toggleFullScreenBtnClass}
-            onClick={onToggleQueryFullScreen}
-            variant="grey"
-          >
-            <KolideIcon name={isQueryFullScreen ? "windowed" : "fullscreen"} />
-          </Button>
-          <Button
-            className={`${baseClass}__export-btn`}
-            onClick={onExportQueryResults}
-            variant="inverse"
-          >
-            Export results
-          </Button>
+          {!hasNoResults && !hasErrors && (
+            <div>
+            <Button
+              className={toggleFullScreenBtnClass}
+              onClick={onToggleQueryFullScreen}
+              variant="grey"
+            >
+              <KolideIcon name={isQueryFullScreen ? "windowed" : "fullscreen"} />
+            </Button>
+            <Button
+              className={`${baseClass}__export-btn`}
+              onClick={onExportQueryResults}
+              variant="inverse"
+            >
+              Export results
+            </Button>
+          </div>
+        )}
         </header>
         <span className={`${baseClass}__table-title`}>Results</span>
         <div className={`${baseClass}__results-table-wrapper`}>
