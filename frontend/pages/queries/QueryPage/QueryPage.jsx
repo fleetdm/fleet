@@ -233,6 +233,15 @@ export class QueryPage extends Component {
       return false;
     }
 
+    if (!selectedTargets.count) {
+      this.setState({
+        targetsError:
+          "You must select a target with at least one host to run a query",
+      });
+
+      return false;
+    }
+
     if (error) {
       dispatch(renderFlash("error", error));
 
