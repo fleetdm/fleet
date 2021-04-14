@@ -54,7 +54,6 @@ const generateTableHeaders = (
       Cell: (cellProps) => (
         <LinkCell
           value={cellProps.cell.value}
-          data={cellProps.row.original}
           path={PATHS.TEAM_DETAILS(cellProps.row.original.id)}
         />
       ),

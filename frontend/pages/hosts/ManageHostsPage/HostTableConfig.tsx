@@ -38,6 +38,13 @@ interface IHostDataColumn {
   disableSortBy?: boolean;
 }
 
+const lastSeenTime = (status: string, seenTime: string): string => {
+  if (status !== "online") {
+    return `Last Seen: ${humanHostLastSeen(seenTime)} UTC`;
+  }
+  return "Online";
+};
+
 const hostTableHeaders: IHostDataColumn[] = [
   {
     title: "Hostname",
@@ -51,8 +58,11 @@ const hostTableHeaders: IHostDataColumn[] = [
     Cell: (cellProps) => (
       <LinkCell
         value={cellProps.cell.value}
-        data={cellProps.row.original}
         path={PATHS.HOST_DETAILS(cellProps.row.original)}
+        title={lastSeenTime(
+          cellProps.row.original.status,
+          cellProps.row.original.seen_time
+        )}
       />
     ),
     disableHidden: true,

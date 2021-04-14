@@ -27,7 +27,7 @@ export default {
     return `${URL_PREFIX}/hosts/${host.id}`;
   },
   TEAM_DETAILS: (teamId: number): string => {
-    return `${URL_PREFIX}/teams/${teamId}`;
+    return `${URL_PREFIX}/settings/teams/${teamId}`;
   },
   MANAGE_PACKS: `${URL_PREFIX}/packs/manage`,
   NEW_PACK: `${URL_PREFIX}/packs/new`,

@@ -12,6 +12,7 @@ import { syncHistoryWithStore } from "react-router-redux";
 import AdminAppSettingsPage from "pages/admin/AppSettingsPage";
 import AdminUserManagementPage from "pages/admin/UserManagementPage";
 import AdminTeamManagementPage from "pages/admin/TeamManagementPage";
+import TeamDetailsPage from "pages/admin/TeamManagementPage/TeamDetailsPage";
 import AllPacksPage from "pages/packs/AllPacksPage";
 import App from "components/App";
 import AuthenticatedAdminRoutes from "components/AuthenticatedAdminRoutes";
@@ -65,6 +66,7 @@ const routes = (
                 <Route path="users" component={AdminUserManagementPage} />
                 <Route path="teams" component={AdminTeamManagementPage} />
               </Route>
+              <Route path="teams/:team_id" component={TeamDetailsPage} />
             </Route>
             <Route path="hosts">
               <Route path="manage" component={ManageHostsPage} />
