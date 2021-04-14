@@ -41,9 +41,9 @@ export default (client: any) => {
     },
     update: (teamId: number, updateParams: ITeam) => {
       const { TEAMS } = endpoints;
-      const updateQueryEndpoint = `${client.baseURL}${TEAMS}/${teamId}`;
+      const updateTeamEndpoint = `${client.baseURL}${TEAMS}/${teamId}`;
 
-      return client.authenticatedPatch(updateQueryEndpoint, JSON.stringify(updateParams))
+      return client.authenticatedPatch(updateTeamEndpoint, JSON.stringify(updateParams))
         .then((response: ITeam) => response);
     },
   };
