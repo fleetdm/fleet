@@ -26,6 +26,9 @@ export default {
   HOST_DETAILS: (host: IHost): string => {
     return `${URL_PREFIX}/hosts/${host.id}`;
   },
+  TEAM_DETAILS: (teamId: number): string => {
+    return `${URL_PREFIX}/teams/${teamId}`;
+  },
   MANAGE_PACKS: `${URL_PREFIX}/packs/manage`,
   NEW_PACK: `${URL_PREFIX}/packs/new`,
   MANAGE_QUERIES: `${URL_PREFIX}/queries/manage`,

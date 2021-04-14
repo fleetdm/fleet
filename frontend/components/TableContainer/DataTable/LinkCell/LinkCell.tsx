@@ -7,13 +7,14 @@ import helpers from "kolide/helpers";
 import PATHS from "router/paths";
 import Button from "components/buttons/Button/Button";
 
-interface ILinkCellProps {
+interface ILinkCellProps<T> {
   value: string;
-  host: IHost;
+  data: T;
+  path: string;
 }
 
-const LinkCell = (props: ILinkCellProps): JSX.Element => {
-  const { value, host } = props;
+const LinkCell = (props: ILinkCellProps<any>): JSX.Element => {
+  const { value, data, path } = props;
 
   const dispatch = useDispatch();
 
@@ -33,9 +34,9 @@ const LinkCell = (props: ILinkCellProps): JSX.Element => {
 
   return (
     <Button
-      onClick={() => onHostClick(host)}
+      onClick={() => onHostClick(data)}
       variant="text-link"
-      title={lastSeenTime(host.status, host.seen_time)}
+      title={lastSeenTime(data.status, data.seen_time)}
     >
       {value}
     </Button>

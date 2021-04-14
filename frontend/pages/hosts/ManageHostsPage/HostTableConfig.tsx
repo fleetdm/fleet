@@ -11,6 +11,7 @@ import {
   humanHostLastSeen,
   humanHostDetailUpdated,
 } from "kolide/helpers";
+import PATHS from "../../../router/paths";
 
 interface IHeaderProps {
   column: {
@@ -48,7 +49,11 @@ const hostTableHeaders: IHostDataColumn[] = [
     ),
     accessor: "hostname",
     Cell: (cellProps) => (
-      <LinkCell value={cellProps.cell.value} host={cellProps.row.original} />
+      <LinkCell
+        value={cellProps.cell.value}
+        data={cellProps.row.original}
+        path={PATHS.HOST_DETAILS(cellProps.row.original)}
+      />
     ),
     disableHidden: true,
   },

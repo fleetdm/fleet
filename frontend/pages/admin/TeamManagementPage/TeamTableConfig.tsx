@@ -1,10 +1,11 @@
 import React from "react";
 
-import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
-import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
+import PATHS from "router/paths";
 
 interface IHeaderProps {
   column: {
@@ -50,7 +51,13 @@ const generateTableHeaders = (
       Header: "Name",
       disableSortBy: true,
       accessor: "name",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps) => (
+        <LinkCell
+          value={cellProps.cell.value}
+          data={cellProps.row.original}
+          path={PATHS.TEAM_DETAILS(cellProps.row.original.id)}
+        />
+      ),
     },
     // TODO: need to add this info to API
     {
