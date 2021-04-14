@@ -264,12 +264,6 @@ export class HostDetailsPage extends Component {
   };
 
   renderSoftware = () => {
-    // const alphaSort = (q) => q.name.toLowerCase();
-    // const {
-    //   queries,
-    // } = this.props;
-    // const sortedQueries = sortBy(queries, [alphaSort]);
-
     const wrapperClassName = `${baseClass}__table`;
 
     const softwareList = [
