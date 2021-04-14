@@ -211,15 +211,4 @@ const defaultHiddenColumns = [
   "hardware_serial",
 ];
 
-const enhanceLastFetchedData = (
-  detailedUpdatedAt: string,
-  enrolledAt: string
-): string => {
-  if (detailedUpdatedAt < enrolledAt) {
-    return "Never";
-  }
-
-  return detailedUpdatedAt;
-};
-
 export { hostDataHeaders, defaultHiddenColumns };
