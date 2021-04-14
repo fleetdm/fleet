@@ -3,6 +3,7 @@
 - [End-to-end tests](#end-to-end-tests)
 - [Email](#email)
 - [Database backup/restore](#database-backuprestore)
+- [MySQL shell](#mysql-shell)
 - [Testing SSO](#testing-sso)
 
 ## Test suite
@@ -168,6 +169,16 @@ Restore:
 ```
 
 Note that a "restore" will replace the state of the development database with the state from the backup.
+
+## MySQL shell
+
+Connect to the MySQL shell to view and interact directly with the contents of the development database.
+
+To connect via Docker:
+
+```
+docker-compose exec mysql mysql -uroot -ptoor -Dfleet
+```
 
 ## Testing SSO
 

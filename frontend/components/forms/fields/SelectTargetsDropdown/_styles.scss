@@ -116,7 +116,7 @@
 
       &::after {
         @extend %kolidecon;
-        content: '\f03c';
+        content: "\f03c";
         font-size: 150px;
         position: absolute;
         left: 50%;
@@ -152,7 +152,7 @@
         @extend %kolidecon;
         transition: color 150ms ease-in-out;
         transform: translate(-50%, -50%);
-        content: '\2715'; // hex code for multiplication cross
+        content: "\2715"; // hex code for multiplication cross
         position: absolute;
         top: 50%;
         left: 50%;
@@ -196,7 +196,7 @@
     .Select-menu-outer {
       .Select-menu {
         &::after {
-          content: '\f049';
+          content: "\f049";
           font-size: 180px;
           margin-top: -90px;
           color: $ui-gray;

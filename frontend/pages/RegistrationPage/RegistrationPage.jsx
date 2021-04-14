@@ -1,17 +1,17 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { max, noop } from 'lodash';
-import { push } from 'react-router-redux';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { max, noop } from "lodash";
+import { push } from "react-router-redux";
 
-import Breadcrumbs from 'pages/RegistrationPage/Breadcrumbs';
-import paths from 'router/paths';
-import RegistrationForm from 'components/forms/RegistrationForm';
-import { setup } from 'redux/nodes/auth/actions';
-import { showBackgroundImage } from 'redux/nodes/app/actions';
-import EnsureUnauthenticated from 'components/EnsureUnauthenticated';
+import Breadcrumbs from "pages/RegistrationPage/Breadcrumbs";
+import paths from "router/paths";
+import RegistrationForm from "components/forms/RegistrationForm";
+import { setup } from "redux/nodes/auth/actions";
+import { showBackgroundImage } from "redux/nodes/app/actions";
+import EnsureUnauthenticated from "components/EnsureUnauthenticated";
 
-import fleetLogoText from '../../../assets/images/fleet-logo-text-white.svg';
+import fleetLogoText from "../../../assets/images/fleet-logo-text-white.svg";
 
 export class RegistrationPage extends Component {
   static propTypes = {
@@ -22,7 +22,7 @@ export class RegistrationPage extends Component {
     dispatch: noop,
   };
 
-  constructor (props) {
+  constructor(props) {
     super(props);
 
     this.state = {
@@ -33,7 +33,7 @@ export class RegistrationPage extends Component {
     return false;
   }
 
-  componentWillMount () {
+  componentWillMount() {
     const { dispatch } = this.props;
 
     dispatch(showBackgroundImage);
@@ -50,16 +50,20 @@ export class RegistrationPage extends Component {
     });
 
     return false;
-  }
+  };
 
   onRegistrationFormSubmit = (formData) => {
     const { dispatch } = this.props;
     const { MANAGE_HOSTS } = paths;
 
     return dispatch(setup(formData))
-      .then(() => { return dispatch(push(MANAGE_HOSTS)); })
-      .catch(() => { return false; });
-  }
+      .then(() => {
+        return dispatch(push(MANAGE_HOSTS));
+      })
+      .catch(() => {
+        return false;
+      });
+  };
 
   onSetPage = (page) => {
     const { pageProgress } = this.state;
@@ -70,9 +74,9 @@ export class RegistrationPage extends Component {
     this.setState({ page });
 
     return false;
-  }
+  };
 
-  render () {
+  render() {
     const { page, pageProgress } = this.state;
     const { onRegistrationFormSubmit, onNextPage, onSetPage } = this;
 
@@ -83,8 +87,16 @@ export class RegistrationPage extends Component {
           src={fleetLogoText}
           className="registration-page__logo"
         />
-        <Breadcrumbs onClick={onSetPage} page={page} pageProgress={pageProgress} />
-        <RegistrationForm page={page} onNextPage={onNextPage} onSubmit={onRegistrationFormSubmit} />
+        <Breadcrumbs
+          onClick={onSetPage}
+          page={page}
+          pageProgress={pageProgress}
+        />
+        <RegistrationForm
+          page={page}
+          onNextPage={onNextPage}
+          onSubmit={onRegistrationFormSubmit}
+        />
       </div>
     );
   }

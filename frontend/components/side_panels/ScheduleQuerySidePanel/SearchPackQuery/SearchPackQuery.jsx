@@ -1,13 +1,13 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import AceEditor from 'react-ace';
-import { isEqual, sortBy } from 'lodash';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import AceEditor from "react-ace";
+import { isEqual, sortBy } from "lodash";
 
-import KolideIcon from 'components/icons/KolideIcon';
-import queryInterface from 'interfaces/query';
-import Dropdown from 'components/forms/fields/Dropdown';
+import KolideIcon from "components/icons/KolideIcon";
+import queryInterface from "interfaces/query";
+import Dropdown from "components/forms/fields/Dropdown";
 
-const baseClass = 'search-pack-query';
+const baseClass = "search-pack-query";
 
 class SearchPackQuery extends Component {
   static propTypes = {
@@ -20,7 +20,7 @@ class SearchPackQuery extends Component {
     allQueries: [],
   };
 
-  constructor (props) {
+  constructor(props) {
     super(props);
 
     this.state = {
@@ -28,7 +28,7 @@ class SearchPackQuery extends Component {
     };
   }
 
-  componentWillMount () {
+  componentWillMount() {
     const { allQueries } = this.props;
 
     const queryDropdownOptions = allQueries.map((query) => {
@@ -36,11 +36,11 @@ class SearchPackQuery extends Component {
     });
 
     this.setState({
-      queryDropdownOptions: sortBy(queryDropdownOptions, ['label']),
+      queryDropdownOptions: sortBy(queryDropdownOptions, ["label"]),
     });
   }
 
-  componentWillReceiveProps (nextProps) {
+  componentWillReceiveProps(nextProps) {
     const { allQueries } = nextProps;
 
     if (!isEqual(allQueries, this.props.allQueries)) {
@@ -49,7 +49,7 @@ class SearchPackQuery extends Component {
       });
 
       this.setState({
-        queryDropdownOptions: sortBy(queryDropdownOptions, ['label']),
+        queryDropdownOptions: sortBy(queryDropdownOptions, ["label"]),
       });
     }
   }
@@ -64,8 +64,8 @@ class SearchPackQuery extends Component {
       );
     }
 
-    return (<h1 className={`${baseClass}__title`}>Choose Query</h1>);
-  }
+    return <h1 className={`${baseClass}__title`}>Choose Query</h1>;
+  };
 
   renderQuery = () => {
     const { selectedQuery } = this.props;
@@ -90,7 +90,7 @@ class SearchPackQuery extends Component {
     }
 
     return false;
-  }
+  };
 
   renderDescription = () => {
     const { selectedQuery } = this.props;
@@ -98,15 +98,17 @@ class SearchPackQuery extends Component {
       return (
         <div className={`${baseClass}__description`}>
           <h2>description</h2>
-          <p>{selectedQuery.description || <em>No description available.</em>}</p>
+          <p>
+            {selectedQuery.description || <em>No description available.</em>}
+          </p>
         </div>
       );
     }
 
     return false;
-  }
+  };
 
-  render () {
+  render() {
     const { renderHeader, renderQuery, renderDescription } = this;
     const { onSelectQuery } = this.props;
     const { queryDropdownOptions } = this.state;
@@ -117,7 +119,10 @@ class SearchPackQuery extends Component {
         <Dropdown
           options={queryDropdownOptions}
           onChange={onSelectQuery}
-          placeholder={[<KolideIcon name="search" size="lg" key="search-pack-query" />, ' Select query']}
+          placeholder={[
+            <KolideIcon name="search" size="lg" key="search-pack-query" />,
+            " Select query",
+          ]}
         />
         {renderQuery()}
         {renderDescription()}

@@ -1,10 +1,10 @@
-import { map } from 'lodash';
+import { map } from "lodash";
 
-import { parseEntityFunc } from 'redux/nodes/entities/hosts/helpers';
+import { parseEntityFunc } from "redux/nodes/entities/hosts/helpers";
 
 export const appendTargetTypeToTargets = (targets, targetType) => {
   return map(targets, (target) => {
-    if (targetType === 'hosts') {
+    if (targetType === "hosts") {
       return parseEntityFunc(target);
     }
 

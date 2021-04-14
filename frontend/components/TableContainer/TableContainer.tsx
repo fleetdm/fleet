@@ -1,23 +1,22 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import classnames from 'classnames';
-import { useAsyncDebounce } from 'react-table';
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import classnames from "classnames";
+import { useAsyncDebounce } from "react-table";
 
-import Button from 'components/buttons/Button';
+import Button from "components/buttons/Button";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
-import InputField from 'components/forms/fields/InputField';
+import InputField from "components/forms/fields/InputField";
 // @ts-ignore
-import KolideIcon from 'components/icons/KolideIcon';
+import KolideIcon from "components/icons/KolideIcon";
 // @ts-ignore
-import Pagination from 'components/Pagination';
+import Pagination from "components/Pagination";
 // @ts-ignore
-import scrollToTop from 'utilities/scroll_to_top';
+import scrollToTop from "utilities/scroll_to_top";
 
 // @ts-ignore
-import DataTable from './DataTable/DataTable';
+import DataTable from "./DataTable/DataTable";
 
-
-import TableContainerUtils from './TableContainerUtils';
+import TableContainerUtils from "./TableContainerUtils";
 
 interface ITableQueryData {
   searchQuery: string;
@@ -45,13 +44,15 @@ interface ITableContainerProps<T, U> {
   className?: string;
 }
 
-const baseClass = 'table-container';
+const baseClass = "table-container";
 
 const DEFAULT_PAGE_SIZE = 100;
 const DEFAULT_PAGE_INDEX = 0;
 const DEBOUNCE_QUERY_DELAY = 300;
 
-const TableContainer = <T, U>(props: ITableContainerProps<T, U>): JSX.Element => {
+const TableContainer = <T, U>(
+  props: ITableContainerProps<T, U>
+): JSX.Element => {
   const {
     columns,
     data,
@@ -69,9 +70,11 @@ const TableContainer = <T, U>(props: ITableContainerProps<T, U>): JSX.Element =>
     actionButtonText,
   } = props;
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortHeader, setSortHeader] = useState(defaultSortHeader || '');
-  const [sortDirection, setSortDirection] = useState(defaultSortDirection || '');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
+  const [sortDirection, setSortDirection] = useState(
+    defaultSortDirection || ""
+  );
   const [pageSize] = useState(DEFAULT_PAGE_SIZE);
   const [pageIndex, setPageIndex] = useState(DEFAULT_PAGE_INDEX);
 
@@ -79,17 +82,19 @@ const TableContainer = <T, U>(props: ITableContainerProps<T, U>): JSX.Element =>
 
   const EmptyComponent = emptyComponent;
 
-  const onSortChange = useCallback((id?:string, isDesc?: boolean) => {
-    if (id === undefined) {
-      setSortHeader('');
-      setSortDirection('');
-    } else {
-      setSortHeader(id);
-      const direction = isDesc ? 'desc' : 'asc';
-      setSortDirection(direction);
-    }
-  }, [setSortHeader, setSortDirection]);
-
+  const onSortChange = useCallback(
+    (id?: string, isDesc?: boolean) => {
+      if (id === undefined) {
+        setSortHeader("");
+        setSortDirection("");
+      } else {
+        setSortHeader(id);
+        const direction = isDesc ? "desc" : "asc";
+        setSortDirection(direction);
+      }
+    },
+    [setSortHeader, setSortDirection]
+  );
 
   const onSearchQueryChange = (value: string) => {
     setSearchQuery(value);
@@ -106,9 +111,12 @@ const TableContainer = <T, U>(props: ITableContainerProps<T, U>): JSX.Element =>
   // to later compare this the the current value and debounce a change handler.
   const prevSearchQueryRef = useRef(searchQuery);
   const prevSearchQuery = prevSearchQueryRef.current;
-  const debounceOnQueryChange = useAsyncDebounce((queryData: ITableQueryData) => {
-    onQueryChange(queryData);
-  }, DEBOUNCE_QUERY_DELAY);
+  const debounceOnQueryChange = useAsyncDebounce(
+    (queryData: ITableQueryData) => {
+      onQueryChange(queryData);
+    },
+    DEBOUNCE_QUERY_DELAY
+  );
 
   // When any of our query params change, or if any additionalQueries change, we want to fire off
   // the parent components handler function with this updated query data. There is logic in here to check
@@ -140,17 +148,31 @@ const TableContainer = <T, U>(props: ITableContainerProps<T, U>): JSX.Element =>
     }
 
     hasPageIndexChangedRef.current = false;
-  }, [searchQuery, sortHeader, sortDirection, pageSize, pageIndex, additionalQueries, onQueryChange]);
+  }, [
+    searchQuery,
+    sortHeader,
+    sortDirection,
+    pageSize,
+    pageIndex,
+    additionalQueries,
+    onQueryChange,
+  ]);
 
   return (
     <div className={wrapperClasses}>
       <div className={`${baseClass}__header`}>
-        { data && data.length ?
+        {data && data.length ? (
           <p className={`${baseClass}__results-count`}>
-            {TableContainerUtils.generateResultsCountText(resultsTitle, pageIndex, pageSize, data.length)}
-          </p> :
+            {TableContainerUtils.generateResultsCountText(
+              resultsTitle,
+              pageIndex,
+              pageSize,
+              data.length
+            )}
+          </p>
+        ) : (
           <p />
-        }
+        )}
         <div className={`${baseClass}__table-controls`}>
           <Button
             disabled={disableActionButton}
@@ -174,8 +196,9 @@ const TableContainer = <T, U>(props: ITableContainerProps<T, U>): JSX.Element =>
       </div>
       <div className={`${baseClass}__data-table-container`}>
         {/* No entities for this result. */}
-        {!isLoading && data.length === 0 ?
-          <EmptyComponent /> :
+        {!isLoading && data.length === 0 ? (
+          <EmptyComponent />
+        ) : (
           <>
             <DataTable
               isLoading={isLoading}
@@ -192,8 +215,7 @@ const TableContainer = <T, U>(props: ITableContainerProps<T, U>): JSX.Element =>
               onPaginationChange={onPaginationChange}
             />
           </>
-
-        }
+        )}
       </div>
     </div>
   );

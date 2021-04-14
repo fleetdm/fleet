@@ -1,13 +1,13 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import classnames from 'classnames';
-import { noop, pick } from 'lodash';
-import Select from 'react-select';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import classnames from "classnames";
+import { noop, pick } from "lodash";
+import Select from "react-select";
 
-import dropdownOptionInterface from 'interfaces/dropdownOption';
-import FormField from 'components/forms/FormField';
+import dropdownOptionInterface from "interfaces/dropdownOption";
+import FormField from "components/forms/FormField";
 
-const baseClass = 'dropdown';
+const baseClass = "dropdown";
 
 class Dropdown extends Component {
   static propTypes = {
@@ -33,15 +33,15 @@ class Dropdown extends Component {
     searchable: true,
     disabled: false,
     multi: false,
-    name: 'targets',
-    placeholder: 'Select One...',
+    name: "targets",
+    placeholder: "Select One...",
   };
 
   handleChange = (selected) => {
     const { multi, onChange } = this.props;
 
     if (multi) {
-      return onChange(selected.map(obj => obj.value).join(','));
+      return onChange(selected.map((obj) => obj.value).join(","));
     }
 
     return onChange(selected.value);
@@ -52,7 +52,7 @@ class Dropdown extends Component {
     const labelWrapperClasses = classnames(
       `${baseClass}__label`,
       labelClassName,
-      { [`${baseClass}__label--error`]: error },
+      { [`${baseClass}__label--error`]: error }
     );
 
     if (!label) {
@@ -60,35 +60,50 @@ class Dropdown extends Component {
     }
 
     return (
-      <label
-        className={labelWrapperClasses}
-        htmlFor={name}
-      >
+      <label className={labelWrapperClasses} htmlFor={name}>
         {error || label}
       </label>
     );
-  }
+  };
 
   renderOption = (option) => {
     return (
       <div className={`${baseClass}__option`}>
         {option.label}
-        {option.helpText && <span className={`${baseClass}__help-text`}>{option.helpText}</span>}
+        {option.helpText && (
+          <span className={`${baseClass}__help-text`}>{option.helpText}</span>
+        )}
       </div>
     );
-  }
+  };
 
-  render () {
+  render() {
     const { handleChange, renderOption } = this;
-    const { error, className, clearable, disabled, multi, name, options, placeholder, value, wrapperClassName, searchable } = this.props;
+    const {
+      error,
+      className,
+      clearable,
+      disabled,
+      multi,
+      name,
+      options,
+      placeholder,
+      value,
+      wrapperClassName,
+      searchable,
+    } = this.props;
 
-    const formFieldProps = pick(this.props, ['hint', 'label', 'error', 'name']);
+    const formFieldProps = pick(this.props, ["hint", "label", "error", "name"]);
     const selectClasses = classnames(className, `${baseClass}__select`, {
       [`${baseClass}__select--error`]: error,
     });
 
     return (
-      <FormField {...formFieldProps} type="dropdown" className={wrapperClassName}>
+      <FormField
+        {...formFieldProps}
+        type="dropdown"
+        className={wrapperClassName}
+      >
         <Select
           className={selectClasses}
           clearable={clearable}

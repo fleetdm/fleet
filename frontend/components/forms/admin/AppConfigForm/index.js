@@ -1,1 +1,1 @@
-export { default } from './AppConfigForm';
+export { default } from "./AppConfigForm";

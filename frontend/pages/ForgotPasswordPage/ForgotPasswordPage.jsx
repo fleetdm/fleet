@@ -1,16 +1,16 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { push } from 'react-router-redux';
-import { noop } from 'lodash';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { push } from "react-router-redux";
+import { noop } from "lodash";
 
 import {
   clearForgotPasswordErrors,
   forgotPasswordAction,
-} from 'redux/nodes/components/ForgotPasswordPage/actions';
-import debounce from 'utilities/debounce';
-import ForgotPasswordForm from 'components/forms/ForgotPasswordForm';
-import StackedWhiteBoxes from 'components/StackedWhiteBoxes';
+} from "redux/nodes/components/ForgotPasswordPage/actions";
+import debounce from "utilities/debounce";
+import ForgotPasswordForm from "components/forms/ForgotPasswordForm";
+import StackedWhiteBoxes from "components/StackedWhiteBoxes";
 
 export class ForgotPasswordPage extends Component {
   static propTypes = {
@@ -25,7 +25,7 @@ export class ForgotPasswordPage extends Component {
     dispatch: noop,
   };
 
-  componentWillUnmount () {
+  componentWillUnmount() {
     return this.clearErrors();
   }
 
@@ -33,26 +33,25 @@ export class ForgotPasswordPage extends Component {
     const { dispatch } = this.props;
 
     return dispatch(push(location));
-  }
+  };
 
   handleSubmit = debounce((formData) => {
     const { dispatch } = this.props;
 
-    return dispatch(forgotPasswordAction(formData))
-      .catch(() => false);
-  })
+    return dispatch(forgotPasswordAction(formData)).catch(() => false);
+  });
 
   clearErrors = () => {
     const { dispatch } = this.props;
 
     return dispatch(clearForgotPasswordErrors);
-  }
+  };
 
   renderContent = () => {
     const { clearErrors, handleSubmit } = this;
     const { email, errors } = this.props;
 
-    const baseClass = 'forgot-password';
+    const baseClass = "forgot-password";
 
     if (email) {
       return (
@@ -60,8 +59,8 @@ export class ForgotPasswordPage extends Component {
           <div className={`${baseClass}__text-wrapper`}>
             <p className={`${baseClass}__text`}>
               An email was sent to
-              <span className={`${baseClass}__email`}> {email}</span>.
-              Click the link on the email to proceed with the password reset process.
+              <span className={`${baseClass}__email`}> {email}</span>. Click the
+              link on the email to proceed with the password reset process.
             </p>
           </div>
         </div>
@@ -75,11 +74,12 @@ export class ForgotPasswordPage extends Component {
         serverErrors={errors}
       />
     );
-  }
+  };
 
-  render () {
+  render() {
     const { handleLeave } = this;
-    const leadText = 'Enter your email below and we will email you a link so that you can reset your password.';
+    const leadText =
+      "Enter your email below and we will email you a link so that you can reset your password.";
 
     return (
       <StackedWhiteBoxes

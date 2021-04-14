@@ -24,7 +24,7 @@ func TestInviteNewUserMock(t *testing.T) {
 		return i, nil
 	}
 	mailer := &mockMailService{SendEmailFn: func(e kolide.Email) error { return nil }}
-	svc := validationMiddleware{service{
+	svc := validationMiddleware{&service{
 		ds:          ms,
 		config:      config.TestConfig(),
 		mailService: mailer,

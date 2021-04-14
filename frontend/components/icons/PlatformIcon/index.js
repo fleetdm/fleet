@@ -1,1 +1,1 @@
-export { default } from './PlatformIcon';
+export { default } from "./PlatformIcon";

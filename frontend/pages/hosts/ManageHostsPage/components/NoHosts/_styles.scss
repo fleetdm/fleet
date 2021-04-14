@@ -27,9 +27,8 @@
     list-style: none;
 
     li {
-
       &::before {
-        content: '•';
+        content: "•";
         color: $core-vibrant-blue;
         margin-right: $pad-medium;
       }

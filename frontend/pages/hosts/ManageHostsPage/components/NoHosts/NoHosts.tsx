@@ -1,11 +1,11 @@
 /**
  * Component when there is no hosts set up in fleet
  */
-import React from 'react';
+import React from "react";
 
-import RoboDogImage from '../../../../../../assets/images/robo-dog-176x144@2x.png';
+import RoboDogImage from "../../../../../../assets/images/robo-dog-176x144@2x.png";
 
-const baseClass = 'no-hosts';
+const baseClass = "no-hosts";
 
 const NoHosts = (): JSX.Element => {
   return (
@@ -18,7 +18,9 @@ const NoHosts = (): JSX.Element => {
           <p>Add your laptops and servers to securely monitor them.</p>
           <div className={`${baseClass}__no-hosts-contact`}>
             <p>Still having trouble?</p>
-            <a href="https://github.com/fleetdm/fleet/issues">File a GitHub issue</a>
+            <a href="https://github.com/fleetdm/fleet/issues">
+              File a GitHub issue
+            </a>
           </div>
         </div>
       </div>

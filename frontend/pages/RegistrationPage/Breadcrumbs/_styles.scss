@@ -19,7 +19,7 @@
     position: relative;
 
     &::before {
-      content: '';
+      content: "";
       position: absolute;
       width: 200px;
       height: 2px;
@@ -38,7 +38,7 @@
       background-color: transparent;
       display: block;
       border-radius: 50%;
-      content: '';
+      content: "";
       font-size: $x-large;
       margin: 14px auto 0;
       position: relative;
@@ -65,9 +65,12 @@
       }
 
       &.registration-breadcrumbs__page--active {
-
         &::before {
-          background: linear-gradient(to right, $core-white 50%, $core-vibrant-blue 50%);
+          background: linear-gradient(
+            to right,
+            $core-white 50%,
+            $core-vibrant-blue 50%
+          );
         }
 
         &::after {
@@ -85,7 +88,7 @@
 
         &::after {
           @include size(28px);
-          content: '\f035';
+          content: "\f035";
           color: $core-white;
           border: 0;
         }
@@ -99,7 +102,11 @@
 
       &.registration-breadcrumbs__page--active {
         &::before {
-          background: linear-gradient(to right, $core-white 50%, $core-vibrant-blue 50%);
+          background: linear-gradient(
+            to right,
+            $core-white 50%,
+            $core-vibrant-blue 50%
+          );
         }
 
         &::after {
@@ -116,7 +123,7 @@
 
         &::after {
           @include size(28px);
-          content: '\f035';
+          content: "\f035";
           color: $core-white;
           border: 0;
         }
@@ -133,9 +140,12 @@
       }
 
       &.registration-breadcrumbs__page--active {
-
         &::before {
-          background: linear-gradient(to right, $core-white 50%, $core-vibrant-blue 50%);
+          background: linear-gradient(
+            to right,
+            $core-white 50%,
+            $core-vibrant-blue 50%
+          );
         }
 
         &::after {
@@ -147,7 +157,7 @@
       &.registration-breadcrumbs__page--complete {
         &::after {
           @include size(28px);
-          content: '\f035';
+          content: "\f035";
           color: $core-white;
           border: 0;
         }

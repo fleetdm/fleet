@@ -1,5 +1,4 @@
 .manage-hosts {
-
   .header-wrap {
     display: flex;
     align-items: center;
@@ -25,7 +24,6 @@
   }
 
   &__label-actions {
-
     button {
       &:first-child {
         margin-right: $pad-medium;
@@ -62,9 +60,7 @@
   }
 
   .data-table {
-
     &__status {
-
       &--online {
         &:before {
           background-color: $ui-success;
@@ -76,8 +72,6 @@
           background-color: $ui-offline;
         }
       }
-
-
     }
   }
 }

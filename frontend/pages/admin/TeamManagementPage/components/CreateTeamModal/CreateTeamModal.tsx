@@ -1,14 +1,14 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback } from "react";
 
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
-import Modal from 'components/modals/Modal';
+import Modal from "components/modals/Modal";
 // @ts-ignore
-import InputFieldWithIcon from 'components/forms/fields/InputFieldWithIcon';
-import Button from 'components/buttons/Button';
-import InfoBanner from 'components/InfoBanner/InfoBanner';
+import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
+import Button from "components/buttons/Button";
+import InfoBanner from "components/InfoBanner/InfoBanner";
 
-const baseClass = 'create-team-modal';
+const baseClass = "create-team-modal";
 
 export interface ICreateTeamFormData {
   name: string;
@@ -22,11 +22,14 @@ interface ICreateTeamModalProps {
 const CreateTeamModal = (props: ICreateTeamModalProps): JSX.Element => {
   const { onCancel, onSubmit } = props;
 
-  const [name, setName] = useState('');
+  const [name, setName] = useState("");
 
-  const onInputChange = useCallback((value: string) => {
-    setName(value);
-  }, [setName]);
+  const onInputChange = useCallback(
+    (value: string) => {
+      setName(value);
+    },
+    [setName]
+  );
 
   const onFormSubmit = useCallback(() => {
     onSubmit({
@@ -35,11 +38,7 @@ const CreateTeamModal = (props: ICreateTeamModalProps): JSX.Element => {
   }, [onSubmit, name]);
 
   return (
-    <Modal
-      title={'Create team'}
-      onExit={onCancel}
-      className={baseClass}
-    >
+    <Modal title={"Create team"} onExit={onCancel} className={baseClass}>
       <form className={`${baseClass}__form`}>
         <InputFieldWithIcon
           autofocus
@@ -50,8 +49,14 @@ const CreateTeamModal = (props: ICreateTeamModalProps): JSX.Element => {
           value={name}
         />
         <InfoBanner className={`${baseClass}__sandbox-info`}>
-          <p className={`${baseClass}__info-header`}>Need to test queries and configurations before deploying?</p>
-          <p>A popular pattern is to end a team’s name with “- Sandbox”, then you can use this to test new queries and configuration with staging hosts or volunteers acting as canaries.</p>
+          <p className={`${baseClass}__info-header`}>
+            Need to test queries and configurations before deploying?
+          </p>
+          <p>
+            A popular pattern is to end a team’s name with “- Sandbox”, then you
+            can use this to test new queries and configuration with staging
+            hosts or volunteers acting as canaries.
+          </p>
         </InfoBanner>
         <div className={`${baseClass}__btn-wrap`}>
           <Button

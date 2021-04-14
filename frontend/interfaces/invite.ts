@@ -1,5 +1,5 @@
-import PropTypes from 'prop-types';
-import teamInterface, { ITeam } from './team';
+import PropTypes from "prop-types";
+import teamInterface, { ITeam } from "./team";
 
 export default PropTypes.shape({
   admin: PropTypes.bool,

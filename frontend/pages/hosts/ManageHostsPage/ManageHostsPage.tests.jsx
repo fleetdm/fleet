@@ -1,25 +1,62 @@
-import React from 'react';
-import { mount, shallow } from 'enzyme';
-import { noop } from 'lodash';
+import React from "react";
+import { mount, shallow } from "enzyme";
+import { noop } from "lodash";
 
-import hostActions from 'redux/nodes/entities/hosts/actions';
-import labelActions from 'redux/nodes/entities/labels/actions';
-import ConnectedManageHostsPage, { ManageHostsPage } from 'pages/hosts/ManageHostsPage/ManageHostsPage';
-import { connectedComponent, createAceSpy, reduxMockStore, stubbedOsqueryTable } from 'test/helpers';
-import { hostStub, configStub } from 'test/stubs';
-import * as manageHostsPageActions from 'redux/nodes/components/ManageHostsPage/actions';
+import hostActions from "redux/nodes/entities/hosts/actions";
+import labelActions from "redux/nodes/entities/labels/actions";
+import ConnectedManageHostsPage, {
+  ManageHostsPage,
+} from "pages/hosts/ManageHostsPage/ManageHostsPage";
+import {
+  connectedComponent,
+  createAceSpy,
+  reduxMockStore,
+  stubbedOsqueryTable,
+} from "test/helpers";
+import { hostStub, configStub } from "test/stubs";
+import * as manageHostsPageActions from "redux/nodes/components/ManageHostsPage/actions";
 
-const allHostsLabel = { id: 1, display_text: 'All Hosts', slug: 'all-hosts', type: 'all', count: 22 };
-const windowsLabel = { id: 2, display_text: 'Windows', slug: 'windows', type: 'platform', count: 22 };
-const offlineHost = { ...hostStub, id: 111, status: 'offline' };
-const offlineHostsLabel = { id: 5, display_text: 'OFFLINE', slug: 'offline', status: 'offline', type: 'status', count: 1 };
-const customLabel = { id: 6, display_text: 'Custom Label', slug: 'custom-label', type: 'custom', count: 3 };
+const allHostsLabel = {
+  id: 1,
+  display_text: "All Hosts",
+  slug: "all-hosts",
+  type: "all",
+  count: 22,
+};
+const windowsLabel = {
+  id: 2,
+  display_text: "Windows",
+  slug: "windows",
+  type: "platform",
+  count: 22,
+};
+const offlineHost = { ...hostStub, id: 111, status: "offline" };
+const offlineHostsLabel = {
+  id: 5,
+  display_text: "OFFLINE",
+  slug: "offline",
+  status: "offline",
+  type: "status",
+  count: 1,
+};
+const customLabel = {
+  id: 6,
+  display_text: "Custom Label",
+  slug: "custom-label",
+  type: "custom",
+  count: 3,
+};
 const mockStore = reduxMockStore({
   app: { enrollSecret: [], config: {} },
   components: {
     ManageHostsPage: {
-      display: 'Grid',
-      selectedLabel: { id: 100, display_text: 'All Hosts', type: 'all', count: 22 },
+      display: "Grid",
+      selectedLabel: {
+        id: 100,
+        display_text: "All Hosts",
+        type: "all",
+        count: 22,
+      },
       status_labels: {},
     },
     QueryPages: {
@@ -38,8 +75,20 @@ const mockStore = reduxMockStore({
       data: {
         1: allHostsLabel,
         2: windowsLabel,
-        3: { id: 3, display_text: 'Ubuntu', slug: 'ubuntu', type: 'platform', count: 22 },
-        4: { id: 4, display_text: 'ONLINE', slug: 'online', type: 'status', count: 22 },
+        3: {
+          id: 3,
+          display_text: "Ubuntu",
+          slug: "ubuntu",
+          type: "platform",
+          count: 22,
+        },
+        4: {
+          id: 4,
+          display_text: "ONLINE",
+          slug: "online",
+          type: "status",
+          count: 22,
+        },
         5: offlineHostsLabel,
         6: customLabel,
       },
@@ -47,7 +96,7 @@ const mockStore = reduxMockStore({
   },
 });
 
-describe('ManageHostsPage - component', () => {
+describe("ManageHostsPage - component", () => {
   const props = {
     config: configStub,
     dispatch: noop,
@@ -63,187 +112,217 @@ describe('ManageHostsPage - component', () => {
   beforeEach(() => {
     const spyResponse = () => Promise.resolve([]);
 
-    jest.spyOn(hostActions, 'loadAll')
-      .mockImplementation(() => spyResponse);
-    jest.spyOn(labelActions, 'loadAll')
-      .mockImplementation(() => spyResponse);
-    jest.spyOn(manageHostsPageActions, 'getStatusLabelCounts')
+    jest.spyOn(hostActions, "loadAll").mockImplementation(() => spyResponse);
+    jest.spyOn(labelActions, "loadAll").mockImplementation(() => spyResponse);
+    jest
+      .spyOn(manageHostsPageActions, "getStatusLabelCounts")
       .mockImplementation(() => spyResponse);
     createAceSpy();
   });
 
-  describe('side panels', () => {
-    it('renders a HostSidePanel when not adding a new label', () => {
+  describe("side panels", () => {
+    it("renders a HostSidePanel when not adding a new label", () => {
       const page = shallow(<ManageHostsPage {...props} />);
 
-      expect(page.find('HostSidePanel').length).toEqual(1);
+      expect(page.find("HostSidePanel").length).toEqual(1);
     });
 
-    it('renders a QuerySidePanel when adding a new label', () => {
-      const ownProps = { location: { hash: '#new_label' }, params: {} };
-      const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
+    it("renders a QuerySidePanel when adding a new label", () => {
+      const ownProps = { location: { hash: "#new_label" }, params: {} };
+      const component = connectedComponent(ConnectedManageHostsPage, {
+        props: ownProps,
+        mockStore,
+      });
       const page = mount(component);
 
-      expect(page.find('QuerySidePanel').length).toEqual(1);
+      expect(page.find("QuerySidePanel").length).toEqual(1);
     });
   });
 
-  describe('host filtering', () => {
-    it('shows all hosts by default', () => {
-      const ownProps = { location: { hash: '' }, params: {} };
-      const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
+  describe("host filtering", () => {
+    it("shows all hosts by default", () => {
+      const ownProps = { location: { hash: "" }, params: {} };
+      const component = connectedComponent(ConnectedManageHostsPage, {
+        props: ownProps,
+        mockStore,
+      });
       const page = mount(component);
-      expect(page.find('TableContainer').find('tbody tr').length).toEqual(2);
+      expect(page.find("TableContainer").find("tbody tr").length).toEqual(2);
     });
   });
 
-  describe('Adding a new label', () => {
+  describe("Adding a new label", () => {
     beforeEach(() => createAceSpy());
 
-    const ownProps = { location: { hash: '#new_label' }, params: {} };
-    const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
+    const ownProps = { location: { hash: "#new_label" }, params: {} };
+    const component = connectedComponent(ConnectedManageHostsPage, {
+      props: ownProps,
+      mockStore,
+    });
 
-    it('renders a LabelForm component', () => {
+    it("renders a LabelForm component", () => {
       const page = mount(component);
 
-      expect(page.find('LabelForm').length).toEqual(1);
+      expect(page.find("LabelForm").length).toEqual(1);
     });
 
     it('displays "New label" as the query form header', () => {
       const page = mount(component);
 
-      expect(page.find('LabelForm').text()).toContain('New label');
+      expect(page.find("LabelForm").text()).toContain("New label");
     });
   });
 
-  describe('Active label', () => {
+  describe("Active label", () => {
     beforeEach(() => createAceSpy());
 
-    it('Displays the all hosts label as the active label by default', () => {
+    it("Displays the all hosts label as the active label by default", () => {
       const ownProps = { location: {}, params: {} };
-      const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
+      const component = connectedComponent(ConnectedManageHostsPage, {
+        props: ownProps,
+        mockStore,
+      });
       const page = mount(component);
 
-      expect(page.find('HostSidePanel').props()).toMatchObject({
-        selectedFilter: 'all-hosts',
+      expect(page.find("HostSidePanel").props()).toMatchObject({
+        selectedFilter: "all-hosts",
       });
     });
 
-    it('Displays the windows label as the active label', () => {
-      const ownProps = { location: {}, params: { active_label: 'labels/4' } };
-      const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
+    it("Displays the windows label as the active label", () => {
+      const ownProps = { location: {}, params: { active_label: "labels/4" } };
+      const component = connectedComponent(ConnectedManageHostsPage, {
+        props: ownProps,
+        mockStore,
+      });
       const page = mount(component);
 
-      expect(page.find('HostSidePanel').props()).toMatchObject({
-        selectedFilter: 'labels/4',
+      expect(page.find("HostSidePanel").props()).toMatchObject({
+        selectedFilter: "labels/4",
       });
     });
 
-    it(
-      'Renders the default description if the selected label does not have a description',
-      () => {
-        const defaultDescription = 'No description available.';
-        const noDescriptionLabel = { ...allHostsLabel, description: undefined };
-        const pageProps = {
-          ...props,
-          selectedLabel: noDescriptionLabel,
-        };
+    it("Renders the default description if the selected label does not have a description", () => {
+      const defaultDescription = "No description available.";
+      const noDescriptionLabel = { ...allHostsLabel, description: undefined };
+      const pageProps = {
+        ...props,
+        selectedLabel: noDescriptionLabel,
+      };
 
-        const Page = shallow(<ManageHostsPage {...pageProps} />);
+      const Page = shallow(<ManageHostsPage {...pageProps} />);
 
-        expect(Page.find('.manage-hosts__header').text())
-          .toContain(defaultDescription);
-      },
-    );
+      expect(Page.find(".manage-hosts__header").text()).toContain(
+        defaultDescription
+      );
+    });
 
-    it(
-      'Renders the label description if the selected label has a description',
-      () => {
-        const defaultDescription = 'No description available.';
-        const labelDescription = 'This is the label description';
-        const noDescriptionLabel = { ...allHostsLabel, description: labelDescription };
-        const pageProps = {
-          ...props,
-          selectedLabel: noDescriptionLabel,
-        };
+    it("Renders the label description if the selected label has a description", () => {
+      const defaultDescription = "No description available.";
+      const labelDescription = "This is the label description";
+      const noDescriptionLabel = {
+        ...allHostsLabel,
+        description: labelDescription,
+      };
+      const pageProps = {
+        ...props,
+        selectedLabel: noDescriptionLabel,
+      };
 
-        const Page = shallow(<ManageHostsPage {...pageProps} />);
+      const Page = shallow(<ManageHostsPage {...pageProps} />);
 
-        expect(Page.find('.manage-hosts__header').text())
-          .toContain(labelDescription);
-        expect(Page.find('.manage-hosts__header').text())
-          .not.toContain(defaultDescription);
-      },
-    );
+      expect(Page.find(".manage-hosts__header").text()).toContain(
+        labelDescription
+      );
+      expect(Page.find(".manage-hosts__header").text()).not.toContain(
+        defaultDescription
+      );
+    });
   });
 
-  describe('Edit a label', () => {
-    const ownProps = { location: {}, params: { active_label: 'custom-label' } };
-    const Component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
+  describe("Edit a label", () => {
+    const ownProps = { location: {}, params: { active_label: "custom-label" } };
+    const Component = connectedComponent(ConnectedManageHostsPage, {
+      props: ownProps,
+      mockStore,
+    });
 
-    it('renders the LabelForm when Edit is clicked', () => {
+    it("renders the LabelForm when Edit is clicked", () => {
       const Page = mount(Component);
-      const EditButton = Page
-        .find('.manage-hosts__label-actions')
-        .find('Button')
+      const EditButton = Page.find(".manage-hosts__label-actions")
+        .find("Button")
         .first();
 
-      expect(Page.find('LabelForm').length).toEqual(0, 'Expected the LabelForm to not be on the page');
+      expect(Page.find("LabelForm").length).toEqual(
+        0,
+        "Expected the LabelForm to not be on the page"
+      );
 
-      EditButton.simulate('click');
+      EditButton.simulate("click");
 
-      const LabelForm = Page.find('LabelForm');
+      const LabelForm = Page.find("LabelForm");
 
-      expect(LabelForm.length).toEqual(1, 'Expected the LabelForm to be on the page');
+      expect(LabelForm.length).toEqual(
+        1,
+        "Expected the LabelForm to be on the page"
+      );
 
-      expect(LabelForm.prop('formData')).toEqual(customLabel);
-      expect(LabelForm.prop('isEdit')).toEqual(true);
+      expect(LabelForm.prop("formData")).toEqual(customLabel);
+      expect(LabelForm.prop("isEdit")).toEqual(true);
     });
   });
 
-  describe('Delete a label', () => {
-    it('Deleted label after confirmation modal', () => {
-      const ownProps = { location: {}, params: { active_label: 'custom-label' } };
+  describe("Delete a label", () => {
+    it("Deleted label after confirmation modal", () => {
+      const ownProps = {
+        location: {},
+        params: { active_label: "custom-label" },
+      };
       const component = connectedComponent(ConnectedManageHostsPage, {
         props: ownProps,
         mockStore,
       });
       const page = mount(component);
       const deleteBtn = page
-        .find('.manage-hosts__label-actions')
-        .find('Button')
+        .find(".manage-hosts__label-actions")
+        .find("Button")
         .last();
 
-      jest.spyOn(labelActions, 'destroy').mockImplementation(() => (dispatch) => {
-        dispatch({ type: 'labels_LOAD_REQUEST' });
+      jest
+        .spyOn(labelActions, "destroy")
+        .mockImplementation(() => (dispatch) => {
+          dispatch({ type: "labels_LOAD_REQUEST" });
 
-        return Promise.resolve();
-      });
+          return Promise.resolve();
+        });
 
-      expect(page.find('Modal').length).toEqual(0);
+      expect(page.find("Modal").length).toEqual(0);
 
-      deleteBtn.simulate('click');
+      deleteBtn.simulate("click");
 
-      const confirmModal = page.find('Modal');
+      const confirmModal = page.find("Modal");
 
       expect(confirmModal.length).toEqual(1);
 
-      const confirmBtn = confirmModal.find('.button--alert');
-      confirmBtn.simulate('click');
+      const confirmBtn = confirmModal.find(".button--alert");
+      confirmBtn.simulate("click");
 
       expect(labelActions.destroy).toHaveBeenCalledWith(customLabel);
     });
   });
 
-  describe('Add Host', () => {
-    it('Open the Add Host modal', () => {
-      const ownProps = { location: { hash: '' }, params: {} };
-      const component = connectedComponent(ConnectedManageHostsPage, { props: ownProps, mockStore });
+  describe("Add Host", () => {
+    it("Open the Add Host modal", () => {
+      const ownProps = { location: { hash: "" }, params: {} };
+      const component = connectedComponent(ConnectedManageHostsPage, {
+        props: ownProps,
+        mockStore,
+      });
       const page = mount(component);
-      const addNewHost = page.find('.manage-hosts__add-hosts');
-      addNewHost.hostNodes().simulate('click');
+      const addNewHost = page.find(".manage-hosts__add-hosts");
+      addNewHost.hostNodes().simulate("click");
 
-      expect(page.find('AddHostModal').length).toBeGreaterThan(0);
+      expect(page.find("AddHostModal").length).toBeGreaterThan(0);
     });
   });
 });

@@ -1,16 +1,16 @@
-import React from 'react';
+import React from "react";
 
-import StatusCell from 'components/TableContainer/DataTable/StatusCell/StatusCell';
-import TextCell from 'components/TableContainer/DataTable/TextCell/TextCell';
-import DropdownCell from 'components/TableContainer/DataTable/DropdownCell';
-import { ITeam } from 'interfaces/team';
-import { IDropdownOption } from 'interfaces/dropdownOption';
+import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
+import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
+import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
+import { ITeam } from "interfaces/team";
+import { IDropdownOption } from "interfaces/dropdownOption";
 
 interface IHeaderProps {
   column: {
     title: string;
     isSortedDesc: boolean;
-  }
+  };
 }
 
 interface ICellProps {
@@ -41,40 +41,44 @@ interface ITeamTableData {
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = (actionSelectHandler: (value: string, team: ITeam) => void): IDataColumn[] => {
+const generateTableHeaders = (
+  actionSelectHandler: (value: string, team: ITeam) => void
+): IDataColumn[] => {
   return [
     {
-      title: 'Name',
-      Header: 'Name',
+      title: "Name",
+      Header: "Name",
       disableSortBy: true,
-      accessor: 'name',
-      Cell: cellProps => <TextCell value={cellProps.cell.value} />,
+      accessor: "name",
+      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     // TODO: need to add this info to API
     {
-      title: 'Hosts',
-      Header: 'Hosts',
+      title: "Hosts",
+      Header: "Hosts",
       disableSortBy: true,
-      accessor: 'hosts',
-      Cell: cellProps => <TextCell value={cellProps.cell.value} />,
+      accessor: "hosts",
+      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
-      title: 'Members',
-      Header: 'Members',
+      title: "Members",
+      Header: "Members",
       disableSortBy: true,
-      accessor: 'members',
-      Cell: cellProps => <TextCell value={cellProps.cell.value} />,
+      accessor: "members",
+      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
-      title: 'Actions',
-      Header: 'Actions',
+      title: "Actions",
+      Header: "Actions",
       disableSortBy: true,
-      accessor: 'actions',
-      Cell: cellProps => (
+      accessor: "actions",
+      Cell: (cellProps) => (
         <DropdownCell
           options={cellProps.cell.value}
-          onChange={(value: string) => actionSelectHandler(value, cellProps.row.original)}
-          placeholder={'Actions'}
+          onChange={(value: string) =>
+            actionSelectHandler(value, cellProps.row.original)
+          }
+          placeholder={"Actions"}
         />
       ),
     },
@@ -85,19 +89,19 @@ const generateTableHeaders = (actionSelectHandler: (value: string, team: ITeam) 
 const generateActionDropdownOptions = (): IDropdownOption[] => {
   return [
     {
-      label: 'Edit',
+      label: "Edit",
       disabled: false,
-      value: 'edit',
+      value: "edit",
     },
     {
-      label: 'Delete',
+      label: "Delete",
       disabled: false,
-      value: 'delete',
+      value: "delete",
     },
   ];
 };
 
-const enhanceTeamData = (teams: {[id: number]: ITeam}): ITeamTableData[] => {
+const enhanceTeamData = (teams: { [id: number]: ITeam }): ITeamTableData[] => {
   return Object.values(teams).map((team) => {
     return {
       name: team.name,
@@ -109,7 +113,7 @@ const enhanceTeamData = (teams: {[id: number]: ITeam}): ITeamTableData[] => {
   });
 };
 
-const generateDataSet = (teams: {[id: number]: ITeam}): ITeamTableData[] => {
+const generateDataSet = (teams: { [id: number]: ITeam }): ITeamTableData[] => {
   return [...enhanceTeamData(teams)];
 };
 

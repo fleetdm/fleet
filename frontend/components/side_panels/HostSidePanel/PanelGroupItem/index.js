@@ -1,1 +1,1 @@
-export { default } from './PanelGroupItem';
+export { default } from "./PanelGroupItem";

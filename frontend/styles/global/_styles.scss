@@ -7,7 +7,7 @@
     counter-increment: step-counter;
 
     &::before {
-      content: counter(step-counter) ')';
+      content: counter(step-counter) ")";
       display: inline-block;
       margin-right: 10px;
       text-align: left;
@@ -20,7 +20,7 @@
   &::before,
   &::after {
     border-radius: 3px;
-    content: '';
+    content: "";
     display: block;
     position: absolute;
     width: 0;

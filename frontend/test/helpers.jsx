@@ -1,15 +1,18 @@
-import React from 'react';
-import configureStore from 'redux-mock-store';
-import expect, { spyOn } from 'expect';
-import { noop } from 'lodash';
-import { Provider } from 'react-redux';
-import thunk from 'redux-thunk';
+import React from "react";
+import configureStore from "redux-mock-store";
+import expect, { spyOn } from "expect";
+import { noop } from "lodash";
+import { Provider } from "react-redux";
+import thunk from "redux-thunk";
 
-import authMiddleware from 'redux/middlewares/auth';
-import redirectMiddleware from 'redux/middlewares/redirect';
+import authMiddleware from "redux/middlewares/auth";
+import redirectMiddleware from "redux/middlewares/redirect";
 
 export const fillInFormInput = (inputComponent, value) => {
-  return inputComponent.hostNodes().first().simulate('change', { target: { value } });
+  return inputComponent
+    .hostNodes()
+    .first()
+    .simulate("change", { target: { value } });
 };
 
 export const reduxMockStore = (store = {}) => {
@@ -34,25 +37,31 @@ export const itBehavesLikeAFormDropdownElement = (form, inputName) => {
 
   expect(dropdownField.length).toEqual(1);
 
-  const options = dropdownField.prop('options');
+  const options = dropdownField.prop("options");
 
   // Arrow down, then enter to select the first item
-  dropdownField.find('.Select-control').simulate('keyDown', { keyCode: 40 });
-  dropdownField.find('.Select-control').simulate('keyDown', { keyCode: 13 });
+  dropdownField.find(".Select-control").simulate("keyDown", { keyCode: 40 });
+  dropdownField.find(".Select-control").simulate("keyDown", { keyCode: 13 });
 
   expect(form.state().formData).toInclude({ [inputName]: options[0].value });
 };
 
-export const itBehavesLikeAFormInputElement = (form, inputName, inputType = 'InputField', inputText = 'some text') => {
+export const itBehavesLikeAFormInputElement = (
+  form,
+  inputName,
+  inputType = "InputField",
+  inputText = "some text"
+) => {
   const Input = form.find({ name: inputName });
-  const inputField = inputType === 'textarea' ? Input.find('textarea') : Input.find('input');
+  const inputField =
+    inputType === "textarea" ? Input.find("textarea") : Input.find("input");
 
   expect(inputField.length).toEqual(1);
 
-  if (inputType === 'Checkbox') {
+  if (inputType === "Checkbox") {
     const inputValue = form.state().formData[inputName];
 
-    inputField.simulate('change');
+    inputField.simulate("change");
 
     expect(form.state().formData[inputName]).toEqual(!inputValue);
   } else {
@@ -63,12 +72,14 @@ export const itBehavesLikeAFormInputElement = (form, inputName, inputType = 'Inp
 };
 
 export const createAceSpy = () => {
-  return spyOn(global.window.ace, 'edit').andReturn({
+  return spyOn(global.window.ace, "edit").andReturn({
     $options: {},
     commands: {
       addCommand: noop,
     },
-    getValue: () => { return 'Hello world'; },
+    getValue: () => {
+      return "Hello world";
+    },
     getSession: () => {
       return {
         getMarkers: noop,
@@ -109,24 +120,64 @@ export const createAceSpy = () => {
 
 export const stubbedOsqueryTable = {
   columns: [
-    { description: 'User ID', name: 'uid', options: { index: true }, type: 'BIGINT_TYPE' },
-    { description: 'Group ID (unsigned)', name: 'gid', options: {}, type: 'BIGINT_TYPE' },
-    { description: 'User ID as int64 signed (Apple)', name: 'uid_signed', options: {}, type: 'BIGINT_TYPE' },
-    { description: 'Default group ID as int64 signed (Apple)', name: 'gid_signed', options: {}, type: 'BIGINT_TYPE' },
-    { description: 'Username', name: 'username', options: {}, type: 'TEXT_TYPE' },
-    { description: 'Optional user description', name: 'description', options: {}, type: 'TEXT_TYPE' },
-    { description: "User's home directory", name: 'directory', options: {}, type: 'TEXT_TYPE' },
-    { description: "User's configured default shell", name: 'shell', options: {}, type: 'TEXT_TYPE' },
-    { description: "User's UUID (Apple)", name: 'uuid', options: {}, type: 'TEXT_TYPE' },
+    {
+      description: "User ID",
+      name: "uid",
+      options: { index: true },
+      type: "BIGINT_TYPE",
+    },
+    {
+      description: "Group ID (unsigned)",
+      name: "gid",
+      options: {},
+      type: "BIGINT_TYPE",
+    },
+    {
+      description: "User ID as int64 signed (Apple)",
+      name: "uid_signed",
+      options: {},
+      type: "BIGINT_TYPE",
+    },
+    {
+      description: "Default group ID as int64 signed (Apple)",
+      name: "gid_signed",
+      options: {},
+      type: "BIGINT_TYPE",
+    },
+    {
+      description: "Username",
+      name: "username",
+      options: {},
+      type: "TEXT_TYPE",
+    },
+    {
+      description: "Optional user description",
+      name: "description",
+      options: {},
+      type: "TEXT_TYPE",
+    },
+    {
+      description: "User's home directory",
+      name: "directory",
+      options: {},
+      type: "TEXT_TYPE",
+    },
+    {
+      description: "User's configured default shell",
+      name: "shell",
+      options: {},
+      type: "TEXT_TYPE",
+    },
+    {
+      description: "User's UUID (Apple)",
+      name: "uuid",
+      options: {},
+      type: "TEXT_TYPE",
+    },
   ],
-  description: 'Local system users.',
-  name: 'users',
-  platforms: [
-    'darwin',
-    'linux',
-    'windows',
-    'freebsd',
-  ],
+  description: "Local system users.",
+  name: "users",
+  platforms: ["darwin", "linux", "windows", "freebsd"],
 };
 
 export default {

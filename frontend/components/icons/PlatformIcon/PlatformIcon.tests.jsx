@@ -1,16 +1,16 @@
-import React from 'react';
-import { mount } from 'enzyme';
+import React from "react";
+import { mount } from "enzyme";
 
-import PlatformIcon from './PlatformIcon';
+import PlatformIcon from "./PlatformIcon";
 
-describe('PlatformIcon - component', () => {
-  it('renders', () => {
+describe("PlatformIcon - component", () => {
+  it("renders", () => {
     expect(mount(<PlatformIcon name="linux" />).length).toEqual(1);
   });
 
-  it('renders text if no icon', () => {
+  it("renders text if no icon", () => {
     const component = mount(<PlatformIcon name="All" />);
 
-    expect(component.find('.kolidecon-single-host').length).toEqual(1);
+    expect(component.find(".kolidecon-single-host").length).toEqual(1);
   });
 });

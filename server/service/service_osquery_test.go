@@ -114,23 +114,46 @@ func TestEnrollAgentDetails(t *testing.T) {
 func TestAuthenticateHost(t *testing.T) {
 	ds := new(mock.Store)
 	svc, err := newTestService(ds, nil, nil)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	var gotKey string
-	host := kolide.Host{HostName: "foobar"}
+	host := kolide.Host{ID: 1, HostName: "foobar"}
 	ds.AuthenticateHostFunc = func(key string) (*kolide.Host, error) {
 		gotKey = key
 		return &host, nil
 	}
-	ds.MarkHostSeenFunc = func(host *kolide.Host, t time.Time) error {
+	var gotHostIDs []uint
+	ds.MarkHostsSeenFunc = func(hostIDs []uint, t time.Time) error {
+		gotHostIDs = hostIDs
 		return nil
 	}
 
-	h, err := svc.AuthenticateHost(context.Background(), "test")
+	_, err = svc.AuthenticateHost(context.Background(), "test")
 	require.Nil(t, err)
 	assert.Equal(t, "test", gotKey)
-	assert.True(t, ds.MarkHostSeenFuncInvoked)
-	assert.Equal(t, host, *h)
+	assert.False(t, ds.MarkHostsSeenFuncInvoked)
+
+	host = kolide.Host{ID: 7, HostName: "foobar"}
+	_, err = svc.AuthenticateHost(context.Background(), "floobar")
+	require.Nil(t, err)
+	assert.Equal(t, "floobar", gotKey)
+	assert.False(t, ds.MarkHostsSeenFuncInvoked)
+	// Host checks in twice
+	host = kolide.Host{ID: 7, HostName: "foobar"}
+	_, err = svc.AuthenticateHost(context.Background(), "floobar")
+	require.Nil(t, err)
+	assert.Equal(t, "floobar", gotKey)
+	assert.False(t, ds.MarkHostsSeenFuncInvoked)
+
+	err = svc.FlushSeenHosts(context.Background())
+	require.NoError(t, err)
+	assert.True(t, ds.MarkHostsSeenFuncInvoked)
+	assert.ElementsMatch(t, []uint{1, 7}, gotHostIDs)
+
+	err = svc.FlushSeenHosts(context.Background())
+	require.NoError(t, err)
+	assert.True(t, ds.MarkHostsSeenFuncInvoked)
+	assert.Len(t, gotHostIDs, 0)
 }
 
 func TestAuthenticateHostFailure(t *testing.T) {
@@ -161,7 +184,7 @@ func TestSubmitStatusLogs(t *testing.T) {
 	require.Nil(t, err)
 
 	// Hack to get at the service internals and modify the writer
-	serv := ((svc.(validationMiddleware)).Service).(service)
+	serv := ((svc.(validationMiddleware)).Service).(*service)
 
 	testLogger := &testJSONLogger{}
 	serv.osqueryLogWriter = &logging.OsqueryLogger{Status: testLogger}
@@ -190,7 +213,7 @@ func TestSubmitResultLogs(t *testing.T) {
 	require.Nil(t, err)
 
 	// Hack to get at the service internals and modify the writer
-	serv := ((svc.(validationMiddleware)).Service).(service)
+	serv := ((svc.(validationMiddleware)).Service).(*service)
 
 	testLogger := &testJSONLogger{}
 	serv.osqueryLogWriter = &logging.OsqueryLogger{Result: testLogger}
@@ -1527,15 +1550,18 @@ func TestAuthenticationErrors(t *testing.T) {
 	}
 
 	svc, err := newTestService(ms, nil, nil)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	ctx := context.Background()
 
 	_, err = svc.AuthenticateHost(ctx, "")
-	require.NotNil(t, err)
+	require.Error(t, err)
 	require.True(t, err.(osqueryError).NodeInvalid())
 
+	ms.AuthenticateHostFunc = func(nodeKey string) (*kolide.Host, error) {
+		return &kolide.Host{ID: 1}, nil
+	}
 	_, err = svc.AuthenticateHost(ctx, "foo")
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	// return not found error
 	ms.AuthenticateHostFunc = func(nodeKey string) (*kolide.Host, error) {
@@ -1543,7 +1569,7 @@ func TestAuthenticationErrors(t *testing.T) {
 	}
 
 	_, err = svc.AuthenticateHost(ctx, "foo")
-	require.NotNil(t, err)
+	require.Error(t, err)
 	require.True(t, err.(osqueryError).NodeInvalid())
 
 	// return other error

@@ -1,7 +1,7 @@
-import React from 'react';
-import classnames from 'classnames';
+import React from "react";
+import classnames from "classnames";
 
-const baseClass = 'radio';
+const baseClass = "radio";
 
 interface IRadioProps {
   label: string;
@@ -15,7 +15,16 @@ interface IRadioProps {
 }
 
 const Radio = (props: IRadioProps): JSX.Element => {
-  const { className, id, name, value, checked, disabled, label, onChange } = props;
+  const {
+    className,
+    id,
+    name,
+    value,
+    checked,
+    disabled,
+    label,
+    onChange,
+  } = props;
   const wrapperClasses = classnames(baseClass, className);
 
   return (
@@ -28,7 +37,7 @@ const Radio = (props: IRadioProps): JSX.Element => {
           name={name}
           value={value}
           checked={checked}
-          onChange={event => onChange(event.target.value)}
+          onChange={(event) => onChange(event.target.value)}
         />
         <span className={`${baseClass}__control`} />
       </span>

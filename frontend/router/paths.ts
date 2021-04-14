@@ -1,7 +1,7 @@
-import { IHost } from '../interfaces/host';
-import { IPack } from '../interfaces/pack';
-import { IQuery } from '../interfaces/query';
-import URL_PREFIX from './url_prefix';
+import { IHost } from "../interfaces/host";
+import { IPack } from "../interfaces/pack";
+import { IQuery } from "../interfaces/query";
+import URL_PREFIX from "./url_prefix";
 
 export default {
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,

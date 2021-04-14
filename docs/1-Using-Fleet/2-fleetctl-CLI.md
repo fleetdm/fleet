@@ -632,13 +632,13 @@ Contents of carves are returned as .tar archives, and compressed if that option 
 To download the contents of a carve with ID 3, use
 
 ```
-fleetctl get carve 3 --outfile carve.tar
+fleetctl get carve --outfile carve.tar 3
 ```
 
 It can also be useful to pipe the results directly into the tar command for unarchiving:
 
 ```
-fleetctl get carve 3 --stdout | tar -x
+fleetctl get carve --stdout 3 | tar -x
 ```
 
 #### Expiration

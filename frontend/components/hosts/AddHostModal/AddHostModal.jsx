@@ -1,17 +1,16 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import FileSaver from 'file-saver';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import FileSaver from "file-saver";
 
-import Kolide from 'kolide';
-import Button from 'components/buttons/Button';
-import configInterface from 'interfaces/config';
-import enrollSecretInterface from 'interfaces/enroll_secret';
-import EnrollSecretTable from 'components/config/EnrollSecretTable';
-import KolideIcon from 'components/icons/KolideIcon';
-import DownloadIcon from '../../../../assets/images/icon-download-12x12@2x.png';
+import Kolide from "kolide";
+import Button from "components/buttons/Button";
+import configInterface from "interfaces/config";
+import enrollSecretInterface from "interfaces/enroll_secret";
+import EnrollSecretTable from "components/config/EnrollSecretTable";
+import KolideIcon from "components/icons/KolideIcon";
+import DownloadIcon from "../../../../assets/images/icon-download-12x12@2x.png";
 
-const baseClass = 'add-host-modal';
-
+const baseClass = "add-host-modal";
 
 class AddHostModal extends Component {
   static propTypes = {
@@ -26,12 +25,16 @@ class AddHostModal extends Component {
   }
 
   componentDidMount() {
-    Kolide.config.loadCertificate()
+    Kolide.config
+      .loadCertificate()
       .then((certificate) => {
         this.setState({ certificate });
       })
       .catch(() => {
-        this.setState({ fetchCertificateError: 'Failed to load certificate. Is Fleet App URL configured properly?' });
+        this.setState({
+          fetchCertificateError:
+            "Failed to load certificate. Is Fleet App URL configured properly?",
+        });
       });
   }
 
@@ -40,20 +43,18 @@ class AddHostModal extends Component {
 
     const { certificate } = this.state;
 
-    const filename = 'fleet.pem';
-    const file = new global.window.File([certificate], filename, { type: 'application/x-pem-file' });
+    const filename = "fleet.pem";
+    const file = new global.window.File([certificate], filename, {
+      type: "application/x-pem-file",
+    });
 
     FileSaver.saveAs(file);
 
     return false;
-  }
+  };
 
   render() {
-    const {
-      config,
-      onReturnToApp,
-      enrollSecret,
-    } = this.props;
+    const { config, onReturnToApp, enrollSecret } = this.props;
 
     const { fetchCertificateError } = this.state;
 
@@ -106,7 +107,7 @@ class AddHostModal extends Component {
     const onDownloadFlagfile = (evt) => {
       evt.preventDefault();
 
-      const filename = 'flagfile.txt';
+      const filename = "flagfile.txt";
       const file = new global.window.File([flagfileContent], filename);
 
       FileSaver.saveAs(file);
@@ -130,43 +131,67 @@ class AddHostModal extends Component {
           </div>
           <ol className={`${baseClass}__install-steps`}>
             <li>
-              <h4><span className={`${baseClass}__step-number`}>1</span>Enroll secret</h4>
+              <h4>
+                <span className={`${baseClass}__step-number`}>1</span>Enroll
+                secret
+              </h4>
               <p>
-                Provide an active enroll secret to allow osquery to authenticate with the Fleet server:
+                Provide an active enroll secret to allow osquery to authenticate
+                with the Fleet server:
               </p>
               <div className={`${baseClass}__secret-wrapper`}>
                 <EnrollSecretTable secrets={enrollSecret} />
               </div>
             </li>
             <li>
-              <h4><span className={`${baseClass}__step-number`}>2</span>Server certificate</h4>
+              <h4>
+                <span className={`${baseClass}__step-number`}>2</span>Server
+                certificate
+              </h4>
               <p>
-                Provide the TLS certificate used by the Fleet server to enable secure connections from osquery:
+                Provide the TLS certificate used by the Fleet server to enable
+                secure connections from osquery:
               </p>
               <p>
-                { fetchCertificateError
-                  ? <span className={`${baseClass}__error`}>{fetchCertificateError}</span>
-                  : <a href="#downloadCertificate" onClick={this.onFetchCertificate}>Download
+                {fetchCertificateError ? (
+                  <span className={`${baseClass}__error`}>
+                    {fetchCertificateError}
+                  </span>
+                ) : (
+                  <a
+                    href="#downloadCertificate"
+                    onClick={this.onFetchCertificate}
+                  >
+                    Download
                     <img src={DownloadIcon} alt="download icon" />
                   </a>
-                }
+                )}
               </p>
             </li>
             <li>
-              <h4><span className={`${baseClass}__step-number`}>3</span>Flagfile</h4>
+              <h4>
+                <span className={`${baseClass}__step-number`}>3</span>Flagfile
+              </h4>
               <p>
-                If using the enroll secret and server certificate downloaded above, use the generated flagfile. In some configurations, modifications may need to be made:
+                If using the enroll secret and server certificate downloaded
+                above, use the generated flagfile. In some configurations,
+                modifications may need to be made:
               </p>
               <p>
-                <a href="#downloadFlagfile" onClick={onDownloadFlagfile}>Download
+                <a href="#downloadFlagfile" onClick={onDownloadFlagfile}>
+                  Download
                   <img src={DownloadIcon} alt="download icon" />
                 </a>
               </p>
             </li>
             <li>
-              <h4><span className={`${baseClass}__step-number`}>4</span>Run osquery</h4>
+              <h4>
+                <span className={`${baseClass}__step-number`}>4</span>Run
+                osquery
+              </h4>
               <p>
-                Run osquery from the directory containing the above files (may require sudo or Run as Administrator privileges):
+                Run osquery from the directory containing the above files (may
+                require sudo or Run as Administrator privileges):
               </p>
               <pre>osqueryd --flagfile=flagfile.txt --verbose</pre>
             </li>

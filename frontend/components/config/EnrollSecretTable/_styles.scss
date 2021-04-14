@@ -69,7 +69,7 @@
 
   &--multiple-secrets {
     &:before {
-      content: '';
+      content: "";
       position: sticky;
       display: block;
       z-index: 1;
@@ -78,11 +78,15 @@
       width: 100%;
       height: 17px;
       // We explicityly use rgba(255,255,255,0) because it's equivalent to transparent for most broswers except Safari.
-      background-image: linear-gradient(to bottom, $core-white, rgba(255, 255, 255, 0));
+      background-image: linear-gradient(
+        to bottom,
+        $core-white,
+        rgba(255, 255, 255, 0)
+      );
     }
 
     &:after {
-      content: '';
+      content: "";
       position: sticky;
       display: block;
       bottom: -1px;
@@ -90,7 +94,11 @@
       width: 100%;
       height: 17px;
       // We explicityly use rgba(255,255,255,0) because it's equivalent to transparent for most broswers except Safari.
-      background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0), $core-white);
+      background-image: linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0),
+        $core-white
+      );
     }
 
     .form-field__label {

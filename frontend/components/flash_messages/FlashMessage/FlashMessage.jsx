@@ -1,14 +1,19 @@
-import React from 'react';
-import PropTypes from 'prop-types';
-import classnames from 'classnames';
+import React from "react";
+import PropTypes from "prop-types";
+import classnames from "classnames";
 
-import notificationInterface from 'interfaces/notification';
-import KolideIcon from 'components/icons/KolideIcon';
-import Button from 'components/buttons/Button';
+import notificationInterface from "interfaces/notification";
+import KolideIcon from "components/icons/KolideIcon";
+import Button from "components/buttons/Button";
 
-const baseClass = 'flash-message';
+const baseClass = "flash-message";
 
-const FlashMessage = ({ fullWidth, notification, onRemoveFlash, onUndoActionClick }) => {
+const FlashMessage = ({
+  fullWidth,
+  notification,
+  onRemoveFlash,
+  onUndoActionClick,
+}) => {
   const { alertType, isVisible, message, undoAction } = notification;
   const klass = classnames(baseClass, `${baseClass}--${alertType}`, {
     [`${baseClass}--full-width`]: fullWidth,
@@ -18,14 +23,14 @@ const FlashMessage = ({ fullWidth, notification, onRemoveFlash, onUndoActionClic
     return false;
   }
 
-  const alertIcon = alertType === 'success' ? 'success-check' : 'warning-filled';
+  const alertIcon =
+    alertType === "success" ? "success-check" : "warning-filled";
 
   return (
     <div className={klass}>
       <div className={`${baseClass}__content`}>
         <KolideIcon name={alertIcon} /> <span>{message}</span>
-
-        {undoAction &&
+        {undoAction && (
           <Button
             className={`${baseClass}__undo`}
             variant="unstyled"
@@ -33,7 +38,7 @@ const FlashMessage = ({ fullWidth, notification, onRemoveFlash, onUndoActionClic
           >
             Undo
           </Button>
-        }
+        )}
       </div>
       <div className={`${baseClass}__action`}>
         <Button

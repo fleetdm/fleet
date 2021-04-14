@@ -6,10 +6,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/bmizerany/assert"
 	"github.com/fleetdm/fleet/server/config"
 	"github.com/fleetdm/fleet/server/kolide"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 

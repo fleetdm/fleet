@@ -20,14 +20,18 @@ $ui-vibrant-blue-10: #f1f0ff;
 
 // Notifications & status
 $ui-offline: #8b8fa2;
-$ui-success: #3DB67B;
+$ui-success: #3db67b;
 $ui-warning: #ebbc43;
 $ui-error: #d66c7b;
 $ui-info: #6a67fe;
 
 // Gradients
 $gradients-dark-gradient: linear-gradient(270deg, #201e43 0%, #353d62 100%);
-$gradients-dark-gradient-vertical: linear-gradient(360deg, #201e43 0%, #353d62 100%);
+$gradients-dark-gradient-vertical: linear-gradient(
+  360deg,
+  #201e43 0%,
+  #353d62 100%
+);
 $gradients-bright-gradient: linear-gradient(180deg, #ae6ddf 0%, #6a67fe 100%);
 
 // Colors for over (hover) and down (active) buttons styles

@@ -1,26 +1,26 @@
-import React from 'react';
-import { mount } from 'enzyme';
+import React from "react";
+import { mount } from "enzyme";
 
-import { connectedComponent, reduxMockStore } from 'test/helpers';
-import ConnectedUserManagementPage from 'pages/admin/UserManagementPage/UserManagementPage';
-import inviteActions from 'redux/nodes/entities/invites/actions';
-import userActions from 'redux/nodes/entities/users/actions';
+import { connectedComponent, reduxMockStore } from "test/helpers";
+import ConnectedUserManagementPage from "pages/admin/UserManagementPage/UserManagementPage";
+import inviteActions from "redux/nodes/entities/invites/actions";
+import userActions from "redux/nodes/entities/users/actions";
 
 const currentUser = {
-  email: 'hi@gnar.dog',
+  email: "hi@gnar.dog",
   enabled: true,
-  name: 'Gnar Dog',
-  position: 'Head of Gnar',
-  username: 'gnardog',
+  name: "Gnar Dog",
+  position: "Head of Gnar",
+  username: "gnardog",
   teams: [],
-  global_role: 'admin',
+  global_role: "admin",
 };
 const invitedUser = {
-  email: 'test+4@fleetdm.com',
-  global_role: 'observer',
+  email: "test+4@fleetdm.com",
+  global_role: "observer",
   id: 6,
   invited_by: 1,
-  name: 'test 4',
+  name: "test 4",
   sso_enabled: false,
   teams: [],
 };
@@ -49,9 +49,9 @@ const store = {
       loading: false,
       data: {
         1: {
-          global_role: 'admin',
-          email: 'other@user.org',
-          name: 'Other user',
+          global_role: "admin",
+          email: "other@user.org",
+          name: "Other user",
           teams: [],
         },
       },
@@ -60,71 +60,90 @@ const store = {
   },
 };
 
-describe('UserManagementPage - component', () => {
+describe("UserManagementPage - component", () => {
   beforeEach(() => {
-    jest.spyOn(userActions, 'loadAll')
+    jest
+      .spyOn(userActions, "loadAll")
       .mockImplementation(() => () => Promise.resolve([]));
 
-    jest.spyOn(inviteActions, 'loadAll')
+    jest
+      .spyOn(inviteActions, "loadAll")
       .mockImplementation(() => () => Promise.resolve([]));
   });
 
-  describe('rendering', () => {
-    it(
-      'displays a disabled "Create user" button if email is not configured',
-      () => {
-        const notConfiguredStore = { ...store, app: { config: { configured: false } } };
-        const notConfiguredMockStore = reduxMockStore(notConfiguredStore);
-        const notConfiguredPage = mount(connectedComponent(ConnectedUserManagementPage, {
-          mockStore: notConfiguredMockStore,
-        }));
-
-        const configuredStore = store;
-        const configuredMockStore = reduxMockStore(configuredStore);
-        const configuredPage = mount(connectedComponent(ConnectedUserManagementPage, {
-          mockStore: configuredMockStore,
-        }));
-
-        expect(notConfiguredPage.find('Button').at(1).prop('disabled')).toEqual(true);
-        expect(configuredPage.find('Button').first().prop('disabled')).toEqual(false);
-      },
-    );
-
-    it('displays a SmtpWarning if email is not configured', () => {
-      const notConfiguredStore = { ...store, app: { config: { configured: false } } };
+  describe("rendering", () => {
+    it('displays a disabled "Create user" button if email is not configured', () => {
+      const notConfiguredStore = {
+        ...store,
+        app: { config: { configured: false } },
+      };
       const notConfiguredMockStore = reduxMockStore(notConfiguredStore);
-      const notConfiguredPage = mount(connectedComponent(ConnectedUserManagementPage, {
-        mockStore: notConfiguredMockStore,
-      }));
+      const notConfiguredPage = mount(
+        connectedComponent(ConnectedUserManagementPage, {
+          mockStore: notConfiguredMockStore,
+        })
+      );
 
       const configuredStore = store;
       const configuredMockStore = reduxMockStore(configuredStore);
-      const configuredPage = mount(connectedComponent(ConnectedUserManagementPage, {
-        mockStore: configuredMockStore,
-      }));
+      const configuredPage = mount(
+        connectedComponent(ConnectedUserManagementPage, {
+          mockStore: configuredMockStore,
+        })
+      );
 
-      expect(notConfiguredPage.find('WarningBanner').html()).toBeTruthy();
-      expect(configuredPage.find('WarningBanner').html()).toBeFalsy();
+      expect(notConfiguredPage.find("Button").at(1).prop("disabled")).toEqual(
+        true
+      );
+      expect(configuredPage.find("Button").first().prop("disabled")).toEqual(
+        false
+      );
+    });
+
+    it("displays a SmtpWarning if email is not configured", () => {
+      const notConfiguredStore = {
+        ...store,
+        app: { config: { configured: false } },
+      };
+      const notConfiguredMockStore = reduxMockStore(notConfiguredStore);
+      const notConfiguredPage = mount(
+        connectedComponent(ConnectedUserManagementPage, {
+          mockStore: notConfiguredMockStore,
+        })
+      );
+
+      const configuredStore = store;
+      const configuredMockStore = reduxMockStore(configuredStore);
+      const configuredPage = mount(
+        connectedComponent(ConnectedUserManagementPage, {
+          mockStore: configuredMockStore,
+        })
+      );
+
+      expect(notConfiguredPage.find("WarningBanner").html()).toBeTruthy();
+      expect(configuredPage.find("WarningBanner").html()).toBeFalsy();
     });
   });
 
-  it(
-    'goes to the app settings page for the user to resolve their smtp settings',
-    () => {
-      const notConfiguredStore = { ...store, app: { config: { configured: false } } };
-      const mockStore = reduxMockStore(notConfiguredStore);
-      const page = mount(connectedComponent(ConnectedUserManagementPage, { mockStore }));
+  it("goes to the app settings page for the user to resolve their smtp settings", () => {
+    const notConfiguredStore = {
+      ...store,
+      app: { config: { configured: false } },
+    };
+    const mockStore = reduxMockStore(notConfiguredStore);
+    const page = mount(
+      connectedComponent(ConnectedUserManagementPage, { mockStore })
+    );
 
-      const smtpWarning = page.find('WarningBanner');
+    const smtpWarning = page.find("WarningBanner");
 
-      smtpWarning.find('Button').simulate('click');
+    smtpWarning.find("Button").simulate("click");
 
-      const goToAppSettingsAction = {
-        type: '@@router/CALL_HISTORY_METHOD',
-        payload: { method: 'push', args: ['/settings/organization'] },
-      };
+    const goToAppSettingsAction = {
+      type: "@@router/CALL_HISTORY_METHOD",
+      payload: { method: "push", args: ["/settings/organization"] },
+    };
 
-      expect(mockStore.getActions()).toContainEqual(goToAppSettingsAction);
-    },
-  );
+    expect(mockStore.getActions()).toContainEqual(goToAppSettingsAction);
+  });
 });

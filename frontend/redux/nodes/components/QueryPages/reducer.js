@@ -4,13 +4,13 @@ import {
   SET_QUERY_TEXT,
   SET_SELECTED_TARGETS,
   SET_SELECTED_TARGETS_QUERY,
-} from './actions';
+} from "./actions";
 
 export const initialState = {
-  queryText: 'SELECT * FROM osquery_info',
+  queryText: "SELECT * FROM osquery_info",
   selectedOsqueryTable: defaultSelectedOsqueryTable,
   selectedTargets: [],
-  selectedTargetsQuery: '',
+  selectedTargetsQuery: "",
 };
 
 const reducer = (state = initialState, { type, payload }) => {

@@ -1,8 +1,4 @@
-import {
-  VERSION_FAILURE,
-  VERSION_START,
-  VERSION_SUCCESS,
-} from './actions';
+import { VERSION_FAILURE, VERSION_START, VERSION_SUCCESS } from "./actions";
 
 export const initialState = {
   data: {},

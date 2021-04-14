@@ -1,16 +1,16 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
-import fleetLogoText from '../../../assets/images/fleet-logo-text-white.svg';
+import fleetLogoText from "../../../assets/images/fleet-logo-text-white.svg";
 
-const baseClass = 'auth-form-wrapper';
+const baseClass = "auth-form-wrapper";
 
 class AuthenticationFormWrapper extends Component {
   static propTypes = {
     children: PropTypes.node,
   };
 
-  render () {
+  render() {
     const { children } = this.props;
 
     return (

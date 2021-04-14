@@ -11,8 +11,8 @@
     margin-bottom: $pad-xsmall;
 
     &:last-child {
-    margin-bottom: 0;
-  }
+      margin-bottom: 0;
+    }
 
     .form-field {
       margin-bottom: 0;
@@ -20,7 +20,6 @@
   }
 
   &__role-dropdown {
-
     .Select-control {
       border: none;
       width: 130px;

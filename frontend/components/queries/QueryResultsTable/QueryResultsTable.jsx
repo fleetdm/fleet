@@ -1,18 +1,18 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import classnames from 'classnames';
-import { keys, omit } from 'lodash';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import classnames from "classnames";
+import { keys, omit } from "lodash";
 
-import Button from 'components/buttons/Button';
-import campaignInterface from 'interfaces/campaign';
-import filterArrayByHash from 'utilities/filter_array_by_hash';
-import KolideIcon from 'components/icons/KolideIcon';
-import InputField from 'components/forms/fields/InputField';
-import QueryResultsRow from 'components/queries/QueryResultsTable/QueryResultsRow';
-import QueryProgressDetails from 'components/queries/QueryProgressDetails';
-import Spinner from 'components/loaders/Spinner';
+import Button from "components/buttons/Button";
+import campaignInterface from "interfaces/campaign";
+import filterArrayByHash from "utilities/filter_array_by_hash";
+import KolideIcon from "components/icons/KolideIcon";
+import InputField from "components/forms/fields/InputField";
+import QueryResultsRow from "components/queries/QueryResultsTable/QueryResultsRow";
+import QueryProgressDetails from "components/queries/QueryProgressDetails";
+import Spinner from "components/loaders/Spinner";
 
-const baseClass = 'query-results-table';
+const baseClass = "query-results-table";
 
 class QueryResultsTable extends Component {
   static propTypes = {
@@ -27,7 +27,7 @@ class QueryResultsTable extends Component {
     queryTimerMilliseconds: PropTypes.number,
   };
 
-  constructor (props) {
+  constructor(props) {
     super(props);
 
     this.state = {
@@ -48,16 +48,16 @@ class QueryResultsTable extends Component {
 
       return false;
     };
-  }
+  };
 
   onSetActiveColumn = (activeColumn) => {
     return () => {
       this.setState({ activeColumn });
     };
-  }
+  };
 
   renderTableHeaderColumn = (column, index) => {
-    const filterable = column === 'hostname' ? 'host_hostname' : column;
+    const filterable = column === "hostname" ? "host_hostname" : column;
     const { activeColumn, resultsFilter } = this.state;
     const { onFilterAttribute, onSetActiveColumn } = this;
     const filterIconClassName = classnames(`${baseClass}__filter-icon`, {
@@ -66,7 +66,10 @@ class QueryResultsTable extends Component {
 
     return (
       <th key={`query-results-table-header-${index}`}>
-        <span><KolideIcon className={filterIconClassName} name="filter" />{column}</span>
+        <span>
+          <KolideIcon className={filterIconClassName} name="filter" />
+          {column}
+        </span>
         <InputField
           name={column}
           onChange={onFilterAttribute(filterable)}
@@ -75,40 +78,35 @@ class QueryResultsTable extends Component {
         />
       </th>
     );
-  }
+  };
 
   renderTableHeaderRow = (rows) => {
     const { renderTableHeaderColumn } = this;
 
-    const queryAttrs = omit(rows[0], ['host_hostname']);
+    const queryAttrs = omit(rows[0], ["host_hostname"]);
     const queryResultColumns = keys(queryAttrs);
 
     return (
       <tr>
-        {renderTableHeaderColumn('hostname', -1)}
+        {renderTableHeaderColumn("hostname", -1)}
         {queryResultColumns.map((column, i) => {
           return renderTableHeaderColumn(column, i);
         })}
       </tr>
     );
-  }
+  };
 
   renderTableRows = (rows) => {
     const { resultsFilter } = this.state;
     const filteredRows = filterArrayByHash(rows, resultsFilter);
 
     return filteredRows.map((row) => {
-      return (
-        <QueryResultsRow queryResult={row} />
-      );
+      return <QueryResultsRow queryResult={row} />;
     });
-  }
+  };
 
   renderTable = () => {
-    const {
-      renderTableHeaderRow,
-      renderTableRows,
-    } = this;
+    const { renderTableHeaderRow, renderTableRows } = this;
 
     const { queryIsRunning, campaign } = this.props;
     const { query_results: queryResults } = campaign;
@@ -120,21 +118,14 @@ class QueryResultsTable extends Component {
 
     return (
       <table className={`${baseClass}__table`}>
-        <thead>
-          {renderTableHeaderRow(queryResults)}
-        </thead>
-        <tbody>
-          {renderTableRows(queryResults)}
-        </tbody>
+        <thead>{renderTableHeaderRow(queryResults)}</thead>
+        <tbody>{renderTableRows(queryResults)}</tbody>
       </table>
     );
-  }
+  };
 
   renderErrorsTable = () => {
-    const {
-      renderTableHeaderRow,
-      renderTableRows,
-    } = this;
+    const { renderTableHeaderRow, renderTableRows } = this;
 
     const { queryIsRunning, campaign } = this.props;
     const { errors } = campaign;
@@ -147,17 +138,13 @@ class QueryResultsTable extends Component {
 
     return (
       <table className={`${baseClass}__table`}>
-        <thead>
-          {renderTableHeaderRow(errors)}
-        </thead>
-        <tbody>
-          {renderTableRows(errors)}
-        </tbody>
+        <thead>{renderTableHeaderRow(errors)}</thead>
+        <tbody>{renderTableRows(errors)}</tbody>
       </table>
     );
-  }
+  };
 
-  render () {
+  render() {
     const {
       campaign,
       onExportQueryResults,
@@ -172,8 +159,14 @@ class QueryResultsTable extends Component {
 
     const { renderTable, renderErrorsTable } = this;
 
-    const { hosts_count: hostsCount, query_results: queryResults, errors } = campaign;
-    const hasNoResults = !queryIsRunning && (!hostsCount.successful || (!queryResults || !queryResults.length));
+    const {
+      hosts_count: hostsCount,
+      query_results: queryResults,
+      errors,
+    } = campaign;
+    const hasNoResults =
+      !queryIsRunning &&
+      (!hostsCount.successful || !queryResults || !queryResults.length);
     const hasErrors = !queryIsRunning && errors;
 
     const resultsTableWrapClass = classnames(baseClass, {
@@ -182,27 +175,32 @@ class QueryResultsTable extends Component {
       [`${baseClass}__no-results`]: hasNoResults,
     });
 
-    const toggleFullScreenBtnClass = classnames(`${baseClass}__fullscreen-btn`, {
-      [`${baseClass}__fullscreen-btn--active`]: isQueryFullScreen,
-    });
+    const toggleFullScreenBtnClass = classnames(
+      `${baseClass}__fullscreen-btn`,
+      {
+        [`${baseClass}__fullscreen-btn--active`]: isQueryFullScreen,
+      }
+    );
 
     return (
       <div className={resultsTableWrapClass}>
         <header className={`${baseClass}__button-wrap`}>
-          {isQueryFullScreen && <QueryProgressDetails
-            campaign={campaign}
-            onRunQuery={onRunQuery}
-            onStopQuery={onStopQuery}
-            queryIsRunning={queryIsRunning}
-            className={`${baseClass}__full-screen`}
-            queryTimerMilliseconds={queryTimerMilliseconds}
-          />}
+          {isQueryFullScreen && (
+            <QueryProgressDetails
+              campaign={campaign}
+              onRunQuery={onRunQuery}
+              onStopQuery={onStopQuery}
+              queryIsRunning={queryIsRunning}
+              className={`${baseClass}__full-screen`}
+              queryTimerMilliseconds={queryTimerMilliseconds}
+            />
+          )}
           <Button
             className={toggleFullScreenBtnClass}
             onClick={onToggleQueryFullScreen}
             variant="grey"
           >
-            <KolideIcon name={isQueryFullScreen ? 'windowed' : 'fullscreen'} />
+            <KolideIcon name={isQueryFullScreen ? "windowed" : "fullscreen"} />
           </Button>
           <Button
             className={`${baseClass}__export-btn`}
@@ -214,18 +212,24 @@ class QueryResultsTable extends Component {
         </header>
         <span className={`${baseClass}__table-title`}>Results</span>
         <div className={`${baseClass}__results-table-wrapper`}>
-          {hasNoResults && !hasErrors && <span className="no-results-message">No results found.</span>}
-          {hasNoResults && hasErrors && <span className="no-results-message">No results found. Check the table below for errors.</span>}
+          {hasNoResults && !hasErrors && (
+            <span className="no-results-message">No results found.</span>
+          )}
+          {hasNoResults && hasErrors && (
+            <span className="no-results-message">
+              No results found. Check the table below for errors.
+            </span>
+          )}
           {!hasNoResults && renderTable()}
         </div>
-        {hasErrors &&
+        {hasErrors && (
           <div className={`${baseClass}__error-table-container`}>
             <span className={`${baseClass}__table-title`}>Errors</span>
             <div className={`${baseClass}__error-table-wrapper`}>
               {renderErrorsTable()}
             </div>
           </div>
-        }
+        )}
       </div>
     );
   }

@@ -1,6 +1,6 @@
-import endpoints from 'kolide/endpoints';
-import helpers from 'kolide/helpers';
-import Base from 'kolide/base';
+import endpoints from "kolide/endpoints";
+import helpers from "kolide/helpers";
+import Base from "kolide/base";
 
 export default (client) => {
   return {

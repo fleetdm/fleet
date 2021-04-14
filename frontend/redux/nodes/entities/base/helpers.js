@@ -1,4 +1,4 @@
-import { get, join, pickBy } from 'lodash';
+import { get, join, pickBy } from "lodash";
 
 export const entitiesExceptID = (entities, id) => {
   return pickBy(entities, (entity, key) => {
@@ -7,7 +7,7 @@ export const entitiesExceptID = (entities, id) => {
 };
 
 export const orderExceptId = (originalOrder, id) => {
-  return originalOrder.filter(entitiesId => entitiesId !== id);
+  return originalOrder.filter((entitiesId) => entitiesId !== id);
 };
 
 const formatServerErrors = (errors) => {
@@ -21,7 +21,7 @@ const formatServerErrors = (errors) => {
     const { name, reason } = error;
 
     if (result[name]) {
-      result[name] = join([result[name], reason], ', ');
+      result[name] = join([result[name], reason], ", ");
     } else {
       result[name] = reason;
     }
@@ -31,7 +31,7 @@ const formatServerErrors = (errors) => {
 };
 
 export const formatErrorResponse = (errorResponse) => {
-  const errors = get(errorResponse, 'message.errors') || [];
+  const errors = get(errorResponse, "message.errors") || [];
 
   return {
     ...formatServerErrors(errors),

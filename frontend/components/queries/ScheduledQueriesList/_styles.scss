@@ -91,8 +91,9 @@
           letter-spacing: -0.5px;
           text-align: left;
           color: $core-fleet-black;
+          white-space: nowrap;
         }
-        
+
         &:nth-child(5),
         &:nth-child(6) {
           font-size: $x-small;

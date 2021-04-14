@@ -1,16 +1,16 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { push } from 'react-router-redux';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { push } from "react-router-redux";
 
-import AuthenticationFormWrapper from 'components/AuthenticationFormWrapper';
-import ConfirmInviteForm from 'components/forms/ConfirmInviteForm';
-import EnsureUnauthenticated from 'components/EnsureUnauthenticated';
-import paths from 'router/paths';
-import { renderFlash } from 'redux/nodes/notifications/actions';
-import userActions from 'redux/nodes/entities/users/actions';
+import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
+import ConfirmInviteForm from "components/forms/ConfirmInviteForm";
+import EnsureUnauthenticated from "components/EnsureUnauthenticated";
+import paths from "router/paths";
+import { renderFlash } from "redux/nodes/notifications/actions";
+import userActions from "redux/nodes/entities/users/actions";
 
-const baseClass = 'confirm-invite-page';
+const baseClass = "confirm-invite-page";
 
 class ConfirmInvitePage extends Component {
   static propTypes = {
@@ -25,7 +25,7 @@ class ConfirmInvitePage extends Component {
     }),
   };
 
-  componentWillUnmount () {
+  componentWillUnmount() {
     const { dispatch } = this.props;
     const { clearErrors } = userActions;
 
@@ -42,14 +42,19 @@ class ConfirmInvitePage extends Component {
     dispatch(create(formData))
       .then(() => {
         dispatch(push(LOGIN));
-        dispatch(renderFlash('success', 'Registration successful! For security purposes, please log in.'));
+        dispatch(
+          renderFlash(
+            "success",
+            "Registration successful! For security purposes, please log in."
+          )
+        );
       })
       .catch(() => false);
 
     return false;
-  }
+  };
 
-  render () {
+  render() {
     const { inviteFormData, userErrors } = this.props;
     const { onSubmit } = this;
 
@@ -57,11 +62,10 @@ class ConfirmInvitePage extends Component {
       <AuthenticationFormWrapper>
         <div className={`${baseClass}`}>
           <div className={`${baseClass}__lead-wrapper`}>
-            <p className={`${baseClass}__lead-text`}>
-              Welcome to Fleet
-            </p>
+            <p className={`${baseClass}__lead-text`}>Welcome to Fleet</p>
             <p className={`${baseClass}__sub-lead-text`}>
-              Before you get started, please take a moment to complete the following information.
+              Before you get started, please take a moment to complete the
+              following information.
             </p>
           </div>
           <ConfirmInviteForm

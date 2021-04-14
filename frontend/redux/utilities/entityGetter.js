@@ -1,4 +1,4 @@
-import stateEntityGetter from 'react-entity-getter';
+import stateEntityGetter from "react-entity-getter";
 
 const pathToEntities = (entityName) => {
   return `entities[${entityName}].data`;

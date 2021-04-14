@@ -1,12 +1,12 @@
-import React from 'react';
+import React from "react";
 
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
-import Dropdown from 'components/forms/fields/Dropdown';
+import Dropdown from "components/forms/fields/Dropdown";
 
-import { IDropdownOption } from 'interfaces/dropdownOption';
+import { IDropdownOption } from "interfaces/dropdownOption";
 
-const baseClass = 'dropdown-cell';
+const baseClass = "dropdown-cell";
 
 interface IDropdownCellProps {
   options: IDropdownOption[];

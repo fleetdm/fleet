@@ -1,8 +1,8 @@
-import Kolide from 'kolide';
+import Kolide from "kolide";
 
-export const VERSION_FAILURE = 'VERSION_FAILURE';
-export const VERSION_START = 'VERSION_START';
-export const VERSION_SUCCESS = 'VERSION_SUCCESS';
+export const VERSION_FAILURE = "VERSION_FAILURE";
+export const VERSION_START = "VERSION_START";
+export const VERSION_SUCCESS = "VERSION_SUCCESS";
 
 export const loadVersion = { type: VERSION_START };
 
@@ -18,7 +18,8 @@ export const getVersion = () => {
   return (dispatch) => {
     dispatch(loadVersion);
 
-    return Kolide.version.load()
+    return Kolide.version
+      .load()
       .then((version) => {
         dispatch(versionSuccess(version));
 

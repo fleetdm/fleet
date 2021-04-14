@@ -11,7 +11,6 @@ require (
 	github.com/WatchBeam/clock v0.0.0-20170901150240-b08e6b4da7ea
 	github.com/aws/aws-sdk-go v1.26.8
 	github.com/beevik/etree v1.1.0
-	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869
 	github.com/briandowns/spinner v0.0.0-20170614154858-48dbb65d7bd5
 	github.com/cenkalti/backoff/v4 v4.0.0
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
@@ -47,7 +46,6 @@ require (
 	github.com/pelletier/go-toml v1.1.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v0.9.3-0.20190127221311-3c4408c8b829
-	github.com/russellhaering/gosaml2 v0.3.1
 	github.com/russellhaering/goxmldsig v1.1.0
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/spf13/afero v1.1.0 // indirect

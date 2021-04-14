@@ -1,39 +1,32 @@
-describe('Manage Users', () => {
+describe("Manage Users", () => {
   beforeEach(() => {
     cy.setup();
     cy.login();
     cy.setupSMTP();
   });
 
-  it('Searching for a user', () => {
+  it("Searching for a user", () => {
     cy.intercept({
-      method: 'GET',
-      url: '/api/v1/fleet/users',
-    }).as('getUsers');
+      method: "GET",
+      url: "/api/v1/fleet/users",
+    }).as("getUsers");
 
-    cy.visit('/settings/users');
-    cy.url().should('match', /\/settings\/users$/i);
+    cy.visit("/settings/users");
+    cy.url().should("match", /\/settings\/users$/i);
 
-    cy.wait('@getUsers');
+    cy.wait("@getUsers");
 
-    cy.findByText('test@fleetdm.com')
-      .should('exist');
-    cy.findByText('test+1@fleetdm.com')
-      .should('exist');
-    cy.findByText('test+2@fleetdm.com')
-      .should('exist');
+    cy.findByText("test@fleetdm.com").should("exist");
+    cy.findByText("test+1@fleetdm.com").should("exist");
+    cy.findByText("test+2@fleetdm.com").should("exist");
 
-    cy.findByPlaceholderText('Search')
-      .type('test@fleetdm.com');
+    cy.findByPlaceholderText("Search").type("test@fleetdm.com");
 
-    cy.wait('@getUsers');
+    cy.wait("@getUsers");
 
-    cy.findByText('test@fleetdm.com')
-      .should('exist');
-    cy.findByText('test+1@fleetdm.com')
-      .should('not.exist');
-    cy.findByText('test+2@fleetdm.com')
-      .should('not.exist');
+    cy.findByText("test@fleetdm.com").should("exist");
+    cy.findByText("test+1@fleetdm.com").should("not.exist");
+    cy.findByText("test+2@fleetdm.com").should("not.exist");
   });
 
   // it('Creating a user', () => {

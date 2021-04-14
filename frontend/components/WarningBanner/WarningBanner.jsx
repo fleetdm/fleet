@@ -1,8 +1,8 @@
-import React from 'react';
-import PropTypes from 'prop-types';
-import classnames from 'classnames';
+import React from "react";
+import PropTypes from "prop-types";
+import classnames from "classnames";
 
-const baseClass = 'warning-banner';
+const baseClass = "warning-banner";
 
 const WarningBanner = ({ children, className, shouldShowWarning }) => {
   if (!shouldShowWarning) {

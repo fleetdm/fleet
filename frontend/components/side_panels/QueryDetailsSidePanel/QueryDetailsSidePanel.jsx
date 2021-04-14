@@ -1,13 +1,13 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { Link } from 'react-router';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { Link } from "react-router";
 
-import Button from 'components/buttons/Button';
-import KolideAce from 'components/KolideAce';
-import queryInterface from 'interfaces/query';
-import SecondarySidePanelContainer from 'components/side_panels/SecondarySidePanelContainer';
+import Button from "components/buttons/Button";
+import KolideAce from "components/KolideAce";
+import queryInterface from "interfaces/query";
+import SecondarySidePanelContainer from "components/side_panels/SecondarySidePanelContainer";
 
-const baseClass = 'query-details-side-panel';
+const baseClass = "query-details-side-panel";
 
 class QueryDetailsSidePanel extends Component {
   static propTypes = {
@@ -21,30 +21,42 @@ class QueryDetailsSidePanel extends Component {
     const { onEditQuery, query } = this.props;
 
     return onEditQuery(query);
-  }
+  };
 
   renderPacks = () => {
     const { query } = this.props;
     const { packs } = query;
 
     if (!packs || (packs && !packs.length)) {
-      return <p className={`${baseClass}__description`}>There are no packs associated with this query</p>;
+      return (
+        <p className={`${baseClass}__description`}>
+          There are no packs associated with this query
+        </p>
+      );
     }
 
     return (
       <ul className={`${baseClass}__packs`}>
         {packs.map((pack) => {
           return (
-            <li className={`${baseClass}__pack-item`} key={`query-side-panel-pack-${pack.id}`}>
-              <Link to={`/packs/${pack.id}`} className={`${baseClass}__pack-name`}>{pack.name}</Link>
+            <li
+              className={`${baseClass}__pack-item`}
+              key={`query-side-panel-pack-${pack.id}`}
+            >
+              <Link
+                to={`/packs/${pack.id}`}
+                className={`${baseClass}__pack-name`}
+              >
+                {pack.name}
+              </Link>
             </li>
           );
         })}
       </ul>
     );
-  }
+  };
 
-  render () {
+  render() {
     const { query } = this.props;
     const { handleEditQueryClick, renderPacks } = this;
     const { description, name, query: queryText } = query;
@@ -64,10 +76,14 @@ class QueryDetailsSidePanel extends Component {
           wrapEnabled
         />
         <p className={`${baseClass}__label`}>Description</p>
-        <p className={`${baseClass}__description`}>{description || <em>No description available</em>}</p>
+        <p className={`${baseClass}__description`}>
+          {description || <em>No description available</em>}
+        </p>
         <p className={`${baseClass}__label`}>Packs</p>
         {renderPacks()}
-        <Button onClick={handleEditQueryClick} variant="inverse">Edit or run query</Button>
+        <Button onClick={handleEditQueryClick} variant="inverse">
+          Edit or run query
+        </Button>
       </SecondarySidePanelContainer>
     );
   }

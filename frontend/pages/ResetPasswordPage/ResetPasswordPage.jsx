@@ -1,16 +1,19 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { noop, size } from 'lodash';
-import { push } from 'react-router-redux';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { noop, size } from "lodash";
+import { push } from "react-router-redux";
 
-import debounce from 'utilities/debounce';
-import { clearResetPasswordErrors, resetPassword } from 'redux/nodes/components/ResetPasswordPage/actions';
-import ResetPasswordForm from 'components/forms/ResetPasswordForm';
-import StackedWhiteBoxes from 'components/StackedWhiteBoxes';
-import { performRequiredPasswordReset } from 'redux/nodes/auth/actions';
-import userInterface from 'interfaces/user';
-import PATHS from 'router/paths';
+import debounce from "utilities/debounce";
+import {
+  clearResetPasswordErrors,
+  resetPassword,
+} from "redux/nodes/components/ResetPasswordPage/actions";
+import ResetPasswordForm from "components/forms/ResetPasswordForm";
+import StackedWhiteBoxes from "components/StackedWhiteBoxes";
+import { performRequiredPasswordReset } from "redux/nodes/auth/actions";
+import userInterface from "interfaces/user";
+import PATHS from "router/paths";
 
 export class ResetPasswordPage extends Component {
   static propTypes = {
@@ -27,7 +30,7 @@ export class ResetPasswordPage extends Component {
     dispatch: noop,
   };
 
-  componentWillMount () {
+  componentWillMount() {
     const { dispatch, token, user } = this.props;
 
     if (!user && !token) {
@@ -45,7 +48,7 @@ export class ResetPasswordPage extends Component {
     }
 
     return false;
-  }
+  };
 
   onSubmit = debounce((formData) => {
     const { dispatch, token, user } = this.props;
@@ -60,15 +63,17 @@ export class ResetPasswordPage extends Component {
     };
 
     return dispatch(resetPassword(resetPasswordData))
-      .then(() => { return dispatch(push(PATHS.LOGIN)); })
+      .then(() => {
+        return dispatch(push(PATHS.LOGIN));
+      })
       .catch(() => false);
-  })
+  });
 
   handleLeave = (location) => {
     const { dispatch } = this.props;
 
     return dispatch(push(location));
-  }
+  };
 
   loggedInUser = (formData) => {
     const { dispatch } = this.props;
@@ -76,11 +81,13 @@ export class ResetPasswordPage extends Component {
     const passwordUpdateParams = { password };
 
     return dispatch(performRequiredPasswordReset(passwordUpdateParams))
-      .then(() => { return dispatch(push(PATHS.HOME)); })
+      .then(() => {
+        return dispatch(push(PATHS.HOME));
+      })
       .catch(() => false);
-  }
+  };
 
-  render () {
+  render() {
     const { handleLeave, onResetErrors, onSubmit } = this;
     const { errors } = this.props;
 

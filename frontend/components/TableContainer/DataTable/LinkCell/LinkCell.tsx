@@ -1,11 +1,11 @@
-import React from 'react';
-import { useDispatch } from 'react-redux';
-import { push } from 'react-router-redux';
+import React from "react";
+import { useDispatch } from "react-redux";
+import { push } from "react-router-redux";
 
-import { IHost } from 'interfaces/host';
-import helpers from 'kolide/helpers';
-import PATHS from 'router/paths';
-import Button from 'components/buttons/Button/Button';
+import { IHost } from "interfaces/host";
+import helpers from "kolide/helpers";
+import PATHS from "router/paths";
+import Button from "components/buttons/Button/Button";
 
 interface ILinkCellProps {
   value: string;
@@ -24,11 +24,11 @@ const LinkCell = (props: ILinkCellProps): JSX.Element => {
   const lastSeenTime = (status: string, seenTime: string): string => {
     const { humanHostLastSeen } = helpers;
 
-    if (status !== 'online') {
+    if (status !== "online") {
       return `Last Seen: ${humanHostLastSeen(seenTime)} UTC`;
     }
 
-    return 'Online';
+    return "Online";
   };
 
   return (

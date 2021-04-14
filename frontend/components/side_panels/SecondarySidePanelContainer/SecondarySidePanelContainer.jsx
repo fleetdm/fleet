@@ -1,5 +1,5 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
 class SecondarySidePanelContainer extends Component {
   static propTypes = {
@@ -7,7 +7,7 @@ class SecondarySidePanelContainer extends Component {
     className: PropTypes.string,
   };
 
-  render () {
+  render() {
     const { children, className } = this.props;
 
     return (

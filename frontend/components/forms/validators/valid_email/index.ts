@@ -1,1 +1,1 @@
-export { default } from './valid_email';
+export { default } from "./valid_email";

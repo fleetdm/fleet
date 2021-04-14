@@ -1,4 +1,4 @@
-import requireHacker from 'require-hacker';
+import requireHacker from "require-hacker";
 
 const fakeComponentString = `
   React = require('react');
@@ -10,4 +10,4 @@ const fakeComponentString = `
   }
 `;
 
-requireHacker.hook('svg', () => `module.exports = ${fakeComponentString}`);
+requireHacker.hook("svg", () => `module.exports = ${fakeComponentString}`);

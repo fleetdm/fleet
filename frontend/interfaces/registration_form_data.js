@@ -1,4 +1,4 @@
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
 export default PropTypes.shape({
   username: PropTypes.string,
@@ -10,4 +10,3 @@ export default PropTypes.shape({
   org_logo_url: PropTypes.string,
   kolide_web_address: PropTypes.string,
 });
-

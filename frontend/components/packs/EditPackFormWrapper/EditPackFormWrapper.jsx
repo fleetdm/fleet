@@ -1,14 +1,14 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { noop } from 'lodash';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { noop } from "lodash";
 
-import Button from 'components/buttons/Button';
-import EditPackForm from 'components/forms/packs/EditPackForm';
-import packInterface from 'interfaces/pack';
-import SelectTargetsDropdown from 'components/forms/fields/SelectTargetsDropdown';
-import targetInterface from 'interfaces/target';
+import Button from "components/buttons/Button";
+import EditPackForm from "components/forms/packs/EditPackForm";
+import packInterface from "interfaces/pack";
+import SelectTargetsDropdown from "components/forms/fields/SelectTargetsDropdown";
+import targetInterface from "interfaces/target";
 
-const baseClass = 'edit-pack-form';
+const baseClass = "edit-pack-form";
 
 class EditPackFormWrapper extends Component {
   static propTypes = {
@@ -23,7 +23,7 @@ class EditPackFormWrapper extends Component {
     targetsCount: PropTypes.number,
   };
 
-  render () {
+  render() {
     const {
       className,
       handleSubmit,
@@ -59,7 +59,9 @@ class EditPackFormWrapper extends Component {
         >
           Edit
         </Button>
-        <h1 className={`${baseClass}__title`}><span>{pack.name}</span></h1>
+        <h1 className={`${baseClass}__title`}>
+          <span>{pack.name}</span>
+        </h1>
         <div className={`${baseClass}__description`}>
           <p>{pack.description}</p>
         </div>

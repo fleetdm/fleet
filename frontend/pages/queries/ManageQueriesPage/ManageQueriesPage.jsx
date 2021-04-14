@@ -1,23 +1,23 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { filter, get, includes, pull } from 'lodash';
-import { push } from 'react-router-redux';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { filter, get, includes, pull } from "lodash";
+import { push } from "react-router-redux";
 
-import Button from 'components/buttons/Button';
-import entityGetter from 'redux/utilities/entityGetter';
-import InputField from 'components/forms/fields/InputField';
-import Modal from 'components/modals/Modal';
-import KolideIcon from 'components/icons/KolideIcon';
-import SecondarySidePanelContainer from 'components/side_panels/SecondarySidePanelContainer';
-import PATHS from 'router/paths';
-import QueryDetailsSidePanel from 'components/side_panels/QueryDetailsSidePanel';
-import QueriesList from 'components/queries/QueriesList';
-import queryActions from 'redux/nodes/entities/queries/actions';
-import queryInterface from 'interfaces/query';
-import { renderFlash } from 'redux/nodes/notifications/actions';
+import Button from "components/buttons/Button";
+import entityGetter from "redux/utilities/entityGetter";
+import InputField from "components/forms/fields/InputField";
+import Modal from "components/modals/Modal";
+import KolideIcon from "components/icons/KolideIcon";
+import SecondarySidePanelContainer from "components/side_panels/SecondarySidePanelContainer";
+import PATHS from "router/paths";
+import QueryDetailsSidePanel from "components/side_panels/QueryDetailsSidePanel";
+import QueriesList from "components/queries/QueriesList";
+import queryActions from "redux/nodes/entities/queries/actions";
+import queryInterface from "interfaces/query";
+import { renderFlash } from "redux/nodes/notifications/actions";
 
-const baseClass = 'manage-queries-page';
+const baseClass = "manage-queries-page";
 
 export class ManageQueriesPage extends Component {
   static propTypes = {
@@ -25,20 +25,20 @@ export class ManageQueriesPage extends Component {
     loadingQueries: PropTypes.bool.isRequired,
     queries: PropTypes.arrayOf(queryInterface),
     selectedQuery: queryInterface,
-  }
+  };
 
   static defaultProps = {
     dispatch: () => Promise.resolve(),
     loadingQueries: false,
   };
 
-  constructor (props) {
+  constructor(props) {
     super(props);
 
     this.state = {
       allQueriesChecked: false,
       checkedQueryIDs: [],
-      queriesFilter: '',
+      queriesFilter: "",
       showModal: false,
     };
   }
@@ -46,8 +46,7 @@ export class ManageQueriesPage extends Component {
   componentWillMount() {
     const { dispatch } = this.props;
 
-    dispatch(queryActions.loadAll())
-      .catch(() => false);
+    dispatch(queryActions.loadAll()).catch(() => false);
 
     return false;
   }
@@ -65,25 +64,25 @@ export class ManageQueriesPage extends Component {
 
     return Promise.all(promises)
       .then(() => {
-        dispatch(renderFlash('success', 'Queries successfully deleted.'));
+        dispatch(renderFlash("success", "Queries successfully deleted."));
 
         this.setState({ checkedQueryIDs: [], showModal: false });
 
         return false;
       })
       .catch(() => {
-        dispatch(renderFlash('error', 'Something went wrong.'));
+        dispatch(renderFlash("error", "Something went wrong."));
 
         this.setState({ showModal: false });
 
         return false;
       });
-  }
+  };
 
   onCheckAllQueries = (shouldCheck) => {
     if (shouldCheck) {
       const queries = this.getQueries();
-      const checkedQueryIDs = queries.map(query => query.id);
+      const checkedQueryIDs = queries.map((query) => query.id);
 
       this.setState({ allQueriesChecked: true, checkedQueryIDs });
 
@@ -93,22 +92,27 @@ export class ManageQueriesPage extends Component {
     this.setState({ allQueriesChecked: false, checkedQueryIDs: [] });
 
     return false;
-  }
+  };
 
   onCheckQuery = (checked, id) => {
     const { checkedQueryIDs } = this.state;
-    const newCheckedQueryIDs = checked ? checkedQueryIDs.concat(id) : pull(checkedQueryIDs, id);
+    const newCheckedQueryIDs = checked
+      ? checkedQueryIDs.concat(id)
+      : pull(checkedQueryIDs, id);
 
-    this.setState({ allQueriesChecked: false, checkedQueryIDs: newCheckedQueryIDs });
+    this.setState({
+      allQueriesChecked: false,
+      checkedQueryIDs: newCheckedQueryIDs,
+    });
 
     return false;
-  }
+  };
 
   onFilterQueries = (queriesFilter) => {
     this.setState({ queriesFilter });
 
     return false;
-  }
+  };
 
   onSelectQuery = (selectedQuery) => {
     const { dispatch } = this.props;
@@ -120,7 +124,7 @@ export class ManageQueriesPage extends Component {
     dispatch(push(locationObject));
 
     return false;
-  }
+  };
 
   onDblClickQuery = (selectedQuery) => {
     const { dispatch } = this.props;
@@ -128,7 +132,7 @@ export class ManageQueriesPage extends Component {
     dispatch(push(PATHS.EDIT_QUERY(selectedQuery)));
 
     return false;
-  }
+  };
 
   onToggleModal = () => {
     const { showModal } = this.state;
@@ -136,7 +140,7 @@ export class ManageQueriesPage extends Component {
     this.setState({ showModal: !showModal });
 
     return false;
-  }
+  };
 
   getQueries = () => {
     const { queriesFilter } = this.state;
@@ -157,7 +161,7 @@ export class ManageQueriesPage extends Component {
 
       return includes(lowerQueryName, lowerQueryFilter);
     });
-  }
+  };
 
   goToNewQueryPage = () => {
     const { dispatch } = this.props;
@@ -166,7 +170,7 @@ export class ManageQueriesPage extends Component {
     dispatch(push(NEW_QUERY));
 
     return false;
-  }
+  };
 
   goToEditQueryPage = (query) => {
     const { dispatch } = this.props;
@@ -175,7 +179,7 @@ export class ManageQueriesPage extends Component {
     dispatch(push(EDIT_QUERY(query)));
 
     return false;
-  }
+  };
 
   renderCTAs = () => {
     const { goToNewQueryPage, onToggleModal } = this;
@@ -183,16 +187,14 @@ export class ManageQueriesPage extends Component {
     const checkedQueryCount = this.state.checkedQueryIDs.length;
 
     if (checkedQueryCount) {
-      const queryText = checkedQueryCount === 1 ? 'Query' : 'Queries';
+      const queryText = checkedQueryCount === 1 ? "Query" : "Queries";
 
       return (
         <div className={`${baseClass}__ctas`}>
-          <p className={`${baseClass}__query-count`}>{checkedQueryCount} {queryText} selected</p>
-          <Button
-            className={btnClass}
-            onClick={onToggleModal}
-            variant="alert"
-          >
+          <p className={`${baseClass}__query-count`}>
+            {checkedQueryCount} {queryText} selected
+          </p>
+          <Button className={btnClass} onClick={onToggleModal} variant="alert">
             Delete
           </Button>
         </div>
@@ -200,9 +202,11 @@ export class ManageQueriesPage extends Component {
     }
 
     return (
-      <Button variant="brand" onClick={goToNewQueryPage}>Create new query</Button>
+      <Button variant="brand" onClick={goToNewQueryPage}>
+        Create new query
+      </Button>
     );
-  }
+  };
 
   renderModal = () => {
     const { onDeleteQueries, onToggleModal } = this;
@@ -213,18 +217,19 @@ export class ManageQueriesPage extends Component {
     }
 
     return (
-      <Modal
-        title="Delete Query"
-        onExit={onToggleModal}
-      >
+      <Modal title="Delete Query" onExit={onToggleModal}>
         <p>Are you sure you want to delete the selected queries?</p>
         <div className={`${baseClass}__modal-btn-wrap`}>
-          <Button onClick={onDeleteQueries} variant="alert">Delete</Button>
-          <Button onClick={onToggleModal} variant="inverse">Cancel</Button>
+          <Button onClick={onDeleteQueries} variant="alert">
+            Delete
+          </Button>
+          <Button onClick={onToggleModal} variant="inverse">
+            Cancel
+          </Button>
         </div>
       </Modal>
     );
-  }
+  };
 
   renderSidePanel = () => {
     const { goToEditQueryPage } = this;
@@ -235,15 +240,22 @@ export class ManageQueriesPage extends Component {
       return (
         <SecondarySidePanelContainer>
           <p className={`${baseClass}__empty-label`}>Query</p>
-          <p className={`${baseClass}__empty-description`}>No query selected.</p>
+          <p className={`${baseClass}__empty-description`}>
+            No query selected.
+          </p>
         </SecondarySidePanelContainer>
       );
     }
 
-    return <QueryDetailsSidePanel onEditQuery={goToEditQueryPage} query={selectedQuery} />;
-  }
+    return (
+      <QueryDetailsSidePanel
+        onEditQuery={goToEditQueryPage}
+        query={selectedQuery}
+      />
+    );
+  };
 
-  render () {
+  render() {
     const { checkedQueryIDs, queriesFilter } = this.state;
     const {
       getQueries,
@@ -259,7 +271,8 @@ export class ManageQueriesPage extends Component {
     const { loadingQueries, queries: allQueries, selectedQuery } = this.props;
     const queries = getQueries();
     const queriesCount = queries.length;
-    const queriesTotalDisplay = queriesCount === 1 ? '1 query' : `${queriesCount} queries`;
+    const queriesTotalDisplay =
+      queriesCount === 1 ? "1 query" : `${queriesCount} queries`;
     const isQueriesAvailable = allQueries.length > 0;
 
     if (loadingQueries) {
@@ -270,9 +283,7 @@ export class ManageQueriesPage extends Component {
       <div className={`${baseClass} has-sidebar`}>
         <div className={`${baseClass}__wrapper body-wrap`}>
           <div className={`${baseClass}__header-wrap`}>
-            <h1 className={`${baseClass}__title`}>
-              Queries
-            </h1>
+            <h1 className={`${baseClass}__title`}>Queries</h1>
             {renderCTAs()}
           </div>
           <div className={`${baseClass}__filter-and-cta`}>
@@ -306,10 +317,11 @@ export class ManageQueriesPage extends Component {
 }
 
 const mapStateToProps = (state, { location }) => {
-  const queryEntities = entityGetter(state).get('queries');
+  const queryEntities = entityGetter(state).get("queries");
   const { entities: queries } = queryEntities;
-  const selectedQueryID = get(location, 'query.selectedQuery');
-  const selectedQuery = selectedQueryID && queryEntities.findBy({ id: selectedQueryID });
+  const selectedQueryID = get(location, "query.selectedQuery");
+  const selectedQuery =
+    selectedQueryID && queryEntities.findBy({ id: selectedQueryID });
   const { loading: loadingQueries } = state.entities.queries;
 
   return { loadingQueries, queries, selectedQuery };

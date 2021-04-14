@@ -1,7 +1,7 @@
-import React from 'react';
-import Button from 'components/buttons/Button';
+import React from "react";
+import Button from "components/buttons/Button";
 
-const baseClass = 'delete-user-form';
+const baseClass = "delete-user-form";
 
 interface IDeleteUserForm {
   name: string;
@@ -9,13 +9,15 @@ interface IDeleteUserForm {
   onCancel: () => void;
 }
 
-
 const DeleteUserForm = (props: IDeleteUserForm) => {
   const { name, onDelete, onCancel } = props;
 
   return (
     <div className={baseClass}>
-      <p>You are about to delete <span className={`${baseClass}__name`}>{name}</span> from Fleet.</p>
+      <p>
+        You are about to delete{" "}
+        <span className={`${baseClass}__name`}>{name}</span> from Fleet.
+      </p>
       <p className={`${baseClass}__warning`}>This action cannot be undone.</p>
       <div className={`${baseClass}__btn-wrap`}>
         <Button

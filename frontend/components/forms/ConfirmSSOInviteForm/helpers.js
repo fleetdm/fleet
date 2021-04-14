@@ -1,18 +1,15 @@
-import { size } from 'lodash';
+import { size } from "lodash";
 
 const validate = (formData) => {
   const errors = {};
-  const {
-    name,
-    username,
-  } = formData;
+  const { name, username } = formData;
 
   if (!name) {
-    errors.name = 'Full name must be present';
+    errors.name = "Full name must be present";
   }
 
   if (!username) {
-    errors.username = 'Username must be present';
+    errors.username = "Username must be present";
   }
 
   const valid = !size(errors);

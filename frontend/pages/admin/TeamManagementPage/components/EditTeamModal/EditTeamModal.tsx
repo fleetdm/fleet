@@ -1,14 +1,14 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback } from "react";
 
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
-import Modal from 'components/modals/Modal';
+import Modal from "components/modals/Modal";
 // @ts-ignore
-import InputFieldWithIcon from 'components/forms/fields/InputFieldWithIcon';
-import Button from 'components/buttons/Button';
-import InfoBanner from 'components/InfoBanner/InfoBanner';
+import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
+import Button from "components/buttons/Button";
+import InfoBanner from "components/InfoBanner/InfoBanner";
 
-const baseClass = 'edit-team-modal';
+const baseClass = "edit-team-modal";
 
 export interface IEditTeamFormData {
   name: string;
@@ -25,9 +25,12 @@ const EditTeamModal = (props: IEditTeamModalProps): JSX.Element => {
 
   const [name, setName] = useState(defaultName);
 
-  const onInputChange = useCallback((value: string) => {
-    setName(value);
-  }, [setName]);
+  const onInputChange = useCallback(
+    (value: string) => {
+      setName(value);
+    },
+    [setName]
+  );
 
   const onFormSubmit = useCallback(() => {
     onSubmit({
@@ -36,11 +39,7 @@ const EditTeamModal = (props: IEditTeamModalProps): JSX.Element => {
   }, [onSubmit, name]);
 
   return (
-    <Modal
-      title={'Edit team'}
-      onExit={onCancel}
-      className={baseClass}
-    >
+    <Modal title={"Edit team"} onExit={onCancel} className={baseClass}>
       <form className={`${baseClass}__form`}>
         <InputFieldWithIcon
           autofocus

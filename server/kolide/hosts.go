@@ -56,6 +56,7 @@ type HostStore interface {
 	// endpoints.
 	AuthenticateHost(nodeKey string) (*Host, error)
 	MarkHostSeen(host *Host, t time.Time) error
+	MarkHostsSeen(hostIDs []uint, t time.Time) error
 	SearchHosts(query string, omit ...uint) ([]*Host, error)
 	// CleanupIncomingHosts deletes hosts that have enrolled but never
 	// updated their status details. This clears dead "incoming hosts" that
@@ -85,6 +86,8 @@ type HostService interface {
 	// Possible matches can be on osquery_host_identifier, node_key, UUID, or
 	// hostname.
 	HostByIdentifier(ctx context.Context, identifier string) (*HostDetail, error)
+
+	FlushSeenHosts(ctx context.Context) error
 }
 
 type HostListOptions struct {

@@ -1,7 +1,6 @@
-$base-class: 'button';
+$base-class: "button";
 
 @mixin button-variant($color, $hover: null, $active: null, $inverse: null) {
-
   background-color: $color;
 
   @if $inverse {
@@ -14,8 +13,7 @@ $base-class: 'button';
       border: 2px solid $active;
       color: $active;
     }
-  } @else { 
-
+  } @else {
     &:hover {
       background-color: $hover;
     }
@@ -28,7 +26,8 @@ $base-class: 'button';
 
 .#{$base-class} {
   @include button-variant($core-vibrant-blue);
-  transition: color 150ms ease-in-out, background 150ms ease-in-out, top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out;
+  transition: color 150ms ease-in-out, background 150ms ease-in-out,
+    top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out;
   position: relative;
   color: $core-white;
   text-decoration: none;
@@ -38,7 +37,7 @@ $base-class: 'button';
   padding: $pad-small $pad-medium;
   border-radius: $border-radius;
   font-size: $small;
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: "Nunito Sans", sans-serif;
   font-weight: $bold;
   display: inline-flex;
   height: 38px;
@@ -51,7 +50,11 @@ $base-class: 'button';
   }
 
   &--brand {
-    @include button-variant($core-vibrant-blue, $core-vibrant-blue-over, $core-vibrant-blue-down);
+    @include button-variant(
+      $core-vibrant-blue,
+      $core-vibrant-blue-over,
+      $core-vibrant-blue-down
+    );
   }
 
   &--success {
@@ -59,15 +62,23 @@ $base-class: 'button';
   }
 
   &--alert {
-    @include button-variant($ui-error, $core-vibrant-red-over, $core-vibrant-red-down);
+    @include button-variant(
+      $ui-error,
+      $core-vibrant-red-over,
+      $core-vibrant-red-down
+    );
   }
 
   &--blue-green {
-    @include button-variant($ui-success)
+    @include button-variant($ui-success);
   }
 
   &--grey {
-    @include button-variant($core-fleet-blue, $core-fleet-blue-over, $core-fleet-blue-down);
+    @include button-variant(
+      $core-fleet-blue,
+      $core-fleet-blue-over,
+      $core-fleet-blue-down
+    );
   }
 
   &--warning {
@@ -79,7 +90,12 @@ $base-class: 'button';
   }
 
   &--label {
-    @include button-variant($ui-off-white, $core-vibrant-blue-over, null, $inverse: true);
+    @include button-variant(
+      $ui-off-white,
+      $core-vibrant-blue-over,
+      null,
+      $inverse: true
+    );
     color: $core-vibrant-blue;
     border: 1px solid $core-vibrant-blue;
     box-sizing: border-box;
@@ -127,14 +143,24 @@ $base-class: 'button';
   }
 
   &--inverse {
-    @include button-variant($core-white, $core-vibrant-blue-over, $core-vibrant-blue-down, $inverse: true);
+    @include button-variant(
+      $core-white,
+      $core-vibrant-blue-over,
+      $core-vibrant-blue-down,
+      $inverse: true
+    );
     color: $core-vibrant-blue;
     border: 2px solid $core-vibrant-blue;
     box-sizing: border-box;
   }
 
   &--inverse-alert {
-    @include button-variant($core-white, $core-vibrant-red-over, $core-vibrant-red-down, $inverse: true);
+    @include button-variant(
+      $core-white,
+      $core-vibrant-red-over,
+      $core-vibrant-red-down,
+      $inverse: true
+    );
     color: $ui-error;
     border: 2px solid $ui-error;
     box-sizing: border-box;

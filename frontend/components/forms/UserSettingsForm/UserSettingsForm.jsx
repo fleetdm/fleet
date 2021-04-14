@@ -1,14 +1,14 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
-import Button from 'components/buttons/Button';
-import Form from 'components/forms/Form';
-import formFieldInterface from 'interfaces/form_field';
-import InputField from 'components/forms/fields/InputField';
+import Button from "components/buttons/Button";
+import Form from "components/forms/Form";
+import formFieldInterface from "interfaces/form_field";
+import InputField from "components/forms/fields/InputField";
 
-const formFields = ['email', 'name', 'position', 'username'];
+const formFields = ["email", "name", "position", "username"];
 
-const baseClass = 'manage-user';
+const baseClass = "manage-user";
 
 class UserSettingsForm extends Component {
   static propTypes = {
@@ -35,9 +35,9 @@ class UserSettingsForm extends Component {
         Pending change to <b>{pendingEmail}</b>
       </i>
     );
-  }
+  };
 
-  render () {
+  render() {
     const { fields, handleSubmit, onCancel } = this.props;
     const { renderEmailHint } = this;
 
@@ -53,17 +53,15 @@ class UserSettingsForm extends Component {
           label="Email (required)"
           hint={renderEmailHint()}
         />
-        <InputField
-          {...fields.name}
-          label="Full Name"
-        />
-        <InputField
-          {...fields.position}
-          label="Position"
-        />
+        <InputField {...fields.name} label="Full Name" />
+        <InputField {...fields.position} label="Position" />
         <div className={`${baseClass}__button-wrap`}>
-          <Button onClick={onCancel} variant="inverse">Cancel</Button>
-          <Button type="submit" variant="brand">Update</Button>
+          <Button onClick={onCancel} variant="inverse">
+            Cancel
+          </Button>
+          <Button type="submit" variant="brand">
+            Update
+          </Button>
         </div>
       </form>
     );

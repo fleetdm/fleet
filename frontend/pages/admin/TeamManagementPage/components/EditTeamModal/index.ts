@@ -1,1 +1,1 @@
-export { default } from './EditTeamModal';
+export { default } from "./EditTeamModal";

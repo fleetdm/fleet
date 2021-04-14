@@ -1668,10 +1668,10 @@ Promotes or demotes the selected user's level of access as an admin in Fleet. Ad
 
 #### Parameters
 
-| Name | Type    | In    | Description                  |
-| ---- | ------- | ----- | ---------------------------- |
-| id   | integer | path | **Required**. The user's id. |
-| enabled   | boolean | body | **Required**. Whether or not the user can access Fleet. |
+| Name  | Type    | In    | Description                  |
+| ----- | ------- | ----- | ---------------------------- |
+| id    | integer | path | **Required**. The user's id. |
+| admin | boolean | body | **Required**. Whether or not the user is an admin. |
 
 #### Example
 

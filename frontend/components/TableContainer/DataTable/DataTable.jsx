@@ -1,10 +1,10 @@
-import React, { useMemo, useEffect } from 'react';
-import PropTypes from 'prop-types';
-import { useTable, useSortBy } from 'react-table';
+import React, { useMemo, useEffect } from "react";
+import PropTypes from "prop-types";
+import { useTable, useSortBy } from "react-table";
 
-import Spinner from 'components/loaders/Spinner';
+import Spinner from "components/loaders/Spinner";
 
-const baseClass = 'data-table-container';
+const baseClass = "data-table-container";
 
 // This data table uses react-table for implementation. The relevant documentation of the library
 // can be found here https://react-table.tanstack.com/docs/api/useTable
@@ -27,23 +27,18 @@ const DataTable = (props) => {
     return tableData;
   }, [tableData]);
 
-  const {
-    headerGroups,
-    rows,
-    prepareRow,
-    state: tableState,
-  } = useTable(
+  const { headerGroups, rows, prepareRow, state: tableState } = useTable(
     {
       columns,
       data,
       initialState: {
         sortBy: useMemo(() => {
-          return [{ id: sortHeader, desc: sortDirection === 'desc' }];
+          return [{ id: sortHeader, desc: sortDirection === "desc" }];
         }, [sortHeader, sortDirection]),
       },
       disableMultiSort: true,
     },
-    useSortBy,
+    useSortBy
   );
 
   const { sortBy } = tableState;
@@ -51,7 +46,10 @@ const DataTable = (props) => {
   useEffect(() => {
     const column = sortBy[0];
     if (column !== undefined) {
-      if (column.id !== sortHeader || column.desc !== (sortDirection === 'desc')) {
+      if (
+        column.id !== sortHeader ||
+        column.desc !== (sortDirection === "desc")
+      ) {
         onSort(column.id, column.desc);
       }
     } else {
@@ -59,23 +57,22 @@ const DataTable = (props) => {
     }
   }, [sortBy, sortHeader, sortDirection]);
 
-
   return (
     <div className={baseClass}>
-      <div className={'data-table data-table__wrapper'}>
-        {isLoading &&
-          <div className={'loading-overlay'}>
+      <div className={"data-table data-table__wrapper"}>
+        {isLoading && (
+          <div className={"loading-overlay"}>
             <Spinner />
           </div>
-        }
+        )}
         {/* TODO: can this be memoized? seems performance heavy */}
-        <table className={'data-table__table'}>
+        <table className={"data-table__table"}>
           <thead>
-            {headerGroups.map(headerGroup => (
+            {headerGroups.map((headerGroup) => (
               <tr {...headerGroup.getHeaderGroupProps()}>
-                {headerGroup.headers.map(column => (
+                {headerGroup.headers.map((column) => (
                   <th {...column.getHeaderProps(column.getSortByToggleProps())}>
-                    {column.render('Header')}
+                    {column.render("Header")}
                   </th>
                 ))}
               </tr>
@@ -88,15 +85,12 @@ const DataTable = (props) => {
                 <tr {...row.getRowProps()}>
                   {row.cells.map((cell) => {
                     return (
-                      <td {...cell.getCellProps()}>
-                        {cell.render('Cell')}
-                      </td>
+                      <td {...cell.getCellProps()}>{cell.render("Cell")}</td>
                     );
                   })}
                 </tr>
               );
-            })
-            }
+            })}
           </tbody>
         </table>
       </div>

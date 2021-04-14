@@ -6,7 +6,7 @@
 
     &--scroll-labels {
       &:before {
-        content: '';
+        content: "";
         position: sticky;
         display: block;
         z-index: 1;
@@ -15,11 +15,15 @@
         width: 100%;
         height: 17px;
         // We explicityly use rgba(255,255,255,0) because it's equivalent to transparent for most broswers except Safari.
-        background-image: linear-gradient(to bottom, #f9fafc, rgba(255, 255, 255, 0));
+        background-image: linear-gradient(
+          to bottom,
+          #f9fafc,
+          rgba(255, 255, 255, 0)
+        );
       }
 
       &:after {
-        content: '';
+        content: "";
         position: sticky;
         display: block;
         bottom: -1px;
@@ -27,7 +31,11 @@
         width: 100%;
         height: 17px;
         // We explicityly use rgba(255,255,255,0) because it's equivalent to transparent for most broswers except Safari.
-        background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0), #f9fafc);
+        background-image: linear-gradient(
+          to bottom,
+          rgba(255, 255, 255, 0),
+          #f9fafc
+        );
       }
     }
   }

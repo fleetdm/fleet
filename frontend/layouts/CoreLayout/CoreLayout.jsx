@@ -1,17 +1,17 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { logoutUser } from 'redux/nodes/auth/actions';
-import { push } from 'react-router-redux';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { logoutUser } from "redux/nodes/auth/actions";
+import { push } from "react-router-redux";
 
-import configInterface from 'interfaces/config';
-import FlashMessage from 'components/flash_messages/FlashMessage';
-import PersistentFlash from 'components/flash_messages/PersistentFlash';
-import SiteNavHeader from 'components/side_panels/SiteNavHeader';
-import SiteNavSidePanel from 'components/side_panels/SiteNavSidePanel';
-import userInterface from 'interfaces/user';
-import notificationInterface from 'interfaces/notification';
-import { hideFlash } from 'redux/nodes/notifications/actions';
+import configInterface from "interfaces/config";
+import FlashMessage from "components/flash_messages/FlashMessage";
+import PersistentFlash from "components/flash_messages/PersistentFlash";
+import SiteNavHeader from "components/side_panels/SiteNavHeader";
+import SiteNavSidePanel from "components/side_panels/SiteNavSidePanel";
+import userInterface from "interfaces/user";
+import notificationInterface from "interfaces/notification";
+import { hideFlash } from "redux/nodes/notifications/actions";
 
 export class CoreLayout extends Component {
   static propTypes = {
@@ -33,7 +33,7 @@ export class CoreLayout extends Component {
     dispatch(logoutUser());
 
     return false;
-  }
+  };
 
   onNavItemClick = (path) => {
     return (evt) => {
@@ -41,8 +41,8 @@ export class CoreLayout extends Component {
 
       const { dispatch } = this.props;
 
-      if (path.indexOf('http') !== -1) {
-        global.window.open(path, '_blank');
+      if (path.indexOf("http") !== -1) {
+        global.window.open(path, "_blank");
 
         return false;
       }
@@ -51,7 +51,7 @@ export class CoreLayout extends Component {
 
       return false;
     };
-  }
+  };
 
   onRemoveFlash = () => {
     const { dispatch } = this.props;
@@ -59,7 +59,7 @@ export class CoreLayout extends Component {
     dispatch(hideFlash);
 
     return false;
-  }
+  };
 
   onUndoActionClick = (undoAction) => {
     return (evt) => {
@@ -72,9 +72,9 @@ export class CoreLayout extends Component {
 
       return onRemoveFlash();
     };
-  }
+  };
 
-  render () {
+  render() {
     const {
       fullWidthFlash,
       notifications,
@@ -108,7 +108,9 @@ export class CoreLayout extends Component {
           />
         </nav>
         <div className="core-wrapper">
-          {persistentFlash.showFlash && <PersistentFlash message={persistentFlash.message} />}
+          {persistentFlash.showFlash && (
+            <PersistentFlash message={persistentFlash.message} />
+          )}
           <FlashMessage
             fullWidth={fullWidthFlash}
             notification={notifications}
@@ -124,9 +126,7 @@ export class CoreLayout extends Component {
 
 const mapStateToProps = (state) => {
   const {
-    app: {
-      config,
-    },
+    app: { config },
     auth: { user },
     notifications,
     persistentFlash,

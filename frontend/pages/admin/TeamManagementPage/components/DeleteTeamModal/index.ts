@@ -1,1 +1,1 @@
-export { default } from './DeleteTeamModal';
+export { default } from "./DeleteTeamModal";

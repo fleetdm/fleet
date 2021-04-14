@@ -1,36 +1,43 @@
-import React, { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import AceEditor from 'react-ace';
-import { connect } from 'react-redux';
-import { push } from 'react-router-redux';
+import React, { PureComponent } from "react";
+import PropTypes from "prop-types";
+import AceEditor from "react-ace";
+import { connect } from "react-redux";
+import { push } from "react-router-redux";
 
-import AddHostModal from 'components/hosts/AddHostModal';
-import Button from 'components/buttons/Button';
-import configInterface from 'interfaces/config';
-import HostSidePanel from 'components/side_panels/HostSidePanel';
-import LabelForm from 'components/forms/LabelForm';
-import Modal from 'components/modals/Modal';
-import QuerySidePanel from 'components/side_panels/QuerySidePanel';
-import TableContainer from 'components/TableContainer';
-import labelInterface from 'interfaces/label';
-import hostInterface from 'interfaces/host';
-import osqueryTableInterface from 'interfaces/osquery_table';
-import statusLabelsInterface from 'interfaces/status_labels';
-import enrollSecretInterface from 'interfaces/enroll_secret';
-import { selectOsqueryTable } from 'redux/nodes/components/QueryPages/actions';
-import labelActions from 'redux/nodes/entities/labels/actions';
-import entityGetter from 'redux/utilities/entityGetter';
-import { getLabels, getHosts } from 'redux/nodes/components/ManageHostsPage/actions';
-import PATHS from 'router/paths';
-import deepDifference from 'utilities/deep_difference';
+import AddHostModal from "components/hosts/AddHostModal";
+import Button from "components/buttons/Button";
+import configInterface from "interfaces/config";
+import HostSidePanel from "components/side_panels/HostSidePanel";
+import LabelForm from "components/forms/LabelForm";
+import Modal from "components/modals/Modal";
+import QuerySidePanel from "components/side_panels/QuerySidePanel";
+import TableContainer from "components/TableContainer";
+import labelInterface from "interfaces/label";
+import hostInterface from "interfaces/host";
+import osqueryTableInterface from "interfaces/osquery_table";
+import statusLabelsInterface from "interfaces/status_labels";
+import enrollSecretInterface from "interfaces/enroll_secret";
+import { selectOsqueryTable } from "redux/nodes/components/QueryPages/actions";
+import labelActions from "redux/nodes/entities/labels/actions";
+import entityGetter from "redux/utilities/entityGetter";
+import {
+  getLabels,
+  getHosts,
+} from "redux/nodes/components/ManageHostsPage/actions";
+import PATHS from "router/paths";
+import deepDifference from "utilities/deep_difference";
 
-import { defaultHiddenColumns, hostTableHeaders, generateVisibleHostColumns } from './HostTableConfig';
-import NoHosts from './components/NoHosts';
-import EmptyHosts from './components/EmptyHosts';
-import EditColumnsModal from './components/EditColumnsModal/EditColumnsModal';
+import {
+  defaultHiddenColumns,
+  hostTableHeaders,
+  generateVisibleHostColumns,
+} from "./HostTableConfig";
+import NoHosts from "./components/NoHosts";
+import EmptyHosts from "./components/EmptyHosts";
+import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 
-const NEW_LABEL_HASH = '#new_label';
-const baseClass = 'manage-hosts';
+const NEW_LABEL_HASH = "#new_label";
+const baseClass = "manage-hosts";
 
 export class ManageHostsPage extends PureComponent {
   static propTypes = {
@@ -56,30 +63,34 @@ export class ManageHostsPage extends PureComponent {
     hosts: [],
   };
 
-  constructor (props) {
+  constructor(props) {
     super(props);
 
     // For now we persist using localstorage. May do server side persistence later.
-    const storedHiddenColumns = JSON.parse(localStorage.getItem('hostHiddenColumns'));
+    const storedHiddenColumns = JSON.parse(
+      localStorage.getItem("hostHiddenColumns")
+    );
 
     this.state = {
       isEditLabel: false,
-      labelQueryText: '',
+      labelQueryText: "",
       showAddHostModal: false,
       selectedHost: null,
       showDeleteLabelModal: false,
       showEditColumnsModal: false,
-      hiddenColumns: storedHiddenColumns !== null ? storedHiddenColumns : defaultHiddenColumns,
+      hiddenColumns:
+        storedHiddenColumns !== null
+          ? storedHiddenColumns
+          : defaultHiddenColumns,
     };
   }
 
-  componentDidMount () {
+  componentDidMount() {
     const { dispatch } = this.props;
     dispatch(getLabels());
   }
 
-
-  componentWillUnmount () {
+  componentWillUnmount() {
     this.clearHostUpdates();
     return false;
   }
@@ -92,27 +103,27 @@ export class ManageHostsPage extends PureComponent {
     dispatch(push(`${PATHS.MANAGE_HOSTS}${NEW_LABEL_HASH}`));
 
     return false;
-  }
+  };
 
   onEditColumnsClick = () => {
     this.setState({
       showEditColumnsModal: true,
     });
-  }
+  };
 
   onCancelColumns = () => {
     this.setState({
       showEditColumnsModal: false,
     });
-  }
+  };
 
   onSaveColumns = (newHiddenColumns) => {
-    localStorage.setItem('hostHiddenColumns', JSON.stringify(newHiddenColumns));
+    localStorage.setItem("hostHiddenColumns", JSON.stringify(newHiddenColumns));
     this.setState({
       hiddenColumns: newHiddenColumns,
       showEditColumnsModal: false,
     });
-  }
+  };
 
   onCancelAddLabel = () => {
     const { dispatch } = this.props;
@@ -120,7 +131,7 @@ export class ManageHostsPage extends PureComponent {
     dispatch(push(PATHS.MANAGE_HOSTS));
 
     return false;
-  }
+  };
 
   onAddHostClick = (evt) => {
     evt.preventDefault();
@@ -129,19 +140,27 @@ export class ManageHostsPage extends PureComponent {
     toggleAddHostModal();
 
     return false;
-  }
+  };
 
   // NOTE: this is called once on the initial rendering. The initial render of
   // the TableContainer child component.
   onTableQueryChange = (queryData) => {
     const { selectedFilter, dispatch } = this.props;
-    const { pageIndex, pageSize, searchQuery, sortHeader, sortDirection } = queryData;
+    const {
+      pageIndex,
+      pageSize,
+      searchQuery,
+      sortHeader,
+      sortDirection,
+    } = queryData;
     let sortBy = [];
-    if (sortHeader !== '') {
+    if (sortHeader !== "") {
       sortBy = [{ id: sortHeader, direction: sortDirection }];
     }
-    dispatch(getHosts(pageIndex, pageSize, selectedFilter, searchQuery, sortBy));
-  }
+    dispatch(
+      getHosts(pageIndex, pageSize, selectedFilter, searchQuery, sortBy)
+    );
+  };
 
   onEditLabel = (formData) => {
     const { dispatch, selectedLabel } = this.props;
@@ -154,7 +173,7 @@ export class ManageHostsPage extends PureComponent {
         return false;
       })
       .catch(() => false);
-  }
+  };
 
   onLabelClick = (selectedLabel) => {
     return (evt) => {
@@ -162,10 +181,11 @@ export class ManageHostsPage extends PureComponent {
       const { dispatch } = this.props;
       const { MANAGE_HOSTS } = PATHS;
       const { slug, type } = selectedLabel;
-      const nextLocation = type === 'all' ? MANAGE_HOSTS : `${MANAGE_HOSTS}/${slug}`;
+      const nextLocation =
+        type === "all" ? MANAGE_HOSTS : `${MANAGE_HOSTS}/${slug}`;
       dispatch(push(nextLocation));
     };
-  }
+  };
 
   onOsqueryTableSelect = (tableName) => {
     const { dispatch } = this.props;
@@ -173,33 +193,31 @@ export class ManageHostsPage extends PureComponent {
     dispatch(selectOsqueryTable(tableName));
 
     return false;
-  }
+  };
 
   onSaveAddLabel = (formData) => {
     const { dispatch } = this.props;
 
-    return dispatch(labelActions.create(formData))
-      .then(() => {
-        dispatch(push(PATHS.MANAGE_HOSTS));
+    return dispatch(labelActions.create(formData)).then(() => {
+      dispatch(push(PATHS.MANAGE_HOSTS));
 
-        return false;
-      });
-  }
+      return false;
+    });
+  };
 
   onDeleteLabel = () => {
     const { toggleDeleteLabelModal } = this;
     const { dispatch, selectedLabel } = this.props;
     const { MANAGE_HOSTS } = PATHS;
 
-    return dispatch(labelActions.destroy(selectedLabel))
-      .then(() => {
-        toggleDeleteLabelModal();
-        dispatch(push(MANAGE_HOSTS));
-        return false;
-      });
-  }
+    return dispatch(labelActions.destroy(selectedLabel)).then(() => {
+      toggleDeleteLabelModal();
+      dispatch(push(MANAGE_HOSTS));
+      return false;
+    });
+  };
 
-  clearHostUpdates () {
+  clearHostUpdates() {
     if (this.timeout) {
       global.window.clearTimeout(this.timeout);
       this.timeout = null;
@@ -210,14 +228,14 @@ export class ManageHostsPage extends PureComponent {
     const { showAddHostModal } = this.state;
     this.setState({ showAddHostModal: !showAddHostModal });
     return false;
-  }
+  };
 
   toggleDeleteLabelModal = () => {
     const { showDeleteLabelModal } = this.state;
 
     this.setState({ showDeleteLabelModal: !showDeleteLabelModal });
     return false;
-  }
+  };
 
   toggleEditLabel = () => {
     const { isEditLabel } = this.state;
@@ -225,7 +243,7 @@ export class ManageHostsPage extends PureComponent {
     this.setState({ isEditLabel: !isEditLabel });
 
     return false;
-  }
+  };
 
   renderEditColumnsModal = () => {
     const { showEditColumnsModal, hiddenColumns } = this.state;
@@ -246,7 +264,7 @@ export class ManageHostsPage extends PureComponent {
         />
       </Modal>
     );
-  }
+  };
 
   renderAddHostModal = () => {
     const { toggleAddHostModal } = this;
@@ -270,7 +288,7 @@ export class ManageHostsPage extends PureComponent {
         />
       </Modal>
     );
-  }
+  };
 
   renderDeleteLabelModal = () => {
     const { showDeleteLabelModal } = this.state;
@@ -288,40 +306,55 @@ export class ManageHostsPage extends PureComponent {
       >
         <p>Are you sure you wish to delete this label?</p>
         <div className={`${baseClass}__modal-buttons`}>
-          <Button onClick={toggleDeleteLabelModal} variant="inverse">Cancel</Button>
-          <Button onClick={onDeleteLabel} variant="alert">Delete</Button>
+          <Button onClick={toggleDeleteLabelModal} variant="inverse">
+            Cancel
+          </Button>
+          <Button onClick={onDeleteLabel} variant="alert">
+            Delete
+          </Button>
         </div>
       </Modal>
     );
-  }
+  };
 
   renderDeleteButton = () => {
     const { toggleDeleteLabelModal, toggleEditLabel } = this;
-    const { selectedLabel: { type } } = this.props;
+    const {
+      selectedLabel: { type },
+    } = this.props;
 
-    if (type !== 'custom') {
+    if (type !== "custom") {
       return false;
     }
 
     return (
       <div className={`${baseClass}__label-actions`}>
-        <Button onClick={toggleEditLabel} variant="inverse">Edit</Button>
-        <Button onClick={toggleDeleteLabelModal} variant="inverse">Delete</Button>
+        <Button onClick={toggleEditLabel} variant="inverse">
+          Edit
+        </Button>
+        <Button onClick={toggleDeleteLabelModal} variant="inverse">
+          Delete
+        </Button>
       </div>
     );
-  }
+  };
 
   renderQuery = () => {
     const { selectedLabel } = this.props;
-    const { slug, label_type: labelType, label_membership_type: membershipType, query } = selectedLabel;
+    const {
+      slug,
+      label_type: labelType,
+      label_membership_type: membershipType,
+      query,
+    } = selectedLabel;
 
-    if (membershipType === 'manual' && labelType !== 'builtin') {
+    if (membershipType === "manual" && labelType !== "builtin") {
       return (
         <h4 title="Manage manual labels with fleetctl">Manually managed</h4>
       );
     }
 
-    if (!query || slug === 'all-hosts') {
+    if (!query || slug === "all-hosts") {
       return false;
     }
 
@@ -342,7 +375,7 @@ export class ManageHostsPage extends PureComponent {
         fontSize={14}
       />
     );
-  }
+  };
 
   renderHeader = () => {
     const { renderDeleteButton } = this;
@@ -354,7 +387,7 @@ export class ManageHostsPage extends PureComponent {
 
     const { description, display_text: displayText } = selectedLabel;
 
-    const defaultDescription = 'No description available.';
+    const defaultDescription = "No description available.";
 
     return (
       <div className={`${baseClass}__header`}>
@@ -369,7 +402,7 @@ export class ManageHostsPage extends PureComponent {
         {renderDeleteButton()}
       </div>
     );
-  }
+  };
 
   renderForm = () => {
     const { isAddLabel, labelErrors, selectedLabel } = this.props;
@@ -411,7 +444,7 @@ export class ManageHostsPage extends PureComponent {
     }
 
     return false;
-  }
+  };
 
   renderSidePanel = () => {
     let SidePanel;
@@ -446,7 +479,7 @@ export class ManageHostsPage extends PureComponent {
     }
 
     return SidePanel;
-  }
+  };
 
   renderTable = () => {
     const { selectedFilter, selectedLabel, hosts, loadingHosts } = this.props;
@@ -454,10 +487,11 @@ export class ManageHostsPage extends PureComponent {
     const { onTableQueryChange, onEditColumnsClick } = this;
 
     // The data has not been fetched yet.
-    if (selectedFilter === undefined || selectedLabel === undefined) return null;
+    if (selectedFilter === undefined || selectedLabel === undefined)
+      return null;
 
     // Hosts have not been set up for this instance yet.
-    if (selectedFilter === 'all-hosts' && selectedLabel.count === 0) {
+    if (selectedFilter === "all-hosts" && selectedLabel.count === 0) {
       return <NoHosts />;
     }
 
@@ -466,20 +500,20 @@ export class ManageHostsPage extends PureComponent {
         columns={generateVisibleHostColumns(hiddenColumns)}
         data={hosts}
         isLoading={loadingHosts}
-        defaultSortHeader={'hostname'}
-        defaultSortDirection={'desc'}
-        actionButtonText={'Edit columns'}
+        defaultSortHeader={"hostname"}
+        defaultSortDirection={"desc"}
+        actionButtonText={"Edit columns"}
         additionalQueries={JSON.stringify([selectedFilter])}
-        inputPlaceHolder={'Search hostname, UUID, serial number, or IPv4'}
+        inputPlaceHolder={"Search hostname, UUID, serial number, or IPv4"}
         onActionButtonClick={onEditColumnsClick}
         onQueryChange={onTableQueryChange}
-        resultsTitle={'hosts'}
+        resultsTitle={"hosts"}
         emptyComponent={EmptyHosts}
       />
     );
-  }
+  };
 
-  render () {
+  render() {
     const {
       renderForm,
       renderHeader,
@@ -491,29 +525,28 @@ export class ManageHostsPage extends PureComponent {
       renderEditColumnsModal,
       onAddHostClick,
     } = this;
-    const {
-      isAddLabel,
-      loadingLabels,
-      selectedLabel,
-    } = this.props;
+    const { isAddLabel, loadingLabels, selectedLabel } = this.props;
     const { isEditLabel } = this.state;
 
     return (
       <div className="has-sidebar">
         {renderForm()}
 
-        {!isAddLabel && !isEditLabel &&
+        {!isAddLabel && !isEditLabel && (
           <div className={`${baseClass} body-wrap`}>
             <div className="header-wrap">
               {renderHeader()}
-              <Button onClick={onAddHostClick} className={`${baseClass}__add-hosts button button--brand`}>
+              <Button
+                onClick={onAddHostClick}
+                className={`${baseClass}__add-hosts button button--brand`}
+              >
                 <span>Add new host</span>
               </Button>
             </div>
             {selectedLabel && renderQuery()}
             {renderTable()}
           </div>
-        }
+        )}
         {!loadingLabels && renderSidePanel()}
         {renderAddHostModal()}
         {renderEditColumnsModal()}
@@ -525,16 +558,16 @@ export class ManageHostsPage extends PureComponent {
 
 const mapStateToProps = (state, { location, params }) => {
   const { active_label: activeLabel, label_id: labelID } = params;
-  const activeLabelSlug = activeLabel || 'all-hosts';
+  const activeLabelSlug = activeLabel || "all-hosts";
   const selectedFilter = labelID ? `labels/${labelID}` : activeLabelSlug;
 
   const { status_labels: statusLabels } = state.components.ManageHostsPage;
-  const labelEntities = entityGetter(state).get('labels');
+  const labelEntities = entityGetter(state).get("labels");
   const { entities: labels } = labelEntities;
   const isAddLabel = location.hash === NEW_LABEL_HASH;
   const selectedLabel = labelEntities.findBy(
     { slug: selectedFilter },
-    { ignoreCase: true },
+    { ignoreCase: true }
   );
   const { selectedOsqueryTable } = state.components.QueryPages;
   const { errors: labelErrors, loading: loadingLabels } = state.entities.labels;
@@ -543,7 +576,7 @@ const mapStateToProps = (state, { location, params }) => {
 
   // NOTE: good opportunity for performance optimisation here later. This currently
   // always generates a new array of hosts, when it could memoized version of the list.
-  const { entities: hosts } = entityGetter(state).get('hosts');
+  const { entities: hosts } = entityGetter(state).get("hosts");
 
   const { loading: loadingHosts } = state.entities.hosts;
 

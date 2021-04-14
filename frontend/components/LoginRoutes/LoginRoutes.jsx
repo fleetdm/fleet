@@ -1,10 +1,10 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
 
-import { hideBackgroundImage } from 'redux/nodes/app/actions';
-import { ssoSettings } from 'redux/nodes/auth/actions';
-import LoginPage from 'pages/LoginPage';
+import { hideBackgroundImage } from "redux/nodes/app/actions";
+import { ssoSettings } from "redux/nodes/auth/actions";
+import LoginPage from "pages/LoginPage";
 
 export class LoginRoutes extends Component {
   static propTypes = {
@@ -16,22 +16,21 @@ export class LoginRoutes extends Component {
     token: PropTypes.string,
   };
 
-  componentWillMount () {
+  componentWillMount() {
     const { dispatch } = this.props;
 
-    dispatch(ssoSettings())
-      .catch(() => false);
+    dispatch(ssoSettings()).catch(() => false);
 
     dispatch(hideBackgroundImage);
   }
 
-  componentWillUnmount () {
+  componentWillUnmount() {
     const { dispatch } = this.props;
 
     dispatch(hideBackgroundImage);
   }
 
-  render () {
+  render() {
     const {
       children,
       isResetPassPage,
@@ -42,24 +41,27 @@ export class LoginRoutes extends Component {
 
     return (
       <div className="login-routes">
-        {children ||
+        {children || (
           <LoginPage
             pathname={pathname}
             token={token}
             isForgotPassPage={isForgotPassPage}
             isResetPassPage={isResetPassPage}
-          />}
+          />
+        )}
       </div>
     );
   }
 }
 
 const mapStateToProps = (state, ownProps) => {
-  const { location: { pathname, query } } = ownProps;
+  const {
+    location: { pathname, query },
+  } = ownProps;
   const { token } = query;
 
-  const isForgotPassPage = pathname.endsWith('/login/forgot');
-  const isResetPassPage = pathname.endsWith('/login/reset');
+  const isForgotPassPage = pathname.endsWith("/login/forgot");
+  const isResetPassPage = pathname.endsWith("/login/reset");
 
   return {
     isForgotPassPage,

@@ -18,13 +18,13 @@ import {
   SSO_SETTINGS_REQUEST,
   SSO_SETTINGS_SUCCESS,
   SSO_SETTINGS_FAILURE,
-} from './actions';
+} from "./actions";
 
 export const initialState = {
   loading: false,
   errors: {},
   user: null,
-  ssoRedirectURL: '',
+  ssoRedirectURL: "",
   ssoSettings: {},
 };
 

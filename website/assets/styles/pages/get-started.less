@@ -1,0 +1,74 @@
+#get-started {
+  h1, p {
+    color: #192147;
+  }
+  section {
+    max-width: 800px;
+  }
+  a {
+    color: #6a67fe;
+  }
+  #primary-button {
+      color: #fff;
+  }
+  #learn-more {
+    background: #f9fafc;
+    filter: drop-shadow(0px 4px 16px rgba(0, 0, 0, 0.1));
+    box-shadow: 0px 6px 20px rgba(0, 0, 0, 0.05);
+    padding: 0px;
+  }
+  .btn {
+    font-family: @header-font;
+    font-weight: 700;
+    padding-top: 18px;
+    padding-bottom: 18px;
+    font-size: 20px;
+    line-height: 23px;
+    border-radius: 10px;
+    &.btn-schedule {
+      position: relative;
+      padding-right: 20px;
+      color: #192147;
+      background-color: #f9fafc;
+      border-color: #f9fafc;
+      &:hover {
+        background-color: #e2e4ea;
+        border-color: #e2e4ea;
+      }
+    }
+  }
+  #arrow {
+    padding-right: 45px;
+    cursor: pointer;
+    position: relative;
+    width: auto;
+    color: #192147;
+    font-weight: bold;
+    user-select: none;
+    transition: 0.2s ease-in;
+    -o-transition: 0.2s ease-in;
+    -ms-transition: 0.2s ease-in;
+    -moz-transition: 0.2s ease-in;
+    -webkit-transition: 0.2s ease-in;
+  }
+
+  #arrow:before {
+    content: url('/images/arrow-right-16x16@2x.png');
+    transform: scale(0.5);
+    position: absolute;
+    top: 12px;
+    left: 80%; // <--- here
+    /*   opacity: 0; */
+    -webkit-transition: all 1000ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  #arrow:hover:before {
+    left: 82%; // <--- here
+    transition: 0.4s ease-in;
+    -o-transition: 0.4s ease-in;
+    -ms-transition: 0.4s ease-in;
+    -moz-transition: 0.4s ease-in;
+    -webkit-transition: 0.4s ease-in;
+    /*   opacity:1; */
+  }
+}

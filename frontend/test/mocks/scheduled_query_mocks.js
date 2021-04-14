@@ -1,5 +1,5 @@
-import createRequestMock from 'test/mocks/create_request_mock';
-import { scheduledQueryStub } from 'test/stubs';
+import createRequestMock from "test/mocks/create_request_mock";
+import { scheduledQueryStub } from "test/stubs";
 
 export default {
   create: {
@@ -16,8 +16,8 @@ export default {
 
       return createRequestMock({
         bearerToken,
-        endpoint: '/api/v1/fleet/schedule',
-        method: 'post',
+        endpoint: "/api/v1/fleet/schedule",
+        method: "post",
         params,
         response: { scheduled: scheduledQueryStub },
         responseStatus: 201,
@@ -29,7 +29,7 @@ export default {
       return createRequestMock({
         bearerToken,
         endpoint: `/api/v1/fleet/schedule/${scheduledQuery.id}`,
-        method: 'delete',
+        method: "delete",
         response: {},
       });
     },
@@ -39,7 +39,7 @@ export default {
       return createRequestMock({
         bearerToken,
         endpoint: `/api/v1/fleet/packs/${pack.id}/scheduled`,
-        method: 'get',
+        method: "get",
         response: { scheduled: [scheduledQueryStub] },
       });
     },
@@ -49,7 +49,7 @@ export default {
       return createRequestMock({
         bearerToken,
         endpoint: `/api/v1/fleet/schedule/${scheduledQuery.id}`,
-        method: 'patch',
+        method: "patch",
         params,
         response: { scheduled: { ...scheduledQuery, ...params } },
       });

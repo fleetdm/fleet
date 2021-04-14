@@ -1,15 +1,15 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
-import { isEqual } from 'lodash';
-import moment from 'moment';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import classNames from "classnames";
+import { isEqual } from "lodash";
+import moment from "moment";
 
-import Checkbox from 'components/forms/fields/Checkbox';
-import ClickableTableRow from 'components/ClickableTableRow';
-import KolideIcon from 'components/icons/KolideIcon';
-import packInterface from 'interfaces/pack';
+import Checkbox from "components/forms/fields/Checkbox";
+import ClickableTableRow from "components/ClickableTableRow";
+import KolideIcon from "components/icons/KolideIcon";
+import packInterface from "interfaces/pack";
 
-const baseClass = 'packs-list-row';
+const baseClass = "packs-list-row";
 
 class Row extends Component {
   static propTypes = {
@@ -21,7 +21,7 @@ class Row extends Component {
     selected: PropTypes.bool,
   };
 
-  shouldComponentUpdate (nextProps) {
+  shouldComponentUpdate(nextProps) {
     return !isEqual(this.props, nextProps);
   }
 
@@ -29,19 +29,19 @@ class Row extends Component {
     const { onCheck, pack } = this.props;
 
     return onCheck(shouldCheck, pack.id);
-  }
+  };
 
   handleSelect = () => {
     const { onSelect, pack } = this.props;
 
     return onSelect(pack);
-  }
+  };
 
   handleDoubleClick = () => {
     const { onDoubleClick, pack } = this.props;
 
     return onDoubleClick(pack);
-  }
+  };
 
   renderStatusData = () => {
     const { disabled } = this.props.pack;
@@ -65,18 +65,27 @@ class Row extends Component {
         <span className={`${baseClass}__status-text`}>Enabled</span>
       </td>
     );
-  }
+  };
 
-  render () {
+  render() {
     const { checked, pack, selected } = this.props;
-    const { handleChange, handleDoubleClick, handleSelect, renderStatusData } = this;
-    const updatedTime = moment(pack.updated_at).format('MM/DD/YY');
+    const {
+      handleChange,
+      handleDoubleClick,
+      handleSelect,
+      renderStatusData,
+    } = this;
+    const updatedTime = moment(pack.updated_at).format("MM/DD/YY");
     const rowClass = classNames(baseClass, {
       [`${baseClass}--selected`]: selected,
     });
 
     return (
-      <ClickableTableRow className={rowClass} onClick={handleSelect} onDoubleClick={handleDoubleClick}>
+      <ClickableTableRow
+        className={rowClass}
+        onClick={handleSelect}
+        onDoubleClick={handleDoubleClick}
+      >
         <td className={`${baseClass}__td`}>
           <Checkbox
             name={`select-pack-${pack.id}`}
@@ -85,10 +94,16 @@ class Row extends Component {
             wrapperClassName={`${baseClass}__checkbox`}
           />
         </td>
-        <td className={`${baseClass}__td ${baseClass}__td-pack-name`}>{pack.name}</td>
-        <td className={`${baseClass}__td ${baseClass}__td-query-count`}>{pack.query_count}</td>
+        <td className={`${baseClass}__td ${baseClass}__td-pack-name`}>
+          {pack.name}
+        </td>
+        <td className={`${baseClass}__td ${baseClass}__td-query-count`}>
+          {pack.query_count}
+        </td>
         {renderStatusData()}
-        <td className={`${baseClass}__td ${baseClass}__td-host-count`}>{pack.total_hosts_count}</td>
+        <td className={`${baseClass}__td ${baseClass}__td-host-count`}>
+          {pack.total_hosts_count}
+        </td>
         <td className={`${baseClass}__td`}>{updatedTime}</td>
       </ClickableTableRow>
     );
@@ -96,4 +111,3 @@ class Row extends Component {
 }
 
 export default Row;
-

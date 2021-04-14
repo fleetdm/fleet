@@ -1,7 +1,7 @@
-import React from 'react';
-import OpenNewTabIcon from '../../../../../../assets/images/open-new-tab-12x12@2x.png';
+import React from "react";
+import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
 
-const baseClass = 'empty-teams';
+const baseClass = "empty-teams";
 
 const EmptyUsers = (): JSX.Element => {
   return (
@@ -9,8 +9,12 @@ const EmptyUsers = (): JSX.Element => {
       <div className={`${baseClass}__inner`}>
         <div className={`${baseClass}__empty-filter-results`}>
           <h1>Set up team permissions</h1>
-          <p>Keep your organization organized and efficient by ensuring every user has the correct access to the right hosts.</p>
-          <p className={'learn-more'}>Want to learn more?
+          <p>
+            Keep your organization organized and efficient by ensuring every
+            user has the correct access to the right hosts.
+          </p>
+          <p className={"learn-more"}>
+            Want to learn more?
             <a
               href="https://github.com/fleetdm/fleet/pull/472"
               target="_blank"

@@ -68,13 +68,12 @@
 
       &:before {
         border-radius: 100%;
-        content: ' ';
+        content: " ";
         display: inline-block;
         height: 8px;
         margin-right: $pad-small;
         width: 8px;
       }
- 
     }
 
     .loading-overlay {

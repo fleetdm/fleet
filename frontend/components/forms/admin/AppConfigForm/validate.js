@@ -1,4 +1,4 @@
-import { size } from 'lodash';
+import { size } from "lodash";
 
 export default (formData) => {
   const errors = {};
@@ -23,51 +23,52 @@ export default (formData) => {
 
   if (enableSSO) {
     if (!metadata && !metadataURL) {
-      errors.metadata_url = 'Metadata URL must be present';
+      errors.metadata_url = "Metadata URL must be present";
     }
     if (!entityID) {
-      errors.entity_id = 'Entity ID must be present';
+      errors.entity_id = "Entity ID must be present";
     }
     if (!idpName) {
-      errors.idp_name = 'Identity Provider Name must be present';
+      errors.idp_name = "Identity Provider Name must be present";
     }
   }
 
   if (!kolideServerUrl) {
-    errors.kolide_server_url = 'Fleet Server URL must be present';
+    errors.kolide_server_url = "Fleet Server URL must be present";
   }
 
   if (!orgName) {
-    errors.org_name = 'Organization Name must be present';
+    errors.org_name = "Organization Name must be present";
   }
 
   if (enableSMTP) {
     if (!smtpSenderAddress) {
-      errors.sender_address = 'SMTP Sender Address must be present';
+      errors.sender_address = "SMTP Sender Address must be present";
     }
 
     if (!smtpServer) {
-      errors.server = 'SMTP Server must be present';
+      errors.server = "SMTP Server must be present";
     }
 
     if (!smtpServerPort) {
-      errors.server = 'SMTP Server Port must be present';
+      errors.server = "SMTP Server Port must be present";
     }
 
-    if (authType !== 'authtype_none') {
+    if (authType !== "authtype_none") {
       if (!smtpUserName) {
-        errors.user_name = 'SMTP Username must be present';
+        errors.user_name = "SMTP Username must be present";
       }
 
       if (!smtpPassword) {
-        errors.password = 'SMTP Password must be present';
+        errors.password = "SMTP Password must be present";
       }
     }
   }
 
   if (hostExpiryEnabled) {
     if (isNaN(hostExpiryWindow) || Number(hostExpiryWindow) <= 0) {
-      errors.host_expiry_window = 'Host Expiry Window must be a positive number';
+      errors.host_expiry_window =
+        "Host Expiry Window must be a positive number";
     }
   }
 

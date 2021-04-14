@@ -1,5 +1,5 @@
-import PropTypes from 'prop-types';
-import teamInterface, { ITeam } from './team';
+import PropTypes from "prop-types";
+import teamInterface, { ITeam } from "./team";
 
 export default PropTypes.shape({
   admin: PropTypes.bool,
@@ -15,15 +15,15 @@ export default PropTypes.shape({
 });
 
 export interface IUser {
-  admin: boolean,
-  email: string,
-  enabled: boolean,
-  force_password_reset: boolean,
-  gravatarURL: string,
-  id: number,
-  name: string,
-  position: string,
-  username: string,
+  admin: boolean;
+  email: string;
+  enabled: boolean;
+  force_password_reset: boolean;
+  gravatarURL: string;
+  id: number;
+  name: string;
+  position: string;
+  username: string;
   teams: ITeam[];
   global_role: string | null;
 }

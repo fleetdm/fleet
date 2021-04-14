@@ -1,33 +1,33 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { goBack } from 'react-router-redux';
-import moment from 'moment';
-import { authToken } from 'utilities/local';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { goBack } from "react-router-redux";
+import moment from "moment";
+import { authToken } from "utilities/local";
 import {
   copyText,
   COPY_TEXT_SUCCESS,
   COPY_TEXT_ERROR,
-} from 'utilities/copy_text';
+} from "utilities/copy_text";
 
-import { noop } from 'lodash';
+import { noop } from "lodash";
 
-import Avatar from 'components/Avatar';
-import Button from 'components/buttons/Button';
-import ChangeEmailForm from 'components/forms/ChangeEmailForm';
-import ChangePasswordForm from 'components/forms/ChangePasswordForm';
-import deepDifference from 'utilities/deep_difference';
-import KolideIcon from 'components/icons/KolideIcon';
-import InputField from 'components/forms/fields/InputField';
-import { logoutUser, updateUser } from 'redux/nodes/auth/actions';
-import Modal from 'components/modals/Modal';
-import { renderFlash } from 'redux/nodes/notifications/actions';
-import userActions from 'redux/nodes/entities/users/actions';
-import versionActions from 'redux/nodes/version/actions';
-import userInterface from 'interfaces/user';
-import UserSettingsForm from 'components/forms/UserSettingsForm';
+import Avatar from "components/Avatar";
+import Button from "components/buttons/Button";
+import ChangeEmailForm from "components/forms/ChangeEmailForm";
+import ChangePasswordForm from "components/forms/ChangePasswordForm";
+import deepDifference from "utilities/deep_difference";
+import KolideIcon from "components/icons/KolideIcon";
+import InputField from "components/forms/fields/InputField";
+import { logoutUser, updateUser } from "redux/nodes/auth/actions";
+import Modal from "components/modals/Modal";
+import { renderFlash } from "redux/nodes/notifications/actions";
+import userActions from "redux/nodes/entities/users/actions";
+import versionActions from "redux/nodes/version/actions";
+import userInterface from "interfaces/user";
+import UserSettingsForm from "components/forms/UserSettingsForm";
 
-const baseClass = 'user-settings';
+const baseClass = "user-settings";
 
 export class UserSettingsPage extends Component {
   static propTypes = {
@@ -64,7 +64,7 @@ export class UserSettingsPage extends Component {
     };
   }
 
-  componentDidMount () {
+  componentDidMount() {
     const { dispatch } = this.props;
 
     dispatch(versionActions.getVersion());
@@ -155,10 +155,10 @@ export class UserSettingsPage extends Component {
       const { dispatch } = this.props;
 
       if (copyText(elementClass)) {
-        dispatch(renderFlash('success', COPY_TEXT_SUCCESS));
+        dispatch(renderFlash("success", COPY_TEXT_SUCCESS));
       } else {
         this.setState({ revealSecret: true });
-        dispatch(renderFlash('error', COPY_TEXT_ERROR));
+        dispatch(renderFlash("error", COPY_TEXT_ERROR));
       }
     };
   };
@@ -177,7 +177,7 @@ export class UserSettingsPage extends Component {
           this.setState({ pendingEmail: updatedUser.email });
         }
 
-        dispatch(renderFlash('success', 'Account updated!'));
+        dispatch(renderFlash("success", "Account updated!"));
 
         return true;
       })
@@ -188,7 +188,7 @@ export class UserSettingsPage extends Component {
     const { dispatch, user } = this.props;
 
     return dispatch(userActions.changePassword(user, formData)).then(() => {
-      dispatch(renderFlash('success', 'Password changed successfully'));
+      dispatch(renderFlash("success", "Password changed successfully"));
       this.setState({ showPasswordModal: false });
 
       return false;
@@ -262,7 +262,7 @@ export class UserSettingsPage extends Component {
             onClick={onToggleSecret}
             className={`${baseClass}__reveal-secret`}
           >
-            {revealSecret ? 'Hide' : 'Reveal'} Token
+            {revealSecret ? "Hide" : "Reveal"} Token
           </a>
         </p>
         <div className={`${baseClass}__secret-wrapper`}>
@@ -270,7 +270,7 @@ export class UserSettingsPage extends Component {
             disabled
             inputWrapperClass={`${baseClass}__secret-input`}
             name="osqueryd-secret"
-            type={revealSecret ? 'text' : 'password'}
+            type={revealSecret ? "text" : "password"}
             value={authToken()}
           />
           <Button
@@ -282,7 +282,10 @@ export class UserSettingsPage extends Component {
           </Button>
         </div>
         <div className={`${baseClass}__button-wrap`}>
-          <Button onClick={onToggleApiTokenModal} className="button button--brand">
+          <Button
+            onClick={onToggleApiTokenModal}
+            className="button button--brand"
+          >
             Done
           </Button>
         </div>
@@ -308,7 +311,7 @@ export class UserSettingsPage extends Component {
     }
 
     const { admin, updated_at: updatedAt, sso_enabled: ssoEnabled } = user;
-    const roleText = admin ? 'Admin' : 'User';
+    const roleText = admin ? "Admin" : "User";
     const lastUpdatedAt = moment(updatedAt).fromNow();
 
     return (
@@ -335,7 +338,9 @@ export class UserSettingsPage extends Component {
 
           <div className={`${baseClass}__more-info-detail`}>
             <p className={`${baseClass}__header`}>Role</p>
-            <p className={`${baseClass}__description ${baseClass}__role`}>{roleText}</p>
+            <p className={`${baseClass}__description ${baseClass}__role`}>
+              {roleText}
+            </p>
           </div>
           <div className={`${baseClass}__more-info-detail`}>
             <p className={`${baseClass}__header`}>Password</p>
@@ -356,7 +361,9 @@ export class UserSettingsPage extends Component {
           >
             Get API token
           </Button>
-          <span className={`${baseClass}__version`}>{`Fleet ${version.version} • Go ${version.go_version}`}</span>
+          <span
+            className={`${baseClass}__version`}
+          >{`Fleet ${version.version} • Go ${version.go_version}`}</span>
         </div>
         {renderEmailModal()}
         {renderPasswordModal()}
