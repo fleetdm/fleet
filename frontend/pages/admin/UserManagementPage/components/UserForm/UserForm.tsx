@@ -121,9 +121,14 @@ class UserForm extends Component <ICreateUserFormProps, ICreateUserFormState> {
   };
 
   onIsGlobalUserChange = (value: string): void => {
+    const { formData } = this.state;
     const isGlobalUser = value === UserTeamType.GlobalUser;
     this.setState({
       isGlobalUser,
+      formData: {
+        ...formData,
+        global_role: isGlobalUser ? 'observer' : null,
+      },
     });
   }
 
@@ -242,8 +247,7 @@ class UserForm extends Component <ICreateUserFormProps, ICreateUserFormState> {
           </a>
         </InfoBanner>
         <SelectedTeamsForm
-          // availableTeams={availableTeams}
-          availableTeams={[{ name: 'Test Team', id: 1, role: 'admin' }, { name: 'Test Team 2', id: 2, role: 'admin' }]}
+          availableTeams={availableTeams}
           usersCurrentTeams={teams}
           onFormChange={onSelectedTeamChange}
         />

@@ -8,6 +8,7 @@ import packs from './packs/reducer';
 import queries from './queries/reducer';
 import scheduledQueries from './scheduled_queries/reducer';
 import users from './users/reducer';
+import teams from './teams/reducer';
 
 export default combineReducers({
   campaigns,
@@ -18,4 +19,5 @@ export default combineReducers({
   queries,
   scheduled_queries: scheduledQueries,
   users,
+  teams,
 });

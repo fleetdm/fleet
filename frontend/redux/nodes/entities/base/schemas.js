@@ -9,6 +9,7 @@ const queriesSchema = new Schema('queries');
 const scheduledQueriesSchema = new Schema('scheduled_queries');
 const targetsSchema = new Schema('targets');
 const usersSchema = new Schema('users');
+const teamsSchema = new Schema('teams');
 
 export default {
   CAMPAIGNS: campaignsSchema,
@@ -20,4 +21,5 @@ export default {
   SCHEDULED_QUERIES: scheduledQueriesSchema,
   TARGETS: targetsSchema,
   USERS: usersSchema,
+  TEAMS: teamsSchema,
 };

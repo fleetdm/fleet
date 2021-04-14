@@ -236,6 +236,7 @@ The ReduxConfig reducer configures entities with the same initial state:
   loading: false,
   data: {},
   errors: {},
+  originalOrder: [],
 }
 ```
 
@@ -259,7 +260,28 @@ like the following:
     },
   },
   errors: {},
+  originalOrder: [14, 10],
 }
+```
+
+Entity order from the API is also tracked in the `originalOrder` array. This is can be used
+for rendering lists of entities in a specific order that is determined by
+the API response (e.g. hosts table). In the above example the API sent back 
+the users in this order.
+
+```js
+users: [
+  {
+    first_name: 'Kyle',
+    last_name: 'Knight',
+    id: 14,
+  },
+  {
+    first_name: 'Mike',
+    last_name: 'Stone',
+    id: 10,
+  },
+]
 ```
 
 Entity errors in state are an object with a key/value pair that corresponds to
@@ -274,6 +296,7 @@ after attempting to create a user with invalid data:
   errors: {
     first_name: 'First name cannot be blank',
   },
+  originalOrder: [],
 }
 ```
 

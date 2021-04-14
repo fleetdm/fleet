@@ -6,7 +6,7 @@ import URL_PREFIX from './url_prefix';
 export default {
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,
   ADMIN_SETTINGS: `${URL_PREFIX}/settings/organization`,
-  ADMIN_OSQUERY: `${URL_PREFIX}/settings/osquery`,
+  ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
   ALL_PACKS: `${URL_PREFIX}/packs/all`,
   EDIT_PACK: (pack: IPack): string => {
     return `${URL_PREFIX}/packs/${pack.id}/edit`;

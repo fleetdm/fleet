@@ -12,12 +12,14 @@ import WarningBanner from 'components/WarningBanner';
 import inviteInterface from 'interfaces/invite';
 import configInterface from 'interfaces/config';
 import userInterface from 'interfaces/user';
+import teamInterface from 'interfaces/team';
 import paths from 'router/paths';
 import entityGetter from 'redux/utilities/entityGetter';
 import inviteActions from 'redux/nodes/entities/invites/actions';
 import { renderFlash } from 'redux/nodes/notifications/actions';
 import { updateUser } from 'redux/nodes/auth/actions';
 import userActions from 'redux/nodes/entities/users/actions';
+import teamActions from 'redux/nodes/entities/teams/actions';
 
 import UserForm from './components/UserForm';
 import EmptyUsers from './components/EmptyUsers';
@@ -55,6 +57,7 @@ export class UserManagementPage extends Component {
       name: PropTypes.string,
       username: PropTypes.string,
     }),
+    teams: PropTypes.arrayOf(teamInterface),
   };
 
   constructor (props) {
@@ -71,6 +74,11 @@ export class UserManagementPage extends Component {
     // done as an instance variable as these headers will not change, so dont
     // want to recalculate on re-renders.
     this.tableHeaders = generateTableHeaders(this.onActionSelect);
+  }
+
+  componentDidMount() {
+    const { dispatch } = this.props;
+    dispatch(teamActions.loadAll());
   }
 
   onEditUser = (formData) => {
@@ -231,7 +239,7 @@ export class UserManagementPage extends Component {
   }
 
   renderEditUserModal = () => {
-    const { currentUser, inviteErrors, config } = this.props;
+    const { currentUser, inviteErrors, config, teams } = this.props;
     const { showEditUserModal, userEditing } = this.state;
     const { onEditUser, toggleEditUserModal, getUser } = this;
 
@@ -255,7 +263,7 @@ export class UserManagementPage extends Component {
           onCancel={toggleEditUserModal}
           onSubmit={onEditUser}
           canUseSSO={config.enable_sso}
-          availableTeams={userData.teams}
+          availableTeams={teams}
           submitText={'Save'}
         />
       </Modal>
@@ -263,7 +271,7 @@ export class UserManagementPage extends Component {
   }
 
   renderCreateUserModal = () => {
-    const { currentUser, inviteErrors, config } = this.props;
+    const { currentUser, inviteErrors, config, teams } = this.props;
     const { showCreateUserModal } = this.state;
     const { onCreateUserSubmit, toggleCreateUserModal } = this;
 
@@ -281,7 +289,7 @@ export class UserManagementPage extends Component {
           onCancel={toggleCreateUserModal}
           onSubmit={onCreateUserSubmit}
           canUseSSO={config.enable_sso}
-          availableTeams={currentUser.teams}
+          availableTeams={teams}
           defaultGlobalRole={'observer'}
           defaultTeams={[]}
           submitText={'Create'}
@@ -389,6 +397,7 @@ const mapStateToProps = (state) => {
   const { user: currentUser } = state.auth;
   const { entities: users } = stateEntityGetter.get('users');
   const { entities: invites } = stateEntityGetter.get('invites');
+  const { entities: teams } = stateEntityGetter.get('teams');
   const { errors: inviteErrors, loading: loadingInvites } = state.entities.invites;
   const { errors: userErrors, loading: loadingUsers } = state.entities.users;
   const loadingTableData = loadingUsers || loadingInvites;
@@ -402,6 +411,7 @@ const mapStateToProps = (state) => {
     invites,
     inviteErrors,
     loadingTableData,
+    teams,
   };
 };
 

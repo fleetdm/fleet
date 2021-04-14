@@ -130,7 +130,7 @@ const generateRole = (teams: ITeam[], globalRole: string | null): string => {
     if (teams.length === 0) { // no global role and no teams
       return 'Unassigned';
     } else if (teams.length === 1) { // no global role and only one team
-      return teams[0].role;
+      return teams[0].role as string;
     }
     return 'Various'; // no global role and multiple teams
   }
