@@ -291,6 +291,13 @@ export const humanHostMemory = (bytes: number): string => {
 };
 
 export const humanHostDetailUpdated = (detailUpdated: string): string => {
+  // Handles the case when a host has checked in to Fleet but
+  // its details haven't been updated.
+  // July 30, 2014 is the date of the iitial commit to osquery.
+  if (detailUpdated < "2014-07-30T00:00:00Z") {
+    return "Never";
+  }
+
   return moment(detailUpdated).fromNow();
 };
 
