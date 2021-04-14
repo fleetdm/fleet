@@ -12,7 +12,7 @@ import queryActions from "redux/nodes/entities/queries/actions";
 import ConnectedQueryPage, {
   QueryPage,
 } from "pages/queries/QueryPage/QueryPage";
-import { hostStub, queryStub } from "test/stubs";
+import { hostStub, queryStub, labelStub } from "test/stubs";
 
 const {
   connectedComponent,
@@ -153,6 +153,36 @@ describe("QueryPage - component", () => {
     QueryPageSelectTargets = page.find("QueryPageSelectTargets");
     expect(QueryPageSelectTargets.prop("error")).toEqual(
       "You must select at least one target to run a query"
+    );
+  });
+
+  it("sets targetError in state when the query is run and the selected target contains no hosts", () => {
+    const selectedTargetStore = {
+      ...store,
+      components: {
+        ...store.components,
+        QueryPages: {
+          ...store.components.QueryPages,
+          selectedTargets: [{ ...labelStub, count: 0 }],
+        },
+      },
+    };
+    const page = mount(
+      connectedComponent(ConnectedQueryPage, {
+        mockStore: reduxMockStore(selectedTargetStore),
+        props: locationProp,
+      })
+    );
+    const runQueryBtn = page.find(".query-progress-details__run-btn");
+    let QueryPageSelectTargets = page.find("QueryPageSelectTargets");
+
+    expect(QueryPageSelectTargets.prop("error")).toBeFalsy();
+
+    runQueryBtn.hostNodes().simulate("click");
+
+    QueryPageSelectTargets = page.find("QueryPageSelectTargets");
+    expect(QueryPageSelectTargets.prop("error")).toEqual(
+      "You must select a target with at least one host to run a query"
     );
   });
 
