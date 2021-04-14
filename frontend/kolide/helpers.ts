@@ -293,7 +293,7 @@ export const humanHostMemory = (bytes: number): string => {
 export const humanHostDetailUpdated = (detailUpdated: string): string => {
   // Handles the case when a host has checked in to Fleet but
   // its details haven't been updated.
-  // July 28, 2016 is the date of the iitial commit to kolide/fleet.
+  // July 28, 2016 is the date of the initial commit to kolide/fleet.
   if (detailUpdated < "2016-07-28T00:00:00Z") {
     return "Never";
   }
