@@ -9,6 +9,7 @@ import { noop, pick } from "lodash";
 import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
+import SoftwareListRow from "pages/hosts/HostDetailsPage/SoftwareListRow";
 
 import entityGetter from "redux/utilities/entityGetter";
 import { renderFlash } from "redux/nodes/notifications/actions";
@@ -235,12 +236,107 @@ export class HostDetailsPage extends Component {
     );
   };
 
+  renderPacks = () => {
+    const { onPackClick } = this;
+    const { host } = this.props;
+    const { packs = [] } = host;
+
+    const packItems = packs.map((pack) => {
+      return (
+        <li className="list__item" key={pack.id}>
+          <Button
+            onClick={() => onPackClick(pack)}
+            variant="text-link"
+            className="list__button"
+          >
+            {pack.name}
+          </Button>
+        </li>
+      );
+    });
+
+    return (
+      <div className="section section--packs">
+        <p className="section__header">Packs</p>
+        <ul className="list">{packItems}</ul>
+      </div>
+    );
+  };
+
+  renderSoftware = () => {
+    // const alphaSort = (q) => q.name.toLowerCase();
+    // const {
+    //   queries,
+    // } = this.props;
+    // const sortedQueries = sortBy(queries, [alphaSort]);
+
+    const wrapperClassName = `${baseClass}__table`;
+
+    const softwareList = [
+      {
+        id: 1,
+        name: "Keynote",
+        type: "Application (macOS)",
+        installedVersion: "10.3.9",
+      },
+      {
+        id: 2,
+        name: "vim",
+        type: "Package (APT)",
+        installedVersion: "7.4.963",
+      },
+      {
+        id: 3,
+        name: "Birdfont",
+        type: "Package (deb)",
+        installedVersion: "2.25.0-3",
+      },
+      {
+        id: 4,
+        name: "Birdfont",
+        type: "Package (pkg)",
+        installedVersion: "2.25.0-3",
+      },
+    ];
+
+    return (
+      <div className="section section--software">
+        <div className={baseClass}>
+          <p className="section__header">Software</p>
+          <div className={`${baseClass}__wrapper`}>
+            <table className={wrapperClassName}>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Installed Version</th>
+                </tr>
+              </thead>
+              <tbody>
+                {!!softwareList.length &&
+                  softwareList.map((software) => {
+                    return (
+                      <SoftwareListRow
+                        key={`software-row-${software.id}`}
+                        software={software}
+                      />
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   render() {
     const { host, isLoadingHost } = this.props;
     const {
       renderDeleteHostModal,
       renderActionButtons,
       renderLabels,
+      renderSoftware,
       renderPacks,
     } = this;
 
@@ -381,6 +477,7 @@ export class HostDetailsPage extends Component {
         </div>
         {renderLabels()}
         {renderPacks()}
+        {renderSoftware()}
         {renderDeleteHostModal()}
       </div>
     );
