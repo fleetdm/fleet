@@ -81,7 +81,8 @@
         }
       }
 
-      &--offline {
+      &--offline,
+      &--mia {
         &:before {
           background-color: $ui-dark-grey;
           border-radius: 100%;
