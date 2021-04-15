@@ -1556,6 +1556,11 @@
   resolved "https://registry.yarnpkg.com/@types/history/-/history-4.7.8.tgz#49348387983075705fe8f4e02fb67f7daaec4934"
   integrity sha512-S78QIYirQcUoo6UJZx9CSP0O2ix9IaeAXwQi26Rhr/+mg7qqPy8TzaxHSUut7eGjL8WmLccT7/MXf304WjqHcA==
 
+"@types/history@^3":
+  version "3.2.4"
+  resolved "https://registry.yarnpkg.com/@types/history/-/history-3.2.4.tgz#0b6c62240d1fac020853aa5608758991d9f6ef3d"
+  integrity sha512-q7x8QeCRk2T6DR2UznwYW//mpN5uNlyajkewH2xd1s1ozCS4oHFRg2WMusxwLFlE57EkUYsd/gCapLBYzV3ffg==
+
 "@types/hoist-non-react-statics@^3.3.0":
   version "3.3.1"
   resolved "https://registry.yarnpkg.com/@types/hoist-non-react-statics/-/hoist-non-react-statics-3.3.1.tgz#1124aafe5118cb591977aeb1ceaaed1070eb039f"
@@ -1685,6 +1690,14 @@
   integrity sha512-ofHbZMlp0Y2baOHgsWBQ4K3AttxY61bDMkwTiBOkPg7U6C/3UwwB5WaIx28JmSVi/eX3uFEMRo61BV22fDQIvg==
   dependencies:
     "@types/history" "*"
+    "@types/react" "*"
+
+"@types/react-router@^3.0.0":
+  version "3.0.24"
+  resolved "https://registry.yarnpkg.com/@types/react-router/-/react-router-3.0.24.tgz#f924569538ea78a0b0d70892900a0d99ed6d7354"
+  integrity sha512-cSpMXzI0WocB5/UmySAtGlvG5w3m2mNvU6FgYFFWGqt6KywI7Ez+4Z9mEkglcAAGaP+voZjVg+BJP86bkVrSxQ==
+  dependencies:
+    "@types/history" "^3"
     "@types/react" "*"
 
 "@types/react-table@^7.0.28":

@@ -36,6 +36,8 @@ import Fleet404 from "pages/Fleet404";
 import Fleet500 from "pages/Fleet500";
 import UserSettingsPage from "pages/UserSettingsPage";
 import SettingsWrapper from "pages/admin/SettingsWrapper/SettingsWrapper";
+import MembersPage from "pages/admin/TeamManagementPage/TeamDetailsPage/MembersPagePage";
+import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsPage/AgentOptionsPage";
 import PATHS from "router/paths";
 import store from "redux/store";
 
@@ -66,7 +68,10 @@ const routes = (
                 <Route path="users" component={AdminUserManagementPage} />
                 <Route path="teams" component={AdminTeamManagementPage} />
               </Route>
-              <Route path="teams/:team_id" component={TeamDetailsPage} />
+              <Route path="teams/:team_id" component={TeamDetailsPage}>
+                <Route path="members" component={MembersPage} />
+                <Route path="options" component={AgentOptionsPage} />
+              </Route>
             </Route>
             <Route path="hosts">
               <Route path="manage" component={ManageHostsPage} />
