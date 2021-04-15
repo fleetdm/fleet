@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router";
 import { push } from "react-router-redux";
@@ -6,8 +6,15 @@ import { Tab, TabList, Tabs } from "react-tabs";
 
 import PATHS from "router/paths";
 import { ITeam } from "interfaces/team";
+// ignore TS error for now until these are rewritten in ts.
+// @ts-ignore
+import { renderFlash } from "redux/nodes/notifications/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
-import Button from "../../../../components/buttons/Button";
+import Button from "components/buttons/Button";
+
+import DeleteTeamModal from "../components/DeleteTeamModal";
+import EditTeamModal from "../components/EditTeamModal";
+import { IEditTeamFormData } from "../components/EditTeamModal/EditTeamModal";
 
 const baseClass = "team-details";
 
@@ -37,6 +44,18 @@ interface ITeamDetailsPageProps {
   };
 }
 
+const generateUpdateData = (
+  currentTeamData: ITeam,
+  formData: IEditTeamFormData
+): IEditTeamFormData | null => {
+  if (currentTeamData.name !== formData.name) {
+    return {
+      name: formData.name,
+    };
+  }
+  return null;
+};
+
 const getTabIndex = (path: string, teamId: number): number => {
   return teamDetailsSubNav.findIndex((navItem) => {
     return navItem.getPathname(teamId).includes(path);
@@ -50,6 +69,16 @@ const TeamDetailsPage = (props: ITeamDetailsPageProps): JSX.Element => {
     params: { team_id },
   } = props;
 
+  const team: ITeam = {
+    name: "Test Team",
+    id: 1,
+    hosts: 10,
+    members: 10,
+  };
+
+  const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
+  const [showEditTeamModal, setShowEditTeamModal] = useState(false);
+
   const dispatch = useDispatch();
 
   const navigateToNav = (i: number): void => {
@@ -60,6 +89,44 @@ const TeamDetailsPage = (props: ITeamDetailsPageProps): JSX.Element => {
   useEffect(() => {
     // dispatch(teamActions.load());
   }, []);
+
+  const toggleDeleteTeamModal = useCallback(() => {
+    setShowDeleteTeamModal(!showDeleteTeamModal);
+  }, [showDeleteTeamModal, setShowDeleteTeamModal]);
+
+  const toggleEditTeamModal = useCallback(() => {
+    setShowEditTeamModal(!showEditTeamModal);
+  }, [showEditTeamModal, setShowEditTeamModal]);
+
+  const onDeleteSubmit = useCallback(() => {
+    dispatch(teamActions.destroy(team.id))
+      .then(() => {
+        dispatch(renderFlash("success", "Team removed"));
+        dispatch(push(PATHS.ADMIN_TEAMS));
+        // TODO: error handling
+      })
+      .catch(() => null);
+    toggleDeleteTeamModal();
+  }, [dispatch, toggleDeleteTeamModal]);
+
+  const onEditSubmit = useCallback(
+    (formData: IEditTeamFormData) => {
+      const updatedAttrs = generateUpdateData(team, formData);
+      // no updates, so no need for a request.
+      if (updatedAttrs === null) {
+        toggleEditTeamModal();
+        return;
+      }
+      dispatch(teamActions.update(team.id, updatedAttrs))
+        .then(() => {
+          dispatch(renderFlash("success", "Team updated"));
+          // TODO: error handling
+        })
+        .catch(() => null);
+      toggleEditTeamModal();
+    },
+    [dispatch, toggleEditTeamModal]
+  );
 
   return (
     <div className={baseClass}>
@@ -74,8 +141,8 @@ const TeamDetailsPage = (props: ITeamDetailsPageProps): JSX.Element => {
           </div>
           <div className={`${baseClass}__team-actions`}>
             <Button onClick={() => console.log("click")}>Add hosts</Button>
-            <Button onClick={() => console.log("click")}>Edit team</Button>
-            <Button onClick={() => console.log("click")}>Delete team</Button>
+            <Button onClick={toggleEditTeamModal}>Edit team</Button>
+            <Button onClick={toggleDeleteTeamModal}>Delete team</Button>
           </div>
         </div>
         <Tabs
@@ -94,6 +161,20 @@ const TeamDetailsPage = (props: ITeamDetailsPageProps): JSX.Element => {
             })}
           </TabList>
         </Tabs>
+        {showDeleteTeamModal ? (
+          <DeleteTeamModal
+            onCancel={toggleDeleteTeamModal}
+            onSubmit={onDeleteSubmit}
+            name={team.name}
+          />
+        ) : null}
+        {showEditTeamModal ? (
+          <EditTeamModal
+            onCancel={toggleEditTeamModal}
+            onSubmit={onEditSubmit}
+            defaultName={team.name}
+          />
+        ) : null}
       </div>
       {children}
     </div>
