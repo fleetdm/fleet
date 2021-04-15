@@ -107,7 +107,7 @@
   }
 
   &__name {
-    padding: 4px 4px;
+    padding: 4px 8px 4px 0px;
     font-weight: $bold;
     color: $core-black;
   }
@@ -120,17 +120,5 @@
   &__type {
     font-size: $x-small;
     color: $core-black;
-  }
-
-  &__help {
-    margin: 0px 4px;
-    vertical-align: text-bottom;
-    font-size: 20px;
-    color: $core-blue;
-  }
-
-  &__react-tooltip {
-    max-width: 100px;
-    text-align: center;
   }
 }
