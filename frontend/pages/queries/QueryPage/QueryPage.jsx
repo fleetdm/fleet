@@ -219,7 +219,7 @@ export class QueryPage extends Component {
   };
 
   onRunQuery = debounce(() => {
-    const { queryText } = this.state;
+    const { queryText, targetsCount } = this.state;
     const { query } = this.props.query;
     const sql = queryText || query;
     const { dispatch, selectedTargets } = this.props;
@@ -233,7 +233,7 @@ export class QueryPage extends Component {
       return false;
     }
 
-    if (!selectedTargets.count) {
+    if (!targetsCount) {
       this.setState({
         targetsError:
           "You must select a target with at least one host to run a query",
