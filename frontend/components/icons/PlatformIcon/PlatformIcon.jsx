@@ -1,11 +1,11 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import classnames from 'classnames';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import classnames from "classnames";
 
-import KolideIcon from 'components/icons/KolideIcon';
-import platformIconClass from 'utilities/platform_icon_class';
+import KolideIcon from "components/icons/KolideIcon";
+import platformIconClass from "utilities/platform_icon_class";
 
-const baseClass = 'platform-icon';
+const baseClass = "platform-icon";
 
 export class PlatformIcon extends Component {
   static propTypes = {
@@ -16,13 +16,13 @@ export class PlatformIcon extends Component {
     title: PropTypes.string,
   };
 
-  render () {
+  render() {
     const { className, name, fw, size, title } = this.props;
     const iconClasses = classnames(baseClass, className);
     let iconName = platformIconClass(name);
 
     if (!iconName) {
-      iconName = 'single-host';
+      iconName = "single-host";
     }
 
     return (

@@ -1,11 +1,11 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import classnames from 'classnames';
-import { noop, pick } from 'lodash';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import classnames from "classnames";
+import { noop, pick } from "lodash";
 
-import FormField from 'components/forms/FormField';
+import FormField from "components/forms/FormField";
 
-const baseClass = 'input-field';
+const baseClass = "input-field";
 
 class InputField extends Component {
   static propTypes = {
@@ -20,23 +20,25 @@ class InputField extends Component {
     onFocus: PropTypes.func,
     placeholder: PropTypes.string,
     type: PropTypes.string,
-    value: PropTypes.oneOfType(
-      [PropTypes.bool, PropTypes.string, PropTypes.number],
-    ).isRequired,
+    value: PropTypes.oneOfType([
+      PropTypes.bool,
+      PropTypes.string,
+      PropTypes.number,
+    ]).isRequired,
   };
 
   static defaultProps = {
     autofocus: false,
-    inputWrapperClass: '',
+    inputWrapperClass: "",
     inputOptions: {},
     label: null,
-    labelClassName: '',
+    labelClassName: "",
     onFocus: noop,
-    type: 'text',
-    value: '',
+    type: "text",
+    value: "",
   };
 
-  componentDidMount () {
+  componentDidMount() {
     const { autofocus } = this.props;
     const { input } = this;
 
@@ -54,9 +56,9 @@ class InputField extends Component {
     const { onChange } = this.props;
 
     return onChange(value);
-  }
+  };
 
-  render () {
+  render() {
     const {
       disabled,
       error,
@@ -70,26 +72,33 @@ class InputField extends Component {
       value,
     } = this.props;
     const { onInputChange } = this;
-    const shouldShowPasswordClass = type === 'password';
+    const shouldShowPasswordClass = type === "password";
     const inputClasses = classnames(baseClass, inputClassName, {
       [`${baseClass}--password`]: shouldShowPasswordClass,
       [`${baseClass}--disabled`]: disabled,
       [`${baseClass}--error`]: error,
-      [`${baseClass}__textarea`]: type === 'textarea',
+      [`${baseClass}__textarea`]: type === "textarea",
     });
 
-    const formFieldProps = pick(this.props, ['hint', 'label', 'error', 'name']);
+    const formFieldProps = pick(this.props, ["hint", "label", "error", "name"]);
 
-    if (type === 'textarea') {
+    if (type === "textarea") {
       return (
-        <FormField {...formFieldProps} type="textarea" className={inputWrapperClass}>
+        <FormField
+          {...formFieldProps}
+          type="textarea"
+          className={inputWrapperClass}
+        >
           <textarea
             name={name}
+            id={name}
             onChange={onInputChange}
             className={inputClasses}
             disabled={disabled}
             placeholder={placeholder}
-            ref={(r) => { this.input = r; }}
+            ref={(r) => {
+              this.input = r;
+            }}
             type={type}
             {...inputOptions}
             value={value}
@@ -103,11 +112,14 @@ class InputField extends Component {
         <input
           disabled={disabled}
           name={name}
+          id={name}
           onChange={onInputChange}
           onFocus={onFocus}
           className={inputClasses}
           placeholder={placeholder}
-          ref={(r) => { this.input = r; }}
+          ref={(r) => {
+            this.input = r;
+          }}
           type={type}
           {...inputOptions}
           value={value}
@@ -118,4 +130,3 @@ class InputField extends Component {
 }
 
 export default InputField;
-

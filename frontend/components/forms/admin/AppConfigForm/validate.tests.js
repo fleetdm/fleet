@@ -1,91 +1,91 @@
-import validate from 'components/forms/admin/AppConfigForm/validate';
+import validate from "components/forms/admin/AppConfigForm/validate";
 
-describe('AppConfigForm - validations', () => {
+describe("AppConfigForm - validations", () => {
   const validFormData = {
-    org_name: 'The Gnar Co.',
-    authentication_type: 'username_password',
-    kolide_server_url: 'https://gnar.dog',
-    sender_address: 'hi@gnar.dog',
+    org_name: "The Gnar Co.",
+    authentication_type: "username_password",
+    kolide_server_url: "https://gnar.dog",
+    sender_address: "hi@gnar.dog",
     enable_smtp: true,
-    server: '192.168.99.100',
-    port: '1025',
-    user_name: 'gnardog',
-    password: 'p@ssw0rd',
+    server: "192.168.99.100",
+    port: "1025",
+    user_name: "gnardog",
+    password: "p@ssw0rd",
     host_expiry_enabled: true,
-    host_expiry_window: '42',
+    host_expiry_window: "42",
   };
 
-  it('returns a valid object when the form data is valid', () => {
+  it("returns a valid object when the form data is valid", () => {
     expect(validate(validFormData)).toEqual({ valid: true, errors: {} });
   });
 
-  it('validates presence of the org_name field', () => {
+  it("validates presence of the org_name field", () => {
     const invalidFormData = {
       ...validFormData,
-      org_name: '',
+      org_name: "",
     };
 
     expect(validate(invalidFormData)).toEqual({
       valid: false,
       errors: {
-        org_name: 'Organization Name must be present',
+        org_name: "Organization Name must be present",
       },
     });
   });
 
-  it('validates presence of the kolide_server_url field', () => {
+  it("validates presence of the kolide_server_url field", () => {
     const invalidFormData = {
       ...validFormData,
-      kolide_server_url: '',
+      kolide_server_url: "",
     };
 
     expect(validate(invalidFormData)).toEqual({
       valid: false,
       errors: {
-        kolide_server_url: 'Fleet Server URL must be present',
+        kolide_server_url: "Fleet Server URL must be present",
       },
     });
   });
 
-  describe('smtp configurations', () => {
-    it('validates the sender address', () => {
+  describe("smtp configurations", () => {
+    it("validates the sender address", () => {
       const invalidFormData = {
         ...validFormData,
-        sender_address: '',
+        sender_address: "",
       };
 
       expect(validate(invalidFormData)).toEqual({
         valid: false,
         errors: {
-          sender_address: 'SMTP Sender Address must be present',
+          sender_address: "SMTP Sender Address must be present",
         },
       });
     });
 
-    it('validates the smtp server', () => {
+    it("validates the smtp server", () => {
       const invalidFormData = {
         ...validFormData,
-        server: '',
+        server: "",
       };
 
       expect(validate(invalidFormData)).toEqual({
         valid: false,
         errors: {
-          server: 'SMTP Server must be present',
+          server: "SMTP Server must be present",
         },
       });
     });
 
-    it('validates the smtp port', () => {
+    it("validates the smtp port", () => {
       const invalidFormData = {
         ...validFormData,
-        port: '',
+        port: "",
       };
 
       expect(validate(invalidFormData)).toEqual({
         valid: false,
         errors: {
-          server: 'SMTP Server Port must be present',
+          server: "SMTP Server Port must be present",
         },
       });
     });
@@ -93,13 +93,13 @@ describe('AppConfigForm - validations', () => {
     it('validates the password if auth type is not "none"', () => {
       const invalidFormData = {
         ...validFormData,
-        password: '',
+        password: "",
       };
 
       expect(validate(invalidFormData)).toEqual({
         valid: false,
         errors: {
-          password: 'SMTP Password must be present',
+          password: "SMTP Password must be present",
         },
       });
     });
@@ -107,38 +107,38 @@ describe('AppConfigForm - validations', () => {
     it('validates the user_name if auth type is not "none"', () => {
       const invalidFormData = {
         ...validFormData,
-        user_name: '',
+        user_name: "",
       };
 
       expect(validate(invalidFormData)).toEqual({
         valid: false,
         errors: {
-          user_name: 'SMTP Username must be present',
+          user_name: "SMTP Username must be present",
         },
       });
     });
 
-    it('does not validate smtp config if smtp not enabled', () => {
+    it("does not validate smtp config if smtp not enabled", () => {
       const formData = {
         ...validFormData,
         enable_smtp: false,
-        user_name: '',
-        server: '',
-        sender_address: '',
-        password: '********',
-        port: '587',
+        user_name: "",
+        server: "",
+        sender_address: "",
+        password: "********",
+        port: "587",
       };
       const invalidFormData = {
         ...validFormData,
-        user_name: '',
-        server: '',
-        sender_address: '',
-        password: 'newPassword',
-        port: '587',
+        user_name: "",
+        server: "",
+        sender_address: "",
+        password: "newPassword",
+        port: "587",
       };
       const missingPortFormData = {
         ...validFormData,
-        port: '',
+        port: "",
       };
 
       expect(validate(formData)).toEqual({
@@ -149,58 +149,70 @@ describe('AppConfigForm - validations', () => {
       expect(validate(invalidFormData)).toEqual({
         valid: false,
         errors: {
-          sender_address: 'SMTP Sender Address must be present',
-          server: 'SMTP Server must be present',
-          user_name: 'SMTP Username must be present',
+          sender_address: "SMTP Sender Address must be present",
+          server: "SMTP Server must be present",
+          user_name: "SMTP Username must be present",
         },
       });
 
       expect(validate(missingPortFormData)).toEqual({
         valid: false,
         errors: {
-          server: 'SMTP Server Port must be present',
+          server: "SMTP Server Port must be present",
         },
       });
     });
 
-    it(
-      'does not validate the user_name and password if the auth type is "none"',
-      () => {
-        const formData = {
-          ...validFormData,
-          authentication_type: 'authtype_none',
-          password: '',
-          user_name: '',
-        };
+    it('does not validate the user_name and password if the auth type is "none"', () => {
+      const formData = {
+        ...validFormData,
+        authentication_type: "authtype_none",
+        password: "",
+        user_name: "",
+      };
 
-        expect(validate(formData)).toEqual({ valid: true, errors: {} });
-      },
-    );
+      expect(validate(formData)).toEqual({ valid: true, errors: {} });
+    });
   });
 
-  describe('host expiry settings', () => {
-    it('does not validate missing expiry window', () => {
+  describe("host expiry settings", () => {
+    it("does not validate missing expiry window", () => {
       const formData = {
         ...validFormData,
       };
       delete formData.host_expiry_window;
-      expect(validate(formData)).toEqual({ valid: false, errors: { host_expiry_window: 'Host Expiry Window must be a positive number' } });
+      expect(validate(formData)).toEqual({
+        valid: false,
+        errors: {
+          host_expiry_window: "Host Expiry Window must be a positive number",
+        },
+      });
     });
 
-    it('does not validate NaN expiry window', () => {
+    it("does not validate NaN expiry window", () => {
       const formData = {
         ...validFormData,
-        host_expiry_window: 'abcd',
+        host_expiry_window: "abcd",
       };
-      expect(validate(formData)).toEqual({ valid: false, errors: { host_expiry_window: 'Host Expiry Window must be a positive number' } });
+      expect(validate(formData)).toEqual({
+        valid: false,
+        errors: {
+          host_expiry_window: "Host Expiry Window must be a positive number",
+        },
+      });
     });
 
-    it('does not validate negative expiry window', () => {
+    it("does not validate negative expiry window", () => {
       const formData = {
         ...validFormData,
-        host_expiry_window: '-21',
+        host_expiry_window: "-21",
       };
-      expect(validate(formData)).toEqual({ valid: false, errors: { host_expiry_window: 'Host Expiry Window must be a positive number' } });
+      expect(validate(formData)).toEqual({
+        valid: false,
+        errors: {
+          host_expiry_window: "Host Expiry Window must be a positive number",
+        },
+      });
     });
   });
 });

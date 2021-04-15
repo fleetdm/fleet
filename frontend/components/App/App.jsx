@@ -1,13 +1,13 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { noop } from 'lodash';
-import classnames from 'classnames';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { noop } from "lodash";
+import classnames from "classnames";
 
-import { authToken } from 'utilities/local';
-import { fetchCurrentUser } from 'redux/nodes/auth/actions';
-import { getConfig, getEnrollSecret } from 'redux/nodes/app/actions';
-import userInterface from 'interfaces/user';
+import { authToken } from "utilities/local";
+import { fetchCurrentUser } from "redux/nodes/auth/actions";
+import { getConfig, getEnrollSecret } from "redux/nodes/app/actions";
+import userInterface from "interfaces/user";
 
 export class App extends Component {
   static propTypes = {
@@ -20,47 +20,36 @@ export class App extends Component {
     dispatch: noop,
   };
 
-  componentWillMount () {
+  componentWillMount() {
     const { dispatch, user } = this.props;
 
     if (!user && authToken()) {
-      dispatch(fetchCurrentUser())
-        .catch(() => false);
+      dispatch(fetchCurrentUser()).catch(() => false);
     }
 
     if (user) {
-      dispatch(getConfig())
-        .catch(() => false);
-      dispatch(getEnrollSecret())
-        .catch(() => false);
+      dispatch(getConfig()).catch(() => false);
+      dispatch(getEnrollSecret()).catch(() => false);
     }
 
     return false;
   }
 
-  componentWillReceiveProps (nextProps) {
+  componentWillReceiveProps(nextProps) {
     const { dispatch, user } = nextProps;
 
     if (user && this.props.user !== user) {
-      dispatch(getConfig())
-        .catch(() => false);
-      dispatch(getEnrollSecret())
-        .catch(() => false);
+      dispatch(getConfig()).catch(() => false);
+      dispatch(getEnrollSecret()).catch(() => false);
     }
   }
 
-  render () {
+  render() {
     const { children } = this.props;
 
-    const wrapperStyles = classnames(
-      'wrapper',
-    );
+    const wrapperStyles = classnames("wrapper");
 
-    return (
-      <div className={wrapperStyles}>
-        {children}
-      </div>
-    );
+    return <div className={wrapperStyles}>{children}</div>;
   }
 }
 

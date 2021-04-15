@@ -1,6 +1,6 @@
-import { size } from 'lodash';
-import validateEquality from 'components/forms/validators/validate_equality';
-import validPassword from 'components/forms/validators/valid_password';
+import { size } from "lodash";
+import validateEquality from "components/forms/validators/validate_equality";
+import validPassword from "components/forms/validators/valid_password";
 
 export default (formData) => {
   const errors = {};
@@ -11,24 +11,30 @@ export default (formData) => {
   } = formData;
 
   if (newPassword && newPasswordConfirmation && !validPassword(newPassword)) {
-    errors.new_password = 'Password must be at least 7 characters and contain at least 1 letter, 1 number, and 1 symbol';
+    errors.new_password =
+      "Password must be at least 7 characters and contain at least 1 letter, 1 number, and 1 symbol";
   }
 
   if (!oldPassword) {
-    errors.old_password = 'Password must be present';
+    errors.old_password = "Password must be present";
   }
 
   if (!newPassword) {
-    errors.new_password = 'New password must be present';
+    errors.new_password = "New password must be present";
   }
 
   if (!newPasswordConfirmation) {
-    errors.new_password_confirmation = 'New password confirmation must be present';
+    errors.new_password_confirmation =
+      "New password confirmation must be present";
   }
 
-  if (newPassword && newPasswordConfirmation &&
-    !validateEquality(newPassword, newPasswordConfirmation)) {
-    errors.new_password_confirmation = 'New password confirmation does not match new password';
+  if (
+    newPassword &&
+    newPasswordConfirmation &&
+    !validateEquality(newPassword, newPasswordConfirmation)
+  ) {
+    errors.new_password_confirmation =
+      "New password confirmation does not match new password";
   }
 
   const valid = !size(errors);

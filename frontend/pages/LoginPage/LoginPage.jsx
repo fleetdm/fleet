@@ -1,21 +1,25 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { size } from 'lodash';
-import { push } from 'react-router-redux';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { size } from "lodash";
+import { push } from "react-router-redux";
 
-import AuthenticationFormWrapper from 'components/AuthenticationFormWrapper';
-import { clearAuthErrors, loginUser, ssoRedirect } from 'redux/nodes/auth/actions';
-import { clearRedirectLocation } from 'redux/nodes/redirectLocation/actions';
-import debounce from 'utilities/debounce';
-import LoginForm from 'components/forms/LoginForm';
-import LoginSuccessfulPage from 'pages/LoginSuccessfulPage';
-import ForgotPasswordPage from 'pages/ForgotPasswordPage';
-import ResetPasswordPage from 'pages/ResetPasswordPage';
-import paths from 'router/paths';
-import redirectLocationInterface from 'interfaces/redirect_location';
-import userInterface from 'interfaces/user';
-import ssoSettingsInterface from 'interfaces/ssoSettings';
+import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
+import {
+  clearAuthErrors,
+  loginUser,
+  ssoRedirect,
+} from "redux/nodes/auth/actions";
+import { clearRedirectLocation } from "redux/nodes/redirectLocation/actions";
+import debounce from "utilities/debounce";
+import LoginForm from "components/forms/LoginForm";
+import LoginSuccessfulPage from "pages/LoginSuccessfulPage";
+import ForgotPasswordPage from "pages/ForgotPasswordPage";
+import ResetPasswordPage from "pages/ResetPasswordPage";
+import paths from "router/paths";
+import redirectLocationInterface from "interfaces/redirect_location";
+import userInterface from "interfaces/user";
+import ssoSettingsInterface from "interfaces/ssoSettings";
 
 export class LoginPage extends Component {
   static propTypes = {
@@ -32,14 +36,14 @@ export class LoginPage extends Component {
     ssoSettings: ssoSettingsInterface,
   };
 
-  constructor (props) {
+  constructor(props) {
     super(props);
     this.state = {
       loginVisible: true,
     };
   }
 
-  componentWillMount () {
+  componentWillMount() {
     const { dispatch, pathname, user } = this.props;
     const { HOME, LOGIN } = paths;
 
@@ -74,7 +78,7 @@ export class LoginPage extends Component {
         }, redirectTime);
       })
       .catch(() => false);
-  })
+  });
 
   ssoSignOn = () => {
     const { dispatch, redirectLocation } = this.props;
@@ -89,7 +93,7 @@ export class LoginPage extends Component {
         window.location.href = result.payload.ssoRedirectURL;
       })
       .catch(() => false);
-  }
+  };
 
   showLoginForm = () => {
     const { errors, ssoSettings } = this.props;
@@ -106,9 +110,9 @@ export class LoginPage extends Component {
         handleSSOSignOn={ssoSignOn}
       />
     );
-  }
+  };
 
-  render () {
+  render() {
     const { showLoginForm } = this;
     const { isForgotPassPage, isResetPassPage, token } = this.props;
 
@@ -116,8 +120,8 @@ export class LoginPage extends Component {
       <AuthenticationFormWrapper>
         <LoginSuccessfulPage />
         {showLoginForm()}
-        { isForgotPassPage && <ForgotPasswordPage /> }
-        { isResetPassPage && <ResetPasswordPage token={token} /> }
+        {isForgotPassPage && <ForgotPasswordPage />}
+        {isResetPassPage && <ResetPasswordPage token={token} />}
       </AuthenticationFormWrapper>
     );
   }
@@ -126,7 +130,6 @@ export class LoginPage extends Component {
 const mapStateToProps = (state) => {
   const { errors, loading, user, ssoSettings } = state.auth;
   const { redirectLocation } = state;
-
 
   return {
     errors,

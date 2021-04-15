@@ -1,12 +1,12 @@
-import createRequestMock from 'test/mocks/create_request_mock';
+import createRequestMock from "test/mocks/create_request_mock";
 
 export default {
   create: {
     valid: (bearerToken, params) => {
       return createRequestMock({
         bearerToken,
-        endpoint: '/api/v1/fleet/invites',
-        method: 'post',
+        endpoint: "/api/v1/fleet/invites",
+        method: "post",
         params,
         response: { invite: params },
       });
@@ -16,8 +16,8 @@ export default {
     valid: (bearerToken) => {
       return createRequestMock({
         bearerToken,
-        endpoint: '/api/v1/fleet/invites',
-        method: 'get',
+        endpoint: "/api/v1/fleet/invites",
+        method: "get",
         response: { invites: [] },
       });
     },
@@ -27,10 +27,9 @@ export default {
       return createRequestMock({
         bearerToken,
         endpoint: `/api/v1/fleet/invites/${invite.id}`,
-        method: 'delete',
+        method: "delete",
         response: {},
       });
     },
   },
 };
-

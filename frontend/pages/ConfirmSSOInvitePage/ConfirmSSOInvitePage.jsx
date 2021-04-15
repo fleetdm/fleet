@@ -1,15 +1,14 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import AuthenticationFormWrapper from 'components/AuthenticationFormWrapper';
-import ConfirmSSOInviteForm from 'components/forms/ConfirmSSOInviteForm';
-import EnsureUnauthenticated from 'components/EnsureUnauthenticated';
-import userActions from 'redux/nodes/entities/users/actions';
-import authActions from 'redux/nodes/auth/actions';
-import paths from 'router/paths';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
+import ConfirmSSOInviteForm from "components/forms/ConfirmSSOInviteForm";
+import EnsureUnauthenticated from "components/EnsureUnauthenticated";
+import userActions from "redux/nodes/entities/users/actions";
+import authActions from "redux/nodes/auth/actions";
+import paths from "router/paths";
 
-
-const baseClass = 'confirm-invite-page';
+const baseClass = "confirm-invite-page";
 
 class ConfirmSSOInvitePage extends Component {
   static propTypes = {
@@ -24,7 +23,7 @@ class ConfirmSSOInvitePage extends Component {
     }),
   };
 
-  componentWillUnmount () {
+  componentWillUnmount() {
     const { dispatch } = this.props;
     const { clearErrors } = userActions;
 
@@ -53,9 +52,9 @@ class ConfirmSSOInvitePage extends Component {
       .catch(() => false);
 
     return false;
-  }
+  };
 
-  render () {
+  render() {
     const { inviteFormData, userErrors } = this.props;
     const { onSubmit } = this;
 
@@ -63,11 +62,10 @@ class ConfirmSSOInvitePage extends Component {
       <AuthenticationFormWrapper>
         <div className={`${baseClass}`}>
           <div className={`${baseClass}__lead-wrapper`}>
-            <p className={`${baseClass}__lead-text`}>
-              Welcome to Fleet
-            </p>
+            <p className={`${baseClass}__lead-text`}>Welcome to Fleet</p>
             <p className={`${baseClass}__sub-lead-text`}>
-              Before you get started, please take a moment to complete the following information.
+              Before you get started, please take a moment to complete the
+              following information.
             </p>
           </div>
           <ConfirmSSOInviteForm

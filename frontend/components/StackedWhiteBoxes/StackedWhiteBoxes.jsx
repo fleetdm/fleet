@@ -1,11 +1,11 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { Link } from 'react-router';
-import classnames from 'classnames';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { Link } from "react-router";
+import classnames from "classnames";
 
-import KolideIcon from 'components/icons/KolideIcon';
+import KolideIcon from "components/icons/KolideIcon";
 
-const baseClass = 'stacked-white-boxes';
+const baseClass = "stacked-white-boxes";
 
 class StackedWhiteBoxes extends Component {
   static propTypes = {
@@ -17,7 +17,7 @@ class StackedWhiteBoxes extends Component {
     previousLocation: PropTypes.string,
   };
 
-  constructor (props) {
+  constructor(props) {
     super(props);
 
     this.state = {
@@ -27,13 +27,13 @@ class StackedWhiteBoxes extends Component {
     };
   }
 
-  componentWillMount () {
+  componentWillMount() {
     this.setState({
       isLoading: true,
     });
   }
 
-  componentDidMount () {
+  componentDidMount() {
     const { didLoad } = this;
     didLoad();
 
@@ -45,7 +45,7 @@ class StackedWhiteBoxes extends Component {
       isLoading: false,
       isLoaded: true,
     });
-  }
+  };
 
   nowLeaving = (evt) => {
     const { window } = global;
@@ -59,14 +59,13 @@ class StackedWhiteBoxes extends Component {
     });
 
     if (previousLocation) {
-      window.setTimeout(
-        () => { onLeave(previousLocation); },
-        300,
-      );
+      window.setTimeout(() => {
+        onLeave(previousLocation);
+      }, 300);
     }
 
     return false;
-  }
+  };
 
   renderBackButton = () => {
     const { previousLocation } = this.props;
@@ -76,12 +75,16 @@ class StackedWhiteBoxes extends Component {
 
     return (
       <div className={`${baseClass}__back`}>
-        <Link to={previousLocation} className={`${baseClass}__back-link`} onClick={nowLeaving}>
+        <Link
+          to={previousLocation}
+          className={`${baseClass}__back-link`}
+          onClick={nowLeaving}
+        >
           <KolideIcon name="x" />
         </Link>
       </div>
     );
-  }
+  };
 
   renderHeader = () => {
     const { headerText } = this.props;
@@ -91,26 +94,18 @@ class StackedWhiteBoxes extends Component {
         <p className={`${baseClass}__header-text`}>{headerText}</p>
       </div>
     );
-  }
+  };
 
-  render () {
+  render() {
     const { children, className, leadText } = this.props;
-    const {
-      isLoading,
-      isLoaded,
-      isLeaving,
-    } = this.state;
+    const { isLoading, isLoaded, isLeaving } = this.state;
     const { renderBackButton, renderHeader } = this;
 
-    const boxClass = classnames(
-      baseClass,
-      className,
-      {
-        [`${baseClass}--loading`]: isLoading,
-        [`${baseClass}--loaded`]: isLoaded,
-        [`${baseClass}--leaving`]: isLeaving,
-      },
-    );
+    const boxClass = classnames(baseClass, className, {
+      [`${baseClass}--loading`]: isLoading,
+      [`${baseClass}--loaded`]: isLoaded,
+      [`${baseClass}--leaving`]: isLeaving,
+    });
 
     return (
       <div className={boxClass}>

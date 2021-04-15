@@ -1,15 +1,15 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import AceEditor from 'react-ace';
-import classnames from 'classnames';
-import 'brace/mode/sql';
-import 'brace/ext/linking';
-import 'brace/ext/language_tools';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import AceEditor from "react-ace";
+import classnames from "classnames";
+import "brace/mode/sql";
+import "brace/ext/linking";
+import "brace/ext/language_tools";
 
-import './mode';
-import './theme';
+import "./mode";
+import "./theme";
 
-const baseClass = 'kolide-ace';
+const baseClass = "kolide-ace";
 
 class KolideAce extends Component {
   static propTypes = {
@@ -30,7 +30,7 @@ class KolideAce extends Component {
 
   static defaultProps = {
     fontSize: 14,
-    name: 'query-editor',
+    name: "query-editor",
     showGutter: true,
     wrapEnabled: false,
   };
@@ -42,10 +42,8 @@ class KolideAce extends Component {
       [`${baseClass}__label--error`]: error,
     });
 
-    return (
-      <p className={labelClassName}>{error || label}</p>
-    );
-  }
+    return <p className={labelClassName}>{error || label}</p>;
+  };
 
   renderHint = () => {
     const { hint } = this.props;
@@ -55,9 +53,9 @@ class KolideAce extends Component {
     }
 
     return false;
-  }
+  };
 
-  render () {
+  render() {
     const {
       error,
       fontSize,
@@ -77,6 +75,11 @@ class KolideAce extends Component {
       [`${baseClass}__wrapper--error`]: error,
     });
 
+    const fixHotkeys = (editor) => {
+      editor.commands.removeCommands(["gotoline", "find"]);
+      onLoad && onLoad(editor);
+    };
+
     return (
       <div className={wrapperClass}>
         {renderLabel()}
@@ -90,7 +93,7 @@ class KolideAce extends Component {
           maxLines={20}
           name={name}
           onChange={onChange}
-          onLoad={onLoad}
+          onLoad={fixHotkeys}
           readOnly={readOnly}
           setOptions={{ enableLinking: true }}
           showGutter={showGutter}
@@ -99,11 +102,13 @@ class KolideAce extends Component {
           value={value}
           width="100%"
           wrapEnabled={wrapEnabled}
-          commands={[{
-            name: 'commandName',
-            bindKey: { win: 'Ctrl-Enter', mac: 'Ctrl-Enter' },
-            exec: handleSubmit,
-          }]}
+          commands={[
+            {
+              name: "commandName",
+              bindKey: { win: "Ctrl-Enter", mac: "Ctrl-Enter" },
+              exec: handleSubmit,
+            },
+          ]}
         />
         {renderHint()}
       </div>

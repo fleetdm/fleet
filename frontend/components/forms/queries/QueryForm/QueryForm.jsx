@@ -1,31 +1,30 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { size } from 'lodash';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { size } from "lodash";
 
-import DropdownButton from 'components/buttons/DropdownButton';
-import Form from 'components/forms/Form';
-import formFieldInterface from 'interfaces/form_field';
-import helpers from 'components/forms/queries/QueryForm/helpers';
-import InputField from 'components/forms/fields/InputField';
-import KolideAce from 'components/KolideAce';
-import queryInterface from 'interfaces/query';
-import validateQuery from 'components/forms/validators/validate_query';
+import DropdownButton from "components/buttons/DropdownButton";
+import Form from "components/forms/Form";
+import formFieldInterface from "interfaces/form_field";
+import helpers from "components/forms/queries/QueryForm/helpers";
+import InputField from "components/forms/fields/InputField";
+import KolideAce from "components/KolideAce";
+import queryInterface from "interfaces/query";
+import validateQuery from "components/forms/validators/validate_query";
 
-const baseClass = 'query-form';
+const baseClass = "query-form";
 
 const validate = (formData) => {
   const errors = {};
-  const {
-    error: queryError,
-    valid: queryValid,
-  } = validateQuery(formData.query);
+  const { error: queryError, valid: queryValid } = validateQuery(
+    formData.query
+  );
 
   if (!queryValid) {
     errors.query = queryError;
   }
 
   if (!formData.name) {
-    errors.name = 'Title must be present';
+    errors.name = "Title must be present";
   }
 
   const valid = !size(errors);
@@ -54,7 +53,7 @@ class QueryForm extends Component {
     targetsCount: 0,
   };
 
-  constructor (props) {
+  constructor(props) {
     super(props);
 
     this.state = { errors: {} };
@@ -65,17 +64,17 @@ class QueryForm extends Component {
       enableLinking: true,
     });
 
-    editor.on('linkClick', (data) => {
+    editor.on("linkClick", (data) => {
       const { type, value } = data.token;
       const { onOsqueryTableSelect } = this.props;
 
-      if (type === 'osquery-token') {
+      if (type === "osquery-token") {
         return onOsqueryTableSelect(value);
       }
 
       return false;
     });
-  }
+  };
 
   onUpdate = (evt) => {
     evt.preventDefault();
@@ -104,7 +103,7 @@ class QueryForm extends Component {
     });
 
     return false;
-  }
+  };
 
   renderButtons = () => {
     const { canSaveAsNew, canSaveChanges } = helpers;
@@ -114,12 +113,12 @@ class QueryForm extends Component {
     const dropdownBtnOptions = [
       {
         disabled: !canSaveChanges(fields, formData),
-        label: 'Save Changes',
+        label: "Save Changes",
         onClick: onUpdate,
       },
       {
         disabled: !canSaveAsNew(fields, formData),
-        label: 'Save As New...',
+        label: "Save As New...",
         onClick: handleSubmit,
       },
     ];
@@ -135,10 +134,17 @@ class QueryForm extends Component {
         </DropdownButton>
       </div>
     );
-  }
+  };
 
-  render () {
-    const { baseError, fields, handleSubmit, onRunQuery, queryIsRunning, title } = this.props;
+  render() {
+    const {
+      baseError,
+      fields,
+      handleSubmit,
+      onRunQuery,
+      queryIsRunning,
+      title,
+    } = this.props;
     const { errors } = this.state;
     const { onLoad, renderButtons } = this;
 
@@ -156,6 +162,7 @@ class QueryForm extends Component {
           {...fields.query}
           error={fields.query.error || errors.query}
           label="SQL"
+          name="query editor"
           onLoad={onLoad}
           readOnly={queryIsRunning}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
@@ -174,6 +181,6 @@ class QueryForm extends Component {
 }
 
 export default Form(QueryForm, {
-  fields: ['description', 'name', 'query'],
+  fields: ["description", "name", "query"],
   validate,
 });

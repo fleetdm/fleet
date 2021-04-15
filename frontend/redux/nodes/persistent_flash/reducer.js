@@ -1,8 +1,8 @@
-import { ACTION_TYPES } from 'redux/nodes/persistent_flash/actions';
+import { ACTION_TYPES } from "redux/nodes/persistent_flash/actions";
 
 export const initialState = {
   showFlash: false,
-  message: '',
+  message: "",
 };
 
 export default (state = initialState, { type, payload }) => {
@@ -10,7 +10,7 @@ export default (state = initialState, { type, payload }) => {
     case ACTION_TYPES.HIDE_PERSISTENT_FLASH:
       return {
         showFlash: false,
-        message: '',
+        message: "",
       };
     case ACTION_TYPES.SHOW_PERSISTENT_FLASH:
       return {

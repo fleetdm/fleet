@@ -68,6 +68,7 @@ var TestFunctions = [...]func(*testing.T, kolide.Datastore){
 	testAddLabelToPackTwice,
 	testGenerateHostStatusStatistics,
 	testMarkHostSeen,
+	testMarkHostsSeen,
 	testCleanupIncomingHosts,
 	testDuplicateNewQuery,
 	testChangeEmail,

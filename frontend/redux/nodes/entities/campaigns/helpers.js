@@ -38,9 +38,9 @@ const updateCampaignStateFromResults = (campaign, { data }) => {
         error,
       },
     ];
-  // Host's with osquery version below 4.4.0 receive an empty error message
-  // when the live query fails so we create our own message.
-  } else if (error === '') {
+    // Host's with osquery version below 4.4.0 receive an empty error message
+    // when the live query fails so we create our own message.
+  } else if (error === "") {
     const newFailed = hostsCount.failed + 1;
     const newTotal = hostsCount.successful + newFailed;
 
@@ -54,7 +54,8 @@ const updateCampaignStateFromResults = (campaign, { data }) => {
       {
         host_hostname: host.hostname,
         osquery_version: host.osquery_version,
-        error: 'Error details require osquery 4.4.0+ (Launcher does not provide error details)',
+        error:
+          "Error details require osquery 4.4.0+ (Launcher does not provide error details)",
       },
     ];
   } else {
@@ -85,7 +86,7 @@ const updateCampaignStateFromStatus = (campaign, { data }) => {
 
   return {
     campaign: updatedCampaign,
-    queryIsRunning: data !== 'finished',
+    queryIsRunning: data !== "finished",
   };
 };
 
@@ -94,11 +95,11 @@ export const updateCampaignState = (socketData) => {
     const { campaign } = prevState;
 
     switch (socketData.type) {
-      case 'totals':
+      case "totals":
         return updateCampaignStateFromTotals(campaign, socketData);
-      case 'result':
+      case "result":
         return updateCampaignStateFromResults(campaign, socketData);
-      case 'status':
+      case "status":
         return updateCampaignStateFromStatus(campaign, socketData);
       default:
         return { campaign };

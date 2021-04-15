@@ -3,7 +3,7 @@ import {
   FORGOT_PASSWORD_ERROR,
   FORGOT_PASSWORD_REQUEST,
   FORGOT_PASSWORD_SUCCESS,
-} from './actions';
+} from "./actions";
 
 export const initialState = {
   email: null,

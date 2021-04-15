@@ -1,10 +1,10 @@
-import React from 'react';
-import { mount } from 'enzyme';
+import React from "react";
+import { mount } from "enzyme";
 
-import Checkbox from './Checkbox';
+import Checkbox from "./Checkbox";
 
-describe('Checkbox - component', () => {
-  it('renders', () => {
+describe("Checkbox - component", () => {
+  it("renders", () => {
     expect(mount(<Checkbox />)).toBeTruthy();
   });
 
@@ -13,23 +13,19 @@ describe('Checkbox - component', () => {
     const onUncheckedComponentChangeSpy = jest.fn();
 
     const checkedComponent = mount(
-      <Checkbox
-        name="checkbox"
-        onChange={onCheckedComponentChangeSpy}
-        value
-      />,
-    ).find('input');
+      <Checkbox name="checkbox" onChange={onCheckedComponentChangeSpy} value />
+    ).find("input");
 
     const uncheckedComponent = mount(
       <Checkbox
         name="checkbox"
         onChange={onUncheckedComponentChangeSpy}
         value={false}
-      />,
-    ).find('input');
+      />
+    ).find("input");
 
-    checkedComponent.simulate('change');
-    uncheckedComponent.simulate('change');
+    checkedComponent.simulate("change");
+    uncheckedComponent.simulate("change");
 
     expect(onCheckedComponentChangeSpy).toHaveBeenCalledWith(false);
     expect(onUncheckedComponentChangeSpy).toHaveBeenCalledWith(true);

@@ -1,13 +1,13 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { isEqual } from 'lodash';
-import { push } from 'react-router-redux';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { isEqual } from "lodash";
+import { push } from "react-router-redux";
 
-import paths from 'router/paths';
-import redirectLocationInterface from 'interfaces/redirect_location';
-import { setRedirectLocation } from 'redux/nodes/redirectLocation/actions';
-import userInterface from 'interfaces/user';
+import paths from "router/paths";
+import redirectLocationInterface from "interfaces/redirect_location";
+import { setRedirectLocation } from "redux/nodes/redirectLocation/actions";
+import userInterface from "interfaces/user";
 
 export class AuthenticatedRoutes extends Component {
   static propTypes = {
@@ -18,7 +18,7 @@ export class AuthenticatedRoutes extends Component {
     user: userInterface,
   };
 
-  componentWillMount () {
+  componentWillMount() {
     const { loading, user } = this.props;
     const { redirectToLogin, redirectToPasswordReset } = this;
 
@@ -33,7 +33,7 @@ export class AuthenticatedRoutes extends Component {
     return false;
   }
 
-  componentWillReceiveProps (nextProps) {
+  componentWillReceiveProps(nextProps) {
     if (isEqual(this.props, nextProps)) return false;
 
     const { loading, user } = nextProps;
@@ -56,27 +56,23 @@ export class AuthenticatedRoutes extends Component {
 
     dispatch(setRedirectLocation(locationBeforeTransitions));
     return dispatch(push(LOGIN));
-  }
+  };
 
   redirectToPasswordReset = () => {
     const { dispatch } = this.props;
     const { RESET_PASSWORD } = paths;
 
     return dispatch(push(RESET_PASSWORD));
-  }
+  };
 
-  render () {
+  render() {
     const { children, user } = this.props;
 
     if (!user) {
       return false;
     }
 
-    return (
-      <div>
-        {children}
-      </div>
-    );
+    return <div>{children}</div>;
   }
 }
 

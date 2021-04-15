@@ -1,11 +1,9 @@
-import React from 'react';
+import React from "react";
 
-const baseClass = 'kolide-spinner';
+const baseClass = "kolide-spinner";
 
 const Spinner = () => {
-  return (
-    <div className={baseClass} />
-  );
+  return <div className={baseClass} />;
 };
 
 export default Spinner;

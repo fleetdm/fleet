@@ -1,1 +1,1 @@
-export { default } from './UserRow';
+export { default } from "./UserRow";

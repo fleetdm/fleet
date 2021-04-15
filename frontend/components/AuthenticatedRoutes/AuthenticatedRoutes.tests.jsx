@@ -1,32 +1,32 @@
-import React from 'react';
-import { mount } from 'enzyme';
-import { Provider } from 'react-redux';
+import React from "react";
+import { mount } from "enzyme";
+import { Provider } from "react-redux";
 
-import AuthenticatedRoutes from './index';
-import helpers from '../../test/helpers';
+import AuthenticatedRoutes from "./index";
+import helpers from "../../test/helpers";
 
-describe('AuthenticatedRoutes - component', () => {
+describe("AuthenticatedRoutes - component", () => {
   const redirectToLoginAction = {
-    type: '@@router/CALL_HISTORY_METHOD',
+    type: "@@router/CALL_HISTORY_METHOD",
     payload: {
-      method: 'push',
-      args: ['/login'],
+      method: "push",
+      args: ["/login"],
     },
   };
   const redirectToPasswordResetAction = {
-    type: '@@router/CALL_HISTORY_METHOD',
+    type: "@@router/CALL_HISTORY_METHOD",
     payload: {
-      method: 'push',
-      args: ['/login/reset'],
+      method: "push",
+      args: ["/login/reset"],
     },
   };
-  const renderedText = 'This text was rendered';
+  const renderedText = "This text was rendered";
   const storeWithUser = {
     auth: {
       loading: false,
       user: {
         id: 1,
-        email: 'hi@thegnar.co',
+        email: "hi@thegnar.co",
         force_password_reset: false,
       },
     },
@@ -39,7 +39,7 @@ describe('AuthenticatedRoutes - component', () => {
       loading: false,
       user: {
         id: 1,
-        email: 'hi@thegnar.co',
+        email: "hi@thegnar.co",
         force_password_reset: true,
       },
     },
@@ -66,7 +66,7 @@ describe('AuthenticatedRoutes - component', () => {
     },
   };
 
-  it('renders if there is a user in state', () => {
+  it("renders if there is a user in state", () => {
     const { reduxMockStore } = helpers;
     const mockStore = reduxMockStore(storeWithUser);
     const component = mount(
@@ -74,13 +74,13 @@ describe('AuthenticatedRoutes - component', () => {
         <AuthenticatedRoutes>
           <div>{renderedText}</div>
         </AuthenticatedRoutes>
-      </Provider>,
+      </Provider>
     );
 
     expect(component.text()).toEqual(renderedText);
   });
 
-  it('redirects to reset password is force_password_reset is true', () => {
+  it("redirects to reset password is force_password_reset is true", () => {
     const { reduxMockStore } = helpers;
     const mockStore = reduxMockStore(storeWithUserRequiringPwReset);
     mount(
@@ -88,13 +88,15 @@ describe('AuthenticatedRoutes - component', () => {
         <AuthenticatedRoutes>
           <div>{renderedText}</div>
         </AuthenticatedRoutes>
-      </Provider>,
+      </Provider>
     );
 
-    expect(mockStore.getActions()).toContainEqual(redirectToPasswordResetAction);
+    expect(mockStore.getActions()).toContainEqual(
+      redirectToPasswordResetAction
+    );
   });
 
-  it('redirects to login without a user', () => {
+  it("redirects to login without a user", () => {
     const { reduxMockStore } = helpers;
     const mockStore = reduxMockStore(storeWithoutUser);
     const component = mount(
@@ -102,14 +104,14 @@ describe('AuthenticatedRoutes - component', () => {
         <AuthenticatedRoutes>
           <div>{renderedText}</div>
         </AuthenticatedRoutes>
-      </Provider>,
+      </Provider>
     );
 
     expect(mockStore.getActions()).toContainEqual(redirectToLoginAction);
     expect(component.html()).toBeFalsy();
   });
 
-  it('does not redirect to login if the user is loading', () => {
+  it("does not redirect to login if the user is loading", () => {
     const { reduxMockStore } = helpers;
     const mockStore = reduxMockStore(storeLoadingUser);
     const component = mount(
@@ -117,7 +119,7 @@ describe('AuthenticatedRoutes - component', () => {
         <AuthenticatedRoutes>
           <div>{renderedText}</div>
         </AuthenticatedRoutes>
-      </Provider>,
+      </Provider>
     );
 
     expect(mockStore.getActions()).not.toContainEqual(redirectToLoginAction);

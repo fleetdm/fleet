@@ -1,26 +1,26 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import FileSaver from 'file-saver';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import FileSaver from "file-saver";
 
-import Button from 'components/buttons/Button';
-import enrollSecretInterface from 'interfaces/enroll_secret';
-import InputField from 'components/forms/fields/InputField';
-import KolideIcon from 'components/icons/KolideIcon';
-import { stringToClipboard } from 'utilities/copy_text';
-import EyeIcon from '../../../../assets/images/icon-eye-16x16@2x.png';
-import DownloadIcon from '../../../../assets/images/icon-download-12x12@2x.png';
+import Button from "components/buttons/Button";
+import enrollSecretInterface from "interfaces/enroll_secret";
+import InputField from "components/forms/fields/InputField";
+import KolideIcon from "components/icons/KolideIcon";
+import { stringToClipboard } from "utilities/copy_text";
+import EyeIcon from "../../../../assets/images/icon-eye-16x16@2x.png";
+import DownloadIcon from "../../../../assets/images/icon-download-12x12@2x.png";
 
-const baseClass = 'enroll-secrets';
+const baseClass = "enroll-secrets";
 
 class EnrollSecretRow extends Component {
   static propTypes = {
     name: PropTypes.string.isRequired,
     secret: PropTypes.string.isRequired,
-  }
+  };
 
-  constructor (props) {
+  constructor(props) {
     super(props);
-    this.state = { showSecret: false, copyMessage: '' };
+    this.state = { showSecret: false, copyMessage: "" };
   }
 
   onCopySecret = (evt) => {
@@ -29,28 +29,27 @@ class EnrollSecretRow extends Component {
     const { secret } = this.props;
 
     stringToClipboard(secret)
-      .then(() => this.setState({ copyMessage: '(copied)' }))
-      .catch(() => this.setState({ copyMessage: '(copy failed)' }));
+      .then(() => this.setState({ copyMessage: "(copied)" }))
+      .catch(() => this.setState({ copyMessage: "(copy failed)" }));
 
     // Clear message after 1 second
-    setTimeout(() => this.setState({ copyMessage: '' }), 1000);
+    setTimeout(() => this.setState({ copyMessage: "" }), 1000);
 
     return false;
-  }
+  };
 
   onDownloadSecret = (evt) => {
     evt.preventDefault();
 
     const { secret } = this.props;
 
-    const filename = 'secret.txt';
+    const filename = "secret.txt";
     const file = new global.window.File([secret], filename);
 
     FileSaver.saveAs(file);
 
     return false;
-  }
-
+  };
 
   onToggleSecret = (evt) => {
     evt.preventDefault();
@@ -88,9 +87,9 @@ class EnrollSecretRow extends Component {
         </span>
       </span>
     );
-  }
+  };
 
-  render () {
+  render() {
     const { secret } = this.props;
     const { showSecret } = this.state;
     const { renderLabel, onDownloadSecret } = this;
@@ -102,7 +101,7 @@ class EnrollSecretRow extends Component {
           inputWrapperClass={`${baseClass}__secret-input`}
           name="osqueryd-secret"
           label={renderLabel()}
-          type={showSecret ? 'text' : 'password'}
+          type={showSecret ? "text" : "password"}
           value={secret}
         />
         <a
@@ -122,22 +121,27 @@ class EnrollSecretRow extends Component {
 class EnrollSecretTable extends Component {
   static propTypes = {
     secrets: enrollSecretInterface.isRequired,
-  }
+  };
 
   render() {
     const { secrets } = this.props;
-    const activeSecrets = secrets.filter(s => s.active);
+    const activeSecrets = secrets.filter((s) => s.active);
 
     let enrollSecrectsClass = baseClass;
     if (activeSecrets.length === 0) {
-      return (<div className={baseClass}><em>No active enroll secrets.</em></div>);
-    } else if (activeSecrets.length > 1) enrollSecrectsClass += ` ${baseClass}--multiple-secrets`;
+      return (
+        <div className={baseClass}>
+          <em>No active enroll secrets.</em>
+        </div>
+      );
+    } else if (activeSecrets.length > 1)
+      enrollSecrectsClass += ` ${baseClass}--multiple-secrets`;
 
     return (
       <div className={enrollSecrectsClass}>
-        {activeSecrets.map(({ name, secret }) =>
-          <EnrollSecretRow key={name} name={name} secret={secret} />,
-        )}
+        {activeSecrets.map(({ name, secret }) => (
+          <EnrollSecretRow key={name} name={name} secret={secret} />
+        ))}
       </div>
     );
   }

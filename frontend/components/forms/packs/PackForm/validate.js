@@ -1,10 +1,10 @@
-import { size } from 'lodash';
+import { size } from "lodash";
 
 const validate = (formData) => {
   const errors = {};
 
   if (!formData.name) {
-    errors.name = 'Title field must be completed';
+    errors.name = "Title field must be completed";
   }
 
   const valid = !size(errors);

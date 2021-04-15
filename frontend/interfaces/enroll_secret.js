@@ -1,4 +1,4 @@
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
 export default PropTypes.arrayOf(
   PropTypes.shape({
@@ -6,5 +6,5 @@ export default PropTypes.arrayOf(
     secret: PropTypes.string,
     active: PropTypes.bool,
     created_at: PropTypes.string,
-  }),
+  })
 );

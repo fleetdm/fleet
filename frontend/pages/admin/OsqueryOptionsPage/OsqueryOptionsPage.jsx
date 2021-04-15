@@ -1,16 +1,16 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { noop } from 'lodash';
-import yaml from 'js-yaml';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { noop } from "lodash";
+import yaml from "js-yaml";
 
-import osqueryOptionsActions from 'redux/nodes/osquery/actions';
-import validateYaml from 'components/forms/validators/validate_yaml';
-import OsqueryOptionsForm from 'components/forms/admin/OsqueryOptionsForm';
-import { renderFlash } from 'redux/nodes/notifications/actions';
-import OpenNewTabIcon from '../../../../assets/images/open-new-tab-12x12@2x.png';
+import osqueryOptionsActions from "redux/nodes/osquery/actions";
+import validateYaml from "components/forms/validators/validate_yaml";
+import OsqueryOptionsForm from "components/forms/admin/OsqueryOptionsForm";
+import { renderFlash } from "redux/nodes/notifications/actions";
+import OpenNewTabIcon from "../../../../assets/images/open-new-tab-12x12@2x.png";
 
-const baseClass = 'osquery-options';
+const baseClass = "osquery-options";
 
 export class OsqueryOptionsPage extends Component {
   static propTypes = {
@@ -20,12 +20,11 @@ export class OsqueryOptionsPage extends Component {
 
   static defaultProps = {
     dispatch: noop,
-  }
+  };
 
   componentDidMount() {
     const { dispatch } = this.props;
-    dispatch(osqueryOptionsActions.getOsqueryOptions())
-      .catch(() => false);
+    dispatch(osqueryOptionsActions.getOsqueryOptions()).catch(() => false);
   }
 
   onSaveOsqueryOptionsFormSubmit = (formData) => {
@@ -33,29 +32,29 @@ export class OsqueryOptionsPage extends Component {
     const { error } = validateYaml(formData.osquery_options);
 
     if (error) {
-      dispatch(renderFlash('error', error));
+      dispatch(renderFlash("error", error));
 
       return false;
     }
 
     dispatch(osqueryOptionsActions.updateOsqueryOptions(formData))
       .then(() => {
-        dispatch(renderFlash('success', 'Osquery options updated!'));
+        dispatch(renderFlash("success", "Osquery options updated!"));
 
         return false;
       })
       .catch((errors) => {
         if (errors.base) {
-          dispatch(renderFlash('error', errors.base));
+          dispatch(renderFlash("error", errors.base));
         }
 
         return false;
       });
 
     return false;
-  }
+  };
 
-  render () {
+  render() {
     const { options } = this.props;
     const formData = {
       osquery_options: yaml.dump(options),
@@ -64,9 +63,15 @@ export class OsqueryOptionsPage extends Component {
 
     return (
       <div className={`${baseClass} body-wrap`}>
-        <p className={`${baseClass}__page-description`}>This file describes options returned to osquery when it checks for configuration.</p>
+        <p className={`${baseClass}__page-description`}>
+          This file describes options returned to osquery when it checks for
+          configuration.
+        </p>
         <div className={`${baseClass}__info-banner`}>
-          <p>See Fleet documentation for an example file that includes the overrides option.</p>
+          <p>
+            See Fleet documentation for an example file that includes the
+            overrides option.
+          </p>
           <a
             href="https://github.com/fleetdm/fleet/blob/master/docs/1-Using-Fleet/2-fleetctl-CLI.md#osquery-configuration-options"
             target="_blank"

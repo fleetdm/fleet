@@ -1,13 +1,13 @@
-import React from 'react';
-import PropTypes from 'prop-types';
+import React from "react";
+import PropTypes from "prop-types";
 
-import ConfigurePackQueryForm from 'components/forms/ConfigurePackQueryForm';
-import queryInterface from 'interfaces/query';
-import scheduledQueryInterface from 'interfaces/scheduled_query';
-import SearchPackQuery from './SearchPackQuery';
-import SecondarySidePanelContainer from '../SecondarySidePanelContainer';
+import ConfigurePackQueryForm from "components/forms/ConfigurePackQueryForm";
+import queryInterface from "interfaces/query";
+import scheduledQueryInterface from "interfaces/scheduled_query";
+import SearchPackQuery from "./SearchPackQuery";
+import SecondarySidePanelContainer from "../SecondarySidePanelContainer";
 
-const baseClass = 'schedule-query-side-panel';
+const baseClass = "schedule-query-side-panel";
 
 const ScheduleQuerySidePanel = ({
   allQueries,
@@ -27,7 +27,9 @@ const ScheduleQuerySidePanel = ({
 
     formData.query_id = selectedQuery.id;
 
-    const handleSubmit = selectedScheduledQuery ? onUpdateScheduledQuery : onConfigurePackQuerySubmit;
+    const handleSubmit = selectedScheduledQuery
+      ? onUpdateScheduledQuery
+      : onConfigurePackQuerySubmit;
 
     return (
       <ConfigurePackQueryForm

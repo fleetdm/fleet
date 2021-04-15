@@ -1,10 +1,10 @@
 .ace_editor.ace-kolide {
-  font-family: 'SourceCodePro', monospace;
+  font-family: "SourceCodePro", monospace;
   font-size: 14px;
-  background-color: #FAFAFA;
+  background-color: #fafafa;
   color: #66696f;
   border-radius: 4px;
-  border: solid 1px #DBE3E5;
+  border: solid 1px #dbe3e5;
   line-height: 24px;
 }
 
@@ -21,7 +21,7 @@
 }
 
 .ace-kolide.ace_autocomplete .ace_content {
-    padding-left: 0px;
+  padding-left: 0px;
 }
 
 .ace-kolide .ace_content {
@@ -33,7 +33,7 @@
   background: #fff;
   color: #c38dec;
   z-index: 1;
-  border-right: solid 1px #E3E3E3;
+  border-right: solid 1px #e3e3e3;
 }
 
 .ace-kolide .ace_gutter-active-line {
@@ -55,12 +55,12 @@
 }
 
 .ace-kolide .ace_cursor {
-  color: #aeafad
+  color: #aeafad;
 }
 
 /* Hide cursor in read-only mode */
 .ace-kolide .ace_hidden-cursors {
-  opacity:0
+  opacity: 0;
 }
 
 .ace-kolide .ace_marker-layer .ace_selection {
@@ -72,20 +72,20 @@
 }
 
 .ace-kolide .ace_marker-layer .ace_step {
-  background: rgb(255, 255, 0)
+  background: rgb(255, 255, 0);
 }
 
 .ace-kolide .ace_marker-layer .ace_bracket {
   margin: -1px 0 0 -1px;
-  border: 1px solid #d1d1d1
+  border: 1px solid #d1d1d1;
 }
 
 .ace-kolide .ace_marker-layer .ace_selected-word {
-  border: 1px solid #d6d6d6
+  border: 1px solid #d6d6d6;
 }
 
 .ace-kolide .ace_invisible {
-  color: #d1d1d1
+  color: #d1d1d1;
 }
 
 .ace-kolide .ace_keyword {
@@ -93,7 +93,7 @@
   font-weight: 600;
 }
 
-.ace-kolide .ace_osquery-token{
+.ace-kolide .ace_osquery-token {
   border-radius: 3px;
   background-color: #ae6ddf;
   color: #ffffff;
@@ -111,11 +111,11 @@
 .ace-kolide .ace_storage,
 .ace-kolide .ace_storage.ace_type,
 .ace-kolide .ace_support.ace_type {
-  color: #8959a8
+  color: #8959a8;
 }
 
 .ace-kolide .ace_keyword.ace_operator {
-  color: #3e999f
+  color: #3e999f;
 }
 
 .ace-kolide .ace_constant.ace_character,
@@ -124,43 +124,43 @@
 .ace-kolide .ace_keyword.ace_other.ace_unit,
 .ace-kolide .ace_support.ace_constant,
 .ace-kolide .ace_variable.ace_parameter {
-  color: #f5871f
+  color: #f5871f;
 }
 
 .ace-kolide .ace_constant.ace_other {
-  color: #666969
+  color: #666969;
 }
 
 .ace-kolide .ace_invalid {
   color: #ffffff;
-    background-color: #c82829
+  background-color: #c82829;
 }
 
 .ace-kolide .ace_invalid.ace_deprecated {
   color: #ffffff;
-    background-color: #ae6ddf
+  background-color: #ae6ddf;
 }
 
 .ace-kolide .ace_fold {
   background-color: #4271ae;
-    border-color: #4d4d4c
+  border-color: #4d4d4c;
 }
 
 .ace-kolide .ace_entity.ace_name.ace_function,
 .ace-kolide .ace_support.ace_function,
 .ace-kolide .ace_variable {
-  color: #4271ae
+  color: #4271ae;
 }
 
 .ace-kolide .ace_support.ace_class,
 .ace-kolide .ace_support.ace_type {
-  color: #c99e00
+  color: #c99e00;
 }
 
 .ace-kolide .ace_heading,
 .ace-kolide .ace_markup.ace_heading,
 .ace-kolide .ace_string {
-  color: #4fd061
+  color: #4fd061;
 }
 
 .ace-kolide .ace_entity.ace_name.ace_tag,
@@ -168,13 +168,14 @@
 .ace-kolide .ace_meta.ace_tag,
 .ace-kolide .ace_string.ace_regexp,
 .ace-kolide .ace_variable {
-  color: #c82829
+  color: #c82829;
 }
 
 .ace-kolide .ace_comment {
-  color: #8e908c
+  color: #8e908c;
 }
 
 .ace-kolide .ace_indent-guide {
-  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAACCAYAAACZgbYnAAAAE0lEQVQImWP4////f4bdu3f/BwAlfgctduB85QAAAABJRU5ErkJggg==) right repeat-y
+  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAACCAYAAACZgbYnAAAAE0lEQVQImWP4////f4bdu3f/BwAlfgctduB85QAAAABJRU5ErkJggg==)
+    right repeat-y;
 }

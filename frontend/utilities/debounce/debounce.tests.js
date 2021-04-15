@@ -1,7 +1,7 @@
-import debounce from './index';
+import debounce from "./index";
 
-describe('debounce - utility', () => {
-  it('prevents double-clicks from executing a function multiple times', () => {
+describe("debounce - utility", () => {
+  it("prevents double-clicks from executing a function multiple times", () => {
     let count = 0;
     const increaseCount = () => {
       count += 1;

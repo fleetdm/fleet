@@ -1,8 +1,10 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import { isEqual, noop } from 'lodash';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import { isEqual, noop } from "lodash";
 
-const defaultValidate = () => { return { valid: true, errors: {} }; };
+const defaultValidate = () => {
+  return { valid: true, errors: {} };
+};
 
 export default (WrappedComponent, { fields, validate = defaultValidate }) => {
   class Form extends Component {
@@ -20,7 +22,7 @@ export default (WrappedComponent, { fields, validate = defaultValidate }) => {
       serverErrors: {},
     };
 
-    constructor (props) {
+    constructor(props) {
       super(props);
 
       const { formData } = props;
@@ -33,7 +35,7 @@ export default (WrappedComponent, { fields, validate = defaultValidate }) => {
       return false;
     }
 
-    componentWillMount () {
+    componentWillMount() {
       const { serverErrors } = this.props;
 
       this.setState({ errors: serverErrors });
@@ -41,7 +43,7 @@ export default (WrappedComponent, { fields, validate = defaultValidate }) => {
       return false;
     }
 
-    componentWillReceiveProps ({ formData, serverErrors }) {
+    componentWillReceiveProps({ formData, serverErrors }) {
       const {
         formData: oldFormDataProp,
         serverErrors: oldServerErrors,
@@ -86,7 +88,7 @@ export default (WrappedComponent, { fields, validate = defaultValidate }) => {
 
         return false;
       };
-    }
+    };
 
     onSubmit = (evt) => {
       evt.preventDefault();
@@ -104,13 +106,13 @@ export default (WrappedComponent, { fields, validate = defaultValidate }) => {
       });
 
       return false;
-    }
+    };
 
     getError = (fieldName) => {
       const { errors } = this.state;
 
       return errors[fieldName];
-    }
+    };
 
     getFields = () => {
       const { getError, getValue, onFieldChange } = this;
@@ -126,13 +128,13 @@ export default (WrappedComponent, { fields, validate = defaultValidate }) => {
       });
 
       return fieldProps;
-    }
+    };
 
     getValue = (fieldName) => {
       return this.state.formData[fieldName];
-    }
+    };
 
-    render () {
+    render() {
       const { getFields, onSubmit, props } = this;
       const { errors } = this.state;
 

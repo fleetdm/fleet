@@ -1,4 +1,4 @@
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
 export default PropTypes.shape({
   detail_updated_at: PropTypes.string,

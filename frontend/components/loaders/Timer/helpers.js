@@ -1,7 +1,7 @@
-import moment from 'moment';
+import moment from "moment";
 
 export const convertSeconds = (totalMilliSeconds) => {
-  return moment.utc(totalMilliSeconds).format('HH:mm:ss');
+  return moment.utc(totalMilliSeconds).format("HH:mm:ss");
 };
 
 export default { convertSeconds };

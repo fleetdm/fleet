@@ -1,13 +1,13 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
-import Form from 'components/forms/Form';
-import formFieldInterface from 'interfaces/form_field';
-import Button from 'components/buttons/Button';
-import InputFieldWithIcon from 'components/forms/fields/InputFieldWithIcon';
-import helpers from './helpers';
+import Form from "components/forms/Form";
+import formFieldInterface from "interfaces/form_field";
+import Button from "components/buttons/Button";
+import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
+import helpers from "./helpers";
 
-const formFields = ['name', 'username', 'password', 'password_confirmation'];
+const formFields = ["name", "username", "password", "password_confirmation"];
 const { validate } = helpers;
 
 class ConfirmInviteForm extends Component {
@@ -23,7 +23,7 @@ class ConfirmInviteForm extends Component {
     handleSubmit: PropTypes.func.isRequired,
   };
 
-  render () {
+  render() {
     const { baseError, className, fields, handleSubmit } = this.props;
 
     return (
@@ -35,15 +35,14 @@ class ConfirmInviteForm extends Component {
             autofocus
             placeholder="Full Name"
           />
-          <InputFieldWithIcon
-            {...fields.username}
-            placeholder="Username"
-          />
+          <InputFieldWithIcon {...fields.username} placeholder="Username" />
           <InputFieldWithIcon
             {...fields.password}
             placeholder="Password"
             type="password"
-            hint={['Must include 7 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)']}
+            hint={[
+              "Must include 7 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
+            ]}
           />
           <InputFieldWithIcon
             {...fields.password_confirmation}
@@ -52,7 +51,11 @@ class ConfirmInviteForm extends Component {
           />
         </div>
         <div className="confirm-invite-button-wrap">
-          <Button onClick={handleSubmit} type="Submit" className="button button--brand">
+          <Button
+            onClick={handleSubmit}
+            type="Submit"
+            className="button button--brand"
+          >
             Submit
           </Button>
         </div>
@@ -65,4 +68,3 @@ export default Form(ConfirmInviteForm, {
   fields: formFields,
   validate,
 });
-

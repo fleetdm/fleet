@@ -1,9 +1,18 @@
-import React from 'react';
-import PropTypes from 'prop-types';
+import React from "react";
+import PropTypes from "prop-types";
 
 const ClickableTableRow = ({ children, className, onClick, onDoubleClick }) => {
   /* eslint-disable jsx-a11y/no-static-element-interactions */
-  return <tr className={className} onClick={onClick} onDoubleClick={onDoubleClick} tabIndex={-1}>{children}</tr>;
+  return (
+    <tr
+      className={className}
+      onClick={onClick}
+      onDoubleClick={onDoubleClick}
+      tabIndex={-1}
+    >
+      {children}
+    </tr>
+  );
   /* eslint-enable jsx-a11y/no-static-element-interactions */
 };
 

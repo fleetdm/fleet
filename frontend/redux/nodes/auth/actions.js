@@ -1,29 +1,32 @@
-import { configSuccess } from 'redux/nodes/app/actions';
-import { formatErrorResponse } from 'redux/nodes/entities/base/helpers';
-import Kolide from 'kolide';
-import local from 'utilities/local';
-import userActions from 'redux/nodes/entities/users/actions';
+import { configSuccess } from "redux/nodes/app/actions";
+import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
+import Kolide from "kolide";
+import local from "utilities/local";
+import userActions from "redux/nodes/entities/users/actions";
 
-export const CLEAR_AUTH_ERRORS = 'CLEAR_AUTH_ERRORS';
-export const LOGIN_REQUEST = 'LOGIN_REQUEST';
-export const LOGIN_SUCCESS = 'LOGIN_SUCCESS';
-export const LOGIN_FAILURE = 'LOGIN_FAILURE';
-export const UPDATE_USER_SUCCESS = 'UPDATE_USER_SUCCESS';
-export const UPDATE_USER_FAILURE = 'UPDATE_USER_FAILURE';
-export const LOGOUT_REQUEST = 'LOGOUT_REQUEST';
-export const LOGOUT_SUCCESS = 'LOGOUT_SUCCESS';
-export const LOGOUT_FAILURE = 'LOGOUT_FAILURE';
+export const CLEAR_AUTH_ERRORS = "CLEAR_AUTH_ERRORS";
+export const LOGIN_REQUEST = "LOGIN_REQUEST";
+export const LOGIN_SUCCESS = "LOGIN_SUCCESS";
+export const LOGIN_FAILURE = "LOGIN_FAILURE";
+export const UPDATE_USER_SUCCESS = "UPDATE_USER_SUCCESS";
+export const UPDATE_USER_FAILURE = "UPDATE_USER_FAILURE";
+export const LOGOUT_REQUEST = "LOGOUT_REQUEST";
+export const LOGOUT_SUCCESS = "LOGOUT_SUCCESS";
+export const LOGOUT_FAILURE = "LOGOUT_FAILURE";
 // Actions for a user resetting their password after a required reset
-export const PERFORM_REQUIRED_PASSWORD_RESET_REQUEST = 'PERFORM_REQUIRED_PASSWORD_RESET_REQUEST';
-export const PERFORM_REQUIRED_PASSWORD_RESET_SUCCESS = 'PERFORM_REQUIRED_PASSWORD_RESET_SUCCESS';
-export const PERFORM_REQUIRED_PASSWORD_RESET_FAILURE = 'PERFORM_REQUIRED_PASSWORD_RESET_FAILURE';
+export const PERFORM_REQUIRED_PASSWORD_RESET_REQUEST =
+  "PERFORM_REQUIRED_PASSWORD_RESET_REQUEST";
+export const PERFORM_REQUIRED_PASSWORD_RESET_SUCCESS =
+  "PERFORM_REQUIRED_PASSWORD_RESET_SUCCESS";
+export const PERFORM_REQUIRED_PASSWORD_RESET_FAILURE =
+  "PERFORM_REQUIRED_PASSWORD_RESET_FAILURE";
 
-export const SSO_REDIRECT_REQUEST = 'SSO_REDIRECT_REQUEST';
-export const SSO_REDIRECT_SUCCESS = 'SSO_REDIRECT_SUCCESS';
-export const SSO_REDIRECT_FAILURE = 'SSO_REDIRECT_FAILURE';
-export const SSO_SETTINGS_REQUEST = 'SSO_SETTINGS_REQUEST';
-export const SSO_SETTINGS_SUCCESS = 'SSO_SETTINGS_SUCCESS';
-export const SSO_SETTINGS_FAILURE = 'SSO_SETTINGS_FAILURE';
+export const SSO_REDIRECT_REQUEST = "SSO_REDIRECT_REQUEST";
+export const SSO_REDIRECT_SUCCESS = "SSO_REDIRECT_SUCCESS";
+export const SSO_REDIRECT_FAILURE = "SSO_REDIRECT_FAILURE";
+export const SSO_SETTINGS_REQUEST = "SSO_SETTINGS_REQUEST";
+export const SSO_SETTINGS_SUCCESS = "SSO_SETTINGS_SUCCESS";
+export const SSO_SETTINGS_FAILURE = "SSO_SETTINGS_FAILURE";
 
 export const clearAuthErrors = { type: CLEAR_AUTH_ERRORS };
 export const loginRequest = { type: LOGIN_REQUEST };
@@ -48,12 +51,15 @@ export const loginFailure = (errors) => {
 export const fetchCurrentUser = () => {
   return (dispatch) => {
     dispatch(loginRequest);
-    return Kolide.users.me()
+    return Kolide.users
+      .me()
       .then((user) => {
         return dispatch(loginSuccess({ user }));
       })
       .catch((response) => {
-        dispatch(loginFailure({ base: 'Unable to authenticate the current user' }));
+        dispatch(
+          loginFailure({ base: "Unable to authenticate the current user" })
+        );
         throw response;
       });
   };
@@ -80,11 +86,17 @@ export const ssoRedirectFailure = ({ errors }) => {
 export const ssoRedirect = (formData) => {
   return (dispatch) => {
     dispatch(ssoRedirectRequest);
-    return Kolide.sessions.initializeSSO(formData)
+    return Kolide.sessions
+      .initializeSSO(formData)
       .then((response) => {
         return dispatch(ssoRedirectSuccess(response.url));
-      }).catch((response) => {
-        dispatch(ssoRedirectFailure({ base: 'Unable to authenticate the current user' }));
+      })
+      .catch((response) => {
+        dispatch(
+          ssoRedirectFailure({
+            base: "Unable to authenticate the current user",
+          })
+        );
         throw response;
       });
   };
@@ -111,16 +123,21 @@ export const ssoSettingsFailure = ({ errors }) => {
 export const ssoSettings = () => {
   return (dispatch) => {
     dispatch(ssoSettingsRequest);
-    return Kolide.sessions.ssoSettings()
+    return Kolide.sessions
+      .ssoSettings()
       .then((response) => {
         return dispatch(ssoSettingsSuccess(response.settings));
-      }).catch((response) => {
-        dispatch(ssoSettingsFailure({ base: 'Unable to fetch single sign on settings' }));
+      })
+      .catch((response) => {
+        dispatch(
+          ssoSettingsFailure({
+            base: "Unable to fetch single sign on settings",
+          })
+        );
         throw response;
       });
   };
 };
-
 
 // formData should be { username: <string>, password: <string> }
 export const loginUser = (formData) => {
@@ -128,7 +145,8 @@ export const loginUser = (formData) => {
     return new Promise((resolve, reject) => {
       dispatch(loginRequest);
 
-      return Kolide.sessions.create(formData)
+      return Kolide.sessions
+        .create(formData)
         .then((response) => {
           dispatch(loginSuccess(response));
 
@@ -147,20 +165,21 @@ export const loginUser = (formData) => {
 
 export const setup = (registrationFormData) => {
   return (dispatch) => {
-    return Kolide.account.create(registrationFormData)
-      .then((response) => {
-        const { token } = response;
+    return Kolide.account.create(registrationFormData).then((response) => {
+      const { token } = response;
 
-        dispatch(configSuccess({
+      dispatch(
+        configSuccess({
           kolide_server_url: response.kolide_server_url,
           ...response.org_info,
-        }));
+        })
+      );
 
-        local.setItem('auth_token', token);
-        Kolide.setBearerToken(token);
+      local.setItem("auth_token", token);
+      Kolide.setBearerToken(token);
 
-        return dispatch(fetchCurrentUser());
-      });
+      return dispatch(fetchCurrentUser());
+    });
   };
 };
 export const updateUserSuccess = (user) => {
@@ -211,17 +230,20 @@ export const logoutUser = () => {
   return (dispatch) => {
     dispatch(logoutRequest);
 
-    return Kolide.sessions.destroy()
+    return Kolide.sessions
+      .destroy()
       .then(() => dispatch(logoutSuccess))
       .catch((error) => {
-        dispatch(logoutFailure({ base: 'Unable to log out of your account' }));
+        dispatch(logoutFailure({ base: "Unable to log out of your account" }));
 
         throw error;
       });
   };
 };
 
-export const performRequiredPasswordResetRequest = { type: PERFORM_REQUIRED_PASSWORD_RESET_REQUEST };
+export const performRequiredPasswordResetRequest = {
+  type: PERFORM_REQUIRED_PASSWORD_RESET_REQUEST,
+};
 
 export const performRequiredPasswordResetSuccess = (user) => {
   return {
@@ -241,7 +263,8 @@ export const performRequiredPasswordReset = (resetParams) => {
   return (dispatch) => {
     dispatch(performRequiredPasswordResetRequest);
 
-    return Kolide.users.performRequiredPasswordReset(resetParams)
+    return Kolide.users
+      .performRequiredPasswordReset(resetParams)
       .then((updatedUser) => {
         dispatch(performRequiredPasswordResetSuccess(updatedUser));
       })

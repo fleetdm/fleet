@@ -1,10 +1,10 @@
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import classnames from 'classnames';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import classnames from "classnames";
 
-import KolideIcon from 'components/icons/KolideIcon';
+import KolideIcon from "components/icons/KolideIcon";
 
-const baseClass = 'modal';
+const baseClass = "modal";
 
 class Modal extends Component {
   static propTypes = {
@@ -14,9 +14,12 @@ class Modal extends Component {
     title: PropTypes.oneOfType([PropTypes.string, PropTypes.node]),
   };
 
-  render () {
+  render() {
     const { children, className, onExit, title } = this.props;
-    const modalContainerClassName = classnames(`${baseClass}__modal_container`, className);
+    const modalContainerClassName = classnames(
+      `${baseClass}__modal_container`,
+      className
+    );
 
     return (
       <div className={`${baseClass}__background`}>
@@ -29,9 +32,7 @@ class Modal extends Component {
               </button>
             </div>
           </div>
-          <div className={`${baseClass}__content`}>
-            {children}
-          </div>
+          <div className={`${baseClass}__content`}>{children}</div>
         </div>
       </div>
     );

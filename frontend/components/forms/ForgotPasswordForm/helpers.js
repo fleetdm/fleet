@@ -1,6 +1,6 @@
-import { size } from 'lodash';
-import validatePresence from 'components/forms/validators/validate_presence';
-import validEmail from 'components/forms/validators/valid_email';
+import { size } from "lodash";
+import validatePresence from "components/forms/validators/validate_presence";
+import validEmail from "components/forms/validators/valid_email";
 
 const validate = (formData) => {
   const { email } = formData;
@@ -11,7 +11,7 @@ const validate = (formData) => {
   }
 
   if (!validatePresence(email)) {
-    errors.email = 'Email field must be completed';
+    errors.email = "Email field must be completed";
   }
 
   const valid = !size(errors);

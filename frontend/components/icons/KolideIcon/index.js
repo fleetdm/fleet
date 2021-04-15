@@ -1,1 +1,1 @@
-export { default } from './KolideIcon';
+export { default } from "./KolideIcon";

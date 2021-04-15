@@ -1,7 +1,7 @@
-import { omit } from 'lodash';
+import { omit } from "lodash";
 
-import endpoints from 'kolide/endpoints';
-import helpers from 'kolide/helpers';
+import endpoints from "kolide/endpoints";
+import helpers from "kolide/helpers";
 
 export default (client) => {
   return {
@@ -19,8 +19,12 @@ export default (client) => {
       const { PACKS } = endpoints;
       const packTargets = helpers.formatSelectedTargetsForApi(targets, true);
 
-      return client.authenticatedPost(client._endpoint(PACKS), JSON.stringify({ description, name, ...packTargets }))
-        .then(response => response.pack);
+      return client
+        .authenticatedPost(
+          client._endpoint(PACKS),
+          JSON.stringify({ description, name, ...packTargets })
+        )
+        .then((response) => response.pack);
     },
     destroy: ({ id }) => {
       const { PACKS } = endpoints;
@@ -32,25 +36,28 @@ export default (client) => {
       const { PACKS } = endpoints;
       const getPackEndpoint = `${client.baseURL}${PACKS}/${packID}`;
 
-      return client.authenticatedGet(getPackEndpoint)
-        .then(response => response.pack);
+      return client
+        .authenticatedGet(getPackEndpoint)
+        .then((response) => response.pack);
     },
     loadAll: () => {
       const { PACKS } = endpoints;
 
-      return client.authenticatedGet(client._endpoint(PACKS))
-        .then(response => response.packs);
+      return client
+        .authenticatedGet(client._endpoint(PACKS))
+        .then((response) => response.packs);
     },
     update: (pack, updatedPack) => {
       const { PACKS } = endpoints;
       const { targets } = updatedPack;
       const updatePackEndpoint = `${client.baseURL}${PACKS}/${pack.id}`;
       const packTargets = helpers.formatSelectedTargetsForApi(targets, true);
-      const packWithoutTargets = omit(updatedPack, 'targets');
+      const packWithoutTargets = omit(updatedPack, "targets");
       const packParams = { ...packWithoutTargets, ...packTargets };
 
-      return client.authenticatedPatch(updatePackEndpoint, JSON.stringify(packParams))
-        .then(response => response.pack);
+      return client
+        .authenticatedPatch(updatePackEndpoint, JSON.stringify(packParams))
+        .then((response) => response.pack);
     },
   };
 };

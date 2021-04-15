@@ -1,21 +1,21 @@
-import React, { Component } from 'react';
-import { isEqual, omit } from 'lodash';
+import React, { Component } from "react";
+import { isEqual, omit } from "lodash";
 
-import queryResultInterface from 'interfaces/query_result';
+import queryResultInterface from "interfaces/query_result";
 
 class QueryResultsRow extends Component {
   static propTypes = {
     queryResult: queryResultInterface.isRequired,
   };
 
-  shouldComponentUpdate (nextProps) {
+  shouldComponentUpdate(nextProps) {
     return !isEqual(this.props.queryResult, nextProps.queryResult);
   }
 
-  render () {
+  render() {
     const { queryResult } = this.props;
     const { host_hostname: hostHostname } = queryResult;
-    const queryColumns = omit(queryResult, ['host_hostname']);
+    const queryColumns = omit(queryResult, ["host_hostname"]);
 
     return (
       <tr>
