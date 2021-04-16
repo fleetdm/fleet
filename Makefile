@@ -21,7 +21,7 @@ ifneq ($(OS), Windows_NT)
 
 	# To populate version metadata, we use unix tools to get certain data
 	GOVERSION = $(shell go version | awk '{print $$3}')
-	NOW	= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+	NOW	= $(shell date +"%Y-%m-%d")
 else
 	# The output binary name is different on Windows, so we're explicit here
 	OUTPUT = fleet.exe
@@ -29,7 +29,7 @@ else
 	# To populate version metadata, we use windows tools to get the certain data
 	GOVERSION_CMD = "(go version).Split()[2]"
 	GOVERSION = $(shell powershell $(GOVERSION_CMD))
-	NOW	= $(shell powershell Get-Date -format s)
+	NOW	= $(shell powershell Get-Date -format "yyy-MM-dd")
 endif
 
 ifndef CIRCLE_PR_NUMBER
@@ -130,6 +130,10 @@ test-js:
 test: lint test-go test-js
 
 generate: clean-assets generate-js generate-go
+
+generate-ci:
+	NODE_ENV=development webpack
+	make generate-go
 
 generate-js: clean-assets .prefix
 	NODE_ENV=production webpack --progress --colors
