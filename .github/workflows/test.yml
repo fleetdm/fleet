@@ -21,9 +21,11 @@ jobs:
         path: |
           **/node_modules
           ~/.cache/Cypress
-        key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
+        # Use a separate cache for this from other JS jobs since we run the
+        # webpack steps and will have more to cache.
+        key: ${{ runner.os }}-e2e-modules-${{ hashFiles('**/yarn.lock') }}
         restore-keys: |
-          ${{ runner.os }}-modules-
+          ${{ runner.os }}-e2e-modules-
 
     # It seems faster not to cache Go dependencies
 
