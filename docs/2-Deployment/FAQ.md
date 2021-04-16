@@ -1,4 +1,5 @@
 # Deployment FAQ
+
 - [How do I get support for working with Fleet?](#how-do-i-get-support-for-working-with-fleet)
 - [Can multiple instances of the Fleet server be run behind a load-balancer?](#can-multiple-instances-of-the-fleet-server-be-run-behind-a-load-balancer)
 - [Why aren't my osquery agents connecting to Fleet?](#why-arent-my-osquery-agents-connecting-to-fleet)
@@ -38,8 +39,8 @@ This can be caused by a variety of problems. The best way to debug is usually to
 Osquery requires that all communication between the agent and Fleet are over a secure TLS connection. For the safety of osquery deployments, there is no (convenient) way to circumvent this check.
 
 - Try specifying the path to the full certificate chain used by the server using the `--tls_server_certs` flag in `osqueryd`. This is often unnecessary when using a certificate signed by an authority trusted by the system, but is mandatory when working with self-signed certificates. In all cases it can be a useful debugging step.
-- Ensure that the CNAME on the certificate matches the address at which the server is being accessed. If I try connect osquery via `https://localhost:443`, but my certificate is for `https://fleet.example.com`, the verification will fail.
-- Is Fleet behind a load-balancer? Ensure that if the load-balancer is terminating TLS that this is the certificate provided to osquery.
+- Ensure that the CNAME or one of the Subject Alternate Names (SANs) on the certificate matches the address at which the server is being accessed. If osquery connects via `https://localhost:443`, but the certificate is for `https://fleet.example.com`, the verification will fail.
+- Is Fleet behind a load-balancer? Ensure that if the load-balancer is terminating TLS, this is the certificate provided to osquery.
 - Does the certificate verify with `curl`? Try `curl -v -X POST https://kolideserver:port/api/v1/osquery/enroll`.
 
 ## What do I do about "too many open files" errors?
