@@ -3,7 +3,7 @@
 Shows all USB devices that are actively plugged into the host system.
 
 ### Support
-macOS
+macOS, Linux
 
 ### Query
 ```sql
