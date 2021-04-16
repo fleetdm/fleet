@@ -71,6 +71,8 @@ describe("Settings flow", () => {
 
     cy.findByText(/settings updated/i).should("exist");
 
+    cy.visit("/settings/organization");
+
     cy.findByLabelText(/organization name/i).should("have.value", "TJ's Run");
 
     cy.findByLabelText(/organization avatar url/i).should(
