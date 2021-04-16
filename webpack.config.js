@@ -61,7 +61,7 @@ var config = {
   devtool: process.env.NODE_ENV === "development" ? DEV_SOURCE_MAPS : false,
   plugins: plugins,
   optimization: {
-    minimize: process.env.NODE_ENV == "production",
+    minimize: process.env.NODE_ENV === "production",
   },
   module: {
     // The following noParse suppresses the warning about sqlite-parser being a
@@ -95,7 +95,7 @@ var config = {
             loader: MiniCssExtractPlugin.loader,
             options: {
               publicPath: "./",
-              hmr: process.env.NODE_ENV == "development",
+              hmr: process.env.NODE_ENV === "development",
             },
           },
           { loader: "css-loader" },
@@ -116,7 +116,7 @@ var config = {
           {
             loader: MiniCssExtractPlugin.loader,
             options: {
-              hmr: process.env.NODE_ENV == "development",
+              hmr: process.env.NODE_ENV === "development",
             },
           },
           "css-loader",
@@ -126,7 +126,7 @@ var config = {
       {
         test: /\.jsx?$/,
         include: path.join(repo, "frontend"),
-        use: ["babel-loader"],
+        use: { loader: "babel-loader", options: { cacheDirectory: true } },
       },
     ],
   },
