@@ -71,38 +71,49 @@ describe("Settings flow", () => {
 
     cy.findByText(/settings updated/i).should("exist");
 
-    // // Now check
-    // UNFINISHED
+    cy.findByLabelText(/organization name/i).should("have.value", "TJ's Run");
 
-    // cy.findByLabelText(/organization name/i)
-    //   .click()
-    //   .type("{selectall}{backspace}TJ's Run");
+    cy.findByLabelText(/organization avatar url/i).should(
+      "have.value",
+      "http://tjsrun.com/img/logo.png"
+    );
 
-    // cy.findByLabelText(/organization avatar url/i)
-    //   .click()
-    //   .type("http://tjsrun.com/img/logo.png");
+    cy.findByLabelText(/fleet app url/i).should(
+      "have.value",
+      "https://localhost:5000"
+    );
 
-    // cy.findByLabelText(/fleet app url/i)
-    //   .click()
-    //   .type("{selectall}{backspace}https://localhost:5000");
+    cy.findByLabelText(/identity provider name/i).should(
+      "have.value",
+      "Rachel"
+    );
 
-    // cy.findByLabelText(/entity id/i).should("have.value", /my entity id/i);
+    cy.findByLabelText(/entity id/i).should("have.value", "my entity id");
 
-    // cy.findByLabelText(/issuer uri/i).should("have.value", /my issuer uri/i);
+    cy.findByLabelText(/issuer uri/i).should("have.value", "my issuer uri");
 
-    // cy.findByLabelText(/idp image url/i).should(
-    //   "have.value",
-    //   "https://http.cat/100"
-    // );
+    cy.findByLabelText(/idp image url/i).should(
+      "have.value",
+      "https://http.cat/100"
+    );
 
-    // cy.findByLabelText(/metadata url/i).should(
-    //   "have.value",
-    //   "http://github.com/fleetdm/fleet"
-    // );
+    cy.findByLabelText(/metadata url/i).should(
+      "have.value",
+      "http://github.com/fleetdm/fleet"
+    );
 
-    // cy.findByLabelText(/identity provider name/i).should(
-    //   "have.value",
-    //   /rachel/
-    // );
+    cy.findByLabelText(/sender address/i).should(
+      "have.value",
+      "rachel@fleetdm.com"
+    );
+
+    cy.findByLabelText(/smtp server/i).should("have.value", "localhost");
+
+    cy.get("#port").should("have.value", "1025");
+
+    cy.findByLabelText(/smtp username/i).should(
+      "have.value",
+      "rachelsusername"
+    );
   });
 });
