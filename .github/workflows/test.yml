@@ -115,9 +115,9 @@ jobs:
       run: |
         make lint-js
 
-      - name: Run prettier formatting check
-        run: |
-          yarn prettier:check
+    - name: Run prettier formatting check
+      run: |
+        yarn prettier:check
 
   test-go:
     strategy:
