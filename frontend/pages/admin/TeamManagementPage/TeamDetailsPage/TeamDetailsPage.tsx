@@ -69,6 +69,7 @@ const TeamDetailsPage = (props: ITeamDetailsPageProps): JSX.Element => {
     params: { team_id },
   } = props;
 
+  // TODO: remove team item.
   const team: ITeam = {
     name: "Test Team",
     id: 1,
@@ -107,7 +108,7 @@ const TeamDetailsPage = (props: ITeamDetailsPageProps): JSX.Element => {
       })
       .catch(() => null);
     toggleDeleteTeamModal();
-  }, [dispatch, toggleDeleteTeamModal]);
+  }, [dispatch, toggleDeleteTeamModal, team.id]);
 
   const onEditSubmit = useCallback(
     (formData: IEditTeamFormData) => {
@@ -125,7 +126,7 @@ const TeamDetailsPage = (props: ITeamDetailsPageProps): JSX.Element => {
         .catch(() => null);
       toggleEditTeamModal();
     },
-    [dispatch, toggleEditTeamModal]
+    [dispatch, toggleEditTeamModal, team]
   );
 
   return (

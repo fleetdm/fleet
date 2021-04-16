@@ -1,11 +1,9 @@
 import React from "react";
-
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
+import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
+import { IUser } from "interfaces/user";
 import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import PATHS from "router/paths";
 
 interface IHeaderProps {
   column: {
@@ -19,7 +17,7 @@ interface ICellProps {
     value: any;
   };
   row: {
-    original: ITeam;
+    original: IUser;
   };
 }
 
@@ -32,14 +30,18 @@ interface IDataColumn {
   disableSortBy?: boolean;
 }
 
-interface ITeamTableData extends ITeam {
+interface IMembersTableData {
+  name: string;
+  email: string;
+  role: string;
   actions: IDropdownOption[];
+  id: number;
 }
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (
-  actionSelectHandler: (value: string, team: ITeam) => void
+  actionSelectHandler: (value: string, user: IUser) => void
 ): IDataColumn[] => {
   return [
     {
@@ -47,26 +49,20 @@ const generateTableHeaders = (
       Header: "Name",
       disableSortBy: true,
       accessor: "name",
-      Cell: (cellProps) => (
-        <LinkCell
-          value={cellProps.cell.value}
-          path={PATHS.TEAM_DETAILS(cellProps.row.original.id)}
-        />
-      ),
-    },
-    // TODO: need to add this info to API
-    {
-      title: "Hosts",
-      Header: "Hosts",
-      disableSortBy: true,
-      accessor: "hosts",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
-      title: "Members",
-      Header: "Members",
+      title: "Email",
+      Header: "Email",
       disableSortBy: true,
-      accessor: "members",
+      accessor: "email",
+      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+    },
+    {
+      title: "Role",
+      Header: "role",
+      disableSortBy: true,
+      accessor: "role",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
@@ -87,8 +83,7 @@ const generateTableHeaders = (
   ];
 };
 
-// NOTE: may need current user ID later for permission on actions.
-const generateActionDropdownOptions = (): IDropdownOption[] => {
+const generateActionDropdownOptions = (id: number): IDropdownOption[] => {
   return [
     {
       label: "Edit",
@@ -96,27 +91,49 @@ const generateActionDropdownOptions = (): IDropdownOption[] => {
       value: "edit",
     },
     {
-      label: "Delete",
+      label: "Remove",
       disabled: false,
-      value: "delete",
+      value: "remove",
     },
   ];
 };
+const generateRole = (teams: ITeam[], globalRole: string | null): string => {
+  if (globalRole === null) {
+    if (teams.length === 0) {
+      // no global role and no teams
+      return "Unassigned";
+    } else if (teams.length === 1) {
+      // no global role and only one team
+      return teams[0].role as string;
+    }
+    return "Various"; // no global role and multiple teams
+  }
 
-const enhanceTeamData = (teams: { [id: number]: ITeam }): ITeamTableData[] => {
-  return Object.values(teams).map((team) => {
+  if (teams.length === 0) {
+    // global role and no teams
+    return globalRole;
+  }
+  return "Various"; // global role and one or more teams
+};
+
+const enhanceMembersData = (users: {
+  [id: number]: IUser;
+}): IMembersTableData[] => {
+  return Object.values(users).map((user) => {
     return {
-      name: team.name,
-      hosts: team.hosts,
-      members: team.members,
-      actions: generateActionDropdownOptions(),
-      id: team.id,
+      name: user.name,
+      email: user.email,
+      role: generateRole(user.teams, user.global_role),
+      actions: generateActionDropdownOptions(user.id),
+      id: user.id,
     };
   });
 };
 
-const generateDataSet = (teams: { [id: number]: ITeam }): ITeamTableData[] => {
-  return [...enhanceTeamData(teams)];
+const generateDataSet = (users: {
+  [id: number]: IUser;
+}): IMembersTableData[] => {
+  return [...enhanceMembersData(users)];
 };
 
 export { generateTableHeaders, generateDataSet };

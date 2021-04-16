@@ -25,7 +25,8 @@ export default (client: any) => {
       const { TEAMS } = endpoints;
       const endpoint = client._endpoint(`${TEAMS}/${teamId}`);
 
-      return client.authenticatedGet(endpoint)
+      return client
+        .authenticatedGet(endpoint)
         .then((response: any) => response.team);
     },
     loadAll: (page = 0, perPage = 100, globalFilter = "") => {
