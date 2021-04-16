@@ -1,0 +1,16 @@
+# Get Installed Applications
+
+OS X applications installed in known search paths (e.g., /Applications).
+
+### Support
+macOS
+
+### Query
+```sql
+SELECT * FROM apps;
+```
+### Purpose
+Informational
+
+### Remediation
+N/A
