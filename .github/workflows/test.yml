@@ -15,6 +15,7 @@ jobs:
       uses: actions/checkout@v2
 
     - name: JS Dependency Cache
+      id: cache
       uses: actions/cache@v2
       with:
         path: |
@@ -27,6 +28,7 @@ jobs:
     # It seems faster not to cache Go dependencies
 
     - name: Install JS Dependencies
+      if: steps.cache.outputs.cache-hit != 'true'
       run: make deps-js
 
     - name: Install Go Dependencies
@@ -63,6 +65,7 @@ jobs:
       uses: actions/checkout@v2
 
     - name: JS Dependency Cache
+      id: cache
       uses: actions/cache@v2
       with:
         path: |
@@ -73,6 +76,7 @@ jobs:
           ${{ runner.os }}-modules-
 
     - name: Install JS Dependencies
+      if: steps.cache.outputs.cache-hit != 'true'
       run: make deps-js
 
     - name: Run JS Tests
@@ -91,6 +95,7 @@ jobs:
       uses: actions/checkout@v2
 
     - name: JS Dependency Cache
+      id: cache
       uses: actions/cache@v2
       with:
         path: |
@@ -101,6 +106,7 @@ jobs:
           ${{ runner.os }}-modules-
 
     - name: Install JS Dependencies
+      if: steps.cache.outputs.cache-hit != 'true'
       run: make deps-js
 
     - name: Run JS Linting
