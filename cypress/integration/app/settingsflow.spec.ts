@@ -66,6 +66,16 @@ describe("Settings flow", () => {
       .click()
       .type("rachelspassword");
 
+    cy.get("#advancedoptions").click();
+
+    cy.findByLabelText(/domain/i)
+      .click()
+      .type("http://www.fleetdm.com");
+
+    cy.findByLabelText(/verify ssl certs/i)
+      .findByRole("button")
+      .click();
+
     // Update settings
     cy.findByRole("button", { name: /update settings/i }).click();
 
