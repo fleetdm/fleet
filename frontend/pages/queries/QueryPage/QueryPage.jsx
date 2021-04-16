@@ -215,7 +215,7 @@ export class QueryPage extends Component {
         return result;
       });
       const formattedTime = moment(new Date()).format("MM-DD-YY hh-mm-ss");
-      const filename = `${this.csvQueryName} (${formattedTime}).csv`;
+      const filename = `${this.csvQueryName} Errors (${formattedTime}).csv`;
       const file = new global.window.File([csv], filename, {
         type: "text/csv",
       });
