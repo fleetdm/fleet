@@ -20,7 +20,6 @@ class QueryResultsTable extends Component {
     onExportQueryResults: PropTypes.func,
     onExportErrorsResults: PropTypes.func,
     onToggleQueryFullScreen: PropTypes.func,
-    onToggleErrorsFullScreen: PropTypes.func,
     isQueryFullScreen: PropTypes.bool,
     isQueryShrinking: PropTypes.bool,
     onRunQuery: PropTypes.func.isRequired,
@@ -154,7 +153,6 @@ class QueryResultsTable extends Component {
       isQueryFullScreen,
       isQueryShrinking,
       onToggleQueryFullScreen,
-      onToggleErrorsFullScreen,
       onRunQuery,
       onStopQuery,
       queryIsRunning,
@@ -199,23 +197,25 @@ class QueryResultsTable extends Component {
               queryTimerMilliseconds={queryTimerMilliseconds}
             />
           )}
-          { !hasNoResults && (
-          <>
-          <Button
-            className={toggleFullScreenBtnClass}
-            onClick={onToggleQueryFullScreen}
-            variant="grey"
-          >
-            <KolideIcon name={isQueryFullScreen ? "windowed" : "fullscreen"} />
-          </Button>
-          <Button
-            className={`${baseClass}__export-btn`}
-            onClick={onExportQueryResults}
-            variant="inverse"
-          >
-            Export results
-          </Button>
-          </>
+          {!hasNoResults && (
+            <>
+              <Button
+                className={toggleFullScreenBtnClass}
+                onClick={onToggleQueryFullScreen}
+                variant="grey"
+              >
+                <KolideIcon
+                  name={isQueryFullScreen ? "windowed" : "fullscreen"}
+                />
+              </Button>
+              <Button
+                className={`${baseClass}__export-btn`}
+                onClick={onExportQueryResults}
+                variant="inverse"
+              >
+                Export results
+              </Button>
+            </>
           )}
         </header>
         <span className={`${baseClass}__table-title`}>Results</span>
@@ -232,30 +232,23 @@ class QueryResultsTable extends Component {
         </div>
         {hasErrors && (
           <>
-          <div className={`${baseClass}__error-table-container`}>
-          <header className={`${baseClass}__button-wrap`}>
-            <div>
-              <Button
-                className={toggleFullScreenBtnClass}
-                onClick={onToggleErrorsFullScreen}
-                variant="grey"
-              >
-                <KolideIcon name={isQueryFullScreen ? "windowed" : "fullscreen"} />
-              </Button>
-              <Button
-                className={`${baseClass}__export-btn`}
-                onClick={onExportErrorsResults}
-                variant="inverse"
-              >
-                Export errors
-              </Button>
+            <div className={`${baseClass}__error-table-container`}>
+              <header className={`${baseClass}__button-wrap`}>
+                <div>
+                  <Button
+                    className={`${baseClass}__export-btn`}
+                    onClick={onExportErrorsResults}
+                    variant="inverse"
+                  >
+                    Export errors
+                  </Button>
+                </div>
+              </header>
+              <span className={`${baseClass}__table-title`}>Errors</span>
+              <div className={`${baseClass}__error-table-wrapper`}>
+                {renderErrorsTable()}
+              </div>
             </div>
-            </header>
-            <span className={`${baseClass}__table-title`}>Errors</span>
-            <div className={`${baseClass}__error-table-wrapper`}>
-              {renderErrorsTable()}
-            </div>
-          </div>
           </>
         )}
       </div>
