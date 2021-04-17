@@ -22,7 +22,7 @@ type BadgerDB struct {
 	closeChan chan struct{}
 }
 
-// Open opens (initializing if necessary) a Badger database at the specified
+// Open opens (initializing if necessary) a new Badger database at the specified
 // path. Users must close the DB with Close().
 func Open(path string) (*BadgerDB, error) {
 	// DefaultOptions sets synchronous writes to true (maximum data integrity).
@@ -30,26 +30,6 @@ func Open(path string) (*BadgerDB, error) {
 	db, err := badger.Open(badger.DefaultOptions(path).WithLogger(nil))
 	if err != nil {
 		return nil, errors.Wrapf(err, "open badger %s", path)
-	}
-
-	b := &BadgerDB{DB: db}
-	b.startBackgroundCompaction()
-
-	return b, nil
-}
-
-// OpenTruncate opens (initializing and/or truncating if necessary) a Badger
-// database at the specified path. Users must close the DB with Close().
-//
-// Prefer Open in the general case, but after a bad shutdown it may be necessary
-// to call OpenTruncate. This may cause data loss. Detect this situation by
-// looking for badger.ErrTruncateNeeded.
-func OpenTruncate(path string) (*BadgerDB, error) {
-	// DefaultOptions sets synchronous writes to true (maximum data integrity).
-	// TODO implement logging?
-	db, err := badger.Open(badger.DefaultOptions(path).WithLogger(nil).WithTruncate(true))
-	if err != nil {
-		return nil, errors.Wrapf(err, "open badger with truncate %s", path)
 	}
 
 	b := &BadgerDB{DB: db}

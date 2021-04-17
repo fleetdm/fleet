@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dgraph-io/badger/v2"
 	"github.com/fleetdm/orbit/pkg/certificate"
 	"github.com/fleetdm/orbit/pkg/constant"
 	"github.com/fleetdm/orbit/pkg/database"
@@ -27,6 +26,7 @@ import (
 )
 
 const (
+	certPath       = "/tmp/fleet.pem"
 	defaultRootDir = "/var/lib/orbit"
 )
 
@@ -143,18 +143,9 @@ func main() {
 			return errors.Wrap(err, "initialize root dir")
 		}
 
-		dbPath := filepath.Join(c.String("root-dir"), "orbit.db")
-		db, err := database.Open(dbPath)
+		db, err := database.Open(filepath.Join(c.String("root-dir"), "orbit.db"))
 		if err != nil {
-			if errors.Is(err, badger.ErrTruncateNeeded) {
-				db, err = database.OpenTruncate(dbPath)
-				if err != nil {
-					return err
-				}
-				log.Warn().Msg("Open badger required truncate. Possible data loss.")
-			} else {
-				return err
-			}
+			return err
 		}
 		defer func() {
 			if err := db.Close(); err != nil {
@@ -238,8 +229,7 @@ func main() {
 			)
 
 			// Write cert that proxy uses
-			certPath := filepath.Join(opt.RootDirectory, "insecure-cert.pem")
-			err = ioutil.WriteFile(filepath.Join(opt.RootDirectory, "insecure-cert.pem"), []byte(insecure.ServerCert), os.ModePerm)
+			err = ioutil.WriteFile(certPath, []byte(insecure.ServerCert), os.ModePerm)
 			if err != nil {
 				return errors.Wrap(err, "write server cert")
 			}

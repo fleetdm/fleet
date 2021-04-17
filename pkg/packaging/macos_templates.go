@@ -71,7 +71,7 @@ var macosLaunchdTemplate = template.Must(template.New("").Option("missingkey=err
       {{ if .Insecure }}<key>ORBIT_INSECURE</key><string>true</string>{{ end }}
       {{ if .FleetURL }}<key>ORBIT_FLEET_URL</key><string>{{ .FleetURL }}</string>{{ end }}
       {{ if .FleetCertificate }}<key>ORBIT_FLEET_CERTIFICATE</key><string>/var/lib/orbit/fleet.pem</string>{{ end }}
-      {{ if .EnrollSecret }}<key>ORBIT_ENROLL_SECRET_PATH</key><string>/var/lib/orbit/secret.txt</string>{{ end }}
+      {{ if .EnrollSecret }}<key>ORBIT_ENROLL_SECRET_PATH</key><string>/var/lib/orbit/secret</string>{{ end }}
       {{ if .Debug }}<key>ORBIT_DEBUG</key><string>true</string>{{ end }}
     </dict>
     <key>KeepAlive</key><true/>
