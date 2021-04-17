@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/fleetdm/orbit/pkg/constant"
+	"github.com/fleetdm/orbit/pkg/platform"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/theupdateframework/go-tuf/client"
@@ -52,21 +53,6 @@ type Options struct {
 	// OsquerydChannel is the update channel to use for osquery (osqueryd).
 	OsquerydChannel string
 }
-
-var (
-	// DefaultOptions are the default options to use when creating an update
-	// client.
-	DefaultOptions = Options{
-		RootDirectory:     "/var/lib/orbit",
-		ServerURL:         defaultURL,
-		RootKeys:          defaultRootKeys,
-		LocalStore:        client.MemoryLocalStore(),
-		InsecureTransport: false,
-		Platform:          constant.PlatformName,
-		OrbitChannel:      "stable",
-		OsquerydChannel:   "stable",
-	}
-)
 
 // New creates a new updater given the provided options. All the necessary
 // directories are initialized.
@@ -196,12 +182,19 @@ func (u *Updater) Download(repoPath, localPath string) error {
 		return errors.Wrap(err, "initialize download dir")
 	}
 
+	// Additional chmod only necessary on Windows, effectively a no-op on other
+	// platforms.
+	if err := platform.ChmodExecutableDirectory(filepath.Dir(localPath)); err != nil {
+		return err
+	}
+
 	// The go-tuf client handles checking of max size and hash.
 	if err := u.client.Download(repoPath, &fileDestination{tmp}); err != nil {
 		return errors.Wrapf(err, "download target %s", repoPath)
 	}
+	tmp.Close()
 
-	if err := os.Chmod(tmp.Name(), constant.DefaultExecutableMode); err != nil {
+	if err := platform.ChmodExecutable(tmp.Name()); err != nil {
 		return errors.Wrap(err, "chmod download")
 	}
 

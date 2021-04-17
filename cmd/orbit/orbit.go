@@ -26,8 +26,7 @@ import (
 )
 
 const (
-	certPath       = "/tmp/fleet.pem"
-	defaultRootDir = "/var/lib/orbit"
+	certPath = "/tmp/fleet.pem"
 )
 
 var (
@@ -54,7 +53,7 @@ func main() {
 		&cli.StringFlag{
 			Name:    "root-dir",
 			Usage:   "Root directory for Orbit state",
-			Value:   defaultRootDir,
+			Value:   update.DefaultOptions.RootDirectory,
 			EnvVars: []string{"ORBIT_ROOT_DIR"},
 		},
 		&cli.BoolFlag{
@@ -227,6 +226,8 @@ func main() {
 					}
 				},
 			)
+
+			certPath := filepath.Join(os.TempDir(), "fleet.crt")
 
 			// Write cert that proxy uses
 			err = ioutil.WriteFile(certPath, []byte(insecure.ServerCert), os.ModePerm)
