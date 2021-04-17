@@ -3,9 +3,11 @@ package packaging
 
 import (
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 
+	"github.com/fleetdm/orbit/pkg/constant"
 	"github.com/fleetdm/orbit/pkg/update"
 	"github.com/fleetdm/orbit/pkg/update/filestore"
 	"github.com/pkg/errors"
@@ -95,6 +97,20 @@ func initializeUpdates(updateOpt update.Options) error {
 		return errors.Wrap(err, "failed to get orbit")
 	}
 	log.Debug().Str("path", orbitPath).Msg("got orbit")
+
+	return nil
+}
+
+// writeSecret writes the enroll secret to a text file
+func writeSecret(opt Options, orbitRoot string) error {
+	path := filepath.Join(orbitRoot, "secret.txt")
+	if err := os.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
+		return errors.Wrap(err, "mkdir")
+	}
+
+	if err := ioutil.WriteFile(path, []byte(opt.EnrollSecret), 0600); err != nil {
+		return errors.Wrap(err, "write file")
+	}
 
 	return nil
 }

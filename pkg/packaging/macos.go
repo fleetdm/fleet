@@ -156,20 +156,6 @@ func writeScripts(opt Options, rootPath string) error {
 	return nil
 }
 
-func writeSecret(opt Options, orbitRoot string) error {
-	// Enroll secret
-	path := filepath.Join(orbitRoot, "secret")
-	if err := os.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
-		return errors.Wrap(err, "mkdir")
-	}
-
-	if err := ioutil.WriteFile(path, []byte(opt.EnrollSecret), 0600); err != nil {
-		return errors.Wrap(err, "write file")
-	}
-
-	return nil
-}
-
 func writeLaunchd(opt Options, rootPath string) error {
 	// launchd is the service mechanism on macOS
 	path := filepath.Join(rootPath, "Library", "LaunchDaemons", "com.fleetdm.orbit.plist")
