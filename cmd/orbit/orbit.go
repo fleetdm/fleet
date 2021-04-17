@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -25,10 +26,6 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-const (
-	certPath = "/tmp/fleet.pem"
-)
-
 var (
 	// Flags set by goreleaser during build
 	version = ""
@@ -37,11 +34,6 @@ var (
 )
 
 func main() {
-	log.Logger = log.Output(
-		zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano},
-	)
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-
 	app := cli.NewApp()
 	app.Name = "Orbit osquery"
 	app.Usage = "A powered-up, (near) drop-in replacement for osquery"
@@ -108,12 +100,29 @@ func main() {
 			Name:  "version",
 			Usage: "Get Orbit version",
 		},
+		&cli.StringFlag{
+			Name:  "log-file",
+			Usage: "Log to this file path in addition to stderr",
+		},
 	}
 	app.Action = func(c *cli.Context) error {
 		if c.Bool("version") {
 			fmt.Println("orbit " + version)
 			return nil
 		}
+
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true})
+		if logfile := c.String("log-file"); logfile != "" {
+			f, err := os.OpenFile(logfile, os.O_CREATE|os.O_APPEND, 0o600)
+			if err != nil {
+				return errors.Wrap(err, "open logfile")
+			}
+			log.Logger = log.Output(zerolog.MultiLevelWriter(
+				zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true},
+				zerolog.ConsoleWriter{Out: f, TimeFormat: time.RFC3339Nano, NoColor: true},
+			))
+		}
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
 		if c.Bool("debug") {
 			zerolog.SetGlobalLevel(zerolog.DebugLevel)
@@ -173,6 +182,24 @@ func main() {
 		osquerydPath, err := updater.Get("osqueryd", c.String("osqueryd-channel"))
 		if err != nil {
 			return err
+		}
+
+		// Clear leftover files from updates
+		if err := filepath.Walk(c.String("root-dir"), func(path string, info fs.FileInfo, err error) error {
+			// Ignore anything not containing .old extension
+			if !strings.HasSuffix(path, ".old") {
+				return nil
+			}
+
+			if err := os.RemoveAll(path); err != nil {
+				log.Info().Err(err).Msg("failed to remove .old")
+				return nil
+			}
+			log.Debug().Str("path", path).Msg("cleaned up old")
+
+			return nil
+		}); err != nil {
+			return errors.Wrap(err, "cleanup old files")
 		}
 
 		var g run.Group

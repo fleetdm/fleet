@@ -24,6 +24,7 @@ func CheckFileHash(meta *data.TargetFileMeta, localPath string) error {
 	if err != nil {
 		return errors.Wrap(err, "open file for hash")
 	}
+	defer f.Close()
 
 	if _, err := io.Copy(hashFunc, f); err != nil {
 		return errors.Wrap(err, "read file for hash")

@@ -130,20 +130,19 @@ func (r *Runner) updateTarget(target, channel string) error {
 		return errors.Wrap(err, "get binary")
 	}
 
-	// Replace file/link
-	currentPath := r.client.LocalPath(target, "current")
-	if err := os.Remove(currentPath); err != nil && !os.IsNotExist(err) {
-		return errors.Wrap(err, "remove old current")
+	if target != "orbit" {
+		return nil
 	}
 
-	if err := os.MkdirAll(filepath.Dir(currentPath), 0755); err != nil {
-		return errors.Wrap(err, "mkdir for symlink")
+	// Symlink Orbit binary
+	linkPath := filepath.Join(r.client.opt.RootDirectory, "bin", "orbit", filepath.Base(path))
+	// Rename the old file otherwise overwrite fails
+	if err := os.Rename(linkPath, linkPath+".old"); err != nil {
+		return errors.Wrap(err, "move old symlink current")
 	}
-	if err := os.Symlink(path, currentPath); err != nil {
+	if err := os.Symlink(path, linkPath); err != nil {
 		return errors.Wrap(err, "symlink current")
 	}
-
-	// TODO signal a restart?
 
 	return nil
 }

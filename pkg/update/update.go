@@ -4,11 +4,12 @@ package update
 import (
 	"crypto/tls"
 	"encoding/json"
-	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 
 	"github.com/fleetdm/orbit/pkg/constant"
 	"github.com/fleetdm/orbit/pkg/platform"
@@ -19,7 +20,8 @@ import (
 )
 
 const (
-	binDir = "bin"
+	binDir     = "bin"
+	stagingDir = "staging"
 
 	defaultURL      = "https://tuf.fleetctl.com"
 	defaultRootKeys = `[{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"6d71d3beac3b830be929f2b10d513448d49ec6bb62a680176b89ffdfca180eb4"}}]`
@@ -157,7 +159,7 @@ func (u *Updater) Get(target, channel string) (string, error) {
 	}
 
 	if err := CheckFileHash(meta, localPath); err != nil {
-		log.Debug().Err(err).Msg("will redownload")
+		log.Debug().Str("info", err.Error()).Msg("change detected")
 		return localPath, u.Download(repoPath, localPath)
 	}
 
@@ -169,7 +171,23 @@ func (u *Updater) Get(target, channel string) (string, error) {
 // Download downloads the target to the provided path. The file is deleted and
 // an error is returned if the hash does not match.
 func (u *Updater) Download(repoPath, localPath string) error {
-	tmp, err := ioutil.TempFile("", "orbit-download")
+	staging := filepath.Join(u.opt.RootDirectory, stagingDir)
+
+	if err := os.MkdirAll(staging, constant.DefaultDirMode); err != nil {
+		return errors.Wrap(err, "initialize download dir")
+	}
+
+	// Additional chmod only necessary on Windows, effectively a no-op on other
+	// platforms.
+	if err := platform.ChmodExecutableDirectory(staging); err != nil {
+		return err
+	}
+
+	tmp, err := os.OpenFile(
+		filepath.Join(staging, filepath.Base(localPath)),
+		os.O_CREATE|os.O_WRONLY,
+		constant.DefaultExecutableMode,
+	)
 	if err != nil {
 		return errors.Wrap(err, "open temp file for download")
 	}
@@ -177,6 +195,9 @@ func (u *Updater) Download(repoPath, localPath string) error {
 		tmp.Close()
 		os.Remove(tmp.Name())
 	}()
+	if err := platform.ChmodExecutable(tmp.Name()); err != nil {
+		return errors.Wrap(err, "chmod download")
+	}
 
 	if err := os.MkdirAll(filepath.Dir(localPath), constant.DefaultDirMode); err != nil {
 		return errors.Wrap(err, "initialize download dir")
@@ -192,10 +213,23 @@ func (u *Updater) Download(repoPath, localPath string) error {
 	if err := u.client.Download(repoPath, &fileDestination{tmp}); err != nil {
 		return errors.Wrapf(err, "download target %s", repoPath)
 	}
-	tmp.Close()
+	if err := tmp.Close(); err != nil {
+		return errors.Wrap(err, "close tmp file")
+	}
 
-	if err := platform.ChmodExecutable(tmp.Name()); err != nil {
-		return errors.Wrap(err, "chmod download")
+	if runtime.GOOS == constant.PlatformName {
+		out, err := exec.Command(tmp.Name(), "--version").CombinedOutput()
+		if err != nil {
+
+			return errors.Wrapf(err, "exec new version: %s", string(out))
+		}
+	}
+
+	if runtime.GOOS == "windows" {
+		// Remove old file first
+		if err := os.Rename(localPath, localPath+".old"); err != nil && !os.IsNotExist(err) {
+			return errors.Wrap(err, "rename old")
+		}
 	}
 
 	if err := os.Rename(tmp.Name(), localPath); err != nil {

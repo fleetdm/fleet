@@ -35,7 +35,7 @@ To report a bug or request a feature, [click here](https://github.com/fleetdm/fl
 | Package tooling for macOS `.pkg`     | ✅     |
 | Package tooling for Linux `.deb`     | ✅     |
 | Package tooling for Linux `.rpm`     | ✅     |
-| Package tooling for Windows `.msi`   | 🔜     |
+| Package tooling for Windows `.msi`   | ✅     |
 | Manage/update osquery extensions     | 🔜     |
 | Manage cgroups for Linux performance | 🔜     |
 
@@ -103,7 +103,7 @@ Orbit, like standalone osquery, is typically deployed via OS-specific packages. 
 
 - **Linux** - `.deb` (Debian, Ubuntu, etc.) & `.rpm` (RHEL, CentOS, etc.) package generation - Persistence via `systemd`.
 
-- **Windows** (coming soon) - `.msi` package generation - Persistence via Services.
+- **Windows** - `.msi` package generation - Persistence via Services.
 
 ### Building packages
 
@@ -158,6 +158,10 @@ AC_USERNAME=zach@fleetdm.com AC_PASSWORD=llpk-sije-kjlz-jdzw go run ./cmd/packag
 This process may take several minutes to complete as the Notarization process completes on Apple's servers.
 
 After successful notarization, the generated "ticket" is automatically stapled to the package. 
+
+#### Windows packaging
+
+Windows packaging utilizes Docker containers to run the WiX packaging tools. This should enable building Windows packages from any operating system that supports Docker. Please file an issue for any packaging-related issues.
 
 ## FAQs
 
