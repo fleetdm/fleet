@@ -200,32 +200,6 @@ export class QueryPage extends Component {
     return false;
   };
 
-  onExportErrorsResults = (evt) => {
-    evt.preventDefault();
-
-    const { campaign } = this.state;
-    const { errors } = campaign;
-
-    if (errors) {
-      const csv = convertToCSV(errors, (fields) => {
-        const result = filter(fields, (f) => f !== "host_hostname");
-
-        result.unshift("host_hostname");
-
-        return result;
-      });
-      const formattedTime = moment(new Date()).format("MM-DD-YY hh-mm-ss");
-      const filename = `${this.csvQueryName} Errors (${formattedTime}).csv`;
-      const file = new global.window.File([csv], filename, {
-        type: "text/csv",
-      });
-
-      FileSaver.saveAs(file);
-    }
-
-    return false;
-  };
-
   onFetchTargets = (query, targetResponse) => {
     const { dispatch } = this.props;
     const { targets_count: targetsCount } = targetResponse;
@@ -548,7 +522,6 @@ export class QueryPage extends Component {
     } = this.state;
     const {
       onExportQueryResults,
-      onExportErrorsResults,
       onToggleQueryFullScreen,
       onRunQuery,
       onStopQuery,
@@ -573,7 +546,6 @@ export class QueryPage extends Component {
         <QueryResultsTable
           campaign={campaign}
           onExportQueryResults={onExportQueryResults}
-          onExportErrorsResults={onExportErrorsResults}
           isQueryFullScreen={isQueryFullScreen}
           isQueryShrinking={isQueryShrinking}
           onToggleQueryFullScreen={onToggleQueryFullScreen}

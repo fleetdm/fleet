@@ -18,7 +18,6 @@ class QueryResultsTable extends Component {
   static propTypes = {
     campaign: campaignInterface.isRequired,
     onExportQueryResults: PropTypes.func,
-    onExportErrorsResults: PropTypes.func,
     onToggleQueryFullScreen: PropTypes.func,
     isQueryFullScreen: PropTypes.bool,
     isQueryShrinking: PropTypes.bool,
@@ -149,7 +148,6 @@ class QueryResultsTable extends Component {
     const {
       campaign,
       onExportQueryResults,
-      onExportErrorsResults,
       isQueryFullScreen,
       isQueryShrinking,
       onToggleQueryFullScreen,
@@ -202,11 +200,8 @@ class QueryResultsTable extends Component {
             onClick={onToggleQueryFullScreen}
             variant="grey"
           >
-            <KolideIcon
-              name={isQueryFullScreen ? "windowed" : "fullscreen"}
-            />
+            <KolideIcon name={isQueryFullScreen ? "windowed" : "fullscreen"} />
           </Button>
-          {!hasNoResults && !queryIsRunning && (
           <Button
             className={`${baseClass}__export-btn`}
             onClick={onExportQueryResults}
@@ -214,7 +209,6 @@ class QueryResultsTable extends Component {
           >
             Export results
           </Button>
-         )}
         </header>
         <span className={`${baseClass}__table-title`}>Results</span>
         <div className={`${baseClass}__results-table-wrapper`}>
@@ -229,25 +223,12 @@ class QueryResultsTable extends Component {
           {!hasNoResults && renderTable()}
         </div>
         {hasErrors && (
-          <>
-            <div className={`${baseClass}__error-table-container`}>
-              <header className={`${baseClass}__button-wrap`}>
-                <div>
-                  <Button
-                    className={`${baseClass}__export-btn`}
-                    onClick={onExportErrorsResults}
-                    variant="inverse"
-                  >
-                    Export errors
-                  </Button>
-                </div>
-              </header>
-              <span className={`${baseClass}__table-title`}>Errors</span>
-              <div className={`${baseClass}__error-table-wrapper`}>
-                {renderErrorsTable()}
-              </div>
+          <div className={`${baseClass}__error-table-container`}>
+            <span className={`${baseClass}__table-title`}>Errors</span>
+            <div className={`${baseClass}__error-table-wrapper`}>
+              {renderErrorsTable()}
             </div>
-          </>
+          </div>
         )}
       </div>
     );
