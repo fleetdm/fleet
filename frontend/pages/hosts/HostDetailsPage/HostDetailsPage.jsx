@@ -45,6 +45,7 @@ export class HostDetailsPage extends Component {
 
     this.state = {
       showDeleteHostModal: false,
+      showQueryHostModal: false,
     };
   }
 
@@ -144,8 +145,62 @@ export class HostDetailsPage extends Component {
     );
   };
 
+  toggleQueryHostModal = () => {
+    return () => {
+      const { showQueryHostModal } = this.state;
+
+      this.setState({
+        showQueryHostModal: !showQueryHostModal,
+      });
+
+      return false;
+    };
+  };
+
+  renderQueryHostModal = () => {
+    const { showQueryHostModal } = this.state;
+    const { host } = this.props;
+    const { toggleQueryHostModal } = this;
+
+    if (!showQueryHostModal) {
+      return false;
+    }
+
+    const savedQueryCount = 0;
+
+    const results = () => {
+      if (savedQueryCount === 0) {
+        return (
+          <div className="__no-results">
+            <p>You have no saved queries.</p>
+            <p>
+              Expecting to see queries? Try again in a few seconds as the system
+              catches up.
+            </p>
+          </div>
+        );
+      }
+    };
+
+    return (
+      <Modal
+        title="Select a query"
+        onExit={toggleQueryHostModal(null)}
+        className={`${baseClass}__modal`}
+      >
+        <div>
+          <p>Search</p>
+          {results()}
+          <p>
+            <a href="/queries/manage">Custom query</a>
+          </p>
+        </div>
+      </Modal>
+    );
+  };
+
   renderActionButtons = () => {
-    const { toggleDeleteHostModal, onQueryHost } = this;
+    const { toggleDeleteHostModal, toggleQueryHostModal, onQueryHost } = this;
     const { host } = this.props;
 
     const isOnline = host.status === "online";
@@ -155,7 +210,7 @@ export class HostDetailsPage extends Component {
       <div className={`${baseClass}__action-button-container`}>
         <div data-tip data-for="query" data-tip-disable={isOnline}>
           <Button
-            onClick={() => onQueryHost(host)}
+            onClick={toggleQueryHostModal()}
             variant="inverse"
             disabled={isOffline}
             className={`${baseClass}__query-button`}
@@ -239,6 +294,7 @@ export class HostDetailsPage extends Component {
     const { host, isLoadingHost } = this.props;
     const {
       renderDeleteHostModal,
+      renderQueryHostModal,
       renderActionButtons,
       renderLabels,
       renderPacks,
@@ -382,6 +438,7 @@ export class HostDetailsPage extends Component {
         {renderLabels()}
         {renderPacks()}
         {renderDeleteHostModal()}
+        {renderQueryHostModal()}
       </div>
     );
   }
