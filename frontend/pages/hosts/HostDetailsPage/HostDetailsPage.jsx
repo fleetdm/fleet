@@ -66,9 +66,9 @@ export class HostDetailsPage extends Component {
 
   onQueryHost = (host, selectedQuery) => {
     const { dispatch } = this.props;
-    const { queryHost } = helpers;
+    const { queryHostModal } = helpers;
 
-    queryHost(dispatch, host, selectedQuery);
+    queryHostModal(dispatch, host, selectedQuery);
 
     return false;
   };
@@ -210,31 +210,30 @@ export class HostDetailsPage extends Component {
     }
 
     const results = () => {
-      if (queriesCount > 0) {
-        const queryList = queries.map((query) => {
-              <div>
-                <div>{query.name}</div>
-                <div>{query.description}</div>
-              </div>
-          );
-        });
+      // if (queriesCount > 0) {
+      //   const queryList = queries.map((query) => {
+      //       <div key={query.id}>
+      //         <span className="info__header">{query.name}</span>
+      //         <span className="info__data">{query.description}</span>
+      //       </div>
+      //   });
 
-        return <div>{queryList}</div>;
-      }
+      //   return <div>{queryList}</div>;
+      // }
 
       if (queriesCount === 0) {
         return (
           <div className="__no-results">
-            <p>You have no saved queries.</p>
-            <p>
+            <span className="info__header">You have no saved queries.</span>
+            <span className="info__data">
               Expecting to see queries? Try again in a few seconds as the system
               catches up.
-            </p>
+            </span>
           </div>
         );
-      }
-    };
+      };
 
+    console.log("Reached results, seeing this.")
     debugger;
 
     return (
