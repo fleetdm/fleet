@@ -64,11 +64,11 @@ export class HostDetailsPage extends Component {
     return false;
   }
 
-  onQueryHost = (host) => {
+  onQueryHost = (host, selectedQuery) => {
     const { dispatch } = this.props;
     const { queryHost } = helpers;
 
-    queryHost(dispatch, host);
+    queryHost(dispatch, host, selectedQuery);
 
     return false;
   };

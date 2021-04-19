@@ -17,10 +17,10 @@ export const destroyHost = (dispatch, host) => {
   });
 };
 
-export const queryHost = (dispatch, host) => {
+export const queryHost = (dispatch, host, selectedQuery) => {
   return dispatch(
     push({
-      pathname: PATHS.NEW_QUERY,
+      pathname: PATHS.EDIT_QUERY(selectedQuery),
       query: { host_ids: [host.id] },
     })
   );
