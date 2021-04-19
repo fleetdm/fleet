@@ -4,13 +4,17 @@ import { connect } from "react-redux";
 import classnames from "classnames";
 
 import ReactTooltip from "react-tooltip";
-import { noop, pick } from "lodash";
+import { noop, pick, filter, includes } from "lodash";
 
+import InputField from "components/forms/fields/InputField";
 import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
+import KolideIcon from "components/icons/KolideIcon";
 
 import entityGetter from "redux/utilities/entityGetter";
+import queryActions from "redux/nodes/entities/queries/actions";
+import queryInterface from "interfaces/query";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import { push } from "react-router-redux";
 import PATHS from "router/paths";
@@ -33,6 +37,7 @@ export class HostDetailsPage extends Component {
     hostID: PropTypes.string,
     dispatch: PropTypes.func,
     isLoadingHost: PropTypes.bool,
+    queries: PropTypes.arrayOf(queryInterface),
   };
 
   static defaultProps = {
@@ -46,6 +51,7 @@ export class HostDetailsPage extends Component {
     this.state = {
       showDeleteHostModal: false,
       showQueryHostModal: false,
+      queriesFilter: "",
     };
   }
 
@@ -157,19 +163,66 @@ export class HostDetailsPage extends Component {
     };
   };
 
+  onFilterQueries = (queriesFilter) => {
+    this.setState({ queriesFilter });
+
+    return false;
+  };
+
+  getQueries = () => {
+    const { queriesFilter } = this.state;
+    const { queries } = this.props;
+
+    if (!queriesFilter) {
+      return queries;
+    }
+
+    const lowerQueryFilter = queriesFilter.toLowerCase();
+
+    return filter(queries, (query) => {
+      if (!query.name) {
+        return false;
+      }
+
+      const lowerQueryName = query.name.toLowerCase();
+
+      return includes(lowerQueryName, lowerQueryFilter);
+    });
+  };
+
+  componentWillMount() {
+    const { dispatch } = this.props;
+
+    dispatch(queryActions.loadAll()).catch(() => false);
+
+    return false;
+  }
+
   renderQueryHostModal = () => {
-    const { showQueryHostModal } = this.state;
+    const { showQueryHostModal, queriesFilter } = this.state;
     const { host } = this.props;
-    const { toggleQueryHostModal } = this;
+    const { toggleQueryHostModal, getQueries, onFilterQueries } = this;
+    const queries = getQueries();
+    const queriesCount = queries.length;
 
     if (!showQueryHostModal) {
       return false;
     }
 
-    const savedQueryCount = 0;
-
     const results = () => {
-      if (savedQueryCount === 0) {
+      if (queriesCount > 0) {
+        const queryList = queries.map((query) => {
+              <div>
+                <div>{query.name}</div>
+                <div>{query.description}</div>
+              </div>
+          );
+        });
+
+        return <div>{queryList}</div>;
+      }
+
+      if (queriesCount === 0) {
         return (
           <div className="__no-results">
             <p>You have no saved queries.</p>
@@ -182,6 +235,8 @@ export class HostDetailsPage extends Component {
       }
     };
 
+    debugger;
+
     return (
       <Modal
         title="Select a query"
@@ -189,7 +244,15 @@ export class HostDetailsPage extends Component {
         className={`${baseClass}__modal`}
       >
         <div>
-          <p>Search</p>
+          <div className={`${baseClass}__filter-queries`}>
+            <InputField
+              name="query-filter"
+              onChange={onFilterQueries}
+              placeholder="Filter queries"
+              value={queriesFilter}
+            />
+            <KolideIcon name="search" />
+          </div>
           {results()}
           <p>
             <a href="/queries/manage">Custom query</a>
@@ -445,6 +508,8 @@ export class HostDetailsPage extends Component {
 }
 
 const mapStateToProps = (state, ownProps) => {
+  const queryEntities = entityGetter(state).get("queries");
+  const { entities: queries } = queryEntities;
   const { host_id: hostID } = ownProps.params;
   const host = entityGetter(state).get("hosts").findBy({ id: hostID });
   const { loading: isLoadingHost } = state.entities.hosts;
@@ -452,6 +517,7 @@ const mapStateToProps = (state, ownProps) => {
     host,
     hostID,
     isLoadingHost,
+    queries,
   };
 };
 
