@@ -205,21 +205,23 @@ export class HostDetailsPage extends Component {
     const queries = getQueries();
     const queriesCount = queries.length;
 
+    console.log("showqueryhostmodal", showQueryHostModal);
+
     if (!showQueryHostModal) {
       return false;
     }
 
     const results = () => {
-      // if (queriesCount > 0) {
-      //   const queryList = queries.map((query) => {
-      //       <div key={query.id}>
-      //         <span className="info__header">{query.name}</span>
-      //         <span className="info__data">{query.description}</span>
-      //       </div>
-      //   });
+      if (queriesCount > 0) {
+        const queryList = queries.map((query) => {
+          <div key={query.id}>
+            <span className="info__header">{query.name}</span>
+            <span className="info__data">{query.description}</span>
+          </div>;
+        });
 
-      //   return <div>{queryList}</div>;
-      // }
+        return <div>{queryList}</div>;
+      }
 
       if (queriesCount === 0) {
         return (
@@ -231,9 +233,10 @@ export class HostDetailsPage extends Component {
             </span>
           </div>
         );
-      };
+      }
+    };
 
-    console.log("Reached results, seeing this.")
+    console.log("Reached results, seeing this.");
     debugger;
 
     return (

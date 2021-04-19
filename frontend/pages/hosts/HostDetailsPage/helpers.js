@@ -20,7 +20,7 @@ export const destroyHost = (dispatch, host) => {
 export const queryHost = (dispatch, host) => {
   return dispatch(
     push({
-      pathname: PATHS.EDIT_QUERY,
+      pathname: PATHS.NEW_QUERY,
       query: { host_ids: [host.id] },
     })
   );
