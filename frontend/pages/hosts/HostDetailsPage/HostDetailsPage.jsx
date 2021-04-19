@@ -205,19 +205,21 @@ export class HostDetailsPage extends Component {
     const queries = getQueries();
     const queriesCount = queries.length;
 
-    console.log("showqueryhostmodal", showQueryHostModal);
-
     if (!showQueryHostModal) {
       return false;
     }
 
+    debugger;
+
     const results = () => {
       if (queriesCount > 0) {
         const queryList = queries.map((query) => {
-          <div key={query.id}>
-            <span className="info__header">{query.name}</span>
-            <span className="info__data">{query.description}</span>
-          </div>;
+          return (
+            <div key={query.id}>
+              <span className="info__header">{query.name}</span>
+              <span className="info__data">{query.description}</span>
+            </div>
+          );
         });
 
         return <div>{queryList}</div>;
@@ -235,9 +237,6 @@ export class HostDetailsPage extends Component {
         );
       }
     };
-
-    console.log("Reached results, seeing this.");
-    debugger;
 
     return (
       <Modal

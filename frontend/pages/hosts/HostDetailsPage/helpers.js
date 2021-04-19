@@ -1,5 +1,4 @@
 import { push } from "react-router-redux";
-debugger;
 import PATHS from "router/paths";
 import hostActions from "redux/nodes/entities/hosts/actions";
 
