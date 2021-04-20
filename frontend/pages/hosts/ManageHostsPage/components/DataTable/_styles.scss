@@ -81,7 +81,8 @@
         }
       }
 
-      &--offline {
+      &--offline,
+      &--mia {
         &:before {
           background-color: $ui-dark-grey;
           border-radius: 100%;
@@ -91,6 +92,10 @@
           margin-right: 8px;
           width: 8px;
         }
+      }
+
+      &--mia {
+        text-transform: uppercase;
       }
     }
 

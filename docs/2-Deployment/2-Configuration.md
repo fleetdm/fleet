@@ -1,14 +1,15 @@
 # Configuration
+
 - [Configuring the Fleet binary](#configuring-the-fleet-binary)
-	- [High-level configuration overview](#high-level-configuration-overview)
-	- [Commands](#commands)
-	- [Options](#options)
+  - [High-level configuration overview](#high-level-configuration-overview)
+  - [Commands](#commands)
+  - [Options](#options)
 - [Managing osquery configurations](#managing-osquery-configurations)
 - [Running with systemd](#running-with-systemd)
 - [Configuring Single Sign On](#configuring-single-sign-on)
-	- [Identity Provider (IDP) Configuration](#identity-provider-IDP-configuration)
-	- [Fleet SSO Configuration](#fleet-sso-configuration)
-	- [Creating SSO Users in Fleet](#creating-sso-users-in-fleet)
+  - [Identity Provider (IDP) Configuration](#identity-provider-IDP-configuration)
+  - [Fleet SSO Configuration](#fleet-sso-configuration)
+  - [Creating SSO Users in Fleet](#creating-sso-users-in-fleet)
 
 ## Configuring the Fleet binary
 
@@ -119,7 +120,6 @@ mysql:
   address: 127.0.0.1:3306
 ```
 
-
 Basically, just capitalize the option and prepend `FLEET_` to it in order to get the environment variable. The conversion works the same the opposite way.
 
 ##### MySQL
@@ -132,10 +132,10 @@ The address of the MySQL server which Fleet should connect to. Include the hostn
 - Environment variable: `FLEET_MYSQL_ADDRESS`
 - Config file format:
 
-	```
-	mysql:
-		address: localhost:3306
-	```
+  ```
+  mysql:
+  	address: localhost:3306
+  ```
 
 ###### `mysql_database`
 
@@ -145,10 +145,10 @@ The name of the MySQL database which Fleet will use.
 - Environment variable: `FLEET_MYSQL_DATABASE`
 - Config file format:
 
-	```
-	mysql:
-		database: kolide
-	```
+  ```
+  mysql:
+  	database: kolide
+  ```
 
 ###### `mysql_username`
 
@@ -158,10 +158,10 @@ The username to use when connecting to the MySQL instance.
 - Environment variable: `FLEET_MYSQL_USERNAME`
 - Config file format:
 
-	```
-	mysql:
-		username: kolide
-	```
+  ```
+  mysql:
+  	username: kolide
+  ```
 
 ###### `mysql_password`
 
@@ -171,10 +171,10 @@ The password to use when connecting to the MySQL instance.
 - Environment variable: `FLEET_MYSQL_PASSWORD`
 - Config file format:
 
-	```
-	mysql:
-		password: kolide
-	```
+  ```
+  mysql:
+  	password: kolide
+  ```
 
 ##### `mysql_password_path`
 
@@ -183,11 +183,10 @@ File path to a file that contains the password to use when connecting to the MyS
 - Default value: `""`
 - Config file format:
 
-	```
-	mysql:
-		password_path: '/run/secrets/fleetdm-mysql-password
-	```
-
+  ```
+  mysql:
+  	password_path: '/run/secrets/fleetdm-mysql-password
+  ```
 
 ##### `mysql_tls_ca`
 
@@ -197,10 +196,10 @@ The path to a PEM encoded certificate of MYSQL's CA for client certificate authe
 - Environment variable: `FLEET_MYSQL_TLS_CA`
 - Config file format:
 
-	```
-	mysql:
-		tls_ca: /path/to/server-ca.pem
-	```
+  ```
+  mysql:
+  	tls_ca: /path/to/server-ca.pem
+  ```
 
 ###### `mysql_tls_cert`
 
@@ -210,10 +209,10 @@ The path to a PEM encoded certificate use for tls authentication.
 - Environment variable: `FLEET_MYSQL_TLS_CERT`
 - Config file format:
 
-	```
-	mysql:
-		tls_cert: /path/to/certificate.pem
-	```
+  ```
+  mysql:
+  	tls_cert: /path/to/certificate.pem
+  ```
 
 ###### `mysql_tls_key`
 
@@ -223,10 +222,10 @@ The path to a PEM encoded private key use for tls authentication.
 - Environment variable: `FLEET_MYSQL_TLS_KEY`
 - Config file format:
 
-	```
-	mysql:
-		tls_key: /path/to/key.pem
-	```
+  ```
+  mysql:
+  	tls_key: /path/to/key.pem
+  ```
 
 ###### `mysql_tls_config`
 
@@ -236,10 +235,10 @@ The tls value in a MYSQL DSN. Can be `true`,`false`,`skip-verify` or the CN valu
 - Environment variable: `FLEET_MYSQL_TLS_CONFIG`
 - Config file format:
 
-	```
-	mysql:
-		tls_config: true
-	```
+  ```
+  mysql:
+  	tls_config: true
+  ```
 
 ###### `mysql_tls_server_name`
 
@@ -249,10 +248,10 @@ The server name or IP address used by the client certificate.
 - Environment variable: `FLEET_MYSQL_TLS_SERVER_NAME`
 - Config file format:
 
-	```
-	mysql:
-		servername: 127.0.0.1
-	```
+  ```
+  mysql:
+  	servername: 127.0.0.1
+  ```
 
 ###### `mysql_max_open_conns`
 
@@ -262,10 +261,10 @@ Maximum open connections to database
 - Environment variable: `FLEET_MYSQL_MAX_OPEN_CONNS`
 - Config file format:
 
-	```
-	mysql:
-		max_open_conns: 50
-	```
+  ```
+  mysql:
+  	max_open_conns: 50
+  ```
 
 ###### `mysql_max_idle_conns`
 
@@ -275,10 +274,10 @@ Maximum idle connections to database. This value should be equal to or less than
 - Environment variable: `FLEET_MYSQL_MAX_IDLE_CONNS`
 - Config file format:
 
-	```
-	mysql:
-		max_idle_conns: 50
-	```
+  ```
+  mysql:
+  	max_idle_conns: 50
+  ```
 
 ###### `conn_max_lifetime`
 
@@ -288,10 +287,10 @@ Maximum amount of time, in seconds, a connection may be reused.
 - Environment variable: `FLEET_MYSQL_CONN_MAX_LIFETIME`
 - Config file format:
 
-	```
-	mysql:
-		conn_max_lifetime: 50
-	```
+  ```
+  mysql:
+  	conn_max_lifetime: 50
+  ```
 
 ##### Redis
 
@@ -303,10 +302,10 @@ The address of the Redis server which Fleet should connect to. Include the hostn
 - Environment variable: `FLEET_REDIS_ADDRESS`
 - Config file format:
 
-	```
-	redis:
-		address: 127.0.0.1:7369
-	```
+  ```
+  redis:
+  	address: 127.0.0.1:7369
+  ```
 
 ###### `redis_password`
 
@@ -316,10 +315,11 @@ The password to use when connecting to the Redis instance.
 - Environment variable: `FLEET_REDIS_PASSWORD`
 - Config file format:
 
-	```
-	redis:
-		password: foobar
-	```
+  ```
+  redis:
+  	password: foobar
+  ```
+
 ###### `redis_database`
 
 The database to use when connecting to the Redis instance.
@@ -343,24 +343,25 @@ The address to serve the Fleet webserver.
 - Environment variable: `FLEET_SERVER_ADDRESS`
 - Config file format:
 
-	```
-	server:
-		address: 0.0.0.0:443
-	```
+  ```
+  server:
+  	address: 0.0.0.0:443
+  ```
 
 ###### `server_cert`
 
 The TLS cert to use when terminating TLS.
 
+See [TLS certificate considerations](./1-Installation.md#tls-certificate-considerations) for more information about certificates and Fleet.
+
 - Default value: `./tools/osquery/kolide.crt`
 - Environment variable: `FLEET_SERVER_CERT`
 - Config file format:
 
-	```
-	server:
-		cert: /tmp/kolide.crt
-	```
-
+  ```
+  server:
+  	cert: /tmp/kolide.crt
+  ```
 
 ###### `server_key`
 
@@ -370,11 +371,10 @@ The TLS key to use when terminating TLS.
 - Environment variable: `FLEET_SERVER_KEY`
 - Config file format:
 
-	```
-	server:
-		key: /tmp/kolide.key
-	```
-
+  ```
+  server:
+  	key: /tmp/kolide.key
+  ```
 
 ###### `server_tls`
 
@@ -384,10 +384,10 @@ Whether or not the server should be served over TLS.
 - Environment variable: `FLEET_SERVER_TLS`
 - Config file format:
 
-	```
-	server:
-		tls: false
-	```
+  ```
+  server:
+  	tls: false
+  ```
 
 ###### `server_tls_compatibility`
 
@@ -397,11 +397,11 @@ Configures the TLS settings for compatibility with various user agents. Options 
 - Environment variable: `FLEET_SERVER_TLS_COMPATIBILITY`
 - Config file format:
 
-	```
-	server:
-		tlsprofile: intermediate
-	```
-	
+  ```
+  server:
+  	tlsprofile: intermediate
+  ```
+
 Please note this option has an inconsistent key name in the config file. This will be fixed in Fleet 4.0.0.
 
 ###### `server_url_prefix`
@@ -414,11 +414,10 @@ Note that some other configurations may need to be changed when modifying the UR
 - Environment variable: `FLEET_SERVER_URL_PREFIX`
 - Config file format:
 
-	```
-	server:
-		url_prefix: /apps/fleet
-	```
-
+  ```
+  server:
+  	url_prefix: /apps/fleet
+  ```
 
 ##### Auth
 
@@ -430,35 +429,35 @@ The [JWT](https://jwt.io/) key to use when signing and validating session keys. 
 - Environment variable: `FLEET_AUTH_JWT_KEY`
 - Config file format:
 
-	```
-	auth:
-		jwt_key: JVnKw7CaUdJjZwYAqDgUHVYP
-	```
+  ```
+  auth:
+  	jwt_key: JVnKw7CaUdJjZwYAqDgUHVYP
+  ```
 
 ##### `auth_jwt_key_path`
 
-File path to a file that contains the [JWT](https://jwt.io/) key to use when signing and validating session keys. 
+File path to a file that contains the [JWT](https://jwt.io/) key to use when signing and validating session keys.
 
 - Default value: `""`
 - Config file format:
 
-	```
-	auth:
-		jwt_key_path: '/run/secrets/fleetdm-jwt-token
-	```
+  ```
+  auth:
+  	jwt_key_path: '/run/secrets/fleetdm-jwt-token
+  ```
 
-#####	`auth_bcrypt_cost`
+##### `auth_bcrypt_cost`
 
 The bcrypt cost to use when hashing user passwords.
 
 - Default value: `12`
-- Environment variable:	`FLEET_AUTH_BCRYT_COST`
+- Environment variable: `FLEET_AUTH_BCRYT_COST`
 - Config file format:
 
-	```
-	auth:
-		bcrypt_cost: 14
-	```
+  ```
+  auth:
+  	bcrypt_cost: 14
+  ```
 
 ###### `auth_salt_key_size`
 
@@ -468,10 +467,10 @@ The key size of the salt which is generated when hashing user passwords.
 - Environment variable: `FLEET_AUTH_SALT_KEY_SIZE`
 - Config file format:
 
-	```
-	auth:
-		salt_key_size: 36
-	```
+  ```
+  auth:
+  	salt_key_size: 36
+  ```
 
 ##### App
 
@@ -483,10 +482,10 @@ Size of generated app tokens.
 - Environment variable: `FLEET_APP_TOKEN_KEY_SIZE`
 - Config file format:
 
-	```
-	app:
-		token_key_size: 36
-	```
+  ```
+  app:
+  	token_key_size: 36
+  ```
 
 ###### `app_invite_token_validity_period`
 
@@ -496,10 +495,10 @@ How long invite tokens should be valid for.
 - Environment variable: `FLEET_APP_TOKEN_VALIDITY_PERIOD`
 - Config file format:
 
-	```
-	app:
-		invite_token_validity_period: 1d
-	```
+  ```
+  app:
+  	invite_token_validity_period: 1d
+  ```
 
 ##### Session
 
@@ -511,10 +510,10 @@ The size of the session key.
 - Environment variable: `FLEET_SESSION_KEY_SIZE`
 - Config file format:
 
-	```
-	session:
-		key_size: 48
-	```
+  ```
+  session:
+  	key_size: 48
+  ```
 
 ###### `session_duration`
 
@@ -524,10 +523,10 @@ The amount of time that a session should last for.
 - Environment variable: `FLEET_SESSION_DURATION`
 - Config file format:
 
-	```
-	session:
-		duration: 30d
-	```
+  ```
+  session:
+  	duration: 30d
+  ```
 
 ##### Osquery
 
@@ -536,13 +535,13 @@ The amount of time that a session should last for.
 The size of the node key which is negotiated with `osqueryd` clients.
 
 - Default value: `24`
-- Environment variable:	`FLEET_OSQUERY_NODE_KEY_SIZE`
+- Environment variable: `FLEET_OSQUERY_NODE_KEY_SIZE`
 - Config file format:
 
-	```
-	osquery:
-		node_key_size: 36
-	```
+  ```
+  osquery:
+  	node_key_size: 36
+  ```
 
 ###### `osquery_host_identifier`
 
@@ -555,13 +554,13 @@ This setting works in combination with the `--host_identifier` flag in osquery. 
 Users that have duplicate UUIDs in their environment can benefit from setting this flag to `instance`.
 
 - Default value: `provided`
-- Environment variable:	`FLEET_OSQUERY_HOST_IDENTIFIER`
+- Environment variable: `FLEET_OSQUERY_HOST_IDENTIFIER`
 - Config file format:
 
-	```
-	osquery:
-		host_identifier: uuid
-	```
+  ```
+  osquery:
+  	host_identifier: uuid
+  ```
 
 ###### `osquery_enroll_cooldown`
 
@@ -573,10 +572,10 @@ This flag can be used to control load on the database in scenarios in which many
 - Environment variable: `FLEET_ENROLL_COOLDOWN`
 - Config file format:
 
-	```
-	osquery:
-		enroll_cooldown: 1m
-	```
+  ```
+  osquery:
+  	enroll_cooldown: 1m
+  ```
 
 ###### `osquery_label_update_interval`
 
@@ -588,10 +587,10 @@ Setting this to a higher value can reduce baseline load on the Fleet server in l
 - Environment variable: `FLEET_OSQUERY_LABEL_UPDATE_INTERVAL`
 - Config file format:
 
-	```
-	osquery:
-		label_update_interval: 30m
-	```
+  ```
+  osquery:
+  	label_update_interval: 30m
+  ```
 
 ###### `osquery_detail_update_interval`
 
@@ -603,10 +602,10 @@ Setting this to a higher value can reduce baseline load on the Fleet server in l
 - Environment variable: `FLEET_OSQUERY_DETAIL_UPDATE_INTERVAL`
 - Config file format:
 
-	```
-	osquery:
-		detail_update_interval: 30m
-	```
+  ```
+  osquery:
+  	detail_update_interval: 30m
+  ```
 
 ###### `osquery_status_log_plugin`
 
@@ -618,10 +617,10 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, and `stdout
 - Environment variable: `FLEET_OSQUERY_STATUS_LOG_PLUGIN`
 - Config file format:
 
-	```
-	osquery:
-		status_log_plugin: firehose
-	```
+  ```
+  osquery:
+  	status_log_plugin: firehose
+  ```
 
 ###### `osquery_result_log_plugin`
 
@@ -633,10 +632,10 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, and `stdout
 - Environment variable: `FLEET_OSQUERY_RESULT_LOG_PLUGIN`
 - Config file format:
 
-	```
-	osquery:
-		result_log_plugin: firehose
-	```
+  ```
+  osquery:
+  	result_log_plugin: firehose
+  ```
 
 ###### `osquery_status_log_file`
 
@@ -648,10 +647,10 @@ The path which osquery status logs will be logged to.
 - Environment variable: `FLEET_OSQUERY_STATUS_LOG_FILE`
 - Config file format:
 
-	```
-	osquery:
-		status_log_file: /var/log/osquery/status.log
-	```
+  ```
+  osquery:
+  	status_log_file: /var/log/osquery/status.log
+  ```
 
 ###### `osquery_result_log_file`
 
@@ -663,10 +662,10 @@ The path which osquery result logs will be logged to.
 - Environment variable: `FLEET_OSQUERY_RESULT_LOG_FILE`
 - Config file format:
 
-	```
-	osquery:
-		result_log_file: /var/log/osquery/result.log
-	```
+  ```
+  osquery:
+  	result_log_file: /var/log/osquery/result.log
+  ```
 
 ###### `osquery_enable_log_rotation`
 
@@ -694,10 +693,10 @@ Whether or not to enable debug logging.
 - Environment variable: `FLEET_LOGGING_DEBUG`
 - Config file format:
 
-	```
-	logging:
-		debug: true
-	```
+  ```
+  logging:
+  	debug: true
+  ```
 
 ###### `logging_json`
 
@@ -707,10 +706,10 @@ Whether or not to log in JSON.
 - Environment variable: `FLEET_LOGGING_JSON`
 - Config file format:
 
-	```
-	logging:
-		json: true
-	```
+  ```
+  logging:
+  	json: true
+  ```
 
 ###### `logging_disable_banner`
 
@@ -720,10 +719,10 @@ Whether or not to log the welcome banner.
 - Environment variable: `FLEET_LOGGING_DISABLE_BANNER`
 - Config file format:
 
-	```
-	logging:
-		disable_banner: true
-	```
+  ```
+  logging:
+  	disable_banner: true
+  ```
 
 ##### Filesystem
 
@@ -737,10 +736,10 @@ The path which osquery status logs will be logged to.
 - Environment variable: `FLEET_FILESYSTEM_STATUS_LOG_FILE`
 - Config file format:
 
-	```
-	filesystem:
-		status_log_file: /var/log/osquery/status.log
-	```
+  ```
+  filesystem:
+  	status_log_file: /var/log/osquery/status.log
+  ```
 
 ###### `filesystem_result_log_file`
 
@@ -752,10 +751,10 @@ The path which osquery result logs will be logged to.
 - Environment variable: `FLEET_FILESYSTEM_RESULT_LOG_FILE`
 - Config file format:
 
-	```
-	filesystem:
-		result_log_file: /var/log/osquery/result.log
-	```
+  ```
+  filesystem:
+  	result_log_file: /var/log/osquery/result.log
+  ```
 
 ###### `filesystem_enable_log_rotation`
 
@@ -800,10 +799,10 @@ AWS region to use for Firehose connection
 - Environment variable: `FLEET_FIREHOSE_REGION`
 - Config file format:
 
-	```
-	firehose:
-		region: ca-central-1
-	```
+  ```
+  firehose:
+  	region: ca-central-1
+  ```
 
 ###### `firehose_access_key_id`
 
@@ -817,10 +816,10 @@ AWS access key ID to use for Firehose authentication.
 - Environment variable: `FLEET_FIREHOSE_ACCESS_KEY_ID`
 - Config file format:
 
-	```
-	firehose:
-		access_key_id: AKIAIOSFODNN7EXAMPLE
-	```
+  ```
+  firehose:
+  	access_key_id: AKIAIOSFODNN7EXAMPLE
+  ```
 
 ###### `firehose_secret_access_key`
 
@@ -832,10 +831,10 @@ AWS secret access key to use for Firehose authentication.
 - Environment variable: `FLEET_FIREHOSE_SECRET_ACCESS_KEY`
 - Config file format:
 
-	```
-	firehose:
-		secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-	```
+  ```
+  firehose:
+  	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  ```
 
 ###### `firehose_sts_assume_role_arn`
 
@@ -848,10 +847,10 @@ AWS STS role ARN to use for Firehose authentication.
 - Environment variable: `FLEET_FIREHOSE_STS_ASSUME_ROLE_ARN`
 - Config file format:
 
-	```
-	firehose:
-		sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
-	```
+  ```
+  firehose:
+  	sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+  ```
 
 ###### `firehose_status_stream`
 
@@ -863,16 +862,16 @@ Name of the Firehose stream to write osquery status logs received from clients.
 - Environment variable: `FLEET_FIREHOSE_STATUS_STREAM`
 - Config file format:
 
-	```
-	firehose:
-		status_stream: osquery_status
-	```
+  ```
+  firehose:
+  	status_stream: osquery_status
+  ```
 
 The IAM role used to send to Firehose must allow the following permissions on
 the stream listed:
 
-* `firehose:DescribeDeliveryStream`
-* `firehose:PutRecordBatch`
+- `firehose:DescribeDeliveryStream`
+- `firehose:PutRecordBatch`
 
 ###### `firehose_result_stream`
 
@@ -884,16 +883,16 @@ Name of the Firehose stream to write osquery result logs received from clients.
 - Environment variable: `FLEET_FIREHOSE_RESULT_STREAM`
 - Config file format:
 
-	```
-	firehose:
-		result_stream: osquery_result
-	```
+  ```
+  firehose:
+  	result_stream: osquery_result
+  ```
 
 The IAM role used to send to Firehose must allow the following permissions on
 the stream listed:
 
-* `firehose:DescribeDeliveryStream`
-* `firehose:PutRecordBatch`
+- `firehose:DescribeDeliveryStream`
+- `firehose:PutRecordBatch`
 
 ##### Kinesis
 
@@ -907,10 +906,10 @@ AWS region to use for Kinesis connection
 - Environment variable: `FLEET_KINESIS_REGION`
 - Config file format:
 
-	```
-	kinesis:
-		region: ca-central-1
-	```
+  ```
+  kinesis:
+  	region: ca-central-1
+  ```
 
 ###### `kinesis_access_key_id`
 
@@ -928,10 +927,10 @@ AWS access key ID to use for Kinesis authentication.
 - Environment variable: `FLEET_KINESIS_ACCESS_KEY_ID`
 - Config file format:
 
-	```
-	kinesis:
-		access_key_id: AKIAIOSFODNN7EXAMPLE
-	```
+  ```
+  kinesis:
+  	access_key_id: AKIAIOSFODNN7EXAMPLE
+  ```
 
 ###### `kinesis_secret_access_key`
 
@@ -944,10 +943,10 @@ AWS secret access key to use for Kinesis authentication.
 - Environment variable: `FLEET_KINESIS_SECRET_ACCESS_KEY`
 - Config file format:
 
-	```
-	kinesis:
-		secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-	```
+  ```
+  kinesis:
+  	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  ```
 
 ###### `kinesis_sts_assume_role_arn`
 
@@ -960,10 +959,10 @@ AWS STS role ARN to use for Kinesis authentication.
 - Environment variable: `FLEET_KINESIS_STS_ASSUME_ROLE_ARN`
 - Config file format:
 
-	```
-	kinesis:
-		sts_assume_role_arn: arn:aws:iam::1234567890:role/kinesis-role
-	```
+  ```
+  kinesis:
+  	sts_assume_role_arn: arn:aws:iam::1234567890:role/kinesis-role
+  ```
 
 ###### `kinesis_status_stream`
 
@@ -975,16 +974,16 @@ Name of the Kinesis stream to write osquery status logs received from clients.
 - Environment variable: `FLEET_KINESIS_STATUS_STREAM`
 - Config file format:
 
-	```
-	kinesis:
-		status_stream: osquery_status
-	```
+  ```
+  kinesis:
+  	status_stream: osquery_status
+  ```
 
 The IAM role used to send to Kinesis must allow the following permissions on
 the stream listed:
 
-* `kinesis:DescribeStream`
-* `kinesis:PutRecords`
+- `kinesis:DescribeStream`
+- `kinesis:PutRecords`
 
 ###### `kinesis_result_stream`
 
@@ -996,16 +995,16 @@ Name of the Kinesis stream to write osquery result logs received from clients.
 - Environment variable: `FLEET_KINESIS_RESULT_STREAM`
 - Config file format:
 
-	```
-	kinesis:
-		result_stream: osquery_result
-	```
+  ```
+  kinesis:
+  	result_stream: osquery_result
+  ```
 
 The IAM role used to send to Kinesis must allow the following permissions on
 the stream listed:
 
-* `kinesis:DescribeStream`
-* `kinesis:PutRecords`
+- `kinesis:DescribeStream`
+- `kinesis:PutRecords`
 
 ##### Lambda
 
@@ -1019,10 +1018,10 @@ AWS region to use for Lambda connection
 - Environment variable: `FLEET_LAMBDA_REGION`
 - Config file format:
 
-	```
-	lambda:
-		region: ca-central-1
-	```
+  ```
+  lambda:
+  	region: ca-central-1
+  ```
 
 ###### `lambda_access_key_id`
 
@@ -1040,10 +1039,10 @@ AWS access key ID to use for Lambda authentication.
 - Environment variable: `FLEET_LAMBDA_ACCESS_KEY_ID`
 - Config file format:
 
-	```
-	lambda:
-		access_key_id: AKIAIOSFODNN7EXAMPLE
-	```
+  ```
+  lambda:
+  	access_key_id: AKIAIOSFODNN7EXAMPLE
+  ```
 
 ###### `lambda_secret_access_key`
 
@@ -1056,10 +1055,10 @@ AWS secret access key to use for Lambda authentication.
 - Environment variable: `FLEET_LAMBDA_SECRET_ACCESS_KEY`
 - Config file format:
 
-	```
-	lambda:
-		secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-	```
+  ```
+  lambda:
+  	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  ```
 
 ###### `lambda_sts_assume_role_arn`
 
@@ -1072,10 +1071,10 @@ AWS STS role ARN to use for Lambda authentication.
 - Environment variable: `FLEET_LAMBDA_STS_ASSUME_ROLE_ARN`
 - Config file format:
 
-	```
-	lambda:
-		sts_assume_role_arn: arn:aws:iam::1234567890:role/lambda-role
-	```
+  ```
+  lambda:
+  	sts_assume_role_arn: arn:aws:iam::1234567890:role/lambda-role
+  ```
 
 ###### `lambda_status_function`
 
@@ -1087,15 +1086,15 @@ Name of the Lambda function to write osquery status logs received from clients.
 - Environment variable: `FLEET_LAMBDA_STATUS_FUNCTION`
 - Config file format:
 
-	```
-	lambda:
-		status_function: statusFunction
-	```
+  ```
+  lambda:
+  	status_function: statusFunction
+  ```
 
 The IAM role used to send to Lambda must allow the following permissions on
 the function listed:
 
-* `lambda:InvokeFunction`
+- `lambda:InvokeFunction`
 
 ###### `lambda_result_function`
 
@@ -1107,16 +1106,15 @@ Name of the Lambda function to write osquery result logs received from clients.
 - Environment variable: `FLEET_LAMBDA_RESULT_FUNCTION`
 - Config file format:
 
-	```
-	lambda:
-		result_function: resultFunction
-	```
+  ```
+  lambda:
+  	result_function: resultFunction
+  ```
 
 The IAM role used to send to Lambda must allow the following permissions on
 the function listed:
 
-* `lambda:InvokeFunction`
-
+- `lambda:InvokeFunction`
 
 ##### PubSub
 
@@ -1169,7 +1167,6 @@ The identifier of the pubsub topic that osquery status logs will be published to
     status_topic: osquery_status
   ```
 
-
 ##### S3 file carving backend
 
 ###### `s3_bucket`
@@ -1180,10 +1177,10 @@ Name of the S3 bucket to use to store file carves.
 - Environment variable: `FLEET_S3_BUCKET`
 - Config file format:
 
-	```
-	s3:
-		bucket: some-carve-bucket
-	```
+  ```
+  s3:
+  	bucket: some-carve-bucket
+  ```
 
 ###### `s3_prefix`
 
@@ -1195,10 +1192,10 @@ All carve objects will also be prefixed by date and hour (UTC), making the resul
 - Environment variable: `FLEET_S3_PREFIX`
 - Config file format:
 
-	```
-	s3:
-		prefix: carves-go-here/
-	```
+  ```
+  s3:
+  	prefix: carves-go-here/
+  ```
 
 ###### `s3_access_key_id`
 
@@ -1213,10 +1210,10 @@ The IAM identity used in this context must be allowed to perform the following a
 - Environment variable: `FLEET_S3_ACCESS_KEY_ID`
 - Config file format:
 
-	```
-	s3:
-		access_key_id: AKIAIOSFODNN7EXAMPLE
-	```
+  ```
+  s3:
+  	access_key_id: AKIAIOSFODNN7EXAMPLE
+  ```
 
 ###### `s3_secret_access_key`
 
@@ -1226,10 +1223,10 @@ AWS secret access key to use for S3 authentication.
 - Environment variable: `FLEET_S3_SECRET_ACCESS_KEY`
 - Config file format:
 
-	```
-	s3:
-		secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-	```
+  ```
+  s3:
+  	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  ```
 
 ###### `s3_sts_assume_role_arn`
 
@@ -1239,10 +1236,10 @@ AWS STS role ARN to use for S3 authentication.
 - Environment variable: `FLEET_S3_STS_ASSUME_ROLE_ARN`
 - Config file format:
 
-	```
-	s3:
-		sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
-	```
+  ```
+  s3:
+  	sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+  ```
 
 ## Managing osquery configurations
 
@@ -1296,6 +1293,7 @@ Then, run
 sudo systemctl daemon-reload
 sudo systemctl restart fleet.service
 ```
+
 ## Configuring Single Sign On
 
 Fleet supports SAML single sign on capability. This feature is convenient for users and offloads responsibility for user authentication to a third party identity provider such as Salesforce or Onelogin. Fleet supports the SAML Web Browser SSO Profile using the HTTP Redirect Binding. Fleet only supports SP-initiated SAML login and not IDP-initiated login.
@@ -1304,22 +1302,22 @@ Fleet supports SAML single sign on capability. This feature is convenient for us
 
 Several items are required to configure an IDP to provide SSO services to Fleet. Note that the names of these items may vary from provider to provider and may not conform to the SAML spec. Individual users must also be setup on the IDP before they can sign in to Fleet. The particulars of setting up the connected application (Fleet) and users will vary for different identity providers but will generally require the following information.
 
-* _Assertion Consumer Service_ - This is the call back URL that the identity provider
-will use to send security assertions to Fleet. In Okta, this field is called *Single sign on URL*. The value that you supply will be a fully qualified URL
-consisting of your Fleet web address and the callback path `/api/v1/fleet/sso/callback`. For example,
-if your Fleet web address is https://fleet.acme.org, then the value you would
-use in the identity provider configuration would be:
+- _Assertion Consumer Service_ - This is the call back URL that the identity provider
+  will use to send security assertions to Fleet. In Okta, this field is called _Single sign on URL_. The value that you supply will be a fully qualified URL
+  consisting of your Fleet web address and the callback path `/api/v1/fleet/sso/callback`. For example,
+  if your Fleet web address is https://fleet.acme.org, then the value you would
+  use in the identity provider configuration would be:
 
   ```
   https://fleet.acme.org/api/v1/fleet/sso/callback
   ```
 
-* _Entity ID_ - This value is a URI that you define. It identifies your Fleet instance as the service provider that issues authorization requests. The value must exactly match the
-Entity ID that you define in the Fleet SSO configuration.
+- _Entity ID_ - This value is a URI that you define. It identifies your Fleet instance as the service provider that issues authorization requests. The value must exactly match the
+  Entity ID that you define in the Fleet SSO configuration.
 
-* _Name ID Format_ - The value should be `urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress`. This may be shortened in the IDP setup to something like `email` or `EmailAddress`.
+- _Name ID Format_ - The value should be `urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress`. This may be shortened in the IDP setup to something like `email` or `EmailAddress`.
 
-* _Subject Type (Application username in Okta)_ - `username`.
+- _Subject Type (Application username in Okta)_ - `username`.
 
   #### Example Salesforce IDP Configuration
 
@@ -1334,24 +1332,24 @@ Fleet as a service provider.
 
 ### Fleet SSO Configuration
 
-A user must be an admin to configure Fleet for SSO.  The SSO configuration is
+A user must be an admin to configure Fleet for SSO. The SSO configuration is
 found in App Settings. If your IDP supports dynamic configuration, like Okta, you only need to provide an _Identity Provider Name_ and _Entity ID_, then paste a link in the metadata URL field. Otherwise, the following values are required.
 
-* _Identity Provider Name_ - A human friendly name of the IDP.
+- _Identity Provider Name_ - A human friendly name of the IDP.
 
-* _Entity ID_ - A URI that identifies your Fleet instance as the issuer of authorization
-requests. Assuming your company name is Acme, an example might be `fleet.acme.org` although
-the value could be anything as long as it is unique to Fleet as a service provider
-and matches the entity provider value used in the IDP configuration.
+- _Entity ID_ - A URI that identifies your Fleet instance as the issuer of authorization
+  requests. Assuming your company name is Acme, an example might be `fleet.acme.org` although
+  the value could be anything as long as it is unique to Fleet as a service provider
+  and matches the entity provider value used in the IDP configuration.
 
-* _Issuer URI_ - This value is obtained from the IDP.
+- _Issuer URI_ - This value is obtained from the IDP.
 
-* _Metadata URL_ - This value is obtained from the IDP and is used by Fleet to
-issue authorization requests to the IDP.
+- _Metadata URL_ - This value is obtained from the IDP and is used by Fleet to
+  issue authorization requests to the IDP.
 
-* _Metadata_ - If the IDP does not provide a metadata URL, the metadata must
-be obtained from the IDP and entered. Note that the metadata URL is preferred if
-the IDP provides metadata in both forms.
+- _Metadata_ - If the IDP does not provide a metadata URL, the metadata must
+  be obtained from the IDP and entered. Note that the metadata URL is preferred if
+  the IDP provides metadata in both forms.
 
 #### Example Fleet SSO Configuration
 
@@ -1368,4 +1366,3 @@ configuration problems.
 [SAML Bindings](http://docs.oasis-open.org/security/saml/v2.0/saml-bindings-2.0-os.pdf)
 
 [SAML Profiles](http://docs.oasis-open.org/security/saml/v2.0/saml-profiles-2.0-os.pdf)
-

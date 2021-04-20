@@ -40,9 +40,9 @@ const offlineHostsLabel = {
   count: 1,
 };
 const customLabel = {
-  id: 6,
+  id: 12,
   display_text: "Custom Label",
-  slug: "custom-label",
+  slug: "labels/12",
   type: "custom",
   count: 3,
 };
@@ -241,34 +241,46 @@ describe("ManageHostsPage - component", () => {
   });
 
   describe("Edit a label", () => {
-    const ownProps = { location: {}, params: { active_label: "custom-label" } };
-    const Component = connectedComponent(ConnectedManageHostsPage, {
+    const ownProps = {
+      location: { hash: "" },
+      params: { label_id: "12" },
+    };
+    const component = connectedComponent(ConnectedManageHostsPage, {
       props: ownProps,
       mockStore,
     });
 
-    it("renders the LabelForm when Edit is clicked", () => {
-      const Page = mount(Component);
+    it("renders the Edit button when a custom label is selected", () => {
+      const Page = mount(component);
       const EditButton = Page.find(".manage-hosts__label-actions")
         .find("Button")
         .first();
 
-      expect(Page.find("LabelForm").length).toEqual(
-        0,
-        "Expected the LabelForm to not be on the page"
-      );
+      expect(EditButton.length).toEqual(1);
+    });
 
-      EditButton.simulate("click");
+    const ownPropsEditSelected = {
+      location: { hash: "#edit_label" },
+      params: { label_id: "12" },
+    };
+    const componentWithEditSelected = connectedComponent(
+      ConnectedManageHostsPage,
+      {
+        props: ownPropsEditSelected,
+        mockStore,
+      }
+    );
 
-      const LabelForm = Page.find("LabelForm");
+    it("renders a LabelForm component", () => {
+      const page = mount(componentWithEditSelected);
 
-      expect(LabelForm.length).toEqual(
-        1,
-        "Expected the LabelForm to be on the page"
-      );
+      expect(page.find("LabelForm").length).toEqual(1);
+    });
 
-      expect(LabelForm.prop("formData")).toEqual(customLabel);
-      expect(LabelForm.prop("isEdit")).toEqual(true);
+    it('displays "Edit label" as the query form header', () => {
+      const page = mount(componentWithEditSelected);
+
+      expect(page.find("LabelForm").text()).toContain("Edit label");
     });
   });
 
@@ -276,7 +288,7 @@ describe("ManageHostsPage - component", () => {
     it("Deleted label after confirmation modal", () => {
       const ownProps = {
         location: {},
-        params: { active_label: "custom-label" },
+        params: { label_id: "12" },
       };
       const component = connectedComponent(ConnectedManageHostsPage, {
         props: ownProps,
