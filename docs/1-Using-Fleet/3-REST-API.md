@@ -611,7 +611,49 @@ Returns the information of the specified host.
         "additional": {},
         "enroll_secret_name": "bar",
         "status": "offline",
-        "display_text": "259404d30eb6"
+        "display_text": "259404d30eb6",
+        "labels": [
+          {
+            "created_at": "2021-01-14T16:37:24Z",
+            "updated_at": "2021-01-14T16:37:24Z",
+            "id": 6,
+            "name": "All Hosts",
+            "description": "All hosts which have enrolled in Fleet",
+            "query": "select 1;",
+            "label_type": "builtin",
+            "label_membership_type": "dynamic"
+          },
+          {
+            "created_at": "2021-01-14T16:37:24Z",
+            "updated_at": "2021-01-14T16:37:24Z",
+            "id": 7,
+            "name": "macOS",
+            "description": "All macOS hosts",
+            "query": "select 1 from os_version where platform = 'darwin';",
+            "label_type": "builtin",
+            "label_membership_type": "dynamic"
+          }
+        ],
+        "packs": [
+          {
+            "created_at": "2021-01-17T00:02:35Z",
+            "updated_at": "2021-01-17T00:02:35Z",
+            "id": 1,
+            "name": "osquery_monitoring"
+          }
+        ],
+        "software": [
+          {
+            "name": "CentOS Linux $releasever - AppStream",
+            "type": "Package (YUM)",
+            "version": "",
+          },
+          {
+            "name": "curl",
+            "type": "Package (RPM)",
+            "version": "7.61.1",
+          },
+        ]
     }
 }
 ```
