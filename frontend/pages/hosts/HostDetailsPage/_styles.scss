@@ -163,4 +163,21 @@
     justify-content: center;
     text-align: center;
   }
+
+  &__filter-queries {
+    flex-grow: 1;
+    position: relative;
+
+    .input-field {
+      padding-left: 42px;
+    }
+
+    .kolidecon {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 20px;
+      color: $ui-dark-grey;
+    }
+  }
 }

@@ -48,5 +48,21 @@
     width: 658px;
     padding: 40px;
     border-radius: 8px;
+
+    .info {
+      display: flex;
+
+      &__header {
+        color: $core-black;
+        font-weight: $bold;
+        display: block;
+        text-align: left;
+      }
+      &__data {
+        display: block;
+        font-weight: 400;
+        text-align: left;
+      }
+    }
   }
 }

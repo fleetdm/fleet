@@ -209,16 +209,18 @@ export class HostDetailsPage extends Component {
       return false;
     }
 
-    debugger;
-
     const results = () => {
       if (queriesCount > 0) {
         const queryList = queries.map((query) => {
           return (
-            <div key={query.id}>
+            <Button
+              key={query.id}
+              variant="unstyled-modal-query"
+              className="modal-query-button"
+            >
               <span className="info__header">{query.name}</span>
               <span className="info__data">{query.description}</span>
-            </div>
+            </Button>
           );
         });
 
@@ -244,21 +246,19 @@ export class HostDetailsPage extends Component {
         onExit={toggleQueryHostModal(null)}
         className={`${baseClass}__modal`}
       >
-        <div>
-          <div className={`${baseClass}__filter-queries`}>
-            <InputField
-              name="query-filter"
-              onChange={onFilterQueries}
-              placeholder="Filter queries"
-              value={queriesFilter}
-            />
-            <KolideIcon name="search" />
-          </div>
-          {results()}
-          <p>
-            <a href="/queries/manage">Custom query</a>
-          </p>
+        <div className={`${baseClass}__filter-queries`}>
+          <InputField
+            name="query-filter"
+            onChange={onFilterQueries}
+            placeholder="Filter queries"
+            value={queriesFilter}
+          />
+          <KolideIcon name="search" />
         </div>
+        {results()}
+        <p>
+          <a href="/queries/manage">Custom query</a>
+        </p>
       </Modal>
     );
   };
