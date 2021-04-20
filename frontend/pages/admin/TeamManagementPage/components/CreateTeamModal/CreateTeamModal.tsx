@@ -1,12 +1,10 @@
 import React, { useState, useCallback } from "react";
 
-// ignore TS error for now until these are rewritten in ts.
-// @ts-ignore
 import Modal from "components/modals/Modal";
-// @ts-ignore
-import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner/InfoBanner";
+// @ts-ignore
+import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 
 const baseClass = "create-team-modal";
 

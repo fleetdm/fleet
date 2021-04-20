@@ -175,7 +175,7 @@ export class UserManagementPage extends Component {
     dispatch(
       userActions.loadAll(pageIndex, pageSize, undefined, searchQuery, sortBy)
     );
-    dispatch(inviteActions.loadAll(pageIndex, pageSize, searchQuery, sortBy)); // TODO: add search params when API supports it
+    dispatch(inviteActions.loadAll(pageIndex, pageSize, searchQuery, sortBy));
   };
 
   onActionSelect = (action, user) => {

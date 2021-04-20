@@ -2,9 +2,9 @@ import React, { useCallback, useState } from "react";
 
 import { IUser } from "interfaces/user";
 import TableContainer from "components/TableContainer";
+import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
 import CreateTeamModal from "../../components/CreateTeamModal";
 import DeleteTeamModal from "../../components/DeleteTeamModal";
-import EditTeamModal from "../../components/EditTeamModal";
 
 import {
   generateTableHeaders,
@@ -31,7 +31,7 @@ const MembersPage = (): JSX.Element => {
     [showRemoveUserModal, setShowRemoveUserModal, setUserEditing]
   );
 
-  const toggleEditTeamModal = useCallback(
+  const toggleEditUserModal = useCallback(
     (user?: IUser) => {
       setShowEditUserModal(!showEditUserModal);
       user ? setUserEditing(user) : setUserEditing(undefined);
@@ -55,7 +55,7 @@ const MembersPage = (): JSX.Element => {
   const onActionSelection = (action: string, user: IUser): void => {
     switch (action) {
       case "edit":
-        toggleEditTeamModal(user);
+        toggleEditUserModal(user);
         break;
       case "remove":
         toggleRemoveUserModal(user);
@@ -74,8 +74,8 @@ const MembersPage = (): JSX.Element => {
       gravatarURL: "test",
       id: 1,
       name: "Test 1",
-      position: "test position",
       username: "test username",
+      sso_enabled: false,
       teams: [
         {
           name: "Test Team 1",
@@ -93,10 +93,10 @@ const MembersPage = (): JSX.Element => {
       enabled: true,
       force_password_reset: false,
       gravatarURL: "test",
-      id: 1,
+      id: 2,
       name: "Test 2",
-      position: "test 2 position",
       username: "test 2 username",
+      sso_enabled: false,
       teams: [
         {
           name: "Test Team 2",
@@ -142,11 +142,16 @@ const MembersPage = (): JSX.Element => {
         />
       ) : null}
       {showEditUserModal ? (
-        <EditTeamModal
-          onCancel={toggleEditTeamModal}
-          // onSubmit={onEditSubmit}
-          onSubmit={() => console.log("edit submit")}
-          defaultName={userEditing?.name || ""}
+        <EditUserModal
+          onCancel={toggleEditUserModal}
+          onSubmit={() => console.log("submit")}
+          defaultName={userEditing?.name}
+          defaultEmail={userEditing?.email}
+          defaultGlobalRole={userEditing?.global_role}
+          defaultTeams={userEditing?.teams}
+          defaultSSOEnabled={userEditing?.sso_enabled}
+          availableTeams={[]}
+          validationErrors={[]}
         />
       ) : null}
     </div>

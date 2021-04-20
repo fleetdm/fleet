@@ -1,7 +1,5 @@
 import React from "react";
 
-// ignore TS error for now until these are rewritten in ts.
-// @ts-ignore
 import Modal from "components/modals/Modal";
 import Button from "components/buttons/Button";
 

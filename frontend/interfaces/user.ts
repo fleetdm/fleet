@@ -6,12 +6,13 @@ export default PropTypes.shape({
   email: PropTypes.string,
   enabled: PropTypes.bool,
   force_password_reset: PropTypes.bool,
+  global_role: PropTypes.oneOf([PropTypes.string, null]),
   gravatarURL: PropTypes.string,
   id: PropTypes.number,
   name: PropTypes.string,
-  position: PropTypes.string,
-  username: PropTypes.string,
+  sso_enabled: PropTypes.bool,
   teams: PropTypes.arrayOf(teamInterface),
+  username: PropTypes.string,
 });
 
 export interface IUser {
@@ -19,11 +20,11 @@ export interface IUser {
   email: string;
   enabled: boolean;
   force_password_reset: boolean;
+  global_role: string | null;
   gravatarURL: string;
   id: number;
   name: string;
-  position: string;
-  username: string;
+  sso_enabled: boolean;
   teams: ITeam[];
-  global_role: string | null;
+  username: string;
 }
