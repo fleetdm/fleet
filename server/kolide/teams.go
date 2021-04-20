@@ -54,8 +54,12 @@ type Team struct {
 
 	// Derived from JOINs
 
+	// UserCount is the count of users with explicit roles on this team.
+	UserCount int `json:"user_count" db:"user_count"`
 	// Users is the users that have a role on this team.
 	Users []TeamUser `json:"users,omitempty"`
+	// UserCount is the count of hosts assigned to this team.
+	HostCount int `json:"host_count" db:"host_count"`
 	// Hosts are the hosts assigned to the team.
 	Hosts []Host `json:"hosts,omitempty"`
 }

@@ -81,7 +81,10 @@ func (d *Datastore) SaveTeam(team *kolide.Team) (*kolide.Team, error) {
 // kolide.ListOptions
 func (d *Datastore) ListTeams(opt kolide.ListOptions) ([]*kolide.Team, error) {
 	query := `
-		SELECT * FROM teams
+		SELECT *,
+			(SELECT count(*) FROM user_teams WHERE team_id = id) AS user_count,
+			(SELECT count(*) FROM hosts WHERE team_id = id) AS host_count
+		FROM teams
 		WHERE TRUE
 	`
 	query, params := searchLike(query, nil, opt.MatchQuery, teamSearchColumns...)
