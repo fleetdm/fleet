@@ -63,12 +63,14 @@
         display: block;
         color: $core-black;
         font-weight: $bold;
+        font-size: $x-small;
         text-align: left;
       }
       &__data {
         display: block;
         color: $core-dark-blue-grey;
-        font-weight: 400;
+        font-weight: normal;
+        font-size: $x-small;
         text-align: left;
       }
     }
