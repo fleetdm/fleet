@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testTeamGetSet(t *testing.T, ds kolide.Datastore) {
+func testTeamGetSetDelete(t *testing.T, ds kolide.Datastore) {
 	var createTests = []struct {
 		name, description string
 	}{
@@ -34,6 +34,12 @@ func testTeamGetSet(t *testing.T, ds kolide.Datastore) {
 			require.NoError(t, err)
 			assert.Equal(t, tt.name, team.Name)
 			assert.Equal(t, tt.description, team.Description)
+
+			err = ds.DeleteTeam(team.ID)
+			require.NoError(t, err)
+
+			team, err = ds.TeamByName(tt.name)
+			require.Error(t, err)
 		})
 	}
 }

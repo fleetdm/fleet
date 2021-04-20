@@ -93,3 +93,28 @@ func makeListTeamsEndpoint(svc kolide.Service) endpoint.Endpoint {
 		return resp, nil
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Delete Team
+////////////////////////////////////////////////////////////////////////////////
+
+type deleteTeamRequest struct {
+	ID uint `json:"id"`
+}
+
+type deleteTeamResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteTeamResponse) error() error { return r.Err }
+
+func makeDeleteTeamEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(deleteTeamRequest)
+		err := svc.DeleteTeam(ctx, req.ID)
+		if err != nil {
+			return deleteTeamResponse{Err: err}, nil
+		}
+		return deleteTeamResponse{}, nil
+	}
+}

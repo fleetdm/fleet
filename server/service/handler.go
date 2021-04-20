@@ -112,6 +112,7 @@ type KolideEndpoints struct {
 	Version                               endpoint.Endpoint
 	CreateTeam                            endpoint.Endpoint
 	ModifyTeam                            endpoint.Endpoint
+	DeleteTeam                            endpoint.Endpoint
 	ListTeams                             endpoint.Endpoint
 }
 
@@ -218,6 +219,7 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string, lim
 		// TODO permissions for teams endpoints
 		CreateTeam: authenticatedUser(jwtKey, svc, makeCreateTeamEndpoint(svc)),
 		ModifyTeam: authenticatedUser(jwtKey, svc, makeModifyTeamEndpoint(svc)),
+		DeleteTeam: authenticatedUser(jwtKey, svc, makeDeleteTeamEndpoint(svc)),
 		ListTeams:  authenticatedUser(jwtKey, svc, makeListTeamsEndpoint(svc)),
 
 		// Authenticated status endpoints
@@ -330,6 +332,7 @@ type kolideHandlers struct {
 	Version                               http.Handler
 	CreateTeam                            http.Handler
 	ModifyTeam                            http.Handler
+	DeleteTeam                            http.Handler
 	ListTeams                             http.Handler
 }
 
@@ -429,6 +432,7 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		Version:                               newServer(e.Version, decodeNoParamsRequest),
 		CreateTeam:                            newServer(e.CreateTeam, decodeCreateTeamRequest),
 		ModifyTeam:                            newServer(e.ModifyTeam, decodeModifyTeamRequest),
+		DeleteTeam:                            newServer(e.DeleteTeam, decodeDeleteTeamRequest),
 		ListTeams:                             newServer(e.ListTeams, decodeListTeamsRequest),
 	}
 }
@@ -645,6 +649,7 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/fleet/teams", h.CreateTeam).Methods("POST").Name("create_team")
 	r.Handle("/api/v1/fleet/teams", h.ListTeams).Methods("GET").Name("list_teams")
 	r.Handle("/api/v1/fleet/teams/{id}", h.ModifyTeam).Methods("PATCH").Name("modify_team")
+	r.Handle("/api/v1/fleet/teams/{id}", h.DeleteTeam).Methods("DELETE").Name("delete_team")
 
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
 	r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST").Name("get_client_config")
