@@ -11,6 +11,8 @@ import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
 import KolideIcon from "components/icons/KolideIcon";
+import OpenNewTabIcon from "../../../../assets/images/open-new-tab-12x12@2x.png";
+import ErrorIcon from "../../../../assets/images/icon-error-16x16@2x.png";
 
 import entityGetter from "redux/utilities/entityGetter";
 import queryActions from "redux/nodes/entities/queries/actions";
@@ -28,6 +30,7 @@ import {
   humanHostDetailUpdated,
 } from "kolide/helpers";
 import helpers from "./helpers";
+import { isDebuggerStatement } from "typescript";
 
 const baseClass = "host-details";
 
@@ -226,6 +229,35 @@ export class HostDetailsPage extends Component {
     }
 
     const results = () => {
+      // if (errorStateHere) {
+      //   return (
+      //     <div className={`${baseClass}__no-query-results`}>
+      //       <span className="info__header">
+      //         <img src={ErrorIcon} alt="error icon" id="error-icon" />
+      //         Something's gone wrong.
+      //       </span>
+      //       <span className="info__data">
+      //         Refresh the page or log in again.
+      //       </span>
+      //       <span className="info__data">
+      //         If this keeps happening, please{" "}
+      //         <a
+      //           href="https://github.com/fleetdm/fleet/issues"
+      //           target="_blank"
+      //           rel="noopener noreferrer"
+      //         >
+      //           file an issue.
+      //           <img
+      //             src={OpenNewTabIcon}
+      //             alt="open new tab"
+      //             id="new-tab-icon"
+      //           />
+      //         </a>
+      //       </span>
+      //     </div>
+      //   );
+      // }
+
       if (queriesCount > 0) {
         const queryList = queries.map((query) => {
           return (
@@ -240,13 +272,12 @@ export class HostDetailsPage extends Component {
             </Button>
           );
         });
-
         return <div>{queryList}</div>;
       }
 
       if (!queriesFilter && queriesCount === 0) {
         return (
-          <div className="__no-results">
+          <div className={`${baseClass}__no-query-results`}>
             <span className="info__header">You have no saved queries.</span>
             <span className="info__data">
               Expecting to see queries? Try again in a few seconds as the system
@@ -258,7 +289,7 @@ export class HostDetailsPage extends Component {
 
       if (queriesFilter && queriesCount === 0) {
         return (
-          <div className="__no-results">
+          <div className={`${baseClass}__no-query-results`}>
             <span className="info__header">
               No queries match the current search criteria.
             </span>

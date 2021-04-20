@@ -186,4 +186,21 @@
       color: $ui-dark-grey;
     }
   }
+
+  &__no-query-results {
+    width: 350px;
+    margin: 40px auto;
+  }
+
+  #error-icon {
+    height: 12px;
+    width: 12px;
+    margin-right: 8px;
+  }
+
+  #new-tab-icon {
+    height: 12px;
+    width: 12px;
+    margin-left: 6px;
+  }
 }
