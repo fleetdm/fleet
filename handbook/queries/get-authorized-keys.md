@@ -3,7 +3,7 @@
 List authorized_keys for each user on the system.
 
 ### Support
-macOS
+macOS, Linux
 
 ### Query
 ```sql
