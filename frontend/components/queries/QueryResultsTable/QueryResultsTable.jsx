@@ -202,19 +202,17 @@ class QueryResultsTable extends Component {
             onClick={onToggleQueryFullScreen}
             variant="grey"
           >
-            <KolideIcon
-              name={isQueryFullScreen ? "windowed" : "fullscreen"}
-            />
+            <KolideIcon name={isQueryFullScreen ? "windowed" : "fullscreen"} />
           </Button>
           {!hasNoResults && !queryIsRunning && (
-          <Button
-            className={`${baseClass}__export-btn`}
-            onClick={onExportQueryResults}
-            variant="inverse"
-          >
-            Export results
-          </Button>
-         )}
+            <Button
+              className={`${baseClass}__export-btn`}
+              onClick={onExportQueryResults}
+              variant="inverse"
+            >
+              Export results
+            </Button>
+          )}
         </header>
         <span className={`${baseClass}__table-title`}>Results</span>
         <div className={`${baseClass}__results-table-wrapper`}>
