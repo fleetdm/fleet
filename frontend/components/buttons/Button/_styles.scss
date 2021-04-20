@@ -227,10 +227,6 @@ $base-class: "button";
       background-color: $core-blue-ultralight;
       box-shadow: none;
     }
-
-    &:last-child {
-      border-bottom: none;
-    }
   }
 
   &--contextual-nav-item {

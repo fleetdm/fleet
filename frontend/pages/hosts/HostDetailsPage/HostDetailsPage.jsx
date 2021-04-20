@@ -204,6 +204,7 @@ export class HostDetailsPage extends Component {
     const { toggleQueryHostModal, getQueries, onFilterQueries } = this;
     const queries = getQueries();
     const queriesCount = queries.length;
+    const disabled = !queriesFilter && queriesCount === 0;
 
     if (!showQueryHostModal) {
       return false;
@@ -227,10 +228,24 @@ export class HostDetailsPage extends Component {
         return <div>{queryList}</div>;
       }
 
-      if (queriesCount === 0) {
+      if (!queriesFilter && queriesCount === 0) {
         return (
           <div className="__no-results">
             <span className="info__header">You have no saved queries.</span>
+            <span className="info__data">
+              Expecting to see queries? Try again in a few seconds as the system
+              catches up.
+            </span>
+          </div>
+        );
+      }
+
+      if (queriesFilter && queriesCount === 0) {
+        return (
+          <div className="__no-results">
+            <span className="info__header">
+              No queries match the current search criteria.
+            </span>
             <span className="info__data">
               Expecting to see queries? Try again in a few seconds as the system
               catches up.
@@ -252,6 +267,7 @@ export class HostDetailsPage extends Component {
             onChange={onFilterQueries}
             placeholder="Filter queries"
             value={queriesFilter}
+            disabled={disabled}
           />
           <KolideIcon name="search" />
         </div>
