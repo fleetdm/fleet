@@ -13,7 +13,6 @@ SELECT
   name AS name,
   version AS version,
   'Browser plugin (Chrome)' AS type,
-  '' AS 'architecture',
   'chrome_extensions' AS source
 FROM chrome_extensions
 UNION
@@ -21,7 +20,6 @@ SELECT
   name AS name,
   version AS version,
   'Browser plugin (Firefox)' AS type,
-  '' AS 'architecture',
   'firefox_addons' AS source
 FROM firefox_addons
 UNION
@@ -29,7 +27,6 @@ SELECT
   name AS name,
   version AS version,
   'Package (Atom)' AS type,
-  '' AS 'architecture',
   'atom_packages' AS source
 FROM atom_packages
 UNION
@@ -37,7 +34,6 @@ SELECT
   name AS name,
   version AS version,
   'Package (Python)' AS type,
-  '' AS 'architecture',
   'python_packages' AS source
 FROM python_packages
 UNION
@@ -45,7 +41,6 @@ SELECT
   name AS name,
   version AS version,
   'Package (pkg)' AS type,
-  arch AS 'architecture',
   'pkg_packages' AS source
 FROM pkg_packages;
 ```
