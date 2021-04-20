@@ -64,11 +64,20 @@ export class HostDetailsPage extends Component {
     return false;
   }
 
-  onQueryHost = (host, selectedQuery) => {
+  onQueryHostCustom = (host) => {
     const { dispatch } = this.props;
-    const { queryHostModal } = helpers;
+    const { queryHostCustom } = helpers;
 
-    queryHostModal(dispatch, host, selectedQuery);
+    queryHostCustom(dispatch, host);
+
+    return false;
+  };
+
+  onQueryHostSaved = (host, selectedQuery) => {
+    const { dispatch } = this.props;
+    const { queryHostSaved } = helpers;
+
+    queryHostSaved(dispatch, host, selectedQuery);
 
     return false;
   };
@@ -201,7 +210,13 @@ export class HostDetailsPage extends Component {
   renderQueryHostModal = () => {
     const { showQueryHostModal, queriesFilter } = this.state;
     const { host } = this.props;
-    const { toggleQueryHostModal, getQueries, onFilterQueries } = this;
+    const {
+      toggleQueryHostModal,
+      getQueries,
+      onFilterQueries,
+      onQueryHostCustom,
+      onQueryHostSaved,
+    } = this;
     const queries = getQueries();
     const queriesCount = queries.length;
     const disabled = !queriesFilter && queriesCount === 0;
@@ -218,6 +233,7 @@ export class HostDetailsPage extends Component {
               key={query.id}
               variant="unstyled-modal-query"
               className="modal-query-button"
+              onClick={() => onQueryHostSaved(host, query)}
             >
               <span className="info__header">{query.name}</span>
               <span className="info__data">{query.description}</span>
@@ -273,14 +289,20 @@ export class HostDetailsPage extends Component {
         </div>
         {results()}
         <p>
-          <a href="/queries/manage">Custom query</a>
+          <Button
+            onClick={() => onQueryHostCustom(host)}
+            variant="unstyled"
+            className={`${baseClass}__custom-query-button`}
+          >
+            Custom Query
+          </Button>
         </p>
       </Modal>
     );
   };
 
   renderActionButtons = () => {
-    const { toggleDeleteHostModal, toggleQueryHostModal, onQueryHost } = this;
+    const { toggleDeleteHostModal, toggleQueryHostModal } = this;
     const { host } = this.props;
 
     const isOnline = host.status === "online";

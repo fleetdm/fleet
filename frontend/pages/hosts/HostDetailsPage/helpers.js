@@ -16,7 +16,7 @@ export const destroyHost = (dispatch, host) => {
   });
 };
 
-export const queryHost = (dispatch, host) => {
+export const queryHostCustom = (dispatch, host) => {
   return dispatch(
     push({
       pathname: PATHS.NEW_QUERY,
@@ -25,7 +25,7 @@ export const queryHost = (dispatch, host) => {
   );
 };
 
-export const queryHostModal = (dispatch, host, selectedQuery) => {
+export const queryHostSaved = (dispatch, host, selectedQuery) => {
   return dispatch(
     push({
       pathname: PATHS.EDIT_QUERY(selectedQuery),
@@ -34,4 +34,4 @@ export const queryHostModal = (dispatch, host, selectedQuery) => {
   );
 };
 
-export default { fetchHost, destroyHost, queryHost };
+export default { fetchHost, destroyHost, queryHostCustom, queryHostSaved };
