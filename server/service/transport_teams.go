@@ -35,3 +35,11 @@ func decodeListTeamsRequest(ctx context.Context, r *http.Request) (interface{}, 
 	}
 	return listTeamsRequest{ListOptions: opt}, nil
 }
+
+func decodeDeleteTeamRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	id, err := idFromRequest(r, "id")
+	if err != nil {
+		return nil, err
+	}
+	return deleteTeamRequest{ID: id}, nil
+}

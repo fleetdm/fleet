@@ -42,6 +42,13 @@ func (d *Datastore) Team(tid uint) (*kolide.Team, error) {
 	return team, nil
 }
 
+func (d *Datastore) DeleteTeam(tid uint) error {
+	if err := d.deleteEntity("teams", tid); err != nil {
+		return errors.Wrapf(err, "delete team id %d", tid)
+	}
+	return nil
+}
+
 func (d *Datastore) TeamByName(name string) (*kolide.Team, error) {
 	sql := `
 		SELECT * FROM teams

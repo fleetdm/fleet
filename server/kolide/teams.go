@@ -10,6 +10,8 @@ type TeamStore interface {
 	NewTeam(team *Team) (*Team, error)
 	// Team retrieves the Team by ID.
 	Team(tid uint) (*Team, error)
+	// Team deletes the Team by ID.
+	DeleteTeam(tid uint) error
 	// TeamByName retrieves the Team by Name.
 	TeamByName(name string) (*Team, error)
 	// SaveTeam saves any changes to the team.
@@ -24,6 +26,8 @@ type TeamService interface {
 	NewTeam(ctx context.Context, p TeamPayload) (*Team, error)
 	// ModifyTeam modifies an existing team.
 	ModifyTeam(ctx context.Context, id uint, payload TeamPayload) (*Team, error)
+	// DeleteTeam deletes an existing team.
+	DeleteTeam(ctx context.Context, id uint) error
 	// ListTeams lists teams with the ordering and filters in the provided
 	// options.
 	ListTeams(ctx context.Context, opt ListOptions) ([]*Team, error)
