@@ -5,6 +5,7 @@ import TableContainer from "components/TableContainer";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
 import CreateTeamModal from "../../components/CreateTeamModal";
 import DeleteTeamModal from "../../components/DeleteTeamModal";
+import AddMemberModal from "./components/AddMemberModal";
 
 import {
   generateTableHeaders,
@@ -52,13 +53,14 @@ const MembersPage = (): JSX.Element => {
     console.log("query change");
   }, []);
 
+  // NOTE: we are purposely showing edit modal.
   const onActionSelection = (action: string, user: IUser): void => {
     switch (action) {
       case "edit":
         toggleEditUserModal(user);
         break;
       case "remove":
-        toggleRemoveUserModal(user);
+        toggleEditUserModal(user);
         break;
       default:
     }
@@ -127,18 +129,9 @@ const MembersPage = (): JSX.Element => {
         emptyComponent={() => <p>Empty Members</p>}
       />
       {showAddMemberModal ? (
-        <CreateTeamModal
+        <AddMemberModal
           onCancel={toggleAddUserModal}
-          // onSubmit={onCreateSubmit}
-          onSubmit={() => console.log("add submit")}
-        />
-      ) : null}
-      {showRemoveUserModal ? (
-        <DeleteTeamModal
-          onCancel={toggleRemoveUserModal}
-          // onSubmit={onDeleteSubmit}
-          onSubmit={() => console.log("remove submit")}
-          name={userEditing?.name || ""}
+          onSubmit={() => console.log("add member")}
         />
       ) : null}
       {showEditUserModal ? (
