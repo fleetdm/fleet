@@ -1914,6 +1914,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get queries specs](#get-queries-specs)
 - [Get query spec](#get-query-spec)
 - [Apply queries specs](#apply-queries-specs)
+- [Check live query status](#run-live-query)
 - [Run live query](#run-live-query)
 - [Run live query by name](#run-live-query-by-name)
 - [Retrieve live query results (standard WebSocket API)](#retrieve-live-query-results-standard-websocket-api)
@@ -2358,6 +2359,28 @@ Creates and/or modifies the queries included in the specs list. To modify an exi
   ]
 }
 ```
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
+### Check live query status
+
+Checks the status of the system's ability to run a live query. If an error is present in the response, the system won't be able to successfully run a live query. This endpoint is used by the Fleet UI to make sure that the Fleet instance is correctly configured to run live queries.
+
+`GET /api/v1/fleet/status/live_query`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/status/live_query`
 
 ##### Default response
 
