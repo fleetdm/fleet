@@ -1,5 +1,3 @@
-import * as path from "path";
-
 describe("Fleet Email API", () => {
   it("returns JSON data for test@fleetdm.com", () => {
     cy.request(
