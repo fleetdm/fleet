@@ -39,7 +39,7 @@ func decodeGetUserRequest(ctx context.Context, r *http.Request) (interface{}, er
 }
 
 func decodeListUsersRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	opt, err := listOptionsFromRequest(r)
+	opt, err := userListOptionsFromRequest(r)
 	if err != nil {
 		return nil, err
 	}

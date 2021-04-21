@@ -130,16 +130,16 @@ func testUserGlobalRole(t *testing.T, ds kolide.Datastore, users []*kolide.User)
 func testListUsers(t *testing.T, ds kolide.Datastore) {
 	createTestUsers(t, ds)
 
-	users, err := ds.ListUsers(kolide.ListOptions{})
+	users, err := ds.ListUsers(kolide.UserListOptions{})
 	assert.NoError(t, err)
 	require.Len(t, users, 2)
 
-	users, err = ds.ListUsers(kolide.ListOptions{MatchQuery: "jason"})
+	users, err = ds.ListUsers(kolide.UserListOptions{ListOptions: kolide.ListOptions{MatchQuery: "jason"}})
 	assert.NoError(t, err)
 	require.Len(t, users, 1)
 	assert.Equal(t, "jason@kolide.co", users[0].Email)
 
-	users, err = ds.ListUsers(kolide.ListOptions{MatchQuery: "paia"})
+	users, err = ds.ListUsers(kolide.UserListOptions{ListOptions: kolide.ListOptions{MatchQuery: "paia"}})
 	assert.NoError(t, err)
 	require.Len(t, users, 1)
 	assert.Equal(t, "mike@kolide.co", users[0].Email)
@@ -176,7 +176,11 @@ func testUserTeams(t *testing.T, ds kolide.Datastore) {
 	err = ds.SaveUser(users[0])
 	require.NoError(t, err)
 
-	users, err = ds.ListUsers(kolide.ListOptions{OrderKey: "name", OrderDirection: kolide.OrderDescending})
+	users, err = ds.ListUsers(
+		kolide.UserListOptions{
+			ListOptions: kolide.ListOptions{OrderKey: "name", OrderDirection: kolide.OrderDescending},
+		},
+	)
 	require.NoError(t, err)
 
 	assert.Len(t, users[0].Teams, 1)
@@ -199,7 +203,11 @@ func testUserTeams(t *testing.T, ds kolide.Datastore) {
 	err = ds.SaveUser(users[1])
 	require.NoError(t, err)
 
-	users, err = ds.ListUsers(kolide.ListOptions{OrderKey: "name", OrderDirection: kolide.OrderDescending})
+	users, err = ds.ListUsers(
+		kolide.UserListOptions{
+			ListOptions: kolide.ListOptions{OrderKey: "name", OrderDirection: kolide.OrderDescending},
+		},
+	)
 	require.NoError(t, err)
 
 	assert.Len(t, users[0].Teams, 1)
@@ -210,7 +218,11 @@ func testUserTeams(t *testing.T, ds kolide.Datastore) {
 	err = ds.SaveUser(users[1])
 	require.NoError(t, err)
 
-	users, err = ds.ListUsers(kolide.ListOptions{OrderKey: "name", OrderDirection: kolide.OrderDescending})
+	users, err = ds.ListUsers(
+		kolide.UserListOptions{
+			ListOptions: kolide.ListOptions{OrderKey: "name", OrderDirection: kolide.OrderDescending},
+		},
+	)
 	require.NoError(t, err)
 
 	assert.Len(t, users[0].Teams, 1)

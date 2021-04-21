@@ -113,7 +113,7 @@ func makeGetSessionUserEndpoint(svc kolide.Service) endpoint.Endpoint {
 ////////////////////////////////////////////////////////////////////////////////
 
 type listUsersRequest struct {
-	ListOptions kolide.ListOptions
+	ListOptions kolide.UserListOptions
 }
 
 type listUsersResponse struct {

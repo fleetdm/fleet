@@ -69,7 +69,7 @@ func (mw loggingMiddleware) CreateUser(ctx context.Context, p kolide.UserPayload
 	return user, err
 }
 
-func (mw loggingMiddleware) ListUsers(ctx context.Context, opt kolide.ListOptions) ([]*kolide.User, error) {
+func (mw loggingMiddleware) ListUsers(ctx context.Context, opt kolide.UserListOptions) ([]*kolide.User, error) {
 	var (
 		users    []*kolide.User
 		err      error

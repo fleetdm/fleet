@@ -43,3 +43,29 @@ func decodeDeleteTeamRequest(ctx context.Context, r *http.Request) (interface{},
 	}
 	return deleteTeamRequest{ID: id}, nil
 }
+
+func decodeListTeamUsersRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	id, err := idFromRequest(r, "id")
+	if err != nil {
+		return nil, err
+	}
+	opt, err := listOptionsFromRequest(r)
+	if err != nil {
+		return nil, err
+	}
+	return listTeamUsersRequest{TeamID: id, ListOptions: opt}, nil
+}
+
+func decodeModifyTeamUsersRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	id, err := idFromRequest(r, "id")
+	if err != nil {
+		return nil, err
+	}
+	var req modifyTeamUsersRequest
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return nil, err
+	}
+	req.TeamID = id
+	return req, nil
+}

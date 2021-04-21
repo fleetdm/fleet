@@ -14,7 +14,7 @@ import (
 type UserStore interface {
 	NewUser(user *User) (*User, error)
 	User(username string) (*User, error)
-	ListUsers(opt ListOptions) ([]*User, error)
+	ListUsers(opt UserListOptions) ([]*User, error)
 	UserByEmail(email string) (*User, error)
 	UserByID(id uint) (*User, error)
 	SaveUser(user *User) error
@@ -47,7 +47,7 @@ type UserService interface {
 	AuthenticatedUser(ctx context.Context) (user *User, err error)
 
 	// ListUsers returns all users.
-	ListUsers(ctx context.Context, opt ListOptions) (users []*User, err error)
+	ListUsers(ctx context.Context, opt UserListOptions) (users []*User, err error)
 
 	// ChangePassword validates the existing password, and sets the new
 	// password. User is retrieved from the viewer context.
@@ -113,6 +113,14 @@ type UserTeam struct {
 	Team
 	// Role is the role the user has for the team.
 	Role string `json:"role" db:"role"`
+}
+
+// UserListOptions is additional options that can be set for listing users.
+type UserListOptions struct {
+	ListOptions
+
+	// TeamID, if set, indicates to only return members of the identified team.
+	TeamID uint
 }
 
 // UserPayload is used to modify an existing user

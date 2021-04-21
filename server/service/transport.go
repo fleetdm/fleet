@@ -197,6 +197,25 @@ func hostListOptionsFromRequest(r *http.Request) (kolide.HostListOptions, error)
 	return hopt, nil
 }
 
+func userListOptionsFromRequest(r *http.Request) (kolide.UserListOptions, error) {
+	opt, err := listOptionsFromRequest(r)
+	if err != nil {
+		return kolide.UserListOptions{}, err
+	}
+
+	uopt := kolide.UserListOptions{ListOptions: opt}
+
+	if tid := r.URL.Query().Get("team_id"); tid != "" {
+		teamID, err := strconv.ParseUint(tid, 10, 64)
+		if err != nil {
+			return uopt, errors.Wrap(err, "parse team_id as int")
+		}
+		uopt.TeamID = uint(teamID)
+	}
+
+	return uopt, nil
+}
+
 func decodeNoParamsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	return nil, nil
 }
@@ -212,5 +231,17 @@ func decodeGetGenericSpecRequest(ctx context.Context, r *http.Request) (interfac
 	}
 	var req getGenericSpecRequest
 	req.Name = name
+	return req, nil
+}
+
+type genericIDListRequest struct {
+	IDs []uint `json:"ids"`
+}
+
+func decodeGenericIDListRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	var req genericIDListRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, err
+	}
 	return req, nil
 }

@@ -26,11 +26,17 @@ type TeamService interface {
 	NewTeam(ctx context.Context, p TeamPayload) (*Team, error)
 	// ModifyTeam modifies an existing team.
 	ModifyTeam(ctx context.Context, id uint, payload TeamPayload) (*Team, error)
+	// AddTeamUsers adds users to an existing team.
+	AddTeamUsers(ctx context.Context, teamID uint, users []TeamUser) (*Team, error)
+	// DeleteTeamUsers deletes users from an existing team.
+	DeleteTeamUsers(ctx context.Context, teamID uint, users []TeamUser) (*Team, error)
 	// DeleteTeam deletes an existing team.
 	DeleteTeam(ctx context.Context, id uint) error
 	// ListTeams lists teams with the ordering and filters in the provided
 	// options.
 	ListTeams(ctx context.Context, opt ListOptions) ([]*Team, error)
+	// ListTeams lists users on the team with the provided list options.
+	ListTeamUsers(ctx context.Context, teamID uint, opt ListOptions) ([]*User, error)
 }
 
 type TeamPayload struct {
@@ -60,9 +66,49 @@ type Team struct {
 	Hosts []Host `json:"hosts,omitempty"`
 }
 
+// TeamUser is a user mapped to a team with a role.
 type TeamUser struct {
-	// User is the user object
+	// User is the user object. At least ID must be specified for most uses.
 	User
 	// Role is the role the user has for the team.
 	Role string `json:"role" db:"role"`
+}
+
+var teamRoles = map[string]bool{
+	"observer":   true,
+	"maintainer": true,
+}
+
+// ValidTeamRole returns whether the role provided is valid for a team user.
+func ValidTeamRole(role string) bool {
+	return teamRoles[role]
+}
+
+// ValidTeamRoles returns the list of valid roles for a team user.
+func ValidTeamRoles() []string {
+	var roles []string
+	for role, _ := range teamRoles {
+		roles = append(roles, role)
+	}
+	return roles
+}
+
+var globalRoles = map[string]bool{
+	"observer":   true,
+	"maintainer": true,
+	"admin":      true,
+}
+
+// ValidGlobalRole returns whether the role provided is valid for a global user.
+func ValidGlobalRole(role string) bool {
+	return globalRoles[role]
+}
+
+// ValidGlobalRoles returns the list of valid roles for a global user.
+func ValidGlobalRoles() []string {
+	var roles []string
+	for role, _ := range globalRoles {
+		roles = append(roles, role)
+	}
+	return roles
 }
