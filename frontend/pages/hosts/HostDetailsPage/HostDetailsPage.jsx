@@ -10,9 +10,6 @@ import InputField from "components/forms/fields/InputField";
 import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
-import KolideIcon from "components/icons/KolideIcon";
-import OpenNewTabIcon from "../../../../assets/images/open-new-tab-12x12@2x.png";
-import ErrorIcon from "../../../../assets/images/icon-error-16x16@2x.png";
 
 import entityGetter from "redux/utilities/entityGetter";
 import queryActions from "redux/nodes/entities/queries/actions";
@@ -30,7 +27,7 @@ import {
   humanHostDetailUpdated,
 } from "kolide/helpers";
 import helpers from "./helpers";
-import { isDebuggerStatement } from "typescript";
+import SelectQueryModal from "./SelectQueryModal";
 
 const baseClass = "host-details";
 
@@ -54,8 +51,15 @@ export class HostDetailsPage extends Component {
     this.state = {
       showDeleteHostModal: false,
       showQueryHostModal: false,
-      queriesFilter: "",
     };
+  }
+
+  componentWillMount() {
+    const { dispatch } = this.props;
+
+    dispatch(queryActions.loadAll()).catch(() => false);
+
+    return false;
   }
 
   componentDidMount() {
@@ -66,24 +70,6 @@ export class HostDetailsPage extends Component {
 
     return false;
   }
-
-  onQueryHostCustom = (host) => {
-    const { dispatch } = this.props;
-    const { queryHostCustom } = helpers;
-
-    queryHostCustom(dispatch, host);
-
-    return false;
-  };
-
-  onQueryHostSaved = (host, selectedQuery) => {
-    const { dispatch } = this.props;
-    const { queryHostSaved } = helpers;
-
-    queryHostSaved(dispatch, host, selectedQuery);
-
-    return false;
-  };
 
   onDestroyHost = () => {
     const { dispatch, host } = this.props;
@@ -111,6 +97,18 @@ export class HostDetailsPage extends Component {
     const { dispatch } = this.props;
 
     return dispatch(push(`${PATHS.MANAGE_HOSTS}/labels/${label.id}`));
+  };
+
+  toggleQueryHostModal = () => {
+    return () => {
+      const { showQueryHostModal } = this.state;
+
+      this.setState({
+        showQueryHostModal: !showQueryHostModal,
+      });
+
+      return false;
+    };
   };
 
   toggleDeleteHostModal = () => {
@@ -163,174 +161,127 @@ export class HostDetailsPage extends Component {
     );
   };
 
-  toggleQueryHostModal = () => {
-    return () => {
-      const { showQueryHostModal } = this.state;
+  // renderQueryHostModal = () => {
 
-      this.setState({
-        showQueryHostModal: !showQueryHostModal,
-      });
+  //   const { host } = this.props;
+  //   const {
+  //     toggleQueryHostModal,
+  //     getQueries,
+  //     onFilterQueries,
+  //     onQueryHostCustom,
+  //     onQueryHostSaved,
+  //   } = this;
+  //   const queries = getQueries();
+  //   const queriesCount = queries.length;
+  //   const disabled = !queriesFilter && queriesCount === 0;
 
-      return false;
-    };
-  };
+  //   if (!showQueryHostModal) {
+  //     return false;
+  //   }
 
-  onFilterQueries = (queriesFilter) => {
-    this.setState({ queriesFilter });
+  //   const results = () => {
+  //     if (errorStateHere) {
+  //       return (
+  //         <div className={`${baseClass}__no-query-results`}>
+  //           <span className="info__header">
+  //             <img src={ErrorIcon} alt="error icon" id="error-icon" />
+  //             Something's gone wrong.
+  //           </span>
+  //           <span className="info__data">
+  //             Refresh the page or log in again.
+  //           </span>
+  //           <span className="info__data">
+  //             If this keeps happening, please{" "}
+  //             <a
+  //               href="https://github.com/fleetdm/fleet/issues"
+  //               target="_blank"
+  //               rel="noopener noreferrer"
+  //             >
+  //               file an issue.
+  //               <img
+  //                 src={OpenNewTabIcon}
+  //                 alt="open new tab"
+  //                 id="new-tab-icon"
+  //               />
+  //             </a>
+  //           </span>
+  //         </div>
+  //       );
+  //     }
 
-    return false;
-  };
+  //     if (queriesCount > 0) {
+  //       const queryList = queries.map((query) => {
+  //         return (
+  //           <Button
+  //             key={query.id}
+  //             variant="unstyled-modal-query"
+  //             className="modal-query-button"
+  //             onClick={() => onQueryHostSaved(host, query)}
+  //           >
+  //             <span className="info__header">{query.name}</span>
+  //             <span className="info__data">{query.description}</span>
+  //           </Button>
+  //         );
+  //       });
+  //       return <div>{queryList}</div>;
+  //     }
 
-  getQueries = () => {
-    const { queriesFilter } = this.state;
-    const { queries } = this.props;
+  //     if (!queriesFilter && queriesCount === 0) {
+  //       return (
+  //         <div className={`${baseClass}__no-query-results`}>
+  //           <span className="info__header">You have no saved queries.</span>
+  //           <span className="info__data">
+  //             Expecting to see queries? Try again in a few seconds as the system
+  //             catches up.
+  //           </span>
+  //         </div>
+  //       );
+  //     }
 
-    if (!queriesFilter) {
-      return queries;
-    }
+  //     if (queriesFilter && queriesCount === 0) {
+  //       return (
+  //         <div className={`${baseClass}__no-query-results`}>
+  //           <span className="info__header">
+  //             No queries match the current search criteria.
+  //           </span>
+  //           <span className="info__data">
+  //             Expecting to see queries? Try again in a few seconds as the system
+  //             catches up.
+  //           </span>
+  //         </div>
+  //       );
+  //     }
+  //   };
 
-    const lowerQueryFilter = queriesFilter.toLowerCase();
-
-    return filter(queries, (query) => {
-      if (!query.name) {
-        return false;
-      }
-
-      const lowerQueryName = query.name.toLowerCase();
-
-      return includes(lowerQueryName, lowerQueryFilter);
-    });
-  };
-
-  componentWillMount() {
-    const { dispatch } = this.props;
-
-    dispatch(queryActions.loadAll()).catch(() => false);
-
-    return false;
-  }
-
-  renderQueryHostModal = () => {
-    const { showQueryHostModal, queriesFilter } = this.state;
-    const { host } = this.props;
-    const {
-      toggleQueryHostModal,
-      getQueries,
-      onFilterQueries,
-      onQueryHostCustom,
-      onQueryHostSaved,
-    } = this;
-    const queries = getQueries();
-    const queriesCount = queries.length;
-    const disabled = !queriesFilter && queriesCount === 0;
-
-    if (!showQueryHostModal) {
-      return false;
-    }
-
-    const results = () => {
-      // if (errorStateHere) {
-      //   return (
-      //     <div className={`${baseClass}__no-query-results`}>
-      //       <span className="info__header">
-      //         <img src={ErrorIcon} alt="error icon" id="error-icon" />
-      //         Something's gone wrong.
-      //       </span>
-      //       <span className="info__data">
-      //         Refresh the page or log in again.
-      //       </span>
-      //       <span className="info__data">
-      //         If this keeps happening, please{" "}
-      //         <a
-      //           href="https://github.com/fleetdm/fleet/issues"
-      //           target="_blank"
-      //           rel="noopener noreferrer"
-      //         >
-      //           file an issue.
-      //           <img
-      //             src={OpenNewTabIcon}
-      //             alt="open new tab"
-      //             id="new-tab-icon"
-      //           />
-      //         </a>
-      //       </span>
-      //     </div>
-      //   );
-      // }
-
-      if (queriesCount > 0) {
-        const queryList = queries.map((query) => {
-          return (
-            <Button
-              key={query.id}
-              variant="unstyled-modal-query"
-              className="modal-query-button"
-              onClick={() => onQueryHostSaved(host, query)}
-            >
-              <span className="info__header">{query.name}</span>
-              <span className="info__data">{query.description}</span>
-            </Button>
-          );
-        });
-        return <div>{queryList}</div>;
-      }
-
-      if (!queriesFilter && queriesCount === 0) {
-        return (
-          <div className={`${baseClass}__no-query-results`}>
-            <span className="info__header">You have no saved queries.</span>
-            <span className="info__data">
-              Expecting to see queries? Try again in a few seconds as the system
-              catches up.
-            </span>
-          </div>
-        );
-      }
-
-      if (queriesFilter && queriesCount === 0) {
-        return (
-          <div className={`${baseClass}__no-query-results`}>
-            <span className="info__header">
-              No queries match the current search criteria.
-            </span>
-            <span className="info__data">
-              Expecting to see queries? Try again in a few seconds as the system
-              catches up.
-            </span>
-          </div>
-        );
-      }
-    };
-
-    return (
-      <Modal
-        title="Select a query"
-        onExit={toggleQueryHostModal(null)}
-        className={`${baseClass}__modal`}
-      >
-        <div className={`${baseClass}__filter-queries`}>
-          <InputField
-            name="query-filter"
-            onChange={onFilterQueries}
-            placeholder="Filter queries"
-            value={queriesFilter}
-            disabled={disabled}
-          />
-          <KolideIcon name="search" />
-        </div>
-        {results()}
-        <p>
-          <Button
-            onClick={() => onQueryHostCustom(host)}
-            variant="unstyled"
-            className={`${baseClass}__custom-query-button`}
-          >
-            Custom Query
-          </Button>
-        </p>
-      </Modal>
-    );
-  };
+  //   return (
+  //     <Modal
+  //       title="Select a query"
+  //       onExit={toggleQueryHostModal(null)}
+  //       className={`${baseClass}__modal`}
+  //     >
+  //       <div className={`${baseClass}__filter-queries`}>
+  //         <InputField
+  //           name="query-filter"
+  //           onChange={onFilterQueries}
+  //           placeholder="Filter queries"
+  //           value={queriesFilter}
+  //           disabled={disabled}
+  //         />
+  //         <KolideIcon name="search" />
+  //       </div>
+  //       {results()}
+  //       <p>
+  //         <Button
+  //           onClick={() => onQueryHostCustom(host)}
+  //           variant="unstyled"
+  //           className={`${baseClass}__custom-query-button`}
+  //         >
+  //           Custom Query
+  //         </Button>
+  //       </p>
+  //     </Modal>
+  //   );
+  // };
 
   renderActionButtons = () => {
     const { toggleDeleteHostModal, toggleQueryHostModal } = this;
@@ -424,10 +375,11 @@ export class HostDetailsPage extends Component {
   };
 
   render() {
-    const { host, isLoadingHost } = this.props;
+    const { host, isLoadingHost, dispatch, queries } = this.props;
+    const { showQueryHostModal } = this.state;
     const {
+      toggleQueryHostModal,
       renderDeleteHostModal,
-      renderQueryHostModal,
       renderActionButtons,
       renderLabels,
       renderPacks,
@@ -571,7 +523,14 @@ export class HostDetailsPage extends Component {
         {renderLabels()}
         {renderPacks()}
         {renderDeleteHostModal()}
-        {renderQueryHostModal()}
+        {showQueryHostModal && ( 
+          <SelectQueryModal
+            host={host}
+            toggleQueryHostModal={toggleQueryHostModal}
+            queries={queries}
+            dispatch={dispatch}
+          />
+        )}
       </div>
     );
   }

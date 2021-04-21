@@ -48,32 +48,5 @@
     width: 658px;
     padding: 40px;
     border-radius: 8px;
-
-    a {
-      font-size: $x-small;
-      color: $core-blue;
-      font-weight: $bold;
-      text-decoration: none;
-    }
-
-    .info {
-      display: flex;
-
-      &__header {
-        display: block;
-        color: $core-black;
-        font-weight: $bold;
-        font-size: $x-small;
-        text-align: left;
-      }
-      &__data {
-        display: block;
-        color: $core-dark-blue-grey;
-        font-weight: normal;
-        font-size: $x-small;
-        text-align: left;
-        margin-top: 10px;
-      }
-    }
   }
 }

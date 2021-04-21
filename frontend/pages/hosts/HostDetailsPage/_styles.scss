@@ -142,12 +142,6 @@
     margin-right: 12px;
   }
 
-  &__custom-query-button {
-    font-size: $x-small;
-    color: $core-blue;
-    font-weight: $bold;
-  }
-
   &__modal {
     p {
       font-size: 16px;
@@ -168,39 +162,5 @@
     display: flex;
     justify-content: center;
     text-align: center;
-  }
-
-  &__filter-queries {
-    flex-grow: 1;
-    position: relative;
-
-    .input-field {
-      padding-left: 42px;
-    }
-
-    .kolidecon {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      font-size: 20px;
-      color: $ui-dark-grey;
-    }
-  }
-
-  &__no-query-results {
-    width: 350px;
-    margin: 40px auto;
-  }
-
-  #error-icon {
-    height: 12px;
-    width: 12px;
-    margin-right: 8px;
-  }
-
-  #new-tab-icon {
-    height: 12px;
-    width: 12px;
-    margin-left: 6px;
   }
 }

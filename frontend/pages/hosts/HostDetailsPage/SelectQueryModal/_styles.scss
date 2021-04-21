@@ -1,0 +1,77 @@
+.select-query-modal {
+  &__no-query-results {
+    width: 350px;
+    margin: 40px auto;
+  }
+
+  #error-icon {
+    height: 12px;
+    width: 12px;
+    margin-right: 8px;
+  }
+
+  #new-tab-icon {
+    height: 12px;
+    width: 12px;
+    margin-left: 6px;
+  }
+
+  &__modal {
+    @include position(absolute, 22px null null null);
+    background-color: $white;
+    width: 658px;
+    padding: 40px;
+    border-radius: 8px;
+    // font-size: 16px;
+
+    a {
+      font-size: $x-small;
+      color: $core-blue;
+      font-weight: $bold;
+      text-decoration: none;
+    }
+
+    .info {
+      display: flex;
+
+      &__header {
+        display: block;
+        color: $core-black;
+        font-weight: $bold;
+        font-size: $x-small;
+        text-align: left;
+      }
+      &__data {
+        display: block;
+        color: $core-dark-blue-grey;
+        font-weight: normal;
+        font-size: $x-small;
+        text-align: left;
+        margin-top: 10px;
+      }
+    }
+  }
+
+  &__filter-queries {
+    flex-grow: 1;
+    position: relative;
+
+    .input-field {
+      padding-left: 42px;
+    }
+
+    .kolidecon {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 20px;
+      color: $ui-dark-grey;
+    }
+  }
+
+  &__custom-query-button {
+    font-size: $x-small;
+    color: $core-blue;
+    font-weight: $bold;
+  }
+}
