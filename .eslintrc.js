@@ -73,7 +73,7 @@ module.exports = {
       },
     },
     {
-      files: ["cypress/**/*.spec.ts"],
+      files: ["cypress/**/*.ts"],
       // Set to turn off jest linting error on cypress library
       rules: {
         "jest/valid-expect": "off",

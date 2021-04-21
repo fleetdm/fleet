@@ -136,18 +136,7 @@ describe("Settings flow", () => {
     cy.get("#advanced-options").click();
 
     cy.findByLabelText(/host expiry window/i).should("have.value", "5");
-  });
 
-  it("if last email is Hello from Fleet", () => {
-    cy.request("http://localhost:8025/api/v2/messages").then((response) => {
-      console.log(response.body);
-      expect(response.status).to.eq(200);
-      expect(response.body.items[0].To[0]).to.have.property("Domain");
-      expect(response.body.items[0].To[0].Mailbox).to.equal("test");
-      expect(response.body.items[0].To[0].Domain).to.equal("fleetdm.com");
-      expect(response.body.items[0].Content.Headers.Subject[0]).to.equal(
-        "Hello from Fleet"
-      );
-    });
+    cy.getHelloEmail();
   });
 });
