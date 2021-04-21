@@ -1948,6 +1948,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get query spec](#get-query-spec)
 - [Apply queries specs](#apply-queries-specs)
 - [Check live query status](#check-live-query-status)
+- [Check result store status](#check-result-store-status)
 - [Run live query](#run-live-query)
 - [Run live query by name](#run-live-query-by-name)
 - [Retrieve live query results (standard WebSocket API)](#retrieve-live-query-results-standard-websocket-api)
