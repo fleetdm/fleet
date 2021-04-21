@@ -163,6 +163,37 @@ After successful notarization, the generated "ticket" is automatically stapled t
 
 Windows packaging utilizes Docker containers to run the WiX packaging tools. This should enable building Windows packages from any operating system that supports Docker. Please file an issue for any packaging-related issues.
 
+### Uninstall
+
+Use the following procedures to stop the Orbit service and clean up the installed files.
+
+#### macOS (Pkg package)
+
+``` sh
+sudo launchctl unload /Library/LaunchDaemons/com.fleetdm.orbit.plist
+sudo rm -rf /var/lib/orbit /Library/LaunchDaemons/com.fleetdm.orbit.plist /usr/local/bin/orbit
+```
+
+#### Debian/Ubuntu (Deb package)
+
+``` sh
+sudo systemctl stop orbit.service
+sudo rm -rf /var/lib/orbit /usr/local/bin/orbit /lib/systemd/system/orbit.service
+sudo dpkg -r orbit-osquery
+```
+
+#### CentOS/Red Hat (RPM package)
+
+``` sh
+sudo systemctl stop orbit.service
+sudo rm -rf /var/lib/orbit /usr/local/bin/orbit /lib/systemd/system/orbit.service
+sudo rpm -e orbit-osquery
+```
+
+#### Windows (MSI package)
+
+Use the standard "Add and Remove Programs" dialog to uninstall on Windows.
+
 ## FAQs
 
 ### How does Orbit compare with Kolide Launcher?
