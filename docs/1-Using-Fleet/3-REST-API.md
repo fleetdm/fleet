@@ -469,22 +469,6 @@ This is the callback endpoint that the identity provider will use to send securi
 {}
 ```
 
-##### Unknown error
-
-`Status: 500`
-
-```
-{
-  "message": "Unknown Error",
-  "errors": [
-    {
-      "name": "base",
-      "reason": "InitiateSSO getting metadata: Get \"https://idp.example.org/idp-meta.xml\": dial tcp: lookup idp.example.org on [2001:558:feed::1]:53: no such host"
-    }
-  ]
-}
-```
-
 ---
 
 ## Hosts
