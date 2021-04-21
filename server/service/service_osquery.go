@@ -330,13 +330,31 @@ const hostAdditionalQueryPrefix = "fleet_additional_query_"
 // run from a distributed query campaign
 const hostDistributedQueryPrefix = "fleet_distributed_query_"
 
+type detailQuery struct {
+	Query string
+	// Platforms is a list of platforms to run the query on. If this value is
+	// empty, run on all platforms.
+	Platforms  []string
+	IngestFunc func(logger log.Logger, host *kolide.Host, rows []map[string]string) error
+}
+
+// runForPlatform determines whether this detail query should run on the given platform
+func (q *detailQuery) runForPlatform(platform string) bool {
+	if len(q.Platforms) == 0 {
+		return true
+	}
+	for _, p := range q.Platforms {
+		if p == platform {
+			return true
+		}
+	}
+	return false
+}
+
 // detailQueries defines the detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the
 // kolide.Host data model. This map should not be modified at runtime.
-var detailQueries = map[string]struct {
-	Query      string
-	IngestFunc func(logger log.Logger, host *kolide.Host, rows []map[string]string) error
-}{
+var detailQueries = map[string]detailQuery{
 	"network_interface": {
 		Query: `select address, mac
                         from interface_details id join interface_addresses ia
@@ -559,6 +577,13 @@ var detailQueries = map[string]struct {
 			return nil
 		},
 	},
+	"software_macos": {
+		Query:     "select * from uptime limit 1",
+		Platforms: []string{"darwin"},
+		IngestFunc: func(logger log.Logger, host *kolide.Host, rows []map[string]string) error {
+			return nil
+		},
+	},
 }
 
 // hostDetailQueries returns the map of queries that should be executed by
@@ -571,7 +596,9 @@ func (svc service) hostDetailQueries(host kolide.Host) (map[string]string, error
 	}
 
 	for name, query := range detailQueries {
-		queries[hostDetailQueryPrefix+name] = query.Query
+		if query.runForPlatform(host.Platform) {
+			queries[hostDetailQueryPrefix+name] = query.Query
+		}
 	}
 
 	// Get additional queries
