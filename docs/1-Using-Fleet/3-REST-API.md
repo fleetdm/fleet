@@ -63,6 +63,7 @@ All of these objects are put together and distributed to the appropriate osquery
 - [Me](#me)
 - [SSO config](#sso-config)
 - [Initiate SSO](#initiate-sso)
+- [SSO callback](#sso-callback)
 
 All API requests to the Fleet server require API token authentication unless noted in the documentation.
 
@@ -419,6 +420,54 @@ Gets the current SSO configuration.
 ##### Default response
 
 `Status: 200`
+
+##### Unknown error
+
+`Status: 500`
+
+```
+{
+  "message": "Unknown Error",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "InitiateSSO getting metadata: Get \"https://idp.example.org/idp-meta.xml\": dial tcp: lookup idp.example.org on [2001:558:feed::1]:53: no such host"
+    }
+  ]
+}
+```
+
+### SSO callback
+
+This is the callback endpoint that the identity provider will use to send security assertions to Fleet. This is where Fleet receives and processes the response from the identify provider.
+
+`POST /api/v1/fleet/sso/callback`
+
+#### Parameters
+
+| Name      | Type   | In   | Description                                                                |
+| --------- | ------ | ---- | -------------------------------------------------------------------------- |
+| SAMLResponse | string | body | **Required**. The SAML response from the identity provider. |
+
+#### Example
+
+`POST /api/v1/fleet/sso/callback`
+
+##### Request body
+
+```
+{
+  "SAMLResponse": "<SAML response from IdP>"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
 
 ##### Unknown error
 
@@ -1914,7 +1963,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get queries specs](#get-queries-specs)
 - [Get query spec](#get-query-spec)
 - [Apply queries specs](#apply-queries-specs)
-- [Check live query status](#run-live-query)
+- [Check live query status](#check-live-query-status)
 - [Run live query](#run-live-query)
 - [Run live query by name](#run-live-query-by-name)
 - [Retrieve live query results (standard WebSocket API)](#retrieve-live-query-results-standard-websocket-api)
@@ -2370,7 +2419,7 @@ Creates and/or modifies the queries included in the specs list. To modify an exi
 
 ### Check live query status
 
-Checks the status of the system's ability to run a live query. If an error is present in the response, the system won't be able to successfully run a live query. This endpoint is used by the Fleet UI to make sure that the Fleet instance is correctly configured to run live queries.
+Checks the status of the Fleet's ability to run a live query. If an error is present in the response, Fleet won't be able to successfully run a live query. This endpoint is used by the Fleet UI to make sure that the Fleet instance is correctly configured to run live queries.
 
 `GET /api/v1/fleet/status/live_query`
 
@@ -2381,6 +2430,28 @@ None.
 #### Example
 
 `GET /api/v1/fleet/status/live_query`
+
+##### Default response
+
+`Status: 200`
+
+```
+{}
+```
+
+### Check result store status
+
+Checks the status of the Fleet's result store. If an error is present in the response, Fleet won't be able to successfully run a live query. This endpoint is used by the Fleet UI to make sure that the Fleet instance is correctly configured to run live queries.
+
+`GET /api/v1/fleet/status/result_store`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/status/result_store`
 
 ##### Default response
 
