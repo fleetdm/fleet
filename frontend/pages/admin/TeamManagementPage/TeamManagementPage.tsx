@@ -80,7 +80,9 @@ const TeamManagementPage = (): JSX.Element => {
     (formData: ICreateTeamFormData) => {
       dispatch(teamActions.create(formData))
         .then(() => {
-          dispatch(renderFlash("success", "Team created"));
+          dispatch(
+            renderFlash("success", `Successfully created ${formData.name}.`)
+          );
           dispatch(teamActions.loadAll());
           // TODO: error handling
         })
@@ -93,7 +95,9 @@ const TeamManagementPage = (): JSX.Element => {
   const onDeleteSubmit = useCallback(() => {
     dispatch(teamActions.destroy(teamEditing?.id))
       .then(() => {
-        dispatch(renderFlash("success", "Team removed"));
+        dispatch(
+          renderFlash("success", `Successfully deleted ${teamEditing.name}.`)
+        );
         dispatch(teamActions.loadAll());
         // TODO: error handling
       })
@@ -111,7 +115,9 @@ const TeamManagementPage = (): JSX.Element => {
       }
       dispatch(teamActions.update(teamEditing?.id, updatedAttrs))
         .then(() => {
-          dispatch(renderFlash("success", "Team updated"));
+          dispatch(
+            renderFlash("success", `Successfully edited ${formData.name}.`)
+          );
           dispatch(teamActions.loadAll());
           // TODO: error handling
         })
