@@ -114,6 +114,9 @@ type KolideEndpoints struct {
 	ModifyTeam                            endpoint.Endpoint
 	DeleteTeam                            endpoint.Endpoint
 	ListTeams                             endpoint.Endpoint
+	ListTeamUsers                         endpoint.Endpoint
+	AddTeamUsers                          endpoint.Endpoint
+	DeleteTeamUsers                       endpoint.Endpoint
 }
 
 // MakeKolideServerEndpoints creates the Kolide API endpoints.
@@ -217,10 +220,13 @@ func MakeKolideServerEndpoints(svc kolide.Service, jwtKey, urlPrefix string, lim
 		GetCarveBlock:                         authenticatedUser(jwtKey, svc, makeGetCarveBlockEndpoint(svc)),
 		Version:                               authenticatedUser(jwtKey, svc, makeVersionEndpoint(svc)),
 		// TODO permissions for teams endpoints
-		CreateTeam: authenticatedUser(jwtKey, svc, makeCreateTeamEndpoint(svc)),
-		ModifyTeam: authenticatedUser(jwtKey, svc, makeModifyTeamEndpoint(svc)),
-		DeleteTeam: authenticatedUser(jwtKey, svc, makeDeleteTeamEndpoint(svc)),
-		ListTeams:  authenticatedUser(jwtKey, svc, makeListTeamsEndpoint(svc)),
+		CreateTeam:      authenticatedUser(jwtKey, svc, makeCreateTeamEndpoint(svc)),
+		ModifyTeam:      authenticatedUser(jwtKey, svc, makeModifyTeamEndpoint(svc)),
+		DeleteTeam:      authenticatedUser(jwtKey, svc, makeDeleteTeamEndpoint(svc)),
+		ListTeams:       authenticatedUser(jwtKey, svc, makeListTeamsEndpoint(svc)),
+		ListTeamUsers:   authenticatedUser(jwtKey, svc, makeListTeamUsersEndpoint(svc)),
+		AddTeamUsers:    authenticatedUser(jwtKey, svc, makeAddTeamUsersEndpoint(svc)),
+		DeleteTeamUsers: authenticatedUser(jwtKey, svc, makeDeleteTeamUsersEndpoint(svc)),
 
 		// Authenticated status endpoints
 		StatusResultStore: authenticatedUser(jwtKey, svc, makeStatusResultStoreEndpoint(svc)),
@@ -334,6 +340,9 @@ type kolideHandlers struct {
 	ModifyTeam                            http.Handler
 	DeleteTeam                            http.Handler
 	ListTeams                             http.Handler
+	ListTeamUsers                         http.Handler
+	AddTeamUsers                          http.Handler
+	DeleteTeamUsers                       http.Handler
 }
 
 func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *kolideHandlers {
@@ -434,6 +443,9 @@ func makeKolideKitHandlers(e KolideEndpoints, opts []kithttp.ServerOption) *koli
 		ModifyTeam:                            newServer(e.ModifyTeam, decodeModifyTeamRequest),
 		DeleteTeam:                            newServer(e.DeleteTeam, decodeDeleteTeamRequest),
 		ListTeams:                             newServer(e.ListTeams, decodeListTeamsRequest),
+		ListTeamUsers:                         newServer(e.ListTeamUsers, decodeListTeamUsersRequest),
+		AddTeamUsers:                          newServer(e.AddTeamUsers, decodeModifyTeamUsersRequest),
+		DeleteTeamUsers:                       newServer(e.DeleteTeamUsers, decodeModifyTeamUsersRequest),
 	}
 }
 
@@ -650,6 +662,9 @@ func attachKolideAPIRoutes(r *mux.Router, h *kolideHandlers) {
 	r.Handle("/api/v1/fleet/teams", h.ListTeams).Methods("GET").Name("list_teams")
 	r.Handle("/api/v1/fleet/teams/{id}", h.ModifyTeam).Methods("PATCH").Name("modify_team")
 	r.Handle("/api/v1/fleet/teams/{id}", h.DeleteTeam).Methods("DELETE").Name("delete_team")
+	r.Handle("/api/v1/fleet/teams/{id}/users", h.ListTeamUsers).Methods("GET").Name("team_users")
+	r.Handle("/api/v1/fleet/teams/{id}/users", h.AddTeamUsers).Methods("PATCH").Name("add_team_users")
+	r.Handle("/api/v1/fleet/teams/{id}/users", h.DeleteTeamUsers).Methods("DELETE").Name("delete_team_users")
 
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
 	r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST").Name("get_client_config")
@@ -721,7 +736,7 @@ func RedirectLoginToSetup(svc kolide.Service, logger kitlog.Logger, next http.Ha
 // RequireSetup checks to see if the service has been setup.
 func RequireSetup(svc kolide.Service) (bool, error) {
 	ctx := context.Background()
-	users, err := svc.ListUsers(ctx, kolide.ListOptions{Page: 0, PerPage: 1})
+	users, err := svc.ListUsers(ctx, kolide.UserListOptions{ListOptions: kolide.ListOptions{Page: 0, PerPage: 1}})
 	if err != nil {
 		return false, err
 	}

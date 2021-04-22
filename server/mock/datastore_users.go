@@ -10,7 +10,7 @@ type NewUserFunc func(user *kolide.User) (*kolide.User, error)
 
 type UserFunc func(username string) (*kolide.User, error)
 
-type ListUsersFunc func(opt kolide.ListOptions) ([]*kolide.User, error)
+type ListUsersFunc func(opt kolide.UserListOptions) ([]*kolide.User, error)
 
 type UserByEmailFunc func(email string) (*kolide.User, error)
 
@@ -63,7 +63,7 @@ func (s *UserStore) User(username string) (*kolide.User, error) {
 	return s.UserFunc(username)
 }
 
-func (s *UserStore) ListUsers(opt kolide.ListOptions) ([]*kolide.User, error) {
+func (s *UserStore) ListUsers(opt kolide.UserListOptions) ([]*kolide.User, error) {
 	s.ListUsersFuncInvoked = true
 	return s.ListUsersFunc(opt)
 }

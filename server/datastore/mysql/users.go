@@ -75,16 +75,21 @@ func (d *Datastore) User(username string) (*kolide.User, error) {
 	return d.findUser("username", username)
 }
 
-// ListUsers lists all users with limit, sort and offset passed in with
-// kolide.ListOptions
-func (d *Datastore) ListUsers(opt kolide.ListOptions) ([]*kolide.User, error) {
+// ListUsers lists all users with team ID, limit, sort and offset passed in with
+// UserListOptions.
+func (d *Datastore) ListUsers(opt kolide.UserListOptions) ([]*kolide.User, error) {
 	sqlStatement := `
 		SELECT * FROM users
 		WHERE TRUE
 	`
+	var params []interface{}
+	if opt.TeamID != 0 {
+		sqlStatement += " AND id IN (SELECT user_id FROM user_teams WHERE team_id = ?)"
+		params = append(params, opt.TeamID)
+	}
 
-	sqlStatement, params := searchLike(sqlStatement, nil, opt.MatchQuery, userSearchColumns...)
-	sqlStatement = appendListOptionsToSQL(sqlStatement, opt)
+	sqlStatement, params = searchLike(sqlStatement, params, opt.MatchQuery, userSearchColumns...)
+	sqlStatement = appendListOptionsToSQL(sqlStatement, opt.ListOptions)
 	users := []*kolide.User{}
 
 	if err := d.db.Select(&users, sqlStatement, params...); err != nil {
@@ -214,6 +219,7 @@ func (d *Datastore) saveTeamsForUser(user *kolide.User) error {
 		if _, err := tx.Exec(sql, args...); err != nil {
 			return errors.Wrap(err, "insert teams")
 		}
+
 		return nil
 	}); err != nil {
 		return errors.Wrap(err, "save teams for user")

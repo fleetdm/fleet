@@ -1,7 +1,10 @@
 package mysql
 
 import (
+	"strings"
+
 	"github.com/fleetdm/fleet/server/kolide"
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
@@ -39,6 +42,10 @@ func (d *Datastore) Team(tid uint) (*kolide.Team, error) {
 		return nil, errors.Wrap(err, "select team")
 	}
 
+	if err := d.loadUsersForTeam(team); err != nil {
+		return nil, err
+	}
+
 	return team, nil
 }
 
@@ -60,7 +67,61 @@ func (d *Datastore) TeamByName(name string) (*kolide.Team, error) {
 		return nil, errors.Wrap(err, "select team")
 	}
 
+	if err := d.loadUsersForTeam(team); err != nil {
+		return nil, err
+	}
+
 	return team, nil
+}
+
+func (d *Datastore) loadUsersForTeam(team *kolide.Team) error {
+	sql := `
+		SELECT u.name, u.id, u.email, ut.role
+		FROM user_teams ut JOIN users u ON (ut.user_id = u.id)
+		WHERE ut.team_id = ?
+	`
+	rows := []kolide.TeamUser{}
+	if err := d.db.Select(&rows, sql, team.ID); err != nil {
+		return errors.Wrap(err, "load users for team")
+	}
+
+	team.Users = rows
+	return nil
+}
+
+func (d *Datastore) saveUsersForTeam(team *kolide.Team) error {
+	// Do a full user update by deleting existing users and then inserting all
+	// the current users in a single transaction.
+	if err := d.withRetryTxx(func(tx *sqlx.Tx) error {
+		// Delete before insert
+		sql := `DELETE FROM user_teams WHERE team_id = ?`
+		if _, err := tx.Exec(sql, team.ID); err != nil {
+			return errors.Wrap(err, "delete existing users")
+		}
+
+		if len(team.Users) == 0 {
+			return nil
+		}
+
+		// Bulk insert
+		const valueStr = "(?,?,?),"
+		var args []interface{}
+		for _, teamUser := range team.Users {
+			args = append(args, teamUser.User.ID, team.ID, teamUser.Role)
+		}
+		sql = "INSERT INTO user_teams (user_id, team_id, role) VALUES " +
+			strings.Repeat(valueStr, len(team.Users))
+		sql = strings.TrimSuffix(sql, ",")
+		if _, err := tx.Exec(sql, args...); err != nil {
+			return errors.Wrap(err, "insert users")
+		}
+
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "save users for team")
+	}
+
+	return nil
 }
 
 func (d *Datastore) SaveTeam(team *kolide.Team) (*kolide.Team, error) {
@@ -74,6 +135,11 @@ func (d *Datastore) SaveTeam(team *kolide.Team) (*kolide.Team, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "saving team")
 	}
+
+	if err := d.saveUsersForTeam(team); err != nil {
+		return nil, err
+	}
+
 	return team, nil
 }
 

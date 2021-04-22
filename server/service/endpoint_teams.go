@@ -118,3 +118,63 @@ func makeDeleteTeamEndpoint(svc kolide.Service) endpoint.Endpoint {
 		return deleteTeamResponse{}, nil
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// List Team Users
+////////////////////////////////////////////////////////////////////////////////
+
+type listTeamUsersRequest struct {
+	TeamID      uint
+	ListOptions kolide.ListOptions
+}
+
+func makeListTeamUsersEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(listTeamUsersRequest)
+		users, err := svc.ListTeamUsers(ctx, req.TeamID, req.ListOptions)
+		if err != nil {
+			return listUsersResponse{Err: err}, nil
+		}
+
+		resp := listUsersResponse{Users: []kolide.User{}}
+		for _, user := range users {
+			resp.Users = append(resp.Users, *user)
+		}
+		return resp, nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Add / Delete Team Users
+////////////////////////////////////////////////////////////////////////////////
+
+type modifyTeamUsersRequest struct {
+	TeamID uint // From request path
+	// User ID and role must be specified for add users, user ID must be
+	// specified for delete users.
+	Users []kolide.TeamUser `json:"users"`
+}
+
+func makeAddTeamUsersEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(modifyTeamUsersRequest)
+		team, err := svc.AddTeamUsers(ctx, req.TeamID, req.Users)
+		if err != nil {
+			return modifyTeamResponse{Err: err}, nil
+		}
+
+		return modifyTeamResponse{Team: team}, err
+	}
+}
+
+func makeDeleteTeamUsersEndpoint(svc kolide.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(modifyTeamUsersRequest)
+		team, err := svc.DeleteTeamUsers(ctx, req.TeamID, req.Users)
+		if err != nil {
+			return modifyTeamResponse{Err: err}, nil
+		}
+
+		return modifyTeamResponse{Team: team}, err
+	}
+}

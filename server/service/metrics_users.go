@@ -71,7 +71,7 @@ func (mw metricsMiddleware) User(ctx context.Context, id uint) (*kolide.User, er
 	return user, err
 }
 
-func (mw metricsMiddleware) ListUsers(ctx context.Context, opt kolide.ListOptions) ([]*kolide.User, error) {
+func (mw metricsMiddleware) ListUsers(ctx context.Context, opt kolide.UserListOptions) ([]*kolide.User, error) {
 
 	var (
 		users []*kolide.User

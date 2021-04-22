@@ -179,7 +179,7 @@ func (svc service) AuthenticatedUser(ctx context.Context) (*kolide.User, error) 
 	return vc.User, nil
 }
 
-func (svc service) ListUsers(ctx context.Context, opt kolide.ListOptions) ([]*kolide.User, error) {
+func (svc service) ListUsers(ctx context.Context, opt kolide.UserListOptions) ([]*kolide.User, error) {
 	return svc.ds.ListUsers(opt)
 }
 
