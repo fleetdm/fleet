@@ -84,9 +84,13 @@ const TeamManagementPage = (): JSX.Element => {
             renderFlash("success", `Successfully created ${formData.name}.`)
           );
           dispatch(teamActions.loadAll());
-          // TODO: error handling
         })
-        .catch(() => null);
+        // followed formatting in osqueryoptionspage.jsx
+        .catch((errors) => {
+          if (errors.base) {
+            dispatch(renderFlash("error", errors.base));
+          }
+        });
       setShowCreateTeamModal(false);
     },
     [dispatch, setShowCreateTeamModal]
@@ -99,9 +103,13 @@ const TeamManagementPage = (): JSX.Element => {
           renderFlash("success", `Successfully deleted ${teamEditing.name}.`)
         );
         dispatch(teamActions.loadAll());
-        // TODO: error handling
       })
-      .catch(() => null);
+      // followed formatting in osqueryoptionspage.jsx
+      .catch((errors) => {
+        if (errors.base) {
+          dispatch(renderFlash("error", errors.base));
+        }
+      });
     toggleDeleteTeamModal();
   }, [dispatch, teamEditing, toggleDeleteTeamModal]);
 
@@ -119,9 +127,13 @@ const TeamManagementPage = (): JSX.Element => {
             renderFlash("success", `Successfully edited ${formData.name}.`)
           );
           dispatch(teamActions.loadAll());
-          // TODO: error handling
         })
-        .catch(() => null);
+        // followed formatting in osqueryoptionspage.jsx
+        .catch((errors) => {
+          if (errors.base) {
+            dispatch(renderFlash("error", errors.base));
+          }
+        });
       toggleEditTeamModal();
     },
     [dispatch, teamEditing, toggleEditTeamModal]
