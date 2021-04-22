@@ -37,7 +37,7 @@ func (d *Datastore) User(username string) (*kolide.User, error) {
 		WithMessage(fmt.Sprintf("with username %s", username))
 }
 
-func (d *Datastore) ListUsers(opt kolide.ListOptions) ([]*kolide.User, error) {
+func (d *Datastore) ListUsers(opt kolide.UserListOptions) ([]*kolide.User, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -66,13 +66,13 @@ func (d *Datastore) ListUsers(opt kolide.ListOptions) ([]*kolide.User, error) {
 			"enabled":    "Enabled",
 			"position":   "Position",
 		}
-		if err := sortResults(users, opt, fields); err != nil {
+		if err := sortResults(users, opt.ListOptions, fields); err != nil {
 			return nil, err
 		}
 	}
 
 	// Apply limit/offset
-	low, high := d.getLimitOffsetSliceBounds(opt, len(users))
+	low, high := d.getLimitOffsetSliceBounds(opt.ListOptions, len(users))
 	users = users[low:high]
 
 	return users, nil
