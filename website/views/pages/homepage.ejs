@@ -61,12 +61,31 @@
     <div style="max-width: 1260px;" class="container-fluid py-5 px-4 px-sm-5 mx-auto">
       <div class="text-center py-5">
         <h2 style="font-size: 36px;" class="mb-5">Send device data to any log destination.</h2>
-        <p style="max-width: 866px;" class="pb-5 mx-auto">Fleet makes it easier to query and track your servers, containers, and laptops.  It extends <a style="color:#6a67fe; text-decoration: underline;" target="_blank" href="https://osquery.io/">osquery</a> to answer questions about multiple devices at the same time and provides log streams that enable automated threat detection.</p>
+        <p style="max-width: 866px;" class="mx-auto">Fleet makes it easier to query and track your servers, containers, and laptops.  It extends <a style="color:#6a67fe; text-decoration: underline;" target="_blank" href="https://osquery.io/">osquery</a> to answer questions about multiple devices at the same time and provides log streams that enable automated threat detection.</p>
       </div>
-      <div style="max-width: 1024px;" class="mx-auto pb-5 d-none d-md-block">
-        <img alt="A diagram showing some of the most popular log destinations amongst Fleet users for their osquery device data; including AWS Kinesis, Google Cloud, and more." src="/images/graphic-log-location-1024x469@2x.png" style="width: 100%;"/>
+      <div class="log-destinations-container pb-5"> 
+        <div class="log-destination-card">
+          <img alt="filesystem log destination" src="/images/log-destination-filesystem@2x.png" style="width: 80px; height: 80px;"/>
+          <h6>Filesystem</h6>
+        </div>
+        <div class="log-destination-card">
+          <img alt="Splunk log destination" src="/images/log-destination-splunk@2x.png" style="width: 80px; height: 80px;"/>
+          <h6>Splunk</h6>
+        </div>
+        <div class="log-destination-card">
+          <img alt="AWS Kinesis Firehose log destination" src="/images/log-destination-firehose@2x.png" style="width: 80px; height: 80px;"/>
+          <h6>AWS Kinesis Firehose</h6>
+        </div>
+        <div class="log-destination-card">
+          <img alt="GCP PubSub log destination" src="/images/log-destination-pubsub@2x.png" style="width: 80px; height: 80px;"/>
+          <h6>GCP PubSub</h6>
+        </div>
+        <div class="log-destination-card">
+          <img alt="AWS Lambda log destination" src="/images/log-destination-lambda@2x.png" style="width: 80px; height: 80px;"/>
+          <h6>AWS Lambda</h6>
+        </div>
       </div>
-      <div style="max-width: 1000px" class="mx-auto">
+      <div style="max-width: 1000px" class="pt-5 mx-auto">
         <div class="row pb-5">
           <div class="col-md">
             <div style="max-width: 510px;" class="pr-md-5">
