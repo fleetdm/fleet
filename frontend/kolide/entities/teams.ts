@@ -1,5 +1,5 @@
 import endpoints from "kolide/endpoints";
-import { ITeam } from "interfaces/team";
+import { INewMembersBody, ITeam } from "interfaces/team";
 import { ICreateTeamFormData } from "pages/admin/TeamManagementPage/components/CreateTeamModal/CreateTeamModal";
 
 interface ITeamsResponse {
@@ -54,6 +54,15 @@ export default (client: any) => {
 
       return client
         .authenticatedPatch(updateTeamEndpoint, JSON.stringify(updateParams))
+        .then((response: ITeam) => response);
+    },
+    addMembers: (teamId: number, newMembers: INewMembersBody) => {
+      const { TEAMS_MEMBERS } = endpoints;
+      return client
+        .authenticatedPatch(
+          client._endpoint(TEAMS_MEMBERS(teamId)),
+          JSON.stringify(newMembers)
+        )
         .then((response: ITeam) => response);
     },
   };

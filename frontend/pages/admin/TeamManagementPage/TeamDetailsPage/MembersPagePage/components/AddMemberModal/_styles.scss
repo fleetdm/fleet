@@ -1,6 +1,11 @@
 .add-member-modal {
   &__btn-wrap {
     display: flex;
-    justify-content: flex-end;
+    flex-direction: row-reverse;
+    margin-top: $pad-xxlarge;
+  }
+
+  &__btn {
+    margin-left: 12px;
   }
 }

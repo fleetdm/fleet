@@ -1,10 +1,14 @@
 import React, { useCallback, useState } from "react";
 
 import { IUser } from "interfaces/user";
+import { INewMembersBody } from "interfaces/team";
+// ignore TS error for now until these are rewritten in ts.
+// @ts-ignore
+import { renderFlash } from "redux/nodes/notifications/actions";
+import { addMembers } from "redux/nodes/entities/teams/actions";
 import TableContainer from "components/TableContainer";
+import { useDispatch } from "react-redux";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
-import CreateTeamModal from "../../components/CreateTeamModal";
-import DeleteTeamModal from "../../components/DeleteTeamModal";
 import AddMemberModal from "./components/AddMemberModal";
 
 import {
@@ -14,7 +18,18 @@ import {
 
 const baseClass = "members";
 
-const MembersPage = (): JSX.Element => {
+interface IMembersPageProps {
+  params: {
+    team_id: number;
+  };
+}
+
+const MembersPage = (props: IMembersPageProps): JSX.Element => {
+  const {
+    params: { team_id: teamId },
+  } = props;
+  const dispatch = useDispatch();
+
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showRemoveUserModal, setShowRemoveUserModal] = useState(false);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
@@ -38,6 +53,21 @@ const MembersPage = (): JSX.Element => {
       user ? setUserEditing(user) : setUserEditing(undefined);
     },
     [showEditUserModal, setShowEditUserModal, setUserEditing]
+  );
+
+  const onAddMemberSubmit = useCallback(
+    (newMembers: INewMembersBody) => {
+      dispatch(addMembers(teamId, newMembers)).then(() => {
+        dispatch(
+          renderFlash(
+            "success",
+            `${newMembers.users.length} members successfully added to TEAM.`
+          )
+        ); // TODO: update team name
+      });
+      setShowAddMemberModal(false);
+    },
+    [teamId]
   );
 
   // NOTE: called once on the initial render of this component.
@@ -131,7 +161,7 @@ const MembersPage = (): JSX.Element => {
       {showAddMemberModal ? (
         <AddMemberModal
           onCancel={toggleAddUserModal}
-          onSubmit={() => console.log("add member")}
+          onSubmit={onAddMemberSubmit}
         />
       ) : null}
       {showEditUserModal ? (

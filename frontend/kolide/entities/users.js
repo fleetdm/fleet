@@ -56,7 +56,8 @@ export default (client) => {
       perPage = 100,
       selected = "",
       globalFilter = "",
-      sortBy = []
+      sortBy = [],
+      team = 1
     ) => {
       const { USERS } = endpoints;
 

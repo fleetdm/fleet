@@ -26,9 +26,6 @@ export default {
   HOST_DETAILS: (host: IHost): string => {
     return `${URL_PREFIX}/hosts/${host.id}`;
   },
-  TEAM_DETAILS: (teamId: number): string => {
-    return `${URL_PREFIX}/settings/teams/${teamId}`;
-  },
   TEAM_DETAILS_MEMBERS: (teamId: number): string => {
     return `${URL_PREFIX}/settings/teams/${teamId}/members`;
   },
