@@ -33,7 +33,7 @@ const onQueryHostSaved = (host, selectedQuery, dispatch) => {
 };
 
 const SelectQueryModal = (props) => {
-  const { host, toggleQueryHostModal, queries, dispatch } = props;
+  const { host, toggleQueryHostModal, queries, dispatch, queryErrors } = props;
 
   const [queriesFilter, setQueriesFilter] = useState("");
 
@@ -47,34 +47,28 @@ const SelectQueryModal = (props) => {
   const disabled = !queriesFilter && queriesCount === 0;
 
   const results = () => {
-    // if (errorStateHere) {
-    //   return (
-    //     <div className={`${baseClass}__no-query-results`}>
-    //       <span className="info__header">
-    //         <img src={ErrorIcon} alt="error icon" id="error-icon" />
-    //         Something's gone wrong.
-    //       </span>
-    //       <span className="info__data">
-    //         Refresh the page or log in again.
-    //       </span>
-    //       <span className="info__data">
-    //         If this keeps happening, please{" "}
-    //         <a
-    //           href="https://github.com/fleetdm/fleet/issues"
-    //           target="_blank"
-    //           rel="noopener noreferrer"
-    //         >
-    //           file an issue.
-    //           <img
-    //             src={OpenNewTabIcon}
-    //             alt="open new tab"
-    //             id="new-tab-icon"
-    //           />
-    //         </a>
-    //       </span>
-    //     </div>
-    //   );
-    // }
+    if (queryErrors) {
+      return (
+        <div className={`${baseClass}__no-query-results`}>
+          <span className="info__header">
+            <img src={ErrorIcon} alt="error icon" id="error-icon" />
+            Something&apos;s gone wrong.
+          </span>
+          <span className="info__data">Refresh the page or log in again.</span>
+          <span className="info__data">
+            If this keeps happening, please{" "}
+            <a
+              href="https://github.com/fleetdm/fleet/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              file an issue.
+              <img src={OpenNewTabIcon} alt="open new tab" id="new-tab-icon" />
+            </a>
+          </span>
+        </div>
+      );
+    }
 
     if (queriesCount > 0) {
       const queryList = queries.map((query) => {
@@ -155,6 +149,7 @@ SelectQueryModal.propTypes = {
   host: hostInterface,
   queries: PropTypes.arrayOf(queryInterface),
   toggleQueryHostModal: PropTypes.func,
+  queryErrors: PropTypes.object, // eslint-disable-line react/forbid-prop-types
 };
 
 export default SelectQueryModal;

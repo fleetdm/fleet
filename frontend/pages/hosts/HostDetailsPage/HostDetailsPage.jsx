@@ -6,7 +6,6 @@ import classnames from "classnames";
 import ReactTooltip from "react-tooltip";
 import { noop, pick, filter, includes } from "lodash";
 
-import InputField from "components/forms/fields/InputField";
 import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
@@ -38,6 +37,7 @@ export class HostDetailsPage extends Component {
     dispatch: PropTypes.func,
     isLoadingHost: PropTypes.bool,
     queries: PropTypes.arrayOf(queryInterface),
+    queryErrors: PropTypes.object, // eslint-disable-line react/forbid-prop-types
   };
 
   static defaultProps = {
@@ -375,7 +375,7 @@ export class HostDetailsPage extends Component {
   };
 
   render() {
-    const { host, isLoadingHost, dispatch, queries } = this.props;
+    const { host, isLoadingHost, dispatch, queries, queryErrors } = this.props;
     const { showQueryHostModal } = this.state;
     const {
       toggleQueryHostModal,
@@ -529,6 +529,7 @@ export class HostDetailsPage extends Component {
             toggleQueryHostModal={toggleQueryHostModal}
             queries={queries}
             dispatch={dispatch}
+            queryErrors={queryErrors}
           />
         )}
       </div>
@@ -538,7 +539,7 @@ export class HostDetailsPage extends Component {
 
 const mapStateToProps = (state, ownProps) => {
   const queryEntities = entityGetter(state).get("queries");
-  const { entities: queries } = queryEntities;
+  const { entities: queries, errors: queryErrors } = queryEntities;
   const { host_id: hostID } = ownProps.params;
   const host = entityGetter(state).get("hosts").findBy({ id: hostID });
   const { loading: isLoadingHost } = state.entities.hosts;
@@ -547,6 +548,7 @@ const mapStateToProps = (state, ownProps) => {
     hostID,
     isLoadingHost,
     queries,
+    queryErrors,
   };
 };
 
