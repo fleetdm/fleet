@@ -37,11 +37,11 @@ const SelectQueryModal = (props) => {
 
   const [queriesFilter, setQueriesFilter] = useState("");
 
-  // const onFilterQueries = () => {
-  //   setQueriesFilter(queriesFilter);
+  const onFilterQueries = () => {
+    setQueriesFilter(queriesFilter);
 
-  //   return false;
-  // };
+    return false;
+  };
 
   const queriesCount = queries.length;
   const disabled = !queriesFilter && queriesCount === 0;
@@ -129,7 +129,7 @@ const SelectQueryModal = (props) => {
       <div className={`${baseClass}__filter-queries`}>
         <InputField
           name="query-filter"
-          onChange={onFilterQueries(queriesFilter)}
+          onChange={onFilterQueries}
           placeholder="Filter queries"
           value={queriesFilter}
           disabled={disabled}
