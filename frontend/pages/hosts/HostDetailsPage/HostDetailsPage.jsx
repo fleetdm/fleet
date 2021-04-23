@@ -4,7 +4,7 @@ import { connect } from "react-redux";
 import classnames from "classnames";
 
 import ReactTooltip from "react-tooltip";
-import { noop, pick, filter, includes } from "lodash";
+import { noop, pick } from "lodash";
 
 import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";

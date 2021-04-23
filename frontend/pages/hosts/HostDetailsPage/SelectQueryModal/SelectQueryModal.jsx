@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
 
+import { filter, includes } from "lodash";
+
 import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
 import KolideIcon from "components/icons/KolideIcon";
@@ -33,17 +35,36 @@ const onQueryHostSaved = (host, selectedQuery, dispatch) => {
 };
 
 const SelectQueryModal = (props) => {
-  const { host, toggleQueryHostModal, queries, dispatch, queryErrors } = props;
+  const { host, toggleQueryHostModal, dispatch, queries, queryErrors } = props;
 
   const [queriesFilter, setQueriesFilter] = useState("");
 
-  const onFilterQueries = () => {
-    setQueriesFilter(queriesFilter);
+  const getQueries = () => {
+    if (!queriesFilter) {
+      return queries;
+    }
 
+    const lowerQueryFilter = queriesFilter.toLowerCase();
+
+    return filter(queries, (query) => {
+      if (!query.name) {
+        return false;
+      }
+
+      const lowerQueryName = query.name.toLowerCase();
+
+      return includes(lowerQueryName, lowerQueryFilter);
+    });
+  };
+
+  const onFilterQueries = (event) => {
+    setQueriesFilter(event);
     return false;
   };
 
-  const queriesCount = queries.length;
+  const queriesFiltered = getQueries();
+
+  const queriesCount = queriesFiltered.length;
   const disabled = !queriesFilter && queriesCount === 0;
 
   const results = () => {
@@ -71,7 +92,7 @@ const SelectQueryModal = (props) => {
     }
 
     if (queriesCount > 0) {
-      const queryList = queries.map((query) => {
+      const queryList = queriesFiltered.map((query) => {
         return (
           <Button
             key={query.id}
