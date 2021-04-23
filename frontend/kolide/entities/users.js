@@ -51,14 +51,22 @@ export default (client) => {
     // NOTE: this function signature is the same as entities/host#loadAll as this was quicker to just copy
     // over. Ideally we'd want to remove the `selected` argument when we have more time, but for now
     // is is left unused.
-    loadAll: (
+    // loadAll: (
+    //   page = 0,
+    //   perPage = 100,
+    //   selected = "",
+    //   globalFilter = "",
+    //   sortBy = [],
+    //   teamId
+    // ) => {
+    loadAll: ({
       page = 0,
       perPage = 100,
       selected = "",
       globalFilter = "",
       sortBy = [],
-      team = 1
-    ) => {
+      teamId,
+    }) => {
       const { USERS } = endpoints;
 
       // TODO: add this query param logic to client class
@@ -79,7 +87,12 @@ export default (client) => {
         searchQuery = `&query=${globalFilter}`;
       }
 
-      const userEndpoint = `${USERS}?${pagination}${searchQuery}${orderKeyParam}${orderDirection}`;
+      let teamQuery = "";
+      if (teamId !== undefined) {
+        teamQuery = `&team_id=${teamId}`;
+      }
+
+      const userEndpoint = `${USERS}?${pagination}${searchQuery}${orderKeyParam}${orderDirection}${teamQuery}`;
       return client
         .authenticatedGet(client._endpoint(userEndpoint))
         .then((response) => {

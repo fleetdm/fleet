@@ -87,11 +87,11 @@ export class UserManagementPage extends Component {
 
   componentDidMount() {
     const { dispatch } = this.props;
-    dispatch(teamActions.loadAll());
+    dispatch(teamActions.loadAll({}));
   }
 
   onEditUser = (formData) => {
-    const { currentUser, users, invites, dispatch } = this.props;
+    const { currentUser, dispatch } = this.props;
     const { userEditing } = this.state;
     const { toggleEditUserModal, getUser } = this;
 
@@ -173,7 +173,12 @@ export class UserManagementPage extends Component {
       sortBy = [{ id: sortHeader, direction: sortDirection }];
     }
     dispatch(
-      userActions.loadAll(pageIndex, pageSize, undefined, searchQuery, sortBy)
+      userActions.loadAll({
+        pageIndex,
+        pageSize,
+        searchQuery,
+        sortBy,
+      })
     );
     dispatch(inviteActions.loadAll(pageIndex, pageSize, searchQuery, sortBy));
   };

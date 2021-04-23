@@ -1,15 +1,19 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 
 import { IUser } from "interfaces/user";
 import { INewMembersBody } from "interfaces/team";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
-import { addMembers } from "redux/nodes/entities/teams/actions";
+// @ts-ignore
+import userActions from "redux/nodes/entities/users/actions";
+import teamActions from "redux/nodes/entities/teams/actions";
 import TableContainer from "components/TableContainer";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
 import AddMemberModal from "./components/AddMemberModal";
+import NoMembers from "./components/NoMembers";
+import EmptyMembers from "./components/EmptyMembers";
 
 import {
   generateTableHeaders,
@@ -24,9 +28,18 @@ interface IMembersPageProps {
   };
 }
 
+interface IRootState {
+  entities: {
+    users: {
+      isLoading: boolean;
+      data: { [id: number]: IUser };
+    };
+  };
+}
+
 const MembersPage = (props: IMembersPageProps): JSX.Element => {
   const {
-    params: { team_id: teamId },
+    params: { team_id },
   } = props;
   const dispatch = useDispatch();
 
@@ -34,6 +47,10 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
   const [showRemoveUserModal, setShowRemoveUserModal] = useState(false);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [userEditing, setUserEditing] = useState<IUser>();
+
+  useEffect(() => {
+    dispatch(userActions.loadAll({ teamId: team_id }));
+  }, [dispatch, team_id]);
 
   const toggleAddUserModal = useCallback(() => {
     setShowAddMemberModal(!showAddMemberModal);
@@ -57,7 +74,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
 
   const onAddMemberSubmit = useCallback(
     (newMembers: INewMembersBody) => {
-      dispatch(addMembers(teamId, newMembers)).then(() => {
+      dispatch(teamActions.addMembers(team_id, newMembers)).then(() => {
         dispatch(
           renderFlash(
             "success",
@@ -67,17 +84,8 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
       });
       setShowAddMemberModal(false);
     },
-    [teamId]
+    [dispatch, team_id]
   );
-
-  // NOTE: called once on the initial render of this component.
-  // const onQueryChange = useCallback(
-  //   (queryData) => {
-  //     const { pageIndex, pageSize, searchQuery } = queryData;
-  //     dispatch(teamActions.loadAll(pageIndex, pageSize, searchQuery));
-  //   },
-  //   [dispatch]
-  // );
 
   const onQueryChange = useCallback(() => {
     console.log("query change");
@@ -97,50 +105,13 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
   };
 
   const tableHeaders = generateTableHeaders(onActionSelection);
-  const tableData = generateDataSet({
-    1: {
-      admin: false,
-      email: "test+1@fleetdm.com",
-      enabled: true,
-      force_password_reset: false,
-      gravatarURL: "test",
-      id: 1,
-      name: "Test 1",
-      username: "test username",
-      sso_enabled: false,
-      teams: [
-        {
-          name: "Test Team 1",
-          id: 1,
-          hosts: 10,
-          members: 10,
-          role: "Member",
-        },
-      ],
-      global_role: null,
-    },
-    2: {
-      admin: false,
-      email: "test+2@fleetdm.com",
-      enabled: true,
-      force_password_reset: false,
-      gravatarURL: "test",
-      id: 2,
-      name: "Test 2",
-      username: "test 2 username",
-      sso_enabled: false,
-      teams: [
-        {
-          name: "Test Team 2",
-          id: 1,
-          hosts: 10,
-          members: 10,
-          role: "Observer",
-        },
-      ],
-      global_role: null,
-    },
-  });
+
+  const loadingTableData = useSelector(
+    (state: IRootState) => state.entities.users.isLoading
+  );
+  const users = useSelector((state: IRootState) =>
+    generateDataSet(state.entities.users.data)
+  );
 
   return (
     <div className={baseClass}>
@@ -148,15 +119,15 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
       <h2>Members Page</h2>
       <TableContainer
         columns={tableHeaders}
-        data={tableData}
-        isLoading={false}
+        data={users}
+        isLoading={loadingTableData}
         defaultSortHeader={"name"}
         defaultSortDirection={"asc"}
         onActionButtonClick={toggleAddUserModal}
         actionButtonText={"Add member"}
         onQueryChange={onQueryChange}
         inputPlaceHolder={"Search"}
-        emptyComponent={() => <p>Empty Members</p>}
+        emptyComponent={EmptyMembers}
       />
       {showAddMemberModal ? (
         <AddMemberModal

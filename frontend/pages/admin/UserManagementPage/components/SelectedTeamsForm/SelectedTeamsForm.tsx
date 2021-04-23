@@ -58,8 +58,8 @@ const generateSelectedTeamData = (
     if (teamItem.isChecked) {
       selectedTeams.push({
         id: teamItem.id,
-        hosts: teamItem.hosts,
-        members: teamItem.members,
+        host_count: teamItem.host_count,
+        user_count: teamItem.user_count,
         name: teamItem.name,
         role: teamItem.role,
       });

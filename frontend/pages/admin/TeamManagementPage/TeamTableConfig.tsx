@@ -59,14 +59,14 @@ const generateTableHeaders = (
       title: "Hosts",
       Header: "Hosts",
       disableSortBy: true,
-      accessor: "hosts",
+      accessor: "host_count",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
       title: "Members",
       Header: "Members",
       disableSortBy: true,
-      accessor: "members",
+      accessor: "user_count",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
@@ -107,8 +107,8 @@ const enhanceTeamData = (teams: { [id: number]: ITeam }): ITeamTableData[] => {
   return Object.values(teams).map((team) => {
     return {
       name: team.name,
-      hosts: team.hosts,
-      members: team.members,
+      host_count: team.host_count,
+      user_count: team.user_count,
       actions: generateActionDropdownOptions(),
       id: team.id,
     };

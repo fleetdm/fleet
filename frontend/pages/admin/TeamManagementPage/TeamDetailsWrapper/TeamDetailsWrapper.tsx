@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch } from "react-redux";
 import { Link } from "react-router";
 import { push } from "react-router-redux";
 import { Tab, TabList, Tabs } from "react-tabs";
@@ -62,7 +62,7 @@ const getTabIndex = (path: string, teamId: number): number => {
   });
 };
 
-const TeamDetailsPage = (props: ITeamDetailsPageProps): JSX.Element => {
+const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
   const {
     children,
     location: { pathname },
@@ -73,8 +73,8 @@ const TeamDetailsPage = (props: ITeamDetailsPageProps): JSX.Element => {
   const team: ITeam = {
     name: "Test Team",
     id: 1,
-    hosts: 10,
-    members: 10,
+    host_count: 10,
+    user_count: 10,
   };
 
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
@@ -182,4 +182,4 @@ const TeamDetailsPage = (props: ITeamDetailsPageProps): JSX.Element => {
   );
 };
 
-export default TeamDetailsPage;
+export default TeamDetailsWrapper;

@@ -15,8 +15,8 @@ export default PropTypes.shape({
 export interface ITeam {
   name: string;
   id: number;
-  hosts: number;
-  members: number | IUser[];
+  host_count: number;
+  user_count: number | IUser[];
   role?: string;
 }
 

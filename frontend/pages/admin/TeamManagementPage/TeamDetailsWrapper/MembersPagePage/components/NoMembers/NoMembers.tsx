@@ -1,6 +1,6 @@
-import React from 'react';
+import React from "react";
 
-const baseClass = 'no-members';
+const baseClass = "no-members";
 
 const NoMembers = (): JSX.Element => {
   return (

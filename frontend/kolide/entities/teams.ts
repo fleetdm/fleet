@@ -29,7 +29,7 @@ export default (client: any) => {
         .authenticatedGet(endpoint)
         .then((response: any) => response.team);
     },
-    loadAll: (page = 0, perPage = 100, globalFilter = "") => {
+    loadAll: ({ page = 0, perPage = 100, globalFilter = "" }) => {
       const { TEAMS } = endpoints;
 
       // TODO: add this query param logic to client class
