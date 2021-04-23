@@ -37,11 +37,11 @@ const SelectQueryModal = (props) => {
 
   const [queriesFilter, setQueriesFilter] = useState("");
 
-  const onFilterQueries = () => {
-    setQueriesFilter(queriesFilter);
+  // const onFilterQueries = () => {
+  //   setQueriesFilter(queriesFilter);
 
-    return false;
-  };
+  //   return false;
+  // };
 
   const queriesCount = queries.length;
   const disabled = !queriesFilter && queriesCount === 0;
