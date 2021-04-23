@@ -523,7 +523,7 @@ export class HostDetailsPage extends Component {
         {renderLabels()}
         {renderPacks()}
         {renderDeleteHostModal()}
-        {showQueryHostModal && ( 
+        {showQueryHostModal && (
           <SelectQueryModal
             host={host}
             toggleQueryHostModal={toggleQueryHostModal}

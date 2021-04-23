@@ -37,7 +37,7 @@ const SelectQueryModal = (props) => {
 
   const [queriesFilter, setQueriesFilter] = useState("");
 
-  const onFilterQueries = (queriesFilter) => {
+  const onFilterQueries = () => {
     setQueriesFilter(queriesFilter);
 
     return false;
