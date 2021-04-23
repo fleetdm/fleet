@@ -146,14 +146,20 @@ export class UserManagementPage extends Component {
           dispatch(renderFlash("success", "User deleted"));
           toggleDeleteUserModal();
         })
-        .catch(() => false);
+        // GRAB USER NAME - YOURSELF 4/23 
+        .catch(() => {
+          dispatch(renderFlash("error", `Couldn't delete ${teamEditing?.name}. Please try again.`));
+        });
     } else {
       dispatch(userActions.destroy(userEditing))
         .then(() => {
           dispatch(renderFlash("success", "User deleted"));
           toggleDeleteUserModal();
         })
-        .catch(() => false);
+        // GRAB USER NAME - YOURSELF 4/23
+        .catch(() => {
+          dispatch(renderFlash("error", `Couldn't delete ${teamEditing?.name}. Please try again.`));
+        });
     }
   };
 

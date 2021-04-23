@@ -15,6 +15,7 @@ import EmptyTeams from "./components/EmptyTeams";
 import { ICreateTeamFormData } from "./components/CreateTeamModal/CreateTeamModal";
 import { IEditTeamFormData } from "./components/EditTeamModal/EditTeamModal";
 import { generateTableHeaders, generateDataSet } from "./TeamTableConfig";
+import { AnyAaaaRecord } from "node:dns";
 
 const baseClass = "team-management";
 
@@ -85,11 +86,8 @@ const TeamManagementPage = (): JSX.Element => {
           );
           dispatch(teamActions.loadAll());
         })
-        // followed formatting in osqueryoptionspage.jsx
-        .catch((errors) => {
-          if (errors.base) {
-            dispatch(renderFlash("error", errors.base));
-          }
+        .catch(() => {
+          dispatch(renderFlash("error", "Couldn't create team. Please try again."));
         });
       setShowCreateTeamModal(false);
     },
@@ -100,15 +98,12 @@ const TeamManagementPage = (): JSX.Element => {
     dispatch(teamActions.destroy(teamEditing?.id))
       .then(() => {
         dispatch(
-          renderFlash("success", `Successfully deleted ${teamEditing.name}.`)
+          renderFlash("success", `Successfully deleted ${teamEditing?.name}.`)
         );
         dispatch(teamActions.loadAll());
       })
-      // followed formatting in osqueryoptionspage.jsx
-      .catch((errors) => {
-        if (errors.base) {
-          dispatch(renderFlash("error", errors.base));
-        }
+      .catch(() => {
+        dispatch(renderFlash("error", `Couldn't delete ${teamEditing?.name}. Please try again.`));
       });
     toggleDeleteTeamModal();
   }, [dispatch, teamEditing, toggleDeleteTeamModal]);
@@ -128,11 +123,8 @@ const TeamManagementPage = (): JSX.Element => {
           );
           dispatch(teamActions.loadAll());
         })
-        // followed formatting in osqueryoptionspage.jsx
-        .catch((errors) => {
-          if (errors.base) {
-            dispatch(renderFlash("error", errors.base));
-          }
+        .catch(() => {
+          dispatch(renderFlash("error", `Couldn't edit ${teamEditing?.name}. Please try again.`));
         });
       toggleEditTeamModal();
     },
