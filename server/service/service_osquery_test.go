@@ -25,8 +25,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Only 1 of the 3 platform software queries will apply
-var expectedDetailQueries = len(detailQueries) - 2
+// 3 detail queries are currently feature flagged off by default.
+var expectedDetailQueries = len(detailQueries) - 3
 
 func TestEnrollAgent(t *testing.T) {
 	ds := new(mock.Store)
@@ -262,7 +262,7 @@ func TestHostDetailQueries(t *testing.T) {
 			},
 		},
 
-		Platform:         "linux",
+		Platform:         "rhel",
 		DetailUpdateTime: mockClock.Now(),
 		NodeKey:          "test_key",
 		HostName:         "test_hostname",
