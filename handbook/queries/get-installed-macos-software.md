@@ -5,9 +5,11 @@ Get all software installed on a macOS computer, including apps, browser plugins,
 > This does not included other running processes in the `processes` table.
 
 ### Support
+
 macOS
 
 ### Query
+
 ```sql
 SELECT
   name AS name,
@@ -26,21 +28,21 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browswer plugin (Chrome)' AS type,
+  'Browser plugin (Chrome)' AS type,
   'chrome_extensions' AS source
 FROM chrome_extensions
 UNION
 SELECT
   name AS name,
   version AS version,
-  'Browswer plugin (Firefox)' AS type,
+  'Browser plugin (Firefox)' AS type,
   'firefox_addons' AS source
 FROM firefox_addons
 UNION
 SELECT
   name As name,
   version AS version,
-  'Browswer plugin (Safari)' AS type,
+  'Browser plugin (Safari)' AS type,
   'safari_extensions' AS source
 FROM safari_extensions
 UNION
