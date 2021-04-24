@@ -65,6 +65,12 @@ func buildNFPM(opt Options, pkger nfpm.Packager) error {
 		return errors.Wrap(err, "write postinstall script")
 	}
 
+	if opt.FleetCertificate != "" {
+		if err := writeCertificate(opt, orbitRoot); err != nil {
+			return errors.Wrap(err, "write fleet certificate")
+		}
+	}
+
 	// Pick up all file contents
 
 	contents := files.Contents{
