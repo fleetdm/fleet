@@ -23,6 +23,7 @@ Fleet's standard query library includes a growing collection of useful queries f
 - [Get USB devices](./get-usb-devices.md) (macOS, Linux)
 - [Count Apple applications installed](./count-apple-applications-installed.md) (macOS)
 - [Get authorized keys](./get-authorized-keys.md) (macOS, Linux)
+- [Get OS version](./get-os-kversioneys.md) (macOS, Linux, Windows, FreeBSD)
 
 ### Contributors
 

@@ -1,7 +1,7 @@
 # Get the version of the resident operating system
 
 ### Platforms
-macOS
+macOS, Linux, Windows, FreeBSD
 
 ### Query
 ```sql
