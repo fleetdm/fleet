@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useState } from "react";
+// @ts-ignore
+import memoize from "memoize-one";
 
 import { IUser } from "interfaces/user";
-import { INewMembersBody } from "interfaces/team";
+import { INewMembersBody, ITeam } from "interfaces/team";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
@@ -35,10 +37,18 @@ interface IRootState {
       data: { [id: number]: IUser };
     };
     teams: {
-      data: { [id: number]: IUser };
+      data: { [id: number]: ITeam };
     };
   };
 }
+
+const getTeams = (data: { [id: string]: ITeam }) => {
+  return Object.keys(data).map((teamId) => {
+    return data[teamId];
+  });
+};
+
+const memoizedGetTeams = memoize(getTeams);
 
 const MembersPage = (props: IMembersPageProps): JSX.Element => {
   const {
@@ -72,7 +82,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
   );
 
   const onRemoveMemberSubmit = useCallback(() => {
-    console.log("removing member");
+    console.log("removing member"); // TODO: what API endpoint we use for this?
   }, []);
 
   const onAddMemberSubmit = useCallback(
@@ -108,7 +118,6 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
     [dispatch, team_id]
   );
 
-  // NOTE: we are purposely showing edit modal.
   const onActionSelection = (action: string, user: IUser): void => {
     switch (action) {
       case "edit":
@@ -131,6 +140,9 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
   );
   const team = useSelector((state: IRootState) => {
     return state.entities.teams.data[team_id];
+  });
+  const teams = useSelector((state: IRootState) => {
+    return memoizedGetTeams(state.entities.teams.data);
   });
 
   return (
@@ -164,7 +176,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
           defaultGlobalRole={userEditing?.global_role}
           defaultTeams={userEditing?.teams}
           defaultSSOEnabled={userEditing?.sso_enabled}
-          availableTeams={[]}
+          availableTeams={teams}
           validationErrors={[]}
         />
       ) : null}

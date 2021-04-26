@@ -1629,6 +1629,13 @@
   resolved "https://registry.yarnpkg.com/@types/lodash/-/lodash-4.14.168.tgz#fe24632e79b7ade3f132891afff86caa5e5ce008"
   integrity sha512-oVfRvqHV/V6D1yifJbVRU3TMp8OT6o6BG+U9MkwuJ3U8/CsDHvalRpsxBqivn71ztOFZBTfJMvETbqHiaNSj7Q==
 
+"@types/memoize-one@^5.1.2":
+  version "5.1.2"
+  resolved "https://registry.yarnpkg.com/@types/memoize-one/-/memoize-one-5.1.2.tgz#9bed4199822f6ae759b2a0de855f3254104709b5"
+  integrity sha512-9lItlM8Bf1DPvm8p4zE0vUn7YoTktEYgLd6Eva/PT0its200xmhaYrCMG/Y8615/f62SXOrDWMIEPk/xV+DQpw==
+  dependencies:
+    memoize-one "*"
+
 "@types/mocha@2.2.48":
   version "2.2.48"
   resolved "https://registry.yarnpkg.com/@types/mocha/-/mocha-2.2.48.tgz#3523b126a0b049482e1c3c11877460f76622ffab"
@@ -8696,6 +8703,11 @@ mem@^4.0.0:
     map-age-cleaner "^0.1.1"
     mimic-fn "^2.0.0"
     p-is-promise "^2.0.0"
+
+memoize-one@*:
+  version "5.2.1"
+  resolved "https://registry.yarnpkg.com/memoize-one/-/memoize-one-5.2.1.tgz#8337aa3c4335581839ec01c3d594090cebe8f00e"
+  integrity sha512-zYiwtZUcYyXKo/np96AGZAckk+FWWsUdJ3cHGGmld7+AhvcWmQyGCYUh1hc4Q/pkOhb65dQR/pqCyK0cOaHz4Q==
 
 memoize-one@^5:
   version "5.0.5"
