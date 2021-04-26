@@ -264,38 +264,11 @@ export class HostDetailsPage extends Component {
   };
 
   renderSoftware = () => {
+    const { host } = this.props;
+    debugger;
     const wrapperClassName = `${baseClass}__table`;
 
-    const realData = false;
-
-    if (realData) {
-      const softwareList = [
-        {
-          id: 1,
-          name: "Keynote",
-          type: "Application (macOS)",
-          installedVersion: "10.3.9",
-        },
-        {
-          id: 2,
-          name: "vim",
-          type: "Package (APT)",
-          installedVersion: "7.4.963",
-        },
-        {
-          id: 3,
-          name: "Birdfont",
-          type: "Package (deb)",
-          installedVersion: "2.25.0-3",
-        },
-        {
-          id: 4,
-          name: "Birdfont",
-          type: "Package (pkg)",
-          installedVersion: "2.25.0-3",
-        },
-      ];
-
+    if (host.software) {
       return (
         <div className="section section--software">
           <div className={baseClass}>
@@ -310,8 +283,8 @@ export class HostDetailsPage extends Component {
                   </tr>
                 </thead>
                 <tbody>
-                  {!!softwareList.length &&
-                    softwareList.map((software) => {
+                  {!!host.software.length &&
+                    host.software.map((software) => {
                       return (
                         <SoftwareListRow
                           key={`software-row-${software.id}`}

@@ -14,15 +14,13 @@ class SoftwareListRow extends Component {
 
   render() {
     const { software } = this.props;
-    const { name, type, installedVersion } = software;
+    const { name, source, version } = software;
 
     return (
       <tr>
         <td className={`${baseClass}__name`}>{name}</td>
-        <td className={`${baseClass}__type`}>{type}</td>
-        <td className={`${baseClass}__installed-version`}>
-          {installedVersion}
-        </td>
+        <td className={`${baseClass}__type`}>{source}</td>
+        <td className={`${baseClass}__installed-version`}>{version}</td>
       </tr>
     );
   }
