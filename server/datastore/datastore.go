@@ -96,4 +96,5 @@ var TestFunctions = [...]func(*testing.T, kolide.Datastore){
 	testCarveListCarves,
 	testCarveCleanupCarves,
 	testCarveUpdateCarve,
+	testSaveHostSoftware,
 }

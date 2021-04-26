@@ -30,6 +30,10 @@ func (svc service) HostByIdentifier(ctx context.Context, identifier string) (*ko
 }
 
 func (svc service) getHostDetails(ctx context.Context, host *kolide.Host) (*kolide.HostDetail, error) {
+	if err := svc.ds.LoadHostSoftware(host); err != nil {
+		return nil, errors.Wrap(err, "load host software")
+	}
+
 	labels, err := svc.ds.ListLabelsForHost(host.ID)
 	if err != nil {
 		return nil, errors.Wrap(err, "get labels for host")
