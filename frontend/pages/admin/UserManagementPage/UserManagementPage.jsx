@@ -169,7 +169,9 @@ export class UserManagementPage extends Component {
     if (userEditing.type === "invite") {
       dispatch(inviteActions.destroy(userEditing))
         .then(() => {
-          dispatch(renderFlash("success", "User deleted"));
+          dispatch(
+            renderFlash("success", `Successfully deleted ${userEditing?.name}.`)
+          );
         })
         .catch(() => {
           dispatch(
