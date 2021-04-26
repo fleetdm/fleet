@@ -87,7 +87,9 @@ const TeamManagementPage = (): JSX.Element => {
           dispatch(teamActions.loadAll());
         })
         .catch(() => {
-          dispatch(renderFlash("error", "Couldn't create team. Please try again."));
+          dispatch(
+            renderFlash("error", "Could not create team. Please try again.")
+          );
         });
       setShowCreateTeamModal(false);
     },
@@ -103,7 +105,12 @@ const TeamManagementPage = (): JSX.Element => {
         dispatch(teamActions.loadAll());
       })
       .catch(() => {
-        dispatch(renderFlash("error", `Couldn't delete ${teamEditing?.name}. Please try again.`));
+        dispatch(
+          renderFlash(
+            "error",
+            `Could not delete ${teamEditing?.name}. Please try again.`
+          )
+        );
       });
     toggleDeleteTeamModal();
   }, [dispatch, teamEditing, toggleDeleteTeamModal]);
@@ -124,7 +131,12 @@ const TeamManagementPage = (): JSX.Element => {
           dispatch(teamActions.loadAll());
         })
         .catch(() => {
-          dispatch(renderFlash("error", `Couldn't edit ${teamEditing?.name}. Please try again.`));
+          dispatch(
+            renderFlash(
+              "error",
+              `Could not edit ${teamEditing?.name}. Please try again.`
+            )
+          );
         });
       toggleEditTeamModal();
     },
