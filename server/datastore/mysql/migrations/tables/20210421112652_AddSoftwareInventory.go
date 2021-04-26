@@ -16,7 +16,7 @@ func Up_20210421112652(tx *sql.Tx) error {
 		CREATE TABLE IF NOT EXISTS software (
 		id bigint unsigned PRIMARY KEY AUTO_INCREMENT,
 		name varchar(255) NOT NULL,
-		version varchar(64) NOT NULL DEFAULT '',
+		version varchar(255) NOT NULL DEFAULT '',
 		source varchar(64) NOT NULL,
         UNIQUE KEY idx_name_version (name, version, source)
 	)`); err != nil {

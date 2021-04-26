@@ -9,6 +9,19 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	maxSoftwareNameLen    = 255
+	maxSoftwareVersionLen = 255
+	maxSoftwareSourceLen  = 64
+)
+
+func truncateString(str string, length int) string {
+	if len(str) > length {
+		return str[:length]
+	}
+	return str
+}
+
 func (d *Datastore) SaveHostSoftware(host *kolide.Host) error {
 	if !host.HostSoftware.Modified {
 		return nil
@@ -28,6 +41,9 @@ func (d *Datastore) SaveHostSoftware(host *kolide.Host) error {
 		// Bulk insert software entries
 		var args []interface{}
 		for _, s := range host.HostSoftware.Software {
+			s.Name = truncateString(s.Name, maxSoftwareNameLen)
+			s.Version = truncateString(s.Version, maxSoftwareVersionLen)
+			s.Source = truncateString(s.Source, maxSoftwareSourceLen)
 			args = append(args, s.Name, s.Version, s.Source)
 		}
 		values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(host.HostSoftware.Software)), ",")
