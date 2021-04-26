@@ -91,6 +91,9 @@ func TestHostDetails(t *testing.T) {
 		}
 		return packs, nil
 	}
+	ds.LoadHostSoftwareFunc = func(host *kolide.Host) error {
+		return nil
+	}
 
 	hostDetail, err := svc.getHostDetails(ctx, host)
 	require.NoError(t, err)
