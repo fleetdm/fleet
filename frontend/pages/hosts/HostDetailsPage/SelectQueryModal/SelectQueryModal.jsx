@@ -138,7 +138,7 @@ const SelectQueryModal = (props) => {
   return (
     <Modal
       title="Select a query"
-      onExit={() => toggleQueryHostModal(null)}
+      onExit={toggleQueryHostModal(null)}
       className={`${baseClass}__modal`}
     >
       <div className={`${baseClass}__filter-queries`}>
