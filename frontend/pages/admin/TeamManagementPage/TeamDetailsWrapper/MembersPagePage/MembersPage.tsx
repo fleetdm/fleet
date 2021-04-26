@@ -13,6 +13,7 @@ import { useDispatch, useSelector } from "react-redux";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
 import AddMemberModal from "./components/AddMemberModal";
 import EmptyMembers from "./components/EmptyMembers";
+import RemoveMemberModal from "./components/RemoveMemberModal";
 
 import {
   generateTableHeaders,
@@ -33,6 +34,9 @@ interface IRootState {
       loading: boolean;
       data: { [id: number]: IUser };
     };
+    teams: {
+      data: { [id: number]: IUser };
+    };
   };
 }
 
@@ -43,24 +47,20 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
   const dispatch = useDispatch();
 
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
-  const [showRemoveUserModal, setShowRemoveUserModal] = useState(false);
+  const [showRemoveMemberModal, setShowRemoveMemberModal] = useState(false);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [userEditing, setUserEditing] = useState<IUser>();
-
-  useEffect(() => {
-    dispatch(userActions.loadAll({ teamId: team_id }));
-  }, [dispatch, team_id]);
 
   const toggleAddUserModal = useCallback(() => {
     setShowAddMemberModal(!showAddMemberModal);
   }, [showAddMemberModal, setShowAddMemberModal]);
 
-  const toggleRemoveUserModal = useCallback(
+  const toggleRemoveMemberModal = useCallback(
     (user?: IUser) => {
-      setShowRemoveUserModal(!showRemoveUserModal);
+      setShowRemoveMemberModal(!showRemoveMemberModal);
       user ? setUserEditing(user) : setUserEditing(undefined);
     },
-    [showRemoveUserModal, setShowRemoveUserModal, setUserEditing]
+    [showRemoveMemberModal, setShowRemoveMemberModal, setUserEditing]
   );
 
   const toggleEditUserModal = useCallback(
@@ -70,6 +70,10 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
     },
     [showEditUserModal, setShowEditUserModal, setUserEditing]
   );
+
+  const onRemoveMemberSubmit = useCallback(() => {
+    console.log("removing member");
+  }, []);
 
   const onAddMemberSubmit = useCallback(
     (newMembers: INewMembersBody) => {
@@ -86,6 +90,9 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
     [dispatch, team_id]
   );
 
+  // NOTE: this will fire on initial render, so we use this to get the list of
+  // users for this team, as well as use it as a handler when the table query
+  // changes.
   const onQueryChange = useCallback(
     (queryData) => {
       const { pageIndex, pageSize, searchQuery } = queryData;
@@ -108,7 +115,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
         toggleEditUserModal(user);
         break;
       case "remove":
-        toggleEditUserModal(user);
+        toggleRemoveMemberModal(user);
         break;
       default:
     }
@@ -122,6 +129,9 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
   const users = useSelector((state: IRootState) =>
     generateDataSet(state.entities.users.data)
   );
+  const team = useSelector((state: IRootState) => {
+    return state.entities.teams.data[team_id];
+  });
 
   return (
     <div className={baseClass}>
@@ -156,6 +166,14 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
           defaultSSOEnabled={userEditing?.sso_enabled}
           availableTeams={[]}
           validationErrors={[]}
+        />
+      ) : null}
+      {showRemoveMemberModal ? (
+        <RemoveMemberModal
+          memberName={userEditing?.name || ""}
+          teamName={team.name}
+          onCancel={toggleRemoveMemberModal}
+          onSubmit={onRemoveMemberSubmit}
         />
       ) : null}
     </div>
