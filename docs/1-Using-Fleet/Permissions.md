@@ -21,6 +21,7 @@ The following table depicts various permissions levels at the global level.
 | Run custom queries as live queries against all hosts |          | ✅          | ✅    |
 | Enroll hosts                                         |          | ✅          | ✅    |
 | Delete hosts                                         |          | ✅          | ✅    |
+| Transfer hosts between teams                         |          | ✅          | ✅    |
 | Create saved queries                                 |          | ✅          | ✅    |
 | Edit saved queries                                   |          | ✅          | ✅    |
 | Delete saved queries                                 |          | ✅          | ✅    |
@@ -62,7 +63,7 @@ The following table depicts various permissions levels in a team.
 | Run saved queries as live queries on hosts assigned to team  | ✅       | ✅          |
 | Run custom queries as live queries on hosts assigned to team |          | ✅          |
 | Enroll hosts to member team                                  |          | ✅          |
-| Delete hosts from member team                                |          | ✅          |
+| Delete hosts belonging to member team                        |          | ✅          |
 | Create saved queries                                         |          | ✅          |
 | Edit saved queries                                           |          | ✅          |
 
