@@ -104,7 +104,14 @@ export class UserManagementPage extends Component {
           dispatch(renderFlash("success", "User updated"));
           toggleEditUserModal();
         })
-        .catch(() => false);
+        .catch(() => {
+          dispatch(
+            renderFlash(
+              "error",
+              `Couldn't update ${userEditing?.name}. Please try again.`
+            )
+          );
+        });
     }
 
     return dispatch(userActions.silentUpdate(userData, formData))
@@ -112,7 +119,14 @@ export class UserManagementPage extends Component {
         dispatch(renderFlash("success", "User updated"));
         toggleEditUserModal();
       })
-      .catch(() => false);
+      .catch(() => {
+        dispatch(
+          renderFlash(
+            "error",
+            `Couldn't update ${userEditing?.name}. Please try again.`
+          )
+        );
+      });
   };
 
   onCreateUserSubmit = (formData) => {
@@ -146,9 +160,13 @@ export class UserManagementPage extends Component {
           dispatch(renderFlash("success", "User deleted"));
           toggleDeleteUserModal();
         })
-        // GRAB USER NAME - YOURSELF 4/23 
         .catch(() => {
-          dispatch(renderFlash("error", `Couldn't delete ${teamEditing?.name}. Please try again.`));
+          dispatch(
+            renderFlash(
+              "error",
+              `Couldn't delete ${userEditing?.name}. Please try again.`
+            )
+          );
         });
     } else {
       dispatch(userActions.destroy(userEditing))
@@ -156,9 +174,13 @@ export class UserManagementPage extends Component {
           dispatch(renderFlash("success", "User deleted"));
           toggleDeleteUserModal();
         })
-        // GRAB USER NAME - YOURSELF 4/23
         .catch(() => {
-          dispatch(renderFlash("error", `Couldn't delete ${teamEditing?.name}. Please try again.`));
+          dispatch(
+            renderFlash(
+              "error",
+              `Couldn't delete ${userEditing?.name}. Please try again.`
+            )
+          );
         });
     }
   };
