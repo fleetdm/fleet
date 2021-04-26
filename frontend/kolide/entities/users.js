@@ -48,21 +48,9 @@ export default (client) => {
         .then((response) => helpers.addGravatarUrlToResource(response.user));
     },
 
-    // NOTE: this function signature is the same as entities/host#loadAll as this was quicker to just copy
-    // over. Ideally we'd want to remove the `selected` argument when we have more time, but for now
-    // is is left unused.
-    // loadAll: (
-    //   page = 0,
-    //   perPage = 100,
-    //   selected = "",
-    //   globalFilter = "",
-    //   sortBy = [],
-    //   teamId
-    // ) => {
     loadAll: ({
       page = 0,
       perPage = 100,
-      selected = "",
       globalFilter = "",
       sortBy = [],
       teamId,

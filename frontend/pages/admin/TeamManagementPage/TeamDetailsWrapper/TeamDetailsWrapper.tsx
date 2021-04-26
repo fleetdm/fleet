@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router";
 import { push } from "react-router-redux";
 import { Tab, TabList, Tabs } from "react-tabs";
@@ -11,7 +11,6 @@ import { ITeam } from "interfaces/team";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
 import Button from "components/buttons/Button";
-
 import DeleteTeamModal from "../components/DeleteTeamModal";
 import EditTeamModal from "../components/EditTeamModal";
 import { IEditTeamFormData } from "../components/EditTeamModal/EditTeamModal";
@@ -33,6 +32,15 @@ const teamDetailsSubNav: ITeamDetailsSubNavItem[] = [
     getPathname: PATHS.TEAM_DETAILS_OPTIONS,
   },
 ];
+
+interface IRootState {
+  entities: {
+    teams: {
+      loading: boolean;
+      data: { [id: number]: ITeam };
+    };
+  };
+}
 
 interface ITeamDetailsPageProps {
   children: JSX.Element;
@@ -69,13 +77,12 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
     params: { team_id },
   } = props;
 
-  // TODO: remove team item.
-  const team: ITeam = {
-    name: "Test Team",
-    id: 1,
-    host_count: 10,
-    user_count: 10,
-  };
+  const isLoadingTeams = useSelector(
+    (state: IRootState) => state.entities.teams.loading
+  );
+  const team = useSelector((state: IRootState) => {
+    return state.entities.teams.data[team_id];
+  });
 
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
@@ -88,7 +95,7 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
   };
 
   useEffect(() => {
-    // dispatch(teamActions.load());
+    dispatch(teamActions.loadAll({}));
   }, []);
 
   const toggleDeleteTeamModal = useCallback(() => {
@@ -100,7 +107,7 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
   }, [showEditTeamModal, setShowEditTeamModal]);
 
   const onDeleteSubmit = useCallback(() => {
-    dispatch(teamActions.destroy(team.id))
+    dispatch(teamActions.destroy(team?.id))
       .then(() => {
         dispatch(renderFlash("success", "Team removed"));
         dispatch(push(PATHS.ADMIN_TEAMS));
@@ -108,7 +115,7 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
       })
       .catch(() => null);
     toggleDeleteTeamModal();
-  }, [dispatch, toggleDeleteTeamModal, team.id]);
+  }, [dispatch, toggleDeleteTeamModal, team?.id]);
 
   const onEditSubmit = useCallback(
     (formData: IEditTeamFormData) => {
@@ -118,7 +125,7 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
         toggleEditTeamModal();
         return;
       }
-      dispatch(teamActions.update(team.id, updatedAttrs))
+      dispatch(teamActions.update(team?.id, updatedAttrs))
         .then(() => {
           dispatch(renderFlash("success", "Team updated"));
           // TODO: error handling
@@ -129,6 +136,8 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
     [dispatch, toggleEditTeamModal, team]
   );
 
+  if (isLoadingTeams || team === undefined) return <p>loading...</p>;
+
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__nav-header`}>
@@ -137,7 +146,7 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
         </Link>
         <div className={`${baseClass}__team-header`}>
           <div className={`${baseClass}__team-details`}>
-            <h1>Test Team 2</h1>
+            <h1>{team.name}</h1>
             <span className={`${baseClass}__host-count`}>0 hosts</span>
           </div>
           <div className={`${baseClass}__team-actions`}>

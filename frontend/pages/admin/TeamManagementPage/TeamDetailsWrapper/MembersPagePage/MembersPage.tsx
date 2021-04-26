@@ -12,7 +12,6 @@ import TableContainer from "components/TableContainer";
 import { useDispatch, useSelector } from "react-redux";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
 import AddMemberModal from "./components/AddMemberModal";
-import NoMembers from "./components/NoMembers";
 import EmptyMembers from "./components/EmptyMembers";
 
 import {
@@ -31,7 +30,7 @@ interface IMembersPageProps {
 interface IRootState {
   entities: {
     users: {
-      isLoading: boolean;
+      loading: boolean;
       data: { [id: number]: IUser };
     };
   };
@@ -87,9 +86,20 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
     [dispatch, team_id]
   );
 
-  const onQueryChange = useCallback(() => {
-    console.log("query change");
-  }, []);
+  const onQueryChange = useCallback(
+    (queryData) => {
+      const { pageIndex, pageSize, searchQuery } = queryData;
+      dispatch(
+        userActions.loadAll({
+          page: pageIndex,
+          perPage: pageSize,
+          globalFilter: searchQuery,
+          teamId: team_id,
+        })
+      );
+    },
+    [dispatch, team_id]
+  );
 
   // NOTE: we are purposely showing edit modal.
   const onActionSelection = (action: string, user: IUser): void => {
@@ -107,7 +117,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
   const tableHeaders = generateTableHeaders(onActionSelection);
 
   const loadingTableData = useSelector(
-    (state: IRootState) => state.entities.users.isLoading
+    (state: IRootState) => state.entities.users.loading
   );
   const users = useSelector((state: IRootState) =>
     generateDataSet(state.entities.users.data)

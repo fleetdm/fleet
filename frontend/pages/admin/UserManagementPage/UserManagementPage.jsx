@@ -174,9 +174,9 @@ export class UserManagementPage extends Component {
     }
     dispatch(
       userActions.loadAll({
-        pageIndex,
-        pageSize,
-        searchQuery,
+        page: pageIndex,
+        perPage: pageSize,
+        globalFilter: searchQuery,
         sortBy,
       })
     );
