@@ -6,7 +6,7 @@ export default PropTypes.shape({
   email: PropTypes.string,
   enabled: PropTypes.bool,
   force_password_reset: PropTypes.bool,
-  global_role: PropTypes.oneOf([PropTypes.string, null]),
+  global_role: PropTypes.string,
   gravatarURL: PropTypes.string,
   id: PropTypes.number,
   name: PropTypes.string,
