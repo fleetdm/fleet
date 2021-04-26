@@ -265,7 +265,6 @@ export class HostDetailsPage extends Component {
 
   renderSoftware = () => {
     const { host } = this.props;
-    debugger;
     const wrapperClassName = `${baseClass}__table`;
 
     if (host.software) {
