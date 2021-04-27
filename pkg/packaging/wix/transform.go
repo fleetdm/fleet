@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/xml"
 	"io/ioutil"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -84,11 +85,22 @@ func transform(cur *node, stack *[]*node) error {
 		// Using this cryptic string seems to be the only way to disable
 		// permission inheritance in a WiX package, so we may not have
 		// any option for something more readable.
+		//
+		// Permissions:
+		// Disable inheritance
+		// SYSTEM: read/write/execute
+		// Administrators: read/write/execute
+		// Users: read/execute
 		sddl := "O:SYG:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)"
-		if cur.Attrs.Get("Name") == "secret.txt" {
-			// This SDDL copied from properly configured file on a Windows
-			// 10 machine. Permissions are same as below but with read
-			// access removed for regular users.
+		if strings.HasSuffix(cur.Attrs.Get("Source"), "secret.txt") {
+			// This SDDL copied from properly configured file on a Windows 10
+			// machine. Permissions are same as above but with access removed
+			// for regular users.
+			//
+			// Permissions:
+			// Disable inheritance
+			// SYSTEM: read/write/execute
+			// Administrators: read/write/execute
 			sddl = "O:SYG:SYD:PAI(A;;FA;;;SY)(A;;FA;;;BA)"
 
 		}
