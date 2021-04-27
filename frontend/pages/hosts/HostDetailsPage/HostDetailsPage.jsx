@@ -204,7 +204,11 @@ export class HostDetailsPage extends Component {
     return (
       <div className="section labels">
         <p className="section__header">Labels</p>
-        <ul className="list">{labelItems}</ul>
+        {labels.length === 0 ? (
+          <p className="info__item">No labels are associated with this host.</p>
+        ) : (
+          <ul className="list">{labelItems}</ul>
+        )}
       </div>
     );
   };
@@ -231,34 +235,11 @@ export class HostDetailsPage extends Component {
     return (
       <div className="section section--packs">
         <p className="section__header">Packs</p>
-        <ul className="list">{packItems}</ul>
-      </div>
-    );
-  };
-
-  renderPacks = () => {
-    const { onPackClick } = this;
-    const { host } = this.props;
-    const { packs = [] } = host;
-
-    const packItems = packs.map((pack) => {
-      return (
-        <li className="list__item" key={pack.id}>
-          <Button
-            onClick={() => onPackClick(pack)}
-            variant="text-link"
-            className="list__button"
-          >
-            {pack.name}
-          </Button>
-        </li>
-      );
-    });
-
-    return (
-      <div className="section section--packs">
-        <p className="section__header">Packs</p>
-        <ul className="list">{packItems}</ul>
+        {packs.length === 0 ? (
+          <p className="info__item">No packs have this host as a target.</p>
+        ) : (
+          <ul className="list">{packItems}</ul>
+        )}
       </div>
     );
   };
@@ -267,37 +248,43 @@ export class HostDetailsPage extends Component {
     const { host } = this.props;
     const wrapperClassName = `${baseClass}__table`;
 
-    if (host.software) {
-      return (
-        <div className="section section--software">
-          <div className={baseClass}>
-            <p className="section__header">Software</p>
-            <div className={`${baseClass}__wrapper`}>
-              <table className={wrapperClassName}>
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th>Installed Version</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {!!host.software.length &&
-                    host.software.map((software) => {
-                      return (
-                        <SoftwareListRow
-                          key={`software-row-${software.id}`}
-                          software={software}
-                        />
-                      );
-                    })}
-                </tbody>
-              </table>
-            </div>
+    return (
+      <div className="section section--software">
+        <p className="section__header">Software</p>
+        {host.software ? (
+          <div className={`${baseClass}__wrapper`}>
+            <table className={wrapperClassName}>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Installed Version</th>
+                </tr>
+              </thead>
+              <tbody>
+                {!!host.software.length &&
+                  host.software.map((software) => {
+                    return (
+                      <SoftwareListRow
+                        key={`software-row-${software.id}`}
+                        software={software}
+                      />
+                    );
+                  })}
+              </tbody>
+            </table>
           </div>
-        </div>
-      );
-    }
+        ) : (
+          <div>
+            <p>No installed software detected on this host.</p>
+            <p>
+              Expecting to see software? Try again in a few seconds as the
+              system catches up.
+            </p>
+          </div>
+        )}
+      </div>
+    );
   };
 
   render() {
