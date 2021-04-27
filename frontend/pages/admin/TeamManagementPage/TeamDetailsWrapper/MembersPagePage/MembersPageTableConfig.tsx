@@ -84,7 +84,7 @@ const generateTableHeaders = (
   ];
 };
 
-const generateActionDropdownOptions = (id: number): IDropdownOption[] => {
+const generateActionDropdownOptions = (): IDropdownOption[] => {
   return [
     {
       label: "Edit",
@@ -98,45 +98,37 @@ const generateActionDropdownOptions = (id: number): IDropdownOption[] => {
     },
   ];
 };
-const generateRole = (teams: ITeam[], globalRole: string | null): string => {
-  if (globalRole === null) {
-    if (teams.length === 0) {
-      // no global role and no teams
-      return "Unassigned";
-    } else if (teams.length === 1) {
-      // no global role and only one team
-      return teams[0].role as string;
-    }
-    return "Various"; // no global role and multiple teams
-  }
-
-  if (teams.length === 0) {
-    // global role and no teams
-    return globalRole;
-  }
-  return "Various"; // global role and one or more teams
+const generateRole = (teamId: number, teams: ITeam[]): string => {
+  return teams.find((team) => teamId === team.id)?.role ?? "";
 };
 
-const enhanceMembersData = (users: {
-  [id: number]: IUser;
-}): IMembersTableData[] => {
+const enhanceMembersData = (
+  teamId: number,
+  users: {
+    [id: number]: IUser;
+  }
+): IMembersTableData[] => {
   return Object.values(users).map((user) => {
     return {
       name: user.name,
       email: user.email,
-      role: generateRole(user.teams, user.global_role),
+      role: generateRole(teamId, user.teams),
       teams: user.teams,
       sso_enabled: user.sso_enabled,
-      actions: generateActionDropdownOptions(user.id),
+      global_role: user.global_role,
+      actions: generateActionDropdownOptions(),
       id: user.id,
     };
   });
 };
 
-const generateDataSet = (users: {
-  [id: number]: IUser;
-}): IMembersTableData[] => {
-  return [...enhanceMembersData(users)];
+const generateDataSet = (
+  teamId: number,
+  users: {
+    [id: number]: IUser;
+  }
+): IMembersTableData[] => {
+  return [...enhanceMembersData(teamId, users)];
 };
 
 export { generateTableHeaders, generateDataSet };

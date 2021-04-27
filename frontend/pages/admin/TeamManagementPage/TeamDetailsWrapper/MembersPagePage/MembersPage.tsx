@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 // @ts-ignore
 import memoize from "memoize-one";
 
@@ -28,7 +28,7 @@ const baseClass = "members";
 
 interface IMembersPageProps {
   params: {
-    team_id: number;
+    team_id: string;
   };
 }
 
@@ -56,6 +56,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
   const {
     params: { team_id },
   } = props;
+  const teamId = parseInt(team_id, 10);
   const dispatch = useDispatch();
 
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
@@ -85,7 +86,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
 
   const onRemoveMemberSubmit = useCallback(() => {
     const removedUsers = { users: [{ id: userEditing?.id }] };
-    dispatch(teamActions.removeMembers(team_id, removedUsers))
+    dispatch(teamActions.removeMembers(teamId, removedUsers))
       .then(() => {
         dispatch(
           renderFlash("success", `Successfully removed ${userEditing?.name}`)
@@ -95,7 +96,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
     toggleRemoveMemberModal();
   }, [
     dispatch,
-    team_id,
+    teamId,
     userEditing?.id,
     userEditing?.name,
     toggleRemoveMemberModal,
@@ -103,7 +104,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
 
   const onAddMemberSubmit = useCallback(
     (newMembers: INewMembersBody) => {
-      dispatch(teamActions.addMembers(team_id, newMembers)).then(() => {
+      dispatch(teamActions.addMembers(teamId, newMembers)).then(() => {
         dispatch(
           renderFlash(
             "success",
@@ -113,7 +114,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
       });
       toggleAddUserModal();
     },
-    [dispatch, team_id, toggleAddUserModal]
+    [dispatch, teamId, toggleAddUserModal]
   );
 
   const onEditMemberSubmit = useCallback(
@@ -132,7 +133,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
         });
       toggleEditMemberModal();
     },
-    [dispatch, toggleEditMemberModal]
+    [dispatch, toggleEditMemberModal, userEditing]
   );
 
   // NOTE: this will fire on initial render, so we use this to get the list of
@@ -146,11 +147,11 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
           page: pageIndex,
           perPage: pageSize,
           globalFilter: searchQuery,
-          teamId: team_id,
+          teamId,
         })
       );
     },
-    [dispatch, team_id]
+    [dispatch, teamId]
   );
 
   const onActionSelection = (action: string, user: IUser): void => {
@@ -171,10 +172,10 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
     (state: IRootState) => state.entities.users.loading
   );
   const users = useSelector((state: IRootState) =>
-    generateDataSet(state.entities.users.data)
+    generateDataSet(teamId, state.entities.users.data)
   );
   const team = useSelector((state: IRootState) => {
-    return state.entities.teams.data[team_id];
+    return state.entities.teams.data[teamId];
   });
   const teams = useSelector((state: IRootState) => {
     return memoizedGetTeams(state.entities.teams.data);

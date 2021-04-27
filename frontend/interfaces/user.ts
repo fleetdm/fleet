@@ -29,6 +29,9 @@ export interface IUser {
   username: string;
 }
 
+/**
+ * The shape of the request body when updating a user.
+ */
 export interface IUserUpdateBody {
   global_role?: string | null;
   teams?: ITeam[];
