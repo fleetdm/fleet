@@ -82,8 +82,22 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
   );
 
   const onRemoveMemberSubmit = useCallback(() => {
-    console.log("removing member"); // TODO: what API endpoint we use for this?
-  }, []);
+    const removedUsers = { users: [{ id: userEditing?.id }] };
+    dispatch(teamActions.removeMembers(team_id, removedUsers))
+      .then(() => {
+        dispatch(
+          renderFlash("success", `Successfully removed ${userEditing?.name}`)
+        );
+      })
+      .catch(() => console.log("error removing"));
+    toggleRemoveMemberModal();
+  }, [
+    dispatch,
+    team_id,
+    userEditing?.id,
+    userEditing?.name,
+    toggleRemoveMemberModal,
+  ]);
 
   const onAddMemberSubmit = useCallback(
     (newMembers: INewMembersBody) => {
@@ -95,9 +109,9 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
           )
         ); // TODO: update team name
       });
-      setShowAddMemberModal(false);
+      toggleAddUserModal();
     },
-    [dispatch, team_id]
+    [dispatch, team_id, toggleAddUserModal]
   );
 
   // NOTE: this will fire on initial render, so we use this to get the list of

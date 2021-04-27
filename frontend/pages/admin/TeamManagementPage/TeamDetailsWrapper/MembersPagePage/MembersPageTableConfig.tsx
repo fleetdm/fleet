@@ -34,6 +34,7 @@ interface IMembersTableData {
   name: string;
   email: string;
   role: string;
+  teams: ITeam[];
   actions: IDropdownOption[];
   id: number;
 }
@@ -60,7 +61,7 @@ const generateTableHeaders = (
     },
     {
       title: "Role",
-      Header: "role",
+      Header: "Role",
       disableSortBy: true,
       accessor: "role",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
@@ -124,6 +125,7 @@ const enhanceMembersData = (users: {
       name: user.name,
       email: user.email,
       role: generateRole(user.teams, user.global_role),
+      teams: user.teams,
       actions: generateActionDropdownOptions(user.id),
       id: user.id,
     };

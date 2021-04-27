@@ -95,7 +95,7 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
   };
 
   useEffect(() => {
-    dispatch(teamActions.loadAll({}));
+    dispatch(teamActions.loadAll({ perPage: 500 }));
   }, []);
 
   const toggleDeleteTeamModal = useCallback(() => {

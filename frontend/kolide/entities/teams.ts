@@ -1,5 +1,5 @@
 import endpoints from "kolide/endpoints";
-import { INewMembersBody, ITeam } from "interfaces/team";
+import { INewMembersBody, IRemoveMembersBody, ITeam } from "interfaces/team";
 import { ICreateTeamFormData } from "pages/admin/TeamManagementPage/components/CreateTeamModal/CreateTeamModal";
 
 interface ITeamsResponse {
@@ -64,6 +64,14 @@ export default (client: any) => {
           JSON.stringify(newMembers)
         )
         .then((response: ITeam) => response);
+    },
+    removeMembers: (teamId: number, removeMembers: IRemoveMembersBody) => {
+      const { TEAMS_MEMBERS } = endpoints;
+      return client.authenticatedDelete(
+        client._endpoint(TEAMS_MEMBERS(teamId)),
+        {},
+        JSON.stringify(removeMembers)
+      );
     },
   };
 };

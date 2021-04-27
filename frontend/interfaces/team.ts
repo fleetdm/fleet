@@ -23,7 +23,7 @@ export interface ITeam {
 /**
  * The shape of a new member to add to a team
  */
-export interface INewMember {
+interface INewMember {
   id: number;
   role: string;
 }
@@ -33,4 +33,8 @@ export interface INewMember {
  */
 export interface INewMembersBody {
   users: INewMember[];
+}
+
+export interface IRemoveMembersBody {
+  users: { id: number }[];
 }
